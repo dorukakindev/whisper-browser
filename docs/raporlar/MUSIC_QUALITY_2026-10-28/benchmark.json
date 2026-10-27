@@ -1,0 +1,2061 @@
+{
+  "model": "laion/clap-htsat-unfused",
+  "revision": "8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a",
+  "seconds": 6.81,
+  "fixtures": [
+    {
+      "id": "vibe",
+      "file": "Kevin_MacLeod_-_Vibe_Ace.ogg",
+      "sha256": "6c23aed3dd5aa57f2b1652ecab68d15d9b82ad257f54e639eb2880ca09bc118a",
+      "range": [
+        0,
+        10
+      ]
+    },
+    {
+      "id": "trumpet",
+      "file": "sorohanro_-_solo-trumpet-06.ogg",
+      "sha256": "8374466fd3951d24509da6e799b132a0db0bdeda69d99c69d989a6888d3d727d",
+      "range": [
+        0,
+        5.333379
+      ]
+    },
+    {
+      "id": "choice",
+      "file": "admiralbob77_-_Choice_-_Drum-bass.ogg",
+      "sha256": "ac644f9645e7c15174e4a4f8561e4d1448d7f6e59ff6b0556b310ebbced879bc",
+      "range": [
+        0,
+        10
+      ]
+    },
+    {
+      "id": "nutcracker",
+      "file": "Kevin_MacLeod_-_P_I_Tchaikovsky_Dance_of_the_Sugar_Plum_Fairy.ogg",
+      "sha256": "b5c1a3e26310e6618d3c124f458654cd235650fcb9db7d711302644566600484",
+      "range": [
+        0,
+        10
+      ]
+    },
+    {
+      "id": "brahms",
+      "file": "Hungarian_Dance_number_5_-_Allegro_in_F_sharp_minor_(string_orchestra).ogg",
+      "sha256": "919b48aa4cc66a0357d2cd5728664c5ab8f15c4b3469460df4b59470d35d3e49",
+      "range": [
+        0,
+        10
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "reference": "vibe",
+      "audio": [
+        {
+          "id": "nutcracker",
+          "score": 0.6715,
+          "referenceRange": [
+            0.0,
+            10.0
+          ],
+          "matchedRange": [
+            0.0,
+            10.0
+          ],
+          "referenceDb": -22.335,
+          "matchedDb": -35.761,
+          "samples": 1,
+          "referenceId": "vibe",
+          "referenceScores": [
+            {
+              "id": "vibe",
+              "score": 0.6715
+            }
+          ]
+        },
+        {
+          "id": "choice",
+          "score": 0.60179,
+          "referenceRange": [
+            0.0,
+            10.0
+          ],
+          "matchedRange": [
+            0.0,
+            10.0
+          ],
+          "referenceDb": -22.335,
+          "matchedDb": -27.441,
+          "samples": 1,
+          "referenceId": "vibe",
+          "referenceScores": [
+            {
+              "id": "vibe",
+              "score": 0.60179
+            }
+          ]
+        },
+        {
+          "id": "brahms",
+          "score": 0.5218,
+          "referenceRange": [
+            0.0,
+            10.0
+          ],
+          "matchedRange": [
+            0.0,
+            10.0
+          ],
+          "referenceDb": -22.335,
+          "matchedDb": -20.963,
+          "samples": 1,
+          "referenceId": "vibe",
+          "referenceScores": [
+            {
+              "id": "vibe",
+              "score": 0.5218
+            }
+          ]
+        },
+        {
+          "id": "trumpet",
+          "score": 0.32726,
+          "referenceRange": [
+            0.0,
+            10.0
+          ],
+          "matchedRange": [
+            0.0,
+            5.333
+          ],
+          "referenceDb": -22.335,
+          "matchedDb": -22.316,
+          "samples": 1,
+          "referenceId": "vibe",
+          "referenceScores": [
+            {
+              "id": "vibe",
+              "score": 0.32726
+            }
+          ]
+        }
+      ],
+      "directions": [
+        {
+          "text": "The sound of a trumpet in a music recording.",
+          "weight": 0.6,
+          "results": [
+            {
+              "id": "trumpet",
+              "score": 0.51986,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                5.333
+              ],
+              "referenceDb": -22.335,
+              "matchedDb": -22.316,
+              "samples": 1,
+              "referenceId": "vibe",
+              "referenceScores": [
+                {
+                  "id": "vibe",
+                  "score": 0.32726
+                }
+              ],
+              "audioScore": 0.32726,
+              "intentScore": 0.64826
+            },
+            {
+              "id": "nutcracker",
+              "score": 0.37603,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.335,
+              "matchedDb": -35.761,
+              "samples": 1,
+              "referenceId": "vibe",
+              "referenceScores": [
+                {
+                  "id": "vibe",
+                  "score": 0.6715
+                }
+              ],
+              "audioScore": 0.6715,
+              "intentScore": 0.17906
+            },
+            {
+              "id": "brahms",
+              "score": 0.34103,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.335,
+              "matchedDb": -20.963,
+              "samples": 1,
+              "referenceId": "vibe",
+              "referenceScores": [
+                {
+                  "id": "vibe",
+                  "score": 0.5218
+                }
+              ],
+              "audioScore": 0.5218,
+              "intentScore": 0.22052
+            },
+            {
+              "id": "choice",
+              "score": 0.28142,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.335,
+              "matchedDb": -27.441,
+              "samples": 1,
+              "referenceId": "vibe",
+              "referenceScores": [
+                {
+                  "id": "vibe",
+                  "score": 0.60179
+                }
+              ],
+              "audioScore": 0.60179,
+              "intentScore": 0.06785
+            }
+          ]
+        },
+        {
+          "text": "Classical orchestral string music.",
+          "weight": 0.6,
+          "results": [
+            {
+              "id": "brahms",
+              "score": 0.5832,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.335,
+              "matchedDb": -20.963,
+              "samples": 1,
+              "referenceId": "vibe",
+              "referenceScores": [
+                {
+                  "id": "vibe",
+                  "score": 0.5218
+                }
+              ],
+              "audioScore": 0.5218,
+              "intentScore": 0.62413
+            },
+            {
+              "id": "nutcracker",
+              "score": 0.5379,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.335,
+              "matchedDb": -35.761,
+              "samples": 1,
+              "referenceId": "vibe",
+              "referenceScores": [
+                {
+                  "id": "vibe",
+                  "score": 0.6715
+                }
+              ],
+              "audioScore": 0.6715,
+              "intentScore": 0.44883
+            },
+            {
+              "id": "choice",
+              "score": 0.26861,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.335,
+              "matchedDb": -27.441,
+              "samples": 1,
+              "referenceId": "vibe",
+              "referenceScores": [
+                {
+                  "id": "vibe",
+                  "score": 0.60179
+                }
+              ],
+              "audioScore": 0.60179,
+              "intentScore": 0.04649
+            },
+            {
+              "id": "trumpet",
+              "score": 0.22,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                5.333
+              ],
+              "referenceDb": -22.335,
+              "matchedDb": -22.316,
+              "samples": 1,
+              "referenceId": "vibe",
+              "referenceScores": [
+                {
+                  "id": "vibe",
+                  "score": 0.32726
+                }
+              ],
+              "audioScore": 0.32726,
+              "intentScore": 0.14849
+            }
+          ]
+        },
+        {
+          "text": "Electronic drum and bass music.",
+          "weight": 0.6,
+          "results": [
+            {
+              "id": "choice",
+              "score": 0.49755,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.335,
+              "matchedDb": -27.441,
+              "samples": 1,
+              "referenceId": "vibe",
+              "referenceScores": [
+                {
+                  "id": "vibe",
+                  "score": 0.60179
+                }
+              ],
+              "audioScore": 0.60179,
+              "intentScore": 0.42806
+            },
+            {
+              "id": "nutcracker",
+              "score": 0.46798,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.335,
+              "matchedDb": -35.761,
+              "samples": 1,
+              "referenceId": "vibe",
+              "referenceScores": [
+                {
+                  "id": "vibe",
+                  "score": 0.6715
+                }
+              ],
+              "audioScore": 0.6715,
+              "intentScore": 0.33229
+            },
+            {
+              "id": "brahms",
+              "score": 0.30849,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.335,
+              "matchedDb": -20.963,
+              "samples": 1,
+              "referenceId": "vibe",
+              "referenceScores": [
+                {
+                  "id": "vibe",
+                  "score": 0.5218
+                }
+              ],
+              "audioScore": 0.5218,
+              "intentScore": 0.16629
+            },
+            {
+              "id": "trumpet",
+              "score": 0.12621,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                5.333
+              ],
+              "referenceDb": -22.335,
+              "matchedDb": -22.316,
+              "samples": 1,
+              "referenceId": "vibe",
+              "referenceScores": [
+                {
+                  "id": "vibe",
+                  "score": 0.32726
+                }
+              ],
+              "audioScore": 0.32726,
+              "intentScore": -0.00782
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "trumpet",
+      "audio": [
+        {
+          "id": "brahms",
+          "score": 0.49777,
+          "referenceRange": [
+            0.0,
+            5.333
+          ],
+          "matchedRange": [
+            0.0,
+            10.0
+          ],
+          "referenceDb": -22.316,
+          "matchedDb": -20.963,
+          "samples": 1,
+          "referenceId": "trumpet",
+          "referenceScores": [
+            {
+              "id": "trumpet",
+              "score": 0.49777
+            }
+          ]
+        },
+        {
+          "id": "nutcracker",
+          "score": 0.42819,
+          "referenceRange": [
+            0.0,
+            5.333
+          ],
+          "matchedRange": [
+            0.0,
+            10.0
+          ],
+          "referenceDb": -22.316,
+          "matchedDb": -35.761,
+          "samples": 1,
+          "referenceId": "trumpet",
+          "referenceScores": [
+            {
+              "id": "trumpet",
+              "score": 0.42819
+            }
+          ]
+        },
+        {
+          "id": "vibe",
+          "score": 0.32726,
+          "referenceRange": [
+            0.0,
+            5.333
+          ],
+          "matchedRange": [
+            0.0,
+            10.0
+          ],
+          "referenceDb": -22.316,
+          "matchedDb": -22.335,
+          "samples": 1,
+          "referenceId": "trumpet",
+          "referenceScores": [
+            {
+              "id": "trumpet",
+              "score": 0.32726
+            }
+          ]
+        },
+        {
+          "id": "choice",
+          "score": 0.25552,
+          "referenceRange": [
+            0.0,
+            5.333
+          ],
+          "matchedRange": [
+            0.0,
+            10.0
+          ],
+          "referenceDb": -22.316,
+          "matchedDb": -27.441,
+          "samples": 1,
+          "referenceId": "trumpet",
+          "referenceScores": [
+            {
+              "id": "trumpet",
+              "score": 0.25552
+            }
+          ]
+        }
+      ],
+      "directions": [
+        {
+          "text": "The sound of a trumpet in a music recording.",
+          "weight": 0.6,
+          "results": [
+            {
+              "id": "brahms",
+              "score": 0.33142,
+              "referenceRange": [
+                0.0,
+                5.333
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.316,
+              "matchedDb": -20.963,
+              "samples": 1,
+              "referenceId": "trumpet",
+              "referenceScores": [
+                {
+                  "id": "trumpet",
+                  "score": 0.49777
+                }
+              ],
+              "audioScore": 0.49777,
+              "intentScore": 0.22052
+            },
+            {
+              "id": "nutcracker",
+              "score": 0.27871,
+              "referenceRange": [
+                0.0,
+                5.333
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.316,
+              "matchedDb": -35.761,
+              "samples": 1,
+              "referenceId": "trumpet",
+              "referenceScores": [
+                {
+                  "id": "trumpet",
+                  "score": 0.42819
+                }
+              ],
+              "audioScore": 0.42819,
+              "intentScore": 0.17906
+            },
+            {
+              "id": "vibe",
+              "score": 0.21187,
+              "referenceRange": [
+                0.0,
+                5.333
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.316,
+              "matchedDb": -22.335,
+              "samples": 1,
+              "referenceId": "trumpet",
+              "referenceScores": [
+                {
+                  "id": "trumpet",
+                  "score": 0.32726
+                }
+              ],
+              "audioScore": 0.32726,
+              "intentScore": 0.13494
+            },
+            {
+              "id": "choice",
+              "score": 0.14292,
+              "referenceRange": [
+                0.0,
+                5.333
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.316,
+              "matchedDb": -27.441,
+              "samples": 1,
+              "referenceId": "trumpet",
+              "referenceScores": [
+                {
+                  "id": "trumpet",
+                  "score": 0.25552
+                }
+              ],
+              "audioScore": 0.25552,
+              "intentScore": 0.06785
+            }
+          ]
+        },
+        {
+          "text": "Classical orchestral string music.",
+          "weight": 0.6,
+          "results": [
+            {
+              "id": "brahms",
+              "score": 0.57359,
+              "referenceRange": [
+                0.0,
+                5.333
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.316,
+              "matchedDb": -20.963,
+              "samples": 1,
+              "referenceId": "trumpet",
+              "referenceScores": [
+                {
+                  "id": "trumpet",
+                  "score": 0.49777
+                }
+              ],
+              "audioScore": 0.49777,
+              "intentScore": 0.62413
+            },
+            {
+              "id": "nutcracker",
+              "score": 0.44057,
+              "referenceRange": [
+                0.0,
+                5.333
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.316,
+              "matchedDb": -35.761,
+              "samples": 1,
+              "referenceId": "trumpet",
+              "referenceScores": [
+                {
+                  "id": "trumpet",
+                  "score": 0.42819
+                }
+              ],
+              "audioScore": 0.42819,
+              "intentScore": 0.44883
+            },
+            {
+              "id": "vibe",
+              "score": 0.2463,
+              "referenceRange": [
+                0.0,
+                5.333
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.316,
+              "matchedDb": -22.335,
+              "samples": 1,
+              "referenceId": "trumpet",
+              "referenceScores": [
+                {
+                  "id": "trumpet",
+                  "score": 0.32726
+                }
+              ],
+              "audioScore": 0.32726,
+              "intentScore": 0.19232
+            },
+            {
+              "id": "choice",
+              "score": 0.1301,
+              "referenceRange": [
+                0.0,
+                5.333
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.316,
+              "matchedDb": -27.441,
+              "samples": 1,
+              "referenceId": "trumpet",
+              "referenceScores": [
+                {
+                  "id": "trumpet",
+                  "score": 0.25552
+                }
+              ],
+              "audioScore": 0.25552,
+              "intentScore": 0.04649
+            }
+          ]
+        },
+        {
+          "text": "Electronic drum and bass music.",
+          "weight": 0.6,
+          "results": [
+            {
+              "id": "vibe",
+              "score": 0.39999,
+              "referenceRange": [
+                0.0,
+                5.333
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.316,
+              "matchedDb": -22.335,
+              "samples": 1,
+              "referenceId": "trumpet",
+              "referenceScores": [
+                {
+                  "id": "trumpet",
+                  "score": 0.32726
+                }
+              ],
+              "audioScore": 0.32726,
+              "intentScore": 0.44848
+            },
+            {
+              "id": "nutcracker",
+              "score": 0.37065,
+              "referenceRange": [
+                0.0,
+                5.333
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.316,
+              "matchedDb": -35.761,
+              "samples": 1,
+              "referenceId": "trumpet",
+              "referenceScores": [
+                {
+                  "id": "trumpet",
+                  "score": 0.42819
+                }
+              ],
+              "audioScore": 0.42819,
+              "intentScore": 0.33229
+            },
+            {
+              "id": "choice",
+              "score": 0.35904,
+              "referenceRange": [
+                0.0,
+                5.333
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.316,
+              "matchedDb": -27.441,
+              "samples": 1,
+              "referenceId": "trumpet",
+              "referenceScores": [
+                {
+                  "id": "trumpet",
+                  "score": 0.25552
+                }
+              ],
+              "audioScore": 0.25552,
+              "intentScore": 0.42806
+            },
+            {
+              "id": "brahms",
+              "score": 0.29888,
+              "referenceRange": [
+                0.0,
+                5.333
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -22.316,
+              "matchedDb": -20.963,
+              "samples": 1,
+              "referenceId": "trumpet",
+              "referenceScores": [
+                {
+                  "id": "trumpet",
+                  "score": 0.49777
+                }
+              ],
+              "audioScore": 0.49777,
+              "intentScore": 0.16629
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "choice",
+      "audio": [
+        {
+          "id": "vibe",
+          "score": 0.60179,
+          "referenceRange": [
+            0.0,
+            10.0
+          ],
+          "matchedRange": [
+            0.0,
+            10.0
+          ],
+          "referenceDb": -27.441,
+          "matchedDb": -22.335,
+          "samples": 1,
+          "referenceId": "choice",
+          "referenceScores": [
+            {
+              "id": "choice",
+              "score": 0.60179
+            }
+          ]
+        },
+        {
+          "id": "nutcracker",
+          "score": 0.4623,
+          "referenceRange": [
+            0.0,
+            10.0
+          ],
+          "matchedRange": [
+            0.0,
+            10.0
+          ],
+          "referenceDb": -27.441,
+          "matchedDb": -35.761,
+          "samples": 1,
+          "referenceId": "choice",
+          "referenceScores": [
+            {
+              "id": "choice",
+              "score": 0.4623
+            }
+          ]
+        },
+        {
+          "id": "brahms",
+          "score": 0.41401,
+          "referenceRange": [
+            0.0,
+            10.0
+          ],
+          "matchedRange": [
+            0.0,
+            10.0
+          ],
+          "referenceDb": -27.441,
+          "matchedDb": -20.963,
+          "samples": 1,
+          "referenceId": "choice",
+          "referenceScores": [
+            {
+              "id": "choice",
+              "score": 0.41401
+            }
+          ]
+        },
+        {
+          "id": "trumpet",
+          "score": 0.25552,
+          "referenceRange": [
+            0.0,
+            10.0
+          ],
+          "matchedRange": [
+            0.0,
+            5.333
+          ],
+          "referenceDb": -27.441,
+          "matchedDb": -22.316,
+          "samples": 1,
+          "referenceId": "choice",
+          "referenceScores": [
+            {
+              "id": "choice",
+              "score": 0.25552
+            }
+          ]
+        }
+      ],
+      "directions": [
+        {
+          "text": "The sound of a trumpet in a music recording.",
+          "weight": 0.6,
+          "results": [
+            {
+              "id": "trumpet",
+              "score": 0.49116,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                5.333
+              ],
+              "referenceDb": -27.441,
+              "matchedDb": -22.316,
+              "samples": 1,
+              "referenceId": "choice",
+              "referenceScores": [
+                {
+                  "id": "choice",
+                  "score": 0.25552
+                }
+              ],
+              "audioScore": 0.25552,
+              "intentScore": 0.64826
+            },
+            {
+              "id": "vibe",
+              "score": 0.32168,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -27.441,
+              "matchedDb": -22.335,
+              "samples": 1,
+              "referenceId": "choice",
+              "referenceScores": [
+                {
+                  "id": "choice",
+                  "score": 0.60179
+                }
+              ],
+              "audioScore": 0.60179,
+              "intentScore": 0.13494
+            },
+            {
+              "id": "brahms",
+              "score": 0.29792,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -27.441,
+              "matchedDb": -20.963,
+              "samples": 1,
+              "referenceId": "choice",
+              "referenceScores": [
+                {
+                  "id": "choice",
+                  "score": 0.41401
+                }
+              ],
+              "audioScore": 0.41401,
+              "intentScore": 0.22052
+            },
+            {
+              "id": "nutcracker",
+              "score": 0.29235,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -27.441,
+              "matchedDb": -35.761,
+              "samples": 1,
+              "referenceId": "choice",
+              "referenceScores": [
+                {
+                  "id": "choice",
+                  "score": 0.4623
+                }
+              ],
+              "audioScore": 0.4623,
+              "intentScore": 0.17906
+            }
+          ]
+        },
+        {
+          "text": "Classical orchestral string music.",
+          "weight": 0.6,
+          "results": [
+            {
+              "id": "brahms",
+              "score": 0.54008,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -27.441,
+              "matchedDb": -20.963,
+              "samples": 1,
+              "referenceId": "choice",
+              "referenceScores": [
+                {
+                  "id": "choice",
+                  "score": 0.41401
+                }
+              ],
+              "audioScore": 0.41401,
+              "intentScore": 0.62413
+            },
+            {
+              "id": "nutcracker",
+              "score": 0.45422,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -27.441,
+              "matchedDb": -35.761,
+              "samples": 1,
+              "referenceId": "choice",
+              "referenceScores": [
+                {
+                  "id": "choice",
+                  "score": 0.4623
+                }
+              ],
+              "audioScore": 0.4623,
+              "intentScore": 0.44883
+            },
+            {
+              "id": "vibe",
+              "score": 0.35611,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -27.441,
+              "matchedDb": -22.335,
+              "samples": 1,
+              "referenceId": "choice",
+              "referenceScores": [
+                {
+                  "id": "choice",
+                  "score": 0.60179
+                }
+              ],
+              "audioScore": 0.60179,
+              "intentScore": 0.19232
+            },
+            {
+              "id": "trumpet",
+              "score": 0.1913,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                5.333
+              ],
+              "referenceDb": -27.441,
+              "matchedDb": -22.316,
+              "samples": 1,
+              "referenceId": "choice",
+              "referenceScores": [
+                {
+                  "id": "choice",
+                  "score": 0.25552
+                }
+              ],
+              "audioScore": 0.25552,
+              "intentScore": 0.14849
+            }
+          ]
+        },
+        {
+          "text": "Electronic drum and bass music.",
+          "weight": 0.6,
+          "results": [
+            {
+              "id": "vibe",
+              "score": 0.5098,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -27.441,
+              "matchedDb": -22.335,
+              "samples": 1,
+              "referenceId": "choice",
+              "referenceScores": [
+                {
+                  "id": "choice",
+                  "score": 0.60179
+                }
+              ],
+              "audioScore": 0.60179,
+              "intentScore": 0.44848
+            },
+            {
+              "id": "nutcracker",
+              "score": 0.3843,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -27.441,
+              "matchedDb": -35.761,
+              "samples": 1,
+              "referenceId": "choice",
+              "referenceScores": [
+                {
+                  "id": "choice",
+                  "score": 0.4623
+                }
+              ],
+              "audioScore": 0.4623,
+              "intentScore": 0.33229
+            },
+            {
+              "id": "brahms",
+              "score": 0.26538,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -27.441,
+              "matchedDb": -20.963,
+              "samples": 1,
+              "referenceId": "choice",
+              "referenceScores": [
+                {
+                  "id": "choice",
+                  "score": 0.41401
+                }
+              ],
+              "audioScore": 0.41401,
+              "intentScore": 0.16629
+            },
+            {
+              "id": "trumpet",
+              "score": 0.09751,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                5.333
+              ],
+              "referenceDb": -27.441,
+              "matchedDb": -22.316,
+              "samples": 1,
+              "referenceId": "choice",
+              "referenceScores": [
+                {
+                  "id": "choice",
+                  "score": 0.25552
+                }
+              ],
+              "audioScore": 0.25552,
+              "intentScore": -0.00782
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "nutcracker",
+      "audio": [
+        {
+          "id": "brahms",
+          "score": 0.73357,
+          "referenceRange": [
+            0.0,
+            10.0
+          ],
+          "matchedRange": [
+            0.0,
+            10.0
+          ],
+          "referenceDb": -35.761,
+          "matchedDb": -20.963,
+          "samples": 1,
+          "referenceId": "nutcracker",
+          "referenceScores": [
+            {
+              "id": "nutcracker",
+              "score": 0.73357
+            }
+          ]
+        },
+        {
+          "id": "vibe",
+          "score": 0.6715,
+          "referenceRange": [
+            0.0,
+            10.0
+          ],
+          "matchedRange": [
+            0.0,
+            10.0
+          ],
+          "referenceDb": -35.761,
+          "matchedDb": -22.335,
+          "samples": 1,
+          "referenceId": "nutcracker",
+          "referenceScores": [
+            {
+              "id": "nutcracker",
+              "score": 0.6715
+            }
+          ]
+        },
+        {
+          "id": "choice",
+          "score": 0.4623,
+          "referenceRange": [
+            0.0,
+            10.0
+          ],
+          "matchedRange": [
+            0.0,
+            10.0
+          ],
+          "referenceDb": -35.761,
+          "matchedDb": -27.441,
+          "samples": 1,
+          "referenceId": "nutcracker",
+          "referenceScores": [
+            {
+              "id": "nutcracker",
+              "score": 0.4623
+            }
+          ]
+        },
+        {
+          "id": "trumpet",
+          "score": 0.42819,
+          "referenceRange": [
+            0.0,
+            10.0
+          ],
+          "matchedRange": [
+            0.0,
+            5.333
+          ],
+          "referenceDb": -35.761,
+          "matchedDb": -22.316,
+          "samples": 1,
+          "referenceId": "nutcracker",
+          "referenceScores": [
+            {
+              "id": "nutcracker",
+              "score": 0.42819
+            }
+          ]
+        }
+      ],
+      "directions": [
+        {
+          "text": "The sound of a trumpet in a music recording.",
+          "weight": 0.6,
+          "results": [
+            {
+              "id": "trumpet",
+              "score": 0.56023,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                5.333
+              ],
+              "referenceDb": -35.761,
+              "matchedDb": -22.316,
+              "samples": 1,
+              "referenceId": "nutcracker",
+              "referenceScores": [
+                {
+                  "id": "nutcracker",
+                  "score": 0.42819
+                }
+              ],
+              "audioScore": 0.42819,
+              "intentScore": 0.64826
+            },
+            {
+              "id": "brahms",
+              "score": 0.42574,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -35.761,
+              "matchedDb": -20.963,
+              "samples": 1,
+              "referenceId": "nutcracker",
+              "referenceScores": [
+                {
+                  "id": "nutcracker",
+                  "score": 0.73357
+                }
+              ],
+              "audioScore": 0.73357,
+              "intentScore": 0.22052
+            },
+            {
+              "id": "vibe",
+              "score": 0.34956,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -35.761,
+              "matchedDb": -22.335,
+              "samples": 1,
+              "referenceId": "nutcracker",
+              "referenceScores": [
+                {
+                  "id": "nutcracker",
+                  "score": 0.6715
+                }
+              ],
+              "audioScore": 0.6715,
+              "intentScore": 0.13494
+            },
+            {
+              "id": "choice",
+              "score": 0.22563,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -35.761,
+              "matchedDb": -27.441,
+              "samples": 1,
+              "referenceId": "nutcracker",
+              "referenceScores": [
+                {
+                  "id": "nutcracker",
+                  "score": 0.4623
+                }
+              ],
+              "audioScore": 0.4623,
+              "intentScore": 0.06785
+            }
+          ]
+        },
+        {
+          "text": "Classical orchestral string music.",
+          "weight": 0.6,
+          "results": [
+            {
+              "id": "brahms",
+              "score": 0.66791,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -35.761,
+              "matchedDb": -20.963,
+              "samples": 1,
+              "referenceId": "nutcracker",
+              "referenceScores": [
+                {
+                  "id": "nutcracker",
+                  "score": 0.73357
+                }
+              ],
+              "audioScore": 0.73357,
+              "intentScore": 0.62413
+            },
+            {
+              "id": "vibe",
+              "score": 0.38399,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -35.761,
+              "matchedDb": -22.335,
+              "samples": 1,
+              "referenceId": "nutcracker",
+              "referenceScores": [
+                {
+                  "id": "nutcracker",
+                  "score": 0.6715
+                }
+              ],
+              "audioScore": 0.6715,
+              "intentScore": 0.19232
+            },
+            {
+              "id": "trumpet",
+              "score": 0.26037,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                5.333
+              ],
+              "referenceDb": -35.761,
+              "matchedDb": -22.316,
+              "samples": 1,
+              "referenceId": "nutcracker",
+              "referenceScores": [
+                {
+                  "id": "nutcracker",
+                  "score": 0.42819
+                }
+              ],
+              "audioScore": 0.42819,
+              "intentScore": 0.14849
+            },
+            {
+              "id": "choice",
+              "score": 0.21282,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -35.761,
+              "matchedDb": -27.441,
+              "samples": 1,
+              "referenceId": "nutcracker",
+              "referenceScores": [
+                {
+                  "id": "nutcracker",
+                  "score": 0.4623
+                }
+              ],
+              "audioScore": 0.4623,
+              "intentScore": 0.04649
+            }
+          ]
+        },
+        {
+          "text": "Electronic drum and bass music.",
+          "weight": 0.6,
+          "results": [
+            {
+              "id": "vibe",
+              "score": 0.53769,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -35.761,
+              "matchedDb": -22.335,
+              "samples": 1,
+              "referenceId": "nutcracker",
+              "referenceScores": [
+                {
+                  "id": "nutcracker",
+                  "score": 0.6715
+                }
+              ],
+              "audioScore": 0.6715,
+              "intentScore": 0.44848
+            },
+            {
+              "id": "choice",
+              "score": 0.44175,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -35.761,
+              "matchedDb": -27.441,
+              "samples": 1,
+              "referenceId": "nutcracker",
+              "referenceScores": [
+                {
+                  "id": "nutcracker",
+                  "score": 0.4623
+                }
+              ],
+              "audioScore": 0.4623,
+              "intentScore": 0.42806
+            },
+            {
+              "id": "brahms",
+              "score": 0.3932,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -35.761,
+              "matchedDb": -20.963,
+              "samples": 1,
+              "referenceId": "nutcracker",
+              "referenceScores": [
+                {
+                  "id": "nutcracker",
+                  "score": 0.73357
+                }
+              ],
+              "audioScore": 0.73357,
+              "intentScore": 0.16629
+            },
+            {
+              "id": "trumpet",
+              "score": 0.16658,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                5.333
+              ],
+              "referenceDb": -35.761,
+              "matchedDb": -22.316,
+              "samples": 1,
+              "referenceId": "nutcracker",
+              "referenceScores": [
+                {
+                  "id": "nutcracker",
+                  "score": 0.42819
+                }
+              ],
+              "audioScore": 0.42819,
+              "intentScore": -0.00782
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "brahms",
+      "audio": [
+        {
+          "id": "nutcracker",
+          "score": 0.73357,
+          "referenceRange": [
+            0.0,
+            10.0
+          ],
+          "matchedRange": [
+            0.0,
+            10.0
+          ],
+          "referenceDb": -20.963,
+          "matchedDb": -35.761,
+          "samples": 1,
+          "referenceId": "brahms",
+          "referenceScores": [
+            {
+              "id": "brahms",
+              "score": 0.73357
+            }
+          ]
+        },
+        {
+          "id": "vibe",
+          "score": 0.5218,
+          "referenceRange": [
+            0.0,
+            10.0
+          ],
+          "matchedRange": [
+            0.0,
+            10.0
+          ],
+          "referenceDb": -20.963,
+          "matchedDb": -22.335,
+          "samples": 1,
+          "referenceId": "brahms",
+          "referenceScores": [
+            {
+              "id": "brahms",
+              "score": 0.5218
+            }
+          ]
+        },
+        {
+          "id": "trumpet",
+          "score": 0.49777,
+          "referenceRange": [
+            0.0,
+            10.0
+          ],
+          "matchedRange": [
+            0.0,
+            5.333
+          ],
+          "referenceDb": -20.963,
+          "matchedDb": -22.316,
+          "samples": 1,
+          "referenceId": "brahms",
+          "referenceScores": [
+            {
+              "id": "brahms",
+              "score": 0.49777
+            }
+          ]
+        },
+        {
+          "id": "choice",
+          "score": 0.41401,
+          "referenceRange": [
+            0.0,
+            10.0
+          ],
+          "matchedRange": [
+            0.0,
+            10.0
+          ],
+          "referenceDb": -20.963,
+          "matchedDb": -27.441,
+          "samples": 1,
+          "referenceId": "brahms",
+          "referenceScores": [
+            {
+              "id": "brahms",
+              "score": 0.41401
+            }
+          ]
+        }
+      ],
+      "directions": [
+        {
+          "text": "The sound of a trumpet in a music recording.",
+          "weight": 0.6,
+          "results": [
+            {
+              "id": "trumpet",
+              "score": 0.58806,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                5.333
+              ],
+              "referenceDb": -20.963,
+              "matchedDb": -22.316,
+              "samples": 1,
+              "referenceId": "brahms",
+              "referenceScores": [
+                {
+                  "id": "brahms",
+                  "score": 0.49777
+                }
+              ],
+              "audioScore": 0.49777,
+              "intentScore": 0.64826
+            },
+            {
+              "id": "nutcracker",
+              "score": 0.40086,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -20.963,
+              "matchedDb": -35.761,
+              "samples": 1,
+              "referenceId": "brahms",
+              "referenceScores": [
+                {
+                  "id": "brahms",
+                  "score": 0.73357
+                }
+              ],
+              "audioScore": 0.73357,
+              "intentScore": 0.17906
+            },
+            {
+              "id": "vibe",
+              "score": 0.28968,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -20.963,
+              "matchedDb": -22.335,
+              "samples": 1,
+              "referenceId": "brahms",
+              "referenceScores": [
+                {
+                  "id": "brahms",
+                  "score": 0.5218
+                }
+              ],
+              "audioScore": 0.5218,
+              "intentScore": 0.13494
+            },
+            {
+              "id": "choice",
+              "score": 0.20631,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -20.963,
+              "matchedDb": -27.441,
+              "samples": 1,
+              "referenceId": "brahms",
+              "referenceScores": [
+                {
+                  "id": "brahms",
+                  "score": 0.41401
+                }
+              ],
+              "audioScore": 0.41401,
+              "intentScore": 0.06785
+            }
+          ]
+        },
+        {
+          "text": "Classical orchestral string music.",
+          "weight": 0.6,
+          "results": [
+            {
+              "id": "nutcracker",
+              "score": 0.56273,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -20.963,
+              "matchedDb": -35.761,
+              "samples": 1,
+              "referenceId": "brahms",
+              "referenceScores": [
+                {
+                  "id": "brahms",
+                  "score": 0.73357
+                }
+              ],
+              "audioScore": 0.73357,
+              "intentScore": 0.44883
+            },
+            {
+              "id": "vibe",
+              "score": 0.32411,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -20.963,
+              "matchedDb": -22.335,
+              "samples": 1,
+              "referenceId": "brahms",
+              "referenceScores": [
+                {
+                  "id": "brahms",
+                  "score": 0.5218
+                }
+              ],
+              "audioScore": 0.5218,
+              "intentScore": 0.19232
+            },
+            {
+              "id": "trumpet",
+              "score": 0.2882,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                5.333
+              ],
+              "referenceDb": -20.963,
+              "matchedDb": -22.316,
+              "samples": 1,
+              "referenceId": "brahms",
+              "referenceScores": [
+                {
+                  "id": "brahms",
+                  "score": 0.49777
+                }
+              ],
+              "audioScore": 0.49777,
+              "intentScore": 0.14849
+            },
+            {
+              "id": "choice",
+              "score": 0.1935,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -20.963,
+              "matchedDb": -27.441,
+              "samples": 1,
+              "referenceId": "brahms",
+              "referenceScores": [
+                {
+                  "id": "brahms",
+                  "score": 0.41401
+                }
+              ],
+              "audioScore": 0.41401,
+              "intentScore": 0.04649
+            }
+          ]
+        },
+        {
+          "text": "Electronic drum and bass music.",
+          "weight": 0.6,
+          "results": [
+            {
+              "id": "nutcracker",
+              "score": 0.4928,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -20.963,
+              "matchedDb": -35.761,
+              "samples": 1,
+              "referenceId": "brahms",
+              "referenceScores": [
+                {
+                  "id": "brahms",
+                  "score": 0.73357
+                }
+              ],
+              "audioScore": 0.73357,
+              "intentScore": 0.33229
+            },
+            {
+              "id": "vibe",
+              "score": 0.47781,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -20.963,
+              "matchedDb": -22.335,
+              "samples": 1,
+              "referenceId": "brahms",
+              "referenceScores": [
+                {
+                  "id": "brahms",
+                  "score": 0.5218
+                }
+              ],
+              "audioScore": 0.5218,
+              "intentScore": 0.44848
+            },
+            {
+              "id": "choice",
+              "score": 0.42244,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                10.0
+              ],
+              "referenceDb": -20.963,
+              "matchedDb": -27.441,
+              "samples": 1,
+              "referenceId": "brahms",
+              "referenceScores": [
+                {
+                  "id": "brahms",
+                  "score": 0.41401
+                }
+              ],
+              "audioScore": 0.41401,
+              "intentScore": 0.42806
+            },
+            {
+              "id": "trumpet",
+              "score": 0.19441,
+              "referenceRange": [
+                0.0,
+                10.0
+              ],
+              "matchedRange": [
+                0.0,
+                5.333
+              ],
+              "referenceDb": -20.963,
+              "matchedDb": -22.316,
+              "samples": 1,
+              "referenceId": "brahms",
+              "referenceScores": [
+                {
+                  "id": "brahms",
+                  "score": 0.49777
+                }
+              ],
+              "audioScore": 0.49777,
+              "intentScore": -0.00782
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "humanEvaluation": "not performed",
+  "scope": "Five tracks, first up to ten seconds only. A characterization, not genre accuracy or subjective recommendation quality."
+}

@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "randomPair": true,
+  "identitiesHiddenBeforeVote": true,
+  "playbackGates": true,
+  "actualPlayback": true,
+  "persisted": true,
+  "history": true,
+  "noPlaylistWrite": true,
+  "wideNarrow": true
+}
