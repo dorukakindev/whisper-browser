@@ -102,6 +102,7 @@ function createService(options) {
 function register(options) {
   const services = new Map(), onlineServices = new Map();
   const preferences=require('./music-preferences').store(options.userData);
+  const listening=require('./music-listening').store(options.userData);
   options.ipcMain.handle('music-analysis:request', async(event,request={})=>{
     if (!options.authorized(event)) return {ok:false,error:'Unauthorized'};
     let service = services.get(event.sender.id);
@@ -112,6 +113,8 @@ function register(options) {
     let online=onlineServices.get(event.sender.id);
     if(!online){online=require('./music-online').createOnline(options);onlineServices.set(event.sender.id,online);event.sender.once('destroyed',()=>{online.cancel();onlineServices.delete(event.sender.id);});}
     try {
+      if(request.action==='listening-history')return {ok:true,trials:listening.read()};
+      if(request.action==='listening-save')return {ok:true,trial:listening.save(service.status(),request)};
       if(request.action==='preferences')return {ok:true,hidden:preferences.read()};
       if(request.action==='feedback'){
         let title;
