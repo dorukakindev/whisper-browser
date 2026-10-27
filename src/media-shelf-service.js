@@ -139,8 +139,25 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
         }
         case 'playlist-rename': {
           const data=load(),name=text(input.name,120);if(!name)throw Error('Enter a playlist name / Çalma listesi adı yaz.');
-          if(!['local','spotify'].includes(input.kind))throw Error('Invalid playlist type');
-          const row=(input.kind==='spotify'?data.linkedPlaylists||[]:data.playlists).find(r=>r.id===input.id);if(!row)throw Error('Playlist missing');row.name=name;save(data);return {ok:true};
+          if(!['local','spotify','queue'].includes(input.kind))throw Error('Invalid playlist type');
+          const row=(input.kind==='spotify'?data.linkedPlaylists||[]:input.kind==='queue'?data.queuePlaylists||[]:data.playlists).find(r=>r.id===input.id);if(!row)throw Error('Playlist missing');row.name=name;save(data);return {ok:true};
+        }
+        case 'queue-playlist-save': {
+          const data=load(),name=text(input.name,120);
+          if(!name)throw Error('Enter a playlist name / Çalma listesi adı yaz.');
+          if(!Array.isArray(input.entries)||!input.entries.length||input.entries.length>5000)throw Error('Choose 1–5000 known tracks');
+          const entries=input.entries.map(entry=>{
+            if(!entry||typeof entry.id!=='string'||!['music','spotify'].includes(entry.kind)||Object.keys(entry).some(k=>!['kind','id','playlistId'].includes(k)))throw Error('Invalid queue track identity');
+            const known=entry.kind==='music'?data.music.find(r=>r.id===entry.id):(data.linkedPlaylists||[]).find(p=>p.id===entry.playlistId)?.tracks.find(r=>r.id===entry.id);
+            if(!known)throw Error('Queued track was removed; review the queue / Kuyruktaki parça kaldırılmış; kuyruğu kontrol et.');
+            return entry.kind==='music'?{kind:'music',id:entry.id}:{kind:'spotify',id:entry.id,playlistId:entry.playlistId};
+          });
+          const lists=data.queuePlaylists||[];if(!Array.isArray(lists)||lists.length>=100)throw Error('Playlist limit reached');
+          const names=new Set([...data.playlists,...(data.linkedPlaylists||[]),...lists].map(r=>r.name));let title=name,index=2;while(names.has(title)){title=name+' ('+index+')';index++;}
+          const row={id:randomUUID(),name:title,entries};data.queuePlaylists=[...lists,row];save(data);return {ok:true,id:row.id,name:title,count:entries.length};
+        }
+        case 'queue-playlist-remove': {
+          const data=load(),lists=data.queuePlaylists||[];if(!lists.some(r=>r.id===input.id))throw Error('Playlist missing');data.queuePlaylists=lists.filter(r=>r.id!==input.id);save(data);return {ok:true};
         }
         case 'playlist-save': {
           const data = load(), name = text(input.name, 120);
