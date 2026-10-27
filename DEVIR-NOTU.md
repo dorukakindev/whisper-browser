@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-27-0527.md](docs/devir/2026-10-27-0527.md) — DeepSeek yerel derin denetim: altı görev, 72 başlık ve kanıt sözleşmesi
 Güncel çalışma: [docs/devir/2026-10-27-0512.md](docs/devir/2026-10-27-0512.md) — Doğrulanmış katalog, yorum, keşfet ve günlük düzeltmeleri
 Güncel çalışma: [docs/devir/2026-10-27-0447.md](docs/devir/2026-10-27-0447.md) — Asistan: gerçek kart, işlem kanıtı, adım/dil/hazırlık düzeltmesi
 Güncel çalışma: [docs/devir/2026-10-27-0313.md](docs/devir/2026-10-27-0313.md) — DeepInfra gerçek model komut değerlendirmesi: 10/11 ve koleksiyon kartı kusuru
