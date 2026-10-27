@@ -39,11 +39,21 @@
   if(['translate_captions','translate_video_captions'].includes(name))return window.AssistantCaptionActions.translate(args,owner,{deadline,isCancelled});
   if(name==='load_caption_track'){const result=await useBrowserTrack(false,args.track_id,{isCancelled:stale});if(!result?.ok||stale())throw Error(t('Subtitle load was not confirmed.','Altyazı yüklenmesi doğrulanamadı.'));return {status:'completed',note:t('Subtitles loaded; no translation started.','Altyazı yüklendi; çeviri başlamadı.')};}
   if(name==='translate_page'){
-   // The existing page service owns progress/cancellation. Do not hold the agent RPC until all blocks finish.
-   void handleBrowserPageTranslationAction({ensureVisible:true,targetLanguage:args.target_language,isCancelled:stale}).then(result=>{
-    if(!result?.ok&&!result?.partial&&!stale())logLine(result?.error||t('Page translation did not start.','Sayfa çevirisi başlamadı.'),'error');
-   }).catch(error=>logLine(String(error.message).slice(0,200),'error'));
-   return {status:'accepted',note:t('Page translation was requested. Its toolbar shows the actual progress and stop controls.','Sayfa çevirisi istendi. Gerçek ilerleme ve durdurma kontrolleri sayfa araç çubuğundadır.')};
+   // Await validation and exact job registration, never the whole translation.
+   const result=await handleBrowserPageTranslationAction({ensureVisible:true,targetLanguage:args.target_language,waitForAcceptance:true,isCancelled:stale});
+   if(stale()){
+    if(result?.accepted&&result.jobId&&!result.running){
+     const stopped=await window.api.cancelAssistantJob({id:result.jobId});
+     if(!stopped?.ok)throw Error(t('The source changed and stopping the new translation failed. Open Jobs.','Kaynak değişti ve yeni çeviri durdurulamadı. İşler bölümünü açın.'));
+    }
+    throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));
+   }
+   if(!result?.ok)throw Error(result?.error||t('Page translation did not start.','Sayfa çevirisi başlamadı.'));
+   if(result.accepted&&typeof result.jobId==='string'&&result.jobId)
+    return {status:'accepted',jobId:result.jobId,running:!!result.running,note:result.running?t('This page translation is already running. Follow this exact job in Jobs.','Bu sayfanın çevirisi zaten sürüyor. İşler bölümünde bu işi takip edin.'):t('Page translation was accepted. Follow progress and stop controls in Jobs or the page toolbar.','Sayfa çevirisi kabul edildi. İlerleme ve durdurmayı İşler bölümünde veya sayfa araç çubuğunda takip edin.')};
+   if(result.shown)return {status:'completed',note:t('The existing page translation is shown. No new translation job started.','Mevcut sayfa çevirisi gösteriliyor. Yeni çeviri işi başlatılmadı.')};
+   if(result.unchanged&&!result.budgetReached&&!(Number(result.completion?.pending)>0)&&!(Number(result.failed)>0))return {status:'completed',note:t('No new page blocks needed translation.','Çevrilecek yeni sayfa bloğu bulunmadı.')};
+   throw Error(t('Page translation acceptance could not be verified. Open the page toolbar.','Sayfa çevirisinin kabulü doğrulanamadı. Sayfa araç çubuğunu açın.'));
   }
   if(name==='open_voice_preparation'){
    const opened=await window.MediaExperience.openVoice();

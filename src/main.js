@@ -754,6 +754,7 @@ function setTaskbarProgress(value) {
 
 const assistantJobLinks=new Map();
 function linkAssistantJob(external,id){if(external){assistantJobLinks.set(external,id);while(assistantJobLinks.size>100)assistantJobLinks.delete(assistantJobLinks.keys().next().value);}}
+function resolveAssistantJobId(external){return assistantJobLinks.get(external)||(assistantJobs.snapshot().jobs.some(row=>row.id===external)?external:null);}
 const assistantJobs = require('./assistant-jobs').createJobs({changed:snapshot=>{
   if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('assistant:jobsEvent',snapshot);
 }});
@@ -7282,6 +7283,7 @@ async function runBrowserPageTranslationBlocksCore(tab, rawBlocks, session, opti
   }});
   trace.id=job.assistantJobId;
   controller.signal.addEventListener('abort',()=>assistantJobs.update(job.assistantJobId,{type:'cancelled'}),{once:true});
+  options.onAccepted?.(job.assistantJobId);
   for (const item of memoryApplied) queueBrowserPageApply(tab, job, item);
   const context = {
     promptVersion: 'browser-page-v2',
@@ -17052,11 +17054,21 @@ ipcMain.handle('browser:page:start', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(request?.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
-  if (tab.pageTranslateJob) return { ok: false, busy: true, error: 'Sayfa çevirisi zaten çalışıyor.' };
+  if (tab.pageTranslateJob) {
+    const job=tab.pageTranslateJob;
+    if(request?.waitForAcceptance===true&&job.assistantJobId
+      &&(!request.targetLanguage||request.targetLanguage===job.session?.config?.targetLanguage))
+      return {ok:true,accepted:true,running:true,jobId:job.assistantJobId};
+    return { ok: false, busy: true, error: 'Sayfa çevirisi zaten çalışıyor.' };
+  }
   try {
     const startEpoch=tab.pageStartEpoch=(Number(tab.pageStartEpoch)||0)+1;
-    return await startBrowserPageTranslation(tab, {
+    const generation=tab.generation;
+    let accept;
+    const accepted=new Promise(resolve=>{accept=resolve;});
+    const pending=startBrowserPageTranslation(tab, {
       startEpoch,
+      onAccepted:request?.waitForAcceptance===true?jobId=>accept({ok:true,accepted:true,jobId}):undefined,
       targetLanguage: request?.targetLanguage,
       mode: request?.mode,
       workers: request?.workers,
@@ -17068,7 +17080,13 @@ ipcMain.handle('browser:page:start', async (event, request) => {
       excludedSelectors: request?.excludedSelectors,
       pageCharacterBudget: request?.pageCharacterBudget,
       incremental: request?.incremental === true,
+    }).catch(error=>{
+      if(tab.generation===generation&&tab.pageStartEpoch===startEpoch)
+        sendBrowserEvent(tab,{type:'page-translate-error',state:'error',message:error.message});
+      return {ok:false,error:error.message};
     });
+    // Preparation rejects normally; only a registered job may acknowledge early.
+    return await (request?.waitForAcceptance===true?Promise.race([accepted,pending]):pending);
   } catch (error) {
     sendBrowserEvent(tab, { type: 'page-translate-error', state: 'error', message: error.message });
     return { ok: false, error: error.message };
@@ -20187,7 +20205,7 @@ ipcMain.handle('media:extractSubtitleTrack', async (event, request) => {
 require('./assistant-web-research').register({app,ipcMain,authorized:authorizedBrowserSender,getConfig:()=>{const c=assistantProviderConfig();return{...c,endpoint:safeTranslationEndpoint(c.endpoint)};},readJson:r=>readJsonResponseLimited(r,2*1024*1024,'Web search')});
 require('./assistant-jobs').register({ipcMain,authorized:authorizedBrowserSender,jobs:assistantJobs});
 require('./assistant-agent-service').register({app,ipcMain,authorized:authorizedBrowserSender,
-  getJobs:()=>assistantJobs.snapshot(),resolveJobId:id=>assistantJobLinks.get(id),cancelJob:id=>assistantJobs.cancel(id),
+  getJobs:()=>assistantJobs.snapshot(),resolveJobId:resolveAssistantJobId,cancelJob:id=>assistantJobs.cancel(id),
   researchWeb:(query,signal)=>{const config=assistantProviderConfig();return require('./assistant-web-research').research(query,{...config,endpoint:safeTranslationEndpoint(config.endpoint)},{signal,readJson:r=>readJsonResponseLimited(r,2*1024*1024,'Web search')});},
   probeVideo:async(owner,signal)=>{
     const tab=browserTabById(owner.tabId),url=tab?.url||tab?.view?.webContents.getURL()||'';
