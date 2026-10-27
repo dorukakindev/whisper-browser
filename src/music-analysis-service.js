@@ -22,21 +22,27 @@ function createService(options) {
   const access = new MediaFileAccess(EXTENSIONS), sources = new Map();
   let active = null, last = null;
   const runner = options.run || run;
-  function remember(file) {
+  function remember(file, metadata={}) {
     const target = access.grant(file); if (!target) throw Error('Unsupported audio file / Desteklenmeyen ses dosyası.');
-    const id = randomUUID(), source = { id, file: target, title: path.basename(target, path.extname(target)) };
+    const id = randomUUID(), source = { id, file: target, title: String(metadata.title||path.basename(target, path.extname(target))).slice(0,300), libraryId:metadata.id,artist:metadata.artist||'' };
     sources.set(id, source); while (sources.size > 32) sources.delete(sources.keys().next().value);
-    return { id, title: source.title, url: pathToFileURL(target).href };
+    return { id, title: source.title, artist:source.artist,url: pathToFileURL(target).href };
   }
-  function status() { return active ? { id: active.id, state: 'running', stage: active.stage } : last || { state: 'idle' }; }
+  function status() { return active ? { id: active.id, state: 'running', stage: active.stage,mode:active.mode,completed:active.completed,total:active.total,title:active.title } : last || { state: 'idle' }; }
   function cancel() { active?.controller.abort(); return { ok: true }; }
   async function start(request) {
     if (active) throw Error('An analysis is running / Bir analiz çalışıyor.');
-    const source = sources.get(request.sourceId); if (!source) throw Error('Select the audio again / Sesi yeniden seç.');
-    const controller = new AbortController(), job = { id: randomUUID(), controller, stage: 'probe' }; active = job;
+    const mode=request.mode||'analyze';if(!['analyze','search','prepare'].includes(mode))throw Error('Unknown music mode');
+    const source = sources.get(request.sourceId); if (!source&&mode!=='prepare') throw Error('Select the audio again / Sesi yeniden seç.');
+    const controller = new AbortController(), job = { id: randomUUID(), controller, stage: mode==='analyze'?'probe':mode==='prepare'?'download':'model',mode }; active = job;
     let temp;
     const pending = (async () => {
       try {
+        if(mode!=='analyze'){
+          const result=await require('./music-similarity').execute(options,{mode,source,request,signal:controller.signal,runner,onProgress:p=>{job.stage=p.stage;job.completed=p.completed;job.total=p.total;job.title=String(p.title||'').slice(0,150);}});
+          if(controller.signal.aborted)throw Error('Cancelled');
+          last={id:job.id,state:'completed',mode,result:{...result,sourceId:source?.id}};return;
+        }
         const file = access.authorize(source.file), before = await fs.promises.stat(file);
         if (before.size > 1024 * 1024 * 1024) throw Error('Audio exceeds 1 GB / Ses dosyası 1 GB sınırını aşıyor.');
         const metadata = JSON.parse(await runner(options.ffprobe(), ['-v','error','-show_entries','format=duration','-of','json',file], null, controller.signal, 30000));
@@ -104,8 +110,9 @@ function register(options) {
         const row = JSON.parse(await fs.promises.readFile(file,'utf8')).music?.find(row=>row.id===request.id);
         if (!row) throw Error('Track missing / Parça bulunamadı.');
         options.grantMedia(row.path);
-        return {ok:true,source:service.remember(row.path)};
+        return {ok:true,source:service.remember(row.path,row)};
       }
+      if (request.action === 'model') {const engine=require('./music-similarity');return {ok:true,...engine.modelStatus(options.modelDir()),...await engine.runtimeStatus(options,options.run||run)};}
       if (request.action === 'start') return await service.start(request);
       if (request.action === 'status') return {ok:true,job:service.status()};
       if (request.action === 'cancel') return service.cancel();

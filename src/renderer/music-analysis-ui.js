@@ -12,8 +12,8 @@
   function open(libraryId) {
     if(instance){instance.dialog.focus();return;}
     const dialog=node('dialog','music-lab media-surface');dialog.dataset.uiUntranslated='';
-    const state={dialog,source:null,result:null,busy:false,jobId:null,closed:false};instance=state;
-    const button=(label,callback,cls='ml-button')=>{const b=node('button',cls,label);b.type='button';b.addEventListener('click',()=>Promise.resolve().then(callback).catch(error=>message(error.message,true)));return b;};
+    const state={dialog,source:null,result:null,busy:false,jobId:null,closed:false,mode:'analyze',modelReady:false};instance=state;
+    const button=(label,callback,cls='ml-button')=>{const b=node('button',cls,label);b.type='button';b.addEventListener('click',()=>Promise.resolve().then(callback).catch(error=>{if(error.name!=='AbortError')message(error.message,true);}));return b;};
     const header=node('header','ml-header'),heading=node('div');
     const h=node('h1','',t('Listen closer','Sesi yakından tanı'));h.id='musicLabTitle';dialog.setAttribute('aria-labelledby',h.id);
     heading.append(h,node('p','',t('Explore the sound behind your music.','Müziğinin ses karakterini keşfet.')));
@@ -41,23 +41,61 @@
     const audio=node('audio','ml-audio');audio.controls=true;audio.preload='metadata';audio.hidden=true;
     const results=node('div','ml-results');
     const empty=node('div','ml-empty');empty.append(node('div','ml-empty-lines'),node('h2','',t('Every track has a shape','Her parçanın bir ses izi var')),node('p','',t('See its waveform, dynamics and frequency balance. Select a passage to look closer.','Dalga formunu, ses dinamiklerini ve frekans dengesini gör. Bir bölümü seçip yakından incele.')));results.append(empty);
-    content.append(sourcePanel,controls,status,stages,audio,results);dialog.append(header,content);document.body.append(dialog);
+    const tabs=node('div','ml-tabs');tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label',t('Music workspace','Müzik çalışma alanı'));
+    const overviewTab=button(t('Sound analysis','Ses analizi'),()=>tab(false),'ml-tab'),similarTab=button(t('Similar in my library','Arşivimde benzerleri'),()=>tab(true),'ml-tab');
+    for(const [b,id,panel] of [[overviewTab,'mlOverviewTab','mlOverview'],[similarTab,'mlSimilarTab','mlSimilar']]){b.id=id;b.setAttribute('role','tab');b.setAttribute('aria-controls',panel);}
+    tabs.append(overviewTab,similarTab);results.id='mlOverview';results.setAttribute('role','tabpanel');results.setAttribute('aria-labelledby','mlOverviewTab');
+    const similar=node('section','ml-similar');similar.id='mlSimilar';similar.setAttribute('role','tabpanel');similar.setAttribute('aria-labelledby','mlSimilarTab');similar.hidden=true;
+    const searchHead=node('div','ml-search-heading'),searchCopy=node('div');searchCopy.append(node('h2','',t('Find the sound you came for','Aradığın sesi bul')),node('p','',t('Compare real audio excerpts from the tracks in your music library.','Müzik arşivindeki parçaların gerçek ses kesitlerini karşılaştır.')));
+    const find=button(t('Find similar tracks','Benzer parçaları bul'),()=>launch('search'),'ml-button ml-primary');find.disabled=true;searchHead.append(searchCopy,find);
+    const modelRow=node('div','ml-model-row'),modelLabel=node('span','',t('Checking audio model…','Ses modeli kontrol ediliyor…'));
+    const prepare=button(t('Prepare CLAP · 615 MB','CLAP hazırla · 615 MB'),()=>launch('prepare'));prepare.hidden=true;modelRow.append(modelLabel,prepare);
+    const excludeLabel=node('label','ml-exclude'),exclude=node('input');exclude.type='checkbox';exclude.disabled=true;excludeLabel.append(exclude,document.createTextNode(t('Exclude the same artist','Aynı sanatçıyı dışla')));
+    const hits=node('div','ml-hits');hits.append(node('p','ml-search-empty',t('Add tracks to Music, choose a reference, then search. No audio is uploaded.','Müzik bölümüne parçalar ekle, referans seç ve ara. Sesler internete yüklenmez.')));
+    const compare=node('section','ml-compare');compare.hidden=true;const compareName=node('strong'),compareAudio=node('audio');compareAudio.controls=true;compareAudio.preload='metadata';
+    const matchLevel=node('input');matchLevel.type='checkbox';matchLevel.checked=true;const matchLabel=node('label');matchLabel.append(matchLevel,document.createTextNode(t('Match listening levels','Dinleme seviyelerini eşleştir')));
+    let comparison=null,compareToken=0,previewA=false;
+    function volumes(){audio.volume=1;compareAudio.volume=1;if(comparison&&matchLevel.checked){const level=Math.min(comparison.referenceDb,comparison.matchedDb);audio.volume=Math.min(1,10**((level-comparison.referenceDb)/20));compareAudio.volume=Math.min(1,10**((level-comparison.matchedDb)/20));}}
+    const playA=button(t('A · Reference','A · Referans'),async()=>{if(!comparison)return;compareAudio.pause();volumes();audio.currentTime=comparison.referenceRange[0];previewA=true;await audio.play();});
+    const playB=button(t('B · Match','B · Eşleşme'),async()=>{if(!comparison)return;audio.pause();volumes();compareAudio.currentTime=comparison.matchedRange[0];await compareAudio.play();});
+    compare.append(compareName,playA,playB,matchLabel,compareAudio);matchLevel.addEventListener('change',volumes);
+    compareAudio.addEventListener('play',()=>{audio.pause();document.getElementById('mediaShelfAudio')?.pause();document.getElementById('playerVideo')?.pause();});
+    compareAudio.addEventListener('timeupdate',()=>{if(comparison&&compareAudio.currentTime>=comparison.matchedRange[1])compareAudio.pause();});
+    compareAudio.addEventListener('error',()=>message(t('This matched file can no longer be played. Search again.','Eşleşen dosya artık oynatılamıyor. Yeniden ara.'),true));
+    similar.append(searchHead,modelRow,excludeLabel,compare,hits);
+    content.append(sourcePanel,controls,status,stages,audio,tabs,results,similar);dialog.append(header,content);document.body.append(dialog);
     let pollTimer,observer,animation;
     const charts=[];
     function message(text,error=false){if(state.closed)return;status.textContent=text;status.classList.toggle('ml-error',error);}
-    function busy(value){state.busy=value;dialog.setAttribute('aria-busy',String(value));choose.disabled=value;run.disabled=value||!state.source;start.disabled=value;end.disabled=value;cancel.hidden=!value;stages.hidden=!value;}
+    function busy(value){state.busy=value;dialog.setAttribute('aria-busy',String(value));choose.disabled=value;run.disabled=value||!state.source;find.disabled=value||!state.source||!state.modelReady;prepare.disabled=value;exclude.disabled=value||!state.source?.artist;start.disabled=value;end.disabled=value;cancel.hidden=!value;stages.hidden=!value;}
+    function tab(isSimilar){results.hidden=isSimilar;similar.hidden=!isSimilar;overviewTab.setAttribute('aria-selected',String(!isSimilar));similarTab.setAttribute('aria-selected',String(isSimilar));overviewTab.tabIndex=isSimilar?-1:0;similarTab.tabIndex=isSimilar?0:-1;repaint();}
+    tabs.addEventListener('keydown',event=>{if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();const next=event.key==='ArrowRight';tab(next);(next?similarTab:overviewTab).focus();}});
+    async function refreshModel(){const model=await api('model');if(state.closed)return;state.modelReady=model.ready&&model.runtimeReady;prepare.hidden=model.ready;modelLabel.textContent=!model.runtimeReady?t('Run install-music.bat to prepare the separate CPU environment.','Ayrı CPU ortamını hazırlamak için install-music.bat çalıştır.'):model.ready?t('CLAP ready · local CPU · six excerpts per track','CLAP hazır · yerel CPU · parça başına altı kesit'):t('One-time model download required. Your audio stays local.','Bir defalık model indirmesi gerekiyor. Sesin bilgisayarda kalır.');busy(state.busy);}
+    function showHits(result){
+      hits.replaceChildren();const summary=node('p','ml-hit-summary',t(`${result.indexed} tracks indexed · ${result.cached} reused · ${result.failed} unavailable`,`${result.indexed} parça indekslendi · ${result.cached} kayıt kullanıldı · ${result.failed} kullanılamadı`));hits.append(summary);
+      const explanation=node('p','ml-search-explanation',t('CLAP audio similarity, not a probability or a rating. Long tracks are sampled at up to six 10-second passages.','CLAP ses benzerliğidir; olasılık veya beğeni puanı değildir. Uzun parçalarda en fazla altı 10 saniyelik bölüm örneklenir.'));hits.append(explanation);
+      if(!result.results.length){hits.append(node('p','ml-search-empty',t('No comparable tracks. Add different tracks; exact copies of the reference are excluded.','Karşılaştırılabilir parça yok. Farklı parçalar ekle; referansın birebir kopyaları dışlanır.')));return;}
+      result.results.forEach((hit,index)=>{
+        const row=node('article','ml-hit'),number=node('span','ml-hit-number',String(index+1).padStart(2,'0')),copy=node('div','ml-hit-copy');copy.append(node('h3','',hit.title),node('p','',hit.artist||t('Unknown artist','Sanatçı bilinmiyor')),node('small','',t(`Audio compared · ${hit.samples} excerpts · match ${clock(hit.matchedRange[0])}–${clock(hit.matchedRange[1])}`,`Ses karşılaştırıldı · ${hit.samples} kesit · eşleşme ${clock(hit.matchedRange[0])}–${clock(hit.matchedRange[1])}`)));
+        const score=node('div','ml-hit-score');score.append(node('strong','',hit.score.toFixed(3)),node('small','',t('similarity','benzerlik')));
+        const listen=button(t('Compare A/B','A/B karşılaştır'),async()=>{const token=++compareToken;comparison=hit;audio.pause();compareAudio.pause();compareAudio.src=hit.url;compare.hidden=false;compareName.textContent=hit.title;volumes();await new Promise((resolve,reject)=>{const ready=()=>{clearTimeout(timeout);resolve();};const timeout=setTimeout(()=>reject(Error(t('Audio loading timed out.','Ses yükleme zaman aşımı.'))),10000);compareAudio.addEventListener('loadedmetadata',ready,{once:true});});if(token!==compareToken||state.closed)return;compareAudio.currentTime=hit.matchedRange[0];await compareAudio.play();compare.scrollIntoView({block:'nearest',behavior:'instant'});});
+        row.append(number,copy,score,listen);hits.append(row);
+      });
+    }
     async function select(action,payload={}){
       const response=await api(action,payload);if(state.closed||response.canceled)return;
       state.source=response.source;state.result=null;sourceTitle.textContent=response.source.title;sourceDetail.textContent=t('Local audio · measurements stay on this computer','Yerel ses · ölçümler bu bilgisayarda kalır');
+      comparison=null;++compareToken;compareAudio.pause();compare.hidden=true;audio.volume=1;find.disabled=!state.modelReady;exclude.disabled=!response.source.artist;hits.replaceChildren(node('p','ml-search-empty',t('Reference changed. Search again for fresh matches.','Referans değişti. Güncel eşleşmeler için yeniden ara.')));
       audio.pause();audio.hidden=false;audio.src=response.source.url;start.value='0';end.value='';run.disabled=false;results.replaceChildren(empty);charts.length=0;
       message(t('Ready. Select a range or analyze the full track (up to 30 minutes).','Hazır. Aralık seç veya parçanın tamamını analiz et (en fazla 30 dakika).'));
     }
-    async function analyze(){
-      if(state.busy||!state.source)return;
+    async function analyze(){return launch('analyze');}
+    async function launch(mode){
+      if(state.busy||(!state.source&&mode!=='prepare'))return;
       const from=Number(start.value),to=end.value.trim()?Number(end.value):undefined;
-      if(!Number.isFinite(from)||from<0||(to!==undefined&&(!Number.isFinite(to)||to-from<1||to-from>1800)))throw Error(t('Select a valid range of 1 second to 30 minutes.','1 saniye–30 dakika arasında geçerli bir aralık seç.'));
-      busy(true);message(t('Reading audio…','Ses okunuyor…'));
-      try{const response=await api('start',{sourceId:state.source.id,start:from,end:to});state.jobId=response.id;if(state.closed){await api('cancel');return;}await poll();}
+      if(mode!=='prepare'&&(!Number.isFinite(from)||from<0||(to!==undefined&&(!Number.isFinite(to)||to-from<1||to-from>1800))))throw Error(t('Select a valid range of 1 second to 30 minutes.','1 saniye–30 dakika arasında geçerli bir aralık seç.'));
+      state.mode=mode;busy(true);message(mode==='prepare'?t('Downloading the official audio model…','Resmî ses modeli indiriliyor…'):t('Reading audio…','Ses okunuyor…'));
+      try{const range=to!==undefined?[from,to]:from>0?[from,audio.duration]:null;const response=await api('start',{sourceId:state.source?.id,start:from,end:to,mode,range,excludeArtist:exclude.checked});state.jobId=response.id;if(state.closed){await api('cancel');return;}await poll();}
       catch(error){busy(false);throw error;}
     }
     async function poll(){
@@ -68,11 +106,14 @@
         if(job.state==='running'){
           const current=steps.findIndex(([key])=>key===job.stage);
           stages.querySelectorAll('span').forEach((item,i)=>{item.classList.toggle('is-current',i===current);item.classList.toggle('is-done',i<current);});
-          message(steps[current]?.[1]||t('Working…','İşleniyor…'));pollTimer=setTimeout(poll,450);return;
+          const labels={download:t('Downloading model','Model indiriliyor'),model:t('Loading CLAP on CPU','CLAP CPU üzerinde yükleniyor'),index:t('Comparing library audio','Arşiv sesleri karşılaştırılıyor'),rank:t('Ranking matches','Eşleşmeler sıralanıyor')};
+          message((labels[job.stage]||steps[current]?.[1]||t('Working…','İşleniyor…'))+(Number.isFinite(job.total)?` · ${job.stage==='download'?Math.round(job.completed/1048576)+' / '+Math.round(job.total/1048576)+' MB':job.completed+' / '+job.total}`:'')+(job.title?` · ${job.title}`:''));pollTimer=setTimeout(poll,450);return;
         }
         busy(false);
         if(job.state==='completed'){
+          if(state.mode==='prepare'){await refreshModel();message(t('Model ready. Choose a reference and search your library.','Model hazır. Referans seçip arşivinde ara.'));return;}
           if(job.result.sourceId!==state.source.id)throw Error(t('The source changed. Analyze again.','Kaynak değişti. Yeniden analiz et.'));
+          if(state.mode==='search'){showHits(job.result);tab(true);message(t('Matches ready. Compare the highlighted passages by ear.','Eşleşmeler hazır. Seçilen kesitleri dinleyerek karşılaştır.'));return;}
           state.result=job.result;draw();message(job.result.silent?t('This selection is nearly silent; tempo cannot be estimated reliably.','Bu aralık neredeyse sessiz; tempo güvenilir biçimde tahmin edilemiyor.'):job.result.cached?t('Loaded saved measurements.','Kayıtlı ölçümler açıldı.'):t('Analysis ready. Click a graph to listen at that time.','Analiz hazır. O saniyeyi dinlemek için grafiğe tıkla.'));
         }else {const parts=String(job.error||'').split(' / ');message(parts.length>1?t(parts[0],parts.slice(1).join(' / ')):parts[0]||t('Analysis stopped.','Analiz durdu.'),job.state==='failed');}
       }catch(error){busy(false);message(error.message,true);}
@@ -111,7 +152,7 @@
       dynamics.append(node('h2','',t('Dynamics over time','Zaman içinde ses seviyesi')),node('p','ml-description',t('RMS level in dBFS · click to seek','dBFS cinsinden RMS seviyesi · gitmek için tıkla')));chart(dynamics,'db',t('Audio level over time','Zaman içinde ses seviyesi'));
       bands.append(node('h2','',t('Frequency balance','Frekans dengesi')),node('p','ml-description',t('Bass / mid / treble · relative spectral power','Bas / orta / tiz · göreli spektral güç')));chart(bands,'bands',t('Bass, mid and treble over time','Zaman içinde bas, orta ve tiz'));
       const legend=node('div','ml-legend');[t('Bass <250 Hz','Bas <250 Hz'),t('Mid 250–2000 Hz','Orta 250–2000 Hz'),t('Treble >2000 Hz','Tiz >2000 Hz')].forEach((label,i)=>{const n=node('span','ml-band-'+i,label);legend.append(n);});bands.append(legend);grid.append(dynamics,bands);
-      const provenance=node('footer','ml-provenance');provenance.append(node('strong','',t('Measured from audio','Doğrudan sesten ölçüldü')),node('p','',t('Local CPU analysis. Mood, instrument recognition and music similarity will become available with a dedicated audio model. Frequency bands do not identify instruments.','Yerel CPU analizi. Duygu, enstrüman tanıma ve müzik benzerliği ayrı ses modeliyle açılacak. Frekans bantları enstrüman tanımaz.')));
+      const provenance=node('footer','ml-provenance');provenance.append(node('strong','',t('Measured from audio','Doğrudan sesten ölçüldü')),node('p','',t('Local CPU analysis. Find CLAP audio matches in the library tab. Mood and instrument recognition are not available; frequency bands do not identify instruments.','Yerel CPU analizi. Arşiv sekmesinde CLAP ses eşleşmelerini bulabilirsin. Duygu ve enstrüman tanıma henüz yok; frekans bantları enstrüman tanımaz.')));
       results.append(wave,metrics,grid,provenance);redraw();
     }
     function redraw(){
@@ -133,13 +174,14 @@
       }
     }
     const repaint=()=>{cancelAnimationFrame(animation);animation=requestAnimationFrame(redraw);};
-    audio.addEventListener('timeupdate',repaint);start.addEventListener('input',repaint);end.addEventListener('input',repaint);
-    audio.addEventListener('play',()=>{document.getElementById('mediaShelfAudio')?.pause();document.getElementById('playerVideo')?.pause();});
+    audio.addEventListener('timeupdate',()=>{repaint();if(previewA&&comparison&&audio.currentTime>=comparison.referenceRange[1])audio.pause();});audio.addEventListener('pause',()=>{previewA=false;});start.addEventListener('input',repaint);end.addEventListener('input',repaint);
+    audio.addEventListener('play',()=>{compareAudio.pause();document.getElementById('mediaShelfAudio')?.pause();document.getElementById('playerVideo')?.pause();});
     audio.addEventListener('error',()=>message(t('Audio could not be played. Select the source again.','Ses oynatılamadı. Kaynağı yeniden seç.'),true));
-    function cleanup(){if(state.closed)return;state.closed=true;clearTimeout(pollTimer);cancelAnimationFrame(animation);observer?.disconnect();audio.pause();audio.removeAttribute('src');audio.load();if(state.busy)void api('cancel').catch(()=>{});dialog.remove();if(instance===state)instance=null;if(typeof syncBrowserOcclusion==='function')syncBrowserOcclusion();}
+    function cleanup(){if(state.closed)return;state.closed=true;clearTimeout(pollTimer);cancelAnimationFrame(animation);observer?.disconnect();audio.pause();compareAudio.pause();++compareToken;audio.removeAttribute('src');audio.load();compareAudio.removeAttribute('src');compareAudio.load();if(state.busy)void api('cancel').catch(()=>{});dialog.remove();if(instance===state)instance=null;if(typeof syncBrowserOcclusion==='function')syncBrowserOcclusion();}
     dialog.addEventListener('close',cleanup,{once:true});
     dialog.addEventListener('cancel',event=>{event.preventDefault();dialog.close();cleanup();});
     dialog.showModal();if(typeof syncBrowserOcclusion==='function')syncBrowserOcclusion();observer=new ResizeObserver(repaint);observer.observe(results);
+    tab(false);void refreshModel().catch(e=>message(e.message,true));
     if(libraryId)void select('library',{id:libraryId}).catch(e=>message(e.message,true));
     return dialog;
   }

@@ -1,0 +1,9 @@
+{
+  "audioHashes": {
+    "Kevin_MacLeod_-_Vibe_Ace.ogg": "6c23aed3dd5aa57f2b1652ecab68d15d9b82ad257f54e639eb2880ca09bc118a",
+    "sorohanro_-_solo-trumpet-06.ogg": "8374466fd3951d24509da6e799b132a0db0bdeda69d99c69d989a6888d3d727d"
+  },
+  "modelRevision": "8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a",
+  "modelWeightSHA256": "1cd3c601bc4afe0fa87be3de4c13dd2cfadd249fac1e29acf74a9b296c3219bb",
+  "license": "CC-BY3.0 audio; Apache2 model"
+}

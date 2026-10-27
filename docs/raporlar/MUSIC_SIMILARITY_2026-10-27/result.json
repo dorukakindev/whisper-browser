@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "model": "laion/clap-htsat-unfused",
+  "revision": "8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a",
+  "results": [
+    {
+      "id": "quiet",
+      "score": 0.98517,
+      "matchedRange": [
+        0,
+        10
+      ]
+    },
+    {
+      "id": "trumpet",
+      "score": 0.32726,
+      "matchedRange": [
+        0,
+        5.333
+      ]
+    }
+  ],
+  "levelMatchedVolume": 0.5000345349769785,
+  "artistExclusion": true,
+  "cached": 3,
+  "realCpuInference": true,
+  "narrowNoOverflow": true
+}
