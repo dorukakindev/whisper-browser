@@ -3983,8 +3983,8 @@
       "operation": "select_book_chapters",
       "criterion": "Gerçek kabul",
       "acceptance": "Kullanıcı uygulayınca mevcut uygulama kapısına tam bir defa bağlan; accepted ile completed ayrımını koru.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DOĞRULANDI",
+      "evidence": "Rapor645;21Node + native3stop/0start,1000bölüm UI/sonbölüm/998–1000selection, kontrollü start/listen/regenerate; uzunmetin plan/storage R643; GPU/gerçek ses kalitesi açık; kod 27426e57b85c5b7e839be9a2fe5d026c6a86b989"
     },
     {
       "id": "P0363",
@@ -4060,8 +4060,8 @@
       "operation": "select_book_chapters",
       "criterion": "Seçenek aktarımı",
       "acceptance": "Hedef dil/zaman aralığı/normal seçenekler yalnız seçili işlemin payloadunda doğru kalsın.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DOĞRULANDI",
+      "evidence": "Rapor645;21Node + native3stop/0start,1000bölüm UI/sonbölüm/998–1000selection, kontrollü start/listen/regenerate; uzunmetin plan/storage R643; GPU/gerçek ses kalitesi açık; kod 27426e57b85c5b7e839be9a2fe5d026c6a86b989"
     },
     {
       "id": "P0370",
@@ -4071,8 +4071,8 @@
       "operation": "select_book_chapters",
       "criterion": "Sonuç ve erişim",
       "acceptance": "Başarı/partial/hata sonrası gerçek çıktı veya yeniden deneme erişilsin; dar EN/TR panelde düğmeler kaybolmasın.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DOĞRULANDI",
+      "evidence": "Rapor645;21Node + native3stop/0start,1000bölüm UI/sonbölüm/998–1000selection, kontrollü start/listen/regenerate; uzunmetin plan/storage R643; GPU/gerçek ses kalitesi açık; kod 27426e57b85c5b7e839be9a2fe5d026c6a86b989"
     },
     {
       "id": "P0371",
@@ -4126,8 +4126,8 @@
       "operation": "start_book_narration",
       "criterion": "İptal yarışı",
       "acceptance": "Başlangıç beklerken iptal et; henüz başlamayan alt işi başlatma, başladıysa exact işin sonucunu raporla.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DÜZELTİLDİ",
+      "evidence": "Rapor645;21Node + native3stop/0start,1000bölüm UI/sonbölüm/998–1000selection, kontrollü start/listen/regenerate; uzunmetin plan/storage R643; GPU/gerçek ses kalitesi açık; kod 27426e57b85c5b7e839be9a2fe5d026c6a86b989"
     },
     {
       "id": "P0376",
@@ -4170,8 +4170,8 @@
       "operation": "start_book_narration",
       "criterion": "Seçenek aktarımı",
       "acceptance": "Hedef dil/zaman aralığı/normal seçenekler yalnız seçili işlemin payloadunda doğru kalsın.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DÜZELTİLDİ",
+      "evidence": "Rapor645;21Node + native3stop/0start,1000bölüm UI/sonbölüm/998–1000selection, kontrollü start/listen/regenerate; uzunmetin plan/storage R643; GPU/gerçek ses kalitesi açık; kod 27426e57b85c5b7e839be9a2fe5d026c6a86b989"
     },
     {
       "id": "P0380",
@@ -4203,8 +4203,8 @@
       "operation": "book_chapter",
       "criterion": "Gerçek kabul",
       "acceptance": "Kullanıcı uygulayınca mevcut uygulama kapısına tam bir defa bağlan; accepted ile completed ayrımını koru.",
-      "status": "İLERLEDİ",
-      "evidence": "Rapor644; book_chapter operation=open render/close/late-result kabulü,21Node+native; listen/regenerate tüm yarışları açık; kod 8deda00bb553c3c940aaa9ba6e5b83faa9fb5ba2"
+      "status": "DOĞRULANDI",
+      "evidence": "Rapor645;21Node + native3stop/0start,1000bölüm UI/sonbölüm/998–1000selection, kontrollü start/listen/regenerate; uzunmetin plan/storage R643; GPU/gerçek ses kalitesi açık; kod 27426e57b85c5b7e839be9a2fe5d026c6a86b989"
     },
     {
       "id": "P0383",
@@ -4236,8 +4236,8 @@
       "operation": "book_chapter",
       "criterion": "İptal yarışı",
       "acceptance": "Başlangıç beklerken iptal et; henüz başlamayan alt işi başlatma, başladıysa exact işin sonucunu raporla.",
-      "status": "İLERLEDİ",
-      "evidence": "Rapor644; book_chapter operation=open render/close/late-result kabulü,21Node+native; listen/regenerate tüm yarışları açık; kod 8deda00bb553c3c940aaa9ba6e5b83faa9fb5ba2"
+      "status": "DÜZELTİLDİ",
+      "evidence": "Rapor645;21Node + native3stop/0start,1000bölüm UI/sonbölüm/998–1000selection, kontrollü start/listen/regenerate; uzunmetin plan/storage R643; GPU/gerçek ses kalitesi açık; kod 27426e57b85c5b7e839be9a2fe5d026c6a86b989"
     },
     {
       "id": "P0386",
@@ -4291,8 +4291,8 @@
       "operation": "book_chapter",
       "criterion": "Sonuç ve erişim",
       "acceptance": "Başarı/partial/hata sonrası gerçek çıktı veya yeniden deneme erişilsin; dar EN/TR panelde düğmeler kaybolmasın.",
-      "status": "İLERLEDİ",
-      "evidence": "Rapor644; book_chapter operation=open render/close/late-result kabulü,21Node+native; listen/regenerate tüm yarışları açık; kod 8deda00bb553c3c940aaa9ba6e5b83faa9fb5ba2"
+      "status": "DOĞRULANDI",
+      "evidence": "Rapor645;21Node + native3stop/0start,1000bölüm UI/sonbölüm/998–1000selection, kontrollü start/listen/regenerate; uzunmetin plan/storage R643; GPU/gerçek ses kalitesi açık; kod 27426e57b85c5b7e839be9a2fe5d026c6a86b989"
     },
     {
       "id": "P0391",
@@ -8460,8 +8460,8 @@
       "operation": null,
       "criterion": "Büyük kitap",
       "acceptance": "Uzun metin/büyük bölüm sayısında çalışma sınırı açık ve iptal/UI erişimi korunmuş olsun.",
-      "status": "İLERLEDİ",
-      "evidence": "Rapor643;898960karakter gerçek plan/storage,3526grup, native101review/25DOM/sonsatır; çok-bölümlü gerçek kaynak ölçümü ve gerçek ses/GPU açık; kod aef0b2b92e82c8471da10cdad9bc8f68aa6a05d0"
+      "status": "DOĞRULANDI",
+      "evidence": "Rapor645;21Node + native3stop/0start,1000bölüm UI/sonbölüm/998–1000selection, kontrollü start/listen/regenerate; uzunmetin plan/storage R643; GPU/gerçek ses kalitesi açık; kod 27426e57b85c5b7e839be9a2fe5d026c6a86b989"
     },
     {
       "id": "P0770",
@@ -11120,6 +11120,22 @@
         "P0390"
       ],
       "next": "Çok-bölüm kitap seçme/render kaynak maliyeti ve asistan listen/regenerate kabul kapsamı."
+    },
+    {
+      "report": 645,
+      "code": "27426e57b85c5b7e839be9a2fe5d026c6a86b989",
+      "updated": [
+        "P0362",
+        "P0369",
+        "P0370",
+        "P0375",
+        "P0379",
+        "P0382",
+        "P0385",
+        "P0390",
+        "P0769"
+      ],
+      "next": "Kitap/çeviri/ASR kalite ve kaynak bağlamı; aynı başlangıç iptal hatasını tekrar sayma."
     }
   ]
 }

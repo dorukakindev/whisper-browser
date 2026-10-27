@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-27-1230.md](docs/devir/2026-10-27-1230.md) — Kitap başlangıcında iptal,1000bölüm ve asistan kabulü
 Güncel çalışma: [docs/devir/2026-10-27-1203.md](docs/devir/2026-10-27-1203.md) — Kitap editörü açılışı, render ve asistan kabulü
 Güncel çalışma: [docs/devir/2026-10-27-1141.md](docs/devir/2026-10-27-1141.md) — Uzun bölüm üretim planı ve sayfalı ses incelemesi
 Güncel çalışma: [docs/devir/2026-10-27-1107.md](docs/devir/2026-10-27-1107.md) — Kapanmamış motor sahipliği ve güvenli tekrar
