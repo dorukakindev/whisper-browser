@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "missingIdentityExcluded": true,
+  "tinyPlaceholderExcluded": true,
+  "failedImagesExcluded": true,
+  "fallbackQualityRecovered": true,
+  "refillPastFirst12": true,
+  "carousel": true,
+  "narrow": true,
+  "historyPreserved": 18,
+  "liveYouTubeThumbnail": true
+}

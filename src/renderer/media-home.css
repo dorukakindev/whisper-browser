@@ -178,3 +178,6 @@ html[data-theme="light"] .media-home img { outline-color: rgba(0,0,0,.1); }
 /* Space for the native clear control and the all-sources action. */
 .mh-header .mh-search{min-width:220px;width:220px}.mh-search input{padding-left:12px;padding-right:40px}
 @media(max-width:1000px){.mh-header .mh-search{min-width:220px;flex:1 0 220px}}
+
+/* Image-only home showcases never expose blank cards while artwork loads. */
+.mh-card[hidden], .mh-hero[hidden], .mh-section[hidden] { display:none; }

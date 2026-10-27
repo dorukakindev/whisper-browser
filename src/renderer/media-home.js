@@ -147,7 +147,28 @@
     return bar;
   }
   let posterQueue = [], posterActive = 0;
-  const posters = new Map();
+  const posters = new Map(), failedArtwork = new Map();
+  const artworkKey = item => item?.key || item?.id || '';
+  const hasArtwork = item => model.hasArtwork(item) && (failedArtwork.get(artworkKey(item)) || 0) < Date.now();
+  function artError(node) { node.dispatchEvent(new Event('home-art-error', { bubbles: true })); }
+  function loadArt(node, src) {
+    const image = el('img'); image.alt = ''; image.loading = node.dataset.artRequired ? 'eager' : 'lazy'; image.referrerPolicy = 'no-referrer';
+    const youtube = /^https:\/\/i\.ytimg\.com\/vi\/[a-zA-Z0-9_-]{11}\/hqdefault\.jpg$/.test(src);
+    if (youtube) image.className = 'mh-remote-thumbnail';
+    let fallback = false;
+    const unavailable = () => {
+      if (youtube && !fallback) { fallback=true; image.src=src.replace('/hqdefault.jpg','/mqdefault.jpg'); return; }
+      image.remove(); if (node.isConnected) artError(node);
+    };
+    image.onload = () => {
+      if (!node.isConnected) return;
+      // YouTube sometimes returns its tiny generic missing-image tile with HTTP 200.
+      if (!image.naturalWidth || youtube && image.naturalWidth <= 120) return unavailable();
+      node.replaceChildren(image); node.dispatchEvent(new Event('home-art-ready', { bubbles:true }));
+    };
+    image.onerror = unavailable;
+    node.append(image); image.src = src;
+  }
   const safePoster = value => typeof value === 'string' && value.length < 8_000_000 && /^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(value);
   function pumpPosters() {
     while (posterActive < 3 && posterQueue.length) {
@@ -157,13 +178,12 @@
       const cached = posters.get(task.id);
       Promise.resolve(cached || window.api.mediaCatalog({ action: 'poster', id: task.id }))
         .then(result => {
-          if (!safePoster(result?.image)) return;
+          if (!safePoster(result?.image)) { artError(task.node); return; }
           posters.set(task.id, result);
           while (posters.size > 80) posters.delete(posters.keys().next().value);
           if (!task.node.isConnected || task.generation !== state.render) return;
-          const image = el('img'); image.src = result.image; image.alt = ''; image.loading = 'lazy';
-          task.node.replaceChildren(image);
-        }).catch(() => {}).finally(() => { posterActive--; pumpPosters(); });
+          loadArt(task.node, result.image);
+        }).catch(() => { if (task.node.isConnected && task.generation === state.render) artError(task.node); }).finally(() => { posterActive--; pumpPosters(); });
     }
   }
   const posterObserver = new IntersectionObserver(entries => {
@@ -173,27 +193,35 @@
     }
     pumpPosters();
   }, { rootMargin: '180px' });
-  function art(item, cls) {
+  function art(item, cls, required = false) {
     const node = el('div', cls); node.append(icon());
+    if (required) node.dataset.artRequired = 'true';
+    node.addEventListener('home-art-error', () => { if (required) failedArtwork.set(artworkKey(item), Date.now()+60000); }, { once: true });
     if (item?.hasPoster && item.id) {
       node.dataset.homePoster = item.id;
-      queueMicrotask(() => { if (node.isConnected) posterObserver.observe(node); });
+      queueMicrotask(() => {
+        if (!node.isConnected) return;
+        if (required) { posterQueue.push({node, id:item.id, generation:state.render}); pumpPosters(); }
+        else posterObserver.observe(node);
+      });
     } else {
       const src = model.thumbnail(item);
-      if (src) {
-        const image = el('img', 'mh-remote-thumbnail'); image.alt = ''; image.loading = 'lazy'; image.referrerPolicy = 'no-referrer';
-        image.onload = () => { if (node.isConnected) node.replaceChildren(image); };
-        image.onerror = () => image.remove(); node.append(image); image.src = src;
-      }
+      if (src) loadArt(node, src);
+      else if (required) queueMicrotask(() => artError(node));
     }
     return node;
   }
-  function card(item) {
+  function card(item, options = {}) {
     const node = button('', () => item.key ? playWatch(item) : window.MediaTitleUI.open(item.id), 'mh-card');
     node.dispose=()=>node.querySelectorAll('[data-home-poster]').forEach(image=>posterObserver.unobserve(image));
     node.dataset.homeItem = item.key || item.id;
     node.title = String(item.title || t('Untitled', 'Başlıksız'));
-    node.append(art(item, 'mh-art'), el('span', 'mh-card-title', node.title));
+    if (options.artworkOnly) {
+      node.hidden = true;
+      node.addEventListener('home-art-ready', () => { node.hidden = false; options.ready?.(); }, { once:true });
+      node.addEventListener('home-art-error', () => { node.remove(); options.unavailable?.(); }, { once:true });
+    }
+    node.append(art(item, 'mh-art', !!options.artworkOnly), el('span', 'mh-card-title', node.title));
     const p = model.progress(item);
     const kind = item.key ? (model.medium(item) === 'web' ? 'Web' : model.medium(item) === 'music' ? t('Audio', 'Ses') : t('Video', 'Video')) : item.kind === 'series' ? t('Series', 'Dizi') : t('Film', 'Film');
     node.append(el('span', 'mh-card-meta', [item.year, kind, p.position ? `${minutes(p.position)} / ${p.duration ? minutes(p.duration) : '—'}` : ''].filter(Boolean).join(' · ')));
@@ -206,7 +234,11 @@
     if (options.more) heading.append(button(t('View all', 'Tümünü gör'), options.more, 'mh-text-button'));
     const grid = el('div', options.grid ? 'mh-grid' : `mh-rail${options.wide ? ' mh-wide' : ''}`);
     if(options.grid&&rows.length>100&&window.MediaVirtualGrid){queueMicrotask(()=>{if(grid.isConnected)virtualDisposers.push(window.MediaVirtualGrid.mount(grid,rows,card,host));});}
-    else rows.slice(0, options.grid ? state.limit : 12).forEach(item => grid.append(card(item)));
+    else if (options.artworkOnly) {
+      node.hidden = true; let next = 0;
+      const appendNext = () => { if (next < rows.length) grid.append(card(rows[next++], {artworkOnly:true, ready:()=>{node.hidden=false;}, unavailable:appendNext})); };
+      for (let i=0;i<Math.min(12,rows.length);i++) appendNext();
+    } else rows.slice(0, options.grid ? state.limit : 12).forEach(item => grid.append(card(item)));
     node.append(heading, grid);
     if (!rows.length) node.append(el('p', 'mh-empty', t('No matching items yet.', 'Henüz eşleşen öğe yok.')));
     if (options.grid && rows.length > state.limit && rows.length<=100) node.append(button(t('Show more', 'Daha fazla göster'), () => { state.limit += 48; renderContent(); }));
@@ -259,8 +291,8 @@
     const { items, watch, continuing } = state.data;
     const filter = rows => rows.filter(item => model.matches(item, state.query));
     if (state.page === 'home' && !state.query) {
-      const candidates = continuing.length ? continuing : items.filter(item => item.source);
-      if (!candidates.length && items[0]) candidates.push(items[0]);
+      const illustrated = continuing.filter(hasArtwork);
+      const candidates = illustrated.length ? [...illustrated] : items.filter(item => item.source && hasArtwork(item));
       const keyOf = item => item?.key || item?.id || '';
       let featuredIndex = candidates.findIndex(item => keyOf(item) === state.featuredKey);
       if (featuredIndex < 0) featuredIndex = Math.max(0, candidates.findIndex(item => model.medium(item) === 'video'));
@@ -280,7 +312,10 @@
       controls.append(arrow(t('Previous title', 'Önceki içerik'), -1), count, arrow(t('Next title', 'Sonraki içerik'), 1));
       controls.hidden = candidates.length < 2;
       function drawFeatured() {
+        if (!candidates.length) { hero.hidden = true; return; }
+        featuredIndex %= candidates.length;
         const featured = candidates[featuredIndex]; state.featuredKey = keyOf(featured);
+        hero.hidden = true;
         window.UiMotion?.reveal(copy, 'section'); copy.replaceChildren(); hero.querySelectorAll('[data-home-poster]').forEach(node => posterObserver.unobserve(node));
         hero.classList.toggle('mh-empty-hero', !featured);
         copy.append(el('span', 'mh-hero-meta', featured ? t('Ready when you are', 'Kaldığın yerden') : t('Your media, your voice', 'Videoların, senin sesin')),
@@ -291,12 +326,19 @@
           button(featured?.id ? t('Details', 'Ayrıntılar') : t('Add media folder', 'Medya klasörü ekle'), () => featured?.id ? window.MediaTitleUI.open(featured.id) : catalog({mode:'folder'})));
         copy.append(actions); if (featured && model.progress(featured).duration) copy.append(progress(featured));
         count.textContent = `${featuredIndex + 1} / ${candidates.length}`;
-        hero.replaceChildren(copy, art(featured, 'mh-hero-art'), controls);
+        const artwork = art(featured, 'mh-hero-art', true);
+        artwork.addEventListener('home-art-ready', () => { hero.hidden=false; }, {once:true});
+        artwork.addEventListener('home-art-error', () => {
+          if (!artwork.isConnected) return;
+          const failed = candidates.indexOf(featured); if (failed >= 0) candidates.splice(failed,1);
+          controls.hidden=candidates.length<2; drawFeatured();
+        }, {once:true});
+        hero.replaceChildren(copy, artwork, controls);
       }
       drawFeatured(); content.append(hero);
-      if (continuing.length) content.append(section(t('Continue watching & listening', 'İzlemeye ve dinlemeye devam et'), continuing, { wide: true, more: () => page('recent') }));
-      if (items.some(item => item.kind === 'series')) content.append(section(t('Your series', 'Dizilerin'), items.filter(item => item.kind === 'series'), { more: () => page('series') }));
-      if (items.some(item => item.kind !== 'series')) content.append(section(t('Your films', 'Filmlerin'), items.filter(item => item.kind !== 'series'), { more: () => page('films') }));
+      if (illustrated.length) content.append(section(t('Continue watching & listening', 'İzlemeye ve dinlemeye devam et'), illustrated, { wide: true, artworkOnly: true, more: () => page('recent') }));
+      if (items.some(item => item.kind === 'series' && hasArtwork(item))) content.append(section(t('Your series', 'Dizilerin'), items.filter(item => item.kind === 'series' && hasArtwork(item)), { artworkOnly:true, more: () => page('series') }));
+      if (items.some(item => item.kind !== 'series' && hasArtwork(item))) content.append(section(t('Your films', 'Filmlerin'), items.filter(item => item.kind !== 'series' && hasArtwork(item)), { artworkOnly:true, more: () => page('films') }));
       if (!items.length && state.loaded) content.append(tool(t('Build your library', 'Kütüphaneni oluştur'), t('Scan a folder, review the matches, then add films and series with their posters and progress.', 'Bir klasörü tara, eşleşmeleri incele; film ve dizilerini afişleri ve ilerlemeleriyle ekle.'), t('Manage library', 'Kütüphaneyi yönet'), () => catalog()));
       content.append(tools());
     } else if (state.page === 'discover' && window.MediaDiscoveryUI) {

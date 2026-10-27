@@ -53,3 +53,8 @@ test('YouTube resume artwork derives only from a validated video identity',()=>{
   for(const url of ['https://youtube.com.evil.example/watch?v=abcdefghijk','https://user:password@youtube.com/watch?v=abcdefghijk','file:///abcdefghijk','abcdefghijk','https://youtube.com/watch?v=../../secret'])
     assert.equal(model.thumbnail({sourceRef:url}),'');
 });
+
+test('home artwork eligibility excludes non-video pages without deleting history',()=>{
+ const history=[{key:'browser:https://www.youtube.com/results?search_query=test',position:4,duration:50},{key:'browser:https://www.tiktok.com/@private',position:4,duration:50},{key:'youtube:abcdefghijk',position:4,duration:50}];
+ const data=model.snapshot([],history);assert.equal(data.continuing.length,3);assert.equal(data.continuing.filter(model.hasArtwork).length,1);assert(model.hasArtwork({id:'film',hasPoster:true}));assert.equal(model.hasArtwork({hasPoster:true}),false);assert.equal(history.length,3);
+});

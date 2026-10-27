@@ -38,6 +38,7 @@
     }
     return '';
   }
+  function hasArtwork(item) { return !!(item?.hasPoster && item.id || thumbnail(item)); }
   function snapshot(catalog, history) {
     const items = Array.isArray(catalog) ? catalog.filter(row => row && typeof row.id === 'string') : [];
     const bySource = new Map();
@@ -58,5 +59,5 @@
     }).sort((a, b) => number(b.lastWatched) - number(a.lastWatched));
     return { items, watch, continuing: watch.filter(row => progress(row).resume) };
   }
-  return Object.freeze({ progress, medium, matches, snapshot, thumbnail });
+  return Object.freeze({ progress, medium, matches, snapshot, thumbnail, hasArtwork });
 });
