@@ -1,8 +1,8 @@
 # Yeni 50 ürün hedefi — 27 Ekim 2026
 
-Başlangıç master65505a781a45573d628926e126fc0bf0ca89ff79. Önceki1000denetim ayrı; aynı kök yeni bug diye sayılmaz. 50hedef=ürün geliştirme/düzeltme/kabul maddesi;50yeni bug iddiası değildir.
+Başlangıç master65505a781a45573d628926e126fc0bf0ca89ff79. Önceki1000denetim ayrı; aynı kök yeni bug diye sayılmaz.50hedef=ürün geliştirme/düzeltme/kabul maddesi;50yeni bug iddiası değildir.
 
-Durum: ilk10hedef düzeltme/kontrollü kabul ile tamamlandı;40planlandı. Gerçek model/GPU/site başarısı iddia edilmez.
+Durum:20/50hedef düzeltme veya kontrollü kabul ile tamamlandı;30planlandı. Gerçekmodel/GPU/site başarısı iddia edilmez.
 
 | ID | Alan | Hedef/kabul | Durum | Kanıt |
 |---|---|---|---|---|
@@ -16,16 +16,16 @@ Durum: ilk10hedef düzeltme/kontrollü kabul ile tamamlandı;40planlandı. Gerç
 | W08 | Canlı Whisper başlangıç sahipliği | Capture kapanışı mevcut yeni stream tracklerine dokunmaz | DÜZELTİLDİ/DOĞRULANDI | R648: live-asr-start-owner648.test.js + native electron-live-asr-owner648.smoke.js; yerel kontrollü capture/backend, gerçek sistem sesi/model değil. |
 | W09 | Canlı Whisper başlangıç sahipliği | Backend active=false bekleyen capture başlangıcını iptal eder | DÜZELTİLDİ/DOĞRULANDI | R648: live-asr-start-owner648.test.js + native electron-live-asr-owner648.smoke.js; yerel kontrollü capture/backend, gerçek sistem sesi/model değil. |
 | W10 | Canlı Whisper başlangıç sahipliği | Durdurma sonrası yeniden başlatma ve kesin session kimliği korunur | DÜZELTİLDİ/DOĞRULANDI | R648: live-asr-start-owner648.test.js + native electron-live-asr-owner648.smoke.js; yerel kontrollü capture/backend, gerçek sistem sesi/model değil. |
-| W11 | Keşfet ve arama hata deneyimi | Yetkisiz arama hatası EN/TR eylemli mesaj verir | PLANLANDI | — |
-| W12 | Keşfet ve arama hata deneyimi | 429 sağlayıcı sınırı bekleme yönlendirmesi verir | PLANLANDI | — |
-| W13 | Keşfet ve arama hata deneyimi | 5xx ayrıntı hatası ham teknik metin yerine anlaşılır durum verir | PLANLANDI | — |
-| W14 | Keşfet ve arama hata deneyimi | Zaman aşımı ve çevrimdışı hatalar ayrı anlaşılırdır | PLANLANDI | — |
-| W15 | Keşfet ve arama hata deneyimi | Geçersiz sayfa/filtre bildiriminde düzeltilebilir alan anlatılır | PLANLANDI | — |
-| W16 | Keşfet ve arama hata deneyimi | Film/dizi aramasında tek kaynak başarısızsa kısmi sonuç açıklanır | PLANLANDI | — |
-| W17 | Keşfet ve arama hata deneyimi | İki çevrimiçi arama başarısızsa sıfır eşleşme diye sunulmaz | PLANLANDI | — |
-| W18 | Keşfet ve arama hata deneyimi | Başarısız çevrimiçi arama tekrar denenebilir | PLANLANDI | — |
-| W19 | Keşfet ve arama hata deneyimi | Geç eski hata yeni sorgunun durumunu ezemez | PLANLANDI | — |
-| W20 | Keşfet ve arama hata deneyimi | Native Windows EN/TR hata durumları ve geri dönüş doğrulanır | PLANLANDI | — |
+| W11 | Keşfet ve arama hata deneyimi | Yetkisiz arama hatası EN/TR eylemli mesaj verir | GELİŞTİRİLDİ/DOĞRULANDI | R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil. |
+| W12 | Keşfet ve arama hata deneyimi | 429 sağlayıcı sınırı bekleme yönlendirmesi verir | GELİŞTİRİLDİ/DOĞRULANDI | R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil. |
+| W13 | Keşfet ve arama hata deneyimi | 5xx ayrıntı hatası ham teknik metin yerine anlaşılır durum verir | GELİŞTİRİLDİ/DOĞRULANDI | R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil. |
+| W14 | Keşfet ve arama hata deneyimi | Zaman aşımı ve çevrimdışı hatalar ayrı anlaşılırdır | GELİŞTİRİLDİ/DOĞRULANDI | R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil. |
+| W15 | Keşfet ve arama hata deneyimi | Geçersiz sayfa/filtre bildiriminde düzeltilebilir alan anlatılır | GELİŞTİRİLDİ/DOĞRULANDI | R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil. |
+| W16 | Keşfet ve arama hata deneyimi | Film/dizi aramasında tek kaynak başarısızsa kısmi sonuç açıklanır | GELİŞTİRİLDİ/DOĞRULANDI | R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil. |
+| W17 | Keşfet ve arama hata deneyimi | İki çevrimiçi arama başarısızsa sıfır eşleşme diye sunulmaz | GELİŞTİRİLDİ/DOĞRULANDI | R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil. |
+| W18 | Keşfet ve arama hata deneyimi | Başarısız çevrimiçi arama tekrar denenebilir | DOĞRULANDI | R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil. |
+| W19 | Keşfet ve arama hata deneyimi | Geç eski hata yeni sorgunun durumunu ezemez | DOĞRULANDI | R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil. |
+| W20 | Keşfet ve arama hata deneyimi | Native Windows EN/TR hata durumları ve geri dönüş doğrulanır | DOĞRULANDI | R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil. |
 | W21 | Asistan işlem doğruluğu | Whisper onayı ile gerçek kabul edilen job birbirine bağlı kalır | PLANLANDI | — |
 | W22 | Asistan işlem doğruluğu | Altyazı yokken yetenekler doğru kaynakla yine erişilir | PLANLANDI | — |
 | W23 | Asistan işlem doğruluğu | İş durdurma kartı hatada sahte başarı vermez | PLANLANDI | — |

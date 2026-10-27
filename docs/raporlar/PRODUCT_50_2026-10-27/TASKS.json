@@ -97,8 +97,8 @@
       "area": "Keşfet ve arama hata deneyimi",
       "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
       "acceptance": "Yetkisiz arama hatası EN/TR eylemli mesaj verir",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "GELİŞTİRİLDİ/DOĞRULANDI",
+      "evidence": "R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -106,8 +106,8 @@
       "area": "Keşfet ve arama hata deneyimi",
       "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
       "acceptance": "429 sağlayıcı sınırı bekleme yönlendirmesi verir",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "GELİŞTİRİLDİ/DOĞRULANDI",
+      "evidence": "R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -115,8 +115,8 @@
       "area": "Keşfet ve arama hata deneyimi",
       "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
       "acceptance": "5xx ayrıntı hatası ham teknik metin yerine anlaşılır durum verir",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "GELİŞTİRİLDİ/DOĞRULANDI",
+      "evidence": "R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -124,8 +124,8 @@
       "area": "Keşfet ve arama hata deneyimi",
       "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
       "acceptance": "Zaman aşımı ve çevrimdışı hatalar ayrı anlaşılırdır",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "GELİŞTİRİLDİ/DOĞRULANDI",
+      "evidence": "R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -133,8 +133,8 @@
       "area": "Keşfet ve arama hata deneyimi",
       "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
       "acceptance": "Geçersiz sayfa/filtre bildiriminde düzeltilebilir alan anlatılır",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "GELİŞTİRİLDİ/DOĞRULANDI",
+      "evidence": "R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -142,8 +142,8 @@
       "area": "Keşfet ve arama hata deneyimi",
       "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
       "acceptance": "Film/dizi aramasında tek kaynak başarısızsa kısmi sonuç açıklanır",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "GELİŞTİRİLDİ/DOĞRULANDI",
+      "evidence": "R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -151,8 +151,8 @@
       "area": "Keşfet ve arama hata deneyimi",
       "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
       "acceptance": "İki çevrimiçi arama başarısızsa sıfır eşleşme diye sunulmaz",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "GELİŞTİRİLDİ/DOĞRULANDI",
+      "evidence": "R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -160,8 +160,8 @@
       "area": "Keşfet ve arama hata deneyimi",
       "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
       "acceptance": "Başarısız çevrimiçi arama tekrar denenebilir",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI",
+      "evidence": "R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -169,8 +169,8 @@
       "area": "Keşfet ve arama hata deneyimi",
       "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
       "acceptance": "Geç eski hata yeni sorgunun durumunu ezemez",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI",
+      "evidence": "R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -178,8 +178,8 @@
       "area": "Keşfet ve arama hata deneyimi",
       "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
       "acceptance": "Native Windows EN/TR hata durumları ve geri dönüş doğrulanır",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI",
+      "evidence": "R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -475,6 +475,23 @@
         "W10"
       ],
       "next": "W11–W20 keşfet/arama eylemli EN/TR hata sözleşmesi; F09-01 açık kök. Sonra asistan/kitap/ses kalan30."
+    },
+    {
+      "report": 649,
+      "code": "8a534820d1203964a457c27b4df2ef36f5748847",
+      "completed": [
+        "W11",
+        "W12",
+        "W13",
+        "W14",
+        "W15",
+        "W16",
+        "W17",
+        "W18",
+        "W19",
+        "W20"
+      ],
+      "next": "W21–W30 asistan kabul/iş makbuzu ve kaynak bağlamı. Kitap ve ses20hedef sonra; toplam30açık."
     }
   ]
 }

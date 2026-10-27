@@ -139,8 +139,10 @@
       "report": "../../raporlar/BROWSER_BUG_REPORT_646.md"
     },
     "F09-01": {
-      "status": "OPEN_UX",
-      "note": "Ham EN hata yolları kaynakta görülüyor; kapsamlı EN/TR sözleşmesi henüz uygulanmadı."
+      "status": "FIXED_VERIFIED",
+      "code_commit": "8a534820d1203964a457c27b4df2ef36f5748847",
+      "report": "../../raporlar/BROWSER_BUG_REPORT_649.md",
+      "note": "Keşfet/arama hata kodları EN/TR mesajlara çevrilir; native kontrollü503 ve Node429/timeout/network doğrulandı. Canlı sağlayıcı/GPU kanıtı değildir."
     },
     "F09-02": {
       "status": "DESIGN_REVIEW",

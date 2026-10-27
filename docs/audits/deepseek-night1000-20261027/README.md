@@ -34,7 +34,7 @@ pkg01–06 MIXED_REVISION; pkg07–08 eski19d5fb49; pkg09–10 1b41451d→f88541
 | F33-01 | Kayıp bölümWAV EN/TR yönlendirmesi düzeltildi | tests/book-export.test.js: missing chapter speech |
 | F38-01 | İ/i ve NFC/NFD ad eşleşmesi düzeltildi; dotlessı korunur | tests/media-relink-unicode646.test.js |
 | F39-01 | KesikCSV isteğe bağlıYearNone çökmesi düzeltildi | tests/test_audit646.py |
-| F09-01 | Açık: keşfet/arama hata yerelleştirme | Yeni iş; düzeltilmiş sayılmaz |
+| F09-01 | R649: EN/TR kodlu hata ve kısmi sonuç mesajları giderildi | tests/media-error-experience649.test.js; native Windows kontrollü kabul |
 | F09-02 | Tasarım incelemesi: kasa üzerine yazmama korunur | Kasa otomatik silinmez; kurtarma mesajı değerlendirilmeli |
 
 İlk altı görevlik eski14bulguluk denetim ayrıca [Rapor632](../../raporlar/BROWSER_BUG_REPORT_632.md) altında triyajlandı; bu gece arşivi onunla karıştırılmamalı.
@@ -99,3 +99,5 @@ Ham kişisel profil/görüntü/medya eklenmedi. Yalnız kontrollüfixture testlo
 | F48 | IPC sender/payload/file grant | `src/preload.js; src/local-file-access.js` |
 | F49 | process IO/NDJSON/iptal ağacı | `src/process-io.js; src/process-lifecycle.js; src/ndjson-lines.js` |
 | F50 | ayar/secret/atomik veri yazımı | `src/settings-security.js; src/provider-api-keys.js; src/fsync-utils.js` |
+
+Güncelleme: [Rapor649](../../raporlar/BROWSER_BUG_REPORT_649.md) F09-01 kapanışını kaydeder. Tarihsel FINDINGS/CSV ve kanıt ZIP'i değiştirilmedi; son durum yalnız registry/README'de izlenir. F09-02 tasarım incelemesi açık.

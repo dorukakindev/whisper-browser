@@ -1,15 +1,16 @@
 (() => {
   'use strict';
   const t = (en, tr) => window.UiLocale?.get?.() === 'tr' ? tr : en;
+  const failure = error => window.MediaDiscoveryErrors?.message(error,window.UiLocale?.get?.()) || error?.message || String(error);
   const el = (tag, cls, text) => { const node = document.createElement(tag); if (cls) node.className = cls; if (text !== undefined) node.textContent = String(text); return node; };
   const state = { root: null, tab: 'browse', kind: 'film', mode: 'top', genre: '', year: new Date().getFullYear(), query: '', rows: [], skip: 0, next: null, request: 0, busy: false, loadError: false };
   const btn = (label, callback, cls = 'mh-action') => {
     const node = el('button', cls, label); node.type = 'button';
-    node.addEventListener('click', () => Promise.resolve().then(callback).catch(error => status(error.message, true))); return node;
+    node.addEventListener('click', () => Promise.resolve().then(callback).catch(error => status(failure(error), true))); return node;
   };
   async function api(action, input = {}) {
     const result = await window.api.mediaDiscovery({ action, ...input });
-    if (!result?.ok) throw Error(result?.error || t('Discovery could not be loaded.', 'Keşfet yüklenemedi.'));
+    if (!result?.ok) throw Object.assign(Error(result?.error || t('Discovery could not be loaded.', 'Keşfet yüklenemedi.')), {errorCode:result?.errorCode});
     return result;
   }
   function status(message, error = false) {
@@ -35,7 +36,7 @@
     dialog.addEventListener('close', () => { if(translationToken)void window.api.mediaDiscovery({action:'synopsis-stop',kind:row.kind,id:row.providerId,token:translationToken}).catch(()=>{});dialog.remove(); opener?.isConnected && opener.focus(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); }, { once: true });
     let result;
     try { result = await api('detail', { kind: row.kind, id: row.providerId }); }
-    catch (error) { if (dialog.open) placeholder.textContent = `${t('Could not load details: ', 'Ayrıntılar alınamadı: ')}${error.message}`; return; }
+    catch (error) { if (dialog.open) placeholder.textContent = `${t('Could not load details: ', 'Ayrıntılar alınamadı: ')}${failure(error)}`; return; }
     if (!dialog.open) return;
     const item = result.item, body = el('div', 'md-detail-body'), content = el('div', 'md-detail-copy');
     window.MediaExperience?.setContext(dialog, { id: item.providerId, type: 'discovery-title', title: item.title, synopsis: item.synopsis });
@@ -47,7 +48,7 @@
       if(translated){showOriginal=!showOriginal;synopsis.textContent=showOriginal?item.synopsis:translated;translate.textContent=showOriginal?t('Show Turkish','Türkçesini göster'):t('Show original','Özgününü göster');return;}
       translate.disabled=true;translationToken=crypto.randomUUID();const token=translationToken;placeholder.textContent=t('Translating the story…','Konu çevriliyor…');
       try{const r=await window.api.mediaDiscovery({action:'synopsis-translate',kind:row.kind,id:row.providerId,token});if(!dialog.open||translationToken!==token)return;if(!r?.ok)throw Error(r?.error||t('Translation stopped.','Çeviri durduruldu.'));translated=r.item.synopsisTr;synopsis.textContent=translated;translate.textContent=t('Show original','Özgününü göster');placeholder.textContent=t('Turkish · AI translation','Türkçe · AI çevirisi');}
-      catch(error){if(dialog.open)placeholder.textContent=error.message;}
+      catch(error){if(dialog.open)placeholder.textContent=failure(error);}
       finally{if(translationToken===token)translationToken=null;if(dialog.open)translate.disabled=false;}
     });translate.dataset.discoveryAction='translate';storyHeading.append(translate);}
     content.append(storyHeading,synopsis);
@@ -68,7 +69,7 @@
         result.catalogId = catalogId; dialog.close();
         document.dispatchEvent(new CustomEvent('media-library-changed'));
         await window.MediaTitleUI.open(catalogId);
-      } catch (error) { placeholder.textContent = error.message; add.disabled = false; }
+      } catch (error) { placeholder.textContent = failure(error); add.disabled = false; }
     }, 'mh-action mh-primary');
     actions.append(add, btn(t('IMDb page', 'IMDb sayfası'), async () => {
       dialog.close(); document.getElementById('openPlayer').click();
@@ -78,7 +79,7 @@
     const reviews=btn(t('Letterboxd reviews & analysis','Letterboxd yorumları ve analiz'),async()=>{
       reviews.disabled=true;
       try{const saved=await api('add',{kind:item.kind,id:item.providerId});if(!dialog.open)return;result.catalogId=saved.item.id;document.dispatchEvent(new Event('media-library-changed'));await window.MediaToolsUI.open('decision',saved.item);}
-      catch(error){if(dialog.open)placeholder.textContent=error.message;}
+      catch(error){if(dialog.open)placeholder.textContent=failure(error);}
       finally{if(dialog.open)reviews.disabled=false;}
     });reviews.dataset.discoveryAction='reviews';actions.append(reviews);
     content.append(el('small','md-provider',t('Review analysis saves this title to your watchlist and opens the Letterboxd import tools. No video is downloaded.','Yorum analizi yapımı izleneceklere kaydeder ve Letterboxd yorum alma araçlarını açar. Video indirilmez.')));
@@ -125,7 +126,8 @@
       if (request !== state.request || root !== state.root || !root.isConnected) return;
       state.loadError = true; state.next = null;
       const timeout = /timeout|timed out|abort/i.test(String(error.message));
-      status(timeout ? t('Discovery timed out. Retry; your library is unchanged.', 'Keşfet isteği zaman aşımına uğradı. Yeniden dene; kütüphanen değişmedi.')
+      status(window.MediaDiscoveryErrors ? failure(error)+' '+t('Your library is unchanged.','Kütüphanen değişmedi.')
+        : timeout ? t('Discovery timed out. Retry; your library is unchanged.', 'Keşfet isteği zaman aşımına uğradı. Yeniden dene; kütüphanen değişmedi.')
         : t('Discovery could not be reached. Check your connection and retry; your library is unchanged.', 'Keşfet kaynağına ulaşılamadı. Bağlantını kontrol edip yeniden dene; kütüphanen değişmedi.'), true);
     } finally { if (request === state.request && root === state.root && root.isConnected) { state.busy = false; cards(); } }
   }

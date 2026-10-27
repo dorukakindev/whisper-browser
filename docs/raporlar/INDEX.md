@@ -1,3 +1,4 @@
+- [Rapor649](BROWSER_BUG_REPORT_649.md) — Kodlu EN/TR keşfet hataları, doğru kısmi arama ve Windows kabulü
 - [Rapor648](BROWSER_BUG_REPORT_648.md) — Canlı Whisper geç başlangıç, exact oturum ve görünür iptal; yeni50planı
 - [Rapor647](BROWSER_BUG_REPORT_647.md) — 1000 gece denetimi arşivi, senaryo imzaları ve yeniden tarama politikası
 - [Rapor646](BROWSER_BUG_REPORT_646.md) — Yeni denetim: CSV, kurtarma uyarısı, Unicode aday ve kayıp bölüm sesi
