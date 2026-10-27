@@ -26,7 +26,24 @@ function createFlows({now=Date.now,getJobs=()=>({jobs:[]})}={}){
   clean();if(tokens.size>=50)tokens.delete(tokens.keys().next().value);const id=randomUUID();tokens.set(id,{flow,expires:now()+600000});return {continuationId:id,continuationState:result.status==='accepted'?'waiting':'ready',continuationJobId:jobId};
  }
  function repeated(flow,name,args){return flow.steps.some(step=>signature(step.tool,step.args)===signature(name,args));}
- function evidence(flow){return flow.steps.map(step=>{const trim=(value,depth=0)=>{if(typeof value==='string')return value.slice(0,500);if(depth>3)return undefined;if(Array.isArray(value))return value.slice(0,5).map(v=>trim(v,depth+1));if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).filter(([key])=>!/path|folder|secret|api.?key|endpoint|token|^owner/i.test(key)).slice(0,20).map(([key,v])=>[key,trim(v,depth+1)]));return value;};const result=trim(step.result);return {tool:step.tool,args:trim(step.args),status:step.status,jobId:step.jobId,result:JSON.stringify(result).length<=4000?result:{status:step.status,note:'Large result omitted; read current tool state.'}};});}
+ function evidence(flow){return flow.steps.map(step=>{
+  let truncated=false;
+  const trim=(value,depth=0)=>{
+   if(typeof value==='string'){if(value.length>500)truncated=true;return value.slice(0,500);}
+   if(depth>3){truncated=true;return undefined;}
+   if(Array.isArray(value)){if(value.length>5)truncated=true;return value.slice(0,5).map(v=>trim(v,depth+1));}
+   if(value&&typeof value==='object'){
+    const entries=Object.entries(value).filter(([key])=>!/path|folder|secret|api.?key|endpoint|token|^owner/i.test(key));
+    if(entries.length>20)truncated=true;
+    return Object.fromEntries(entries.slice(0,20).map(([key,v])=>[key,trim(v,depth+1)]));
+   }
+   return value;
+  };
+  let result=trim(step.result);const args=trim(step.args);
+  if(JSON.stringify(result).length>4000){truncated=true;result={status:step.status,note:'Large result omitted; read current tool state.'};}
+  return {tool:step.tool,args,status:step.status,jobId:step.jobId,result,truncated};
+ });}
+
  return {start,resume,record,repeated,evidence,tokens};
 }
 module.exports={createFlows};
