@@ -46,11 +46,13 @@
       const key = source.watchKey || (source.value ? `${source.type === 'local' ? 'file' : 'browser'}:${source.value}` : '');
       if (key && !bySource.has(normalizedKey(key))) bySource.set(normalizedKey(key), item);
     }
-    const seen = new Set();
-    const watch = (Array.isArray(history) ? history : []).filter(row => {
-      if (!row || typeof row.key !== 'string' || seen.has(row.key)) return false;
-      seen.add(row.key); return true;
-    }).map(row => {
+    const latest = new Map();
+    for(const row of Array.isArray(history)?history:[]){
+      if(!row||typeof row.key!=='string')continue;
+      const key=normalizedKey(row.key),previous=latest.get(key);
+      if(!previous||number(row.lastWatched)>number(previous.lastWatched))latest.set(key,row);
+    }
+    const watch = [...latest.values()].map(row => {
       const catalogItem = bySource.get(normalizedKey(row.key));
       return catalogItem ? { ...row, id: catalogItem.id, hasPoster: catalogItem.hasPoster, synopsis: catalogItem.synopsis, year: catalogItem.year } : row;
     }).sort((a, b) => number(b.lastWatched) - number(a.lastWatched));

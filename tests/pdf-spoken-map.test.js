@@ -3,6 +3,14 @@ const test = require("node:test"),
   assert = require("node:assert/strict");
 const { match, rect, mount } = require("../src/renderer/pdf-spoken-map");
 
+test('Disposed PDF speech boxes release their canvas and cannot restart old playback',()=>{
+ const {JSDOM}=require('jsdom'),dom=new JSDOM('<div id="page"><canvas></canvas></div>'),previous=global.document;global.document=dom.window.document;
+ try{const container=global.document.getElementById('page'),canvas=container.querySelector('canvas'),audio=new dom.window.EventTarget();audio.currentTime=0;let seeks=0;
+ const control=mount(container,canvas,[{str:'Hello world.',width:60,height:10,transform:[10,0,0,10,10,20]}],{transform:[1,0,0,-1,0,100],width:100,height:100},[{text:'Hello world.',start:0,end:1}],audio,()=>{seeks++;});
+ const box=container.querySelector('.pdf-speech-box');assert(box);box.click();assert.equal(seeks,1);control.dispose();control.dispose();assert.equal(container.querySelector('.pdf-text-map'),null);assert.equal(container.querySelector('canvas'),canvas);box.click();assert.equal(seeks,1);
+ }finally{global.document=previous;dom.window.close();}
+});
+
 test("PDF speech matching preserves decimal, sign, fraction and time distinctions across text items", () => {
   for (const [source, spoken] of [
     ["Süre 1.5 saat.", "Süre 15 saat."],

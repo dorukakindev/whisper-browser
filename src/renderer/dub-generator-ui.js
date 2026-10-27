@@ -589,14 +589,17 @@
   });
 
   function voiceSettings(){return {profile:el('dubProfile').value,concurrency:Number(el('dubConcurrency').value),grouping:el('dubGrouping').value,verification:el('dubVerification').value,timingMode:el('dubTimingMode').value,expression:el('dubExpression').value,keepBackground:el('dubKeepBackground').checked,followDelivery:el('dubFollowDelivery').checked,deliveryStrength:el('dubDeliveryStrength').value,sample:el('dubSampleOnly').checked};}
-  function voiceState(){
+  function voiceState(query={}){
+    if(mediaContextKey!==null&&mediaContextKey!==mediaIdentity())return {opened:modal.open,busy:!!current||planning||referenceBusy||choosing||workspaceBusy,sourceChanged:true,subtitleReady:false,engineAndReferenceReady:false,output:null,groups:[],counts:{total:0,review:0,failed:0},note:'Voice preparation belongs to another source. Open the current video voice panel / Ses hazırlığı başka kaynağa ait. Güncel videonun ses panelini aç.'};
     let range=null,invalidRange=false;try{range=selectedRange();}catch(_){invalidRange=true;}
     const groups=[...results.values()].sort((a,b)=>Number(a.status==='ready')-Number(b.status==='ready')||a.group-b.group);
+    const offset=query.offset??0;if(!Number.isInteger(offset)||offset<0||offset>10000)throw Error('Invalid voice group offset.');
+    const visible=query.group_id?groups.filter(row=>row.key===query.group_id):groups.slice(offset,offset+30),nextOffset=!query.group_id&&offset+30<groups.length?offset+30:null;
     return {opened:modal.open,busy:!!current||referenceBusy||planning||choosing||workspaceBusy,subtitleReady:!!srt,engineAndReferenceReady:!!cfg?.ready,
       settings:voiceSettings(),range,invalidRange,canRegenerate:!!lastRequest&&!!cfg?.ready,
       output:output?{id:output.id,sample:output.sample===true,syncInvalid:output.syncInvalid===true,qualityUnavailable:output.qualityUnavailable===true}:null,
       counts:{total:groups.length,review:groups.filter(row=>row.status==='review').length,failed:groups.filter(row=>row.status==='failed').length},
-      groups:groups.slice(0,30).map(row=>({id:row.key,number:row.group,status:row.status,text:String(row.text||row.displayText||'').slice(0,220),verification:String(row.verification?.status||'not_checked')})),groupsTruncated:groups.length>30};
+      groups:visible.map(row=>({id:row.key,number:row.group,status:row.status,text:String(row.text||row.displayText||'').slice(0,220),verification:String(row.verification?.status||'not_checked')})),groupOffset:offset,nextOffset,groupsTruncated:nextOffset!==null};
   }
   async function ensureVoice(isCancelled){
     if(!modal.open)await window.DubGeneratorUI.prepareCurrent();else if(!cfg)await configure();

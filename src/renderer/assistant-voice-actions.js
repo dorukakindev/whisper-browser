@@ -5,7 +5,7 @@
   const stale=()=>isCancelled()||Date.now()>=deadline||!window.AssistantAppActions.current(owner);
   if(stale())throw Error(t('The source changed.','Kaynak değişti.'));
   const ui=window.DubGeneratorUI?.assistant;
-  if(name==='get_voice_status')return {status:'completed',voice:ui?.state()||{opened:false},attached:!!window.BrowserDubAudioUI?.originalPlayback(),note:t('Only selected settings and bounded check results; the model has not listened to this audio.','Yalnız seçili ayarlar ve sınırlı kontrol sonuçlarıdır; model bu sesi dinlemedi.')};
+  if(name==='get_voice_status')return {status:'completed',voice:ui?.state(args)||{opened:false},attached:!!window.BrowserDubAudioUI?.originalPlayback(),note:t('Only selected settings and bounded check results; the model has not listened to this audio.','Yalnız seçili ayarlar ve sınırlı kontrol sonuçlarıdır; model bu sesi dinlemedi.')};
   if(name==='list_voice_references'){
    const result=await window.api.listVoiceReferences();if(stale()||!result?.ok)throw Error(t('References could not be read.','Referanslar okunamadı.'));
    return {status:'completed',activeId:result.activeId,references:(result.references||[]).slice(0,80).map(row=>({id:row.id,name:String(row.name||'').slice(0,100)}))};

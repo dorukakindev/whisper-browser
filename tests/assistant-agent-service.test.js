@@ -11,6 +11,45 @@ function fixture(fetchImpl,extras={}){
  return {handlers,app,sender,event,events,state,service,owner,call:(name,data,e=event)=>handlers.get('assistant:'+name)(e,data)};
 }
 const reply=message=>new Response(JSON.stringify({choices:[{message,finish_reason:'stop'}]}),{headers:{'content-type':'application/json'}});
+
+test('Book cards reject impossible source ranges, blank pages and empty production selections before offering an action',async()=>{
+ const page={reader:{canPrepare:true,source:{type:'book-page',totalPages:5,text:'Readable'}}},chapter={reader:{canPrepare:true,source:{type:'book-chapter',chapterNumber:2,text:'Readable'}}};
+ for(const [name,args,state,expected] of [
+  ['prepare_book_narration',{from:1,to:6},page,false],['prepare_book_narration',{from:1,to:5},page,true],['prepare_book_narration',{from:1,to:101},{reader:{canPrepare:true,source:{type:'book-page',totalPages:200,text:'Readable'}}},false],
+  ['prepare_book_narration',{from:1,to:1},{reader:{canPrepare:true,source:{type:'book-page',text:' '}}},false],
+  ['prepare_book_narration',{from:1,to:2},chapter,false],['prepare_book_narration',{from:2,to:2,text:'translation'},chapter,false],['prepare_book_narration',{from:2,to:2},chapter,true],
+  ['start_book_narration',{}, {production:{busy:false,selectedCount:0,total:3}},false],['book_chapter',{chapter:4,operation:'regenerate'},{production:{busy:false,total:3}},false]
+ ]){let turn=0;const h=fixture(async()=>++turn===1?reply({role:'assistant',tool_calls:[{id:'book',function:{name,arguments:JSON.stringify(args)}}]}):reply({role:'assistant',content:'Checked'}));const send=h.sender.send;h.sender.send=(channel,value)=>{send(channel,value);if(value.type==='action')queueMicrotask(()=>h.call('agentResult',{callId:value.callId,result:{status:'completed',...state}}));};assert((await h.call('agentRun',{requestId:'book-bounds',question:'Prepare',owner:{...h.owner,kind:'book'}})).ok);assert.equal(h.events.some(row=>row.value.type==='proposal'),expected,JSON.stringify([name,args]));h.app.emit('will-quit');}
+});
+
+test('Cancelling a continuation releases its lease while keeping the original completed action',async()=>{
+ let turn=0;const h=fixture(async(_,options)=>{turn++;if(turn===1)return reply({role:'assistant',tool_calls:[{id:'one',function:{name:'open_settings',arguments:'{"section":"general"}'}}]});if(turn===2)return reply({role:'assistant',content:'Apply'});if(turn===3)return new Promise((_,reject)=>options.signal.addEventListener('abort',()=>reject(Error('aborted')),{once:true}));return reply({role:'assistant',content:'Resumed'});});
+ await h.call('agentRun',{requestId:'initial',question:'Open settings then explain',owner:h.owner});const proposal=h.events.find(e=>e.value.type==='proposal').value.action;
+ const action=h.call('agentApply',{proposalId:proposal.proposalId,owner:h.owner});await new Promise(setImmediate);await h.call('agentResult',{callId:h.events.find(e=>e.value.type==='action').value.callId,result:{status:'completed'}});const token=(await action).result.continuationId;
+ const input={requestId:'cancel-continuation',question:'Continue',continuationId:token,owner:h.owner},pending=h.call('agentRun',input);await new Promise(setImmediate);await h.call('agentCancel',{requestId:input.requestId});assert((await pending).cancelled);assert(h.service.flows.tokens.has(token));assert((await h.call('agentRun',{...input,requestId:'retry-continuation'})).ok);assert.equal(h.events.filter(e=>e.value.type==='action').length,1);h.app.emit('will-quit');
+});
+
+test('A renderer failed read is counted as failed evidence, never an applied action',async()=>{
+ let turn=0;const h=fixture(async()=>++turn===1?reply({role:'assistant',tool_calls:[{id:'one',function:{name:'get_voice_status',arguments:'{}'}}]}):reply({role:'assistant',content:'Read failed'}));const send=h.sender.send;h.sender.send=(channel,value)=>{send(channel,value);if(value.type==='action')queueMicrotask(()=>h.call('agentResult',{callId:value.callId,result:{status:'failed',error:'Panel unavailable'}}));};
+ const r=await h.call('agentRun',{requestId:'failed-read',question:'Voice status',owner:h.owner});assert(r.ok);assert.equal(r.execution.blockedOrFailed,1);assert.equal(r.execution.appliedActions,0);h.app.emit('will-quit');
+});
+
+test('Failed continuation can retry, reuses pending cards and consumes only a successful response',async()=>{
+ let turn=0;const tool=section=>({id:'card-'+turn,function:{name:'open_settings',arguments:JSON.stringify({section})}});
+ const h=fixture(async()=>{turn++;if(turn===1)return reply({role:'assistant',tool_calls:[tool('general')]});if(turn===2)return reply({role:'assistant',content:'Apply first'});if(turn===3||turn===5)return reply({role:'assistant',tool_calls:[tool('metadata')]});if(turn===4)throw Error('network interrupted');return reply({role:'assistant',content:'Ready'});});
+ await h.call('agentRun',{requestId:'first',question:'Original goal',owner:h.owner});const p=h.events.find(row=>row.value.type==='proposal').value.action;
+ const applying=h.call('agentApply',{proposalId:p.proposalId,owner:h.owner});await new Promise(setImmediate);const a=h.events.find(row=>row.value.type==='action').value;await h.call('agentResult',{callId:a.callId,result:{status:'completed'}});const receipt=await applying,token=receipt.result.continuationId;
+ const input={requestId:'continue-one',question:'Continue',continuationId:token,owner:h.owner};assert.equal((await h.call('agentRun',input)).ok,false);assert(h.service.flows.tokens.has(token));
+ const next=h.events.filter(row=>row.value.type==='proposal').at(-1).value.action.proposalId;
+ assert((await h.call('agentRun',{...input,requestId:'continue-two'})).ok);assert.equal(h.events.filter(row=>row.value.type==='proposal').at(-1).value.action.proposalId,next);assert.equal(h.service.proposals.size,1);assert(!h.service.flows.tokens.has(token));assert.equal((await h.call('agentRun',{...input,requestId:'replay'})).ok,false);h.app.emit('will-quit');assert.equal(h.service.flows.tokens.size,0);
+});
+
+test('Web results are source-owned and multiple searches keep distinct safe citations',async()=>{
+ let turn=0;const h=fixture(async()=>++turn<=2?reply({role:'assistant',tool_calls:[{id:'web'+turn,function:{name:'research_web',arguments:JSON.stringify({query:'question '+turn})}}]}):reply({role:'assistant',content:'Answer'}),{researchWeb:async query=>({text:'fact',sources:[null,{title:query,url:'https://example.com/'+query.slice(-1)},{title:'duplicate',url:'https://example.com/1'}]})});
+ const r=await h.call('agentRun',{requestId:'web-multiple',question:'Compare sources',owner:h.owner});assert(r.ok);assert(r.text.includes('https://example.com/1'));assert(r.text.includes('https://example.com/2'));assert.equal((r.text.match(/https:\/\/example.com\/1/g)||[]).length,1);h.app.emit('will-quit');
+ let stale;stale=fixture(async()=>reply({role:'assistant',tool_calls:[{id:'web',function:{name:'research_web',arguments:'{"query":"source"}'}}]}),{researchWeb:async()=>{stale.state.valid=false;return {text:'late',sources:[]};}});
+ assert.equal((await stale.call('agentRun',{requestId:'web-stale',question:'Research',owner:stale.owner})).ok,false);assert(!stale.events.some(row=>row.value.type==='proposal'));stale.app.emit('will-quit');
+});
 test('Model proposals do not execute until the same source applies; stale, foreign and replay requests are refused',async()=>{
  let count=0;
  const h=fixture(async()=>++count===1?reply({role:'assistant',content:null,tool_calls:[{id:'c',type:'function',function:{name:'start_whisper',arguments:'{"translate":false}'}}]}):reply({role:'assistant',content:'Proposed.'}));

@@ -205,7 +205,7 @@
   }
   function active(){const base=globalAssistantContext();return [...readers].reverse().find(row=>row.current()&&row.getSource('summary')?.id===base?.id&&row.getSource('summary')?.chapter===base?.chapter);}
   const assistant={
-    state(){const row=active(),source=row?.getSource('summary');if(!source)return null;return {source:{id:source.id,type:source.type,title:source.title,chapter:source.chapter,page:source.page,chapterNumber:source.chapterNumber,totalChapters:source.totalChapters,text:String(source.text||'').slice(0,6000),truncated:String(source.text||'').length>6000,selectedText:String(row.getSource('explain')?.selectedText||'').slice(0,2000)},canPrepare:!!row.onPrepare};},
+    state(){const row=active(),source=row?.getSource('summary');if(!source)return null;return {source:{id:source.id,type:source.type,title:source.title,chapter:source.chapter,page:source.page,totalPages:source.totalPages,chapterNumber:source.chapterNumber,totalChapters:source.totalChapters,text:String(source.text||'').slice(0,6000),truncated:String(source.text||'').length>6000,selectedText:String(row.getSource('explain')?.selectedText||'').slice(0,2000)},canPrepare:!!row.onPrepare};},
     async prepare(args,stale){const row=active();if(!row||stale())throw Error('Book source changed / Kitap kaynağı değişti.');if(!row.onPrepare)throw Error('Use the open production controls / Açık üretim kontrollerini kullan.');return row.onPrepare(args,stale);}
   };
   window.BookAssistantUI = Object.freeze({ mount, context, handle, assistant:Object.freeze(assistant), busy:()=>commandBusy });

@@ -34,11 +34,11 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
  ipcMain.handle('assistant:agentRun',async(event,input={})=>{
   if(!authorized(event))return {ok:false,error:'Unauthorized assistant request.'};
   if(sessions.has(event.sender.id)||applications.has(event.sender.id))return {ok:false,error:'Assistant is already running / Asistan zaten çalışıyor.'};
-  let controller,session,timer,stop;
+  let controller,session,timer,stop,resumed;
   try{
    if(!identifier(input.requestId)||typeof input.question!=='string'||!input.question.trim()||input.question.length>16000||JSON.stringify(input).length>4*1024*1024)throw Error('Invalid assistant request.');
    const owner=manifest.clean(input.owner);requireOwner(owner);
-   const resumed=input.continuationId?flows.resume(input.continuationId,event.sender.id,owner):null;
+   resumed=input.continuationId?flows.resume(input.continuationId,event.sender.id,owner,{deferCommit:true}):null;
    if(resumed?.waiting)return {ok:true,waiting:true,text:resumed.text};
    const flow=resumed?.flow||flows.start(event.sender.id,owner,input.question);
    const sourcePool=manifest.pool(input.pool);owner.hasSubtitles=sourcePool.length>0;
@@ -56,7 +56,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
      captionProbes.set(event.sender.id,{owner,languages,expires:Date.now()+300000});return {languages,truncated:available.length>languages.length,note:'Choose a listed caption ID. No captions means Whisper must be explicitly requested; it was not started.'};
     }
     if(name==='app_help')return {capabilities:registry.help(owner,args.domain||'all'),limits:'Only listed assistant tools are connected. Book, dubbing, library and normal settings tools are source/domain dependent. Do not claim unlisted controls or access to secrets, files, arbitrary browser automation or the full book.'};
-    if(name==='research_web'){const result=await researchWeb(args.query,controller.signal);const sources=(result.sources||[]).filter(row=>require('./assistant-web-research').safeSource(row.url)).slice(0,10);session.webSources=sources;return {text:result.text,sources};}
+    if(name==='research_web'){const result=await researchWeb(args.query,controller.signal);controller.signal.throwIfAborted();requireOwner(owner);const sources=(Array.isArray(result.sources)?result.sources:[]).filter(row=>row&&require('./assistant-web-research').safeSource(row.url)).slice(0,10);session.webSources=[...new Map([...(session.webSources||[]),...sources].map(row=>[row.url,row])).values()].slice(0,10);return {text:result.text,sources};}
     if(name==='get_job_status')return getJobs();
     if(name==='get_source_context')return {source:manifest.publicContext(owner),data:manifest.sourceText(input.context,10000)};
     if(name==='list_subtitle_tracks')return {tracks:owner.tracks};
@@ -72,7 +72,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
      if(offered.has(signature))return {...offered.get(signature),note:'This exact review card already exists. It has not run.'};
      const previous=[...offered.values()].map(row=>row.tool);
      const prerequisite=previous.find(prior=>(['start_whisper','translate_video_captions','translate_captions'].includes(prior)&&entry.domain==='voice')||(['configure_voice_generation','prepare_voice_reference','set_voice_reference'].includes(prior)&&['start_voice_generation','use_generated_voice'].includes(name))||(['prepare_book_narration','select_book_chapters','start_book_narration'].includes(prior)&&['start_book_narration','export_book_audio'].includes(name)));
-     if(prerequisite){failed++;return {status:'blocked',note:'Apply the prerequisite card '+prerequisite+' first, then Continue with result after exact job completion. No dependent card or job was created.'};}
+     if(prerequisite){return {status:'blocked',note:'Apply the prerequisite card '+prerequisite+' first, then Continue with result after exact job completion. No dependent card or job was created.'};}
 
      if(flows.repeated(flow,name,args))return {status:'completed',note:'This exact step already ran in this flow. Read current status; do not repeat it.'};
      if(name==='translate_video_captions'){const probe=captionProbes.get(event.sender.id);if(!probe||probe.expires<Date.now()||!manifest.same(probe.owner,owner)||!probe.languages.some(row=>row.id===args.caption_id))throw Error('Probe this video first and select a real caption ID.');}
@@ -80,23 +80,39 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
      if(['seek_to_time','preview_translation_change','open_subtitle_editor'].includes(name)&&!sourcePool.some(row=>row.id===args.source_id))throw Error('Unknown source subtitle ID.');
      if(['translate_captions','load_caption_track'].includes(name)&&!owner.tracks.some(row=>row.id===args.track_id&&(name==='load_caption_track'||row.role==='source')))throw Error('Unknown source track ID.');
      for(const [key,row] of proposals)if(row.expires<Date.now())proposals.delete(key);
+     const existing=[...proposals].find(([,row])=>row.flow===flow&&row.name===name&&JSON.stringify(row.args)===JSON.stringify(args));
+     if(existing){const [proposalId,row]=existing,action={kind:'app_action',proposalId,tool:name,label:row.label,summary:row.summary};emit(event.sender,{type:'proposal',requestId:session.id,action});const receipt={status:'proposed',label:row.label,proposalId,tool:name,note:'The existing un-applied card was reused. It has not run.'};offered.set(signature,receipt);return receipt;}
      if(proposals.size>=100||session.proposalCount>=8)throw Error('Too many pending assistant actions.');
      session.proposalCount=(session.proposalCount||0)+1;
      const proposalId=randomUUID();let libraryIdentity,collectionIdentity;let {label,summary}=registry.describe(name,args,input.locale,owner);
      if(name==='set_voice_reference'){const state=await requestRenderer(event.sender,owner,'list_voice_references',{},controller.signal);const ref=state.references?.find(row=>row.id===args.reference_id);if(!ref)throw Error('Unknown saved voice reference.');summary=(input.locale==='tr'?'Referans: ':'Reference: ')+ref.name+(input.locale==='tr'?' · üretim başlamaz.':' · generation does not start.');}
-     if(['voice_group','use_generated_voice','start_voice_generation'].includes(name)){const state=await requestRenderer(event.sender,owner,'get_voice_status',{},controller.signal);const voice=state.voice;if(!voice||voice.busy)throw Error('Voice panel unavailable or busy.');if(name==='voice_group'){const group=voice.groups?.find(row=>row.id===args.group_id);if(!group)throw Error('Unknown current voice group.');summary=(input.locale==='tr'?'Grup ':'Group ')+group.number+' · '+summary;}if(name==='use_generated_voice'&&(!voice.output||voice.output.id!==args.output_id||voice.output.sample||voice.output.syncInvalid))throw Error('No matching full voice output.');if(name==='start_voice_generation'&&(!voice.subtitleReady||!voice.engineAndReferenceReady))throw Error('Open voice preparation and select subtitles/reference first.');}
-     if(entry.domain==='book'){const state=await requestRenderer(event.sender,owner,'get_book_context',{},controller.signal);if(name==='prepare_book_narration'){if(!state.reader?.canPrepare)throw Error('Open a source page/chapter first.');}else if(!state.production||state.production.busy)throw Error('Open idle book production first.');summary=String(state.reader?.source?.title||state.production?.title||owner.title).slice(0,120)+' · '+summary;}
+     if(['voice_group','use_generated_voice','start_voice_generation'].includes(name)){const state=await requestRenderer(event.sender,owner,'get_voice_status',name==='voice_group'?{group_id:args.group_id}:{},controller.signal);const voice=state.voice;if(!voice||voice.busy)throw Error('Voice panel unavailable or busy.');if(name==='voice_group'){const group=voice.groups?.find(row=>row.id===args.group_id);if(!group)throw Error('Unknown current voice group.');summary=(input.locale==='tr'?'Grup ':'Group ')+group.number+' · '+summary;}if(name==='use_generated_voice'&&(!voice.output||voice.output.id!==args.output_id||voice.output.sample||voice.output.syncInvalid))throw Error('No matching full voice output.');if(name==='start_voice_generation'&&(!voice.subtitleReady||!voice.engineAndReferenceReady))throw Error('Open voice preparation and select subtitles/reference first.');}
+     if(entry.domain==='book'){
+      const state=await requestRenderer(event.sender,owner,'get_book_context',{},controller.signal);
+      if(name==='prepare_book_narration'){
+       if(!state.reader?.canPrepare)throw Error('Open a source page/chapter first.');
+       const source=state.reader.source;
+       if(typeof source?.text==='string'&&!source.text.trim())throw Error('The current page/chapter has no readable text / Açık sayfa/bölümde okunabilir metin yok.');
+       if(source?.type==='book-page'&&(args.to-args.from>=100||Number.isInteger(source.totalPages)&&args.to>source.totalPages))throw Error('Choose 1–100 pages within the current PDF / Güncel PDF içinde 1–100 sayfa seç.');
+       if(source?.type==='book-chapter'&&(args.from!==source.chapterNumber||args.to!==source.chapterNumber||args.text==='translation'))throw Error('Prepare the current original chapter; select other chapters in production / Güncel özgün bölümü hazırla; diğer bölümleri üretimde seç.');
+      }else{
+       if(!state.production||state.production.busy)throw Error('Open idle book production first.');
+       if(['start_book_narration','export_book_audio'].includes(name)&&state.production.selectedCount===0)throw Error('Select production chapters first / Önce üretim bölümlerini seç.');
+       if(Number.isInteger(state.production.total)&&(args.to>state.production.total||args.chapter>state.production.total))throw Error('Chapter is outside this production project / Bölüm bu üretim projesinin dışında.');
+      }
+      summary=String(state.reader?.source?.title||state.production?.title||owner.title).slice(0,120)+' · '+summary;
+     }
      if(entry.domain==='library'&&args.item_id){const state=await requestRenderer(event.sender,owner,'get_title_details',{item_id:args.item_id},controller.signal);if(!state.item||!state.identity)throw Error('Title identity unavailable.');libraryIdentity=state.identity;summary=String(state.item.title).slice(0,160)+' · '+summary;}
      if(name==='apply_library_collection'){const state=await requestRenderer(event.sender,owner,'get_collection_plan',{plan_id:args.plan_id},controller.signal);if(!state.plan)throw Error('Collection plan unavailable.');collectionIdentity=JSON.stringify(state.plan);summary=(state.plan.member===false?(input.locale==='tr'?'Üyelikten çıkar: ':'Remove membership: '):(input.locale==='tr'?'Üyeliğe ekle: ':'Add membership: '))+state.plan.name+' · '+state.plan.items.map(row=>row.title).join(', ').slice(0,1200);}
      controller.signal.throwIfAborted();requireOwner(owner);
      const action={kind:'app_action',proposalId,tool:name,label,summary};
-     proposals.set(proposalId,{sender:event.sender,owner,name,args,flow,libraryIdentity,collectionIdentity,expires:Date.now()+10*60*1000});
+     proposals.set(proposalId,{sender:event.sender,owner,name,args,flow,label,summary,libraryIdentity,collectionIdentity,expires:Date.now()+10*60*1000});
      emit(event.sender,{type:'proposal',requestId:session.id,action});
      const receipt={status:'proposed',label,proposalId,tool:name,note:'A real action card was created. It has not run; the user may apply it.'};offered.set(signature,receipt);if(name==='apply_library_collection')planned.delete(args.plan_id);return receipt;
     }
     const result=await requestRenderer(event.sender,owner,name,args,controller.signal);if(name==='plan_library_collection'&&result.status==='completed'&&result.plan?.id)planned.add(result.plan.id);return result;
    };
-   const execute=async(name,args)=>{emit(event.sender,{type:'progress',requestId:session.id,phase:'tool',domain:name==='research_web'?'web':registry.get(name)?.domain||''});try{return await executeUnchecked(name,args);}catch(error){if(!controller.signal.aborted)failed++;throw error;}finally{if(!controller.signal.aborted)emit(event.sender,{type:'progress',requestId:session.id,phase:'thinking'});}};
+   const execute=async(name,args)=>{emit(event.sender,{type:'progress',requestId:session.id,phase:'tool',domain:name==='research_web'?'web':registry.get(name)?.domain||''});try{const result=await executeUnchecked(name,args);if(['failed','blocked'].includes(result?.status))failed++;return result;}catch(error){if(!controller.signal.aborted)failed++;throw error;}finally{if(!controller.signal.aborted)emit(event.sender,{type:'progress',requestId:session.id,phase:'thinking'});}};
    const result=await provider.run({question:flow.question,continuation:flows.evidence(flow),history:input.history,context:input.context,owner,pool:sourcePool,locale:input.locale,config,signal:controller.signal,fetchImpl,
     onDelta:text=>emit(event.sender,{type:'delta',requestId:session.id,text}),
     onReplace:text=>emit(event.sender,{type:'replace',requestId:session.id,text}),
@@ -105,9 +121,9 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    if(session.webSources?.length)result.text=result.text.slice(0,28000)+'\n\n'+(input.locale==='tr'?'Web kaynakları:':'Web sources:')+'\n'+session.webSources.map((row,i)=>'[W'+(i+1)+'] '+String(row.title).slice(0,200)+'\n'+row.url).join('\n');
    const execution={cards:offered.size,pendingPlans:planned.size,attempted,blockedOrFailed:failed,appliedActions:0};
    if(attempted||planned.size||/kart|\bcard\b|başlat|started|tamamlan|completed/i.test(result.text)){const tr=input.locale==='tr';const note=tr?'Uygulama doğrulaması: '+offered.size+' gerçek işlem kartı oluşturuldu; bu istek kartları uygulamadı, transkripsiyon/dublaj başlatmadı.':'Application verification: '+offered.size+' real action cards created; this request applied no cards and started no transcription/dubbing.';const extra=planned.size?(tr?' Koleksiyon planı yalnız veri; uygulanabilir kartı henüz yok.':' A collection plan is data only; its review card is still missing.'):'';result.text=result.text.slice(0,30500)+'\n\n'+note+extra;}
-   return {ok:true,...result,execution};
+   resumed?.settle?.(true);return {ok:true,...result,execution};
   }catch(error){const timedOut=controller?.signal.aborted&&controller.signal.reason==='timeout';return {ok:false,timedOut:!!timedOut,cancelled:!!controller?.signal.aborted&&!timedOut,error:timedOut?'Assistant timed out. Received text was kept; you can retry / Asistan zaman aşımına uğradı. Alınan metin korundu; yeniden deneyebilirsin.':controller?.signal.aborted?'Assistant stopped / Asistan durduruldu.':String(error.message).slice(0,300)};}
-  finally{clearTimeout(timer);if(stop)event.sender.removeListener('destroyed',stop);if(sessions.get(event.sender.id)===session)sessions.delete(event.sender.id);}
+  finally{resumed?.settle?.(false);clearTimeout(timer);if(stop)event.sender.removeListener('destroyed',stop);if(sessions.get(event.sender.id)===session)sessions.delete(event.sender.id);}
  });
  ipcMain.handle('assistant:agentCancel',(event,input={})=>{
   if(!authorized(event))return {ok:false};const session=sessions.get(event.sender.id);
@@ -128,7 +144,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    try{if(row.libraryIdentity){const state=await requestRenderer(event.sender,current,'get_title_details',{item_id:row.args.item_id},controller.signal);if(state.identity!==row.libraryIdentity)throw Error('Title changed; ask again.');}if(row.collectionIdentity){const state=await requestRenderer(event.sender,current,'get_collection_plan',{plan_id:row.args.plan_id},controller.signal);if(JSON.stringify(state.plan)!==row.collectionIdentity)throw Error('Collection plan changed; ask again.');}if(row.name==='cancel_job'){const result=await cancelJob(row.args.job_id);return result.ok?{ok:true,result}:{ok:false,error:result.error};}const result=await requestRenderer(event.sender,current,row.name,row.args,controller.signal);const continuation=flows.record(row.flow,row.name,row.args,result,resolveJobId(result?.jobId));const invalidated=[];if(['accepted','completed'].includes(result?.status))for(const [id,other] of proposals)if(other.flow===row.flow){proposals.delete(id);invalidated.push(id);}return {ok:true,result:{...result,...continuation,invalidatedProposalIds:invalidated}};}finally{clearTimeout(timer);event.sender.removeListener('destroyed',stop);applications.delete(event.sender.id);}
   }catch(error){return {ok:false,error:String(error.message).slice(0,300)};}
  });
- app.once('will-quit',()=>{for(const row of sessions.values())row.controller.abort('closed');for(const row of applications.values())row.controller.abort('closed');for(const row of pending.values())row.finish(null,Error('Application closing.'));proposals.clear();});
+ app.once('will-quit',()=>{for(const row of sessions.values())row.controller.abort('closed');for(const row of applications.values())row.controller.abort('closed');for(const row of pending.values())row.finish(null,Error('Application closing.'));proposals.clear();flows.tokens.clear();captionProbes.clear();});
  return {sessions,proposals,flows,applications};
 }
 module.exports={register};

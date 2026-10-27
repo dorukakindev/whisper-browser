@@ -2,6 +2,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const model = require('../src/renderer/media-home-model');
+
+test('Windows source aliases keep the most recent progress and catalog artwork at library scale',()=>{
+ const catalog=Array.from({length:5000},(_,i)=>({id:'film'+i,hasPoster:true,source:{type:'local',value:'C:\\Films\\Video'+i+'.mp4'}}));
+ const history=catalog.flatMap((_,i)=>[{key:'file:C:\\Films\\Video'+i+'.mp4',position:1,duration:100,lastWatched:1},{key:'file:c:/films/video'+i+'.mp4',position:20,duration:100,lastWatched:2}]);
+ const result=model.snapshot(catalog,history);assert.equal(result.watch.length,5000);assert(result.watch.every(row=>row.position===20&&row.id&&row.hasPoster));assert.equal(history.length,10000);
+});
 test('resume excludes completed/end credits and rejects invalid timing without mutating history', () => {
   const history = [
     { key: 'file:a', position: 20, duration: 100, lastWatched: 1 },

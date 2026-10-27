@@ -33,6 +33,12 @@ class Audio extends EventTarget {
     return [...this.listeners.values()].reduce((n, s) => n + s.size, 0);
   }
 }
+
+test('A disposed reader play promise never pauses a newer session on the same audio element',async()=>{
+ const audio=new Audio();audio.metadata();let resolve,pauses=0;audio.pause=()=>pauses++;audio.play=()=>new Promise(done=>resolve=done);
+ const old=create(audio),pending=old.playFrom(2);await Promise.resolve();old.dispose();
+ const next=create(audio);audio.play=async()=>{};await next.playFrom(5);const before=pauses;resolve();assert.equal(await pending,false);assert.equal(pauses,before);assert.equal(audio.currentTime,5);next.dispose();
+});
 test("explicit seek before metadata wins over saved reading position and rapid clicks play only the latest passage", async () => {
   const audio = new Audio(),
     control = create(audio, { position: 8 });

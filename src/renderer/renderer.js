@@ -24885,6 +24885,10 @@ function setPdfReaderView(mode = 'both') {
 }
 
 
+function cancelPdfReaderRenders(reader) {
+  for(const task of reader?.renderTasks?.values()||[]){try{task.cancel();}catch(_){}}
+  reader?.renderTasks?.clear();
+}
 async function renderPdfReaderPage(pageNumber) {
   const reader = player.pdfReader;
   if (!reader?.pdf) return;
@@ -24918,7 +24922,9 @@ async function renderPdfReaderPage(pageNumber) {
     // Electron penceresinde bu kareler tamamen durdurulabildiği için okuyucu
     // sonsuza kadar "çiziliyor" durumunda kalıyordu. Print yolu aynı tuval
     // çıktısını rAF bağımlılığı olmadan tamamlar.
-    await page.render({ canvas, viewport, intent: 'print' }).promise;
+    const renderTask=page.render({ canvas, viewport, intent: 'print' });
+    reader.renderTasks ||= new Map();reader.renderTasks.set(renderKey,renderTask);
+    try{await renderTask.promise;}finally{if(reader.renderTasks.get(renderKey)===renderTask)reader.renderTasks.delete(renderKey);}
     if (player.pdfReader !== reader || (reader.renderGeneration || 0) !== generation) { article.remove(); return; }
     reader.renderStage = `extracting:${pageNumber}`;
     article.dataset.state = 'extracting';
@@ -25183,6 +25189,7 @@ $('pdfReaderClose')?.addEventListener('click', () => {
   const reader = player.pdfReader;
   reader?.observer?.disconnect();
   if (reader) reader.renderGeneration = (reader.renderGeneration || 0) + 1;
+  cancelPdfReaderRenders(reader);
   if (reader?.pdfHash) window.api.cancelPdfTranslation?.(reader.pdfHash).catch(() => {});
   try { Promise.resolve(reader?.loadingTask?.destroy?.()).catch(() => {}); } catch (_) {}
   const root = $('pdfReaderPages');
@@ -25228,6 +25235,7 @@ function setPdfReaderZoom(nextScale) {
   reader.scale = next;
   $('pdfReader').style.setProperty('--pdf-reader-font', `${20*next}px`);
   reader.renderGeneration = (reader.renderGeneration || 0) + 1;
+  cancelPdfReaderRenders(reader);
   reader.observer?.disconnect();
   reader.rendered.clear();
   reader.rendering.clear();

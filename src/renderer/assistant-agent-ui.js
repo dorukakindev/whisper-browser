@@ -4,7 +4,7 @@
  let pending=null,retryPacket=null,applying=null;const proposalTasks=new Map(),continuations=new Map(),actionCalls=new Map();
  const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
  const activity=task=>{
-  if(task?.cancelled)return t('Stopping assistant…','Asistan durduruluyor…');
+  if(task?.cancelled)return t('Stopping the assistant request; media jobs are managed in Jobs…','Asistan isteği durduruluyor; medya işleri İşler bölümünden yönetilir…');
   if(task?.phase==='applying')return t('Waiting for the application result…','Uygulama sonucu bekleniyor…');
   if(task?.phase==='tool'){const labels={settings:['Reading application settings…','Uygulama ayarları okunuyor…'],library:['Reading library information…','Kütüphane bilgisi okunuyor…'],book:['Reading book and narration state…','Kitap ve seslendirme durumu okunuyor…'],voice:['Reading voice preparation state…','Ses hazırlığı durumu okunuyor…'],video:['Checking video and captions…','Video ve altyazılar kontrol ediliyor…'],page:['Reading page information…','Sayfa bilgisi okunuyor…'],subtitles:['Searching the selected subtitles…','Seçili altyazılar taranıyor…'],web:['Researching web sources…','Web kaynakları araştırılıyor…']};const label=labels[task.domain];return label?t(...label):t('Checking application information…','Uygulama bilgisi kontrol ediliyor…');}
   return t('Waiting for the assistant response…','Asistan yanıtı bekleniyor…');
@@ -53,7 +53,7 @@
   }else if(packet.type==='delta'){
    task.text=(task.text+String(packet.text||'')).slice(0,32000);task.job.bubble.textContent=task.text;window.AssistantWorkspace?.partial(task.job,task.text);
   }else if(packet.type==='proposal'||packet.type==='evidence'){
-   if(packet.type==='proposal'){task.actions.push(packet.action);proposalTasks.set(packet.action.proposalId,{question:task.question,history:(task.history||[]).slice(-12).map(row=>({role:row.role,content:String(row.content||'').slice(0,5000)}))});while(proposalTasks.size>50)proposalTasks.delete(proposalTasks.keys().next().value);}else task.evidence=packet.evidence||[];
+   if(packet.type==='proposal'){if(!task.actions.some(row=>row.proposalId===packet.action.proposalId))task.actions.push(packet.action);proposalTasks.set(packet.action.proposalId,{question:task.question,history:(task.history||[]).slice(-12).map(row=>({role:row.role,content:String(row.content||'').slice(0,5000)}))});while(proposalTasks.size>50)proposalTasks.delete(proposalTasks.keys().next().value);}else task.evidence=packet.evidence||[];
    task.job.chatContext.assistant_tool_evidence=task.evidence.map(row=>({id:row.id,baslangic:row.start,bitis:row.end,metin:row.text,ceviri:row.translation}));
    task.job.bubble._chatContext=task.job.chatContext;
    task.job.bubble._transcriptEvidence=task.job.chatContext.assistant_tool_evidence;
@@ -88,7 +88,7 @@
   return {canContinue:state.ready||state.waiting,waiting:state.waiting,flowState:state.state,flowNote:notes[state.state]||'',progress:state.percent};
  };
 
- async function continueAction(proposal){const info=flowInfo(proposal);if(!info.canContinue||info.waiting)throw Error(info.flowNote||t('This step is not ready.','Bu adım hazır değil.'));const row=continuations.get(proposal.proposalId);if(!row||row.expires<Date.now()||pending||applying||!window.AssistantWorkspace?.canResume(proposal.proposalId)||!window.AssistantAppActions.current(row.owner))throw Error(t('This continuation is no longer available.','Bu devam isteği artık kullanılamıyor.'));continuations.delete(proposal.proposalId);changed();const context=aiChatContext();context.assistant_tools=window.AssistantWorkspace?.toolContext();const result=await send(row.origin.question,context,row.origin.history,aiSourceScope(),row);if(result?.waiting&&window.AssistantAppActions.current(row.owner))continuations.set(proposal.proposalId,row);changed();}
+ async function continueAction(proposal){const info=flowInfo(proposal);if(!info.canContinue||info.waiting)throw Error(info.flowNote||t('This step is not ready.','Bu adım hazır değil.'));const row=continuations.get(proposal.proposalId);if(!row||row.expires<=Date.now()||pending||applying||!window.AssistantWorkspace?.canResume(proposal.proposalId)||!window.AssistantAppActions.current(row.owner))throw Error(t('This continuation is no longer available.','Bu devam isteği artık kullanılamıyor.'));continuations.delete(proposal.proposalId);changed();let consumed=false;try{const context=aiChatContext();context.assistant_tools=window.AssistantWorkspace?.toolContext();const result=await send(row.origin.question,context,row.origin.history,aiSourceScope(),row);consumed=!!result?.ok&&!result.waiting;return result;}finally{if(!consumed&&row.expires>Date.now()&&window.AssistantAppActions.current(row.owner)&&window.AssistantWorkspace?.canResume(proposal.proposalId))continuations.set(proposal.proposalId,row);changed();}}
  const canRetry=()=>!!retryPacket&&window.AssistantAppActions.current(retryPacket.owner);
  async function retry(){if(!canRetry()||pending||applying)return;const row=retryPacket;await send(row.question,row.context,row.history,row.scope);}
  window.AssistantAgentUI=Object.freeze({send,status,busy:()=>!!pending||!!applying,cancel,apply,flowInfo,continueAction,canRetry,retry});

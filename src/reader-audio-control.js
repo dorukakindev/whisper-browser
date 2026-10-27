@@ -65,7 +65,8 @@
       try {
         audio.currentTime = start;
         await audio.play();
-        if (!current()) audio.pause();
+        // A disposed session may share this element with a newer reading session.
+        if (!current() && request === sequence) audio.pause();
         return current() && request === sequence;
       } catch (error) {
         if (error?.name === "AbortError" && audio.paused) return false;
