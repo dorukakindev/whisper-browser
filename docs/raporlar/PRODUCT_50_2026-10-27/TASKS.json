@@ -323,7 +323,7 @@
       "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
       "acceptance": "Boş taranmış sayfada asistan metin varmış gibi davranmaz",
       "status": "DOĞRULANDI (KONTROLLÜ)",
-      "evidence": "R651: Native okuyucuda boşsayfaextractedtext gate ve asistan source context; R651 selectioncontext yalnız ownedarticle. GenelOCR/modelgarantisi değil.",
+      "evidence": "R652 final: pdf-selection-owner651.test.js, empty extracted page 2 has empty excerpt/translation/selection and cannot inherit page 1. Controlled DOM; not an OCR or model hallucination guarantee.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -367,8 +367,8 @@
       "area": "Ses ve çeviri bütünlüğü",
       "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
       "acceptance": "Değişmiş referansta eski kaliteli önbellek yeniden kullanılmaz",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "R652: test_dub_runtime referencewaveform+prompt identity changed→reencode and unchanged→reuse; dub-reference-pairing localref transcript never mismatched; controlledengine.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -376,8 +376,8 @@
       "area": "Ses ve çeviri bütünlüğü",
       "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
       "acceptance": "Süre aşımında bitmiş son parçalar korunur",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "R652: test_dub_generation_quality stalledlastrequest keepscompletedcache same reference, restartnewseed/candidateverification/cancel20tests; actualtempWAV + controlledserver.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -385,8 +385,8 @@
       "area": "Ses ve çeviri bütünlüğü",
       "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
       "acceptance": "Kısmi çeviri ses için tam hazır diye sunulmaz",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "R652: browser-whisper-reuse641 partialcaption cannotcompletedreuse, dub-service missingqualitysidecar qualityUnavailable/review; translation pipeline partial not full. Controlled,notrealmodel.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -394,8 +394,8 @@
       "area": "Ses ve çeviri bütünlüğü",
       "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
       "acceptance": "Çeviri dil/model değişimi açık iş ayarını değiştirmez",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "R652: browser-whisper-reuse641 frozen normaltranslationmodel/provider plus speech-translation-ui perjobrange/manualchanges/stalesource; existingregressions preserved.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -403,8 +403,8 @@
       "area": "Ses ve çeviri bütünlüğü",
       "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
       "acceptance": "Eksik sayı/olumsuzluk kalite işareti görünür kalır",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "R652: dub-text-guard repeatednumbers/explicitnegation/namepreservation + dub-generator-ui review evidence number/name/reasonvisible; native review-evidence-tr screenshot.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -412,8 +412,8 @@
       "area": "Ses ve çeviri bütünlüğü",
       "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
       "acceptance": "Dublaj range dışındaki özgün ses korunur",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "R652: browser-dub-audio actualmodule range20–30sync/mute/release restores original outside range,previousmute preserved; controllableclock/audio notactualYouTube.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -421,8 +421,8 @@
       "area": "Ses ve çeviri bütünlüğü",
       "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
       "acceptance": "Arka plan ayırma seçili zaman aralığıyla sınırlanır",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "R652: dub-background realwrapper args--start600--end1200--limit11,GPUstage forwarding/tempownership; noactualseparator/GPU quality claimed.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -430,8 +430,8 @@
       "area": "Ses ve çeviri bütünlüğü",
       "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
       "acceptance": "Motor durdurma başarısızsa yeniden başlatma sahipliği korunur",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "R652: test_dub_shutdown642 failedkill isnotstopped, EngineSessionreset keepsownedserveruntilconfirmed; dub-service-warm-start waitsrelease andcancelledargvnotstarted; controlledprocess.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -439,8 +439,8 @@
       "area": "Ses ve çeviri bütünlüğü",
       "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
       "acceptance": "Kalite listesi dinle ve düzelt seçilen gerçek gruba gider",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DÜZELTİLDİ/DOĞRULANDI",
+      "evidence": "R652: R652lateplay receipt guard sixconditions; dub-generator-ui matchingqualityeditorreveal+metadata/close, assistant-voice-actions actualgroupid/open; nativequalitylist. Noacousticlistening.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -448,8 +448,8 @@
       "area": "Ses ve çeviri bütünlüğü",
       "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
       "acceptance": "Ses/çeviri job süreleri ve terminal durumu gerçek kanıta bağlıdır",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "R652: Native dub-runtime phasesmodel/reference/speech/verificationseconds +60/61lastactivity+terminalerror+readygroups,scales1/1.25 EN/TR. Jobstatus confirmsapplication,notnaturalspeech.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     }
   ],
@@ -526,6 +526,35 @@
         "W40"
       ],
       "next": "Son10 W41–W50 ses/çeviri bütünlüğü; yeni iş sayısını bug sayısıyla karıştırma."
+    },
+    {
+      "report": 652,
+      "code": "fbc0b34e2cdb2ab87049a46482045df5516aca28",
+      "completed": [
+        "W41",
+        "W42",
+        "W43",
+        "W44",
+        "W45",
+        "W46",
+        "W47",
+        "W48",
+        "W49",
+        "W50"
+      ],
+      "next": "50/50 scoped product/acceptance items addressed; no real model/GPU/site quality claim. Any new work is a new user scope."
     }
-  ]
+  ],
+  "completion_audit": {
+    "count": 50,
+    "completed_in_scope": 50,
+    "new_bug_count_not_claimed": true,
+    "basis": "5separate product/delivery packets R648–652, targeted controlled regressions and native Windows UI",
+    "limits": [
+      "No live model/GPU/paid API/site quality claim",
+      "Existing coverage repeats are regressions, not newly discovered bugs",
+      "Known CI result not awaited; no CI success claim",
+      "Personal app remains open with previously loaded scripts until next normal restart"
+    ]
+  }
 }

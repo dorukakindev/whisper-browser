@@ -1,6 +1,10 @@
-# Yeni50ürün hedefi —27Ekim2026
+# 50 ürün hedefi — 27 Ekim 2026
 
-40/50hedef uygulama veya kontrollü kabul ile kapsandı;10açık.50yeni bug iddiası değildir. Gerçekmodel/GPU/site kalitesi doğrulanmadı.
+50/50 düzeltme, geliştirme ve kabul maddesi kayıtlı kapsamıyla ele alındı. Bu sayı 50 yeni bug veya 50 bağımsız özellik anlamına gelmez. Beş ürün paketinde gerçek açıklar düzeltildi ve mevcut kritik davranışlar hedefli kontrollerle doğrulandı. Önceki denetimlerin tekrarları yeni keşif sayılmadı.
+
+## Sınırlar
+
+Gerçek model, GPU, ücretli API, canlı YouTube ve insan kulağıyla doğallık değerlendirilmedi. Kontrollü sonuçlar bunların başarısı olarak sunulmaz. CI açık; sonucu beklenmedi. Her hedefin kanıtı aşağıdadır.
 
 | ID | Alan | Hedef/kabul | Durum | Kanıt |
 |---|---|---|---|---|
@@ -39,18 +43,26 @@
 | W33 | Kitap ve PDF okuma | Yer imi eski kitap yerine yalnız güncel kaynağa yazılır | DOĞRULANDI (KONTROLLÜ) | R651: book-bookmarks gerçek servis: source/audio/text kimlikleri, stale remapreddi, farklıkaynak state; mevcutregresyon yeni bug değildir. |
 | W34 | Kitap ve PDF okuma | Tek grup düzeltmede diğer tamamlanmış ses korunur | DOĞRULANDI (KONTROLLÜ) | R651: book-regenerate-request exactgroup/force ve book-voice-takes mevcut ses/take korunması; controlledmotor/veri, gerçekTTS yok. |
 | W35 | Kitap ve PDF okuma | Sayfa çevirisi iptal edilince okuma metni korunur | DOĞRULANDI (KONTROLLÜ) | R651: Native PDFreader eksiktranslation sayfada üretim reddi; pdf-preparation-ownership staleeski extraction sonucu yeni durum/işi etkilemez. |
-| W36 | Kitap ve PDF okuma | Boş taranmış sayfada asistan metin varmış gibi davranmaz | DOĞRULANDI (KONTROLLÜ) | R651: Native okuyucuda boşsayfaextractedtext gate ve asistan source context; R651 selectioncontext yalnız ownedarticle. GenelOCR/modelgarantisi değil. |
+| W36 | Kitap ve PDF okuma | Boş taranmış sayfada asistan metin varmış gibi davranmaz | DOĞRULANDI (KONTROLLÜ) | R652 final: pdf-selection-owner651.test.js, empty extracted page 2 has empty excerpt/translation/selection and cannot inherit page 1. Controlled DOM; not an OCR or model hallucination guarantee. |
 | W37 | Kitap ve PDF okuma | Hazırlık önizlemesi kullanılan nihai metni açık gösterir | DOĞRULANDI (KONTROLLÜ) | R651: book-text-preparation opt-inpreview→seçili değişim,stalepreviewreddi; noktalama/Unicode/metinkoruması3test. Üretimteksti kullanıcı düzenlemesine bağlı. |
 | W38 | Kitap ve PDF okuma | İnceleme onayı değiştirilmiş sese taşınmaz | DOĞRULANDI (KONTROLLÜ) | R651: book-voice-takes hash/currentfile/activejob kapısı + qualityscope636 eksikrapordanreadyyok; eski doğrulanmışregresyonlar. |
 | W39 | Kitap ve PDF okuma | Bölüm yenileme hata sonrası doğru düğmeyle tekrar denenir | DOĞRULANDI (KONTROLLÜ) | R651: reader-audio-control unavailable/range/metadata timeout waiter serbest,bookregenerate başarısızstartthrow ve eskiişsahipliği; controlledkabul. |
 | W40 | Kitap ve PDF okuma | Dar ekran kitap araçları ve odak erişimi doğrulanır | DOĞRULANDI (KONTROLLÜ) | R651: Native mevcutPDFreader800px dar görünüm/scrollwidth<=client,ENlight1024/TRdark; screenshot incelendi,genelDPIgarantisi değil. |
-| W41 | Ses ve çeviri bütünlüğü | Değişmiş referansta eski kaliteli önbellek yeniden kullanılmaz | PLANLANDI | — |
-| W42 | Ses ve çeviri bütünlüğü | Süre aşımında bitmiş son parçalar korunur | PLANLANDI | — |
-| W43 | Ses ve çeviri bütünlüğü | Kısmi çeviri ses için tam hazır diye sunulmaz | PLANLANDI | — |
-| W44 | Ses ve çeviri bütünlüğü | Çeviri dil/model değişimi açık iş ayarını değiştirmez | PLANLANDI | — |
-| W45 | Ses ve çeviri bütünlüğü | Eksik sayı/olumsuzluk kalite işareti görünür kalır | PLANLANDI | — |
-| W46 | Ses ve çeviri bütünlüğü | Dublaj range dışındaki özgün ses korunur | PLANLANDI | — |
-| W47 | Ses ve çeviri bütünlüğü | Arka plan ayırma seçili zaman aralığıyla sınırlanır | PLANLANDI | — |
-| W48 | Ses ve çeviri bütünlüğü | Motor durdurma başarısızsa yeniden başlatma sahipliği korunur | PLANLANDI | — |
-| W49 | Ses ve çeviri bütünlüğü | Kalite listesi dinle ve düzelt seçilen gerçek gruba gider | PLANLANDI | — |
-| W50 | Ses ve çeviri bütünlüğü | Ses/çeviri job süreleri ve terminal durumu gerçek kanıta bağlıdır | PLANLANDI | — |
+| W41 | Ses ve çeviri bütünlüğü | Değişmiş referansta eski kaliteli önbellek yeniden kullanılmaz | DOĞRULANDI (KONTROLLÜ) | R652: test_dub_runtime referencewaveform+prompt identity changed→reencode and unchanged→reuse; dub-reference-pairing localref transcript never mismatched; controlledengine. |
+| W42 | Ses ve çeviri bütünlüğü | Süre aşımında bitmiş son parçalar korunur | DOĞRULANDI (KONTROLLÜ) | R652: test_dub_generation_quality stalledlastrequest keepscompletedcache same reference, restartnewseed/candidateverification/cancel20tests; actualtempWAV + controlledserver. |
+| W43 | Ses ve çeviri bütünlüğü | Kısmi çeviri ses için tam hazır diye sunulmaz | DOĞRULANDI (KONTROLLÜ) | R652: browser-whisper-reuse641 partialcaption cannotcompletedreuse, dub-service missingqualitysidecar qualityUnavailable/review; translation pipeline partial not full. Controlled,notrealmodel. |
+| W44 | Ses ve çeviri bütünlüğü | Çeviri dil/model değişimi açık iş ayarını değiştirmez | DOĞRULANDI (KONTROLLÜ) | R652: browser-whisper-reuse641 frozen normaltranslationmodel/provider plus speech-translation-ui perjobrange/manualchanges/stalesource; existingregressions preserved. |
+| W45 | Ses ve çeviri bütünlüğü | Eksik sayı/olumsuzluk kalite işareti görünür kalır | DOĞRULANDI (KONTROLLÜ) | R652: dub-text-guard repeatednumbers/explicitnegation/namepreservation + dub-generator-ui review evidence number/name/reasonvisible; native review-evidence-tr screenshot. |
+| W46 | Ses ve çeviri bütünlüğü | Dublaj range dışındaki özgün ses korunur | DOĞRULANDI (KONTROLLÜ) | R652: browser-dub-audio actualmodule range20–30sync/mute/release restores original outside range,previousmute preserved; controllableclock/audio notactualYouTube. |
+| W47 | Ses ve çeviri bütünlüğü | Arka plan ayırma seçili zaman aralığıyla sınırlanır | DOĞRULANDI (KONTROLLÜ) | R652: dub-background realwrapper args--start600--end1200--limit11,GPUstage forwarding/tempownership; noactualseparator/GPU quality claimed. |
+| W48 | Ses ve çeviri bütünlüğü | Motor durdurma başarısızsa yeniden başlatma sahipliği korunur | DOĞRULANDI (KONTROLLÜ) | R652: test_dub_shutdown642 failedkill isnotstopped, EngineSessionreset keepsownedserveruntilconfirmed; dub-service-warm-start waitsrelease andcancelledargvnotstarted; controlledprocess. |
+| W49 | Ses ve çeviri bütünlüğü | Kalite listesi dinle ve düzelt seçilen gerçek gruba gider | DÜZELTİLDİ/DOĞRULANDI | R652: R652lateplay receipt guard sixconditions; dub-generator-ui matchingqualityeditorreveal+metadata/close, assistant-voice-actions actualgroupid/open; nativequalitylist. Noacousticlistening. |
+| W50 | Ses ve çeviri bütünlüğü | Ses/çeviri job süreleri ve terminal durumu gerçek kanıta bağlıdır | DOĞRULANDI (KONTROLLÜ) | R652: Native dub-runtime phasesmodel/reference/speech/verificationseconds +60/61lastactivity+terminalerror+readygroups,scales1/1.25 EN/TR. Jobstatus confirmsapplication,notnaturalspeech. |
+
+## Paketler
+
+- R648: W01–10 canlıWhisper exactstarting/stop/capture ve native iptal.
+- R649: W11–20 kodluEN/TR hata,kısmiaramaveyenidendeneme.
+- R650: W21–30 asistanactualjobacceptance,devamgate,bookevidence ve yetenek/kimlikregresyonları.
+- R651: W31–40 exactPDFselection/truncation,rangevekitapkabulü.
+- R652: W41–50 ses/çeviri bütünlüğü,stalegroupplaymakbuzu ve nativequality/runtimekanıtı.
