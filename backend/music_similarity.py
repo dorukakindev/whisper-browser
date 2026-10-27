@@ -220,6 +220,8 @@ def search(request, directory):
         partial.write_text(json.dumps(data,allow_nan=False),encoding='utf-8');os.replace(partial,cached)
         return {**data,'id':row['id'],'artist':row.get('artist','')}
     references=[features(row,row.get('range')) for row in reference_rows]
+    if request.get('return_features'):
+        return references[0]
     records,failures=[],[]
     for index,row in enumerate(request['tracks']):
         emit(stage='index',completed=index,total=len(request['tracks']),title=str(row.get('title',''))[:150])

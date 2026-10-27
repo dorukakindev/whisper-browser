@@ -28,11 +28,17 @@ async function execute(options,{mode,source,request,signal,onProgress,runner,can
   working=true;
   try{
     const args=[path.join(__dirname,'../backend/music_similarity.py'),'--model-dir',options.modelDir()];
-    const progress=line=>{try{const p=JSON.parse(line);if(['download','model','index','rank'].includes(p.stage))onProgress(p);}catch{}};
+    const progress=line=>{try{const p=JSON.parse(line);if(['download','model','index','rank','tags'].includes(p.stage))onProgress(p);}catch{}};
     const python=(options.musicPython||options.python)();
     if(mode==='prepare')return JSON.parse(await runner(python,[...args,'--prepare'],null,signal,1800000,progress,{waitForCloseOnCancel:true}));
     if(!modelStatus(options.modelDir()).ready)throw Error('Prepare the CLAP model first / Önce CLAP modelini hazırla.');
     const access=new MediaFileAccess(['mp3','wav','m4a','aac','flac','ogg','opus','wma']);
+    if(['tags','prepare-tags'].includes(mode)){
+      const script=[path.join(__dirname,'../backend/music_tags.py'),'--model-dir',options.modelDir()];
+      if(mode==='prepare-tags')return JSON.parse(await runner(python,[...script,'--prepare'],null,signal,180000,progress,{waitForCloseOnCancel:true}));
+      const payload={reference:{id:'reference',path:access.inspect(source.file)},range:request.range||null,ffmpeg:options.ffmpeg(),ffprobe:options.ffprobe(),cacheDir:path.join(options.userData(),'music-vectors')};
+      return JSON.parse(await runner(python,script,JSON.stringify(payload),signal,600000,progress,{waitForCloseOnCancel:true}));
+    }
     const hidden=new Set((options.preferences?.read()||[]).filter(r=>r.provider===(candidates?'deezer':'local')).map(r=>r.id));
     const tracks=(candidates?.tracks||loadTracks(options.userData())).filter(r=>!hidden.has(r.id));
     if(!tracks.length)throw Error('No available tracks. Add music or restore hidden tracks / Kullanılabilir parça yok. Müzik ekle veya gizlenen parçaları geri al.');
