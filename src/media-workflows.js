@@ -630,6 +630,7 @@ function registerMediaWorkflows({
         [
           "book-save",
           "book-prepare",
+          "book-unprepare",
           "book-approve",
           "book-take-select",
           "book-archive",
@@ -644,6 +645,7 @@ function registerMediaWorkflows({
         [
           "book-save",
           "book-prepare",
+          "book-unprepare",
           "book-approve",
           "book-take-select",
           "book-rename",
@@ -657,6 +659,7 @@ function registerMediaWorkflows({
         [
           "book-save",
           "book-prepare",
+          "book-unprepare",
           "book-listen",
           "book-plan-source",
           "book-progress",
@@ -1161,6 +1164,14 @@ function registerMediaWorkflows({
                   : []),
             },
           };
+        }
+        case "book-unprepare": {
+          if(typeof r.jobId!=='string'||!r.jobId||r.jobId.length>100)throw Error('Invalid book job.');
+          const d=load(r.id),c=d.chapters[r.chapter],p=pending.get(r.jobId);
+          if(!c||!p||p.id!==d.id||p.chapter!==r.chapter||c.activeJob?.id!==r.jobId)
+            return {ok:true,released:false};
+          c.activeJob=null;save(d);pending.delete(r.jobId);
+          return {ok:true,released:true};
         }
         case "book-selection": {
           const d = load(r.id);
