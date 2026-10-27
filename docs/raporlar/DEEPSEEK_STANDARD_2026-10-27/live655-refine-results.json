@@ -1,0 +1,27 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+  "requestedTier": "standard",
+  "syntheticOnly": true,
+  "results": [
+    {
+      "id": "translation-refine",
+      "elapsedMs": 5828,
+      "finish": "stop",
+      "servedTier": "default",
+      "usage": {
+        "prompt_tokens": 2153,
+        "total_tokens": 2491,
+        "completion_tokens": 338,
+        "estimated_cost": 0.00031036600000000007,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": null
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "text": "{\"sentences\":{\"0\":\"Köprü 1942'de değil, 1924'te açıldı. Kasabanın terk edildiğini hiç söylemedim. Yalnızca istasyon kapandı.\",\"1\":\"Maya anahtarı Leyla'ya verdi çünkü Leyla kendi anahtarını kaybetmişti. Leyla, gardiyana değil, Maya'ya teşekkür etti.\",\"2\":\"Tedavi riski yüzde 15 azaltabilir; iyileşmeyi garanti etmez.\",\"3\":\"Ah, harika. Bir de iki saatlik gecikme. Tam da ihtiyacımız olan şey.\"},\"items\":{\"0\":\"Köprü 1942'de değil, 1924'te açıldı. Kasabanın terk edildiğini hiç söylemedim. Yalnızca istasyon kapandı.\",\"1\":\"Maya anahtarı Leyla'ya verdi çünkü Leyla kendi anahtarını kaybetmişti. Leyla, gardiyana değil, Maya'ya teşekkür etti.\",\"2\":\"Tedavi riski yüzde 15 azaltabilir; iyileşmeyi garanti etmez.\",\"3\":\"Ah, harika. Bir de iki saatlik gecikme. Tam da ihtiyacımız olan şey.\"}}"
+    }
+  ]
+}

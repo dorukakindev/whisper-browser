@@ -1,3 +1,4 @@
+- [Rapor655](BROWSER_BUG_REPORT_655.md) — DeepSeek canlı standart katman: çeviri, bağlam ve araç kararları
 - [Rapor654](BROWSER_BUG_REPORT_654.md) — Asistan 23 işlem ayarı, geri alma ve genel kütüphane erişimi
 - [Rapor653](BROWSER_BUG_REPORT_653.md) — Keşfet yorumları, seçilebilir DeepInfra Flex ve native asistan etkinliği
 - [Rapor652](BROWSER_BUG_REPORT_652.md) — Son10ses/çeviri kontrolü, eski dinleme makbuzu ve50hedef kanıtı
