@@ -353,8 +353,8 @@
       "operation": "cancel_job",
       "criterion": "Gerçek kabul",
       "acceptance": "Kullanıcı uygulayınca mevcut uygulama kapısına tam bir defa bağlan; accepted ile completed ayrımını koru.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DÜZELTİLDİ",
+      "evidence": "2f1d3b4af9283f9574a19f96f5903e600e374c8e: metadata/transcribe cancel close onayı, başarısız stop retry, shared attempt, geç sonucun iptal niyetini aşmaması ve yeni işin korunması.14Node + process10/pipeline10 + nativeWindows2tıklama."
     },
     {
       "id": "P0033",
@@ -364,8 +364,8 @@
       "operation": "cancel_job",
       "criterion": "Kaynak değişimi",
       "acceptance": "Onaydan önce kaynak/sekme değişirse eski karta yan etki yaptırma.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "İNCELENDİ",
+      "evidence": "2f1d3b4af9283f9574a19f96f5903e600e374c8e: metadata/transcribe cancel close onayı, başarısız stop retry, shared attempt, geç sonucun iptal niyetini aşmaması ve yeni işin korunması.14Node + process10/pipeline10 + nativeWindows2tıklama."
     },
     {
       "id": "P0034",
@@ -386,8 +386,8 @@
       "operation": "cancel_job",
       "criterion": "İptal yarışı",
       "acceptance": "Başlangıç beklerken iptal et; henüz başlamayan alt işi başlatma, başladıysa exact işin sonucunu raporla.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DÜZELTİLDİ",
+      "evidence": "2f1d3b4af9283f9574a19f96f5903e600e374c8e: metadata/transcribe cancel close onayı, başarısız stop retry, shared attempt, geç sonucun iptal niyetini aşmaması ve yeni işin korunması.14Node + process10/pipeline10 + nativeWindows2tıklama."
     },
     {
       "id": "P0036",
@@ -408,8 +408,8 @@
       "operation": "cancel_job",
       "criterion": "Çift uygulama",
       "acceptance": "Hızlı iki uygulama/tekrar tıklama ikinci eşzamanlı işi veya aynı kalıcı değişikliği üretmesin.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DÜZELTİLDİ",
+      "evidence": "2f1d3b4af9283f9574a19f96f5903e600e374c8e: metadata/transcribe cancel close onayı, başarısız stop retry, shared attempt, geç sonucun iptal niyetini aşmaması ve yeni işin korunması.14Node + process10/pipeline10 + nativeWindows2tıklama."
     },
     {
       "id": "P0038",
@@ -419,8 +419,8 @@
       "operation": "cancel_job",
       "criterion": "Kontrollü ret",
       "acceptance": "Mevcut servis ok:false/exception döndürürse başarı kartına dönüştürme.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DÜZELTİLDİ",
+      "evidence": "2f1d3b4af9283f9574a19f96f5903e600e374c8e: metadata/transcribe cancel close onayı, başarısız stop retry, shared attempt, geç sonucun iptal niyetini aşmaması ve yeni işin korunması.14Node + process10/pipeline10 + nativeWindows2tıklama."
     },
     {
       "id": "P0039",
@@ -441,8 +441,8 @@
       "operation": "cancel_job",
       "criterion": "Sonuç ve erişim",
       "acceptance": "Başarı/partial/hata sonrası gerçek çıktı veya yeniden deneme erişilsin; dar EN/TR panelde düğmeler kaybolmasın.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DÜZELTİLDİ",
+      "evidence": "2f1d3b4af9283f9574a19f96f5903e600e374c8e: metadata/transcribe cancel close onayı, başarısız stop retry, shared attempt, geç sonucun iptal niyetini aşmaması ve yeni işin korunması.14Node + process10/pipeline10 + nativeWindows2tıklama."
     },
     {
       "id": "P0041",
@@ -10352,8 +10352,8 @@
       "operation": null,
       "criterion": "Başlama ve gerçek kimlik",
       "acceptance": "Başlatılan alt iş/süreç kimliğini gerçek kayda bağla.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "İNCELENDİ",
+      "evidence": "638: gerçek createJobs kimlik/terminal sınırı ve kontrollümedia callback;14Node + process-lifecycle10/pipeline10. Tam çağıranIPC testleri ve nativeUI; gerçek Whisper/GPU değil."
     },
     {
       "id": "P0942",
@@ -10385,8 +10385,8 @@
       "operation": null,
       "criterion": "İptal/close yarışı",
       "acceptance": "İptal sonrası geç done/close ikinci başarı veya başka işin kapatılmasını üretmesin.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "İNCELENDİ",
+      "evidence": "638: gerçek createJobs kimlik/terminal sınırı ve kontrollümedia callback;14Node + process-lifecycle10/pipeline10. Tam çağıranIPC testleri ve nativeUI; gerçek Whisper/GPU değil."
     },
     {
       "id": "P0945",
@@ -10407,8 +10407,8 @@
       "operation": null,
       "criterion": "Timeout",
       "acceptance": "Sessiz takılmada sonlu zaman sınırı ve doğrulanabilir durdurma sonucu olsun.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "İNCELENDİ",
+      "evidence": "638: gerçek createJobs kimlik/terminal sınırı ve kontrollümedia callback;14Node + process-lifecycle10/pipeline10. Tam çağıranIPC testleri ve nativeUI; gerçek Whisper/GPU değil."
     },
     {
       "id": "P0947",
@@ -10418,8 +10418,8 @@
       "operation": null,
       "criterion": "Tekrar başlatma",
       "acceptance": "Önceki süreç kapanmadıysa yeni iş çakışmasın; kapanınca retry mümkün olsun.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "İNCELENDİ",
+      "evidence": "638: gerçek createJobs kimlik/terminal sınırı ve kontrollümedia callback;14Node + process-lifecycle10/pipeline10. Tam çağıranIPC testleri ve nativeUI; gerçek Whisper/GPU değil."
     },
     {
       "id": "P0948",
@@ -10429,8 +10429,8 @@
       "operation": null,
       "criterion": "Kaynak değişimi",
       "acceptance": "Bekleyen işlemin sonucu başka sekme/bölüm/ses kaynağına uygulanmasın.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "İNCELENDİ",
+      "evidence": "638: gerçek createJobs kimlik/terminal sınırı ve kontrollümedia callback;14Node + process-lifecycle10/pipeline10. Tam çağıranIPC testleri ve nativeUI; gerçek Whisper/GPU değil."
     },
     {
       "id": "P0949",
@@ -10440,8 +10440,8 @@
       "operation": null,
       "criterion": "Gizli veri",
       "acceptance": "İstek argv/log/diagnostic hassas verileri açığa çıkarmasın.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "İNCELENDİ",
+      "evidence": "638: gerçek createJobs kimlik/terminal sınırı ve kontrollümedia callback;14Node + process-lifecycle10/pipeline10. Tam çağıranIPC testleri ve nativeUI; gerçek Whisper/GPU değil."
     },
     {
       "id": "P0950",
@@ -11039,6 +11039,25 @@
         "P0250"
       ],
       "next": "Referans hazırlığı durumları, kalite/report özeti ve seçili/yerel ses üretim hatası sınırlarını açık maddelerle sürdür."
+    },
+    {
+      "report": 638,
+      "code": "2f1d3b4af9283f9574a19f96f5903e600e374c8e",
+      "updated": [
+        "P0032",
+        "P0033",
+        "P0035",
+        "P0037",
+        "P0038",
+        "P0040",
+        "P0941",
+        "P0944",
+        "P0946",
+        "P0947",
+        "P0948",
+        "P0949"
+      ],
+      "next": "Açık ses referansı, anlam/okunuş ve kitap etkileşim hedefleri; timeout/iptal regresyonu sonraki değişikliklerde korunsun."
     }
   ]
 }
