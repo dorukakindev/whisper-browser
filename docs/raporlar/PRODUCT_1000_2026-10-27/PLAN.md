@@ -779,10 +779,10 @@ Başlangıç 27 Ekim2026 09:26 Europe/Istanbul; yaklaşık10 saatlik pencere19:2
 | P0758 | Ses grubu karşılaştırma ve yeniden üretim | Kaynak bağı: Başka video veya bölüm çıktısını yeni kaynağa otomatik bağlama. | `src/renderer/dub-generator-ui.js` | PLANLANDI | — |
 | P0759 | Ses grubu karşılaştırma ve yeniden üretim | Sınırlı tekrar: OOM/timeout için sonlu retry; terminal hata kullanıcının referansını gereksiz değişmeye zorlamasın. | `src/renderer/dub-generator-ui.js` | PLANLANDI | — |
 | P0760 | Ses grubu karşılaştırma ve yeniden üretim | Durum/kanıt: Hazırlık/üretim/doğrulama süreleri ve gerçek kalite durumu ayrı, erişilebilir EN/TR olsun. | `src/renderer/dub-generator-ui.js` | PLANLANDI | — |
-| P0761 | Kitap bölüm yakalama ve üretim | Özgün kimlik: Aynı kitapta bölüm/spine veya PDF özgün sayfa kimliği korunur. | `src/media-workflows.js` | PLANLANDI | — |
+| P0761 | Kitap bölüm yakalama ve üretim | Özgün kimlik: Aynı kitapta bölüm/spine veya PDF özgün sayfa kimliği korunur. | `src/media-workflows.js` | DÜZELTİLDİ | Rapor639; book-capture-owner639 gerçek servis, iki geç sonuç sırası; kod 4c0c70750fcc358e633ea26e575a403c3ea3612b |
 | P0762 | Kitap bölüm yakalama ve üretim | Seçili kapsam: Ara sayfa/bölüm seçimi yalnız o kapsamı üretir; tam kitap zorunlu olmaz. | `src/media-workflows.js` | PLANLANDI | — |
 | P0763 | Kitap bölüm yakalama ve üretim | Metin düzenlemesi: Üretim sürerken metni değiştir; eski sesi yeni metne onaylama. | `src/media-workflows.js` | PLANLANDI | — |
-| P0764 | Kitap bölüm yakalama ve üretim | Kaynak değişimi: Dosya dışarıdan değişince önceki kullanıcı düzenlemesini kaybetme ve yeni kaynağı karıştırma. | `src/media-workflows.js` | PLANLANDI | — |
+| P0764 | Kitap bölüm yakalama ve üretim | Kaynak değişimi: Dosya dışarıdan değişince önceki kullanıcı düzenlemesini kaybetme ve yeni kaynağı karıştırma. | `src/media-workflows.js` | DÜZELTİLDİ | Rapor639; book-capture-owner639 gerçek servis, iki geç sonuç sırası; kod 4c0c70750fcc358e633ea26e575a403c3ea3612b |
 | P0765 | Kitap bölüm yakalama ve üretim | Boş/bozuk bölüm: Boş metin veya geçersiz sayfa aralığını anlaşılır reddet; diğer bölümler korunsun. | `src/media-workflows.js` | PLANLANDI | — |
 | P0766 | Kitap bölüm yakalama ve üretim | Kısmi kalite: Eksik/inceleme gruplarını tam doğrulanmış bölüm gibi sunma. | `src/media-workflows.js` | DÜZELTİLDİ | 69b0fff79505339da80870a18984b58f7a2fb297: qualityIncomplete/unavailable ready subset tam chapter ready olamaz; full review ve retryWholeChapter güncelplan tümgrup. İki kırmızı repro sonrası19Node+nativeEN/TRexit0. |
 | P0767 | Kitap bölüm yakalama ve üretim | Tek bölüm onarımı: Bir bölüm/grup yeniden üretilirken diğer ses denemeleri ve kullanıcı seçimi korunsun. | `src/media-workflows.js` | DÜZELTİLDİ | 69b0fff79505339da80870a18984b58f7a2fb297: qualityIncomplete/unavailable ready subset tam chapter ready olamaz; full review ve retryWholeChapter güncelplan tümgrup. İki kırmızı repro sonrası19Node+nativeEN/TRexit0. |
@@ -1025,3 +1025,5 @@ Başlangıç 27 Ekim2026 09:26 Europe/Istanbul; yaklaşık10 saatlik pencere19:2
 Kontrol noktası637: iki ek kabul maddesi düzeltildi, bir erişim maddesi kısmen ilerledi; diğerleri bu paketle bitti sayılmadı. Uzun kimlikler için kalite ve asistan sınırı mevcut üretim kapısıyla2000de uyumlu; geneltool string sınırı200de kalır.
 
 Kontrol noktası638: iptalin başarısız olması işi boşta göstermez; process close onayı ve kullanıcı iptal niyeti ayrıdır. İlgili12hedefe somut veya mevcut-regresyon kanıtı eklendi. Bin maddenin tamamı bitti sayılmadı.
+
+Rapor639: güncel kitap işi kimliği, eski sonucun yeni sese yazamaması; iki kabul maddesi kapandı.

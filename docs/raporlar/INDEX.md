@@ -1,3 +1,4 @@
+- [Rapor639](BROWSER_BUG_REPORT_639.md) — Eski kitap ses sonucunun yeni işi ezmesini önleme
 - [Rapor638](BROWSER_BUG_REPORT_638.md) — Gerçek durdurma onayı, iptal tekrarı ve geç çıktı/yeni iş koruması
 - [Rapor637](BROWSER_BUG_REPORT_637.md) — Gerçek kısa satır planında uzun grup kimliği ve asistan sözleşmesi
 - [Rapor636](BROWSER_BUG_REPORT_636.md) —1.000 ürün hedefi, eksik sesli kitap kalite kapsamı ve doğru yeniden üretim
