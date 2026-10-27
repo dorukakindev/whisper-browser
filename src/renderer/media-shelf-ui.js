@@ -4,7 +4,8 @@
   const t = (en, tr) => english() ? en : tr;
   const el = (tag, cls, text) => { const node = document.createElement(tag); if (cls) node.className = cls; if (text !== undefined) node.textContent = text; return node; };
   let view = null, generation = 0, snapshot = null, current = null, queue = [], queueIndex = 0, hls = null;
-  const selected = new Set();
+  const selected = new Set(),order=window.MusicQueue.create();let musicFilter='all',musicSort='title',queueDialog=null;const musicCovers=new Map();
+  const playableMusic=row=>({...row,kind:'music'});
   const audio = el('audio'); audio.controls = true; audio.preload = 'metadata'; audio.id = 'mediaShelfAudio';
   const dock = el('section', 'ms-dock media-surface hidden'); dock.dataset.uiUntranslated = ''; dock.setAttribute('aria-label', t('Music player', 'Müzik oynatıcı'));
   const dockTitle = el('strong'), dockStatus = el('span', 'ms-status'); dockStatus.setAttribute('role', 'status');
@@ -19,12 +20,26 @@
   let sleepTimer;
   for (const value of [0, 15, 30, 60]) { const opt = el('option', '', value ? `${value} ${t('min', 'dk')}` : t('Sleep timer off', 'Uyku zamanlayıcısı kapalı')); opt.value = value; sleep.append(opt); }
   sleep.addEventListener('change', () => { clearTimeout(sleepTimer); if (+sleep.value) sleepTimer = setTimeout(() => { audio.pause(); sleep.value = '0'; }, +sleep.value * 60000); });
-  dock.append(btn('‹', () => playQueue(queueIndex - 1)), dockTitle, audio, btn('›', () => playQueue(queueIndex + 1)), speed, sleep, dockStatus, btn('×', async () => { ++playGeneration;void api('spotify-cancel');await flushPosition(); audio.pause(); if (hls) { hls.destroy(); hls = null; } audio.removeAttribute('src'); audio.load(); current = null; dock.classList.add('hidden'); document.body.classList.remove('media-shelf-playing'); clearTimeout(sleepTimer); }));
+  dock.append(btn('‹', () => {if(audio.currentTime>4){audio.currentTime=0;return;}const row=order.previous();if(row)return playQueue(order.snapshot().index);}), dockTitle, audio, btn('›', () => advance(false)), speed, sleep, dockStatus, btn('×', async () => { ++playGeneration;void api('spotify-cancel');await flushPosition(); audio.pause(); if (hls) { hls.destroy(); hls = null; } audio.removeAttribute('src'); audio.load(); current = null; dock.classList.add('hidden'); document.body.classList.remove('media-shelf-playing'); clearTimeout(sleepTimer); }));
   dock.querySelector('button').setAttribute('aria-label', t('Previous track', 'Önceki parça'));
   dock.querySelectorAll('button')[1].setAttribute('aria-label', t('Next track', 'Sonraki parça'));
   dock.querySelectorAll('button')[2].setAttribute('aria-label', t('Close audio player', 'Ses oynatıcıyı kapat'));
   document.body.append(dock);
   dock.append(dockStatus);
+  const transport=el('div','ms-transport'),shuffleButton=btn(t('Shuffle','Karıştır'),()=>{order.shuffle(!order.snapshot().shuffled);syncQueue();},'mh-text-button ms-shuffle'),repeatButton=btn(t('Repeat off','Tekrar kapalı'),()=>{const modes=['off','all','one'];order.setRepeat(modes[(modes.indexOf(order.snapshot().repeat)+1)%3]);syncQueue();},'mh-text-button ms-repeat'),queueButton=btn(t('Queue','Kuyruk'),openQueue,'mh-action ms-queue-open');
+  shuffleButton.setAttribute('aria-pressed','false');transport.append(shuffleButton,repeatButton,queueButton);dock.insertBefore(transport,dockStatus);
+
+  function syncQueue(){const state=order.snapshot();queue=state.rows;queueIndex=state.index;shuffleButton.setAttribute('aria-pressed',String(state.shuffled));repeatButton.textContent=state.repeat==='one'?t('Repeat one','Tek parça tekrar'):state.repeat==='all'?t('Repeat all','Liste tekrarı'):t('Repeat off','Tekrar kapalı');repeatButton.dataset.mode=state.repeat;queueButton.textContent=t('Queue','Kuyruk')+' · '+queue.length;paintQueue();paintPlaying();}
+  function paintPlaying(){document.querySelectorAll('.ms-track[data-music-id]').forEach(line=>{const playing=current?.id===line.dataset.musicId&&!audio.paused;line.classList.toggle('is-playing',playing);if(playing)line.setAttribute('aria-current','true');else line.removeAttribute('aria-current');});}
+  function appendQueue(row,next=false){order.append([row],next);syncQueue();status(t('Added to queue','Kuyruğa eklendi')+' · '+row.title);}
+  function openQueue(){if(queueDialog){queueDialog.focus();return;}queueDialog=el('dialog','ms-queue-dialog media-surface');queueDialog.dataset.uiUntranslated='';queueDialog.setAttribute('aria-labelledby','msQueueTitle');const head=el('header','ms-queue-head');const title=el('h2','',t('Your listening queue','Dinleme kuyruğun'));title.id='msQueueTitle';const close=btn('×',()=>queueDialog.close(),'sp-close');close.setAttribute('aria-label',t('Close queue','Kuyruğu kapat'));head.append(title,close);const query=el('input','ms-queue-query');query.placeholder=t('Search this queue','Kuyrukta ara');query.setAttribute('aria-label',query.placeholder);query.addEventListener('input',paintQueue);queueDialog.append(head,query,el('div','ms-queue-rows'),btn(t('Clear upcoming','Sıradakileri temizle'),()=>{order.clearUpcoming();syncQueue();},'mh-action ms-queue-clear'));queueDialog.addEventListener('close',()=>{queueDialog.remove();queueDialog=null;if(typeof syncBrowserOcclusion==='function')syncBrowserOcclusion();},{once:true});document.body.append(queueDialog);paintQueue();queueDialog.showModal();if(typeof syncBrowserOcclusion==='function')syncBrowserOcclusion();}
+  function paintQueue(){if(!queueDialog)return;const container=queueDialog.querySelector('.ms-queue-rows'),query=queueDialog.querySelector('input').value.toLocaleLowerCase();container.replaceChildren();const state=order.snapshot();let shown=0;state.rows.forEach((row,index)=>{if(![row.title,row.artist].join(' ').toLocaleLowerCase().includes(query))return;if(++shown>100)return;const line=el('div','ms-queue-row');line.dataset.queueKey=row.queueKey;if(index===state.index)line.classList.add('is-current');const play=btn(row.title,()=>playQueue(index),'mh-text-button ms-queue-play');if(index===state.index)play.setAttribute('aria-current','true');const info=el('div');info.append(play,el('small','',row.artist||row.kind));const actions=el('div','ms-queue-row-actions');for(const [operation,label] of [['up',t('Move up','Yukarı taşı')],['down',t('Move down','Aşağı taşı')],['remove',t('Remove','Kaldır')]]){const b=btn(label,()=>{order.edit(row.queueKey,operation);syncQueue();},'mh-text-button ms-queue-'+operation);b.setAttribute('aria-label',label+' · '+row.title);b.disabled=operation==='remove'?index===state.index:operation==='up'?index===0:index===state.rows.length-1;actions.append(b);}line.append(el('span','ms-queue-number',String(index+1)),info,actions);container.append(line);});if(!shown)container.append(el('p','ms-status',t('No queued tracks match.','Eşleşen kuyruk parçası yok.')));if(shown>100)container.append(el('p','ms-status',t('First 100 matches shown. Narrow the search.','İlk 100 eşleşme gösteriliyor. Aramayı daralt.')));}
+  async function advance(auto){const row=order.next(auto);if(!row){audio.pause();return;}if(auto&&order.snapshot().repeat==='one'){audio.currentTime=0;await audio.play();return;}await playQueue(order.snapshot().index);}
+  async function favorite(row,button){button.disabled=true;try{const result=await api('music-favorite',{kind:row.kind||'music',id:row.id,playlistId:row.playlistId,favorite:!row.favorite});row.favorite=result.favorite;const local=snapshot?.music?.find(r=>r.id===row.id);if(local)local.favorite=result.favorite;for(const p of snapshot?.linkedPlaylists||[]){const item=p.tracks.find(r=>r.id===row.id);if(item)item.favorite=result.favorite;}button.setAttribute('aria-pressed',String(result.favorite));button.textContent=result.favorite?t('Liked','Beğenildi'):t('Like','Beğen');if(musicFilter==='liked'&&view?.page==='music')draw();}finally{button.disabled=false;}}
+  async function renamePlaylist(row,kind){const values=await form(t('Rename playlist','Çalma listesini yeniden adlandır'),[{key:'name',label:t('Playlist name','Çalma listesi adı'),value:row.name}],row.name);if(values)await task('playlist-rename',{id:row.id,kind,...values});}
+  function trackMenu(row){const details=el('details','ms-track-menu'),summary=el('summary','','⋯');summary.setAttribute('aria-label',t('Actions for ','Parça işlemleri: ')+row.title);const panel=el('div','ms-track-menu-panel');panel.append(btn(t('Play next','Sıradaki çal'),()=>{appendQueue(playableMusic(row),true);details.open=false;},'mh-text-button ms-play-next'),btn(t('Add to queue','Kuyruğa ekle'),()=>{appendQueue(playableMusic(row));details.open=false;},'mh-text-button ms-enqueue'),btn(t('Open in video player','Video oynatıcısında aç'),async()=>{details.open=false;const result=await api('music-play',{id:row.id});await openLocalMedia(result.path,row.position||0);},'mh-text-button'),btn(t('Remove from library','Kütüphaneden kaldır'),()=>forget('music',row),'mh-text-button'));details.append(summary,panel);details.addEventListener('toggle',()=>{if(details.open)document.querySelectorAll('.ms-track-menu[open]').forEach(other=>{if(other!==details)other.open=false;});});return details;}
+  function favoriteButton(row){const b=btn(row.favorite?t('Liked','Beğenildi'):t('Like','Beğen'),()=>favorite(row,b),'mh-text-button ms-like');b.setAttribute('aria-pressed',String(!!row.favorite));b.setAttribute('aria-label',t('Like ','Beğen ')+row.title);return b;}
+
   function status(message = '', error = false) {
     const node = view?.root?.querySelector('.ms-status');
     if (node) { node.textContent = message; node.classList.toggle('mh-error', error); }
@@ -42,20 +57,20 @@
     status(t('Loading…', 'Yükleniyor…'));
     const data = await api('list');
     if (mine !== generation || target !== view || !target.root.isConnected) return;
-    snapshot = data; draw();
+    snapshot = data;const known=new Set(data.music.map(r=>r.id));for(const id of selected)if(!known.has(id))selected.delete(id);draw();
   }
   async function task(action, payload) {
     if (view?.busy) return;
     const target = view; if (!target) return;
     target.busy = true; status(t('Working…', 'İşleniyor…'));
-    target.root.querySelectorAll('button').forEach(b => { b.disabled = !b.dataset.cancel; });
+    target.root.querySelectorAll('button').forEach(b => { b.disabled = !b.dataset.cancel;if(b.dataset.cancel)b.hidden=false; });
     try {
       const result = await api(action, payload);
       if (target !== view || !target.root.isConnected) return result;
       await reload();
       if (result?.warnings?.length) status(result.warnings.join('\n'), true);
       return result;
-    } finally { target.busy = false; if (target === view) target.root.querySelectorAll('button').forEach(b => { b.disabled = false; }); }
+    } finally { target.busy = false; if (target === view) target.root.querySelectorAll('button').forEach(b => { b.disabled = false;if(b.dataset.cancel)b.hidden=true; }); }
   }
   async function forget(kind, row) {
     if (await form(t('Remove from library?', 'Kütüphaneden kaldırılsın mı?'), [], `${row.title || row.name}\n${t('The original file will remain on disk.', 'Asıl dosya diskte kalacak.')}`, t('Remove', 'Kaldır'))) await task('remove', { kind, id: row.id });
@@ -91,26 +106,27 @@
     if(mine!==playGeneration)return;
     await flushPosition();
     if (mine !== playGeneration) return;
-    queueIndex = (index + queue.length) % queue.length;
-    const row = queue[queueIndex]; let source = row.url;
+    const chosen=order.jump(index);if(!chosen)return;syncQueue();
+    const row = chosen;audio.pause();let source = row.url;
     if (row.kind === 'music') { const result = await api('music-play', { id: row.id }); source = pathToFileUrl(result.path); }
     if(row.kind==='spotify'){dockStatus.textContent=t('Resolving YouTube audio…','YouTube sesi hazırlanıyor…');const result=await api('spotify-play',{playlistId:row.playlistId,id:row.id});source=result.url;}
     if (mine !== playGeneration) return;
     document.getElementById('playerVideo')?.pause();
     if (window.BrowserDubAudioUI?.pause) window.BrowserDubAudioUI.pause();
     audio.pause(); if (hls) { hls.destroy(); hls = null; }
-    current = row; dockTitle.textContent = row.title; dockStatus.textContent = '';
+    current = row; dockTitle.textContent = row.title;dockTitle.title=[row.title,row.artist].filter(Boolean).join(' · '); dockStatus.textContent = '';
     dock.classList.remove('hidden'); document.body.classList.add('media-shelf-playing');
     if (/\.m3u8(?:\?|$)/i.test(source) && window.Hls?.isSupported()) { hls = new window.Hls(); hls.loadSource(source); hls.attachMedia(audio); }
     else audio.src = source;
     audio.playbackRate = +speed.value;
     audio.addEventListener('loadedmetadata', () => { if (mine === playGeneration && row.position > 0 && row.position < audio.duration - 2) audio.currentTime = row.position; }, { once: true });
-    await audio.play();
+    await audio.play();if(mine!==playGeneration)return;
+    if(['music','spotify'].includes(row.kind)){try{const played=await api('music-played',{kind:row.kind,id:row.id,playlistId:row.playlistId});Object.assign(row,played);const local=snapshot?.music?.find(r=>r.id===row.id);if(local)Object.assign(local,played);}catch(error){dockStatus.textContent=error.message;}}
   }
-  function listen(rows, index = 0) { queue = rows; return playQueue(index); }
-  audio.addEventListener('pause', () => { void flushPosition(); });
+  function listen(rows, index = 0) {order.set(rows,index);syncQueue();return playQueue(index); }
+  audio.addEventListener('pause', () => {paintPlaying();void flushPosition();});audio.addEventListener('play',paintPlaying);
   audio.addEventListener('timeupdate', () => { if (Date.now() - lastSaved > 10000) { lastSaved = Date.now(); void flushPosition(); } });
-  audio.addEventListener('ended', () => { void flushPosition().then(() => { if (queueIndex + 1 < queue.length) return playQueue(queueIndex + 1); }).catch(error=>{dockStatus.textContent=error.message;}); });
+  audio.addEventListener('ended', () => { void flushPosition().then(() => { return advance(true); }).catch(error=>{dockStatus.textContent=error.message;}); });
   audio.addEventListener('error', () => { dockStatus.textContent = t('Audio could not be played. Check the file or stream address.', 'Ses oynatılamadı. Dosyayı veya yayın adresini kontrol edin.'); });
   document.addEventListener('play', event => { if (event.target !== audio) audio.pause(); }, true);
   new MutationObserver(() => {
@@ -122,32 +138,40 @@
     controls.append(btn(t('Add audio', 'Ses ekle'), () => task('music-import')), btn(t('Add folder', 'Klasör ekle'), () => task('music-import', { folder: true })));
     controls.append(btn(t('Spotify link','Spotify bağlantısı'),()=>window.SpotifyImportUI.open({saved:reload}),'mh-action ms-spotify-open'));
     controls.append(btn(t('Analyze music', 'Müziği analiz et'), () => window.MusicAnalysisUI.open()));
-    const cancel = btn(t('Cancel import', 'İçe aktarmayı durdur'), () => api('cancel')); cancel.dataset.cancel = '1'; controls.append(cancel);
+    const cancel = btn(t('Cancel import', 'İçe aktarmayı durdur'), () => api('cancel')); cancel.dataset.cancel = '1';cancel.hidden=true; controls.append(cancel);
     controls.append(btn(t('Save selected as playlist', 'Seçilenlerle çalma listesi oluştur'), async () => {
       const value = await form(t('New playlist', 'Yeni çalma listesi'), [{ key: 'name', label: t('Name', 'Ad') }]);
       if (value) await task('playlist-save', { ...value, ids: [...selected] });
     }));
-    const artist = el('select'), album = el('select');
+    const filters=el('div','mh-filterbar ms-music-filters');const artist = el('select'), album = el('select');
+    const filter=el('select','ms-music-filter'),sort=el('select','ms-music-sort');filter.setAttribute('aria-label',t('Music selection','Müzik seçimi'));sort.setAttribute('aria-label',t('Sort music','Müzik sırası'));
+    for(const [value,en,tr] of [['all','All tracks','Tüm parçalar'],['liked','Liked tracks','Beğendiklerim'],['recent','Recently played','Son dinlenenler']]){const option=el('option','',t(en,tr));option.value=value;filter.append(option);}filter.value=musicFilter;
+    for(const [value,en,tr] of [['title','Title','Parça adı'],['artist','Artist','Sanatçı'],['recent','Recently played first','Son dinlenen önce'],['plays','Most played','En çok dinlenen']]){const option=el('option','',t(en,tr));option.value=value;sort.append(option);}sort.value=musicSort;filters.append(filter,sort);
+
     for (const [control, key, title] of [[artist, 'artist', t('All artists', 'Tüm sanatçılar')], [album, 'album', t('All albums', 'Tüm albümler')]]) {
       control.setAttribute('aria-label', title); const all = el('option', '', title); all.value = ''; control.append(all);
-      [...new Set(snapshot.music.map(row => row[key]).filter(Boolean))].sort((a, b) => a.localeCompare(b)).forEach(value => { const option = el('option', '', value); option.value = value; control.append(option); }); controls.append(control);
+      [...new Set(snapshot.music.map(row => row[key]).filter(Boolean))].sort((a, b) => a.localeCompare(b)).forEach(value => { const option = el('option', '', value); option.value = value; control.append(option); }); filters.append(control);
     }
-    root.append(controls);
+    root.append(controls,filters);
+    const albumRail=el('div','ms-album-rail');const albums=new Map();for(const row of snapshot.music){if(!row.album)continue;const key=JSON.stringify([row.artist||'',row.album]);const group=albums.get(key)||{name:row.album,artist:row.artist||'',rows:[]};group.rows.push(row);albums.set(key,group);}if(albums.size){const section=el('section','ms-albums');section.append(el('h2','',t('Your albums','Albümlerin')));for(const group of [...albums.values()].slice(0,24)){const card=el('article','ms-album-card'),mark=el('div','ms-album-art');mark.setAttribute('aria-hidden','true');mark.textContent=group.name.slice(0,1).toLocaleUpperCase();const sourceId=group.rows[0].id;const applyCover=cover=>{if(!cover||!mark.isConnected)return;const image=el('img');image.alt='';image.src=cover;mark.replaceChildren(image);mark.classList.add('has-cover');};if(musicCovers.has(sourceId))requestAnimationFrame(()=>applyCover(musicCovers.get(sourceId)));else void api('music-cover',{id:sourceId}).then(r=>{musicCovers.set(sourceId,r.cover);if(musicCovers.size>128)musicCovers.delete(musicCovers.keys().next().value);applyCover(r.cover);}).catch(()=>{});const select=btn(group.name,()=>{album.value=group.name;artist.value=group.artist;paint();},'mh-text-button ms-album-title');card.append(mark,select,el('small','',group.artist+' · '+group.rows.length),btn(t('Play album','Albümü oynat'),()=>listen(group.rows.slice().sort((a,b)=>(parseInt(a.track)||0)-(parseInt(b.track)||0)).map(playableMusic)),'mh-action'));albumRail.append(card);}section.append(albumRail);root.append(section);}
+    const quick=el('div','ms-music-quick'),count=el('span','ms-music-count'),playAll=btn(t('Play selection','Seçimi oynat'),()=>listen(visibleMusic.map(playableMusic)),'mh-action mh-primary ms-play-selection'),shuffleAll=btn(t('Shuffle selection','Seçimi karıştır'),()=>{order.set(visibleMusic.map(playableMusic));order.shuffle(true);syncQueue();return playQueue(0);},'mh-action ms-shuffle-selection');let visibleMusic=[];quick.append(count,playAll,shuffleAll);root.append(quick);
     const list = el('div', 'ms-track-list'); root.append(list);
     const paint = () => {
       list.replaceChildren();
       const fold = value => String(value || '').normalize('NFKD').replace(/\p{M}/gu, '').toLocaleLowerCase('tr').replace(/ı/g, 'i');
-      const rows = snapshot.music.filter(row => (!artist.value || row.artist === artist.value) && (!album.value || row.album === album.value) && fold(`${row.title} ${row.artist} ${row.album}`).includes(fold(view.query)));
+      const rows = snapshot.music.filter(row => (filter.value!=='liked'||row.favorite)&&(filter.value!=='recent'||row.lastPlayedAt)&& (!artist.value || row.artist === artist.value) && (!album.value || row.album === album.value) && fold(`${row.title} ${row.artist} ${row.album}`).includes(fold(view.query)));
+      rows.sort((a,b)=>sort.value==='plays'?(b.playCount||0)-(a.playCount||0):sort.value==='recent'||filter.value==='recent'?(b.lastPlayedAt||0)-(a.lastPlayedAt||0):String(a[sort.value]||a.title).localeCompare(String(b[sort.value]||b.title),english()?'en':'tr'));
+      visibleMusic=rows;count.textContent=t(`${rows.length} tracks`,`${rows.length} parça`);playAll.disabled=shuffleAll.disabled=!rows.length;
       let shown = 0;
       const more = () => {
         const next = rows.slice(shown, shown + 60); shown += next.length;
         for (const row of next) {
-          const line = el('div', 'ms-track'), check = el('input'); check.type = 'checkbox'; check.checked = selected.has(row.id); check.setAttribute('aria-label', `${t('Select', 'Seç')}: ${row.title}`);
+          const line = el('div', 'ms-track'), check = el('input');line.dataset.musicId=row.id; check.type = 'checkbox'; check.checked = selected.has(row.id); check.setAttribute('aria-label', `${t('Select', 'Seç')}: ${row.title}`);
           check.addEventListener('change', () => { if (check.checked) selected.add(row.id); else selected.delete(row.id); });
           const title = el('div'); title.append(el('strong', '', row.title), el('small', '', [row.artist, row.album].filter(Boolean).join(' · ')));
           line.append(check, btn('▶', () => listen(rows.map(value => ({ ...value, kind: 'music' })), rows.indexOf(row))), title,
             el('span', 'ms-time', `${Math.floor(row.duration / 60)}:${String(Math.floor(row.duration % 60)).padStart(2, '0')}`),
-            btn(t('Analyze', 'Analiz et'), () => window.MusicAnalysisUI.open(row.id)), btn(t('Player', 'Oynatıcı'), async () => { const result = await api('music-play', { id: row.id }); await openLocalMedia(result.path, row.position || 0); }), btn(t('Remove', 'Kaldır'), () => forget('music', row), 'mh-text-button'));
+            favoriteButton(row),btn(t('Analyze', 'Analiz et'), () => window.MusicAnalysisUI.open(row.id)),trackMenu(row));
           line.querySelector('button').setAttribute('aria-label', `${t('Play', 'Oynat')}: ${row.title}`); list.append(line);
         }
         moreButton.hidden = shown >= rows.length;
@@ -155,14 +179,14 @@
       const moreButton = btn(t('Show more', 'Daha fazla göster'), more); more(); list.append(moreButton);
       if (!rows.length) list.append(el('p', 'mh-empty', t('Add audio files or a music folder to see albums, artists and playlists.', 'Albüm, sanatçı ve çalma listeleri için ses dosyaları veya müzik klasörü ekle.')));
     };
-    artist.addEventListener('change', paint); album.addEventListener('change', paint); paint();
+    artist.addEventListener('change', paint); album.addEventListener('change', paint);filter.addEventListener('change',()=>{musicFilter=filter.value;paint();});sort.addEventListener('change',()=>{musicSort=sort.value;paint();});paint();paintPlaying();
     if (snapshot.linkedPlaylists?.length) {
       const section=el('section','mh-section ms-linked-playlists');section.append(el('h2','',t('From Spotify','Spotify’dan aktarılanlar')),el('p','mh-subtitle',t('Reviewed YouTube matches. Spotify audio is not downloaded.','İncelenen YouTube eşleşmeleri. Spotify sesi indirilmez.')));
-      for(const playlist of snapshot.linkedPlaylists){const details=el('details','ms-linked-playlist'),summary=el('summary','',playlist.name+' · '+playlist.tracks.length);details.append(summary);details.append(btn(t('Open on Spotify','Spotify’da aç'),()=>window.api.openExternal(playlist.sourceUrl)));details.append(btn(t('Play playlist','Listeyi oynat'),()=>listen(playlist.tracks.map(row=>({...row,kind:'spotify',playlistId:playlist.id})))));for(const [i,row] of playlist.tracks.entries()){const line=el('div','ms-track');line.append(btn('▶',()=>listen(playlist.tracks.map(r=>({...r,kind:'spotify',playlistId:playlist.id})),i)),el('strong','',row.title),el('small','',row.artist),el('small','',t('YouTube match','YouTube eşleşmesi')));line.querySelector('button').setAttribute('aria-label',t('Play ','Oynat ')+row.title);details.append(line);}details.append(btn(t('Remove playlist','Listeyi kaldır'),async()=>{if(await form(t('Remove playlist?','Liste kaldırılsın mı?'),[],playlist.name,t('Remove','Kaldır')))await task('spotify-remove',{id:playlist.id});},'mh-text-button'));section.append(details);}root.append(section);
+      for(const playlist of snapshot.linkedPlaylists){const details=el('details','ms-linked-playlist'),summary=el('summary','',playlist.name+' · '+playlist.tracks.length);details.append(summary);details.append(btn(t('Open on Spotify','Spotify’da aç'),()=>window.api.openExternal(playlist.sourceUrl)));details.append(btn(t('Play playlist','Listeyi oynat'),()=>listen(playlist.tracks.map(row=>({...row,kind:'spotify',playlistId:playlist.id})))));for(const [i,row] of playlist.tracks.entries()){const line=el('div','ms-track');line.append(btn('▶',()=>listen(playlist.tracks.map(r=>({...r,kind:'spotify',playlistId:playlist.id})),i)),el('strong','',row.title),el('small','',row.artist),favoriteButton({...row,kind:'spotify',playlistId:playlist.id}),el('small','',t('YouTube match','YouTube eşleşmesi')));line.querySelector('button').setAttribute('aria-label',t('Play ','Oynat ')+row.title);details.append(line);}details.append(btn(t('Rename','Yeniden adlandır'),()=>renamePlaylist(playlist,'spotify'),'mh-text-button'));details.append(btn(t('Remove playlist','Listeyi kaldır'),async()=>{if(await form(t('Remove playlist?','Liste kaldırılsın mı?'),[],playlist.name,t('Remove','Kaldır')))await task('spotify-remove',{id:playlist.id});},'mh-text-button'));section.append(details);}root.append(section);
     }
     if (snapshot.playlists.length) {
       const playlists = el('section', 'mh-section'); playlists.append(el('h2', '', t('Playlists', 'Çalma listeleri')));
-      snapshot.playlists.forEach(row => { const line = el('div', 'ms-track'); line.append(btn(`${row.name} (${row.tracks.length})`, () => listen(row.tracks.map(id => snapshot.music.find(item => item.id === id)).filter(Boolean).map(row => ({ ...row, kind: 'music' })))), btn(t('Remove', 'Kaldır'), () => forget('playlists', row), 'mh-text-button')); playlists.append(line); }); root.append(playlists);
+      snapshot.playlists.forEach(row => { const line = el('div', 'ms-track'); line.append(btn(`${row.name} (${row.tracks.length})`, () => listen(row.tracks.map(id => snapshot.music.find(item => item.id === id)).filter(Boolean).map(row => ({ ...row, kind: 'music' })))), btn(t('Rename','Yeniden adlandır'),()=>renamePlaylist(row,'local'),'mh-text-button'),btn(t('Remove', 'Kaldır'), () => forget('playlists', row), 'mh-text-button')); playlists.append(line); }); root.append(playlists);
     }
   }
   async function openPdfPage(file, pageNumber = 1) {
@@ -316,9 +340,9 @@
   }
   document.addEventListener('ui-locale-change', () => {
     const first = sleep.options[0]; if (first) first.textContent = t('Sleep timer off', 'Uyku zamanlayıcısı kapalı');
-    speed.setAttribute('aria-label', t('Playback speed', 'Oynatma hızı')); sleep.setAttribute('aria-label', t('Sleep timer', 'Uyku zamanlayıcısı'));
+    speed.setAttribute('aria-label', t('Playback speed', 'Oynatma hızı')); sleep.setAttribute('aria-label', t('Sleep timer', 'Uyku zamanlayıcısı'));shuffleButton.textContent=t('Shuffle','Karıştır');syncQueue();
   });
-  window.MediaShelfUI = Object.freeze({ openBook:(id,focus)=>openBook({id},focus), openPdfPage, mount(root, page, query = '') {
+  window.MediaShelfUI = Object.freeze({ executeMusic:async args=>{const op=args.operation;if(op==='open_spotify_import')window.SpotifyImportUI.open({saved:reload});else if(op==='open_queue')openQueue();else {if(!order.current())throw Error('No active music queue / Etkin müzik kuyruğu yok.');if(op==='queue_next')await advance(false);else if(op==='queue_previous'){order.previous();await playQueue(order.snapshot().index);}else if(op==='set_queue_shuffle'){if(typeof args.selected!=='boolean')throw Error('Invalid shuffle');order.shuffle(args.selected);syncQueue();}else if(op==='set_queue_repeat'){order.setRepeat(args.repeat_mode);syncQueue();}else throw Error('Unknown music player action');}return window.MediaShelfUI.musicContext();},musicContext:()=>({playing:!!current&&!audio.paused,current:current?{id:current.id,title:current.title,artist:current.artist,kind:current.kind}:null,queue:order.snapshot().rows.slice(0,50).map(r=>({id:r.id,title:r.title,artist:r.artist,kind:r.kind})),queueCount:order.snapshot().rows.length,index:order.snapshot().index,repeat:order.snapshot().repeat,shuffle:order.snapshot().shuffled}), openBook:(id,focus)=>openBook({id},focus), openPdfPage, mount(root, page, query = '') {
     view = { root, page, query, busy: false }; ++generation;
     const loading = el('p', 'ms-status'); loading.setAttribute('role', 'status'); root.replaceChildren(loading);
     void reload().catch(error => status(error.message, true));

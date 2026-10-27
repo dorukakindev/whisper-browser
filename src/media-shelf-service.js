@@ -137,6 +137,11 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           const row = found(load(), 'music', input.id), real = inspectMedia(row.path); grantMedia(real);
           return { ok: true, path: real, title: row.title };
         }
+        case 'playlist-rename': {
+          const data=load(),name=text(input.name,120);if(!name)throw Error('Enter a playlist name / Çalma listesi adı yaz.');
+          if(!['local','spotify'].includes(input.kind))throw Error('Invalid playlist type');
+          const row=(input.kind==='spotify'?data.linkedPlaylists||[]:data.playlists).find(r=>r.id===input.id);if(!row)throw Error('Playlist missing');row.name=name;save(data);return {ok:true};
+        }
         case 'playlist-save': {
           const data = load(), name = text(input.name, 120);
           if (!name) throw Error('Enter a playlist name.');
@@ -146,6 +151,23 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           if (!tracks.length) throw Error('Select at least one audio file.');
           if (data.playlists.length >= 100) throw Error('Playlist limit reached.');
           const playlist={id:randomUUID(),name,tracks};data.playlists.push(playlist);save(data);return {ok:true,id:playlist.id};
+        }
+        case 'music-cover': {
+          const row=found(load(),'music',input.id),real=inspectMedia(row.path),folder=path.dirname(real);
+          for(const name of ['cover.jpg','cover.png','folder.jpg','folder.png','Cover.jpg','Cover.png']){
+            const candidate=path.join(folder,name);try{const target=fs.realpathSync(candidate);if(path.dirname(target)!==folder||fs.statSync(target).size>3000000)continue;const image=nativeImage.createFromPath(target);if(image.isEmpty())continue;return {ok:true,cover:image.resize({width:240,height:240,quality:'good'}).toDataURL()};}catch{}
+          }
+          return {ok:true,cover:''};
+        }
+        case 'music-favorite':
+        case 'music-played': {
+          const data=load();let row;
+          if(input.kind==='music')row=found(data,'music',input.id);
+          else if(input.kind==='spotify')row=data.linkedPlaylists?.find(p=>p.id===input.playlistId)?.tracks.find(t=>t.id===input.id);
+          if(!row)throw Error('Unknown music track / Müzik parçası bulunamadı.');
+          if(input.action==='music-favorite'){if(typeof input.favorite!=='boolean')throw Error('Invalid favorite');row.favorite=input.favorite;}
+          else {row.lastPlayedAt=Date.now();row.playCount=Math.min(1000000,(Number.isSafeInteger(row.playCount)?row.playCount:0)+1);}
+          save(data);return {ok:true,favorite:!!row.favorite,lastPlayedAt:row.lastPlayedAt||0,playCount:row.playCount||0};
         }
         case 'listen-progress': {
           const data = load();
