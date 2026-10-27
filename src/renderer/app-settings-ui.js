@@ -95,7 +95,7 @@
     const footer=el('footer','aps-footer'),status=el('p','aps-copy');status.id='appSettingsStatus';status.setAttribute('role','status');status.textContent=t('These are the existing settings. Changes use the same secure credential storage.','Bunlar mevcut ayarların. Değişiklikler aynı güvenli anahtar deposunu kullanır.');
     const save=button(t('Save settings','Ayarları kaydet'),async()=>{const edit=editGeneration,view=viewGeneration;save.disabled=true;status.textContent=t('Saving securely…','Güvenli kaydediliyor…');try{const ok=await saveAppSettings();if(!dialog?.open||view!==viewGeneration||edit!==editGeneration)return;status.textContent=ok?t('Settings saved.','Ayarlar kaydedildi.'):t('Could not save securely. Check the application log.','Güvenli kayıt yapılamadı. Uygulama günlüğünü kontrol et.');status.classList.toggle('aps-error',!ok);}catch{if(view===viewGeneration&&edit===editGeneration){status.textContent=t('Could not save settings.','Ayarlar kaydedilemedi.');status.classList.add('aps-error');}}finally{save.disabled=false;}});save.id='appSettingsSave';save.classList.add('mh-primary');footer.append(status,save);dialog.append(footer);if(dialog.open)window.UiMotion?.reveal(main,'section');
   }
-  async function open(page='ai'){
+  async function open(page='ai',{preserveAssistantContext=false}={}){
     await initialSettingsReady;
     const target=['ai','manga','metadata','cleanup','general'].includes(page)?page:'ai';
     if(dialog?.open){if(active!==target){mask();active=target;draw();}dialog.focus();dialog.querySelector('[aria-current="page"]')?.focus();return;}if(dialog)cleanup(dialog);
@@ -103,7 +103,7 @@
     const current=el('dialog','aps-dialog media-surface');current.id='appSettingsDialog';current.dataset.uiUntranslated='';dialog=current;
     current.addEventListener('close',()=>cleanup(current));
     current.addEventListener('input',changed);current.addEventListener('change',changed);
-    document.body.append(current);try{draw();current.showModal();window.MediaExperience?.setContext(current,{id:'application-settings',type:'media-tool',title:t('Application settings','Uygulama ayarları'),note:'Credential input values are private and are not assistant context.'});void syncBrowserOcclusion();current.querySelector('[aria-current="page"]')?.focus();}catch(error){restore();current.remove();dialog=null;throw error;}
+    document.body.append(current);try{draw();current.showModal();if(!preserveAssistantContext)window.MediaExperience?.setContext(current,{id:'application-settings',type:'media-tool',title:t('Application settings','Uygulama ayarları'),note:'Credential input values are private and are not assistant context.'});void syncBrowserOcclusion();current.querySelector('[aria-current="page"]')?.focus();}catch(error){restore();current.remove();dialog=null;throw error;}
   }
   document.addEventListener('ui-locale-change',()=>{if(dialog?.open)draw();});
   window.AppSettingsUI=Object.freeze({open,close});
