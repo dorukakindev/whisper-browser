@@ -153,8 +153,9 @@
     }
     async function pickSource(){
       const response=await window.api.mediaShelf({action:'list'});if(!response?.ok)throw Error(response?.error||'Music library unavailable');if(state.closed)return;
-      const rows=[...response.music.map(r=>({title:r.title,artist:r.artist,group:t('Local library','Yerel arşiv'),source:r.id})),...(response.linkedPlaylists||[]).flatMap(p=>p.tracks.map(r=>({title:r.title,artist:r.artist,group:p.name,source:{kind:'spotify',playlistId:p.id,id:r.id}})))];
-      const picker=node('dialog','ml-source-picker media-surface');picker.dataset.uiUntranslated='';const h=node('h2','',t('Choose a music reference','Müzik referansı seç'));h.id='mlPickerTitle';picker.setAttribute('aria-labelledby',h.id);const query=node('input');query.placeholder=t('Track, artist or Spotify playlist','Parça, sanatçı veya Spotify listesi');query.setAttribute('aria-label',query.placeholder);const list=node('div','ml-source-options');
+      const discoveries=await api('online',{op:'list'});if(state.closed)return;
+      const rows=[...response.music.map(r=>({title:r.title,artist:r.artist,group:t('Local library','Yerel arşiv'),source:r.id})),...(response.linkedPlaylists||[]).flatMap(p=>p.tracks.map(r=>({title:r.title,artist:r.artist,group:p.name,source:{kind:'spotify',playlistId:p.id,id:r.id}}))),...(discoveries.results||[]).map(r=>({title:r.title,artist:r.artist,group:t('Saved discoveries','Kaydedilen keşifler'),source:{kind:'deezer',id:r.id}}))];
+      const picker=node('dialog','ml-source-picker media-surface');picker.dataset.uiUntranslated='';const h=node('h2','',t('Choose a music reference','Müzik referansı seç'));h.id='mlPickerTitle';picker.setAttribute('aria-labelledby',h.id);const query=node('input');query.placeholder=t('Track, artist, playlist or saved discovery','Parça, sanatçı, liste veya kaydedilen keşif');query.setAttribute('aria-label',query.placeholder);const list=node('div','ml-source-options');
       function paint(){list.replaceChildren();const q=query.value.toLocaleLowerCase();const matches=rows.filter(r=>[r.title,r.artist,r.group].join(' ').toLocaleLowerCase().includes(q));for(const row of matches.slice(0,100)){const b=button(row.title+' · '+row.artist+' — '+row.group,async()=>{picker.close();await selectReference(row.source);},'ml-button ml-source-option');list.append(b);}if(!matches.length)list.append(node('p','ml-description',t('No tracks. Import a Spotify list or add local music first.','Parça yok. Önce Spotify listesi aktar veya yerel müzik ekle.')));if(matches.length>100)list.append(node('p','ml-description',t('First 100 shown; narrow your search.','İlk 100 gösteriliyor; aramayı daralt.')));}
       picker.append(h,query,list,button(t('Cancel','Vazgeç'),()=>picker.close()));picker.addEventListener('close',()=>picker.remove(),{once:true});query.addEventListener('input',paint);dialog.append(picker);paint();picker.showModal();query.focus();
     }
@@ -165,7 +166,7 @@
       const response=await api(action,payload);if(state.closed||response.canceled)return;
       state.playlistDraft=null;selectedMatches=new Set();state.tags=null;state.lastSearch=null;state.matches=[];state.source=response.source;onlinePanel.dispatchEvent(new CustomEvent('music-reference',{detail:response.source}));state.result=null;sourceTitle.textContent=response.source.title;sourceDetail.textContent=response.source.origin==='deezer-preview'?t('Deezer preview · up to 30 seconds · not the full song','Deezer önizlemesi · en fazla 30 saniye · şarkının tamamı değil'):response.source.origin==='spotify-youtube-excerpt'?t('Spotify selection · reviewed YouTube version · first 90 seconds at most','Spotify seçimi · incelenmiş YouTube sürümü · ilk en fazla 90 saniye'):t('Local audio · measurements stay on this computer','Yerel ses · ölçümler bu bilgisayarda kalır');
       comparison=null;++compareToken;alternateReference.pause();compareAudio.pause();compare.hidden=true;audio.volume=1;find.disabled=!state.modelReady;exclude.disabled=!response.source.artist;hits.replaceChildren(node('p','ml-search-empty',t('Reference changed. Search again for fresh matches.','Referans değişti. Güncel eşleşmeler için yeniden ara.')));
-      audio.pause();audio.hidden=false;audio.src=response.source.url;start.value='0';end.value='';run.disabled=false;results.replaceChildren(empty);charts.length=0;
+      audio.pause();audio.hidden=false;audio.src=response.source.url;start.value='0';end.value='';end.placeholder=response.source.origin==='local'?t('Full track','Tüm parça'):t('Whole excerpt','Tüm kesit');run.disabled=false;results.replaceChildren(empty);charts.length=0;
       busy(state.busy);message(t('Ready. Select a range or analyze the full track (up to 30 minutes).','Hazır. Aralık seç veya parçanın tamamını analiz et (en fazla 30 dakika).'));
     }
     async function analyze(){return launch('analyze');}
@@ -287,7 +288,7 @@
      else if(op==='propose_playlist')reviewPlaylist(args.name||'');
      else if(op==='prepare_model')await launch('prepare');
      else if(op==='rank_online'){if(args.source_id!==state.source?.id)throw Error('The selected music source changed');if(args.start!==undefined){start.value=String(args.start);end.value=String(args.end);}tab(false,true);await onlinePanel.musicAgent.execute(op,args);}
-     else if(['search_online','discover_online','save_discovery'].includes(op)){tab(false,true);await onlinePanel.musicAgent.execute(op,args);}
+     else if(['select_online_match','use_online_reference','search_online','discover_online','save_discovery'].includes(op)){tab(false,true);await onlinePanel.musicAgent.execute(op,args);}
      else if(['analyze','find_local','analyze_tags'].includes(op)){
       if(args.source_id!==state.source?.id)throw Error('The selected music source changed');
       if(args.start!==undefined){start.value=String(args.start);end.value=String(args.end);}

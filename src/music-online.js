@@ -17,7 +17,7 @@ function createOnline({userData,fetchImpl=fetch}){
   const data=JSON.parse((await readLimitedBytes(response,2_000_000)).toString('utf8'));
   if(data.error)throw Error(data.error.code===4?'Catalog quota reached; try later / Katalog kotası doldu; sonra dene.':'Music provider returned an error / Müzik sağlayıcısı hata döndürdü.');return data;
  }
- function remember(rows){for(const r of rows)known.set(r.id,r);while(known.size>200)known.delete(known.keys().next().value);return rows;}
+ function remember(rows){for(const r of rows)known.set(r.id,r);while(known.size>1000)known.delete(known.keys().next().value);return rows;}
  // Snapshot identities before the asynchronous job starts. URLs are always refreshed
  // from the provider; neither renderer URLs nor signed URLs are persisted.
  function snapshot(ids){
