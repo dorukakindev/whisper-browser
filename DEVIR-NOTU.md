@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-27-1818.md](docs/devir/2026-10-27-1818.md) — Yeni50hedef son10: ses/çeviri ve kapanış kanıtı
 Güncel çalışma: [docs/devir/2026-10-27-1813.md](docs/devir/2026-10-27-1813.md) — Yeni50hedef dördüncü10: PDF seçim ve kitap kabulü
 Güncel çalışma: [docs/devir/2026-10-27-1800.md](docs/devir/2026-10-27-1800.md) — Yeni50hedef üçüncü10: asistan gerçek iş kabulü
 Güncel çalışma: [docs/devir/2026-10-27-1734.md](docs/devir/2026-10-27-1734.md) — Yeni50hedef ikinci10: keşfet/arama hata ve kısmi sonuç

@@ -461,7 +461,8 @@
     if(!Number.isFinite(groupAudio.duration)||row.audioStart>=groupAudio.duration){status('Ses aralığı bu dosyada bulunamadı.');return;}
     try {
       rangeEnd=Math.min(row.audioEnd,groupAudio.duration);groupAudio.currentTime=row.audioStart;
-      await groupAudio.play();return true;
+      await groupAudio.play();
+      return generation===groupPlayGeneration&&output===source&&modal.open&&!current&&!workspaceBusy;
     } catch(error){if(generation===groupPlayGeneration){rangeEnd=null;status(error.message);}}
     return false;
   }
