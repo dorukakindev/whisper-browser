@@ -1,0 +1,480 @@
+{
+  "schema": 1,
+  "baseline": "65505a781a45573d628926e126fc0bf0ca89ff79",
+  "tasks": [
+    {
+      "id": "W01",
+      "area": "Canlı Whisper başlangıç sahipliği",
+      "source": "src/renderer/renderer.js",
+      "acceptance": "Sistem sesi seçim penceresi açıkken Durdur geç başlatmayı iptal eder",
+      "status": "DÜZELTİLDİ/DOĞRULANDI",
+      "evidence": "R648: live-asr-start-owner648.test.js + native electron-live-asr-owner648.smoke.js; yerel kontrollü capture/backend, gerçek sistem sesi/model değil.",
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W02",
+      "area": "Canlı Whisper başlangıç sahipliği",
+      "source": "src/renderer/renderer.js",
+      "acceptance": "Aynı sekmede video değişince eski ses izni yeni videoya bağlanmaz",
+      "status": "DÜZELTİLDİ/DOĞRULANDI",
+      "evidence": "R648: live-asr-start-owner648.test.js + native electron-live-asr-owner648.smoke.js; yerel kontrollü capture/backend, gerçek sistem sesi/model değil.",
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W03",
+      "area": "Canlı Whisper başlangıç sahipliği",
+      "source": "src/renderer/renderer.js",
+      "acceptance": "Sekme değişince geç dönen stream tüm tracklerini bırakır",
+      "status": "DÜZELTİLDİ/DOĞRULANDI",
+      "evidence": "R648: live-asr-start-owner648.test.js + native electron-live-asr-owner648.smoke.js; yerel kontrollü capture/backend, gerçek sistem sesi/model değil.",
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W04",
+      "area": "Canlı Whisper başlangıç sahipliği",
+      "source": "src/renderer/renderer.js",
+      "acceptance": "İki hızlı başlatma yalnız bir onay ve iş üretir",
+      "status": "DÜZELTİLDİ/DOĞRULANDI",
+      "evidence": "R648: live-asr-start-owner648.test.js + native electron-live-asr-owner648.smoke.js; yerel kontrollü capture/backend, gerçek sistem sesi/model değil.",
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W05",
+      "area": "Canlı Whisper başlangıç sahipliği",
+      "source": "src/renderer/renderer.js",
+      "acceptance": "Eski AudioWorklet hatası yeni oturumu durduramaz",
+      "status": "DÜZELTİLDİ/DOĞRULANDI",
+      "evidence": "R648: live-asr-start-owner648.test.js + native electron-live-asr-owner648.smoke.js; yerel kontrollü capture/backend, gerçek sistem sesi/model değil.",
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W06",
+      "area": "Canlı Whisper başlangıç sahipliği",
+      "source": "src/renderer/renderer.js",
+      "acceptance": "Eski chunk gönderim hatası yeni oturumun durumunu ezemez",
+      "status": "DÜZELTİLDİ/DOĞRULANDI",
+      "evidence": "R648: live-asr-start-owner648.test.js + native electron-live-asr-owner648.smoke.js; yerel kontrollü capture/backend, gerçek sistem sesi/model değil.",
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W07",
+      "area": "Canlı Whisper başlangıç sahipliği",
+      "source": "src/renderer/renderer.js",
+      "acceptance": "Worklet yüklenirken iptal kaynakları kapatır",
+      "status": "DÜZELTİLDİ/DOĞRULANDI",
+      "evidence": "R648: live-asr-start-owner648.test.js + native electron-live-asr-owner648.smoke.js; yerel kontrollü capture/backend, gerçek sistem sesi/model değil.",
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W08",
+      "area": "Canlı Whisper başlangıç sahipliği",
+      "source": "src/renderer/renderer.js",
+      "acceptance": "Capture kapanışı mevcut yeni stream tracklerine dokunmaz",
+      "status": "DÜZELTİLDİ/DOĞRULANDI",
+      "evidence": "R648: live-asr-start-owner648.test.js + native electron-live-asr-owner648.smoke.js; yerel kontrollü capture/backend, gerçek sistem sesi/model değil.",
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W09",
+      "area": "Canlı Whisper başlangıç sahipliği",
+      "source": "src/renderer/renderer.js",
+      "acceptance": "Backend active=false bekleyen capture başlangıcını iptal eder",
+      "status": "DÜZELTİLDİ/DOĞRULANDI",
+      "evidence": "R648: live-asr-start-owner648.test.js + native electron-live-asr-owner648.smoke.js; yerel kontrollü capture/backend, gerçek sistem sesi/model değil.",
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W10",
+      "area": "Canlı Whisper başlangıç sahipliği",
+      "source": "src/renderer/renderer.js",
+      "acceptance": "Durdurma sonrası yeniden başlatma ve kesin session kimliği korunur",
+      "status": "DÜZELTİLDİ/DOĞRULANDI",
+      "evidence": "R648: live-asr-start-owner648.test.js + native electron-live-asr-owner648.smoke.js; yerel kontrollü capture/backend, gerçek sistem sesi/model değil.",
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W11",
+      "area": "Keşfet ve arama hata deneyimi",
+      "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
+      "acceptance": "Yetkisiz arama hatası EN/TR eylemli mesaj verir",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W12",
+      "area": "Keşfet ve arama hata deneyimi",
+      "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
+      "acceptance": "429 sağlayıcı sınırı bekleme yönlendirmesi verir",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W13",
+      "area": "Keşfet ve arama hata deneyimi",
+      "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
+      "acceptance": "5xx ayrıntı hatası ham teknik metin yerine anlaşılır durum verir",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W14",
+      "area": "Keşfet ve arama hata deneyimi",
+      "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
+      "acceptance": "Zaman aşımı ve çevrimdışı hatalar ayrı anlaşılırdır",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W15",
+      "area": "Keşfet ve arama hata deneyimi",
+      "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
+      "acceptance": "Geçersiz sayfa/filtre bildiriminde düzeltilebilir alan anlatılır",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W16",
+      "area": "Keşfet ve arama hata deneyimi",
+      "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
+      "acceptance": "Film/dizi aramasında tek kaynak başarısızsa kısmi sonuç açıklanır",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W17",
+      "area": "Keşfet ve arama hata deneyimi",
+      "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
+      "acceptance": "İki çevrimiçi arama başarısızsa sıfır eşleşme diye sunulmaz",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W18",
+      "area": "Keşfet ve arama hata deneyimi",
+      "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
+      "acceptance": "Başarısız çevrimiçi arama tekrar denenebilir",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W19",
+      "area": "Keşfet ve arama hata deneyimi",
+      "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
+      "acceptance": "Geç eski hata yeni sorgunun durumunu ezemez",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W20",
+      "area": "Keşfet ve arama hata deneyimi",
+      "source": "src/media-discovery-service.js;src/renderer/media-discovery-ui.js;src/renderer/media-search-ui.js",
+      "acceptance": "Native Windows EN/TR hata durumları ve geri dönüş doğrulanır",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W21",
+      "area": "Asistan işlem doğruluğu",
+      "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
+      "acceptance": "Whisper onayı ile gerçek kabul edilen job birbirine bağlı kalır",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W22",
+      "area": "Asistan işlem doğruluğu",
+      "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
+      "acceptance": "Altyazı yokken yetenekler doğru kaynakla yine erişilir",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W23",
+      "area": "Asistan işlem doğruluğu",
+      "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
+      "acceptance": "İş durdurma kartı hatada sahte başarı vermez",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W24",
+      "area": "Asistan işlem doğruluğu",
+      "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
+      "acceptance": "Kaynak değişiminde eski sonuç yeni sohbete uygulanmaz",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W25",
+      "area": "Asistan işlem doğruluğu",
+      "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
+      "acceptance": "Uygulama yardımında olmayan seçenek önerilmez",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W26",
+      "area": "Asistan işlem doğruluğu",
+      "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
+      "acceptance": "Sayfa çeviri başarısızlığı makbuzda görünür",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W27",
+      "area": "Asistan işlem doğruluğu",
+      "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
+      "acceptance": "Asistan uzun sonuç sayfalamasında toplam ve devam doğru kalır",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W28",
+      "area": "Asistan işlem doğruluğu",
+      "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
+      "acceptance": "Kütüphane açılışında gerçek başlık kaynağı doğrulanır",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W29",
+      "area": "Asistan işlem doğruluğu",
+      "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
+      "acceptance": "Kitap okuma ve seçili pasaj bağlamı karışmaz",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W30",
+      "area": "Asistan işlem doğruluğu",
+      "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
+      "acceptance": "İşlem sonrası öneri yalnız gerçek tamamlanan işe bağlıdır",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W31",
+      "area": "Kitap ve PDF okuma",
+      "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
+      "acceptance": "Sayfa aralığı ses üretimine doğru kitap kimliğiyle taşınır",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W32",
+      "area": "Kitap ve PDF okuma",
+      "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
+      "acceptance": "Bölüm değişirken eski ses vurgusu temizlenir",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W33",
+      "area": "Kitap ve PDF okuma",
+      "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
+      "acceptance": "Yer imi eski kitap yerine yalnız güncel kaynağa yazılır",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W34",
+      "area": "Kitap ve PDF okuma",
+      "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
+      "acceptance": "Tek grup düzeltmede diğer tamamlanmış ses korunur",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W35",
+      "area": "Kitap ve PDF okuma",
+      "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
+      "acceptance": "Sayfa çevirisi iptal edilince okuma metni korunur",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W36",
+      "area": "Kitap ve PDF okuma",
+      "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
+      "acceptance": "Boş taranmış sayfada asistan metin varmış gibi davranmaz",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W37",
+      "area": "Kitap ve PDF okuma",
+      "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
+      "acceptance": "Hazırlık önizlemesi kullanılan nihai metni açık gösterir",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W38",
+      "area": "Kitap ve PDF okuma",
+      "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
+      "acceptance": "İnceleme onayı değiştirilmiş sese taşınmaz",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W39",
+      "area": "Kitap ve PDF okuma",
+      "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
+      "acceptance": "Bölüm yenileme hata sonrası doğru düğmeyle tekrar denenir",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W40",
+      "area": "Kitap ve PDF okuma",
+      "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
+      "acceptance": "Dar ekran kitap araçları ve odak erişimi doğrulanır",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W41",
+      "area": "Ses ve çeviri bütünlüğü",
+      "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
+      "acceptance": "Değişmiş referansta eski kaliteli önbellek yeniden kullanılmaz",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W42",
+      "area": "Ses ve çeviri bütünlüğü",
+      "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
+      "acceptance": "Süre aşımında bitmiş son parçalar korunur",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W43",
+      "area": "Ses ve çeviri bütünlüğü",
+      "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
+      "acceptance": "Kısmi çeviri ses için tam hazır diye sunulmaz",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W44",
+      "area": "Ses ve çeviri bütünlüğü",
+      "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
+      "acceptance": "Çeviri dil/model değişimi açık iş ayarını değiştirmez",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W45",
+      "area": "Ses ve çeviri bütünlüğü",
+      "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
+      "acceptance": "Eksik sayı/olumsuzluk kalite işareti görünür kalır",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W46",
+      "area": "Ses ve çeviri bütünlüğü",
+      "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
+      "acceptance": "Dublaj range dışındaki özgün ses korunur",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W47",
+      "area": "Ses ve çeviri bütünlüğü",
+      "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
+      "acceptance": "Arka plan ayırma seçili zaman aralığıyla sınırlanır",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W48",
+      "area": "Ses ve çeviri bütünlüğü",
+      "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
+      "acceptance": "Motor durdurma başarısızsa yeniden başlatma sahipliği korunur",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W49",
+      "area": "Ses ve çeviri bütünlüğü",
+      "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
+      "acceptance": "Kalite listesi dinle ve düzelt seçilen gerçek gruba gider",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    },
+    {
+      "id": "W50",
+      "area": "Ses ve çeviri bütünlüğü",
+      "source": "src/dub-service.js;tools/voxcpm2/altyazi_oku.py;src/browser-translation-scheduler.js",
+      "acceptance": "Ses/çeviri job süreleri ve terminal durumu gerçek kanıta bağlıdır",
+      "status": "PLANLANDI",
+      "evidence": null,
+      "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
+    }
+  ],
+  "notes": [
+    "50 hedef50bug değildir; eski denetim sonuçları yeni sonuç sayılmaz.",
+    "Ücretli API/kişisel anahtar yok; gerçek GPU/site doğrulanmayan açık kalır.",
+    "Tamamlanmış ürün paketleri PR→master→kişisel ana kopyaya teslim edilir."
+  ],
+  "checkpoints": [
+    {
+      "report": 648,
+      "code": "2afb933f991ac05552f53a1900be960dceab17f2",
+      "completed": [
+        "W01",
+        "W02",
+        "W03",
+        "W04",
+        "W05",
+        "W06",
+        "W07",
+        "W08",
+        "W09",
+        "W10"
+      ],
+      "next": "W11–W20 keşfet/arama eylemli EN/TR hata sözleşmesi; F09-01 açık kök. Sonra asistan/kitap/ses kalan30."
+    }
+  ]
+}
