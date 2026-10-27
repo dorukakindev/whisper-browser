@@ -166,9 +166,9 @@ Başlangıç 27 Ekim2026 09:26 Europe/Istanbul; yaklaşık10 saatlik pencere19:2
 | P0145 | Whisper işlemi [start_whisper] | İptal yarışı: Başlangıç beklerken iptal et; henüz başlamayan alt işi başlatma, başladıysa exact işin sonucunu raporla. | `src/assistant-capabilities.js` | PLANLANDI | — |
 | P0146 | Whisper işlemi [start_whisper] | Kimlik ve değer: Geçersiz kimlik/aralık/enum ile mevcut kullanıcı verisini değiştirme; düzeltilebilir hata göster. | `src/assistant-capabilities.js` | DOĞRULANDI | Rapor640; 41 hedefli test ve native captions kabulü, kontrollü servisler; kod d9ecd08ff9176bfa05bf57fe01747aebf1261664 |
 | P0147 | Whisper işlemi [start_whisper] | Çift uygulama: Hızlı iki uygulama/tekrar tıklama ikinci eşzamanlı işi veya aynı kalıcı değişikliği üretmesin. | `src/assistant-capabilities.js` | PLANLANDI | — |
-| P0148 | Whisper işlemi [start_whisper] | Kontrollü ret: Mevcut servis ok:false/exception döndürürse başarı kartına dönüştürme. | `src/assistant-capabilities.js` | PLANLANDI | — |
+| P0148 | Whisper işlemi [start_whisper] | Kontrollü ret: Mevcut servis ok:false/exception döndürürse başarı kartına dönüştürme. | `src/assistant-capabilities.js` | DÜZELTİLDİ | Rapor641; gerçek renderer fonksiyonu reuse regresyonları, model/provider metadata; gerçek motor kalitesi açık; kod b9b6e83fc71f15623a9c6a74533c381e84477f7c |
 | P0149 | Whisper işlemi [start_whisper] | Seçenek aktarımı: Hedef dil/zaman aralığı/normal seçenekler yalnız seçili işlemin payloadunda doğru kalsın. | `src/assistant-capabilities.js` | DÜZELTİLDİ | Rapor640; 41 hedefli test ve native captions kabulü, kontrollü servisler; kod d9ecd08ff9176bfa05bf57fe01747aebf1261664 |
-| P0150 | Whisper işlemi [start_whisper] | Sonuç ve erişim: Başarı/partial/hata sonrası gerçek çıktı veya yeniden deneme erişilsin; dar EN/TR panelde düğmeler kaybolmasın. | `src/assistant-capabilities.js` | PLANLANDI | — |
+| P0150 | Whisper işlemi [start_whisper] | Sonuç ve erişim: Başarı/partial/hata sonrası gerçek çıktı veya yeniden deneme erişilsin; dar EN/TR panelde düğmeler kaybolmasın. | `src/assistant-capabilities.js` | İLERLEDİ | Rapor641; gerçek renderer fonksiyonu reuse regresyonları, model/provider metadata; gerçek motor kalitesi açık; kod b9b6e83fc71f15623a9c6a74533c381e84477f7c |
 | P0151 | Mevcut altyazıyı çevir [translate_captions] | Öneri sınırı: Araç önerisi tek başına işi/ücreti/kalıcı değişikliği başlatmasın. | `src/assistant-capabilities.js` | PLANLANDI | — |
 | P0152 | Mevcut altyazıyı çevir [translate_captions] | Gerçek kabul: Kullanıcı uygulayınca mevcut uygulama kapısına tam bir defa bağlan; accepted ile completed ayrımını koru. | `src/assistant-capabilities.js` | PLANLANDI | — |
 | P0153 | Mevcut altyazıyı çevir [translate_captions] | Kaynak değişimi: Onaydan önce kaynak/sekme değişirse eski karta yan etki yaptırma. | `src/assistant-capabilities.js` | PLANLANDI | — |
@@ -1029,3 +1029,5 @@ Kontrol noktası638: iptalin başarısız olması işi boşta göstermez; proces
 Rapor639: güncel kitap işi kimliği, eski sonucun yeni sese yazamaması; iki kabul maddesi kapandı.
 
 Rapor640: asistanın işe özel Whisper aralığı ve gerçek ses penceresi kabulü; altı madde kanıtla kapandı.
+
+Rapor641: kısmi Whisper kaynağı ve model/sağlayıcıya bağlı çeviri reuse; gerçek motor kabulü açık.
