@@ -1,0 +1,353 @@
+{
+  "ok": true,
+  "realClap": true,
+  "passagePlayback": true,
+  "wideNarrow": true,
+  "method": "clap-zero-shot-v1",
+  "model": "laion/clap-htsat-unfused",
+  "revision": "8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a",
+  "segments": [
+    [
+      0,
+      10
+    ],
+    [
+      10,
+      20
+    ],
+    [
+      20,
+      30
+    ]
+  ],
+  "groups": [
+    {
+      "id": "genre",
+      "labels": [
+        {
+          "id": "blues",
+          "mean": 0.43639,
+          "segments": [
+            0.47844,
+            0.431,
+            0.39973
+          ]
+        },
+        {
+          "id": "jazz",
+          "mean": 0.5529,
+          "segments": [
+            0.56042,
+            0.5523,
+            0.54599
+          ]
+        },
+        {
+          "id": "rock",
+          "mean": 0.3981,
+          "segments": [
+            0.40084,
+            0.3974,
+            0.39607
+          ]
+        },
+        {
+          "id": "classical",
+          "mean": 0.41806,
+          "segments": [
+            0.4695,
+            0.39721,
+            0.38748
+          ]
+        },
+        {
+          "id": "electronic",
+          "mean": 0.40756,
+          "segments": [
+            0.49327,
+            0.376,
+            0.35341
+          ]
+        },
+        {
+          "id": "hip hop",
+          "mean": 0.42703,
+          "segments": [
+            0.46397,
+            0.43123,
+            0.3859
+          ]
+        },
+        {
+          "id": "folk",
+          "mean": 0.46183,
+          "segments": [
+            0.48209,
+            0.45808,
+            0.44532
+          ]
+        },
+        {
+          "id": "pop",
+          "mean": 0.52873,
+          "segments": [
+            0.524,
+            0.53921,
+            0.52299
+          ]
+        },
+        {
+          "id": "soul",
+          "mean": 0.52672,
+          "segments": [
+            0.56802,
+            0.51737,
+            0.49475
+          ]
+        },
+        {
+          "id": "metal",
+          "mean": 0.36538,
+          "segments": [
+            0.35215,
+            0.36166,
+            0.38232
+          ]
+        },
+        {
+          "id": "reggae",
+          "mean": 0.49559,
+          "segments": [
+            0.47626,
+            0.51926,
+            0.49126
+          ]
+        },
+        {
+          "id": "country",
+          "mean": 0.48192,
+          "segments": [
+            0.49111,
+            0.49957,
+            0.45508
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mood",
+      "labels": [
+        {
+          "id": "calm",
+          "mean": 0.50513,
+          "segments": [
+            0.5078,
+            0.51693,
+            0.49065
+          ]
+        },
+        {
+          "id": "energetic",
+          "mean": 0.42322,
+          "segments": [
+            0.42356,
+            0.41422,
+            0.43187
+          ]
+        },
+        {
+          "id": "sad",
+          "mean": 0.48784,
+          "segments": [
+            0.48926,
+            0.49658,
+            0.47768
+          ]
+        },
+        {
+          "id": "happy",
+          "mean": 0.51899,
+          "segments": [
+            0.47671,
+            0.53369,
+            0.54656
+          ]
+        },
+        {
+          "id": "dark",
+          "mean": 0.42546,
+          "segments": [
+            0.45519,
+            0.40904,
+            0.41216
+          ]
+        },
+        {
+          "id": "romantic",
+          "mean": 0.47953,
+          "segments": [
+            0.4714,
+            0.49336,
+            0.47383
+          ]
+        },
+        {
+          "id": "tense",
+          "mean": 0.34719,
+          "segments": [
+            0.4163,
+            0.31229,
+            0.31298
+          ]
+        },
+        {
+          "id": "dreamy",
+          "mean": 0.46393,
+          "segments": [
+            0.44349,
+            0.48548,
+            0.4628
+          ]
+        }
+      ]
+    },
+    {
+      "id": "instrument",
+      "labels": [
+        {
+          "id": "piano",
+          "mean": 0.17789,
+          "segments": [
+            0.19386,
+            0.18963,
+            0.15018
+          ]
+        },
+        {
+          "id": "acoustic guitar",
+          "mean": 0.08678,
+          "segments": [
+            0.21943,
+            0.03341,
+            0.00749
+          ]
+        },
+        {
+          "id": "electric guitar",
+          "mean": 0.09225,
+          "segments": [
+            0.12287,
+            0.08579,
+            0.0681
+          ]
+        },
+        {
+          "id": "bass guitar",
+          "mean": 0.20161,
+          "segments": [
+            0.24313,
+            0.16974,
+            0.19196
+          ]
+        },
+        {
+          "id": "drums",
+          "mean": 0.10207,
+          "segments": [
+            0.10645,
+            0.0957,
+            0.10406
+          ]
+        },
+        {
+          "id": "trumpet",
+          "mean": 0.10079,
+          "segments": [
+            0.14734,
+            0.086,
+            0.06904
+          ]
+        },
+        {
+          "id": "saxophone",
+          "mean": 0.18512,
+          "segments": [
+            0.2198,
+            0.18168,
+            0.15388
+          ]
+        },
+        {
+          "id": "violin",
+          "mean": -0.05501,
+          "segments": [
+            0.02688,
+            -0.10066,
+            -0.09126
+          ]
+        },
+        {
+          "id": "flute",
+          "mean": 0.18152,
+          "segments": [
+            0.22164,
+            0.16035,
+            0.16257
+          ]
+        },
+        {
+          "id": "organ",
+          "mean": 0.37366,
+          "segments": [
+            0.34287,
+            0.40051,
+            0.3776
+          ]
+        },
+        {
+          "id": "synthesizer",
+          "mean": 0.20291,
+          "segments": [
+            0.2805,
+            0.16717,
+            0.16104
+          ]
+        },
+        {
+          "id": "harmonica",
+          "mean": 0.00592,
+          "segments": [
+            0.03328,
+            0.0087,
+            -0.02422
+          ]
+        }
+      ]
+    },
+    {
+      "id": "voice",
+      "labels": [
+        {
+          "id": "singing vocals",
+          "mean": 0.12748,
+          "segments": [
+            0.1578,
+            0.13992,
+            0.08473
+          ]
+        },
+        {
+          "id": "instrumental music without singing",
+          "mean": 0.5715,
+          "segments": [
+            0.56864,
+            0.59072,
+            0.55514
+          ]
+        }
+      ]
+    }
+  ],
+  "experimental": true,
+  "sourceId": "76a4fa5a-2df5-4f44-9d50-bfca09c0af77"
+}
