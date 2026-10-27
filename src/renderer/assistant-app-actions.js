@@ -26,12 +26,13 @@
   if(name==='get_job_status')return {status:'completed',...await window.api.assistantJobs()};
   if(name==='start_whisper'){
    if(state.running||state.queueRunning)throw Error(t('Another media job is running.','Başka bir medya işi çalışıyor.'));
+   let clipRange=currentBrowserWhisperRange();
    if(Object.hasOwn(args,'start')){
     const checked=validateBrowserWhisperRange(true,String(args.start),String(args.end),player.browserAdPlaying?0:Number(player.browserDuration));
-    if(checked.error)throw Error(checked.error);player.browserWhisperRange={url:currentBrowserYoutubeUrl(),range:checked.range};
+    if(checked.error)throw Error(checked.error);clipRange=checked.range;
    }
    const executionOwner=snapshot();
-   const result=await startBrowserYoutubeWhisper(args.translate,{forSpeech:args.forSpeech,targetLanguage:args.target_language,isCancelled:()=>isCancelled()||Date.now()>=deadline||!current(executionOwner)});
+   const result=await startBrowserYoutubeWhisper(args.translate,{forSpeech:args.forSpeech,targetLanguage:args.target_language,clipRange,isCancelled:()=>isCancelled()||Date.now()>=deadline||!current(executionOwner)});
    if(!result?.ok)throw Error(t('Whisper was not confirmed as started.','Whisper başlangıcı doğrulanamadı.'));
    return {status:result.reused?'completed':'accepted',jobId:result.jobId||result.job?.backendJobId,reused:!!result.reused,kind:result.job?.kind||'subtitles',note:result.reused?t('Existing subtitles were loaded.','Hazır altyazı yüklendi.'):t('The media job was accepted. Follow progress in the video job panel.','Medya işi kabul edildi. İlerlemeyi video işlem panelinden izle.')};
   }
@@ -45,7 +46,10 @@
    return {status:'accepted',note:t('Page translation was requested. Its toolbar shows the actual progress and stop controls.','Sayfa çevirisi istendi. Gerçek ilerleme ve durdurma kontrolleri sayfa araç çubuğundadır.')};
   }
   if(name==='open_voice_preparation'){
-   await window.MediaExperience.openVoice();return {status:'completed',note:t('Voice preparation is open. No audio was generated.','Ses hazırlığı açıldı. Ses üretilmedi.')};
+   const opened=await window.MediaExperience.openVoice();
+   if(stale())throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));
+   if(opened===false||!document.getElementById('dubGeneratorDialog')?.open)throw Error(t('Voice preparation could not open.','Ses hazırlığı açılamadı.'));
+   return {status:'completed',note:t('Voice preparation is open. No audio was generated.','Ses hazırlığı açıldı. Ses üretilmedi.')};
   }
   if(name==='open_settings'){
    await window.AppSettingsUI.open(args.section,{preserveAssistantContext:true});return {status:'completed',note:t('Settings opened.','Ayarlar açıldı.')};

@@ -5,8 +5,27 @@ function setup(){
  let effects=0,opened;const player={workspaceMode:'browser',browserPageUrl:'https://www.youtube.com/watch?v=fixture',browserPageTitle:'Test',browserTime:3,browserTracks:[],cues:[],browserWhisperRange:null};
  const sandbox={window:{AssistantContextManifest:manifest,AssistantCapabilities:{get:registry.get,validate:(n,a,c)=>registry.validate(n,JSON.parse(JSON.stringify(a)),c)},UiLocale:{get:()=> 'en'},AssistantWorkspace:{activeId:()=> 'thread',toolContext:()=>({rows:[]})},AssistantSourceContext:{pageKey:()=> 'page'},AppSettingsUI:{open:async(...args)=>{effects++;opened=args;}}},document:{getElementById:()=>null},player,state:{},globalAssistantContext:()=>null,browserTabState:()=>({id:'A',generation:1}),currentBrowserYoutubeUrl:()=>player.browserPageUrl,aiSourceScope:()=> 'scope',currentBrowserWhisperRange:()=>player.browserWhisperRange};
  vm.runInNewContext(fs.readFileSync(require.resolve('../src/renderer/assistant-app-actions'),'utf8'),sandbox);
- return {player,actions:sandbox.window.AssistantAppActions,effects:()=>effects,opened:()=>opened};
+ return {sandbox,player,actions:sandbox.window.AssistantAppActions,effects:()=>effects,opened:()=>opened};
 }
+
+test('An explicit Whisper range is job-local and keeps the assistant source owner valid',async()=>{
+ const h=setup();h.player.browserWhisperRange={start:0,end:60};const owner=h.actions.snapshot();let request;
+ h.sandbox.validateBrowserWhisperRange=(_enabled,start,end)=>({range:{start:Number(start),end:Number(end)}});
+ h.sandbox.startBrowserYoutubeWhisper=async(_translate,config)=>{request=config;return {ok:true,jobId:'job'};};
+ const result=await h.actions.execute('start_whisper',{translate:true,start:5,end:25},owner);
+ assert.equal(result.status,'accepted');assert.deepEqual(JSON.parse(JSON.stringify(request.clipRange)),{start:5,end:25});
+ assert.deepEqual(h.player.browserWhisperRange,{start:0,end:60},'The action must not invalidate its own proposal/continuation owner');
+ assert.equal(h.actions.current(owner),true);assert.equal(request.isCancelled(),false);
+ h.player.browserWhisperRange={start:1,end:61};assert.equal(request.isCancelled(),true,'A later human scope change still cancels the pending start');
+});
+
+test('Voice preparation cannot report completed when its existing window failed to open',async()=>{
+ const h=setup();h.sandbox.window.MediaExperience={openVoice:async()=>false};
+ await assert.rejects(h.actions.execute('open_voice_preparation',{},h.actions.snapshot()),/not.*open|could not.*open/i);
+ h.sandbox.document.getElementById=id=>id==='dubGeneratorDialog'?{open:true}:null;
+ h.sandbox.window.MediaExperience.openVoice=async()=>undefined;
+ assert.equal((await h.actions.execute('open_voice_preparation',{},h.actions.snapshot())).status,'completed');
+});
 test('AppActions checks source and range before dispatching a real adapter',async()=>{
  const h=setup(),owner=h.actions.snapshot();
  await h.actions.execute('open_settings',{section:'general'},owner);assert.equal(h.effects(),1);assert.equal(h.opened()[1].preserveAssistantContext,true);

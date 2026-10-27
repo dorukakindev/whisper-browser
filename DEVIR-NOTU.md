@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-27-1050.md](docs/devir/2026-10-27-1050.md) — Asistan iş aralığı ve gerçek pencere kabulü
 Güncel çalışma: [docs/devir/2026-10-27-1038.md](docs/devir/2026-10-27-1038.md) — Kitap ses sonucunda güncel iş sahipliği
 Güncel çalışma: [docs/devir/2026-10-27-1024.md](docs/devir/2026-10-27-1024.md) — İptal onayı, başarısız Durdur tekrarı ve canlı iş sahipliği
 Güncel çalışma: [docs/devir/2026-10-27-0955.md](docs/devir/2026-10-27-0955.md) — Uzun dublaj grup kimliklerini kalite ve asistanda koruma

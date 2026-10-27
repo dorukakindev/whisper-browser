@@ -40,7 +40,7 @@ server.listen(0,'127.0.0.1',()=>{
  require('../src/main');
  app.whenReady().then(async()=>{
  await until(()=>{win=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('index.html')&&!w.webContents.isLoading());return win;},'main');
- const parent=code=>win.webContents.executeJavaScript('(async()=>{'+code+'})()',true);
+ const parent=async code=>{const result=await win.webContents.executeJavaScript('(async()=>{try{'+code+'}catch(error){return {fixtureError:String(error.stack||error)}}})()',true);if(result?.fixtureError)throw Error(result.fixtureError);return result;};
  overlay=win.contentView.children.find(view=>view.webContents?.getURL().includes('assistant-overlay.html'));assert(overlay);const run=code=>overlay.webContents.executeJavaScript('(async()=>{'+code+'})()',true);
  win.setContentSize(1440,1000);win.show();win.webContents.focus();
  await parent(`await initialSettingsReady;UiLocale.set('tr',false);applyUiTheme('dark');document.body.classList.remove('media-home-active');document.getElementById('playerLayer').classList.remove('hidden');
@@ -78,6 +78,9 @@ server.listen(0,'127.0.0.1',()=>{
  await until(()=>parent(`return !DubGeneratorUI.assistant.state().busy`),'long group receipt');
  const exactGroup=await parent(`return AssistantAppActions.execute('get_voice_status',{group_id:${JSON.stringify(longKey)}},AssistantAppActions.snapshot())`);assert.equal(exactGroup.voice.groups.length,1);assert.equal(exactGroup.voice.groups[0].id,longKey);assert.equal(exactGroup.voice.groups[0].verification,'not_checked');
  assert(await parent(`const select=document.getElementById('dubQualityGroup');for(let p=select.parentElement;p&&p!==document.getElementById('dubGeneratorDialog');p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;select.scrollIntoView({block:'center',behavior:'instant'});select.focus();const b=select.getBoundingClientRect();return b.width>0&&b.left>=0&&b.right<=innerWidth+1`),'Exact long group stays visible in the narrow voice panel');await wait(100);fs.writeFileSync(path.join(out,'long-group-review-en-light.png'),(await win.webContents.capturePage()).toPNG());
+ const whisper=await parent(`document.getElementById('dubGeneratorDialog').close();state.running=false;player.job=null;player.browserTracks=[];player.browserWhisperRange={url:currentBrowserYoutubeUrl(),range:{start:0,end:60}};const owner=AssistantAppActions.snapshot();window.fixtureWhisperOptions=null;const original=startProgressivePlayerTranscription;startProgressivePlayerTranscription=async config=>{fixtureWhisperOptions=config;player.job={backendJobId:'controlled-whisper',kind:'subtitles',running:true};};try{const result=await AssistantAppActions.execute('start_whisper',{translate:true,start:5,end:25},owner);return {result,options:fixtureWhisperOptions,ownerValid:AssistantAppActions.current(owner),saved:currentBrowserWhisperRange()};}finally{startProgressivePlayerTranscription=original;player.job=null;}`);
+ assert.equal(whisper.result.status,'accepted');assert.deepEqual(whisper.options.clipRange,{start:5,end:25});assert.equal(whisper.ownerValid,true);assert.deepEqual(whisper.saved,{start:0,end:60});
+ const prepared=await parent(`return AssistantAppActions.execute('open_voice_preparation',{},AssistantAppActions.snapshot())`);assert.equal(prepared.status,'completed');assert(await parent(`return document.getElementById('dubGeneratorDialog').open`),'Voice receipt requires an actually open existing window');
  await parent(`player.browserPageUrl='https://www.youtube.com/watch?v=01234567890';player.mediaKey='browser:replacement';player.generation++;return true`);
  assert((await parent(`return DubGeneratorUI.assistant.state()`)).sourceChanged,'Old voice preparation cannot move to a different video');
 
