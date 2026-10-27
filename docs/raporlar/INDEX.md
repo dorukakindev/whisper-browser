@@ -1,3 +1,4 @@
+- [Rapor668](BROWSER_BUG_REPORT_668.md) — Kör müzik dinleme ve beş gerçek örnekle kalite karakterizasyonu
 - [Rapor667](BROWSER_BUG_REPORT_667.md) — Ses tarifiyle keşif, çeşitlilik ve onaylı çalma listesi
 - [Rapor666](BROWSER_BUG_REPORT_666.md) — Deneysel CLAP etiketleri ve kesit zaman çizelgesi
 - [Rapor665](BROWSER_BUG_REPORT_665.md) — Çoklu müzik referansı, açıklamalı sıralama ve geri alınabilir gizleme

@@ -1,0 +1,30 @@
+/* Real local CLAP multi-reference/feedback acceptance; separate fixture profile. */
+'use strict';
+const {app,BrowserWindow}=require('electron'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..'),out=path.join(root,'.uiprev','music668',String(Date.now())),profile=path.join(out,'profile'),fixtures=path.join(root,'tmp/music661-fixtures');fs.mkdirSync(profile,{recursive:true});process.env.WHISPER_RESOURCE_SOAK_USER_DATA=profile;
+const tracks=[{id:'ref',path:path.join(fixtures,'Kevin_MacLeod_-_Vibe_Ace.ogg'),title:'Vibe Ace',artist:'Kevin MacLeod'},{id:'quiet',path:path.join(fixtures,'Vibe quiet.wav'),title:'Vibe Ace · quieter passage',artist:'Kevin MacLeod'},{id:'trumpet',path:path.join(fixtures,'sorohanro_-_solo-trumpet-06.ogg'),title:'Jazz trumpet loop',artist:'Mihai Sorohan'}];
+fs.writeFileSync(path.join(profile,'settings.json'),JSON.stringify({settingsVersion:3,ui:{uiLocale:'tr',uiTheme:'dark'}}));fs.writeFileSync(path.join(profile,'media-shelf.json'),JSON.stringify({version:1,music:tracks,books:[],stations:[],podcasts:[],playlists:[],diary:[]}));
+app.setAppPath(root);for(const flag of ['disable-gpu','disable-backgrounding-occluded-windows','disable-renderer-backgrounding'])app.commandLine.appendSwitch(flag);require('../src/main');
+let win;const wait=ms=>new Promise(r=>setTimeout(r,ms)),run=code=>win.webContents.executeJavaScript(`(async()=>{${code}})()`,true);
+async function until(fn,label){const end=Date.now()+120000;while(Date.now()<end){if(await fn())return;await wait(150);}throw Error('Timeout '+label);}
+app.whenReady().then(async()=>{
+ await until(()=>{win=BrowserWindow.getAllWindows().find(w=>!w.isDestroyed()&&w.webContents.getURL().includes('index.html'));return win;},'window');await until(()=>run('return !!MusicAnalysisUI'),'module');win.setSize(1440,1050);win.show();
+ await run("MusicAnalysisUI.open('ref');return true");await until(()=>run("return !document.querySelector('.ml-search-heading button').disabled"),'source and CLAP');
+ await run("return await MusicAnalysisUI.execute({operation:'set_music_intent',query:'The sound of a trumpet in a music recording.',weight:0.6,diverse:false})");
+ await run("return await MusicAnalysisUI.execute({operation:'find_local',source_id:(await MusicAnalysisUI.read()).source.id,start:0,end:10})");
+ await until(()=>run("return document.querySelectorAll('.ml-hits .ml-hit').length===2&&!document.querySelector('.ml-search-heading button').disabled"),'real intent ranking');
+ const result=await run("return (await api.musicAnalysis({action:'status'})).job.result");assert.equal(result.intentWeight,.6);assert.equal(result.results.length,2);const trumpet=result.results.find(r=>r.id==='trumpet'),quiet=result.results.find(r=>r.id==='quiet');assert(trumpet.intentScore>quiet.intentScore);assert(result.results.every(r=>Math.abs(r.score-(.4*r.audioScore+.6*r.intentScore))<.00002));
+ assert(await run("return document.querySelector('.ml-intent select').value==='__custom__'"));
+ const file=path.join(profile,'media-shelf.json');assert.equal(JSON.parse(fs.readFileSync(file,'utf8')).playlists.length,0);
+ const ordered=result.results.map(r=>r.id);for(const id of ordered)await run(`return await MusicAnalysisUI.execute({operation:'select_match',track_id:${JSON.stringify(id)},selected:true})`);
+ await run("document.querySelector('.ml-blind-start').click();return true");await until(()=>run("return !document.querySelector('.ml-blind').hidden"),'blind view');
+ assert(await run("return document.querySelector('.ml-hits').hidden&&[...document.querySelectorAll('.ml-blind-vote')].every(b=>b.disabled)&&!document.querySelector('.ml-blind').textContent.includes('Vibe Ace')"));
+ await run("document.querySelector('.ml-blind').scrollIntoView({block:'start'});return true");await wait(500);fs.writeFileSync(path.join(out,'wide.png'),(await win.webContents.capturePage()).toPNG());
+ await run("document.querySelector('.ml-blind > .ml-button').click();return true");await until(()=>run("return !document.querySelector('.ml-audio').paused"),'reference playback');
+ for(let i=0;i<2;i++){await run(`document.querySelectorAll('.ml-blind-play')[${i}].click();return true`);await until(()=>run(`return document.querySelector('.ml-blind').textContent.includes('${i+1}/2')`),'actual playback gate '+i);}
+ await run("document.querySelector('.ml-blind-vote').click();return true");await until(()=>fs.existsSync(path.join(profile,'music-listening.json')),'persisted choice');const trial=JSON.parse(fs.readFileSync(path.join(profile,'music-listening.json'),'utf8')).trials[0];assert.equal(trial.choice,'a');assert.deepEqual([...trial.ids].sort(),[...ordered].sort());assert(await run("return document.querySelector('.ml-blind').textContent.includes('Vibe Ace')"));
+ assert.equal(JSON.parse(fs.readFileSync(file,'utf8')).playlists.length,0);
+ win.setMinimumSize(560,700);win.setSize(680,1050);await wait(400);assert(await run("const c=document.querySelector('.ml-content');return c.scrollWidth<=c.clientWidth+1"));fs.writeFileSync(path.join(out,'narrow.png'),(await win.webContents.capturePage()).toPNG());
+ await run("document.querySelector('.ml-blind button:last-child').click();document.querySelector('.ml-listening-history').open=true;return true");await until(()=>run("return document.querySelector('.ml-listening-history').textContent.includes('Vibe Ace')"),'history');
+ await run("document.querySelector('.ml-close').click();return true");fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({ok:true,randomPair:true,identitiesHiddenBeforeVote:true,playbackGates:true,actualPlayback:true,persisted:true,history:true,noPlaylistWrite:true,wideNarrow:true},null,2));console.log(JSON.stringify({ok:true,out}));app.exit(0);
+}).catch(async e=>{console.error(e.stack);try{console.error(await run("return {status:document.querySelector('.ml-content>.ml-status')?.textContent,job:await api.musicAnalysis({action:'status'})}"));fs.writeFileSync(path.join(out,'failure.png'),(await win.webContents.capturePage()).toPNG());}catch{}app.exit(1);});setTimeout(()=>app.exit(2),300000).unref();

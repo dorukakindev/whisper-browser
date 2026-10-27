@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-0024.md](docs/devir/2026-10-28-0024.md) — Kör müzik dinleme ve gerçek kalite ölçümü
 Güncel çalışma: [docs/devir/2026-10-27-2356.md](docs/devir/2026-10-27-2356.md) — Ses tarifiyle keşif ve liste incelemesi
 Güncel çalışma: [docs/devir/2026-10-27-2331.md](docs/devir/2026-10-27-2331.md) — Deneysel ses etiketleri
 Güncel çalışma: [docs/devir/2026-10-27-2312.md](docs/devir/2026-10-27-2312.md) — Çoklu referans ve müzik geri bildirimi
