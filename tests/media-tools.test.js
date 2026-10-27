@@ -120,3 +120,12 @@ test('A review analysis cannot be saved against a different film identity after 
  const result=await service.handle({},{action:'decision-save',itemId:'film',itemIdentity:snapshot,reviews:[{id:'1',text:'Strong acting throughout.'}],analysis:{points:[{id:'1',quote:'Strong acting',reason:'Supported'}]}});assert.equal(result.ok,false);assert.match(result.error,/identity changed/);assert.equal((await service.handle({},{action:'decision-get',itemId:'film'})).value.history,undefined);
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+test('Discovery review bridge resolves trusted metadata without requiring or writing a library item',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'discovery-review-')),close=[];let resolved=0;
+ try{const svc=tools.registerMediaTools({app:{getPath:()=>dir,on:(_,fn)=>close.push(fn)},ipcMain:{handle(){}},authorized:e=>e?.trusted===true,dialog:{},catalogStore:()=>({get:()=>{throw Error('No library item');}}),resolveDiscovery:async(e,d)=>{assert(e.trusted);resolved++;return {ok:true,item:{kind:d.kind,providerId:d.id,title:'Verified film',year:2026}};},readOpenReviews:async()=>({reviews:[],identity:{title:'Verified film',year:2026}})});
+ const r=await svc.handle({trusted:true},{action:'reviews-browser',discovery:{kind:'film',id:'tt14173636'}});assert.equal(r.ok,true);assert.equal(resolved,1);
+ const bad=await svc.handle({trusted:true},{action:'reviews-browser',discovery:{kind:'film',id:'https://private'}});assert.equal(bad.ok,false);assert.equal(resolved,1);
+ const denied=await svc.handle({}, {action:'reviews-browser',discovery:{kind:'film',id:'tt14173636'}});assert.equal(denied.ok,false);assert.equal(resolved,1);
+ }finally{close.forEach(fn=>fn());fs.rmSync(dir,{recursive:true,force:true});}
+});

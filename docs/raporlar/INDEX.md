@@ -1,3 +1,4 @@
+- [Rapor653](BROWSER_BUG_REPORT_653.md) — Keşfet yorumları, seçilebilir DeepInfra Flex ve native asistan etkinliği
 - [Rapor652](BROWSER_BUG_REPORT_652.md) — Son10ses/çeviri kontrolü, eski dinleme makbuzu ve50hedef kanıtı
 - [Rapor651](BROWSER_BUG_REPORT_651.md) — PDF pasaj sahipliği, seçimin kırpılma kanıtı ve kitap kabulü
 - [Rapor650](BROWSER_BUG_REPORT_650.md) — Asistan sayfa işi gerçek kabulü, kesin devam ve kitap kanıt sınırı

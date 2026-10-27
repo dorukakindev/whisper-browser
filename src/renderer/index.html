@@ -825,8 +825,9 @@
                   <option value="general">Genel</option>
                 </select>
               </label>
-              <label class="field field-full"><span class="field-label">Assistant provider</span><select id="assistantEndpointPreset"><option value="inherit">Use subtitle provider</option><option value="https://api.deepinfra.com/v1/openai">DeepInfra · DeepSeek V4.1 Flash · Flex</option></select></label>
+              <label class="field field-full"><span class="field-label">Assistant provider</span><select id="assistantEndpointPreset"><option value="inherit">Use subtitle provider</option><option value="https://api.deepinfra.com/v1/openai">DeepInfra · DeepSeek V4.1 Flash</option></select></label>
               <label class="field field-full"><span class="field-label">Assistant model</span><input id="assistantModel" type="text" value="deepseek-ai/DeepSeek-V4.1-Flash-1017" spellcheck="false" /></label>
+              <label class="field field-full assistant-flex"><span class="field-label">DeepInfra service tier</span><span><input id="assistantFlex" type="checkbox" checked /> <span id="assistantFlexLabel">Flex — lower cost, potentially longer wait</span></span></label>
               <label class="field field-full"><span class="field-label">DeepInfra API Key</span><input id="assistantApiKey" type="password" autocomplete="off" spellcheck="false" /></label>
               <label class="field field-full">
                 <span class="field-label">API Key (4SAPI / CodeCraftAPI / shuaiapi / OpenAI uyumlu)</span>

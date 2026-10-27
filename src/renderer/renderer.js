@@ -3257,7 +3257,7 @@ function appSettingsPayload() {
     preset: $('presetSelect').value,
     presetReference: _presetReference,
     watchDir: state.watchDir || '',
-    assistant:{endpointPreset:$('assistantEndpointPreset')?.value||'inherit',model:$('assistantModel')?.value.trim()||WhisperAssistantSettings.MODEL,...secretSettingPatch('assistantApiKey')},
+    assistant:{flex:$('assistantFlex')?.checked!==false,endpointPreset:$('assistantEndpointPreset')?.value||'inherit',model:$('assistantModel')?.value.trim()||WhisperAssistantSettings.MODEL,...secretSettingPatch('assistantApiKey')},
     translate: {
       ...secretSettingPatch('translateApiKey'),
       ...providerApiKeyProfilesPatch('translate'),
@@ -3851,7 +3851,7 @@ const initialSettingsReady = (async () => {
       glossary = Array.isArray(s.glossary) ? s.glossary : [];
       projectGlossaries = (s.projectGlossaries && typeof s.projectGlossaries === 'object' && !Array.isArray(s.projectGlossaries))
         ? s.projectGlossaries : {};
-      if(s.assistant){$('assistantEndpointPreset').value=s.assistant.endpointPreset||(s.assistant.apiKey?WhisperAssistantSettings.ENDPOINT:'inherit');$('assistantModel').value=s.assistant.model||WhisperAssistantSettings.MODEL;$('assistantApiKey').value=s.assistant.apiKey||'';}
+      if(s.assistant){$('assistantFlex').checked=s.assistant.flex!==false;$('assistantEndpointPreset').value=s.assistant.endpointPreset||(s.assistant.apiKey?WhisperAssistantSettings.ENDPOINT:'inherit');$('assistantModel').value=s.assistant.model||WhisperAssistantSettings.MODEL;$('assistantApiKey').value=s.assistant.apiKey||'';}
       if(s.tmdb){$('tmdbApiKey').value=s.tmdb.apiKey||'';$('tmdbLanguage').value=s.tmdb.language||'tr-TR';const region=/^[A-Z]{2}$/.test(s.tmdb.watchRegion||'')?s.tmdb.watchRegion:'TR';const regionSelect=$('tmdbWatchRegion');if(![...regionSelect.options].some(option=>option.value===region)){const option=document.createElement('option');option.value=region;option.textContent=region;regionSelect.append(option);}regionSelect.value=region;}
       if (s.hfToken) $('hfToken').value = s.hfToken;
       state.inputDir = s.inputDir || null;
@@ -11417,7 +11417,7 @@ function currentBrowserYoutubeUrl() {
 // çeviriyi ZORLA kapatıyordu: anahtar girili, çeviri açık olsa bile yalnız
 // kaynak altyazı çıkıyor, kullanıcı ikinci kez "Çeviri oluştur"a basmak zorunda
 // kalıyordu. Yalnız kaynak isteyen için boş panelde "Yalnız altyazı" kalır.
-function assistantProviderSelection(){return WhisperAssistantSettings.resolve({assistant:{endpointPreset:$('assistantEndpointPreset')?.value||'inherit',model:$('assistantModel')?.value.trim(),apiKey:$('assistantApiKey')?.value.trim()}},{model:$('translateModel')?.value.trim(),endpoint:$('translateEndpointPreset')?.value==='custom'?$('translateBaseUrl')?.value:$('translateEndpointPreset')?.value,apiKey:$('translateApiKey')?.value.trim()});}
+function assistantProviderSelection(){return WhisperAssistantSettings.resolve({assistant:{flex:$('assistantFlex')?.checked!==false,endpointPreset:$('assistantEndpointPreset')?.value||'inherit',model:$('assistantModel')?.value.trim(),apiKey:$('assistantApiKey')?.value.trim()}},{model:$('translateModel')?.value.trim(),endpoint:$('translateEndpointPreset')?.value==='custom'?$('translateBaseUrl')?.value:$('translateEndpointPreset')?.value,apiKey:$('translateApiKey')?.value.trim()});}
 
 function translationReadyForCreate() {
   const key = $('translateApiKey');
@@ -20048,7 +20048,7 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null) 
   if(preparing.cancelled||sourceScope!==aiSourceScope()||!independentAgent&&(state.running||state.queueRunning||player.job?.awaitingExit))return;
   if(translationTarget&&!translationTargetCurrent(translationTarget))return;
   if(!translationTarget){const a=assistantProviderSelection();opts.translateApiKey=a.apiKey;opts.translateBaseUrl=a.endpoint;opts.translateModel=a.model;}
-  opts.chat = { question: q, history, context: chatContext };
+  opts.chat = { question: q, history, context: chatContext, serviceTier: assistantProviderSelection().serviceTier };
   delete opts.youtube;
   const assistantConfig=assistantProviderSelection();
   const chatConfig=independentAgent?assistantConfig:{apiKey:opts.translateApiKey,endpoint:opts.translateBaseUrl};

@@ -44,7 +44,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
       jobs:Array.isArray(value.jobs)?value.jobs.slice(0,50).map(row=>({id:String(row.id||'').slice(0,100),kind:String(row.kind||'').slice(0,40),state:String(row.state||'').slice(0,20),stage:String(row.stage||'').slice(0,60),percent:Number.isFinite(row.percent)?Math.max(0,Math.min(100,row.percent)):null,cancellable:row.cancellable===true,partial:row.partial===true,stopFailed:row.stopFailed===true})):[],
       workspaceError:String(value.workspaceError||'').slice(0,1200),draft:String(value.draft||'').slice(0,16000),
       threads:Array.isArray(value.threads)?value.threads.slice(0,20).map(row=>({id:String(row.id||'').slice(0,100),title:String(row.title||'').slice(0,200)})):[],
-      context: String(value.context || '').slice(0, 600), busy: !!value.busy, retry: !!value.retry, activity:typeof value.activity==='string'?value.activity.slice(0,160):'',
+      context: String(value.context || '').slice(0, 600), busy: !!value.busy, retry: !!value.retry, activity:typeof value.activity==='string'?value.activity.slice(0,160):'',phase:['waiting','thinking','reasoning','tool','applying','writing'].includes(value.phase)?value.phase:'waiting',
       scope: ['nearby', 'watched', 'full'].includes(value.scope) ? value.scope : 'watched',
       bottomInset: Math.min(400, Math.max(0, Number(value.bottomInset) || 0)),
       suggestions: Array.isArray(value.suggestions) ? value.suggestions.slice(0, 5).map(row => ({ id:String(row.id || '').slice(0, 100), direct:!!row.direct, label:String(row.label || '').slice(0, 120), review:String(row.review || '').slice(0, 1800) })) : [],

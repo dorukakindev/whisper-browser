@@ -92,7 +92,7 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
     const rows = raw.slice(0, limit).map(row => normalizeMeta(row, kind)).filter(Boolean);
     return { rows, nextSkip: raw.length && skip+Math.min(raw.length,limit)<=2000 ? skip + Math.min(raw.length,limit) : null };
   }
-  ipcMain.handle('media-discovery:request', async (event, input = {}) => {
+  const handle = async (event, input = {}) => {
     if (!authorized(event)) return { ok: false, error: 'Unauthorized request.', errorCode: 'unauthorized' };
     try {
       if (input.action === 'feedback-list') return { ok: true, rows: Object.values(feedback()).slice(-2000).reverse(), nextSkip: null };
@@ -169,6 +169,8 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
       }
       throw Error('Unsupported discovery action.');
     } catch (error) { return { ok: false, error: error.message, errorCode: discoveryErrorCode(error) }; }
-  });
+  };
+  ipcMain.handle('media-discovery:request',handle);
+  return {handle};
 }
 module.exports = { registerMediaDiscovery, normalizeMeta, recommendationSeeds, GENRES };

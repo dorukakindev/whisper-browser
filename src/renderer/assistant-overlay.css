@@ -87,4 +87,11 @@ html,body{overflow:hidden}
 
 .tool-card .flow-continue{margin-inline-start:6px;border-color:var(--accent)}.tool-card .action-receipt{overflow-wrap:anywhere}
 
-#agentProgress{flex-shrink:0;margin:0 16px 9px;padding:7px 10px;border-left:2px solid var(--accent);border-radius:0 6px 6px 0;background:var(--raised);color:var(--text);font-size:12px;line-height:1.5;overflow-wrap:anywhere}#agentProgress:empty{display:none}
+
+
+/* Native assistant activity: real phase signals, restrained motion, stable layout. */
+#agentProgress{flex-shrink:0;display:flex;align-items:center;gap:12px;margin:0 16px 12px;padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:var(--raised);box-shadow:0 3px 12px #0000000a}
+#agentProgress[hidden]{display:none}.progress-orbit{position:relative;width:34px;height:34px;flex:none;color:var(--accent)}.progress-orbit svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.5}.orbit-track{opacity:.16}.orbit-arc{stroke-dasharray:22 54;stroke-linecap:round;transform-origin:center;animation:assistant-orbit 2.4s linear infinite}.progress-orbit>span{position:absolute;inset:13px;border-radius:50%;background:currentColor;animation:assistant-breathe 2s ease-in-out infinite}.progress-copy{min-width:0;flex:1}.progress-top{display:flex;gap:12px;align-items:baseline;justify-content:space-between}#progressLabel{font-size:12px;font-weight:600;line-height:1.5;text-wrap:pretty}#progressElapsed{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;flex:none}#progressDetail{display:block;color:var(--muted);font-size:11px;line-height:1.5;margin-top:3px}.progress-steps{display:flex;gap:14px;margin-top:8px;font-size:10px;color:var(--muted)}.progress-steps>span{display:flex;align-items:center;gap:5px;transition:color 160ms ease-out}.progress-steps>span::before{content:"";width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.4}.progress-steps>.active{color:var(--text)}.progress-steps>.active::before{color:var(--accent);opacity:1}#agentProgress[data-phase="writing"] .orbit-arc{animation-duration:3.6s}
+@keyframes assistant-orbit{to{transform:rotate(360deg)}}@keyframes assistant-breathe{50%{opacity:.5;transform:scale(.8)}}
+@media(prefers-reduced-motion:reduce){.orbit-arc,.progress-orbit>span{animation:none}.progress-steps>span{transition:none}}
+@media(max-height:620px){#agentProgress{padding:8px 10px;margin-bottom:6px}#progressDetail{display:none}.progress-steps{margin-top:4px}}
