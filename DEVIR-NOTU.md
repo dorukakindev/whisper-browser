@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-27-1107.md](docs/devir/2026-10-27-1107.md) — Kapanmamış motor sahipliği ve güvenli tekrar
 Güncel çalışma: [docs/devir/2026-10-27-1057.md](docs/devir/2026-10-27-1057.md) — Whisper kısmi kaynak ve doğru çeviri reuse
 Güncel çalışma: [docs/devir/2026-10-27-1050.md](docs/devir/2026-10-27-1050.md) — Asistan iş aralığı ve gerçek pencere kabulü
 Güncel çalışma: [docs/devir/2026-10-27-1038.md](docs/devir/2026-10-27-1038.md) — Kitap ses sonucunda güncel iş sahipliği

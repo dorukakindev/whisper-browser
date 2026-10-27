@@ -5974,8 +5974,8 @@
       "operation": null,
       "criterion": "İptal sınırı",
       "acceptance": "Çalışan alt süreci iptal et; close olmadan sahipliği bırakma.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DÜZELTİLDİ",
+      "evidence": "Rapor642; controlled shutdown/runtime/protocol/generation testleri; GPU/native kill doğrulanmadı; kod de699db4320381c3f16d3f07efb1757861ca82f2"
     },
     {
       "id": "P0544",
@@ -6040,8 +6040,8 @@
       "operation": null,
       "criterion": "Sınırlı tekrar",
       "acceptance": "OOM/timeout için sonlu retry; terminal hata kullanıcının referansını gereksiz değişmeye zorlamasın.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DÜZELTİLDİ",
+      "evidence": "Rapor642; controlled shutdown/runtime/protocol/generation testleri; GPU/native kill doğrulanmadı; kod de699db4320381c3f16d3f07efb1757861ca82f2"
     },
     {
       "id": "P0550",
@@ -6194,8 +6194,8 @@
       "operation": null,
       "criterion": "İptal sınırı",
       "acceptance": "Çalışan alt süreci iptal et; close olmadan sahipliği bırakma.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DÜZELTİLDİ",
+      "evidence": "Rapor642; controlled shutdown/runtime/protocol/generation testleri; GPU/native kill doğrulanmadı; kod de699db4320381c3f16d3f07efb1757861ca82f2"
     },
     {
       "id": "P0564",
@@ -6260,8 +6260,8 @@
       "operation": null,
       "criterion": "Sınırlı tekrar",
       "acceptance": "OOM/timeout için sonlu retry; terminal hata kullanıcının referansını gereksiz değişmeye zorlamasın.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DOĞRULANDI",
+      "evidence": "Rapor642; controlled shutdown/runtime/protocol/generation testleri; GPU/native kill doğrulanmadı; kod de699db4320381c3f16d3f07efb1757861ca82f2"
     },
     {
       "id": "P0570",
@@ -11089,6 +11089,17 @@
         "P0150"
       ],
       "next": "Referans değişimi/worker tekrar üretimi ve ses kalite kaynağı kabulü."
+    },
+    {
+      "report": 642,
+      "code": "de699db4320381c3f16d3f07efb1757861ca82f2",
+      "updated": [
+        "P0543",
+        "P0549",
+        "P0563",
+        "P0569"
+      ],
+      "next": "Referans hazırlama/uygulama kaynak değişimi ve ses kalite raporu metin bağı."
     }
   ]
 }
