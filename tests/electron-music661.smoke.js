@@ -1,0 +1,30 @@
+/* Opt-in real CLAP acceptance. Requires pinned model and Librosa CC-BY fixtures in tmp/music661-fixtures. */
+'use strict';
+const {app,BrowserWindow}=require('electron'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..'),out=path.join(root,'.uiprev','music661',String(Date.now())),profile=path.join(out,'profile'),fixtures=path.join(root,'tmp','music661-fixtures');
+fs.mkdirSync(profile,{recursive:true});process.env.WHISPER_RESOURCE_SOAK_USER_DATA=profile;
+const tracks=[{id:'ref',path:path.join(fixtures,'Kevin_MacLeod_-_Vibe_Ace.ogg'),title:'Vibe Ace',artist:'Kevin MacLeod'},{id:'quiet',path:path.join(fixtures,'Vibe quiet.wav'),title:'Vibe Ace · quieter excerpt',artist:'Kevin MacLeod'},{id:'trumpet',path:path.join(fixtures,'sorohanro_-_solo-trumpet-06.ogg'),title:'Jazz trumpet loop',artist:'Mihai Sorohan'}];
+for(const row of tracks)assert(fs.existsSync(row.path));
+fs.writeFileSync(path.join(profile,'settings.json'),JSON.stringify({settingsVersion:3,ui:{uiLocale:'tr',uiTheme:'dark'}}));
+fs.writeFileSync(path.join(profile,'media-shelf.json'),JSON.stringify({version:1,music:tracks,books:[],stations:[],podcasts:[],playlists:[],diary:[]}));
+app.setAppPath(root);for(const flag of ['disable-gpu','disable-backgrounding-occluded-windows','disable-renderer-backgrounding'])app.commandLine.appendSwitch(flag);require('../src/main');
+let win;const delay=ms=>new Promise(r=>setTimeout(r,ms)),run=code=>win.webContents.executeJavaScript(`(async()=>{${code}})()`,true);
+async function until(fn,label,ms=90000){const end=Date.now()+ms;while(Date.now()<end){if(await fn())return;await delay(150);}throw Error('Timeout '+label);}
+app.whenReady().then(async()=>{
+ await until(()=>{win=BrowserWindow.getAllWindows().find(w=>!w.isDestroyed()&&w.webContents.getURL().includes('index.html'));return win;},'main');await until(()=>run('return !!window.MusicAnalysisUI'),'UI');win.setSize(1440,1050);win.show();
+ await run("window.MusicAnalysisUI.open('ref');return true");await until(()=>run("return !document.querySelector('.ml-search-heading button').disabled"),'model capability');
+ await run("const inputs=document.querySelectorAll('.ml-controls input');inputs[0].value='0';inputs[1].value='10';document.getElementById('mlSimilarTab').click();document.querySelector('.ml-search-heading button').click();return true");
+ await until(()=>run("return document.querySelectorAll('.ml-hit').length===2"),'real ranking');
+ const result=await run("return (await api.musicAnalysis({action:'status'})).job.result");assert.equal(result.results[0].id,'quiet');assert(result.results[0].score>.95);assert(result.results[1].score<.6);assert.equal(result.failed,0);
+ await run("document.querySelector('.ml-hit button').click();return true");await until(()=>run("return !document.querySelector('.ml-compare audio').paused"),'candidate playback');
+ await run("document.querySelector('.ml-compare button').click();return true");await until(()=>run("return !document.querySelector('.ml-audio').paused&&document.querySelector('.ml-compare audio').paused"),'reference A');
+ const volume=await run("return document.querySelector('.ml-audio').volume");assert(volume<.6&&volume>.4);
+ await run("document.querySelectorAll('.ml-compare button')[1].click();return true");await until(()=>run("return document.querySelector('.ml-audio').paused&&!document.querySelector('.ml-compare audio').paused"),'candidate B');
+ assert(await run("return !document.querySelector('.ml-error')"),'intentional A/B interruption is not an error');await run("document.querySelector('.ml-compare audio').pause();document.querySelector('.ml-content').scrollTop=500;return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))");fs.writeFileSync(path.join(out,'wide.png'),(await win.webContents.capturePage()).toPNG());
+ win.setMinimumSize(600,700);win.setSize(720,1050);await delay(300);assert(await run("const c=document.querySelector('.ml-content');return c.scrollWidth<=c.clientWidth+1"));fs.writeFileSync(path.join(out,'narrow.png'),(await win.webContents.capturePage()).toPNG());
+ await run("document.querySelector('.ml-exclude input').checked=true;document.querySelector('.ml-search-heading button').click();return true");
+ await until(()=>run("return document.querySelectorAll('.ml-hit').length===1&&document.querySelector('.ml-hit h3').textContent==='Jazz trumpet loop'"),'same artist exclusion');
+ const cached=await run("return (await api.musicAnalysis({action:'status'})).job.result.cached");assert(cached>=3);
+ await run("document.querySelector('.ml-close').click();return true");await until(()=>run("return !document.querySelector('.music-lab')"),'cleanup');
+ fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({ok:true,model:result.model,revision:result.revision,results:result.results.map(({id,score,matchedRange})=>({id,score,matchedRange})),levelMatchedVolume:volume,artistExclusion:true,cached,realCpuInference:true,narrowNoOverflow:true},null,2));console.log(JSON.stringify({ok:true,out}));app.exit(0);
+}).catch(async e=>{console.error(e.stack);try{console.error(await run("return document.querySelector('.ml-status')?.textContent"));fs.writeFileSync(path.join(out,'failure.png'),(await win.webContents.capturePage()).toPNG());}catch{}app.exit(1);});setTimeout(()=>app.exit(2),180000).unref();

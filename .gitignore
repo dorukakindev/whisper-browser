@@ -16,6 +16,8 @@ __pycache__/
 
 # Yerel araçlar (kullanıcının makinesine indirilen ffmpeg vb.)
 backend/bin/
+backend/models/music-clap/
+backend/music-venv/
 
 # Yapı çıktıları
 out/
