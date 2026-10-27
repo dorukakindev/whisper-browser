@@ -5086,8 +5086,8 @@ function registerCompletedBrowserOutputs(outputs, job) {
       status: item.status || 'complete',
       completed: Math.max(0, Number(item.completed) || 0),
       failed: Math.max(0, Number(item.failed) || 0),
-      model: String(item.model || (forSpeech ? job.baseOpts?.translateModel || job.translateModel : '') || ''),
-      provider: String(item.provider || (forSpeech ? job.baseOpts?.translateBaseUrl || job.translateBaseUrl : '') || ''),
+      model: String(item.model || (role === 'translation' ? job.baseOpts?.translateModel || job.translateModel : '') || ''),
+      provider: String(item.provider || (role === 'translation' ? job.baseOpts?.translateBaseUrl || job.translateBaseUrl : '') || ''),
     };
     const index = player.browserTracks.findIndex((old) => old.id === id || old.path === item.path);
     if (index >= 0) player.browserTracks[index] = { ...player.browserTracks[index], ...track };
@@ -11524,8 +11524,8 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
       && track.language === targetLanguage
       && !!track.forSpeech === forSpeech
       && (!forSpeech || track.speechProtocol === 'speech-v7-delivery-contract')
-      && (!forSpeech || ((!selectedModel || track.model === selectedModel)
-        && (!selectedProvider || String(track.provider || '').replace(/\/+$/, '') === selectedProvider)))
+      && (!selectedModel || track.model === selectedModel)
+      && (!selectedProvider || String(track.provider || '').replace(/\/+$/, '') === selectedProvider)
       && track.status === 'complete' && !Number(track.failed)) : null;
   if (reusableTranslation) {
     await useBrowserTrack(false, reusableTranslation.id);
@@ -11538,7 +11538,8 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
     return { ok: true, reused: true, trackId: reusableTranslation.id, path: reusableTranslation.path };
   }
   const reusableSource = player.browserTracks.find((track) =>
-    ['whisper', 'whisper-range'].includes(track.generatedBy) && sameRange(track) && track.role === 'source' && track.path);
+    ['whisper', 'whisper-range'].includes(track.generatedBy) && sameRange(track) && track.role === 'source' && track.path
+      && (!track.status || track.status === 'complete') && !Number(track.failed) && track.captureComplete !== false);
   if (reusableSource) {
     await useBrowserTrack(false, reusableSource.id);
     if (player.browserActiveTabId !== tabId || player.mediaKey !== mediaKey
