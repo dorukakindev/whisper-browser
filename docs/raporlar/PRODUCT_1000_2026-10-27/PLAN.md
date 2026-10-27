@@ -787,7 +787,7 @@ Başlangıç 27 Ekim2026 09:26 Europe/Istanbul; yaklaşık10 saatlik pencere19:2
 | P0766 | Kitap bölüm yakalama ve üretim | Kısmi kalite: Eksik/inceleme gruplarını tam doğrulanmış bölüm gibi sunma. | `src/media-workflows.js` | DÜZELTİLDİ | 69b0fff79505339da80870a18984b58f7a2fb297: qualityIncomplete/unavailable ready subset tam chapter ready olamaz; full review ve retryWholeChapter güncelplan tümgrup. İki kırmızı repro sonrası19Node+nativeEN/TRexit0. |
 | P0767 | Kitap bölüm yakalama ve üretim | Tek bölüm onarımı: Bir bölüm/grup yeniden üretilirken diğer ses denemeleri ve kullanıcı seçimi korunsun. | `src/media-workflows.js` | DÜZELTİLDİ | 69b0fff79505339da80870a18984b58f7a2fb297: qualityIncomplete/unavailable ready subset tam chapter ready olamaz; full review ve retryWholeChapter güncelplan tümgrup. İki kırmızı repro sonrası19Node+nativeEN/TRexit0. |
 | P0768 | Kitap bölüm yakalama ve üretim | Ses konumu: Dinleme/seek/yer imi eski çıktı değişince doğru yeni ses veya açık uyuşmazlık durumuna bağlansın. | `src/media-workflows.js` | PLANLANDI | — |
-| P0769 | Kitap bölüm yakalama ve üretim | Büyük kitap: Uzun metin/büyük bölüm sayısında çalışma sınırı açık ve iptal/UI erişimi korunmuş olsun. | `src/media-workflows.js` | PLANLANDI | — |
+| P0769 | Kitap bölüm yakalama ve üretim | Büyük kitap: Uzun metin/büyük bölüm sayısında çalışma sınırı açık ve iptal/UI erişimi korunmuş olsun. | `src/media-workflows.js` | İLERLEDİ | Rapor643;898960karakter gerçek plan/storage,3526grup, native101review/25DOM/sonsatır; çok-bölümlü gerçek kaynak ölçümü ve gerçek ses/GPU açık; kod aef0b2b92e82c8471da10cdad9bc8f68aa6a05d0 |
 | P0770 | Kitap bölüm yakalama ve üretim | Okuma yüzeyi: Dar/geniş EN/TR ve açık/koyu temada okuma, üretim ve hata düğmeleri erişilsin. | `src/media-workflows.js` | İNCELENDİ | electron-book-quality636 native1280×900ENdark ve800×760TRlight; tam bölüm kalite uyarısı görünür konuma getirilip iki PNG elle incelendi. Tüm okuma ekranları iddiası yok. |
 | P0771 | Kitap ses denemesi geçmişi | Özgün kimlik: Aynı kitapta bölüm/spine veya PDF özgün sayfa kimliği korunur. | `src/book-voice-takes.js` | PLANLANDI | — |
 | P0772 | Kitap ses denemesi geçmişi | Seçili kapsam: Ara sayfa/bölüm seçimi yalnız o kapsamı üretir; tam kitap zorunlu olmaz. | `src/book-voice-takes.js` | PLANLANDI | — |
@@ -797,7 +797,7 @@ Başlangıç 27 Ekim2026 09:26 Europe/Istanbul; yaklaşık10 saatlik pencere19:2
 | P0776 | Kitap ses denemesi geçmişi | Kısmi kalite: Eksik/inceleme gruplarını tam doğrulanmış bölüm gibi sunma. | `src/book-voice-takes.js` | PLANLANDI | — |
 | P0777 | Kitap ses denemesi geçmişi | Tek bölüm onarımı: Bir bölüm/grup yeniden üretilirken diğer ses denemeleri ve kullanıcı seçimi korunsun. | `src/book-voice-takes.js` | İNCELENDİ | book-voice-takes gerçek persistence testi: önceki take korunur, eski text/diskhash ve aktif üretim reddi; bu paket19Node içinde. |
 | P0778 | Kitap ses denemesi geçmişi | Ses konumu: Dinleme/seek/yer imi eski çıktı değişince doğru yeni ses veya açık uyuşmazlık durumuna bağlansın. | `src/book-voice-takes.js` | PLANLANDI | — |
-| P0779 | Kitap ses denemesi geçmişi | Büyük kitap: Uzun metin/büyük bölüm sayısında çalışma sınırı açık ve iptal/UI erişimi korunmuş olsun. | `src/book-voice-takes.js` | PLANLANDI | — |
+| P0779 | Kitap ses denemesi geçmişi | Büyük kitap: Uzun metin/büyük bölüm sayısında çalışma sınırı açık ve iptal/UI erişimi korunmuş olsun. | `src/book-voice-takes.js` | İLERLEDİ | Rapor643;898960karakter gerçek plan/storage,3526grup, native101review/25DOM/sonsatır; çok-bölümlü gerçek kaynak ölçümü ve gerçek ses/GPU açık; kod aef0b2b92e82c8471da10cdad9bc8f68aa6a05d0 |
 | P0780 | Kitap ses denemesi geçmişi | Okuma yüzeyi: Dar/geniş EN/TR ve açık/koyu temada okuma, üretim ve hata düğmeleri erişilsin. | `src/book-voice-takes.js` | PLANLANDI | — |
 | P0781 | Kitap üretim planı karşılaştırması | Özgün kimlik: Aynı kitapta bölüm/spine veya PDF özgün sayfa kimliği korunur. | `src/book-production-plan.js` | PLANLANDI | — |
 | P0782 | Kitap üretim planı karşılaştırması | Seçili kapsam: Ara sayfa/bölüm seçimi yalnız o kapsamı üretir; tam kitap zorunlu olmaz. | `src/book-production-plan.js` | PLANLANDI | — |
@@ -1033,3 +1033,5 @@ Rapor640: asistanın işe özel Whisper aralığı ve gerçek ses penceresi kabu
 Rapor641: kısmi Whisper kaynağı ve model/sağlayıcıya bağlı çeviri reuse; gerçek motor kabulü açık.
 
 Rapor642: doğrulanmamış motor kapanışı ve exact sahiplik yeniden denemesi; dört kabul maddesi.
+
+Rapor643: uzun bölüm uçtan uca plan/capture/take, dosyalı yenileme ve25satır inceleme; iki büyük-kitap maddesi gerçek çok-bölüm/GPU ölçümü eksik olduğu için kısmi.
