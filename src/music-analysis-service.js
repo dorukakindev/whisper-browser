@@ -32,8 +32,8 @@ function createService(options) {
   function cancel() { active?.controller.abort(); return { ok: true }; }
   async function start(request) {
     if (active) throw Error('An analysis is running / Bir analiz çalışıyor.');
-    const mode=request.mode||'analyze';if(!['analyze','search','prepare','online'].includes(mode))throw Error('Unknown music mode');
-    const source = sources.get(request.sourceId); if (!source&&mode!=='prepare') throw Error('Select the audio again / Sesi yeniden seç.');
+    const mode=request.mode||'analyze';if(!['analyze','search','prepare','online','tags','prepare-tags'].includes(mode))throw Error('Unknown music mode');
+    const source = sources.get(request.sourceId); if (!source&&!['prepare','prepare-tags'].includes(mode)) throw Error('Select the audio again / Sesi yeniden seç.');
     if(request.references!==undefined&&(!['search','online'].includes(mode)||!Array.isArray(request.references)||!request.references.length||request.references.length>3))throw Error('Select 1–3 references / 1–3 referans seç.');
     const references=request.references?.map(r=>{const saved=sources.get(r.id);if(!saved)throw Error('Reference expired; select it again / Referans eskidi; yeniden seç.');const range=r.range;if(range!==null&&(!Array.isArray(range)||range.length!==2||!range.every(Number.isFinite)||range[0]<0||range[1]-range[0]<1||range[1]-range[0]>1800))throw Error('Invalid reference range');return {...saved,range};});
     if(references&&new Set(references.map(r=>JSON.stringify([r.file,r.range]))).size!==references.length)throw Error('Duplicate reference / Aynı referans tekrarlandı.');

@@ -33,7 +33,8 @@
     start.value='0';end.placeholder=t('Full track','Tüm parça');
     const run=button(t('Analyze sound','Sesi analiz et'),analyze,'ml-button ml-primary');run.disabled=true;
     const cancel=button(t('Cancel','Durdur'),()=>api('cancel'));cancel.hidden=true;
-    controls.append(rangeTitle,start,node('span','','—'),end,node('span','ml-unit',t('seconds','saniye')),run,cancel);
+    const tags=button(t('Explore sound tags','Ses etiketlerini keşfet'),()=>launch('tags'));tags.disabled=true;const prepareTags=button(t('Prepare label resources · 2 MB','Etiket kaynaklarını hazırla · 2 MB'),()=>launch('prepare-tags'));
+    controls.append(rangeTitle,start,node('span','','—'),end,node('span','ml-unit',t('seconds','saniye')),run,tags,prepareTags,cancel);
     const taste=node('section','ml-taste'),tasteHead=node('div','ml-taste-head'),seeds=node('div','ml-seeds');
     const addSeed=button(t('Add this passage','Bu kesiti ekle'),addReference);addSeed.disabled=true;
     tasteHead.append(node('strong','',t('Reference mix','Referans karışımı')),addSeed);
@@ -88,7 +89,7 @@
     const charts=[];
     function invalidateMix(){state.mixVersion++;state.lastSearch=null;state.matches=[];comparison=null;alternateReference.pause();compareAudio.pause();compare.hidden=true;hits.replaceChildren(node('p','ml-search-empty',t('Reference mix changed. Search again to compare these passages.','Referans karışımı değişti. Bu kesitleri karşılaştırmak için yeniden ara.')));onlinePanel.dispatchEvent(new Event('music-mix-changed'));paintTaste();}
     function message(text,error=false){if(state.closed)return;status.textContent=text;status.classList.toggle('ml-error',error);}
-    function busy(value){state.busy=value;paintTaste();hits.querySelectorAll("button").forEach(b=>b.disabled=value);dialog.setAttribute('aria-busy',String(value));choose.disabled=value;run.disabled=value||!state.source;find.disabled=value||!state.source||!state.modelReady;prepare.disabled=value;exclude.disabled=value||!(state.source?.artist||state.references.some(r=>r.artist));start.disabled=value;end.disabled=value;cancel.hidden=!value;stages.hidden=!value;onlinePanel.dispatchEvent(new CustomEvent('music-busy',{detail:{busy:value,ready:!!state.source&&state.modelReady}}));}
+    function busy(value){state.busy=value;tags.disabled=value||!state.source||!state.modelReady;prepareTags.disabled=value||!state.modelReady;paintTaste();hits.querySelectorAll("button").forEach(b=>b.disabled=value);dialog.setAttribute('aria-busy',String(value));choose.disabled=value;run.disabled=value||!state.source;find.disabled=value||!state.source||!state.modelReady;prepare.disabled=value;exclude.disabled=value||!(state.source?.artist||state.references.some(r=>r.artist));start.disabled=value;end.disabled=value;cancel.hidden=!value;stages.hidden=!value;onlinePanel.dispatchEvent(new CustomEvent('music-busy',{detail:{busy:value,ready:!!state.source&&state.modelReady}}));}
     function tab(isSimilar,internet=false){results.hidden=isSimilar||internet;similar.hidden=!isSimilar||internet;onlinePanel.hidden=!internet;for(const [b,selected] of [[overviewTab,!isSimilar&&!internet],[similarTab,isSimilar&&!internet],[onlineTab,internet]]){b.setAttribute('aria-selected',String(selected));b.tabIndex=selected?0:-1;}repaint();}
     tabs.addEventListener('keydown',event=>{if(['ArrowLeft','ArrowRight'].includes(event.key)){event.preventDefault();const buttons=[overviewTab,similarTab,onlineTab],index=buttons.indexOf(document.activeElement),next=(index+(event.key==='ArrowRight'?1:2))%3;tab(next===1,next===2);buttons[next].focus();}});
     async function refreshModel(){const model=await api('model');if(state.closed)return;state.modelReady=model.ready&&model.runtimeReady;prepare.hidden=model.ready;modelLabel.textContent=!model.runtimeReady?t('Run install-music.bat to prepare the separate CPU environment.','Ayrı CPU ortamını hazırlamak için install-music.bat çalıştır.'):model.ready?t('CLAP ready · local CPU · six excerpts per track','CLAP hazır · yerel CPU · parça başına altı kesit'):t('One-time model download required. Your audio stays local.','Bir defalık model indirmesi gerekiyor. Sesin bilgisayarda kalır.');busy(state.busy);}
@@ -106,17 +107,17 @@
     }
     async function select(action,payload={}){
       const response=await api(action,payload);if(state.closed||response.canceled)return;
-      state.lastSearch=null;state.matches=[];state.source=response.source;onlinePanel.dispatchEvent(new CustomEvent('music-reference',{detail:response.source}));state.result=null;sourceTitle.textContent=response.source.title;sourceDetail.textContent=t('Local audio · measurements stay on this computer','Yerel ses · ölçümler bu bilgisayarda kalır');
+      state.tags=null;state.lastSearch=null;state.matches=[];state.source=response.source;onlinePanel.dispatchEvent(new CustomEvent('music-reference',{detail:response.source}));state.result=null;sourceTitle.textContent=response.source.title;sourceDetail.textContent=t('Local audio · measurements stay on this computer','Yerel ses · ölçümler bu bilgisayarda kalır');
       comparison=null;++compareToken;alternateReference.pause();compareAudio.pause();compare.hidden=true;audio.volume=1;find.disabled=!state.modelReady;exclude.disabled=!response.source.artist;hits.replaceChildren(node('p','ml-search-empty',t('Reference changed. Search again for fresh matches.','Referans değişti. Güncel eşleşmeler için yeniden ara.')));
       audio.pause();audio.hidden=false;audio.src=response.source.url;start.value='0';end.value='';run.disabled=false;results.replaceChildren(empty);charts.length=0;
       busy(state.busy);message(t('Ready. Select a range or analyze the full track (up to 30 minutes).','Hazır. Aralık seç veya parçanın tamamını analiz et (en fazla 30 dakika).'));
     }
     async function analyze(){return launch('analyze');}
     async function launch(mode,extra={}){
-      if(state.busy||(!state.source&&mode!=='prepare'))return;
+      if(state.busy||(!state.source&&!['prepare','prepare-tags'].includes(mode)))return;
       if(mode==='online'&&!state.modelReady)throw Error(t('Prepare CLAP in the library tab first.','Önce arşiv sekmesinde CLAP hazırla.'));
       const from=Number(start.value),to=end.value.trim()?Number(end.value):undefined;
-      if(mode!=='prepare'&&(!Number.isFinite(from)||from<0||(to!==undefined&&(!Number.isFinite(to)||to-from<1||to-from>1800))))throw Error(t('Select a valid range of 1 second to 30 minutes.','1 saniye–30 dakika arasında geçerli bir aralık seç.'));
+      if(!['prepare','prepare-tags'].includes(mode)&&(!Number.isFinite(from)||from<0||(to!==undefined&&(!Number.isFinite(to)||to-from<1||to-from>1800))))throw Error(t('Select a valid range of 1 second to 30 minutes.','1 saniye–30 dakika arasında geçerli bir aralık seç.'));
       state.mode=mode;state.submittedMixVersion=state.mixVersion;busy(true);message(mode==='prepare'?t('Downloading the official audio model…','Resmî ses modeli indiriliyor…'):t('Reading audio…','Ses okunuyor…'));
       try{const range=to!==undefined?[from,to]:from>0?[from,audio.duration]:null;const response=await api('start',{...extra,sourceId:state.source?.id,start:from,end:to,mode,range,...(['search','online'].includes(mode)&&state.references.length?{references:state.references.map(r=>({id:r.id,range:r.range}))}:{}),excludeArtist:mode==='online'?false:exclude.checked});state.jobId=response.id;if(state.closed){await api('cancel');return;}await poll();}
       catch(error){busy(false);throw error;}
@@ -134,13 +135,24 @@
         }
         busy(false);
         if(job.state==='completed'){
+          if(state.mode==='prepare-tags'){message(t('Label resources ready. Choose a source and explore its tags.','Etiket kaynakları hazır. Kaynak seçip etiketlerini keşfet.'));return;}
           if(state.mode==='prepare'){await refreshModel();message(t('Model ready. Choose a reference and search your library.','Model hazır. Referans seçip arşivinde ara.'));return;}
           if(job.result.sourceId!==state.source.id)throw Error(t('The source changed. Analyze again.','Kaynak değişti. Yeniden analiz et.'));
+          if(state.mode==='tags'){showTags(job.result);tab(false);message(t('Experimental label similarities ready. These are not confirmed classifications.','Deneysel etiket benzerlikleri hazır. Bunlar doğrulanmış sınıflandırma değildir.'));return;}
           if(state.mode==='online'){onlinePanel.dispatchEvent(new CustomEvent('music-ranked',{detail:job.result}));tab(false,true);message(t('Internet previews compared. Listen to the matched passages.','İnternet önizlemeleri karşılaştırıldı. Eşleşen kesitleri dinle.'));return;}
           if(state.mode==='search'){showHits(job.result);tab(true);message(t('Matches ready. Compare the highlighted passages by ear.','Eşleşmeler hazır. Seçilen kesitleri dinleyerek karşılaştır.'));return;}
           state.result=job.result;draw();message(job.result.silent?t('This selection is nearly silent; tempo cannot be estimated reliably.','Bu aralık neredeyse sessiz; tempo güvenilir biçimde tahmin edilemiyor.'):job.result.cached?t('Loaded saved measurements.','Kayıtlı ölçümler açıldı.'):t('Analysis ready. Click a graph to listen at that time.','Analiz hazır. O saniyeyi dinlemek için grafiğe tıkla.'));
         }else {const parts=String(job.error||'').split(' / ');message(parts.length>1?t(parts[0],parts.slice(1).join(' / ')):parts[0]||t('Analysis stopped.','Analiz durdu.'),job.state==='failed');}
       }catch(error){busy(false);message(error.message,true);}
+    }
+    function showTags(r){state.tags=r;
+      state.result=null;charts.length=0;results.replaceChildren();
+      results.append(node('h2','',t('Sound hypotheses','Ses tahminleri')),node('p','ml-description',t('Experimental CLAP audio–text similarity (−1 to 1), not a probability. Only sampled passages are analyzed. Labels depend on the candidate descriptions; they do not establish the listener’s feelings or instrument presence. Click a cell to hear the passage.','Deneysel CLAP ses–metin benzerliği (−1 ile 1); olasılık değildir. Yalnız örneklenen kesitler incelenir. Etiketler aday açıklamalara bağlıdır; dinleyicinin duygusunu veya enstrüman varlığını kesinleştirmez. Kesiti dinlemek için hücreye tıkla.')));
+      const translations={'genre':'Tür','jazz':'Caz','classical':'Klasik','electronic':'Elektronik','folk':'Folk','country':'Country','mood':'Atmosfer','instrument':'Enstrüman adayı','voice':'Vokal adayı','calm':'Sakin','energetic':'Enerjik','sad':'Hüzünlü','happy':'Neşeli','dark':'Karanlık','romantic':'Romantik','tense':'Gergin','dreamy':'Düşsel','piano':'Piyano','acoustic guitar':'Akustik gitar','electric guitar':'Elektro gitar','bass guitar':'Bas gitar','drums':'Davul','trumpet':'Trompet','saxophone':'Saksafon','violin':'Keman','flute':'Flüt','organ':'Org','synthesizer':'Sentezleyici','harmonica':'Armonika','singing vocals':'Şarkı vokali','instrumental music without singing':'Vokalsiz müzik'};
+      for(const group of r.groups){const section=node('section','ml-tag-section');section.append(node('h2','',t(group.id,translations[group.id]||group.id)));const ordered=[...group.labels].sort((a,b)=>b.mean-a.mean);if(ordered.length>1&&ordered[0].mean-ordered[1].mean<.03)section.append(node('p','ml-description',t('Weak separation between leading candidates; do not treat the first label as a conclusion.','Önde gelen adaylar arasındaki ayrım zayıf; ilk etiketi kesin sonuç kabul etme.')));const grid=node('div','ml-tag-grid');grid.style.setProperty('--tag-columns',r.segments.length);grid.append(node('span','',t('Candidate / mean','Aday / ortalama')));for(const segment of r.segments)grid.append(node('span','',clock(segment[0])+'–'+clock(segment[1])));
+        for(const label of [...group.labels].sort((a,b)=>b.mean-a.mean).slice(0,3)){grid.append(node('strong','',t(label.id,translations[label.id]||label.id)+' · '+label.mean.toFixed(3)));label.segments.forEach((score,i)=>{const cell=button(score.toFixed(3),async()=>{audio.currentTime=r.segments[i][0];await audio.play();},'ml-tag-cell');cell.style.setProperty('--tag-fill',((score+1)*50).toFixed(2)+'%');cell.setAttribute('aria-label',t(label.id,translations[label.id]||label.id)+' '+clock(r.segments[i][0])+' '+score.toFixed(3));grid.append(cell);});}
+        section.append(grid);results.append(section);
+      }
     }
     function chart(parent,kind,label){
       const shell=node('div','ml-chart-shell'),canvas=node('canvas','ml-chart'),tooltip=node('output','ml-tooltip');
@@ -205,7 +217,7 @@
     dialog.addEventListener('close',cleanup,{once:true});
     dialog.addEventListener('cancel',event=>{event.preventDefault();dialog.close();cleanup();});
     dialog.showModal();if(typeof syncBrowserOcclusion==='function')syncBrowserOcclusion();observer=new ResizeObserver(repaint);observer.observe(results);
-    state.read=async()=>{const {job}=await api('status');return {open:true,source:state.source?{id:state.source.id,title:state.source.title,artist:state.source.artist}:null,range:{start:Number(start.value),end:end.value?Number(end.value):null},job:{id:job.id,state:job.state,stage:job.stage,mode:job.mode,sourceMatches:!!state.source&&job.result?.sourceId===state.source.id,referenceMixMatches:!['search','online'].includes(job.mode)||state.mixVersion===state.submittedMixVersion},references:state.references.map(r=>({id:r.id,title:r.title,range:r.range})),hiddenTracks:state.hidden.slice(0,50),hiddenTrackCount:state.hidden.length,localMatches:state.matches||[],catalogMatches:onlinePanel.musicAgent.read(),modelReady:state.modelReady};};
+    state.read=async()=>{const {job}=await api('status');return {open:true,source:state.source?{id:state.source.id,title:state.source.title,artist:state.source.artist}:null,range:{start:Number(start.value),end:end.value?Number(end.value):null},job:{id:job.id,state:job.state,stage:job.stage,mode:job.mode,sourceMatches:!!state.source&&job.result?.sourceId===state.source.id,referenceMixMatches:!['search','online'].includes(job.mode)||state.mixVersion===state.submittedMixVersion},references:state.references.map(r=>({id:r.id,title:r.title,range:r.range})),hiddenTracks:state.hidden.slice(0,50),hiddenTrackCount:state.hidden.length,soundTags:state.tags||null,localMatches:state.matches||[],catalogMatches:onlinePanel.musicAgent.read(),modelReady:state.modelReady};};
     state.execute=async args=>{
      const op=args.operation;
      if(state.busy&&op!=='cancel')throw Error('Music analysis is busy');
@@ -217,11 +229,11 @@
      else if(op==='prepare_model')await launch('prepare');
      else if(op==='rank_online'){if(args.source_id!==state.source?.id)throw Error('The selected music source changed');if(args.start!==undefined){start.value=String(args.start);end.value=String(args.end);}tab(false,true);await onlinePanel.musicAgent.execute(op,args);}
      else if(['search_online','discover_online','save_discovery'].includes(op)){tab(false,true);await onlinePanel.musicAgent.execute(op,args);}
-     else if(['analyze','find_local'].includes(op)){
+     else if(['analyze','find_local','analyze_tags'].includes(op)){
       if(args.source_id!==state.source?.id)throw Error('The selected music source changed');
       if(args.start!==undefined){start.value=String(args.start);end.value=String(args.end);}
       if(args.exclude_artist!==undefined)exclude.checked=args.exclude_artist;
-      await launch(op==='analyze'?'analyze':'search');
+      await launch(op==='analyze'?'analyze':op==='analyze_tags'?'tags':'search');
      }else throw Error('Unknown music operation');
      return state.read();
     };

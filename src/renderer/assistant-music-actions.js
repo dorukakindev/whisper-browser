@@ -9,8 +9,8 @@
   if(name==='get_music_context')return {status:'completed',...await window.MusicAnalysisUI.read(),note:'Only evidence=preview-clap or local-clap is audio-compared. Catalog results are unverified. Scores are model-space similarities, not probabilities. The assistant itself has not heard the audio.'};
   if(args.operation==='open'){window.MusicAnalysisUI.open();return {status:'completed',...await window.MusicAnalysisUI.read()};}
   const result=await window.MusicAnalysisUI.execute(args);guard();
-  if(result.job?.state==='failed'&&['analyze','find_local','rank_online','prepare_model'].includes(args.operation))throw Error('Music job failed. Inspect the music panel for the exact cause.');
-  return {status:['analyze','find_local','rank_online','prepare_model','cancel'].includes(args.operation)?'accepted':'completed',...result,note:'Read get_music_context to verify the result; accepted is not completed. Source files were not modified.'};
+  if(result.job?.state==='failed'&&['analyze','analyze_tags','find_local','rank_online','prepare_model'].includes(args.operation))throw Error('Music job failed. Inspect the music panel for the exact cause.');
+  return {status:['analyze','analyze_tags','find_local','rank_online','prepare_model','cancel'].includes(args.operation)?'accepted':'completed',...result,note:'Read get_music_context to verify the result; accepted is not completed. Source files were not modified.'};
  }
  window.AssistantMusicActions=Object.freeze({execute});
 })();

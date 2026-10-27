@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-27-2331.md](docs/devir/2026-10-27-2331.md) — Deneysel ses etiketleri
 Güncel çalışma: [docs/devir/2026-10-27-2312.md](docs/devir/2026-10-27-2312.md) — Çoklu referans ve müzik geri bildirimi
 Güncel çalışma: [docs/devir/2026-10-27-2239.md](docs/devir/2026-10-27-2239.md) — İnternet önizlemelerinde gerçek CLAP karşılaştırması
 Güncel çalışma: [docs/devir/2026-10-27-2214.md](docs/devir/2026-10-27-2214.md) — Asistan müzik araçları

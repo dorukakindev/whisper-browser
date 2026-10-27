@@ -1,3 +1,4 @@
+- [Rapor666](BROWSER_BUG_REPORT_666.md) — Deneysel CLAP etiketleri ve kesit zaman çizelgesi
 - [Rapor665](BROWSER_BUG_REPORT_665.md) — Çoklu müzik referansı, açıklamalı sıralama ve geri alınabilir gizleme
 - [Rapor664](BROWSER_BUG_REPORT_664.md) — Canlı internet önizlemelerinde CLAP sıralaması ve A/B
 - [Rapor663](BROWSER_BUG_REPORT_663.md) — Kaynağa bağlı asistan müzik araçları
