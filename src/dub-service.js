@@ -365,7 +365,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         return { ok: true, output: onOutput({ id: saved.id, path: output, url: pathToFileURL(output).href,
           name: saved.name || path.basename(output), elapsedSeconds: saved.elapsedSeconds,
           range: rangeOption(saved.range),
-          sync, syncInvalid, quality, qualityUnavailable:saved.qualityUnavailable === true || !quality?.groups?.length, sample:saved.sample === true,
+          sync, syncInvalid, quality, qualityIncomplete:saved.qualityIncomplete===true, qualityUnavailable:saved.qualityUnavailable === true || !quality?.groups?.length, sample:saved.sample === true,
           background: saved.background && validVoiceOutput(path.join(root,`${saved.id}-background.wav`))
             ? (()=>{ const file=path.join(root,`${saved.id}-background.wav`);grantMedia(file);return {path:file,url:pathToFileURL(file).href}; })() : null,
           timing: saved.timing, subtitle: saved.subtitle, settings:saved.settings || null, logPath: entry.file }) };
@@ -742,7 +742,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
             });
             return;
           }
-          finish(s, 'done', { path: output, url: pathToFileURL(output).href, settings:s.settings, qualityUnavailable: !quality?.groups?.length,
+          const qualityIncomplete=Number.isSafeInteger(s.progress?.total)&&s.progress.total>0&&(!quality?.groups||quality.groups.length!==s.progress.total);
+          finish(s, 'done', { path: output, url: pathToFileURL(output).href, settings:s.settings, qualityUnavailable: !quality?.groups?.length||qualityIncomplete, qualityIncomplete,
             subtitle: inputSrt, name: path.basename(srt, '.srt') + (s.range ? `-${s.range.start}-${s.range.end}s` : '') + '-dublaj.wav', timing: s.timing || null, range: s.sample ? null : s.range, sync, background, quality, sample:s.sample });
         } else {
           // Python reports the real cause on stderr: a traceback line such as

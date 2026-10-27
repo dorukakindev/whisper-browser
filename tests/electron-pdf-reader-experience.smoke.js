@@ -146,6 +146,17 @@ app
         'return document.querySelector("#pdfReader.mode-reading .pdf-page-prose")?.textContent.includes("controlled PDF")',
       ),
     );
+    await run(`document.dispatchEvent(new KeyboardEvent('keydown',{key:'f',ctrlKey:true,bubbles:true,cancelable:true}));document.getElementById('pdfFindText').value='Chapter 2';document.getElementById('pdfFindForm').requestSubmit();return true`);
+    await until(()=>run(`return document.getElementById('pdfFindStatus').textContent.includes('sayfa 2') && player.pdfReader.currentPage===2`),'PDF find original page identity');
+    assert(await run(`return document.getElementById('pdfFindExcerpt').textContent.includes('Chapter 2')`));
+    await capture('pdf-find-tr.png');
+    await run(`document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));return true`);
+    assert(await run(`return !!player.pdfReader && document.getElementById('pdfFindPanel').classList.contains('hidden')`),'Escape closes search without closing PDF');
+    await run(`setPdfReaderZoom(1.3);return true`);await until(()=>run(`return player.pdfReader && !player.pdfReader.zooming && player.pdfReader.pages.get(2)?.article?.dataset.state==='ready'`),'zoom raster and anchor');
+    const zoomProbe=await run(`const n=document.getElementById('pdfReaderPages'),root=n.getBoundingClientRect(),p=player.pdfReader.pages.get(2).article.getBoundingClientRect();return {page:player.pdfReader.currentPage,rootTop:root.top,rootBottom:root.bottom,top:p.top,bottom:p.bottom,scroll:n.scrollTop,zooming:player.pdfReader.zooming}`);assert(zoomProbe.page===2&&zoomProbe.bottom>zoomProbe.rootTop&&zoomProbe.top<zoomProbe.rootBottom,'Zoom preserves visible original page: '+JSON.stringify(zoomProbe));
+    await capture('pdf-zoom-anchor.png');
+    await run(`setPdfReaderZoom(1);return true`);await until(()=>run(`return !player.pdfReader.zooming`),'restore scale');
+    await run(`document.getElementById('pdfReaderPage').value='1';document.getElementById('pdfReaderPage').dispatchEvent(new Event('change'));return true`);await wait(350);
     const layoutProbe = await run(`
       const hash=player.pdfReader.pdfHash;
       const invalid=await window.api.preparePdfText({pdfHash:'missing',pages:[]});
@@ -391,6 +402,9 @@ app
     await run("AppSettingsUI.open();return true");
     await wait(200);
     await capture("settings.png");
+    await run(`document.getElementById('appSettingsDialog')?.close();UiLocale.set('tr',false);state.lastQualityReport={blocks:10,translation_blocks:10,translation_failed:2,translation_issues:2,translation_number_mismatch_indices:[0],translation_negation_mismatch_indices:[4]};state.speechCoverageIndices=[6];showResultModal({files:[],segments:10,language:'en'});return true`);
+    assert(await run(`return document.getElementById('qualityVerdict').classList.contains('needs-review') && document.getElementById('modalTranslationReview').textContent.includes('8/10') && document.getElementById('modalTranslationReview').textContent.includes('Olumlu/olumsuz')`),'Meaning issues cannot receive a layout-only clean verdict');
+    await capture('translation-review-tr.png');await run('closeResultModal();return true');
     fs.writeFileSync(
       path.join(out, "results.json"),
       JSON.stringify(

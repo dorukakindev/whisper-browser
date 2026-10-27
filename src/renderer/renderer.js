@@ -67,6 +67,7 @@ const state = {
   gpuMissing: false,    // nvidia-smi yanıtsız: seçim 'cuda' kalsa da GPU yok (rozet dürüstlüğü)
   lastJobVideo: null,   // son işin yerel video yolu (burn-in için; YouTube ise null)
   lastQualityReport: null, // son işin kalite raporu (sonuç modalında gösterilir)
+  speechCoverageIndices: [],
   activeOutputJob: null, // done çıktısını doğru medya/rol ile bağlamak için iş anlık görüntüsü
   watchDir: null,       // izlenen klasör (yeni dosyalar kuyruğa eklenir)
   syncVideo: null,      // altyazı senkron aracı: referans video
@@ -766,6 +767,7 @@ async function processNextQueueItem() {
   state.startTime = Date.now();
   state.outputFiles = [];
   state.lastQualityReport = null;
+  state.speechCoverageIndices = [];
 
   // Eklenirken dondurulmuş ayarları kullan (yoksa mevcut UI'dan üret — geriye uyum)
   const opts = next.opts ? { ...next.opts, ...queueSecretsFromCurrentUi(next.opts) } : buildOptsFromUI();
@@ -4214,6 +4216,7 @@ $('startBtn').addEventListener('click', async () => {
   state.startTime = Date.now();
   state.outputFiles = [];
   state.lastQualityReport = null;
+  state.speechCoverageIndices = [];
   $('startBtn').classList.add('hidden');
   $('cancelBtn').classList.remove('hidden');
   setProgress(0);
@@ -5411,7 +5414,9 @@ window.api.onEvent((event) => {
       break;
 
     case 'translation_coverage': {
-      const rows=(event.indices||[]).map(i=>Number(i)+1).filter(Number.isFinite);
+      if(state.cancelled)break;
+      state.speechCoverageIndices=Array.isArray(event.indices)?event.indices.filter(i=>Number.isSafeInteger(i)&&i>=0):[];
+      const rows=state.speechCoverageIndices.map(i=>i+1);
       if(rows.length)notifyDone(interfaceChoice('Ses çevirisini kontrol et','Review speech translation'),interfaceChoice('Belirgin kısalan satırlar: ','Strongly shortened rows: ')+rows.slice(0,30).join(', '));
       break;
     }
@@ -5711,6 +5716,9 @@ function showResultModal(event) {
   // Kalite raporu satırı (varsa)
   const qr = state.lastQualityReport;
   const qEl = $('modalQuality');
+  const resultReview=window.TranslationReviewSummary.summarize(qr||{},state.speechCoverageIndices);
+  $('resultModal').dataset.review=String(resultReview.needsReview||resultReview.layout>0);
+  $('resultModalTitle').textContent=resultReview.failed?interfaceChoice('Kısmi çeviri hazır','Partial translation ready'):resultReview.needsReview?interfaceChoice('Altyazı hazır — kontrol gerekli','Subtitles ready — review needed'):interfaceChoice('Altyazı hazır','Subtitles ready');
   if (qEl) {
     if (qr && qr.blocks) {
       const issueCount = Number(qr.cps_violations || 0) + Number(qr.overlaps || 0) + Number(qr.too_long || 0);
@@ -5718,14 +5726,27 @@ function showResultModal(event) {
       $('qualityOverlap').textContent = String(qr.overlaps || 0);
       $('qualityLong').textContent = String(qr.too_long || 0);
       $('qualityMaxCps').textContent = String(Math.round(Number(qr.max_cps) || 0));
-      $('qualityVerdict').textContent = issueCount ? 'Elle kontrol' : 'Sorunsuz';
-      $('qualityVerdict').classList.toggle('needs-review', issueCount > 0);
+      const translationReview=window.TranslationReviewSummary.summarize(qr,state.speechCoverageIndices);
+      const needsReview=issueCount>0||translationReview.needsReview;
+      $('qualityVerdict').textContent = needsReview ? interfaceChoice('Elle kontrol','Review needed') : interfaceChoice('Otomatik kontrollerde sorun bulunmadı','No automatic flags');
+      $('qualityVerdict').classList.toggle('needs-review', needsReview);
       qEl.classList.remove('hidden');
     } else {
       qEl.classList.add('hidden');
     }
   }
 
+  const translationPanel=$('modalTranslationReview');
+  if(translationPanel){
+    translationPanel.replaceChildren();const summary=window.TranslationReviewSummary.summarize(qr||{},state.speechCoverageIndices);
+    translationPanel.classList.toggle('hidden',!summary.total&&!summary.needsReview);
+    if(summary.total||summary.needsReview){
+      const title=document.createElement('h3');title.textContent=interfaceChoice('Çeviri ve ses metni kontrolü','Translation & narration text review');translationPanel.append(title);
+      const completion=document.createElement('p');completion.textContent=summary.failed?interfaceChoice(`Kısmi çeviri: ${summary.ready}/${summary.total} hazır; ${summary.failed} satır eksik.`,`Partial translation: ${summary.ready}/${summary.total} ready; ${summary.failed} rows incomplete.`):interfaceChoice(`${summary.total} çeviri satırı. Otomatik kontroller insan değerlendirmesi yerine geçmez.`,`${summary.total} translation rows. Automatic checks do not replace human review.`);translationPanel.append(completion);
+      for(const group of summary.groups){const p=document.createElement('p');p.textContent=interfaceChoice(group.tr,group.en)+': '+group.indices.slice(0,12).map(n=>n+1).join(', ')+(group.indices.length>12?'…':'');translationPanel.append(p);}
+      const note=document.createElement('small');note.textContent=interfaceChoice('Okuma hızı altyazı ölçüsüdür; sesin süreye sığdığını veya anlamın bütünüyle korunduğunu kanıtlamaz.','Reading speed describes subtitles; it does not prove speech fits the time window or preserves every meaning.');translationPanel.append(note);
+    }
+  }
   const filesEl = $('modalFiles');
   filesEl.innerHTML = '';
   (event.files || []).forEach((f) => {
@@ -5994,6 +6015,7 @@ $('reexportJson').addEventListener('click', async () => {
   state.startTime = Date.now();
   state.outputFiles = [];
   state.lastQualityReport = null;
+  state.speechCoverageIndices = [];
   state.lastJobVideo = null;
   $('startBtn').classList.add('hidden');
   $('cancelBtn').classList.remove('hidden');
@@ -6048,6 +6070,7 @@ $('syncBtn').addEventListener('click', async () => {
   state.startTime = Date.now();
   state.outputFiles = [];
   state.lastQualityReport = null;
+  state.speechCoverageIndices = [];
   state.lastJobVideo = state.syncVideo;
   $('startBtn').classList.add('hidden');
   $('cancelBtn').classList.remove('hidden');
@@ -24890,6 +24913,14 @@ function cancelPdfReaderRenders(reader) {
   reader?.renderTasks?.clear();
 }
 async function renderPdfReaderPage(pageNumber) {
+  const reader=player.pdfReader;if(!reader?.pdf)return;
+  const key=`${reader.renderGeneration||0}:${pageNumber}`;
+  reader.renderPromises ||= new Map();
+  if(reader.renderPromises.has(key))return reader.renderPromises.get(key);
+  const work=renderPdfReaderPageNow(pageNumber);reader.renderPromises.set(key,work);
+  try{return await work;}finally{if(reader.renderPromises.get(key)===work)reader.renderPromises.delete(key);}
+}
+async function renderPdfReaderPageNow(pageNumber) {
   const reader = player.pdfReader;
   if (!reader?.pdf) return;
   const generation = reader.renderGeneration || 0;
@@ -25145,6 +25176,7 @@ async function openPdfReader(filePath = '') {
     await renderPdfReaderPage(pageNumber);
   }
   const root = $('pdfReaderPages'); root.onscroll = () => {
+    if(player.pdfReader?.zooming||player.pdfReader?.navigatingPage)return;
     const page = [...readerPagesForVisibility()].filter(p=>p.visible>0).sort((a, b) => b.visible-a.visible || Math.abs(a.top)-Math.abs(b.top))[0];
     if (page) {
       player.pdfReader.currentPage = page.number;
@@ -25177,13 +25209,15 @@ $('pdfReaderOpen')?.addEventListener('click', () => openPdfReader());
 $('pdfReaderPage')?.addEventListener('change', (event) => {
   const reader = player.pdfReader;
   if (!reader?.pdf) return;
-  const page = Math.max(1, Math.min(reader.pdf.numPages, Number(event.target.value) || 1));
+  const raw=Number(event.target.value),page = Math.max(1, Math.min(reader.pdf.numPages, Number.isFinite(raw)?Math.floor(raw):1));
+  const generation=reader.renderGeneration||0;
+  const navigation=(reader.navigationSequence||0)+1;reader.navigationSequence=navigation;reader.navigatingPage=true;
   reader.currentPage = page; event.target.value = String(page);
   // Sayfa henüz çizilmemişse önce çiz, sonra kaydır (eskiden kaydırma boşa gidiyordu).
   renderPdfReaderPage(page).catch(() => {}).then(() => {
-    if (player.pdfReader !== reader) return;
-    document.querySelector(`.pdf-page[data-page="${page}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
+    if (player.pdfReader !== reader || reader.currentPage!==page || (reader.renderGeneration||0)!==generation) return;
+    document.querySelector(`.pdf-page[data-page="${page}"]`)?.scrollIntoView({ behavior: 'instant', block: 'start' });
+  }).finally(()=>{if(reader.navigationSequence===navigation)reader.navigatingPage=false;});
 });
 $('pdfReaderClose')?.addEventListener('click', () => {
   const reader = player.pdfReader;
@@ -25232,6 +25266,9 @@ function setPdfReaderZoom(nextScale) {
   if (!reader?.pdf) return;
   const next = Math.min(2.5, Math.max(.5, Number(nextScale) || 1));
   if (Math.abs(next - reader.scale) < .001) return;
+  const page=reader.currentPage,root=$('pdfReaderPages'),article=reader.pages.get(page)?.article;
+  const offset=article&&root?Math.max(0,Math.min(1,(root.getBoundingClientRect().top-article.getBoundingClientRect().top)/Math.max(1,article.getBoundingClientRect().height))):0;
+  reader.zooming=true;
   reader.scale = next;
   $('pdfReader').style.setProperty('--pdf-reader-font', `${20*next}px`);
   reader.renderGeneration = (reader.renderGeneration || 0) + 1;
@@ -25245,8 +25282,12 @@ function setPdfReaderZoom(nextScale) {
   }
   $('pdfReaderPages')?.replaceChildren();
   if ($('pdfZoomValue')) $('pdfZoomValue').textContent = `%${Math.round(next * 100)}`;
-  for (const pageNumber of [reader.currentPage, reader.currentPage + 1, reader.currentPage + 2]
-    .filter((number) => number <= reader.pdf.numPages)) void renderPdfReaderPage(pageNumber);
+  const generation=reader.renderGeneration;
+  void Promise.all([page,page+1,page+2].filter(number=>number<=reader.pdf.numPages).map(renderPdfReaderPage)).then(()=>{
+    if(player.pdfReader!==reader||reader.renderGeneration!==generation)return;
+    reader.zooming=false;if(reader.currentPage!==page)return;
+    const target=reader.pages.get(page)?.article;if(root&&target)root.scrollTo({top:root.scrollTop+target.getBoundingClientRect().top-root.getBoundingClientRect().top+offset*target.getBoundingClientRect().height,behavior:'instant'});
+  }).catch(()=>{if(player.pdfReader===reader&&reader.renderGeneration===generation)reader.zooming=false;});
 }
 $('pdfZoomIn')?.addEventListener('click', () => setPdfReaderZoom((player.pdfReader?.scale || 1) + .15));
 $('pdfZoomOut')?.addEventListener('click', () => setPdfReaderZoom((player.pdfReader?.scale || 1) - .15));
