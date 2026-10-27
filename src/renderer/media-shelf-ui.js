@@ -27,7 +27,7 @@
   document.body.append(dock);
   dock.append(dockStatus);
   const transport=el('div','ms-transport'),shuffleButton=btn(t('Shuffle','Karıştır'),()=>{order.shuffle(!order.snapshot().shuffled);syncQueue();},'mh-text-button ms-shuffle'),repeatButton=btn(t('Repeat off','Tekrar kapalı'),()=>{const modes=['off','all','one'];order.setRepeat(modes[(modes.indexOf(order.snapshot().repeat)+1)%3]);syncQueue();},'mh-text-button ms-repeat'),queueButton=btn(t('Queue','Kuyruk'),openQueue,'mh-action ms-queue-open');
-  shuffleButton.setAttribute('aria-pressed','false');transport.append(shuffleButton,repeatButton,queueButton);dock.insertBefore(transport,dockStatus);
+  shuffleButton.setAttribute('aria-pressed','false');const analyzeCurrent=btn(t('Analyze playing track','Çalan parçayı analiz et'),()=>{if(!current)return;if(current.kind==='music')window.MusicAnalysisUI.open(current.id);else if(current.kind==='spotify')window.MusicAnalysisUI.open({kind:'spotify',playlistId:current.playlistId,id:current.id});},'mh-action ms-current-analyze');analyzeCurrent.hidden=true;transport.append(shuffleButton,repeatButton,queueButton,analyzeCurrent);dock.insertBefore(transport,dockStatus);
 
   function syncQueue(){const state=order.snapshot();queue=state.rows;queueIndex=state.index;shuffleButton.setAttribute('aria-pressed',String(state.shuffled));repeatButton.textContent=state.repeat==='one'?t('Repeat one','Tek parça tekrar'):state.repeat==='all'?t('Repeat all','Liste tekrarı'):t('Repeat off','Tekrar kapalı');repeatButton.dataset.mode=state.repeat;queueButton.textContent=t('Queue','Kuyruk')+' · '+queue.length;paintQueue();paintPlaying();}
   function paintPlaying(){document.querySelectorAll('.ms-track[data-music-id]').forEach(line=>{const playing=current?.id===line.dataset.musicId&&!audio.paused;line.classList.toggle('is-playing',playing);if(playing)line.setAttribute('aria-current','true');else line.removeAttribute('aria-current');});}
@@ -114,7 +114,7 @@
     document.getElementById('playerVideo')?.pause();
     if (window.BrowserDubAudioUI?.pause) window.BrowserDubAudioUI.pause();
     audio.pause(); if (hls) { hls.destroy(); hls = null; }
-    current = row; dockTitle.textContent = row.title;dockTitle.title=[row.title,row.artist].filter(Boolean).join(' · '); dockStatus.textContent = '';
+    current = row;analyzeCurrent.hidden=!['music','spotify'].includes(row.kind); dockTitle.textContent = row.title;dockTitle.title=[row.title,row.artist].filter(Boolean).join(' · '); dockStatus.textContent = '';
     dock.classList.remove('hidden'); document.body.classList.add('media-shelf-playing');
     if (/\.m3u8(?:\?|$)/i.test(source) && window.Hls?.isSupported()) { hls = new window.Hls(); hls.loadSource(source); hls.attachMedia(audio); }
     else audio.src = source;

@@ -1,8 +1,9 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
 function create(options){
- const folders=new Set();let active=null;
+ const folders=new Set(),cache=new Map();let active=null;
  async function prepare(request,online){
+  if(!['spotify','deezer'].includes(request.kind)||typeof request.id!=='string'||!request.id||request.id.length>128)throw Error('Invalid music source identity');const key=JSON.stringify([request.kind,request.playlistId||'',request.id]);const cached=cache.get(key);if(cached&&fs.existsSync(cached.file))return cached;
   if(active)throw Error('A source is being prepared / Bir kaynak hazırlanıyor.');if(folders.size>=8)throw Error('Close music analysis to release temporary sources / Geçici kaynakları temizlemek için müzik analizini kapat.');
   const controller=new AbortController(),runner=options.run||require('./browser-media-tools').run;active=controller;let folder;
   try{
@@ -14,10 +15,10 @@ function create(options){
     const engine=require('./spotify-import').create({run:runner,python:options.python});const abort=()=>engine.cancel();controller.signal.addEventListener('abort',abort,{once:true});let stream;try{controller.signal.throwIfAborted();stream=await engine.stream(row.youtubeUrl);}finally{controller.signal.removeEventListener('abort',abort);}controller.signal.throwIfAborted();
     file=stream.url;metadata={title:row.title,artist:row.artist,origin:'spotify-youtube-excerpt'};seconds=90;
    }else throw Error('Invalid remote music source');
-   controller.signal.throwIfAborted();const wav=path.join(folder,'reference.wav');await runner(options.ffmpeg(),['-v','error','-nostdin','-protocol_whitelist',request.kind==='spotify'?'https,tls,tcp,crypto':'file,pipe',...(request.kind==='spotify'?['-rw_timeout','15000000']:[]),'-i',file,'-t',String(seconds),'-vn','-ac','1','-ar','48000','-c:a','pcm_s16le',wav],null,controller.signal,90000,null,{waitForCloseOnCancel:true});controller.signal.throwIfAborted();if(request.kind!=='spotify')await fs.promises.unlink(file);folders.add(folder);return {file:wav,metadata:{...metadata,excerptSeconds:seconds}};
+   controller.signal.throwIfAborted();const wav=path.join(folder,'reference.wav');await runner(options.ffmpeg(),['-v','error','-nostdin','-protocol_whitelist',request.kind==='spotify'?'https,tls,tcp,crypto':'file,pipe',...(request.kind==='spotify'?['-rw_timeout','15000000']:[]),'-i',file,'-t',String(seconds),'-vn','-ac','1','-ar','48000','-c:a','pcm_s16le',wav],null,controller.signal,90000,null,{waitForCloseOnCancel:true});controller.signal.throwIfAborted();if(request.kind!=='spotify')await fs.promises.unlink(file);folders.add(folder);const result={file:wav,metadata:{...metadata,excerptSeconds:seconds}};cache.set(key,result);return result;
   }catch(error){if(folder)await fs.promises.rm(folder,{recursive:true,force:true});throw error;}finally{if(active===controller)active=null;}
  }
- async function release(){active?.abort();const old=[...folders];old.forEach(f=>folders.delete(f));await Promise.all(old.map(f=>fs.promises.rm(f,{recursive:true,force:true})));}
+ async function release(){active?.abort();cache.clear();const old=[...folders];old.forEach(f=>folders.delete(f));await Promise.all(old.map(f=>fs.promises.rm(f,{recursive:true,force:true})));}
  return {prepare,release,cancel:()=>active?.abort()};
 }
 module.exports={create};
