@@ -1,0 +1,35 @@
+{
+  "run_id": "DEEPSEEK-NIGHT1000-20261027T0441Z-n1k7",
+  "generated_at_utc": "2026-10-27T09:39:11Z",
+  "remote": "https://github.com/dorukakindev/whisper-browser.git",
+  "branch": "master",
+  "start_head": "7f3b0382c969ec183e7a7ebfddedf5d917c7b8ea",
+  "end_head": "7aaaf2083cb5f4d8d239bdbd088ba97ea542256e",
+  "head_changed_during_run": true,
+  "revision_map": {
+    "pkg01-pkg06": "MIXED_REVISION",
+    "pkg01-pkg06_range": "7f3b0382c969ec183e7a7ebfddedf5d917c7b8ea..19d5fb49",
+    "pkg01-pkg06_note": "Satır bazında kesin revizyon bilinmiyor; pkg01-03 raporu 7f3b0382 sonrası, pkg04-06 raporu 53ba2ca4, pkg07-08 19d5fb49 üzerinde koştu. Final HEAD'de yeniden doğrulanmadı.",
+    "pkg07-pkg08": "19d5fb49",
+    "pkg09": {
+      "start_head": "1b41451daaa4be1634965bb5b8edfa65f3f7400a",
+      "end_head": "f88541f8c8e0530bc7bee6657f02d01de665c037",
+      "note": "pkg09 f88541f8'de tamamlandı; paketleme anında current HEAD daha ileri olabilir."
+    },
+    "pkg10": {
+      "start_head": "1b41451daaa4be1634965bb5b8edfa65f3f7400a",
+      "end_head": "f88541f8c8e0530bc7bee6657f02d01de665c037",
+      "note": "pkg10 f88541f8'de tamamlandı; paketleme anında current HEAD daha ileri olabilir."
+    },
+    "current_head_note": "Paketleme anındaki HEAD 7aaaf2083cb5f4d8d239bdbd088ba97ea542256e; pkg09/pkg10 f88541f8'de tamamlandı ve bu daha ileri HEAD'de yeniden doğrulanmadı.",
+    "mixed_revision_rows": 0
+  },
+  "versions": {
+    "node": "v25.6.1",
+    "python": "Python 3.11.9",
+    "python_runner_from_tools": "Python 3.14 (runner, probes)",
+    "npm": "11.9.0",
+    "electron": "43.5.0+wvcus (node_modules/electron/dist/electron.exe)",
+    "ffmpeg": "backend/bin (ayrıca C:\\ffmpeg\\bin\\ffmpeg.exe)"
+  }
+}

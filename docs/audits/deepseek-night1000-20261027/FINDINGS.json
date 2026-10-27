@@ -1,0 +1,562 @@
+{
+  "run_id": "DEEPSEEK-NIGHT1000-20261027T0441Z-n1k7",
+  "generated_at_utc": "2026-10-27T09:39:10Z",
+  "schema": "id, package, family, severity(P0-P3), status, title, impact, preconditions[], actual, expected, locations[{file,line,symbol,sha256}], repro{cwd,command,fixture,seed}, evidence[], root_cause, duplicate_of, minimal_fix_direction, related_tests[]",
+  "sources": [
+    "pkg01/FINDINGS.json",
+    "pkg02/FINDINGS.json",
+    "pkg03/FINDINGS.json",
+    "pkg04/FINDINGS.json",
+    "pkg05/FINDINGS.json",
+    "pkg06/FINDINGS.json",
+    "pkg07/FINDINGS.json",
+    "pkg08/FINDINGS.json",
+    "pkg09/FINDINGS.json",
+    "pkg10/FINDINGS.json"
+  ],
+  "findings": [
+    {
+      "id": "B05-01",
+      "package": "pkg05",
+      "family": "F23",
+      "severity": "P3",
+      "status": "SUSPECTED",
+      "title": "Dublaj kurtarma uyarısı hiç başarısız parça yokken de gösteriliyor",
+      "impact": "Motor zaman aşımından sonra tüm parçalar geçerliyken bile kullanıcı 'üretilemeyen bölümler kalite raporunda işaretlendi' uyarısını görür; gereksiz yeniden inceleme/üretim dürtüsü doğar.",
+      "preconditions": [
+        "timing/engine recovery yolu: bounded_call EngineStalled sonrası dub_resume.recover_completed çağrılır ve bütün parçalar geçerli WAV döner."
+      ],
+      "actual": "recover_completed sonunda koşulsuz `print('DUB_WARNING incomplete_audio')` çalışır (dub_resume.py:33). dub-service bu satırı koşulsuz UI uyarısına çevirir (dub-service.js:662). Probe: tek geçerli parça ile çağrıldığında stdout'ta DUB_WARNING incomplete_audio görüldü (N0441 kanıtı).",
+      "expected": "Uyarı yalnız en az bir grup failed/recoveryReason taşıyorsa üretilmeli; tümü hazırsa sessiz kalmalı.",
+      "locations": [
+        {
+          "file": "tools/voxcpm2/dub_resume.py",
+          "line": 33,
+          "symbol": "recover_completed",
+          "sha256": "3222608a51eafe754ec0b8d56ba5b229033760be3d863a28196ac0e55b78d31c"
+        }
+      ],
+      "repro": {
+        "command": "backend/venv/Scripts/python.exe probes/p23-dub-resume.py --mech normal",
+        "cwd": "D:/Whisper Local",
+        "fixture": "probes/p23-dub-resume.py (0,5 sn 16 kHz PCM_16 WAV + ready/passed sidecar)",
+        "seed": null
+      },
+      "evidence": [
+        "logs/Tpkg05-N0441.stdout.txt",
+        "logs/Tpkg05-N0459.stdout.txt"
+      ],
+      "root_cause": "Uyarı, döngüde oluşan failed satır sayısına bağlanmamış; fonksiyonun çağrılmış olması yeterli sayılmış.",
+      "duplicate_of": null,
+      "minimal_fix_direction": "Uyarıyı `any(row['status']=='failed' ...)` koşuluna bağla; aksi halde yalnız özet satırını bas.",
+      "related_tests": [
+        "tests/test_dub_generation_quality.py",
+        "tests/test_dub_quality.py"
+      ]
+    },
+    {
+      "id": "F33-01",
+      "package": "pkg07",
+      "family": "F33",
+      "severity": "P3",
+      "status": "SUSPECTED",
+      "title": "Silinen bölüm sesi M4B dışa aktarmada ham ENOENT hatası (Türkçeleştirilmemiş, mutlak yol içerir)",
+      "impact": "Kullanıcı proje klasöründeki bir bölüm wav dosyasını silerse/taşırsa veya antivirüs karantinaya alırsa, dışa aktarma/önizleme 'ENOENT: no such file or directory, lstat C:\\...\\0-....wav' gibi ham İngilizce teknik mesaj ve tam yerel yol gösterir; kullanıcı ne yapacağını anlayamaz ve dosya sistemi yolu arayüzde açığa çıkar.",
+      "preconditions": [
+        "Kitap projesi bölümü status=ready ve c.output dolu",
+        "Bölüm wav dosyası uygulama dışında silinir veya klasör yolu değişir",
+        "book-export-preview ya da book-export çağrılır"
+      ],
+      "actual": "book-export-preview yanıtı {ok:false, error:\"ENOENT: no such file or directory, lstat 'C:\\\\Users\\\\PUBLIC_USER\\\\0-670c2df7db808d72-a25c03311c785132.wav'\"} döndürüyor (logs/Tpkg07-N0659.stdout.txt, 'kullanici-geribildirimi' mekanizması).",
+      "expected": "Yerelleştirilmiş ve yol içermeyen mesaj; ör. 'Bölüm ses dosyası bulunamadı; bölümü yeniden üretin / Chapter audio file is missing; regenerate it.' Aynı dosyadaki diğer hatalar çift dilli ('... / Seçili bölümlerin güncel ve onaylı sesi gerekli.').",
+      "locations": [
+        {
+          "file": "src/media-workflows.js",
+          "line": 1350,
+          "symbol": "book-export: fs.lstatSync(f) bölüm sesi denetimi",
+          "sha256": "c85e063af2a1ff3206d9fd9e1209891aeba43ca1a62e93c88f01a5ef6cc4036d"
+        }
+      ],
+      "repro": {
+        "cwd": "D:\\Whisper Local",
+        "command": "python docs/raporlar/DEEPSEEK-NIGHT1000-20261027T0441Z-n1k7/probes/run.py --task pkg07 --id N0659 --desc \"M4B kullanici geri bildirimi\" -- node docs/raporlar/DEEPSEEK-NIGHT1000-20261027T0441Z-n1k7/probes/p33-book-m4b-metadata.js --mech kullanici-geribildirimi",
+        "fixture": "Geçici klasörde registerMediaWorkflows + sahtelenmiş dialog/ffmpeg/ffprobe/statfs; 2 bölüm prepare edilir, 1. bölümün proje klasöründeki wav'ı silinir",
+        "seed": null
+      },
+      "evidence": [
+        "logs/Tpkg07-N0659.stdout.txt",
+        "logs/Tpkg07-N0641-existing-test.stdout.txt",
+        "pkg07/TASK-MATRIX.csv"
+      ],
+      "root_cause": "Dışa aktarma dalında bölüm dosyaları fs.lstatSync ile doğrudan denetleniyor (src/media-workflows.js:1350); ENOENT/ENOTDIR yakalanmıyor. media-workflows hata yerelleştiricisi yalnız ' / ' ayraçlı çift dilli metinleri böldüğü için ham Node hata metni olduğu gibi dönüyor.",
+      "duplicate_of": null,
+      "minimal_fix_direction": "Dosya denetimini try/catch ile sar; ENOENT/ENOTDIR için çift dilli, yol içermeyen hata üret (diğer bölüm hatalarıyla aynı kalıp). Yolu yalnız günlüğe yaz.",
+      "related_tests": [
+        "tests/book-export.test.js"
+      ]
+    },
+    {
+      "id": "F38-01",
+      "package": "pkg08",
+      "family": "F38",
+      "severity": "P3",
+      "status": "SUSPECTED",
+      "title": "Relink/mükerrer bulucu Türkçe büyük İ'yi katlamıyor: 'İğdır' ile 'iğdır' aday üretmiyor",
+      "impact": "Aynı filmin farklı klasörlerdeki kopyaları yalnız Türkçe büyük/küçük harfle ayrılıyorsa (ör. 'İğdır Şölen.mkv' ve 'iğdır şölen.mkv') mükerrer bulucu grubu hiç üretmez; taşınmış/yeniden kodlanmış dosyada boyut da farklıysa relink adayı listelenmez. Kullanıcı yanlışlıkla ikinci bir kütüphane kaydı tutar ya da taşınan dosyayı elle bağlamak zorunda kalır.",
+      "preconditions": [
+        "Kütüphane kaydı dosya adı Türkçe büyük İ içerir",
+        "Diğer kopya/aday adı yalnız harf kalınlığında farklıdır",
+        "Mükerrer bulucu: her iki kayıtta da boyut bilgisi var; relink: adayın boyutu farklı"
+      ],
+      "actual": "findLibraryDuplicates([{'localPath':'D:\\\\a\\\\İğdır Şölen.mkv','sizeBytes':100},{'localPath':'D:\\\\b\\\\iğdır şölen.mkv','sizeBytes':100}]) → [] (grup yok). selectRelinkCandidates({'localPath':'D:\\\\a\\\\İğdır Şölen.mkv','sizeBytes':100},[{'path':'D:\\\\b\\\\iğdır şölen.mkv','sizeBytes':200}]) → {status:'none',ranked:[]}. ASCII karşılığı ('Igdir'/'igdir') aynı senaryoda grup üretiyor (logs/Tpkg08-N0744.stdout.txt 'unicode' mekanizması).",
+      "expected": "Türkçe metin katlaması depo genelindeki desenle (toLocaleLowerCase('tr') / foldSearch) yapılmalı; 'İğdır'/'iğdır' aynı ada katlanıp mükerrer grubu ve (boyut eşleşmiyorsa) listelenebilir relink adayı üretmeli.",
+      "locations": [
+        {
+          "file": "src/media-relink-matcher.js",
+          "line": 13,
+          "symbol": "normalizeName",
+          "sha256": "7dd8e695a7d46f1a996be5d4ba30902554284e450e18f63e5ce5c067dfbc7d8e"
+        },
+        {
+          "file": "src/media-relink-matcher.js",
+          "line": 138,
+          "symbol": "stemNorm",
+          "sha256": "7dd8e695a7d46f1a996be5d4ba30902554284e450e18f63e5ce5c067dfbc7d8e"
+        }
+      ],
+      "repro": {
+        "cwd": "D:\\Whisper Local",
+        "command": "python docs/raporlar/DEEPSEEK-NIGHT1000-20261027T0441Z-n1k7/probes/run.py --task pkg08 --id N0744 --desc \"relink unicode\" -- node docs/raporlar/DEEPSEEK-NIGHT1000-20261027T0441Z-n1k7/probes/p38-relink.js --mech unicode",
+        "fixture": "Sentetik kütüphane kayıtları (D:\\a, D:\\b); gerçek dosya yok",
+        "seed": null
+      },
+      "evidence": [
+        "logs/Tpkg08-N0744.stdout.txt",
+        "logs/Tpkg08-N0741-existing-test.stdout.txt"
+      ],
+      "root_cause": "normalizeName/stemNorm varsayılan String.prototype.toLowerCase kullanıyor; Türkçe 'İ' küçültmede 'i' + U+0307 (birleşik nokta) üretir ve 'iğdır' ile eşleşmez. Depoda Türkçe için toLocaleLowerCase('tr')/foldSearch deseni zaten var (src/browser-address-model.js, renderer foldSearch).",
+      "duplicate_of": null,
+      "minimal_fix_direction": "normalizeName/stemNorm içinde toLocaleLowerCase('tr') ve ı/i katlaması kullan (depodaki foldSearch deseni); ASCII davranışını değiştirmediğini tests/media-relink-matcher.test.js ile doğrula.",
+      "related_tests": [
+        "tests/media-relink-matcher.test.js"
+      ]
+    },
+    {
+      "id": "F39-01",
+      "package": "pkg08",
+      "family": "F39",
+      "severity": "P3",
+      "status": "SUSPECTED",
+      "title": "Kesik Letterboxd CSV satırı içe aktarmada AttributeError üretiyor (ValueError sözleşmesi bozuluyor)",
+      "impact": "Yarım indirilmiş/elle kesilmiş bir Letterboxd CSV'sinde son satırda alan eksikse içe aktarma kullanıcıya anlamsız teknik mesaj (\"'NoneType' object has no attribute 'isdigit'\") ile başarısız olur; hangi satırın/alanın bozuk olduğu söylenmez.",
+      "preconditions": [
+        "CSV başlığı Name/Year içerir",
+        "Son kayıtta alan sayısı başlıktan az (dosya kesik)",
+        "media_shelf.py letterboxd() çağrılır (tek CSV veya ZIP üyesi)"
+      ],
+      "actual": "letterboxd_archive/letterboxd → AttributeError: 'NoneType' object has no attribute 'isdigit' (girdi 'Name,Year\\nFilm'). CLI bu metni stderr'e basıp çıkış kodu 1 veriyor (logs/Tpkg08-N0772.stdout.txt 'kesik' mekanizması).",
+      "expected": "ValueError ile anlaşılır doğrulama hatası (ör. 'Row 1: missing Year value. / Satır 1: Year alanı eksik.') veya eksik alanın boş kabul edilmesi (year=''), böylece diğer satırlar içe aktarılabilir.",
+      "locations": [
+        {
+          "file": "backend/media_shelf.py",
+          "line": 210,
+          "symbol": "letterboxd: year.isdigit()",
+          "sha256": "0ed176c871edbecbd14c6768273a9f676d5f09ad0787e33f16c9e2f1419b990d"
+        }
+      ],
+      "repro": {
+        "cwd": "D:\\Whisper Local",
+        "command": "python docs/raporlar/DEEPSEEK-NIGHT1000-20261027T0441Z-n1k7/probes/run.py --task pkg08 --id N0772 --desc \"Letterboxd kesik CSV\" -- backend/venv/Scripts/python.exe docs/raporlar/DEEPSEEK-NIGHT1000-20261027T0441Z-n1k7/probes/p39-letterboxd-csv.py --mech kesik",
+        "fixture": "Bellekte üretilen ZIP: ratings.csv = 'Name,Year\\nFilm' (kesik satır)",
+        "seed": null
+      },
+      "evidence": [
+        "logs/Tpkg08-N0772.stdout.txt",
+        "logs/Tpkg08-N0761-existing-test.stdout.txt"
+      ],
+      "root_cause": "csv.DictReader eksik alanları None ile doldurur; kod row.get('Year','') dönen None değerini doğrudan .isdigit() ile kullanıyor. Başlık doğrulaması var ama alan tipi normalizasyonu yok.",
+      "duplicate_of": null,
+      "minimal_fix_direction": "year değerini str(row.get('Year') or '') ile normalize et (rating/tags için de aynı desen), eksik alanı boş say; istenirse ValueError'a satır numarası ekle.",
+      "related_tests": [
+        "backend/test_media_shelf.py"
+      ]
+    },
+    {
+      "id": "F09-01",
+      "package": "pkg09",
+      "family": "F41/F42",
+      "severity": "P3",
+      "status": "SUSPECTED",
+      "title": "Keşfet/arama arka uç hata metinleri TR arayüzde ham İngilizce gösteriliyor",
+      "impact": "Türkçe arayüzde çevrimiçi sonuç ekleme veya ayrıntı yükleme başarısız olduğunda kullanıcı 'Unauthorized request.' / 'Discovery HTTP 500' gibi İngilizce teknik metin görür; sorunun ne olduğu ve ne yapılacağı Türkçe anlatılmaz. Aynı kök media-search-ui bildirim kutusunda da var.",
+      "preconditions": [
+        "Çevrimiçi keşfet/arama kullanılıyor",
+        "Sağlayıcı 4xx/5xx döndürüyor veya oturum yetkisiz",
+        "Arayüz dili TR"
+      ],
+      "actual": "media-discovery-service.js hata metinlerini İngilizce üretiyor ('Unauthorized request.', 'Discovery HTTP '+status, 'Discovery is busy; try again shortly.', 'Invalid discovery page.'). media-discovery-ui.js yalnız 'Ayrıntılar alınamadı: ' önekini çevirip error.message'ı ham ekliyor (satır 38). media-search-ui.js eklenti hatasını doğrudan status.textContent'e yazıyor (satır 24/41). jsdom probu TR yerelde yetkisiz eklemede durum metninin tamamen 'Unauthorized request.' olduğunu ve hiç Türkçe karakter içermediğini doğruladı.",
+      "expected": "TR arayüzde kullanıcıya Türkçe, eylem öneren hata metni gösterilmesi (CLAUDE.md: tüm kullanıcı metinleri Türkçe).",
+      "locations": [
+        {
+          "file": "src/media-discovery-service.js",
+          "line": 95,
+          "symbol": "authorized/media-discovery:request",
+          "sha256": "2273d57ab6366cb5036139c2c0afbc02698a0bbce6a4b70b618857c0024ec819"
+        },
+        {
+          "file": "src/media-discovery-service.js",
+          "line": 65,
+          "symbol": "request HTTP error",
+          "sha256": "2273d57ab6366cb5036139c2c0afbc02698a0bbce6a4b70b618857c0024ec819"
+        },
+        {
+          "file": "src/media-discovery-service.js",
+          "line": 169,
+          "symbol": "Unsupported discovery action",
+          "sha256": "2273d57ab6366cb5036139c2c0afbc02698a0bbce6a4b70b618857c0024ec819"
+        },
+        {
+          "file": "src/renderer/media-discovery-ui.js",
+          "line": 38,
+          "symbol": "details catch",
+          "sha256": "b035839dddee4a1679182d7e4d787a5dee2e4fc70befcc0ac463effa609639a8"
+        },
+        {
+          "file": "src/renderer/media-search-ui.js",
+          "line": 24,
+          "symbol": "row onclick catch",
+          "sha256": "e3a8fb45b5c61a4dfa11569cdbc5c61af5d2516091702e0d19bd53d758c9e9cc"
+        }
+      ],
+      "repro": {
+        "cwd": "D:\\Whisper Local",
+        "command": "python docs/raporlar/DEEPSEEK-NIGHT1000-20261027T0441Z-n1k7/probes/run.py --task pkg09 --id N0837 -- node docs/raporlar/DEEPSEEK-NIGHT1000-20261027T0441Z-n1k7/probes/p42-media-search-home.js --mech yetki",
+        "fixture": "jsdom: yerel katalog + sahte mediaDiscovery({ok:false,error:'Unauthorized request.'})",
+        "seed": null
+      },
+      "evidence": [
+        "logs/Tpkg09-N0837.stdout.txt",
+        "probes/p42-media-search-home.js (yetki: TR ham İngilizce assert)"
+      ],
+      "root_cause": "Hata sözleşmesi main/backend katmanında İngilizce sabit metinlerle kurulu; renderer yalnız bağlam öneki çeviriyor ve hata kodunu Türkçe karşılığa eşleyen bir sözlük yok.",
+      "duplicate_of": null,
+      "minimal_fix_direction": "Backend'de hata KODU döndür (unauthorized/http_500/busy/invalid_page) ve renderer'da ui-locale sözlüğüyle TR/EN metne çevir; ham error.message'ı kullanıcı yüzeyine yazma.",
+      "related_tests": [
+        "tests/media-discovery-service.test.js",
+        "tests/media-search-gallery.test.js"
+      ]
+    },
+    {
+      "id": "F09-02",
+      "package": "pkg10",
+      "family": "F50",
+      "severity": "P3",
+      "status": "SUSPECTED",
+      "title": "Tamamen bozuk gizli kasa JSON'u anahtar kaydetmeyi kalıcı olarak engelliyor ve ham İngilizce hata veriyor",
+      "impact": "secrets.safe.json geçersiz JSON olduğunda SafeSecretStore.load() {ok:false} döner, save() de aynı ham Node ayrıştırma hatasıyla reddeder; dosya korunur ama otomatik karantina/yeniden kurma yoktur. Kullanıcı dosyayı elle silmeden API anahtarı kaydedemez ve gördüğü mesaj teknik/İngilizcedir.",
+      "preconditions": [
+        "safeStorage kullanılabilir",
+        "Kasa dosyası geçersiz JSON (disk bozulması/elle düzenleme)"
+      ],
+      "actual": "loadFile catch'i {ok:false, error: error.message} döndürüyor (ham 'Expected property name ... JSON at position 1'). save(), existing.ok/partial/rawEntries boş olduğu için aynı nesneyi döndürüp hiç yazmıyor; geçerli sürüm/gelecek sürüm kasasında bilinçli koruma var (test 5), fakat ayrıştırılamayan dosya için karantina yolu yok. Probo bunu gerçek geçici dosyayla doğruladı.",
+      "expected": "Bozuk kasa karantinaya alınıp (.corrupt-*) yeni kasa kurulabilmeli veya kullanıcıya Türkçe, eylemli (dosyayı yedekle/sıfırla) mesaj gösterilmeli; en azından hata metni Türkçeleştirilmeli.",
+      "locations": [
+        {
+          "file": "src/secret-store.js",
+          "line": 180,
+          "symbol": "SafeSecretStore.loadFile catch",
+          "sha256": "bd843ce1e02e07371a6b829e0b007f9e5554ac20927db11ce6c2e05efae8597b"
+        },
+        {
+          "file": "src/secret-store.js",
+          "line": 193,
+          "symbol": "SafeSecretStore.save guard",
+          "sha256": "bd843ce1e02e07371a6b829e0b007f9e5554ac20927db11ce6c2e05efae8597b"
+        },
+        {
+          "file": "src/secret-store.js",
+          "line": 226,
+          "symbol": "SafeSecretStore.save catch",
+          "sha256": "bd843ce1e02e07371a6b829e0b007f9e5554ac20927db11ce6c2e05efae8597b"
+        }
+      ],
+      "repro": {
+        "cwd": "D:\\Whisper Local",
+        "command": "python docs/raporlar/DEEPSEEK-NIGHT1000-20261027T0441Z-n1k7/probes/run.py --task pkg10 --id N0999 -- node docs/raporlar/DEEPSEEK-NIGHT1000-20261027T0441Z-n1k7/probes/p50-settings-secret-atomic.js --mech kullanici-geribildirimi",
+        "fixture": "temp kasa dosyası '{yarım' içeriğiyle; sahte safeStorage",
+        "seed": null
+      },
+      "evidence": [
+        "logs/Tpkg10-N0999.stdout.txt",
+        "probes/p50-settings-secret-atomic.js (kesik + kullanici-geribildirimi)"
+      ],
+      "root_cause": "loadFile ayrıştırma hatasını ham Error.message ile döndürüyor; save() bilinmeyen/bozuk kasa üzerine yazmama güvenlik kuralını ayrıştırılamayan dosyaya da uyguluyor, fakat kurtarma yolu eklemiyor.",
+      "duplicate_of": null,
+      "minimal_fix_direction": "loadFile catch'inde bozuk dosyayı '.corrupt-<zaman>' adına taşı (transaction journal'daki gibi) ve save() için temiz kasa kur; hata metnini Türkçe üret.",
+      "related_tests": [
+        "tests/secret-store-recovery.test.js",
+        "tests/settings-security.test.js"
+      ]
+    }
+  ],
+  "summary": {
+    "total": 6,
+    "unique_roots": 6,
+    "duplicates": 0,
+    "by_status": {
+      "FAIL_CONFIRMED": 0,
+      "SUSPECTED": 6,
+      "BLOCKED_ENV": 0,
+      "INCONCLUSIVE": 0
+    },
+    "by_severity": {
+      "P0": 0,
+      "P1": 0,
+      "P2": 0,
+      "P3": 6
+    },
+    "by_package": {
+      "pkg05": 1,
+      "pkg07": 1,
+      "pkg08": 2,
+      "pkg09": 1,
+      "pkg10": 1
+    },
+    "confirmed_roots": 0,
+    "suspected_roots": 6,
+    "blocked": 0,
+    "not_run": 0,
+    "not_applicable_rows": 151,
+    "location_checks": {
+      "total": 13,
+      "mismatch_count": 1
+    }
+  },
+  "suggestions": [
+    {
+      "id": "SUG-A01",
+      "source": "pkg01/pkg02/pkg03 AUDIT-REPORT > Gözlemler",
+      "package": "pkg01-03",
+      "family": "F14",
+      "status": "SUGGESTION",
+      "title": "Diakritiksiz (ASCII) Türkçe çeviri kalite kapısında modal_missing üretiyor",
+      "detail": "translation_blocking_issues('I will call you tomorrow.','Yarin seni arayacagim.') -> ['modal_missing']; doğru diakritikli biçim geçiyor. Model çıktısı pratikte diakritikli olduğu için kullanıcı etkisi kanıtlanmadı.",
+      "note": "pkg01–03 AUDIT-REPORT'larında dosya/satır/sha256 veya log dosyası kanıtı YOK; bu yüzden FINDINGS'e SUSPECTED olarak eklenmedi, öneri olarak bırakıldı. Kanıt üretilmeden bug sayılmamalı.",
+      "locations": [],
+      "evidence": []
+    },
+    {
+      "id": "SUG-A02",
+      "source": "pkg01/pkg02/pkg03 AUDIT-REPORT > Gözlemler",
+      "package": "pkg01-03",
+      "family": "F05",
+      "status": "SUGGESTION",
+      "title": "Sağlayıcı servisi iptalden sonra delta paketi yayabilir; renderer yutuyor",
+      "detail": "onDelta abort kontrolü yok; renderer task.cancelled bayrağıyla bunları yutuyor, kullanıcıya sızmıyor. Katman savunması doğru; main tarafında abort kontrolü eklenebilir.",
+      "note": "pkg01–03 AUDIT-REPORT'larında dosya/satır/sha256 veya log dosyası kanıtı YOK; SUSPECTED'a yükseltilmedi.",
+      "locations": [],
+      "evidence": []
+    },
+    {
+      "id": "SUG-A03",
+      "source": "pkg01/pkg02/pkg03 AUDIT-REPORT > Gözlemler",
+      "package": "pkg01-03",
+      "family": "F07",
+      "status": "SUGGESTION",
+      "title": "evidenceOf çeviri alanı için yalnız 'translation' anahtarını okuyor",
+      "detail": "start/end/text için Türkçe alias (baslangic/bitis/metin) kabul edilirken çeviri için yalnız translation okunuyor; bugünkü çağıranlar İngilizce anahtar yazdığı için sorun yok.",
+      "note": "pkg01–03 AUDIT-REPORT'larında dosya/satır/sha256 veya log dosyası kanıtı YOK; SUSPECTED'a yükseltilmedi.",
+      "locations": [],
+      "evidence": []
+    },
+    {
+      "id": "SUG-B01",
+      "source": "pkg07/pkg08 AUDIT-REPORT > Ayrı geliştirme önerileri",
+      "package": "pkg07-08",
+      "status": "SUGGESTION",
+      "title": "M4B dışa aktarma ve boş disk hatalarını çift dilli hata kalıbına taşı",
+      "detail": "F33-01 ile aynı ailede kalan İngilizce/yol içeren hata metinleri için ortak yerelleştirme kalıbı kullanılmalı.",
+      "note": "F33-01'in düzeltme yönüyle örtüşen genel iyileştirme; ayrı kök değil.",
+      "locations": [],
+      "evidence": []
+    },
+    {
+      "id": "SUG-B02",
+      "source": "pkg07/pkg08 AUDIT-REPORT > Ayrı geliştirme önerileri",
+      "package": "pkg07-08",
+      "status": "SUGGESTION",
+      "title": "Türkçe büyük/küçük harf katlaması için tek ortak yardımcı kullan",
+      "detail": "Relink/mükerrer bulucu ve arama filtreleri aynı foldSearch/toLocaleLowerCase('tr') desenini paylaşmalı (F38-01).",
+      "note": "F38-01 ile ilişkili genel iyileştirme.",
+      "locations": [],
+      "evidence": []
+    },
+    {
+      "id": "SUG-B03",
+      "source": "pkg08 AUDIT-REPORT > Ayrı geliştirme önerileri",
+      "package": "pkg08",
+      "status": "SUGGESTION",
+      "title": "Letterboxd CSV alanlarını tek normalize yardımcısından geçir",
+      "detail": "year/rating/tags için None/boş alan normalizasyonu tek yerde toplanmalı (F39-01).",
+      "note": "F39-01 ile ilişkili genel iyileştirme.",
+      "locations": [],
+      "evidence": []
+    },
+    {
+      "id": "SUG-C01",
+      "source": "pkg09/pkg10 AUDIT-REPORT > Geliştirme önerileri",
+      "package": "pkg09-10",
+      "status": "SUGGESTION",
+      "title": "i18n kapsam testini data-en panelini tanıyacak şekilde genişlet",
+      "detail": "tests/i18n-coverage.test.js başlangıç HEAD'inde kırmızı; gerçek index.html düğümleriyle koşulan N0939 probu EN/TR metnin doğru olduğunu gösterdi. Kapı kapsamı eksik.",
+      "note": "Ürün kökü değil, test kapsamı gözlemi.",
+      "locations": [],
+      "evidence": [
+        "pkg10/evidence/N0939-i18n-coverage.stdout.txt",
+        "pkg10/evidence/N0939-i18n-coverage.stderr.txt"
+      ]
+    },
+    {
+      "id": "SUG-C02",
+      "source": "pkg09/pkg10 AUDIT-REPORT > Geliştirme önerileri",
+      "package": "pkg09-10",
+      "status": "SUGGESTION",
+      "title": "electron-media-home smoke'una adım etiketi/stack çıktısı ekle",
+      "detail": "N0840 INCONCLUSIVE: renderer içinde querySelector(...).click() null döndü; hata yığını/adım bilgisi yüzeye çıkmadı.",
+      "note": "Teşhis edilebilirlik iyileştirmesi; ürün hatası iddiası değil.",
+      "locations": [],
+      "evidence": [
+        "logs/Tpkg09-N0840.stderr.txt"
+      ]
+    }
+  ],
+  "blocked": [],
+  "location_verification": {
+    "all_files_exist": true,
+    "all_sha256_64_chars": true,
+    "mismatches_at_final_head": [
+      {
+        "finding": "F33-01",
+        "file": "src/media-workflows.js",
+        "line": 1350,
+        "exists": true,
+        "sha256_len": 64,
+        "sha256_matches_final_head": false
+      }
+    ],
+    "checked": [
+      {
+        "finding": "B05-01",
+        "file": "tools/voxcpm2/dub_resume.py",
+        "line": 33,
+        "exists": true,
+        "sha256_len": 64,
+        "sha256_matches_final_head": true
+      },
+      {
+        "finding": "F33-01",
+        "file": "src/media-workflows.js",
+        "line": 1350,
+        "exists": true,
+        "sha256_len": 64,
+        "sha256_matches_final_head": false
+      },
+      {
+        "finding": "F38-01",
+        "file": "src/media-relink-matcher.js",
+        "line": 13,
+        "exists": true,
+        "sha256_len": 64,
+        "sha256_matches_final_head": true
+      },
+      {
+        "finding": "F38-01",
+        "file": "src/media-relink-matcher.js",
+        "line": 138,
+        "exists": true,
+        "sha256_len": 64,
+        "sha256_matches_final_head": true
+      },
+      {
+        "finding": "F39-01",
+        "file": "backend/media_shelf.py",
+        "line": 210,
+        "exists": true,
+        "sha256_len": 64,
+        "sha256_matches_final_head": true
+      },
+      {
+        "finding": "F09-01",
+        "file": "src/media-discovery-service.js",
+        "line": 95,
+        "exists": true,
+        "sha256_len": 64,
+        "sha256_matches_final_head": true
+      },
+      {
+        "finding": "F09-01",
+        "file": "src/media-discovery-service.js",
+        "line": 65,
+        "exists": true,
+        "sha256_len": 64,
+        "sha256_matches_final_head": true
+      },
+      {
+        "finding": "F09-01",
+        "file": "src/media-discovery-service.js",
+        "line": 169,
+        "exists": true,
+        "sha256_len": 64,
+        "sha256_matches_final_head": true
+      },
+      {
+        "finding": "F09-01",
+        "file": "src/renderer/media-discovery-ui.js",
+        "line": 38,
+        "exists": true,
+        "sha256_len": 64,
+        "sha256_matches_final_head": true
+      },
+      {
+        "finding": "F09-01",
+        "file": "src/renderer/media-search-ui.js",
+        "line": 24,
+        "exists": true,
+        "sha256_len": 64,
+        "sha256_matches_final_head": true
+      },
+      {
+        "finding": "F09-02",
+        "file": "src/secret-store.js",
+        "line": 180,
+        "exists": true,
+        "sha256_len": 64,
+        "sha256_matches_final_head": true
+      },
+      {
+        "finding": "F09-02",
+        "file": "src/secret-store.js",
+        "line": 193,
+        "exists": true,
+        "sha256_len": 64,
+        "sha256_matches_final_head": true
+      },
+      {
+        "finding": "F09-02",
+        "file": "src/secret-store.js",
+        "line": 226,
+        "exists": true,
+        "sha256_len": 64,
+        "sha256_matches_final_head": true
+      }
+    ]
+  },
+  "notes": [
+    "B05-01: tekil 'location' nesnesi locations[] dizisine çevrildi ve tools/voxcpm2/dub_resume.py için sha256 tam 64 karakter olarak yeniden hesaplandı.",
+    "F33-01 sha256 değeri pkg07'nin koştuğu 19d5fb49 revizyonunda hesaplandı; src/media-workflows.js PR #541-#543 ile değiştiği için final HEAD (f88541f8) karmasıyla eşleşmiyor. Değer uydurulmadı; revizyon kanıtı olarak korundu.",
+    "F09-01 ve F09-02 FINDINGS'te SUSPECTED olarak kayıtlıdır, ancak 1000-SENARYO.csv'de N0837 ve N0999 satırları PASS ve finding_ids boştur. CSV değiştirilmedi; bu tutarsızlık AUDIT-REPORT.md'de bildirildi.",
+    "pkg01-03 AUDIT-REPORT'larındaki üç davranış gözlemi (SUG-A01..A03) dosya/satır/sha256 veya log kanıtı taşımadığı için SUSPECTED yapılmadı; öneri olarak bırakıldı.",
+    "duplicate_of alanları boş: altı kökün hiçbiri diğerinin veya önceki denetim kimliğinin tekrarı değil.",
+    "blocked[] boş: matriste BLOCKED_ENV/NOT_RUN satırı yok; canlı ağ/ücretli API/GPU/model kapsam dışı bırakıldı."
+  ]
+}

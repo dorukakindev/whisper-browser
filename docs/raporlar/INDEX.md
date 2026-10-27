@@ -1,3 +1,4 @@
+- [Rapor647](BROWSER_BUG_REPORT_647.md) — 1000 gece denetimi arşivi, senaryo imzaları ve yeniden tarama politikası
 - [Rapor646](BROWSER_BUG_REPORT_646.md) — Yeni denetim: CSV, kurtarma uyarısı, Unicode aday ve kayıp bölüm sesi
 - [Rapor645](BROWSER_BUG_REPORT_645.md) — Kitap save/prepare iptal yarışı, sabit kapsam ve gerçek native kabul
 - [Rapor644](BROWSER_BUG_REPORT_644.md) — Kitap açılışında son istek, geç render ve doğru asistan sonucu

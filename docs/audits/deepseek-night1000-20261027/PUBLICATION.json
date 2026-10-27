@@ -1,0 +1,58 @@
+{
+  "original_run": "DEEPSEEK-NIGHT1000-20261027T0441Z-n1k7",
+  "original_files": 2074,
+  "original_package_sha256": "5c4f2e45250bc0d78dde8f5d2d44f8466b755a69d589bcf4e9cf150e0eb0affa",
+  "included_files": 2056,
+  "redacted_user_paths": [
+    {
+      "path": "AUDIT-REPORT.md",
+      "replacements": 1
+    },
+    {
+      "path": "FINDINGS.json",
+      "replacements": 1
+    },
+    {
+      "path": "pkg07/FINDINGS.json",
+      "replacements": 1
+    },
+    {
+      "path": "probes/write_findings.py",
+      "replacements": 1
+    }
+  ],
+  "excluded": [
+    "MANIFEST.json",
+    "SNAPSHOT.json",
+    "checkpoints/pkg01.zip",
+    "checkpoints/pkg02.zip",
+    "checkpoints/pkg03.zip",
+    "checkpoints/pkg04.zip",
+    "checkpoints/pkg05.zip",
+    "checkpoints/pkg06.zip",
+    "checkpoints/pkg07.zip",
+    "checkpoints/pkg08.zip",
+    "checkpoints/pkg09.zip",
+    "checkpoints/pkg10.zip",
+    "pkg09/SNAPSHOT.json",
+    "pkg10/SNAPSHOT.json",
+    "probes/__pycache__/drive.cpython-311.pyc",
+    "probes/__pycache__/drive.cpython-314.pyc",
+    "probes/__pycache__/p18-writers.cpython-311.pyc",
+    "probes/__pycache__/write_checkpoints.cpython-314.pyc",
+    "probes/__pycache__/_lib.cpython-311.pyc"
+  ],
+  "snapshot_removed_fields": [
+    "repo",
+    "dirty_start_entries",
+    "working_tree_comparison",
+    "own_change_scope",
+    "location_sha256_at_final_head",
+    "commit inventories"
+  ],
+  "notes": [
+    "Only controlled synthetic test logs are included. No screenshots, profiles, nested ZIPs, bytecode or user media.",
+    "Source snapshot was mixed revision. Publication hashes do not establish historical execution revisions.",
+    "UTF-8 text BOMs removed for consistent archive text; all public file hashes regenerated."
+  ]
+}
