@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "spotifyPlayNext": true,
+  "spotifyAppend": true,
+  "repeatsAndOrderPersisted": true,
+  "localPlaybackPreserved": true,
+  "mixedQueueSaved": true,
+  "mixedQueueReopened": true,
+  "spotifySearch": true,
+  "narrow": true
+}
