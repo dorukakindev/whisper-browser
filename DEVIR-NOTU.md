@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-0205.md](docs/devir/2026-10-28-0205.md) — Ana sayfada eksik küçük resimler
 Güncel çalışma: [docs/devir/2026-10-28-0148.md](docs/devir/2026-10-28-0148.md) — Müzik seçim ve analiz çalışma alanı
 Güncel çalışma: [docs/devir/2026-10-28-0127.md](docs/devir/2026-10-28-0127.md) — Spotify ve internet analiz kaynakları
 Güncel çalışma: [docs/devir/2026-10-28-0111.md](docs/devir/2026-10-28-0111.md) — Luna müzik akışları ve kozmetik
