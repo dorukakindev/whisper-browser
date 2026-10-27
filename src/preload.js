@@ -63,6 +63,7 @@ contextBridge.exposeInMainWorld('api', {
   mediaWorkflows: request => ipcRenderer.invoke('media-workflows:request',request),
   onMediaWorkflow: cb => { const handler=(_event,value)=>cb(value);ipcRenderer.on('media-workflows:event',handler);return ()=>ipcRenderer.removeListener('media-workflows:event',handler); },
   mediaShelf: request => ipcRenderer.invoke('media-shelf:request', request),
+  musicAnalysis: request => ipcRenderer.invoke('music-analysis:request', request),
   mediaDiscovery: request => ipcRenderer.invoke('media-discovery:request', request),
   mediaTorrents: request => ipcRenderer.invoke('media-torrents:request',request),
   assistantThreads: request => ipcRenderer.invoke('assistant-threads:request',request),
