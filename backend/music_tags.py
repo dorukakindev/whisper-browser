@@ -35,22 +35,26 @@ def scores(audio,text):
     if (norms<1e-8).any():raise ValueError('Zero text embedding')
     return np.clip(a@(x/norms).T,-1,1)
 
-def analyze(request,directory):
+def text_features(prompts,directory):
     for name,(size,sha) in ASSETS.items():
         if not (directory/name).is_file() or (directory/name).stat().st_size!=size or hashlib.sha256((directory/name).read_bytes()).hexdigest()!=sha:
             raise ValueError('Prepare label resources first / Önce etiket kaynaklarını hazırla.')
-    data=search({**request,'tracks':[],'return_features':True},directory)
     import torch
     from transformers import ClapTextModelWithProjection, RobertaTokenizerFast
     torch.set_num_threads(2)
     tokenizer=RobertaTokenizerFast.from_pretrained(str(directory),local_files_only=True)
     model=ClapTextModelWithProjection.from_pretrained(str(directory),local_files_only=True,weights_only=True).eval()
+    with torch.inference_mode():
+        return model(**tokenizer(prompts,padding=True,truncation=True,max_length=77,return_tensors='pt')).text_embeds.numpy()
+
+def analyze(request,directory):
+    data=search({**request,'tracks':[],'return_features':True},directory)
+    all_prompts=[f'This is {label} music.' if category in ['genre','mood'] else f'The sound of {label} in a music recording.' for category,labels in CATEGORIES.items() for label in labels]
+    all_text=text_features(all_prompts,directory);offset=0
     groups=[]
     for category,labels in CATEGORIES.items():
         emit(stage='tags',title=category)
-        prompts=[f'This is {label} music.' if category in ['genre','mood'] else f'The sound of {label} in a music recording.' for label in labels]
-        with torch.inference_mode():
-            text=model(**tokenizer(prompts,padding=True,truncation=True,max_length=77,return_tensors='pt')).text_embeds.numpy()
+        text=all_text[offset:offset+len(labels)];offset+=len(labels)
         values=scores(data['vectors'],text)
         groups.append({'id':category,'labels':[{'id':label,'mean':round(float(values[:,i].mean()),5),'segments':[round(float(v),5) for v in values[:,i]]} for i,label in enumerate(labels)]})
     return {'method':'clap-zero-shot-v1','model':MODEL,'revision':REVISION,'segments':data['segments'],'groups':groups,'experimental':True}

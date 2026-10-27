@@ -124,11 +124,12 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
         case 'playlist-save': {
           const data = load(), name = text(input.name, 120);
           if (!name) throw Error('Enter a playlist name.');
-          const ids = new Set(Array.isArray(input.ids) ? input.ids : []);
-          const tracks = data.music.filter(row => ids.has(row.id)).map(row => row.id);
+          if(!Array.isArray(input.ids)||input.ids.length>5000||input.ids.some(id=>typeof id!=='string'))throw Error('Invalid playlist selection.');
+          const tracks = [...new Set(input.ids)],known=new Set(data.music.map(row=>row.id));
+          if(tracks.some(id=>!known.has(id)))throw Error('Playlist selection changed; review the tracks again.');
           if (!tracks.length) throw Error('Select at least one audio file.');
           if (data.playlists.length >= 100) throw Error('Playlist limit reached.');
-          data.playlists.push({ id: randomUUID(), name, tracks }); save(data); return { ok: true };
+          const playlist={id:randomUUID(),name,tracks};data.playlists.push(playlist);save(data);return {ok:true,id:playlist.id};
         }
         case 'listen-progress': {
           const data = load();

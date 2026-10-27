@@ -3,6 +3,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),vm=requir
 const registry=require('../src/assistant-capabilities');
 test('music tools reject unrelated fields, invented operations and partial ranges',()=>{
  for(const args of [{operation:'find_local',source_id:'x',start:2},{operation:'choose_file',source_id:'x'},{operation:'search_online',query:'x',track_id:'invented'},{operation:'shell'},{operation:'cancel'}])assert.throws(()=>registry.validate('music_action',args,{}));
+ assert.throws(()=>registry.validate('music_action',{operation:'set_music_intent',weight:1},{}));assert.throws(()=>registry.validate('music_action',{operation:'propose_playlist',track_id:'x'},{}));assert.equal(registry.validate('music_action',{operation:'set_music_intent',query:'calm guitar',weight:.35,diverse:true},{}).weight,.35);
  assert.equal(registry.validate('music_action',{operation:'find_local',source_id:'x',start:2,end:12},{}).end,12);
  assert.throws(()=>registry.validate('music_action',{operation:'hide_match',track_id:'x'},{}));assert.equal(registry.validate('music_action',{operation:'add_reference',source_id:'x',start:0,end:5},{}).end,5);
  assert.equal(registry.validate('music_action',{operation:'rank_online',source_id:'x',start:2,end:12},{}).source_id,'x');

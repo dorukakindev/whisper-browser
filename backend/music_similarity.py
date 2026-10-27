@@ -118,7 +118,7 @@ def rank(reference, records, excluded_id=None, exclude_artist=False):
     return unique[:20]
 
 
-def rank_many(references, records, exclude_artist=False):
+def rank_many(references, records, exclude_artist=False, limit=20):
     """Equal-weight reference scores; explanations preserve the measured score per seed."""
     import numpy as np
     if not 1 <= len(references) <= 3:
@@ -148,7 +148,32 @@ def rank_many(references, records, exclude_artist=False):
         if content in seen:
             continue
         seen.add(content);unique.append(row)
-    return unique[:20]
+    return unique[:limit]
+
+def steer(hits,records,text_vector,weight=.35,diverse=False):
+    """Explicit blended score, followed by an optional artist cap; no mood claims."""
+    import numpy as np
+    if not 0 <= weight <= .6:raise ValueError('Invalid intent weight')
+    lookup={r['id']:r for r in records}
+    ranked=[]
+    if text_vector is not None:
+        text=np.asarray(text_vector,dtype=np.float32).reshape(-1)
+        if text.shape!=(512,) or not np.isfinite(text).all() or np.linalg.norm(text)<1e-8:raise ValueError('Invalid intent embedding')
+        text=text/np.linalg.norm(text)
+    for hit in hits:
+        row=lookup[hit['id']];copy=dict(hit)
+        if text_vector is not None:
+            similarities=np.clip(valid_vectors(row['vectors'])@text,-1,1)
+            semantic=float(similarities.mean())
+            copy.update({'audioScore':hit['score'],'intentScore':round(semantic,5),'score':round((1-weight)*hit['score']+weight*semantic,5)})
+        ranked.append(copy)
+    ranked.sort(key=lambda r:(-r['score'],r['id']))
+    counts={};result=[]
+    for hit in ranked:
+        artist=lookup[hit['id']].get('artist','').strip().casefold() or 'unknown:'+hit['id']
+        if diverse and counts.get(artist,0)>=2:continue
+        counts[artist]=counts.get(artist,0)+1;result.append(hit)
+    return result[:20]
 
 
 def search(request, directory):
@@ -232,7 +257,15 @@ def search(request, directory):
         except Exception as error:
             failures.append({'id':row['id'],'error':type(error).__name__})
     emit(stage='rank',completed=len(records),total=len(request['tracks']))
-    return {'model':MODEL,'revision':REVISION,'space':SPACE,'results':rank_many(references,records,request.get('excludeArtist',False)),
+    hits=rank_many(references,records,request.get('excludeArtist',False),len(records))
+    intent=request.get('intent','').strip();vector=None
+    if intent:
+        if len(intent)>300:raise ValueError('Intent is too long')
+        emit(stage='tags',title='intent')
+        from music_tags import text_features
+        vector=text_features([intent],directory)[0]
+    hits=steer(hits,records,vector,request.get('intentWeight',.35),request.get('diverse',False))
+    return {'model':MODEL,'revision':REVISION,'space':SPACE,'results':hits,'intent':intent,'intentWeight':request.get('intentWeight',.35) if intent else 0,'diverse':request.get('diverse',False),
             'indexed':len(records),'failed':len(failures),'failures':failures[:20],'cached':cached_count,'referencesUsed':len(references),'referenceSamples':sum(len(ref['vectors']) for ref in references)}
 
 

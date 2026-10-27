@@ -7,7 +7,7 @@ from unittest.mock import patch
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'backend'))
 import numpy as np
-from music_similarity import SPACE, windows, valid_vectors, rank, rank_many
+from music_similarity import SPACE, windows, valid_vectors, rank, rank_many, steer
 import music_similarity
 
 
@@ -16,6 +16,17 @@ def record(id, vector, hash=None, artist=''):
 
 
 class MusicSimilarity(unittest.TestCase):
+    def test_intent_blending_is_explicit_and_diversity_caps_exact_artists(self):
+        a=np.eye(1,512,0)[0];b=np.eye(1,512,1)[0]
+        records=[record('a',b.tolist(),artist='same'),record('b',a.tolist(),artist='same'),record('c',a.tolist(),artist='same')]
+        hits=[{'id':'a','score':.9},{'id':'b','score':.8},{'id':'c','score':.7}]
+        result=steer(hits,records,a,.6,False)
+        self.assertEqual(result[0]['id'],'b');self.assertEqual(result[0]['audioScore'],.8);self.assertEqual(result[0]['intentScore'],1);self.assertAlmostEqual(result[0]['score'],.92)
+        self.assertEqual(len(steer(hits,records,None,.35,True)),2)
+        self.assertEqual(hits[0]['score'],.9)
+        with self.assertRaises(ValueError):steer(hits,records,[0]*512)
+        many=[record(str(i),a.tolist()) for i in range(25)]
+        self.assertEqual(len(rank_many([record('ref',a.tolist())],many,limit=25)),25)
     def test_multi_reference_balances_each_seed_and_explains_real_scores(self):
         a=np.eye(1,512,0)[0];b=np.eye(1,512,1)[0]
         refs=[record('a',a.tolist(),artist='One'),record('b',b.tolist(),artist='Two')]
