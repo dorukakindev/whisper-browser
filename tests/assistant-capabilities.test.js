@@ -19,7 +19,10 @@ test('Tools depend on real source availability; video actions do not require cap
  assert(names({kind:'book',hasSubtitles:false}).includes('get_source_context'));
  assert(!names({kind:'book',hasSubtitles:false}).includes('start_whisper'));
  assert(names({kind:'page'}).includes('translate_page'));
- assert.equal(new Set(registry.list({kind:'video',hasSubtitles:true}).map(row=>row.name)).size,33);
+ const videoTools=registry.list({kind:'video',hasSubtitles:true});assert.equal(new Set(videoTools.map(row=>row.name)).size,videoTools.length);
+ for(const name of ['search_library','discover_titles','get_taste_profile','get_title_details','load_title_reviews'])assert(videoTools.some(row=>row.name===name));
+ assert(!videoTools.some(row=>row.name==='apply_library_collection'));
+ for(const name of ['get_workflow_settings','configure_workflow','undo_workflow_settings'])assert(names({kind:'video'}).includes(name));
 });
 test('Arguments reject unknown actions, secret fields, wrong types and partial ranges',()=>{
  for(const [name,args] of [['shell',{command:'anything'}],['start_whisper',{translate:'true'}],['start_whisper',{translate:true,start:3}],['start_whisper',{translate:true,start:10,end:2}],['open_settings',{section:'ai',apiKey:'never'}],['translate_page',{target_language:'../bad'}]])assert.throws(()=>registry.validate(name,args,{kind:'video',hasSubtitles:true}));

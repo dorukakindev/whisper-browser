@@ -15,6 +15,8 @@
   const noTranslation=/(?:çevirme|çevirmey|çevirilmesin|çevirisiz|çeviri olmadan|çeviri yapmadan|without translat|do not translat|don't translat)/u.test(text);
   if(/(?:çıkarma|çıkarılmasın|başlatma|without transcrib|do not transcrib|don't transcrib)/u.test(text))return null;
   if(/(?:sayfayı|web sayfasını|this page|the page|kitabı|book|pdf|film açıklamasını)/u.test(text))return null;
+  // Configuration requests belong to the typed agent; never infer a production start.
+  if(/(?:model(?:ini|i)?|motor(?:unu|u)?|engine|beam|ayar|settings?|precision|compute|device|font|boyut|opacity)/u.test(text))return null;
   const noWhisper=/(?:whisper.{0,15}kullanma|without whisper)/u.test(text);
   const whisper=!noWhisper&&/(?:\bwhisper\b|\btranscrib(?:e|ing|tion)\b)/u.test(text);
   const subtitle=/(?:altyaz|subtitle|caption)/u.test(text);

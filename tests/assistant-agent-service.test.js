@@ -180,3 +180,12 @@ test('A source change invalidates a renderer receipt; progress exposes only a bo
 });
 
 test('A text-only provider answer is refused if its source changed before completion',async()=>{let done;const h=fixture(()=>new Promise(r=>done=r));try{const run=h.call('agentRun',{requestId:'stale-final-text',question:'Explain',owner:h.owner});await new Promise(setImmediate);h.state.valid=false;done(reply({role:'assistant',content:'Old source answer'}));const r=await run;assert.equal(r.ok,false);assert.match(r.error,/source changed/);assert.equal(h.service.sessions.size,0);}finally{h.app.emit('will-quit');}});
+
+test('Workflow cards show exact changes and refuse a changed settings snapshot before applying',async()=>{
+ for(const drift of [false,true]){
+ let turn=0,model='large-v3',applied=0;const h=fixture(async()=>++turn===1?reply({role:'assistant',tool_calls:[{id:'configure',function:{name:'configure_workflow',arguments:JSON.stringify({domain:'transcription',changes_json:'{"model":"tiny","beamSize":3}'})}}]}):reply({role:'assistant',content:'Card ready.'}));
+ const send=h.sender.send;h.sender.send=(channel,value)=>{send(channel,value);if(value.type==='action')queueMicrotask(()=>{if(value.name==='get_workflow_settings')h.call('agentResult',{callId:value.callId,result:{status:'completed',values:{model,beamSize:5}}});else{applied++;h.call('agentResult',{callId:value.callId,result:{status:'completed',note:'Saved; no job started.'}});}});};
+ try{assert((await h.call('agentRun',{requestId:'workflow',question:'Set tiny with beam three',owner:h.owner})).ok);const card=h.events.find(e=>e.value.type==='proposal').value.action;assert.match(card.summary,/tiny/);assert.match(card.summary,/3/);if(drift)model='base';const result=await h.call('agentApply',{proposalId:card.proposalId,owner:h.owner});assert.equal(result.ok,!drift);assert.equal(applied,drift?0:1);if(drift)assert.match(result.error,/settings changed/);
+ }finally{h.app.emit('will-quit');}
+ }
+});
