@@ -168,4 +168,12 @@ class StreamTests(unittest.TestCase):
             server.shutdown(); server.server_close(); worker.join(timeout=2)
 
 
+class DeepInfraFlexTests(unittest.TestCase):
+    def test_exact_host_flex_and_no_other_provider(self):
+        from assistant_stream import deepinfra_flex_options
+        self.assertEqual(deepinfra_flex_options('https://api.deepinfra.com/v1/openai/'), {'service_tier':'flex'})
+        for endpoint in ('https://api.deepinfra.com.evil/v1/openai','http://api.deepinfra.com/v1/openai','https://api.deepinfra.com/anthropic','https://key@api.deepinfra.com/v1/openai'):
+            self.assertEqual(deepinfra_flex_options(endpoint), {})
+
+
 if __name__ == '__main__': unittest.main()

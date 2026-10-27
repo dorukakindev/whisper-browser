@@ -122,6 +122,19 @@ def _provider_fields(value):
     return vars(value) if hasattr(value, "__dict__") else {}
 
 
+def deepinfra_flex_options(base_url):
+    from urllib.parse import urlsplit
+    try:
+        u = urlsplit(str(base_url))
+        if (u.scheme == "https" and u.hostname == "api.deepinfra.com" and not u.port
+                and not u.username and not u.password and not u.query and not u.fragment
+                and u.path.rstrip("/") in ("/v1/openai", "/v1/openai/chat/completions")):
+            return {"service_tier": "flex"}
+    except (ValueError, TypeError):
+        pass
+    return {}
+
+
 def stream_answer(client, messages, kwargs, emit, checkpoint, tools_context=None):
     """Never retry a provider call once any answer delta has been delivered."""
     context = tools_context if isinstance(tools_context, dict) else {}
@@ -135,6 +148,9 @@ def stream_answer(client, messages, kwargs, emit, checkpoint, tools_context=None
     for round_index in range(4):
         checkpoint()
         options = {**kwargs, "messages": history, "stream": True}
+        flex = deepinfra_flex_options(getattr(client, "base_url", ""))
+        if flex:
+            options["extra_body"] = {**options.get("extra_body", {}), **flex}
         if use_tools and round_index < 3:
             options.update(tools=tool_definitions(), tool_choice="auto")
         for compatibility_attempt in range(3):

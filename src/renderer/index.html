@@ -825,6 +825,9 @@
                   <option value="general">Genel</option>
                 </select>
               </label>
+              <label class="field field-full"><span class="field-label">Assistant provider</span><select id="assistantEndpointPreset"><option value="inherit">Use subtitle provider</option><option value="https://api.deepinfra.com/v1/openai">DeepInfra · DeepSeek V4.1 Flash · Flex</option></select></label>
+              <label class="field field-full"><span class="field-label">Assistant model</span><input id="assistantModel" type="text" value="deepseek-ai/DeepSeek-V4.1-Flash-1017" spellcheck="false" /></label>
+              <label class="field field-full"><span class="field-label">DeepInfra API Key</span><input id="assistantApiKey" type="password" autocomplete="off" spellcheck="false" /></label>
               <label class="field field-full">
                 <span class="field-label">API Key (4SAPI / CodeCraftAPI / shuaiapi / OpenAI uyumlu)</span>
                 <span class="secret-control">
@@ -843,6 +846,7 @@
                   <option value="https://cdn.shuaiapi.com/v1">shuaiapi · Asya Pasifik CDN</option>
                   <option value="https://codecraftapi.com/v1" data-default-model="gemini-3.7-flash">CodeCraftAPI · Gemini 3.7 Flash</option>
                   <option value="https://4sapi.com/v1" data-default-model="gemini-3.8-flash" selected>4SAPI · GPT-5.4 / Gemini 3.8 Flash</option>
+                  <option value="https://api.deepinfra.com/v1/openai" data-default-model="deepseek-ai/DeepSeek-V4.1-Flash-1017">DeepInfra · DeepSeek V4.1 Flash</option>
                   <option value="https://api.apinex.bond/v1" data-default-model="free/deepseek-v4-pro-0813">APINEX · DeepSeek V4 Pro</option>
                   <option value="https://api.openai.com/v1">OpenAI</option>
                   <option value="https://generativelanguage.googleapis.com/v1beta/openai">Gemini · görsel/manga</option>
@@ -910,6 +914,7 @@
                   <option value="https://cdn.shuaiapi.com/v1">shuaiapi · Asya Pasifik CDN</option>
                   <option value="https://codecraftapi.com/v1" data-default-model="gemini-3.7-flash">CodeCraftAPI · Gemini 3.7 Flash</option>
                   <option value="https://4sapi.com/v1" data-default-model="gemini-3.8-flash">4SAPI · GPT-5.4 / Gemini 3.8 Flash</option>
+                  <option value="https://api.deepinfra.com/v1/openai" data-default-model="deepseek-ai/DeepSeek-V4.1-Flash-1017">DeepInfra · DeepSeek V4.1 Flash</option>
                   <option value="https://api.apinex.bond/v1" data-default-model="free/deepseek-v4-pro-0813">APINEX · DeepSeek V4 Pro</option>
                   <option value="https://api.openai.com/v1">OpenAI</option>
                   <option value="https://generativelanguage.googleapis.com/v1beta/openai">Gemini</option>
@@ -3886,6 +3891,7 @@
 <script src="../assistant-context-manifest.js"></script>
 <script src="../scene-timing-tools.js"></script>
 <script src="ui-motion.js"></script>
+<script src="../assistant-settings.js"></script>
 <script src="renderer.js"></script>
 <script src="dub-sync-map.js"></script>
 <script src="dub-workspace-model.js"></script>

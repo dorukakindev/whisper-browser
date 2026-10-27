@@ -39,8 +39,9 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    if(resumed?.waiting)return {ok:true,waiting:true,text:resumed.text};
    const flow=resumed?.flow||flows.start(event.sender.id,owner,input.question);
    const sourcePool=manifest.pool(input.pool);owner.hasSubtitles=sourcePool.length>0;
+   const config=getConfig();
    controller=new AbortController();session={id:input.requestId,controller,owner,flow};sessions.set(event.sender.id,session);
-   stop=()=>controller.abort();event.sender.once('destroyed',stop);timer=setTimeout(stop,120000);
+   stop=()=>controller.abort();event.sender.once('destroyed',stop);timer=setTimeout(stop,require('./assistant-settings').timeout(config));
    const evidence=new Map();
    const execute=async(name,args)=>{
     controller.signal.throwIfAborted();requireOwner(owner);const entry=registry.get(name);
@@ -85,7 +86,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
     }
     return requestRenderer(event.sender,owner,name,args,controller.signal);
    };
-   const result=await provider.run({question:flow.question,continuation:flows.evidence(flow),history:input.history,context:input.context,owner,pool:sourcePool,locale:input.locale,config:getConfig(),signal:controller.signal,fetchImpl,
+   const result=await provider.run({question:flow.question,continuation:flows.evidence(flow),history:input.history,context:input.context,owner,pool:sourcePool,locale:input.locale,config,signal:controller.signal,fetchImpl,
     onDelta:text=>emit(event.sender,{type:'delta',requestId:session.id,text}),
     onCapability:value=>emit(event.sender,{type:'capabilities',requestId:session.id,value}),execute});
    controller.signal.throwIfAborted();

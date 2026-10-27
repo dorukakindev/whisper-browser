@@ -78,7 +78,7 @@ async function run({question,continuation=[],history=[],context={},owner,pool=[]
   signal?.throwIfAborted();let response;
   for(let attempt=0;attempt<3;attempt++){
    response=await fetchImpl(url,{method:'POST',redirect:'error',signal,headers:{'Content-Type':'application/json',...(config.apiKey?{Authorization:'Bearer '+config.apiKey}:{})},
-    body:JSON.stringify({model:config.model,messages,stream:streamed,max_tokens:2400,...(toolsEnabled&&round<3?{tools,tool_choice:'auto'}:{})})});
+    body:JSON.stringify({model:config.model,messages,stream:streamed,max_tokens:2400,...require('./assistant-settings').requestOptions(config.endpoint),...(toolsEnabled&&round<3?{tools,tool_choice:'auto'}:{})})});
    if(response.ok)break;
    const body=(await boundedText(response,16000)).toLowerCase();
    if(!answer&&round===0&&[400,404,422].includes(response.status)&&toolsEnabled&&/\btools\b|tool_choice|function.call/.test(body)){

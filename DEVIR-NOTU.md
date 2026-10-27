@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-27-0303.md](docs/devir/2026-10-27-0303.md) — DeepInfra Flex: bağımsız asistan ve güvenli varsayılan
 Güncel çalışma: [docs/devir/2026-10-27-0233.md](docs/devir/2026-10-27-0233.md) — Asistan P08: gerçek sonuçla devam, tam iş kimliği, iptal ve birleşik Windows kabulü
 Güncel çalışma: [docs/devir/2026-10-27-0155.md](docs/devir/2026-10-27-0155.md) — Asistan P07: kütüphane, koleksiyon, yorum ve normal ayarlar
 Güncel çalışma: [docs/devir/2026-10-27-0140.md](docs/devir/2026-10-27-0140.md) — Asistan P06: kitap/PDF bağlamı ve mevcut üretim eylemleri

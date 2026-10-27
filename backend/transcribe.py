@@ -8701,8 +8701,8 @@ def chat_about_video(args):
     for url in routes:
         try:
             cancellation_checkpoint("llm", "before")
-            client = OpenAI(api_key=args.translate_api_key, base_url=url, timeout=30, max_retries=0)
-            from assistant_stream import stream_answer, PartialAnswerError
+            from assistant_stream import stream_answer, PartialAnswerError, deepinfra_flex_options
+            client = OpenAI(api_key=args.translate_api_key, base_url=url, timeout=720 if deepinfra_flex_options(url) else 30, max_retries=0)
             answer, actions, evidence = call_api_with_retry(lambda: stream_answer(client, messages,
                 {"model": args.translate_model, **chat_generation_kwargs(args.translate_model)},
                 emit, lambda: cancellation_checkpoint("llm", "during"), tools_context), attempts=3)

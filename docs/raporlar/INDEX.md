@@ -1,3 +1,4 @@
+- [Rapor 626](BROWSER_BUG_REPORT_626.md) — Bağımsız DeepInfra Flex asistan, güvenli anahtar ve Windows kabulü
 - [Rapor 625](BROWSER_BUG_REPORT_625.md) — Asistan P08: gerçek sonuçla devam, exact iş, tek yanıt, iptal ve native kabul
 - [Rapor 624](BROWSER_BUG_REPORT_624.md) — Asistan P07: kütüphane/keşfet/koleksiyon/yorum, normal ayar ve koşullu undo
 - [Rapor 623](BROWSER_BUG_REPORT_623.md) — Asistan P06: kaynak bağlı kitap/PDF ve üretim/M4B araçları
