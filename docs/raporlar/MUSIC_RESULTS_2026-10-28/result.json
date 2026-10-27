@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "currentPlayerAnalysis": true,
+  "realDsp": true,
+  "realClapTags": true,
+  "realSelectedTwoRanking": true,
+  "restoredMeasurements": true,
+  "restoredTags": true,
+  "restoredOnlineRanking": true,
+  "noDspRerun": true,
+  "noClapRerun": true,
+  "measurementTagViews": true,
+  "temporaryCleanup": true,
+  "narrow": true
+}
