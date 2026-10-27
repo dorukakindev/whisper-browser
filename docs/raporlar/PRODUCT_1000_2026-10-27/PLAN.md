@@ -561,13 +561,13 @@ Başlangıç 27 Ekim2026 09:26 Europe/Istanbul; yaklaşık10 saatlik pencere19:2
 | P0540 | Yorum analizini aç [open_review_analysis] | Sonuç ve erişim: Başarı/partial/hata sonrası gerçek çıktı veya yeniden deneme erişilsin; dar EN/TR panelde düğmeler kaybolmasın. | `src/assistant-capabilities.js` | PLANLANDI | — |
 | P0541 | Sıcak motor hazır olma ve yeniden kullanım | Tam çıktı: Geçerli ses ve tam grup kanıtında gerçek durum ilerlesin; doğal ses kalitesi iddiası üretme. | `tools/voxcpm2/dub_runtime.py` | PLANLANDI | — |
 | P0542 | Sıcak motor hazır olma ve yeniden kullanım | Eksik son grup: Son grubu kontrollü düşür; önceki geçerli parçalar ve eksik grup kimliği korunsun. | `tools/voxcpm2/dub_runtime.py` | PLANLANDI | — |
-| P0543 | Sıcak motor hazır olma ve yeniden kullanım | İptal sınırı: Çalışan alt süreci iptal et; close olmadan sahipliği bırakma. | `tools/voxcpm2/dub_runtime.py` | PLANLANDI | — |
+| P0543 | Sıcak motor hazır olma ve yeniden kullanım | İptal sınırı: Çalışan alt süreci iptal et; close olmadan sahipliği bırakma. | `tools/voxcpm2/dub_runtime.py` | DÜZELTİLDİ | Rapor642; controlled shutdown/runtime/protocol/generation testleri; GPU/native kill doğrulanmadı; kod de699db4320381c3f16d3f07efb1757861ca82f2 |
 | P0544 | Sıcak motor hazır olma ve yeniden kullanım | Referans değişimi: Aynı metinde referans dalgasını değiştir; eski ses/latent yanlış yeniden kullanılmasın. | `tools/voxcpm2/dub_runtime.py` | İNCELENDİ | tests/test_dub_runtime.py4: tam waveform/prompt hash,15→10 adım reload, tail admission1; kontrollü motor. Acquire başarısızlığında uret finally reset ve worker reset kaynakta doğrulandı; hayali bug sayılmadı. |
 | P0545 | Sıcak motor hazır olma ve yeniden kullanım | Ayar değişimi: Adım/CFG/gruplama değişiminin ilgili cache ve plan kimliğine etkisini denetle. | `tools/voxcpm2/dub_runtime.py` | İNCELENDİ | tests/test_dub_runtime.py4: tam waveform/prompt hash,15→10 adım reload, tail admission1; kontrollü motor. Acquire başarısızlığında uret finally reset ve worker reset kaynakta doğrulandı; hayali bug sayılmadı. |
 | P0546 | Sıcak motor hazır olma ve yeniden kullanım | Süre uyuşmazlığı: Uzun konuşmayı kısa pencereye koy; kesme/yavaşlatma modu açık, sözcük kaybı gizlenmesin. | `tools/voxcpm2/dub_runtime.py` | PLANLANDI | — |
 | P0547 | Sıcak motor hazır olma ve yeniden kullanım | Bozuk ses: Boş/kesik/yanlış format sesi başarı veya karşılaştırılabilir çıktı sayma. | `tools/voxcpm2/dub_runtime.py` | PLANLANDI | — |
 | P0548 | Sıcak motor hazır olma ve yeniden kullanım | Kaynak bağı: Başka video veya bölüm çıktısını yeni kaynağa otomatik bağlama. | `tools/voxcpm2/dub_runtime.py` | PLANLANDI | — |
-| P0549 | Sıcak motor hazır olma ve yeniden kullanım | Sınırlı tekrar: OOM/timeout için sonlu retry; terminal hata kullanıcının referansını gereksiz değişmeye zorlamasın. | `tools/voxcpm2/dub_runtime.py` | PLANLANDI | — |
+| P0549 | Sıcak motor hazır olma ve yeniden kullanım | Sınırlı tekrar: OOM/timeout için sonlu retry; terminal hata kullanıcının referansını gereksiz değişmeye zorlamasın. | `tools/voxcpm2/dub_runtime.py` | DÜZELTİLDİ | Rapor642; controlled shutdown/runtime/protocol/generation testleri; GPU/native kill doğrulanmadı; kod de699db4320381c3f16d3f07efb1757861ca82f2 |
 | P0550 | Sıcak motor hazır olma ve yeniden kullanım | Durum/kanıt: Hazırlık/üretim/doğrulama süreleri ve gerçek kalite durumu ayrı, erişilebilir EN/TR olsun. | `tools/voxcpm2/dub_runtime.py` | PLANLANDI | — |
 | P0551 | Son grup timeout ve tekrar tohumu | Tam çıktı: Geçerli ses ve tam grup kanıtında gerçek durum ilerlesin; doğal ses kalitesi iddiası üretme. | `tools/voxcpm2/altyazi_oku.py` | PLANLANDI | — |
 | P0552 | Son grup timeout ve tekrar tohumu | Eksik son grup: Son grubu kontrollü düşür; önceki geçerli parçalar ve eksik grup kimliği korunsun. | `tools/voxcpm2/altyazi_oku.py` | İNCELENDİ | tests/test_dub_generation_quality.py20:61grup cache/timeout,seed değişimi ve OOM8→4→2, diğer hata tekrarlanmaz; kontrollü motor, gerçek GPU değil. |
@@ -581,13 +581,13 @@ Başlangıç 27 Ekim2026 09:26 Europe/Istanbul; yaklaşık10 saatlik pencere19:2
 | P0560 | Son grup timeout ve tekrar tohumu | Durum/kanıt: Hazırlık/üretim/doğrulama süreleri ve gerçek kalite durumu ayrı, erişilebilir EN/TR olsun. | `tools/voxcpm2/altyazi_oku.py` | PLANLANDI | — |
 | P0561 | Motor iptal sınırı | Tam çıktı: Geçerli ses ve tam grup kanıtında gerçek durum ilerlesin; doğal ses kalitesi iddiası üretme. | `tools/voxcpm2/dub_lifecycle.py` | PLANLANDI | — |
 | P0562 | Motor iptal sınırı | Eksik son grup: Son grubu kontrollü düşür; önceki geçerli parçalar ve eksik grup kimliği korunsun. | `tools/voxcpm2/dub_lifecycle.py` | PLANLANDI | — |
-| P0563 | Motor iptal sınırı | İptal sınırı: Çalışan alt süreci iptal et; close olmadan sahipliği bırakma. | `tools/voxcpm2/dub_lifecycle.py` | PLANLANDI | — |
+| P0563 | Motor iptal sınırı | İptal sınırı: Çalışan alt süreci iptal et; close olmadan sahipliği bırakma. | `tools/voxcpm2/dub_lifecycle.py` | DÜZELTİLDİ | Rapor642; controlled shutdown/runtime/protocol/generation testleri; GPU/native kill doğrulanmadı; kod de699db4320381c3f16d3f07efb1757861ca82f2 |
 | P0564 | Motor iptal sınırı | Referans değişimi: Aynı metinde referans dalgasını değiştir; eski ses/latent yanlış yeniden kullanılmasın. | `tools/voxcpm2/dub_lifecycle.py` | PLANLANDI | — |
 | P0565 | Motor iptal sınırı | Ayar değişimi: Adım/CFG/gruplama değişiminin ilgili cache ve plan kimliğine etkisini denetle. | `tools/voxcpm2/dub_lifecycle.py` | PLANLANDI | — |
 | P0566 | Motor iptal sınırı | Süre uyuşmazlığı: Uzun konuşmayı kısa pencereye koy; kesme/yavaşlatma modu açık, sözcük kaybı gizlenmesin. | `tools/voxcpm2/dub_lifecycle.py` | PLANLANDI | — |
 | P0567 | Motor iptal sınırı | Bozuk ses: Boş/kesik/yanlış format sesi başarı veya karşılaştırılabilir çıktı sayma. | `tools/voxcpm2/dub_lifecycle.py` | PLANLANDI | — |
 | P0568 | Motor iptal sınırı | Kaynak bağı: Başka video veya bölüm çıktısını yeni kaynağa otomatik bağlama. | `tools/voxcpm2/dub_lifecycle.py` | PLANLANDI | — |
-| P0569 | Motor iptal sınırı | Sınırlı tekrar: OOM/timeout için sonlu retry; terminal hata kullanıcının referansını gereksiz değişmeye zorlamasın. | `tools/voxcpm2/dub_lifecycle.py` | PLANLANDI | — |
+| P0569 | Motor iptal sınırı | Sınırlı tekrar: OOM/timeout için sonlu retry; terminal hata kullanıcının referansını gereksiz değişmeye zorlamasın. | `tools/voxcpm2/dub_lifecycle.py` | DOĞRULANDI | Rapor642; controlled shutdown/runtime/protocol/generation testleri; GPU/native kill doğrulanmadı; kod de699db4320381c3f16d3f07efb1757861ca82f2 |
 | P0570 | Motor iptal sınırı | Durum/kanıt: Hazırlık/üretim/doğrulama süreleri ve gerçek kalite durumu ayrı, erişilebilir EN/TR olsun. | `tools/voxcpm2/dub_lifecycle.py` | PLANLANDI | — |
 | P0571 | Bitmiş ses parçalarının kurtarılması | Tam çıktı: Geçerli ses ve tam grup kanıtında gerçek durum ilerlesin; doğal ses kalitesi iddiası üretme. | `tools/voxcpm2/dub_resume.py` | PLANLANDI | — |
 | P0572 | Bitmiş ses parçalarının kurtarılması | Eksik son grup: Son grubu kontrollü düşür; önceki geçerli parçalar ve eksik grup kimliği korunsun. | `tools/voxcpm2/dub_resume.py` | PLANLANDI | — |
@@ -1031,3 +1031,5 @@ Rapor639: güncel kitap işi kimliği, eski sonucun yeni sese yazamaması; iki k
 Rapor640: asistanın işe özel Whisper aralığı ve gerçek ses penceresi kabulü; altı madde kanıtla kapandı.
 
 Rapor641: kısmi Whisper kaynağı ve model/sağlayıcıya bağlı çeviri reuse; gerçek motor kabulü açık.
+
+Rapor642: doğrulanmamış motor kapanışı ve exact sahiplik yeniden denemesi; dört kabul maddesi.
