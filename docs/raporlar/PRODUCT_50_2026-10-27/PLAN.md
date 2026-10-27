@@ -1,8 +1,6 @@
-# Yeni 50 ürün hedefi — 27 Ekim 2026
+# Yeni50ürün hedefi —27Ekim2026
 
-Başlangıç master65505a781a45573d628926e126fc0bf0ca89ff79. Önceki1000denetim ayrı; aynı kök yeni bug diye sayılmaz.50hedef=ürün geliştirme/düzeltme/kabul maddesi;50yeni bug iddiası değildir.
-
-Durum:20/50hedef düzeltme veya kontrollü kabul ile tamamlandı;30planlandı. Gerçekmodel/GPU/site başarısı iddia edilmez.
+30/50hedef uygulama veya kontrollü kabul ile kapsandı;20açık.50yeni bug iddiası değildir. Önceki denetim mevcutregresyonları tekrar yeni keşif sayılmaz; gerçekmodel/GPU/site sınırları satırlarda açık.
 
 | ID | Alan | Hedef/kabul | Durum | Kanıt |
 |---|---|---|---|---|
@@ -26,16 +24,16 @@ Durum:20/50hedef düzeltme veya kontrollü kabul ile tamamlandı;30planlandı. G
 | W18 | Keşfet ve arama hata deneyimi | Başarısız çevrimiçi arama tekrar denenebilir | DOĞRULANDI | R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil. |
 | W19 | Keşfet ve arama hata deneyimi | Geç eski hata yeni sorgunun durumunu ezemez | DOĞRULANDI | R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil. |
 | W20 | Keşfet ve arama hata deneyimi | Native Windows EN/TR hata durumları ve geri dönüş doğrulanır | DOĞRULANDI | R649: media-error-experience649.test.js + native electron-media-errors649.smoke.js; gerçek servis/renderer, kontrollü HTTP503/429/timeout/network; canlı sağlayıcı değil. |
-| W21 | Asistan işlem doğruluğu | Whisper onayı ile gerçek kabul edilen job birbirine bağlı kalır | PLANLANDI | — |
-| W22 | Asistan işlem doğruluğu | Altyazı yokken yetenekler doğru kaynakla yine erişilir | PLANLANDI | — |
-| W23 | Asistan işlem doğruluğu | İş durdurma kartı hatada sahte başarı vermez | PLANLANDI | — |
-| W24 | Asistan işlem doğruluğu | Kaynak değişiminde eski sonuç yeni sohbete uygulanmaz | PLANLANDI | — |
-| W25 | Asistan işlem doğruluğu | Uygulama yardımında olmayan seçenek önerilmez | PLANLANDI | — |
-| W26 | Asistan işlem doğruluğu | Sayfa çeviri başarısızlığı makbuzda görünür | PLANLANDI | — |
-| W27 | Asistan işlem doğruluğu | Asistan uzun sonuç sayfalamasında toplam ve devam doğru kalır | PLANLANDI | — |
-| W28 | Asistan işlem doğruluğu | Kütüphane açılışında gerçek başlık kaynağı doğrulanır | PLANLANDI | — |
-| W29 | Asistan işlem doğruluğu | Kitap okuma ve seçili pasaj bağlamı karışmaz | PLANLANDI | — |
-| W30 | Asistan işlem doğruluğu | İşlem sonrası öneri yalnız gerçek tamamlanan işe bağlıdır | PLANLANDI | — |
+| W21 | Asistan işlem doğruluğu | Whisper onayı ile gerçek kabul edilen job birbirine bağlı kalır | DOĞRULANDI (KONTROLLÜ) | assistant-app-actions explicit frozen Whisper range/job receipt + agent-service exact linked job tests: kontrollü, gerçek Whisper değil. |
+| W22 | Asistan işlem doğruluğu | Altyazı yokken yetenekler doğru kaynakla yine erişilir | DOĞRULANDI (KONTROLLÜ) | assistant-capabilities: video hasSubtitles=false iken start_whisper var; gerçek kapı/registry kontrolü, model davranışı garantisi değil. |
+| W23 | Asistan işlem doğruluğu | İş durdurma kartı hatada sahte başarı vermez | DOĞRULANDI (KONTROLLÜ) | assistant-media-stop638 ve agent-service: failed close/stop aynı işi tutar, sahte completed yok; mevcut regresyon, yeni bug sayılmaz. |
+| W24 | Asistan işlem doğruluğu | Kaynak değişiminde eski sonuç yeni sohbete uygulanmaz | DÜZELTİLDİ/DOĞRULANDI | R650 yeni page receipt stale owner exact cancellation; agent-service late renderer receipt reddi mevcut kontrolü geçti. |
+| W25 | Asistan işlem doğruluğu | Uygulama yardımında olmayan seçenek önerilmez | DOĞRULANDI (KONTROLLÜ) | capabilities/agent-service: registry dışı tool/ayar ve gerçek olmayan kartlar uygulanamaz; sıfır-kart doğrulaması var. Her serbest model metninde doğru öneri garantisi değil. |
+| W26 | Asistan işlem doğruluğu | Sayfa çeviri başarısızlığı makbuzda görünür | DÜZELTİLDİ/DOĞRULANDI | R650 eski kodda red: save/API/source reddi artık accepted değil; exact registered ledger jobId, native gerçek page scheduler ile kabul→bitme→hazır göster. |
+| W27 | Asistan işlem doğruluğu | Asistan uzun sonuç sayfalamasında toplam ve devam doğru kalır | DOĞRULANDI (KONTROLLÜ) | assistant-library-actions mevcut20ID/8sayfa öğesi sayfalaması, tekrarsız gerçek ID/total; yeni özellik değil, kontrollü regresyon. |
+| W28 | Asistan işlem doğruluğu | Kütüphane açılışında gerçek başlık kaynağı doğrulanır | DOĞRULANDI (KONTROLLÜ) | agent-service gerçek title identity sonradan değişince apply reddi; library-actions invent edilmiş item ID reddi, kişisel katalog kullanılmadı. |
+| W29 | Asistan işlem doğruluğu | Kitap okuma ve seçili pasaj bağlamı karışmaz | DÜZELTİLDİ/DOĞRULANDI | R650 seçili kitap pasajı2000karakterde kırpıldığında selectedTextTruncated artık açık; upstream truncation korunur; source kimliği farklıysa seçili metin alınmaz. |
+| W30 | Asistan işlem doğruluğu | İşlem sonrası öneri yalnız gerçek tamamlanan işe bağlıdır | DÜZELTİLDİ/DOĞRULANDI | R650 doğrudan ledgerID resolver ve flow gate running→waiting/done→resume; bilinmeyen ID ilerletemez, incomplete unchanged sayfa completed olmaz. |
 | W31 | Kitap ve PDF okuma | Sayfa aralığı ses üretimine doğru kitap kimliğiyle taşınır | PLANLANDI | — |
 | W32 | Kitap ve PDF okuma | Bölüm değişirken eski ses vurgusu temizlenir | PLANLANDI | — |
 | W33 | Kitap ve PDF okuma | Yer imi eski kitap yerine yalnız güncel kaynağa yazılır | PLANLANDI | — |

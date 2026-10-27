@@ -187,8 +187,8 @@
       "area": "Asistan işlem doğruluğu",
       "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
       "acceptance": "Whisper onayı ile gerçek kabul edilen job birbirine bağlı kalır",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "assistant-app-actions explicit frozen Whisper range/job receipt + agent-service exact linked job tests: kontrollü, gerçek Whisper değil.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -196,8 +196,8 @@
       "area": "Asistan işlem doğruluğu",
       "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
       "acceptance": "Altyazı yokken yetenekler doğru kaynakla yine erişilir",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "assistant-capabilities: video hasSubtitles=false iken start_whisper var; gerçek kapı/registry kontrolü, model davranışı garantisi değil.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -205,8 +205,8 @@
       "area": "Asistan işlem doğruluğu",
       "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
       "acceptance": "İş durdurma kartı hatada sahte başarı vermez",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "assistant-media-stop638 ve agent-service: failed close/stop aynı işi tutar, sahte completed yok; mevcut regresyon, yeni bug sayılmaz.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -214,8 +214,8 @@
       "area": "Asistan işlem doğruluğu",
       "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
       "acceptance": "Kaynak değişiminde eski sonuç yeni sohbete uygulanmaz",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DÜZELTİLDİ/DOĞRULANDI",
+      "evidence": "R650 yeni page receipt stale owner exact cancellation; agent-service late renderer receipt reddi mevcut kontrolü geçti.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -223,8 +223,8 @@
       "area": "Asistan işlem doğruluğu",
       "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
       "acceptance": "Uygulama yardımında olmayan seçenek önerilmez",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "capabilities/agent-service: registry dışı tool/ayar ve gerçek olmayan kartlar uygulanamaz; sıfır-kart doğrulaması var. Her serbest model metninde doğru öneri garantisi değil.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -232,8 +232,8 @@
       "area": "Asistan işlem doğruluğu",
       "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
       "acceptance": "Sayfa çeviri başarısızlığı makbuzda görünür",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DÜZELTİLDİ/DOĞRULANDI",
+      "evidence": "R650 eski kodda red: save/API/source reddi artık accepted değil; exact registered ledger jobId, native gerçek page scheduler ile kabul→bitme→hazır göster.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -241,8 +241,8 @@
       "area": "Asistan işlem doğruluğu",
       "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
       "acceptance": "Asistan uzun sonuç sayfalamasında toplam ve devam doğru kalır",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "assistant-library-actions mevcut20ID/8sayfa öğesi sayfalaması, tekrarsız gerçek ID/total; yeni özellik değil, kontrollü regresyon.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -250,8 +250,8 @@
       "area": "Asistan işlem doğruluğu",
       "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
       "acceptance": "Kütüphane açılışında gerçek başlık kaynağı doğrulanır",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "agent-service gerçek title identity sonradan değişince apply reddi; library-actions invent edilmiş item ID reddi, kişisel katalog kullanılmadı.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -259,8 +259,8 @@
       "area": "Asistan işlem doğruluğu",
       "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
       "acceptance": "Kitap okuma ve seçili pasaj bağlamı karışmaz",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DÜZELTİLDİ/DOĞRULANDI",
+      "evidence": "R650 seçili kitap pasajı2000karakterde kırpıldığında selectedTextTruncated artık açık; upstream truncation korunur; source kimliği farklıysa seçili metin alınmaz.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -268,8 +268,8 @@
       "area": "Asistan işlem doğruluğu",
       "source": "src/renderer/assistant-app-actions.js;src/assistant-agent-service.js",
       "acceptance": "İşlem sonrası öneri yalnız gerçek tamamlanan işe bağlıdır",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DÜZELTİLDİ/DOĞRULANDI",
+      "evidence": "R650 doğrudan ledgerID resolver ve flow gate running→waiting/done→resume; bilinmeyen ID ilerletemez, incomplete unchanged sayfa completed olmaz.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -492,6 +492,23 @@
         "W20"
       ],
       "next": "W21–W30 asistan kabul/iş makbuzu ve kaynak bağlamı. Kitap ve ses20hedef sonra; toplam30açık."
+    },
+    {
+      "report": 650,
+      "code": "b3f0e4e5e100f1ba0a790e508433db15779c3f7f",
+      "completed": [
+        "W21",
+        "W22",
+        "W23",
+        "W24",
+        "W25",
+        "W26",
+        "W27",
+        "W28",
+        "W29",
+        "W30"
+      ],
+      "next": "W31–W40 kitap/PDF, sonra W41–W50 ses/çeviri. GerçekGPU/model/site kalite sınırları korunur."
     }
   ]
 }
