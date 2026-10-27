@@ -45,7 +45,9 @@ async function execute(options,{mode,source,request,signal,onProgress,runner,can
     const valid=[],skipped=[];
     for(const row of tracks){try{valid.push({id:row.id,path:access.inspect(row.path),title:String(row.title||'').slice(0,300),artist:String(row.artist||'').slice(0,200)});}catch{skipped.push(row.id);}}
     const refs=(references||[{...source,range:request.range||null}]).map((r,i)=>({id:'reference:'+r.id+':'+i,path:access.inspect(r.file),artist:r.artist||'',title:r.title||'',range:r.range}));
-    const payload={reference:refs[0],references:refs,tracks:valid,range:refs[0].range,excludeArtist:request.excludeArtist===true,
+    if(request.intent!==undefined&&(typeof request.intent!=='string'||request.intent.length>300))throw Error('Use an English sound description up to 300 characters / En fazla 300 karakter İngilizce ses tarifi kullan.');
+    if(request.intentWeight!==undefined&&(!Number.isFinite(request.intentWeight)||request.intentWeight<0||request.intentWeight>.6))throw Error('Invalid intent weight');
+    const payload={intent:request.intent||'',intentWeight:request.intentWeight??.35,diverse:request.diverse===true,reference:refs[0],references:refs,tracks:valid,range:refs[0].range,excludeArtist:request.excludeArtist===true,
       ffmpeg:options.ffmpeg(),ffprobe:options.ffprobe(),cacheDir:candidates?.cacheDir||path.join(options.userData(),'music-vectors'),preview:!!candidates};
     if(payload.range&&(!Array.isArray(payload.range)||payload.range.length!==2||!payload.range.every(Number.isFinite)||payload.range[0]<0||payload.range[1]-payload.range[0]<1||payload.range[1]-payload.range[0]>1800))throw Error('Invalid music range / Müzik aralığı geçersiz.');
     const result=JSON.parse(await runner(python,args,JSON.stringify(payload),signal,12*60*60*1000,progress,{waitForCloseOnCancel:true}));

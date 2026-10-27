@@ -6,7 +6,7 @@
    const data=await window.api.mediaShelf({action:'list'});guard();if(!data?.ok)throw Error(data?.error||'Music library unavailable');
    const offset=args.offset||0,rows=(data.music||[]),items=rows.slice(offset,offset+16).map(r=>({id:r.id,title:r.title,artist:r.artist,album:r.album,duration:r.duration}));return {status:'completed',items,total:rows.length,nextOffset:offset+16<rows.length?offset+16:null};
   }
-  if(name==='get_music_context')return {status:'completed',...await window.MusicAnalysisUI.read(),note:'Only evidence=preview-clap or local-clap is audio-compared. Catalog results are unverified. Scores are model-space similarities, not probabilities. The assistant itself has not heard the audio.'};
+  if(name==='get_music_context')return {status:'completed',...await window.MusicAnalysisUI.read(),note:'Only evidence=preview-clap or local-clap is audio-compared. Catalog results are unverified. Scores are not probabilities; when audioScore and intentScore exist, score is their explicit weighted blend. playlistDraft status=review is not a created playlist. The assistant itself has not heard the audio.'};
   if(args.operation==='open'){window.MusicAnalysisUI.open();return {status:'completed',...await window.MusicAnalysisUI.read()};}
   const result=await window.MusicAnalysisUI.execute(args);guard();
   if(result.job?.state==='failed'&&['analyze','analyze_tags','find_local','rank_online','prepare_model'].includes(args.operation))throw Error('Music job failed. Inspect the music panel for the exact cause.');
