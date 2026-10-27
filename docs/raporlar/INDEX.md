@@ -1,3 +1,4 @@
+- [Rapor658](BROWSER_BUG_REPORT_658.md) — Asistan iş tanısı, kesin altyazı sonucu ve gerçek Whisper kabulü
 - [Rapor657](BROWSER_BUG_REPORT_657.md) — Asistan149ayar, seçili model ve browser araçları
 - [Rapor656](BROWSER_BUG_REPORT_656.md) — Canlı shuaiapi Sol 6.1 / DeepSeek kalite ve hız karşılaştırması
 - [Rapor655](BROWSER_BUG_REPORT_655.md) — DeepSeek canlı standart katman: çeviri, bağlam ve araç kararları

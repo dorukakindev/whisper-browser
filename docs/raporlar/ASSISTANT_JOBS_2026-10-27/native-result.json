@@ -1,0 +1,40 @@
+{
+  "ok": true,
+  "job": {
+    "id": "22fb9c49-0b0d-4b17-9c27-67a705dcbc89",
+    "kind": "transcription",
+    "state": "completed",
+    "stage": "write",
+    "percent": 100,
+    "startedAt": 1793120672747,
+    "updatedAt": 1793120676084,
+    "finishedAt": 1793120676084,
+    "cancellable": false,
+    "partial": true,
+    "stopFailed": false,
+    "failureCode": null,
+    "counts": null,
+    "result": {
+      "artifacts": [
+        {
+          "role": "source",
+          "language": "en",
+          "format": "srt",
+          "total": 1,
+          "completed": 1,
+          "failed": 0,
+          "partial": false
+        }
+      ],
+      "limited": false
+    }
+  },
+  "loaded": {
+    "cues": 1,
+    "backendJobId": "0adfd80d-ff7d-44e5-9383-8ec9fa8e75cc",
+    "role": "source"
+  },
+  "realCancellation": true,
+  "diagnosticRendering": "synthetic OOM event only; no real GPU failure",
+  "source": "synthetic browser identity; local SAPI speech; real tiny CPU backend; controlled assistant provider"
+}
