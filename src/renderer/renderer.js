@@ -5076,6 +5076,7 @@ function registerCompletedBrowserOutputs(outputs, job) {
       role,
       language,
       label: labelParts.join(' · '),
+      backendJobId: job.backendJobId || null,
       cueCount: Math.max(0, Number(item.total) || 0),
       updatedAt: Date.now(),
       generatedBy: job.clipRange ? 'whisper-range' : item.generatedBy || job.generatedBy || 'whisper', clipRange: job.clipRange ? { ...job.clipRange } : null,
@@ -25990,6 +25991,7 @@ async function startPlayerSubtitleTranslation(config = {}) {
       + `bağlam ±${Number(opts.translateContext || 0)} satır`, 'info');
     const translationJob=player.job;
     const r = await startTranscribeSafe(opts);
+    if(r?.ok)translationJob.backendJobId=r.jobId;
     state.translateForSpeechOverride = null;
     state.forceRetranslate = false;
     state.translateCueRange = null;

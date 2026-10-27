@@ -45,7 +45,7 @@
   $('reviewConfirm').onclick = () => { if (reviewing && !busy) action(reviewing.action,reviewing.id); reviewing = null; $('review').hidden = true; };
   let jobsKey='';
   function renderJobs(value){
-    const rows=(value.jobs||[]).slice(0,6),key=JSON.stringify([value.locale,rows]);if(key===jobsKey)return;jobsKey=key;
+    const rows=[...(value.jobs||[]).filter(row=>['running','cancelling'].includes(row.state)),...(value.jobs||[]).filter(row=>!['running','cancelling'].includes(row.state))].slice(0,6),key=JSON.stringify([value.locale,rows]);if(key===jobsKey)return;jobsKey=key;
     $('jobs').hidden=!rows.length;const tr=value.locale==='tr',active=(value.jobs||[]).filter(row=>['running','cancelling'].includes(row.state)).length;
     $('jobsLabel').textContent=(tr?'İşler':'Jobs')+(active?' · '+active+(tr?' çalışıyor':' active'):tr?' · son işlemler':' · recent');
     $('jobRows').replaceChildren();for(const row of rows){
@@ -54,6 +54,9 @@
       title.textContent=({transcription:tr?'Whisper':'Whisper',translation:tr?'Çeviri':'Translation',voice:tr?'Ses üretimi':'Voice generation',reference:tr?'Referans ses':'Reference voice',captions:tr?'Yakalanan altyazı çevirisi':'Captured caption translation','page-translation':tr?'Sayfa çevirisi':'Page translation','caption-probe':tr?'YouTube bilgisi':'YouTube metadata','caption-download':tr?'Altyazı indirme':'Caption download','legacy-chat':tr?'Eski sohbet':'Legacy chat'})[row.kind]||row.kind;
       detail.textContent=(({running:tr?'Çalışıyor':'Running',cancelling:tr?'Durduruluyor':'Stopping',completed:tr?'Tamamlandı':'Completed',failed:tr?'Başarısız — işlem kaydını aç':'Failed — open the job log',stopped:tr?'Durduruldu':'Stopped'})[row.state]||row.state)+(row.percent!==null?' · '+Math.round(row.percent)+'%':'')+(['running','cancelling'].includes(row.state)&&row.stage&&row.stage!=='starting'?' · '+(({download:tr?'İndirme':'Download',transcribe:tr?'Transkripsiyon':'Transcription',translate:tr?'Çeviri':'Translation',translation:tr?'Çeviri':'Translation',waiting:tr?'Bekleniyor':'Waiting',model_load:tr?'Model yükleniyor':'Loading model',verification:tr?'Ses kontrolü':'Voice verification',file_write:tr?'Dosya yazılıyor':'Writing file'})[row.stage]||row.stage):'');copy.append(title,detail);item.append(copy);
       if(row.percent!==null){const progress=document.createElement('progress');progress.max=100;progress.value=row.percent;progress.setAttribute('aria-label',title.textContent);copy.append(progress);}
+      if(row.counts){const count=document.createElement('small');count.textContent=row.counts.done+' / '+row.counts.total+(row.counts.failed?' · '+row.counts.failed+(tr?' başarısız':' failed'):'');copy.append(count);}
+      if(row.failureCode){const reason=document.createElement('small');reason.textContent=window.AssistantJobDiagnostics.describe(row.failureCode,value.locale);copy.append(reason);}
+      if(row.result?.artifacts?.some(artifact=>artifact.partial)){const warning=document.createElement('small');warning.textContent=tr?'Kısmi altyazı çıktısı — eksik satırları kontrol et.':'Partial subtitle output — review missing lines.';copy.append(warning);}
       if(row.stopFailed){const warning=document.createElement('small');warning.textContent=tr?'Durdurma doğrulanamadı; yeniden deneyebilirsin.':'Stop was not confirmed; you can retry.';copy.append(warning);}
       if(row.cancellable){const stop=document.createElement('button');stop.type='button';stop.textContent=tr?'Durdur':'Stop';stop.onclick=()=>action('cancel-job',row.id);item.append(stop);}
       $('jobRows').append(item);

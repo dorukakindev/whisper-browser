@@ -44,3 +44,22 @@ test('A stalled cancellation does not block chat; state stays stopping until rea
  assert.equal((await jobs.cancel(id)).status,'accepted');assert.equal(jobs.snapshot().jobs[0].state,'cancelling');assert.equal(jobs.snapshot().jobs[0].cancellable,false);
  jobs.update(id,{type:'exit',cancelled:true});assert.equal(jobs.snapshot().jobs[0].state,'stopped');
 });
+
+
+test('stage progress cannot retain download completion during model load; counts and safe partial artifacts remain inspectable',()=>{
+ const jobs=createJobs(),id=jobs.start({});jobs.update(id,{type:'download_progress',percent:100});assert.equal(jobs.snapshot().jobs[0].stage,'download');
+ jobs.update(id,{type:'status',stage:'model_load'});assert.equal(jobs.snapshot().jobs[0].percent,null);
+ jobs.update(id,{type:'llm_progress',done:2,total:3,failed:1});assert.equal(jobs.snapshot().jobs[0].stage,'translate');assert.equal(jobs.snapshot().jobs[0].percent,66);
+ jobs.update(id,{type:'done',outputs:[{path:'C:/private/token-secret.tr.srt',role:'translation',language:'tr',total:3,completed:2,failed:1,lastError:'sk-private-secret'}]});const row=jobs.snapshot().jobs[0];assert.equal(row.state,'completed');assert.equal(row.result.artifacts[0].partial,true);assert.equal(row.result.artifacts[0].failed,1);assert(!JSON.stringify(row).match(/private|secret|path|lastError/));
+});
+
+test('failure hints classify common runtime faults without copying provider text or credentials',()=>{
+ const diagnostics=require('../src/assistant-job-diagnostics');for(const [message,code]of [['CUDA out of memory at C:/private.wav','gpu_memory'],['HTTP 401 invalid api key sk-private','authorization'],['HTTP 429','rate_limit'],['ENOSPC','disk_space'],['ModuleNotFoundError','dependency'],['engine timeout','timeout'],['ECONNRESET https://private/?token=secret','network'],['unrecognized failure','unknown']]){
+  const jobs=createJobs(),id=jobs.start({});jobs.update(id,{type:'error',message});const row=jobs.snapshot().jobs[0];assert.equal(row.failureCode,code);assert(diagnostics.describe(code,'tr').length>20);assert(!JSON.stringify(row).match(/sk-private|C:\/|token=secret/));
+ }
+});
+
+
+test('native overlay evidence projection keeps only diagnostic codes and bounded numeric/artifact fields',()=>{
+ const diagnostics=require('../src/assistant-job-diagnostics');const value=diagnostics.publicEvidence({failureCode:'token=private',counts:{done:1,total:2,failed:1,secret:'private'},result:{artifacts:[{role:'source',format:'srt',language:'en',total:2,completed:1,failed:1,partial:true,path:'C:/private.wav',text:'private'}],secret:'private'}});assert.equal(value.failureCode,null);assert.equal(value.result.artifacts[0].partial,true);assert(!JSON.stringify(value).includes('private'));
+});
