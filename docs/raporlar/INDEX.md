@@ -1,3 +1,4 @@
+- [Rapor663](BROWSER_BUG_REPORT_663.md) — Kaynağa bağlı asistan müzik araçları
 - [Rapor662](BROWSER_BUG_REPORT_662.md) — Canlı internet müzik katalog keşfi ve açık kaynak tercihi
 - [Rapor661](BROWSER_BUG_REPORT_661.md) — CLAP yerel müzik benzerliği ve gerçek model kabulü
 - [Rapor660](BROWSER_BUG_REPORT_660.md) — Gerçek yerel müzik analizi ve native grafik kabulü
