@@ -1,0 +1,67 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+  "requestedTier": "standard",
+  "syntheticOnly": true,
+  "results": [
+    {
+      "id": "translation-normal",
+      "elapsedMs": 5197,
+      "finish": "stop",
+      "servedTier": "default",
+      "usage": {
+        "prompt_tokens": 2058,
+        "total_tokens": 2401,
+        "completion_tokens": 343,
+        "estimated_cost": 0.00014434616,
+        "prompt_tokens_details": {
+          "cached_tokens": 1664,
+          "cache_write_tokens": null
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "text": "{\"sentences\":{\"0\":\"Köprü 1924'te açıldı, 1942'de değil. Kasabanın terk edildiğini hiç söylemedim. Sadece istasyon kapandı.\",\"1\":\"Maya anahtarı Leyla'ya verdi çünkü Leyla kendininkini kaybetmişti. Maya'ya teşekkür etti, güvenliğe değil.\",\"2\":\"Tedavi riski yüzde 15 azaltabilir; iyileşmeyi garanti etmez.\",\"3\":\"Ah, harika. Bir iki saatlik gecikme daha. Tam da ihtiyacımız olan şeydi.\"},\"items\":{\"0\":\"Köprü 1924'te açıldı, 1942'de değil. Kasabanın terk edildiğini hiç söylemedim. Sadece istasyon kapandı.\",\"1\":\"Maya anahtarı Leyla'ya verdi çünkü Leyla kendininkini kaybetmişti. Maya'ya teşekkür etti, güvenliğe değil.\",\"2\":\"Tedavi riski yüzde 15 azaltabilir; iyileşmeyi garanti etmez.\",\"3\":\"Ah, harika. Bir iki saatlik gecikme daha. Tam da ihtiyacımız olan şeydi.\"},\"memory\":{}}"
+    },
+    {
+      "id": "translation-speech",
+      "elapsedMs": 4160,
+      "finish": "stop",
+      "servedTier": "default",
+      "usage": {
+        "prompt_tokens": 2848,
+        "total_tokens": 3193,
+        "completion_tokens": 345,
+        "estimated_cost": 0.00014934808,
+        "prompt_tokens_details": {
+          "cached_tokens": 2432,
+          "cache_write_tokens": null
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "text": "{\"sentences\":{\"0\":\"Köprü 1942'de değil, 1924'te açıldı. Kasabanın terk edildiğini hiç söylemedim. Yalnızca istasyon kapandı.\",\"1\":\"Maya anahtarı Leyla'ya verdi çünkü Leyla kendi anahtarını kaybetmişti. Leyla, gardiyana değil, Maya'ya teşekkür etti.\",\"2\":\"Tedavi riski yüzde 15 azaltabilir; iyileşmeyi garanti etmez.\",\"3\":\"Ah, harika. Bir iki saatlik gecikme daha. Tam da ihtiyacımız olan şey.\"},\"items\":{\"0\":\"Köprü 1942'de değil, 1924'te açıldı. Kasabanın terk edildiğini hiç söylemedim. Yalnızca istasyon kapandı.\",\"1\":\"Maya anahtarı Leyla'ya verdi çünkü Leyla kendi anahtarını kaybetmişti. Leyla, gardiyana değil, Maya'ya teşekkür etti.\",\"2\":\"Tedavi riski yüzde 15 azaltabilir; iyileşmeyi garanti etmez.\",\"3\":\"Ah, harika. Bir iki saatlik gecikme daha. Tam da ihtiyacımız olan şey.\"},\"memory\":{}}"
+    },
+    {
+      "id": "translation-speech-repeat",
+      "elapsedMs": 5953,
+      "finish": "stop",
+      "servedTier": "default",
+      "usage": {
+        "prompt_tokens": 2848,
+        "total_tokens": 3237,
+        "completion_tokens": 389,
+        "estimated_cost": 0.00012578104,
+        "prompt_tokens_details": {
+          "cached_tokens": 2816,
+          "cache_write_tokens": null
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      },
+      "text": "{\"sentences\":{\"0\":\"Köprü 1942'de değil, 1924'te açıldı. Kasabanın terk edildiğini hiç söylemedim. Sadece istasyon kapandı.\",\"1\":\"Maya anahtarı Leyla'ya verdi çünkü Leyla kendi anahtarını kaybetmişti. Leyla, gardiyana değil Maya'ya teşekkür etti.\",\"2\":\"Tedavi riski yüzde 15 azaltabilir; iyileşmeyi garanti etmez.\",\"3\":\"Ah, harika. Bir iki saatlik gecikme daha. Tam da ihtiyacımız olan şeydi.\"},\"items\":{\"0\":\"Köprü 1942'de değil, 1924'te açıldı. Kasabanın terk edildiğini hiç söylemedim. Sadece istasyon kapandı.\",\"1\":\"Maya anahtarı Leyla'ya verdi çünkü Leyla kendi anahtarını kaybetmişti. Leyla, gardiyana değil Maya'ya teşekkür etti.\",\"2\":\"Tedavi riski yüzde 15 azaltabilir; iyileşmeyi garanti etmez.\",\"3\":\"Ah, harika. Bir iki saatlik gecikme daha. Tam da ihtiyacımız olan şeydi.\"},\"memory\":{\"characters\":[{\"name\":\"Maya\",\"style\":\"kadın\"},{\"name\":\"Leyla\",\"style\":\"kadın\"}],\"addresses\":[{\"a\":\"Maya\",\"b\":\"Leyla\",\"register\":\"sen\"}]}}"
+    }
+  ]
+}
