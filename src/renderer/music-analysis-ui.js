@@ -72,7 +72,7 @@
     function tab(isSimilar,internet=false){results.hidden=isSimilar||internet;similar.hidden=!isSimilar||internet;onlinePanel.hidden=!internet;for(const [b,selected] of [[overviewTab,!isSimilar&&!internet],[similarTab,isSimilar&&!internet],[onlineTab,internet]]){b.setAttribute('aria-selected',String(selected));b.tabIndex=selected?0:-1;}repaint();}
     tabs.addEventListener('keydown',event=>{if(['ArrowLeft','ArrowRight'].includes(event.key)){event.preventDefault();const buttons=[overviewTab,similarTab,onlineTab],index=buttons.indexOf(document.activeElement),next=(index+(event.key==='ArrowRight'?1:2))%3;tab(next===1,next===2);buttons[next].focus();}});
     async function refreshModel(){const model=await api('model');if(state.closed)return;state.modelReady=model.ready&&model.runtimeReady;prepare.hidden=model.ready;modelLabel.textContent=!model.runtimeReady?t('Run install-music.bat to prepare the separate CPU environment.','Ayrı CPU ortamını hazırlamak için install-music.bat çalıştır.'):model.ready?t('CLAP ready · local CPU · six excerpts per track','CLAP hazır · yerel CPU · parça başına altı kesit'):t('One-time model download required. Your audio stays local.','Bir defalık model indirmesi gerekiyor. Sesin bilgisayarda kalır.');busy(state.busy);}
-    function showHits(result){
+    function showHits(result){state.matches=result.results.map(r=>({id:r.id,title:r.title,artist:r.artist,score:r.score,matchedRange:r.matchedRange,evidence:'local-clap'}));
       hits.replaceChildren();const summary=node('p','ml-hit-summary',t(`${result.indexed} tracks indexed · ${result.cached} reused · ${result.failed} unavailable`,`${result.indexed} parça indekslendi · ${result.cached} kayıt kullanıldı · ${result.failed} kullanılamadı`));hits.append(summary);
       const explanation=node('p','ml-search-explanation',t('CLAP audio similarity, not a probability or a rating. Long tracks are sampled at up to six 10-second passages.','CLAP ses benzerliğidir; olasılık veya beğeni puanı değildir. Uzun parçalarda en fazla altı 10 saniyelik bölüm örneklenir.'));hits.append(explanation);
       if(!result.results.length){hits.append(node('p','ml-search-empty',t('No comparable tracks. Add different tracks; exact copies of the reference are excluded.','Karşılaştırılabilir parça yok. Farklı parçalar ekle; referansın birebir kopyaları dışlanır.')));return;}
@@ -85,7 +85,7 @@
     }
     async function select(action,payload={}){
       const response=await api(action,payload);if(state.closed||response.canceled)return;
-      state.source=response.source;onlinePanel.dispatchEvent(new CustomEvent('music-reference',{detail:response.source}));state.result=null;sourceTitle.textContent=response.source.title;sourceDetail.textContent=t('Local audio · measurements stay on this computer','Yerel ses · ölçümler bu bilgisayarda kalır');
+      state.matches=[];state.source=response.source;onlinePanel.dispatchEvent(new CustomEvent('music-reference',{detail:response.source}));state.result=null;sourceTitle.textContent=response.source.title;sourceDetail.textContent=t('Local audio · measurements stay on this computer','Yerel ses · ölçümler bu bilgisayarda kalır');
       comparison=null;++compareToken;compareAudio.pause();compare.hidden=true;audio.volume=1;find.disabled=!state.modelReady;exclude.disabled=!response.source.artist;hits.replaceChildren(node('p','ml-search-empty',t('Reference changed. Search again for fresh matches.','Referans değişti. Güncel eşleşmeler için yeniden ara.')));
       audio.pause();audio.hidden=false;audio.src=response.source.url;start.value='0';end.value='';run.disabled=false;results.replaceChildren(empty);charts.length=0;
       message(t('Ready. Select a range or analyze the full track (up to 30 minutes).','Hazır. Aralık seç veya parçanın tamamını analiz et (en fazla 30 dakika).'));
@@ -182,9 +182,26 @@
     dialog.addEventListener('close',cleanup,{once:true});
     dialog.addEventListener('cancel',event=>{event.preventDefault();dialog.close();cleanup();});
     dialog.showModal();if(typeof syncBrowserOcclusion==='function')syncBrowserOcclusion();observer=new ResizeObserver(repaint);observer.observe(results);
+    state.read=async()=>{const {job}=await api('status');return {open:true,source:state.source?{id:state.source.id,title:state.source.title,artist:state.source.artist}:null,range:{start:Number(start.value),end:end.value?Number(end.value):null},job:{id:job.id,state:job.state,stage:job.stage,mode:job.mode,sourceMatches:!!state.source&&job.result?.sourceId===state.source.id},localMatches:state.matches||[],catalogMatches:onlinePanel.musicAgent.read(),modelReady:state.modelReady};};
+    state.execute=async args=>{
+     const op=args.operation;
+     if(state.busy&&op!=='cancel')throw Error('Music analysis is busy');
+     if(op==='choose_file')await select('select');
+     else if(op==='select_library')await select('library',{id:args.library_id});
+     else if(op==='cancel'){const {job}=await api('status');if(job.id!==args.job_id||job.state!=='running')throw Error('This exact music job is not running');await api('cancel');}
+     else if(op==='prepare_model')await launch('prepare');
+     else if(['search_online','discover_online','save_discovery'].includes(op)){tab(false,true);await onlinePanel.musicAgent.execute(op,args);}
+     else if(['analyze','find_local'].includes(op)){
+      if(args.source_id!==state.source?.id)throw Error('The selected music source changed');
+      if(args.start!==undefined){start.value=String(args.start);end.value=String(args.end);}
+      if(args.exclude_artist!==undefined)exclude.checked=args.exclude_artist;
+      await launch(op==='analyze'?'analyze':'search');
+     }else throw Error('Unknown music operation');
+     return state.read();
+    };
     tab(false);void refreshModel().catch(e=>message(e.message,true));
     if(libraryId)void select('library',{id:libraryId}).catch(e=>message(e.message,true));
     return dialog;
   }
-  window.MusicAnalysisUI=Object.freeze({open});
+  window.MusicAnalysisUI=Object.freeze({open,read:()=>instance?.read?instance.read():Promise.resolve({open:false}),execute:args=>{if(!instance?.execute)throw Error('Open music analysis first');return instance.execute(args);}});
 })();
