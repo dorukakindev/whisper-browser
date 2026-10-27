@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-27-1719.md](docs/devir/2026-10-27-1719.md) — Yeni50hedef ilk10: canlı Whisper iptal ve ses oturumu
 Güncel çalışma: [docs/devir/2026-10-27-1654.md](docs/devir/2026-10-27-1654.md) — Gece denetimi arşivi ve tekrar tarama kapsamı
 Güncel çalışma: [docs/devir/2026-10-27-1638.md](docs/devir/2026-10-27-1638.md) — DeepSeek yeni gece bulguları ve dört doğrulanmış düzeltme
 Güncel çalışma: [docs/devir/2026-10-27-1230.md](docs/devir/2026-10-27-1230.md) — Kitap başlangıcında iptal,1000bölüm ve asistan kabulü

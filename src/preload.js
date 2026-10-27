@@ -301,7 +301,7 @@ contextBridge.exposeInMainWorld('api', {
   setBrowserNetworkOnline: (online) => ipcRenderer.invoke('browser:network:setOnline', online !== false),
   startBrowserLiveAsr: (tabId, options) => ipcRenderer.invoke('browser:liveAsr:start', { ...options, tabId }),
   sendBrowserLiveAsrChunk: (tabId, payload) => ipcRenderer.invoke('browser:liveAsr:chunk', { ...payload, tabId }),
-  stopBrowserLiveAsr: () => ipcRenderer.invoke('browser:liveAsr:stop'),
+  stopBrowserLiveAsr: (sessionId) => ipcRenderer.invoke('browser:liveAsr:stop', { sessionId }),
   openBrowserAdapterFolder: () => ipcRenderer.invoke('browser:adapters:openFolder'),
   exportBrowserSubtitle: (payload) => ipcRenderer.invoke('browser:subtitle:export', payload),
   captureFullBrowserSubtitle: (tabId, action = 'start') =>
