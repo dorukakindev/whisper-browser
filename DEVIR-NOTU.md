@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-27-1853.md](docs/devir/2026-10-27-1853.md) — Asistan işlem ayarları ve genel erişim
 Güncel çalışma: [docs/devir/2026-10-27-1837.md](docs/devir/2026-10-27-1837.md) — Keşfet yorumları, Flex seçimi ve asistan görünümü
 Güncel çalışma: [docs/devir/2026-10-27-1818.md](docs/devir/2026-10-27-1818.md) — Yeni50hedef son10: ses/çeviri ve kapanış kanıtı
 Güncel çalışma: [docs/devir/2026-10-27-1813.md](docs/devir/2026-10-27-1813.md) — Yeni50hedef dördüncü10: PDF seçim ve kitap kabulü
