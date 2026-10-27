@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { atomicWriteFileSync } = require('./fsync-utils');
+const { classify: discoveryErrorCode } = require('./renderer/media-discovery-errors');
 const GENRES = ['Action', 'Adventure', 'Animation', 'Biography', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Family', 'Fantasy', 'History', 'Horror', 'Mystery', 'Romance', 'Sci-Fi', 'Sport', 'Thriller', 'War', 'Western'];
 const text = (value, limit = 500) => typeof value === 'string' ? value.trim().slice(0, limit) : '';
 function imageUrl(value) {
@@ -92,7 +93,7 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
     return { rows, nextSkip: raw.length && skip+Math.min(raw.length,limit)<=2000 ? skip + Math.min(raw.length,limit) : null };
   }
   ipcMain.handle('media-discovery:request', async (event, input = {}) => {
-    if (!authorized(event)) return { ok: false, error: 'Unauthorized request.' };
+    if (!authorized(event)) return { ok: false, error: 'Unauthorized request.', errorCode: 'unauthorized' };
     try {
       if (input.action === 'feedback-list') return { ok: true, rows: Object.values(feedback()).slice(-2000).reverse(), nextSkip: null };
       if (input.action === 'feedback') {
@@ -167,7 +168,7 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
         return { ok: true, item: saved, existing: false };
       }
       throw Error('Unsupported discovery action.');
-    } catch (error) { return { ok: false, error: error.message }; }
+    } catch (error) { return { ok: false, error: error.message, errorCode: discoveryErrorCode(error) }; }
   });
 }
 module.exports = { registerMediaDiscovery, normalizeMeta, recommendationSeeds, GENRES };
