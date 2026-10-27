@@ -39,3 +39,12 @@ test('Agent UI pagehide unsubscribes and its idle state does not occupy media st
  vm.runInNewContext(fs.readFileSync(require.resolve('../src/renderer/assistant-agent-ui'),'utf8'),{window,document:{addEventListener:()=>{}}});
  assert.equal(window.AssistantAgentUI.busy(),false);assert.equal(window.AssistantAgentUI.status(),null);listeners.pagehide();assert.equal(window.unsubscribed,true);
 });
+
+
+test('using a job subtitle requires exact registered backend ID, role, source and explicit partial permission',async()=>{
+ const h=setup(),owner=h.actions.snapshot();let loaded=0;h.sandbox.useBrowserTrack=async(_x,id)=>{loaded++;h.player.subPath='fixture.srt';return {ok:true};};
+ h.player.browserTracks=[{id:'track',path:'fixture.srt',backendJobId:'external-A',role:'translation',status:'partial',failed:1}];
+ await assert.rejects(h.actions.execute('use_job_subtitles',{job_id:'external-B',role:'translation'},owner),/exact job output/);
+ await assert.rejects(h.actions.execute('use_job_subtitles',{job_id:'external-A',role:'translation'},owner),/partial/);assert.equal(loaded,0);
+ assert.equal((await h.actions.execute('use_job_subtitles',{job_id:'external-A',role:'translation',allow_partial:true},owner)).track.partial,true);assert.equal(loaded,1);
+});

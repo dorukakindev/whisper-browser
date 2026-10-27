@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-27-2005.md](docs/devir/2026-10-27-2005.md) — Asistan iş sonuçları ve gerçek Whisper kabulü
 Güncel çalışma: [docs/devir/2026-10-27-1934.md](docs/devir/2026-10-27-1934.md) — Asistan kontrol kapsamı657
 Güncel çalışma: [docs/devir/2026-10-27-1904.md](docs/devir/2026-10-27-1904.md) — Canlı Sol ve DeepSeek karşılaştırması
 Güncel çalışma: [docs/devir/2026-10-27-1859.md](docs/devir/2026-10-27-1859.md) — Canlı DeepSeek standart çeviri/asistan değerlendirmesi

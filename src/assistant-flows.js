@@ -10,7 +10,7 @@ function createFlows({now=Date.now,getJobs=()=>({jobs:[]})}={}){
    const job=getJobs().jobs.find(j=>j.id===last.jobId);if(!job)throw Error('The exact job cannot be verified. Open Jobs / İlgili iş doğrulanamadı. İşler bölümünü aç.');
    if(['running','cancelling'].includes(job.state))return {waiting:true,flow,text:'This exact job is still running; no next step started / İlgili iş sürüyor; sonraki adım başlamadı.'};
    if(job.state!=='completed'){tokens.delete(id);throw Error('The previous job failed or stopped. Review its partial result / Önceki iş başarısız veya durduruldu. Kısmi sonucu kontrol et.');}
-   last.status='completed';last.result={...last.result,status:'completed',job:{id:job.id,state:job.state,partial:job.partial},note:'Main job ledger confirms completion, not audio quality.'};
+   last.status='completed';last.result={...last.result,status:'completed',job:{id:job.id,state:job.state,partial:job.partial,result:job.result||null,counts:job.counts||null},note:'Main job ledger confirms process completion, not complete translation or audio quality. Inspect artifact partial/failed counts before using the result.'};
   }
   if(!deferCommit){tokens.delete(id);flow.count++;return {flow};}
   row.active=true;let settled=false;

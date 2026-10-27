@@ -27,6 +27,14 @@
   if(registry.get(name)?.domain==='book')return window.AssistantBookActions.execute(name,args,owner,{deadline,isCancelled});
   if(registry.get(name)?.domain==='voice'&&name!=='open_voice_preparation')return window.AssistantVoiceActions.execute(name,args,owner,{deadline,isCancelled});
   if(name==='get_job_status')return {status:'completed',...await window.api.assistantJobs()};
+  if(name==='use_job_subtitles'){
+   const track=(player.browserTracks||[]).find(row=>row.backendJobId===args.job_id&&row.role===args.role&&row.path);
+   if(!track)throw Error(t('This exact job output is not attached to the current source.','Bu işin çıktısı açık kaynağa kayıtlı değil.'));
+   if((track.status==='partial'||track.failed>0)&&args.allow_partial!==true)throw Error(t('The subtitle output is partial. Review it before using.','Altyazı çıktısı kısmi. Kullanmadan önce kontrol et.'));
+   const result=await useBrowserTrack(false,track.id,{isCancelled:stale});
+   if(stale()||!result?.ok||player.subPath!==track.path)throw Error(t('Subtitle attachment was not confirmed.','Altyazı bağlantısı doğrulanamadı.'));
+   return {status:'completed',track:{id:track.id,role:track.role,language:track.language,partial:track.status==='partial'||track.failed>0},note:t('The exact job subtitle was loaded. No new production started.','İlgili işin altyazısı yüklendi. Yeni üretim başlamadı.')};
+  }
   if(name==='start_whisper'){
    if(state.running||state.queueRunning)throw Error(t('Another media job is running.','Başka bir medya işi çalışıyor.'));
    let clipRange=currentBrowserWhisperRange();

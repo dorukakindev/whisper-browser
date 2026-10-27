@@ -1,5 +1,6 @@
 'use strict';
 const path = require('node:path');
+const jobDiagnostics=require('./assistant-job-diagnostics');
 const { pathToFileURL } = require('node:url');
 
 // The overlay has no file, provider, browser or shell API. The existing renderer
@@ -41,7 +42,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
       receipt:value.receipt&&typeof value.receipt==='object'?{id:String(value.receipt.id||'').slice(0,80),accepted:!!value.receipt.accepted,message:String(value.receipt.message||'').slice(0,1200)}:null,
       conversation: String(value.conversation || '').slice(0,8000),
       pinScope:String(value.pinScope||value.conversation||'').slice(0,8000),activeThread:String(value.activeThread||'').slice(0,100),
-      jobs:Array.isArray(value.jobs)?value.jobs.slice(0,50).map(row=>({id:String(row.id||'').slice(0,100),kind:String(row.kind||'').slice(0,40),state:String(row.state||'').slice(0,20),stage:String(row.stage||'').slice(0,60),percent:Number.isFinite(row.percent)?Math.max(0,Math.min(100,row.percent)):null,cancellable:row.cancellable===true,partial:row.partial===true,stopFailed:row.stopFailed===true})):[],
+      jobs:Array.isArray(value.jobs)?value.jobs.slice(0,50).map(row=>({id:String(row.id||'').slice(0,100),kind:String(row.kind||'').slice(0,40),state:String(row.state||'').slice(0,20),stage:String(row.stage||'').slice(0,60),percent:Number.isFinite(row.percent)?Math.max(0,Math.min(100,row.percent)):null,cancellable:row.cancellable===true,partial:row.partial===true,stopFailed:row.stopFailed===true,...jobDiagnostics.publicEvidence(row)})):[],
       workspaceError:String(value.workspaceError||'').slice(0,1200),draft:String(value.draft||'').slice(0,16000),
       threads:Array.isArray(value.threads)?value.threads.slice(0,20).map(row=>({id:String(row.id||'').slice(0,100),title:String(row.title||'').slice(0,200)})):[],
       context: String(value.context || '').slice(0, 600), busy: !!value.busy, retry: !!value.retry, activity:typeof value.activity==='string'?value.activity.slice(0,160):'',phase:['waiting','thinking','reasoning','tool','applying','writing'].includes(value.phase)?value.phase:'waiting',
