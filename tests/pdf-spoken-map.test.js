@@ -129,3 +129,5 @@ test("unrenderable matched text is not reported as a visible PDF highlight and l
     global.document = previous;
   }
 });
+
+test('English I/i passages match without collapsing distinct Turkish words',()=>{assert.deepEqual(match([{str:'INDEPENDENT IDEAS ARE IMPORTANT.'}],[{text:'independent ideas are important.'}]),[[0]]);assert.deepEqual(match([{str:'sık kullanılan metin'}],[{text:'sik kullanılan metin'}]),[[]]);});

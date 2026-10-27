@@ -22,8 +22,8 @@ def emit(payload):
 
 
 def wav_duration(path):
-    with wave.open(path, "rb") as handle:
-        return handle.getnframes() / max(1, handle.getframerate())
+    from wav_integrity import pcm_duration
+    return pcm_duration(path)
 
 
 def query_process_vram_mib(pid=None, runner=subprocess.run):

@@ -101,9 +101,8 @@ def _finite_or_none(value):
 
 def wav_duration(file_path):
     try:
-        with wave.open(file_path, "rb") as handle:
-            rate = handle.getframerate()
-            return handle.getnframes() / rate if rate > 0 else 0.0
+        from wav_integrity import pcm_duration
+        return pcm_duration(file_path)
     except Exception:
         return 0.0
 

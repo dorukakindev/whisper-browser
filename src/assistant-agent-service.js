@@ -101,7 +101,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
     onDelta:text=>emit(event.sender,{type:'delta',requestId:session.id,text}),
     onReplace:text=>emit(event.sender,{type:'replace',requestId:session.id,text}),
     onCapability:value=>emit(event.sender,{type:'capabilities',requestId:session.id,value}),execute});
-   controller.signal.throwIfAborted();
+   controller.signal.throwIfAborted();requireOwner(owner);
    if(session.webSources?.length)result.text=result.text.slice(0,28000)+'\n\n'+(input.locale==='tr'?'Web kaynakları:':'Web sources:')+'\n'+session.webSources.map((row,i)=>'[W'+(i+1)+'] '+String(row.title).slice(0,200)+'\n'+row.url).join('\n');
    const execution={cards:offered.size,pendingPlans:planned.size,attempted,blockedOrFailed:failed,appliedActions:0};
    if(attempted||planned.size||/kart|\bcard\b|başlat|started|tamamlan|completed/i.test(result.text)){const tr=input.locale==='tr';const note=tr?'Uygulama doğrulaması: '+offered.size+' gerçek işlem kartı oluşturuldu; bu istek kartları uygulamadı, transkripsiyon/dublaj başlatmadı.':'Application verification: '+offered.size+' real action cards created; this request applied no cards and started no transcription/dubbing.';const extra=planned.size?(tr?' Koleksiyon planı yalnız veri; uygulanabilir kartı henüz yok.':' A collection plan is data only; its review card is still missing.'):'';result.text=result.text.slice(0,30500)+'\n\n'+note+extra;}

@@ -54,6 +54,9 @@ app.whenReady().then(async () => {
   assert(await run('return document.querySelector(".mh-hero h1").textContent.includes("kütüphaneni")'));
   assert.equal(await run('window.homeStartClicks=0;document.getElementById("startBtn").addEventListener("click",e=>{homeStartClicks++;e.stopImmediatePropagation();e.preventDefault();},true);document.dispatchEvent(new KeyboardEvent("keydown",{key:"Enter",ctrlKey:true,bubbles:true}));return homeStartClicks'), 0);
   await run('document.querySelector("#mediaHome .mh-actions button:nth-child(2)").click();return true');
+  await until(()=>run('return !!document.getElementById("mediaHubDialog")?.open'),'Open media opens modal hub');
+  assert(await run('return document.body.classList.contains("media-home-active")'));
+  await run('document.getElementById("mediaHubDialog").close();MediaHomeUI.openStudio();return true');
   assert(await run('return !document.body.classList.contains("media-home-active") && getComputedStyle(document.querySelector(".app-main")).display!=="none"'));
   assert.equal(await run('document.dispatchEvent(new KeyboardEvent("keydown",{key:"Enter",ctrlKey:true,bubbles:true}));return homeStartClicks'), 1);
   await run('document.getElementById("youtubeUrl").value="https://example.com/preserve";document.getElementById("mediaHomeBack").click();return true');
@@ -175,14 +178,14 @@ app.whenReady().then(async () => {
   await run('document.querySelector("[data-home-page=films]").click();document.getElementById("mhSearch").value="kuzeyin";document.getElementById("mhSearch").dispatchEvent(new Event("input"));return true');
   assert.equal(await run('return document.querySelectorAll(".mh-card").length'), 1);
   await run('document.querySelector(".mh-card").click();return true');
-  await until(() => run('return document.getElementById("mediaCatalogDialog").open && !!document.querySelector(".mc-detail")'), 'card details');
-  await run('document.getElementById("mediaCatalogDialog").close();return true');
+  await until(() => run('return document.getElementById("mediaTitleDialog")?.open && document.getElementById("mediaTitleDialog").textContent.includes("Kuzeyin Hikâyesi")'), 'card details');
+  await run('document.getElementById("mediaTitleDialog").close();return true');
   await run('document.querySelector("#mediaHome .mh-actions button").click();return true');
   await until(() => run('return !document.getElementById("playerLayer").classList.contains("hidden")'), 'existing browser');
   assert(await run('return document.getElementById("mediaHome").inert'));
   await run('document.getElementById("playerBack").click();return true');
   await until(() => run('return !document.getElementById("mediaHome").inert'), 'return home');
-  await run('document.querySelector("#mediaHome .mh-actions button:nth-child(3)").click();return true');
+  await run('document.querySelector("#mediaHome .mh-more").open=true;[...document.querySelectorAll("#mediaHome .mh-more button")].find(b=>/Subtitle.*voice|Altyazı.*ses/.test(b.textContent)).click();return true');
   await until(() => run('return document.getElementById("dubGeneratorDialog").open'), 'existing dub dialog');
   await run('document.getElementById("dubGeneratorDialog").close();return true');
   // Add real tagged audio through the new main boundary, then use the rendered music page.
@@ -212,7 +215,7 @@ app.whenReady().then(async () => {
   await until(() => run('return document.querySelector(".ms-reader .ms-status").textContent==="Kaydedildi."'), 'saved bookmark');
   fs.writeFileSync(path.join(out, 'reader-tr.png'), (await win.webContents.capturePage()).toPNG());
   assert(await run('return globalAssistantContext().type==="book-chapter" && globalAssistantContext().excerpt.length<=8000'), 'Book assistant receives only selected chapter excerpt');
-  await run('document.querySelector(".ms-reader header").lastElementChild.click();return true');
+  await run('document.querySelector(".ms-reader-close").click();return true');
   await until(() => run('return !document.querySelector(".ms-reader")'), 'close reader');
   assert.equal((await run('return window.api.mediaShelf({action:"list"})')).books[0].bookmarks.length, 1);
   const ratings = path.join(out, 'ratings.csv'); fs.writeFileSync(ratings, 'Name,Year,Rating,Review\nKuzeyin Hikâyesi,2026,4.5,Hikaye çok güçlü ve oyunculuk etkileyici.\nYeni Film,2024,4,Müzik ve görsel anlatım harika.\n');

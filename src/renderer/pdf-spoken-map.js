@@ -3,10 +3,10 @@
   else root.PdfSpokenMap = factory();
 })(typeof window === "object" ? window : globalThis, () => {
   "use strict";
-  const normalize = (s) =>
+  const normalize = (s, locale) =>
     String(s || "")
       .normalize("NFKC")
-      .toLocaleLowerCase("tr");
+      .toLocaleLowerCase(locale);
   function fold(source) {
     let text = "";
     const offsets = [];
@@ -33,11 +33,13 @@
     return { text, offsets };
   }
   function match(items, groups) {
+    // English I/i must match while Turkish sık/sik must remain distinct.
+    const locale = /[çğıöşüİÇĞÖŞÜ]/u.test(items.map(i=>i.str||'').join(' ')+groups.map(g=>g.text||'').join(' ')) ? 'tr' : 'en';
     let source = "",
       spans = [],
       cursor = 0;
     for (const [i, item] of items.entries()) {
-      const value = normalize(item.str);
+      const value = normalize(item.str, locale);
       spans.push({
         start: source.length,
         end: source.length + value.length,
@@ -47,7 +49,7 @@
     }
     const { text, offsets } = fold(source);
     return groups.map((group) => {
-      const value = fold(normalize(group.text)).text;
+      const value = fold(normalize(group.text, locale)).text;
       if (value.length < 6) return [];
       let start = text.indexOf(value, cursor);
       const numericEdge = /[\p{N}.,:/+\-]/u;

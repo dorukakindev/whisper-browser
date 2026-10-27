@@ -57,3 +57,5 @@ test('Plan-only remains data, repair is bounded, cancellation does not resend or
 test('Preparation intent is explicitly distinguished from generation in the model contract',async()=>{
  let body;await run({question:'Seslendirmeye hazırla',owner,config,execute:async()=>{},fetchImpl:async(_,request)=>{body=JSON.parse(request.body);return json({role:'assistant',content:'Hazırlık ekranını açabilirim.'});}});assert(body.messages[0].content.includes('Preparation is not generation'));assert(body.messages[0].content.includes('even when ready'));const start=body.tools.find(row=>row.function.name==='start_voice_generation');assert.match(start.function.description,/NOT generation/);
 });
+
+test('Completion endpoint canonicalization removes only the trailing slash',()=>{const endpoint=require('../src/assistant-provider').endpoint;assert.equal(endpoint('https://api.deepinfra.com/v1/openai/chat/completions/'),'https://api.deepinfra.com/v1/openai/chat/completions');assert.equal(endpoint('https://fixture.example/v1/'),'https://fixture.example/v1/chat/completions');assert.throws(()=>endpoint('https://user:secret@fixture.example/v1'));});

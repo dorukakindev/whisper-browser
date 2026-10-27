@@ -109,6 +109,9 @@ assert.equal(subtitleRequestRetryPolicy({ retryable: true, attempt: 2 }).delayMs
   };
   const context = vm.createContext({
     tab, view, wc,
+    assistantJobs: require('../src/assistant-jobs').createJobs(),
+    linkAssistantJob() {},
+    updateAssistantCaptionJob() {},
     mainWindowClosing: false,
     browserTabById: (id) => id === 'tab-crash' ? tab : null,
     crashRecoveryPolicy: () => ({ action: 'notify', message: 'İşlem sona erdi.' }),

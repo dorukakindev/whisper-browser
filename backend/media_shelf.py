@@ -231,11 +231,13 @@ def letterboxd(data, source_name=""):
 
 def letterboxd_archive(file):
     """Read selected CSV entries in memory; never extract archive paths."""
-    merged = {}; reviews = []; diary = {}; occurrences = {}
+    merged = {}; reviews = {}; diary = {}
     with zipfile.ZipFile(file) as archive:
         selected = [entry for entry in archive.infolist() if posixpath.basename(entry.filename).lower() in ('ratings.csv','diary.csv','reviews.csv','watched.csv')]
         if not selected or len(selected) > 12 or sum(entry.file_size for entry in selected) > 20_000_000:
             raise ValueError('Unsupported or oversized Letterboxd ZIP.')
+        priority = {'reviews.csv': 0, 'watched.csv': 1, 'diary.csv': 2, 'ratings.csv': 3}
+        selected.sort(key=lambda e: (priority[posixpath.basename(e.filename).lower()], e.filename.casefold()))
         for entry in selected:
             if entry.file_size > 5_000_000 or entry.flag_bits & 1:
                 raise ValueError('Oversized or encrypted Letterboxd CSV.')
@@ -243,24 +245,25 @@ def letterboxd_archive(file):
             for row in letterboxd(archive.read(entry), source_name)['rows']:
                 if source_name == 'diary.csv':
                     identity = (row['title'].casefold(), row['year'], row['watchedDate'] or row['addedDate'])
-                    count = occurrences.get(identity, 0)
-                    occurrences[identity] = count + 1
+                    count = row.get('rewatchIndex', 0)
                     diary_row = row.copy(); diary_row['rewatchIndex'] = count
                     diary_row['watchedDate'] = diary_row['watchedDate'] or diary_row['addedDate']
                     diary[(*identity, count)] = diary_row
-                if row['review']: reviews.append(row.copy())
+                if row['review']:
+                    review_key = (row['title'].casefold(), row['year'], row['watchedDate'], row['review'])
+                    reviews[review_key] = row.copy()
                 key = (row['title'].casefold(), row['year'])
                 old = merged.get(key, {})
                 row['review'] = row['review'] or old.get('review', '')
                 row['rating'] = row['rating'] if row['rating'] is not None else old.get('rating')
-                row['watchedDate'] = row['watchedDate'] or old.get('watchedDate', '')
+                row['watchedDate'] = max(row['watchedDate'], old.get('watchedDate', ''))
                 row['liked'] = row['liked'] or old.get('liked', False)
                 row['watched'] = row['watched'] or old.get('watched', False)
                 row['tags'] = list(dict.fromkeys([*old.get('tags', []), *row['tags']]))[:30]
                 merged[key] = {**old, **row}
                 if len(merged) > 10000:
                     raise ValueError('Letterboxd ZIP exceeds 10,000 titles.')
-    return dict(rows=list(merged.values()), reviews=reviews[:10000], diary=list(diary.values()) if diary else list(merged.values()))
+    return dict(rows=list(merged.values()), reviews=list(reviews.values())[:10000], diary=list(diary.values()) if diary else list(merged.values()))
 
 
 if __name__ == '__main__':
