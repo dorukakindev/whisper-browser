@@ -6282,8 +6282,8 @@
       "operation": null,
       "criterion": "Tam çıktı",
       "acceptance": "Geçerli ses ve tam grup kanıtında gerçek durum ilerlesin; doğal ses kalitesi iddiası üretme.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DOĞRULANDI",
+      "evidence": "R646: recover_completed iki gerçek okunabilir WAV ile tam sonuç; ses doğallığı/model değil."
     },
     {
       "id": "P0572",
@@ -6293,8 +6293,8 @@
       "operation": null,
       "criterion": "Eksik son grup",
       "acceptance": "Son grubu kontrollü düşür; önceki geçerli parçalar ve eksik grup kimliği korunsun.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DOĞRULANDI",
+      "evidence": "R646: eksik ikinci parça failed, uyarı ve zaman rezervi; controlled mevcut generation20 geçti."
     },
     {
       "id": "P0573",
@@ -6381,8 +6381,8 @@
       "operation": null,
       "criterion": "Durum/kanıt",
       "acceptance": "Hazırlık/üretim/doğrulama süreleri ve gerçek kalite durumu ayrı, erişilebilir EN/TR olsun.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "İLERLEDİ",
+      "evidence": "R646 B05-01: tüm parçalar kurtarıldığında yanlış incomplete_audio uyarısı kaldırıldı; başarısız yenileme review kalır. Tam aşama süreleri/EN-TR erişilebilir UI bu testte ölçülmedi."
     },
     {
       "id": "P0581",
@@ -11136,6 +11136,16 @@
         "P0769"
       ],
       "next": "Kitap/çeviri/ASR kalite ve kaynak bağlamı; aynı başlangıç iptal hatasını tekrar sayma."
+    },
+    {
+      "report": 646,
+      "code": "fe2be80d01ec53cca08db591ac2e26194cddf39c",
+      "updated": [
+        "P0571",
+        "P0572",
+        "P0580"
+      ],
+      "next": "Keşfet hata yerelleştirme ve ASR geç başlangıç hipotezini doğrula; denetim sayaçlarını bug sayma."
     }
   ]
 }

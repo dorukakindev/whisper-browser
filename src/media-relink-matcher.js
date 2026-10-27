@@ -11,7 +11,9 @@ const STRONG_SCORE = 4;        // tek aday otomatik önerilebilir
 const LISTED_SCORE = 2;        // diyalogda listelenmeye değer
 
 function normalizeName(name) {
-  return String(name || '').trim().toLowerCase();
+  // Match canonically equivalent names, including capital dotted I, without
+  // collapsing distinct Turkish ı/i or changing filesystem path identities.
+  return String(name || '').trim().normalize('NFC').toLowerCase().replace(/i\u0307/g, 'i');
 }
 
 function stemOf(name) {
@@ -136,8 +138,8 @@ function planBulkRelink(items, { oldPrefix, newPrefix, exists } = {}) {
 // eşit (farklı kodlama veya aynı filmin iki kopyası olabilir) — kullanıcı
 // önizlemede karar verir; bulucu hiçbir şeyi otomatik birleştirmez.
 function stemNorm(value) {
-  return normalizeFsPath(value).split('/').pop()
-    .replace(/\.[^.]+$/, '').normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N}\p{M}]+/gu, '');
+  return normalizeName(normalizeFsPath(value).split('/').pop()
+    .replace(/\.[^.]+$/, '')).replace(/[^\p{L}\p{N}\p{M}]+/gu, '');
 }
 
 function pairEvidence(a, b) {

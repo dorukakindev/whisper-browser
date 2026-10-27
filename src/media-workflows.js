@@ -1361,7 +1361,13 @@ function registerMediaWorkflows({
                 path.join(dir, path.basename(c.output)),
               );
             for (const f of files) {
-              const st = fs.lstatSync(f);
+              let st;
+              try { st = fs.lstatSync(f); }
+              catch (error) {
+                if (error.code === 'ENOENT' || error.code === 'ENOTDIR')
+                  throw Error('Chapter audio file is missing; regenerate the chapter / Bölüm ses dosyası bulunamadı; bölümü yeniden üretin.');
+                throw error;
+              }
               if (st.isSymbolicLink() || !st.isFile())
                 throw Error("Invalid chapter audio.");
             }

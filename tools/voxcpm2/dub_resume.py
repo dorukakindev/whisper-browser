@@ -30,6 +30,7 @@ def recover_completed(args, cues, paths):
                        recoveryReason='engine_unavailable')
         rows.append(row)
     args.group_results = rows
-    print('DUB_WARNING incomplete_audio',flush=True)
+    if any(row['status'] == 'failed' for row in rows):
+        print('DUB_WARNING incomplete_audio',flush=True)
     print(f'[{len(rows)}/{len(rows)}]',flush=True)
     return sr
