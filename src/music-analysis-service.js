@@ -24,9 +24,9 @@ function createService(options) {
   const runner = options.run || run;
   function remember(file, metadata={}) {
     const target = access.grant(file); if (!target) throw Error('Unsupported audio file / Desteklenmeyen ses dosyası.');
-    const id = randomUUID(), source = { id, file: target, title: String(metadata.title||path.basename(target, path.extname(target))).slice(0,300), libraryId:metadata.id,artist:metadata.artist||'' };
+    const id = randomUUID(), source = { id, file: target, title: String(metadata.title||path.basename(target, path.extname(target))).slice(0,300), libraryId:metadata.id,artist:metadata.artist||'',origin:metadata.origin||'local',excerptSeconds:metadata.excerptSeconds||null };
     sources.set(id, source); while (sources.size > 32) sources.delete(sources.keys().next().value);
-    return { id, title: source.title, artist:source.artist,url: pathToFileURL(target).href };
+    return { id, title: source.title, artist:source.artist,origin:source.origin,excerptSeconds:source.excerptSeconds,url: pathToFileURL(target).href };
   }
   function status() { return active ? { id: active.id, state: 'running', stage: active.stage,mode:active.mode,completed:active.completed,total:active.total,title:active.title } : last || { state: 'idle' }; }
   function cancel() { active?.controller.abort(); return { ok: true }; }
@@ -100,7 +100,7 @@ function createService(options) {
   return {remember,status,cancel,start,close:async()=>{cancel();await active?.pending;}};
 }
 function register(options) {
-  const services = new Map(), onlineServices = new Map();
+  const services = new Map(), onlineServices = new Map(),remoteServices=new Map();
   const preferences=require('./music-preferences').store(options.userData);
   const listening=require('./music-listening').store(options.userData);
   options.ipcMain.handle('music-analysis:request', async(event,request={})=>{
@@ -112,7 +112,10 @@ function register(options) {
     }
     let online=onlineServices.get(event.sender.id);
     if(!online){online=require('./music-online').createOnline(options);onlineServices.set(event.sender.id,online);event.sender.once('destroyed',()=>{online.cancel();onlineServices.delete(event.sender.id);});}
+    let remote=remoteServices.get(event.sender.id);if(!remote){remote=require('./music-remote-source').create(options);remoteServices.set(event.sender.id,remote);event.sender.once('destroyed',()=>{remote.cancel();void service.close().then(()=>remote.release()).catch(()=>{});remoteServices.delete(event.sender.id);});}
     try {
+      if(request.action==='remote-source'){if(service.status().state==='running')throw Error('Wait for the current analysis');const result=await remote.prepare(request,online);options.grantMedia(result.file);return {ok:true,source:service.remember(result.file,result.metadata)};}
+      if(request.action==='release-remote'){remote.cancel();await service.close();await remote.release();return {ok:true};}
       if(request.action==='listening-history')return {ok:true,trials:listening.read()};
       if(request.action==='listening-save')return {ok:true,trial:listening.save(service.status(),request)};
       if(request.action==='preferences')return {ok:true,hidden:preferences.read()};
@@ -142,10 +145,10 @@ function register(options) {
       if (request.action === 'model') {const engine=require('./music-similarity');return {ok:true,...engine.modelStatus(options.modelDir()),...await engine.runtimeStatus(options,options.run||run)};}
       if (request.action === 'start') return await service.start(request);
       if (request.action === 'status') return {ok:true,job:service.status()};
-      if (request.action === 'cancel') {online.cancel();return service.cancel();}
+      if (request.action === 'cancel') {remote.cancel();online.cancel();return service.cancel();}
       throw Error('Unknown music action');
     } catch(error) {return {ok:false,error:error.message};}
   });
-  options.app.on('before-quit',()=>{for(const service of services.values())service.cancel();for(const online of onlineServices.values())online.cancel();});
+  options.app.on('before-quit',()=>{for(const service of services.values())service.cancel();for(const online of onlineServices.values())online.cancel();for(const [id,remote] of remoteServices){remote.cancel();void services.get(id)?.close().then(()=>remote.release()).catch(()=>{});}});
 }
 module.exports = {selection,createService,register};
