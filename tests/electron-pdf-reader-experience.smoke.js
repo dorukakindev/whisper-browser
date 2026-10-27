@@ -213,6 +213,15 @@ app
     assert.equal(context.workspace, "pdf-reader");
     assert(context.excerpt.includes("controlled PDF"));
     assert(context.selectedText);
+    const scopedSelection = await run(`const original=PdfReaderExperience.context().selectedText;
+      const foreign=document.createElement('article');foreign.className='pdf-page';foreign.dataset.page=String(player.pdfReader.currentPage);foreign.textContent='Foreign fixture passage';document.body.append(foreign);
+      const range=document.createRange();range.selectNodeContents(foreign);const selected=window.getSelection();selected.removeAllRanges();selected.addRange(range);document.dispatchEvent(new Event('selectionchange'));
+      const retained=PdfReaderExperience.context().selectedText;foreign.remove();
+      const prose=player.pdfReader.pages.get(player.pdfReader.currentPage).article.querySelector('.pdf-page-prose p');range.selectNodeContents(prose);selected.removeAllRanges();selected.addRange(range);document.dispatchEvent(new Event('selectionchange'));selected.collapse(prose,0);document.dispatchEvent(new Event('selectionchange'));
+      return {original,retained,cleared:PdfReaderExperience.context().selectedText,truncated:PdfReaderExperience.context().selectedTextTruncated};`);
+    assert.equal(scopedSelection.retained,scopedSelection.original,'Foreign article cannot replace PDF evidence');
+    assert.equal(scopedSelection.cleared,'','Collapsed reader selection clears the passage');assert.equal(scopedSelection.truncated,false);
+
     await run('document.getElementById("pdfNext").click();return true');
     await until(()=>run('return PdfReaderExperience.context()?.page===2'),'next page rendered');
     const next = await run("return aiChatContext()");

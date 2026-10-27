@@ -1,6 +1,6 @@
 # Yeni50ürün hedefi —27Ekim2026
 
-30/50hedef uygulama veya kontrollü kabul ile kapsandı;20açık.50yeni bug iddiası değildir. Önceki denetim mevcutregresyonları tekrar yeni keşif sayılmaz; gerçekmodel/GPU/site sınırları satırlarda açık.
+40/50hedef uygulama veya kontrollü kabul ile kapsandı;10açık.50yeni bug iddiası değildir. Gerçekmodel/GPU/site kalitesi doğrulanmadı.
 
 | ID | Alan | Hedef/kabul | Durum | Kanıt |
 |---|---|---|---|---|
@@ -34,16 +34,16 @@
 | W28 | Asistan işlem doğruluğu | Kütüphane açılışında gerçek başlık kaynağı doğrulanır | DOĞRULANDI (KONTROLLÜ) | agent-service gerçek title identity sonradan değişince apply reddi; library-actions invent edilmiş item ID reddi, kişisel katalog kullanılmadı. |
 | W29 | Asistan işlem doğruluğu | Kitap okuma ve seçili pasaj bağlamı karışmaz | DÜZELTİLDİ/DOĞRULANDI | R650 seçili kitap pasajı2000karakterde kırpıldığında selectedTextTruncated artık açık; upstream truncation korunur; source kimliği farklıysa seçili metin alınmaz. |
 | W30 | Asistan işlem doğruluğu | İşlem sonrası öneri yalnız gerçek tamamlanan işe bağlıdır | DÜZELTİLDİ/DOĞRULANDI | R650 doğrudan ledgerID resolver ve flow gate running→waiting/done→resume; bilinmeyen ID ilerletemez, incomplete unchanged sayfa completed olmaz. |
-| W31 | Kitap ve PDF okuma | Sayfa aralığı ses üretimine doğru kitap kimliğiyle taşınır | PLANLANDI | — |
-| W32 | Kitap ve PDF okuma | Bölüm değişirken eski ses vurgusu temizlenir | PLANLANDI | — |
-| W33 | Kitap ve PDF okuma | Yer imi eski kitap yerine yalnız güncel kaynağa yazılır | PLANLANDI | — |
-| W34 | Kitap ve PDF okuma | Tek grup düzeltmede diğer tamamlanmış ses korunur | PLANLANDI | — |
-| W35 | Kitap ve PDF okuma | Sayfa çevirisi iptal edilince okuma metni korunur | PLANLANDI | — |
-| W36 | Kitap ve PDF okuma | Boş taranmış sayfada asistan metin varmış gibi davranmaz | PLANLANDI | — |
-| W37 | Kitap ve PDF okuma | Hazırlık önizlemesi kullanılan nihai metni açık gösterir | PLANLANDI | — |
-| W38 | Kitap ve PDF okuma | İnceleme onayı değiştirilmiş sese taşınmaz | PLANLANDI | — |
-| W39 | Kitap ve PDF okuma | Bölüm yenileme hata sonrası doğru düğmeyle tekrar denenir | PLANLANDI | — |
-| W40 | Kitap ve PDF okuma | Dar ekran kitap araçları ve odak erişimi doğrulanır | PLANLANDI | — |
+| W31 | Kitap ve PDF okuma | Sayfa aralığı ses üretimine doğru kitap kimliğiyle taşınır | DOĞRULANDI (KONTROLLÜ) | R651: Native PDFreader: doğru pdfHash ile2–3sayfa üretim projesi chapters.pageNumber[2,3],selected[0,1]. Kaynak dosya değişmez. |
+| W32 | Kitap ve PDF okuma | Bölüm değişirken eski ses vurgusu temizlenir | DOĞRULANDI (KONTROLLÜ) | R651: Native PDFreader sayfa geçişi ve Home/close sespause, ReaderAudioControl eski playpromise yeni oturumu durduramaz; VMreader lifecycle doğru highlightmap. |
+| W33 | Kitap ve PDF okuma | Yer imi eski kitap yerine yalnız güncel kaynağa yazılır | DOĞRULANDI (KONTROLLÜ) | R651: book-bookmarks gerçek servis: source/audio/text kimlikleri, stale remapreddi, farklıkaynak state; mevcutregresyon yeni bug değildir. |
+| W34 | Kitap ve PDF okuma | Tek grup düzeltmede diğer tamamlanmış ses korunur | DOĞRULANDI (KONTROLLÜ) | R651: book-regenerate-request exactgroup/force ve book-voice-takes mevcut ses/take korunması; controlledmotor/veri, gerçekTTS yok. |
+| W35 | Kitap ve PDF okuma | Sayfa çevirisi iptal edilince okuma metni korunur | DOĞRULANDI (KONTROLLÜ) | R651: Native PDFreader eksiktranslation sayfada üretim reddi; pdf-preparation-ownership staleeski extraction sonucu yeni durum/işi etkilemez. |
+| W36 | Kitap ve PDF okuma | Boş taranmış sayfada asistan metin varmış gibi davranmaz | DOĞRULANDI (KONTROLLÜ) | R651: Native okuyucuda boşsayfaextractedtext gate ve asistan source context; R651 selectioncontext yalnız ownedarticle. GenelOCR/modelgarantisi değil. |
+| W37 | Kitap ve PDF okuma | Hazırlık önizlemesi kullanılan nihai metni açık gösterir | DOĞRULANDI (KONTROLLÜ) | R651: book-text-preparation opt-inpreview→seçili değişim,stalepreviewreddi; noktalama/Unicode/metinkoruması3test. Üretimteksti kullanıcı düzenlemesine bağlı. |
+| W38 | Kitap ve PDF okuma | İnceleme onayı değiştirilmiş sese taşınmaz | DOĞRULANDI (KONTROLLÜ) | R651: book-voice-takes hash/currentfile/activejob kapısı + qualityscope636 eksikrapordanreadyyok; eski doğrulanmışregresyonlar. |
+| W39 | Kitap ve PDF okuma | Bölüm yenileme hata sonrası doğru düğmeyle tekrar denenir | DOĞRULANDI (KONTROLLÜ) | R651: reader-audio-control unavailable/range/metadata timeout waiter serbest,bookregenerate başarısızstartthrow ve eskiişsahipliği; controlledkabul. |
+| W40 | Kitap ve PDF okuma | Dar ekran kitap araçları ve odak erişimi doğrulanır | DOĞRULANDI (KONTROLLÜ) | R651: Native mevcutPDFreader800px dar görünüm/scrollwidth<=client,ENlight1024/TRdark; screenshot incelendi,genelDPIgarantisi değil. |
 | W41 | Ses ve çeviri bütünlüğü | Değişmiş referansta eski kaliteli önbellek yeniden kullanılmaz | PLANLANDI | — |
 | W42 | Ses ve çeviri bütünlüğü | Süre aşımında bitmiş son parçalar korunur | PLANLANDI | — |
 | W43 | Ses ve çeviri bütünlüğü | Kısmi çeviri ses için tam hazır diye sunulmaz | PLANLANDI | — |

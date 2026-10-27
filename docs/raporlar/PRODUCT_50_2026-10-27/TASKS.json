@@ -277,8 +277,8 @@
       "area": "Kitap ve PDF okuma",
       "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
       "acceptance": "Sayfa aralığı ses üretimine doğru kitap kimliğiyle taşınır",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "R651: Native PDFreader: doğru pdfHash ile2–3sayfa üretim projesi chapters.pageNumber[2,3],selected[0,1]. Kaynak dosya değişmez.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -286,8 +286,8 @@
       "area": "Kitap ve PDF okuma",
       "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
       "acceptance": "Bölüm değişirken eski ses vurgusu temizlenir",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "R651: Native PDFreader sayfa geçişi ve Home/close sespause, ReaderAudioControl eski playpromise yeni oturumu durduramaz; VMreader lifecycle doğru highlightmap.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -295,8 +295,8 @@
       "area": "Kitap ve PDF okuma",
       "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
       "acceptance": "Yer imi eski kitap yerine yalnız güncel kaynağa yazılır",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "R651: book-bookmarks gerçek servis: source/audio/text kimlikleri, stale remapreddi, farklıkaynak state; mevcutregresyon yeni bug değildir.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -304,8 +304,8 @@
       "area": "Kitap ve PDF okuma",
       "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
       "acceptance": "Tek grup düzeltmede diğer tamamlanmış ses korunur",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "R651: book-regenerate-request exactgroup/force ve book-voice-takes mevcut ses/take korunması; controlledmotor/veri, gerçekTTS yok.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -313,8 +313,8 @@
       "area": "Kitap ve PDF okuma",
       "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
       "acceptance": "Sayfa çevirisi iptal edilince okuma metni korunur",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "R651: Native PDFreader eksiktranslation sayfada üretim reddi; pdf-preparation-ownership staleeski extraction sonucu yeni durum/işi etkilemez.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -322,8 +322,8 @@
       "area": "Kitap ve PDF okuma",
       "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
       "acceptance": "Boş taranmış sayfada asistan metin varmış gibi davranmaz",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "R651: Native okuyucuda boşsayfaextractedtext gate ve asistan source context; R651 selectioncontext yalnız ownedarticle. GenelOCR/modelgarantisi değil.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -331,8 +331,8 @@
       "area": "Kitap ve PDF okuma",
       "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
       "acceptance": "Hazırlık önizlemesi kullanılan nihai metni açık gösterir",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "R651: book-text-preparation opt-inpreview→seçili değişim,stalepreviewreddi; noktalama/Unicode/metinkoruması3test. Üretimteksti kullanıcı düzenlemesine bağlı.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -340,8 +340,8 @@
       "area": "Kitap ve PDF okuma",
       "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
       "acceptance": "İnceleme onayı değiştirilmiş sese taşınmaz",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "R651: book-voice-takes hash/currentfile/activejob kapısı + qualityscope636 eksikrapordanreadyyok; eski doğrulanmışregresyonlar.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -349,8 +349,8 @@
       "area": "Kitap ve PDF okuma",
       "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
       "acceptance": "Bölüm yenileme hata sonrası doğru düğmeyle tekrar denenir",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "R651: reader-audio-control unavailable/range/metadata timeout waiter serbest,bookregenerate başarısızstartthrow ve eskiişsahipliği; controlledkabul.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -358,8 +358,8 @@
       "area": "Kitap ve PDF okuma",
       "source": "src/renderer/media-workflows-ui.js;src/media-workflows.js",
       "acceptance": "Dar ekran kitap araçları ve odak erişimi doğrulanır",
-      "status": "PLANLANDI",
-      "evidence": null,
+      "status": "DOĞRULANDI (KONTROLLÜ)",
+      "evidence": "R651: Native mevcutPDFreader800px dar görünüm/scrollwidth<=client,ENlight1024/TRdark; screenshot incelendi,genelDPIgarantisi değil.",
       "scope_note": "Önceki1000 registry ile karşılaştır; eski regresyon yeni bug değildir. Somut yeni boşluğu uygula veya doğrulama/gerekçeli kapsam kararı kaydet."
     },
     {
@@ -509,6 +509,23 @@
         "W30"
       ],
       "next": "W31–W40 kitap/PDF, sonra W41–W50 ses/çeviri. GerçekGPU/model/site kalite sınırları korunur."
+    },
+    {
+      "report": 651,
+      "code": "f501b2e52cf2c92c2f3085fea1b1dd455752a256",
+      "completed": [
+        "W31",
+        "W32",
+        "W33",
+        "W34",
+        "W35",
+        "W36",
+        "W37",
+        "W38",
+        "W39",
+        "W40"
+      ],
+      "next": "Son10 W41–W50 ses/çeviri bütünlüğü; yeni iş sayısını bug sayısıyla karıştırma."
     }
   ]
 }
