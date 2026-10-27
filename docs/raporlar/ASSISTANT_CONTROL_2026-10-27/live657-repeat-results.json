@@ -1,0 +1,69 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+  "tier": "standard",
+  "synthetic": true,
+  "results": [
+    {
+      "id": "named-provider-repeat1",
+      "elapsedMs": 30613,
+      "calls": [
+        {
+          "name": "list_translation_profiles",
+          "args": {}
+        },
+        {
+          "name": "get_workflow_settings",
+          "args": {
+            "domain": "translation"
+          }
+        },
+        {
+          "name": "get_workflow_settings",
+          "args": {
+            "domain": "transcription"
+          }
+        },
+        {
+          "name": "start_whisper",
+          "args": {
+            "translate": true,
+            "translation_profile": "assistant",
+            "target_language": "tr",
+            "start": 5,
+            "end": 25
+          }
+        }
+      ],
+      "text": "Kart hazırlandı (henüz başlatılmadı, siz onaylayınca çalışır):\n\n- **Kaynak:** açık video, 5–25 saniye aralığı\n- **İşlem:** Whisper ile çıkarma + Türkçeye çeviri (tek iş)\n- **Çeviri profili:** `assistant` → `deepseek-ai/DeepSeek-V4.1-Flash-1017` (DeepInfra) — Sol (`translation` / gpt-6.1-sol) kullanılmıyor\n- **Hedef dil:** tr\n\nNot: Bu kart yalnızca öneri niteliğindedir; uygulanmadı ve hiçbir ayar değişmedi. Aralıklı işler önceki anlık görüntülerini korur. Dilerseniz seslendirme için konuşmaya hazır (forSpeech) modu da ekleyebilirim.",
+      "error": null
+    },
+    {
+      "id": "named-provider-repeat2",
+      "elapsedMs": 12786,
+      "calls": [
+        {
+          "name": "list_translation_profiles",
+          "args": {}
+        },
+        {
+          "name": "get_workflow_settings",
+          "args": {
+            "domain": "translation"
+          }
+        },
+        {
+          "name": "start_whisper",
+          "args": {
+            "translate": true,
+            "translation_profile": "assistant",
+            "target_language": "tr",
+            "start": 5,
+            "end": 25
+          }
+        }
+      ],
+      "text": "Kart hazırlandı (henüz başlatılmadı, siz uygulayacaksınız):\n\n- **İş:** Whisper ile çıkarım + Türkçeye çeviri (tek iş)\n- **Aralık:** 5–25 saniye\n- **Çeviri profili:** `assistant` → deepseek-ai/DeepSeek-V4.1-Flash-1017 (api.deepinfra.com), Sol profili kullanılmadı\n- **Hedef dil:** tr\n- **Proposal ID:** synthetic-not-applied\n\nNotlar:\n- Whisper+çeviri tek iş olarak çalıştığı için ikisi ayrı kartlara bölünmedi; çeviri aşaması istediğiniz DeepSeek profiliyle yapılacak.\n- Kartı uyguladığınızda iş kuyruğa alınır; sırada/çalışan işler varsa önceki anlık görüntülerini (snapshot) korur.\n- İş tamamlandığında durumu kontrol edip sonucu doğrulayabilirim.",
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+  "tier": "standard",
+  "synthetic": true,
+  "results": [
+    {
+      "id": "named-provider",
+      "elapsedMs": 14919,
+      "calls": [
+        {
+          "name": "list_translation_profiles",
+          "args": {}
+        },
+        {
+          "name": "probe_video_captions",
+          "args": {}
+        }
+      ],
+      "text": "Yapılandırılmış profillerde \"DeepSeek 4.1 Flash\" yalnızca **assistant** profili olarak var (`deepseek-ai/DeepSeek-V4.1-Flash-1017`, api.deepinfra.com). Çeviri (translation) profili olarak gerçekten yapılandırılmış bir DeepSeek yok — tek çeviri profili `gpt-6.1-sol`. Bu yüzden sessizce Sol'a düşmeden isteği uygulayamıyorum.\n\nKart hakkında: 5–25 saniyelik aralıkla Whisper çıkarımı için kartı zaten hazırlayabilirim, ancak çeviri modeli DeepSeek olarak belirlenemediği için çeviri adımını bağlayamıyorum. Seçenekleriniz:\n\n1. Çeviri için DeepSeek profilini uygulama ayarlarından ekleyin/etkinleştirin; ardından 5–25 s aralıklı Whisper kartını çeviriyle birlikte hazırlarım.\n2. Yalnızca Whisper çıkarımı (5–25 s, çevirisiz) kartını hazırlamamı isterseniz söyleyin.\n3. Açıkça Sol ile çeviri isterseniz belirtin.\n\nAyrıca `probe_video_captions` çağrısı \"Fixture tool not supplied\" hatasıyla başarısız oldu; buna dayanarak videoda altyazı olup olmadığı hakkında bir sonuç çıkaramıyorum. Whisper kartı mevcut altyazıya ihtiyaç duymadığı için bu adımı engellemiyor.",
+      "error": null
+    },
+    {
+      "id": "advanced-vad",
+      "elapsedMs": 11271,
+      "calls": [
+        {
+          "name": "get_workflow_settings",
+          "args": {
+            "domain": "transcription"
+          }
+        },
+        {
+          "name": "configure_workflow",
+          "args": {
+            "domain": "transcription",
+            "changes_json": "{\"vadFilter\":true,\"vadThreshold\":0.6}"
+          }
+        }
+      ],
+      "text": "Ayar kartı hazırlandı (öneri olarak, henüz uygulanmadı). Kartı siz onayladığınızda şu değişiklikler geçerli olacak:\n\n- **VAD filtresi:** `false` → `true` (açık)\n- **VAD eşiği:** `0.5` → `0.6`\n\nSeslendirme veya transkripsiyon üretimi başlatılmadı. Halihazırda çalışan/kuyruktaki işler varsa, mevcut anlık görüntüleriyle (snapshot) devam eder; bu değişiklik onları etkilemez. Kartı uygulamak isterseniz onaylamanız yeterli.",
+      "error": null
+    },
+    {
+      "id": "failed-search",
+      "elapsedMs": 8703,
+      "calls": [
+        {
+          "name": "search_subtitles",
+          "args": {
+            "query": "anne"
+          }
+        },
+        {
+          "name": "search_subtitles",
+          "args": {
+            "query": "mother"
+          }
+        }
+      ],
+      "text": "Arama başarısız oldu; bu yüzden altyazıda annenin adı geçip geçmediğini söyleyemem.\n\n- \"anne\" ve \"mother\" için yaptığım iki altyazı araması da \"Synthetic subtitle search unavailable\" hatası verdi — yani sonuç yok değil, arama hiç çalışmadı.\n- Mevcut kaynak özetinde yalnızca köprü onarımlarının anlatıldığı ve hiçbir biyografik bilgi verilmediği yazıyor; bu da annenin adına dair bir bilgi içermiyor.\n\nBu nedenle isim uydurmayacağım. İsterseniz altyazı aramasını tekrar deneyebilirim; ayrıca açık bir zaman aralığı belirtirseniz o kısmın altyazısına bakabilirim.",
+      "error": null
+    }
+  ]
+}

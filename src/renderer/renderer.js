@@ -11514,9 +11514,9 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
   const clipRange = Object.hasOwn(config,'clipRange')?config.clipRange:currentBrowserWhisperRange();
   const targetLanguage=config.targetLanguage||$('translateTo')?.value||'tr';
   const forSpeech = !!translate && (config.forSpeech ?? !!$('translateForSpeech')?.checked);
-  const selectedModel = String($('translateModel')?.value || '').trim();
-  const selectedProvider = String($('translateEndpointPreset')?.value === 'custom'
-    ? $('translateBaseUrl')?.value || '' : $('translateEndpointPreset')?.value || '').replace(/\/+$/, '');
+  const selectedModel = String(config.translationConfig?.model||$('translateModel')?.value || '').trim();
+  const selectedProvider = String(config.translationConfig?.endpoint||($('translateEndpointPreset')?.value === 'custom'
+    ? $('translateBaseUrl')?.value || '' : $('translateEndpointPreset')?.value || '')).replace(/\/+$/, '');
   const sameRange = track => clipRange
     ? track.clipRange?.start === clipRange.start && track.clipRange?.end === clipRange.end
     : !track.clipRange;
@@ -11554,7 +11554,7 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
     if ($('makeTransBtn') && !$('makeTransBtn').disabled) {
       setBrowserSignal('Whisper altyazısı zaten hazır; ses yeniden işlenmeden yalnız çeviri başlatıldı.', true,
         { priority: 70, holdMs: 5000 });
-      return startPlayerSubtitleTranslation({forSpeech,targetLanguage,range:clipRange,isCancelled:config.isCancelled});
+      return startPlayerSubtitleTranslation({translationConfig:config.translationConfig,forSpeech,targetLanguage,range:clipRange,isCancelled:config.isCancelled});
     }
   }
   if (config.isCancelled?.()) return { ok: false, cancelled: true };
@@ -11562,6 +11562,7 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
   await startProgressivePlayerTranscription({
     browserYoutube: true,
     translateOverride: !!translate,
+    translationConfig:config.translationConfig,
     translateForSpeech: forSpeech,
     targetLanguage,
     clipRange,
@@ -25655,6 +25656,7 @@ async function startProgressivePlayerTranscription(config = {}) {
     opts.translate = !!config.translateOverride;
   }
   if(config.targetLanguage)opts.translateTo=config.targetLanguage;
+  if(opts.translate&&config.translationConfig)AssistantTranslationProfiles.apply(opts,config.translationConfig);
   configureSpeechTranslation(opts, opts.translate &&
     (config.translateForSpeech ?? !!$('translateForSpeech')?.checked));
   // Oynatici icin SRT zorunlu: farkli zaman araliklari en sonda tek, atomik
@@ -25947,6 +25949,7 @@ async function startPlayerSubtitleTranslation(config = {}) {
     }
     if (state.translateVariantLabel) opts.translateVariantLabel = state.translateVariantLabel;
     if (state.translateModelOverride) opts.translateModel = state.translateModelOverride;
+    if(config.translationConfig){AssistantTranslationProfiles.apply(opts,config.translationConfig);delete opts.translateExisting;opts.translateVariantLabel='assistant-model-'+Date.now().toString(36);}
     const browserLanguage = browserTrackSourceLanguage(browserTrack);
     // Tarayıcı altyazısının kendi dil bilgisi, ana ekranda önceki işten kalmış
     // dil seçiminden daha güvenilirdir. Yanlış kaynak dil promptu özellikle kısa

@@ -29,3 +29,7 @@ test('Positive possessive words do not become negation; actual negative verbs st
 test('Fractional second bounds reach the translation plan without truncation',async()=>{
  const h=harness();await h.run({caption_id:'yt-manual:en',start:5.125,end:25.75});const args=h.calls.at(-1)[1];assert.equal(args.range.start,5.125);assert.equal(args.range.end,25.75);
 });
+
+test('an explicit job provider survives the caption adapter without changing global settings',async()=>{
+ const h=harness(),config={endpoint:'https://api.deepinfra.com/v1/openai',model:'deepseek-ai/DeepSeek-V4.1-Flash-1017',apiKey:'fixture-deep',profile:{id:'assistant',model:'deepseek-ai/DeepSeek-V4.1-Flash-1017'}};h.window.AssistantTranslationActions={resolve:async id=>{assert.equal(id,'assistant');return config;}};await h.run({caption_id:'yt-manual:en',translation_profile:'assistant'});assert.equal(h.calls.at(-1)[1].translationConfig,config);
+});
