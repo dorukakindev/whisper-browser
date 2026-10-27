@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-27-1904.md](docs/devir/2026-10-27-1904.md) — Canlı Sol ve DeepSeek karşılaştırması
 Güncel çalışma: [docs/devir/2026-10-27-1859.md](docs/devir/2026-10-27-1859.md) — Canlı DeepSeek standart çeviri/asistan değerlendirmesi
 Güncel çalışma: [docs/devir/2026-10-27-1853.md](docs/devir/2026-10-27-1853.md) — Asistan işlem ayarları ve genel erişim
 Güncel çalışma: [docs/devir/2026-10-27-1837.md](docs/devir/2026-10-27-1837.md) — Keşfet yorumları, Flex seçimi ve asistan görünümü

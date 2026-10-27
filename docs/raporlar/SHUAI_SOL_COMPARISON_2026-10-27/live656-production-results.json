@@ -1,0 +1,55 @@
+{
+  "model": "gpt-6.1-sol",
+  "requestedTier": "standard",
+  "syntheticOnly": true,
+  "results": [
+    {
+      "id": "translation-normal",
+      "elapsedMs": 10472,
+      "finish": "stop",
+      "servedTier": "default",
+      "usage": {
+        "prompt_tokens": 24244,
+        "completion_tokens": 464,
+        "total_tokens": 24708,
+        "completion_tokens_details": {
+          "reasoning_tokens": 188
+        }
+      },
+      "text": "{\"sentences\":{\"0\":\"Köprü 1942'de değil, 1924'te açıldı.\\nKasabanın terk edildiğini hiç söylemedim.\\nYalnızca istasyon kapandı.\",\"1\":\"Maya, anahtarını kaybeden Leyla'ya\\nanahtarı verdi.\\nLeyla, görevliye değil, Maya'ya\\nteşekkür etti.\",\"2\":\"Tedavi, riski yüzde 15 azaltabilir;\\niyileşmeyi garanti etmez.\",\"3\":\"Ah, harika.\\nYine iki saatlik gecikme.\\nTam da ihtiyacımız olan şey.\"},\"items\":{\"0\":\"Köprü 1942'de değil, 1924'te açıldı.\\nKasabanın terk edildiğini hiç söylemedim.\\nYalnızca istasyon kapandı.\",\"1\":\"Maya, anahtarını kaybeden Leyla'ya\\nanahtarı verdi.\\nLeyla, görevliye değil, Maya'ya\\nteşekkür etti.\",\"2\":\"Tedavi, riski yüzde 15 azaltabilir;\\niyileşmeyi garanti etmez.\",\"3\":\"Ah, harika.\\nYine iki saatlik gecikme.\\nTam da ihtiyacımız olan şey.\"},\"memory\":{}}"
+    },
+    {
+      "id": "translation-speech",
+      "elapsedMs": 12493,
+      "finish": "stop",
+      "servedTier": "default",
+      "usage": {
+        "prompt_tokens": 24890,
+        "completion_tokens": 469,
+        "total_tokens": 25359,
+        "completion_tokens_details": {
+          "reasoning_tokens": 203
+        }
+      },
+      "text": "{\"sentences\":{\"0\":\"Köprü 1942'de değil, 1924'te açıldı.\\nKasabanın terk edildiğini hiç söylemedim.\\nYalnızca istasyon kapandı.\",\"1\":\"Leyla kendi anahtarını kaybettiği için Maya ona anahtarı verdi.\\nLeyla, bekçiye değil Maya'ya teşekkür etti.\",\"2\":\"Tedavi riski yüzde 15 azaltabilir; iyileşmeyi garanti etmez.\",\"3\":\"Ah, harika.\\nYine iki saatlik bir gecikme.\\nTam da ihtiyacımız olan şey.\"},\"items\":{\"0\":\"Köprü 1942'de değil, 1924'te açıldı.\\nKasabanın terk edildiğini hiç söylemedim.\\nYalnızca istasyon kapandı.\",\"1\":\"Leyla kendi anahtarını kaybettiği için Maya ona anahtarı verdi.\\nLeyla, bekçiye değil Maya'ya teşekkür etti.\",\"2\":\"Tedavi riski yüzde 15 azaltabilir; iyileşmeyi garanti etmez.\",\"3\":\"Ah, harika.\\nYine iki saatlik bir gecikme.\\nTam da ihtiyacımız olan şey.\"},\"memory\":{}}"
+    },
+    {
+      "id": "translation-speech-repeat",
+      "elapsedMs": 12089,
+      "finish": "stop",
+      "servedTier": "default",
+      "usage": {
+        "prompt_tokens": 24890,
+        "completion_tokens": 416,
+        "total_tokens": 25306,
+        "prompt_tokens_details": {
+          "cached_tokens": 24887
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 134
+        }
+      },
+      "text": "{\"sentences\":{\"0\":\"Köprü 1942'de değil, 1924'te açıldı.\\nKasabanın terk edildiğini asla söylemedim.\\nYalnızca istasyon kapandı.\",\"1\":\"Maya, Leyla'ya anahtarı verdi çünkü Leyla kendi anahtarını kaybetmişti.\\nLeyla, muhafıza değil, Maya'ya teşekkür etti.\",\"2\":\"Tedavi riski yüzde 15 azaltabilir; iyileşmeyi garanti etmez.\",\"3\":\"Ah, harika.\\nYine iki saatlik bir gecikme.\\nTam da ihtiyacımız olan şey.\"},\"items\":{\"0\":\"Köprü 1942'de değil, 1924'te açıldı.\\nKasabanın terk edildiğini asla söylemedim.\\nYalnızca istasyon kapandı.\",\"1\":\"Maya, Leyla'ya anahtarı verdi çünkü Leyla kendi anahtarını kaybetmişti.\\nLeyla, muhafıza değil, Maya'ya teşekkür etti.\",\"2\":\"Tedavi riski yüzde 15 azaltabilir; iyileşmeyi garanti etmez.\",\"3\":\"Ah, harika.\\nYine iki saatlik bir gecikme.\\nTam da ihtiyacımız olan şey.\"},\"memory\":{}}"
+    }
+  ]
+}
