@@ -7271,3 +7271,5 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
 .result-review-icon{display:none}
 #resultModal[data-review=true] .result-success-icon{display:none}
 #resultModal[data-review=true] .result-review-icon{display:block}
+
+.log-line{overflow-wrap:anywhere;white-space:pre-wrap}

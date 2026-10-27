@@ -8,14 +8,17 @@ app.whenReady().then(async()=>{
  await win.loadFile(path.join(root,'src/renderer/assistant-overlay.html'));win.showInactive();const run=s=>win.webContents.executeJavaScript(s);
  const base={opened:true,locale:'tr',theme:'dark',sourceToken:'fixture',conversation:'fixture',messages:[{role:'ai',text:'Önceki adım gerçek iş kabulüyle eşleşti.',actions:[{id:'proposal',kind:'app_action',label:'Altyazıyı çevir',resultStatus:'accepted',resultText:'İş kabul edildi.'}]}]};
  const {describe}=require('../src/assistant-flow-state'),row={jobId:'exact',waiting:true,expires:Date.now()+600000};
+ const composer=[];
  for(const state of ['running','completed','failed']){
   const info=describe(row,[{id:'exact',state}]);const note=state==='failed'?'Önceki iş başarısız. Sonucunu İşler bölümünde kontrol et.':state==='running'?'İlgili iş hâlâ sürüyor.':'';
   win.webContents.send('assistant:snapshot',{...base,messages:[{...base.messages[0],actions:[{...base.messages[0].actions[0],canContinue:info.ready||info.waiting,waiting:info.waiting,flowNote:note}]}]});await wait(180);
   assert.equal(await run("!!document.querySelector('.flow-continue')"),state!=='failed');
   if(state!=='failed')assert.equal(await run("document.querySelector('.flow-continue').disabled"),state==='running');
   else assert(await run("document.getElementById('log').textContent.includes('Önceki iş başarısız')"));
+  composer.push(await run("document.getElementById('form').getBoundingClientRect().bottom"));
   fs.writeFileSync(path.join(out,state+'.png'),(await win.webContents.capturePage()).toPNG());
  }
+ assert(Math.max(...composer)-Math.min(...composer)<1,'Running/completed/failed changes must not move the composer');
  const focusSnapshot={...base,messages:[{...base.messages[0],actions:[{...base.messages[0].actions[0],canContinue:true,waiting:false}]}]};
  win.webContents.send('assistant:snapshot',focusSnapshot);await wait(100);await run("document.querySelector('.flow-continue').focus()");
  win.webContents.send('assistant:snapshot',{...focusSnapshot,messages:[{...focusSnapshot.messages[0],text:'Updated job receipt'}]});await wait(100);

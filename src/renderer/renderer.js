@@ -1442,6 +1442,16 @@ function trimLogLines(log) {
   range.deleteContents();
 }
 
+// Terminal formatting is not meaningful in the GUI. Keep raw process logs unchanged.
+function logDisplayText(message) {
+  return String(message)
+    .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '')
+    .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '')
+    .replace(/\r\n/g, '\n')
+    .replace(/[\u0000-\u0008\u000b-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g,
+      value => '\\u' + value.charCodeAt(0).toString(16).padStart(4, '0'));
+}
+
 function logLine(message, level = 'info') {
   const log = $('log');
   const stick = isNearBottom(log);
@@ -1449,7 +1459,7 @@ function logLine(message, level = 'info') {
   line.className = `log-line log-${level}`;
   const t = new Date();
   const ts = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}:${String(t.getSeconds()).padStart(2, '0')}`;
-  line.innerHTML = `<span class="log-time">${ts}</span>${escapeHtml(message)}`;
+  line.innerHTML = `<span class="log-time">${ts}</span>${escapeHtml(logDisplayText(message))}`;
   log.appendChild(line);
   if (stick) log.scrollTop = log.scrollHeight;
   trimLogLines(log);

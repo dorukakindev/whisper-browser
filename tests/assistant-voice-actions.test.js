@@ -4,7 +4,7 @@ const {JSDOM}=require('jsdom');
 
 test('Assistant can inspect every quality group past the first 30 without exposing paths',async()=>{
  const h=setup();try{await h.run('configure_voice_generation',{profile:'quality'});await h.run('start_voice_generation');h.finish(61);
- const first=(await h.run('get_voice_status')).voice;assert.equal(first.groups.length,30);assert.equal(first.nextOffset,30);assert.equal(first.counts.total,61);
+ const measured=await h.run('get_voice_status');assert.match(measured.note,/has not listened/);assert(measured.voice.groups.every(row=>row.verification==='not_checked'),'Unchecked fixture groups must never become acoustic quality proof');const first=measured.voice;assert.equal(first.groups.length,30);assert.equal(first.nextOffset,30);assert.equal(first.counts.total,61);
  const second=(await h.run('get_voice_status',{offset:first.nextOffset})).voice;assert.equal(second.groups[0].id,'g31');assert.equal(second.nextOffset,60);
  const last=(await h.run('get_voice_status',{offset:60})).voice;assert.equal(last.groups[0].id,'g61');assert.equal(last.nextOffset,null);assert.equal(last.groupsTruncated,false);
  const exact=(await h.run('get_voice_status',{group_id:'g61'})).voice;assert.equal(exact.groups.length,1);assert.equal(exact.groups[0].number,61);assert(!JSON.stringify(exact).includes('private'));

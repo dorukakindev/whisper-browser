@@ -1,3 +1,4 @@
+- [Rapor635](BROWSER_BUG_REPORT_635.md) — Birleşik caption→translation→voice, kaybolan ses aralığı ve okunur günlük
 - [Rapor 634](BROWSER_BUG_REPORT_634.md) — PDF arama/zoom, yanlış olumsuzluk retleri ve eksik dublaj kalite raporu
 - [Rapor 633](BROWSER_BUG_REPORT_633.md) — 100 hedef, güvenli devam, PDF ses sahipliği ve 61 kalite grubu
 - [Rapor 632](BROWSER_BUG_REPORT_632.md) — Exact-job devam, kütüphane sayfalama, PDF/ZIP/PCM ve1000denetim görevi

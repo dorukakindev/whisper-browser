@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-27-0916.md](docs/devir/2026-10-27-0916.md) —100 hedef: birleşik asistan/çeviri/ses kabulü ve aralık onarımı
 Güncel çalışma: [docs/devir/2026-10-27-0856.md](docs/devir/2026-10-27-0856.md) — PDF arama/zoom ve çeviri/dublaj kalite doğruluğu
 Güncel çalışma: [docs/devir/2026-10-27-0810.md](docs/devir/2026-10-27-0810.md) — 100 ürün hedefi: devam, kitap/PDF ve dublaj ilk paketi
 Güncel çalışma: [docs/devir/2026-10-27-0738.md](docs/devir/2026-10-27-0738.md) — Ürün derinleştirme ilk paketi, DeepSeek triyajı ve1000gece senaryosu
