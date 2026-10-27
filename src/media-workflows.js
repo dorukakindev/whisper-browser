@@ -391,6 +391,9 @@ function registerMediaWorkflows({
     try {
       const d = load(p.id),
         c = d.chapters[p.chapter];
+      // Text equality is insufficient: another request can produce the same
+      // chapter. A late completion must never clear or replace its successor.
+      if (!c || c.activeJob?.id !== output.id) return;
       if (hash(c.text) !== p.hash) {
         if(c.activeJob?.id === output.id){c.activeJob=null;save(d);}
         return;

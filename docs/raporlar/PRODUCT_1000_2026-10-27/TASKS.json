@@ -8372,8 +8372,8 @@
       "operation": null,
       "criterion": "Özgün kimlik",
       "acceptance": "Aynı kitapta bölüm/spine veya PDF özgün sayfa kimliği korunur.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DÜZELTİLDİ",
+      "evidence": "Rapor639; book-capture-owner639 gerçek servis, iki geç sonuç sırası; kod 4c0c70750fcc358e633ea26e575a403c3ea3612b"
     },
     {
       "id": "P0762",
@@ -8405,8 +8405,8 @@
       "operation": null,
       "criterion": "Kaynak değişimi",
       "acceptance": "Dosya dışarıdan değişince önceki kullanıcı düzenlemesini kaybetme ve yeni kaynağı karıştırma.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DÜZELTİLDİ",
+      "evidence": "Rapor639; book-capture-owner639 gerçek servis, iki geç sonuç sırası; kod 4c0c70750fcc358e633ea26e575a403c3ea3612b"
     },
     {
       "id": "P0765",
@@ -11058,6 +11058,15 @@
         "P0949"
       ],
       "next": "Açık ses referansı, anlam/okunuş ve kitap etkileşim hedefleri; timeout/iptal regresyonu sonraki değişikliklerde korunsun."
+    },
+    {
+      "report": 639,
+      "code": "4c0c70750fcc358e633ea26e575a403c3ea3612b",
+      "updated": [
+        "P0761",
+        "P0764"
+      ],
+      "next": "Asistan/altyazı bağlamı ve ses referansı kabul boşluklarını somut repro ile araştır."
     }
   ]
 }
