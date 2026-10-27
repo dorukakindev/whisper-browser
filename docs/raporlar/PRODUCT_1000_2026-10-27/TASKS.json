@@ -1629,8 +1629,8 @@
       "operation": "start_whisper",
       "criterion": "Kontrollü ret",
       "acceptance": "Mevcut servis ok:false/exception döndürürse başarı kartına dönüştürme.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "DÜZELTİLDİ",
+      "evidence": "Rapor641; gerçek renderer fonksiyonu reuse regresyonları, model/provider metadata; gerçek motor kalitesi açık; kod b9b6e83fc71f15623a9c6a74533c381e84477f7c"
     },
     {
       "id": "P0149",
@@ -1651,8 +1651,8 @@
       "operation": "start_whisper",
       "criterion": "Sonuç ve erişim",
       "acceptance": "Başarı/partial/hata sonrası gerçek çıktı veya yeniden deneme erişilsin; dar EN/TR panelde düğmeler kaybolmasın.",
-      "status": "PLANLANDI",
-      "evidence": null
+      "status": "İLERLEDİ",
+      "evidence": "Rapor641; gerçek renderer fonksiyonu reuse regresyonları, model/provider metadata; gerçek motor kalitesi açık; kod b9b6e83fc71f15623a9c6a74533c381e84477f7c"
     },
     {
       "id": "P0151",
@@ -11080,6 +11080,15 @@
         "P0280"
       ],
       "next": "Ses kaynak/referans sahipliği ve Whisper kısmi altyazı reuse kabul boşlukları."
+    },
+    {
+      "report": 641,
+      "code": "b9b6e83fc71f15623a9c6a74533c381e84477f7c",
+      "updated": [
+        "P0148",
+        "P0150"
+      ],
+      "next": "Referans değişimi/worker tekrar üretimi ve ses kalite kaynağı kabulü."
     }
   ]
 }

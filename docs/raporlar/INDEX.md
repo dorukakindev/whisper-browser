@@ -1,3 +1,4 @@
+- [Rapor641](BROWSER_BUG_REPORT_641.md) — Kısmi Whisper kaynağı ve farklı model/sağlayıcı çevirisinin yeniden kullanımı
 - [Rapor640](BROWSER_BUG_REPORT_640.md) — Asistan Whisper aralığı ve açılmayan ses penceresinde başarı bildirimi
 - [Rapor639](BROWSER_BUG_REPORT_639.md) — Eski kitap ses sonucunun yeni işi ezmesini önleme
 - [Rapor638](BROWSER_BUG_REPORT_638.md) — Gerçek durdurma onayı, iptal tekrarı ve geç çıktı/yeni iş koruması
