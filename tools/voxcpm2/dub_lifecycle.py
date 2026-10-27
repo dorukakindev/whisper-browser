@@ -44,6 +44,10 @@ async def stop_server(server, timeout=15):
                 if proc.is_alive():
                     proc.kill()
                     await asyncio.to_thread(proc.join, 2)
+                if proc.is_alive():
+                    if isinstance(error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)):
+                        raise
+                    raise EngineStalled('Voice engine worker did not stop / Ses motoru alt süreci durmadı.') from error
         print('DUB_WARNING server_shutdown_timeout', flush=True)
         if isinstance(error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)):
             raise

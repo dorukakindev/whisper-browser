@@ -119,7 +119,15 @@ class EngineSession:
                     self.stuck_verifiers.append(item)
                     print('DUB_WARNING verifier_close_failed '+type(error).__name__,flush=True)
         finally:
-            if server is not None: await stop_server(server)
+            if server is not None:
+                try:
+                    await stop_server(server)
+                except BaseException:
+                    # Keep the exact owned engine reachable for another reset.
+                    # key/loaded stay invalid: it cannot be reused for synthesis
+                    # or replaced by a new GPU engine before a confirmed stop.
+                    self.server=server
+                    raise
     def close(self):
         try:self.run(self.reset())
         finally:self.loop.close()
