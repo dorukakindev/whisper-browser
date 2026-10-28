@@ -3,6 +3,13 @@
   const el = id => document.getElementById(id), api = window.api;
   if (!api.prepareVoiceReference) return;
   const panel = el('voiceReferenceRecorder');
+  const comparison = window.VoiceReferenceCompare?.mount(el('voiceReferenceAB'), {
+    onUse: id => window.VoiceReferenceUI.use(id),
+    onError: error => status(error.message),
+    otherAudio: () => el('voiceReferencePreview'),
+  });
+  el('voiceReferencePreview').addEventListener('play', () => comparison?.stop());
+
   let active = null, stopping = false, references = [], folder = '', applying = false;
   let localSource = '', selectingSource = false;
   let refreshSequence = 0;
@@ -56,6 +63,7 @@
     el('voiceReferenceUse').disabled = !!active || applying || generating || !selected() || !el('voiceReferenceText').value.trim();
     el('voiceReferenceRename').disabled = !!active || applying || generating || !selected() || !el('voiceReferenceName').value.trim();
     el('voiceReferenceFolder').disabled = !folder;
+    comparison?.update(references, { busy: !!active || applying || generating || selectingSource, selectedId: selected()?.id });
     transcriptComparison();
   }
   function show() {
@@ -225,7 +233,8 @@
       transcribe_cuda: 'Referans dökümü hazırlanıyor · GPU…', transcribe_cpu: 'Referans dökümü hazırlanıyor · CPU…' };
     if (stages[event.stage]) status(stages[event.stage]);
   });
-  el('dubGeneratorDialog').addEventListener('close', () => el('voiceReferencePreview').pause());
+  el('dubGeneratorDialog').addEventListener('close', () => { el('voiceReferencePreview').pause(); comparison?.stop(); });
+  panel.addEventListener('toggle', () => { if (!panel.open) comparison?.stop(); });
   window.VoiceReferenceUI=Object.freeze({
     chooseLocal,
     use:async(id,isCancelled=()=>false)=>{if(active||applying||selectingSource||isCancelled())return {ok:false};if(!await refresh(id)||isCancelled())return {ok:false};return useSelected();},
