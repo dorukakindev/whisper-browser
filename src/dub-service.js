@@ -129,7 +129,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     fs.mkdirSync(referencesRoot(), { recursive: true });
     const folder = path.join(fs.realpathSync(referencesRoot()), id);
     if (fs.existsSync(folder) && fs.realpathSync(folder) !== path.resolve(folder)) throw new Error('Invalid reference folder.');
-    return { folder, reference: path.join(folder, 'reference.wav'), transcript: path.join(folder, 'reference.txt'), metadata: path.join(folder, 'reference.json') };
+    return { folder, reference: path.join(folder, 'reference.wav'), transcript: path.join(folder, 'reference.txt'), metadata: path.join(folder, 'reference.json'), baseline: path.join(folder,'reference-asr.json') };
   }
   function referenceEntry(id) {
     const p = referencePaths(id);
@@ -142,7 +142,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     grantMedia(p.reference);
     return { id, name: String(meta.name || id).slice(0, 160), createdAt: String(meta.createdAt || ''), path: p.reference,
       url: pathToFileURL(p.reference).href, text: fs.readFileSync(p.transcript, 'utf8'), folder: p.folder,
-      quality: meta.quality || null };
+      quality: meta.quality || null, transcriptBaseline: require('./voice-reference-baseline').read(p.reference,p.baseline) };
   }
   ipcMain.handle('dub:references', guard(async () => {
     fs.mkdirSync(referencesRoot(), { recursive: true });
@@ -178,7 +178,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     atomicWriteFileSync(p.transcript, text, { encoding: 'utf8' });
     c.reference = p.reference; c.transcript = p.transcript;
     atomicWriteFileSync(configPath(), JSON.stringify(c, null, 2), { encoding: 'utf8' });
-    return { ok: true };
+    return { ok: true, transcriptBaseline: entry.transcriptBaseline };
   }));
   ipcMain.handle('dub:referencePrepare', guard(async (e, request = {}) => {
     if (job || textUI || releasingEngine || busy()) throw new Error('Wait for the current job to finish.');
@@ -193,13 +193,14 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     ownJob(s);
     try {
       fs.mkdirSync(p.folder);
-      claimArtifacts(s, [p.reference, p.transcript, p.metadata, path.join(p.folder, 'reference-quality.json'), p.reference.replace(/\.wav$/i, '.partial.wav'), `${p.reference}.partial`]);
+      claimArtifacts(s, [p.reference, p.transcript, p.metadata, p.baseline, path.join(p.folder, 'reference-quality.json'), p.reference.replace(/\.wav$/i, '.partial.wav'), `${p.reference}.partial`]);
       s.logPath = path.join(p.folder, 'events.ndjson'); s.summaryPath = path.join(p.folder, 'job.json');
       await prepareReference({ request, ...p, ...range, onProcess: proc => { s.proc = proc; },
         isCancelled: () => s.cancelled, status: stage => emit(s, 'reference_status', { stage }) });
       if (s.cancelled) throw new Error('Cancelled.');
       const text = fs.readFileSync(p.transcript, 'utf8').trim();
       if (!text || text.length > 8000 || !validVoiceOutput(p.reference)) throw new Error('No reference speech found.');
+      require('./voice-reference-baseline').save(p.reference,p.baseline,text);
       let quality = null;
       try { quality = JSON.parse(fs.readFileSync(path.join(p.folder, 'reference-quality.json'), 'utf8')); } catch (_) {}
       atomicWriteFileSync(p.metadata, JSON.stringify({ name: name || `${range.start}–${range.end} s · ${s.startedAt.slice(0, 19)}`, createdAt: s.startedAt, quality }), { encoding: 'utf8' });

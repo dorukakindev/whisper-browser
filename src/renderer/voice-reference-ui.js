@@ -22,6 +22,30 @@
     if (typeof error === 'string' && error.trim()) el('voiceReferenceStatus').textContent += ' ' + t(messages[error] || error.slice(0, 500));
   };
   const selected = () => references.find(item => item.id === el('voiceReferenceSelect').value);
+  function transcriptComparison() {
+    const item=selected(),baseline=item?.transcriptBaseline;
+    const en=window.UiLocale?.get?.()==='en',has=typeof baseline==='string'&&!!baseline.trim();
+    const normalize=text=>String(text||'').normalize('NFC').replace(/\s+/g,' ').trim();
+    const changed=has&&normalize(baseline)!==normalize(el('voiceReferenceText').value);
+    el('voiceReferenceComparison').hidden=!item;
+    el('voiceReferenceComparisonTitle').textContent=!has?(en?'No original transcript to compare':'Karşılaştırılacak ilk döküm yok'):changed?(en?'Transcript edited · compare changes':'Döküm düzenlendi · farkları karşılaştır'):(en?'Matches the first automatic transcript':'İlk otomatik dökümle aynı');
+    el('voiceReferenceComparisonHint').textContent=has?(en?'Compared with the automatic transcript captured for this audio. Recognition can be wrong; listen before using it. Your corrections are allowed.':'Bu ses için alınan ilk otomatik dökümle karşılaştırılır. Tanıma hatalı olabilir; kullanmadan önce dinleyin. Metni düzeltebilirsiniz.'):(en?'This recording has no audio-matched original transcript. It has not been checked. Prepare it again to create a comparison baseline.':'Bu kaydın sesle eşleşen ilk dökümü yok; uyumu kontrol edilmiş sayılmaz. Karşılaştırma için referansı yeniden hazırlayın.');
+    el('voiceReferenceComparisonColumns').hidden=!has;
+    el('voiceReferenceRestoreTranscript').hidden=!has;
+    el('voiceReferenceRestoreTranscript').disabled=!changed||!!active||applying||selectingSource;
+    el('voiceReferenceRestoreTranscript').textContent=en?'Restore first transcript to editor':'İlk dökümü düzenleyiciye getir';
+    el('voiceReferenceOriginalLabel').textContent=en?'First automatic transcript':'İlk otomatik döküm';
+    el('voiceReferenceEditedLabel').textContent=en?'Current text':'Düzenlenen metin';
+    // Reference transcripts are plain text, not subtitle markup. Keep literal
+    // tags visible rather than letting the subtitle diff's normalizer strip them.
+    const edited=el('voiceReferenceText').value;
+    const literalMarkup=/[<>]|\{\\/.test(String(baseline||'')+edited);
+    const parts=has&&window.TranslationDiff?.wordParts&&!literalMarkup?window.TranslationDiff.wordParts(baseline,edited):has?{before:[{text:baseline,kind:changed?'del':'same'}],after:[{text:edited,kind:changed?'add':'same'}]}:null;
+    for(const [id,values] of [['voiceReferenceOriginal',parts?.before],['voiceReferenceEdited',parts?.after]]){
+      const target=el(id);target.replaceChildren();
+      for(const part of values||[]){const span=document.createElement('span');span.textContent=part.text+' ';if(part.kind!=='same')span.className='reference-diff-'+part.kind;target.append(span);}
+    }
+  }
   function controls() {
     for (const id of ['voiceReferencePrepare','voiceReferenceStart','voiceReferenceEnd','voiceReferenceSearch','voiceReferenceSelect','voiceReferenceText','voiceReferenceName']) el(id).disabled = !!active || applying || selectingSource;
     el('voiceReferenceCancel').disabled = !active || stopping;
@@ -32,6 +56,7 @@
     el('voiceReferenceUse').disabled = !!active || applying || generating || !selected() || !el('voiceReferenceText').value.trim();
     el('voiceReferenceRename').disabled = !!active || applying || generating || !selected() || !el('voiceReferenceName').value.trim();
     el('voiceReferenceFolder').disabled = !folder;
+    transcriptComparison();
   }
   function show() {
     const item = selected(), audio = el('voiceReferencePreview');
@@ -72,7 +97,7 @@
   const revealPicker = () => el('voiceReferencePicker').scrollIntoView?.({block:'nearest',behavior:'auto'});
   el('voiceReferenceSearch').addEventListener('focus', revealPicker);
   el('voiceReferenceSearch').addEventListener('input', () => { rememberDraft();renderReferences();controls();revealPicker(); });
-  document.addEventListener('ui-locale-change', () => renderReferences());
+  document.addEventListener('ui-locale-change', () => {renderReferences();transcriptComparison();});
   async function refresh(preferred) {
     const sequence = ++refreshSequence;
     const result = await api.listVoiceReferences().catch(() => null);
@@ -108,6 +133,10 @@
     finally { applying = false; controls(); }
   });
   el('voiceReferenceText').addEventListener('input', () => { rememberDraft(); controls(); });
+  el('voiceReferenceRestoreTranscript').addEventListener('click',()=>{
+    const item=selected();if(active||applying||selectingSource||typeof item?.transcriptBaseline!=='string')return;
+    el('voiceReferenceText').value=item.transcriptBaseline;rememberDraft();controls();
+  });
   el('voiceReferenceFolder').addEventListener('click', () => { if (folder) void api.openPath(folder); });
   const seconds = raw => {
     const value = raw.trim();
@@ -180,6 +209,7 @@
     try {
       const result = await api.useVoiceReference({ id: item.id, text: el('voiceReferenceText').value });
       if (!result?.ok) { status('Referans sesi uygulanamadı.'); return; }
+      if(Object.hasOwn(result,'transcriptBaseline'))item.transcriptBaseline=result.transcriptBaseline;
       item.text = el('voiceReferenceText').value; rememberDraft();
       window.dispatchEvent(new CustomEvent('voice-reference:changed'));
       status('Referans ses ve dökümü güncellendi.');
