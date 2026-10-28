@@ -174,13 +174,13 @@ test("persisted book job recovers after service restart, manual review stays aud
       Object.assign(malformed.chapters[0].groups[0], mutation);
       fs.writeFileSync(manifest, JSON.stringify(malformed));
       assert.equal(
-        (await call("book-approve", { id, chapter: 0, key: "one" })).ok,
+        (await call("book-approve", { id, chapter: 0, key: "one", outputId: recovered.project.chapters[0].output, textHash: recovered.project.chapters[0].textHash })).ok,
         false,
         "failed or negative-timestamp groups cannot be manually approved",
       );
     }
     fs.writeFileSync(manifest, beforeApproval);
-    const approved = await call("book-approve", { id, chapter: 0, key: "one" });
+    const approved = await call("book-approve", { id, chapter: 0, key: "one", outputId: recovered.project.chapters[0].output, textHash: recovered.project.chapters[0].textHash });
     assert(approved.ok, approved.error);
     assert(approved.project.chapters[0].groups[0].manualApproval.audioHash);
     assert.equal(approved.project.chapters[0].status, "ready");

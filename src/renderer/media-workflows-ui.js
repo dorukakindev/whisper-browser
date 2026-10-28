@@ -1393,6 +1393,8 @@
                   id: approvalProject,
                   chapter: approvalChapter,
                   key: g.key,
+                  outputId: approvalOutput,
+                  textHash: c.textHash,
                 });
                 if (!approvalIsCurrent()) return;
                 project = approved.project;
