@@ -155,19 +155,20 @@
     const image = el('img'); image.alt = ''; image.loading = node.dataset.artRequired ? 'eager' : 'lazy'; image.referrerPolicy = 'no-referrer';
     const youtube = /^https:\/\/i\.ytimg\.com\/vi\/[a-zA-Z0-9_-]{11}\/hqdefault\.jpg$/.test(src);
     if (youtube) image.className = 'mh-remote-thumbnail';
-    let fallback = false;
+    const candidates=youtube?['hq720.jpg','hqdefault.jpg','mqdefault.jpg'].map(name=>src.replace('hqdefault.jpg',name)):[src];let candidate=0;
     const unavailable = () => {
-      if (youtube && !fallback) { fallback=true; image.src=src.replace('/hqdefault.jpg','/mqdefault.jpg'); return; }
+      if (++candidate<candidates.length) {image.src=candidates[candidate];return;}
       image.remove(); if (node.isConnected) artError(node);
     };
     image.onload = () => {
       if (!node.isConnected) return;
       // YouTube sometimes returns its tiny generic missing-image tile with HTTP 200.
       if (!image.naturalWidth || youtube && image.naturalWidth <= 120) return unavailable();
+      if(youtube)image.classList.toggle('mh-letterboxed-thumbnail',Math.abs(image.naturalWidth/image.naturalHeight-4/3)<.04);
       node.replaceChildren(image); node.dispatchEvent(new Event('home-art-ready', { bubbles:true }));
     };
     image.onerror = unavailable;
-    node.append(image); image.src = src;
+    node.append(image); image.src = candidates[0];
   }
   const safePoster = value => typeof value === 'string' && value.length < 8_000_000 && /^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(value);
   function pumpPosters() {
@@ -197,7 +198,7 @@
     const node = el('div', cls); node.append(icon());
     if (required) node.dataset.artRequired = 'true';
     node.addEventListener('home-art-error', () => { if (required) failedArtwork.set(artworkKey(item), Date.now()+60000); }, { once: true });
-    if (item?.hasPoster && item.id) {
+    if (item?.hasPoster && item.id && !(model.medium(item)==='web'&&model.thumbnail(item))) {
       node.dataset.homePoster = item.id;
       queueMicrotask(() => {
         if (!node.isConnected) return;
@@ -212,7 +213,9 @@
     return node;
   }
   function card(item, options = {}) {
-    const node = button('', () => item.key ? playWatch(item) : window.MediaTitleUI.open(item.id), 'mh-card');
+    const web=!!item.key&&model.medium(item)==='web';
+    const node = button('', () => item.key ? playWatch(item) : window.MediaTitleUI.open(item.id), 'mh-card'+(web?' mh-web-card':''));
+    if(web&&!options.artworkOnly){node.classList.add('mh-art-pending');node.addEventListener('home-art-ready',()=>node.classList.remove('mh-art-pending','mh-no-art'),{once:true});node.addEventListener('home-art-error',()=>{node.classList.remove('mh-art-pending');node.classList.add('mh-no-art');},{once:true});if(!hasArtwork(item))node.classList.add('mh-no-art');}
     node.dispose=()=>node.querySelectorAll('[data-home-poster]').forEach(image=>posterObserver.unobserve(image));
     node.dataset.homeItem = item.key || item.id;
     node.title = String(item.title || t('Untitled', 'Başlıksız'));
@@ -238,7 +241,7 @@
     const node = el('section', 'mh-section'), heading = el('div', 'mh-section-head');
     heading.append(el('h2', '', title));
     if (options.more) heading.append(button(t('View all', 'Tümünü gör'), options.more, 'mh-text-button'));
-    const grid = el('div', options.grid ? 'mh-grid' : `mh-rail${options.wide ? ' mh-wide' : ''}`);
+    const grid = el('div', options.grid ? 'mh-grid'+(options.web?' mh-web-grid':'') : `mh-rail${options.wide ? ' mh-wide' : ''}`);
     if(options.grid&&rows.length>100&&window.MediaVirtualGrid){queueMicrotask(()=>{if(grid.isConnected)virtualDisposers.push(window.MediaVirtualGrid.mount(grid,rows,card,host));});}
     else if (options.artworkOnly) {
       node.hidden = true; let next = 0;
@@ -373,7 +376,7 @@
         select.value = state.filter; select.addEventListener('change', () => { state.filter = select.value; state.limit = 48; renderContent(); }); controls.append(select);
       }
       controls.append(button(t('Open a file', 'Dosya aç'), () => click('playerPickVideo')), button(t('Manage library', 'Kütüphaneyi yönet'), () => catalog()));
-      content.append(controls, section(titles[state.page], filter(rows), { grid: true }));
+      content.append(controls, section(titles[state.page], filter(rows), { grid: true,web:state.page==='web' }));
       if (state.page === 'music') content.append(el('p', 'mh-empty', t('Local audio you play appears here. Playback uses your existing player and queue.', 'Oynattığın yerel sesler burada görünür. Mevcut oynatıcın ve kuyruğun kullanılır.')));
     }
     if (focusKey) [...content.querySelectorAll('[data-home-item]')].find(node => node.dataset.homeItem === focusKey)?.focus({ preventScroll: true });

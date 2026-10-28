@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "wide": [
+    {
+      "ratio": 1.7777777777777777,
+      "width": 317,
+      "position": "50% 50%",
+      "fit": "cover"
+    },
+    {
+      "ratio": 1.7777777777777777,
+      "width": 317,
+      "position": "50% 50%",
+      "fit": "cover"
+    }
+  ],
+  "highQualityFirst": true,
+  "qualityFallback": true,
+  "noBrokenImage": true,
+  "missingHistoryPreserved": true,
+  "narrow": true
+}

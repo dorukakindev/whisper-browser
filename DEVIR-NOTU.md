@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-0518.md](docs/devir/2026-10-28-0518.md) — Web video kapakları ve yatay kartlar
 Güncel çalışma: [docs/devir/2026-10-28-0501.md](docs/devir/2026-10-28-0501.md) — Analiz geçmişi ve birleşik müzik akışı
 Güncel çalışma: [docs/devir/2026-10-28-0429.md](docs/devir/2026-10-28-0429.md) — Dolu yüzeyler, okuma ayarları ve native video kabulü
 Güncel çalışma: [docs/devir/2026-10-28-0330.md](docs/devir/2026-10-28-0330.md) — Görsel kapsam ve ortak tasarım düzeltmeleri
