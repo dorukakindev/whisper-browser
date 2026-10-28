@@ -80,5 +80,21 @@
     }
     return { matches, truncated: chapters.length > 1000, cancelled: !isCurrent() };
   }
-  return Object.freeze({ search });
+  // Speech groups are ordered. Matching from the previous group's end prevents
+  // repeated dialogue from selecting the first occurrence again.
+  function locateSpeechGroup(text, groups, groupIndex) {
+    if (!Array.isArray(groups) || !Number.isInteger(groupIndex) || groupIndex < 0 || groupIndex >= groups.length) return null;
+    const body = folded(text);
+    let cursor = 0;
+    for (let i = 0; i <= groupIndex; i++) {
+      const needle = folded(groups[i]?.text).text.trim();
+      if (!needle) return null;
+      const at = body.text.indexOf(needle, cursor);
+      if (at < 0) return null;
+      cursor = at + needle.length;
+      if (i === groupIndex) return { start: body.starts[at], end: body.ends[cursor - 1] };
+    }
+    return null;
+  }
+  return Object.freeze({ search, locateSpeechGroup });
 });

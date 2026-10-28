@@ -1297,10 +1297,12 @@
             audio.load();
           }),
           button(t("Edit this passage", "Bu metni düzenle"), () => {
-            const index = textarea.value.indexOf(g.text || "");
+            const match = textarea.value === c.text
+              ? window.BookTextSearch.locateSpeechGroup(c.text, c.groups, c.groups.indexOf(g))
+              : null;
             textarea.focus();
-            if (index >= 0)
-              textarea.setSelectionRange(index, index + (g.text || "").length);
+            if (match)
+              textarea.setSelectionRange(match.start, match.end);
             else
               status(
                 t(
@@ -1472,6 +1474,7 @@
     }
     let last = -1,
       follow = true,
+      manualFollowUntil = 0,
       lastSaved = 0;
     const persist = () => {
       if (
@@ -1542,11 +1545,24 @@
       t("Follow reading: on", "Okumayı takip et: açık"),
       () => {
         follow = !follow;
+        followButton.setAttribute("aria-pressed", String(follow));
+        manualFollowUntil = 0;
+        last = -1;
         followButton.textContent = follow
           ? t("Follow reading: on", "Okumayı takip et: açık")
           : t("Follow reading: off", "Okumayı takip et: kapalı");
       },
     );
+    followButton.setAttribute("aria-pressed", "true");
+    // Match the PDF reader: give deliberate navigation a short grace period.
+    for (const target of [prose, page]) {
+      for (const name of ["wheel", "touchstart", "pointerdown"])
+        target.addEventListener(name, () => { manualFollowUntil = Date.now() + 5000; }, { passive: true });
+      target.addEventListener("keydown", event => {
+        if (["PageUp", "PageDown", "ArrowUp", "ArrowDown", "Home", "End", " "].includes(event.key))
+          manualFollowUntil = Date.now() + 5000;
+      });
+    }
     audio.ontimeupdate = () => {
       const i = rows.findIndex(
         (r) => audio.currentTime >= r.start && audio.currentTime < r.end,
@@ -1557,8 +1573,8 @@
       if (i >= 0) {
         const active = prose.querySelector(`[data-spoken-index="${i}"]`);
         active.setAttribute("aria-current", "true");
-        if (follow)
-          active.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        if (follow && Date.now() >= manualFollowUntil)
+          active.scrollIntoView({ block: "nearest", behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
       }
     };
     const font = el("input");

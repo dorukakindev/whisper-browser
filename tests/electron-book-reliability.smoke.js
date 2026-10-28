@@ -821,6 +821,25 @@ app
       'const a=document.querySelector(".mw-body audio");a.currentTime=1;a.dispatchEvent(new Event("timeupdate"));return true',
     );
     assert(await run('return !!document.querySelector(".pdf-active-box")'));
+    const followCheck=await run(`
+      const audio=document.querySelector(".mw-body audio"),prose=document.querySelector(".mw-reading-text"),follow=[...document.querySelectorAll(".mw-reading-head button")].find(n=>n.hasAttribute("aria-pressed"));
+      const oldScroll=Element.prototype.scrollIntoView,oldMatch=window.matchMedia,calls=[];
+      Element.prototype.scrollIntoView=function(options){if(this.matches(".mw-spoken"))calls.push(options);};
+      window.matchMedia=query=>query==="(prefers-reduced-motion: reduce)"?{matches:true}:oldMatch.call(window,query);
+      try{
+        follow.click();await Promise.resolve();const off=follow.getAttribute("aria-pressed");follow.click();await Promise.resolve();audio.currentTime=1;audio.dispatchEvent(new Event("timeupdate"));
+        const reduced=calls.splice(0);
+        audio.currentTime=audio.duration;audio.dispatchEvent(new Event("timeupdate"));calls.length=0;
+        prose.dispatchEvent(new WheelEvent("wheel",{deltaY:80}));audio.currentTime=1;audio.dispatchEvent(new Event("timeupdate"));
+        const manual=calls.length;
+        follow.click();await Promise.resolve();follow.click();await Promise.resolve();audio.dispatchEvent(new Event("timeupdate"));
+        return {off,on:follow.getAttribute("aria-pressed"),reduced,manual,resumed:calls.length};
+      }finally{Element.prototype.scrollIntoView=oldScroll;window.matchMedia=oldMatch;}
+    `);
+    fs.writeFileSync(path.join(out,"reader-follow.json"),JSON.stringify(followCheck,null,2));
+    assert.equal(followCheck.off,"false");assert.equal(followCheck.on,"true");
+    assert.equal(followCheck.reduced.length,1);assert.equal(followCheck.reduced[0].behavior,"auto");
+    assert.equal(followCheck.manual,0);assert.equal(followCheck.resumed,1);
     win.setContentSize(800, 900);
     win.webContents.setZoomFactor(1.25);
     await auditNarrow(
