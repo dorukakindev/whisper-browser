@@ -458,6 +458,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       for (const file of [python, script, path.join(c.engine,'kitap_ortak.py'), c.reference, c.transcript]) {
         if (!fs.existsSync(file)) throw new Error('VoxCPM2 motoru veya ses referansı bulunamadı.');
       }
+      emit(s, 'voice', {reference:c.reference,transcript:c.transcript,engine:c.engine});
       const srt = await authorizeSubtitle(request.srt);
       if (path.extname(srt).toLowerCase() !== '.srt') throw new Error('Bir SRT altyazı dosyası seçin.');
       if (fs.statSync(srt).size > 4000000) throw new Error('SRT çok büyük.');
