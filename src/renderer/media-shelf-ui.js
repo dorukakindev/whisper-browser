@@ -164,7 +164,7 @@
     const controls = el('div', 'mh-filterbar');
     controls.append(btn(t('Add audio', 'Ses ekle'), () => task('music-import')), btn(t('Add folder', 'Klasör ekle'), () => task('music-import', { folder: true })));
     controls.append(btn(t('Spotify link','Spotify bağlantısı'),()=>window.SpotifyImportUI.open({saved:reload}),'mh-action ms-spotify-open'));
-    controls.append(btn(t('Analyze music', 'Müziği analiz et'), () => window.MusicAnalysisUI.open()));
+    controls.append(btn(t('Analyze music', 'Müziği analiz et'), () => window.MusicAnalysisUI.open()),btn(t('Analysis history','Analiz geçmişi'),()=>window.MusicAnalysisUI.history()));
     const cancel = btn(t('Cancel import', 'İçe aktarmayı durdur'), () => api('cancel')); cancel.dataset.cancel = '1';cancel.hidden=true; controls.append(cancel);
     controls.append(btn(t('Save selected as playlist', 'Seçilenlerle çalma listesi oluştur'), async () => {
       const value = await form(t('New playlist', 'Yeni çalma listesi'), [{ key: 'name', label: t('Name', 'Ad') }]);

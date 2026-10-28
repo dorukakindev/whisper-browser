@@ -19,6 +19,7 @@ function create(userData,revision){
  function save(key,mode,result,context={}){
   if(!['analyze','tags','search','online'].includes(mode))return;
   const row=read(key)||{version:VERSION,revision,modes:{}};
+  if(context.location)row.location=clean(context.location);
   row.savedAt=Date.now();row.modes[mode]={savedAt:row.savedAt,result:clean(result),multiReference:context.multiReference===true,catalog:clean(context.catalog||[]),request:clean(context.request||{})};
   const data=JSON.stringify(row);if(Buffer.byteLength(data)>MAX)throw Error('Analysis result is too large to save');
   fs.mkdirSync(dir(),{recursive:true});
@@ -28,6 +29,8 @@ function create(userData,revision){
   if(!existing&&files.length>=LIMIT||used-oldSize+Buffer.byteLength(data)>TOTAL)throw Error('Saved analysis storage is full');
   atomicWriteFileSync(target,data);
  }
- return {read,save};
+ function list(){try{return fs.readdirSync(dir()).filter(n=>/^[a-f0-9]{64}\.json$/.test(n)).slice(0,LIMIT).flatMap(name=>{const id=name.slice(0,-5),row=read(id);if(!row)return [];const result=row.modes.analyze?.result||row.modes.tags?.result||{};return [{id,title:String(row.location?.title||result.title||'Audio').slice(0,300),artist:String(row.location?.artist||'').slice(0,300),cover:row.location?.cover||'',savedAt:row.savedAt,modes:Object.keys(row.modes).filter(k=>['analyze','tags','search','online'].includes(k)),reopenable:!!row.location}];}).sort((a,b)=>b.savedAt-a.savedAt);}catch{return [];}}
+ function bind(key,location){const row=read(key);if(!row||!location)return;row.location=clean(location);const data=JSON.stringify(row);if(Buffer.byteLength(data)<=MAX)atomicWriteFileSync(file(key),data);}
+ return {read,save,list,bind};
 }
 module.exports={create,clean,VERSION};
