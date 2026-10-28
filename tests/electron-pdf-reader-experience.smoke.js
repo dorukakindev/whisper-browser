@@ -278,6 +278,29 @@ app
       'await aiChatSend("Bu sayfayı seslendir");if(document.getElementById("pdfVoiceFrom").value!=="2"||document.getElementById("pdfVoiceTo").value!=="2")throw Error("Wrong assistant page range");document.getElementById("pdfVoiceFrom").value="2";document.getElementById("pdfVoiceTo").value="3";return true',
     );
     await capture("voice-range.png");
+    const projectsBeforePreview=await run('return (await window.api.mediaWorkflows({action:"book-list"})).projects.length');
+    await run('document.getElementById("pdfVoiceText").value="source";document.getElementById("pdfVoicePreviewOpen").click();return true');
+    await until(()=>run('return !document.getElementById("pdfVoicePreview").hidden&&!document.getElementById("pdfVoicePreviewOpen").disabled'),'selected text preview');
+    const previewTexts=await run(`const s=document.getElementById('pdfVoicePreviewPage'),rows=[];for(const o of s.options){s.value=o.value;s.dispatchEvent(new Event('change'));rows.push({page:Number(o.value),text:document.getElementById('pdfVoicePreviewText').value});}return rows;`);
+    assert.deepEqual(previewTexts.map(p=>p.page),[2,3]);assert.match(previewTexts[0].text,/Chapter 2/);assert.match(previewTexts[1].text,/Chapter 3/);
+    assert.equal(await run('return (await window.api.mediaWorkflows({action:"book-list"})).projects.length'),projectsBeforePreview,'Preview must not create a project');
+    assert.equal(await run('return player.pdfReader.currentPage'),2,'Preview page selection must not navigate the PDF');
+    for(const [locale,theme,width,zoom]of [['tr','dark',800,1.25],['en','light',1100,1]]){
+      win.setMinimumSize(640,600);win.setContentSize(width,900);win.webContents.setZoomFactor(zoom);
+      await run(`window.UiLocale.set('${locale}',false);applyUiTheme('${theme}');document.getElementById('pdfVoicePreviewPage').value='2';document.getElementById('pdfVoicePreviewPage').dispatchEvent(new Event('change'));return true`);await wait(120);
+      await run('document.getElementById("pdfVoicePreviewOpen").click();return true');await until(()=>run('return !document.getElementById("pdfVoicePreviewOpen").disabled&&!document.getElementById("pdfVoicePreview").hidden'),'responsive preview');
+      assert.match(await run('return document.getElementById("pdfVoicePreviewOpen").textContent'),locale==='en'?/Preview text/:/Metni önizle/);
+      const bounds=await run('const n=document.getElementById("pdfVoicePreviewText"),r=n.getBoundingClientRect();return {left:r.left,right:r.right,width:innerWidth,overflow:n.parentElement.scrollWidth>n.parentElement.clientWidth+1,visible:r.bottom<=document.getElementById("pdfVoicePanel").getBoundingClientRect().bottom+1&&r.top>=0};');assert(bounds.left>=0&&bounds.right<=bounds.width&&!bounds.overflow&&bounds.visible,JSON.stringify(bounds));
+      await capture('text-preview-'+locale+'.png');
+    }
+    win.webContents.setZoomFactor(1);win.setContentSize(1440,1000);await run('window.UiLocale.set("tr",false);applyUiTheme("dark");document.getElementById("pdfVoiceFrom").dispatchEvent(new Event("input"));return true');
+    assert(await run('return document.getElementById("pdfVoicePreview").hidden&&document.getElementById("pdfVoicePreviewText").value===""'),'Range changes clear obsolete preview');
+    await run('document.getElementById("pdfVoiceText").value="translation";document.getElementById("pdfVoicePreviewOpen").click();return true');
+    await until(()=>run('return !document.getElementById("pdfVoicePreviewOpen").disabled&&document.getElementById("pdfVoiceStatus").textContent.includes("hazır değil")'),'missing preview translation gate');
+    assert(await run('return document.getElementById("pdfVoicePreview").hidden'),'Incomplete translation must not show a false preview');
+    assert.equal(await run('return (await window.api.mediaWorkflows({action:"book-list"})).projects.length'),projectsBeforePreview);
+
+
     await run(
       'document.getElementById("pdfVoiceText").value="translation";document.getElementById("pdfVoicePrepare").click();return true',
     );
@@ -306,6 +329,7 @@ app
       [2, 3],
     );
     assert.deepEqual(project.selectedChapters, [0, 1]);
+    assert.deepEqual(project.chapters.map(c=>c.text),previewTexts.map(p=>p.text),'Preview and project must use identical prepared text');
     await capture("voice-studio.png");
     const prep = await run(
       'return window.api.mediaWorkflows({action:"book-prepare",id:' +

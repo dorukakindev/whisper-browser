@@ -16,6 +16,7 @@
   let playbackProgress = null;
   let pdfPlayback = null;
   let prepareToken = 0, manualFollowUntil = 0;
+  let voicePreview = null;
   function stopVoice() {
     spokenView = null;
     pdfPlayback?.dispose();pdfPlayback=null;
@@ -191,8 +192,9 @@
     for (const page of player.pdfReader?.pages.keys() || []) render(page);
   }
   function opened() {
+    clearVoicePreview();
     window.PdfReaderSearchUI?.reset();
-    prepareToken++;preparing=false;$("pdfVoicePrepare").disabled=false;manualFollowUntil=0;
+    prepareToken++;preparing=false;$("pdfVoicePrepare").disabled=false;$("pdfVoicePreviewOpen").disabled=false;manualFollowUntil=0;
     stopBookAssistant?.();
     $("pdfBookAssistant").replaceChildren();
     const owner = player.pdfReader;
@@ -260,8 +262,9 @@
     changed(true);
   }
   function closed() {
+    clearVoicePreview();
     window.PdfReaderSearchUI?.reset();
-    prepareToken++;preparing=false;$("pdfVoicePrepare").disabled=false;
+    prepareToken++;preparing=false;$("pdfVoicePrepare").disabled=false;$("pdfVoicePreviewOpen").disabled=false;
     stopBookAssistant?.();
     stopBookAssistant = null;
     $("pdfBookAssistant").replaceChildren();
@@ -333,7 +336,31 @@
       $("pdfVoiceFrom").focus();
     }
   };
-  async function prepareVoice(stale=()=>false) {
+  function clearVoicePreview() {
+    voicePreview=null;$("pdfVoicePreview").hidden=true;
+    $("pdfVoicePreviewText").value='';$("pdfVoicePreviewPage").replaceChildren();
+  }
+  function previewLabels() {
+    $("pdfVoicePreviewOpen").textContent=t('Metni önizle','Preview text');
+    $("pdfVoicePreviewTitle").textContent=t('Seslendirme öncesi metin','Text before narration');
+    $("pdfVoicePreviewPage").setAttribute('aria-label',t('Önizleme sayfası','Preview page'));
+    $("pdfVoicePreviewText").setAttribute('aria-label',t('Seslendirilecek metin','Text to narrate'));
+    if(voicePreview)renderVoicePreview();
+  }
+  function renderVoicePreview() {
+    const page=voicePreview?.pages.find(p=>String(p.pageNumber)===$("pdfVoicePreviewPage").value);
+    if(!page)return;
+    const shown=page.text.slice(0,50000),total=voicePreview.pages.reduce((n,p)=>n+p.text.length,0);
+    $("pdfVoicePreviewText").value=shown;$("pdfVoicePreviewText").setSelectionRange(0,0);$("pdfVoicePreviewText").scrollTop=0;
+    $("pdfVoicePreviewTitle").textContent=t('Seslendirme öncesi metin','Text before narration')+` · ${voicePreview.pages[0].pageNumber}–${voicePreview.pages.at(-1).pageNumber} · `+(voicePreview.mode==='translation'?t('Çeviri metni','Translated text'):t('Orijinal metin','Original text'));
+    $("pdfVoicePreviewCount").textContent=t(`${voicePreview.pages.length} sayfa · ${total} karakter`,`${voicePreview.pages.length} pages · ${total} characters`);
+    $("pdfVoicePreviewHint").textContent=t('Bu metin projeye aktarılır. Henüz ses üretilmedi. Okuma sırasını, başlıkları ve dipnotları kontrol edin.','This text is passed to the project. No audio has been generated. Check reading order, headings and footnotes.')+(shown.length<page.text.length?t(' Bu sayfanın ilk 50.000 karakteri gösteriliyor.',' Only the first 50,000 characters of this page are shown.'):'');
+  }
+  previewLabels();document.addEventListener('ui-locale-change',previewLabels);
+  $("pdfVoicePreviewPage").addEventListener('change',renderVoicePreview);
+  for(const id of ['pdfVoiceFrom','pdfVoiceTo','pdfVoiceText'])$(id).addEventListener('input',clearVoicePreview);
+  $("pdfVoicePreviewOpen").onclick=()=>prepareVoice(()=>false,true);
+  async function prepareVoice(stale=()=>false, previewOnly=false) {
     if (preparing) return;
     const r = player.pdfReader;
     if (!r) return;
@@ -355,9 +382,10 @@
       );
       return;
     }
+    clearVoicePreview();
     preparing = true;
     const preparation=++prepareToken;
-    $("pdfVoicePrepare").disabled = true;
+    $("pdfVoicePrepare").disabled = true;$("pdfVoicePreviewOpen").disabled=true;
     status.textContent = t("Sayfalar hazırlanıyor…", "Preparing pages…");
     try {
       const pages = [];
@@ -396,6 +424,13 @@
       }
       if (preparation!==prepareToken || player.pdfReader !== r || stale())
         throw Error(t("Belge değişti.", "Document changed."));
+      if(previewOnly){
+        if(Number($("pdfVoiceFrom").value)!==from||Number($("pdfVoiceTo").value)!==to||$("pdfVoiceText").value!==mode){clearVoicePreview();status.textContent=t('Aralık değişti; metni yeniden önizle.','The range changed; preview the text again.');return;}
+        voicePreview={reader:r,pages,mode};const select=$("pdfVoicePreviewPage");select.replaceChildren();
+        for(const page of pages){const option=document.createElement('option');option.value=String(page.pageNumber);option.textContent=String(page.pageNumber);select.append(option);}
+        $("pdfVoicePreview").hidden=false;$("pdfVoicePreview").open=true;renderVoicePreview();$("pdfVoicePreviewText").focus();$("pdfVoicePreviewText").scrollIntoView({block:'nearest'});
+        status.textContent=t('Metin önizlemesi hazır; henüz ses üretilmedi.','Text preview is ready; no audio has been generated.');return {ok:true};
+      }
       const key = JSON.stringify([r.pdfHash, mode, pages]);
       let id = projects.get(key);
       if (!id) {
@@ -428,7 +463,7 @@
     } catch (e) {
       if(preparation===prepareToken&&player.pdfReader===r)status.textContent = e.message;
     } finally {
-      if(preparation===prepareToken){preparing = false;$("pdfVoicePrepare").disabled = false;}
+      if(preparation===prepareToken){preparing = false;$("pdfVoicePrepare").disabled = false;$("pdfVoicePreviewOpen").disabled=false;}
     }
   }
   $("pdfVoicePrepare").onclick = () => prepareVoice();
