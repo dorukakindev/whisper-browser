@@ -24,7 +24,9 @@
     const translated=player.sub2Role==='translation'&&player.sub2Path
       ? tracks.find(track=>track.role==='translation'&&track.path===player.sub2Path):null;
     const selected=translated||tracks.find(track=>track.id===player.browserLoadedTrackId);
-    return selected?.clipRange||currentBrowserWhisperRange();
+    // A loaded full-video track explicitly has no clip. A pending Whisper
+    // selection must not silently narrow that already prepared subtitle.
+    return selected ? selected.clipRange || null : currentBrowserWhisperRange();
   }
   const context = () => player.workspaceMode === 'player' ? ({
     mode: 'player', tabId: 'player-video', mediaKey: player.mediaKey,
