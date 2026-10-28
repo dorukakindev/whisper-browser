@@ -1,0 +1,18 @@
+{
+  "complete": true,
+  "controlledBaseline": true,
+  "liveASR": false,
+  "restoredEditorOnly": true,
+  "changedAudioInvalidated": true,
+  "metrics": {
+    "title": "Matches the first automatic transcript",
+    "viewport": 800,
+    "box": {
+      "left": 59.400001525878906,
+      "right": 732.6000137329102,
+      "width": 673.2000122070312
+    },
+    "overflow": false,
+    "restoreHeight": 46
+  }
+}
