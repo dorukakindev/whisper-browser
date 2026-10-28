@@ -34,10 +34,11 @@ function createService(options) {
   async function restore(id){
     const source=sources.get(id);if(!source)throw Error('Select the source again');
     const key=(await fingerprint(source)).hash,row=snapshots.read(key);if(!row)return null;
+    try{snapshots.bind(key,source.location);}catch{}
     const modes={};
     for(const mode of ['analyze','tags','search','online']){
       const entry=row.modes[mode];if(!entry?.result||typeof entry.result!=='object')continue;
-      const result={...entry.result,sourceId:source.id,restored:true};
+      const result={...entry.result,title:source.title,sourceId:source.id,restored:true};
       if(mode==='analyze'&&(!Array.isArray(result.points)||!Array.isArray(result.waveform)||!Number.isFinite(result.range?.start)||!Number.isFinite(result.range?.end)||result.range.end<=result.range.start))continue;
       if(mode==='tags'&&(!Array.isArray(result.groups)||!Array.isArray(result.segments)||!result.groups.every(g=>typeof g?.id==='string'&&Array.isArray(g.labels)&&g.labels.every(l=>typeof l?.id==='string'&&Number.isFinite(l.mean)&&Array.isArray(l.segments)&&l.segments.every(Number.isFinite)))))continue;
       if(['search','online'].includes(mode)){
@@ -62,12 +63,12 @@ function createService(options) {
     const stat=await fs.promises.stat(source.file),fp=source.fingerprint;
     if(!fp||stat.size!==fp.size||stat.mtimeMs!==fp.mtimeMs)throw Error('Audio changed; analyze again / Ses değişti; yeniden analiz et.');
     try{
-      snapshots.save(fp.hash,mode,result,{multiReference:!!references&&(references.length>1||references.some(r=>r.file!==source.file)),catalog:onlineRows||[],request:{start:request.start,end:request.end,range:request.range,intent:request.intent,intentWeight:request.intentWeight,diverse:request.diverse}});
+      snapshots.save(fp.hash,mode,result,{location:source.location,multiReference:!!references&&(references.length>1||references.some(r=>r.file!==source.file)),catalog:onlineRows||[],request:{start:request.start,end:request.end,range:request.range,intent:request.intent,intentWeight:request.intentWeight,diverse:request.diverse}});
     }catch{result.saveWarning=true;}
   }
   function remember(file, metadata={}) {
     const target = access.grant(file); if (!target) throw Error('Unsupported audio file / Desteklenmeyen ses dosyası.');
-    const id = randomUUID(), source = { id, file: target, title: String(metadata.title||path.basename(target, path.extname(target))).slice(0,300), libraryId:metadata.id,artist:metadata.artist||'',origin:metadata.origin||'local',excerptSeconds:metadata.excerptSeconds||null };
+    const id = randomUUID(), source = { id, file: target, title: String(metadata.title||path.basename(target, path.extname(target))).slice(0,300), libraryId:metadata.id,artist:metadata.artist||'',origin:metadata.origin||'local',excerptSeconds:metadata.excerptSeconds||null,location:{...(metadata.location||{kind:'local',localFile:target}),title:String(metadata.title||path.basename(target,path.extname(target))).slice(0,300),artist:String(metadata.artist||'').slice(0,300),cover:String(metadata.cover||metadata.art||'').slice(0,2000)} };
     sources.set(id, source); while (sources.size > 32) sources.delete(sources.keys().next().value);
     return { id, title: source.title, artist:source.artist,origin:source.origin,excerptSeconds:source.excerptSeconds,url: pathToFileURL(target).href };
   }
@@ -144,7 +145,7 @@ function createService(options) {
     job.pending = pending;
     return { ok:true,id:job.id };
   }
-  return {remember,restore,status,cancel,start,close:async()=>{cancel();await active?.pending;}};
+  return {remember,restore,status,cancel,start,history:()=>snapshots.list(),measurement:key=>snapshots.read(key)?.modes?.analyze?.result||null,location:key=>snapshots.read(key)?.location,verify:async(id,key)=>{if((await fingerprint(sources.get(id))).hash!==key)throw Error('Audio changed; select it again / Ses değişti; yeniden seç.');},close:async()=>{cancel();await active?.pending;}};
 }
 function register(options) {
   const services = new Map(), onlineServices = new Map(),remoteServices=new Map();
@@ -162,6 +163,17 @@ function register(options) {
     let remote=remoteServices.get(event.sender.id);if(!remote){remote=require('./music-remote-source').create(options);remoteServices.set(event.sender.id,remote);event.sender.once('destroyed',()=>{remote.cancel();void service.close().then(()=>remote.release()).catch(()=>{});remoteServices.delete(event.sender.id);});}
     async function selected(file,metadata){const source=service.remember(file,metadata);return {ok:true,source,workspace:await service.restore(source.id)};}
     try {
+      if(request.action==='history-result'){if(typeof request.id!=='string'||!/^[a-f0-9]{64}$/.test(request.id))throw Error('Invalid history identity');const row=service.history().find(r=>r.id===request.id);if(!row)throw Error('Saved analysis missing');return {ok:true,result:service.measurement(request.id)};}
+      if(request.action==='history')return {ok:true,items:service.history()};
+      if(request.action==='history-open'){
+        if(service.status().state==='running')throw Error('Wait for the current analysis');
+        if(typeof request.id!=='string'||!/^[a-f0-9]{64}$/.test(request.id))throw Error('Invalid history identity');
+        const location=service.location(request.id);if(!location)throw Error('Select this source again / Bu kaynağı yeniden seç.');
+        let file,metadata=location;
+        if(location.kind==='local')file=location.localFile;
+        else {if(location.kind==='deezer'&&location.catalog)online.restoreRows([location.catalog]);const prepared=await remote.prepare(location,online);file=prepared.file;metadata=prepared.metadata;}
+        const source=service.remember(file,metadata);await service.verify(source.id,request.id);options.grantMedia(file);return {ok:true,source,workspace:await service.restore(source.id)};
+      }
       if(request.action==='remote-source'){if(service.status().state==='running')throw Error('Wait for the current analysis');const result=await remote.prepare(request,online);options.grantMedia(result.file);return await selected(result.file,result.metadata);}
       if(request.action==='release-remote'){remote.cancel();await service.close();await remote.release();return {ok:true};}
       if(request.action==='listening-history')return {ok:true,trials:listening.read()};
