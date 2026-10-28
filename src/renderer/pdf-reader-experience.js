@@ -618,6 +618,7 @@
   $("pdfReaderPage").addEventListener("change", () => changed(true));
   document.addEventListener("ui-locale-change", () => {
     if (player.pdfReader) {
+      updatePdfReaderZoomLabel();
       if ($("playerTitle"))
         $("playerTitle").textContent = t("Kitap okuyucu", "Book reader");
       if ($("playerMeta"))

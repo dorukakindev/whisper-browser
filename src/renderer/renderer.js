@@ -24992,6 +24992,7 @@ function setPdfReaderView(mode = 'both') {
     const active = button.dataset.pdfView === next;
     button.classList.toggle('active', active);
     button.setAttribute('aria-checked', active ? 'true' : 'false');
+    button.tabIndex = active ? 0 : -1;
   });
   try { localStorage.setItem('whisper-local.pdf-view', next); } catch (_) {}
   window.PdfReaderExperience?.refresh();
@@ -25253,7 +25254,7 @@ async function openPdfReader(filePath = '') {
   // İkinci PDF birincinin üstüne açılınca eski belge/gözlemci/çeviri serbest
   // bırakılmıyordu; eski çevirinin durumu yeni okuyucuya yazılıyordu.
   if (player.pdfReader) $('pdfReaderClose')?.click();
-  if ($('pdfZoomValue')) $('pdfZoomValue').textContent = '%100';
+  updatePdfReaderZoomLabel(1);
   player.pdfReader = { pdf, loadingTask, pdfHash: opened.pdfHash, state: opened.state, scale: 1, currentPage: 1, viewMode, renderGeneration: 0, rendered: new Map(), rendering: new Set(), pages: new Map() };
   updatePdfReaderProgress();
   const pageInput = $('pdfReaderPage');
@@ -25334,8 +25335,20 @@ $('pdfReaderClose')?.addEventListener('click', () => {
   syncBrowserOcclusion();
 });
 $('pdfTranslateVisible')?.addEventListener('click', () => translateVisiblePdfPages(false));
-$('[data-pdf-view]') && $$('[data-pdf-view]').forEach((button) => {
+$$('[data-pdf-view]').forEach((button) => {
   button.addEventListener('click', () => setPdfReaderView(button.dataset.pdfView));
+  button.addEventListener('keydown', (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey
+        || !['ArrowRight','ArrowDown','ArrowLeft','ArrowUp','Home','End'].includes(event.key)) return;
+    const buttons = [...$$('[data-pdf-view]')].filter(item => !item.disabled);
+    const index = buttons.indexOf(button);
+    if (index < 0 || !buttons.length) return;
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
+      : (index + (['ArrowRight','ArrowDown'].includes(event.key) ? 1 : -1) + buttons.length) % buttons.length;
+    // Consume navigation before the player's seek/scroll shortcuts see it.
+    event.preventDefault();event.stopPropagation();
+    buttons[next].click();buttons[next].focus();
+  });
 });
 $('pdfTranslateAll')?.addEventListener('click', () => translateVisiblePdfPages(true));
 // Madde 38 — sayfa seçimi: aralık / yalnız başarısızlar / çevrilmemişler.
@@ -25357,6 +25370,11 @@ $('pdfExport')?.addEventListener('click', async () => {
   const result = await window.api.exportPdfTranslation?.(player.pdfReader?.pdfHash, $('pdfExportFormat')?.value || 'txt', $('pdfTargetLanguage')?.value || 'tr').catch(() => null);
   if (result?.ok) logLine(`PDF çevirisi kaydedildi: ${result.path}`, 'success'); else if (!result?.canceled) pdfReaderSetStatus(result?.error || 'Dışa aktarma başarısız.', true);
 });
+function updatePdfReaderZoomLabel(scale = player.pdfReader?.scale || 1) {
+  const node = $('pdfZoomValue');
+  if (node) node.textContent = new Intl.NumberFormat(window.UiLocale?.get?.() === 'tr' ? 'tr' : 'en',
+    {style:'percent',maximumFractionDigits:0}).format(scale);
+}
 function setPdfReaderZoom(nextScale) {
   const reader = player.pdfReader;
   if (!reader?.pdf) return;
@@ -25377,7 +25395,7 @@ function setPdfReaderZoom(nextScale) {
     entry.translation = null;
   }
   $('pdfReaderPages')?.replaceChildren();
-  if ($('pdfZoomValue')) $('pdfZoomValue').textContent = `%${Math.round(next * 100)}`;
+  updatePdfReaderZoomLabel(next);
   const generation=reader.renderGeneration;
   void Promise.all([page,page+1,page+2].filter(number=>number<=reader.pdf.numPages).map(renderPdfReaderPage)).then(()=>{
     if(player.pdfReader!==reader||reader.renderGeneration!==generation)return;

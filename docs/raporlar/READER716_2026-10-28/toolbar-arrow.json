@@ -1,0 +1,44 @@
+{
+  "mode": "source",
+  "page": 1,
+  "focus": "source",
+  "keys": [
+    {
+      "key": "ArrowRight",
+      "target": "reading",
+      "ctrl": false,
+      "alt": false,
+      "shift": false,
+      "meta": false,
+      "phase": 1
+    }
+  ],
+  "radios": [
+    {
+      "mode": "reading",
+      "checked": "false",
+      "tab": -1,
+      "height": 40
+    },
+    {
+      "mode": "source",
+      "checked": "true",
+      "tab": 0,
+      "height": 40
+    },
+    {
+      "mode": "both",
+      "checked": "false",
+      "tab": -1,
+      "height": 40
+    },
+    {
+      "mode": "translation",
+      "checked": "false",
+      "tab": -1,
+      "height": 40
+    }
+  ],
+  "width": 1440,
+  "overflow": false
+}
