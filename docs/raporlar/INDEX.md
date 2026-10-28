@@ -1,3 +1,4 @@
+- [Rapor732](BROWSER_BUG_REPORT_732.md) — Ses stüdyosunda gerçek hazır ayar ve dar üretim çubuğu
 - [Rapor731](BROWSER_BUG_REPORT_731.md) — Ortak temada iki referans sesi karşılaştırma
 - [Rapor730](BROWSER_BUG_REPORT_730.md) — Asistanda son grup etkinliği ve doğru hata sayısı
 - [Rapor729](BROWSER_BUG_REPORT_729.md) — Okuyucuda doğru ses sürümü ve vurgu bütünlüğü
