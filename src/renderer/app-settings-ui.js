@@ -87,7 +87,7 @@
       main.append(el('p','aps-copy','This product uses the TMDB API but is not endorsed or certified by TMDB.'));
     }
     if(active==='general'){
-      const appearance=section(main,t('Appearance','Görünüm'),t('Use the existing application theme and language settings.','Uygulamanın mevcut tema ve dil ayarlarını kullan.'),['uiTheme','uiLocale']);
+      const appearance=section(main,t('Appearance','Görünüm'),t('Use the existing application theme and language settings.','Uygulamanın mevcut tema ve dil ayarlarını kullan.'),['uiTheme','uiLocale']);const localeLabel=el('label','aps-language-label',t('Interface language','Arayüz dili'));localeLabel.htmlFor='uiLocale';const language=appearance.querySelector('.ui-locale-control');if(language){const field=el('div','aps-language-field');language.before(field);field.append(localeLabel,language);}
       const tools=section(main,t('Whisper, voice & workspace','Whisper, ses ve çalışma alanı'),t('Open the existing detailed tools with your current settings intact.','Mevcut ayrıntılı araçları, ayarların korunarak aç.'));
       const actions=el('div','aps-shortcuts');tools.append(actions);
       actions.append(button(t('Whisper settings','Whisper ayarları'),()=>openStudioSection('model')),button(t('Translation options','Çeviri seçenekleri'),()=>openStudioSection('translate')),button(t('Voice studio','Ses stüdyosu'),()=>{close();document.getElementById('dubMainOpen')?.click();}),button(t('Backup & workspace','Yedekleme ve çalışma alanı'),()=>{close();window.MediaToolsUI?.open('backup');}));

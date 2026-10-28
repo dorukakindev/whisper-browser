@@ -228,6 +228,12 @@
     if (p.position && p.duration) node.append(progress(item));
     return node;
   }
+  function emptyState(title,description,actions=[]){
+    const node=el('section','mh-empty-state'),mark=el('div','mh-empty-mark');mark.setAttribute('aria-hidden','true');mark.append(icon());
+    const copy=el('div','mh-empty-copy');copy.append(el('h2','',title),el('p','',description));
+    if(actions.length){const buttons=el('div','mh-empty-actions');for(const [label,action] of actions)buttons.append(button(label,action,'mh-action'+(buttons.childElementCount?'':' mh-primary')));copy.append(buttons);}
+    node.append(mark,copy);return node;
+  }
   function section(title, rows, options = {}) {
     const node = el('section', 'mh-section'), heading = el('div', 'mh-section-head');
     heading.append(el('h2', '', title));
@@ -240,7 +246,7 @@
       for (let i=0;i<Math.min(12,rows.length);i++) appendNext();
     } else rows.slice(0, options.grid ? state.limit : 12).forEach(item => grid.append(card(item)));
     node.append(heading, grid);
-    if (!rows.length) node.append(el('p', 'mh-empty', t('No matching items yet.', 'Henüz eşleşen öğe yok.')));
+    if (!rows.length) {const searching=!!state.query||state.filter!=='all';node.append(emptyState(searching?t('No matching titles','Eşleşen yapım yok'):t('Nothing here yet','Burada henüz bir kayıt yok'),searching?t('Try a shorter search or clear the current filter.','Daha kısa bir arama dene veya mevcut filtreyi temizle.'):t('Add media to your library or open a video in the browser. Your progress will appear here.','Kütüphanene medya ekle veya browserda video aç. İlerlemen burada görünür.'),searching?[[t('Clear filters','Filtreleri temizle'),()=>{state.query='';state.filter='all';const input=document.getElementById('mhSearch');if(input)input.value='';renderContent();}]]:[[t('Open browser','Browserı aç'),openBrowser],[t('Manage library','Kütüphaneyi yönet'),()=>catalog()]]));}
     if (options.grid && rows.length > state.limit && rows.length<=100) node.append(button(t('Show more', 'Daha fazla göster'), () => { state.limit += 48; renderContent(); }));
     return node;
   }
@@ -339,7 +345,7 @@
       if (illustrated.length) content.append(section(t('Continue watching & listening', 'İzlemeye ve dinlemeye devam et'), illustrated, { wide: true, artworkOnly: true, more: () => page('recent') }));
       if (items.some(item => item.kind === 'series' && hasArtwork(item))) content.append(section(t('Your series', 'Dizilerin'), items.filter(item => item.kind === 'series' && hasArtwork(item)), { artworkOnly:true, more: () => page('series') }));
       if (items.some(item => item.kind !== 'series' && hasArtwork(item))) content.append(section(t('Your films', 'Filmlerin'), items.filter(item => item.kind !== 'series' && hasArtwork(item)), { artworkOnly:true, more: () => page('films') }));
-      if (!items.length && state.loaded) content.append(tool(t('Build your library', 'Kütüphaneni oluştur'), t('Scan a folder, review the matches, then add films and series with their posters and progress.', 'Bir klasörü tara, eşleşmeleri incele; film ve dizilerini afişleri ve ilerlemeleriyle ekle.'), t('Manage library', 'Kütüphaneyi yönet'), () => catalog()));
+      if (!items.length && !illustrated.length && state.loaded) content.append(emptyState(t('Make room for your next story','Sıradaki hikâyene yer aç'),t('Open a video, add your films or pick a book. Subtitles, translation and your voice stay together.','Video aç, filmlerini ekle veya bir kitap seç. Altyazı, çeviri ve ses araçların bir arada.'),[[t('Open media','Medya aç'),()=>window.MediaHubUI.open()],[t('Open browser','Browserı aç'),openBrowser]]));
       content.append(tools());
     } else if (state.page === 'discover' && window.MediaDiscoveryUI) {
       const discovery = el('section', 'md-page'); content.append(discovery); window.MediaDiscoveryUI.mount(discovery);
@@ -465,5 +471,5 @@
   document.addEventListener('media-library-changed', () => { if (state.active) void refresh(); });
   // Do not switch workspace or touch saved jobs, captions, tabs or dub state on startup.
   renderShell(); setHome(true);
-  window.MediaHomeUI=Object.freeze({returnHome,resumeWorkspace,openStudio,navigate:async(value)=>{await returnHome();page(value);}});
+  window.MediaHomeUI=Object.freeze({emptyState,returnHome,resumeWorkspace,openStudio,navigate:async(value)=>{await returnHome();page(value);}});
 })();

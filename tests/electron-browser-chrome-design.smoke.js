@@ -83,7 +83,7 @@ app.whenReady().then(async () => {
   const expanded=await measure();
   assert(expanded.popoverHeight>40,JSON.stringify(expanded));
   assert(expanded.popoverRight<=1440,JSON.stringify(expanded));
-  assert.equal(await run('return getComputedStyle(document.getElementById("browserSubtitleHealth")).color'),'rgb(161, 173, 183)');
+  assert(await run("const health=document.getElementById('browserSubtitleHealth'),probe=document.createElement('span');probe.style.color='var(--text-dim)';health.append(probe);const expected=getComputedStyle(probe).color,actual=getComputedStyle(health).color;probe.remove();return actual===expected"),'Healthy subtitle status must use the active theme text-dim token');
   await run('document.getElementById("browserVideoSubtitles").open=true;return true');await wait(100);
   assert(await run('return document.getElementById("browserReplacePrimary").getBoundingClientRect().height>0'));
   await run('document.getElementById("browserVideoSubtitles").open=false;player.browserTranslationFailed=3;renderBrowserSubtitleHealth();return true');
