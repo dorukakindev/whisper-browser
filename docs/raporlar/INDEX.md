@@ -1,3 +1,4 @@
+- [Rapor682](BROWSER_BUG_REPORT_682.md) — Ürün100 başlangıcı ve asistan eski kaynak sonucu reddi
 - [Rapor681](BROWSER_BUG_REPORT_681.md) — Web tekilleştirme, asistan tam aralık ve gerçek müzik/PDF/Whisper kabulü
 - [Rapor680](BROWSER_BUG_REPORT_680.md) — Web video kartlarında 16:9 kapak, yüksek kalite yedekleri ve canlı doğrulama
 - [Rapor679](BROWSER_BUG_REPORT_679.md) — Analiz geçmişi, toplu müzik kuyruğu, hizalı grafik ve asistan listesi

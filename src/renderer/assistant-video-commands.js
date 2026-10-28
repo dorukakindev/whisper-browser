@@ -28,6 +28,7 @@
   task.engineJob=engineJob;
   const inspect=()=>{
    if(pending!==task)return;
+   if(!owner(task)){finish(task,t('The video or conversation changed. Check the original video job for its result.','Video veya sohbet değişti. Sonuç için önceki videonun işini kontrol et.'),'failed');return;}
    if(engineJob.cancelled){if(!engineJob.awaitingExit)finish(task,t('Whisper was stopped.','Whisper durduruldu.'),'stopped');return;}
    if(engineJob.failed){finish(task,t('Whisper failed. Check the job log for the exact error.','Whisper başarısız oldu. Ayrıntılı hata için işlem kaydını aç.'),'failed');return;}
    const result=engineJob.assistantOutcome;
@@ -58,6 +59,7 @@
   task.onTranslation=event=>{
    const {tabId,generation,trackId:reported,progress}=event.detail||{};
    if(pending!==task||tabId!==task.tabId||generation!==task.generation||reported!==trackId||!progress)return;
+   if(!owner(task)){finish(task,t('The video or conversation changed. Check the original translation job.','Video veya sohbet değişti. Önceki çeviri işini kontrol et.'),'failed');return;}
    const total=Number(progress.total)||0,done=Number(progress.completed)||0,failed=Number(progress.failed)||0;
    if(task.cancelled)return;
    if(total&&done+failed>=total&&!Number(progress.pending)&&!Number(progress.queued)&&!Number(progress.retrying)){

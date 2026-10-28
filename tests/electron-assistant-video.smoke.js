@@ -67,11 +67,17 @@ app.whenReady().then(async()=>{
  await until(()=>parent('return player.job.cancelled&&!state.running'),'controlled process acknowledged cancellation');await parent("playerJobEvent({type:'exit',code:1});return true");
  await until(()=>run("return document.getElementById('log').textContent.includes('Whisper durduruldu')&&document.getElementById('cancel').hidden"),'cancel confirmed by job exit');
  await capture('whole-video-and-cancel.png');
+ await run("document.getElementById('text').value='Whisper 02:00–03:00 altyazı çıkar';document.getElementById('form').requestSubmit();return true");
+ await until(()=>parent('return fixtureStarts.length===4'),'source ownership job');
+ await parent("player.browserTabs[0].generation++;player.job.assistantOutcome={loaded:true,sourceCount:99,translationCount:0};return true");
+ await until(()=>parent("return !AssistantVideoCommands.busy()"),'stale video receipt released');
+ assert(await parent("return !document.getElementById('aiChatLog').textContent.includes('99 kaynak satır')"),'old video cannot be reported ready after navigation');
+
  win.setMinimumSize(0,0);win.setContentSize(720,680);
  await parent("window.UiLocale.set('en',false);applyUiTheme('light');return true");
  await until(()=>run("return document.documentElement.dataset.theme==='light'&&document.getElementById('suggestions').textContent.includes('Whisper only')"),'compact English actions');
  const compact=await capture('video-result-compact-light');
- const result={ok:true,out,compact,source:'synthetic YouTube identity',engine:'controlled launch and events',provider:'not called',wholeVideoClearsRange:true,ambiguousRangeRejected:true,translatedOutcome:true,cancelConfirmed:true,nativeWindowsElectron:true};
+ const result={ok:true,out,compact,source:'synthetic YouTube identity',engine:'controlled launch and events',provider:'not called',wholeVideoClearsRange:true,ambiguousRangeRejected:true,translatedOutcome:true,cancelConfirmed:true,staleOutcomeRejected:true,nativeWindowsElectron:true};
  fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));app.exit(0);
 }).catch(async error=>{try{const w=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('index.html'));fs.writeFileSync(path.join(out,'debug.json'),JSON.stringify(await w.webContents.executeJavaScript('({signal:document.getElementById("browserSignal")?.textContent,starts:window.fixtureStarts,log:document.getElementById("aiChatLog")?.textContent,running:state.running,job:player.job?.stage})')));}catch{}fs.writeFileSync(path.join(out,'error.txt'),error.stack);console.error(error);app.exit(1);});
 setTimeout(()=>{fs.writeFileSync(path.join(out,'timeout.txt'),'Native video smoke exceeded 60 seconds');app.exit(2);},60000).unref();
