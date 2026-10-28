@@ -1,0 +1,127 @@
+{
+  "beforeMiB": [
+    10873,
+    12282
+  ],
+  "samples": [
+    {
+      "kind": "cancel",
+      "observedChildren": 3,
+      "loadedMiB": [
+        331,
+        12282
+      ],
+      "stopMilliseconds": 188,
+      "allObservedPidsClosed": true,
+      "finalWav": false,
+      "exit": {
+        "code": 1,
+        "signal": null
+      }
+    },
+    {
+      "kind": "restart",
+      "freshHost": true,
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "events": [
+        {
+          "type": "DUB_ENGINE",
+          "reused": false,
+          "concurrency": 2
+        },
+        {
+          "type": "DUB_REFERENCE_CACHE",
+          "reused": false
+        },
+        {
+          "type": "DUB_PHASES",
+          "model_load_seconds": 10.969,
+          "reference_seconds": 1.625,
+          "synthesis_seconds": 25.735,
+          "verification_seconds": 6.406,
+          "placement_seconds": 0,
+          "normalization_seconds": 1.015,
+          "file_write_seconds": 0,
+          "wall_seconds": 45.828
+        }
+      ],
+      "quality": {
+        "version": 1,
+        "verification": "detailed",
+        "groups": [
+          {
+            "group": 1,
+            "key": "1",
+            "status": "ready",
+            "verification": {
+              "status": "passed",
+              "recognizedText": "Bu kontrolü denemede uzun bir cümleyi seslendiriyoruz. Kitap okumak ve yeni fikirler öğrenmek güzel bir alışkanlıktır. Bugün kütüphaneye gidip farklı hikayeler bulacağız. Birlikte çalışırken her cümlenin doğal akışını korumaya dikkat ediyoruz.",
+              "similarity": 0.9677,
+              "omission_spans": [],
+              "insertion_spans": [],
+              "missing_numbers": [],
+              "added_numbers": [],
+              "percentage_mismatch": false,
+              "semantic_mismatch": false,
+              "spoken_number_mismatch": false,
+              "lost_negation": false,
+              "added_negation": false,
+              "unit_mismatch": false,
+              "repetition": false,
+              "sign_mismatch": false,
+              "missing_names": [],
+              "review": false
+            },
+            "rewritten": false,
+            "naturalEdited": false,
+            "delivery": null,
+            "referenceMode": "isolated",
+            "displayText": "Bu kontrollü denemede uzun bir cümleyi seslendiriyoruz. Kitap okumak ve yeni fikirler öğrenmek güzel bir alışkanlıktır. Bugün kütüphaneye gidip farklı hikayeler bulacağız. Birlikte çalışırken her cümlenin doğal akışını korumaya dikkat ediyoruz.",
+            "speechRanges": [
+              [
+                0.02,
+                3.5
+              ],
+              [
+                4.36,
+                8.12
+              ],
+              [
+                8.96,
+                12.04
+              ],
+              [
+                12.78,
+                16.8
+              ]
+            ],
+            "text": "Bu kontrollü denemede uzun bir cümleyi seslendiriyoruz. Kitap okumak ve yeni fikirler öğrenmek güzel bir alışkanlıktır. Bugün kütüphaneye gidip farklı hikayeler bulacağız. Birlikte çalışırken her cümlenin doğal akışını korumaya dikkat ediyoruz.",
+            "sourceStart": 0,
+            "sourceEnd": 40,
+            "audioStart": 0,
+            "audioEnd": 16.8,
+            "stretch": 1
+          }
+        ],
+        "preview": false,
+        "excerpts": [
+          {
+            "key": "1",
+            "start": 0,
+            "end": 40
+          }
+        ]
+      }
+    }
+  ],
+  "source": "synthetic paragraph",
+  "complete": true,
+  "afterMiB": [
+    10873,
+    12282
+  ],
+  "toolRevision": "prototype-before-recorded-seed"
+}
