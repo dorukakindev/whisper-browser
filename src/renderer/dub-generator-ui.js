@@ -231,6 +231,17 @@
     if (file?.url) audio.src = file.url; else audio.removeAttribute('src');
     audio.classList.toggle('hidden', !file?.url); audio.load();
   }
+  function restoreReadyOutput(job) {
+    const saved=job?.fallback;
+    if(!saved?.output?.url||saved.media!==mediaIdentity()||saved.srt!==srt)return false;
+    output=saved.output;results.clear();for(const row of saved.rows)results.set(row.key,row);
+    window.DubWorkspaceUI?.setOutput(output,job.context);preview(output);showResults();
+    el('dubGeneratedName').textContent=output.name||basename(output.path||'');
+    el('dubGeneratorOutput').classList.remove('hidden');
+    el('dubGeneratorUse').classList.toggle('hidden',saved.sample||output.syncInvalid===true);
+    status(window.UiLocale?.get?.()==='en'?'The new attempt did not finish. Your previous audio is still available.':'Yeni deneme tamamlanmadı. Önceki sesiniz hâlâ hazır.');
+    controls();return true;
+  }
   async function open() {
     inheritSubtitleRange();
     if (!modal.open) modal.showModal();
@@ -387,6 +398,7 @@
     try { range = selectedRange(); } catch (error) { status(error.message); return; }
     current = { id: crypto.randomUUID(), context: window.BrowserDubAudioUI?.context(), sample: retry ? lastRequest?.sample : el('dubSampleOnly').checked };
     const pending = current;
+    pending.fallback=output?.url?{output,rows:[...results.values()],media:mediaIdentity(),srt,sample:el('dubGeneratorUse').classList.contains('hidden')}:null;
     const started = performance.now();
     elapsed(0); stopTimer();activeGroups.clear();showActivity();
     timer = setInterval(() => elapsed((performance.now() - started) / 1000), 1000);
@@ -418,6 +430,7 @@
       stopTimer((performance.now() - started) / 1000);
       current = null; el('dubGeneratorProgress').value = 0; status('Ses üretimi başarısız oldu.');
       el('dubGeneratorDetails').textContent = generationError(r?.error); controls();
+      restoreReadyOutput(pending);
     }
     return {ok:!!r?.ok,id:pending.id};
   }
@@ -557,7 +570,7 @@
             .then(attached => { if (attached && output === event) status('Üretim tamamlandı; dublaj videoya bağlandı.'); })
             .catch(() => { if (output === event) status('Ses bağlanamadı; videoyu kontrol edip tekrar deneyin.'); });
         }
-      } else if (event.type === 'cancelled') status('Durduruldu.');
+      } else if (event.type === 'cancelled') {status('Durduruldu.');restoreReadyOutput(job);}
       else {
         status('Ses üretimi başarısız oldu.'); runtimeError=event.error||'';el('dubGeneratorDetails').textContent = generationError(runtimeError);
         if (event.recoverablePath && event.recoverableUrl) {
@@ -565,7 +578,7 @@
           preview(output); el('dubGeneratedName').textContent = event.name || basename(output.path);
           el('dubGeneratorOutput').classList.remove('hidden');
           el('dubGeneratorUse').classList.add('hidden');
-        }
+        }else restoreReadyOutput(job);
       }
     }
   });
