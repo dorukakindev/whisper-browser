@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-0658.md](docs/devir/2026-10-28-0658.md) — Ürün100 kitap onay kapısı
 Güncel çalışma: [docs/devir/2026-10-28-0650.md](docs/devir/2026-10-28-0650.md) — Ürün100 aşama süreleri
 Güncel çalışma: [docs/devir/2026-10-28-0645.md](docs/devir/2026-10-28-0645.md) — Ürün100 önceki ses çıktısı
 Güncel çalışma: [docs/devir/2026-10-28-0620.md](docs/devir/2026-10-28-0620.md) — Ürün100 gerçek GPU ses kabulü
