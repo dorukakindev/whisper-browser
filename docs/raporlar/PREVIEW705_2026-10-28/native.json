@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "realPdf": true,
+  "pages": [
+    2,
+    3
+  ],
+  "textCharacters": 3990,
+  "previewCreatesProject": false,
+  "previewGeneratesAudio": false,
+  "previewEqualsProjectText": true,
+  "rangeInputClearsOldPreview": true,
+  "missingTranslationRejected": true,
+  "previewPageDoesNotNavigatePdf": true,
+  "layouts": [
+    "TR dark800px125%",
+    "EN light1100px100%"
+  ],
+  "noModelGeneration": true
+}
