@@ -1,3 +1,4 @@
+- [Rapor713](BROWSER_BUG_REPORT_713.md) — Doğrulanmış continuation → klonlama kurtarması ve gerçek GPU karşılaştırması
 - [Rapor712](BROWSER_BUG_REPORT_712.md) — Yerel aralık aktarımı ve canlı video/Whisper/çeviri/ses zinciri
 - [Rapor711](BROWSER_BUG_REPORT_711.md) — Canlı DeepSeek gerçek ayar/onay/undo ve eski hata bandı
 - [Rapor710](BROWSER_BUG_REPORT_710.md) — Müzik kapsam dışı ve canlı DeepSeek araç kararları
