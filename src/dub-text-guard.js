@@ -3,7 +3,8 @@
 // (elma, çalışma, dondurma). Do not classify every matching word as negation.
 // Unknown verbs still pass through the existing tense/evidence guards below.
 const TURKISH_NEGATIVE_ROOTS = require('./turkish-negation-roots.json');
-const TURKISH_NEGATIVE_ENDING = /^(?:m[ıiuü]yor[\p{L}]*|m[ae]y[ae]c[ae][kğ][\p{L}]*|m[ae](?:d[ae]n|ks[ıi]z[ıi]n|y[ıi]nc[ae]|m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n(?:lar|ler)?|y[ıiuü]n(?:[ıiuü]z)?|y[ae]l[ıi]m)?|y?[ae]m[ae](?:m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n)?|y?[ae]m[ıiuü]yor[\p{L}]*|y?[ae]m[ae]y[\p{L}]*)$/u;
+// Include finite -mazsa/-mezse and inability -amazsa/-emezse conditionals.
+const TURKISH_NEGATIVE_ENDING = /^(?:(?:m[ae]|y?[ae]m[ae])zs[ae](?:m|n|k|n[ıi]z|l[ae]r)?|m[ıiuü]yor[\p{L}]*|m[ae]y[ae]c[ae][kğ][\p{L}]*|m[ae](?:d[ae]n|ks[ıi]z[ıi]n|y[ıi]nc[ae]|m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n(?:lar|ler)?|y[ıiuü]n(?:[ıiuü]z)?|y[ae]l[ıi]m)?|y?[ae]m[ae](?:m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n)?|y?[ae]m[ıiuü]yor[\p{L}]*|y?[ae]m[ae]y[\p{L}]*)$/u;
 function turkishLexicalNegatives(text) {
   const tokens = text.normalize('NFC').toLocaleLowerCase('tr').match(/[\p{L}]+/gu) || [];
   return tokens.filter(token => TURKISH_NEGATIVE_ROOTS.some(root =>

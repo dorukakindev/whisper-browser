@@ -1,0 +1,41 @@
+{
+  "base": "a0e850b82de8dd26931bbaa827c558abe442121a",
+  "expected": "Yarın toplantıya gelmezsen bu önemli dosyaları sana ayrıca e-posta üzerinden göndereceğim.",
+  "heard": "Yarın toplantıya gelirsen bu önemli dosyaları sana ayrıca e-posta üzerinden göndereceğim.",
+  "before": {
+    "recognizedText": "Yarın toplantıya gelirsen bu önemli dosyaları sana ayrıca e-posta üzerinden göndereceğim.",
+    "similarity": 0.9167,
+    "omission_spans": [],
+    "insertion_spans": [],
+    "missing_numbers": [],
+    "added_numbers": [],
+    "percentage_mismatch": false,
+    "semantic_mismatch": false,
+    "spoken_number_mismatch": false,
+    "lost_negation": false,
+    "added_negation": false,
+    "unit_mismatch": false,
+    "repetition": false,
+    "sign_mismatch": false,
+    "missing_names": [],
+    "review": false
+  },
+  "after": {
+    "recognizedText": "Yarın toplantıya gelirsen bu önemli dosyaları sana ayrıca e-posta üzerinden göndereceğim.",
+    "similarity": 0.9167,
+    "omission_spans": [],
+    "insertion_spans": [],
+    "missing_numbers": [],
+    "added_numbers": [],
+    "percentage_mismatch": false,
+    "semantic_mismatch": true,
+    "spoken_number_mismatch": false,
+    "lost_negation": false,
+    "added_negation": false,
+    "unit_mismatch": false,
+    "repetition": false,
+    "sign_mismatch": false,
+    "missing_names": [],
+    "review": true
+  }
+}

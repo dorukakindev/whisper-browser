@@ -1,0 +1,242 @@
+{
+  "kind": "Actual EngineSession, three sequential synthetic clone jobs, not UI idle or OOM stress",
+  "referenceB": "Same synthetic utterance at 80 percent gain; changed bytes, not another human voice",
+  "jobs": [
+    {
+      "DUB_ENGINE": {
+        "reused": false,
+        "concurrency": 2
+      },
+      "DUB_REFERENCE_CACHE": {
+        "reused": false
+      },
+      "DUB_PHASES": {
+        "model_load_seconds": 11.016,
+        "reference_seconds": 1.641,
+        "synthesis_seconds": 7.0,
+        "verification_seconds": 5.36,
+        "placement_seconds": 0.0,
+        "normalization_seconds": 0.297,
+        "file_write_seconds": 0.0,
+        "wall_seconds": 25.375
+      },
+      "code": 0,
+      "job": 1,
+      "quality": {
+        "version": 1,
+        "verification": "detailed",
+        "groups": [
+          {
+            "group": 1,
+            "key": "1",
+            "status": "ready",
+            "verification": {
+              "status": "passed",
+              "recognizedText": "Bu ilk denemede motoru hazırlıyoruz. Kaynak metin aynı kalıyor.",
+              "similarity": 1.0,
+              "omission_spans": [],
+              "insertion_spans": [],
+              "missing_numbers": [],
+              "added_numbers": [],
+              "percentage_mismatch": false,
+              "semantic_mismatch": false,
+              "spoken_number_mismatch": false,
+              "lost_negation": false,
+              "added_negation": false,
+              "unit_mismatch": false,
+              "repetition": false,
+              "sign_mismatch": false,
+              "missing_names": [],
+              "review": false
+            },
+            "rewritten": false,
+            "naturalEdited": false,
+            "delivery": null,
+            "referenceMode": "isolated",
+            "displayText": "Bu ilk denemede motoru hazırlıyoruz. Kaynak metin aynı kalıyor.",
+            "speechRanges": [
+              [
+                0.02,
+                2.12
+              ],
+              [
+                2.98,
+                4.62
+              ]
+            ],
+            "text": "Bu ilk denemede motoru hazırlıyoruz. Kaynak metin aynı kalıyor.",
+            "sourceStart": 0.0,
+            "sourceEnd": 15.0,
+            "audioStart": 0.0,
+            "audioEnd": 4.64,
+            "stretch": 1.0
+          }
+        ],
+        "preview": false,
+        "excerpts": [
+          {
+            "key": "1",
+            "start": 0.0,
+            "end": 15.0
+          }
+        ]
+      }
+    },
+    {
+      "DUB_ENGINE": {
+        "reused": true,
+        "concurrency": 1
+      },
+      "DUB_REFERENCE_CACHE": {
+        "reused": true
+      },
+      "DUB_PHASES": {
+        "model_load_seconds": 0,
+        "reference_seconds": 0,
+        "synthesis_seconds": 4.937,
+        "verification_seconds": 2.422,
+        "placement_seconds": 0.0,
+        "normalization_seconds": 0.312,
+        "file_write_seconds": 0.0,
+        "wall_seconds": 7.687
+      },
+      "code": 0,
+      "job": 2,
+      "quality": {
+        "version": 1,
+        "verification": "detailed",
+        "groups": [
+          {
+            "group": 1,
+            "key": "1",
+            "status": "ready",
+            "verification": {
+              "status": "passed",
+              "recognizedText": "Bu ikinci denemede kitap okumaya devam ediyoruz.",
+              "similarity": 1.0,
+              "omission_spans": [],
+              "insertion_spans": [],
+              "missing_numbers": [],
+              "added_numbers": [],
+              "percentage_mismatch": false,
+              "semantic_mismatch": false,
+              "spoken_number_mismatch": false,
+              "lost_negation": false,
+              "added_negation": false,
+              "unit_mismatch": false,
+              "repetition": false,
+              "sign_mismatch": false,
+              "missing_names": [],
+              "review": false
+            },
+            "rewritten": false,
+            "naturalEdited": false,
+            "delivery": null,
+            "referenceMode": "isolated",
+            "displayText": "Bu ikinci denemede kitap okumaya devam ediyoruz.",
+            "speechRanges": [
+              [
+                0.06,
+                3.0
+              ]
+            ],
+            "text": "Bu ikinci denemede kitap okumaya devam ediyoruz.",
+            "sourceStart": 0.0,
+            "sourceEnd": 15.0,
+            "audioStart": 0.0,
+            "audioEnd": 3.012166666666667,
+            "stretch": 1.0
+          }
+        ],
+        "preview": false,
+        "excerpts": [
+          {
+            "key": "1",
+            "start": 0.0,
+            "end": 15.0
+          }
+        ]
+      }
+    },
+    {
+      "DUB_ENGINE": {
+        "reused": true,
+        "concurrency": 1
+      },
+      "DUB_REFERENCE_CACHE": {
+        "reused": false
+      },
+      "DUB_PHASES": {
+        "model_load_seconds": 0,
+        "reference_seconds": 0.187,
+        "synthesis_seconds": 8.266,
+        "verification_seconds": 2.407,
+        "placement_seconds": 0.0,
+        "normalization_seconds": 0.297,
+        "file_write_seconds": 0.015,
+        "wall_seconds": 11.203
+      },
+      "code": 0,
+      "job": 3,
+      "quality": {
+        "version": 1,
+        "verification": "detailed",
+        "groups": [
+          {
+            "group": 1,
+            "key": "1",
+            "status": "ready",
+            "verification": {
+              "status": "passed",
+              "recognizedText": "Son denemede referans kaydı değişti. Ses yeniden hazırlanıyor.",
+              "similarity": 1.0,
+              "omission_spans": [],
+              "insertion_spans": [],
+              "missing_numbers": [],
+              "added_numbers": [],
+              "percentage_mismatch": false,
+              "semantic_mismatch": false,
+              "spoken_number_mismatch": false,
+              "lost_negation": false,
+              "added_negation": false,
+              "unit_mismatch": false,
+              "repetition": false,
+              "sign_mismatch": false,
+              "missing_names": [],
+              "review": false
+            },
+            "rewritten": false,
+            "naturalEdited": false,
+            "delivery": null,
+            "referenceMode": "isolated",
+            "displayText": "Son denemede referans kaydı değişti. Ses yeniden hazırlanıyor.",
+            "speechRanges": [
+              [
+                0.04,
+                2.5
+              ],
+              [
+                3.24,
+                4.958687
+              ]
+            ],
+            "text": "Son denemede referans kaydı değişti. Ses yeniden hazırlanıyor.",
+            "sourceStart": 0.0,
+            "sourceEnd": 15.0,
+            "audioStart": 0.0,
+            "audioEnd": 4.9586875,
+            "stretch": 1.0
+          }
+        ],
+        "preview": false,
+        "excerpts": [
+          {
+            "key": "1",
+            "start": 0.0,
+            "end": 15.0
+          }
+        ]
+      }
+    }
+  ]
+}

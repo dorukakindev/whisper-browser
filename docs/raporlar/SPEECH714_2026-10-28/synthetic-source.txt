@@ -1,0 +1,27 @@
+1
+00:00:00,000 --> 00:00:01,000
+Evet.
+
+2
+00:00:01,100 --> 00:00:05,000
+Bugün birlikte kitap okuyabiliriz.
+
+3
+00:00:08,000 --> 00:00:17,000
+Toplam 12 kişi geldi. Yol 3 kilometre, sıcaklık eksi 5 dereceydi.
+
+4
+00:00:20,000 --> 00:00:29,000
+Kapıyı açmadım. Anahtarı masaya bıraktım; kimse dışarı çıkmadı.
+
+5
+00:00:32,000 --> 00:00:40,000
+Bir dakika, sözümü bitireyim. Sonra seni dinleyeceğim.
+
+6
+00:00:40,100 --> 00:00:44,000
+- Hayır, bunu söylemedim.
+
+7
+00:00:48,000 --> 00:01:00,000
+Yarın toplantıya gelmezsen bu önemli dosyaları sana ayrıca e-posta üzerinden göndereceğim.

@@ -1,3 +1,4 @@
+- [Rapor714](BROWSER_BUG_REPORT_714.md) — Koşullu olumsuzluk, gerçek ses matrisi ve hazır motor
 - [Rapor713](BROWSER_BUG_REPORT_713.md) — Doğrulanmış continuation → klonlama kurtarması ve gerçek GPU karşılaştırması
 - [Rapor712](BROWSER_BUG_REPORT_712.md) — Yerel aralık aktarımı ve canlı video/Whisper/çeviri/ses zinciri
 - [Rapor711](BROWSER_BUG_REPORT_711.md) — Canlı DeepSeek gerçek ayar/onay/undo ve eski hata bandı

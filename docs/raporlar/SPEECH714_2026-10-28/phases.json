@@ -1,0 +1,10 @@
+{
+  "model_load_seconds": 18.625,
+  "reference_seconds": 4.485,
+  "synthesis_seconds": 17.688,
+  "verification_seconds": 15.719,
+  "placement_seconds": 0.0,
+  "normalization_seconds": 0.828,
+  "file_write_seconds": 0.0,
+  "wall_seconds": 58.453
+}

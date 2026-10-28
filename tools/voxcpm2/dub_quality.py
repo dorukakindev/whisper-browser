@@ -14,7 +14,8 @@ from dub_finish import spoken_text
 # Shared with the pre-generation JS guard; this is conservative evidence,
 # not a complete Turkish morphological or semantic analyzer.
 NEGATIVE_ROOTS = json.loads((Path(__file__).resolve().parents[2] / 'src' / 'turkish-negation-roots.json').read_text(encoding='utf-8'))
-NEGATIVE_ENDING = re.compile(r'(?:m[ıiuü]yor[^\W_]*|m[ae]y[ae]c[ae][kğ][^\W_]*|m[ae](?:d[ae]n|ks[ıi]z[ıi]n|y[ıi]nc[ae]|m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n(?:lar|ler)?|y[ıiuü]n(?:[ıiuü]z)?|y[ae]l[ıi]m)?|y?[ae]m[ae](?:m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n)?|y?[ae]m[ıiuü]yor[^\W_]*|y?[ae]m[ae]y[^\W_]*)')
+# Include finite -mazsa/-mezse and inability -amazsa/-emezse conditionals.
+NEGATIVE_ENDING = re.compile(r'(?:(?:m[ae]|y?[ae]m[ae])zs[ae](?:m|n|k|n[ıi]z|l[ae]r)?|m[ıiuü]yor[^\W_]*|m[ae]y[ae]c[ae][kğ][^\W_]*|m[ae](?:d[ae]n|ks[ıi]z[ıi]n|y[ıi]nc[ae]|m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n(?:lar|ler)?|y[ıiuü]n(?:[ıiuü]z)?|y[ae]l[ıi]m)?|y?[ae]m[ae](?:m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n)?|y?[ae]m[ıiuü]yor[^\W_]*|y?[ae]m[ae]y[^\W_]*)')
 
 def lexical_negatives(text):
     tokens = re.findall(r'[^\W_]+', unicodedata.normalize('NFC', text).replace('I','ı').replace('İ','i').lower())
@@ -234,6 +235,20 @@ def cached_record(path):
                 and isinstance(record.get('text'), str) and record['text'].strip()):
             if record['verification'].get('status') not in ('passed', 'not_checked'):
                 record['status'] = 'review'
+            # Old cache entries can predate a semantic guard. Re-evaluate their
+            # stored ASR evidence without rerunning the GPU or changing audio.
+            # Never upgrade an earlier review, and preserve unchecked records.
+            verification = record['verification']
+            heard = verification.get('recognizedText')
+            expected = record.get('pronunciationText')
+            if not isinstance(expected, str) or not expected.strip():
+                expected = record['text']
+            if (record['status'] == 'ready' and verification.get('status') == 'passed'
+                    and isinstance(heard, str)):
+                checked = speech_check(expected, heard, numeric_reference=record['text'])
+                if checked['review']:
+                    record['status'] = 'review'
+                    record['verification'] = {**verification, **checked, 'status': 'review'}
             return record
     except (OSError, ValueError):
         pass
