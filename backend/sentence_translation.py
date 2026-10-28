@@ -510,7 +510,16 @@ def _proper_names(text):
             continue
         # A new quoted sentence has its own initial word, not a proper name.
         quote_initial = word.startswith(('"', "“", "‘", "«")) and lowered in _INITIAL_STOPWORDS
-        sentence_initial = index == 0 or quote_initial or sentence_ended(" ".join(words[:index]))
+        # A reported instruction after "said/read/wrote:" starts a new
+        # sentence. Only a bounded imperative + lower-case object determiner
+        # qualifies; John or Ignore Inc must remain anchored as real names.
+        next_word = words[index + 1].strip("\"'“”‘’.,;:!?()") if index + 1 < len(words) else ''
+        reported_command = (not explicit_name and lowered in {
+            'ignore', 'change', 'open', 'close', 'read', 'write', 'keep', 'leave', 'take', 'turn', 'do'}
+            and next_word in {'previous', 'the', 'this', 'these', 'those', 'all', 'any', 'my', 'your', 'our', 'not'}
+            and re.search(r'\b(?:said|says|read|reads|wrote|writes|shouted|shouts|stated|states)\s*:\s*$',
+                          " ".join(words[:index]), re.I))
+        sentence_initial = index == 0 or quote_initial or reported_command or sentence_ended(" ".join(words[:index]))
         if (not sentence_initial or explicit_name) and len(candidate.rstrip(".?!,;:…")) >= 2:
             names.append(candidate.rstrip(".?!,;:…"))
     return names
@@ -945,6 +954,9 @@ _TARGET_NEGATION = re.compile(
     re.I,
 )
 
+_TARGET_NEGATIVE_NOMINAL = re.compile(r'\b\w{2,}m[ae]m[ae](?:m|n|s[ıi]|m[ıi]z|n[ıi]z|l[ae]r[ıi])\w*\b', re.I)
+
+
 def _target_negation(text, source=''):
     """Disambiguate Turkish nominalized verbs and English-before temporal clauses.
 
@@ -952,6 +964,11 @@ def _target_negation(text, source=''):
     'Gelmeden önce' expresses English 'before arrival'; other negative clauses
     in the same sentence remain visible to the ordinary gate.
     """
+    # aç-ma-ma-sı-nı / gel-me-me-mi are negative nominal clauses, unlike
+    # positive aç-ma-sı-nı / gel-me-mi. Check BEFORE masking obligations:
+    # gitmemem gerekiyor is negative, gitmem gerekiyor is positive.
+    if _TARGET_NEGATIVE_NOMINAL.search(str(text)):
+        return True
     text = re.sub(r'\b\w+m[ae]m(?:[ıiuü]z|[ıiuü]n)?\b(?=\s+(?:gerek\w*|lazım\w*|zorunlu\w*))', ' ', str(text), flags=re.I)
     if re.search(r'\bbefore\b', source, re.I):
         text = re.sub(r'\b\w+m[ae]d[ae]n\s+önce\b', ' ', text, flags=re.I)
