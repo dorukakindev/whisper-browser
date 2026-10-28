@@ -39,7 +39,7 @@
     mode: 'player', tabId: 'player-video', mediaKey: player.mediaKey,
     source: player.localPath || player.mediaKey || '',
     generation: player.generation, subtitleRange: selectedLocalSubtitleRange(),
-    priorMuted: video.muted, playbackRate: video.playbackRate,
+    priorMuted: video.muted, volume: video.volume, playbackRate: video.playbackRate,
     currentTime: video.currentTime, backgroundSource: player.localPath || '',
     hasMedia: !!(video.currentSrc || video.getAttribute('src')),
     visible: !byId('playerLayer').classList.contains('hidden'),
@@ -67,6 +67,7 @@
       return { ok: true, media: { currentTime: video.currentTime, playbackRate: video.playbackRate } };
     },
     changed: (s, message) => {
+      window.dispatchEvent(new CustomEvent('dub-master:changed'));
       strip.classList.toggle('hidden', !s);
       byId('browserDubName').textContent = s?.name || '';
       byId('browserDubStatus').textContent = message;
@@ -155,6 +156,8 @@
     if (event.type === 'tab-audio' && event.tabMuted === false && s.desiredMuted) void controller.remove();
   });
   window.BrowserDubAudioUI = {
+    master: () => controller.session?.mode==='player'&&controller.matches() ? {...controller.session.master} : null,
+    setMaster: value => {const changed=controller.setMaster(value);if(changed){if(Number.isFinite(value.volume))video.volume=controller.session.master.volume;window.dispatchEvent(new CustomEvent('dub-master:changed'));document.dispatchEvent(new CustomEvent('media-playback-preferences-changed'));}return changed;},
     snapshot,
     originalPlayback: () => controller.matches() ? { muted: controller.session.priorMuted, speed: controller.session.baseRate } : null,
     restore: async (saved, expectedKey) => {

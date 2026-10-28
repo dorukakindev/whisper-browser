@@ -33,6 +33,8 @@
       if (intent !== this.intent || !this.matches(c)) return false;
       if (!file || !c.tabId || !c.mediaKey || !['browser', 'player'].includes(c.mode)) return false;
       const s = { ...c, priorMuted, name: file.name, range: file.range || null, muted: false, url: null };
+      s.master = { volume: c.mode === 'player' && Number.isFinite(c.volume) ? Math.max(0, Math.min(1, c.volume)) : 1,
+        muted: c.mode === 'player' && !!priorMuted };
       try { s.sync = SyncMap.validate(file.sync); } catch (_) { this.error('Geçersiz dublaj zaman haritası.'); return false; }
       if (s.sync && !this.setRate) return false;
       s.background = file.background || null; s.layers=file.layers || {};s.mix=Mix.mix(file.mix);
@@ -122,7 +124,15 @@
         const url=layers[key]?.url||'';
         if((a.getAttribute?.('src')||a.src||'')!==url){s[key+'Failed']=false;s[key+'Epoch']=(s[key+'Epoch']||0)+1;s[key+'PlayPending']=false;s[key+'Wanted']=false;a.pause();if(url)a.src=url;else a.removeAttribute('src');a.load();}
       }this.changed(s,'Dublaj açık');}
-      this.audio.volume=s.mix.voice;if(refresh)this.tick();
+      this.audio.volume=s.mix.voice*s.master.volume;
+      for(const a of [this.audio,this.backgroundAudio,this.musicAudio,this.ambienceAudio])if(a)a.muted=s.master.muted;
+      if(refresh)this.tick();
+    }
+    setMaster(value) {
+      const s=this.session;if(!s||s.mode!=='player'||!this.matches(s))return false;
+      if(Number.isFinite(value.volume))s.master.volume=Math.max(0,Math.min(1,value.volume));
+      if(typeof value.muted==='boolean'){s.master.muted=value.muted;s.priorMuted=value.muted;}
+      this.setMix({},null,false);this.tick();return true;
     }
     syncBackground(s,time,rate,playing,target) {
       const duck=s.mix.duck?1-(1-s.mix.duckAmount)*Mix.duckAt(s.rows,target):1;
@@ -130,7 +140,7 @@
         const b=this[key+'Audio'];
         if(!(key==='background'?s.background:s.layers[key])||!b)continue;
         if(s[key+'Failed']){b.pause();continue;}
-        b.volume=s.mix[key]*duck;
+        b.volume=s.mix[key]*duck*s.master.volume;b.muted=s.master.muted;
         if(b.readyState<=0)continue;
         b.playbackRate=rate;
         if(Math.abs(b.currentTime-time)>.25){try{b.currentTime=Math.max(0,time);}catch(_){}}
@@ -216,7 +226,7 @@
           this.pauseAll(); return;
         }
       }
-      this.audio.volume=s.mix.voice;
+      this.audio.volume=s.mix.voice*s.master.volume;this.audio.muted=s.master.muted;
       this.syncBackground(s,localTime,rate,playing,target);
       if (s.sync) {
         const desired = Math.max(.0625, Math.min(4, s.baseRate / mapped.factor));
