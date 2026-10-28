@@ -1,3 +1,4 @@
+- [Rapor689](BROWSER_BUG_REPORT_689.md) — Dar okuyucu araçları ve PDF kaynak sayfası korunması
 - [Rapor688](BROWSER_BUG_REPORT_688.md) — Kitap onayında WAV sınırı ve açık native dar ekran hatası
 - [Rapor687](BROWSER_BUG_REPORT_687.md) — Normalizasyon süresinin IPC ve arayüzde korunması
 - [Rapor686](BROWSER_BUG_REPORT_686.md) — Başarısız yeni denemede önceki hazır dublaj
