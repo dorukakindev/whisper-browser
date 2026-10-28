@@ -1,0 +1,81 @@
+{
+  "music": {
+    "ok": true,
+    "realDecode": true,
+    "realMeasurements": true,
+    "seek": 9.595993,
+    "range": {
+      "start": 8,
+      "end": 16,
+      "duration": 8
+    },
+    "cache": true,
+    "narrowOverflow": false,
+    "source": "Synthetic calibrated signal, not a real song or semantic model benchmark"
+  },
+  "assistant": {
+    "ok": true,
+    "longCards": true,
+    "readingPosition": true,
+    "threadSwitch": true,
+    "narrowComposer": true,
+    "liveProvider": false
+  },
+  "browser": {
+    "ok": true,
+    "normal": {
+      "height": 32,
+      "width": 488.34375,
+      "popoverHeight": 103,
+      "popoverWidth": 460,
+      "popoverRight": 956.34375,
+      "health": "28 cues ready · 0 site tracks."
+    },
+    "expanded": {
+      "height": 32,
+      "width": 488.34375,
+      "popoverHeight": 103,
+      "popoverWidth": 460,
+      "popoverRight": 482,
+      "health": "28 cues ready · 0 site tracks."
+    },
+    "error": {
+      "height": 32,
+      "width": 488.34375,
+      "popoverHeight": 113,
+      "popoverWidth": 460,
+      "popoverRight": 482,
+      "health": "3 çeviri bloğu başarısız."
+    },
+    "narrow": {
+      "height": 32,
+      "width": 488.34375,
+      "popoverHeight": 116,
+      "popoverWidth": 640,
+      "popoverRight": 662,
+      "health": "Bazı çeviri blokları tamamlanamadı. Hazır repliklerle izlemeye devam edebilir veya hatalı blokları yeniden deneyebilirsiniz."
+    },
+    "nativeBounds": {
+      "x": 11,
+      "y": 94,
+      "width": 878,
+      "height": 855
+    },
+    "actualViewport": 900,
+    "videoPixels": true,
+    "videoAdvances": true,
+    "fullscreenRoundTrip": true
+  },
+  "reader": {
+    "ok": true,
+    "realPdf": true,
+    "readingPreferencesApplyAndPersist": true,
+    "pageContextAndSelection": true,
+    "narrationPages": [
+      2,
+      3
+    ],
+    "fixtureAudioHighlight": true,
+    "noModelGeneration": true
+  }
+}
