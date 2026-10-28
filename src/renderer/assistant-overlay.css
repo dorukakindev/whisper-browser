@@ -83,7 +83,7 @@ html,body{overflow:hidden}
 @media(prefers-reduced-motion:reduce){button{transition:none}}
 
 #form>div{flex-wrap:wrap}#webSearch{font-size:12px} @media(max-width:400px){#hint{flex-basis:100%;max-width:none}#webSearch{margin-left:auto}#send{margin-left:0}}
-#jobs{flex:none;margin:0 20px 8px;border:1px solid var(--line);border-radius:10px;background:var(--raised)}#jobs summary{padding:8px 10px;cursor:pointer;font-size:12px;color:var(--muted)}#jobRows{max-height:142px;overflow:auto;padding:0 10px 6px}.assistant-job{display:flex;align-items:center;gap:12px;padding:8px 0;border-top:1px solid var(--line)}.assistant-job>div{flex:1;min-width:0}.assistant-job strong{display:block;font-size:12px}.assistant-job small{display:block;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}.assistant-job button{font-size:11px;min-height:30px;padding:4px 10px}.assistant-job progress{width:100%;height:3px;accent-color:var(--accent);display:block;margin-top:6px}@media(max-height:620px){#jobs{margin:0 12px 6px}#jobRows{max-height:100px}}
+#jobs{flex:none;margin:0 20px 8px;border:1px solid var(--line);border-radius:10px;background:var(--raised)}#jobs summary{padding:8px 10px;cursor:pointer;font-size:12px;color:var(--muted)}#jobRows{max-height:142px;overflow:auto;padding:0 10px 6px}.assistant-job{display:flex;align-items:center;gap:12px;padding:8px 0;border-top:1px solid var(--line)}.assistant-job>div{flex:1;min-width:0}.assistant-job strong{display:block;font-size:12px}.assistant-job small{display:block;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}.assistant-job button{font-size:11px;min-height:40px;padding:8px 12px;flex-shrink:0}.assistant-job progress{width:100%;height:3px;accent-color:var(--accent);display:block;margin-top:6px}@media(max-height:620px){#jobs{margin:0 12px 6px}#jobRows{max-height:100px}}
 
 .tool-card .flow-continue{margin-inline-start:6px;border-color:var(--accent)}.tool-card .action-receipt{overflow-wrap:anywhere}
 
@@ -105,3 +105,5 @@ html,body{overflow:hidden}
 @media(max-height:620px){header{padding-top:10px;padding-bottom:6px}#threadBar{padding-block:6px}#suggestions{max-height:40px;padding-bottom:6px}#form{margin-bottom:8px}#text{min-height:44px}#review{max-height:100px}}
 
 @media(max-height:620px){#suggestions{flex-wrap:wrap;overflow-x:hidden;max-height:72px}#suggestions button{flex-shrink:1;max-width:100%;overflow-wrap:anywhere}}
+
+.assistant-job-activity { margin-top: 4px; font-variant-numeric: tabular-nums; line-height: 1.5; overflow-wrap: anywhere; }

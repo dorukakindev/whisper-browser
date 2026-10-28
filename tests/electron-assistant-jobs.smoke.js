@@ -53,6 +53,11 @@ provider.listen(0,'127.0.0.1',()=>{
   await until(()=>run("return !document.getElementById('jobs').hidden&&document.getElementById('jobRows').textContent.includes('42%')"),'main job snapshot mirrored');
   await run("document.getElementById('jobs').open=true;return true");
   async function capture(name){await run('await document.fonts.ready;return true');await wait(500);const bounds=await run("return {width:innerWidth,scroll:document.documentElement.scrollWidth,header:document.querySelector('header').getBoundingClientRect().top,send:document.getElementById('send').getBoundingClientRect().bottom,height:innerHeight,theme:document.documentElement.dataset.theme}");assert(bounds.scroll<=bounds.width+1&&bounds.header>=0&&bounds.send<=bounds.height);fs.writeFileSync(path.join(out,name+'.png'),(await view.webContents.capturePage()).toPNG());return bounds;}
+  const voiceId=ledger.start({kind:'voice',cancel:async()=>({ok:true})});
+  ledger.update(voiceId,{type:'status',stage:'model_load'});
+  ledger.update(voiceId,{type:'activity',stage:'synthesis',group:61,attempt:2,elapsed:30,limit:180,secret:'must-not-render'});
+  await until(()=>run("return document.getElementById('jobRows').textContent.includes('Grup 61 · deneme 2 · 30 sn / 180 sn sınır')"),'voice heartbeat reaches native chat');
+  assert(await run("return document.getElementById('jobRows').textContent.includes('Ses üretiliyor')&&!document.getElementById('jobRows').textContent.includes('must-not-render')"));
   await capture('agent-proposal-dark');
   await run("document.querySelector('.tool-card button').click();document.getElementById('reviewConfirm').click();return true");
   await until(()=>parent("return !!document.getElementById('appSettingsDialog')?.open"),'approved action opens actual settings');
@@ -76,7 +81,14 @@ provider.listen(0,'127.0.0.1',()=>{
   win.setMinimumSize(0,0);win.setContentSize(720,680);await parent("UiLocale.set('en',false);applyUiTheme('light');return true");
   await until(()=>run("return document.documentElement.lang==='en'&&document.documentElement.dataset.theme==='light'"),'compact light');
   const compact=await capture('agent-cancelled-compact-light');
-  await run("document.querySelector('#jobRows button').click();return true");
+  assert(await run("return document.getElementById('jobRows').textContent.includes('Group 61 · attempt 2 · 30 s / 180 s limit')"),'Heartbeat localizes without a new engine event');
+  assert(await run("return [...document.querySelectorAll('.assistant-job button')].every(n=>n.getBoundingClientRect().height>=40)"),'Job stop controls retain usable hit targets');
+  ledger.update(voiceId,{type:'status',stage:'verification'});
+  await until(()=>run("return !document.querySelector('.assistant-job-activity')"),'finished synthesis pulse clears');
+  ledger.update(voiceId,{type:'done'});
+
+  await until(()=>run("return [...document.querySelectorAll('.assistant-job')].some(n=>n.dataset.jobId==="+JSON.stringify(voiceId)+"&&!n.querySelector('button'))"),'completed voice no longer cancellable');
+  await run("document.querySelector('[data-job-id=\""+jobId+"\"] button').click();return true");
   await until(()=>run("return document.getElementById('jobRows').textContent.includes('Stopped')"),'exact job stop receipt');assert.equal(stops,1);
   const replacement=ledger.start({kind:'voice',cancel:async()=>{stops++;return {ok:true};}});
   assert.equal((await parent('return window.api.cancelAssistantJob({id:'+JSON.stringify(jobId)+'})')).ok,false);assert.equal(stops,1,'Stale job ID never cancelled replacement');

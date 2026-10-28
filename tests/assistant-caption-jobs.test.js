@@ -8,5 +8,5 @@ test('Production caption scheduler observer owns exact stop, partial failure and
  box.observe(tab,a,{total:4,completed:0,failed:0,pending:1});const old=jobs.snapshot().jobs[0].id;
  await jobs.cancel(old);await new Promise(resolve=>setImmediate(resolve));assert.equal(aStops,1);assert.equal(jobs.snapshot().jobs[0].state,'stopped');
  tab.translationScheduler=b;box.observe(tab,b,{total:4,completed:0,failed:0,queued:4});assert.equal((await jobs.cancel(old)).ok,false);assert.equal(bStops,0);
- box.observe(tab,b,{total:4,completed:3,failed:1,pending:0,queued:0,retrying:0});assert.equal(jobs.snapshot().jobs[0].state,'failed');assert(jobs.snapshot().jobs[0].partial);
+ box.observe(tab,b,{total:4,completed:3,failed:1,pending:0,queued:0,retrying:0});assert.equal(jobs.snapshot().jobs[0].state,'failed');assert(jobs.snapshot().jobs[0].partial);assert.deepEqual(jobs.snapshot().jobs[0].counts,{done:3,total:4,failed:1});
 });

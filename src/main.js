@@ -772,7 +772,7 @@ function observeAssistantCaptionJob(tab,scheduler,state){
   }
   const id=tab.assistantCaptionJob;if(!id)return;
   if(state.completed>0)assistantJobs.update(id,{type:'segment'});
-  assistantJobs.update(id,{type:'progress',stage:state.paused?'waiting':'translation',done:Number(state.completed)||0,total:Number(state.total)||0});
+  assistantJobs.update(id,{type:'progress',stage:state.paused?'waiting':'translation',done:Number(state.completed)||0,total:Number(state.total)||0,failed:Number(state.failed)||0});
   if(!busy&&state.total>0&&state.completed+state.failed>=state.total)assistantJobs.update(id,{type:state.failed?'error':'done'});
 }
 
@@ -7380,7 +7380,7 @@ async function runBrowserPageTranslationBlocksCore(tab, rawBlocks, session, opti
     onState: (state) => {
       if (!pageTranslationJobIsCurrent(tab, job)) return;
       const completion = pageTranslationCompletion(session);
-      assistantJobs.update(job.assistantJobId,{type:'progress',stage:state.paused?'waiting':'translation',done:browserPageTranslatedCount(session),total:session.blocks.size});
+      assistantJobs.update(job.assistantJobId,{type:'progress',stage:state.paused?'waiting':'translation',done:browserPageTranslatedCount(session),total:session.blocks.size,failed:Number(state.failed)||0});
       if(browserPageTranslatedCount(session)>0)assistantJobs.update(job.assistantJobId,{type:'segment'});
       tab.pageTranslateCompletion = completion;
       const paused = state.paused === true;

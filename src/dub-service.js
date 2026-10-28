@@ -543,10 +543,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         claimArtifacts(s,files);
         try {
           if (typeof prepareProsody !== 'function') throw new Error('Source delivery unavailable');
-          emit(s,'status',{text:'Özgün konuşmanın anlatımı analiz ediliyor…'});
+          emit(s,'status',{stage:'delivery_analysis',text:'Özgün konuşmanın anlatımı analiz ediliyor…'});
           await prepareProsody({request,srt:inputSrt,range:s.range,sample:s.sample,grouping:c.grouping,
             strength:c.deliveryStrength,output:file,onProcess:proc=>{s.proc=proc;},isCancelled:()=>s.cancelled,
-            status:progress=>emit(s,'status',{text:progress==='stop_failed'
+            status:progress=>emit(s,'status',{stage:'delivery_analysis',text:progress==='stop_failed'
               ? 'Analiz durdurulamadı; Durdur düğmesiyle tekrar deneyin.' : `Özgün anlatım analiz ediliyor · ${progress}`})});
           if (s.cancelled) throw new Error('Cancelled');
           if (fs.statSync(file).size > 2_000_000) throw new Error('Delivery map too large');
@@ -578,7 +578,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
               const text = stage === 'download' ? 'Video sesi indiriliyor…'
                 : stage === 'separate_gpu' ? 'Müzik ve ortam sesi ayrılıyor · GPU (CUDA)…'
                   : stage === 'separate_cpu' ? 'Müzik ve ortam sesi ayrılıyor · CPU…' : 'Müzik ve ortam sesi ayrılıyor…';
-              emit(s,'status',{text});
+              emit(s,'status',{stage,text});
             }});
           if (s.cancelled) throw new Error('İptal edildi.');
           grantMedia(file); background={path:file,url:pathToFileURL(file).href}; s.settings.keepBackground=true;
