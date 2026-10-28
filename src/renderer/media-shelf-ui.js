@@ -204,7 +204,7 @@
         moreButton.hidden = shown >= rows.length;
       };
       const moreButton = btn(t('Show more', 'Daha fazla göster'), more); more(); list.append(moreButton);
-      if (!rows.length&&!snapshot.linkedPlaylists?.length) list.append(el('p', 'mh-empty', t('Add audio files or a music folder to see albums, artists and playlists.', 'Albüm, sanatçı ve çalma listeleri için ses dosyaları veya müzik klasörü ekle.')));
+      if (!rows.length&&!snapshot.linkedPlaylists?.length) list.append(window.MediaHomeUI.emptyState(view.query?t('No matching tracks','Eşleşen parça yok'):t('Your music starts here','Müziğin burada başlasın'),view.query?t('Try another title or artist.','Başka bir parça veya sanatçı adı dene.'):t('Add local audio or bring a Spotify playlist. You can analyze its sound and discover similar tracks.','Yerel ses ekle veya Spotify listesi getir. Sesini analiz edip benzer parçalar keşfedebilirsin.'),[[t('Add audio','Ses ekle'),()=>task('music-import')],[t('Spotify link','Spotify bağlantısı'),()=>window.SpotifyImportUI.open({saved:reload})]]));
     };
     artist.addEventListener('change', paint); album.addEventListener('change', paint);filter.addEventListener('change',()=>{musicFilter=filter.value;paint();});sort.addEventListener('change',()=>{musicSort=sort.value;paint();});paint();paintPlaying();
     if (snapshot.linkedPlaylists?.length) {
@@ -320,6 +320,7 @@
   }
   function books(root) {
     root.append(btn(t('Add EPUB / PDF / TXT', 'EPUB / PDF / TXT ekle'), () => task('book-import')));
+    if(!snapshot.books.length){root.append(window.MediaHomeUI.emptyState(t('A place for your books','Kitapların için bir yer'),t('Bring an EPUB, PDF or text file. Read, ask about a passage, or prepare an audiobook with your voice.','EPUB, PDF veya metin dosyanı getir. Oku, bir pasajı sor veya kendi sesinle sesli kitap hazırla.'),[[t('Add a book','Kitap ekle'),()=>task('book-import')]]));return;}
     const grid = el('div', 'mh-grid ms-book-grid'), audioSlots = new Map();
     const rows = snapshot.books.filter(row => `${row.title} ${row.author}`.toLocaleLowerCase().includes(view.query.toLocaleLowerCase()));
     rows.slice(0, 300).forEach(row => {
@@ -375,7 +376,7 @@
         const line = el('div', 'ms-track'); line.append(el('strong', '', row.title), btn(t('Play', 'Oynat'), () => listen(podcast.episodes.map(row => ({ ...row, id: podcast.id, kind: 'podcasts' })), index))); details.append(line);
       }); root.append(details);
     }
-    if (!snapshot.stations.length && !snapshot.podcasts.length) root.append(el('p', 'mh-empty', t('Add a direct radio stream or a podcast feed. Episodes keep their listening position.', 'Doğrudan radyo yayını veya podcast beslemesi ekle. Bölümlerin dinleme konumu korunur.')));
+    if (!snapshot.stations.length && !snapshot.podcasts.length) root.append(window.MediaHomeUI.emptyState(t('Find your next listen','Sıradaki dinleyeceğini bul'),t('Add a radio stream or podcast feed using the controls above. Episodes keep their listening position.','Yukarıdaki düğmelerden radyo yayını veya podcast akışı ekle. Bölümlerin dinleme konumu korunur.')));
   }
   function taste(root) {
     root.append(btn(t('Import Letterboxd CSV / ZIP', 'Letterboxd CSV / ZIP içe aktar'), async () => {

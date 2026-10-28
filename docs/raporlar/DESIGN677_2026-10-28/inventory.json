@@ -1,0 +1,498 @@
+[
+  {
+    "name": "home-1440",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": true,
+    "activeNav": "home"
+  },
+  {
+    "name": "films-1440",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": true,
+    "activeNav": "films"
+  },
+  {
+    "name": "series-1440",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": true,
+    "activeNav": "series"
+  },
+  {
+    "name": "music-1440",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": true
+  },
+  {
+    "name": "books-1440",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": true
+  },
+  {
+    "name": "radio-1440",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": true,
+    "activeNav": "radio"
+  },
+  {
+    "name": "taste-1440",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": false,
+    "activeNav": "taste"
+  },
+  {
+    "name": "web-1440",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": true,
+    "activeNav": "web"
+  },
+  {
+    "name": "recent-1440",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": true,
+    "activeNav": "recent"
+  },
+  {
+    "name": "discover-1440",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": false,
+    "activeNav": "discover"
+  },
+  {
+    "name": "settings-1440",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [
+      {
+        "id": "appSettingsDialog",
+        "top": 95,
+        "bottom": 855
+      }
+    ],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": false,
+    "activeNav": "discover"
+  },
+  {
+    "name": "studio-1440",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": false,
+    "activeNav": "discover"
+  },
+  {
+    "name": "home-800",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": true,
+    "activeNav": "home"
+  },
+  {
+    "name": "films-800",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": true,
+    "activeNav": "films"
+  },
+  {
+    "name": "series-800",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": true,
+    "activeNav": "series"
+  },
+  {
+    "name": "music-800",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": true
+  },
+  {
+    "name": "books-800",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": true
+  },
+  {
+    "name": "radio-800",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": true,
+    "activeNav": "radio"
+  },
+  {
+    "name": "taste-800",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": false,
+    "activeNav": "taste"
+  },
+  {
+    "name": "web-800",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": true,
+    "activeNav": "web"
+  },
+  {
+    "name": "recent-800",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": true,
+    "activeNav": "recent"
+  },
+  {
+    "name": "discover-800",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": false,
+    "activeNav": "discover"
+  },
+  {
+    "name": "settings-800",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [
+      {
+        "id": "appSettingsDialog",
+        "top": 32,
+        "bottom": 918
+      }
+    ],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": false,
+    "activeNav": "discover"
+  },
+  {
+    "name": "studio-800",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "dark",
+    "accent": "#d5a35c",
+    "emptyState": false,
+    "activeNav": "discover"
+  },
+  {
+    "name": "home-1440-en-light",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": true,
+    "activeNav": "home"
+  },
+  {
+    "name": "films-1440-en-light",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": true,
+    "activeNav": "films"
+  },
+  {
+    "name": "series-1440-en-light",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": true,
+    "activeNav": "series"
+  },
+  {
+    "name": "music-1440-en-light",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": true
+  },
+  {
+    "name": "books-1440-en-light",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": true
+  },
+  {
+    "name": "radio-1440-en-light",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": true,
+    "activeNav": "radio"
+  },
+  {
+    "name": "taste-1440-en-light",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": false,
+    "activeNav": "taste"
+  },
+  {
+    "name": "web-1440-en-light",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": true,
+    "activeNav": "web"
+  },
+  {
+    "name": "recent-1440-en-light",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": true,
+    "activeNav": "recent"
+  },
+  {
+    "name": "discover-1440-en-light",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": false,
+    "activeNav": "discover"
+  },
+  {
+    "name": "settings-1440-en-light",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [
+      {
+        "id": "appSettingsDialog",
+        "top": 95,
+        "bottom": 855
+      }
+    ],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": false,
+    "activeNav": "discover"
+  },
+  {
+    "name": "studio-1440-en-light",
+    "width": 1440,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": false,
+    "activeNav": "discover"
+  },
+  {
+    "name": "home-800-en-light",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": true,
+    "activeNav": "home"
+  },
+  {
+    "name": "films-800-en-light",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": true,
+    "activeNav": "films"
+  },
+  {
+    "name": "series-800-en-light",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": true,
+    "activeNav": "series"
+  },
+  {
+    "name": "music-800-en-light",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": true
+  },
+  {
+    "name": "books-800-en-light",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": true
+  },
+  {
+    "name": "radio-800-en-light",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": true,
+    "activeNav": "radio"
+  },
+  {
+    "name": "taste-800-en-light",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": false,
+    "activeNav": "taste"
+  },
+  {
+    "name": "web-800-en-light",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": true,
+    "activeNav": "web"
+  },
+  {
+    "name": "recent-800-en-light",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": true,
+    "activeNav": "recent"
+  },
+  {
+    "name": "discover-800-en-light",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": false,
+    "activeNav": "discover"
+  },
+  {
+    "name": "settings-800-en-light",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [
+      {
+        "id": "appSettingsDialog",
+        "top": 32,
+        "bottom": 918
+      }
+    ],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": false,
+    "activeNav": "discover"
+  },
+  {
+    "name": "studio-800-en-light",
+    "width": 800,
+    "overflow": false,
+    "visibleDialogs": [],
+    "bodyTheme": "light",
+    "accent": "#7f4c15",
+    "emptyState": false,
+    "activeNav": "discover"
+  }
+]

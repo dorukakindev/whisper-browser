@@ -1,3 +1,4 @@
+- [Rapor677](BROWSER_BUG_REPORT_677.md) — Ortak tema, boş ekranlar ve kanıt sınırlarıyla görsel envanter
 - [Rapor676](BROWSER_BUG_REPORT_676.md) — Luna ilhamıyla temalı müzik transportu ve gerçek Windows görünüm kabulü
 - [Rapor675](BROWSER_BUG_REPORT_675.md) — Güncel Luna beta karşılaştırması: karışık kuyruk listeleri ve Spotify işlemleri
 - [Rapor674](BROWSER_BUG_REPORT_674.md) — Kalıcı ölçüm/etiket/karşılaştırma sonuçları ve Spotify liste tasarımı
