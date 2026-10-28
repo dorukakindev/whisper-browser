@@ -17,6 +17,7 @@ w.eval(fs.readFileSync(path.join(root, 'src/renderer/voice-reference-ui.js'), 'u
   el('voiceReferenceName').value = 'İlk referans';
   el('voiceReferencePrepare').click(); await tick();
   assert.equal(request.name, 'İlk referans');
+  assert.equal(el('voiceReferenceSearch').disabled,true,'Search is locked while a reference is being prepared');
   assert.deepEqual(JSON.parse(JSON.stringify(request.range)), { start: 5, end: 25 });
   assert.equal(request.context.generation, 3); assert.equal(el('voiceReferenceUse').disabled, true);
   progress({ id: request.id, type: 'reference_status', stage: 'transcribe_cuda' });
@@ -42,6 +43,13 @@ w.eval(fs.readFileSync(path.join(root, 'src/renderer/voice-reference-ui.js'), 'u
   el('voiceReferenceRecorder').dispatchEvent(new w.Event('toggle')); await tick();
   assert.equal(el('voiceReferenceText').value,'Corrected.','refresh preserves an unsaved transcript');
   assert.equal(el('voiceReferenceName').value,'Unsaved name','refresh preserves an unsaved name');
+  const beforeSearch=used;
+  el('voiceReferenceSearch').value='turkce';el('voiceReferenceSearch').dispatchEvent(new w.Event('input'));
+  assert.match(el('voiceReferenceCount').textContent,/1 \/ 1/,'Turkish accents are searchable without diacritics');
+  el('voiceReferenceSearch').value='no match';el('voiceReferenceSearch').dispatchEvent(new w.Event('input'));
+  assert.match(el('voiceReferenceCount').textContent,/0 \/ 1/);assert.equal(el('voiceReferenceSelect').value,entry.id,'Filtering never selects another voice');
+  assert.equal(el('voiceReferenceText').value,'Corrected.');assert.equal(el('voiceReferenceName').value,'Unsaved name');assert.equal(used,beforeSearch,'Search never applies a voice');
+  el('voiceReferenceSearch').value='';el('voiceReferenceSearch').dispatchEvent(new w.Event('input'));
   el('voiceReferenceUse').click(); await tick();
   assert.equal(used.id, entry.id); assert.equal(used.text, 'Corrected.'); assert(changed);
   el('voiceReferencePrepare').click(); await tick(); el('voiceReferenceCancel').click(); await tick();

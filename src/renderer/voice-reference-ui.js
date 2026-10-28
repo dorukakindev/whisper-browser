@@ -23,7 +23,7 @@
   };
   const selected = () => references.find(item => item.id === el('voiceReferenceSelect').value);
   function controls() {
-    for (const id of ['voiceReferencePrepare','voiceReferenceStart','voiceReferenceEnd','voiceReferenceSelect','voiceReferenceText','voiceReferenceName']) el(id).disabled = !!active || applying || selectingSource;
+    for (const id of ['voiceReferencePrepare','voiceReferenceStart','voiceReferenceEnd','voiceReferenceSearch','voiceReferenceSelect','voiceReferenceText','voiceReferenceName']) el(id).disabled = !!active || applying || selectingSource;
     el('voiceReferenceCancel').disabled = !active || stopping;
     const generating = !el('dubGeneratorCancel').disabled;
     el('voiceReferencePrepare').disabled = !!active || applying || generating || selectingSource;
@@ -49,6 +49,30 @@
       `${t('Kayıt içinde önerilen aralık')}: ${quality.suggested_start}–${quality.suggested_end} s`
     ].join(' · ') : '';
   }
+  const folded = value => String(value || '').normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase('tr').replace(/ı/g,'i');
+  function renderReferences(prior = el('voiceReferenceSelect').value, allowFallback = false) {
+    const select = el('voiceReferenceSelect'), query = folded(el('voiceReferenceSearch').value.trim());
+    const matches = references.filter(item => folded(item.name+' '+(drafts.get(item.id)?.name||'')).includes(query));
+    select.replaceChildren();
+    const option = item => {
+      const n=document.createElement('option');n.value=item.id;n.textContent=item.name;n.setAttribute('data-ui-untranslated','');return n;
+    };
+    const pinned=references.find(item=>item.id===prior);
+    if (query && pinned && !matches.includes(pinned)) {
+      const group=document.createElement('optgroup');group.label=t('Seçili referans');group.append(option(pinned));select.append(group);
+    }
+    for (const item of matches) select.append(option(item));
+    if (pinned) select.value=prior;
+    else if (!allowFallback) select.value='';
+    const en=window.UiLocale?.get?.()==='en';
+    el('voiceReferenceCount').textContent=query
+      ? (en?`${matches.length} / ${references.length} matches · selection stays unchanged`:`${matches.length} / ${references.length} eşleşme · seçili ses değişmez`)
+      : (en?`${references.length} saved references`:`${references.length} kayıtlı referans`);
+  }
+  const revealPicker = () => el('voiceReferencePicker').scrollIntoView?.({block:'nearest',behavior:'auto'});
+  el('voiceReferenceSearch').addEventListener('focus', revealPicker);
+  el('voiceReferenceSearch').addEventListener('input', () => { rememberDraft();renderReferences();controls();revealPicker(); });
+  document.addEventListener('ui-locale-change', () => renderReferences());
   async function refresh(preferred) {
     const sequence = ++refreshSequence;
     const result = await api.listVoiceReferences().catch(() => null);
@@ -56,12 +80,7 @@
     if (!result?.ok) { if (preferred) { el('voiceReferenceSelect').value = ''; show(); } status('Referans sesler okunamadı.'); return false; }
     const prior = preferred || el('voiceReferenceSelect').value || result.activeId;
     folder = result.folder; references = result.references;
-    el('voiceReferenceSelect').replaceChildren();
-    for (const item of references) {
-      const option = document.createElement('option'); option.value = item.id; option.textContent = item.name;
-      option.setAttribute('data-ui-untranslated', ''); el('voiceReferenceSelect').append(option);
-    }
-    if (references.some(item => item.id === prior)) el('voiceReferenceSelect').value = prior;
+    renderReferences(prior, !preferred);
     if (preferred && !references.some(item => item.id === preferred)) el('voiceReferenceSelect').value = '';
     show();
     return !preferred || !!selected();
@@ -73,7 +92,7 @@
   el('browserVoiceReferenceOpen').addEventListener('click', () => { el('browserTranslateMenu').open = false; open('browserDubGenerate'); });
   el('playerVoiceReferenceOpen').addEventListener('click', () => open('playerDubGenerate'));
   panel.addEventListener('toggle', () => { if (panel.open && !active && !applying) void refresh(); });
-  el('voiceReferenceSelect').addEventListener('change', show);
+  el('voiceReferenceSelect').addEventListener('change', () => { renderReferences();show(); });
   el('voiceReferenceName').addEventListener('input', () => { rememberDraft(); controls(); });
   el('voiceReferenceRename').addEventListener('click', async () => {
     const item = selected(); if (!item || active || applying) return;
@@ -83,7 +102,7 @@
       if (!result?.ok) { status('Referans adı kaydedilemedi.'); return; }
       item.name = result.name; el('voiceReferenceName').value = result.name; rememberDraft();
       const option = el('voiceReferenceSelect').selectedOptions[0];
-      if (option) option.textContent = result.name;
+      if (option) option.textContent = result.name;renderReferences(item.id);
       status('Referans adı kaydedildi.');
     } catch (_) { status('Referans adı kaydedilemedi.'); }
     finally { applying = false; controls(); }

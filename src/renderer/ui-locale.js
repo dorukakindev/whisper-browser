@@ -4,6 +4,10 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ['Üretilen ses', 'Generated audio'],
+    ['Referans seslerde ara', 'Search voice references'],
+    ['Ad ile ara', 'Search by name'],
+    ['Seçili referans', 'Selected reference'],
     ['Bu grup neden işaretlendi?', 'Why is this group flagged?'],
     ['Seslendirilen metni takip et', 'Follow spoken text'],
     ['Önceki grubu dinle', 'Listen to previous group'],
