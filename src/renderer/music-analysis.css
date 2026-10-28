@@ -76,3 +76,6 @@ html[data-theme=light] .music-lab{--ml-band-high:#6942a8}
 @media(max-width:760px){.ml-header{flex-wrap:wrap;gap:8px}.ml-header>div{flex-basis:calc(100% - 60px)}.ml-header>.ml-close{order:-1;margin-left:auto}.ml-header>div{order:-2}.ml-history-open{min-height:36px;font-size:12px;padding:7px 12px}.ml-batch-actions{flex-wrap:wrap}.ml-batch-row{flex-wrap:wrap}.ml-history-actions{grid-column:1/-1}.ml-aligned{padding:12px}}
 
 .ml-aligned .ml-description{overflow-wrap:anywhere}.ml-liked-tracks{max-height:40vh;overflow:auto;line-height:1.9;padding-left:22px}.ml-liked-tracks li{overflow-wrap:anywhere}.ml-liked-review>.ml-button{margin-right:8px}
+
+.ml-source-version{margin-top:12px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg-2);display:grid;gap:6px;min-width:0}
+.ml-source-version[hidden]{display:none}.ml-source-version strong,.ml-source-version small{overflow-wrap:anywhere}.ml-source-version strong{font-size:13px;line-height:1.5}.ml-source-version small{color:var(--text-muted);font-size:12px;line-height:1.6}.ml-source-version .ml-version-open{justify-self:start;min-height:36px;padding:6px 12px;font-size:12px}.ml-source-version .ml-version-warning{margin:0;padding-left:10px;border-left:2px solid var(--accent);font-size:12px;line-height:1.6;color:var(--text)}

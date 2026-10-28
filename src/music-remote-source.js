@@ -1,5 +1,6 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
+const {fromSpotify}=require('./music-source-version');
 function create(options){
  const folders=new Set(),cache=new Map();let active=null;
  async function prepare(request,online){
@@ -13,7 +14,7 @@ function create(options){
    if(!spotifyRow)throw Error('Imported track missing / Aktarılan parça bulunamadı.');
   }
   const key=JSON.stringify([request.kind,request.playlistId||'',request.id,spotifyRow?.youtubeUrl||'']),cached=cache.get(key);
-  if(cached&&fs.existsSync(cached.file))return spotifyRow?{...cached,metadata:{...cached.metadata,title:spotifyRow.title,artist:spotifyRow.artist}}:cached;
+  if(cached&&fs.existsSync(cached.file))return spotifyRow?{...cached,metadata:{...cached.metadata,title:spotifyRow.title,artist:spotifyRow.artist,reviewedVersion:fromSpotify(spotifyRow)}}:cached;
   if(active)throw Error('A source is being prepared / Bir kaynak hazırlanıyor.');if(folders.size>=8)throw Error('Close music analysis to release temporary sources / Geçici kaynakları temizlemek için müzik analizini kapat.');
   const controller=new AbortController(),runner=options.run||require('./browser-media-tools').run;active=controller;let folder;
   try{
@@ -23,7 +24,7 @@ function create(options){
    }else if(request.kind==='spotify'){
     const row=spotifyRow;
     const engine=require('./spotify-import').create({run:runner,python:options.python});const abort=()=>engine.cancel();controller.signal.addEventListener('abort',abort,{once:true});let stream;try{controller.signal.throwIfAborted();stream=await engine.stream(row.youtubeUrl);}finally{controller.signal.removeEventListener('abort',abort);}controller.signal.throwIfAborted();
-    file=stream.url;metadata={title:row.title,artist:row.artist,cover:'https://i.ytimg.com/vi/'+(new URL(row.youtubeUrl).searchParams.get('v')||'')+'/hqdefault.jpg',origin:'spotify-youtube-excerpt',location:{kind:'spotify',playlistId:request.playlistId,id:request.id}};seconds=90;
+    file=stream.url;metadata={title:row.title,artist:row.artist,cover:'https://i.ytimg.com/vi/'+(new URL(row.youtubeUrl).searchParams.get('v')||'')+'/hqdefault.jpg',origin:'spotify-youtube-excerpt',reviewedVersion:fromSpotify(row),location:{kind:'spotify',playlistId:request.playlistId,id:request.id}};seconds=90;
    }else throw Error('Invalid remote music source');
    controller.signal.throwIfAborted();const wav=path.join(folder,'reference.wav');await runner(options.ffmpeg(),['-v','error','-nostdin','-protocol_whitelist',request.kind==='spotify'?'https,tls,tcp,crypto':'file,pipe',...(request.kind==='spotify'?['-rw_timeout','15000000']:[]),'-i',file,'-t',String(seconds),'-vn','-ac','1','-ar','48000','-c:a','pcm_s16le',wav],null,controller.signal,90000,null,{waitForCloseOnCancel:true});controller.signal.throwIfAborted();if(request.kind!=='spotify')await fs.promises.unlink(file);folders.add(folder);const result={file:wav,metadata:{...metadata,excerptSeconds:seconds}};cache.set(key,result);return result;
   }catch(error){if(folder)await fs.promises.rm(folder,{recursive:true,force:true});throw error;}finally{if(active===controller)active=null;}

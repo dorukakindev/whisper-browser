@@ -15,14 +15,14 @@ test('Spotify reference cache follows the current YouTube match and refuses remo
  const os=require('node:os'),dir=fs.mkdtempSync(path.join(os.tmpdir(),'music-rematch-'));
  const shelf=path.join(dir,'media-shelf.json'),request={kind:'spotify',playlistId:'playlist',id:'track'};
  let video='abcdefghijk',title='First title',downloads=0;
- const save=()=>fs.writeFileSync(shelf,JSON.stringify({linkedPlaylists:[{id:'playlist',tracks:[{id:'track',title,artist:'Artist',youtubeUrl:'https://www.youtube.com/watch?v='+video}]}]}));
+ const save=()=>fs.writeFileSync(shelf,JSON.stringify({linkedPlaylists:[{id:'playlist',tracks:[{id:'track',title,artist:'Artist',youtubeTitle:'Matched '+title,duration:200,youtubeDuration:300,youtubeUrl:'https://www.youtube.com/watch?v='+video}]}]}));
  const remote=create({userData:()=>dir,python:()=> 'python',ffmpeg:()=> 'ffmpeg',run:async(_cmd,args)=>{
   if(args.includes('yt_dlp')){downloads++;return JSON.stringify({url:'https://fixture.googlevideo.com/'+video});}
   fs.writeFileSync(args.at(-1),video);return '';
  }});
  try{
   save();const first=await remote.prepare(request);assert.equal(fs.readFileSync(first.file,'utf8'),'abcdefghijk');
-  title='Corrected title';save();const renamed=await remote.prepare(request);assert.equal(renamed.metadata.title,title);assert.equal(downloads,1);
+  title='Corrected title';save();const renamed=await remote.prepare(request);assert.equal(renamed.metadata.title,title);assert.equal(downloads,1);assert.equal(renamed.metadata.reviewedVersion.title,'Matched Corrected title');assert.equal(renamed.metadata.reviewedVersion.durationMismatch,true);assert.equal(renamed.metadata.reviewedVersion.url,'https://www.youtube.com/watch?v=abcdefghijk');
   video='lmnopqrstuv';save();const changed=await remote.prepare(request);assert.equal(fs.readFileSync(changed.file,'utf8'),video);assert.notEqual(changed.file,first.file);assert.equal(downloads,2);
   fs.writeFileSync(shelf,JSON.stringify({linkedPlaylists:[]}));await assert.rejects(()=>remote.prepare(request),/Imported track missing/);
  }finally{await remote.release();fs.rmSync(dir,{recursive:true,force:true});}
