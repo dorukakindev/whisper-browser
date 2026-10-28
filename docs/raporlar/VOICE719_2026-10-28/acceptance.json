@@ -1,0 +1,96 @@
+{
+  "complete": true,
+  "realGpu": true,
+  "nativePointerStop": true,
+  "duplicateDubRejected": true,
+  "whisperBusyRejected": true,
+  "hostCount": 2,
+  "controlsBefore": {
+    "startDisabled": true,
+    "stopDisabled": false
+  },
+  "stopped": {
+    "status": "Durduruldu.",
+    "details": "4 · Paralel üretim"
+  },
+  "stopMilliseconds": 215,
+  "restartQuality": {
+    "version": 1,
+    "verification": "detailed",
+    "groups": [
+      {
+        "group": 1,
+        "key": "1",
+        "status": "ready",
+        "verification": {
+          "status": "passed",
+          "recognizedText": "Bu arayız denemesinde uzun bir cümleyi seslendiriyoruz. Bugün birlikte kitap okuyup yeni hikayeler öğreneceğiz. Her cümlenin doğal akışını korumak için dikkatli çalışıyoruz. Denemen numarası 36701",
+          "similarity": 0.9333,
+          "omission_spans": [],
+          "insertion_spans": [],
+          "missing_numbers": [],
+          "added_numbers": [],
+          "percentage_mismatch": false,
+          "semantic_mismatch": false,
+          "spoken_number_mismatch": false,
+          "lost_negation": false,
+          "added_negation": false,
+          "unit_mismatch": false,
+          "repetition": false,
+          "sign_mismatch": false,
+          "missing_names": [],
+          "review": false
+        },
+        "rewritten": false,
+        "naturalEdited": false,
+        "delivery": null,
+        "referenceMode": "continuation",
+        "displayText": "Bu arayüz denemesinde uzun bir cümleyi seslendiriyoruz. Bugün birlikte kitap okuyup yeni hikayeler öğreneceğiz. Her cümlenin doğal akışını korumak için dikkatli çalışıyoruz. Deneme numarası 36701.",
+        "speechRanges": [
+          [
+            0.02,
+            3.4
+          ],
+          [
+            4.16,
+            7.46
+          ],
+          [
+            8.2,
+            11.6
+          ],
+          [
+            12.38,
+            14.838229
+          ]
+        ],
+        "text": "Bu arayüz denemesinde uzun bir cümleyi seslendiriyoruz. Bugün birlikte kitap okuyup yeni hikayeler öğreneceğiz. Her cümlenin doğal akışını korumak için dikkatli çalışıyoruz. Deneme numarası otuz altı bin yedi yüz bir.",
+        "sourceStart": 0,
+        "sourceEnd": 40,
+        "audioStart": 0,
+        "audioEnd": 14.838229166666666,
+        "stretch": 1
+      }
+    ],
+    "preview": false,
+    "excerpts": [
+      {
+        "key": "1",
+        "start": 0,
+        "end": 40
+      }
+    ]
+  },
+  "whisperAfterVoice": {
+    "completed": true,
+    "device": "cpu",
+    "model": "tiny",
+    "range": [
+      2,
+      10
+    ],
+    "spawnedAfterVoiceHostClosed": true
+  },
+  "observedHostsClosed": true,
+  "limits": "Synthetic local SRT/reference/video. UI and IPC through production app. Not YouTube, OS shutdown, OOM, every cancellation stage, GPU Whisper overlap, or a human voice-quality judgment."
+}

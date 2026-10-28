@@ -1,3 +1,4 @@
+- [Rapor719](BROWSER_BUG_REPORT_719.md) — Gerçek UI Durdur, çakışma ve sıcak motor/Whisper geçişi
 - [Rapor718](BROWSER_BUG_REPORT_718.md) — Gerçek GPU sentez iptali ve yeni motor kabulü
 - [Rapor717](BROWSER_BUG_REPORT_717.md) — Native başlangıçta kapanış ve dış iptal yarışı
 - [Rapor716](BROWSER_BUG_REPORT_716.md) — PDF görünüm düğmeleri, klavye ve kontrol tasarımı
