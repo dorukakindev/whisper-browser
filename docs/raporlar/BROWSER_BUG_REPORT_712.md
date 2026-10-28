@@ -33,3 +33,5 @@ Hedefli history/output-contract/restore/local-context kontrolleri PASS (Node6son
 [faster-whisper transcribe.py](https://github.com/SYSTRAN/faster-whisper/blob/master/faster_whisper/transcribe.py) klip/offset yaklaşımı ve [MIT lisansı](https://github.com/SYSTRAN/faster-whisper/blob/master/LICENSE) incelendi. Mevcut backend/ses motoru/711credential broker yeniden kullanıldı; dış kod veya yeni bağımlılık alınmadı.
 
 11before-quit listener ve izole background ağ filtresi uyarısı açık. start.bat/install/DRM/canlıYouTube/hesap ve farklı medya biçimleri koşulmadı; nativeElectron normal launcher kanıtı değildir. CI beklenmedi. P001 hâlâ kısmi; P003 kapalı sınırlı yerel yol doğrulandı. İnsan dinleme ve ses kalitesi sonucu tamamlanmadı; kalan90hedef aktif.
+
+Teslim eki: Yeni yardımcı modül için coverage-map ve ipc-parity kısa sözleşme kontrolleri de5PASS. Sentetik kaynak ve çeviri SRT kanıtları Gitignore dışına yalnız bu iki doğrulanmış dosya seçilerek yayımlandı; kişisel altyazı eklenmedi.
