@@ -147,6 +147,60 @@ app
         'return document.querySelector("#pdfReader.mode-reading .pdf-page-prose")?.textContent.includes("controlled PDF")',
       ),
     );
+    if(process.argv.includes('--toolbar-only')){
+      await run(`window.reader716Keys=[];document.addEventListener('keydown',e=>window.reader716Keys.push({key:e.key,target:e.target.dataset?.pdfView||e.target.id,ctrl:e.ctrlKey,alt:e.altKey,shift:e.shiftKey,meta:e.metaKey,phase:e.eventPhase}),true);return true`);
+      const snapshot=()=>run(`return {mode:player.pdfReader.viewMode,page:player.pdfReader.currentPage,focus:document.activeElement?.dataset?.pdfView||document.activeElement?.id,keys:window.reader716Keys,radios:[...document.querySelectorAll('#pdfViewModes button')].map(b=>({mode:b.dataset.pdfView,checked:b.getAttribute('aria-checked'),tab:b.tabIndex,height:b.getBoundingClientRect().height})),width:innerWidth,overflow:document.getElementById('pdfReader').scrollWidth>document.getElementById('pdfReader').clientWidth+1}`);
+      await capture('toolbar-wide.png');
+      await run(`document.querySelector('[data-pdf-view="reading"]').focus();return true`);
+      const key=async(keyCode,modifiers=[])=>{win.focus();win.webContents.focus();await wait(40);win.webContents.sendInputEvent({type:'keyDown',keyCode,modifiers});if(keyCode==='Return')win.webContents.sendInputEvent({type:'char',keyCode:'\r',modifiers});win.webContents.sendInputEvent({type:'keyUp',keyCode,modifiers});await wait(100)};
+      await key('Right');let state=await snapshot();fs.writeFileSync(path.join(out,'toolbar-arrow.json'),JSON.stringify(state,null,2));
+      if(state.mode!=='source'){
+        win.webContents.debugger.attach('1.3');const object=await win.webContents.debugger.sendCommand('Runtime.evaluate',{expression:'document.querySelector("[data-pdf-view=reading]")'});
+        const listeners=await win.webContents.debugger.sendCommand('DOMDebugger.getEventListeners',{objectId:object.result.objectId});win.webContents.debugger.detach();
+        const clickMode=await run(`document.querySelector('[data-pdf-view="source"]').click();return player.pdfReader.viewMode`);
+        fs.writeFileSync(path.join(out,'listener-diagnostic.json'),JSON.stringify({listeners,clickMode},null,2));
+      }
+      assert.equal(state.mode,'source','Right arrow must select the next reading mode');
+      assert.equal(state.focus,'source');assert.equal(state.radios.filter(b=>b.tab===0).length,1);
+      await key('End');assert.equal((await snapshot()).mode,'translation');
+      await key('Home');assert.equal((await snapshot()).mode,'reading');
+      await key('Left');assert.equal((await snapshot()).mode,'translation');
+      await key('Down');assert.equal((await snapshot()).mode,'reading');
+      await key('Tab');assert(!['reading','source','both','translation'].includes((await snapshot()).focus),'Tab must leave the radio group');
+      await key('Tab',['shift']);assert.equal((await snapshot()).focus,'reading');
+      await capture('toolbar-focus-wide.png');
+      const sourcePoint=await run(`const b=document.querySelector('[data-pdf-view="source"]').getBoundingClientRect();return {x:Math.round(b.x+b.width/2),y:Math.round(b.y+b.height/2)}`);
+      win.webContents.sendInputEvent({type:'mouseDown',button:'left',clickCount:1,...sourcePoint});win.webContents.sendInputEvent({type:'mouseUp',button:'left',clickCount:1,...sourcePoint});await wait(100);
+      assert.equal((await snapshot()).mode,'source','Native click must activate the original PDF view');await key('Home');
+      win.webContents.debugger.attach('1.3');await win.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
+      win.webContents.sendInputEvent({type:'mouseMove',x:10,y:400});await wait(200);
+      const hoverPoint=await run(`const b=document.getElementById('pdfVoiceOpen').getBoundingClientRect();return {x:Math.round(b.x+b.width/2),y:Math.round(b.y+b.height/2)}`);
+      win.webContents.sendInputEvent({type:'mouseMove',...hoverPoint});
+      const motion=await run(`await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const b=document.getElementById('pdfVoiceOpen');getComputedStyle(b).backgroundColor;const a=b.getAnimations();for(const animation of a)animation.updatePlaybackRate(.1);await Promise.all(a.map(x=>x.ready));return {transitions:a.map(x=>({property:x.transitionProperty,duration:x.effect.getTiming().duration,rate:x.playbackRate})),staticLabel:b.textContent,normalDuration:getComputedStyle(b).transitionDuration};`);
+      assert(motion.transitions.some(a=>a.property==='background-color'&&a.rate===.1),'Inspect the real hover transition at 10 percent speed');
+      await wait(180);await capture('toolbar-hover-slow.png');
+      await run(`document.getElementById('pdfVoiceOpen').getAnimations().forEach(a=>a.finish());return true`);
+      await win.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+      motion.reduced=await run(`return {matches:matchMedia('(prefers-reduced-motion: reduce)').matches,duration:getComputedStyle(document.getElementById('pdfVoiceOpen')).transitionDuration}`);
+      assert(motion.reduced.matches&&motion.reduced.duration==='0s');await win.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[]});win.webContents.debugger.detach();
+      fs.writeFileSync(path.join(out,'toolbar-motion.json'),JSON.stringify(motion,null,2));
+      await run(`document.querySelector('#pdfTranslateTools summary').focus();return true`);await key('Return');
+      assert(await run(`return document.getElementById('pdfTranslateTools').open`));await capture('toolbar-menu-wide.png');
+      await key('Escape');assert(await run(`return !document.getElementById('pdfTranslateTools').open&&document.activeElement===document.querySelector('#pdfTranslateTools summary')`));
+      const states=[state];
+      win.setContentSize(1000,950);win.webContents.setZoomFactor(1.25);await wait(250);
+      for(const [locale,theme] of [['tr','dark'],['en','light']]){
+        await run(`UiLocale.set('${locale}',false);applyUiTheme('${theme}');return true`);await wait(150);
+        assert.equal(await run(`return document.getElementById('pdfZoomValue').textContent`),locale==='tr'?'%100':'100%');
+        const narrow=await snapshot();states.push(narrow);assert(!narrow.overflow);assert(narrow.radios.every(b=>b.height>=40),'Reader controls need a usable desktop hit area');
+        await capture('toolbar-'+locale+'-'+theme+'-125.png');
+        await run(`document.getElementById('pdfTranslateTools').open=true;return true`);await wait(100);
+        const bounds=await run(`const b=document.querySelector('#pdfTranslateTools .pdf-reader-tools-content').getBoundingClientRect();return {left:b.left,right:b.right,top:b.top,bottom:b.bottom,width:innerWidth,height:innerHeight}`);
+        assert(bounds.left>=0&&bounds.right<=bounds.width+1&&bounds.bottom<=bounds.height+1,JSON.stringify(bounds));
+        await capture('toolbar-menu-'+locale+'-'+theme+'-125.png');await key('Escape');
+      }
+      fs.writeFileSync(path.join(out,'toolbar-results.json'),JSON.stringify({ok:true,states,nativeKeyboard:true,realPdf:true},null,2));console.log(JSON.stringify({ok:true,out}));app.exit(0);return;
+    }
     if(longDocument){
       await run(`document.getElementById('pdfReaderPage').value='75';document.getElementById('pdfReaderPage').dispatchEvent(new Event('change'));return true`);
       await until(()=>run(`return player.pdfReader.currentPage===75&&player.pdfReader.pages.get(75)?.article?.dataset.state==='ready'&&!player.pdfReader.navigatingPage`),'late original PDF page');
