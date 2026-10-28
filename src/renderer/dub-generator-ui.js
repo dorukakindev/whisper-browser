@@ -61,19 +61,27 @@
     const row = results.get(el('dubQualityGroup').value);
     const labels = {ready:'Hazır',review:'Dinleyerek kontrol edin',failed:'Üretilemedi; bu bölüm sessiz',
       passed:'Metin doğrulandı',not_checked:'Metin denetlenmedi',unavailable:'Metin doğrulanamadı'};
-    el('dubQualityInfo').textContent = row ? [t(labels[row.status]), t(labels[row.verification?.status] || 'Metin denetlenmedi'),
-      row.rewritten ? t('Süreye göre düzenlendi') : row.naturalEdited ? t('Doğal konuşma için düzenlendi') : ''].filter(Boolean).join(' · ') : '';
+    el('dubQualityInfo').textContent = row ? [...new Set([t(labels[row.status]), t(labels[row.verification?.status] || 'Metin denetlenmedi'),
+      row.rewritten ? t('Süreye göre düzenlendi') : row.naturalEdited ? t('Doğal konuşma için düzenlendi') : ''].filter(Boolean))].join(' · ') : '';
     const evidence=el('dubQualityEvidence');evidence.hidden=!row;
     const previous=previousOutput?.quality?.groups?.find(value=>value.key===row?.key);
     el('dubListenPrevious').hidden=!!current||!output||!previousOutput||previousMedia!==mediaIdentity()||previousOutput.url===output.url||!Number.isFinite(previous?.audioStart)||!Number.isFinite(previous?.audioEnd)||previous.audioEnd<=previous.audioStart;
     el('dubListenPrevious').textContent=window.UiLocale?.get?.()==='en'?'Listen to previous group':'Önceki grubu dinle';
     const currentButton=el('dubListenCurrent');if(currentButton)currentButton.textContent=el('dubListenPrevious').hidden?t('Bu grubu dinle'):(window.UiLocale?.get?.()==='en'?'Listen to new group':'Yeni grubu dinle');
     const en=window.UiLocale?.get?.()==='en';
-    el('dubQualityEvidenceTitle').textContent=en?'Why is this group flagged?':'Bu grup neden işaretlendi?';
+    el('dubQualityEvidenceTitle').textContent=row?.status==='review'||row?.status==='failed' ? (en?'Why is this group flagged?':'Bu grup neden işaretlendi?') : (en?'Check details':'Kontrol ayrıntıları');
     const v=row?.verification||{},reasons=[];
+    const recognized=typeof v.recognizedText==='string'?v.recognizedText.slice(0,8000):'';
+    el('dubQualityExpectedLabel').textContent=en?'Expected text':'Beklenen metin';
+    el('dubQualityRecognized').hidden=!recognized;
+    el('dubQualityRecognizedLabel').textContent=en?'Automatic transcript (ASR) — may contain recognition errors':'Otomatik döküm (ASR) — tanıma hatası içerebilir';
+    el('dubQualityRecognizedText').textContent=recognized;
+    const similarity=Number.isFinite(v.similarity)&&v.similarity>=0&&v.similarity<=1 ? Math.round(v.similarity*100) : null;
+    el('dubQualitySimilarity').textContent=recognized&&similarity!==null ? (en?`Text match (ASR): ${similarity}% · Not a naturalness score.`:`Metin eşleşmesi (ASR): %${similarity} · Doğallık puanı değildir.`) : '';
+
     for(const [flag,label]of [['spoken_number_mismatch',['Spoken quantity differs','Söylenen sayı farklı']],['lost_negation',['Negation','Olumsuzluk']],['added_negation',['Added negation','Eklenen olumsuzluk']],['semantic_mismatch',['Meaning markers','Anlam işaretleri']],['unit_mismatch',['Units','Birim']],['sign_mismatch',['Number sign','Sayı işareti']],['repetition',['Repetition','Tekrar']]])if(v[flag])reasons.push(label[en?0:1]);
     for(const [key,label]of [['missing_numbers',['Missing number','Eksik sayı']],['added_numbers',['Added number','Ek sayı']],['missing_names',['Name recognition','Özel ad tanıma']],['omission_spans',['Potential omission','Olası atlama']],['insertion_spans',['Potential extra speech','Olası ek konuşma']]])if(v[key]?.length)reasons.push(label[en?0:1]);
-    el('dubQualityReasons').textContent=reasons.length?reasons.join(' · ')+(en?' — ASR can be wrong; listen before editing.':' — Otomatik tanıma yanılabilir; düzenlemeden önce dinle.'):row?.status==='review'?(en?'Acoustic or verification check needs listening.':'Ses veya doğrulama kontrolü dinleme gerektiriyor.'):(en?'No issue flagged by these checks. This is not a naturalness score.':'Bu kontrollerde işaret yok. Bu bir doğallık puanı değildir.');
+    el('dubQualityReasons').textContent=reasons.length?reasons.join(' · ')+(en?' — ASR can be wrong; listen before editing.':' — Otomatik tanıma yanılabilir; düzenlemeden önce dinle.'):row?.status==='review'?(en?'Acoustic or verification check needs listening.':'Ses veya doğrulama kontrolü dinleme gerektiriyor.'):(v.status==='passed' ? (en?'No issue flagged by these checks. This is not a naturalness score.':'Bu kontrollerde işaret yok. Bu bir doğallık puanı değildir.') : (en?'No text comparison is available. Listen before judging completeness or pronunciation.':'Metin karşılaştırması mevcut değil. Eksiksizlik ve telaffuz için dinleyerek kontrol edin.'));
     el('dubQualityExpected').textContent=String(row?.text||row?.displayText||'').slice(0,8000);
     const pronunciation=typeof row?.pronunciationText==='string'?row.pronunciationText.slice(0,8000):'';
     el('dubQualityPronunciation').hidden=!pronunciation||pronunciation===row?.text;
