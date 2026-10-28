@@ -3884,6 +3884,15 @@
     <audio id="voiceReferencePreview" controls preload="metadata" class="hidden"></audio>
     <label for="voiceReferenceText">Referans dökümü</label>
     <textarea id="voiceReferenceText" rows="3" maxlength="8000" data-ui-untranslated></textarea>
+    <details id="voiceReferenceComparison" class="voice-reference-comparison" hidden>
+      <summary id="voiceReferenceComparisonTitle" data-ui-untranslated></summary>
+      <p id="voiceReferenceComparisonHint" data-ui-untranslated></p>
+      <div id="voiceReferenceComparisonColumns" class="voice-reference-comparison-columns">
+        <div><h4 id="voiceReferenceOriginalLabel" data-ui-untranslated></h4><p id="voiceReferenceOriginal" data-ui-untranslated></p></div>
+        <div><h4 id="voiceReferenceEditedLabel" data-ui-untranslated></h4><p id="voiceReferenceEdited" data-ui-untranslated></p></div>
+      </div>
+      <button id="voiceReferenceRestoreTranscript" type="button" class="btn btn-secondary" data-ui-untranslated></button>
+    </details>
     <div class="dub-generator-row"><button id="voiceReferenceUse" type="button" class="btn btn-primary" disabled>Bu sesi kullan</button><button id="voiceReferenceFolder" type="button" class="btn btn-ghost">Referans sesler klasörünü aç</button></div>
   </details></section><section class="dub-card"><details><summary>Müzik ve ortam</summary>
 <label class="dub-generator-row"><input id="dubKeepBackground" type="checkbox" />Müzik ve ortam seslerini koru</label>

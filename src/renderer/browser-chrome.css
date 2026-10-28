@@ -1789,3 +1789,14 @@ details.browser-translate-split.hidden { display: none !important; }
 #dubPreviewCard #dubGeneratedName { color:var(--text-muted);font-size:12px;overflow-wrap:anywhere; }
 
 .voice-reference-picker { scroll-margin-block: 12px; min-width: 0; }
+.voice-reference-comparison { margin-block:12px; padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg-1); }
+.voice-reference-comparison > summary { min-height:40px; align-content:center; font-weight:600; cursor:pointer; color:var(--text); }
+.voice-reference-comparison > p { color:var(--text-muted); font-size:12px; line-height:1.6; }
+.voice-reference-comparison-columns { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; margin-block:12px; }
+.voice-reference-comparison-columns[hidden], .voice-reference-comparison[hidden] { display:none; }
+.voice-reference-comparison-columns h4 { margin:0 0 8px; font-size:12px; color:var(--text-muted); }
+.voice-reference-comparison-columns p { margin:0; line-height:1.7; overflow-wrap:anywhere; max-height:180px; overflow:auto; }
+.voice-reference-comparison .reference-diff-del { text-decoration:line-through; text-decoration-color:var(--accent); }
+.voice-reference-comparison .reference-diff-add { background:color-mix(in srgb,var(--accent) 18%,transparent); border-radius:3px; }
+.voice-reference-comparison > button { min-height:40px; margin-top:8px; }
+@media(max-width:700px){.voice-reference-comparison-columns{grid-template-columns:1fr;}}
