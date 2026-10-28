@@ -372,6 +372,24 @@ app
       'const a=document.getElementById("pdfVoiceAudio");a.currentTime=.1;a.dispatchEvent(new Event("timeupdate"));return true',
     );
     assert(await run('return !!document.querySelector(".pdf-active-speech")'),JSON.stringify(await run('return {status:document.getElementById("pdfVoiceStatus").textContent,time:document.getElementById("pdfVoiceAudio").currentTime,page:player.pdfReader.currentPage,groups:document.querySelectorAll(".pdf-spoken-group").length};')));
+    const zoomBefore=await run(`const a=document.getElementById('pdfVoiceAudio');a.pause();a.currentTime=.1;a.dispatchEvent(new Event('timeupdate'));return {source:a.src,time:a.currentTime,page:player.pdfReader.currentPage,groups:document.querySelectorAll('.pdf-spoken-group').length,boxes:document.querySelectorAll('.pdf-speech-box').length};`);
+    assert(zoomBefore.groups>0&&zoomBefore.boxes>0,JSON.stringify(zoomBefore));
+    for(const scale of [1.45,.85]){
+      await run('setPdfReaderZoom('+scale+');return true');
+      await until(()=>run('const r=player.pdfReader;return !r.zooming&&r.rendered.has(r.currentPage)'),'voice zoom render');
+      const result=await run(`const a=document.getElementById('pdfVoiceAudio');a.dispatchEvent(new Event('timeupdate'));return {source:a.src,time:a.currentTime,page:player.pdfReader.currentPage,groups:document.querySelectorAll('.pdf-spoken-group').length,boxes:document.querySelectorAll('.pdf-speech-box').length,highlight:!!document.querySelector('.pdf-active-speech'),sourceHighlight:!!document.querySelector('.pdf-active-box')};`);
+      assert.equal(result.groups,zoomBefore.groups,'Zoom preserves narrated text spans');assert.equal(result.boxes,zoomBefore.boxes,'Zoom remounts original PDF speech boxes');assert.equal(result.source,zoomBefore.source);assert.equal(result.time,zoomBefore.time);assert.equal(result.page,zoomBefore.page);assert(result.highlight&&result.sourceHighlight);
+    }
+    await run('setPdfReaderView("parallel");return true');
+    await capture('voice-zoom-source.png');
+    const mapped=await run(`const page=player.pdfReader.pages.get(player.pdfReader.currentPage),canvas=page.article.querySelector('.pdf-page-source canvas').getBoundingClientRect();const boxes=[...page.article.querySelectorAll('.pdf-speech-box')].map(n=>n.getBoundingClientRect());return {count:boxes.length,contained:boxes.every(r=>r.width>0&&r.left>=canvas.left-1&&r.top>=canvas.top-1&&r.right<=canvas.right+1&&r.bottom<=canvas.bottom+1),active:!!page.article.querySelector('.pdf-active-box')};`);
+    assert(mapped.count>0&&mapped.contained&&mapped.active,JSON.stringify(mapped));
+    await run('const n=document.querySelector(".pdf-speech-box");n.click();return true');
+    await until(()=>run('return !document.getElementById("pdfVoiceAudio").paused'),'new zoom box plays audio');
+    await run('const a=document.getElementById("pdfVoiceAudio");a.pause();setPdfReaderView("reading");return true');
+    fs.writeFileSync(path.join(out,'zoom-speech.json'),JSON.stringify({before:zoomBefore,mapped,scales:[1.45,.85],sourceAndPositionPreserved:true,newBoxPlayback:true},null,2));
+    await capture('voice-zoom-preserved.png');
+    await until(()=>run('const a=document.getElementById("pdfVoiceAudio");return a.readyState>=1&&Number.isFinite(a.duration)'), 'metadata after box playback');const afterMode=await run('const a=document.getElementById("pdfVoiceAudio");return {page:player.pdfReader.currentPage,source:a.src,duration:a.duration,hidden:a.classList.contains("hidden")};');fs.writeFileSync(path.join(out,'after-mode.json'),JSON.stringify(afterMode));assert.equal(afterMode.page,zoomBefore.page,'View change must preserve the narrated page');assert.equal(afterMode.source,zoomBefore.source,'View change must preserve narration');
     const manualFollow=await run(`
       const audio=document.getElementById('pdfVoiceAudio');audio.pause();document.getElementById('pdfVoiceFollow').checked=true;
       const original=HTMLElement.prototype.scrollIntoView,clock=Date.now;let calls=0,behavior;

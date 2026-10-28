@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "realPdf": true,
+  "fixtureInlineAudio": true,
+  "noModelGeneration": true,
+  "source": "three-page generated PDF",
+  "zoom": [
+    1.45,
+    0.85
+  ],
+  "regressionBefore": "Zoom preserves narrated text spans: 0 !== 1",
+  "nativeFinal": "reader workflow completed; separate profile",
+  "metadataProbe": "Finite metadata wait replaces premature duration access; no additional product defect confirmed"
+}
