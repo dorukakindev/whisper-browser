@@ -3,7 +3,17 @@ const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
 function create(options){
  const folders=new Set(),cache=new Map();let active=null;
  async function prepare(request,online){
-  if(!['spotify','deezer'].includes(request.kind)||typeof request.id!=='string'||!request.id||request.id.length>128)throw Error('Invalid music source identity');const key=JSON.stringify([request.kind,request.playlistId||'',request.id]);const cached=cache.get(key);if(cached&&fs.existsSync(cached.file))return cached;
+  if(!['spotify','deezer'].includes(request.kind)||typeof request.id!=='string'||!request.id||request.id.length>128)throw Error('Invalid music source identity');
+  // An imported track can be rematched or removed while this panel is open.
+  // Resolve it before the cache lookup; the selected video is part of identity.
+  let spotifyRow=null;
+  if(request.kind==='spotify'){
+   const shelf=path.join(options.userData(),'media-shelf.json');if(fs.statSync(shelf).size>16000000)throw Error('Library too large');
+   spotifyRow=JSON.parse(fs.readFileSync(shelf,'utf8')).linkedPlaylists?.find(p=>p.id===request.playlistId)?.tracks?.find(t=>t.id===request.id);
+   if(!spotifyRow)throw Error('Imported track missing / Aktarılan parça bulunamadı.');
+  }
+  const key=JSON.stringify([request.kind,request.playlistId||'',request.id,spotifyRow?.youtubeUrl||'']),cached=cache.get(key);
+  if(cached&&fs.existsSync(cached.file))return spotifyRow?{...cached,metadata:{...cached.metadata,title:spotifyRow.title,artist:spotifyRow.artist}}:cached;
   if(active)throw Error('A source is being prepared / Bir kaynak hazırlanıyor.');if(folders.size>=8)throw Error('Close music analysis to release temporary sources / Geçici kaynakları temizlemek için müzik analizini kapat.');
   const controller=new AbortController(),runner=options.run||require('./browser-media-tools').run;active=controller;let folder;
   try{
@@ -11,7 +21,7 @@ function create(options){
    if(request.kind==='deezer'){
     const row=online.snapshot([request.id])[0],result=await online.samples([row],folder,controller.signal,()=>{});file=result.tracks[0].path;metadata={title:row.title,artist:row.artist,cover:row.art,origin:'deezer-preview',location:{kind:'deezer',id:request.id,catalog:row}};seconds=30;
    }else if(request.kind==='spotify'){
-    const shelf=path.join(options.userData(),'media-shelf.json');if(fs.statSync(shelf).size>16000000)throw Error('Library too large');const row=JSON.parse(fs.readFileSync(shelf,'utf8')).linkedPlaylists?.find(p=>p.id===request.playlistId)?.tracks.find(t=>t.id===request.id);if(!row)throw Error('Imported track missing / Aktarılan parça bulunamadı.');
+    const row=spotifyRow;
     const engine=require('./spotify-import').create({run:runner,python:options.python});const abort=()=>engine.cancel();controller.signal.addEventListener('abort',abort,{once:true});let stream;try{controller.signal.throwIfAborted();stream=await engine.stream(row.youtubeUrl);}finally{controller.signal.removeEventListener('abort',abort);}controller.signal.throwIfAborted();
     file=stream.url;metadata={title:row.title,artist:row.artist,cover:'https://i.ytimg.com/vi/'+(new URL(row.youtubeUrl).searchParams.get('v')||'')+'/hqdefault.jpg',origin:'spotify-youtube-excerpt',location:{kind:'spotify',playlistId:request.playlistId,id:request.id}};seconds=90;
    }else throw Error('Invalid remote music source');
