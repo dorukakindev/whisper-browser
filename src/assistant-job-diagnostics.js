@@ -27,6 +27,11 @@
  function publicEvidence(row={}){
   const count=value=>Number.isSafeInteger(value)&&value>=0?value:0;
   return {failureCode:Object.hasOwn(labels,row.failureCode)?row.failureCode:null,
+   activity:row.activity&&Number.isSafeInteger(row.activity.group)&&row.activity.group>=1&&row.activity.group<=5000
+    &&Number.isSafeInteger(row.activity.attempt)&&row.activity.attempt>=1&&row.activity.attempt<=1000
+    &&Number.isFinite(row.activity.elapsed)&&row.activity.elapsed>=0&&row.activity.elapsed<=86400
+    &&Number.isFinite(row.activity.limit)&&row.activity.limit>=1&&row.activity.limit<=900?
+    {group:row.activity.group,attempt:row.activity.attempt,elapsed:Math.floor(row.activity.elapsed),limit:row.activity.limit}:null,
    counts:row.counts&&Number.isSafeInteger(row.counts.total)&&row.counts.total>0?{done:Math.min(count(row.counts.done),row.counts.total),total:row.counts.total,failed:Math.min(count(row.counts.failed),row.counts.total)}:null,
    result:row.result&&Array.isArray(row.result.artifacts)?{artifacts:row.result.artifacts.slice(0,12).filter(item=>['source','translation','dual'].includes(item.role)&&['srt','vtt','ass','ssa'].includes(item.format)).map(item=>({role:item.role,format:item.format,language:/^[a-zA-Z0-9-]{1,24}$/.test(item.language)?item.language:'',total:count(item.total),completed:count(item.completed),failed:count(item.failed),partial:item.partial===true})),limited:row.result.limited===true}:null};
  }

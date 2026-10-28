@@ -63,3 +63,22 @@ test('failure hints classify common runtime faults without copying provider text
 test('native overlay evidence projection keeps only diagnostic codes and bounded numeric/artifact fields',()=>{
  const diagnostics=require('../src/assistant-job-diagnostics');const value=diagnostics.publicEvidence({failureCode:'token=private',counts:{done:1,total:2,failed:1,secret:'private'},result:{artifacts:[{role:'source',format:'srt',language:'en',total:2,completed:1,failed:1,partial:true,path:'C:/private.wav',text:'private'}],secret:'private'}});assert.equal(value.failureCode,null);assert.equal(value.result.artifacts[0].partial,true);assert(!JSON.stringify(value).includes('private'));
 });
+
+test('voice activity is a live synthesis heartbeat, never stale model load or private log text',()=>{
+ const jobs=createJobs(),id=jobs.start({kind:'voice'});
+ jobs.update(id,{type:'status',stage:'model_load'});
+ jobs.update(id,{type:'activity',stage:'synthesis',group:61,attempt:2,elapsed:30.2,limit:180,text:'private voice',secret:'sk-secret'});
+ const row=jobs.snapshot().jobs[0];assert.equal(row.stage,'synthesis');
+ assert.deepEqual(row.activity,{group:61,attempt:2,elapsed:30,limit:180});
+ assert(!JSON.stringify(row).match(/private|sk-secret/));
+ jobs.update(id,{type:'status',stage:'verification'});assert.equal(jobs.snapshot().jobs[0].activity,null);
+ jobs.update(id,{type:'activity',stage:'synthesis',group:0,attempt:2,elapsed:30,limit:180});assert.equal(jobs.snapshot().jobs[0].stage,'verification');
+ jobs.update(id,{type:'done'});assert.equal(jobs.snapshot().jobs[0].activity,null);
+});
+
+test('heartbeat projection keeps numeric evidence only and rejects malformed limits',()=>{
+ const diagnostics=require('../src/assistant-job-diagnostics');
+ const good=diagnostics.publicEvidence({activity:{group:61,attempt:2,elapsed:30.9,limit:180,secret:'private'}});
+ assert.deepEqual(good.activity,{group:61,attempt:2,elapsed:30,limit:180});assert(!JSON.stringify(good).includes('private'));
+ assert.equal(diagnostics.publicEvidence({activity:{group:61,attempt:2,elapsed:30,limit:Infinity}}).activity,null);
+});

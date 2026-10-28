@@ -311,22 +311,18 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     const fallback=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1]; fs.writeFileSync(fallback,wav);
     child.emit('close',0);
     assert.equal(events.at(-1).type,'done'); assert.ok(events.at(-1).logError, 'log failure must be reported without losing audio');
+    const callsBeforeStudio=calls.length;
     assert.equal((await call('dub:textUI')).ok,true);
-    assert.ok(calls.at(-1).exe.endsWith('pythonw.exe'));
-    assert.ok(calls.at(-1).args[0].endsWith('text_studio.py'));
-    assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--engine')+1], engine);
-    assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--config')+1], path.join(root,'dub-settings.json'));
-    assert.equal((await call('dub:start',{id:'studio-busy',srt})).ok,false);
-    child.stderr.emit('data','ModuleNotFoundError: studio import failed\n');
-    child.emit('close',1); assert.equal(service.running(),false);
-    assert.equal(events.at(-1).type,'studio_error'); assert.match(events.at(-1).error,/studio import failed/);
+    assert.equal(calls.length,callsBeforeStudio,'Opening the common Electron studio must not spawn a legacy GUI');
+    assert.equal(events.at(-1).type,'text_studio_open');
+    assert.equal(service.running(),false,'An open editor alone does not reserve the voice engine');
     assert.equal((await call('dub:rate',{tabId:'a',generation:1,rate:.8})).ok,true);
     assert.equal((await call('dub:rate',{tabId:'a',generation:1,rate:Infinity})).ok,false);
     fs.unlinkSync(path.join(root,'dub-logs'));fs.mkdirSync(path.join(root,'dub-logs'));
     assert.equal((await call('dub:start',{id:'adaptive',srt,timingMode:'video',keepBackground:true,range:{start:600,end:1200}})).ok,true);
     assert.equal(backgroundLimit, 0, 'full production must not inherit a sample limit');
     assert.deepEqual(backgroundRange,{start:600,end:1200},'background separation must receive only the selected ten minutes');
-    assert.ok(events.some(e=>e.id==='adaptive'&&e.type==='status'&&e.text.includes('GPU (CUDA)')));
+    assert.ok(events.some(e=>e.id==='adaptive'&&e.type==='status'&&e.stage==='separate_gpu'&&e.text.includes('GPU (CUDA)')));
     const adaptiveOutput=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];
     fs.writeFileSync(adaptiveOutput,wav);
     fs.writeFileSync(adaptiveOutput.replace(/\.wav$/,'.sync.json'),JSON.stringify({version:1,videoDuration:2,audioDuration:3,
