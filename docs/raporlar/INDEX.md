@@ -1,3 +1,4 @@
+- [Rapor723](BROWSER_BUG_REPORT_723.md) — Ortak yerel referans ve kitap ses ayarları
 - [Rapor722](BROWSER_BUG_REPORT_722.md) — Ortak temada Electron metin stüdyosu ve gerçek GPU üretim/iptal
 - [Rapor721](BROWSER_BUG_REPORT_721.md) — Ses kimliğine bağlı ilk referans dökümü ve güvenli fark kartı
 - [Rapor720](BROWSER_BUG_REPORT_720.md) — Kontrollü son grup takılmasında gerçek ses korunumu ve onarım

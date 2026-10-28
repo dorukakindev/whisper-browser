@@ -1,4 +1,5 @@
 .mw-dialog {
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
   width: min(1180px, 94vw);
   max-height: 92vh;
   padding: 0;
@@ -723,3 +724,17 @@ dialog.mw-dialog::backdrop {
     max-width: 100%;
   }
 }
+
+/* Shared voice selection stays separate from per-book production settings. */
+.mw-voice-layout{display:flex;flex-direction:column;gap:18px;padding:16px 0}
+.mw-reference-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 14px;align-items:center}
+.mw-reference-row>span{grid-column:1/-1;color:var(--text);font-size:13px}
+.mw-reference-row>select{width:100%;min-width:0;min-height:42px}
+.mw-reference-row>button{min-height:42px}
+.mw-production-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.mw-production-fields .mw-setting{min-width:0}.mw-production-fields select{width:100%;min-height:42px}
+.mw-reference-defaults>summary{cursor:pointer;color:var(--text-muted);font-size:12px;min-height:40px;align-content:center}
+.mw-reference-defaults>p{margin:10px 0;color:var(--text-muted);line-height:1.7;font-size:12px;max-width:78ch}
+@media(max-width:800px){.mw-reference-row{grid-template-columns:1fr}.mw-production-fields{grid-template-columns:1fr}.mw-reference-row>button{justify-self:start}}
+
+.mw-voice-layout select{box-sizing:border-box;padding:10px 12px;border:1px solid var(--border-strong);border-radius:10px;background:var(--bg-0);color:var(--text);font:inherit;font-size:13px}

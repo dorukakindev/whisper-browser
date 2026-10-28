@@ -1,0 +1,25 @@
+{
+  "nativeWindows": true,
+  "sharedReferences": true,
+  "realGeneration": false,
+  "metrics": {
+    "width": 800,
+    "left": 10,
+    "right": 790,
+    "overflow": false,
+    "title": "Give your words a voice",
+    "startHeight": 44.400001525878906,
+    "editorColor": "rgb(241, 237, 229)"
+  },
+  "assertions": [
+    "named WAV copy preserves original",
+    "save leaves default unchanged",
+    "book-specific voice persisted",
+    "new library entry appears without rebuilding chapter editor",
+    "explicit default change preserves book voice and unsaved draft",
+    "book manage button opens shared studio",
+    "dubbing list includes imported voice",
+    "EN light125% book has no horizontal overflow"
+  ],
+  "fixture": "Synthetic reference and authored plain text book; disposable profile"
+}

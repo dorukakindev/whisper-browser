@@ -32,3 +32,5 @@
 .text-voice-fields label:has(#tv-mode),.text-voice-fields label:has(#tv-motor){grid-column:1/-1}
 @media(max-width:900px){.text-voice-body{grid-template-columns:1fr}.text-voice-rail{border-right:0;border-top:1px solid var(--border);order:2}.text-voice-manuscript{min-height:500px;order:1}.text-voice-head{padding:18px 20px}.text-voice-head h2{font-size:24px}.text-voice-footer{padding:14px 20px}.text-voice-name{max-width:none}.text-voice-studio{width:calc(100vw - 20px);height:calc(100dvh - 20px)}}
 @media(prefers-reduced-motion:reduce){.text-voice-studio button{transition:none}}
+
+.text-voice-library .text-voice-actions{flex-direction:column}.text-voice-library .text-voice-actions .btn{width:100%;flex:none;text-align:left}
