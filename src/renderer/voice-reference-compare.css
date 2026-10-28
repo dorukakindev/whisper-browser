@@ -1,0 +1,20 @@
+.reference-ab-trigger { margin-block: 12px; min-height: 42px; }
+dialog.reference-ab { position: fixed; inset: 0; margin: auto; height: fit-content; width: min(900px, calc(100vw - 40px)); max-height: calc(100dvh - 60px); overflow: auto; box-sizing: border-box; padding: 0; color: var(--text); border: 1px solid var(--border); border-radius: 18px; background: var(--bg-1); box-shadow: 0 24px 70px #0006; }
+.reference-ab::backdrop { background: #0008; }
+.reference-ab > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px 12px; }
+.reference-ab h2 { flex: 1; min-width: 0; margin: 0; font-size: 22px; line-height: 1.35; text-wrap: balance; }
+.reference-ab > header button { flex: 0 0 42px; width: 42px; max-width: 42px; min-height: 42px; padding: 0; font-size: 22px; }
+.reference-ab-hint, .reference-ab-notice { margin: 0 24px 18px; color: var(--text-muted); font-size: 13px; line-height: 1.65; text-wrap: pretty; }
+.reference-ab-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0 24px 24px; }
+.reference-ab-card { display: flex; flex-direction: column; gap: 12px; min-width: 0; border: 1px solid var(--border); border-radius: 10px; padding: 14px; background: var(--bg-1); }
+.reference-ab-card > strong { color: var(--accent); font-size: 13px; }
+.reference-ab-card label, .reference-ab-card select, .reference-ab-card audio { width: 100%; min-width: 0; }
+.reference-ab-card select { min-height: 42px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; color: var(--text); background: var(--bg-2); font: inherit; font-size: 14px; }
+.reference-ab-card audio { height: 40px; }
+.reference-ab-card .btn { min-height: 42px; margin-top: auto; }
+.reference-ab-card [hidden] { display: none; }
+@media (max-width: 650px) { .reference-ab-grid { grid-template-columns: 1fr; } }
+
+dialog.reference-ab[open] { transition: opacity var(--ui-motion-surface, 160ms) ease-out, translate var(--ui-motion-surface, 160ms) ease-out; }
+@starting-style { dialog.reference-ab[open] { opacity: 0; translate: 0 6px; } }
+@media (prefers-reduced-motion: reduce) { dialog.reference-ab[open] { transition: none; translate: none; } }

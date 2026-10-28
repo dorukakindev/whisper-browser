@@ -25,6 +25,7 @@
 <link rel="stylesheet" href="pdf-reader.css">
 <link rel="stylesheet" href="ui-motion.css">
 <link rel="stylesheet" href="text-voice-studio.css">
+<link rel="stylesheet" href="voice-reference-compare.css">
 </head>
 <body>
   <section id="mediaHome" class="media-home hidden" data-ui-untranslated aria-label="Media home"></section>
@@ -3883,6 +3884,7 @@
     <label for="voiceReferenceName">Referans adı</label>
     <div class="dub-generator-row"><input id="voiceReferenceName" type="text" maxlength="160" data-ui-untranslated /><button id="voiceReferenceRename" type="button" class="btn btn-secondary" disabled>Adı kaydet</button></div>
     <audio id="voiceReferencePreview" controls preload="metadata" class="hidden"></audio>
+    <div id="voiceReferenceAB"></div>
     <label for="voiceReferenceText">Referans dökümü</label>
     <textarea id="voiceReferenceText" rows="3" maxlength="8000" data-ui-untranslated></textarea>
     <details id="voiceReferenceComparison" class="voice-reference-comparison" hidden>
@@ -3936,6 +3938,7 @@
 <script src="browser-dub-ui.js"></script>
 <script src="dub-workspace-ui.js"></script>
 <script src="dub-generator-ui.js"></script>
+<script src="voice-reference-compare.js"></script>
 <script src="voice-reference-ui.js"></script>
 <script src="text-voice-studio.js"></script>
 <script src="media-catalog.js"></script>
