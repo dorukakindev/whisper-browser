@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "command": "Türkçe sayfayı İngilizceye çevirebilir misin?",
+  "receivedToolOptions": {
+    "ensureVisible": true,
+    "targetLanguage": "en"
+  },
+  "partialResultReported": true,
+  "limits": "Actual Windows panel and command routing; controlled page tool result, no live AI."
+}
