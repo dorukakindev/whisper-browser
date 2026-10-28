@@ -1,3 +1,4 @@
+- [Rapor690](BROWSER_BUG_REPORT_690.md) — Tekrarlanan pasaj, manuel takip ve kontrollü araç kabulü
 - [Rapor689](BROWSER_BUG_REPORT_689.md) — Dar okuyucu araçları ve PDF kaynak sayfası korunması
 - [Rapor688](BROWSER_BUG_REPORT_688.md) — Kitap onayında WAV sınırı ve açık native dar ekran hatası
 - [Rapor687](BROWSER_BUG_REPORT_687.md) — Normalizasyon süresinin IPC ve arayüzde korunması

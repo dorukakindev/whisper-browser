@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-0707.md](docs/devir/2026-10-28-0707.md) — Ürün100 pasajlar ve okuma takibi
 Güncel çalışma: [docs/devir/2026-10-28-0656.md](docs/devir/2026-10-28-0656.md) — Ürün100 okuyucu yerleşimi ve PDF bağlamı
 Güncel çalışma: [docs/devir/2026-10-28-0658.md](docs/devir/2026-10-28-0658.md) — Ürün100 kitap onay kapısı
 Güncel çalışma: [docs/devir/2026-10-28-0650.md](docs/devir/2026-10-28-0650.md) — Ürün100 aşama süreleri
