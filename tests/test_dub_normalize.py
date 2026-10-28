@@ -41,6 +41,33 @@ class Normalize(unittest.TestCase):
             self.assertIsNone(loudnorm_audio(source,runner=invalid))
             def missing(*args,**kwargs):raise FileNotFoundError('ffmpeg')
             self.assertIsNone(loudnorm_audio(source,runner=missing));self.assertEqual(source.read_bytes(),before)
+    def test_real_quiet_loud_and_stereo_reach_target_without_clipping_or_time_change(self):
+        sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'backend'))
+        import transcribe
+        ffmpeg=transcribe.find_ffmpeg();self.assertTrue(ffmpeg,'ffmpeg required')
+        def run(cmd,**options):return subprocess.run([ffmpeg,*cmd[1:]],**options)
+        with tempfile.TemporaryDirectory() as root:
+            sr=24000;t=np.arange(sr*4)/sr
+            # Stable gated signal isolates gain/channel behavior from model randomness.
+            wave=(np.sin(t*2*math.pi*440)*(.07+.03*np.sin(t*2*math.pi*2))).astype('float32')
+            for name,gain,stereo in [('quiet',.1,False),('loud',8,False),('stereo',1,True)]:
+                with self.subTest(case=name):
+                    audio=wave*gain
+                    if stereo:audio=np.repeat(audio[:,None],2,axis=1)
+                    source=Path(root)/(name+'.wav');sf.write(source,audio,sr,subtype='FLOAT')
+                    self.assertEqual(loudnorm_audio(source,runner=run),source)
+                    info=sf.info(source);samples,_=sf.read(source,dtype='float32')
+                    self.assertEqual(info.channels,2 if stereo else 1)
+                    self.assertAlmostEqual(info.duration,4,places=4)
+                    self.assertTrue(np.isfinite(samples).all());self.assertLess(float(np.abs(samples).max()),1)
+                    result=run(['ffmpeg','-hide_banner','-nostats','-i',str(source),'-af',
+                        'loudnorm=I=-20:TP=-2:LRA=11:print_format=json','-f','null','-'],
+                        capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=30)
+                    self.assertEqual(result.returncode,0,result.stderr[-500:])
+                    stats=json.JSONDecoder().raw_decode(result.stderr[result.stderr.rfind('{'):])[0]
+                    self.assertLessEqual(abs(float(stats['input_i'])+20),.5)
+                    self.assertLessEqual(float(stats['input_tp']),-1.9)
+
     def test_real_ffmpeg_two_pass_keeps_duration_and_replaces_only_valid_wav(self):
         sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'backend'))
         import transcribe
