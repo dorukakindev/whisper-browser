@@ -71,7 +71,7 @@ function createService(options) {
     const target = access.grant(file); if (!target) throw Error('Unsupported audio file / Desteklenmeyen ses dosyası.');
     const id = randomUUID(), source = { id, file: target, title: String(metadata.title||path.basename(target, path.extname(target))).slice(0,300), libraryId:metadata.id,artist:metadata.artist||'',origin:metadata.origin||'local',excerptSeconds:metadata.excerptSeconds||null,reviewedVersion:normalizeSourceVersion(metadata.reviewedVersion),location:{...(metadata.location||{kind:'local',localFile:target}),title:String(metadata.title||path.basename(target,path.extname(target))).slice(0,300),artist:String(metadata.artist||'').slice(0,300),cover:String(metadata.cover||metadata.art||'').slice(0,2000)} };
     sources.set(id, source); while (sources.size > 32) sources.delete(sources.keys().next().value);
-    return { id, title: source.title, artist:source.artist,origin:source.origin,excerptSeconds:source.excerptSeconds,reviewedVersion:source.reviewedVersion,url: pathToFileURL(target).href };
+    return { id, title: source.title, artist:source.artist,origin:source.origin,excerptSeconds:source.excerptSeconds,reviewedVersion:source.reviewedVersion,importedTrack:source.location.kind==='spotify'?{playlistId:source.location.playlistId,id:source.location.id}:null,url: pathToFileURL(target).href };
   }
   function status() { return active ? { id: active.id, state: 'running', stage: active.stage,mode:active.mode,completed:active.completed,total:active.total,title:active.title } : last || { state: 'idle' }; }
   function cancel() { active?.controller.abort(); return { ok: true }; }

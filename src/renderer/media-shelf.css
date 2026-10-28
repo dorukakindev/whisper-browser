@@ -114,3 +114,5 @@ body.media-shelf-player-open .ms-dock { display: none; }
 @media(prefers-reduced-motion:reduce){.ms-icon-button {transition:none;}}
 
 .ms-dock.is-waiting .ms-play-toggle {opacity:.65;}.ms-album-art {font-size:38px;font-weight:500;letter-spacing:-1px;box-shadow:none;}.ms-album-card>small {line-height:1.5;}
+
+.sp-address[hidden]{display:none}

@@ -40,6 +40,14 @@ function create({fetchImpl=fetch,run,python}){
   const token=randomUUID();drafts.set(token,{...data,owner,at:Date.now(),matches:new Map()});for(const [key,d] of drafts)if(d.at<Date.now()-3600000||drafts.size>8)drafts.delete(key);
   return {token,...data};
  });}
+ function readSaved(track,owner,target){
+  const source=address(track.spotifyUrl||('https://open.spotify.com/track/'+track.spotifyId));
+  if(source.type!=='track'||!track.title)throw Error('Saved Spotify track identity missing / Kayıtlı Spotify parça kimliği eksik.');
+  const token=randomUUID(),duration=Number(track.duration),data={...source,name:String(track.title).slice(0,300),tracks:[{index:0,spotifyId:source.id,spotifyUrl:source.url,title:String(track.title).slice(0,300),artist:String(track.artist||'').slice(0,300),duration:Number.isFinite(duration)&&duration>0?duration:0}],read:1,limited:false,currentVersion:require('./music-source-version').fromSpotify(track)};
+  drafts.set(token,{...data,owner,at:Date.now(),matches:new Map(),reviewTarget:{...target}});
+  for(const [key,d] of drafts)if(d.at<Date.now()-3600000||drafts.size>8)drafts.delete(key);
+  return {token,...data};
+ }
  function draft(token,owner){const d=drafts.get(token);if(!d||d.owner!==owner||d.at<Date.now()-3600000)throw Error('Import expired; read the link again / İçe aktarım süresi doldu; bağlantıyı yeniden oku.');return d;}
  async function match(token,index,owner){return exclusive(async signal=>{
   const d=draft(token,owner),track=d.tracks.find(t=>t.index===index);if(!track)throw Error('Unknown Spotify track');
@@ -51,13 +59,13 @@ function create({fetchImpl=fetch,run,python}){
  function selection(token,choices,owner){
   const d=draft(token,owner);if(!Array.isArray(choices)||!choices.length||choices.length>100)throw Error('Select matched tracks');
   const seen=new Set();const tracks=choices.map(c=>{if(!Number.isInteger(c.index)||seen.has(c.index))throw Error('Duplicate track selection');seen.add(c.index);const track=d.tracks.find(t=>t.index===c.index),hit=d.matches.get(c.index)?.find(h=>h.id===c.videoId);if(!track||!hit)throw Error('Review a current YouTube match first');return {...track,id:randomUUID(),youtubeUrl:hit.url,youtubeTitle:hit.title,youtubeDuration:hit.duration};}).sort((a,b)=>a.index-b.index);
-  return {name:d.name,sourceUrl:d.url,tracks};
+  return {name:d.name,sourceUrl:d.url,tracks,reviewTarget:d.reviewTarget?{...d.reviewTarget}:null};
  }
  async function stream(url){return exclusive(async signal=>{
   if(!/^https:\/\/www\.youtube\.com\/watch\?v=[\w-]{11}$/.test(url))throw Error('Invalid saved YouTube link');
   const d=JSON.parse(await run(python(),['-m','yt_dlp','--ignore-config','--no-playlist','--dump-single-json','--no-warnings','--socket-timeout','15','--retries','1','-f','bestaudio/best','--',url],null,signal,60000));
   const u=new URL(d.url);if(u.protocol!=='https:'||!u.hostname.endsWith('.googlevideo.com')||u.username||u.password||u.port)throw Error('No compatible YouTube audio stream / Uyumlu YouTube ses akışı bulunamadı.');return {url:u.href};
  });}
- return {read,match,selection,stream,cancel:()=>controller?.abort(),forget:(token,owner)=>{if(owner!==undefined&&drafts.get(token)?.owner!==owner)return false;return drafts.delete(token);}};
+ return {read,readSaved,match,selection,stream,cancel:()=>controller?.abort(),forget:(token,owner)=>{if(owner!==undefined&&drafts.get(token)?.owner!==owner)return false;return drafts.delete(token);}};
 }
 module.exports={address,parse,video,create};
