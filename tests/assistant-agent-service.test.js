@@ -185,7 +185,7 @@ test('Workflow cards show exact changes and refuse a changed settings snapshot b
  for(const drift of [false,true]){
  let turn=0,model='large-v3',applied=0;const h=fixture(async()=>++turn===1?reply({role:'assistant',tool_calls:[{id:'configure',function:{name:'configure_workflow',arguments:JSON.stringify({domain:'transcription',changes_json:'{"model":"tiny","beamSize":3}'})}}]}):reply({role:'assistant',content:'Card ready.'}));
  const send=h.sender.send;h.sender.send=(channel,value)=>{send(channel,value);if(value.type==='action')queueMicrotask(()=>{if(value.name==='get_workflow_settings')h.call('agentResult',{callId:value.callId,result:{status:'completed',values:{model,beamSize:5}}});else{applied++;h.call('agentResult',{callId:value.callId,result:{status:'completed',note:'Saved; no job started.'}});}});};
- try{assert((await h.call('agentRun',{requestId:'workflow',question:'Set tiny with beam three',owner:h.owner})).ok);const card=h.events.find(e=>e.value.type==='proposal').value.action;assert.match(card.summary,/tiny/);assert.match(card.summary,/3/);if(drift)model='base';const result=await h.call('agentApply',{proposalId:card.proposalId,owner:h.owner});assert.equal(result.ok,!drift);assert.equal(applied,drift?0:1);if(drift)assert.match(result.error,/settings changed/);
+ try{assert((await h.call('agentRun',{requestId:'workflow',question:'Set tiny with beam three',owner:h.owner})).ok);const card=h.events.find(e=>e.value.type==='proposal').value.action;assert.match(card.summary,/large-v3 → tiny/);assert.match(card.summary,/5 → 3/);if(drift)model='base';const result=await h.call('agentApply',{proposalId:card.proposalId,owner:h.owner});assert.equal(result.ok,!drift);assert.equal(applied,drift?0:1);if(drift)assert.match(result.error,/settings changed/);
  }finally{h.app.emit('will-quit');}
  }
 });
@@ -211,4 +211,11 @@ test('completed subtitle receipt maps a real ledger ID to the original backend j
 test('job status pages prioritize active work and remain within the model result budget',async()=>{
  const jobs=require('../src/assistant-jobs').createJobs();for(let n=0;n<20;n++){const id=jobs.start({});jobs.update(id,{type:'done',outputs:Array.from({length:12},(_,i)=>({path:'C:/fixture/'+i+'.srt',role:'source',language:'en',total:2,completed:1,failed:1}))});}const active=jobs.start({});let turn=0,toolResult;
  const h=fixture(async(_u,options)=>{const body=JSON.parse(options.body);if(++turn===1)return reply({role:'assistant',tool_calls:[{id:'jobs',function:{name:'get_job_status',arguments:'{}'}}]});toolResult=JSON.parse(body.messages.filter(m=>m.role==='tool').at(-1).content);return reply({role:'assistant',content:'Jobs inspected'});},{getJobs:()=>jobs.snapshot()});assert((await h.call('agentRun',{requestId:'job-page',question:'Read jobs',owner:h.owner})).ok);assert.equal(toolResult.jobs[0].id,active);assert.equal(toolResult.jobs.length,5);assert.equal(toolResult.nextOffset,5);assert(JSON.stringify(toolResult).length<16000);h.app.emit('will-quit');
+});
+
+
+test('workflow proposal refuses to imply a before value for an unreadable control',async()=>{
+ let turn=0;const h=fixture(async()=>++turn===1?reply({role:'assistant',tool_calls:[{id:'configure-missing',function:{name:'configure_workflow',arguments:JSON.stringify({domain:'transcription',changes_json:'{"beamSize":3}'})}}]}):reply({role:'assistant',content:'No settings applied.'}));
+ const send=h.sender.send;h.sender.send=(channel,value)=>{send(channel,value);if(value.type==='action')queueMicrotask(()=>h.call('agentResult',{callId:value.callId,result:{status:'completed',values:{model:'large-v3'}}}));};
+ try{await h.call('agentRun',{requestId:'missing-control',question:'Change beam',owner:h.owner});assert.equal(h.events.filter(e=>e.value.type==='proposal').length,0);}finally{h.app.emit('will-quit');}
 });

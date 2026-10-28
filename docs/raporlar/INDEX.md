@@ -1,3 +1,4 @@
+- [Rapor707](BROWSER_BUG_REPORT_707.md) — Asistan ayar kartında gerçek önce/sonra farkı
 - [Rapor706](BROWSER_BUG_REPORT_706.md) — Gerçek PDF çift sütun ve dipnot kaybı/sırası
 - [Rapor705](BROWSER_BUG_REPORT_705.md) — PDF seslendirme öncesi seçili metin önizlemesi
 - [Rapor704](BROWSER_BUG_REPORT_704.md) — PDF zoom sırasında ses takibi ve vurgu korunması

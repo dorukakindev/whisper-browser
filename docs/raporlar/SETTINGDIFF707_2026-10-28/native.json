@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "provider": "controlled fixture",
+  "serviceTier": "standard",
+  "liveProvider": false,
+  "providerCalls": 18,
+  "appliedCards": 4,
+  "staleCardRefused": true,
+  "productionStarted": false,
+  "beforeAfter": {
+    "model": "large-v3 → tiny",
+    "beamSize": "5 → 3"
+  },
+  "englishUnchanged": "3 → 3 (unchanged)",
+  "actualNativeControlsAndPersistence": true
+}
