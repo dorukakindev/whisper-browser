@@ -1,0 +1,176 @@
+{
+  "complete": true,
+  "realSilentMedia": true,
+  "initial": {
+    "originalMuted": true,
+    "master": {
+      "volume": 0.5,
+      "muted": false
+    },
+    "icon": "false",
+    "layers": [
+      {
+        "id": "browserDubAudio",
+        "muted": false,
+        "volume": 0.4,
+        "paused": true,
+        "time": 2,
+        "rate": 1
+      },
+      {
+        "id": "browserDubBackground",
+        "muted": false,
+        "volume": 0.3,
+        "paused": true,
+        "time": 2,
+        "rate": 1
+      },
+      {
+        "id": "browserDubMusic",
+        "muted": false,
+        "volume": 0.2,
+        "paused": true,
+        "time": 2,
+        "rate": 1
+      },
+      {
+        "id": "browserDubAmbience",
+        "muted": false,
+        "volume": 0.1,
+        "paused": true,
+        "time": 2,
+        "rate": 1
+      }
+    ]
+  },
+  "muted": {
+    "originalMuted": true,
+    "master": {
+      "volume": 0.5,
+      "muted": true
+    },
+    "icon": "true",
+    "layers": [
+      {
+        "id": "browserDubAudio",
+        "muted": true,
+        "volume": 0.4,
+        "paused": true,
+        "time": 2,
+        "rate": 1
+      },
+      {
+        "id": "browserDubBackground",
+        "muted": true,
+        "volume": 0.3,
+        "paused": true,
+        "time": 2,
+        "rate": 1
+      },
+      {
+        "id": "browserDubMusic",
+        "muted": true,
+        "volume": 0.2,
+        "paused": true,
+        "time": 2,
+        "rate": 1
+      },
+      {
+        "id": "browserDubAmbience",
+        "muted": true,
+        "volume": 0.1,
+        "paused": true,
+        "time": 2,
+        "rate": 1
+      }
+    ]
+  },
+  "scaled": {
+    "originalMuted": true,
+    "master": {
+      "volume": 0.25,
+      "muted": false
+    },
+    "icon": "false",
+    "layers": [
+      {
+        "id": "browserDubAudio",
+        "muted": false,
+        "volume": 0.2,
+        "paused": true,
+        "time": 2,
+        "rate": 1
+      },
+      {
+        "id": "browserDubBackground",
+        "muted": false,
+        "volume": 0.15,
+        "paused": true,
+        "time": 2,
+        "rate": 1
+      },
+      {
+        "id": "browserDubMusic",
+        "muted": false,
+        "volume": 0.1,
+        "paused": true,
+        "time": 2,
+        "rate": 1
+      },
+      {
+        "id": "browserDubAmbience",
+        "muted": false,
+        "volume": 0.05,
+        "paused": true,
+        "time": 2,
+        "rate": 1
+      }
+    ]
+  },
+  "ducked": {
+    "originalMuted": true,
+    "master": {
+      "volume": 0.25,
+      "muted": false
+    },
+    "icon": "false",
+    "layers": [
+      {
+        "id": "browserDubAudio",
+        "muted": false,
+        "volume": 0.2,
+        "paused": true,
+        "time": 2,
+        "rate": 1
+      },
+      {
+        "id": "browserDubBackground",
+        "muted": false,
+        "volume": 0.0525,
+        "paused": true,
+        "time": 2,
+        "rate": 1
+      },
+      {
+        "id": "browserDubMusic",
+        "muted": false,
+        "volume": 0.034999999999999996,
+        "paused": true,
+        "time": 2,
+        "rate": 1
+      },
+      {
+        "id": "browserDubAmbience",
+        "muted": false,
+        "volume": 0.017499999999999998,
+        "paused": true,
+        "time": 2,
+        "rate": 1
+      }
+    ]
+  },
+  "allLayersPlayPauseSeek": true,
+  "rangeRestoresOriginal": true,
+  "keyboardMute": true,
+  "noNewSynthesis": true
+}

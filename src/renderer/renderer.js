@@ -26898,20 +26898,20 @@ if ($('playerVideo')) {
     video.addEventListener('emptied', () => { samples.length = 0; player.frameDuration = 0; lastMediaTime = -1; });
   }
   $('playerVolume').addEventListener('input', (e) => {
-    video.volume = e.target.value / 100;
-    syncVolumeFill();
+    setPlayerVolume(e.target.value / 100);
   });
   // Kaydırıcı sürüklemesi de kalıcı olsun — change bırakma anında gelir;
   // eskiden yalnız ok-tuşu yolu scheduleSave çağırıyordu.
   $('playerVolume').addEventListener('change', () => scheduleSave());
   syncVolumeFill();
-  $('muteBtn').addEventListener('click', () => { video.muted = !video.muted; });
+  $('muteBtn').addEventListener('click', togglePlayerMute);
   // Simgenin durumu ses olayını izlesin — klavye M, kaydırıcı ve tarayıcı
   // içi ses değişimleri de aynı görünümü günceller (Y12).
   const syncMuteIcon = () => {
     const btn = $('muteBtn');
     if (!btn) return;
-    const muted = video.muted || video.volume === 0;
+    const master=window.BrowserDubAudioUI?.master?.();
+    const muted = (master?.muted ?? video.muted) || (master?.volume ?? video.volume) === 0;
     btn.innerHTML = muted
       ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
       : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>';
@@ -26919,6 +26919,7 @@ if ($('playerVideo')) {
     btn.setAttribute('aria-label', muted ? 'Ses kapalı — aç' : 'Ses açık — kapat');
   };
   video.addEventListener('volumechange', syncMuteIcon);
+  window.addEventListener('dub-master:changed', syncMuteIcon);
   syncMuteIcon();
 
   // İşaretçi tıklaması sonrası taşıma kontrolleri odağı bırakır — odaklı
@@ -27399,7 +27400,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'j' || e.key === 'J') { e.preventDefault(); video.currentTime -= 10; updateSeekVisuals(); showControls(); osd('-10 sn'); return; }
   if (e.key === 'l' || e.key === 'L') { e.preventDefault(); video.currentTime += 10; updateSeekVisuals(); showControls(); osd('+10 sn'); return; }
-  if (e.key === 'm' || e.key === 'M') { e.preventDefault(); video.muted = !video.muted; showControls();
+  if (e.key === 'm' || e.key === 'M') { e.preventDefault(); togglePlayerMute(); showControls();
     osd(video.muted ? 'Ses kapalı' : 'Ses açık'); return; }
   if (e.key === 'v' || e.key === 'V') {
     e.preventDefault();
@@ -27583,7 +27584,15 @@ function setPlayerVolume(v) {
   const el = $('playerVolume');
   if (!video) return;
   video.volume = Math.max(0, Math.min(1, v));
+  window.BrowserDubAudioUI?.setMaster?.({volume:video.volume});
   if (el) { el.value = String(Math.round(video.volume * 100)); syncVolumeFill(); scheduleSave(); }
+}
+
+function togglePlayerMute() {
+  const video=$('playerVideo');if(!video)return;
+  const master=window.BrowserDubAudioUI?.master?.();
+  if(master)window.BrowserDubAudioUI.setMaster({muted:!master.muted});
+  else video.muted=!video.muted;
 }
 
 
