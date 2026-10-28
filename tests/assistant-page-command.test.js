@@ -44,3 +44,19 @@ test('Main page start honours cancellation during safety checks; page context re
  const marker="ipcMain.handle('browser:page:context',";const start=source.indexOf(marker);vm.runInContext(source.slice(start,source.indexOf("ipcMain.handle('browser:page:reveal'",start)),context);
  const read=handler({},{});tab.generation++;release([{ok:true,blocks:[{id:'S1',text:'Old page text'}]}]);assert((await read).stale);
 });
+
+
+test('page target language is explicit and separate from the named source language',()=>{
+ for(const [text,target] of [
+  ['Türkçe sayfayı İngilizceye çevir','en'],
+  ['İngilizce sayfayı Almancaya çevir','de'],
+  ['İspanyolca sayfayı Fransızcaya çevir','fr'],
+  ['Translate this Turkish page into English','en'],
+  ['Translate the English webpage to German','de'],
+  ['Translate the current French page to Spanish','es'],
+  ['Bu sayfayı İngilizce çevir','en'],
+  ['Translate this page in French','fr'],
+ ])assert.equal(match(text)?.targetLanguage,target,text);
+ for(const text of ['Türkçe sayfayı çevir','Translate this Turkish page'])assert.equal(match(text)?.targetLanguage,'',text);
+ for(const text of ['Türkçe sayfayı İngilizceye çevirme','Do not translate this Turkish page into English','Türkçe sayfadaki altyazıyı İngilizceye çevir'])assert.equal(match(text),null,text);
+});
