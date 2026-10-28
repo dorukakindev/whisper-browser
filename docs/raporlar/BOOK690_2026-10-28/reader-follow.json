@@ -1,0 +1,12 @@
+{
+  "off": "false",
+  "on": "true",
+  "reduced": [
+    {
+      "block": "nearest",
+      "behavior": "auto"
+    }
+  ],
+  "manual": 0,
+  "resumed": 1
+}

@@ -76,3 +76,16 @@ test("chapter identity and changed excerpt invalidate assistant answers without 
     "excerpt text is fingerprinted, not placed in scope key",
   );
 });
+
+test("review editing locates the ordered repeated speech group with original whitespace offsets",()=>{
+ const {locateSpeechGroup}=require("../src/book-text-search");
+ const text="Hayır.\n\nUzun bir açıklama.\nHayır.";
+ const groups=[{text:"Hayır."},{text:"Uzun bir açıklama."},{text:"Hayır."}];
+ const hit=locateSpeechGroup(text,groups,2);
+ assert.equal(hit.start,text.lastIndexOf("Hayır."));assert.equal(text.slice(hit.start,hit.end),"Hayır.");
+ const spaced="İlk\n  satır. İkinci\t satır.";
+ const second=locateSpeechGroup(spaced,[{text:"İlk satır."},{text:"İkinci satır."}],1);
+ assert.equal(spaced.slice(second.start,second.end),"İkinci\t satır.");
+ assert.equal(locateSpeechGroup(text,[{text:"Silinmiş."},{text:"Hayır."}],1),null);
+ assert.equal(locateSpeechGroup(text,groups,3),null);
+});
