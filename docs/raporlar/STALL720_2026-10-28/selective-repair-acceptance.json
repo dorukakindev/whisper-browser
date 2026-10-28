@@ -1,0 +1,128 @@
+{
+  "exit": 0,
+  "firstHashUnchanged": true,
+  "cachedGroups": 1,
+  "generatedGroups": 1,
+  "quality": {
+    "version": 1,
+    "verification": "detailed",
+    "groups": [
+      {
+        "group": 1,
+        "key": "1",
+        "status": "ready",
+        "verification": {
+          "status": "passed",
+          "recognizedText": "Bu ilk cümle tamamlanan sesin korunmasını kontrol ediyor.",
+          "similarity": 1.0,
+          "omission_spans": [],
+          "insertion_spans": [],
+          "missing_numbers": [],
+          "added_numbers": [],
+          "percentage_mismatch": false,
+          "semantic_mismatch": false,
+          "spoken_number_mismatch": false,
+          "lost_negation": false,
+          "added_negation": false,
+          "unit_mismatch": false,
+          "repetition": false,
+          "sign_mismatch": false,
+          "missing_names": [],
+          "review": false
+        },
+        "rewritten": false,
+        "naturalEdited": false,
+        "delivery": null,
+        "referenceMode": "isolated",
+        "displayText": "Bu ilk cümle tamamlanan sesin korunmasını kontrol ediyor.",
+        "speechRanges": [
+          [
+            0.26,
+            3.6
+          ]
+        ],
+        "text": "Bu ilk cümle tamamlanan sesin korunmasını kontrol ediyor.",
+        "sourceStart": 0.0,
+        "sourceEnd": 12.0,
+        "audioStart": 0.0,
+        "audioEnd": 3.6022916666666664,
+        "stretch": 1.0
+      },
+      {
+        "group": 2,
+        "key": "2",
+        "status": "ready",
+        "verification": {
+          "status": "passed",
+          "recognizedText": "son parça yeniden denendiğinde aynı referans sesi kullanıyoruz.",
+          "similarity": 1.0,
+          "omission_spans": [],
+          "insertion_spans": [],
+          "missing_numbers": [],
+          "added_numbers": [],
+          "percentage_mismatch": false,
+          "semantic_mismatch": false,
+          "spoken_number_mismatch": false,
+          "lost_negation": false,
+          "added_negation": false,
+          "unit_mismatch": false,
+          "repetition": false,
+          "sign_mismatch": false,
+          "missing_names": [],
+          "review": false
+        },
+        "rewritten": false,
+        "naturalEdited": false,
+        "delivery": null,
+        "referenceMode": "isolated",
+        "verificationRetryMode": "isolated-seed",
+        "verificationRetry": {
+          "status": "passed",
+          "recognizedText": "son parça yeniden denendiğinde aynı referans sesi kullanıyoruz.",
+          "similarity": 1.0,
+          "omission_spans": [],
+          "insertion_spans": [],
+          "missing_numbers": [],
+          "added_numbers": [],
+          "percentage_mismatch": false,
+          "semantic_mismatch": false,
+          "spoken_number_mismatch": false,
+          "lost_negation": false,
+          "added_negation": false,
+          "unit_mismatch": false,
+          "repetition": false,
+          "sign_mismatch": false,
+          "missing_names": [],
+          "review": false
+        },
+        "displayText": "Son parça yeniden denendiğinde aynı referans sesi kullanıyoruz.",
+        "speechRanges": [
+          [
+            14.0,
+            17.82
+          ]
+        ],
+        "text": "Son parça yeniden denendiğinde aynı referans sesi kullanıyoruz.",
+        "sourceStart": 14.0,
+        "sourceEnd": 26.0,
+        "audioStart": 14.0,
+        "audioEnd": 17.825270833333335,
+        "stretch": 1.0
+      }
+    ],
+    "preview": false,
+    "excerpts": [
+      {
+        "key": "1",
+        "start": 0.0,
+        "end": 12.0
+      },
+      {
+        "key": "2",
+        "start": 14.0,
+        "end": 26.0
+      }
+    ]
+  },
+  "elapsedSeconds": 31.407
+}

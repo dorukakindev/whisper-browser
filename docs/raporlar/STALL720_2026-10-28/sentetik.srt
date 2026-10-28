@@ -1,0 +1,7 @@
+﻿1
+00:00:00,000 --> 00:00:12,000
+Bu ilk cümle tamamlanan sesin korunmasını kontrol ediyor.
+
+2
+00:00:14,000 --> 00:00:26,000
+Son parça yeniden denendiğinde aynı referans sesi kullanıyoruz.
