@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-1809.md](docs/devir/2026-10-28-1809.md) — Asistan geri alma güvenilirliği
 Güncel çalışma: [docs/devir/2026-10-28-1740.md](docs/devir/2026-10-28-1740.md) — Asistan ayar farkı
 Güncel çalışma: [docs/devir/2026-10-28-1725.md](docs/devir/2026-10-28-1725.md) — PDF dipnot ve sütun sırası
 Güncel çalışma: [docs/devir/2026-10-28-1714.md](docs/devir/2026-10-28-1714.md) — PDF ses metni önizlemesi
