@@ -1,3 +1,4 @@
+- [Rapor694](BROWSER_BUG_REPORT_694.md) — Referans arama, üretim özeti ve dar stüdyo düzeni
 - [Rapor693](BROWSER_BUG_REPORT_693.md) — Çalışan referans kimliği ve gerçek WAV kalite matrisi
 - [Rapor692](BROWSER_BUG_REPORT_692.md) — Hazır altyazı aralığı ve gerçek sesli adaptif oynatma
 - [Rapor691](BROWSER_BUG_REPORT_691.md) — Güncel müzik eşleşmesi ve kalıcı sonuç kabulü
