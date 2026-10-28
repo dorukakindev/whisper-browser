@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-1701.md](docs/devir/2026-10-28-1701.md) — PDF zoom ses/vurgu
 Güncel çalışma: [docs/devir/2026-10-28-1642.md](docs/devir/2026-10-28-1642.md) — ASR kalite kanıtı
 Güncel çalışma: [docs/devir/2026-10-28-1629.md](docs/devir/2026-10-28-1629.md) — Toplu dublaj tekrar üretimi
 Güncel çalışma: [docs/devir/2026-10-28-1613.md](docs/devir/2026-10-28-1613.md) — Ses yüksekliği ölçümü
