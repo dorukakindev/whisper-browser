@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-1333.md](docs/devir/2026-10-28-1333.md) — Spotify eşleşmesini yerinde değiştir
 Güncel çalışma: [docs/devir/2026-10-28-1317.md](docs/devir/2026-10-28-1317.md) — Spotify analizinde kaynak sürümü
 Güncel çalışma: [docs/devir/2026-10-28-1302.md](docs/devir/2026-10-28-1302.md) — Whisper ve çeviri iş özeti
 Güncel çalışma: [docs/devir/2026-10-28-1243.md](docs/devir/2026-10-28-1243.md) — Gerçek ses ayırma aralığı ve iptal

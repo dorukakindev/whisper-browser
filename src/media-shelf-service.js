@@ -116,11 +116,25 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
     try {
       switch (input.action) {
         case 'spotify-read': return {ok:true,...await spotify.read(input.url,event.sender?.id||0)};
+        case 'spotify-rematch-read': {
+          const row=load().linkedPlaylists?.find(p=>p.id===input.playlistId)?.tracks?.find(t=>t.id===input.id);
+          if(!row)throw Error('Saved Spotify match missing / Kayıtlı Spotify eşleşmesi bulunamadı.');
+          return {ok:true,...spotify.readSaved(row,event.sender?.id||0,{playlistId:input.playlistId,id:row.id,youtubeUrl:row.youtubeUrl})};
+        }
+        case 'spotify-rematch-save': {
+          const prepared=spotify.selection(input.token,input.choices,event.sender?.id||0),target=prepared.reviewTarget;
+          if(!target||prepared.tracks.length!==1)throw Error('Review one saved track first / Önce kayıtlı bir parçayı incele.');
+          const data=load(),row=data.linkedPlaylists?.find(p=>p.id===target.playlistId)?.tracks?.find(t=>t.id===target.id);
+          if(!row||row.youtubeUrl!==target.youtubeUrl)throw Error('Saved match changed. Review again / Kayıtlı eşleşme değişti. Yeniden incele.');
+          const hit=prepared.tracks[0];Object.assign(row,{youtubeUrl:hit.youtubeUrl,youtubeTitle:hit.youtubeTitle,youtubeDuration:hit.youtubeDuration});
+          save(data);spotify.forget(input.token,event.sender?.id||0);return {ok:true,id:row.id,count:1};
+        }
         case 'spotify-match': return {ok:true,...await spotify.match(input.token,input.index,event.sender?.id||0)};
         case 'spotify-cancel': spotify.cancel();return {ok:true};
         case 'spotify-forget': spotify.forget(input.token,event.sender?.id||0);return {ok:true};
         case 'spotify-save': {
           const prepared=spotify.selection(input.token,input.choices,event.sender?.id||0),data=load(),name=text(input.name,120)||prepared.name;
+          if(prepared.reviewTarget)throw Error('Use saved track review to replace this match.');
           data.linkedPlaylists=data.linkedPlaylists||[];if(!Array.isArray(data.linkedPlaylists)||data.linkedPlaylists.length>=100)throw Error('Linked playlist limit: 100');
           const row={id:randomUUID(),name,source:'spotify',sourceUrl:prepared.sourceUrl,tracks:prepared.tracks};data.linkedPlaylists.push(row);save(data);spotify.forget(input.token);return {ok:true,id:row.id,count:row.tracks.length};
         }

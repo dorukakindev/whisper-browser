@@ -1,3 +1,4 @@
+- [Rapor699](BROWSER_BUG_REPORT_699.md) — Kayıtlı Spotify eşleşmesi için güvenli inceleme ve değiştirme
 - [Rapor698](BROWSER_BUG_REPORT_698.md) — Spotify kaynak sürümü, süre karşılaştırması ve önizleme
 - [Rapor697](BROWSER_BUG_REPORT_697.md) — Whisper/çeviri sabit iş özeti ve aralık görünümü
 - [Rapor696](BROWSER_BUG_REPORT_696.md) — Gerçek GPU ayırma aralığı ve Windows iptal kabulü

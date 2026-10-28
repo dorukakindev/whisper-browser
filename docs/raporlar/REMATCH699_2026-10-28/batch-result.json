@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "realDsp": true,
+  "batchContinuesAfterFailure": true,
+  "retryFailed": true,
+  "historyReopen": true,
+  "historyNoPrivatePaths": true,
+  "alignedWaveforms": true,
+  "selectedPlayback": true,
+  "cancellation": true,
+  "likedPlaylistReviewAndSave": true,
+  "controlledSpotifyBatch": true,
+  "matchedVersionVisible": true,
+  "durationMismatchShown": true,
+  "matchedExcerptPlayback": true,
+  "matchedLinkDestination": true,
+  "versionEnTr": true,
+  "controlledOnlineBatch": true,
+  "remoteHistoryRestore": true,
+  "modelQuality": false
+}
