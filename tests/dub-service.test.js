@@ -64,6 +64,7 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     fs.writeFileSync(path.join(refFolder,'reference.json'),JSON.stringify({name:'Kitap sesi',createdAt:'2026-10-25'}));
     const beforeBookConfig=fs.readFileSync(path.join(root,'dub-settings.json'),'utf8');
     assert.equal((await call('dub:start',{id:'book-scoped-reference',srt,narration:true,referenceId:bookReferenceId,verification:'detailed'})).ok,true);
+    assert.equal(events.find(e=>e.id==='book-scoped-reference'&&e.type==='voice').reference,path.join(refFolder,'reference.wav'),'Worker voice receipt uses the resolved job-scoped reference');
     assert.equal(calls.at(-1).args[2],path.join(refFolder,'reference.wav'));
     assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--transcript')+1],path.join(refFolder,'reference.txt'));
     assert.equal(fs.readFileSync(path.join(root,'dub-settings.json'),'utf8'),beforeBookConfig,'book-specific settings must not overwrite browser defaults');

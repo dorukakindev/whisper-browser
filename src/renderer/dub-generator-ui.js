@@ -11,7 +11,7 @@
   let plan = null, edits = {}, planning = false;
   let backgroundSource = '', choosing = false, configSequence = 0;
   let deliverySource = '';
-  let lastRequest = null, lastReferenceQuality = null;
+  let lastRequest = null, lastReferenceQuality = null, lastReferenceIdentity = null, referenceQualityPendingReset = false;
   const results = new Map();
   const resultOptions = new Map();
   const t = text => window.UiLocale?.t(text) || text;
@@ -95,6 +95,7 @@
   }
   function referenceInfo(quality) {
     lastReferenceQuality = quality;
+    lastReferenceIdentity = quality ? current?.voice?.reference || cfg?.reference || null : null;
     const labels = {quiet:'Referans sesi çok kısık',clipping:'Referansta ses patlaması var',silence:'Referansta uzun sessizlik var',short:'Referans çok kısa'};
     el('dubReferenceQuality').textContent = quality ? (quality.warnings || []).map(w => t(labels[w] || w)).join(' · ') || t('Referansın ses düzeyi uygun; konuşmacı ve müziği dinleyerek kontrol edin.') : '';
   }
@@ -130,6 +131,11 @@
   const status = text => { el('dubGeneratorStatus').textContent = text; };
   const basename = name => String(name || '').split(/[\\/]/).pop();
   function controls() {
+    const voice = current?.voice || cfg;
+    el('dubEngineName').textContent = voice?.engine || '';
+    el('dubVoiceName').textContent = basename(voice?.reference || '');
+    el('dubTranscriptName').textContent = basename(voice?.transcript || '');
+    if (!current && (referenceQualityPendingReset || lastReferenceQuality && lastReferenceIdentity !== cfg?.reference)) { referenceInfo(null); referenceQualityPendingReset=false; }
     const locked = !!current || referenceBusy || planning || choosing || workspaceBusy;
     for (const id of ['dubChooseSrt', 'dubChooseEngine', 'dubChooseVoice', 'dubChooseTranscript', 'dubSampleOnly', 'dubProfile', 'dubConcurrency', 'dubKeepEngine', 'dubTimingMode', 'dubVerification', 'dubAutoFit', 'dubNaturalSpeech']) el(id).disabled = locked;
     el('dubGrouping').disabled = locked;
@@ -194,9 +200,7 @@
     if (!current && !preserveOptions) { el('dubFollowDelivery').checked = r.followDelivery === true; el('dubDeliveryStrength').value = r.deliveryStrength || 'balanced'; }
     if (!current && !preserveOptions && !plan) el('dubGrouping').value = r.grouping || 'akici';
     if (!current && !preserveOptions) { el('dubVerification').value = r.verification || 'detailed'; el('dubAutoFit').checked = r.autoFit !== false; el('dubNaturalSpeech').checked = r.naturalSpeech !== false; }
-    el('dubEngineName').textContent = r.engine;
-    el('dubVoiceName').textContent = basename(r.reference);
-    el('dubTranscriptName').textContent = basename(r.transcript);
+    if (!current && kind === 'reference') referenceInfo(null);
     if (!current && !r.ready) status('Motor veya referans eksik; ses ve motor ayarlarını kontrol edin.');
     controls();
   }
@@ -273,7 +277,7 @@
   }
   el('browserDubGenerate').addEventListener('click', open);
   window.addEventListener('dub-workspace:busy', event => { workspaceBusy=!!event.detail; controls(); });
-  window.addEventListener('voice-reference:changed', () => { void configure(undefined,true); });
+  window.addEventListener('voice-reference:changed', () => { if(current)referenceQualityPendingReset=true;else referenceInfo(null);void configure(undefined,true); });
   window.addEventListener('voice-reference:busy', event => { referenceBusy = !!event.detail; controls(); });
   el('playerDubGenerate')?.addEventListener('click', () => { el('playerMore').open = false; void open(); });
   el('dubMainOpen').addEventListener('click', open);
@@ -396,7 +400,7 @@
     if (current || referenceBusy || planning || choosing || workspaceBusy || !srt || !cfg?.ready) return;
     let range;
     try { range = selectedRange(); } catch (error) { status(error.message); return; }
-    current = { id: crypto.randomUUID(), context: window.BrowserDubAudioUI?.context(), sample: retry ? lastRequest?.sample : el('dubSampleOnly').checked };
+    current = { id: crypto.randomUUID(), voice:{reference:cfg.reference,transcript:cfg.transcript,engine:cfg.engine}, context: window.BrowserDubAudioUI?.context(), sample: retry ? lastRequest?.sample : el('dubSampleOnly').checked };
     const pending = current;
     pending.fallback=output?.url?{output,rows:[...results.values()],media:mediaIdentity(),srt,sample:el('dubGeneratorUse').classList.contains('hidden')}:null;
     const started = performance.now();
@@ -544,6 +548,12 @@
     else if (event.type === 'group') {activeGroups.delete(event.group.group);showActivity();updateResult(event.group);}
     else if(event.type==='phases')phaseSummary(event.phases);
     else if(event.type==='engine'){if(event.kind==='DUB_ENGINE'&&event.reused)status(window.UiLocale?.get?.()==='en'?'Using the ready voice engine…':'Hazır ses motoru kullanılıyor…');if(event.kind==='DUB_CAPACITY')el('dubGeneratorDetails').textContent=(window.UiLocale?.get?.()==='en'?'GPU free memory: ':'GPU boş bellek: ')+event.freeMiB+' MiB · '+event.concurrency+' / '+event.requested;}
+    else if (event.type === 'voice') {
+      if (typeof event.reference === 'string' && typeof event.transcript === 'string' && typeof event.engine === 'string') {
+        if (job.voice?.reference !== event.reference) referenceInfo(null);
+        job.voice={reference:event.reference,transcript:event.transcript,engine:event.engine};controls();
+      }
+    }
     else if (event.type === 'reference_quality') referenceInfo(event.quality);
     else if (event.type === 'concurrency') { status('GPU belleği için paralel üretim azaltıldı.'); el('dubGeneratorDetails').textContent = `${event.concurrency} · ${t('Paralel üretim')}`; }
     else if (event.type === 'status') {if(event.stage==='engine_restart'){activeGroups.clear();showActivity();}status(event.text);}
