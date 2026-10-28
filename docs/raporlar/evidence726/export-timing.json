@@ -1,0 +1,81 @@
+{
+  "complete": true,
+  "syntheticMedia": true,
+  "results": [
+    {
+      "case": "identity",
+      "duration": 6.0,
+      "expectedDuration": 6,
+      "expectedPulseTimes": [
+        1.25,
+        3.5,
+        5.1
+      ],
+      "audioPulseTimes": [
+        [
+          1.25,
+          3.5,
+          5.1
+        ],
+        [
+          1.25,
+          3.5,
+          5.1
+        ]
+      ],
+      "videoMarker": 1.2,
+      "expectedVideoMarker": 1.2,
+      "audioTracks": 2
+    },
+    {
+      "case": "linear",
+      "duration": 8.0,
+      "expectedDuration": 8,
+      "expectedPulseTimes": [
+        1.5,
+        5.5,
+        7.1
+      ],
+      "audioPulseTimes": [
+        [
+          1.52,
+          5.55,
+          7.15
+        ],
+        [
+          1.57,
+          5.53,
+          7.13
+        ]
+      ],
+      "videoMarker": 1.4,
+      "expectedVideoMarker": 1.4,
+      "audioTracks": 2
+    },
+    {
+      "case": "smooth",
+      "duration": 8.0,
+      "expectedDuration": 8,
+      "expectedPulseTimes": [
+        1.2749209209607235,
+        5.5,
+        7.1
+      ],
+      "audioPulseTimes": [
+        [
+          1.28,
+          5.5,
+          7.1
+        ],
+        [
+          1.29,
+          5.5,
+          7.1
+        ]
+      ],
+      "videoMarker": 1.2,
+      "expectedVideoMarker": 1.2129021432422722,
+      "audioTracks": 2
+    }
+  ]
+}
