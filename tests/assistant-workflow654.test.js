@@ -21,3 +21,15 @@ test('concurrent saves are serialized and later manual edits are preserved',asyn
 test('speech settings report effective quality overrides and stale sources cannot edit',async t=>{
  const h=setup(t);await h.run('configure_workflow',{domain:'translation',changes_json:'{"forSpeech":true,"refine":false,"lenient":true}'});assert.equal(h.read('translation').effective.refine,true);assert.equal(h.read('translation').effective.lenient,false);h.stale();await assert.rejects(h.run('configure_workflow',{domain:'assistant',changes_json:'{"flex":false}'}),/source changed/);
 });
+
+
+test('approval summary uses actual before/after values, choice labels and bounded honest fallbacks',()=>{
+ const snapshot={values:{model:'large-v3',beamSize:5},options:{model:{choices:[{value:'large-v3',label:'Large model'},{value:'tiny',label:'Tiny model'}]}}};
+ const result=model.summary('transcription','{"model":"tiny","beamSize":3}','en',snapshot);
+ assert.equal(result,'Whisper model: Large model → Tiny model\nBeam size: 5 → 3');
+ assert.equal(model.summary('assistant','{"flex":false}','tr',{values:{flex:true}}),'DeepInfra Flex: Açık → Kapalı');
+ assert.match(model.summary('transcription','{"beamSize":5}','en',snapshot),/5 → 5 \(unchanged\)/);
+ assert.throws(()=>model.summary('transcription','{"beamSize":3}','en',{values:{}}),/current value/);
+ assert.throws(()=>model.summary('transcription','{"beamSize":3}','en',{values:{beamSize:NaN}}),/current value/);
+ assert.deepEqual(snapshot.values,{model:'large-v3',beamSize:5});
+});

@@ -1112,6 +1112,22 @@
  for(const [name,fields] of Object.entries(additional))Object.assign(groups[name]||(groups[name]={}),fields);
  function domain(value){if(!Object.hasOwn(groups,value))throw Error('Unknown workflow domain / Bilinmeyen ayar alanı.');return groups[value];}
  function parse(name,raw){const fields=domain(name);if(typeof raw!=='string'||raw.length>2000)throw Error('Use a bounded JSON settings object.');const value=JSON.parse(raw);if(!value||typeof value!=='object'||Array.isArray(value)||!Object.keys(value).length||Object.keys(value).length>12)throw Error('Specify 1–12 workflow settings.');for(const [key,v] of Object.entries(value)){const f=Object.hasOwn(fields,key)?fields[key]:null;if(!f||typeof v!==f.type||f.type==='string'&&(v.length>80||/[\u0000-\u001f]/.test(v))||f.type==='number'&&(!Number.isFinite(v)||v<f.min||v>f.max))throw Error('Invalid workflow setting: '+key);}return value;}
- function summary(name,raw,locale='en'){const fields=domain(name),values=parse(name,raw);return Object.entries(values).map(([key,value])=>fields[key].label[locale==='tr'?'tr':'en']+': '+(typeof value==='boolean'?(value?(locale==='tr'?'Açık':'On'):(locale==='tr'?'Kapalı':'Off')):String(value))).join(' · ')+(name==='browser'?(locale==='tr'?' · Tarayıcı ayarları hemen uygulanır; otomasyon sayfa çevirisi başlatabilir.':' · Browser changes apply immediately; automation may start page translation.'):'');}
+ function summary(name,raw,locale='en',snapshot=null){
+  const fields=domain(name),values=parse(name,raw),tr=locale==='tr';
+  const display=(key,value)=>{
+   if(typeof value==='boolean')return value?(tr?'Açık':'On'):(tr?'Kapalı':'Off');
+   const choice=snapshot?.options?.[key]?.choices?.find(row=>row.value===value);
+   return typeof choice?.label==='string'?choice.label.slice(0,100):String(value).slice(0,160);
+  };
+  const rows=Object.entries(values).map(([key,value])=>{
+   const label=fields[key].label[tr?'tr':'en'];
+   if(!snapshot)return label+': '+display(key,value);
+   const before=snapshot.values?.[key];
+   if(!Object.hasOwn(snapshot.values||{},key)||typeof before!==fields[key].type||(fields[key].type==='number'&&!Number.isFinite(before)))throw Error('Workflow setting has no valid current value: '+key);
+   return label+': '+display(key,before)+' → '+display(key,value)+(before===value?(tr?' (değişmiyor)':' (unchanged)'):'');
+  });
+  return rows.join(snapshot?'\n':' · ')+(name==='browser'?(tr?' · Tarayıcı ayarları hemen uygulanır; otomasyon sayfa çevirisi başlatabilir.':' · Browser changes apply immediately; automation may start page translation.'):'');
+ }
+
  return Object.freeze({groups,domain,parse,summary});
 });
