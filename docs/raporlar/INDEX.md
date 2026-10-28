@@ -1,3 +1,4 @@
+- [Rapor709](BROWSER_BUG_REPORT_709.md) — Sayfa çevirisinde kaynak/hedef ayrımı
 - [Rapor708](BROWSER_BUG_REPORT_708.md) — Asistan ters ayar farkı ve bayat undo hedefi
 - [Rapor707](BROWSER_BUG_REPORT_707.md) — Asistan ayar kartında gerçek önce/sonra farkı
 - [Rapor706](BROWSER_BUG_REPORT_706.md) — Gerçek PDF çift sütun ve dipnot kaybı/sırası
