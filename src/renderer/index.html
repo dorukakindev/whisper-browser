@@ -2248,11 +2248,17 @@
             <label>Başlangıç sayfası <input id="pdfVoiceFrom" type="number" min="1" value="1"></label>
             <label>Bitiş sayfası <input id="pdfVoiceTo" type="number" min="1" value="1"></label>
             <label>Okunacak metin <select id="pdfVoiceText"><option value="source">Orijinal metin</option><option value="translation">Çeviri metni</option></select></label>
+            <button class="btn btn-secondary btn-sm" id="pdfVoicePreviewOpen" type="button" data-ui-untranslated>Metni önizle</button>
             <button class="btn btn-primary btn-sm" id="pdfVoicePrepare" type="button">Seçili sayfaları seslendirmeye hazırla</button>
             <button class="btn btn-secondary btn-sm" id="pdfVoiceListen" type="button" disabled>Hazır sesi bu sayfada dinle</button>
             <label class="pdf-voice-follow" data-ui-untranslated><input id="pdfVoiceFollow" type="checkbox" checked><span id="pdfVoiceFollowLabel">Seslendirilen metni takip et</span></label>
             <audio id="pdfVoiceAudio" class="hidden" controls preload="metadata" aria-label="Sayfa seslendirmesi"></audio>
             <span id="pdfVoiceStatus" role="status"></span>
+            <details id="pdfVoicePreview" class="pdf-voice-preview" data-ui-untranslated hidden>
+              <summary id="pdfVoicePreviewTitle"></summary>
+              <div class="pdf-voice-preview-tools"><select id="pdfVoicePreviewPage"></select><span id="pdfVoicePreviewCount"></span></div>
+              <textarea id="pdfVoicePreviewText" readonly></textarea><p id="pdfVoicePreviewHint"></p>
+            </details>
           </div>
           <div class="pdf-reader-pages" id="pdfReaderPages"></div>
         </section>

@@ -148,6 +148,7 @@
     ['Seçili çeviri sağlayıcısını kullanır. Anlamı koruyan daha kısa bir öneri denenir; sığmazsa zamanlama seçiminiz uygulanır.', 'Uses the selected translation provider to try a shorter wording while preserving meaning. Your timing choice applies if it still does not fit.'],
     ['Parça sonuçları ve yeniden üretim', 'Piece results and regeneration'],
     ['Üretim parçası', 'Generated piece'],
+    ['Metni önizle', 'Preview text'],
     ['Eksik parçaları tamamla', 'Resume missing pieces'],
     ['Seçili parçayı yeniden üret', 'Regenerate selected piece'],
     ['Hazır parçalar önbellekten alınır. Değiştirdiğiniz cümleler ayrı üretilir; bütün ses yeniden hesaplanmaz.', 'Ready pieces are reused from cache. Edited sentences are generated separately without rebuilding all speech.'],
