@@ -438,6 +438,11 @@ def _initial_name_swap(source, translated):
             and words[1].lower().strip(".?!,;:!…") in {
                 "i", "you", "he", "she", "we", "they", "it"}:
         return ""
+    # "Only three/twelve/12 ..." is a quantified restriction, not a person.
+    # Do not exempt a bare Only or company/person uses such as Only Inc.
+    following = words[1].lower().strip(".?!,;:!…") if len(words) > 1 else ''
+    if lowered == 'only' and (following in _EN_EXACT or following.isdecimal()):
+        return ""
     if lowered in ABBREVIATIONS or lowered in _WEEKDAY_MONTH \
             or lowered in _INITIAL_STOPWORDS:
         return ""
@@ -1200,7 +1205,7 @@ _TR_NUMBER_SUFFIX = (
     r"|[ıiuü]?n[ıiuü]z(?:[ıiuü]n?|[dt][ae]n?|[ea])?"        # ikiniz
     r"|s[ıiuü](?:n[ıiuü]n?|n[ae]|nd[ae]n?|n[ıiuü])?"        # ikisi(ni/nde)
     r"|y[ıiuü]|y[ae]|y[ıiuü]n"                                # ikiyi, altıya
-    r"|[ıiuü](?:n[ıiuü])?|[dt][ae]n?|[ea]|[ıiuü]n"
+    r"|[ıiuü](?:n[ıiuü]n?|n[ae]|nd[ae]n?)?|[dt][ae]n?|[ea]|[ıiuü]n"
     r"))?"
 )
 
@@ -1223,6 +1228,10 @@ def _turkish_continuation_changes_value(previous_word, next_word):
     """
     previous_word = str(previous_word or '').casefold()
     next_word = str(next_word or '').casefold()
+    for multiplier in _TR_MULTIPLIERS:
+        if re.fullmatch(_turkish_number_phrase_regex(multiplier), next_word, re.I):
+            next_word = multiplier
+            break
     if next_word in ('buçuk', 'virgül') or next_word in _TR_MULTIPLIERS:
         return True
 
@@ -1412,6 +1421,15 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
     issues = []
     source_numbers_text, translated_numbers_text = source, translated
     source_numbers_text = re.sub(r"(?i)(\b(?:saat|akşam|sabah|öğlen|gece)\s+\d{1,2})\.([0-5]\d)(?!\d)", r"\1:\2", source_numbers_text)
+
+    # The availability idiom has an established Turkish order (7/24).
+    # Consume both quantities together; arbitrary ratios remain strict.
+    if str(target_lang or '').lower().split('-')[0] == 'tr':
+        for idiom in list(re.finditer(r'(?<![\w/])24\s*/\s*7(?![\w/])', source_numbers_text))[::-1]:
+            found = _turkish_number_phrase_match(translated_numbers_text, 'yedi yirmi dört')
+            if found:
+                source_numbers_text = source_numbers_text[:idiom.start()] + ' ' + source_numbers_text[idiom.end():]
+                translated_numbers_text = translated_numbers_text[:found.start()] + ' ' + translated_numbers_text[found.end():]
 
     if _CLOCK_SOURCE.search(source_numbers_text):
         # 5:30 and 5.30 are the same clock time in these subtitles. Compare

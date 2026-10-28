@@ -90,7 +90,7 @@ const TR_NUMBER_SUFFIX = "(?:['’]?(?:"
   + '|[ıiuü]?n[ıiuü]z(?:[ıiuü]n?|[dt][ae]n?|[ea])?'
   + '|s[ıiuü](?:n[ıiuü]n?|n[ae]|nd[ae]n?|n[ıiuü])?'
   + '|y[ıiuü]|y[ae]|y[ıiuü]n'
-  + '|[ıiuü](?:n[ıiuü])?|[dt][ae]n?|[ea]|[ıiuü]n'
+  + '|[ıiuü](?:n[ıiuü]n?|n[ae]|nd[ae]n?)?|[dt][ae]n?|[ea]|[ıiuü]n'
   + '))?';
 function turkishWordsRegexSource(phrase) {
   const parts = String(phrase || '').split(/\s+/u).filter(Boolean)
@@ -106,7 +106,11 @@ function turkishContinuationChangesValue(previousWord, nextWord) {
   // "kırk beş" değeri değiştirir; "iki üç gün", "beş on dakika", "yedi yirmi
   // dört" ise iki ayrı sayıdır. Türkçe bileşik sayılar büyükten küçüğe dizilir.
   const previous = String(previousWord || '').toLocaleLowerCase('tr');
-  const next = String(nextWord || '').toLocaleLowerCase('tr');
+  let next = String(nextWord || '').toLocaleLowerCase('tr');
+  for (const multiplier of TR_MULTIPLIERS.keys()) {
+    const match = turkishNumberPhrasePattern(multiplier).exec(next);
+    if (match && match.index === 0 && match[0].length === next.length) {next = multiplier;break;}
+  }
   if (next === 'buçuk' || next === 'virgül' || TR_MULTIPLIERS.has(next)) return true;
   const magnitude = (word) => (TR_ONES.includes(word) ? 0
     : TR_TENS.includes(word) && word ? 1 : TR_MULTIPLIERS.get(word));
@@ -169,6 +173,15 @@ function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
   const turkishTarget = String(targetLanguage || '').toLowerCase().split('-')[0] === 'tr';
   let sourceForNumbers = String(source || '');
   let targetForNumbers = String(translated || '');
+  if (turkishTarget) {
+    for (const idiom of [...sourceForNumbers.matchAll(/(?<![\p{L}\d/])24\s*\/\s*7(?![\p{L}\d/])/gu)].reverse()) {
+      const found = turkishNumberPhraseMatch(targetForNumbers, 'yedi yirmi dört');
+      if (found) {
+        sourceForNumbers = sourceForNumbers.slice(0, idiom.index) + ' ' + sourceForNumbers.slice(idiom.index + idiom[0].length);
+        targetForNumbers = targetForNumbers.slice(0, found.index) + ' ' + targetForNumbers.slice(found.end);
+      }
+    }
+  }
   {
     // Subtitle style commonly writes 5:30 as 5.30. Remove only matched clock
     // pairs; an altered minute remains a blocking mismatch.

@@ -1,0 +1,63 @@
+﻿1
+00:00:00,000 --> 00:00:03,000
+The estimate is preliminary, not a promise.
+
+2
+00:00:04,000 --> 00:00:07,000
+Only three of the twelve samples passed; the other nine need another test.
+
+3
+00:00:25,000 --> 00:00:28,000
+The medicine may reduce the pain, but it cannot cure the disease.
+
+4
+00:00:29,000 --> 00:00:32,000
+Do not take a second dose unless a doctor tells you to.
+
+5
+00:00:50,000 --> 00:00:53,000
+MARA: I lent Deniz my car, not my sister's.
+
+6
+00:00:54,000 --> 00:00:57,000
+DENIZ: Then I owe you an apology, not her.
+
+7
+00:01:15,000 --> 00:01:18,000
+If the valve does not open, stop the pump.
+
+8
+00:01:19,000 --> 00:01:22,000
+If it opens but the pressure does not fall, call the engineer.
+
+9
+00:01:40,000 --> 00:01:43,000
+The report did not say that the bridge was safe.
+
+10
+00:01:44,000 --> 00:01:47,000
+It said that there was not enough evidence to declare it unsafe.
+
+11
+00:02:05,000 --> 00:02:08,000
+The room was almost empty, except for two guards and a sleeping dog.
+
+12
+00:02:09,000 --> 00:02:12,000
+One guard was outside the door; the other was behind the desk.
+
+13
+00:02:30,000 --> 00:02:33,000
+I did not say she stole the money.
+
+14
+00:02:34,000 --> 00:02:37,000
+I said she might know who borrowed it.
+
+15
+00:02:55,000 --> 00:02:58,000
+The fare is fifteen euros per person, excluding luggage.
+
+16
+00:02:59,000 --> 00:03:02,000
+Children under six travel free, but they still need a ticket.
