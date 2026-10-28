@@ -1,0 +1,58 @@
+{
+  "ok": true,
+  "provider": "fixture",
+  "preview": {
+    "summarySource": "Örnek.mp4",
+    "summaryEngine": "small · faster",
+    "summaryRange": "5:00 → 10:00",
+    "summaryMode": "Seslendirmeye uygun çeviri",
+    "summaryTranslation": "Çeviri → tr · fixture-translator",
+    "signalDeskTitle": "İş özeti"
+  },
+  "active": {
+    "summarySource": "Örnek.mp4",
+    "summaryEngine": "small · faster",
+    "summaryRange": "5:00 → 10:00",
+    "summaryMode": "Seslendirmeye uygun çeviri",
+    "summaryTranslation": "Çeviri → tr · fixture-translator",
+    "signalDeskTitle": "Çalışan iş özeti"
+  },
+  "after": {
+    "summarySource": "Next.mp4",
+    "summaryEngine": "tiny · faster",
+    "summaryRange": "5:00 → 20:00",
+    "summaryMode": "Subtitle translation",
+    "summaryTranslation": "Translation → tr · fixture-translator",
+    "signalDeskTitle": "Job summary"
+  },
+  "states": [
+    {
+      "locale": "tr",
+      "zoom": 1,
+      "bounds": {
+        "width": 551,
+        "scroll": 551
+      },
+      "summarySource": "Örnek.mp4",
+      "summaryEngine": "small · faster",
+      "summaryRange": "5:00 → 10:00",
+      "summaryMode": "Seslendirmeye uygun çeviri",
+      "summaryTranslation": "Çeviri → tr · fixture-translator",
+      "signalDeskTitle": "Çalışan iş özeti"
+    },
+    {
+      "locale": "en",
+      "zoom": 1.25,
+      "bounds": {
+        "width": 676,
+        "scroll": 676
+      },
+      "summarySource": "Örnek.mp4",
+      "summaryEngine": "small · faster",
+      "summaryRange": "5:00 → 10:00",
+      "summaryMode": "Speech-ready translation",
+      "summaryTranslation": "Translation → tr · fixture-translator",
+      "signalDeskTitle": "Running job summary"
+    }
+  ]
+}

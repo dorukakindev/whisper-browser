@@ -175,12 +175,15 @@
             </button>
           </div>
           <div class="job-summary-grid" aria-label="Seçili iş ayarları">
-            <div class="job-summary-item"><span>Kaynak</span><strong id="summarySource">Dosya bekleniyor</strong></div>
-            <div class="job-summary-item"><span>Motor</span><strong id="summaryEngine">large-v3-turbo · faster</strong></div>
-            <div class="job-summary-item"><span>Çıktı</span><strong id="summaryOutput">SRT</strong></div>
-            <div class="job-summary-item"><span>Dil katmanı</span><strong id="summaryTranslation">Kaynak altyazı</strong></div>
-            <div class="job-summary-item job-summary-vram"><span>VRAM bütçesi</span><strong id="summaryVram">Hesaplanıyor</strong></div>
+            <div class="job-summary-item"><span>Kaynak</span><strong id="summarySource" data-ui-untranslated>Dosya bekleniyor</strong></div>
+            <div class="job-summary-item"><span>Motor</span><strong id="summaryEngine" data-ui-untranslated>large-v3-turbo · faster</strong></div>
+            <div class="job-summary-item"><span>Çıktı</span><strong id="summaryOutput" data-ui-untranslated>SRT</strong></div>
+            <div class="job-summary-item"><span>Dil katmanı</span><strong id="summaryTranslation" data-ui-untranslated>Kaynak altyazı</strong></div>
+            <div class="job-summary-item"><span>Zaman aralığı</span><strong id="summaryRange" data-ui-untranslated>Tam kaynak</strong></div>
+            <div class="job-summary-item"><span>İşlem biçimi</span><strong id="summaryMode" data-ui-untranslated>Yalnız transkripsiyon</strong></div>
+            <div class="job-summary-item job-summary-vram"><span>VRAM bütçesi</span><strong id="summaryVram" data-ui-untranslated>Hesaplanıyor</strong></div>
           </div>
+          <p class="job-summary-note hidden" id="summaryNextJob" data-ui-untranslated></p>
           <div class="preset-diff-panel hidden" id="presetDiffPanel">
             <div class="preset-diff-intro" id="presetDiffIntro">Profil ayarları değiştirilmedi.</div>
             <ul id="presetDiffList"></ul>
@@ -3909,6 +3912,7 @@
 <script src="../assistant-settings.js"></script>
 <script src="../assistant-translation-profiles.js"></script>
 <script src="../translation-review-summary.js"></script>
+<script src="job-summary.js"></script>
 <script src="renderer.js"></script>
 <script src="dub-sync-map.js"></script>
 <script src="dub-workspace-model.js"></script>

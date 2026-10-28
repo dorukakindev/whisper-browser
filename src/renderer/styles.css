@@ -4968,6 +4968,8 @@ textarea { resize: none; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.job-summary-note { margin: 10px 0 0; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+#summaryTranslation, #summaryRange, #summaryMode { white-space: normal; overflow-wrap: anywhere; }
 .job-summary-vram { grid-column: 1 / -1; }
 .job-summary-vram > strong.is-tight { color: #e3b278; }
 .preset-diff-panel {
