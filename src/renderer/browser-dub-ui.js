@@ -18,6 +18,13 @@
     }
     return remembered.get(player.mediaKey);
   }
+  function selectedLocalSubtitleRange() {
+    const secondary=player.sub2Role==='translation'&&player.sub2Path;
+    const saved=secondary?player.subtitleContext2:player.subtitleContext;
+    const selected=secondary?player.sub2Path:player.subPath;
+    const canonical=value=>String(value||'').replace(/\\/g,'/').replace(/^([a-z]):/i,(_,drive)=>drive.toLowerCase()+':');
+    return saved&&selected&&canonical(saved.subtitlePath)===canonical(selected)&&canonical(saved.mediaPath)===canonical(player.localPath)?saved.range:null;
+  }
   function selectedSubtitleRange() {
     const tracks=player.browserTracks||[];
     // Match the same translation path that prepareCurrent selects for synthesis.
@@ -31,7 +38,7 @@
   const context = () => player.workspaceMode === 'player' ? ({
     mode: 'player', tabId: 'player-video', mediaKey: player.mediaKey,
     source: player.localPath || player.mediaKey || '',
-    generation: player.generation,
+    generation: player.generation, subtitleRange: selectedLocalSubtitleRange(),
     priorMuted: video.muted, playbackRate: video.playbackRate,
     currentTime: video.currentTime, backgroundSource: player.localPath || '',
     hasMedia: !!(video.currentSrc || video.getAttribute('src')),

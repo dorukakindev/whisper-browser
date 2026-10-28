@@ -2541,7 +2541,9 @@ ipcMain.handle('media:readSubtitle', async (_e, filePath) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   try {
     filePath = await authorizeSubtitleFile(filePath);
-    const { text, note } = decodeSubtitleBuffer(fs.readFileSync(filePath));
+    const bytes = fs.readFileSync(filePath);
+    const { text, note } = decodeSubtitleBuffer(bytes);
+    const playbackContext = require('./local-subtitle-context').read(loadHistory(),filePath,bytes);
     let wordSegments;
     try {
       const adjacent = readAdjacentWordSegments(filePath);
@@ -2551,7 +2553,7 @@ ipcMain.handle('media:readSubtitle', async (_e, filePath) => {
     }
     // mtime/size renderer'ın kör yazmasını önlemek için döner (lost-update koruması).
     const stat = fs.statSync(filePath);
-    return { ok: true, text, note, wordSegments, mtimeMs: stat.mtimeMs, size: stat.size };
+    return { ok: true, text, note, wordSegments, playbackContext, mtimeMs: stat.mtimeMs, size: stat.size };
   } catch (err) {
     return { ok: false, error: err.message };
   }
@@ -20986,6 +20988,7 @@ function recordJob(meta, event) {
     files,
     model: meta.model,
     engine: meta.engine,
+    subtitleContexts: event.type === 'done' ? require('./local-subtitle-context').build(meta,event) : [],
     segments: event.segments || 0,
     language: event.language || '',
     perf: event.perf || null,
@@ -21381,6 +21384,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     video: options.youtube ? '' : (options.input || ''),
     model: options.model || '',
     engine: options.engine || '',
+    clipStart: options.clipStart, clipEnd: options.clipEnd,
+    inputStat: !options.youtube ? require('./local-subtitle-context').snapshot(options.input) : null,
     skip: !!options.explain || !!options.chat || !!options.skipHistory,
     queueItemId: Number.isSafeInteger(Number(options.queueItemId)) && Number(options.queueItemId) > 0
       ? Number(options.queueItemId) : null,
