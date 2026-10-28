@@ -826,10 +826,10 @@
                   <option value="general">Genel</option>
                 </select>
               </label>
-              <label class="field field-full"><span class="field-label">Assistant provider</span><select id="assistantEndpointPreset"><option value="inherit">Use subtitle provider</option><option value="https://api.deepinfra.com/v1/openai">DeepInfra · DeepSeek V4.1 Flash</option></select></label>
-              <label class="field field-full"><span class="field-label">Assistant model</span><input id="assistantModel" type="text" value="deepseek-ai/DeepSeek-V4.1-Flash-1017" spellcheck="false" /></label>
-              <label class="field field-full assistant-flex"><span class="field-label">DeepInfra service tier</span><span><input id="assistantFlex" type="checkbox" checked /> <span id="assistantFlexLabel">Flex — lower cost, potentially longer wait</span></span></label>
-              <label class="field field-full"><span class="field-label">DeepInfra API Key</span><input id="assistantApiKey" type="password" autocomplete="off" spellcheck="false" /></label>
+              <label class="field field-full"><span class="field-label">Asistan sağlayıcısı</span><select id="assistantEndpointPreset"><option value="inherit">Altyazı sağlayıcısını kullan</option><option value="https://api.deepinfra.com/v1/openai">DeepInfra · DeepSeek V4.1 Flash</option></select></label>
+              <label class="field field-full"><span class="field-label">Asistan modeli</span><input id="assistantModel" type="text" value="deepseek-ai/DeepSeek-V4.1-Flash-1017" spellcheck="false" /></label>
+              <label class="field field-full assistant-flex"><span class="field-label">DeepInfra hizmet katmanı</span><span><input id="assistantFlex" type="checkbox" checked /> <span id="assistantFlexLabel">Flex — daha düşük maliyet, daha uzun bekleyebilir</span></span></label>
+              <label class="field field-full"><span class="field-label">DeepInfra API anahtarı</span><input id="assistantApiKey" type="password" autocomplete="off" spellcheck="false" /></label>
               <label class="field field-full">
                 <span class="field-label">API Key (4SAPI / CodeCraftAPI / shuaiapi / OpenAI uyumlu)</span>
                 <span class="secret-control">
@@ -3470,7 +3470,7 @@
         </div>
         <details class="timeline-analysis-panel" data-ui-untranslated>
           <summary data-en="Quality & interval analysis" data-tr="Kalite ve aralık incelemesi">Kalite ve aralık incelemesi</summary>
-          <div class="timeline-group timeline-analysis" data-ui-untranslated aria-label="Subtitle checks and media analysis">
+          <div class="timeline-group timeline-analysis" data-ui-untranslated aria-label="Altyazı ve medya denetimleri">
             <label><span data-en="Quality profile" data-tr="Kalite profili">Kalite profili</span>
               <select id="timelineQcProfile"><option value="custom">Custom / Özel</option><option value="tr-dialogue">TR · Dialogue / Diyalog · 17 CPS</option><option value="tr-children">TR · Children / Çocuk · 13 CPS</option><option value="tr-sdh">TR · SDH · 20 CPS</option></select></label>
             <label>FPS <select id="timelineQcFps"><option>24</option><option>25</option><option>30</option><option>50</option><option>60</option></select></label>

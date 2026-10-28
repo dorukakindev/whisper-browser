@@ -37,8 +37,14 @@ assert.match(html, /<html lang="en">/);
 assert.match(html, /id="openPlayer"[^>]*>BROWSER<\/button>/);
 assert.match(html, /id="uiLocale"/);
 assert.match(html, /id="playerUiLocale"/);
-assert.match(html, /<script src="ui-locale\.js"><\/script>\s*<script src="status-copy\.js"><\/script>\s*<script src="timeline-issue-scan\.js"><\/script>\s*<script src="renderer-helpers\.js"><\/script>\s*<script src="\.\.\/assistant-source-context\.js"><\/script>\s*<script src="renderer\.js"><\/script>/);
-const localized = new Map(entries);
+const scripts=[...html.matchAll(/<script\s+src="([^"]+)"/g)].map(m=>m[1]);
+const ordered=["ui-locale.js","status-copy.js","timeline-issue-scan.js","renderer-helpers.js","../assistant-source-context.js","../assistant-capabilities.js","../assistant-workflow-settings.js","../assistant-context-manifest.js","../scene-timing-tools.js","renderer.js"];
+let previous=-1;
+for(const dependency of ordered){
+ assert.equal(scripts.filter(src=>src===dependency).length,1,dependency+" must load exactly once");
+ const at=scripts.indexOf(dependency);assert(at>previous,dependency+" must load after its prerequisites");previous=at;
+}
+const localized = new Map([...entries,...require('./helpers/owned-ui-copy')(html)]);
 const staticCopy = html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '');
 // HTML entity'leri sözlük anahtarlarıyla eşleşmesi için çözülür (&lt;ad&gt; → <ad>).
 const decodeEntities = (value) => value
@@ -65,6 +71,7 @@ for (const match of staticCopy.matchAll(/(?:title|aria-label|placeholder)="([^"]
 const NEUTRAL = [
   // ISO region codes and navigation glyphs are language neutral. The media
   // shell owns localization of its data-ui-untranslated labels.
+  '24', '25', '30', '50', '60', 'FPS', 'TR · SDH · 20 CPS', 'DeepInfra · DeepSeek V4.1 Flash',
   'AU', 'BR', 'CA', 'DE', 'ES', 'FR', 'GB', 'IN', 'IT', 'JP', 'KR', 'NL', 'US',
   'Home', 'Media home', 'Playback, scenes & sources', '‹', '›',
   '%', '%100', '%50', '%7', '%86', '+', '+100 ms',
