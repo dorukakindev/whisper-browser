@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-1850.md](docs/devir/2026-10-28-1850.md) — Canlı native asistan ve hata bandı
 Güncel çalışma: [docs/devir/2026-10-28-1832.md](docs/devir/2026-10-28-1832.md) — Müzik kapsamı ve canlı DeepSeek kabulü
 Güncel çalışma: [docs/devir/2026-10-28-1817.md](docs/devir/2026-10-28-1817.md) — Çeviri niyetinde hedef dil
 Güncel çalışma: [docs/devir/2026-10-28-1809.md](docs/devir/2026-10-28-1809.md) — Asistan geri alma güvenilirliği
