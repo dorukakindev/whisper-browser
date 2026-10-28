@@ -45,7 +45,7 @@ class Studio:
             self.vars[key] = tk.StringVar(value=str(value))
         self.proc = None; self.running = False; self.stopping = False; self.closing = False
         self.output = None; self.folder = None; self.started = 0
-        self.events = queue.Queue(maxsize=3000); self.controls = []; self.references = {}
+        self.events = queue.Queue(maxsize=3000); self.controls = []; self.references = {}; self.reference_drafts = {}
         self._style(); self._layout(); self._refresh_references()
         self.vars['motor'].trace_add('write', lambda *_: self._engine_controls())
         self._engine_controls()
@@ -114,22 +114,23 @@ class Studio:
         voice = self._card(left, 'Anlatıcı sesi / Narrator')
         voice.columnconfigure(1, weight=1)
         ttk.Label(voice, text='Kayıtlı ses / Saved voice').grid(row=0, column=0, sticky='w')
+        self._button(voice, 'Yenile / Refresh', self.refresh_references).grid(row=0, column=1, sticky='e', pady=(0, 5))
         self.voice_list = ttk.Combobox(voice, state='readonly', width=19)
-        self.voice_list.grid(row=0, column=1, sticky='ew'); self.voice_list.bind('<<ComboboxSelected>>', self._select_saved)
+        self.voice_list.grid(row=1, column=0, columnspan=2, sticky='ew'); self.voice_list.bind('<<ComboboxSelected>>', self._select_saved)
         self.controls.append(self.voice_list)
-        self._button(voice, 'WAV seç / Browse', self.choose_reference).grid(row=1, column=0, sticky='ew', pady=5)
+        self._button(voice, 'WAV seç / Browse', self.choose_reference).grid(row=2, column=0, sticky='ew', pady=5)
         self.reference_listen = self._button(voice, 'Sesi dinle / Listen', self.listen_reference)
-        self.reference_listen.grid(row=1, column=1, sticky='ew', pady=5)
+        self.reference_listen.grid(row=2, column=1, sticky='ew', pady=5)
         self.reference_label = ttk.Label(voice, text='', style='Muted.TLabel', wraplength=300)
-        self.reference_label.grid(row=2, column=0, columnspan=2, sticky='w')
+        self.reference_label.grid(row=3, column=0, columnspan=2, sticky='w')
         self.reference_label.configure(text=Path(self.vars['reference'].get()).name)
-        modes = ttk.Frame(voice); modes.grid(row=3, column=0, columnspan=2, sticky='w', pady=5)
+        modes = ttk.Frame(voice); modes.grid(row=4, column=0, columnspan=2, sticky='w', pady=5)
         for value, label in [('auto', 'Otomatik / Auto'), ('hifi', 'Hi-Fi · birebir döküm / Transcript'), ('clone', 'Basit klonlama / Clone')]:
             radio = ttk.Radiobutton(modes, text=label, variable=self.vars['mode'], value=value)
             radio.pack(anchor='w'); self.controls.append(radio)
-        self._button(voice, 'Döküm TXT seç / Transcript', lambda: self.choose_text(self.transcript)).grid(row=4, column=0, columnspan=2, sticky='ew')
-        ttk.Label(voice, text='Basit klonlamada döküm gerekmez.\nClone mode needs no transcript.', style='Muted.TLabel').grid(row=5, column=0, columnspan=2, sticky='w')
-        transcript_holder = ttk.Frame(voice); transcript_holder.grid(row=6, column=0, columnspan=2, sticky='ew', pady=(6, 0))
+        self._button(voice, 'Döküm TXT seç / Transcript', lambda: self.choose_text(self.transcript)).grid(row=5, column=0, columnspan=2, sticky='ew')
+        ttk.Label(voice, text='Basit klonlamada döküm gerekmez.\nClone mode needs no transcript.', style='Muted.TLabel').grid(row=6, column=0, columnspan=2, sticky='w')
+        transcript_holder = ttk.Frame(voice); transcript_holder.grid(row=7, column=0, columnspan=2, sticky='ew', pady=(6, 0))
         self.transcript = self._text(transcript_holder, 3)
 
         motor = self._card(left, 'Motor ve kalite / Engine & quality'); motor.columnconfigure(1, weight=1)
@@ -209,6 +210,12 @@ class Studio:
         chosen = next((label for label, file in self.references.items() if file == Path(self.vars['reference'].get())), '')
         self.voice_list.set(chosen)
 
+    def refresh_references(self):
+        if self.running:
+            return
+        self._refresh_references()
+        self.status.set('Ses listesi yenilendi; seçim ve döküm korunur. / Voices refreshed; selection and transcript kept.')
+
     def toggle_advanced(self):
         if self.advanced_open.get(): self.advanced.grid()
         else: self.advanced.grid_remove()
@@ -236,9 +243,18 @@ class Studio:
         if file: self.set_reference(file)
 
     def set_reference(self, file):
+        if self.running:
+            return
+        current = Path(self.vars['reference'].get())
+        current_key, next_key = os.path.normcase(str(current.resolve())), os.path.normcase(str(file.resolve()))
+        if current_key == next_key:
+            return  # Reselecting the active voice must not erase an edited transcript.
+        self.reference_drafts[current_key] = self.transcript.get('1.0', 'end-1c')
         self.vars['reference'].set(str(file)); self.reference_label.configure(text=file.name)
         self.transcript.delete('1.0', 'end')
-        if file.with_suffix('.txt').is_file(): self._load(file.with_suffix('.txt'), self.transcript)
+        if next_key in self.reference_drafts:
+            self.transcript.insert('1.0', self.reference_drafts[next_key])
+        elif file.with_suffix('.txt').is_file(): self._load(file.with_suffix('.txt'), self.transcript)
         self._engine_controls()
 
     def choose_reference(self):

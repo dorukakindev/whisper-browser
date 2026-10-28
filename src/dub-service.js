@@ -110,7 +110,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       try { fs.writeFileSync(s.summaryPath, JSON.stringify(summary, null, 2), 'utf8'); }
       catch (error) { s.logError = error.message; }
     }
-    if (type === 'done' && data.path) onOutput({...data,id:s.id});
+    if (type === 'done' && data.path && s.settings?.kind !== 'text') onOutput({...data,id:s.id});
     emit(s, type, { ...data, elapsedSeconds: summary.elapsedSeconds,
       logPath: s.summaryPath || null, logError: s.logError || null });
   }
@@ -306,36 +306,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     const text = await shorten(group.text, group.seconds);
     return { ok: true, text };
   }));
-  ipcMain.handle('dub:textUI', guard(async e => {
-    if (job || releasingEngine || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
-    if (textUI) return { ok: true, alreadyOpen: true };
-    const c = config();
-    const python = path.join(c.engine, '.venv', 'Scripts', 'pythonw.exe');
-    const script = path.join(__dirname, '..', 'tools', 'voxcpm2', 'text_studio.py');
-    if (![python, script].every(p => fs.existsSync(p))) throw new Error('Metin seslendirme stüdyosu bulunamadı.');
-    releasingEngine=true;
-    try{await warmEngine.release();}finally{releasingEngine=false;}
-    const proc = spawn(python, [script, '--engine', c.engine, '--config', configPath(),
-      '--reference', c.reference, '--transcript', c.transcript, '--storage', voiceStorage(app).root],
-      { cwd: path.join(__dirname, '..'), env: voiceEnvironment(c.engine), windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
-    let stderr = '', launched = false;
-    proc.stderr?.setEncoding?.('utf8');
-    proc.stderr?.on('data', data => { stderr = (stderr + data).slice(-6000); });
-    textUI = proc;
-    proc.once('close', code => {
-      if (textUI === proc) textUI = null;
-      if (launched && Number.isInteger(code) && code !== 0 && !e.sender.isDestroyed()) {
-        e.sender.send('dub:event', { id: 'text-studio', type: 'studio_error',
-          error: processFailure(stderr) || 'Metin seslendirme stüdyosu başlatılamadı.' });
-      }
-    });
-    await new Promise((resolve, reject) => {
-      proc.once('spawn', () => { launched = true; resolve(); });
-      proc.once('error', error => { if (textUI === proc) textUI = null; reject(error); });
-    });
-    proc.unref?.();
-    return { ok: true };
-  }));
+  require('./text-voice-studio').registerTextVoiceStudio({app,ipcMain,dialog,owner,guard,config,referenceEntry,
+    busy:()=>!!job||!!textUI||releasingEngine||busy(),reserve:ownJob,emit,releaseWarm:()=>warmEngine.release(),
+    finish:(session,type,data)=>{try{finish(session,type,data);}finally{if(job===session)job=null;}},
+    environment:voiceEnvironment,spawn,grantMedia,claimArtifacts});
   ipcMain.handle('dub:latest', guard(async (_event, requestedId) => {
     const scoped = requestedId && typeof requestedId === 'object';
     const source = scoped ? sourceIdentity(requestedId.source) : null;

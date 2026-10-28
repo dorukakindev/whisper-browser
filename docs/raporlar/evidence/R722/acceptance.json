@@ -1,0 +1,16 @@
+{
+  "realGeneration": true,
+  "metrics": {
+    "width": 800,
+    "left": 10,
+    "right": 790,
+    "overflow": false,
+    "title": "Give your words a voice",
+    "startHeight": 44.400001525878906,
+    "editorColor": "rgb(241, 237, 229)"
+  },
+  "completed": 1,
+  "cancelled": 1,
+  "personalData": false,
+  "fixture": "Synthetic SAPI English reference + authored Turkish text; disposable application profile"
+}
