@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "backendSourceIdentity": true,
+  "selectedRange": [
+    2,
+    10
+  ],
+  "subtitleCues": 1,
+  "suppliedGeneratedAudio": true,
+  "generationPerformedHere": false,
+  "play": {
+    "video": 3.013003,
+    "audio": 1.008,
+    "muted": true
+  },
+  "pause": true,
+  "rangeBoundaries": true,
+  "sourceSwitchRestoresAudio": true,
+  "startupBrowseHidden": true,
+  "staleAttachmentRejected": true,
+  "provider": "controlled loopback; not live LLM quality"
+}

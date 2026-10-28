@@ -1,0 +1,10 @@
+{
+  "exit": 0,
+  "seconds": 4.765,
+  "selected": [
+    2,
+    10
+  ],
+  "sourceSeconds": 14,
+  "provider": "controlled loopback, not an LLM-quality test"
+}
