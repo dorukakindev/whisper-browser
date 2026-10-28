@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-2358.md](docs/devir/2026-10-28-2358.md) — Ortak yerel referans ve kitap ses ayarları
 Güncel çalışma: [docs/devir/2026-10-28-2334.md](docs/devir/2026-10-28-2334.md) — Ortak temada Electron metin stüdyosu
 Güncel çalışma: [docs/devir/2026-10-28-2244.md](docs/devir/2026-10-28-2244.md) — Referans döküm karşılaştırması
 Güncel çalışma: [docs/devir/2026-10-28-2226.md](docs/devir/2026-10-28-2226.md) — Son grup cache korunumu ve onarım
