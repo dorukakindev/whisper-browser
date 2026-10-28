@@ -5,7 +5,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const root=path.resolve(__dirname,'..');
 function arg(key){const i=process.argv.indexOf(key);assert(i>=0,key+' required');return path.resolve(process.argv[i+1]);}
 const reference=arg('--reference'),transcript=arg('--transcript'),engine=arg('--engine');
-const real=process.argv.includes('--real-generation');
+const real=process.argv.includes('--real-generation'),shared=process.argv.includes('--shared-references');
 const out=path.join(root,'.uiprev','text-studio',Date.now()+'-'+process.pid),profile=path.join(out,'profile');
 fs.mkdirSync(profile,{recursive:true});app.setAppPath(root);app.setPath('downloads',out);
 process.env.WHISPER_OPEN_TEXT_STUDIO='1';process.env.WHISPER_RESOURCE_SOAK_USER_DATA=profile;process.env.HF_HUB_OFFLINE='1';process.env.PYTHONUTF8='1';
@@ -14,7 +14,7 @@ fs.writeFileSync(path.join(profile,'settings.json'),JSON.stringify({settingsVers
 fs.writeFileSync(path.join(profile,'dub-settings.json'),JSON.stringify({reference,transcript,engine}));
 fs.writeFileSync(path.join(profile,'text-studio-settings.json'),JSON.stringify({version:2,steps:17,max_chars:400}));
 global.fetch=async()=>{throw Error('Synthetic text studio test: external requests disabled');};
-dialog.showOpenDialog=async()=>({canceled:false,filePaths:[reference]});
+let picked=reference;dialog.showOpenDialog=async()=>({canceled:false,filePaths:[picked]});
 let win,run;const events=[];
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label,ms=25000){const end=Date.now()+ms;while(Date.now()<end){if(await fn())return;await wait(80);}throw Error('Timeout: '+label);}
@@ -37,6 +37,44 @@ app.whenReady().then(async()=>{
  await until(()=>run("return document.getElementById('tv-status').textContent.includes('Referans seçildi')"),'local reference');
  await run("document.getElementById('tv-transcript').value='Editable local transcript draft.';document.getElementById('tv-transcript').dispatchEvent(new Event('input'));document.getElementById('tv-refresh').click();return true");
  await wait(200);assert.equal(await run("return document.getElementById('tv-transcript').value"),'Editable local transcript draft.');
+ if(shared){
+  await run("document.querySelector('.text-voice-library').open=true;document.getElementById('tv-reference-name').value='Ortak anlatıcı A';document.getElementById('tv-reference-name').dispatchEvent(new Event('input'));document.getElementById('tv-save-reference').click();return true");
+  await until(()=>run("return document.getElementById('tv-status').textContent.includes('ortak listeye')"),'saved voice');
+  const library=await run("return api.listVoiceReferences()");const a=library.references.find(v=>v.name==='Ortak anlatıcı A');assert(a);assert.equal(library.activeId,'');
+  assert.equal(fs.readFileSync(transcript,'utf8').includes('Editable local transcript draft.'),false);
+  await screenshot('shared-voice-tr');
+  await run("document.getElementById('textVoiceStudio').close();return true");
+  const book=path.join(out,'Synthetic book.txt');fs.writeFileSync(book,'A complete book chapter for a controlled reference choice test.');picked=book;
+  const imported=await run("return api.mediaWorkflows({action:'book-import'})");assert(imported.ok,JSON.stringify(imported));
+  const bookId=imported.project.id;
+  await run("await MediaWorkflowsUI.openProject("+JSON.stringify(bookId)+");return true");
+  await until(()=>run("return document.querySelector('.mw-voice-settings select[aria-label]')?.options.length>=2"),'book voice options');
+  await run("const voice=document.querySelector('.mw-voice-settings select[aria-label]');voice.value="+JSON.stringify(a.id)+";voice.dispatchEvent(new Event('change'));return true");
+  await until(async()=>{const r=await run("return api.mediaWorkflows({action:'book-open',id:"+JSON.stringify(bookId)+"})");return r.project.voicePreferences?.referenceId===a.id;},'book-specific voice');
+  await run("const edit=document.querySelector('textarea[data-chapter]');edit.value='Unsaved book draft stays here.';edit.dispatchEvent(new Event('input'));document.querySelector('.mw-voice-settings').open=true;const manage=[...document.querySelectorAll('.mw-voice-settings button')].find(b=>b.textContent.includes('Referans sesleri yönet'));manage.click();return true");
+  await until(()=>run("return document.getElementById('textVoiceStudio').open"),'book opens shared studio');
+  await run("document.getElementById('tv-reference-name').value='Ortak anlatıcı B';document.getElementById('tv-reference-name').dispatchEvent(new Event('input'));document.getElementById('tv-save-reference').click();return true");
+  await until(()=>run("return document.getElementById('tv-reference').selectedOptions[0]?.textContent==='Ortak anlatıcı B'"),'second voice');
+  await run("document.getElementById('tv-default-reference').click();return true");
+  await until(()=>run("return document.getElementById('tv-status').textContent.includes('varsayılan sesi güncellendi')"),'explicit default');
+  await run("document.getElementById('textVoiceStudio').close();return true");
+  await until(()=>run("return [...document.querySelector('.mw-voice-settings select[aria-label]').options].some(o=>o.textContent==='Ortak anlatıcı B')"),'live book refresh');
+  assert.equal(await run("return document.querySelector('.mw-voice-settings select[aria-label]').value"),a.id);
+  assert.equal(await run("return document.querySelector('textarea[data-chapter]').value"),'Unsaved book draft stays here.');
+  await run("document.querySelector('.mw-voice-settings').scrollIntoView({block:'start'});return true");await screenshot('book-shared-voices-tr');
+  win.setContentSize(1000,950);win.webContents.setZoomFactor(1.25);
+  await run("UiLocale.set('en',false);applyUiTheme('light');await MediaWorkflowsUI.openProject("+JSON.stringify(bookId)+");document.querySelector('.mw-voice-settings').open=true;document.querySelector('.mw-voice-settings').scrollIntoView({block:'start'});return true");
+  await screenshot('book-shared-voices-en-light-125');
+  assert.equal(await run("return document.querySelector('textarea[data-chapter]').value"),'Unsaved book draft stays here.');
+  const bookMetrics=await run("const d=document.querySelector('dialog.mw-dialog'),s=document.querySelector('.mw-voice-settings'),r=s.getBoundingClientRect();return {overflow:d.scrollWidth>d.clientWidth+1,settingsOverflow:s.scrollWidth>s.clientWidth+1,left:r.left,right:r.right,viewport:innerWidth}");
+  assert.equal(bookMetrics.overflow,false);assert.equal(bookMetrics.settingsOverflow,false);assert(bookMetrics.left>=0&&bookMetrics.right<=bookMetrics.viewport);
+  win.setContentSize(1360,1000);win.webContents.setZoomFactor(1);await run("UiLocale.set('tr',false);applyUiTheme('dark');return true");
+
+  await run("document.querySelector('dialog.mw-dialog').close();document.getElementById('dubMainOpen').click();document.getElementById('voiceReferenceRecorder').open=true;return true");
+  await until(()=>run("return [...document.getElementById('voiceReferenceSelect').options].some(o=>o.textContent==='Ortak anlatıcı B')"),'dubbing shared list');
+  await run("document.getElementById('dubGeneratorDialog').close();return api.openTextVoiceUI()");
+  assert.equal(await run("return document.getElementById('tv-text').value"),text);
+ }
  // Restore synthetic exact words before real Hi-Fi generation; never change the original file.
  await run("document.getElementById('tv-transcript').value="+JSON.stringify(fs.readFileSync(transcript,'utf8'))+";document.querySelector('[data-preset=balanced]').click();return true");
  if(real){
@@ -66,7 +104,7 @@ app.whenReady().then(async()=>{
  assert.equal(await run("return document.getElementById('tv-text').value"),text);
  const metrics=await run("const d=document.getElementById('textVoiceStudio'),r=d.getBoundingClientRect();return {width:innerWidth,left:r.left,right:r.right,overflow:d.scrollWidth>d.clientWidth+1,title:document.getElementById('textVoiceTitle').textContent,startHeight:document.getElementById('tv-start').getBoundingClientRect().height,editorColor:getComputedStyle(document.getElementById('tv-text')).backgroundColor}");
  assert.equal(metrics.overflow,false);assert(metrics.left>=0&&metrics.right<=metrics.width+1);assert(metrics.startHeight>=40);assert.match(metrics.title,/words/);
- fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({complete:true,realGeneration:real,metrics,events},null,2));
+ fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({complete:true,realGeneration:real,sharedReferences:shared,metrics,events},null,2));
  console.log(JSON.stringify({out,complete:true,realGeneration:real,metrics}));app.exit(0);
 }).catch(async error=>{console.error(error.stack);try{await screenshot('failure');}catch{}app.exit(1);});
 setTimeout(()=>app.exit(2),real?300000:60000).unref();

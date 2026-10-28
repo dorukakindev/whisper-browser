@@ -162,6 +162,25 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (!name && !optional) throw new Error('Check the reference name.');
     return name;
   }
+  function importReference({ reference, text, name }) {
+    const label = referenceName(name);
+    if (typeof text !== 'string' || text.length > 8000 || text.includes('\0')) throw new Error('Check the reference transcript.');
+    const stat = fs.statSync(reference);
+    if (stat.size > 64 * 1024 * 1024 || !validVoiceOutput(reference)) throw new Error('Select a valid WAV reference under 64 MB.');
+    const p = referencePaths(require('node:crypto').randomUUID());
+    fs.mkdirSync(p.folder);
+    try {
+      // Metadata publishes the entry last. Never move or rewrite the selected source.
+      fs.copyFileSync(reference, p.reference, fs.constants.COPYFILE_EXCL);
+      atomicWriteFileSync(p.transcript, text.trim(), { encoding: 'utf8' });
+      atomicWriteFileSync(p.metadata, JSON.stringify({ name: label, createdAt: new Date().toISOString(), source: 'local-copy' }), { encoding: 'utf8' });
+      return referenceEntry(path.basename(p.folder));
+    } catch (error) {
+      for (const file of [p.reference, p.transcript, p.metadata]) fs.rmSync(file, { force: true });
+      fs.rmdirSync(p.folder);
+      throw error;
+    }
+  }
   ipcMain.handle('dub:referenceRename', guard(async (_e, request = {}) => {
     if (job || textUI || releasingEngine || busy()) throw new Error('Wait for the current job to finish.');
     const name = referenceName(request.name), entry = referenceEntry(request.id), p = referencePaths(entry.id);
@@ -309,7 +328,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   require('./text-voice-studio').registerTextVoiceStudio({app,ipcMain,dialog,owner,guard,config,referenceEntry,
     busy:()=>!!job||!!textUI||releasingEngine||busy(),reserve:ownJob,emit,releaseWarm:()=>warmEngine.release(),
     finish:(session,type,data)=>{try{finish(session,type,data);}finally{if(job===session)job=null;}},
-    environment:voiceEnvironment,spawn,grantMedia,claimArtifacts});
+    environment:voiceEnvironment,spawn,grantMedia,claimArtifacts,importReference});
   ipcMain.handle('dub:latest', guard(async (_event, requestedId) => {
     const scoped = requestedId && typeof requestedId === 'object';
     const source = scoped ? sourceIdentity(requestedId.source) : null;

@@ -24,7 +24,7 @@ function settings(raw={}){
  for(const key of ['normalize','align','polish','preview'])if(typeof result[key]!=='boolean')throw Error('Invalid voice option: '+key);
  return result;
 }
-function registerTextVoiceStudio({app,ipcMain,dialog,owner,guard,config,referenceEntry,busy,reserve,finish,emit,releaseWarm,environment,spawn,grantMedia,claimArtifacts}){
+function registerTextVoiceStudio({app,ipcMain,dialog,owner,guard,config,referenceEntry,busy,reserve,finish,emit,releaseWarm,environment,spawn,grantMedia,claimArtifacts,importReference}){
  const selections=new WeakMap();
  function remember(event,item){const values=selections.get(event.sender)||new Map();selections.set(event.sender,values);for(const [id,value]of values)if(value.reference===item.reference&&value.transcript===item.transcript){values.set(id,item);return id;}if(values.size>=64)values.delete(values.keys().next().value);const id='local:'+randomUUID();values.set(id,item);return id;}
  const savedFile=()=>path.join(app.getPath('userData'),'text-studio-settings.json');
@@ -38,7 +38,13 @@ function registerTextVoiceStudio({app,ipcMain,dialog,owner,guard,config,referenc
  ipcMain.handle('dub:textVoice',guard(async(e,request={})=>{
   const c=config();
   if(request.action==='config'){
-   const v=voice(e),ready=validVoiceOutput(v.reference);if(ready)grantMedia(v.reference);return {ok:true,settings:saved(),referenceId:remember(e,v),referenceName:path.basename(v.reference),referenceReady:ready,url:ready?pathToFileURL(v.reference).href:'',transcript:v.text.slice(0,8000),engine:c.engine,engineReady:fs.existsSync(path.join(c.engine,'.venv','Scripts','python.exe'))};
+   const v=voice(e),ready=validVoiceOutput(v.reference);let libraryId='';try{const candidate=referenceEntry(path.basename(path.dirname(v.reference)));if(fs.realpathSync(candidate.path)===fs.realpathSync(v.reference))libraryId=candidate.id;}catch{}if(ready)grantMedia(v.reference);return {ok:true,settings:saved(),referenceId:remember(e,v),libraryId,referenceName:path.basename(v.reference),referenceReady:ready,url:ready?pathToFileURL(v.reference).href:'',transcript:v.text.slice(0,8000),engine:c.engine,engineReady:fs.existsSync(path.join(c.engine,'.venv','Scripts','python.exe'))};
+  }
+  if(request.action==='save-reference'){
+   if(busy())throw Error('Finish the active voice job first.');
+   const v=voice(e,request.referenceId);
+   const reference=importReference({reference:v.reference,text:request.transcript,name:request.name});
+   return {ok:true,reference};
   }
   if(request.action==='pick-text'||request.action==='pick-reference'||request.action==='pick-transcript'){
    if(busy())throw Error('Finish the active voice job first.');

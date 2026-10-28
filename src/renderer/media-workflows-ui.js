@@ -25,7 +25,7 @@
     busy = false,
     token = "",
     results = [];
-  let exportCurrent=null;
+  let exportCurrent=null, refreshReferenceSettings=null;
   let reviewPaging={key:'',page:1};
   let bodyVersion=0,projectOpenRequest=0;
   const voicePrefs = {
@@ -564,7 +564,7 @@
         t("Voice & production settings", "Ses ve üretim ayarları"),
       );
     settings.append(settingsTitle);
-    const settingsBody = el("div", "mw-actions");
+    const settingsBody = el("div", "mw-voice-layout");
     const config = await window.api.dubConfig();
     if (!currentRender()) return false;
     let defaultReferenceName =
@@ -602,11 +602,15 @@
     const references = await window.api.listVoiceReferences().catch(() => null);
     if (!currentRender()) return false;
     if (references?.ok) {
+      defaultReferenceName=references.references.find(ref=>ref.id===references.activeId)?.name||defaultReferenceName;
+      if(!voicePrefs.referenceId)referenceName.textContent=defaultLabel();
       const saved = el("select");
       saved.setAttribute(
         "aria-label",
         t("Saved reference voices", "Kayıtlı referans sesler"),
       );
+      const populateReferences = (available) => {
+        saved.replaceChildren();
       const first = el(
         "option",
         "",
@@ -614,14 +618,14 @@
       );
       first.value = "";
       saved.append(first);
-      for (const ref of references.references) {
+      for (const ref of available.references) {
         const o = el("option", "", ref.name || ref.id);
         o.value = ref.id;
         saved.append(o);
       }
       if (
         voicePrefs.referenceId &&
-        !references.references.some((ref) => ref.id === voicePrefs.referenceId)
+        !available.references.some((ref) => ref.id === voicePrefs.referenceId)
       ) {
         const missing = el(
           "option",
@@ -636,6 +640,8 @@
         referenceName.textContent =
           t("Book voice: ", "Bu kitabın sesi: ") +
           saved.selectedOptions[0].textContent;
+      };
+      populateReferences(references);
       saved.onchange = async () => {
         const previous = voicePrefs.referenceId || "";
         try {
@@ -655,6 +661,22 @@
         }
       };
       settingsBody.append(saved);
+      let referenceRefresh=0;
+      refreshReferenceSettings = async () => {
+        if (!currentRender() || busy) return;
+        const sequence=++referenceRefresh;
+        const [available, latest] = await Promise.all([window.api.listVoiceReferences(), window.api.dubConfig()]);
+        if (sequence!==referenceRefresh || !currentRender() || busy || !available?.ok || !latest?.ok) return;
+        defaultReferenceName = available.references.find(ref=>ref.id===available.activeId)?.name || latest.reference?.split(/[\\/]/).pop() || t("Not selected", "Seçilmedi");
+        populateReferences(available);
+        if (!voicePrefs.referenceId) referenceName.textContent = defaultLabel();
+      };
+      const manageVoices=button(t("Manage voice library", "Referans sesleri yönet"), async () => {
+        if (busy) throw Error(t("A workflow is running.", "Bir işlem çalışıyor."));
+        const r = await window.api.openTextVoiceUI();
+        if (!r?.ok) throw Error(r?.error || t("Could not open voice studio.", "Ses stüdyosu açılamadı."));
+      });
+      manageVoices.dataset.voiceLibrary="";settingsBody.append(manageVoices);
     }
     settingsBody.append(
       el(
@@ -739,6 +761,16 @@
       wrap.append(input);
       settingsBody.append(wrap);
     }
+    const voiceRow=el("div","mw-reference-row"), defaults=el("details","mw-reference-defaults"), production=el("div","mw-production-fields");
+    defaults.append(el("summary","",t("App default audio & transcript", "Uygulama varsayılan sesi ve dökümü")));
+    const defaultActions=el("div","mw-actions");
+    for(const node of [...settingsBody.children]){
+      if(node.matches(".mw-setting"))production.append(node);
+      else if(node===referenceName||node.matches("select,[data-voice-library]"))voiceRow.append(node);
+      else if(node.matches("p"))defaults.append(node);
+      else defaultActions.append(node);
+    }
+    defaults.append(defaultActions);settingsBody.append(voiceRow,production,defaults);
     settings.append(settingsBody);
     body.append(settings);
     const range = el("div", "mw-range"),
@@ -2362,6 +2394,9 @@
     }
     throw Error('Book action unavailable.');
   }
+  for (const name of ['voice-reference:library-changed','voice-reference:changed']) window.addEventListener(name, () => {
+    if (refreshReferenceSettings) void refreshReferenceSettings().catch(error => status(error.message));
+  });
   window.MediaWorkflowsUI = Object.freeze({
     assistant:Object.freeze({state:assistantState,execute:assistantExecute}),
     open,
