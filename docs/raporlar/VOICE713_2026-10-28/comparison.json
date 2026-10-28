@@ -1,0 +1,404 @@
+{
+  "kind": "Real Windows CUDA VoxCPM2/nano-vLLM controlled synthetic reference comparison; not human listening",
+  "base": "4ea8280ca78a8f1a9a9eeea8c2980e72db1df0ca",
+  "code": "cf3278381b331a564dbc28a190a4d509e017a9e9",
+  "fixtureSha256": {
+    "reference": "5ce7b1dec5fbdce710c864292938149ee8ecc8c30a3670c905988057516a2def",
+    "transcript": "290a747f40190e85ebaeb033b17616cba2b8dbcd8bc655334db93545b4949886",
+    "srt": "f6d9ebd3c0dd7302dff3cbc902bee14bc0481c8e5e0c985c2b75f8986aaa19ce"
+  },
+  "settings": {
+    "steps": 15,
+    "cfg": 1.65,
+    "temperature": 0.8,
+    "concurrency": 2,
+    "range": [
+      2,
+      10
+    ],
+    "verification": "detailed",
+    "grouping": "akici",
+    "timingMode": "video"
+  },
+  "cases": {
+    "clone": {
+      "quality": {
+        "version": 1,
+        "verification": "detailed",
+        "groups": [
+          {
+            "group": 1,
+            "key": "1",
+            "status": "ready",
+            "verification": {
+              "status": "passed",
+              "recognizedText": "Kütüphane bugün açık. Birlikte kitap okuyabiliriz.",
+              "similarity": 1.0,
+              "omission_spans": [],
+              "insertion_spans": [],
+              "missing_numbers": [],
+              "added_numbers": [],
+              "percentage_mismatch": false,
+              "semantic_mismatch": false,
+              "spoken_number_mismatch": false,
+              "lost_negation": false,
+              "added_negation": false,
+              "unit_mismatch": false,
+              "repetition": false,
+              "sign_mismatch": false,
+              "missing_names": [],
+              "review": false
+            },
+            "rewritten": false,
+            "naturalEdited": false,
+            "delivery": null,
+            "displayText": "Kütüphane bugün açık. Birlikte kitap okuyabiliriz.",
+            "speechRanges": [
+              [
+                0.168,
+                1.728
+              ],
+              [
+                2.508,
+                4.188
+              ]
+            ],
+            "text": "Kütüphane bugün açık. Birlikte kitap okuyabiliriz.",
+            "sourceStart": 2.128,
+            "sourceEnd": 5.76,
+            "audioStart": 0.128,
+            "audioEnd": 4.203666666666667,
+            "stretch": 1.0
+          }
+        ],
+        "preview": false,
+        "excerpts": [
+          {
+            "key": "1",
+            "start": 2.128,
+            "end": 5.76
+          }
+        ]
+      },
+      "phases": {
+        "model_load_seconds": 11.625,
+        "reference_seconds": 1.812,
+        "synthesis_seconds": 6.953,
+        "verification_seconds": 5.453,
+        "placement_seconds": 0.0,
+        "normalization_seconds": 0.172,
+        "file_write_seconds": 0.0,
+        "wall_seconds": 27.172
+      },
+      "wavSha256": "47a6ab1172ba73305b2e116f77367eef360aec44a1d33fa6fefc6f83994f315e"
+    },
+    "baselineContinuation": {
+      "quality": {
+        "version": 1,
+        "verification": "detailed",
+        "groups": [
+          {
+            "group": 1,
+            "key": "1",
+            "status": "review",
+            "verification": {
+              "status": "review",
+              "recognizedText": "Kutufani bug in a chick. Biralikta kitapokia biliris.",
+              "similarity": 0.0,
+              "omission_spans": [],
+              "insertion_spans": [],
+              "missing_numbers": [],
+              "added_numbers": [],
+              "percentage_mismatch": false,
+              "semantic_mismatch": true,
+              "spoken_number_mismatch": false,
+              "lost_negation": false,
+              "added_negation": false,
+              "unit_mismatch": false,
+              "repetition": false,
+              "sign_mismatch": false,
+              "missing_names": [],
+              "review": true
+            },
+            "rewritten": false,
+            "naturalEdited": false,
+            "delivery": null,
+            "displayText": "Kütüphane bugün açık. Birlikte kitap okuyabiliriz.",
+            "speechRanges": [
+              [
+                0.148,
+                1.668
+              ],
+              [
+                2.368,
+                4.128
+              ]
+            ],
+            "text": "Kütüphane bugün açık. Birlikte kitap okuyabiliriz.",
+            "sourceStart": 2.128,
+            "sourceEnd": 5.76,
+            "audioStart": 0.128,
+            "audioEnd": 4.128895833333334,
+            "stretch": 1.0
+          }
+        ],
+        "preview": false,
+        "excerpts": [
+          {
+            "key": "1",
+            "start": 2.128,
+            "end": 5.76
+          }
+        ]
+      },
+      "phases": {
+        "model_load_seconds": 11.625,
+        "reference_seconds": 1.828,
+        "synthesis_seconds": 14.78,
+        "verification_seconds": 7.907,
+        "placement_seconds": 0.0,
+        "normalization_seconds": 0.171,
+        "file_write_seconds": 0.0,
+        "wall_seconds": 37.437
+      },
+      "wavSha256": "086aeb17204cb740d07932bcbe40dc252859064d729017ff3fea6b1cf53cce9f"
+    },
+    "failedAlternativeSeed43": {
+      "quality": {
+        "version": 1,
+        "verification": "detailed",
+        "groups": [
+          {
+            "group": 1,
+            "key": "1",
+            "status": "review",
+            "verification": {
+              "status": "review",
+              "recognizedText": "Kutufani Bagan Echuk Birlikte Kitap Okia Biliriz",
+              "similarity": 0.3077,
+              "omission_spans": [],
+              "insertion_spans": [],
+              "missing_numbers": [],
+              "added_numbers": [],
+              "percentage_mismatch": false,
+              "semantic_mismatch": true,
+              "spoken_number_mismatch": false,
+              "lost_negation": false,
+              "added_negation": false,
+              "unit_mismatch": false,
+              "repetition": false,
+              "sign_mismatch": false,
+              "missing_names": [],
+              "review": true
+            },
+            "rewritten": false,
+            "naturalEdited": false,
+            "delivery": null,
+            "displayText": "Kütüphane bugün açık. Birlikte kitap okuyabiliriz.",
+            "speechRanges": [
+              [
+                0.148,
+                1.568
+              ],
+              [
+                2.448,
+                4.280437
+              ]
+            ],
+            "text": "Kütüphane bugün açık. Birlikte kitap okuyabiliriz.",
+            "sourceStart": 2.128,
+            "sourceEnd": 5.76,
+            "audioStart": 0.128,
+            "audioEnd": 4.2804375,
+            "stretch": 1.0
+          }
+        ],
+        "preview": false,
+        "excerpts": [
+          {
+            "key": "1",
+            "start": 2.128,
+            "end": 5.76
+          }
+        ]
+      },
+      "phases": {
+        "model_load_seconds": 11.313,
+        "reference_seconds": 1.75,
+        "synthesis_seconds": 13.656,
+        "verification_seconds": 9.016,
+        "placement_seconds": 0.0,
+        "normalization_seconds": 0.281,
+        "file_write_seconds": 0.016,
+        "wall_seconds": 37.188
+      },
+      "wavSha256": "240fac30ef5a6b9c8041f9c2f91164b40148211049f84310b3257b4b4cb31287"
+    },
+    "recoveredSeed42": {
+      "quality": {
+        "version": 1,
+        "verification": "detailed",
+        "groups": [
+          {
+            "group": 1,
+            "key": "1",
+            "status": "ready",
+            "verification": {
+              "status": "passed",
+              "recognizedText": "Kütüphane bugün açık. Birlikte kitap okuyabiliriz.",
+              "similarity": 1.0,
+              "omission_spans": [],
+              "insertion_spans": [],
+              "missing_numbers": [],
+              "added_numbers": [],
+              "percentage_mismatch": false,
+              "semantic_mismatch": false,
+              "spoken_number_mismatch": false,
+              "lost_negation": false,
+              "added_negation": false,
+              "unit_mismatch": false,
+              "repetition": false,
+              "sign_mismatch": false,
+              "missing_names": [],
+              "review": false
+            },
+            "rewritten": false,
+            "naturalEdited": false,
+            "delivery": null,
+            "displayText": "Kütüphane bugün açık. Birlikte kitap okuyabiliriz.",
+            "speechRanges": [
+              [
+                0.168,
+                1.728
+              ],
+              [
+                2.508,
+                4.188
+              ]
+            ],
+            "text": "Kütüphane bugün açık. Birlikte kitap okuyabiliriz.",
+            "sourceStart": 2.128,
+            "sourceEnd": 5.76,
+            "audioStart": 0.128,
+            "audioEnd": 4.203666666666667,
+            "stretch": 1.0
+          }
+        ],
+        "preview": false,
+        "excerpts": [
+          {
+            "key": "1",
+            "start": 2.128,
+            "end": 5.76
+          }
+        ]
+      },
+      "phases": {
+        "model_load_seconds": 11.437,
+        "reference_seconds": 1.86,
+        "synthesis_seconds": 14.235,
+        "verification_seconds": 8.312,
+        "placement_seconds": 0.0,
+        "normalization_seconds": 0.187,
+        "file_write_seconds": 0.0,
+        "wall_seconds": 37.172
+      },
+      "wavSha256": "47a6ab1172ba73305b2e116f77367eef360aec44a1d33fa6fefc6f83994f315e"
+    },
+    "cacheReuse": {
+      "quality": {
+        "version": 1,
+        "verification": "detailed",
+        "groups": [
+          {
+            "group": 1,
+            "key": "1",
+            "status": "ready",
+            "verification": {
+              "status": "passed",
+              "recognizedText": "Kütüphane bugün açık. Birlikte kitap okuyabiliriz.",
+              "similarity": 1.0,
+              "omission_spans": [],
+              "insertion_spans": [],
+              "missing_numbers": [],
+              "added_numbers": [],
+              "percentage_mismatch": false,
+              "semantic_mismatch": false,
+              "spoken_number_mismatch": false,
+              "lost_negation": false,
+              "added_negation": false,
+              "unit_mismatch": false,
+              "repetition": false,
+              "sign_mismatch": false,
+              "missing_names": [],
+              "review": false
+            },
+            "rewritten": false,
+            "naturalEdited": false,
+            "delivery": null,
+            "referenceMode": "isolated",
+            "verificationRetryMode": "isolated",
+            "verificationRetry": {
+              "status": "passed",
+              "recognizedText": "Kütüphane bugün açık. Birlikte kitap okuyabiliriz.",
+              "similarity": 1.0,
+              "omission_spans": [],
+              "insertion_spans": [],
+              "missing_numbers": [],
+              "added_numbers": [],
+              "percentage_mismatch": false,
+              "semantic_mismatch": false,
+              "spoken_number_mismatch": false,
+              "lost_negation": false,
+              "added_negation": false,
+              "unit_mismatch": false,
+              "repetition": false,
+              "sign_mismatch": false,
+              "missing_names": [],
+              "review": false
+            },
+            "displayText": "Kütüphane bugün açık. Birlikte kitap okuyabiliriz.",
+            "speechRanges": [
+              [
+                0.168,
+                1.728
+              ],
+              [
+                2.508,
+                4.188
+              ]
+            ],
+            "text": "Kütüphane bugün açık. Birlikte kitap okuyabiliriz.",
+            "sourceStart": 2.128,
+            "sourceEnd": 5.76,
+            "audioStart": 0.128,
+            "audioEnd": 4.203666666666667,
+            "stretch": 1.0
+          }
+        ],
+        "preview": false,
+        "excerpts": [
+          {
+            "key": "1",
+            "start": 2.128,
+            "end": 5.76
+          }
+        ]
+      },
+      "phases": {
+        "placement_seconds": 0.0,
+        "normalization_seconds": 0.172,
+        "file_write_seconds": 0.0,
+        "wall_seconds": 0.187
+      },
+      "wavSha256": "47a6ab1172ba73305b2e116f77367eef360aec44a1d33fa6fefc6f83994f315e"
+    }
+  },
+  "limits": [
+    "Only one short Turkish sentence pair and one English synthetic SAPI reference",
+    "Seed43 remains review; no universal improvement claim",
+    "No human naturalness or voice similarity judgement",
+    "Intermediate alternate-seed prototype also failed and was not the delivered retry policy",
+    "Raw WAV, engine paths and logs remain local; no personal audio or credentials published"
+  ]
+}
