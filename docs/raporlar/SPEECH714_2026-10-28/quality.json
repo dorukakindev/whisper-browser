@@ -1,0 +1,377 @@
+{
+  "version": 1,
+  "verification": "detailed",
+  "groups": [
+    {
+      "group": 1,
+      "key": "1,2",
+      "status": "ready",
+      "verification": {
+        "status": "passed",
+        "recognizedText": "Evet. Bugün birlikte kitap okuyabiliriz.",
+        "similarity": 1.0,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": false,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": false
+      },
+      "rewritten": false,
+      "naturalEdited": false,
+      "delivery": null,
+      "referenceMode": "isolated",
+      "verificationRetryMode": "isolated",
+      "verificationRetry": {
+        "status": "passed",
+        "recognizedText": "Evet. Bugün birlikte kitap okuyabiliriz.",
+        "similarity": 1.0,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": false,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": false
+      },
+      "displayText": "Evet. Bugün birlikte kitap okuyabiliriz.",
+      "speechRanges": [
+        [
+          0.06,
+          0.6
+        ],
+        [
+          1.64,
+          3.6
+        ]
+      ],
+      "text": "Evet. Bugün birlikte kitap okuyabiliriz.",
+      "sourceStart": 0.0,
+      "sourceEnd": 5.0,
+      "audioStart": 0.0,
+      "audioEnd": 3.6626458333333334,
+      "stretch": 1.0
+    },
+    {
+      "group": 2,
+      "key": "3",
+      "status": "ready",
+      "verification": {
+        "status": "passed",
+        "recognizedText": "Taplam on iki kişi geldi. Yol üç kilometre. Sıcaklık eksi beş dereceydi.",
+        "similarity": 0.9167,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": false,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": false
+      },
+      "rewritten": false,
+      "naturalEdited": false,
+      "delivery": null,
+      "referenceMode": "continuation",
+      "displayText": "Toplam 12 kişi geldi. Yol 3 kilometre, sıcaklık eksi 5 dereceydi.",
+      "speechRanges": [
+        [
+          8.02,
+          9.74
+        ],
+        [
+          10.4,
+          11.7
+        ],
+        [
+          12.32,
+          14.236646
+        ]
+      ],
+      "text": "Toplam on iki kişi geldi. Yol üç kilometre, sıcaklık eksi beş dereceydi.",
+      "sourceStart": 8.0,
+      "sourceEnd": 17.0,
+      "audioStart": 8.0,
+      "audioEnd": 14.236645833333334,
+      "stretch": 1.0
+    },
+    {
+      "group": 3,
+      "key": "4",
+      "status": "ready",
+      "verification": {
+        "status": "passed",
+        "recognizedText": "Kapıyı açmadım. Anahtar masaya bıraktım. Kimse dışarı çıkmadı.",
+        "similarity": 0.875,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": false,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": false
+      },
+      "rewritten": false,
+      "naturalEdited": false,
+      "delivery": null,
+      "referenceMode": "continuation",
+      "displayText": "Kapıyı açmadım. Anahtarı masaya bıraktım; kimse dışarı çıkmadı.",
+      "speechRanges": [
+        [
+          20.02,
+          21.1
+        ],
+        [
+          21.76,
+          23.32
+        ],
+        [
+          23.88,
+          25.217083
+        ]
+      ],
+      "text": "Kapıyı açmadım. Anahtarı masaya bıraktım; kimse dışarı çıkmadı.",
+      "sourceStart": 20.0,
+      "sourceEnd": 29.0,
+      "audioStart": 20.0,
+      "audioEnd": 25.217083333333335,
+      "stretch": 1.0
+    },
+    {
+      "group": 4,
+      "key": "5",
+      "status": "ready",
+      "verification": {
+        "status": "passed",
+        "recognizedText": "Bir dakika, sözümü bitireyim. Sonra seni dinleyeceğim.",
+        "similarity": 1.0,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": false,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": false
+      },
+      "rewritten": false,
+      "naturalEdited": false,
+      "delivery": null,
+      "referenceMode": "isolated",
+      "verificationRetryMode": "isolated",
+      "verificationRetry": {
+        "status": "passed",
+        "recognizedText": "Bir dakika, sözümü bitireyim. Sonra seni dinleyeceğim.",
+        "similarity": 1.0,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": false,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": false
+      },
+      "displayText": "Bir dakika, sözümü bitireyim. Sonra seni dinleyeceğim.",
+      "speechRanges": [
+        [
+          32.22,
+          32.92
+        ],
+        [
+          33.06,
+          34.18
+        ],
+        [
+          34.88,
+          36.36
+        ]
+      ],
+      "text": "Bir dakika, sözümü bitireyim. Sonra seni dinleyeceğim.",
+      "sourceStart": 32.0,
+      "sourceEnd": 40.0,
+      "audioStart": 32.0,
+      "audioEnd": 36.405,
+      "stretch": 1.0
+    },
+    {
+      "group": 5,
+      "key": "6",
+      "status": "ready",
+      "verification": {
+        "status": "passed",
+        "recognizedText": "Hayır, bunu söylemedim.",
+        "similarity": 1.0,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": false,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": false
+      },
+      "rewritten": false,
+      "naturalEdited": false,
+      "delivery": null,
+      "referenceMode": "continuation",
+      "displayText": "- Hayır, bunu söylemedim.",
+      "speechRanges": [
+        [
+          40.14,
+          40.64
+        ],
+        [
+          40.98,
+          41.951
+        ]
+      ],
+      "text": "- Hayır, bunu söylemedim.",
+      "sourceStart": 40.1,
+      "sourceEnd": 44.0,
+      "audioStart": 40.1,
+      "audioEnd": 41.951,
+      "stretch": 1.0
+    },
+    {
+      "group": 6,
+      "key": "7",
+      "status": "ready",
+      "verification": {
+        "status": "passed",
+        "recognizedText": "Yarın toplantıya gelmezsen bu önemli dosyaları sana ayrıca A posta üzerinden göndereceğim.",
+        "similarity": 0.9167,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": false,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": false
+      },
+      "rewritten": false,
+      "naturalEdited": false,
+      "delivery": null,
+      "referenceMode": "isolated",
+      "verificationRetryMode": "isolated",
+      "verificationRetry": {
+        "status": "passed",
+        "recognizedText": "Yarın toplantıya gelmezsen bu önemli dosyaları sana ayrıca A posta üzerinden göndereceğim.",
+        "similarity": 0.9167,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": false,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": false
+      },
+      "displayText": "Yarın toplantıya gelmezsen bu önemli dosyaları sana ayrıca e-posta üzerinden göndereceğim.",
+      "speechRanges": [
+        [
+          48.06,
+          53.72
+        ]
+      ],
+      "text": "Yarın toplantıya gelmezsen bu önemli dosyaları sana ayrıca e-posta üzerinden göndereceğim.",
+      "sourceStart": 48.0,
+      "sourceEnd": 60.0,
+      "audioStart": 48.0,
+      "audioEnd": 53.735395833333335,
+      "stretch": 1.0
+    }
+  ],
+  "preview": false,
+  "excerpts": [
+    {
+      "key": "1,2",
+      "start": 0.0,
+      "end": 5.0
+    },
+    {
+      "key": "3",
+      "start": 8.0,
+      "end": 17.0
+    },
+    {
+      "key": "4",
+      "start": 20.0,
+      "end": 29.0
+    },
+    {
+      "key": "5",
+      "start": 32.0,
+      "end": 40.0
+    },
+    {
+      "key": "6",
+      "start": 40.1,
+      "end": 44.0
+    },
+    {
+      "key": "7",
+      "start": 48.0,
+      "end": 60.0
+    }
+  ]
+}

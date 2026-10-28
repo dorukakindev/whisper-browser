@@ -1,0 +1,33 @@
+{
+  "base": "a0e850b82de8dd26931bbaa827c558abe442121a",
+  "product": "6feae2258476c5e83de8381e46b19dfa47c5c044",
+  "sourceSha256": "0519abb528d69b736d88efd5e6481d3e4836a3e33f0182a1824e26248e7e17d9",
+  "wavSha256": "064cad3196d45861cad423c6ca9889fe48379a86a565f90988786c8dab91b29f",
+  "kind": "Real Windows CUDA synthesis with synthetic English SAPI reference and Turkish source",
+  "settings": {
+    "mode": "hifi",
+    "steps": 15,
+    "cfg": 1.65,
+    "temperature": 0.8,
+    "concurrency": 2,
+    "verification": "detailed",
+    "timingMode": "video",
+    "grouping": "akici",
+    "maxGroupChars": 280,
+    "maxGroupSeconds": 18
+  },
+  "finalRun": {
+    "cachedGroups": 5,
+    "generatedGroups": 1,
+    "totalGroups": 6,
+    "accelerated": 0,
+    "clipped": 0,
+    "overflow": 0
+  },
+  "limits": [
+    "No human listening or voice-identity judgement",
+    "No actual multi-speaker voices; dash boundary only",
+    "Warm test changes waveform gain, not speaker",
+    "No start.bat, DRM, live YouTube, idle expiry, true OOM or GPU peak measurement"
+  ]
+}

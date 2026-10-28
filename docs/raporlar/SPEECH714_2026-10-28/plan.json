@@ -1,0 +1,67 @@
+{
+  "sourceHash": "0519abb528d69b736d88efd5e6481d3e4836a3e33f0182a1824e26248e7e17d9",
+  "groups": [
+    {
+      "start": 0,
+      "end": 5000,
+      "text": "Evet. Bugün birlikte kitap okuyabiliriz.",
+      "source_ids": [
+        1,
+        2
+      ],
+      "key": "1,2",
+      "seconds": 5.0
+    },
+    {
+      "start": 8000,
+      "end": 17000,
+      "text": "Toplam 12 kişi geldi. Yol 3 kilometre, sıcaklık eksi 5 dereceydi.",
+      "source_ids": [
+        3
+      ],
+      "key": "3",
+      "seconds": 9.0
+    },
+    {
+      "start": 20000,
+      "end": 29000,
+      "text": "Kapıyı açmadım. Anahtarı masaya bıraktım; kimse dışarı çıkmadı.",
+      "source_ids": [
+        4
+      ],
+      "key": "4",
+      "seconds": 9.0
+    },
+    {
+      "start": 32000,
+      "end": 40000,
+      "text": "Bir dakika, sözümü bitireyim. Sonra seni dinleyeceğim.",
+      "source_ids": [
+        5
+      ],
+      "key": "5",
+      "seconds": 8.0
+    },
+    {
+      "start": 40100,
+      "end": 44000,
+      "text": "- Hayır, bunu söylemedim.",
+      "source_ids": [
+        6
+      ],
+      "key": "6",
+      "seconds": 3.9
+    },
+    {
+      "start": 48000,
+      "end": 60000,
+      "text": "Yarın toplantıya gelmezsen bu önemli dosyaları sana ayrıca e-posta üzerinden göndereceğim.",
+      "source_ids": [
+        7
+      ],
+      "key": "7",
+      "seconds": 12.0
+    }
+  ],
+  "skipped": 0
+}
