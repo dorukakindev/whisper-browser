@@ -82,11 +82,12 @@
   async function sendQuestion(packet){
     const before=new Set(document.querySelectorAll('#aiChatLog .ai-msg'));
     const source=aiSourceScope();
-    const acceptedNow=()=>{if(source!==aiSourceScope())return;const added=[...document.querySelectorAll('#aiChatLog .ai-msg-user')].filter(node=>!before.has(node)&&node._sourceScope===source);if(added.some(node=>node.textContent===String(packet.text||'').trim())){receipt={id:packet.requestId,accepted:true,message:''};publish();}};
+    const acceptedNow=()=>{if(source!==aiSourceScope())return;const added=[...document.querySelectorAll('#aiChatLog .ai-msg-user')].filter(node=>!before.has(node)&&node._sourceScope===source);if(added.some(node=>node.textContent===String(packet.text||'').trim())){toolNotice='';receipt={id:packet.requestId,accepted:true,message:''};publish();}};
     const observer=new MutationObserver(acceptedNow);observer.observe($('aiChatLog'),{childList:true,subtree:true});
     try{await (packet.action==='web-search'?aiWebResearch:aiChatSend)(String(packet.text||'').slice(0,16000));
       const added=[...document.querySelectorAll('#aiChatLog .ai-msg')].filter(node=>!before.has(node)&&node._sourceScope===aiSourceScope());
       const accepted=added.some(node=>node.classList.contains('ai-msg-user')&&node.textContent===String(packet.text||'').trim());
+      if(accepted&&source===aiSourceScope())toolNotice='';
       receipt={id:packet.requestId,accepted,message:accepted?'':(added.find(node=>node.classList.contains('ai-msg-err'))?.textContent || (window.UiLocale?.get?.()==='tr'?'Soru gönderilemedi. Metnin korundu; sağlayıcı ayarını veya çalışan işleri kontrol et.':'The question was not sent. Your draft is kept; check provider settings or running tasks.'))};
     }catch(error){receipt={id:packet.requestId,accepted:false,message:error.message};}
     finally{observer.disconnect();}
