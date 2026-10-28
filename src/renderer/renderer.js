@@ -33068,6 +33068,7 @@ $('timelineAnalyze')?.addEventListener('click',async()=>{
 $('timelineAnalyzeCancel')?.addEventListener('click',()=>{void window.api.cancelMediaAnalysis();});
 
 function localizeIntegrationControls(){
+ document.querySelector('.timeline-analysis')?.setAttribute('aria-label',interfaceChoice('Altyazı ve medya denetimleri','Subtitle checks and media analysis'));
  const options=$('timelineQcProfile')?.options;if(options){options[0].textContent=interfaceChoice('Özel','Custom');options[1].textContent=interfaceChoice('TR · Diyalog · 17 CPS','TR · Dialogue · 17 CPS');options[2].textContent=interfaceChoice('TR · Çocuk · 13 CPS','TR · Children · 13 CPS');options[3].textContent='TR · SDH · 20 CPS';}
  for(const node of document.querySelectorAll('.timeline-analysis-panel [data-en]'))node.textContent=interfaceChoice(node.dataset.tr,node.dataset.en);
  if($('timelineAnalyze'))$('timelineAnalyze').textContent=interfaceChoice('Dalga biçimi ve kesimleri incele','Analyze waveform & cuts');

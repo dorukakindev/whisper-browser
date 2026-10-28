@@ -14,6 +14,7 @@ const ROOT = path.join(__dirname, '..');
 const { entries } = require('../src/renderer/ui-locale.js');
 const en = new Map(entries);
 const html = fs.readFileSync(path.join(ROOT, 'src/renderer/index.html'), 'utf8');
+const explicitCopy=require('./helpers/owned-ui-copy')(html);
 // renderer.js'ten çıkarılan yardımcı dosyalar da aynı UI metinlerini taşır;
 // sinyal taraması src/renderer altındaki tüm script'leri kapsamalı.
 const rendererSources = fs.readdirSync(path.join(ROOT, 'src/renderer'))
@@ -42,14 +43,14 @@ function htmlMissing() {
   const body = html.replace(/<(script|style)\b[\s\S]*?<\/\1>/g, (block) => ' '.repeat(block.length));
   for (const match of body.matchAll(/>([^<>]+)</g)) {
     const text = norm(decode(match[1]));
-    if (!text || ALLOW.has(text) || !TURKISH.test(text) || en.has(text)) continue;
+    if (!text || ALLOW.has(text) || !TURKISH.test(text) || en.has(text) || explicitCopy.has(text)) continue;
     const tag = body.slice(body.lastIndexOf('<', match.index), match.index + 1);
     if (/^<option value="(?:tr|en)"/.test(tag) || /data-ui-untranslated/.test(tag)) continue;
     missing.push(`${lineOf(match.index)}: "${text}"`);
   }
   for (const match of body.matchAll(/\s(title|aria-label|placeholder)="([^"]+)"/g)) {
     const text = norm(decode(match[2]));
-    if (!text || ALLOW.has(text) || !TURKISH.test(text) || en.has(text)) continue;
+    if (!text || ALLOW.has(text) || !TURKISH.test(text) || en.has(text) || explicitCopy.has(text)) continue;
     missing.push(`${lineOf(match.index)}: ${match[1]}="${text}"`);
   }
   return missing;

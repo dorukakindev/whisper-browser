@@ -4,6 +4,16 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ["İşlemin durduğu doğrulanamadı; tekrar Durdur düğmesine basabilirsiniz.", "Stopping could not be confirmed; you can press Stop again."],
+    ["Reopen the authorized PDF / Onaylı PDFyi yeniden açın.", "Reopen the authorized PDF."],
+    ["Invalid subtitle translation range / Geçersiz altyazı çeviri aralığı.", "Invalid subtitle translation range."],
+    ["Altyazı ve medya denetimleri", "Subtitle checks and media analysis"],
+    ["Flex — daha düşük maliyet, daha uzun bekleyebilir", "Flex — lower cost, potentially longer wait"],
+    ["Altyazı sağlayıcısını kullan", "Use subtitle provider"],
+    ["DeepInfra API anahtarı", "DeepInfra API Key"],
+    ["DeepInfra hizmet katmanı", "DeepInfra service tier"],
+    ["Asistan modeli", "Assistant model"],
+    ["Asistan sağlayıcısı", "Assistant provider"],
     ['Üretilen ses', 'Generated audio'],
     ['Referans seslerde ara', 'Search voice references'],
     ['Ad ile ara', 'Search by name'],
