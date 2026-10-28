@@ -5,6 +5,7 @@ const { pathToFileURL } = require('node:url');
 const { run } = require('./browser-media-tools');
 const { MediaFileAccess } = require('./local-file-access');
 const { atomicWriteFileSync } = require('./fsync-utils');
+const {normalize:normalizeSourceVersion}=require('./music-source-version');
 const EXTENSIONS = ['mp3','wav','m4a','aac','flac','ogg','opus','wma'];
 function selection(request, duration) {
   const start = request.start === undefined ? 0 : Number(request.start);
@@ -68,9 +69,9 @@ function createService(options) {
   }
   function remember(file, metadata={}) {
     const target = access.grant(file); if (!target) throw Error('Unsupported audio file / Desteklenmeyen ses dosyası.');
-    const id = randomUUID(), source = { id, file: target, title: String(metadata.title||path.basename(target, path.extname(target))).slice(0,300), libraryId:metadata.id,artist:metadata.artist||'',origin:metadata.origin||'local',excerptSeconds:metadata.excerptSeconds||null,location:{...(metadata.location||{kind:'local',localFile:target}),title:String(metadata.title||path.basename(target,path.extname(target))).slice(0,300),artist:String(metadata.artist||'').slice(0,300),cover:String(metadata.cover||metadata.art||'').slice(0,2000)} };
+    const id = randomUUID(), source = { id, file: target, title: String(metadata.title||path.basename(target, path.extname(target))).slice(0,300), libraryId:metadata.id,artist:metadata.artist||'',origin:metadata.origin||'local',excerptSeconds:metadata.excerptSeconds||null,reviewedVersion:normalizeSourceVersion(metadata.reviewedVersion),location:{...(metadata.location||{kind:'local',localFile:target}),title:String(metadata.title||path.basename(target,path.extname(target))).slice(0,300),artist:String(metadata.artist||'').slice(0,300),cover:String(metadata.cover||metadata.art||'').slice(0,2000)} };
     sources.set(id, source); while (sources.size > 32) sources.delete(sources.keys().next().value);
-    return { id, title: source.title, artist:source.artist,origin:source.origin,excerptSeconds:source.excerptSeconds,url: pathToFileURL(target).href };
+    return { id, title: source.title, artist:source.artist,origin:source.origin,excerptSeconds:source.excerptSeconds,reviewedVersion:source.reviewedVersion,url: pathToFileURL(target).href };
   }
   function status() { return active ? { id: active.id, state: 'running', stage: active.stage,mode:active.mode,completed:active.completed,total:active.total,title:active.title } : last || { state: 'idle' }; }
   function cancel() { active?.controller.abort(); return { ok: true }; }

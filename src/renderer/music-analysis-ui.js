@@ -55,7 +55,20 @@
     const line=document.createElementNS('http://www.w3.org/2000/svg','path');line.setAttribute('d','M4 13v6m6-12v18m6-23v28m6-23v18m6-12v6');icon.append(line);sourceMark.append(icon);
     const sourceText=node('div','ml-source-copy'),sourceTitle=node('h2','',t('Choose your reference','Referansını seç'));
     const sourceDetail=node('p','',t('Open a track or choose Analyze in your music library.','Bir parça aç veya müzik arşivindeki Analiz et düğmesini kullan.'));
-    sourceText.append(sourceTitle,sourceDetail);
+    const sourceVersion=node('div','ml-source-version');sourceVersion.hidden=true;
+    function paintSourceVersion(source){
+      sourceVersion.replaceChildren();const version=source.reviewedVersion;
+      sourceVersion.hidden=!version;if(!version)return;
+      const title=node('strong','',version.title||t('Reviewed YouTube version','İncelenen YouTube sürümü'));
+      sourceVersion.append(title);
+      if(version.sourceDuration||version.duration)sourceVersion.append(node('small','',[
+        version.sourceDuration?t('Spotify ','Spotify ')+clock(version.sourceDuration):'',
+        version.duration?'YouTube '+clock(version.duration):'',
+        t('Analysis uses the prepared excerpt below.','Analiz aşağıdaki hazırlanmış kesiti kullanır.')].filter(Boolean).join(' · ')));
+      if(version.durationMismatch)sourceVersion.append(node('p','ml-version-warning',t('Durations differ. Check whether this is a live, remix or alternate recording.','Süreler farklı. Canlı, remiks veya başka bir kayıt olup olmadığını kontrol et.')));
+      sourceVersion.append(button(t('Open matched YouTube version','Eşleşen YouTube sürümünü aç'),()=>window.api.openExternal(version.url),'ml-button ml-version-open'));
+    }
+    sourceText.append(sourceTitle,sourceDetail,sourceVersion);
     const choose=button(t('Choose audio','Ses dosyası seç'),()=>select('select'));
     sourcePanel.append(sourceMark,sourceText,button(t('Choose from music','Müziklerimden seç'),pickSource,'ml-button ml-pick-source'),choose);
     const controls=node('div','ml-controls'),rangeTitle=node('span','',t('Analysis range','Analiz aralığı'));
@@ -208,6 +221,7 @@
       const response=await api(action,payload);if(state.closed||response.canceled)return;
       state.restored=false;state.measurements=null;state.savedAt=null;saveNotice.hidden=true;
       state.playlistDraft=null;selectedMatches=new Set();state.tags=null;state.lastSearch=null;state.matches=[];state.source=response.source;onlinePanel.dispatchEvent(new CustomEvent('music-reference',{detail:response.source}));state.result=null;sourceTitle.textContent=response.source.title;sourceDetail.textContent=response.source.origin==='deezer-preview'?t('Deezer preview · up to 30 seconds · not the full song','Deezer önizlemesi · en fazla 30 saniye · şarkının tamamı değil'):response.source.origin==='spotify-youtube-excerpt'?t('Spotify selection · reviewed YouTube version · first 90 seconds at most','Spotify seçimi · incelenmiş YouTube sürümü · ilk en fazla 90 saniye'):t('Local audio · measurements stay on this computer','Yerel ses · ölçümler bu bilgisayarda kalır');
+      paintSourceVersion(response.source);
       comparison=null;++compareToken;alternateReference.pause();compareAudio.pause();compare.hidden=true;audio.volume=1;find.disabled=!state.modelReady;exclude.disabled=!response.source.artist;hits.replaceChildren(node('p','ml-search-empty',t('Reference changed. Search again for fresh matches.','Referans değişti. Güncel eşleşmeler için yeniden ara.')));
       audio.pause();audio.hidden=false;audio.src=response.source.url;start.value='0';end.value='';end.placeholder=response.source.origin==='local'?t('Full track','Tüm parça'):t('Whole excerpt','Tüm kesit');run.disabled=false;results.replaceChildren(empty);charts.length=0;
       busy(state.busy);message(t('Ready. Select a range or analyze the full track (up to 30 minutes).','Hazır. Aralık seç veya parçanın tamamını analiz et (en fazla 30 dakika).'));
@@ -336,7 +350,7 @@
     dialog.addEventListener('close',cleanup,{once:true});
     dialog.addEventListener('cancel',event=>{event.preventDefault();dialog.close();cleanup();});
     dialog.showModal();if(typeof syncBrowserOcclusion==='function')syncBrowserOcclusion();observer=new ResizeObserver(repaint);observer.observe(results);
-    state.read=async()=>{const {job}=await api('status');return {open:true,batch:{running:batchRunning,items:batchRows.map(({title,state})=>({title,state}))},savedResults:{restored:!!state.restored,savedAt:state.savedAt,hasMeasurements:!!state.measurements},source:state.source?{id:state.source.id,title:state.source.title,artist:state.source.artist,origin:state.source.origin||'local',excerptSeconds:state.source.excerptSeconds||null}:null,range:{start:Number(start.value),end:end.value?Number(end.value):null},job:{id:job.id,state:job.state,stage:job.stage,mode:job.mode,sourceMatches:!!state.source&&job.result?.sourceId===state.source.id,referenceMixMatches:!['search','online'].includes(job.mode)||state.mixVersion===state.submittedMixVersion},references:state.references.map(r=>({id:r.id,title:r.title,range:r.range})),hiddenTracks:state.hidden.slice(0,50),hiddenTrackCount:state.hidden.length,resultIntent:state.lastSearch?{description:state.lastSearch.intent||'',weight:state.lastSearch.intentWeight||0,diverse:state.lastSearch.diverse===true}:null,playlistDraft:state.playlistDraft||null,selectedMatches:[...selectedMatches],soundTags:state.tags||null,searchIntent:{description:intent.value,weight:Number(weight.value),diverse:diverse.checked},localMatches:state.matches||[],catalogMatches:onlinePanel.musicAgent.read(),modelReady:state.modelReady};};
+    state.read=async()=>{const {job}=await api('status');return {open:true,batch:{running:batchRunning,items:batchRows.map(({title,state})=>({title,state}))},savedResults:{restored:!!state.restored,savedAt:state.savedAt,hasMeasurements:!!state.measurements},source:state.source?{id:state.source.id,title:state.source.title,artist:state.source.artist,origin:state.source.origin||'local',excerptSeconds:state.source.excerptSeconds||null,reviewedVersion:state.source.reviewedVersion||null}:null,range:{start:Number(start.value),end:end.value?Number(end.value):null},job:{id:job.id,state:job.state,stage:job.stage,mode:job.mode,sourceMatches:!!state.source&&job.result?.sourceId===state.source.id,referenceMixMatches:!['search','online'].includes(job.mode)||state.mixVersion===state.submittedMixVersion},references:state.references.map(r=>({id:r.id,title:r.title,range:r.range})),hiddenTracks:state.hidden.slice(0,50),hiddenTrackCount:state.hidden.length,resultIntent:state.lastSearch?{description:state.lastSearch.intent||'',weight:state.lastSearch.intentWeight||0,diverse:state.lastSearch.diverse===true}:null,playlistDraft:state.playlistDraft||null,selectedMatches:[...selectedMatches],soundTags:state.tags||null,searchIntent:{description:intent.value,weight:Number(weight.value),diverse:diverse.checked},localMatches:state.matches||[],catalogMatches:onlinePanel.musicAgent.read(),modelReady:state.modelReady};};
     state.execute=async args=>{
      const op=args.operation;
      if((state.busy||batchRunning)&&!['cancel','batch_status','stop_analysis_batch'].includes(op))throw Error('Music analysis is busy');
