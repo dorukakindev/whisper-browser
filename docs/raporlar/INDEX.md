@@ -1,3 +1,4 @@
+- [Rapor679](BROWSER_BUG_REPORT_679.md) — Analiz geçmişi, toplu müzik kuyruğu, hizalı grafik ve asistan listesi
 - [Rapor678](BROWSER_BUG_REPORT_678.md) — Dolu müzik/asistan kabulü, okuma ayarları ve native video doğrulaması
 - [Rapor677](BROWSER_BUG_REPORT_677.md) — Ortak tema, boş ekranlar ve kanıt sınırlarıyla görsel envanter
 - [Rapor676](BROWSER_BUG_REPORT_676.md) — Luna ilhamıyla temalı müzik transportu ve gerçek Windows görünüm kabulü
