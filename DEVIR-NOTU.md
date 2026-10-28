@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-0429.md](docs/devir/2026-10-28-0429.md) — Dolu yüzeyler, okuma ayarları ve native video kabulü
 Güncel çalışma: [docs/devir/2026-10-28-0330.md](docs/devir/2026-10-28-0330.md) — Görsel kapsam ve ortak tasarım düzeltmeleri
 Güncel çalışma: [docs/devir/2026-10-28-0304.md](docs/devir/2026-10-28-0304.md) — Özgün temalı müzik oynatıcı
 Güncel çalışma: [docs/devir/2026-10-28-0251.md](docs/devir/2026-10-28-0251.md) — Luna beta karşılaştırması ve karışık kuyruk listeleri

@@ -232,7 +232,7 @@
     }
     $("pdfVoicePanel").classList.add("hidden");
     $("pdfVoiceOpen").setAttribute("aria-expanded", "false");
-    for (const id of ["pdfAssistantTools", "pdfTranslateTools"]) $(id).open = false;
+    for (const id of ["pdfAssistantTools", "pdfTranslateTools", "pdfReadingTools"]) $(id).open = false;
     $("pdfVoiceStatus").textContent = "";
     refresh();
     changed(true);
@@ -264,6 +264,22 @@
     changed(true);
   }
   $("pdfReaderHome").onclick = () => { stopVoice(); void window.MediaHomeUI?.returnHome(); };
+  // Reading preferences affect prose only, never PDF coordinates or generated audio.
+  const readingTools=document.createElement('details');readingTools.className='pdf-reader-tools';readingTools.id='pdfReadingTools';readingTools.dataset.uiUntranslated='';
+  const readingSummary=document.createElement('summary'),readingContent=document.createElement('div');readingContent.className='pdf-reader-tools-content pdf-reading-preferences';readingTools.append(readingSummary,readingContent);
+  document.querySelector('.pdf-reader-more-tools').prepend(readingTools);
+  const readingChoices=[['font', 'Yazı boyutu', 'Text size', [18,21,24,28],21,'--pdf-reader-font','px'],['width','Satır genişliği','Line width',[680,850,1000],850,'--pdf-reader-width','px'],['spacing','Satır aralığı','Line spacing',[1.65,1.85,2.1],1.85,'--pdf-reader-leading','']];
+  let readingPrefs={};try{readingPrefs=JSON.parse(localStorage.getItem('pdf-reading-preferences-v1')||'{}')||{};}catch{}
+  if(typeof readingPrefs!=='object'||Array.isArray(readingPrefs))readingPrefs={};
+  const readingLabels=[];
+  for(const [key,tr,en,values,fallback,property,unit] of readingChoices){
+    const label=document.createElement('label'),caption=document.createElement('span'),select=document.createElement('select');select.id='pdfReading'+key;
+    label.append(caption,select);readingLabels.push([caption,tr,en]);for(const value of values){const option=document.createElement('option');option.value=String(value);option.textContent=String(value)+(key==='font'?' px':key==='width'?' px':'');select.append(option);}
+    const value=values.includes(readingPrefs[key])?readingPrefs[key]:fallback;select.value=String(value);$('pdfReader').style.setProperty(property,value+unit);
+    select.addEventListener('change',()=>{const selected=Number(select.value);if(!values.includes(selected))return;readingPrefs[key]=selected;$('pdfReader').style.setProperty(property,selected+unit);try{localStorage.setItem('pdf-reading-preferences-v1',JSON.stringify(readingPrefs));}catch{}});readingContent.append(label);
+  }
+  const readingHint=document.createElement('small');readingContent.append(readingHint);
+  const localizeReading=()=>{readingSummary.textContent=t('Okuma ayarları','Reading settings');readingLabels.forEach(([label,tr,en])=>label.textContent=t(tr,en));readingHint.textContent=t('Yalnız Okuma görünümündeki metni değiştirir. Orijinal PDF ve seslendirme korunur.','Applies to Reading view only. Original PDF and narration are unchanged.');};localizeReading();document.addEventListener('ui-locale-change',localizeReading);
   for (const details of document.querySelectorAll('.pdf-reader-tools')) {
     details.addEventListener('toggle', () => {
       if (details.open) for (const other of document.querySelectorAll('.pdf-reader-tools')) if (other !== details) other.open = false;

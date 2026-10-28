@@ -3,7 +3,7 @@ const { app, BrowserWindow, dialog } = require("electron"),
   path = require("node:path"),
   assert = require("node:assert/strict");
 const root = path.resolve(__dirname, ".."),
-  out = path.join(root, ".uiprev", "pdf-reader547-" + Date.now()),
+  out = path.join(root, ".uiprev", "pdf-reader678-" + Date.now()),
   profile = path.join(out, "profile");
 fs.mkdirSync(profile, { recursive: true });
 process.env.WHISPER_RESOURCE_SOAK_USER_DATA = profile;
@@ -182,6 +182,10 @@ app
       await run('player.pdfReader.pages.delete(2);pdfReaderSetStatus(interfaceChoice("Hazır","Ready"));return true');
     }
     await capture("reading-tr-dark.png");
+    await run(`document.getElementById('pdfReadingTools').open=true;for(const [id,value] of [['pdfReadingfont','24'],['pdfReadingwidth','680'],['pdfReadingspacing','2.1']]){const n=document.getElementById(id);n.value=value;n.dispatchEvent(new Event('change'));}return true`);
+    assert(await run(`const n=document.querySelector('.pdf-page-prose'),s=getComputedStyle(n),prefs=JSON.parse(localStorage.getItem('pdf-reading-preferences-v1'));return s.fontSize==='24px'&&Math.abs(parseFloat(s.lineHeight)-50.4)<1&&prefs.width===680`),'reading preferences apply and persist without changing source');
+    await capture('reading-preferences.png');
+    await run(`document.getElementById('pdfReadingTools').open=false;return true`);
     const layout=await run('const pages=document.getElementById("pdfReaderPages").getBoundingClientRect(),reader=document.getElementById("pdfReader").getBoundingClientRect();return {top:pages.top-reader.top,available:pages.height,total:reader.height,duplicateHead:getComputedStyle(document.querySelector(".player-head")).display};');
     assert(layout.available>layout.total*.7,JSON.stringify(layout));
     assert.equal(layout.duplicateHead,'none');

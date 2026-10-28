@@ -1,9 +1,9 @@
 /* Native Windows: real ffmpeg + NumPy; calibrated synthetic audio, isolated profile. No music-model quality claim. */
 'use strict';
 const {app,BrowserWindow,dialog}=require('electron'),fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),assert=require('node:assert/strict');
-const root=path.resolve(__dirname,'..'),out=path.join(root,'.uiprev','music660',String(Date.now())),profile=path.join(out,'profile'),file=path.join(out,'Ölçüm örneği.wav');
+const root=path.resolve(__dirname,'..'),out=path.join(root,'.uiprev','music678',String(Date.now())),profile=path.join(out,'profile'),file=path.join(out,'Ölçüm örneği.wav');
 fs.mkdirSync(profile,{recursive:true});process.env.WHISPER_RESOURCE_SOAK_USER_DATA=profile;
-const python=path.join(root,'backend','venv','Scripts','python.exe');
+const python=process.env.WHISPER_TEST_PYTHON||path.join(root,'backend','venv',process.platform==='win32'?'Scripts':'bin',process.platform==='win32'?'python.exe':'python');
 cp.execFileSync(python,['-c',"import sys,wave,numpy as np; sr=22050; t=np.arange(sr*8)/sr; x=np.concatenate([.4*np.sin(2*np.pi*f*t)*(0.4+0.6*np.sin(2*np.pi*1*t)**2) for f in [120,440,3000]]); w=wave.open(sys.argv[1],'wb'); w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr); w.writeframes((x*32767).astype('<i2').tobytes()); w.close()",file],{timeout:20000});
 fs.writeFileSync(path.join(profile,'settings.json'),JSON.stringify({settingsVersion:3,ui:{uiLocale:'tr',uiTheme:'dark'}}));
 fs.writeFileSync(path.join(profile,'media-shelf.json'),JSON.stringify({version:1,music:[{id:'fixture-track',path:file,title:'Calibration'}],books:[],stations:[],podcasts:[],playlists:[],diary:[]}));
@@ -16,7 +16,7 @@ app.whenReady().then(async()=>{
   await until(()=>{win=BrowserWindow.getAllWindows().find(w=>!w.isDestroyed()&&w.webContents.getURL().includes('index.html'));return win;},'main');
   await until(()=>run('return !!window.MusicAnalysisUI'),'module');win.setSize(1440,1050);win.show();
   await run('window.MusicAnalysisUI.open();return true');await delay(200);
-  await run("document.querySelector('.ml-source>.ml-button').click();return true");
+  await run("[...document.querySelectorAll('.ml-source>.ml-button')].find(b=>!b.classList.contains('ml-pick-source')).click();return true");
   await until(()=>run("return document.querySelector('.ml-source h2').textContent.includes('Ölçüm')"),'source');
   await run("document.querySelector('.ml-primary').click();return true");
   await until(()=>run("return document.querySelectorAll('.ml-chart').length===3&&!document.querySelector('.ml-primary').disabled"),'real analysis');
@@ -36,13 +36,17 @@ app.whenReady().then(async()=>{
   assert(await run("const c=document.querySelector('.ml-content');return c.scrollWidth<=c.clientWidth+1"),'horizontal overflow');
   fs.writeFileSync(path.join(out,'narrow.png'),(await win.webContents.capturePage()).toPNG());
   assert(await run("return getComputedStyle(document.querySelector('.ml-analysis-grid')).gridTemplateColumns.split(' ').length===1"),'narrow stacked charts');
-  await run("const [a,b]=document.querySelectorAll('.ml-controls input');a.value='4';b.value='20';document.querySelector('.ml-primary').click();return true");
+  await run("document.querySelector('.ml-content').scrollTop=0;document.querySelector('.ml-measurements-view').click();return true");
+  assert(await run("const result=document.querySelector('.ml-result-views').getBoundingClientRect(),tabs=document.querySelector('.ml-tabs').getBoundingClientRect();return result.top>=tabs.bottom-1&&result.top<innerHeight"),'measurement button reveals results below sticky tabs');
+  await run("UiLocale.set('en',false);applyUiTheme('light');return true");await delay(200);fs.writeFileSync(path.join(out,'analysis-light.png'),(await win.webContents.capturePage()).toPNG());
+  await run("UiLocale.set('tr',false);const [a,b]=document.querySelectorAll('.ml-controls input');a.value='4';b.value='20';document.querySelector('.ml-primary').click();return true");
   await until(()=>run("return !document.querySelector('.ml-controls>.ml-button:last-child').hidden"),'cancel available');
   await run("document.querySelector('.ml-controls>.ml-button:last-child').click();return true");
   await until(()=>run("return document.querySelector('.ml-status').textContent.includes('İptal')"),'cancellation receipt');
   await run("document.querySelector('.ml-close').click();return true");await until(()=>run("return !document.querySelector('.music-lab')"),'dialog cleanup');
   await run("window.UiLocale.set('en');window.MusicAnalysisUI.open();return true");await until(()=>run("return document.querySelector('.music-lab h1').textContent==='Listen closer'&&!!document.querySelector('.ml-empty')"),'English empty state');await run('return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');await delay(300);fs.writeFileSync(path.join(out,'empty.png'),(await win.webContents.capturePage()).toPNG());
   await run("document.querySelector('.ml-close').click();return true");await until(()=>run("return !document.querySelector('.music-lab')"),'second close');
-  await run("window.MusicAnalysisUI.open('fixture-track');return true");await until(()=>run("return document.querySelector('.ml-source h2').textContent.includes('Ölçüm')"),'library source');
+  await run("window.MusicAnalysisUI.open('fixture-track');return true");await until(()=>run("return document.querySelector('.ml-source h2').textContent.includes('Calibration')"),'library source');
+  assert(await run("return (await MusicAnalysisUI.read()).savedResults.restored"),'restored source results');
   fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({ok:true,out,realDecode:true,realMeasurements:true,seek,range:{start:range.range.start,end:range.range.end,duration:range.duration},cache:true,narrowOverflow:false,source:'Synthetic calibrated signal, not a real song or semantic model benchmark'},null,2));console.log(JSON.stringify({ok:true,out}));app.exit(0);
 }).catch(async e=>{console.error(e.stack);try{console.error(await run("return {dialogs:[...document.querySelectorAll('.music-lab')].map(d=>({open:d.open,text:d.querySelector('.ml-status')?.textContent,close:d.querySelector('.ml-close')?.outerHTML})),error:document.querySelector('.ml-error')?.textContent}"));fs.writeFileSync(path.join(out,'failure.png'),(await win.webContents.capturePage()).toPNG());}catch{}app.exit(1);});setTimeout(()=>app.exit(2),120000).unref();

@@ -64,8 +64,8 @@
   unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
 }
 
-:root{--surface:#111113;--raised:#18181b;--hover:#252529;--line:#28282d;--strong:#44444b;--text:#f3f3f5;--muted:#a5a5af;--accent:#e8701a;--accent-text:#18100b;--error:#ffb5a0;color-scheme:dark}
-html[data-theme=light]{--surface:#fafafa;--raised:#f0f0f3;--hover:#e5e5eb;--line:#d8d8df;--strong:#a1a1ad;--text:#18181b;--muted:#55555f;--error:#8b3018;color-scheme:light}
+:root{--surface:#111113;--raised:#18181b;--hover:#252529;--line:#28282d;--strong:#44444b;--text:#f3f3f5;--muted:#a5a5af;--accent:#d5a35c;--accent-text:#18100b;--error:#ffb5a0;color-scheme:dark}
+html[data-theme=light]{--accent:#7f4c15;--accent-text:#ffffff;--surface:#fafafa;--raised:#f0f0f3;--hover:#e5e5eb;--line:#d8d8df;--strong:#a1a1ad;--text:#18181b;--muted:#55555f;--error:#8b3018;color-scheme:light}
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:transparent;color:var(--text);font-family:'IBM Plex Sans','Segoe UI',sans-serif;font-size:13px}body{padding:4px}
 [hidden]{display:none!important}button,input,select,textarea{font:inherit;color:inherit}button,summary{cursor:pointer}button{min-height:34px;min-width:34px;padding:6px 11px;border:1px solid var(--line);border-radius:9px;background:var(--raised);transition:background .12s,border-color .12s}button:hover,summary:hover{background:var(--hover);border-color:var(--strong)}button:disabled{opacity:.48;cursor:default}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 #bubble{width:56px;height:56px;padding:13px;border-radius:50%;background:var(--accent);color:var(--accent-text);border-color:var(--accent);box-shadow:0 2px 6px #0005}svg{width:24px;height:24px;flex-shrink:0}
@@ -95,3 +95,13 @@ html,body{overflow:hidden}
 @keyframes assistant-orbit{to{transform:rotate(360deg)}}@keyframes assistant-breathe{50%{opacity:.5;transform:scale(.8)}}
 @media(prefers-reduced-motion:reduce){.orbit-arc,.progress-orbit>span{animation:none}.progress-steps>span{transition:none}}
 @media(max-height:620px){#agentProgress{padding:8px 10px;margin-bottom:6px}#progressDetail{display:none}.progress-steps{margin-top:4px}}
+
+/* Long source excerpts scroll inside their card; decisions stay reachable. */
+.tool-card>p:not(.action-receipt){max-height:144px;overflow:auto;overscroll-behavior:contain;white-space:pre-wrap;scrollbar-width:thin;padding-right:4px}
+.tool-card .action-receipt{max-height:112px;overflow:auto;overscroll-behavior:contain;border-top:1px solid var(--line);padding-top:8px}
+.tool-card button{margin-top:6px;min-height:36px}.message{min-width:0}.message pre{max-width:100%}
+#suggestions{max-height:88px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+#log{overflow-anchor:none}.tool-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(max-height:620px){header{padding-top:10px;padding-bottom:6px}#threadBar{padding-block:6px}#suggestions{max-height:40px;padding-bottom:6px}#form{margin-bottom:8px}#text{min-height:44px}#review{max-height:100px}}
+
+@media(max-height:620px){#suggestions{flex-wrap:wrap;overflow-x:hidden;max-height:72px}#suggestions button{flex-shrink:1;max-width:100%;overflow-wrap:anywhere}}
