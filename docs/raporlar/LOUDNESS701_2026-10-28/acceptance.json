@@ -1,0 +1,116 @@
+{
+  "sourceSha256": "0133022c0f3817fd5f46aabc52bf0a8736c0608f0630da8f5f3ba866fa6c2047",
+  "baseline": {
+    "input_i": "-20.00",
+    "input_tp": "-3.17",
+    "input_lra": "3.50",
+    "input_thresh": "-30.29",
+    "output_i": "-20.03",
+    "output_tp": "-3.10",
+    "output_lra": "2.80",
+    "output_thresh": "-30.36",
+    "normalization_type": "dynamic",
+    "target_offset": "0.03"
+  },
+  "cases": [
+    {
+      "case": "quiet",
+      "before": {
+        "input_i": "-40.00",
+        "input_tp": "-23.17",
+        "input_lra": "3.50",
+        "input_thresh": "-50.23",
+        "output_i": "-20.03",
+        "output_tp": "-3.10",
+        "output_lra": "2.80",
+        "output_thresh": "-30.36",
+        "normalization_type": "dynamic",
+        "target_offset": "0.03"
+      },
+      "after": {
+        "input_i": "-20.00",
+        "input_tp": "-3.17",
+        "input_lra": "3.50",
+        "input_thresh": "-30.29",
+        "output_i": "-20.03",
+        "output_tp": "-3.10",
+        "output_lra": "2.80",
+        "output_thresh": "-30.36",
+        "normalization_type": "dynamic",
+        "target_offset": "0.03"
+      },
+      "duration": 21.14014583333333,
+      "channels": 1,
+      "peak": 0.69317626953125
+    },
+    {
+      "case": "loud",
+      "before": {
+        "input_i": "-13.98",
+        "input_tp": "2.85",
+        "input_lra": "3.40",
+        "input_thresh": "-24.29",
+        "output_i": "-20.03",
+        "output_tp": "-3.09",
+        "output_lra": "2.80",
+        "output_thresh": "-30.36",
+        "normalization_type": "dynamic",
+        "target_offset": "0.03"
+      },
+      "after": {
+        "input_i": "-20.00",
+        "input_tp": "-3.17",
+        "input_lra": "3.50",
+        "input_thresh": "-30.29",
+        "output_i": "-20.03",
+        "output_tp": "-3.10",
+        "output_lra": "2.80",
+        "output_thresh": "-30.36",
+        "normalization_type": "dynamic",
+        "target_offset": "0.03"
+      },
+      "duration": 21.14014583333333,
+      "channels": 1,
+      "peak": 0.6932373046875
+    },
+    {
+      "case": "stereo",
+      "before": {
+        "input_i": "-16.99",
+        "input_tp": "-3.17",
+        "input_lra": "3.50",
+        "input_thresh": "-27.29",
+        "output_i": "-20.03",
+        "output_tp": "-6.11",
+        "output_lra": "2.80",
+        "output_thresh": "-30.36",
+        "normalization_type": "dynamic",
+        "target_offset": "0.03"
+      },
+      "after": {
+        "input_i": "-20.00",
+        "input_tp": "-6.18",
+        "input_lra": "3.50",
+        "input_thresh": "-30.29",
+        "output_i": "-20.03",
+        "output_tp": "-6.11",
+        "output_lra": "2.80",
+        "output_thresh": "-30.36",
+        "normalization_type": "dynamic",
+        "target_offset": "0.03"
+      },
+      "duration": 21.14014583333333,
+      "channels": 2,
+      "peak": 0.49017333984375
+    }
+  ],
+  "transitions": [
+    {
+      "fromGroup": 1,
+      "toGroup": 2,
+      "gapSeconds": 0.1939583333333328,
+      "onsetSampleJump": 0.0
+    }
+  ],
+  "scope": "Real generated synthetic-reference speech. Objective loudness and boundary measurements; no human naturalness preference."
+}
