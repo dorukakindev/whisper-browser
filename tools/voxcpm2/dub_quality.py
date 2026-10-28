@@ -22,6 +22,8 @@ def lexical_negatives(text):
 
 
 def speech_check(expected, actual, numeric_reference=None):
+    # Retain bounded original ASR evidence before quantity/case normalization.
+    recognized_text = actual[:8000]
     case_suffix=r'(?:e|a|ye|ya|i|ı|u|ü|yi|yı|yu|yü|ın|in|un|ün|nın|nin|nun|nün|dan|den|tan|ten|da|de|ta|te|la|le|yla|yle)'
     name_cases=re.findall(r"\b((?:[A-ZÇĞİÖŞÜ]{2,}|[A-ZÇĞİÖŞÜ][a-zçğıöşü]+))['’]("+case_suffix+r')\b',expected)
     def words(text):
@@ -190,7 +192,7 @@ def speech_check(expected, actual, numeric_reference=None):
         return False
     missing_names = [name for name in names if not name_heard(name)]
     # ASR is evidence for review, never permission to silently remove speech.
-    return {'similarity': round(similarity, 4), 'omission_spans': omissions, 'insertion_spans': insertions,
+    return {'recognizedText': recognized_text, 'similarity': round(similarity, 4), 'omission_spans': omissions, 'insertion_spans': insertions,
             'missing_numbers': missing_numbers, 'added_numbers': added_numbers,
             'percentage_mismatch': percentage_mismatch, 'semantic_mismatch': semantic_mismatch, 'spoken_number_mismatch': spoken_number_mismatch,
             'lost_negation': lost_negation, 'added_negation': added_negation, 'unit_mismatch': unit_mismatch,

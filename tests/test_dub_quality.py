@@ -10,6 +10,13 @@ import numpy as np
 
 
 class QualityTests(unittest.TestCase):
+    def test_recognized_text_preserves_original_bounded_evidence(self):
+        actual='50.000 kişi geldi.'
+        result=Q.speech_check('Elli bin kişi geldi.',actual)
+        self.assertEqual(result['recognizedText'],actual)
+        self.assertFalse(result['review'])
+        self.assertEqual(len(Q.speech_check('Merhaba.','x'*9000)['recognizedText']),8000)
+
     def test_verification_preserves_numbers_and_detects_missing_speech(self):
         self.assertFalse(Q.speech_check('Merhaba, dünya!', 'merhaba dünya')['review'])
         self.assertTrue(Q.speech_check('1938 yılında 12 kişi.', '1938 yılında kişi')['review'])
