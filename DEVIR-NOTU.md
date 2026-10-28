@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-1302.md](docs/devir/2026-10-28-1302.md) — Whisper ve çeviri iş özeti
 Güncel çalışma: [docs/devir/2026-10-28-1243.md](docs/devir/2026-10-28-1243.md) — Gerçek ses ayırma aralığı ve iptal
 Güncel çalışma: [docs/devir/2026-10-28-1234.md](docs/devir/2026-10-28-1234.md) — Asistan ve panel yerelleştirmesi
 Güncel çalışma: [docs/devir/2026-10-28-1053.md](docs/devir/2026-10-28-1053.md) — Ürün100 referans arama ve üretim özeti
