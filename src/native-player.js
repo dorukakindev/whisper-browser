@@ -14,13 +14,16 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
  }
  function layout(s,bounds){s.bounds=bounds;if(!s.host||s.host.isDestroyed()||!owner())return;const base=owner().getContentBounds(),w=Math.max(1,Math.min(base.width,Math.round(Number(bounds.width)||1))),h=Math.max(1,Math.min(base.height,Math.round(Number(bounds.height)||1)));s.host.setBounds({x:base.x+Math.max(0,Math.round(bounds.x||0)),y:base.y+Math.max(0,Math.round(bounds.y||0)),width:w,height:h});}
  async function stop(){const s=session;if(!s)return;session=null;clearInterval(s.pulse);s.owner?.removeListener('move',s.reposition);s.owner?.removeListener('resize',s.reposition);s.socket?.destroy();for(const p of s.pending.values()){clearTimeout(p.timer);p.reject(Error('Native player stopped.'));}s.pending.clear();if(!s.host.isDestroyed())s.host.destroy();s.proc?.kill();}
+ // External cancellation must also invalidate starts still awaiting file consent.
+ // Internal session replacement uses stop() without invalidating its own epoch.
+ function requestStop(){startEpoch++;return stop();}
  const handler=async(event,input={})=>{
   if(!authorized(event))return {ok:false,error:'Unauthorized request.'};
   let opened;
   try{
    if(input.action==='status')return {ok:true,available:fs.existsSync(executable()),active:!!session,platform:process.platform};
    if(input.action==='choose'){const selected=await dialog.showOpenDialog(owner(),{properties:['openFile'],filters:[{name:'mpv.exe',extensions:['exe']}]});if(selected.canceled)return {ok:true,canceled:true};const file=fs.realpathSync(selected.filePaths[0]);if(path.basename(file).toLowerCase()!=='mpv.exe'||!fs.statSync(file).isFile())throw Error('Choose mpv.exe from your trusted mpv installation.');configured=file;require('./fsync-utils').atomicWriteFileSync(configFile(),JSON.stringify({path:file}));return {ok:true};}
-   if(input.action==='stop'){startEpoch++;await stop();return {ok:true};}
+   if(input.action==='stop'){await requestStop();return {ok:true};}
    if(input.action==='start'){
     const epoch=++startEpoch;
     if(process.platform!=='win32')throw Error('Embedded native player currently targets Windows.');if(!fs.existsSync(executable()))throw Error('mpv.exe was not found. The normal player remains available.');
@@ -62,6 +65,6 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
    throw Error('Unsupported native player operation.');
   }catch(error){if(opened&&session===opened)await stop();return {ok:false,error:error.message};}
  };
- ipcMain.handle('native-player:request',handler);app.on('before-quit',()=>{void stop();});return {stop,handler};
+ ipcMain.handle('native-player:request',handler);app.on('before-quit',()=>{void requestStop();});return {stop:requestStop,handler};
 }
 module.exports={registerNativePlayer};
