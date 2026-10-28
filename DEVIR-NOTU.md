@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-0120.md](docs/devir/2026-10-29-0120.md) — Kitap onayında gerçek ses sürümü
 Güncel çalışma: [docs/devir/2026-10-29-0100.md](docs/devir/2026-10-29-0100.md) — Kitap inceleme kartları ve sahiplik
 Güncel çalışma: [docs/devir/2026-10-29-0050.md](docs/devir/2026-10-29-0050.md) — MP4 dublaj ses izleri ve zamanlama
 Güncel çalışma: [docs/devir/2026-10-29-0030.md](docs/devir/2026-10-29-0030.md) — Dublaj ana ses kontrolü
