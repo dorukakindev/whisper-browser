@@ -1,0 +1,50 @@
+{
+  "technicalFlowPassed": true,
+  "qualityAccepted": false,
+  "qualityStatus": "review",
+  "whisperModel": "tiny",
+  "device": "cpu",
+  "range": [
+    2,
+    10
+  ],
+  "liveTranslationRequests": 2,
+  "standardTier": true,
+  "translation": {
+    "requested": true,
+    "total": 1,
+    "completed": 1,
+    "failed": 0,
+    "lastError": "",
+    "skipped": "",
+    "stopProgressive": false
+  },
+  "sourceId": "811878911f86a1201281e541a88a7bf78601e04eb3444f6682cd18c6c3aecab7",
+  "sourceHash": "fd8882a78741782d8daece1399a55e5200a61281567a5d7fcc6f54b42fe98a81",
+  "inheritedVoiceRange": {
+    "start": 2,
+    "end": 10
+  },
+  "actualVoxCPM2Generation": true,
+  "timing": {
+    "accelerated": 0,
+    "clipped": 0,
+    "overflow": 0
+  },
+  "sync": {
+    "version": 1,
+    "videoDuration": 8,
+    "audioDuration": 8,
+    "segments": [
+      {
+        "v0": 0.128,
+        "v1": 5.76,
+        "a0": 0.128,
+        "a1": 5.76
+      }
+    ],
+    "smooth": true
+  },
+  "sameVideoPlaybackAndPause": true,
+  "limits": "Synthetic English SAPI video/reference, live DeepSeek translation and actual VoxCPM2. Local studio start and separate voice start, not a single browser button or real YouTube."
+}

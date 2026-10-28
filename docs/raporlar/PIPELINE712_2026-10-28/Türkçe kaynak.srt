@@ -1,0 +1,4 @@
+﻿1
+00:00:02,128 --> 00:00:05,760
+The library is open today. We can read a book together.
+

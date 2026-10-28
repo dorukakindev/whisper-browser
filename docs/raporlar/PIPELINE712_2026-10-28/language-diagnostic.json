@@ -1,0 +1,44 @@
+{
+  "expected": "Kütüphane bugün açık. Birlikte kitap okuyabiliriz.",
+  "auto": {
+    "status": "review",
+    "recognizedText": "Kutufani bug in a chick. Biralikta kitapokia biliris.",
+    "similarity": 0.0,
+    "omission_spans": [],
+    "insertion_spans": [],
+    "missing_numbers": [],
+    "added_numbers": [],
+    "percentage_mismatch": false,
+    "semantic_mismatch": true,
+    "spoken_number_mismatch": false,
+    "lost_negation": false,
+    "added_negation": false,
+    "unit_mismatch": false,
+    "repetition": false,
+    "sign_mismatch": false,
+    "missing_names": [],
+    "review": true
+  },
+  "forcedTurkish": {
+    "text": "Kutufani bug in acuk. Birerlik de kitap okuyabiliriz.",
+    "check": {
+      "recognizedText": "Kutufani bug in acuk. Birerlik de kitap okuyabiliriz.",
+      "similarity": 0.2857,
+      "omission_spans": [],
+      "insertion_spans": [],
+      "missing_numbers": [],
+      "added_numbers": [],
+      "percentage_mismatch": false,
+      "semantic_mismatch": false,
+      "spoken_number_mismatch": false,
+      "lost_negation": false,
+      "added_negation": false,
+      "unit_mismatch": false,
+      "repetition": false,
+      "sign_mismatch": false,
+      "missing_names": [],
+      "review": true
+    }
+  },
+  "kind": "Diagnostic known-language ASR, not new audio generation or human listening"
+}

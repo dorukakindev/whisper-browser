@@ -38,12 +38,12 @@ const jsonWriter = cut('function writeJsonAtomic(', "ipcMain.handle('media:write
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-hist-'));
 const fakeApp = { getPath: () => tmp };
 
-const api = new Function('fs', 'path', 'app', 'renameSyncResilient', `
+const api = new Function('fs', 'path', 'app', 'renameSyncResilient', 'require', `
   ${jsonWriter}
   ${store}
   ${recorder}
   return { loadHistory, addHistory, recordJob, historyPath };
-`)(fs, path, fakeApp, require('../src/fsync-utils').renameSyncResilient);
+`)(fs, path, fakeApp, require('../src/fsync-utils').renameSyncResilient, require('node:module').createRequire(MAIN));
 
 // ---- minik test cercevesi ----
 let pass = 0;

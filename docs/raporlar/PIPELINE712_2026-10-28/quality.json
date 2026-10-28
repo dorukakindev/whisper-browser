@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "verification": "detailed",
+  "groups": [
+    {
+      "group": 1,
+      "key": "1",
+      "status": "review",
+      "verification": {
+        "status": "review",
+        "recognizedText": "Kutufani bug in a chick. Biralikta kitapokia biliris.",
+        "similarity": 0.0,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": true,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": true
+      },
+      "rewritten": false,
+      "naturalEdited": false,
+      "delivery": null,
+      "displayText": "Kütüphane bugün açık. Birlikte kitap okuyabiliriz.",
+      "speechRanges": [
+        [
+          0.148,
+          1.668
+        ],
+        [
+          2.368,
+          4.128
+        ]
+      ],
+      "text": "Kütüphane bugün açık. Birlikte kitap okuyabiliriz.",
+      "sourceStart": 2.128,
+      "sourceEnd": 5.76,
+      "audioStart": 0.128,
+      "audioEnd": 4.128895833333334,
+      "stretch": 1.0
+    }
+  ],
+  "preview": false,
+  "excerpts": [
+    {
+      "key": "1",
+      "start": 2.128,
+      "end": 5.76
+    }
+  ]
+}

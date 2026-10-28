@@ -1,3 +1,4 @@
+- [Rapor712](BROWSER_BUG_REPORT_712.md) — Yerel aralık aktarımı ve canlı video/Whisper/çeviri/ses zinciri
 - [Rapor711](BROWSER_BUG_REPORT_711.md) — Canlı DeepSeek gerçek ayar/onay/undo ve eski hata bandı
 - [Rapor710](BROWSER_BUG_REPORT_710.md) — Müzik kapsam dışı ve canlı DeepSeek araç kararları
 - [Rapor709](BROWSER_BUG_REPORT_709.md) — Sayfa çevirisinde kaynak/hedef ayrımı

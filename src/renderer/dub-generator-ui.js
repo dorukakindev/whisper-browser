@@ -238,7 +238,7 @@
       el('dubGeneratorOutput').classList.add('hidden'); el('dubGeneratorUse').classList.add('hidden');
     }
     mediaContextKey = mediaKey;
-    const range = context?.mode === 'browser' ? context.subtitleRange : null;
+    const range = ['browser','player'].includes(context?.mode) ? context.subtitleRange : null;
     const valid = range && Number.isFinite(range.start) && Number.isFinite(range.end)
       && range.start >= 0 && range.end > range.start && range.end <= 86400;
     const key = JSON.stringify([context?.mode, context?.tabId, context?.mediaId || context?.mediaKey, valid ? range : null]);

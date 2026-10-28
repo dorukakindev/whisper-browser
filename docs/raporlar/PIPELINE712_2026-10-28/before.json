@@ -1,0 +1,9 @@
+{
+  "realWhisperAndLiveTranslationCompleted": true,
+  "expectedRange": [
+    2,
+    10
+  ],
+  "actualVoiceRange": null,
+  "assertion": "Selected subtitle range must carry into voice UI without picking it again"
+}

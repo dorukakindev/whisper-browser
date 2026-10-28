@@ -22299,6 +22299,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     cues = reviewSourceCues(browserTrackForPath, path, cues);
   }
   if (!secondary) cues = applyCueQuality(cues, player.cueQualitySource);
+  player[secondary ? 'subtitleContext2' : 'subtitleContext'] = player.workspaceMode === 'player' ? res.playbackContext || null : null;
   const wordSegments = player.workspaceMode === 'player' && Array.isArray(res.wordSegments)
     ? res.wordSegments : [];
   let wordStats = wordSegments.length ? attachTimedWordsToCues(cues, wordSegments) : null;
