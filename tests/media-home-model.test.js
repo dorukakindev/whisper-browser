@@ -58,3 +58,23 @@ test('home artwork eligibility excludes non-video pages without deleting history
  const history=[{key:'browser:https://www.youtube.com/results?search_query=test',position:4,duration:50},{key:'browser:https://www.tiktok.com/@private',position:4,duration:50},{key:'youtube:abcdefghijk',position:4,duration:50}];
  const data=model.snapshot([],history);assert.equal(data.continuing.length,3);assert.equal(data.continuing.filter(model.hasArtwork).length,1);assert(model.hasArtwork({id:'film',hasPoster:true}));assert.equal(model.hasArtwork({hasPoster:true}),false);assert.equal(history.length,3);
 });
+
+test('YouTube aliases share one card while retaining the newest playback source and a known title',()=>{
+ const history=[
+  {key:'youtube:abcdefghijk',title:'A real video',position:10,lastWatched:1},
+  {key:'browser:https://youtu.be/abcdefghijk?si=share',title:'(11) YouTube',position:50,lastWatched:3},
+  {key:'browser:https://m.youtube.com/watch?v=abcdefghijk&t=20',title:'Older title',position:20,lastWatched:2},
+  {key:'browser:https://example.org/#/watch/1',title:'Route 1'},
+  {key:'browser:https://example.org/#/watch/2',title:'Route 2'},
+ ];
+ const before=structuredClone(history), catalog=[{id:'film',hasPoster:true,source:{type:'browser',value:'https://www.youtube.com/watch?v=abcdefghijk'}}];
+ const result=model.snapshot(catalog,history);
+ assert.equal(result.watch.length,3);assert.equal(result.watch[0].key,history[1].key);
+ assert.equal(result.watch[0].position,50);assert.equal(result.watch[0].title,'Older title');
+ assert.equal(result.watch[0].id,'film');assert.deepEqual(history,before);
+});
+test('artwork and alias matching never turn non-video or lookalike pages into YouTube videos',()=>{
+ for(const url of ['https://youtube.com/results?v=abcdefghijk','https://youtu.be/abcdefghijk/extra','https://youtube.com.evil.org/watch?v=abcdefghijk'])assert.equal(model.thumbnail({key:'browser:'+url}),'');
+ const result=model.snapshot([],[{key:'youtube:abcdefghijk',title:'Custom title',lastWatched:2},{key:'browser:https://www.youtube.com/shorts/abcdefghijk',title:'Earlier',lastWatched:1},{key:'youtube:Abcdefghijk',title:'Different video'}]);
+ assert.equal(result.watch.length,2);assert.equal(result.watch[0].title,'Custom title');
+});
