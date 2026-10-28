@@ -1,3 +1,4 @@
+- [Rapor710](BROWSER_BUG_REPORT_710.md) — Müzik kapsam dışı ve canlı DeepSeek araç kararları
 - [Rapor709](BROWSER_BUG_REPORT_709.md) — Sayfa çevirisinde kaynak/hedef ayrımı
 - [Rapor708](BROWSER_BUG_REPORT_708.md) — Asistan ters ayar farkı ve bayat undo hedefi
 - [Rapor707](BROWSER_BUG_REPORT_707.md) — Asistan ayar kartında gerçek önce/sonra farkı
