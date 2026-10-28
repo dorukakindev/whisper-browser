@@ -219,7 +219,10 @@ function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
   const negationSource=normalizeText(source).replace(/[‘’]/g,"'").replace(/\b(?:cannot|can't|can\s+not)\s+help\s*,?\s+but\s+(?=(?:feel|notice|wonder|think|create|see|smile|laugh|cry|admire|worry|remember|agree|suspect|be|fall|marvel)\b)/giu,' ');
   let negationTarget=normalizeText(translated).replace(/(?<!\p{L})\p{L}+m[ae]m(?:[ıiuü]z|[ıiuü]n)?(?!\p{L})(?=\s+(?:gerek\p{L}*|lazım\p{L}*|zorunlu\p{L}*))/giu,' ');
   if(/\bbefore\b/iu.test(negationSource))negationTarget=negationTarget.replace(/(?<!\p{L})\p{L}+m[ae]d[ae]n\s+önce(?!\p{L})/giu,' ');
-  const hasTargetNegation=String(targetLanguage).split('-')[0]==='en'?SOURCE_NEGATION.test(normalizeText(translated).replace(/[‘’]/g,"'")):TARGET_NEGATION.test(negationTarget);
+  // Double -ma/-me nominal clauses retain negation even before gerek/lazım;
+  // single nominalization (gitmem gerekiyor) remains a positive obligation.
+  const negativeNominal=/(?<!\p{L})\p{L}{2,}m[ae]m[ae](?:m|n|s[ıi]|m[ıi]z|n[ıi]z|l[ae]r[ıi])\p{L}*(?!\p{L})/iu.test(normalizeText(translated));
+  const hasTargetNegation=String(targetLanguage).split('-')[0]==='en'?SOURCE_NEGATION.test(normalizeText(translated).replace(/[‘’]/g,"'")):negativeNominal||TARGET_NEGATION.test(negationTarget);
   if (SOURCE_NEGATION.test(negationSource) && !hasTargetNegation) {
     issues.push('negation_missing');
   }

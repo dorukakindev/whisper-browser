@@ -3291,7 +3291,7 @@ def resolve_translate_routes(base_url):
     return [raw]
 
 
-SPEECH_TRANSLATION_PROTOCOL = 'speech-v7-delivery-contract'
+SPEECH_TRANSLATION_PROTOCOL = 'speech-v8-nominal-quote-gates'
 
 
 def translation_sentence_groups(entries, args, speakers=None):
