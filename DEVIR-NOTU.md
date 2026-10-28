@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-0602.md](docs/devir/2026-10-28-0602.md) — Ürün100 kaynak sahipliği
 Güncel çalışma: [docs/devir/2026-10-28-0545.md](docs/devir/2026-10-28-0545.md) — Web/asistan onarımları ve dört akışın kabulü
 Güncel çalışma: [docs/devir/2026-10-28-0518.md](docs/devir/2026-10-28-0518.md) — Web video kapakları ve yatay kartlar
 Güncel çalışma: [docs/devir/2026-10-28-0501.md](docs/devir/2026-10-28-0501.md) — Analiz geçmişi ve birleşik müzik akışı
