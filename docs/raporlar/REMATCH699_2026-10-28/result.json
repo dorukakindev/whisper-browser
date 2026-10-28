@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "catalog": "fixture",
+  "realFfmpegDsp": true,
+  "explicitSave": true,
+  "cancelPreservesSource": true,
+  "identityAndFavoritePreserved": true,
+  "newSourceCacheMiss": true,
+  "newExcerptPlayback": true,
+  "shelfAction": true,
+  "locale": [
+    "tr",
+    "en"
+  ],
+  "zooms": [
+    1,
+    1.25
+  ],
+  "searches": 3,
+  "streams": 2
+}
