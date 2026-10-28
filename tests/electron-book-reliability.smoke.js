@@ -35,6 +35,11 @@ async function until(fn, label) {
     if (await fn()) return;
     await wait(80);
   }
+  const w=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes("index.html"));
+  if(w){
+    fs.writeFileSync(path.join(out,"timeout-state.json"),JSON.stringify(await w.webContents.executeJavaScript(`({label:${JSON.stringify(label)},pdfPage:document.getElementById("pdfReaderPage")?.value,pdfClass:document.getElementById("pdfReader")?.className,workflow:document.getElementById("mediaWorkflowsDialog")?.outerHTML.slice(0,1500),status:document.querySelector(".mw-status")?.textContent,context:typeof globalAssistantContext==="function"?globalAssistantContext():null})`),null,2));
+    fs.writeFileSync(path.join(out,"timeout.png"),(await w.webContents.capturePage()).toPNG());
+  }
   throw Error("Timed out " + label);
 }
 app
@@ -79,7 +84,7 @@ app
       const measured = await run(
         'const d=document.querySelector("dialog.mw-dialog"),body=d.querySelector(".mw-body"),checks=[];for(const n of d.querySelectorAll(' +
           JSON.stringify(selector) +
-          ')){if(!n.getClientRects().length)continue;n.scrollIntoView({block:"center",inline:"nearest"});const r=n.getBoundingClientRect(),hit=document.elementFromPoint((r.left+r.right)/2,(r.top+r.bottom)/2);checks.push({text:(n.textContent||n.getAttribute("aria-label")||n.tagName).slice(0,70),left:r.left,right:r.right,top:r.top,bottom:r.bottom,hit:!!hit&&(n===hit||n.contains(hit))});}return {viewport:[innerWidth,innerHeight],dpr:devicePixelRatio,dialogOverflow:d.scrollWidth-d.clientWidth,bodyOverflow:body.scrollWidth-body.clientWidth,checks}',
+          ')){if(!n.checkVisibility({visibilityProperty:true}))continue;n.scrollIntoView({block:"center",inline:"nearest"});const r=n.getBoundingClientRect();let hit=document.elementFromPoint((r.left+r.right)/2,(r.top+r.bottom)/2);if(n.matches(".mw-spoken")){const range=document.createRange();range.selectNodeContents(n);for(const fragment of range.getClientRects()){const candidate=document.elementFromPoint((fragment.left+fragment.right)/2,(fragment.top+fragment.bottom)/2);if(candidate&&(n===candidate||n.contains(candidate))){hit=candidate;break;}}}checks.push({text:(n.textContent||n.getAttribute("aria-label")||n.tagName).slice(0,70),left:r.left,right:r.right,top:r.top,bottom:r.bottom,hit:!!hit&&(n===hit||n.contains(hit)),hitNode:hit?.outerHTML.slice(0,600),dialog:n.closest("dialog")?.className,rootScroll:d.scrollTop});}return {viewport:[innerWidth,innerHeight],dpr:devicePixelRatio,dialogOverflow:d.scrollWidth-d.clientWidth,bodyOverflow:body.scrollWidth-body.clientWidth,checks,dialogs:[...document.querySelectorAll("dialog[open]")].map(n=>({cls:n.className,title:n.querySelector("h1,h2,h3")?.textContent,modal:n.matches(":modal")}))}',
       );
       layoutChecks.push({
         name,
@@ -820,8 +825,15 @@ app
     win.webContents.setZoomFactor(1.25);
     await auditNarrow(
       "reader-800-1.25",
-      ".mw-reading-head button,.mw-bookmarks button,.mw-spoken",
+      ".mw-reading-head button,.mw-reading-head summary,.mw-spoken",
     );
+    for (const popup of [".mw-reader-tools", ".book-assistant-compact"]) {
+      await run(`const d=document.querySelector(${JSON.stringify(popup)});d.open=true;return true`);
+      const panelBounds=await run(`const p=document.querySelector(${JSON.stringify(popup)}).querySelector("div"),r=p.getBoundingClientRect(),b=document.querySelector(".mw-body").getBoundingClientRect();return {left:r.left,right:r.right,clipLeft:b.left,clipRight:b.right}`);
+      assert(panelBounds.left>=panelBounds.clipLeft-1&&panelBounds.right<=panelBounds.clipRight+1,JSON.stringify(panelBounds));
+      await auditNarrow(`reader-popup-${popup.slice(1)}-800-1.25`, `${popup} button`);
+      await run(`document.querySelector(${JSON.stringify(popup)}).open=false;return true`);
+    }
     const wheelPoint = await run(
       'const p=document.querySelector(".mw-pdf"),s=p.querySelector("select");s.value="2";s.dispatchEvent(new Event("change"));p.scrollIntoView({block:"center"});p.scrollTop=0;const r=p.getBoundingClientRect();return {x:(r.left+r.right)/2,y:Math.max(r.top+80,Math.min(innerHeight-70,r.bottom-30))}',
     );
@@ -1398,7 +1410,7 @@ app
       "EPUB second chapter displayed",
     );
     await run(
-      '[...document.querySelectorAll(".ms-reader button")].find(n=>n.textContent==="Bölümü sesli üretimde aç").click();return true',
+      '[...document.querySelectorAll(".ms-reader button")].find(n=>n.textContent==="Bölümü seslendir").click();return true',
     );
     await until(
       () =>
