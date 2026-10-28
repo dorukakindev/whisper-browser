@@ -70,8 +70,7 @@
   document.addEventListener('assistant-video-translation-state',task.onTranslation);
   update(task,t('Translation was queued. Progress will appear here.','Çeviri kuyruğa alındı. İlerleme burada gösterilecek.'));
   task.timer=setInterval(()=>{
-   const tab=browserTabState(task.tabId);
-   if(!tab||tab.generation!==task.generation)finish(task,t('The source changed; the previous translation result cannot be confirmed here.','Kaynak değişti; önceki çevirinin sonucu burada doğrulanamıyor.'),'failed');
+   if(!owner(task))finish(task,t('The source or conversation changed; check the original translation job.','Kaynak veya sohbet değişti; önceki çeviri işini kontrol et.'),'failed');
   },650);
   if(window.api.getBrowserTranslationSnapshot)void window.api.getBrowserTranslationSnapshot(task.tabId).then(result=>{
    if(result?.ok)task.onTranslation({detail:{tabId:task.tabId,generation:result.generation,trackId:result.trackId,progress:result.state}});
@@ -85,6 +84,7 @@
    const target=effectiveBrowserProfile().values.targetLanguage||'tr';
    if(intent.range||intent.forSpeech||intent.targetLanguage&&intent.targetLanguage!==target||!player.browserTracks.some(row=>row.role==='source'&&row.path))return false;
   }
+  if(pending&&!owner(pending))finish(pending,t('The source or conversation changed; check the original video job.','Kaynak veya sohbet değişti; önceki video işini kontrol et.'),'failed');
   if(pending)return true;
   const tab=browserTabState(),url=typeof globalAssistantContext==='function'&&globalAssistantContext()?'':currentBrowserYoutubeUrl();
   const task={intent,scope:aiSourceScope(),tabId:tab?.id||'',generation:tab?.generation,url,thread:window.AssistantWorkspace?.activeId(),cancelled:false};
