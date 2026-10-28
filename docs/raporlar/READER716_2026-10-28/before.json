@@ -1,0 +1,42 @@
+{
+  "base": "0615c6d660408e2367efb96dd90c26c56f518299",
+  "baselineArrowState": {
+    "mode": "reading",
+    "page": 1,
+    "focus": "reading",
+    "radios": [
+      {
+        "mode": "reading",
+        "checked": "true",
+        "tab": 0,
+        "height": 34
+      },
+      {
+        "mode": "source",
+        "checked": "false",
+        "tab": 0,
+        "height": 34
+      },
+      {
+        "mode": "both",
+        "checked": "false",
+        "tab": 0,
+        "height": 34
+      },
+      {
+        "mode": "translation",
+        "checked": "false",
+        "tab": 0,
+        "height": 34
+      }
+    ],
+    "width": 1440,
+    "overflow": false
+  },
+  "bindingDiagnostic": {
+    "phase": "After first keyboard/CSS edit, before correcting the selector-vs-ID guard",
+    "listeners": 0,
+    "clickMode": "reading"
+  },
+  "product": "557d049572908e40cb638dc4f56f444b9a847bdd"
+}
