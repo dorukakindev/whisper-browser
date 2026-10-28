@@ -896,6 +896,9 @@ function registerMediaWorkflows({
           const audioStat = fs.lstatSync(audio);
           if (!audioStat.isFile() || audioStat.isSymbolicLink())
             throw Error("Audio missing.");
+          const duration=require('./wav-duration').wavDuration(audio);
+          if(g.start>=duration||g.end>duration+.001)
+            throw Error('Review group exceeds chapter audio / İnceleme grubu bölüm sesinin dışında.');
           g.status = "ready";
           g.manualApproval = {
             at: new Date().toISOString(),

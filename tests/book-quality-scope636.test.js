@@ -15,5 +15,10 @@ test('An incomplete or unavailable quality report cannot approve an audiobook ch
    assert.equal((await call('book-export-preview',{id,chapters:[0]})).ok,false,'Unreviewed full chapter cannot export');
    const retry=await call('book-prepare',{id,chapter:0,retryGroup:{key:c.groups[0].key,output:path.basename(c.output)}});assert(retry.ok,retry.error);assert.equal(retry.retryWholeChapter,true,'A whole-chapter review marker cannot force only its synthetic group key');assert.deepEqual(retry.request.forceGroups,[]);
   }
+  const imported=await call('book-from-reader',{pdfHash:'range-fixture',numPages:1,pages:[{pageNumber:1,text:'Son cümlenin sesi eksik kalmamalı.'}]});assert(imported.ok,imported.error);const id=imported.project.id;
+  const prep=await call('book-prepare',{id,chapter:0});assert(prep.ok,prep.error);
+  service.capture({id:prep.request.id,path:wav,quality:{groups:[{key:'outside',text:'Eksik son cümle.',audioStart:0,audioEnd:999,status:'review'}]}});
+  const approved=await call('book-approve',{id,chapter:0,key:'outside'});assert.equal(approved.ok,false,'a group beyond the real WAV cannot be manually approved');assert.match(approved.error,/audio|ses/i);
+  const after=(await call('book-open',{id})).project;assert.equal(after.chapters[0].status,'review');assert.equal(after.chapters[0].groups[0].manualApproval,undefined);
  }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
