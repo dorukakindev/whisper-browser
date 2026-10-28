@@ -1,3 +1,4 @@
+- [Rapor729](BROWSER_BUG_REPORT_729.md) — Okuyucuda doğru ses sürümü ve vurgu bütünlüğü
 - [Rapor728](BROWSER_BUG_REPORT_728.md) — Kitap onayını dinlenen ses sürümüne bağlama
 - [Rapor727](BROWSER_BUG_REPORT_727.md) — Kitap inceleme sahipliği ve ortak temada grup kartları
 - [Rapor726](BROWSER_BUG_REPORT_726.md) — MP4 dublaj iz adları ve ölçülmüş seçili aralık senkronu

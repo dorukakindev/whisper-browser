@@ -62,6 +62,12 @@ function fileDigest(file) {
     fs.closeSync(fd);
   }
 }
+async function fileDigestForPlayback(file) {
+  const digest = createHash("sha256");
+  for await (const chunk of fs.createReadStream(file, { highWaterMark: 1024 * 1024 }))
+    digest.update(chunk);
+  return digest.digest("hex");
+}
 function workflowMessage(message, locale) {
   if (locale !== "tr") return message === "PDF text too large." ? "PDF text too large; select smaller page ranges from the reader." : String(message).split(" / ")[0];
   const parts = String(message).split(" / ");
@@ -1300,9 +1306,21 @@ function registerMediaWorkflows({
             path.dirname(file(r.id)),
             path.basename(c.output),
           );
+          if ((r.outputId !== undefined && r.outputId !== path.basename(c.output))
+              || (r.textHash !== undefined && r.textHash !== c.textHash))
+            throw Error("Audio changed; reopen this chapter / Ses değişti; bölümü yeniden açın.");
           const info = fs.lstatSync(target);
           if (!info.isFile() || info.isSymbolicLink())
             throw Error("Invalid chapter audio.");
+          const expectedAudioHash = path.basename(c.output).match(/^\d+-[a-f0-9]{16}-([a-f0-9]{16})\.wav$/)?.[1];
+          if (expectedAudioHash && !(await fileDigestForPlayback(target)).startsWith(expectedAudioHash))
+            throw Error("Chapter audio changed; regenerate it / Bölüm sesi değişti; yeniden üretin.");
+          // Hashing a long chapter yields to the event loop. A completed job or
+          // edited chapter may replace the captured revision while it is read.
+          const current = load(r.id).chapters[r.chapter];
+          if (!current || current.output !== c.output || current.textHash !== c.textHash
+              || hash(current.text) !== c.textHash)
+            throw Error("Audio changed; reopen this chapter / Ses değişti; bölümü yeniden açın.");
           grantMedia(target);
           return {
             ok: true,

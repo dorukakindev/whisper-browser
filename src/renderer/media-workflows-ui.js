@@ -1305,6 +1305,8 @@
             const r = await call("book-listen", {
               id: reviewProjectId,
               chapter: reviewChapter,
+              outputId: c.output,
+              textHash: c.textHash,
             });
             if (
               request !== playRequest ||
@@ -1437,7 +1439,9 @@
     if (request !== readerRequest || !dialog?.open || project?.id !== projectId)
       return;
     const current = next,
-      result = await call("book-listen", { id: projectId, chapter: current });
+      expectedChapter = project.chapters[current],
+      result = await call("book-listen", { id: projectId, chapter: current,
+        outputId: expectedChapter?.output, textHash: expectedChapter?.textHash });
     if (request !== readerRequest || !dialog?.open || project?.id !== projectId)
       return;
     if (
