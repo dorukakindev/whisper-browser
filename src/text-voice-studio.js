@@ -25,6 +25,7 @@ function settings(raw={}){
  return result;
 }
 function registerTextVoiceStudio({app,ipcMain,dialog,owner,guard,config,referenceEntry,busy,reserve,finish,emit,releaseWarm,environment,spawn,grantMedia,claimArtifacts,importReference}){
+ const history=require('./text-voice-history').createTextVoiceHistory(app);
  const selections=new WeakMap();
  function remember(event,item){const values=selections.get(event.sender)||new Map();selections.set(event.sender,values);for(const [id,value]of values)if(value.reference===item.reference&&value.transcript===item.transcript){values.set(id,item);return id;}if(values.size>=64)values.delete(values.keys().next().value);const id='local:'+randomUUID();values.set(id,item);return id;}
  const savedFile=()=>path.join(app.getPath('userData'),'text-studio-settings.json');
@@ -37,6 +38,11 @@ function registerTextVoiceStudio({app,ipcMain,dialog,owner,guard,config,referenc
  ipcMain.handle('dub:textUI',guard(async e=>{e.sender.send('dub:event',{type:'text_studio_open'});return {ok:true};}));
  ipcMain.handle('dub:textVoice',guard(async(e,request={})=>{
   const c=config();
+  if(request.action==='history')return {ok:true,results:history.list()};
+  if(request.action==='open-result'){
+   const result=history.get(request.id);grantMedia(result.path);
+   return {ok:true,result:{...result,url:pathToFileURL(result.path).href}};
+  }
   if(request.action==='config'){
    const v=voice(e),ready=validVoiceOutput(v.reference);let libraryId='';try{const candidate=referenceEntry(path.basename(path.dirname(v.reference)));if(fs.realpathSync(candidate.path)===fs.realpathSync(v.reference))libraryId=candidate.id;}catch{}if(ready)grantMedia(v.reference);return {ok:true,settings:saved(),referenceId:remember(e,v),libraryId,referenceName:path.basename(v.reference),referenceReady:ready,url:ready?pathToFileURL(v.reference).href:'',transcript:v.text.slice(0,8000),engine:c.engine,engineReady:fs.existsSync(path.join(c.engine,'.venv','Scripts','python.exe'))};
   }
@@ -90,6 +96,7 @@ function registerTextVoiceStudio({app,ipcMain,dialog,owner,guard,config,referenc
     if(s.cancelled){finish(s,'cancelled',{kind:'text'});return;}
     if(code!==0||!validVoiceOutput(output)){finish(s,'error',{kind:'text',error:s.spawnError||tail||'Voice output was not completed.'});return;}
     grantMedia(output);finish(s,'done',{kind:'text',path:output,url:pathToFileURL(output).href,name:path.basename(output),sample:options.preview});
+    try{history.record(id);}catch(error){emit(s,'history_warning',{kind:'text',error:error.message});}
    });
    return {ok:true,id};
   }catch(error){finish(s,s.cancelled?'cancelled':'error',{kind:'text',error:error.message});throw error;}
