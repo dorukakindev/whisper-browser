@@ -94,6 +94,15 @@ function joinLineItems(items) {
   return normalizeText(text);
 }
 
+function isFootnoteLine(line, bodyHeight, pageHeight) {
+  return pageHeight > 0 && line.y <= pageHeight*.14 && line.height <= bodyHeight*.78
+    && !isStandalonePageNumber(line.text);
+}
+function numberedFootnote(line, bodyHeight, pageHeight) {
+  return isFootnoteLine(line,bodyHeight,pageHeight)
+    && /^(?:\d{1,3}[.)]?|\[\d{1,3}\]|[*†‡])\s+\S/u.test(normalizeText(line.text));
+}
+
 /** Convert pdf.js getTextContent().items into geometrically ordered lines. */
 function textItemsToLines(items, options = {}) {
   if (!Array.isArray(items)) return [];
@@ -214,6 +223,11 @@ function textItemsToLines(items, options = {}) {
     line.column = spanning ? -1 : boundaries.filter((boundary) => center > boundary).length;
   }
   markTableRegions(lines, pageWidth);
+  // Bottom-of-page notes follow all prose columns, even when their own short
+  // line fits in the left column. Reuse the paragraph classifier below.
+  const bodyHeight=median(lines.filter(line=>!line.tableCell).map(line=>line.height));
+  for(const line of lines)if(!line.tableCell&&isFootnoteLine(line,bodyHeight,pageHeight))line.column=-1;
+
   const spanning = lines.filter((line) => line.column < 0).sort((a, b) => b.y - a.y || a.x - b.x);
   let remaining = lines.filter((line) => line.column >= 0);
   const ordered = [];
@@ -376,8 +390,7 @@ function mergePdfLines(rawLines, options = {}) {
     || pageHeightFrom(options);
   for (const line of lines) {
     if (line.tableCell) { line.kind = 'table'; continue; }
-    if (pageHeight && line.y <= pageHeight * 0.14 && line.height <= medianHeight * 0.78
-        && !isStandalonePageNumber(line.text)) { line.kind = 'footnote'; continue; }
+    if (isFootnoteLine(line,medianHeight,pageHeight)) { line.kind = 'footnote'; continue; }
     if (line.height >= medianHeight * 1.45 && line.text.length <= 200) {
       line.kind = 'heading';
       continue;
@@ -462,13 +475,15 @@ function filterRepeatedMarginalLines(rawPages, options = {}) {
     };
   });
 
+  const bodyHeights=new Map(pages.map(page=>[page,median(page.lines.map(line=>Math.max(.01,finiteNumber(line.height,1))))]));
   const occurrences = new Map();
   for (const page of pages) {
     const seenOnPage = new Set();
     for (const line of page.lines) {
       const text = normalizeText(line?.text);
       const region = marginalRegion(line, page.pageHeight, marginRatio);
-      if (!region || !text || text.length > maxLength || isStandalonePageNumber(text)) continue;
+      if (!region || !text || text.length > maxLength || isStandalonePageNumber(text)
+          || numberedFootnote(line,bodyHeights.get(page),page.pageHeight)) continue;
       const key = `${region}:${marginalSignature(text)}`;
       if (!seenOnPage.has(key)) occurrences.set(key, (occurrences.get(key) || 0) + 1);
       seenOnPage.add(key);
@@ -488,6 +503,7 @@ function filterRepeatedMarginalLines(rawPages, options = {}) {
       const region = marginalRegion(line, page.pageHeight, marginRatio);
       if (!region) return true;
       if (isStandalonePageNumber(text)) return false;
+      if(numberedFootnote(line,bodyHeights.get(page),page.pageHeight))return true;
       return !repeated.has(`${region}:${marginalSignature(text)}`);
     }),
   }));
