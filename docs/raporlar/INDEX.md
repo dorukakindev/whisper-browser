@@ -1,3 +1,4 @@
+- [Rapor715](BROWSER_BUG_REPORT_715.md) — Canlı ses çevirisinde isimleşmiş olumsuzluk ve alıntı emir onarımı
 - [Rapor714](BROWSER_BUG_REPORT_714.md) — Koşullu olumsuzluk, gerçek ses matrisi ve hazır motor
 - [Rapor713](BROWSER_BUG_REPORT_713.md) — Doğrulanmış continuation → klonlama kurtarması ve gerçek GPU karşılaştırması
 - [Rapor712](BROWSER_BUG_REPORT_712.md) — Yerel aralık aktarımı ve canlı video/Whisper/çeviri/ses zinciri

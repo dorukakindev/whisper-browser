@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-2048.md](docs/devir/2026-10-28-2048.md) — Canlı DeepSeek ses çevirisi
 Güncel çalışma: [docs/devir/2026-10-28-2025.md](docs/devir/2026-10-28-2025.md) — Olumsuz koşul ve gerçek sıcak motor
 Güncel çalışma: [docs/devir/2026-10-28-2005.md](docs/devir/2026-10-28-2005.md) — Doğrulanmış klonlama kurtarması
 Güncel çalışma: [docs/devir/2026-10-28-1937.md](docs/devir/2026-10-28-1937.md) — Yerel dublaj aralığı ve gerçek zincir
