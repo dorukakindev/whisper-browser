@@ -32,6 +32,13 @@ app.whenReady().then(async()=>{
  const text='Bir kitap, bize yeni bir pencere açar. Bu kısa örnekte cümlelerin doğal ritmini ve sesin bütünlüğünü dinliyoruz.';
  await run("document.getElementById('tv-text').value="+JSON.stringify(text)+";document.getElementById('tv-text').dispatchEvent(new Event('input'));return true");
  assert.deepEqual(await run("return {steps:document.getElementById('tv-steps').value,chars:document.getElementById('tv-max_chars').value,start:document.getElementById('tv-start').disabled}"),{steps:'17',chars:'400',start:false});
+ assert.equal(await run("return document.getElementById('tv-preset-info').textContent"),'Özel ayarlar');
+ await run("document.querySelector('[data-preset=book]').click();return true");
+ assert.equal(await run("return document.querySelector('[data-preset=book]').getAttribute('aria-pressed')"),'true');
+ await run("document.getElementById('tv-pause').value='1.8';document.getElementById('tv-pause').dispatchEvent(new Event('input'));return true");
+ assert.equal(await run("return document.querySelectorAll('[data-preset][aria-pressed=true]').length"),0);
+ assert.equal(await run("return document.getElementById('tv-preset-info').textContent"),'Özel ayarlar');
+ await run("document.querySelector('[data-preset=balanced]').click();return true");
  await screenshot('studio-tr-dark');
  await run("document.getElementById('tv-pick-reference').click();return true");
  await until(()=>run("return document.getElementById('tv-status').textContent.includes('Referans seçildi')"),'local reference');
@@ -106,7 +113,12 @@ app.whenReady().then(async()=>{
  assert.equal(await run("return document.getElementById('tv-text').value"),text);
  const metrics=await run("const d=document.getElementById('textVoiceStudio'),r=d.getBoundingClientRect();return {width:innerWidth,left:r.left,right:r.right,overflow:d.scrollWidth>d.clientWidth+1,title:document.getElementById('textVoiceTitle').textContent,startHeight:document.getElementById('tv-start').getBoundingClientRect().height,editorColor:getComputedStyle(document.getElementById('tv-text')).backgroundColor}");
  assert.equal(metrics.overflow,false);assert(metrics.left>=0&&metrics.right<=metrics.width+1);assert(metrics.startHeight>=40);assert.match(metrics.title,/words/);
- fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({complete:true,realGeneration:real,sharedReferences:shared,metrics,events},null,2));
+ win.setMinimumSize(360,500);win.setContentSize(600,950);win.webContents.setZoomFactor(1.25);
+ await run("UiLocale.set('tr',false);applyUiTheme('dark');document.querySelector('.text-voice-body').scrollTop=0;return true");
+ await screenshot('studio-tr-narrow-125');
+ const narrow=await run("const d=document.getElementById('textVoiceStudio'),b=document.querySelector('.text-voice-body').getBoundingClientRect(),footer=document.querySelector('.text-voice-footer').getBoundingClientRect();return {width:innerWidth,overflow:d.scrollWidth>d.clientWidth+1,bodyHeight:b.height,footerBottom:footer.bottom,height:innerHeight,buttons:['start','preview','stop'].map(id=>{const r=document.getElementById('tv-'+id).getBoundingClientRect();return {left:r.left,right:r.right,height:r.height,minHeight:getComputedStyle(document.getElementById('tv-'+id)).minHeight,zoom:getComputedStyle(document.getElementById('tv-'+id)).zoom}})}");
+ assert(narrow.width<=480,JSON.stringify(narrow));assert.equal(narrow.overflow,false);assert(narrow.bodyHeight>=200,JSON.stringify(narrow));assert(narrow.footerBottom<=narrow.height);for(const button of narrow.buttons){assert(button.left>=0&&button.right<=narrow.width);assert(button.height>=40,JSON.stringify(narrow));}
+ fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({complete:true,realGeneration:real,sharedReferences:shared,metrics,narrow,events},null,2));
  console.log(JSON.stringify({out,complete:true,realGeneration:real,metrics}));app.exit(0);
 }).catch(async error=>{console.error(error.stack);try{await screenshot('failure');}catch{}app.exit(1);});
 setTimeout(()=>app.exit(2),real?300000:60000).unref();
