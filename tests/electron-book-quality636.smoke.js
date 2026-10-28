@@ -43,5 +43,16 @@ app.whenReady().then(async()=>{
  const approved=await run(`return api.mediaWorkflows({action:'book-open',id:${JSON.stringify(state.id)}})`);
  assert.equal(approved.project.chapters[0].groups[0].status,'ready');
  assert(approved.project.chapters[0].groups[0].manualApproval.audioHash);
- console.log(JSON.stringify({ok:true,out,partialCannotExport:true,wholeChapterReview:true,reviewPagination:{total:101,mounted:25,lastAccessible:true},modelAudio:false,manualApprovalAndFocus:true}));app.exit(0);
+ const listen=await run(`return api.mediaWorkflows({action:'book-listen',id:${JSON.stringify(state.id)},chapter:0})`);assert(listen.ok,listen.error);
+ const originalWav=fs.readFileSync(listen.path),modified=Buffer.from(originalWav);modified[modified.length-1]^=1;
+ try {
+  fs.writeFileSync(listen.path,modified);
+  await click('.mw-review-group .mw-review-actions button:first-child');
+  await until(()=>run(`return document.querySelector('.mw-status').textContent.includes('Bölüm sesi değişti')`),'changed audio error');
+  assert.equal(await run(`return document.querySelector('.mw-review audio').getAttribute('src')`),null,'Changed audio is not loaded by the review player');
+  const stale=await run(`return api.mediaWorkflows({action:'book-listen',id:${JSON.stringify(state.id)},chapter:0,outputId:'old.wav',textHash:'old'})`);assert.equal(stale.ok,false);
+ } finally { fs.writeFileSync(listen.path,originalWav); }
+ assert((await run(`return api.mediaWorkflows({action:'book-listen',id:${JSON.stringify(state.id)},chapter:0})`)).ok,'Valid restored audio remains playable');
+
+ console.log(JSON.stringify({ok:true,out,partialCannotExport:true,wholeChapterReview:true,reviewPagination:{total:101,mounted:25,lastAccessible:true},modelAudio:false,manualApprovalAndFocus:true,changedAudioNotLoaded:true}));app.exit(0);
 }).catch(e=>{console.error(e.stack);app.exit(1);});setTimeout(()=>app.exit(2),45000).unref();
