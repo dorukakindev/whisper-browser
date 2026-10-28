@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "provider": "controlled fixture, standard tier",
+  "providerCalls": 24,
+  "appliedCards": 6,
+  "staleCardRefused": true,
+  "productionStarted": false,
+  "limits": "Actual Windows UI/settings/approval bridge; no live model, GPU or paid API."
+}
