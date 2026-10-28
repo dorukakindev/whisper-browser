@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-1629.md](docs/devir/2026-10-28-1629.md) — Toplu dublaj tekrar üretimi
 Güncel çalışma: [docs/devir/2026-10-28-1613.md](docs/devir/2026-10-28-1613.md) — Ses yüksekliği ölçümü
 Güncel çalışma: [docs/devir/2026-10-28-1403.md](docs/devir/2026-10-28-1403.md) — Gerçek video zinciri ve startup paneli
 Güncel çalışma: [docs/devir/2026-10-28-1333.md](docs/devir/2026-10-28-1333.md) — Spotify eşleşmesini yerinde değiştir
