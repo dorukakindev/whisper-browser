@@ -1,3 +1,4 @@
+- [Rapor676](BROWSER_BUG_REPORT_676.md) — Luna ilhamıyla temalı müzik transportu ve gerçek Windows görünüm kabulü
 - [Rapor675](BROWSER_BUG_REPORT_675.md) — Güncel Luna beta karşılaştırması: karışık kuyruk listeleri ve Spotify işlemleri
 - [Rapor674](BROWSER_BUG_REPORT_674.md) — Kalıcı ölçüm/etiket/karşılaştırma sonuçları ve Spotify liste tasarımı
 - [Rapor673](BROWSER_BUG_REPORT_673.md) — Resmi olmayan/bozuk ana sayfa kayıtlarını gizleme ve YouTube kalite yedeği
