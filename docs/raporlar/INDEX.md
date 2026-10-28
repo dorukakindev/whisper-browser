@@ -1,3 +1,4 @@
+- [Rapor703](BROWSER_BUG_REPORT_703.md) — Dublajda beklenen metin ve ASR kanıtı
 - [Rapor702](BROWSER_BUG_REPORT_702.md) — İşaretli dublaj gruplarını toplu yeniden üret
 - [Rapor701](BROWSER_BUG_REPORT_701.md) — Gerçek ses yüksekliği ve geçiş ölçümü
 - [Rapor700](BROWSER_BUG_REPORT_700.md) — Gerçek Whisper/çeviri/GPU artifact zinciri ve startup örtüsü

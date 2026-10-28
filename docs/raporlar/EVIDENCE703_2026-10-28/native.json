@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "events": "controlled real renderer/preload",
+  "actualGpu": false,
+  "recognized": "Kötüphane bugün açık. Birlikte bir kitap okuyabiliriz.",
+  "similarity": 0.8571,
+  "layouts": [
+    "tr-dark-800-125",
+    "en-light-1100-100"
+  ],
+  "htmlInjection": "textContent only; no img element",
+  "oldEvidence": "hidden and cleared"
+}

@@ -1,0 +1,22 @@
+{
+  "actualCachedSmallCPU": true,
+  "result": {
+    "status": "passed",
+    "recognizedText": "Kütüphane bugün açık. Birlikte bir kitap okuyabiliriz.",
+    "similarity": 1.0,
+    "omission_spans": [],
+    "insertion_spans": [],
+    "missing_numbers": [],
+    "added_numbers": [],
+    "percentage_mismatch": false,
+    "semantic_mismatch": false,
+    "spoken_number_mismatch": false,
+    "lost_negation": false,
+    "added_negation": false,
+    "unit_mismatch": false,
+    "repetition": false,
+    "sign_mismatch": false,
+    "missing_names": [],
+    "review": false
+  }
+}
