@@ -1,0 +1,62 @@
+{
+  "expected": "Bugün birlikte bir kitabın ilk bölümünü okuyacağız. Cümlelerin anlamını koruyarak doğal bir sesle ilerlemek istiyoruz. Uzun bir düşünceyi sırf ekrandaki satır bitti diye yarıda kesmemeliyiz. İkinci bölümde ise farklı bir örneğe bakacağız. Son cümlenin tamamını duymak ve konuşmanın ritmini korumak bizim için önemli.",
+  "actual": "Bugün birlikte bir kitabın ilk bölümünü okuyacağız. Cümlelerin anlamını koruyarak doğal bir sesle ilerlemek istiyoruz. Uzun bir düşünceyi sırf ekrandaki satır bitti diye yarıda kesmemeliyiz. İkinci bölümde ise, farklı bir örneğe bakacağız. Son cümlenin tamamını duymak ve konuşmanın ritmini korumak bizim için önemli.",
+  "check": {
+    "similarity": 1.0,
+    "omission_spans": [],
+    "insertion_spans": [],
+    "missing_numbers": [],
+    "added_numbers": [],
+    "percentage_mismatch": false,
+    "semantic_mismatch": false,
+    "spoken_number_mismatch": false,
+    "lost_negation": false,
+    "added_negation": false,
+    "unit_mismatch": false,
+    "repetition": false,
+    "sign_mismatch": false,
+    "missing_names": [],
+    "review": false
+  },
+  "seconds": 3.25,
+  "model": "small",
+  "device": "cpu",
+  "reference": "Windows System.Speech synthetic test voice; not personal",
+  "production": "VoxCPM2 openbmb/nano-vLLM 15 steps on RTX4070SUPER12GB",
+  "source": "Two original Turkish paragraphs, 2 flowing groups; narration mode",
+  "qualityLimit": "ASR matching is not subjective voice or emotion assessment",
+  "firstPhases": {
+    "model_load_seconds": 21.781,
+    "reference_seconds": 5.329,
+    "synthesis_seconds": 32.39,
+    "placement_seconds": 0.016,
+    "normalization_seconds": 0.344,
+    "file_write_seconds": 0.0,
+    "wall_seconds": 47.953
+  },
+  "metrics": {
+    "load_seconds": 21.781000000002678,
+    "reference_seconds": 5.3289999999979045,
+    "generation_seconds": 19.327999999994063,
+    "attempts": 2,
+    "retries": 0,
+    "cached_groups": 0,
+    "generated_groups": 2,
+    "steps": 15,
+    "concurrency": 2
+  },
+  "cachedMetrics": {
+    "attempts": 0,
+    "retries": 0,
+    "cached_groups": 2,
+    "generated_groups": 0,
+    "steps": 15,
+    "concurrency": 2
+  },
+  "cachedPhases": {
+    "placement_seconds": 0.0,
+    "normalization_seconds": 0.328,
+    "file_write_seconds": 0.016,
+    "wall_seconds": 0.36
+  }
+}

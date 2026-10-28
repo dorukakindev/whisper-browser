@@ -1,3 +1,4 @@
+- [Rapor685](BROWSER_BUG_REPORT_685.md) — Gerçek VoxCPM2 GPU, bağımsız ASR ve önbellek kabulü
 - [Rapor684](BROWSER_BUG_REPORT_684.md) — Ses parça sayısı bütünlüğü ve kontrollü konuşma çevirisi
 - [Rapor683](BROWSER_BUG_REPORT_683.md) — Sessiz çeviri sahipliği ve kontrollü dublaj kapıları
 - [Rapor682](BROWSER_BUG_REPORT_682.md) — Ürün100 başlangıcı ve asistan eski kaynak sonucu reddi
