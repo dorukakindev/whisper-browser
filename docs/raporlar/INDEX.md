@@ -1,3 +1,4 @@
+- [Rapor693](BROWSER_BUG_REPORT_693.md) — Çalışan referans kimliği ve gerçek WAV kalite matrisi
 - [Rapor692](BROWSER_BUG_REPORT_692.md) — Hazır altyazı aralığı ve gerçek sesli adaptif oynatma
 - [Rapor691](BROWSER_BUG_REPORT_691.md) — Güncel müzik eşleşmesi ve kalıcı sonuç kabulü
 - [Rapor690](BROWSER_BUG_REPORT_690.md) — Tekrarlanan pasaj, manuel takip ve kontrollü araç kabulü

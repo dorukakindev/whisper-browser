@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-0745.md](docs/devir/2026-10-28-0745.md) — Ürün100 referans kalitesi ve kimliği
 Güncel çalışma: [docs/devir/2026-10-28-0730.md](docs/devir/2026-10-28-0730.md) — Ürün100 aralık ve gerçek ses senkronu
 Güncel çalışma: [docs/devir/2026-10-28-0715.md](docs/devir/2026-10-28-0715.md) — Ürün100 müzik kaynak ve geçmiş
 Güncel çalışma: [docs/devir/2026-10-28-0707.md](docs/devir/2026-10-28-0707.md) — Ürün100 pasajlar ve okuma takibi
