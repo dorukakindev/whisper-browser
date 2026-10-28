@@ -1,3 +1,4 @@
+- [Rapor681](BROWSER_BUG_REPORT_681.md) — Web tekilleştirme, asistan tam aralık ve gerçek müzik/PDF/Whisper kabulü
 - [Rapor680](BROWSER_BUG_REPORT_680.md) — Web video kartlarında 16:9 kapak, yüksek kalite yedekleri ve canlı doğrulama
 - [Rapor679](BROWSER_BUG_REPORT_679.md) — Analiz geçmişi, toplu müzik kuyruğu, hizalı grafik ve asistan listesi
 - [Rapor678](BROWSER_BUG_REPORT_678.md) — Dolu müzik/asistan kabulü, okuma ayarları ve native video doğrulaması
