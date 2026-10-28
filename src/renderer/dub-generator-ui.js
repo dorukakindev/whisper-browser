@@ -137,7 +137,14 @@
   }
   const status = text => { el('dubGeneratorStatus').textContent = text; };
   const basename = name => String(name || '').split(/[\\/]/).pop();
+  const flaggedKeys = () => [...results.values()].filter(row => row.status === 'failed' || row.status === 'review').map(row => row.key);
+  function retryLabel() {
+    const count=flaggedKeys().length,en=window.UiLocale?.get?.()==='en',button=el('dubRetryFailed');
+    button.textContent=count ? (en ? `Regenerate flagged groups · ${count}` : `İşaretli grupları yeniden üret · ${count}`) : t('Eksik parçaları tamamla');
+    button.title=count ? (en ? 'Only flagged groups are regenerated. Ready groups stay cached; the previous generation settings are used.' : 'Yalnız işaretli gruplar yeniden üretilir. Hazır gruplar önbellekte korunur; önceki üretim ayarları kullanılır.') : (en ? 'Resume missing audio using the previous generation settings. Completed groups stay cached.' : 'Önceki üretim ayarlarıyla eksik sesleri tamamlar. Hazır gruplar önbellekte korunur.');
+  }
   function controls() {
+    retryLabel();
     const voice = current?.voice || cfg;
     el('dubEngineName').textContent = voice?.engine || '';
     el('dubVoiceName').textContent = basename(voice?.reference || '');
@@ -448,7 +455,7 @@
     return {ok:!!r?.ok,id:pending.id};
   }
   el('dubGeneratorStart').addEventListener('click', () => start());
-  el('dubRetryFailed').addEventListener('click', () => start(true));
+  el('dubRetryFailed').addEventListener('click', () => start(true, flaggedKeys()));
   el('dubRegenerateGroup').addEventListener('click', () => { const key = el('dubQualityGroup').value; if (key) void start(true, [key]); });
   el('dubQualityGroup').addEventListener('change',()=>{qualityInfo();const key=el('dubQualityGroup').value,index=plan?.groups.findIndex(g=>g.key===key);if(index>=0){el('dubPlanGroup').value=String(index);showGroup();for(let node=el('dubPlanText');node;node=node.parentElement)if(node.tagName==='DETAILS')node.open=true;el('dubPlanText').focus();el('dubPlanText').scrollIntoView?.({block:'center'});}});
   const listenGroup=document.createElement('button');listenGroup.type='button';listenGroup.className='btn btn-secondary btn-sm';listenGroup.id='dubListenCurrent';listenGroup.textContent=t('Bu grubu dinle');el('dubListenActions').prepend(listenGroup);

@@ -36,6 +36,19 @@ app.whenReady().then(async()=>{let win;await until(()=>{win=BrowserWindow.getAll
  await run('for(let n=document.getElementById("dubListenPrevious");n;n=n.parentElement)if(n.tagName==="DETAILS")n.open=true;document.getElementById("dubListenPrevious").scrollIntoView({block:"center"});return true');await wait(120);
  assert(await run('const n=document.getElementById("dubListenPrevious");return !n.hidden&&!n.disabled&&n.getBoundingClientRect().width>50'));fs.writeFileSync(path.join(out,'previous-group-tr.png'),(await win.webContents.capturePage()).toPNG());
  win.setContentSize(900,800);win.webContents.setZoomFactor(1.25);await run('window.UiLocale.set("en",false);applyUiTheme("light");document.getElementById("dubListenPrevious").scrollIntoView({block:"center"});return true');await wait(150);assert(await run('return document.getElementById("dubListenPrevious").textContent.includes("previous")'));fs.writeFileSync(path.join(out,'previous-group-en-125.png'),(await win.webContents.capturePage()).toPNG());
+ const retryQuality={groups:[{group:1,key:'1',status:'review'},{group:2,key:'2',status:'failed'},{group:3,key:'3',status:'ready'}]};
+ await run('document.getElementById("dubGeneratorStart").click();return true');await wait(100);
+ win.webContents.send('dub:event',{id:request.id,type:'done',name:'after.wav',url:'file:///after-fixture.wav',quality:retryQuality});await wait(100);
+ for(const [lang,theme,width,zoom]of [['tr','dark',800,1.25],['en','light',1000,1]]){
+   win.setContentSize(width,850);win.webContents.setZoomFactor(zoom);
+   await run(`window.UiLocale.set('${lang}',false);applyUiTheme('${theme}');const n=document.getElementById('dubRetryFailed');for(let p=n;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;n.scrollIntoView({block:'center'});return true`);await wait(150);
+   const state=await run(`const n=document.getElementById('dubRetryFailed'),r=n.getBoundingClientRect(),d=document.getElementById('dubGeneratorDialog').getBoundingClientRect();return {text:n.textContent,title:n.title,left:r.left,right:r.right,dialogLeft:d.left,dialogRight:d.right,enabled:!n.disabled}`);
+   assert.match(state.text,lang==='tr'?/İşaretli grupları yeniden üret.*2/:/Regenerate flagged groups.*2/);assert(state.enabled&&state.left>=state.dialogLeft&&state.right<=state.dialogRight);
+   fs.writeFileSync(path.join(out,'retry-flagged-'+lang+'.png'),(await win.webContents.capturePage()).toPNG());
+ }
+ const beforeRetry=request.id;await run('document.getElementById("dubRetryFailed").click();return true');await until(()=>request.id!==beforeRetry,'flagged retry');assert.deepEqual(request.forceGroups,['1','2']);
+ win.webContents.send('dub:event',{id:request.id,type:'done',name:'after.wav',url:'file:///after-fixture.wav',quality:{groups:[{group:1,key:'1',status:'ready'},{group:2,key:'2',status:'ready'},{group:3,key:'3',status:'ready'}]}});await wait(100);
+ assert.equal(await run('return document.getElementById("dubRetryFailed").textContent'),'Resume missing pieces');
  const beforeFailure=request.id;await run('document.getElementById("dubGeneratorStart").click();return true');await until(()=>request.id!==beforeFailure,'new attempt');win.webContents.send('dub:event',{id:request.id,type:'error',error:'Controlled attempt failed; previous audio preserved'});await until(()=>run('return document.getElementById("dubGeneratedName").textContent==="after.wav"'),'previous output restored');
  assert(await run('return document.getElementById("dubGeneratorStatus").textContent.includes("previous audio is still available")'));
  await run('document.getElementById("dubGeneratorStatus").scrollIntoView({block:"center"});return true');await wait(150);fs.writeFileSync(path.join(out,'failure-keeps-previous.png'),(await win.webContents.capturePage()).toPNG());

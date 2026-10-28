@@ -123,7 +123,9 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     child.emit('close',1);
     assert.equal((await call('dub:start',{id:'reviewed',srt,dubText:{sourceHash:fixtureHash,edits:{'1':'Kısa metin.'}}})).ok,true,'failed job must be retryable with its unchanged input snapshot');
     child.emit('close',1);
-    assert.equal((await call('dub:start',{id:'many-video-forced',srt,forceGroups:['1','2']})).ok,false);
+    assert.equal((await call('dub:start',{id:'many-video-forced',srt,forceGroups:['1','2']})).ok,true);
+    assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--force-groups')+1],'1;2');child.emit('close',1);
+    assert.equal((await call('dub:start',{id:'excessive-video-forced',srt,forceGroups:Array.from({length:5001},(_,i)=>String(i))})).ok,false);
     assert.equal((await call('dub:start',{id:'many-book-forced',srt,narration:true,forceGroups:['1','2']})).ok,true,'a whole book chapter can contain more than one group');
     assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--force-groups')+1],'1;2');
     assert(calls.at(-1).args.includes('--narration'));child.emit('close',1);
@@ -134,6 +136,10 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     const forceArgs=calls.at(-1).args,forceFile=forceArgs[forceArgs.indexOf('--force-groups-file')+1];
     assert(forceArgs.includes('--force-groups-file'));assert(!forceArgs.includes('--force-groups'));
     assert.deepEqual(JSON.parse(fs.readFileSync(forceFile,'utf8')),largeSelection);child.emit('close',1);
+    assert.equal((await call('dub:start',{id:'large-video-forced',srt,forceGroups:largeSelection})).ok,true);
+    const videoForceArgs=calls.at(-1).args,videoForceFile=videoForceArgs[videoForceArgs.indexOf('--force-groups-file')+1];
+    assert(videoForceArgs.includes('--force-groups-file'));assert(!videoForceArgs.includes('--force-groups'));
+    assert.deepEqual(JSON.parse(fs.readFileSync(videoForceFile,'utf8')),largeSelection);child.emit('close',1);
     assert.equal((await call('dub:start',{id:'all-video-forced',srt,forceAll:true})).ok,false);
     assert.equal((await call('dub:start',{id:'all-mixed-forced',srt,narration:true,forceAll:true,forceGroups:['1']})).ok,false);
     assert.equal((await call('dub:start',{id:'all-book-forced',srt,narration:true,forceAll:true})).ok,true);

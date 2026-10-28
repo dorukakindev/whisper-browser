@@ -141,8 +141,16 @@ const tick = () => new Promise(setImmediate);
   onEvent({id:request.id,type:'done',name:'review.wav',url:'review.wav',quality:{groups:[{group:1,key:'1,2',status:'review'}]}});await tick();
   assert.match(el('dubGeneratorStatus').textContent,/işaretli parçaları/);
   el('dubProfile').value='fast';el('dubProfile').dispatchEvent(new w.Event('change'));assert.match(el('dubReadySettings').textContent,/10 adım/);
-  el('dubRetryFailed').click();await tick();assert.deepEqual(Array.from(request.forceGroups),[]);
+  assert.match(el('dubRetryFailed').textContent,/İşaretli grupları yeniden üret.*1/);
+  el('dubRetryFailed').click();await tick();assert.deepEqual(Array.from(request.forceGroups),['1,2']);
   assert.equal(request.profile,'quality');assert.match(el('dubReadySettings').textContent,/15 adım/,'A retry summary follows submitted settings rather than newly edited controls');
+  onEvent({id:request.id,type:'done',name:'mixed.wav',url:'mixed.wav',quality:{groups:[
+    {group:1,key:'1,2',status:'ready'}, {group:2,key:'3',status:'failed'}, {group:3,key:'4,5',status:'review'}]}});await tick();
+  assert.match(el('dubRetryFailed').textContent,/İşaretli grupları yeniden üret.*2/);
+  el('dubRetryFailed').click();await tick();assert.deepEqual(Array.from(request.forceGroups),['3','4,5'],'Ready groups are not forced');
+  onEvent({id:request.id,type:'done',name:'ready.wav',url:'ready.wav',quality:{groups:[{group:1,key:'1,2',status:'ready'}]}});await tick();
+  assert.match(el('dubRetryFailed').textContent,/Eksik parçaları tamamla/);
+  el('dubRetryFailed').click();await tick();assert.deepEqual(Array.from(request.forceGroups),[],'Missing-only retry keeps completed cache');
   attached=false;
   onEvent({id:request.id,type:'error',error:'Ses dosyası kurtarıldı; motor hata verdi. Kullanmadan önce dinleyin.',
     recoverablePath:'recovered.wav',recoverableUrl:'file:///recovered.wav',name:'recovered.wav'});await tick();

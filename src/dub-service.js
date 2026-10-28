@@ -424,10 +424,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const verification = request.verification ?? c.verification;
       if (!['fast','balanced','detailed'].includes(verification)) throw new Error('Invalid verification profile.');
       const forceGroups = request.forceGroups ?? [];
-      // Video UI forces one group; a book's explicit Regenerate chapter action forces
-      // its bounded chapter plan. Keep Windows command-line size bounded as well.
-      const forceLimit=request.narration===true?5000:1;
-      if (!Array.isArray(forceGroups) || forceGroups.length > forceLimit || forceGroups.some(key => typeof key !== 'string' || key.length > 2000 || !/^\d+(?:,\d+)*$/.test(key)) || forceGroups.join(';').length>(request.narration===true?100000:12000)) throw new Error('Invalid group key.');
+      // Both video review and book chapters can retry a bounded selection.
+      // Long selections use the existing file transport below, not Windows argv.
+      const forceLimit=5000;
+      if (!Array.isArray(forceGroups) || forceGroups.length > forceLimit || forceGroups.some(key => typeof key !== 'string' || key.length > 2000 || !/^\d+(?:,\d+)*$/.test(key)) || forceGroups.join(';').length>100000) throw new Error('Invalid group key.');
       const forceAll=request.forceAll===true;
       if ((request.forceAll!==undefined&&typeof request.forceAll!=='boolean') || (forceAll&&(request.narration!==true||forceGroups.length))) throw new Error('Invalid chapter regeneration scope.');
       if(request.keepEngine!==undefined&&typeof request.keepEngine!=='boolean')throw Error('Invalid engine keep-ready option.');
