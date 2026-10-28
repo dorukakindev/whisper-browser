@@ -1227,6 +1227,7 @@
       const audio = el("audio");
       audio.controls = true;
       audio.preload = "metadata";
+      audio.setAttribute("aria-label", t("Review group audio", "İnceleme grubu sesi"));
       review.append(audio);
       let end = null,
         playRequest = 0;
@@ -1267,11 +1268,24 @@
       for (const g of reviewGroups.slice(offset,offset+pageSize)) {
         const row = el("div", "mw-review-group");
         row.dataset.groupKey=String(g.key);
-        row.append(
-          el("p", "", g.text || t("Missing speech", "Eksik konuşma")),
-          qualityStatus(g.status),
-        );
-        row.append(
+        const groupHeading = el("div", "mw-review-heading");
+        const groupNumber = c.groups.indexOf(g) + 1;
+        const stamp = seconds => {
+          const milliseconds = Math.max(0, Math.round(seconds * 1000));
+          const value = Math.floor(milliseconds / 1000);
+          const fraction = g.end - g.start < 1 ? `.${String(milliseconds % 1000).padStart(3, "0")}` : "";
+          return `${Math.floor(value / 60)}:${String(value % 60).padStart(2, "0")}${fraction}`;
+        };
+        const interval = Number.isFinite(g.start) && Number.isFinite(g.end) && g.end > g.start
+          ? `${stamp(g.start)} – ${stamp(g.end)}` : t("Audio unavailable", "Ses hazır değil");
+        groupHeading.append(el("strong", "", t(`Group ${groupNumber}`, `Grup ${groupNumber}`)),
+          el("span", "mw-review-time", interval), qualityStatus(g.status));
+        row.setAttribute("role", "group");
+        row.setAttribute("aria-label", `${t(`Group ${groupNumber}`, `Grup ${groupNumber}`)} · ${interval}`);
+        row.append(groupHeading, el("p", "", g.text || t("Missing speech", "Eksik konuşma")));
+        const groupActions = el("div", "mw-review-actions");
+        row.append(groupActions);
+        groupActions.append(
           button(t("Listen to group", "Grubu dinle"), async () => {
             const request = ++playRequest;
             audio.pause();
@@ -1358,7 +1372,12 @@
             async () => {
               const approvalProject = project.id,
                 approvalChapter = chapter,
-                approvalOutput = c.output;
+                approvalOutput = c.output,
+                approvalOwner = project,
+                approvalDialog = dialog;
+              const approvalIsCurrent = () => dialog === approvalDialog && dialog?.open
+                && row.isConnected && project === approvalOwner
+                && chapter === approvalChapter && project.chapters[approvalChapter]?.output === approvalOutput;
               if (
                 await ask({
                   title: t("Approve this audio?", "Bu ses onaylansın mı?"),
@@ -1369,21 +1388,18 @@
                   confirmLabel: t("Approve", "Onayla"),
                 })
               ) {
-                if (
-                  !dialog?.open ||
-                  project?.id !== approvalProject ||
-                  chapter !== approvalChapter ||
-                  project.chapters[approvalChapter]?.output !== approvalOutput
-                )
-                  return;
-                project = (
-                  await call("book-approve", {
-                    id: approvalProject,
-                    chapter: approvalChapter,
-                    key: g.key,
-                  })
-                ).project;
+                if (!approvalIsCurrent()) return;
+                const approved = await call("book-approve", {
+                  id: approvalProject,
+                  chapter: approvalChapter,
+                  key: g.key,
+                });
+                if (!approvalIsCurrent()) return;
+                project = approved.project;
                 await books();
+                if (dialog === approvalDialog && dialog?.open && project?.id === approvalProject
+                    && chapter === approvalChapter)
+                  (dialog.querySelector(".mw-review-group button") || dialog.querySelector("textarea[data-chapter]"))?.focus();
               }
             },
           ),

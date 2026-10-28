@@ -24,10 +24,24 @@ app.whenReady().then(async()=>{
  assert.equal(await run(`return document.querySelectorAll('.mw-review-group').length`),25,'Only the current review page is mounted');
  await run(`const input=document.querySelector('.mw-review-page input');input.value='5';input.dispatchEvent(new Event('change'));return true`);
  assert.equal(await run(`return document.querySelectorAll('.mw-review-group').length`),1);assert(await run(`return document.querySelector('.mw-review-group').textContent.includes('101')&&document.querySelector('.mw-review-pager button:last-child').disabled`),'Last review group remains accessible');
+ assert.equal(await run(`return document.querySelector('.mw-review-time').textContent`),'0:01.000 – 0:01.010','A short group must not display identical rounded endpoints');
  await run(`document.querySelector('.mw-review-pager').scrollIntoView({block:'center',behavior:'instant'});return true`);await wait(100);fs.writeFileSync(path.join(out,'review-page-en.png'),(await win.webContents.capturePage()).toPNG());
  win.setContentSize(800,760);await run(`UiLocale.set('tr',false);applyUiTheme('light');await MediaWorkflowsUI.openProject(${JSON.stringify(state.id)});return true`);
  await until(()=>run(`return document.querySelector('.mw-review-pager')?.textContent.includes('İnceleme sayfası')`),'Turkish review page');
  assert(await run(`const p=document.querySelector('.mw-review-pager'),input=p.querySelector('input'),b=p.getBoundingClientRect();return input.value==='5'&&p.textContent.includes('İnceleme sayfası')&&b.width>0&&b.right<=innerWidth+1`),'Page position and Turkish controls survive a narrow rerender');
  await run(`document.querySelector('.mw-review-pager').scrollIntoView({block:'center',behavior:'instant'});return true`);await wait(100);fs.writeFileSync(path.join(out,'review-page-tr-light.png'),(await win.webContents.capturePage()).toPNG());
- console.log(JSON.stringify({ok:true,out,partialCannotExport:true,wholeChapterReview:true,reviewPagination:{total:101,mounted:25,lastAccessible:true},modelAudio:false}));app.exit(0);
+ await run(`const input=document.querySelector('.mw-review-page input');input.value='1';input.dispatchEvent(new Event('change'));return true`);
+ async function click(selector){
+  const point=await run(`const n=document.querySelector(${JSON.stringify(selector)});n.scrollIntoView({block:'center',behavior:'instant'});const b=n.getBoundingClientRect();return {x:Math.round(b.x+b.width/2),y:Math.round(b.y+b.height/2)}`);
+  for(const type of ['mouseDown','mouseUp'])win.webContents.sendInputEvent({...point,type,button:'left',clickCount:1});
+ }
+ await click('.mw-review-group .mw-review-actions button:last-child');
+ await until(()=>run(`return !!document.querySelector('.mw-confirm[open]')`),'approval confirmation');
+ await click('.mw-confirm button[type="submit"]');
+ await until(()=>run(`return document.querySelector('.mw-review-group')?.dataset.groupKey==='2'`),'approved group removed');
+ assert(await run(`return document.activeElement===document.querySelector('.mw-review-group button')`),'Focus follows the next review group');
+ const approved=await run(`return api.mediaWorkflows({action:'book-open',id:${JSON.stringify(state.id)}})`);
+ assert.equal(approved.project.chapters[0].groups[0].status,'ready');
+ assert(approved.project.chapters[0].groups[0].manualApproval.audioHash);
+ console.log(JSON.stringify({ok:true,out,partialCannotExport:true,wholeChapterReview:true,reviewPagination:{total:101,mounted:25,lastAccessible:true},modelAudio:false,manualApprovalAndFocus:true}));app.exit(0);
 }).catch(e=>{console.error(e.stack);app.exit(1);});setTimeout(()=>app.exit(2),45000).unref();

@@ -1,3 +1,4 @@
+- [Rapor727](BROWSER_BUG_REPORT_727.md) — Kitap inceleme sahipliği ve ortak temada grup kartları
 - [Rapor726](BROWSER_BUG_REPORT_726.md) — MP4 dublaj iz adları ve ölçülmüş seçili aralık senkronu
 - [Rapor725](BROWSER_BUG_REPORT_725.md) — Dublajda ana ses kontrolü ve dört katman
 - [Rapor724](BROWSER_BUG_REPORT_724.md) — Son metin üretimlerini yeniden açma ve dar sonuç kartı

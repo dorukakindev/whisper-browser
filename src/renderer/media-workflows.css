@@ -738,3 +738,24 @@ dialog.mw-dialog::backdrop {
 @media(max-width:800px){.mw-reference-row{grid-template-columns:1fr}.mw-production-fields{grid-template-columns:1fr}.mw-reference-row>button{justify-self:start}}
 
 .mw-voice-layout select{box-sizing:border-box;padding:10px 12px;border:1px solid var(--border-strong);border-radius:10px;background:var(--bg-0);color:var(--text);font:inherit;font-size:13px}
+
+/* Review is a focused queue: identity, passage, then actions in stable order. */
+.mw-review-rows { display: grid; gap: 12px; }
+.mw-review-group {
+  display: block; padding: 16px; border: 1px solid var(--border);
+  border-radius: 14px; background: var(--bg-2); min-width: 0;
+}
+.mw-review-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 10px; }
+.mw-review-heading strong { font-size: 13px; color: var(--text); }
+.mw-review-time { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.mw-review-heading small { margin-left: auto; border: 1px solid var(--border); border-radius: 999px; padding: 3px 8px; }
+.mw-review-group p { margin: 0 0 14px; overflow-wrap: anywhere; text-wrap: pretty; }
+.mw-review-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.mw-review-actions .mh-action { min-height: 40px; }
+.mw-review-actions .mh-action:first-child { border-color: var(--accent); }
+.mw-review { max-height: 440px; scrollbar-gutter: stable; }
+@media (max-width: 850px) {
+  .mw-review { max-height: none; }
+  .mw-review-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mw-review-actions .mh-action { white-space: normal; line-height: 1.4; }
+}
