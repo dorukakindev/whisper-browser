@@ -219,3 +219,10 @@ test('workflow proposal refuses to imply a before value for an unreadable contro
  const send=h.sender.send;h.sender.send=(channel,value)=>{send(channel,value);if(value.type==='action')queueMicrotask(()=>h.call('agentResult',{callId:value.callId,result:{status:'completed',values:{model:'large-v3'}}}));};
  try{await h.call('agentRun',{requestId:'missing-control',question:'Change beam',owner:h.owner});assert.equal(h.events.filter(e=>e.value.type==='proposal').length,0);}finally{h.app.emit('will-quit');}
 });
+
+
+test('an undo card is bound to its exact restoration target even if current values return to the same snapshot',async()=>{
+ let turn=0,target=5,applied=0;const h=fixture(async()=>++turn===1?reply({role:'assistant',tool_calls:[{id:'undo-target',function:{name:'undo_workflow_settings',arguments:JSON.stringify({domain:'transcription'})}}]}):reply({role:'assistant',content:'Undo card prepared.'}));
+ const send=h.sender.send;h.sender.send=(channel,value)=>{send(channel,value);if(value.type==='action')queueMicrotask(()=>{if(value.name==='get_workflow_settings')h.call('agentResult',{callId:value.callId,result:{status:'completed',values:{beamSize:3},canUndo:true,undoChanges:{beamSize:target}}});else{applied++;h.call('agentResult',{callId:value.callId,result:{status:'completed'}});}});};
+ try{await h.call('agentRun',{requestId:'undo-target',question:'Undo beam',owner:h.owner});const card=h.events.find(e=>e.value.type==='proposal').value.action;target=7;const result=await h.call('agentApply',{proposalId:card.proposalId,owner:h.owner});assert.equal(result.ok,false);assert.equal(applied,0);}finally{h.app.emit('will-quit');}
+});

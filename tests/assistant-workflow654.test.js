@@ -33,3 +33,20 @@ test('approval summary uses actual before/after values, choice labels and bounde
  assert.throws(()=>model.summary('transcription','{"beamSize":3}','en',{values:{beamSize:NaN}}),/current value/);
  assert.deepEqual(snapshot.values,{model:'large-v3',beamSize:5});
 });
+
+
+test('undo touches only edited controls and ignores unrelated disabled settings',async t=>{
+ const h=setup(t),d=h.w.document;d.getElementById('model').value='base';d.getElementById('batchSize').disabled=true;let untouched=0;d.getElementById('batchSize').addEventListener('change',()=>untouched++);
+ await h.run('configure_workflow',{domain:'transcription',changes_json:'{"model":"tiny"}'});
+ assert.deepEqual(JSON.parse(JSON.stringify(h.read('transcription').undoChanges)),{model:'base'});
+ await h.run('undo_workflow_settings',{domain:'transcription'});
+ assert.equal(h.read('transcription').values.model,'base');assert.equal(untouched,0);
+});
+
+
+test('matching settings do not save, dispatch changes or replace a meaningful undo target',async t=>{
+ const h=setup(t),d=h.w.document;d.getElementById('model').value='base';
+ await h.run('configure_workflow',{domain:'transcription',changes_json:'{"model":"base"}'});assert.equal(h.calls(),0);assert.equal(h.read('transcription').canUndo,false);
+ await h.run('configure_workflow',{domain:'transcription',changes_json:'{"model":"tiny"}'});const calls=h.calls();
+ await h.run('configure_workflow',{domain:'transcription',changes_json:'{"model":"tiny"}'});assert.equal(h.calls(),calls);assert.deepEqual(JSON.parse(JSON.stringify(h.read('transcription').undoChanges)),{model:'base'});
+});
