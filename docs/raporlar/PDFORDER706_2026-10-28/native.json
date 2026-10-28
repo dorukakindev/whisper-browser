@@ -1,0 +1,8 @@
+{
+  "ok": true,
+  "realPdf": true,
+  "actualGpu": false,
+  "pages": 2,
+  "expectedOrder": "heading,left,right,footnote",
+  "previewMatchesExtraction": true
+}

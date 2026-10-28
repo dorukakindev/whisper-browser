@@ -1,0 +1,80 @@
+{
+  "pages": [
+    {
+      "page": 1,
+      "blocks": [
+        {
+          "id": "1:0:3178a647e0f2",
+          "source": "Chapter 1",
+          "kind": "heading",
+          "box": {
+            "left": 50,
+            "top": 750,
+            "right": 146.602,
+            "bottom": 728
+          }
+        },
+        {
+          "id": "1:1:55bda0e0e782",
+          "source": "Left column sentence 1. Left column sentence 2. Left column sentence 3. Left column sentence 4.",
+          "box": {
+            "left": 50,
+            "top": 700,
+            "right": 177.404,
+            "bottom": 628
+          }
+        },
+        {
+          "id": "1:2:7900c532abd7",
+          "source": "Right column sentence 1. Right column sentence 2. Right column sentence 3. Right column sentence 4.",
+          "box": {
+            "left": 320,
+            "top": 700,
+            "right": 455.3960000000001,
+            "bottom": 628
+          }
+        }
+      ]
+    },
+    {
+      "page": 2,
+      "blocks": [
+        {
+          "id": "2:0:11012a8623e9",
+          "source": "Chapter 2",
+          "kind": "heading",
+          "box": {
+            "left": 50,
+            "top": 750,
+            "right": 146.602,
+            "bottom": 728
+          }
+        },
+        {
+          "id": "2:1:55bda0e0e782",
+          "source": "Left column sentence 1. Left column sentence 2. Left column sentence 3. Left column sentence 4.",
+          "box": {
+            "left": 50,
+            "top": 700,
+            "right": 177.404,
+            "bottom": 628
+          }
+        },
+        {
+          "id": "2:2:7900c532abd7",
+          "source": "Right column sentence 1. Right column sentence 2. Right column sentence 3. Right column sentence 4.",
+          "box": {
+            "left": 320,
+            "top": 700,
+            "right": 455.3960000000001,
+            "bottom": 628
+          }
+        }
+      ]
+    }
+  ],
+  "expected": [
+    "Chapter 1 Left column sentence 1. Left column sentence 2. Left column sentence 3. Left column sentence 4. Right column sentence 1. Right column sentence 2. Right column sentence 3. Right column sentence 4. 1 Footnote belongs after both columns.",
+    "Chapter 2 Left column sentence 1. Left column sentence 2. Left column sentence 3. Left column sentence 4. Right column sentence 1. Right column sentence 2. Right column sentence 3. Right column sentence 4. 1 Footnote belongs after both columns."
+  ]
+}
