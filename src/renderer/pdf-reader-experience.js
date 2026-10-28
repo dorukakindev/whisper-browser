@@ -8,7 +8,7 @@
     preparing = false;
   const playerCopy = new Map();
   const projects = new Map();
-  let pdfMap = null;
+  let pdfMap = null, spokenView = null;
   let stopBookAssistant = null;
   let voice = null,
     voiceToken = 0,
@@ -17,6 +17,7 @@
   let pdfPlayback = null;
   let prepareToken = 0, manualFollowUntil = 0;
   function stopVoice() {
+    spokenView = null;
     pdfPlayback?.dispose();pdfPlayback=null;
     const progress=playbackProgress;playbackProgress=null;
     if(progress)void progress.save($("pdfVoiceAudio").currentTime);
@@ -88,6 +89,27 @@
     const r = player.pdfReader,
       e = r?.pages.get(page);
     if (!e?.article) return;
+    // Zoom replaces page DOM, while the audio and its owned text remain current.
+    // Reparent that text and rebind boxes to the newly rendered canvas/viewport.
+    if (spokenView?.reader === r && spokenView.page === page && r.currentPage === page
+        && spokenView.token === voiceToken && !$("pdfVoiceAudio").classList.contains("hidden")) {
+      const view=spokenView,canvas=e.article.querySelector('.pdf-page-source canvas');
+      if (!e.article.contains(view.prose)) {
+        e.article.querySelector('.pdf-page-prose')?.remove();
+        e.article.append(view.prose);
+      }
+      if(canvas && canvas!==view.canvas) {
+        pdfMap?.dispose();
+        pdfMap=window.PdfSpokenMap?.mount(e.article.querySelector('.pdf-page-source'),canvas,
+          e.items,view.original.getViewport({scale:r.scale}),view.groups,$("pdfVoiceAudio"),
+          start=>pdfPlayback?.playFrom(start));
+        view.canvas=canvas;
+      }
+      lastSpoken=-1;
+      $("pdfVoiceAudio").dispatchEvent(new Event('timeupdate'));
+      changed(true);
+      return;
+    }
     let prose = e.article.querySelector(".pdf-page-prose");
     if (!prose) {
       prose = document.createElement("div");
@@ -478,6 +500,7 @@
       if (sourceCanvas) {
         const original = await r.pdf.getPage(r.currentPage);
         if (token !== voiceToken || player.pdfReader !== r) return;
+        spokenView={reader:r,page:r.currentPage,token,prose,groups,original,canvas:sourceCanvas};
         pdfMap = window.PdfSpokenMap?.mount(
           pageEntry.article.querySelector(".pdf-page-source"),
           sourceCanvas,
