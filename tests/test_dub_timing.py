@@ -17,6 +17,15 @@ spec.loader.exec_module(D)
 
 
 class DubTimingTests(unittest.TestCase):
+    def test_timelines_reject_missing_or_extra_audio_before_reading_files(self):
+        cues = [(0, 1000, 'First.'), (1000, 2000, 'Last sentence.')]
+        for selected, files in [(cues, ['missing.wav']), (cues, ['a.wav', 'b.wav', 'extra.wav']), ([], [])]:
+            with self.subTest(groups=len(selected), files=len(files)):
+                with self.assertRaisesRegex(ValueError, 'count mismatch'):
+                    D.build_narration_timeline(selected, files, 8000)
+                with self.assertRaisesRegex(ValueError, 'count mismatch'):
+                    D.build_adaptive_timeline(selected, files, 8000, 2, 1, '.')
+
     def test_adaptive_timeline_keeps_speech_and_maps_video_without_overlap(self):
         with tempfile.TemporaryDirectory() as folder:
             a,b = Path(folder)/'a.wav',Path(folder)/'b.wav'
