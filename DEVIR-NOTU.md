@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-0050.md](docs/devir/2026-10-29-0050.md) — MP4 dublaj ses izleri ve zamanlama
 Güncel çalışma: [docs/devir/2026-10-29-0030.md](docs/devir/2026-10-29-0030.md) — Dublaj ana ses kontrolü
 Güncel çalışma: [docs/devir/2026-10-29-0015.md](docs/devir/2026-10-29-0015.md) — Son metin üretimlerini yeniden açma
 Güncel çalışma: [docs/devir/2026-10-28-2358.md](docs/devir/2026-10-28-2358.md) — Ortak yerel referans ve kitap ses ayarları
