@@ -1,0 +1,22 @@
+{
+  "exit": 0,
+  "wallSeconds": 10.422000000005937,
+  "selected": [
+    3,
+    7
+  ],
+  "sourceSeconds": 12,
+  "output": {
+    "duration": 4.0,
+    "sampleRate": 44100,
+    "channels": 2
+  },
+  "separatorInputs": [
+    {
+      "duration": 4.0,
+      "sampleRate": 44100
+    }
+  ],
+  "deviceEvent": "separate_gpu",
+  "sample": "synthetic stereo tones; not music quality"
+}
