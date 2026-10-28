@@ -570,15 +570,16 @@ let resourceSoakPublicationCount = 0;
 // ölçümü (evaluateResourceSoak 'renderer-listener-drift' bunu kullanır).
 const resourceSoakToggleProbes = [];
 
-const hasSingleInstanceLock = app.requestSingleInstanceLock();
+const hasSingleInstanceLock = app.requestSingleInstanceLock({openTextStudio:process.env.WHISPER_OPEN_TEXT_STUDIO==='1'});
 if (!hasSingleInstanceLock) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event,_argv,_cwd,additionalData) => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
     mainWindow.focus();
+    if(additionalData?.openTextStudio)mainWindow.webContents.send('dub:event',{type:'text_studio_open'});
   });
 }
 let mainWindow;
@@ -15048,6 +15049,7 @@ function createWindow() {
   if (st && st.maximized) mainWindow.maximize();
 
   assistantOverlay = require('./assistant-overlay').createAssistantOverlay({ window: mainWindow, WebContentsView, ipcMain });
+  mainWindow.webContents.once('did-finish-load',()=>{if(process.env.WHISPER_OPEN_TEXT_STUDIO==='1'){delete process.env.WHISPER_OPEN_TEXT_STUDIO;mainWindow.webContents.send('dub:event',{type:'text_studio_open'});}});
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   mainWindowClosing = false;
   browserSessionFinalizedForQuit = false;

@@ -1,0 +1,58 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+const {EventEmitter}=require('node:events'),{PassThrough}=require('node:stream');
+const wav=require('./helpers/wav-fixture');
+const {settings,readText}=require('../src/text-voice-studio');
+
+test('text studio validates settings and reads Turkish UTF-16 / Windows-1254',t=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'text-voice-'));
+ t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ const file=path.join(root,'Türkçe.txt');
+ fs.writeFileSync(file,Buffer.concat([Buffer.from([255,254]),Buffer.from('İyi günler, ışık.','utf16le')]));
+ assert.equal(readText(file),'İyi günler, ışık.');
+ fs.writeFileSync(file,Buffer.from([0x49,0xfe,0xfd,0x6b]));assert.equal(readText(file),'Işık');
+ assert.equal(settings({steps:17,max_chars:400}).steps,17);
+ assert.throws(()=>settings({batch:7}));assert.throws(()=>settings({normalize:'false'}));
+});
+
+test('text studio shares job ownership, preserves reference, cleans only failed output',async t=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'text-voice-service-'));
+ t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ const engine=path.join(root,'engine');fs.mkdirSync(path.join(engine,'.venv','Scripts'),{recursive:true});
+ fs.writeFileSync(path.join(engine,'.venv','Scripts','python.exe'),'fixture');
+ const reference=path.join(root,'reference.wav'),transcript=path.join(root,'reference.txt');
+ fs.writeFileSync(reference,wav(480));fs.writeFileSync(transcript,'Original transcript.');
+ const app=new EventEmitter();app.getPath=()=>root;
+ const handlers={},events=[],children=[];let pick=reference;
+ const sender=new EventEmitter();sender.isDestroyed=()=>false;sender.send=(_,event)=>events.push(event);
+ const svc=require('../src/dub-service').registerDubService({app,ipcMain:{handle:(n,f)=>handlers[n]=f},
+  dialog:{showOpenDialog:async()=>({canceled:false,filePaths:[pick]})},owner:()=>null,
+  authorized:e=>e.sender===sender,authorizeSubtitle:async p=>p,busy:()=>false,grantMedia:()=>{},environment:()=>({}),
+  spawn:(_python,args)=>{const p=new EventEmitter();p.stdout=new PassThrough();p.stderr=new PassThrough();
+   p.request=JSON.parse(fs.readFileSync(args.at(-1),'utf8'));children.push(p);return p;},
+  terminate:async p=>{p.emit('close',1,null);return true;}});
+ fs.writeFileSync(path.join(root,'dub-settings.json'),JSON.stringify({engine,reference,transcript}));
+ const call=request=>handlers['dub:textVoice']({sender},request);
+ assert.equal((await handlers['dub:textVoice']({sender:{}},{action:'config'})).ok,false);
+ const config=await call({action:'config'});assert(config.referenceReady);assert(config.referenceId.startsWith('local:'));
+ const start={action:'start',referenceId:config.referenceId,text:'A complete sentence.',transcript:'Edited draft.',settings:{},name:'Türkçe / output'};
+ assert.equal((await call({...start,referenceId:'local:invented'})).ok,false);
+ const result=await call(start);assert(result.ok);assert(svc.running());assert.equal(children.length,1);
+ assert.equal((await call(start)).ok,false,'duplicate blocked');
+ assert.equal((await call({action:'pick-reference'})).ok,false,'reference cannot change during production');
+ const output=children[0].request.output;fs.writeFileSync(output,wav(480));
+ children[0].stdout.write('[1/1] complete\n');children[0].emit('close',0,null);
+ assert.equal(svc.running(),false);assert(events.some(e=>e.type==='done'&&e.kind==='text'));
+ assert.equal(fs.readFileSync(transcript,'utf8'),'Original transcript.');
+ assert.equal(fs.readFileSync(children[0].request.transcript,'utf8'),'Edited draft.');
+ assert((await call(start)).ok);const cancelled=children[1].request.output;
+ fs.writeFileSync(cancelled,wav(480));fs.writeFileSync(cancelled.replace(/\.wav$/,'.tmp.wav'),wav());
+ assert((await svc.cancel()).ok);assert.equal(svc.running(),false);
+ assert(!fs.existsSync(cancelled));assert(!fs.existsSync(cancelled.replace(/\.wav$/,'.tmp.wav')));
+ assert(fs.existsSync(output),'previous completed output retained');
+ assert(events.some(e=>e.type==='cancelled'&&e.kind==='text'));
+ await handlers['dub:textUI']({sender});assert.equal(events.at(-1).type,'text_studio_open');
+ assert.equal(children.length,2,'opening Electron studio must not spawn Tk');
+});
