@@ -72,12 +72,22 @@ app.whenReady().then(async()=>{
  await parent("player.browserTabs[0].generation++;player.job.assistantOutcome={loaded:true,sourceCount:99,translationCount:0};return true");
  await until(()=>parent("return !AssistantVideoCommands.busy()"),'stale video receipt released');
  assert(await parent("return !document.getElementById('aiChatLog').textContent.includes('99 kaynak satır')"),'old video cannot be reported ready after navigation');
+ await parent("state.running=false;player.browserTranslationTrackId='';await AssistantVideoCommands.handle('Videonun altyazısını Türkçeye çevir');return true");
+ assert(await parent('return AssistantVideoCommands.busy()'));
+ await parent("player.browserPageUrl='https://www.youtube.com/watch?v=zzzzzzzzzzz';return true");
+ await until(()=>parent('return !AssistantVideoCommands.busy()'),'translation owner changes without another progress event');
+ await parent("player.browserPageUrl='https://www.youtube.com/watch?v=abcdefghijk';await AssistantVideoCommands.handle('Videonun altyazısını Türkçeye çevir');return true");
+ assert(await parent('return AssistantVideoCommands.busy()'));
+ await parent("player.browserPageUrl='https://www.youtube.com/watch?v=zzzzzzzzzzz';await AssistantVideoCommands.handle('Whisper 00:10–00:20 altyazı çıkar');return true");
+ assert.equal(await parent('return fixtureStarts.length'),5,'new source command is not swallowed by a stale pending task');
+ await parent("player.job.failed=true;return true");await until(()=>parent('return !AssistantVideoCommands.busy()'),'terminal cleanup');
+
 
  win.setMinimumSize(0,0);win.setContentSize(720,680);
  await parent("window.UiLocale.set('en',false);applyUiTheme('light');return true");
  await until(()=>run("return document.documentElement.dataset.theme==='light'&&document.getElementById('suggestions').textContent.includes('Whisper only')"),'compact English actions');
  const compact=await capture('video-result-compact-light');
- const result={ok:true,out,compact,source:'synthetic YouTube identity',engine:'controlled launch and events',provider:'not called',wholeVideoClearsRange:true,ambiguousRangeRejected:true,translatedOutcome:true,cancelConfirmed:true,staleOutcomeRejected:true,nativeWindowsElectron:true};
+ const result={ok:true,out,compact,source:'synthetic YouTube identity',engine:'controlled launch and events',provider:'not called',wholeVideoClearsRange:true,ambiguousRangeRejected:true,translatedOutcome:true,cancelConfirmed:true,staleOutcomeRejected:true,quietTranslationOwnerReleased:true,newCommandNotSwallowed:true,nativeWindowsElectron:true};
  fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));app.exit(0);
 }).catch(async error=>{try{const w=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('index.html'));fs.writeFileSync(path.join(out,'debug.json'),JSON.stringify(await w.webContents.executeJavaScript('({signal:document.getElementById("browserSignal")?.textContent,starts:window.fixtureStarts,log:document.getElementById("aiChatLog")?.textContent,running:state.running,job:player.job?.stage})')));}catch{}fs.writeFileSync(path.join(out,'error.txt'),error.stack);console.error(error);app.exit(1);});
 setTimeout(()=>{fs.writeFileSync(path.join(out,'timeout.txt'),'Native video smoke exceeded 60 seconds');app.exit(2);},60000).unref();
