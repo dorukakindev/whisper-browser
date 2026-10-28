@@ -1,0 +1,25 @@
+[
+  {
+    "stopStage": "extract",
+    "closed": true,
+    "ownershipReleased": true,
+    "outputExists": false,
+    "wallSeconds": 0.279,
+    "stages": [
+      "extract",
+      "separate"
+    ]
+  },
+  {
+    "stopStage": "separate_gpu",
+    "closed": true,
+    "ownershipReleased": true,
+    "outputExists": false,
+    "wallSeconds": 3.606,
+    "stages": [
+      "extract",
+      "separate",
+      "separate_gpu"
+    ]
+  }
+]
