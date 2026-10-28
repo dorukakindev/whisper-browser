@@ -29023,9 +29023,9 @@ function showHomeWhenNoVideo() {
 
 // İlk açılışta SmartTube tarayıcısı görünsün
 document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => {
-    setSmartTubeVisible(true);
-  }, 100);
+  // A restored/local source can finish before this deferred startup callback.
+  // Recheck ownership now instead of covering the newly opened video.
+  setTimeout(showHomeWhenNoVideo, 100);
 });
 
 // ----- Sol kenar çubuğu (kategori) seçimi -----

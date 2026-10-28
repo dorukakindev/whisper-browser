@@ -1,0 +1,24 @@
+{
+  "expected": "Kütüphane bugün açık. Birlikte bir kitap okuyabiliriz.",
+  "actual": "Kötüphane bugün açık. Birlikte bir kitap okuyabiliriz.",
+  "check": {
+    "similarity": 0.8571,
+    "omission_spans": [],
+    "insertion_spans": [],
+    "missing_numbers": [],
+    "added_numbers": [],
+    "percentage_mismatch": false,
+    "semantic_mismatch": false,
+    "spoken_number_mismatch": false,
+    "lost_negation": false,
+    "added_negation": false,
+    "unit_mismatch": false,
+    "repetition": false,
+    "sign_mismatch": false,
+    "missing_names": [],
+    "review": false
+  },
+  "seconds": 2.078,
+  "model": "small",
+  "device": "cpu"
+}

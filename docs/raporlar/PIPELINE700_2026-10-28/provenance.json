@@ -1,0 +1,15 @@
+{
+  "source": "synthetic Windows SAPI English speech and FFmpeg14s color video",
+  "clip": [
+    2,
+    10
+  ],
+  "whisper": "cached tiny CPU int8",
+  "translation": "controlled loopback HTTP;2requests including speech refinement",
+  "voice": "installed openbmb VoxCPM2 nano-vLLM CUDA;clone15steps;no personal voice",
+  "hashes": {
+    "Türkçe kaynak.mp4": "16e1acc5865c0e801a32c3ae4a8bd55016b1abd8ff7e41e9ad6ee2025f0b5a13",
+    "reference.wav": "5ce7b1dec5fbdce710c864292938149ee8ecc8c30a3670c905988057516a2def",
+    "result.wav": "10caab047b23630145f290f752e57abfa7fee9632c9ba802d99b998472e17eb3"
+  }
+}
