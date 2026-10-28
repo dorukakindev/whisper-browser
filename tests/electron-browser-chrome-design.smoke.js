@@ -7,15 +7,15 @@ const { spawnSync } = require('node:child_process');
 const assert = require('node:assert/strict');
 
 const root = path.resolve(__dirname, '..');
-const out = path.join(root, '.uiprev', 'browser-chrome-design');
+const out = path.join(root, '.uiprev', 'browser678');
 fs.mkdirSync(out, { recursive: true });
 process.env.WHISPER_RESOURCE_SOAK_USER_DATA = path.join(out, `profile-${process.pid}-${Date.now()}`);
 fs.mkdirSync(process.env.WHISPER_RESOURCE_SOAK_USER_DATA, { recursive: true });
 const ffmpeg = findMediaTool('ffmpeg') || 'ffmpeg';
-const video = path.join(out, 'episode.mp4');
+const video = path.join(out, 'episode.webm');
 const made = spawnSync(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i',
   'color=c=navy:s=320x180:r=6:d=42', '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=8000:duration=42',
-  '-c:v', 'mpeg4', '-c:a', 'aac', '-y', video], { windowsHide: true });
+  '-c:v', 'libvpx-vp9', '-deadline', 'realtime', '-cpu-used', '8', '-c:a', 'libopus', '-y', video], { windowsHide: true });
 assert.equal(made.status, 0, String(made.stderr));
 const reference = Array.from({ length: 28 }, (_, index) => {
   const start = 1 + index * 1.3 + (index % 3) * .08;
@@ -44,18 +44,18 @@ app.whenReady().then(async () => {
   session.fromPartition('persist:whisper-browser').protocol.handle('https', request => {
     const url = new URL(request.url);
     if (url.hostname !== 'browser-analysis-ui.test') return new Response('Test dışında', { status: 404 });
-    if (url.pathname === '/episode.mp4') {
+    if (url.pathname === '/episode.webm') {
       const range = /bytes=(\d+)-(\d*)/.exec(request.headers.get('range') || '');
       if (range) {
         const first = Number(range[1]), last = range[2] ? Math.min(Number(range[2]), bytes.length - 1) : bytes.length - 1;
         return new Response(bytes.subarray(first, last + 1), { status: 206, headers: {
-          'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes',
+          'Content-Type': 'video/webm', 'Accept-Ranges': 'bytes',
           'Content-Range': `bytes ${first}-${last}/${bytes.length}`, 'Content-Length': String(last - first + 1),
         } });
       }
-      return new Response(bytes, { headers: { 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes' } });
+      return new Response(bytes, { headers: { 'Content-Type': 'video/webm', 'Accept-Ranges': 'bytes' } });
     }
-    return new Response('<!doctype html><meta charset="utf-8"><video controls muted autoplay loop src="/episode.mp4" style="width:90vw;height:70vh"></video>',
+    return new Response('<!doctype html><meta charset="utf-8"><video controls muted autoplay loop src="/episode.webm" style="width:90vw;height:70vh"></video>',
       { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
   });
   const win = await until(() => BrowserWindow.getAllWindows().find(item => item.webContents.getURL().includes('index.html') && !item.webContents.isLoading()), 'Ana pencere');
@@ -67,7 +67,7 @@ app.whenReady().then(async () => {
   const nav = await run('document.getElementById("browserAddress").value="https://browser-analysis-ui.test/watch";return navigateBrowserFromAddress()');
   assert.equal(nav.ok, true, nav.error);
   const page = await until(() => webContents.getAllWebContents().find(item => item.getURL() === 'https://browser-analysis-ui.test/watch'), 'Video sayfası');
-  await until(() => page.executeJavaScript('document.querySelector("video")?.readyState >= 2'), 'Video çözme');
+  await until(() => page.executeJavaScript('document.querySelector("video")?.readyState >= 2 && document.querySelector("video").videoWidth > 0'), 'Video çözme');
   await until(() => run('return !!browserTabState()?.mediaId'), 'Medya kimliği');
   await run(`player.cues=${JSON.stringify(target)};player.cuesRaw=player.cues.map(c=>({...c}));player.browserDuration=42;setSideTab('tools');document.getElementById('browserFeatures').open=true;renderCueList();document.getElementById('browserAnalysisTools').open=false;return true`);
 
@@ -93,10 +93,24 @@ app.whenReady().then(async () => {
   await run('applyUiTheme("light");return true');await wait(150);
   fs.writeFileSync(path.join(out,'chrome-error-light.png'),(await win.webContents.capturePage()).toPNG());
   // Popover görünüm alanını aşmıyor; hap kendi genişliğine uyum sağlıyor.
-  await run('document.getElementById("browserWorkspace").style.maxWidth="520px";document.getElementById("browserSubtitleHealthText").textContent="Bazı çeviri blokları tamamlanamadı. Hazır repliklerle izlemeye devam edebilir veya hatalı blokları yeniden deneyebilirsiniz.";return true');await wait(150);
+  win.setMinimumSize(640,480);win.setContentSize(900,960);await run('document.getElementById("browserSubtitleHealthText").textContent="Bazı çeviri blokları tamamlanamadı. Hazır repliklerle izlemeye devam edebilir veya hatalı blokları yeniden deneyebilirsiniz.";return true');await wait(150);
   const narrow=await measure();
   const vw=await run('return innerWidth');
   assert(narrow.popoverRight<=vw&&narrow.popoverHeight>40,JSON.stringify(narrow));
   fs.writeFileSync(path.join(out,'chrome-narrow.png'),(await win.webContents.capturePage()).toPNG());
-  console.log(JSON.stringify({ok:true,normal,expanded,error,narrow}));clearTimeout(watchdog);app.quit();
+  console.log(JSON.stringify({ok:true,normal,expanded,error,narrow}));const view=win.contentView.children.find(v=>v.webContents===page);assert(view,'native browser view');
+  assert(view.getBounds().x<0,'menu must occlude native video');
+  await run('document.getElementById("browserSignalMenu").open=false;setSideTab("subs");await syncBrowserOcclusion();scheduleBrowserBounds();return true');
+  await until(()=>view.getBounds().x>=0,'native video restored after menu');
+  const bounds=view.getBounds(),vwActual=await run('return innerWidth');assert(bounds.width>100&&bounds.height>100&&bounds.x>=0&&bounds.y>=0&&bounds.x+bounds.width<=vwActual+1,'native video stays inside actual viewport');
+  fs.writeFileSync(path.join(out,'chrome-restored.png'),(await win.webContents.capturePage()).toPNG());
+  await page.executeJavaScript('document.querySelector("video").play()');await until(()=>page.executeJavaScript('document.querySelector("video").currentTime > .1'),'real video progression');await wait(200);
+  fs.writeFileSync(path.join(out,'native-page.png'),(await page.capturePage()).toPNG());
+  win.focus();page.focus();await page.executeJavaScript('window.fixtureFullscreenError="";document.querySelector("video").requestFullscreen().catch(e=>window.fixtureFullscreenError=e.message);true',true);
+  await until(async()=>{if(await run('return !document.getElementById("browserPermissionPrompt").classList.contains("hidden")'))await run('document.querySelector("[data-permission-decision=allow-once]").click();return true');return view.getBounds().y===0;},'permission and fullscreen entry',10000);
+  await until(()=>view.getBounds().y===0&&view.getBounds().width===win.getContentBounds().width,'native fullscreen bounds');
+  fs.writeFileSync(path.join(out,'fullscreen-native.png'),(await page.capturePage()).toPNG());
+  await page.executeJavaScript('document.exitFullscreen()',true);
+  await until(()=>view.getBounds().y>0&&view.getBounds().width<=win.getContentBounds().width,'exit fullscreen restores browser slot');
+  fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({ok:true,normal,expanded,error,narrow,nativeBounds:bounds,actualViewport:900,videoPixels:true,videoAdvances:true,fullscreenRoundTrip:true},null,2));clearTimeout(watchdog);app.quit();
 }).catch(error=>{console.error(error);app.exit(1)});

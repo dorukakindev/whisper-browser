@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  let opened = false, lastMessages = '', busy = false, pending = null;
+  let opened = false, lastMessages = '', busy = false, pending = null, renderedConversation = null;
   let suggestionKey = '', reviewing = null, snapshot={},onlyPinned=false,pins=[];
   const drafts=new Map();let conversation=null,requestSequence=0;
   let progressStarted=0,progressTimer=null;
@@ -121,7 +121,8 @@
     renderJobs(value);
     const key = JSON.stringify([value.locale, value.conversation, value.pageContext, value.transcriptScope, value.busy, value.messages]);
     if (key === lastMessages) return; lastMessages = key;
-    const log = $('log'), previousScroll=log.scrollTop,bottom = log.scrollHeight - log.scrollTop - log.clientHeight < 60;
+    const log = $('log'), previousScroll=log.scrollTop, threadChanged=renderedConversation!==value.conversation, bottom=threadChanged||log.scrollHeight-log.scrollTop-log.clientHeight<60;
+    renderedConversation=value.conversation;
     const focused=document.activeElement,focusCard=log.contains(focused)?focused.closest('.tool-card'):null;
     const focusTarget=focusCard?{id:focusCard.dataset.proposalId,control:focused.dataset.toolControl}:null;
     log.replaceChildren();
