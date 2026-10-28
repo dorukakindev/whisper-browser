@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "syntheticVideo": true,
+  "play": {
+    "video": 1.015125,
+    "audio": 1.012845,
+    "rate": 1,
+    "muted": true
+  },
+  "pause": true,
+  "seek": true,
+  "rates": [
+    {
+      "video": 0.75,
+      "audio": 0.75
+    },
+    {
+      "video": 1.5,
+      "audio": 1.5
+    }
+  ],
+  "selectedRangeTransitions": true,
+  "originalMuteRateRestored": true,
+  "qualityChecks": [
+    {
+      "status": "not_checked"
+    },
+    {
+      "status": "not_checked"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "expected": "Bugün birlikte bir kitabın ilk bölümünü okuyacağız. Cümlelerin anlamını koruyarak doğal bir sesle ilerlemek istiyoruz. Uzun bir düşünceyi sırf ekrandaki satır bitti diye yarıda kesmemeliyiz. İkinci bölümde ise farklı bir örneğe bakacağız. Son cümlenin tamamını duymak ve konuşmanın ritmini korumak bizim için önemli.",
+  "actual": "Bugün birlikte bir kitabın ilk bölümünü okuyacağız. Cümlelerin anlamını koruyarak doğal bir sesle ilerlemek istiyoruz. Uzun bir düşünceyi sırf ekrandaki satır bitti diye yarıda kesmemeliyiz. İkinci bölümde ise, farklı bir örneğe bakacağız. Son cümlenin tamamını duymak ve konuşmanın ritmini korumak bizim için önemli.",
+  "check": {
+    "similarity": 1.0,
+    "omission_spans": [],
+    "insertion_spans": [],
+    "missing_numbers": [],
+    "added_numbers": [],
+    "percentage_mismatch": false,
+    "semantic_mismatch": false,
+    "spoken_number_mismatch": false,
+    "lost_negation": false,
+    "added_negation": false,
+    "unit_mismatch": false,
+    "repetition": false,
+    "sign_mismatch": false,
+    "missing_names": [],
+    "review": false
+  },
+  "seconds": 3.125,
+  "model": "small",
+  "device": "cpu"
+}
