@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-1234.md](docs/devir/2026-10-28-1234.md) — Asistan ve panel yerelleştirmesi
 Güncel çalışma: [docs/devir/2026-10-28-1053.md](docs/devir/2026-10-28-1053.md) — Ürün100 referans arama ve üretim özeti
 Güncel çalışma: [docs/devir/2026-10-28-0745.md](docs/devir/2026-10-28-0745.md) — Ürün100 referans kalitesi ve kimliği
 Güncel çalışma: [docs/devir/2026-10-28-0730.md](docs/devir/2026-10-28-0730.md) — Ürün100 aralık ve gerçek ses senkronu
