@@ -879,6 +879,8 @@ function registerMediaWorkflows({
             typeof r.key !== "string"
           )
             throw Error("Current audio required.");
+          if (r.outputId !== path.basename(c.output) || r.textHash !== c.textHash)
+            throw Error("Reviewed audio changed; reopen the chapter / İncelenen ses değişti; bölümü yeniden açın.");
           const g = c.groups?.find((g) => g.key === r.key);
           if (
             !g ||
@@ -899,11 +901,15 @@ function registerMediaWorkflows({
           const duration=require('./wav-duration').wavDuration(audio);
           if(g.start>=duration||g.end>duration+.001)
             throw Error('Review group exceeds chapter audio / İnceleme grubu bölüm sesinin dışında.');
+          const audioHash = fileDigest(audio);
+          const expectedAudioHash = path.basename(c.output).match(/^\d+-[a-f0-9]{16}-([a-f0-9]{16})\.wav$/)?.[1];
+          if (!expectedAudioHash || !audioHash.startsWith(expectedAudioHash))
+            throw Error("Chapter audio changed; regenerate it / Bölüm sesi değişti; yeniden üretin.");
           g.status = "ready";
           g.manualApproval = {
             at: new Date().toISOString(),
             textHash: c.textHash,
-            audioHash: fileDigest(audio),
+            audioHash,
           };
           c.status = c.groups.every((g) => g.status === "ready")
             ? "ready"
