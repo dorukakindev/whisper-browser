@@ -1,0 +1,138 @@
+{
+  "before": {
+    "protocol": "speech-v8-nominal-quote-gates",
+    "requests": 5,
+    "completeStructural": false,
+    "quality": {
+      "type": "quality_report",
+      "translation_blocks": 16,
+      "translation_untranslated": 1,
+      "translation_empty": 0,
+      "translation_timing_mismatch": 0,
+      "translation_failed": 1,
+      "translation_untranslated_indices": [
+        1
+      ],
+      "translation_empty_indices": [],
+      "translation_timing_mismatch_indices": [],
+      "translation_number_mismatch": 1,
+      "translation_number_mismatch_indices": [
+        1
+      ],
+      "translation_negation_mismatch": 0,
+      "translation_negation_mismatch_indices": [],
+      "translation_modal_mismatch": 0,
+      "translation_modal_mismatch_indices": [],
+      "translation_currency_mismatch": 0,
+      "translation_currency_mismatch_indices": [],
+      "translation_unit_mismatch": 0,
+      "translation_unit_mismatch_indices": [],
+      "translation_date_mismatch": 0,
+      "translation_date_mismatch_indices": [],
+      "translation_truncated_fragment": 0,
+      "translation_truncated_fragment_indices": [],
+      "translation_meaning_shadow_evaluated": 16,
+      "translation_meaning_shadow_rejected": 1,
+      "translation_meaning_shadow_rejected_indices": [
+        1
+      ],
+      "translation_meaning_shadow_rejected_rate": 0.0625,
+      "translation_meaning_hard_rejected": 1,
+      "translation_meaning_hard_rejected_rate": 0.0625,
+      "translation_issue_indices": [
+        1
+      ],
+      "translation_issues": 1
+    },
+    "requestsHttp": [
+      200,
+      200,
+      200,
+      200,
+      200
+    ],
+    "requestElapsedMs": [
+      11516,
+      1307,
+      1502,
+      1405,
+      7632
+    ]
+  },
+  "after": {
+    "protocol": "speech-v9-relation-quantity-fidelity",
+    "requests": 3,
+    "completeStructural": true,
+    "quality": {
+      "type": "quality_report",
+      "translation_blocks": 16,
+      "translation_untranslated": 0,
+      "translation_empty": 0,
+      "translation_timing_mismatch": 0,
+      "translation_failed": 0,
+      "translation_untranslated_indices": [],
+      "translation_empty_indices": [],
+      "translation_timing_mismatch_indices": [],
+      "translation_number_mismatch": 0,
+      "translation_number_mismatch_indices": [],
+      "translation_negation_mismatch": 0,
+      "translation_negation_mismatch_indices": [],
+      "translation_modal_mismatch": 0,
+      "translation_modal_mismatch_indices": [],
+      "translation_currency_mismatch": 0,
+      "translation_currency_mismatch_indices": [],
+      "translation_unit_mismatch": 0,
+      "translation_unit_mismatch_indices": [],
+      "translation_date_mismatch": 0,
+      "translation_date_mismatch_indices": [],
+      "translation_truncated_fragment": 0,
+      "translation_truncated_fragment_indices": [],
+      "translation_meaning_shadow_evaluated": 16,
+      "translation_meaning_shadow_rejected": 0,
+      "translation_meaning_shadow_rejected_indices": [],
+      "translation_meaning_shadow_rejected_rate": 0,
+      "translation_meaning_hard_rejected": 0,
+      "translation_meaning_hard_rejected_rate": 0,
+      "translation_issue_indices": [],
+      "translation_issues": 0
+    },
+    "requestsHttp": [
+      200,
+      200,
+      200
+    ],
+    "requestElapsedMs": [
+      9011,
+      1551,
+      7079
+    ]
+  },
+  "manualReview": {
+    "scope": "Source/output comparison by coding agent, not blind human listening or universal semantic evaluation",
+    "unresolvedCueIds": [
+      5,
+      6
+    ],
+    "issues": {
+      "5": {
+        "sourceMeaning": "Mara lent her own car to Deniz, not her sister’s car.",
+        "observed": "Target contrasts recipients instead of car owners.",
+        "reference": "MARA: Deniz’e kız kardeşimin arabasını değil, kendi arabamı ödünç verdim."
+      },
+      "6": {
+        "sourceMeaning": "Deniz owes Mara, not Mara’s sister, an apology.",
+        "observed": "Target contrasts the debtor and omits who is owed an apology.",
+        "reference": "DENIZ: Öyleyse ona değil, sana bir özür borçluyum."
+      }
+    },
+    "preservedExamples": [
+      "preliminary versus promise",
+      "may ease versus cannot cure",
+      "unless doctor instructs",
+      "nested negative condition",
+      "insufficient evidence versus safe claim",
+      "nearly empty / positions",
+      "per-person / excludes luggage / age / ticket"
+    ]
+  }
+}
