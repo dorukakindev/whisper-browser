@@ -414,7 +414,7 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 
 /* Voice studio: a bounded workspace with persistent playback/job actions. */
 #dubGeneratorDialog.dub-studio { width: min(1080px, calc(100vw - 32px)); max-height: min(940px, 94dvh); padding: 0; overflow: hidden; border-radius: 18px; }
-#dubGeneratorDialog.dub-studio[open] { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; }
+#dubGeneratorDialog.dub-studio[open] { display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
 .dub-studio-header { gap: 18px; padding: 20px 24px 14px; border-bottom: 1px solid var(--border); }
 .dub-studio-header h2 { font-size: 24px; line-height: 1.2; margin: 5px 0; letter-spacing: -.5px; }
 .dub-studio-header p { margin: 0; }
@@ -1778,3 +1778,14 @@ details.browser-translate-split.hidden { display: none !important; }
 /* The review handoff occupies toolbar space, never overlays the native page. */
 .browser-toolbar > .mrv-browser-return { grid-row: 3; grid-column: 1 / -1; }
 .player-layer.browser-chrome-collapsed .browser-workspace:has(.mrv-browser-return) { grid-template-rows: auto minmax(0, 1fr); }
+
+.dub-production-summary { flex: 0 0 auto; margin: 0; padding: 10px 24px; color: var(--text-muted); background: var(--bg-1); border-bottom: 1px solid var(--border); font-size: 12px; line-height: 1.6; text-wrap: pretty; }
+#voiceReferenceRecorder #voiceReferenceSearch { display: block; width: 100%; min-width: 0; box-sizing: border-box; margin-top: 6px; }
+.voice-reference-count { margin: 6px 0 12px; color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+@media(max-width:700px){.dub-production-summary{padding:8px 12px;font-size:11px;}}
+
+#dubPreviewCard[hidden] { display: none; }
+#dubPreviewCard audio { display:block; width:100%; margin-top:10px; }
+#dubPreviewCard #dubGeneratedName { color:var(--text-muted);font-size:12px;overflow-wrap:anywhere; }
+
+.voice-reference-picker { scroll-margin-block: 12px; min-width: 0; }

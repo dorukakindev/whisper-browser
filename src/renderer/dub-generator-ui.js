@@ -35,8 +35,15 @@
   function refreshOverview() {
     const source = el('dubReadySource'), voice = el('dubReadyVoice'), range = el('dubReadyRange');
     source.textContent = srt ? basename(srt) : t('SRT seçilmedi'); source.dataset.ready = String(!!srt);
-    voice.textContent = cfg?.reference ? basename(cfg.reference) : t('Ses seçilmedi'); voice.dataset.ready = String(!!cfg?.ready);
-    range.textContent = !el('dubRangeEnabled').checked ? t('Altyazının tamamı') : `${el('dubRangeStart').value} → ${el('dubRangeEnd').value}`;
+    const activeVoice=current?.voice||cfg;
+    voice.textContent = activeVoice?.reference ? basename(activeVoice.reference) : t('Ses seçilmedi'); voice.dataset.ready = String(!!current||!!cfg?.ready);
+    const en=window.UiLocale?.get?.()==='en', submitted=current?.settings;
+    const grouping={akici:en?'Flowing blocks':'Akıcı bloklar',cumle:en?'Sentence groups':'Cümle grupları',satir:en?'Subtitle rows':'Altyazı satırları'}[submitted?.grouping||el('dubGrouping').value];
+    const verification={fast:en?'Audio checks':'Ses denetimi',balanced:en?'Selective text checks':'Seçili metin denetimi',detailed:en?'Full text checks':'Tam metin denetimi'}[submitted?.verification||el('dubVerification').value];
+    const timing=(submitted?.timingMode||el('dubTimingMode').value)==='video'?(en?'Keep full speech':'Konuşmayı koru'):(en?'Fixed video; overflow may be cut':'Sabit video; taşan ses kesilebilir');
+    el('dubReadySettings').textContent=[grouping,((submitted?.profile||el('dubProfile').value)==='fast'?10:15)+(en?' steps':' adım'),verification,timing,(en?'Requested parallel groups: ':'İstenen paralel grup: ')+(submitted?.concurrency||el('dubConcurrency').value)].join(' · ');
+    const format=seconds=>{const ms=Math.round(seconds*1000),rest=(ms%60000)/1000;return `${Math.floor(ms/60000)}:${rest<10?'0':''}${rest}`;};
+    range.textContent = submitted ? (submitted.range ? `${format(submitted.range.start)} → ${format(submitted.range.end)}` : t('Altyazının tamamı')) : !el('dubRangeEnabled').checked ? t('Altyazının tamamı') : `${el('dubRangeStart').value} → ${el('dubRangeEnd').value}`;
     let selected = '';
     for (const [name, settings] of Object.entries(presetSpecs)) {
       const matches = Object.entries(settings).every(([key,value]) => typeof value === 'boolean'
@@ -233,6 +240,7 @@
     stopGroupPreview();
     const audio = el('dubGeneratedPreview');
     if (file?.url) audio.src = file.url; else audio.removeAttribute('src');
+    el('dubPreviewCard').hidden=!file?.url;
     audio.classList.toggle('hidden', !file?.url); audio.load();
   }
   function restoreReadyOutput(job) {
@@ -427,6 +435,7 @@
       backgroundTab: pending.context ? {tabId:pending.context.tabId,generation:pending.context.generation,mediaId:pending.context.mediaId || ''} : null,
       timingMode: el('dubTimingMode').value, range, dubText: plan ? { sourceHash: plan.sourceHash, edits:{...edits} } : null };
     payload.source = pending.context?.source || pending.context?.mediaKey || '';
+    pending.settings={...payload};refreshOverview();
     lastRequest = payload;
     if (!retry) { results.clear(); showResults(); }
     const r = await window.api.startDub(payload).catch(e => ({ ok:false,error:e.message }));
@@ -503,7 +512,7 @@
   el('dubQualityGroup').addEventListener('change',stopGroupPreview);
 
 
-  document.addEventListener('ui-locale-change', () => { pronunciationLabels(); showResults(); referenceInfo(lastReferenceQuality); });
+  document.addEventListener('ui-locale-change', () => { pronunciationLabels(); showResults(); referenceInfo(lastReferenceQuality); refreshOverview(); });
   el('dubGeneratorCancel').addEventListener('click', async () => {
     const pending = current;
     if (!pending) return;

@@ -31,5 +31,26 @@ app.whenReady().then(async()=>{let win;await until(()=>{win=BrowserWindow.getAll
  const beforeFailure=request.id;await run('document.getElementById("dubGeneratorStart").click();return true');await until(()=>request.id!==beforeFailure,'new attempt');win.webContents.send('dub:event',{id:request.id,type:'error',error:'Controlled attempt failed; previous audio preserved'});await until(()=>run('return document.getElementById("dubGeneratedName").textContent==="after.wav"'),'previous output restored');
  assert(await run('return document.getElementById("dubGeneratorStatus").textContent.includes("previous audio is still available")'));
  await run('document.getElementById("dubGeneratorStatus").scrollIntoView({block:"center"});return true');await wait(150);fs.writeFileSync(path.join(out,'failure-keeps-previous.png'),(await win.webContents.capturePage()).toPNG());
+ ipcMain.removeHandler('dub:references');let applied=0;
+ const referenceFixture=path.join(out,'reference.wav');fs.writeFileSync(referenceFixture,require('./helpers/wav-fixture')());
+ const referenceRows=Array.from({length:25},(_,i)=>({id:'fixture-ref-'+i,name:(i%2?'Türkçe anlatıcı ':'English narrator ')+i,text:'Controlled reference text.',url:require('node:url').pathToFileURL(referenceFixture).href}));
+ ipcMain.handle('dub:references',()=>({ok:true,folder:out,activeId:'fixture-ref-1',references:referenceRows}));
+ ipcMain.removeHandler('dub:useReference');ipcMain.handle('dub:useReference',()=>{applied++;return {ok:true};});
+ await run('document.getElementById("voiceReferenceRecorder").open=true;return true');
+ await until(()=>run('return document.getElementById("voiceReferenceSelect").options.length===25'),'reference list');
+ await run('const n=document.getElementById("voiceReferenceText");n.value="Unsaved controlled transcript";n.dispatchEvent(new Event("input"));return true');
+ async function referenceShot(name,width,height,zoom,theme,lang){
+  win.setContentSize(width,height);win.webContents.setZoomFactor(zoom);
+  await run('window.UiLocale.set('+JSON.stringify(lang)+',false);applyUiTheme('+JSON.stringify(theme)+');const n=document.getElementById("voiceReferenceSearch");n.value="";n.dispatchEvent(new Event("input"));n.scrollIntoView({block:"center"});n.focus();return true');
+  await win.webContents.insertText('english');await wait(150);
+  const check=await run('const n=document.getElementById("voiceReferenceSearch"),r=n.getBoundingClientRect(),d=document.getElementById("dubGeneratorDialog").getBoundingClientRect();return {left:r.left,right:r.right,clipLeft:d.left,clipRight:d.right,pickerTop:document.getElementById("voiceReferencePicker").getBoundingClientRect().top,pickerBottom:document.getElementById("voiceReferencePicker").getBoundingClientRect().bottom,scrollTop:document.querySelector(".dub-studio-scroll").getBoundingClientRect().top,scrollBottom:document.querySelector(".dub-studio-scroll").getBoundingClientRect().bottom,query:n.value,selected:document.getElementById("voiceReferenceSelect").value,text:document.getElementById("voiceReferenceText").value,count:document.getElementById("voiceReferenceCount").textContent,summary:document.getElementById("dubReadySettings").textContent}');
+  assert.equal(check.query,'english');assert.equal(check.selected,'fixture-ref-1');assert.equal(check.text,'Unsaved controlled transcript');assert.match(check.count,/13 \/ 25/);assert(check.left>=check.clipLeft&&check.right<=check.clipRight);assert(check.right-check.left>250,'Reference search must span the form, not inherit the 88px time field width');assert(check.pickerTop>=check.scrollTop-1&&check.pickerBottom<=check.scrollBottom+1,'Search, count and selector must be visible together');
+  assert(check.summary.includes(lang==='en'?'steps':'adım'));assert.equal(applied,0,'Filtering cannot apply a voice');
+  fs.writeFileSync(path.join(out,name+'.json'),JSON.stringify(check,null,2));fs.writeFileSync(path.join(out,name+'.png'),(await win.webContents.capturePage()).toPNG());
+ }
+ await referenceShot('reference-search-tr-dark',1300,950,1,'dark','tr');
+ await referenceShot('reference-search-en-light-125',900,800,1.25,'light','en');
+ await run('const n=document.getElementById("voiceReferenceSearch");n.value="no-match";n.dispatchEvent(new Event("input"));return true');
+ assert.match(await run('return document.getElementById("voiceReferenceCount").textContent'),/0 \/ 25/);assert.equal(applied,0);
  console.log(JSON.stringify({ok:true,out,events:'fixture',actualGpu:false,scales:[1,1.25]}));app.exit(0);
 }).catch(error=>{console.error(JSON.stringify({ok:false,out,error:error.stack}));app.exit(1);});setTimeout(()=>app.exit(2),90000).unref();

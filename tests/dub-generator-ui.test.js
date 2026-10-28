@@ -83,6 +83,7 @@ const tick = () => new Promise(setImmediate);
   const previousConfig=w.api.dubConfig;w.api.dubConfig=async()=>({...await previousConfig(),reference:'changed.wav',transcript:'changed.txt'});
   w.dispatchEvent(new w.Event('voice-reference:changed'));await tick();
   assert.equal(el('dubVoiceName').textContent,'actual-worker.wav','The running job keeps its actual reference label');
+  assert.equal(el('dubReadyVoice').textContent,'actual-worker.wav','Readiness and engine labels must agree');assert.match(el('dubReadySettings').textContent,/15 adım/);
   assert.match(el('dubReferenceQuality').textContent,/kısık/);
   el('dubGeneratorCancel').click();await tick();
   assert.equal(el('dubGeneratorStatus').textContent,'Durduruluyor…');
@@ -139,7 +140,9 @@ const tick = () => new Promise(setImmediate);
   assert.deepEqual(Array.from(request.forceGroups),['1,2']);
   onEvent({id:request.id,type:'done',name:'review.wav',url:'review.wav',quality:{groups:[{group:1,key:'1,2',status:'review'}]}});await tick();
   assert.match(el('dubGeneratorStatus').textContent,/işaretli parçaları/);
+  el('dubProfile').value='fast';el('dubProfile').dispatchEvent(new w.Event('change'));assert.match(el('dubReadySettings').textContent,/10 adım/);
   el('dubRetryFailed').click();await tick();assert.deepEqual(Array.from(request.forceGroups),[]);
+  assert.equal(request.profile,'quality');assert.match(el('dubReadySettings').textContent,/15 adım/,'A retry summary follows submitted settings rather than newly edited controls');
   attached=false;
   onEvent({id:request.id,type:'error',error:'Ses dosyası kurtarıldı; motor hata verdi. Kullanmadan önce dinleyin.',
     recoverablePath:'recovered.wav',recoverableUrl:'file:///recovered.wav',name:'recovered.wav'});await tick();

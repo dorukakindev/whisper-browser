@@ -3747,7 +3747,9 @@
 <dialog class="dub-generator dub-studio media-surface" id="dubGeneratorDialog" aria-labelledby="dubGeneratorTitle">
   <header class="dub-studio-header"><div><span class="dub-eyebrow">VoxCPM2 · Dublaj stüdyosu</span><h2 id="dubGeneratorTitle">Altyazıdan ses üret</h2><p>Altyazını seç, sesini ayarla ve videoyla senkron dublaj üret.</p></div><div class="dub-header-actions"><button class="btn btn-secondary" id="dubTextStudio" type="button">Metin / TXT stüdyosunu aç</button><button class="btn-icon" id="dubGeneratorClose" type="button" aria-label="Kapat">×</button></div></header>
   <div class="dub-readiness" role="group" aria-label="Üretim hazırlığı"><div><small>Altyazı</small><strong id="dubReadySource" data-ui-untranslated>—</strong></div><div><small>Etkin ses</small><strong id="dubReadyVoice" data-ui-untranslated>—</strong></div><div><small>Seslendirilecek bölüm</small><strong id="dubReadyRange" data-ui-untranslated>—</strong></div></div>
+  <p id="dubReadySettings" class="dub-production-summary" role="status" aria-live="polite" data-ui-untranslated></p>
   <div class="dub-studio-scroll"><div class="dub-studio-grid"><main class="dub-studio-main">
+    <section class="dub-card" id="dubPreviewCard" hidden><div class="dub-card-heading"><h3>Üretilen ses</h3></div><p id="dubGeneratedName" data-ui-untranslated></p><audio id="dubGeneratedPreview" class="hidden" controls preload="metadata" aria-label="Üretilen sesi dinle"></audio></section>
     <section class="dub-card"><div class="dub-card-heading"><span class="dub-step" aria-hidden="true" data-ui-untranslated data-step="1"></span><h3>Altyazı ve kapsam</h3></div>
 <div class="dub-generator-row"><button class="btn btn-secondary" id="dubChooseSrt" type="button">SRT seç</button><span id="dubSrtName" data-ui-untranslated>—</span></div>
 <label class="dub-generator-row"><input id="dubRangeEnabled" type="checkbox" />Yalnız seçilen zaman aralığını seslendir</label>
@@ -3863,8 +3865,11 @@
     <div class="dub-generator-row"><button id="voiceReferencePrepare" type="button" class="btn btn-secondary">Referans sesi hazırla</button><button id="voiceReferenceCancel" type="button" class="btn btn-ghost" disabled>Durdur</button></div>
     <p id="voiceReferenceStatus" role="status" aria-live="polite">Hazır</p>
       <p id="voiceReferenceQuality" role="status"></p>
+    <div id="voiceReferencePicker" class="voice-reference-picker"><label for="voiceReferenceSearch">Referans seslerde ara</label>
+    <input id="voiceReferenceSearch" type="search" maxlength="160" placeholder="Ad ile ara" aria-describedby="voiceReferenceCount" autocomplete="off" />
+    <p id="voiceReferenceCount" class="voice-reference-count" role="status" aria-live="polite" data-ui-untranslated></p>
     <label for="voiceReferenceSelect">Referans sesler</label>
-    <select id="voiceReferenceSelect" aria-label="Referans sesler"></select>
+    <select id="voiceReferenceSelect" aria-label="Referans sesler"></select></div>
     <label for="voiceReferenceName">Referans adı</label>
     <div class="dub-generator-row"><input id="voiceReferenceName" type="text" maxlength="160" data-ui-untranslated /><button id="voiceReferenceRename" type="button" class="btn btn-secondary" disabled>Adı kaydet</button></div>
     <audio id="voiceReferencePreview" controls preload="metadata" class="hidden"></audio>
@@ -3884,9 +3889,8 @@
   <p><span>Hızlandırılan / kırpılan gruplar</span> <span id="dubGeneratorTiming" data-ui-untranslated></span></p>
   </div><p id="dubPhaseSummary" role="status" data-ui-untranslated></p><pre id="dubGeneratorDetails" data-ui-untranslated></pre>
     <p id="dubReferenceQuality" role="status"></p>
-<p id="dubGeneratedName" data-ui-untranslated></p>
+
   <progress id="dubGeneratorProgress" max="100" value="0"></progress>
-  <audio id="dubGeneratedPreview" class="hidden" controls preload="metadata" aria-label="Üretilen sesi dinle"></audio>
 
   <div class="dub-generator-row"><button class="btn btn-primary" id="dubGeneratorStart" type="button">Benim sesimle üret</button><button class="btn btn-secondary" id="dubGeneratorCancel" type="button" disabled>Durdur</button><button class="btn btn-secondary hidden" id="dubGeneratorUse" type="button">Sesi kullan</button><button class="btn btn-ghost hidden" id="dubGeneratorOutput" type="button">Ses dosyasını aç</button><button class="btn btn-ghost" id="dubStorageOpen" type="button" disabled>Sesler klasörünü aç</button><button class="btn btn-ghost hidden" id="dubGeneratorLog" type="button">Üretim kaydını aç</button></div>
   </footer>
