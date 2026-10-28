@@ -1,5 +1,12 @@
 const assert = require('node:assert/strict');
 const {safeShortening:safe} = require('../src/dub-text-guard');
+for (const [negative,positive] of [['gelmezsen','gelirsen'],['gelmezsek','gelirsek'],['yapmazsan','yaparsan'],['bakmazsanız','bakarsanız'],['okuyamazsan','okuyabilirsen'],['veremezsem','verebilirsem'],['gelmezseler','gelirlerse'],['gelmezse','gelirse']]) {
+  const source=`Yarın toplantıya ${negative} bu önemli dosyaları sana ayrıca e-posta üzerinden göndereceğim.`;
+  const changed=source.replace(negative,positive);
+  assert.equal(safe(source,changed,{natural:true}),false,source);
+  assert.equal(safe(changed,source,{natural:true}),false,changed);
+  assert.equal(safe(source,source,{natural:true}),true,source);
+}
 assert.equal(safe('Bu uzun bir cümledir.', 'Bu bir cümle.'),true);
 assert.equal(safe('12 kişi, 12 saat bekledi.', '12 kişi bekledi.'),false);
 assert.equal(safe('Ankara’da hiç kimse yok.', 'İzmir’de kimse yok.'),false);

@@ -1,3 +1,4 @@
+import json
 import sys
 import tempfile
 import unittest
@@ -10,6 +11,36 @@ import numpy as np
 
 
 class QualityTests(unittest.TestCase):
+    def test_conditional_negation_cannot_reverse_high_similarity_speech(self):
+        for negative, positive in [('gelmezsen','gelirsen'),('gelmezsek','gelirsek'),
+                                   ('yapmazsan','yaparsan'),('bakmazsanız','bakarsanız'),
+                                   ('okuyamazsan','okuyabilirsen'),('veremezsem','verebilirsem'),
+                                   ('gelmezseler','gelirlerse'),('gelmezse','gelirse')]:
+            source=f'Yarın toplantıya {negative} bu önemli dosyaları sana ayrıca e-posta üzerinden göndereceğim.'
+            heard=source.replace(negative,positive)
+            for expected, actual in [(source,heard),(heard,source)]:
+                with self.subTest(expected=expected):
+                    result=Q.speech_check(expected,actual)
+                    self.assertGreater(result['similarity'],.85)
+                    self.assertTrue(result['review'])
+                    self.assertTrue(result['semantic_mismatch'])
+            self.assertFalse(Q.speech_check(source,source)['review'])
+
+    def test_cached_recognized_evidence_is_rechecked_without_replacing_audio(self):
+        source='Yarın toplantıya gelmezsen bu önemli dosyaları sana ayrıca e-posta üzerinden göndereceğim.'
+        with tempfile.TemporaryDirectory() as folder:
+            p=Path(folder)/'saved.wav';p.write_bytes(b'untouched audio')
+            record={'text':source,'status':'ready','verification':{'status':'passed','review':False,
+                    'recognizedText':source.replace('gelmezsen','gelirsen'),'similarity':.9167}}
+            p.with_suffix('.json').write_text(json.dumps(record),encoding='utf-8')
+            saved=Q.cached_record(p)
+            self.assertEqual(saved['status'],'review')
+            self.assertTrue(saved['verification']['semantic_mismatch'])
+            self.assertEqual(p.read_bytes(),b'untouched audio')
+            record['verification']['recognizedText']=source
+            p.with_suffix('.json').write_text(json.dumps(record),encoding='utf-8')
+            self.assertEqual(Q.cached_record(p)['status'],'ready')
+
     def test_recognized_text_preserves_original_bounded_evidence(self):
         actual='50.000 kişi geldi.'
         result=Q.speech_check('Elli bin kişi geldi.',actual)
