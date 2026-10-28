@@ -47,10 +47,57 @@ class Verifier:
 
 
 class GenerationTests(unittest.TestCase):
+    def test_rejected_continuation_retries_isolated_without_changing_parallel_prompt(self):
+        class ConditioningServer(Server):
+            def __init__(self): super().__init__(); self.conditioning=[]
+            async def generate(self, text, **kwargs):
+                self.conditioning.append((text, kwargs['prompt_id'], kwargs['ref_audio_latents']))
+                yield np.ones(16000, dtype='float32') * (.15 if kwargs['prompt_id'] is None else .1)
+            async def encode_latents(self, *_): return 'same-reference'
+        class RetryVerifier(Verifier):
+            async def check(self, path, text, **_):
+                passed=text == 'Other.' or '-verify' in str(path)
+                return {'status':'passed' if passed else 'review','review':not passed,'similarity':1 if passed else 0}
+        with tempfile.TemporaryDirectory() as folder:
+            server=ConditioningServer()
+            _,args,paths=self.run_generation(Path(folder),server,['Good.','Other.'],verification='detailed',verifier=RetryVerifier)
+            self.assertEqual([prompt for text,prompt,_ in server.conditioning if text=='Good.'],['prompt',None])
+            self.assertEqual([prompt for text,prompt,_ in server.conditioning if text=='Other.'],['prompt'])
+            self.assertTrue(all(ref=='same-reference' for _,_,ref in server.conditioning))
+            records={row['key']:row for row in args.group_results}
+            self.assertEqual(records['1']['referenceMode'],'isolated')
+            self.assertEqual(records['2']['referenceMode'],'continuation')
+            self.assertTrue(all(row['status']=='ready' for row in records.values()))
+            expected,_=finish_audio(np.ones(16000,dtype='float32')*.15,8000)
+            np.testing.assert_allclose(sf.read(paths[0])[0],expected,atol=1/32768)
+
+    def test_isolated_retry_rejected_by_semantic_gate_preserves_first_wave(self):
+        class DifferentRetry(Server):
+            async def generate(self,text,**kwargs):
+                yield np.ones(16000,dtype='float32')*(.15 if kwargs['prompt_id'] is None else .1)
+        class Reject(Verifier):
+            async def check(self,path,*_,**__):
+                return {'status':'review','review':True,'similarity':.99 if '-verify' in str(path) else .5,'lost_negation':True}
+        with tempfile.TemporaryDirectory() as folder:
+            _,args,paths=self.run_generation(Path(folder),DifferentRetry(),['Good.'],verification='detailed',verifier=Reject)
+            self.assertEqual(args.group_results[0]['status'],'review')
+            self.assertEqual(args.group_results[0]['referenceMode'],'continuation')
+            expected,_=finish_audio(np.ones(16000,dtype='float32')*.1,8000)
+            np.testing.assert_allclose(sf.read(paths[0])[0],expected,atol=1/32768)
+            self.assertFalse(list(Path(folder).glob('*-verify.wav')))
+
+    def test_passed_continuation_does_not_request_alternative(self):
+        server=Server()
+        with tempfile.TemporaryDirectory() as folder:
+            _,args,_=self.run_generation(Path(folder),server,['Good.'],verification='detailed')
+            self.assertEqual(server.calls,['Good.'])
+            self.assertEqual(args.group_results[0]['referenceMode'],'continuation')
+            self.assertNotIn('verificationRetryMode',args.group_results[0])
+
     def test_clipped_verification_retry_cannot_pass_after_peak_finishing(self):
         class ClippedRetry(Server):
             async def generate(self, text, **kwargs):
-                yield np.ones(16000, dtype='float32') * (1 if kwargs['seed'] == 200045 else .1)
+                yield np.ones(16000, dtype='float32') * (1 if kwargs['prompt_id'] is None else .1)
         class PassedSecond(Verifier):
             def __init__(self, *_): self.count = 0
             async def check(self, *_args, **_kwargs):
@@ -171,7 +218,7 @@ class GenerationTests(unittest.TestCase):
                 return {'status':'review','review':True,'similarity':.7}
         class RetryFailure(Server):
             async def generate(self,text,**kwargs):
-                if kwargs['seed'] == 200045:
+                if kwargs['prompt_id'] is None:
                     raise ValueError('controlled retry failure')
                 async for part in super().generate(text,**kwargs):
                     yield part
@@ -190,7 +237,7 @@ class GenerationTests(unittest.TestCase):
         for failure in (EngineStalled('controlled stall'), RuntimeError('CUDA out of memory')):
             class RetryFailure(Server):
                 async def generate(self, text, **kwargs):
-                    if kwargs['seed'] >= 200000:
+                    if kwargs['prompt_id'] is None:
                         raise failure
                     async for part in super().generate(text, **kwargs):
                         yield part
@@ -209,7 +256,7 @@ class GenerationTests(unittest.TestCase):
                 return {'status': 'review', 'review': True, 'similarity': .7}
         class CancelRetry(Server):
             async def generate(self, text, **kwargs):
-                if kwargs['seed'] >= 200000:
+                if kwargs['prompt_id'] is None:
                     raise asyncio.CancelledError()
                 async for part in super().generate(text, **kwargs):
                     yield part

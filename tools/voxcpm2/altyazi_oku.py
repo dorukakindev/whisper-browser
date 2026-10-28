@@ -257,7 +257,7 @@ async def uret(args, cues, paths, prompt_text):
         async def verify_pronunciation(audio_path, text, numeric_reference=None):
             return await verifier.check(audio_path, text, numeric_reference=numeric_reference)
 
-        async def sentez(chunk, seed, delivery=None):
+        async def sentez(chunk, seed, delivery=None, isolated=False):
             from dub_expression import synthesis_text
             from dub_prosody import delivery_instruction
             pieces = []
@@ -265,7 +265,7 @@ async def uret(args, cues, paths, prompt_text):
             with measured(args,'synthesis'):
                 async for part in server.generate(
                         instruction + chunk if instruction else synthesis_text(chunk, getattr(args, 'expression', 'reference')),
-                        prompt_id=None if instruction or automatic_delivery else prompt_id,
+                        prompt_id=None if isolated or instruction or automatic_delivery else prompt_id,
                         ref_audio_latents=ref_lat,
                         temperature=args.temperature,
                         cfg_value=args.cfg, seed=seed,
@@ -290,13 +290,13 @@ async def uret(args, cues, paths, prompt_text):
                 delivery = delivery[i] if i < len(delivery) else None
                 raw_scores = {}
                 synthesis_attempt = 0
-                async def synthesize(chunk, seed):
+                async def synthesize(chunk, seed, isolated=False):
                     nonlocal synthesis_attempt
                     from dub_activity import observe
                     from dub_utterance import synthesize_utterance
                     synthesis_attempt += 1
                     raw, score = await observe(synthesize_utterance(chunk, seed, sr,
-                        lambda part, value: sentez(part, value, delivery),
+                        lambda part, value: sentez(part, value, delivery, isolated),
                         lambda raw, rate, part: assess_chunk(raw, rate, part)[0]),
                         group=i+1, attempt=synthesis_attempt, limit=args.request_timeout)
                     raw_scores[id(raw)] = score
@@ -325,6 +325,7 @@ async def uret(args, cues, paths, prompt_text):
                     best, metric = await quality_retry(lambda n: synthesize(text, n),
                         lambda raw: assess_generated(raw, text), seed,
                         args.retry, args.request_timeout)
+                    metric['referenceMode'] = 'continuation' if prompt_id else 'isolated'
                     wav = prepare_audio(best, sr)
                     metric['naturalEdited'] = editable_text != original_text
                     metric['rewritten'] = False
@@ -362,16 +363,26 @@ async def uret(args, cues, paths, prompt_text):
                             (metric['quality_score'] > 0 or len(wav) / sr > window * 1.15)):
                         check = await verify_pronunciation(temporary, text, numeric_reference=editable_text)
                         if check['status'] == 'review':
-                            # Re-read with a different seed; never edit meaning
-                            # from an uncertain automatic transcript.
+                            # A continuation prompt can transfer the reference
+                            # language/accent too strongly. Spend the EXISTING
+                            # retry on isolated voice cloning, keeping reference
+                            # latents, text and all semantic/acoustic gates.
+                            # This override is request-local: parallel groups
+                            # must never mutate the shared prompt/cache.
+                            isolated_retry = bool(prompt_id)
+                            metric['verificationRetryMode'] = 'isolated' if isolated_retry else 'isolated-seed'
                             second = temporary.with_name(temporary.stem + '-verify.wav')
                             try:
-                                candidate_raw = await bounded_call(synthesize(text, seed + 200003), args.request_timeout)
+                                # Change conditioning alone when a prompt exists;
+                                # otherwise retain the existing alternate seed.
+                                retry_seed = seed if isolated_retry else seed + 200003
+                                candidate_raw = await bounded_call(synthesize(text, retry_seed, isolated=isolated_retry), args.request_timeout)
                                 candidate_score = assess_generated(candidate_raw, text)
                                 candidate, candidate_finishing = finish_generated(candidate_raw)
                                 if len(candidate) and candidate_score <= metric['quality_score']:
                                     sf.write(str(second), candidate, sr, subtype='PCM_16')
                                     checked = await verify_pronunciation(second, text, numeric_reference=editable_text)
+                                    metric['verificationRetry'] = checked
                                     # The shared verifier owns all semantic gates.
                                     # A passed retry beats a rejected candidate even
                                     # when its raw token similarity is slightly lower.
@@ -381,6 +392,7 @@ async def uret(args, cues, paths, prompt_text):
                                         second.replace(temporary)
                                         wav, check = candidate, checked
                                         metric['finishing'] = candidate_finishing
+                                        metric['referenceMode'] = 'isolated'
                             except (ValueError, OSError, asyncio.TimeoutError) as retry_error:
                                 # A failed optional retry must not erase the first
                                 # usable waveform. It remains explicitly for review.
@@ -465,7 +477,7 @@ async def uret(args, cues, paths, prompt_text):
                 metric.update(seed=seed,group=i + 1, key=args.group_keys[i], seconds=time.monotonic() - tick)
                 results.append(metric)
                 print('DUB_GROUP ' + json.dumps({k: metric[k] for k in
-                    ('group', 'key', 'status', 'verification', 'rewritten', 'naturalEdited') if k in metric}), flush=True)
+                    ('group', 'key', 'status', 'verification', 'rewritten', 'naturalEdited', 'referenceMode', 'verificationRetryMode') if k in metric}), flush=True)
                 done += 1
                 print(f"[{done}/{total}]", flush=True)
 
@@ -766,6 +778,10 @@ def main(argv=None, runtime=None):
     settings = ("dublaj-ses-v15-signed-quantities", args.auto_fit, args.timing_mode == 'video', args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
                 args.temperature, prompt_text or args.mode, args.max_generate_length,
                 args.verification, args.expression, SPOKEN_TEXT_VERSION)
+    # Do not reuse a previously rejected continuation candidate under the new
+    # recovery policy. Unverified/isolated jobs retain their existing cache.
+    if prompt_text and args.verification != 'fast' and args.expression == 'reference' and not args.prosody_plan:
+        settings += ('isolated-verification-same-seed-v1',)
     from dub_utterance import utterance_blocks, MAX_CHARS, VERSION as UTTERANCE_VERSION
     bounded_groups = [len(utterance_blocks(text)) > 1
                       or (args.natural_speech and len(text) > MAX_CHARS / 1.25)
@@ -824,7 +840,8 @@ def main(argv=None, runtime=None):
         record.update(group=i + 1, key=args.group_keys[i])
         group_results.append(record)
     cues = [(s, e, record.get('text', text)) for (s, e, text), record in zip(cues, group_results)]
-    public_groups = [{k: r[k] for k in ('group', 'key', 'status', 'verification', 'rewritten', 'naturalEdited', 'delivery') if k in r}
+    public_groups = [{k: r[k] for k in ('group', 'key', 'status', 'verification', 'rewritten', 'naturalEdited', 'delivery',
+                                      'referenceMode', 'verificationRetryMode', 'verificationRetry') if k in r}
                      for r in group_results]
     for row,record in zip(public_groups,group_results):
         spoken=record.get('pronunciationText')
