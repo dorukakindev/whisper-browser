@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-2226.md](docs/devir/2026-10-28-2226.md) — Son grup cache korunumu ve onarım
 Güncel çalışma: [docs/devir/2026-10-28-2207.md](docs/devir/2026-10-28-2207.md) — Native Durdur ve Whisper geçişi
 Güncel çalışma: [docs/devir/2026-10-28-2151.md](docs/devir/2026-10-28-2151.md) — Gerçek GPU iptal kabulü
 Güncel çalışma: [docs/devir/2026-10-28-2137.md](docs/devir/2026-10-28-2137.md) — Native başlangıç iptali

@@ -1,3 +1,4 @@
+- [Rapor720](BROWSER_BUG_REPORT_720.md) — Kontrollü son grup takılmasında gerçek ses korunumu ve onarım
 - [Rapor719](BROWSER_BUG_REPORT_719.md) — Gerçek UI Durdur, çakışma ve sıcak motor/Whisper geçişi
 - [Rapor718](BROWSER_BUG_REPORT_718.md) — Gerçek GPU sentez iptali ve yeni motor kabulü
 - [Rapor717](BROWSER_BUG_REPORT_717.md) — Native başlangıçta kapanış ve dış iptal yarışı

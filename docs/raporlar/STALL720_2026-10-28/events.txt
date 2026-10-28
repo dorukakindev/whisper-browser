@@ -1,0 +1,9 @@
+DUB_CONCURRENCY 1
+DUB_ENGINE {"reused": false, "concurrency": 1}
+DUB_FAILURE {"kind": "EngineStalled", "message": "Ses motoru yanit zamanini asti; tamamlanan parcalar korunarak yeniden baslatilacak."}
+DUB_WARNING engine_restart
+DUB_CONCURRENCY 1
+DUB_CONCURRENCY 1
+DUB_ENGINE {"reused": false, "concurrency": 1}
+DUB_METRICS {"load_seconds": 8.202999999979511, "reference_seconds": 1.5940000000118744, "generation_seconds": 38.21899999998277, "attempts": 2, "retries": 1, "cached_groups": 1, "generated_groups": 1, "steps": 15, "concurrency": 1}
+DUB_PHASES {"model_load_seconds": 18.219, "reference_seconds": 3.234, "synthesis_seconds": 50.969, "verification_seconds": 31.297, "placement_seconds": 0.015, "normalization_seconds": 0.422, "file_write_seconds": 0.0, "wall_seconds": 105.25}
