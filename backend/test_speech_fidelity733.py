@@ -16,6 +16,10 @@ class Fidelity733Tests(unittest.TestCase):
    self.assertNotIn('number_mismatch',S.translation_blocking_issues(source,target,'tr','en'))
   for target in ['Sekizinin teste ihtiyacı var.','Doksanının teste ihtiyacı var.','Dokuz yüzünün teste ihtiyacı var.']:
    self.assertIn('number_mismatch',S.translation_blocking_issues('Nine need a test.',target,'tr','en'))
+ def test_availability_idiom_does_not_relax_arbitrary_ratios(self):
+  self.assertNotIn('number_mismatch',S.translation_blocking_issues('It is 24/7.','Yedi yirmi dört açık.','tr','en'))
+  for source,target in [('It is 24/7.','Yedi yirmi üç açık.'),('The ratio is 24/8.','Yedi yirmi dört açık.')]:
+   self.assertIn('number_mismatch',S.translation_blocking_issues(source,target,'tr','en'))
  def test_both_speech_passes_protect_relation_and_focus(self):
   for prompt in [T.build_translate_prompt('tr','en',[],for_speech=True),T.build_refine_prompt('tr',for_speech=True)]:
    self.assertIn('sahiplik ile aliciyi',prompt)

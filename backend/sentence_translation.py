@@ -1422,6 +1422,15 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
     source_numbers_text, translated_numbers_text = source, translated
     source_numbers_text = re.sub(r"(?i)(\b(?:saat|akşam|sabah|öğlen|gece)\s+\d{1,2})\.([0-5]\d)(?!\d)", r"\1:\2", source_numbers_text)
 
+    # The availability idiom has an established Turkish order (7/24).
+    # Consume both quantities together; arbitrary ratios remain strict.
+    if str(target_lang or '').lower().split('-')[0] == 'tr':
+        for idiom in list(re.finditer(r'(?<![\w/])24\s*/\s*7(?![\w/])', source_numbers_text))[::-1]:
+            found = _turkish_number_phrase_match(translated_numbers_text, 'yedi yirmi dört')
+            if found:
+                source_numbers_text = source_numbers_text[:idiom.start()] + ' ' + source_numbers_text[idiom.end():]
+                translated_numbers_text = translated_numbers_text[:found.start()] + ' ' + translated_numbers_text[found.end():]
+
     if _CLOCK_SOURCE.search(source_numbers_text):
         # 5:30 and 5.30 are the same clock time in these subtitles. Compare
         # whole clock expressions so a changed minute cannot pass as two

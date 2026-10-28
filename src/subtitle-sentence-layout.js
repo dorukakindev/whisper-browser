@@ -173,6 +173,15 @@ function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
   const turkishTarget = String(targetLanguage || '').toLowerCase().split('-')[0] === 'tr';
   let sourceForNumbers = String(source || '');
   let targetForNumbers = String(translated || '');
+  if (turkishTarget) {
+    for (const idiom of [...sourceForNumbers.matchAll(/(?<![\p{L}\d/])24\s*\/\s*7(?![\p{L}\d/])/gu)].reverse()) {
+      const found = turkishNumberPhraseMatch(targetForNumbers, 'yedi yirmi dört');
+      if (found) {
+        sourceForNumbers = sourceForNumbers.slice(0, idiom.index) + ' ' + sourceForNumbers.slice(idiom.index + idiom[0].length);
+        targetForNumbers = targetForNumbers.slice(0, found.index) + ' ' + targetForNumbers.slice(found.end);
+      }
+    }
+  }
   {
     // Subtitle style commonly writes 5:30 as 5.30. Remove only matched clock
     // pairs; an altered minute remains a blocking mismatch.
