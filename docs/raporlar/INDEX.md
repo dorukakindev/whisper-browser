@@ -1,3 +1,4 @@
+- [Rapor724](BROWSER_BUG_REPORT_724.md) — Son metin üretimlerini yeniden açma ve dar sonuç kartı
 - [Rapor723](BROWSER_BUG_REPORT_723.md) — Ortak yerel referans ve kitap ses ayarları
 - [Rapor722](BROWSER_BUG_REPORT_722.md) — Ortak temada Electron metin stüdyosu ve gerçek GPU üretim/iptal
 - [Rapor721](BROWSER_BUG_REPORT_721.md) — Ses kimliğine bağlı ilk referans dökümü ve güvenli fark kartı
