@@ -4,6 +4,10 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ["Çalışan iş özeti", "Running job summary"],
+    ["Yalnız transkripsiyon", "Transcription only"],
+    ["Tam kaynak", "Entire source"],
+    ["İşlem biçimi", "Processing mode"],
     ["İşlemin durduğu doğrulanamadı; tekrar Durdur düğmesine basabilirsiniz.", "Stopping could not be confirmed; you can press Stop again."],
     ["Reopen the authorized PDF / Onaylı PDFyi yeniden açın.", "Reopen the authorized PDF."],
     ["Invalid subtitle translation range / Geçersiz altyazı çeviri aralığı.", "Invalid subtitle translation range."],

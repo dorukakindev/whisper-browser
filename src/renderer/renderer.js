@@ -444,6 +444,8 @@ async function startTranscribeSafe(opts, requestedJobId = null) {
   // RendererUiModel kapısında sessizce düşer.
   state.awaitingExit = false;
   state.activeJobId = jobId;
+  state.executionSummary = opts?.chat || opts?.explain ? null : {jobId,value:window.JobSummary.snapshot(opts,estimateVramMib(opts))};
+  updateSignalDesk();
   try {
     const result = await window.api.startTranscribe(snapshotQueueOptions({ ...(opts || {}), jobId }));
     const normalized = result || { ok: false, error: 'Transkripsiyon başlatılamadı.' };
@@ -456,7 +458,7 @@ async function startTranscribeSafe(opts, requestedJobId = null) {
   } catch (err) {
     if (state.activeJobId === jobId) state.activeJobId = null;
     return { ok: false, error: err && err.message ? err.message : 'Transkripsiyon IPC çağrısı başarısız.' };
-  }
+  } finally { updateSignalDesk(); }
 }
 
 function queueInputKey(type, input) {
@@ -3588,28 +3590,32 @@ function updateSettingsOverview() {
 function updateSignalDesk() {
   updateSettingsOverview();
   if (!$('signalDesk')) return;
-  const source = state.source === 'youtube'
-    ? ($('youtubeUrl').value.trim()
-        ? interfaceChoice('YouTube bağlantısı', 'YouTube link')
-        : interfaceChoice('YouTube bekleniyor', 'Waiting for YouTube'))
-    : (state.inputFile ? state.inputFile.split(/[\\/]/).pop()
-        : interfaceChoice('Dosya bekleniyor', 'Waiting for file'));
-  $('summarySource').textContent = source;
-  $('summarySource').title = state.source === 'file' && state.inputFile ? state.inputFile : source;
-  const engineOption = $('engine').selectedOptions[0];
-  const engine = engineOption ? engineOption.textContent.split('(')[0].trim() : $('engine').value;
-  $('summaryEngine').textContent = `${$('model').value} · ${engine}`;
-  $('summaryOutput').textContent = $('formats').selectedOptions[0]?.textContent.trim() || $('formats').value.toUpperCase();
-  const translation = $('translate').checked || state.forceTranslate;
-  $('summaryTranslation').textContent = translation
-    ? `Çeviri → ${$('translateTo').selectedOptions[0]?.textContent.trim() || $('translateTo').value}`
-    : ($('task').value === 'translate' ? 'Whisper → English' : interfaceChoice('Kaynak altyazı', 'Source subtitles'));
-  const estimate = estimateVramMib();
+  const frozen = state.executionSummary?.jobId === state.activeJobId && state.activeJobId
+    ? state.executionSummary.value : null;
+  const translating=$('translate').checked || !!state.forceTranslate;
+  // This overview runs during bootstrap, before player-dependent option helpers exist.
+  const options = frozen || window.JobSummary.snapshot({
+    sourceType:state.source,
+    input:state.source === 'file' ? state.inputFile || '' : '',
+    youtube:state.source === 'youtube' ? $('youtubeUrl').value.trim() : '',
+    model:$('model').value,engine:$('engine').value,formats:$('formats').value,task:$('task').value,
+    translate:translating,translateForSpeech:translating && !!$('translateForSpeech')?.checked,
+    translateTo:$('translateTo').value,translateModel:$('translateModel').value,
+    clipStart:$('clipStart').value.trim(),clipEnd:$('clipEnd').value.trim()},estimateVramMib());
+  const summary = window.JobSummary.describe(options,window.UiLocale?.get?.());
+  for(const [key,id] of Object.entries({source:'summarySource',engine:'summaryEngine',output:'summaryOutput',translation:'summaryTranslation',range:'summaryRange',mode:'summaryMode'})){
+    $(id).textContent=summary[key];$(id).title=summary[key];
+  }
+  $('signalDeskTitle').textContent=interfaceChoice(frozen?'Çalışan iş özeti':'İş özeti',frozen?'Running job summary':'Job summary');
+  $('summaryNextJob').classList.toggle('hidden',!frozen);
+  $('summaryNextJob').textContent=interfaceChoice('Form değişiklikleri sonraki işte kullanılır.','Form changes apply to the next job.');
+  const estimate = options.estimate;
   const total = Number(state.gpuVramMib) || 0;
   const tight = total > 0 && estimate > total * .85;
-  $('summaryVram').textContent = total ? `~${estimate} / ${total} MiB${tight ? ' · sınırda' : ''}` : `~${estimate} MiB tahmin`;
+  $('summaryVram').textContent = total ? `~${estimate} / ${total} MiB${tight ? interfaceChoice(' · sınırda',' · near capacity') : ''}` : `~${estimate} MiB ${interfaceChoice('tahmin','estimated')}`;
   $('summaryVram').classList.toggle('is-tight', tight);
   updatePresetDiff();
+  if(frozen) $('presetDiffIntro').textContent=interfaceChoice('Üstte çalışan işin ayarları gösterilir. Form değişiklikleri sonraki işte kullanılır.','The summary shows the running job. Form changes apply to the next job.');
 }
 
 
@@ -3652,7 +3658,7 @@ $('jobValidationFix').addEventListener('click', () => {
 
 const SIGNAL_SUMMARY_CONTROLS = new Set([
   'model', 'engine', 'batchSize', 'computeType', 'device', 'diarize', 'formats', 'translate',
-  'translateTo', 'task', ...PRESET_CONTROLS,
+  'translateTo', 'task', 'clipStart', 'clipEnd', 'translateForSpeech', 'translateModel', ...PRESET_CONTROLS,
 ]);
 document.addEventListener('change', (event) => {
   if (!SIGNAL_SUMMARY_CONTROLS.has(event.target.id)) return;
@@ -3660,6 +3666,8 @@ document.addEventListener('change', (event) => {
   const problem = optsProblemInfo(buildOptsFromUI());
   if (!problem) clearJobValidation();
 });
+for(const id of ['clipStart','clipEnd','translateModel']) $(id)?.addEventListener('input',updateSignalDesk);
+document.addEventListener('ui-locale-change',updateSignalDesk);
 $('youtubeUrl').addEventListener('input', () => {
   if (_validationTargetId === 'youtubeUrl' && $('youtubeUrl').value.trim()) clearJobValidation();
   updateSignalDesk();
@@ -3967,11 +3975,11 @@ const initialSettingsReady = (async () => {
 })();
 
 // Seçili model+motor+batch+diarization için korumacı VRAM üst sınırı (MiB)
-function estimateVramMib() {
-  const model = $('model') ? $('model').value : 'large-v3';
-  const ct = $('computeType') ? $('computeType').value : 'float16';
-  const engine = $('engine') ? $('engine').value : 'faster';
-  const batchSize = Math.max(1, Math.min(32, parseInt(($('batchSize') || {}).value, 10) || 1));
+function estimateVramMib(options = null) {
+  const model = options?.model ?? ($('model') ? $('model').value : 'large-v3');
+  const ct = options?.computeType ?? ($('computeType') ? $('computeType').value : 'float16');
+  const engine = options?.engine ?? ($('engine') ? $('engine').value : 'faster');
+  const batchSize = Math.max(1, Math.min(32, parseInt(options?.batchSize ?? ($('batchSize') || {}).value, 10) || 1));
   // float16 taban tahminleri (MiB); int8 ~yarı, float32 ~iki kat
   const base = {
     'large-v3': 3100, 'large-v3-turbo': 1700, 'large-v2': 3100,
@@ -3988,7 +3996,7 @@ function estimateVramMib() {
     est += base * mult * batchMultiplier;
   }
   if (engine === 'whisperx') est += 1400; // wav2vec2 hizalama aşaması için güvenlik payı
-  if ($('diarize') && $('diarize').checked) est += 2500;  // pyannote
+  if (options ? options.diarize : $('diarize')?.checked) est += 2500;  // pyannote
   return Math.round(est);
 }
 
@@ -5316,7 +5324,7 @@ window.api.onEvent((event) => {
   // arayüze sızmasın. Etiketsiz olaylar (genel uyarı/günlük satırları) geçer —
   // aksi halde transkripsiyon dışı bildirimleri de düşürürdük.
   if (event.jobId && !eventMatchesActiveJob(state, event)) return;
-  if (event.type === 'exit' && event.jobId && state.activeJobId === event.jobId) state.activeJobId = null;
+  if (event.type === 'exit' && event.jobId && state.activeJobId === event.jobId) { state.activeJobId = null; state.executionSummary = null; updateSignalDesk(); }
   const playerConsumed = playerJobEvent(event);
   if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
   if (playerConsumed) return;

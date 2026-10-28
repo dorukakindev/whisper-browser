@@ -38,7 +38,7 @@ assert.match(html, /id="openPlayer"[^>]*>BROWSER<\/button>/);
 assert.match(html, /id="uiLocale"/);
 assert.match(html, /id="playerUiLocale"/);
 const scripts=[...html.matchAll(/<script\s+src="([^"]+)"/g)].map(m=>m[1]);
-const ordered=["ui-locale.js","status-copy.js","timeline-issue-scan.js","renderer-helpers.js","../assistant-source-context.js","../assistant-capabilities.js","../assistant-workflow-settings.js","../assistant-context-manifest.js","../scene-timing-tools.js","renderer.js"];
+const ordered=["ui-locale.js","status-copy.js","timeline-issue-scan.js","renderer-helpers.js","../assistant-source-context.js","../assistant-capabilities.js","../assistant-workflow-settings.js","../assistant-context-manifest.js","../scene-timing-tools.js","job-summary.js","renderer.js"];
 let previous=-1;
 for(const dependency of ordered){
  assert.equal(scripts.filter(src=>src===dependency).length,1,dependency+" must load exactly once");

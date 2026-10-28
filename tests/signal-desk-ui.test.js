@@ -21,7 +21,7 @@ function assert(value, message) { if (!value) throw new Error(message || 'assert
 test('iş özeti kaynak, motor, çıktı, dil ve VRAM sinyallerini gösteriyor', () => {
   for (const id of ['signalDesk', 'summarySource', 'summaryEngine', 'summaryOutput', 'summaryTranslation', 'summaryVram']) {
     assert(html.includes(`id="${id}"`), `${id} görünümü eksik`);
-    assert(js.includes(`$('${id}')`), `${id} canlı güncellenmiyor`);
+    assert(js.includes(`$('${id}')`) || js.includes(`:'${id}'`), `${id} canlı güncellenmiyor`);
   }
   assert(/function updateSignalDesk\s*\(/.test(js), 'ortak iş özeti sahibi yok');
 });
