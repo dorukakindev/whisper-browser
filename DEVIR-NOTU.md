@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-28-2151.md](docs/devir/2026-10-28-2151.md) — Gerçek GPU iptal kabulü
 Güncel çalışma: [docs/devir/2026-10-28-2137.md](docs/devir/2026-10-28-2137.md) — Native başlangıç iptali
 Güncel çalışma: [docs/devir/2026-10-28-2119.md](docs/devir/2026-10-28-2119.md) — Okuyucu görünüm kontrolleri
 Güncel çalışma: [docs/devir/2026-10-28-2048.md](docs/devir/2026-10-28-2048.md) — Canlı DeepSeek ses çevirisi

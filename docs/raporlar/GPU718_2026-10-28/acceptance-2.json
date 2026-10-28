@@ -1,0 +1,169 @@
+{
+  "seed": 33511912,
+  "beforeMiB": [
+    10882,
+    12282
+  ],
+  "samples": [
+    {
+      "kind": "cancel",
+      "observedChildren": 3,
+      "loadedMiB": [
+        340,
+        12282
+      ],
+      "stopMilliseconds": 165,
+      "allObservedPidsClosed": true,
+      "synthesisStarted": true,
+      "finalWav": false,
+      "exit": {
+        "code": 1,
+        "signal": null
+      }
+    },
+    {
+      "kind": "restart",
+      "freshHost": true,
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "events": [
+        {
+          "type": "DUB_ENGINE",
+          "reused": false,
+          "concurrency": 2
+        },
+        {
+          "type": "DUB_REFERENCE_CACHE",
+          "reused": false
+        },
+        {
+          "type": "DUB_ACTIVITY",
+          "stage": "synthesis",
+          "group": 1,
+          "attempt": 1,
+          "elapsed": 0,
+          "limit": 180
+        },
+        {
+          "type": "DUB_ACTIVITY",
+          "stage": "synthesis",
+          "group": 1,
+          "attempt": 1,
+          "elapsed": 10,
+          "limit": 180
+        },
+        {
+          "type": "DUB_ACTIVITY",
+          "stage": "synthesis",
+          "group": 1,
+          "attempt": 1,
+          "elapsed": 20,
+          "limit": 180
+        },
+        {
+          "type": "DUB_ACTIVITY",
+          "stage": "verification"
+        },
+        {
+          "type": "DUB_ACTIVITY",
+          "stage": "placement"
+        },
+        {
+          "type": "DUB_ACTIVITY",
+          "stage": "file_write"
+        },
+        {
+          "type": "DUB_ACTIVITY",
+          "stage": "normalization"
+        },
+        {
+          "type": "DUB_PHASES",
+          "model_load_seconds": 10.765,
+          "reference_seconds": 1.61,
+          "synthesis_seconds": 24.094,
+          "verification_seconds": 5.844,
+          "placement_seconds": 0,
+          "normalization_seconds": 0.562,
+          "file_write_seconds": 0.016,
+          "wall_seconds": 42.953
+        }
+      ],
+      "quality": {
+        "version": 1,
+        "verification": "detailed",
+        "groups": [
+          {
+            "group": 1,
+            "key": "1",
+            "status": "ready",
+            "verification": {
+              "status": "passed",
+              "recognizedText": "Bu kontrolü denemede uzun bir cümleyi seslendiriyoruz. Kitap okumak ve yeni fikirler öğrenmek güzel bir alışkanlıktır. Bugün kütüphaneye gidip farklı hikayeler bulacağız. Birlikte çalışırken her cümlenin doğal akışını korumaya dikkat ediyoruz.",
+              "similarity": 0.9677,
+              "omission_spans": [],
+              "insertion_spans": [],
+              "missing_numbers": [],
+              "added_numbers": [],
+              "percentage_mismatch": false,
+              "semantic_mismatch": false,
+              "spoken_number_mismatch": false,
+              "lost_negation": false,
+              "added_negation": false,
+              "unit_mismatch": false,
+              "repetition": false,
+              "sign_mismatch": false,
+              "missing_names": [],
+              "review": false
+            },
+            "rewritten": false,
+            "naturalEdited": false,
+            "delivery": null,
+            "referenceMode": "isolated",
+            "displayText": "Bu kontrollü denemede uzun bir cümleyi seslendiriyoruz. Kitap okumak ve yeni fikirler öğrenmek güzel bir alışkanlıktır. Bugün kütüphaneye gidip farklı hikayeler bulacağız. Birlikte çalışırken her cümlenin doğal akışını korumaya dikkat ediyoruz.",
+            "speechRanges": [
+              [
+                0,
+                3.22
+              ],
+              [
+                4.24,
+                7.96
+              ],
+              [
+                8.82,
+                11.8
+              ],
+              [
+                12.8,
+                16.8
+              ]
+            ],
+            "text": "Bu kontrollü denemede uzun bir cümleyi seslendiriyoruz. Kitap okumak ve yeni fikirler öğrenmek güzel bir alışkanlıktır. Bugün kütüphaneye gidip farklı hikayeler bulacağız. Birlikte çalışırken her cümlenin doğal akışını korumaya dikkat ediyoruz.",
+            "sourceStart": 0,
+            "sourceEnd": 40,
+            "audioStart": 0,
+            "audioEnd": 16.8,
+            "stretch": 1
+          }
+        ],
+        "preview": false,
+        "excerpts": [
+          {
+            "key": "1",
+            "start": 0,
+            "end": 40
+          }
+        ]
+      }
+    }
+  ],
+  "source": "synthetic paragraph",
+  "complete": true,
+  "afterMiB": [
+    10882,
+    12282
+  ],
+  "toolRevision": "e20e7db935d31a27c0d14302b02f30d080410ecb"
+}
