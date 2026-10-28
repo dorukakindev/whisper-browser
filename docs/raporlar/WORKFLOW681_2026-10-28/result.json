@@ -1,0 +1,103 @@
+{
+  "web": {
+    "ok": true,
+    "wide": [
+      {
+        "ratio": 1.7777777777777777,
+        "width": 317,
+        "position": "50% 50%",
+        "fit": "cover"
+      },
+      {
+        "ratio": 1.7777777777777777,
+        "width": 317,
+        "position": "50% 50%",
+        "fit": "cover"
+      }
+    ],
+    "highQualityFirst": true,
+    "qualityFallback": true,
+    "noBrokenImage": true,
+    "missingHistoryPreserved": true,
+    "narrow": true
+  },
+  "assistant-controlled": {
+    "ok": true,
+    "compact": {
+      "width": 480,
+      "scroll": 480,
+      "height": 616,
+      "send": 594,
+      "log": 241,
+      "headerTop": 5,
+      "scrollY": 0,
+      "theme": "light",
+      "lang": "en",
+      "surface": "rgb(247, 244, 237)"
+    },
+    "source": "synthetic YouTube identity",
+    "engine": "controlled launch and events",
+    "provider": "not called",
+    "wholeVideoClearsRange": true,
+    "ambiguousRangeRejected": true,
+    "translatedOutcome": true,
+    "cancelConfirmed": true,
+    "nativeWindowsElectron": true
+  },
+  "music-real": {
+    "ok": true,
+    "model": "laion/clap-htsat-unfused",
+    "revision": "8fa0f1c6d0433df6e97c127f64b2a1d6c0dcda8a",
+    "results": [
+      {
+        "id": "quiet",
+        "score": 0.98517,
+        "matchedRange": [
+          0,
+          10
+        ]
+      },
+      {
+        "id": "trumpet",
+        "score": 0.32726,
+        "matchedRange": [
+          0,
+          5.333
+        ]
+      }
+    ],
+    "levelMatchedVolume": 0.5000345349769785,
+    "artistExclusion": true,
+    "cached": 3,
+    "realCpuInference": true,
+    "savedRankingReopened": true,
+    "narrowNoOverflow": true
+  },
+  "pdf-long": {
+    "page": 75,
+    "total": 80,
+    "excerpt": "Chapter 75 (controlled PDF text)",
+    "visible": true,
+    "rendered": 18,
+    "inlineNarration": "Existing native test completed: waveform playback, highlighting, page navigation and saved position. This is not TTS generation."
+  },
+  "whisper-real": {
+    "ok": true,
+    "model": "tiny",
+    "device": "cpu",
+    "input": "Windows synthesized speech in isolated test profile",
+    "jobState": "completed",
+    "cues": 1,
+    "exactOutputLoaded": true,
+    "realProcessStopped": true,
+    "provider": "controlled tools only; no paid request",
+    "browserIdentity": "synthetic YouTube identity; local speech substitution"
+  },
+  "node": {
+    "pass": 19,
+    "fail": 0,
+    "syntaxFiles": 10,
+    "fullSuite": "not run",
+    "CI": "not awaited"
+  }
+}

@@ -2,6 +2,12 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {match}=require('../src/assistant-video-intent');
 
+test('explicit whole-video requests override a saved interval and conflicting ranges are rejected',()=>{
+ for(const text of ['Whisper ile videonun tamamını Türkçeye çevir','Transcribe the entire video','Whisper ile tüm videoyu çevir'])assert.equal(match(text)?.wholeVideo,true,text);
+ assert.equal(match('Whisper 05:00–10:00 altyazı çıkar').wholeVideo,false);
+ assert.equal(match('Whisper ile tüm videoyu 05:00–10:00 çevir').rangeInvalid,true);
+});
+
 test('Explicit video requests preserve the three distinct existing operations',()=>{
  for(const [text,kind] of [
   ['Videonun mevcut altyazısını Türkçeye çevir','translate-track'],

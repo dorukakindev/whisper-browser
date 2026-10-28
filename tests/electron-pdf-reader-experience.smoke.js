@@ -13,12 +13,13 @@ app.commandLine.appendSwitch("disable-gpu");
 app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
 app.commandLine.appendSwitch("disable-renderer-backgrounding");
 const source = path.join(out, "Okuma denemesi.pdf");
+const longDocument=process.argv.includes("--long"),pageCount=longDocument?80:3;
 function makePdf() {
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R 5 0 R 7 0 R] /Count 3 >>",
+    `<< /Type /Pages /Kids [${Array.from({length:pageCount},(_,i)=>(3+i*2)+" 0 R").join(" ")}] /Count ${pageCount} >>`,
   ];
-  for (let page = 1; page <= 3; page++) {
+  for (let page = 1; page <= pageCount; page++) {
     const lines = [
       `Chapter ${page}`,
       "This is a controlled PDF reading sample.",
@@ -35,7 +36,7 @@ function makePdf() {
         .join("\n") +
       " ET";
     objects.push(
-      "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents " +
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${pageCount*2+3} 0 R >> >> /Contents ` +
         (4 + (page - 1) * 2) +
         " 0 R >>",
     );
@@ -146,6 +147,15 @@ app
         'return document.querySelector("#pdfReader.mode-reading .pdf-page-prose")?.textContent.includes("controlled PDF")',
       ),
     );
+    if(longDocument){
+      await run(`document.getElementById('pdfReaderPage').value='75';document.getElementById('pdfReaderPage').dispatchEvent(new Event('change'));return true`);
+      await until(()=>run(`return player.pdfReader.currentPage===75&&player.pdfReader.pages.get(75)?.article?.dataset.state==='ready'&&!player.pdfReader.navigatingPage`),'late original PDF page');
+      await wait(600);
+      const late=await run(`const r=player.pdfReader,c=PdfReaderExperience.context(),p=r.pages.get(75).article.getBoundingClientRect(),v=document.getElementById('pdfReaderPages').getBoundingClientRect();return {page:c.page,total:c.totalPages,excerpt:c.excerpt,visible:p.bottom>v.top&&p.top<v.bottom,rendered:r.rendered.size};`);
+      assert.equal(late.page,75);assert.equal(late.total,80);assert(late.excerpt.includes('Chapter 75')&&!late.excerpt.includes('Chapter 74'));assert(late.visible);assert(late.rendered<30,'jump must not eagerly raster all preceding pages');
+      fs.writeFileSync(path.join(out,'long-document.json'),JSON.stringify(late,null,2));await capture('late-page75.png');
+      await run(`document.getElementById('pdfReaderPage').value='1';document.getElementById('pdfReaderPage').dispatchEvent(new Event('change'));return true`);await until(()=>run(`return player.pdfReader.currentPage===1&&!player.pdfReader.navigatingPage`),'return to beginning');
+    }
     await run(`document.dispatchEvent(new KeyboardEvent('keydown',{key:'f',ctrlKey:true,bubbles:true,cancelable:true}));document.getElementById('pdfFindText').value='Chapter 2';document.getElementById('pdfFindForm').requestSubmit();return true`);
     await until(()=>run(`return document.getElementById('pdfFindStatus').textContent.includes('sayfa 2') && player.pdfReader.currentPage===2`),'PDF find original page identity');
     assert(await run(`return document.getElementById('pdfFindExcerpt').textContent.includes('Chapter 2')`));

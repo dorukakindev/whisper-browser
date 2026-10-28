@@ -19,9 +19,7 @@
   }
   function fold(value) { return String(value || '').normalize('NFKD').replace(/\p{M}/gu, '').toLocaleLowerCase('tr-TR').replace(/ı/g, 'i'); }
   function matches(item, query) { return fold(`${item?.title || ''} ${item?.year || ''} ${item?.synopsis || ''}`).includes(fold(query).trim()); }
-  const normalizedKey = key => String(key || '').startsWith('file:')
-    ? String(key).replace(/\\/g, '/').toLowerCase() : String(key || '');
-  function thumbnail(item) {
+  function youtubeId(item) {
     for (let value of [item?.key, item?.sourceRef, item?.url]) {
       if (typeof value !== 'string') continue;
       const direct = value.startsWith('youtube:');
@@ -30,13 +28,27 @@
       if (!id) try {
         const u = new URL(value), host = u.hostname.toLowerCase().replace(/^www\./, '');
         if (!['https:', 'http:'].includes(u.protocol) || u.username || u.password) continue;
-        if (host === 'youtu.be') id = u.pathname.split('/')[1];
+        if (host === 'youtu.be' && /^\/[\w-]{11}\/?$/.test(u.pathname)) id = u.pathname.split('/')[1];
         else if (host === 'youtube.com' || host.endsWith('.youtube.com'))
-          id = /^\/(?:shorts|embed|live)\//.test(u.pathname) ? u.pathname.split('/')[2] : u.searchParams.get('v');
+          id = /^\/(?:shorts|embed|live)\/[\w-]{11}\/?$/.test(u.pathname) ? u.pathname.split('/')[2] : u.pathname === '/watch' ? u.searchParams.get('v') : '';
       } catch {}
-      if (/^[a-zA-Z0-9_-]{11}$/.test(id || '')) return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+      if (/^[a-zA-Z0-9_-]{11}$/.test(id || '')) return id;
     }
     return '';
+  }
+  function normalizedKey(key) {
+    const id = youtubeId({ key });
+    if (id) return `youtube:${id}`;
+    return String(key || '').startsWith('file:')
+      ? String(key).replace(/\\/g, '/').toLowerCase() : String(key || '');
+  }
+  function thumbnail(item) {
+    const id = youtubeId(item);
+    return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : '';
+  }
+  function usefulTitle(value) {
+    const title = String(value || '').trim();
+    return !!title && !/^(?:\(\d+\)\s*)?YouTube\s*$/i.test(title);
   }
   function hasArtwork(item) { return !!(item?.hasPoster && item.id || thumbnail(item)); }
   function snapshot(catalog, history) {
@@ -47,15 +59,21 @@
       const key = source.watchKey || (source.value ? `${source.type === 'local' ? 'file' : 'browser'}:${source.value}` : '');
       if (key && !bySource.has(normalizedKey(key))) bySource.set(normalizedKey(key), item);
     }
-    const latest = new Map();
+    const latest = new Map(), titles = new Map();
     for(const row of Array.isArray(history)?history:[]){
       if(!row||typeof row.key!=='string')continue;
       const key=normalizedKey(row.key),previous=latest.get(key);
       if(!previous||number(row.lastWatched)>number(previous.lastWatched))latest.set(key,row);
+      const titled=titles.get(key);
+      if(usefulTitle(row.title)&&(!titled||number(row.lastWatched)>number(titled.lastWatched)))titles.set(key,row);
     }
     const watch = [...latest.values()].map(row => {
-      const catalogItem = bySource.get(normalizedKey(row.key));
-      return catalogItem ? { ...row, id: catalogItem.id, hasPoster: catalogItem.hasPoster, synopsis: catalogItem.synopsis, year: catalogItem.year } : row;
+      const key=normalizedKey(row.key), catalogItem = bySource.get(key);
+      // Keep the newest playback key/position. A transient YouTube tab title
+      // may borrow a known title for this exact video, never another source.
+      const title = youtubeId({key:row.key}) && !usefulTitle(row.title) ? titles.get(key)?.title || catalogItem?.title : '';
+      const entry = title ? {...row,title} : row;
+      return catalogItem ? { ...entry, id: catalogItem.id, hasPoster: catalogItem.hasPoster, synopsis: catalogItem.synopsis, year: catalogItem.year } : entry;
     }).sort((a, b) => number(b.lastWatched) - number(a.lastWatched));
     return { items, watch, continuing: watch.filter(row => progress(row).resume) };
   }

@@ -114,7 +114,8 @@
     if(!result?.ok||player.browserTranslationTrackId!==track.id)throw Error(result?.error||t('Translation did not start.','Çeviri başlamadı.'));
     followTranslation(task,track.id);
    }else{
-    let range=currentBrowserWhisperRange();
+    let range=intent.wholeVideo?null:currentBrowserWhisperRange();
+    if(intent.wholeVideo)player.browserWhisperRange={url,range:null};
     if(intent.range){
      const checked=validateBrowserWhisperRange(true,String(Math.floor(intent.range.start/60))+':'+String(intent.range.start%60).padStart(2,'0'),String(Math.floor(intent.range.end/60))+':'+String(intent.range.end%60).padStart(2,'0'),Number(player.browserDuration));
      if(checked.error)throw Error(checked.error);
@@ -123,7 +124,7 @@
     }
     if(!owner(task))throw Error(t('The video changed before Whisper could start.','Whisper başlamadan video değişti.'));
     task.range=range;
-    const receipt=await startBrowserYoutubeWhisper(intent.kind==='whisper-translate',{forSpeech:intent.forSpeech||undefined,targetLanguage:intent.targetLanguage||undefined,isCancelled:()=>task.cancelled||!owner(task)});
+    const receipt=await startBrowserYoutubeWhisper(intent.kind==='whisper-translate',{clipRange:range,forSpeech:intent.forSpeech||undefined,targetLanguage:intent.targetLanguage||undefined,isCancelled:()=>task.cancelled||!owner(task)});
     const engineJob=receipt?.job;
     if(task.cancelled){
      if(owner(task)&&engineJob?.browserTabId===task.tabId){task.engineJob=engineJob;followWhisper(task,engineJob);task.cancelled=false;await cancel();}

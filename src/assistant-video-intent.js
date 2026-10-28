@@ -36,8 +36,9 @@
   const range=timed?{start:clock(timed[1]),end:clock(timed[2])}:mins?{start:Number(mins[1])*60,end:Number(mins[2])*60}:null;
   const rangeInvalid=!!range&&(!Number.isFinite(range.start)||!Number.isFinite(range.end)||range.end<=range.start);
   const rangeUnresolved=!range&&/\d/u.test(text)&&/(?:dakika|saniye|minute|second|\d:|aralı|between)/u.test(text);
+  const wholeVideo=/(?:videonun\s+(?:tamamını|tümünü)|(?:tüm|bütün)\s+videoyu|(?:whole|entire|full)\s+video)/u.test(text);
   const languages=[['tr',/türkçeye|(?:to|into)\s+turkish|türkçe\s+çevir/u],['en',/ingilizceye|(?:to|into)\s+english|ingilizce\s+çevir/u],['de',/almancaya|(?:to|into)\s+german|almanca\s+çevir/u],['fr',/fransızcaya|(?:to|into)\s+french|fransızca\s+çevir/u],['es',/ispanyolcaya|(?:to|into)\s+spanish|ispanyolca\s+çevir/u]];
-  return Object.freeze({kind,range,rangeInvalid,rangeUnresolved,targetLanguage:languages.find(([,rx])=>rx.test(text))?.[0]||'',forSpeech:/(?:seslendirmeye uygun|dublaj için|for dubbing|for speech)/u.test(text)});
+  return Object.freeze({kind,range,rangeInvalid:rangeInvalid||wholeVideo&&!!range,rangeUnresolved,wholeVideo,targetLanguage:languages.find(([,rx])=>rx.test(text))?.[0]||'',forSpeech:/(?:seslendirmeye uygun|dublaj için|for dubbing|for speech)/u.test(text)});
  }
  return Object.freeze({match});
 });
