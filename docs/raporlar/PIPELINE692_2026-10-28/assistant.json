@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "compact": {
+    "width": 480,
+    "scroll": 480,
+    "height": 616,
+    "send": 594,
+    "log": 241,
+    "headerTop": 5,
+    "scrollY": 0,
+    "theme": "light",
+    "lang": "en",
+    "surface": "rgb(247, 244, 237)"
+  },
+  "source": "synthetic YouTube identity",
+  "engine": "controlled launch and events",
+  "provider": "not called",
+  "wholeVideoClearsRange": true,
+  "ambiguousRangeRejected": true,
+  "translatedOutcome": true,
+  "cancelConfirmed": true,
+  "staleOutcomeRejected": true,
+  "quietTranslationOwnerReleased": true,
+  "newCommandNotSwallowed": true,
+  "nativeWindowsElectron": true
+}

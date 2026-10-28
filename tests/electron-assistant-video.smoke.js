@@ -23,6 +23,16 @@ app.whenReady().then(async()=>{
   document.getElementById('playerTitle').textContent=player.browserPageTitle;document.getElementById('translateApiKey').value='fixture-translation-key';document.getElementById('translateModel').value='fixture-translation';
   window.fixtureStarts=[];startTranscribeSafe=async opts=>{fixtureStarts.push({translate:opts.translate,start:opts.clipStart,end:opts.clipEnd});return {ok:true};};
   document.dispatchEvent(new Event('media-context-changed'));return true`);
+ const rangeInheritance=await parent(`
+  player.browserWhisperRange={url:player.browserPageUrl,range:{start:300,end:600}};
+  player.browserTracks=[{id:'full-track',role:'source',path:'fixture.srt',clipRange:null}];player.browserLoadedTrackId='full-track';
+  const full=BrowserDubAudioUI.context().subtitleRange;
+  player.browserTracks[0].clipRange={start:310.125,end:620.5};const clipped=BrowserDubAudioUI.context().subtitleRange;
+  player.browserTracks=[];player.browserLoadedTrackId='';const pending=BrowserDubAudioUI.context().subtitleRange;
+  player.browserWhisperRange=null;return {full,clipped,pending};
+ `);
+ assert.deepEqual(rangeInheritance,{full:null,clipped:{start:310.125,end:620.5},pending:{start:300,end:600}});
+ fs.writeFileSync(path.join(out,'range-inheritance.json'),JSON.stringify(rangeInheritance,null,2));
  await until(()=>run("return document.getElementById('suggestions').textContent.includes('Yalnız Whisper')"),'video actions');
  await run("document.getElementById('bubble').click();return true");
  async function capture(name){

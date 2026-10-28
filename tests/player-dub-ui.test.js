@@ -69,5 +69,8 @@ const tick = () => new Promise(setImmediate);
   assert.equal(ui.context().subtitleRange?.start,5,'Voice uses the selected translation range, not the unbounded source track');
   w.player.sub2Path='missing.srt';assert.equal(ui.context().subtitleRange,null,'An unrelated or stale translation cannot donate a range');
   w.player.browserTracks[0].clipRange={start:30,end:60};assert.equal(ui.context().subtitleRange.start,30,'Source range remains the fallback when no matching translation is selected');
+  w.player.browserTracks[0].clipRange=null;w.currentBrowserWhisperRange=()=>({start:300,end:600});
+  assert.equal(ui.context().subtitleRange,null,'A loaded full-video track must not inherit an unstarted Whisper range');
+  w.player.browserLoadedTrackId='missing';assert.equal(ui.context().subtitleRange.start,300,'Only an absent loaded track inherits the pending range');
   console.log('player-dub-ui: menu, local attach, mute, play/pause/seek, cleanup and stale output passed');
 })().catch(e => { console.error(e); process.exitCode = 1; }).finally(() => { w.BrowserDubAudioUI.stop(); dom.window.close(); });

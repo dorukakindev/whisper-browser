@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "syntheticVideo": true,
+  "play": {
+    "video": 1.008234,
+    "audio": 1.5568,
+    "rate": 0.40212950311096723,
+    "muted": true
+  },
+  "pause": true,
+  "seek": true,
+  "originalMuteRateRestored": true,
+  "qualityChecks": [
+    {
+      "status": "not_checked"
+    },
+    {
+      "status": "not_checked"
+    }
+  ]
+}

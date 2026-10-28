@@ -1,0 +1,19 @@
+# Rapor692 — Altyazı aralığı ve gerçek sesli senkron kabulü
+
+Başlangıç d3698919cc56db9eedd983e3037ca4a1c2524fad; ürün f098a1f9176e3ad2526ebb21a6eeb5428735bf6a; dal codex/pipeline-range692.
+
+## Ürün hatası
+browser-dub-ui.selectedSubtitleRange yüklü tam altyazının null clipRange değerini || ile atlıyor, henüz çalıştırılmamış eski Whisper aralığını devralıyordu. Hazır tam altyazı beklenmedik5–10dkile daralabiliyordu. Artık yüklü altyazı varsa onun clipRange/null bilgisi esas; ancak yüklü iz yoksa pendingWhisperaralığı. Çeviri yolu ve kaynak yolu önceliği korunur. Node önce kırmızı(300–600!=null), sonra player-dub-ui/dub-generator-uiPASS. Native renderer full=null,clipped310.125–620.5,pending300–600 doğrulandı.
+
+## Asistan gerçek Windows kontrolü
+Electron/preload/main/overlay asistan akışı nativePASS: seçiliWhisperaralığı, tamvideoeskiaralığıtemizleme, belirsizaralıkreddi, captionçeviri3/8→8/8, confirmedcancel, geçgelenişsonucu ve sessizURLkaynakdeğişimireddi.1440/900 ve480CSSpxENlight panelgeometrisiPASS. Enginebaşlatma/olaylarıkontrollü, sağlayıcıçağrılmadı.14Nodevideo/caption/sync kontrolüPASS. Bu gerçekYouTubeindirme/LLMkalitesi değildir.
+
+## Gerçek GPU çıktısının oynatımı
+R685'te gerçektennanoVLLM/VoxCPM2ile üretilen2Türkçegrubun WAV'ı nativeWindows'tagerçekdecoderile açıldı. Sentetikvideoüzerindeplay/pause/seek,0.75ve1.5video+sesplaybackRateuyumu,seçilirange1–4snöncesindeözgünses/içindeyerelses0danbaşlama/sonrasındaözgünsesedönüş ve stopsonrasımute/raterestorePASS. WaveSurfer player.ts güncelkaynak https://github.com/katspaugh/wavesurfer.js/blob/main/src/player.ts ratechange/canplay/seekyaşamıincelendi(BSD3-Clauseöncekilisansdoğrulaması); dışkod/dependencyalınmadı.
+
+İlk playbackprobe anlatım WAV'ındazorunlu.sync.jsonvarsaymıştı; anlatımınsyncüretmediğikodvedoğruçıktıylateyitedildi. Test .syncisteğebağlı/nullharitayla anlatımıdaçalıştırıyor, varsa validatehiçgevşetilmiyor. Seekbeklentisiharitadanhesaplanıyor; adaptiveses6.video saniyesinde6.sessaniyesindeolmakzorundadeğil.
+
+## Gerçek parçalarla adaptive zamanlama
+MevcutgerçekGPUchunkları(kişiselsesdeğil,System.Speechsentetikreferans) production build_adaptive_timelineileiki4snvideo penceresinekonuldu:maxspeed1.25,extra_ms0,video8sn,audio16.7537708333sn,stretched2,clipped0. YenidenTTS/modelindirmesiyapılmadı. BağımsızcachedsmallfasterWhisperCPUint8:metinbenzerliği1.0,omission/insertion/repetition/negation/numberreviewyok. Üretiminorijinalverificationnot_checkedalanıyerindekaldı; bağımsızASRkabulüayrıdosyada. AynıgerçekWAV+validsyncnativevideoüzerindeyavaşladı(örnekvideoRate0.4021),play/pause/mappedseekvestoprestorationPASS. Bu konuşmayı korur, insanın doğallık/duygutercihiniispatlamaz; çokkısavideodaaşırıyavaşlamanınkullanıcıtercihibekliyor.
+
+Sınırlar:sentetikvideo,kontrollücaption/provider;canlıYouTube/DRM/Cloudflare/gerçekLLMkalitesiyok. Windowsstart.bat/kurulumdeğişmedi,temizbaşlatmaçalışmadı.11before-quitlisteneruyarısıaçık. UzunCIbeklenmedi.100hedefinbütünzincirikabulühenüzbitmedi.
