@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-0015.md](docs/devir/2026-10-29-0015.md) — Son metin üretimlerini yeniden açma
 Güncel çalışma: [docs/devir/2026-10-28-2358.md](docs/devir/2026-10-28-2358.md) — Ortak yerel referans ve kitap ses ayarları
 Güncel çalışma: [docs/devir/2026-10-28-2334.md](docs/devir/2026-10-28-2334.md) — Ortak temada Electron metin stüdyosu
 Güncel çalışma: [docs/devir/2026-10-28-2244.md](docs/devir/2026-10-28-2244.md) — Referans döküm karşılaştırması

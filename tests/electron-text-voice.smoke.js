@@ -84,12 +84,14 @@ app.whenReady().then(async()=>{
   assert(require('../src/voice-output').validVoiceOutput(result.path));
   await until(()=>run("return !document.getElementById('tv-output').hidden&&document.getElementById('tv-audio').readyState>=1"),'WAV preview metadata');
   await screenshot('studio-complete-tr');
+  await until(()=>run("return document.getElementById('tv-history').options.length===1"),'completed voice history');
   const previous=result.path;
   await run("document.getElementById('tv-text').value="+JSON.stringify(text.repeat(20))+";document.getElementById('tv-text').dispatchEvent(new Event('input'));document.getElementById('tv-start').click();return true");
   await until(()=>events.some(e=>e.kind==='text'&&e.type==='text_log'&&e.id!==result.id&&e.tail.includes('uretim basliyor')),'second real engine synthesis',120000);
   await run("document.getElementById('tv-stop').click();return true");
   await until(()=>events.some(e=>e.kind==='text'&&e.type==='cancelled'),'real text cancellation',20000);
   assert(fs.existsSync(previous),'previous completed WAV survives cancellation');
+  assert.equal((await run("return api.textVoice({action:'history'})")).results.length,1,'cancelled voice not listed');
   assert.equal(await run("return document.getElementById('tv-stop').disabled"),true);
   await screenshot('studio-stopped-tr');
   await run("document.getElementById('tv-text').value="+JSON.stringify(text)+";document.getElementById('tv-text').dispatchEvent(new Event('input'));return true");

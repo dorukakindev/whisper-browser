@@ -1,0 +1,86 @@
+{
+  "complete": true,
+  "newProcess": true,
+  "oldAudioDecoded": true,
+  "manuscriptPreserved": true,
+  "missingAudioRejected": true,
+  "realGeneration": false,
+  "metrics": {
+    "overflow": false,
+    "historyOverflow": false,
+    "buttonHeight": 46,
+    "boxes": [
+      {
+        "id": "text-voice-body",
+        "top": 131.8000030517578,
+        "bottom": 614.0000152587891,
+        "height": 482.20001220703125,
+        "position": "static",
+        "gridRows": "none",
+        "gridRow": "auto",
+        "flex": "1 1 0%"
+      },
+      {
+        "id": "text-voice-rail",
+        "top": 496.20001220703125,
+        "bottom": 1286.800048828125,
+        "height": 790.6000366210938,
+        "position": "static",
+        "gridRows": "none",
+        "gridRow": "auto",
+        "flex": "0 0 auto"
+      },
+      {
+        "id": "text-voice-manuscript",
+        "top": -339.3999938964844,
+        "bottom": 496.2000427246094,
+        "height": 835.6000366210938,
+        "position": "static",
+        "gridRows": "none",
+        "gridRow": "auto",
+        "flex": "0 0 auto"
+      },
+      {
+        "id": "text-voice-history",
+        "top": 131.8000030517578,
+        "bottom": 272.20001220703125,
+        "height": 140.40000915527344,
+        "position": "static",
+        "gridRows": "none",
+        "gridRow": "auto",
+        "flex": "0 0 auto"
+      },
+      {
+        "id": "text-voice-history-row",
+        "top": 179.8000030517578,
+        "bottom": 225.8000030517578,
+        "height": 46,
+        "position": "static",
+        "gridRows": "none",
+        "gridRow": "auto",
+        "flex": "0 1 auto"
+      },
+      {
+        "id": "tv-output",
+        "top": 286.20001220703125,
+        "bottom": 439.8000183105469,
+        "height": 153.60000610351562,
+        "position": "static",
+        "gridRows": "none",
+        "gridRow": "auto",
+        "flex": "0 0 auto"
+      },
+      {
+        "id": "tv-audio",
+        "top": 328.6000061035156,
+        "bottom": 368.6000061035156,
+        "height": 40,
+        "position": "static",
+        "gridRows": "none",
+        "gridRow": "auto",
+        "flex": "0 1 auto"
+      }
+    ],
+    "outputContainsAudio": true
+  }
+}

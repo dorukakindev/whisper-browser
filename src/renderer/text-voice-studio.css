@@ -34,3 +34,14 @@
 @media(prefers-reduced-motion:reduce){.text-voice-studio button{transition:none}}
 
 .text-voice-library .text-voice-actions{flex-direction:column}.text-voice-library .text-voice-actions .btn{width:100%;flex:none;text-align:left}
+
+.text-voice-history>summary{min-height:40px;align-content:center;cursor:pointer;font-size:13px;color:var(--text)}
+.text-voice-history-row{display:flex;gap:10px;margin:8px 0;min-width:0}
+.text-voice-history-row select{flex:1;min-width:0;min-height:42px;border:1px solid var(--border);border-radius:10px;background:var(--bg-1);color:var(--text);padding:10px 12px;font:inherit;font-size:12px}
+.text-voice-history-row .btn{flex:none;min-height:42px}
+.text-voice-history small{display:block;color:var(--text-muted);font-size:12px;line-height:1.6}
+@media(max-width:600px){.text-voice-history-row{flex-direction:column}}
+
+.text-voice-manuscript>:not(.text-voice-editor){flex-shrink:0}
+
+@media(max-width:900px){.text-voice-body{display:flex;flex-direction:column}.text-voice-manuscript,.text-voice-rail{flex:none}.text-voice-editor{flex:none;height:320px}}
