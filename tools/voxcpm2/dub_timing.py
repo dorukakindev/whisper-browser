@@ -253,6 +253,8 @@ def fit_to_window(wav, sr, window_s, max_speed, tmp_dir, tag, overflow="hata"):
 
 def build_adaptive_timeline(cues, paths, sr, total_s, max_speed, tmp_dir, extra_ms=2000):
     """Keep full speech; expand audio windows and map original video to audio."""
+    if not cues or len(cues) != len(paths):
+        raise ValueError('Speech group/audio count mismatch / Konusma grubu ve ses parcasi sayisi uyusmuyor.')
     chunks, segments, reports = [], [], []
     video_cursor = 0.0
     audio_frames = 0
@@ -289,6 +291,8 @@ def build_adaptive_timeline(cues, paths, sr, total_s, max_speed, tmp_dir, extra_
 
 def build_narration_timeline(cues, paths, sr):
     """Continuous book narration, retaining breaths and source group identities."""
+    if not cues or len(cues) != len(paths):
+        raise ValueError('Speech group/audio count mismatch / Konusma grubu ve ses parcasi sayisi uyusmuyor.')
     from dub_finish import join_pause_frames
     pieces, rows, cursor = [], [], 0
     for i, (cue, file) in enumerate(zip(cues, paths)):
