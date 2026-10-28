@@ -59,3 +59,15 @@ test('Thread creation acknowledgement, branch controls, source cards and safe st
 test('Conversation tools stay discoverable by keyboard; Escape closes tools before the assistant',()=>{
  const ui=overlay();try{ui.snapshot({locale:'tr'});assert.equal(ui.$('threads').options[0].textContent,'İlk sohbet');ui.snapshot({pageContext:true,transcriptScope:false,suggestions:[{id:'page',label:'Translate page',direct:true}]});ui.$('bubble').click();ui.w.document.dispatchEvent(new ui.w.KeyboardEvent('keydown',{key:'f',ctrlKey:true,bubbles:true}));assert(ui.$('conversationMenu').open);assert.equal(ui.w.document.activeElement,ui.$('find'));ui.w.document.dispatchEvent(new ui.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));assert(!ui.$('conversationMenu').open);assert(!ui.$('panel').hidden);ui.$('suggestions').querySelector('button').click();assert.equal(ui.commands.at(-1).action,'suggestion');assert(ui.$('review').hidden);assert.match(ui.$('log').textContent,/Read. Understand. Explore/);}finally{ui.w.close();}
 });
+
+
+test('an accepted new question clears the old tool notice without hiding rejected-send errors',async()=>{
+ const dom=new JSDOM('<div id="aiChat"><div id="aiChatLog"></div></div><div id="playerTitle">Film</div><select id="aiTranscriptScope"><option value="watched">Watched</option></select>',{runScripts:'outside-only',url:'https://parent.test/'}),w=dom.window;let listener,last,accept=false;
+ try{
+ Object.assign(w,{UiLocale:{get:()=> 'en'},player:{workspaceMode:'player',mediaKey:'file:fixture'},state:{running:false,queueRunning:false},aiChatPreparing:null,aiChatRetryPacket:null,assistantProviderSelection:()=>({model:'fixture'}),globalAssistantContext:()=>null,aiSourceScope:()=> 'A',buildOptsFromUI:()=>({translateModel:'fixture'}),AssistantJobsUI:{snapshot:()=>({jobs:[]}),cancel:async()=>{throw Error('Previous tool failed')}},api:{updateAssistant:v=>last=v,onAssistantCommand:fn=>listener=fn},aiChatSend:async text=>{if(!accept)return;const node=w.document.createElement('div');node.className='ai-msg ai-msg-user';node._sourceScope='A';node.textContent=text;w.document.getElementById('aiChatLog').append(node);}});
+ w.eval(fs.readFileSync(path.join(root,'global-assistant.js'),'utf8'));const wait=()=>new Promise(resolve=>setTimeout(resolve,90));await wait();
+ listener({action:'cancel-job',text:'old-job',sourceToken:'A'});await wait();assert.equal(last.workspaceError,'Previous tool failed');
+ listener({action:'send',text:'Rejected question',sourceToken:'A',requestId:'reject'});await wait();assert.equal(last.receipt.accepted,false);assert.equal(last.workspaceError,'Previous tool failed');
+ accept=true;listener({action:'send',text:'Accepted question',sourceToken:'A',requestId:'accept'});await wait();assert.equal(last.receipt.accepted,true);assert.equal(last.workspaceError,'');
+ }finally{w.close()}
+});

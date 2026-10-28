@@ -1,0 +1,8 @@
+{
+  "ok": true,
+  "standardTier": true,
+  "providerCalls": 14,
+  "appliedCards": 3,
+  "staleCardRefused": true,
+  "productionStarted": false
+}
