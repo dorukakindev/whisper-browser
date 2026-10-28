@@ -90,7 +90,7 @@ const TR_NUMBER_SUFFIX = "(?:['’]?(?:"
   + '|[ıiuü]?n[ıiuü]z(?:[ıiuü]n?|[dt][ae]n?|[ea])?'
   + '|s[ıiuü](?:n[ıiuü]n?|n[ae]|nd[ae]n?|n[ıiuü])?'
   + '|y[ıiuü]|y[ae]|y[ıiuü]n'
-  + '|[ıiuü](?:n[ıiuü])?|[dt][ae]n?|[ea]|[ıiuü]n'
+  + '|[ıiuü](?:n[ıiuü]n?|n[ae]|nd[ae]n?)?|[dt][ae]n?|[ea]|[ıiuü]n'
   + '))?';
 function turkishWordsRegexSource(phrase) {
   const parts = String(phrase || '').split(/\s+/u).filter(Boolean)
@@ -106,7 +106,11 @@ function turkishContinuationChangesValue(previousWord, nextWord) {
   // "kırk beş" değeri değiştirir; "iki üç gün", "beş on dakika", "yedi yirmi
   // dört" ise iki ayrı sayıdır. Türkçe bileşik sayılar büyükten küçüğe dizilir.
   const previous = String(previousWord || '').toLocaleLowerCase('tr');
-  const next = String(nextWord || '').toLocaleLowerCase('tr');
+  let next = String(nextWord || '').toLocaleLowerCase('tr');
+  for (const multiplier of TR_MULTIPLIERS.keys()) {
+    const match = turkishNumberPhrasePattern(multiplier).exec(next);
+    if (match && match.index === 0 && match[0].length === next.length) {next = multiplier;break;}
+  }
   if (next === 'buçuk' || next === 'virgül' || TR_MULTIPLIERS.has(next)) return true;
   const magnitude = (word) => (TR_ONES.includes(word) ? 0
     : TR_TENS.includes(word) && word ? 1 : TR_MULTIPLIERS.get(word));

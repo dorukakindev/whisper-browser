@@ -3291,7 +3291,7 @@ def resolve_translate_routes(base_url):
     return [raw]
 
 
-SPEECH_TRANSLATION_PROTOCOL = 'speech-v8-nominal-quote-gates'
+SPEECH_TRANSLATION_PROTOCOL = 'speech-v9-relation-quantity-fidelity'
 
 
 def translation_sentence_groups(entries, args, speakers=None):
@@ -3317,6 +3317,13 @@ def speech_translation_args(args):
     if not getattr(result, 'translate_variant_label', ''):
         result.translate_variant_label = 'speech'
     return result
+
+
+SPEECH_RELATION_RULES = (
+    "- Cumleyi kurmadan once kimin, kime, neyi yaptigini ve neyin kime ait oldugunu ayir; sahiplik ile aliciyi birbirinin yerine koyma. Eksiltili iyelik ('my sister's' gibi) onceki nesneye baglidir, yeni bir alici degildir.",
+    "- Karsitlikta olumsuzlugun odagi hangi ogeyse onu koru: nesne/sahip, alici, eylem veya iddia. 'Benimki, onunki degil' ifadesini 'ona degil baskasina' yapma. Yanit repliklerinde ben/sen/o rollerini konusmaciya gore denetle.",
+    "- Yalniz, neredeyse, en az/en fazla, haric/dahil, kisi basina, on kosul ve ihtimal gibi kapsami belirleyen ayrintilari kisa zaman araligina sigdirmak icin dusurme. Kaynaktaki sinir ile ayni olguyu aktar.",
+)
 
 
 def build_translate_prompt(target_lang, source_lang, glossary_terms, register="documentary",
@@ -3430,6 +3437,7 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
     if for_speech:
         lines += [
             "", "## SESLENDIRMEYE UYGUN CEVIRI (AYNI GECIS)",
+            *SPEECH_RELATION_RULES,
             "- Cumleyi komsu kaynak parcalariyla birlikte anla; hedef dilde sesli okunacak dogal bir konusma kur.",
             ("- Ingilizce kelime sirasini kopyalama; Turkcede yuklem, ozne ve tamlamalari dogal yerlerine koy."
              if str(target_lang).lower().split('-')[0] in ('tr', 'tur')
@@ -3527,6 +3535,7 @@ def build_refine_prompt(target_lang, max_cps=21, max_line_width=42, for_speech=F
         lines += [
             "- Kaynagin retorik sorusu, unlem, yarim kalan dusunce, alinti ve anlamli tekrarlarinin islevini koru; duz anlatima indirgeme veya yeni duygu ekleme.",
             "", "## SESLENDIRME EDITORU",
+            *SPEECH_RELATION_RULES,
             "- Kaynagin TAM anlami ve ilk ceviri birlikte referanstir. Yalniz daha akici duyulsun diye olgu, kosul, belirsizlik veya anlatim tonunu degistirme.",
             "- Once cumlenin tamamina bak; sonra ayni grup icinde Turkcenin dogal soz dizimine gore bol. Yuklemden sonra nesneyi kisa bir yetim parcaya birakma.",
             "- document_context salt okunur kaynak konu baglamidir. terms_candidates diger gruplarda gorulen ADAY eslemlerdir, dogruluk kaniti degildir; kaynak ve yerel konuya gore denetle, yanlissa kullanma. Kullanici sozlugu onceliklidir.",
