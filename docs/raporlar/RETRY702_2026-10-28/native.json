@@ -1,0 +1,25 @@
+{
+  "ok": true,
+  "events": "controlled real renderer/preload IPC",
+  "actualGpu": false,
+  "selection": [
+    "1",
+    "2"
+  ],
+  "excludedReady": "3",
+  "layouts": [
+    {
+      "locale": "tr",
+      "theme": "dark",
+      "width": 800,
+      "zoom": 1.25
+    },
+    {
+      "locale": "en",
+      "theme": "light",
+      "width": 1000,
+      "zoom": 1
+    }
+  ],
+  "whenAllReady": "Resume missing pieces"
+}

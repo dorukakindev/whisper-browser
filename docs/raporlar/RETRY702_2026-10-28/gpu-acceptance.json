@@ -1,0 +1,45 @@
+{
+  "ok": true,
+  "actualGpu": true,
+  "syntheticReference": true,
+  "cacheIdentity": [
+    {
+      "key": "1",
+      "before": "9cdc5ccd1b934501fd2fda18a267cffffa94be99baf61f6256f433ffc7e6aee9",
+      "after": "7248ae3e7d9fc5f2792784afd451ad96c0c59aefd792f9e4dd9e4f8052602ab0",
+      "changed": true
+    },
+    {
+      "key": "2",
+      "before": "33b950d538491cb6383fc616f98cbc1bd53fe66041478391e3b1ab9cfd176536",
+      "after": "33b950d538491cb6383fc616f98cbc1bd53fe66041478391e3b1ab9cfd176536",
+      "changed": false
+    }
+  ],
+  "metrics": {
+    "load_seconds": 11.48399999999674,
+    "reference_seconds": 1.8589999999967404,
+    "generation_seconds": 21.344000000011874,
+    "attempts": 1,
+    "retries": 0,
+    "cached_groups": 1,
+    "generated_groups": 1,
+    "steps": 15,
+    "concurrency": 2
+  },
+  "phases": {
+    "model_load_seconds": 11.484,
+    "reference_seconds": 1.859,
+    "synthesis_seconds": 21.297,
+    "placement_seconds": 0.0,
+    "normalization_seconds": 0.328,
+    "file_write_seconds": 0.0,
+    "wall_seconds": 36.141
+  },
+  "groupStatus": [
+    "ready",
+    "ready"
+  ],
+  "exitCodeCaptured": false,
+  "terminalMarker": true
+}
