@@ -711,3 +711,15 @@ dialog.mw-dialog::backdrop {
 .mw-reader-tools-panel button { text-align:left; }
 .mw-reader-tools>summary:focus-visible { outline:2px solid var(--accent);outline-offset:3px; }
 @media(max-width:760px){.mw-reading-head{gap:8px}.mw-reading-head>.book-assistant-compact{margin-left:auto}.mw-reader-tools-panel{width:min(350px,calc(100vw - 80px))}}
+
+/* Narrow reader tools stay inside the scroll viewport, including at 125% DPI. */
+@media (max-width: 760px) {
+  .mw-reading-head { position: relative; }
+  .mw-reading-head > .mw-reader-tools { position: static; }
+  .mw-reading-head > .mw-reader-tools > .mw-reader-tools-panel {
+    left: 0;
+    right: 0;
+    width: auto;
+    max-width: 100%;
+  }
+}

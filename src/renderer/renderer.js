@@ -25258,7 +25258,13 @@ async function openPdfReader(filePath = '') {
   }
   const root = $('pdfReaderPages'); root.onscroll = () => {
     if(player.pdfReader?.zooming||player.pdfReader?.navigatingPage)return;
-    const page = [...readerPagesForVisibility()].filter(p=>p.visible>0).sort((a, b) => b.visible-a.visible || Math.abs(a.top)-Math.abs(b.top))[0];
+    const visible = readerPagesForVisibility().filter(p=>p.visible>0);
+    // Keep the selected page while it remains fully visible: two short pages
+    // can share the viewport without changing the assistant's source page.
+    const current = visible.find(p=>p.number===player.pdfReader.currentPage);
+    const page = current && current.height>0 && current.visible>=current.height-1
+      ? current
+      : visible.sort((a,b)=>b.visible-a.visible||Math.abs(a.top)-Math.abs(b.top))[0];
     if (page) {
       player.pdfReader.currentPage = page.number;
       if ($('pdfReaderPage')) $('pdfReaderPage').value = String(page.number);
@@ -25283,7 +25289,7 @@ async function openPdfReader(filePath = '') {
 
 function readerPagesForVisibility() {
   const root = $('pdfReaderPages'); if (!root) return [];
-  return [...root.querySelectorAll('.pdf-page')].map((node) => {const bounds=node.getBoundingClientRect(),viewport=root.getBoundingClientRect();return {number:Number(node.dataset.page),top:bounds.top-viewport.top,visible:Math.max(0,Math.min(bounds.bottom,viewport.bottom)-Math.max(bounds.top,viewport.top))};});
+  return [...root.querySelectorAll('.pdf-page')].map((node) => {const bounds=node.getBoundingClientRect(),viewport=root.getBoundingClientRect();return {number:Number(node.dataset.page),height:bounds.height,top:bounds.top-viewport.top,visible:Math.max(0,Math.min(bounds.bottom,viewport.bottom)-Math.max(bounds.top,viewport.top))};});
 }
 
 $('pdfReaderOpen')?.addEventListener('click', () => openPdfReader());
