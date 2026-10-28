@@ -521,6 +521,7 @@ const {
   subtitleOutputExtension,
   subtitleTrackLabel,
 } = require('./media-subtitle-tracks');
+const { parseAudioStreams } = require('./media-audio-tracks');
 
 // QUIC bazı VPN/tünelleme sürücülerinde bağlantıyı kuramadan bekleyebiliyor
 // (Chromium: ERR_QUIC_PROTOCOL_ERROR). HTTP/2/TCP geri dönüşü, gömülü
@@ -20105,7 +20106,7 @@ ipcMain.handle('media:probeTracks', async (event, filePath) => {
     try {
       p = spawn(ffprobe, [
         '-v', 'error',
-        '-show_entries', 'stream=index,codec_type,codec_name,channels:stream_tags=language,title:stream_disposition=default,forced,hearing_impaired',
+        '-show_entries', 'stream=index,codec_type,codec_name,channels:stream_tags=language,title,handler_name:stream_disposition=default,forced,hearing_impaired',
         '-of', 'json', filePath,
       ], { windowsHide: true });
     } catch (_) {
@@ -20135,16 +20136,7 @@ ipcMain.handle('media:probeTracks', async (event, filePath) => {
       if (code !== 0) return finish({ ok: false, tracks: [] });
       try {
         const data = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-        const tracks = (data.streams || []).filter((s) => s && s.codec_type === 'audio').map((s, i) => {
-          const tags = s.tags || {};
-          return {
-            index: i,  // ses-göreli indeks → -map 0:a:i
-            lang: tags.language || tags.LANGUAGE || '',
-            title: tags.title || tags.TITLE || '',
-            channels: s.channels || 0,
-            codec: s.codec_name || '',
-          };
-        });
+        const tracks = parseAudioStreams(data);
         const subtitleTracks = parseSubtitleStreams(data).map((track) => ({
           ...track, label: subtitleTrackLabel(track),
         }));

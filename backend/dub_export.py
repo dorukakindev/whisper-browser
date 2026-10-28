@@ -181,11 +181,14 @@ def export(request, output, ffmpeg):
         args += ['-map','[vout]','-c:v','libx264','-preset','fast','-crf','20','-pix_fmt','yuv420p','-fps_mode','vfr']
     args += ['-map','[mix]']
     if request['kind']=='dual':
-        args += ['-map','[original]','-metadata:s:a:1','title=Original','-disposition:a:1','0']
+        args += ['-map','[original]','-metadata:s:a:1','title=Original',
+                 '-metadata:s:a:1','handler_name=Original','-disposition:a:1','0']
     if request['kind']=='audio':
         args += ['-c:a','pcm_s16le']
     else:
-        args += ['-c:a','aac','-b:a','192k','-metadata:s:a:0','title=Turkce dublaj','-metadata:s:a:0','language=tur','-disposition:a:0','default','-movflags','+faststart']
+        args += ['-c:a','aac','-b:a','192k','-metadata:s:a:0','title=Turkce dublaj',
+                 '-metadata:s:a:0','handler_name=Türkçe dublaj','-metadata:s:a:0','language=tur',
+                 '-disposition:a:0','default','-movflags','+faststart']
     args += ['-t',str(audio_duration),str(output)]
     run(args)
 
