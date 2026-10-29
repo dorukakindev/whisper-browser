@@ -1,0 +1,283 @@
+{
+  "ok": true,
+  "states": [
+    {
+      "mode": "source",
+      "page": 1,
+      "focus": "source",
+      "keys": [
+        {
+          "key": "ArrowRight",
+          "target": "reading",
+          "ctrl": false,
+          "alt": false,
+          "shift": false,
+          "meta": false,
+          "phase": 1
+        }
+      ],
+      "radios": [
+        {
+          "mode": "reading",
+          "checked": "false",
+          "tab": -1,
+          "height": 40
+        },
+        {
+          "mode": "source",
+          "checked": "true",
+          "tab": 0,
+          "height": 40
+        },
+        {
+          "mode": "both",
+          "checked": "false",
+          "tab": -1,
+          "height": 40
+        },
+        {
+          "mode": "translation",
+          "checked": "false",
+          "tab": -1,
+          "height": 40
+        }
+      ],
+      "width": 1440,
+      "overflow": false
+    },
+    {
+      "mode": "reading",
+      "page": 1,
+      "focus": "",
+      "keys": [
+        {
+          "key": "ArrowRight",
+          "target": "reading",
+          "ctrl": false,
+          "alt": false,
+          "shift": false,
+          "meta": false,
+          "phase": 1
+        },
+        {
+          "key": "End",
+          "target": "source",
+          "ctrl": false,
+          "alt": false,
+          "shift": false,
+          "meta": false,
+          "phase": 1
+        },
+        {
+          "key": "Home",
+          "target": "translation",
+          "ctrl": false,
+          "alt": false,
+          "shift": false,
+          "meta": false,
+          "phase": 1
+        },
+        {
+          "key": "ArrowLeft",
+          "target": "reading",
+          "ctrl": false,
+          "alt": false,
+          "shift": false,
+          "meta": false,
+          "phase": 1
+        },
+        {
+          "key": "ArrowDown",
+          "target": "translation",
+          "ctrl": false,
+          "alt": false,
+          "shift": false,
+          "meta": false,
+          "phase": 1
+        },
+        {
+          "key": "Tab",
+          "target": "reading",
+          "ctrl": false,
+          "alt": false,
+          "shift": false,
+          "meta": false,
+          "phase": 1
+        },
+        {
+          "key": "Tab",
+          "target": "pdfReaderPage",
+          "ctrl": false,
+          "alt": false,
+          "shift": true,
+          "meta": false,
+          "phase": 1
+        },
+        {
+          "key": "Home",
+          "target": "source",
+          "ctrl": false,
+          "alt": false,
+          "shift": false,
+          "meta": false,
+          "phase": 1
+        },
+        {
+          "key": "Enter",
+          "target": "",
+          "ctrl": false,
+          "alt": false,
+          "shift": false,
+          "meta": false,
+          "phase": 1
+        }
+      ],
+      "radios": [
+        {
+          "mode": "reading",
+          "checked": "true",
+          "tab": 0,
+          "height": 40
+        },
+        {
+          "mode": "source",
+          "checked": "false",
+          "tab": -1,
+          "height": 40
+        },
+        {
+          "mode": "both",
+          "checked": "false",
+          "tab": -1,
+          "height": 40
+        },
+        {
+          "mode": "translation",
+          "checked": "false",
+          "tab": -1,
+          "height": 40
+        }
+      ],
+      "width": 800,
+      "overflow": false
+    },
+    {
+      "mode": "reading",
+      "page": 1,
+      "focus": "",
+      "keys": [
+        {
+          "key": "ArrowRight",
+          "target": "reading",
+          "ctrl": false,
+          "alt": false,
+          "shift": false,
+          "meta": false,
+          "phase": 1
+        },
+        {
+          "key": "End",
+          "target": "source",
+          "ctrl": false,
+          "alt": false,
+          "shift": false,
+          "meta": false,
+          "phase": 1
+        },
+        {
+          "key": "Home",
+          "target": "translation",
+          "ctrl": false,
+          "alt": false,
+          "shift": false,
+          "meta": false,
+          "phase": 1
+        },
+        {
+          "key": "ArrowLeft",
+          "target": "reading",
+          "ctrl": false,
+          "alt": false,
+          "shift": false,
+          "meta": false,
+          "phase": 1
+        },
+        {
+          "key": "ArrowDown",
+          "target": "translation",
+          "ctrl": false,
+          "alt": false,
+          "shift": false,
+          "meta": false,
+          "phase": 1
+        },
+        {
+          "key": "Tab",
+          "target": "reading",
+          "ctrl": false,
+          "alt": false,
+          "shift": false,
+          "meta": false,
+          "phase": 1
+        },
+        {
+          "key": "Tab",
+          "target": "pdfReaderPage",
+          "ctrl": false,
+          "alt": false,
+          "shift": true,
+          "meta": false,
+          "phase": 1
+        },
+        {
+          "key": "Home",
+          "target": "source",
+          "ctrl": false,
+          "alt": false,
+          "shift": false,
+          "meta": false,
+          "phase": 1
+        },
+        {
+          "key": "Enter",
+          "target": "",
+          "ctrl": false,
+          "alt": false,
+          "shift": false,
+          "meta": false,
+          "phase": 1
+        }
+      ],
+      "radios": [
+        {
+          "mode": "reading",
+          "checked": "true",
+          "tab": 0,
+          "height": 40
+        },
+        {
+          "mode": "source",
+          "checked": "false",
+          "tab": -1,
+          "height": 40
+        },
+        {
+          "mode": "both",
+          "checked": "false",
+          "tab": -1,
+          "height": 40
+        },
+        {
+          "mode": "translation",
+          "checked": "false",
+          "tab": -1,
+          "height": 40
+        }
+      ],
+      "width": 800,
+      "overflow": false
+    }
+  ],
+  "nativeKeyboard": true,
+  "realPdf": true
+}

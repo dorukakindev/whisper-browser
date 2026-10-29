@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-1112.md](docs/devir/2026-10-29-1112.md) — Kompakt okuyucu ve menü sınırı
 Güncel çalışma: [docs/devir/2026-10-29-1042.md](docs/devir/2026-10-29-1042.md) — Gerçek anlatım A/B kabulü
 Güncel çalışma: [docs/devir/2026-10-29-1022.md](docs/devir/2026-10-29-1022.md) — Hazır dublaj kaynak kanıtı
 Güncel çalışma: [docs/devir/2026-10-29-1012.md](docs/devir/2026-10-29-1012.md) — Ortak dublaj altyazı hazırlığı
