@@ -1,3 +1,4 @@
+- [Rapor772](BROWSER_BUG_REPORT_772.md) — Kayıtlı kitap seçicisinde geç yanıt reddi
 - [Rapor771](BROWSER_BUG_REPORT_771.md) — Stüdyo referans ve sonuç dinlemesinde tek ses
 - [Rapor770](BROWSER_BUG_REPORT_770.md) — Stüdyo ilk açılışında tek yükleme ve güvenli tekrar
 - [Rapor769](BROWSER_BUG_REPORT_769.md) — Ses stüdyosu hazır ayarlarında native klavye akışı
