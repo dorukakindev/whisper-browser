@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "milliseconds": 66,
+  "closedAtTerminal": true,
+  "parentAndChildExited": true,
+  "tempRemoved": true,
+  "osCloseCode": 1,
+  "error": "İşlem iptal edildi."
+}
