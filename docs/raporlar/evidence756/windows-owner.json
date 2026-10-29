@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "controlledGeneration": true,
+  "realRendererPreloadIPC": true,
+  "oldPickerRejected": true,
+  "oldPlanErrorRejected": true,
+  "oldLookupRejected": true,
+  "actualMediaReload": false,
+  "actualGpu": false
+}

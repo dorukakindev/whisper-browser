@@ -1,0 +1,68 @@
+✖ A local subtitle picker from the old generation cannot populate the reloaded video (258.5388ms)
+✖ A late failed plan from the old generation cannot overwrite current details (134.7264ms)
+✖ A pending ready-result lookup cannot alter range after the same video reloads (106.2185ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 986.1441
+
+✖ failing tests:
+
+test at tests\dub-request-owner756.test.js:10:1
+✖ A local subtitle picker from the old generation cannot populate the reloaded video (258.5388ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'old.srt' !== '—'
+  
+      at TestContext.<anonymous> (<worktree>\tests\dub-request-owner756.test.js:10:263)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'old.srt',
+    expected: '—',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\dub-request-owner756.test.js:11:1
+✖ A late failed plan from the old generation cannot overwrite current details (134.7264ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'Old plan failure'
+  - 'Current workspace message'
+  
+      at TestContext.<anonymous> (<worktree>\tests\dub-request-owner756.test.js:11:428)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Old plan failure',
+    expected: 'Current workspace message',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\dub-request-owner756.test.js:12:1
+✖ A pending ready-result lookup cannot alter range after the same video reloads (106.2185ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'file:///old.wav'
+  - null
+  
+      at TestContext.<anonymous> (<worktree>\tests\dub-request-owner756.test.js:12:384)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'file:///old.wav',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

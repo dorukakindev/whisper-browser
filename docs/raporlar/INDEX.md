@@ -1,3 +1,4 @@
+- [Rapor756](BROWSER_BUG_REPORT_756.md) — Dublaj hazırlığında aynı video yeni oturum sahipliği
 - [Rapor755](BROWSER_BUG_REPORT_755.md) — Whisper kapanışında süreç close ve tekrar deneme
 - [Rapor754](BROWSER_BUG_REPORT_754.md) — Canlı PDF çevirisi, seslendirme önizlemesi ve doğru sayaç/kontrast
 - [Rapor753](BROWSER_BUG_REPORT_753.md) — PDF aramasında geç hata sahipliği ve tekrar deneme
