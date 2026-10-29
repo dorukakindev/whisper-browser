@@ -95,7 +95,7 @@ const NEUTRAL = [
   'Sponsor', 'SponsorBlock', 'Startpage', 'T', 'TR', 'TXT', 'TXT (sadece metin)',
   'Tureng (EN↔TR)', 'V', 'VTT', 'VTT (web)', 'Vivaldi', 'W', 'WEB-DL, BluRay…',
   'WhisperX', 'YouTube', 'YouTube (yt-dlp)', 'YouTube browser', 'base', 'batched',
-  'cc_... / sk-...', 'deepseek-v4-flash', 'diarization', 'faster-whisper',
+  'cc_... / sk-...', 'deepseek-v4-flash', 'deepseek-ai/DeepSeek-V4.1-Flash-1017', 'diarization', 'faster-whisper',
   'float16', 'gemini-3.8-flash', 'gemini-3.8-pro', 'google.com/device', 'gpt-5.4', 'hf_...',
   'hotwords', 'https://api.example.com/v1', 'https://youtube.com/watch?v=...',
   'install-diarize.bat', 'install-whisperx.bat', 'int8', 'large-v2', 'large-v3',

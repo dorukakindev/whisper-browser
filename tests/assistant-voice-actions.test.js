@@ -12,7 +12,7 @@ test('Assistant can inspect every quality group past the first 30 without exposi
  h.context.mediaId='different-video';const changed=(await h.run('get_voice_status')).voice;assert(changed.sourceChanged);assert.equal(changed.groups.length,0);assert.equal(changed.output,null);assert.equal(changed.subtitleReady,false);
  }finally{await new Promise(resolve=>setTimeout(resolve,25));h.dom.window.close();}
 });
-function setup(){
+function setup({tracks=true}={}){
  const dom=new JSDOM(fs.readFileSync(path.join(__dirname,'../src/renderer/index.html'),'utf8'),{runScripts:'outside-only'}),w=dom.window,el=id=>w.document.getElementById(id);
  let event,request,proof=true,applied=0,picks=0,played=0,refUsed;
  const context={mode:'browser',tabId:'video-A',generation:2,mediaId:'media-A',mediaKey:'browser:A',source:'https://www.youtube.com/watch?v=abcdefghijk',visible:true,hasMedia:true};
@@ -20,7 +20,7 @@ function setup(){
  w.HTMLMediaElement.prototype.pause=w.HTMLMediaElement.prototype.load=()=>{};w.HTMLMediaElement.prototype.play=async()=>{played++;};w.HTMLElement.prototype.scrollIntoView=()=>{};
  Object.defineProperty(w.HTMLMediaElement.prototype,'readyState',{get:()=>4});Object.defineProperty(w.HTMLMediaElement.prototype,'duration',{get:()=>10});
  el('dubGeneratorDialog').showModal=()=>{el('dubGeneratorDialog').open=true;};
- Object.assign(w,{player:{sub2Role:'translation',sub2Path:'C:\\private\\translated.srt'},UiLocale:{get:()=> 'en',t:value=>value},syncBrowserOcclusion:()=>{},AssistantAppActions:{current:()=>true},BrowserDubAudioUI:{context:()=>context,originalPlayback:()=>null,stop:async()=>{},attachGenerated:async()=>{applied++;return true;}}});
+ Object.assign(w,{player:{sub2Role:'translation',sub2Path:'C:\\private\\translated.srt',browserTracks:tracks?[{path:'C:\\private\\translated.srt',role:'translation'}]:[]},UiLocale:{get:()=> 'en',t:value=>value},syncBrowserOcclusion:()=>{},AssistantAppActions:{current:()=>true},BrowserDubAudioUI:{context:()=>context,originalPlayback:()=>null,stop:async()=>{},attachGenerated:async()=>{applied++;return true;}}});
  const reference={id:'voice-A',name:'Saved voice',path:'C:\\private\\reference.wav',text:'Private transcript',url:'file:///fixture.wav'};
  w.api={dubConfig:async()=>({ok:true,ready:true,engine:'C:\\private\\engine',reference:reference.path,transcript:'C:\\private\\reference.txt'}),latestDub:async args=>({ok:true,output:args?.id&&args.id===output?.id&&proof?output:null}),
   onDubEvent:fn=>{const prior=event;event=value=>{prior?.(value);fn(value);};},startDub:async args=>(request=args,{ok:true}),
@@ -56,5 +56,13 @@ test('Local picker and reference preparation remain separate from applying the r
  const h=setup();try{
   await h.run('pick_local_voice_reference');assert.equal(h.read().picks,1);assert.equal(h.read().refUsed,undefined);
   await h.run('prepare_voice_reference',{source:'selected_local',start:0,end:15,name:'Local voice'});assert.equal(h.read().refUsed,undefined);
+ }finally{await new Promise(resolve=>setTimeout(resolve,25));h.dom.window.close();}
+});
+
+test('Assistant never adopts a leftover player subtitle without current browser track ownership',async()=>{
+ const h=setup({tracks:false});try{
+  const status=await h.run('get_voice_status');assert.equal(status.voice.subtitleReady,false);
+  await assert.rejects(h.run('start_voice_generation'),/confirmed|subtitle|ready/i);
+  assert.equal(h.read().request,undefined);
  }finally{await new Promise(resolve=>setTimeout(resolve,25));h.dom.window.close();}
 });

@@ -2358,6 +2358,7 @@
     ['Medya kitaplığı', 'Media library'],
     ['Menüde ara', 'Search the menu'],
     ['Uygulama ayarları ve araçlar', 'App settings and tools'],
+    ['Uygulama ayarları', 'Application settings'],
     ['Uygulama geçişi', 'App switcher'],
     ['Uygulama menüsü', 'App menu'],
     ['Whisper menüsü', 'Whisper menu'],

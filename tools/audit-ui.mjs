@@ -11,6 +11,7 @@
 // Windows/macOS/Linux'ta yaygın Chrome/Edge/Chromium yolları. Ek npm paketi gerekmez
 // (Node 22'nin yerleşik WebSocket'i ile ham CDP).
 
+import surfaceCoverage from './ui-surface-coverage.cjs';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -26,6 +27,8 @@ const option = (name, fallback = '') => {
 };
 const OUT = path.resolve(option('--out', path.join(ROOT, 'tmp', 'ui-audit')));
 const STRICT = flag('--strict');
+const COVERAGE_STRICT = flag('--coverage-strict');
+const DECLARED_SURFACES = surfaceCoverage.inventory(ROOT);
 const ONLY_SURFACE = option('--surface', '');
 const WIDTHS = option('--widths', '1400,1100,900').split(',').map(Number);
 if (!WIDTHS.length || WIDTHS.some(width => !Number.isInteger(width) || width < 320 || width > 3000)) throw new Error('Invalid --widths');
@@ -131,9 +134,18 @@ const SURFACES = [
 ];
 
 async function main() {
+  fs.mkdirSync(OUT, {recursive:true});
+  if(flag('--inventory-only')){
+    const coverage=surfaceCoverage.summarize(DECLARED_SURFACES,[]);
+    fs.writeFileSync(path.join(OUT,'coverage.json'),JSON.stringify(coverage,null,2));
+    console.log(JSON.stringify({inventoryOnly:true,declared:coverage.declared,visited:0,unvisited:coverage.unvisited.length,out:path.join(OUT,'coverage.json')}));
+    if(COVERAGE_STRICT&&coverage.unvisited.length)process.exitCode=1;
+    return;
+  }
   const browser = findBrowser();
   if (!browser) {
     console.error('Chromium/Chrome/Edge bulunamadı. --browser <yol> veya CHROME_PATH verin.');
+    fs.writeFileSync(path.join(OUT,'coverage.json'),JSON.stringify({...surfaceCoverage.summarize(DECLARED_SURFACES,[]),blocked:'No browser executable found.'},null,2));
     process.exit(2);
   }
   fs.mkdirSync(OUT, { recursive: true });
@@ -201,8 +213,10 @@ async function main() {
           }
           await evaluate(`document.documentElement.dataset.theme = '${theme}'`); await sleep(250);
           for (const [name, scope, prepare] of SURFACES) {
-            if (ONLY_SURFACE ? name !== ONLY_SURFACE : width !== 1400 && name !== 'browser-home') continue;
+            if (ONLY_SURFACE && name !== ONLY_SURFACE) continue;
             if (prepare) { await evaluate(prepare); await sleep(200); }
+            const scopeVisible=await evaluate(`(() => {const n=document.querySelector(${JSON.stringify(scope)});if(!n)return false;const r=n.getBoundingClientRect(),s=getComputedStyle(n);return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none';})()`);
+            if(!scopeVisible){report.runs.push({surface:name,theme,locale,width,blocked:true,reason:'Prepared scope is not visible; no screenshot or contrast success claimed.',visibleSurfaceIds:[]});continue;}
             await evaluate(`window.__uiAuditScope = '${scope}'`);
             const problems = await evaluate(CONTRAST);
             const list = Array.isArray(problems) ? problems : [];
@@ -210,7 +224,8 @@ async function main() {
             const file = path.join(OUT, `${name}-${theme}-${locale}-${width}.png`);
             const rect = await evaluate(`(() => { const r = document.querySelector('${scope}')?.getBoundingClientRect(); return r && r.width ? { x: Math.max(0, r.x - 12), y: Math.max(0, r.y - 12), width: Math.min(${width}, r.width + 24), height: Math.min(900, r.height + 24) } : null; })()`);
             await shot(file, rect && name !== 'browser-home' ? rect : null);
-            report.runs.push({ surface: name, theme, locale, width, screenshot: path.relative(OUT, file), contrastFailures: list });
+            const visibleSurfaceIds=await evaluate(`(() => {const scope=document.querySelector(${JSON.stringify(scope)});if(!scope)return [];return ${JSON.stringify(DECLARED_SURFACES.filter(r=>r.document==='index.html'))}.filter(row=>{const node=document.querySelector(row.selector);if(!node||!(scope===node||scope.contains(node)))return false;const r=node.getBoundingClientRect(),s=getComputedStyle(node);return r.width>0&&r.height>0&&r.bottom>0&&r.top<innerHeight&&s.visibility!=='hidden'&&s.display!=='none'&&!node.closest('[hidden],.hidden,details:not([open])');}).map(row=>row.id);})()`);
+            report.runs.push({ surface: name, theme, locale, width, screenshot: path.relative(OUT, file), contrastFailures: list, visibleSurfaceIds });
             console.log(`${list.length ? 'FAIL' : ' ok '}  ${name.padEnd(16)} ${theme.padEnd(5)} ${locale} ${width}px  kontrast hatası: ${list.length}`);
             for (const item of list.slice(0, 5)) console.log(`        ${item.ratio}:1 < ${item.need}  ${item.selector}  "${item.text}"`);
           }
@@ -226,10 +241,13 @@ async function main() {
       try { fs.rmSync(profile, { recursive: true, force: true }); } catch (_) { /* Windows kilidi */ }
     }
   }
+  report.coverage=surfaceCoverage.summarize(DECLARED_SURFACES,report.runs);
+  fs.writeFileSync(path.join(OUT,'coverage.json'),JSON.stringify(report.coverage,null,2));
+  console.log(`Coverage: ${report.coverage.visited}/${report.coverage.declared} declared roots captured; ${report.coverage.unvisited.length} unvisited.`);
   report.totalContrastFailures = failures;
   fs.writeFileSync(path.join(OUT, 'report.json'), JSON.stringify(report, null, 2));
   console.log(`\nRapor: ${path.join(OUT, 'report.json')} · toplam kontrast hatası: ${failures}`);
-  if (STRICT && failures) process.exit(1);
+  if (STRICT && failures || COVERAGE_STRICT && report.coverage.unvisited.length) process.exit(1);
 }
 
 main().catch((error) => { console.error(error); process.exit(1); });
