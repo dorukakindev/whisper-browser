@@ -1,0 +1,103 @@
+{
+  "method": "Same text, reference, transcript, seed, grouping, CFG and finishing; different production step counts.",
+  "human_preference": null,
+  "naturalness_winner": null,
+  "samples": [
+    {
+      "label": "A",
+      "steps": 10,
+      "load_seconds": 10.969,
+      "name": "single-context",
+      "cfg": 1.65,
+      "chunks": [
+        {
+          "text": "Bugün üç kilometre yürüdük, ama kimse yorulmadı. Bunu gerçekten sen mi söyledin? Önce şaşırdım, sonra gülümsemeye başladım. Akşam olunca eve döndük ve hikâyeyi kaldığımız yerden sürdürdük.",
+          "seed": 42,
+          "duration_seconds": 14.55,
+          "peak": 0.58247,
+          "clipped_fraction": 0.0,
+          "quiet_fraction": 0.3159,
+          "finishing": {
+            "trim_start_seconds": 0.13575,
+            "trim_end_seconds": 0.034333333333333334,
+            "gain_db": -3.0
+          }
+        }
+      ],
+      "generation_seconds": 15.375,
+      "duration_seconds": 14.55,
+      "peak": 0.58247,
+      "clipped_fraction": 0.0,
+      "quiet_fraction": 0.3159,
+      "verification": {
+        "status": "passed",
+        "recognizedText": "Bugün 3 kilometre yürüdük ama kimse yorulmadı. Bunu gerçekten sen mi söyledin. Önce şaşırdım sonra gülümsemeye başladım. Akşam olunca eve döndük ve hikayeyi kaldığımız yerden sürdürdük.",
+        "similarity": 0.9615,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": false,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": false,
+        "requestedLanguage": "tr",
+        "recognizedLanguage": "tr"
+      }
+    },
+    {
+      "label": "B",
+      "steps": 15,
+      "load_seconds": 10.578,
+      "name": "single-context",
+      "cfg": 1.65,
+      "chunks": [
+        {
+          "text": "Bugün üç kilometre yürüdük, ama kimse yorulmadı. Bunu gerçekten sen mi söyledin? Önce şaşırdım, sonra gülümsemeye başladım. Akşam olunca eve döndük ve hikâyeyi kaldığımız yerden sürdürdük.",
+          "seed": 42,
+          "duration_seconds": 14.583,
+          "peak": 0.56553,
+          "clipped_fraction": 0.0,
+          "quiet_fraction": 0.3137,
+          "finishing": {
+            "trim_start_seconds": 0.12883333333333333,
+            "trim_end_seconds": 0.0080625,
+            "gain_db": -3.0
+          }
+        }
+      ],
+      "generation_seconds": 20.5,
+      "duration_seconds": 14.583,
+      "peak": 0.56553,
+      "clipped_fraction": 0.0,
+      "quiet_fraction": 0.3137,
+      "verification": {
+        "status": "passed",
+        "recognizedText": "Bugün 3 kilometre yürüdük ama kimse yorulmadı. Bunu gerçekten sen mi söyledin. Önce şaşırdım, sonra gülümsemeye başladım. Akşam olunca eve döndük ve hikayeyi kaldığımız yerden sürdürdük.",
+        "similarity": 0.9615,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": false,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": false,
+        "requestedLanguage": "tr",
+        "recognizedLanguage": "tr"
+      }
+    }
+  ]
+}

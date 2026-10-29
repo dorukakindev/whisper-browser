@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-0939.md](docs/devir/2026-10-29-0939.md) — Gerçek10/15adım ses karşılaştırması
 Güncel çalışma: [docs/devir/2026-10-29-0926.md](docs/devir/2026-10-29-0926.md) — Native reload ve dublaj kabulü
 Güncel çalışma: [docs/devir/2026-10-29-0907.md](docs/devir/2026-10-29-0907.md) — Kitap üretim tasarım düzeni
 Güncel çalışma: [docs/devir/2026-10-29-0853.md](docs/devir/2026-10-29-0853.md) — Canlı PDF/asistan hazırlık geçişi

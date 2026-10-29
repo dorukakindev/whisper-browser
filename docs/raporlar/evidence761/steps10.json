@@ -1,0 +1,58 @@
+{
+  "version": 2,
+  "steps": 10,
+  "temperature": 0.8,
+  "model_revision": "32279effe8c19989596f05d353d1447f51d9e915",
+  "text_sha256": "571424bad55e1fbb9da3489a1d48a2ef382fe11054c40c3e82208882b53b1640",
+  "limits": "No objective naturalness or speaker-similarity claim. Listen blind before choosing.",
+  "variants": [
+    {
+      "name": "single-context",
+      "cfg": 1.65,
+      "chunks": [
+        {
+          "text": "Bugün üç kilometre yürüdük, ama kimse yorulmadı. Bunu gerçekten sen mi söyledin? Önce şaşırdım, sonra gülümsemeye başladım. Akşam olunca eve döndük ve hikâyeyi kaldığımız yerden sürdürdük.",
+          "seed": 42,
+          "duration_seconds": 14.55,
+          "peak": 0.58247,
+          "clipped_fraction": 0.0,
+          "quiet_fraction": 0.3159,
+          "finishing": {
+            "trim_start_seconds": 0.13575,
+            "trim_end_seconds": 0.034333333333333334,
+            "gain_db": -3.0
+          }
+        }
+      ],
+      "generation_seconds": 15.375,
+      "duration_seconds": 14.55,
+      "peak": 0.58247,
+      "clipped_fraction": 0.0,
+      "quiet_fraction": 0.3159,
+      "verification": {
+        "status": "passed",
+        "recognizedText": "Bugün 3 kilometre yürüdük ama kimse yorulmadı. Bunu gerçekten sen mi söyledin. Önce şaşırdım sonra gülümsemeye başladım. Akşam olunca eve döndük ve hikayeyi kaldığımız yerden sürdürdük.",
+        "similarity": 0.9615,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": false,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": false,
+        "requestedLanguage": "tr",
+        "recognizedLanguage": "tr"
+      }
+    }
+  ],
+  "load_seconds": 10.969,
+  "reference_sha256": "b622d00bac461ea082ee9f72a6031d3456e104b347c48ce52885d7df06098826",
+  "transcript_sha256": "6b3c918bbfd0d3c6b341b6d0666ff575810acd62d89e24e8e13b2918d7d46a46"
+}
