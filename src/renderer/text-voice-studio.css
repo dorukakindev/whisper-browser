@@ -59,3 +59,17 @@
  .text-voice-name{grid-column:1/-1;grid-row:1;margin:0;min-width:0}.text-voice-name label{margin-bottom:4px}
  .text-voice-studio{border-radius:16px}.text-voice-state{margin-bottom:8px}.text-voice-footer progress{margin-bottom:10px}
 }
+
+/* Keep technical evidence in the scrolling work area, outside the action bar. */
+.text-voice-feedback{display:flex;align-items:center;gap:12px;min-width:0;flex-wrap:wrap}
+.text-voice-studio .text-voice-feedback .btn{min-height:40px;padding:8px 12px;font-size:12px}
+.text-voice-studio #tv-error-open[hidden],.text-voice-error[hidden]{display:none}
+.text-voice-error{border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:14px;background:var(--bg-1);min-width:0}
+.text-voice-error>summary{padding:12px 16px;min-height:44px;box-sizing:border-box;align-content:center;cursor:pointer;font-size:13px;font-weight:600;color:var(--text)}
+.text-voice-error-content{padding:0 16px 14px}
+.text-voice-error-content p{margin:0 0 12px;color:var(--text-muted);font-size:12px;line-height:1.6;max-width:70ch}
+.text-voice-error pre{margin:0;max-height:150px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg-0);color:var(--text);font-size:12px;line-height:1.6;user-select:text}
+.text-voice-error-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}
+.text-voice-studio .text-voice-error-actions .btn{flex:0 0 auto;width:auto;max-width:100%;min-height:40px;padding:8px 12px}
+.text-voice-error-actions span{color:var(--text-muted);font-size:12px;line-height:1.5}
+.text-voice-error pre:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
