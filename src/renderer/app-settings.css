@@ -13,3 +13,19 @@ html[data-theme=light] .aps-dialog{color-scheme:light}
 .aps-dialog .assistant-flex>span:last-child{display:flex;align-items:center;gap:10px;min-height:44px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg-2);cursor:pointer;font-size:13px;line-height:1.5}.aps-dialog .assistant-flex input[type=checkbox]{width:17px;height:17px;min-height:0;flex:none;accent-color:var(--accent);margin:0}
 
 .aps-language-label {display:block;font-size:12px;color:var(--text-dim);margin:0 0 8px;font-weight:500;}.aps-language-field{min-width:0;}.aps-section .ui-locale-control {display:block;}.aps-section #uiLocale {width:100%;min-height:42px;border-radius:9px;padding:10px 12px;border:1px solid var(--border-strong);background:var(--bg-2);color:var(--text);}
+
+/* Quiet navigation, generous field rhythm, one persistent save action. */
+.aps-header{padding:22px 28px}.aps-header h1{text-wrap:balance}
+.aps-nav{gap:7px;padding:20px 14px;background:var(--bg-0)}
+.aps-nav .mh-action{min-height:42px;font-size:13px;padding:11px 12px}
+.aps-content{padding:28px 32px}
+.aps-section h2{font:600 19px/1.45 'IBM Plex Sans','Segoe UI',sans-serif;margin-bottom:10px}
+.aps-section>.aps-copy{max-width:72ch;margin-bottom:28px}
+.aps-dialog .settings-grid{gap:24px 20px}
+.aps-dialog .field{gap:9px}.aps-dialog .field-label{line-height:1.5}
+.aps-shortcuts{gap:12px;margin-top:20px}.aps-shortcuts .mh-action{min-height:40px}
+.aps-footer{padding:16px 28px;background:var(--bg-0);gap:24px}
+.aps-footer .mh-action{min-height:42px}
+@media(max-width:800px){.aps-content{padding:22px 20px}.aps-nav{padding:12px 16px}.aps-footer{padding:14px 18px;gap:14px}.aps-dialog .settings-grid{gap:20px}}
+
+.aps-header{flex-shrink:0}.aps-content{min-height:0}
