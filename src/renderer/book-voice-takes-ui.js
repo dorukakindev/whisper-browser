@@ -4,20 +4,22 @@
     parent,
     { id, chapter, call, t, isCurrent, beforeSelect, onSelected, url },
   ) {
+    const uiLabel = (en, tr) => window.BookWorkflowLabels?.label(en, tr) ?? t(en, tr);
     const el = (tag, text, cls) => {
       const n = document.createElement(tag);
-      if (text !== undefined) n.textContent = text;
+      if (text?.workflowLabel === true) window.BookWorkflowLabels.append(n, text);
+      else if (text !== undefined) n.textContent = text;
       if (cls) n.className = cls;
       return n;
     };
     const root = el("details", undefined, "mw-voice-takes"),
       summary = el(
         "summary",
-        t("Compare voice takes", "Ses denemelerini karşılaştır"),
+        uiLabel("Compare voice takes", "Ses denemelerini karşılaştır"),
       ),
       intro = el(
         "p",
-        t(
+        uiLabel(
           "Listen to the current and another take before choosing. Only audio for the current text can be used. Older files are kept.",
           "Seçmeden önce kullanılan sesi ve başka bir denemeyi dinle. Yalnız güncel metne ait ses kullanılabilir. Eski dosyalar korunur.",
         ),
@@ -27,15 +29,15 @@
       select = el("select"),
       refresh = el(
         "button",
-        t("Refresh takes", "Denemeleri yenile"),
+        uiLabel("Refresh takes", "Denemeleri yenile"),
         "mh-action",
       ),
       load = el(
         "button",
-        t("Load comparison", "Karşılaştırmayı aç"),
+        uiLabel("Load comparison", "Karşılaştırmayı aç"),
         "mh-action",
       ),
-      use = el("button", t("Use this take", "Bu denemeyi kullan"), "mh-action"),
+      use = el("button", uiLabel("Use this take", "Bu denemeyi kullan"), "mh-action"),
       status = el("p", "", "mw-muted"),
       players = el("div", undefined, "mw-take-players"),
       currentBox = el("section"),
@@ -53,11 +55,11 @@
       };
     }
     currentBox.append(
-      el("h4", t("Currently used", "Kullanılan ses")),
+      el("h4", uiLabel("Currently used", "Kullanılan ses")),
       currentAudio,
     );
     candidateBox.append(
-      el("h4", t("Comparison take", "Karşılaştırılan deneme")),
+      el("h4", uiLabel("Comparison take", "Karşılaştırılan deneme")),
       candidateAudio,
     );
     players.append(currentBox, candidateBox);

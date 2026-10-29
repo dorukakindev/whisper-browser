@@ -1,20 +1,22 @@
 (() => {
   "use strict";
   function mount(parent, { input, t, isCurrent }) {
+    const uiLabel = (en, tr) => window.BookWorkflowLabels?.label(en, tr) ?? t(en, tr);
     const el = (tag, text, className) => {
       const node = document.createElement(tag);
-      if (text !== undefined) node.textContent = text;
+      if (text?.workflowLabel === true) window.BookWorkflowLabels.append(node, text);
+      else if (text !== undefined) node.textContent = text;
       if (className) node.className = className;
       return node;
     };
     const root = el("details", undefined, "mw-text-preparation"),
       summary = el(
         "summary",
-        t("Prepare text for narration", "Seslendirme için metni hazırla"),
+        uiLabel("Prepare text for narration", "Seslendirme için metni hazırla"),
       ),
       intro = el(
         "p",
-        t(
+        uiLabel(
           "Review line-break hyphens before changing the narration text. Nothing is selected automatically; the source file stays unchanged.",
           "Satır sonunda bölünen sözcükleri seslendirmeden önce incele. Hiçbir değişiklik kendiliğinden seçilmez; kaynak dosya değişmez.",
         ),
@@ -23,17 +25,17 @@
       actions = el("div", undefined, "mw-actions"),
       preview = el(
         "button",
-        t("Preview suggestions", "Önerileri önizle"),
+        uiLabel("Preview suggestions", "Önerileri önizle"),
         "mh-action",
       ),
       apply = el(
         "button",
-        t("Apply selected changes", "Seçili değişiklikleri uygula"),
+        uiLabel("Apply selected changes", "Seçili değişiklikleri uygula"),
         "mh-action",
       ),
       undo = el(
         "button",
-        t("Undo preparation", "Hazırlamayı geri al"),
+        uiLabel("Undo preparation", "Hazırlamayı geri al"),
         "mh-action",
       ),
       status = el("p", "", "mw-muted"),
@@ -78,7 +80,7 @@
             ),
           ),
           after = el("strong", suggestion.joined),
-          label = el("label", t("Change", "Değişiklik")),
+          label = el("label", uiLabel("Change", "Değişiklik")),
           choice = el("select");
         for (const [value, caption] of [
           ["keep", t("Keep original", "Özgün metni koru")],

@@ -1,10 +1,21 @@
 (() => {
   "use strict";
   const t = (en, tr) => (window.UiLocale?.get?.() === "tr" ? tr : en);
+  // Only authored UI labels opt in. User text and book titles stay plain strings.
+  const uiLabel = (en, tr) => ({ workflowLabel: true, en, tr });
+  function appendUiLabel(node, label) {
+    const span = node.tagName === 'OPTION' ? node : document.createElement('span');
+    span.dataset.workflowLabelEn = label.en;
+    span.dataset.workflowLabelTr = label.tr;
+    span.textContent = t(label.en, label.tr);
+    if (span !== node) node.append(span);
+  }
+  window.BookWorkflowLabels = Object.freeze({ label: uiLabel, append: appendUiLabel });
   const el = (tag, cls, text) => {
     const n = document.createElement(tag);
     if (cls) n.className = cls;
-    if (text !== undefined) n.textContent = String(text);
+    if (text?.workflowLabel === true) appendUiLabel(n, text);
+    else if (text !== undefined) n.textContent = String(text);
     return n;
   };
   const call = async (action, data = {}) => {
@@ -51,7 +62,7 @@
       input.value = inputValue;
       input.maxLength = 300;
       let value = false;
-      const cancel = el("button", "mh-action", t("Cancel", "Vazgeç")),
+      const cancel = el("button", "mh-action", uiLabel("Cancel", "Vazgeç")),
         ok = el(
           "button",
           "mh-action mh-primary",
@@ -97,7 +108,9 @@
     if (node) {
       delete node.dataset.workflowStage;
       delete node.dataset.workflowPrefix;
-      node.textContent = message;
+      node.replaceChildren();
+      if (message?.workflowLabel === true) appendUiLabel(node, message);
+      else node.textContent = message;
     }
   }
   function workflowStage(stage, prefix = "") {
@@ -114,6 +127,10 @@
   }
   document.addEventListener("ui-locale-change", () => {
     if (!dialog?.open) return;
+    for (const node of dialog.querySelectorAll('[data-workflow-label-en]'))
+      node.textContent = t(node.dataset.workflowLabelEn, node.dataset.workflowLabelTr);
+    dialog.setAttribute('aria-label', t('Production workspace', 'Üretim çalışma alanı'));
+    dialog.querySelector('header>button')?.setAttribute('aria-label', t('Close', 'Kapat'));
     for (const node of dialog.querySelectorAll("[data-workflow-status]"))
       node.textContent = window.BookWorkflowStatus.label(
         node.dataset.workflowStatus,
@@ -157,7 +174,7 @@
     const body = dialog.querySelector(".mw-body");
     body.replaceChildren();
     const title = dialog.querySelector('header h1');
-    if (title) title.textContent = t('Production workspace', 'Üretim çalışma alanı');
+    if (title) { title.replaceChildren();appendUiLabel(title, uiLabel('Production workspace', 'Üretim çalışma alanı')); }
     return body;
   }
   function saveSelection() {
@@ -222,7 +239,7 @@
       box = el("section", "mw-book-search"),
       form = el("form", "mw-search-form"),
       input = el("input"),
-      submit = el("button", "mh-action", t("Find passage", "Metin bul")),
+      submit = el("button", "mh-action", uiLabel("Find passage", "Metin bul")),
       summary = el("p", "mw-muted"),
       results = el("div", "mw-search-results");
     input.type = "search";
@@ -283,7 +300,7 @@
               project.chapters[hit.chapter].text;
             if (latest !== c.text) {
               status(
-                t("Text changed; search again.", "Metin değişti; yeniden ara."),
+                uiLabel("Text changed; search again.", "Metin değişti; yeniden ara."),
               );
               return;
             }
@@ -296,7 +313,7 @@
             if (!text) return;
             if (text.value !== c.text) {
               status(
-                t("Text changed; search again.", "Metin değişti; yeniden ara."),
+                uiLabel("Text changed; search again.", "Metin değişti; yeniden ara."),
               );
               return;
             }
@@ -332,12 +349,12 @@
     const management = el("details", "mw-management"),
       managementBody = el("div", "mw-management-body");
     management.append(
-      el("summary", "", t("Project & backup tools", "Proje ve yedek araçları")),
+      el("summary", "", uiLabel("Project & backup tools", "Proje ve yedek araçları")),
       managementBody,
     );
     actions.append(
       button(
-        t("Import EPUB / PDF / TXT", "EPUB / PDF / TXT ekle"),
+        uiLabel("Import EPUB / PDF / TXT", "EPUB / PDF / TXT ekle"),
         async () => {
           if (busy) throw Error("Busy / Meşgul");
           await saveChapter();
@@ -357,7 +374,7 @@
     const backupLabel = el(
       "label",
       "mw-setting",
-      t(
+      uiLabel(
         "Include generated audio in book backup (up to 256 MiB)",
         "Kitap yedeğine üretilen sesleri dahil et (en fazla 256 MiB)",
       ),
@@ -367,21 +384,21 @@
       el(
         "p",
         "mw-muted",
-        t(
+        uiLabel(
           "Book backup includes edited text and optional generated audio. Original books, reference voices and account keys are excluded.",
           "Kitap yedeği düzenlenmiş metinleri ve isteğe bağlı üretilen sesleri içerir. Özgün kitaplar, referans sesleri ve hesap anahtarları dahil değildir.",
         ),
       ),
       backupLabel,
       button(
-        t("Back up book projects", "Kitap projelerini yedekle"),
+        uiLabel("Back up book projects", "Kitap projelerini yedekle"),
         async () => {
           const r = await call("book-backup", {
             includeAudio: backupAudio.checked,
           });
           if (!r.canceled)
             status(
-              t(
+              uiLabel(
                 "Book projects backed up. Original PDFs/EPUBs and reference voices are not included.",
                 "Kitap projeleri yedeklendi. Özgün PDF/EPUB ve referans sesleri dahil değildir.",
               ),
@@ -389,7 +406,7 @@
         },
       ),
       button(
-        t("Restore book backup", "Kitap yedeğini geri yükle"),
+        uiLabel("Restore book backup", "Kitap yedeğini geri yükle"),
         async () => {
           const r = await call("book-restore");
           if (!r.canceled) {
@@ -412,7 +429,7 @@
       "aria-label",
       t("Saved book projects", "Kayıtlı kitap projeleri"),
     );
-    const placeholder = el("option", "", t("Choose a project", "Proje seç"));
+    const placeholder = el("option", "", uiLabel("Choose a project", "Proje seç"));
     placeholder.value = "";
     choose.append(placeholder);
     for (const row of listing.projects) {
@@ -436,7 +453,7 @@
     };
     actions.append(choose, management);
     managementBody.append(
-      button(t("Archived projects", "Arşivlenmiş projeler"), async () => {
+      button(uiLabel("Archived projects", "Arşivlenmiş projeler"), async () => {
         const r = await call("book-list", { archived: true }),
           archived = r.projects.filter((p) => p.archived);
         managementBody.querySelector(".mw-archived")?.remove();
@@ -446,14 +463,14 @@
             el(
               "p",
               "mw-muted",
-              t("No archived projects.", "Arşivlenmiş proje yok."),
+              uiLabel("No archived projects.", "Arşivlenmiş proje yok."),
             ),
           );
         for (const p of archived) {
           const row = el("div", "mw-actions");
           row.append(
             el("span", "", p.title),
-            button(t("Restore", "Geri al"), async () => {
+            button(uiLabel("Restore", "Geri al"), async () => {
               await call("book-archive", { id: p.id, archived: false });
               await books();
             }),
@@ -469,7 +486,7 @@
         el(
           "p",
           "mw-muted",
-          t(
+          uiLabel(
             "Choose chapters, review their text, and narrate with your saved VoxCPM2 voice. Your original book stays unchanged.",
             "Bölümleri seç, metni gözden geçir ve kayıtlı VoxCPM2 sesinle okut. Özgün kitap değişmez.",
           ),
@@ -495,7 +512,7 @@
     );
     const projectActions = el("div", "mw-actions");
     projectActions.append(
-      button(t("Rename project", "Projeyi yeniden adlandır"), async () => {
+      button(uiLabel("Rename project", "Projeyi yeniden adlandır"), async () => {
         const name = await ask({
           title: t("Project name", "Proje adı"),
           inputLabel: t("Name", "Ad"),
@@ -509,7 +526,7 @@
         }
       }),
       button(
-        t("Check interrupted production", "Yarım üretimi denetle"),
+        uiLabel("Check interrupted production", "Yarım üretimi denetle"),
         async () => {
           const r = await call("book-recover", { id: project.id });
           project = r.project;
@@ -521,7 +538,7 @@
           );
         },
       ),
-      button(t("Archive project", "Projeyi arşivle"), async () => {
+      button(uiLabel("Archive project", "Projeyi arşivle"), async () => {
         if (
           await ask({
             title: t("Archive project?", "Proje arşivlensin mi?"),
@@ -540,7 +557,7 @@
     );
     if (project.shelfBookId)
       projectActions.append(
-        button(t("Open book library", "Kitap rafını aç"), () => {
+        button(uiLabel("Open book library", "Kitap rafını aç"), () => {
           dialog.close();
           void window.MediaHomeUI.returnHome();
           document.querySelector('[data-home-mode="books"]')?.click();
@@ -566,7 +583,7 @@
       settingsTitle = el(
         "summary",
         "",
-        t("Voice & production settings", "Ses ve üretim ayarları"),
+        uiLabel("Voice & production settings", "Ses ve üretim ayarları"),
       );
     settings.append(settingsTitle);
     const settingsBody = el("div", "mw-voice-layout");
@@ -586,7 +603,7 @@
     settingsBody.append(
       referenceName,
       button(
-        t("Change app default voice", "Uygulama varsayılan sesini değiştir"),
+        uiLabel("Change app default voice", "Uygulama varsayılan sesini değiştir"),
         async () => {
           if (busy) throw Error("Busy / Meşgul");
           const r = await window.api.dubConfig("reference");
@@ -595,7 +612,7 @@
             if (!voicePrefs.referenceId)
               referenceName.textContent = defaultLabel();
             status(
-              t(
+              uiLabel(
                 "App default voice updated.",
                 "Uygulama varsayılan sesi güncellendi.",
               ),
@@ -619,7 +636,7 @@
       const first = el(
         "option",
         "",
-        t("Use app default voice", "Uygulama varsayılan sesini kullan"),
+        uiLabel("Use app default voice", "Uygulama varsayılan sesini kullan"),
       );
       first.value = "";
       saved.append(first);
@@ -635,7 +652,7 @@
         const missing = el(
           "option",
           "",
-          t("Saved voice unavailable", "Kayıtlı ses bulunamadı"),
+          uiLabel("Saved voice unavailable", "Kayıtlı ses bulunamadı"),
         );
         missing.value = voicePrefs.referenceId;
         saved.append(missing);
@@ -676,7 +693,7 @@
         populateReferences(available);
         if (!voicePrefs.referenceId) referenceName.textContent = defaultLabel();
       };
-      const manageVoices=button(t("Manage voice library", "Referans sesleri yönet"), async () => {
+      const manageVoices=button(uiLabel("Manage voice library", "Referans sesleri yönet"), async () => {
         if (busy) throw Error(t("A workflow is running.", "Bir işlem çalışıyor."));
         const r = await window.api.openTextVoiceUI();
         if (!r?.ok) throw Error(r?.error || t("Could not open voice studio.", "Ses stüdyosu açılamadı."));
@@ -687,7 +704,7 @@
       el(
         "p",
         "mw-muted",
-        t(
+        uiLabel(
           "Saved voices apply only to this book. Local voice and transcript controls change the app default used by books without a saved voice.",
           "Kayıtlı ses seçimi yalnız bu kitaba uygulanır. Yerel ses ve döküm düğmeleri, kayıtlı ses seçmeyen kitapların kullandığı uygulama varsayılanını değiştirir.",
         ),
@@ -695,7 +712,7 @@
     );
     settingsBody.append(
       button(
-        t(
+        uiLabel(
           "Change app default transcript",
           "Uygulama varsayılan dökümünü değiştir",
         ),
@@ -767,7 +784,7 @@
       settingsBody.append(wrap);
     }
     const voiceRow=el("div","mw-reference-row"), defaults=el("details","mw-reference-defaults"), production=el("div","mw-production-fields");
-    defaults.append(el("summary","",t("App default audio & transcript", "Uygulama varsayılan sesi ve dökümü")));
+    defaults.append(el("summary","",uiLabel("App default audio & transcript", "Uygulama varsayılan sesi ve dökümü")));
     const defaultActions=el("div","mw-actions");
     for(const node of [...settingsBody.children]){
       if(node.matches(".mw-setting"))production.append(node);
@@ -817,7 +834,7 @@
       from,
       el("span", "", "—"),
       to,
-      button(t("Select this range", "Bu aralığı seç"), () => {
+      button(uiLabel("Select this range", "Bu aralığı seç"), () => {
         const a = Number(from.value),
           b = Number(to.value),
           max = project.numPages || project.chapters.length;
@@ -844,7 +861,7 @@
         for (const input of dialog.querySelectorAll(".mw-chapter input"))
           input.checked = selected.has(Number(input.dataset.chapter));
         status(
-          t("Selected pages / chapters: ", "Seçili sayfa / bölüm: ") +
+          uiLabel("Selected pages / chapters: ", "Seçili sayfa / bölüm: ") +
             selected.size,
         );
       }),
@@ -854,14 +871,14 @@
     const split = el("div", "mw-book"),
       list = el("aside", "mw-chapters");
     list.setAttribute("aria-label", t("Chapters", "Bölümler"));
-    const all = button(t("Select all", "Tümünü seç"), () => {
+    const all = button(uiLabel("Select all", "Tümünü seç"), () => {
       selected = new Set(project.chapters.map((c) => c.id));
       saveSelection();
       return books();
     });
     list.append(
       all,
-      button(t("Clear selection", "Seçimi temizle"), () => {
+      button(uiLabel("Clear selection", "Seçimi temizle"), () => {
         selected.clear();
         saveSelection();
         return books();
@@ -915,13 +932,13 @@
       el(
         "p",
         "mw-muted",
-        t(
+        uiLabel(
           "Uses the dubbing engine and original reference voice. Narration keeps natural pauses, without video gaps.",
           "Dublaj motorunu ve özgün referans sesini kullanır. Anlatım, video boşlukları olmadan doğal durakları korur.",
         ),
       ),
     );
-    if (c.qualityMissing) edit.append(el('p','mw-muted',t('Automatic verification is missing. Listen to the complete review group before approving it, or regenerate the chapter.','Otomatik doğrulama eksik. Onaylamadan önce inceleme grubunun tamamını dinle veya bölümü yeniden üret.')));
+    if (c.qualityMissing) edit.append(el('p','mw-muted',uiLabel('Automatic verification is missing. Listen to the complete review group before approving it, or regenerate the chapter.','Otomatik doğrulama eksik. Onaylamadan önce inceleme grubunun tamamını dinle veya bölümü yeniden üret.')));
     if (c.pdfPreparation) {
       const notice = el("p", "mw-muted", t(
         `PDF text follows the detected reading order; ${c.pdfPreparation.removedMarginLines || 0} marginal lines removed. Review the text before narration.`,
@@ -997,7 +1014,7 @@
         project = updated;
         await books();
         status(
-          t(
+          uiLabel(
             "Voice take selected. Earlier recordings were kept.",
             "Ses denemesi seçildi. Önceki kayıtlar korundu.",
           ),
@@ -1025,7 +1042,7 @@
             await saveChapter();
             if(stale()||project?.id!==exportProjectId)throw Error("Book source changed / Kitap kaynağı değişti.");
             status(
-              t(
+              uiLabel(
                 "Preparing M4B… Stop cancels export.",
                 "M4B hazırlanıyor… Durdur dışa aktarmayı iptal eder.",
               ),
@@ -1063,11 +1080,11 @@
             busy = false; syncBookStop();
           }
     };
-    const stopButton = button(t("Stop", "Durdur"), async () => {
+    const stopButton = button(uiLabel("Stop", "Durdur"), async () => {
         if (!busy && !job) return;
         stopRequested = true; syncBookStop();
         status(
-          t(
+          uiLabel(
             "Stopping… waiting for the active tool to close.",
             "Durduruluyor… çalışan aracın kapanması bekleniyor.",
           ),
@@ -1079,16 +1096,16 @@
     stopButton.disabled = !busy || stopRequested;
     const buttons = el("div", "mw-actions mw-transport");
     buttons.append(
-      button(t("Save text", "Metni kaydet"), saveChapter),
+      button(uiLabel("Save text", "Metni kaydet"), saveChapter),
       button(
-        t("Generate selected chapters", "Seçili bölümleri seslendir"),
+        uiLabel("Generate selected chapters", "Seçili bölümleri seslendir"),
         generate,
         true,
       ),
       stopButton,
-      button(t("Read & listen", "Dinle ve takip et"), () => readChapter()),
+      button(uiLabel("Read & listen", "Dinle ve takip et"), () => readChapter()),
       button(
-        t("Regenerate this chapter", "Bu bölümü yeniden üret"),
+        uiLabel("Regenerate this chapter", "Bu bölümü yeniden üret"),
         async () => {
           if (busy)
             throw Error(t("A workflow is running.", "Bir işlem çalışıyor."));
@@ -1097,7 +1114,7 @@
           await generate(true);
         },
       ),
-      button(t("Preview M4B export", "M4B çıktı bilgisi"), async () => {
+      button(uiLabel("Preview M4B export", "M4B çıktı bilgisi"), async () => {
         if (busy)
           throw Error(t("A workflow is running.", "Bir işlem çalışıyor."));
         busy = true; syncBookStop();
@@ -1105,7 +1122,7 @@
         const previewProjectId = project.id;
         try {
           await saveChapter();
-          status(t("Checking selected audio…", "Seçili sesler denetleniyor…"));
+          status(uiLabel("Checking selected audio…", "Seçili sesler denetleniyor…"));
           const r = await call("book-export-preview", {
             id: previewProjectId,
             chapters: [...selected],
@@ -1117,7 +1134,7 @@
             return `${Math.floor(n / 3600)}:${String(Math.floor(n / 60) % 60).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
           };
           exportPreview.replaceChildren(
-            el("h3", "", t("Selected audiobook", "Seçili sesli kitap")),
+            el("h3", "", uiLabel("Selected audiobook", "Seçili sesli kitap")),
           );
           const metrics = el("dl", "mw-export-metrics");
           for (const [label, value] of [
@@ -1144,7 +1161,7 @@
             el(
               "summary",
               "",
-              t("Chapter order and duration", "Bölüm sırası ve süreleri"),
+              uiLabel("Chapter order and duration", "Bölüm sırası ve süreleri"),
             ),
           );
           for (const row of r.chapters)
@@ -1158,7 +1175,7 @@
             el(
               "p",
               "mw-muted",
-              t(
+              uiLabel(
                 "Size is estimated at 160 kb/s AAC. The selected destination is checked again when saving.",
                 "Boyut 160 kb/sn AAC için tahminidir. Kaydederken seçilen hedefin boş alanı yeniden denetlenir.",
               ),
@@ -1175,13 +1192,13 @@
         }
       }),
       button(
-        t("Export selected as M4B", "Seçilileri M4B olarak kaydet"),
+        uiLabel("Export selected as M4B", "Seçilileri M4B olarak kaydet"),
         exportCurrent
       ),
     );
     if (project.audiobook)
       buttons.append(
-        button(t("Listen to M4B", "M4B’yi dinle"), async () => {
+        button(uiLabel("Listen to M4B", "M4B’yi dinle"), async () => {
           const r = await call("book-audiobook", {
             id: project.id,
             exportId: project.audiobook.id,
@@ -1192,7 +1209,7 @@
       );
     if (project.shelfBookId || project.format === "pdf")
       buttons.append(
-        button(t("Back to source chapter", "Kaynak bölüme dön"), async () => {
+        button(uiLabel("Back to source chapter", "Kaynak bölüme dön"), async () => {
           await saveChapter();
           const previous = dialog;
           if (project.format === "pdf") {
@@ -1215,7 +1232,7 @@
         }),
       );
     const secondary = el('details', 'mw-transport-secondary');
-    secondary.append(el('summary', '', t('Output & chapter tools', 'Çıktı ve bölüm araçları')));
+    secondary.append(el('summary', '', uiLabel('Output & chapter tools', 'Çıktı ve bölüm araçları')));
     const secondaryActions = el('div', 'mw-actions');
     for (const action of [...buttons.children].slice(4)) secondaryActions.append(action);
     secondary.append(secondaryActions);
@@ -1227,12 +1244,12 @@
         el(
           "summary",
           "",
-          t("Speech groups to review", "Kontrol edilecek konuşma grupları"),
+          uiLabel("Speech groups to review", "Kontrol edilecek konuşma grupları"),
         ),
         el(
           "p",
           "mw-muted",
-          t(
+          uiLabel(
             "After text edits, speech groups are rebuilt. Unchanged cached audio is reused when possible; old group numbers are not reused.",
             "Metni düzenlediğinde konuşma grupları yeniden kurulur. Değişmeyen önbellek sesi mümkün olduğunda kullanılır; eski grup numaraları kullanılmaz.",
           ),
@@ -1267,9 +1284,9 @@
       const pageCount=Math.ceil(reviewGroups.length/pageSize);
       reviewPaging.page=Math.min(pageCount,Math.max(1,reviewPaging.page));
       const pager=el('div','mw-actions mw-review-pager'),rows=el('div','mw-review-rows');
-      const prev=el('button','mh-action',t('Previous','Önceki')),next=el('button','mh-action',t('Next','Sonraki'));
+      const prev=el('button','mh-action',uiLabel('Previous','Önceki')),next=el('button','mh-action',uiLabel('Next','Sonraki'));
       prev.type=next.type='button';
-      const pageLabel=el('label','mw-review-page',t('Review page','İnceleme sayfası')),pageInput=el('input');
+      const pageLabel=el('label','mw-review-page',uiLabel('Review page','İnceleme sayfası')),pageInput=el('input');
       pageInput.type='number';pageInput.min='1';pageInput.max=String(pageCount);pageInput.step='1';
       pageInput.setAttribute('aria-label',t('Review page','İnceleme sayfası'));
       const pageInfo=el('span','mw-muted');pageInfo.setAttribute('role','status');pageInfo.setAttribute('aria-live','polite');
@@ -1300,7 +1317,7 @@
         const groupActions = el("div", "mw-review-actions");
         row.append(groupActions);
         groupActions.append(
-          button(t("Listen to group", "Grubu dinle"), async () => {
+          button(uiLabel("Listen to group", "Grubu dinle"), async () => {
             const request = ++playRequest;
             audio.pause();
             end = null;
@@ -1342,7 +1359,7 @@
                 g.start >= audio.duration
               ) {
                 status(
-                  t(
+                  uiLabel(
                     "This group has no playable audio range.",
                     "Bu grubun dinlenebilir ses aralığı yok.",
                   ),
@@ -1358,7 +1375,7 @@
             audio.src = pathToFileUrl(r.path);
             audio.load();
           }),
-          button(t("Edit this passage", "Bu metni düzenle"), () => {
+          button(uiLabel("Edit this passage", "Bu metni düzenle"), () => {
             const match = textarea.value === c.text
               ? window.BookTextSearch.locateSpeechGroup(c.text, c.groups, c.groups.indexOf(g))
               : null;
@@ -1367,7 +1384,7 @@
               textarea.setSelectionRange(match.start, match.end);
             else
               status(
-                t(
+                uiLabel(
                   "The source text has changed; edit this chapter and regenerate it.",
                   "Kaynak metin değişti; bölümü düzenleyip yeniden üret.",
                 ),
@@ -1375,7 +1392,7 @@
             textarea.scrollIntoView({ block: "nearest" });
           }),
           button(
-            t("Regenerate only this group", "Yalnız bu grubu yeniden üret"),
+            uiLabel("Regenerate only this group", "Yalnız bu grubu yeniden üret"),
             async () => {
               if (project?.id !== reviewProjectId || chapter !== reviewChapter)
                 return;
@@ -1384,7 +1401,7 @@
             },
           ),
           button(
-            t("I listened — approve this group", "Dinledim — bu grubu onayla"),
+            uiLabel("I listened — approve this group", "Dinledim — bu grubu onayla"),
             async () => {
               const approvalProject = project.id,
                 approvalChapter = chapter,
@@ -1475,7 +1492,7 @@
       generation = readerGeneration,
       head = el("div", "mw-reading-head");
     head.append(
-      button(t("Back to editor", "Editöre dön"), async () => {
+      button(uiLabel("Back to editor", "Editöre dön"), async () => {
         await closeReader();
         status("");
         await books();
@@ -1602,15 +1619,15 @@
         }
     };
     head.append(
-      button(t("Previous page / chapter", "Önceki sayfa / bölüm"), () =>
+      button(uiLabel("Previous page / chapter", "Önceki sayfa / bölüm"), () =>
         readChapter(Math.max(0, current - 1)),
       ),
-      button(t("Next page / chapter", "Sonraki sayfa / bölüm"), () =>
+      button(uiLabel("Next page / chapter", "Sonraki sayfa / bölüm"), () =>
         readChapter(Math.min(project.chapters.length - 1, current + 1)),
       ),
     );
     const followButton = button(
-      t("Follow reading: on", "Okumayı takip et: açık"),
+      uiLabel("Follow reading: on", "Okumayı takip et: açık"),
       () => {
         follow = !follow;
         followButton.setAttribute("aria-pressed", String(follow));
@@ -1656,8 +1673,8 @@
     );
     font.oninput = () => (prose.style.fontSize = font.value + "px");
     const tools = el('details', 'mw-reader-tools'), toolPanel = el('div', 'mw-reader-tools-panel');
-    const fontLabel = el('label', 'mw-setting', t('Reading font size', 'Okuma yazı boyutu')); fontLabel.append(font);
-    toolPanel.append(fontLabel); tools.append(el('summary', 'mh-action', t('Reading tools', 'Okuma araçları')), toolPanel);
+    const fontLabel = el('label', 'mw-setting', uiLabel('Reading font size', 'Okuma yazı boyutu')); fontLabel.append(font);
+    toolPanel.append(fontLabel); tools.append(el('summary', 'mh-action', uiLabel('Reading tools', 'Okuma araçları')), toolPanel);
     head.append(followButton, tools);
     body.append(head, audio);
     const title = dialog.querySelector('header h1'); if (title) title.textContent = project.title || t('Audiobook', 'Sesli kitap');
@@ -1741,7 +1758,7 @@
       el(
         "p",
         "mw-muted",
-        t(
+        uiLabel(
           "Highlight follows verified speech groups; it is not estimated word timing. Click a passage to listen from there.",
           "Vurgu doğrulanan konuşma gruplarını izler; tahmini kelime zamanı değildir. Bir parçaya tıklayarak oradan dinleyebilirsin.",
         ),
@@ -1758,7 +1775,7 @@
         el(
           "p",
           "mw-muted",
-          t("Loading original PDF page…", "Özgün PDF sayfası yükleniyor…"),
+          uiLabel("Loading original PDF page…", "Özgün PDF sayfası yükleniyor…"),
         ),
       );
       try {
@@ -1794,7 +1811,7 @@
         if (!isCurrentPage()) return;
 
         zoom.setAttribute("aria-label", t("PDF zoom", "PDF yakınlaştırma"));
-        const fit = el("option", "", t("Fit width", "Genişliğe sığdır"));
+        const fit = el("option", "", uiLabel("Fit width", "Genişliğe sığdır"));
         fit.value = "fit";
         zoom.append(fit);
         for (const scale of [0.8, 1, 1.25, 1.5, 2]) {
@@ -1849,7 +1866,7 @@
             );
             if (readerPdfMap && readerPdfMap.matched < readerPdfMap.total)
               status(
-                t(
+                uiLabel(
                   "PDF highlight is shown only for exact source-text matches. Translated or edited passages may not align.",
                   "PDF vurgusu yalnız kaynak metinle tam eşleşen gruplarda gösterilir. Çevrilmiş veya düzenlenmiş metin eşleşmeyebilir.",
                 ),
@@ -1865,7 +1882,7 @@
         };
         zoom.onchange = () => void draw();
         controls.append(
-          el("strong", "", t("Original page ", "Özgün sayfa ") + number),
+          el("strong", "", uiLabel("Original page ", "Özgün sayfa ") + number),
           zoom,
         );
         page.replaceChildren(controls, canvas);
@@ -2028,8 +2045,8 @@
       }
       productionStatus(
         cancelled()
-          ? t("Stopped.", "Durduruldu.")
-          : t("Selected chapters completed.", "Seçili bölümler tamamlandı."),
+          ? uiLabel("Stopped.", "Durduruldu.")
+          : uiLabel("Selected chapters completed.", "Seçili bölümler tamamlandı."),
       );
     } finally {
       if(prepared) {
@@ -2067,7 +2084,7 @@
     body.append(actions, table);
     actions.append(
       button(
-        t("Choose season folder and scan", "Sezon klasörü seç ve tara"),
+        uiLabel("Choose season folder and scan", "Sezon klasörü seç ve tara"),
         async () => {
           if (busy) throw Error("Busy / Meşgul");
           busy = true; syncBookStop();
@@ -2166,7 +2183,7 @@
                       el(
                         "span",
                         "mw-muted",
-                        t(
+                        uiLabel(
                           "No reliable suggestion",
                           "Güvenilir öneri bulunamadı",
                         ),
@@ -2189,7 +2206,7 @@
                   el(
                     "p",
                     "mw-muted",
-                    t(
+                    uiLabel(
                       "Suggestions only. Check against the episode before skipping.",
                       "Yalnız öneridir. Atlamadan önce bölümle karşılaştır.",
                     ),
@@ -2209,12 +2226,12 @@
           }
         },
       ),
-      button(t("Stop scan", "Taramayı durdur"), () => call("cancel")),
+      button(uiLabel("Stop scan", "Taramayı durdur"), () => call("cancel")),
     );
     if (kind === "sync")
       actions.append(
         button(
-          t(
+          uiLabel(
             "Save selected aligned copies",
             "Seçili senkron kopyalarını kaydet",
           ),
@@ -2222,7 +2239,7 @@
             const r = await call("sync-apply", { token, names: [...selected] });
             token = "";
             status(
-              t("Saved copies: ", "Kaydedilen kopya: ") + r.written.length,
+              uiLabel("Saved copies: ", "Kaydedilen kopya: ") + r.written.length,
             );
           },
           true,
@@ -2236,7 +2253,7 @@
       el(
         "p",
         "mw-muted",
-        t(
+        uiLabel(
           "Snapshots do not suspend tabs or lose forms. Compare before/after opening and closing tabs or running a voice job. Values include Chromium processes, not just JavaScript heap.",
           "Ölçümler sekmeleri askıya almaz, formları kaybetmez. Sekme açıp kapatmadan veya ses işinden önce/sonra karşılaştır. Değerler yalnız JavaScript yığınını değil Chromium süreçlerini de içerir.",
         ),
@@ -2275,8 +2292,8 @@
       processTable.replaceChildren();
       const header = el("tr");
       header.append(
-        el("th", "", t("Process", "Süreç")),
-        el("th", "", t("Memory", "Bellek")),
+        el("th", "", uiLabel("Process", "Süreç")),
+        el("th", "", uiLabel("Memory", "Bellek")),
       );
       processTable.append(header);
       const totals = new Map();
@@ -2301,7 +2318,7 @@
         new Date(r.sampledAt).toLocaleTimeString();
     };
     body.append(
-      button(t("Measure again", "Yeniden ölç"), sample),
+      button(uiLabel("Measure again", "Yeniden ölç"), sample),
       summary,
       processTable,
       note,
@@ -2326,11 +2343,11 @@
     const header = el("header"),
       copy = el("div");
     copy.append(
-      el("h1", "", t("Production workspace", "Üretim çalışma alanı")),
+      el("h1", "", uiLabel("Production workspace", "Üretim çalışma alanı")),
       el(
         "p",
         "mw-muted",
-        t(
+        uiLabel(
           "Your voice, chapters and season tools.",
           "Sesin, bölümlerin ve sezon araçların.",
         ),
@@ -2341,18 +2358,18 @@
     header.append(copy, close);
     const nav = el("nav");
     const pages = [
-      ["books", t("Audiobook", "Sesli kitap"), books],
+      ["books", uiLabel("Audiobook", "Sesli kitap"), books],
       [
         "sync",
-        t("Season subtitle sync", "Sezon altyazı senkronu"),
+        uiLabel("Season subtitle sync", "Sezon altyazı senkronu"),
         () => seasons("sync"),
       ],
       [
         "intro",
-        t("Intro & credits", "Intro ve jenerik"),
+        uiLabel("Intro & credits", "Intro ve jenerik"),
         () => seasons("intro"),
       ],
-      ["resources", t("Memory", "Bellek"), resourcePage],
+      ["resources", uiLabel("Memory", "Bellek"), resourcePage],
     ];
     for (const [id, label, fn] of pages) {
       const b = button(label, async () => {
