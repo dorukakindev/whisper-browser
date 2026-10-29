@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-1805.md](docs/devir/2026-10-29-1805.md) — Stüdyo dinlemesinde tek ses
 Güncel çalışma: [docs/devir/2026-10-29-1758.md](docs/devir/2026-10-29-1758.md) — Stüdyo ilk açılış güvenliği
 Güncel çalışma: [docs/devir/2026-10-29-1146.md](docs/devir/2026-10-29-1146.md) — Stüdyo hazır ayarlarında klavye
 Güncel çalışma: [docs/devir/2026-10-29-1137.md](docs/devir/2026-10-29-1137.md) — Gerçek arka plan kalite ölçümü
