@@ -1,3 +1,4 @@
+- [Rapor791](BROWSER_BUG_REPORT_791.md) — DeepSeek ortak varsayılanı ve canlı konuşma çevirisi kabulü
 - [Rapor790](BROWSER_BUG_REPORT_790.md) — Dış rapor doğrulaması, Türkçe anlam kapısı ve bounded dublaj zaman çizelgesi
 - [Rapor788](BROWSER_BUG_REPORT_788.md) — Ses için çeviri yanlış retleri, canlı DeepSeek kabulü ve sade dublaj stüdyosu
 - [Rapor787](BROWSER_BUG_REPORT_787.md) — Grup kaydı seçimi, ana ayarlara browser erişimi ve arka plan çeviri oturumu

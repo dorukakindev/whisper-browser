@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-30-0025.md](docs/devir/2026-10-30-0025.md) — DeepSeek ve ses çevirisi
 Güncel çalışma: [docs/devir/2026-10-29-2353.md](docs/devir/2026-10-29-2353.md) — Dış denetim ve dublaj ölçek onarımları
 Güncel çalışma: [docs/devir/2026-10-29-2320.md](docs/devir/2026-10-29-2320.md) — Konuşma çevirisi ve sade stüdyo
 Güncel çalışma: [docs/devir/2026-10-29-2216.md](docs/devir/2026-10-29-2216.md) — Grup kayıtları ve browser oturumu
