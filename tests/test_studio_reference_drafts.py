@@ -4,6 +4,7 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 MODULE = Path(__file__).resolve().parents[1]/'tools/voxcpm2/text_studio_window.py'
 spec = importlib.util.spec_from_file_location('studio_reference_test', MODULE)
@@ -27,6 +28,19 @@ class Value:
 
 @unittest.skipIf(studio is None, 'Tkinter runtime is unavailable; Windows native acceptance is separate')
 class ReferenceDraftTests(unittest.TestCase):
+    def test_retired_constructor_cannot_open_unstyled_tk_window(self):
+        with patch.object(studio.tk, 'Tk') as create_window:
+            with self.assertRaisesRegex(SystemExit, 'not applied'):
+                studio.Studio(SimpleNamespace(), lambda: None)
+        create_window.assert_not_called()
+
+    def test_parameterless_compatibility_entry_uses_shared_launcher(self):
+        with patch.object(sys, 'argv', ['text_studio_window.py']), patch.object(studio.os, 'name', 'nt'), patch.object(studio.os, 'startfile', create=True) as launch, patch.object(studio.tk, 'Tk') as create_window:
+            obj = studio.Studio()
+            obj.run()
+        launch.assert_called_once_with(str(studio.ROOT / 'ses-studyosu.bat'), cwd=str(studio.ROOT))
+        create_window.assert_not_called()
+
     def test_voice_roundtrip_and_reselection_preserve_edits_without_writing_files(self):
         with tempfile.TemporaryDirectory() as folder:
             a, b = Path(folder)/'İlk ses.wav', Path(folder)/'İkinci ses.wav'

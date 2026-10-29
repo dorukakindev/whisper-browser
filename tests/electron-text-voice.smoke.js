@@ -77,6 +77,7 @@ app.whenReady().then(async()=>{
  assert.equal(await run("return document.querySelectorAll('[data-preset][aria-pressed=true]').length"),0);
  assert.equal(await run("return document.getElementById('tv-preset-info').textContent"),'Özel ayarlar');
  await run("document.querySelector('[data-preset=balanced]').click();return true");
+ assert.equal(await run("const retry=document.getElementById('tv-config-retry');return retry.hidden&&getComputedStyle(retry).display==='none'"),true,'Ready studio must not display configuration recovery');
  const paneLayout=await run("const rail=document.querySelector('.text-voice-rail'),editor=document.querySelector('.text-voice-manuscript'),before=editor.getBoundingClientRect().top;rail.scrollTop=rail.scrollHeight;const moved=rail.scrollTop;const after=editor.getBoundingClientRect().top;rail.scrollTop=0;return {moved,editorStable:before===after,railOverflow:getComputedStyle(rail).overflowY,editorOverflow:getComputedStyle(editor).overflowY,keyboardReachable:rail.tabIndex===0&&editor.tabIndex===0,labelled:!!document.getElementById(rail.getAttribute('aria-labelledby'))&&!!document.getElementById(editor.getAttribute('aria-labelledby'))};");
  assert(paneLayout.moved>0&&paneLayout.editorStable&&paneLayout.keyboardReachable&&paneLayout.labelled,JSON.stringify(paneLayout));assert.equal(paneLayout.railOverflow,'auto');assert.equal(paneLayout.editorOverflow,'auto');
  // Real native keyboard input: navigating presets never silently applies settings.
