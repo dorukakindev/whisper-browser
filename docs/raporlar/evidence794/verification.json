@@ -1,0 +1,67 @@
+{
+  "externalAuditId": "r793-deep-20261029",
+  "externalRevision": "6e89674b93129c1c5442eb4a32b582ca34d5e9d6",
+  "verifiedAgainst": "9dac83b47cae257fdd590ef8fb6915fe10f6c85a",
+  "snapshotSourceHashesMatched": 19,
+  "rawProbesAndLogsProvided": false,
+  "inputFiles": {
+    "SNAPSHOT.json": "c1b469cac0d71be4777383eb72b956056ecb3f8cce58f16b45a00357c887c622",
+    "RUN-LOG.md": "05ba4fd7da4c8d2a9321bf254319f6c35bce5a99143c5676b4718d0bc065c98b",
+    "REPRODUCE.md": "595cf049132d912a4ae1bffbea879074cd73265269a810702a52db30257f5cf9",
+    "TASK-MATRIX.csv": "473532fd7997460384e98c0ea7ee244a8567798471555175a0705d22c81a256d",
+    "FINDINGS.json": "43e2bcc5835de5fc156afc10e150919df49dc72b8a27207a53d0a2451b9d51e1",
+    "AUDIT-REPORT.md": "c9e20a2411892845b975b18a410251b8ae04c27a5fd1782b66fd211786e65d96"
+  },
+  "realBrowserEvidence": {
+    "visited": 1,
+    "unvisited": 86,
+    "blockedArtifacts": [],
+    "captures": [
+      {
+        "locale": "tr",
+        "theme": "dark",
+        "width": 800,
+        "screenshot": "voice-studio-dark-tr-800.png",
+        "bytes": 66483,
+        "sha256": "de1590b5dae48a17ef038abf6aefa4bb50d6325cfaae0b1faa5eea80e443a075",
+        "pixelWidth": 790,
+        "pixelHeight": 870
+      },
+      {
+        "locale": "tr",
+        "theme": "light",
+        "width": 800,
+        "screenshot": "voice-studio-light-tr-800.png",
+        "bytes": 69807,
+        "sha256": "0fb6a74bab4c46f03813411fa4f58d59c0df778a1d88d75e790f3a36d55eeb39",
+        "pixelWidth": 790,
+        "pixelHeight": 870
+      },
+      {
+        "locale": "en",
+        "theme": "dark",
+        "width": 800,
+        "screenshot": "voice-studio-dark-en-800.png",
+        "bytes": 66275,
+        "sha256": "5c20a41a9e1700eb9d7de53b6789568deaf9b9bfd771fa3da34738fe47ab5fd7",
+        "pixelWidth": 790,
+        "pixelHeight": 870
+      },
+      {
+        "locale": "en",
+        "theme": "light",
+        "width": 800,
+        "screenshot": "voice-studio-light-en-800.png",
+        "bytes": 69642,
+        "sha256": "491f71294b94bb104aff3269e85e5b15b883d7100486335b2ed92800f0dc0af0",
+        "pixelWidth": 790,
+        "pixelHeight": 870
+      }
+    ]
+  },
+  "decisions": {
+    "TR-793-01": "confirmed_fixed_with_correct_counterparts",
+    "TR-793-02": "confirmed_fixed_conservatively_past_alternatives_preserved",
+    "UI-793-01": "confirmed_fixed_decode_crc_size_sha256"
+  }
+}
