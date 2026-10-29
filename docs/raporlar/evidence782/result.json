@@ -1,0 +1,44 @@
+{
+  "head": "f6ffc3d48e0394b1e49974e4059356fe1148dac3",
+  "platform": "win32",
+  "node": "v24.22.0",
+  "workload": "real browser_align.py/ffsubsync/FFmpeg; synthetic1800sWAV; fresh35sMP4",
+  "results": [
+    {
+      "mode": "abort",
+      "ok": true,
+      "terminalDurationMs": 588.3183,
+      "abortToTerminalMs": 73.18630000000007,
+      "closeBeforeTerminal": true,
+      "observedProcesses": [
+        "python.exe",
+        "conhost.exe",
+        "python.exe",
+        "ffmpeg.exe"
+      ],
+      "observedPidsExited": true,
+      "tempRemoved": true,
+      "freshAlignmentCues": 3,
+      "freshAlignmentMs": 599.5197000000001,
+      "error": "İşlem iptal edildi."
+    },
+    {
+      "mode": "timeout",
+      "ok": true,
+      "terminalDurationMs": 1074.0416,
+      "abortToTerminalMs": null,
+      "closeBeforeTerminal": true,
+      "observedProcesses": [
+        "python.exe",
+        "conhost.exe",
+        "python.exe",
+        "ffmpeg.exe"
+      ],
+      "observedPidsExited": true,
+      "tempRemoved": true,
+      "freshAlignmentCues": 3,
+      "freshAlignmentMs": 607.4331999999999,
+      "error": "Altyazı eşleme işlemi zaman aşımına uğradı."
+    }
+  ]
+}

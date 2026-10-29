@@ -1,3 +1,4 @@
+- [Rapor782](BROWSER_BUG_REPORT_782.md) — Gerçek Windows ffsubsync/FFmpeg iptal ve timeout kabulü
 - [Rapor780](BROWSER_BUG_REPORT_780.md) — Hizalama iptalinde süreç ağacı ve close sınırı
 - [Rapor779](BROWSER_BUG_REPORT_779.md) — Gerçek Windows sezon senkronu ve seçili kopya kabulü
 - [Rapor778](BROWSER_BUG_REPORT_778.md) — İptal edilen sezon seçicisinden geç hazır sonuç reddi
