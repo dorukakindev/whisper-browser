@@ -2075,9 +2075,15 @@
       }
     }
   }
+  function workflowContext(kind) {
+    const labels={sync:['Season subtitle sync','Sezon altyazı senkronu'],intro:['Intro & credits','Intro ve jenerik'],resources:['Memory','Bellek']};
+    const label=labels[kind];
+    window.MediaExperience?.setContext(dialog,{id:'workflow:'+kind,type:'workflow',title:t(...label),text:'',selectedText:''});
+  }
   async function seasons(kind) {
     saveDraft();
     const body = clearBody();
+    workflowContext(kind);
     body.append(
       el(
         "p",
@@ -2263,6 +2269,7 @@
   async function resourcePage() {
     saveDraft();
     const body = clearBody();
+    workflowContext('resources');
     body.append(
       el(
         "p",

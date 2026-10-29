@@ -76,3 +76,15 @@ test('late passage search navigation cannot reclaim a reopened same book',async 
  assert.equal(f.w.document.querySelector('textarea[data-chapter]')?.dataset.chapter,'0','Old search hit cannot select a chapter in the reopened session');
  assert.equal(f.w.MediaWorkflowsUI.assistant.state()?.currentChapter,1);
 });
+
+for(const label of ['Season subtitle sync','Intro & credits','Memory'])test(`leaving books for ${label} retires book assistant capabilities`,async t=>{
+ const f=fixture();t.after(()=>f.dom.window.close());await f.w.MediaWorkflowsUI.openProject('one');
+ assert.equal(f.w.MediaWorkflowsUI.assistant.state().id,'one');
+ const nav=[...f.w.document.querySelectorAll('.mw-dialog>nav button')].find(b=>b.textContent===label);assert(nav);
+ await nav.onclick();await tick();
+ assert.equal(f.w.MediaWorkflowsUI.assistant.state(),null,'Non-book workflow cannot expose the previously opened book');
+ assert.notEqual(f.w.globalAssistantContext()?.type,'book-chapter','Assistant source must describe the current workflow');
+ await assert.rejects(f.w.MediaWorkflowsUI.assistant.execute('select_book_chapters',{from:1,to:1},()=>false),/current book/);
+ const back=[...f.w.document.querySelectorAll('.mw-dialog>nav button')].find(b=>b.textContent==='Audiobook');await back.onclick();
+ assert.equal(f.w.MediaWorkflowsUI.assistant.state()?.id,'one','Returning to books restores its context');
+});
