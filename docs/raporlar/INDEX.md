@@ -1,3 +1,4 @@
+- [Rapor793](BROWSER_BUG_REPORT_793.md) — Akustik yeniden denemede ses kaybı, ondalık kayıt bağlamı ve sıcak referans kodlaması
 - [Rapor792](BROWSER_BUG_REPORT_792.md) — Dış UI raporları, pasif üretim eylemi ve dürüst kapsam kaydı
 - [Rapor791](BROWSER_BUG_REPORT_791.md) — DeepSeek ortak varsayılanı ve canlı konuşma çevirisi kabulü
 - [Rapor790](BROWSER_BUG_REPORT_790.md) — Dış rapor doğrulaması, Türkçe anlam kapısı ve bounded dublaj zaman çizelgesi

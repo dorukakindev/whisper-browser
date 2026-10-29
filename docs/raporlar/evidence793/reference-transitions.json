@@ -1,0 +1,31 @@
+{
+  "encodeCalls": 3,
+  "latentsSameObject": true,
+  "cases": [
+    {
+      "case": "cold",
+      "seconds": 2.172,
+      "hasPrompt": true,
+      "encodeCalls": 2
+    },
+    {
+      "case": "same",
+      "seconds": 0.0,
+      "hasPrompt": true,
+      "encodeCalls": 0
+    },
+    {
+      "case": "corrected",
+      "seconds": 0.078,
+      "hasPrompt": true,
+      "encodeCalls": 1
+    },
+    {
+      "case": "isolated",
+      "seconds": 0.0,
+      "hasPrompt": false,
+      "encodeCalls": 0
+    }
+  ],
+  "passed": true
+}
