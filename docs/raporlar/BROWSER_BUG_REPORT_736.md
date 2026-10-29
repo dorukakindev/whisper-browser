@@ -1,0 +1,23 @@
+# Rapor736 — Kitap üretim eylemleri ve metni örtmeyen alt araçlar
+
+Başlangıç master5415dfe40e37fdd0b5d9d9685e441db92e76c2ce. Dal codex/book-actions736. Ürün/test bitiş97f2ac413f72b954d325dd0c603e030367c88236. R735'teki gerçek GPU kabulünden sonra kitap çalışma alanındaki tasarım/durum işleri; GPU sonucu tekrar yeni özellik sayılmaz.
+
+## Değişiklikler ve nedenleri
+- `src/renderer/media-workflows-ui.js`: boştayken Durdur etkin görünüyordu. Handler zaten `!busy&&!job` durumunda hiçbir işlem yapmıyordu; **başka işin iptali doğrulanmış bug değildir**. Yeni syncBookStop gerçek busy/stopRequested durumuna göre disabled'i ayarlar. Hazırlama/üretim/export/preview başlangıç-bitiş ve genel asyncbuttonfinally sonrası senkronize olur; tıklama sarmalayıcısı durdurulan düğmeyi yeniden etkin bırakamaz. Aynı mevcut cancelDub/workflowcancel yolları korunur.
+- Ana satır: Metni kaydet, Seçili bölümleri seslendir, Durdur, Dinle ve takip et. Daha seyrek Regenerate/M4Bönizleme/export/dinle/kaynağa dön düğmeleri tek yerel `details` içindeki Çıktı ve bölüm araçları altında. Özellik silinmedi; yeni IPC/şema yok.
+- `src/renderer/media-workflows.css`: eylemler stickybottom yerine editör akışına girer; çok satırlı çubuk metin/review üstünde yüzen yüzey oluşturmaz. Ana eylemler44px, dar ekranda ikili yerleşim; ikincil alanın summary'si40px ve ikili düğmeler. PasifDurdur gerçek disabled görünümü; amber yalnız ana üretim ve mevcut seçili alanlar. Ortak açık/koyu tokenlar kullanılır, dekoratif animasyon eklenmedi.
+- `tests/electron-book-stop645.smoke.js`: boştaki pasiflik/kendi hazırlığında etkinlik/iptalden sonra pasiflik, metin-çubuk örtüşmeme, yatay taşmama, gerçek560CSSpx/125% ve ENkoyu/TRaçık ekranları.
+- `tests/book-workflow-status.test.js`: generate() fonksiyonunu izole çıkaran düzeneğe yeni DOMhelper bağı verildi. Ayrıca fixture `dialog.open=false` iken fonksiyonun gerçekten terminal error/cancel almasını bekliyordu; mevcutkaynakdaiptalguard bunun öncesinde dönüyordu. open=true ve booksrefreshstub ile gerçekterminalkol test edilir. Assertion/eşik silinmedi; native test gerçekDOMdurumunu ayrıca kapsar.
+
+## Hedefli sonuçlar
+- Gerçek Windows Electron main/preload/IPC, ayrıprofil, kontrollügecikme, modelbaşlatmadan: üç hazırlık/kapamaiptal senaryosu,0istenmeyensentezbaşlangıcı;1unprepare. Durdur başlangıçta ve iptal sonrası disabled, kendi hazırlığı sürerken enabled PASS.
+- Aynı mevcut kontrol1000bölümün sonuncusuna erişim,998–1000seçili3aralık, asistandan gerçekstartack/listen-vurgu/regenerateack PASS. İki kontrollüjob gerçekmodel değildir. DOM4131node; yaklaşık105.9msrender bir örnektir, uzunbenchmark/genelperformansgarantisi değildir.
+- [Son kabul](evidence736/acceptance.json). [ENkoyu](evidence736/book-actions-en-dark.png), [TRaçıkdar](evidence736/book-actions-tr-light-narrow.png) gerçekten açılıp incelendi. İlk genişlik isteği uygulamanın minimum penceresiyle sınırlanıyordu; testkendi minimumu indirildi ve innerWidth<=560assert eklendi. Dil değişikliği açıkpencerenin eski etiketlerini otomatik güncellemiyordu; ekran seçilen dilde yeniden açılarak ölçüldü. İlk yanlış etiketli capture finalkanıt sayılmaz. **Açıkdiyalogda bütünetiketlerincanlıdildeğişimi bu paketle düzeltilmedi; mevcutaçık sınırdır.**
+- `node --test --test-isolation=none tests/book-workflow-status.test.js tests/media-workflows.test.js`:4PASS. İlk sandbox Python keşfi null; normalyetki ve `WHISPER_TEST_PYTHON=<kuruluvenv>` ile geçti. Testte actualuserPythonayar değişmedi.
+- assistant-workflow654:8PASS; aynı ilk koşuda terminaltest helperfixture yüzünden kırmızıydı, düzeltilmişterminaltest yukarıdageçti. YeniUIsonrası WindowsakışfinalPASS.
+- İkiJS node--check, gitdiffcheck ve docsindexPASS. Tamnpm/CIbeklenmedi. YeniGPU/TTS/canlıAPI/YouTube/DRM/insankalite/BATbaşlatma/ekranokuyucu/OSreducedmotionyok. NativekontrollüWAVmetadatası+vurgugerçeksesyüklüyor, modelkalitesideğil. Mevcut11before-quitlisteneruyarısısürüyor.
+
+## Tasarım ve kaynak
+make-interfaces-feel-better becerisi uygulandı. Mevcut mh-action/media-surface/details tercih edildi. [MDN details](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/details) ve [RadixCollapsible kaynak](https://github.com/radix-ui/primitives/blob/main/packages/react/collapsible/src/collapsible.tsx) disabled/state/expanded ayrımı incelendi; React veya yeni paket/code kopyalanmadı. Native details klavye açılır davranışı ortakfocusstiliylekorunur; yeni özel animasyon veya lisansyükü yok.
+
+P092/P094/P098 kısmi gelişme; bütün ekranların tasarımının bittiği iddia edilmez.90aktifhedef, müzikkapsamdışı. Kişiselprofildosyaları ve açıkuygulamakorundu.

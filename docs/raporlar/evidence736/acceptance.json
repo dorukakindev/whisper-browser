@@ -1,0 +1,33 @@
+{
+  "ok": true,
+  "phases": 3,
+  "cancelledPhaseStarts": 0,
+  "dubStarts": 2,
+  "unprepared": 1,
+  "largeUi": {
+    "milliseconds": 105.90000000596046,
+    "chapters": 1000,
+    "domNodes": 4131,
+    "heapBytes": 14300000
+  },
+  "lastChapter": 1000,
+  "selected": [
+    998,
+    999,
+    1000
+  ],
+  "assistant": [
+    "select",
+    "start accepted",
+    "listen/highlight",
+    "regenerate accepted"
+  ],
+  "realModel": false,
+  "layoutAssertions": {
+    "editorTransportOverlap": false,
+    "horizontalOverflow": false,
+    "narrowCssWidthMax": 560,
+    "stopDisabledIdleAndAfterCancellation": true,
+    "stopEnabledDuringOwnPreparation": true
+  }
+}

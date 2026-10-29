@@ -124,6 +124,10 @@
         (node.dataset.workflowPrefix || "") +
         window.BookWorkflowStatus.stage(node.dataset.workflowStage, t);
   });
+  function syncBookStop() {
+    for (const stop of dialog?.querySelectorAll('[data-book-stop]') || [])
+      stop.disabled = !busy || stopRequested;
+  }
   function button(text, fn, primary = false) {
     const n = el("button", "mh-action" + (primary ? " mh-primary" : ""), text);
     n.type = "button";
@@ -135,6 +139,7 @@
         status(e.message);
       } finally {
         if (n.isConnected) n.disabled = false;
+        syncBookStop();
       }
     };
     return n;
@@ -1014,8 +1019,8 @@
           const exportProjectId=project.id,exportChapters=[...selected];
           if (busy)
             throw Error(t("A workflow is running.", "Bir işlem çalışıyor."));
-          busy = true;
-          stopRequested = false;
+          busy = true; syncBookStop();
+          stopRequested = false; syncBookStop();
           try {
             await saveChapter();
             if(stale()||project?.id!==exportProjectId)throw Error("Book source changed / Kitap kaynağı değişti.");
@@ -1055,20 +1060,12 @@
               exportProgress.hidden = true;
             }
           } finally {
-            busy = false;
+            busy = false; syncBookStop();
           }
     };
-    const buttons = el("div", "mw-actions mw-transport");
-    buttons.append(
-      button(t("Save text", "Metni kaydet"), saveChapter),
-      button(
-        t("Generate selected chapters", "Seçili bölümleri seslendir"),
-        generate,
-        true,
-      ),
-      button(t("Stop", "Durdur"), async () => {
+    const stopButton = button(t("Stop", "Durdur"), async () => {
         if (!busy && !job) return;
-        stopRequested = true;
+        stopRequested = true; syncBookStop();
         status(
           t(
             "Stopping… waiting for the active tool to close.",
@@ -1077,7 +1074,18 @@
         );
         if (job) await window.api.cancelDub();
         else await call("cancel");
-      }),
+    });
+    stopButton.dataset.bookStop = "true";
+    stopButton.disabled = !busy || stopRequested;
+    const buttons = el("div", "mw-actions mw-transport");
+    buttons.append(
+      button(t("Save text", "Metni kaydet"), saveChapter),
+      button(
+        t("Generate selected chapters", "Seçili bölümleri seslendir"),
+        generate,
+        true,
+      ),
+      stopButton,
       button(t("Read & listen", "Dinle ve takip et"), () => readChapter()),
       button(
         t("Regenerate this chapter", "Bu bölümü yeniden üret"),
@@ -1092,8 +1100,8 @@
       button(t("Preview M4B export", "M4B çıktı bilgisi"), async () => {
         if (busy)
           throw Error(t("A workflow is running.", "Bir işlem çalışıyor."));
-        busy = true;
-        stopRequested = false;
+        busy = true; syncBookStop();
+        stopRequested = false; syncBookStop();
         const previewProjectId = project.id;
         try {
           await saveChapter();
@@ -1163,7 +1171,7 @@
           });
           status("");
         } finally {
-          busy = false;
+          busy = false; syncBookStop();
         }
       }),
       button(
@@ -1206,6 +1214,12 @@
           previous?.close();
         }),
       );
+    const secondary = el('details', 'mw-transport-secondary');
+    secondary.append(el('summary', '', t('Output & chapter tools', 'Çıktı ve bölüm araçları')));
+    const secondaryActions = el('div', 'mw-actions');
+    for (const action of [...buttons.children].slice(4)) secondaryActions.append(action);
+    secondary.append(secondaryActions);
+    buttons.append(secondary);
     if (c.groups?.some((g) => g.status !== "ready")) {
       const review = el("details", "mw-review");
       review.open = true;
@@ -1904,7 +1918,7 @@
     const productionStatus=message=>{if(dialog===ownerDialog&&project?.id===projectId)status(message);};
     let prepared=null,saved=false;
     stopRequested=false;
-    busy = true;
+    busy = true; syncBookStop();
     try {
       await saveChapter();
       saved=true;
@@ -2022,7 +2036,7 @@
         try{await call('book-unprepare',prepared);}
         catch(error){productionStatus(error.message);}
       }
-      busy = false;
+      busy = false; syncBookStop();
       job = null;
       if (saved&&project?.id === projectId&&dialog===ownerDialog&&ownerDialog?.open) {
         project = (await call("book-open", { id: projectId })).project;
@@ -2056,7 +2070,7 @@
         t("Choose season folder and scan", "Sezon klasörü seç ve tara"),
         async () => {
           if (busy) throw Error("Busy / Meşgul");
-          busy = true;
+          busy = true; syncBookStop();
           const id = crypto.randomUUID(),
             off = window.api.onMediaWorkflow((e) => {
               if (e.id === id) status(`${e.stage}: ${e.done + 1}/${e.total}`);
@@ -2191,7 +2205,7 @@
             );
           } finally {
             off();
-            busy = false;
+            busy = false; syncBookStop();
           }
         },
       ),
@@ -2376,7 +2390,7 @@
       stopReviewPreview = null;
       for (const a of d.querySelectorAll("audio")) a.pause();
       if (busy) {
-        stopRequested = true;
+        stopRequested = true; syncBookStop();
         if (job) void window.api.cancelDub();
         else void call("cancel").catch(() => {});
       }

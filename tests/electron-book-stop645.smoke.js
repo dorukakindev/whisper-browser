@@ -1,7 +1,7 @@
 'use strict';
 // Actual Windows main/preload/book UI. Controlled IPC latency; no model starts.
 const {app,BrowserWindow,dialog,ipcMain}=require('electron'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
-const root=path.resolve(__dirname,'..'),out=path.join(root,'.uiprev','book-stop645',Date.now()+'-'+process.pid);fs.mkdirSync(out,{recursive:true});process.env.WHISPER_RESOURCE_SOAK_USER_DATA=path.join(out,'profile');app.setPath('downloads',out);app.setAppPath(root);app.commandLine.appendSwitch('disable-gpu');
+const root=path.resolve(__dirname,'..'),out=path.join(root,'.uiprev','book-stop645',Date.now()+'-'+process.pid);fs.mkdirSync(out,{recursive:true});process.env.WHISPER_RESOURCE_SOAK_USER_DATA=path.join(out,'profile');app.setPath('downloads',out);app.setAppPath(root);for(const flag of ['disable-gpu','disable-renderer-backgrounding','disable-backgrounding-occluded-windows'])app.commandLine.appendSwitch(flag);
 const source=path.join(out,'kitap.pdf');fs.writeFileSync(source,require('./helpers/pdf-fixture')(['An original chapter for cancellation acceptance.']));dialog.showOpenDialog=async()=>({canceled:false,filePaths:[source]});
 const wav=path.join(out,'controlled.wav');fs.writeFileSync(wav,require('./helpers/wav-fixture')(240000));
 const workflows=require('../src/media-workflows'),register=workflows.registerMediaWorkflows;let service;
@@ -20,18 +20,31 @@ app.whenReady().then(async()=>{
  await run(`await initialSettingsReady;UiLocale.set('en',false);applyUiTheme('dark');await openPlayer();await openPdfReader();return true`);await until(()=>run(`return !!BookAssistantUI.assistant.state()`),'reader');
  const prepared=await run(`return AssistantAppActions.execute('prepare_book_narration',{from:1,to:1,text:'original'},AssistantAppActions.snapshot())`);assert.equal(prepared.status,'completed');
  const state=await run(`return MediaWorkflowsUI.assistant.state()`);assert(state?.id);
+ assert(await run(`return document.querySelector('[data-book-stop]').disabled`),'Idle stop is disabled');
  for(const phase of ['book-save','book-prepare','book-save-close']){
   hold=phase==='book-save-close'?'book-save':phase;entered=false;release=null;
   await run(`const input=document.querySelector('textarea[data-chapter]');input.value+=' Edited.';input.dispatchEvent(new Event('input'));Array.from(document.querySelectorAll('.mw-transport button')).find(b=>b.textContent==='Generate selected chapters').click();return true`);
   await until(()=>entered,'held '+phase);
+  assert(await run(`return !document.querySelector('[data-book-stop]').disabled`),'Stop is available while own preparation runs');
   if(phase==='book-save-close')await run(`document.getElementById('mediaWorkflowsDialog').close();return true`);
   else await run(`Array.from(document.querySelectorAll('.mw-transport button')).find(b=>b.textContent==='Stop').click();return true`);
   hold=null;release();
   await until(()=>run(`return !MediaWorkflowsUI.assistant.state()?.busy`),'stopped '+phase);
   assert.equal(dubStarts,0,'No synthesis may start after '+phase+' cancellation');
+  if(phase!=='book-save-close')assert(await run(`return document.querySelector('[data-book-stop]').disabled`),'Stop returns to disabled after cancellation');
   const book=await run(`return api.mediaWorkflows({action:'book-open',id:${JSON.stringify(state.id)}})`);assert.equal(book.project.chapters[0].activeJob??null,null,'No unstarted running marker remains');
   if(phase==='book-prepare'){
-   assert.equal(unprepared,1);await run(`document.querySelector('.mw-transport').scrollIntoView({block:'center',behavior:'instant'});return true`);await wait(100);fs.writeFileSync(path.join(out,'stopped-before-synthesis.png'),(await win.webContents.capturePage()).toPNG());
+   assert.equal(unprepared,1);
+   for(const [name,width,locale,theme] of [['book-actions-en-dark',1280,'en','dark'],['book-actions-tr-light-narrow',700,'tr','light']]){
+    win.setMinimumSize(360,500);win.setContentSize(width,900);win.webContents.setZoomFactor(width===700?1.25:1);
+    await run(`UiLocale.set(${JSON.stringify(locale)},false);applyUiTheme(${JSON.stringify(theme)});await MediaWorkflowsUI.openProject(${JSON.stringify(state.id)});document.querySelector('.mw-transport-secondary').open=true;document.querySelector('.mw-transport').scrollIntoView({block:'end',behavior:'instant'});return true`);
+    await wait(350);
+    const layout=await run(`const editor=document.querySelector('textarea[data-chapter]'),bar=document.querySelector('.mw-transport'),d=document.getElementById('mediaWorkflowsDialog');return {overlaps:editor.getBoundingClientRect().bottom>bar.getBoundingClientRect().top,overflow:d.scrollWidth>d.clientWidth+1,stopDisabled:bar.querySelector('[data-book-stop]').disabled,secondary:!!bar.querySelector('.mw-transport-secondary'),width:innerWidth};`);
+    if(width===700)assert(layout.width<=560,JSON.stringify(layout));
+    assert.equal(layout.overlaps,false);assert.equal(layout.overflow,false);assert(layout.stopDisabled&&layout.secondary);
+    fs.writeFileSync(path.join(out,name+'.png'),(await win.webContents.capturePage()).toPNG());
+   }
+   win.setContentSize(1280,900);win.webContents.setZoomFactor(1);await run(`UiLocale.set('en',false);applyUiTheme('dark');await MediaWorkflowsUI.openProject(${JSON.stringify(state.id)});return true`);
   }
  }
  // A controlled persisted project checks the full 1,000-chapter UI boundary,
