@@ -115,6 +115,8 @@
     el('dubReferenceQuality').textContent = quality ? (quality.warnings || []).map(w => t(labels[w] || w)).join(' · ') || t('Referansın ses düzeyi uygun; konuşmacı ve müziği dinleyerek kontrol edin.') : '';
   }
   const mediaIdentity = () => { const c = window.BrowserDubAudioUI?.context(); return JSON.stringify([c?.mode, c?.tabId, c?.mediaId || c?.mediaKey]); };
+  // Persistent media identity permits intentional reuse after reload; in-flight requests do not.
+  const requestIdentity = () => { const c=window.BrowserDubAudioUI?.context(); return JSON.stringify([mediaIdentity(),c?.generation]); };
   let workspaceBusy = false, referenceBusy = false, rangeContextKey = null, mediaContextKey = null;
   const group = () => plan?.groups[Number(el('dubPlanGroup').value)];
   function timecode(value) {
@@ -273,12 +275,12 @@
     inheritSubtitleRange();
     if (!modal.open) modal.showModal();
     syncBrowserOcclusion();
-    const openedMedia=mediaIdentity();
+    const openedMedia=requestIdentity();
     await configure();
-    if (openedMedia !== mediaIdentity()) return;
+    if (openedMedia !== requestIdentity()) return;
     if (!current && !output) {
       const r = await window.api.latestDub({source:window.BrowserDubAudioUI?.context()?.source || window.BrowserDubAudioUI?.context()?.mediaKey || ''}).catch(() => null);
-      if (openedMedia !== mediaIdentity() || current || output || !r?.output) return;
+      if (openedMedia !== requestIdentity() || current || output || !r?.output) return;
       output = r.output;
       el('dubRangeEnabled').checked=!!output.range;
       if(output.range){const format=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;el('dubRangeStart').value=format(output.range.start);el('dubRangeEnd').value=format(output.range.end);}
@@ -305,10 +307,10 @@
   el('playerDubGenerate')?.addEventListener('click', () => { el('playerMore').open = false; void open(); });
   el('dubMainOpen').addEventListener('click', open);
   window.DubGeneratorUI = Object.freeze({ prepareCurrent: async () => {
-    const identity = mediaIdentity();
+    const identity = requestIdentity();
     const candidate = player.sub2Role === 'translation' && player.sub2Path ? player.sub2Path : player.subPath;
     await open();
-    if (identity !== mediaIdentity() || current || planning || srt) return;
+    if (identity !== requestIdentity() || current || planning || srt) return;
     if (typeof candidate === 'string' && /\.srt$/i.test(candidate) && /^(?:[a-z]:[\\/]|[/\\])/i.test(candidate)) {
       srt = candidate; lastRequest = null; results.clear(); showResults(); invalidatePlan();
       el('dubSrtName').textContent = basename(candidate); refreshOverview();
@@ -320,11 +322,11 @@
   el('dubStorageOpen').addEventListener('click', () => { if (cfg?.storageRoot) void window.api.openPath(cfg.storageRoot); });
   async function chooseInput(kind) {
     if (choosing || current || referenceBusy || planning) return;
-    const media = mediaIdentity(); choosing = true; controls();
+    const media = requestIdentity(), source = mediaIdentity(); choosing = true; controls();
     try {
       const result = kind === 'subtitle' ? await window.api.selectFile('subtitle')
         : kind === 'delivery' ? await window.api.selectVoiceReferenceSource() : await window.api.selectVideo();
-      if (media !== mediaIdentity()) { inheritSubtitleRange(); status('Video değişti; dosyayı yeniden seçin.'); return; }
+      if (media !== requestIdentity()) { inheritSubtitleRange(); if(source!==mediaIdentity())status('Video değişti; dosyayı yeniden seçin.'); return; }
       if (kind === 'delivery') {
         if (result?.ok && !result.cancelled && result.path) {
           deliverySource=result.path;el('dubDeliverySourceName').textContent=basename(deliverySource);
@@ -336,7 +338,7 @@
       } else if (Array.isArray(result) && typeof result[0] === 'string') {
         backgroundSource = result[0]; el('dubBackgroundName').textContent = basename(backgroundSource);
       }
-    } catch (_) { status('Dosya seçilemedi. Lütfen tekrar deneyin.'); }
+    } catch (_) { if(media===requestIdentity())status('Dosya seçilemedi. Lütfen tekrar deneyin.'); }
     finally { choosing = false; controls(); }
   }
   el('dubChooseSrt').addEventListener('click', () => chooseInput('subtitle'));
@@ -345,11 +347,11 @@
   el('dubResetDeliverySource').addEventListener('click',()=>{deliverySource='';el('dubDeliverySourceName').textContent='';});
   async function preparePlan() {
     if (planning || current || referenceBusy || choosing || !srt) return;
-    const media = mediaIdentity();
+    const media = requestIdentity();
     planning = true; controls();
     try {
       const r = await window.api.planDub({ srt, range: selectedRange(), grouping: el('dubGrouping').value });
-      if (media !== mediaIdentity()) { status('Video değişti; dosyayı yeniden seçin.'); return; }
+      if (media !== requestIdentity()) return;
       if (!r?.ok) throw new Error(r?.error || 'SRT planı okunamadı.');
       plan = r; edits = {}; el('dubPlanGroup').replaceChildren();
       r.groups.forEach((g, i) => { const option = document.createElement('option'); option.value = String(i);
@@ -357,7 +359,7 @@
       showGroup();
       // Non-speech cues (music, applause, sound effects) are not spoken; say so.
       status(r.skipped > 0 ? `${t('Cümle grupları hazır')} · ${r.skipped} ${t('ses-dışı altyazı satırı atlandı')}` : 'Cümle grupları hazır');
-    } catch (error) { el('dubGeneratorDetails').textContent = error.message; }
+    } catch (error) { if(media===requestIdentity())el('dubGeneratorDetails').textContent = error.message; }
     finally { planning = false; inheritSubtitleRange(); controls(); }
   }
   el('dubPlanPrepare').addEventListener('click',()=>void preparePlan());
@@ -402,14 +404,14 @@
   el('dubPlanShorten').addEventListener('click', async () => {
     if (planning || current || referenceBusy || choosing) return;
     const g = group(); if (!g) return;
-    const media = mediaIdentity(), requestedPlan = plan;
+    const media = requestIdentity(), requestedPlan = plan;
     planning = true; controls(); status('Kısaltma önerisi hazırlanıyor…');
     try {
       const r = await window.api.shortenDub(g.key);
-      if (media !== mediaIdentity() || plan !== requestedPlan) { status('Video değişti; dosyayı yeniden seçin.'); return; }
+      if (media !== requestIdentity() || plan !== requestedPlan) return;
       if (!r?.ok) throw new Error(r?.error || 'Uygun bir kısaltma alınamadı.');
       el('dubPlanText').value = r.text; status('Öneriyi kontrol edip Bu metni uygula düğmesine basın.');
-    } catch (error) { el('dubGeneratorDetails').textContent = error.message; status('Kısaltma alınamadı; metni elle düzenleyebilirsiniz.'); }
+    } catch (error) { if(media===requestIdentity()&&plan===requestedPlan){el('dubGeneratorDetails').textContent = error.message; status('Kısaltma alınamadı; metni elle düzenleyebilirsiniz.');} }
     finally { planning = false; inheritSubtitleRange(); controls(); }
   });
   for (const [id, kind] of [['dubChooseEngine','engine'], ['dubChooseVoice','reference'], ['dubChooseTranscript','transcript']]) {
