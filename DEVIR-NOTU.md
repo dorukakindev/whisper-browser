@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-0622.md](docs/devir/2026-10-29-0622.md) — Gerçek altyazı dönüşümü ve hata sonucu
 Güncel çalışma: [docs/devir/2026-10-29-0554.md](docs/devir/2026-10-29-0554.md) — Altyazı indirmede kesin dosya
 Güncel çalışma: [docs/devir/2026-10-29-0542.md](docs/devir/2026-10-29-0542.md) — Gerçek DeepSeek caption/Whisper araç seçimi
 Güncel çalışma: [docs/devir/2026-10-29-0535.md](docs/devir/2026-10-29-0535.md) — Eski stüdyo girişinde ortak tema

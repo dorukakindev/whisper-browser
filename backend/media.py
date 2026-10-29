@@ -497,6 +497,19 @@ def download_stream(video_url, audio_url, title, height, audio_lang, output_dir,
                 pass
 
 
+class CaptionDownloadError(RuntimeError):
+    """Only fixed safe messages cross the media error boundary."""
+    MESSAGES = {
+        'caption_unavailable': 'Seçilen dilde ve türde altyazı bulunamadı. Başka bir altyazı seçin; Whisper otomatik başlatılmadı.',
+        'caption_conversion_failed': 'Altyazı SRT biçimine dönüştürülemedi. FFmpeg kurulumunu kontrol edip yeniden deneyin.',
+        'caption_invalid_result': 'Geçerli altyazı dosyası alınamadı. Yeniden deneyin veya başka bir altyazı seçin.',
+    }
+
+    def __init__(self, code):
+        self.code = code
+        super().__init__(self.MESSAGES[code])
+
+
 def fetch_subs(url, lang, auto, output_dir, cookie_browser=""):
     """YouTube'un hazır altyazısını SRT olarak indirir ve yolunu döndürür."""
     import yt_dlp
@@ -512,7 +525,7 @@ def fetch_subs(url, lang, auto, output_dir, cookie_browser=""):
         "subtitlesformat": "srt/vtt/best",
         "outtmpl": {"default": str(out / "youtube-captions" / ("automatic" if auto else "manual") / "%(title).80B [%(id)s].%(ext)s")},
         # vtt gelirse ffmpeg ile srt'ye çevir (oynatıcı ve düzenleyici srt bekliyor)
-        "postprocessors": [{"key": "FFmpegSubtitlesConvertor", "format": "srt"}],
+        "postprocessors": [{"key": "FFmpegSubtitlesConvertor", "format": "srt", "when": "before_dl"}],
     }, cookie_browser=cookie_browser)
     log(f"YouTube altyazısı indiriliyor: {lang}{' (otomatik)' if auto else ''}")
     with yt_dlp.YoutubeDL(opts) as ydl:
@@ -521,12 +534,14 @@ def fetch_subs(url, lang, auto, output_dir, cookie_browser=""):
     # The postprocessor updates requested_subtitles with the exact final path.
     # A folder scan can select an older title/language or the other caption kind.
     # Repeating the same request is valid even when yt-dlp reuses its existing file.
-    selected = (info.get("requested_subtitles") or {}).get(lang) if isinstance(info, dict) else None
-    failure = f"Altyazı indirilemedi ({lang}). Bu videoda o dilde altyazı olmayabilir."
-    if not isinstance(info, dict) or not info.get("id") or not isinstance(selected, dict):
-        raise RuntimeError(failure)
+    if not isinstance(info, dict) or not info.get("id"):
+        raise CaptionDownloadError('caption_invalid_result')
+    requested = info.get("requested_subtitles")
+    selected = requested.get(lang) if isinstance(requested, dict) else None
+    if not isinstance(selected, dict):
+        raise CaptionDownloadError('caption_unavailable')
     if selected.get("ext") != "srt" or not isinstance(selected.get("filepath"), str):
-        raise RuntimeError(failure)
+        raise CaptionDownloadError('caption_conversion_failed')
     try:
         path = Path(selected["filepath"]).resolve(strict=True)
         path.relative_to(out.resolve())
@@ -534,7 +549,7 @@ def fetch_subs(url, lang, auto, output_dir, cookie_browser=""):
     except (OSError, ValueError, RuntimeError):
         valid = False
     if not valid:
-        raise RuntimeError(failure)
+        raise CaptionDownloadError('caption_invalid_result')
     emit("subs", path=str(path), lang=lang, auto=bool(auto))
 
 
@@ -584,8 +599,10 @@ def main():
     except Exception as e:
         import traceback
         from io_errors import classify_ytdlp_error
-        emit("error", message=friendly_os_error(e) or classify_ytdlp_error(e),
-             traceback=traceback.format_exc())
+        os_message = friendly_os_error(e)
+        caption_error = isinstance(e, CaptionDownloadError) and not os_message
+        emit("error", message=os_message or (str(e) if caption_error else classify_ytdlp_error(e)),
+             traceback=traceback.format_exc(), **({"code": e.code} if caption_error else {}))
         sys.exit(1)
 
 

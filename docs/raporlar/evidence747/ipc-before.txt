@@ -1,0 +1,7 @@
+(node:30680) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 before-quit listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `electron --trace-warnings ...` to show where the warning was created)
+AssertionError [ERR_ASSERTION]: Partial result plus helper error must fail, even with exit0
+
+true !== false
+
+    at D:\Whisper Local\tmp\assistant618\tests\electron-assistant-captions.smoke.js:101:11

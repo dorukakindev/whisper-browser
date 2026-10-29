@@ -89,6 +89,51 @@ class CaptionArtifactTests(unittest.TestCase):
         wrong = self.file('Other [synthetic].en-US.srt')
         with self.assertRaises(RuntimeError): self.run_fetch({'id':'synthetic','requested_subtitles':{'en-US':{'ext':'srt','filepath':str(wrong)}}})
 
+    def test_cli_preserves_only_safe_caption_error_codes(self):
+        for code in media.CaptionDownloadError.MESSAGES:
+            with self.subTest(code=code), patch.object(sys,'argv',['media.py','subs','--url=https://synthetic.example']), patch.object(media,'fetch_subs',side_effect=media.CaptionDownloadError(code)), patch.object(media,'emit',side_effect=lambda kind,**kw:self.events.append((kind,kw))):
+                with self.assertRaises(SystemExit) as exited: media.main()
+                self.assertEqual(exited.exception.code,1)
+                event=self.events[-1][1]
+                self.assertEqual(event['code'],code)
+                self.assertEqual(event['message'],media.CaptionDownloadError.MESSAGES[code])
+
+    def test_network_errors_keep_existing_specific_classification(self):
+        with patch.object(sys,'argv',['media.py','subs','--url=https://synthetic.example']), patch.object(media,'fetch_subs',side_effect=RuntimeError('HTTP Error 429 https://synthetic.example/?token=PRIVATE')), patch.object(media,'emit',side_effect=lambda kind,**kw:self.events.append((kind,kw))):
+            with self.assertRaises(SystemExit): media.main()
+        event=self.events[-1][1]
+        self.assertNotIn('code',event)
+        self.assertIn('429',event['message'])
+        self.assertNotIn('PRIVATE',event['message'])
+
+    def test_real_ytdlp_skip_video_runs_caption_conversion_stage(self):
+        try:
+            import yt_dlp
+            from yt_dlp.extractor.common import InfoExtractor
+        except ImportError:
+            self.skipTest('Optional yt-dlp is not installed')
+        if not media._find_ffmpeg(): self.skipTest('FFmpeg is not installed')
+        import base64
+        vtt=base64.b64encode(b'WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nPipeline caption.\n').decode()
+        class FixtureIE(InfoExtractor):
+            IE_NAME='caption-test'
+            _VALID_URL=r'https?://caption\.invalid/(?P<id>[^/?]+)'
+            def _real_extract(self,url):
+                return {'id':'synthetic','title':'Türkçe fixture','formats':[{'url':'https://caption.invalid/never-download-video.mp4','ext':'mp4'}],
+                        'automatic_captions':{'en':[{'url':'data:text/vtt;base64,'+vtt,'ext':'vtt'}]}}
+        base=yt_dlp.YoutubeDL
+        class FixtureYDL(base):
+            def __init__(self,opts):
+                super().__init__(opts,auto_init=False)
+                self.add_info_extractor(FixtureIE())
+        with patch.object(yt_dlp,'YoutubeDL',FixtureYDL), patch.object(media,'emit',side_effect=lambda kind,**kw:self.events.append((kind,kw))):
+            media.fetch_subs('https://caption.invalid/synthetic','en',True,str(self.out))
+        event=[v for k,v in self.events if k=='subs'][-1]
+        self.assertTrue(event['auto'])
+        self.assertIn('automatic',Path(event['path']).parts)
+        self.assertIn('Pipeline caption.',Path(event['path']).read_text(encoding='utf-8-sig'))
+        self.assertEqual(list(self.out.rglob('*.mp4')),[])
+
     def test_repeated_same_artifact_remains_usable(self):
         exact = self.file('Selected [synthetic].en.srt')
         info = {'id':'synthetic','requested_subtitles':{'en':{'ext':'srt','filepath':str(exact)}}}
