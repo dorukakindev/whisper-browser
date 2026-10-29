@@ -295,11 +295,17 @@
     if (openedMedia !== requestIdentity()) return;
     if (candidate === currentSubtitle()) adoptCurrentSubtitle(candidate);
     if (!current && !output) {
-      const r = await window.api.latestDub({source:window.BrowserDubAudioUI?.context()?.source || window.BrowserDubAudioUI?.context()?.mediaKey || ''}).catch(() => null);
-      if (openedMedia !== requestIdentity() || current || output || !r?.output) return;
+      const selection = () => JSON.stringify([srt,el('dubRangeEnabled').checked,el('dubRangeStart').value,el('dubRangeEnd').value]);
+      const requestedSelection = selection();
+      const lookup = {source:window.BrowserDubAudioUI?.context()?.source || window.BrowserDubAudioUI?.context()?.mediaKey || ''};
+      if (srt) { try { lookup.srt=srt; lookup.range=selectedRange(); } catch (_) { return; } }
+      const r = await window.api.latestDub(lookup).catch(() => null);
+      if (openedMedia !== requestIdentity() || requestedSelection !== selection() || current || output || !r?.output) return;
       output = r.output;
-      el('dubRangeEnabled').checked=!!output.range;
-      if(output.range){const format=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;el('dubRangeStart').value=format(output.range.start);el('dubRangeEnd').value=format(output.range.end);}
+      if (!srt) {
+        el('dubRangeEnabled').checked=!!output.range;
+        if(output.range){const format=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;el('dubRangeStart').value=format(output.range.start);el('dubRangeEnd').value=format(output.range.end);}
+      }
       controls(); window.DubWorkspaceUI?.setOutput(output); logPath = output.logPath; preview(output);
       el('dubGeneratorOutput').classList.remove('hidden');
       el('dubGeneratorUse').classList.toggle('hidden', output.sample === true || output.syncInvalid === true);
