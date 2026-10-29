@@ -1,3 +1,4 @@
+- [Rapor768](BROWSER_BUG_REPORT_768.md) — Gerçek ayırıcıda konuşma ve arka plan ölçümü
 - [Rapor767](BROWSER_BUG_REPORT_767.md) — Okuyucu araçlarında46pxalan ve kısa menü sınırı
 - [Rapor766](BROWSER_BUG_REPORT_766.md) — Gerçek GPU kaynak anlatımı ve referans tonu A/B
 - [Rapor765](BROWSER_BUG_REPORT_765.md) — Hazır dublajda SRT içeriği ve tam aralık eşleşmesi

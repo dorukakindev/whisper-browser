@@ -1,0 +1,50 @@
+[
+  {
+    "case": "voice-heavy",
+    "measurement": {
+      "speech_projection_db": -50.998708473837056,
+      "music_projection_db": -3.498969216223328,
+      "residual_fraction": 0.14895607961421525,
+      "peak": 0.062103271484375,
+      "clipped_fraction": 0.0,
+      "listening_required": true,
+      "start": 2.0,
+      "end": 8.0,
+      "seconds": 6.0,
+      "sample_rate": 44100
+    },
+    "baseline": {
+      "speech_projection_db": 5.785964799319721e-15,
+      "music_projection_db": -2.121520426417234e-14,
+      "residual_fraction": 6.0029681547891376e-31,
+      "peak": 0.798309963196516,
+      "clipped_fraction": 0.0,
+      "listening_required": true
+    },
+    "ffmpeg_decode_exit": 0
+  },
+  {
+    "case": "music-heavy",
+    "measurement": {
+      "speech_projection_db": -41.64393467121069,
+      "music_projection_db": -8.195402583695763,
+      "residual_fraction": 0.01546529126670218,
+      "peak": 0.073699951171875,
+      "clipped_fraction": 0.0,
+      "listening_required": true,
+      "start": 2.0,
+      "end": 8.0,
+      "seconds": 6.0,
+      "sample_rate": 44100
+    },
+    "baseline": {
+      "speech_projection_db": -9.70113431352661e-13,
+      "music_projection_db": -3.857309866213157e-14,
+      "residual_fraction": 5.2838848149974175e-27,
+      "peak": 0.4146866649389267,
+      "clipped_fraction": 0.0,
+      "listening_required": true
+    },
+    "ffmpeg_decode_exit": 0
+  }
+]
