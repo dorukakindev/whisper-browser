@@ -792,7 +792,13 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     });
     return s.cancelPromise;
   }
-  ipcMain.handle('dub:cancel', guard(cancel));
+  ipcMain.handle('dub:cancel', guard(async (event, request) => {
+    if (request !== undefined) {
+      if (!request || typeof request.id !== 'string' || !/^[a-zA-Z0-9-]{1,80}$/.test(request.id)) throw Error('Invalid voice cancellation identity.');
+      if (!job || job.id !== request.id || job.sender !== event.sender) return { ok: true, stale: true };
+    }
+    return cancel();
+  }));
   let quitting = false;
   app.on('before-quit', event => {
     if (!job) { if(warmEngine.running()){event?.preventDefault?.();if(quitting)return;quitting=true;void warmEngine.release().then(()=>{quitting=false;app.quit?.();}).catch(()=>{quitting=false;});}return; }

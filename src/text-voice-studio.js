@@ -71,8 +71,10 @@ function registerTextVoiceStudio({app,ipcMain,dialog,owner,guard,config,referenc
   const options=settings(request.settings),v=voice(e,request.referenceId);
   if(!validVoiceOutput(v.reference))throw Error('Select a valid voice reference.');
   const python=path.join(c.engine,'.venv','Scripts','python.exe');if(!fs.existsSync(python))throw Error('Voice engine Python was not found.');
-  const id='text-'+randomUUID(),dirs=require('./voice-storage').voiceStorage(app);
+  if(request.id!==undefined&&(typeof request.id!=='string'||!/^text-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(request.id)))throw Error('Invalid text voice job identity.');
+  const id=request.id??'text-'+randomUUID(),dirs=require('./voice-storage').voiceStorage(app);
   const folder=path.join(dirs.input,'Metin',id),name=String(request.name||'metin').replace(/[<>:"/\\|?*\u0000-\u001f]/g,'_').trim().replace(/[. ]+$/g,'').slice(0,80)||'metin';
+  if(fs.existsSync(folder))throw Error('Text voice job identity was already used.');
   const output=path.join(dirs.output,name+(options.preview?'-ornek':'')+'-'+id+'.wav');
   const s={id,sender:e.sender,proc:null,cancelled:false,started:performance.now(),startedAt:new Date().toISOString(),settings:{kind:'text',...options},sample:options.preview};
   let releaseStart;s.startPhase=new Promise(resolve=>{releaseStart=resolve;});reserve(s);

@@ -47,7 +47,7 @@ contextBridge.exposeInMainWorld('api', {
   planDub: (request) => ipcRenderer.invoke('dub:plan', request),
   shortenDub: (key) => ipcRenderer.invoke('dub:shorten', key),
   setDubVideoRate: (request) => ipcRenderer.invoke('dub:rate', request),
-  cancelDub: () => ipcRenderer.invoke('dub:cancel'),
+  cancelDub: (request) => ipcRenderer.invoke('dub:cancel', request),
   onDubEvent: (cb) => {
     const listener = (_e, value) => cb(value);
     ipcRenderer.on('dub:event', listener);
