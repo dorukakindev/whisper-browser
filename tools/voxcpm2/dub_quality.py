@@ -247,12 +247,33 @@ def duration_identity(cues, i, window, manual=False):
             'after': cues[i + 1][2][:1500] if i + 1 < len(cues) else ''}
 
 
+def audio_identity(path):
+    digest=hashlib.sha256()
+    size=0
+    with path.open('rb') as stream:
+        for block in iter(lambda:stream.read(1024*1024),b''):
+            digest.update(block);size+=len(block)
+    return {'sha256':digest.hexdigest(),'bytes':size}
+
+
+def matches_recorded_audio(path):
+    try:
+        record=json.loads(path.with_suffix('.json').read_text(encoding='utf-8'))
+        expected=record.get('audioIdentity')
+        # Legacy audio remains available for listening, never upgraded to ready.
+        return expected is None or expected==audio_identity(path)
+    except (OSError,ValueError,AttributeError):
+        return True  # Existing missing-sidecar path remains review-only.
+
+
 def cached_record(path):
     try:
         record = json.loads(path.with_suffix('.json').read_text(encoding='utf-8'))
         if (isinstance(record, dict) and record.get('status') in ('ready', 'review')
                 and isinstance(record.get('verification'), dict)
                 and isinstance(record.get('text'), str) and record['text'].strip()):
+            if record.get('audioIdentity') != audio_identity(path):
+                return {**record,'status':'review','verification':{'status':'unavailable','reason':'audio_identity_unproven'}}
             if record['verification'].get('status') not in ('passed', 'not_checked'):
                 record['status'] = 'review'
             # Old cache entries can predate a semantic guard. Re-evaluate their

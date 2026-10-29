@@ -30,7 +30,7 @@ class QualityTests(unittest.TestCase):
         source='Yarın toplantıya gelmezsen bu önemli dosyaları sana ayrıca e-posta üzerinden göndereceğim.'
         with tempfile.TemporaryDirectory() as folder:
             p=Path(folder)/'saved.wav';p.write_bytes(b'untouched audio')
-            record={'text':source,'status':'ready','verification':{'status':'passed','review':False,
+            record={'audioIdentity':Q.audio_identity(p),'text':source,'status':'ready','verification':{'status':'passed','review':False,
                     'recognizedText':source.replace('gelmezsen','gelirsen'),'similarity':.9167}}
             p.with_suffix('.json').write_text(json.dumps(record),encoding='utf-8')
             saved=Q.cached_record(p)

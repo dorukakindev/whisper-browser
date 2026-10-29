@@ -26,6 +26,21 @@ function screenshotEvidence(file,root){
   if(bytes.length!==stat.size||bytes.subarray(0,8).toString('hex')!=='89504e470d0a1a0a'||bytes.toString('ascii',12,16)!=='IHDR')return {error:'Screenshot is not a PNG.'};
   const width=bytes.readUInt32BE(16),height=bytes.readUInt32BE(20);
   if(!width||!height||width*height>16*1024*1024)return {error:'Screenshot dimensions are invalid.'};
+  // pngjs accepts a fully decoded IDAT even when the terminal IEND is absent.
+  // Walk the bounded chunk envelope before decoding; require IEND+CRC+EOF.
+  let offset=8,ended=false;
+  while(offset<bytes.length){
+   if(offset+12>bytes.length)return {error:'Screenshot has a truncated PNG chunk.'};
+   const length=bytes.readUInt32BE(offset),end=offset+12+length;
+   if(end>bytes.length)return {error:'Screenshot has a truncated PNG payload.'};
+   const type=bytes.toString('ascii',offset+4,offset+8);
+   if(type==='IEND'){
+    if(length!==0||bytes.readUInt32BE(offset+8)!==0xae426082||end!==bytes.length)return {error:'Screenshot terminal chunk is invalid.'};
+    ended=true;
+   }
+   offset=end;
+  }
+  if(!ended)return {error:'Screenshot has no terminal PNG chunk.'};
   // Decode and check chunk CRCs: a valid signature alone is not visual evidence.
   PNG.sync.read(bytes,{checkCRC:true});
   return {bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex'),pixelWidth:width,pixelHeight:height};

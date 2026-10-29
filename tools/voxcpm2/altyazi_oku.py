@@ -87,7 +87,7 @@ if sys.platform == 'win32':
 SAMPLE_RATE = 48000
 from dub_plan import parse_srt, apply_edits, make_groups, read_source_bytes, shift_cues
 from dub_finish import spoken_text, finish_audio, active_ranges, SPOKEN_TEXT_VERSION
-from dub_quality import chunk_key, duration_identity, valid_audio, matches_recorded_duration, representative_groups, reference_quality, speech_check, cached_record, generation_status, apply_timing_quality
+from dub_quality import chunk_key, duration_identity, valid_audio, matches_recorded_duration, representative_groups, reference_quality, speech_check, cached_record, audio_identity, matches_recorded_audio, generation_status, apply_timing_quality
 
 
 class SpeechVerifier:
@@ -208,6 +208,7 @@ def video_duration(path):
 
 
 async def uret(args, cues, paths, prompt_text):
+    from dub_quality import audio_identity
     from dub_lifecycle import bounded_call, EngineStalled, stop_server
     from dub_recovery import recover_long_speech
     from dub_runtime import measured
@@ -449,7 +450,7 @@ async def uret(args, cues, paths, prompt_text):
                     temporary.replace(path)
                     staged = sidecar.with_name(sidecar.name + '.tmp')
                     try:
-                        staged.write_text(json.dumps(metric), encoding='utf-8')
+                        staged.write_text(json.dumps({**metric,'audioIdentity':audio_identity(path)}), encoding='utf-8')
                         staged.replace(sidecar)
                     finally:
                         staged.unlink(missing_ok=True)
@@ -473,7 +474,7 @@ async def uret(args, cues, paths, prompt_text):
                                 path.with_suffix('.json').unlink(missing_ok=True)
                                 temporary.replace(path)
                                 args.force_groups.add(args.group_keys[i])
-                                path.with_suffix('.json').write_text(json.dumps(metric), encoding='utf-8')
+                                path.with_suffix('.json').write_text(json.dumps({**metric,'audioIdentity':audio_identity(path)}), encoding='utf-8')
                             except (OSError, ValueError):
                                 pass  # Preserve the original engine failure.
                         raise
@@ -495,7 +496,7 @@ async def uret(args, cues, paths, prompt_text):
                         sf.write(str(fallback), np.zeros(max(1, round(window * sr)), dtype=np.float32), sr)
                         paths[i] = fallback
                     if metric['status'] == 'review':
-                        path.with_suffix('.json').write_text(json.dumps(metric), encoding='utf-8')
+                        path.with_suffix('.json').write_text(json.dumps({**metric,'audioIdentity':audio_identity(path)}), encoding='utf-8')
                 finally:
                     temporary.unlink(missing_ok=True)
                 metric.update(seed=seed,group=i + 1, key=args.group_keys[i], seconds=time.monotonic() - tick)
@@ -794,7 +795,7 @@ def main(argv=None, runtime=None):
             args.bosluk_pay_ms, args.end_limit_ms), args.group_keys[i] in args.manual_groups), seed) + '.wav')
             for i, ((_, _, text), seed) in enumerate(zip(cues, args.group_seeds))]
     for p in paths:
-        if p.exists() and not (valid_audio(p, sf) and matches_recorded_duration(p, sf)):
+        if p.exists() and not (valid_audio(p, sf) and matches_recorded_duration(p, sf) and matches_recorded_audio(p)):
             p.unlink()
     cache_keys = [file.stem for file in paths]
     from dub_take_selection import selected_paths

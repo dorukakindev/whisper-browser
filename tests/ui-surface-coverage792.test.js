@@ -33,3 +33,11 @@ test('shared captures cover nested roots once and repeated capture hashes remain
  assert.equal(result.visited,2);assert.equal(result.blockedArtifacts.length,0);assert.equal(result.duplicateCaptures.length,1);
  assert.equal(result.rows[0].evidence.length,2);
 });
+
+test('terminal IEND, its CRC and exact EOF are required even after decodable IDAT',t=>{
+ const {root,png}=fixture(t),declared=[{id:'x',document:'index.html'}];
+ for(const [name,bytes] of [['no-iend',png.subarray(0,png.length-12)],['short-iend',png.subarray(0,png.length-2)],['trailing',Buffer.concat([png,Buffer.from('extra')])]]){
+  fs.writeFileSync(path.join(root,name+'.png'),bytes);
+  const result=summarize(declared,[{screenshot:name+'.png',visibleSurfaceIds:['x']}],{evidenceRoot:root});assert.equal(result.visited,0,name);assert.equal(result.blockedArtifacts.length,1);
+ }
+});
