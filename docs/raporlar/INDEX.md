@@ -1,3 +1,4 @@
+- [Rapor762](BROWSER_BUG_REPORT_762.md) — Gerçek mpv süreç kapanışı sonrası Durdur ve quit
 - [Rapor761](BROWSER_BUG_REPORT_761.md) — Aynı Türkçe referansta gerçek GPU10/15adım karşılaştırması
 - [Rapor760](BROWSER_BUG_REPORT_760.md) — Gerçek native reload, aralık ve dublaj geri dönüş kanıtı
 - [Rapor759](BROWSER_BUG_REPORT_759.md) — Kitap üretiminde tek dil ve kompakt çalışma alanı

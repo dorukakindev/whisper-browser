@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "actualMpv": true,
+  "syntheticVideo": true,
+  "ipcStopClosed": true,
+  "stopMs": 118,
+  "quitMs": 102,
+  "prevented": 2,
+  "resumed": 1,
+  "closedBeforeQuit": true,
+  "ownedProcesses": 2
+}
