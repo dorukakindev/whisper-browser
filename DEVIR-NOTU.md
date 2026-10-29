@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-1827.md](docs/devir/2026-10-29-1827.md) — Arama gezinmesinde kitap oturumu
 Güncel çalışma: [docs/devir/2026-10-29-1820.md](docs/devir/2026-10-29-1820.md) — Bölüm gezinmesinde kitap sahipliği
 Güncel çalışma: [docs/devir/2026-10-29-1814.md](docs/devir/2026-10-29-1814.md) — Kitap seçimi yanıt sahipliği
 Güncel çalışma: [docs/devir/2026-10-29-1805.md](docs/devir/2026-10-29-1805.md) — Stüdyo dinlemesinde tek ses
