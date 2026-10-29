@@ -1,0 +1,65 @@
+FFFF.FF
+======================================================================
+FAIL: test_exact_postprocessor_artifact_wins_over_newer_sibling (__main__.CaptionArtifactTests.test_exact_postprocessor_artifact_wins_over_newer_sibling)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Whisper Local\tmp\assistant618\tests\test_media_caption_artifact.py", line 50, in test_exact_postprocessor_artifact_wins_over_newer_sibling
+    self.assertEqual([v['path'] for k,v in self.events if k=='subs'], [str(exact.resolve())])
+AssertionError: Lists differ: ['C:\[15 chars]ata\\Local\\Temp\\tmpkmq6ua_s\\Other title [synthetic].en.srt'] != ['C:\[15 chars]ata\\Local\\Temp\\tmpkmq6ua_s\\Selected [synthetic].en.srt']
+
+First differing element 0:
+'C:\\[13 chars]Data\\Local\\Temp\\tmpkmq6ua_s\\Other title [synthetic].en.srt'
+'C:\\[13 chars]Data\\Local\\Temp\\tmpkmq6ua_s\\Selected [synthetic].en.srt'
+
+- ['C:\\Users\\K\\AppData\\Local\\Temp\\tmpkmq6ua_s\\Other title '
+?                                                    ^   --   ---
+
++ ['C:\\Users\\K\\AppData\\Local\\Temp\\tmpkmq6ua_s\\Selected [synthetic].en.srt']
+?                                                    ^^^^^^^^^^^^^     ++++++++  +
+
+-  '[synthetic].en.srt']
+
+======================================================================
+FAIL: test_manual_and_automatic_have_distinct_output_namespaces (__main__.CaptionArtifactTests.test_manual_and_automatic_have_distinct_output_namespaces)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Whisper Local\tmp\assistant618\tests\test_media_caption_artifact.py", line 64, in test_manual_and_automatic_have_distinct_output_namespaces
+    self.assertNotEqual(self.options[0]['outtmpl'],self.options[1]['outtmpl'])
+AssertionError: {'default': 'C:\\Users\\K\\AppData\\Local\\Temp\\tmpsi15ra33\\%(title).80B [%(id)s].%(ext)s'} == {'default': 'C:\\Users\\K\\AppData\\Local\\Temp\\tmpsi15ra33\\%(title).80B [%(id)s].%(ext)s'}
+
+======================================================================
+FAIL: test_missing_requested_caption_never_reuses_old_sibling (__main__.CaptionArtifactTests.test_missing_requested_caption_never_reuses_old_sibling)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Whisper Local\tmp\assistant618\tests\test_media_caption_artifact.py", line 37, in test_missing_requested_caption_never_reuses_old_sibling
+    with self.assertRaises(RuntimeError): self.run_fetch({'id':'synthetic','requested_subtitles':{}})
+AssertionError: RuntimeError not raised
+
+======================================================================
+FAIL: test_missing_video_identity_never_picks_another_video (__main__.CaptionArtifactTests.test_missing_video_identity_never_picks_another_video)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Whisper Local\tmp\assistant618\tests\test_media_caption_artifact.py", line 42, in test_missing_video_identity_never_picks_another_video
+    with self.assertRaises(RuntimeError): self.run_fetch({})
+AssertionError: RuntimeError not raised
+
+======================================================================
+FAIL: test_zero_or_unconverted_artifact_is_not_success (__main__.CaptionArtifactTests.test_zero_or_unconverted_artifact_is_not_success) (ext='srt')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Whisper Local\tmp\assistant618\tests\test_media_caption_artifact.py", line 57, in test_zero_or_unconverted_artifact_is_not_success
+    with self.assertRaises(RuntimeError): self.run_fetch({'id':'synthetic','requested_subtitles':{'en':{'ext':ext,'filepath':str(exact)}}})
+AssertionError: RuntimeError not raised
+
+======================================================================
+FAIL: test_zero_or_unconverted_artifact_is_not_success (__main__.CaptionArtifactTests.test_zero_or_unconverted_artifact_is_not_success) (ext='vtt')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Whisper Local\tmp\assistant618\tests\test_media_caption_artifact.py", line 57, in test_zero_or_unconverted_artifact_is_not_success
+    with self.assertRaises(RuntimeError): self.run_fetch({'id':'synthetic','requested_subtitles':{'en':{'ext':ext,'filepath':str(exact)}}})
+AssertionError: RuntimeError not raised
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.013s
+
+FAILED (failures=6)
