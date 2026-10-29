@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-1758.md](docs/devir/2026-10-29-1758.md) — Stüdyo ilk açılış güvenliği
 Güncel çalışma: [docs/devir/2026-10-29-1146.md](docs/devir/2026-10-29-1146.md) — Stüdyo hazır ayarlarında klavye
 Güncel çalışma: [docs/devir/2026-10-29-1137.md](docs/devir/2026-10-29-1137.md) — Gerçek arka plan kalite ölçümü
 Güncel çalışma: [docs/devir/2026-10-29-1112.md](docs/devir/2026-10-29-1112.md) — Kompakt okuyucu ve menü sınırı
