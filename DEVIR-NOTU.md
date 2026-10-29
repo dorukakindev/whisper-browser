@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-0504.md](docs/devir/2026-10-29-0504.md) — Gerçek metin stüdyosu GPU zinciri
 Güncel çalışma: [docs/devir/2026-10-29-0443.md](docs/devir/2026-10-29-0443.md) — Metin motoru akışları ve son işlem
 Güncel çalışma: [docs/devir/2026-10-29-0433.md](docs/devir/2026-10-29-0433.md) — Seçili referansın güncel kullanılabilirliği
 Güncel çalışma: [docs/devir/2026-10-29-0420.md](docs/devir/2026-10-29-0420.md) — Stüdyoda hata deneyimi ve tema geçişi

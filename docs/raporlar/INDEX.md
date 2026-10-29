@@ -1,3 +1,4 @@
+- [Rapor742](BROWSER_BUG_REPORT_742.md) — Gerçek metin üretimi, motor işareti ve iptal
 - [Rapor741](BROWSER_BUG_REPORT_741.md) — Metin motorunda ilerleme kaybı ve son işlem aşaması
 - [Rapor740](BROWSER_BUG_REPORT_740.md) — Yerel ve ortak referans yenileme doğruluğu
 - [Rapor739](BROWSER_BUG_REPORT_739.md) — Ses stüdyosu hata ayrıntısı ve tema geçişi

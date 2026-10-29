@@ -64,7 +64,7 @@ test('text studio shares job ownership, preserves reference, cleans only failed 
  assert.equal((await call({action:'pick-reference'})).ok,false,'reference cannot change during production');
  const output=children[0].request.output;fs.writeFileSync(output,wav(480));
  children[0].stdout.write('x'.repeat(70000));children[0].stdout.write('[99/99] truncated tail must not become an event\n');
- children[0].stdout.write('[1/');children[0].stderr.write('[2/2] engine diagnostic\n');children[0].stdout.write('1] complete\n[5/1] invalid\nprose [9/9] is not progress\nTum parcalar hazir; birlestiriliyor.');children[0].emit('close',0,null);
+ children[0].stdout.write('[1/');children[0].stderr.write('[2/2] engine diagnostic\n');children[0].stdout.write('1] complete\n');assert(events.some(e=>e.id===result.id&&e.stage==='postprocess'),'nano final completed counter starts final processing even without the cache-only join log');children[0].stdout.write('[5/1] invalid\nprose [9/9] is not progress\nTum parcalar hazir; birlestiriliyor.');children[0].emit('close',0,null);
  assert(events.some(e=>e.id===result.id&&e.type==='progress'&&e.done===1&&e.total===1),'stdout progress split around stderr and final unterminated line must be retained');
  assert.equal(events.filter(e=>e.id===result.id&&e.type==='progress').length,1,'Only valid anchored engine counters are progress');
  assert.deepEqual(events.filter(e=>e.id===result.id&&e.type==='status').map(e=>e.stage),['model_load','synthesis','postprocess','output_check']);
@@ -98,8 +98,9 @@ test('text studio shares job ownership, preserves reference, cleans only failed 
  fs.writeFileSync(historyRequest,originalRequest);
  const ownedId='text-11111111-2222-4333-8444-555555555555';
  assert.equal((await call({...start,id:'../../outside'})).ok,false,'client correlation identity is constrained');
- const owned=await call({...start,id:ownedId});assert(owned.ok);assert.equal(owned.id,ownedId);
+ const owned=await call({...start,id:ownedId,settings:{motor:'torch'}});assert(owned.ok);assert.equal(owned.id,ownedId);
  assert.equal(children.length,3);
+ children[2].stdout.write('[1/1] current chunk\n');assert(!events.some(e=>e.id===ownedId&&e.stage==='postprocess'),'Torch announces the last chunk before synthesizing it');children[2].stdout.write('GPU tepe bellek: 5.00 GB\n');assert(events.some(e=>e.id===ownedId&&e.stage==='postprocess'),'Torch peak-memory marker follows completed synthesis');
  const staleStop=await handlers['dub:cancel']({sender},{id:result.id});assert(staleStop.ok&&staleStop.stale);assert(svc.running(),'old scoped cancellation cannot terminate the newer text job');
  assert.equal((await handlers['dub:cancel']({sender},{id:''})).ok,false);assert(svc.running());
  assert((await handlers['dub:cancel']({sender},{id:ownedId})).ok);assert.equal(svc.running(),false);
