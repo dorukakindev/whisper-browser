@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-1001.md](docs/devir/2026-10-29-1001.md) — Dublaj kısaltmasında güncel taslak
 Güncel çalışma: [docs/devir/2026-10-29-0953.md](docs/devir/2026-10-29-0953.md) — Native mpv güvenli kapanış
 Güncel çalışma: [docs/devir/2026-10-29-0939.md](docs/devir/2026-10-29-0939.md) — Gerçek10/15adım ses karşılaştırması
 Güncel çalışma: [docs/devir/2026-10-29-0926.md](docs/devir/2026-10-29-0926.md) — Native reload ve dublaj kabulü

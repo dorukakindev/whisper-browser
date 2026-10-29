@@ -404,14 +404,14 @@
   el('dubPlanShorten').addEventListener('click', async () => {
     if (planning || current || referenceBusy || choosing) return;
     const g = group(); if (!g) return;
-    const media = requestIdentity(), requestedPlan = plan;
+    const media = requestIdentity(), requestedPlan = plan, draft = el('dubPlanText').value;
     planning = true; controls(); status('Kısaltma önerisi hazırlanıyor…');
     try {
-      const r = await window.api.shortenDub(g.key);
-      if (media !== requestIdentity() || plan !== requestedPlan) return;
+      const r = await window.api.shortenDub({key:g.key,sourceHash:requestedPlan.sourceHash,text:draft});
+      if (media !== requestIdentity() || plan !== requestedPlan || el('dubPlanText').value !== draft) return;
       if (!r?.ok) throw new Error(r?.error || 'Uygun bir kısaltma alınamadı.');
       el('dubPlanText').value = r.text; status('Öneriyi kontrol edip Bu metni uygula düğmesine basın.');
-    } catch (error) { if(media===requestIdentity()&&plan===requestedPlan){el('dubGeneratorDetails').textContent = error.message; status('Kısaltma alınamadı; metni elle düzenleyebilirsiniz.');} }
+    } catch (error) { if(media===requestIdentity()&&plan===requestedPlan&&el('dubPlanText').value===draft){el('dubGeneratorDetails').textContent = error.message; status('Kısaltma alınamadı; metni elle düzenleyebilirsiniz.');} }
     finally { planning = false; inheritSubtitleRange(); controls(); }
   });
   for (const [id, kind] of [['dubChooseEngine','engine'], ['dubChooseVoice','reference'], ['dubChooseTranscript','transcript']]) {

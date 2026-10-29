@@ -111,3 +111,19 @@ test('replacement during subtitle authorization never spawns an obsolete planner
     assert.equal((await f.call('dub:shorten', '1')).text, 'latest');
   } finally { authorization.resolve(); f.close(); }
 });
+
+
+test('shortening reads the current renderer draft under the current plan hash',async()=>{
+ let received;const f=fixture({shorten:async(text,seconds)=>{received={text,seconds};return text;}});
+ try{await f.call('dub:references');const p=f.call('dub:plan',{srt:f.srt});await tick();result(f.children[0],'Original passage.');assert((await p).ok);
+ const answer=await f.call('dub:shorten',{key:'1',sourceHash:'fixture',text:'Corrected passage.'});assert(answer.ok);assert.deepEqual(received,{text:'Corrected passage.',seconds:2});
+ assert.equal((await f.call('dub:shorten',{key:'1',sourceHash:'old',text:'Old passage.'})).ok,false);
+ }finally{f.close();}
+});
+test('a pending shortening result cannot survive replacement of its plan',async()=>{
+ const edit=deferred(),f=fixture({shorten:()=>edit.promise});
+ try{await f.call('dub:references');const p=f.call('dub:plan',{srt:f.srt});await tick();result(f.children[0],'Original passage.');await p;
+ const suggestion=f.call('dub:shorten',{key:'1',sourceHash:'fixture',text:'Corrected passage.'});await tick();
+ const replacement=f.call('dub:plan',{srt:f.srt});await tick();result(f.children[1],'New plan.');await replacement;edit.resolve('Old suggestion.');assert.equal((await suggestion).ok,false);
+ }finally{f.close();}
+});

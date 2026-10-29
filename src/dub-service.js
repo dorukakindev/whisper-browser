@@ -318,12 +318,13 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     return { ok: true, grouping, ...result };
     } finally { if (planning.get(senderId) === attempt) planning.delete(senderId); }
   }));
-  ipcMain.handle('dub:shorten', guard(async (e, key) => {
-    const group = plans.get(e.sender.id)?.groups.find(g => g.key === key);
-    if (!group || typeof shorten !== 'function') throw new Error('Önce dublaj metnini hazırlayın.');
-    if (group.text.length > 4000) throw new Error('Bu metin otomatik kısaltma için çok uzun; elle düzenleyin.');
-    const text = await shorten(group.text, group.seconds);
-    return { ok: true, text };
+  ipcMain.handle('dub:shorten', guard(async (e, request) => {
+    const plan=plans.get(e.sender.id);
+    if(typeof shorten!=='function')throw Error('Voice editor is unavailable / Ses editörü kullanılamıyor.');
+    const {text:source,seconds}=require('./dub-editor-request').shorteningInput(plan,request);
+    const text=await shorten(source,seconds);
+    if(plans.get(e.sender.id)!==plan||e.sender.isDestroyed())throw Error('Dub plan changed / Dublaj planı değişti.');
+    return {ok:true,text};
   }));
   require('./text-voice-studio').registerTextVoiceStudio({app,ipcMain,dialog,owner,guard,config,referenceEntry,
     busy:()=>!!job||!!textUI||releasingEngine||busy(),reserve:ownJob,emit,releaseWarm:()=>warmEngine.release(),
