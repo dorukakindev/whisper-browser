@@ -1798,3 +1798,40 @@ details.browser-translate-split.hidden { display: none !important; }
 .voice-reference-comparison .reference-diff-add { background:color-mix(in srgb,var(--accent) 18%,transparent); border-radius:3px; }
 .voice-reference-comparison > button { min-height:40px; margin-top:8px; }
 @media(max-width:700px){.voice-reference-comparison-columns{grid-template-columns:1fr;}}
+
+/* Keep the primary dubbing workflow readable; technical detail is opt-in. */
+.dub-studio-header { gap: 16px; padding: 18px 24px; align-items: center; }
+.dub-studio-header h2 { font-size: 24px; line-height: 1.25; }
+.dub-studio-header p { margin-top: 7px; line-height: 1.5; }
+.dub-studio-header #dubTextStudio { font-size: 12px; padding: 9px 12px; }
+.dub-studio .dub-card p { line-height: 1.6; max-width: 68ch; }
+.dub-studio .dub-card label:has(>input[type="checkbox"]) { display: flex; align-items: flex-start; gap: 10px; line-height: 1.5; }
+.dub-studio .dub-card label:has(>input[type="checkbox"]) input { margin: 3px 0 0; }
+.dub-studio #dubProductionSettings, .dub-studio #dubAdvancedSettings { margin-top: 16px; border-top: 1px solid var(--border); }
+.dub-studio .dub-card details>summary { min-height: 40px; box-sizing: border-box; display: list-item; align-content: center; line-height: 1.5; }
+.dub-studio-footer .dub-job-meta { align-items: center; justify-content: space-between; }
+.dub-run-details { font-size: 11px; max-width: 100%; }
+.dub-run-details>summary { cursor: pointer; padding: 7px 0; color: var(--text-muted); }
+.dub-run-details-body { max-height: 112px; overflow: auto; padding: 8px 0; }
+.dub-studio-footer:has(.dub-run-details[open]) .dub-job-meta { display: block; }
+.dub-studio-footer #dubGeneratorDetails { font-family: inherit; line-height: 1.5; color: var(--text-muted); }
+.dub-studio-footer .dub-generator-row { gap: 8px; flex-wrap: wrap; }
+.dub-studio-footer .btn { min-height: 40px; }
+@media(max-width: 650px) {
+  .dub-studio-header { padding: 14px; align-items: flex-start; }
+  .dub-studio-header h2 { font-size: 21px; }
+  .dub-studio-header p { font-size: 12px; }
+  .dub-studio-footer { padding: 10px 14px; }
+  .dub-studio-footer .btn { padding: 8px 12px; font-size: 12px; }
+}
+
+.dub-studio #voiceReferencePicker { margin: 14px 0; padding-top: 14px; border-top: 1px solid var(--border); }
+.dub-studio #voiceReferencePicker label { display: block; margin: 10px 0 7px; }
+.dub-studio #voiceReferencePicker input { width: 100%; box-sizing: border-box; }
+.dub-studio #dubDeliverySettings { border-top: 1px solid var(--border); margin: 12px 0; }
+
+.dub-studio #voiceReferenceSearch { min-height: 40px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-1); color: var(--text); font: inherit; }
+.dub-studio #voiceReferenceSearch::placeholder { color: var(--text-muted); }
+.dub-studio .dub-header-actions { flex-shrink: 0; }
+.dub-studio .dub-card .voice-reference-count { font-size: 11px; margin: 6px 0; }
+.dub-studio .dub-card:has(#dubChooseSrt)>p { font-size: 12px; margin: 8px 0; }

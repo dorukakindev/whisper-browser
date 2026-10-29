@@ -27,4 +27,10 @@ function shorteningInput(plan, request) {
     throw Error('Use 1–4000 characters for a shortening suggestion / Kısaltma önerisi için 1–4000 karakter kullanın.');
   return {text:text.trim(),seconds:group.seconds};
 }
-module.exports = {editorMessages,shorteningInput};
+function editorFailureCode(error) {
+  const allowed=['configuration','authentication','rate_limit','provider','output_limit','empty_reply','meaning_guard'];
+  if(allowed.includes(error?.reason))return error.reason;
+  if(error?.name==='TimeoutError'||error?.name==='AbortError')return 'timeout';
+  return 'unavailable';
+}
+module.exports = {editorMessages,shorteningInput,editorFailureCode};

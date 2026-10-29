@@ -47,7 +47,7 @@ from ndjson_utils import finite_json_value, json_dumps_finite
 import sentence_translation as _sentence_translation_module
 from sentence_translation import (ABBREVIATIONS, SENTENCE_PROTOCOL_VERSION, sentence_groups,
                                   pack_sentence_groups, accept_sentence_reply,
-                                  sentence_reply_issue, sentence_part_boundary_issue,
+                                  sentence_reply_issue, reconcile_speech_reply, speech_part_anchor_issue, sentence_part_boundary_issue,
                                   reply_id_range_issue, normalize_reply_ids,
                                   part_tail_issue, part_repetition_issue, part_anchor_issue,
                                   validate_sentence_parts, normalized_text,
@@ -3291,7 +3291,7 @@ def resolve_translate_routes(base_url):
     return [raw]
 
 
-SPEECH_TRANSLATION_PROTOCOL = 'speech-v10-source-role-review'
+SPEECH_TRANSLATION_PROTOCOL = 'speech-v11-sentence-meaning'
 
 
 def translation_cue_interval(args):
@@ -3386,8 +3386,10 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
         "- Bir grupteki ve ayni partideki komsu bloklari, tek bloklu gruplar dahil, kesintisiz bir",
         "  konusma akisi gibi birlikte oku. Bu yalniz anlama/terim/zamir baglamidir; blok sahipligini degistirmez.",
         "- Yalniz ayni grup icinde yeniden sirala. GRUPLAR ARASINDA anlam tasima; baglam bilgisini erkene cekme.",
-        "- SAYI, TARIH, MIKTAR, KOD, OZEL AD ve [...] SDH isareti kaynakta hangi ID'deyse ceviride de o ID'nin",
-        "  items metninde kalmalidir. Ayni cumlede bile baska ID'ye tasima; diger sozcukleri bunlarin etrafinda dogal kur.",
+        *(["- Seslendirmede sayilar ve ozel adlar ayni cumle grubunun icinde dogal Turkce soz dizimine gore yer degistirebilir; GRUPLAR ARASINA tasinmaz.",
+           "- Bicim etiketleri ve [...] SDH isaretleri yine kendi ID'sinde kalir."] if for_speech else [
+           "- SAYI, TARIH, MIKTAR, KOD, OZEL AD ve [...] SDH isareti kaynakta hangi ID'deyse ceviride de o ID'nin",
+           "  items metninde kalmalidir. Ayni cumlede bile baska ID'ye tasima; diger sozcukleri bunlarin etrafinda dogal kur."]),
         "- Kaynak grubun son parcasi disindaki bir ID cumleyi bitirmiyorsa hedef karsiligi da",
         ("  nokta/soru/unlemle cumleyi erken BITIREMEZ. Ayni grup icinde yuklemi Turkce soz dizimine gore sona koyabilirsin; nesneyi yuklemden sonra yetim bir parcaya birakma."
          if for_speech else "  nokta/soru/unlemle cumleyi erken BITIREMEZ. Yuklemi veya kalan anlami sonraki ID'ye tasima."),
@@ -4310,7 +4312,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             lambda: sentence_part_boundary_issue(source_parts, parts, source_lang),
             lambda: part_repetition_issue(source_parts, parts),
             lambda: part_tail_issue(parts, target),
-            lambda: part_anchor_issue(source_parts, parts, target, source_lang),
+            lambda: speech_part_anchor_issue(source_parts, parts, target, source_lang)
+            if getattr(args, 'translate_for_speech', False) else part_anchor_issue(source_parts, parts, target, source_lang),
         ):
             issue = check()
             if issue:
@@ -4799,6 +4802,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         filled = 0
         rejected = {}
         for group, row in zip(chunk_groups(chunk_idx), payload['sentence_groups']):
+            if getattr(args, 'translate_for_speech', False):
+                data = reconcile_speech_reply(data, row['ids'], row['source'], target, source_lang)
             issue = sentence_reply_issue(data, row['ids'])
             if issue:
                 rejected[issue] = rejected.get(issue, 0) + 1
@@ -7008,7 +7013,7 @@ def canonicalize_subtitle_entries(entries, max_start_delta=0.08, max_gap=0.12):
 
 def compute_translation_quality_report(source_entries, translated_entries,
                                        failed_count=0, timing_tolerance=0.002,
-                                       target_lang='tr'):
+                                       target_lang='tr', for_speech=False):
     """Kaynak/hedef cue'larını değiştirmeden muhafazakâr kalite kapısı.
 
     target_lang anlam kapılarının (modal/olumsuzluk/TR-kesinti) dil kapsamını
@@ -7016,6 +7021,13 @@ def compute_translation_quality_report(source_entries, translated_entries,
     source = list(source_entries or [])
     target = list(translated_entries or [])
     total = max(len(source), len(target))
+    meaning_context = {}
+    if for_speech and len(source) == len(target):
+        for group in sentence_groups(source, max_chars=1200, max_duration=40, max_parts=12):
+            pair = (' '.join(str(source[i][2]) for i in group),
+                    ' '.join(str(target[i][2]) for i in group))
+            for index in group:
+                meaning_context[index] = pair
     untranslated_indices = []
     empty_indices = []
     timing_mismatch_indices = []
@@ -7053,7 +7065,8 @@ def compute_translation_quality_report(source_entries, translated_entries,
                 and not is_structural_sdh_cue(src_text)
                 and not line_keeps_source(src_text, target_lang)):
             untranslated_indices.append(index)
-        meaning_issues = translation_meaning_issues(src_text, dst_text, target_lang)
+        meaning_source, meaning_target = meaning_context.get(index, (src_text, dst_text))
+        meaning_issues = translation_meaning_issues(meaning_source, meaning_target, target_lang)
         if 'number_mismatch' in meaning_issues:
             number_mismatch_indices.append(index)
         if 'negation_missing' in meaning_issues:
@@ -7070,7 +7083,7 @@ def compute_translation_quality_report(source_entries, translated_entries,
             truncated_fragment_indices.append(index)
         if meaning_issues:
             meaning_shadow_rejected_indices.append(index)
-        if translation_blocking_issues(src_text, dst_text, target_lang):
+        if translation_blocking_issues(meaning_source, meaning_target, target_lang):
             blocking_issue_indices.append(index)
         if (abs(float(src[0]) - float(dst[0])) > timing_tolerance
                 or abs(float(src[1]) - float(dst[1])) > timing_tolerance):
@@ -8166,7 +8179,7 @@ def transcribe(args):
             translation_report = compute_translation_quality_report(
                 entries, translated,
                 failed_count=max(0, len(entries) - len(provisional_completed)),
-                target_lang=(args.translate_to or "tr").lower(),
+                target_lang=(args.translate_to or "tr").lower(), for_speech=getattr(args, "translate_for_speech", False),
             )
             # Bilinçli değişmeden bırakılan satırlar (zaten hedef dilde,
             # yankı-kabul, önceden çevrilmiş) kalite kapısında 'çevrilmedi'
@@ -9119,7 +9132,7 @@ def translate_existing_subtitle(args):
     translation_report = compute_translation_quality_report(
         entries, translated,
         failed_count=max(0, len(entries) - len(provisional_completed)),
-        target_lang=target,
+        target_lang=target, for_speech=getattr(args, 'translate_for_speech', False),
     )
     untranslated_indices = set(translation_report["translation_untranslated_indices"])
     if same_language:
