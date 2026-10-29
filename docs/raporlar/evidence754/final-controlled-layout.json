@@ -1,0 +1,51 @@
+{
+  "ok": true,
+  "liveProvider": false,
+  "standardTier": false,
+  "previewLayout": {
+    "height": 88,
+    "readerHeight": 411.4583435058594,
+    "viewport": 950,
+    "contentSizing": true
+  },
+  "longPreview": {
+    "height": 180,
+    "scroll": 7137,
+    "client": 179
+  },
+  "narrowPreview": {
+    "overflow": false,
+    "height": 88.00000762939453,
+    "width": 800
+  },
+  "progressContrast": 4.6908925079623955,
+  "failedProgress": {
+    "text": "1/2 sayfa",
+    "complete": false
+  },
+  "requests": 2,
+  "translated": {
+    "blocks": [
+      {
+        "p": "1",
+        "status": "translated",
+        "t": "tr~ Hello world. This is a test. Third sentence here."
+      },
+      {
+        "p": "2",
+        "status": "translated",
+        "t": "tr~ Second page begins. More text follows. End of fixture."
+      }
+    ],
+    "done": 2,
+    "failed": 0
+  },
+  "exported": true,
+  "selectedPages": [
+    "2"
+  ],
+  "previewText": "tr~ Second page begins. More text follows. End of fixture.",
+  "projectText": "tr~ Second page begins. More text follows. End of fixture.",
+  "previewCreatedNoProject": true,
+  "realGeneration": false
+}
