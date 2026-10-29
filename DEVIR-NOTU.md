@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-30-0144.md](docs/devir/2026-10-30-0144.md) — Dış denetim bulgularının doğrulanması
 Güncel çalışma: [docs/devir/2026-10-30-0117.md](docs/devir/2026-10-30-0117.md) — Ses üretimi güvenilirliği ve referans geçişleri
 Güncel çalışma: [docs/devir/2026-10-30-0045.md](docs/devir/2026-10-30-0045.md) — UI denetimi onarımları
 Güncel çalışma: [docs/devir/2026-10-30-0025.md](docs/devir/2026-10-30-0025.md) — DeepSeek ve ses çevirisi

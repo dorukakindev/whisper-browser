@@ -1445,6 +1445,57 @@ def _number_match(token, translated, target_lang):
     return None
 
 
+def _outcome_polarities(text, language):
+    """Narrow lexical outcome evidence, not general sentiment analysis."""
+    # Quoted titles/names are not assertions that an experiment succeeded.
+    text = re.sub(r'"[^"\n]*"|“[^”\n]*”|«[^»\n]*»', ' ', text)
+    if language == 'en':
+        pattern = r'\b(?:succeed(?:ed|s|ing)?|successful(?:ly)?|unsuccessful(?:ly)?|fail(?:ed|s|ing)?|failure)\b'
+    elif language == 'tr':
+        pattern = r'\bbaşar(?:ılı|ısız)(?:y(?:dı|mış)|dır|dı|mış|ca)?\b|\bbaşar(?:dı|dım|dın|dık|dınız|dılar)\b'
+    else:
+        return set()
+    outcomes = set()
+    for match in re.finditer(pattern, text, re.I):
+        before, after = text[max(0, match.start()-35):match.start()], text[match.end():match.end()+35]
+        if re.search(r'\b(?:called|named|titled)\s*$', before, re.I) or re.match(r'\s+(?:adlı|isimli|soyadlı)\b', after, re.I):
+            continue
+        negative = bool(re.match(r'(?i)(?:fail|unsuccess|başarısız)', match[0]))
+        if language == 'en':
+            inverted = bool(re.search(r"\b(?:not|never|no|\w+n['’]t)\s+(?:(?:a|an|be|been|very|entirely|completely)\s+){0,3}$", before, re.I))
+        else:
+            inverted = bool(re.match(r'\s+(?:değil\w*|olma(?:dı\w*|mış\w*|z\w*|yacak\w*)|olamadı\w*)\b', after, re.I))
+        outcomes.add(-1 if negative != inverted else 1)
+    return outcomes
+
+
+_TR_MODAL_STEMS = '(?:' + '|'.join(re.escape(root) for root in sorted(
+    set(_TR_NEGATION_ROOTS) | {'gid', 'ed', 'yağ', 'bitir'}, key=len, reverse=True)) + ')'
+_TR_FINITE_PERSON = r'(?:y?[ıiuü]m|s[ıiuü]n|y?[ıiuü]z|s[ıiuü]n[ıiuü]z|l[ae]r)?'
+_TR_PAST_PERSON = r'(?:m|n|k|n[ıiuü]z|l[ae]r)?'
+
+
+def _reverse_modal_issues(source, translated):
+    # Known verb stems and complete finite endings avoid nominal false matches
+    # such as temeli, verirdi-style proper names and the past verb bitirdin.
+    source = re.sub(r'"[^"\n]*"|“[^”\n]*”', ' ', source)
+    necessity = re.search(r'\b'+_TR_MODAL_STEMS+r'm[ae]l[ıi]'+_TR_FINITE_PERSON+r'\b', source, re.I)
+    ability = re.search(r'\b'+_TR_MODAL_STEMS+r'y?[ae]bilir(?:'+_TR_FINITE_PERSON+r'|[dt][ıiuü]'+_TR_PAST_PERSON+r')\b', source, re.I)
+    habitual = re.search(r'\b'+_TR_MODAL_STEMS+r'(?:r|ar|er|ır|ir|ur|ür)[dt][ıiuü]'+_TR_PAST_PERSON+r'\b', source, re.I)
+    issues = []
+    if necessity and not re.search(r'\b(?:should|must|ought to|ha(?:ve|s|d) to|need(?:s|ed)? to|required|obliged|supposed to|had better|advisable|recommend\w*)\b', translated, re.I):
+        issues.append('modal_weakened')
+    if ability and not re.search(r'\b(?:can|could|may|might|able to|capable of|perhaps|maybe|possibly|probably|possible|possibility)\b', translated, re.I):
+        issues.append('modal_certainty_flip')
+    # Aorist past can be habitual OR a natural simple-past rendering (bilirdin
+    # -> you knew). Require a recognizably present finite verb before rejecting;
+    # unknown/irregular pasts and ambiguous read/put/cut are not proof of loss.
+    present = re.search(r'\b(?:I|you|we|they|he|she|it)\s+(?:go(?:es)?|come(?:s)?|know(?:s)?|wait(?:s)?|walk(?:s)?|work(?:s)?|say(?:s)?|take(?:s)?|give(?:s)?|make(?:s)?|write(?:s)?|think(?:s)?|eat(?:s)?|sleep(?:s)?)\b', translated, re.I)
+    if habitual and present and not re.search(r'\b(?:would|used to|was|were|had|did|yesterday|formerly|previously|\w+ed)\b', translated, re.I):
+        issues.append('modal_missing')
+    return issues
+
+
 def translation_meaning_issues(source_text, translated_text, target_lang='tr', source_lang=None):
     """Bariz sayı/olumsuzluk kaybını anlamsal kalite kapısı olarak bildirir.
 
@@ -1521,6 +1572,13 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
     if missing and 'number_mismatch' not in issues:
         issues.append('number_mismatch')
     lang = str(target_lang or '').lower().split('-')[0]
+    original_outcome, translated_outcome = set(), set()
+    source_language = str(source_lang or ('en' if lang == 'tr' else '')).lower().split('-')[0]
+    if (source_language, lang) in (('en', 'tr'), ('tr', 'en')):
+        original_outcome = _outcome_polarities(source, source_language)
+        translated_outcome = _outcome_polarities(translated, lang)
+        if len(original_outcome) == len(translated_outcome) == 1 and original_outcome != translated_outcome:
+            issues.append('outcome_reversed')
     # Altyazı kaynaklarında kıvırcık kesme (’) düz kesmeye katlanır; aksi
     # halde "can’t/won’t" biçimleri kaynak işaret listesinden düşer.
     src_norm = source.replace('’', "'")
@@ -1535,10 +1593,11 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
     if lang == 'tr' and re.search(r"\bwhether\s+or\s+not\b", negation_source, re.I) and re.search(r"\b\w+(?:[ıiuü]p)\s+\w+m[ae]m[ae]\w*\b", translated, re.I):
         negation_source = re.sub(r"\bwhether\s+or\s+not\b", 'whether', negation_source, flags=re.I)
     if lang in _NEGATION_TARGET_LANGS and _SOURCE_NEGATION.search(negation_source) \
-            and not _target_negation(translated, negation_source):
+            and not (_target_negation(translated, negation_source) or (lang == 'en' and translated_outcome == {-1})):
         issues.append('negation_missing')
     target_negative = _target_negation(translated, negation_source) if lang == 'tr' else bool(_SOURCE_NEGATION.search(translated.replace('’', "'"))) if lang == 'en' else False
-    source_negative = bool(_SOURCE_NEGATION.search(negation_source)) or (lang == 'en' and str(source_lang or '').split('-')[0] == 'tr' and _target_negation(source, translated))
+    target_negative = target_negative or (lang == 'en' and translated_outcome == {-1})
+    source_negative = bool(_SOURCE_NEGATION.search(negation_source)) or original_outcome == {-1} or (lang == 'en' and str(source_lang or '').split('-')[0] == 'tr' and _target_negation(source, translated))
     if lang == 'en' and str(source_lang or '').split('-')[0] == 'tr' and _target_negation(source, translated) and not target_negative:
         issues.append('negation_missing')
     if lang in ('tr', 'en') and target_negative and not source_negative and len(source.split()) <= 12 and not re.search(r"[;!?]|\b(?:but|unless|hardly|barely|without|stop|avoid|lack|fail(?:ed|s|ing)?|refuse|deny)\b", source, re.I):
@@ -1569,6 +1628,7 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
                 and not _TARGET_NECESSITY.search(translated):
             issues.append('modal_weakened')
     if lang == 'en' and str(source_lang or '').split('-')[0] == 'tr':
+        issues.extend(_reverse_modal_issues(source, translated))
         if re.search(r'(?i)\b(?:zorunda\w*|mecbur\w*|gerekli|gerekiyor)\b', source) and not re.search(r'(?i)\b(?:must|have to|has to|need to|required|obliged|forced)\b', translated): issues.append('modal_weakened')
         if re.search(r'(?i)\b(?:belki|muhtemelen|olabilir)\b', source) and not re.search(r'(?i)\b(?:may|might|could|perhaps|maybe|possibly|probably)\b', translated): issues.append('modal_certainty_flip')
     marker_checks = [
@@ -1617,7 +1677,7 @@ def translation_blocking_issues(source_text, translated_text, target_lang='tr', 
     blocking = [issue for issue in issues
                 if issue in ('markup_mismatch', 'number_mismatch', 'truncated_fragment',
                              'negation_missing', 'negation_added', 'modal_missing',
-                             'modal_certainty_flip', 'modal_weakened')]
+                             'modal_certainty_flip', 'modal_weakened', 'outcome_reversed')]
     # A single unchanged explicit quantity cannot silently change its unit or
     # currency (60 miles -> 60 km). Do not reject actual conversions, multiple
     # quantities or explicit equivalence statements using this narrow proof.

@@ -241,13 +241,13 @@ async function main() {
       try { fs.rmSync(profile, { recursive: true, force: true }); } catch (_) { /* Windows kilidi */ }
     }
   }
-  report.coverage=surfaceCoverage.summarize(DECLARED_SURFACES,report.runs);
+  report.coverage=surfaceCoverage.summarize(DECLARED_SURFACES,report.runs,{evidenceRoot:OUT});
   fs.writeFileSync(path.join(OUT,'coverage.json'),JSON.stringify(report.coverage,null,2));
   console.log(`Coverage: ${report.coverage.visited}/${report.coverage.declared} declared roots captured; ${report.coverage.unvisited.length} unvisited.`);
   report.totalContrastFailures = failures;
   fs.writeFileSync(path.join(OUT, 'report.json'), JSON.stringify(report, null, 2));
   console.log(`\nRapor: ${path.join(OUT, 'report.json')} · toplam kontrast hatası: ${failures}`);
-  if (STRICT && failures || COVERAGE_STRICT && report.coverage.unvisited.length) process.exit(1);
+  if (STRICT && failures || COVERAGE_STRICT && (report.coverage.unvisited.length || report.coverage.blockedArtifacts.length)) process.exit(1);
 }
 
 main().catch((error) => { console.error(error); process.exit(1); });
