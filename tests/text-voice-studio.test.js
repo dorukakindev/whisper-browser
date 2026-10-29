@@ -84,6 +84,15 @@ test('text studio shares job ownership, preserves reference, cleans only failed 
  fs.writeFileSync(historyRequest,JSON.stringify({...JSON.parse(originalRequest),output:outside}));
  assert.equal((await call({action:'open-result',id:result.id})).ok,false,'record cannot grant arbitrary outside audio');
  fs.writeFileSync(historyRequest,originalRequest);
+ const ownedId='text-11111111-2222-4333-8444-555555555555';
+ assert.equal((await call({...start,id:'../../outside'})).ok,false,'client correlation identity is constrained');
+ const owned=await call({...start,id:ownedId});assert(owned.ok);assert.equal(owned.id,ownedId);
+ assert.equal(children.length,3);
+ const staleStop=await handlers['dub:cancel']({sender},{id:result.id});assert(staleStop.ok&&staleStop.stale);assert(svc.running(),'old scoped cancellation cannot terminate the newer text job');
+ assert.equal((await handlers['dub:cancel']({sender},{id:''})).ok,false);assert(svc.running());
+ assert((await handlers['dub:cancel']({sender},{id:ownedId})).ok);assert.equal(svc.running(),false);
+ assert(events.some(e=>e.id===ownedId&&e.kind==='text'&&e.type==='cancelled'));
+ assert.equal((await call({...start,id:ownedId})).ok,false,'completed input scope cannot be reused to overwrite its request');
  await handlers['dub:textUI']({sender});assert.equal(events.at(-1).type,'text_studio_open');
- assert.equal(children.length,2,'opening Electron studio must not spawn Tk');
+ assert.equal(children.length,3,'opening Electron studio must not spawn Tk');
 });
