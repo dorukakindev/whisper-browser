@@ -931,7 +931,7 @@ def main(argv=None, runtime=None):
     # An earlier production must not point into a cache overwritten by retries.
     # Immutable raw takes are deduplicated by PCM container content, not filename.
     from dub_take_cache import capture
-    takes = capture(paths, OUTPUT_ROOT / '_dub_takes_v1', lambda file: valid_audio(file, sf))
+    takes = capture(paths, wav_path.parent / '_dub_takes_v1', lambda file: valid_audio(file, sf))
     manifest = {"version": 2, "wav": wav_path.name, "sample_rate": sr,
                 "video_offset_seconds": args.range_start or 0,
                 "grouping": args.gruplama, "timing": timing,
