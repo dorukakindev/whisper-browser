@@ -1,0 +1,85 @@
+{
+  "ok": true,
+  "liveYoutube": false,
+  "realNavigation": true,
+  "realMediaDecoder": true,
+  "controlledDeferredReplies": true,
+  "initial": {
+    "mode": "browser",
+    "tabId": "tab-mvt5sc39-1",
+    "mediaKey": "browser:youtube:jNQXAC9IVRw",
+    "source": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+    "generation": 1,
+    "mediaId": "youtube:jNQXAC9IVRw",
+    "subtitleRange": {
+      "start": 2,
+      "end": 6
+    },
+    "priorMuted": false,
+    "hasMedia": true,
+    "playbackRate": 1,
+    "currentTime": 0.004103,
+    "visible": true
+  },
+  "reloads": [
+    {
+      "before": 1,
+      "after": 2
+    },
+    {
+      "before": 2,
+      "after": 3
+    },
+    {
+      "before": 3,
+      "after": 4
+    },
+    {
+      "before": 4,
+      "after": 5
+    }
+  ],
+  "oldPickerRejected": true,
+  "oldPlanErrorRejected": true,
+  "oldLookupRejected": true,
+  "seek": {
+    "ok": true,
+    "tabId": "tab-mvt5sc39-1",
+    "generation": 4,
+    "mediaId": "youtube:jNQXAC9IVRw",
+    "streamMediaId": "",
+    "service": "youtube",
+    "acquisitionId": "caption-mvt5schq-9",
+    "operationId": "caption-mvt5schq-9",
+    "media": {
+      "currentTime": 3,
+      "handled": true,
+      "muted": true,
+      "paused": true,
+      "playbackRate": 1,
+      "volume": 1
+    },
+    "url": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+    "title": "Native reload fixture",
+    "loading": false,
+    "canGoBack": false,
+    "canGoForward": false,
+    "zoom": 1,
+    "compatibilityMode": false,
+    "subtitlePreference": null
+  },
+  "pausedSeekConfirmed": true,
+  "realWavPlayback": {
+    "reportedVideoTime": 3.867328,
+    "audio": 3.885328,
+    "paused": false,
+    "actualVideoTime": 3.898949,
+    "reloadStoppedAudio": true,
+    "tabMuteRestored": true
+  },
+  "adGuard": {
+    "active": true,
+    "videoTime": 0.006538,
+    "readyState": 4
+  }
+}
