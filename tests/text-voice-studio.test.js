@@ -63,7 +63,12 @@ test('text studio shares job ownership, preserves reference, cleans only failed 
  assert.equal((await call({action:'save-reference',referenceId:config.referenceId,name:'Busy',transcript:'No'})).ok,false);
  assert.equal((await call({action:'pick-reference'})).ok,false,'reference cannot change during production');
  const output=children[0].request.output;fs.writeFileSync(output,wav(480));
- children[0].stdout.write('[1/1] complete\n');children[0].emit('close',0,null);
+ children[0].stdout.write('x'.repeat(70000));children[0].stdout.write('[99/99] truncated tail must not become an event\n');
+ children[0].stdout.write('[1/');children[0].stderr.write('[2/2] engine diagnostic\n');children[0].stdout.write('1] complete\n[5/1] invalid\nprose [9/9] is not progress\nTum parcalar hazir; birlestiriliyor.');children[0].emit('close',0,null);
+ assert(events.some(e=>e.id===result.id&&e.type==='progress'&&e.done===1&&e.total===1),'stdout progress split around stderr and final unterminated line must be retained');
+ assert.equal(events.filter(e=>e.id===result.id&&e.type==='progress').length,1,'Only valid anchored engine counters are progress');
+ assert.deepEqual(events.filter(e=>e.id===result.id&&e.type==='status').map(e=>e.stage),['model_load','synthesis','postprocess','output_check']);
+ const completedJob=JSON.parse(fs.readFileSync(path.join(path.dirname(children[0].request.source),'job.json'),'utf8'));assert.deepEqual(completedJob.progress,{done:1,total:1});for(const stage of ['model_load','synthesis','postprocess','output_check'])assert(Number.isFinite(completedJob.phases[stage])&&completedJob.phases[stage]>=0);
  assert.equal(svc.running(),false);assert(events.some(e=>e.type==='done'&&e.kind==='text'));
  const recent=await call({action:'history'});assert.equal(recent.results.length,1);
  assert.equal(recent.results[0].id,result.id);

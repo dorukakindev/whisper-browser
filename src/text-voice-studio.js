@@ -93,16 +93,34 @@ function registerTextVoiceStudio({app,ipcMain,dialog,owner,guard,config,referenc
    atomicWriteFileSync(file,JSON.stringify({engine:c.engine,reference:v.reference,transcript,source,output,settings:options}),{encoding:'utf8'});
    atomicWriteFileSync(savedFile(),JSON.stringify({version:2,...options}),{encoding:'utf8'});
    s.summaryPath=path.join(folder,'job.json');s.logPath=path.join(folder,'events.ndjson');
-   const log=path.join(folder,'engine.log');let pending='',tail='';
+   const log=path.join(folder,'engine.log');let tail='',phase='',phaseAt=performance.now();
+   const buffers={stdout:{text:'',dropped:false},stderr:{text:'',dropped:false}};
+   const closePhase=()=>{if(phase){s.phases||={};s.phases[phase]=(s.phases[phase]||0)+(performance.now()-phaseAt)/1000;}phaseAt=performance.now();};
+   const stage=next=>{if(s.cancelled||next===phase)return;closePhase();phase=next;emit(s,'status',{kind:'text',stage:next});};
+   const line=value=>{
+    if(s.cancelled)return;
+    const m=/^\[(\d{1,7})\/(\d{1,7})\](?:\s|$)/.exec(value);
+    if(m){const done=Number(m[1]),total=Number(m[2]);if(total>0&&done>=0&&done<=total){stage('synthesis');s.progress={done,total};emit(s,'progress',{kind:'text',done,total});}return;}
+    if(/^Referans hazir; uretim basliyor\./.test(value))stage('synthesis');
+    else if(/^Tum parcalar hazir; (?:GPU yuklemeden )?birlestiriliyor\./.test(value))stage('postprocess');
+   };
+   const parse=(channel,text,flush=false)=>{
+    const buffer=buffers[channel],parts=(buffer.text+text).split(/\r?\n/);buffer.text=parts.pop();
+    for(const value of parts){if(channel==='stdout'&&!buffer.dropped&&value.length<=65536)line(value);buffer.dropped=false;}
+    if(buffer.text.length>65536){buffer.text='';buffer.dropped=true;}
+    if(flush){if(channel==='stdout'&&!buffer.dropped&&buffer.text)line(buffer.text);buffer.text='';buffer.dropped=false;}
+   };
    s.proc=spawn(python,[path.join(__dirname,'..','tools','voxcpm2','text_studio_job.py'),'--request',file],{cwd:c.engine,env:{...environment(c.engine),PYTHONUTF8:'1',PYTHONUNBUFFERED:'1'},windowsHide:true,stdio:['ignore','pipe','pipe']});
-   emit(s,'status',{kind:'text',stage:'model_load'});
-   const receive=text=>{try{fs.appendFileSync(log,text,'utf8');}catch{}tail=(tail+text).slice(-6000);pending=(pending+text).slice(-65536);const lines=pending.split(/\r?\n/);pending=lines.pop();for(const line of lines){const m=/\[(\d+)\/(\d+)\]/.exec(line);if(m)emit(s,'progress',{kind:'text',done:Number(m[1]),total:Number(m[2])});}emit(s,'text_log',{kind:'text',tail});};
-   s.proc.stdout.setEncoding('utf8');s.proc.stderr.setEncoding('utf8');s.proc.stdout.on('data',receive);s.proc.stderr.on('data',receive);
+   stage('model_load');
+   const receive=(channel,text)=>{try{fs.appendFileSync(log,text,'utf8');}catch{}tail=(tail+text).slice(-6000);s[channel==='stdout'?'stdout':'stderr']=((s[channel==='stdout'?'stdout':'stderr']||'')+text).slice(-6000);parse(channel,text);emit(s,'text_log',{kind:'text',tail});};
+   s.proc.stdout.setEncoding('utf8');s.proc.stderr.setEncoding('utf8');s.proc.stdout.on('data',text=>receive('stdout',text));s.proc.stderr.on('data',text=>receive('stderr',text));
    s.proc.on('error',error=>{s.spawnError=error.message;});
    s.proc.once('close',(code,signal)=>{
-    s.exitCode=code;s.exitSignal=signal;
-    if(s.cancelled){finish(s,'cancelled',{kind:'text'});return;}
-    if(code!==0||!validVoiceOutput(output)){finish(s,'error',{kind:'text',error:s.spawnError||tail||'Voice output was not completed.'});return;}
+    s.exitCode=code;s.exitSignal=signal;parse('stdout','',true);parse('stderr','',true);
+    if(s.cancelled){closePhase();finish(s,'cancelled',{kind:'text'});return;}
+    if(code!==0){closePhase();finish(s,'error',{kind:'text',error:s.spawnError||tail||'Voice output was not completed.'});return;}
+    stage('output_check');const valid=validVoiceOutput(output);closePhase();
+    if(!valid){finish(s,'error',{kind:'text',error:s.spawnError||tail||'Voice output was not completed.'});return;}
     grantMedia(output);finish(s,'done',{kind:'text',path:output,url:pathToFileURL(output).href,name:path.basename(output),sample:options.preview});
     try{history.record(id);}catch(error){emit(s,'history_warning',{kind:'text',error:error.message});}
    });
