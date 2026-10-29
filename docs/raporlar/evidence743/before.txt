@@ -1,0 +1,4 @@
+Parent master bf2c406a8b08d17ab659ab95f8606d85662ee5ce
+assistant-caption-actions targeted run:6PASS/4FAIL.
+Failures: competing job during download did not reject; queue/preparation during profile resolution did not reject; invalid range had already downloaded1file; competing queue during load still accepted translation.
+Four probes cover two roots: await ownership checks and late range validation.

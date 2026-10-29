@@ -14,11 +14,11 @@ const realHandle=ipcMain.handle.bind(ipcMain);ipcMain.handle=(name,handler)=>rea
  name==='dub:references'?async()=>({ok:true,references:[]}):
  name==='dub:start'?async(_event,request)=>{voiceStarts.push(request);return {ok:true};}:
  name==='media:readSubtitle'?async(event,file)=>file===translated?{ok:true,text:fs.readFileSync(translated,'utf8'),mtimeMs:fs.statSync(translated).mtimeMs,size:fs.statSync(translated).size}:handler(event,file):handler);
-const downloads=[],requests=[],connections=new Set();const rawSpawn=cp.spawn;
+let occupyDuringCaptionDownload=false;const downloads=[],requests=[],connections=new Set();const rawSpawn=cp.spawn;
 cp.spawn=(exe,args,options)=>{
  if(!args?.some(arg=>String(arg).endsWith('media.py'))||!args.includes('subs'))return rawSpawn(exe,args,options);
  downloads.push(args);const proc=new EventEmitter();proc.pid=0;proc.stdout=new PassThrough();proc.stderr=new PassThrough();
- setTimeout(()=>{proc.stdout.write(JSON.stringify({type:'subs',path:source,lang:'en',auto:false})+'\n');proc.stdout.end();proc.emit('close',0);},15);return proc;
+ setTimeout(async()=>{if(occupyDuringCaptionDownload){occupyDuringCaptionDownload=false;await win.webContents.executeJavaScript('state.running=true',true);}proc.stdout.write(JSON.stringify({type:'subs',path:source,lang:'en',auto:false})+'\n');proc.stdout.end();proc.emit('close',0);},15);return proc;
 };
 const agent=require('../src/assistant-agent-service'),register=agent.register;
 // The existing browser-owner contract is independently covered by the service tests.
@@ -81,10 +81,20 @@ server.listen(0,'127.0.0.1',()=>{
  const whisper=await parent(`document.getElementById('dubGeneratorDialog').close();state.running=false;player.job=null;player.browserTracks=[];player.browserWhisperRange={url:currentBrowserYoutubeUrl(),range:{start:0,end:60}};const owner=AssistantAppActions.snapshot();window.fixtureWhisperOptions=null;const original=startProgressivePlayerTranscription;startProgressivePlayerTranscription=async config=>{fixtureWhisperOptions=config;player.job={backendJobId:'controlled-whisper',kind:'subtitles',running:true};};try{const result=await AssistantAppActions.execute('start_whisper',{translate:true,start:5,end:25},owner);return {result,options:fixtureWhisperOptions,ownerValid:AssistantAppActions.current(owner),saved:currentBrowserWhisperRange()};}finally{startProgressivePlayerTranscription=original;player.job=null;}`);
  assert.equal(whisper.result.status,'accepted');assert.deepEqual(whisper.options.clipRange,{start:5,end:25});assert.equal(whisper.ownerValid,true);assert.deepEqual(whisper.saved,{start:0,end:60});
  const prepared=await parent(`return AssistantAppActions.execute('open_voice_preparation',{},AssistantAppActions.snapshot())`);assert.equal(prepared.status,'completed');assert(await parent(`return document.getElementById('dubGeneratorDialog').open`),'Voice receipt requires an actually open existing window');
+ // Real adapter/IPC await: a competing job appears while the controlled subtitle download is pending.
+ const beforeRace=await parent(`document.getElementById('dubGeneratorDialog').close();state.running=false;state.queueRunning=false;player.browserTranslatePreparing=false;player.browserWhisperRange=null;return {tracks:JSON.stringify(player.browserTracks),deferred:player.browserDeferredTrackAction||null,translations:fixtureTranslationOptions.length};`);
+ const beforeInvalidDownload=downloads.length;
+ const invalidRange=await parent(`try{await AssistantCaptionActions.translate({caption_id:'yt-manual:en',start:55,end:90},AssistantAppActions.snapshot());return {blocked:false};}catch(error){return {blocked:true,message:error.message};}`);
+ assert(invalidRange.blocked,JSON.stringify(invalidRange));assert.equal(downloads.length,beforeInvalidDownload,'Invalid duration must not download first');
+ occupyDuringCaptionDownload=true;
+ const race=await parent(`try{await AssistantCaptionActions.translate({caption_id:'yt-manual:en',start:5,end:25},AssistantAppActions.snapshot());return {blocked:false};}catch(error){return {blocked:true,message:error.message};}finally{state.running=false;}`);
+ assert(race.blocked,JSON.stringify(race));
+ const afterRace=await parent(`return {tracks:JSON.stringify(player.browserTracks),deferred:player.browserDeferredTrackAction||null,translations:fixtureTranslationOptions.length};`);
+ assert.deepEqual(afterRace,beforeRace,'Competing job cannot gain a deferred source switch or caption translation');
  await parent(`player.browserPageUrl='https://www.youtube.com/watch?v=01234567890';player.mediaKey='browser:replacement';player.generation++;return true`);
  assert((await parent(`return DubGeneratorUI.assistant.state()`)).sourceChanged,'Old voice preparation cannot move to a different video');
 
- const result={ok:true,out,requests:requests.length,downloads:downloads.length,options:{target:options.translateTo,range:options.translateCueRange,forSpeech:options.translateForSpeech},compact,voiceStarts:voiceStarts.length,chain:'probe → chosen captions → speech translation → attached track → inherited range → voice acceptance → missing-quality warning → source replacement',limits:'controlled probe/download/translation completion/read grant and dub engine; actual Electron IPC and renderer adapters; no live model/GPU/YouTube/audio quality'};
+ const result={ok:true,out,competingCaptionJobBlocked:race.blocked,invalidRangeBeforeDownload:invalidRange.blocked,noTrackOrDeferredMutation:true,requests:requests.length,downloads:downloads.length,options:{target:options.translateTo,range:options.translateCueRange,forSpeech:options.translateForSpeech},compact,voiceStarts:voiceStarts.length,chain:'probe → chosen captions → speech translation → attached track → inherited range → voice acceptance → missing-quality warning → source replacement',limits:'controlled probe/download/translation completion/read grant and dub engine; actual Electron IPC and renderer adapters; no live model/GPU/YouTube/audio quality'};
  fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));for(const s of connections)s.destroy();server.close();app.exit(0);
  }).catch(async error=>{fs.writeFileSync(path.join(out,'error.txt'),error.stack);console.error(error.stack);try{fs.writeFileSync(path.join(out,'diagnostic.txt'),await overlay.webContents.executeJavaScript('document.body.textContent'));}catch(_){}for(const s of connections)s.destroy();server.close();app.exit(1);});
 });
