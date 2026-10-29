@@ -15245,9 +15245,28 @@ if (hasSingleInstanceLock) app.whenReady().then(async () => {
   }
 });
 
+let transcriptionQuitPending = false;
+function deferTranscriptionQuit(event) {
+  if (jobStarting) jobCancelSeq = jobStartSeq;
+  if (!activeJob) return;
+  event.preventDefault();
+  if (transcriptionQuitPending) return;
+  transcriptionQuitPending = true;
+  const owned = activeJob;
+  const warn = () => sendEvent({type:'log', level:'warn', message:browserUiLocale() === 'tr'
+    ? 'İşlemin durduğu doğrulanamadı; uygulama açık kaldı. Durdur düğmesiyle yeniden deneyin.'
+    : 'The job has not confirmed shutdown; the application remains open. Try Stop again.'});
+  void Promise.resolve().then(() => activeJob === owned ? killActiveJob() : {ok:!activeJob}).then(result => {
+    transcriptionQuitPending = false;
+    if (result?.ok && !activeJob) app.quit();
+    else warn();
+  }, () => { transcriptionQuitPending = false; warn(); });
+}
+
 let browserCacheQuitFlushStarted = false;
 let browserCacheQuitFlushComplete = false;
 app.on('before-quit', (event) => {
+  deferTranscriptionQuit(event);
   browserExtras?.mini.close();
   for (const tab of browserTabs.values()) browserExtras?.cancel(tab);
   if (watchTimer) clearInterval(watchTimer);
@@ -15260,7 +15279,7 @@ app.on('before-quit', (event) => {
   // Calisan is oldurulmeden ONCE duzgun iptal edilir: aksi halde yarim cikti
   // islemi diskte kalir. Yer imi/gecmis flush'indan sonra gelir ki kapanis
   // sirasi bozulmasin.
-  if (activeJobCancel) void activeJobCancel();
+  // deferTranscriptionQuit holds this quit until the owned child confirms close.
   // Debounce süresi dolmadan gelen uygulama/işletim sistemi kapanışlarında son
   // sekme, URL ve oynatma konumunu kaybetme.
   browserOrderlyShutdown = true;
