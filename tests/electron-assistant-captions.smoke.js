@@ -14,11 +14,11 @@ const realHandle=ipcMain.handle.bind(ipcMain);ipcMain.handle=(name,handler)=>rea
  name==='dub:references'?async()=>({ok:true,references:[]}):
  name==='dub:start'?async(_event,request)=>{voiceStarts.push(request);return {ok:true};}:
  name==='media:readSubtitle'?async(event,file)=>file===translated?{ok:true,text:fs.readFileSync(translated,'utf8'),mtimeMs:fs.statSync(translated).mtimeMs,size:fs.statSync(translated).size}:handler(event,file):handler);
-let occupyDuringCaptionDownload=false;const downloads=[],requests=[],connections=new Set();const rawSpawn=cp.spawn;
+let controlledCaptionExit;let controlledCaptionError='';let occupyDuringCaptionDownload=false;const downloads=[],requests=[],connections=new Set();const rawSpawn=cp.spawn;
 cp.spawn=(exe,args,options)=>{
  if(!args?.some(arg=>String(arg).endsWith('media.py'))||!args.includes('subs'))return rawSpawn(exe,args,options);
- downloads.push(args);const proc=new EventEmitter();proc.pid=0;proc.stdout=new PassThrough();proc.stderr=new PassThrough();
- setTimeout(async()=>{if(occupyDuringCaptionDownload){occupyDuringCaptionDownload=false;await win.webContents.executeJavaScript('state.running=true',true);}proc.stdout.write(JSON.stringify({type:'subs',path:source,lang:'en',auto:false})+'\n');proc.stdout.end();proc.emit('close',0);},15);return proc;
+ downloads.push(args);const failure=controlledCaptionError,forcedExit=controlledCaptionExit;controlledCaptionError='';controlledCaptionExit=undefined;const proc=new EventEmitter();proc.pid=0;proc.stdout=new PassThrough();proc.stderr=new PassThrough();
+ setTimeout(async()=>{if(occupyDuringCaptionDownload){occupyDuringCaptionDownload=false;await win.webContents.executeJavaScript('state.running=true',true);}proc.stdout.write(JSON.stringify({type:'subs',path:source,lang:'en',auto:false})+'\n');if(failure)proc.stdout.write(JSON.stringify({type:'error',code:failure,message:'DO_NOT_SHOW https://synthetic.example/?token=PRIVATE'})+'\n');proc.stdout.end();proc.emit('close',forcedExit??(failure?1:0));},15);return proc;
 };
 const agent=require('../src/assistant-agent-service'),register=agent.register;
 // The existing browser-owner contract is independently covered by the service tests.
@@ -91,10 +91,34 @@ server.listen(0,'127.0.0.1',()=>{
  assert(race.blocked,JSON.stringify(race));
  const afterRace=await parent(`return {tracks:JSON.stringify(player.browserTracks),deferred:player.browserDeferredTrackAction||null,translations:fixtureTranslationOptions.length};`);
  assert.deepEqual(afterRace,beforeRace,'Competing job cannot gain a deferred source switch or caption translation');
+ // A partial subs event followed by a helper error must never be accepted.
+ const captionFailures=[];
+ for(const locale of ['en','tr']){
+  await parent(`const control=document.getElementById('uiLocale');control.value=${JSON.stringify(locale)};control.dispatchEvent(new Event('change',{bubbles:true}));return true`);await wait(100);
+  for(const code of ['caption_unavailable','caption_conversion_failed','caption_invalid_result']){
+   controlledCaptionError=code;if(code==='caption_unavailable')controlledCaptionExit=0;
+   const failed=await parent(`return window.api.downloadYoutubeSubs({url:currentBrowserYoutubeUrl(),lang:'en',auto:true,inputDir:state.inputDir})`);
+   assert.equal(failed.ok,false,'Partial result plus helper error must fail, even with exit0');
+   assert.equal(failed.error,require('../src/caption-download-errors')(code,locale));
+   assert(!failed.error.includes('PRIVATE')&&!failed.data);
+   captionFailures.push({locale,code,error:failed.error});
+  }
+ }
+ controlledCaptionExit=1;const exitFailure=await parent(`return window.api.downloadYoutubeSubs({url:currentBrowserYoutubeUrl(),lang:'en',inputDir:state.inputDir})`);assert.equal(exitFailure.ok,false);assert(!exitFailure.data);
+ const beforeFailedTranslation=await parent('return fixtureTranslationOptions.length');
+ const previousCards=await run("return document.querySelectorAll('.tool-card').length");
+ await run("document.getElementById('text').value='YouTube altyazısını 5–25 saniye için Almancaya çevir.';document.getElementById('form').requestSubmit();return true");
+ await until(()=>run(`return document.querySelectorAll('.tool-card').length>${previousCards}&&!document.querySelector('.message.loading')`),'new caption proposal');
+ controlledCaptionError='caption_unavailable';
+ await run("const button=[...document.querySelectorAll('.tool-card button')].at(-1);button.click();document.getElementById('reviewConfirm').click();return true");
+ await until(()=>run("return [...document.querySelectorAll('.tool-card')].at(-1).textContent.includes('Seçilen dilde ve türde altyazı bulunamadı')"),'authored failure in actual assistant card');
+ assert.equal(await parent('return fixtureTranslationOptions.length'),beforeFailedTranslation,'Unavailable captions must not start translation');
+ await run("[...document.querySelectorAll('.tool-card')].at(-1).scrollIntoView({block:'end',behavior:'instant'});return true");await wait(200);
+ fs.writeFileSync(path.join(out,'caption-unavailable-tr-light.png'),(await overlay.webContents.capturePage()).toPNG());
  await parent(`player.browserPageUrl='https://www.youtube.com/watch?v=01234567890';player.mediaKey='browser:replacement';player.generation++;return true`);
  assert((await parent(`return DubGeneratorUI.assistant.state()`)).sourceChanged,'Old voice preparation cannot move to a different video');
 
- const result={ok:true,out,competingCaptionJobBlocked:race.blocked,invalidRangeBeforeDownload:invalidRange.blocked,noTrackOrDeferredMutation:true,requests:requests.length,downloads:downloads.length,options:{target:options.translateTo,range:options.translateCueRange,forSpeech:options.translateForSpeech},compact,voiceStarts:voiceStarts.length,chain:'probe → chosen captions → speech translation → attached track → inherited range → voice acceptance → missing-quality warning → source replacement',limits:'controlled probe/download/translation completion/read grant and dub engine; actual Electron IPC and renderer adapters; no live model/GPU/YouTube/audio quality'};
+ const result={ok:true,out,captionFailures,competingCaptionJobBlocked:race.blocked,invalidRangeBeforeDownload:invalidRange.blocked,noTrackOrDeferredMutation:true,requests:requests.length,downloads:downloads.length,options:{target:options.translateTo,range:options.translateCueRange,forSpeech:options.translateForSpeech},compact,voiceStarts:voiceStarts.length,chain:'probe → chosen captions → speech translation → attached track → inherited range → voice acceptance → missing-quality warning → source replacement',limits:'controlled probe/download/translation completion/read grant and dub engine; actual Electron IPC and renderer adapters; no live model/GPU/YouTube/audio quality'};
  fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));for(const s of connections)s.destroy();server.close();app.exit(0);
  }).catch(async error=>{fs.writeFileSync(path.join(out,'error.txt'),error.stack);console.error(error.stack);try{fs.writeFileSync(path.join(out,'diagnostic.txt'),await overlay.webContents.executeJavaScript('document.body.textContent'));}catch(_){}for(const s of connections)s.destroy();server.close();app.exit(1);});
 });

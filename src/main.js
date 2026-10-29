@@ -1094,7 +1094,7 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe', jobTag = '') {
       ev = parseNdjsonLine(line);
       if (!ev) return;
       if (ev.type === 'probe' || ev.type === 'downloaded' || ev.type === 'subs' || ev.type === 'clip') result = ev;
-      else if (ev.type === 'error') errText = sanitizeProcessDetail(ev.message || 'bilinmeyen hata');
+      else if (ev.type === 'error') errText = (kind === 'subs' && require('./caption-download-errors')(ev.code, browserUiLocale())) || sanitizeProcessDetail(ev.message || 'bilinmeyen hata');
       if (ev.type === 'subs' && typeof ev.path === 'string') subtitleFileAccess.grant(ev.path);
       if (onEvent) onEvent(ev);
     };
@@ -1119,7 +1119,7 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe', jobTag = '') {
       if (settled) return;
       for (const line of stdoutLines.flush()) handleLine(line);
       if (mediaAssistantCancelled) {finish({ok:false,cancelled:true,error:'İptal edildi.'});return;}
-      if (result) finish({ ok: true, data: result });
+      if (result && (kind !== 'subs' || code === 0 && !errText)) finish({ ok: true, data: result });
       else {
         if (!errText && stderrTail) {
           writeJobLog({ type: 'log', level: 'warn',
