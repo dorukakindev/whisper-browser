@@ -96,5 +96,13 @@
   if(event.type==='status'){if(!stopping)state('loading');return;}
   if(['done','error','cancelled'].includes(event.type)){active='';pending=false;stopping=false;el('progress').value=event.type==='done'?100:0;state(event.type==='done'?'done':event.type==='cancelled'?'cancelled':'failed',event.error||'');if(event.type==='done'){showOutput(event);void refreshHistory().catch(()=>state('historyWarning'));}controls();}
  });
+ let themeFrame=0;
+ document.addEventListener('ui-theme-change',()=>{
+  if(!dialog.open)return;
+  cancelAnimationFrame(themeFrame);dialog.classList.add('text-voice-theme-switch');
+  // Resolve both foreground and background before restoring hover transitions.
+  void dialog.offsetWidth;
+  themeFrame=requestAnimationFrame(()=>dialog.classList.remove('text-voice-theme-switch'));
+ });
  document.addEventListener('ui-locale-change',locale);locale();window.TextVoiceStudioUI=Object.freeze({open});
 })();
