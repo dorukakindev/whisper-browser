@@ -75,3 +75,20 @@
 .text-voice-error pre:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 .text-voice-studio.text-voice-theme-switch button{transition:none}
+
+/* Desktop workbench: long settings never stretch the manuscript off screen.
+   Small screens retain one continuous, naturally ordered scrolling surface. */
+.text-voice-head h2{text-wrap:balance}
+.text-voice-head p{text-wrap:pretty}
+.text-voice-rail,.text-voice-manuscript{scrollbar-gutter:stable;overscroll-behavior:contain}
+.text-voice-rail:focus-visible,.text-voice-manuscript:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+.text-voice-section+.text-voice-section{border-top:1px solid var(--border);padding-top:20px}
+@media(min-width:901px){
+ .text-voice-head{padding:18px 26px 16px;align-items:center}
+ .text-voice-head h2{font-size:26px;margin:3px 0 5px}
+ .text-voice-body{overflow:hidden;grid-template-columns:320px minmax(0,1fr)}
+ .text-voice-rail,.text-voice-manuscript{overflow:auto;min-height:0}
+ .text-voice-rail{padding:22px 20px;gap:20px}
+ .text-voice-manuscript{padding:22px 26px}
+ .text-voice-editor{min-height:220px;line-height:1.9;padding:20px 24px}
+}

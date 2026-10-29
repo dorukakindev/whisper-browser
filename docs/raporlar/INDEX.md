@@ -1,3 +1,4 @@
+- [Rapor751](BROWSER_BUG_REPORT_751.md) — Ses stüdyosunda bağımsız çalışma alanı ve Windows görsel kontrolü
 - [Rapor750](BROWSER_BUG_REPORT_750.md) — Türkçe sesin İngilizce ASR ile denetlenmesini önleme
 - [Rapor749](BROWSER_BUG_REPORT_749.md) — Seçili çeviri grupları, yerel dublaj aralığı ve gerçek zincir
 - [Rapor748](BROWSER_BUG_REPORT_748.md) — Timeout sürecinde sahiplik ve gerçek Windows kapanışı
