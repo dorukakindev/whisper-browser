@@ -48,6 +48,8 @@ app.whenReady().then(async()=>{
  assert.equal(await run("return document.querySelectorAll('[data-preset][aria-pressed=true]').length"),0);
  assert.equal(await run("return document.getElementById('tv-preset-info').textContent"),'Özel ayarlar');
  await run("document.querySelector('[data-preset=balanced]').click();return true");
+ const paneLayout=await run("const rail=document.querySelector('.text-voice-rail'),editor=document.querySelector('.text-voice-manuscript'),before=editor.getBoundingClientRect().top;rail.scrollTop=rail.scrollHeight;const moved=rail.scrollTop;const after=editor.getBoundingClientRect().top;rail.scrollTop=0;return {moved,editorStable:before===after,railOverflow:getComputedStyle(rail).overflowY,editorOverflow:getComputedStyle(editor).overflowY,keyboardReachable:rail.tabIndex===0&&editor.tabIndex===0,labelled:!!document.getElementById(rail.getAttribute('aria-labelledby'))&&!!document.getElementById(editor.getAttribute('aria-labelledby'))};");
+ assert(paneLayout.moved>0&&paneLayout.editorStable&&paneLayout.keyboardReachable&&paneLayout.labelled,JSON.stringify(paneLayout));assert.equal(paneLayout.railOverflow,'auto');assert.equal(paneLayout.editorOverflow,'auto');
  await screenshot('studio-tr-dark');
  await run("document.getElementById('tv-pick-reference').click();return true");
  await until(()=>run("return document.getElementById('tv-status').textContent.includes('Referans seçildi')"),'local reference');
@@ -223,7 +225,7 @@ app.whenReady().then(async()=>{
  await screenshot('studio-tr-narrow-125');
  const narrow=await run("const d=document.getElementById('textVoiceStudio'),b=document.querySelector('.text-voice-body').getBoundingClientRect(),footer=document.querySelector('.text-voice-footer').getBoundingClientRect();return {width:innerWidth,overflow:d.scrollWidth>d.clientWidth+1,bodyHeight:b.height,footerBottom:footer.bottom,height:innerHeight,buttons:['start','preview','stop'].map(id=>{const r=document.getElementById('tv-'+id).getBoundingClientRect();return {left:r.left,right:r.right,height:r.height,minHeight:getComputedStyle(document.getElementById('tv-'+id)).minHeight,zoom:getComputedStyle(document.getElementById('tv-'+id)).zoom}})}");
  assert(narrow.width<=480,JSON.stringify(narrow));assert.equal(narrow.overflow,false);assert(narrow.bodyHeight>=200,JSON.stringify(narrow));assert(narrow.footerBottom<=narrow.height);for(const button of narrow.buttons){assert(button.left>=0&&button.right<=narrow.width);assert(button.height>=40,JSON.stringify(narrow));}
- fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({complete:true,realGeneration:real,sharedReferences:shared,eventOwnership:ownership,referenceRefresh,realAcceptance,controlledStarts:starts.length,controlledStops:stops.length,secondaryContrast,metrics,narrow,events},null,2));
+ fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({complete:true,realGeneration:real,sharedReferences:shared,eventOwnership:ownership,referenceRefresh,realAcceptance,controlledStarts:starts.length,controlledStops:stops.length,secondaryContrast,paneLayout,metrics,narrow,events},null,2));
  console.log(JSON.stringify({out,complete:true,realGeneration:real,metrics}));app.exit(0);
 }).catch(async error=>{console.error(error.stack);try{await screenshot('failure');}catch{}app.exit(1);});
 setTimeout(()=>app.exit(2),real?300000:60000).unref();
