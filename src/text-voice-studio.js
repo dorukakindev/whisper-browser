@@ -38,6 +38,12 @@ function registerTextVoiceStudio({app,ipcMain,dialog,owner,guard,config,referenc
  ipcMain.handle('dub:textUI',guard(async e=>{e.sender.send('dub:event',{type:'text_studio_open'});return {ok:true};}));
  ipcMain.handle('dub:textVoice',guard(async(e,request={})=>{
   const c=config();
+  if(request.action==='reference-status'){
+   if(typeof request.referenceId!=='string'||!request.referenceId)throw Error('Select a voice reference.');
+   const v=voice(e,request.referenceId),ready=validVoiceOutput(v.reference);
+   if(ready)grantMedia(v.reference);
+   return {ok:true,ready,url:ready?pathToFileURL(v.reference).href:''};
+  }
   if(request.action==='history')return {ok:true,results:history.list()};
   if(request.action==='open-result'){
    const result=history.get(request.id);grantMedia(result.path);

@@ -1,0 +1,5 @@
+Parent master 3951050dc6b2443b848bf3d7c8d97e23f1c28cdc
+Native Windows isolated fixture repro exit1
+Removed local reference cannot remain ready after refresh
+actual start.disabled=false; expected=true
+Only a copied synthetic WAV was removed. No personal audio touched.

@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-0433.md](docs/devir/2026-10-29-0433.md) — Seçili referansın güncel kullanılabilirliği
 Güncel çalışma: [docs/devir/2026-10-29-0420.md](docs/devir/2026-10-29-0420.md) — Stüdyoda hata deneyimi ve tema geçişi
 Güncel çalışma: [docs/devir/2026-10-29-0407.md](docs/devir/2026-10-29-0407.md) — Metin sesi iş sahipliği
 Güncel çalışma: [docs/devir/2026-10-29-0354.md](docs/devir/2026-10-29-0354.md) — Açık kitap ekranında dil tutarlılığı

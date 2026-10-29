@@ -37,6 +37,13 @@ test('text studio shares job ownership, preserves reference, cleans only failed 
  const call=request=>handlers['dub:textVoice']({sender},request);
  assert.equal((await handlers['dub:textVoice']({sender:{}},{action:'config'})).ok,false);
  const config=await call({action:'config'});assert(config.referenceReady);assert(config.referenceId.startsWith('local:'));
+ assert.equal((await call({action:'reference-status',referenceId:config.referenceId})).ready,true);
+ assert.equal((await call({action:'reference-status',referenceId:'local:forged'})).ok,false);
+ assert.equal((await call({action:'reference-status',referenceId:''})).ok,false);
+ const referenceBytes=fs.readFileSync(reference);fs.writeFileSync(reference,'invalid audio');
+ const unavailable=await call({action:'reference-status',referenceId:config.referenceId});assert(unavailable.ok);assert.equal(unavailable.ready,false);assert.equal(unavailable.url,'');
+ fs.unlinkSync(reference);assert.equal((await call({action:'reference-status',referenceId:config.referenceId})).ready,false);
+ fs.writeFileSync(reference,referenceBytes);assert.equal((await call({action:'reference-status',referenceId:config.referenceId})).ready,true);
  const originalSettings=fs.readFileSync(path.join(root,'dub-settings.json'),'utf8');
  const imported=await call({action:'save-reference',referenceId:config.referenceId,name:'Paylaşılan Türkçe ses',transcript:'Saved edited transcript.'});
  assert(imported.ok);assert.equal(imported.reference.name,'Paylaşılan Türkçe ses');

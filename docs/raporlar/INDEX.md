@@ -1,3 +1,4 @@
+- [Rapor740](BROWSER_BUG_REPORT_740.md) — Yerel ve ortak referans yenileme doğruluğu
 - [Rapor739](BROWSER_BUG_REPORT_739.md) — Ses stüdyosu hata ayrıntısı ve tema geçişi
 - [Rapor738](BROWSER_BUG_REPORT_738.md) — Metin stüdyosunda eski olay ve iptal yarışı
 - [Rapor737](BROWSER_BUG_REPORT_737.md) — Açık kitap ekranında yerinde dil güncellemesi
