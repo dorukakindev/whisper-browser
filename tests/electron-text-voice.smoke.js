@@ -4,6 +4,7 @@ const {app,BrowserWindow,dialog,ipcMain}=require('electron');
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..');
 function arg(key){const i=process.argv.indexOf(key);assert(i>=0,key+' required');return path.resolve(process.argv[i+1]);}
+const audition=process.argv.includes('--audition');
 const reference=arg('--reference'),transcript=arg('--transcript'),engine=arg('--engine');
 const real=process.argv.includes('--real-generation'),shared=process.argv.includes('--shared-references'),ownership=process.argv.includes('--event-ownership'),referenceRefresh=process.argv.includes('--reference-refresh');
 assert(!(real&&ownership),'Controlled ownership checks cannot be real GPU generation');
@@ -95,6 +96,21 @@ app.whenReady().then(async()=>{
  assert.deepEqual((await presetState()).pressed,[]);assert.equal((await presetState()).tabStops,1,'Custom values keep the toolbar keyboard reachable');
  await run("document.querySelector('[data-preset=balanced]').focus();return true");await key('Return');
  await screenshot('studio-keyboard-presets');
+ if(audition){
+  await run("const ref=document.getElementById('tv-reference-audio'),out=document.getElementById('tv-audio');document.getElementById('tv-output').hidden=false;out.src=ref.src;out.load();return true");
+  await until(()=>run("return ['tv-reference-audio','tv-audio'].every(id=>document.getElementById(id).readyState>=2)"),'real WAV players');
+  await run("return document.getElementById('tv-reference-audio').play().then(()=>true)");await wait(100);
+  await run("return document.getElementById('tv-audio').play().then(()=>true)");await wait(100);
+  assert.equal(await run("return document.getElementById('tv-reference-audio').paused&&!document.getElementById('tv-audio').paused"),true,'Output playback must stop the reference');
+  const outputPosition=await run("return document.getElementById('tv-audio').currentTime");
+  await run("return document.getElementById('tv-reference-audio').play().then(()=>true)");await wait(100);
+  assert.equal(await run("return !document.getElementById('tv-reference-audio').paused&&document.getElementById('tv-audio').paused"),true,'Reference playback must stop the output');
+  assert(Math.abs((await run("return document.getElementById('tv-audio').currentTime"))-outputPosition)<.15,'Switching preserves playback position');
+  await run("document.getElementById('textVoiceStudio').close();return true");await wait(100);
+  assert.equal(await run("return ['tv-reference-audio','tv-audio'].every(id=>document.getElementById(id).paused)"),true,'Closing stops both players');
+  await run("return TextVoiceStudioUI.open()");
+  await run("document.getElementById('tv-output').hidden=true;return true");
+ }
  await screenshot('studio-tr-dark');
  await run("document.getElementById('tv-pick-reference').click();return true");
  await until(()=>run("return document.getElementById('tv-status').textContent.includes('Referans seçildi')"),'local reference');
@@ -270,7 +286,7 @@ app.whenReady().then(async()=>{
  await screenshot('studio-tr-narrow-125');
  const narrow=await run("const d=document.getElementById('textVoiceStudio'),b=document.querySelector('.text-voice-body').getBoundingClientRect(),footer=document.querySelector('.text-voice-footer').getBoundingClientRect();return {width:innerWidth,overflow:d.scrollWidth>d.clientWidth+1,bodyHeight:b.height,footerBottom:footer.bottom,height:innerHeight,buttons:['start','preview','stop'].map(id=>{const r=document.getElementById('tv-'+id).getBoundingClientRect();return {left:r.left,right:r.right,height:r.height,minHeight:getComputedStyle(document.getElementById('tv-'+id)).minHeight,zoom:getComputedStyle(document.getElementById('tv-'+id)).zoom}})}");
  assert(narrow.width<=480,JSON.stringify(narrow));assert.equal(narrow.overflow,false);assert(narrow.bodyHeight>=200,JSON.stringify(narrow));assert(narrow.footerBottom<=narrow.height);for(const button of narrow.buttons){assert(button.left>=0&&button.right<=narrow.width);assert(button.height>=40,JSON.stringify(narrow));}
- fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({complete:true,realGeneration:real,initialization,configFailure,configRequests:configReplies.length,sharedReferences:shared,eventOwnership:ownership,referenceRefresh,realAcceptance,controlledStarts:starts.length,controlledStops:stops.length,secondaryContrast,paneLayout,metrics,narrow,events},null,2));
+ fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({complete:true,audition,realGeneration:real,initialization,configFailure,configRequests:configReplies.length,sharedReferences:shared,eventOwnership:ownership,referenceRefresh,realAcceptance,controlledStarts:starts.length,controlledStops:stops.length,secondaryContrast,paneLayout,metrics,narrow,events},null,2));
  console.log(JSON.stringify({out,complete:true,realGeneration:real,metrics}));app.exit(0);
 }).catch(async error=>{console.error(error.stack);try{await screenshot('failure');}catch{}app.exit(1);});
 setTimeout(()=>app.exit(2),real?300000:60000).unref();
