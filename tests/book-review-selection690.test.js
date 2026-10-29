@@ -7,7 +7,7 @@ test("actual review edit callback selects the second repeated passage and refuse
  const callback=source.slice(start,end).slice(source.slice(start,end).indexOf('() => {'))+'\n}';
  const text="Hayır. Uzun açıklama. Hayır.",c={text,groups:[{text:"Hayır."},{text:"Uzun açıklama."},{text:"Hayır."}]};
  let selection=null,warning="";const textarea={value:text,focus(){},setSelectionRange(start,end){selection={start,end};},scrollIntoView(){}};
- const edit=vm.runInNewContext('('+callback+')',{textarea,c,g:c.groups[2],window:{BookTextSearch:require("../src/book-text-search")},t:(en,tr)=>tr,status:s=>warning=s});
+ const edit=vm.runInNewContext('('+callback+')',{textarea,c,g:c.groups[2],window:{BookTextSearch:require("../src/book-text-search")},t:(en,tr)=>tr,uiLabel:(en,tr)=>tr,status:s=>warning=s});
  edit();assert.equal(selection.start,text.lastIndexOf("Hayır."));assert.equal(text.slice(selection.start,selection.end),"Hayır.");
  textarea.value="Önce değiştirildi. "+text;selection=null;edit();assert.equal(selection,null);assert.match(warning,/Kaynak metin değişti/);
 });
