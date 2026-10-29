@@ -1,0 +1,16 @@
+{
+  "anonymous": true,
+  "url": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+  "elapsedSeconds": 1.875,
+  "exit": 0,
+  "timeout": false,
+  "subtitle": true,
+  "events": [
+    "log",
+    "subs"
+  ],
+  "errors": [],
+  "pathRelative": "youtube-captions\\manual\\Me at the zoo [jNQXAC9IVRw].en.srt",
+  "bytes": 416,
+  "insideOutput": true
+}

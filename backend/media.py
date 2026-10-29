@@ -510,7 +510,7 @@ def fetch_subs(url, lang, auto, output_dir, cookie_browser=""):
         "writeautomaticsub": auto,
         "subtitleslangs": [lang],
         "subtitlesformat": "srt/vtt/best",
-        "outtmpl": {"default": str(out / "%(title).80B [%(id)s].%(ext)s")},
+        "outtmpl": {"default": str(out / "youtube-captions" / ("automatic" if auto else "manual") / "%(title).80B [%(id)s].%(ext)s")},
         # vtt gelirse ffmpeg ile srt'ye çevir (oynatıcı ve düzenleyici srt bekliyor)
         "postprocessors": [{"key": "FFmpegSubtitlesConvertor", "format": "srt"}],
     }, cookie_browser=cookie_browser)
@@ -518,23 +518,23 @@ def fetch_subs(url, lang, auto, output_dir, cookie_browser=""):
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=True)
 
-    # Dosyayi VIDEO KIMLIGINE gore bul. "Indirmeden once/sonra yeni dosya" farkini
-    # ALMIYORUZ: ayni altyazi ikinci kez istendiginde yt-dlp dosyayi atlar veya
-    # uzerine yazar; yeni dosya olusmadigi icin kod yanlislikla "indirilemedi" derdi.
-    vid = (info or {}).get("id") or ""
-    candidates = [p for p in out.glob("*.srt") if not vid or f"[{vid}]" in p.name]
-    # Dil eki dosya adinda olur (".tr.srt"); o dile ait olani tercih et
-    requested = lang.lower().replace("_", "-")
-    exact = [p for p in candidates if p.name.lower().endswith(f".{requested}.srt")]
-    if not exact and "-" not in requested:
-        exact = [p for p in candidates
-                 if re.search(rf"\.{re.escape(requested)}-[a-z0-9-]+\.srt$", p.name.lower())]
-    picked = exact
-    if not picked:
-        raise RuntimeError(
-            f"Altyazı indirilemedi ({lang}). Bu videoda o dilde altyazı olmayabilir."
-        )
-    path = max(picked, key=lambda p: p.stat().st_mtime)
+    # The postprocessor updates requested_subtitles with the exact final path.
+    # A folder scan can select an older title/language or the other caption kind.
+    # Repeating the same request is valid even when yt-dlp reuses its existing file.
+    selected = (info.get("requested_subtitles") or {}).get(lang) if isinstance(info, dict) else None
+    failure = f"Altyazı indirilemedi ({lang}). Bu videoda o dilde altyazı olmayabilir."
+    if not isinstance(info, dict) or not info.get("id") or not isinstance(selected, dict):
+        raise RuntimeError(failure)
+    if selected.get("ext") != "srt" or not isinstance(selected.get("filepath"), str):
+        raise RuntimeError(failure)
+    try:
+        path = Path(selected["filepath"]).resolve(strict=True)
+        path.relative_to(out.resolve())
+        valid = path.suffix.lower() == ".srt" and path.is_file() and path.stat().st_size > 0
+    except (OSError, ValueError, RuntimeError):
+        valid = False
+    if not valid:
+        raise RuntimeError(failure)
     emit("subs", path=str(path), lang=lang, auto=bool(auto))
 
 
