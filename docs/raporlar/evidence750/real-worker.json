@@ -1,0 +1,17 @@
+{
+  "exit": 0,
+  "responses": [
+    {
+      "text": "Pekala. Eşte birdayız. Filerin onin.",
+      "language": "tr",
+      "languageProbability": 1
+    },
+    {
+      "text": "Bu arka dışlarla ilgili harika şey şu. Gerçekten. Gerçekten çok uzun ortamları var.",
+      "language": "tr",
+      "languageProbability": 1
+    }
+  ],
+  "newTTSGeneration": false,
+  "personalAudio": false
+}

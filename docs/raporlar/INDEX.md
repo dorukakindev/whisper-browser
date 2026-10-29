@@ -1,3 +1,4 @@
+- [Rapor750](BROWSER_BUG_REPORT_750.md) — Türkçe sesin İngilizce ASR ile denetlenmesini önleme
 - [Rapor749](BROWSER_BUG_REPORT_749.md) — Seçili çeviri grupları, yerel dublaj aralığı ve gerçek zincir
 - [Rapor748](BROWSER_BUG_REPORT_748.md) — Timeout sürecinde sahiplik ve gerçek Windows kapanışı
 - [Rapor747](BROWSER_BUG_REPORT_747.md) — VTT dönüşüm aşaması, EN/TR hata ve yanlış başarı reddi
