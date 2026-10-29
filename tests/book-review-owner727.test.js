@@ -13,6 +13,7 @@ function fixture({bookGate,configGate,approvalGate,saveGate,extraChapter=false}=
  w.syncBrowserOcclusion=async()=>{};w.globalAssistantContext=()=>context;
  w.MediaExperience={setContext:(_owner,next)=>context=next,bindPassage:()=>()=>{},context:()=>context};
  w.BookWorkflowStatus=require('../src/book-workflow-status');
+ w.BookTextSearch=require('../src/book-text-search');
  w.eval(fs.readFileSync(require.resolve('../src/renderer/media-workflows-ui.js'),'utf8'));
  return {w,dom,project};
 }
@@ -59,4 +60,19 @@ test('late chapter navigation cannot replace externally opened book chapter',asy
  const current=f.w.document.querySelector('textarea[data-chapter]');assert(current,'New book editor must remain rendered');
  assert.equal(current.dataset.projectId,'two');assert.equal(current.dataset.chapter,'0');
  assert.equal(f.w.MediaWorkflowsUI.assistant.state()?.id,'two');
+});
+
+test('late passage search navigation cannot reclaim a reopened same book',async t=>{
+ const save=gate();let saves=0;
+ const f=fixture({extraChapter:true,saveGate:r=>++saves===1?save.promise:undefined});t.after(()=>f.dom.window.close());
+ await f.w.MediaWorkflowsUI.openProject('one');
+ const form=f.w.document.querySelector('.mw-search-form');assert(form);form.querySelector('input').value='Second';
+ await form.onsubmit({preventDefault(){}});
+ const hit=f.w.document.querySelector('.mw-search-hit');assert(hit);
+ const text=f.w.document.querySelector('textarea[data-chapter]');text.value='Edited before search navigation';text.dispatchEvent(new f.w.Event('input',{bubbles:true}));
+ const pending=hit.onclick();await tick();assert.equal(saves,1);
+ await f.w.MediaWorkflowsUI.openProject('one');
+ save.resolve({ok:true,project:f.project('one')});await pending;await tick();
+ assert.equal(f.w.document.querySelector('textarea[data-chapter]')?.dataset.chapter,'0','Old search hit cannot select a chapter in the reopened session');
+ assert.equal(f.w.MediaWorkflowsUI.assistant.state()?.currentChapter,1);
 });

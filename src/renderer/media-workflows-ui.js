@@ -312,11 +312,13 @@
               );
               return;
             }
+            const navigation=++projectOpenRequest,originDialog=dialog,originVersion=bodyVersion;
+            const ownsNavigation=()=>navigation===projectOpenRequest&&dialog===originDialog&&originDialog?.open&&project?.id===ownerId;
             await saveChapter();
-            if (project?.id !== ownerId) return;
+            if (!ownsNavigation() || bodyVersion!==originVersion || !valid()) return;
             chapter = hit.chapter;
             await books();
-            if (project?.id !== ownerId) return;
+            if (!ownsNavigation()) return;
             const text = dialog?.querySelector("textarea[data-chapter]");
             if (!text) return;
             if (text.value !== c.text) {
