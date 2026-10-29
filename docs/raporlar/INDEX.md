@@ -1,3 +1,4 @@
+- [Rapor747](BROWSER_BUG_REPORT_747.md) — VTT dönüşüm aşaması, EN/TR hata ve yanlış başarı reddi
 - [Rapor746](BROWSER_BUG_REPORT_746.md) — Eski altyazıya düşmeme ve manuel/otomatik ayrımı
 - [Rapor745](BROWSER_BUG_REPORT_745.md) — Canlı DeepSeek caption ve Whisper seçimi
 - [Rapor744](BROWSER_BUG_REPORT_744.md) — Eski Python stüdyo girişini ortak temaya yönlendirme

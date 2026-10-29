@@ -1,0 +1,54 @@
+{
+  "ok": true,
+  "captionFailures": [
+    {
+      "locale": "en",
+      "code": "caption_unavailable",
+      "error": "The selected caption language and type are unavailable. Choose another caption; Whisper was not started automatically."
+    },
+    {
+      "locale": "en",
+      "code": "caption_conversion_failed",
+      "error": "Captions could not be converted to SRT. Check FFmpeg and try again."
+    },
+    {
+      "locale": "en",
+      "code": "caption_invalid_result",
+      "error": "No valid caption file was received. Try again or choose another caption."
+    },
+    {
+      "locale": "tr",
+      "code": "caption_unavailable",
+      "error": "Seçilen dilde ve türde altyazı bulunamadı. Başka bir altyazı seçin; Whisper otomatik başlatılmadı."
+    },
+    {
+      "locale": "tr",
+      "code": "caption_conversion_failed",
+      "error": "Altyazı SRT biçimine dönüştürülemedi. FFmpeg kurulumunu kontrol edip yeniden deneyin."
+    },
+    {
+      "locale": "tr",
+      "code": "caption_invalid_result",
+      "error": "Geçerli altyazı dosyası alınamadı. Yeniden deneyin veya başka bir altyazı seçin."
+    }
+  ],
+  "competingCaptionJobBlocked": true,
+  "invalidRangeBeforeDownload": true,
+  "noTrackOrDeferredMutation": true,
+  "requests": 6,
+  "downloads": 10,
+  "options": {
+    "target": "de",
+    "range": "5:25",
+    "forSpeech": true
+  },
+  "compact": {
+    "width": 480,
+    "scroll": 480,
+    "send": 594.6666870117188,
+    "height": 616
+  },
+  "voiceStarts": 2,
+  "chain": "probe → chosen captions → speech translation → attached track → inherited range → voice acceptance → missing-quality warning → source replacement",
+  "limits": "controlled probe/download/translation completion/read grant and dub engine; actual Electron IPC and renderer adapters; no live model/GPU/YouTube/audio quality"
+}

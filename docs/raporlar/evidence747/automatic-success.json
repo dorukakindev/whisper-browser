@@ -1,0 +1,19 @@
+{
+  "diagnostics": [],
+  "anonymous": true,
+  "auto": true,
+  "url": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+  "elapsedSeconds": 2.047,
+  "exit": 0,
+  "timeout": false,
+  "subtitle": true,
+  "events": [
+    "log",
+    "subs"
+  ],
+  "errors": [],
+  "pathRelative": "youtube-captions\\automatic\\Me at the zoo [jNQXAC9IVRw].en.srt",
+  "bytes": 416,
+  "sha256": "acbb5292c691dfe80af12aff4cd9f83a6654994d9ad6f07d96e195f38698fef7",
+  "insideOutput": true
+}

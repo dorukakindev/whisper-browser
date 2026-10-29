@@ -1,0 +1,15 @@
+........E..
+======================================================================
+ERROR: test_real_ytdlp_skip_video_runs_caption_conversion_stage (__main__.CaptionArtifactTests.test_real_ytdlp_skip_video_runs_caption_conversion_stage)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Whisper Local\tmp\assistant618\tests\test_media_caption_artifact.py", line 130, in test_real_ytdlp_skip_video_runs_caption_conversion_stage
+    media.fetch_subs('https://caption.invalid/synthetic','en',True,str(self.out))
+  File "D:\Whisper Local\tmp\assistant618\backend\media.py", line 544, in fetch_subs
+    raise CaptionDownloadError('caption_conversion_failed')
+media.CaptionDownloadError: Altyazı SRT biçimine dönüştürülemedi. FFmpeg kurulumunu kontrol edip yeniden deneyin.
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.533s
+
+FAILED (errors=1)

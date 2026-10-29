@@ -1,0 +1,22 @@
+{
+  "diagnostics": [
+    {
+      "exceptionType": "RuntimeError",
+      "captionArtifactMissing": true
+    }
+  ],
+  "anonymous": true,
+  "auto": true,
+  "url": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+  "elapsedSeconds": 2.328,
+  "exit": 1,
+  "timeout": false,
+  "subtitle": false,
+  "events": [
+    "log",
+    "error"
+  ],
+  "errors": [
+    "YouTube işlemi tamamlanamadı. Bağlantıyı ve seçilen oturum ayarını doğrulayıp yeniden deneyin."
+  ]
+}
