@@ -31,7 +31,12 @@
 #pdfBookAssistant > .book-assistant-actions { margin: 0; padding: 12px 24px; }
 .book-assistant-buttons button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .book-assistant-buttons button:disabled { opacity: .5; cursor: not-allowed; }
-.dub-job-status #dubGeneratorActivity { display:block;max-width:90ch;font-size:12px;line-height:1.6;color:var(--text-dim);overflow-wrap:anywhere; }
+.dub-job-status #dubGeneratorActivity { display:flex;flex:1 1 100%;flex-wrap:wrap;gap:6px;max-height:76px;overflow:auto;font-size:12px;line-height:1.6;color:var(--text-dim);overflow-wrap:anywhere;font-variant-numeric:tabular-nums; }
+.dub-activity-chip { padding:3px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-0); }
+.dub-quality-summary { display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;font-variant-numeric:tabular-nums; }
+.dub-quality-summary span { padding:5px 10px;border-radius:7px;background:var(--bg-0);border:1px solid var(--border);font-size:13px;color:var(--text-dim); }
+.dub-quality-summary span[data-state=review],.dub-quality-summary span[data-state=failed] { color:var(--text);border-color:var(--accent); }
+#dubQualityResults #dubNextFlagged { margin-bottom:14px; }
 .dub-quality-evidence { margin:10px 0;border:1px solid var(--border);border-radius:10px;padding:12px; }
 .dub-quality-evidence summary { cursor:pointer;font-weight:600; }.dub-quality-evidence p,.dub-quality-evidence blockquote { font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere; }
 .dub-quality-evidence blockquote { margin:12px 0 0;padding-left:12px;border-left:2px solid var(--accent);color:var(--text-dim); }

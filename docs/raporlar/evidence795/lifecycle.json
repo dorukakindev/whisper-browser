@@ -1,0 +1,25 @@
+{
+  "cancelled": {
+    "cancelSeconds": 1.11,
+    "firstAudioPreserved": true,
+    "secondMissing": true,
+    "engineReleased": true,
+    "controlledDelay": "Second request held before real generate; not an actual GPU stall"
+  },
+  "resumed": {
+    "firstShaUnchanged": true,
+    "generatedGroups": [
+      2
+    ],
+    "states": [
+      "ready",
+      "review"
+    ]
+  },
+  "referenceChange": {
+    "sameEngine": true,
+    "waveHashMatches": true,
+    "status": "ready"
+  },
+  "passed": true
+}

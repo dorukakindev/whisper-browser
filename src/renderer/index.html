@@ -3814,9 +3814,11 @@
     <button id="dubPlanReset" class="btn btn-ghost" type="button">Orijinale dön</button>
   </details>
 <details id="dubQualityResults"><summary>Parça sonuçları ve yeniden üretim</summary>
+      <div id="dubQualitySummary" class="dub-quality-summary" role="status" data-ui-untranslated hidden></div>
+      <button id="dubNextFlagged" class="btn btn-secondary" type="button" data-ui-untranslated disabled>Sonraki işaretli grup</button>
       <label for="dubQualityGroup">Üretim parçası</label><select id="dubQualityGroup" data-ui-untranslated></select>
       <p id="dubQualityInfo" role="status"></p>
-      <div class="dub-group-comparison" data-ui-untranslated><div id="dubListenActions" class="dub-generator-row"><button id="dubListenPrevious" class="btn btn-ghost btn-sm" type="button" hidden>Önceki grubu dinle</button></div><audio id="dubPreviousPreview" controls preload="none" class="hidden"></audio></div>
+      <div class="dub-group-comparison" data-ui-untranslated><div id="dubListenActions" class="dub-generator-row"><button id="dubEditSelected" class="btn btn-secondary btn-sm" type="button" data-ui-untranslated>Metni düzenle</button><button id="dubListenPrevious" class="btn btn-ghost btn-sm" type="button" hidden>Önceki grubu dinle</button></div><audio id="dubPreviousPreview" controls preload="none" class="hidden"></audio></div>
       <details id="dubQualityEvidence" class="dub-quality-evidence" data-ui-untranslated hidden><summary id="dubQualityEvidenceTitle">Bu grup neden işaretlendi?</summary><p id="dubQualityReasons"></p><p id="dubQualityExpectedLabel"></p><blockquote id="dubQualityExpected"></blockquote><div id="dubQualityRecognized" hidden><p id="dubQualityRecognizedLabel"></p><blockquote id="dubQualityRecognizedText"></blockquote><p id="dubQualitySimilarity"></p></div><p id="dubQualityPronunciation" hidden></p></details>
       <div class="dub-generator-row"><button id="dubRetryFailed" class="btn btn-secondary" type="button" disabled>Eksik parçaları tamamla</button><button id="dubRegenerateGroup" class="btn btn-ghost" type="button" disabled>Seçili parçayı yeniden üret</button></div>
       <p>Hazır parçalar önbellekten alınır. Değiştirdiğiniz cümleler ayrı üretilir; bütün ses yeniden hesaplanmaz.</p>
@@ -3914,11 +3916,12 @@
   <footer class="dub-studio-footer">
 <div class="dub-job-status"><p id="dubGeneratorStatus" role="status" aria-live="polite">Hazır</p>
   <span id="dubGeneratorCount" data-ui-untranslated></span>
+  <button id="dubOpenQuality" class="btn btn-ghost btn-sm" type="button" data-ui-untranslated hidden>Grupları kontrol et</button>
   <span id="dubGeneratorActivity" data-ui-untranslated aria-live="polite"></span>
   </div><div class="dub-job-meta"><p><span>Geçen süre</span> <span id="dubGeneratorElapsed" data-ui-untranslated>0:00</span></p>
   <details class="dub-run-details"><summary>Üretim ayrıntıları</summary><div class="dub-run-details-body">
   <p><span>Hızlandırılan / kırpılan gruplar</span> <span id="dubGeneratorTiming" data-ui-untranslated></span></p>
-  <p id="dubPhaseSummary" data-ui-untranslated></p><p id="dubReferenceQuality" role="status"></p>
+  <p id="dubPhaseSummary" data-ui-untranslated></p><p id="dubPhaseHint" data-ui-untranslated></p><p id="dubReferenceQuality" role="status"></p>
   </div></details></div><pre id="dubGeneratorDetails" data-ui-untranslated></pre>
 
   <p id="dubStartRequirement" role="status" data-ui-untranslated></p>

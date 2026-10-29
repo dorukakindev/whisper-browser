@@ -70,6 +70,9 @@ const tick = () => new Promise(setImmediate);
   assert.equal(request.expression,'warm');assert.equal(request.keepEngine,true);
   onEvent({id:request.id,type:'activity',group:61,attempt:2,elapsed:30,limit:180});assert.match(el('dubGeneratorActivity').textContent,/61.*2.*30.*180/);
   onEvent({id:request.id,type:'group',group:{group:61,key:'61',status:'review',text:'Kontrol edilecek güvenli metin.',pronunciationText:'Doktor Nyutin.',verification:{status:'review',missing_numbers:['50.000'],missing_names:['Venüs']}}});assert.equal(el('dubGeneratorActivity').textContent,'');assert.match(el('dubQualityReasons').textContent,/sayı/i);assert.match(el('dubQualityReasons').textContent,/ad/i);assert.equal(el('dubQualityExpected').textContent,'Kontrol edilecek güvenli metin.');assert.match(el('dubQualityPronunciation').textContent,/Doktor Nyutin/);assert.equal(el('dubQualityPronunciation').hidden,false);
+  onEvent({id:request.id,type:'activity',stage:'verification',group:62,attempt:1,elapsed:12,limit:120});assert.match(el('dubGeneratorActivity').textContent,/Metin denetimi/);
+  onEvent({id:request.id,type:'activity',stage:'synthesis',group:62,attempt:1,elapsed:30,limit:180,finished:true});assert.match(el('dubGeneratorActivity').textContent,/62/,'late synthesis completion cannot clear active verification');
+  onEvent({id:request.id,type:'activity',stage:'verification',group:62,attempt:1,elapsed:13,limit:120,finished:true});assert.equal(el('dubGeneratorActivity').textContent,'');
   onEvent({id:request.id,type:'phases',phases:{model_load_seconds:2.25,reference_seconds:.5,synthesis_seconds:3,verification_seconds:1}});assert.match(el('dubPhaseSummary').textContent,/Model: 2.3/);assert.match(el('dubPhaseSummary').textContent,/Doğrulama: 1.0/);
   assert.equal(request.followDelivery,true);
   assert.equal(request.deliveryStrength,'balanced');
@@ -117,6 +120,8 @@ const tick = () => new Promise(setImmediate);
   el('dubQualityGroup').value='1,2';el('dubQualityGroup').dispatchEvent(new w.Event('change'));
   for(let n=el('dubPlanText');n;n=n.parentElement)if(n.tagName==='DETAILS')assert.equal(n.open,true,'quality selection reveals the matching editor');
 
+  onEvent({id:request.id,type:'group',group:{group:2,key:'2',status:'failed',verification:{status:'unavailable'}}}); // Terminal events are ignored.
+  assert.equal(el('dubQualitySummary').textContent.includes('hazır'),true);assert.equal(el('dubOpenQuality').hidden,false);
   // Group preview must wait for media metadata, and a closing dialog cancels that pending seek.
   const audio=el('dubGeneratedPreview');let played=0,readyState=0;
   Object.defineProperty(audio,'readyState',{get:()=>readyState,configurable:true});
@@ -226,6 +231,11 @@ const tick = () => new Promise(setImmediate);
   assert.equal(el('dubGeneratedPreview').getAttribute('src'),'file:///last-good.wav','startup failure retains the previous audio');assert.equal(attached,false,'restoration never silently attaches');
   assert.equal(el('dubGeneratorUse').classList.contains('hidden'),false);assert.match(el('dubGeneratorStatus').textContent,/Önceki sesiniz/);
   w.api.startDub=async value=>{request=value;return {ok:true};};el('dubGeneratorStart').click();await tick();onEvent({id:request.id,type:'error',error:'new synthesis failed'});await tick();assert.equal(el('dubGeneratedName').textContent,'last-good.wav');assert.equal(el('dubQualityGroup').options.length,1);
+  el('dubGeneratorStart').click();await tick();onEvent({id:request.id,type:'done',name:'review.wav',url:'file:///review.wav',quality:{groups:[{key:'1',group:1,status:'ready'},{key:'2',group:2,status:'review'},{key:'3',group:3,status:'failed'}]}});await tick();
+  assert.equal(el('dubQualityGroup').value,'2','new results select a flagged group rather than the first ready one');
+  assert.equal(el('dubQualitySummary').textContent,'1 hazır1 inceleme1 üretilemedi');
+  el('dubNextFlagged').click();assert.equal(el('dubQualityGroup').value,'3');el('dubNextFlagged').click();assert.equal(el('dubQualityGroup').value,'2');
+  el('dubOpenQuality').click();assert.equal(el('dubQualityResults').open,true);
   el('dubGeneratorStart').click();await tick();rangeContext={...rangeContext,mediaId:'different-video'};onEvent({id:request.id,type:'error',error:'late failure'});await tick();assert.equal(el('dubGeneratedPreview').getAttribute('src'),null,'never restore old video audio into a new source');
   dom.window.close();
   console.log('dub-generator-ui: selected background range, confirmed stop and failed stop passed');

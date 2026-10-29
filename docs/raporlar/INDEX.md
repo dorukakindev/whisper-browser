@@ -1,3 +1,4 @@
+- [Rapor795](BROWSER_BUG_REPORT_795.md) — Gerçek DeepSeek/GPU sahne karşılaştırması ve grup inceleme akışı
 - [Rapor794](BROWSER_BUG_REPORT_794.md) — Dış denetim doğrulaması, ters anlam/modal kaybı ve gerçek PNG kanıtı
 - [Rapor793](BROWSER_BUG_REPORT_793.md) — Akustik yeniden denemede ses kaybı, ondalık kayıt bağlamı ve sıcak referans kodlaması
 - [Rapor792](BROWSER_BUG_REPORT_792.md) — Dış UI raporları, pasif üretim eylemi ve dürüst kapsam kaydı

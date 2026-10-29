@@ -12,6 +12,14 @@ T = F.T
 
 
 class SpeechTranslationTests(unittest.TestCase):
+    def test_coverage_warning_follows_the_accepted_sentence_not_each_redistributed_cue(self):
+        source=[(0,3,'These are the principal questions and answers put forth by author Thomas Ligotti'),(3.1,5,'in his book.')]
+        faithful=["Bunlar, yazar Thomas Ligotti'nin",'kitabında ortaya koyduğu başlıca sorular ve yanıtlardır.']
+        self.assertEqual(T.speech_coverage_indices(source,faithful,[[0,1]]),[])
+        self.assertEqual(T.speech_coverage_indices(source,['Sorular.',''],[[0,1]]),[0,1])
+        # Independent neighboring sentences must not lend their length to a loss.
+        self.assertEqual(T.speech_coverage_indices(source,['Sorular.','Bu ikinci cümle çok uzun olsa da ilk cümlede kaybolan anlamı geri getirmez.'],[[0],[1]]),[0])
+
     def test_negative_nominal_requests_are_not_reported_as_lost_negation(self):
         pairs=[('She asked her not to open it until Friday.',"Cuma'ya kadar açmamasını istedi.",'Açmasını istedi.'),
                ('She asked me not to come.','Gelmememi istedi.','Gelmemi istedi.'),
