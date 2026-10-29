@@ -47,6 +47,7 @@ from kitap_ortak import (  # noqa: E402
     voice_label_for, write_manifest)
 from kitap_ortak import _install_with_fallback  # noqa: E402
 from dub_normalize import loudnorm_audio
+from dub_timeline_storage import DiskTimeline, limit_peak, write_audio, manifest_segments, check_storage
 
 ensure_utf8_stdio()
 
@@ -563,53 +564,10 @@ def generate_with_fallback(args, cues, paths, prompt_text, generate=None):
 
 def build_timeline(cues, paths, sr, total_s, max_hiz, tmp_dir, log=print,
                    overflow="kirp", extra_ms=2000, end_limit_ms=None, lead_ms=300):
-    """Uretilmis satir seslerini zaman cizelgesine yerlestirir."""
-    total_frames = int(math.ceil(total_s * sr))
-    timeline = np.zeros(total_frames, dtype=np.float32)
-    sigdirildi = kirpildi = 0
-    reports, overflows = [], []
-    previous_end_s = 0
-    for i, ((start_ms, end_ms, text), path) in enumerate(zip(cues, paths)):
-        wav, cue_sr = sf.read(str(path), dtype="float32")
-        if cue_sr != sr:
-            frames = int(len(wav) * sr / cue_sr)
-            wav = np.interp(np.linspace(0, len(wav) - 1, frames),
-                            np.arange(len(wav)), wav).astype(np.float32)
-        actual_start, stop = placement_window(cues, i, len(wav) / sr, previous_end_s,
-            max_hiz, extra_ms, lead_ms, end_limit_ms if end_limit_ms is not None else total_s * 1000)
-        window_s = stop - actual_start
-        try:
-            wav, report = fit_audio(wav, sr, window_s, max_hiz, tmp_dir, f"{i:04d}", overflow)
-        except TimingOverflow as error:
-            report = error.report
-            report['group'] = i + 1
-            reports.append(report); overflows.append(report)
-            sigdirildi += int(report['tempo'] > 1.0)
-            log(f"UYARI: Grup {i + 1}, {report['overrun_seconds']:.2f} sn tasiyor; konusma kesilmedi.")
-            continue
-        report['group'] = i + 1
-        report['start_seconds'] = actual_start
-        report['start_shift_seconds'] = actual_start - start_ms / 1000
-        reports.append(report)
-        sigdirildi += int(report['tempo'] > 1.0)
-        kirpildi += int(report['cut_frames'] > 0)
-        if report['cut_frames'] > 0:
-            log(f"UYARI: Grup {i + 1}, {report['cut_frames'] / sr:.2f} sn kirpildi; WAV uretimi devam ediyor.")
-        offset = int(actual_start * sr)
-        end = min(offset + len(wav), total_frames)
-        timeline[offset:end] += wav[:end - offset]
-        previous_end_s = end / sr
-    timing = {'version': 2, 'accelerated_groups': sigdirildi, 'clipped_groups': kirpildi,
-              'overflow_groups': len(overflows), 'groups': reports}
-    (Path(tmp_dir) / 'timing_report.json').write_text(json.dumps(timing, indent=2), encoding='utf-8')
-    log(f"Zamanlama: {sigdirildi} grup hizlandirildi, {kirpildi} grup kirpildi, {len(overflows)} grup tasiyor.")
-    if overflows:
-        raise ValueError(f"{len(overflows)} grup pencereye sigmadi; nihai WAV yazilmadi. "
-                         f"Ayrintilar: {Path(tmp_dir) / 'timing_report.json'}")
-    peak = float(np.abs(timeline).max())
-    if peak > 0.98:
-        timeline *= 0.98 / peak
-    return timeline, timing
+    from dub_timing import build_fixed_timeline
+    return build_fixed_timeline(cues, paths, sr, total_s, max_hiz, tmp_dir, log,
+                                overflow, extra_ms, end_limit_ms, lead_ms)
+
 
 
 def mux_video(video, dub_wav, out_path, keep_original_db=None):
@@ -800,6 +758,7 @@ def main(argv=None, runtime=None):
     run_hash = hashlib.sha256(repr(run_identity).encode("utf-8")).hexdigest()[:16]
     parts_dir = OUTPUT_ROOT / f"{args.srt.stem}_altyazi" / run_hash
     parts_dir.mkdir(parents=True, exist_ok=True)
+    check_storage((args.range_end - args.range_start) if args.range_start is not None else (duration or max(e for _,e,_ in cues) / 1000 + 2), 48000, parts_dir)
     args.report_dir = parts_dir
     cache_dir = OUTPUT_ROOT / '_dub_chunks_v4'
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -874,7 +833,7 @@ def main(argv=None, runtime=None):
     placement_began=time.monotonic()
     if args.narration:
         from dub_timing import build_narration_timeline
-        timeline, timing = build_narration_timeline(timeline_cues, paths, sr)
+        timeline, timing = build_narration_timeline(timeline_cues, paths, sr, parts_dir)
     elif args.timing_mode == 'video':
         timeline, timing, sync = build_adaptive_timeline(timeline_cues, paths, sr, total_s,
             args.max_hiz, parts_dir, args.bosluk_pay_ms)
@@ -911,7 +870,7 @@ def main(argv=None, runtime=None):
     tmp = wav_path.with_suffix(".tmp.wav")
     print('DUB_ACTIVITY '+json.dumps({'stage':'file_write'}),flush=True)
     write_began=time.monotonic()
-    sf.write(str(tmp), timeline, sr, subtype="PCM_16")
+    write_audio(tmp, timeline, sr)
     wav_path = _install_with_fallback(tmp, wav_path)
     audio_write_seconds=time.monotonic()-write_began
     if not args.no_norm:
@@ -945,11 +904,7 @@ def main(argv=None, runtime=None):
                 "duration": float(len(timeline) / sr),
                 "text": "\n".join(t for _, _, t in cues),
                 "original_text": "\n".join(g.get('original_text', g['text']) for g in groups),
-                "segments": [
-                    {"i": i, "text": t, "start": timing['groups'][i]['start_seconds'],
-                     "end": timing['groups'][i]['start_seconds'] + timing['groups'][i]['after_seconds'],
-                     **takes[i], "pause_ms": 0, "source_ids": groups[i]['source_ids']}
-                    for i, (s, e, t) in enumerate(cues)]}
+                "segments": manifest_segments(cues, takes, groups, timing)}
     write_manifest(wav_path, manifest)
     args.phases.seconds['file_write']=audio_write_seconds+time.monotonic()-write_began
     phase_report=args.phases.snapshot()

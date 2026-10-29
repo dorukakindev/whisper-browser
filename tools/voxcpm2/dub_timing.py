@@ -1,11 +1,13 @@
 """Sentence planning and explicit timing outcomes; no model dependency."""
 import re
+import json
 import asyncio
 import math
 import subprocess
 from pathlib import Path
 
 import numpy as np
+from dub_timeline_storage import DiskTimeline
 import soundfile as sf
 from dub_lifecycle import bounded_call, EngineStalled
 
@@ -255,7 +257,7 @@ def build_adaptive_timeline(cues, paths, sr, total_s, max_speed, tmp_dir, extra_
     """Keep full speech; expand audio windows and map original video to audio."""
     if not cues or len(cues) != len(paths):
         raise ValueError('Speech group/audio count mismatch / Konusma grubu ve ses parcasi sayisi uyusmuyor.')
-    chunks, segments, reports = [], [], []
+    storage, segments, reports = DiskTimeline(tmp_dir), [], []
     video_cursor = 0.0
     audio_frames = 0
     for i, ((start_ms, _, _), path) in enumerate(zip(cues, paths)):
@@ -263,16 +265,16 @@ def build_adaptive_timeline(cues, paths, sr, total_s, max_speed, tmp_dir, extra_
         window = available_window(cues, i, extra_ms, total_s * 1000)
         gap = max(0, round((start - video_cursor) * sr))
         if gap:
-            chunks.append(np.zeros(gap, dtype=np.float32)); audio_frames += gap
+            storage.silence(gap); audio_frames += gap
         wav, rate = sf.read(str(path), dtype='float32')
         if rate != sr or wav.ndim != 1:
             raise ValueError('Ses parcasi ornek hizi/kanali uyumsuz.')
         wav, report = fit_to_window(wav, sr, window, max_speed, tmp_dir, f'adaptive_{i}', 'uzat')
         window_frames = max(round(window * sr), len(wav))
         a0 = audio_frames / sr
-        chunks.append(wav); audio_frames += len(wav)
+        storage.append(wav); audio_frames += len(wav)
         if window_frames > len(wav):
-            chunks.append(np.zeros(window_frames - len(wav), dtype=np.float32))
+            storage.silence(window_frames - len(wav))
             audio_frames += window_frames - len(wav)
         stop = start + window
         segments.append({'v0': start, 'v1': stop, 'a0': a0, 'a1': audio_frames / sr})
@@ -280,8 +282,8 @@ def build_adaptive_timeline(cues, paths, sr, total_s, max_speed, tmp_dir, extra_
                       stretch=max(1.0, window_frames / sr / window))
         reports.append(report); video_cursor = stop
     tail = max(0, round((total_s - video_cursor) * sr))
-    if tail: chunks.append(np.zeros(tail, dtype=np.float32))
-    audio = np.concatenate(chunks) if chunks else np.zeros(1, dtype=np.float32)
+    if tail: storage.silence(tail)
+    audio = storage.finish()
     sync = {'version': 1, 'smooth': True, 'videoDuration': total_s, 'audioDuration': len(audio) / sr, 'segments': segments}
     timing = {'version': 3, 'accelerated_groups': sum(r['tempo'] > 1 for r in reports),
               'clipped_groups': 0, 'overflow_groups': 0,
@@ -289,22 +291,74 @@ def build_adaptive_timeline(cues, paths, sr, total_s, max_speed, tmp_dir, extra_
     return audio, timing, sync
 
 
-def build_narration_timeline(cues, paths, sr):
+def build_narration_timeline(cues, paths, sr, tmp_dir=None):
     """Continuous book narration, retaining breaths and source group identities."""
     if not cues or len(cues) != len(paths):
         raise ValueError('Speech group/audio count mismatch / Konusma grubu ve ses parcasi sayisi uyusmuyor.')
     from dub_finish import join_pause_frames
-    pieces, rows, cursor = [], [], 0
+    storage, rows, cursor, previous = DiskTimeline(tmp_dir), [], 0, None
     for i, (cue, file) in enumerate(zip(cues, paths)):
         wav, rate = sf.read(str(file), dtype='float32')
         if rate != sr or wav.ndim != 1 or not len(wav) or not np.isfinite(wav).all():
             raise ValueError('Invalid narration audio.')
-        if pieces:
-            gap = join_pause_frames(pieces[-1], wav, sr, cues[i-1][2])
-            pieces.append(np.zeros(gap, dtype=np.float32)); cursor += gap
+        if previous is not None:
+            gap = join_pause_frames(previous, wav, sr, cues[i-1][2])
+            storage.silence(gap); cursor += gap
         rows.append({'start_seconds':cursor/sr, 'after_seconds':len(wav)/sr,
                      'before_seconds':len(wav)/sr, 'tempo':1., 'cut_frames':0,
                      'overrun_seconds':0., 'stretch':1.})
-        pieces.append(wav); cursor += len(wav)
-    return np.concatenate(pieces), {'groups':rows, 'accelerated_groups':0,
+        storage.append(wav); cursor += len(wav); previous = wav
+    return storage.finish(), {'groups':rows, 'accelerated_groups':0,
         'clipped_groups':0, 'overflow_groups':0, 'mode':'narration'}
+
+
+def build_fixed_timeline(cues, paths, sr, total_s, max_hiz, tmp_dir, log=print,
+                   overflow="kirp", extra_ms=2000, end_limit_ms=None, lead_ms=300):
+    """Uretilmis satir seslerini zaman cizelgesine yerlestirir."""
+    from dub_timeline_storage import DiskTimeline, limit_peak
+    total_frames = int(math.ceil(total_s * sr))
+    storage = DiskTimeline(tmp_dir)
+    storage.silence(total_frames)
+    timeline = storage.finish()
+    sigdirildi = kirpildi = 0
+    reports, overflows = [], []
+    previous_end_s = 0
+    for i, ((start_ms, end_ms, text), path) in enumerate(zip(cues, paths)):
+        wav, cue_sr = sf.read(str(path), dtype="float32")
+        if cue_sr != sr:
+            frames = int(len(wav) * sr / cue_sr)
+            wav = np.interp(np.linspace(0, len(wav) - 1, frames),
+                            np.arange(len(wav)), wav).astype(np.float32)
+        actual_start, stop = placement_window(cues, i, len(wav) / sr, previous_end_s,
+            max_hiz, extra_ms, lead_ms, end_limit_ms if end_limit_ms is not None else total_s * 1000)
+        window_s = stop - actual_start
+        try:
+            wav, report = fit_to_window(wav, sr, window_s, max_hiz, tmp_dir, f"{i:04d}", overflow)
+        except TimingOverflow as error:
+            report = error.report
+            report['group'] = i + 1
+            reports.append(report); overflows.append(report)
+            sigdirildi += int(report['tempo'] > 1.0)
+            log(f"UYARI: Grup {i + 1}, {report['overrun_seconds']:.2f} sn tasiyor; konusma kesilmedi.")
+            continue
+        report['group'] = i + 1
+        report['start_seconds'] = actual_start
+        report['start_shift_seconds'] = actual_start - start_ms / 1000
+        reports.append(report)
+        sigdirildi += int(report['tempo'] > 1.0)
+        kirpildi += int(report['cut_frames'] > 0)
+        if report['cut_frames'] > 0:
+            log(f"UYARI: Grup {i + 1}, {report['cut_frames'] / sr:.2f} sn kirpildi; WAV uretimi devam ediyor.")
+        offset = int(actual_start * sr)
+        end = min(offset + len(wav), total_frames)
+        timeline[offset:end] += wav[:end - offset]
+        previous_end_s = end / sr
+    timing = {'version': 2, 'accelerated_groups': sigdirildi, 'clipped_groups': kirpildi,
+              'overflow_groups': len(overflows), 'groups': reports}
+    (Path(tmp_dir) / 'timing_report.json').write_text(json.dumps(timing, indent=2), encoding='utf-8')
+    log(f"Zamanlama: {sigdirildi} grup hizlandirildi, {kirpildi} grup kirpildi, {len(overflows)} grup tasiyor.")
+    if overflows:
+        raise ValueError(f"{len(overflows)} grup pencereye sigmadi; nihai WAV yazilmadi. "
+                         f"Ayrintilar: {Path(tmp_dir) / 'timing_report.json'}")
+    limit_peak(timeline)
+    return timeline, timing

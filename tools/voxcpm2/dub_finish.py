@@ -2,7 +2,7 @@
 import re
 import numpy as np
 
-SPOKEN_TEXT_VERSION = 'tr-spoken-v7-signed-symbols'
+SPOKEN_TEXT_VERSION = 'tr-spoken-v8-context-decimal'
 
 _ONES = ('', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz')
 _TENS = ('', 'on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan')
@@ -25,8 +25,34 @@ def integer_words(number):
     return ' '.join(parts)
 
 
+def decimal_evidence(text):
+    """Unambiguous dotted quantities; never infer dates, IDs or clock notation."""
+    units = r'kilometre|kilogram|metre|gram|litre|mililitre|santimetre|milimetre|dolar|euro|lira|sterlin|km|kg|cm|mm|ml|mg|m|g|l'
+    rows = []
+    for match in re.finditer(r"(?<![\w.,:/])\d+\.\d+(?![\w.,:/]|['’]\w)", text):
+        before, after = text[max(0,match.start()-36):match.start()], text[match.end():match.end()+40]
+        if re.search(r'\b(?:saat|sürüm|versiyon|kod|kimlik|id|version)\s*:?\s*$', before, re.I):
+            continue
+        integer, fraction = match[0].split('.')
+        if len(fraction)==3:
+            continue  # established Turkish thousands spelling takes precedence
+        context = ('unit' if re.match(r'\s*(?:'+units+r')(?!\w)',after,re.I)
+                   else 'currency_or_percent' if re.match(r'\s*[%$€£₺]',after) or re.search(r'[%$€£₺]\s*$',before)
+                   else None)
+        if context:
+            rows.append({'start':match.start(),'end':match.end(),'number':match[0], 'decimal_separator':'dot','decimal_context':context})
+    return rows
+
+
+def normalize_decimal_quantities(text):
+    for row in reversed(decimal_evidence(text)):
+        text=text[:row['start']]+row['number'].replace('.',',')+text[row['end']:]
+    return text
+
+
 def spoken_text(text):
     """Expand only unambiguous TR forms; leave dates, clocks, IDs and suffixes alone."""
+    text = normalize_decimal_quantities(text)
     # Dotted quantities are Turkish thousands only with explicit quantity
     # context. Keep version/ID/date/clock/phone spellings unchanged otherwise.
     quantity_units = (r'kişi|insan|öğrenci|çocuk|yolcu|izleyici|çalışan|işçi|asker|'

@@ -16,3 +16,14 @@ test('Turkish dotted capital I and decomposed names match without merging dotles
   ]).length,0,'meaningful Turkish letter distinction is preserved');
   assert.equal(selectRelinkCandidates({localPath:'D:\\a\\FILM.mkv',sizeBytes:100},[{path:'D:\\b\\film.mkv',sizeBytes:100}]).status,'unique');
 });
+
+// Emulate POSIX path defaults while retaining both explicit parsers. Windows
+// CI must exercise serialized Windows paths even without a Linux runner.
+test('serialized Windows and POSIX paths match under POSIX host defaults',()=>{
+  const path=require('node:path'),fs=require('node:fs'),vm=require('node:vm');
+  const module={exports:{}};
+  vm.runInNewContext(fs.readFileSync(require.resolve('../src/media-relink-matcher'),'utf8'),{module,require:name=>{assert.equal(name,'path');return {...path,basename:path.posix.basename,extname:path.posix.extname};}});
+  const select=module.exports.selectRelinkCandidates;
+  assert.equal(select({localPath:'D:\\old\\Film.mkv'},[{path:'E:\\new\\Film.mkv'}]).status,'unique');
+  assert.equal(select({localPath:'/old/Film.mkv'},[{path:'/new/Film.mkv'}]).status,'unique');
+});
