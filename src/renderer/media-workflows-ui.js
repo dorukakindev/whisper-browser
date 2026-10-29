@@ -3,6 +3,10 @@
   const t = (en, tr) => (window.UiLocale?.get?.() === "tr" ? tr : en);
   // Only authored UI labels opt in. User text and book titles stay plain strings.
   const uiLabel = (en, tr) => ({ workflowLabel: true, en, tr });
+  function chapterLabel(chapter) {
+    const labels=window.BookWorkflowStatus.pageLabels(chapter);
+    return labels?uiLabel(labels.en,labels.tr):String(chapter.title||'');
+  }
   function appendUiLabel(node, label) {
     const span = node.tagName === 'OPTION' ? node : document.createElement('span');
     span.dataset.workflowLabelEn = label.en;
@@ -131,6 +135,10 @@
       node.textContent = t(node.dataset.workflowLabelEn, node.dataset.workflowLabelTr);
     dialog.setAttribute('aria-label', t('Production workspace', 'Üretim çalışma alanı'));
     dialog.querySelector('header>button')?.setAttribute('aria-label', t('Close', 'Kapat'));
+    for (const node of dialog.querySelectorAll('[data-workflow-page-select]')) {
+      const page=node.dataset.workflowPageSelect;
+      node.setAttribute('aria-label',t('Select: Page '+page,'Seç: Sayfa '+page));
+    }
     for (const node of dialog.querySelectorAll("[data-workflow-status]"))
       node.textContent = window.BookWorkflowStatus.label(
         node.dataset.workflowStatus,
@@ -496,20 +504,12 @@
     }
     const summary = el("section", "mw-summary"),
       bookCopy = el("div");
-    bookCopy.append(
-      el("h2", "", project.title),
-      el(
-        "p",
-        "mw-muted",
-        [
-          project.author,
-          `${project.chapters.length} ${t("chapters", "bölüm")}`,
-          `${project.chapters.filter((c) => c.status === "ready").length} ${t("ready", "hazır")}`,
-        ]
-          .filter(Boolean)
-          .join(" · "),
-      ),
-    );
+    const counts=el("p","mw-muted"),count=project.chapters.length,
+      ready=project.chapters.filter(c=>c.status==='ready').length;
+    if(project.author)counts.append(document.createTextNode(project.author+' · '));
+    counts.append(el('span','',uiLabel(`${count} ${count===1?'chapter':'chapters'}`,`${count} bölüm`)),
+      document.createTextNode(' · '),el('span','',uiLabel(`${ready} ready`,`${ready} hazır`)));
+    bookCopy.append(el("h2", "", project.title),counts);
     const projectActions = el("div", "mw-actions");
     projectActions.append(
       button(uiLabel("Rename project", "Projeyi yeniden adlandır"), async () => {
@@ -866,8 +866,8 @@
         );
       }),
     );
-    body.append(range);
-    mountBookSearch(body);
+    const preparationControls=el('div','mw-preparation-controls');
+    preparationControls.append(range);mountBookSearch(preparationControls);body.append(preparationControls);
     const split = el("div", "mw-book"),
       list = el("aside", "mw-chapters");
     list.setAttribute("aria-label", t("Chapters", "Bölümler"));
@@ -876,7 +876,8 @@
       saveSelection();
       return books();
     });
-    list.append(
+    const selectionActions=el("div","mw-selection-actions");
+    selectionActions.append(
       all,
       button(uiLabel("Clear selection", "Seçimi temizle"), () => {
         selected.clear();
@@ -884,18 +885,21 @@
         return books();
       }),
     );
+    list.append(selectionActions);
     for (const c of project.chapters) {
       const row = el("div", "mw-chapter");
       const check = el("input");
       check.type = "checkbox";
       check.dataset.chapter = String(c.id);
       check.checked = selected.has(c.id);
-      check.setAttribute("aria-label", `${t("Select", "Seç")}: ${c.title}`);
+      const pageLabels=window.BookWorkflowStatus.pageLabels(c);
+      if(pageLabels)check.dataset.workflowPageSelect=String(c.pageNumber);
+      check.setAttribute("aria-label", `${t("Select", "Seç")}: ${pageLabels?t(pageLabels.en,pageLabels.tr):c.title}`);
       check.onchange = () => {
         check.checked ? selected.add(c.id) : selected.delete(c.id);
         saveSelection();
       };
-      const link = button(c.title, async () => {
+      const link = button(chapterLabel(c), async () => {
         await saveChapter();
         chapter = c.id;
         await books();
@@ -906,7 +910,7 @@
     }
     const edit = el("section", "mw-editor"),
       c = project.chapters[chapter];
-    edit.append(el("h2", "", c.title));
+    edit.append(el("h2", "", chapterLabel(c)));
     const textarea = el("textarea");
     textarea.dataset.chapter = String(chapter);
     textarea.dataset.projectId = project.id;

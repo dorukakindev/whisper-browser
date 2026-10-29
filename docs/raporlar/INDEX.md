@@ -1,3 +1,4 @@
+- [Rapor759](BROWSER_BUG_REPORT_759.md) — Kitap üretiminde tek dil ve kompakt çalışma alanı
 - [Rapor758](BROWSER_BUG_REPORT_758.md) — Canlı PDF/asistan ve yanlış hazırlık iptalini önleme
 - [Rapor757](BROWSER_BUG_REPORT_757.md) — Eski Tk görüntüsünden güncel ortak stüdyoya Windows görsel doğrulama
 - [Rapor756](BROWSER_BUG_REPORT_756.md) — Dublaj hazırlığında aynı video yeni oturum sahipliği

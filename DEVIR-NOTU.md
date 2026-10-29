@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-0907.md](docs/devir/2026-10-29-0907.md) — Kitap üretim tasarım düzeni
 Güncel çalışma: [docs/devir/2026-10-29-0853.md](docs/devir/2026-10-29-0853.md) — Canlı PDF/asistan hazırlık geçişi
 Güncel çalışma: [docs/devir/2026-10-29-0833.md](docs/devir/2026-10-29-0833.md) — Ses stüdyosu güncel Windows görünümü
 Güncel çalışma: [docs/devir/2026-10-29-0823.md](docs/devir/2026-10-29-0823.md) — Dublaj hazırlığı oturum sahipliği

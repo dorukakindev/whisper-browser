@@ -17,10 +17,37 @@ app.whenReady().then(async()=>{
  assert(await run(`try{await AssistantAppActions.execute('select_book_chapters',{from:2,to:2},AssistantAppActions.snapshot());return false}catch(_){return true}`));
  assert.equal((await run(`return AssistantAppActions.execute('select_book_chapters',{from:1,to:1},AssistantAppActions.snapshot())`)).status,'completed');
  assert(await run(`try{await AssistantAppActions.execute('preview_book_export',{},AssistantAppActions.snapshot());return false}catch(_){return true}`),'Missing chapter audio cannot pass M4B preview');
+ let layout=null;
+ if(process.argv.includes('--layout-acceptance')){
+  assert.equal(await run(`return document.querySelector('.mw-editor>h2').textContent`),'Sayfa 2');
+  const persisted=await run(`return (await api.mediaWorkflows({action:'book-open',id:MediaWorkflowsUI.assistant.state().id})).project.chapters[0].title`);
+  assert.equal(persisted,'Page / Sayfa 2','Presentation must not rewrite the stored chapter');
+  await run(`UiLocale.set('en',false);return true`);
+  assert.equal(await run(`return document.querySelector('.mw-editor>h2').textContent`),'Page 2');
+  assert.match(await run(`return document.querySelector('.mw-summary .mw-muted').textContent`),/1 chapter · 0 ready/);
+  assert.equal(await run(`return document.querySelector('.mw-chapter input').getAttribute('aria-label')`),'Select: Page 2');
+  await run(`UiLocale.set('tr',false);return true`);
+  const short=await run(`return document.querySelector('.mw-editor>textarea').getBoundingClientRect().height`);
+  const original=await run(`return document.querySelector('.mw-editor>textarea').value`);
+  await run(`const text=document.querySelector('.mw-editor>textarea');text.value='A long paragraph for checking the reading surface. '.repeat(400);text.dispatchEvent(new Event('input'));return true`);
+  await wait(100);
+  const long=await run(`const text=document.querySelector('.mw-editor>textarea');return {height:text.getBoundingClientRect().height,max:parseFloat(getComputedStyle(text).maxHeight),scroll:text.scrollHeight,client:text.clientHeight}`);
+  assert(short>=180&&short<=185,JSON.stringify({short,long}));assert(long.height>short&&long.height<=long.max+1&&long.scroll>long.client,JSON.stringify({short,long}));
+  await run(`const text=document.querySelector('.mw-editor>textarea');text.value=${JSON.stringify(original)};text.dispatchEvent(new Event('input'));return true`);
+  const controls=await run(`const a=document.querySelector('.mw-range').getBoundingClientRect(),b=document.querySelector('.mw-book-search').getBoundingClientRect();return {rangeTop:a.top,searchTop:b.top,rangeRight:a.right,searchLeft:b.left}`);assert(Math.abs(controls.rangeTop-controls.searchTop)<2&&controls.rangeRight<=controls.searchLeft,JSON.stringify(controls));
+  layout={short,long,controls,liveLocale:true,storedTitlePreserved:true};
+ }
  await run(`await document.fonts.ready;return true`);await wait(350);fs.writeFileSync(path.join(out,'selected-page-production-tr.png'),(await win.webContents.capturePage()).toPNG());
- win.setMinimumSize(0,0);win.setContentSize(800,760);await run(`UiLocale.set('en',false);applyUiTheme('light');await MediaWorkflowsUI.openProject(${JSON.stringify(production.id)});return true`);await until(()=>run(`return !!MediaWorkflowsUI.assistant.state()`),'compact production');await wait(350);assert(await run(`const r=document.querySelector('dialog[open]').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth+1`));fs.writeFileSync(path.join(out,'production-en-light.png'),(await win.webContents.capturePage()).toPNG());
+ win.setMinimumSize(0,0);win.setContentSize(800,760);if(layout)win.webContents.setZoomFactor(1.25);await run(`UiLocale.set('en',false);applyUiTheme('light');await MediaWorkflowsUI.openProject(${JSON.stringify(production.id)});return true`);await until(()=>run(`return !!MediaWorkflowsUI.assistant.state()`),'compact production');await wait(350);assert(await run(`const r=document.querySelector('dialog[open]').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth+1&&document.querySelector('dialog[open]').scrollWidth<=document.querySelector('dialog[open]').clientWidth+1`));fs.writeFileSync(path.join(out,'production-en-light.png'),(await win.webContents.capturePage()).toPNG());
+ if(layout){
+  await run(`document.querySelector('.mw-transport').scrollIntoView({block:'center'});return true`);await wait(150);
+  const actions=await run(`const node=document.querySelector('.mw-transport'),r=node.getBoundingClientRect(),d=document.querySelector('dialog[open]'),head=d.querySelector('header').getBoundingClientRect(),box=d.getBoundingClientRect();return {top:r.top,bottom:r.bottom,headerBottom:head.bottom,dialogBottom:box.bottom,overflow:d.scrollWidth>d.clientWidth+1,buttons:[...node.querySelectorAll('button')].map(b=>({text:b.textContent,height:b.getBoundingClientRect().height}))}`);
+  assert(!actions.overflow&&actions.top>=actions.headerBottom&&actions.bottom<=actions.dialogBottom,JSON.stringify(actions));
+  layout.compactActions=actions;fs.writeFileSync(path.join(out,'production-en-light-actions-125.png'),(await win.webContents.capturePage()).toPNG());
+ }
  assert(await run(`try{await AssistantAppActions.execute('start_book_narration',{},AssistantAppActions.snapshot());return false}catch(_){return true}`),'A rejected engine must not be reported accepted');assert.equal(starts,1);
  rejectStart=false;await until(()=>run(`return !MediaWorkflowsUI.assistant.state()?.busy`),'rejection cleanup');const accepted=await run(`return AssistantAppActions.execute('start_book_narration',{},AssistantAppActions.snapshot())`);assert.equal(accepted.status,'accepted');assert.equal(starts,2);
 
- console.log(JSON.stringify({ok:true,out,starts,selectedSourcePage:2,productionChapters:1,limits:'Real Windows/PDF text extraction/book preparation; controlled engine acceptance only. No GPU/model/audio/paid provider.'}));app.exit(0);
+ if(layout)fs.writeFileSync(path.join(out,'layout.json'),JSON.stringify(layout,null,2));
+ console.log(JSON.stringify({ok:true,out,layout,starts,selectedSourcePage:2,productionChapters:1,limits:'Real Windows/PDF text extraction/book preparation; controlled engine acceptance only. No GPU/model/audio/paid provider.'}));app.exit(0);
 }).catch(error=>{console.error(error.stack);app.exit(1);});setTimeout(()=>app.exit(2),60000).unref();
