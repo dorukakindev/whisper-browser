@@ -1,0 +1,153 @@
+[
+  {
+    "action": "book-listen",
+    "outputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav",
+    "ok": true,
+    "resultOutputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav"
+  },
+  {
+    "action": "book-listen",
+    "outputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav",
+    "ok": true,
+    "resultOutputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav"
+  },
+  {
+    "action": "book-listen",
+    "outputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav",
+    "ok": true,
+    "resultOutputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav"
+  },
+  {
+    "action": "book-listen",
+    "outputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav",
+    "ok": true,
+    "resultOutputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav"
+  },
+  {
+    "action": "book-listen",
+    "outputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav",
+    "ok": true,
+    "resultOutputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav"
+  },
+  {
+    "action": "book-listen",
+    "outputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav",
+    "ok": true,
+    "resultOutputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav"
+  },
+  {
+    "action": "book-listen",
+    "outputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav",
+    "ok": true,
+    "resultOutputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav"
+  },
+  {
+    "action": "book-listen",
+    "outputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav",
+    "ok": true,
+    "resultOutputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav"
+  },
+  {
+    "action": "book-listen",
+    "outputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav",
+    "ok": true,
+    "resultOutputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav"
+  },
+  {
+    "action": "book-listen",
+    "outputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav",
+    "ok": true,
+    "resultOutputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav"
+  },
+  {
+    "action": "book-listen",
+    "outputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav",
+    "ok": true,
+    "resultOutputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav"
+  },
+  {
+    "action": "book-listen",
+    "outputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav",
+    "ok": true,
+    "resultOutputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav"
+  },
+  {
+    "action": "book-listen",
+    "outputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav",
+    "ok": true,
+    "resultOutputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav"
+  },
+  {
+    "action": "book-listen",
+    "outputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav",
+    "ok": true,
+    "resultOutputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav"
+  },
+  {
+    "action": "book-listen",
+    "outputId": "1-f91630b6f706e72d-68a77ca16681db0c.wav",
+    "ok": true,
+    "resultOutputId": "1-f91630b6f706e72d-68a77ca16681db0c.wav"
+  },
+  {
+    "action": "book-mark-open",
+    "ok": true,
+    "bookmark": {
+      "id": "a95e31e4-166f-44c1-afe4-922974f66a6c",
+      "chapter": 0,
+      "quote": "controlled PDF reading sample",
+      "position": 1.25,
+      "outputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav",
+      "textHash": "27f4fd76aa954bbb361fca801973386f6f2a02b8b07a8c4433a7ff125ac92574",
+      "state": "exact"
+    }
+  },
+  {
+    "action": "book-listen",
+    "outputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav",
+    "ok": true,
+    "resultOutputId": "0-27f4fd76aa954bbb-68a77ca16681db0c.wav"
+  },
+  {
+    "action": "book-mark-open",
+    "ok": true,
+    "bookmark": {
+      "id": "a95e31e4-166f-44c1-afe4-922974f66a6c",
+      "chapter": 0,
+      "quote": "controlled PDF reading sample",
+      "position": 2,
+      "outputId": "0-27f4fd76aa954bbb-f260df150f5ec4e6.wav",
+      "textHash": "27f4fd76aa954bbb361fca801973386f6f2a02b8b07a8c4433a7ff125ac92574",
+      "state": "audio-remapped"
+    }
+  },
+  {
+    "action": "book-listen",
+    "outputId": "0-27f4fd76aa954bbb-f260df150f5ec4e6.wav",
+    "ok": true,
+    "resultOutputId": "0-27f4fd76aa954bbb-f260df150f5ec4e6.wav"
+  },
+  {
+    "action": "book-listen",
+    "outputId": "0-27f4fd76aa954bbb-f260df150f5ec4e6.wav",
+    "ok": true,
+    "resultOutputId": "0-27f4fd76aa954bbb-f260df150f5ec4e6.wav"
+  },
+  {
+    "action": "book-mark-open",
+    "ok": true,
+    "bookmark": {
+      "id": "a95e31e4-166f-44c1-afe4-922974f66a6c",
+      "chapter": 0,
+      "quote": "controlled PDF reading sample",
+      "position": 1.25,
+      "state": "text-changed"
+    }
+  },
+  {
+    "action": "book-listen",
+    "outputId": "1-f91630b6f706e72d-68a77ca16681db0c.wav",
+    "ok": true,
+    "resultOutputId": "1-f91630b6f706e72d-68a77ca16681db0c.wav"
+  }
+]

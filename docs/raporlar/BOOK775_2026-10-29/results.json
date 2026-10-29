@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "selected": [
+    1,
+    2
+  ],
+  "realPdf": true,
+  "fixtureAudio": true,
+  "highlight": true,
+  "originalPdfHighlight": true,
+  "manualReviewApproved": true,
+  "bounds": {
+    "scroll": 750,
+    "client": 750
+  }
+}
