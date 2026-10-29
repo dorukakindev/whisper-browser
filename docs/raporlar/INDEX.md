@@ -1,3 +1,4 @@
+- [Rapor734](BROWSER_BUG_REPORT_734.md) — Ses çevirisinde bağımsız kaynak rol incelemesi
 - [Rapor733](BROWSER_BUG_REPORT_733.md) — Canlı ses çevirisinde çekimli sayı ve açık anlam sınırı
 - [Rapor732](BROWSER_BUG_REPORT_732.md) — Ses stüdyosunda gerçek hazır ayar ve dar üretim çubuğu
 - [Rapor731](BROWSER_BUG_REPORT_731.md) — Ortak temada iki referans sesi karşılaştırma

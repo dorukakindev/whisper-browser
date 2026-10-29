@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-0306.md](docs/devir/2026-10-29-0306.md) — Kaynaktan rol/sahiplik incelemesi
 Güncel çalışma: [docs/devir/2026-10-29-0235.md](docs/devir/2026-10-29-0235.md) — Ses çevirisi sayı kapıları ve açık rol hataları
 Güncel çalışma: [docs/devir/2026-10-29-0218.md](docs/devir/2026-10-29-0218.md) — Ses stüdyosu tasarım tutarlılığı
 Güncel çalışma: [docs/devir/2026-10-29-0200.md](docs/devir/2026-10-29-0200.md) — İki referans sesi karşılaştırma

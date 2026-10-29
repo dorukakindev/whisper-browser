@@ -1,0 +1,32 @@
+﻿1
+00:00:00,000 --> 00:00:03,000
+LENA: Omar'a kardeşimin raporunu gönderdim, kendiminkini değil.
+
+2
+00:00:04,000 --> 00:00:07,000
+OMAR: Öyleyse ona teşekkür etmeliyim, sana değil.
+
+3
+00:00:25,000 --> 00:00:28,000
+ALIN: Mira'nın bisikletini ödünç aldım, babamınkini değil.
+
+4
+00:00:29,000 --> 00:00:32,000
+MIRA: Ama kaskı sana ödünç verdi, bana değil.
+
+5
+00:00:50,000 --> 00:00:53,000
+NORA: Bana bir açıklama borçlusun, ona değil.
+
+6
+00:00:54,000 --> 00:00:57,000
+KAYA: Suçu kendimde buldum, sende değil.
+
+7
+00:01:15,000 --> 00:01:18,000
+LYRA: O benim montum değil; onunki.
+
+8
+00:01:19,000 --> 00:01:22,000
+RUI: Mektubu o yazdı, ben değil.
+

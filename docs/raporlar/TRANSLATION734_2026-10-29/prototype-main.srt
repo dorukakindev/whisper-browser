@@ -1,0 +1,64 @@
+﻿1
+00:00:00,000 --> 00:00:03,000
+Tahmin ön niteliktedir, bir vaat değildir.
+
+2
+00:00:04,000 --> 00:00:07,000
+On iki numuneden yalnızca üçü geçti; diğer dokuzunun başka bir teste ihtiyacı var.
+
+3
+00:00:25,000 --> 00:00:28,000
+İlaç ağrıyı azaltabilir, ancak hastalığı iyileştiremez.
+
+4
+00:00:29,000 --> 00:00:32,000
+Bir doktor size söylemedikçe ikinci bir doz almayın.
+
+5
+00:00:50,000 --> 00:00:53,000
+MARA: Arabamı Deniz'e ödünç verdim, kız kardeşiminkini değil.
+
+6
+00:00:54,000 --> 00:00:57,000
+DENIZ: Öyleyse size bir özür borçluyum, ona değil.
+
+7
+00:01:15,000 --> 00:01:18,000
+Vana açılmazsa pompayı durdurun.
+
+8
+00:01:19,000 --> 00:01:22,000
+Açılırsa ama basınç düşmezse mühendisi arayın.
+
+9
+00:01:40,000 --> 00:01:43,000
+Rapor, köprünün güvenli olduğunu söylemedi.
+
+10
+00:01:44,000 --> 00:01:47,000
+Güvensiz olduğunu ilan etmek için yeterli kanıt olmadığını söyledi.
+
+11
+00:02:05,000 --> 00:02:08,000
+Oda neredeyse boştu, iki muhafız ve uyuyan bir köpek dışında.
+
+12
+00:02:09,000 --> 00:02:12,000
+Bir muhafız kapının dışındaydı; diğeri masanın arkasındaydı.
+
+13
+00:02:30,000 --> 00:02:33,000
+Parayı onun çaldığını söylemedim.
+
+14
+00:02:34,000 --> 00:02:37,000
+Onu kimin ödünç aldığını biliyor olabileceğini söyledim.
+
+15
+00:02:55,000 --> 00:02:58,000
+Ücret kişi başı on beş euro, bagaj hariç.
+
+16
+00:02:59,000 --> 00:03:02,000
+Altı yaşın altındaki çocuklar ücretsiz seyahat eder, ancak yine de bilet almaları gerekir.
+
