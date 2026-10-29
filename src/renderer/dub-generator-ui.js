@@ -271,13 +271,29 @@
     status(window.UiLocale?.get?.()==='en'?'The new attempt did not finish. Your previous audio is still available.':'Yeni deneme tamamlanmadı. Önceki sesiniz hâlâ hazır.');
     controls();return true;
   }
+  function currentSubtitle() {
+    const context = window.BrowserDubAudioUI?.context();
+    if (!['browser','player'].includes(context?.mode) || typeof player === 'undefined') return '';
+    const candidate = player.sub2Role === 'translation' && player.sub2Path ? player.sub2Path : player.subPath;
+    if (typeof candidate !== 'string' || !/\.srt$/i.test(candidate) || !/^(?:[a-z]:[\\/]|[/\\])/i.test(candidate)) return '';
+    // Browser tracks belong to the active tab. Never adopt a leftover player path.
+    if (context.mode === 'browser' && !(player.browserTracks || []).some(track => track.path === candidate)) return '';
+    return candidate;
+  }
+  function adoptCurrentSubtitle(candidate) {
+    if (!candidate || srt || current || planning || choosing || workspaceBusy) return;
+    srt = candidate; lastRequest = null; results.clear(); showResults(); invalidatePlan();
+    el('dubSrtName').textContent = basename(candidate); refreshOverview(); status('Hazır');
+  }
   async function open() {
     inheritSubtitleRange();
+    const candidate = currentSubtitle();
     if (!modal.open) modal.showModal();
     syncBrowserOcclusion();
     const openedMedia=requestIdentity();
     await configure();
     if (openedMedia !== requestIdentity()) return;
+    if (candidate === currentSubtitle()) adoptCurrentSubtitle(candidate);
     if (!current && !output) {
       const r = await window.api.latestDub({source:window.BrowserDubAudioUI?.context()?.source || window.BrowserDubAudioUI?.context()?.mediaKey || ''}).catch(() => null);
       if (openedMedia !== requestIdentity() || current || output || !r?.output) return;
@@ -306,17 +322,7 @@
   window.addEventListener('voice-reference:busy', event => { referenceBusy = !!event.detail; controls(); });
   el('playerDubGenerate')?.addEventListener('click', () => { el('playerMore').open = false; void open(); });
   el('dubMainOpen').addEventListener('click', open);
-  window.DubGeneratorUI = Object.freeze({ prepareCurrent: async () => {
-    const identity = requestIdentity();
-    const candidate = player.sub2Role === 'translation' && player.sub2Path ? player.sub2Path : player.subPath;
-    await open();
-    if (identity !== requestIdentity() || current || planning || srt) return;
-    if (typeof candidate === 'string' && /\.srt$/i.test(candidate) && /^(?:[a-z]:[\\/]|[/\\])/i.test(candidate)) {
-      srt = candidate; lastRequest = null; results.clear(); showResults(); invalidatePlan();
-      el('dubSrtName').textContent = basename(candidate); refreshOverview();
-      status('Hazır');
-    }
-  }, assistant:Object.freeze({state:voiceState,configure:voiceConfigure,start:voiceStart,group:voiceGroup,use:voiceUse,refreshReference:()=>configure(undefined,true)}) });
+  window.DubGeneratorUI = Object.freeze({ prepareCurrent: open, assistant:Object.freeze({state:voiceState,configure:voiceConfigure,start:voiceStart,group:voiceGroup,use:voiceUse,refreshReference:()=>configure(undefined,true)}) });
   el('dubGeneratorClose').addEventListener('click', () => modal.close());
   modal.addEventListener('close', () => { el('dubGeneratedPreview').pause(); syncBrowserOcclusion(); });
   el('dubStorageOpen').addEventListener('click', () => { if (cfg?.storageRoot) void window.api.openPath(cfg.storageRoot); });
