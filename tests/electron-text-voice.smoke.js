@@ -139,6 +139,10 @@ app.whenReady().then(async()=>{
   assert.equal(await run("return document.getElementById('tv-output').hidden"),true);
   assert.equal(await run("return document.getElementById('tv-start').disabled"),true);
   await emit(first.request.id,'progress',{done:1,total:4});assert.match(await status(),/Ses \u00fcretiliyor/);
+  await emit(first.request.id,'progress',{done:4,total:4});assert.equal(await run("return document.getElementById('tv-progress').value"),99,'All counters cannot claim the output is ready');
+  await emit(first.request.id,'status',{stage:'postprocess'});assert.equal(await status(),'Ses parçaları birleştiriliyor ve son işlem yapılıyor…');await screenshot('studio-postprocess-tr');
+  await run("UiLocale.set('en',false);return true");assert.equal(await status(),'Joining audio and applying final processing…');
+  await emit(first.request.id,'status',{stage:'output_check'});assert.equal(await status(),'Checking the audio file…');await run("UiLocale.set('tr',false);return true");
   await run("document.getElementById('tv-stop').click();return true");await until(()=>stops.length===1,'scoped stop');assert.equal(stops[0].request.id,first.request.id);
   const stoppingState=await status();await emit(first.request.id,'progress',{done:2,total:4});await emit(first.request.id,'status',{stage:'normalizing'});assert.equal(await status(),stoppingState,'Progress during cancellation must not claim the job resumed');assert.equal(await run("return document.getElementById('tv-stop').disabled"),true);
   await emit(first.request.id,'cancelled');

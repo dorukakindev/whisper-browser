@@ -1,0 +1,5 @@
+Parent master 785c65bd86a12ce34e995642b25edab2f265beb5
+node --test --test-isolation=none tests/text-voice-studio.test.js
+Before:1PASS/1FAIL; assertion stdout progress split around stderr and final unterminated line must be retained.
+stdout chunk1=[1/ ; stderr=[2/2] engine diagnostic plus newline; stdout chunk2=1] complete without trailing newline.
+Expected own progress1/1; parent lost it.
