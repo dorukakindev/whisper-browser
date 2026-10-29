@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-0320.md](docs/devir/2026-10-29-0320.md) — Gerçek GPU kitap ve M4B kabulü
 Güncel çalışma: [docs/devir/2026-10-29-0306.md](docs/devir/2026-10-29-0306.md) — Kaynaktan rol/sahiplik incelemesi
 Güncel çalışma: [docs/devir/2026-10-29-0235.md](docs/devir/2026-10-29-0235.md) — Ses çevirisi sayı kapıları ve açık rol hataları
 Güncel çalışma: [docs/devir/2026-10-29-0218.md](docs/devir/2026-10-29-0218.md) — Ses stüdyosu tasarım tutarlılığı

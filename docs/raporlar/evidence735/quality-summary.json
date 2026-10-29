@@ -1,0 +1,56 @@
+{
+  "outputs": [
+    {
+      "firstGroupPcmSha256": "173de400f55370910ba0fb85c7224621530c0978037faa80b39f590852866e18",
+      "groups": [
+        {
+          "key": "1",
+          "status": "ready",
+          "similarity": 0.8889,
+          "review": false,
+          "start": 0.0,
+          "end": 12.204291666666666
+        },
+        {
+          "key": "2",
+          "status": "ready",
+          "similarity": 0.902,
+          "review": false,
+          "start": 12.3041875,
+          "end": 25.476125
+        }
+      ]
+    },
+    {
+      "firstGroupPcmSha256": "1a3d3a45d81242353b6958f5690e66747348c9b031a3bf7000cbe6e2a003a272",
+      "groups": [
+        {
+          "key": "1",
+          "status": "ready",
+          "similarity": 0.8889,
+          "review": false,
+          "start": 0.0,
+          "end": 12.204291666666666
+        },
+        {
+          "key": "2",
+          "status": "ready",
+          "similarity": 0.9412,
+          "review": false,
+          "start": 12.304791666666667,
+          "end": 25.615625
+        }
+      ]
+    }
+  ],
+  "finalWavFirstGroupByteIdentical": false,
+  "sourceCacheByteIdentityNotMeasured": true,
+  "m4bFullDecodeExit": 0,
+  "humanListening": false,
+  "firstGroupSignalComparison": {
+    "leastSquaresGain": 0.9965512510978632,
+    "residualRmsInt16": 0.3692982773439878,
+    "correlation": 0.999999993770313,
+    "interpretation": "Consistent with changed whole-file loudness scaling; not byte identity, source cache was not independently hashed."
+  }
+}
