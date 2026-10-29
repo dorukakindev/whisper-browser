@@ -1,3 +1,4 @@
+- [Rapor778](BROWSER_BUG_REPORT_778.md) — İptal edilen sezon seçicisinden geç hazır sonuç reddi
 - [Rapor777](BROWSER_BUG_REPORT_777.md) — Sezon eylem durumları ve kitap seçimi izolasyonu
 - [Rapor776](BROWSER_BUG_REPORT_776.md) — Kitap dışındaki çalışma ekranlarında doğru asistan bağlamı
 - [Rapor775](BROWSER_BUG_REPORT_775.md) — Windows kitap kabulünde yer imi sürümü ve PDF etiketi

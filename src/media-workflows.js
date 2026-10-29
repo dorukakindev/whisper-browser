@@ -457,6 +457,8 @@ function registerMediaWorkflows({
     const selection = await dialog.showOpenDialog(owner(), {
       properties: ["openDirectory"],
     });
+    const checkCurrent=()=>{if(controller.signal.aborted||e.sender.isDestroyed())throw Error('Cancelled.');};
+    checkCurrent();
     if (selection.canceled) return { ok: true, canceled: true };
     const dir = fs.realpathSync(selection.filePaths[0]),
       names = fs
@@ -501,6 +503,7 @@ function registerMediaWorkflows({
         );
       if (fs.existsSync(cache) && fs.statSync(cache).size < 4000000) {
         const cached = JSON.parse(fs.readFileSync(cache, "utf8"));
+        checkCurrent();
         return { ok: true, ...cached, cached: true };
       }
       for (let i = 0; i < videos.length; i++) {
@@ -520,6 +523,7 @@ function registerMediaWorkflows({
           { videoPaths: [current, ...refs], maxScanSeconds: 120 },
           { signal: controller.signal },
         );
+        checkCurrent();
         const ending = await analysis.detectIntro(
           {
             videoPaths: [current, ...refs],
@@ -528,6 +532,7 @@ function registerMediaWorkflows({
           },
           { signal: controller.signal },
         );
+        checkCurrent();
         plan.rows.push({
           name: videos[i].name,
           intro: opening.candidates,
@@ -535,6 +540,7 @@ function registerMediaWorkflows({
           diagnostics: ending.diagnostics,
         });
       }
+      checkCurrent();
       if (fingerprint() !== signature)
         throw Error("Episode files changed during analysis; scan again.");
       const result = { rows: plan.rows, suggestOnly: true };
@@ -589,6 +595,7 @@ function registerMediaWorkflows({
           { audioPath: video, targetCues: cues },
           { signal: controller.signal, timeoutMs: 480000 },
         );
+        checkCurrent();
         const s = fs.statSync(video);
         if (s.size !== beforeStat.size || s.mtimeMs !== beforeStat.mtimeMs)
           throw Error("Video changed during alignment.");
@@ -618,6 +625,7 @@ function registerMediaWorkflows({
         });
       }
     }
+    checkCurrent();
     plans.set(plan.id, plan);
     while (plans.size > 10) plans.delete(plans.keys().next().value);
     return {
