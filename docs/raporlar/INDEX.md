@@ -823,3 +823,5 @@ tarih sırasıyla dosya adından okunur.
 | 393 | [BROWSER_BUG_REPORT_393.md](BROWSER_BUG_REPORT_393.md) | birleşik-master tam-suit onarımı — merge drift'i (VM-slice stub'ları, ratchet'lar, fs.watch→poll, CSS token, i18n, cp1254) |
 
 | 484 | [BROWSER_BUG_REPORT_484.md](BROWSER_BUG_REPORT_484.md) | Ses üretimi hata tanısı ve gerçek GPU kısa üretim doğrulaması |
+
+| 781 | [Stüdyo giriş ve tema görünürlüğü](BROWSER_BUG_REPORT_781.md) | Eski Tk constructor kapalı, ortak hidden düzeltildi; Windows geniş/dar kanıt |

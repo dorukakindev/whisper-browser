@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-1938.md](docs/devir/2026-10-29-1938.md) — Stüdyo giriş ve tema görünürlüğü
 Güncel çalışma: [docs/devir/2026-10-29-1918.md](docs/devir/2026-10-29-1918.md) — Hizalama süreç kapanışı
 Güncel çalışma: [docs/devir/2026-10-29-1908.md](docs/devir/2026-10-29-1908.md) — Gerçek sezon senkron kabulü
 Güncel çalışma: [docs/devir/2026-10-29-1902.md](docs/devir/2026-10-29-1902.md) — Sezon iptali sonuç sınırı
