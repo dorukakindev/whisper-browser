@@ -1,0 +1,31 @@
+✔ Failed caption download cancellation stays owned and permits the exact Stop request again (5.1694ms)
+✔ A timed-out close acknowledgement permits another explicit termination attempt on the same live child (5.6934ms)
+✔ A late successful caption result after failed Stop remains cancelled and cannot launch the next translation step (2.414ms)
+✖ Caption timeout remains cancellable until confirmed close; failed native stop can be retried (3.0936ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 3
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 44.1631
+
+✖ failing tests:
+
+test at tests\assistant-media-stop638.test.js:28:1
+✖ Caption timeout remains cancellable until confirmed close; failed native stop can be retried (3.0936ms)
+  AssertionError [ERR_ASSERTION]: Timeout cannot settle the process while it is alive
+  
+  true !== false
+  
+      at TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\assistant-media-stop638.test.js:35:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

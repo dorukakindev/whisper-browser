@@ -1,0 +1,14 @@
+✔ Production caption scheduler observer owns exact stop, partial failure and replacement IDs (5.1485ms)
+✔ Failed caption download cancellation stays owned and permits the exact Stop request again (3.7658ms)
+✔ A timed-out close acknowledgement permits another explicit termination attempt on the same live child (13.4659ms)
+✔ A late successful caption result after failed Stop remains cancelled and cannot launch the next translation step (3.7312ms)
+✔ subs timeout remains cancellable until confirmed close; failed native stop can be retried (3.378ms)
+✔ probe timeout remains cancellable until confirmed close; failed native stop can be retried (2.4153ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 47.7932

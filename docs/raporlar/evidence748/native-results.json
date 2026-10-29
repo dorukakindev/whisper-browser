@@ -1,0 +1,49 @@
+{
+  "ok": true,
+  "results": [
+    {
+      "mode": "deadline",
+      "elapsedMs": 139,
+      "beforeClose": "cancelling",
+      "helperClosed": true,
+      "grandchildGone": true,
+      "state": "failed",
+      "failureCode": "timeout",
+      "result": {
+        "ok": false,
+        "code": "timeout",
+        "error": "The media helper timed out; its process has closed."
+      }
+    },
+    {
+      "mode": "explicit-stop",
+      "elapsedMs": 158,
+      "beforeClose": "cancelling",
+      "helperClosed": true,
+      "grandchildGone": true,
+      "state": "stopped",
+      "failureCode": null,
+      "result": {
+        "ok": false,
+        "cancelled": true,
+        "error": "Cancelled."
+      }
+    },
+    {
+      "mode": "probe-deadline",
+      "elapsedMs": 142,
+      "beforeClose": "cancelling",
+      "helperClosed": true,
+      "grandchildGone": true,
+      "state": "failed",
+      "failureCode": "timeout",
+      "result": {
+        "ok": false,
+        "code": "timeout",
+        "error": "The media helper timed out; its process has closed."
+      }
+    }
+  ],
+  "processTree": "real Windows Python parent/grandchild for each helper; timeout callback accelerated, kill and close not mocked",
+  "limits": "No live YouTube/model/Whisper/GPU; no real 5-minute wait; failed-stop retry is unit-controlled"
+}
