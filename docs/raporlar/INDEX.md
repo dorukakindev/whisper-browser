@@ -1,3 +1,4 @@
+- [Rapor788](BROWSER_BUG_REPORT_788.md) — Ses için çeviri yanlış retleri, canlı DeepSeek kabulü ve sade dublaj stüdyosu
 - [Rapor787](BROWSER_BUG_REPORT_787.md) — Grup kaydı seçimi, ana ayarlara browser erişimi ve arka plan çeviri oturumu
 - [Rapor786](BROWSER_BUG_REPORT_786.md) — Ortak tasarım, kategori odağı ve asistan kaydırma izolasyonu
 - [Rapor784](BROWSER_BUG_REPORT_784.md) — Yeniden üretimde değişmez ham grup kayıtları ve gerçek GPU kabulü
