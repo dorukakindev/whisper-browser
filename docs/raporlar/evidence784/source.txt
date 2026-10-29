@@ -1,0 +1,7 @@
+﻿1
+00:00:00,000 --> 00:00:08,000
+Bugün yeni bir kitabın ilk bölümünü birlikte okuyacağız.
+
+2
+00:00:10,000 --> 00:00:18,000
+Pencereyi açınca dışarıdaki kuşların sesini duyduk.

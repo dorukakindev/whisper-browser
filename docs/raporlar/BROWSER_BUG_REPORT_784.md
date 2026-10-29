@@ -24,7 +24,7 @@ RTX4070SUPER, sentetik8.83s Türkçe referans, iki sentetik cümle;10adım/seed4
 
 İlk iki grup28.063s, aynı hazır motorla yalnız2.grubun force yeniden üretimi3.640s. İlk grubun hash'i aynı kaldı; ikinci grubun eski ve yeni hash'leri farklı ve iki dosya da korunuyor.2×2 segment için3 benzersiz snapshot var. Her manifest hash'i dosya baytlarıyla eşleşir. İki nihai WAV FFmpeg full decode exit0. Test sürücüsü gerçek OS exit0; iş sonrası boş GPU belleği10953MiB.
 
-[Kesin temiz sonuç ve cache metrikleri](evidence784/result.json), [sentetik SRT](evidence784/source.srt). Önceki mutable ifade aynı gerçek canonical cache üzerinde yeniden hesaplandı: slot aynı, baytlar yeni kayda ait ve eski hash farklı. Parent revizyonunda tekrar GPU çalıştırılmadı; bu yeniden kurulmuş önceki ifade kanıtıdır. İlk ön deneme de geçti fakat snapshot konumu motor cache köküne bağlıydı; teslim öncesi çıktı yanı konumuna düzeltildi, son kabul ayrı temiz klasörde tekrarlandı. Esas ölçüm son koşudur.
+[Kesin temiz sonuç ve cache metrikleri](evidence784/result.json), [sentetik SRT](evidence784/source.txt). Önceki mutable ifade aynı gerçek canonical cache üzerinde yeniden hesaplandı: slot aynı, baytlar yeni kayda ait ve eski hash farklı. Parent revizyonunda tekrar GPU çalıştırılmadı; bu yeniden kurulmuş önceki ifade kanıtıdır. İlk ön deneme de geçti fakat snapshot konumu motor cache köküne bağlıydı; teslim öncesi çıktı yanı konumuna düzeltildi, son kabul ayrı temiz klasörde tekrarlandı. Esas ölçüm son koşudur.
 
 ## Hedefli kontroller
 
