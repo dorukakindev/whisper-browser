@@ -27,6 +27,16 @@ const module546 = require("../src/media-workflows"),
   register = module546.registerMediaWorkflows;
 let service;
 module546.registerMediaWorkflows = (args) => (service = register(args));
+const nativeCalls=[];
+const originalHandle=ipcMain.handle.bind(ipcMain);
+ipcMain.handle=(channel,listener)=>originalHandle(channel,async(event,request,...args)=>{
+ const result=await listener(event,request,...args);
+ if(channel==='media-workflows:request'&&['book-mark-open','book-listen'].includes(request?.action)){
+  nativeCalls.push({action:request.action,outputId:request.outputId,ok:result.ok,error:result.error,bookmark:result.bookmark,resultOutputId:result.outputId});
+  fs.writeFileSync(path.join(out,'navigation-calls.json'),JSON.stringify(nativeCalls,null,2));
+ }
+ return result;
+});
 require("../src/main");
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function until(fn, label) {
@@ -1023,6 +1033,7 @@ app
     ).bookmarks[0];
     assert.equal(savedBookmark.quote, selectedPassage.quote);
     assert.equal(savedBookmark.position, 1.25);
+    assert.equal(await run('return document.querySelector(".mw-body").textContent.includes("[object Object]")'),false,'Reader labels cannot stringify localization objects');
     await capture("reader-tr-dark.png");
     await run(
       '[...document.querySelectorAll(".mw-reading-head button")].find(n=>n.textContent==="Sonraki sayfa / bölüm").click();return true',

@@ -1,3 +1,4 @@
+- [Rapor775](BROWSER_BUG_REPORT_775.md) — Windows kitap kabulünde yer imi sürümü ve PDF etiketi
 - [Rapor774](BROWSER_BUG_REPORT_774.md) — Arama gezinmesinde aynı kitabın yeni oturumu korunur
 - [Rapor773](BROWSER_BUG_REPORT_773.md) — Geç bölüm gezinmesinde yeni kitap korunumu
 - [Rapor772](BROWSER_BUG_REPORT_772.md) — Kayıtlı kitap seçicisinde geç yanıt reddi
