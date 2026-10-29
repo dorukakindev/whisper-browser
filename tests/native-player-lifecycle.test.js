@@ -11,7 +11,7 @@ function setup(){
  const file=path.join(__dirname,'../src/native-player.js');
  const module={exports:{}};
  vm.runInNewContext(fs.readFileSync(file,'utf8'),{module,process:{platform:'win32',env:{LOCALAPPDATA:'/synthetic'}},
-  require(name){if(name==='node:fs')return fakeFs;if(name==='./settings-security')return {withoutSecretEnv:x=>x};return require(name);},
+  require(name){if(name==='node:fs')return fakeFs;if(name==='./process-lifecycle')return require('../src/process-lifecycle');if(name==='./settings-security')return {withoutSecretEnv:x=>x};return require(name);},
   setTimeout,clearTimeout,setInterval,clearInterval,Buffer},{filename:file});
  const source=new Promise(resolve=>{resolveSource=resolve;});
  const player=module.exports.registerNativePlayer({app,ipcMain:{handle(){}},owner:()=>null,authorized:()=>true,
