@@ -168,8 +168,8 @@ app
         assert.equal(state.book,null);assert.equal(state.source.type,'workflow');assert.equal(state.source.id,'workflow:'+kind);
         assert(!state.source.excerpt&&!state.source.selectedText,'No old book text may leak into workflow context');
         if(kind!=='resources'){
-          const idle=await run('return [...document.querySelectorAll(".mw-body .mw-actions>button")].map(b=>({text:b.textContent,disabled:b.disabled}))');
-          assert.equal(idle[1].disabled,true,'Stop is disabled without a scan');
+          const idle=await run('return [...document.querySelectorAll(".mw-body .mw-actions>button")].map(b=>({text:b.textContent,disabled:b.disabled,opacity:Number(getComputedStyle(b).opacity)}))');
+          assert.equal(idle[1].disabled,true,'Stop is disabled without a scan');assert(idle[1].opacity<.65,'Unavailable scan action must look disabled');
           if(kind==='sync')assert.equal(idle[2].disabled,true,'Save is disabled without a preview');
         }
         contexts.push({kind,type:state.source.type,id:state.source.id,title:state.source.title});
