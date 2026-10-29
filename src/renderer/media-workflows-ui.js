@@ -906,7 +906,10 @@
         saveSelection();
       };
       const link = button(chapterLabel(c), async () => {
+        if (busy || dialog!==renderDialog || !renderDialog.open || bodyVersion!==renderVersion) return;
+        const request=++projectOpenRequest,ownerId=project.id;
         await saveChapter();
+        if (request!==projectOpenRequest || dialog!==renderDialog || !renderDialog.open || bodyVersion!==renderVersion || project?.id!==ownerId) return;
         chapter = c.id;
         await books();
       });

@@ -2,14 +2,14 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{JSDOM}=require('jsdom');
 const tick=()=>new Promise(setImmediate);
 function gate(){let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};}
-function fixture({bookGate,configGate,approvalGate}={}){
+function fixture({bookGate,configGate,approvalGate,saveGate,extraChapter=false}={}){
  const dom=new JSDOM('<body></body>',{runScripts:'outside-only'}),w=dom.window;let context;
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};
  w.HTMLDialogElement.prototype.close=function(){this.open=false;setTimeout(()=>this.dispatchEvent(new w.Event('close')),0);};
  w.HTMLMediaElement.prototype.pause=w.HTMLMediaElement.prototype.load=()=>{};
  w.HTMLElement.prototype.scrollIntoView=()=>{};
  const project=id=>({id,title:id,format:'txt',chapters:[{id:0,title:'Chapter '+id,text:'Actual text '+id,output:'chapter.wav',status:'review',groups:[{key:'1',text:'Actual text '+id,start:0,end:1,status:'review'}]}],selectedChapters:[0]});
- w.api={mediaWorkflows:async r=>r.action==='book-approve'?approvalGate.promise:r.action==='book-open'?bookGate?.(r.id)||{ok:true,project:project(r.id)}:r.action==='book-save'?{ok:true,project:project(r.id)}:r.action==='book-list'?{ok:true,projects:[{id:'one',title:'one'},{id:'two',title:'two'}]}:{ok:true},dubConfig:()=>typeof configGate==='function'?configGate():configGate?.promise||Promise.resolve({}),listVoiceReferences:async()=>({ok:true,references:[]})};
+ w.api={mediaWorkflows:async r=>r.action==='book-approve'?approvalGate.promise:r.action==='book-open'?bookGate?.(r.id)||{ok:true,project:extraChapter&&r.id==='one'?{...project(r.id),chapters:[...project(r.id).chapters,{id:1,title:'Second chapter',text:'Second chapter text',status:'idle'}]}:project(r.id)}:r.action==='book-save'?saveGate?.(r)||{ok:true,project:project(r.id)}:r.action==='book-list'?{ok:true,projects:[{id:'one',title:'one'},{id:'two',title:'two'}]}:{ok:true},dubConfig:()=>typeof configGate==='function'?configGate():configGate?.promise||Promise.resolve({}),listVoiceReferences:async()=>({ok:true,references:[]})};
  w.syncBrowserOcclusion=async()=>{};w.globalAssistantContext=()=>context;
  w.MediaExperience={setContext:(_owner,next)=>context=next,bindPassage:()=>()=>{},context:()=>context};
  w.BookWorkflowStatus=require('../src/book-workflow-status');
@@ -45,4 +45,18 @@ for(const leave of ['new-selection','external-open','close'])test(`late saved-bo
  first.resolve({ok:true,project:f.project('two')});await initial;await tick();
  assert.equal(f.w.MediaWorkflowsUI.assistant.state()?.id,leave==='close'?undefined:'one');
  assert.equal(f.w.document.querySelector('textarea[data-chapter]')?.dataset.projectId,leave==='close'?undefined:'one');
+});
+
+test('late chapter navigation cannot replace externally opened book chapter',async t=>{
+ const save=gate();let saves=0;
+ const f=fixture({extraChapter:true,saveGate:r=>++saves===1?save.promise:undefined});t.after(()=>f.dom.window.close());
+ await f.w.MediaWorkflowsUI.openProject('one');
+ const text=f.w.document.querySelector('textarea[data-chapter]');text.value='Edited original chapter';text.dispatchEvent(new f.w.Event('input',{bubbles:true}));
+ const link=[...f.w.document.querySelectorAll('.mw-chapter button')].find(b=>b.textContent==='Second chapter');assert(link);
+ const pending=link.onclick();await tick();assert.equal(saves,1);
+ await f.w.MediaWorkflowsUI.openProject('two');
+ save.resolve({ok:true,project:f.project('one')});await pending;await tick();
+ const current=f.w.document.querySelector('textarea[data-chapter]');assert(current,'New book editor must remain rendered');
+ assert.equal(current.dataset.projectId,'two');assert.equal(current.dataset.chapter,'0');
+ assert.equal(f.w.MediaWorkflowsUI.assistant.state()?.id,'two');
 });
