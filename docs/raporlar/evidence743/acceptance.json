@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "competingCaptionJobBlocked": true,
+  "invalidRangeBeforeDownload": true,
+  "noTrackOrDeferredMutation": true,
+  "requests": 3,
+  "downloads": 2,
+  "options": {
+    "target": "de",
+    "range": "5:25",
+    "forSpeech": true
+  },
+  "compact": {
+    "width": 480,
+    "scroll": 480,
+    "send": 594.6666870117188,
+    "height": 616
+  },
+  "voiceStarts": 2,
+  "chain": "probe → chosen captions → speech translation → attached track → inherited range → voice acceptance → missing-quality warning → source replacement",
+  "limits": "controlled probe/download/translation completion/read grant and dub engine; actual Electron IPC and renderer adapters; no live model/GPU/YouTube/audio quality"
+}
