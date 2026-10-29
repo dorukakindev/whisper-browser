@@ -957,6 +957,9 @@ _SOURCE_NEGATION = re.compile(
     r"\b(?:not|never|no|none|nobody|nothing|impossible|unable|neither|nor|without|hardly|cannot|can't|couldn't|didn't|doesn't|don't|hadn't|hasn't|haven't|isn't|aren't|wasn't|weren't|won't|wouldn't|shouldn't|mustn't|needn't|daren't|shan't|ain't)\b",
     re.I,
 )
+_TR_NEGATION_ROOTS = json.loads((Path(__file__).resolve().parents[1] / 'src/turkish-negation-roots.json').read_text(encoding='utf-8'))
+_TR_ROOT_PATTERN = '(?:' + '|'.join(re.escape(root) for root in sorted(_TR_NEGATION_ROOTS, key=len, reverse=True)) + ')'
+_TARGET_BARE_NEGATIVE = re.compile(r'\b' + _TR_ROOT_PATTERN + r'm[ae]\b', re.I)
 _TARGET_NEGATION = re.compile(
     # 'yok/hiçbir/kimse' çekimli biçimlerde de kanıttır (yoktu, yokmuş,
     # hiçbiri, kimsenin) — sondaymış \w*'siz bırakmak R401 canlı korpusunda
@@ -975,18 +978,14 @@ _TARGET_NEGATION = re.compile(
     r"|\b\w{2,}m[ae]y[ıiuü]?n[ıiuü]?z?\b"
     # -mAm gövde olumsuzluğu (yapamam, yüzemem, istemem, görmem) —
     # 'adam'/'kalem' gibi tek-m'li sözcükler kalıba girmez (m+[ae]+m gerekir).
-    r"|\b(?:yap|gel|git|gid|konuş|unut|bak|al|ver|kal|ol|dur|sor|oku|koş|yürü|aç|kapat|dokun|sev|iç|ye|gir|çık|söyle|bekle|ara|iste|anla|bil|gör|yaz|san|düşün|tanı|bul|et|ed)(?:y?[ae])?m[ae]m\b"
+    rf'|\b{_TR_ROOT_PATTERN}(?:y?[ae])?m[ae]m\b'
     # -mAyAbIlIr / -mEyEbIlIr ihtimal-olumsuz birleşimi (yaramayabilir).
     r"|\b\w{2,}m[ae]y?[ae]bilir\w*\b"
     # -mAyAn / -mEyEn sıfat-fiil olumsuzluğu (gelmeyen, yapmayan).
     r"|\b\w{2,}m[ae]y[ae]n\w*\b"
     # -sIz edilgenlik eki (sensiz, parasız, habersiz). 'yalnız'/'deniz' gibi
     # s-önelti taşımayan -Iz/-Uz bitişliler kalıba girmez.
-    r"|\b\w{2,}s[ıiuü]z\w*\b"
-    # Çıplak -mA olumsuz emir/istek (kıpırdama, yapma, gitme, konuşma).
-    # Mastar/isim homografisi (konuşma='konuşma dili') kabul edilir: emir
-    # biçimi altyazı diyaloğunda baskın ve kanıtsız bırakmak kesin yanlış-ret üretir.
-    r"|\b(?:yap|gel|git|konuş|unut|bak|al|ver|kal|ol|dur|sor|oku|koş|yürü|aç|kapat|dokun|sev|iç|ye|gir|çık|söyle|bekle|iste|kıpırda|ara)m[ae]\b",
+    r"|\b\w{2,}s[ıiuü]z\w*\b",
     re.I,
 )
 
@@ -1007,8 +1006,12 @@ def _target_negation(text, source=''):
         return True
     text = re.sub(r'\b\w+m[ae]m(?:[ıiuü]z|[ıiuü]n)?\b(?=\s+(?:gerek\w*|lazım\w*|zorunlu\w*))', ' ', str(text), flags=re.I)
     if re.search(r'\bbefore\b', source, re.I):
-        text = re.sub(r'\b\w+m[ae]d[ae]n\s+önce\b', ' ', text, flags=re.I)
-    return bool(_TARGET_NEGATION.search(text))
+        text = re.sub(r'\b\w+m[ae]d[ae]n(?:\s+önce)?\b', ' ', text, flags=re.I)
+    # Bare -mA is also a noun. Exclude explicit nominal constructions,
+    # retaining standalone imperatives and independent negative verbs.
+    nominal = re.sub(r'\b(?:bu|şu|o)\s+(?:bir\s+)?' + _TR_ROOT_PATTERN + r'm[ae]\b', ' ', text, flags=re.I)
+    nominal = re.sub(r'\b' + _TR_ROOT_PATTERN + r'm[ae]\b(?=\s+(?:cümle\w*|dil\w*|sonuç\w*|yap\w*|işlem\w*))', ' ', nominal, flags=re.I)
+    return bool(_TARGET_NEGATION.search(nominal) or _TARGET_BARE_NEGATIVE.search(nominal))
 
 
 _SOURCE_MODAL = re.compile(

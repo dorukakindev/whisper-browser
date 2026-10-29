@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-2353.md](docs/devir/2026-10-29-2353.md) — Dış denetim ve dublaj ölçek onarımları
 Güncel çalışma: [docs/devir/2026-10-29-2320.md](docs/devir/2026-10-29-2320.md) — Konuşma çevirisi ve sade stüdyo
 Güncel çalışma: [docs/devir/2026-10-29-2216.md](docs/devir/2026-10-29-2216.md) — Grup kayıtları ve browser oturumu
 Güncel çalışma: [docs/devir/2026-10-29-2148.md](docs/devir/2026-10-29-2148.md) — Ortak tasarım ve kaydırma çakışmaları

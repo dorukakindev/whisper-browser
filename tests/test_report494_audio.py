@@ -64,7 +64,7 @@ class Report494(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             file=Path(folder)/'cache.wav';file.write_bytes(b'valid audio owned separately')
             file.with_suffix('.json').write_text('null',encoding='utf-8')
-            scope=dict(args=SimpleNamespace(group_results=[],group_keys=['1']),paths=[file],json=json)
+            scope=dict(args=SimpleNamespace(group_results=[],group_keys=['1']),paths=[file],json=json,selected_records={})
             if hasattr(Q,'cached_record'):scope['cached_record']=Q.cached_record
             exec(inspect.cleandoc(SOURCE[start:end]),scope)
             self.assertEqual(scope['group_results'][0]['status'],'review')

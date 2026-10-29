@@ -9,7 +9,7 @@ from collections import Counter
 from pathlib import Path
 
 import numpy as np
-from dub_finish import spoken_text
+from dub_finish import spoken_text, decimal_evidence, normalize_decimal_quantities
 
 # Shared with the pre-generation JS guard; this is conservative evidence,
 # not a complete Turkish morphological or semantic analyzer.
@@ -35,6 +35,16 @@ def verification_request(path, expected):
 def speech_check(expected, actual, numeric_reference=None):
     # Retain bounded original ASR evidence before quantity/case normalization.
     recognized_text = actual[:8000]
+    decimal_context = decimal_evidence(expected if numeric_reference is None else numeric_reference)
+    if decimal_context:
+        # Canonicalize only explicit decimal speech. Integer fraction readings
+        # ('on dört') and digit readings ('bir dört') denote the same fraction.
+        from dub_finish import integer_words
+        for row in decimal_context:
+            fraction=row['number'].split('.')[1]
+            if not fraction.startswith('0'):
+                actual=re.sub(r'\b(?:virgül|nokta)\s+'+re.escape(integer_words(fraction))+r'\b', 'virgül '+' '.join(integer_words(d) for d in fraction), actual, flags=re.I)
+    expected=normalize_decimal_quantities(expected)
     case_suffix=r'(?:e|a|ye|ya|i|ı|u|ü|yi|yı|yu|yü|ın|in|un|ün|nın|nin|nun|nün|dan|den|tan|ten|da|de|ta|te|la|le|yla|yle)'
     name_cases=re.findall(r"\b((?:[A-ZÇĞİÖŞÜ]{2,}|[A-ZÇĞİÖŞÜ][a-zçğıöşü]+))['’]("+case_suffix+r')\b',expected)
     def words(text):
@@ -93,7 +103,7 @@ def speech_check(expected, actual, numeric_reference=None):
     # Match complete normalized number phrases, consuming each occurrence once.
     remaining = list(heard)
     missing_numbers = []
-    reference = expected if numeric_reference is None else numeric_reference
+    reference = expected if numeric_reference is None else normalize_decimal_quantities(numeric_reference)
     # Dates/ranges/IDs deliberately remain unexpanded in spoken_text. An exact
     # normalized transcript already proves their presence; converting isolated
     # fragments ('5-10' -> 'beş', 'on') would falsely reject the unchanged text.
@@ -203,7 +213,7 @@ def speech_check(expected, actual, numeric_reference=None):
         return False
     missing_names = [name for name in names if not name_heard(name)]
     # ASR is evidence for review, never permission to silently remove speech.
-    return {'recognizedText': recognized_text, 'similarity': round(similarity, 4), 'omission_spans': omissions, 'insertion_spans': insertions,
+    return {'decimalEvidence': decimal_context, 'recognizedText': recognized_text, 'similarity': round(similarity, 4), 'omission_spans': omissions, 'insertion_spans': insertions,
             'missing_numbers': missing_numbers, 'added_numbers': added_numbers,
             'percentage_mismatch': percentage_mismatch, 'semantic_mismatch': semantic_mismatch, 'spoken_number_mismatch': spoken_number_mismatch,
             'lost_negation': lost_negation, 'added_negation': added_negation, 'unit_mismatch': unit_mismatch,

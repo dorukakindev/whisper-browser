@@ -16,13 +16,18 @@ function normalizeName(name) {
   return String(name || '').trim().normalize('NFC').toLowerCase().replace(/i\u0307/g, 'i');
 }
 
+function basenameOf(value) {
+  const text=String(value||'');
+  return (text.includes('\\') || /^[a-z]:/i.test(text) ? path.win32 : path.posix).basename(text);
+}
+
 function stemOf(name) {
-  return normalizeName(path.basename(String(name || ''))).replace(/\.[^.]+$/, '');
+  return normalizeName(basenameOf(name)).replace(/\.[^.]+$/, '');
 }
 
 function candidateSignals(item, candidate) {
-  const oldName = normalizeName(path.basename(String(item.localPath || item.sourceRef || '')));
-  const candName = normalizeName(path.basename(String(candidate.path || '')));
+  const oldName = normalizeName(basenameOf(item.localPath || item.sourceRef));
+  const candName = normalizeName(basenameOf(candidate.path));
   const oldStem = stemOf(oldName);
   const candStem = stemOf(candName);
   const signals = { basename: false, stem: false, ext: false, size: null };
