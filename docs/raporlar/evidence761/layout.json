@@ -1,0 +1,43 @@
+{
+  "ok": true,
+  "evidence": [
+    {
+      "width": 1200,
+      "zoom": 1,
+      "overflow": false,
+      "columns": "477px 477px",
+      "players": [
+        {
+          "duration": 14.549917,
+          "ready": 4,
+          "width": 419.66668701171875
+        },
+        {
+          "duration": 14.583104,
+          "ready": 4,
+          "width": 419.66668701171875
+        }
+      ],
+      "mappingClosed": true
+    },
+    {
+      "width": 480,
+      "zoom": 1.25,
+      "overflow": false,
+      "columns": "427.733px",
+      "players": [
+        {
+          "duration": 14.549917,
+          "ready": 4,
+          "width": 382.66668701171875
+        },
+        {
+          "duration": 14.583104,
+          "ready": 4,
+          "width": 382.66668701171875
+        }
+      ],
+      "mappingClosed": true
+    }
+  ]
+}
