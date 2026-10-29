@@ -72,6 +72,7 @@
 .pdf-reader-more-tools { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .pdf-reader-tools { position: relative; font-size: 12px; }
 .pdf-reader-tools summary { cursor: pointer; padding: 9px 13px; border: 1px solid var(--border); border-radius: 999px; color: var(--text-dim); list-style: none; }
+.pdf-reader-tools summary > svg { display:none;width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none; }
 .pdf-reader-tools summary::after { content: '⌄'; margin-left: 8px; }
 .pdf-reader-tools[open] summary, .pdf-reader-tools summary:hover { background: var(--bg-2); color: var(--text); border-color: var(--border-strong); }
 .pdf-reader-tools-content {
@@ -118,8 +119,12 @@
   .pdf-reader-primary-actions .btn { padding-inline: 12px; }
   .pdf-reader-controls { gap: 10px 12px; padding: 10px 16px 14px; }
   .pdf-reader-controls .pdf-view-modes button { padding-inline: 11px; }
-  .pdf-reader-more-tools { width: 100%; }
-  .pdf-reader-more-tools .pdf-reader-tools-content { left: 0; right: auto; }
+  .pdf-reader-more-tools { width:auto;flex:0 0 auto;margin-left:auto;gap:6px; }
+  .pdf-reader-more-tools summary { width:40px;height:40px;justify-content:center;padding:8px; }
+  .pdf-reader-more-tools summary > svg { display:block; }
+  .pdf-reader-more-tools summary::after { display:none; }
+  .pdf-reader-more-tools .pdf-tool-label { position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap; }
+  .pdf-reader-more-tools .pdf-reader-tools-content { left:auto;right:0; }
   .pdf-reader-pages { padding: 20px 16px; }
   .pdf-page { grid-template-columns: minmax(0, 1fr); padding: 18px; }
   .pdf-reader-voice { padding: 14px 16px; }
@@ -129,7 +134,8 @@
   .pdf-reader-toolbar > .pdf-reader-primary-actions { order: 2; flex-basis: 100%; justify-content: flex-end; }
   .pdf-reader-primary-actions .btn-icon { margin-left: auto; }
   .pdf-reader .pdf-view-modes { width: 100%; justify-content: space-between; }
-  .pdf-reader-tools-content { position: fixed; top: 210px; left: 12px; right: 12px; width: auto; }
+  .pdf-reader-more-tools .pdf-reader-tools-content { left:12px;right:12px; }
+  .pdf-reader-tools-content { position: fixed; top: 210px; left: 12px; right: 12px; width: auto; max-height:max(0px,calc(100dvh - 226px)); }
 }
 
 .pdf-spoken-group {

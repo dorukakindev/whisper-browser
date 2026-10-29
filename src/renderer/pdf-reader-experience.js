@@ -293,6 +293,15 @@
   const readingTools=document.createElement('details');readingTools.className='pdf-reader-tools';readingTools.id='pdfReadingTools';readingTools.dataset.uiUntranslated='';
   const readingSummary=document.createElement('summary'),readingContent=document.createElement('div');readingContent.className='pdf-reader-tools-content pdf-reading-preferences';readingTools.append(readingSummary,readingContent);
   document.querySelector('.pdf-reader-more-tools').prepend(readingTools);
+  // Keep real summary text as the accessible name when narrow toolbars show icons.
+  const toolIcons={pdfReadingTools:'M4 7h9m4 0h3M4 17h3m4 0h9M13 4v6M7 14v6',pdfAssistantTools:'M5 4h14v16H5zM8 9h8M8 13h5',pdfTranslateTools:'M3 5h10M8 3v2M5 8c1 4 4 6 8 7M11 5c0 5-3 9-8 12M14 21l4-10 4 10M15 18h6'};
+  for(const [id,commands] of Object.entries(toolIcons)){
+    const summary=$(id).querySelector('summary'),label=document.createElement('span');label.className='pdf-tool-label';
+    while(summary.firstChild)label.append(summary.firstChild);
+    const icon=document.createElementNS('http://www.w3.org/2000/svg','svg'),shape=document.createElementNS('http://www.w3.org/2000/svg','path');
+    icon.setAttribute('viewBox','0 0 24 24');icon.setAttribute('aria-hidden','true');shape.setAttribute('d',commands);icon.append(shape);summary.append(icon,label);
+  }
+
   const readingChoices=[['font', 'Yazı boyutu', 'Text size', [18,21,24,28],21,'--pdf-reader-font','px'],['width','Satır genişliği','Line width',[680,850,1000],850,'--pdf-reader-width','px'],['spacing','Satır aralığı','Line spacing',[1.65,1.85,2.1],1.85,'--pdf-reader-leading','']];
   let readingPrefs={};try{readingPrefs=JSON.parse(localStorage.getItem('pdf-reading-preferences-v1')||'{}')||{};}catch{}
   if(typeof readingPrefs!=='object'||Array.isArray(readingPrefs))readingPrefs={};
@@ -304,10 +313,18 @@
     select.addEventListener('change',()=>{const selected=Number(select.value);if(!values.includes(selected))return;readingPrefs[key]=selected;$('pdfReader').style.setProperty(property,selected+unit);try{localStorage.setItem('pdf-reading-preferences-v1',JSON.stringify(readingPrefs));}catch{}});readingContent.append(label);
   }
   const readingHint=document.createElement('small');readingContent.append(readingHint);
-  const localizeReading=()=>{readingSummary.textContent=t('Okuma ayarları','Reading settings');readingLabels.forEach(([label,tr,en])=>label.textContent=t(tr,en));readingHint.textContent=t('Yalnız Okuma görünümündeki metni değiştirir. Orijinal PDF ve seslendirme korunur.','Applies to Reading view only. Original PDF and narration are unchanged.');};localizeReading();document.addEventListener('ui-locale-change',localizeReading);
+  const localizeReading=()=>{readingSummary.querySelector('.pdf-tool-label').textContent=t('Okuma ayarları','Reading settings');for(const id of Object.keys(toolIcons)){const summary=$(id).querySelector('summary');summary.title=summary.textContent.trim();}readingLabels.forEach(([label,tr,en])=>label.textContent=t(tr,en));readingHint.textContent=t('Yalnız Okuma görünümündeki metni değiştirir. Orijinal PDF ve seslendirme korunur.','Applies to Reading view only. Original PDF and narration are unchanged.');};localizeReading();document.addEventListener('ui-locale-change',localizeReading);
+  function fitToolMenus() {
+    for(const details of document.querySelectorAll('.pdf-reader-tools[open]')){
+      const content=details.querySelector('.pdf-reader-tools-content');
+      if(content)content.style.maxHeight=Math.min(540,innerHeight*.65,Math.max(0,innerHeight-content.getBoundingClientRect().top-16))+'px';
+    }
+  }
+  window.addEventListener('resize',fitToolMenus);
+  document.addEventListener('ui-locale-change',fitToolMenus);
   for (const details of document.querySelectorAll('.pdf-reader-tools')) {
     details.addEventListener('toggle', () => {
-      if (details.open) for (const other of document.querySelectorAll('.pdf-reader-tools')) if (other !== details) other.open = false;
+      if (details.open) { for (const other of document.querySelectorAll('.pdf-reader-tools')) if (other !== details) other.open = false; fitToolMenus(); }
     });
   }
   document.addEventListener('pointerdown', event => {
