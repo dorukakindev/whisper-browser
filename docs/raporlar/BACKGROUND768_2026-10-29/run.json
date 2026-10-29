@@ -1,0 +1,24 @@
+[
+  {
+    "case": "voice-heavy",
+    "exit_code": 0,
+    "seconds": 12.234,
+    "stages": [
+      "DUB_BACKGROUND extract",
+      "DUB_BACKGROUND separate",
+      "DUB_BACKGROUND separate_gpu",
+      "DUB_BACKGROUND ready"
+    ]
+  },
+  {
+    "case": "music-heavy",
+    "exit_code": 0,
+    "seconds": 5.672,
+    "stages": [
+      "DUB_BACKGROUND extract",
+      "DUB_BACKGROUND separate",
+      "DUB_BACKGROUND separate_gpu",
+      "DUB_BACKGROUND ready"
+    ]
+  }
+]
