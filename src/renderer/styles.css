@@ -4493,7 +4493,7 @@ html[data-theme="light"] .browser-adblock-quick:not(:disabled):hover {
 .pdf-reader-toolbar strong { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pdf-reader-toolbar span { color: var(--text-muted); font-size: 10px; }
 .pdf-reader-progress { display: inline-block; margin-left: 8px; color: var(--player-amber) !important; font-variant-numeric: tabular-nums; }
-.pdf-reader-progress.is-complete { color: #9ed0ad !important; }
+.pdf-reader-progress.is-complete { color: var(--success) !important; }
 .pdf-reader-toolbar label { display: flex; align-items: center; gap: 5px; color: #aeb5be; font-size: 11px; }
 .pdf-reader-toolbar input { width: 68px; height: 30px; }
 .pdf-reader-toolbar select { width: auto; min-width: 92px; height: 30px; }

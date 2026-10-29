@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "liveProvider": true,
+  "standardTier": true,
+  "requests": 2,
+  "translated": {
+    "blocks": [
+      {
+        "p": "1",
+        "status": "translated",
+        "t": "Merhaba dünya. Bu bir test. Burada üçüncü cümle."
+      },
+      {
+        "p": "2",
+        "status": "translated",
+        "t": "İkinci sayfa başlıyor. Metin devam ediyor. Fikstürün sonu."
+      }
+    ],
+    "done": 2,
+    "failed": 0
+  },
+  "exported": true,
+  "selectedPages": [
+    "2"
+  ],
+  "previewText": "İkinci sayfa başlıyor. Metin devam ediyor. Fikstürün sonu.",
+  "projectText": "İkinci sayfa başlıyor. Metin devam ediyor. Fikstürün sonu.",
+  "previewCreatedNoProject": true,
+  "realGeneration": false
+}
