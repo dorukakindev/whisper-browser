@@ -38,5 +38,13 @@ class TakeTests(unittest.TestCase):
         self.assertEqual(result,[{'file':'','takeUnavailable':True}])
         self.assertEqual(warnings,['DUB_WARNING take_snapshot_unavailable'])
         self.assertEqual(takes.capture([Path('failed.wav')],Path('takes'),lambda _:False),result)
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);source=root/'live.wav';source.write_bytes(b'keep this source')
+            with patch.object(takes.os,'link',side_effect=PermissionError('synthetic install refusal')):
+                failed=takes.capture([source],root/'takes',lambda _:True,warnings.append)
+            self.assertEqual(failed,result)
+            self.assertEqual(source.read_bytes(),b'keep this source')
+            self.assertFalse(list((root/'takes').iterdir()))
+
 
 if __name__=='__main__':unittest.main()
