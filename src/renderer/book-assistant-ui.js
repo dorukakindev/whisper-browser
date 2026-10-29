@@ -47,18 +47,20 @@
     };
   }
   function mount(parent, { getSource, isCurrent, t, isBusy = () => false, onNarrate, onPrepare, compact = false }) {
+    const uiLabel = (en, tr) => window.BookWorkflowLabels?.label(en, tr) ?? t(en, tr);
     const el = (tag, text, cls) => {
       const n = document.createElement(tag);
-      if (text !== undefined) n.textContent = text;
+      if (text?.workflowLabel === true) window.BookWorkflowLabels.append(n, text);
+      else if (text !== undefined) n.textContent = text;
       if (cls) n.className = cls;
       return n;
     };
     const root = el(compact ? "details" : "section", undefined, "book-assistant-actions" + (compact ? " book-assistant-compact" : "")),
       label = el("p", "", "book-assistant-source"),
       actions = el("div", undefined, "book-assistant-buttons"),
-      explain = el("button", t("Explain selection", "Seçili pasajı açıkla")),
+      explain = el("button", uiLabel("Explain selection", "Seçili pasajı açıkla")),
       summary = el("button"),
-      open = el("button", t("Open assistant", "Asistanı aç")),
+      open = el("button", uiLabel("Open assistant", "Asistanı aç")),
       note = el("p", "", "book-assistant-note");
     note.setAttribute("role", "status");
     for (const b of [explain, summary, open]) {
@@ -68,7 +70,7 @@
     actions.append(explain, summary, open);
     const outside = event => { if (compact && !root.contains(event.target)) root.open = false; };
     if (compact) {
-      const toggle = el('summary', t('Assistant', 'Asistan'), 'mh-action'), panel = el('div', undefined, 'book-assistant-panel');
+      const toggle = el('summary', uiLabel('Assistant', 'Asistan'), 'mh-action'), panel = el('div', undefined, 'book-assistant-panel');
       panel.append(label, actions, note); root.append(toggle, panel);
       root.addEventListener('keydown', event => {
         if (event.key === 'Escape' && root.open) { root.open = false; toggle.focus(); event.preventDefault(); event.stopPropagation(); }

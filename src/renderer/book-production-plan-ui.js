@@ -7,20 +7,22 @@
     return item?.text === text ? { ...item.preview } : undefined;
   }
   function mount(parent, { id, chapter, input, call, t, isCurrent, isBusy }) {
+    const uiLabel = (en, tr) => window.BookWorkflowLabels?.label(en, tr) ?? t(en, tr);
     const el = (tag, text, cls) => {
       const n = document.createElement(tag);
-      if (text !== undefined) n.textContent = text;
+      if (text?.workflowLabel === true) window.BookWorkflowLabels.append(n, text);
+      else if (text !== undefined) n.textContent = text;
       if (cls) n.className = cls;
       return n;
     };
     const root = el("details", undefined, "mw-production-plan"),
       summary = el(
         "summary",
-        t("Preview speech groups", "Konuşma gruplarını önizle"),
+        uiLabel("Preview speech groups", "Konuşma gruplarını önizle"),
       ),
       intro = el(
         "p",
-        t(
+        uiLabel(
           "See how the current draft will be grouped, without generating audio or saving the draft. Matching text is not proof of a cache hit; voice settings and verification also matter.",
           "Taslağı kaydetmeden ve ses üretmeden güncel metnin nasıl gruplandığını gör. Aynı metin önbellek isabeti kanıtı değildir; ses ayarları ve doğrulama da etkilidir.",
         ),
@@ -28,7 +30,7 @@
       ),
       button = el(
         "button",
-        t("Build current plan", "Güncel planı hazırla"),
+        uiLabel("Build current plan", "Güncel planı hazırla"),
         "mh-action",
       ),
       status = el("p", "", "mw-muted"),

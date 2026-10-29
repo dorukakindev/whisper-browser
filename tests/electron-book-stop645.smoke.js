@@ -35,16 +35,22 @@ app.whenReady().then(async()=>{
   const book=await run(`return api.mediaWorkflows({action:'book-open',id:${JSON.stringify(state.id)}})`);assert.equal(book.project.chapters[0].activeJob??null,null,'No unstarted running marker remains');
   if(phase==='book-prepare'){
    assert.equal(unprepared,1);
+   const draftBeforeLocale=await run(`return document.querySelector('textarea[data-chapter]').value`);
    for(const [name,width,locale,theme] of [['book-actions-en-dark',1280,'en','dark'],['book-actions-tr-light-narrow',700,'tr','light']]){
     win.setMinimumSize(360,500);win.setContentSize(width,900);win.webContents.setZoomFactor(width===700?1.25:1);
-    await run(`UiLocale.set(${JSON.stringify(locale)},false);applyUiTheme(${JSON.stringify(theme)});await MediaWorkflowsUI.openProject(${JSON.stringify(state.id)});document.querySelector('.mw-transport-secondary').open=true;document.querySelector('.mw-transport').scrollIntoView({block:'end',behavior:'instant'});return true`);
+    await run(`UiLocale.set(${JSON.stringify(locale)},false);applyUiTheme(${JSON.stringify(theme)});document.querySelector('.mw-transport-secondary').open=true;document.querySelector('.mw-transport').scrollIntoView({block:'end',behavior:'instant'});return true`);
     await wait(350);
+    assert.equal(await run(`return document.querySelector('.mw-transport button').textContent`),locale==='tr'?'Metni kaydet':'Save text');
+    assert.equal(await run(`return document.querySelector('textarea[data-chapter]').value`),draftBeforeLocale,'Locale cannot translate or replace the manuscript');
+    assert.equal(await run(`return document.querySelector('.mw-status').textContent`),locale==='tr'?'Durduruldu.':'Stopped.');
+    assert.equal(await run(`return document.querySelector('.mw-production-plan>summary').textContent`),locale==='tr'?'Konuşma gruplarını önizle':'Preview speech groups');
+    assert.equal(await run(`return document.querySelector('.mw-voice-takes>summary').textContent`),locale==='tr'?'Ses denemelerini karşılaştır':'Compare voice takes');
     const layout=await run(`const editor=document.querySelector('textarea[data-chapter]'),bar=document.querySelector('.mw-transport'),d=document.getElementById('mediaWorkflowsDialog');return {overlaps:editor.getBoundingClientRect().bottom>bar.getBoundingClientRect().top,overflow:d.scrollWidth>d.clientWidth+1,stopDisabled:bar.querySelector('[data-book-stop]').disabled,secondary:!!bar.querySelector('.mw-transport-secondary'),width:innerWidth};`);
     if(width===700)assert(layout.width<=560,JSON.stringify(layout));
     assert.equal(layout.overlaps,false);assert.equal(layout.overflow,false);assert(layout.stopDisabled&&layout.secondary);
     fs.writeFileSync(path.join(out,name+'.png'),(await win.webContents.capturePage()).toPNG());
    }
-   win.setContentSize(1280,900);win.webContents.setZoomFactor(1);await run(`UiLocale.set('en',false);applyUiTheme('dark');await MediaWorkflowsUI.openProject(${JSON.stringify(state.id)});return true`);
+   win.setContentSize(1280,900);win.webContents.setZoomFactor(1);await run(`UiLocale.set('en',false);applyUiTheme('dark');return true`);
   }
  }
  // A controlled persisted project checks the full 1,000-chapter UI boundary,
@@ -65,6 +71,8 @@ app.whenReady().then(async()=>{
  const listen=await run(`return AssistantAppActions.execute('book_chapter',{chapter:1000,operation:'listen'},AssistantAppActions.snapshot())`);assert.equal(listen.status,'completed');
  await until(()=>run(`return document.querySelector('#mediaWorkflowsDialog .mw-body > audio')?.readyState>=1`),'actual local WAV metadata');
  assert(await run(`const a=document.querySelector('#mediaWorkflowsDialog .mw-body > audio');a.muted=true;a.currentTime=.5;a.dispatchEvent(new Event('timeupdate'));a.pause();return a.duration===10&&!!document.querySelector('.mw-spoken[aria-current="true"]')`),'Silent local WAV loads and its actual group can be highlighted');
+ const preserved=await run(`const audio=document.querySelector('#mediaWorkflowsDialog .mw-body > audio'),position=audio.currentTime,body=document.querySelector('.mw-body');UiLocale.set('tr',false);const same=audio===document.querySelector('#mediaWorkflowsDialog .mw-body > audio')&&body===document.querySelector('.mw-body')&&audio.currentTime===position;UiLocale.set('en',false);return same`);
+ assert(preserved,'Live label translation must not rebuild the listening body or reset audio position');
  const regenerated=await run(`return AssistantAppActions.execute('book_chapter',{chapter:1000,operation:'regenerate'},AssistantAppActions.snapshot())`);assert.equal(regenerated.status,'accepted');assert.equal(regenerated.jobId,lastVoiceRequest.id);assert.equal(lastVoiceRequest.forceAll,true);
  await until(()=>run(`return !MediaWorkflowsUI.assistant.state()?.busy`),'controlled regeneration');assert.equal(dubStarts,2);assert.equal(planRequests,1);
  console.log(JSON.stringify({ok:true,out,phases:3,cancelledPhaseStarts:0,dubStarts,unprepared,largeUi,lastChapter:1000,selected:[998,999,1000],assistant:['select','start accepted','listen/highlight','regenerate accepted'],realModel:false}));app.exit(0);
