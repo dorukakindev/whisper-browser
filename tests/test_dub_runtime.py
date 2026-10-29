@@ -55,4 +55,28 @@ class RuntimeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             with p.measure('synthesis'):raise ValueError('failed')
         result=p.snapshot();self.assertEqual(result['synthesis_seconds'],3);self.assertEqual(result['wall_seconds'],6);self.assertNotIn('verification_seconds',result)
+    def test_transcript_change_replaces_prompt_without_encoding_the_same_voice_again(self):
+        class Server:
+            def __init__(self): self.encodes=[]; self.adds=[]; self.removes=[]
+            async def encode_latents(self, wav, fmt):
+                self.encodes.append(wav); return object()
+            async def add_prompt(self, wav, fmt, text):
+                self.adds.append(text); return 'prompt-'+str(len(self.adds))
+            async def remove_prompt(self, pid): self.removes.append(pid)
+            async def stop(self): pass
+        session=EngineSession(); session.server=server=Server()
+        args=SimpleNamespace(ready_timeout=1)
+        async def cases():
+            lat, pid=await session.prepare_reference(args,b'voice-a','first transcript')
+            next_lat, next_pid=await session.prepare_reference(args,b'voice-a','corrected transcript')
+            self.assertIs(next_lat,lat); self.assertNotEqual(next_pid,pid)
+            self.assertEqual(server.encodes,[b'voice-a']); self.assertEqual(server.removes,[pid])
+            isolated_lat, isolated_pid=await session.prepare_reference(args,b'voice-a',None)
+            self.assertIs(isolated_lat,lat); self.assertIsNone(isolated_pid)
+            self.assertEqual(server.removes,[pid,next_pid]); self.assertEqual(len(server.encodes),1)
+            changed_lat,_=await session.prepare_reference(args,b'voice-b',None)
+            self.assertIsNot(changed_lat,lat); self.assertEqual(server.encodes,[b'voice-a',b'voice-b'])
+            await session.reset(); self.assertIsNone(session.reference)
+        try: session.run(cases())
+        finally: session.close()
 if __name__=='__main__':unittest.main()

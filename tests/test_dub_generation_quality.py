@@ -194,6 +194,67 @@ class GenerationTests(unittest.TestCase):
             self.assertEqual(replacement.calls,['Broken.'])
             self.assertTrue(all(valid_audio(p,sf) for p in paths))
 
+    def test_acoustic_retry_stall_keeps_the_first_audible_candidate_for_review(self):
+        from dub_lifecycle import EngineStalled
+        for failure in (EngineStalled('controlled acoustic retry stall'), RuntimeError('CUDA out of memory')):
+            # Every restarted attempt also has a usable first take. The engine
+            # then fails on its optional acoustic retry, before normal cache commit.
+            class AlternateStall(Server):
+                def __init__(self): super().__init__(); self.attempts = 0
+                async def generate(self, text, **kwargs):
+                    self.attempts += 1
+                    if self.attempts % 2 == 0: raise failure
+                    yield np.ones(16000, dtype='float32') * .1
+            with self.subTest(failure=type(failure).__name__), tempfile.TemporaryDirectory() as temp:
+                folder = Path(temp)
+                _, args, paths = self.run_generation(folder, AlternateStall(), ['Good.'],
+                    fallback=True, assessor=lambda *_: (1, {}))
+                self.assertTrue(valid_audio(paths[0], sf))
+                self.assertEqual(sf.info(paths[0]).frames, 16000)
+                record = json.loads(paths[0].with_suffix('.json').read_text(encoding='utf-8'))
+                self.assertEqual(record['status'], 'review')
+                self.assertNotEqual(record['verification']['status'], 'passed')
+                self.assertEqual(record['text'], 'Good.')
+                self.assertEqual(record['recoveryReason'], 'acoustic_retry_interrupted')
+                self.assertIn('1', args.force_groups)
+                self.assertFalse(list(folder.glob('*.tmp.wav')))
+
+    def test_cancelled_acoustic_retry_retains_review_audio_without_completing_job(self):
+        class CancelRetry(Server):
+            async def generate(self, text, **kwargs):
+                if kwargs['seed'] != 42: raise asyncio.CancelledError()
+                yield np.ones(16000, dtype='float32') * .1
+        with tempfile.TemporaryDirectory() as temp:
+            folder=Path(temp)
+            with self.assertRaises(asyncio.CancelledError):
+                self.run_generation(folder, CancelRetry(), ['Good.'], assessor=lambda *_: (1, {}))
+            self.assertTrue(valid_audio(folder/'0.wav', sf))
+            record=json.loads((folder/'0.json').read_text(encoding='utf-8'))
+            self.assertEqual(record['status'], 'review')
+            self.assertEqual(record['recoveryReason'], 'acoustic_retry_interrupted')
+            self.assertFalse(list(folder.glob('*.tmp.wav')))
+
+    def test_decimal_verification_stays_ready_when_reopening_generated_cache(self):
+        from dub_quality import cached_record, speech_check
+        class DecimalVerifier(Verifier):
+            async def check(self, path, text, numeric_reference=None):
+                result = speech_check(text, 'Uzunluk üç virgül on dört metre.', numeric_reference)
+                return {'status': 'review' if result['review'] else 'passed', **result}
+        with tempfile.TemporaryDirectory() as temp:
+            _, args, paths = self.run_generation(Path(temp), Server(), ['Uzunluk 3.14 metre.'],
+                verification='detailed', verifier=DecimalVerifier, timing_mode='video')
+            self.assertEqual(args.group_results[0]['status'], 'ready')
+            self.assertEqual(cached_record(paths[0])['status'], 'ready')
+            self.assertEqual(cached_record(paths[0])['numericReference'], 'Uzunluk 3.14 metre.')
+            # The retained numeric context must still reject a changed quantity.
+            record = json.loads(paths[0].with_suffix('.json').read_text(encoding='utf-8'))
+            del record['numericReference']  # Older cache: retain proven decimal evidence.
+            paths[0].with_suffix('.json').write_text(json.dumps(record), encoding='utf-8')
+            self.assertEqual(cached_record(paths[0])['status'], 'ready')
+            record['verification']['recognizedText'] = 'Uzunluk üç virgül on beş metre.'
+            paths[0].with_suffix('.json').write_text(json.dumps(record), encoding='utf-8')
+            self.assertEqual(cached_record(paths[0])['status'], 'review')
+
     def test_retry_passes_all_gates_instead_of_chasing_token_similarity(self):
         for status, review, similarity, expected, extra in [
                 ('passed',False,.90,'passed',{}),

@@ -1,0 +1,52 @@
+{
+  "status": "produced_needs_listening",
+  "wall_seconds": 60.906,
+  "wav_seconds": 30.0,
+  "sample_rate": 48000,
+  "frames": 1440000,
+  "group_count": 2,
+  "verification": [
+    "passed",
+    "passed"
+  ],
+  "phases": {
+    "model_load_seconds": 24.547,
+    "reference_seconds": 5.593,
+    "synthesis_seconds": 22.828,
+    "verification_seconds": 7.719,
+    "placement_seconds": 0.0,
+    "normalization_seconds": 0.5,
+    "file_write_seconds": 0.032,
+    "wall_seconds": 50.266
+  },
+  "final_waveform": {
+    "seconds": 5.656,
+    "verification": {
+      "status": "passed",
+      "decimalEvidence": [],
+      "recognizedText": "Bugün 12 kişi kütüphanede buluştu. Bu bir yarış değil. Kimseyi geride bırakmak istemiyoruz. Peki, yarın ne yapacağız? Önce kitabın son bölümünü okuyacağız, ardından düşüncelerimizi sakin bir seste paylaşacağız.",
+      "similarity": 0.9655,
+      "omission_spans": [],
+      "insertion_spans": [],
+      "missing_numbers": [],
+      "added_numbers": [],
+      "percentage_mismatch": false,
+      "semantic_mismatch": false,
+      "spoken_number_mismatch": false,
+      "lost_negation": false,
+      "added_negation": false,
+      "unit_mismatch": false,
+      "repetition": false,
+      "sign_mismatch": false,
+      "missing_names": [],
+      "review": false
+    },
+    "frames": 1440000,
+    "sample_rate": 48000,
+    "finite": true,
+    "peak": 0.716583251953125,
+    "clipped_fraction": 0.0,
+    "passed": true
+  },
+  "integrity_evidence_passed": true
+}
