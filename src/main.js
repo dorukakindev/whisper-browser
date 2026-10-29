@@ -1064,7 +1064,7 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe', jobTag = '') {
     // invidious:cancel yalnız kendi indirmesini öldürür (K1).
     proc.jobTag = jobTag || kind;
     mediaJobs[kind] = proc;
-    let mediaAssistantCancelled=false;
+    let mediaAssistantCancelled=false,mediaTimedOut=false;
     const mediaAssistantJobId=['probe','subs'].includes(kind)?assistantJobs.start({kind:kind==='probe'?'caption-probe':'caption-download',cancel:async()=>{
       if(mediaJobs[kind]!==proc)return {ok:false};
       mediaAssistantCancelled=true;
@@ -1082,7 +1082,7 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe', jobTag = '') {
     const finish = (value) => {
       if (settled) return;
       settled = true;
-      if(mediaAssistantJobId)assistantJobs.update(mediaAssistantJobId,{type:value.ok?'done':mediaAssistantCancelled?'cancelled':'error'});
+      if(mediaAssistantJobId)assistantJobs.update(mediaAssistantJobId,{type:value.ok?'done':mediaTimedOut?'error':mediaAssistantCancelled?'cancelled':'error',code:value.code});
       if (timeoutTimer) clearTimeout(timeoutTimer);
       resolve(value);
     };
@@ -1110,6 +1110,14 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe', jobTag = '') {
     proc.stderr.on('data', (c) => { stderrTail = `${stderrTail}${c}`.slice(-500); });
     timeoutTimer = setTimeout(() => {
       if (mediaJobs[kind] !== proc || settled) return;
+      if (mediaAssistantJobId) {
+        if (mediaAssistantCancelled) return;
+        mediaTimedOut=true;
+        // Stop the exact helper, but keep its ledger/slot alive until close.
+        // A failed native stop stays retryable through the existing Jobs UI.
+        void assistantJobs.cancel(mediaAssistantJobId).catch(() => {});
+        return;
+      }
       terminateProcessTree(proc, { spawn });
       finish({ ok: false, error: 'Medya ' + kind + ' işlemi zaman sınırını aştı ve durduruldu.' });
     }, timeoutMs);
@@ -1118,7 +1126,8 @@ function runMediaCommand(cmdArgs, onEvent, kind = 'probe', jobTag = '') {
       if (mediaJobs[kind] === proc) mediaJobs[kind] = null;   // baskasinin isini silme
       if (settled) return;
       for (const line of stdoutLines.flush()) handleLine(line);
-      if (mediaAssistantCancelled) {finish({ok:false,cancelled:true,error:'İptal edildi.'});return;}
+      if (mediaTimedOut) {finish({ok:false,code:'timeout',error:dt('Medya yardımcı işlemi zaman aşımına uğradı; süreç kapandı.','The media helper timed out; its process has closed.')});return;}
+      if (mediaAssistantCancelled) {finish({ok:false,cancelled:true,error:dt('İptal edildi.','Cancelled.')});return;}
       if (result && (kind !== 'subs' || code === 0 && !errText)) finish({ ok: true, data: result });
       else {
         if (!errText && stderrTail) {
