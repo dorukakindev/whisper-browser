@@ -1,0 +1,50 @@
+[
+  {
+    "name": "tr-active",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "Grup 1 · Ses · deneme 2 · 35 / 120 snGrup 2 · Metin denetimi · deneme 2 · 35 / 120 snGrup 3 · Ses · deneme 2 · 35 / 120 snGrup 4 · Metin denetimi · deneme 2 · 35 / 120 snGrup 5 · Ses · deneme 2 · 35 / 120 snGrup 6 · Metin denetimi · deneme 2 · 35 / 120 snGrup 7 · Ses · deneme 2 · 35 / 120 snGrup 8 · Metin denetimi · deneme 2 · 35 / 120 sn",
+    "summary": "0 hazır0 inceleme0 üretilemedi"
+  },
+  {
+    "name": "tr-results",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "1 hazır1 inceleme1 üretilemedi"
+  },
+  {
+    "name": "tr-evidence",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "1 hazır1 inceleme1 üretilemedi"
+  },
+  {
+    "name": "en-active",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "Group 1 · Speech · attempt 2 · 35 / 120 sGroup 2 · Text check · attempt 2 · 35 / 120 sGroup 3 · Speech · attempt 2 · 35 / 120 sGroup 4 · Text check · attempt 2 · 35 / 120 sGroup 5 · Speech · attempt 2 · 35 / 120 sGroup 6 · Text check · attempt 2 · 35 / 120 sGroup 7 · Speech · attempt 2 · 35 / 120 sGroup 8 · Text check · attempt 2 · 35 / 120 s",
+    "summary": "0 ready0 to review0 failed"
+  },
+  {
+    "name": "en-results",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "1 ready1 to review1 failed"
+  },
+  {
+    "name": "en-evidence",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "1 ready1 to review1 failed"
+  }
+]

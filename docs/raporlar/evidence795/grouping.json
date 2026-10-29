@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "sourceSha256": "e651930bfe91d3776d3330e71f1a2c71d39330257abd0d88a4cb1c5b6d351ec6",
+  "sameText": true,
+  "settings": {
+    "steps": 15,
+    "cfg": 1.65,
+    "temperature": 0.8,
+    "timing": "video",
+    "maxSpeed": 1
+  },
+  "naturalnessWinner": null,
+  "limits": "Different grouping changes request count, group seeds and verification workload. Cold/warm times are reported, not ranked. ASR is not a naturalness score.",
+  "samples": [
+    {
+      "sample": "A",
+      "grouping": "satir",
+      "exit": 0,
+      "productionSeconds": 61.609,
+      "phases": {
+        "model_load_seconds": 13.25,
+        "reference_seconds": 2.75,
+        "synthesis_seconds": 52.671,
+        "verification_seconds": 26.83,
+        "placement_seconds": 0.0,
+        "normalization_seconds": 0.688,
+        "file_write_seconds": 0.031,
+        "wall_seconds": 61.594
+      },
+      "groups": [
+        {
+          "key": "1",
+          "status": "ready"
+        },
+        {
+          "key": "2",
+          "status": "ready"
+        },
+        {
+          "key": "3",
+          "status": "ready"
+        },
+        {
+          "key": "4",
+          "status": "ready"
+        },
+        {
+          "key": "5",
+          "status": "ready"
+        },
+        {
+          "key": "6",
+          "status": "review"
+        },
+        {
+          "key": "7",
+          "status": "ready"
+        },
+        {
+          "key": "8",
+          "status": "ready"
+        },
+        {
+          "key": "9",
+          "status": "ready"
+        },
+        {
+          "key": "10",
+          "status": "ready"
+        }
+      ],
+      "wavSha256": "dadd45651b1a27f4c3822b44144bc97aecce0ee3b730f4af15954db4a355bf4b",
+      "final": {
+        "seconds": 8.203,
+        "frames": 2070019,
+        "sample_rate": 48000,
+        "finite": true,
+        "peak": 0.684051513671875,
+        "clipped_fraction": 0.0,
+        "passed": false,
+        "verification": {
+          "status": "review",
+          "similarity": 0.9431,
+          "review": true,
+          "repetition": true,
+          "lost_negation": false,
+          "added_negation": false,
+          "sign_mismatch": false,
+          "spoken_number_mismatch": false
+        }
+      },
+      "integrityPassed": false
+    },
+    {
+      "sample": "B",
+      "grouping": "akici",
+      "exit": 0,
+      "productionSeconds": 44.204,
+      "phases": {
+        "model_load_seconds": 0,
+        "reference_seconds": 0,
+        "synthesis_seconds": 52.923,
+        "verification_seconds": 13.203,
+        "placement_seconds": 0.016,
+        "normalization_seconds": 0.578,
+        "file_write_seconds": 0.047,
+        "wall_seconds": 44.204
+      },
+      "groups": [
+        {
+          "key": "1",
+          "status": "ready"
+        },
+        {
+          "key": "2,3,4",
+          "status": "ready"
+        },
+        {
+          "key": "5",
+          "status": "ready"
+        },
+        {
+          "key": "6,7",
+          "status": "ready"
+        },
+        {
+          "key": "8,9,10",
+          "status": "ready"
+        }
+      ],
+      "wavSha256": "08f6d2901ab6e2546c2c5d5c312c0873723166619b831439e7ac7faca735411c",
+      "final": {
+        "seconds": 6.969,
+        "frames": 1998921,
+        "sample_rate": 48000,
+        "finite": true,
+        "peak": 0.725341796875,
+        "clipped_fraction": 0.0,
+        "passed": true,
+        "verification": {
+          "status": "passed",
+          "similarity": 1.0,
+          "review": false,
+          "repetition": false,
+          "lost_negation": false,
+          "added_negation": false,
+          "sign_mismatch": false,
+          "spoken_number_mismatch": false
+        }
+      },
+      "integrityPassed": true
+    }
+  ]
+}
