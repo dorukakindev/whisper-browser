@@ -50,3 +50,16 @@
 .book-assistant-panel .book-assistant-buttons { display:grid;gap:8px; }
 .book-assistant-panel button { text-align:left; }
 .book-assistant-compact>summary:focus-visible { outline:2px solid var(--accent);outline-offset:3px; }
+/* Raw take comparisons share the dubbing workbench's hierarchy and controls. */
+.dub-group-takes{margin-block:14px;border-top:1px solid var(--border);padding-top:10px}
+.dub-take-content{padding-top:10px;display:grid;gap:10px;min-width:0}
+.dub-group-takes .dub-take-hint{margin:0;color:var(--text-muted);line-height:1.6;font-size:12px;max-width:70ch}
+.dub-group-takes label{font-size:12px;color:var(--text-muted)}
+.dub-take-picker{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+.dub-take-picker select{width:100%;min-width:0;min-height:40px}
+.dub-group-takes .btn{min-height:40px;white-space:normal}
+#dubTakeText{margin:0;font-size:13px;line-height:1.7;max-height:7em;overflow:auto;overflow-wrap:anywhere}
+#dubTakePreview{width:100%;height:40px}
+.dub-take-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+#dubTakeStatus{font-size:12px;line-height:1.5;color:var(--text-muted);flex:1;min-width:120px}
+@media(max-width:600px){.dub-take-picker{grid-template-columns:minmax(0,1fr)}.dub-take-picker .btn{justify-self:start}}

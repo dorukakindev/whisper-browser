@@ -42,6 +42,7 @@ contextBridge.exposeInMainWorld('api', {
   cancelDubWorkspace: () => ipcRenderer.invoke('dub:workspaceCancel'),
   dubWorkspaceAsset: file => ipcRenderer.invoke('dub:workspaceAsset', file),
   latestDub: id => ipcRenderer.invoke('dub:latest', id),
+  dubGroupTakes: request => ipcRenderer.invoke('dub:groupTakes', request),
   choosePlaybackAudio: () => ipcRenderer.invoke('dub:choosePlaybackAudio'),
   restorePlaybackAudio: id => ipcRenderer.invoke('dub:restorePlaybackAudio', id),
   planDub: (request) => ipcRenderer.invoke('dub:plan', request),

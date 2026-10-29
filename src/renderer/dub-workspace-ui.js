@@ -43,14 +43,14 @@
     }
     if(!rows.length)el('dubTimelineInfo').textContent=t('Bu eski çıktıda cümle zamanları yok. Yeni üretimde zaman çizelgesi oluşur.');
   }
-  function setOutput(value,expected){
+  function setOutput(value,expected,selectedKey){
     stop();output=value;selected=null;context=expected||window.BrowserDubAudioUI?.context();layers=value?.layers||{};mix=Model.mix(value?.mix);showMix();
     try{rows=Model.groups(value?.quality?.groups||value?.rows||[]);}catch(_){rows=[];}
     if(value?.url)voice.src=value.url;else voice.removeAttribute('src');voice.load();
     lastPath='';el('dubWorkspaceReveal').classList.add('hidden');
     for(const [key,a] of Object.entries(layerAudio)){const f=key==='background'?value?.background:layers[key];if(f?.url)a.src=f.url;else a.removeAttribute('src');a.load();}
     el('dubProjectVideoOpen').classList.toggle('hidden',!value?.video);el('dubProjectVideo').checked=!!value?.video;
-    layerNames();timeline();buttons();if(rows.length)choose(rows[0]);
+    layerNames();timeline();buttons();if(rows.length)choose(rows.find(row=>row.key===selectedKey)||rows[0]);
   }
   function layerNames(){el('dubLayerNames').textContent=Object.entries(layers).filter(([,v])=>v).map(([k,v])=>`${t(k==='music'?'Müzik':'Ortam')}: ${v.name||''}`).join(' · ');}
   function attachment(value){return {mix:readMix(),layers,rows:value?.quality?.groups||value?.rows||[]};}

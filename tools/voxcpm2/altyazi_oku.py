@@ -671,6 +671,7 @@ def parse_args(argv=None):
     p.add_argument('--editor-identity', default='')
     p.add_argument('--force-groups', default='')
     p.add_argument('--force-groups-file', type=Path)
+    p.add_argument('--take-selections-file', type=Path)
     p.add_argument('--force-all', action='store_true')
     p.add_argument("--output", type=Path)
     p.add_argument("--no-norm", action="store_true")
@@ -821,6 +822,10 @@ def main(argv=None, runtime=None):
     for p in paths:
         if p.exists() and not (valid_audio(p, sf) and matches_recorded_duration(p, sf)):
             p.unlink()
+    cache_keys = [file.stem for file in paths]
+    from dub_take_selection import selected_paths
+    paths, selected_records = selected_paths(args.take_selections_file, paths, args.group_keys,
+        args.force_groups, args.output, lambda file: valid_audio(file, sf))
     eksik = sum(1 for i, p in enumerate(paths) if not p.is_file() or args.group_keys[i] in args.force_groups)
     import io
     reference_audio, reference_rate = sf.read(io.BytesIO(args.reference_bytes), dtype='float32')
@@ -844,7 +849,7 @@ def main(argv=None, runtime=None):
     group_results = []
     failed = {r['group']: r for r in args.group_results if r['status'] in ('failed','review')}
     for i, p in enumerate(paths):
-        record = failed.get(i + 1) or cached_record(p)
+        record = selected_records.get(args.group_keys[i]) or failed.get(i + 1) or cached_record(p)
         record.update(group=i + 1, key=args.group_keys[i])
         group_results.append(record)
     cues = [(s, e, record.get('text', text)) for (s, e, text), record in zip(cues, group_results)]
@@ -932,6 +937,8 @@ def main(argv=None, runtime=None):
     # Immutable raw takes are deduplicated by PCM container content, not filename.
     from dub_take_cache import capture
     takes = capture(paths, wav_path.parent / '_dub_takes_v1', lambda file: valid_audio(file, sf))
+    for take, key in zip(takes, cache_keys):
+        take['cache_key'] = key
     manifest = {"version": 2, "wav": wav_path.name, "sample_rate": sr,
                 "video_offset_seconds": args.range_start or 0,
                 "grouping": args.gruplama, "timing": timing,
