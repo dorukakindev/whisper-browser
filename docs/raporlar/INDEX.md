@@ -1,3 +1,4 @@
+- [Rapor738](BROWSER_BUG_REPORT_738.md) — Metin stüdyosunda eski olay ve iptal yarışı
 - [Rapor737](BROWSER_BUG_REPORT_737.md) — Açık kitap ekranında yerinde dil güncellemesi
 - [Rapor736](BROWSER_BUG_REPORT_736.md) — Kitap eylemlerinde doğru durum ve düzen
 - [Rapor735](BROWSER_BUG_REPORT_735.md) — Gerçek GPU kitap, tek grup onarımı ve M4B kabulü

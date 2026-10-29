@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-0407.md](docs/devir/2026-10-29-0407.md) — Metin sesi iş sahipliği
 Güncel çalışma: [docs/devir/2026-10-29-0354.md](docs/devir/2026-10-29-0354.md) — Açık kitap ekranında dil tutarlılığı
 Güncel çalışma: [docs/devir/2026-10-29-0337.md](docs/devir/2026-10-29-0337.md) — Kitap eylemleri ve metni örtmeyen düzen
 Güncel çalışma: [docs/devir/2026-10-29-0320.md](docs/devir/2026-10-29-0320.md) — Gerçek GPU kitap ve M4B kabulü

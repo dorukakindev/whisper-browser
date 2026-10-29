@@ -1,0 +1,5 @@
+Parent master: 242fb78c7fd37d52104828a238a82ab498a6de29
+Windows Electron controlled late-event reproduction exit1:
+Previous session events cannot adopt a pending request
+actual: Uretim tamamlanamadi - STALE ERROR
+expected: Motor hazirlaniyor
