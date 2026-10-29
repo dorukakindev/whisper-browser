@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "phases": 3,
+  "cancelledPhaseStarts": 0,
+  "dubStarts": 2,
+  "unprepared": 1,
+  "largeUi": {
+    "milliseconds": 132.59999999403954,
+    "chapters": 1000,
+    "domNodes": 4179,
+    "heapBytes": 12700000
+  },
+  "lastChapter": 1000,
+  "selected": [
+    998,
+    999,
+    1000
+  ],
+  "assistant": [
+    "select",
+    "start accepted",
+    "listen/highlight",
+    "regenerate accepted"
+  ],
+  "realModel": false
+}
