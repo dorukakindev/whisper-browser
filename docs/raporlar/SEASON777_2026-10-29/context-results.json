@@ -1,0 +1,25 @@
+{
+  "ok": true,
+  "contexts": [
+    {
+      "kind": "sync",
+      "type": "workflow",
+      "id": "workflow:sync",
+      "title": "Sezon altyazı senkronu"
+    },
+    {
+      "kind": "intro",
+      "type": "workflow",
+      "id": "workflow:intro",
+      "title": "Intro ve jenerik"
+    },
+    {
+      "kind": "resources",
+      "type": "workflow",
+      "id": "workflow:resources",
+      "title": "Bellek"
+    }
+  ],
+  "realPdf": true,
+  "liveModel": false
+}

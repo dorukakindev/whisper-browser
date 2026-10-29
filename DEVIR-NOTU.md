@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-1854.md](docs/devir/2026-10-29-1854.md) — Sezon eylemleri ve kitap seçimi
 Güncel çalışma: [docs/devir/2026-10-29-1847.md](docs/devir/2026-10-29-1847.md) — Çalışma ekranının asistan bağlamı
 Güncel çalışma: [docs/devir/2026-10-29-1838.md](docs/devir/2026-10-29-1838.md) — Windows kitap birleşik kabulü
 Güncel çalışma: [docs/devir/2026-10-29-1827.md](docs/devir/2026-10-29-1827.md) — Arama gezinmesinde kitap oturumu
