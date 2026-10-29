@@ -1,0 +1,58 @@
+{
+  "short": 180,
+  "long": {
+    "height": 420,
+    "max": 420,
+    "scroll": 5790,
+    "client": 419
+  },
+  "controls": {
+    "rangeTop": 396.25,
+    "searchTop": 396.25,
+    "rangeRight": 705.0000457763672,
+    "searchLeft": 725
+  },
+  "liveLocale": true,
+  "storedTitlePreserved": true,
+  "compactActions": {
+    "top": 385.8500061035156,
+    "bottom": 562.9166870117188,
+    "headerBottom": 105.65000343322754,
+    "dialogBottom": 583.6750049591064,
+    "overflow": false,
+    "buttons": [
+      {
+        "text": "Save text",
+        "height": 44.000003814697266
+      },
+      {
+        "text": "Generate selected chapters",
+        "height": 44.000003814697266
+      },
+      {
+        "text": "Stop",
+        "height": 44.000003814697266
+      },
+      {
+        "text": "Read & listen",
+        "height": 44.000003814697266
+      },
+      {
+        "text": "Regenerate this chapter",
+        "height": 38.13333511352539
+      },
+      {
+        "text": "Preview M4B export",
+        "height": 38.13333511352539
+      },
+      {
+        "text": "Export selected as M4B",
+        "height": 38.13333511352539
+      },
+      {
+        "text": "Back to source chapter",
+        "height": 38.13333511352539
+      }
+    ]
+  }
+}
