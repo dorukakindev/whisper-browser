@@ -1,0 +1,85 @@
+{
+  "ok": true,
+  "realGpu": true,
+  "runs": [
+    {
+      "label": "a",
+      "elapsedSeconds": 28.063000000000102,
+      "segments": [
+        {
+          "sha256": "37779c7ab5830c252e0c2739c6133c72e3a67732920ea657e6fc879ba61608af",
+          "cache_key": "30808f9bb4af0083ae5b01e7b0fcfda0b8ebf7865b0cf88a450adc72490bee7e"
+        },
+        {
+          "sha256": "206c40e03221a67b4da27ced4a2fd7dfaa2bdab419cf79d241d609ce34e08cad",
+          "cache_key": "16f368d33293c90c6ea80e6f9d11a3db3ab6e13e7eb2278298486b28c43ae849"
+        }
+      ]
+    },
+    {
+      "label": "b",
+      "elapsedSeconds": 3.639999999999418,
+      "segments": [
+        {
+          "sha256": "37779c7ab5830c252e0c2739c6133c72e3a67732920ea657e6fc879ba61608af",
+          "cache_key": "30808f9bb4af0083ae5b01e7b0fcfda0b8ebf7865b0cf88a450adc72490bee7e"
+        },
+        {
+          "sha256": "2610a6d1420ffff15e563f645dfc618118e479935499e0b8a63a271e7a4c2116",
+          "cache_key": "16f368d33293c90c6ea80e6f9d11a3db3ab6e13e7eb2278298486b28c43ae849"
+        }
+      ]
+    }
+  ],
+  "oldRawTakesPreserved": true,
+  "unchangedGroupDeduplicated": true,
+  "forcedGroupHasNewTake": true,
+  "humanListening": false,
+  "verification": "fast; no ASR",
+  "snapshotCount": 3,
+  "productBase": "53eb9ed08de5a5cc618bde2b597a503e6c5b3f12",
+  "runnerExit": 0,
+  "finalWavDecode": [
+    {
+      "label": "a",
+      "exit": 0,
+      "stderrBytes": 0
+    },
+    {
+      "label": "b",
+      "exit": 0,
+      "stderrBytes": 0
+    }
+  ],
+  "oldMutableManifestExpressionReconstructed": {
+    "sameCacheSlot": true,
+    "cacheNowMatchesNewTake": true,
+    "cacheNoLongerMatchesOldTake": true,
+    "parentRevisionRerun": false
+  },
+  "cacheMetrics": [
+    {
+      "load_seconds": 19.21900000000096,
+      "reference_seconds": 4.718999999999141,
+      "generation_seconds": 4.031000000000859,
+      "attempts": 2,
+      "retries": 0,
+      "cached_groups": 0,
+      "generated_groups": 2,
+      "steps": 10,
+      "concurrency": 2
+    },
+    {
+      "load_seconds": 0.0,
+      "reference_seconds": 0.0,
+      "generation_seconds": 3.5789999999997235,
+      "attempts": 1,
+      "retries": 0,
+      "cached_groups": 1,
+      "generated_groups": 1,
+      "steps": 10,
+      "concurrency": 1
+    }
+  ],
+  "freeGpuMiBAfter": 10953
+}

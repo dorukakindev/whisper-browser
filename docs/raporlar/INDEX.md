@@ -1,3 +1,4 @@
+- [Rapor784](BROWSER_BUG_REPORT_784.md) — Yeniden üretimde değişmez ham grup kayıtları ve gerçek GPU kabulü
 - [Rapor783](BROWSER_BUG_REPORT_783.md) — Ortak hidden görünürlüğü ve gerçek Windows dublaj kabulü
 - [Rapor782](BROWSER_BUG_REPORT_782.md) — Gerçek Windows ffsubsync/FFmpeg iptal ve timeout kabulü
 - [Rapor780](BROWSER_BUG_REPORT_780.md) — Hizalama iptalinde süreç ağacı ve close sınırı
