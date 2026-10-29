@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-0833.md](docs/devir/2026-10-29-0833.md) — Ses stüdyosu güncel Windows görünümü
 Güncel çalışma: [docs/devir/2026-10-29-0823.md](docs/devir/2026-10-29-0823.md) — Dublaj hazırlığı oturum sahipliği
 Güncel çalışma: [docs/devir/2026-10-29-0809.md](docs/devir/2026-10-29-0809.md) — Whisper güvenli kapanış
 Güncel çalışma: [docs/devir/2026-10-29-0746.md](docs/devir/2026-10-29-0746.md) — Canlı PDF ve seslendirme hazırlığı

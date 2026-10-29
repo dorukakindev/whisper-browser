@@ -1,0 +1,69 @@
+{
+  "complete": true,
+  "realGeneration": false,
+  "secondaryContrast": [
+    {
+      "id": "load",
+      "expectedBackground": "rgb(233, 227, 217)",
+      "color": "rgb(40, 35, 31)",
+      "background": "rgb(233, 227, 217)",
+      "bg3": "#e9e3d9",
+      "contrast": 12.184573112973014
+    },
+    {
+      "id": "error-copy",
+      "expectedBackground": "rgb(233, 227, 217)",
+      "color": "rgb(40, 35, 31)",
+      "background": "rgb(233, 227, 217)",
+      "bg3": "#e9e3d9",
+      "contrast": 12.184573112973014
+    }
+  ],
+  "paneLayout": {
+    "moved": 189.3333282470703,
+    "editorStable": true,
+    "railOverflow": "auto",
+    "editorOverflow": "auto",
+    "keyboardReachable": true,
+    "labelled": true
+  },
+  "metrics": {
+    "width": 800,
+    "left": 10.000000953674316,
+    "right": 790.0000619888306,
+    "overflow": false,
+    "title": "Give your words a voice",
+    "startHeight": 44.66666793823242,
+    "editorColor": "rgb(241, 237, 229)"
+  },
+  "narrow": {
+    "width": 480,
+    "overflow": false,
+    "bodyHeight": 401.2666931152344,
+    "footerBottom": 749.4667358398438,
+    "height": 760,
+    "buttons": [
+      {
+        "left": 26.533334732055664,
+        "right": 236.00000953674316,
+        "height": 44.000003814697266,
+        "minHeight": "44px",
+        "zoom": "1"
+      },
+      {
+        "left": 244.00001525878906,
+        "right": 453.46669006347656,
+        "height": 44.000003814697266,
+        "minHeight": "44px",
+        "zoom": "1"
+      },
+      {
+        "left": 26.533334732055664,
+        "right": 236.00000953674316,
+        "height": 44.000003814697266,
+        "minHeight": "44px",
+        "zoom": "1"
+      }
+    ]
+  }
+}
