@@ -1,0 +1,35 @@
+{
+  "complete": true,
+  "realGpu": true,
+  "groups": 2,
+  "firstMetrics": {
+    "load_seconds": 21.65600000001723,
+    "reference_seconds": 5.73499999998603,
+    "generation_seconds": 38.5,
+    "attempts": 2,
+    "retries": 0,
+    "cached_groups": 0,
+    "generated_groups": 2,
+    "steps": 15,
+    "concurrency": 2
+  },
+  "repairMetrics": {
+    "load_seconds": 0,
+    "reference_seconds": 0,
+    "generation_seconds": 24.15700000000652,
+    "attempts": 1,
+    "retries": 0,
+    "cached_groups": 1,
+    "generated_groups": 1,
+    "steps": 15,
+    "concurrency": 1
+  },
+  "untouchedFirstGroupTiming": true,
+  "statuses": [
+    "ready",
+    "ready"
+  ],
+  "m4bExported": true,
+  "reviewGateBlocked": false,
+  "humanListening": false
+}

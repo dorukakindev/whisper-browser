@@ -1,3 +1,4 @@
+- [Rapor735](BROWSER_BUG_REPORT_735.md) — Gerçek GPU kitap, tek grup onarımı ve M4B kabulü
 - [Rapor734](BROWSER_BUG_REPORT_734.md) — Ses çevirisinde bağımsız kaynak rol incelemesi
 - [Rapor733](BROWSER_BUG_REPORT_733.md) — Canlı ses çevirisinde çekimli sayı ve açık anlam sınırı
 - [Rapor732](BROWSER_BUG_REPORT_732.md) — Ses stüdyosunda gerçek hazır ayar ve dar üretim çubuğu

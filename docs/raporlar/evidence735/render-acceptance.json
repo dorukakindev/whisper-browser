@@ -1,0 +1,25 @@
+{
+  "rows": [
+    "Sentetik kitapHazır"
+  ],
+  "assistant": {
+    "title": "Sentetik kitap",
+    "busy": false,
+    "currentChapter": 1,
+    "total": 1,
+    "selected": [
+      1
+    ],
+    "selectedCount": 1,
+    "chapters": [
+      {
+        "number": 1,
+        "title": "Sentetik kitap",
+        "status": "ready",
+        "hasAudio": true,
+        "review": 0
+      }
+    ],
+    "chaptersTruncated": false
+  }
+}

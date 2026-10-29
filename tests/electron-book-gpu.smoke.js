@@ -12,7 +12,7 @@ if(gpu.status!==0||!Number.isFinite(free)||free<9500){console.error(`BLOCKED_ENV
 const out=path.join(root,'.uiprev','book-gpu',Date.now()+'-'+process.pid),profile=path.join(out,'profile');
 fs.mkdirSync(profile,{recursive:true});app.setAppPath(root);app.setPath('downloads',out);
 process.env.WHISPER_RESOURCE_SOAK_USER_DATA=profile;process.env.HF_HUB_OFFLINE='1';process.env.PYTHONUTF8='1';
-app.commandLine.appendSwitch('disable-gpu');
+for(const flag of ['disable-gpu','disable-backgrounding-occluded-windows','disable-renderer-backgrounding'])app.commandLine.appendSwitch(flag);
 fs.writeFileSync(path.join(profile,'settings.json'),JSON.stringify({settingsVersion:3,ui:{uiLocale:'tr',uiTheme:'dark'}}));
 fs.writeFileSync(path.join(profile,'dub-settings.json'),JSON.stringify({reference,transcript,engine,keepEngine:false,verification:'detailed'}));
 const source=path.join(out,'Sentetik kitap.txt');
@@ -32,7 +32,7 @@ app.whenReady().then(async()=>{
  await run('await MediaWorkflowsUI.openProject('+JSON.stringify(id)+');return true');
  async function produce(retryGroup){
   const prep=await call('book-prepare',{id,chapter:0,...(retryGroup?{retryGroup}:{})});assert(prep.ok,prep.error);
-  const request={...prep.request,profile:'quality',concurrency:1,verification:'detailed'};
+  const request={...prep.request,profile:'quality',concurrency:4,verification:'detailed'};
   if(retryGroup)assert.deepEqual(request.forceGroups,[retryGroup.key]);
   const start=await run('return api.startDub('+JSON.stringify(request)+')');assert(start.ok,start.error);
   await until(()=>events.some(e=>e.id===request.id&&['done','error','cancelled'].includes(e.type)),'real book synthesis',300000);
@@ -49,6 +49,8 @@ app.whenReady().then(async()=>{
  assert.equal(repaired.chapter.groups[0].text,first.chapter.groups[0].text);
  assert(Math.abs(repaired.chapter.groups[0].end-first.chapter.groups[0].end)<.01);
  await run('await MediaWorkflowsUI.openProject('+JSON.stringify(id)+');return true');
+ await until(()=>run("return MediaWorkflowsUI.assistant.state()?.chapters[0]?.status==='ready' || MediaWorkflowsUI.assistant.state()?.chapters[0]?.status==='review'"),'chapter result rendered');
+ await wait(350);
  fs.writeFileSync(path.join(out,'real-book-review.png'),(await win.webContents.capturePage()).toPNG());
  const needsReview=repaired.chapter.groups.some(g=>g.status!=='ready');
  const exported=await call('book-export',{id,chapters:[0]});
@@ -58,6 +60,10 @@ app.whenReady().then(async()=>{
   const ffprobe=require('./media-runtime').findMediaTool('ffprobe');
   const probe=spawnSync(ffprobe,['-v','error','-show_format','-show_chapters','-of','json',m4b],{encoding:'utf8',windowsHide:true});assert.equal(probe.status,0,probe.stderr);
   const data=JSON.parse(probe.stdout);assert.equal(data.chapters.length,1);assert(Number(data.format.duration)>0);
+  fs.writeFileSync(path.join(out,'m4b-probe.json'),JSON.stringify(data,null,2));
+  const ffmpeg=require('./media-runtime').findMediaTool('ffmpeg');
+  const decoded=spawnSync(ffmpeg,['-v','error','-i',m4b,'-f','null','-'],{encoding:'utf8',windowsHide:true});
+  assert.equal(decoded.status,0,decoded.stderr);
  }
  const result={complete:true,realGpu:true,groups:repaired.chapter.groups.length,firstMetrics:first.metrics,repairMetrics:repaired.metrics,
   untouchedFirstGroupTiming:true,statuses:repaired.chapter.groups.map(g=>g.status),m4bExported:exported.ok,reviewGateBlocked:needsReview,humanListening:false};
