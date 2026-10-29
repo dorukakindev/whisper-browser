@@ -214,6 +214,22 @@ app
     await until(()=>run(`return document.getElementById('pdfFindStatus').textContent.includes('sayfa 2') && player.pdfReader.currentPage===2`),'PDF find original page identity');
     assert(await run(`return document.getElementById('pdfFindExcerpt').textContent.includes('Chapter 2')`));
     await capture('pdf-find-tr.png');
+    if(process.argv.includes('--search-owner')){
+      await run(`window.originalSearchRender=renderPdfReaderPage;window.oldSearchRejects=[];renderPdfReaderPage=()=>new Promise((_,reject)=>oldSearchRejects.push(reject));document.getElementById('pdfFindNext').click();return true`);
+      assert(await run('return oldSearchRejects.length>=1'));
+      await run(`PdfReaderSearchUI.reset();for(const reject of oldSearchRejects)reject(Error('Old page failed'));renderPdfReaderPage=originalSearchRender;return true`);await wait(120);
+      assert.equal(await run("return document.getElementById('pdfFindStatus').textContent"),'');
+      await run(`PdfReaderSearchUI.open();document.getElementById('pdfFindText').value='Chapter 2';document.getElementById('pdfFindForm').requestSubmit();return true`);
+      await until(()=>run("return !document.getElementById('pdfFindNext').disabled"),'fresh search');
+      await run(`renderPdfReaderPage=async()=>{throw Error('Controlled rendering failure')};document.getElementById('pdfFindNext').click();return true`);await wait(120);
+      assert(await run("return document.getElementById('pdfFindStatus').textContent.startsWith('Bu eşleşme açılamadı.')"));
+      await capture('pdf-search-error-tr.png');
+      await run(`renderPdfReaderPage=originalSearchRender;document.getElementById('pdfFindNext').click();return true`);
+      await until(()=>run("return document.getElementById('pdfFindExcerpt').textContent.includes('Chapter 2')"),'search retry after failure');
+      fs.writeFileSync(path.join(out,'search-owner.json'),JSON.stringify({ok:true,realPdf:true,controlledRenderFailure:true,staleRejected:true,currentLocalized:true,retry:true},null,2));
+      console.log(JSON.stringify({ok:true,out,searchOwner:true}));app.exit(0);return;
+    }
+
     await run(`document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));return true`);
     assert(await run(`return !!player.pdfReader && document.getElementById('pdfFindPanel').classList.contains('hidden')`),'Escape closes search without closing PDF');
     await run(`setPdfReaderZoom(1.3);return true`);await until(()=>run(`return player.pdfReader && !player.pdfReader.zooming && player.pdfReader.pages.get(2)?.article?.dataset.state==='ready'`),'zoom raster and anchor');

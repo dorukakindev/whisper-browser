@@ -19,11 +19,18 @@
   const reader=source,request=sequence,move=++jumping;if(!matches.length||!current(reader,request))return;
   index=(index+direction+matches.length)%matches.length;const hit=matches[index];
   status.textContent=t(`Match ${index+1} / ${matches.length} · page ${hit.page}`,`Eşleşme ${index+1} / ${matches.length} · sayfa ${hit.page}`);
-  const page=$('pdfReaderPage');page.value=String(hit.page);page.dispatchEvent(new Event('change'));
-  await renderPdfReaderPage(hit.page);
-  if(move!==jumping||!current(reader,request))return;
-  reader.pages.get(hit.page)?.article?.scrollIntoView({block:'start',behavior:'instant'});
-  $('pdfFindExcerpt').textContent=hit.excerpt;
+  try{
+   const page=$('pdfReaderPage');page.value=String(hit.page);page.dispatchEvent(new Event('change'));
+   await renderPdfReaderPage(hit.page);
+   if(move!==jumping||!current(reader,request))return;
+   reader.pages.get(hit.page)?.article?.scrollIntoView({block:'start',behavior:'instant'});
+   $('pdfFindExcerpt').textContent=hit.excerpt;
+  }catch{
+   if(move===jumping&&current(reader,request)){
+    status.textContent=t('Could not open this match. Try another result.','Bu eşleşme açılamadı. Başka bir sonucu dene.');
+    $('pdfFindExcerpt').textContent='';
+   }
+  }
  }
  async function search(event){
   event?.preventDefault();reset();$('pdfFindExcerpt').textContent='';const reader=player.pdfReader,request=sequence;if(!reader||!visible())return;
@@ -41,7 +48,7 @@
   }catch(error){if(current(reader,request))status.textContent=t('PDF search failed: ','PDF araması başarısız: ')+error.message;}
  }
  input.oninput=()=>{reset();$('pdfFindExcerpt').textContent='';$('pdfFindScope').textContent='';};
- const navigate=direction=>void jump(direction).catch(error=>{if(visible())status.textContent=error.message;});
+ const navigate=direction=>void jump(direction);
  $('pdfFindForm').onsubmit=search;$('pdfFindOpen').onclick=open;$('pdfFindClose').onclick=()=>close();$('pdfFindPrevious').onclick=()=>navigate(-1);$('pdfFindNext').onclick=()=>navigate(1);
  document.addEventListener('keydown',event=>{
   if(!visible()||document.querySelector('dialog[open]'))return;
