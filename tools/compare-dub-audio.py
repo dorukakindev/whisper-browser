@@ -28,14 +28,22 @@ def describe(file):
         'pausesOver200ms':pauses,'performance':performance,
         'groups':[{'key':r.get('key'),'status':r.get('status'),'verification':r.get('verification')} for r in (quality or {}).get('groups',[])]}
 
+def write_report(audio, output):
+    rows=[describe(p) for p in audio];output.mkdir(parents=True,exist_ok=True)
+    (output/'comparison.json').write_text(json.dumps(rows,ensure_ascii=False,indent=2),encoding='utf-8')
+    cards=[]
+    for i,(p,row) in enumerate(zip(audio,rows)):
+        label=chr(65+i) if i<26 else str(i+1)
+        data=html.escape(json.dumps(row,ensure_ascii=False,indent=2))
+        flagged=sum(group['status']!='ready' for group in row['groups'])
+        evidence=(f"{len(row['groups'])} grup · {flagged} inceleme" if row['groups'] else 'Grup doğrulaması yok')
+        cards.append(f'<article><header><span class="sample">{label}</span><div><h2>Örnek {label}</h2><p>{html.escape(evidence)}</p></div></header><audio controls preload="metadata" src="{html.escape(p.resolve().as_uri(),quote=True)}"></audio><div class="stats"><span><small>Ses uzunluğu</small>{row["seconds"]} sn</span><span><small>Ölçülen sessizlik</small>%{round(row["silenceFraction"]*100)}</span></div><details><summary>Teknik ölçümler ve ASR kanıtı</summary><pre>{data}</pre></details></article>')
+    style="""*{box-sizing:border-box}html{color-scheme:dark}body{background:#0e1115;color:#f0efed;font:16px/1.65 'Segoe UI',sans-serif;margin:0;padding:40px 24px}main{max-width:1120px;margin:auto}h1{font-size:clamp(26px,4vw,40px);line-height:1.2;letter-spacing:-.025em;margin:12px 0 18px}h2{font-size:20px;margin:0}p{color:#b6bbc3;margin:6px 0}.eyebrow{color:#d5a35c;font-size:13px;letter-spacing:.06em}.intro{max-width:78ch;margin-bottom:28px}.samples{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}article{min-width:0;border:1px solid #343b45;background:#171c22;border-radius:18px;padding:24px}article header{display:flex;gap:14px;align-items:center;margin-bottom:24px}.sample{display:grid;place-items:center;width:44px;height:44px;background:#29251e;color:#d5a35c;border-radius:10px;font-weight:600}audio{width:100%;height:42px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:22px 0;font-variant-numeric:tabular-nums}.stats span{background:#11161c;padding:12px;border-radius:9px}.stats small{display:block;color:#b6bbc3;font-size:12px}details{border-top:1px solid #343b45;padding-top:16px}summary{cursor:pointer;color:#d5a35c;padding:6px 0}pre{font:12px/1.6 monospace;white-space:pre-wrap;overflow-wrap:anywhere;color:#b6bbc3}footer{margin-top:26px;padding-top:20px;border-top:1px solid #343b45;color:#b6bbc3;font-size:13px}:focus-visible{outline:2px solid #d5a35c;outline-offset:4px}@media(max-width:720px){body{padding:24px 16px}.samples{grid-template-columns:1fr}article{padding:20px}}"""
+    (output/'listen.html').write_text('<!doctype html><html lang="tr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dublaj dinleme karşılaştırması</title><style>'+style+'</style><main><div class="eyebrow">VoxCPM2 · Dinleme odası</div><h1>Aynı metin, iki okuma biçimi.</h1><p class="intro">Örnekleri aynı ses düzeyinde dinle. Cümle başlangıcını, anlamın tamamını, durakları ve ton devamlılığını karşılaştır. Önce kendi tercihini belirle; teknik ölçümleri daha sonra açabilirsin.</p><div class="samples">'+''.join(cards)+'</div><footer>ASR ve sessizlik ölçümleri insan doğallığını ya da ses benzerliğini kanıtlamaz. Örneklerin gruplama biçimi ve motorun sıcak/soğuk durumu üretim süresini etkiler. Otomatik kazanan seçilmez; uygulama ayarların değiştirilmez.</footer></main></html>',encoding='utf-8')
+    return rows
+
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('audio',type=Path,nargs='+');parser.add_argument('--output',type=Path,required=True);args=parser.parse_args()
-    rows=[describe(p) for p in args.audio];args.output.mkdir(parents=True,exist_ok=True)
-    (args.output/'comparison.json').write_text(json.dumps(rows,ensure_ascii=False,indent=2),encoding='utf-8')
-    cards=[]
-    for p,row in zip(args.audio,rows):
-        label=html.escape(row['name']);data=html.escape(json.dumps(row,ensure_ascii=False,indent=2))
-        cards.append(f'<article><h2>{label}</h2><audio controls preload="metadata" src="{html.escape(p.resolve().as_uri(),quote=True)}"></audio><p>Süre: {row["seconds"]} sn · Sessiz bölüm oranı: {row["silenceFraction"]}</p><details><summary>Ölçümler ve konuşma kontrolü</summary><pre>{data}</pre></details></article>')
-    (args.output/'listen.html').write_text('<!doctype html><html lang="tr"><meta charset="utf-8"><title>Dublaj A/B karşılaştırması</title><style>body{background:#111113;color:#eee;font:16px/1.7 system-ui;max-width:1000px;margin:40px auto;padding:20px}article{border:1px solid #444;padding:24px;margin:20px 0;border-radius:12px}h1,h2{line-height:1.3}audio{width:100%}pre{white-space:pre-wrap;overflow-wrap:anywhere}summary{cursor:pointer}</style><h1>Aynı metni birlikte karşılaştır</h1><p>Ses tonu devamlılığını, cümle geçişlerini, durakları ve eksik okumayı dinle. Buradaki enerji, sessizlik ve ASR ölçümleri insan doğallığını veya ses benzerliğini kanıtlamaz. Kayıtlı veya kurtarılan parçaları içeren koşuları soğuk üretimle doğrudan hız karşılaştırması sayma.</p>'+''.join(cards)+'</html>',encoding='utf-8')
+    rows=write_report(args.audio,args.output)
     print(json.dumps({'output':str(args.output),'samples':len(rows)}))
 if __name__=='__main__':main()

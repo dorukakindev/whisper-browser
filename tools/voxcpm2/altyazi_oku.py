@@ -299,6 +299,13 @@ async def uret(args, cues, paths, prompt_text):
                 delivery = delivery[i] if i < len(delivery) else None
                 raw_scores = {}
                 synthesis_attempt = 0
+                verification_attempt = 0
+                async def verify_group(audio_path, expected, numeric_reference=None):
+                    nonlocal verification_attempt
+                    from dub_activity import observe
+                    verification_attempt += 1
+                    return await observe(verify_pronunciation(audio_path, expected, numeric_reference),
+                        group=i+1, attempt=verification_attempt, limit=120, stage='verification')
                 async def synthesize(chunk, seed, isolated=False):
                     nonlocal synthesis_attempt
                     from dub_activity import observe
@@ -378,7 +385,7 @@ async def uret(args, cues, paths, prompt_text):
                     check = {'status': 'not_checked'}
                     if args.verification == 'detailed' or (args.verification == 'balanced' and
                             (metric['quality_score'] > 0 or len(wav) / sr > window * 1.15)):
-                        check = await verify_pronunciation(temporary, text, numeric_reference=editable_text)
+                        check = await verify_group(temporary, text, numeric_reference=editable_text)
                         if check['status'] == 'review':
                             # A continuation prompt can transfer the reference
                             # language/accent too strongly. Spend the EXISTING
@@ -398,7 +405,7 @@ async def uret(args, cues, paths, prompt_text):
                                 candidate, candidate_finishing = finish_generated(candidate_raw)
                                 if len(candidate) and candidate_score <= metric['quality_score']:
                                     sf.write(str(second), candidate, sr, subtype='PCM_16')
-                                    checked = await verify_pronunciation(second, text, numeric_reference=editable_text)
+                                    checked = await verify_group(second, text, numeric_reference=editable_text)
                                     metric['verificationRetry'] = checked
                                     # The shared verifier owns all semantic gates.
                                     # A passed retry beats a rejected candidate even
@@ -425,7 +432,7 @@ async def uret(args, cues, paths, prompt_text):
                                 metric['retries'] += 1
                             recovered = await recover_long_speech(text, editable_text, seed, sr,
                                 synthesize, lambda raw, rate: finish_generated(raw),
-                                verify_pronunciation, temporary, args.request_timeout, recovery_attempt,
+                                verify_group, temporary, args.request_timeout, recovery_attempt,
                                 assess=lambda raw, rate, part: assess_chunk(raw, rate, part)[0])
                             if recovered is not None:
                                 wav, check, recovery = recovered

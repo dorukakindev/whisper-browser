@@ -4,12 +4,13 @@ import json
 import time
 
 
-async def observe(awaitable, *, group, attempt, limit, interval=10, emit=print):
+async def observe(awaitable, *, group, attempt, limit, interval=10, emit=print, stage='synthesis'):
     began = time.monotonic()
 
-    def report():
-        emit('DUB_ACTIVITY ' + json.dumps(dict(stage='synthesis', group=group,
-             attempt=attempt, elapsed=round(time.monotonic()-began, 1), limit=limit)), flush=True)
+    def report(finished=False):
+        emit('DUB_ACTIVITY ' + json.dumps(dict(stage=stage, group=group,
+             attempt=attempt, elapsed=round(time.monotonic()-began, 1), limit=limit,
+             finished=finished)), flush=True)
 
     async def pulse():
         while True:
@@ -23,3 +24,4 @@ async def observe(awaitable, *, group, attempt, limit, interval=10, emit=print):
     finally:
         heartbeat.cancel()
         await asyncio.gather(heartbeat, return_exceptions=True)
+        report(True)

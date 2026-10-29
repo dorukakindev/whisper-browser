@@ -3620,8 +3620,17 @@ def translate_cache_path(args):
     return str(Path(base) / "translate-cache.json")
 
 
-def speech_coverage_indices(entries, translations):
+def speech_coverage_indices(entries, translations, groups=None):
     """Advisory only: natural compression is not proof of semantic omission."""
+    if groups is not None:
+        flagged=[]
+        for group in groups:
+            source=' '.join(entries[i][2] for i in group)
+            target=' '.join(str(translations[i]) for i in group if i<len(translations))
+            if (len(source.split())>=8 and len(target.split())<len(source.split())*.35
+                    and len(target)<len(source)*.45):
+                flagged.extend(group)
+        return sorted(set(flagged))
     return [i for i, (_start, _end, source) in enumerate(entries)
             if i < len(translations) and len(str(source).split()) >= 8
             and len(str(translations[i]).split()) < len(str(source).split()) * .35
@@ -5722,7 +5731,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         log(f"Özel ad denetimi atlandı: {exc}", "warn")
 
     if bool(getattr(args, 'translate_for_speech', False)):
-        coverage_rows = speech_coverage_indices(entries, out_texts)
+        # Spoken translations may redistribute words inside the accepted
+        # sentence group. A short cue is not an omission if its continuation
+        # contains those words. Keep the original cue IDs for real warnings.
+        coverage_rows = speech_coverage_indices(entries, out_texts, groups)
         if coverage_rows:
             message = "Ses icin ceviri kapsam uyarisi / Speech coverage warning: " + ', '.join(str(i+1) for i in coverage_rows[:30]) + ". Metin belirgin kisaldi; anlam kaybi icin inceleyin. / Review strongly shortened text for omissions."
             log(message, 'warn')
