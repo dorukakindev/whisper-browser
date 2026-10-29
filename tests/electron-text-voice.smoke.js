@@ -5,13 +5,14 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const root=path.resolve(__dirname,'..');
 function arg(key){const i=process.argv.indexOf(key);assert(i>=0,key+' required');return path.resolve(process.argv[i+1]);}
 const reference=arg('--reference'),transcript=arg('--transcript'),engine=arg('--engine');
-const real=process.argv.includes('--real-generation'),shared=process.argv.includes('--shared-references'),ownership=process.argv.includes('--event-ownership');
+const real=process.argv.includes('--real-generation'),shared=process.argv.includes('--shared-references'),ownership=process.argv.includes('--event-ownership'),referenceRefresh=process.argv.includes('--reference-refresh');
 assert(!(real&&ownership),'Controlled ownership checks cannot be real GPU generation');
-const starts=[],stops=[];let copiedDetail='',copyReply=true;
-if(ownership){const handle=ipcMain.handle.bind(ipcMain);ipcMain.handle=(channel,listener)=>handle(channel,async(event,request,...args)=>{
- if(channel==='dub:textVoice'&&request?.action==='start')return new Promise(resolve=>starts.push({request,resolve}));
- if(channel==='dub:cancel')return new Promise(resolve=>stops.push({request,resolve}));
- if(channel==='clipboard:write'){copiedDetail=request;return copyReply;}
+const starts=[],stops=[];let copiedDetail='',copyReply=true,holdRefresh=false;const refreshReplies=[];
+if(ownership||referenceRefresh){const handle=ipcMain.handle.bind(ipcMain);ipcMain.handle=(channel,listener)=>handle(channel,async(event,request,...args)=>{
+ if(channel==='dub:references'&&holdRefresh){const result=await listener(event,request,...args);return new Promise(resolve=>refreshReplies.push({result,resolve}));}
+ if(ownership&&channel==='dub:textVoice'&&request?.action==='start')return new Promise(resolve=>starts.push({request,resolve}));
+ if(ownership&&channel==='dub:cancel')return new Promise(resolve=>stops.push({request,resolve}));
+ if(ownership&&channel==='clipboard:write'){copiedDetail=request;return copyReply;}
  return listener(event,request,...args);
 });}
 const out=path.join(root,'.uiprev','text-studio',Date.now()+'-'+process.pid),profile=path.join(out,'profile');
@@ -52,6 +53,42 @@ app.whenReady().then(async()=>{
  await until(()=>run("return document.getElementById('tv-status').textContent.includes('Referans seçildi')"),'local reference');
  await run("document.getElementById('tv-transcript').value='Editable local transcript draft.';document.getElementById('tv-transcript').dispatchEvent(new Event('input'));document.getElementById('tv-refresh').click();return true");
  await wait(200);assert.equal(await run("return document.getElementById('tv-transcript').value"),'Editable local transcript draft.');
+ if(referenceRefresh){
+  const local=path.join(out,'local-refresh.wav');fs.copyFileSync(reference,local);picked=local;
+  await run("document.getElementById('tv-pick-reference').click();return true");await until(()=>run("return document.getElementById('tv-reference-name').value==='local-refresh'"),'local fixture reference');
+  await run("document.getElementById('tv-transcript').value='UNSAVED EXACT DRAFT';document.getElementById('tv-transcript').dispatchEvent(new Event('input'));return true");
+  const localId=await run("return document.getElementById('tv-reference').value");
+  fs.unlinkSync(local);
+  await run("document.getElementById('tv-refresh').click();return true");await wait(250);
+  assert.equal(await run("return document.getElementById('tv-start').disabled"),true,'Removed local reference cannot remain ready after refresh');
+  assert.equal(await run("return document.getElementById('tv-reference-audio').hidden&&!document.getElementById('tv-reference-audio').getAttribute('src')"),true,'Unavailable reference cannot leave an old audio preview');
+  assert.equal(await run("return document.getElementById('tv-transcript').value"),'UNSAVED EXACT DRAFT');
+  assert.equal(await run("return document.getElementById('tv-reference').value"),localId,'Missing selection is explicit, never silently replaced');
+  await screenshot('studio-reference-unavailable-tr');
+  fs.copyFileSync(reference,local);await run("document.getElementById('tv-refresh').click();return true");await until(()=>run("return !document.getElementById('tv-start').disabled"),'local restored');
+  assert.equal(await run("return document.getElementById('tv-transcript').value"),'UNSAVED EXACT DRAFT');
+  await run("document.querySelector('.text-voice-library').open=true;document.getElementById('tv-reference-name').value='Reference refresh fixture';document.getElementById('tv-reference-name').dispatchEvent(new Event('input'));document.getElementById('tv-save-reference').click();return true");
+  await until(()=>run("return !document.getElementById('tv-save-reference').disabled&&document.getElementById('tv-reference').selectedOptions[0]?.textContent==='Reference refresh fixture'"),'shared fixture saved');
+  const list=await run("return api.listVoiceReferences()"),item=list.references.find(v=>v.name==='Reference refresh fixture');assert(item);
+  const bytes=fs.readFileSync(item.path);fs.unlinkSync(item.path);
+  await run("document.getElementById('tv-refresh').click();return true");await wait(250);
+  assert.equal(await run("return document.getElementById('tv-start').disabled&&document.getElementById('tv-default-reference').disabled&&document.getElementById('tv-reference-audio').hidden"),true,'Missing library audio disables every use action and preview');
+  assert.equal(await run("return document.getElementById('tv-reference').value"),item.id);
+  await run("UiLocale.set('en',false);return true");assert.match(await run("return document.getElementById('tv-reference').selectedOptions[0].textContent"),/Unavailable/);
+  await screenshot('studio-reference-unavailable-en');
+  win.setMinimumSize(360,500);win.setContentSize(600,950);win.webContents.setZoomFactor(1.25);await run("UiLocale.set('tr',false);applyUiTheme('light');return true");await screenshot('studio-reference-unavailable-tr-narrow');assert.equal(await run("return document.getElementById('textVoiceStudio').scrollWidth>document.getElementById('textVoiceStudio').clientWidth+1"),false);win.setContentSize(1360,1000);win.webContents.setZoomFactor(1);await run("applyUiTheme('dark');return true");
+  fs.writeFileSync(item.path,bytes);await run("document.getElementById('tv-refresh').click();return true");await until(()=>run("return !document.getElementById('tv-start').disabled"),'library restored');
+  assert.equal(await run("return document.getElementById('tv-transcript').value"),'UNSAVED EXACT DRAFT');
+  assert.equal(await run("return document.getElementById('tv-reference').value"),item.id);await run("UiLocale.set('tr',false);return true");
+  holdRefresh=true;await run("document.getElementById('tv-refresh').click();return true");await until(()=>refreshReplies.length===1,'first delayed refresh');
+  assert.equal(await run("return document.getElementById('tv-start').disabled"),true,'Reference checks lock production until verified');
+  await run("return api.openTextVoiceUI()");await until(()=>refreshReplies.length===2,'newer refresh after reopen');
+  holdRefresh=false;refreshReplies[1].resolve(refreshReplies[1].result);await until(()=>run("return !document.getElementById('tv-start').disabled"),'newest refresh applied');
+  refreshReplies[0].resolve({...refreshReplies[0].result,references:[]});await wait(150);
+  assert.equal(await run("return document.getElementById('tv-reference').value"),item.id);assert.equal(await run("return document.getElementById('tv-start').disabled"),false,'Late empty list cannot invalidate a newer verified reference');
+  assert.equal(await run("return document.getElementById('tv-transcript').value"),'UNSAVED EXACT DRAFT');
+  picked=reference;
+ }
  if(shared){
   await run("document.querySelector('.text-voice-library').open=true;document.getElementById('tv-reference-name').value='Ortak anlatıcı A';document.getElementById('tv-reference-name').dispatchEvent(new Event('input'));document.getElementById('tv-save-reference').click();return true");
   await until(()=>run("return document.getElementById('tv-status').textContent.includes('ortak listeye')"),'saved voice');
@@ -173,7 +210,7 @@ app.whenReady().then(async()=>{
  await screenshot('studio-tr-narrow-125');
  const narrow=await run("const d=document.getElementById('textVoiceStudio'),b=document.querySelector('.text-voice-body').getBoundingClientRect(),footer=document.querySelector('.text-voice-footer').getBoundingClientRect();return {width:innerWidth,overflow:d.scrollWidth>d.clientWidth+1,bodyHeight:b.height,footerBottom:footer.bottom,height:innerHeight,buttons:['start','preview','stop'].map(id=>{const r=document.getElementById('tv-'+id).getBoundingClientRect();return {left:r.left,right:r.right,height:r.height,minHeight:getComputedStyle(document.getElementById('tv-'+id)).minHeight,zoom:getComputedStyle(document.getElementById('tv-'+id)).zoom}})}");
  assert(narrow.width<=480,JSON.stringify(narrow));assert.equal(narrow.overflow,false);assert(narrow.bodyHeight>=200,JSON.stringify(narrow));assert(narrow.footerBottom<=narrow.height);for(const button of narrow.buttons){assert(button.left>=0&&button.right<=narrow.width);assert(button.height>=40,JSON.stringify(narrow));}
- fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({complete:true,realGeneration:real,sharedReferences:shared,eventOwnership:ownership,controlledStarts:starts.length,controlledStops:stops.length,secondaryContrast,metrics,narrow,events},null,2));
+ fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({complete:true,realGeneration:real,sharedReferences:shared,eventOwnership:ownership,referenceRefresh,controlledStarts:starts.length,controlledStops:stops.length,secondaryContrast,metrics,narrow,events},null,2));
  console.log(JSON.stringify({out,complete:true,realGeneration:real,metrics}));app.exit(0);
 }).catch(async error=>{console.error(error.stack);try{await screenshot('failure');}catch{}app.exit(1);});
 setTimeout(()=>app.exit(2),real?300000:60000).unref();
