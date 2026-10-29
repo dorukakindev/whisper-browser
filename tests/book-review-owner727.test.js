@@ -2,14 +2,14 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{JSDOM}=require('jsdom');
 const tick=()=>new Promise(setImmediate);
 function gate(){let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};}
-function fixture({bookGate,configGate,approvalGate,saveGate,extraChapter=false}={}){
+function fixture({bookGate,configGate,approvalGate,saveGate,extraChapter=false,workflowCall}={}){
  const dom=new JSDOM('<body></body>',{runScripts:'outside-only'}),w=dom.window;let context;
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};
  w.HTMLDialogElement.prototype.close=function(){this.open=false;setTimeout(()=>this.dispatchEvent(new w.Event('close')),0);};
  w.HTMLMediaElement.prototype.pause=w.HTMLMediaElement.prototype.load=()=>{};
  w.HTMLElement.prototype.scrollIntoView=()=>{};
  const project=id=>({id,title:id,format:'txt',chapters:[{id:0,title:'Chapter '+id,text:'Actual text '+id,output:'chapter.wav',status:'review',groups:[{key:'1',text:'Actual text '+id,start:0,end:1,status:'review'}]}],selectedChapters:[0]});
- w.api={mediaWorkflows:async r=>r.action==='book-approve'?approvalGate.promise:r.action==='book-open'?bookGate?.(r.id)||{ok:true,project:extraChapter&&r.id==='one'?{...project(r.id),chapters:[...project(r.id).chapters,{id:1,title:'Second chapter',text:'Second chapter text',status:'idle'}]}:project(r.id)}:r.action==='book-save'?saveGate?.(r)||{ok:true,project:project(r.id)}:r.action==='book-list'?{ok:true,projects:[{id:'one',title:'one'},{id:'two',title:'two'}]}:{ok:true},dubConfig:()=>typeof configGate==='function'?configGate():configGate?.promise||Promise.resolve({}),listVoiceReferences:async()=>({ok:true,references:[]})};
+ w.api={onMediaWorkflow:()=>()=>{},mediaWorkflows:async r=>workflowCall?.(r)|| (r.action==='book-approve'?approvalGate.promise:r.action==='book-open'?bookGate?.(r.id)||{ok:true,project:extraChapter&&r.id==='one'?{...project(r.id),chapters:[...project(r.id).chapters,{id:1,title:'Second chapter',text:'Second chapter text',status:'idle'}]}:project(r.id)}:r.action==='book-save'?saveGate?.(r)||{ok:true,project:project(r.id)}:r.action==='book-list'?{ok:true,projects:[{id:'one',title:'one'},{id:'two',title:'two'}]}:{ok:true}),dubConfig:()=>typeof configGate==='function'?configGate():configGate?.promise||Promise.resolve({}),listVoiceReferences:async()=>({ok:true,references:[]})};
  w.syncBrowserOcclusion=async()=>{};w.globalAssistantContext=()=>context;
  w.MediaExperience={setContext:(_owner,next)=>context=next,bindPassage:()=>()=>{},context:()=>context};
  w.BookWorkflowStatus=require('../src/book-workflow-status');
@@ -87,4 +87,19 @@ for(const label of ['Season subtitle sync','Intro & credits','Memory'])test(`lea
  await assert.rejects(f.w.MediaWorkflowsUI.assistant.execute('select_book_chapters',{from:1,to:1},()=>false),/current book/);
  const back=[...f.w.document.querySelectorAll('.mw-dialog>nav button')].find(b=>b.textContent==='Audiobook');await back.onclick();
  assert.equal(f.w.MediaWorkflowsUI.assistant.state()?.id,'one','Returning to books restores its context');
+});
+
+test('season scan controls and row selection are isolated from book chapters',async t=>{
+ const scan=gate(),calls=[];const f=fixture({workflowCall:r=>{calls.push(r);if(r.action==='batch-sync')return scan.promise;if(r.action==='sync-apply')return {ok:true,written:['episode.aligned.srt']};}});t.after(()=>f.dom.window.close());
+ await f.w.MediaWorkflowsUI.openProject('one');await [...f.w.document.querySelectorAll('.mw-dialog>nav button')].find(b=>b.textContent==='Season subtitle sync').onclick();
+ const buttons=[...f.w.document.querySelectorAll('.mw-body .mw-actions>button')],start=buttons[0],stop=buttons[1],apply=buttons[2];
+ assert(stop.disabled&&apply.disabled,'Idle stop and empty apply must be disabled');
+ const pending=start.onclick();await tick();assert(!stop.disabled&&apply.disabled,'Only a running scan is stoppable');
+ scan.resolve({ok:true,token:'preview-token',rows:[{name:'episode.srt',status:'preview'}]});await pending;
+ assert(stop.disabled&&!apply.disabled,'A completed preview can be applied');
+ const check=f.w.document.querySelector('.mw-results input');check.checked=false;check.onchange();assert(apply.disabled,'Empty row selection cannot be saved');
+ check.checked=true;check.onchange();await apply.onclick();assert(apply.disabled,'Consumed token cannot be saved twice');
+ assert.deepEqual(Array.from(calls.find(r=>r.action==='sync-apply').names),['episode.srt']);
+ await [...f.w.document.querySelectorAll('.mw-dialog>nav button')].find(b=>b.textContent==='Audiobook').onclick();
+ assert.deepEqual(Array.from(f.w.MediaWorkflowsUI.assistant.state().selected),[1],'Season file names cannot replace book chapter selection');
 });
