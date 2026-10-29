@@ -1,0 +1,97 @@
+{
+  "complete": true,
+  "realGeneration": true,
+  "sharedReferences": false,
+  "eventOwnership": false,
+  "referenceRefresh": false,
+  "realAcceptance": {
+    "freshSeed": 644560136,
+    "completedId": "text-aed03ee2-fb92-4d01-97ac-cbbc3552b2fb",
+    "elapsedSeconds": 37.1104731,
+    "stages": [
+      "model_load",
+      "synthesis",
+      "postprocess",
+      "output_check"
+    ],
+    "phases": {
+      "model_load": 20.2072034,
+      "synthesis": 14.693106500000003,
+      "postprocess": 2.1590339999999997,
+      "output_check": 0.00041670000000158325
+    },
+    "progress": {
+      "done": 1,
+      "total": 1
+    },
+    "fullDecode": true,
+    "completedHashPreserved": true,
+    "cancelledId": "text-c956e39a-26df-4650-b9be-074cb217bc56",
+    "cancellationMilliseconds": 185,
+    "cancelledResult": "cancelled",
+    "cancelledPhases": {
+      "model_load": 19.632287500000007,
+      "synthesis": 0.19949640000000363
+    },
+    "humanListening": false
+  },
+  "controlledStarts": 0,
+  "controlledStops": 0,
+  "secondaryContrast": [
+    {
+      "id": "load",
+      "expectedBackground": "rgb(233, 227, 217)",
+      "color": "rgb(40, 35, 31)",
+      "background": "rgb(233, 227, 217)",
+      "bg3": "#e9e3d9",
+      "contrast": 12.184573112973014
+    },
+    {
+      "id": "error-copy",
+      "expectedBackground": "rgb(233, 227, 217)",
+      "color": "rgb(40, 35, 31)",
+      "background": "rgb(233, 227, 217)",
+      "bg3": "#e9e3d9",
+      "contrast": 12.184573112973014
+    }
+  ],
+  "metrics": {
+    "width": 800,
+    "left": 10.000000953674316,
+    "right": 790.0000619888306,
+    "overflow": false,
+    "title": "Give your words a voice",
+    "startHeight": 44.66666793823242,
+    "editorColor": "rgb(241, 237, 229)"
+  },
+  "narrow": {
+    "width": 480,
+    "overflow": false,
+    "bodyHeight": 401.2666931152344,
+    "footerBottom": 749.4667358398438,
+    "height": 760,
+    "buttons": [
+      {
+        "left": 26.533334732055664,
+        "right": 236.00000953674316,
+        "height": 44.000003814697266,
+        "minHeight": "44px",
+        "zoom": "1"
+      },
+      {
+        "left": 244.00001525878906,
+        "right": 453.46669006347656,
+        "height": 44.000003814697266,
+        "minHeight": "44px",
+        "zoom": "1"
+      },
+      {
+        "left": 26.533334732055664,
+        "right": 236.00000953674316,
+        "height": 44.000003814697266,
+        "minHeight": "44px",
+        "zoom": "1"
+      }
+    ]
+  }
+}
