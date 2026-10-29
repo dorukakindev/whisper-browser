@@ -869,8 +869,7 @@
         for (const input of dialog.querySelectorAll(".mw-chapter input"))
           input.checked = selected.has(Number(input.dataset.chapter));
         status(
-          uiLabel("Selected pages / chapters: ", "Seçili sayfa / bölüm: ") +
-            selected.size,
+          uiLabel("Selected pages / chapters: " + selected.size, "Seçili sayfa / bölüm: " + selected.size),
         );
       }),
     );
@@ -1487,7 +1486,7 @@
     const current = next,
       expectedChapter = project.chapters[current],
       result = await call("book-listen", { id: projectId, chapter: current,
-        outputId: expectedChapter?.output, textHash: expectedChapter?.textHash });
+        outputId: resume?.outputId ?? expectedChapter?.output, textHash: resume?.textHash ?? expectedChapter?.textHash });
     if (request !== readerRequest || !dialog?.open || project?.id !== projectId)
       return;
     if (
@@ -1897,7 +1896,7 @@
         };
         zoom.onchange = () => void draw();
         controls.append(
-          el("strong", "", uiLabel("Original page ", "Özgün sayfa ") + number),
+          el("strong", "", uiLabel("Original page " + number, "Özgün sayfa " + number)),
           zoom,
         );
         page.replaceChildren(controls, canvas);
@@ -2254,7 +2253,7 @@
             const r = await call("sync-apply", { token, names: [...selected] });
             token = "";
             status(
-              uiLabel("Saved copies: ", "Kaydedilen kopya: ") + r.written.length,
+              uiLabel("Saved copies: " + r.written.length, "Kaydedilen kopya: " + r.written.length),
             );
           },
           true,
