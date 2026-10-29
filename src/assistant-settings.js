@@ -4,6 +4,15 @@
  function isDeepInfra(raw){try{const u=new URL(raw);return u.protocol==='https:'&&u.hostname==='api.deepinfra.com'&&!u.port&&!u.username&&!u.password&&!u.search&&!u.hash&&/^\/v1\/openai(?:\/chat\/completions)?\/?$/.test(u.pathname);}catch{return false;}}
  function requestOptions(endpoint,config={}){return isDeepInfra(endpoint)&&config.serviceTier!=='standard'?{service_tier:'flex'}:{};}
  function resolve(settings={},shared={}){const a=settings.assistant;const preset=a?.endpointPreset||(a?.apiKey?ENDPOINT:'inherit');if(preset==='inherit')return {...shared};if(preset!==ENDPOINT)throw Error('Unsupported assistant provider / Desteklenmeyen asistan sağlayıcısı.');return {endpoint:ENDPOINT,model:a.model||MODEL,apiKey:a.apiKey||'',targetLanguage:shared.targetLanguage||'tr',serviceTier:a.flex===false?'standard':'flex'};}
+ function fillTextDefaults(settings={}){
+  const next={...settings};
+  // Do not move an existing provider's credential to a new endpoint.
+  if(!settings.translate&&!settings.ui?.translateEndpointPreset)next.translate={endpointPreset:ENDPOINT,model:MODEL};
+  if(!settings.llm)next.llm={endpointPreset:ENDPOINT,model:MODEL};
+  if(settings.translate?.apiKey&&!settings.translate.endpointPreset&&!settings.ui?.translateEndpointPreset)next.translate={...settings.translate,endpointPreset:'https://api.shuaiapi.com/v1'};
+  if(settings.llm?.apiKey&&!settings.llm.endpointPreset)next.llm={...settings.llm,endpointPreset:'https://api.deepseek.com',model:settings.llm.model||'deepseek-v4-flash'};
+  return next;
+ }
  function timeout(config){return isDeepInfra(config?.endpoint)?12*60*1000:120000;}
- return Object.freeze({ENDPOINT,MODEL,isDeepInfra,requestOptions,resolve,timeout});
+ return Object.freeze({ENDPOINT,MODEL,isDeepInfra,requestOptions,resolve,timeout,fillTextDefaults});
 });

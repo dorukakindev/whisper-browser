@@ -37,3 +37,9 @@ test('Legacy assistant tier is job-scoped and never leaks into unrelated subproc
  assert.equal(buildSecretEnv({WHISPER_ASSISTANT_SERVICE_TIER:'flex'},{chat:{serviceTier:'standard'}}).WHISPER_ASSISTANT_SERVICE_TIER,'standard');
  assert.equal(buildSecretEnv({WHISPER_ASSISTANT_SERVICE_TIER:'standard'},{}).WHISPER_ASSISTANT_SERVICE_TIER,undefined);
 });
+
+test('New text workflows default to DeepSeek without moving legacy keys',()=>{
+ const fresh=settings.fillTextDefaults({});assert.equal(fresh.translate.endpointPreset,settings.ENDPOINT);assert.equal(fresh.translate.model,settings.MODEL);assert.equal(fresh.llm.model,settings.MODEL);
+ const legacy=settings.fillTextDefaults({translate:{apiKey:'synthetic-old'},llm:{apiKey:'synthetic-cleanup'}});assert.equal(legacy.translate.endpointPreset,'https://api.shuaiapi.com/v1');assert.equal(legacy.llm.endpointPreset,'https://api.deepseek.com');
+ const custom={translate:{endpointPreset:'custom',customBaseUrl:'https://example.invalid/v1',model:'custom'},llm:{endpointPreset:'custom',model:'other'}};assert.deepEqual(settings.fillTextDefaults(custom),custom);
+});

@@ -852,8 +852,8 @@
                   <option value="https://api.oai.sb/v1">shuaiapi · Asya Pasifik CDN 2</option>
                   <option value="https://cdn.shuaiapi.com/v1">shuaiapi · Asya Pasifik CDN</option>
                   <option value="https://codecraftapi.com/v1" data-default-model="gemini-3.7-flash">CodeCraftAPI · Gemini 3.7 Flash</option>
-                  <option value="https://4sapi.com/v1" data-default-model="gemini-3.8-flash" selected>4SAPI · GPT-5.4 / Gemini 3.8 Flash</option>
-                  <option value="https://api.deepinfra.com/v1/openai" data-default-model="deepseek-ai/DeepSeek-V4.1-Flash-1017">DeepInfra · DeepSeek V4.1 Flash</option>
+                  <option value="https://4sapi.com/v1" data-default-model="gemini-3.8-flash">4SAPI · GPT-5.4 / Gemini 3.8 Flash</option>
+                  <option value="https://api.deepinfra.com/v1/openai" data-default-model="deepseek-ai/DeepSeek-V4.1-Flash-1017" selected>DeepInfra · DeepSeek V4.1 Flash</option>
                   <option value="https://api.apinex.bond/v1" data-default-model="free/deepseek-v4-pro-0813">APINEX · DeepSeek V4 Pro</option>
                   <option value="https://api.openai.com/v1">OpenAI</option>
                   <option value="https://generativelanguage.googleapis.com/v1beta/openai">Gemini · görsel/manga</option>
@@ -864,7 +864,7 @@
               </label>
               <label class="field">
                 <span class="field-label">Model</span>
-                <input type="text" id="translateModel" value="gemini-3.8-flash" placeholder="gemini-3.8-flash" list="translationModelSuggestions" aria-describedby="translateModelScore" />
+                <input type="text" id="translateModel" value="deepseek-ai/DeepSeek-V4.1-Flash-1017" placeholder="deepseek-ai/DeepSeek-V4.1-Flash-1017" list="translationModelSuggestions" aria-describedby="translateModelScore" />
                 <small id="translateModelScore" class="model-score hidden" role="status" data-ui-untranslated></small>
               </label>
               <div class="field field-full provider-model-manager">
@@ -1011,7 +1011,8 @@
               <label class="field">
                 <span class="field-label">Endpoint (base URL)</span>
                 <select id="llmEndpointPreset">
-                  <option value="https://api.deepseek.com" selected>DeepSeek</option>
+                  <option value="https://api.deepinfra.com/v1/openai" selected>DeepInfra · DeepSeek V4.1 Flash</option>
+                  <option value="https://api.deepseek.com">DeepSeek</option>
                   <option value="https://api.openai.com/v1">OpenAI</option>
                   <option value="https://openrouter.ai/api/v1">OpenRouter</option>
                   <option value="https://api.groq.com/openai/v1">Groq</option>
@@ -1020,7 +1021,7 @@
               </label>
               <label class="field">
                 <span class="field-label">Model</span>
-                <input type="text" id="llmModel" value="deepseek-v4-flash" placeholder="deepseek-v4-flash" />
+                <input type="text" id="llmModel" value="deepseek-ai/DeepSeek-V4.1-Flash-1017" placeholder="deepseek-ai/DeepSeek-V4.1-Flash-1017" />
               </label>
               <label class="field field-full hidden" id="llmCustomUrlField">
                 <span class="field-label">Özel endpoint URL</span>
@@ -3766,6 +3767,7 @@
     <section class="dub-card" id="dubPreviewCard" hidden><div class="dub-card-heading"><h3>Üretilen ses</h3></div><p id="dubGeneratedName" data-ui-untranslated></p><audio id="dubGeneratedPreview" class="hidden" controls preload="metadata" aria-label="Üretilen sesi dinle"></audio></section>
     <section class="dub-card"><div class="dub-card-heading"><span class="dub-step" aria-hidden="true" data-ui-untranslated data-step="1"></span><h3>Altyazı ve kapsam</h3></div>
 <div class="dub-generator-row"><button class="btn btn-secondary" id="dubChooseSrt" type="button">SRT seç</button><span id="dubSrtName" data-ui-untranslated>—</span></div>
+    <p id="dubInputNotice" class="dub-input-notice" role="status" hidden data-ui-untranslated></p>
 <label class="dub-generator-row"><input id="dubRangeEnabled" type="checkbox" />Yalnız seçilen zaman aralığını seslendir</label>
   <div class="dub-generator-row dub-range-row">
     <label for="dubRangeStart">Başlangıç (dk:sn)</label><input id="dubRangeStart" type="text" value="0:00" inputmode="decimal" maxlength="16" data-ui-untranslated />

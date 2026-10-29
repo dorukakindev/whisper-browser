@@ -10391,9 +10391,9 @@ def main():
                         help="Altyaziyi hedef dile cevir (OpenAI uyumlu API)")
     parser.add_argument("--translate-to", default="tr", help="Hedef dil kodu (tr, en, de...)")
     parser.add_argument("--translate-api-key", default="")
-    parser.add_argument("--translate-base-url", default="https://api.shuaiapi.com/v1",
+    parser.add_argument("--translate-base-url", default="https://api.deepinfra.com/v1/openai",
                         help="OpenAI uyumlu endpoint; shuaiapi rotalarinda otomatik yedekleme yapilir")
-    parser.add_argument("--translate-model", default="gemini-3.8-flash")
+    parser.add_argument("--translate-model", default="deepseek-ai/DeepSeek-V4.1-Flash-1017")
     parser.add_argument("--translate-workers", type=int, default=4)
     parser.add_argument("--rate-limit", type=int, default=0,
                         help="yt-dlp indirme hızı sınırı (byte/s); 0 = sınırsız")
@@ -10447,9 +10447,9 @@ def main():
                              "kaynak yankilari yazilir ama onbellek/bulanik hafizaya girmez.")
     parser.add_argument("--llm-postprocess", type=lambda x: x.lower() == "true", default=False)
     parser.add_argument("--llm-api-key", default="")
-    parser.add_argument("--llm-base-url", default="https://api.deepseek.com",
+    parser.add_argument("--llm-base-url", default="https://api.deepinfra.com/v1/openai",
                         help="OpenAI uyumlu endpoint (DeepSeek varsayılan)")
-    parser.add_argument("--llm-model", default="deepseek-v4-flash")
+    parser.add_argument("--llm-model", default="deepseek-ai/DeepSeek-V4.1-Flash-1017")
     parser.add_argument("--llm-workers", type=int, default=4)
     parser.add_argument("--llm-fix-censorship", type=lambda x: x.lower() == "true", default=True)
     parser.add_argument("--llm-fix-hallucination", type=lambda x: x.lower() == "true", default=True)

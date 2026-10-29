@@ -1835,3 +1835,5 @@ details.browser-translate-split.hidden { display: none !important; }
 .dub-studio .dub-header-actions { flex-shrink: 0; }
 .dub-studio .dub-card .voice-reference-count { font-size: 11px; margin: 6px 0; }
 .dub-studio .dub-card:has(#dubChooseSrt)>p { font-size: 12px; margin: 8px 0; }
+
+.dub-studio .dub-input-notice { padding: 10px 12px; border-inline-start: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--bg-1)); border-radius: 6px; color: var(--text); font-size: 12px; line-height: 1.6; }
