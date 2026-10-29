@@ -3294,13 +3294,43 @@ def resolve_translate_routes(base_url):
 SPEECH_TRANSLATION_PROTOCOL = 'speech-v10-source-role-review'
 
 
+def translation_cue_interval(args):
+    raw = str(getattr(args, 'translate_cue_range', '') or '').strip()
+    if not raw:
+        return None
+    try:
+        parts = [float(value) for value in raw.split(':')]
+        if len(parts) != 2 or not all(math.isfinite(value) for value in parts) or parts[0] < 0 or parts[1] <= parts[0]:
+            raise ValueError('invalid interval')
+        return tuple(parts)
+    except (ValueError, TypeError):
+        raise RuntimeError("Invalid --translate-cue-range: expected finite START:END seconds / Geçersiz çeviri aralığı.") from None
+
+
 def translation_sentence_groups(entries, args, speakers=None):
-    # Speech needs a complete thought, not the visual subtitle's short window.
-    # Keep all existing speaker, gap, SDH and overlap boundaries and finite caps.
-    if getattr(args, 'translate_for_speech', False):
-        return sentence_groups(entries, max_chars=1200, max_duration=40,
-                               max_parts=12, speakers=speakers)
-    return sentence_groups(entries, speakers=speakers)
+    # Keep natural speaker/gap/SDH limits, then isolate the editable interval.
+    # Out-of-range source text stays read-only context, never a locked target
+    # part that would force a mixed-language sentence into the quality gate.
+    groups = (sentence_groups(entries, max_chars=1200, max_duration=40,
+                              max_parts=12, speakers=speakers)
+              if getattr(args, 'translate_for_speech', False)
+              else sentence_groups(entries, speakers=speakers))
+    interval = translation_cue_interval(args)
+    if not interval:
+        return groups
+    lo, hi = interval
+    selected = lambda index: float(entries[index][1]) > lo - 0.001 and float(entries[index][0]) < hi + 0.001
+    result = []
+    for group in groups:
+        run = []
+        for index in group:
+            if run and selected(index) != selected(run[-1]):
+                result.append(run)
+                run = []
+            run.append(index)
+        if run:
+            result.append(run)
+    return result
 
 
 def speech_translation_args(args):
@@ -9004,16 +9034,9 @@ def translate_existing_subtitle(args):
     # bloklar yeniden cevirilir; aralik disi bloklar mevcut ceviriyle — o da
     # yoksa kaynak metinle — precompleted isaretlenir, boylece cikti dosyasi
     # tam kalir ve model baglama tum dosyayi gorur.
-    _cue_range_raw = str(getattr(args, "translate_cue_range", "") or "").strip()
-    if _cue_range_raw:
-        try:
-            _range_parts = [float(p) for p in _cue_range_raw.split(":")]
-            if len(_range_parts) != 2 or _range_parts[1] <= _range_parts[0]:
-                raise ValueError("gecersiz aralik")
-            _range_lo, _range_hi = _range_parts
-        except Exception:
-            raise RuntimeError(
-                f"--translate-cue-range degeri okunamadi (beklenen 'BASLANGIC:BITIS' saniye): {_cue_range_raw!r}")
+    _cue_interval = translation_cue_interval(args)
+    if _cue_interval:
+        _range_lo, _range_hi = _cue_interval
         _range_mask = {
             index for index, entry in enumerate(entries)
             if float(entry[1]) > _range_lo - 0.001 and float(entry[0]) < _range_hi + 0.001

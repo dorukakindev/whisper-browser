@@ -25989,6 +25989,10 @@ async function startPlayerSubtitleTranslation(config = {}) {
     // dil seçiminden daha güvenilirdir. Yanlış kaynak dil promptu özellikle kısa
     // repliklerde yanlış anlam ve hitap seçimine yol açıyordu.
     if (browserLanguage || config.sourceLanguage) opts.language = config.sourceLanguage || browserLanguage;
+    if(player.workspaceMode==='player'&&player.localPath&&opts.translateCueRange){
+      const interval=String(opts.translateCueRange).split(':').map(Number);
+      if(interval.length===2&&interval.every(Number.isFinite))opts.subtitlePlayback={mediaPath:player.localPath,range:{start:interval[0],end:interval[1]}};
+    }
     const problem = optsProblem(opts);
     if (problem) {
       clearPendingRetranslateIntent({ dropSnapshot: true });
