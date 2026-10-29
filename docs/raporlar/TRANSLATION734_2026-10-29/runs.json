@@ -1,0 +1,1177 @@
+{
+  "syntheticOnly": true,
+  "runs": [
+    {
+      "label": "prototype-main",
+      "run": "1793231097462-1964",
+      "requests": 5,
+      "structurallyComplete": true,
+      "quality": {
+        "type": "quality_report",
+        "translation_blocks": 16,
+        "translation_untranslated": 0,
+        "translation_empty": 0,
+        "translation_timing_mismatch": 0,
+        "translation_failed": 0,
+        "translation_untranslated_indices": [],
+        "translation_empty_indices": [],
+        "translation_timing_mismatch_indices": [],
+        "translation_number_mismatch": 0,
+        "translation_number_mismatch_indices": [],
+        "translation_negation_mismatch": 0,
+        "translation_negation_mismatch_indices": [],
+        "translation_modal_mismatch": 0,
+        "translation_modal_mismatch_indices": [],
+        "translation_currency_mismatch": 0,
+        "translation_currency_mismatch_indices": [],
+        "translation_unit_mismatch": 0,
+        "translation_unit_mismatch_indices": [],
+        "translation_date_mismatch": 0,
+        "translation_date_mismatch_indices": [],
+        "translation_truncated_fragment": 0,
+        "translation_truncated_fragment_indices": [],
+        "translation_meaning_shadow_evaluated": 16,
+        "translation_meaning_shadow_rejected": 0,
+        "translation_meaning_shadow_rejected_indices": [],
+        "translation_meaning_shadow_rejected_rate": 0,
+        "translation_meaning_hard_rejected": 0,
+        "translation_meaning_hard_rejected_rate": 0,
+        "translation_issue_indices": [],
+        "translation_issues": 0
+      },
+      "httpStatuses": [
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "elapsedMs": [
+        14770,
+        1451,
+        1756,
+        2183,
+        29051
+      ],
+      "roleProposals": [
+        {
+          "id": 4,
+          "actor": "MARA",
+          "action": "lent",
+          "object": "car",
+          "owner": "MARA",
+          "recipient": "DENIZ",
+          "contrast": "owner: sister"
+        },
+        {
+          "id": 5,
+          "actor": "DENIZ",
+          "action": "owe",
+          "object": "apology",
+          "owner": "",
+          "recipient": "MARA",
+          "contrast": "recipient: her"
+        }
+      ]
+    },
+    {
+      "label": "prototype-holdout",
+      "run": "1793231245837-1084",
+      "requests": 3,
+      "structurallyComplete": true,
+      "quality": {
+        "type": "quality_report",
+        "translation_blocks": 8,
+        "translation_untranslated": 0,
+        "translation_empty": 0,
+        "translation_timing_mismatch": 0,
+        "translation_failed": 0,
+        "translation_untranslated_indices": [],
+        "translation_empty_indices": [],
+        "translation_timing_mismatch_indices": [],
+        "translation_number_mismatch": 0,
+        "translation_number_mismatch_indices": [],
+        "translation_negation_mismatch": 0,
+        "translation_negation_mismatch_indices": [],
+        "translation_modal_mismatch": 0,
+        "translation_modal_mismatch_indices": [],
+        "translation_currency_mismatch": 0,
+        "translation_currency_mismatch_indices": [],
+        "translation_unit_mismatch": 0,
+        "translation_unit_mismatch_indices": [],
+        "translation_date_mismatch": 0,
+        "translation_date_mismatch_indices": [],
+        "translation_truncated_fragment": 0,
+        "translation_truncated_fragment_indices": [],
+        "translation_meaning_shadow_evaluated": 8,
+        "translation_meaning_shadow_rejected": 0,
+        "translation_meaning_shadow_rejected_indices": [],
+        "translation_meaning_shadow_rejected_rate": 0,
+        "translation_meaning_hard_rejected": 0,
+        "translation_meaning_hard_rejected_rate": 0,
+        "translation_issue_indices": [],
+        "translation_issues": 0
+      },
+      "httpStatuses": [
+        200,
+        200,
+        200
+      ],
+      "elapsedMs": [
+        6407,
+        16346,
+        5276
+      ],
+      "roleProposals": [
+        {
+          "id": 0,
+          "actor": "LENA",
+          "action": "sent",
+          "object": "my brother's report",
+          "owner": "LENA's brother",
+          "recipient": "OMAR",
+          "contrast": "owner: LENA's report"
+        },
+        {
+          "id": 1,
+          "actor": "OMAR",
+          "action": "should thank",
+          "object": "",
+          "owner": "",
+          "recipient": "LENA's brother",
+          "contrast": "recipient: LENA"
+        },
+        {
+          "id": 2,
+          "actor": "ALIN",
+          "action": "borrowed",
+          "object": "Mira's bicycle",
+          "owner": "MIRA",
+          "recipient": "",
+          "contrast": "owner: ALIN's father"
+        },
+        {
+          "id": 3,
+          "actor": "ALIN's father",
+          "action": "lent",
+          "object": "the helmet",
+          "owner": "ALIN's father",
+          "recipient": "ALIN",
+          "contrast": "recipient: MIRA"
+        },
+        {
+          "id": 4,
+          "actor": "",
+          "action": "owe",
+          "object": "an explanation",
+          "owner": "",
+          "recipient": "NORA",
+          "contrast": "recipient: him"
+        },
+        {
+          "id": 5,
+          "actor": "KAYA",
+          "action": "blamed",
+          "object": "myself",
+          "owner": "KAYA",
+          "recipient": "",
+          "contrast": "object: you"
+        },
+        {
+          "id": 6,
+          "actor": "",
+          "action": "is",
+          "object": "coat",
+          "owner": "hers",
+          "recipient": "",
+          "contrast": "owner: LYRA"
+        },
+        {
+          "id": 7,
+          "actor": "she",
+          "action": "wrote",
+          "object": "the letter",
+          "owner": "",
+          "recipient": "",
+          "contrast": "actor: RUI"
+        }
+      ]
+    },
+    {
+      "label": "scene-main",
+      "run": "1793231374089-30196",
+      "requests": 3,
+      "structurallyComplete": true,
+      "quality": {
+        "type": "quality_report",
+        "translation_blocks": 16,
+        "translation_untranslated": 0,
+        "translation_empty": 0,
+        "translation_timing_mismatch": 0,
+        "translation_failed": 0,
+        "translation_untranslated_indices": [],
+        "translation_empty_indices": [],
+        "translation_timing_mismatch_indices": [],
+        "translation_number_mismatch": 0,
+        "translation_number_mismatch_indices": [],
+        "translation_negation_mismatch": 0,
+        "translation_negation_mismatch_indices": [],
+        "translation_modal_mismatch": 0,
+        "translation_modal_mismatch_indices": [],
+        "translation_currency_mismatch": 0,
+        "translation_currency_mismatch_indices": [],
+        "translation_unit_mismatch": 0,
+        "translation_unit_mismatch_indices": [],
+        "translation_date_mismatch": 0,
+        "translation_date_mismatch_indices": [],
+        "translation_truncated_fragment": 0,
+        "translation_truncated_fragment_indices": [],
+        "translation_meaning_shadow_evaluated": 16,
+        "translation_meaning_shadow_rejected": 0,
+        "translation_meaning_shadow_rejected_indices": [],
+        "translation_meaning_shadow_rejected_rate": 0,
+        "translation_meaning_hard_rejected": 0,
+        "translation_meaning_hard_rejected_rate": 0,
+        "translation_issue_indices": [],
+        "translation_issues": 0
+      },
+      "httpStatuses": [
+        200,
+        200,
+        200
+      ],
+      "elapsedMs": [
+        14568,
+        1851,
+        10074
+      ],
+      "roleProposals": [
+        {
+          "id": 4,
+          "actor": "MARA",
+          "action": "lent",
+          "object": "car",
+          "owner": "MARA",
+          "recipient": "DENIZ",
+          "contrast": "owner: sister"
+        },
+        {
+          "id": 5,
+          "actor": "DENIZ",
+          "action": "owe",
+          "object": "apology",
+          "owner": "",
+          "recipient": "MARA",
+          "contrast": "recipient: her"
+        }
+      ]
+    },
+    {
+      "label": "scene-holdout",
+      "run": "1793231374098-27676",
+      "requests": 3,
+      "structurallyComplete": true,
+      "quality": {
+        "type": "quality_report",
+        "translation_blocks": 8,
+        "translation_untranslated": 0,
+        "translation_empty": 0,
+        "translation_timing_mismatch": 0,
+        "translation_failed": 0,
+        "translation_untranslated_indices": [],
+        "translation_empty_indices": [],
+        "translation_timing_mismatch_indices": [],
+        "translation_number_mismatch": 0,
+        "translation_number_mismatch_indices": [],
+        "translation_negation_mismatch": 0,
+        "translation_negation_mismatch_indices": [],
+        "translation_modal_mismatch": 0,
+        "translation_modal_mismatch_indices": [],
+        "translation_currency_mismatch": 0,
+        "translation_currency_mismatch_indices": [],
+        "translation_unit_mismatch": 0,
+        "translation_unit_mismatch_indices": [],
+        "translation_date_mismatch": 0,
+        "translation_date_mismatch_indices": [],
+        "translation_truncated_fragment": 0,
+        "translation_truncated_fragment_indices": [],
+        "translation_meaning_shadow_evaluated": 8,
+        "translation_meaning_shadow_rejected": 0,
+        "translation_meaning_shadow_rejected_indices": [],
+        "translation_meaning_shadow_rejected_rate": 0,
+        "translation_meaning_hard_rejected": 0,
+        "translation_meaning_hard_rejected_rate": 0,
+        "translation_issue_indices": [],
+        "translation_issues": 0
+      },
+      "httpStatuses": [
+        200,
+        200,
+        200
+      ],
+      "elapsedMs": [
+        6718,
+        3231,
+        8208
+      ],
+      "roleProposals": [
+        {
+          "id": 0,
+          "actor": "LENA",
+          "action": "sent",
+          "object": "report",
+          "owner": "LENA's brother",
+          "recipient": "OMAR",
+          "contrast": "owner: LENA"
+        },
+        {
+          "id": 1,
+          "actor": "OMAR",
+          "action": "thank",
+          "object": "",
+          "owner": "",
+          "recipient": "LENA's brother",
+          "contrast": "recipient: LENA"
+        },
+        {
+          "id": 2,
+          "actor": "ALIN",
+          "action": "borrowed",
+          "object": "bicycle",
+          "owner": "MIRA",
+          "recipient": "ALIN",
+          "contrast": "owner: ALIN's father"
+        },
+        {
+          "id": 3,
+          "actor": "ALIN's father",
+          "action": "lent",
+          "object": "helmet",
+          "owner": "ALIN's father",
+          "recipient": "ALIN",
+          "contrast": "recipient: MIRA"
+        },
+        {
+          "id": 4,
+          "actor": "addressee",
+          "action": "owe",
+          "object": "explanation",
+          "owner": "",
+          "recipient": "NORA",
+          "contrast": "recipient: him"
+        },
+        {
+          "id": 5,
+          "actor": "KAYA",
+          "action": "blamed",
+          "object": "",
+          "owner": "",
+          "recipient": "KAYA",
+          "contrast": "recipient: addressee"
+        },
+        {
+          "id": 6,
+          "actor": "",
+          "action": "",
+          "object": "coat",
+          "owner": "her",
+          "recipient": "",
+          "contrast": "owner: LYRA"
+        },
+        {
+          "id": 7,
+          "actor": "she",
+          "action": "wrote",
+          "object": "letter",
+          "owner": "",
+          "recipient": "",
+          "contrast": "actor: RUI"
+        }
+      ]
+    },
+    {
+      "label": "missing-draft-main",
+      "run": "1793231660971-31676",
+      "requests": 4,
+      "structurallyComplete": true,
+      "quality": {
+        "type": "quality_report",
+        "translation_blocks": 16,
+        "translation_untranslated": 0,
+        "translation_empty": 0,
+        "translation_timing_mismatch": 0,
+        "translation_failed": 0,
+        "translation_untranslated_indices": [],
+        "translation_empty_indices": [],
+        "translation_timing_mismatch_indices": [],
+        "translation_number_mismatch": 0,
+        "translation_number_mismatch_indices": [],
+        "translation_negation_mismatch": 0,
+        "translation_negation_mismatch_indices": [],
+        "translation_modal_mismatch": 0,
+        "translation_modal_mismatch_indices": [],
+        "translation_currency_mismatch": 0,
+        "translation_currency_mismatch_indices": [],
+        "translation_unit_mismatch": 0,
+        "translation_unit_mismatch_indices": [],
+        "translation_date_mismatch": 0,
+        "translation_date_mismatch_indices": [],
+        "translation_truncated_fragment": 0,
+        "translation_truncated_fragment_indices": [],
+        "translation_meaning_shadow_evaluated": 16,
+        "translation_meaning_shadow_rejected": 0,
+        "translation_meaning_shadow_rejected_indices": [],
+        "translation_meaning_shadow_rejected_rate": 0,
+        "translation_meaning_hard_rejected": 0,
+        "translation_meaning_hard_rejected_rate": 0,
+        "translation_issue_indices": [],
+        "translation_issues": 0
+      },
+      "httpStatuses": [
+        200,
+        200,
+        200,
+        200
+      ],
+      "elapsedMs": [
+        20790,
+        2288,
+        6110,
+        12249
+      ],
+      "roleProposals": [
+        {
+          "id": 4,
+          "actor": "MARA",
+          "action": "lent",
+          "object": "car",
+          "owner": "MARA",
+          "recipient": "DENIZ",
+          "contrast": "owner: sister"
+        },
+        {
+          "id": 5,
+          "actor": "DENIZ",
+          "action": "owe",
+          "object": "apology",
+          "owner": "",
+          "recipient": "MARA",
+          "contrast": "recipient: her"
+        }
+      ]
+    },
+    {
+      "label": "split-main",
+      "run": "1793231749217-30648",
+      "requests": 3,
+      "structurallyComplete": true,
+      "quality": {
+        "type": "quality_report",
+        "translation_blocks": 16,
+        "translation_untranslated": 0,
+        "translation_empty": 0,
+        "translation_timing_mismatch": 0,
+        "translation_failed": 0,
+        "translation_untranslated_indices": [],
+        "translation_empty_indices": [],
+        "translation_timing_mismatch_indices": [],
+        "translation_number_mismatch": 0,
+        "translation_number_mismatch_indices": [],
+        "translation_negation_mismatch": 0,
+        "translation_negation_mismatch_indices": [],
+        "translation_modal_mismatch": 0,
+        "translation_modal_mismatch_indices": [],
+        "translation_currency_mismatch": 0,
+        "translation_currency_mismatch_indices": [],
+        "translation_unit_mismatch": 0,
+        "translation_unit_mismatch_indices": [],
+        "translation_date_mismatch": 0,
+        "translation_date_mismatch_indices": [],
+        "translation_truncated_fragment": 0,
+        "translation_truncated_fragment_indices": [],
+        "translation_meaning_shadow_evaluated": 16,
+        "translation_meaning_shadow_rejected": 0,
+        "translation_meaning_shadow_rejected_indices": [],
+        "translation_meaning_shadow_rejected_rate": 0,
+        "translation_meaning_hard_rejected": 0,
+        "translation_meaning_hard_rejected_rate": 0,
+        "translation_issue_indices": [],
+        "translation_issues": 0
+      },
+      "httpStatuses": [
+        200,
+        200,
+        200
+      ],
+      "elapsedMs": [
+        14263,
+        5248,
+        11752
+      ],
+      "roleProposals": [
+        {
+          "id": 4,
+          "actor": "MARA",
+          "action": "lent",
+          "object": "car",
+          "owner": "MARA",
+          "recipient": "DENIZ",
+          "contrast": "owner: sister"
+        },
+        {
+          "id": 5,
+          "actor": "DENIZ",
+          "action": "owe an apology",
+          "object": "apology",
+          "owner": "",
+          "recipient": "MARA",
+          "contrast": "recipient: her"
+        }
+      ]
+    },
+    {
+      "label": "split-holdout",
+      "run": "1793231749227-28744",
+      "requests": 3,
+      "structurallyComplete": true,
+      "quality": {
+        "type": "quality_report",
+        "translation_blocks": 8,
+        "translation_untranslated": 0,
+        "translation_empty": 0,
+        "translation_timing_mismatch": 0,
+        "translation_failed": 0,
+        "translation_untranslated_indices": [],
+        "translation_empty_indices": [],
+        "translation_timing_mismatch_indices": [],
+        "translation_number_mismatch": 0,
+        "translation_number_mismatch_indices": [],
+        "translation_negation_mismatch": 0,
+        "translation_negation_mismatch_indices": [],
+        "translation_modal_mismatch": 0,
+        "translation_modal_mismatch_indices": [],
+        "translation_currency_mismatch": 0,
+        "translation_currency_mismatch_indices": [],
+        "translation_unit_mismatch": 0,
+        "translation_unit_mismatch_indices": [],
+        "translation_date_mismatch": 0,
+        "translation_date_mismatch_indices": [],
+        "translation_truncated_fragment": 0,
+        "translation_truncated_fragment_indices": [],
+        "translation_meaning_shadow_evaluated": 8,
+        "translation_meaning_shadow_rejected": 0,
+        "translation_meaning_shadow_rejected_indices": [],
+        "translation_meaning_shadow_rejected_rate": 0,
+        "translation_meaning_hard_rejected": 0,
+        "translation_meaning_hard_rejected_rate": 0,
+        "translation_issue_indices": [],
+        "translation_issues": 0
+      },
+      "httpStatuses": [
+        200,
+        200,
+        200
+      ],
+      "elapsedMs": [
+        7705,
+        12727,
+        5861
+      ],
+      "roleProposals": [
+        {
+          "id": 0,
+          "actor": "LENA",
+          "action": "sent",
+          "object": "my brother's report",
+          "owner": "LENA's brother",
+          "recipient": "OMAR",
+          "contrast": "LENA's own report"
+        },
+        {
+          "id": 1,
+          "actor": "OMAR",
+          "action": "should thank",
+          "object": "",
+          "owner": "",
+          "recipient": "LENA's brother",
+          "contrast": "LENA"
+        },
+        {
+          "id": 2,
+          "actor": "ALIN",
+          "action": "borrowed",
+          "object": "bicycle",
+          "owner": "MIRA",
+          "recipient": "",
+          "contrast": "ALIN's father's bicycle"
+        },
+        {
+          "id": 3,
+          "actor": "ALIN's father",
+          "action": "lent",
+          "object": "helmet",
+          "owner": "ALIN's father",
+          "recipient": "ALIN",
+          "contrast": "MIRA"
+        },
+        {
+          "id": 4,
+          "actor": "NORA",
+          "action": "owe",
+          "object": "explanation",
+          "owner": "",
+          "recipient": "NORA",
+          "contrast": "him"
+        },
+        {
+          "id": 5,
+          "actor": "KAYA",
+          "action": "blamed",
+          "object": "",
+          "owner": "",
+          "recipient": "KAYA",
+          "contrast": "you"
+        },
+        {
+          "id": 6,
+          "actor": "",
+          "action": "is",
+          "object": "coat",
+          "owner": "her",
+          "recipient": "",
+          "contrast": "LYRA's coat"
+        },
+        {
+          "id": 7,
+          "actor": "she",
+          "action": "wrote",
+          "object": "letter",
+          "owner": "",
+          "recipient": "",
+          "contrast": "RUI"
+        }
+      ]
+    },
+    {
+      "label": "isolated-main",
+      "run": "1793231862121-1084",
+      "requests": 5,
+      "structurallyComplete": true,
+      "quality": {
+        "type": "quality_report",
+        "translation_blocks": 16,
+        "translation_untranslated": 0,
+        "translation_empty": 0,
+        "translation_timing_mismatch": 0,
+        "translation_failed": 0,
+        "translation_untranslated_indices": [],
+        "translation_empty_indices": [],
+        "translation_timing_mismatch_indices": [],
+        "translation_number_mismatch": 0,
+        "translation_number_mismatch_indices": [],
+        "translation_negation_mismatch": 0,
+        "translation_negation_mismatch_indices": [],
+        "translation_modal_mismatch": 0,
+        "translation_modal_mismatch_indices": [],
+        "translation_currency_mismatch": 0,
+        "translation_currency_mismatch_indices": [],
+        "translation_unit_mismatch": 0,
+        "translation_unit_mismatch_indices": [],
+        "translation_date_mismatch": 0,
+        "translation_date_mismatch_indices": [],
+        "translation_truncated_fragment": 0,
+        "translation_truncated_fragment_indices": [],
+        "translation_meaning_shadow_evaluated": 16,
+        "translation_meaning_shadow_rejected": 0,
+        "translation_meaning_shadow_rejected_indices": [],
+        "translation_meaning_shadow_rejected_rate": 0,
+        "translation_meaning_hard_rejected": 0,
+        "translation_meaning_hard_rejected_rate": 0,
+        "translation_issue_indices": [],
+        "translation_issues": 0
+      },
+      "httpStatuses": [
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "elapsedMs": [
+        17671,
+        4921,
+        7788,
+        2405,
+        2152
+      ],
+      "roleProposals": [
+        {
+          "id": 0,
+          "actor": "MARA",
+          "action": "lent",
+          "object": "car",
+          "owner": "MARA",
+          "recipient": "DENIZ",
+          "contrast": "owner: sister"
+        },
+        {
+          "id": 1,
+          "actor": "DENIZ",
+          "action": "owe an apology",
+          "object": "apology",
+          "owner": "DENIZ",
+          "recipient": "MARA",
+          "contrast": "recipient: her"
+        }
+      ]
+    },
+    {
+      "label": "isolated-holdout",
+      "run": "1793231862132-16408",
+      "requests": 3,
+      "structurallyComplete": true,
+      "quality": {
+        "type": "quality_report",
+        "translation_blocks": 8,
+        "translation_untranslated": 0,
+        "translation_empty": 0,
+        "translation_timing_mismatch": 0,
+        "translation_failed": 0,
+        "translation_untranslated_indices": [],
+        "translation_empty_indices": [],
+        "translation_timing_mismatch_indices": [],
+        "translation_number_mismatch": 0,
+        "translation_number_mismatch_indices": [],
+        "translation_negation_mismatch": 0,
+        "translation_negation_mismatch_indices": [],
+        "translation_modal_mismatch": 0,
+        "translation_modal_mismatch_indices": [],
+        "translation_currency_mismatch": 0,
+        "translation_currency_mismatch_indices": [],
+        "translation_unit_mismatch": 0,
+        "translation_unit_mismatch_indices": [],
+        "translation_date_mismatch": 0,
+        "translation_date_mismatch_indices": [],
+        "translation_truncated_fragment": 0,
+        "translation_truncated_fragment_indices": [],
+        "translation_meaning_shadow_evaluated": 8,
+        "translation_meaning_shadow_rejected": 0,
+        "translation_meaning_shadow_rejected_indices": [],
+        "translation_meaning_shadow_rejected_rate": 0,
+        "translation_meaning_hard_rejected": 0,
+        "translation_meaning_hard_rejected_rate": 0,
+        "translation_issue_indices": [],
+        "translation_issues": 0
+      },
+      "httpStatuses": [
+        200,
+        200,
+        200
+      ],
+      "elapsedMs": [
+        7686,
+        6944,
+        5609
+      ],
+      "roleProposals": [
+        {
+          "id": 0,
+          "actor": "LENA",
+          "action": "sent",
+          "object": "report",
+          "owner": "LENA's brother",
+          "recipient": "OMAR",
+          "contrast": "LENA's own report"
+        },
+        {
+          "id": 1,
+          "actor": "OMAR",
+          "action": "should thank",
+          "object": "",
+          "owner": "",
+          "recipient": "LENA's brother",
+          "contrast": "LENA"
+        },
+        {
+          "id": 2,
+          "actor": "ALIN",
+          "action": "borrowed",
+          "object": "bicycle",
+          "owner": "MIRA",
+          "recipient": "ALIN",
+          "contrast": "ALIN's father's bicycle"
+        },
+        {
+          "id": 3,
+          "actor": "ALIN's father",
+          "action": "lent",
+          "object": "helmet",
+          "owner": "ALIN's father",
+          "recipient": "ALIN",
+          "contrast": "MIRA"
+        },
+        {
+          "id": 4,
+          "actor": "NORA",
+          "action": "owe",
+          "object": "explanation",
+          "owner": "",
+          "recipient": "NORA",
+          "contrast": "him"
+        },
+        {
+          "id": 5,
+          "actor": "KAYA",
+          "action": "blamed",
+          "object": "",
+          "owner": "",
+          "recipient": "KAYA",
+          "contrast": "NORA"
+        },
+        {
+          "id": 6,
+          "actor": "",
+          "action": "is",
+          "object": "coat",
+          "owner": "her",
+          "recipient": "",
+          "contrast": "LYRA's coat"
+        },
+        {
+          "id": 7,
+          "actor": "she",
+          "action": "wrote",
+          "object": "letter",
+          "owner": "",
+          "recipient": "",
+          "contrast": "RUI"
+        }
+      ]
+    },
+    {
+      "label": "rate-limit-main",
+      "run": "1793231966866-24420",
+      "requests": 10,
+      "structurallyComplete": true,
+      "quality": {
+        "type": "quality_report",
+        "translation_blocks": 16,
+        "translation_untranslated": 0,
+        "translation_empty": 0,
+        "translation_timing_mismatch": 0,
+        "translation_failed": 0,
+        "translation_untranslated_indices": [],
+        "translation_empty_indices": [],
+        "translation_timing_mismatch_indices": [],
+        "translation_number_mismatch": 0,
+        "translation_number_mismatch_indices": [],
+        "translation_negation_mismatch": 0,
+        "translation_negation_mismatch_indices": [],
+        "translation_modal_mismatch": 0,
+        "translation_modal_mismatch_indices": [],
+        "translation_currency_mismatch": 0,
+        "translation_currency_mismatch_indices": [],
+        "translation_unit_mismatch": 0,
+        "translation_unit_mismatch_indices": [],
+        "translation_date_mismatch": 0,
+        "translation_date_mismatch_indices": [],
+        "translation_truncated_fragment": 0,
+        "translation_truncated_fragment_indices": [],
+        "translation_meaning_shadow_evaluated": 16,
+        "translation_meaning_shadow_rejected": 0,
+        "translation_meaning_shadow_rejected_indices": [],
+        "translation_meaning_shadow_rejected_rate": 0,
+        "translation_meaning_hard_rejected": 0,
+        "translation_meaning_hard_rejected_rate": 0,
+        "translation_issue_indices": [],
+        "translation_issues": 0
+      },
+      "httpStatuses": [
+        200,
+        429,
+        200,
+        429,
+        429,
+        200,
+        429,
+        429,
+        429,
+        200
+      ],
+      "elapsedMs": [
+        46277,
+        312,
+        5071,
+        301,
+        657,
+        14113,
+        247,
+        275,
+        726,
+        9122
+      ],
+      "roleProposals": []
+    },
+    {
+      "label": "rate-limit-holdout",
+      "run": "1793231966867-19740",
+      "requests": 3,
+      "structurallyComplete": true,
+      "quality": {
+        "type": "quality_report",
+        "translation_blocks": 8,
+        "translation_untranslated": 0,
+        "translation_empty": 0,
+        "translation_timing_mismatch": 0,
+        "translation_failed": 0,
+        "translation_untranslated_indices": [],
+        "translation_empty_indices": [],
+        "translation_timing_mismatch_indices": [],
+        "translation_number_mismatch": 0,
+        "translation_number_mismatch_indices": [],
+        "translation_negation_mismatch": 0,
+        "translation_negation_mismatch_indices": [],
+        "translation_modal_mismatch": 0,
+        "translation_modal_mismatch_indices": [],
+        "translation_currency_mismatch": 0,
+        "translation_currency_mismatch_indices": [],
+        "translation_unit_mismatch": 0,
+        "translation_unit_mismatch_indices": [],
+        "translation_date_mismatch": 0,
+        "translation_date_mismatch_indices": [],
+        "translation_truncated_fragment": 0,
+        "translation_truncated_fragment_indices": [],
+        "translation_meaning_shadow_evaluated": 8,
+        "translation_meaning_shadow_rejected": 0,
+        "translation_meaning_shadow_rejected_indices": [],
+        "translation_meaning_shadow_rejected_rate": 0,
+        "translation_meaning_hard_rejected": 0,
+        "translation_meaning_hard_rejected_rate": 0,
+        "translation_issue_indices": [],
+        "translation_issues": 0
+      },
+      "httpStatuses": [
+        200,
+        429,
+        200
+      ],
+      "elapsedMs": [
+        29176,
+        245,
+        24670
+      ],
+      "roleProposals": []
+    },
+    {
+      "label": "accepted-holdout",
+      "run": "1793232143828-12692",
+      "requests": 3,
+      "structurallyComplete": true,
+      "quality": {
+        "type": "quality_report",
+        "translation_blocks": 8,
+        "translation_untranslated": 0,
+        "translation_empty": 0,
+        "translation_timing_mismatch": 0,
+        "translation_failed": 0,
+        "translation_untranslated_indices": [],
+        "translation_empty_indices": [],
+        "translation_timing_mismatch_indices": [],
+        "translation_number_mismatch": 0,
+        "translation_number_mismatch_indices": [],
+        "translation_negation_mismatch": 0,
+        "translation_negation_mismatch_indices": [],
+        "translation_modal_mismatch": 0,
+        "translation_modal_mismatch_indices": [],
+        "translation_currency_mismatch": 0,
+        "translation_currency_mismatch_indices": [],
+        "translation_unit_mismatch": 0,
+        "translation_unit_mismatch_indices": [],
+        "translation_date_mismatch": 0,
+        "translation_date_mismatch_indices": [],
+        "translation_truncated_fragment": 0,
+        "translation_truncated_fragment_indices": [],
+        "translation_meaning_shadow_evaluated": 8,
+        "translation_meaning_shadow_rejected": 0,
+        "translation_meaning_shadow_rejected_indices": [],
+        "translation_meaning_shadow_rejected_rate": 0,
+        "translation_meaning_hard_rejected": 0,
+        "translation_meaning_hard_rejected_rate": 0,
+        "translation_issue_indices": [],
+        "translation_issues": 0
+      },
+      "httpStatuses": [
+        200,
+        200,
+        200
+      ],
+      "elapsedMs": [
+        21351,
+        22439,
+        13144
+      ],
+      "roleProposals": [
+        {
+          "id": 0,
+          "contrast_role": "owner",
+          "actor": "LENA",
+          "action": "sent",
+          "object": "my brother's report",
+          "owner": "LENA's brother",
+          "recipient": "Omar",
+          "contrast": "LENA's report"
+        },
+        {
+          "id": 1,
+          "contrast_role": "recipient",
+          "actor": "OMAR",
+          "action": "should thank",
+          "object": "",
+          "owner": "",
+          "recipient": "him",
+          "contrast": "LENA"
+        },
+        {
+          "id": 2,
+          "contrast_role": "owner",
+          "actor": "ALIN",
+          "action": "borrowed",
+          "object": "Mira's bicycle",
+          "owner": "Mira",
+          "recipient": "",
+          "contrast": "ALIN's father's bicycle"
+        },
+        {
+          "id": 3,
+          "contrast_role": "recipient",
+          "actor": "he",
+          "action": "lent",
+          "object": "the helmet",
+          "owner": "",
+          "recipient": "you",
+          "contrast": "MIRA"
+        },
+        {
+          "id": 4,
+          "contrast_role": "recipient",
+          "actor": "you",
+          "action": "owe",
+          "object": "an explanation",
+          "owner": "",
+          "recipient": "me",
+          "contrast": "him"
+        },
+        {
+          "id": 5,
+          "contrast_role": "object",
+          "actor": "KAYA",
+          "action": "blamed",
+          "object": "myself",
+          "owner": "",
+          "recipient": "",
+          "contrast": "you"
+        },
+        {
+          "id": 6,
+          "contrast_role": "owner",
+          "actor": "That",
+          "action": "is not",
+          "object": "my coat",
+          "owner": "LYRA",
+          "recipient": "",
+          "contrast": "hers"
+        },
+        {
+          "id": 7,
+          "contrast_role": "actor",
+          "actor": "She",
+          "action": "wrote",
+          "object": "the letter",
+          "owner": "",
+          "recipient": "",
+          "contrast": "me"
+        }
+      ]
+    },
+    {
+      "label": "accepted-main",
+      "run": "1793232269608-21932",
+      "requests": 5,
+      "structurallyComplete": true,
+      "quality": {
+        "type": "quality_report",
+        "translation_blocks": 16,
+        "translation_untranslated": 0,
+        "translation_empty": 0,
+        "translation_timing_mismatch": 0,
+        "translation_failed": 0,
+        "translation_untranslated_indices": [],
+        "translation_empty_indices": [],
+        "translation_timing_mismatch_indices": [],
+        "translation_number_mismatch": 0,
+        "translation_number_mismatch_indices": [],
+        "translation_negation_mismatch": 0,
+        "translation_negation_mismatch_indices": [],
+        "translation_modal_mismatch": 0,
+        "translation_modal_mismatch_indices": [],
+        "translation_currency_mismatch": 0,
+        "translation_currency_mismatch_indices": [],
+        "translation_unit_mismatch": 0,
+        "translation_unit_mismatch_indices": [],
+        "translation_date_mismatch": 0,
+        "translation_date_mismatch_indices": [],
+        "translation_truncated_fragment": 0,
+        "translation_truncated_fragment_indices": [],
+        "translation_meaning_shadow_evaluated": 16,
+        "translation_meaning_shadow_rejected": 0,
+        "translation_meaning_shadow_rejected_indices": [],
+        "translation_meaning_shadow_rejected_rate": 0,
+        "translation_meaning_hard_rejected": 0,
+        "translation_meaning_hard_rejected_rate": 0,
+        "translation_issue_indices": [],
+        "translation_issues": 0
+      },
+      "httpStatuses": [
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "elapsedMs": [
+        15576,
+        6122,
+        10907,
+        2759,
+        3032
+      ],
+      "roleProposals": [
+        {
+          "id": 0,
+          "contrast_role": "owner",
+          "actor": "MARA",
+          "action": "lent",
+          "object": "car",
+          "owner": "MARA",
+          "recipient": "DENIZ",
+          "contrast": "MARA's sister"
+        },
+        {
+          "id": 1,
+          "contrast_role": "recipient",
+          "actor": "DENIZ",
+          "action": "owe",
+          "object": "apology",
+          "owner": "",
+          "recipient": "MARA",
+          "contrast": "MARA's sister"
+        }
+      ]
+    }
+  ],
+  "manualReview": {
+    "known733Errors": "Both corrected in accepted-main; intermediate scene-main kept ownership error and split-main kept recipient error.",
+    "holdout": "Seven unambiguous role/ownership examples preserved; helmet not-me clause is source-ambiguous, not scored as certain error/success. Brother gender is neutralized as kardeş in some outputs, not full lexical-detail proof.",
+    "limits": "Model-proposed roles are not a semantic verifier. No blind human listening. Last glossary/scene passthrough edit tested locally, live corpora had no glossary/scene notes."
+  }
+}
