@@ -1,0 +1,77 @@
+{
+  "ok": true,
+  "sourceChangeRejected": true,
+  "sourceChangeWroteNothing": true,
+  "seconds": 2.342,
+  "sourceCount": 4,
+  "rows": [
+    {
+      "name": "Bolum 01.mp4",
+      "status": "preview",
+      "diagnostics": {
+        "referenceCount": null,
+        "targetCount": 3,
+        "changedCount": 3,
+        "overlapBefore": null,
+        "overlapAfter": null,
+        "meanDrift": 1.04,
+        "p95Drift": 1.04,
+        "maxDrift": 1.04,
+        "confidence": "medium",
+        "autoApply": false,
+        "method": "ffsubsync-audio-vad"
+      }
+    },
+    {
+      "name": "Bolum 02.mp4",
+      "status": "preview",
+      "diagnostics": {
+        "referenceCount": null,
+        "targetCount": 3,
+        "changedCount": 3,
+        "overlapBefore": null,
+        "overlapAfter": null,
+        "meanDrift": 2.04,
+        "p95Drift": 2.04,
+        "maxDrift": 2.04,
+        "confidence": "medium",
+        "autoApply": false,
+        "method": "ffsubsync-audio-vad"
+      }
+    }
+  ],
+  "selected": "Bolum 01.mp4",
+  "written": [
+    "Bolum 01.aligned-458c3ca5.srt"
+  ],
+  "cues": 3,
+  "bom": true,
+  "originalHashesPreserved": true,
+  "repeatedApplyRejected": true,
+  "events": [
+    {
+      "id": "synthetic-real-align",
+      "stage": "sync",
+      "done": 0,
+      "total": 2
+    },
+    {
+      "id": "synthetic-real-align",
+      "stage": "sync",
+      "done": 1,
+      "total": 2
+    },
+    {
+      "id": "synthetic-source-change",
+      "stage": "sync",
+      "done": 0,
+      "total": 2
+    },
+    {
+      "id": "synthetic-source-change",
+      "stage": "sync",
+      "done": 1,
+      "total": 2
+    }
+  ]
+}
