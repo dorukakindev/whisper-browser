@@ -101,6 +101,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       exitSignal: s.exitSignal || null,
       cleanupErrors: s.cleanupErrors || [], ...data };
     summary.sourceIdentity = s.sourceIdentity || null;
+    summary.subtitleHash = s.subtitleHash || null;
     summary.settings = s.settings || null;
     summary.metrics = s.metrics || null;
     if (type === 'error') summary.diagnostics = {
@@ -334,6 +335,15 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     const scoped = requestedId && typeof requestedId === 'object';
     const source = scoped ? sourceIdentity(requestedId.source) : null;
     if (scoped && !source) return {ok:true,output:null};
+    let subtitleHash = null, requestedRange;
+    if (scoped && requestedId.srt !== undefined) {
+      const file = await authorizeSubtitle(requestedId.srt);
+      if (path.extname(file).toLowerCase() !== '.srt' || fs.statSync(file).size > 4000000) throw Error('Invalid subtitle for saved voice lookup.');
+      const bytes = fs.readFileSync(file);
+      if (bytes.length > 4000000) throw Error('Subtitle too large.');
+      subtitleHash = require('node:crypto').createHash('sha256').update(bytes).digest('hex');
+      requestedRange = rangeOption(requestedId.range);
+    }
     if (scoped) requestedId = requestedId.id;
     if (requestedId !== undefined && !/^[a-zA-Z0-9-]{1,80}$/.test(requestedId)) return { ok: false, error: 'Invalid voice identity.' };
     const root = voiceStorage(app).output;
@@ -349,6 +359,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if (saved.result !== 'done' || !/^[a-zA-Z0-9-]{1,80}$/.test(saved.id || '')) continue;
         if (requestedId && saved.id !== requestedId) continue;
         if (source && saved.sourceIdentity !== source) continue;
+        // Automatic reuse requires evidence for the exact text and clip. Legacy
+        // records remain available through explicit output-id lookup.
+        if (subtitleHash && (saved.subtitleHash !== subtitleHash || saved.sample === true
+            || JSON.stringify(rangeOption(saved.range)) !== JSON.stringify(requestedRange))) continue;
         const output = path.join(root, `${saved.id}.wav`);
         if (![output, path.join(app.getPath('userData'), 'dub-output', `${saved.id}.wav`)].some(file => path.resolve(file) === path.resolve(saved.path || '')) || !validVoiceOutput(output)) continue;
         grantMedia(output);
@@ -458,6 +472,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (path.extname(srt).toLowerCase() !== '.srt') throw new Error('Bir SRT altyazı dosyası seçin.');
       if (fs.statSync(srt).size > 4000000) throw new Error('SRT çok büyük.');
       const sourceBytes = fs.readFileSync(srt);
+      s.subtitleHash = require('node:crypto').createHash('sha256').update(sourceBytes).digest('hex');
       if (sourceBytes.length > 4000000) throw new Error('SRT çok büyük.');
       const prepared = plans.get(e.sender.id);
       if (prepared?.srt === srt && JSON.stringify(prepared.range) === JSON.stringify(s.range)

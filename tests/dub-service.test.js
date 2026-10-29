@@ -161,6 +161,22 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.deepEqual(events.at(-1).range,{start:20,end:30});
     assert.deepEqual((await call('dub:latest')).output.range,{start:20,end:30});
     assert.equal((await call('dub:latest','ranged')).output.id,'ranged');
+    const exactLookup={source:'https://youtu.be/abcdefghijk',srt,range:{start:20,end:30}};
+    assert.equal((await call('dub:latest',exactLookup)).output.id,'ranged');
+    assert.equal((await call('dub:latest',{...exactLookup,range:null})).output,null,'full-video must not restore a clipped voice');
+    assert.equal((await call('dub:latest',{...exactLookup,range:{start:21,end:30}})).output,null,'different clip must not restore old voice');
+    const rangedLog=events.at(-1).logPath,rangedSummary=fs.readFileSync(rangedLog,'utf8');
+    assert.equal(JSON.parse(rangedSummary).subtitleHash,fixtureHash,'generation records the exact input bytes');
+    fs.writeFileSync(srt,'edited subtitle');
+    assert.equal((await call('dub:latest',exactLookup)).output,null,'same path with new contents must not reuse old voice');
+    fs.writeFileSync(srt,'fixture');
+    for(const extra of [{subtitleHash:null},{sample:true}]){
+      fs.writeFileSync(rangedLog,JSON.stringify({...JSON.parse(rangedSummary),...extra}));
+      assert.equal((await call('dub:latest',exactLookup)).output,null,'unproven or sample output cannot be selected automatically');
+      assert.equal((await call('dub:latest',{source:exactLookup.source,id:'ranged'})).output.id,'ranged','explicit legacy result remains available');
+    }
+    fs.writeFileSync(rangedLog,rangedSummary);
+
     assert.equal((await call('dub:latest',{source:'https://youtu.be/abcdefghijk?t=5'})).output.id,'ranged');
     assert.equal((await call('dub:latest',{source:'https://youtu.be/12345678901'})).output,null);
     assert.equal((await call('dub:latest',{source:'https://youtu.be/abcdefghijk',id:'ranged'})).output.id,'ranged');
