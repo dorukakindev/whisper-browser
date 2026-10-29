@@ -22,12 +22,10 @@
   --chrome-danger-soft: rgba(208, 107, 99, .16);
 }
 
-/* Same dark surfaces/accent as the media home; studio/player palettes stay scoped. */
+/* Browser and library use the same graphite and amber tokens. */
 html:not([data-theme="light"]) .player-layer.workspace-browser {
   --bg-0:#080809;--bg-1:#111113;--bg-2:#18181b;--bg-3:#252529;
   --border:#28282d;--border-strong:#44444b;--text:#f3f3f5;--text-dim:#a5a5af;--text-muted:#90909b;
-  --accent:#e8701a;--accent-hover:#fb8b36;--accent-contrast:#18100b;
-  --accent-soft:rgba(232,112,26,.13);
 }
 
 html[data-theme="light"] {

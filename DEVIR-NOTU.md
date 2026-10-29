@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-2148.md](docs/devir/2026-10-29-2148.md) — Ortak tasarım ve kaydırma çakışmaları
 Güncel çalışma: [docs/devir/2026-10-29-2031.md](docs/devir/2026-10-29-2031.md) — Dublaj ham grup sürümü bütünlüğü
 Güncel çalışma: [docs/devir/2026-10-29-2002.md](docs/devir/2026-10-29-2002.md) — Ortak hidden tasarım durumu
 Güncel çalışma: [docs/devir/2026-10-29-1950.md](docs/devir/2026-10-29-1950.md) — Gerçek hizalama iptal kabulü

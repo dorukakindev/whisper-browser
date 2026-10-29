@@ -1,3 +1,4 @@
+- [Rapor786](BROWSER_BUG_REPORT_786.md) — Ortak tasarım, kategori odağı ve asistan kaydırma izolasyonu
 - [Rapor784](BROWSER_BUG_REPORT_784.md) — Yeniden üretimde değişmez ham grup kayıtları ve gerçek GPU kabulü
 - [Rapor783](BROWSER_BUG_REPORT_783.md) — Ortak hidden görünürlüğü ve gerçek Windows dublaj kabulü
 - [Rapor782](BROWSER_BUG_REPORT_782.md) — Gerçek Windows ffsubsync/FFmpeg iptal ve timeout kabulü
