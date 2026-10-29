@@ -50,6 +50,23 @@ app.whenReady().then(async()=>{
  await run("document.querySelector('[data-preset=balanced]').click();return true");
  const paneLayout=await run("const rail=document.querySelector('.text-voice-rail'),editor=document.querySelector('.text-voice-manuscript'),before=editor.getBoundingClientRect().top;rail.scrollTop=rail.scrollHeight;const moved=rail.scrollTop;const after=editor.getBoundingClientRect().top;rail.scrollTop=0;return {moved,editorStable:before===after,railOverflow:getComputedStyle(rail).overflowY,editorOverflow:getComputedStyle(editor).overflowY,keyboardReachable:rail.tabIndex===0&&editor.tabIndex===0,labelled:!!document.getElementById(rail.getAttribute('aria-labelledby'))&&!!document.getElementById(editor.getAttribute('aria-labelledby'))};");
  assert(paneLayout.moved>0&&paneLayout.editorStable&&paneLayout.keyboardReachable&&paneLayout.labelled,JSON.stringify(paneLayout));assert.equal(paneLayout.railOverflow,'auto');assert.equal(paneLayout.editorOverflow,'auto');
+ // Real native keyboard input: navigating presets never silently applies settings.
+ const key=async(keyCode)=>{win.focus();win.webContents.focus();win.webContents.sendInputEvent({type:'keyDown',keyCode});if(keyCode==='Return'||keyCode===' ')win.webContents.sendInputEvent({type:'char',keyCode:keyCode==='Return'?'\r':' '});win.webContents.sendInputEvent({type:'keyUp',keyCode});await wait(100);};
+ const presetState=()=>run("return {focus:document.activeElement.dataset.preset||document.activeElement.id,steps:document.getElementById('tv-steps').value,chars:document.getElementById('tv-max_chars').value,pressed:Array.from(document.querySelectorAll('[data-preset][aria-pressed=true]')).map(b=>b.dataset.preset),tabStops:document.querySelectorAll('[data-preset][tabindex=\"0\"]').length}");
+ await run("document.querySelector('[data-preset=balanced]').focus();return true");
+ await key('Right');assert.equal((await presetState()).focus,'book');assert.deepEqual((await presetState()).pressed,['balanced']);
+ await key('Return');assert.deepEqual((await presetState()).pressed,['book']);assert.equal((await presetState()).chars,'600');
+ await key('End');assert.equal((await presetState()).focus,'fast');assert.deepEqual((await presetState()).pressed,['book']);
+ await key(' ');assert.deepEqual((await presetState()).pressed,['fast']);assert.equal((await presetState()).steps,'10');
+ await key('Right');assert.equal((await presetState()).focus,'balanced');
+ await key('Left');assert.equal((await presetState()).focus,'fast');
+ await key('Home');assert.equal((await presetState()).focus,'balanced');
+ assert.equal((await presetState()).tabStops,1);
+ await key('Tab');assert.equal((await presetState()).focus,'tv-mode');
+ await run("document.getElementById('tv-steps').value='17';document.getElementById('tv-steps').dispatchEvent(new Event('input'));return true");
+ assert.deepEqual((await presetState()).pressed,[]);assert.equal((await presetState()).tabStops,1,'Custom values keep the toolbar keyboard reachable');
+ await run("document.querySelector('[data-preset=balanced]').focus();return true");await key('Return');
+ await screenshot('studio-keyboard-presets');
  await screenshot('studio-tr-dark');
  await run("document.getElementById('tv-pick-reference').click();return true");
  await until(()=>run("return document.getElementById('tv-status').textContent.includes('Referans seçildi')"),'local reference');
