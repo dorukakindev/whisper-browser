@@ -347,7 +347,7 @@ function buildOptsFromUI() {
     llmBaseUrl: $('llmEndpointPreset').value === 'custom'
       ? $('llmBaseUrl').value.trim()
       : $('llmEndpointPreset').value,
-    llmModel: $('llmModel').value.trim() || 'deepseek-v4-flash',
+    llmModel: $('llmModel').value.trim() || window.WhisperAssistantSettings.MODEL,
     llmWorkers: parseInt($('llmWorkers').value, 10) || 4,
     llmFixCensorship: $('llmFixCensorship').checked,
     llmFixHallucination: $('llmFixHallucination').checked,

@@ -3359,7 +3359,7 @@ function loadSettings() {
   if (!loaded.ok) settingsLoadWarning = loaded.error
     || 'Güvenli anahtar deposundaki bazı alanlar çözülemedi.';
   return withDefaultMediaFolders(
-    (loaded.ok || loaded.partial) ? loaded.settings : settings, app.getPath('downloads'));
+    require('./assistant-settings').fillTextDefaults((loaded.ok || loaded.partial) ? loaded.settings : settings), app.getPath('downloads'));
 }
 
 function saveSettings(s) {
@@ -6438,8 +6438,8 @@ function browserTranslationConfig(overrides = {}) {
   const requestedSourceLanguage = String(overrides.sourceLanguage || '').toLowerCase().trim();
   return {
     apiKey: String(translate.apiKey || ''),
-    endpoint: endpoint || 'https://api.shuaiapi.com/v1',
-    model: String(translate.model || ui.translateModel || 'gemini-3.8-flash'),
+    endpoint: endpoint || require('./assistant-settings').ENDPOINT,
+    model: String(translate.model || ui.translateModel || require('./assistant-settings').MODEL),
     targetLanguage: /^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/i.test(requestedTargetLanguage) ? requestedTargetLanguage : 'tr',
     sourceLanguage: /^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/i.test(requestedSourceLanguage) ? requestedSourceLanguage : '',
     register: String(overrides.register || ui.translateRegister || 'documentary').slice(0, 32),

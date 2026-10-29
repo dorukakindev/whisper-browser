@@ -22,8 +22,8 @@ for (const host of ['api.shuaiapi.com', 'cdn.shuaiapi.com', 'oai.sb', 'api.oai.s
 }
 assert.equal(migrate({ translate: { ...input.translate, endpointPreset: 'https://api.openai.com/v1' } }).translate.model, 'gemini-3.7-flash');
 assert.equal(migrate({ translate: { ...input.translate, model: 'custom-model' } }).translate.model, 'custom-model');
-assert.match(html, /id="translateModel" value="gemini-3\.8-flash"/);
-assert.match(backend, /add_argument\("--translate-model", default="gemini-3\.8-flash"\)/);
-assert.match(main, /translate\.model \|\| ui\.translateModel \|\| 'gemini-3\.8-flash'/);
+assert.match(html, /id="translateModel" value="deepseek-ai\/DeepSeek-V4\.1-Flash-1017"/);
+assert.match(backend, /add_argument\("--translate-model", default="deepseek-ai\/DeepSeek-V4\.1-Flash-1017"\)/);
+assert.match(main, /translate\.model \|\| ui\.translateModel \|\| require\('\.\/assistant-settings'\)\.MODEL/);
 assert.match(main, /migrateSubtitleModelDefault\(readPublicSettings\(\)\)/);
 console.log('subtitle-model-default: varsayılanlar, shuai geçişi, özel model ve bağımsız manga koruması geçti');

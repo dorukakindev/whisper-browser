@@ -1541,7 +1541,7 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
     source_negative = bool(_SOURCE_NEGATION.search(negation_source)) or (lang == 'en' and str(source_lang or '').split('-')[0] == 'tr' and _target_negation(source, translated))
     if lang == 'en' and str(source_lang or '').split('-')[0] == 'tr' and _target_negation(source, translated) and not target_negative:
         issues.append('negation_missing')
-    if lang in ('tr', 'en') and target_negative and not source_negative and len(source.split()) <= 12 and not re.search(r"[;!?]|\b(?:but|unless|hardly|barely|without|stop|avoid|lack|fail|refuse|deny)\b", source, re.I):
+    if lang in ('tr', 'en') and target_negative and not source_negative and len(source.split()) <= 12 and not re.search(r"[;!?]|\b(?:but|unless|hardly|barely|without|stop|avoid|lack|fail(?:ed|s|ing)?|refuse|deny)\b", source, re.I):
         issues.append('negation_added')
     modal_source = _NEGATED_MODAL.sub(' ', src_norm)
     # Past habitual relative clauses: 'anything he would write' ->

@@ -345,5 +345,10 @@ class SpeechGateRegressionTests(unittest.TestCase):
         bad={**data,'items':{'0':'Yirmi yıl boyunca','1':'yazmayı sürdürdü.'}}
         self.assertIs(S.reconcile_speech_reply(bad,[0,1],'He wrote for 30 years.','tr','en'),bad)
 
+class FailureWordingTests(unittest.TestCase):
+    def test_failed_is_not_an_invented_negative(self):
+        self.assertEqual(S.translation_blocking_issues('Although the experiment failed, the explanation remains useful.','Deney başarısız olsa da açıklama hâlâ işe yarıyor.','tr','en'),[])
+        self.assertIn('negation_added',S.translation_blocking_issues('The experiment succeeded.','Deney başarısız oldu.','tr','en'))
+
 if __name__ == '__main__':
     unittest.main()

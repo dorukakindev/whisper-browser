@@ -40,7 +40,10 @@ const tick = () => new Promise(setImmediate);
   assert.equal(el('dubDeliveryStrength').disabled,false);
   el('dubRangeEnabled').checked=true;el('dubRangeEnabled').dispatchEvent(new w.Event('input'));
   el('dubRangeNow').click();assert.equal(el('dubRangeStart').value,'42');
+  w.api.selectFile=async()=> 'test.partial.srt';
   el('dubChooseSrt').click();await tick();
+  assert.equal(el('dubInputNotice').hidden,false);assert.match(el('dubInputNotice').textContent,/kısmi/);
+  w.api.selectFile=async()=> 'test.srt';el('dubChooseSrt').click();await tick();assert.equal(el('dubInputNotice').hidden,true);
   const planned = skipped => async value => ({ok:true,grouping:value.grouping,sourceHash:'plan-hash',skipped,
     groups:[{key:'1',text:'Merhaba.',start:0,end:2000,seconds:2}]});
   w.api.planDub = planned(3);el('dubPlanPrepare').click();await tick();
