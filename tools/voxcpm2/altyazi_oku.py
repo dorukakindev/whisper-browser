@@ -928,6 +928,10 @@ def main(argv=None, runtime=None):
                       'end': g.get('source_end', g['end']) / 1000}
                      for key, g in zip(args.group_keys, groups)]}), encoding='utf-8')
 
+    # An earlier production must not point into a cache overwritten by retries.
+    # Immutable raw takes are deduplicated by PCM container content, not filename.
+    from dub_take_cache import capture
+    takes = capture(paths, OUTPUT_ROOT / '_dub_takes_v1', lambda file: valid_audio(file, sf))
     manifest = {"version": 2, "wav": wav_path.name, "sample_rate": sr,
                 "video_offset_seconds": args.range_start or 0,
                 "grouping": args.gruplama, "timing": timing,
@@ -937,7 +941,7 @@ def main(argv=None, runtime=None):
                 "segments": [
                     {"i": i, "text": t, "start": timing['groups'][i]['start_seconds'],
                      "end": timing['groups'][i]['start_seconds'] + timing['groups'][i]['after_seconds'],
-                     "file": str(paths[i]), "pause_ms": 0, "source_ids": groups[i]['source_ids']}
+                     **takes[i], "pause_ms": 0, "source_ids": groups[i]['source_ids']}
                     for i, (s, e, t) in enumerate(cues)]}
     write_manifest(wav_path, manifest)
     args.phases.seconds['file_write']=audio_write_seconds+time.monotonic()-write_began

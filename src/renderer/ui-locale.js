@@ -1046,6 +1046,7 @@
     ['Ses dosyası yazılıyor…', 'Writing audio file…'],
     ['Ses yüksekliği dengeleniyor…', 'Balancing audio loudness…'],
     ['Ses dengeleme tamamlanamadı; üretilen konuşma korundu.', 'Loudness normalization could not finish; generated speech was preserved.'],
+    ['Ses üretildi; ham grup sürümü saklanamadı. Bu üretimin nihai WAV dosyası kullanılabilir.', 'Audio was generated, but its raw group take could not be saved. The final WAV from this production is available.'],
     ['Ses aralığı bu dosyada bulunamadı.', 'The audio range was not found in this file.'],
     ['TMDB API okuma belirteci / API anahtarı', 'TMDB API Read Access Token / API Key'],
     ['Sayfayı asistana sor', 'Ask about this page'],
