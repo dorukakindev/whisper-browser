@@ -58,7 +58,7 @@ def verify_final(wav, python, expected, *, runner=subprocess.run):
     """Verify the installed final waveform, not only its pre-placement parts."""
     import numpy as np
     import soundfile as sf
-    from dub_quality import speech_check
+    from dub_quality import speech_check, verification_request
     began = time.monotonic()
     audio, rate = sf.read(wav, dtype="float32")
     finite = bool(np.isfinite(audio).all())
@@ -67,7 +67,7 @@ def verify_final(wav, python, expected, *, runner=subprocess.run):
     check = {"status": "unavailable"}
     try:
         reply = runner([str(python), str(ROOT / "backend/dub_verify.py")],
-            input=json.dumps({"path": str(wav)}) + "\n", capture_output=True,
+            input=json.dumps(verification_request(wav, expected)) + "\n", capture_output=True,
             text=True, encoding="utf-8", timeout=120,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         data = json.loads(reply.stdout.strip()) if reply.returncode == 0 else {}

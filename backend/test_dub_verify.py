@@ -39,4 +39,14 @@ class VerifierTests(unittest.TestCase):
                                {'error':'verification_unavailable'},{'text':'Merhaba dünya.'}])
 
 
+    def test_optional_language_is_bound_without_an_expected_text_prompt(self):
+        rows,calls=self.run_worker(json.dumps({'path':'Türkçe.wav','language':'tr'})+'\n')
+        self.assertEqual(rows,[{'text':'Merhaba dünya.'}])
+        self.assertEqual(calls[1][1]['language'],'tr')
+        self.assertNotIn('initial_prompt',calls[1][1])
+        for invalid in ['TR','tr;secret',{},12]:
+            rows,calls=self.run_worker(json.dumps({'path':'good.wav','language':invalid})+'\n')
+            self.assertEqual(rows,[{'error':'verification_unavailable'}])
+            self.assertEqual(len(calls),1)
+
 if __name__ == '__main__': unittest.main()
