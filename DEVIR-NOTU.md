@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-0724.md](docs/devir/2026-10-29-0724.md) — PDF arama sonuç sahipliği
 Güncel çalışma: [docs/devir/2026-10-29-0713.md](docs/devir/2026-10-29-0713.md) — İki referans gerçek GPU karşılaştırması
 Güncel çalışma: [docs/devir/2026-10-29-0704.md](docs/devir/2026-10-29-0704.md) — Ses stüdyosu düzeni
 Güncel çalışma: [docs/devir/2026-10-29-0654.md](docs/devir/2026-10-29-0654.md) — Türkçe ses doğrulaması dil kanıtı

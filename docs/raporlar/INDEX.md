@@ -1,3 +1,4 @@
+- [Rapor753](BROWSER_BUG_REPORT_753.md) — PDF aramasında geç hata sahipliği ve tekrar deneme
 - [Rapor752](BROWSER_BUG_REPORT_752.md) — Gerçek GPU iki referans Türkçe karşılaştırması
 - [Rapor751](BROWSER_BUG_REPORT_751.md) — Ses stüdyosunda bağımsız çalışma alanı ve Windows görsel kontrolü
 - [Rapor750](BROWSER_BUG_REPORT_750.md) — Türkçe sesin İngilizce ASR ile denetlenmesini önleme

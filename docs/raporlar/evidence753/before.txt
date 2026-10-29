@@ -1,0 +1,32 @@
+✔ PDF search opens with Ctrl+F, goes to the matching original page, and Escape closes only search (298.8384ms)
+✔ Closing a pending search suppresses late results and replacement resets the source text (135.8182ms)
+✖ A failed old PDF jump cannot overwrite a new search or closed panel (179.2309ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1330.6032
+
+✖ failing tests:
+
+test at tests\pdf-reader-search-ui.test.js:20:1
+✖ A failed old PDF jump cannot overwrite a new search or closed panel (179.2309ms)
+  AssertionError [ERR_ASSERTION]: stale navigation failure must be discarded
+  + actual - expected
+  
+  + 'old page rendering failed'
+  - ''
+  
+      at TestContext.<anonymous> (<worktree>\tests\pdf-reader-search-ui.test.js:27:120)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'old page rendering failed',
+    expected: '',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
