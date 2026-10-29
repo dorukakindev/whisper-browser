@@ -1,0 +1,61 @@
+[
+  {
+    "id": "pdfReadingTools",
+    "left": 183.60000610351562,
+    "right": 493.6000061035156,
+    "bottom": 480,
+    "width": 602,
+    "height": 496,
+    "scrollable": true
+  },
+  {
+    "id": "pdfAssistantTools",
+    "left": 229.60000610351562,
+    "right": 539.6000061035156,
+    "bottom": 480,
+    "width": 602,
+    "height": 496,
+    "scrollable": true
+  },
+  {
+    "id": "pdfTranslateTools",
+    "left": 275.6000061035156,
+    "right": 585.6000061035156,
+    "bottom": 480,
+    "width": 602,
+    "height": 496,
+    "scrollable": true
+  },
+  {
+    "id": "pdfReadingTools",
+    "left": 12,
+    "right": 372,
+    "bottom": 480,
+    "width": 400,
+    "height": 496,
+    "scrollable": true
+  },
+  {
+    "id": "pdfAssistantTools",
+    "left": 12,
+    "right": 372,
+    "bottom": 452.40000915527344,
+    "width": 400,
+    "height": 496,
+    "scrollable": false
+  },
+  {
+    "id": "pdfTranslateTools",
+    "left": 12,
+    "right": 372,
+    "bottom": 480,
+    "width": 400,
+    "height": 496,
+    "scrollable": true
+  },
+  {
+    "resizedWhileOpen": true,
+    "bottom": 384,
+    "height": 400
+  }
+]

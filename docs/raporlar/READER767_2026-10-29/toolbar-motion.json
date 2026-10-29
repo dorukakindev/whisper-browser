@@ -1,0 +1,15 @@
+{
+  "transitions": [
+    {
+      "property": "background-color",
+      "duration": 140,
+      "rate": 0.1
+    }
+  ],
+  "staticLabel": "Sesli oku",
+  "normalDuration": "0.14s, 0.14s, 0.14s",
+  "reduced": {
+    "matches": true,
+    "duration": "0s"
+  }
+}

@@ -1,0 +1,68 @@
+[
+  {
+    "locale": "tr",
+    "theme": "dark",
+    "height": 122.4000015258789,
+    "tools": [
+      {
+        "name": "Okuma ayarları",
+        "title": "Okuma ayarları",
+        "width": 40,
+        "height": 40,
+        "icon": "block"
+      },
+      {
+        "name": "Pasaj araçları",
+        "title": "Pasaj araçları",
+        "width": 40,
+        "height": 40,
+        "icon": "block"
+      },
+      {
+        "name": "Çeviri ve dışa aktarma",
+        "title": "Çeviri ve dışa aktarma",
+        "width": 40,
+        "height": 40,
+        "icon": "block"
+      }
+    ],
+    "accessibleNames": [
+      "Okuma ayarları",
+      "Pasaj araçları",
+      "Çeviri ve dışa aktarma"
+    ]
+  },
+  {
+    "locale": "en",
+    "theme": "light",
+    "height": 122.4000015258789,
+    "tools": [
+      {
+        "name": "Reading settings",
+        "title": "Reading settings",
+        "width": 40,
+        "height": 40,
+        "icon": "block"
+      },
+      {
+        "name": "Passage tools",
+        "title": "Passage tools",
+        "width": 40,
+        "height": 40,
+        "icon": "block"
+      },
+      {
+        "name": "Translation & export",
+        "title": "Translation & export",
+        "width": 40,
+        "height": 40,
+        "icon": "block"
+      }
+    ],
+    "accessibleNames": [
+      "Reading settings",
+      "Passage tools",
+      "Translation & export"
+    ]
+  }
+]

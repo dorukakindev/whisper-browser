@@ -199,6 +199,39 @@ app
         assert(bounds.left>=0&&bounds.right<=bounds.width+1&&bounds.bottom<=bounds.height+1,JSON.stringify(bounds));
         await capture('toolbar-menu-'+locale+'-'+theme+'-125.png');await key('Escape');
       }
+      const compact=[];
+      win.setContentSize(800,950);win.webContents.setZoomFactor(1.25);await wait(150);
+      for(const [locale,theme] of [['tr','dark'],['en','light']]){
+        await run(`UiLocale.set('${locale}',false);applyUiTheme('${theme}');return true`);await wait(150);
+        const measured=await run(`return {height:document.querySelector('.pdf-reader-controls').getBoundingClientRect().height,tools:[...document.querySelectorAll('.pdf-reader-more-tools summary')].map(node=>{const r=node.getBoundingClientRect();return {name:node.textContent.trim(),title:node.title,width:r.width,height:r.height,icon:getComputedStyle(node.querySelector('svg')).display}})}`);
+        assert(measured.height<=130,JSON.stringify(measured));assert.equal(measured.tools.length,3);
+        assert(measured.tools.every(n=>n.width>=40&&n.height>=40&&n.icon!=='none'&&n.name&&n.name===n.title));
+        win.webContents.debugger.attach('1.3');await win.webContents.debugger.sendCommand('Accessibility.enable');
+        const tree=await win.webContents.debugger.sendCommand('Accessibility.getFullAXTree');win.webContents.debugger.detach();
+        const names=tree.nodes.filter(n=>n.role?.value==='DisclosureTriangle').map(n=>n.name?.value);
+        for(const tool of measured.tools)assert(names.includes(tool.name),'Disclosure accessible name: '+tool.name);
+        for(const id of ['pdfReadingTools','pdfAssistantTools','pdfTranslateTools']){
+          await run(`document.querySelector('#${id} summary').focus();return true`);await key('Return');
+          assert(await run(`return document.getElementById('${id}').open`));
+          const bounds=await run(`const r=document.querySelector('#${id} .pdf-reader-tools-content').getBoundingClientRect();return {left:r.left,right:r.right,bottom:r.bottom,width:innerWidth,height:innerHeight}`);
+          assert(bounds.left>=0&&bounds.right<=bounds.width+1&&bounds.bottom<=bounds.height+1,JSON.stringify({id,...bounds}));await key('Escape');
+          assert(await run(`return !document.getElementById('${id}').open&&document.activeElement===document.querySelector('#${id} summary')`));
+        }
+        compact.push({locale,theme,...measured,accessibleNames:names});await capture('compact767-'+locale+'-'+theme+'.png');
+      }
+      const shortMenus=[];
+      for(const minimum of [752,400]){win.setMinimumSize(minimum,400);win.setContentSize(500,620);await wait(150);
+      for(const id of ['pdfReadingTools','pdfAssistantTools','pdfTranslateTools']){
+        await run(`document.querySelector('#${id} summary').focus();return true`);await key('Return');
+        const bounds=await run(`const node=document.querySelector('#${id} .pdf-reader-tools-content'),r=node.getBoundingClientRect();return {id:'${id}',left:r.left,right:r.right,bottom:r.bottom,width:innerWidth,height:innerHeight,scrollable:node.scrollHeight>node.clientHeight}`);
+        assert(bounds.left>=0&&bounds.right<=bounds.width+1&&bounds.bottom<=bounds.height-15,JSON.stringify(bounds));shortMenus.push(bounds);await key('Escape');
+      }}
+      await run(`document.querySelector('#pdfTranslateTools summary').focus();return true`);await key('Return');
+      win.setContentSize(500,500);await wait(150);
+      const resized=await run(`const r=document.querySelector('#pdfTranslateTools .pdf-reader-tools-content').getBoundingClientRect();return {resizedWhileOpen:true,bottom:r.bottom,height:innerHeight}`);
+      assert(resized.bottom<=resized.height-15,JSON.stringify(resized));shortMenus.push(resized);await capture('compact767-short-menu.png');await key('Escape');
+      await capture('compact767-short.png');fs.writeFileSync(path.join(out,'short767.json'),JSON.stringify(shortMenus,null,2));
+      fs.writeFileSync(path.join(out,'compact767.json'),JSON.stringify(compact,null,2));
       fs.writeFileSync(path.join(out,'toolbar-results.json'),JSON.stringify({ok:true,states,nativeKeyboard:true,realPdf:true},null,2));console.log(JSON.stringify({ok:true,out}));app.exit(0);return;
     }
     if(longDocument){
