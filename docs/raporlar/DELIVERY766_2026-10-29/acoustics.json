@@ -1,0 +1,131 @@
+{
+  "samples": [
+    {
+      "label": "A",
+      "clipping_fraction": 0.0,
+      "groups": [
+        {
+          "key": "1",
+          "delivery": null,
+          "source_seconds": [
+            0.0,
+            4.937
+          ],
+          "audio_seconds": [
+            0.0,
+            4.053541666666667
+          ],
+          "duration_seconds": 4.0535,
+          "speech_span_seconds": 3.84,
+          "words_per_second_span": 2.0833,
+          "active_rms_dbfs": -22.576,
+          "quiet_fraction": 0.3103
+        },
+        {
+          "key": "2",
+          "delivery": null,
+          "source_seconds": [
+            6.437,
+            11.06
+          ],
+          "audio_seconds": [
+            6.437,
+            10.615020833333332
+          ],
+          "duration_seconds": 4.178,
+          "speech_span_seconds": 4.0,
+          "words_per_second_span": 2.0,
+          "active_rms_dbfs": -18.563,
+          "quiet_fraction": 0.3206
+        },
+        {
+          "key": "3",
+          "delivery": null,
+          "source_seconds": [
+            12.56,
+            16.909
+          ],
+          "audio_seconds": [
+            12.56,
+            16.6946875
+          ],
+          "duration_seconds": 4.1347,
+          "speech_span_seconds": 3.96,
+          "words_per_second_span": 2.2727,
+          "active_rms_dbfs": -21.213,
+          "quiet_fraction": 0.2947
+        }
+      ]
+    },
+    {
+      "label": "B",
+      "clipping_fraction": 0.0,
+      "groups": [
+        {
+          "key": "1",
+          "delivery": {
+            "energy": "low",
+            "variation": "varied",
+            "pauses": "normal"
+          },
+          "source_seconds": [
+            0.0,
+            4.937
+          ],
+          "audio_seconds": [
+            0.0,
+            3.7706041666666668
+          ],
+          "duration_seconds": 3.7706,
+          "speech_span_seconds": 3.64,
+          "words_per_second_span": 2.1978,
+          "active_rms_dbfs": -21.964,
+          "quiet_fraction": 0.2751
+        },
+        {
+          "key": "2",
+          "delivery": {
+            "energy": "normal",
+            "variation": "varied",
+            "pauses": "normal"
+          },
+          "source_seconds": [
+            6.437,
+            11.06
+          ],
+          "audio_seconds": [
+            6.437,
+            11.378291666666666
+          ],
+          "duration_seconds": 4.9413,
+          "speech_span_seconds": 4.8,
+          "words_per_second_span": 1.6667,
+          "active_rms_dbfs": -21.618,
+          "quiet_fraction": 0.4194
+        },
+        {
+          "key": "3",
+          "delivery": {
+            "energy": "high",
+            "variation": "varied",
+            "pauses": "normal"
+          },
+          "source_seconds": [
+            12.56,
+            16.909
+          ],
+          "audio_seconds": [
+            12.56,
+            17.2
+          ],
+          "duration_seconds": 4.64,
+          "speech_span_seconds": 4.5,
+          "words_per_second_span": 2.0,
+          "active_rms_dbfs": -19.721,
+          "quiet_fraction": 0.306
+        }
+      ]
+    }
+  ],
+  "limits": "Level and rate diagnostics, not emotional fidelity or perceptual quality."
+}

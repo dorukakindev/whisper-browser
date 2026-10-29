@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-1042.md](docs/devir/2026-10-29-1042.md) — Gerçek anlatım A/B kabulü
 Güncel çalışma: [docs/devir/2026-10-29-1022.md](docs/devir/2026-10-29-1022.md) — Hazır dublaj kaynak kanıtı
 Güncel çalışma: [docs/devir/2026-10-29-1012.md](docs/devir/2026-10-29-1012.md) — Ortak dublaj altyazı hazırlığı
 Güncel çalışma: [docs/devir/2026-10-29-1001.md](docs/devir/2026-10-29-1001.md) — Dublaj kısaltmasında güncel taslak
