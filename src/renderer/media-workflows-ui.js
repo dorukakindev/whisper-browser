@@ -37,9 +37,7 @@
     chapter = 0,
     job = null,
     selected = new Set(),
-    busy = false,
-    token = "",
-    results = [];
+    busy = false;
   let exportCurrent=null, refreshReferenceSettings=null;
   let reviewPaging={key:'',page:1};
   let bodyVersion=0,projectOpenRequest=0;
@@ -2084,6 +2082,8 @@
     saveDraft();
     const body = clearBody();
     workflowContext(kind);
+    const selected=new Set();let token='',results=[],applying=false;
+    const updateActions=()=>{const [scan,stop,apply]=actions.querySelectorAll('button');scan.disabled=busy||applying;stop.disabled=!busy||applying;if(apply)apply.disabled=busy||applying||!token||!selected.size;};
     body.append(
       el(
         "p",
@@ -2107,7 +2107,7 @@
         uiLabel("Choose season folder and scan", "Sezon klasörü seç ve tara"),
         async () => {
           if (busy) throw Error("Busy / Meşgul");
-          busy = true; syncBookStop();
+          busy = true; syncBookStop();updateActions();
           const id = crypto.randomUUID(),
             off = window.api.onMediaWorkflow((e) => {
               if (e.id === id) status(`${e.stage}: ${e.done + 1}/${e.total}`);
@@ -2130,10 +2130,10 @@
               check.disabled = row.status !== "preview";
               check.checked = !check.disabled;
               if (check.checked) selected.add(row.name);
-              check.onchange = () =>
-                check.checked
-                  ? selected.add(row.name)
-                  : selected.delete(row.name);
+              check.onchange = () => {
+                check.checked ? selected.add(row.name) : selected.delete(row.name);
+                updateActions();
+              };
               if (kind === "sync") label.append(check);
               label.append(el("strong", "", row.name));
               article.append(label);
@@ -2242,7 +2242,7 @@
             );
           } finally {
             off();
-            busy = false; syncBookStop();
+            busy = false; syncBookStop();updateActions();
           }
         },
       ),
@@ -2256,15 +2256,21 @@
             "Seçili senkron kopyalarını kaydet",
           ),
           async () => {
-            const r = await call("sync-apply", { token, names: [...selected] });
-            token = "";
-            status(
-              uiLabel("Saved copies: " + r.written.length, "Kaydedilen kopya: " + r.written.length),
-            );
+            if(busy||applying||!token||!selected.size)return;
+            applying=true;updateActions();
+            try{
+              const r = await call("sync-apply", { token, names: [...selected] });
+              token = "";
+              status(uiLabel("Saved copies: " + r.written.length, "Kaydedilen kopya: " + r.written.length));
+            }finally{applying=false;updateActions();}
           },
           true,
         ),
       );
+    for(const action of actions.querySelectorAll('button')){
+      const run=action.onclick;action.onclick=async(...args)=>{try{return await run(...args);}finally{updateActions();}};
+    }
+    updateActions();
   }
   async function resourcePage() {
     saveDraft();

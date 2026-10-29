@@ -784,3 +784,6 @@ dialog.mw-dialog::backdrop {
  .mw-preparation-controls>.mw-book-search{border:0;padding:0;margin:0}
  .mw-preparation-controls>.mw-book-search p:empty{display:none}
 }
+
+/* Unavailable workflow actions must not look ready to run. */
+.mw-dialog .mw-actions .mh-action:disabled{opacity:.45;cursor:default;transform:none}
