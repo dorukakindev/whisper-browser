@@ -24974,8 +24974,13 @@ function updatePdfReaderProgress() {
   const reader = player.pdfReader;
   if (!node) return;
   const total = Number(reader?.pdf?.numPages) || 0;
-  const translated = reader?.state?.pages && typeof reader.state.pages === 'object'
-    ? Object.keys(reader.state.pages).length : 0;
+  const pages = reader?.state?.pages;
+  // Match the PDF service completion contract; a stored failure is not a ready page.
+  const translated = pages && typeof pages === 'object'
+    ? Object.entries(pages).filter(([key, blocks]) => /^[1-9]\d*$/.test(key)
+      && Number(key) <= total && Array.isArray(blocks)
+      && blocks.every(block => block && (block.status === 'translated'
+        || block.status === 'skipped' || (typeof block.userText === 'string' && block.userText.trim())))).length : 0;
   node.textContent = total ? `${Math.min(translated, total)}/${total} sayfa` : '0/0 sayfa';
   node.classList.toggle('is-complete', total > 0 && translated >= total);
 }
