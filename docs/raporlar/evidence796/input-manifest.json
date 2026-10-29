@@ -1,0 +1,112 @@
+[
+  {
+    "file": "R795-AUDIT-REPORT.md",
+    "bytes": 6713,
+    "sha256": "09dbf96d43c9c212c2a34d3cf3fc0f4875ea74485435015bbbdb0ad7724c347c"
+  },
+  {
+    "file": "R795-EVIDENCE-AUDIO-RETRY.json",
+    "bytes": 2336,
+    "sha256": "d3c06b3733c57b62fab7227e5d52bec91daf6a127e0078cc083a70968adf61a0"
+  },
+  {
+    "file": "R795-EVIDENCE-SOURCE-OWNERSHIP.json",
+    "bytes": 483,
+    "sha256": "abc4fa651a4615d4283f797067e40e57aaa2dec9af512d7558f6680374a32edc"
+  },
+  {
+    "file": "R795-EVIDENCE-TRANSLATION.json",
+    "bytes": 7169,
+    "sha256": "7b436b8bc34e7ec9007d22863e2d255d9e5a70599ee39a332442c86d20d2980b"
+  },
+  {
+    "file": "R795-EVIDENCE-UI-COVERAGE.json",
+    "bytes": 251223,
+    "sha256": "37dd84ab5a0e665b77491817857bb128e5d0819c6eeca3a61c4f3b32e946befb"
+  },
+  {
+    "file": "R795-FINDINGS.json",
+    "bytes": 11450,
+    "sha256": "614a439c81ab0775f2ed954f644ccd56d480755da56173ece23cb71c35b4a985"
+  },
+  {
+    "file": "R795-REPRODUCE.md",
+    "bytes": 5261,
+    "sha256": "9e04d8e482e12df15ef8c4eae712ee78e2d45a73afedec5e76e1499780783e65"
+  },
+  {
+    "file": "R795-RUN-LOG.md",
+    "bytes": 2533,
+    "sha256": "1ad7f5de569147580f3c1d7b42087b62f511c16934c1d53ef02bd197dd7d1955"
+  },
+  {
+    "file": "R795-SNAPSHOT.json",
+    "bytes": 13791,
+    "sha256": "0c74fab251311f58180481dad6ee1bab0d8cacc8484eb25172fac1f59c7ac73c"
+  },
+  {
+    "file": "R795-TASK-MATRIX.csv",
+    "bytes": 6561,
+    "sha256": "0a7ba3e4817885fe6ab6f0d5432c7d9cc9330beb9fc09e0eca9809f6613ccaac"
+  },
+  {
+    "file": "R796-500-AUDIT-REPORT.md",
+    "bytes": 3482,
+    "sha256": "b8896f29fd849e0da35ccf58e28b9fe821abbd6e07dda9cbaa30d66b8dbc6636"
+  },
+  {
+    "file": "R796-500-FINDINGS.json",
+    "bytes": 11301,
+    "sha256": "3bd32cb278d9238dbdc6f7e1e10b25a9dde80b5878823979b56ef2bad1284340"
+  },
+  {
+    "file": "R796-500-REPRODUCE.md",
+    "bytes": 2092,
+    "sha256": "5fde1121e594295fb196f5b5bb0c3e869abb816ae5003f80e5830abda23ad920"
+  },
+  {
+    "file": "R796-500-SNAPSHOT.json",
+    "bytes": 5874,
+    "sha256": "4e02407a2df84e29bcc95c8aeb24943e26ce3210eaebe902b2a80d3071e7085a"
+  },
+  {
+    "file": "R796-500-TASK-MATRIX.csv",
+    "bytes": 151256,
+    "sha256": "ab988e951cbd6650eed7ba506460fbc7a0ffe10716c9084c027ac5927f1e3cf3"
+  },
+  {
+    "file": "R796-ALL-500-CASES.json",
+    "bytes": 1540327,
+    "sha256": "2d64379a98b6d2aadd7000152be3ed035c85fea023223f0f605dc337e9330a86"
+  },
+  {
+    "file": "R797-CONTROLLED-TRANSLATION.json",
+    "bytes": 3644,
+    "sha256": "49524d545f573f28ea17e7408b18eb1b38efd9b512cbbe355518a3fe6fc5bf64"
+  },
+  {
+    "file": "R797-E2E-FINDINGS.json",
+    "bytes": 1504,
+    "sha256": "07e7bf37d83dbfc96055eec103957afb36c5916cc845876dc93bde1d8aed9b6e"
+  },
+  {
+    "file": "R797-E2E-REPRODUCE.md",
+    "bytes": 1947,
+    "sha256": "50fd1ee6e7274a32704c607fb635ff3037105c0c181bbabb468566dc0b0b6b42"
+  },
+  {
+    "file": "R797-E2E-RUN-LOG.md",
+    "bytes": 998,
+    "sha256": "daee3d8cbd2bbbb7402e7e4a7caa30ac76f96a34e7c70f9077a6798c5dbd247e"
+  },
+  {
+    "file": "R797-E2E-SNAPSHOT.json",
+    "bytes": 5580,
+    "sha256": "4ee45dfa9d69bd419de434e2dca2494728bf0d5044dd0da4e89e25531082302e"
+  },
+  {
+    "file": "R797-E2E-TASK-MATRIX.csv",
+    "bytes": 3403,
+    "sha256": "33bdb5091eed62d22fead332e6cf64581e42210c127f2f456f9e9b42c2a14af6"
+  }
+]
