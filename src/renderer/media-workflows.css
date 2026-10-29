@@ -766,3 +766,21 @@ dialog.mw-dialog::backdrop {
 .mw-dialog .mw-transport button:disabled{opacity:.45;cursor:default;color:var(--text-muted)}
 .mw-dialog .mw-transport>.mh-action{min-height:44px}
 @media(max-width:700px){.mw-transport>.mh-action{flex:1 1 calc(50% - 8px);white-space:normal}.mw-transport-secondary>.mw-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.mw-transport-secondary .mh-action{min-width:0;white-space:normal;min-height:40px}}
+
+/* Compact preparation: space follows the manuscript rather than a fixed vh slab. */
+.mw-status:empty{display:none}
+.mw-selection-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.mw-selection-actions>.mh-action{min-height:40px;padding:8px 10px;font-size:12px}
+.mw-editor>textarea{field-sizing:content;height:auto;min-height:180px;max-height:min(440px,42dvh)}
+.mw-editor>h2{text-wrap:pretty}
+
+.mw-actions>.mw-management:not([open]){flex:0 1 auto;margin-inline-start:auto;border:0;padding:0}
+.mw-actions>.mw-management>summary{min-height:40px;box-sizing:border-box;align-content:center}
+.mw-preparation-controls{min-width:0}
+.mw-preparation-controls>.mw-book-search{min-width:0}
+@media(min-width:1100px){
+ .mw-preparation-controls{display:grid;grid-template-columns:minmax(440px,1fr) minmax(0,1fr);gap:20px;align-items:start;border-block:1px solid var(--border);padding:12px 0;margin-bottom:18px}
+ .mw-preparation-controls>.mw-range{margin:0;min-height:42px;align-content:center;gap:8px}
+ .mw-preparation-controls>.mw-book-search{border:0;padding:0;margin:0}
+ .mw-preparation-controls>.mw-book-search p:empty{display:none}
+}

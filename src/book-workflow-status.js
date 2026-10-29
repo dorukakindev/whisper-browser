@@ -60,5 +60,12 @@
           );
     return reason ? summary + "\n" + reason : summary;
   }
-  return Object.freeze({ label, stage, terminal });
+  // Historical auto-generated PDF headings are presentation, not book prose.
+  // Never rewrite a renamed/custom chapter or guess from its title alone.
+  function pageLabels(chapter) {
+    const page=chapter?.pageNumber;
+    if(!Number.isSafeInteger(page)||page<1||chapter.title!==`Page / Sayfa ${page}`)return null;
+    return {en:`Page ${page}`,tr:`Sayfa ${page}`};
+  }
+  return Object.freeze({ label, stage, terminal, pageLabels });
 });
