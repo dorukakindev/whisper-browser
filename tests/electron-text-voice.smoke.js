@@ -24,7 +24,7 @@ fs.writeFileSync(path.join(profile,'dub-settings.json'),JSON.stringify({referenc
 fs.writeFileSync(path.join(profile,'text-studio-settings.json'),JSON.stringify({version:2,steps:17,max_chars:400}));
 global.fetch=async()=>{throw Error('Synthetic text studio test: external requests disabled');};
 let picked=reference;dialog.showOpenDialog=async()=>({canceled:false,filePaths:[picked]});
-let win,run;const events=[];
+let win,run;const events=[];let realAcceptance=null;
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label,ms=25000){const end=Date.now()+ms;while(Date.now()<end){if(await fn())return;await wait(80);}throw Error('Timeout: '+label);}
 async function screenshot(name){await wait(350);fs.writeFileSync(path.join(out,name+'.png'),(await win.webContents.capturePage()).toPNG());}
@@ -174,18 +174,27 @@ app.whenReady().then(async()=>{
  // Restore synthetic exact words before real Hi-Fi generation; never change the original file.
  await run("document.getElementById('tv-transcript').value="+JSON.stringify(fs.readFileSync(transcript,'utf8'))+";document.querySelector('[data-preset=balanced]').click();return true");
  if(real){
-  await run("document.getElementById('tv-preview').click();return true");
+  const freshSeed=require('node:crypto').randomInt(1,2147483647);await run("document.getElementById('tv-seed').value="+freshSeed+";document.getElementById('tv-seed').dispatchEvent(new Event('input'));document.getElementById('tv-preview').click();return true");
   await until(()=>events.some(e=>e.kind==='text'&&['done','error'].includes(e.type)),'real GPU text preview',240000);
   const result=events.find(e=>e.kind==='text'&&['done','error'].includes(e.type));assert.equal(result.type,'done',JSON.stringify(result));
   assert(require('../src/voice-output').validVoiceOutput(result.path));
+  const {execFileSync}=require('node:child_process'),{createHash}=require('node:crypto');
+  execFileSync('C:/ffmpeg/bin/ffmpeg.exe',['-v','error','-i',result.path,'-f','null','-'],{stdio:['ignore','pipe','pipe'],timeout:30000,windowsHide:true});
+  const completedHash=createHash('sha256').update(fs.readFileSync(result.path)).digest('hex');
+  const stages=events.filter(e=>e.id===result.id&&e.type==='status').map(e=>e.stage);assert.deepEqual(stages,['model_load','synthesis','postprocess','output_check']);
+  const completedSummary=JSON.parse(fs.readFileSync(result.logPath,'utf8'));for(const stage of stages)assert(Number.isFinite(completedSummary.phases[stage])&&completedSummary.phases[stage]>=0,JSON.stringify(completedSummary.phases));
+  assert.equal(await run("return document.getElementById('tv-progress').value"),100);
   await until(()=>run("return !document.getElementById('tv-output').hidden&&document.getElementById('tv-audio').readyState>=1"),'WAV preview metadata');
   await screenshot('studio-complete-tr');
   await until(()=>run("return document.getElementById('tv-history').options.length===1"),'completed voice history');
-  const previous=result.path;
+  const previous=result.path;let cancellationStarted=0;
   await run("document.getElementById('tv-text').value="+JSON.stringify(text.repeat(20))+";document.getElementById('tv-text').dispatchEvent(new Event('input'));document.getElementById('tv-start').click();return true");
   await until(()=>events.some(e=>e.kind==='text'&&e.type==='text_log'&&e.id!==result.id&&e.tail.includes('uretim basliyor')),'second real engine synthesis',120000);
-  await run("document.getElementById('tv-stop').click();return true");
+  cancellationStarted=Date.now();await run("document.getElementById('tv-stop').click();return true");
   await until(()=>events.some(e=>e.kind==='text'&&e.type==='cancelled'),'real text cancellation',20000);
+  const cancelled=events.find(e=>e.kind==='text'&&e.type==='cancelled'),cancelledSummary=JSON.parse(fs.readFileSync(cancelled.logPath,'utf8'));
+  assert.equal(createHash('sha256').update(fs.readFileSync(previous)).digest('hex'),completedHash,'Cancellation cannot alter the previous completed PCM container');
+  realAcceptance={freshSeed,completedId:result.id,elapsedSeconds:result.elapsedSeconds,stages,phases:completedSummary.phases,progress:completedSummary.progress,fullDecode:true,completedHashPreserved:true,cancelledId:cancelled.id,cancellationMilliseconds:Date.now()-cancellationStarted,cancelledResult:cancelledSummary.result,cancelledPhases:cancelledSummary.phases,humanListening:false};
   assert(fs.existsSync(previous),'previous completed WAV survives cancellation');
   assert.equal((await run("return api.textVoice({action:'history'})")).results.length,1,'cancelled voice not listed');
   assert.equal(await run("return document.getElementById('tv-stop').disabled"),true);
@@ -214,7 +223,7 @@ app.whenReady().then(async()=>{
  await screenshot('studio-tr-narrow-125');
  const narrow=await run("const d=document.getElementById('textVoiceStudio'),b=document.querySelector('.text-voice-body').getBoundingClientRect(),footer=document.querySelector('.text-voice-footer').getBoundingClientRect();return {width:innerWidth,overflow:d.scrollWidth>d.clientWidth+1,bodyHeight:b.height,footerBottom:footer.bottom,height:innerHeight,buttons:['start','preview','stop'].map(id=>{const r=document.getElementById('tv-'+id).getBoundingClientRect();return {left:r.left,right:r.right,height:r.height,minHeight:getComputedStyle(document.getElementById('tv-'+id)).minHeight,zoom:getComputedStyle(document.getElementById('tv-'+id)).zoom}})}");
  assert(narrow.width<=480,JSON.stringify(narrow));assert.equal(narrow.overflow,false);assert(narrow.bodyHeight>=200,JSON.stringify(narrow));assert(narrow.footerBottom<=narrow.height);for(const button of narrow.buttons){assert(button.left>=0&&button.right<=narrow.width);assert(button.height>=40,JSON.stringify(narrow));}
- fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({complete:true,realGeneration:real,sharedReferences:shared,eventOwnership:ownership,referenceRefresh,controlledStarts:starts.length,controlledStops:stops.length,secondaryContrast,metrics,narrow,events},null,2));
+ fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({complete:true,realGeneration:real,sharedReferences:shared,eventOwnership:ownership,referenceRefresh,realAcceptance,controlledStarts:starts.length,controlledStops:stops.length,secondaryContrast,metrics,narrow,events},null,2));
  console.log(JSON.stringify({out,complete:true,realGeneration:real,metrics}));app.exit(0);
 }).catch(async error=>{console.error(error.stack);try{await screenshot('failure');}catch{}app.exit(1);});
 setTimeout(()=>app.exit(2),real?300000:60000).unref();

@@ -100,9 +100,9 @@ function registerTextVoiceStudio({app,ipcMain,dialog,owner,guard,config,referenc
    const line=value=>{
     if(s.cancelled)return;
     const m=/^\[(\d{1,7})\/(\d{1,7})\](?:\s|$)/.exec(value);
-    if(m){const done=Number(m[1]),total=Number(m[2]);if(total>0&&done>=0&&done<=total){stage('synthesis');s.progress={done,total};emit(s,'progress',{kind:'text',done,total});}return;}
+    if(m){const done=Number(m[1]),total=Number(m[2]);if(total>0&&done>=0&&done<=total){stage('synthesis');s.progress={done,total};emit(s,'progress',{kind:'text',done,total});if(options.motor==='nano'&&done===total)stage('postprocess');}return;}
     if(/^Referans hazir; uretim basliyor\./.test(value))stage('synthesis');
-    else if(/^Tum parcalar hazir; (?:GPU yuklemeden )?birlestiriliyor\./.test(value))stage('postprocess');
+    else if(/^Tum parcalar hazir; (?:GPU yuklemeden )?birlestiriliyor\./.test(value)||(options.motor==='torch'&&/^GPU tepe bellek:/.test(value)))stage('postprocess');
    };
    const parse=(channel,text,flush=false)=>{
     const buffer=buffers[channel],parts=(buffer.text+text).split(/\r?\n/);buffer.text=parts.pop();
