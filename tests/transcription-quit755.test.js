@@ -1,0 +1,15 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const source=fs.readFileSync(require.resolve('../src/main'),'utf8');
+function fixture(){let handler,release,calls=0,quits=0,prevented=0;const logs=[];const owned={};const pending=new Promise(resolve=>release=resolve);
+ const box={activeJob:owned,activeJobCancel:()=>{calls++;return pending;},killActiveJob:()=>{calls++;return pending;},jobStarting:false,jobCancelSeq:0,jobStartSeq:8,browserUiLocale:()=> 'en',sendEvent:e=>logs.push(e),Promise,app:{on:(name,fn)=>{if(name==='before-quit')handler=fn;},quit:()=>quits++},browserExtras:null,browserTabs:new Map(),watchTimer:null,clearInterval(){},flushBrowserTrackPublications(){},flushBrowserPlaces(){},flushBrowserFavicons(){},browserOrderlyShutdown:false,browserSessionFinalizedForQuit:true,browserDownloads:{persist(){}},cancelBrowserPermissionRequestsForTab(){},pdfTranslationJobs:new Map(),browserLiveAsr:null,browserTranslationCacheInstance:null,browserMangaCacheInstance:null};
+ const start=source.includes('let transcriptionQuitPending = false;')?source.indexOf('let transcriptionQuitPending = false;'):source.indexOf('let browserCacheQuitFlushStarted = false;'),end=source.indexOf("app.on('window-all-closed'",start);vm.createContext(box);vm.runInContext(source.slice(start,end),box);
+ return {box,owned,logs,quit:()=>handler({preventDefault(){prevented++;}}),resolve:value=>release(value),get calls(){return calls;},get quits(){return quits;},get prevented(){return prevented;}};
+}
+const tick=()=>new Promise(setImmediate);
+test('Whisper quit waits for the owned child close and shares repeated quit attempts',async()=>{const h=fixture();h.quit();h.quit();await tick();assert.equal(h.prevented,2);assert.equal(h.calls,1);assert.equal(h.quits,0);h.box.activeJob=null;h.resolve({ok:true});await tick();assert.equal(h.quits,1);});
+test('A failed stop leaves the application open and warns instead of exiting',async()=>{const h=fixture();h.quit();h.resolve({ok:false,running:true});await tick();assert.equal(h.quits,0);assert.equal(h.box.activeJob,h.owned);assert.equal(h.logs.at(-1)?.level,'warn');});
+test('Quit invalidates transcription startup before a child is assigned',()=>{const h=fixture();h.box.activeJob=null;h.box.jobStarting=true;h.quit();assert.equal(h.box.jobCancelSeq,h.box.jobStartSeq);});
+
+test('A replacement job cannot be cancelled by an old deferred quit attempt',async()=>{const h=fixture();h.quit();h.box.activeJob={replacement:true};await tick();assert.equal(h.calls,0);assert.equal(h.quits,0);assert.equal(h.logs.at(-1)?.level,'warn');});
+test('Rejected shutdown remains retryable and warning follows the current locale',async()=>{const h=fixture();let calls=0;h.box.browserUiLocale=()=> 'tr';h.box.killActiveJob=async()=>{if(++calls===1)throw Error('controlled stop rejection');h.box.activeJob=null;return {ok:true};};h.quit();await tick();assert.equal(h.quits,0);assert.match(h.logs.at(-1).message,/uygulama açık kaldı/);h.quit();await tick();assert.equal(h.quits,1);assert.equal(calls,2);});
