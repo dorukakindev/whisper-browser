@@ -1,3 +1,4 @@
+- [Rapor739](BROWSER_BUG_REPORT_739.md) — Ses stüdyosu hata ayrıntısı ve tema geçişi
 - [Rapor738](BROWSER_BUG_REPORT_738.md) — Metin stüdyosunda eski olay ve iptal yarışı
 - [Rapor737](BROWSER_BUG_REPORT_737.md) — Açık kitap ekranında yerinde dil güncellemesi
 - [Rapor736](BROWSER_BUG_REPORT_736.md) — Kitap eylemlerinde doğru durum ve düzen

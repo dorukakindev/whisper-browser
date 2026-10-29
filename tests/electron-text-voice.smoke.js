@@ -7,10 +7,11 @@ function arg(key){const i=process.argv.indexOf(key);assert(i>=0,key+' required')
 const reference=arg('--reference'),transcript=arg('--transcript'),engine=arg('--engine');
 const real=process.argv.includes('--real-generation'),shared=process.argv.includes('--shared-references'),ownership=process.argv.includes('--event-ownership');
 assert(!(real&&ownership),'Controlled ownership checks cannot be real GPU generation');
-const starts=[],stops=[];
+const starts=[],stops=[];let copiedDetail='',copyReply=true;
 if(ownership){const handle=ipcMain.handle.bind(ipcMain);ipcMain.handle=(channel,listener)=>handle(channel,async(event,request,...args)=>{
  if(channel==='dub:textVoice'&&request?.action==='start')return new Promise(resolve=>starts.push({request,resolve}));
  if(channel==='dub:cancel')return new Promise(resolve=>stops.push({request,resolve}));
+ if(channel==='clipboard:write'){copiedDetail=request;return copyReply;}
  return listener(event,request,...args);
 });}
 const out=path.join(root,'.uiprev','text-studio',Date.now()+'-'+process.pid),profile=path.join(out,'profile');
@@ -110,10 +111,23 @@ app.whenReady().then(async()=>{
   assert.equal(await status(),secondState,'Late invoke replies cannot overwrite the next job');
   await emit(first.request.id,'progress',{done:99,total:100});assert.equal(await status(),secondState);
   second.resolve({ok:true,id:second.request.id});await wait(100);
-  await emit(second.request.id,'error',{error:'CONTROLLED CURRENT FAILURE'});assert.match(await status(),/CONTROLLED CURRENT FAILURE/);
+  const failureDetail='CONTROLLED CURRENT FAILURE\n'+('Synthetic engine detail: <b>not markup</b> '+String.fromCharCode(304,351,305,107)+' / '+ 'long-token'.repeat(15)+'\n').repeat(35);
+  const focusBeforeError=await run("return document.activeElement.id");await emit(second.request.id,'error',{error:failureDetail});assert.equal(await run("return document.activeElement.id"),focusBeforeError,'Failure must not steal keyboard focus');assert.equal(await status(),'\u00dcretim tamamlanamad\u0131','Long details cannot occupy the footer status');
   assert.equal(await run("return document.getElementById('tv-start').disabled"),false);
   assert.equal(await run("return document.getElementById('tv-stop').disabled"),true);
-  await run("UiLocale.set('en',false);return true");assert.match(await status(),/CONTROLLED CURRENT FAILURE/);
+  assert.equal(await run("return document.getElementById('tv-error-detail').textContent"),failureDetail);
+  assert.equal(await run("return document.getElementById('tv-error').querySelector('b')"),null,'Engine details are text, never HTML');
+  await run("document.getElementById('tv-error-open').click();return true");
+  assert.equal(await run("return document.activeElement===document.querySelector('#tv-error>summary')"),true);
+  copyReply=false;await run("document.getElementById('tv-error-copy').click();return true");await until(()=>run("return document.getElementById('tv-error-copy-status').textContent.includes('kopyalanamad')"),'copy failure is visible');assert.equal(await status(),'\u00dcretim tamamlanamad\u0131');
+  copyReply=true;copiedDetail='';await run("document.getElementById('tv-error-copy').click();return true");await until(()=>copiedDetail===failureDetail,'exact synthetic detail copied through IPC');
+  await run("UiLocale.set('en',false);return true");assert.equal(await status(),'Production did not complete');
+  assert.equal(await run("return document.getElementById('tv-error-detail').textContent"),failureDetail,'Locale cannot translate engine evidence');
+  assert.equal(await run("return document.getElementById('tv-error').open"),true);
+  const retry=await start();assert.equal(retry.request.text,second.request.text);assert.equal(retry.request.transcript,second.request.transcript);assert.equal(retry.request.referenceId,second.request.referenceId);assert.deepEqual(retry.request.settings,second.request.settings);
+  assert.equal(await run("return document.getElementById('tv-error').hidden&&document.getElementById('tv-error-detail').textContent===''") ,true,'New attempt clears old feedback');
+  retry.resolve({ok:true,id:retry.request.id});await wait(100);await emit(retry.request.id,'error',{error:failureDetail});
+  await run("document.getElementById('tv-error-open').click();return true");
   await screenshot('studio-owned-error-en');await run("UiLocale.set('tr',false);return true");
  }
  // Restore synthetic exact words before real Hi-Fi generation; never change the original file.
@@ -139,6 +153,8 @@ app.whenReady().then(async()=>{
  }
  win.setContentSize(1000,950);win.webContents.setZoomFactor(1.25);
  await run("UiLocale.set('en',false);applyUiTheme('light');document.querySelector('.text-voice-body').scrollTop=0;return true");
+ const secondaryContrast=await run("return ['load','error-copy'].map(id=>{const node=document.getElementById('tv-'+id),probe=document.createElement('span');probe.style.backgroundColor='var(--bg-3)';node.parentElement.append(probe);const expectedBackground=getComputedStyle(probe).backgroundColor;probe.remove();const s=getComputedStyle(node),rgb=value=>value.match(/[0-9.]+/g).slice(0,3).map(Number),lum=value=>rgb(value).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4}).reduce((a,n,i)=>a+n*[.2126,.7152,.0722][i],0),a=lum(s.color),b=lum(s.backgroundColor);return {id,expectedBackground,color:s.color,background:s.backgroundColor,bg3:s.getPropertyValue('--bg-3'),contrast:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)};})");
+ console.log(JSON.stringify({secondaryContrast}));for(const button of secondaryContrast){assert(button.contrast>=4.5,JSON.stringify(button));assert.equal(button.background,button.expectedBackground,'Theme changes must not leave an old button surface behind');}
  await screenshot('studio-en-light-125');
  await run("const body=document.querySelector('.text-voice-body');body.scrollTop=body.scrollHeight;document.querySelector('.text-voice-rail section:last-child details').open=true;return true");
  await screenshot('studio-en-light-settings-125');
@@ -149,10 +165,15 @@ app.whenReady().then(async()=>{
  assert.equal(metrics.overflow,false);assert(metrics.left>=0&&metrics.right<=metrics.width+1);assert(metrics.startHeight>=40);assert.match(metrics.title,/words/);
  win.setMinimumSize(360,500);win.setContentSize(600,950);win.webContents.setZoomFactor(1.25);
  await run("UiLocale.set('tr',false);applyUiTheme('dark');document.querySelector('.text-voice-body').scrollTop=0;return true");
+ if(ownership){
+  await run("document.getElementById('tv-error-open').click();return true");
+  const errorLayout=await run("const error=document.getElementById('tv-error'),summary=error.querySelector('summary'),r=summary.getBoundingClientRect(),footer=document.querySelector('.text-voice-footer').getBoundingClientRect();return {open:error.open,summaryVisible:r.top>=0&&r.bottom<=footer.top,scrollable:document.getElementById('tv-error-detail').scrollHeight>document.getElementById('tv-error-detail').clientHeight,detailCount:document.getElementById('tv-error-detail').textContent.length};");
+  assert(errorLayout.open&&errorLayout.summaryVisible&&errorLayout.scrollable,JSON.stringify(errorLayout));
+ }
  await screenshot('studio-tr-narrow-125');
  const narrow=await run("const d=document.getElementById('textVoiceStudio'),b=document.querySelector('.text-voice-body').getBoundingClientRect(),footer=document.querySelector('.text-voice-footer').getBoundingClientRect();return {width:innerWidth,overflow:d.scrollWidth>d.clientWidth+1,bodyHeight:b.height,footerBottom:footer.bottom,height:innerHeight,buttons:['start','preview','stop'].map(id=>{const r=document.getElementById('tv-'+id).getBoundingClientRect();return {left:r.left,right:r.right,height:r.height,minHeight:getComputedStyle(document.getElementById('tv-'+id)).minHeight,zoom:getComputedStyle(document.getElementById('tv-'+id)).zoom}})}");
  assert(narrow.width<=480,JSON.stringify(narrow));assert.equal(narrow.overflow,false);assert(narrow.bodyHeight>=200,JSON.stringify(narrow));assert(narrow.footerBottom<=narrow.height);for(const button of narrow.buttons){assert(button.left>=0&&button.right<=narrow.width);assert(button.height>=40,JSON.stringify(narrow));}
- fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({complete:true,realGeneration:real,sharedReferences:shared,eventOwnership:ownership,controlledStarts:starts.length,controlledStops:stops.length,metrics,narrow,events},null,2));
+ fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({complete:true,realGeneration:real,sharedReferences:shared,eventOwnership:ownership,controlledStarts:starts.length,controlledStops:stops.length,secondaryContrast,metrics,narrow,events},null,2));
  console.log(JSON.stringify({out,complete:true,realGeneration:real,metrics}));app.exit(0);
 }).catch(async error=>{console.error(error.stack);try{await screenshot('failure');}catch{}app.exit(1);});
 setTimeout(()=>app.exit(2),real?300000:60000).unref();
