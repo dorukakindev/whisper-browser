@@ -4,6 +4,8 @@
   const model = window.MediaHomeModel;
   if (!host || !model || !window.api) return; // A failed shell must leave the studio usable.
   const layer = document.getElementById('playerLayer');
+  host.addEventListener('pointerdown',()=>{host.dataset.navigationInput='pointer';},true);
+  host.addEventListener('keydown',event=>{if(['Tab','ArrowLeft','ArrowRight','Home','End'].includes(event.key))host.dataset.navigationInput='keyboard';},true);
   const state = { page: 'home', query: '', filter: 'all', limit: 48, active: true,
     data: model.snapshot([], []), request: 0, render: 0, busy: false, loaded: false, error: '', featuredKey: '' };
   try{const saved=localStorage.getItem('media-home-featured-v1');if(saved&&saved.length<=8192)state.featuredKey=saved;}catch{}

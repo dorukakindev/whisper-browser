@@ -40,3 +40,18 @@ html[data-theme="light"] .md-detail-poster img { outline-color: rgba(0,0,0,.1); 
 .md-detail .mh-actions { justify-content: flex-start; margin-top: 25px; }
 .md-detail :focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 @media(max-width:700px) { .md-filters { padding: 15px; gap: 10px; } .md-field { flex: 1; min-width: 120px; } .md-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 12px; } .md-detail { padding: 20px; } .md-detail-body { grid-template-columns: 1fr; } .md-detail-poster { width: 140px; } .md-detail h2 { font-size: 26px; } }
+
+/* Compact search desk: labels, fields and action share a clear baseline. */
+.md-tabs{gap:20px;padding-bottom:0;margin-bottom:22px}
+.md-tabs .md-tab{min-height:44px;padding:10px 2px;border-radius:0;background:transparent;border-bottom:2px solid transparent;font-size:14px;font-weight:500}
+.md-tabs .md-tab[aria-pressed=true]{color:var(--accent);background:transparent;border-bottom-color:var(--accent)}
+.md-tabs .md-tab:hover:not([aria-pressed=true]){background:transparent}
+.md-filters{padding:20px 22px;gap:16px;border-radius:14px}
+.md-field{gap:9px;min-width:130px;font-size:12px}
+.md-field input,.md-field select{min-height:42px;line-height:1.4}
+.md-filters>.mh-action{min-height:42px;flex-shrink:0}
+.md-status{margin:12px 0 20px;max-width:75ch}
+.md-grid{gap:28px 20px}
+.md-detail p{line-height:1.8;text-wrap:pretty}
+.md-detail .md-meta{line-height:1.7;margin-block:12px 18px}
+@media(max-width:700px){.md-tabs{gap:16px;flex-wrap:wrap}.md-filters{display:grid;grid-template-columns:1fr 1fr;padding:16px;gap:14px}.md-field{min-width:0}.md-search{grid-column:1/-1}.md-filters>.mh-action{justify-self:start}.md-grid{gap:24px 14px}}
