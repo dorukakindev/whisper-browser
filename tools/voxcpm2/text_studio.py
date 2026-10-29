@@ -73,8 +73,18 @@ def command(engine, reference, transcript, source, output, settings):
 
 
 def main():
-    from text_studio_window import Studio
-    Studio(defaults(), command).run()
+    """Open the shared Electron studio, including from historical Python shortcuts."""
+    import sys
+    if len(sys.argv) > 1:
+        raise SystemExit('Open ses-studyosu.bat and choose voice/settings in the studio. '
+                         'Legacy command-line UI overrides are not applied.')
+    launcher = ROOT / 'ses-studyosu.bat'
+    if os.name != 'nt':
+        raise SystemExit('Open the Text / TXT studio from the application. '
+                         'ses-studyosu.bat is the Windows launcher.')
+    if not launcher.is_file():
+        raise SystemExit('Voice studio launcher is missing: ses-studyosu.bat')
+    os.startfile(str(launcher), cwd=str(ROOT))
 
 
 if __name__ == '__main__':
