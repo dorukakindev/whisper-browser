@@ -2,6 +2,9 @@
 /* Genel gizleme yardımcısı — elemana özel .hidden kuralları yetmiyordu
    (ör. .field.hidden, .player-layer.hidden gizlenmiyordu) */
 .hidden { display: none !important; }
+/* Preserve the HTML hidden contract when component rules set flex/grid/block.
+   until-found must retain its native find-in-page reveal behavior. */
+[hidden]:not([hidden="until-found"]) { display: none !important; }
 /* Arka plan düz — dikkat dağıtan renk parıltısı yok */
 /* ===== Header ===== */
 @keyframes pulse {

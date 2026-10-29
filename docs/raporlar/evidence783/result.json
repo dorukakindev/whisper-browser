@@ -1,0 +1,71 @@
+{
+  "ok": true,
+  "rows": [
+    {
+      "language": "tr",
+      "theme": "dark",
+      "width": 1360,
+      "hidden": true,
+      "display": "none",
+      "rects": 0
+    },
+    {
+      "rows": [
+        {
+          "cls": "btn btn-secondary",
+          "hidden": "none",
+          "shown": "flex"
+        },
+        {
+          "cls": "dub-generator-row",
+          "hidden": "none",
+          "shown": "flex"
+        },
+        {
+          "cls": "text-voice-fields",
+          "hidden": "none",
+          "shown": "grid"
+        },
+        {
+          "cls": "mw-actions",
+          "hidden": "none",
+          "shown": "flex"
+        }
+      ],
+      "untilFound": "block"
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 800,
+      "hidden": true,
+      "display": "none",
+      "rects": 0
+    },
+    {
+      "rows": [
+        {
+          "cls": "btn btn-secondary",
+          "hidden": "none",
+          "shown": "flex"
+        },
+        {
+          "cls": "dub-generator-row",
+          "hidden": "none",
+          "shown": "flex"
+        },
+        {
+          "cls": "text-voice-fields",
+          "hidden": "none",
+          "shown": "grid"
+        },
+        {
+          "cls": "mw-actions",
+          "hidden": "none",
+          "shown": "flex"
+        }
+      ],
+      "untilFound": "block"
+    }
+  ]
+}
