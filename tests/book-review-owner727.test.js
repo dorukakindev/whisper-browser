@@ -30,3 +30,19 @@ for (const leave of ['switch','close']) test(`late approval cannot reclaim a boo
  assert.equal(f.w.document.querySelector('textarea[data-chapter]')?.dataset.projectId,leave==='switch'?'two':undefined);
  assert.equal(f.w.MediaWorkflowsUI.assistant.state()?.id,leave==='switch'?'two':undefined);
 });
+
+for(const leave of ['new-selection','external-open','close'])test(`late saved-book selection cannot reclaim view after ${leave}`,async t=>{
+ const first=gate(),second=gate();let delayed=false;
+ const f=fixture({bookGate:id=>delayed&&id==='two'?first.promise:delayed&&id==='one'?second.promise:undefined});
+ t.after(()=>f.dom.window.close());await f.w.MediaWorkflowsUI.openProject('one');delayed=true;
+ const choose=f.w.document.querySelector('select[aria-label="Saved book projects"]');assert(choose);
+ choose.value='two';const initial=choose.onchange();await tick();
+ if(leave==='new-selection'){
+  choose.value='one';const newer=choose.onchange();await tick();second.resolve({ok:true,project:f.project('one')});await newer;
+ }else if(leave==='external-open'){
+  delayed=false;await f.w.MediaWorkflowsUI.openProject('one');
+ }else{f.w.document.querySelector('.mw-dialog').close();await new Promise(r=>setTimeout(r,5));}
+ first.resolve({ok:true,project:f.project('two')});await initial;await tick();
+ assert.equal(f.w.MediaWorkflowsUI.assistant.state()?.id,leave==='close'?undefined:'one');
+ assert.equal(f.w.document.querySelector('textarea[data-chapter]')?.dataset.projectId,leave==='close'?undefined:'one');
+});

@@ -2,7 +2,7 @@
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),vm=require("node:vm");
 test("actual review edit callback selects the second repeated passage and refuses changed drafts",()=>{
  const source=fs.readFileSync(require.resolve("../src/renderer/media-workflows-ui.js"),"utf8");
- const start=source.indexOf('button(t("Edit this passage", "Bu metni düzenle"), () => {');
+ const start=source.indexOf('button(uiLabel("Edit this passage", "Bu metni düzenle"), () => {');
  const end=source.indexOf('\n          }),',start);assert(start>0&&end>start);
  const callback=source.slice(start,end).slice(source.slice(start,end).indexOf('() => {'))+'\n}';
  const text="Hayır. Uzun açıklama. Hayır.",c={text,groups:[{text:"Hayır."},{text:"Uzun açıklama."},{text:"Hayır."}]};

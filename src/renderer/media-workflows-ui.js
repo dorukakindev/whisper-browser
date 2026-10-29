@@ -448,15 +448,21 @@
     choose.value = project?.id || "";
     choose.disabled = busy;
     choose.onchange = async () => {
+      if (!choose.value || busy || dialog!==renderDialog || !renderDialog.open || bodyVersion!==renderVersion) return;
+      const id=choose.value, request=++projectOpenRequest;
+      // saveChapter may replace the current project object with its saved version.
+      const ownsSelection=()=>request===projectOpenRequest&&dialog===renderDialog&&renderDialog.open&&bodyVersion===renderVersion;
       try {
-        if (busy) throw Error("Busy / Meşgul");
         await saveChapter();
-        project = (await call("book-open", { id: choose.value })).project;
+        if (!ownsSelection()) return;
+        const opened=await call("book-open", { id });
+        if (!ownsSelection()) return;
+        project = opened.project;
         chapter = 0;
         selected = new Set(project.selectedChapters || [0]);
         await books();
       } catch (e) {
-        status(e.message);
+        if (ownsSelection()) status(e.message);
       }
     };
     actions.append(choose, management);
