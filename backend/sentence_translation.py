@@ -776,6 +776,19 @@ def _canonical_number(token, language=None):
     return token[1:] if token.startswith('+') else token
 
 
+def _consume_opaque_identifiers(source, target):
+    if re.search(r'(?i)\b(?:code|identifier|serial|version|kod|kimlik|sürüm)\b', source):
+        for identifier in list(re.finditer(r'(?<![\w.])\d+\.\d{3}(?!\w|\.\d)', source))[::-1]:
+            if not re.search(r'(?i)\b(?:code|identifier|serial|version|kod|kimlik|sürüm)(?:\s+(?:is|was|number|numarası))?\s*[:#]?\s*$', source[:identifier.start()]):
+                continue
+            found = re.search(r'(?<![\w.])'+re.escape(identifier[0])+r'(?!\w|\.\d)', target)
+            if found:
+                source=source[:identifier.start()]+' '+source[identifier.end():]
+                target=target[:found.start()]+' '+target[found.end():]
+
+    return source, target
+
+
 def _localized_work_title(name, source, translated):
     """Only explicitly introduced work titles can be translated as phrases.
 
@@ -784,6 +797,10 @@ def _localized_work_title(name, source, translated):
     """
     if not re.search(r"\b(?:adlı|adını|adı|kitab\w*)\b", translated, re.I):
         return False
+    # A one-word quoted work title can also have an official localized title.
+    for quoted in re.finditer(r'(?:called|named|titled)\s+["“]([^"”]+)["”]',source,re.I):
+        if re.search(r'\b'+re.escape(name)+r'\b',quoted[1]) and re.search(r'["“][^"”]+["”]\s+(?:adlı|isimli)\b',translated,re.I):
+            return True
     capital = r"[A-Z][a-zA-Z'’]+"
     title = capital + r"(?:\s+(?:(?:of|the|in|a|an|and|against|to)\s+)*" + capital + r"){1,10}"
     if not re.search(r"[A-ZÇĞİÖŞÜ][\w'’]+\s+[A-ZÇĞİÖŞÜ][\w'’]+", translated):
@@ -826,7 +843,7 @@ def part_anchor_issue(source_parts, translated_parts, target_lang="tr", source_l
         # '10.30' / 'dokuzu çeyrek geçe' gibi doğal biçimleriyle eşleşemez;
         # translation_meaning_issues'daki saat mantığı buraya da uygulanır.
         source_numbers_text = re.sub(r"(?i)(\b(?:saat|akşam|sabah|öğlen|gece)\s+\d{1,2})\.([0-5]\d)(?!\d)", r"\1:\2", str(source))
-        target_numbers_text = str(translated)
+        source_numbers_text,target_numbers_text=_consume_opaque_identifiers(source_numbers_text,str(translated))
         tr_target = str(target_lang or "").lower().split('-')[0] == 'tr'
         for clock in _CLOCK_SOURCE.finditer(source_numbers_text):
             target_clock = _matching_clock(target_numbers_text, clock, tr_target)
@@ -1452,7 +1469,7 @@ def _outcome_polarities(text, language):
     if language == 'en':
         pattern = r'\b(?:succeed(?:ed|s|ing)?|successful(?:ly)?|unsuccessful(?:ly)?|fail(?:ed|s|ing)?|failure)\b'
     elif language == 'tr':
-        pattern = r'\bbaşar(?:ılı|ısız)(?:y(?:dı|mış)|dır|dı|mış|ca)?\b|\bbaşar(?:dı|dım|dın|dık|dınız|dılar)\b'
+        pattern = r'\bbaşarı(?:yd[ıiuü](?:m|n|k|n[ıiuü]z|lar)?|dır)?\b|\bbaşarısızlık(?:t[ıiuü](?:m|n|k|n[ıiuü]z|lar)?|tır)?\b|\bbaşar(?:ılı|ısız)(?:y(?:dı|mış)|dır|dı|mış|ca)?\b|\bbaşar(?:dı|dım|dın|dık|dınız|dılar)\b'
     else:
         return set()
     outcomes = set()
@@ -1470,7 +1487,7 @@ def _outcome_polarities(text, language):
 
 
 _TR_MODAL_STEMS = '(?:' + '|'.join(re.escape(root) for root in sorted(
-    set(_TR_NEGATION_ROOTS) | {'gid', 'ed', 'yağ', 'bitir'}, key=len, reverse=True)) + ')'
+    set(_TR_NEGATION_ROOTS) | {'gid', 'ed', 'yağ', 'bitir', 'başla', 'yaşa', 'anla', 'hatırla', 'dene'}, key=len, reverse=True)) + ')'
 _TR_FINITE_PERSON = r'(?:y?[ıiuü]m|s[ıiuü]n|y?[ıiuü]z|s[ıiuü]n[ıiuü]z|l[ae]r)?'
 _TR_PAST_PERSON = r'(?:m|n|k|n[ıiuü]z|l[ae]r)?'
 
@@ -1490,7 +1507,7 @@ def _reverse_modal_issues(source, translated):
     # Aorist past can be habitual OR a natural simple-past rendering (bilirdin
     # -> you knew). Require a recognizably present finite verb before rejecting;
     # unknown/irregular pasts and ambiguous read/put/cut are not proof of loss.
-    present = re.search(r'\b(?:I|you|we|they|he|she|it)\s+(?:go(?:es)?|come(?:s)?|know(?:s)?|wait(?:s)?|walk(?:s)?|work(?:s)?|say(?:s)?|take(?:s)?|give(?:s)?|make(?:s)?|write(?:s)?|think(?:s)?|eat(?:s)?|sleep(?:s)?)\b', translated, re.I)
+    present = re.search(r'\b(?:I|you|we|they|he|she|it)\s+(?:go(?:es)?|come(?:s)?|know(?:s)?|wait(?:s)?|walk(?:s)?|work(?:s)?|say(?:s)?|take(?:s)?|give(?:s)?|make(?:s)?|write(?:s)?|think(?:s)?|eat(?:s)?|sleep(?:s)?|start(?:s)?)\b', translated, re.I)
     if habitual and present and not re.search(r'\b(?:would|used to|was|were|had|did|yesterday|formerly|previously|\w+ed)\b', translated, re.I):
         issues.append('modal_missing')
     return issues
@@ -1518,6 +1535,8 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
                 source_numbers_text = source_numbers_text[:idiom.start()] + ' ' + source_numbers_text[idiom.end():]
                 translated_numbers_text = translated_numbers_text[:found.start()] + ' ' + translated_numbers_text[found.end():]
 
+    source_numbers_text,translated_numbers_text=_consume_opaque_identifiers(source_numbers_text,translated_numbers_text)
+
     if _CLOCK_SOURCE.search(source_numbers_text):
         # 5:30 and 5.30 are the same clock time in these subtitles. Compare
         # whole clock expressions so a changed minute cannot pass as two
@@ -1533,7 +1552,7 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
                 issues.append('number_mismatch')
         source_numbers_text = _CLOCK_SOURCE.sub(' ', source_numbers_text)
     for pair in re.finditer(r'(?<!\w)(\d+)\s*[-:/]\s*(\d+)(?!\w)', source_numbers_text):
-        if '-' in pair[0] and not re.search(r'(?i)\b(?:score|won|lost|win|beat|ratio|skor|kazandı|oran)\b', source):
+        if '-' in pair[0] and not re.search(r'(?i)\b(?:score|won|lost|win|beat|ratio|scor(?:e|ed|es|ing)|skor|kazandı|oran)\b', source):
             continue
         if not re.search(r'(?<!\w)'+re.escape(pair[1])+r'\s*[-:/]\s*'+re.escape(pair[2])+r'(?!\w)', translated_numbers_text):
             issues.append('number_mismatch')
@@ -1577,7 +1596,7 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
     if (source_language, lang) in (('en', 'tr'), ('tr', 'en')):
         original_outcome = _outcome_polarities(source, source_language)
         translated_outcome = _outcome_polarities(translated, lang)
-        if len(original_outcome) == len(translated_outcome) == 1 and original_outcome != translated_outcome:
+        if original_outcome and translated_outcome and not original_outcome.issubset(translated_outcome):
             issues.append('outcome_reversed')
     # Altyazı kaynaklarında kıvırcık kesme (’) düz kesmeye katlanır; aksi
     # halde "can’t/won’t" biçimleri kaynak işaret listesinden düşer.
@@ -1593,9 +1612,9 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
     if lang == 'tr' and re.search(r"\bwhether\s+or\s+not\b", negation_source, re.I) and re.search(r"\b\w+(?:[ıiuü]p)\s+\w+m[ae]m[ae]\w*\b", translated, re.I):
         negation_source = re.sub(r"\bwhether\s+or\s+not\b", 'whether', negation_source, flags=re.I)
     if lang in _NEGATION_TARGET_LANGS and _SOURCE_NEGATION.search(negation_source) \
-            and not (_target_negation(translated, negation_source) or (lang == 'en' and translated_outcome == {-1})):
+            and not (_target_negation(translated, negation_source) or (lang == 'en' and translated_outcome == {-1}) or original_outcome == translated_outcome == {1}):
         issues.append('negation_missing')
-    target_negative = _target_negation(translated, negation_source) if lang == 'tr' else bool(_SOURCE_NEGATION.search(translated.replace('’', "'"))) if lang == 'en' else False
+    target_negative = _target_negation(re.sub(r'(?:\"[^\"\n]*\"|“[^”\n]*”|«[^»\n]*»)(?=\s+(?:adlı|isimli)\b)', ' ', translated, flags=re.I), negation_source) if lang == 'tr' else bool(_SOURCE_NEGATION.search(translated.replace('’', "'"))) if lang == 'en' else False
     target_negative = target_negative or (lang == 'en' and translated_outcome == {-1})
     source_negative = bool(_SOURCE_NEGATION.search(negation_source)) or original_outcome == {-1} or (lang == 'en' and str(source_lang or '').split('-')[0] == 'tr' and _target_negation(source, translated))
     if lang == 'en' and str(source_lang or '').split('-')[0] == 'tr' and _target_negation(source, translated) and not target_negative:
@@ -1631,6 +1650,24 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
         issues.extend(_reverse_modal_issues(source, translated))
         if re.search(r'(?i)\b(?:zorunda\w*|mecbur\w*|gerekli|gerekiyor)\b', source) and not re.search(r'(?i)\b(?:must|have to|has to|need to|required|obliged|forced)\b', translated): issues.append('modal_weakened')
         if re.search(r'(?i)\b(?:belki|muhtemelen|olabilir)\b', source) and not re.search(r'(?i)\b(?:may|might|could|perhaps|maybe|possibly|probably)\b', translated): issues.append('modal_certainty_flip')
+    if lang == 'tr':
+        # Explicit past habit may not silently become a bare completed event.
+        if re.search(r'(?i)\bused to (?!be\b)\w+', source) and not re.search(r'(?i)\b(?:eskiden|önceden|vaktiyle|bir zamanlar|artık)\b|\b\w+r(?:lar|ler)?[dt][ıiuü]\w*\b', translated):
+            if re.search(r'\b'+_TR_MODAL_STEMS+r'[dt][ıiuü]'+_TR_PAST_PERSON+r'\b', translated, re.I):
+                issues.append('modal_missing')
+        if len(source.split()) >= 4 and re.fullmatch(r'(?:bu|şu|o)[.!?]?', translated, re.I):
+            issues.append('truncated_fragment')
+        # Require the same explicit time/event anchor at both clause starts;
+        # inverse clause formulations remain outside this lexical hard gate.
+        anchors={'the alarm':'alarm','monday':'pazartesi','tuesday':'salı','wednesday':'çarşamba','thursday':'perşembe','friday':'cuma','saturday':'cumartesi','sunday':'pazar'}
+        relation=re.match(r'(before|after|until)\s+('+'|'.join(anchors)+r')\b',source,re.I)
+        if relation and re.match(re.escape(anchors[relation[2].lower()])+r'\b',translated,re.I):
+            first=translated.split(',')[0]
+            before=bool(re.search(r'\bönce\b',first,re.I) or re.search(r'\b\w+m[ae]d[ae]n\b',first,re.I))
+            after=bool(re.search(r'\bsonra\b',first,re.I))
+            until=bool(re.search(r'\b(?:kadar|dek|değin)\b',first,re.I))
+            if (relation[1].lower() in ('before','until') and after and not (before or until)) or (relation[1].lower()=='after' and before and not after):
+                issues.append('temporal_reversed')
     marker_checks = [
         ('currency_mismatch', _semantic_markers(source, _CURRENCY_PATTERNS),
          _semantic_markers(translated, _CURRENCY_PATTERNS)),
@@ -1677,7 +1714,7 @@ def translation_blocking_issues(source_text, translated_text, target_lang='tr', 
     blocking = [issue for issue in issues
                 if issue in ('markup_mismatch', 'number_mismatch', 'truncated_fragment',
                              'negation_missing', 'negation_added', 'modal_missing',
-                             'modal_certainty_flip', 'modal_weakened', 'outcome_reversed')]
+                             'modal_certainty_flip', 'modal_weakened', 'outcome_reversed', 'temporal_reversed')]
     # A single unchanged explicit quantity cannot silently change its unit or
     # currency (60 miles -> 60 km). Do not reject actual conversions, multiple
     # quantities or explicit equivalence statements using this narrow proof.

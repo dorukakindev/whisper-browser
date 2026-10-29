@@ -1,10 +1,25 @@
 'use strict';
+const fs = require('node:fs'), path = require('node:path'), {fileURLToPath} = require('node:url');
 const {createHash} = require('node:crypto');
 // Persist only the digest, never a signed URL or private filesystem path.
 function identity(value) {
   if (value == null || value === '') return null;
   if (typeof value !== 'string' || value.length > 4096 || /[\x00-\x1f]/.test(value)) throw new Error('Invalid dub source identity.');
   let canonical = value.normalize('NFC');
+  let local = canonical;
+  if (/^file:/i.test(local)) { try { local=fileURLToPath(local); } catch { return null; } }
+  if (path.isAbsolute(local) || /^[a-z]:[\\/]/i.test(local)) {
+    try {
+      // No file bytes or path are exposed. Replacing/editing a local source
+      // invalidates automatic reuse, including equal-length replacements.
+      const stat=fs.statSync(local,{bigint:true});
+      if(!stat.isFile())return null;
+      canonical=fs.realpathSync(local).normalize('NFC');
+      if(process.platform==='win32')canonical=canonical.replace(/\\/g,'/').toLowerCase();
+      canonical=JSON.stringify(['local-v2',canonical,String(stat.size),String(stat.mtimeNs),String(stat.ctimeNs),String(stat.birthtimeNs),String(stat.ino)]);
+      return createHash('sha256').update(canonical).digest('hex');
+    } catch { return null; }
+  }
   if (/^[a-z]:[\\/]/i.test(canonical)) canonical = canonical.replace(/\\/g,'/').toLowerCase();
   try {
     const url = new URL(canonical);

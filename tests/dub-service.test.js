@@ -182,6 +182,17 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.equal((await call('dub:latest',{source:'https://youtu.be/abcdefghijk',id:'ranged'})).output.id,'ranged');
     assert.equal((await call('dub:latest',{source:'https://youtu.be/abcdefghijk',id:'missing'})).output,null,'source match must not silently replace the requested output ID');
     assert.equal((await call('dub:latest',{source:'https://youtu.be/12345678901',id:'ranged'})).output,null,'matching ID must not override the source mismatch');
+    const localMedia=path.join(root,'Episode Türkçe.mp4');fs.writeFileSync(localMedia,'old video bytes');
+    const localIdentity=require('../src/dub-source-identity').identity(localMedia);
+    assert.equal(localIdentity,require('../src/dub-source-identity').identity(require('node:url').pathToFileURL(localMedia).href),'local path and file URI identify the same source');
+    fs.writeFileSync(rangedLog,JSON.stringify({...JSON.parse(rangedSummary),sourceIdentity:localIdentity}));
+    assert.equal((await call('dub:latest',{source:localMedia})).output.id,'ranged');
+    fs.writeFileSync(localMedia,'new video bytes');
+    assert.equal((await call('dub:latest',{source:localMedia})).output,null,'same-length replaced video must not restore old dub');
+    fs.unlinkSync(localMedia);
+    assert.equal((await call('dub:latest',{source:localMedia})).output,null,'missing local source cannot auto attach');
+    assert.equal((await call('dub:latest','ranged')).output.id,'ranged','explicit saved audio remains accessible');
+    fs.writeFileSync(rangedLog,rangedSummary);
     assert.equal((await call('dub:latest',{source:''})).output,null);
     assert.equal((await call('dub:latest','not-the-requested-voice')).output,null,'Missing identity must not silently select another video voice');
     assert.equal((await call('dub:latest','../../secret')).ok,false);
