@@ -25,6 +25,17 @@ def metrics(wav, sr):
             'quiet_fraction': round(float(np.mean(rms < .002)), 4)}
 
 
+def reference_pair(args):
+    """Keep paired reference experiments separate from grouping experiments."""
+    alternate = getattr(args, 'alternate_reference', None)
+    transcript = getattr(args, 'alternate_transcript', None)
+    if bool(alternate) != bool(transcript):
+        raise ValueError('Both alternate reference and exact transcript are required.')
+    if alternate and args.only != 'single-context':
+        raise ValueError('Paired references require --only single-context to keep grouping fixed.')
+    return alternate, transcript
+
+
 async def compare(args):
     # Import the application's Windows safe-weight-loader compatibility too.
     import altyazi_oku as runtime
@@ -32,6 +43,7 @@ async def compare(args):
     from nanovllm_voxcpm import VoxCPM
     from dub_plan import make_groups, grouping_options
 
+    alternate, alternate_transcript = reference_pair(args)
     text = args.text.read_text(encoding='utf-8-sig')
     sentences = [line.strip() for line in text.splitlines() if line.strip()]
     if not sentences or len(text) > 800:
@@ -45,6 +57,9 @@ async def compare(args):
                 ('single-context', [' '.join(sentences)], True, 1.65)]
     if args.only:
         variants = [v for v in variants if v[0] == args.only]
+    if alternate:
+        variants = [('reference-a', [' '.join(sentences)], True, 1.65),
+                    ('reference-b', [' '.join(sentences)], True, 1.65)]
     args.output.mkdir(parents=True, exist_ok=False)
     model = snapshot_download(runtime.MODEL_ID, revision=runtime.MODEL_REVISION, local_files_only=True)
     started = time.monotonic()
@@ -64,17 +79,28 @@ async def compare(args):
         if not prompt:
             raise ValueError('An exact nonempty reference transcript is required.')
         prompt_id = await server.add_prompt(reference, 'wav', prompt)
+        anchors = {'reference-a': (ref_lat, prompt_id)}
+        if alternate:
+            second = alternate.read_bytes()
+            second_text = alternate_transcript.read_text(encoding='utf-8-sig').strip()
+            if not second_text:
+                raise ValueError('An exact nonempty alternate transcript is required.')
+            anchors['reference-b'] = (await server.encode_latents(second, 'wav'),
+                                      await server.add_prompt(second, 'wav', second_text))
+            result['reference_sha256'] = [hashlib.sha256(reference).hexdigest(), hashlib.sha256(second).hexdigest()]
+            result['method'] = 'Paired references; identical text, grouping, seed, settings and finishing. Reference voice/language differ together; not an isolated language causal test.'
         sr = int(getattr(server, 'sample_rate', 48000) or 48000)
         for name, chunks, fixed, cfg in variants:
             began = time.monotonic()
+            current_lat, current_prompt = anchors.get(name, (ref_lat, prompt_id))
             waves, records = [], []
             for i, chunk in enumerate(chunks):
                 # Same source anchor in every request; never feed generated errors back.
                 seed = 42 if fixed else 42 + i
                 pieces = []
                 async def generate():
-                    async for part in server.generate(chunk, prompt_id=prompt_id,
-                            ref_audio_latents=ref_lat, temperature=.8, cfg_value=cfg,
+                    async for part in server.generate(chunk, prompt_id=current_prompt,
+                            ref_audio_latents=current_lat, temperature=.8, cfg_value=cfg,
                             seed=seed, max_generate_length=2000):
                         pieces.append(np.asarray(part, dtype=np.float32).reshape(-1))
                 await asyncio.wait_for(generate(), 180)
@@ -119,5 +145,7 @@ if __name__ == '__main__':
     for name in ('text', 'reference', 'transcript', 'output'):
         p.add_argument('--'+name, type=Path, required=True)
     p.add_argument('--only', choices=('sentence', 'flowing', 'fixed-seed', 'cfg2-fixed', 'single-context'))
+    p.add_argument('--alternate-reference', type=Path, help='Opt-in paired voice experiment; requires --only single-context')
+    p.add_argument('--alternate-transcript', type=Path)
     p.add_argument('--verify-python', type=Path, help='Application backend Python with the cached small Whisper model')
     asyncio.run(compare(p.parse_args()))
