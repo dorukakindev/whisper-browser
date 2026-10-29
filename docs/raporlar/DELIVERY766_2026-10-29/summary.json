@@ -1,0 +1,512 @@
+{
+  "version": 1,
+  "input_hashes": {
+    "srt": "e185db78e955fe24ac6f05cf1c1d205939b873385346c7f401797fee81312e50",
+    "reference": "b622d00bac461ea082ee9f72a6031d3456e104b347c48ce52885d7df06098826",
+    "transcript": "1f7806389c5df468706af80962cbbfc02b6459b74a0d434b614c5cf017b52d43",
+    "source": "67f3cf6552b6e952ece32f5433ea279890d9ad908369748f60c3cab6a7bec33e"
+  },
+  "model_revision": "32279effe8c19989596f05d353d1447f51d9e915",
+  "guided_groups": 3,
+  "total_groups": 3,
+  "steps": 15,
+  "seed": 42,
+  "concurrency": 1,
+  "human_preference": null,
+  "naturalness_winner": null,
+  "limits": "Production-mode comparison, not isolated tag causality or human quality proof.",
+  "samples": [
+    {
+      "label": "A",
+      "follow_delivery": false,
+      "seconds": 43.203,
+      "audio_seconds": 18.909,
+      "sample_rate": 48000,
+      "quality": {
+        "version": 1,
+        "verification": "detailed",
+        "groups": [
+          {
+            "group": 1,
+            "key": "1",
+            "status": "ready",
+            "verification": {
+              "status": "passed",
+              "recognizedText": "Kapıyı açmadım. Çünkü dışarıda güçlü bir fırtına vardı.",
+              "similarity": 1.0,
+              "omission_spans": [],
+              "insertion_spans": [],
+              "missing_numbers": [],
+              "added_numbers": [],
+              "percentage_mismatch": false,
+              "semantic_mismatch": false,
+              "spoken_number_mismatch": false,
+              "lost_negation": false,
+              "added_negation": false,
+              "unit_mismatch": false,
+              "repetition": false,
+              "sign_mismatch": false,
+              "missing_names": [],
+              "review": false,
+              "requestedLanguage": "tr",
+              "recognizedLanguage": "tr"
+            },
+            "rewritten": false,
+            "naturalEdited": false,
+            "delivery": null,
+            "referenceMode": "continuation",
+            "displayText": "Kapıyı açmadım. Çünkü dışarıda güçlü bir fırtına vardı.",
+            "speechRanges": [
+              [
+                0.04,
+                0.98
+              ],
+              [
+                1.82,
+                4.0
+              ]
+            ],
+            "text": "Kapıyı açmadım. Çünkü dışarıda güçlü bir fırtına vardı.",
+            "sourceStart": 0.0,
+            "sourceEnd": 4.937,
+            "audioStart": 0.0,
+            "audioEnd": 4.053541666666667,
+            "stretch": 1.0
+          },
+          {
+            "group": 2,
+            "key": "2",
+            "status": "ready",
+            "verification": {
+              "status": "passed",
+              "recognizedText": "İşte beklediğimiz haber geldi. Hep birlikte yola çıkabiliriz.",
+              "similarity": 1.0,
+              "omission_spans": [],
+              "insertion_spans": [],
+              "missing_numbers": [],
+              "added_numbers": [],
+              "percentage_mismatch": false,
+              "semantic_mismatch": false,
+              "spoken_number_mismatch": false,
+              "lost_negation": false,
+              "added_negation": false,
+              "unit_mismatch": false,
+              "repetition": false,
+              "sign_mismatch": false,
+              "missing_names": [],
+              "review": false,
+              "requestedLanguage": "tr",
+              "recognizedLanguage": "tr"
+            },
+            "rewritten": false,
+            "naturalEdited": false,
+            "delivery": null,
+            "referenceMode": "continuation",
+            "displayText": "İşte beklediğimiz haber geldi! Hep birlikte yola çıkabiliriz.",
+            "speechRanges": [
+              [
+                6.457,
+                8.197
+              ],
+              [
+                8.937,
+                10.577
+              ]
+            ],
+            "text": "İşte beklediğimiz haber geldi! Hep birlikte yola çıkabiliriz.",
+            "sourceStart": 6.437,
+            "sourceEnd": 11.06,
+            "audioStart": 6.437,
+            "audioEnd": 10.615020833333332,
+            "stretch": 1.0
+          },
+          {
+            "group": 3,
+            "key": "3",
+            "status": "ready",
+            "verification": {
+              "status": "passed",
+              "recognizedText": "Gerçekten emin misin? Önce şu üç önemli noktayı düşünelim.",
+              "similarity": 1.0,
+              "omission_spans": [],
+              "insertion_spans": [],
+              "missing_numbers": [],
+              "added_numbers": [],
+              "percentage_mismatch": false,
+              "semantic_mismatch": false,
+              "spoken_number_mismatch": false,
+              "lost_negation": false,
+              "added_negation": false,
+              "unit_mismatch": false,
+              "repetition": false,
+              "sign_mismatch": false,
+              "missing_names": [],
+              "review": false,
+              "requestedLanguage": "tr",
+              "recognizedLanguage": "tr"
+            },
+            "rewritten": false,
+            "naturalEdited": false,
+            "delivery": null,
+            "referenceMode": "continuation",
+            "displayText": "Gerçekten emin misin? Önce şu üç önemli noktayı düşünelim.",
+            "speechRanges": [
+              [
+                12.6,
+                13.88
+              ],
+              [
+                14.68,
+                16.68
+              ]
+            ],
+            "text": "Gerçekten emin misin? Önce şu üç önemli noktayı düşünelim.",
+            "sourceStart": 12.56,
+            "sourceEnd": 16.909,
+            "audioStart": 12.56,
+            "audioEnd": 16.6946875,
+            "stretch": 1.0
+          }
+        ],
+        "preview": false,
+        "excerpts": [
+          {
+            "key": "1",
+            "start": 0.0,
+            "end": 4.937
+          },
+          {
+            "key": "2",
+            "start": 6.437,
+            "end": 11.06
+          },
+          {
+            "key": "3",
+            "start": 12.56,
+            "end": 16.909
+          }
+        ]
+      },
+      "performance": {
+        "model_load_seconds": 11.5,
+        "reference_seconds": 1.844,
+        "synthesis_seconds": 20.063,
+        "verification_seconds": 8.266,
+        "placement_seconds": 0.0,
+        "normalization_seconds": 0.313,
+        "file_write_seconds": 0.016,
+        "wall_seconds": 43.172
+      },
+      "sha256": "dc4204e772282351b1ccdc98fa0a7c70b5e5755db13303d0bdead049e59e3b60"
+    },
+    {
+      "label": "B",
+      "follow_delivery": true,
+      "seconds": 40.828,
+      "audio_seconds": 18.909,
+      "sample_rate": 48000,
+      "quality": {
+        "version": 1,
+        "verification": "detailed",
+        "groups": [
+          {
+            "group": 1,
+            "key": "1",
+            "status": "ready",
+            "verification": {
+              "status": "passed",
+              "recognizedText": "Kapıyı açmadım. Çünkü dışarıda güçlü bir fırtına vardı.",
+              "similarity": 1.0,
+              "omission_spans": [],
+              "insertion_spans": [],
+              "missing_numbers": [],
+              "added_numbers": [],
+              "percentage_mismatch": false,
+              "semantic_mismatch": false,
+              "spoken_number_mismatch": false,
+              "lost_negation": false,
+              "added_negation": false,
+              "unit_mismatch": false,
+              "repetition": false,
+              "sign_mismatch": false,
+              "missing_names": [],
+              "review": false,
+              "requestedLanguage": "tr",
+              "recognizedLanguage": "tr"
+            },
+            "rewritten": false,
+            "naturalEdited": false,
+            "delivery": {
+              "energy": "low",
+              "variation": "varied",
+              "pauses": "normal"
+            },
+            "referenceMode": "isolated",
+            "displayText": "Kapıyı açmadım. Çünkü dışarıda güçlü bir fırtına vardı.",
+            "speechRanges": [
+              [
+                0.0,
+                0.98
+              ],
+              [
+                1.58,
+                3.74
+              ]
+            ],
+            "text": "Kapıyı açmadım. Çünkü dışarıda güçlü bir fırtına vardı.",
+            "sourceStart": 0.0,
+            "sourceEnd": 4.937,
+            "audioStart": 0.0,
+            "audioEnd": 3.7706041666666668,
+            "stretch": 1.0
+          },
+          {
+            "group": 2,
+            "key": "2",
+            "status": "ready",
+            "verification": {
+              "status": "passed",
+              "recognizedText": "İşte beklediğimiz haber geldi. Hep birlikte yola çıkabiliriz.",
+              "similarity": 1.0,
+              "omission_spans": [],
+              "insertion_spans": [],
+              "missing_numbers": [],
+              "added_numbers": [],
+              "percentage_mismatch": false,
+              "semantic_mismatch": false,
+              "spoken_number_mismatch": false,
+              "lost_negation": false,
+              "added_negation": false,
+              "unit_mismatch": false,
+              "repetition": false,
+              "sign_mismatch": false,
+              "missing_names": [],
+              "review": false,
+              "requestedLanguage": "tr",
+              "recognizedLanguage": "tr"
+            },
+            "rewritten": false,
+            "naturalEdited": false,
+            "delivery": {
+              "energy": "normal",
+              "variation": "varied",
+              "pauses": "normal"
+            },
+            "referenceMode": "isolated",
+            "displayText": "İşte beklediğimiz haber geldi! Hep birlikte yola çıkabiliriz.",
+            "speechRanges": [
+              [
+                6.437,
+                8.277
+              ],
+              [
+                9.657,
+                11.337
+              ]
+            ],
+            "text": "İşte beklediğimiz haber geldi! Hep birlikte yola çıkabiliriz.",
+            "sourceStart": 6.437,
+            "sourceEnd": 11.06,
+            "audioStart": 6.437,
+            "audioEnd": 11.378291666666666,
+            "stretch": 1.0
+          },
+          {
+            "group": 3,
+            "key": "3",
+            "status": "ready",
+            "verification": {
+              "status": "passed",
+              "recognizedText": "Gerçekten emin misin ? Önce şu 3 önemli noktayı düşünelim.",
+              "similarity": 1.0,
+              "omission_spans": [],
+              "insertion_spans": [],
+              "missing_numbers": [],
+              "added_numbers": [],
+              "percentage_mismatch": false,
+              "semantic_mismatch": false,
+              "spoken_number_mismatch": false,
+              "lost_negation": false,
+              "added_negation": false,
+              "unit_mismatch": false,
+              "repetition": false,
+              "sign_mismatch": false,
+              "missing_names": [],
+              "review": false,
+              "requestedLanguage": "tr",
+              "recognizedLanguage": "tr"
+            },
+            "rewritten": false,
+            "naturalEdited": false,
+            "delivery": {
+              "energy": "high",
+              "variation": "varied",
+              "pauses": "normal"
+            },
+            "referenceMode": "isolated",
+            "displayText": "Gerçekten emin misin? Önce şu üç önemli noktayı düşünelim.",
+            "speechRanges": [
+              [
+                12.56,
+                14.02
+              ],
+              [
+                14.94,
+                17.18
+              ]
+            ],
+            "text": "Gerçekten emin misin? Önce şu üç önemli noktayı düşünelim.",
+            "sourceStart": 12.56,
+            "sourceEnd": 16.909,
+            "audioStart": 12.56,
+            "audioEnd": 17.2,
+            "stretch": 1.0
+          }
+        ],
+        "preview": false,
+        "excerpts": [
+          {
+            "key": "1",
+            "start": 0.0,
+            "end": 4.937
+          },
+          {
+            "key": "2",
+            "start": 6.437,
+            "end": 11.06
+          },
+          {
+            "key": "3",
+            "start": 12.56,
+            "end": 16.909
+          }
+        ]
+      },
+      "performance": {
+        "model_load_seconds": 9.328,
+        "reference_seconds": 1.734,
+        "synthesis_seconds": 20.408,
+        "verification_seconds": 7.906,
+        "placement_seconds": 0.0,
+        "normalization_seconds": 0.313,
+        "file_write_seconds": 0.0,
+        "wall_seconds": 40.813
+      },
+      "sha256": "bbafea8be4e5153972af3e590d5de77e41f9d877b6353a972c95a98ef79fbdc4"
+    }
+  ],
+  "full_decode": [
+    {
+      "label": "A",
+      "exit_code": 0,
+      "stderr_bytes": 0
+    },
+    {
+      "label": "B",
+      "exit_code": 0,
+      "stderr_bytes": 0
+    }
+  ],
+  "source_kind": "Windows SAPI Microsoft Tolga; rates -1/0/+1, gains .15/.5/1.0; no human emotional recording",
+  "source_delivery": [
+    {
+      "key": "1",
+      "features": {
+        "level": -35.56076765060425,
+        "variation": 0.8373836569517051,
+        "pauses": 0.4051043143609479,
+        "confidence": 0.9349593495934959
+      },
+      "delivery": {
+        "energy": "low",
+        "variation": "varied",
+        "pauses": "normal"
+      }
+    },
+    {
+      "key": "2",
+      "features": {
+        "level": -23.982887268066406,
+        "variation": 0.5566617319389606,
+        "pauses": 0.4326195111399524,
+        "confidence": 0.9137931034482759
+      },
+      "delivery": {
+        "energy": "normal",
+        "variation": "varied",
+        "pauses": "normal"
+      }
+    },
+    {
+      "key": "3",
+      "features": {
+        "level": -17.76110053062439,
+        "variation": 0.7247060451999658,
+        "pauses": 0.45987583352494826,
+        "confidence": 0.9159663865546218
+      },
+      "delivery": {
+        "energy": "high",
+        "variation": "varied",
+        "pauses": "normal"
+      }
+    }
+  ],
+  "gpu": "RTX 4070 SUPER 12282 MiB",
+  "gpu_free_mib_before": 11109,
+  "gpu_free_mib_after": 11073,
+  "runner_os_exit_code": "not retained; final two-sample report and HTML written, process no longer live",
+  "windows_ui": {
+    "ok": true,
+    "evidence": [
+      {
+        "width": 1200,
+        "zoom": 1,
+        "overflow": false,
+        "columns": "481px 481px",
+        "players": [
+          {
+            "duration": 18.408571,
+            "ready": 4,
+            "width": 934
+          },
+          {
+            "duration": 18.909,
+            "ready": 4,
+            "width": 431
+          },
+          {
+            "duration": 18.909,
+            "ready": 4,
+            "width": 431
+          }
+        ],
+        "mappingClosed": true
+      },
+      {
+        "width": 480,
+        "zoom": 1.25,
+        "overflow": false,
+        "columns": "432px",
+        "players": [
+          {
+            "duration": 18.408571,
+            "ready": 4,
+            "width": 382.3999938964844
+          },
+          {
+            "duration": 18.909,
+            "ready": 4,
+            "width": 382.3999938964844
+          },
+          {
+            "duration": 18.909,
+            "ready": 4,
+            "width": 382.3999938964844
+          }
+        ],
+        "mappingClosed": true
+      }
+    ]
+  }
+}
