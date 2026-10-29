@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "prevented": 2,
+  "resumedQuit": 1,
+  "parentGone": true,
+  "grandchildGone": true,
+  "closedBeforeResume": true,
+  "elapsedMs": 143,
+  "realWindowsTree": true,
+  "modelWork": false
+}
