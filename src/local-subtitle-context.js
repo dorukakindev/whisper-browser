@@ -7,6 +7,7 @@ function seconds(raw){if(typeof raw==='number')return Number.isFinite(raw)?raw:N
 function range(meta){const start=seconds(meta.clipStart||0),end=seconds(meta.clipEnd);return Number.isFinite(start)&&Number.isFinite(end)&&start>=0&&end>start&&end<=86400?{start,end}:null}
 function snapshot(file){try{const s=fs.statSync(file);return s.isFile()?{size:s.size,mtimeMs:s.mtimeMs}:null}catch{return null}}
 function build(meta,event){
+ if(meta.translateOnly){if(!meta.subtitlePlayback)return [];meta=meta.subtitlePlayback;}
  if(meta.source!=='local'||!path.isAbsolute(meta.input||''))return [];
  const selected=range(meta);if(!selected)return [];
  try{const stat=fs.statSync(meta.input);if(!stat.isFile()||meta.inputStat&&(stat.size!==meta.inputStat.size||stat.mtimeMs!==meta.inputStat.mtimeMs))return [];
@@ -21,4 +22,15 @@ function read(history,file,bytes){
  }
  return null;
 }
-module.exports={build,read,range,snapshot};
+function translationSnapshot(options,authorize){
+ const request=options.subtitlePlayback;
+ if(request==null)return null;
+ if(options.translateOnly!==true||options.youtube||!request||typeof request!=='object'||Array.isArray(request)||typeof request.mediaPath!=='string')throw Error('Invalid subtitle playback context / Geçersiz altyazı oynatma bağlamı.');
+ const selected=range({clipStart:request.range?.start,clipEnd:request.range?.end});
+ const parts=typeof options.translateCueRange==='string'?options.translateCueRange.split(':').map(Number):[];
+ if(!selected||parts.length!==2||!parts.every(Number.isFinite)||parts[0]!==selected.start||parts[1]!==selected.end)throw Error('Invalid subtitle playback range / Geçersiz altyazı oynatma aralığı.');
+ const file=authorize(request.mediaPath),stat=snapshot(file);
+ if(!path.isAbsolute(file)||!stat)throw Error('Subtitle playback media is unavailable / Altyazının videosu kullanılamıyor.');
+ return {source:'local',input:file,inputStat:stat,clipStart:selected.start,clipEnd:selected.end};
+}
+module.exports={build,read,range,snapshot,translationSnapshot};

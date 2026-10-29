@@ -1,0 +1,32 @@
+{
+  "items": [
+    {
+      "i": 0,
+      "locked": false
+    },
+    {
+      "i": 1,
+      "locked": false
+    },
+    {
+      "i": 2,
+      "locked": false
+    },
+    {
+      "i": 3,
+      "locked": true
+    }
+  ],
+  "groups": [
+    [
+      0
+    ],
+    [
+      1,
+      2,
+      3
+    ]
+  ],
+  "observedReject": "partlar_tam_cumleyi_olusturmuyor",
+  "meaning": "A source-language locked item outside2-10s was required inside a translated whole sentence."
+}

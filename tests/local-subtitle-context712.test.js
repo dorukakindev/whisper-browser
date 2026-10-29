@@ -12,3 +12,20 @@ test('range parsing is bounded and local context builder ignores YouTube and ope
 test('local dub range follows the selected translation and is bound to the exact current paths',()=>{
  const source=fs.readFileSync(require.resolve('../src/renderer/browser-dub-ui'),'utf8'),a=source.indexOf('  function selectedLocalSubtitleRange()'),b=source.indexOf('  function selectedSubtitleRange()',a),player={subPath:'C:/source.srt',localPath:'C:/movie.mp4',subtitleContext:{subtitlePath:'C:/source.srt',mediaPath:'C:/movie.mp4',range:{start:2,end:10}}},c={player};vm.createContext(c);vm.runInContext(source.slice(a,b),c);assert.equal(c.selectedLocalSubtitleRange().start,2);player.localPath='C:\\movie.mp4';assert.equal(c.selectedLocalSubtitleRange().start,2);player.localPath='C:/other.mp4';assert.equal(c.selectedLocalSubtitleRange(),null);player.localPath='C:/movie.mp4';player.subPath='C:/manual.srt';assert.equal(c.selectedLocalSubtitleRange(),null);player.sub2Role='translation';player.sub2Path='C:/translation.srt';player.subtitleContext2={subtitlePath:player.sub2Path,mediaPath:player.localPath,range:{start:3,end:7}};assert.equal(c.selectedLocalSubtitleRange().start,3);player.sub2Path='C:/new.srt';assert.equal(c.selectedLocalSubtitleRange(),null);
 });
+
+test('Translation-only output binds the authorized current video, never the input SRT or stale main-form range',()=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'caption-playback-'));try{
+  const media=path.join(root,'Türkçe video.mp4'),source=path.join(root,'source.srt'),output=path.join(root,'translated.srt');fs.writeFileSync(media,'synthetic media');fs.writeFileSync(source,'source');fs.writeFileSync(output,'translated');
+  const options={translateOnly:true,translateCueRange:'2.125:10.5',input:source,subtitlePlayback:{mediaPath:media,range:{start:2.125,end:10.5}}};let authorized='';
+  const captured=context.translationSnapshot(options,file=>(authorized=file,media));assert.equal(authorized,media);
+  const rows=context.build({source:'local',input:source,translateOnly:true,clipStart:99,clipEnd:100,subtitlePlayback:captured},{outputs:[{path:output}]});
+  assert.equal(rows.length,1);assert.equal(rows[0].mediaPath,media);assert.deepEqual(rows[0].range,{start:2.125,end:10.5});
+  assert.deepEqual(context.read([{subtitleContexts:rows}],output,fs.readFileSync(output)).range,{start:2.125,end:10.5});
+  assert.deepEqual(context.build({source:'local',input:source,translateOnly:true,clipStart:2,clipEnd:10},{outputs:[{path:output}]}),[]);
+  fs.writeFileSync(media,'replaced media, different size');assert.deepEqual(context.build({translateOnly:true,subtitlePlayback:captured},{outputs:[{path:output}]}),[]);
+  assert.throws(()=>context.translationSnapshot(options,()=>{throw Error('Not authorized');}),/Not authorized/);
+  assert.throws(()=>context.translationSnapshot({...options,subtitlePlayback:{mediaPath:media,range:{start:10,end:2}}},()=>media),/range/);
+  assert.throws(()=>context.translationSnapshot({...options,translateCueRange:'2:10'},()=>media),/range/);
+  assert.equal(context.translationSnapshot({translateOnly:true},()=>{throw Error('Should not authorize');}),null);
+ }finally{fs.rmSync(root,{recursive:true,force:true});}
+});

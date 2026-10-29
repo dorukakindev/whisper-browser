@@ -21062,6 +21062,9 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
       options.input = inputPath;
     } catch (_) { return { ok: false, error: 'Girdi dosyası bulunamadı veya okunamıyor.' }; }
   }
+  let subtitlePlayback=null;
+  try { subtitlePlayback=require('./local-subtitle-context').translationSnapshot(options,authorizeLocalMediaPath); }
+  catch (error) { return {ok:false,error:error.message}; }
   for (const optionName of ['syncSrt', 'translateExisting', 'explainTranslation']) {
     if (!options[optionName]) continue;
     try { options[optionName] = await authorizeSubtitleFile(options[optionName]); }
@@ -21384,7 +21387,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     startedAt: Date.now(),
     input: options.youtube || options.input || '',
     source: options.youtube ? 'youtube' : 'local',
-    video: options.youtube ? '' : (options.input || ''),
+    video: options.youtube ? '' : (subtitlePlayback?.input || options.input || ''),
+    translateOnly:!!options.translateOnly,subtitlePlayback,
     model: options.model || '',
     engine: options.engine || '',
     clipStart: options.clipStart, clipEnd: options.clipEnd,

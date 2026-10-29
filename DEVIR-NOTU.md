@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-0643.md](docs/devir/2026-10-29-0643.md) — Gerçek YouTube çeviri/dublaj zinciri
 Güncel çalışma: [docs/devir/2026-10-29-0640.md](docs/devir/2026-10-29-0640.md) — Caption/probe timeout ve gerçek kapanış
 Güncel çalışma: [docs/devir/2026-10-29-0622.md](docs/devir/2026-10-29-0622.md) — Gerçek altyazı dönüşümü ve hata sonucu
 Güncel çalışma: [docs/devir/2026-10-29-0554.md](docs/devir/2026-10-29-0554.md) — Altyazı indirmede kesin dosya

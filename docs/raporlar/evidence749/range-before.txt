@@ -1,0 +1,36 @@
+EF
+======================================================================
+ERROR: test_actual_translate_only_keeps_outside_text_as_context_not_target_parts (__main__.SelectedTranslationRangeTests.test_actual_translate_only_keeps_outside_text_as_context_not_target_parts)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Whisper Local\tmp\assistant618\backend\test_translation_range749.py", line 26, in test_actual_translate_only_keeps_outside_text_as_context_not_target_parts
+    T.translate_existing_subtitle(args)
+  File "D:\Whisper Local\tmp\assistant618\backend\transcribe.py", line 9069, in translate_existing_subtitle
+    raise RuntimeError(
+RuntimeError: Eksik altyazı blokları çevrilemedi; mevcut çeviri korunarak yeniden deneme için çıktı yazılmadı.
+
+======================================================================
+FAIL: test_selected_group_cannot_require_locked_source_language_tail (__main__.SelectedTranslationRangeTests.test_selected_group_cannot_require_locked_source_language_tail)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Whisper Local\tmp\assistant618\backend\test_translation_range749.py", line 10, in test_selected_group_cannot_require_locked_source_language_tail
+    self.assertEqual(T.translation_sentence_groups(entries,F._TrArgs(translate_for_speech=True,translate_cue_range='0:3')),[[0,1],[2]])
+AssertionError: Lists differ: [[0, 1, 2]] != [[0, 1], [2]]
+
+First differing element 0:
+[0, 1, 2]
+[0, 1]
+
+Second list contains 1 additional elements.
+First extra element 1:
+[2]
+
+- [[0, 1, 2]]
++ [[0, 1], [2]]
+?       +  +
+
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.013s
+
+FAILED (failures=1, errors=1)
