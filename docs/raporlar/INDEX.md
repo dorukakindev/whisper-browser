@@ -1,3 +1,4 @@
+- [Rapor770](BROWSER_BUG_REPORT_770.md) — Stüdyo ilk açılışında tek yükleme ve güvenli tekrar
 - [Rapor769](BROWSER_BUG_REPORT_769.md) — Ses stüdyosu hazır ayarlarında native klavye akışı
 - [Rapor768](BROWSER_BUG_REPORT_768.md) — Gerçek ayırıcıda konuşma ve arka plan ölçümü
 - [Rapor767](BROWSER_BUG_REPORT_767.md) — Okuyucu araçlarında46pxalan ve kısa menü sınırı
