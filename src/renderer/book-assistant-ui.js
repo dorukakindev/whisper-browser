@@ -224,7 +224,7 @@
         canPrepare: !!row.onPrepare,
       };
     },
-    async prepare(args,stale){const row=active();if(!row||stale())throw Error('Book source changed / Kitap kaynağı değişti.');if(!row.onPrepare)throw Error('Use the open production controls / Açık üretim kontrollerini kullan.');return row.onPrepare(args,stale);}
+    async prepare(args,stale,owner){const row=active();if(!row||stale())throw Error('Book source changed / Kitap kaynağı değişti.');if(!row.onPrepare)throw Error('Use the open production controls / Açık üretim kontrollerini kullan.');return row.onPrepare(args,stale,owner);}
   };
   window.BookAssistantUI = Object.freeze({ mount, context, handle, assistant:Object.freeze(assistant), busy:()=>commandBusy });
 })();

@@ -200,7 +200,7 @@
     const owner = player.pdfReader;
     stopBookAssistant = window.BookAssistantUI?.mount($("pdfBookAssistant"), {
       t: (en, tr) => t(tr, en),
-      onPrepare:async(args,stale)=>{if(player.pdfReader!==owner||stale())throw Error("Document changed.");$("pdfVoiceFrom").value=String(args.from);$("pdfVoiceTo").value=String(args.to);$("pdfVoiceText").value=args.text==='translation'?'translation':'source';return prepareVoice(stale);},
+      onPrepare:async(args,stale,actionOwner)=>{if(player.pdfReader!==owner||stale())throw Error("Document changed.");$("pdfVoiceFrom").value=String(args.from);$("pdfVoiceTo").value=String(args.to);$("pdfVoiceText").value=args.text==='translation'?'translation':'source';return prepareVoice(stale,false,actionOwner);},
       onNarrate:()=>{if(player.pdfReader!==owner)return false;$("pdfVoicePanel").classList.remove("hidden");$("pdfVoiceOpen").setAttribute("aria-expanded","true");for(const id of ["pdfVoiceFrom","pdfVoiceTo"])$(id).value=String(owner.currentPage||1);$("pdfVoiceFrom").focus();return true;},
       isCurrent: () =>
         player.pdfReader === owner &&
@@ -360,7 +360,7 @@
   $("pdfVoicePreviewPage").addEventListener('change',renderVoicePreview);
   for(const id of ['pdfVoiceFrom','pdfVoiceTo','pdfVoiceText'])$(id).addEventListener('input',clearVoicePreview);
   $("pdfVoicePreviewOpen").onclick=()=>prepareVoice(()=>false,true);
-  async function prepareVoice(stale=()=>false, previewOnly=false) {
+  async function prepareVoice(stale=()=>false, previewOnly=false, actionOwner=null) {
     if (preparing) return;
     const r = player.pdfReader;
     if (!r) return;
@@ -451,10 +451,13 @@
       voice = { reader: r, id, pages: pages.map((p) => p.pageNumber) };
       $("pdfVoiceListen").disabled = false;
       const focus = pages.findIndex((p) => p.pageNumber === r.currentPage);
-      await window.MediaWorkflowsUI.openProject(
+      const openProduction=()=>window.MediaWorkflowsUI.openProject(
         id,
         focus >= 0 ? { chapter: focus } : {},
       );
+      if(actionOwner&&window.AssistantAgentUI?.bookPreparation)
+        await window.AssistantAgentUI.bookPreparation(actionOwner,id,Math.max(0,focus),openProduction);
+      else await openProduction();
       status.textContent = t(
         "Ses ayarlarını kontrol et; Seçili bölümleri seslendir ile üret, Dinle ve takip et ile oku.",
         "Review voice settings, generate selected chapters, then choose Read & follow.",

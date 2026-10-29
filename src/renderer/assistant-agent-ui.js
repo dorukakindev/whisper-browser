@@ -91,9 +91,26 @@
  };
 
  async function continueAction(proposal){const info=flowInfo(proposal);if(!info.canContinue||info.waiting)throw Error(info.flowNote||t('This step is not ready.','Bu adım hazır değil.'));const row=continuations.get(proposal.proposalId);if(!row||row.expires<=Date.now()||pending||applying||!window.AssistantWorkspace?.canResume(proposal.proposalId)||!window.AssistantAppActions.current(row.owner))throw Error(t('This continuation is no longer available.','Bu devam isteği artık kullanılamıyor.'));continuations.delete(proposal.proposalId);changed();let consumed=false;try{const context=aiChatContext();context.assistant_tools=window.AssistantWorkspace?.toolContext();const result=await send(row.origin.question,context,row.origin.history,aiSourceScope(),row);consumed=!!result?.ok&&!result.waiting;return result;}finally{if(!consumed&&row.expires>Date.now()&&window.AssistantAppActions.current(row.owner)&&window.AssistantWorkspace?.canResume(proposal.proposalId))continuations.set(proposal.proposalId,row);changed();}}
+ // A prepared book intentionally opens its exact new production source. Only
+ // this applying action may adopt that single context commit; other navigation
+ // and explicit cancellation retain the usual stale-source protection.
+ async function bookPreparation(owner,projectId,chapter,open){
+  const task=applying;
+  if(!window.AssistantAppActions.current(owner)||task?.cancelled)throw Error(t('Book source changed.','Kitap kaynağı değişti.'));
+  if(!task||!window.AssistantContextManifest.same(task.owner,owner))return open();
+  const target=String(projectId)+':'+chapter;
+  task.bookHandoff=target;
+  try{return await open();}finally{if(task.bookHandoff===target)delete task.bookHandoff;}
+ }
  const canRetry=()=>!!retryPacket&&window.AssistantAppActions.current(retryPacket.owner);
  async function retry(){if(!canRetry()||pending||applying)return;const row=retryPacket;await send(row.question,row.context,row.history,row.scope);}
- window.AssistantAgentUI=Object.freeze({send,status,busy:()=>!!pending||!!applying,cancel,apply,flowInfo,continueAction,canRetry,retry});
- document.addEventListener('media-context-changed',()=>{const task=pending||applying;if(task&&!window.AssistantAppActions.current(task.owner))void cancel();});
+ window.AssistantAgentUI=Object.freeze({send,status,busy:()=>!!pending||!!applying,cancel,apply,flowInfo,continueAction,canRetry,retry,bookPreparation});
+ document.addEventListener('media-context-changed',()=>{const task=pending||applying;
+  if(task===applying&&task&&!task.cancelled&&task.bookHandoff&&window.globalAssistantContext?.()?.id===task.bookHandoff){
+   const next=window.AssistantAppActions.snapshot();
+   if(next.kind==='book'){delete task.bookHandoff;task.owner=next;return;}
+  }
+  if(task&&!window.AssistantAppActions.current(task.owner))void cancel();
+ });
  window.addEventListener('pagehide',()=>{unsubscribe?.();const task=pending||applying;if(task)void window.api.assistantAgentCancel({requestId:task.id});});
 })();
