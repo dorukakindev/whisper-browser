@@ -21,6 +21,6 @@ MevcutR454plan sahipliği testleri yenidenyeniBUG sayılmadı; burada metin tasl
 
 ## Yaklaşım ve kapsam
 
-Mevcut proje shorten/editorMessages ve plan sahipliği yolu önce incelendi. MonacoEditor açık kaynak model/editör yaklaşımı da karşılaştırıldı; dış kod/dependency kopyalanmadı, projedeki snapshot+hash taslak kontrolü kullanıldı. Bu değişiklik sesçevirisinin genelkalitesi veya bütünplan100 tamamlanması değildir. P012/P021/P069/P079 kapsamı bu taslak düzeltmesiyle ilerler;90aktifhedef sürer,müzikyok.
+Mevcut proje shorten/editorMessages ve plan sahipliği yolu önce incelendi. [VSCode textModel kaynağındaki](https://github.com/microsoft/vscode/blob/main/src/vs/editor/common/model/textModel.ts) model sürümleme yaklaşımı incelendi (ilk Monaco dosya adresi404 döndü; kaynak okunmuş sayılmadı); dış kod/dependency kopyalanmadı, projedeki snapshot+hash taslak kontrolü kullanıldı. Bu değişiklik sesçevirisinin genelkalitesi veya bütünplan100 tamamlanması değildir. P012/P021/P069/P079 kapsamı bu taslak düzeltmesiyle ilerler;90aktifhedef sürer,müzikyok.
 
 Başlangıç9255331b2978ec55a03f0e6debbb2be9e0c04c0d; ürün/testbitişi18db37ed6c8a9eeb6391e50d6e1d7a3ad3e43436. Kod/belgeler ayrıcommit; normalPR/master ve kişisel dosyaları koruyarak ana güncelleme teslimi uygulanır.
