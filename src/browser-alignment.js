@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const { spawn } = require('node:child_process');
 const { withoutSecretEnv } = require('./settings-security');
+const { terminateProcessTree } = require('./process-lifecycle');
 
 function validateCues(cues) {
   if (!Array.isArray(cues) || cues.length < 3 || cues.length > 10000) throw new Error('Senkron için 3-10000 altyazı satırı gerekli.');
@@ -16,7 +17,7 @@ function validateCues(cues) {
   });
 }
 
-function createBrowserAlignment({ pythonPath, ffmpegPath } = {}) {
+function createBrowserAlignment({ pythonPath, ffmpegPath, spawnImpl = spawn, terminate = terminateProcessTree } = {}) {
   const script = path.resolve(__dirname, '..', 'backend', 'browser_align.py');
   return {
     align({ referenceCues, targetCues, audioPath }, { signal, timeoutMs = 120000 } = {}) {
@@ -38,10 +39,15 @@ function createBrowserAlignment({ pythonPath, ffmpegPath } = {}) {
         if (ffmpegPath) env.PATH = `${path.dirname(ffmpegPath)}${path.delimiter}${env.PATH || ''}`;
         const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-browser-align-job-'));
         env.WHISPER_ALIGN_TMPDIR = tempRoot;
-        const child = spawn(pythonPath, [script], { env, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
-        let stdout = '', stderr = '', settled = false;
+        const child = spawnImpl(pythonPath, [script], { env, windowsHide: true, detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'pipe'] });
+        let stdout = '', stderr = '', settled = false, stoppingError = null;
         let timer = null;
-        const abort = () => { child.kill(); finish(new Error('İşlem iptal edildi.')); };
+        const stop = error => {
+          if(settled || stoppingError)return;
+          stoppingError=error;
+          try{terminate(child,{spawn:spawnImpl});}catch{}
+        };
+        const abort = () => stop(new Error('İşlem iptal edildi.'));
         const finish = (error, value) => {
           if (settled) return;
           settled = true;
@@ -50,12 +56,13 @@ function createBrowserAlignment({ pythonPath, ffmpegPath } = {}) {
           if (error) reject(error); else resolve(value);
         };
         signal?.addEventListener('abort', abort, { once: true });
-        timer = setTimeout(() => { child.kill(); finish(new Error('Altyazı eşleme işlemi zaman aşımına uğradı.')); },
+        timer = setTimeout(() => { stop(new Error('Altyazı eşleme işlemi zaman aşımına uğradı.')); },
           Math.max(1000, Math.min(600000, Number(timeoutMs) || 120000)));
         child.stdout.setEncoding('utf8'); child.stderr.setEncoding('utf8');
         child.stdout.on('data', chunk => {
+          if(settled || stoppingError)return;
           stdout += chunk;
-          if (stdout.length > 2 * 1024 * 1024) { child.kill(); finish(new Error('Eşleme çıktısı çok büyük.')); }
+          if (stdout.length > 2 * 1024 * 1024) { stop(new Error('Eşleme çıktısı çok büyük.')); }
         });
         child.stderr.on('data', chunk => { stderr = (stderr + chunk).slice(-1000); });
         child.on('error', error => {
@@ -64,6 +71,7 @@ function createBrowserAlignment({ pythonPath, ffmpegPath } = {}) {
         child.on('close', code => {
           fs.rmSync(tempRoot, { recursive: true, force: true });
           if (settled) return;
+          if(stoppingError){finish(stoppingError);return;}
           let response;
           try { response = JSON.parse(stdout.trim()); } catch { finish(new Error('Eşleme yanıtı okunamadı.')); return; }
           if (code !== 0 || !response.ok) { finish(new Error(response.error || stderr || 'Eşleme başarısız.')); return; }
