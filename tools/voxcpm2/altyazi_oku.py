@@ -331,9 +331,17 @@ async def uret(args, cues, paths, prompt_text):
                     editable_text = text
                     display_speech = spoken_text(text)
                     text = render_pronunciation(text, dictionary)
+                    def retain_before_retry(raw, quality):
+                        candidate, finishing = finish_generated(raw)
+                        sf.write(str(temporary), candidate, sr, subtype='PCM_16')
+                        metric.update(quality, finishing=finishing,
+                            naturalEdited=editable_text != original_text, rewritten=False,
+                            numericReference=editable_text,
+                            referenceMode='continuation' if prompt_id else 'isolated',
+                            recoveryReason='acoustic_retry_interrupted')
                     best, metric = await quality_retry(lambda n: synthesize(text, n),
                         lambda raw: assess_generated(raw, text), seed,
-                        args.retry, args.request_timeout)
+                        args.retry, args.request_timeout, before_retry=retain_before_retry)
                     metric['referenceMode'] = 'continuation' if prompt_id else 'isolated'
                     wav = prepare_audio(best, sr)
                     metric['naturalEdited'] = editable_text != original_text
@@ -424,7 +432,7 @@ async def uret(args, cues, paths, prompt_text):
                                 metric['recovery'] = recovery
                                 metric['finishing'] = {'parts': recovery['finishing']}
                                 sf.write(str(temporary), wav, sr, subtype='PCM_16')
-                    metric.update(verification=check, text=display_speech, pronunciationText=text,
+                    metric.update(verification=check, text=display_speech, pronunciationText=text, numericReference=editable_text,
                                   delivery=delivery, final_seconds=len(wav)/sr,
                                   status=generation_status(metric['quality_score'], check))
                     sidecar = path.with_suffix('.json')
@@ -449,8 +457,8 @@ async def uret(args, cues, paths, prompt_text):
                         # attempt on restart, with this WAV as the last resort.
                         if temporary.is_file() and valid_audio(temporary, sf):
                             try:
-                                metric.update(status='review', verification=check, text=display_speech, pronunciationText=text,
-                                              recoveryReason='verification_interrupted',
+                                metric.update(status='review', verification=check, text=display_speech, pronunciationText=text, numericReference=editable_text,
+                                              recoveryReason=metric.get('recoveryReason', 'verification_interrupted'),
                                               final_seconds=sf.info(temporary).frames/sr)
                                 # Invalidate any earlier ready record before
                                 # replacing its waveform. If metadata I/O fails,

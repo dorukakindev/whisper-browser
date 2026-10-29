@@ -265,7 +265,23 @@ def cached_record(path):
                 expected = record['text']
             if (record['status'] == 'ready' and verification.get('status') == 'passed'
                     and isinstance(heard, str)):
-                checked = speech_check(expected, heard, numeric_reference=record['text'])
+                reference = record.get('numericReference')
+                if not isinstance(reference, str) or not reference.strip() or len(reference) > 16000:
+                    reference = record['text']
+                    # Older successful records retained decimal evidence but
+                    # stored only the expanded display text. Restore only exact
+                    # spoken quantities proven by that original verification;
+                    # this avoids regenerating correct existing audio on reopen.
+                    evidence = verification.get('decimalEvidence')
+                    for row in evidence[:64] if isinstance(evidence, list) else []:
+                        number = row.get('number') if isinstance(row, dict) else None
+                        if (not isinstance(number, str) or not re.fullmatch(r'\d{1,9}\.\d{1,2}', number)
+                                or row.get('decimal_context') not in ('unit', 'currency_or_percent')):
+                            continue
+                        phrase = spoken_text(number.replace('.', ','))
+                        reference = re.sub(r'(?<!\w)'+re.escape(phrase)+r'(?!\w)',
+                                           lambda _: number, reference, count=1)
+                checked = speech_check(expected, heard, numeric_reference=reference)
                 if checked['review']:
                     record['status'] = 'review'
                     record['verification'] = {**verification, **checked, 'status': 'review'}

@@ -89,13 +89,18 @@ class EngineSession:
         if self.reference and self.reference[0]==key:
             print('DUB_REFERENCE_CACHE '+json.dumps({'reused':True}),flush=True)
             return self.reference[1:]
+        # Latents describe the waveform, not its transcript/conditioning mode.
+        # Editing the transcript must replace the continuation prompt, but it
+        # need not run the unchanged voice through the encoder again.
+        previous = self.reference
+        same_wave = previous is not None and previous[0][0] == key[0]
         if self.reference and self.reference[2]:
             await bounded_call(self.server.remove_prompt(self.reference[2]),args.ready_timeout)
         self.reference=None
-        lat=await bounded_call(self.server.encode_latents(wav,'wav'),args.ready_timeout)
+        lat=previous[1] if same_wave else await bounded_call(self.server.encode_latents(wav,'wav'),args.ready_timeout)
         pid=await bounded_call(self.server.add_prompt(wav,'wav',prompt),args.ready_timeout) if prompt else None
         self.reference=(key,lat,pid)
-        print('DUB_REFERENCE_CACHE '+json.dumps({'reused':False}),flush=True)
+        print('DUB_REFERENCE_CACHE '+json.dumps({'reused':False,'latentsReused':same_wave}),flush=True)
         return lat,pid
     async def get_verifier(self, python, factory):
         if self.verifier is not None and (self.verifier_python!=str(python) or getattr(self.verifier,'unavailable',False)):

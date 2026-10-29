@@ -32,10 +32,16 @@ class TimingOverflow(ValueError):
                          "Ses kesilmedi; raporu inceleyin veya acikca --tasarsa kirp secin.")
 
 
-async def quality_retry(generate, assess, seed, retries=2, timeout=180):
+async def quality_retry(generate, assess, seed, retries=2, timeout=180, *, before_retry=None):
     """Retry acoustic failures only; fitting duration is a separate operation."""
     best, best_score, attempts = None, math.inf, 0
     for attempt in range(retries + 1):
+        if attempt and best is not None and before_retry is not None:
+            # Persist the last usable candidate before entering another engine
+            # request. A timeout/OOM must still reset that engine, but must not
+            # erase already generated speech waiting for its quality retry.
+            before_retry(best, {'attempts': attempts, 'retries': attempts - 1,
+                                'quality_score': best_score})
         attempts += 1
         try:
             raw = await bounded_call(generate(seed + attempt * 100003), timeout)
