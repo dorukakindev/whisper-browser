@@ -1837,3 +1837,6 @@ details.browser-translate-split.hidden { display: none !important; }
 .dub-studio .dub-card:has(#dubChooseSrt)>p { font-size: 12px; margin: 8px 0; }
 
 .dub-studio .dub-input-notice { padding: 10px 12px; border-inline-start: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--bg-1)); border-radius: 6px; color: var(--text); font-size: 12px; line-height: 1.6; }
+
+.dub-studio #dubGeneratorStart:disabled { background: var(--bg-2); color: var(--text-muted); border-color: var(--border); box-shadow: none; opacity: 1; cursor: not-allowed; }
+.dub-studio #dubStartRequirement { color: var(--text-muted); line-height: 1.5; font-size: 12px; margin: 7px 0; }

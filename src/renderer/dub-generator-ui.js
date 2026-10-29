@@ -183,6 +183,9 @@
     el('dubRegenerateGroup').disabled = locked || !lastRequest || !results.size || !cfg?.ready;
     el('dubQualityGroup').disabled = locked || !results.size;
     el('dubGeneratorStart').disabled = locked || !srt || !cfg?.ready;
+    const requirement=el('dubStartRequirement'),en=window.UiLocale?.get?.()==='en';
+    if(requirement){requirement.hidden=locked||!!srt&&!!cfg?.ready;requirement.textContent=!srt&&!cfg?.ready?(en?'Choose subtitles and an active voice to begin.':'Başlamak için altyazı ve etkin ses seçin.'):!srt?(en?'Choose an SRT subtitle file to begin.':'Başlamak için SRT altyazısı seçin.'):(en?'Choose an active reference voice to begin.':'Başlamak için etkin referans ses seçin.');}
+
     el('dubPlanPrepare').disabled = locked || !srt;
     for (const id of ['dubPlanGroup', 'dubPlanText', 'dubPlanShorten', 'dubPlanApply', 'dubPlanReset']) el(id).disabled = locked || !plan;
     el('dubChooseSrt').disabled = locked;

@@ -1,3 +1,4 @@
+- [Rapor792](BROWSER_BUG_REPORT_792.md) — Dış UI raporları, pasif üretim eylemi ve dürüst kapsam kaydı
 - [Rapor791](BROWSER_BUG_REPORT_791.md) — DeepSeek ortak varsayılanı ve canlı konuşma çevirisi kabulü
 - [Rapor790](BROWSER_BUG_REPORT_790.md) — Dış rapor doğrulaması, Türkçe anlam kapısı ve bounded dublaj zaman çizelgesi
 - [Rapor788](BROWSER_BUG_REPORT_788.md) — Ses için çeviri yanlış retleri, canlı DeepSeek kabulü ve sade dublaj stüdyosu
