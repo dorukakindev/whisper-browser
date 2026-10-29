@@ -1,3 +1,4 @@
+- [Rapor765](BROWSER_BUG_REPORT_765.md) — Hazır dublajda SRT içeriği ve tam aralık eşleşmesi
 - [Rapor764](BROWSER_BUG_REPORT_764.md) — Dublaj girişlerinde mevcut altyazı ve aralık
 - [Rapor763](BROWSER_BUG_REPORT_763.md) — Kısaltmada güncel taslak ve plan sahipliği
 - [Rapor762](BROWSER_BUG_REPORT_762.md) — Gerçek mpv süreç kapanışı sonrası Durdur ve quit
