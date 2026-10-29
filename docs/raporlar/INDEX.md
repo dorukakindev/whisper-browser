@@ -1,3 +1,4 @@
+- [Rapor745](BROWSER_BUG_REPORT_745.md) — Canlı DeepSeek caption ve Whisper seçimi
 - [Rapor744](BROWSER_BUG_REPORT_744.md) — Eski Python stüdyo girişini ortak temaya yönlendirme
 - [Rapor743](BROWSER_BUG_REPORT_743.md) — Asistan altyazı bekleme yarışı ve erken aralık kontrolü
 - [Rapor742](BROWSER_BUG_REPORT_742.md) — Gerçek metin üretimi, motor işareti ve iptal
