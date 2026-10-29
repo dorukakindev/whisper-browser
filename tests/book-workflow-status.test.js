@@ -86,9 +86,12 @@ test("book generation handles actual terminal events without misreporting an emp
       voicePrefs: {},
       stopRequested: false,
       job: null,
-      dialog: { open: false },
+      dialog: { open: true },
+      books: async () => {},
       t: (en) => en,
       status() {},
+      // This test extracts generate(); native smoke covers actual DOM state.
+      syncBookStop() {},
       workflowStage: (stage, prefix) => phases.push({ stage, prefix }),
       saveChapter: async () => {},
       call: async (action) =>

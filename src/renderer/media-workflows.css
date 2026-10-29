@@ -437,9 +437,8 @@ dialog.mw-dialog::backdrop {
   height: clamp(180px, 25vh, 340px);
 }
 .mw-transport {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
+  position: static;
+  /* Flow with the editor so wrapped actions never cover text or review rows. */
   background: var(--bg-1);
   padding: 14px 0 10px;
 }
@@ -759,3 +758,11 @@ dialog.mw-dialog::backdrop {
   .mw-review-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mw-review-actions .mh-action { white-space: normal; line-height: 1.4; }
 }
+
+/* Primary narration controls remain separate from less frequent output tools. */
+.mw-transport-secondary{flex-basis:100%;border-top:1px solid var(--border);padding-top:8px}
+.mw-transport-secondary>summary{display:list-item;cursor:pointer;min-height:40px;align-content:center;color:var(--text-muted);font-size:13px}
+.mw-transport-secondary>.mw-actions{margin:10px 0 0;gap:8px}
+.mw-dialog .mw-transport button:disabled{opacity:.45;cursor:default;color:var(--text-muted)}
+.mw-dialog .mw-transport>.mh-action{min-height:44px}
+@media(max-width:700px){.mw-transport>.mh-action{flex:1 1 calc(50% - 8px);white-space:normal}.mw-transport-secondary>.mw-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.mw-transport-secondary .mh-action{min-width:0;white-space:normal;min-height:40px}}
