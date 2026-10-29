@@ -160,6 +160,21 @@ app
       () => run('return !!document.querySelector(".mw-range")'),
       "range",
     );
+    if(process.argv.includes('--workflow-context-only')){
+      const contexts=[];
+      for(const [index,kind]of [[1,'sync'],[2,'intro'],[3,'resources']]){
+        await run('return document.querySelectorAll(".mw-dialog>nav button")['+index+'].onclick()');
+        const state=await run('return {book:MediaWorkflowsUI.assistant.state(),source:globalAssistantContext()}');
+        assert.equal(state.book,null);assert.equal(state.source.type,'workflow');assert.equal(state.source.id,'workflow:'+kind);
+        assert(!state.source.excerpt&&!state.source.selectedText,'No old book text may leak into workflow context');
+        contexts.push({kind,type:state.source.type,id:state.source.id,title:state.source.title});
+        await capture('workflow-context-'+kind+'.png');
+        await run('return document.querySelectorAll(".mw-dialog>nav button")[0].onclick()');
+        assert.equal(await run('return MediaWorkflowsUI.assistant.state()?.id'),id);
+      }
+      fs.writeFileSync(path.join(out,'context-results.json'),JSON.stringify({ok:true,contexts,realPdf:true,liveModel:false},null,2));
+      console.log(JSON.stringify({ok:true,out,workflowContext:true}));app.exit(0);return;
+    }
     const originalPdfDigest = require("node:crypto")
         .createHash("sha256")
         .update(fs.readFileSync(source))
