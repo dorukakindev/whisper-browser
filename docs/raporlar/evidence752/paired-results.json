@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "steps": 15,
+  "temperature": 0.8,
+  "model_revision": "32279effe8c19989596f05d353d1447f51d9e915",
+  "text_sha256": "9eb4ce51ca9e1b16b482cfed3f5b027bf95ec92bc607e8b5f1ff7f962beab44c",
+  "limits": "No objective naturalness or speaker-similarity claim. Listen blind before choosing.",
+  "variants": [
+    {
+      "name": "reference-a",
+      "cfg": 1.65,
+      "chunks": [
+        {
+          "text": "Pekala, işte buradayız, fillerin önünde. Bu arkadaşların gerçekten çok uzun hortumları var.",
+          "seed": 42,
+          "duration_seconds": 8.475,
+          "peak": 0.47133,
+          "clipped_fraction": 0.0,
+          "quiet_fraction": 0.3491,
+          "finishing": {
+            "trim_start_seconds": 0.08525,
+            "trim_end_seconds": 0.08022916666666667,
+            "gain_db": -2.83
+          }
+        }
+      ],
+      "generation_seconds": 13.328,
+      "duration_seconds": 8.475,
+      "peak": 0.47133,
+      "clipped_fraction": 0.0,
+      "quiet_fraction": 0.3491,
+      "verification": {
+        "status": "review",
+        "recognizedText": "Pekala İşte bu radyız Fillerin önünde Bu arkadaşların gerçekten çok uzun ortamları var",
+        "similarity": 0.8,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": false,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": true,
+        "requestedLanguage": "tr",
+        "recognizedLanguage": "tr"
+      }
+    },
+    {
+      "name": "reference-b",
+      "cfg": 1.65,
+      "chunks": [
+        {
+          "text": "Pekala, işte buradayız, fillerin önünde. Bu arkadaşların gerçekten çok uzun hortumları var.",
+          "seed": 42,
+          "duration_seconds": 6.943,
+          "peak": 0.48602,
+          "clipped_fraction": 0.0,
+          "quiet_fraction": 0.2787,
+          "finishing": {
+            "trim_start_seconds": 0.08370833333333333,
+            "trim_end_seconds": 0.013645833333333333,
+            "gain_db": -3.0
+          }
+        }
+      ],
+      "generation_seconds": 10.5,
+      "duration_seconds": 6.943,
+      "peak": 0.48602,
+      "clipped_fraction": 0.0,
+      "quiet_fraction": 0.2787,
+      "verification": {
+        "status": "passed",
+        "recognizedText": "Peki hala, işte buradayız, fillerin önünde. Bu arkadaşların gerçekten çok uzun hortumları var.",
+        "similarity": 0.88,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": false,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": false,
+        "requestedLanguage": "tr",
+        "recognizedLanguage": "tr"
+      }
+    }
+  ],
+  "load_seconds": 10.828,
+  "reference_sha256": [
+    "5ce7b1dec5fbdce710c864292938149ee8ecc8c30a3670c905988057516a2def",
+    "b622d00bac461ea082ee9f72a6031d3456e104b347c48ce52885d7df06098826"
+  ],
+  "method": "Paired references; identical text, grouping, seed, settings and finishing. Reference voice/language differ together; not an isolated language causal test."
+}
