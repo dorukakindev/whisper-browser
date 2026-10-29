@@ -16,8 +16,9 @@
  function selected(){return rows.find(r=>r.token===el('dubTakeChoice').value);}
  function buttons(){const c=read(),r=selected();el('dubTakeRefresh').disabled=busy||c.busy;el('dubTakeChoice').disabled=busy||c.busy||!rows.length;el('dubTakeApply').disabled=busy||c.busy||!c.recipeReady||!r||r.current;}
  function show(){
-  const row=selected(),audio=el('dubTakePreview');audio.pause();audio.hidden=!row;
-  if(row)audio.src=row.url;else{audio.removeAttribute('src');audio.load();}
+  const row=selected(),audio=el('dubTakePreview');audio.hidden=!row;
+  if(row){if(audio.getAttribute('src')!==row.url){audio.pause();audio.src=row.url;}}
+  else{audio.pause();audio.removeAttribute('src');audio.load();}
   el('dubTakeText').textContent=row?.text||'';
   el('dubTakeStatus').textContent=row?row.current?copy('Şu an kullanılan kayıt','Current recording'):copy('Önce dinle, sonra uygula.','Listen first, then apply.'):copy('Bu üretimde saklanmış ham kayıt yok.','No saved raw recordings for this production.');buttons();
  }
