@@ -1,0 +1,14 @@
+.E.
+======================================================================
+ERROR: test_optional_language_is_bound_without_an_expected_text_prompt (__main__.VerifierTests.test_optional_language_is_bound_without_an_expected_text_prompt)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Whisper Local\tmp\assistant618\backend\test_dub_verify.py", line 45, in test_optional_language_is_bound_without_an_expected_text_prompt
+    self.assertEqual(calls[1][1]['language'],'tr')
+                     ~~~~~~~~~~~^^^^^^^^^^^^
+KeyError: 'language'
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+FAILED (errors=1)

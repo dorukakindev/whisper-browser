@@ -22,6 +22,16 @@ def lexical_negatives(text):
     return sorted(token for token in tokens if any(token.startswith(root) and NEGATIVE_ENDING.fullmatch(token[len(root):]) for root in NEGATIVE_ROOTS))
 
 
+def verification_request(path, expected):
+    # Distinctive Turkish orthography, not broad ö/ü/ç shared with other languages.
+    # ASCII/unknown text keeps automatic detection; no reference voice language
+    # or target wording is injected as an ASR prompt.
+    request = {'path': str(path)}
+    if re.search('[ğĞıİşŞ]', unicodedata.normalize('NFC', expected)):
+        request['language'] = 'tr'
+    return request
+
+
 def speech_check(expected, actual, numeric_reference=None):
     # Retain bounded original ASR evidence before quantity/case normalization.
     recognized_text = actual[:8000]

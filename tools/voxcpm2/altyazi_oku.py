@@ -108,7 +108,8 @@ class SpeechVerifier:
                         stderr=asyncio.subprocess.DEVNULL,
                         creationflags=NO_WINDOW)
                 async def exchange():
-                    self.proc.stdin.write((json.dumps({'path': str(path)}) + '\n').encode())
+                    from dub_quality import verification_request
+                    self.proc.stdin.write((json.dumps(verification_request(path,text)) + '\n').encode())
                     await self.proc.stdin.drain()
                     return await self.proc.stdout.readline()
                 from contextlib import nullcontext
@@ -119,7 +120,14 @@ class SpeechVerifier:
                         or not isinstance(response.get('text'), str)):
                     raise ValueError('unavailable')
                 result = speech_check(text, response['text'], numeric_reference)
-                return {'status': 'review' if result['review'] else 'passed', **result}
+                from dub_quality import verification_request
+                language=verification_request(path,text).get('language')
+                evidence={}
+                if language:
+                    evidence['requestedLanguage']=language
+                if isinstance(response.get('language'),str) and response['language'].isalpha() and 2<=len(response['language'])<=3:
+                    evidence['recognizedLanguage']=response['language']
+                return {'status': 'review' if result['review'] else 'passed', **result, **evidence}
             except (OSError, ValueError, asyncio.TimeoutError, KeyError, BrokenPipeError):
                 self.unavailable = True
                 print('DUB_WARNING verification_unavailable', flush=True)

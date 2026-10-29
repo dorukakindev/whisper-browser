@@ -41,7 +41,10 @@ class AcceptanceGate(unittest.TestCase):
             sf.write(wav, np.full(1000, .1, dtype=np.float32), 16000)
             expected = "Bu bir yarış değil. Kimseyi geride bırakmak istemiyoruz."
             def reply(text):
-                return lambda *a, **k: SimpleNamespace(returncode=0, stdout=json.dumps({"text": text}))
+                def respond(*a, **k):
+                    self.assertEqual(json.loads(k['input']),{'path':str(wav),'language':'tr'})
+                    return SimpleNamespace(returncode=0, stdout=json.dumps({"text": text}))
+                return respond
             self.assertTrue(accept.verify_final(wav, "unused", expected, runner=reply(expected))["passed"])
             lost = accept.verify_final(wav, "unused", expected, runner=reply("Bu bir yarış."))
             self.assertFalse(lost["passed"])
