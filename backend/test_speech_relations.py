@@ -88,6 +88,19 @@ class SourceRelationTests(unittest.TestCase):
    return {'sentences':dict(enumerate(WRONG)),'items':dict(enumerate(WRONG))}
   with self.assertRaises(Cancelled):
    F._sentence_translate(SOURCE,F._TrArgs(translate_for_speech=True,translate_cache=False),answer)
+ def test_source_retranslation_keeps_user_glossary_and_scene_context(self):
+  def answer(payload):
+   if 'source_items' in payload:return facts(payload)
+   return {'sentences':dict(enumerate(RIGHT)),'items':dict(enumerate(RIGHT))}
+  args=F._TrArgs(translate_for_speech=True,translate_cache=False,glossary='Deniz')
+  args.scene_context={'note':'Two people talking.'}
+  _,calls,_,_=F._sentence_translate(SOURCE,args,answer)
+  reviewed=[(p,k) for p,k in calls if 'source_relations' in p]
+  self.assertTrue(reviewed)
+  payload,request=reviewed[0]
+  self.assertIn('Deniz',request['messages'][0]['content'])
+  self.assertEqual(payload['scene_notes'],args.scene_context)
+  self.assertIn('untrusted context',request['messages'][0]['content'])
  def test_ordinary_translation_has_no_extra_role_request(self):
   def answer(payload):return {'sentences':dict(enumerate(RIGHT)),'items':dict(enumerate(RIGHT))}
   _,calls,_,_=F._sentence_translate(SOURCE,F._TrArgs(translate_for_speech=False,translate_refine=True,translate_cache=False),answer)
