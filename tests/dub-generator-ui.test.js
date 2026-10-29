@@ -213,6 +213,7 @@ const tick = () => new Promise(setImmediate);
   assert.equal(el('dubGeneratorStatus').textContent,'fixture studio failure');
   w.api.dubConfig=async()=>({ok:true,ready:true,reference:'same.wav',transcript:'same.txt'});w.api.startDub=async value=>{request=value;return {ok:true};};
   el('browserDubGenerate').click();await tick();el('dubChooseSrt').click();await tick();el('dubGeneratorStart').click();await tick();
+  onEvent({id:request.id,type:'warning',text:'AI konuşma düzenlemesi kullanılamadı; özgün metin korunuyor.',reason:'meaning_guard'});assert.match(el('dubGeneratorDetails').textContent,/anlam denetiminden geçmedi/);
   onEvent({id:request.id,type:'error',error:'RuntimeError: KV cache calculation resulted in -198 blocks. There is no safe memory budget to allocate KV cache.'});
   assert.match(el('dubGeneratorDetails').textContent,/Referans sesi değiştirmeniz gerekmiyor/);assert.match(el('dubGeneratorDetails').textContent,/RuntimeError/);assert.equal(el('dubGeneratorCancel').disabled,true);
   w.api.startDub=async value=>{request=value;return {ok:true};};

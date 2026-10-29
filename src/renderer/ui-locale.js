@@ -45,6 +45,7 @@
     ['Ayrıntılı kontrol', 'Detailed review'],
     ['15 adım · metin doğrulama', '15 steps · text verification'],
     ['Gelişmiş kalite ve AI ayarları', 'Advanced quality and AI settings'],
+    ['Motor ve konuşma gruplama', 'Engine & speech grouping'], ['Üretim ayrıntıları', 'Production details'], ['Anlatım ve duygu seçenekleri', 'Delivery & expression'],
     ['Ses ve arka plan', 'Voice and background'],
     ['Referans ses', 'Reference voice'],
     ['Etkin ses yukarıda görünür. Yeni ses ekleyebilir veya kayıtlı bir referansı kullanabilirsiniz.', 'Your active voice appears above. Add a new voice or use a saved reference.'],

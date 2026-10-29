@@ -18,3 +18,8 @@ console.log('dub-editor-request: natural editing has no duration quota; explicit
 assert.match(natural.delivery_contract,/anlamlı tekrarlar/);
 assert.match(messages[0].content,/anlamlı tekrarlar/);
 assert(!('delivery_contract' in fit));
+
+const {editorFailureCode}=require('../src/dub-editor-request');
+assert.equal(editorFailureCode({reason:'meaning_guard',message:'private text'}),'meaning_guard');
+assert.equal(editorFailureCode({reason:'secret-token',message:'private text'}),'unavailable');
+assert.equal(editorFailureCode({name:'TimeoutError'}),'timeout');

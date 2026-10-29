@@ -305,5 +305,45 @@ class SpeechTranslationTests(unittest.TestCase):
             self.assertEqual(seen[-1][1],{},'old speech metadata bypassed the new quality protocol')
 
 
+class SentenceMeaningAcceptanceTests(unittest.TestCase):
+    def test_negative_plural_ability_is_preserved(self):
+        for target in ('Hiçbirimiz bunu yapamayız.', 'Oraya gidemeyiz.'):
+            self.assertNotIn('modal_missing', S.translation_blocking_issues('We can do nothing about it.',target,'tr','en'))
+        self.assertIn('negation_missing',S.translation_blocking_issues('We cannot go.','Gidebiliriz.','tr','en'))
+
+    def test_spoken_sentence_redistribution_keeps_numbers_without_masking_loss(self):
+        source=[(0,2,'It took 30'),(2.1,4,'years to finish.')]
+        target=[(0,2,'Tamamlanması'),(2.1,4,'otuz yıl sürdü.')]
+        self.assertEqual(T.compute_translation_quality_report(source,target,for_speech=True)['translation_number_mismatch'],0)
+        self.assertEqual(T.compute_translation_quality_report(source,target,for_speech=True)['translation_meaning_hard_rejected'],0)
+        wrong=[target[0],(2.1,4,'yirmi yıl sürdü.')]
+        self.assertGreater(T.compute_translation_quality_report(source,wrong,for_speech=True)['translation_number_mismatch'],0)
+        self.assertGreater(T.compute_translation_quality_report(source,target)['translation_number_mismatch'],0)
+
+class SpeechGateRegressionTests(unittest.TestCase):
+    def test_alternative_and_habitual_are_not_meaning_loss(self):
+        self.assertNotIn('negation_missing', S.translation_blocking_issues('We will decide whether or not to accept.', 'Kabul edip etmeme kararını vereceğiz.', 'tr', 'en'))
+        self.assertNotIn('modal_missing', S.translation_blocking_issues('They read anything that Ligotti would write.', "Ligotti'nin yazdığı her şeyi okudular.", 'tr', 'en'))
+        self.assertIn('negation_missing', S.translation_blocking_issues('We will not accept.', 'Kabul edeceğiz.', 'tr', 'en'))
+        self.assertIn('modal_missing', S.translation_blocking_issues('He would write.', 'Yazdı.', 'tr', 'en'))
+
+    def test_translated_explicit_title_does_not_mask_person_swap(self):
+        self.assertEqual(S.part_anchor_issue(['He published a collection called Songs of the Dead Dreamer.'], ['Ölü Düşçünün Şarkıları adlı bir derleme yayımladı.'], 'tr', 'en'), '')
+        self.assertNotEqual(S.part_anchor_issue(['Detective Lawson published a collection called Songs of the Dead Dreamer.'], ['Dedektif Larson, Ölü Düşçünün Şarkıları adlı bir derleme yayımladı.'], 'tr', 'en'), '')
+        self.assertNotEqual(S.part_anchor_issue(['He published a collection called Songs of the Dead Dreamer.'], ['Bir derleme yayımladı.'], 'tr', 'en'), '')
+
+    def test_spoken_anchors_keep_markup_at_its_cue(self):
+        self.assertEqual(S.speech_part_anchor_issue(['It took 30', 'years.'], ['Tamamlanması', 'otuz yıl sürdü.'], 'tr', 'en'), '')
+        self.assertNotEqual(S.speech_part_anchor_issue(['<i>Hello', 'there.</i>'], ['Merhaba', '<i>orada.</i>'], 'tr', 'en'), '')
+        self.assertNotEqual(S.speech_part_anchor_issue(['It took 30', 'years.'], ['Tamamlanması', 'yirmi yıl sürdü.'], 'tr', 'en'), '')
+
+    def test_spoken_reconciliation_preserves_source_checks(self):
+        data={'sentences':{'0':'Otuz yıl boyunca yazdı.'},'items':{'0':'Otuz yıl boyunca','1':'yazmayı sürdürdü.'}}
+        fixed=S.reconcile_speech_reply(data,[0,1],'He wrote for 30 years.','tr','en')
+        self.assertEqual(S.sentence_reply_issue(fixed,[0,1]),'')
+        self.assertNotEqual(S.sentence_reply_issue(data,[0,1]),'')
+        bad={**data,'items':{'0':'Yirmi yıl boyunca','1':'yazmayı sürdürdü.'}}
+        self.assertIs(S.reconcile_speech_reply(bad,[0,1],'He wrote for 30 years.','tr','en'),bad)
+
 if __name__ == '__main__':
     unittest.main()

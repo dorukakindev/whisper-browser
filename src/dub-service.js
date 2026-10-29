@@ -668,7 +668,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
               if(error.code==='DUB_EDITOR_UNAVAILABLE')s.editorUnavailable=true;
               if (job === s && !s.cancelled) {
                 try { atomicWriteFileSync(path.join(rewriteDir, r.id + '.json'), '{}', {encoding:'utf8'}); } catch (_) {}
-                if(!s.editorWarning){s.editorWarning=true;emit(s, 'warning', {text:'AI konuşma düzenlemesi kullanılamadı; özgün metin korunuyor.'});}
+                if(!s.editorWarning){s.editorWarning=true;emit(s, 'warning', {text:'AI konuşma düzenlemesi kullanılamadı; özgün metin korunuyor.',reason:require('./dub-editor-request').editorFailureCode(error)});}
               }
             });
           } catch (_) {}

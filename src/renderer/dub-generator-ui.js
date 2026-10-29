@@ -32,7 +32,16 @@
   function runtimeLabels(){const en=window.UiLocale?.get?.()==='en';el('dubKeepEngineLabel').textContent=en?'Keep the engine ready for 60 seconds after production':'Üretimden sonra motoru 60 saniye hazır tut';el('dubRuntimeHint').textContent=en?'GPU memory determines actual parallel capacity. Disabling keep-ready releases the previous engine when the next job starts; an idle engine closes automatically.':'Gerçek paralellik GPU belleğine göre belirlenir. Hazır tutmayı kapatınca önceki motor sonraki iş başlarken bırakılır; boşta kalan motor otomatik kapanır.';phaseSummary(runtimePhases);if(runtimeError)el('dubGeneratorDetails').textContent=generationError(runtimeError);}
   function phaseSummary(phases){runtimePhases=phases;const en=window.UiLocale?.get?.()==='en',labels={model_load:en?'Model':'Model',reference:en?'Reference':'Referans',synthesis:en?'Speech':'Ses',verification:en?'Verification':'Doğrulama',text_edit:en?'Text editing':'Metin düzenleme',placement:en?'Timing':'Zamanlama',normalization:en?'Loudness':'Ses dengeleme',file_write:en?'File writing':'Dosya yazımı',wall:en?'Total elapsed':'Geçen toplam'};el('dubPhaseSummary').textContent=Object.entries(labels).filter(([key])=>Number.isFinite(phases[key+'_seconds'])).map(([key,label])=>label+': '+phases[key+'_seconds'].toFixed(1)+' '+(en?'s':'sn')).join(' · ');}
   runtimeLabels();document.addEventListener('ui-locale-change',runtimeLabels);
+  function editorProviderHint(){
+    const node=el('dubEditorProviderHint');if(!node)return;
+    const model=el('translateModel')?.value?.trim(),en=window.UiLocale?.get?.()==='en';
+    node.textContent=(en?'Text editing uses the translation model, independently of the assistant: ':'Metin düzenlemesi asistandan bağımsız olarak çeviri modelini kullanır: ')+(model||(en?'not configured':'ayarlanmadı'));
+  }
+  el('translateModel')?.addEventListener('input',editorProviderHint);
+  el('translateModel')?.addEventListener('change',editorProviderHint);
+  document.addEventListener('ui-locale-change',editorProviderHint);
   function refreshOverview() {
+    editorProviderHint();
     const source = el('dubReadySource'), voice = el('dubReadyVoice'), range = el('dubReadyRange');
     source.textContent = srt ? basename(srt) : t('SRT seçilmedi'); source.dataset.ready = String(!!srt);
     const activeVoice=current?.voice||cfg;
@@ -601,7 +610,10 @@
     else if (event.type === 'reference_quality') referenceInfo(event.quality);
     else if (event.type === 'concurrency') { status('GPU belleği için paralel üretim azaltıldı.'); el('dubGeneratorDetails').textContent = `${event.concurrency} · ${t('Paralel üretim')}`; }
     else if (event.type === 'status') {if(event.stage==='engine_restart'){activeGroups.clear();showActivity();}status(event.text);}
-    else if (event.type === 'warning') el('dubGeneratorDetails').textContent=event.text;
+    else if (event.type === 'warning') {
+      const en=window.UiLocale?.get?.()==='en',reasons={configuration:en?'Check the translation provider settings.':'Çeviri sağlayıcısı ayarlarını kontrol edin.',authentication:en?'The translation provider rejected authentication.':'Çeviri sağlayıcısı kimlik doğrulamayı reddetti.',rate_limit:en?'The provider rate limit was reached.':'Sağlayıcı istek sınırına ulaşıldı.',timeout:en?'The text editor timed out.':'Metin düzenleyicisi zaman aşımına uğradı.',output_limit:en?'The editor response exceeded its output budget.':'Düzenleme yanıtı çıktı sınırında kesildi.',empty_reply:en?'The editor returned no text.':'Düzenleyici metin döndürmedi.',meaning_guard:en?'The proposed wording did not pass the meaning check.':'Önerilen metin anlam denetiminden geçmedi.',provider:en?'The translation provider could not complete the request.':'Çeviri sağlayıcısı isteği tamamlayamadı.'};
+      el('dubGeneratorDetails').textContent=t(event.text)+(reasons[event.reason]?' '+reasons[event.reason]:'');
+    }
     else if (event.type === 'timing') el('dubGeneratorTiming').textContent = `${event.accelerated} / ${event.clipped}`;
     else if (['done','error','cancelled'].includes(event.type)) {
       activeGroups.clear();showActivity();

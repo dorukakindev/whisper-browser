@@ -642,7 +642,7 @@ _LOCALIZED_NAME_EQUIVALENTS_RAW = {
     "algeria": ("cezayir",), "libya": ("libya",), "africa": ("afrika",),
     "asia": ("asya",), "moon": ("ay",), "earth": ("dünya",), "mars": ("mars",),
     "sun": ("güneş",), "heaven": ("cennet",), "hell": ("cehennem",),
-    "christmas": ("noel",), "easter": ("paskalya",),
+    "christian": ("hristiyan", "hıristiyan"), "christmas": ("noel",), "easter": ("paskalya",),
     "paris": ("paris",), "rome": ("roma",), "athens": ("atina",),
     "vienna": ("viyana",), "venice": ("venedik",), "florence": ("floransa",),
     "munich": ("münih",), "zurich": ("zürih",), "geneva": ("cenevre",),
@@ -776,6 +776,24 @@ def _canonical_number(token, language=None):
     return token[1:] if token.startswith('+') else token
 
 
+def _localized_work_title(name, source, translated):
+    """Only explicitly introduced work titles can be translated as phrases.
+
+    A capitalized word near a named person is insufficient. Both a source
+    naming construction and a target naming construction/title are required.
+    """
+    if not re.search(r"\b(?:adlı|adını|adı|kitab\w*)\b", translated, re.I):
+        return False
+    capital = r"[A-Z][a-zA-Z'’]+"
+    title = capital + r"(?:\s+(?:(?:of|the|in|a|an|and|against|to)\s+)*" + capital + r"){1,10}"
+    if not re.search(r"[A-ZÇĞİÖŞÜ][\w'’]+\s+[A-ZÇĞİÖŞÜ][\w'’]+", translated):
+        return False
+    for match in re.finditer(r"(?:\bcalled\s+|\bthe name\s+|\bbook,\s+)(" + title + r")", source):
+        if re.search(r"\b" + re.escape(name) + r"\b", match[1]):
+            return True
+    return False
+
+
 def part_anchor_issue(source_parts, translated_parts, target_lang="tr", source_lang=None):
     """Sayı/para/birim/tarih/SDH/özel adın kaynak ID'sinden başka cue'ya kaymasını yakala.
 
@@ -856,7 +874,8 @@ def part_anchor_issue(source_parts, translated_parts, target_lang="tr", source_l
             return f'etiket_kaydi:{index}'
         for name in _proper_names(str(source)):
             if _name_preserved(name, str(translated)) \
-                    or _name_localized(name, str(translated)):
+                    or _name_localized(name, str(translated)) \
+                    or _localized_work_title(name, str(source), str(translated)):
                 continue
             # ≥2 tokenlık adlı-varlık öbeği ('French Revolution'→'Fransız
             # Devrimi'): hedefte en az bir ad kalıntısı varsa yerelleştirme
@@ -873,6 +892,18 @@ def part_anchor_issue(source_parts, translated_parts, target_lang="tr", source_l
         if name_swap:
             return f"{name_swap}:{index}"
     return ""
+
+
+def speech_part_anchor_issue(source_parts, translated_parts, target_lang='tr', source_lang=None):
+    # Words may move inside a spoken sentence; cue-specific markup and sound
+    # directions must stay attached to their original timing.
+    for index, (source, translated) in enumerate(zip(source_parts, translated_parts)):
+        issue = _sdh_issue(source, translated)
+        if issue:
+            return f'sdh_kaydi:{index}:{issue}'
+        if not markup_preserved(source, translated):
+            return f'etiket_kaydi:{index}'
+    return part_anchor_issue([' '.join(source_parts)], [' '.join(translated_parts)], target_lang, source_lang)
 
 
 def insert_sentence_breaks(text):
@@ -1034,6 +1065,8 @@ _TARGET_MODAL = re.compile(
     r"lider|önder|nazar|kemer)\b)\w{2,}(?<![dt][ıiuü]l)"
     r"(?:ar|er|ır|ir|ur|ür)"
     r"(?:[ıiuü]m|[ıiuü]z|[ıiuü]n|s[ıiuü]n|lar|ler|s[ae]|[dt][ıiuü][kmnz]?|m[ıiuü]ş)?\b"
+    # Negative ability plural/first-person: yapamayız, gidemeyiz, yapamayım.
+    r"|\b\w{2,}(?:ama|eme)y(?:[ıi]m|[ıi]z)\b"
     # optative -lim/-yim (gidelim, geleyim, yapayım) — shall/may karşılığı
     r"|\b\w{2,}(?:[ae]l[ıi]m|[ae]y[ıiuü]m)\b",
     re.I,
@@ -1494,6 +1527,10 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
                        r"(?=(?:feel|notice|wonder|think|create|see|smile|laugh|cry|"
                        r"admire|worry|remember|agree|suspect|be|fall|marvel)\b)", re.I)
     negation_source = idiom.sub(' ', src_norm)
+    # Alternative questions are not negative assertions. Turkish nominalized
+    # alternatives (edip etmeme / olup olmama) need no finite negative verb.
+    if lang == 'tr' and re.search(r"\bwhether\s+or\s+not\b", negation_source, re.I) and re.search(r"\b\w+(?:[ıiuü]p)\s+\w+m[ae]m[ae]\w*\b", translated, re.I):
+        negation_source = re.sub(r"\bwhether\s+or\s+not\b", 'whether', negation_source, flags=re.I)
     if lang in _NEGATION_TARGET_LANGS and _SOURCE_NEGATION.search(negation_source) \
             and not _target_negation(translated, negation_source):
         issues.append('negation_missing')
@@ -1504,6 +1541,11 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
     if lang in ('tr', 'en') and target_negative and not source_negative and len(source.split()) <= 12 and not re.search(r"[;!?]|\b(?:but|unless|hardly|barely|without|stop|avoid|lack|fail|refuse|deny)\b", source, re.I):
         issues.append('negation_added')
     modal_source = _NEGATED_MODAL.sub(' ', src_norm)
+    # Past habitual relative clauses: 'anything he would write' ->
+    # 'yazdığı her şey'. Do not mask standalone conditional 'he would write'.
+    if lang == 'tr' and re.search(r"\b(?:her\s+şey\w*|ne\s+\w+[ds][ıiuü]\w*)\b", translated, re.I):
+        modal_source = re.sub(r"\b(anything|everything|whatever)\s+(?:that\s+)?(?:[A-Z][\w'’]*|he|she|they|we|I)\s+would\s+", r'\1 ', modal_source)
+
     if lang == 'tr' and re.search(r'\b(?:ister(?:ler)?|istiyor\w*|istedi\w*|istemesi|istemeleri|arzu eder\w*|arzuluyor\w*)\b', translated, re.I):
         # Volition: "some would have us stay" -> "bazıları kalmamızı ister".
         # Do not erase other modals, or a bare conditional "would stay".
@@ -1697,6 +1739,24 @@ def sentence_reply_issue(data, ids):
     if not sentence_parts_match(whole, parts):
         return "partlar_tam_cumleyi_olusturmuyor"
     return ""
+
+
+def reconcile_speech_reply(data, ids, source, target_lang='tr', source_lang=None):
+    """Use complete spoken parts when the model paraphrases its whole twice.
+
+    Never repair missing/empty IDs. Both representations must independently
+    preserve source meaning and anchors; normal downstream part gates remain.
+    """
+    if sentence_reply_issue(data, ids) != 'partlar_tam_cumleyi_olusturmuyor':
+        return data
+    parts = [data['items'][str(index)] for index in ids]
+    whole = data['sentences'][str(ids[0])]
+    joined = normalized_text(' '.join(parts))
+    for candidate in (whole, joined):
+        if (translation_blocking_issues(source, candidate, target_lang, source_lang)
+                or part_anchor_issue([source], [candidate], target_lang, source_lang)):
+            return data
+    return {**data, 'sentences': {**data['sentences'], str(ids[0]): joined}}
 
 
 def reply_id_range_issue(data, count):
