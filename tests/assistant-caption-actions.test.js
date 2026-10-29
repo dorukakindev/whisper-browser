@@ -33,3 +33,28 @@ test('Fractional second bounds reach the translation plan without truncation',as
 test('an explicit job provider survives the caption adapter without changing global settings',async()=>{
  const h=harness(),config={endpoint:'https://api.deepinfra.com/v1/openai',model:'deepseek-ai/DeepSeek-V4.1-Flash-1017',apiKey:'fixture-deep',profile:{id:'assistant',model:'deepseek-ai/DeepSeek-V4.1-Flash-1017'}};h.window.AssistantTranslationActions={resolve:async id=>{assert.equal(id,'assistant');return config;}};await h.run({caption_id:'yt-manual:en',translation_profile:'assistant'});assert.equal(h.calls.at(-1)[1].translationConfig,config);
 });
+
+
+test('a competing job started during caption download cannot attach or defer the old source',async()=>{
+ const h=harness();h.window.api.downloadYoutubeSubs=async()=>{h.box.state.running=true;return {ok:true,data:{path:'old.srt'}};};
+ await assert.rejects(h.run({caption_id:'yt-manual:en',start:5,end:25}),/running/);
+ assert.equal(h.player.browserTracks.length,0);assert.equal(h.calls.length,0);
+});
+
+test('queue or translation preparation acquired during profile resolution blocks download',async()=>{
+ for(const key of ['queueRunning','browserTranslatePreparing']){
+  const h=harness();h.window.AssistantTranslationActions={resolve:async()=>{(key==='queueRunning'?h.box.state:h.player)[key]=true;return {model:'fixture'};}};
+  await assert.rejects(h.run({caption_id:'yt-manual:en',translation_profile:'assistant'}),/running/);assert.equal(h.calls.length,0);assert.equal(h.player.browserTracks.length,0);
+ }
+});
+
+test('invalid ranges are rejected before caption download and attachment',async()=>{
+ const h=harness();h.box.validateBrowserWhisperRange=()=>({error:'Invalid time range'});
+ await assert.rejects(h.run({caption_id:'yt-manual:en',start:55,end:90}),/Invalid time range/);assert.equal(h.calls.length,0);assert.equal(h.player.browserTracks.length,0);
+});
+
+test('a competing job acquired while loading captions prevents translation acceptance',async()=>{
+ const h=harness();h.player.browserTracks.push({id:'source',role:'source',path:'fixture.srt',language:'en'});
+ h.box.useBrowserTrack=async()=>{h.player.subPath='fixture.srt';h.box.state.queueRunning=true;return {ok:true};};
+ await assert.rejects(h.run({track_id:'source'}),/running/);assert(!h.calls.some(row=>row[0]==='translate'));
+});
