@@ -7,8 +7,10 @@ function arg(key){const i=process.argv.indexOf(key);assert(i>=0,key+' required')
 const reference=arg('--reference'),transcript=arg('--transcript'),engine=arg('--engine');
 const real=process.argv.includes('--real-generation'),shared=process.argv.includes('--shared-references'),ownership=process.argv.includes('--event-ownership'),referenceRefresh=process.argv.includes('--reference-refresh');
 assert(!(real&&ownership),'Controlled ownership checks cannot be real GPU generation');
+const configFailure=process.argv.includes('--initialization-failure'),initialization=configFailure||process.argv.includes('--initialization'),configReplies=[];
 const starts=[],stops=[];let copiedDetail='',copyReply=true,holdRefresh=false;const refreshReplies=[];
-if(ownership||referenceRefresh){const handle=ipcMain.handle.bind(ipcMain);ipcMain.handle=(channel,listener)=>handle(channel,async(event,request,...args)=>{
+if(ownership||referenceRefresh||initialization){const handle=ipcMain.handle.bind(ipcMain);ipcMain.handle=(channel,listener)=>handle(channel,async(event,request,...args)=>{
+ if(initialization&&channel==='dub:textVoice'&&request?.action==='config'){const result=await listener(event,request,...args);return new Promise(resolve=>configReplies.push({result,resolve}));}
  if(channel==='dub:references'&&holdRefresh){const result=await listener(event,request,...args);return new Promise(resolve=>refreshReplies.push({result,resolve}));}
  if(ownership&&channel==='dub:textVoice'&&request?.action==='start')return new Promise(resolve=>starts.push({request,resolve}));
  if(ownership&&channel==='dub:cancel')return new Promise(resolve=>stops.push({request,resolve}));
@@ -34,6 +36,32 @@ app.whenReady().then(async()=>{
  win.setContentSize(1360,1000);win.showInactive();
  const send=win.webContents.send.bind(win.webContents);win.webContents.send=(channel,...args)=>{if(channel==='dub:event')events.push(args[0]);return send(channel,...args);};
  run=code=>win.webContents.executeJavaScript('(async()=>{'+code+'})()',true);
+ if(initialization){
+  await until(()=>configReplies.length===1,'initial config request held');
+  await until(()=>run("return document.getElementById('textVoiceStudio')?.open"),'loading dialog');
+  assert.equal(await run("return ['text','pick-reference','load','steps'].every(id=>document.getElementById('tv-'+id).disabled)"),true,'Initial config must lock edits until the saved reference/settings are known');
+  await screenshot('studio-initializing-tr');
+  await run("void TextVoiceStudioUI.open();void TextVoiceStudioUI.open();return true");await wait(150);
+  assert.equal(configReplies.length,1,'Concurrent opens must share one config request');
+  await run("document.getElementById('textVoiceStudio').close();document.body.tabIndex=-1;document.body.focus();return true");
+  configReplies[0].resolve(configFailure?{ok:false,error:'Synthetic closed config failure'}:configReplies[0].result);await wait(150);
+  assert.equal(await run("return document.getElementById('textVoiceStudio').open"),false,'Late config cannot reopen a closed dialog');
+  assert.equal(await run("return document.activeElement===document.body"),true,'Late config cannot steal focus');
+  if(configFailure){
+   await run("void TextVoiceStudioUI.open();return true");await until(()=>configReplies.length===2,'retry after closed failure');
+   configReplies[1].resolve({ok:false,error:'Synthetic visible config failure'});
+   await until(()=>run("return document.getElementById('tv-error-detail').textContent==='Synthetic visible config failure'"),'visible config failure');
+   assert.equal(await run("return document.getElementById('tv-pick-reference').disabled&&!document.getElementById('tv-config-retry').hidden&&!document.getElementById('tv-config-retry').disabled"),true,'Unknown settings must retain a safe explicit retry');
+   await screenshot('studio-config-error-tr');
+   await run("document.getElementById('tv-config-retry').click();return true");await until(()=>configReplies.length===3,'retry after visible failure');
+   configReplies[2].resolve(configReplies[2].result);
+   await until(()=>run("return !document.getElementById('tv-pick-reference').disabled"),'retry config ready');
+   assert.equal(configReplies.length,3);
+  }else{
+   await run("return TextVoiceStudioUI.open()");
+   assert.equal(configReplies.length,1,'Successful initial config can be reused');
+  }
+ }
  // Launcher flag opens the same Electron studio without spawning the old GUI.
  await until(()=>run("return document.getElementById('textVoiceStudio')?.open"),'launcher opens studio');
  await until(()=>run("return document.getElementById('textVoiceStudio')?.open&&document.getElementById('tv-reference').options.length>0"),'studio');
@@ -242,7 +270,7 @@ app.whenReady().then(async()=>{
  await screenshot('studio-tr-narrow-125');
  const narrow=await run("const d=document.getElementById('textVoiceStudio'),b=document.querySelector('.text-voice-body').getBoundingClientRect(),footer=document.querySelector('.text-voice-footer').getBoundingClientRect();return {width:innerWidth,overflow:d.scrollWidth>d.clientWidth+1,bodyHeight:b.height,footerBottom:footer.bottom,height:innerHeight,buttons:['start','preview','stop'].map(id=>{const r=document.getElementById('tv-'+id).getBoundingClientRect();return {left:r.left,right:r.right,height:r.height,minHeight:getComputedStyle(document.getElementById('tv-'+id)).minHeight,zoom:getComputedStyle(document.getElementById('tv-'+id)).zoom}})}");
  assert(narrow.width<=480,JSON.stringify(narrow));assert.equal(narrow.overflow,false);assert(narrow.bodyHeight>=200,JSON.stringify(narrow));assert(narrow.footerBottom<=narrow.height);for(const button of narrow.buttons){assert(button.left>=0&&button.right<=narrow.width);assert(button.height>=40,JSON.stringify(narrow));}
- fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({complete:true,realGeneration:real,sharedReferences:shared,eventOwnership:ownership,referenceRefresh,realAcceptance,controlledStarts:starts.length,controlledStops:stops.length,secondaryContrast,paneLayout,metrics,narrow,events},null,2));
+ fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({complete:true,realGeneration:real,initialization,configFailure,configRequests:configReplies.length,sharedReferences:shared,eventOwnership:ownership,referenceRefresh,realAcceptance,controlledStarts:starts.length,controlledStops:stops.length,secondaryContrast,paneLayout,metrics,narrow,events},null,2));
  console.log(JSON.stringify({out,complete:true,realGeneration:real,metrics}));app.exit(0);
 }).catch(async error=>{console.error(error.stack);try{await screenshot('failure');}catch{}app.exit(1);});
 setTimeout(()=>app.exit(2),real?300000:60000).unref();
