@@ -1,0 +1,70 @@
+{
+  "liveProvider": true,
+  "standardTier": true,
+  "requests": 2,
+  "youtubeCaptions": true,
+  "sourceUrl": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+  "whisperModel": null,
+  "selectedRange": [
+    2,
+    10
+  ],
+  "preparedRange": {
+    "start": 2,
+    "end": 10
+  },
+  "gpuGenerationHere": true,
+  "attachedToOriginalVideo": true,
+  "rangeAndPause": true,
+  "voiceElapsedSeconds": 58.53097989999999,
+  "wavSeconds": 11.431666666666667,
+  "wavSha256": "1a896c3a4888cfcdae09b5e7d4b6901756075cf0f0d036577cf5717ec1464752",
+  "ffmpegDecodeExit": 0,
+  "timing": {
+    "accelerated": 0,
+    "clipped": 0,
+    "overflow": 0
+  },
+  "sync": {
+    "version": 1,
+    "videoDuration": 8,
+    "audioDuration": 11.431666666666667,
+    "segments": [
+      {
+        "v0": 0,
+        "v1": 3.318,
+        "a0": 0,
+        "a1": 4.212875
+      },
+      {
+        "v0": 3.318,
+        "v1": 8,
+        "a0": 4.212875,
+        "a1": 11.431666666666667
+      }
+    ],
+    "smooth": true
+  },
+  "quality": [
+    {
+      "key": "1",
+      "status": "review",
+      "similarity": 0,
+      "retrySimilarity": 0.7273,
+      "expected": "Pekala, işte buradayız, fillerin önünde.",
+      "recognized": "Pecala. Eshtey Pardias. Philarin Onin.",
+      "retryRecognized": "Pekala, işte buradayız, filler'ın önünde."
+    },
+    {
+      "key": "2,3",
+      "status": "review",
+      "similarity": 0.25,
+      "retrySimilarity": null,
+      "expected": "Bu arkadaşlarla ilgili harika şey şu: gerçekten... gerçekten çok uzun hortumları var.",
+      "recognized": "Bu ar ka dashlar la ilgili harika seishu. Ger check den. Ger check den chok uzun hor tum la devarj.",
+      "retryRecognized": null
+    }
+  ],
+  "humanListening": false,
+  "limits": "Actual anonymous YouTube probe/video/captions, live DeepSeek and actual VoxCPM2 with synthetic reference; downloaded local playback, not browser streaming or human listening."
+}
