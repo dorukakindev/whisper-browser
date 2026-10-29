@@ -1,0 +1,149 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+  "serviceTier": "standard",
+  "liveProvider": true,
+  "applicationActions": "controlled synthetic read/proposal adapters; nothing applied",
+  "rows": [
+    {
+      "id": "WHISPER-ONLY",
+      "question": "Bu videonun 5 ile 25. saniyesi için yalnız Whisper ile altyazı çıkar. Çeviri veya dublaj istemiyorum.",
+      "kind": "video",
+      "pass": true,
+      "requests": 2,
+      "elapsedMs": 6109,
+      "calls": [
+        {
+          "name": "start_whisper",
+          "args": {
+            "translate": false,
+            "start": 5,
+            "end": 25
+          }
+        }
+      ],
+      "text": "5–25. saniye aralığı için yalnız Whisper ile (çeviri olmadan) altyazı çıkarma önerisi hazır: onay kartı açıldı, henüz başlatılmadı. Kartı uygularsanız işlem başlar; ilerlemeyi ve sonucu kart tamamlandıktan sonra kontrol edebilirim. Dublaj istenmediği için ses üretimi yapılmayacak.",
+      "error": null
+    },
+    {
+      "id": "CAPTION-LOADED",
+      "question": "Videoda yüklü İngilizce kaynak altyazıyı 5 ile 25. saniye arasında Türkçeye seslendirmeye uygun çevir. Whisper veya ses üretimi başlatma.",
+      "kind": "video",
+      "pass": true,
+      "requests": 3,
+      "elapsedMs": 6763,
+      "calls": [
+        {
+          "name": "list_subtitle_tracks",
+          "args": {}
+        },
+        {
+          "name": "list_translation_profiles",
+          "args": {}
+        },
+        {
+          "name": "translate_captions",
+          "args": {
+            "track_id": "captured-source-en",
+            "target_language": "tr",
+            "start": 5,
+            "end": 25,
+            "forSpeech": true
+          }
+        }
+      ],
+      "text": "Türkçe seslendirmeye uygun çeviri için bir onay kartı hazırladım (henüz uygulanmadı, hiçbir işlem başlatılmadı):\n\n- **Kaynak:** `captured-source-en` (mevcut İngilizce altyazı, kısmi değil)\n- **Aralık:** 5–25. saniye\n- **Hedef dil:** Türkçe (tr), seslendirmeye uygun mod açık\n- **Whisper ve ses üretimi:** başlatılmayacak\n\nKart sizin onayınızı bekliyor. Ayrıca belirtmem gereken bir nokta: `list_translation_profiles` çağrısı bu oturumda veri döndürmediği için (\"synthetic read data is attached\" hatası), çevirinin hangi yapılandırılmış model profiliyle yapılacağını doğrulayamadım. Belirli bir sağlayıcı/model istiyorsanız söyleyin; kartı göndermeden önce profili kontrol edelim.",
+      "error": null
+    },
+    {
+      "id": "CAPTION-PROBE",
+      "question": "Bu videoda yüklenmiş altyazı yok. YouTube kaynak altyazılarını kontrol et, İngilizce elle yazılmış olanı 5–25 saniye için Almancaya çevir. Whisper istemiyorum.",
+      "kind": "video",
+      "pass": true,
+      "requests": 3,
+      "elapsedMs": 9231,
+      "calls": [
+        {
+          "name": "probe_video_captions",
+          "args": {}
+        },
+        {
+          "name": "translate_video_captions",
+          "args": {
+            "caption_id": "yt-manual:en",
+            "target_language": "de",
+            "start": 5,
+            "end": 25
+          }
+        }
+      ],
+      "text": "Öneri kartı hazır (henüz uygulanmadı, çeviri başlamadı):\n\n- Kaynak: `yt-manual:en` — videonun elle yazılmış İngilizce YouTube altyazısı (otomatik altyazı kullanılmadı)\n- Aralık: 5–25 saniye\n- Hedef dil: Almanca (de)\n- Yöntem: yeniden transkripsiyon yok, Whisper kullanılmıyor; mevcut altyazının çevirisi\n\nOnaylarsanız kartı uygulayabilirsiniz; kart uygulanmadan çeviri işi başlamış sayılmaz.",
+      "error": null
+    },
+    {
+      "id": "WHISPER-SPEECH-RANGE",
+      "question": "Mevcut altyazıyı kullanma. Önce Whisper ile 05:12–08:37 arasını çıkar, ardından Almancaya seslendirmeye uygun çevir. Dublaj sesi üretme.",
+      "kind": "video",
+      "pass": true,
+      "requests": 3,
+      "elapsedMs": 9819,
+      "calls": [
+        {
+          "name": "list_translation_profiles",
+          "args": {}
+        },
+        {
+          "name": "get_source_context",
+          "args": {}
+        },
+        {
+          "name": "start_whisper",
+          "args": {
+            "translate": true,
+            "target_language": "de",
+            "forSpeech": true,
+            "start": 312,
+            "end": 517
+          }
+        }
+      ],
+      "text": "Whisper kartı hazırladım — henüz başlatılmadı, sizin onaylamanız gerekiyor.\n\n**Önerilen işlem (kart: synthetic710-3):**\n- Kaynak: mevcut video «Kontrollü açık kaynak»\n- Yöntem: Whisper ile transkripsiyon (mevcut altyazı kullanılmıyor)\n- Aralık: 312 sn – 517 sn (05:12–08:37)\n- Aynı işte çeviri: Almanca, seslendirmeye uygun mod (forSpeech)\n- Dublaj/ses üretimi: yok\n\n**Dikkat edilmesi gereken bir nokta:** İstenen çeviri aşaması için çeviri profili listesini okumayı denedim ancak araç hata döndürdü (`No synthetic read data is attached for this tool`), yani yapılandırılmış profilleri şu an doğrulayamadım. Bu nedenle kartta belirli bir çeviri modeli/sağlayıcısı seçmedim; iş, varsayılan çeviri yapılandırmasıyla çalışacaktır. Belirli bir model istiyorsanız (ör. belirli bir sağlayıcı), profilleri tekrar okumayı deneyip eşleşen `translation_profile` ile kartı yeniden hazırlayabilirim.\n\nOnaylarsanız işi siz başlatırsınız; \"kabul edildi\" tamamlandı anlamına gelmez. Tamamlandığında sonucu `get_job_result` ile kontrol edip kaynak/çeviri rolünü raporlayabilirim.",
+      "error": null
+    },
+    {
+      "id": "CAPTION-NONE",
+      "question": "YouTube altyazısı var mı kontrol et. Hiç altyazı yoksa bunu söyle ve dur; Whisper veya başka üretim başlatma.",
+      "kind": "video",
+      "pass": true,
+      "requests": 2,
+      "elapsedMs": 4242,
+      "calls": [
+        {
+          "name": "probe_video_captions",
+          "args": {}
+        }
+      ],
+      "text": "Kontrol ettim: bu videoda (\"Kontrollü açık kaynak\") kullanılabilir YouTube altyazısı yok — hiçbir altyazı dili/ID'si listelenmedi.\n\nBu nedenle duruyorum. Whisper veya başka bir üretim başlatmadım. İsterseniz ayrıca daha önce alınmış (yakalanmış) bir altyazı kaydı olup olmadığına da bakabilirim.",
+      "error": null
+    },
+    {
+      "id": "CAPTION-SAVED-RANGE",
+      "question": "Kaydettiğim seçili aralıkta açık kaynak altyazıyı Türkçeye çevir. Tüm videoyu çevirme, Whisper kullanma.",
+      "kind": "video",
+      "pass": false,
+      "requests": 2,
+      "elapsedMs": 7309,
+      "calls": [
+        {
+          "name": "list_subtitle_tracks",
+          "args": {}
+        },
+        {
+          "name": "list_translation_profiles",
+          "args": {}
+        }
+      ],
+      "text": "Açık kaynak İngilizce altyazı izi mevcut (`captured-source-en`), ancak çeviri profillerini okuyamadım: `list_translation_profiles` aracı \"No synthetic read data is attached for this tool.\" hatası döndürdü. Yani şu anda yapılandırılmış bir çeviri sağlayıcı/model olup olmadığını doğrulayamıyorum.\n\nBu yüzden çeviri kartını henüz oluşturmuyorum — hangi modelin kullanılacağını bilmeden bir profil seçmiş gibi yapmak istemiyorum. Var olan kayıtlı altyazıdan, Whisper kullanmadan, yalnızca seçili aralıkta (12,5–44,75 sn) Türkçeye çeviri yapılabilir.\n\nNasıl ilerleyelim?\n1. Profil listesini tekrar denememi isteyin (geçici bir hata olabilir),\n2. ya da kullanmak istediğiniz sağlayıcı/modeli açıkça belirtin (kayıtlıysa eşleşen profili kullanırım).\n\nOnay verdiğinizde kart yalnızca **öneri** olur; siz uygulamadan iş başlamaz.",
+      "error": null
+    }
+  ]
+}

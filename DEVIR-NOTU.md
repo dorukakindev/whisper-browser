@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-0542.md](docs/devir/2026-10-29-0542.md) — Gerçek DeepSeek caption/Whisper araç seçimi
 Güncel çalışma: [docs/devir/2026-10-29-0535.md](docs/devir/2026-10-29-0535.md) — Eski stüdyo girişinde ortak tema
 Güncel çalışma: [docs/devir/2026-10-29-0518.md](docs/devir/2026-10-29-0518.md) — Asistan altyazısında sahiplik ve zaman aralığı
 Güncel çalışma: [docs/devir/2026-10-29-0504.md](docs/devir/2026-10-29-0504.md) — Gerçek metin stüdyosu GPU zinciri
