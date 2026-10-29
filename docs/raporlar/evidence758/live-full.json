@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "standardTier": true,
+  "providerCalls": 6,
+  "checks": [
+    {
+      "case": "page1",
+      "reply": "Açık sayfadaki metne göre:\n\n- **Sandık kodu:** ORION-412\n- **Kurdele rengi:** mavi\n\nBu bilgiler yalnızca açık olan sayfadan (Sayfa 1 / 2) alınmıştır; kitabın geri kalanı hakkında çıkarım yapılmadı ve hiçbir üretim başlatılmadı.\n\nUygulama doğrulaması: 0 gerçek işlem kartı oluşturuldu; bu istek kartları uygulamadı, transkripsiyon/dublaj başlatmadı."
+    },
+    {
+      "case": "page2",
+      "reply": "Açık sayfaya (Sayfa 2 / 2) göre:\n\n- **Mermer sandık kodu:** LYRA-709\n- **Kurdelesinin rengi:** amber (kehribar)"
+    },
+    {
+      "case": "prepare-page2",
+      "total": 1,
+      "selected": [
+        1
+      ],
+      "text": "The marble chest code is LYRA-709. Its ribbon is amber.",
+      "busy": false
+    },
+    {
+      "case": "receipt",
+      "text": ""
+    }
+  ],
+  "productionStarted": false,
+  "limits": "Synthetic PDF; real Windows renderer, PDF extraction, live model, approval, production preparation. No GPU/audio generation/human quality."
+}

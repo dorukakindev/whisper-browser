@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "standardTier": true,
+  "providerCalls": 3,
+  "checks": [
+    {
+      "case": "prepare-page2",
+      "total": 1,
+      "selected": [
+        1
+      ],
+      "text": "The marble chest code is LYRA-709. Its ribbon is amber.",
+      "busy": false
+    },
+    {
+      "case": "receipt",
+      "text": ""
+    }
+  ],
+  "generationRequests": 0,
+  "productionStarted": false,
+  "limits": "Synthetic PDF; real Windows renderer, PDF extraction, live model, approval, production preparation. No GPU/audio generation/human quality."
+}
