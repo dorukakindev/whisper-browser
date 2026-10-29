@@ -36,7 +36,15 @@ def reference_pair(args):
     return alternate, transcript
 
 
+def comparison_steps(args):
+    steps = getattr(args, 'steps', 15)
+    if type(steps) is not int or steps not in (10, 15):
+        raise ValueError('Compare the production presets: 10 or 15 steps.')
+    return steps
+
+
 async def compare(args):
+    steps = comparison_steps(args)
     # Import the application's Windows safe-weight-loader compatibility too.
     import altyazi_oku as runtime
     from huggingface_hub import snapshot_download
@@ -63,10 +71,10 @@ async def compare(args):
     args.output.mkdir(parents=True, exist_ok=False)
     model = snapshot_download(runtime.MODEL_ID, revision=runtime.MODEL_REVISION, local_files_only=True)
     started = time.monotonic()
-    server = VoxCPM.from_pretrained(model, devices=[0], inference_timesteps=15,
+    server = VoxCPM.from_pretrained(model, devices=[0], inference_timesteps=steps,
         max_num_seqs=1, max_num_batched_tokens=4096, max_model_len=4096,
         gpu_memory_utilization=.75, enforce_eager=False)
-    result = {'version': 1, 'steps': 15, 'temperature': .8, 'model_revision': runtime.MODEL_REVISION,
+    result = {'version': 2, 'steps': steps, 'temperature': .8, 'model_revision': runtime.MODEL_REVISION,
               'text_sha256': hashlib.sha256(text.encode()).hexdigest(),
               'limits': 'No objective naturalness or speaker-similarity claim. Listen blind before choosing.',
               'variants': []}
@@ -78,6 +86,8 @@ async def compare(args):
         prompt = args.transcript.read_text(encoding='utf-8-sig').strip()
         if not prompt:
             raise ValueError('An exact nonempty reference transcript is required.')
+        result['reference_sha256'] = hashlib.sha256(reference).hexdigest()
+        result['transcript_sha256'] = hashlib.sha256(prompt.encode()).hexdigest()
         prompt_id = await server.add_prompt(reference, 'wav', prompt)
         anchors = {'reference-a': (ref_lat, prompt_id)}
         if alternate:
@@ -144,6 +154,7 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__)
     for name in ('text', 'reference', 'transcript', 'output'):
         p.add_argument('--'+name, type=Path, required=True)
+    p.add_argument('--steps', type=int, choices=(10, 15), default=15)
     p.add_argument('--only', choices=('sentence', 'flowing', 'fixed-seed', 'cfg2-fixed', 'single-context'))
     p.add_argument('--alternate-reference', type=Path, help='Opt-in paired voice experiment; requires --only single-context')
     p.add_argument('--alternate-transcript', type=Path)
