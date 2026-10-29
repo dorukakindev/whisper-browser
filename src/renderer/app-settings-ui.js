@@ -107,4 +107,8 @@
   }
   document.addEventListener('ui-locale-change',()=>{if(dialog?.open)draw();});
   window.AppSettingsUI=Object.freeze({open,close});
+  const railButton=$('sideAppSettings');
+  function railLabel(){if(railButton)railButton.title=railButton.ariaLabel=t('Application settings','Uygulama ayarları');}
+  railButton?.addEventListener('click',()=>{void open().catch(error=>logLine(error.message,'error'));});
+  document.addEventListener('ui-locale-change',railLabel);railLabel();
 })();

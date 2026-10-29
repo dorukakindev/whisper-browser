@@ -58,6 +58,7 @@
       : 'Özel ayarlar etkin. Hazır profiller sesinizi ve seçili aralığı değiştirmez.');
   }
   function qualityInfo() {
+    Promise.resolve().then(()=>window.dispatchEvent(new Event('dub-takes:context')));
     const row = results.get(el('dubQualityGroup').value);
     const labels = {ready:'Hazır',review:'Dinleyerek kontrol edin',failed:'Üretilemedi; bu bölüm sessiz',
       passed:'Metin doğrulandı',not_checked:'Metin denetlenmedi',unavailable:'Metin doğrulanamadı'};
@@ -184,6 +185,7 @@
     for (const name of Object.keys(presetSpecs)) el(`dubPreset${name}`).disabled = locked;
     refreshOverview();
     window.dispatchEvent(new CustomEvent('dub-generator:busy',{detail:!!current||referenceBusy||planning||choosing}));
+    window.dispatchEvent(new Event('dub-takes:context'));
     el('browserDubGenerate')?.classList.toggle('active', !!current);
   }
   const pronunciationLabels = () => {
@@ -264,7 +266,7 @@
     const saved=job?.fallback;
     if(!saved?.output?.url||saved.media!==mediaIdentity()||saved.srt!==srt)return false;
     output=saved.output;results.clear();for(const row of saved.rows)results.set(row.key,row);
-    window.DubWorkspaceUI?.setOutput(output,job.context);preview(output);showResults();
+    window.DubWorkspaceUI?.setOutput(output,job.context,job.qualityKey);preview(output);showResults();
     el('dubGeneratedName').textContent=output.name||basename(output.path||'');
     el('dubGeneratorOutput').classList.remove('hidden');
     el('dubGeneratorUse').classList.toggle('hidden',saved.sample||output.syncInvalid===true);
@@ -328,7 +330,7 @@
   window.addEventListener('voice-reference:busy', event => { referenceBusy = !!event.detail; controls(); });
   el('playerDubGenerate')?.addEventListener('click', () => { el('playerMore').open = false; void open(); });
   el('dubMainOpen').addEventListener('click', open);
-  window.DubGeneratorUI = Object.freeze({ prepareCurrent: open, assistant:Object.freeze({state:voiceState,configure:voiceConfigure,start:voiceStart,group:voiceGroup,use:voiceUse,refreshReference:()=>configure(undefined,true)}) });
+  window.DubGeneratorUI = Object.freeze({ prepareCurrent: open, takeContext:()=>({id:output?.id||'',key:el('dubQualityGroup').value,owner:mediaIdentity(),busy:!!current||referenceBusy||planning||choosing||workspaceBusy,recipeReady:!!lastRequest}), useTake:(key,token)=>start(true,[],{[key]:token}), assistant:Object.freeze({state:voiceState,configure:voiceConfigure,start:voiceStart,group:voiceGroup,use:voiceUse,refreshReference:()=>configure(undefined,true)}) });
   el('dubGeneratorClose').addEventListener('click', () => modal.close());
   modal.addEventListener('close', () => { el('dubGeneratedPreview').pause(); syncBrowserOcclusion(); });
   el('dubStorageOpen').addEventListener('click', () => { if (cfg?.storageRoot) void window.api.openPath(cfg.storageRoot); });
@@ -433,11 +435,11 @@
       try { await configure(kind); } finally { choosing = false; controls(); }
     });
   }
-  async function start(retry = false, forceGroups = []) {
+  async function start(retry = false, forceGroups = [], takeChoices = null) {
     if (current || referenceBusy || planning || choosing || workspaceBusy || !srt || !cfg?.ready) return;
     let range;
     try { range = selectedRange(); } catch (error) { status(error.message); return; }
-    current = { id: crypto.randomUUID(), voice:{reference:cfg.reference,transcript:cfg.transcript,engine:cfg.engine}, context: window.BrowserDubAudioUI?.context(), sample: retry ? lastRequest?.sample : el('dubSampleOnly').checked };
+    current = { id: crypto.randomUUID(), qualityKey:retry?el('dubQualityGroup').value:'', voice:{reference:cfg.reference,transcript:cfg.transcript,engine:cfg.engine}, context: window.BrowserDubAudioUI?.context(), sample: retry ? lastRequest?.sample : el('dubSampleOnly').checked };
     const pending = current;
     pending.fallback=output?.url?{output,rows:[...results.values()],media:mediaIdentity(),srt,sample:el('dubGeneratorUse').classList.contains('hidden')}:null;
     const started = performance.now();
@@ -463,6 +465,10 @@
       keepBackground: el('dubKeepBackground').checked, backgroundSource: backgroundSource || pending.context?.backgroundSource || '',
       backgroundTab: pending.context ? {tabId:pending.context.tabId,generation:pending.context.generation,mediaId:pending.context.mediaId || ''} : null,
       timingMode: el('dubTimingMode').value, range, dubText: plan ? { sourceHash: plan.sourceHash, edits:{...edits} } : null };
+    if(retry){
+      payload.groupTakes={...(lastRequest.groupTakes||{}),...(takeChoices||{})};
+      for(const key of forceGroups)delete payload.groupTakes[key];
+    }
     payload.source = pending.context?.source || pending.context?.mediaKey || '';
     pending.settings={...payload};refreshOverview();
     lastRequest = payload;
@@ -488,7 +494,7 @@
   function stopGroupPreview() {
     groupPlayGeneration++;rangeEnd=null;previousRangeEnd=null;previousAudio.pause();previousAudio.classList.add('hidden');
     cancelGroupMetadata?.();cancelGroupMetadata=null;
-    groupAudio.pause();
+    groupAudio.pause();el('dubTakePreview')?.pause();
   }
   function metadataReady(audio=groupAudio) {
     if(audio.readyState>=1)return Promise.resolve(true);
@@ -606,7 +612,7 @@
       if (event.logError) el('dubGeneratorDetails').textContent = event.logError;
       current = null; controls();
       if (event.type === 'done') {
-        output = event; window.DubWorkspaceUI?.setOutput(output, job.context); preview(output); el('dubGeneratorProgress').value = 100;
+        output = event; window.DubWorkspaceUI?.setOutput(output, job.context, job.qualityKey); preview(output); el('dubGeneratorProgress').value = 100;
         if (event.quality?.groups) { results.clear(); for (const row of event.quality.groups) results.set(row.key, row); showResults(); }
         const needsReview = event.qualityUnavailable === true || [...results.values()].some(row => row.status !== 'ready');
         el('dubGeneratedName').textContent = event.name;

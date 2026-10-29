@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-29-2216.md](docs/devir/2026-10-29-2216.md) — Grup kayıtları ve browser oturumu
 Güncel çalışma: [docs/devir/2026-10-29-2148.md](docs/devir/2026-10-29-2148.md) — Ortak tasarım ve kaydırma çakışmaları
 Güncel çalışma: [docs/devir/2026-10-29-2031.md](docs/devir/2026-10-29-2031.md) — Dublaj ham grup sürümü bütünlüğü
 Güncel çalışma: [docs/devir/2026-10-29-2002.md](docs/devir/2026-10-29-2002.md) — Ortak hidden tasarım durumu

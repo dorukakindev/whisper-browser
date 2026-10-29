@@ -110,7 +110,11 @@
   }
   let refreshTimer;
   new MutationObserver(syncLayer).observe(layer, { attributes: true, attributeFilter: ['class'] });
-  function openBrowser() { click('openPlayer'); }
+  function openBrowser() {
+    // Returning to a parked browser must not reload the last Whisper job video.
+    if(parked?.mode==='browser'&&parked.key===player.mediaKey&&parked.tabId===player.browserActiveTabId)return resumeWorkspace();
+    click('openPlayer');
+  }
   function openStudio() { setHome(false); }
   async function catalog(options = {}) {
     if (!window.MediaCatalogUI?.open) throw new Error(t('Library is unavailable.', 'Kütüphane kullanılamıyor.'));

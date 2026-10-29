@@ -14,6 +14,7 @@ const {identity: sourceIdentity} = require('./dub-source-identity');
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
   spawn, terminate, busy, grantMedia, environment, shorten, editorIdentity = () => '', setRate, prepareBackground, prepareProsody, prepareReference, onOutput = output => output, observeJob = () => {} }) {
   let job = null, releasingEngine=false;
+  const groupTakes=require('./dub-group-takes').createGroupTakes({app,grantMedia});
   const warmEngine=require('./dub-engine-worker').createDubEngineWorker({spawn,terminate});
   require('./dub-playback-assets').registerDubPlaybackAssets({ app, ipcMain, dialog, owner, authorized, grantMedia });
   let textUI = null;
@@ -331,6 +332,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     busy:()=>!!job||!!textUI||releasingEngine||busy(),reserve:ownJob,emit,releaseWarm:()=>warmEngine.release(),
     finish:(session,type,data)=>{try{finish(session,type,data);}finally{if(job===session)job=null;}},
     environment:voiceEnvironment,spawn,grantMedia,claimArtifacts,importReference});
+  ipcMain.handle('dub:groupTakes',guard(async(e,request={})=>({ok:true,...await groupTakes.list(e.sender,request.id,request.key)})));
   ipcMain.handle('dub:latest', guard(async (_event, requestedId) => {
     const scoped = requestedId && typeof requestedId === 'object';
     const source = scoped ? sourceIdentity(requestedId.source) : null;
@@ -479,6 +481,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           && prepared.sourceHash !== require('node:crypto').createHash('sha256').update(sourceBytes).digest('hex')) {
         throw new Error('SRT değişti; dublaj planını yeniden hazırlayın.');
       }
+      const selectedTakes=await groupTakes.resolve(e.sender,request.groupTakes,{subtitleHash:s.subtitleHash,sourceIdentity:s.sourceIdentity,range:s.range},forceGroups);
+      if(forceAll&&Object.keys(selectedTakes).length)throw Error('Whole-plan regeneration cannot reuse selected recordings.');
       if (s.cancelled) { job = null; finish(s, 'cancelled'); return { ok: false, error: 'İptal edildi.' }; }
       const outputDir = voiceStorage(app).output;
       fs.mkdirSync(outputDir, { recursive: true });
@@ -527,6 +531,11 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           else fs.writeFileSync(file,bytes,{flag:'wx'});
           args.push('--force-groups-file',file);
         }
+      }
+      if(Object.keys(selectedTakes).length){
+        const file=path.join(outputDir,`${s.id}-group-takes.json`);claimArtifacts(s,[file]);
+        fs.writeFileSync(file,JSON.stringify(selectedTakes),{encoding:'utf8',flag:'wx'});
+        args.push('--take-selections-file',file);s.settings.selectedTakeCount=Object.keys(selectedTakes).length;
       }
       if (request.sample === true) args.push('--limit', '11', '--representative-preview');
       const rewriteDir = path.join(inputDir, 'duration-edits');
