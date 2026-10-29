@@ -92,6 +92,3 @@
  .text-voice-manuscript{padding:22px 26px}
  .text-voice-editor{min-height:220px;line-height:1.9;padding:20px 24px}
 }
-
-/* Shared button display rules must not override the semantic hidden state. */
-.text-voice-studio [hidden]{display:none!important}
