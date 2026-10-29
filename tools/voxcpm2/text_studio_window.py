@@ -24,35 +24,19 @@ PRESETS = {
 
 
 class Studio:
-    def __init__(self, args, build_command):
-        self.args, self.build_command = args, build_command
-        self.root = tk.Tk()
-        self.root.title('Whisper Local · Ses Stüdyosu / Voice Studio')
-        self.root.geometry('1300x900'); self.root.minsize(1020, 740)
-        self.root.configure(bg='#10161b')
-        self.settings_file = args.config.parent / 'text-studio-settings.json'
-        saved = {}
-        try:
-            saved = json.loads(self.settings_file.read_text(encoding='utf-8'))
-            if not isinstance(saved, dict): saved = {}
-        except (OSError, ValueError): pass
-        values = {**TEXT_SETTINGS, **{key: saved[key] for key in TEXT_SETTINGS if key in saved}}
-        # Old studio stored pause as seconds, but the reader expects a factor.
-        if saved.get('version') != 2: values['pause'] = 1
-        self.vars = {key: (tk.BooleanVar(value=value) if isinstance(default, bool) else tk.StringVar(value=str(value)))
-                     for key, default in TEXT_SETTINGS.items() for value in [values[key]]}
-        for key, value in {'engine': args.engine, 'reference': args.reference, 'name': ''}.items():
-            self.vars[key] = tk.StringVar(value=str(value))
-        self.proc = None; self.running = False; self.stopping = False; self.closing = False
-        self.output = None; self.folder = None; self.started = 0
-        self.events = queue.Queue(maxsize=3000); self.controls = []; self.references = {}; self.reference_drafts = {}
-        self._style(); self._layout(); self._refresh_references()
-        self.vars['motor'].trace_add('write', lambda *_: self._engine_controls())
-        self._engine_controls()
-        if args.transcript.is_file(): self._load(args.transcript, self.transcript)
-        self.root.protocol('WM_DELETE_WINDOW', self.close)
-        self.root.bind('<Control-Return>', lambda _event: self.generate())
-        self.root.after(100, self.poll)
+    def __init__(self, args=None, build_command=None):
+        # Historical callers constructed Studio directly, bypassing text_studio.main.
+        # Keep their constructor/run contract, but never create a second Tk window.
+        # Overrides cannot be safely transferred into the application's secure config.
+        if args is not None or build_command is not None:
+            raise SystemExit('The legacy studio has been retired. Open ses-studyosu.bat '
+                             'and choose voice/settings there; legacy overrides are not applied.')
+        self._shared_studio = True
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('shared_voice_studio_launcher', ROOT / 'tools/voxcpm2/text_studio.py')
+        launcher = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(launcher)
+        launcher.main()
 
     def _style(self):
         style = ttk.Style(self.root); style.theme_use('clam')
@@ -406,4 +390,10 @@ class Studio:
         else: self.root.destroy()
 
     def run(self):
-        self.root.mainloop()
+        # The canonical launcher already opened the application.
+        if not getattr(self, '_shared_studio', False):
+            raise RuntimeError('Open ses-studyosu.bat to use the shared voice studio.')
+
+
+if __name__ == '__main__':
+    Studio().run()
