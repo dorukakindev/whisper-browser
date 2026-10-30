@@ -17241,7 +17241,11 @@ function timelineWindow() {
   return { start, end: start + zoom };
 }
 
-function timelineMarkDirty(message) {
+function timelineMarkDirty(message, { automatic = false } = {}) {
+  if (!automatic) {
+    const before=new Set((player.timeline.annotationSnapshot||[]).map(c=>JSON.stringify([c.start,c.end,c.text])));
+    for (const cue of player.cues) if(!before.has(JSON.stringify([cue.start,cue.end,cue.text]))) cue.timingLocked=true;
+  }
   migrateTimelineAssociations();
   const drawer = $('timelineDrawer');
   if (drawer) drawer.classList.add('dirty');
@@ -17308,7 +17312,7 @@ function timelinePersistRecovery() {
     if (!rec) return;
     window.api.timelineRecovery({
       action: 'save', sourceKey: key, baseSig: rec.baseSig,
-      cues: player.cues.map((c) => ({ start: c.start, end: c.end, text: c.text })),
+      cues: player.cues.map((c) => ({ start: c.start, end: c.end, text: c.text, timingLocked:!!c.timingLocked })),
     }).catch(() => {});
   }, 1200);
 }
@@ -17347,9 +17351,9 @@ async function timelineCheckRecovery() {
   });
   if (await restore) {
     timelinePushUndo();
-    player.cues = rec.cues.map((c) => ({ start: Number(c.start) || 0, end: Number(c.end) || 0, text: String(c.text || '') }));
+    player.cues = rec.cues.map((c) => ({ start: Number(c.start) || 0, end: Number(c.end) || 0, text: String(c.text || ''), timingLocked:c.timingLocked===true }));
     clearCueWordData(player.cues); // kayıt yalnız start/end/text taşır — bayat word/confidence sızmaz
-    timelineMarkDirty(uiText('Kurtarma kaydı geri yüklendi — kopya olarak kaydetmeyi unutmayın'));
+    timelineMarkDirty(uiText('Kurtarma kaydı geri yüklendi — kopya olarak kaydetmeyi unutmayın'),{automatic:true});
   }
   await timelineClearRecovery(key);
 }
@@ -17378,6 +17382,7 @@ function timelineBlocksFileWrites() {
 }
 
 function drawTimeline() {
+  if($('timelineTimingUnlock'))$('timelineTimingUnlock').disabled=!player.cues[player.timeline.selected]?.timingLocked;
   const canvas = $('timelineCanvas');
   const drawer = $('timelineDrawer');
   if (!canvas || !drawer || drawer.classList.contains('hidden')) return;
@@ -18374,6 +18379,7 @@ if ($('timelineToggle')) $('timelineToggle').addEventListener('click', () =>
   player.timeline.open ? closeTimeline() : openTimeline());
 if ($('timelineClose')) $('timelineClose').addEventListener('click', closeTimeline);
 if ($('timelineZoom')) $('timelineZoom').addEventListener('change', drawTimeline);
+$('timelineTimingUnlock')?.addEventListener('click',()=>{const cue=player.cues[player.timeline.selected];if(!cue?.timingLocked)return;timelinePushUndo();delete cue.timingLocked;timelineMarkDirty(interfaceChoice('Seçili bloğun zaman kilidi kaldırıldı.','Selected timing unlocked.'),{automatic:true});});
 if ($('timelineBack')) $('timelineBack').addEventListener('click', () => timelineNudge(-.1));
 if ($('timelineForward')) $('timelineForward').addEventListener('click', () => timelineNudge(.1));
 if ($('timelineSplit')) $('timelineSplit').addEventListener('click', timelineSplitCue);
@@ -18401,7 +18407,7 @@ if ($('timelineUndo')) $('timelineUndo').addEventListener('click', () => {
     drawTimeline();
     return;
   }
-  timelineMarkDirty('Son zamanlama değişikliği geri alındı');
+  timelineMarkDirty('Son zamanlama değişikliği geri alındı',{automatic:true});
 });
 if ($('timelineRedo')) $('timelineRedo').addEventListener('click', () => {
   const next = player.timeline.redo?.pop();
@@ -18409,7 +18415,7 @@ if ($('timelineRedo')) $('timelineRedo').addEventListener('click', () => {
   player.timeline.undo.push(player.cues.map(c => ({ ...c })));
   player.timeline.annotationSnapshot = player.cues.map(c => ({ ...c }));
   player.cues = next;
-  timelineMarkDirty('Zamanlama değişikliği yinelendi');
+  timelineMarkDirty('Zamanlama değişikliği yinelendi',{automatic:true});
 });
 
 if ($('timelineCanvas')) {
@@ -33131,10 +33137,14 @@ function loadSceneNotes(){try{const r=sceneInterval(),row=sceneStore().find(v=>v
 $('sceneLoad')?.addEventListener('click',loadSceneNotes);
 $('sceneSave')?.addEventListener('click',()=>{try{const r=sceneInterval(),key=sceneNoteKey(r);if($('sceneSummary').dataset.binding!==key)throw Error(interfaceChoice('Önce bu aralığın notlarını yükle.','Load this interval’s notes first.'));const rows=sceneStore().filter(v=>v.key!==key);rows.push({key,context:sceneFields()});localStorage.setItem('scene-context-v1',JSON.stringify(rows.slice(-100)));sceneStatus(interfaceChoice('Bu kaynak ve aralık için kaydedildi.','Saved for this source and interval.'));}catch(e){sceneStatus(e.message);}});
 $('sceneTranslate')?.addEventListener('click',async()=>{try{const r=sceneInterval();if(!r.count)throw Error(interfaceChoice('Aralıkta altyazı yok.','No subtitles in this interval.'));if($('sceneSummary').dataset.binding!==sceneNoteKey(r))throw Error(interfaceChoice('Önce bu aralığın notlarını yükle.','Load this interval’s notes first.'));if(state.running||state.queueRunning||$('makeTransBtn')?.disabled)throw Error(interfaceChoice('Önce kaynak altyazıyı seç ve çalışan işi bitir.','Select the source subtitle and wait for the current job.'));state.translateSceneContext=sceneFields();await startRangeRetranslate(r);}catch(e){state.translateSceneContext=null;sceneStatus(e.message);}});
-$('timingPreview')?.addEventListener('click',()=>{try{const r=sceneInterval(),proposal=SceneTimingTools.propose(player.cues,{shots:(player.timeline.analysis?.shots||[]).map(t=>subtitleSourceTime(t,false)),fps:Number($('timelineQcFps').value),lo:r.lo,hi:r.hi});if(!proposal.changes.length){sceneStatus(interfaceChoice('Güvenli zaman önerisi bulunamadı. Önce kesim analizi yapabilirsin.','No safe timing suggestions. You can analyze cuts first.'));return;}const key=player.mediaKey,generation=currentGeneration(),transform=JSON.stringify([subtitleSourceTime(0),subtitleSourceTime(1)]),dialog=document.createElement('dialog');dialog.className='timing-review';const title=document.createElement('h2');title.textContent=interfaceChoice('Zaman önerilerini incele','Review timing suggestions');const hint=document.createElement('p');hint.textContent=interfaceChoice('Yalnız sessizliğe uzatır; konuşmayı kırpmaz. Uyguladıktan sonra Geri al kullanılabilir.','Extends into silence only; does not trim speech. Undo is available after applying.');const list=document.createElement('div');list.className='timing-review-list';for(const c of proposal.changes){const row=document.createElement('div');row.className='timing-review-row';row.textContent='#'+(c.index+1)+' · '+player.cues[c.index].text+'\n'+c.before.start.toFixed(3)+'–'+c.before.end.toFixed(3)+' → '+c.after.start.toFixed(3)+'–'+c.after.end.toFixed(3);list.append(row);}const footer=document.createElement('footer'),cancel=document.createElement('button'),apply=document.createElement('button');cancel.className=apply.className='tool-button';cancel.textContent=interfaceChoice('Vazgeç','Cancel');apply.textContent=interfaceChoice('Uygula','Apply');cancel.onclick=()=>dialog.close();apply.onclick=()=>{if(key!==player.mediaKey||staleGeneration(generation)||transform!==JSON.stringify([subtitleSourceTime(0),subtitleSourceTime(1)])||SceneTimingTools.signature(player.cues)!==proposal.base){hint.textContent=interfaceChoice('Kaynak değişti; önizlemeyi yeniden aç.','Source changed; reopen preview.');apply.disabled=true;return;}timelinePushUndo();player.cues=proposal.cues;timelineMarkDirty(interfaceChoice('Zaman önerileri uygulandı; geri alınabilir.','Timing suggestions applied; undo available.'));dialog.close();};footer.append(cancel,apply);dialog.append(title,hint,list,footer);document.body.append(dialog);dialog.addEventListener('close',()=>dialog.remove(),{once:true});dialog.showModal();}catch(e){sceneStatus(e.message);}});
+function previewTimingChanges(audioSilence=false){try{const r=sceneInterval(),proposal=audioSilence?SceneTimingTools.proposeSilence(player.cues,{silences:SceneTimingTools.silenceIntervals(player.timeline.waveform,{start:player.timeline.waveformStart||0,duration:player.timeline.waveformDuration}).map(s=>({start:subtitleSourceTime(s.start,false),end:subtitleSourceTime(s.end,false)})),lo:r.lo,hi:r.hi}):SceneTimingTools.propose(player.cues,{shots:(player.timeline.analysis?.shots||[]).map(t=>subtitleSourceTime(t,false)),fps:Number($('timelineQcFps').value),lo:r.lo,hi:r.hi});if(!proposal.changes.length){sceneStatus(audioSilence?interfaceChoice('Öneri yok. Yerel ses dalgasını yükle; sessizlik yakınında olmayan ve kilitli bloklar korunur.','No suggestions. Load the local waveform; locked cues and cues away from silence are preserved.'):interfaceChoice('Güvenli zaman önerisi bulunamadı. Önce kesim analizi yapabilirsin.','No safe timing suggestions. You can analyze cuts first.'));return;}const key=player.mediaKey,generation=currentGeneration(),transform=JSON.stringify([subtitleSourceTime(0),subtitleSourceTime(1)]),dialog=document.createElement('dialog');dialog.className='timing-review';const title=document.createElement('h2');title.textContent=interfaceChoice('Zaman önerilerini incele','Review timing suggestions');const hint=document.createElement('p');hint.textContent=interfaceChoice('Yalnız sessizliğe uzatır; konuşmayı kırpmaz. Uyguladıktan sonra Geri al kullanılabilir.','Extends into silence only; does not trim speech. Undo is available after applying.');const list=document.createElement('div');list.className='timing-review-list';for(const c of proposal.changes.slice(0,200)){const row=document.createElement('div');row.className='timing-review-row';row.textContent='#'+(c.index+1)+' · '+player.cues[c.index].text+'\n'+c.before.start.toFixed(3)+'–'+c.before.end.toFixed(3)+' → '+c.after.start.toFixed(3)+'–'+c.after.end.toFixed(3);list.append(row);}if(proposal.changes.length>200)hint.textContent+=' '+interfaceChoice('İlk 200 değişiklik gösteriliyor; toplam '+proposal.changes.length+' blok uygulanacak.','Showing the first 200 changes; all '+proposal.changes.length+' changes will be applied.');const footer=document.createElement('footer'),cancel=document.createElement('button'),apply=document.createElement('button');cancel.className=apply.className='tool-button';cancel.textContent=interfaceChoice('Vazgeç','Cancel');apply.textContent=interfaceChoice('Uygula','Apply');cancel.onclick=()=>dialog.close();apply.onclick=()=>{if(key!==player.mediaKey||staleGeneration(generation)||transform!==JSON.stringify([subtitleSourceTime(0),subtitleSourceTime(1)])||SceneTimingTools.signature(player.cues)!==proposal.base){hint.textContent=interfaceChoice('Kaynak değişti; önizlemeyi yeniden aç.','Source changed; reopen preview.');apply.disabled=true;return;}timelinePushUndo();player.cues=proposal.cues;timelineMarkDirty(interfaceChoice('Zaman önerileri uygulandı; geri alınabilir.','Timing suggestions applied; undo available.'),{automatic:true});dialog.close();};footer.append(cancel,apply);dialog.append(title,hint,list,footer);document.body.append(dialog);dialog.addEventListener('close',()=>dialog.remove(),{once:true});dialog.showModal();}catch(e){sceneStatus(e.message);}}
+$('timingPreview')?.addEventListener('click',()=>previewTimingChanges());
+$('timingSilencePreview')?.addEventListener('click',()=>previewTimingChanges(true));
 document.querySelector('.timeline-product-panel')?.addEventListener('toggle',event=>{if(event.target.open)loadSceneNotes();});
 function localizeProduct609(){for(const node of document.querySelectorAll('.timeline-product-panel [data-en]'))node.textContent=interfaceChoice(node.dataset.tr,node.dataset.en);}
 document.addEventListener('ui-locale-change',localizeProduct609);localizeProduct609();
+function timingLockLabel(){const b=$('timelineTimingUnlock');if(b)b.textContent=interfaceChoice(b.dataset.tr,b.dataset.en);}
+document.addEventListener('ui-locale-change',timingLockLabel);timingLockLabel();
 
 function offerCompatibleMedia(){
  const file=player.localPath,key=player.mediaKey,generation=currentGeneration(),video=$('playerVideo');if(!file||player.compatibilityAttempt===generation||document.getElementById('compatibleMediaDialog'))return;

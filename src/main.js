@@ -20549,6 +20549,7 @@ ipcMain.handle('timeline:recovery', (event, payload = {}) => {
         cues: cues.map((c) => ({
           start: Number(c?.start) || 0, end: Number(c?.end) || 0,
           text: String(c?.text ?? '').slice(0, 4000),
+          timingLocked: c?.timingLocked === true,
         })).slice(0, 50000),
       };
       // Kayıt çok fazla kaynak biriktirmesin: en eski 20 üzeri atılır.

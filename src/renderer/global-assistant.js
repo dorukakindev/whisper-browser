@@ -52,6 +52,7 @@
       function decorate(row){
         const result={...row,role:row.role==='assistant'?'ai':row.role,loading:row.status==='streaming'||!!row.loading,error:['failed','stopped'].includes(row.status)||!!row.error};
         result.links=(row.evidence||[]).slice(0,40).map((e,index)=>{const id='e:'+threadId+':'+row.id+':'+index;links.set(id,{evidence:e});return {id,label:Math.floor(e.start/60)+':'+String(Math.floor(e.start%60)).padStart(2,'0'),excerpt:e.text,translation:e.translation||''};});
+        for(const [index,c]of(row.citations||[]).entries()){const id='b:'+threadId+':'+row.id+':'+index;links.set(id,{bookCitation:c});result.links.push({id,label:'['+c.id+'] '+(tr?'Sayfa ':'Page ')+c.page,excerpt:c.text});}
         if(/Web sources:|Web kaynakları:/.test(row.text||''))for(const [index,match] of [...String(row.text).split(/Web sources:|Web kaynakları:/).at(-1).matchAll(/https?:\/\/[^\s<>]+/g)].slice(0,10).entries()){const id='w:'+threadId+':'+row.id+':'+index;links.set(id,{external:match[0]});result.links.push({id,label:match[0]});}
         result.actions=(row.actions||[]).map((action,index)=>{const id='p:'+threadId+':'+row.id+':'+index;proposedActions.set(id,action);return {id,kind:action.kind,label:action.label||'',excerpt:action.kind==='app_action'?action.summary||'':action.source?.text||'',translation:action.translation||'',...window.AssistantAgentUI?.flowInfo(action),resultStatus:action.resultStatus||'',resultText:action.resultText||'',time:action.source?.start};});return result;
       }
@@ -123,7 +124,7 @@
       window.AssistantWorkspace?.clear();
       if(!document.querySelector('#aiChatLog .ai-msg'))$('aiChatEmpty')?.classList.remove('hidden');
     }
-    else if (packet.action === 'citation') {const target=links.get(packet.text);if(target?.external)void window.api.openExternal(target.external);else if(target?.evidence)void applyProposal({kind:'seek_to_time',source:target.evidence}).catch(error=>{toolNotice=error.message;publish();});else target?.click();}
+    else if (packet.action === 'citation') {const target=links.get(packet.text);if(target?.bookCitation)void window.BookAssistantUI.assistant.navigate(target.bookCitation).catch(error=>{toolNotice=error.message;publish();});else if(target?.external)void window.api.openExternal(target.external);else if(target?.evidence)void applyProposal({kind:'seek_to_time',source:target.evidence}).catch(error=>{toolNotice=error.message;publish();});else target?.click();}
     else if (packet.action === 'suggestion') {
       const row = suggestions.get(packet.text);
       if (row?.scope !== aiSourceScope()) { publish(); return; }

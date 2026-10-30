@@ -196,10 +196,21 @@
     window.PdfReaderSearchUI?.reset();
     prepareToken++;preparing=false;$("pdfVoicePrepare").disabled=false;$("pdfVoicePreviewOpen").disabled=false;manualFollowUntil=0;
     stopBookAssistant?.();
+    $("pdfCitationBack")?.remove();
     $("pdfBookAssistant").replaceChildren();
     const owner = player.pdfReader;
+    let citationSequence=0;
     stopBookAssistant = window.BookAssistantUI?.mount($("pdfBookAssistant"), {
       t: (en, tr) => t(tr, en),
+      onNavigate:async citation=>{
+        if(player.pdfReader!==owner||citation.sourceId!==owner.pdfHash||citation.page>owner.pdf.numPages)throw Error('Document changed.');
+        const request=++citationSequence,from=owner.currentPage||1;
+        const jump=async page=>{$('pdfReaderPage').value=String(page);$('pdfReaderPage').dispatchEvent(new Event('change'));await renderPdfReaderPage(page);if(player.pdfReader!==owner||request!==citationSequence||owner.currentPage!==page)return;owner.pages.get(page)?.article?.scrollIntoView({block:'start',behavior:'instant'});};
+        await jump(citation.page);
+        if(player.pdfReader!==owner||request!==citationSequence||owner.currentPage!==citation.page)return;
+        let back=$('pdfCitationBack');if(!back){back=document.createElement('button');back.id='pdfCitationBack';back.className='tool-button pdf-citation-return';document.querySelector('.pdf-reader-status-line').append(back);}
+        back.textContent=t('Alıntı öncesine dön · '+from,'Return to page '+from);back.onclick=()=>{if(player.pdfReader!==owner||request!==citationSequence)return;void jump(from).then(()=>{if(player.pdfReader===owner&&request===citationSequence)back.remove();}).catch(()=>{$('pdfReaderStatus').textContent=t('Sayfa açılamadı.','Could not open page.');});};back.focus({preventScroll:true});
+      },
       onSearch:(args,current)=>window.AssistantBookSearch.scan({total:owner.pdf.numPages,start:args.start||1,query:args.query,current,title:context()?.title||'',getText:async page=>{const loaded=await owner.pdf.getPage(page);const content=await loaded.getTextContent();return content.items.map(item=>item.str||'').join(' ');}}),
       onPrepare:async(args,stale,actionOwner)=>{if(player.pdfReader!==owner||stale())throw Error("Document changed.");$("pdfVoiceFrom").value=String(args.from);$("pdfVoiceTo").value=String(args.to);$("pdfVoiceText").value=args.text==='translation'?'translation':'source';return prepareVoice(stale,false,actionOwner);},
       onNarrate:()=>{if(player.pdfReader!==owner)return false;$("pdfVoicePanel").classList.remove("hidden");$("pdfVoiceOpen").setAttribute("aria-expanded","true");for(const id of ["pdfVoiceFrom","pdfVoiceTo"])$(id).value=String(owner.currentPage||1);$("pdfVoiceFrom").focus();return true;},

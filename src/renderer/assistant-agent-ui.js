@@ -35,6 +35,7 @@
   if(text.length>32000)text=t('Earlier flow text was shortened.\n','Önceki akış metni kısaltıldı.\n')+text.slice(-31800);
   task.trace=(task.trace||[]).map(row=>row.state==='running'?{...row,state:'stopped'}:row);window.AssistantWorkspace?.steps?.(task.job,task.trace);
   task.job.bubble.classList.remove('is-loading');if(state!=='complete')task.job.bubble.classList.add('ai-msg-err');
+  if(result?.ok&&current)window.AssistantWorkspace?.citations?.(task.job,result.bookCitations||[]);
   renderAiText(task.job.bubble,text);window.AssistantWorkspace?.finish(task.job,text,state);
   if(result?.ok&&current){player.chatHistory=[...history,{role:'user',content:question},{role:'assistant',content:text}].slice(-24);player.chatHistoryScope=scope;document.dispatchEvent(new CustomEvent('assistant-answer',{detail:{text,context}}));}
   if(!resume&&!result?.ok&&current&&!task.cancelled&&!result?.cancelled)retryPacket={question,context,history,scope,owner:task.owner};

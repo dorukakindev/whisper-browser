@@ -4945,7 +4945,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         # Tüm toplu yanıt bozuksa ikili paket, yalnız belirli gruplar eksikse
         # doğrudan tekil istek kullan. Eksik olduğu zaten kanıtlanmış grubu
         # başka bir eksikle yeniden paketlemek gereksiz bir ek tur yaratır.
-        bundle_width = 2 if batched and len(groups_to_retry) > 2 else 1
+        bundle_width = (6 if len(groups_to_retry) >= 12 else 2) if batched and len(groups_to_retry) > 2 else 1
         for offset in range(0, len(groups_to_retry), bundle_width):
             bundle_groups = groups_to_retry[offset:offset + bundle_width]
             bundles.append((bundle_groups, [
@@ -5089,8 +5089,18 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                             f"({retry_error}); tek gruplara ayrılıyor.",
                             "warn",
                         )
-                        for group in bundle_groups:
-                            rec += rescue_group(group)
+                        remaining = [group for group in bundle_groups
+                                     if not all(index in done_idx for index in group)]
+                        if len(bundle_groups) > 2:
+                            # Structural failures shrink 6 -> 2 -> 1. Successful
+                            # groups are never resent; sentence groups stay intact.
+                            for offset in range(0, len(remaining), 2):
+                                smaller = remaining[offset:offset + 2]
+                                _, count = process_bundle((smaller, [i for group in smaller for i in group]))
+                                rec += count
+                        else:
+                            for group in remaining:
+                                rec += rescue_group(group)
                     else:
                         with lock:
                             for index in bundle:

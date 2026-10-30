@@ -106,6 +106,8 @@ test("book projects keep edited text, use authorized narration jobs, and reject 
       false,
       "review audio cannot silently become a finished audiobook",
     );
+    const readiness=await call('book-readiness',{id,chapters:[0]});assert(readiness.ok,readiness.error);assert.equal(readiness.ready,false);assert(readiness.rows[0].reasons.includes('review'));assert.equal(readiness.rows[0].reviewGroups,1);
+    assert.equal((await call('book-readiness',{id,chapters:[-1]})).ok,false);
     assert.equal((await call("book-open", { id: "../../escape" })).ok, false);
     assert.equal(
       (await call("book-prepare", { id, chapter: "__proto__" })).ok,
