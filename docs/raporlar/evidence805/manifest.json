@@ -1,0 +1,17 @@
+[
+  {
+    "file": "assistant-480-long-message-light.png",
+    "sha256": "ff9e429c54aca18b2ee79e51e2ec8034a93dfd2f76f8998bafcac7d95c614813",
+    "source": "isolated real Windows Electron controlled HTTP/SSE synthetic content"
+  },
+  {
+    "file": "assistant-480-action-card-light.png",
+    "sha256": "68101ea5d676be638d66464e2967d101c4860550278bab19c537c413fff683b6",
+    "source": "isolated real Windows Electron controlled HTTP/SSE synthetic content"
+  },
+  {
+    "file": "assistant-480-cancelled-dark.png",
+    "sha256": "9ac2540ba9ac8c4d9908c1e8bfc611b0900512194465bc252f272d2573e106f3",
+    "source": "isolated real Windows Electron controlled HTTP/SSE synthetic content"
+  }
+]

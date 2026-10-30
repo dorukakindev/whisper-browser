@@ -1,3 +1,4 @@
+- [Rapor805](BROWSER_BUG_REPORT_805.md) — Ürün100 P21–P30: asistan inceleme nedeni, ayar farkı ve parametre yardımı
 - [Rapor804](BROWSER_BUG_REPORT_804.md) — Ürün100 P11–P20: filtre, retry rehberi ve sözlük önizlemesi
 - [Rapor803](BROWSER_BUG_REPORT_803.md) — Ürün50 P01–P10: filtre, güvenli gezinme ve referans geri bildirimi
 - [Rapor802](BROWSER_BUG_REPORT_802.md) — Gerçek DeepSeek/GPU kabulü, anlam kapısı ve referans seçimi
