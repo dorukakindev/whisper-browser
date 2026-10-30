@@ -1,0 +1,590 @@
+{
+  "head": "df94b3d60b7123a682cd0062371bbb2850a5fb60",
+  "productChanges": false,
+  "findings": [
+    {
+      "id": "STORAGE01",
+      "severity": "P2",
+      "title": "Varlık önbelleğini temizleme SQLite tarafından kullanılan kapalı medya altyazılarını silip geri yüklemeyi bozuyor",
+      "sources": [
+        "src/main.js:19389",
+        "src/main.js:19432",
+        "src/main.js:19446",
+        "src/main.js:9888",
+        "src/browser-asset-gc.js:18",
+        "src/watch-index.js:366",
+        "src/job-timing-helpers.js:255",
+        "src/renderer/renderer.js:2984",
+        "src/renderer/renderer.js:2995",
+        "src/preload.js:332"
+      ],
+      "reproduce": [
+        "Gerçek persistBrowserTrack ile sentetik medya altyazısı kaydet; üretici sekmesini kapalı kabul et (açık/session/workspace listesinde yok).",
+        "Aynı SQLite indeksindeki satırla gerçek restorePersistedBrowserTracks çağrısı 1 döner. Startup pruneAndSweepTracks aynı dosyayı korur.",
+        "Gerçek cache:clear handlerını yetkili event ve kind:assets ile çağır.",
+        "Aynı gerçek restorePersistedBrowserTracks 0 döner; SQLite tracks/cues satırları yerinde."
+      ],
+      "expected": "UI yalnız referanssız dosyaların temizleneceğini bildirir; tıklama doğrudan IPCye gider, kapalı medyanın kayıtlı altyazılarını silme için ek onay/uyarı yoktur. SQLite tarafından hâlâ kullanılan ve restorasyonun tek dosya girdisi olan asset korunmalı veya yönetilen yeniden kurma sağlanmalı.",
+      "observed": "clear ok:true, removed:4 (SQLite tek canlı çift + gerçek yetim çift); indexRowsAfter:1 ve sqliteCueCount:1; restoreBefore:1, restoreAfter:0. Workspace referansı korunur, gerçek yetim silinir, yetkisiz istek ret.",
+      "cause": "Açılış GC koruma kümesine index.listTrackAssetPaths eklerken bakım handlerı yalnız tab/session/workspace trackRefs topluyor. maxAgeMs:0 ile SQLite canlı dosyası da anında siliniyor. restorePersistedBrowserTracks sadece getTrack(row.asset_path) okur, SQLite cues üzerinden onarmaz.",
+      "impact": "Kapatılmış videoya ait yakalanmış altyazı/çeviri uygulamada tekrar açılamaz. SQLite cue metni kalır; bütün metnin geri dönülmez silindiği iddia edilmez. Yeniden yakalama veya dış onarım gerekebilir.",
+      "prior": "R83-B27/R86-02 ters yöndeki workspace/session referanslarını açılış GCye ekledi; bu kök farklı bakım IPC tüketicisinde SQLite referansının eksikliği. R390 önbellek ekranı ve yalnız referanssız temizleme iddiası tarihsel; bu bileşim doğrulanmamış. R815-B83/B90 sunum metadata/içerik bütünlüğü, B55 video paket eşlemesi, B94 indirme hedefi silme ayrı kökler.",
+      "limits": "Node24 Windows; gerçek SQLite/asset disk ve değişmemiş üretici/IPC/restore fonksiyonları. Electron sender yetkilendirmesi, app.getPath, oturum/workspace sınırı sentetik facade; native UI/start.bat/kişisel medya/gerçek site yok.",
+      "acceptance": "SQLite canlı asset yalnız bu tab kapalı diye silinmesin; başlangıç/manuel GC aynı sahiplik invariantını kullansın veya restore varlığı SQLite kanıtından güvenle kurabilsin. Workspace/session/açık sekme koruması, yetkisiz ret ve gerçek yetim temizliği sürsün.",
+      "sourceSha256": {
+        "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+        "src/browser-asset-store.js": "e0074630121be782e6787e47964ee9285002f5f0dc00c1316b215523ebf81ce9",
+        "src/browser-asset-gc.js": "6775aff0219af78cf6a8cd9b727aa23799b2f6c38cc061bbd0b04f5c2e1d783b",
+        "src/watch-index.js": "eda5c6636558a47818483c7a85da492ade98a0b253566c60649d7dacf2b0f41e",
+        "src/browser-translation-archive.js": "e9d6989483f321ece28cdb5d287e0b231f7e0235f9a17026f717c7add0220253",
+        "src/browser-capture-recovery.js": "584339bf34051491c69b21e983e12531937168d7b3299dc9926e2f0cc8ccf686",
+        "src/job-timing-helpers.js": "390ee0bb1c83204ac9dde9f26432efc973786aba19ec94e255c20b3a2bac5f52",
+        "src/renderer/renderer.js": "4853b2fe48da6a383e2438895c747a0ba79820eb58470da5ac66de476f8b66d6",
+        "src/preload.js": "c035a7b77125def6b44ce121ff21a6f0dde717179c9ff38970d1d5b335e2796c"
+      }
+    },
+    {
+      "id": "STORAGE02",
+      "severity": "P1",
+      "title": "Windows’ta arşiv başlığının yalnız harf büyüklüğü değişince yeni JSON ve gösterim dosyaları başarı yanıtından önce siliniyor",
+      "sources": [
+        "src/browser-translation-archive.js:238",
+        "src/browser-translation-archive.js:247",
+        "src/browser-translation-archive.js:253",
+        "src/browser-translation-archive.js:257",
+        "src/browser-translation-archive.js:285",
+        "src/browser-translation-archive.js:352",
+        "src/main.js:7031",
+        "src/main.js:7054"
+      ],
+      "reproduce": [
+        "Case-insensitive gerçek Windows diskte aynı URL, dil, kaynak ve çeviriyle title:Fixture Article kaydet. Gerçek main restore 1 blok uygular.",
+        "Aynı veriyi title:fixture article ile yeniden gerçek main persistBrowserPageTranslationArchive üzerinden kaydet.",
+        "İkinci savePage ok:true döner fakat indexte gösterilen JSON+MD yok; gerçek main restore ok:false, missing:true.",
+        "Aynı mediaId/sourceHash/trackId ve cue ile saveSubtitle başlığını Fixture Video→fixture video değiştir; ikinci yanıt ok:true fakat JSON+SRT yok."
+      ],
+      "expected": "Başlığın harf biçimi değişimi aynı fiziksel dosyayı yeni retained dosya olarak korumalı; save ok:true sonrasında indexin işaret ettiği çift okunabilmeli.",
+      "observed": "Sayfa ve altyazı çiftleri ikinci başarılı kayıtta silindi; indeks 1 girdi ve son başlıkla kaldı. page findPage null ve gerçek main consumer missing:true. Aynı başlık tekrarında ve başka fiziksel ada dönüşümde bütün dosyalar ve restore sağlam.",
+      "cause": "Dosya steminde title vardır. Yeni aynı içerik/id steminin yalnız case farkı Windows’ta aynı dosyaları adresler. _saveIndex retained Set path.resolve dizelerini case-sensitive karşılaştırır; eski yol retained görülmez, unlinkSync eski yazım yolundan yeni dosyayı da siler.",
+      "impact": "Başlık recase sonrası kalıcı sayfa çevirisi ve altyazı çeviri arşivi kaydı dosyaları kaybolur; index başarıyla yazıldığından hata bildirilmez ve sonraki sayfa geri yüklemesi yapılamaz. Altyazı asset store ayrıca sağlam kalmışsa ileride restore arşivi yeniden üretebilir; her medya kopyasının kalıcı kaybolduğu iddia edilmez.",
+      "prior": "R26-B9/R73-Y6/R515-B02/R517 revizyon/eviction orphan temizliği bilinen düzeltmelerdir; yeniden bug sayılmaz. Yeni kök retained path karşılaştırmasının gerçek Windows case aliasını ayıramaması ve kendi yeni dosyasını silmesi. R465 hash-route ve R475 boş eşleşme, R497 bağımsız seçim ayrı invariantlar; R815 126 başlık ve metadata/içerik-hash kayıtlarıyla çakışmaz.",
+      "limits": "Gerçek Windows dosya davranışı; ASCII başlık yalnız case değişimi. NTFS tüm ayarlar/8.3/symlink/junction/NFC alias garantisi veya gerçek web başlık sıklığı ölçülmedi. Main page scan/apply/instrumentation sınırı sentetik; gerçek persist/restore fonksiyonları ve archive/findPage/disk kullanıldı.",
+      "acceptance": "Windows dosya kimliği aliası retained karşılaştırmasında korunsun veya title olmayan sabit adlandırma kullanılsın. Aynı başlık, case-only değişim ve farklı ad değişiminden sonra indeks çiftleri bulunmalı ve page restore çalışmalı; gerçekten superseded dosyalar temizlenmeye devam etmeli.",
+      "sourceSha256": {
+        "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+        "src/browser-asset-store.js": "e0074630121be782e6787e47964ee9285002f5f0dc00c1316b215523ebf81ce9",
+        "src/browser-asset-gc.js": "6775aff0219af78cf6a8cd9b727aa23799b2f6c38cc061bbd0b04f5c2e1d783b",
+        "src/watch-index.js": "eda5c6636558a47818483c7a85da492ade98a0b253566c60649d7dacf2b0f41e",
+        "src/browser-translation-archive.js": "e9d6989483f321ece28cdb5d287e0b231f7e0235f9a17026f717c7add0220253",
+        "src/browser-capture-recovery.js": "584339bf34051491c69b21e983e12531937168d7b3299dc9926e2f0cc8ccf686",
+        "src/job-timing-helpers.js": "390ee0bb1c83204ac9dde9f26432efc973786aba19ec94e255c20b3a2bac5f52",
+        "src/renderer/renderer.js": "4853b2fe48da6a383e2438895c747a0ba79820eb58470da5ac66de476f8b66d6",
+        "src/preload.js": "c035a7b77125def6b44ce121ff21a6f0dde717179c9ff38970d1d5b335e2796c"
+      }
+    }
+  ],
+  "coverage": {
+    "head": "df94b3d60b7123a682cd0062371bbb2850a5fb60",
+    "directModuleSourceMatches": [],
+    "previousTotal": 126,
+    "previousMappingReviewedReference": {
+      "file": "../../other/findings.json",
+      "count": 126
+    },
+    "previousFindingsSha256": "65f6978660bffd13577eee97a8d44f78751c742c1c6eef6cca5227a9cbfbdc62",
+    "mainReportSha256": "f64f63d8ab3c936282d7d3b33d850fbfe22ab9be72c4f2cb8cf6089acadde190",
+    "relatedMainFamilies": [
+      {
+        "previousId": "N0281",
+        "family": "F15",
+        "mechanism": "normal",
+        "signature": "8def892bdddaf4d4ae43683a2561c8a4f052f4286306119248bbea3beda7bbf9",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0282",
+        "family": "F15",
+        "mechanism": "bos",
+        "signature": "c09cc98b848a4f13938d2222fc4c70d78b426b7555f078d1877e3fd16f0a360a",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0283",
+        "family": "F15",
+        "mechanism": "sinir",
+        "signature": "2d47494697cb3a7b171564302b2f8c920ed06ea3f366ac44c237b978d04f6df0",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0284",
+        "family": "F15",
+        "mechanism": "unicode",
+        "signature": "add6c124e0a5f4a509c419418f82e955164cb49f35a5171feacc96421a993dcc",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0285",
+        "family": "F15",
+        "mechanism": "yinelenen",
+        "signature": "566c32fa473a5b6f5f43471267418f8b78b13a1cd6c696b1c3538d3aa83b7a5b",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0286",
+        "family": "F15",
+        "mechanism": "sira",
+        "signature": "33b30dc4d2387948857345e25ef43461ceca33fd034a1b1643ba59cb321a2f90",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0287",
+        "family": "F15",
+        "mechanism": "iptal-oncesi",
+        "signature": "2bd298a78cbd107d381799590f727bd3fe5278ccf7731d2c37f5506956f10557",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0288",
+        "family": "F15",
+        "mechanism": "iptal-ortasi",
+        "signature": "ebd178a8f71ffac0478abc795597232f5be492e35d480db9895ec77965bef816",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0289",
+        "family": "F15",
+        "mechanism": "gec-sonuc",
+        "signature": "ad477ca266b25ef7d5fcf57ae1060d86583b23a72830868a9e8bc54c820fcbfb",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0290",
+        "family": "F15",
+        "mechanism": "kaynak-degisimi",
+        "signature": "7bca9647110d08d458de0269ec1f682f1ff2b966e37a4ddb2789426b456b4c82",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0291",
+        "family": "F15",
+        "mechanism": "es-zamanli",
+        "signature": "e9b55deb5276d435c27975494490b9d59410c008c33af626d5fc817a9950b0be",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "NOT_APPLICABLE"
+      },
+      {
+        "previousId": "N0292",
+        "family": "F15",
+        "mechanism": "kesik",
+        "signature": "bb3ef818f23acf887b8a0022bcb918c41e4c5f3cf97bb925ca94da972347857f",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0293",
+        "family": "F15",
+        "mechanism": "hata",
+        "signature": "2ea803ece944accbf7506f5d3139be3e2d06fe4ae9b7e28c13798ed429859387",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0294",
+        "family": "F15",
+        "mechanism": "timeout",
+        "signature": "8137dbf19890ed4f6b2ea5846cae853a5ecec029133a945a25303aeaa5a9758b",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "NOT_APPLICABLE"
+      },
+      {
+        "previousId": "N0295",
+        "family": "F15",
+        "mechanism": "yeniden-giris",
+        "signature": "eb2b401b9aaee260e707463849029dc5d698d1605f4fdf721d9937a313de6a4d",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0296",
+        "family": "F15",
+        "mechanism": "donusum",
+        "signature": "fe8c3dac9f54a0b91d2f2f3e3dffabeac0086553e87d27230ca2aa3ca5a4eb6a",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0297",
+        "family": "F15",
+        "mechanism": "yetki",
+        "signature": "86cf473789dbbcd25d9d45ab98ae02a21feed1eea6100293e89a50db458efe1c",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "NOT_APPLICABLE"
+      },
+      {
+        "previousId": "N0298",
+        "family": "F15",
+        "mechanism": "kaynak-butcesi",
+        "signature": "45758f3ef352f465ba0165971ee58ae3912ddf60c804ea0b9180462dc0a6a077",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0299",
+        "family": "F15",
+        "mechanism": "kullanici-geribildirimi",
+        "signature": "51cd6dfc70aa3dfde590efc1ecc7fce91d1a9d70651c32261b47c88002a100a5",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0300",
+        "family": "F15",
+        "mechanism": "birlesik-akis",
+        "signature": "b87f4d1c0ddb6b98affbc1231fecae940146c6381570cddbed96042259f0e7ac",
+        "sources": [
+          "tests/browser-page-translation-main.test.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0861",
+        "family": "F44",
+        "mechanism": "normal",
+        "signature": "8f5e8b60a03e27f8ddb56e8ea5b5eaafc0a820aa20b646724f20298c5ed70505",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0862",
+        "family": "F44",
+        "mechanism": "bos",
+        "signature": "a6d193d0ea746a8e9260621b53b751fccf5035bc07b8a4bda0f29a12195e8d26",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0863",
+        "family": "F44",
+        "mechanism": "sinir",
+        "signature": "4439e3bacb5b554ccb53e673632cf25000e9789fb6aa6ac15c34f30cb9de4010",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0864",
+        "family": "F44",
+        "mechanism": "unicode",
+        "signature": "8e9123b6cfb30fd901c02826b4b658bfa93c39ac63dbd1985d2779f0e7a5ac46",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0865",
+        "family": "F44",
+        "mechanism": "yinelenen",
+        "signature": "934a7daa9acf05f3dd47ba5a58c2cb7018d9c85ce44074d966be526d8f9e80ff",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0866",
+        "family": "F44",
+        "mechanism": "sira",
+        "signature": "a6832850902eacf1dde43b96c6f324ca80005932f4d218ebdd6725c5d47f61d7",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0867",
+        "family": "F44",
+        "mechanism": "iptal-oncesi",
+        "signature": "9abdea0d0a3b8ccbd0bb46002459eb1068ad0b863f8788e1bec1531397c44363",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0868",
+        "family": "F44",
+        "mechanism": "iptal-ortasi",
+        "signature": "38122e5a019ecd8c012e0a5dc5cb32029a2e2308eceb05107f36a6758994900d",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0869",
+        "family": "F44",
+        "mechanism": "gec-sonuc",
+        "signature": "aacfc2bf7c50d7fc2b5a777adcfd8fe9e52877985ebebcda8624e84867e98d6a",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0870",
+        "family": "F44",
+        "mechanism": "kaynak-degisimi",
+        "signature": "1f7f702677c2024dba676fa3b1acd5a391e40296a8939bfe0c15684f3e1156e9",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0871",
+        "family": "F44",
+        "mechanism": "es-zamanli",
+        "signature": "0a6e199ea3ca324d75790ef9bfd77e17ab42cb0419618490204a9fdd49f25967",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0872",
+        "family": "F44",
+        "mechanism": "kesik",
+        "signature": "290714f288ed8397ded6a460d1312cea03286c94ecfe6ea39b1985c71bb4674f",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0873",
+        "family": "F44",
+        "mechanism": "hata",
+        "signature": "9ee7ffbb06d2777f6c653998a0e5bdec0b8f253b536580fd10e86e4373333c47",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0874",
+        "family": "F44",
+        "mechanism": "timeout",
+        "signature": "203db3e0f11ef723e36251544f5552ba864bbd4c952afa13c8da1e217a145e7e",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "NOT_APPLICABLE"
+      },
+      {
+        "previousId": "N0875",
+        "family": "F44",
+        "mechanism": "yeniden-giris",
+        "signature": "08999fcaffdf914c01d28269d5fb90004301756e97e313ac3b6a8d9990c6bcb2",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0876",
+        "family": "F44",
+        "mechanism": "donusum",
+        "signature": "55219373ee5cb2e7e7132ac84a54daafe145c49f50044bc04b47e9e80e69c90c",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0877",
+        "family": "F44",
+        "mechanism": "yetki",
+        "signature": "439275de7928ee2ac5c8efe9325399e69bdcc038b9c5aa8c0ac7250fffa81cfe",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "NOT_APPLICABLE"
+      },
+      {
+        "previousId": "N0878",
+        "family": "F44",
+        "mechanism": "kaynak-butcesi",
+        "signature": "4c110bed5d25080d56913de9ec92e726e0e09152c1369ef654192780070ece00",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      },
+      {
+        "previousId": "N0879",
+        "family": "F44",
+        "mechanism": "kullanici-geribildirimi",
+        "signature": "3d04e461556ce9c5495d182298348a62416c7aa88adbea04dc0f79df9a310e22",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "NOT_APPLICABLE"
+      },
+      {
+        "previousId": "N0880",
+        "family": "F44",
+        "mechanism": "birlesik-akis",
+        "signature": "8c93a2955156d4dd5b48a2309d7fd9ebcb4e7a6a612d9dac60d75791c3b84679",
+        "sources": [
+          "tests/electron-browser-trusted-bridge.smoke.js",
+          " src/main.js"
+        ],
+        "historicalStatus": "PASS"
+      }
+    ],
+    "newEdges": [
+      "manual cache clear lacks SQLite ownership while startup GC preserves it; real persist→clear→restore composition",
+      "archive revision cleanup Windows case-only title alias; real producer→archive→main restore composition"
+    ],
+    "unverifiedLimits": [
+      "Synthetic files under own fixture tree only; no personal stores, browser UI, live network or providers.",
+      "Actual unchanged source function bodies run in VM with explicit boundary facades.",
+      "No full npm/CI/native Windows Electron/browser site/provider/GPU tests. Existing historical PASS rows were not rerun or counted new."
+    ]
+  },
+  "excluded": [
+    {
+      "id": "R26-B9/R73-Y6/R515-B02/R517",
+      "reason": "Known archive revision/orphan lifecycle; not recounted. New case alias distinguished in STORAGE02."
+    },
+    {
+      "id": "R83-B27/R86-02/R87",
+      "reason": "Known startup GC workspace/session protection preserved by current helper; positive countercheck."
+    },
+    {
+      "id": "R815-B55/B83/B84/B90/B94/B119/B120",
+      "reason": "Package mapping, subtitle metadata, content hash, download deletion, diagnostic privacy already counted; excluded."
+    },
+    {
+      "id": "CAPTURE-RECOVERY",
+      "reason": "Read module and actual getBrowserCapturedResponseBody caller; existing browser-capture-recovery.test.js exit0 (fingerprint middle correction, timedtext retry classes, XHR seek epoch rejection, enable/reset). No new concrete failure confirmed; no live CDP/site claim."
+    },
+    {
+      "id": "ARCHIVE-CRASH-ORPHANS",
+      "reason": "Failure between archive pair/index writes overlaps historical R26/R108 coverage; not counted anew."
+    },
+    {
+      "id": "PERSIST-OLD-ASSET-DELETE",
+      "reason": "persistBrowserTrack unconditional previous asset removal may leave saved workspace refs stale; actual workspace consumer impact not independently established. Candidate withheld, not a finding."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "STORAGE-G01",
+      "title": "Ortak yönetilen varlık sahiplik envanteri ve arşiv doğrulama/onarım önizlemesi",
+      "detail": "Kullanıcıya açık hangi depoların dosyayı tuttuğunu ve index→dosya kopukluğunu göstermeyi değerlendir. Toplu otomatik kişisel dosya silme yetkisi değildir; bu öneri bug sayısına dahil değil."
+    }
+  ],
+  "verification": {
+    "probe": "probe.cjs",
+    "result": "results.json",
+    "command": "$env:R815_STORAGE_HEAD=git rev-parse HEAD; node .tmp/rem815-storage/probe.cjs",
+    "counterchecks": "startup GC SQLite keep; workspace keep; true orphan clear; unauthorized IPC; unchanged title; physically different title; before/after actual page and track restore",
+    "existingTest": "node tests/browser-capture-recovery.test.js => exit0",
+    "probeCorrections": "Initial nested git spawn sandbox EPERM replaced with outer verified HEAD env; augmentation helper missing assert fixed; VM Map/Set realm mismatch corrected by injecting host Map/Set. These are harness issues and not product findings."
+  },
+  "publishedEvidence": "results.json"
+}

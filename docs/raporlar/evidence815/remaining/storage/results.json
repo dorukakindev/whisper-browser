@@ -1,0 +1,109 @@
+{
+  "head": "df94b3d60b7123a682cd0062371bbb2850a5fb60",
+  "platform": "win32",
+  "node": "v24.22.0",
+  "sourceSha256": {
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+    "src/browser-asset-store.js": "e0074630121be782e6787e47964ee9285002f5f0dc00c1316b215523ebf81ce9",
+    "src/browser-asset-gc.js": "6775aff0219af78cf6a8cd9b727aa23799b2f6c38cc061bbd0b04f5c2e1d783b",
+    "src/watch-index.js": "eda5c6636558a47818483c7a85da492ade98a0b253566c60649d7dacf2b0f41e",
+    "src/browser-translation-archive.js": "e9d6989483f321ece28cdb5d287e0b231f7e0235f9a17026f717c7add0220253",
+    "src/browser-capture-recovery.js": "584339bf34051491c69b21e983e12531937168d7b3299dc9926e2f0cc8ccf686",
+    "src/job-timing-helpers.js": "390ee0bb1c83204ac9dde9f26432efc973786aba19ec94e255c20b3a2bac5f52",
+    "src/renderer/renderer.js": "4853b2fe48da6a383e2438895c747a0ba79820eb58470da5ac66de476f8b66d6",
+    "src/preload.js": "c035a7b77125def6b44ce121ff21a6f0dde717179c9ff38970d1d5b335e2796c"
+  },
+  "checks": {
+    "indexOnlyAssetClear": {
+      "uiDetail": "only unreferenced files are cleared",
+      "uiClearable": true,
+      "restoreBefore": 1,
+      "restoreAfter": 0,
+      "clear": {
+        "ok": true,
+        "freedBytes": 1193,
+        "removed": 4
+      },
+      "indexRowsAfter": 1,
+      "sqliteCueCount": 1,
+      "workspaceStillReadable": true,
+      "orphanGone": true,
+      "unauthorizedRejected": true
+    },
+    "caseAliasArchive": {
+      "casePage": {
+        "firstOk": true,
+        "secondOk": true,
+        "entries": 1,
+        "jsonExists": false,
+        "mdExists": false,
+        "restorable": false,
+        "indexTitle": "fixture article"
+      },
+      "samePage": {
+        "firstOk": true,
+        "secondOk": true,
+        "entries": 1,
+        "jsonExists": true,
+        "mdExists": true,
+        "restorable": true,
+        "indexTitle": "Fixture Article"
+      },
+      "differentPage": {
+        "firstOk": true,
+        "secondOk": true,
+        "entries": 1,
+        "jsonExists": true,
+        "mdExists": true,
+        "restorable": true,
+        "indexTitle": "Another Article"
+      },
+      "caseSub": {
+        "secondOk": true,
+        "jsonExists": false,
+        "srtExists": false
+      },
+      "sameSub": {
+        "secondOk": true,
+        "jsonExists": true,
+        "srtExists": true
+      },
+      "diffSub": {
+        "secondOk": true,
+        "jsonExists": true,
+        "srtExists": true
+      },
+      "mainProducerConsumer": {
+        "before": {
+          "ok": true,
+          "restored": true,
+          "archivePath": "D:\\Whisper Local\\.tmp\\rem815-storage\\verified-final\\page-main-consumer\\Sayfalar\\Fixture Article-tr-bd6b6e091c-1338bdcf57b5a7fb.md",
+          "translated": 1,
+          "failed": 0,
+          "total": 1,
+          "visible": true,
+          "view": "both",
+          "scope": "article",
+          "autoContinue": false,
+          "completion": {
+            "failed": 0,
+            "pending": 0
+          },
+          "sections": [],
+          "excludedSections": [],
+          "terminology": [],
+          "message": "Kayıtlı sayfa çevirisi arşivden yüklendi; yeniden çeviri yapılmadı."
+        },
+        "after": {
+          "ok": false,
+          "missing": true
+        },
+        "positiveApplyCount": 1
+      }
+    }
+  },
+  "limits": [
+    "Synthetic files under own fixture tree only; no personal stores, browser UI, live network or providers.",
+    "Actual unchanged source function bodies run in VM with explicit boundary facades."
+  ]
+}

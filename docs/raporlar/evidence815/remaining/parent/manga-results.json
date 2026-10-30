@@ -1,0 +1,82 @@
+{
+  "head": "df94b3d60b7123a682cd0062371bbb2850a5fb60",
+  "sourceSha256": {
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+    "src/browser-manga.js": "c338ec1e8359ab312bd4762cfdac609e653950013e7bcb42c9b41fd2ad0f3325",
+    "src/manga-geometry.js": "1ddcde594fff87a3b5b0bac73a7c3b1decda6151292f0f4dcc5e58e707540313",
+    "src/subtitle-sentence-layout.js": "27ec3f1c052cf0a4fd049bd2387ee7804765ef1aec6c05b43e161f2369022c1d",
+    "src/renderer/renderer.js": "4853b2fe48da6a383e2438895c747a0ba79820eb58470da5ac66de476f8b66d6",
+    "src/preload.js": "c035a7b77125def6b44ce121ff21a6f0dde717179c9ff38970d1d5b335e2796c"
+  },
+  "scenarios": [
+    {
+      "id": "control-object-protocol",
+      "result": {
+        "text": "fixture translated text",
+        "parts": null
+      },
+      "requestText": "corrected fixture"
+    },
+    {
+      "id": "MANGA-01-direct",
+      "returned": {
+        "ok": true,
+        "translation": "[object Object]"
+      },
+      "requestText": "",
+      "cachedTranslation": "[object Object]"
+    },
+    {
+      "id": "MANGA-01-retrySelected",
+      "returned": {
+        "ok": true,
+        "translated": 1
+      },
+      "requestText": "",
+      "cachedTranslation": "[object Object]"
+    },
+    {
+      "id": "MANGA-02-stop-navigation",
+      "returned": {
+        "ok": true,
+        "translation": "[object Object]"
+      },
+      "networkSignalAborted": false,
+      "pagesAfterClear": 0,
+      "cacheWritten": true,
+      "postStopScripts": 1,
+      "lateEvents": [
+        {
+          "generation": 2,
+          "type": "manga-edit",
+          "imageId": "image-fixture",
+          "index": 0,
+          "hidden": false,
+          "translation": "[object Object]"
+        },
+        {
+          "generation": 2,
+          "type": "manga-state",
+          "state": "ready",
+          "translated": 0,
+          "message": "Bölge düzeltilen kaynaktan yeniden çevrildi."
+        }
+      ]
+    },
+    {
+      "id": "MANGA-02-newer-edit",
+      "editAccepted": true,
+      "translationAfterCompletion": "[object Object]",
+      "sourceAfterCompletion": "corrected fixture"
+    },
+    {
+      "id": "control-managed-job-stop",
+      "aborted": true,
+      "current": false
+    },
+    {
+      "id": "control-invalid-bridge",
+      "requests": 0
+    }
+  ]
+}

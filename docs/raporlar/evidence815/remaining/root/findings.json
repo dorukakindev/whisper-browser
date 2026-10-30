@@ -1,0 +1,78 @@
+{
+  "head": "df94b3d60b7123a682cd0062371bbb2850a5fb60",
+  "sourceSha256": {
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+    "src/browser-note-store.js": "12d66846246eee6d931dfc3369c379d69d95ae929c82c5af9b1c6a37a08444b0",
+    "src/browser-research-notebook.js": "3e96300d3a2513f3c3cd6b7394812a53572945bc996d9fd9235a7cb89b87619c",
+    "src/browser-learning.js": "469a0c323aa7459f9884251bb337161a09c4818500c83d570771ffef464db68d",
+    "src/renderer/renderer.js": "4853b2fe48da6a383e2438895c747a0ba79820eb58470da5ac66de476f8b66d6",
+    "src/renderer/index.html": "2098777b6c1fbb42b67bb8b5c2fd92b450aa21e976cf3a84ee819093b9b5d29a",
+    "src/preload.js": "c035a7b77125def6b44ce121ff21a6f0dde717179c9ff38970d1d5b335e2796c"
+  },
+  "findings": [
+    {
+      "id": "ROOT-EXPORT",
+      "severity": "P2",
+      "title": "Araştırma defteri Markdown dışa aktarımı 5000 üzerindeki kayıtları kısmi çıktı uyarısı olmadan atlıyor",
+      "sources": [
+        "src/browser-note-store.js:11,283–287",
+        "src/main.js:19027–19042",
+        "src/renderer/renderer.js:26457–26462",
+        "src/renderer/index.html:2960"
+      ],
+      "reproduce": "Gerçek BrowserNoteStore tarafından kabul edilen 5001 sentetik not yükle. Gerçek browser:research:export handler’ına hepsini eşleştiren sorgu ver; native kayıt diyaloğu yalnız test hedefini seçsin. Gerçek Markdown formatter ve atomik yazıcı çıktısını yeniden oku. Üç kayıt ve doğrudan 5001 kayıt formatter karşı kontrollerini çalıştır.",
+      "expected": "“Defteri Markdown olarak dışa aktar” sonucu bütün eşleşen kayıtları içermeli veya kısmi çıktı/toplam/atlanan sayısı açıkça belirtilmeli; kalan kayıtları dışa aktarma yolu bulunmalı.",
+      "observed": "Depoda5001 kabul edilmiş kayıt var; handler ok:true,count5000 döndürüyor. Markdown5000 başlık içeriyor; en eski UNIQUE_RESEARCH_00000 yok, en yeni var. Yanıtta total/truncated/partial/limit/warning alanı yok. Üç kayıt kontrolü3; aynı formatter doğrudan5001 verildiğinde hepsini yazabiliyor.",
+      "cause": "Genel liste filtresinin 5000 tavanı toplu exporta da uygulanıyor. Native export ve renderer başarı mesajı yalnız yazılan count değerini kullanıyor; eşleşen gerçek toplam veya açıklanmış kısmi aktarım sözleşmesi yok.",
+      "impact": "Büyük not/kanıt defterinin taşınabilir çıktısı eksik oluşur ve kullanıcıya eksik olduğu söylenmez. Kaynak notlar depoda kalır; geri dönülmez silme veya bütün kayıtların kaybı iddia edilmez.",
+      "prior": "Önceki126 içinde bu araştırma Markdown export kökü yok. R119 BUG-117-01 yalnız tanımsız yazıcının düzeltilmesi; R301 yazıcı kontratı farklıdır. R132’deki MAX_NOTES5000 Anki backend sınırı Markdown sözleşmesi değildir. R815-B06 kitap yedeği, B110 abonelik kalıcılığı farklı tüketiciler ve veri işlemleridir.",
+      "limits": "Gerçek store load/filter, main IPC gövdesi, Markdown formatter ve atomik dosya yazımı; yetki/diyalog sınırı kontrollü. Yalnız sentetik notlar, native UI/kişisel defter/hesap yok. Düşük sıklıklı5000 üstü koleksiyon koşuluyla sınırlıdır; limitin varlığı tek başına bug sayılmaz.",
+      "acceptance": "5001 eşleşen kayıtta çıktı tam olmalı veya kısmi durum/toplam/atlanan ve devam etme açıkça sunulmalı; küçük koleksiyon ve filtreler doğru kalmalı."
+    },
+    {
+      "id": "ROOT-SEARCH",
+      "severity": "P2",
+      "title": "Araştırma defteri filtresi İngilizce büyük I içeren kaydı küçük i sorgusuyla bulamıyor",
+      "sources": [
+        "src/browser-research-notebook.js:78–91",
+        "src/browser-note-store.js:283–287",
+        "src/main.js:18992–18998",
+        "src/renderer/renderer.js:19098–19106,19195–19204"
+      ],
+      "reproduce": "Gerçek not deposuna Important context kaynak metnini kaydet. Gerçek renderer researchLibraryFilters important sorgusunu oluştursun; bunu gerçek browser:research:list handler’ına ver. Important/context sorguları ve aynı store.search(important) karşı kontrollerini çalıştır.",
+      "expected": "İngilizce Important kaydı küçük harfli important sorgusuyla aynı araştırma arayüzünde bulunmalı.",
+      "observed": "Gerçek filtre/list yanıtı ok:true ve0 kayıt. Aynı harf biçimli Important ve context sorguları1; aynı deponun yaygın store.search(important) yolu1 kayıt buluyor.",
+      "cause": "filterResearchAnnotations kaynak ve sorguyu sabit tr-TR ile küçük harfe çeviriyor: Important→ımportant, important→important. Başka arama yolunda bulunan foldSearchText düzeltmesi bu araştırma filtresinde kullanılmıyor.",
+      "impact": "Kullanıcı mevcut İngilizce notu/alıntıyı normal küçük harf aramasıyla bulamaz; filtreli liste ve aynı filtreyle dışa aktarım eksik eşleşebilir. Not diskte korunur.",
+      "prior": "Önceki126 içinde bu araştırma filtresi yolu yok. BrowserNoteStore.search İngilizce I regresyon testi ve R85 F2 transcript-search benzer semantik ailedeki farklı tüketicilerdir; onların düzeltmesi yeniden bug sayılmaz. Burada gerçek researchLibraryFilters→research:list→store.filter yolu ve karşı tüketici ayrımı kanıtlandı.",
+      "limits": "Gerçek renderer filtre oluşturucu/IPC/store ve disk; DOM input/yetki sınırı kontrollü. Yalnız Important/important İngilizce I/i örneği doğrulandı; tüm Unicode/dil/aramaE2E veya native görünüm iddiası yok. Öğrenme özelliği eklenmedi; mevcut not/kanıt araması denetlendi.",
+      "acceptance": "Bu kaynak küçük/büyük harf sorgusuyla bulunmalı; mevcut Türkçe I/İ örnekleri de doğru kalmalı ve genel .search yolu bozulmamalı."
+    }
+  ],
+  "coverage": [
+    {
+      "area": "Araştırma notlarının Markdown dışa aktarımı",
+      "previous": "R119 writer ve R132 ayrı Anki limiti",
+      "newInvariant": "5001 kabul edilmiş eşleşen kayıtta eksikliği açıklamayan export",
+      "unverified": "Gerçek native picker/kişisel büyük defter ve Anki formatı"
+    },
+    {
+      "area": "Araştırma notları filtreleme",
+      "previous": "R85 F2 transcript ve BrowserNoteStore.search İngilizce I testi",
+      "newInvariant": "Gerçek renderer filtre→main list→store.filter; Important/important",
+      "unverified": "Tüm Unicode dilleri/gerçek UI"
+    },
+    {
+      "area": "Bölümler/kapalı sekme geçmişi/oturum gizliliği",
+      "previous": "R26/R46/R69/R85/R489/R498 kapsamı",
+      "newInvariant": "Salt okunur inceleme; yeni somut kök yok",
+      "unverified": "Native cookie/USB/permission ve gerçek kapalı sekme UI akışı"
+    }
+  ],
+  "excluded": [
+    "Bölüm end/current-label yorumu yeterli kullanıcı/standart kontratı kurulmadığı için bug sayılmadı.",
+    "Kapalı sekme alan kaybı ve eski OAuth/zoom düzeltmeleri tekrar sayılmadı."
+  ],
+  "review": "Ayrı GPT-6.1 Sol medium ajan iki araştırma adayını UI sözleşmesi ve eski tüketicilerle karşılaştırdı; yalnız dar kapsamlı eksik çıktı/English I invariantlarını onayladı.",
+  "publishedEvidence": "results.json"
+}
