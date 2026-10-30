@@ -1,0 +1,102 @@
+{
+  "head": "00a01f92f109f11183b02bc55dd1dfed25ed3e9f",
+  "sourceSha256": {
+    "src/renderer/pdf-reader-experience.js": "fddf9fa77c14a90e9d5cc1e1f44f93315b4f15c66416bce057b6daf8bb844b34",
+    "src/renderer/renderer.js": "143e0d96372bc22e3828448cea01439482da9a7fbd942c4264a944258e0231c6",
+    "src/renderer/pdf-reader.css": "0750580d3bc6dd06cc51db7ffc5e22a704117d1d8001b69bb469e3aaf9c56534",
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b"
+  },
+  "node": "v24.22.0",
+  "platform": "win32",
+  "method": "Full PDF experience module in JSDOM; exact unmodified PDF translation functions in VM; controlled async IPC boundaries. No GPU, provider, real PDF render or personal profile.",
+  "observations": [
+    {
+      "id": "R815-B01",
+      "savedFont": 28,
+      "beforeOpen": "28px",
+      "afterOpen": "",
+      "selector": "28",
+      "cssFallbackPx": 21
+    },
+    {
+      "id": "R815-B03",
+      "controlsEnabled": true,
+      "visibleRange": [
+        2,
+        2
+      ],
+      "visibleMode": "translation",
+      "importedPages": [
+        {
+          "pageNumber": 1,
+          "text": "Controlled source page 1."
+        }
+      ],
+      "opened": [
+        {
+          "id": "old-page-one",
+          "options": {
+            "chapter": 0
+          }
+        }
+      ],
+      "status": "Review voice settings, generate selected chapters, then choose Read & follow."
+    },
+    {
+      "id": "R815-B02",
+      "targetEnabled": true,
+      "calls": [
+        {
+          "targetLanguage": "tr",
+          "pages": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "targetLanguage": "de",
+          "pages": [
+            4,
+            5,
+            6
+          ]
+        }
+      ],
+      "rendered": [
+        {
+          "page": 1,
+          "target": "tr"
+        },
+        {
+          "page": 2,
+          "target": "tr"
+        },
+        {
+          "page": 3,
+          "target": "tr"
+        },
+        {
+          "page": 4,
+          "target": "de"
+        },
+        {
+          "page": 5,
+          "target": "de"
+        },
+        {
+          "page": 6,
+          "target": "de"
+        }
+      ],
+      "finalStateLanguage": "de",
+      "finalStatePages": [
+        "4",
+        "5",
+        "6"
+      ],
+      "status": "Çeviri hazır",
+      "completed": 6
+    }
+  ]
+}
