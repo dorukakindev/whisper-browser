@@ -1257,6 +1257,7 @@ _TR_NUMBER_SUFFIX = (
     r"|[ıiuü]?m[ıiuü]z(?:[ıiuü]n?|[dt][ae]n?|[ea]|[ıiuü])?"  # ikimiz(i), üçümüz
     r"|[ıiuü]?n[ıiuü]z(?:[ıiuü]n?|[dt][ae]n?|[ea])?"        # ikiniz
     r"|s[ıiuü](?:n[ıiuü]n?|n[ae]|nd[ae]n?|n[ıiuü])?"        # ikisi(ni/nde)
+    r"|[dt][ıiuü](?:r|m|n|k|n[ıiuü]z|l[ae]r)?"             # beşti, birdi, beştir
     r"|y[ıiuü]|y[ae]|y[ıiuü]n"                                # ikiyi, altıya
     r"|[ıiuü](?:n[ıiuü]n?|n[ae]|nd[ae]n?)?|[dt][ae]n?|[ea]|[ıiuü]n"
     r"))?"
@@ -1301,10 +1302,12 @@ def _turkish_continuation_changes_value(previous_word, next_word):
     return next_magnitude < previous_magnitude
 
 
-def _turkish_number_phrase_match(translated, phrase):
+def _turkish_number_phrase_match(translated, phrase, allow_negative=True):
     text = str(translated or '')
     last_word = str(phrase or '').split()[-1:] or ['']
     for match in re.finditer(_turkish_number_phrase_regex(phrase), text, re.I):
+        if not allow_negative and re.search(r'(?i)\b(?:eksi|minus)\s*$',text[max(0,match.start()-24):match.start()]):
+            continue
         following = _TR_NEXT_WORD.match(text[match.end():])
         # Ek almış sayı ('beşte') sonraki sözcükle birleşmez. Çıplak sayıdan
         # sonra gelen sayı sözcüğü ancak bileşik sayı kuruyorsa değeri değiştirir.
@@ -1381,9 +1384,12 @@ def _number_preserved(token, translated, target_lang):
         return False
     # Turkish subtitle style may spell an exact source quantity as a scaled
     # expression (10000 -> 10 bin). A changed coefficient must still fail.
-    for coefficient, scale in re.findall(
+    for match in re.finditer(
             r'(?<!\d)(\d+(?:[.,]\d+)?)\s+(bin|milyon|milyar)(?!\w)',
             translated, re.I):
+        coefficient, scale = match.groups()
+        if value >= 0 and re.search(r'(?i)\b(?:eksi|minus)\s*$', translated[max(0,match.start()-24):match.start()]):
+            continue
         multiplier = {'bin': 1000, 'milyon': 1000000, 'milyar': 1000000000}[scale.lower()]
         if math.isclose(float(coefficient.replace(',', '.')) * multiplier, value, rel_tol=1e-12, abs_tol=1e-9):
             return True
@@ -1392,7 +1398,7 @@ def _number_preserved(token, translated, target_lang):
              if value >= 0 and value % 1 == 0.5 else '')
     if not words:
         return False
-    return bool(_turkish_number_phrase_match(translated, words))
+    return bool(_turkish_number_phrase_match(translated, words, allow_negative=value<0))
 
 
 _EN_SMALL = dict(zip(('zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen').split(), range(20)))
@@ -1435,14 +1441,18 @@ def _number_match(token, translated, target_lang):
             if found and found.start() == 0:
                 return re.compile(re.escape(translated[negative.start():negative.start(1)+found.end()])).match(translated, negative.start())
     scales = list(re.finditer(r'(?<![\w.,])(\d+(?:[.,]\d+)?)\s+(bin|milyon|milyar)(?!\w)',translated,re.I)) if str(target_lang).lower().split('-')[0]=='tr' else []
+    negative_prefix=lambda match: not str(token).startswith('-') and bool(re.search(r'(?i)\b(?:eksi|minus)\s*$',translated[max(0,match.start()-24):match.start()]))
     for match in scales:
+        if negative_prefix(match): continue
         value = float(match[1].replace(',','.')) * {'bin':1000,'milyon':1000000,'milyar':1000000000}[match[2].lower()]
         if math.isclose(value, float(token), rel_tol=1e-12, abs_tol=1e-9): return match
     for match in _NUMBER_TOKEN.finditer(translated):
+        if negative_prefix(match): continue
         if any(row.start() <= match.start() < row.end() for row in scales): continue
         if _canonical_number(match[0], target_lang) == token: return match
     if str(target_lang).lower().split('-')[0]=='en':
         for match in _EN_EXACT_PATTERN.finditer(translated):
+            if negative_prefix(match): continue
             if _english_quantity_value(match[0]) == token: return match
         return None
     if str(target_lang).lower().split('-')[0]!='tr': return None
@@ -1457,7 +1467,7 @@ def _number_match(token, translated, target_lang):
             phrases.append(_turkish_integer_words(int(whole))+' virgül '+' '.join(_TR_ONES[int(c)] for c in frac))
     for phrase in phrases:
         if phrase:
-            match=_turkish_number_phrase_match(translated,phrase)
+            match=_turkish_number_phrase_match(translated,phrase,allow_negative=str(token).startswith('-'))
             if match: return match
     return None
 
@@ -1523,6 +1533,15 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
     source = normalized_text(source_text)
     translated = normalized_text(translated_text)
     issues = []
+    # Narrow unit proof: one unchanged quantity cannot lose/gain its percent unit.
+    # Other languages and conversions keep the existing, less certain gate.
+    if str(target_lang or '').lower().split('-')[0] in ('en','tr'):
+        quantities=_number_tokens(source,source_lang)
+        target_quantities=_number_tokens(translated,target_lang)
+        percent=lambda value: bool(re.search(r'(?i)%|\b(?:percent|per\s+cent|yüzde|yuzde)\b',value))
+        if len(quantities)==1 and (target_quantities==quantities or not target_quantities and _number_match(quantities[0],translated,target_lang)) and percent(source)!=percent(translated):
+            if not re.search(r'(?i)\b(?:convert\w*|equivalent|fraction|decimal|dönüş\w*|çevril\w*|kesir|ondalık)\b',source+' '+translated):
+                issues.append('percentage_mismatch')
     source_numbers_text, translated_numbers_text = source, translated
     source_numbers_text = re.sub(r"(?i)(\b(?:saat|akşam|sabah|öğlen|gece)\s+\d{1,2})\.([0-5]\d)(?!\d)", r"\1:\2", source_numbers_text)
 
@@ -1722,7 +1741,7 @@ def translation_blocking_issues(source_text, translated_text, target_lang='tr', 
     issues = translation_meaning_issues(source_text, translated_text, target_lang, source_lang)
     if not markup_preserved(source_text, translated_text): issues.append('markup_mismatch')
     blocking = [issue for issue in issues
-                if issue in ('markup_mismatch', 'number_mismatch', 'truncated_fragment',
+                if issue in ('markup_mismatch', 'number_mismatch', 'percentage_mismatch', 'truncated_fragment',
                              'negation_missing', 'negation_added', 'modal_missing',
                              'modal_certainty_flip', 'modal_weakened', 'outcome_reversed', 'temporal_reversed')]
     # A single unchanged explicit quantity cannot silently change its unit or
@@ -1999,6 +2018,7 @@ def scene_context_bounds(breaks, lo, hi, max_lines, entry_count):
 def translation_retry_hint(reasons):
     """Static repair guidance only; never interpolate provider-controlled text."""
     rules = {
+        'percentage_mismatch': 'Keep the percent unit attached to its quantity; do not turn a percentage into a plain amount or add an unspoken percentage.',
         'number_mismatch': 'Keep every source quantity, year, sign, percentage and unit unchanged in meaning; do not substitute a different number.',
         'negation_missing': 'Preserve the source negation in the matching clause; do not turn a negative assertion into a positive one.',
         'negation_added': 'Do not invent a negative assertion that is absent from the source clause.',

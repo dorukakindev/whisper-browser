@@ -82,9 +82,9 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.equal(firstPlan.sourceHash, fixtureHash);assert.equal(firstPlan.skipped,0,'older planners without a count report none');
     const countedPlan = call('dub:plan', {srt});
     await new Promise(resolve => setImmediate(resolve));
-    child.stdout.emit('data', JSON.stringify({sourceHash:fixtureHash, skipped:3, groups:[{key:'1',text:'Uzun metin.',seconds:2}]}));
+    child.stdout.emit('data', JSON.stringify({sourceHash:fixtureHash, skipped:3, sourceDecoding:{encoding:'cp1254',repaired:true,secret:'never-forward'}, groups:[{key:'1',text:'Uzun metin.',seconds:2}]}));
     child.emit('close',0);
-    assert.equal((await countedPlan).skipped,3);
+    const decodedPlan=await countedPlan;assert.equal(decodedPlan.skipped,3);assert.deepEqual(decodedPlan.sourceDecoding,{encoding:'cp1254',repaired:true});assert(!JSON.stringify(decodedPlan).includes('never-forward'));
     const badCount = call('dub:plan', {srt});
     await new Promise(resolve => setImmediate(resolve));
     child.stdout.emit('data', JSON.stringify({sourceHash:fixtureHash, skipped:-5, groups:[{key:'1',text:'Uzun metin.',seconds:2}]}));
@@ -182,7 +182,7 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.equal((await call('dub:latest',{source:'https://youtu.be/abcdefghijk',id:'ranged'})).output.id,'ranged');
     assert.equal((await call('dub:latest',{source:'https://youtu.be/abcdefghijk',id:'missing'})).output,null,'source match must not silently replace the requested output ID');
     assert.equal((await call('dub:latest',{source:'https://youtu.be/12345678901',id:'ranged'})).output,null,'matching ID must not override the source mismatch');
-    const localMedia=path.join(root,'Episode Türkçe.mp4');fs.writeFileSync(localMedia,'old video bytes');
+    const localMedia=path.join(root,'Episode TÃ¼rkÃ§e.mp4');fs.writeFileSync(localMedia,'old video bytes');
     const localIdentity=require('../src/dub-source-identity').identity(localMedia);
     assert.equal(localIdentity,require('../src/dub-source-identity').identity(require('node:url').pathToFileURL(localMedia).href),'local path and file URI identify the same source');
     fs.writeFileSync(rangedLog,JSON.stringify({...JSON.parse(rangedSummary),sourceIdentity:localIdentity}));

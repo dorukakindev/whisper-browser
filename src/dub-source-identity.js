@@ -16,7 +16,15 @@ function identity(value) {
       if(!stat.isFile())return null;
       canonical=fs.realpathSync(local).normalize('NFC');
       if(process.platform==='win32')canonical=canonical.replace(/\\/g,'/').toLowerCase();
-      canonical=JSON.stringify(['local-v2',canonical,String(stat.size),String(stat.mtimeNs),String(stat.ctimeNs),String(stat.birthtimeNs),String(stat.ino)]);
+      // Windows can preserve timestamps across a rapid equal-size overwrite.
+      // A bounded edge digest supplements metadata without hashing a multi-GB video.
+      let fd;const fingerprint=createHash('sha256');
+      try{
+        fd=fs.openSync(local,'r');const edge=Buffer.alloc(32768),size=Number(stat.size);if(!Number.isSafeInteger(size))return null;
+        for(const offset of size>32768?[0,Math.max(32768,size-32768)]:[0]){const read=fs.readSync(fd,edge,0,Math.min(edge.length,size-offset),offset);fingerprint.update(edge.subarray(0,read));}
+        const after=fs.fstatSync(fd,{bigint:true});if(['size','mtimeNs','ctimeNs','ino'].some(key=>after[key]!==stat[key]))return null;
+      }finally{if(fd!==undefined)fs.closeSync(fd);}
+      canonical=JSON.stringify(['local-v3-edges',canonical,String(stat.size),String(stat.mtimeNs),String(stat.ctimeNs),String(stat.birthtimeNs),String(stat.ino),fingerprint.digest('hex')]);
       return createHash('sha256').update(canonical).digest('hex');
     } catch { return null; }
   }

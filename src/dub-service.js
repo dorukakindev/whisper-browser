@@ -311,7 +311,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
                 keys.add(group.key); return false;
               })) throw new Error('invalid plan');
           const skipped = Number.isInteger(value.skipped) && value.skipped >= 0 && value.skipped <= 1000000 ? value.skipped : 0;
-          finish(null, { sourceHash: value.sourceHash, groups: value.groups, skipped });
+          const decoding=value.sourceDecoding,sourceDecoding=decoding&&['utf-8','utf-16le','utf-16be','utf-32le','utf-32be','cp1254','latin-1'].includes(decoding.encoding)?{encoding:decoding.encoding,repaired:decoding.repaired===true}:null;
+          finish(null, { sourceHash: value.sourceHash, groups: value.groups, skipped, sourceDecoding });
         } catch (_) { finish(new Error('Geçersiz dublaj planı.')); }
       });
     });
