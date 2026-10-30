@@ -1,0 +1,60 @@
+{
+  "head": "df94b3d60b7123a682cd0062371bbb2850a5fb60",
+  "productChanges": false,
+  "agentModel": "gpt-6.1-sol",
+  "reasoningEffort": "medium",
+  "workflows": [
+    {
+      "command": "R815_REMAIN_ROOT_OUT=.tmp/rem815-parent-root-final node .tmp/rem815-root/probe.cjs",
+      "exit": 0,
+      "result": "5001 accepted→5000 export with no partial metadata; small3 and direct5001 controls. Important/important0, Important/context/search1."
+    },
+    {
+      "command": "R815_MANGA_HEAD=df94b3d60b7123a682cd0062371bbb2850a5fb60 R815_MANGA_OUT=.tmp/rem815-parent-manga node .tmp/rem815-manga/probe.cjs",
+      "exit": 0,
+      "result": "7 controlled scenarios, two caller contract failures, stop/navigation and newer-edit overwrite; valid object request/managed stop/wrong-token controls."
+    },
+    {
+      "command": "R815_CEA_OUT=.tmp/rem815-parent-cea-final node .tmp/rem815-cea/probe.cjs",
+      "exit": 0,
+      "result": "Actual mux.js TS/fMP4 decoder; sliding resume new360→240, complete. Accepted -2 offset inside6sec checkpoint→replay final3 vs2; zero-offset2. +10 offset4-cue supplemental stress retained with explicit out-of-duration refs."
+    },
+    {
+      "command": "R815_STORAGE_HEAD=df94b3d60b7123a682cd0062371bbb2850a5fb60 R815_STORAGE_OUT=.tmp/rem815-storage/parent node .tmp/rem815-storage/probe.cjs",
+      "exit": 0,
+      "result": "Actual Windows SQLite/asset disk; restore1→0 after clear despite retained index/cues. Same-title case alias deletes just-written archive, actual restore missing; stable/different titles and workspace/orphan/auth controls."
+    }
+  ],
+  "existingChecks": [
+    {
+      "command": "node tests/browser-note-store.test.js",
+      "exit": 0,
+      "result": "11/11"
+    },
+    {
+      "command": "node tests/browser-capture-recovery.test.js",
+      "exit": 0,
+      "result": "fingerprint/retry/reset"
+    }
+  ],
+  "review": "Separate GPT-6.1 Sol medium review accepted two root research invariants with narrow partial-export and English I semantics; old .search and Anki limits explicitly distinguished.",
+  "dependency": {
+    "muxJs": "6.3.0",
+    "license": "Apache-2.0",
+    "source": "existing node_modules/mux.js, no new installation or copied third-party code",
+    "fixtureSha256": {
+      "dash-608-captions-init.mp4": "c3b4a3b75fb7f2e2d0d9ec6798ce178359ef8c95eaca44d09ef6020163f45454",
+      "dash-608-captions-seg.m4s": "e5e31b5dff71d7c6bcdc63d16043a598af083a676baa86a929ec4c34be1ca3d3",
+      "multi-channel-608-captions.ts": "2f17cfe8453044ad27274554bb43ee2ec7d534ab888734df7693237a7beb3319"
+    }
+  },
+  "fixtureCorrections": "Root marker assertion learned existing Markdown underscore escaping; async list callback properly awaited. Storage git child EPERM avoided with outer HEAD env; CEA primary offset strengthened to -2 within6sec and timeline heuristic facade removed. All are proof-harness changes, not product bugs/fixes.",
+  "limits": "No live network/site/provider/OCR/GPU/model/native UI/DRM/personal data. Disk/SQLite and mux decoder are actual; explicit other boundaries controlled. Full npm/CI/BAT acceptance not run.",
+  "publishedProofCanonicalLfSha256": {
+    "root/probe.cjs": "3ab9f10ae69e93353a024d9b82291840c58c18048421d65deb2142b30223b72e",
+    "manga/probe.cjs": "a67092549f8341ebbc3cf1c96517b58d6d81c2e7ddd88c0eaae1ff1757215d89",
+    "cea/probe.cjs": "b1a0083afc7c0642ffb9eb791c5d6ad1ebe5a94da3e22aa09f23e4204a5a41c1",
+    "storage/probe.cjs": "836f8778897a2eb0d9d5fceee39ded54ea3b76964dc887cd885a03842354f7ac"
+  },
+  "publicationNormalization": "Only line endings/trailing whitespace normalized; proof/product logic unchanged. Canonical LF hashes identify Git blobs."
+}

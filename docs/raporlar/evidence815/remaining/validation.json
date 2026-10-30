@@ -1,0 +1,20 @@
+{
+  "total": 134,
+  "new": 8,
+  "counts": {
+    "P1": 34,
+    "P2": 100
+  },
+  "newCounts": {
+    "P1": 1,
+    "P2": 7
+  },
+  "preservedPreviousMapping": 126,
+  "uniqueBugAnchors": 134,
+  "currentSourceHashes": 22,
+  "jsonFiles": 19,
+  "localLinks": 211,
+  "selectedEvidenceFiles": 28,
+  "secretPatternMatches": 0,
+  "note": "Narrow pattern scan only, not a comprehensive secret audit. Literal [object Object] is the verified manga result, not a documentation formatting error. Product code and existing tests unchanged."
+}

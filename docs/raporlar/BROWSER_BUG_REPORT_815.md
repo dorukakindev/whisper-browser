@@ -1,6 +1,10 @@
-# Rapor 815 — 126 doğrulanmış bug kaydı, yalnız raporlama
+# Rapor 815 — 134 doğrulanmış bug kaydı, yalnız raporlama
 
-> **Güncel toplam: 126 doğrulanmış bug kaydı (33 P1, 93 P2).** Bu tur farklı alanlarda **8 yeni bağımsız bulgu (2 P1, 6 P2)** eklendi; önceki 118 yeniden sayılmadı. G01–G36 önerileri ayrı. **Hiçbir bug düzeltilmedi.** Önceki kayıtların tarihsel doğrulama revizyonları korunur; hepsi bu tur yeniden sınandı demek değildir.
+> **Güncel toplam: 134 doğrulanmış bug kaydı (34 P1, 100 P2).** Bu tur kalan alanlarda **8 yeni bağımsız bulgu (1 P1, 7 P2)** eklendi; önceki 126 yeniden sayılmadı. G01–G37 önerileri ayrı. **Hiçbir bug düzeltilmedi.** Önceki kayıtlar kendi tarih/revizyon kanıtlarıyla korunur.
+>
+> [Yeni 8 bulgu](#kalan-alanlar-8-yeni-bulgu) · [134 ID ve kaynak hashleri](evidence815/remaining/findings.json) · [Kapsam matrisi](evidence815/remaining/COVERAGE.md) · [Tekrar üretme](evidence815/remaining/REPRODUCE.md)
+
+> **Önceki tur: 126 doğrulanmış bug kaydı (33 P1, 93 P2).** O tur farklı alanlarda **8 yeni bağımsız bulgu (2 P1, 6 P2)** eklendi; önceki 118 yeniden sayılmadı. G01–G36 önerileri ayrı. **Hiçbir bug düzeltilmedi.** Önceki kayıtların tarihsel doğrulama revizyonları korunur; hepsi bu tur yeniden sınandı demek değildir.
 >
 > [Yeni 8 bulgu](#diğer-alanlar-8-yeni-bulgu) · [126 ID/kaynak eşlemesi](evidence815/other/findings.json) · [Kapsam matrisi](evidence815/other/COVERAGE.md) · [Tekrar üretme](evidence815/other/REPRODUCE.md)
 
@@ -3060,3 +3064,261 @@ Tek active/ready göstergesine ek olarak kaynak izinin canlılığı, worklet’
 ### Sayılmayanlar ve teslim sınırı
 
 İndirme terminal resume/yuva/persist/native getter geçmiş kökleri; worklet olağan process/flush/RTF senaryoları; workflow timeout/claim/iptal ve yanlış iz seçimi adayı; MCP düşük etkili notification/hata kodu ayrıntıları yeniden bug sayılmadı. Site izinleri/legacy zoom salt okunur incelendi, yeni somut kök çıkmadı. Hiçbir kişisel profil, hesap, sır veya medya kullanılmadı. Ürün düzeltilmedi; yalnız rapor, seçilmiş sentetik kanıt ve devir notu teslim edilir.
+
+
+<!-- REMAINING-AUDIT-815 -->
+
+## Kalan alanlar: 8 yeni bulgu
+
+**31 Ekim 2026: önceki 126 + yeni 8 = 134 kayıt (34 P1 / 100 P2).** Yeni alanlar manga/OCR kaynak yeniden çevirisi, CEA full capture/checkpoint, yönetilen varlık/arşiv ömrü ve araştırma defterinin export/filter tüketicileridir. Üç ajan yine **GPT‑6.1 Sol / medium effort** kullandı; iki root adayı için başka ajan tarafından dar kapsamlı tekrar/varsayım incelemesi de yapıldı. Başlangıç ve bitiş ürün tabanı **df94b3d60b7123a682cd0062371bbb2850a5fb60**. Önceki denetimden beri ürün ağacı değişmedi; eski 126 bu tur yeni bulgu veya yeni tam E2E başarı sayılmaz.
+
+Doğrudan modül kaynak eşleşmesinin Night1000’da bulunmaması bütün tarih boyunca hiç okunmadığı anlamına gelmez. R26/R51/R56/R58/R83/R86/R119/R132/R339/R351/R390/R391 ve ilgili kayıtlarla yeni invariantlar aşağıda ayrılır. [Kaynak/aile/mekanizma/imza matrisi](evidence815/remaining/coverage.json).
+
+| ID | Önem | Hata | Alt kanıt |
+|---|---|---|---|
+| [R815-B127](#r815-b127) | P2 | Araştırma defteri Markdown dışa aktarımı 5000 üzerindeki kayıtları kısmi çıktı uyarısı olmadan atlıyor | root/ROOT-EXPORT |
+| [R815-B128](#r815-b128) | P2 | Araştırma defteri filtresi İngilizce büyük I içeren kaydı küçük i sorgusuyla bulamıyor | root/ROOT-SEARCH |
+| [R815-B129](#r815-b129) | P2 | OCR kaynağından yeniden çeviri boş metin gönderip [object Object] sonucunu başarıyla saklıyor | manga/MANGA-01 |
+| [R815-B130](#r815-b130) | P2 | Manga kaynaktan yeniden çeviri işi temizlik/gezinme ve daha yeni düzenlemeden sonra eski sonucunu yazıyor | manga/MANGA-02 |
+| [R815-B131](#r815-b131) | P2 | Kayan HLS penceresi tam CEA yakalamanın zaman kökenini geriye kaydırıyor ve yanlış SRT complete oluyor | cea/REM-CEA-01 |
+| [R815-B132](#r815-b132) | P2 | Kalibre CEA checkpoint geri yüklenince ham replay ile karışıp aynı konuşma çift zamanlı final SRT oluyor | cea/REM-CEA-02 |
+| [R815-B133](#r815-b133) | P2 | Varlık önbelleğini temizleme SQLite tarafından kullanılan kapalı medya altyazılarını silip geri yüklemeyi bozuyor | storage/STORAGE01 |
+| [R815-B134](#r815-b134) | P1 | Windows’ta arşiv başlığının yalnız harf büyüklüğü değişince yeni JSON ve gösterim dosyaları başarı yanıtından önce siliniyor | storage/STORAGE02 |
+
+### Kanıt, karşı kontroller ve sınırlar
+
+Ana süreç dört probu ayrı çıktı klasörlerinde bağımsız tekrar çalıştırdı; nihai hatalı davranış assertion’ları ve karşı kontroller exit0 verdi. Mevcut not deposu11/11 ve capture-recovery testi de geçti; bu eski testlerin yeni bileşim sınırlarını kapsadığı iddia edilmez. [Komut/kanıt kaydı](evidence815/remaining/parent-verification.json).
+
+Depolama kanıtı **gerçek Windows dosya sistemi ve gerçek SQLite** kullanır. UI “yalnız referanssız dosyalar temizlenir” derken kapalı medya SQLite refleri atlanır; index/cue metni kalır, restore1→0 olur. Tam metnin geri dönülmez silindiği iddia edilmez. Arşivde yalnız title case değişimi yeni JSON+MD/SRT’yi gerçekten siler; gerçek page restore missing döner. Native uygulama/diyalog veya kişisel store kullanılmadı.
+
+CEA gerçek mux.js6.3.0 decoder, gerçek main capture/store/start/run, atomik checkpoint ve final SRT kullanır; fetch/CDP/native referans/scheduler/configured-output sınırları kontrollüdür. Ana checkpoint örneği kabul edilmiş -2sn dönüşümle bütün referansları6sn video içinde tutar;2 beklenirken3 cue ve complete gözlenir. +10sn/4cue örneği süre dışındaki referanslarla yalnız ek stres varyantıdır, ana geçerli süre kanıtının yerine kullanılmaz. Kayan plan için hem yeni plan hem eski segmentleri tamamlanmış resume karşılaştırıldı.
+
+Manga gerçek iki caller→request/parser/decoder zinciridir; fetch/config/DOM uygulama/cache sınırları sentetik. Gerçek OCR/sağlayıcı kalitesi veya ücretli çağrı yok. Araştırma root probu gerçek store/IPC/formatter/atomik disk ve gerçek renderer filtre oluşturucudur;5001 kayıt ve English I örneği sentetiktir. İlk harness denemelerinde Markdown escape/await ve kaynak-env sorunları düzeltildi; ürün bugı sayılmadı.
+
+Tam npm/CI, normal start.bat/temiz install.bat, gerçek Electron/DPI/ekran okuyucu, canlı site/DRM/GPU/model/ses/video veya kişisel hesap kabulü bu tur çalıştırılmadı. Hiçbir ürün, mevcut test, ayar veya bağımlılık değişmedi.
+
+<a id="r815-b127"></a>
+
+### R815-B127 · P2 — Araştırma defteri Markdown dışa aktarımı 5000 üzerindeki kayıtları kısmi çıktı uyarısı olmadan atlıyor
+
+**Alt kanıt:** root/ROOT-EXPORT; [ayrıntılı JSON](evidence815/remaining/root/findings.json).
+
+**Kod:** `src/browser-note-store.js:11,283–287`, `src/main.js:19027–19042`, `src/renderer/renderer.js:26457–26462`, `src/renderer/index.html:2960`
+
+**Tekrar:** Gerçek BrowserNoteStore tarafından kabul edilen 5001 sentetik not yükle. Gerçek browser:research:export handler’ına hepsini eşleştiren sorgu ver; native kayıt diyaloğu yalnız test hedefini seçsin. Gerçek Markdown formatter ve atomik yazıcı çıktısını yeniden oku. Üç kayıt ve doğrudan 5001 kayıt formatter karşı kontrollerini çalıştır.
+
+**Beklenen:** “Defteri Markdown olarak dışa aktar” sonucu bütün eşleşen kayıtları içermeli veya kısmi çıktı/toplam/atlanan sayısı açıkça belirtilmeli; kalan kayıtları dışa aktarma yolu bulunmalı.
+
+**Gözlenen:** Depoda5001 kabul edilmiş kayıt var; handler ok:true,count5000 döndürüyor. Markdown5000 başlık içeriyor; en eski UNIQUE_RESEARCH_00000 yok, en yeni var. Yanıtta total/truncated/partial/limit/warning alanı yok. Üç kayıt kontrolü3; aynı formatter doğrudan5001 verildiğinde hepsini yazabiliyor.
+
+**Kök neden:** Genel liste filtresinin 5000 tavanı toplu exporta da uygulanıyor. Native export ve renderer başarı mesajı yalnız yazılan count değerini kullanıyor; eşleşen gerçek toplam veya açıklanmış kısmi aktarım sözleşmesi yok.
+
+**Etki:** Büyük not/kanıt defterinin taşınabilir çıktısı eksik oluşur ve kullanıcıya eksik olduğu söylenmez. Kaynak notlar depoda kalır; geri dönülmez silme veya bütün kayıtların kaybı iddia edilmez.
+
+**Önceki kapsam:** Önceki126 içinde bu araştırma Markdown export kökü yok. R119 BUG-117-01 yalnız tanımsız yazıcının düzeltilmesi; R301 yazıcı kontratı farklıdır. R132’deki MAX_NOTES5000 Anki backend sınırı Markdown sözleşmesi değildir. R815-B06 kitap yedeği, B110 abonelik kalıcılığı farklı tüketiciler ve veri işlemleridir.
+
+**Sınır:** Gerçek store load/filter, main IPC gövdesi, Markdown formatter ve atomik dosya yazımı; yetki/diyalog sınırı kontrollü. Yalnız sentetik notlar, native UI/kişisel defter/hesap yok. Düşük sıklıklı5000 üstü koleksiyon koşuluyla sınırlıdır; limitin varlığı tek başına bug sayılmaz.
+
+**Kabul ölçütü:** 5001 eşleşen kayıtta çıktı tam olmalı veya kısmi durum/toplam/atlanan ve devam etme açıkça sunulmalı; küçük koleksiyon ve filtreler doğru kalmalı.
+
+**Sonuç:** [results.json](evidence815/remaining/root/results.json).
+
+<a id="r815-b128"></a>
+
+### R815-B128 · P2 — Araştırma defteri filtresi İngilizce büyük I içeren kaydı küçük i sorgusuyla bulamıyor
+
+**Alt kanıt:** root/ROOT-SEARCH; [ayrıntılı JSON](evidence815/remaining/root/findings.json).
+
+**Kod:** `src/browser-research-notebook.js:78–91`, `src/browser-note-store.js:283–287`, `src/main.js:18992–18998`, `src/renderer/renderer.js:19098–19106,19195–19204`
+
+**Tekrar:** Gerçek not deposuna Important context kaynak metnini kaydet. Gerçek renderer researchLibraryFilters important sorgusunu oluştursun; bunu gerçek browser:research:list handler’ına ver. Important/context sorguları ve aynı store.search(important) karşı kontrollerini çalıştır.
+
+**Beklenen:** İngilizce Important kaydı küçük harfli important sorgusuyla aynı araştırma arayüzünde bulunmalı.
+
+**Gözlenen:** Gerçek filtre/list yanıtı ok:true ve0 kayıt. Aynı harf biçimli Important ve context sorguları1; aynı deponun yaygın store.search(important) yolu1 kayıt buluyor.
+
+**Kök neden:** filterResearchAnnotations kaynak ve sorguyu sabit tr-TR ile küçük harfe çeviriyor: Important→ımportant, important→important. Başka arama yolunda bulunan foldSearchText düzeltmesi bu araştırma filtresinde kullanılmıyor.
+
+**Etki:** Kullanıcı mevcut İngilizce notu/alıntıyı normal küçük harf aramasıyla bulamaz; filtreli liste ve aynı filtreyle dışa aktarım eksik eşleşebilir. Not diskte korunur.
+
+**Önceki kapsam:** Önceki126 içinde bu araştırma filtresi yolu yok. BrowserNoteStore.search İngilizce I regresyon testi ve R85 F2 transcript-search benzer semantik ailedeki farklı tüketicilerdir; onların düzeltmesi yeniden bug sayılmaz. Burada gerçek researchLibraryFilters→research:list→store.filter yolu ve karşı tüketici ayrımı kanıtlandı.
+
+**Sınır:** Gerçek renderer filtre oluşturucu/IPC/store ve disk; DOM input/yetki sınırı kontrollü. Yalnız Important/important İngilizce I/i örneği doğrulandı; tüm Unicode/dil/aramaE2E veya native görünüm iddiası yok. Öğrenme özelliği eklenmedi; mevcut not/kanıt araması denetlendi.
+
+**Kabul ölçütü:** Bu kaynak küçük/büyük harf sorgusuyla bulunmalı; mevcut Türkçe I/İ örnekleri de doğru kalmalı ve genel .search yolu bozulmamalı.
+
+**Sonuç:** [results.json](evidence815/remaining/root/results.json).
+
+<a id="r815-b129"></a>
+
+### R815-B129 · P2 — OCR kaynağından yeniden çeviri boş metin gönderip [object Object] sonucunu başarıyla saklıyor
+
+**Alt kanıt:** manga/MANGA-01; [ayrıntılı JSON](evidence815/remaining/manga/findings.json).
+
+**Kod:** `src/main.js:8707`, `src/main.js:8805`, `src/main.js:6552`, `src/main.js:6644`, `src/main.js:6755`, `src/browser-manga.js:1010`, `src/main.js:15370`
+
+**Tekrar:** PowerShell: $env:R815_MANGA_HEAD = git rev-parse HEAD; node .tmp/rem815-manga/probe.cjs. Scenarios MANGA-01-direct and MANGA-01-retrySelected use original callers, request wrapper, actual endpoint request/parser, actual subtitle-sentence-layout decoder, actual manga normalizer and generated overlay scripts. Only fetch/body reader/DOM execution/config/terminology/cache are controlled facades.
+
+**Beklenen:** Düzeltilen OCR kaynağı sentence.text olarak sağlayıcıya iletilir; dönen result.text bölge/cache/overlay metni olur.
+
+**Gözlenen:** İki normal kullanıcı yolu {ok:true} döndü. Her ikisinde user JSON metin alanı boştu. Kontrollü yanıt fixture translated text olmasına rağmen [object Object] bölgeye, cache JSONuna ve overlay scriptine yazıldı. Doğru {text:corrected fixture} kontrolü kaynağı ve çeviriyi eksiksiz korudu.
+
+**Kök neden:** İki manga caller requestBrowserSentenceTranslation fonksiyonunu string→string varsayıyor; gerçek sözleşme {text,...}→{text,parts}. String giriş spread edilince sentence.text yok; sonuç nesnesi String(...) ile çevriliyor.
+
+**Etki:** Kullanıcının OCR kaynak düzeltmesinden yeniden çeviri akışı işlevsizleşir; doğru mevcut çeviri anlamsız metinle değiştirilip kalıcı cachee başarıyla kaydolur.
+
+**Önceki kapsam:** R391 bu iki kullanıcı yolunu ekledi; kanıtı kaynak kilidi/normalizer idi, gerçek request-consumer sözleşmesini çalıştırmıyordu. R51-101 eski uzunluk farkı, R51-62/R56 eski edit rollback ve R597 credential izolasyonu farklı kökler. R815 önceki126 eşleme içinde manga kaydı yok. Night1000 manga dosyalarıyla doğrudan kaynak eşleşmesi0; F11/F15/F44/F49 komşu aileleri coverage.json içinde imzalarıyla korunur.
+
+**Sınır:** Kontrollü fetch yanıtı; ağ/ücretli sağlayıcı, gerçek OCR modeli, doğal dil kalitesi veya Windows native UI doğrulanmadı. DOM çalıştırma sınırı facade; gerçek scriptin üretilen metni denetlendi. Bellek cache adapterı, gerçek kişisel disk/profil yok.
+
+**Kabul ölçütü:** Her iki UI caller için gerçek sentence request+parser zincirinde nonempty düzeltilmiş kaynak payloadı ve result.text uygulaması doğrulanmalı; nesne stringificationı başarı sayılmamalı; cache, bölge ve overlay aynı çeviriyi taşımalı.
+
+**Sonuç:** [results.json](evidence815/remaining/manga/results.json).
+
+<a id="r815-b130"></a>
+
+### R815-B130 · P2 — Manga kaynaktan yeniden çeviri işi temizlik/gezinme ve daha yeni düzenlemeden sonra eski sonucunu yazıyor
+
+**Alt kanıt:** manga/MANGA-02; [ayrıntılı JSON](evidence815/remaining/manga/findings.json).
+
+**Kod:** `src/main.js:8695`, `src/main.js:8707`, `src/main.js:8709`, `src/main.js:8719`, `src/main.js:8731`, `src/main.js:8007`, `src/main.js:15370`, `src/browser-manga.js:1010`
+
+**Tekrar:** Aynı probe: MANGA-02-stop-navigation ve MANGA-02-newer-edit. Gerçek retranslateMangaRegionFromSource çağrısı kontrollü fetchte bekletilir. İlkinde gerçek stopBrowserManga(t,true) ardından generation/token değiştirilir, sonra yanıt açılır. İkincide gerçek applyMangaEditFromPage daha yeni kaynak/çeviriyi kabul ederken eski retranslate bekler; yanıt ardından açılır.
+
+**Beklenen:** İş stopBrowserManga kapsamına girer; belge/token/page veya bölge revizyonu değişmişse geç sonuç cache/overlay/state veya sonraki düzenlemeyi değiştiremez.
+
+**Gözlenen:** Stop sonrası request signal.aborted=false. mangaPages boşken ve generation2 olmuşken eski yanıt ok:true verdi, eski page cache anahtarına yazdı, yeni sayfaya1 overlay-update scripti gönderdi, generation2de manga-edit ve ready olayları üretti. Ayrı senaryoda başarıyla kabul edilmiş newer manual source/translation sessizce eski corrected fixture/[object Object] ile ezildi. Normal mangaJob kontrolünde stop sinyali abort etti ve mangaJobIsCurrent=false oldu. Yanlış bridge token ağ öncesi reddedildi.
+
+**Kök neden:** Bu yeni köprü rotası mangaJoba kaydedilmeyen yerel AbortController yaratır. Awaitten sonra generation/bridgeToken/page kimliği ve bölgenin kaynak/revizyon kontrolü yoktur; yakalanmış page nesnesine yazar ve güncel tab/viewa script/olay gönderir. Edit yolundaki CAS bu completion yolunda uygulanmaz.
+
+**Etki:** Kullanıcının yeni kaynak/çeviri düzenlemesi kaybolur. Katman temizlenip sayfa değiştiğinde eski sayfa işlemi cachee geri yazar ve güncel belgeye başarı bildirir. Ağ işi durdurma akışına katılmadığından gereksiz sağlayıcı çalışması sürebilir.
+
+**Önceki kapsam:** R283 yalnız yönetilen mangaJob predicate/abort modelini temiz buldu; R391 sonradan ayrı kaynaktan yeniden çeviri rotası ekledi. R476-08 konum geri yükleme await iptali, R51-61 eski failure listesi ve R56 stale edit rollback farklı mekanizmalardır. R815 genel async ownership örnekleri aynı kaynak/rota değildir; önceki126ya ek yeni entegrasyon sınırı. MANGA-01 protokol düzeltmesi request/source veya generation sahipliğini eklemez; kaynak overwrite kanıtı çeviri formatından bağımsızdır.
+
+**Sınır:** Kontrollü geciktirilmiş fetch; gerçek site gezinmesi veya Windows UI değil. Yeni DOMun gerçekten değiştiği iddia edilmez: gerçek koddan üretilen late script gönderimi ve state/cache etkisi ölçüldü. Geç kaynak overwrite gerçek main fonksiyonu ve bölgede ölçüldü.
+
+**Kabul ölçütü:** Yeniden çevirinin abortu açık iş kimliğiyle stop/clear/navigate kapsamına girmeli; awaitten sonra belge, page, bölge revizyonu değişiminde sonuç uygulanmamalı. Geç yanıtla eski cache/event/script yazımı olmamalı; daha yeni manual edit korunmalı.
+
+**Sonuç:** [results.json](evidence815/remaining/manga/results.json).
+
+<a id="r815-b131"></a>
+
+### R815-B131 · P2 — Kayan HLS penceresi tam CEA yakalamanın zaman kökenini geriye kaydırıyor ve yanlış SRT complete oluyor
+
+**Alt kanıt:** cea/REM-CEA-01; [ayrıntılı JSON](evidence815/remaining/cea/findings.json).
+
+**Kod:** `src/browser-subtitles.js:572–578,687–689`, `src/browser-cea-full-capture.js:15–20,40–44`, `src/browser-cea-captions.js:82–92`, `src/main.js:10863,10991,11610–11628,10482–10638,10941–11079`
+
+**Tekrar:** Repo kökünden node .tmp/rem815-cea/probe.cjs. 120sn üç parçalı açık HLS seq0..2 başlat; ikinci kapalı pencere seq1..3 ve aynı URI/discontinuity kimlikleriyle birleştir. Gerçek mux.js fMP4 fixture decode ve main capture/store/run final çağrılarını çalıştır. İlk tur tüm0..2 tamamlandıktan sonra resume da ayrıca doğrulanır.
+
+**Beklenen:** İlk görülmüş kaynağın zaman kökeninde seq0..3 başlangıçları0,120,240,360 olmalı; aynı seq1/2 sırf pencere kaydı diye yeniden zamanlanmamalı, yeni seq3 önceki sonun ardından gelmeli.
+
+**Gözlenen:** Yeni birleşik plan başlangıçları0,0,120,240; yeni iş gerçek decode/store sonucu aynı. Önceki0..2 tamamlanmış bellek-içi devamda0,120,240,240 ve seq3=240; tüm4 sequence completed, planDuration480, complete=true ve gerçek final.srt yazımı. Kümülatif seq0..3 kapalı liste karşı kontrolü0,120,240,360 ve complete.
+
+**Kök neden:** Defter kimliği doğru kalırken pencereye göre yerel zamanlar global/ilk-pencere zamanları gibi kullanılıyor. merge yenilenmiş URLyi alırken start dahil nesneyi kopyalıyor; kesişen sequence üzerinden zaman ofseti türetilmiyor.
+
+**Etki:** Kayan/sona eren HLS kaynağında tam SRT ve downstream çeviri yanlış sahne zamanına yerleşir; eksiksizlik sayacı/süre toplamı bunu fark etmeden başarılı bildirir.
+
+**Önceki kapsam:** R58-05/R59 matcher yenilenmesi, F-99-1 sequence kimliği, R99 büyüyen ancak başı kaymayan pencere testleri ayrı köklerdir ve korunur. B48-1/B49-1 nonzero decode epoch/site kalibrasyonundan farklıdır. R815-B85/B86 DASH, B87–89 TTML, B39/B40/B66 WebVTT; aynı kök yok. Night1000 doğrudan3 CEA modülü kaynak eşleşmesi0; main40 tarihsel imza F15/F44 genel kapsamdır.
+
+**Sınır:** Windows Node modül/gerçek main fonksiyon çıkarımı; ağ, Electron, CDP dispatcher, native TextTrack, gerçek site, hesap, DRM, GPU, model ve fiziksel video oynatma çalıştırılmadı. Fetch yalnız paket içindeki sentetik fixture Buffer döndürüyor. Ürün, test, belge veya Git değişikliği yapılmadı. Fixtureda her segmentin timestamp epochu sıfırdır ve açık DISCONTINUITY ile izinlidir; aynı içerikli119sn mux fixture120sn EXTINF ile kullanılır. Aynı playlist/aynı URI/aynı sequence tutulur; varyant değişimi veya DRM iddiası yok. Manifest yenilenme dispatcheri baştan sona çalıştırılmadı; gerçek merge çağrıları kaynakta incelendi ve gerçek full-capture tüketicisi çalıştırıldı.
+
+**Kabul ölçütü:** Üç parçalı kayan pencerede örtüşen sequence startları korunmalı, yeni segmentler aynı global çizgiye eklenmeli. İlk segmentleri tamamlanmış retry ve henüz başlamamış merged active-plan yollarında final SRT0,120,240,360 olmalı; yenilenen imzalı URL, F99 kimliği ve açık liste tamlık engeli korunmalı.
+
+**Sonuç:** [results.json](evidence815/remaining/cea/results.json).
+
+**Semantik kaynak:** [RFC8216](https://www.rfc-editor.org/rfc/rfc8216#section-6.2.2) — Kayan listede baştan kaldırılan segmentler MEDIA-SEQUENCE artırılarak bildirilir. · [RFC8216](https://www.rfc-editor.org/rfc/rfc8216#section-4.3.2.3) — Timestamp sequence değişimi açık DISCONTINUITY ile bildirilir; fixture bunu yapar.. Aynı playlist kimliği ve doğru discontinuity/sequence kullanımı kontrollü fixture’da ayrıca korunur; gerçek site başarısı çıkarılmaz.
+
+<a id="r815-b132"></a>
+
+### R815-B132 · P2 — Kalibre CEA checkpoint geri yüklenince ham replay ile karışıp aynı konuşma çift zamanlı final SRT oluyor
+
+**Alt kanıt:** cea/REM-CEA-02; [ayrıntılı JSON](evidence815/remaining/cea/findings.json).
+
+**Kod:** `src/main.js:10916–10922,11029–11041,11127–11161`, `src/main.js:10594–10629,10081–10099`, `src/browser-cea-checkpoint.js:31–80,83–110,128–146`, `src/browser-cue-timeline-calibration.js:21–56`
+
+**Tekrar:** Aynı probun checkpoint bölümü. Paket içindeki gerçek MPEG-TS CC1 fixture2 cue; yerel referans fixture -2sn (tüm cue0..6sn içinde); ek geniş-ofset varyantı+10sn. Gerçek runBrowserHlsCeaFullCapture açık playlist sonunda calibrate ve persist çağırır. Yeni VM/decoder/buffer ile gerçek startBrowserHlsCeaFullCapture checkpoint dosyasını yükleyip kapalı6sn planı baştan replay eder; gerçek store ve final SRT yazımı çalışır.
+
+**Beklenen:** Kabul edilmiş sıfır-dışı dönüşüm yeniden çözülen cue dahil tutarlı uygulanmalı veya replay ham çizgisi ayrı tutulup son kez dönüşüm uygulanmalı; aynı iki konuşma yalnız kalibre zamanlarda bulunmalı.
+
+**Gözlenen:** Ana geçerli6sn kontrolünde -2sn dönüşüm kabul edilir; iki referans cue da0..6sn içindedir. Replay sonrası2 yerine3 cue, ilk satırın bitişi2.903 yerine4.903sn, ikinci satırın hem2.903 hem4.903sn kopyaları, final kalibrasyon insufficient-evidence ve complete vardır. Ek sentetik geniş-ofset kontrolünde ilk kısmi capture2 cue +10sn kalibre edip gerçek checkpointte offsetSeconds10 saklar. Restart startup transform10 yükler ama raw2.167/4.903sn ile restored12.167/14.903sn aynı streamde birleşir:4 cue. Final calibrateCueTimeline reason=no-unique-match, state=complete, final.srt4 cue. Aynı replay identity ve offset0 checkpoint karşı kontrolü2 cue; ilk cue metadata alanları da korunuyor.
+
+**Kök neden:** Kalibre snapshot ile ham decoder replay farklı zaman uzaylarıdır. job.timeTransforms yalnız persist/restore metadata yolunda kullanılır, captureBrowserHlsCeaSegment yeni cue zamanlarına uygulamaz. Replay eski snapshotı aynı streamden önce silmez/yerine koymaz. Duplicate metinler sonraki otomatik kalibrasyonu da engeller.
+
+**Etki:** Kesinti/yeniden başlatma sonrası çift altyazı, yanlış erken replikler ve iki kopyaya ayrı downstream çeviri oluşabilir; uygulama tam/başarılı sayarken final dosya bozulur.
+
+**Önceki kapsam:** B83-01 eski captionMode/provenance alan kaybı düzeltildi; bu prob o alanları koruyup offset0 dedupe geçtiğini gösterir. R339/kuyruk50 madde25–27 yalnız transformun roundtrip metadata kontrolleri; R49 kalibrasyon ilk turlarda doğru çalışır. R815-B42 backend diarization/speaker devamı ayrı ürün hattı; B83-S2 cueId revizyonu değil, CEA cue kimliksiz time-space bileşimidir. 126 R815 mapping incelendi, aynı kök yok.
+
+**Sınır:** Windows Node modül/gerçek main fonksiyon çıkarımı; ağ, Electron, CDP dispatcher, native TextTrack, gerçek site, hesap, DRM, GPU, model ve fiziksel video oynatma çalıştırılmadı. Fetch yalnız paket içindeki sentetik fixture Buffer döndürüyor. Ürün, test, belge veya Git değişikliği yapılmadı. Native referans snapshot sınırı sentetik kaydırılmış gerçek decoded fixture ile beslenir; gerçek TextTrack veya process kill yapılmadı. Yeni VM/decode maps restart sınırı simülasyonudur. Store merge/kalibrasyon/checkpoint/startup/full-capture fonksiyonları gerçektir; yayım downstream dosya deposu ve scheduler kontrollüdür. -2sn temel fixture ve+10sn ek varyant gerçek siteye sabit ofset önerisi değildir; +10 varyantındaki referanslar6sn dışındadır ve geçerli süre içindeki -2sn kanıtına ek strestir.
+
+**Kabul ölçütü:** Kabul edilmiş sıfır-dışı offsetli kısmi checkpoint→yeni decoder replay→final SRT, yalnız iki özgün cueyu kalibre zamanlarda içermeli. Sıfır-offset ve captionMode/provenance metadata roundtrip karşı kontrolleri korunmalı; tekrar edilen replay ikinci kez ofset eklememeli.
+
+**Sonuç:** [results.json](evidence815/remaining/cea/results.json).
+
+<a id="r815-b133"></a>
+
+### R815-B133 · P2 — Varlık önbelleğini temizleme SQLite tarafından kullanılan kapalı medya altyazılarını silip geri yüklemeyi bozuyor
+
+**Alt kanıt:** storage/STORAGE01; [ayrıntılı JSON](evidence815/remaining/storage/findings.json).
+
+**Kod:** `src/main.js:19389`, `src/main.js:19432`, `src/main.js:19446`, `src/main.js:9888`, `src/browser-asset-gc.js:18`, `src/watch-index.js:366`, `src/job-timing-helpers.js:255`, `src/renderer/renderer.js:2984`, `src/renderer/renderer.js:2995`, `src/preload.js:332`
+
+**Tekrar:** Gerçek persistBrowserTrack ile sentetik medya altyazısı kaydet; üretici sekmesini kapalı kabul et (açık/session/workspace listesinde yok). Aynı SQLite indeksindeki satırla gerçek restorePersistedBrowserTracks çağrısı 1 döner. Startup pruneAndSweepTracks aynı dosyayı korur. Gerçek cache:clear handlerını yetkili event ve kind:assets ile çağır. Aynı gerçek restorePersistedBrowserTracks 0 döner; SQLite tracks/cues satırları yerinde.
+
+**Beklenen:** UI yalnız referanssız dosyaların temizleneceğini bildirir; tıklama doğrudan IPCye gider, kapalı medyanın kayıtlı altyazılarını silme için ek onay/uyarı yoktur. SQLite tarafından hâlâ kullanılan ve restorasyonun tek dosya girdisi olan asset korunmalı veya yönetilen yeniden kurma sağlanmalı.
+
+**Gözlenen:** clear ok:true, removed:4 (SQLite tek canlı çift + gerçek yetim çift); indexRowsAfter:1 ve sqliteCueCount:1; restoreBefore:1, restoreAfter:0. Workspace referansı korunur, gerçek yetim silinir, yetkisiz istek ret.
+
+**Kök neden:** Açılış GC koruma kümesine index.listTrackAssetPaths eklerken bakım handlerı yalnız tab/session/workspace trackRefs topluyor. maxAgeMs:0 ile SQLite canlı dosyası da anında siliniyor. restorePersistedBrowserTracks sadece getTrack(row.asset_path) okur, SQLite cues üzerinden onarmaz.
+
+**Etki:** Kapatılmış videoya ait yakalanmış altyazı/çeviri uygulamada tekrar açılamaz. SQLite cue metni kalır; bütün metnin geri dönülmez silindiği iddia edilmez. Yeniden yakalama veya dış onarım gerekebilir.
+
+**Önceki kapsam:** R83-B27/R86-02 ters yöndeki workspace/session referanslarını açılış GCye ekledi; bu kök farklı bakım IPC tüketicisinde SQLite referansının eksikliği. R390 önbellek ekranı ve yalnız referanssız temizleme iddiası tarihsel; bu bileşim doğrulanmamış. R815-B83/B90 sunum metadata/içerik bütünlüğü, B55 video paket eşlemesi, B94 indirme hedefi silme ayrı kökler.
+
+**Sınır:** Node24 Windows; gerçek SQLite/asset disk ve değişmemiş üretici/IPC/restore fonksiyonları. Electron sender yetkilendirmesi, app.getPath, oturum/workspace sınırı sentetik facade; native UI/start.bat/kişisel medya/gerçek site yok.
+
+**Kabul ölçütü:** SQLite canlı asset yalnız bu tab kapalı diye silinmesin; başlangıç/manuel GC aynı sahiplik invariantını kullansın veya restore varlığı SQLite kanıtından güvenle kurabilsin. Workspace/session/açık sekme koruması, yetkisiz ret ve gerçek yetim temizliği sürsün.
+
+**Sonuç:** [results.json](evidence815/remaining/storage/results.json).
+
+<a id="r815-b134"></a>
+
+### R815-B134 · P1 — Windows’ta arşiv başlığının yalnız harf büyüklüğü değişince yeni JSON ve gösterim dosyaları başarı yanıtından önce siliniyor
+
+**Alt kanıt:** storage/STORAGE02; [ayrıntılı JSON](evidence815/remaining/storage/findings.json).
+
+**Kod:** `src/browser-translation-archive.js:238`, `src/browser-translation-archive.js:247`, `src/browser-translation-archive.js:253`, `src/browser-translation-archive.js:257`, `src/browser-translation-archive.js:285`, `src/browser-translation-archive.js:352`, `src/main.js:7031`, `src/main.js:7054`
+
+**Tekrar:** Case-insensitive gerçek Windows diskte aynı URL, dil, kaynak ve çeviriyle title:Fixture Article kaydet. Gerçek main restore 1 blok uygular. Aynı veriyi title:fixture article ile yeniden gerçek main persistBrowserPageTranslationArchive üzerinden kaydet. İkinci savePage ok:true döner fakat indexte gösterilen JSON+MD yok; gerçek main restore ok:false, missing:true. Aynı mediaId/sourceHash/trackId ve cue ile saveSubtitle başlığını Fixture Video→fixture video değiştir; ikinci yanıt ok:true fakat JSON+SRT yok.
+
+**Beklenen:** Başlığın harf biçimi değişimi aynı fiziksel dosyayı yeni retained dosya olarak korumalı; save ok:true sonrasında indexin işaret ettiği çift okunabilmeli.
+
+**Gözlenen:** Sayfa ve altyazı çiftleri ikinci başarılı kayıtta silindi; indeks 1 girdi ve son başlıkla kaldı. page findPage null ve gerçek main consumer missing:true. Aynı başlık tekrarında ve başka fiziksel ada dönüşümde bütün dosyalar ve restore sağlam.
+
+**Kök neden:** Dosya steminde title vardır. Yeni aynı içerik/id steminin yalnız case farkı Windows’ta aynı dosyaları adresler. _saveIndex retained Set path.resolve dizelerini case-sensitive karşılaştırır; eski yol retained görülmez, unlinkSync eski yazım yolundan yeni dosyayı da siler.
+
+**Etki:** Başlık recase sonrası kalıcı sayfa çevirisi ve altyazı çeviri arşivi kaydı dosyaları kaybolur; index başarıyla yazıldığından hata bildirilmez ve sonraki sayfa geri yüklemesi yapılamaz. Altyazı asset store ayrıca sağlam kalmışsa ileride restore arşivi yeniden üretebilir; her medya kopyasının kalıcı kaybolduğu iddia edilmez.
+
+**Önceki kapsam:** R26-B9/R73-Y6/R515-B02/R517 revizyon/eviction orphan temizliği bilinen düzeltmelerdir; yeniden bug sayılmaz. Yeni kök retained path karşılaştırmasının gerçek Windows case aliasını ayıramaması ve kendi yeni dosyasını silmesi. R465 hash-route ve R475 boş eşleşme, R497 bağımsız seçim ayrı invariantlar; R815 126 başlık ve metadata/içerik-hash kayıtlarıyla çakışmaz.
+
+**Sınır:** Gerçek Windows dosya davranışı; ASCII başlık yalnız case değişimi. NTFS tüm ayarlar/8.3/symlink/junction/NFC alias garantisi veya gerçek web başlık sıklığı ölçülmedi. Main page scan/apply/instrumentation sınırı sentetik; gerçek persist/restore fonksiyonları ve archive/findPage/disk kullanıldı.
+
+**Kabul ölçütü:** Windows dosya kimliği aliası retained karşılaştırmasında korunsun veya title olmayan sabit adlandırma kullanılsın. Aynı başlık, case-only değişim ve farklı ad değişiminden sonra indeks çiftleri bulunmalı ve page restore çalışmalı; gerçekten superseded dosyalar temizlenmeye devam etmeli.
+
+**Sonuç:** [results.json](evidence815/remaining/storage/results.json).
+
+## Ayrı geliştirme önerisi: G37
+
+G01–G36 korunur. Aşağıdaki tek yeni öneri bug toplamına katılmaz ve uygulanmadı; alan dosyalarındaki ilgili düzeltme seçenekleri ayrıca öneri adedini çoğaltmaz.
+
+### R815-G37 — Yönetilen varlıkların sahiplik grafiğini ve onarım önizlemesini göster
+
+Altyazı varlığını açık sekme, kayıtlı oturum, workspace, SQLite veya arşivin hangisinin tuttuğunu tek inceleme yüzeyinde göster. Temizlik öncesi korunacak/silinecek dosya sayısı ve kopuk referanslar görülebilir; onarım planı mevcut dosya/hash/indeks kanıtını ayırarak kullanıcıya sunulabilir. Bu, release envanteri G33’ten farklı olarak çalışan uygulamanın yönetilen dosyalarını kapsar; kişisel dosyaların otomatik silinmesi yetkisi değildir.
+
+**Kabul:** Sentetik açık/session/workspace/SQLite-only/yetim ve bozuk arşiv örneklerinde sahiplik kaynağı doğru görünmeli; “referanssız” kararının kanıtı açıklanmalı. Onarım önizlemesi salt okunur olmalı, başarı yalnız dosya+indeks tutarlılığı tekrar ölçülünce gösterilmeli. Ortak EN/TR ve grafit/amber yüzey korunmalı.
+
+### Sayılmayanlar
+
+Manga eski geometri/kimlik/cache/rollback/sağlayıcı izolasyonu; CEA eski matcher/sequence/captionMode metadata,708/AES/özel byterange belirsizleri; arşiv eski crash-orphan ve restore eşleşme kökleri yeniden sayılmadı. Önceki assetin silinmesinin workspace tüketicisine etkisi tamamlanmadığı için ayrı aday bırakıldı. Bölüm end/current-label yorumu, kapalı sekme tarihsel alan kayıpları ve oturum gizliliği okumaları yeni doğrulanmış kök üretmedi.
+
+**Teslim:** Yalnız rapor, seçilmiş sentetik kanıt ve yeni tarihli devir notu. Ürün kodu/test/ayar/bağımlılık değişmedi; hiçbir bug düzeltilmedi. Kişisel dirty dosyalar ve runtime SQLite/medya/fixture dosyaları commit dışında kalır.
