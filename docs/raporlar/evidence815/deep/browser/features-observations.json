@@ -1,0 +1,41 @@
+{
+  "head": "6b3df86e35db8bc3271440f06c779cfb0acb2c22",
+  "results": [
+    {
+      "id": "BR-SEMANTIC-WORKER-NO-REUSE",
+      "sequentialRequests": 2,
+      "spawnedWorkers": 2,
+      "first": {
+        "ok": true,
+        "hits": []
+      },
+      "second": {
+        "ok": true,
+        "hits": []
+      }
+    },
+    {
+      "id": "BR-SKIP-FAILED-SAVE-APPLIES",
+      "failedResult": {
+        "ok": false,
+        "stale": false,
+        "error": "EACCES fixture"
+      },
+      "listAfterFailedSave": [
+        {
+          "id": "failed-save",
+          "scope": "media",
+          "scopeKey": "https://fixture.example|fixture-media",
+          "kind": "intro",
+          "start": 0,
+          "end": 20,
+          "autoSkip": true
+        }
+      ],
+      "persistedIDsAfterUnrelatedSave": [
+        "failed-save",
+        "good-save"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "head": "6b3df86e35db8bc3271440f06c779cfb0acb2c22",
+  "platform": "win32",
+  "node": "v24.22.0",
+  "results": [
+    {
+      "id": "BR-EXPORT-SOURCE-MHTML",
+      "outcome": {
+        "ok": true,
+        "path": "D:\\Whisper Local\\.tmp\\deep815-browser\\export.mhtml",
+        "format": "MHTML"
+      },
+      "savedPage": "B",
+      "requestedPage": "A"
+    },
+    {
+      "id": "BR-EXPORT-SOURCE-PDF",
+      "outcome": {
+        "ok": true,
+        "path": "D:\\Whisper Local\\.tmp\\deep815-browser\\export.pdf",
+        "format": "PDF"
+      },
+      "savedPage": "B",
+      "requestedPage": "A"
+    },
+    {
+      "id": "BR-READING-REFRESH-LOSS",
+      "outcome": {
+        "ok": false,
+        "error": "Sayfa arşivlenemedi: ENOSPC fixture"
+      },
+      "retainedBytes": "PARTIAL",
+      "indexStillClaimsBytes": 18
+    },
+    {
+      "id": "BR-READING-LOCKED-DELETE",
+      "outcome": {
+        "ok": true
+      },
+      "fileRemains": true,
+      "listCount": 0,
+      "cleanupWarnings": [
+        "Fixture A-v-9691c5b6.mhtml"
+      ]
+    },
+    {
+      "id": "BR-READING-REMOVAL-RESURRECTION",
+      "outcome": {
+        "ok": true,
+        "entry": {
+          "id": "rl-mvvglm0z-9691c5b6",
+          "url": "https://fixture.example/a",
+          "title": "Fixture A",
+          "createdAt": 1793394196163,
+          "updatedAt": 1793394734050,
+          "fileName": "Fixture A-z-9691c5b6.mhtml",
+          "sizeBytes": 9
+        },
+        "cleanupWarnings": []
+      },
+      "listCount": 1
+    },
+    {
+      "id": "BR-CAPTURE-FULL-TRUNCATION",
+      "pageHeight": 45000,
+      "captureClip": {
+        "x": 0,
+        "y": 0,
+        "width": 1000,
+        "height": 30000,
+        "scale": 1
+      },
+      "missingCSSPixels": 15000
+    },
+    {
+      "id": "BR-CAPTURE-OVERLAP-HIDDEN",
+      "finalVisibility": "hidden",
+      "initialVisibility": ""
+    },
+    {
+      "id": "BR-CAPTURE-NEGATIVE-BOUNDS",
+      "actual": {
+        "x": 0,
+        "y": 0,
+        "width": 640,
+        "height": 360
+      },
+      "expected": {
+        "x": 0,
+        "y": 0,
+        "width": 540,
+        "height": 280
+      },
+      "extraAdjacentPixels": {
+        "width": 100,
+        "height": 80
+      }
+    }
+  ]
+}

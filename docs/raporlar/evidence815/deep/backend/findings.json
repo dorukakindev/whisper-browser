@@ -1,0 +1,338 @@
+{
+  "head": "6b3df86e35db8bc3271440f06c779cfb0acb2c22",
+  "product_changes": false,
+  "runtime": "Windows-10-10.0.19045-SP0",
+  "python": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+  "sources": {
+    "backend/transcribe.py": "ab8250e0ec597c675715e1206d5304668f44a616b354c48017ff0b91092dc32c",
+    "backend/sentence_translation.py": "7b88c6784ccc4ece35a3b62945142e7f41b90058d34f483b5151b5877175797f",
+    "backend/translation_memory.py": "74f76b3ed9388e942b4b637cdd0af62dd5a29d30f4d795c073d0344ac1b67be0",
+    "tools/voxcpm2/dub_plan.py": "1b7c1be0727886a4518b78940bafa28dbcc872d4aa2161de2a09c0bd595b712b",
+    "tools/voxcpm2/dub_quality.py": "bef61756be2b55efc289e880f1a1052d9d797af8c512c6056faaf3e961d3bcb3",
+    "tools/voxcpm2/altyazi_oku.py": "fb6a18dbfd5950b126cc9141827a5402f95f73d60273913eaef9b6b51ffa339a"
+  },
+  "findings": [
+    {
+      "id": "BE01",
+      "kind": "dual_language_collision",
+      "before": "1\n00:00:00,000 --> 00:00:02,000\nRapor hazır.\nThe report is ready.\n\n",
+      "after": "1\n00:00:00,000 --> 00:00:02,000\nDer Bericht ist fertig.\nThe report is ready.\n\n",
+      "tr_file_exists": true,
+      "de_file_exists": true
+    },
+    {
+      "id": "BE02",
+      "kind": "mixed_auto_skip",
+      "calls": 0,
+      "untranslated_english": 60,
+      "output_status": "complete",
+      "failed": 0,
+      "explicit_en_calls": 1
+    },
+    {
+      "id": "BE03",
+      "kind": "ass_drawing_as_speech",
+      "provider_input": [
+        [
+          1.0,
+          2.0,
+          "m 0 0 l 100 0 100 100"
+        ],
+        [
+          3.0,
+          4.0,
+          "Hello there."
+        ]
+      ]
+    },
+    {
+      "id": "BE04",
+      "kind": "dub_literal_range_phantom_cue",
+      "backend": [
+        [
+          1.0,
+          5.0,
+          "Use this interval:\n00:00:02,000 --> 00:00:03,000\nfor the title."
+        ],
+        [
+          6.0,
+          8.0,
+          "Continue with the next scene."
+        ]
+      ],
+      "dub": {
+        "sourceHash": "33324ee4ddf4b9f410999587e86d57207b9de52c75aa90aedd292f8a89c4ab7c",
+        "groups": [
+          {
+            "start": 1000,
+            "end": 5000,
+            "text": "Use this interval:",
+            "source_ids": [
+              1
+            ],
+            "key": "1",
+            "seconds": 4.0
+          },
+          {
+            "start": 2000,
+            "end": 3000,
+            "text": "for the title.",
+            "source_ids": [
+              2
+            ],
+            "key": "2",
+            "seconds": 1.0
+          },
+          {
+            "start": 6000,
+            "end": 8000,
+            "text": "Continue with the next scene.",
+            "source_ids": [
+              3
+            ],
+            "key": "3",
+            "seconds": 2.0
+          }
+        ],
+        "skipped": 0,
+        "sourceDecoding": {
+          "encoding": "utf-8",
+          "repaired": false
+        }
+      }
+    },
+    {
+      "id": "BE05",
+      "expected": "Bu kapsamlı raporda belirtilen bütün teknik ayrıntıları dikkatlice inceleyerek bugün toplantıda ekip arkadaşlarımla birlikte değerlendirdim. Mehmet toplantıya katıldı.",
+      "actual": "Bu kapsamlı raporda belirtilen bütün teknik ayrıntıları dikkatlice inceleyerek bugün toplantıda ekip arkadaşlarımla birlikte değerlendirdim. Ahmet toplantıya katıldı.",
+      "result": {
+        "decimalEvidence": [],
+        "recognizedText": "Bu kapsamlı raporda belirtilen bütün teknik ayrıntıları dikkatlice inceleyerek bugün toplantıda ekip arkadaşlarımla birlikte değerlendirdim. Ahmet toplantıya katıldı.",
+        "similarity": 0.9444,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": false,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": false
+      },
+      "generation": "ready",
+      "verifier": {
+        "status": "passed",
+        "decimalEvidence": [],
+        "recognizedText": "Bu kapsamlı raporda belirtilen bütün teknik ayrıntıları dikkatlice inceleyerek bugün toplantıda ekip arkadaşlarımla birlikte değerlendirdim. Ahmet toplantıya katıldı.",
+        "similarity": 0.9444,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": false,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": false,
+        "requestedLanguage": "tr",
+        "recognizedLanguage": "tr"
+      },
+      "negative_control_identical": false
+    },
+    {
+      "id": "BE06",
+      "expected": "Bu kapsamlı raporda belirtilen bütün teknik ayrıntıları dikkatlice inceleyerek bugün toplantıda ekip arkadaşlarımla birlikte değerlendirdim. Ali beş, Ayşe on kitap aldı.",
+      "actual": "Bu kapsamlı raporda belirtilen bütün teknik ayrıntıları dikkatlice inceleyerek bugün toplantıda ekip arkadaşlarımla birlikte değerlendirdim. Ali on, Ayşe beş kitap aldı.",
+      "result": {
+        "decimalEvidence": [],
+        "recognizedText": "Bu kapsamlı raporda belirtilen bütün teknik ayrıntıları dikkatlice inceleyerek bugün toplantıda ekip arkadaşlarımla birlikte değerlendirdim. Ali on, Ayşe beş kitap aldı.",
+        "similarity": 0.9048,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": false,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": false
+      },
+      "generation": "ready",
+      "verifier": {
+        "status": "passed",
+        "decimalEvidence": [],
+        "recognizedText": "Bu kapsamlı raporda belirtilen bütün teknik ayrıntıları dikkatlice inceleyerek bugün toplantıda ekip arkadaşlarımla birlikte değerlendirdim. Ali on, Ayşe beş kitap aldı.",
+        "similarity": 0.9048,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": false,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": false,
+        "requestedLanguage": "tr",
+        "recognizedLanguage": "tr"
+      },
+      "negative_control_identical": false
+    },
+    {
+      "id": "BE07",
+      "kind": "vtt_literal_tag_reinterpreted",
+      "source": "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\nType &lt;b&gt;hello&lt;/b&gt; to enter the tag.\n",
+      "output": "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\nType <b>hello</b> to enter the tag.\n\n",
+      "provider_calls": 0
+    },
+    {
+      "id": "BE08",
+      "kind": "vtt_inline_timestamp_sent_as_dialogue",
+      "provider_input": [
+        [
+          1.0,
+          4.0,
+          "Hello <00:00:02.000>world."
+        ]
+      ],
+      "same_language_output": "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\nHello &lt;00:00:02.000>world.\n\n"
+    },
+    {
+      "id": "BE09",
+      "kind": "tm_ignores_scene_notes",
+      "first": [
+        [
+          0.0,
+          3.0,
+          "Banka çok yakın."
+        ]
+      ],
+      "second": [
+        [
+          0.0,
+          3.0,
+          "Banka çok yakın."
+        ]
+      ],
+      "first_calls": 1,
+      "second_calls": 0,
+      "exact_cache_keys_differ": true,
+      "cache_disabled": [
+        [
+          0.0,
+          3.0,
+          "Nehir kıyısı çok yakın."
+        ]
+      ],
+      "cache_disabled_calls": 1
+    },
+    {
+      "id": "BE10",
+      "extract": [
+        {
+          "clip_start": 8.0,
+          "clip_end": null,
+          "audio_track": -1,
+          "audio_filter": "none"
+        },
+        {
+          "clip_start": null,
+          "clip_end": null,
+          "audio_track": -1,
+          "audio_filter": "none"
+        }
+      ],
+      "segments": [
+        {
+          "id": 1,
+          "start": 0.0,
+          "end": 2.0,
+          "text": "Old first sentence.",
+          "speaker": null
+        },
+        {
+          "id": 2,
+          "start": 3.0,
+          "end": 5.0,
+          "text": "Old second sentence.",
+          "speaker": null
+        },
+        {
+          "id": 3,
+          "start": 8.0,
+          "end": 10.0,
+          "text": "New boundary sentence.",
+          "speaker": "SPEAKER_00",
+          "avg_logprob": null,
+          "no_speech_prob": null,
+          "compression_ratio": null
+        },
+        {
+          "id": 4,
+          "start": 10.0,
+          "end": 12.0,
+          "text": "New final sentence.",
+          "speaker": "SPEAKER_00",
+          "avg_logprob": null,
+          "no_speech_prob": null,
+          "compression_ratio": null
+        }
+      ],
+      "warnings": [],
+      "no_resume_control_speakers": [
+        "SPEAKER_00",
+        "SPEAKER_00"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "QUALITY-verb",
+      "expected": "Bu kapsamlı raporda belirtilen bütün teknik ayrıntıları dikkatlice inceleyerek bugün toplantıda ekip arkadaşlarımla birlikte değerlendirdim. Sonunda işlemi başlattım.",
+      "actual": "Bu kapsamlı raporda belirtilen bütün teknik ayrıntıları dikkatlice inceleyerek bugün toplantıda ekip arkadaşlarımla birlikte değerlendirdim. Sonunda işlemi başlatmadım.",
+      "result": {
+        "decimalEvidence": [],
+        "recognizedText": "Bu kapsamlı raporda belirtilen bütün teknik ayrıntıları dikkatlice inceleyerek bugün toplantıda ekip arkadaşlarımla birlikte değerlendirdim. Sonunda işlemi başlatmadım.",
+        "similarity": 0.9444,
+        "omission_spans": [],
+        "insertion_spans": [],
+        "missing_numbers": [],
+        "added_numbers": [],
+        "percentage_mismatch": false,
+        "semantic_mismatch": true,
+        "spoken_number_mismatch": false,
+        "lost_negation": false,
+        "added_negation": false,
+        "unit_mismatch": false,
+        "repetition": false,
+        "sign_mismatch": false,
+        "missing_names": [],
+        "review": true
+      },
+      "generation": "review"
+    },
+    {
+      "id": "CONTROL-quantity-loss",
+      "review": true
+    }
+  ]
+}

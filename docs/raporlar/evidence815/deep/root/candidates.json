@@ -1,0 +1,108 @@
+{
+  "head": "6b3df86e35db8bc3271440f06c779cfb0acb2c22",
+  "rows": [
+    {
+      "case": "burnin-case",
+      "name": "movie.mp4",
+      "outPath": "D:\\Whisper Local\\.tmp\\deep815-fixtures\\movie.altyazili.mp4",
+      "tempPath": "D:\\Whisper Local\\.tmp\\deep815-fixtures\\movie.altyazili.probe.tmp.mp4",
+      "recoveryMatches": true
+    },
+    {
+      "case": "burnin-case",
+      "name": "movie.MP4",
+      "outPath": "D:\\Whisper Local\\.tmp\\deep815-fixtures\\movie.MP4.altyazili.mp4",
+      "tempPath": "D:\\Whisper Local\\.tmp\\deep815-fixtures\\movie.MP4.altyazili.probe.tmp.mp4",
+      "recoveryMatches": false
+    },
+    {
+      "case": "burnin-case",
+      "name": "movie.MKV",
+      "outPath": "D:\\Whisper Local\\.tmp\\deep815-fixtures\\movie.MKV.altyazili.mkv",
+      "tempPath": "D:\\Whisper Local\\.tmp\\deep815-fixtures\\movie.MKV.altyazili.probe.tmp.mkv",
+      "recoveryMatches": false
+    },
+    {
+      "case": "backup-bookmarks",
+      "before": [
+        {
+          "id": "mark",
+          "chapter": 0,
+          "position": 0.25,
+          "quote": "Controlled",
+          "textHash": "5a865a51ef0c6d23514b2b3f2f47ed55a54c7e3e65ca00a4651a9cfc8533104d",
+          "outputId": "audio.wav"
+        }
+      ],
+      "after": null
+    },
+    {
+      "case": "backup-quality-group-limit",
+      "before": 1001,
+      "after": 1000,
+      "reviewGroupsBefore": 1,
+      "reviewGroupsAfter": 0
+    },
+    {
+      "case": "backup-verification",
+      "before": {
+        "status": "passed",
+        "missing_numbers": []
+      },
+      "after": null
+    },
+    {
+      "case": "reading-corrupt-index",
+      "oldFilePreserved": true,
+      "entries": [
+        "https://example.com/new"
+      ],
+      "index": {
+        "version": 1,
+        "entries": [
+          {
+            "id": "rl-mvvgy74h-f8c0bb50",
+            "url": "https://example.com/new",
+            "title": "New",
+            "createdAt": 1793394783377,
+            "updatedAt": 1793394783377,
+            "fileName": "New-h-f8c0bb50.mhtml",
+            "sizeBytes": 11
+          }
+        ]
+      }
+    },
+    {
+      "case": "model-cache-env",
+      "actual": []
+    },
+    {
+      "case": "model-cache-size",
+      "blocked": "EPERM"
+    },
+    {
+      "case": "rf64-reader",
+      "voiceAccepted": true,
+      "durationError": "Invalid WAV."
+    },
+    {
+      "case": "backup-long-chapter",
+      "savedTextLength": 100001,
+      "exportSucceeded": true,
+      "restoreError": "Invalid chapter."
+    },
+    {
+      "case": "audiobook-current-voice",
+      "beforeTake": true,
+      "afterTakeChange": true,
+      "afterTextChange": false
+    },
+    {
+      "case": "backup-archived-count",
+      "activeBooks": 1,
+      "archivedBooks": 100,
+      "exported": 101,
+      "restoreError": "Invalid book backup."
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "head": "6b3df86e35db8bc3271440f06c779cfb0acb2c22",
+  "productChanged": false,
+  "agentModel": "gpt-6.1-sol",
+  "agentReasoningEffort": "medium",
+  "parentReruns": [
+    {"command": "node .tmp/deep815-assistant/probe.cjs", "exit": 0},
+    {"command": "node .tmp/deep815-browser/probe.cjs", "exit": 0},
+    {"command": "node .tmp/deep815-browser/runtime-probe.cjs", "exit": 0},
+    {"command": "node .tmp/deep815-browser/ipc-probe.cjs", "exit": 0},
+    {"command": "node .tmp/deep815-browser/features-probe.cjs", "exit": 0},
+    {"command": "backend/venv/Scripts/python.exe .tmp/deep815-backend/probe.py", "exit": 0},
+    {"command": "backend/venv/Scripts/python.exe .tmp/deep815-backend/resume-probe.py", "exit": 0},
+    {"command": "node .tmp/deep815-candidates.cjs", "exit": 0},
+    {"command": "node .tmp/deep815-integrations.cjs", "exit": 0}
+  ],
+  "interpretation": "Exit 0 confirms reproduction of the documented defects, not fixes. A09 evidence gap, logo ARIA, blocked symlink-size candidate, unproven RF64 scenario, AVI/PCM negative and advisory-only dependency risks excluded from bug count.",
+  "nativeChecks": "Separate Windows Electron profiles, axe scans and selected screenshots; real FFmpeg WMV/WMA MP4 failure and TTC attachment filtering. No personal profile or API key.",
+  "notRun": ["full npm suite", "new start.bat/install.bat launch", "live provider", "real ASR or TTS models", "GPU synthesis", "DRM", "physical screen reader", "CI result waiting"]
+}
