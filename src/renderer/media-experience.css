@@ -180,3 +180,14 @@
 
 .dub-review-navigation { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-block:10px 14px; }
 #dubGeneratorDialog .dub-review-navigation button { flex:1 1 180px; min-width:0; font-size:12px; line-height:1.4; min-height:34px; padding:7px 11px; }
+
+.speech-compare-controls { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.speech-file-control { display:grid; gap:6px; min-width:0; }
+.speech-file-control>span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-dim); font-size:12px; }
+.speech-compare-filters { display:flex; gap:16px; flex-wrap:wrap; font-size:13px; }
+.speech-compare-filters label { display:flex; align-items:center; gap:6px; }
+.speech-compare-warning,.speech-compare-empty { font-size:13px; line-height:1.7; color:var(--text-dim); }
+@media(max-width:650px){.speech-compare-controls{grid-template-columns:1fr;}.speech-compare-dialog>p{font-size:12px;}}
+
+.dub-pronunciation-preview,.dub-range-origin { font-size:12px; line-height:1.7; color:var(--text-dim); overflow-wrap:anywhere; }
+.dub-pronunciation-preview { border-inline-start:2px solid var(--accent); padding-inline-start:12px; white-space:pre-wrap; }

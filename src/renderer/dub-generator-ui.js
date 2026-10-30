@@ -174,10 +174,14 @@
     if (range.end <= range.start || range.end > 86400) throw new Error('Geçersiz zaman aralığı.');
     return range;
   }
+  const pronunciationNote=document.createElement('p');pronunciationNote.id='dubPlanPronunciationPreview';pronunciationNote.className='dub-pronunciation-preview';pronunciationNote.dataset.uiUntranslated='';pronunciationNote.hidden=true;el('dubPlanText').after(pronunciationNote);
+  function previewPronunciation(){const text=el('dubPlanText').value;let rendered=text;try{rendered=window.DubPronunciation?.apply(text,cfg?.pronunciations||[])||text;}catch{}pronunciationNote.hidden=!text||rendered===text;pronunciationNote.textContent=(window.UiLocale?.get?.()==='en'?'Saved dictionary preview (speech only): ':'Kayıtlı sözlük önizlemesi (yalnız ses): ')+rendered;}
+  el('dubPlanText').addEventListener('input',previewPronunciation);
   function showGroup() {
     const g = group();
     el('dubPlanOriginal').value = g?.text || '';
     el('dubPlanText').value = g ? (edits[g.key] || g.text) : '';
+    previewPronunciation();
     el('dubPlanInfo').textContent = g ? `${(g.start / 1000).toFixed(2)}–${(g.end / 1000).toFixed(2)} s · ${g.seconds.toFixed(2)} s · ${Object.keys(edits).length} ✓` : '';
   }
   function elapsed(seconds) {
@@ -197,8 +201,11 @@
     button.textContent=count ? (en ? `Regenerate flagged groups · ${count}` : `İşaretli grupları yeniden üret · ${count}`) : t('Eksik parçaları tamamla');
     button.title=count ? (en ? 'Only flagged groups are regenerated. Ready groups stay cached; the previous generation settings are used.' : 'Yalnız işaretli gruplar yeniden üretilir. Hazır gruplar önbellekte korunur; önceki üretim ayarları kullanılır.') : (en ? 'Resume missing audio using the previous generation settings. Completed groups stay cached.' : 'Önceki üretim ayarlarıyla eksik sesleri tamamlar. Hazır gruplar önbellekte korunur.');
   }
+  const rangeNote=document.createElement('p');rangeNote.id='dubRangeOrigin';rangeNote.className='dub-range-origin';rangeNote.dataset.uiUntranslated='';rangeNote.hidden=true;el('dubRangeEnd').closest('.dub-generator-row').after(rangeNote);
   function controls() {
     retryLabel();
+    const inherited=window.BrowserDubAudioUI?.context()?.subtitleRange;let matches=false;try{matches=!!inherited&&el('dubRangeEnabled').checked&&timecode(el('dubRangeStart').value)===inherited.start&&timecode(el('dubRangeEnd').value)===inherited.end;}catch{}rangeNote.hidden=!matches;rangeNote.textContent=window.UiLocale?.get?.()==='en'?'Range inherited from the current subtitle.':'Aralık güncel altyazıdan alındı.';
+    previewPronunciation();
     qualitySummary();
     const voice = current?.voice || cfg;
     el('dubEngineName').textContent = voice?.engine || '';
@@ -253,7 +260,7 @@
       });
       const result=await window.api.saveDubPronunciations(entries);
       if(!result?.ok) throw new Error(result?.error || 'Save failed');
-      cfg.pronunciations=result.pronunciations; el('dubPronunciationStatus').dataset.saved='true';
+      cfg.pronunciations=result.pronunciations;previewPronunciation(); el('dubPronunciationStatus').dataset.saved='true';
       el('dubPronunciationStatus').textContent=en?'Saved. Applies to the next generation.':'Kaydedildi. Sonraki ses üretiminde uygulanır.';
     } catch(error) {delete el('dubPronunciationStatus').dataset.saved;el('dubPronunciationStatus').textContent=error.message;}
   });
