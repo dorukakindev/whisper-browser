@@ -374,6 +374,7 @@ app
     const next = await run("return aiChatContext()");
     assert.equal(next.page, 2);
     assert.equal(next.selectedText, "");
+    const assistantAnchor806=process.argv.includes('--reader806')?await run("const p=player.pdfReader.pages.get(player.pdfReader.currentPage).article.querySelector('.pdf-page-prose p');const range=document.createRange();range.selectNodeContents(p);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);document.dispatchEvent(new Event('selectionchange'));return {page:player.pdfReader.currentPage,selected:PdfReaderExperience.context().selectedText,scroll:document.getElementById('pdfReaderPages').scrollTop}"):null;
     await run('document.getElementById("pdfAskAssistant").click();return true');
     await wait(400);
     const assistant = win.contentView.children.find((v) =>
@@ -388,6 +389,7 @@ app
         ),
       "assistant visible",
     );
+    if(assistantAnchor806)assert.deepEqual(await run("return {page:player.pdfReader.currentPage,selected:PdfReaderExperience.context().selectedText,scroll:document.getElementById('pdfReaderPages').scrollTop}"),assistantAnchor806,'Assistant opening retains the exact PDF passage and reading position');
     let assistantCapture = false;
     for (let i = 0; i < 3; i++) {
       try {
@@ -410,6 +412,26 @@ app
     await run(
       'await aiChatSend("Bu sayfayı seslendir");if(document.getElementById("pdfVoiceFrom").value!=="2"||document.getElementById("pdfVoiceTo").value!=="2")throw Error("Wrong assistant page range");document.getElementById("pdfVoiceFrom").value="2";document.getElementById("pdfVoiceTo").value="3";return true',
     );
+    if(process.argv.includes('--reader806')){
+      await run("document.getElementById('pdfVoiceFrom').dispatchEvent(new Event('input'));document.getElementById('pdfVoiceOpen').click();document.getElementById('pdfVoiceOpen').click();return true");
+      assert(await run("return document.getElementById('pdfVoiceFrom').value==='2'&&document.getElementById('pdfVoiceTo').value==='3'&&document.getElementById('pdfVoiceRangeSummary').textContent.includes('iki sınır da dahil')"),'Reopening retains manually selected inclusive range');
+      await run("window.originalExtract806=extractPdfReaderPage;extractPdfReaderPage=async page=>page===2?[]:originalExtract806(page);document.getElementById('pdfVoiceText').value='source';document.getElementById('pdfVoicePreviewOpen').click();return true");
+      await until(()=>run("return !document.getElementById('pdfVoicePreviewOpen').disabled&&document.getElementById('pdfVoiceStatus').textContent.includes('okunabilir metin yok')"),'blank source diagnosis');
+      assert(await run("return !document.getElementById('pdfVoiceStatus').textContent.includes('çeviriyi tamamla')&&document.getElementById('pdfVoicePreview').hidden"));
+      await run("extractPdfReaderPage=async page=>page===2?[{source:'Chapter title only'}]:originalExtract806(page);document.getElementById('pdfVoicePreviewOpen').click();return true");
+      await until(()=>run("return !document.getElementById('pdfVoicePreviewOpen').disabled&&!document.getElementById('pdfVoicePreview').hidden"),'heading page retained');
+      assert(await run("return document.getElementById('pdfVoicePreviewText').value==='Chapter title only'&&document.getElementById('pdfVoicePreviewHint').textContent.includes('sayfalar korundu: 2')"));
+      await capture('reader806-short-page-kept.png');
+      const beforeStale=await run("return (await window.api.mediaWorkflows({action:'book-list'})).projects.length");
+      await run("extractPdfReaderPage=page=>page===2?new Promise(resolve=>window.releasePage806=()=>resolve([{source:'Actual passage retained'}])):originalExtract806(page);document.getElementById('pdfVoicePrepare').click();return true");
+      await until(()=>run('return typeof window.releasePage806==="function"'),'pending page extraction');
+      await run("document.getElementById('pdfVoiceTo').value='2';document.getElementById('pdfVoiceTo').dispatchEvent(new Event('input'));releasePage806();return true");
+      await until(()=>run("return !document.getElementById('pdfVoicePrepare').disabled&&document.getElementById('pdfVoiceStatus').textContent.includes('yeniden hazırla')"),'range change rejects stale preparation');
+      assert.equal(await run("return (await window.api.mediaWorkflows({action:'book-list'})).projects.length"),beforeStale,'Changed range cannot silently create the captured old project');
+      await run("extractPdfReaderPage=originalExtract806;delete window.originalExtract806;delete window.releasePage806;document.getElementById('pdfVoiceTo').value='3';document.getElementById('pdfVoiceTo').dispatchEvent(new Event('input'));document.getElementById('pdfVoicePreviewOpen').click();return true");
+
+      await until(()=>run("return !document.getElementById('pdfVoicePreviewOpen').disabled&&!document.getElementById('pdfVoicePreview').hidden"),'restore actual PDF preview');
+    }
     await capture("voice-range.png");
     const projectsBeforePreview=await run('return (await window.api.mediaWorkflows({action:"book-list"})).projects.length');
     await run('document.getElementById("pdfVoiceText").value="source";document.getElementById("pdfVoicePreviewOpen").click();return true');
@@ -464,6 +486,7 @@ app
     assert.deepEqual(project.selectedChapters, [0, 1]);
     assert.deepEqual(project.chapters.map(c=>c.text),previewTexts.map(p=>p.text),'Preview and project must use identical prepared text');
     await capture("voice-studio.png");
+    if(process.argv.includes('--reader806')){await run("document.querySelector('#mediaWorkflowsDialog .mw-transport-secondary').open=true;[...document.querySelectorAll('#mediaWorkflowsDialog button')].find(b=>b.textContent.includes('Seçili bölümleri denetle')).click();return true");await until(()=>run("return !!document.querySelector('.mw-readiness-summary')"),'actual readiness summary');assert(await run("return document.querySelector('.mw-readiness-summary').textContent.includes('kontrol bekliyor')"));assert(await run("return !document.querySelector('.mw-readiness').textContent.includes('Page / Sayfa')&&document.querySelector('.mw-readiness').textContent.includes('Sayfa 2')"));await capture('reader806-book-readiness.png');}
     const prep = await run(
       'return window.api.mediaWorkflows({action:"book-prepare",id:' +
         JSON.stringify(project.id) +

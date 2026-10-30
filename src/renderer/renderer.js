@@ -24995,6 +24995,11 @@ function updatePdfReaderProgress() {
 }
 
 function setPdfReaderView(mode = 'both') {
+  const owner=player.pdfReader,scroll=$('pdfReaderPages'),page=owner?.pages.get(owner.currentPage)?.article;
+  const anchor=page&&scroll?{top:page.getBoundingClientRect().top-scroll.getBoundingClientRect().top,height:page.getBoundingClientRect().height}:null;
+  const switching=owner&&owner.viewMode!==(['reading','source','both','translation'].includes(mode)?mode:'both');
+  const sequence=switching?(owner.viewSequence=(owner.viewSequence||0)+1):null;
+  if(switching)owner.switchingView=true;
   const next = ['reading', 'source', 'both', 'translation'].includes(mode) ? mode : 'both';
   const reader = $('pdfReader');
   if (reader) {
@@ -25010,6 +25015,10 @@ function setPdfReaderView(mode = 'both') {
   });
   try { localStorage.setItem('whisper-local.pdf-view', next); } catch (_) {}
   window.PdfReaderExperience?.refresh();
+  if(switching){
+    if(anchor&&page.isConnected&&anchor.height>0){const bounds=page.getBoundingClientRect(),relative=bounds.top-scroll.getBoundingClientRect().top;const desired=anchor.top>=0?anchor.top:-Math.min(.999,Math.max(0,-anchor.top/anchor.height))*bounds.height;scroll.scrollTop+=relative-desired;}
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{if(player.pdfReader===owner&&owner.viewSequence===sequence)owner.switchingView=false;}));
+  }
 }
 
 
@@ -25281,7 +25290,7 @@ async function openPdfReader(filePath = '') {
     await renderPdfReaderPage(pageNumber);
   }
   const root = $('pdfReaderPages'); root.onscroll = () => {
-    if(player.pdfReader?.zooming||player.pdfReader?.navigatingPage)return;
+    if(player.pdfReader?.zooming||player.pdfReader?.navigatingPage||player.pdfReader?.switchingView)return;
     const visible = readerPagesForVisibility().filter(p=>p.visible>0);
     // Keep the selected page while it remains fully visible: two short pages
     // can share the viewport without changing the assistant's source page.

@@ -261,6 +261,7 @@
     const r = player.pdfReader;
     if (!r) return;
     voice = null;
+    voiceRangeEdited=false;
     $("pdfVoiceListen").disabled = true;
     stopVoice();
     $("pdfPageTotal").textContent = `/ ${r.pdf.numPages}`;
@@ -268,6 +269,7 @@
       $(id).max = String(r.pdf.numPages);
       $(id).value = String(r.currentPage);
     }
+    updateVoiceRangeSummary();
     $("pdfVoicePanel").classList.add("hidden");
     $("pdfVoiceOpen").setAttribute("aria-expanded", "false");
     for (const id of ["pdfAssistantTools", "pdfTranslateTools", "pdfReadingTools"]) $(id).open = false;
@@ -355,6 +357,11 @@
     changed(true);
     window.api.showAssistant?.();
   };
+  let voiceRangeEdited=false;
+  const voiceRangeSummary=document.createElement('p');voiceRangeSummary.id='pdfVoiceRangeSummary';voiceRangeSummary.className='pdf-voice-range-summary';voiceRangeSummary.setAttribute('role','status');
+  $('pdfVoicePanel').insertBefore(voiceRangeSummary,$('pdfVoicePreview'));
+  function updateVoiceRangeSummary(){const r=player.pdfReader,from=Number($('pdfVoiceFrom').value),to=Number($('pdfVoiceTo').value);if(!r){voiceRangeSummary.textContent='';return;}const valid=Number.isInteger(from)&&Number.isInteger(to)&&from>=1&&to>=from&&to<=r.pdf.numPages&&to-from<100;voiceRangeSummary.textContent=valid?t(`Sayfa ${from}–${to} · ${to-from+1} sayfa · iki sınır da dahil · `,`Pages ${from}–${to} · ${to-from+1} pages · both endpoints included · `)+($('pdfVoiceText').value==='translation'?t('Çeviri metni','Translated text'):t('Orijinal metin','Original text')):t('Bu belge içinde 1–100 sayfa seç; başlangıç ve bitiş dahildir.','Choose 1–100 pages within this document; both endpoints are included.');}
+  document.addEventListener('ui-locale-change',updateVoiceRangeSummary);
   $("pdfVoiceOpen").onclick = () => {
     const r = player.pdfReader;
     if (!r) return;
@@ -362,8 +369,8 @@
     panel.classList.toggle("hidden");
     $("pdfVoiceOpen").setAttribute("aria-expanded", String(!panel.classList.contains("hidden")));
     if (!panel.classList.contains("hidden")) {
-      for (const id of ["pdfVoiceFrom", "pdfVoiceTo"])
-        $(id).value = String(r.currentPage);
+      if(!voiceRangeEdited)for (const id of ["pdfVoiceFrom", "pdfVoiceTo"]) $(id).value = String(r.currentPage);
+      updateVoiceRangeSummary();
       $("pdfVoiceFrom").focus();
     }
   };
@@ -385,11 +392,12 @@
     $("pdfVoicePreviewText").value=shown;$("pdfVoicePreviewText").setSelectionRange(0,0);$("pdfVoicePreviewText").scrollTop=0;
     $("pdfVoicePreviewTitle").textContent=t('Seslendirme öncesi metin','Text before narration')+` · ${voicePreview.pages[0].pageNumber}–${voicePreview.pages.at(-1).pageNumber} · `+(voicePreview.mode==='translation'?t('Çeviri metni','Translated text'):t('Orijinal metin','Original text'));
     $("pdfVoicePreviewCount").textContent=t(`${voicePreview.pages.length} sayfa · ${total} karakter`,`${voicePreview.pages.length} pages · ${total} characters`);
-    $("pdfVoicePreviewHint").textContent=t('Bu metin projeye aktarılır. Henüz ses üretilmedi. Okuma sırasını, başlıkları ve dipnotları kontrol edin.','This text is passed to the project. No audio has been generated. Check reading order, headings and footnotes.')+(shown.length<page.text.length?t(' Bu sayfanın ilk 50.000 karakteri gösteriliyor.',' Only the first 50,000 characters of this page are shown.'):'');
+    const shortPages=voicePreview.pages.filter(p=>p.text.trim().length<100&&p.text.trim().split(/\s+/u).length<=12).map(p=>p.pageNumber);
+    $("pdfVoicePreviewHint").textContent=t('Bu metin projeye aktarılır. Henüz ses üretilmedi. Okuma sırasını, başlıkları ve dipnotları kontrol edin.','This text is passed to the project. No audio has been generated. Check reading order, headings and footnotes.')+(shown.length<page.text.length?t(' Bu sayfanın ilk 50.000 karakteri gösteriliyor.',' Only the first 50,000 characters of this page are shown.'):'')+(shortPages.length?t(` Kısa/başlık olabilecek sayfalar korundu: ${shortPages.join(', ')}. İçeriği kontrol edin.`,` Short pages that may contain headings were kept: ${shortPages.join(', ')}. Review their text.`):'');
   }
   previewLabels();document.addEventListener('ui-locale-change',previewLabels);
   $("pdfVoicePreviewPage").addEventListener('change',renderVoicePreview);
-  for(const id of ['pdfVoiceFrom','pdfVoiceTo','pdfVoiceText'])$(id).addEventListener('input',clearVoicePreview);
+  for(const id of ['pdfVoiceFrom','pdfVoiceTo','pdfVoiceText'])$(id).addEventListener('input',()=>{voiceRangeEdited=true;clearVoicePreview();updateVoiceRangeSummary();});
   $("pdfVoicePreviewOpen").onclick=()=>prepareVoice(()=>false,true);
   async function prepareVoice(stale=()=>false, previewOnly=false, actionOwner=null) {
     if (preparing) return;
@@ -428,8 +436,8 @@
         if (!list?.length)
           throw Error(
             t(
-              `Sayfa ${page} için çeviri/metin hazır değil.`,
-              `Translation/text is not ready for page ${page}.`,
+              mode==='translation'?`Sayfa ${page} için çeviri hazır değil; önce çeviriyi tamamla. Otomatik atlanmadı.`:`Sayfa ${page} üzerinde okunabilir metin yok. Boş/taranmış sayfayı kontrol et veya aralığı değiştir; otomatik atlanmadı.`,
+              mode==='translation'?`Translation is not ready for page ${page}; finish it first. The page was not skipped.`:`Page ${page} has no readable text. Check the blank/scanned page or change the range; it was not skipped.`,
             ),
           );
         const text = list
@@ -447,16 +455,16 @@
         )
           throw Error(
             t(
-              `Sayfa ${page} eksik; önce çeviriyi tamamla.`,
-              `Page ${page} is incomplete; finish translation first.`,
+              mode==='translation'?`Sayfa ${page} eksik; önce çeviriyi tamamla.`:`Sayfa ${page} üzerinde okunabilir metin yok; otomatik atlanmadı. Aralığı veya PDF metin katmanını kontrol et.`,
+              mode==='translation'?`Page ${page} is incomplete; finish translation first.`:`Page ${page} has no readable text; it was not skipped. Check the range or PDF text layer.`,
             ),
           );
         pages.push({ pageNumber: page, text });
       }
       if (preparation!==prepareToken || player.pdfReader !== r || stale())
         throw Error(t("Belge değişti.", "Document changed."));
+      if(Number($("pdfVoiceFrom").value)!==from||Number($("pdfVoiceTo").value)!==to||$("pdfVoiceText").value!==mode){clearVoicePreview();status.textContent=t('Aralık veya metin seçimi değişti; yeniden hazırla.','The range or text selection changed; prepare it again.');return;}
       if(previewOnly){
-        if(Number($("pdfVoiceFrom").value)!==from||Number($("pdfVoiceTo").value)!==to||$("pdfVoiceText").value!==mode){clearVoicePreview();status.textContent=t('Aralık değişti; metni yeniden önizle.','The range changed; preview the text again.');return;}
         voicePreview={reader:r,pages,mode};const select=$("pdfVoicePreviewPage");select.replaceChildren();
         for(const page of pages){const option=document.createElement('option');option.value=String(page.pageNumber);option.textContent=String(page.pageNumber);select.append(option);}
         $("pdfVoicePreview").hidden=false;$("pdfVoicePreview").open=true;renderVoicePreview();$("pdfVoicePreviewText").focus();$("pdfVoicePreviewText").scrollIntoView({block:'nearest'});

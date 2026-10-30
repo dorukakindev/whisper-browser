@@ -14,3 +14,10 @@ test("PDF scroll keeps a fully visible selected page and updates once it leaves 
  player.pdfReader.navigatingPage=true;visible=[{number:1,height:200,visible:200,top:0}];root.onscroll();assert.equal(player.pdfReader.currentPage,3);
  assert.equal(changes,2);
 });
+
+test("layout-driven scroll cannot switch the narrated PDF page during a view transition",()=>{
+ const source=fs.readFileSync(require.resolve("../src/renderer/renderer.js"),"utf8"),start=source.indexOf("root.onscroll = () => {",source.indexOf("async function openPdfReader(")),end=source.indexOf("\n  };",start);
+ const player={pdfReader:{currentPage:2,switchingView:true}},root={},input={value:"2"};let changes=0;
+ vm.runInNewContext(source.slice(start,end+5),{root,player,$:()=>input,readerPagesForVisibility:()=>[{number:3,height:200,visible:200,top:0}],window:{PdfReaderExperience:{changed(){changes++;}}}});
+ root.onscroll();assert.equal(player.pdfReader.currentPage,2);assert.equal(changes,0);player.pdfReader.switchingView=false;root.onscroll();assert.equal(player.pdfReader.currentPage,3);assert.equal(changes,1);
+});

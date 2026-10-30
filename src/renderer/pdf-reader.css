@@ -184,3 +184,5 @@
 .pdf-reader :is(.btn,.btn-icon,.pdf-reader-home,.pdf-view-modes button,.pdf-reader-tools summary){transition:background-color 140ms ease-out,border-color 140ms ease-out,color 140ms ease-out;}
 .pdf-reader-tools summary{min-height:40px;box-sizing:border-box;display:flex;align-items:center;}
 @media(prefers-reduced-motion:reduce){.pdf-reader :is(.btn,.btn-icon,.pdf-reader-home,.pdf-view-modes button,.pdf-reader-tools summary){transition:none;}}
+
+.pdf-voice-range-summary{flex:1 0 100%;font-size:12px;line-height:1.6;color:var(--text-dim);margin:0;padding-top:4px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
