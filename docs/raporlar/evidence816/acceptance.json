@@ -1,0 +1,195 @@
+{
+  "start": "00a01f92f109f11183b02bc55dd1dfed25ed3e9f",
+  "productCommit": "0da16b42c3e38bdb93e9b1526fa48e5d8de79957",
+  "primaryProductCommit": "df9800745eb7afdf55b2786e47fde72a929f5c74",
+  "integratedRemoteDocs": "55bfcca53a995e1217edb547655a50720ff59320",
+  "translation": {
+    "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+    "tier": "standard",
+    "protocol": "speech-v15-idiom-anchor-feedback",
+    "total": 361,
+    "fullRunCompleted": 350,
+    "fullRunFailed": 11,
+    "fullRunRequests": 62,
+    "resumeRuns": [
+      {
+        "completed": 355,
+        "failed": 6,
+        "requests": 13
+      },
+      {
+        "completed": 361,
+        "failed": 0,
+        "requests": 6
+      }
+    ],
+    "preserved": {
+      "completedCuesPreserved": 350,
+      "exactTextAndTiming": true
+    },
+    "lastQuality": {
+      "type": "quality_report",
+      "translation_blocks": 361,
+      "translation_untranslated": 0,
+      "translation_empty": 0,
+      "translation_timing_mismatch": 0,
+      "translation_failed": 0,
+      "translation_untranslated_indices": [],
+      "translation_empty_indices": [],
+      "translation_timing_mismatch_indices": [],
+      "translation_number_mismatch": 0,
+      "translation_number_mismatch_indices": [],
+      "translation_negation_mismatch": 0,
+      "translation_negation_mismatch_indices": [],
+      "translation_modal_mismatch": 0,
+      "translation_modal_mismatch_indices": [],
+      "translation_currency_mismatch": 0,
+      "translation_currency_mismatch_indices": [],
+      "translation_unit_mismatch": 0,
+      "translation_unit_mismatch_indices": [],
+      "translation_date_mismatch": 0,
+      "translation_date_mismatch_indices": [],
+      "translation_truncated_fragment": 0,
+      "translation_truncated_fragment_indices": [],
+      "translation_meaning_shadow_evaluated": 361,
+      "translation_meaning_shadow_rejected": 0,
+      "translation_meaning_shadow_rejected_indices": [],
+      "translation_meaning_shadow_rejected_rate": 0,
+      "translation_meaning_hard_rejected": 0,
+      "translation_meaning_hard_rejected_rate": 0,
+      "translation_issue_indices": [],
+      "translation_issues": 0
+    },
+    "limits": "Stages ran during development before the final grammatical contraction guard extension. Completed status and gates are not human semantic/naturalness certification."
+  },
+  "longVoice": {
+    "language": "tr",
+    "groups": 158,
+    "countsBefore": {
+      "ready": 127,
+      "review": 31
+    },
+    "countsAfterRepair": {
+      "ready": 129,
+      "review": 29
+    },
+    "performanceBefore": {
+      "model_load_seconds": 14.5,
+      "reference_seconds": 2.625,
+      "synthesis_seconds": 3231.923,
+      "verification_seconds": 531.834,
+      "placement_seconds": 6.953,
+      "normalization_seconds": 14.266,
+      "file_write_seconds": 1.031,
+      "wall_seconds": 1037.109
+    },
+    "performanceRepair": {
+      "model_load_seconds": 12.594,
+      "reference_seconds": 2.0,
+      "synthesis_seconds": 48.719,
+      "verification_seconds": 29.906,
+      "placement_seconds": 7.156,
+      "normalization_seconds": 14.719,
+      "file_write_seconds": 1.765,
+      "wall_seconds": 82.781
+    },
+    "repair": {
+      "exit": 0,
+      "error": null,
+      "reviewBeforeTotal": 31,
+      "selection": "Six lowest ASR similarity review groups; other review groups are explicitly not covered by this repair acceptance.",
+      "selected": [
+        {
+          "key": "58",
+          "group": 32
+        },
+        {
+          "key": "115",
+          "group": 58
+        },
+        {
+          "key": "181",
+          "group": 82
+        },
+        {
+          "key": "235",
+          "group": 105
+        },
+        {
+          "key": "247",
+          "group": 110
+        },
+        {
+          "key": "257",
+          "group": 114
+        }
+      ],
+      "synthesizedGroups": [
+        32,
+        58,
+        82,
+        105,
+        110,
+        114
+      ],
+      "unselectedRegenerated": 0
+    },
+    "syncValidation": "Production validator passed for both 158-segment maps; duration matched actual WAV headers.",
+    "limits": "Synthetic English SAPI reference, not the user voice. No human listening score, and not directly comparable with R814 English benchmark."
+  },
+  "numericYearReplay": {
+    "source": "Actual recorded Turkish ASR of group 20,21; replay of verification only, no regeneration or metadata rewrite.",
+    "beforeReview": true,
+    "newCheck": {
+      "similarity": 0.95,
+      "missing_numbers": [],
+      "added_numbers": [],
+      "review": false
+    }
+  },
+  "nativePlayback": {
+    "ok": true,
+    "videoDuration": 1203.414,
+    "audioDuration": 1294.748979,
+    "localAssetSelected": true,
+    "pause": true,
+    "lateSeek": true,
+    "limits": "Actual downloaded local video and produced long WAV through native file picker. No browser streaming, paid model decisions or physical speaker listening."
+  },
+  "nativeResources": {
+    "cycles": 20,
+    "before": {
+      "rssBytes": 168083456,
+      "workingSetKiB": 647696,
+      "quitListeners": 9
+    },
+    "after": {
+      "rssBytes": 168849408,
+      "workingSetKiB": 690804,
+      "quitListeners": 9
+    },
+    "limits": "Short native dialog cycles, not an overnight memory plateau or GPU production."
+  },
+  "tests": {
+    "nodeTargeted": 29,
+    "speechTranslation": 32,
+    "speechQuality": 7,
+    "transcribe": 224,
+    "dubQuality": 13,
+    "dubGeneration": 26,
+    "nativeStudioScreensPerRun": 6,
+    "nativeDialogCycles": 20,
+    "quitListeners": 9,
+    "syntax": "passed",
+    "fullSuiteThisTurn": false,
+    "ciAwaited": false,
+    "notes": "Overlapping existing tests, not a unique total. Adaptive rescue fixture initially misclassified a two-group batch; retry-feedback classification fixed, existing request-count/concurrency/time requirements retained."
+  },
+  "open": [
+    "29 of 158 final voice groups still require review, including four of six selected repair groups.",
+    "ASR and objective gates cannot certify human naturalness or identity similarity.",
+    "Short dialog memory observations do not establish an overnight memory plateau.",
+    "Fresh YouTube download/streaming/DRM/accounts and a new production start.bat launch were not run.",
+    "External R815 report-only findings were preserved; not treated as implemented by this change."
+  ]
+}
