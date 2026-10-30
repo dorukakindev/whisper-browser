@@ -79,6 +79,47 @@ class SignedSpeechTests(unittest.TestCase):
         target = 'Sıcaklık beş dereceden eksi beşe düştü. Bu, on derecelik bir düşüş demek.'
         self.assertEqual(S.translation_meaning_issues(source, target, 'tr', 'en'), [])
 
+    def test_exact_quantity_does_not_become_approximate_reduplication(self):
+        for source, target in [
+            ('Great, another two-hour delay.', 'Harika, bir iki saatlik gecikme daha.'),
+            ('Wait 2 hours.', 'Bir iki saat bekle.'),
+            ('I have three children.', 'İki üç çocuğum var.'),
+            ('It takes five minutes.', 'Beş on dakika sürer.'),
+            ('Think about it. Wait two hours.', 'Bir düşün. Bir iki saat bekle.'),
+            ('About the meeting: wait two hours.', 'Toplantı için bir iki saat bekle.'),
+        ]:
+            with self.subTest(source=source):
+                self.assertIn('number_mismatch', S.translation_blocking_issues(source, target, 'tr', 'en'))
+        for source, target in [
+            ('Wait two hours.', 'İki saat bekle.'),
+            ('Wait about two hours.', 'Bir iki saat bekle.'),
+            ('It is about a two-hour delay.', 'Bir iki saatlik gecikme.'),
+            ('Wait between two and three days.', 'İki üç gün bekle.'),
+            ('Wait two to three days.', 'İki üç gün bekle.'),
+            ('Wait around 2 hours.', 'Bir iki saat bekle.'),
+            ('Wait roughly three days.', 'İki üç gün bekle.'),
+            ('Wait approximately 5 minutes.', 'Beş on dakika bekle.'),
+            ('Wait one or two hours.', 'Bir iki saat bekle.'),
+            ('Wait 1 or 2 hours.', 'Bir iki saat bekle.'),
+            ('Give me 2 or 3 days.', 'Bana iki üç gün ver.'),
+            ('It takes 5 or 10 minutes.', 'Beş on dakika sürer.'),
+            ('We have 102 hours.', 'Yüz iki saatimiz var.'),
+            ('Twenty-four hours a day, seven days a week.', 'Günde yirmi dört saat, haftada yedi gün.'),
+        ]:
+            with self.subTest(source=source):
+                self.assertNotIn('number_mismatch', S.translation_blocking_issues(source, target, 'tr', 'en'))
+
+    def test_repeated_source_quantities_do_not_claim_unproven_alignment(self):
+        # A gate pass here only means attribution is unproven; the last candidate
+        # is semantically wrong, but this narrow detector cannot align its nouns.
+        for source, target in [
+            ('Two workers waited about two hours.', 'İki işçi bir iki saat bekledi.'),
+            ('Wait about two hours. Two workers will come.', 'Bir iki saat bekle. İki işçi gelecek.'),
+            ('Two workers waited two hours.', 'İki işçi bir iki saat bekledi.'),
+        ]:
+            with self.subTest(source=source):
+                self.assertNotIn('number_mismatch', S.translation_blocking_issues(source, target, 'tr', 'en'))
+
     def test_explicit_sign_is_not_lost_or_reused(self):
         for source, target, correct in [
             ('The value is minus five.', 'Değer eksi beşti.', True),

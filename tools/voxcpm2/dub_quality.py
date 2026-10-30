@@ -9,13 +9,22 @@ from collections import Counter
 from pathlib import Path
 
 import numpy as np
-from dub_finish import spoken_text, decimal_evidence, normalize_decimal_quantities
+from dub_finish import spoken_text, decimal_evidence, normalize_decimal_quantities, integer_words
 
 # Shared with the pre-generation JS guard; this is conservative evidence,
 # not a complete Turkish morphological or semantic analyzer.
 NEGATIVE_ROOTS = json.loads((Path(__file__).resolve().parents[2] / 'src' / 'turkish-negation-roots.json').read_text(encoding='utf-8'))
 # Include finite -mazsa/-mezse and inability -amazsa/-emezse conditionals.
 NEGATIVE_ENDING = re.compile(r'(?:(?:m[ae]|y?[ae]m[ae])zs[ae](?:m|n|k|n[ıi]z|l[ae]r)?|m[ıiuü]yor[^\W_]*|m[ae]y[ae]c[ae][kğ][^\W_]*|m[ae](?:d[ae]n|ks[ıi]z[ıi]n|y[ıi]nc[ae]|m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n(?:lar|ler)?|y[ıiuü]n(?:[ıiuü]z)?|y[ae]l[ıi]m)?|y?[ae]m[ae](?:m|z(?:s[ıi]n(?:[ıi]z)?|lar|ler)?|y[ıi]z|s[ıi]n)?|y?[ae]m[ıiuü]yor[^\W_]*|y?[ae]m[ae]y[^\W_]*)')
+
+# Exact third-person partitives in compound cardinals: "on ikisi" still
+# denotes twelve. Require a cardinal prefix; do not stem unrelated words or
+# reinterpret standalone ambiguous forms such as "yüzü" (his/her face).
+COMPOUND_PARTITIVE_DIGITS = {'biri': 'bir', 'ikisi': 'iki', 'üçü': 'üç',
+    'dördü': 'dört', 'beşi': 'beş', 'altısı': 'altı', 'yedisi': 'yedi',
+    'sekizi': 'sekiz', 'dokuzu': 'dokuz'}
+CARDINAL_PREFIXES = set('on yirmi otuz kırk elli altmış yetmiş seksen doksan yüz bin milyon milyar'.split())
+
 
 def lexical_negatives(text):
     tokens = re.findall(r'[^\W_]+', unicodedata.normalize('NFC', text).replace('I','ı').replace('İ','i').lower())
@@ -39,7 +48,6 @@ def speech_check(expected, actual, numeric_reference=None):
     if decimal_context:
         # Canonicalize only explicit decimal speech. Integer fraction readings
         # ('on dört') and digit readings ('bir dört') denote the same fraction.
-        from dub_finish import integer_words
         for row in decimal_context:
             fraction=row['number'].split('.')[1]
             if not fraction.startswith('0'):
@@ -52,10 +60,20 @@ def speech_check(expected, actual, numeric_reference=None):
             text=re.sub(r'\b'+re.escape(name)+r"['’]?"+re.escape(suffix)+r'\b',
                         name+suffix,text,flags=re.I)
         normalized = unicodedata.normalize('NFKC', spoken_text(text))
+        # ASR can write the spoken "on ikisi" as the malformed "12'i".
+        # Prove its exact integer value without changing production speech or
+        # stripping arbitrary endings. Retain the case/possessive suffix as a
+        # separate alignment token; dates, IDs and leading zeros stay literal.
+        normalized = re.sub(r"(?<![\w.,:/+\-−])((?:[1-9]\d{0,8}|0))['’]"
+                            r"(yi|yı|yu|yü|si|sı|su|sü|i|ı|u|ü)(?!\w)",
+                            lambda m: integer_words(m[1]) + ' ' + m[2], normalized)
         # A Turkish-letter word establishes local casing without changing
         # English 'I' or Latin acronyms throughout a mixed-language block.
         normalized = re.sub(r'[^\W_]+', lambda m: m[0].replace('I','ı').replace('İ','i') if re.search('[çğıöşüÇĞİÖŞÜ]',m[0]) else m[0], normalized)
-        return re.findall(r"[^\W_]+", normalized.casefold().replace('i\u0307', 'i'))
+        tokens = re.findall(r"[^\W_]+", normalized.casefold().replace('i\u0307', 'i'))
+        return [COMPOUND_PARTITIVE_DIGITS.get(token, token)
+                if i and tokens[i-1] in CARDINAL_PREFIXES else token
+                for i, token in enumerate(tokens)]
     target = words(expected)
     # ASR may print the spoken "elli bin" as "50.000". Only interpret a
     # dotted thousands spelling when that exact whole quantity is present in

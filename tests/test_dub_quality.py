@@ -11,6 +11,56 @@ import numpy as np
 
 
 class QualityTests(unittest.TestCase):
+    def test_compound_partitive_quantity_matches_actual_asr_digit_evidence(self):
+        expected = ('Örneğin otuz kişiden yalnızca on ikisi geri döndüğünde, '
+                    'geri kalanların neden gelmediğini henüz bilmiyoruz.')
+        actual = ('Örneğin 30 kişiden yalnızca 12 kişi geri döndüğünde '
+                  'geri kalanların neden gelmediğini henüz bilmiyoruz.')
+        result = Q.speech_check(expected, actual)
+        self.assertEqual(result['added_numbers'], [])
+        self.assertFalse(result['spoken_number_mismatch'])
+        self.assertFalse(result['review'])
+        for wrong in ('13', '112', '2'):
+            with self.subTest(wrong=wrong):
+                changed = Q.speech_check(expected, actual.replace('12 kişi', wrong+' kişi'))
+                self.assertTrue(changed['spoken_number_mismatch'])
+                self.assertTrue(changed['review'])
+        self.assertTrue(Q.speech_check(expected, actual.replace('12 kişi', 'kişi'))['review'])
+        self.assertTrue(Q.speech_check(expected, actual+' Ayrıca 12 kişi bekledi.')['review'])
+        for suffix in ("'i", '’i'):
+            recognized = actual.replace('12 kişi', '12'+suffix)
+            with self.subTest(asr=recognized):
+                result = Q.speech_check(expected, recognized)
+                self.assertEqual(result['recognizedText'], recognized)
+                self.assertEqual(result['added_numbers'], [])
+                self.assertFalse(result['spoken_number_mismatch'])
+                self.assertFalse(result['review'])
+                for wrong in ('13', '112', '2'):
+                    changed = Q.speech_check(expected, recognized.replace('12'+suffix, wrong+suffix))
+                    self.assertTrue(changed['spoken_number_mismatch'])
+                    self.assertTrue(changed['review'])
+        self.assertEqual(Q.spoken_text("12'i"), "12'i", 'ASR evidence handling must not rewrite TTS text')
+        for literal in ("ID12'i", "012'i", "10:12'i", "2026.12'i", "12'nin"):
+            with self.subTest(literal=literal):
+                self.assertTrue(Q.speech_check(expected, actual.replace('12 kişi', literal))['review'])
+
+    def test_partitive_normalization_keeps_full_compound_cardinals(self):
+        for source, number in [('on biri', 11), ('on ikisi', 12), ('on üçü', 13),
+                               ('on dördü', 14), ('on beşi', 15), ('on altısı', 16),
+                               ('on yedisi', 17), ('on sekizi', 18), ('on dokuzu', 19),
+                               ('yüz on ikisi', 112), ('bin on ikisi', 1012)]:
+            expected = f'Buraya gelen öğrencilerden {source} şimdi salonda bekliyor.'
+            actual = f'Buraya gelen öğrencilerden {number} kişi şimdi salonda bekliyor.'
+            with self.subTest(source=source):
+                self.assertFalse(Q.speech_check(expected, actual)['review'])
+                self.assertFalse(Q.speech_check(actual, expected)['review'])
+                # A matching final digit cannot prove a different whole number.
+                self.assertTrue(Q.speech_check(expected, actual.replace(str(number), str(number+100)))['review'])
+        result = Q.speech_check('On ikisinden haber geldi.', 'On iki kişiden haber geldi.')
+        self.assertTrue(result['spoken_number_mismatch'], 'unrecognized suffixes must not be broadly stemmed')
+        result = Q.speech_check('Yüzü göründüğünde herkes durdu.', 'Yüz göründüğünde herkes durdu.')
+        self.assertTrue(result['spoken_number_mismatch'], 'a standalone lexical word is not a compound cardinal')
+
     def test_literal_inflected_year_survives_unrelated_asr_word_difference(self):
         expected="Bu yıl okula başlayan çocuklar eğitimlerini tamamladıktan sonra 2065'te emekli olacaklar."
         actual=expected.replace('olacaklar','olacak')

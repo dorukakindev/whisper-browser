@@ -3292,7 +3292,7 @@ def resolve_translate_routes(base_url):
     return [raw]
 
 
-SPEECH_TRANSLATION_PROTOCOL = 'speech-v16-readaloud-review'
+SPEECH_TRANSLATION_PROTOCOL = 'speech-v17-role-readaloud-review'
 
 
 def translation_cue_interval(args):
@@ -5595,6 +5595,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                             warn_list.append(message)
                 effective_refine_prompt = refine_prompt
                 if speech_review and payload.get('source_relations') and all(row.get('review_mode') == 'source_retranslation' for row in payload['sentence_groups']):
+                    # A source-only role rereading is a translation task. Keep
+                    # its explicit role contract and the shared natural speech
+                    # rules; there is no existing draft for an editor to retain.
                     effective_refine_prompt = (
                         'Translate the supplied source dialogue into natural ' + LANG_NAMES.get(target, target) + '. '
                         'Keep speaker labels, actor, object owner and recipient including the exact contrasted role. '
@@ -5606,7 +5609,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                         'Use the given group-first ids for sentences and exact item i values for items; preserve all ids. '
                         'Within each group, item strings joined in id order equal its sentence exactly. '
                         'Only source text is translated, context stays read-only. '
-                    ) + locked_note
+                    ) + '\n' + '\n'.join(SPEECH_READALOUD_RULES) + locked_note
+                    if str(target or '').lower().split('-')[0] == 'tr':
+                        effective_refine_prompt += '\n' + '\n'.join(TURKISH_NATIVE_REFINE_RULES[:-1])
                     if glossary_terms:
                         effective_refine_prompt += "\nUser glossary (preserve exact spellings): " + json.dumps(glossary_terms, ensure_ascii=False)
                     if scene_context:
