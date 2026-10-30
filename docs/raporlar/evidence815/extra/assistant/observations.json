@@ -1,0 +1,69 @@
+[
+  {
+    "id": "E01",
+    "stopAcknowledgedBeforeRegistration": true,
+    "networkStartedAfterStop": 1,
+    "resultAfterStop": true
+  },
+  {
+    "id": "E02",
+    "oldIMDb": "tt1234567",
+    "newIMDb": "tt7654321",
+    "staleAnalysisAccepted": true,
+    "persistedHistoryIdentity": {
+      "kind": "film",
+      "title": "Same title",
+      "year": 2025,
+      "tmdbId": ""
+    },
+    "oldAnalysisRenderedAsCurrent": true
+  },
+  {
+    "id": "E03",
+    "requestedTitle": "B",
+    "visibleTitleAfterResponse": "Title A",
+    "mutationTarget": "B"
+  },
+  {
+    "id": "E04",
+    "receivedDeltaCount": 200,
+    "latestReceivedText": "Received continuous response 200",
+    "persistedReplyText": "",
+    "persistedReplyStatus": "streaming",
+    "pagehideCancelledCheckpoint": true
+  },
+  {
+    "id": "E05",
+    "question": "Never add this to my watchlist.",
+    "consumedAsCommand": true,
+    "unexpectedSavedStatus": "planned",
+    "actualAiChatSendDispatcherTested": true,
+    "typedAgentCalls": 0
+  },
+  {
+    "id": "E06",
+    "metadataLanguage": "tr-TR",
+    "acceptedMetadataGenres": [
+      "Suç"
+    ],
+    "hasFavorite": true,
+    "returnedNeedsRatings": true,
+    "recommendationRequests": 0
+  },
+  {
+    "id": "E07",
+    "nativeCommandResult": {
+      "ok": false,
+      "error": "Synthetic pipe unavailable"
+    },
+    "assistantResult": "completed",
+    "optimisticPublicPaused": true,
+    "nativePauseConfirmed": false
+  },
+  {
+    "id": "E08",
+    "lowercaseContentTypeSucceeded": true,
+    "equivalentMixedCaseContentType": "Text/Event-Stream",
+    "error": "Unexpected token 'd', \"data: {\"ch\"... is not valid JSON"
+  }
+]

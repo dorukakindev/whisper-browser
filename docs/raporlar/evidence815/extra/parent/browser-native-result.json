@@ -1,0 +1,124 @@
+{
+  "head": "55bfcca53a995e1217edb547655a50720ff59320",
+  "pid": 11188,
+  "electron": "43.5.0",
+  "platform": "win32",
+  "observations": [
+    {
+      "id": "EX-BR01-LATE-SHADOW",
+      "before": null,
+      "after": null,
+      "domVideoCount": 1
+    },
+    {
+      "id": "EX-BR02-HIDDEN-MEDIA",
+      "selected": {
+        "docToken": "doc-97akougrhud-mvvhupbc",
+        "currentTime": 0,
+        "duration": 3,
+        "paused": true,
+        "ended": false,
+        "tagName": "video",
+        "muted": false,
+        "volume": 1,
+        "playbackRate": 1,
+        "area": 320000,
+        "bounds": {
+          "x": 8,
+          "y": 162,
+          "width": 800,
+          "height": 400
+        },
+        "readyState": 4,
+        "videoWidth": 0,
+        "videoHeight": 0,
+        "totalVideoFrames": 0,
+        "spinnerVisible": false,
+        "errorCode": 0,
+        "errorMessage": "",
+        "adPlaying": false,
+        "adSkippable": false,
+        "adRemaining": null
+      },
+      "loops": {
+        "visible": {
+          "loop": false,
+          "visibility": "visible",
+          "width": 300
+        },
+        "hidden": {
+          "loop": true,
+          "visibility": "hidden",
+          "width": 800
+        }
+      }
+    },
+    {
+      "id": "EX-BR03-SAME-DOC-MEDIA-REPLACEMENT",
+      "oldToken": "doc-y155p22ebc-mvvhupbq",
+      "command": {
+        "handled": true,
+        "currentTime": 0,
+        "playbackRate": 1,
+        "paused": true,
+        "volume": 1,
+        "muted": false
+      },
+      "newVideoLoop": true
+    },
+    {
+      "id": "EX-BR04-DUB-NEW-SOURCE",
+      "rate": 0.5,
+      "source": "http://127.0.0.1:55045/tone.wav?new-source"
+    },
+    {
+      "id": "EX-BR05-CORS-SOURCE-SILENCE",
+      "sameOriginPeak": 0.3662206530570984,
+      "crossOrigin": {
+        "peak": 0,
+        "paused": false,
+        "time": 0.344058,
+        "ready": 4,
+        "graphs": 1
+      }
+    },
+    {
+      "id": "EX-BR06-CROSS-ORIGIN-HINT-COLLISION",
+      "topHints": {
+        "handled": true,
+        "active": true,
+        "count": 1
+      },
+      "childHints": {
+        "active": true,
+        "count": 1,
+        "handled": true
+      },
+      "topLabels": [
+        "A"
+      ],
+      "childLabels": [
+        "A"
+      ],
+      "topClicks": 1,
+      "childClicks": 0,
+      "childLayerRemains": true
+    },
+    {
+      "id": "EX-BR08-HIDDEN-FRAME-HINT",
+      "result": {
+        "handled": true,
+        "active": true,
+        "count": 1
+      },
+      "labels": [
+        {
+          "text": "A",
+          "left": "8px",
+          "top": "8px"
+        }
+      ],
+      "hiddenFrameDisplay": "none"
+    }
+  ]
+}

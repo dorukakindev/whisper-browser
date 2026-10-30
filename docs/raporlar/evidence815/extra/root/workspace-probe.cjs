@@ -1,0 +1,33 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
+const ROOT=path.resolve(__dirname,'../..'),core=require(path.join(ROOT,'src/workspace-package')),video=require(path.join(ROOT,'src/workspace-video-package')),{createCatalogExtensions}=require(path.join(ROOT,'src/catalog-extensions'));
+const runDir=fs.mkdtempSync(path.join(__dirname,'fixtures-')),python=path.join(ROOT,'backend/venv/Scripts/python.exe'),out=[];
+const json=(f,v)=>fs.writeFileSync(f,JSON.stringify(v));
+const file=(name,v)=>({name,data:Buffer.from(JSON.stringify(v)).toString('base64')});
+async function main(){
+ const source=path.join(runDir,'source'),target=path.join(runDir,'target');fs.mkdirSync(source);fs.mkdirSync(target);
+ const media=path.join(__dirname,'synthetic.mp4');assert(fs.existsSync(media),'Run documented FFmpeg fixture command first');
+ json(path.join(source,'media-catalog.json'),{version:1,items:[{id:'synthetic-film',kind:'film',title:'Synthetic fixture',source:{type:'local',value:media},episodes:[]}]});
+ const archive=path.join(runDir,'with-video.wbp');const exported=await video.exportWithVideos(source,archive,{},python);
+ const storage=new Map(),localStorage={getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)};let restarted=false;
+ const handle=createCatalogExtensions({userData:()=>target,pythonPath:()=>python,dialog:{showOpenDialog:async()=>({canceled:false,filePaths:[archive]})},owner:()=>({webContents:{executeJavaScript:async code=>vm.runInNewContext(code,{localStorage})}}),restart:()=>{restarted=true;}});
+ const event={sender:{id:815}},preview=await handle(event,{action:'package-preview'}),applied=await handle(event,{action:'package-apply',token:preview.token});
+ const restored=JSON.parse(fs.readFileSync(path.join(target,'media-catalog.json'),'utf8')),actual=restored.items[0].source.value;
+ const extracted=fs.readdirSync(path.join(target,'workspace-videos'),{recursive:true}).filter(p=>p.endsWith('.mp4'));
+ assert.equal(applied.ok,true);assert.equal(restarted,true);assert.equal(exported.videos,1);assert.equal(extracted.length,1);assert(actual.startsWith('{{VIDEO}}/'));assert.equal(fs.existsSync(actual),false);
+ const normalized=require(path.join(ROOT,'src/media-catalog-store')).itemOf(restored.items[0]);assert.equal(normalized.source,null);
+ out.push({id:'XROOT01',case:'real-video-package-export-preview-apply',exportVideos:exported.videos,scopeVideos:preview.videos,applyOk:applied.ok,restarted,restoredValue:actual,extractedFiles:extracted.length,restoredPathExists:false,consumerSource:normalized.source,method:'Actual ZIP/Python extraction and production catalog extension/itemOf; owner localStorage boundary controlled'});
+ const unc='\\\\audit-server\\share\\folder\\movie.mp4';const uncData={format:'whisper-workspace',version:1,sourceRoot:'{{ROOT}}',mappings:[],files:[file('watch-library.json',{items:[{localPath:unc}]})],rendererValues:{}};
+ const missing=core.missingLocalMedia(uncData,()=>false);const root=missing[0].root;
+ const uncTarget=path.join(runDir,'unc-target');fs.mkdirSync(uncTarget);core.restorePackage(uncTarget,uncData,[[root,source]]);
+ const after=JSON.parse(fs.readFileSync(path.join(uncTarget,'watch-library.json'),'utf8')).items[0].localPath;
+ assert(!root.startsWith('\\\\'));assert.equal(after,unc);
+ out.push({id:'XROOT02',case:'unc-migration-root',source:'\\\\audit-server\\share\\folder\\movie.mp4',offeredRoot:root,restoredUnchanged:after===unc,method:'Production missingLocalMedia and restorePackage; existence check controlled to avoid contacting a network share'});
+ const posix='/mnt/previous/film/movie.mp4';const posixData={...uncData,files:[file('media-catalog.json',{version:1,items:[{id:'migrated-film',kind:'film',title:'Migration fixture',source:{type:'local',value:posix}}]})]};assert(require(path.join(ROOT,'src/media-catalog-store')).itemOf(JSON.parse(Buffer.from(posixData.files[0].data,'base64')) .items[0]).source);
+ const posixGroups=core.missingLocalMedia(posixData,()=>false),posixTarget=path.join(runDir,'posix-target');fs.mkdirSync(posixTarget);core.restorePackage(posixTarget,posixData,[[posixGroups[0].root,source]]);const posixAfter=JSON.parse(fs.readFileSync(path.join(posixTarget,'media-catalog.json'),'utf8')).items[0].source.value;assert.equal(posixAfter,posix);
+ out.push({id:'XROOT02',case:'valid-posix-catalog-migration-root',source:posix,offeredRoot:posixGroups[0].root,restoredUnchanged:posixAfter===posix,method:'Production itemOf, missingLocalMedia and restorePackage, valid Linux source path imported on Windows'});
+ const brokenRoot=path.join(runDir,'broken');fs.mkdirSync(brokenRoot);fs.writeFileSync(path.join(brokenRoot,'media-catalog.json'),'{');const brokenArchive=path.join(runDir,'broken-export.wbp');const brokenExport=core.exportPackage(brokenRoot,brokenArchive);let error='';try{core.readPackage(brokenArchive);}catch(e){error=e.message;}assert(brokenExport.count===1&&error);
+ out.push({id:'XROOT03',case:'corrupt-json-export-success-restore-reject',exportOk:true,count:brokenExport.count,readError:error,method:'Actual production export and read; synthetically corrupt source catalog'});
+ fs.writeFileSync(path.join(__dirname,'workspace-observations.json'),JSON.stringify({head:'55bfcca53a995e1217edb547655a50720ff59320',results:out},null,2)+'\n');console.log(JSON.stringify(out,null,2));
+}
+main().catch(e=>{console.error(e);process.exitCode=1;});

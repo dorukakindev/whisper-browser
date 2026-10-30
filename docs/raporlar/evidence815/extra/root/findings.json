@@ -1,0 +1,170 @@
+{
+  "head": "55bfcca53a995e1217edb547655a50720ff59320",
+  "domain": "root",
+  "findings": [
+    {
+      "id": "XROOT01",
+      "severity": "P1",
+      "title": "Video paketinin geri yüklenmesi çıkarılan videoyu kataloğa bağlamıyor",
+      "sources": [
+        "src/catalog-extensions.js:145",
+        "src/catalog-extensions.js:148",
+        "src/catalog-extensions.js:166",
+        "src/workspace-video-package.js:88",
+        "src/media-catalog-store.js:45"
+      ],
+      "reproduce": "Gerçek kısa MP4 içeren geçerli kataloğu includeVideos ile dışa aktar. Boş ayrı profilde gerçek package-preview → package-apply zincirini çalıştır; yeniden açılış tüketicisi itemOf ile kaydı oku.",
+      "expected": "Çıkarılan dosyanın yeni yerel yolu katalog kaynağına ve ilgili kayıt kimliklerine uygulanmalı; hazır video ilk açılışta erişilebilir olmalı.",
+      "observed": "Python ZIP çıkarımı 1 MP4 üretiyor; apply ok:true ve restart callback'i çalışıyor. Katalog source.value '{{VIDEO}}/videos/<hash>.mp4' olarak kalıyor; gerçek itemOf bu yolu yerel mutlak yol saymadığı için source:null döndürüyor.",
+      "cause": "videoMappings dizisi extract() çağrısından önce kopyalanıyor. extract() sonradan data.videoMappings alanına güvenilir yolları yazıyor fakat restorePackage eski boş diziyi kullanıyor.",
+      "impact": "Başarıyla taşındığı bildirilen videonun katalog bağlantısı kaybolur; çıkarılan medya diskte dururken kullanıcı yeniden dosya seçmek zorunda kalır. Film ve bölüm çeşitleri tek köktür.",
+      "evidence": [
+        "workspace-probe.cjs",
+        "workspace-observations.json"
+      ],
+      "limits": "Gerçek FFmpeg MP4, Python ZIP ve üretim apply/tüketici çalıştırıldı. Electron restart yerine kontrollü callback ve localStorage sınırı kullanıldı; kişisel medya/profil yok. Video baytları silinmedi.",
+      "prior": "R86-01 paket kaynaklarını takma kimliğe çevirdi; bu kayıt o gizlilik onarımını geri alınmış saymaz. Yeni sınır, extract tamamlanınca üretilen eşlemenin gerçek apply caller'ına geçmemesidir. Önceki R815-B01–B54'te yok.",
+      "acceptance": "Film ve dizi bölümü içeren gerçek ZIP export→preview→apply→yeni store açılışında bütün çıkarılan source.value değerleri mevcut dosyalara gitmeli; takma kimlikler normal katalog tüketicisine kalmamalı. Eksik video açıkça ayrı gösterilmeli."
+    },
+    {
+      "id": "XROOT02",
+      "severity": "P2",
+      "title": "POSIX kaynak kökü taşıma sihirbazında baştaki ayıracını kaybediyor ve seçilen eşleme uygulanmıyor",
+      "sources": [
+        "src/workspace-package.js:298",
+        "src/workspace-package.js:312",
+        "src/workspace-package.js:314",
+        "src/catalog-extensions.js:135",
+        "src/renderer/media-catalog.js:513"
+      ],
+      "reproduce": "Linux kaynağından gelen geçerli katalogda /mnt/previous/film/movie.mp4 bulunsun. Windows'ta önizlemenin sunduğu eksik kök için yeni yerel klasör seçip geri yükle.",
+      "expected": "Sihirbazın sunduğu kök özgün yolun gerçek öneki olmalı ve seçilen klasör kaynak yoluna uygulanmalı.",
+      "observed": "missingLocalMedia kökü 'mnt/previous/film' döndürüyor; baştaki '/' yok. Bu köke bağlanan geçerli hedefle restorePackage çalışınca source.value hâlâ '/mnt/previous/film/movie.mp4'. Gerçek itemOf kaynak kaydını kabul ediyor. Aynı kök bölme işlemi UNC ayıraçlarını da düşürüyor; UNC örneği ayrı bug sayılmadı.",
+      "cause": "split(/[\\/]+/).filter(Boolean) kök bilgisini kaybediyor; yeniden join hacim/kök ayıracını geri koymuyor. rewrite ise doğru olarak tam önek aradığı için yanlış kökü eşleştirmiyor.",
+      "impact": "Linux'tan Windows'a geçişte kullanıcı klasör eşlemesini seçmesine rağmen medya yolları eksik kalır. Her dosyayı yeniden bağlamak gerekir.",
+      "evidence": [
+        "workspace-probe.cjs",
+        "workspace-observations.json"
+      ],
+      "limits": "Geçerli POSIX katalog kaydı, üretim itemOf/missingLocalMedia/restorePackage ve Windows dosya sistemi kullanıldı. Gerçek Linux GUI oturumu açılmadı. UNC ağına bağlanılmadı; modern kataloğun UNC reddi nedeniyle o varyant ana kanıt yapılmadı.",
+      "prior": "R388 madde25 proje taşıma özelliğinin açık kalan kök biçimi; mevcut drive-letter testi yeni keşif sayılmadı. Registry F38 ağırlıkla media-relink-matcher/store yollarıdır; bu sihirbazın POSIX kök üretimi farklı entegrasyon sınırıdır.",
+      "acceptance": "Drive-letter, POSIX ve açık desteklenen ağ yolu biçimlerinde üretilen kök özgün kaynağın sınır duyarlı öneki olmalı; Windows hedef seçimiyle doğru dosya yoluna dönüşmeli."
+    },
+    {
+      "id": "XROOT03",
+      "severity": "P1",
+      "title": "Bozuk kaynak katalog otomatik yedeklemede başarı sayılıyor ve son sağlam yedek budanıyor",
+      "sources": [
+        "src/workspace-package.js:104",
+        "src/workspace-package.js:105",
+        "src/media-tools-service.js:61",
+        "src/media-tools-service.js:63",
+        "src/media-tools-service.js:64"
+      ],
+      "reproduce": "Önce geri okunabilen bir otomatik yedek oluştur. Sentetik katalog JSON'unu boz; gerçek kayıtlı günlük yedekleyiciyi kontrollü saatle 7 gün ilerleterek çalıştır. Kalan yedekleri readPackage ile geri oku.",
+      "expected": "Geçersiz kaynak dosya yüzünden geri yüklenemeyecek arşiv sağlam yedek yerine geçmemeli; hata görünmeli ve son doğrulanmış yedek korunmalı.",
+      "observed": "exportPackage bozuk JSON parse hatasını yutup ham baytları paketliyor. Yedi günlük işlem de schedule.error='' ve güncellenmiş last ile başarı gösteriyor. Sonuçta 7 arşivin hiçbiri readPackage'ten geçmiyor; başlangıçtaki tek sağlam arşiv retention ile silinmiş.",
+      "cause": "Export catch yalnız WP_DEPTH hatasını yeniden fırlatıyor. Normal SyntaxError yutuluyor; otomatik döngü paketi geri doğrulamadan 7 dosyalık retention uyguluyor ve başarı zamanını yazıyor.",
+      "impact": "Disk/uygulama arızasından sonra otomatik yedekleme kurtarma sağlamak yerine son sağlam geri dönüş noktasını da tüketebilir. Elle export başarısı aynı kökün başka yüzeyidir, ayrı sayılmadı.",
+      "evidence": [
+        "workspace-probe.cjs",
+        "workspace-observations.json",
+        "auto-backup-probe.cjs",
+        "auto-backup-observations.json"
+      ],
+      "limits": "Üretim modülü VM içinde, yalnız saat ve timer kontrollü; export/read/retention gerçek sentetik dosyalarla çalıştı. Yedi gerçek gün beklenmedi, elektrik kesintisi veya kişisel dosya bozulması oluşturulmadı.",
+      "prior": "R357 derin JSON/WP_DEPTH onarımını koruyor; bu yeni doğrulama sıradan sözdizimi bozukluğu ve otomatik retention birleşimini sınar. R815-B09 okuma listesi indeksinin doğrudan ezilmesidir; burada arşiv geçerliliği ve sağlam yedek rotasyonu farklı köktür.",
+      "acceptance": "Bozuk katalog/sohbet/not girdilerinde export açık hata veya bölümsel uyarı vermeli; geri okunamayan arşiv başarı sayılmamalı ve son doğrulanmış yedek retention dışında korunmalı."
+    },
+    {
+      "id": "XROOT04",
+      "severity": "P1",
+      "title": "Çalışma paketi yalnız önizlenirken paket içindeki doğrulanmamış UNC yoluna dosya varlık sorgusu gönderiliyor",
+      "sources": [
+        "src/catalog-extensions.js:120",
+        "src/catalog-extensions.js:127",
+        "src/workspace-package.js:174",
+        "src/workspace-package.js:307",
+        "src/workspace-package.js:324"
+      ],
+      "reproduce": "Sentetik .wbp katalog kaydının local kaynağına UNC yolu koy. Gerçek package-preview zincirini, UNC fs.existsSync çağrılarını ağdan önce kaydeden/bloklayan kontrollü sınırla çalıştır; apply çağırma.",
+      "expected": "Önizleme paket içindeki doğrulanmamış uzak dosya yollarına otomatik erişmemeli. Katalog normalizasyonunun reddettiği yol, eksik medya taramasına ham biçimde geçmemeli.",
+      "observed": "Paket doğrulaması ve preview ok:true; apply yapılmadan fs.existsSync('\\\\audit.invalid\\private-share\\movie.mp4') çağrısı kaydedildi. Aynı sourceOf gerçek katalog tüketicisinde null olarak reddediliyor. validate, itemOf sonucunu atıp ham kaydı kullanmayı sürdürüyor.",
+      "cause": "Paket önizlemesi ham files içindeki source.value üzerinde missingLocalMedia çağırıyor. looksLikeLocalMediaPath UNC'yi yerel medya gibi kabul ediyor ve kullanıcı eşlemesi/restore onayından önce existsFn(value) çalıştırıyor.",
+      "impact": "Windows dosya API'si ağ paylaşımına erişmeye çalışabilir; beklenmeyen giden SMB ve bekleme riski vardır. Kimlik doğrulama politikası izin veriyorsa NTLM isteği riski de doğar. Bu tur kimlik sızıntısı veya başarılı bağlantı gösterilmedi.",
+      "evidence": [
+        "package-preview-network-probe.cjs",
+        "package-preview-network-observations.json"
+      ],
+      "limits": "Bütün UNC dosya sorguları intercept edilerek false döndürüldü; DNS/SMB/NTLM işlemi veya gerçek ağ hedefi kullanılmadı. Kanıt, üretim preview yolunun yasaklanması gereken çağrıyı yapmasıdır; işletim sistemi politikası sonucu çıkarım olarak ayrı tutulur.",
+      "prior": "R30 B45 katalog/nMDB tüketicisi UNC reddini, R198 history:authorizeFiles imported korumasını kapatmıştı. Onlar kaldırılmış sayılmaz: yeni kaçak sink R388'de eklenen package-preview/missingLocalMedia ön taramasıdır. Registry F48/F50 eski IPC/depo kontrolleriyle aynı test diye sayılmadı.",
+      "acceptance": "Paket önizleme/metadata/kapsam taramasında UNC, device-UNC ve ağ yolu varyantları hiçbir dosya varlık/stat/açma API'sine ulaşmamalı; yalnız kullanıcı tarafından doğrulanmış yerel eşleme veya açık yetkili açma akışı erişim vermeli."
+    }
+  ],
+  "improvements": [
+    {
+      "id": "XGROOT01",
+      "title": "Büyük yedekleri ana süreç dışında, ilerleme ve iptalle hazırla",
+      "basis": "backup-load-observations.json: 96 MiB sentetik dosyada export 2448 ms; export sonrası RSS +333479936 bayt. Sıfır gecikmeli timer 3446 ms bekledi; bu değer sonraki doğrulama okumasını da içerir, yalnız export süresi diye sunulmaz.",
+      "benefit": "Güçlü bilgisayarda dahi paket sıkıştırması sırasında IPC, oynatma ve kapatma tepkisini korur.",
+      "acceptance": "Ayrı worker/utility process, sınırlı bellek akışı, kullanıcıya bayt/dosya ilerlemesi ve iptal; 100 MiB ve sınıra yakın arşivlerde native UI eylem gecikmesi ayrıca ölçülmeli; yarım paket başarı diye yayımlanmamalı.",
+      "priority": "yüksek"
+    },
+    {
+      "id": "XGROOT02",
+      "title": "Uzun testler başarısız olsa da kısmi ölçümleri ve son aşamayı kaydet",
+      "basis": "Gerçek start.bat soak: 200/200 capture; hibernasyon3/50 pending-response korumasında durdu; final JSON oluşmadı.",
+      "benefit": "Saatler süren testin işe yarayan kanıtı kaybolmaz; koruma, fixture yarışı ve kaynak sızıntısı birbirinden ayrılır.",
+      "acceptance": "Her50döngü ve aşama sonunda atomik checkpoint; failure JSON'unda tamamlanan döngüler, son guard, kaynak snapshot, stderr sınıflaması; mevcut eşikler yükseltilmemeli ve eksik koşu geçti sayılmamalı.",
+      "priority": "yüksek"
+    },
+    {
+      "id": "XGROOT03",
+      "title": "Yedeğin kapsadığı ve dışarıda bıraktığı veriyi işlem öncesinde tek envanterde göster",
+      "basis": "Çalışma paketi ile ayrı kitap projesi yedeği farklı kapsamlar taşıyor; STOR­AGE_KEYS yalnız belirli renderer değerlerini alıyor.",
+      "benefit": "Kullanıcı kitap projesi, ses, model, hesap ve sohbet metninin hangi yedekte olduğunu anlamak için farklı ekranları karşılaştırmaz.",
+      "acceptance": "Dosya/kayıt kategorileri, dahil/harici/anahtar içermez bilgisi; son doğrulanmış tarih ve açık geri yükleme denemesi; kişisel mesaj metni gibi içerikler sürpriz olmamalı.",
+      "priority": "orta"
+    },
+    {
+      "id": "XGROOT04",
+      "title": "Windows medya çıktısında kapsayıcı ve codec planını başlamadan doğrula",
+      "basis": "Önceki R815-B16 gerçek WMV/WMA→MP4 audio-copy hatası ve mevcut export araçlarının farklı whitelistleri.",
+      "benefit": "Uzun video gömme/çeviri işi sonunda önceden bilinebilecek mux hatasını azaltır.",
+      "acceptance": "Kapsayıcı, seçilen ses akışı ve encoder uyumluluğu için kısa ffprobe tabanlı plan; kopya mümkün değilse açık yeniden kodlama seçimi; kaynak korunmalı, tespit sonucu tüm videolar için garanti diye sunulmamalı.",
+      "priority": "yüksek"
+    },
+    {
+      "id": "XGROOT05",
+      "title": "Taşınabilir kayıt kimliğini dosya konumundan ayır",
+      "basis": "Video paketi, eksik kök eşleme ve altyazı/not/watchKey referansları birden çok yol temsili kullanıyor.",
+      "benefit": "Sürücü harfi veya makine değişince izleme geçmişi, not ve senkronların ayrı ayrı yeniden bağlanma ihtiyacını azaltır.",
+      "acceptance": "Kararlı varlık kimliği + yerel locator; dosya taşındığında bütün ilişkiler tek transaction ile güncellenmeli; eski profil migrasyonu geri alınabilir ve çakışma kullanıcıya açık olmalı.",
+      "priority": "orta"
+    },
+    {
+      "id": "XGROOT06",
+      "title": "Donanıma göre ölçülen iş bütçesi ve gerçek zamanlı kaynak görünürlüğü ekle",
+      "basis": "Gerçek GPU RTX4070SUPER12GB; donanım adı kapasite garantisi değil. Üretimde ASR/TTS, video decode ve Electron birlikte kaynak kullanıyor.",
+      "benefit": "Güçlü PC daha fazla işi taşıyabilirken VRAM baskısında video ve altyazı deneyimi korunur.",
+      "acceptance": "Opt-in sentetik kalibrasyon; aktif iş/model başına VRAM/RSS/duvar süresi ve kuyruk; sabit eşik gevşetmek yerine eşzamanlılık ölçüme dayansın; müzik analizi kapsamı açılmasın.",
+      "priority": "orta"
+    },
+    {
+      "id": "XGROOT07",
+      "title": "Geri yükleme sonrası bağlantı doğrulaması ve toplu yeniden bağlama özeti sun",
+      "basis": "XROOT01/02 bağlantıların dosyalar mevcutken bile çözümlenemediğini gösteriyor.",
+      "benefit": "Restore ok:true ile gerçek kullanılabilirlik arasındaki fark kullanıcıya görünür olur.",
+      "acceptance": "Yerel izinli dosyalarda bulunan/eksik/belirsiz kaynaklar, etkilenen not/altyazı/proje sayısı; ağ yoluna kendiliğinden dokunmadan tek klasör seçimiyle kontrollü plan; kullanıcı onayı öncesi mevcut ilişkiler değişmemeli.",
+      "priority": "yüksek"
+    }
+  ],
+  "sourceHashes": {
+    "src/catalog-extensions.js": "debaa04a7b9506b230933750dbd0a47d3fac1535fd260c05457961e55df647cd",
+    "src/workspace-video-package.js": "59ca8fef01e29b3107c4e83965c8259231f588a789143b3ecfcc33d89da1ac3d",
+    "src/media-catalog-store.js": "91b3fcf1dfabece488d2497a9129f38db0484880adf1a565175266d917054681",
+    "src/workspace-package.js": "62ee6a892bf33a8b6a6e31b20d13d2ea1907efa5da52a3c5e9b5a70878bf1d0f",
+    "src/renderer/media-catalog.js": "d290988b03512c6a39f1eb27b52247e611d75ec32908975ff1dde0cc48932113",
+    "src/media-tools-service.js": "c45a59c3d21f1c8239eab925da73d19f2a53f71044f8962195fcb92de3fd1f0f"
+  }
+}
