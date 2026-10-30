@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-31-0142.md](docs/devir/2026-10-31-0142.md) — R815 az kapsanan alanlar: 15 yeni bug, toplam 118; 34 ayrı öneri, hiçbir ürün düzeltmesi yok
 Güncel çalışma: [docs/devir/2026-10-31-0106.md](docs/devir/2026-10-31-0106.md) — R815: 25 yeni bug, toplam 103 doğrulanmış bulgu; öneriler ayrı, hiçbir ürün düzeltmesi yok
 Güncel çalışma: [docs/devir/2026-10-31-0046.md](docs/devir/2026-10-31-0046.md) — Uzun Türkçe ses, çeviri tamamlama ve kapanış kaynakları
 Güncel çalışma: [docs/devir/2026-10-31-0041.md](docs/devir/2026-10-31-0041.md) — R815 ikinci genişletme: 24 yeni bug, toplam 78; 27 öneri/ayrıntılandırma, yalnız raporlama (ürün kodu değişmedi)

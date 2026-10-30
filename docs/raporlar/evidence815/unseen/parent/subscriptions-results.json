@@ -1,0 +1,82 @@
+{
+  "head": "db65f2e7f6e7b50649c440cb183cb88863ebf241",
+  "headProvenance": "caller read-only git rev-parse HEAD",
+  "runtime": {
+    "node": "v24.22.0",
+    "platform": "win32"
+  },
+  "sources": {
+    "src/subscriptions-io.js": "cc5c51e5cf32a0bbacaddbf6bf0c409530ffe6a4f6ed204774abde2eea0d5776",
+    "src/subscription-feed.js": "94d990790920885671f467b82f992529ca785c980a5c933f7351728856738c9e",
+    "src/renderer/renderer.js": "6f715d67be62b19d794a9f4dbc471206b4d7d9756d60233a51cbb4de46a27f93",
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b"
+  },
+  "tests": {
+    "importLimit": {
+      "live": 501,
+      "persisted": 500,
+      "message": [
+        "501 kanal içe aktarıldı (json)."
+      ],
+      "missing": "UC0000000000000000000500",
+      "reloadCount": 500
+    },
+    "unicode": {
+      "bare": {
+        "count": 0,
+        "messages": [
+          "Kanal tanınamadı."
+        ]
+      },
+      "url": {
+        "count": 1,
+        "messages": []
+      }
+    },
+    "caseIdentity": {
+      "live": 2,
+      "parser": 2,
+      "exactDuplicate": 1
+    },
+    "opml": {
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<opml version=\"1.0\">\n  <head><title>Whisper abonelikleri</title></head>\n  <body>\n    <outline text=\"Synthetic\" title=\"Synthetic\" type=\"rss\" xmlUrl=\"https://www.youtube.com/feeds/videos.xml?channel_id=\" htmlUrl=\"https://www.youtube.com/@newsfeed\"/>\n  </body>\n</opml>\n",
+      "ownRoundTrip": [
+        {
+          "authorId": "",
+          "handle": "@newsfeed",
+          "author": "Synthetic",
+          "group": ""
+        }
+      ],
+      "ucidControl": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<opml version=\"1.0\">\n  <head><title>Whisper abonelikleri</title></head>\n  <body>\n    <outline text=\"UC0000000000000000000001\" title=\"\" type=\"rss\" xmlUrl=\"https://www.youtube.com/feeds/videos.xml?channel_id=UC0000000000000000000001\" htmlUrl=\"https://www.youtube.com/channel/UC0000000000000000000001\"/>\n  </body>\n</opml>\n"
+    },
+    "forceRefresh": {
+      "requests": 1,
+      "cache": {
+        "key": "UC0000000000000000000001",
+        "at": 1793399579597,
+        "videos": [],
+        "errors": 0
+      },
+      "visible": "Kanal ekleİçe aktarDışa aktarUC0000000000000000000001Grup✕Liste bu cihazda tutulur; YouTube/Invidious hesabına yüklenmez.Aboneliklerden yeni videolarAkışta video yok.",
+      "expiredCacheRequests": 2
+    },
+    "allFailures": {
+      "requests": 1,
+      "response": {
+        "ok": true,
+        "videos": [],
+        "errors": 1,
+        "skipped": 1
+      },
+      "visible": "Kanal ekleİçe aktarDışa aktarUC0000000000000000000001Grup✕Liste bu cihazda tutulur; YouTube/Invidious hesabına yüklenmez.Aboneliklerden yeni videolarAkışta video yok.",
+      "cache": {
+        "key": "UC0000000000000000000001",
+        "at": 1793399579629,
+        "videos": [],
+        "errors": 1
+      }
+    }
+  },
+  "assertions": "PASS: five strict bug behaviors and countercontrols; OPML output observation is excluded from strict count"
+}

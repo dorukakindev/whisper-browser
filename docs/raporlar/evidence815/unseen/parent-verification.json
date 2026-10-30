@@ -1,0 +1,47 @@
+{
+  "initialHead": "db65f2e7f6e7b50649c440cb183cb88863ebf241",
+  "verifiedHead": "db65f2e7f6e7b50649c440cb183cb88863ebf241",
+  "productChanges": false,
+  "agentModel": "gpt-6.1-sol",
+  "agentReasoningEffort": "medium",
+  "workflows": [
+    {
+      "command": "R815_PACKAGING_OUT=.tmp/unseen815-parent-packaging node .tmp/unseen815-packaging/probe.cjs",
+      "exit": 0,
+      "result": "Five synthetic markers copied, package lock omitted, required checker empty, preflight ENOENT; restore-lock countercheck PASS"
+    },
+    {
+      "command": "R815_ENGINE_OUT=.tmp/unseen815-parent-engines node .tmp/unseen815-engines/torrent-probe.cjs",
+      "exit": 0,
+      "result": "UE01–UE03 assertions and sequential/already-started counterchecks"
+    },
+    {
+      "command": "R815_ENGINE_OUT=.tmp/unseen815-parent-engines node .tmp/unseen815-engines/snapshot-probe.cjs",
+      "exit": 0,
+      "result": "UE04 mixed ownership; stable and early-switch controls"
+    },
+    {
+      "command": "R815_SUBSCRIPTIONS_OUT=.tmp/unseen815-parent-subscriptions node .tmp/unseen815-subscriptions/probe.cjs",
+      "exit": 0,
+      "result": "Five strict defects, exact-duplicate/URL/expired-TTL controls; only loopback503 real network"
+    },
+    {
+      "command": "R815_LIBRARY_OUT=.tmp/unseen815-parent-library node .tmp/unseen815-library/probe.cjs",
+      "exit": 0,
+      "result": "Four assertions; real Python parser/disk/JSDOM. Default sandbox spawn rejected; exact same isolated command passed with authorized escalation."
+    }
+  ],
+  "existingChecks": [
+    {
+      "command": "node tests/windows-package-ignore.test.js",
+      "exit": 0,
+      "result": "23 excluded +19 shipped"
+    },
+    {
+      "command": "node tests/package-integrity.test.js",
+      "exit": 0,
+      "result": "9/9"
+    }
+  ],
+  "limits": "No full npm/CI/packaged EXE/clean Windows install/start.bat/GPU/native mpv/swarm/paid provider/personal account E2E. Blocked native GPU launch is not a bug."
+}

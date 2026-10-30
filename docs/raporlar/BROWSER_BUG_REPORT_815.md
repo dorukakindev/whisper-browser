@@ -1,6 +1,10 @@
-# Rapor 815 — 103 doğrulanmış bug, yalnız raporlama
+# Rapor 815 — 118 doğrulanmış bug, yalnız raporlama
 
-> **Güncel toplam: 103 doğrulanmış bug (29 P1, 74 P2).** Bu tur **25 yeni ve bağımsız bulgu** eklendi; önceki 78 tekrar yeni bulgu sayılmadı. Geliştirme önerileri G01–G32 ayrı kalır. **Hiçbir ürün bugı düzeltilmedi.**
+> **Güncel toplam: 118 doğrulanmış bug (31 P1, 87 P2).** Az kapsanan alanlarda **15 yeni bağımsız bulgu** eklendi (2 P1, 13 P2); önceki 103 yeniden sayılmadı. G01–G34 önerileri ayrı. **Hiçbir bug düzeltilmedi.**
+>
+> [Yeni alanlar ve 15 bulgu](#az-kapsanan-alanlar-15-yeni-bulgu) · [118 ID/kaynak eşlemesi](evidence815/unseen/findings.json) · [Kapsam matrisi](evidence815/unseen/COVERAGE.md) · [Tekrar üretme](evidence815/unseen/REPRODUCE.md)
+
+> **Önceki tur: 103 doğrulanmış bug (29 P1, 74 P2).** O tur **25 yeni ve bağımsız bulgu** eklendi; önceki 78 tekrar yeni bulgu sayılmadı. Geliştirme önerileri G01–G32 ayrı kalır. **Hiçbir ürün bugı düzeltilmedi.**
 >
 > [Yeni 25 bulgu](#yüz-hedefi-25-yeni-bulgu) · [103 ID eşlemesi ve kaynak hashleri](evidence815/hundred/findings.json) · [Tekrar üretme](evidence815/hundred/REPRODUCE.md) · [Önceki geliştirme önerileri](#ek-geliştirme-önerileri)
 
@@ -16,7 +20,7 @@ Kullanıcının talebi yalnız inceleme ve ayrıntılı rapordur. **Ürün kodu,
 
 ## İlk dar tarama — B01–B03 (30 Ekim)
 
-Bu bölüm ilk turun tarihsel kapsamıdır. Bu bölümün ilk genişletme toplamı 54 bulgudur; son güncel toplam üstte 78 olarak verilmiştir. **İlk turda 3 doğrulanmış hata:** bir yüksek öncelikli çeviri bütünlüğü sorunu ve iki orta öncelikli okuma/hazırlık sorunu. Bunlardan ayrı **5 geliştirme alanı** aşağıda gerekçeleri ve kabul ölçütleriyle bulunur. Çökme, dosya silinmesi veya güvenlik açığı keşfedildiği iddia edilmez.
+Bu bölüm ilk turun tarihsel kapsamıdır. Bu bölümün ilk genişletme toplamı 54 bulgudur; son güncel toplam raporun en üstünde verilmiştir. **İlk turda 3 doğrulanmış hata:** bir yüksek öncelikli çeviri bütünlüğü sorunu ve iki orta öncelikli okuma/hazırlık sorunu. Bunlardan ayrı **5 geliştirme alanı** aşağıda gerekçeleri ve kabul ölçütleriyle bulunur. Çökme, dosya silinmesi veya güvenlik açığı keşfedildiği iddia edilmez.
 
 | Kimlik | Öncelik | Hata | Doğrulama |
 |---|---|---|---|
@@ -2333,3 +2337,462 @@ Geliştirme önerileri yukarıdaki **G01–G32** bölümlerindedir; bu 25 yeni b
 XML/TTML semantiği [W3C TTML1](https://www.w3.org/TR/ttml1/#timing-attribute-timeContainer) ve [XML namespace](https://www.w3.org/TR/xml-names/#ns-qualnames), DASH kalıtım uygulaması [Google Shaka MpdUtils kaynağı](https://shaka-project.github.io/shaka-player/docs/api/lib_dash_mpd_utils.js.html) ile karşılaştırıldı. Shaka Apache 2.0 lisansı kaynakta doğrulandı; uygulamaya dış kod/dependency alınmadı. Referanslardaki genel açıklamalar gerçek ürünün çalıştığı kanıtı sayılmadı; kanıt özgün modüllerin çıktı/IO/consumer sonuçlarıdır.
 
 **Teslim sınırı:** Bu çalışma yalnız rapor, seçilmiş sentetik kanıt ve devir notudur. Ürün/test/bağımlılık/ayar değiştirilmedi; 103 bug açık bırakıldı. R816 ürün değişiklikleri başka çalışmanındır, rapor commit'ine eklenmez. Kişisel OFFLINE-MANIFEST/INDEX değişiklikleri, yerel start.sh silinmesi ve untracked dosyalar korunur.
+
+
+<!-- UNSEEN-AUDIT-815 -->
+
+## Az kapsanan alanlar: 15 yeni bulgu
+
+**31 Ekim 2026: önceki 103 + yeni 15 = 118 doğrulanmış bug; 31 P1 / 87 P2.** Bu tur için kullanıcı yeni sayı hedefi koymadı; amaç önceki denetimde az incelenen sınırları açmaktı. Üç mevcut ajan yine **GPT‑6.1 Sol / medium effort** kullandı. Başlangıç ve bitiş ürün tabanı **db65f2e7f6e7b50649c440cb183cb88863ebf241**; bu tur ürün kodu değişmedi. Önceki 103 bulgunun kaynak kodu da bu başlangıçtan beri değişmedi; bunlar bu tur yeniden keşif/yeniden tam E2E başarı sayılmaz.
+
+“Yeni alan” bütün proje tarihinde hiç okunmamış dosya demek değildir: R266/R317 paketleme, R134/R160/R177/R301/R354/R481 abonelik, R66/R73 klasör izleme ve diğer tarihsel çalışmalar aşağıda ayrılır. Night1000 kaynak/aile/mekanizma imzaları karşılaştırıldı; renderer F19 kuyruğunun PASS kaydı native kare decode sahipliğine kanıt sayılmadı. [Ayrıntılı kapsam ve açık sınırlar](evidence815/unseen/COVERAGE.md).
+
+| Kimlik | Önem | Hata | Alt kanıt |
+|---|---|---|---|
+| [R815-B104](#r815-b104) | P1 | Windows dağıtım filtresi yerel sır, profil, günlük ve medyayı pakete alıyor | packaging/PK01 |
+| [R815-B105](#r815-b105) | P1 | Paketleyici kilit dosyasını atlıyor; paket içindeki install.bat ön kontrolü çalışamıyor | packaging/PK02 |
+| [R815-B106](#r815-b106) | P2 | Başarısız torrent dosya seçimi mevcut job nesnesine ve sonra diske sızıyor | engines/UE01 |
+| [R815-B107](#r815-b107) | P2 | Aynı torrentte eşzamanlı iki dosya seçimi bir seçimi kaybediyor | engines/UE02 |
+| [R815-B108](#r815-b108) | P2 | Bekleyen torrent motor başlangıcı close/quit sonrasında yeni süreç başlatabiliyor | engines/UE03 |
+| [R815-B109](#r815-b109) | P2 | Native kare çözülürken video değişirse eski kare yeni videonun altyazısı ve adıyla kaydediliyor | engines/UE04 |
+| [R815-B110](#r815-b110) | P2 | 501 kanallı içe aktarma başarılı görünürken son kanal kalıcı kayıttan düşüyor | subscriptions/UN-SUB01 |
+| [R815-B111](#r815-b111) | P2 | Kanal ekle kutusu geçerli Türkçe handle’ı çıplak biçimde reddediyor | subscriptions/UN-SUB02 |
+| [R815-B112](#r815-b112) | P2 | YouTube handle kimliği harf büyüklüğüne göre iki ayrı abonelik sayılıyor | subscriptions/UN-SUB03 |
+| [R815-B113](#r815-b113) | P2 | Yerel aboneliklerde Yenile komutu beş dakikalık önbelleği aşamıyor | subscriptions/UN-SUB04 |
+| [R815-B114](#r815-b114) | P2 | RSS kaynağındaki tüm istekler başarısızken kullanıcıya boş akış gösterilip başarı önbelleği yazılıyor | subscriptions/UN-SUB05 |
+| [R815-B115](#r815-b115) | P2 | Atom xml:base ile tanımlanan göreli medya bağlantıları içe alınamıyor | library/UL01 |
+| [R815-B116](#r815-b116) | P2 | Podcast yenilemesi aynı GUID için değişen medya adresinde dinleme konumunu siliyor | library/UL02 |
+| [R815-B117](#r815-b117) | P2 | EPUB içindeki normal hidden öğeler okuyucuda görünür metne dönüştürülüyor | library/UL03 |
+| [R815-B118](#r815-b118) | P2 | Boştaki Spotify içe aktarma penceresini kapatmak kayıtlı parçanın hazırlanmasını iptal ediyor | library/UL04 |
+
+### Doğrulamanın kapsamı
+
+Ana süreç **5 bağımsız yeniden üretme iş akışını** çalıştırdı; hatalı davranış assertion'ları ve karşı kontrolleri geçti. Bu sonuçlar hata düzeltmesi değildir. Ayrıca mevcut Windows ignore kontrolü ve paket bütünlüğünün 9 testi geçti; kurulu packager varsayılan filtresi ve gerçek kurulum tüketicisi arasındaki açık buna rağmen yeniden üretildi. [Komut ve sonuç kaydı](evidence815/unseen/parent-verification.json).
+
+Windows paketleme gerçek kurulu packager 20.3.0 kopyalama filtresi, gerçek fs.cp, manifest/checker ve kurulum preflight'ını sentetik kaynak ağaçta çalıştırdı. Beş sahte sır/profil/log/medya marker'ı taşındı; gerçek kişisel dosya paketlenmedi. Torrent handler/disk gerçek, engine/net/fetch/spawn kontrollüdür; gerçek peer/swarm veya torrent motoru başlatılmadı. Native kare testi gerçek capturePlayerFrame tüketicisidir; Image.decode/canvas/API kontrollü olduğundan gerçek PNG piksel veya fiziksel ekran kabulü değildir.
+
+Abonelik gerçek renderer callback'leri, parser ve main RSS handler kullanır; tek gerçek HTTP trafiği localhost503 fixture'ıdır. Podcast/EPUB gerçek Python parser ve raf IPC/disk/JSDOM okuyucudan geçer; Spotify kaydı yalnız sıradan import/oynatma iptal sahipliğidir, müzik analizi hedefi açılmaz. Python alt süreç sandbox başlatma engeli ardından aynı izole komut yetkili olarak exit0 verdi; engel ürün bugı sayılmadı. GPUInfo için ayrı Electron denemesi Mojo AccessDenied ile başlayamadı; donanım teşhis hatası sayılmadı.
+
+Yeni tam EXE üretimi, temiz Windows VM install.bat, normal start.bat açılışı, gerçek mpv/GPU decode/DRM, canlı hesap/ücretli sağlayıcı, fiziksel ses/ekran okuyucu, tam npm suite ve CI sonucu bu turun doğrulaması değildir. [Seçilmiş sentetik kanıtlar ve güvenli tekrar](evidence815/unseen/REPRODUCE.md).
+
+<a id="r815-b104"></a>
+
+### R815-B104 · P1 — Windows dağıtım filtresi yerel sır, profil, günlük ve medyayı pakete alıyor
+
+**Alt kanıt:** packaging/PK01; [ayrıntılı JSON](evidence815/unseen/packaging/findings.json).
+
+**Kod:** `tools/package-manifest.js:18–31`, `tools/package-windows.js:36–50`
+
+**Tekrar:** Depo kökünde .env, tmp/synthetic-profile/settings.json, .tmp/synthetic-profile/settings.json, logs/synthetic-session.log ve synthetic-media.wav dosyaları olan sentetik paket ağacı hazırla. Üretimdeki PACKAGER_IGNORE değerini kurulu @electron/packager populateIgnoredPaths → userPathFilter zincirinden geçir ve gerçek fs.cp ile resources/app içine kopyala. tests/should-be-excluded.txt negatif kontrolünü de ekle.
+
+**Beklenen:** Dağıtıma yalnız uygulama girdileri alınmalı; .gitignore içinde açıkça kişisel/sır/runtime verisi sayılan bu dosyalar yayın paketine kopyalanmamalı.
+
+**Gözlenen:** Beş sahte kişisel/sır işaretinin tamamı resources/app içinde bulundu. Negatif kontrol tests/ dosyası dışarıda kaldı; dolayısıyla filtre gerçekten uygulanıyor. .gitignore bu paketleme yolunda okunmuyor.
+
+**Kök neden:** Paketleyici tüm kaynak kökünü kopyalıyor; denylist yalnız birkaç kök dosya/dizinini dışlıyor. .env/.env.*, tmp/.tmp, logs ve kullanıcı medya uzantıları için kural yok. Git tarafından ignored olmak bu kopyalama işlemine koruma sağlamıyor.
+
+**Etki:** İçinde gerçek sır/profil/medya bulunan bir çalışma ağacından paket üretilip paylaşılırsa bu içerik dağıtıma taşınabilir. Kanıt yalnız sahte marker kullanır; mevcut bir yayımlanmış paketin kişisel veri sızdırdığı veya gerçek API anahtarı içerdiği iddia edilmez.
+
+**Önceki kapsam:** Önceki R815 B01–B103 içinde bu Windows dağıtım mekanizması yok. Night1000 registry üç paket/kurulum dosyasını kaynak olarak listelemiyor. R266 gerekli-dosya kapanışını; R317 ortak manifesti ele alır. R345 mahremiyet ratchet’i .wbp çalışma paketi içindir, Electron dağıtım filtresi değildir. tests/windows-package-ignore.test.js iç yüzeylerin seçili 23 yolunu sınar; kişisel marker yollarını sınamaz.
+
+**Sınır:** Gerçek Windows, Node v24.22.0, kurulu packager 20.3.0 ve gerçek kopyalama filtresi; tüm EXE paketi üretilmedi/yayımlanmadı. Kişisel kaynak ağacı paketlenmedi, ağ/hesap kullanılmadı. Beş dosya varyantı tek bağımsız kök sayılır.
+
+**Kabul ölçütü:** Sentetik sır/profil/log/medya kopyaya girmemeli; gerekli uygulama girdileri kalmalı. Kontrol yalnız özel regex dizisini değil gerçek packager varsayılanlarıyla birleşmiş kopyalama sonucunu doğrulamalı.
+
+**Sonuç:** [results.json](evidence815/unseen/packaging/results.json).
+
+<a id="r815-b105"></a>
+
+### R815-B105 · P1 — Paketleyici kilit dosyasını atlıyor; paket içindeki install.bat ön kontrolü çalışamıyor
+
+**Alt kanıt:** packaging/PK02; [ayrıntılı JSON](evidence815/unseen/packaging/findings.json).
+
+**Kod:** `tools/package-windows.js:36–50`, `tools/package-windows.js:67–82`, `tools/package-manifest.js:170–175`, `tools/install-orchestrator.js:311–314`, `node_modules/@electron/packager/dist/copy-filter.js:6–29`
+
+**Tekrar:** Aynı sentetik kaynak ağacında gerçek package.json, package-lock.json, install.bat ve kurulum betiği/requirements kilitlerini kullan. Üretim ayarlarıyla gerçek copy-filter kopyasını çalıştır. Üretim missingInTarget kontrolünü ve kaynak/paket ağaçlarında InstallOrchestrator.preflight çağrısını çalıştır; dış araç algılaması desteklenen değerleri döndüren kontrollü sürücüdür.
+
+**Beklenen:** BUILD-MANIFEST içindeki “Run resources/app/install.bat” yönlendirmesi çalışabilir bir kurulum ağacına gitmeli. Zorunlu npm kilidi paket içinde bulunmalı veya paket üretimi eksik dosyada durmalı.
+
+**Gözlenen:** Kaynak ağaç preflight PASS. Gerçek filtre package-lock.json dosyasını kopyalamadı. missingInTarget boş liste döndürdü. Paket ağacı preflight ENOENT/open/package-lock.json ile durdu. Yalnız eksik kilidi yerine koyunca aynı ön kontrol PASS oldu.
+
+**Kök neden:** PACKAGER_IGNORE bir RegExp dizisi olduğunda @electron/packager kendi /package-lock\.json$ varsayılanını ekler. Proje testi yalnız özel regexleri kontrol edip kilidi “shipped” sayar; requiredPackageFiles de package-lock.json eklemediğinden final bütünlük kapısı bu eksikliği göremez. Kurulum validatePolicy ve desiredFingerprint kilidi zorunlu okur.
+
+**Etki:** Bu paketleme akışıyla hazırlanan dağıtımda yeni makine için belgelenen kurulum, pip/npm kurulumu başlamadan kesilir. Transkripsiyon backend’i kurulamaz. Önceden hazırlanmış uygun ortamı olan her makinenin uygulamayı açamadığı iddia edilmez.
+
+**Önceki kapsam:** B01–B103 içinde yok; Night1000 registry bu üç tools kaynağını kapsamıyor. R266/R317 gerekli-dosya doğrulaması/ortak manifest çalışmalarını bu kez kurulu packager varsayılanları ve gerçek kurulum tüketicisi arasında sınadık. Mevcut windows-package-ignore testi 23 iç +19 dış yol ve package-integrity 9/9 PASS verdi; bu yeni hata o kontrollerin dışındaki zincirde doğrulandı.
+
+**Sınır:** Gerçek filtre/fs kopyası ve üretim preflight kullanıldı; Node/Python/FFmpeg araç kontrolleri kontrollü. Tam temiz Windows VM install.bat, paket EXE üretimi ve indirme yapılmadı. Dosyayı geri koymak yalnız sentetik fixture karşı kontrolüdür; ürün düzeltilmedi.
+
+**Kabul ölçütü:** Gerçek packager çıktısında kilit korunmalı; silinirse missingInTarget başarısız olmalı. Aynı çıktı ağacının gerçek kurulum ön kontrolü kilit dosyası kaynaklı hata vermemeli.
+
+**Sonuç:** [results.json](evidence815/unseen/packaging/results.json).
+
+<a id="r815-b106"></a>
+
+### R815-B106 · P2 — Başarısız torrent dosya seçimi mevcut job nesnesine ve sonra diske sızıyor
+
+**Alt kanıt:** engines/UE01; [ayrıntılı JSON](evidence815/unseen/engines/findings.json).
+
+**Kod:** `src/media-torrents.js:88`, `src/media-torrents.js:89`, `src/media-torrents.js:97`
+
+**Tekrar:** node .tmp/unseen815-engines/torrent-probe.cjs — ilk dosyayı başarıyla play; ikinci play update_only_files yanıtı503; status; başarılı pause; ikinci dosyaya reopen.
+
+**Beklenen:** Başarısız seçim önceki onaylı seçimleri değiştirmemeli; başka pause işlemi başarısız seçimi kalıcılaştırmamalı.
+
+**Gözlenen:** İlk disk [0];503 dönen ikinci seçimden sonra status.selections [0,1] iken disk hâlâ [0]. İlgisiz başarılı pause diske [0,1] yazıyor; başarısız dosya için reopen ok:true.
+
+**Kök neden:** jobs.get(hash).selections doğrudan yeniden kullanılıp await öncesi push ediliyor; sağlayıcı reddinde rollback/kopya yok.
+
+**Etki:** UI hata gösterdiği hâlde dosya önceden seçilmiş sayılıyor; sonraki işlem başarısız değişikliği kalıcılaştırıyor ve reopen yetkilendiriyor.
+
+**Karşı kontrol:** İlk başarılı play diskte yalnız [0]; hatadan hemen sonra disk [0]. Kalıcı sızıntı sonraki pause ile somut.
+
+**Önceki kapsam:** B25 skip-range başarısız dosya yazımında bellek değişimiyle aynı genel transaction ilkesi; farklı ürün durumu/API ve kök: burada sağlayıcı HTTP reddi öncesi mevcut torrent selections dizisine alias. UE02 ile aynı değildir: tek akışta hata rollback eksikliği.
+
+**Sınır:** Gerçek registerMediaTorrents handler ve gerçek sentetik JSON dosyası kullanıldı. HTTP/spawn/net kontrollü. Gerçek rqbit’in503 öncesi yan etkisinin olmadığı veya gerçek torrent indirildiği iddia edilmez.
+
+**Sonuç:** [torrent-results.json](evidence815/unseen/engines/torrent-results.json).
+
+<a id="r815-b107"></a>
+
+### R815-B107 · P2 — Aynı torrentte eşzamanlı iki dosya seçimi bir seçimi kaybediyor
+
+**Alt kanıt:** engines/UE02; [ayrıntılı JSON](evidence815/unseen/engines/findings.json).
+
+**Kod:** `src/media-torrents.js:87`, `src/media-torrents.js:88`, `src/media-torrents.js:91`, `src/renderer/media-hub-ui.js:54`
+
+**Tekrar:** Aynı preview token için index0 ve index1 play çağrılarını paralel başlat; iki update_only_files isteğini aynı bariyerde bekletip birlikte tamamlat. Aynısını ardışık kontrol olarak çalıştır.
+
+**Beklenen:** İki başarılı farklı seçim kümülatif [0,1] olmalı veya çakışan istek açıkça reddedilmeli.
+
+**Gözlenen:** İki play ok:true ve ayrı stream URL döndürüyor; iki API update gövdesi [0] ile [1], kalıcı job yalnız bir seçim içeriyor. Ardışık kontrol [0,1].
+
+**Kök neden:** Hash başına kilit/birleştirme yok; iki akış boş job durumunu ayrı okuyup kendi selections dizisini oluşturuyor, son jobs.set öncekinin başarılı seçimini eziyor.
+
+**Etki:** Kullanıcının başarılı sandığı dosya seçimi kütüphaneden ve motorun istenen only_files kümesinden düşüyor; tekrar açma/yerel dosya doğrulama geçmişi eksiliyor.
+
+**Karşı kontrol:** Ardışık iki play [0,1] yazar. UI yalnız tıklanan düğmeyi devre dışı bırakır (media-hub-ui.js8); farklı dosyaların düğmeleri ortak kilit taşımaz (54).
+
+**Önceki kapsam:** Önceki103 içinde torrent seçim concurrency kaydı yok. UE01 ile farklı: bütün HTTP yanıtları başarılı; sorun failure rollback değil lost-update.
+
+**Sınır:** Gerçek handler ve disk; scheduler kontrollü API bariyeriyle deterministik. Gerçek rqbit/peer/scheduler performansı veya indirme davranışı ölçülmedi.
+
+**Sonuç:** [torrent-results.json](evidence815/unseen/engines/torrent-results.json).
+
+<a id="r815-b108"></a>
+
+### R815-B108 · P2 — Bekleyen torrent motor başlangıcı close/quit sonrasında yeni süreç başlatabiliyor
+
+**Alt kanıt:** engines/UE03; [ayrıntılı JSON](evidence815/unseen/engines/findings.json).
+
+**Kod:** `src/media-torrents.js:33`, `src/media-torrents.js:38`, `src/media-torrents.js:105`, `src/media-torrents.js:106`, `src/native-player.js:83`
+
+**Tekrar:** Preview motoru başlatırken yerel port tahsisini beklet. proc henüznull iken service.close veya before-quit çalıştır. Portu serbest bırak; spawn ve preview sonucunu gözle. Karşı kontrolde önce başlayan motoru close et.
+
+**Beklenen:** Kapanış başladıktan sonra bekleyen startup iptal edilmeli veya kapanış yeni oluşan motoru sahiplenip durdurmalı.
+
+**Gözlenen:** Her iki kapanış yolunda kapanış anı spawned0/killed0; bariyer sonrası spawned1/killed0 ve preview ok:true. Önceden başlamış motoru kapatma karşı kontrolü spawned1/killed1.
+
+**Kök neden:** close/before-quit yalnız o andaki proc?.kill çağrısını yapıyor; starting promise için closed/epoch/cancel durumu yok, port await sonrası spawn devam ediyor.
+
+**Etki:** Kapanış sırasında yeni torrent motoru başlatılabilir ve o kapanış çağrısı tarafından durdurulmaz. Uygulama başka asenkron kapanışı bekliyorsa kaynak/transfer ömrü kapanış isteğini aşar.
+
+**Karşı kontrol:** Başlangıç tamamlandıktan sonraki close fake child kill1 verir; hata sadece proc oluşmadan önceki startup penceresinde. before-quit senaryosu başka listener’ın preventDefault ile kapanışı tuttuğu durumu kapsar; native-player.js83–87 üretimde bu davranışı içerir.
+
+**Önceki kapsam:** R762 native-player teardown ve B103 ses oynatıcısı close sahipliği tarihsel benzer yaşam döngüleridir; burada farklı servis ve faz: bekleyen rqbit port/start promise, henüz proc yok. B31 spawn error veya B77 komut sonucu değildir.
+
+**Sınır:** Child process yalnız EventEmitter stub; gerçek süreç, swarm veya gerçek uygulama quit çalıştırılmadı. İşletim sistemi uygulama kapandıktan sonra kesin yetim süreç bırakır iddiası yok; kanıt kapanış talebinden sonra spawn ve kill eksikliğidir.
+
+**Sonuç:** [torrent-results.json](evidence815/unseen/engines/torrent-results.json).
+
+<a id="r815-b109"></a>
+
+### R815-B109 · P2 — Native kare çözülürken video değişirse eski kare yeni videonun altyazısı ve adıyla kaydediliyor
+
+**Alt kanıt:** engines/UE04; [ayrıntılı JSON](evidence815/unseen/engines/findings.json).
+
+**Kod:** `src/renderer/renderer.js:20619`, `src/renderer/renderer.js:20620`, `src/renderer/renderer.js:20635`, `src/renderer/renderer.js:20667`
+
+**Tekrar:** Original capturePlayerFrame fonksiyonunu çalıştır; snapshot A sonucunu döndür; Image.decode promise beklerken mediaKey/generation/cues/currentTime değerleriniB’ye geçir; decode tamamlat.
+
+**Beklenen:** Kaynak değişirse capture iptal edilmeli veya A karesi A altyazısı/kimliğiyle bütünlüklü kaydedilmeli.
+
+**Gözlenen:** drawImage SOURCE_A kullanıyor; fillText Subtitle B; saveImage.suggestedName synthetic_B_45s.png. API yanıtından önce değişen kaynak kontrolünde hiç save yok; sabit kaynak A/A/12s tutarlı.
+
+**Kök neden:** key/generation yalnız snapshot API await sonrası denetleniyor; sonraki await Image.decode tamamlandığında sahiplik yeniden denetlenmeden canlı player altyazısı/kimliği okunuyor.
+
+**Etki:** Dışa aktarılan görsel eski videonun karesini başka videonun altyazısı ve dosya kimliğiyle birleştiriyor; yanlış sahne kanıtı oluşuyor.
+
+**Karşı kontrol:** Sabit kaynak kaydı A/A; API yanıtından önce değişim save0. Yalnız decode sırasında değişim save1 ve A/B karışımı.
+
+**Önceki kapsam:** B18 PDF/MHTML save-dialog sırasında belge snapshotı ve B24 browser kırpılmış video geometrisinden farklı tüketici/faz: native snapshot PNG decode await. B77 native komut hatası değildir.
+
+**Sınır:** Gerçek capturePlayerFrame metni değişmeden VM’de çalıştı. Image.decode bariyeri, canvas ve API kontrollü; gerçek mpv screenshot PNG pikseli, FFmpeg, fiziksel ekran veya Electron E2E çalıştırıldığı iddia edilmez.
+
+**Sonuç:** [snapshot-results.json](evidence815/unseen/engines/snapshot-results.json).
+
+<a id="r815-b110"></a>
+
+### R815-B110 · P2 — 501 kanallı içe aktarma başarılı görünürken son kanal kalıcı kayıttan düşüyor
+
+**Alt kanıt:** subscriptions/UN-SUB01; [ayrıntılı JSON](evidence815/unseen/subscriptions/findings.json).
+
+**Kod:** `src/renderer/renderer.js:30972`, `src/renderer/renderer.js:31020`, `src/subscriptions-io.js:11`
+
+**Tekrar:** 501 ayrı sentetik UCID JSON dizisini gerçek İçe aktar düğmesinin callback’iyle yükle; canlı stSubs ile localStorage ve yeniden yüklenen listeyi karşılaştır.
+
+**Beklenen:** Ya tüm kabul edilen kanallar kalıcı saklanmalı ya kapasite aşanlar eklenmeden açık sayıyla reddedilmeli.
+
+**Gözlenen:** UI “501 kanal içe aktarıldı (json).”; canlı liste 501, localStorage 500, tekrar yüklemede 500. UC0000000000000000000500 kayboluyor.
+
+**Kök neden:** Parser 1000 giriş kabul ediyor; import döngüsü ST_SUBS_MAX kontrol etmiyor; saveStSubs yalnız ilk500 girdiyi sessizce yazar.
+
+**Etki:** Başarı bildirimi alan kullanıcı uygulamayı kapattığında aboneliğini kaybediyor; yeniden export canlı fazlalığı içerirken yeniden açılış içermiyor.
+
+**Önceki kapsam:** R815 B01–B103 hundred/findings.json içinde abonelik/SmartTube kökü yok. Night1000 kayıtlarının serileştirilmiş senaryo alanlarında subscription/abonelik/smarttube eşleşmesi yok. Tarihsel R134/R160/R177/R301/R354/R481 modül incelemeleri bu UI-kalıcılık/kimlik/yenileme/hata zincirini kanıtlamıyor; önceki PASS yeni başarı sayılmadı.
+
+**Sınır:** Gerçek Windows Node üzerinde değişmeden alınan renderer kaynak bloğu JSDOM/VM içinde çalıştırıldı. Tam Electron/native pencere görseli ve gerçek YouTube hesabı/site başarısı iddiası yok; kişisel profil kullanılmadı.
+
+**Kabul ölçütü:** 499 mevcut+2 yeni ve boş+501 girişte kabul/ret/persist/reload sayıları tutarlı; kayıp veya sessiz kırpma yok.
+
+**Sonuç:** [results.json](evidence815/unseen/subscriptions/results.json).
+
+<a id="r815-b111"></a>
+
+### R815-B111 · P2 — Kanal ekle kutusu geçerli Türkçe handle’ı çıplak biçimde reddediyor
+
+**Alt kanıt:** subscriptions/UN-SUB02; [ayrıntılı JSON](evidence815/unseen/subscriptions/findings.json).
+
+**Kod:** `src/renderer/renderer.js:31007`, `src/subscriptions-io.js:12`, `src/subscriptions-io.js:30`
+
+**Tekrar:** Kanal ekle callback’ine önce @çağrı, temiz fixture’da https://www.youtube.com/@çağrı ver.
+
+**Beklenen:** Kutunun vaat ettiği @handle girdisi, aynı handle URL’siyle aynı kanal kaydını oluşturmalı.
+
+**Gözlenen:** @çağrı: sıfır kayıt ve “Kanal tanınamadı.”; URL biçimi: bir kayıt ve hata yok.
+
+**Kök neden:** UI çıplak handle için ASCII \w düzenli ifadesi kullanıyor; normSub Unicode harfleri kabul ediyor fakat url alanındaki çıplak handle URL olarak çözülemiyor.
+
+**Etki:** Türkçe/uluslararası kanal adlarını yönergede belirtilen kısa biçimde ekleme engelleniyor.
+
+**Önceki kapsam:** R815 B01–B103 hundred/findings.json içinde abonelik/SmartTube kökü yok. Night1000 kayıtlarının serileştirilmiş senaryo alanlarında subscription/abonelik/smarttube eşleşmesi yok. Tarihsel R134/R160/R177/R301/R354/R481 modül incelemeleri bu UI-kalıcılık/kimlik/yenileme/hata zincirini kanıtlamıyor; önceki PASS yeni başarı sayılmadı.
+
+**Sınır:** Gerçek Windows Node üzerinde değişmeden alınan renderer kaynak bloğu JSDOM/VM içinde çalıştırıldı. Tam Electron/native pencere görseli ve gerçek YouTube hesabı/site başarısı iddiası yok; kişisel profil kullanılmadı.
+
+**Kabul ölçütü:** Türkçe karakterli çıplak ve yüzde kodlu/tam URL handle girdileri aynı normalize kayda dönüşmeli.
+
+**Sonuç:** [results.json](evidence815/unseen/subscriptions/results.json).
+
+**Semantik kaynak:** [resmî kaynak 1](https://support.google.com/youtube/answer/11585688?hl=en) · [resmî kaynak 2](https://blog.youtube/inside-youtube/international-handles/).
+
+<a id="r815-b112"></a>
+
+### R815-B112 · P2 — YouTube handle kimliği harf büyüklüğüne göre iki ayrı abonelik sayılıyor
+
+**Alt kanıt:** subscriptions/UN-SUB03; [ayrıntılı JSON](evidence815/unseen/subscriptions/findings.json).
+
+**Kod:** `src/subscriptions-io.js:60`, `src/renderer/renderer.js:30974`, `src/renderer/renderer.js:30979`
+
+**Tekrar:** Gerçek stSubToggle ile @NewsFeed ve @newsfeed ekle; aynı ikiliyi gerçek parseSubscriptions ile JSON’dan geçir. Karşı kontrol olarak @newsfeed’i iki kez parse et.
+
+**Beklenen:** YouTube case-insensitive handle kimliğine göre bir abonelik; görüntü biçimi korunabilir.
+
+**Gözlenen:** Toggle ve import parser ikisi de iki ayrı kayıt tutuyor; birebir aynı handle iki kez verilince bir kayıt oluyor.
+
+**Kök neden:** Kimlik anahtarında handle için case normalization yok; UCID ve handle aynı case-sensitive string yolu kullanıyor.
+
+**Etki:** Aynı kanal iki kez listelenir, kota tüketir; başka harf biçiminden abonelik denetimi/çıkışı tutarsızlaşır.
+
+**Önceki kapsam:** R815 B01–B103 hundred/findings.json içinde abonelik/SmartTube kökü yok. Night1000 kayıtlarının serileştirilmiş senaryo alanlarında subscription/abonelik/smarttube eşleşmesi yok. Tarihsel R134/R160/R177/R301/R354/R481 modül incelemeleri bu UI-kalıcılık/kimlik/yenileme/hata zincirini kanıtlamıyor; önceki PASS yeni başarı sayılmadı.
+
+**Sınır:** Gerçek Windows Node üzerinde değişmeden alınan renderer kaynak bloğu JSDOM/VM içinde çalıştırıldı. Tam Electron/native pencere görseli ve gerçek YouTube hesabı/site başarısı iddiası yok; kişisel profil kullanılmadı.
+
+**Kabul ölçütü:** ASCII case varyantları tek abonelikte birleşmeli; UCID harf büyüklüğünün anlamı korunmalı.
+
+**Sonuç:** [results.json](evidence815/unseen/subscriptions/results.json).
+
+**Semantik kaynak:** [resmî kaynak 1](https://support.google.com/youtube/answer/11585688?hl=en).
+
+<a id="r815-b113"></a>
+
+### R815-B113 · P2 — Yerel aboneliklerde Yenile komutu beş dakikalık önbelleği aşamıyor
+
+**Alt kanıt:** subscriptions/UN-SUB04; [ayrıntılı JSON](evidence815/unseen/subscriptions/findings.json).
+
+**Kod:** `src/renderer/renderer.js:32043`, `src/renderer/renderer.js:29143`, `src/renderer/renderer.js:29180`, `src/renderer/renderer.js:31144`
+
+**Tekrar:** Hesapsız subscriptions bölümünü gerçek renderSmartTubeSection ile aç, ardından gerçek Yenile callback’inin çağırdığı {force:true} ile tekrar aç. Cache zamanını sıfırlayıp üçüncü kez çağır.
+
+**Beklenen:** Açık Yenile eylemi aynı liste için yeni akış isteği yapmalı.
+
+**Gözlenen:** İlk açılış+force:true toplam1 API çağrısı; cache süresi geçmiş karşı kontrolde toplam2. Testte errors=0; ağ hatası gerekmiyor.
+
+**Kök neden:** Üst işlev opts.force okur fakat yerel abonelik dalı renderStSubsPanel/renderStSubsFeed’e force iletmiyor; alt işlev yalnız TTL/anahtar kontrol ediyor.
+
+**Etki:** Kullanıcı yeni yüklenen videoları istemesine rağmen eski akışta kalır; TTL dolmadan düğme etkisizdir.
+
+**Önceki kapsam:** R815 B01–B103 hundred/findings.json içinde abonelik/SmartTube kökü yok. Night1000 kayıtlarının serileştirilmiş senaryo alanlarında subscription/abonelik/smarttube eşleşmesi yok. Tarihsel R134/R160/R177/R301/R354/R481 modül incelemeleri bu UI-kalıcılık/kimlik/yenileme/hata zincirini kanıtlamıyor; önceki PASS yeni başarı sayılmadı.
+
+**Sınır:** Gerçek Windows Node üzerinde değişmeden alınan renderer kaynak bloğu JSDOM/VM içinde çalıştırıldı. Tam Electron/native pencere görseli ve gerçek YouTube hesabı/site başarısı iddiası yok; kişisel profil kullanılmadı.
+
+**Kabul ölçütü:** Taze cache ile normal yeniden açış çağrısız; açık Yenile her seferinde tek yeni istek üretmeli.
+
+**Sonuç:** [results.json](evidence815/unseen/subscriptions/results.json).
+
+<a id="r815-b114"></a>
+
+### R815-B114 · P2 — RSS kaynağındaki tüm istekler başarısızken kullanıcıya boş akış gösterilip başarı önbelleği yazılıyor
+
+**Alt kanıt:** subscriptions/UN-SUB05; [ayrıntılı JSON](evidence815/unseen/subscriptions/findings.json).
+
+**Kod:** `src/main.js:19883`, `src/main.js:19900`, `src/renderer/renderer.js:31148`, `src/renderer/renderer.js:31152`, `src/renderer/renderer.js:31158`
+
+**Tekrar:** Orijinal subs:rssFeed IPC handler’ını tek sentetik UCID ile çağır; yalnız fetch hedefini loopback HTTP503 sunucusuna yönlendir. Orijinal yanıtı gerçek renderer abonelik paneline ver.
+
+**Beklenen:** Hiçbir kanal alınamadığında hata/yeniden dene durumu; geçerli boş kanal sonucu ile kaynak arızası ayrılmalı.
+
+**Gözlenen:** Gerçek handler: ok:true,videos:[],errors:1. Renderer “Akışta video yok.” yazar ve errors:1 yanıtını taze beş dakikalık akış cache’ine koyar.
+
+**Kök neden:** Main tümü başarısız sonucu da ok:true döndürür; renderer errors alanını cache’e taşır fakat hiç yorumlamaz.
+
+**Etki:** Sunucu kesintisi veya HTTP hatası yeni video olmadığı bilgisine dönüşür; kullanıcı doğru teşhisi ve hemen tekrar deneme fırsatını kaybeder.
+
+**Önceki kapsam:** R815 B01–B103 hundred/findings.json içinde abonelik/SmartTube kökü yok. Night1000 kayıtlarının serileştirilmiş senaryo alanlarında subscription/abonelik/smarttube eşleşmesi yok. Tarihsel R134/R160/R177/R301/R354/R481 modül incelemeleri bu UI-kalıcılık/kimlik/yenileme/hata zincirini kanıtlamıyor; önceki PASS yeni başarı sayılmadı.
+
+**Sınır:** Gerçek Windows Node üzerinde değişmeden alınan renderer kaynak bloğu JSDOM/VM içinde çalıştırıldı. Tam Electron/native pencere görseli ve gerçek YouTube hesabı/site başarısı iddiası yok; kişisel profil kullanılmadı. Main sender/online guard’ı yetkili/online fixture; fetch gerçek Node HTTP isteğini yalnız 127.0.0.1’e yaptı. HTTP503 gövde okunmadan reddedildiğinden bounded-reader stub çağrılmadı. UN-SUB04’ten bağımsız olarak ilk cache-miss istekte hata oluşur; force aktarımı düzeltilse bile yanlış boş mesaj devam eder.
+
+**Kabul ölçütü:** HTTP503/tüm timeout ve geçerli boş Atom feed ayrı durumlar; kısmi hatada alınan videolar gösterilirken eksiklik görünür.
+
+**Sonuç:** [results.json](evidence815/unseen/subscriptions/results.json).
+
+<a id="r815-b115"></a>
+
+### R815-B115 · P2 — Atom xml:base ile tanımlanan göreli medya bağlantıları içe alınamıyor
+
+**Alt kanıt:** library/UL01; [ayrıntılı JSON](evidence815/unseen/library/findings.json).
+
+**Kod:** `backend/media_shelf.py:155`, `backend/media_shelf.py:164`, `backend/media_shelf.py:168`, `src/media-shelf-service.js:253`, `src/renderer/media-shelf-ui.js:368`
+
+**Tekrar:** probe.cjs UL01: xml:base=https://media.example/episodes/ içeren Atom beslemesini gerçek podcast-add tüketicisine ver. Enclosure href=ep-a.mp3 ile ekle; aynı XML içinde href değerini mutlak URL yaparak yeniden ekle.
+
+**Beklenen:** Atom taban URI kurallarına göre enclosure adresi çözümlenir ve bölüm kaydedilir.
+
+**Gözlenen:** Göreli bağlantıda ok:false ve No audio/video enclosures found in RSS/Atom feed.; yalnız href mutlak yapıldığında ok:true.
+
+**Kök neden:** Parser xml:base zincirini çözümlemeden ham href üzerinde http/https şeması arıyor.
+
+**Etki:** Arayüzün desteklediğini belirttiği geçerli Atom beslemelerinin bir bölümü tamamen reddediliyor.
+
+**Önceki kapsam:** Önceki 103 R815 bulgusunda bu kök yok. Night1000 F39 CSV/ZIP alan birleştirme ailesi; bu Atom taban-URI senaryosu yeni.
+
+**Sınır:** Kontrollü fetch yanıtı ve gerçek Python parser/IPC handler kullanıldı; harici besleme veya medya indirilmedi. Atom base kalıtımının tüm varyantları test edilmedi.
+
+**Kabul ölçütü:** Aynı göreli fixture mutlak fixture ile aynı bölüm URL’sini üretmeli; yalnız güvenli http/https nihai URL kabul edilmeli.
+
+**Sonuç:** [results.json](evidence815/unseen/library/results.json).
+
+**Semantik kaynak:** [resmî kaynak 1](https://www.rfc-editor.org/rfc/rfc4287#section-2).
+
+<a id="r815-b116"></a>
+
+### R815-B116 · P2 — Podcast yenilemesi aynı GUID için değişen medya adresinde dinleme konumunu siliyor
+
+**Alt kanıt:** library/UL02; [ayrıntılı JSON](evidence815/unseen/library/findings.json).
+
+**Kod:** `backend/media_shelf.py:170`, `src/media-shelf-service.js:263`, `src/renderer/media-shelf-ui.js:373`, `src/renderer/media-shelf-ui.js:379`
+
+**Tekrar:** probe.cjs UL02: sabit GUID ve episode-v1.mp3 enclosure ile beslemeyi ekle. listen-progress ile 45 saniyeyi kaydet; ok:true ve gerçek media-shelf.json konumunun 45 olduğunu doğrula. Aynı URL ile yenile; diskte 45 korunur. Aynı GUID/title ile enclosure adresini episode-v2.mp3 yapıp yenile.
+
+**Beklenen:** Aynı bölümün kalıcı kimliği korunarak medya adresi güncellenir; kayıtlı 45 saniye kaybolmaz.
+
+**Gözlenen:** Aynı abonelik ID’si korunmasına rağmen gerçek disk konumu 0 oluyor. Aynı URL karşı kontrolünde 45 korunuyor.
+
+**Kök neden:** Parser GUID alanını atıyor; yenileme önceki bölümü yalnız enclosure URL eşitliğiyle buluyor.
+
+**Etki:** Yayıncı CDN veya dosya yolunu değiştirdiğinde kaydedilmiş dinleme konumu sessizce kayboluyor.
+
+**Önceki kapsam:** Önceki 103 içinde bu yenileme/kalıcı bölüm kimliği kökü yok. B102/B103 oynatıcı kuyruk yaşam döngüsüyle ilgilidir; burada kayıp podcast-add disk birleştirmesinde oluşur.
+
+**Sınır:** Aynı GUID tek bölümün kimliği olarak kullanıldı; RSS standardının GUID için zorunlu bir eşleştirme algoritması getirdiği iddia edilmiyor. Gerçek ses çalınmadı.
+
+**Kabul ölçütü:** Aynı GUID ile değişen enclosure güncellenirken konum 45 kalmalı; aynı URL karşı kontrolü de geçmeli.
+
+**Sonuç:** [results.json](evidence815/unseen/library/results.json).
+
+**Semantik kaynak:** [resmî kaynak 1](https://www.rssboard.org/rss-specification#ltguidgtSubelementOfLtitemgt).
+
+<a id="r815-b117"></a>
+
+### R815-B117 · P2 — EPUB içindeki normal hidden öğeler okuyucuda görünür metne dönüştürülüyor
+
+**Alt kanıt:** library/UL03; [ayrıntılı JSON](evidence815/unseen/library/findings.json).
+
+**Kod:** `backend/media_shelf.py:40`, `backend/media_shelf.py:44`, `backend/media_shelf.py:81`, `src/media-shelf-service.js:211`, `src/renderer/media-shelf-ui.js:268`
+
+**Tekrar:** fixtures.py ile normal hidden="hidden" paragrafı içeren sentetik EPUB üret. Gerçek book-import ve book-open yollarını çalıştır; gerçek MediaShelfUI.openBook tüketicisini JSDOM içinde aç. Orijinal HTML paragrafının display:none olduğunu, raf okuyucusunda EDITOR ONLY HIDDEN SENTENCE metninin bulunduğunu doğrula.
+
+**Beklenen:** Normal hidden durumundaki içerik güvenli metin dönüşümünde görünür bölüm metnine dahil edilmez.
+
+**Gözlenen:** Orijinal paragraf display:none iken parser çıktısı ve .ms-prose okuyucu metni gizli cümleyi içeriyor.
+
+**Kök neden:** Prose bastırma kararı etiket ve epub:type=noteref alanına bakıyor; standart hidden niteliğini dikkate almıyor.
+
+**Etki:** Kitabın görünmemesi gereken yardımcı veya editoryal içeriği okuma metnine karışıyor; alıntı ve metin işlemlerinin girdisi de bozuluyor.
+
+**Önceki kapsam:** R612 metadata/nav/noteref bastırması ve açık dipnot koruması ilişkili önceki kapsamdır; bu sıradan hidden niteliği, dipnot semantiğinden farklıdır. R815 önceki 103 içinde bu kök yok.
+
+**Sınır:** CSS ile hidden görünürlüğünü geçersiz kılan kural yok; hidden-until-found veya özel dipnot semantiği kullanılmadı. Gerçek TTS üretimi ya da gizlilik sızıntısı iddia edilmiyor. JSDOM tüketici doğrulaması gerçek Windows görsel testi değildir.
+
+**Kabul ölçütü:** Bu EPUB görünür başlangıç/son metnini korurken gizli paragrafı bölüm ve okuyucu metninden çıkarmalı; açık dipnot davranışı ayrıca korunmalı.
+
+**Sonuç:** [results.json](evidence815/unseen/library/results.json).
+
+**Semantik kaynak:** [resmî kaynak 1](https://html.spec.whatwg.org/multipage/interaction.html#the-hidden-attribute).
+
+<a id="r815-b118"></a>
+
+### R815-B118 · P2 — Boştaki Spotify içe aktarma penceresini kapatmak kayıtlı parçanın hazırlanmasını iptal ediyor
+
+**Alt kanıt:** library/UL04; [ayrıntılı JSON](evidence815/unseen/library/findings.json).
+
+**Kod:** `src/renderer/spotify-import-ui.js:15`, `src/media-shelf-service.js:133`, `src/media-shelf-service.js:143`, `src/spotify-import.js:34`, `src/spotify-import.js:64`, `src/spotify-import.js:69`
+
+**Tekrar:** probe.cjs UL04: geçerli biçimli kayıtlı eşleşme için gerçek spotify-play handler yolunu başlat; kontrollü musicRun çözümlemesini AbortSignal beklemesinde tut. Hiç okuma/eşleştirme başlatmadan gerçek SpotifyImportUI penceresini aç ve kapatma düğmesine bas.
+
+**Beklenen:** İşi olmayan içe aktarma penceresini kapatmak başka tüketicinin kayıtlı oynatma çözümlemesini etkilemez.
+
+**Gözlenen:** Kayıtlı parçanın çözümleme AbortSignal’i tetikleniyor; spotify-play ok:false ile dönüyor. İçe aktarma penceresi tamamen boştaydı.
+
+**Kök neden:** Modal close koşulsuz spotify-cancel gönderiyor; servis içe aktarma/eşleştirme/kayıtlı stream için tek ortak controller kullanıyor ve iptali sahiplikle sınırlandırmıyor.
+
+**Etki:** Kullanıcı parçanın hazırlanması sırasında içe aktarma penceresini açıp kapatırsa seçtiği parça başlayamıyor.
+
+**Önceki kapsam:** R699 kayıtlı yeniden eşleştirme kimlik korumaları ilişkili kapsamdır. R815 B103 oynatıcı Close sonrası eski callback yarışıdır; bu farklı bileşenin ortak abort sahipliği köküdür.
+
+**Sınır:** Yalnız bekleyen stream çözümlemesinin iptali doğrulandı; başlamış sesin kesildiği iddia edilmiyor. Sentetik kayıt, gerçek servis/controller ve JSDOM modalı kullanıldı; Spotify hesabı, ağ, yt-dlp süreci veya müzik analizi yok.
+
+**Kabul ölçütü:** Boştaki modal kapatıldığında kayıtlı stream sinyali iptal edilmemeli; modalın kendi etkin işi için iptal davranışı korunmalı.
+
+**Sonuç:** [results.json](evidence815/unseen/library/results.json).
+
+## Bu turdaki ayrı geliştirme önerileri
+
+Önceki **G01–G32** korunur. Aşağıdaki iki öneri **G33–G34** olarak ayrı tutulur; 15 yeni bug veya 118 toplamına katılmaz. Alan raporlarındaki ilgili düzeltme seçenekleri de fazladan bug/öneri adedi sayılmaz. Hiçbir öneri uygulanmadı.
+
+### R815-G33 — Dağıtımın gerçek dosya envanterini ve hashlerini üret
+
+Mevcut inputSha256 gerekli-dosya kapanışını özetliyor; gerçek kopyalanan bütün ağacın listesi değildir. Yayın incelemesi için göreli yol/boyut/SHA256 içeren, kişisel içerik taşımayan final envanteri ve bir önceki paketle fark özeti yararlı olur. Böylece hangi uygulama varlığının eklendiği ve büyük/beklenmeyen dosyaların nereden geldiği görülebilir. Bu öneri mevcut fingerprint'in açıklanmış sınırını genişletir; ayrıca yeni bug sayılmadı.
+
+**Kabul:** Aynı paket içeriği aynı sıralı envanter hash'ini üretmeli; eklenen/değişen uygulama varlığı farkta görünmeli. Envanter kaynak içeriklerini/anahtarları barındırmamalı ve kişisel dosyaları ayıklamanın yerine geçmemeli.
+
+### R815-G34 — Abonelikleri kanal başına son başarı ve dönen yenileme bütçesiyle yönet
+
+Mevcut ilk 30 kanal bütçesi ve toplu akış cache'i yanında, her kanalın son başarılı yenilemesi, hata/atlandı durumu ve sonraki deneme zamanı izlenebilir. Büyük listede aynı ilk altkümenin sürekli öncelik almasını önlemek için dönen sıra ve yalnız başarısız kanalları sınırlı tekrar deneme seçeneği sunulabilir. OPML handle-only çıktısının üçüncü taraf RSS tüketicisiyle kabulü de ayrı doğrulanmalıdır; bu gözlem canlı tüketiciyle doğrulanmadığı için bug toplamına alınmadı.
+
+**Kabul:** 31/100 kanallı sentetik listede sınırlı istek bütçesi korunurken her kanalın sırası gelmeli; kullanıcı son başarı/hata/atlandı sayısını görebilmeli. Başarılı kanalların videoları ve eski sağlam cache, tek kanal hatası yüzünden kaybolmamalı. Ortak EN/TR ve grafit/amber yüzey korunmalı.
+
+### Sayılmayan adaylar ve teslim sınırı
+
+Handle-only OPML üçüncü taraf tüketicisi, GPUInfo gerçek adapter doğrulaması, native audio-track sözleşmesi ve kısmi venv oluşturma temizliği bu tur doğrulanmış bug sayılmadı. Klasör izleme tarandı; R66/R73 kökleri yeniden yazılmadı. Kaynak kimliği/profil/kapsam boşlukları [matriste](evidence815/unseen/COVERAGE.md) görünür.
+
+Ürün, mevcut testler, ayarlar ve bağımlılıklar değiştirilmedi; hiçbir bug düzeltilmedi. Yalnız rapor, seçilmiş sentetik tekrar kaynakları/sonuçları ve tarihli devir notu yayımlanır. Kişisel dirty dosyalar ve test fixture/profilleri commit dışında kalır.
