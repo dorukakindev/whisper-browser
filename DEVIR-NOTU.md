@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-30-1857.md](docs/devir/2026-10-30-1857.md) — Ürün100 keşfet ve yorum akışı
 Güncel çalışma: [docs/devir/2026-10-30-1839.md](docs/devir/2026-10-30-1839.md) — Ürün100 ses referansı ve kayıtlı üretim tarifi
 Güncel çalışma: [docs/devir/2026-10-30-0948.md](docs/devir/2026-10-30-0948.md) — Ürün100 yüzde/işaret kapısı ve SRT kodlama açıklaması
 Güncel çalışma: [docs/devir/2026-10-30-0920.md](docs/devir/2026-10-30-0920.md) — Ürün100 menü, filtre ve arka plan çevirisi
