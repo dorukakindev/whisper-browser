@@ -1124,9 +1124,11 @@
    if(!snapshot)return label+': '+display(key,value);
    const before=snapshot.values?.[key];
    if(!Object.hasOwn(snapshot.values||{},key)||typeof before!==fields[key].type||(fields[key].type==='number'&&!Number.isFinite(before)))throw Error('Workflow setting has no valid current value: '+key);
-   return label+': '+display(key,before)+' → '+display(key,value)+(before===value?(tr?' (değişmiyor)':' (unchanged)'):'');
+   return before===value?null:label+': '+display(key,before)+' → '+display(key,value);
   });
-  return rows.join(snapshot?'\n':' · ')+(name==='browser'?(tr?' · Tarayıcı ayarları hemen uygulanır; otomasyon sayfa çevirisi başlatabilir.':' · Browser changes apply immediately; automation may start page translation.'):'');
+  const changes=rows.filter(row=>row!==null);
+  if(snapshot&&!changes.length)return tr?'İstenen ayarlar zaten etkin; değişiklik yok.':'Requested settings are already active; no changes.';
+  return changes.join(snapshot?'\n':' · ')+(name==='browser'?(tr?' · Tarayıcı ayarları hemen uygulanır; otomasyon sayfa çevirisi başlatabilir.':' · Browser changes apply immediately; automation may start page translation.'):'');
  }
 
  return Object.freeze({groups,domain,parse,summary});

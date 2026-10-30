@@ -28,7 +28,7 @@ test('approval summary uses actual before/after values, choice labels and bounde
  const result=model.summary('transcription','{"model":"tiny","beamSize":3}','en',snapshot);
  assert.equal(result,'Whisper model: Large model → Tiny model\nBeam size: 5 → 3');
  assert.equal(model.summary('assistant','{"flex":false}','tr',{values:{flex:true}}),'DeepInfra Flex: Açık → Kapalı');
- assert.match(model.summary('transcription','{"beamSize":5}','en',snapshot),/5 → 5 \(unchanged\)/);
+ assert.match(model.summary('transcription','{"beamSize":5}','en',snapshot),/already active; no changes/);
  assert.throws(()=>model.summary('transcription','{"beamSize":3}','en',{values:{}}),/current value/);
  assert.throws(()=>model.summary('transcription','{"beamSize":3}','en',{values:{beamSize:NaN}}),/current value/);
  assert.deepEqual(snapshot.values,{model:'large-v3',beamSize:5});
@@ -49,4 +49,9 @@ test('matching settings do not save, dispatch changes or replace a meaningful un
  await h.run('configure_workflow',{domain:'transcription',changes_json:'{"model":"base"}'});assert.equal(h.calls(),0);assert.equal(h.read('transcription').canUndo,false);
  await h.run('configure_workflow',{domain:'transcription',changes_json:'{"model":"tiny"}'});const calls=h.calls();
  await h.run('configure_workflow',{domain:'transcription',changes_json:'{"model":"tiny"}'});assert.equal(h.calls(),calls);assert.deepEqual(JSON.parse(JSON.stringify(h.read('transcription').undoChanges)),{model:'base'});
+});
+
+test('mixed setting summaries omit unchanged fields but still validate their snapshots',()=>{
+ assert.equal(model.summary('transcription','{"model":"large-v3","beamSize":3}','en',{values:{model:'large-v3',beamSize:5}}),'Beam size: 5 → 3');
+ assert.match(model.summary('assistant','{"flex":false}','tr',{values:{flex:false}}),/değişiklik yok/);
 });

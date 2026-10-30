@@ -30,7 +30,7 @@ function setup({tracks=true}={}){
  for(const file of ['dub-experience-model.js','dub-generator-ui.js','voice-reference-ui.js','assistant-voice-actions.js'])w.eval(fs.readFileSync(path.join(__dirname,'../src/renderer',file),'utf8'));
  return {dom,w,el,context,read:()=>({request,applied,picks,played,refUsed}),proof:value=>proof=value,
   run:(name,args={})=>w.AssistantVoiceActions.execute(name,args,{}),
-  finish:(count=1)=>{output={id:request.id,type:'done',url:'file:///fixture.wav',name:'fixture.wav',sample:false,sync:{},quality:{groups:Array.from({length:count},(_,i)=>({key:'g'+(i+1),group:i+1,text:'Hello.',status:'review',audioStart:0,audioEnd:2,verification:{status:'not_checked'}}))}};event(output);return output;}};
+  finish:(count=1,verification={status:'not_checked'})=>{output={id:request.id,type:'done',url:'file:///fixture.wav',name:'fixture.wav',sample:false,sync:{},quality:{groups:Array.from({length:count},(_,i)=>({key:'g'+(i+1),group:i+1,text:'Hello.',status:'review',audioStart:0,audioEnd:2,verification}))}};event(output);return output;}};
 }
 test('Real dubbing UI accepts typed options and starts only after an explicit action',async()=>{
  const h=setup();try{
@@ -69,4 +69,10 @@ test('Assistant never adopts a leftover player subtitle without current browser 
 
 test('a voice setting that rejects its write cannot produce a successful assistant receipt',async()=>{
  const h=setup();try{Object.defineProperty(h.el('dubProfile'),'value',{configurable:true,get:()=> 'fast',set(){}});await assert.rejects(h.run('configure_voice_generation',{profile:'quality'}),/did not retain/);}finally{h.dom.window.close();}
+});
+
+test('Assistant receives bounded localized review reasons without raw ASR or private diagnostics',async()=>{
+ const h=setup();try{await h.run('configure_voice_generation',{profile:'quality'});await h.run('start_voice_generation');h.finish(1,{status:'review',lost_negation:true,missing_numbers:['2065'],recognizedText:'private raw ASR',debug:'C:/private/key'});
+ const group=(await h.run('get_voice_status')).voice.groups[0];assert.deepEqual(Array.from(group.reviewReasons),['Negation','Missing number: 2065']);assert.equal(group.needsListening,true);assert.equal(group.qualityEvidence,'automatic_checks_only');assert(!JSON.stringify(group).includes('private'));
+ }finally{await new Promise(resolve=>setTimeout(resolve,25));h.dom.window.close();}
 });

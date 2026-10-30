@@ -20045,8 +20045,8 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null) 
   if (!globalAssistantContext() && player.workspaceMode === 'browser' && player.browserActiveTabId && window.api.getBrowserPageContext) {
     const requestedPageTabId = player.browserActiveTabId;
     let timer;
-    const page = await Promise.race([Promise.resolve().then(()=>window.api.getBrowserPageContext(requestedPageTabId)).catch(() => null),
-      new Promise(resolve=>{timer=setTimeout(()=>resolve(null),4000);})]);
+    const page = await Promise.race([Promise.resolve().then(()=>window.api.getBrowserPageContext(requestedPageTabId)).catch(() => ({ok:false,contextFailure:'read_failed'})),
+      new Promise(resolve=>{timer=setTimeout(()=>resolve({ok:false,contextFailure:'timeout'}),4000);})]);
     clearTimeout(timer);
     if (page?.ok && page.url && window.AssistantSourceContext.pageKey(page.url) === window.AssistantSourceContext.pageKey(player.browserPageUrl)) chatContext.page = {
       title: String(page.title || '').slice(0, 300),
@@ -20057,6 +20057,7 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null) 
       availableActions:Array.isArray(page.availableActions)?page.availableActions.slice(0,8):[],
       contentTrust:'untrusted-page-content',truncated:!!page.truncated,
     };
+    chatContext.pageReadStatus=chatContext.page?(chatContext.page.blocks.some(row=>typeof row?.text==='string'&&row.text.trim())||chatContext.page.selectedText.trim()?'available':'empty'):page?.ok?'source_changed':page?.contextFailure||'unavailable';
     if (chatContext.page) chatSourceTabId = requestedPageTabId;
     else chatContext.pageUnavailable = 'Page text could not be read for this request. Do not infer page contents or claim to have summarized the page.';
   }

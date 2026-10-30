@@ -68,6 +68,16 @@ provider.listen(0,'127.0.0.1',()=>{
   win.setMinimumSize(0,0);win.setContentSize(720,680);await parent("UiLocale.set('en',false);applyUiTheme('light');return true");
   await until(()=>run("return document.documentElement.lang==='en'&&document.documentElement.dataset.theme==='light'"),'compact light');
   const compact=await capture('agent-cancelled-compact-light');
+  if(process.argv.includes('--clarity805')){
+   win.setContentSize(480,760);win.show();win.focus();
+   await run("const log=document.getElementById('log');const article=document.createElement('article');article.className='message';const p=document.createElement('p');p.textContent='Long context and action receipt '.repeat(55);const code=document.createElement('pre');code.textContent='synthetic_identifier_'.repeat(100);const card=document.createElement('section');card.className='tool-card';const title=document.createElement('strong');title.textContent='Workflow settings · transcription';const summary=document.createElement('p');summary.textContent='Whisper model: Large model → Tiny model\\nBeam size: 5 → 3';const receipt=document.createElement('p');receipt.className='action-receipt';receipt.textContent='Verified application receipt '.repeat(35);const button=document.createElement('button');button.textContent='Apply settings';card.append(title,summary,receipt,button);article.append(p,code,card);log.append(article);article.scrollIntoView({block:'start'});return true");
+   const measured=await run("return [...document.querySelectorAll('#log .message')].map(n=>({top:n.getBoundingClientRect().top,bottom:n.getBoundingClientRect().bottom,width:n.getBoundingClientRect().width}))");
+   for(let i=1;i<measured.length;i++)assert(measured[i].top>=measured[i-1].bottom-1,'Messages overlap at480px');
+   const before=await run("return document.getElementById('log').scrollTop");await wait(300);assert.equal(await run("return document.getElementById('log').scrollTop"),before,'Stable content retains scroll');
+   await capture('assistant-480-long-message-light');
+   await run("document.querySelector('#log .message:last-child .tool-card').scrollIntoView({block:'end'});return true");await capture('assistant-480-action-card-light');
+   await parent("UiLocale.set('tr',false);applyUiTheme('dark');return true");await capture('assistant-480-cancelled-dark');
+  }
   const result={ok:true,out,requests:requests.length,compact,provider:'controlled local HTTP/SSE; no live model',nativeWindows:true};fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(result,null,2));
   for(const socket of connections)socket.destroy();provider.close();console.log(JSON.stringify(result));app.exit(0);
  }).catch(async error=>{try{const w=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('index.html'));const v=w?.contentView.children.find(v=>v.webContents?.getURL().includes('assistant-overlay.html'));if(v)fs.writeFileSync(path.join(out,'ui-error.json'),JSON.stringify(await v.webContents.executeJavaScript("({lang:document.documentElement.lang,buttons:[...document.querySelectorAll('.tool-card button')].map(n=>({text:n.textContent,disabled:n.disabled})),log:document.getElementById('log').textContent})")));}catch(_){}fs.writeFileSync(path.join(out,'error.txt'),error.stack);for(const socket of connections)socket.destroy();provider.close();app.exit(1);});

@@ -12,7 +12,9 @@
  function same(left,right){return !!left&&!!right&&['kind','owner','thread','tabId','generation','pageKey'].every(key=>left[key]===right[key])&&left.range?.start===right.range?.start&&left.range?.end===right.range?.end;}
  function publicContext(raw){const {owner,thread,tabId,generation,pageKey,...safe}=clean(raw);return safe;}
  function sourceText(context={},budget=24000){
-  const safe={};if(context.sourceTruncated===true||context.truncated===true||context.selectedTextTruncated===true)safe.sourceTruncated=true;
+  const safe={};if(['available','empty','timeout','read_failed','source_changed','unavailable'].includes(context.pageReadStatus))safe.pageReadStatus=context.pageReadStatus;
+  if(safe.pageReadStatus&&safe.pageReadStatus!=='available')safe.pageReadHint=({empty:'The page returned no readable text. Ask the user to select a passage or open the article, then read the new context.',timeout:'Page extraction exceeded four seconds. Retry reading the current page; do not infer missing content.',read_failed:'The page reader failed. Retry or use an explicitly selected passage; the exact site cause is unknown.',source_changed:'The extracted page no longer matches the current source. Read the current page again.',unavailable:'Page text is unavailable; the exact cause is unknown. Ask for a selected passage or retry reading.'})[safe.pageReadStatus];
+  if(context.sourceTruncated===true||context.truncated===true||context.selectedTextTruncated===true)safe.sourceTruncated=true;
   const suppliedPool=context.assistant_tools?.rows;
   if(Array.isArray(suppliedPool)&&(suppliedPool.length>3100||suppliedPool.some(row=>typeof row?.text==='string'&&row.text.length>700||typeof row?.translation==='string'&&row.translation.length>700)))safe.sourceTruncated=true;
   for(const key of ['video','title','workspace','type','chapter','chapterText','chapterTextComplete','selectedText','excerpt','synopsis','note','pageUnavailable','zaman','cumle','mevcut_ceviri','not','sinir']){
