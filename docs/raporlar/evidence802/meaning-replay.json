@@ -1,0 +1,26 @@
+[
+  {
+    "source": "No idea how this may play out.",
+    "target": "Bunun nasıl sonuçlanacağı hakkında hiçbir fikrim yok.",
+    "before": [
+      "modal_certainty_flip"
+    ],
+    "after": []
+  },
+  {
+    "source": "The unpredictability is extraordinary.",
+    "target": "Öngörülemezlik olağanüstü.",
+    "before": [
+      "negation_added"
+    ],
+    "after": []
+  },
+  {
+    "source": "Pretty ruthlessly.",
+    "target": "Oldukça acımasızca.",
+    "before": [
+      "negation_added"
+    ],
+    "after": []
+  }
+]

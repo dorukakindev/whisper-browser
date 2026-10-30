@@ -1,0 +1,22 @@
+[
+  {
+    "file": "acceptance.json",
+    "bytes": 2475,
+    "sha256": "e8d155e40d49c417246ba5e52e4b360a86772255817be4e49af8a20368345d8e"
+  },
+  {
+    "file": "meaning-replay.json",
+    "bytes": 553,
+    "sha256": "b0c2dea696ac9326b9ceb799929cc8b59e98644906935d4e9d64c62e497f7dab"
+  },
+  {
+    "file": "studio-dark.png",
+    "bytes": 109729,
+    "sha256": "ee1de93dc80eeec53572b4e9b1643f79157fe2450fd25377e7aeb8a1778b8d70"
+  },
+  {
+    "file": "voice-selection-light.png",
+    "bytes": 83216,
+    "sha256": "33adce55f580f71f47adbe4c1dfe4efdf5aa3820b894157b2542ed8da32430f7"
+  }
+]
