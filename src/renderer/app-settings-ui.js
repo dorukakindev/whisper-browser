@@ -36,7 +36,7 @@
     const config=providerSnapshot(),row=el('div','aps-key-actions'),remove=button(t('Remove this provider’s key','Bu sağlayıcının anahtarını kaldır'),()=>{
       const expected=providerSnapshot(),review=el('div','aps-key-review');review.setAttribute('role','group');review.append(el('p','aps-copy',t('Remove the key for the currently selected provider? Other providers are kept.','Seçili sağlayıcının anahtarı kaldırılsın mı? Diğer sağlayıcılar korunur.')));
       review.append(button(t('Keep key','Anahtarı tut'),()=>review.remove()),button(t('Remove key','Anahtarı kaldır'),()=>{const current=providerSnapshot();if(current.prefix!==expected.prefix||current.preset!==expected.preset||current.url!==expected.url||current.key!==expected.key){review.remove();return;}const input=$(config.prefix+'ApiKey');input.value='';input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));review.remove();remove.disabled=true;}));row.querySelector('.aps-key-review')?.remove();row.append(review);
-    });remove.id='appRemoveKey';remove.disabled=!config.key;row.append(remove);parent.append(row);
+    });remove.id='appRemoveKey';remove.disabled=!config.key;remove.title=config.key?'':t('There is no saved key for this provider.','Bu sağlayıcı için kayıtlı anahtar yok.');const keyHint=el('p','aps-copy');keyHint.id='appRemoveKeyHint';keyHint.textContent=remove.title;keyHint.hidden=!!config.key;remove.setAttribute('aria-describedby',keyHint.id);row.append(remove);parent.append(row,keyHint);
     const hint=el('div','aps-endpoint-hint');hint.id='appEndpointHint';hint.setAttribute('role','status');parent.append(hint);updateSummary();
   }
   function modelBrowser(parent){
@@ -49,16 +49,16 @@
         ids=Array.isArray(result.models)?result.models:[];filter.disabled=!ids.length;select.disabled=!ids.length;filter.value='';render();status.textContent=ids.length?t(`${ids.length} models received${result.limited?' (limited list)':''}. Select one to use it.`,`${ids.length} model alındı${result.limited?' (sınırlı liste)':''}. Kullanmak için birini seç.`):t('The provider returned no model IDs. Enter the model manually.','Sağlayıcı model kimliği döndürmedi. Modeli elle yaz.');
       }catch{if(ticket===modelsGeneration&&view===viewGeneration)status.textContent=t('Could not load models. Enter the model manually.','Modeller alınamadı. Modeli elle yaz.');}
       finally{if(fetchButton.isConnected)fetchButton.disabled=false;}
-    });fetchButton.id='appFetchModels';const status=el('p','aps-copy');status.id='appModelListStatus';status.setAttribute('role','status');let ids=[];
-    const filter=el('input');filter.type='search';filter.id='appModelFilter';filter.placeholder=t('Filter model IDs','Model kimliklerinde ara');filter.setAttribute('aria-label',filter.placeholder);filter.disabled=true;
-    const select=el('select');select.id='appRemoteModels';select.setAttribute('aria-label',t('Models returned by this provider','Sağlayıcının döndürdüğü modeller'));select.disabled=true;
+    });fetchButton.id='appFetchModels';const status=el('p','aps-copy');status.id='appModelListStatus';status.setAttribute('role','status');status.textContent=t('Fetch the model list to enable filtering and selection. You can also enter a model manually.','Filtreleme ve seçim için model listesini getir. Modeli elle de girebilirsin.');let ids=[];
+    const filter=el('input');filter.type='search';filter.id='appModelFilter';filter.placeholder=t('Filter model IDs','Model kimliklerinde ara');filter.setAttribute('aria-label',filter.placeholder);filter.disabled=true;filter.setAttribute('aria-describedby',status.id);
+    const select=el('select');select.id='appRemoteModels';select.setAttribute('aria-label',t('Models returned by this provider','Sağlayıcının döndürdüğü modeller'));select.disabled=true;select.setAttribute('aria-describedby',status.id);
     const render=()=>{const matches=ids.filter(id=>id.toLowerCase().includes(filter.value.toLowerCase()));select.replaceChildren(el('option','',t('Choose a model…','Model seç…')));select.options[0].value='';for(const id of matches){const option=el('option','',id);option.value=id;select.append(option);}};
     render();filter.oninput=render;select.onchange=()=>{if(!select.value)return;const input=$('translateModel');input.value=select.value;input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));};box.append(fetchButton,status,filter,select);parent.append(box);
   }
   function changed(event){
     if(!dialog?.contains(event.target)||event.target.closest('.aps-model-browser,.aps-nav,.aps-key-review')||!event.target.id)return;
     editGeneration++;const status=$('appSettingsStatus');if(status){status.textContent=t('Settings changed. Use Save to confirm the storage result.','Ayarlar değişti. Kayıt sonucunu doğrulamak için Kaydet’i kullan.');status.classList.remove('aps-error');}
-    updateSummary();const remove=$('appRemoveKey');if(remove)remove.disabled=!providerSnapshot().key;
+    updateSummary();const remove=$('appRemoveKey');if(remove){remove.disabled=!providerSnapshot().key;remove.title=remove.disabled?t('There is no saved key for this provider.','Bu sağlayıcı için kayıtlı anahtar yok.'):'';const hint=$('appRemoveKeyHint');if(hint){hint.hidden=!remove.disabled;hint.textContent=remove.title;}}
     if(/(?:EndpointPreset|BaseUrl|ApiKey)$/.test(event.target.id)){modelsGeneration++;for(const id of ['appModelFilter','appRemoteModels'])if($(id))$(id).disabled=true;if($('appRemoteModels')){$('appRemoteModels').replaceChildren(el('option','',t('Fetch again for this provider','Bu sağlayıcı için yeniden getir')));}const status=$('appModelListStatus');if(status)status.textContent=t('Provider details changed. Fetch the model list again.','Sağlayıcı bilgileri değişti. Model listesini yeniden getir.');}
   }
   function draw(){
