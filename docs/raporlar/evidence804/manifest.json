@@ -1,0 +1,12 @@
+[
+  {
+    "file": "tr-speech-comparison.png",
+    "sha256": "e806922e82a667bc05537782517d1063e5530c396475e8b4195130406a345a07",
+    "source": "isolated Windows Electron synthetic fixture"
+  },
+  {
+    "file": "en-speech-comparison.png",
+    "sha256": "0f704f802d2574b682f37d4e525ba1839785c65bf358c16d3ee99d07d5bcb466",
+    "source": "isolated Windows Electron synthetic fixture"
+  }
+]
