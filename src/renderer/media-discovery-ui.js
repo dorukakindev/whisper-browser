@@ -78,7 +78,7 @@
     }));
     const reviews=btn(t('Letterboxd reviews & analysis','Letterboxd yorumları ve analiz'),async()=>{
       reviews.disabled=true;
-      try{await window.MediaToolsUI.open('decision',{...item,id:`discovery:${item.kind}:${item.providerId}`,imdbId:item.providerId,discovery:{kind:item.kind,id:item.providerId}});}
+      try{await window.MediaToolsUI.open('decision',{...item,id:`discovery:${item.kind}:${item.providerId}`,imdbId:item.providerId,discovery:{kind:item.kind,id:item.providerId}},{opener:reviews});}
       catch(error){if(dialog.open)placeholder.textContent=failure(error);}
       finally{if(dialog.open)reviews.disabled=false;}
     });reviews.dataset.discoveryAction='reviews';actions.append(reviews);

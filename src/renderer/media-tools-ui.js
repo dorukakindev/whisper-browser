@@ -11,10 +11,10 @@
   function field(label,type='text',value=''){const wrap=el('label','mtx-field'),input=el(type==='textarea'?'textarea':'input');if(type!=='textarea')input.type=type;input.value=value;input.maxLength=type==='textarea'?120000:2000;input.autocomplete='off';input.name=label;wrap.append(el('span','',label),input);return {wrap,input};}
   function select(label,options,value){const f=field(label),input=el('select');for(const [id,name]of options){const n=el('option','',name);n.value=id;input.append(n);}input.value=value;f.input.replaceWith(input);return {wrap:f.wrap,input};}
   function close(){modal?.close();}
-  function open(section='tonight',item=null){
+  function open(section='tonight',item=null,options={}){
     if(modal?.open){if(document.activeElement?.closest('dialog')!==modal){modal.close();modal.showModal();void syncBrowserOcclusion();}page=section;title=item;void draw();return;}
     if(fetchId){void request('reviews-stop',{id:fetchId});fetchId='';}clearTimeout(timer);page=section;title=item;modal=el('dialog','mtx-dialog media-surface');modal.id='mediaToolsDialog';modal.dataset.uiUntranslated='';modal.setAttribute('aria-label',t('Your media workspace','Medya çalışma alanın'));
-    const current=modal;current.addEventListener('close',()=>{if(current.open)return;if(modal===current){window.MediaReviewDecision?.leave();epoch++;clearTimeout(timer);if(fetchId)void request('reviews-stop',{id:fetchId});fetchId='';pending=null;modal=null;}current.remove();void syncBrowserOcclusion();});document.body.append(modal);modal.showModal();void draw();void syncBrowserOcclusion();
+    const origin=options.opener||document.activeElement,current=modal;current.addEventListener('close',()=>{if(current.open)return;if(modal===current){window.MediaReviewDecision?.leave();epoch++;clearTimeout(timer);if(fetchId)void request('reviews-stop',{id:fetchId});fetchId='';pending=null;modal=null;}current.remove();if(origin?.isConnected&&!origin.closest('[inert]'))origin.focus({preventScroll:true});void syncBrowserOcclusion();});document.body.append(modal);modal.showModal();void draw();void syncBrowserOcclusion();
   }
   async function draw(){
     if(!modal)return;window.MediaReviewDecision?.leave();clearTimeout(timer);if(fetchId){void request('reviews-stop',{id:fetchId});fetchId='';}pending=null;const ticket=++epoch;modal.replaceChildren();

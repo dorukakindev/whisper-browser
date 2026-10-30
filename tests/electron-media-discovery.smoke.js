@@ -131,14 +131,22 @@ app.whenReady().then(async () => {
   if(process.argv.includes('--library810')){
     await run('document.querySelector("[data-discovery-action=translate]").click();return true');await until(()=>run('return document.querySelector(".md-synopsis").textContent.includes("Kontrollü Türkçe")'),'translated story');
     await run('document.querySelector(".md-close").click();document.querySelector(".md-card").click();return true');await until(()=>run('return document.querySelector(".md-synopsis")?.textContent.includes("Kontrollü Türkçe")'),'reopened translation');
-    await run('document.querySelector("[data-discovery-action=reviews]").click();return true');await until(()=>run('return !!document.querySelector("[data-review-action=auto]")'),'discovery review panel');
+    await run('document.querySelector("[data-discovery-action=reviews]").focus();document.querySelector("[data-discovery-action=reviews]").click();return true');await until(()=>run('return !!document.querySelector("[data-review-action=auto]")'),'discovery review panel');
     assert.equal(await run('return (await window.api.mediaCatalog({action:"list"})).items.length'),initialCount,'Review panel never adds a film');
     await run('document.querySelector("[data-review-action=auto]").click();return true');await until(()=>run('return document.querySelector(".mrv-job").textContent.includes("10 yorum")'),'ten controlled reviews');
     win.setContentSize(1000,950);win.webContents.setZoomFactor(1.25);await wait(250);
     assert(await run('const d=document.getElementById("mediaToolsDialog");return d.scrollWidth<=d.clientWidth+1'),'reviews narrow overflow');
     fs.writeFileSync(path.join(out,'discovery-reviews-tr-125.png'),(await win.webContents.capturePage()).toPNG());
     assert.equal(await run('return (await window.api.mediaCatalog({action:"list"})).items.length'),initialCount,'Loading a sample does not add a film');
-    await run('document.getElementById("mediaToolsDialog").close();return true');win.setContentSize(1920,1080);win.webContents.setZoomFactor(1);
+    if(process.argv.includes('--polish811')){
+      win.setMinimumSize(0,0);win.setContentSize(720,900);win.webContents.setZoomFactor(1.5);await wait(250);
+      assert(await run('const d=document.getElementById("mediaToolsDialog");return d.scrollWidth<=d.clientWidth+1'),'Review dialog480pxat150%');
+      assert(await run('const actions=document.querySelector(".mrv-source>.mtx-actions"),copy=actions.nextElementSibling;return copy.getBoundingClientRect().top-actions.getBoundingClientRect().bottom>=13'),'Action explanation has breathing room');
+      fs.writeFileSync(path.join(out,'reviews-compact-tr-150.png'),(await win.webContents.capturePage()).toPNG());
+    }
+    await run('document.getElementById("mediaToolsDialog").close();return true');
+    if(process.argv.includes('--polish811'))await until(()=>run('return document.activeElement?.dataset.discoveryAction==="reviews"'),'Closing reviews restores opener focus');
+    win.setContentSize(1920,1080);win.webContents.setZoomFactor(1);
   }
   await run('document.querySelector(".md-detail .mh-primary").click();return true');
   await until(() => run('return document.getElementById("mediaTitleDialog")?.open && !!document.querySelector(".mtd-hero")'), 'watchlist record');

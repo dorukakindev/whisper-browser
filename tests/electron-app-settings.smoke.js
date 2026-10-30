@@ -15,6 +15,10 @@ app.whenReady().then(async()=>{
  await run("await initialSettingsReady;window.UiLocale.set('tr',false);applyUiTheme('dark');window.originalKey=document.getElementById('translateApiKey');window.originalParent=originalKey.closest('.field').parentElement;document.getElementById('mhSettings').focus();document.getElementById('mhSettings').click();return true");
  await until(()=>run("return !!document.getElementById('appSettingsDialog')?.open"),'settings dialog');
  assert(await run("return document.getElementById('translateApiKey')===originalKey && originalKey.closest('dialog')?.id==='appSettingsDialog'"),'Same real control, not a copied secret form');
+ const contrastHint=async()=>{const ratio=await run(`const n=document.getElementById('appModelListStatus'),rgb=s=>(s.match(/[\\d.]+/g)||[]).slice(0,3).map(Number),lum=c=>c.map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);let p=n,bg;while(p){const color=getComputedStyle(p).backgroundColor;if(!color.startsWith('rgba')&&color!=='transparent'){bg=rgb(color);break;}p=p.parentElement;}if(!bg)throw Error('Missing opaque background');const a=lum(rgb(getComputedStyle(n).color)),b=lum(bg);return (Math.max(a,b)+.05)/(Math.min(a,b)+.05)`);assert(ratio>=4.5,'Visible helper text contrast '+ratio);return ratio;};
+ if(process.argv.includes('--polish811'))console.log(JSON.stringify({darkHintContrast:await contrastHint()}));
+
+ if(process.argv.includes('--polish811'))assert(await run("return document.getElementById('appRemoveKey').disabled&&!document.getElementById('appRemoveKeyHint').hidden&&document.getElementById('appRemoveKeyHint').textContent.includes('anahtar')&&document.getElementById('appModelFilter').getAttribute('aria-describedby')==='appModelListStatus'&&document.getElementById('appModelListStatus').textContent.length>20"),'Disabled key/model actions explain why');
  await run("document.getElementById('translateEndpointPreset').value='https://api.openai.com/v1';document.getElementById('translateEndpointPreset').dispatchEvent(new Event('change',{bubbles:true}));document.getElementById('translateModel').value='gpt-5.4-mini';document.getElementById('translateModel').dispatchEvent(new Event('input',{bubbles:true}));originalKey.value='fixture-key-no-real-credential';originalKey.dispatchEvent(new Event('input',{bubbles:true}));document.getElementById('appSettingsSave').click();return true");
  await until(()=>run("return document.getElementById('appSettingsStatus').textContent==='Ayarlar kaydedildi.'"),'secure settings save');
  assert(await run("const settings=await window.api.loadSettings();return settings.translate.model==='gpt-5.4-mini' && settings.translate.apiKey==='fixture-key-no-real-credential'"),'Existing settings store receives edits');
@@ -53,6 +57,7 @@ app.whenReady().then(async()=>{
  assert(await run('return !!document.querySelector("#appSettingsDialog #uiTheme") && document.activeElement.id==="appSettingsSection"'));
  await run('const n=document.getElementById("appSettingsSection");n.value="ai";n.dispatchEvent(new Event("change"));return true');
  await capture('settings-ai-light-en-compact');
+ if(process.argv.includes('--polish811'))console.log(JSON.stringify({lightHintContrast:await contrastHint()}));
  await run("document.getElementById('appRemoveKey').click();document.querySelectorAll('.aps-key-review button')[1].click();return true");
  await until(()=>run("return document.getElementById('translateApiKey').value===''"),'key removed');
  await until(()=>run("return (async()=>{const settings=await window.api.loadSettings();return !settings.translate.apiKey;})()"),'removed key saved');
