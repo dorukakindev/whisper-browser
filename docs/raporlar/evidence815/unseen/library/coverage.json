@@ -1,0 +1,62 @@
+{
+  "head": "db65f2e7f6e7b50649c440cb183cb88863ebf241",
+  "coverage": [
+    {
+      "area": "RSS/Atom ekleme ve yenileme",
+      "sources": [
+        "backend/media_shelf.py",
+        "src/media-shelf-service.js",
+        "src/renderer/media-shelf-ui.js"
+      ],
+      "previous": "Night1000 F39 CSV/ZIP alan birleştirme; backend/test_media_shelf.py mutlak RSS olağan akışı",
+      "new": "Atom xml:base ve GUID sabitken enclosure değişimi; gerçek Python + handler + disk",
+      "boundary": "Harici feed/CDN ve ses oynatma yok"
+    },
+    {
+      "area": "EPUB metin çıkarma ve okuyucu",
+      "sources": [
+        "backend/media_shelf.py",
+        "src/renderer/media-shelf-ui.js"
+      ],
+      "previous": "F39 CSV/ZIP alan birleştirme; R612 metadata/nav/noteref ve açık dipnot testleri",
+      "new": "Normal hidden niteliği; gerçek ZIP/parser/import/open ve JSDOM okuyucu",
+      "boundary": "DRM/fixed-layout/CSS kaskadı ve native görsel kontrol yok"
+    },
+    {
+      "area": "Kayıtlı Spotify eşleşmesinin olağan oynatımı ve modal iptal sahipliği",
+      "sources": [
+        "src/spotify-import.js",
+        "src/renderer/spotify-import-ui.js",
+        "src/media-shelf-service.js"
+      ],
+      "previous": "R699 yeniden eşleştirme korumaları; eski 103 içinde farklı oynatıcı yaşam döngüsü bulguları",
+      "new": "Boştaki modalın başka tüketicinin bekleyen stream işini iptali",
+      "boundary": "Hesap/abonelik, canlı metadata indirme ve müzik analizi açılmadı"
+    },
+    {
+      "area": "İzlenen klasör",
+      "sources": [
+        "src/watch-folder.js",
+        "src/main.js"
+      ],
+      "previous": "R66-03 ve R73 çıktı algılama/yeniden kuyruk döngüleri",
+      "new": "Salt okunur inceleme; yeni strict bulgu yok",
+      "boundary": "Önceki kökler tekrar sayılmadı; boyut kararlılığı politikası bug sayılmadı"
+    },
+    {
+      "area": "Radyo URL kaydı ve klasör müzik içe aktarma sınırları",
+      "sources": [
+        "src/media-shelf-service.js"
+      ],
+      "previous": "F39 CSV/ZIP alan birleştirme ailesi",
+      "new": "Salt okunur inceleme",
+      "boundary": "Yeni somut disk/tüketici kanıtı olmayan adaylar sayılmadı"
+    }
+  ],
+  "excluded": [
+    "Önceki 103 R815 bulgusu tekrar sayılmadı.",
+    "Müzik analizi P081–P090 kapsam dışı.",
+    "Tam 500 dosya klasör sınırı adayı çalıştırılmadı ve bug sayılmadı.",
+    "Canlı sağlayıcı/hesap/native Windows UI başarısı iddia edilmedi."
+  ]
+}

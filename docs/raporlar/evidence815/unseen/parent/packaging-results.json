@@ -1,0 +1,32 @@
+{
+  "checkedHead": "db65f2e7f6e7b50649c440cb183cb88863ebf241",
+  "platform": "win32",
+  "node": "v24.22.0",
+  "packagerVersion": "20.3.0",
+  "leakedSyntheticMarkers": [
+    ".env",
+    "tmp/synthetic-profile/settings.json",
+    ".tmp/synthetic-profile/settings.json",
+    "logs/synthetic-session.log",
+    "synthetic-media.wav"
+  ],
+  "testsExcluded": true,
+  "sourceGitIgnorePresent": true,
+  "copiedPackageLock": false,
+  "requiredCheckerMissing": [],
+  "sourcePreflight": "PASS",
+  "packagedPreflightFailure": {
+    "code": "ENOENT",
+    "file": "package-lock.json",
+    "syscall": "open"
+  },
+  "restoreLockCountercheck": "PASS",
+  "sourceHashes": {
+    "tools/package-manifest.js": "8944a3199001635393075ba7ac7ea9c26f4378de4eb81c3ff6640daf0a75e5f8",
+    "tools/package-windows.js": "d6ff8c9ed86da540111d4de15a98429aedea6bcaae552dec65adee6eb3821e51",
+    "tools/install-orchestrator.js": "fbd6abcf80c100269cd97cccede572c0d6bf30b23f76515a0ddf121404d2e350",
+    "node_modules/@electron/packager/dist/copy-filter.js": "add9cf0b4ed898d875d56258754563bb168271418a23c0f11ca78217e740145c",
+    "package-lock.json": "b20eb0b1d1d5af796d5aa2a38a3c178720477c10fa71e493c292c1cd926fc92e"
+  },
+  "limits": "Actual installed packager filter and production manifest/checker/preflight, synthetic copy tree only; no full EXE build, downloads, Python install or personal data."
+}

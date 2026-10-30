@@ -1,0 +1,79 @@
+{
+  "sourceSha256": {
+    "tools/package-manifest.js": "8944a3199001635393075ba7ac7ea9c26f4378de4eb81c3ff6640daf0a75e5f8",
+    "tools/package-windows.js": "d6ff8c9ed86da540111d4de15a98429aedea6bcaae552dec65adee6eb3821e51",
+    "tools/install-orchestrator.js": "fbd6abcf80c100269cd97cccede572c0d6bf30b23f76515a0ddf121404d2e350",
+    "node_modules/@electron/packager/dist/copy-filter.js": "add9cf0b4ed898d875d56258754563bb168271418a23c0f11ca78217e740145c",
+    "package-lock.json": "b20eb0b1d1d5af796d5aa2a38a3c178720477c10fa71e493c292c1cd926fc92e"
+  },
+  "findings": [
+    {
+      "id": "PK01",
+      "severity": "P1",
+      "title": "Windows dağıtım filtresi yerel sır, profil, günlük ve medyayı pakete alıyor",
+      "sources": [
+        "tools/package-manifest.js:18–31",
+        "tools/package-windows.js:36–50"
+      ],
+      "reproduce": "Depo kökünde .env, tmp/synthetic-profile/settings.json, .tmp/synthetic-profile/settings.json, logs/synthetic-session.log ve synthetic-media.wav dosyaları olan sentetik paket ağacı hazırla. Üretimdeki PACKAGER_IGNORE değerini kurulu @electron/packager populateIgnoredPaths → userPathFilter zincirinden geçir ve gerçek fs.cp ile resources/app içine kopyala. tests/should-be-excluded.txt negatif kontrolünü de ekle.",
+      "expected": "Dağıtıma yalnız uygulama girdileri alınmalı; .gitignore içinde açıkça kişisel/sır/runtime verisi sayılan bu dosyalar yayın paketine kopyalanmamalı.",
+      "observed": "Beş sahte kişisel/sır işaretinin tamamı resources/app içinde bulundu. Negatif kontrol tests/ dosyası dışarıda kaldı; dolayısıyla filtre gerçekten uygulanıyor. .gitignore bu paketleme yolunda okunmuyor.",
+      "cause": "Paketleyici tüm kaynak kökünü kopyalıyor; denylist yalnız birkaç kök dosya/dizinini dışlıyor. .env/.env.*, tmp/.tmp, logs ve kullanıcı medya uzantıları için kural yok. Git tarafından ignored olmak bu kopyalama işlemine koruma sağlamıyor.",
+      "impact": "İçinde gerçek sır/profil/medya bulunan bir çalışma ağacından paket üretilip paylaşılırsa bu içerik dağıtıma taşınabilir. Kanıt yalnız sahte marker kullanır; mevcut bir yayımlanmış paketin kişisel veri sızdırdığı veya gerçek API anahtarı içerdiği iddia edilmez.",
+      "prior": "Önceki R815 B01–B103 içinde bu Windows dağıtım mekanizması yok. Night1000 registry üç paket/kurulum dosyasını kaynak olarak listelemiyor. R266 gerekli-dosya kapanışını; R317 ortak manifesti ele alır. R345 mahremiyet ratchet’i .wbp çalışma paketi içindir, Electron dağıtım filtresi değildir. tests/windows-package-ignore.test.js iç yüzeylerin seçili 23 yolunu sınar; kişisel marker yollarını sınamaz.",
+      "limits": "Gerçek Windows, Node v24.22.0, kurulu packager 20.3.0 ve gerçek kopyalama filtresi; tüm EXE paketi üretilmedi/yayımlanmadı. Kişisel kaynak ağacı paketlenmedi, ağ/hesap kullanılmadı. Beş dosya varyantı tek bağımsız kök sayılır.",
+      "acceptance": "Sentetik sır/profil/log/medya kopyaya girmemeli; gerekli uygulama girdileri kalmalı. Kontrol yalnız özel regex dizisini değil gerçek packager varsayılanlarıyla birleşmiş kopyalama sonucunu doğrulamalı."
+    },
+    {
+      "id": "PK02",
+      "severity": "P1",
+      "title": "Paketleyici kilit dosyasını atlıyor; paket içindeki install.bat ön kontrolü çalışamıyor",
+      "sources": [
+        "tools/package-windows.js:36–50",
+        "tools/package-windows.js:67–82",
+        "tools/package-manifest.js:170–175",
+        "tools/install-orchestrator.js:311–314",
+        "node_modules/@electron/packager/dist/copy-filter.js:6–29"
+      ],
+      "reproduce": "Aynı sentetik kaynak ağacında gerçek package.json, package-lock.json, install.bat ve kurulum betiği/requirements kilitlerini kullan. Üretim ayarlarıyla gerçek copy-filter kopyasını çalıştır. Üretim missingInTarget kontrolünü ve kaynak/paket ağaçlarında InstallOrchestrator.preflight çağrısını çalıştır; dış araç algılaması desteklenen değerleri döndüren kontrollü sürücüdür.",
+      "expected": "BUILD-MANIFEST içindeki “Run resources/app/install.bat” yönlendirmesi çalışabilir bir kurulum ağacına gitmeli. Zorunlu npm kilidi paket içinde bulunmalı veya paket üretimi eksik dosyada durmalı.",
+      "observed": "Kaynak ağaç preflight PASS. Gerçek filtre package-lock.json dosyasını kopyalamadı. missingInTarget boş liste döndürdü. Paket ağacı preflight ENOENT/open/package-lock.json ile durdu. Yalnız eksik kilidi yerine koyunca aynı ön kontrol PASS oldu.",
+      "cause": "PACKAGER_IGNORE bir RegExp dizisi olduğunda @electron/packager kendi /package-lock\\.json$ varsayılanını ekler. Proje testi yalnız özel regexleri kontrol edip kilidi “shipped” sayar; requiredPackageFiles de package-lock.json eklemediğinden final bütünlük kapısı bu eksikliği göremez. Kurulum validatePolicy ve desiredFingerprint kilidi zorunlu okur.",
+      "impact": "Bu paketleme akışıyla hazırlanan dağıtımda yeni makine için belgelenen kurulum, pip/npm kurulumu başlamadan kesilir. Transkripsiyon backend’i kurulamaz. Önceden hazırlanmış uygun ortamı olan her makinenin uygulamayı açamadığı iddia edilmez.",
+      "prior": "B01–B103 içinde yok; Night1000 registry bu üç tools kaynağını kapsamıyor. R266/R317 gerekli-dosya doğrulaması/ortak manifest çalışmalarını bu kez kurulu packager varsayılanları ve gerçek kurulum tüketicisi arasında sınadık. Mevcut windows-package-ignore testi 23 iç +19 dış yol ve package-integrity 9/9 PASS verdi; bu yeni hata o kontrollerin dışındaki zincirde doğrulandı.",
+      "limits": "Gerçek filtre/fs kopyası ve üretim preflight kullanıldı; Node/Python/FFmpeg araç kontrolleri kontrollü. Tam temiz Windows VM install.bat, paket EXE üretimi ve indirme yapılmadı. Dosyayı geri koymak yalnız sentetik fixture karşı kontrolüdür; ürün düzeltilmedi.",
+      "acceptance": "Gerçek packager çıktısında kilit korunmalı; silinirse missingInTarget başarısız olmalı. Aynı çıktı ağacının gerçek kurulum ön kontrolü kilit dosyası kaynaklı hata vermemeli."
+    }
+  ],
+  "coverage": [
+    {
+      "domain": "Windows dağıtımı ve kurulum zinciri",
+      "sources": [
+        "tools/package-manifest.js",
+        "tools/package-windows.js",
+        "tools/install-orchestrator.js"
+      ],
+      "prior103": "Kaynak/mekanizma için bulgu yok",
+      "registry": "Bu üç kaynak için 0 senaryo; aile imzaları aynı invariantı içermiyor",
+      "historical": "R266/R317 manifest ve gerekli kaynak; R345 farklı .wbp mahremiyet sınırı",
+      "exercised": "Gerçek packager varsayılanları+filtre+fs.cp, required checker, preflight ve eksik kilit karşı kontrolü",
+      "unverified": "Tam EXE/temiz VM/BAT etkileşimi, gerçek yayımlanmış paket içeriği, kişisel veri ifşası"
+    }
+  ],
+  "excluded": [
+    "Venv createVenv kısmi hata temizliği: gerçek kullanıcı etkisi yeterince doğrulanmadığı için bug sayılmadı.",
+    "Dağıtım SHA256 tüm kopyalanan dosyaları kapsamıyor: kapsam/sözleşme geliştirme önerisi, ayrı bug sayılmadı."
+  ],
+  "checks": [
+    {
+      "command": "node tests/windows-package-ignore.test.js",
+      "exit": 0,
+      "result": "23 excluded +19 shipped paths"
+    },
+    {
+      "command": "node tests/package-integrity.test.js",
+      "exit": 0,
+      "result": "9/9 PASS"
+    }
+  ]
+}

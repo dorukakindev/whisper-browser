@@ -1,0 +1,326 @@
+{
+  "head": "db65f2e7f6e7b50649c440cb183cb88863ebf241",
+  "sourceSha256": "a6447f3320fa5dd14969358df6eeccf4fd51791069725a1dc1f053aed9953041",
+  "network": "NONE: fetch/net/spawn entirely controlled, fixture is nonexecutable",
+  "findings": {
+    "UE01": {
+      "before": [
+        {
+          "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "torrentId": 7,
+          "name": "a.mp4",
+          "index": 0,
+          "size": 10,
+          "selections": [
+            {
+              "index": 0,
+              "name": "a.mp4",
+              "size": 10
+            }
+          ],
+          "at": 1793399498737,
+          "paused": false
+        }
+      ],
+      "failed": {
+        "ok": false,
+        "error": "Torrent engine HTTP 503"
+      },
+      "statusJobs": [
+        {
+          "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "torrentId": 7,
+          "name": "a.mp4",
+          "index": 0,
+          "size": 10,
+          "selections": [
+            {
+              "index": 0,
+              "name": "a.mp4",
+              "size": 10
+            },
+            {
+              "index": 1,
+              "name": "b.mp4",
+              "size": 20
+            }
+          ],
+          "at": 1793399498737,
+          "paused": false
+        }
+      ],
+      "diskImmediatelyAfterFailure": [
+        {
+          "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "torrentId": 7,
+          "name": "a.mp4",
+          "index": 0,
+          "size": 10,
+          "selections": [
+            {
+              "index": 0,
+              "name": "a.mp4",
+              "size": 10
+            }
+          ],
+          "at": 1793399498737,
+          "paused": false
+        }
+      ],
+      "diskAfterUnrelatedPause": [
+        {
+          "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "torrentId": 7,
+          "name": "a.mp4",
+          "index": 0,
+          "size": 10,
+          "selections": [
+            {
+              "index": 0,
+              "name": "a.mp4",
+              "size": 10
+            },
+            {
+              "index": 1,
+              "name": "b.mp4",
+              "size": 20
+            }
+          ],
+          "at": 1793399498737,
+          "paused": true
+        }
+      ],
+      "reopenedFailedSelection": true,
+      "trace": [
+        {
+          "event": "spawn"
+        },
+        {
+          "route": "/stats",
+          "method": "GET",
+          "body": null
+        },
+        {
+          "route": "/torrents?list_only=true",
+          "method": "POST",
+          "body": null
+        },
+        {
+          "route": "/torrents?only_files=0&overwrite=true&sub_folder=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "method": "POST",
+          "body": null
+        },
+        {
+          "route": "/torrents/7/update_only_files",
+          "method": "POST",
+          "body": "{\"only_files\":[0]}"
+        },
+        {
+          "route": "/torrents?only_files=1&overwrite=true&sub_folder=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "method": "POST",
+          "body": null
+        },
+        {
+          "route": "/torrents/7/update_only_files",
+          "method": "POST",
+          "body": "{\"only_files\":[0,1]}"
+        },
+        {
+          "route": "/torrents/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/pause",
+          "method": "POST",
+          "body": null
+        },
+        {
+          "route": "/torrents/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/start",
+          "method": "POST",
+          "body": null
+        }
+      ]
+    },
+    "UE02": {
+      "concurrent": [
+        {
+          "ok": true,
+          "index": 0
+        },
+        {
+          "ok": true,
+          "index": 1
+        }
+      ],
+      "concurrentDisk": [
+        {
+          "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "torrentId": 7,
+          "name": "b.mp4",
+          "index": 1,
+          "size": 20,
+          "selections": [
+            {
+              "index": 1,
+              "name": "b.mp4",
+              "size": 20
+            }
+          ],
+          "at": 1793399498793,
+          "paused": false
+        }
+      ],
+      "sequentialDisk": [
+        {
+          "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "torrentId": 7,
+          "name": "b.mp4",
+          "index": 1,
+          "size": 20,
+          "selections": [
+            {
+              "index": 0,
+              "name": "a.mp4",
+              "size": 10
+            },
+            {
+              "index": 1,
+              "name": "b.mp4",
+              "size": 20
+            }
+          ],
+          "at": 1793399498818,
+          "paused": false
+        }
+      ],
+      "concurrentTrace": [
+        {
+          "event": "spawn"
+        },
+        {
+          "route": "/stats",
+          "method": "GET",
+          "body": null
+        },
+        {
+          "route": "/torrents?list_only=true",
+          "method": "POST",
+          "body": null
+        },
+        {
+          "route": "/torrents?only_files=0&overwrite=true&sub_folder=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "method": "POST",
+          "body": null
+        },
+        {
+          "route": "/torrents?only_files=1&overwrite=true&sub_folder=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "method": "POST",
+          "body": null
+        },
+        {
+          "route": "/torrents/7/update_only_files",
+          "method": "POST",
+          "body": "{\"only_files\":[0]}"
+        },
+        {
+          "route": "/torrents/7/update_only_files",
+          "method": "POST",
+          "body": "{\"only_files\":[1]}"
+        }
+      ],
+      "sequentialTrace": [
+        {
+          "event": "spawn"
+        },
+        {
+          "route": "/stats",
+          "method": "GET",
+          "body": null
+        },
+        {
+          "route": "/torrents?list_only=true",
+          "method": "POST",
+          "body": null
+        },
+        {
+          "route": "/torrents?only_files=0&overwrite=true&sub_folder=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "method": "POST",
+          "body": null
+        },
+        {
+          "route": "/torrents/7/update_only_files",
+          "method": "POST",
+          "body": "{\"only_files\":[0]}"
+        },
+        {
+          "route": "/torrents?only_files=1&overwrite=true&sub_folder=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "method": "POST",
+          "body": null
+        },
+        {
+          "route": "/torrents/7/update_only_files",
+          "method": "POST",
+          "body": "{\"only_files\":[0,1]}"
+        }
+      ]
+    },
+    "UE03": {
+      "lateStarts": [
+        {
+          "method": "close",
+          "atClose": {
+            "spawned": 0,
+            "killed": 0
+          },
+          "afterClose": {
+            "spawned": 1,
+            "killed": 0
+          },
+          "lateResult": true,
+          "trace": [
+            {
+              "event": "spawn"
+            },
+            {
+              "route": "/stats",
+              "method": "GET",
+              "body": null
+            },
+            {
+              "route": "/torrents?list_only=true",
+              "method": "POST",
+              "body": null
+            }
+          ]
+        },
+        {
+          "method": "before-quit",
+          "atClose": {
+            "spawned": 0,
+            "killed": 0
+          },
+          "afterClose": {
+            "spawned": 1,
+            "killed": 0
+          },
+          "lateResult": true,
+          "trace": [
+            {
+              "event": "spawn"
+            },
+            {
+              "route": "/stats",
+              "method": "GET",
+              "body": null
+            },
+            {
+              "route": "/torrents?list_only=true",
+              "method": "POST",
+              "body": null
+            }
+          ]
+        }
+      ],
+      "negativeControlAlreadyStarted": {
+        "spawned": 1,
+        "killed": 1
+      }
+    }
+  }
+}

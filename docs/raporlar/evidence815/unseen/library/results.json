@@ -1,0 +1,37 @@
+{
+  "head": "db65f2e7f6e7b50649c440cb183cb88863ebf241",
+  "rows": [
+    {
+      "id": "UL01",
+      "relativeAtomResult": {
+        "ok": false,
+        "error": "No audio/video enclosures found in RSS/Atom feed."
+      },
+      "absoluteHrefCounterexample": true
+    },
+    {
+      "id": "UL02",
+      "unchangedGuid": "urn:episode:fixed-guid",
+      "progressSaveConfirmed": true,
+      "positionBeforeRefresh": 45,
+      "sameURLRefreshPosition": 45,
+      "positionOnDiskAfterRefresh": 0,
+      "updatedMediaURL": "https://media.example/episode-v2.mp3"
+    },
+    {
+      "id": "UL03",
+      "originalHiddenDisplay": "none",
+      "importedChapterContainsHidden": true,
+      "readerVisibleText": "Visible chapterVisible story sentence.EDITOR ONLY HIDDEN SENTENCE.Visible ending."
+    },
+    {
+      "id": "UL04",
+      "importerWasIdle": true,
+      "unrelatedSavedPlaybackResolutionAborted": true,
+      "playbackResult": {
+        "ok": false,
+        "error": "Synthetic unrelated stream cancelled"
+      }
+    }
+  ]
+}
