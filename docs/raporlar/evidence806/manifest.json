@@ -1,0 +1,22 @@
+[
+  {
+    "file": "reader806-short-page-kept.png",
+    "sha256": "99696fbab9fd43c169ffb7d783549fd5774b05dc4a96f3820add93fa8dfa030e",
+    "source": "isolated Windows PDF synthetic source and controlled tone WAV; no real model"
+  },
+  {
+    "file": "reader806-book-readiness.png",
+    "sha256": "362febe9899d10083ffab4cbcc8d055bd13227206a2d8533440fa373970902e3",
+    "source": "isolated Windows PDF synthetic source and controlled tone WAV; no real model"
+  },
+  {
+    "file": "text-preview-en.png",
+    "sha256": "b17446eab99c19bd8157e2098c4a1cbde57a6e090fc39ab6b4e5b25159e534ae",
+    "source": "isolated Windows PDF synthetic source and controlled tone WAV; no real model"
+  },
+  {
+    "file": "voice-zoom-preserved.png",
+    "sha256": "5b7ef49e9d41c1fbce362ebc8f6aa200f72c8fa176a374b64cf7805f2c36044c",
+    "source": "isolated Windows PDF synthetic source and controlled tone WAV; no real model"
+  }
+]
