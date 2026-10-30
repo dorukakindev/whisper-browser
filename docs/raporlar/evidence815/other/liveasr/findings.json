@@ -1,0 +1,440 @@
+{
+  "head": "6a789329d96c4f97cdc17bd9518df0b540b13444",
+  "sourceSha256": {
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+    "src/renderer/renderer.js": "4853b2fe48da6a383e2438895c747a0ba79820eb58470da5ac66de476f8b66d6",
+    "src/renderer/renderer-helpers.js": "f07116b7d1cdafa1398a2f42511914ef86991d0f88ff436bdcd29a49036ccb53",
+    "src/browser-subtitles.js": "7fce97cf5df6216a158fa50c3e6ba8c0e9f62f79970436bfe8d6b05d91a2cbad",
+    "src/live-asr-realtime.js": "728061ef20db08e21b30d885854903be911cc9f5a5710768610b927dba9624a1",
+    "src/renderer/live-asr-worklet.js": "461787b919b3b195dbd0b94859d1fcf0cfdec322816ae8b52162fa948b547337",
+    "backend/live_asr.py": "4be26bcdc5ec835af919618e8ec75c79e08daf968f007863ef47e47d09fd8bc0"
+  },
+  "previousR815Total": 118,
+  "findings": [
+    {
+      "id": "LA01",
+      "severity": "P2",
+      "title": "Canlı ASR yeniden başlatıldığında cue kimlik çakışması önceki farklı zamanlı konuşmayı siliyor",
+      "sources": [
+        "src/main.js:9648-9649",
+        "src/main.js:9667",
+        "src/main.js:9682",
+        "src/main.js:10093-10101",
+        "src/browser-subtitles.js:223-239"
+      ],
+      "reproduce": [
+        "Aynı sekme/video/acquisition için gerçek startBrowserLiveAsr ile oturum1 başlat; backend protokolünden Merhaba@10–11 ve Devam@20–21 segmentlerini ilet.",
+        "Gerçek stopBrowserLiveAsr ve süreç close olayını işlet; videoda geriye sarılmış konumdan aynı acquisition üzerinde yeni oturum başlat.",
+        "Yeni oturum ilk segmenti Merhaba@0–1 olsun; gerçek storeBrowserTrack ve mergeBrowserStreamCues tamponunu incele."
+      ],
+      "expected": "0–1,10–11,20–21 farklı zamanlı üç cue korunmalı; yeni oturum eski ayrı repliğin revizyonu değildir.",
+      "observed": {
+        "sessions": [
+          "session-1",
+          "session-2"
+        ],
+        "streamKey": "live-asr:7:stable-acquisition",
+        "before": [
+          {
+            "id": "live-0",
+            "start": 10,
+            "end": 11,
+            "text": "Merhaba"
+          },
+          {
+            "id": "live-1",
+            "start": 20,
+            "end": 21,
+            "text": "Devam"
+          }
+        ],
+        "after": [
+          {
+            "id": "live-0",
+            "start": 0,
+            "end": 1,
+            "text": "Merhaba"
+          },
+          {
+            "id": "live-1",
+            "start": 20,
+            "end": 21,
+            "text": "Devam"
+          }
+        ],
+        "countercontrolDistinctCueId": [
+          {
+            "id": "live-2",
+            "start": 0,
+            "end": 1,
+            "text": "Merhaba"
+          },
+          {
+            "id": "live-0",
+            "start": 10,
+            "end": 11,
+            "text": "Merhaba"
+          },
+          {
+            "id": "live-1",
+            "start": 20,
+            "end": 21,
+            "text": "Devam"
+          }
+        ]
+      },
+      "cause": "streamKey acquisition düzeyinde sabit; job.nextCueId her startta0. İki ayrı oturum live-0 kullanır. Geriye zamanlı cue genel merge yoluna girince kimlik+metin eşleşmesi önceki live-0@10 kaydını revizyon sanarak siler.",
+      "impact": "Aynı videoyu durdurup yeniden canlı yazıya çevirme ve geri sarma sonrasında daha önce yakalanan gerçek konuşma birikmiş altyazı tamponundan kaybolur. Bu kanıt, aynı kimlik ve aynı metnin geriye zamanlı yeni oturumda tekrarlanmasıyla sınırlıdır; ileri zamanlı hızlı yolda bu silme iddia edilmez.",
+      "prior": "R815 önceki118 listesinde yok. F20 N0390 kaynak değişimi worklet hız/saatini; N0395 yeniden giriş tek worklet flush/sync ve monitor rewarn kontrolünü yapar. Main ASR session→stream/cue identity entegrasyonu yok. Genel merge fonksiyonunun sağlayıcı revizyonu temizleme davranışı bilinen ve amaçlı; hata yeni oturumun aynı identity alanını yeniden kullanmasıdır.",
+      "limits": "Gerçek main başlangıç/consumer/stop, storeBrowserTrack ve merge çalıştı. Python süreç ve segmentler protokol fixture; modelin böyle döküm ürettiği, final SRT diski veya native playback kabulü iddia edilmez.",
+      "acceptance": "Aynı acquisition üstünde iki stop/start oturumunda cue kimlikleri çakışmamalı veya oturum izleri ayrılmalı. Geriye sarılmış yeni oturum aynı metni farklı zamanda üretince eski cue korunmalı; aynı oturum gerçek sağlayıcı cue revizyonu güncellenmeye devam etmeli."
+    },
+    {
+      "id": "LA02",
+      "severity": "P2",
+      "title": "Worklet modülü yüklenirken biten sistem sesi izi sonrasında etkin oturum olarak kalıyor",
+      "sources": [
+        "src/renderer/renderer.js:11602-11609",
+        "src/renderer/renderer.js:11648-11655"
+      ],
+      "reproduce": [
+        "Gerçek startBrowserLiveAsrCapture başlat; audioWorklet.addModule yanıtını kısa beklet.",
+        "Paylaşılan audio track henüz ended listener kurulmadan doğal olarak ended durumuna geçsin.",
+        "Modül yüklemesini tamamla; production start fonksiyonunu ve mikro görevleri bitir."
+      ],
+      "expected": "Zaten ended ses izi yeniden etkin capture gibi bağlanmamalı; capture/context/stream temizlenip scoped backend stop çağrılmalı.",
+      "observed": {
+        "observed": {
+          "trackReadyState": "ended",
+          "active": true,
+          "captureRetained": true,
+          "nodes": 1,
+          "backendStops": 0
+        },
+        "countercontrolEndAfterListener": {
+          "active": false,
+          "backendStops": 1,
+          "trackStopped": true
+        }
+      },
+      "cause": "ended listener addModule await sonrasında kuruluyor; track.readyState başlangıçta ve await sonrasında denetlenmiyor. EventTarget geçmiş ended olayını yeni dinleyiciye tekrar iletmez.",
+      "impact": "Kullanıcı Windows paylaşımını ilk modül yüklemesi sırasında kapatırsa ses yakalama bitmiş olmasına rağmen active=true ve model oturumu açık kalır; yeni konuşma gelmez. Kullanıcı manuel durdurabilir.",
+      "prior": "R815 önceki118 listesinde yok. R648 module-load iptal testi uygulama Stop akışını sınar; trackin await penceresinde doğal ended olmasını kapsamaz. F20 N0392 yalnız worklet process([]) kanal kaybını sınar; MediaStreamTrack listener penceresi yok.",
+      "limits": "Gerçek renderer fonksiyonları VMde; AudioContext/track EventTarget sınırı kontrollü. Gerçek getDisplayMedia veya Windows paylaşım paneli açılmadı. End sonrası listener kurulumunun geçmiş olayı replay etmemesi browser event sözleşmesini temsil eder. Bağlanan ended trackin native ek davranışı ayrıca ölçülmedi.",
+      "acceptance": "Modül beklemesinden önce veya beklerken ended olan track captureı aktif bırakmamalı; ended listener sonrası olağan stop davranışı korunmalı. Backend scoped stop bir kez, tracks/context kapalı ve active=false olmalı."
+    }
+  ],
+  "coverage": {
+    "historicalF20": [
+      {
+        "id": "N0381",
+        "family": "F20",
+        "mechanism": "normal",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "e207941c4706a4b3f9a054cf746ae6bdaba7ec8d9498b1c62e2b63670f23b2c8",
+        "historical_status": "PASS",
+        "evidence": "logs/Tpkg04-N0381.stdout.txt (node probes/p20-live-asr.js --mech normal, exit 0)",
+        "finding_ids": "",
+        "reason": ""
+      },
+      {
+        "id": "N0382",
+        "family": "F20",
+        "mechanism": "bos",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "1f9838b23c325cfe4eba2bb6ee0bc94fae9c0cb5470fc0b3060e6c69f16c3c17",
+        "historical_status": "PASS",
+        "evidence": "logs/Tpkg04-N0382.stdout.txt (node probes/p20-live-asr.js --mech bos, exit 0)",
+        "finding_ids": "",
+        "reason": ""
+      },
+      {
+        "id": "N0383",
+        "family": "F20",
+        "mechanism": "sinir",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "2ba4ea8277055d6ee211df54882a35293c9338bfce9d91ec057ab6824e395d0a",
+        "historical_status": "PASS",
+        "evidence": "logs/Tpkg04-N0383.stdout.txt (node probes/p20-live-asr.js --mech sinir, exit 0)",
+        "finding_ids": "",
+        "reason": ""
+      },
+      {
+        "id": "N0384",
+        "family": "F20",
+        "mechanism": "unicode",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "0b97f728af5c1d5dd6a2975d23e1cd1e122ceb5ad25b74052ab8ae80338f2c8b",
+        "historical_status": "NOT_APPLICABLE",
+        "evidence": "",
+        "finding_ids": "",
+        "reason": "Worklet yalnız PCM (Int16) taşır; metin/unicode dönüşümü bu katmanda yok (metin izleyici ve renderer'da)."
+      },
+      {
+        "id": "N0385",
+        "family": "F20",
+        "mechanism": "yinelenen",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "d83262aa0d21b2b85a7231d10270ddf4ff11410fcb186ce7e0864b96f0ec6ea0",
+        "historical_status": "PASS",
+        "evidence": "logs/Tpkg04-N0385.stdout.txt (node probes/p20-live-asr.js --mech yinelenen, exit 0)",
+        "finding_ids": "",
+        "reason": ""
+      },
+      {
+        "id": "N0386",
+        "family": "F20",
+        "mechanism": "sira",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "d0341c402d869deba0c7dd32ad18f658383a6332456f5756cd0cf8ed0cf6f323",
+        "historical_status": "PASS",
+        "evidence": "logs/Tpkg04-N0386.stdout.txt (node probes/p20-live-asr.js --mech sira, exit 0)",
+        "finding_ids": "",
+        "reason": ""
+      },
+      {
+        "id": "N0387",
+        "family": "F20",
+        "mechanism": "iptal-oncesi",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "68365e90c42bb8544da04b483393e1b342443695ef1540915941104985554855",
+        "historical_status": "PASS",
+        "evidence": "logs/Tpkg04-N0387.stdout.txt (node probes/p20-live-asr.js --mech iptal-oncesi, exit 0)",
+        "finding_ids": "",
+        "reason": ""
+      },
+      {
+        "id": "N0388",
+        "family": "F20",
+        "mechanism": "iptal-ortasi",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "e29670770eb4d054efc21c80ccd7332eec937687ec234494711c4eb1a082075a",
+        "historical_status": "PASS",
+        "evidence": "logs/Tpkg04-N0388.stdout.txt (node probes/p20-live-asr.js --mech iptal-ortasi, exit 0)",
+        "finding_ids": "",
+        "reason": ""
+      },
+      {
+        "id": "N0389",
+        "family": "F20",
+        "mechanism": "gec-sonuc",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "675c5a5305b6f77d0cedc91d0319ec9e02f56af1e79709b710c871e4b7f0c5b5",
+        "historical_status": "PASS",
+        "evidence": "logs/Tpkg04-N0389.stdout.txt (node probes/p20-live-asr.js --mech gec-sonuc, exit 0)",
+        "finding_ids": "",
+        "reason": ""
+      },
+      {
+        "id": "N0390",
+        "family": "F20",
+        "mechanism": "kaynak-degisimi",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "c9d0128d59129d47b93e027730bad0590cf8e4db159a6a74f5de1b90cfb4aece",
+        "historical_status": "PASS",
+        "evidence": "logs/Tpkg04-N0390.stdout.txt (node probes/p20-live-asr.js --mech kaynak-degisimi, exit 0)",
+        "finding_ids": "",
+        "reason": ""
+      },
+      {
+        "id": "N0391",
+        "family": "F20",
+        "mechanism": "es-zamanli",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "162bb5a5e0c8e655fa5a2e3f98b9ae2d47075d0c618bf00cea3c4ddd52d03474",
+        "historical_status": "PASS",
+        "evidence": "logs/Tpkg04-N0391.stdout.txt (node probes/p20-live-asr.js --mech es-zamanli, exit 0)",
+        "finding_ids": "",
+        "reason": ""
+      },
+      {
+        "id": "N0392",
+        "family": "F20",
+        "mechanism": "kesik",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "fdaabe4ded75343f3b935eaac506499b07f833ec81c1b664513567aaf2d38e60",
+        "historical_status": "PASS",
+        "evidence": "logs/Tpkg04-N0392.stdout.txt (node probes/p20-live-asr.js --mech kesik, exit 0)",
+        "finding_ids": "",
+        "reason": ""
+      },
+      {
+        "id": "N0393",
+        "family": "F20",
+        "mechanism": "hata",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "199aafbace608ec17bb8683408fe7ad2043ca8a4a24cbd366688c5306e140227",
+        "historical_status": "PASS",
+        "evidence": "logs/Tpkg04-N0393.stdout.txt (node probes/p20-live-asr.js --mech hata, exit 0)",
+        "finding_ids": "",
+        "reason": ""
+      },
+      {
+        "id": "N0394",
+        "family": "F20",
+        "mechanism": "timeout",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "f0f6ac1bebc4e7666cc02b4a7fe0ce353c782c20cef6f994cd90bca42113a264",
+        "historical_status": "NOT_APPLICABLE",
+        "evidence": "",
+        "finding_ids": "",
+        "reason": "Worklet ve canlı izleyicide duvar saati/zamanlayıcı yok; gecikme kararı RTF eşiğine bağlı."
+      },
+      {
+        "id": "N0395",
+        "family": "F20",
+        "mechanism": "yeniden-giris",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "20e34cf669ecfacb28954634cb7ee801019b11e31f6ba85e5ad8d4c423b63b4c",
+        "historical_status": "PASS",
+        "evidence": "logs/Tpkg04-N0395.stdout.txt (node probes/p20-live-asr.js --mech yeniden-giris, exit 0)",
+        "finding_ids": "",
+        "reason": ""
+      },
+      {
+        "id": "N0396",
+        "family": "F20",
+        "mechanism": "donusum",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "5441c50b0c8f9b812bccab502462232b3835575014daf1b593261309c0d4cbc8",
+        "historical_status": "PASS",
+        "evidence": "logs/Tpkg04-N0396.stdout.txt (node probes/p20-live-asr.js --mech donusum, exit 0)",
+        "finding_ids": "",
+        "reason": ""
+      },
+      {
+        "id": "N0397",
+        "family": "F20",
+        "mechanism": "yetki",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "28393ff13b71d8ffbc2236a172852f4cfe3d715c17105fe671f1584cc5a7a669",
+        "historical_status": "NOT_APPLICABLE",
+        "evidence": "",
+        "finding_ids": "",
+        "reason": "Mikrofon izni getUserMedia ile renderer/main katmanında verilir; bu modül izin kararı vermez."
+      },
+      {
+        "id": "N0398",
+        "family": "F20",
+        "mechanism": "kaynak-butcesi",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "6134fa971fda5f438eaa61ba1edb5d005c0f777ed65a784cbb8b9c52699c368b",
+        "historical_status": "PASS",
+        "evidence": "logs/Tpkg04-N0398.stdout.txt (node probes/p20-live-asr.js --mech kaynak-butcesi, exit 0)",
+        "finding_ids": "",
+        "reason": ""
+      },
+      {
+        "id": "N0399",
+        "family": "F20",
+        "mechanism": "kullanici-geribildirimi",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "257466a2413b7f25e0198d65e5d56dc3b8d38069918fa124b2211fc02ab0b484",
+        "historical_status": "PASS",
+        "evidence": "logs/Tpkg04-N0399.stdout.txt (node probes/p20-live-asr.js --mech kullanici-geribildirimi, exit 0)",
+        "finding_ids": "",
+        "reason": ""
+      },
+      {
+        "id": "N0400",
+        "family": "F20",
+        "mechanism": "birlesik-akis",
+        "sources": [
+          "src/live-asr-realtime.js",
+          " src/renderer/live-asr-worklet.js"
+        ],
+        "signature": "28e83e10860227bf6f1ff8bff6b7cc5769179df100a8d203c58cbeba70e2c55b",
+        "historical_status": "PASS",
+        "evidence": "logs/Tpkg04-N0400.stdout.txt (node probes/p20-live-asr.js --mech birlesik-akis, exit 0)",
+        "finding_ids": "",
+        "reason": ""
+      }
+    ],
+    "newInvariants": [
+      "Main session identity versus accumulated stream cue identity across backward-time restart",
+      "MediaStreamTrack terminal event before asynchronous module listener installation"
+    ],
+    "remainingBounds": [
+      "No new worklet/RTF historical rows counted",
+      "No native Windows getDisplayMedia/model/GPU/live-provider validation",
+      "No real audio or personal media used"
+    ]
+  },
+  "excluded": [
+    {
+      "candidate": "Worklet/RTF buffer, silence, backpressure, flush, 44.1k resampling and rate scenarios",
+      "reason": "Unchanged exact source hashes match Night1000 baseline; existing F20 mechanism scenarios not new."
+    },
+    {
+      "candidate": "LanguageGate low-confidence interposition",
+      "reason": "Existing R815-G26 proposal; not counted."
+    },
+    {
+      "candidate": "Blob conversion or IPC indefinite arbitrary failure",
+      "reason": "Not established as a concrete production failure; not counted."
+    },
+    {
+      "candidate": "Initial probe child git spawn EPERM",
+      "reason": "Sandbox environment block; fixed read-only HEAD lookup in fixture, not a product bug."
+    }
+  ],
+  "optionalProposals": [],
+  "publishedEvidence": "results.json"
+}

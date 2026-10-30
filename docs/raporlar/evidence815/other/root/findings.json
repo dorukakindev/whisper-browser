@@ -1,0 +1,112 @@
+{
+  "head": "6a789329d96c4f97cdc17bd9518df0b540b13444",
+  "sourceSha256": {
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+    "src/renderer/renderer.js": "4853b2fe48da6a383e2438895c747a0ba79820eb58470da5ac66de476f8b66d6",
+    "src/browser-diagnostics-export.js": "9dce503c2d83502a5569a30e039eba35f114d95b85667c6b2ac6db4b7ffe9646",
+    "src/browser-adapters.js": "91917268f4d1a285638a3d1b0b806758b309aacfa3ea851b0694b13572d62de0",
+    "src/browser-sensitive-keys.js": "77bf73ac726e6d102a9ab98688811384d135ced03432354b9a12eab7eb03676c",
+    "src/browser-site-profiles.js": "1c7999a6e782a4e763b12cc096ae7712ae39802df0692286ab6f0e6ee3c38102",
+    "src/browser-adapter-registry.js": "2edbb5c5fbe2d643efb8087fd872d91170fff16aa7d5deb084828466536245d9",
+    "src/fsync-utils.js": "7bdc3c1ebc7bfa349fdb2f092590e308865c787d0e89668b551997c3c5f744c9"
+  },
+  "findings": [
+    {
+      "id": "NR01",
+      "severity": "P1",
+      "title": "Tanı paketi serbest hata metnindeki kanonik sır alanlarını gizlemeden diske yazıyor",
+      "sources": [
+        "src/main.js:5258–5292",
+        "src/main.js:5355–5450",
+        "src/main.js:17871–17919",
+        "src/browser-diagnostics-export.js:9–18",
+        "src/browser-sensitive-keys.js:19–76"
+      ],
+      "reproduce": "Gerçek noteBrowserCapture üreticisine clientSecret/accessToken/private_key alanlarında yalnız FAKE marker içeren hata ver. Gerçek preview JSON’unu gerçek export handler’ına ilet; izole dosyada gerçek atomicWriteFileSync çıktısını oku. api_key alanını karşı kontrol olarak kullan.",
+      "expected": "Ortak hassas anahtar sözlüğünde sır sayılan clientSecret/accessToken/private_key değerleri önizleme ve kaydedilen tanı dosyasından kaldırılmalı.",
+      "observed": "Üç FAKE marker preview ve disk JSON’unda aynı kaldı. Aynı üretici/preview/export zincirinde api_key=FAKE_CLASSIC_MARKER gizlendi. Önizlenen JSON ile disk byte içeriği eşit.",
+      "cause": "sanitizeDiagnosticsSecrets nesne anahtarlarında ortak sözlüğü kullanıyor fakat string alanlarını eski dar redactBrowserDiagnosticsText regexine veriyor. CamelCase/alt çizgili hassas adların bir bölümü serbest hata atamalarında eşleşmiyor.",
+      "impact": "Bu biçimde kimlik bilgisi taşıyan hata oluşursa kullanıcı mahremiyet filtresinden geçtiğini düşündüğü tanı dosyasını sır değeriyle paylaşabilir. Gerçek kullanıcı anahtarının sızdığı iddia edilmez; yalnız sentetik alan/değerler kullanıldı.",
+      "prior": "Önceki R815 B01–B118 içinde yok. R69 K7 camelCase savunmasını browser-playback-diagnostics.redactDiagnosticText ve persistentBrowserMediaUrl yollarında ele alır; bu export string tüketicisi aynı yardımcıyı kullanmıyor. R356 ve 13.09.2026.07 derin acquisition/coverage sansürü kısa/klasik anahtar fixture’larıdır; burada gerçek noteBrowserCapture→preview→export zincirindeki farklı anahtar kapsamı sınandı.",
+      "limits": "Gerçek orijinal main üretici/handler ve gerçek atomik dosya yazımı; native dialog yetkili sentetik hedefe yönlendirilir. Hata metni kontrollü fixture’dır; sağlayıcı/canlı hesap/kişisel sır kullanılmadı. Tüm olası sır biçimlerini yakalama garantisi iddia edilmez.",
+      "acceptance": "Aynı fixture serbest hata atamalarında ve nesne anahtarlarında aynı kanonik sır politikasını uygulamalı; klasik api_key karşı kontrolü ve normal tanı metni korunmalı."
+    },
+    {
+      "id": "NR02",
+      "severity": "P1",
+      "title": "Tanı üreticisindeki kırpma uzun altyazının gizlilik filtresini atlatıyor",
+      "sources": [
+        "src/main.js:5279–5290",
+        "src/main.js:5387–5390",
+        "src/main.js:5444–5450",
+        "src/browser-diagnostics-export.js:40–80"
+      ],
+      "reproduce": "Tam metni browserTrackBuffers içinde bulunan 823 karakterlik sahte cue’yu gerçek noteBrowserCapture hata detayına koy. Üreticinin 160 karakterlik kaydı gerçek preview/export hattından geçir. 22 karakterlik kısa cue ile karşı kontrol çalıştır.",
+      "expected": "Tanı paketine tam cue yerine yalnız öneki taşınsa bile kullanıcı altyazısı gizlenmeli; metin boyu sınırı gizlilik filtresini etkisiz kılmamalı.",
+      "observed": "Tam cue tamponda bilinirken üretici hata detayını 160 karaktere kesiyor; export filtresi tam metni artık bulamıyor. FAKE_PRIVATE_CUE_START ve devamındaki altyazı öneki kaydedilen JSON’da duruyor. Aynı zincirde kısa cue gizleniyor.",
+      "cause": "Cue sansürü tam metin includes eşleşmesi yapıyor; üretici/snapshot string kısaltmaları ondan önce çalışıyor. Kırpılmış parça uzun cue ile eşleşemediğinden son katman altyazı dışarıda varsayımını sağlayamıyor.",
+      "impact": "Uzun replik veya altyazıyı içeren hata/ayrıştırıcı detayının başlangıcı tanı dosyasına taşınabilir. NR01’den bağımsızdır: sır anahtarı yoktur; doğru kanonik anahtar regexi eklemek bu cue önekini gizlemez.",
+      "prior": "R815 önceki118’de yok. R356/13.09.2026.07 mevcut tam cue derin sansürünü kanıtlar; mevcut browser-diagnostics-export testi kısa tam cue’yu doğrudan filtreye verir. Yeni invariant üretici kırpması ile son gizlilik katmanının bileşimidir. Tarihsel sansür başarısı yeniden keşif sayılmadı.",
+      "limits": "Tamamen sentetik uzun metin, gerçek üretici/preview/export/disk; gerçek kişisel altyazı veya dış paylaşım yok. Bütün provider hatalarının altyazı metni içerdiği iddia edilmez. Koşul, kaydedilecek hata alanına bilinen cue metni gelmesidir.",
+      "acceptance": "Kısa ve uzun cue, hata öneki/soneki ve üretici boy sınırında kesilme hallerinde diske kullanıcı metni taşınmamalı; normal tanı sözcükleri korunmalı."
+    },
+    {
+      "id": "NR03",
+      "severity": "P2",
+      "title": "Aynı medya kimlikli SPA geçişinde eski sayfa profili isteği yeni yola kaydediliyor",
+      "sources": [
+        "src/main.js:13705–13746",
+        "src/main.js:17048–17075",
+        "src/renderer/renderer.js:9141–9154",
+        "src/browser-site-profiles.js:144–187"
+      ],
+      "reproduce": "Aynı YouTube video kimliğine ait /watch?v=abcdefghijk için path kapsamlı subtitleMode=both isteğini oluştur. Gerçek did-navigate-in-page callback’iyle /shorts/abcdefghijk yoluna geç; eski url/generation/origin içeren isteği gerçek browser:profile:update handler’ına ver. Sabit yol ve farklı generation karşı kontrollerini çalıştır.",
+      "expected": "Sayfaya özel istek kendi path kimliğini hedeflemeli; yol değişmişse eski istek stale olarak reddedilmeli veya açıkça başlangıç yoluna uygulanmalı.",
+      "observed": "Gerçek adapter iki URL’ye de youtube:abcdefghijk kimliği verdi. Gerçek SPA callback generation=3 değerini korudu. Eski request.url=/watch isteği ok:true ile /shorts/abcdefghijk pathProfiles kaydı oluşturdu; /watch yok. Farklı generation reddediliyor, sabit yol doğru yere kaydediliyor.",
+      "cause": "Main generation ve origin doğruluyor, fakat request.url/pathKey’i kontrol etmiyor. Aynı medya kimlikli SPA geçişi generation artırmadığı için handler güncel URL’yi kullanıp önceki sayfa isteğini yeni yola yönlendiriyor.",
+      "impact": "Kullanıcının belirli sayfa için yaptığı altyazı/diğer profil değişikliği başka rota altında saklanabilir ve sonraki ziyaretleri etkileyebilir. Site kapsamının origin ile korunması bu path kapsamı farkını çözmez.",
+      "prior": "Önceki118’de site/path profil kökü yok. R77/R85 zoom ve R301 profil/depo yardımcıları tarihsel kapsamdır. R815 B50 altyazı konumsal kimlik onayı, B73 yapım/dil yükleme ve B109 native kare decode farklı tüketici ve state mekanizmalarıdır.",
+      "limits": "Gerçek main SPA callback/IPC ve gerçek adapter/profile yardımcıları; places/flush/sayfa olayları kontrollü bellek durumudur. Gerçek YouTube yüklenmedi veya kişisel profil değiştirilmedi. Tam renderer tıklama/gerçek IPC zamanlaması E2E iddiası yok; eski path isteğinin kabulü deterministik olarak kanıtlandı.",
+      "acceptance": "Aynı mediaId/origin/generation altında path değişimi eski path isteğini yeni profile uygulamamalı; sabit yol kabulü ve generation ret karşı kontrolleri korunmalı."
+    }
+  ],
+  "coverage": [
+    {
+      "area": "Tanı mahremiyetinin üretici→preview→export bileşimi",
+      "sources": [
+        "src/browser-diagnostics-export.js",
+        "src/main.js"
+      ],
+      "previous": "R356/13.09.2026.07 kısa klasik anahtar/tam cue; R69 diğer redactor",
+      "newInvariant": "Kanonik sır anahtarı free-text kapsamı ve producer-truncation sonrası cue önekleri; gerçek atomik disk",
+      "unverified": "Gerçek hesap/sağlayıcı hatası, kişisel sır/altyazı, native dialog ve dış paylaşım"
+    },
+    {
+      "area": "Site/path profil hedef sahipliği",
+      "sources": [
+        "src/browser-site-profiles.js",
+        "src/main.js",
+        "src/renderer/renderer.js"
+      ],
+      "previous": "R77/R85/R301 zoom/profil helpers; Night1000 F15/F19/F44 ortak main/renderer",
+      "newInvariant": "Aynı medya kimlikli SPA URL yolu değişirken eski path isteği",
+      "unverified": "Gerçek site/native IPC zamanlaması; diğer profile field kombinasyonları"
+    },
+    {
+      "area": "Site izinleri ve eski hostname zoom",
+      "sources": [
+        "src/browser-site-permissions.js",
+        "src/browser-site-zoom.js"
+      ],
+      "previous": "R26 ask varsayılanı düzeltmesi ve R77/R85 IPv6 zoom",
+      "newInvariant": "Salt okunur inceleme; yeni doğrulanmış kök yok",
+      "unverified": "Fiziksel kamera/mikrofon/USB/serial ve OS izinleri"
+    }
+  ],
+  "excluded": [
+    "200 origin izin limiti/ask politikası ve IPv6 zoom düzeltmeleri bug diye tekrar yazılmadı.",
+    "Yeni path zoom UI girdisi bulunmadığı için yalnız API ile üretilebilen path zoom kapsamı ayrı bug sayılmadı."
+  ],
+  "result": "results.json",
+  "publishedEvidence": "results.json"
+}

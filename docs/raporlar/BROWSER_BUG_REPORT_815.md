@@ -1,6 +1,10 @@
-# Rapor 815 — 118 doğrulanmış bug, yalnız raporlama
+# Rapor 815 — 126 doğrulanmış bug kaydı, yalnız raporlama
 
-> **Güncel toplam: 118 doğrulanmış bug (31 P1, 87 P2).** Az kapsanan alanlarda **15 yeni bağımsız bulgu** eklendi (2 P1, 13 P2); önceki 103 yeniden sayılmadı. G01–G34 önerileri ayrı. **Hiçbir bug düzeltilmedi.**
+> **Güncel toplam: 126 doğrulanmış bug kaydı (33 P1, 93 P2).** Bu tur farklı alanlarda **8 yeni bağımsız bulgu (2 P1, 6 P2)** eklendi; önceki 118 yeniden sayılmadı. G01–G36 önerileri ayrı. **Hiçbir bug düzeltilmedi.** Önceki kayıtların tarihsel doğrulama revizyonları korunur; hepsi bu tur yeniden sınandı demek değildir.
+>
+> [Yeni 8 bulgu](#diğer-alanlar-8-yeni-bulgu) · [126 ID/kaynak eşlemesi](evidence815/other/findings.json) · [Kapsam matrisi](evidence815/other/COVERAGE.md) · [Tekrar üretme](evidence815/other/REPRODUCE.md)
+
+> **Önceki tur: 118 doğrulanmış bug (31 P1, 87 P2).** Az kapsanan alanlarda **15 yeni bağımsız bulgu** eklendi (2 P1, 13 P2); önceki 103 yeniden sayılmadı. G01–G34 önerileri ayrı. **Hiçbir bug düzeltilmedi.**
 >
 > [Yeni alanlar ve 15 bulgu](#az-kapsanan-alanlar-15-yeni-bulgu) · [118 ID/kaynak eşlemesi](evidence815/unseen/findings.json) · [Kapsam matrisi](evidence815/unseen/COVERAGE.md) · [Tekrar üretme](evidence815/unseen/REPRODUCE.md)
 
@@ -2796,3 +2800,263 @@ Mevcut ilk 30 kanal bütçesi ve toplu akış cache'i yanında, her kanalın son
 Handle-only OPML üçüncü taraf tüketicisi, GPUInfo gerçek adapter doğrulaması, native audio-track sözleşmesi ve kısmi venv oluşturma temizliği bu tur doğrulanmış bug sayılmadı. Klasör izleme tarandı; R66/R73 kökleri yeniden yazılmadı. Kaynak kimliği/profil/kapsam boşlukları [matriste](evidence815/unseen/COVERAGE.md) görünür.
 
 Ürün, mevcut testler, ayarlar ve bağımlılıklar değiştirilmedi; hiçbir bug düzeltilmedi. Yalnız rapor, seçilmiş sentetik tekrar kaynakları/sonuçları ve tarihli devir notu yayımlanır. Kişisel dirty dosyalar ve test fixture/profilleri commit dışında kalır.
+
+
+<!-- OTHER-AREAS-AUDIT-815 -->
+
+## Diğer alanlar: 8 yeni bulgu
+
+**31 Ekim 2026: önceki 118 tarihsel doğrulanmış kayıt + bu tur 8 yeni = 126 kayıt (33 P1 / 93 P2).** Bu tur yalnız 8 yeni kök mevcut ürün tabanında doğrulandı. Sayı hedefi konmadı; eski bulgu, geliştirme önerisi ve belirsiz aday eklenmedi. Üç ajan yine **GPT‑6.1 Sol / medium effort** kullandı. Başlangıç/bitiş ürün tabanı **6a789329d96c4f97cdc17bd9518df0b540b13444**; ürün kodu, mevcut testler, kişisel ayarlar ve bağımlılıklar değiştirilmedi.
+
+Önceki rapor tesliminden sonra ayrı seslendirme/stüdyo çalışması ana dala birleşmişti. Değişen speech-v16 prompt/protokol ve gruplama yolları incelendi; bu tur önceki 118 için yeni tam E2E veya canlı kalite garantisi verilmez. Önceki ID eşlemesi aynen korunur ve eski kanıtlar kendi tarih/revizyonlarıyla kalır. [Revizyon incelemesi](evidence815/other/prior-revision-review.json).
+
+| ID | Önem | Hata | Alt kanıt |
+|---|---|---|---|
+| [R815-B119](#r815-b119) | P1 | Tanı paketi serbest hata metnindeki kanonik sır alanlarını gizlemeden diske yazıyor | root/NR01 |
+| [R815-B120](#r815-b120) | P1 | Tanı üreticisindeki kırpma uzun altyazının gizlilik filtresini atlatıyor | root/NR02 |
+| [R815-B121](#r815-b121) | P2 | Aynı medya kimlikli SPA geçişinde eski sayfa profili isteği yeni yola kaydediliyor | root/NR03 |
+| [R815-B122](#r815-b122) | P2 | İndirilen M4B için gösterilen Oynatıcıda aç işlemi backend beyaz listesinde reddediliyor | downloads/DL01 |
+| [R815-B123](#r815-b123) | P2 | Canlı ASR yeniden başlatıldığında cue kimlik çakışması önceki farklı zamanlı konuşmayı siliyor | liveasr/LA01 |
+| [R815-B124](#r815-b124) | P2 | Worklet modülü yüklenirken biten sistem sesi izi sonrasında etkin oturum olarak kalıyor | liveasr/LA02 |
+| [R815-B125](#r815-b125) | P2 | Otomasyon kaynak ve oturum karakter bütçesini gerçek altyazı metninden ölçmüyor | workflows/WF-AUTO-01 |
+| [R815-B126](#r815-b126) | P2 | MCP köprüsü HTTP parçası sınırında Unicode JSON-RPC istek kimliğini bozuyor | workflows/WF-MCP-02 |
+
+### Doğrulama ve sınırlar
+
+Ana süreç dört özgün probu ayrı çıktı klasörlerinde yeniden çalıştırdı: kök tanı/path3, downloads1, canlı ASR2, workflow/MCP2. Hatalı davranış assertion’ları ve pozitif/negatif karşı kontrolleri exit0 verdi. Kök3 ayrıca başka ajan tarafından varsayım/tekrar açısından okundu. Bu, hataların düzeldiği veya tüm uygulamanın kabul edildiği anlamına gelmez. Mevcut tanı sansür testi ve site profili 15/15 testi geçti; yeni üretici/tüketici bileşimi sınırlarını kapsamaları iddia edilmez. [Ana süreç kaydı](evidence815/other/parent-verification.json).
+
+Tanı probları gerçek noteBrowserCapture→preview→export ve gerçek atomik dosya yazımıdır; yalnız sentetik anahtar/cue marker’ları ve kontrollü kayıt diyaloğu kullanıldı. Gerçek sır sızıntısı veya sağlayıcının bu hatayı üretme sıklığı kanıtlanmadı. Path profili gerçek SPA callback/adapter/IPC’den geçer; gerçek YouTube’un örnek iki rota arasında bu gezinmeyi yaptığı veya native IPC yarış sıklığı iddia edilmez.
+
+M4B sahte DownloadItem/DOM sınırlarıyla gerçek manager/IPC/renderer tıklamasını; ASR gerçek main başlangıç/stop/iz birleştirme ve renderer capture fonksiyonunu kontrollü process/AudioContext/track ile sınar. MCP gerçek localhost HTTP sunucusunda çok baytlı karakterin iki parça arasına gelmesini sağlar; dış istemci veya doğal ağ parçalanma sıklığı ölçülmez. Otomasyon gerçek publisher/persist metadata ve renderer karar/başlatma yoludur; gerçek sağlayıcı/maliyet yoktur.
+
+Yeni tam npm suite/CI, normal start.bat/temiz install.bat, gerçek Electron UI/DPI/ekran okuyucu, mikrofon/sistem sesi/GPU/model/DRM/codec ve kişisel hesap E2E doğrulanmadı. Eski R46/R64/R167/R648/R798 ve Night1000 mekanizmaları [matriste](evidence815/other/COVERAGE.md) ayrılır.
+
+<a id="r815-b119"></a>
+
+### R815-B119 · P1 — Tanı paketi serbest hata metnindeki kanonik sır alanlarını gizlemeden diske yazıyor
+
+**Alt kanıt:** root/NR01; [ayrıntılı JSON](evidence815/other/root/findings.json).
+
+**Kod:** `src/main.js:5258–5292`, `src/main.js:5355–5450`, `src/main.js:17871–17919`, `src/browser-diagnostics-export.js:9–18`, `src/browser-sensitive-keys.js:19–76`
+
+**Tekrar:** Gerçek noteBrowserCapture üreticisine clientSecret/accessToken/private_key alanlarında yalnız FAKE marker içeren hata ver. Gerçek preview JSON’unu gerçek export handler’ına ilet; izole dosyada gerçek atomicWriteFileSync çıktısını oku. api_key alanını karşı kontrol olarak kullan.
+
+**Beklenen:** Ortak hassas anahtar sözlüğünde sır sayılan clientSecret/accessToken/private_key değerleri önizleme ve kaydedilen tanı dosyasından kaldırılmalı.
+
+**Gözlenen:** Üç FAKE marker preview ve disk JSON’unda aynı kaldı. Aynı üretici/preview/export zincirinde api_key=FAKE_CLASSIC_MARKER gizlendi. Önizlenen JSON ile disk byte içeriği eşit.
+
+**Kök neden:** sanitizeDiagnosticsSecrets nesne anahtarlarında ortak sözlüğü kullanıyor fakat string alanlarını eski dar redactBrowserDiagnosticsText regexine veriyor. CamelCase/alt çizgili hassas adların bir bölümü serbest hata atamalarında eşleşmiyor.
+
+**Etki:** Bu biçimde kimlik bilgisi taşıyan hata oluşursa kullanıcı mahremiyet filtresinden geçtiğini düşündüğü tanı dosyasını sır değeriyle paylaşabilir. Gerçek kullanıcı anahtarının sızdığı iddia edilmez; yalnız sentetik alan/değerler kullanıldı.
+
+**Önceki kapsam:** Önceki R815 B01–B118 içinde yok. R69 K7 camelCase savunmasını browser-playback-diagnostics.redactDiagnosticText ve persistentBrowserMediaUrl yollarında ele alır; bu export string tüketicisi aynı yardımcıyı kullanmıyor. R356 ve 13.09.2026.07 derin acquisition/coverage sansürü kısa/klasik anahtar fixture’larıdır; burada gerçek noteBrowserCapture→preview→export zincirindeki farklı anahtar kapsamı sınandı.
+
+**Sınır:** Gerçek orijinal main üretici/handler ve gerçek atomik dosya yazımı; native dialog yetkili sentetik hedefe yönlendirilir. Hata metni kontrollü fixture’dır; sağlayıcı/canlı hesap/kişisel sır kullanılmadı. Tüm olası sır biçimlerini yakalama garantisi iddia edilmez.
+
+**Kabul ölçütü:** Aynı fixture serbest hata atamalarında ve nesne anahtarlarında aynı kanonik sır politikasını uygulamalı; klasik api_key karşı kontrolü ve normal tanı metni korunmalı.
+
+**Sonuç:** [results.json](evidence815/other/root/results.json).
+
+<a id="r815-b120"></a>
+
+### R815-B120 · P1 — Tanı üreticisindeki kırpma uzun altyazının gizlilik filtresini atlatıyor
+
+**Alt kanıt:** root/NR02; [ayrıntılı JSON](evidence815/other/root/findings.json).
+
+**Kod:** `src/main.js:5279–5290`, `src/main.js:5387–5390`, `src/main.js:5444–5450`, `src/browser-diagnostics-export.js:40–80`
+
+**Tekrar:** Tam metni browserTrackBuffers içinde bulunan 823 karakterlik sahte cue’yu gerçek noteBrowserCapture hata detayına koy. Üreticinin 160 karakterlik kaydı gerçek preview/export hattından geçir. 22 karakterlik kısa cue ile karşı kontrol çalıştır.
+
+**Beklenen:** Tanı paketine tam cue yerine yalnız öneki taşınsa bile kullanıcı altyazısı gizlenmeli; metin boyu sınırı gizlilik filtresini etkisiz kılmamalı.
+
+**Gözlenen:** Tam cue tamponda bilinirken üretici hata detayını 160 karaktere kesiyor; export filtresi tam metni artık bulamıyor. FAKE_PRIVATE_CUE_START ve devamındaki altyazı öneki kaydedilen JSON’da duruyor. Aynı zincirde kısa cue gizleniyor.
+
+**Kök neden:** Cue sansürü tam metin includes eşleşmesi yapıyor; üretici/snapshot string kısaltmaları ondan önce çalışıyor. Kırpılmış parça uzun cue ile eşleşemediğinden son katman altyazı dışarıda varsayımını sağlayamıyor.
+
+**Etki:** Uzun replik veya altyazıyı içeren hata/ayrıştırıcı detayının başlangıcı tanı dosyasına taşınabilir. NR01’den bağımsızdır: sır anahtarı yoktur; doğru kanonik anahtar regexi eklemek bu cue önekini gizlemez.
+
+**Önceki kapsam:** R815 önceki118’de yok. R356/13.09.2026.07 mevcut tam cue derin sansürünü kanıtlar; mevcut browser-diagnostics-export testi kısa tam cue’yu doğrudan filtreye verir. Yeni invariant üretici kırpması ile son gizlilik katmanının bileşimidir. Tarihsel sansür başarısı yeniden keşif sayılmadı.
+
+**Sınır:** Tamamen sentetik uzun metin, gerçek üretici/preview/export/disk; gerçek kişisel altyazı veya dış paylaşım yok. Bütün provider hatalarının altyazı metni içerdiği iddia edilmez. Koşul, kaydedilecek hata alanına bilinen cue metni gelmesidir.
+
+**Kabul ölçütü:** Kısa ve uzun cue, hata öneki/soneki ve üretici boy sınırında kesilme hallerinde diske kullanıcı metni taşınmamalı; normal tanı sözcükleri korunmalı.
+
+**Sonuç:** [results.json](evidence815/other/root/results.json).
+
+<a id="r815-b121"></a>
+
+### R815-B121 · P2 — Aynı medya kimlikli SPA geçişinde eski sayfa profili isteği yeni yola kaydediliyor
+
+**Alt kanıt:** root/NR03; [ayrıntılı JSON](evidence815/other/root/findings.json).
+
+**Kod:** `src/main.js:13705–13746`, `src/main.js:17048–17075`, `src/renderer/renderer.js:9141–9154`, `src/browser-site-profiles.js:144–187`
+
+**Tekrar:** Aynı YouTube video kimliğine ait /watch?v=abcdefghijk için path kapsamlı subtitleMode=both isteğini oluştur. Gerçek did-navigate-in-page callback’iyle /shorts/abcdefghijk yoluna geç; eski url/generation/origin içeren isteği gerçek browser:profile:update handler’ına ver. Sabit yol ve farklı generation karşı kontrollerini çalıştır.
+
+**Beklenen:** Sayfaya özel istek kendi path kimliğini hedeflemeli; yol değişmişse eski istek stale olarak reddedilmeli veya açıkça başlangıç yoluna uygulanmalı.
+
+**Gözlenen:** Gerçek adapter iki URL’ye de youtube:abcdefghijk kimliği verdi. Gerçek SPA callback generation=3 değerini korudu. Eski request.url=/watch isteği ok:true ile /shorts/abcdefghijk pathProfiles kaydı oluşturdu; /watch yok. Farklı generation reddediliyor, sabit yol doğru yere kaydediliyor.
+
+**Kök neden:** Main generation ve origin doğruluyor, fakat request.url/pathKey’i kontrol etmiyor. Aynı medya kimlikli SPA geçişi generation artırmadığı için handler güncel URL’yi kullanıp önceki sayfa isteğini yeni yola yönlendiriyor.
+
+**Etki:** Kullanıcının belirli sayfa için yaptığı altyazı/diğer profil değişikliği başka rota altında saklanabilir ve sonraki ziyaretleri etkileyebilir. Site kapsamının origin ile korunması bu path kapsamı farkını çözmez.
+
+**Önceki kapsam:** Önceki118’de site/path profil kökü yok. R77/R85 zoom ve R301 profil/depo yardımcıları tarihsel kapsamdır. R815 B50 altyazı konumsal kimlik onayı, B73 yapım/dil yükleme ve B109 native kare decode farklı tüketici ve state mekanizmalarıdır.
+
+**Sınır:** Gerçek main SPA callback/IPC ve gerçek adapter/profile yardımcıları; places/flush/sayfa olayları kontrollü bellek durumudur. Gerçek YouTube yüklenmedi veya kişisel profil değiştirilmedi. Tam renderer tıklama/gerçek IPC zamanlaması E2E iddiası yok; eski path isteğinin kabulü deterministik olarak kanıtlandı.
+
+**Kabul ölçütü:** Aynı mediaId/origin/generation altında path değişimi eski path isteğini yeni profile uygulamamalı; sabit yol kabulü ve generation ret karşı kontrolleri korunmalı.
+
+**Sonuç:** [results.json](evidence815/other/root/results.json).
+
+<a id="r815-b122"></a>
+
+### R815-B122 · P2 — İndirilen M4B için gösterilen Oynatıcıda aç işlemi backend beyaz listesinde reddediliyor
+
+**Alt kanıt:** downloads/DL01; [ayrıntılı JSON](evidence815/other/downloads/findings.json).
+
+**Kod:** `src/browser-downloads.js:142–148`, `src/renderer/renderer.js:9275–9278,9302–9303`, `src/main.js:15698–15702,18183–18186`, `src/preload.js:browserDownloads binding`
+
+**Tekrar:** Repo kökünden node .tmp/next815-downloads/probe.cjs çalıştır. Çıktı tabanı R815_DOWNLOADS_OUT ile seçilebilir; her çağrı mkdtemp ile yeni run dizini yaratır. Kontrollü DownloadItem will-download → done(completed), mevcut fixture.m4b dosyası ve gerçek module snapshotını gerçek renderer tüketicisine ver. Görünür open-player düğmesinin mevcut click callbackini çalıştır; mevcut browser:downloads IPC handlerı mevcut manager.actiona gider. Aynı zincirde M4B, M4A, MP4 ve ZIP karşı kontrollerini incele.
+
+**Beklenen:** Uygulamanın MEDIA_EXTS listesinde ve renderer oynatılabilir denetiminde bulunan M4B dosyasında gösterilen açma düğmesi mevcut dosya için path döndürmeli ve yerel oynatıcı geçişini çağırmalı.
+
+**Gözlenen:** m4b ve M4B: düğme görünür, result.ok=false, desteklenmeyen medya türü hatası, openLocalMedia çağrılmaz. m4a ve mp4 aynı zincirde ok=true ve openLocalMedia çağrılır. zip düğmesi gizlidir ve IPC reddeder.
+
+**Kök neden:** browser-downloads.js bağımsız open-player uzantı regexinde m4b yok; renderer regexi ve main MEDIA_EXTS aynı uzantıyı kabul ediyor.
+
+**Etki:** Tarayıcıdan indirilmiş sesli kitabı indirmeler panelinden uygulamanın yerel oynatıcısına açma yolu her denemede başarısızdır. Klasörde göster çalışır; elle dosya açma geçici yoludur. Dosya kaybı iddia edilmez.
+
+**Önceki kapsam:** r815: Önceki 118 eşleme incelendi; tek M4B B10, kitap çıktısının güncellik/hash köküdür. B94 backend adaptive indirme temizliğidir; bu handler değildir. · historical: R64-25 indirme yolunun mediaFileAccess yetkisi ayrı kök; mevcut uzantı reddi ondan önce gerçekleşir. R46-10 kesintili indirmelerin aktif yuvası, R46-83 persist mesajı ve R46-84 native getter başka mekanizmalardır. R167 geçmişteki terminal kayıttan resume olmamasını gizlilik tasarım sınırı diye kaydeder; yeni bug sayılmadı. R476-09 native setup throw ve R479-04 destroyed getter için mevcut güvenli yolları tekrar bug saymadık. · registry: 1000 satırda browser-downloads.js kaynak imzası yok. main/renderer/preload ortaklığı nedeniyle 80 tarihsel satır F15/F19/F44/F48 eşleşir; detaylar coverageMatrix içindedir; bu kaynak ortaklığı yeni invariantın tarihsel olarak çalıştırıldığını göstermez.
+
+**Sınır:** Controlled DownloadItem EventEmitter and DOM facade; real module, IPC callback and renderer consumer unchanged. No HTTP/Electron/native save dialog/codec decode/playback, start.bat, GPU or personal profile used. Fixture bytes are not an encoded audiobook; rejection occurs before decoder.
+
+**Kabul ölçütü:** Gerçek mevcut download manager, handler ve renderer callback değiştirilmeden çalıştırıldı. Eksiksiz m4b/M4B görünürlük→IPC ret zinciri ve m4a/mp4 açma, zip ret karşı kontrolleri. Pause/resume/interrupted/cancel, unauthorized IPC, native save-path çağrılmaması, active/listener cleanup ve M4B reveal karşı kontrolleri geçti. Sadece raporlama; ürün/test/Git mutasyonu yapılmadı.
+
+**Sonuç:** [results.json](evidence815/other/downloads/results.json).
+
+<a id="r815-b123"></a>
+
+### R815-B123 · P2 — Canlı ASR yeniden başlatıldığında cue kimlik çakışması önceki farklı zamanlı konuşmayı siliyor
+
+**Alt kanıt:** liveasr/LA01; [ayrıntılı JSON](evidence815/other/liveasr/findings.json).
+
+**Kod:** `src/main.js:9648-9649`, `src/main.js:9667`, `src/main.js:9682`, `src/main.js:10093-10101`, `src/browser-subtitles.js:223-239`
+
+**Tekrar:** Aynı sekme/video/acquisition için gerçek startBrowserLiveAsr ile oturum1 başlat; backend protokolünden Merhaba@10–11 ve Devam@20–21 segmentlerini ilet. Gerçek stopBrowserLiveAsr ve süreç close olayını işlet; videoda geriye sarılmış konumdan aynı acquisition üzerinde yeni oturum başlat. Yeni oturum ilk segmenti Merhaba@0–1 olsun; gerçek storeBrowserTrack ve mergeBrowserStreamCues tamponunu incele.
+
+**Beklenen:** 0–1,10–11,20–21 farklı zamanlı üç cue korunmalı; yeni oturum eski ayrı repliğin revizyonu değildir.
+
+**Gözlenen:** sessions: session-1 session-2 · streamKey: live-asr:7:stable-acquisition · before: id: live-0 · start:  · end:  · text: Merhaba id: live-1 · start:  · end:  · text: Devam · after: id: live-0 · start:  · end:  · text: Merhaba id: live-1 · start:  · end:  · text: Devam · countercontrolDistinctCueId: id: live-2 · start:  · end:  · text: Merhaba id: live-0 · start:  · end:  · text: Merhaba id: live-1 · start:  · end:  · text: Devam
+
+**Kök neden:** streamKey acquisition düzeyinde sabit; job.nextCueId her startta0. İki ayrı oturum live-0 kullanır. Geriye zamanlı cue genel merge yoluna girince kimlik+metin eşleşmesi önceki live-0@10 kaydını revizyon sanarak siler.
+
+**Etki:** Aynı videoyu durdurup yeniden canlı yazıya çevirme ve geri sarma sonrasında daha önce yakalanan gerçek konuşma birikmiş altyazı tamponundan kaybolur. Bu kanıt, aynı kimlik ve aynı metnin geriye zamanlı yeni oturumda tekrarlanmasıyla sınırlıdır; ileri zamanlı hızlı yolda bu silme iddia edilmez.
+
+**Önceki kapsam:** R815 önceki118 listesinde yok. F20 N0390 kaynak değişimi worklet hız/saatini; N0395 yeniden giriş tek worklet flush/sync ve monitor rewarn kontrolünü yapar. Main ASR session→stream/cue identity entegrasyonu yok. Genel merge fonksiyonunun sağlayıcı revizyonu temizleme davranışı bilinen ve amaçlı; hata yeni oturumun aynı identity alanını yeniden kullanmasıdır.
+
+**Sınır:** Gerçek main başlangıç/consumer/stop, storeBrowserTrack ve merge çalıştı. Python süreç ve segmentler protokol fixture; modelin böyle döküm ürettiği, final SRT diski veya native playback kabulü iddia edilmez.
+
+**Kabul ölçütü:** Aynı acquisition üstünde iki stop/start oturumunda cue kimlikleri çakışmamalı veya oturum izleri ayrılmalı. Geriye sarılmış yeni oturum aynı metni farklı zamanda üretince eski cue korunmalı; aynı oturum gerçek sağlayıcı cue revizyonu güncellenmeye devam etmeli.
+
+**Sonuç:** [results.json](evidence815/other/liveasr/results.json).
+
+<a id="r815-b124"></a>
+
+### R815-B124 · P2 — Worklet modülü yüklenirken biten sistem sesi izi sonrasında etkin oturum olarak kalıyor
+
+**Alt kanıt:** liveasr/LA02; [ayrıntılı JSON](evidence815/other/liveasr/findings.json).
+
+**Kod:** `src/renderer/renderer.js:11602-11609`, `src/renderer/renderer.js:11648-11655`
+
+**Tekrar:** Gerçek startBrowserLiveAsrCapture başlat; audioWorklet.addModule yanıtını kısa beklet. Paylaşılan audio track henüz ended listener kurulmadan doğal olarak ended durumuna geçsin. Modül yüklemesini tamamla; production start fonksiyonunu ve mikro görevleri bitir.
+
+**Beklenen:** Zaten ended ses izi yeniden etkin capture gibi bağlanmamalı; capture/context/stream temizlenip scoped backend stop çağrılmalı.
+
+**Gözlenen:** observed: trackReadyState: ended · active:  · captureRetained:  · nodes:  · backendStops:  · countercontrolEndAfterListener: active:  · backendStops:  · trackStopped:
+
+**Kök neden:** ended listener addModule await sonrasında kuruluyor; track.readyState başlangıçta ve await sonrasında denetlenmiyor. EventTarget geçmiş ended olayını yeni dinleyiciye tekrar iletmez.
+
+**Etki:** Kullanıcı Windows paylaşımını ilk modül yüklemesi sırasında kapatırsa ses yakalama bitmiş olmasına rağmen active=true ve model oturumu açık kalır; yeni konuşma gelmez. Kullanıcı manuel durdurabilir.
+
+**Önceki kapsam:** R815 önceki118 listesinde yok. R648 module-load iptal testi uygulama Stop akışını sınar; trackin await penceresinde doğal ended olmasını kapsamaz. F20 N0392 yalnız worklet process([]) kanal kaybını sınar; MediaStreamTrack listener penceresi yok.
+
+**Sınır:** Gerçek renderer fonksiyonları VMde; AudioContext/track EventTarget sınırı kontrollü. Gerçek getDisplayMedia veya Windows paylaşım paneli açılmadı. End sonrası listener kurulumunun geçmiş olayı replay etmemesi browser event sözleşmesini temsil eder. Bağlanan ended trackin native ek davranışı ayrıca ölçülmedi.
+
+**Kabul ölçütü:** Modül beklemesinden önce veya beklerken ended olan track captureı aktif bırakmamalı; ended listener sonrası olağan stop davranışı korunmalı. Backend scoped stop bir kez, tracks/context kapalı ve active=false olmalı.
+
+**Sonuç:** [results.json](evidence815/other/liveasr/results.json).
+
+<a id="r815-b125"></a>
+
+### R815-B125 · P2 — Otomasyon kaynak ve oturum karakter bütçesini gerçek altyazı metninden ölçmüyor
+
+**Alt kanıt:** workflows/WF-AUTO-01; [ayrıntılı JSON](evidence815/other/workflows/findings.json).
+
+**Kod:** `src/main.js:9834–9886 persistBrowserTrack`, `src/main.js:9984–10050 publishBrowserTrackNow`, `src/renderer/renderer.js:10408–10444 browserSubtitleAutomationInput/handleBrowserSubtitleAutomation`, `src/browser-automation-rules.js:44–57`
+
+**Tekrar:** node .tmp/next815-workflows/probe.cjs. Gerçek normalizeCues ve publisher/persist ile 401 cue/200001 karakter kaynak yayınla; gerçek renderer input/decision uygula. Ardından iki ayrı medya için380 cue/190000 karakter kaynak yayınlayıp gerçek automation handler çalıştır.
+
+**Beklenen:** 200000 üzeri gerçek kaynak karakteri kullanıcı onayına geçer. Başlatılabilir iki190000karakter işin ikincisi300000 oturum karakter bütçesinde engellenir.
+
+**Gözlenen:** 200001gerçek karakter32080olarak sayılır ve eligible. İki190000karakter kaynak için iki useBrowserTrack başlatması, toplam380000karakter; browserAutomationLiveCharacters0kalır. Doğru gerçek karakter değerleri verilen aynı karar modülü sırasıyla blocked_by_limit döner.
+
+**Kök neden:** Publisher/persist track üzerinde characterCount ve appendedCharacters üretmiyor. Renderer sourceCharacters için cueCount*80 tahmini, newCharacters için0kullanıyor; bütçe handlerı yalnız bu0değerini topluyor. Bu alanların başka üreticisi repo src taramasında yok. Kaynak ve kümülatif bütçe aynı eksik karakter muhasebesinin iki yüzüdür; tek kök sayıldı.
+
+**Etki:** Otomatik altyazı çevirisi açık sitelerde açık harcama/onay sınırları aşılabilir; uzun kaynaklar kullanıcı onayı gerektirmeden işbaşlatma yoluna ulaşır.
+
+**Önceki kapsam:** R815 önceki118eşleme içinde aynı kök yok. Night1000F11/F19kaynak/scheduler/kuyruk aileleri yakın; gerçek publisher→renderer bütçe metadata zinciri yok. R46claim/Tur4Y-NEW-1claim başarısızlığı, R46-74/Tur4O-NEW-9iptal kapısı kökleri yeniden sayılmadı.
+
+**Sınır:** Gerçek kaynak fonksiyonlarıVM içinde aynen çalıştırıldı; kalıcı varlık store, dosya yazıcı, indeks, IPC ve useBrowserTrack bağımlılıkları kontrollü facade. Gerçek normalizeCues kullanıldı ve karakter sayıları normalize edilmiş cueIdentities üzerinden toplandı. Gerçek sağlayıcı çağrısı, harcanan para veya tüm altyazı siteleri kanıtı değildir. Onay kapısının otomatik başlatma sınırı kanıtlandı. Başlatmanın ayrık mediaId kullanmasıyla gate normal dedup davranışı korunur.
+
+**Kabul ölçütü:** Gerçek kaynak uzunluğu ve ilk/yeni karakter artışı metadata/renderer boyunca tutarlı sayılmalı;200001kaynak bloke, iki190000işin ikincisi bloke; aynı kaynağın tekrarı/önbellek durumu çift sayılmamalı.
+
+**Sonuç:** [results.json](evidence815/other/workflows/results.json).
+
+<a id="r815-b126"></a>
+
+### R815-B126 · P2 — MCP köprüsü HTTP parçası sınırında Unicode JSON-RPC istek kimliğini bozuyor
+
+**Alt kanıt:** workflows/WF-MCP-02; [ayrıntılı JSON](evidence815/other/workflows/findings.json).
+
+**Kod:** `src/assistant-mcp-bridge.js:24 HTTP gövdesi data+=chunk`, `tools/whisper-mcp.cjs:9 yanıt kimliğini değiştirmeden stdout aktarımı`
+
+**Tekrar:** Aynı probe gerçek createBridge sunucusunu127.0.0.1ephemeralportunda başlatır. tools/call get_jobs isteğinin fixture-ş-id string kimliğindeki ş UTF-8 baytlarını iki HTTP Buffer arasında40msayırır.
+
+**Beklenen:** Geçerli UTF-8 JSON isteği HTTP parçalanmasından bağımsız aynı string id ile eşleşir; sonuç id fixture-ş-id kalır.
+
+**Gözlenen:** HTTP200başarılı result var; response.id fixture-��-id. Aynı gövde tek Bufferda fixture-ş-id, ASCIIiki Bufferda ascii-id korunur; yanlış token ve Origin403reddedilir.
+
+**Kök neden:** Bufferların her biri data+=chunk ile bağımsız UTF-8 stringe dönüşür. İki parçaya bölünmüş karakter için streaming decoder veya Buffer.concat yok; her eksik parça replacement karakterine dönüşür. Adapter fetch yanıtını JSON.stringifyile aynen geçirir; kimlik eşleşmesi düzeltilmez.
+
+**Etki:** Unicode string id kullanan MCP istemcisi yanıtı bekleyen isteğe bağlayamaz; geçerli saltokuma araç isteği cevabı kayıp/timeout gibi görünür. Rehber sorgusunun Unicode karakterleri de aynı gövde okumasından geçer.
+
+**Önceki kapsam:** R815 önceki118eşleme içinde MCP taşıma kökü yok. R798MCP kimlik/auth/Origin/read-only ve Node stdio kabulü ASCIIid/single-body yolunu kanıtlıyordu; bölünmüş UTF-8 değil. Night1000F48/F49en yakın payload/NDJSON aileleridir; yeniMCPbridge o kaynak senaryolarında kayıtlı değil.
+
+**Sınır:** Gerçek HTTPserver/bridge ve localhostkullanıldı; getJobs/getTabs kontrollü boş fixture. Gerçek dışMCPistemcisi veya stdioadapter çalıştırılmadı; adapter tüketici ilişkisi koddan incelendi. Ağın doğal olarak bu parçalamayı ne sıklıkta oluşturduğu ölçülmedi. Tüm istemciler Unicode id üretir iddiası yok.
+
+**Kabul ölçütü:** UTF-8kod noktası her olasıbaytsınırında bölündüğünde JSONRPCidve sorgu aynen korunmalı; mevcut65536bayt,Originveauthretleri korunmalı.
+
+**Sonuç:** [results.json](evidence815/other/workflows/results.json).
+
+JSON-RPC yanıt kimliğinin istekle eşit olması [resmî JSON-RPC 2.0 sözleşmesidir](https://www.jsonrpc.org/specification#response_object); Unicode/UTF-8 semantiği [RFC8259](https://www.rfc-editor.org/rfc/rfc8259#section-8.1) ile karşılaştırıldı. Node’un [StringDecoder açıklaması](https://nodejs.org/api/string_decoder.html) çok baytlı parçaları koruyan mevcut yaklaşımı açıklar. Dış kod alınmadı veya çözüm uygulanmadı.
+
+## Bu turun ayrı geliştirme önerileri: G35–G36
+
+Önceki G01–G34 korunur. Aşağıdaki iki öneri yeni bug toplamına girmez ve uygulanmadı. Alan dosyalarındaki ilgili düzeltme seçenekleri ayrıca öneri adedini çoğaltmaz.
+
+### R815-G35 — Kaydedilmiş iş akışını adlandır, seç ve çalıştırmadan önce adımlarını göster
+
+Son iş akışını tekrar oynatma yeteneğinin yanında kayıt adı, kaynak/site kapsamı ve sıralı işlem özetiyle bir inceleme yüzeyi yararlı olur. Kullanıcı bir adımın hedefini ve gerekli onayı çalıştırmadan önce görebilmeli; güncel kaynakla bağdaşmayan adım görünür biçimde durmalı. Bu kullanılabilirlik önerisidir; yeni bug sayılmadı.
+
+**Kabul:** İki sentetik kayıt ayırt edilerek seçilebilmeli; oynatma öncesi sıra/parametre/etki özeti görünmeli. İptal ve kaynak sahipliği korunmalı; yeni otomatik izin verilmemeli. Mevcut EN/TR ve grafit/amber tema kullanılmalı.
+
+### R815-G36 — Canlı ASR’de ses kaynağı, capture ve model hazırlığını birlikte göster
+
+Tek active/ready göstergesine ek olarak kaynak izinin canlılığı, worklet’in hazırlanması, son PCM zamanı ve motorun son segment zamanı kısa bir durum zincirinde gösterilebilir. Ses gelmiyor, model hazırlanıyor ve oturum durmuş ayrımı kullanıcıya somut neden verir. Ham ses/metin tanıya eklenmeden ölçümler tutulabilir; bu ek gözlemlenebilirlik önerisidir.
+
+**Kabul:** Kontrollü hazırlık/ended/PCM yok/backend hazır senaryolarında durum kendi aşamasını doğru göstermeli; tüm aşamalar sağlıklı değilken kesin konuşma kalitesi veya fiziksel ses garantisi vermemeli. Gerçek Windows sistem sesi kabulü daha sonra ayrıca yapılmalı.
+
+### Sayılmayanlar ve teslim sınırı
+
+İndirme terminal resume/yuva/persist/native getter geçmiş kökleri; worklet olağan process/flush/RTF senaryoları; workflow timeout/claim/iptal ve yanlış iz seçimi adayı; MCP düşük etkili notification/hata kodu ayrıntıları yeniden bug sayılmadı. Site izinleri/legacy zoom salt okunur incelendi, yeni somut kök çıkmadı. Hiçbir kişisel profil, hesap, sır veya medya kullanılmadı. Ürün düzeltilmedi; yalnız rapor, seçilmiş sentetik kanıt ve devir notu teslim edilir.

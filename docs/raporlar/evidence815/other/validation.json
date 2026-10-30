@@ -1,0 +1,20 @@
+{
+  "total": 126,
+  "new": 8,
+  "counts": {
+    "P1": 33,
+    "P2": 93
+  },
+  "newCounts": {
+    "P1": 2,
+    "P2": 6
+  },
+  "preservedPreviousMapping": 118,
+  "uniqueBugAnchors": 126,
+  "currentSourceHashes": 21,
+  "jsonFiles": 17,
+  "localLinks": 193,
+  "selectedEvidenceFiles": 26,
+  "secretPatternMatches": 0,
+  "note": "Narrow pattern scan only, not a comprehensive secret audit. Product code and existing tests unchanged."
+}

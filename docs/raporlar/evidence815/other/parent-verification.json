@@ -1,0 +1,48 @@
+{
+  "head": "6a789329d96c4f97cdc17bd9518df0b540b13444",
+  "agentModel": "gpt-6.1-sol",
+  "reasoningEffort": "medium",
+  "productChanges": false,
+  "workflows": [
+    {
+      "command": "R815_ROOT_OUT=.tmp/next815-parent-root node .tmp/next815-root/probe.cjs",
+      "exit": 0,
+      "result": "3 roots: fake secret free-text retained in disk, truncated known cue retained, stale SPA path accepted; classic/short/stable/generation controls"
+    },
+    {
+      "command": "R815_AUDIT_HEAD=6a789329d96c4f97cdc17bd9518df0b540b13444 R815_DOWNLOADS_OUT=.tmp/next815-parent-downloads-final node .tmp/next815-downloads/probe.cjs",
+      "exit": 0,
+      "result": "M4B/M4B rejected, M4A/MP4 accepted, ZIP hidden/rejected; actual renderer click/IPC/manager and lifecycle counterchecks"
+    },
+    {
+      "command": "R815_LIVEASR_OUT=.tmp/next815-parent-liveasr node .tmp/next815-liveasr/probe.cjs",
+      "exit": 0,
+      "result": "2→2 cues loses old time10; distinct id control3. Ended during module retains active/backend stop0; ended after listener stop1"
+    },
+    {
+      "command": "R815_WORKFLOWS_OUT=.tmp/next815-parent-workflows node .tmp/next815-workflows/probe.cjs",
+      "exit": 0,
+      "result": "200001 counted32080 eligible;380000 total/live0. Real localhost bridge split Unicode id corrupts; unsplit/ASCII/auth/Origin controls"
+    }
+  ],
+  "existingChecks": [
+    {
+      "command": "node tests/browser-diagnostics-export.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/browser-site-profiles.test.js",
+      "exit": 0,
+      "result": "15/15"
+    }
+  ],
+  "review": "A separate GPT-6.1 Sol medium agent reviewed root NR01/02/03 and accepted only narrow deterministic invariants. It explicitly excluded claims of live secret leakage, real provider echo format, or actual YouTube SPA race frequency.",
+  "limits": "Controlled fixtures, real original functions/handlers; only network is own localhost MCP bridge. No full Electron/native microphone/GPU/model/real codec/paid account/provider or full npm/CI/BAT/DRM acceptance.",
+  "publishedProofCanonicalLfSha256": {
+    "root/probe.cjs": "e33b4afce8ba34a17a128134ee8c943229b064a88826f2b24311e61756eb95c2",
+    "downloads/probe.cjs": "8d46c5233d3a5a9be63da1089959239863a822e6ae69a38920002fbf8f1dc6db",
+    "liveasr/probe.cjs": "324d90c8e4268b2f0d7c048dce165b97fe0f440a467c3c3685b4fb514b00d54e",
+    "workflows/probe.cjs": "fe4aaad0ee10c008d390a58ca8c0a72e39396c2fb2bb17a390fb62601f77ce8f"
+  },
+  "publicationNormalization": "Only proof-file line endings/trailing whitespace normalized; original product function slices and assertions unchanged. Canonical LF hashes describe Git blobs, not checkout newline conversion."
+}

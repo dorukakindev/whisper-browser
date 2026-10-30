@@ -1,0 +1,124 @@
+{
+  "head": "6a789329d96c4f97cdc17bd9518df0b540b13444",
+  "sourceSha256": {
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+    "src/renderer/renderer.js": "4853b2fe48da6a383e2438895c747a0ba79820eb58470da5ac66de476f8b66d6",
+    "src/browser-diagnostics-export.js": "9dce503c2d83502a5569a30e039eba35f114d95b85667c6b2ac6db4b7ffe9646",
+    "src/browser-adapters.js": "91917268f4d1a285638a3d1b0b806758b309aacfa3ea851b0694b13572d62de0",
+    "src/browser-sensitive-keys.js": "77bf73ac726e6d102a9ab98688811384d135ced03432354b9a12eab7eb03676c",
+    "src/browser-site-profiles.js": "1c7999a6e782a4e763b12cc096ae7712ae39802df0692286ab6f0e6ee3c38102",
+    "src/browser-adapter-registry.js": "2edbb5c5fbe2d643efb8087fd872d91170fff16aa7d5deb084828466536245d9",
+    "src/fsync-utils.js": "7bdc3c1ebc7bfa349fdb2f092590e308865c787d0e89668b551997c3c5f744c9"
+  },
+  "NR01": {
+    "secret": {
+      "producerMessage": "Client rejected: clientSecret=FAKE_CLIENT_MARKER; accessToken=FAKE_ACCESS_MARKER; private_key=FAKE_PRIVATE_MARKER",
+      "exported": {
+        "version": 1,
+        "exportedAt": "2026-10-30T23:05:57.111Z",
+        "system": {
+          "platform": "win32",
+          "arch": "x64",
+          "appVersion": "fixture",
+          "versions": {
+            "electron": "",
+            "chrome": "",
+            "node": "24.22.0"
+          },
+          "locale": "en",
+          "gpu": null
+        },
+        "operationId": "fixture-only",
+        "pageUrl": "https://fixture.invalid/",
+        "captureEnabled": false,
+        "adapter": {
+          "id": "",
+          "label": "",
+          "help": ""
+        },
+        "counts": {
+          "textTrack": 1,
+          "errors": 1
+        },
+        "activity": {
+          "lastCapture": null,
+          "lastTranslation": null,
+          "lastError": {
+            "at": 1793401557109,
+            "message": "Client rejected: clientSecret=FAKE_CLIENT_MARKER; accessToken=FAKE_ACCESS_MARKER; private_key=FAKE_PRIVATE_MARKER"
+          }
+        },
+        "responsiveness": null,
+        "translation": null,
+        "acquisition": null,
+        "manifest": null,
+        "coverage": [],
+        "adblock": null,
+        "recent": [
+          {
+            "at": 1793401557111,
+            "operationId": "fixture-only",
+            "strategy": "textTrack",
+            "outcome": "error",
+            "service": "Genel web videosu",
+            "mime": "",
+            "url": "https://fixture.invalid/captions.vtt",
+            "detail": "Client rejected: clientSecret=FAKE_CLIENT_MARKER; accessToken=FAKE_ACCESS_MARKER; private_key=FAKE_PRIVATE_MARKER"
+          }
+        ]
+      },
+      "previewMatchesDisk": true
+    },
+    "classicControl": "Client rejected: api_key=[gizlendi]"
+  },
+  "NR02": {
+    "knownCueLength": 823,
+    "truncatedProducerLength": 160,
+    "exportedDetail": "Provider echoed: FAKE_PRIVATE_CUE_START synthetic-word-0 synthetic-word-1 synthetic-word-2 synthetic-word-3 synthetic-word-4 synthetic-word-5 synthetic-word-6 s",
+    "previewMatchesDisk": true,
+    "shortCueControl": "Provider echoed: [altyazı metni gizlendi]"
+  },
+  "NR03": {
+    "request": {
+      "tabId": "tab",
+      "generation": 3,
+      "origin": "https://www.youtube.com",
+      "scope": "path",
+      "url": "https://www.youtube.com/watch?v=abcdefghijk",
+      "field": "subtitleMode",
+      "value": "both"
+    },
+    "oldMediaIdentity": {
+      "key": "youtube:abcdefghijk",
+      "service": "youtube",
+      "contentId": "abcdefghijk",
+      "canonicalUrl": "https://www.youtube.com/watch?v=abcdefghijk"
+    },
+    "newMediaIdentity": {
+      "key": "youtube:abcdefghijk",
+      "service": "youtube",
+      "contentId": "abcdefghijk",
+      "canonicalUrl": "https://www.youtube.com/shorts/abcdefghijk"
+    },
+    "generationAfterRealSpaCallback": 3,
+    "stableSavedTo": "https://www.youtube.com/watch",
+    "staleResult": {
+      "ok": true,
+      "origin": "https://www.youtube.com",
+      "places": {
+        "siteProfiles": {},
+        "pathProfiles": {
+          "https://www.youtube.com/shorts/abcdefghijk": {
+            "subtitleMode": "both"
+          }
+        }
+      },
+      "reloadRequired": false
+    },
+    "oldPathPresent": false,
+    "newPathSaved": true,
+    "wrongGenerationRejected": true,
+    "limits": "Actual original SPA callback and IPC, real registry/profile helpers; in-memory places/flush and window boundaries controlled. No real site loaded."
+  },
+  "limits": "All secrets/cues are fake markers. Actual main producer/preview/export and real atomic filesystem writes in isolated fixtures; native dialog and external events controlled. No personal data, account, provider or network."
+}
