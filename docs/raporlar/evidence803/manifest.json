@@ -1,0 +1,12 @@
+[
+  {
+    "file": "review-dark.png",
+    "bytes": 87434,
+    "sha256": "b235b15aba6e244f2e7711e301502b6779dc74c3b5996133c8b334fd1d95f980"
+  },
+  {
+    "file": "review-narrow-light.png",
+    "bytes": 85660,
+    "sha256": "161364c0eb30651768b13e0b789d6c18c084cf3805046a01b053a1f45115e76e"
+  }
+]
