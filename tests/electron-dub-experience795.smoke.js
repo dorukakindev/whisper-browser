@@ -20,6 +20,7 @@ app.whenReady().then(async()=>{
  takeUrls=await run(`return [1,2].map(()=>URL.createObjectURL(new Blob([Uint8Array.from(atob('${wav.toString('base64')}'),c=>c.charCodeAt(0))],{type:'audio/wav'})))`);
  ipcMain.handle('dub:pronunciations',()=>({ok:true,pronunciations:[]}));ipcMain.handle('dub:latest',()=>({ok:true,output:null}));if(!process.argv.includes('--experience801'))ipcMain.handle('dialog:openFile',()=> 'Synthetic scene.srt');
  ipcMain.handle('dub:start',(_,value)=>{request=value;return {ok:true,id:value.id};});
+ if(process.argv.includes('--output812')){ipcMain.removeHandler('shell:openPath');ipcMain.handle('shell:openPath',()=> 'Controlled missing file');}
  ipcMain.handle('dub:plan',()=>({ok:true,sourceHash:'fixture',sourceDecoding:process.argv.includes('--quantity808')?{encoding:'cp1254',repaired:false}:null,groups:[1,2,3].map(i=>({key:String(i),text:'Synthetic group '+i,seconds:4,start:(i-1)*4000,end:i*4000}))}));
  for(const [locale,theme,width,zoom] of [['tr','dark',1440,1],['en','light',900,1.25]]){
   win.setContentSize(width,950);win.webContents.setZoomFactor(zoom);request=null;if(process.argv.includes('--experience801'))selectedFixture=subtitleFiles.speech;
@@ -29,12 +30,18 @@ app.whenReady().then(async()=>{
   // Start without a prepared edit plan; Edit group text must prepare it on demand.
   await run(`document.getElementById('dubGeneratorStart').click();return true`);await until(()=>!!request);
   if(process.argv.includes('--review803')){const before=await run(`return JSON.stringify(DubGeneratorUI.experience().edits)`);await run(`document.getElementById('dubPlanText').value='Must not overwrite active production';document.getElementById('dubPlanApply').dispatchEvent(new Event('click'));document.getElementById('dubPlanReset').dispatchEvent(new Event('click'));return true`);assert.equal(await run(`return JSON.stringify(DubGeneratorUI.experience().edits)`),before);}
+  if(process.argv.includes('--output812')){win.webContents.send('dub:event',{id:request.id,type:'progress',done:3,total:3});await wait(60);assert.equal(await run(`return document.getElementById('dubGeneratorProgress').value`),99);assert(await run(`return !document.getElementById('dubGeneratorCancel').disabled`));}
   for(let group=1;group<=8;group++)win.webContents.send('dub:event',{id:request.id,type:'activity',stage:group%2?'synthesis':'verification',group,attempt:2,elapsed:35,limit:120});
   await wait(100);await capture(locale+'-active');
   const quality={groups:[{group:1,key:'1',status:'ready',text:'First group.',verification:{status:'passed'}},{group:2,key:'2',status:'review',text:'Second group.',verification:{status:'review',recognizedText:'Second.',omission_spans:[{start:0,end:4}]}},{group:3,key:'3',status:'failed',text:'Third group.',verification:{status:'unavailable'}}]};
   if(process.argv.includes('--review803'))quality.groups[1].verification.missing_numbers=['2065'];
   if(process.argv.includes('--experience801'))for(const g of quality.groups){g.sourceStart=(g.group-1)*4;g.sourceEnd=g.group*4;g.audioStart=g.sourceStart;g.audioEnd=g.sourceEnd;g.continuity={status:'measured',levelDb:-24,wordsPerSecond:2.5,gainDb:g.group===2?2:0,warnings:g.group===2?['level-jump']:[]};}
-  win.webContents.send('dub:event',{id:request.id,type:'done',metrics:process.argv.includes('--voice809')?{cached_groups:2,generated_groups:1}:null,settings:process.argv.includes('--voice809')?{referenceName:'Saved narrator.wav',steps:15,grouping:'akici',verification:'detailed',timingMode:'video',range:{start:5,end:65}}:null,subtitle:'Saved source.srt',name:process.argv.includes('--interface807')?'A very long controlled output name with enough detail to test truncation and access to the complete original file name.wav':'Controlled.wav',url:'file:///controlled.wav',quality});await until(()=>run(`return !document.getElementById('dubOpenQuality').hidden`));
+  win.webContents.send('dub:event',{id:request.id,type:'done',path:'controlled-missing.wav',metrics:process.argv.includes('--voice809')?{cached_groups:2,generated_groups:1}:null,settings:process.argv.includes('--voice809')?{referenceName:'Saved narrator.wav',steps:15,grouping:'akici',verification:'detailed',timingMode:'video',range:{start:5,end:65}}:null,subtitle:'Saved source.srt',name:process.argv.includes('--interface807')?'A very long controlled output name with enough detail to test truncation and access to the complete original file name.wav':'Controlled.wav',url:'file:///controlled.wav',quality});await until(()=>run(`return !document.getElementById('dubOpenQuality').hidden`));
+  if(process.argv.includes('--output812')){
+   assert.equal(await run(`return document.getElementById('dubGeneratorProgress').value`),100);
+   await run(`document.getElementById('dubGeneratorOutput').click();return true`);await until(()=>run(`return /açılamadı|Could not open/.test(document.getElementById('dubGeneratorStatus').textContent)`));
+   await capture(locale+'-output-error');await run(`document.getElementById('dubGeneratorDialog').close();return true`);continue;
+  }
   if(process.argv.includes('--interface807')){
    assert(await run(`return document.getElementById('dubGeneratedName').title===document.getElementById('dubGeneratedName').textContent&&document.getElementById('dubReadySource').title===document.getElementById('dubReadySource').textContent`));
    await run(`const menu=document.querySelector('.dub-files-menu');menu.open=true;menu.querySelector('summary').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));return true`);

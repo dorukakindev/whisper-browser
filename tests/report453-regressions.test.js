@@ -103,11 +103,11 @@ function generator() {
   w.HTMLMediaElement.prototype.pause = w.HTMLMediaElement.prototype.load = () => {};
   w.syncBrowserOcclusion = () => {};
   w.BrowserDubAudioUI = { context: () => ({ ...context }), attachGenerated: async () => true };
-  w.api = { dubConfig: async () => ({ ok: true, ready: true }), latestDub: async () => ({ ok: true }),
+  w.api = { dubConfig: async () => ({ ok: true, ready: true }),planDub:async()=>({ok:true,sourceHash:'fixture',groups:[{key:'1',text:'Fixture speech.',start:0,end:2000,seconds:2}]}), latestDub: async () => ({ ok: true }),
     selectFile: async () => 'fixture.srt', onDubEvent: fn => { event = fn; },
     startDub: async value => { request = value; return { ok: true }; }, cancelDub: async () => ({ ok: true }) };
   el('dubGeneratorDialog').showModal = () => { el('dubGeneratorDialog').open = true; };
-  w.eval(fs.readFileSync(path.join(root, 'src/renderer/dub-generator-ui.js'), 'utf8'));
+  w.DubRunInfo=require('../src/renderer/dub-run-info');w.eval(fs.readFileSync(path.join(root, 'src/renderer/dub-generator-ui.js'), 'utf8'));
   return { w, el, context, get request() { return request; }, event: value => event(value), close: () => dom.window.close() };
 }
 
@@ -116,7 +116,7 @@ test('a late cancellation failure from job A cannot replace job B status', async
   const { el, w } = fixture;
   try {
     el('browserDubGenerate').click(); await tick(); el('dubChooseSrt').click(); await tick();
-    el('dubGeneratorStart').click(); await tick(); const first = fixture.request.id;
+    el('dubGeneratorStart').click(); await tick(); assert(fixture.request,el('dubGeneratorStatus').textContent+' | '+el('dubGeneratorDetails').textContent+' | srt '+el('dubSrtName').textContent); const first = fixture.request.id;
     assert.equal(fixture.request.backgroundTab.mediaId, fixture.context.mediaId);
     w.api.cancelDub = () => cancellation.promise;
     el('dubGeneratorCancel').click(); await tick();

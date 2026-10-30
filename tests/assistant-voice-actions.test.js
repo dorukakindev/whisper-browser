@@ -27,7 +27,7 @@ function setup({tracks=true}={}){
   listVoiceReferences:async()=>({ok:true,folder:'C:\\private',activeId:'voice-A',references:[reference]}),useVoiceReference:async args=>(refUsed=args,{ok:true}),
   selectVoiceReferenceSource:async()=>{picks++;return {ok:true,path:'C:\\private\\local.wav'};},prepareVoiceReference:async args=>({ok:true,reference:{id:'voice-A'}}),
   planDub:async()=>({ok:true,sourceHash:'source',groups:[{key:'g1',text:'Hello.',start:0,end:2000,seconds:2}]}),openPath:async()=>{},saveDubPronunciations:async()=>({ok:true})};
- for(const file of ['dub-experience-model.js','dub-generator-ui.js','voice-reference-ui.js','assistant-voice-actions.js'])w.eval(fs.readFileSync(path.join(__dirname,'../src/renderer',file),'utf8'));
+ for(const file of ['dub-run-info.js','dub-experience-model.js','dub-generator-ui.js','voice-reference-ui.js','assistant-voice-actions.js'])w.eval(fs.readFileSync(path.join(__dirname,'../src/renderer',file),'utf8'));
  return {dom,w,el,context,read:()=>({request,applied,picks,played,refUsed}),proof:value=>proof=value,
   run:(name,args={})=>w.AssistantVoiceActions.execute(name,args,{}),
   finish:(count=1,verification={status:'not_checked'})=>{output={id:request.id,type:'done',url:'file:///fixture.wav',name:'fixture.wav',sample:false,sync:{},quality:{groups:Array.from({length:count},(_,i)=>({key:'g'+(i+1),group:i+1,text:'Hello.',status:'review',audioStart:0,audioEnd:2,verification}))}};event(output);return output;}};

@@ -1499,12 +1499,29 @@ function registerMediaWorkflows({
                 voiceStorage(app).output,
                 `${d.title.replace(/[<>:"/\\|?*]/g, "_").slice(0, 100)}.m4b`,
               ),
-              filters: [{ name: "Audiobook", extensions: ["m4b"] }],
+              filters: [{ name: r.locale==='tr'?"Sesli kitap":"Audiobook", extensions: ["m4b"] }],
             });
             if (pick.canceled) return { ok: true, canceled: true };
             if (exportController.signal.aborted)
               throw Error("Export cancelled.");
+            const chosenPath=pick.filePath;
             if (!/\.m4b$/i.test(pick.filePath)) pick.filePath += ".m4b";
+            const targetStamp=()=>{
+              try{const stat=fs.lstatSync(pick.filePath,{bigint:true});
+                if(!stat.isFile()||stat.isSymbolicLink())throw Error('Invalid export target / Geçersiz çıktı hedefi.');
+                return [stat.dev,stat.ino,stat.size,stat.mtimeNs,stat.ctimeNs].map(String).join(':');
+              }catch(error){if(error.code==='ENOENT')return null;throw error;}
+            };
+            const expectedTarget=targetStamp();
+            // The native picker did not confirm this suffixed path if the user
+            // entered a name without .m4b. Confirm the actual file explicitly.
+            if(chosenPath!==pick.filePath&&expectedTarget!==null){
+              const tr=r.locale==='tr';
+              const consent=await dialog.showMessageBox(owner(),{type:'question',title:tr?'Sesli kitabı değiştir':'Replace audiobook',message:tr?'.m4b dosyası zaten var. Değiştirilsin mi?':'The .m4b file already exists. Replace it?',detail:pick.filePath,buttons:tr?['İptal','Değiştir']:['Cancel','Replace'],defaultId:0,cancelId:0,noLink:true});
+              if(consent.response!==1)return {ok:true,canceled:true};
+              if(exportController.signal.aborted)throw Error('Export cancelled / Dışa aktarma iptal edildi.');
+            }
+
             const freeBytes = diskFree(path.dirname(pick.filePath));
             if (freeBytes !== null && freeBytes < estimatedBytes)
               throw Error(
@@ -1602,6 +1619,7 @@ function registerMediaWorkflows({
             );
             if (exportController.signal.aborted)
               throw Error("Export cancelled.");
+            if(targetStamp()!==expectedTarget)throw Error('The export destination changed during encoding. Choose a new filename / Kodlama sırasında çıktı hedefi değişti. Yeni dosya adı seçin.');
             fs.renameSync(temp, pick.filePath);
             const stat = fs.statSync(pick.filePath),
               latest = load(d.id);

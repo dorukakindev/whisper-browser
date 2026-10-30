@@ -6,7 +6,7 @@
   let srt = '', cfg = null, current = null, output = null;
   let timer = null, logPath = null;
   let previousOutput=null,previousMedia=null,previousRangeEnd=null;
-  let runtimePhases={},runtimeError='',runtimeMetrics=null;
+  let runtimePhases={},runtimeError='',runtimeMetrics=null,artifactOpenVersion=0;
   const cacheInfo=document.createElement('p');cacheInfo.id='dubCacheInfo';cacheInfo.dataset.uiUntranslated='';el('dubPhaseSummary').before(cacheInfo);
   const savedRecipe=document.createElement('details');savedRecipe.id='dubSavedRecipe';savedRecipe.className='dub-saved-recipe';savedRecipe.dataset.uiUntranslated='';el('dubPreviewCard').append(savedRecipe);
   function runInfo(){
@@ -423,8 +423,13 @@
   }
   window.DubGeneratorUI = Object.freeze({ editPlanGroup,inspectProduction,editAtCurrent,experience:()=>({owner:mediaIdentity(),srt,plan,edits:{...edits},groups:[...results.values()],output,source:lastRequest?.source||'',busy:!!current||planning||referenceBusy||choosing||workspaceBusy}),prepareCurrent: open, takeContext:()=>({id:output?.id||'',key:el('dubQualityGroup').value,owner:mediaIdentity(),busy:!!current||referenceBusy||planning||choosing||workspaceBusy,recipeReady:!!lastRequest}), useTake:(key,token)=>start(true,[],{[key]:token}), assistant:Object.freeze({state:voiceState,configure:voiceConfigure,start:voiceStart,group:voiceGroup,use:voiceUse,refreshReference:()=>configure(undefined,true)}) });
   el('dubGeneratorClose').addEventListener('click', () => modal.close());
-  modal.addEventListener('close', () => { el('dubGeneratedPreview').pause(); syncBrowserOcclusion(); });
-  el('dubStorageOpen').addEventListener('click', () => { if (cfg?.storageRoot) void window.api.openPath(cfg.storageRoot); });
+  modal.addEventListener('close', () => { artifactOpenVersion++;el('dubGeneratedPreview').pause(); syncBrowserOcclusion(); });
+  async function openArtifact(file,isCurrent=()=>true){
+    const owner=requestIdentity(),ticket=++artifactOpenVersion;let failed=false;
+    try{const result=await window.api.openPath(file);failed=typeof result==='string'?!!result:result?.ok===false;}catch{failed=true;}
+    if(failed&&ticket===artifactOpenVersion&&modal.open&&owner===requestIdentity()&&isCurrent())status(window.UiLocale?.get?.()==='en'?'Could not open the file or folder. Check that it still exists and that opening was allowed.':'Dosya veya klasör açılamadı. Hâlâ yerinde olduğunu ve açma iznini kontrol edin.');
+  }
+  el('dubStorageOpen').addEventListener('click', () => { const folder=cfg?.storageRoot;if(folder)void openArtifact(folder,()=>cfg?.storageRoot===folder); });
   async function chooseInput(kind) {
     if (choosing || current || referenceBusy || planning) return;
     const media = requestIdentity(), source = mediaIdentity(); choosing = true; controls();
@@ -529,6 +534,7 @@
   }
   async function start(retry = false, forceGroups = [], takeChoices = null) {
     if (current || referenceBusy || planning || choosing || workspaceBusy || !srt || !cfg?.ready) return;
+    artifactOpenVersion++;
     const sourceBefore=requestIdentity(),srtBefore=srt;
     if(!retry&&!plan){await preparePlan();if(!plan||sourceBefore!==requestIdentity()||srtBefore!==srt||current)return {ok:false};}
     window.dispatchEvent(new Event('dub-preflight-ready'));
@@ -659,7 +665,7 @@
     if (current !== pending) return;
     if (!r?.ok && current) { current.stopping = false; status('İptal doğrulanamadı; işlem izlenmeye devam ediyor.'); controls(); }
   });
-  el('dubGeneratorOutput').addEventListener('click', () => { if (output) void window.api.openPath(output.path); });
+  el('dubGeneratorOutput').addEventListener('click', () => { const file=output;if(file)void openArtifact(file.path,()=>output===file); });
   el('dubGeneratorUse').addEventListener('click', async () => {
     const selected = output;
     if (!selected || selected.sample || selected.syncInvalid) return;
@@ -680,15 +686,16 @@
     if (!r?.ok) { status('Metin stüdyosu açılamadı.'); el('dubGeneratorDetails').textContent = r?.error || ''; }
     else status('Metin stüdyosu açık. Metin yapıştırabilir veya TXT dosyası seçebilirsiniz.');
   });
-  el('dubGeneratorLog').addEventListener('click', () => { if (logPath) void window.api.openPath(logPath); });
+  el('dubGeneratorLog').addEventListener('click', () => { const file=logPath;if(file)void openArtifact(file,()=>logPath===file); });
   window.api.onDubEvent(event => {
     if (event.type === 'studio_error') { status(event.error || 'Metin seslendirme stüdyosu başlatılamadı.'); return; }
     const job = current;
     if (!job || event.id !== job.id) return;
     if (job.stopping && !['done','error','cancelled'].includes(event.type)) return;
     if (event.type === 'progress') {
-      status('Ses üretiliyor…'); el('dubGeneratorCount').textContent = `${event.done}/${event.total}`;
-      el('dubGeneratorProgress').value = event.total ? event.done / event.total * 100 : 0;
+      if(!Number.isSafeInteger(event.done)||!Number.isSafeInteger(event.total)||event.total<=0||event.done<0||event.done>event.total)return;
+      status(event.done===event.total?(window.UiLocale?.get?.()==='en'?'Finishing audio and checks…':'Ses ve son denetimler tamamlanıyor…'):'Ses üretiliyor…'); el('dubGeneratorCount').textContent = `${event.done}/${event.total}`;
+      el('dubGeneratorProgress').value = Math.min(99,event.done / event.total * 100);
     } else if(event.type==='activity'){if(Number.isInteger(event.group)&&event.group>0&&(activeGroups.size<8||activeGroups.has(event.group))){if(event.finished){const active=activeGroups.get(event.group);if(active?.stage===event.stage&&active?.attempt===event.attempt)activeGroups.delete(event.group);}else activeGroups.set(event.group,event);showActivity();}}
     else if (event.type === 'group') {activeGroups.delete(event.group.group);showActivity();updateResult(event.group);}
     else if(event.type==='phases')phaseSummary(event.phases);

@@ -62,8 +62,8 @@ test('491-09 sync failure preserves an authorized playable recovery output',asyn
  const w=dom.window,el=id=>w.document.getElementById(id);let emit,request,opened;
  w.HTMLMediaElement.prototype.pause=w.HTMLMediaElement.prototype.load=()=>{};
  w.BrowserDubAudioUI={context:()=>({mode:'player',tabId:'p',mediaKey:'m',visible:true,hasMedia:true})};w.syncBrowserOcclusion=()=>{};
- w.api={dubConfig:async()=>({ok:true,ready:true}),latestDub:async()=>({ok:true}),selectFile:async()=>'/source.srt',onDubEvent:f=>emit=f,startDub:async r=>{request=r;return {ok:true};},openPath:async p=>opened=p};
- el('dubGeneratorDialog').showModal=()=>{};w.eval(fs.readFileSync(path.join(root,'src/renderer/dub-generator-ui.js'),'utf8'));
+ w.api={dubConfig:async()=>({ok:true,ready:true}),planDub:async()=>({ok:true,sourceHash:'fixture',groups:[{key:'1',text:'Fixture speech.',start:0,end:2000,seconds:2}]}),latestDub:async()=>({ok:true}),selectFile:async()=>'/source.srt',onDubEvent:f=>emit=f,startDub:async r=>{request=r;return {ok:true};},openPath:async p=>{opened=p;return '';}};
+ el('dubGeneratorDialog').showModal=()=>{};w.DubRunInfo=require('../src/renderer/dub-run-info');w.eval(fs.readFileSync(path.join(root,'src/renderer/dub-generator-ui.js'),'utf8'));
  el('playerDubGenerate').click();await tick();el('dubChooseSrt').click();await tick();el('dubGeneratorStart').click();await tick();
  emit({...error,id:request.id});el('dubGeneratorOutput').click();await tick();
  assert.equal(opened,error.recoverablePath);assert.equal(el('dubGeneratedPreview').getAttribute('src'),error.recoverableUrl);

@@ -9,7 +9,7 @@ w.HTMLMediaElement.prototype.pause=w.HTMLMediaElement.prototype.load=()=>{};
 w.syncBrowserOcclusion=()=>{};
 w.api={dubConfig:async()=>({ok:true,ready:true,reference:'voice.wav'}),onDubEvent:()=>{},latestDub:async query=>{queries.push(query);return new Promise(resolve=>resolveLatest=resolve);}};
 el('dubGeneratorDialog').showModal=()=>{el('dubGeneratorDialog').open=true;};
-w.eval(fs.readFileSync(path.join(root,'src/renderer/dub-generator-ui.js'),'utf8'));
+w.DubRunInfo=require('../src/renderer/dub-run-info');w.eval(fs.readFileSync(path.join(root,'src/renderer/dub-generator-ui.js'),'utf8'));
 (async()=>{
   el('browserDubGenerate').click();await tick();assert.equal(queries[0].source,'first');
   source='second';resolveLatest({ok:true,output:{name:'Wrong video',url:'file:///wrong.wav'}});await tick();

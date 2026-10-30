@@ -16,6 +16,7 @@ if(ownership||referenceRefresh||initialization){const handle=ipcMain.handle.bind
  if(ownership&&channel==='dub:textVoice'&&request?.action==='start')return new Promise(resolve=>starts.push({request,resolve}));
  if(ownership&&channel==='dub:cancel')return new Promise(resolve=>stops.push({request,resolve}));
  if(ownership&&channel==='clipboard:write'){copiedDetail=request;return copyReply;}
+ if(process.argv.includes('--output812')&&channel==='shell:openPath')return 'Controlled missing output';
  return listener(event,request,...args);
 });}
 const out=path.join(root,'.uiprev','text-studio',Date.now()+'-'+process.pid),profile=path.join(out,'profile');
@@ -234,6 +235,14 @@ app.whenReady().then(async()=>{
   retry.resolve({ok:true,id:retry.request.id});await wait(100);await emit(retry.request.id,'error',{error:failureDetail});
   await run("document.getElementById('tv-error-open').click();return true");
   await screenshot('studio-owned-error-en');await run("UiLocale.set('tr',false);return true");
+  if(process.argv.includes('--output812')){
+    const finished=await start();finished.resolve({ok:true,id:finished.request.id});await wait(100);await emit(finished.request.id,'done',{path:reference,url:require('node:url').pathToFileURL(reference).href,name:'Synthetic recovered.wav'});
+    await run("document.getElementById('tv-file').click();return true");await until(()=>run("return document.getElementById('tv-status').textContent==='Çıktı açılamadı'"),'output error is distinct from generation failure');
+    assert(await run("return !document.getElementById('tv-output').hidden&&document.getElementById('tv-error-detail').textContent.includes('Üretilen ses silinmedi')"));await screenshot('studio-output-error-tr');
+    await run("UiLocale.set('en',false);return true");assert(await run("return document.getElementById('tv-status').textContent==='Could not open the output'&&document.getElementById('tv-error-detail').textContent.includes('generated audio was not deleted')"));await screenshot('studio-output-error-en');
+    const longAgain=await start();longAgain.resolve({ok:true,id:longAgain.request.id});await wait(100);await emit(longAgain.request.id,'error',{error:failureDetail});
+  }
+
  }
  // Restore synthetic exact words before real Hi-Fi generation; never change the original file.
  await run("document.getElementById('tv-transcript').value="+JSON.stringify(fs.readFileSync(transcript,'utf8'))+";document.querySelector('[data-preset=balanced]').click();return true");

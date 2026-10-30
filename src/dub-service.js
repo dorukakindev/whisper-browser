@@ -703,7 +703,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if (value === 'DUB_WARNING sample_edits_unused') emit(s, 'warning', {
           text: 'Kısa örnekte bazı metin düzenlemeleri uygulanmadı; hepsini duymak için tam üretim yapın.' });
         const progress = value.match(/^\[(\d+)\/(\d+)\]/);
-        if (progress) { s.progress = { done: Number(progress[1]), total: Number(progress[2]) }; emit(s, 'progress', s.progress); }
+        if (progress) { const done=Number(progress[1]),total=Number(progress[2]);if(Number.isSafeInteger(done)&&Number.isSafeInteger(total)&&total>0&&done<=total){s.progress={done,total};emit(s,'progress',s.progress);} }
         else if (/^Plan:/.test(value)) emit(s, 'status', { stage: 'plan', text: 'Cümle grupları hazır' });
         else if (/Referans hazir/.test(value)) emit(s, 'status', { stage: 'synthesis', text: 'Ses üretiliyor…' });
         else if (/^Zamanlama:/.test(value)) emit(s, 'status', { stage: 'placement', text: 'Ses zaman çizelgesine yerleştiriliyor…' });

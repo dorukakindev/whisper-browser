@@ -238,6 +238,7 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert(events.some(e=>e.type==='warning' && /konuşma kesilmeden korundu/.test(e.text)));
     child.stdout.emit('data','[2/7] private subtitle text\n');
     assert.deepEqual(events.at(-1),{id:'test',type:'progress',done:2,total:7});
+    const validProgressCount=events.filter(e=>e.type==='progress').length;for(const line of ['[8/7]','[0/0]','[999999999999999999999/7]'])child.stdout.emit('data',line+'\n');assert.equal(events.filter(e=>e.type==='progress').length,validProgressCount);
     child.stdout.emit('data','Zamanlama: 2 grup hizlandirildi, 0 grup kirpildi, 0 grup tasiyor.\nSes: 2.0 dk | Islem: 1.1 dk\n');
     child.stdout.emit('data','DUB_STAGE {"stage":"model_load","seconds":2.5}\n');
     child.stdout.emit('data','DUB_PHASES {"synthesis_seconds":4,"normalization_seconds":0.8,"wall_seconds":7,"unknown_seconds":12,"verification_seconds":-1}\n');

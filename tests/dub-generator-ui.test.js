@@ -21,7 +21,7 @@ w.api = {
   startDub: async value => {request=value;return {ok:true};}, cancelDub: async () => ({ok:cancelOK}),
 };
 el('dubGeneratorDialog').showModal = () => {el('dubGeneratorDialog').open=true;};
-w.eval(fs.readFileSync(path.join(root,'src/renderer/dub-generator-ui.js'),'utf8'));
+w.DubRunInfo=require('../src/renderer/dub-run-info');w.eval(fs.readFileSync(path.join(root,'src/renderer/dub-generator-ui.js'),'utf8'));
 const tick = () => new Promise(setImmediate);
 (async()=>{
   el('playerDubGenerate').click();await tick();assert.equal(el('dubGeneratorDialog').open,true);
@@ -73,6 +73,7 @@ const tick = () => new Promise(setImmediate);
   onEvent({id:request.id,type:'activity',stage:'verification',group:62,attempt:1,elapsed:12,limit:120});assert.match(el('dubGeneratorActivity').textContent,/Metin denetimi/);
   onEvent({id:request.id,type:'activity',stage:'synthesis',group:62,attempt:1,elapsed:30,limit:180,finished:true});assert.match(el('dubGeneratorActivity').textContent,/62/,'late synthesis completion cannot clear active verification');
   onEvent({id:request.id,type:'activity',stage:'verification',group:62,attempt:1,elapsed:13,limit:120,finished:true});assert.equal(el('dubGeneratorActivity').textContent,'');
+  onEvent({id:request.id,type:'progress',done:62,total:62});assert.equal(el('dubGeneratorProgress').value,99);assert.match(el('dubGeneratorStatus').textContent,/son denetimler/);const counter=el('dubGeneratorCount').textContent;onEvent({id:request.id,type:'progress',done:63,total:62});assert.equal(el('dubGeneratorCount').textContent,counter);
   onEvent({id:request.id,type:'phases',phases:{model_load_seconds:2.25,reference_seconds:.5,synthesis_seconds:3,verification_seconds:1}});assert.match(el('dubPhaseSummary').textContent,/Model: 2.3/);assert.match(el('dubPhaseSummary').textContent,/Doğrulama: 1.0/);
   assert.equal(request.followDelivery,true);
   assert.equal(request.deliveryStrength,'balanced');
@@ -229,7 +230,11 @@ const tick = () => new Promise(setImmediate);
   assert.match(el('dubGeneratorDetails').textContent,/Referans sesi değiştirmeniz gerekmiyor/);assert.match(el('dubGeneratorDetails').textContent,/RuntimeError/);assert.equal(el('dubGeneratorCancel').disabled,true);
   w.api.startDub=async value=>{request=value;return {ok:true};};
   el('dubGeneratorStart').click();await tick();onEvent({id:request.id,type:'done',name:'last-good.wav',url:'file:///last-good.wav',quality:{groups:[{key:'good',group:1,status:'ready'}]}});await tick();
+  const savedAudio=el('dubGeneratedPreview').getAttribute('src');w.api.openPath=async()=> 'File not found';el('dubGeneratorOutput').click();await tick();assert.match(el('dubGeneratorStatus').textContent,/Dosya veya klasör açılamadı/);assert.equal(el('dubGeneratedPreview').getAttribute('src'),savedAudio);
+  w.api.openPath=async()=>{throw Error('Access denied');};el('dubGeneratorOutput').click();await tick();assert.match(el('dubGeneratorStatus').textContent,/açma iznini/);
+  let finishOpen;w.api.openPath=()=>new Promise(resolve=>finishOpen=resolve);el('dubGeneratorOutput').click();await tick();
   attached=false;w.api.startDub=async()=>({ok:false,error:'startup refused'});el('dubGeneratorStart').click();await tick();
+  finishOpen('Late OS error');await tick();
   assert.equal(el('dubGeneratedPreview').getAttribute('src'),'file:///last-good.wav','startup failure retains the previous audio');assert.equal(attached,false,'restoration never silently attaches');
   assert.equal(el('dubGeneratorUse').classList.contains('hidden'),false);assert.match(el('dubGeneratorStatus').textContent,/Önceki sesiniz/);
   w.api.startDub=async value=>{request=value;return {ok:true};};el('dubGeneratorStart').click();await tick();onEvent({id:request.id,type:'error',error:'new synthesis failed'});await tick();assert.equal(el('dubGeneratedName').textContent,'last-good.wav');assert.equal(el('dubQualityGroup').options.length,1);
