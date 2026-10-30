@@ -147,6 +147,35 @@ app
         'return document.querySelector("#pdfReader.mode-reading .pdf-page-prose")?.textContent.includes("controlled PDF")',
       ),
     );
+    if(process.argv.includes('--citations800')){
+      const found=await run(`return BookAssistantUI.assistant.search({query:'Chapter 3'},()=>false)`);
+      const citation=found.matches.find(c=>c.page===3);assert(citation?.navigable,'PDF search should return navigable registered citations');
+      await run(`await AssistantWorkspace.prepare();const job={chatQuestion:'Find chapter three.',chatContext:{},sourceScope:aiSourceScope(),bubble:aiChatAdd('ai','See [B3-0].')};AssistantWorkspace.begin(job);AssistantWorkspace.citations(job,[${JSON.stringify(citation)}]);AssistantWorkspace.finish(job,'See [B3-0].','complete');return true`);
+      const overlay=win.contentView.children.find(row=>row.webContents?.getURL().includes('assistant-overlay.html'));assert(overlay);
+      overlay.webContents.setBackgroundThrottling(false);
+      const overlayRun=code=>overlay.webContents.executeJavaScript('(async()=>{'+code+'})()',true);
+      await overlayRun(`document.getElementById('bubble').click();return true`);
+      await until(()=>overlayRun(`return [...document.querySelectorAll('.source-card button')].some(b=>b.textContent.includes('B3-0'))`),'actual citation button');
+      await overlayRun(`[...document.querySelectorAll('.source-card button')].find(b=>b.textContent.includes('B3-0')).click();return true`);
+      await until(()=>run('return player.pdfReader.currentPage===3'),'citation click page');
+      await overlayRun(`document.getElementById('bubble').click();return true`);
+
+      assert.equal(await run('return player.pdfReader.currentPage'),3);
+      await capture('citation-page3.png');
+      await run(`document.getElementById('pdfCitationBack').click();return true`);
+      await until(()=>run('return player.pdfReader.currentPage===1'),'citation return');
+      await assert.rejects(run(`await BookAssistantUI.assistant.navigate({...${JSON.stringify(citation)},sourceId:'other-document'})`),/original document|özgün belge/);
+      await run(`player.cues=[{start:1.1,end:1.9,text:'First sentence.'},{start:3,end:4,text:'Manually adjusted.'}];player.timeline.selected=1;timelineNudge(.1);return true`);
+      assert(await run('return player.cues[1].timingLocked===true'));
+      await run(`player.timeline.waveform=Array.from({length:100},(_,i)=>i>=10&&i<20||i>=40&&i<50?.001:.5);player.timeline.waveformDuration=5;player.timeline.waveformStart=0;document.getElementById('timelineAnalysisFrom').value='0';document.getElementById('timelineAnalysisTo').value='5';previewTimingChanges(true);return true`);
+      assert(await run(`return !!document.querySelector('.timing-review[open]')`));await capture('silence-preview.png');
+      await run(`document.querySelector('.timing-review footer button:last-child').click();return true`);
+      assert(await run('return player.cues[0].start===1&&player.cues[0].end===2&&player.cues[1].start===3.1&&player.cues[1].timingLocked'));
+      await run(`document.getElementById('timelineUndo').click();return true`);assert.equal(await run('return player.cues[0].start'),1.1);assert(await run('return !player.cues[0].timingLocked&&player.cues[1].timingLocked'));
+      await run(`player.timeline.selected=1;drawTimeline();document.getElementById('timelineTimingUnlock').click();return true`);assert(await run('return !player.cues[1].timingLocked'));await run(`document.getElementById('timelineUndo').click();return true`);assert(await run('return player.cues[1].timingLocked'));
+      fs.writeFileSync(path.join(out,'acceptance800.json'),JSON.stringify({ok:true,pageJump:3,returned:1,wrongDocumentRejected:true,manualTimingPreserved:true,undo:true}));
+      console.log(JSON.stringify({ok:true,out}));app.exit(0);return;
+    }
     if(process.argv.includes('--toolbar-only')){
       await run(`window.reader716Keys=[];document.addEventListener('keydown',e=>window.reader716Keys.push({key:e.key,target:e.target.dataset?.pdfView||e.target.id,ctrl:e.ctrlKey,alt:e.altKey,shift:e.shiftKey,meta:e.metaKey,phase:e.eventPhase}),true);return true`);
       const snapshot=()=>run(`return {mode:player.pdfReader.viewMode,page:player.pdfReader.currentPage,focus:document.activeElement?.dataset?.pdfView||document.activeElement?.id,keys:window.reader716Keys,radios:[...document.querySelectorAll('#pdfViewModes button')].map(b=>({mode:b.dataset.pdfView,checked:b.getAttribute('aria-checked'),tab:b.tabIndex,height:b.getBoundingClientRect().height})),width:innerWidth,overflow:document.getElementById('pdfReader').scrollWidth>document.getElementById('pdfReader').clientWidth+1}`);

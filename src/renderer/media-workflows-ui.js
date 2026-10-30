@@ -1127,6 +1127,19 @@
           await generate(true);
         },
       ),
+      button(uiLabel("Check selected chapters", "Seçili bölümleri denetle"), async()=>{
+        if(busy)throw Error(t('A workflow is running.','Bir işlem çalışıyor.'));
+        const projectId=project.id;await saveChapter();
+        const result=await call('book-readiness',{id:projectId,chapters:[...selected]});
+        if(project?.id!==projectId||!exportPreview.isConnected)return;
+        const reasons={ 'stale-text':t('Text changed','Metin değişti'), 'review':t('Review required','İnceleme gerekli'), 'not-ready':t('Not ready','Hazır değil'), 'missing-audio':t('Audio missing','Ses eksik'), 'invalid-audio':t('Invalid audio file','Geçersiz ses dosyası'), 'changed-audio':t('Audio changed; review again','Ses değişti; yeniden incele')};
+        const heading=el('h3','',t('Export readiness','Çıktı hazırlığı'));
+        const note=el('p','mw-muted',t('Open a chapter to resolve it. Nothing is omitted or approved automatically. Export checks again when saving.','Çözmek için bölümü aç. Hiçbir bölüm otomatik atlanmaz veya onaylanmaz. Kaydederken yeniden denetlenir.'));
+        const list=el('div','mw-readiness');
+        for(const row of result.rows){const label=(row.index+1)+'. '+row.title+' · '+(row.ready?t('Ready','Hazır'):row.reasons.map(key=>reasons[key]||key).join(' · '))+(row.reviewGroups?' · '+row.reviewGroups+' '+t('groups to review','grup incelenecek'):'');list.append(button(label,async()=>{if(busy)return;chapter=row.index;await books();const editor=dialog?.querySelector('textarea[data-chapter]');editor?.scrollIntoView({block:'center',behavior:'auto'});editor?.focus({preventScroll:true});}));}
+        exportPreview.replaceChildren(heading,note,list);exportPreview.hidden=false;exportPreview.scrollIntoView({block:'nearest',behavior:'auto'});
+        status(result.active?t('Another operation is active; readiness may change.','Başka bir işlem sürüyor; durum değişebilir.'):'');
+      }),
       button(uiLabel("Preview M4B export", "M4B çıktı bilgisi"), async () => {
         if (busy)
           throw Error(t("A workflow is running.", "Bir işlem çalışıyor."));
@@ -2462,7 +2475,7 @@
     const p=assistantProject();if(!p||stale())throw Error(t('Open the current book in production first.','Önce güncel kitabı üretim ekranında aç.'));if(busy)throw Error(t('A workflow is running.','Bir işlem çalışıyor.'));
     const valid=n=>Number.isInteger(n)&&n>=1&&n<=p.chapters.length;
     if(name==='select_book_chapters'){if(!valid(args.from)||!valid(args.to)||args.to<args.from)throw Error('Invalid chapter range.');selected=new Set(Array.from({length:args.to-args.from+1},(_,i)=>args.from-1+i));await call('book-selection',{id:p.id,chapters:[...selected]});if(stale())throw Error('Book changed.');if(await books()===false)throw Error('Book changed.');return {status:'completed',note:t('Production chapters selected. No audio generated.','Üretim bölümleri seçildi. Ses üretilmedi.')};}
-    if(name==='preview_book_export'){await saveChapter();if(stale())throw Error('Book changed.');const r=await call('book-export-preview',{id:p.id,chapters:[...selected]});return {status:'completed',preview:{seconds:r.seconds,estimatedBytes:r.estimatedBytes,count:r.chapters?.length,chapters:(r.chapters||[]).slice(0,24).map(row=>({number:row.chapter+1,title:String(row.title||'').slice(0,120),seconds:row.seconds})),truncated:r.chapters?.length>24},note:t('Existing export checks were used. Review is not bypassed.','Mevcut çıktı kontrolleri kullanıldı. İnceleme atlanmadı.')};}
+    if(name==='preview_book_export'){await saveChapter();if(stale())throw Error('Book changed.');const readiness=await call('book-readiness',{id:p.id,chapters:[...selected]});if(stale())throw Error('Book changed.');if(!readiness.ready||readiness.active)return {status:'blocked',readiness:{active:readiness.active,chapters:readiness.rows.map(row=>({number:row.index+1,title:row.title,ready:row.ready,reasons:row.reasons,reviewGroups:row.reviewGroups}))},note:'Resolve the listed chapters first. No audio was generated, omitted or approved.'};const r=await call('book-export-preview',{id:p.id,chapters:[...selected]});return {status:'completed',preview:{seconds:r.seconds,estimatedBytes:r.estimatedBytes,count:r.chapters?.length,chapters:(r.chapters||[]).slice(0,24).map(row=>({number:row.chapter+1,title:String(row.title||'').slice(0,120),seconds:row.seconds})),truncated:r.chapters?.length>24},note:t('Existing export checks were used. Review is not bypassed.','Mevcut çıktı kontrolleri kullanıldı. İnceleme atlanmadı.')};}
     if(name==='export_book_audio'){if(!exportCurrent)throw Error('Export controls unavailable.');const result=await exportCurrent(stale);return {status:'completed',cancelled:result?.cancelled===true,note:result?.cancelled?t('Export cancelled; no file saved.','Dışa aktarma iptal edildi; dosya kaydedilmedi.'):t('Audiobook export completed.','Sesli kitap dışa aktarıldı.')};}
     if(name==='book_chapter'){
       if(!valid(args.chapter))throw Error('Invalid chapter.');await saveChapter();if(stale())throw Error('Book changed.');chapter=args.chapter-1;

@@ -86,3 +86,21 @@
 .dub-studio #dubQualityGroup{margin-top:8px;margin-bottom:10px}
 .dub-studio #dubGeneratorDetails:empty{display:none}
 @media(max-width:700px){.dub-studio .dub-studio-header{padding:18px 20px;gap:14px}.dub-studio .dub-card{padding:18px}.dub-studio .dub-production-summary{padding:10px 20px}.dub-studio .dub-header-actions{gap:8px}}
+
+/* Side-by-side raw take comparison; controls stay inside the scroll surface. */
+.dub-ab-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin-block:16px; }
+.dub-ab-grid section { min-width:0; padding:16px; border:1px solid var(--border); border-radius:14px; background:var(--bg-1); }
+.dub-ab-grid h4 { margin:0 0 12px; font-size:13px; font-weight:600; color:var(--text); }
+.dub-ab-grid audio { display:block; width:100%; margin-block:8px 12px; }
+.dub-ab-grid button { max-width:100%; white-space:normal; }
+@media(max-width:740px) { .dub-ab-grid { grid-template-columns:1fr; } }
+.mw-readiness { display:grid; gap:8px; padding:16px; margin-block:12px; border:1px solid var(--border); border-radius:14px; }
+.mw-readiness button { text-align:start; white-space:normal; line-height:1.5; }
+
+.pdf-citation-return { padding:4px 10px; min-height:28px; font-size:12px; color:var(--accent); border-radius:8px; }
+.pdf-reader-status-line { flex-wrap:wrap; }
+
+.dub-ab-grid audio { height:38px; }
+.dub-ab-grid button { font-size:12px; min-height:32px; padding:6px 10px; }
+
+.dub-ab-grid p { font-size:13px; line-height:1.6; overflow-wrap:anywhere; color:var(--text-dim); margin-block:0 12px; }

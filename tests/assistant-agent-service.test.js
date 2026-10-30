@@ -226,3 +226,10 @@ test('an undo card is bound to its exact restoration target even if current valu
  const send=h.sender.send;h.sender.send=(channel,value)=>{send(channel,value);if(value.type==='action')queueMicrotask(()=>{if(value.name==='get_workflow_settings')h.call('agentResult',{callId:value.callId,result:{status:'completed',values:{beamSize:3},canUndo:true,undoChanges:{beamSize:target}}});else{applied++;h.call('agentResult',{callId:value.callId,result:{status:'completed'}});}});};
  try{await h.call('agentRun',{requestId:'undo-target',question:'Undo beam',owner:h.owner});const card=h.events.find(e=>e.value.type==='proposal').value.action;target=7;const result=await h.call('agentApply',{proposalId:card.proposalId,owner:h.owner});assert.equal(result.ok,false);assert.equal(applied,0);}finally{h.app.emit('will-quit');}
 });
+
+
+test('book citations come from registered search results, not generated page claims',async()=>{
+ let turn=0;const h=fixture(async()=>++turn===1?reply({role:'assistant',tool_calls:[{id:'book',function:{name:'search_book',arguments:'{"query":"needle"}'}}]}):reply({role:'assistant',content:'See [B3-0], and an unsupported page 999.'}));
+ const send=h.sender.send;h.sender.send=(channel,value)=>{send(channel,value);if(value.type==='action')queueMicrotask(()=>h.call('agentResult',{callId:value.callId,result:{status:'completed',matches:[{id:'B3-0',page:3,sourceId:'pdf-hash',kind:'page',navigable:true,text:'Needle on page three.'}]}}));};
+ const owner={...h.owner,kind:'book',owner:'pdf-hash'};const r=await h.call('agentRun',{requestId:'book-citation',question:'Find needle',owner});assert(r.ok,r.error);assert.deepEqual(r.bookCitations,[{id:'B3-0',page:3,sourceId:'pdf-hash',kind:'page',text:'Needle on page three.'}]);h.app.emit('will-quit');
+});

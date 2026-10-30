@@ -1341,6 +1341,28 @@ function registerMediaWorkflows({
             textHash: c.textHash,
           };
         }
+        case "book-readiness": {
+          const d=load(r.id);
+          if(!Array.isArray(r.chapters)||!r.chapters.length||r.chapters.length>100||r.chapters.some(i=>!Number.isInteger(i)||i<0||i>=d.chapters.length))throw Error('Choose 1–100 valid chapters.');
+          const rows=[...new Set(r.chapters)].sort((a,b)=>a-b).map(index=>{
+            const c=d.chapters[index],reasons=[];
+            if((c.output||c.textHash)&&c.textHash!==hash(c.text))reasons.push('stale-text');
+            if(c.output&&c.status!=='ready')reasons.push(c.status==='review'?'review':'not-ready');
+            if(!c.output)reasons.push('missing-audio');
+            else {
+              try {
+                const target=path.join(path.dirname(file(d.id)),path.basename(c.output)),st=fs.lstatSync(target);
+                if(!st.isFile()||st.isSymbolicLink())reasons.push('invalid-audio');
+                else {
+                  const digest=fileDigest(target),namedHash=path.basename(target).match(/^\d+-[a-f0-9]{16}-([a-f0-9]{16})\.wav$/)?.[1];
+                  if(namedHash&&!digest.startsWith(namedHash)||(c.groups||[]).some(g=>g.manualApproval&&(g.manualApproval.audioHash!==digest||g.manualApproval.textHash!==c.textHash)))reasons.push('changed-audio');
+                }
+              }catch{reasons.push('missing-audio');}
+            }
+            return {index,title:c.title,pageNumber:c.pageNumber||null,status:c.status,reviewGroups:(c.groups||[]).filter(g=>g.status!=='ready'&&!g.manualApproval).length,reasons,ready:!reasons.length};
+          });
+          return {ok:true,rows,ready:rows.every(c=>c.ready),active:exportLocks.has(r.id)||controllers.has(e.sender.id),note:'Readiness is a snapshot. Export revalidates audio and approval; no chapter is silently omitted.'};
+        }
         case "book-export-preview":
         case "book-export": {
           if (exportLocks.has(r.id) || controllers.has(e.sender.id))

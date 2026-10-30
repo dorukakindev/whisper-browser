@@ -98,6 +98,17 @@ app
       'return [...document.querySelectorAll(".mw-chapter input:checked")].map(n=>Number(n.dataset.chapter))',
     );
     assert.deepEqual(selected, [1, 2]);
+    if(process.argv.includes('--readiness800')){
+      const button=await run(`const b=[...document.querySelectorAll('.mw-dialog button')].find(b=>b.textContent==='Seçili bölümleri denetle');b.click();return !!b`);assert(button);
+      await until(()=>run(`return document.querySelector('.mw-readiness')?.children.length===2`),'readiness');
+      assert(await run(`return document.querySelector('.mw-readiness').textContent.includes('Ses eksik')`));
+      const agentReadiness=await run(`return MediaWorkflowsUI.assistant.execute('preview_book_export',{},()=>false)`);assert.equal(agentReadiness.status,'blocked');assert(agentReadiness.readiness.chapters.every(c=>c.reasons.includes('missing-audio')));
+      await capture('readiness-wide.png');win.setMinimumSize(600,480);win.setContentSize(900,950);await run(`document.querySelector('.mw-export-preview').scrollIntoView({block:'end'});return true`);await capture('readiness-narrow.png');
+      assert(await run(`const d=document.getElementById('mediaWorkflowsDialog');return d.scrollWidth<=d.clientWidth+1`));
+      await run(`document.querySelector('.mw-readiness button:last-child').click();return true`);
+      await until(()=>run(`return document.querySelector('.mw-dialog textarea[data-chapter]')?.dataset.chapter==='2'`),'readiness chapter jump');
+      fs.writeFileSync(path.join(out,'acceptance800.json'),JSON.stringify({ok:true,missingAudio:true,chapterJump:true}));console.log(JSON.stringify({ok:true,out}));app.exit(0);return;
+    }
     const prep = await run(
       'return window.api.mediaWorkflows({action:"book-prepare",id:' +
         JSON.stringify(id) +

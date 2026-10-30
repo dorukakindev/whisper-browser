@@ -33,3 +33,9 @@ test('Workspace backup includes conversations and rejects a malformed archive be
   fs.writeFileSync(file,JSON.stringify({version:1,threads:[]}));restorePackage(dir,data);assert.equal(JSON.parse(fs.readFileSync(file,'utf8')).threads[0].title,'İstanbul');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+test('persisted book citations keep bounded original page identities',()=>{
+ const t=thread();t.messages[1].citations=[{id:'B3-0',page:3,sourceId:'pdf-hash',kind:'page',text:'quote'},{id:'forged',page:999,sourceId:'other'}];
+ const cleaned=cleanThread(t);assert.deepEqual(cleaned.messages[1].citations,[{id:'B3-0',page:3,sourceId:'pdf-hash',kind:'page',text:'quote'}]);
+ assert.deepEqual(cleanThread(cleaned).messages[1].citations,cleaned.messages[1].citations);
+});
