@@ -1,0 +1,13 @@
+const fs=require('fs'),path=require('path'),assert=require('assert/strict');
+const {BrowserSubtitlePreferences}=require('../../src/browser-subtitle-preferences'),{canonicalMediaIdentity,deriveStreamMediaIdentity}=require('../../src/browser-media-identity');
+const url='https://fixture.example/watch',base=canonicalMediaIdentity(url).key;
+let disk={version:1,items:[]};const store=new BrowserSubtitlePreferences({read:()=>disk,write:value=>disk=value});
+const a=deriveStreamMediaIdentity(base,'https://cdn.example/episode-a.m3u8'),b=deriveStreamMediaIdentity(base,'https://cdn.example/episode-b.m3u8');
+store.put({url,mediaId:a,subtitleSelection:{primaryId:'episode-a-en'},subtitleMode:'both'});
+store.put({url,mediaId:b,subtitleSelection:{primaryId:'episode-b-fr'},subtitleMode:'source'});
+assert.equal(store.get(a),null);assert.equal(store.get(b),null);assert.equal(disk.items.length,1);assert.equal(disk.items[0].mediaId,base);
+const reloaded=new BrowserSubtitlePreferences({read:()=>disk,write:()=>{}});assert.equal(reloaded.get(a),null);
+const youtubeUrl='https://www.youtube.com/watch?v=fixture123',youtubeBase=canonicalMediaIdentity(youtubeUrl).key,youtubeStream=deriveStreamMediaIdentity(youtubeBase,'https://cdn.example/yt.m3u8');
+const yt=new BrowserSubtitlePreferences({read:()=>({version:1,items:[]}),write:()=>{}});yt.put({url:youtubeUrl,mediaId:youtubeStream,subtitleSelection:{primaryId:'en'}});assert(yt.get(youtubeStream));
+const result={id:'EX-BR07-STREAM-PREFERENCE-IDENTITY',head:'55bfcca53a995e1217edb547655a50720ff59320',base,episodeA:a,episodeB:b,stored:disk.items,getA:store.get(a),getB:store.get(b),afterReloadA:reloaded.get(a),youtubeStreamCountercheck:!!yt.get(youtubeStream)};
+fs.writeFileSync(path.join(__dirname,'prefs-result.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2));

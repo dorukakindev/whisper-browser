@@ -1,0 +1,26 @@
+{
+  "id": "XB06",
+  "worker_exit": 1,
+  "leftovers": [
+    {
+      "path": "system-temp\\whisper_sync_h_ikn4s9\\audio.wav",
+      "bytes": 128078,
+      "under_main_owned": false
+    }
+  ],
+  "owned_contents": [
+    "cancel.flag"
+  ],
+  "events": [
+    "{\"type\": \"status\", \"stage\": \"extract\", \"text\": \"Video sesi çıkarılıyor...\"}",
+    "{\"type\": \"log\", \"level\": \"info\", \"message\": \"Ses çıkarılıyor: sync-source.wav\"}",
+    "{\"type\": \"log\", \"level\": \"info\", \"message\": \"Ses çıkarma tamamlandı\"}",
+    "EXTRACTED_READY"
+  ],
+  "normal_exit_scratch_leftovers": [],
+  "cancel_marker_was_present": true,
+  "completed_despite_marker": true,
+  "outputs_written_despite_marker": [
+    "D:\\Whisper Local\\.tmp\\extra815-parent-backend\\sync-source.synced.srt"
+  ]
+}

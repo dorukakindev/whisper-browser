@@ -1,0 +1,17 @@
+{
+  "head": "55bfcca53a995e1217edb547655a50720ff59320",
+  "kind": "improvement-evidence-not-bug",
+  "fixture": "12 synthetic binary blobs with .png names, not real user posters",
+  "inputBytes": 100663296,
+  "report": {
+    "count": 12,
+    "bytes": 101090318
+  },
+  "exportMs": 2448.3011,
+  "timerDelayMs": 3445.9136,
+  "rssBefore": 82268160,
+  "rssAfter": 415748096,
+  "rssDelta": 333479936,
+  "archiveReadable": true,
+  "method": "Original synchronous exportPackage on installed Node; zero-delay timer queued before export; whole process RSS, not Electron memory claim"
+}

@@ -1,0 +1,360 @@
+{
+  "head": "55bfcca53a995e1217edb547655a50720ff59320",
+  "method": "6 native Windows Electron43.5.0 original-script integration observations + 1 original-module persistence observation",
+  "productChanges": false,
+  "total": 7,
+  "findings": [
+    {
+      "id": "EX-BR01",
+      "priority": "P2",
+      "title": "Var olan hosta sonradan eklenen açık shadow root içindeki video keşfedilmiyor",
+      "source": [
+        "src/browser-media-controller.js:264",
+        "src/browser-media-controller.js:284",
+        "src/browser-media-controller.js:407"
+      ],
+      "reproduce": "Boş, bağlı div host bulunan yerel sayfada buildBrowserMediaProbeScript çalıştır; host.attachShadow({mode:open}) ile video ekle; ikinci probe çalıştır.",
+      "observed": "Shadow DOM içinde 1 video olmasına rağmen önceki ve sonraki probe null döndü.",
+      "expected": "Yeni açık shadow root içindeki oynatıcı keşfedilmeli; kontrol/altyazı araçları sayfayı yeniden yükleme gerektirmemeli.",
+      "impact": "Geç kurulan web component oynatıcılarında oynat/duraklat, seek ve medya karesi işlemleri erişilemez kalır.",
+      "cause": "Document MutationObserver shadow root yaratılmasını görmüyor; rootun kendi observerı kurulamadığı için içerideki video eklenmesi de görülmüyor. select yalnız observer kotası aşılırsa yeniden scan yapıyor.",
+      "consumer": "main browser:command satır16218 tüm karelere bu probe scriptini gönderir; hiç aday yoksa komut Sayfada kontrol edilebilen video bulunamadı ile biter. browser:capturePage video modu da aynı probu kullanır.",
+      "evidence": {
+        "id": "EX-BR01-LATE-SHADOW",
+        "before": null,
+        "after": null,
+        "domVideoCount": 1
+      },
+      "limit": "Gerçek Windows Chromium DOM ve orijinal script. Açık root test edildi; kapalı root destek iddiası yok. Üst belgeye host yeniden eklenmesi gibi başka mutationlar tesadüfen kurtarabilir.",
+      "prior": "Önceki54te yok. R648 bridge shadow smoke başlangıçta var olan/açılışta eklenen rootları kapsıyor; bu geç attach sınırı ayrı."
+    },
+    {
+      "id": "EX-BR02",
+      "priority": "P2",
+      "title": "CSS visibility:hidden büyük video görünür oynatıcıdan önce seçiliyor",
+      "source": [
+        "src/browser-media-selection.js:3",
+        "src/browser-media-controller.js:407",
+        "src/browser-media-controller.js:631"
+      ],
+      "reproduce": "Aynı sayfada görünür küçük video ve visibility:hidden büyük video oluştur; ikisine aynı sentetik medya kaynağını yükle; probe ve loop komutu gönder.",
+      "observed": "Hidden video area320000 ile seçildi; visible.loop=false, hidden.loop=true oldu.",
+      "expected": "Görünür kullanılabilir medya, CSS ile saklanan medyadan önce seçilmeli.",
+      "impact": "Önizleme/sayfa arkaplanı gibi gizli büyük medya bulunduğunda genel oynatma komutları görünür filmi kontrol etmez; capture/OCR yanlış alanı hedefleyebilir.",
+      "cause": "Rank yalnız clientWidth×clientHeight, paused, muted ve readyState okuyor. visibility:hidden, opacity ve viewport görünürlüğü sıralama girdisine alınmıyor.",
+      "consumer": "browser:command probe→rankBrowserMediaCandidates→buildBrowserMediaCommandScript; sayfa içi controller.select aynı compareMedia kullanır. Sağtık menüsüne özel değildir.",
+      "evidence": {
+        "id": "EX-BR02-HIDDEN-MEDIA",
+        "selected": {
+          "docToken": "doc-4j84vum5lyk-mvvhpwgp",
+          "currentTime": 0,
+          "duration": 3,
+          "paused": true,
+          "ended": false,
+          "tagName": "video",
+          "muted": false,
+          "volume": 1,
+          "playbackRate": 1,
+          "area": 320000,
+          "bounds": {
+            "x": 8,
+            "y": 162,
+            "width": 800,
+            "height": 400
+          },
+          "readyState": 4,
+          "videoWidth": 0,
+          "videoHeight": 0,
+          "totalVideoFrames": 0,
+          "spinnerVisible": false,
+          "errorCode": 0,
+          "errorMessage": "",
+          "adPlaying": false,
+          "adSkippable": false,
+          "adRemaining": null
+        },
+        "loops": {
+          "visible": {
+            "loop": false,
+            "visibility": "visible",
+            "width": 300
+          },
+          "hidden": {
+            "loop": true,
+            "visibility": "hidden",
+            "width": 800
+          }
+        }
+      },
+      "limit": "Gerçek DOM ve metadata yüklü sentetik medya; fiziksel video görüntüsü/ses dinlemesi yapılmadı. display:none durumuna genellenmedi.",
+      "prior": "R815-B28 sağtık hedefinin kaybolmasıydı. Burada genel araç komutu ve farklı kök olan görünürlük sıralaması söz konusu. R46daki ASS seçicisinin farklı opacity sorunu bu controller değildir."
+    },
+    {
+      "id": "EX-BR03",
+      "priority": "P2",
+      "title": "Aynı belgede oynatıcı değişince eski docToken yeni medya üzerinde komuta izin veriyor",
+      "source": [
+        "src/browser-media-controller.js:609",
+        "src/browser-media-controller.js:628",
+        "src/browser-media-controller.js:631",
+        "src/main.js:16218"
+      ],
+      "reproduce": "Orijinal video için probe docToken al; aynı document içinde videoyu başka elementle değiştir; MutationObserver turundan sonra eski token ile loop komutu çalıştır.",
+      "observed": "Komut handled:true döndü ve replacement video loop=true oldu.",
+      "expected": "Probe ile mutasyon arasındaki hedef medya değişimi reddedilmeli veya kullanıcı eylemi yeni medyaya taşınmadan önce yeniden doğrulanmalı.",
+      "impact": "SPA bölüm/reklam geçişinde eski oynatıcı için başlatılmış seek/pause/loop komutu yeni oynatıcıya uygulanabilir.",
+      "cause": "docToken controller/window ömrüne bağlı. Token eşleşmesinden sonra controller.select yeniden en iyi öğeyi seçiyor; probun seçtiği HTMLMediaElement kimliği veya src revizyonu taşınmıyor.",
+      "consumer": "main browser:command satır16218–16242 her kareden probe bekledikten sonra candidate.media.docTokenı komut scriptine verir. Bekleme sırasında aynı-belge medya değişebilir; main tab generation/URL guardı henüz değişmemiş olabilir.",
+      "evidence": {
+        "id": "EX-BR03-SAME-DOC-MEDIA-REPLACEMENT",
+        "oldToken": "doc-psv1nd13dz-mvvhpwh3",
+        "command": {
+          "handled": true,
+          "currentTime": 0,
+          "playbackRate": 1,
+          "paused": true,
+          "volume": 1,
+          "muted": false
+        },
+        "newVideoLoop": true
+      },
+      "limit": "Ürün command/probe scriptleri native Chromiumda çalıştı; tam uygulamada değişimin main pollingden önceki dar zamanlaması ayrıca yürütülmedi. Her SPA geçişi için garanti iddiası yok.",
+      "prior": "Önceki54te yok. R815-B18 export dialog belge değişimiyle farklı; burada belge aynı ve eski docToken doğru görünmesine rağmen medya nesnesi değişiyor."
+    },
+    {
+      "id": "EX-BR04",
+      "priority": "P2",
+      "title": "Dublaj hız geçersiz kılma kaydı aynı video elementinin yeni kaynağına taşınıyor",
+      "source": [
+        "src/browser-media-controller.js:199",
+        "src/browser-media-controller.js:475",
+        "src/browser-media-controller.js:483",
+        "src/main.js:18255"
+      ],
+      "reproduce": "Orijinal dub-rate scriptiyle video playbackRate .5/baseRate1 yap; aynı elementin srcsini yeni medyaya değiştir; loadstart/loadedmetadata sonrası hızı ölç.",
+      "observed": "Yeni currentSrc yüklendiği halde playbackRate .5 kaldı.",
+      "expected": "Kaynağa ait geçici dublaj hız düzeltmesi başka srcye geçince serbest bırakılmalı; yeni kaynak temel hızdan başlamalı.",
+      "impact": "Aynı video elementini yeniden kullanan sayfalarda yeni bölüm, reklam veya fragman önceki dublaj hızını 3 saniyeye kadar devralır; sonraki yenilemeler pencereyi uzatabilir.",
+      "cause": "setDubRate state.source alanını kaydediyor ama applyPlaybackPreference dub kaydını kaynakla karşılaştırmadan tekrar uygular. loadstart/loadedmetadata reapply bunu sürdürüyor.",
+      "consumer": "Gerçek dub:rate servisi main18255te buildBrowserMediaCommandScript(dub-rate) kullanır. dubRateTargets cached frame/docTokenı da aynı belge içinde korur.",
+      "evidence": {
+        "id": "EX-BR04-DUB-NEW-SOURCE",
+        "rate": 0.5,
+        "source": "http://127.0.0.1:54886/tone.wav?new-source"
+      },
+      "limit": "Ölçüm yeni kaynak yüklenmesinden100ms sonra yapıldı; kalıcı hız bozukluğu iddia edilmiyor, yerel3sn TTL var. Gerçek GPU dublaj üretimi kullanılmadı.",
+      "prior": "Önceki54te yok. EX-BR03 element replacement anındaki komut hedeflemesi; bu farklı kök aynı element üzerinde zaten tutulmuş geçici rate state/source ömrüdür."
+    },
+    {
+      "id": "EX-BR05",
+      "priority": "P1",
+      "title": "Normalizasyon kurulmuş medya CORS izinsiz kaynağa geçince normal oynarken sessiz kalıyor",
+      "source": [
+        "src/browser-media-controller.js:100",
+        "src/browser-media-controller.js:114",
+        "src/browser-media-controller.js:120",
+        "src/browser-media-controller.js:133"
+      ],
+      "reproduce": "Bir localhost origininde aynı-origin PCM WAV audio yükle; orijinal media-preference normalizeAudio:true uygula; aynı elementi ikinci localhost portundaki Access-Control-Allow-Origin içermeyen WAVa geçir; source nodea ölçüm analyserını yeniden bağlayıp dalga tepe değerini ölç.",
+      "observed": "Aynı-origin peak .36622065; kaynak değişiminden sonra peak0. Yeni medya readyState4, pausedfalse ve zaman .35sn ilerliyor; graph1.",
+      "expected": "Normalizasyon özelliği normal HTML medya oynatımını sessizliğe çevirmemeli; desteklenmeyen kaynak geçişinde güvenli yeniden kurulum veya görünür durum/geri dönüş olmalı.",
+      "impact": "CDN/kaynak değiştiren gerçek oynatıcılarda video/ses zamanı ilerlerken kullanıcı ses alamaz. Kontrol panelinde sessizlik/bozuk durum nedeni görünmez.",
+      "cause": "İlk aynı-origin kaynak için MediaElementAudioSourceNode kuruluyor. Sonraki CORSsuz kaynağı audioGraphAllowed reddetse de graph.source doğrudan destinationa bağlanıyor. Bu node artık spesifikasyona göre sıfır çıkarıyor; direct-connect onu doğal HTML çıkışına geri döndürmüyor.",
+      "consumer": "Play/seek/loadstart/loadedmetadata eventleri applyPlaybackPreference→applyAudioPreference çağırır. Browser genel/site normalizeAudio tercihi orijinal buildBrowserMediaPreferenceScript üzerinden kurulur.",
+      "evidence": {
+        "id": "EX-BR05-CORS-SOURCE-SILENCE",
+        "sameOriginPeak": 0.3662206530570984,
+        "crossOrigin": {
+          "peak": 0,
+          "paused": false,
+          "time": 0.352,
+          "ready": 4,
+          "graphs": 1
+        }
+      },
+      "limit": "Fiziksel hoparlör dinlemesi yerine native AudioContext dalga ölçümü. İlk ölçüm bağlantısının fallbackte kopabileceği karşı denetimde fark edilip son koşuda CORS geçişinden sonra source→analyser yeniden bağlandı; sonuç yine0. CORS politikası aşılmadı.",
+      "prior": "R87 R78-08b başlangıçtan cross-origin medyada graph kurmama kararını tasarlanmış saymıştı. Bu yeni geçişte graph zaten var; guard yeterli olmuyor. Önceki54te yok.",
+      "references": [
+        {
+          "title": "W3C Web Audio API: MediaElementAudioSourceNode security",
+          "url": "https://www.w3.org/TR/webaudio/#MediaElementAudioSourceOptions-security"
+        },
+        {
+          "title": "Chromium MediaElementAudioSourceHandler",
+          "url": "https://chromium.googlesource.com/chromium/src/+/main/third_party/blink/renderer/modules/webaudio/media_element_audio_source_handler.h"
+        }
+      ]
+    },
+    {
+      "id": "EX-BR06",
+      "priority": "P2",
+      "title": "Çapraz-origin karelerin bağlantı etiketleri aynı kısayolu kullanıyor ve seçimden sonra diğer katman kalıyor",
+      "source": [
+        "src/browser-link-hints.js:26",
+        "src/browser-link-hints.js:72",
+        "src/browser-link-hints.js:121",
+        "src/main.js:16194"
+      ],
+      "reproduce": "İki localhost portuyla top sayfaya bir button ve çapraz-origin iframe içine ikinci button koy; mainin yaptığı gibi her frame üzerinde orijinal link-hints scriptini çalıştır; top documentta A tuşu gönder.",
+      "observed": "Top ve child aynı A etiketini gösterdi. A top buttonı tıkladı (1), child tıklaması0; child etiket katmanı kaldı.",
+      "expected": "Sayfa genelindeki görünen etiketler tekil/eylem hedefi açık olmalı; seçim bittiğinde bütün frame katmanları birlikte kapanmalı.",
+      "impact": "Kullanıcı iframe içinde gördüğü A etiketini yazsa da topframe A eylemi tetiklenebilir. Seçimden kalan etiketler sonraki yazmayı yakalayabilir ve etiket modu bitmiş görünümünü bozabilir.",
+      "cause": "Cross-origin frame kendi bağımsız instance/kod alanını başlatır. Ana süreç tüm framelere aynı başlangıç algoritmasını gönderir. Activate yalnız yerel cleanup yapar; Escape için eklenen broadcastCleanup seçim yolunda kullanılmaz.",
+      "consumer": "browser:command link-hints main16194 tüm browserFrames üzerinde buildBrowserLinkHintsScript çalıştırıyor. Probe iki gerçek Chromium frameinde aynı scripti çalıştırdı.",
+      "evidence": {
+        "id": "EX-BR06-CROSS-ORIGIN-HINT-COLLISION",
+        "topHints": {
+          "handled": true,
+          "active": true,
+          "count": 1
+        },
+        "childHints": {
+          "active": true,
+          "count": 1,
+          "handled": true
+        },
+        "topLabels": [
+          "A"
+        ],
+        "childLabels": [
+          "A"
+        ],
+        "topClicks": 1,
+        "childClicks": 0,
+        "childLayerRemains": true
+      },
+      "limit": "Tuş native Chromium document KeyboardEventiyle topa yöneltildi; fiziksel klavye odağının bütün varyantları test edilmedi. Same-origin frame delegation bu sorundan farklı ve gizli same-origin iframe negativecheck düzgünce tek etiket verdi.",
+      "prior": "R83 B83-11/R85 ESC frame cleanup şüphesiydi, güncel kod ESC broadcast içeriyor. Bu yeni test Escape değil, görünür kod çakışması ve başarılı activate sonrası diğer katmanın kalması. Önceki54te yok."
+    },
+    {
+      "id": "EX-BR07",
+      "priority": "P2",
+      "title": "Genel web akışlarının altyazı tercihi stream kimliğini kaybedip aynı sayfanın başka videosuyla birleşiyor",
+      "source": [
+        "src/browser-subtitle-preferences.js:47",
+        "src/browser-subtitle-preferences.js:49",
+        "src/browser-session-store.js:197",
+        "src/main.js:6387",
+        "src/main.js:16559"
+      ],
+      "reproduce": "canonicalMediaIdentity ile generic watch sayfasının web:url kimliğini üret; deriveStreamMediaIdentity ile A/B manifestleri için iki streamId oluştur; BrowserSubtitlePreferences.put ile herbirine farklı iz seç; get(streamId) ve yeniden yükleme yap.",
+      "observed": "İki farklı streamId tek base web:url anahtarına indirildi. Diskte yalnız Bnin tercihi kaldı; get(A)=null,get(B)=null; yeniden yüklemede de A yok.",
+      "expected": "Tercih yazım ve lookupı aynı canonical stream kimliğini kullanmalı; aynı sayfanın farklı videosu kendi altyazı/senkron seçimini korumalı.",
+      "impact": "Genel sayfalarda bölüm değiştirip dönünce seçilen kaynak/çeviri izleri ve senkron kayıtları hatırlanmaz; aynı watch URL altındaki başka video önceki tercihin üstüne yazar.",
+      "cause": "Preferences.put normalizeSessionTabı çağırır. normalizeSessionTab mediaId içinde :url: varsa persistedParts türetmez ve URLden yalnız base kimliği yeniden üretir. Main ise put/get için streamMediaId kullanıyor.",
+      "consumer": "main16559 browser:session:updateTab put({mediaId:tab.streamMediaId||tab.mediaId}) yapıyor; main6387 restore get(tab.streamMediaId||tab.mediaId) arıyor.",
+      "evidence": {
+        "id": "EX-BR07-STREAM-PREFERENCE-IDENTITY",
+        "head": "55bfcca53a995e1217edb547655a50720ff59320",
+        "base": "web:url:e33e0eff46e5420eb41d5937",
+        "episodeA": "web:url:e33e0eff46e5420eb41d5937:stream:b86a6d2f22d82d6ab30f0941",
+        "episodeB": "web:url:e33e0eff46e5420eb41d5937:stream:a26898e9777219f84048459f",
+        "stored": [
+          {
+            "mediaId": "web:url:e33e0eff46e5420eb41d5937",
+            "url": "https://fixture.example/watch",
+            "subtitleSelection": {
+              "primaryId": "episode-b-fr",
+              "secondaryId": ""
+            },
+            "subtitleMode": "source",
+            "subtitleSyncRecords": []
+          }
+        ],
+        "getA": null,
+        "getB": null,
+        "afterReloadA": null,
+        "youtubeStreamCountercheck": true
+      },
+      "limit": "Orijinal Node modülü; canlı site/profil değiştirilmedi. YouTube service:id stream kimliği counterchecki korunuyor; bulgu generic web:url tabanı ve benzeri URL kimliklerine özgü.",
+      "prior": "Önceki54te yok; R815-B49 pinned notların generic sayfa kimliği karışması başka depo/çağrı yoludur."
+    }
+  ],
+  "improvements": [
+    {
+      "id": "EX-G01",
+      "title": "Denetlenen medya hedefini görünür kıl",
+      "benefit": "Çok videolu sayfada hangi element/framein komut, OCR ve dublaj hedefi olduğunu kullanıcı doğrulayabilir.",
+      "acceptance": "Medya araçları seçili hedefin sayfa/kare, görünürlük ve oynatma durumunu gösterir; kullanıcı başka görünür medyayı seçebilir; gizli/iframe aday değişiminde seçim sessizce kaymaz."
+    },
+    {
+      "id": "EX-G02",
+      "title": "Ses işleme sağlık durumu ve güvenli kaynak değişimi",
+      "benefit": "Normalizasyon açıldıktan sonraki sessizlik nedenini ses ayarı/Windows sorunu sanmadan anlaşılır kılar.",
+      "acceptance": "Kaynak origin/CORS değişimi tanıda görünür; güvenli olmayan graph geçişi belirgin uyarı verir; kaynak yeniden kurulduğunda zaman/mute/volume tercihi korunur; CORS atlatma yok."
+    },
+    {
+      "id": "EX-G03",
+      "title": "Sayfa genelinde tek bağlantı etiketi oturumu",
+      "benefit": "Cross-origin iframe bulunan video/ödeme/giriş sayfalarında klavye gezintisi tahmin edilebilir olur.",
+      "acceptance": "Aynı görünür anda tüm frame kodları benzersizdir; activate,Escape,scroll,navigation tüm alt frame katmanlarını temizler; odağın top/child olduğu iki native senaryo doğrulanır."
+    },
+    {
+      "id": "EX-G04",
+      "title": "Akış tercihi deposu için veri kaybı olmadan kimlik geçişi",
+      "benefit": "Mevcut generic tercihleri çöpe atmadan stream bazlı seçim ve senkron devamlılığı sağlar.",
+      "acceptance": "Aynı watch URLdeki iki manifest ayrı kayıtla round-trip olur; eski base kayıt tekvideoya tahminle bağlanmaz; belirsiz eski seçim kullanıcıya geri kazanma seçeneğiyle sunulur."
+    },
+    {
+      "id": "EX-G05",
+      "title": "Düşük maliyetli, olay destekli shadow medya yeniden keşfi",
+      "benefit": "Geç yüklenen web component oynatıcıları çalışırken büyük SPA sayfalarının sürekli tam taranmasını önler.",
+      "acceptance": "Başlangıç rootu, sonradan attachShadow, host çıkarıp yeniden takma ve observer128sınırı ayrı native fixturelarla çalışır; kapalı root için açık destek sınırı gösterilir; timer/observer bütçesi ölçülür."
+    },
+    {
+      "id": "EX-G06",
+      "title": "Mini oynatıcıda ortak dil ve erişilebilirlik sözleşmesi",
+      "benefit": "İngilizce ana arayüz kullanan kişi ayrı pencerede Türkçe düğmelerle karşılaşmaz; küçük penceredeki kontrol amaçları açık olur.",
+      "acceptance": "Mini player title,document.lang,nav aria-label,dört düğme ve hata metni EN/TR seçimini izler; dil değişimi/reopen aynı sonucu verir. Bug sayısına eklenmedi; mevcut browser-mini.html/js metin borcudur."
+    },
+    {
+      "id": "EX-G07",
+      "title": "Kaynak değişimi için kısa native kabul matrisi",
+      "benefit": "Salt birim testlerin kaçırdığı belge/element/src yaşam döngüsü sınırlarını az sayıda hedefli kontrolle kapsar.",
+      "acceptance": "Aynı-belge element replacement, aynı-element src replacement, cross-origin ses geçişi ve dub-rate release ayrı beklenen durumlar verir; testler kendi PID/profil/localhost sunucularını kapatır; kişisel oturum kullanılmaz."
+    }
+  ],
+  "sourceSha256": {
+    "src/browser-media-controller.js": "7a21d16562e49f0064db882fb7c470ed3102f9d2c42577b63a7d6a87022c7b19",
+    "src/browser-media-selection.js": "69babc6aabc9b2cb3a5e0769e91e6b7554ab4d5e07e5ad2b1f89eb97e79b19d3",
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+    "src/browser-link-hints.js": "977a7100e834e5dc4e7fe3884cf963e155c32215c7239676b98acbd2b055ffa0",
+    "src/browser-subtitle-preferences.js": "8877faac288b4a2b6a5b326a184b6379a261f0f03dbc892884eaa44dae1afa42",
+    "src/browser-session-store.js": "fc14eee5cbaee9854ae9e70ba9c83360db3756bf6c60adabe04df1e670bf63b9"
+  },
+  "negativeChecks": [
+    {
+      "id": "EX-BR08-HIDDEN-FRAME-HINT",
+      "result": {
+        "handled": true,
+        "active": true,
+        "count": 1
+      },
+      "labels": [
+        {
+          "text": "A",
+          "left": "8px",
+          "top": "8px"
+        }
+      ],
+      "hiddenFrameDisplay": "none"
+    }
+  ],
+  "limits": [
+    "Synthetic localhost pages/media; no live account/DRM/provider/GPU/main-user-profile test",
+    "No product/test/git edits",
+    "Native windows hidden; measured DOM/WebAudio behavior, not full theme/DPI screenshot acceptance",
+    "Main process caller reachability verified by source; application renderer/main whole-chain not launched for each case"
+  ],
+  "reproduce": [
+    "node .tmp/extra815-browser/prefs.cjs",
+    "Start-Process -FilePath \"D:\\Whisper Local\\node_modules\\electron\\dist\\electron.exe\" -ArgumentList '\"D:\\Whisper Local\\.tmp\\extra815-browser\\native.cjs\"' -WorkingDirectory \"D:\\Whisper Local\" -WindowStyle Hidden -PassThru"
+  ],
+  "nativePids": [
+    14104,
+    11852,
+    20232,
+    14504
+  ],
+  "finalNativePid": 14504
+}
