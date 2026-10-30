@@ -1840,3 +1840,11 @@ details.browser-translate-split.hidden { display: none !important; }
 
 .dub-studio #dubGeneratorStart:disabled { background: var(--bg-2); color: var(--text-muted); border-color: var(--border); box-shadow: none; opacity: 1; cursor: not-allowed; }
 .dub-studio #dubStartRequirement { color: var(--text-muted); line-height: 1.5; font-size: 12px; margin: 7px 0; }
+
+/* Output facts remain next to that audio, independently of the next job controls. */
+.dub-saved-recipe { margin-top:12px; padding-top:10px; border-top:1px solid var(--border); min-width:0; font-size:12px; }
+.dub-saved-recipe>summary { cursor:pointer; color:var(--text-muted); padding:6px 0; }
+.dub-saved-recipe dl { display:grid; grid-template-columns:minmax(80px, .4fr) minmax(0, 1fr); gap:8px 16px; margin:12px 0 0; }
+.dub-saved-recipe dt { color:var(--text-muted); }
+.dub-saved-recipe dd { margin:0; overflow-wrap:anywhere; line-height:1.5; }
+#dubCacheInfo:empty { display:none; }

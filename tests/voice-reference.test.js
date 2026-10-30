@@ -38,6 +38,7 @@ const tick = () => new Promise(setImmediate);
   assert.equal((await call('dub:referencePrepare', good)).ok, false);
   const library = await call('dub:references'); assert.equal(library.references.length, 1);
   assert.equal(library.references[0].id, good.id);
+  assert.equal(library.references[0].audio.sampleRate,24000);assert.equal(library.references[0].audio.channels,1);assert(library.references[0].audio.seconds>0);
   assert.equal(library.references[0].name, 'Türkçe anlatıcı');
   assert.equal(library.references[0].transcriptBaseline,result.reference.text,'preparation preserves its first recognition separately');
   assert.equal((await call('dub:referenceRename', { id: good.id, name: '  Yeni ses adı  ' })).ok, true);

@@ -31,6 +31,7 @@ app.whenReady().then(async()=>{
  await until(()=>run("return document.getElementById('voiceReferenceComparisonTitle').textContent.includes('aynı')"),'baseline loaded');
  await run("document.getElementById('voiceReferenceComparison').open=true;document.getElementById('voiceReferenceComparison').scrollIntoView({block:'center'});return true");
  await capture('same-tr');
+ if(process.argv.includes('--voice809')){assert(await run("return /kHz.*Mono/.test(document.getElementById('voiceReferenceQuality').textContent)"));await run("document.getElementById('voiceReferenceQuality').scrollIntoView({block:'center'});return true");await wait(300);fs.writeFileSync(path.join(out,'metadata-tr.png'),(await win.webContents.capturePage()).toPNG());}
  await run("const t=document.getElementById('voiceReferenceText');t.value='This is a different reference. We paid twelve euros, not twenty.';t.dispatchEvent(new Event('input',{bubbles:true}));document.getElementById('voiceReferenceComparison').scrollIntoView({block:'center'});return true");
  await until(()=>run("return document.getElementById('voiceReferenceEdited').querySelector('.reference-diff-add')!==null"),'changed words');
  await capture('edited-tr');

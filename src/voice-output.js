@@ -16,7 +16,7 @@ function inspectVoiceOutput(file) {
     const declared = header.readUInt32LE(4);
     const boundary = rf64 ? stat.size : declared + 8;
     if (boundary > stat.size || boundary < 12) return false;
-    let offset = 12, format = false, blockAlign = 0, dataSize = null, formatKey = null;
+    let offset = 12, format = false, blockAlign = 0, dataSize = null, formatKey = null, audio = null;
     for (let n = 0; n < 1024 && offset + 8 <= boundary; n++) {
       const chunk = Buffer.alloc(8);
       if (fs.readSync(fd, chunk, 0, 8, offset) !== 8) return false;
@@ -25,7 +25,7 @@ function inspectVoiceOutput(file) {
         const frames = size === 0xffffffff && rf64 ? dataSize : size;
         const valid = format && Number.isSafeInteger(frames) && frames >= blockAlign
           && frames % blockAlign === 0 && offset + 8 + frames <= boundary;
-        return valid ? {formatKey} : false;
+        return valid ? {formatKey, ...audio, seconds: frames / blockAlign / audio.sampleRate} : false;
       }
       if (offset + 8 + size > boundary) return false;
       if (id === 'ds64' && rf64 && size >= 28) {
@@ -49,6 +49,7 @@ function inspectVoiceOutput(file) {
         format = channels > 0 && channels <= 32 && rate >= 8000 && rate <= 384000
           && ((codec === 1 && [8,16,24,32].includes(bits)) || (codec === 3 && [32,64].includes(bits)))
           && blockAlign === channels * bits / 8 && fmt.readUInt32LE(8) === rate * blockAlign;
+        audio = format ? {channels, sampleRate:rate, bits} : null;
         // Only fully known PCM/float fmt layouts qualify for stream concatenation.
         formatKey = format && (size === 16 || (size === 18 && fmt.readUInt16LE(16) === 0) ||
           (size === 40 && fmt.readUInt16LE(0) === 0xfffe && fmt.readUInt16LE(16) === 22)) ? fmt.toString('hex') : null;
