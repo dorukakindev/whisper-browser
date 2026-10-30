@@ -7,7 +7,7 @@ const { performance } = require('node:perf_hooks');
 const { validate: validateSync } = require('./renderer/dub-sync-map');
 const { groups: validateGroups } = require('./renderer/dub-workspace-model');
 const { atomicWriteFileSync } = require('./fsync-utils');
-const { validVoiceOutput } = require('./voice-output');
+const { validVoiceOutput, inspectVoiceOutput } = require('./voice-output');
 const {normalize: normalizePronunciations} = require('./dub-pronunciation');
 const {identity: sourceIdentity} = require('./dub-source-identity');
 
@@ -114,7 +114,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     }
     if (type === 'done' && data.path && s.settings?.kind !== 'text') onOutput({...data,id:s.id});
     emit(s, type, { ...data, elapsedSeconds: summary.elapsedSeconds,
-      logPath: s.summaryPath || null, logError: s.logError || null });
+      metrics:s.metrics || null, logPath: s.summaryPath || null, logError: s.logError || null });
   }
   const guard = fn => async (e, ...args) => {
     if (!authorized(e)) return { ok: false, error: 'Yetkisiz istek.' };
@@ -139,11 +139,13 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (!fs.statSync(file).isFile() || fs.realpathSync(file) !== path.resolve(file)) throw new Error('Invalid reference file.');
     }
     if (fs.statSync(p.transcript).size > 32000 || fs.statSync(p.metadata).size > 4000) throw new Error('Invalid reference metadata.');
-    if (!validVoiceOutput(p.reference)) throw new Error('Invalid reference audio.');
+    const audio = inspectVoiceOutput(p.reference);
+    if (!audio) throw new Error('Invalid reference audio.');
     const meta = JSON.parse(fs.readFileSync(p.metadata, 'utf8'));
     grantMedia(p.reference);
     return { id, name: String(meta.name || id).slice(0, 160), createdAt: String(meta.createdAt || ''), path: p.reference,
       url: pathToFileURL(p.reference).href, text: fs.readFileSync(p.transcript, 'utf8'), folder: p.folder,
+      audio: {channels:audio.channels,sampleRate:audio.sampleRate,bits:audio.bits,seconds:audio.seconds},
       quality: meta.quality || null, transcriptBaseline: require('./voice-reference-baseline').read(p.reference,p.baseline) };
   }
   ipcMain.handle('dub:references', guard(async () => {
@@ -380,7 +382,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           sync, syncInvalid, quality, qualityIncomplete:saved.qualityIncomplete===true, qualityUnavailable:saved.qualityUnavailable === true || !quality?.groups?.length, sample:saved.sample === true,
           background: saved.background && validVoiceOutput(path.join(root,`${saved.id}-background.wav`))
             ? (()=>{ const file=path.join(root,`${saved.id}-background.wav`);grantMedia(file);return {path:file,url:pathToFileURL(file).href}; })() : null,
-          timing: saved.timing, subtitle: saved.subtitle, settings:saved.settings || null, logPath: entry.file }) };
+          timing: saved.timing, subtitle: saved.subtitle, settings:saved.settings || null, metrics:saved.metrics || null, logPath: entry.file }) };
       } catch (_) {}
     }
     return { ok: true, output: null };
@@ -461,6 +463,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       s.sourceIdentity = sourceIdentity(request.source);
       s.settings = { profile, steps: profile === 'fast' ? 10 : 15, concurrency, maxSpeed: timingMode === 'video' ? 1 : 1.25 };
       Object.assign(s.settings, { verification, autoFit:c.autoFit, naturalSpeech:c.naturalSpeech, forceAll, forceGroupCount:forceGroups.length });
+      s.settings.referenceName = path.basename(c.reference);
       s.settings.grouping = c.grouping;
       s.settings.expression = c.expression;
       s.settings.followDelivery = c.followDelivery; s.settings.deliveryStrength = c.deliveryStrength;

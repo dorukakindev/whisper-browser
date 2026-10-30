@@ -34,13 +34,21 @@ app.whenReady().then(async()=>{
   const quality={groups:[{group:1,key:'1',status:'ready',text:'First group.',verification:{status:'passed'}},{group:2,key:'2',status:'review',text:'Second group.',verification:{status:'review',recognizedText:'Second.',omission_spans:[{start:0,end:4}]}},{group:3,key:'3',status:'failed',text:'Third group.',verification:{status:'unavailable'}}]};
   if(process.argv.includes('--review803'))quality.groups[1].verification.missing_numbers=['2065'];
   if(process.argv.includes('--experience801'))for(const g of quality.groups){g.sourceStart=(g.group-1)*4;g.sourceEnd=g.group*4;g.audioStart=g.sourceStart;g.audioEnd=g.sourceEnd;g.continuity={status:'measured',levelDb:-24,wordsPerSecond:2.5,gainDb:g.group===2?2:0,warnings:g.group===2?['level-jump']:[]};}
-  win.webContents.send('dub:event',{id:request.id,type:'done',name:process.argv.includes('--interface807')?'A very long controlled output name with enough detail to test truncation and access to the complete original file name.wav':'Controlled.wav',url:'file:///controlled.wav',quality});await until(()=>run(`return !document.getElementById('dubOpenQuality').hidden`));
+  win.webContents.send('dub:event',{id:request.id,type:'done',metrics:process.argv.includes('--voice809')?{cached_groups:2,generated_groups:1}:null,settings:process.argv.includes('--voice809')?{referenceName:'Saved narrator.wav',steps:15,grouping:'akici',verification:'detailed',timingMode:'video',range:{start:5,end:65}}:null,subtitle:'Saved source.srt',name:process.argv.includes('--interface807')?'A very long controlled output name with enough detail to test truncation and access to the complete original file name.wav':'Controlled.wav',url:'file:///controlled.wav',quality});await until(()=>run(`return !document.getElementById('dubOpenQuality').hidden`));
   if(process.argv.includes('--interface807')){
    assert(await run(`return document.getElementById('dubGeneratedName').title===document.getElementById('dubGeneratedName').textContent&&document.getElementById('dubReadySource').title===document.getElementById('dubReadySource').textContent`));
    await run(`const menu=document.querySelector('.dub-files-menu');menu.open=true;menu.querySelector('summary').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));return true`);
    assert(await run(`return !document.querySelector('.dub-files-menu').open&&document.activeElement===document.querySelector('.dub-files-menu>summary')`));
    await run(`document.querySelector('.dub-files-menu').open=true;document.querySelector('.dub-studio-scroll').dispatchEvent(new Event('scroll'));return true`);assert(await run(`return !document.querySelector('.dub-files-menu').open`));
    await run(`document.querySelector('.dub-files-menu').open=true;document.querySelector('.dub-studio-scroll').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));return true`);assert(await run(`return !document.querySelector('.dub-files-menu').open`));
+  }
+  if(process.argv.includes('--voice809')){
+   await run(`document.getElementById('dubSavedRecipe').open=true;document.getElementById('dubSavedRecipe').scrollIntoView({block:'center'});return true`);
+   assert(await run(`return document.getElementById('dubSavedRecipe').textContent.includes('Saved narrator.wav')&&document.getElementById('dubCacheInfo').textContent.includes('2')`));
+   await capture(locale+'-saved-recipe');
+   await run(`document.getElementById('dubGrouping').value='satir';document.getElementById('dubGrouping').dispatchEvent(new Event('change'));return true`);
+   assert(await run(`return document.getElementById('dubSavedRecipe').textContent.includes('${locale==='en'?'Flowing blocks':'Akıcı bloklar'}')`),'Saved output must not take on next-job settings');
+   await run(`document.getElementById('dubGeneratorDialog').close();return true`);continue;
   }
   await run(`document.getElementById('dubOpenQuality').click();return true`);await capture(locale+'-results');
   assert.equal(await run(`return document.getElementById('dubQualityGroup').value`),'2');

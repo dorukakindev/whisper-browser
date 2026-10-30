@@ -6,7 +6,16 @@
   let srt = '', cfg = null, current = null, output = null;
   let timer = null, logPath = null;
   let previousOutput=null,previousMedia=null,previousRangeEnd=null;
-  let runtimePhases={},runtimeError='';
+  let runtimePhases={},runtimeError='',runtimeMetrics=null;
+  const cacheInfo=document.createElement('p');cacheInfo.id='dubCacheInfo';cacheInfo.dataset.uiUntranslated='';el('dubPhaseSummary').before(cacheInfo);
+  const savedRecipe=document.createElement('details');savedRecipe.id='dubSavedRecipe';savedRecipe.className='dub-saved-recipe';savedRecipe.dataset.uiUntranslated='';el('dubPreviewCard').append(savedRecipe);
+  function runInfo(){
+    const en=window.UiLocale?.get?.()==='en';cacheInfo.textContent=window.DubRunInfo.counts(runtimeMetrics,en);cacheInfo.hidden=!cacheInfo.textContent;
+    const rows=window.DubRunInfo.recipe(output,en);savedRecipe.hidden=!rows.length;savedRecipe.replaceChildren();
+    if(!rows.length)return;const summary=document.createElement('summary');summary.textContent=en?'Saved production recipe':'Kaydedilen üretim tarifi';const list=document.createElement('dl');
+    for(const [label,value]of rows){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=value;list.append(dt,dd);}savedRecipe.append(summary,list);
+  }
+  document.addEventListener('ui-locale-change',runInfo);
   const activeGroups=new Map();
   function showActivity(){const en=window.UiLocale?.get?.()==='en';el('dubGeneratorActivity').replaceChildren(...[...activeGroups.values()].map(g=>{const node=document.createElement('span');node.className='dub-activity-chip';node.textContent=(en?'Group ':'Grup ')+g.group+' · '+(g.stage==='verification'?(en?'Text check':'Metin denetimi'):(en?'Speech':'Ses'))+' · '+(en?'attempt ':'deneme ')+g.attempt+' · '+Math.floor(g.elapsed)+' / '+g.limit+(en?' s':' sn');return node;}));if(activeGroups.size&&current&&!current.stopping)status(en?'Processing speech and text checks…':'Konuşma ve metin denetimleri işleniyor…');}
   let plan = null, edits = {}, planning = false;
@@ -314,7 +323,7 @@
     invalidatePlan();
   }
   function preview(file) {
-    stopGroupPreview();
+    stopGroupPreview();runInfo();
     const audio = el('dubGeneratedPreview');
     if (file?.url) audio.src = file.url; else audio.removeAttribute('src');
     el('dubPreviewCard').hidden=!file?.url;
@@ -361,7 +370,7 @@
       if (srt) { try { lookup.srt=srt; lookup.range=selectedRange(); } catch (_) { return; } }
       const r = await window.api.latestDub(lookup).catch(() => null);
       if (openedMedia !== requestIdentity() || requestedSelection !== selection() || current || output || !r?.output) return;
-      output = r.output;
+      output = r.output;runtimeMetrics=output.metrics||null;runInfo();
       if (!srt) {
         el('dubRangeEnabled').checked=!!output.range;
         if(output.range){const format=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;el('dubRangeStart').value=format(output.range.start);el('dubRangeEnd').value=format(output.range.end);}
@@ -539,7 +548,7 @@
     el('dubGeneratorDetails').textContent = ''; el('dubGeneratorCount').textContent = '';
     el('dubGeneratorTiming').textContent = '';
     el('dubGeneratorProgress').removeAttribute('value');
-    runtimePhases={};runtimeError='';el('dubPhaseSummary').textContent='';
+    runtimePhases={};runtimeError='';runtimeMetrics=null;runInfo();el('dubPhaseSummary').textContent='';
     status('Motor yükleniyor…'); controls();
     const payload = retry ? {...lastRequest, id:pending.id, forceGroups,
       dubText: plan ? {sourceHash:plan.sourceHash, edits:{...edits}} : lastRequest.dubText} : { id: pending.id, srt, sample: pending.sample,
@@ -690,6 +699,7 @@
         job.voice={reference:event.reference,transcript:event.transcript,engine:event.engine};controls();
       }
     }
+    else if(event.type==='metrics'){runtimeMetrics=event.metrics;runInfo();}
     else if (event.type === 'reference_quality') referenceInfo(event.quality);
     else if (event.type === 'concurrency') { status('GPU belleği için paralel üretim azaltıldı.'); el('dubGeneratorDetails').textContent = `${event.concurrency} · ${t('Paralel üretim')}`; }
     else if (event.type === 'status') {if(event.stage==='engine_restart'){activeGroups.clear();showActivity();}status(event.text);}
@@ -699,6 +709,7 @@
     }
     else if (event.type === 'timing') el('dubGeneratorTiming').textContent = `${event.accelerated} / ${event.clipped}`;
     else if (['done','error','cancelled'].includes(event.type)) {
+      runtimeMetrics=event.metrics||runtimeMetrics;runInfo();
       activeGroups.clear();showActivity();
       stopTimer(event.elapsedSeconds);
       if (event.type !== 'done' && !el('dubGeneratorProgress').hasAttribute('value')) el('dubGeneratorProgress').value = 0;

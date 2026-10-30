@@ -3,7 +3,7 @@ const { JSDOM } = require('jsdom');
 const root = path.join(__dirname, '..'), dom = new JSDOM(fs.readFileSync(path.join(root, 'src/renderer/index.html'), 'utf8'), { runScripts: 'outside-only' });
 const w = dom.window, el = id => w.document.getElementById(id), tick = () => new Promise(setImmediate);
 let resolvePrepare, request, renamed, used, progress, changed = false;
-const entry = { id: 'prepared', name: '5–25 s', url: 'fixture.wav', text: 'Reference speech.' };
+const entry = { id: 'prepared', name: '5–25 s', url: 'fixture.wav', text: 'Reference speech.',audio:{seconds:8.25,sampleRate:24000,channels:1,bits:16},quality:{warnings:['quiet'],suggested_start:0,suggested_end:8.25} };
 w.HTMLMediaElement.prototype.pause = w.HTMLMediaElement.prototype.load = () => {};
 w.BrowserDubAudioUI = { context: () => ({ hasMedia: true, visible: true, mode: 'browser', tabId: 'fixture', generation: 3, mediaId: 'video' }) };
 w.api = { prepareVoiceReference: value => { request = value; return new Promise(resolve => { resolvePrepare = resolve; }); },
@@ -89,6 +89,8 @@ w.eval(fs.readFileSync(path.join(root, 'src/renderer/voice-reference-ui.js'), 'u
   assert.equal(request.source,'C:\\Sesler\\benim-sesim.mp3','local audio does not require an open video');
   assert.equal(request.range.start,0);assert.equal(request.range.end,10);
   resolvePrepare({ok:true,reference:entry});await tick();
+  assert.match(el('voiceReferenceQuality').textContent,/8.25.*24 kHz.*Mono/);
+  w.UiLocale={get:()=> 'en',t:x=>x};w.document.dispatchEvent(new w.Event('ui-locale-change'));assert.match(el('voiceReferenceQuality').textContent,/Prepared recording.*very quiet/);
   el('voiceReferenceUse').click();await tick();assert.equal(used.id,entry.id);assert.match(el('voiceReferenceSelectionStatus').textContent,/etkin|active/);el('voiceReferenceText').value+=' Changed.';el('voiceReferenceText').dispatchEvent(new w.Event('input'));assert.equal(el('voiceReferenceSelectionStatus').dataset.state,'pending');
   el('voiceReferenceVideo').click();await tick();assert.equal(el('voiceReferenceSourceName').textContent,'');
   console.log('voice-reference-ui: 5–25 range, GPU status, preview/use, transcript and confirmed cancellation passed');

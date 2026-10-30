@@ -71,6 +71,7 @@
     el('voiceReferenceFolder').disabled = !folder;
     comparison?.update(references, { busy: !!active || applying || generating || selectingSource, selectedId: selected()?.id });
     transcriptComparison();
+    referenceDetails();
   }
   function show() {
     const item = selected(), audio = el('voiceReferencePreview');
@@ -80,14 +81,19 @@
     const draft = item && drafts.get(item.id);
     el('voiceReferenceName').value = draft?.name ?? item?.name ?? '';
     el('voiceReferenceText').value = draft?.text ?? item?.text ?? ''; controls();
-    const quality = item?.quality;
-    const labels = {quiet:'Referans sesi çok kısık',clipping:'Referansta ses patlaması var',silence:'Referansta uzun sessizlik var',short:'Referans çok kısa'};
-    el('voiceReferenceQuality').textContent = quality ? [
-      ...(quality.warnings || []).map(w => t(labels[w] || w)),
-      t('Ses düzeyi önerisi; müzik ve konuşmacıyı dinleyerek kontrol edin.'),
-      `${t('Kayıt içinde önerilen aralık')}: ${quality.suggested_start}–${quality.suggested_end} s`
-    ].join(' · ') : '';
   }
+  function referenceDetails() {
+    const item=selected(),quality=item?.quality,audio=item?.audio,en=window.UiLocale?.get?.()==='en';
+    const node=el('voiceReferenceQuality'),parts=[];
+    if(audio&&Number.isFinite(audio.seconds)&&Number.isFinite(audio.sampleRate)&&Number.isInteger(audio.channels)){
+      parts.push((en?'Prepared recording: ':'Hazırlanan kayıt: ')+audio.seconds.toFixed(2)+(en?' s':' sn')+' · '+(audio.sampleRate/1000)+' kHz · '+(audio.channels===1?'Mono':audio.channels===2?'Stereo':audio.channels+(en?' channels':' kanal')));
+    }
+    const labels={quiet:en?'Reference is very quiet':'Referans sesi çok kısık',clipping:en?'Reference has clipping':'Referansta ses patlaması var',silence:en?'Reference has long silence':'Referansta uzun sessizlik var',short:en?'Reference is too short':'Referans çok kısa'};
+    if(quality){parts.push(...(quality.warnings||[]).filter(w=>labels[w]).map(w=>labels[w]));if(Number.isFinite(quality.suggested_start)&&Number.isFinite(quality.suggested_end))parts.push((en?'Suggested segment: ':'Önerilen kesit: ')+quality.suggested_start+'–'+quality.suggested_end+(en?' s':' sn'));}
+    if(item)parts.push(en?'Listen for one clear speaker without music. A different reference language can change pronunciation; voice likeness and naturalness are not guaranteed.':'Müziksiz, tek ve net konuşmacı olduğunu dinleyerek kontrol edin. Referansın farklı dilde olması telaffuzu etkileyebilir; ses benzerliği ve doğallık garanti edilmez.');
+    node.textContent=parts.join(' · ');node.dataset.uiUntranslated='';
+  }
+
   const folded = value => String(value || '').normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase('tr').replace(/ı/g,'i');
   function renderReferences(prior = el('voiceReferenceSelect').value, allowFallback = false) {
     const select = el('voiceReferenceSelect'), query = folded(el('voiceReferenceSearch').value.trim());
