@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-30-2329.md](docs/devir/2026-10-30-2329.md) — Gerçek asistan zinciri, uzun ses ve CI sözleşmeleri
 Güncel çalışma: [docs/devir/2026-10-30-2056.md](docs/devir/2026-10-30-2056.md) — Beş kullanım kalitesi alanı
 Güncel çalışma: [docs/devir/2026-10-30-1940.md](docs/devir/2026-10-30-1940.md) — Ürün100 son teslim doğrulaması
 Güncel çalışma: [docs/devir/2026-10-30-1928.md](docs/devir/2026-10-30-1928.md) — Ürün100 son oturum ve çıktı paketi
