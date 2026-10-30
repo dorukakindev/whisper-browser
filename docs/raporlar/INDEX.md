@@ -1,3 +1,4 @@
+- [Rapor803](BROWSER_BUG_REPORT_803.md) — Ürün50 P01–P10: filtre, güvenli gezinme ve referans geri bildirimi
 - [Rapor802](BROWSER_BUG_REPORT_802.md) — Gerçek DeepSeek/GPU kabulü, anlam kapısı ve referans seçimi
 - [Rapor801](BROWSER_BUG_REPORT_801.md) — Dublaj inceleme, çeviri karşılaştırması, PDF vurgusu ve iş merkezi
 - [Rapor800](BROWSER_BUG_REPORT_800.md) — PDF alıntısı, manuel zaman kilidi, ses sessizliği, grup A/B ve çıktı hazırlığı

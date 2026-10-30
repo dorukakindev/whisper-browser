@@ -118,7 +118,9 @@ const tick = () => new Promise(setImmediate);
   el('dubPlanPrepare').click();await tick();
   for(let n=el('dubPlanText');n;n=n.parentElement)if(n.tagName==='DETAILS')n.open=false;
   el('dubQualityGroup').value='1,2';el('dubQualityGroup').dispatchEvent(new w.Event('change'));
-  for(let n=el('dubPlanText');n;n=n.parentElement)if(n.tagName==='DETAILS')assert.equal(n.open,true,'quality selection reveals the matching editor');
+  for(let n=el('dubPlanText');n;n=n.parentElement)if(n.tagName==='DETAILS')assert.equal(n.open,false,'review selection must not jump into the editor');
+  el('dubEditSelected').click();await tick();
+  for(let n=el('dubPlanText');n;n=n.parentElement)if(n.tagName==='DETAILS')assert.equal(n.open,true,'explicit editing reveals the matching editor');
 
   onEvent({id:request.id,type:'group',group:{group:2,key:'2',status:'failed',verification:{status:'unavailable'}}}); // Terminal events are ignored.
   assert.equal(el('dubQualitySummary').textContent.includes('hazır'),true);assert.equal(el('dubOpenQuality').hidden,false);

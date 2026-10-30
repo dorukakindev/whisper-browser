@@ -14,6 +14,15 @@
   let lastRequest = null, lastReferenceQuality = null, lastReferenceIdentity = null, referenceQualityPendingReset = false;
   const results = new Map();
   const resultOptions = new Map();
+  let qualityFilter='all';
+  const filterBar=document.createElement('div');filterBar.className='dub-review-filters';filterBar.dataset.uiUntranslated='';filterBar.setAttribute('role','group');
+  for(const kind of ['all','review','failed','ready']){const button=document.createElement('button');button.type='button';button.className='btn btn-ghost btn-sm';button.dataset.qualityFilter=kind;button.onclick=()=>{qualityFilter=kind;showResults();syncQualityPlan(false);};filterBar.append(button);}
+  el('dubQualitySummary').after(filterBar);
+  const previousFlagged=document.createElement('button');previousFlagged.id='dubPreviousFlagged';previousFlagged.dataset.uiUntranslated='';previousFlagged.type='button';previousFlagged.className='btn btn-ghost btn-sm';const navigation=document.createElement('div');navigation.className='dub-review-navigation';el('dubNextFlagged').before(navigation);navigation.append(previousFlagged,el('dubNextFlagged'));
+  const qualityRows=()=>[...results.values()].sort((a,b)=>a.group-b.group).filter(row=>qualityFilter==='all'||row.status===qualityFilter);
+  function selectQuality(key){if(!resultOptions.has(key)){qualityFilter='all';showResults();}el('dubQualityGroup').value=key;el('dubQualityGroup').dispatchEvent(new Event('change'));}
+  function navigateFlagged(direction){if(current||planning||referenceBusy||choosing||workspaceBusy)return;const rows=[...results.values()].sort((a,b)=>a.group-b.group),at=rows.findIndex(row=>row.key===el('dubQualityGroup').value);for(let offset=1;offset<=rows.length;offset++){const row=rows[((at<0?(direction<0?0:-1):at)+direction*offset+rows.length*2)%rows.length];if(row.status!=='ready'){selectQuality(row.key);break;}}}
+
   const t = text => window.UiLocale?.t(text) || text;
   const qualityWarning=file=>file?.qualityIncomplete?(window.UiLocale?.get?.()==='en'?'Audio is available, but some quality groups are missing. Listen before attaching it to the video.':'Ses hazır; bazı grupların kalite bilgisi eksik. Videoya bağlamadan önce dinleyin.') :t('Ses hazır; kalite raporu okunamadı. Videoya bağlamadan önce sesi dinleyin.');
   const presetSpecs = {
@@ -92,7 +101,7 @@
     el('dubQualitySimilarity').textContent=recognized&&similarity!==null ? (en?`Text match (ASR): ${similarity}% · Not a naturalness score.`:`Metin eşleşmesi (ASR): %${similarity} · Doğallık puanı değildir.`) : '';
 
     for(const [flag,label]of [['spoken_number_mismatch',['Spoken quantity differs','Söylenen sayı farklı']],['lost_negation',['Negation','Olumsuzluk']],['added_negation',['Added negation','Eklenen olumsuzluk']],['semantic_mismatch',['Meaning markers','Anlam işaretleri']],['unit_mismatch',['Units','Birim']],['sign_mismatch',['Number sign','Sayı işareti']],['repetition',['Repetition','Tekrar']]])if(v[flag])reasons.push(label[en?0:1]);
-    for(const [key,label]of [['missing_numbers',['Missing number','Eksik sayı']],['added_numbers',['Added number','Ek sayı']],['missing_names',['Name recognition','Özel ad tanıma']],['omission_spans',['Potential omission','Olası atlama']],['insertion_spans',['Potential extra speech','Olası ek konuşma']]])if(v[key]?.length)reasons.push(label[en?0:1]);
+    for(const [key,label]of [['missing_numbers',['Missing number','Eksik sayı']],['added_numbers',['Added number','Ek sayı']],['missing_names',['Name recognition','Özel ad tanıma']],['omission_spans',['Potential omission','Olası atlama']],['insertion_spans',['Potential extra speech','Olası ek konuşma']]])if(v[key]?.length){const values=['missing_numbers','added_numbers','missing_names'].includes(key)?v[key].slice(0,5).map(value=>String(value).slice(0,60)).join(', '):'';reasons.push(label[en?0:1]+(values?': '+values:''));}
     el('dubQualityReasons').textContent=reasons.length?reasons.join(' · ')+(en?' — ASR can be wrong; listen before editing.':' — Otomatik tanıma yanılabilir; düzenlemeden önce dinle.'):row?.status==='review'?(en?'Acoustic or verification check needs listening.':'Ses veya doğrulama kontrolü dinleme gerektiriyor.'):(v.status==='passed' ? (en?'No issue flagged by these checks. This is not a naturalness score.':'Bu kontrollerde işaret yok. Bu bir doğallık puanı değildir.') : (en?'No text comparison is available. Listen before judging completeness or pronunciation.':'Metin karşılaştırması mevcut değil. Eksiksizlik ve telaffuz için dinleyerek kontrol edin.'));
     el('dubQualityExpected').textContent=String(row?.text||row?.displayText||'').slice(0,8000);
     const pronunciation=typeof row?.pronunciationText==='string'?row.pronunciationText.slice(0,8000):'';
@@ -101,21 +110,24 @@
   }
   function showResults() {
     const select = el('dubQualityGroup'), previous = select.value;
+    if(!results.size)qualityFilter='all';
     select.replaceChildren(); resultOptions.clear();
-    for (const row of [...results.values()].sort((a,b) => a.group - b.group)) {
+    for (const row of qualityRows()) {
       const option = document.createElement('option'); option.value = row.key;
       option.textContent = `${row.group} · ${t(row.status === 'failed' ? 'Üretilemedi; bu bölüm sessiz' : row.status === 'review' ? 'Dinleyerek kontrol edin' : 'Hazır')}`;
       select.append(option);
       resultOptions.set(row.key, option);
     }
-    if (results.has(previous)) select.value = previous;
-    else {const flagged=[...results.values()].find(row=>row.status!=='ready');if(flagged)select.value=flagged.key;}
+    if (resultOptions.has(previous)) select.value = previous;
+    else {const flagged=qualityRows().find(row=>row.status!=='ready');if(flagged)select.value=flagged.key;}
+    if(!select.options.length&&results.size){const empty=document.createElement('option');empty.value='';empty.textContent=window.UiLocale?.get?.()==='en'?'No groups in this filter':'Bu filtrede grup yok';empty.disabled=true;select.append(empty);}
     qualitySummary();
     qualityInfo();
     controls();
   }
   function updateResult(row) {
     results.set(row.key, row);
+    if(qualityFilter!=='all'){showResults();return;}
     let option = resultOptions.get(row.key);
     if (!option) { option = document.createElement('option'); option.value = row.key;
       el('dubQualityGroup').append(option); resultOptions.set(row.key, option); }
@@ -134,7 +146,10 @@
     el('dubPhaseHint').textContent=en?'Speech and verification times add parallel work across groups; they can exceed elapsed time.':'Ses ve doğrulama süreleri paralel gruplardaki işlerin toplamıdır; geçen süreden uzun olabilir.';
     el('dubOpenQuality').textContent=(en?'Review groups':'Grupları kontrol et')+(counts.review+counts.failed?' · '+(counts.review+counts.failed):'');
     el('dubOpenQuality').hidden=!rows.length;
-    el('dubNextFlagged').disabled=!!current||!(counts.review+counts.failed);
+    el('dubNextFlagged').disabled=previousFlagged.disabled=!!current||planning||referenceBusy||choosing||workspaceBusy||!(counts.review+counts.failed);
+    previousFlagged.textContent=en?'Previous flagged group':'Önceki işaretli grup';
+    for(const button of filterBar.children){const key=button.dataset.qualityFilter;button.textContent=({all:en?'All':'Tümü',review:en?'Review':'İnceleme',failed:en?'Failed':'Üretilemedi',ready:en?'Ready':'Hazır'}[key])+' · '+(key==='all'?rows.length:counts[key]);button.setAttribute('aria-pressed',String(key===qualityFilter));button.disabled=!!current||planning||referenceBusy||choosing||workspaceBusy;}
+
   }
   function referenceInfo(quality) {
     lastReferenceQuality = quality;
@@ -152,6 +167,7 @@
     if (!/^\d+(?::[0-5]?\d){0,2}(?:\.\d{1,3})?$/.test(text)) throw new Error('Geçersiz zaman aralığı.');
     return text.split(':').reduce((total, part) => total * 60 + Number(part), 0);
   }
+  function syncQualityPlan(openEditor=false){const key=el('dubQualityGroup').value,index=plan?.groups.findIndex(g=>g.key===key);if(!(index>=0))return;el('dubPlanGroup').value=String(index);showGroup();if(openEditor){for(let node=el('dubPlanText');node;node=node.parentElement)if(node.tagName==='DETAILS')node.open=true;el('dubPlanText').focus();el('dubPlanText').scrollIntoView?.({block:'center'});}}
   function selectedRange() {
     if (!el('dubRangeEnabled').checked) return null;
     const range = { start: timecode(el('dubRangeStart').value), end: timecode(el('dubRangeEnd').value) };
@@ -198,7 +214,7 @@
     el('dubExpression').disabled = locked || el('dubFollowDelivery').checked;
     el('dubRetryFailed').disabled = locked || !lastRequest || !cfg?.ready;
     el('dubRegenerateGroup').disabled = locked || !lastRequest || !results.size || !cfg?.ready;
-    el('dubQualityGroup').disabled = locked || !results.size;
+    el('dubQualityGroup').disabled = locked || !el('dubQualityGroup').value;
     el('dubGeneratorStart').disabled = locked || !srt || !cfg?.ready;
     const requirement=el('dubStartRequirement'),en=window.UiLocale?.get?.()==='en';
     if(requirement){requirement.hidden=locked||!!srt&&!!cfg?.ready;requirement.textContent=!srt&&!cfg?.ready?(en?'Choose subtitles and an active voice to begin.':'Başlamak için altyazı ve etkin ses seçin.'):!srt?(en?'Choose an SRT subtitle file to begin.':'Başlamak için SRT altyazısı seçin.'):(en?'Choose an active reference voice to begin.':'Başlamak için etkin referans ses seçin.');}
@@ -268,7 +284,7 @@
     if (mediaContextKey !== null && mediaContextKey !== mediaKey) {
       srt = ''; backgroundSource = ''; el('dubSrtName').textContent = '—'; el('dubBackgroundName').textContent = '';
       deliverySource='';el('dubDeliverySourceName').textContent='';
-      lastRequest = null; results.clear(); showResults();
+      lastRequest = null;qualityFilter='all'; results.clear(); showResults();
       resetComparison(); output=null; window.DubWorkspaceUI?.setOutput(null); preview(null);
       el('dubGeneratorOutput').classList.add('hidden'); el('dubGeneratorUse').classList.add('hidden');
     }
@@ -315,7 +331,7 @@
   }
   function adoptCurrentSubtitle(candidate) {
     if (!candidate || srt || current || planning || choosing || workspaceBusy) return;
-    srt = candidate; lastRequest = null; results.clear(); showResults(); invalidatePlan();
+    srt = candidate; lastRequest = null;qualityFilter='all'; results.clear(); showResults(); invalidatePlan();
     el('dubSrtName').textContent = basename(candidate); refreshOverview(); status('Hazır');
   }
   async function open() {
@@ -382,7 +398,7 @@
     if(!modal.open)await open();
     if(!plan)await preparePlan();
     if(!plan?.groups.some(g=>g.key===target.key))return false;
-    el('dubQualityGroup').value=target.key;el('dubQualityGroup').dispatchEvent(new Event('change'));
+    selectQuality(target.key);syncQualityPlan(true);
     el('dubPlanText').focus();return true;
   }
   window.DubGeneratorUI = Object.freeze({ editPlanGroup,inspectProduction,editAtCurrent,experience:()=>({owner:mediaIdentity(),srt,plan,edits:{...edits},groups:[...results.values()],output,source:lastRequest?.source||'',busy:!!current||planning||referenceBusy||choosing||workspaceBusy}),prepareCurrent: open, takeContext:()=>({id:output?.id||'',key:el('dubQualityGroup').value,owner:mediaIdentity(),busy:!!current||referenceBusy||planning||choosing||workspaceBusy,recipeReady:!!lastRequest}), useTake:(key,token)=>start(true,[],{[key]:token}), assistant:Object.freeze({state:voiceState,configure:voiceConfigure,start:voiceStart,group:voiceGroup,use:voiceUse,refreshReference:()=>configure(undefined,true)}) });
@@ -402,7 +418,7 @@
         }
       } else if (kind === 'subtitle') {
         if (typeof result === 'string' && /\.srt$/i.test(result)) {
-          srt = result; lastRequest = null; results.clear(); showResults(); invalidatePlan(); el('dubSrtName').textContent = basename(result); status('Hazır');
+          srt = result; lastRequest = null;qualityFilter='all'; results.clear(); showResults(); invalidatePlan(); el('dubSrtName').textContent = basename(result); status('Hazır');
         } else if (result) status('Bir SRT altyazı dosyası seçin.');
       } else if (Array.isArray(result) && typeof result[0] === 'string') {
         backgroundSource = result[0]; el('dubBackgroundName').textContent = basename(backgroundSource);
@@ -464,12 +480,13 @@
   el('dubChooseBackground').addEventListener('click', () => chooseInput('background'));
   el('dubBackgroundReset').addEventListener('click',()=>{backgroundSource='';el('dubBackgroundName').textContent='';});
   el('dubPlanApply').addEventListener('click', () => {
+    if(current||planning||referenceBusy||choosing||workspaceBusy)return;
     const g = group(), text = el('dubPlanText').value.trim();
     if (!g || !text) return;
     if (text === g.text) delete edits[g.key]; else edits[g.key] = text;
     showGroup(); status('Dublaj metni uygulandı.');
   });
-  el('dubPlanReset').addEventListener('click', () => { const g = group(); if (g) delete edits[g.key]; showGroup(); });
+  el('dubPlanReset').addEventListener('click', () => { if(current||planning||referenceBusy||choosing||workspaceBusy)return;const g = group(); if (g) delete edits[g.key]; showGroup(); });
   el('dubPlanShorten').addEventListener('click', async () => {
     if (planning || current || referenceBusy || choosing) return;
     const g = group(); if (!g) return;
@@ -545,9 +562,11 @@
   el('dubRetryFailed').addEventListener('click', () => start(true, flaggedKeys()));
   el('dubRegenerateGroup').addEventListener('click', () => { const key = el('dubQualityGroup').value; if (key) void start(true, [key]); });
   el('dubOpenQuality').addEventListener('click',()=>{const panel=el('dubQualityResults');for(let node=panel;node;node=node.parentElement)if(node.tagName==='DETAILS')node.open=true;panel.scrollIntoView?.({block:'start'});el('dubQualityGroup').focus();});
-  el('dubEditSelected').addEventListener('click',async()=>{if(current||planning||referenceBusy||choosing||workspaceBusy)return;const selected=el('dubQualityGroup').value,owner=requestIdentity();if(!plan)await preparePlan();if(owner!==requestIdentity()||current||el('dubQualityGroup').value!==selected)return;if(plan?.groups.some(g=>g.key===selected))el('dubQualityGroup').dispatchEvent(new Event('change'));});
-  el('dubNextFlagged').addEventListener('click',()=>{if(current)return;const rows=[...results.values()].sort((a,b)=>a.group-b.group),at=rows.findIndex(row=>row.key===el('dubQualityGroup').value);for(let offset=1;offset<=rows.length;offset++){const row=rows[(Math.max(-1,at)+offset)%rows.length];if(row.status!=='ready'){el('dubQualityGroup').value=row.key;el('dubQualityGroup').dispatchEvent(new Event('change'));break;}}});
-  el('dubQualityGroup').addEventListener('change',()=>{qualityInfo();const key=el('dubQualityGroup').value,index=plan?.groups.findIndex(g=>g.key===key);if(index>=0){el('dubPlanGroup').value=String(index);showGroup();for(let node=el('dubPlanText');node;node=node.parentElement)if(node.tagName==='DETAILS')node.open=true;el('dubPlanText').focus();el('dubPlanText').scrollIntoView?.({block:'center'});}});
+  el('dubEditSelected').addEventListener('click',async()=>{if(current||planning||referenceBusy||choosing||workspaceBusy)return;const selected=el('dubQualityGroup').value,owner=requestIdentity();if(!plan)await preparePlan();if(owner!==requestIdentity()||current||el('dubQualityGroup').value!==selected)return;if(plan?.groups.some(g=>g.key===selected))syncQualityPlan(true);});
+  el('dubNextFlagged').addEventListener('click',()=>navigateFlagged(1));
+  previousFlagged.addEventListener('click',()=>navigateFlagged(-1));
+  document.addEventListener('keydown',event=>{if(!modal.open||!event.altKey||event.ctrlKey||event.metaKey||event.shiftKey||event.repeat||!['ArrowUp','ArrowDown'].includes(event.key)||/^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)||event.target.isContentEditable)return;event.preventDefault();navigateFlagged(event.key==='ArrowUp'?-1:1);});
+  el('dubQualityGroup').addEventListener('change',()=>{qualityInfo();syncQualityPlan(false);});
   const listenGroup=document.createElement('button');listenGroup.type='button';listenGroup.className='btn btn-secondary btn-sm';listenGroup.id='dubListenCurrent';listenGroup.textContent=t('Bu grubu dinle');el('dubListenActions').prepend(listenGroup);
   let rangeEnd=null, groupPlayGeneration=0, cancelGroupMetadata=null;
   const previousAudio=el('dubPreviousPreview');

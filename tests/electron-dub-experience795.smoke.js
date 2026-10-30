@@ -28,13 +28,22 @@ app.whenReady().then(async()=>{
   await until(()=>run(`return document.getElementById('dubSrtName').textContent.includes('Synthetic')`));
   // Start without a prepared edit plan; Edit group text must prepare it on demand.
   await run(`document.getElementById('dubGeneratorStart').click();return true`);await until(()=>!!request);
+  if(process.argv.includes('--review803')){const before=await run(`return JSON.stringify(DubGeneratorUI.experience().edits)`);await run(`document.getElementById('dubPlanText').value='Must not overwrite active production';document.getElementById('dubPlanApply').dispatchEvent(new Event('click'));document.getElementById('dubPlanReset').dispatchEvent(new Event('click'));return true`);assert.equal(await run(`return JSON.stringify(DubGeneratorUI.experience().edits)`),before);}
   for(let group=1;group<=8;group++)win.webContents.send('dub:event',{id:request.id,type:'activity',stage:group%2?'synthesis':'verification',group,attempt:2,elapsed:35,limit:120});
   await wait(100);await capture(locale+'-active');
   const quality={groups:[{group:1,key:'1',status:'ready',text:'First group.',verification:{status:'passed'}},{group:2,key:'2',status:'review',text:'Second group.',verification:{status:'review',recognizedText:'Second.',omission_spans:[{start:0,end:4}]}},{group:3,key:'3',status:'failed',text:'Third group.',verification:{status:'unavailable'}}]};
+  if(process.argv.includes('--review803'))quality.groups[1].verification.missing_numbers=['2065'];
   if(process.argv.includes('--experience801'))for(const g of quality.groups){g.sourceStart=(g.group-1)*4;g.sourceEnd=g.group*4;g.audioStart=g.sourceStart;g.audioEnd=g.sourceEnd;g.continuity={status:'measured',levelDb:-24,wordsPerSecond:2.5,gainDb:g.group===2?2:0,warnings:g.group===2?['level-jump']:[]};}
   win.webContents.send('dub:event',{id:request.id,type:'done',name:'Controlled.wav',url:'file:///controlled.wav',quality});await until(()=>run(`return !document.getElementById('dubOpenQuality').hidden`));
   await run(`document.getElementById('dubOpenQuality').click();return true`);await capture(locale+'-results');
   assert.equal(await run(`return document.getElementById('dubQualityGroup').value`),'2');
+  if(process.argv.includes('--review803')){
+   assert(await run(`return document.getElementById('dubQualityReasons').textContent.includes('2065')`));
+   for(const [kind,key]of [['review','2'],['failed','3'],['ready','1']]){await run(`document.querySelector('[data-quality-filter="${kind}"]').click();return true`);assert.equal(await run(`return document.getElementById('dubQualityGroup').value`),key);assert.equal(await run(`return document.getElementById('dubQualityGroup').options.length`),1);}
+   await run(`document.body.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',altKey:true,bubbles:true}));return true`);assert.equal(await run(`return document.getElementById('dubQualityGroup').value`),'2');
+   await run(`document.body.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',altKey:true,bubbles:true}));return true`);assert.equal(await run(`return document.getElementById('dubQualityGroup').value`),'3');
+   await run(`document.getElementById('dubPlanText').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',altKey:true,bubbles:true}));return true`);assert.equal(await run(`return document.getElementById('dubQualityGroup').value`),'3');await run(`document.getElementById('dubQualityGroup').value='2';document.getElementById('dubQualityGroup').dispatchEvent(new Event('change'));return true`);
+  }
   if(process.argv.includes('--experience801')){
    assert(await run(`return !document.getElementById('voiceReferenceUse').closest('#voiceReferenceRecorder')&&!document.getElementById('voiceReferencePreview').closest('#voiceReferenceRecorder')`));
    await run(`document.querySelector('.dub-experience').open=true;await DubExperienceUI.preflight();document.querySelector('.dub-experience').scrollIntoView({block:'start'});return true`);assert(await run(`return !document.querySelector('.dub-preflight').hidden`));await capture(locale+'-preflight');await run(`document.getElementById('voiceReferencePicker').scrollIntoView({block:'center'});return true`);assert(await run(`const r=document.getElementById('voiceReferenceUse').getBoundingClientRect();return r.width>0&&r.top>=0&&r.bottom<innerHeight`));await capture(locale+'-voice-selection');

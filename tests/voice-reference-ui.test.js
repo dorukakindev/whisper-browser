@@ -89,7 +89,7 @@ w.eval(fs.readFileSync(path.join(root, 'src/renderer/voice-reference-ui.js'), 'u
   assert.equal(request.source,'C:\\Sesler\\benim-sesim.mp3','local audio does not require an open video');
   assert.equal(request.range.start,0);assert.equal(request.range.end,10);
   resolvePrepare({ok:true,reference:entry});await tick();
-  el('voiceReferenceUse').click();await tick();assert.equal(used.id,entry.id);
+  el('voiceReferenceUse').click();await tick();assert.equal(used.id,entry.id);assert.match(el('voiceReferenceSelectionStatus').textContent,/etkin|active/);el('voiceReferenceText').value+=' Changed.';el('voiceReferenceText').dispatchEvent(new w.Event('input'));assert.equal(el('voiceReferenceSelectionStatus').dataset.state,'pending');
   el('voiceReferenceVideo').click();await tick();assert.equal(el('voiceReferenceSourceName').textContent,'');
   console.log('voice-reference-ui: 5–25 range, GPU status, preview/use, transcript and confirmed cancellation passed');
 })().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => dom.window.close());

@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-30-0804.md](docs/devir/2026-10-30-0804.md) — Ürün50 ilk10: dublaj inceleme ve referans durumu
 Güncel çalışma: [docs/devir/2026-10-30-0748.md](docs/devir/2026-10-30-0748.md) — Gerçek konuşma çevirisi, GPU dublaj ve sade stüdyo
 Güncel çalışma: [docs/devir/2026-10-30-0638.md](docs/devir/2026-10-30-0638.md) — Dublaj inceleme, ses devamlılığı, PDF vurgusu ve iş merkezi
 Güncel çalışma: [docs/devir/2026-10-30-0520.md](docs/devir/2026-10-30-0520.md) — PDF alıntısı, zaman koruması, grup A/B ve çıktı hazırlığı
