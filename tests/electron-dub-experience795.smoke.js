@@ -36,7 +36,8 @@ app.whenReady().then(async()=>{
   await run(`document.getElementById('dubOpenQuality').click();return true`);await capture(locale+'-results');
   assert.equal(await run(`return document.getElementById('dubQualityGroup').value`),'2');
   if(process.argv.includes('--experience801')){
-   await run(`await DubExperienceUI.preflight();document.querySelector('.dub-experience').scrollIntoView({block:'start'});return true`);assert(await run(`return !document.querySelector('.dub-preflight').hidden`));await capture(locale+'-preflight');
+   assert(await run(`return !document.getElementById('voiceReferenceUse').closest('#voiceReferenceRecorder')&&!document.getElementById('voiceReferencePreview').closest('#voiceReferenceRecorder')`));
+   await run(`document.querySelector('.dub-experience').open=true;await DubExperienceUI.preflight();document.querySelector('.dub-experience').scrollIntoView({block:'start'});return true`);assert(await run(`return !document.querySelector('.dub-preflight').hidden`));await capture(locale+'-preflight');await run(`document.getElementById('voiceReferencePicker').scrollIntoView({block:'center'});return true`);assert(await run(`const r=document.getElementById('voiceReferenceUse').getBoundingClientRect();return r.width>0&&r.top>=0&&r.bottom<innerHeight`));await capture(locale+'-voice-selection');
    assert(await run(`return DubGeneratorUI.editAtCurrent(6)`));assert.equal(await run(`return document.getElementById('dubQualityGroup').value`),'2');
    await run(`document.getElementById('dubPlanText').value='Edited second sentence.';document.getElementById('dubPlanApply').click();return true`);
    const previousId=request.id;await run(`document.getElementById('dubRegenerateGroup').click();return true`);await until(()=>request.id!==previousId);assert.deepEqual(request.forceGroups,['2']);assert.equal(request.dubText.edits['2'],'Edited second sentence.');

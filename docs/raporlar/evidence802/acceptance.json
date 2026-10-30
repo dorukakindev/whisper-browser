@@ -1,0 +1,109 @@
+{
+  "baseline": "ca19c6b8a72c8a64eb554a57993fdefb62f07411",
+  "code": "4a54cac7607ae3f40f248cae7b445b4979abde16",
+  "actualSource": {
+    "url": "https://www.youtube.com/watch?v=iG9CE55wbtY",
+    "downloadedOriginalSeconds": [
+      60,
+      200
+    ],
+    "localSelectedSeconds": [
+      2,
+      140
+    ]
+  },
+  "pipeline": {
+    "liveModel": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+    "tier": "standard",
+    "whisper": "large-v3-turbo",
+    "asrDevice": "cuda",
+    "translationCompleted": 40,
+    "translationFailed": 0,
+    "requests": 7,
+    "voiceGroups": 17,
+    "ready": 15,
+    "review": 2,
+    "failed": 0,
+    "voiceWallSeconds": 148.546,
+    "nativeRangePauseSync": true,
+    "allGroupsReady": false
+  },
+  "grouping": [
+    {
+      "mode": "satir",
+      "groups": 12,
+      "seconds": 69.125,
+      "review": 1,
+      "finalAsrPassed": true,
+      "integrityPassed": false
+    },
+    {
+      "mode": "akici",
+      "groups": 5,
+      "seconds": 43.703,
+      "review": 0,
+      "finalAsrPassed": true,
+      "integrityPassed": true
+    }
+  ],
+  "naturalnessWinner": null,
+  "lifecycle": {
+    "cancelled": {
+      "cancelSeconds": 1.016,
+      "firstAudioPreserved": true,
+      "secondMissing": true,
+      "engineReleased": true,
+      "controlledDelay": "Second request held before real generate; not an actual GPU stall"
+    },
+    "resumed": {
+      "firstShaUnchanged": true,
+      "generatedGroups": [
+        2
+      ],
+      "states": [
+        "ready",
+        "review"
+      ]
+    },
+    "referenceChange": {
+      "sameEngine": true,
+      "waveHashMatches": true,
+      "status": "ready"
+    },
+    "passed": true
+  },
+  "osCancel": {
+    "complete": true,
+    "stopMilliseconds": 165,
+    "restartCode": 0,
+    "observedChildren": 3
+  },
+  "assistant": {
+    "liveRequests": 3,
+    "tools": [
+      "list_translation_profiles",
+      "get_source_context",
+      "start_whisper"
+    ],
+    "range": [
+      0,
+      180
+    ],
+    "translation": true,
+    "forSpeech": true,
+    "target": "tr",
+    "actionsApplied": false,
+    "adapter": "controlled proposal; not whole GUI chain"
+  },
+  "normalTranslation": {
+    "cues": 12,
+    "failed": 0,
+    "requests": 3
+  },
+  "limits": [
+    "No human listening preference",
+    "No actual CUDA hang induced",
+    "Voice reference is synthetic",
+    "ASR similarity is not naturalness"
+  ]
+}

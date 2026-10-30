@@ -5154,8 +5154,6 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                     f"limitinde kesildi; paket {len(left)}+{len(right)} blok "
                     "olarak bölünüyor.", "warn")
                 return task(left) + task(right)
-            with lock:
-                translation_metrics["invalid_batches"] += 1
             return retry_groups_once(groups_in_chunk, batched=False)
         except Exception as error:
             reason = classify_translation_error(error)
@@ -5393,7 +5391,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         # "bu model paketlerin %N'ini bozuyor" uyarısı gösterir. `unhealthy`
         # alanı bu işin kendi oranıdır — renderer onu iş bitmeden bildirime
         # bağlar (kullanıcı günlük sonuna kadar beklemesin diye).
-        batch_count = translation_metrics["batch_requests"]
+        batch_count = translation_metrics["batch_requests"] + translation_metrics["fallback_requests"]
         invalid_count = translation_metrics["invalid_batches"]
         unhealthy = batch_count >= 2 and invalid_count / batch_count >= 0.25
         def emit_translation_quality():
@@ -5412,7 +5410,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                  rejections=dict(sorted(translation_metrics["rejections"].items())))
         if unhealthy:
             msg = (f"Model uyumu: {getattr(args, 'translate_model', '')} toplu yanıtların "
-                   f"%{round(100 * invalid_count / batch_count)}'inde biçimi bozdu. Daha kararlı bir "
+                   f"%{round(100 * invalid_count / batch_count)}'inde kabul denetimini geçemedi. Daha kararlı bir "
                    "model seçmek ya da paralel iş sayısını düşürmek maliyeti azaltır.")
             log(msg, "warn")
             # warn_list'e de girer: işin 'done' uyarılarında ve kuyruk
