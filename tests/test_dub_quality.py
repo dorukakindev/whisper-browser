@@ -11,6 +11,16 @@ import numpy as np
 
 
 class QualityTests(unittest.TestCase):
+    def test_literal_inflected_year_survives_unrelated_asr_word_difference(self):
+        expected="Bu yıl okula başlayan çocuklar eğitimlerini tamamladıktan sonra 2065'te emekli olacaklar."
+        actual=expected.replace('olacaklar','olacak')
+        result=Q.speech_check(expected,actual)
+        self.assertEqual(result['missing_numbers'],[])
+        self.assertEqual(result['added_numbers'],[])
+        self.assertFalse(result['review'])
+        for bad in (actual.replace('2065','2075'),actual.replace("2065'te",''),actual+" 2065'te"):
+            self.assertTrue(Q.speech_check(expected,bad)['review'])
+
     def test_conditional_negation_cannot_reverse_high_similarity_speech(self):
         for negative, positive in [('gelmezsen','gelirsen'),('gelmezsek','gelirsek'),
                                    ('yapmazsan','yaparsan'),('bakmazsanız','bakarsanız'),

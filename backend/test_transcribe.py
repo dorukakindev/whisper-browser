@@ -3272,7 +3272,7 @@ def test_translate_rescue_scales_across_chunks_parallel():
             try:
                 _time.sleep(0.025)
                 payload = json.loads(kw["messages"][-1]["content"])
-                seen.append(len(payload["sentence_groups"]))
+                seen.append((len(payload["sentence_groups"]), any(g.get("retry_feedback") for g in payload["sentence_groups"])))
                 return types.SimpleNamespace(choices=[types.SimpleNamespace(
                     message=types.SimpleNamespace(
                         content=json.dumps(answer(payload), ensure_ascii=False)))])
@@ -3293,8 +3293,10 @@ def test_translate_rescue_scales_across_chunks_parallel():
     assert all("[TR]" in e[2] for e in result), "kaynak metin kalan blok var"
     assert inflight["max"] >= 2, f"kurtarma seri kaldi (max={inflight['max']})"
     # Parça başına bir eksik grup → toplu istek sayısı kadar tekil kurtarma.
-    batch_calls = [s for s in seen if s > 2]
-    rescue_calls = [s for s in seen if s <= 2]
+    # The adaptive final batch may contain just two groups. Classify by
+    # authored retry feedback, not a batch-size guess.
+    batch_calls = [size for size, retry in seen if not retry]
+    rescue_calls = [size for size, retry in seen if retry]
     assert len(seen) == 2 * len(batch_calls), len(seen)
     # Seri akış ≥ 40×0.025=1.0s; paralel beklenen çok altı. Üst sınırı gevşek
     # tut (CI makinesi yavaş olabilir) — asıl kanıt inflight ölçümü.

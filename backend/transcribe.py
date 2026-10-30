@@ -3292,7 +3292,7 @@ def resolve_translate_routes(base_url):
     return [raw]
 
 
-SPEECH_TRANSLATION_PROTOCOL = 'speech-v14-quoted-thought-feedback'
+SPEECH_TRANSLATION_PROTOCOL = 'speech-v15-idiom-anchor-feedback'
 
 
 def translation_cue_interval(args):
@@ -4335,6 +4335,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     retry_hints = {}
     retry_messages = {
         'group_completeness': 'Return the complete group translation in sentences[group-first ID] and every required item ID; joined item text must equal that complete sentence.',
+        'part_anchor': 'Keep each source proper name, quantity, unit and sound annotation in its corresponding item. Do not translate personal names or substitute a similar name. Localized institutional names must preserve the full institution.',
+        'part_tail': 'Do not end an item with a dangling conjunction such as eğer, ve or çünkü. Move the conjunction to the next item and keep its full clause there. A preceding reporting introduction may end with a colon; preserve all source facts.',
         'part_boundary': 'Keep complete source sentences within their permitted cue boundaries; do not add extra sentence endings to a cue or leave a broken connective at a cue end.',
         'source_echo': 'Translate this group into the target language; do not echo the source words.',
         'modal_missing': 'Preserve the source modal (would, can, should, must, etc.) explicitly; do not turn a conditional or ability into a plain factual event.',
@@ -4383,6 +4385,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         if getattr(args, 'translate_for_speech', False):
             payload['response_contract'] = {
                 'sentence_ids': [row['ids'][0] for row in mapped],
+                'source_spelling': 'Person names use the exact source spelling. Do not silently correct or expand a source name from background knowledge; keep Lynn as Lynn, not Lynne. Standard localized institutional names may be translated.',
                 'sentences': 'One COMPLETE translation per listed group-first ID, not one fragment per cue.',
                 'items': 'Every item i exactly once; its group items joined in ID order equal the complete sentence.',
                 'retry_feedback': 'Application validation feedback: retranslate from the source and correct the reported meaning loss, without changing facts or skipping text.'}
@@ -4858,7 +4861,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 rejected[key] = rejected.get(key, 0) + 1
                 with lock:
                     for index in group:
-                        retry_hints[index] = ('part_boundary',)
+                        retry_hints[index] = (('part_anchor' if gate_issue.startswith(('ozel_ad_', 'sayi_kaydi', 'unit_kaydi', 'sdh_kaydi')) else 'part_tail' if gate_issue.startswith('acik_baglanti') else 'part_boundary'),)
                 continue
             # Sağlayıcı bazen yapısal olarak doğru JSON döndürüp kaynak cümleyi
             # olduğu gibi yankılıyor. Bunu başarı/cache sayarsak sonraki

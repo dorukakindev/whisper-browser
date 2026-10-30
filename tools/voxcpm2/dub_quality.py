@@ -101,6 +101,15 @@ def speech_check(expected, actual, numeric_reference=None):
             insertions.append({'start': b0, 'end': b1})
     # ASR routinely writes '12,5' where TTS reads 'on iki virgül beş'.
     # Match complete normalized number phrases, consuming each occurrence once.
+    def checked_number_phrase(number):
+        # An apostrophe-inflected year deliberately remains literal in spoken_text.
+        # Prove the same atomic year in BOTH streams even when another ASR word
+        # differs; never waive a missing, changed or duplicated quantity.
+        if (re.fullmatch(r'\d{4}', number) and number in target and number in heard
+                and re.search(r'(?<!\w)'+re.escape(number)+r"['’](?:te|ta|de|da|ten|tan|den|dan)\b", reference, re.I)):
+            return [number]
+        return words(number + ' kişi')[:-1]
+
     remaining = list(heard)
     missing_numbers = []
     reference = expected if numeric_reference is None else normalize_decimal_quantities(numeric_reference)
@@ -109,7 +118,7 @@ def speech_check(expected, actual, numeric_reference=None):
     # fragments ('5-10' -> 'beş', 'on') would falsely reject the unchanged text.
     numbers_to_check = [] if words(reference) == heard else re.findall(r'\d+(?:[.,]\d+)*', reference)
     for number in numbers_to_check:
-        phrase = words(number + ' kişi')[:-1]
+        phrase = checked_number_phrase(number)
         found = next((i for i in range(len(remaining)-len(phrase)+1) if remaining[i:i+len(phrase)] == phrase
                       and (i==0 or remaining[i-1] not in number_words)
                       and (i+len(phrase)==len(remaining) or remaining[i+len(phrase)] not in number_words)), None)
@@ -122,7 +131,7 @@ def speech_check(expected, actual, numeric_reference=None):
     remaining_expected = list(target)
     added_numbers = []
     for number in ([] if target == heard else re.findall(r'\d+(?:[.,]\d+)*', actual)):
-        phrase = words(number + ' kişi')[:-1]
+        phrase = checked_number_phrase(number)
         found = next((i for i in range(len(remaining_expected)-len(phrase)+1)
                       if remaining_expected[i:i+len(phrase)] == phrase
                       and (i == 0 or remaining_expected[i-1] not in number_words)

@@ -1,4 +1,5 @@
 'use strict';
+const {registerQuitCleanup}=require('./quit-cleanup');
 const fs=require('node:fs'),path=require('node:path'),{createHash,randomUUID}=require('node:crypto'),{processOutput}=require('./browser-reference-media');
 async function probe(file,ffprobe,signal){const raw=await processOutput(ffprobe,['-v','error','-show_entries','format=duration:stream=codec_type,codec_name','-of','json',file],{signal,timeout:20000});return JSON.parse(raw.toString('utf8'));}
 async function prepare(file,{directory,ffmpeg,ffprobe,signal}={}){
@@ -22,6 +23,6 @@ function register({app,ipcMain,authorized,authorize,grant,ffmpeg,ffprobe}){
  const jobs=new Map();
  ipcMain.handle('media:prepareCompatible',async(event,file)=>{if(!authorized(event))return{ok:false,error:'Unauthorized'};if(jobs.has(event.sender.id))return{ok:false,error:'Already running / Zaten çalışıyor.'};const controller=new AbortController(),sender=event.sender,onDestroyed=()=>controller.abort();jobs.set(sender.id,controller);sender.once('destroyed',onDestroyed);
  try{const source=authorize(file),result=await prepare(source,{directory:path.join(app.getPath('userData'),'cache','media-compatibility'),ffmpeg:ffmpeg(),ffprobe:ffprobe(),signal:controller.signal});if(controller.signal.aborted)throw Error('Cancelled / İptal edildi.');grant(result.path);return{ok:true,...result};}catch(error){return{ok:false,error:error.message};}finally{sender.removeListener('destroyed',onDestroyed);if(jobs.get(sender.id)===controller)jobs.delete(sender.id);}});
- ipcMain.handle('media:cancelCompatible',event=>{if(!authorized(event))return{ok:false};jobs.get(event.sender.id)?.abort();return{ok:true};});app.on('before-quit',()=>{for(const c of jobs.values())c.abort();});
+ ipcMain.handle('media:cancelCompatible',event=>{if(!authorized(event))return{ok:false};jobs.get(event.sender.id)?.abort();return{ok:true};});registerQuitCleanup(app,()=>{for(const c of jobs.values())c.abort();});
 }
 module.exports={probe,prepare,register};

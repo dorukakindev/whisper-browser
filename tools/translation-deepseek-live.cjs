@@ -30,6 +30,7 @@ const relay=http.createServer((req,res)=>{
 app.whenReady().then(async()=>{
  await keyReady;await new Promise(resolve=>relay.listen(0,'127.0.0.1',resolve));
  const args=[path.join(root,'backend/transcribe.py'),'--input',source,'--translate-only','true','--translate','true','--language','en','--translate-to','tr','--translate-base-url',`http://127.0.0.1:${relay.address().port}/v1`,'--translate-model','deepseek-ai/DeepSeek-V4.1-Flash-1017','--translate-workers','1','--translate-cache','false','--translate-for-speech','true','--translate-refine','true','--output-dir',path.join(out,'translated'),'--formats','srt,json'];
+ const existingFlag=process.argv.indexOf('--existing');if(existingFlag>=0){const existing=path.resolve(process.argv[existingFlag+1]||'');assert(fs.statSync(existing).isFile());args.push('--translate-existing',existing);}
  if(!speechMode)args[args.indexOf('--translate-for-speech')+1]='false';
  backend=cp.spawn(path.join(root,'backend/venv/Scripts/python.exe'),args,{cwd:root,windowsHide:true,env:{...process.env,PYTHONUTF8:'1',WHISPER_TRANSLATE_API_KEY:'synthetic-relay-only'}});
  backend.stdout.setEncoding('utf8');backend.stderr.setEncoding('utf8');
