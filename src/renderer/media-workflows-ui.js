@@ -1135,9 +1135,11 @@
         const reasons={ 'stale-text':t('Text changed','Metin değişti'), 'review':t('Review required','İnceleme gerekli'), 'not-ready':t('Not ready','Hazır değil'), 'missing-audio':t('Audio missing','Ses eksik'), 'invalid-audio':t('Invalid audio file','Geçersiz ses dosyası'), 'changed-audio':t('Audio changed; review again','Ses değişti; yeniden incele')};
         const heading=el('h3','',t('Export readiness','Çıktı hazırlığı'));
         const note=el('p','mw-muted',t('Open a chapter to resolve it. Nothing is omitted or approved automatically. Export checks again when saving.','Çözmek için bölümü aç. Hiçbir bölüm otomatik atlanmaz veya onaylanmaz. Kaydederken yeniden denetlenir.'));
+        const readyCount=result.rows.filter(row=>row.ready).length;
+        const summary=el('p','mw-readiness-summary',t(`${readyCount} of ${result.rows.length} selected chapters ready · ${result.rows.length-readyCount} need attention`,`${result.rows.length} seçili bölümün ${readyCount} tanesi hazır · ${result.rows.length-readyCount} bölüm kontrol bekliyor`));summary.setAttribute('role','status');
         const list=el('div','mw-readiness');
-        for(const row of result.rows){const label=(row.index+1)+'. '+row.title+' · '+(row.ready?t('Ready','Hazır'):row.reasons.map(key=>reasons[key]||key).join(' · '))+(row.reviewGroups?' · '+row.reviewGroups+' '+t('groups to review','grup incelenecek'):'');list.append(button(label,async()=>{if(busy)return;chapter=row.index;await books();const editor=dialog?.querySelector('textarea[data-chapter]');editor?.scrollIntoView({block:'center',behavior:'auto'});editor?.focus({preventScroll:true});}));}
-        exportPreview.replaceChildren(heading,note,list);exportPreview.hidden=false;exportPreview.scrollIntoView({block:'nearest',behavior:'auto'});
+        for(const row of result.rows){const title=chapterLabel(project.chapters[row.index]||{title:row.title}),displayTitle=title?.workflowLabel?t(title.en,title.tr):title;const label=(row.index+1)+'. '+displayTitle+' · '+(row.ready?t('Ready','Hazır'):row.reasons.map(key=>reasons[key]||key).join(' · '))+(row.reviewGroups?' · '+row.reviewGroups+' '+t('groups to review','grup incelenecek'):'');list.append(button(label,async()=>{if(busy)return;chapter=row.index;await books();const editor=dialog?.querySelector('textarea[data-chapter]');editor?.scrollIntoView({block:'center',behavior:'auto'});editor?.focus({preventScroll:true});}));}
+        exportPreview.replaceChildren(heading,summary,note,list);exportPreview.hidden=false;exportPreview.scrollIntoView({block:'nearest',behavior:'auto'});
         status(result.active?t('Another operation is active; readiness may change.','Başka bir işlem sürüyor; durum değişebilir.'):'');
       }),
       button(uiLabel("Preview M4B export", "M4B çıktı bilgisi"), async () => {
@@ -2525,6 +2527,7 @@
       const ready=await opening;
       if(request!==projectOpenRequest||project!==next)throw changed();
       if(!ready)throw openedDialog?.renderError || changed();
+      if(focus.chapter!==undefined&&focus.focusEditor!==false){const editor=openedDialog?.querySelector('textarea[data-chapter]');if(editor){editor.scrollIntoView({block:'center',behavior:'auto'});editor.focus({preventScroll:true});}}
     },
   });
 })();

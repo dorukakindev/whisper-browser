@@ -73,3 +73,16 @@ test('An assistant open action cannot report completed after its book view was c
  await tick();f.w.document.querySelector('dialog').close();await new Promise(r=>setTimeout(r,5));config.resolve({});
  const result=await pending;assert.match(result.message||'',/Book changed/);assert.notEqual(result.status,'completed');
 });
+
+test('explicit chapter handoff focuses the rendered editor without requiring a second click',async t=>{
+ const f=fixture();t.after(()=>f.dom.window.close());await f.w.MediaWorkflowsUI.openProject('one',{chapter:0,selectChapter:true});
+ const editor=f.w.document.querySelector('textarea[data-chapter]');assert(editor);assert.equal(f.w.document.activeElement,editor);assert.equal(editor.value,'Actual text one');
+});
+
+test('chapter handoff saves the exact dirty origin before focusing another book',async t=>{
+ const f=fixture();t.after(()=>f.dom.window.close());const calls=[],original=f.w.api.mediaWorkflows;f.w.api.mediaWorkflows=async r=>{calls.push({...r});return original(r);};
+ await f.w.MediaWorkflowsUI.openProject('one');const input=f.w.document.querySelector('textarea[data-chapter]');input.value='User revised paragraph.';
+ await f.w.MediaWorkflowsUI.openProject('two',{chapter:0,selectChapter:true});
+ const saved=calls.find(r=>r.action==='book-save'&&r.id==='one');assert(saved);assert.equal(saved.text,'User revised paragraph.');assert.equal(saved.chapter,0);
+ assert(calls.indexOf(saved)<calls.findIndex(r=>r.action==='book-open'&&r.id==='two'));assert.equal(f.w.document.activeElement.dataset.projectId,'two');
+});
