@@ -12,6 +12,23 @@ T = F.T
 
 
 class SpeechTranslationTests(unittest.TestCase):
+    def test_readaloud_rules_apply_to_both_speech_passes_without_changing_normal_prompts(self):
+        rules = T.SPEECH_READALOUD_RULES
+        for prompt in (T.build_translate_prompt('tr', 'en', [], for_speech=True),
+                       T.build_refine_prompt('tr', for_speech=True)):
+            for rule in rules:
+                self.assertIn(rule, prompt)
+            self.assertIn('yeni cumle, duygu, dolgu veya bilgi ekleme', prompt)
+            self.assertIn('SSML, oyunculuk yonergesi', prompt)
+            self.assertIn('ID', prompt)
+        for prompt in (T.build_translate_prompt('tr', 'en', []), T.build_refine_prompt('tr')):
+            for rule in rules:
+                self.assertNotIn(rule, prompt)
+        args = F._TrArgs(translate_for_speech=True)
+        current = T.translate_cache_key('A short phrase.', args, 'tr', 'en')
+        with patch.object(T, 'SPEECH_TRANSLATION_PROTOCOL', 'speech-v15-idiom-anchors'):
+            self.assertNotEqual(current, T.translate_cache_key('A short phrase.', args, 'tr', 'en'))
+
     def test_coverage_warning_follows_the_accepted_sentence_not_each_redistributed_cue(self):
         source=[(0,3,'These are the principal questions and answers put forth by author Thomas Ligotti'),(3.1,5,'in his book.')]
         faithful=["Bunlar, yazar Thomas Ligotti'nin",'kitabında ortaya koyduğu başlıca sorular ve yanıtlardır.']

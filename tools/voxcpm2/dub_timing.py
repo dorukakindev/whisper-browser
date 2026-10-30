@@ -79,7 +79,21 @@ def placement_window(cues, i, audio_seconds, previous_end_s, max_speed,
     return start, stop
 
 
-def _balanced_flow(cues, max_chars, max_seconds, max_gap_ms):
+def _completed_sentence(text):
+    tail = text.rstrip().rstrip('"\u201d\u2019\u00bb)]')
+    abbreviation = re.search(r'(?:\b(?:Dr|Prof|Doç|Sn|Mr|Mrs|Ms|vb|vs)|\b[A-ZÇĞİÖŞÜ]|\d)\.$', tail, re.I)
+    return bool(re.search(r'[.!?]$', tail)) and not tail.endswith('...') and not abbreviation
+
+
+def _fragment_gap_limit(text, max_gap_ms):
+    """Extend only short, unfinished fragments; retain an explicit larger gap."""
+    text = text.strip()
+    if len(text) <= 32 and len(text.split()) <= 4 and not _completed_sentence(text):
+        return max(max_gap_ms, min(1200, max_gap_ms * 2))
+    return max_gap_ms
+
+
+def _balanced_flow(cues, max_chars, max_seconds, max_gap_ms, bridge_fragments=False):
     """Pack contiguous narration into few, balanced, sentence-aware requests.
 
     Duration/size are hard limits between cues. A single source cue is never
@@ -88,14 +102,12 @@ def _balanced_flow(cues, max_chars, max_seconds, max_gap_ms):
     def speaker(text):
         return is_speaker_turn(text)
 
-    def completed(text):
-        tail = text.rstrip().rstrip('"\u201d\u2019\u00bb)]')
-        abbreviation = re.search(r'(?:\b(?:Dr|Prof|Doç|Sn|Mr|Mrs|Ms|vb|vs)|\b[A-ZÇĞİÖŞÜ]|\d)\.$', tail, re.I)
-        return bool(re.search(r'[.!?]$', tail)) and not tail.endswith('...') and not abbreviation
-
     runs, run = [], []
     for i, cue in enumerate(cues):
-        if run and (cue[0] < run[-1][1][1] or cue[0]-run[-1][1][1] > max_gap_ms
+        gap_limit = max_gap_ms
+        if bridge_fragments and run:
+            gap_limit = _fragment_gap_limit(run[-1][1][2], max_gap_ms)
+        if run and (cue[0] < run[-1][1][1] or cue[0]-run[-1][1][1] > gap_limit
                     or speaker(cue[2]) or speaker(run[-1][1][2])):
             runs.append(run); run = []
         run.append((i+1, cue))
@@ -118,7 +130,7 @@ def _balanced_flow(cues, max_chars, max_seconds, max_gap_ms):
                 if j > i and (size > max_chars or (stop-run[i][1][0])/1000 > max_seconds):
                     break
                 penalty = (size/max(1, max_chars))**2
-                unfinished = int(j+1 < n and not completed(cue[2]))
+                unfinished = int(j+1 < n and not _completed_sentence(cue[2]))
                 candidate = (unfinished+costs[j+1][0], 1+costs[j+1][1],
                              penalty+costs[j+1][2])
                 if best is None or candidate < best:
@@ -136,16 +148,16 @@ def _balanced_flow(cues, max_chars, max_seconds, max_gap_ms):
 
 def sentence_plan(cues, mode="cumle", max_chars=250, max_seconds=12, max_gap_ms=600):
     """Preserve every source cue; group only nearby, same-speaker text."""
-    if mode not in ("cumle", "satir", "akici"):
+    if mode not in ("cumle", "satir", "akici", "anlatim"):
         raise ValueError("Bilinmeyen gruplama modu")
-    if mode == 'akici':
+    if mode in ('akici','anlatim'):
         for i, (start, end, text) in enumerate(cues):
             if start < 0 or end <= start or not text.strip() or (i and start < cues[i-1][0]):
                 raise ValueError(f"Gecersiz altyazi satiri: {i+1}")
         # Preserve the established simultaneous-cue convention rather than
         # speaking overlapping captions in separate requests.
         if not any(i and c[0] == cues[i-1][0] for i, c in enumerate(cues)):
-            return _balanced_flow(cues, max_chars, max_seconds, max_gap_ms)
+            return _balanced_flow(cues, max_chars, max_seconds, max_gap_ms, mode == 'anlatim')
     groups = []
     for i, (start, end, text) in enumerate(cues):
         if start < 0 or end <= start or not text.strip():
@@ -167,13 +179,15 @@ def sentence_plan(cues, mode="cumle", max_chars=250, max_seconds=12, max_gap_ms=
             complete = bool(re.search(r'[.!?]$', tail)) and not tail.endswith('...') and not abbreviation
             speaker_boundary = is_speaker_turn(text)
             previous_speaker = is_speaker_turn(g['text'])
-            split = (start - g['end'] > max_gap_ms or start < g['end'] or speaker_boundary
+            gap_limit = (_fragment_gap_limit(cues[i-1][2], max_gap_ms)
+                         if mode == 'anlatim' else max_gap_ms)
+            split = (start - g['end'] > gap_limit or start < g['end'] or speaker_boundary
                      or len(g['text']) + len(text) + 1 > max_chars
                      or (max(end, g['end']) - g['start']) / 1000 > max_seconds
                      # Keep very short replies with their context; otherwise
                      # end a completed sentence before the next source cue.
-                     or (mode == 'akici' and previous_speaker)
-                     or (complete and (len(g['text']) >= 140 if mode == 'akici' else len(text.strip()) >= 24)))
+                     or (mode in ('akici','anlatim') and previous_speaker)
+                     or (complete and (len(g['text']) >= 140 if mode in ('akici','anlatim') else len(text.strip()) >= 24)))
         if split:
             groups.append({'start': start, 'end': end, 'text': text.strip(), 'source_ids': [i + 1]})
         else:

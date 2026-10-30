@@ -187,10 +187,10 @@ def shift_cues(cues, offset):
 
 
 def grouping_options(mode):
-    if mode not in ('cumle', 'satir', 'akici'):
+    if mode not in ('cumle', 'satir', 'akici', 'anlatim'):
         raise ValueError('Gecersiz gruplama modu.')
-    return {'mode': mode, 'max_chars': 280 if mode == 'akici' else 250,
-            'max_seconds': 18 if mode == 'akici' else 12, 'max_gap_ms': 600}
+    return {'mode': mode, 'max_chars': 280 if mode in ('akici', 'anlatim') else 250,
+            'max_seconds': 18 if mode in ('akici', 'anlatim') else 12, 'max_gap_ms': 600}
 
 
 def plan(path, start=None, end=None, grouping='cumle'):
@@ -213,6 +213,6 @@ if __name__ == '__main__':
     parser.add_argument('source')
     parser.add_argument('start', nargs='?', type=float)
     parser.add_argument('end', nargs='?', type=float)
-    parser.add_argument('--grouping', choices=('cumle', 'satir', 'akici'), default='cumle')
+    parser.add_argument('--grouping', choices=('cumle', 'satir', 'akici', 'anlatim'), default='cumle')
     args = parser.parse_args()
     print(json.dumps(plan(args.source, args.start, args.end, args.grouping), ensure_ascii=True))

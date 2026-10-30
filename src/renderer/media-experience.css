@@ -199,3 +199,13 @@
 .dub-continuity-row>.btn-secondary{flex:none;min-height:38px;}
 @media(max-width:520px){.dub-continuity-row{align-items:flex-start;gap:8px;}}
 .dub-files-panel{max-height:min(360px,50vh);overflow-y:auto;overscroll-behavior:contain;}
+
+.dub-studio .dub-readiness>div{padding:0}
+.dub-readiness-action{display:block;width:100%;height:100%;min-height:64px;padding:12px 24px;border:0;border-radius:0;background:transparent;color:inherit;text-align:left;font:inherit;cursor:pointer;transition:background-color 150ms ease-out}
+.dub-readiness-action:hover:not(:disabled){background:var(--bg-2)}
+.dub-readiness-action:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+.dub-readiness-action:disabled{cursor:default}
+.dub-readiness-action small,.dub-readiness-action strong{display:block}
+.dub-review-headline{margin:10px 0;padding:10px 12px;border-left:2px solid var(--accent);background:var(--bg-0);font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+.dub-readability-note{font-size:12px;line-height:1.6;color:var(--text-dim);overflow-wrap:anywhere}
+@media(max-width:900px){.dub-readiness-action{padding:10px 12px}}

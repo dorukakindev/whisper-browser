@@ -22,7 +22,7 @@
     const time=n=>`${Math.floor(n/60)}:${(n%60).toFixed(2).padStart(5,'0').replace(/\.00$/,'')}`;
     const validRange=r&&Number.isFinite(r.start)&&Number.isFinite(r.end)&&r.start>=0&&r.end>r.start;
     add(en?'Scope':'Kapsam',output.sample===true?(en?'Short sample':'Kısa örnek'):validRange?time(r.start)+' → '+time(r.end):en?'All subtitle cues':'Altyazının tamamı');
-    add(en?'Grouping':'Gruplama',({akici:en?'Flowing blocks':'Akıcı bloklar',cumle:en?'Sentence groups':'Cümle grupları',satir:en?'Subtitle rows':'Altyazı satırları'})[s.grouping]);
+    add(en?'Grouping':'Gruplama',({anlatim:en?'Sentence flow':'Cümle akışı',akici:en?'Flowing blocks':'Akıcı bloklar',cumle:en?'Sentence groups':'Cümle grupları',satir:en?'Subtitle rows':'Altyazı satırları'})[s.grouping]);
     add(en?'Quality':'Kalite',Number.isSafeInteger(s.steps)&&s.steps>0&&s.steps<=100?s.steps+(en?' steps':' adım'):'');
     add(en?'Verification':'Doğrulama',({fast:en?'Audio checks':'Ses denetimi',balanced:en?'Selective text checks':'Seçili metin denetimi',detailed:en?'Full text checks':'Tam metin denetimi'})[s.verification]);
     add(en?'Timing':'Zamanlama',s.timingMode==='video'?(en?'Keep full speech; synchronize video speed':'Konuşmayı tam tut; video hızını eşleştir'):s.timingMode==='clip'?(en?'Fixed video; overflowing speech may be cut':'Sabit video; taşan konuşma kesilebilir'):'');

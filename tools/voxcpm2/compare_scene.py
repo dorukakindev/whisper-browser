@@ -15,6 +15,7 @@ def main(argv=None):
     parser.add_argument('--run',action='store_true')
     for name in ('srt','reference','transcript','engine','verify-python','output'):
         parser.add_argument('--'+name,type=Path,required=True)
+    parser.add_argument('--flow-mode',choices=['akici','anlatim'],default='akici')
     args=parser.parse_args(argv)
     from accept_dub import inspect_gpu
     readiness=inspect_gpu()
@@ -38,7 +39,7 @@ def main(argv=None):
         'sameText':True,'settings':{'steps':15,'cfg':1.65,'temperature':.8,'timing':'video','maxSpeed':1},
         'naturalnessWinner':None,'limits':'Different grouping changes request count, group seeds and verification workload. Cold/warm times are reported, not ranked. ASR is not a naturalness score.','samples':[]}
     try:
-        for label,grouping in [('A','satir'),('B','akici')]:
+        for label,grouping in [('A','satir'),('B',args.flow_mode)]:
             reader.OUTPUT_ROOT=args.output/('cache-'+label)
             output=args.output/('sample-'+label+'.wav')
             options=[str(args.srt.resolve()),str(args.reference.resolve()),'--transcript',str(args.transcript.resolve()),'--mode','hifi',

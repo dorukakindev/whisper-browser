@@ -18,4 +18,6 @@ test('saved recipe uses only that output and keeps old missing facts unknown',()
  const en=Object.fromEntries(recipe(output,true));assert.equal(en.Reference,'voice.wav');assert.equal(en.Subtitle,'Kaynak.srt');assert.equal(en.Scope,'0:05 → 1:05');assert.equal(en.Grouping,'Flowing blocks');assert.match(en.Groups,/Newly generated: 0/);
  assert.equal(Object.fromEntries(recipe({...output,settings:null},true)).Settings,'No saved production settings');assert.equal(Object.fromEntries(recipe({...output,sample:true},true)).Scope,'Short sample');assert.deepEqual(recipe(null,true),[]);
  assert(!JSON.stringify(en).includes('private'));assert.equal(Object.fromEntries(recipe(output,false)).Gruplama,'Akıcı bloklar');
+ const narration={...output,settings:{...output.settings,grouping:'anlatim'}};
+ assert.equal(Object.fromEntries(recipe(narration,true)).Grouping,'Sentence flow');assert.equal(Object.fromEntries(recipe(narration,false)).Gruplama,'Cümle akışı');
 });

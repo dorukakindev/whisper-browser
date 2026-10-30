@@ -17,6 +17,47 @@ spec.loader.exec_module(D)
 
 
 class DubTimingTests(unittest.TestCase):
+    def test_narration_bridges_a_short_unfinished_fragment_only_when_selected(self):
+        cues = [(0, 1000, 'İnsan zihni'), (2200, 4000, 'sandığımızdan daha karmaşıktır.')]
+        for mode in ('cumle', 'satir', 'akici'):
+            self.assertEqual([g['source_ids'] for g in D.sentence_plan(cues, mode)], [[1], [2]], mode)
+        groups = D.sentence_plan(cues, 'anlatim')
+        self.assertEqual(groups, [{'start': 0, 'end': 4000,
+                                  'text': 'İnsan zihni sandığımızdan daha karmaşıktır.',
+                                  'source_ids': [1, 2]}])
+        self.assertEqual(D.sentence_plan(cues), D.sentence_plan(cues, 'cumle'))
+
+    def test_narration_keeps_hard_boundaries_and_completed_replies(self):
+        cases = [
+            ([(0, 1000, 'İnsan zihni'), (2201, 4000, 'karmaşıktır.')], {}),
+            ([(0, 1000, 'Bitti.'), (1900, 4000, 'Sonra devam etti.')], {}),
+            ([(0, 1000, '"Bitti!"'), (1900, 4000, 'Sonra devam etti.')], {}),
+            ([(0, 1000, 'bir iki üç dört beş'), (1900, 4000, 'devam eder.')], {}),
+            ([(0, 1000, 'Bu oldukça uzun tamamlanmamış anlatım'), (1900, 4000, 'devam eder.')], {}),
+            ([(0, 1000, 'İnsan zihni'), (900, 4000, 'karmaşıktır.')], {}),
+            ([(0, 1000, 'İnsan zihni'), (1900, 4000, 'ANLATICI: Devam.')], {}),
+            ([(0, 1000, 'ANLATICI: İnsan zihni'), (1900, 4000, 'karmaşıktır.')], {}),
+            ([(0, 1000, 'İnsan zihni'), (1900, 4000, 'karmaşıktır.')], {'max_seconds': 3}),
+            ([(0, 1000, 'İnsan zihni'), (1900, 4000, 'karmaşıktır.')], {'max_chars': 20}),
+        ]
+        for cues, options in cases:
+            with self.subTest(cues=cues, options=options):
+                self.assertEqual([g['source_ids'] for g in D.sentence_plan(cues, 'anlatim', **options)], [[1], [2]])
+
+    def test_narration_gap_extension_respects_explicit_gap_configuration(self):
+        cues = [(0, 1000, 'İnsan zihni'), (2500, 4000, 'karmaşıktır.')]
+        self.assertEqual(len(D.sentence_plan(cues, 'anlatim', max_gap_ms=2000)), 1)
+        cues[1] = (1500, 4000, 'karmaşıktır.')
+        self.assertEqual(len(D.sentence_plan(cues, 'anlatim', max_gap_ms=200)), 2)
+
+    def test_simultaneous_cues_keep_legacy_identity_without_disabling_narration_bridge(self):
+        cues = [(0, 1000, 'İlk'), (0, 1000, 'cümle.'),
+                (4000, 5000, 'İnsan zihni'), (6000, 8000, 'karmaşıktır.')]
+        self.assertEqual([g['source_ids'] for g in D.sentence_plan(cues, 'akici')], [[1, 2], [3], [4]])
+        groups = D.sentence_plan(cues, 'anlatim')
+        self.assertEqual([g['source_ids'] for g in groups], [[1, 2], [3, 4]])
+        self.assertEqual(' '.join(g['text'] for g in groups), ' '.join(c[2] for c in cues))
+
     def test_timelines_reject_missing_or_extra_audio_before_reading_files(self):
         cues = [(0, 1000, 'First.'), (1000, 2000, 'Last sentence.')]
         for selected, files in [(cues, ['missing.wav']), (cues, ['a.wav', 'b.wav', 'extra.wav']), ([], [])]:

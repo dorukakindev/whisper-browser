@@ -10,6 +10,30 @@ import dub_plan
 
 
 class DubPlanRegressionTests(unittest.TestCase):
+    def test_narration_is_opt_in_and_preserves_original_ids_after_sdh_filtering(self):
+        payload = ('1\n00:00:00,000 --> 00:00:01,000\n[MÜZİK]\n\n'
+                   '2\n00:00:02,000 --> 00:00:03,000\nİnsan zihni\n\n'
+                   '3\n00:00:03,100 --> 00:00:03,900\n(alkış)\n\n'
+                   '4\n00:00:04,100 --> 00:00:06,000\nkarmaşıktır.\n\n').encode('utf-8')
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'narration.srt'
+            source.write_bytes(payload)
+            legacy = dub_plan.plan(source)
+            self.assertEqual(legacy, dub_plan.plan(source, grouping='cumle'))
+            self.assertEqual([g['source_ids'] for g in legacy['groups']], [[2], [4]])
+            result = dub_plan.plan(source, grouping='anlatim')
+            self.assertEqual([g['source_ids'] for g in result['groups']], [[2, 4]])
+            self.assertEqual(result['groups'][0]['text'], 'İnsan zihni karmaşıktır.')
+            self.assertEqual(result['skipped'], 2)
+            self.assertEqual(source.read_bytes(), payload)
+            self.assertEqual(result['sourceHash'], legacy['sourceHash'])
+        self.assertEqual(dub_plan.grouping_options('cumle'),
+                         {'mode': 'cumle', 'max_chars': 250, 'max_seconds': 12, 'max_gap_ms': 600})
+        self.assertEqual(dub_plan.grouping_options('akici'),
+                         {'mode': 'akici', 'max_chars': 280, 'max_seconds': 18, 'max_gap_ms': 600})
+        self.assertEqual(dub_plan.grouping_options('anlatim'),
+                         {'mode': 'anlatim', 'max_chars': 280, 'max_seconds': 18, 'max_gap_ms': 600})
+
     def test_invalid_duration_cannot_drop_speech_silently(self):
         payload=b'1\n00:00:02,000 --> 00:00:01,000\nMissing speech.\n\n2\n00:00:03,000 --> 00:00:04,000\nNext.\n'
         with self.assertRaisesRegex(ValueError, 'cue 1: end'):
