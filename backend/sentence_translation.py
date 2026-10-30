@@ -449,6 +449,10 @@ def _initial_name_swap(source, translated):
     if len(first) < 3 or not first[0].isupper():
         return ""
     lowered = first.lower().rstrip(".?!,;:!…")
+    # The same grammatical contractions excluded by _proper_names are not
+    # sentence-initial person names either (He's / Isn't / I'm).
+    if re.fullmatch(r"(?:i|he|she|it|we|they|you|that|there|here|what|who|how|where|when|let)['’](?:m|ll|ve|d|s|re)|(?:don|doesn|didn|can|couldn|won|wouldn|shouldn|mustn|isn|aren|wasn|weren|hasn|haven|hadn|needn)['’]t", lowered):
+        return ''
     # An auxiliary followed by a pronoun starts a question, not a person name.
     # Keep the name check for "Can arrived ..." and other non-modal uses.
     if lowered in {"can", "did", "do", "does", "is", "are", "was", "were", "have", "has", "had", "could", "would", "should", "will", "must"} and len(words) > 1 \
@@ -461,7 +465,7 @@ def _initial_name_swap(source, translated):
     if lowered == 'only' and (following in _EN_EXACT or following.isdecimal()):
         return ""
     if lowered in ABBREVIATIONS or lowered in _WEEKDAY_MONTH \
-            or lowered in _INITIAL_STOPWORDS or lowered in {"i'm", "i’m"}:
+            or lowered in _INITIAL_STOPWORDS:
         return ""
     if _name_preserved(first, translated):
         return ""

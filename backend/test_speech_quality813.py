@@ -53,6 +53,8 @@ class SignedSpeechTests(unittest.TestCase):
 
     def test_live_anchor_pronoun_and_institution_preserve_people(self):
         for source,target in [("I'm writing a book called Epiphany.",'Epiphany adlı bir kitap yazıyorum.'),
+                              ("He's 21 now and my daughter's 16.",'Oğlum şimdi yirmi bir, kızım on altı yaşında.'),
+                              ("Isn't it? They're the people who come out the top.",'Öyle değil mi? En üste çıkanlar onlar.'),
                               ('Stop speaking like that. You know, it is hard.', 'Böyle konuşmayı bırak. Bilirsin, bu zor.'),
                               ('James got the part of Joseph.', 'James, Yusuf rolünü aldı.'),
                               ('She attended the Royal Ballet School.','Kraliyet Bale Okuluna gitti.'),
