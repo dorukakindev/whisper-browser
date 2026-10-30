@@ -1,6 +1,6 @@
 # Rapor816 — Eksik çeviri tamamlama, uzun Türkçe ses ve kapanış kaynakları
 
-Başlangıç `00a01f92f109f11183b02bc55dd1dfed25ed3e9f`; dal `codex/speech-quality816`; bitiş ürün **`0da16b42c3e38bdb93e9b1526fa48e5d8de79957`**. [Kanıt](evidence816/acceptance.json). R814'te açık kalan beş hedefin devamıdır. Gece1000 kapsamı okundu; aynı testler yeni keşif diye sayılmadı. Çalışırken başka oturum R815'i yayımladı; onun54 bulgusu/kanıtı silinmeden, yalnız belge commitleri55bfcca5 ile entegre edildi. R815'in salt-okunur denetimi bu düzeltmelerin yerine veya uygulanmış sayılmaz.
+Başlangıç `00a01f92f109f11183b02bc55dd1dfed25ed3e9f`; dal `codex/speech-quality816`; bitiş ürün **`0da16b42c3e38bdb93e9b1526fa48e5d8de79957`**. [Kanıt](evidence816/acceptance.json). R814'te açık kalan beş hedefin devamıdır. Gece1000 kapsamı okundu; aynı testler yeni keşif diye sayılmadı. Çalışırken başka oturum R815'i yayımladı; onun ilk54 bulgusu/kanıtı55bfcca5, sonra78'e genişlemesi da773134 ile silinmeden entegre edildi. R815'in salt-okunur denetimi bu düzeltmelerin yerine veya uygulanmış sayılmaz.
 
 ## Düzeltmeler
 

@@ -1,4 +1,4 @@
-- [Rapor815](BROWSER_BUG_REPORT_815.md) — Ayrı oturumun salt-okunur54 bulguluk denetimi
+- [Rapor815](BROWSER_BUG_REPORT_815.md) — Ayrı oturumun salt-okunur denetimi
 - [Rapor816](BROWSER_BUG_REPORT_816.md) — Uzun Türkçe ses, çeviri tamamlama ve kapanış kaynakları
 - [Rapor814](BROWSER_BUG_REPORT_814.md) — CI sözleşmeleri, gerçek asistan/GPU ve uzun ses kabulü
 - [Rapor813](BROWSER_BUG_REPORT_813.md) — Konuşma çevirisi, gerçek kart, dublaj dinleme ve PDF sahipliği
