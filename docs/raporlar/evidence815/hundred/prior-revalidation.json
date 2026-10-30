@@ -1,0 +1,38 @@
+{
+  "initialHead": "da773134a3e744885592bafa008f81f03bcdf878",
+  "verifiedHead": "ae0a61a7b42c58d78bb7317680cf8f8133d5e027",
+  "reason": "A concurrent authorized R816 delivery changed backend speech/translation and quit cleanup while this report-only audit was running. Changed-source defects and relevant prior probes were rerun, not assumed unchanged.",
+  "commands": [
+    {
+      "command": "backend/venv/Scripts/python.exe .tmp/hundred815-prior-deep/probe.py",
+      "exit": 0
+    },
+    {
+      "command": "backend/venv/Scripts/python.exe .tmp/hundred815-prior-deep/resume-probe.py",
+      "exit": 0
+    },
+    {
+      "command": "backend/venv/Scripts/python.exe .tmp/hundred815-prior-extra/probe.py",
+      "exit": 0
+    }
+  ],
+  "observedAgain": [
+    "B33 dual overwrite",
+    "B34 mixed-language auto skip",
+    "B35 ASS drawing input",
+    "B36 literal range dub parse",
+    "B37 name mismatch passed",
+    "B38 quantity ownership swap passed",
+    "B39 literal VTT tag reinterpretation",
+    "B40 inline VTT timestamp",
+    "B41 scene-note TM fallback",
+    "B42 retained cue speaker loss",
+    "B66 VTT metadata/body",
+    "B67 overlap confidence",
+    "B68 billion false rejection",
+    "B70 series canon exact cache"
+  ],
+  "notNewFindings": true,
+  "otherFiles": "Unchanged source blobs or unrelated protocol-only renderer changes; no claim that all 78 were rerun end-to-end.",
+  "historicalNotes": "R816 completed prior long translation gaps and changed cleanup listener ownership. Earlier G02/long-soak warning paragraphs stay dated historical evidence; they are not counted as new or unresolved defects here."
+}

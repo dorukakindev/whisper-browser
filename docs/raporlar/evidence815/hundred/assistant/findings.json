@@ -1,0 +1,505 @@
+{
+  "startHead": "da773134a3e744885592bafa008f81f03bcdf878",
+  "head": "ae0a61a7b42c58d78bb7317680cf8f8133d5e027",
+  "platform": "win32",
+  "node": "v24.22.0",
+  "productChanges": false,
+  "counts": {
+    "verified": 7,
+    "P1": 1,
+    "P2": 6
+  },
+  "commands": [
+    {
+      "command": "node .tmp/hundred815-assistant/probe.cjs ae0a61a7b42c58d78bb7317680cf8f8133d5e027",
+      "exitCode": 0
+    },
+    {
+      "command": "node_modules/electron/dist/electron.exe .tmp/hundred815-assistant/native-redirect.cjs",
+      "exitCode": 0,
+      "note": "First sandbox run failed with Mojo/cache permission error and produced no result JSON; authorized same-command retry produced validated native JSON."
+    }
+  ],
+  "findings": [
+    {
+      "id": "H01",
+      "severity": "P1",
+      "title": "Araştırma güvenlik kontrolü özel adrese yönlendirme yüklendikten sonra çalışıyor",
+      "status": "verified",
+      "details": "**Kaynak:** `src/main.js:20232–20242`; `src/assistant-web-research.js:2` safeSource; genel gezinme kontrolü `src/main.js:13585–13592`.\n\n**Tekrar:** Araştırmanın izin verdiği genel bir HTTP(S) kaynak URL'si 302 ile localhost/özel ağ hedefine yönlendirsin. Araştırma helper'ının gerçek load fonksiyonu kullanılmalı.\n\n**Beklenen:** Genel kaynaklardan okuma sözleşmesi ve safeSource'un açık özel-adres yasağı yönlendirme isteğinden önce uygulanmalı; yasak hedef yüklenmemeli.\n\n**Gözlenen:** load önce `await wc.loadURL(url)` yapıyor, yalnız tamamlandıktan sonra son URL'ye safeSource uyguluyor. Native fixture'da ilk istek `public-fixture.invalid:55799/start`, ikinci istek `127.0.0.1:55799/private-fixture` oldu. Özel hedef sayacı1'e çıktıktan sonra `Unsafe research redirect.` hatası geldi. Hata, yapılmış isteği geri almıyor.\n\n**Etki:** Arama kaynağının yönlendirmesi araştırma isteğini kullanıcının açıkça istemediği özel hizmete ulaştırabilir. İçerik okumaya devam edilmesi veya gerçek ağ kimlik bilgisi sızıntısı kanıtlanmadı; kesin kanıt, uygulamanın reddettiği adrese isteğin redden önce ulaşmasıdır.\n\n**Kanıt:** `native-redirect-result.json` gerçek Chromium HTTP isteklerini; `results.json:H01` aynı kaynak helper'ını kontrollü wc sınırıyla tekrarlar. Yerel fixture yalnız sentetik HTML içerir. Native BrowserWindow tüm kullanıcı uygulaması/main polling testi değildir; değişmemiş ana süreç load fonksiyonu aynen çıkarılıp gerçek webContents ile çağrıldı. Ana browser will-redirect denetimi HTTP/HTTPS adreslerini izinli tutuyor ve araştırmaya özel private-adres kapısı içermiyor. Mevcut78'de karşılığı yoktur; sıradan browser'ın kullanıcı tarafından açılmış LAN sayfası hata sayılmadı.",
+      "observation": {
+        "id": "H01",
+        "initialURL": "https://public-fixture.invalid/start",
+        "privateTargetOnlyLocalFixture": true,
+        "syntheticTargetRequestsBeforeRejection": 1,
+        "rejectedAfterLoad": true
+      },
+      "nativeObservation": {
+        "electron": "43.5.0",
+        "chromium": "150.0.7871.250",
+        "hiddenWindow": true,
+        "hostResolverMappingOnlyThisTest": true,
+        "syntheticLocalPrivateTargetLoaded": 1,
+        "rejection": "Unsafe research redirect.",
+        "observed": [
+          {
+            "host": "public-fixture.invalid:55799",
+            "path": "/start"
+          },
+          {
+            "host": "127.0.0.1:55799",
+            "path": "/private-fixture"
+          }
+        ]
+      }
+    },
+    {
+      "id": "H02",
+      "severity": "P2",
+      "title": "Araştırma kaynak bütçesi dolunca yeni W1 metni eski W1 kaynak listesine bağlanıyor",
+      "status": "verified",
+      "details": "**Kaynak:** `src/assistant-agent-service.js:72–78,156`.\n\n**Tekrar:** Aynı asistan turunda beş farklı research_web çağrısı yapılsın; her biri üç farklı geçerli kaynak ve pasaj döndürsün. Bu, mevcut altı provider raundu sınırı içinde mümkündür.\n\n**Beklenen:** Kaynak bütçesi dolarsa yeni sonuç açıkça kısıtlanmalı veya kaynak kimlikleri tutarlı biçimde korunmalı; metin ile sources aynı W numaralarını temsil etmeli.\n\n**Gözlenen:** session.webSources ilk10 URL'de kesiliyor. Beşinci aramanın üç yeni pasajı bu listede bulunmadığından passages boş kalıyor; fallback `result.text` yerel `[W1] source5-1` metnini döndürüyor. Aynı tool sonucunun sources[0] değeri hâlâ `source1-1` ve yeni beşinci aramanın kaynaklarından hiçbiri kaynak listesinde yok. Son yanıtın ana süreç kaynak eki de eski listeyi kullanıyor.\n\n**Etki:** Asistanın kullandığı W kaynak kimlikleri yanlış makaleyi işaretleyebilir; başarılı araştırma sonucu kaynak kimliğiyle doğrulanamaz hâle geliyor. Canlı modelin yanlış iddia ürettiği söylenmedi; modele verilen doğrulanmış kaynak sözleşmesinin çeliştiği kanıtlandı.\n\n**Kanıt:** Gerçek register/agentRun/provider döngüsü; beş gerçek tool dispatch ve kontrollü araştırma sonuçları. URLs example alanlarıdır, ağ çağrısı yoktur. R815-B48/B78 JSON/MIME sorunlarından farklıdır; yanıt formatı geçerlidir, kaynak kimlikleri karışmaktadır.",
+      "observation": {
+        "id": "H02",
+        "successfulSearches": 5,
+        "fifthText": "[W1] https://source5-1.example/article\n[W2] https://source5-2.example/article\n[W3] https://source5-3.example/article",
+        "fifthSourceW1": "https://source1-1.example/article",
+        "newSourcesInReturnedList": false
+      }
+    },
+    {
+      "id": "H03",
+      "severity": "P2",
+      "title": "Sonuçla devam et önceki atıfları ve işlem günlüğünü kalıcı kayıttan kaldırıyor",
+      "status": "verified",
+      "details": "**Kaynak:** `src/renderer/assistant-workspace.js:69–71`; `src/renderer/assistant-agent-ui.js:19–23,36–38`; kaynak kartı tüketimi `src/renderer/global-assistant.js:53–57`.\n\n**Tekrar:** Son asistan yanıtında kitap alıntısı ve tamamlanmış işlem günlüğü bulunsun; aynı yanıttaki uygulanmış karttan Sonuçla devam et çalışsın. Yeni tur ek kitap araması/araç adımı üretmesin.\n\n**Beklenen:** Önceki metin korunuyorsa bu metnin kaynak kartı ve geçmiş işlem kanıtı da korunmalı; yalnız yeni kanıtlar eklenmeli veya ayrı tur olarak saklanmalı.\n\n**Gözlenen:** resume önceki text/actions/evidence alanlarını taşıyor ama citations/steps taşımıyor. Yeni task.trace boş olduğundan finish eski steps'i [] yapıyor; `result.bookCitations||[]` eski citations'ı [] ile değiştiriyor. Probun sonuç metninde `[B1-0]` hâlâ bulunurken citations0 ve steps0; gerçek assistant-conversations.json dosyasında da son yanıt citations0 olarak kaydedildi.\n\n**Etki:** Önceki metindeki alıntının tıklanabilir kaynak kartı ve uygulamanın önceki işlem kanıtı kaybolur; yeniden açılış bunları getiremez. Bu, görsel daralma veya sınırlı liste değildir; aynı yanıtın kalıcı metadata'sı sıfırlanır.\n\n**Kanıt:** Tam workspace+agent-ui modülleri, gerçek thread-store/disk; geçerli son yanıt/kart üzerinden gerçek resume/send yolu. Provider/IPC kontrollüdür; native overlay yeniden açılışı denenmedi. R798/R800'ün kalıcı işlem/alıntı sözleşmesindeki devam sınırıdır. R815-B74 sürekli akış kapanış kaybından farklıdır: burada tur başarıyla tamamlanır ve metadata silinerek kaydedilir.",
+      "observation": {
+        "id": "H03",
+        "textStillContainsEarlierCitation": true,
+        "remainingCitations": 0,
+        "remainingPriorSteps": 0,
+        "persistedCitationCount": 0
+      }
+    },
+    {
+      "id": "H04",
+      "severity": "P2",
+      "title": "Korece kitap araması normalleştirilmiş ofsetle özgün metni kesip boş kanıt döndürüyor",
+      "status": "verified",
+      "details": "**Kaynak:** `src/assistant-retrieval.js:4,7–11`; `src/renderer/assistant-book-search.js:10–15`; gerçek tüketici `src/renderer/book-assistant-ui.js:227`.\n\n**Tekrar:** Korece bir paragrafın ardından Latin harfli özel ad bulunan sayfa/bölüm aç; o özel adı kitapta ara. Sentetik örnekte 423 karakterlik geçerli Korece metin içinde SENTINELNAME birebir bulunur.\n\n**Beklenen:** Arama eşleşmesinin alıntısı gerçek metindeki özel adı ve yakın bağlamını içermeli; dönen özgün ofset metin uzunluğunun dışında olmamalı.\n\n**Gözlenen:** NFKD Korece heceleri birden fazla jamo harfine açıyor. `hay.indexOf` normalleştirilmiş dizginin konumunu verirken `text.slice` bu konumu özgün diziye uyguluyor. Probda returnedOffset693, özgün uzunluk423, returnedMatchText boş oldu. Tam BookAssistantUI.assistant.search tüketicisi bu boş eşleşmeyi aynen asistan sonucuna taşıdı.\n\n**Etki:** Kaynakta doğrudan bulunan isim için arama başarılı eşleşme bildirir ama asistanın açıklayabileceği/alın­tılayabileceği metni vermez. Model cevabı veya Korece transkripsiyon kalitesi sınanmadı.\n\n**Önceki ilişki:** R246/R247/R300 browser adres aramasında Hangul/yoğun dizin ve özgün ofset haritasını ele alır; o düzeltmelerin geri alındığı iddia edilmez. Buradaki bağımsız assistant-retrieval modülü aynı haritayı kullanmıyor. Önceki78 kitap aramasının bu Unicode konum sınırını içermiyor.",
+      "observation": {
+        "id": "H04",
+        "sourceContainsExactQuery": true,
+        "sourceLength": 423,
+        "returnedMatchText": "",
+        "returnedOffset": 693,
+        "queryInReturnedMatch": false,
+        "actualBookAssistantConsumerReturnedEmpty": true
+      }
+    },
+    {
+      "id": "H05",
+      "severity": "P2",
+      "title": "Başarısız ayar değişimi geri alınsa da önceki geçerli Geri al kaydı siliniyor",
+      "status": "verified",
+      "details": "**Kaynak:** `src/renderer/assistant-workflow-actions.js:4–7,21–23`.\n\n**Tekrar:** Asistanla arayüz temasını başarıyla değiştir; get_workflow_settings canUndo=true olsun. Ardından aynı appearance alanında dil değişimi başlat; kaydetme başarısız, geri alma kaydı başarılı olsun.\n\n**Beklenen:** Başarısız yeni değişiklik önceki değerleri tamamen koruduğundan önceki başarılı temanın Geri al işlemi kullanılabilir kalmalı.\n\n**Gözlenen:** Yeni deneme başında `last=null` yapılıyor. Hata sonrası değerler geri yükleniyor ancak önceki last kaydı geri getirilmiyor. Prob before/after bütün appearance değerlerini eşit doğrularken canUndo true→false oldu.\n\n**Etki:** Kullanıcı hâlâ geçerli olan önceki asistan ayar değişikliğini normal Geri al aracıyla geri alamaz; elle eski değerleri bilmek gerekir. Son ayar değerleri bozuldu iddiası yoktur.\n\n**Kanıt/sınır:** Gerçek index.html kontrolleri ve tam workflow-actions; kontrollü false/true kayıt yanıtları. Fiziksel disk arızası oluşturulmadı. R707'deki mevcut snapshot/rollback kontrollerinin kapsamadığı geçmiş kayıt sınırıdır; R815-B51 tercih formu taslağının silinmesi değildir.",
+      "observation": {
+        "id": "H05",
+        "failedEditRolledBack": true,
+        "priorValuesUnchanged": true,
+        "previousUndoAvailableBefore": true,
+        "previousUndoAvailableAfter": false
+      }
+    },
+    {
+      "id": "H06",
+      "severity": "P2",
+      "title": "Tümünü tekrarla döngüsü biten parçayı eski devam konumundan başlatıyor",
+      "status": "verified",
+      "details": "**Kaynak:** `src/renderer/media-shelf-ui.js:63,129–150,156`; `src/renderer/music-queue.js:8`.\n\n**Tekrar:** Kayıtlı dinleme konumu30sn olan tek parçalı kuyruğu aç; Tümünü tekrarla'yı etkinleştir; parça100sn sonunda bitsin.\n\n**Beklenen:** İlk açılış kayıtlı30sn'den devam edebilir; tamamlanan parçanın sonraki tekrar turu0sn'den başlamalı.\n\n**Gözlenen:** repeat=all advance yolu aynı satırı yeniden playQueue'ya verir; her loadedmetadata aynı değişmemiş row.position=30 değerini tekrar uygular. Prob ilk devam30, bitiş100 ve sonraki tur başlangıcını30 ölçtü. repeat=one için özel0 sıfırlaması varken all yolu bunu yapmıyor.\n\n**Etki:** Her döngü parçanın başını sürekli atlar. Dinleme konumu service'e yazılsa da kuyruktaki row.position güncellenmez veya döngüde sıfırlanmaz.\n\n**Kanıt/sınır:** Tam mevcut MusicQueue+MediaShelfUI ve gerçek ended/loadedmetadata tüketici akışı; kontrollü HTMLMediaElement yükleme sınırı, fiziksel ses/codec yok. Müzik analizi veya P081–P090 hedefi açılmadı. Önceki kuyruk transkripsiyon kurtarma raporları farklı kuyruktur; R815'te karşılığı yoktur.",
+      "observation": {
+        "id": "H06",
+        "savedResumePosition": 30,
+        "trackEndedAt": 100,
+        "repeatMode": "all",
+        "nextCycleStart": 30
+      }
+    },
+    {
+      "id": "H07",
+      "severity": "P2",
+      "title": "Eski ses oynatıcısını kapatma yanıtı sonradan başlayan yeni parçayı siliyor",
+      "status": "verified",
+      "details": "**Kaynak:** `src/renderer/media-shelf-ui.js:45,123–150`.\n\n**Tekrar:** A çalarken ses oynatıcıyı kapat; listen-progress IPC'sini geciktir. Kapatma beklerken listeden/kuyruktan B'yi başlat; ardından A'nın konum kaydetme yanıtını tamamlat.\n\n**Beklenen:** Eski kapatma yalnız sahibi olduğu A oynatmasını sonlandırmalı; sonradan başlatılmış B'yi etkilememeli.\n\n**Gözlenen:** Kapatma callback'i await öncesinde playGeneration artırıyor ama sonrasında sahiplik kontrolü yapmıyor. B kendi yeni generation'ıyla başladıktan sonra eski callback audio.pause/removeAttribute/load, current=null ve dock.hidden işlemlerini yapıyor. Prob yeni B current.id değerini doğruladı; eski yanıt sonrasında current=null oldu.\n\n**Etki:** Kullanıcının yeni seçtiği ses durur ve oynatıcı kapanır; geç yanıt yeni oynatmayı geçersiz kılar. Ses dosyası silinmez.\n\n**Kanıt/sınır:** Tam shelf/queue modülleri, gerçek Close düğmesi ve public executeMusic queue_next tüketicisi; gecikmeli geçerli IPC. Native ses çıkışı yoktur. R815-B44/B46 kapatılmış ayrıntı/modalın geç yanıtla açılmasından, B54 kitap açılış sırasından farklı ses oynatma lifecycle köküdür.",
+      "observation": {
+        "id": "H07",
+        "newTrackBeforeOldCloseReply": "trackB",
+        "currentAfterOldCloseReply": null,
+        "oldCloseRemovedNewPlayback": true
+      }
+    }
+  ],
+  "sourceSha256": {
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+    "src/assistant-web-research.js": "c0512a168ca61b33f6e573241f09d6cb6bc3b092651e8cce6ed9a634d9a2f84d",
+    "src/assistant-agent-service.js": "92001fed26489e0686e6866548e73f7ccb473ac76a6a789b983eb3a32a0eac6b",
+    "src/renderer/assistant-workspace.js": "146198cada8ee85d6e33e4db273f85af9fb7e7801c97125590d7bb7939f27a7b",
+    "src/renderer/assistant-agent-ui.js": "0f770e459b8041bf41b15c0b4eed2aab3e2fae8ae0b08766714da69cd76f97fe",
+    "src/renderer/global-assistant.js": "3db812647fb2a38e17d9685a72ee44671fddd9ec087324d2d31dda59ecc7dd23",
+    "src/assistant-retrieval.js": "ceb1aa7e2b81e5f369e5976f8c17c1cb0fddb8f3655891250e0f952dc67cf0d8",
+    "src/renderer/assistant-book-search.js": "3a1308f6259594dd66dfeb26c457f670bd0d78769e22ce5d1b836f33a7623a3e",
+    "src/renderer/book-assistant-ui.js": "28b459768d9f1284ebef0ad50860067b4906171e7b78476d45d5a58fe31c9178",
+    "src/renderer/assistant-workflow-actions.js": "83c1572eb187df066b0e813a674f4067f6190582f5322781b3492cfe35e326fb",
+    "src/renderer/media-shelf-ui.js": "40223222eeff8b79cdffe4be5497dae3de53f016229667c328bf055267772707",
+    "src/renderer/music-queue.js": "eb8b5b07e72d47bb3b4678412dd82a51579b42921e4e0e7e5d090e4ce5c9952a"
+  },
+  "coverageComparison": [
+    {
+      "id": "N0024",
+      "family": "F02",
+      "mechanism": "unicode",
+      "signature": "dad7970688dbf2ef305bdf6165048f0a483864dd887015dd02bbe854920d734e",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0028",
+      "family": "F02",
+      "mechanism": "iptal-ortasi",
+      "signature": "e3a61f45d21ba1e0b4316e59d3915c53ac2f685ef04ec0b8aeb6e3e92cf51686",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0029",
+      "family": "F02",
+      "mechanism": "gec-sonuc",
+      "signature": "6eddb2b2acf28358191805eab967648ccfccf83b6d0b4f3aa5e3fde0cbae3333",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0030",
+      "family": "F02",
+      "mechanism": "kaynak-degisimi",
+      "signature": "6e277a83001d8cf40e247670165cb2195ca8411052f346bd2026a7fefb853fea",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0033",
+      "family": "F02",
+      "mechanism": "hata",
+      "signature": "b7966995d1c1e36a3cdf31d67bdb8693fb3e1b265225b9c0cd674a4952c8035a",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0040",
+      "family": "F02",
+      "mechanism": "birlesik-akis",
+      "signature": "373432bae45982b7629e88e54fc6e48bdf33b8e5ba77c957fcf2e9fa27a85767",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0044",
+      "family": "F03",
+      "mechanism": "unicode",
+      "signature": "b461ac505cda40a7145cd9358efbaa80c7b70a02ae5f8df22acc2111dd17d7bd",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0048",
+      "family": "F03",
+      "mechanism": "iptal-ortasi",
+      "signature": "a0899d305612f34286e6eb1a44092ff9c62540d6371dc65f9573225f11830775",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0049",
+      "family": "F03",
+      "mechanism": "gec-sonuc",
+      "signature": "4f5ac60d2e42978a04acd54b9783d1743a5b6a326056af1633d47ac32337a565",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0050",
+      "family": "F03",
+      "mechanism": "kaynak-degisimi",
+      "signature": "0a5280f4d6486284e00d265cb184806dd14df3c17bffff09f86b27a529a50bfd",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0053",
+      "family": "F03",
+      "mechanism": "hata",
+      "signature": "340b1f87aa73fbf55e9f77fad465208f2e8f8a2aa7516309e6516ca3353dfeb3",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0060",
+      "family": "F03",
+      "mechanism": "birlesik-akis",
+      "signature": "d8bbb3684509848a213860ff554656f78592d404587362da922b621a9486ee42",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0084",
+      "family": "F05",
+      "mechanism": "unicode",
+      "signature": "f7b62e9a61d9eac66fe33ad2775b01b3c167d8d6f9d547cfffa1a68103f43202",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0088",
+      "family": "F05",
+      "mechanism": "iptal-ortasi",
+      "signature": "6fa40b7755bb0f8f217ed201a3a15edec41cf26e176508b486669b0b3663cfa6",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0089",
+      "family": "F05",
+      "mechanism": "gec-sonuc",
+      "signature": "ee5420ea1cc64f853e301b823e82e7afaaabf77d4cf21b283df4116ce99e85d6",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0090",
+      "family": "F05",
+      "mechanism": "kaynak-degisimi",
+      "signature": "1e8affe4e5890d955c346a6070ebd9ab9d2c9084c6916389bdf8c24ba6475121",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0093",
+      "family": "F05",
+      "mechanism": "hata",
+      "signature": "df8bf69a7feb546dceea55353b114ae43ae430c919c7b68ab5ea26e780ca3f25",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0100",
+      "family": "F05",
+      "mechanism": "birlesik-akis",
+      "signature": "addb4a5a7fd0ab0a4581c4be73999b6d4f9b9755e0cac3c2eab9f5eea0e55613",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0124",
+      "family": "F07",
+      "mechanism": "unicode",
+      "signature": "843a9b1a4867b9852a8b2bb45a09c19de0970e3e5efcbc09d117e5c06c4ddf6e",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0128",
+      "family": "F07",
+      "mechanism": "iptal-ortasi",
+      "signature": "007f60e4668b347e0053531874110611ad4862a04f68f8b779f2b4a19c6f0f93",
+      "historical_status": "NOT_APPLICABLE"
+    },
+    {
+      "id": "N0129",
+      "family": "F07",
+      "mechanism": "gec-sonuc",
+      "signature": "eecfbc7b513031ad09f41ed88a9def5d6c1d0937e02bb606ab28f8d5bdeee893",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0130",
+      "family": "F07",
+      "mechanism": "kaynak-degisimi",
+      "signature": "a001e8457a953fc4c1d5917dc9eda2d19ce49e15d0ae9e6b1c5801a6656f4cea",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0133",
+      "family": "F07",
+      "mechanism": "hata",
+      "signature": "612140ac8a36eb147bc8230732a65584ca66d7bb972b8c49c8eea4795fdec611",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0140",
+      "family": "F07",
+      "mechanism": "birlesik-akis",
+      "signature": "d7cd67d3f3080f1c7c44eb9cf41242233593ac5a4550203f652dde463357d2e4",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0164",
+      "family": "F09",
+      "mechanism": "unicode",
+      "signature": "b7a0acd42eda7db9c4e15db64296ed17b9d5a57a05d4c88dff19227e24be4ff7",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0168",
+      "family": "F09",
+      "mechanism": "iptal-ortasi",
+      "signature": "81f2f3b1ff2bf340927102d96856897f9f42ee8254fc622724919a40ec703a89",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0169",
+      "family": "F09",
+      "mechanism": "gec-sonuc",
+      "signature": "66e6d9df8d9b6879d66a51dc5879a7c2c70d2fd71bac524bd7c8bae74ff848f7",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0170",
+      "family": "F09",
+      "mechanism": "kaynak-degisimi",
+      "signature": "aafc93eb93228b9ad503acefff2f9a3f544bfec6265213756e478a8c3682af7e",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0173",
+      "family": "F09",
+      "mechanism": "hata",
+      "signature": "0f509de89a292fe5d8f59cde6081868253d15ed824dd1bbb5348494857c393fc",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0180",
+      "family": "F09",
+      "mechanism": "birlesik-akis",
+      "signature": "2f12f46ebb5acdcc5e3e1935ec961dcbfcd8128fb1cc65be6fbb96ce4df30a59",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0184",
+      "family": "F10",
+      "mechanism": "unicode",
+      "signature": "3f706f48af5fc5361c65d47aa9f8ec4b95e97aba58dd63a31f41ccb0bd23f973",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0188",
+      "family": "F10",
+      "mechanism": "iptal-ortasi",
+      "signature": "2bbe4fd5ae1286f2bb572e4629de08abc2b434e08836100bb50f520f56baae07",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0189",
+      "family": "F10",
+      "mechanism": "gec-sonuc",
+      "signature": "40f59d194da545bb923850ca6653cfce84d454664c382ce6cb04876f01a874ed",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0190",
+      "family": "F10",
+      "mechanism": "kaynak-degisimi",
+      "signature": "dabc6458ee09f52d3a56d36db1a6bdb3f9b9f5f2c8d894c9ee0ab74ec87aedb1",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0193",
+      "family": "F10",
+      "mechanism": "hata",
+      "signature": "1c758323051b47d1fefaf8c021ac5545ef10f26dc02ea384479ce3d79a4df12d",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0200",
+      "family": "F10",
+      "mechanism": "birlesik-akis",
+      "signature": "8286ec2bd274f345969b4e5e683849b61b5701bcd68bc74bffec865a6f7fd775",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0684",
+      "family": "F35",
+      "mechanism": "unicode",
+      "signature": "dbd8afc192297f6976cb1976ec47fff96cbb0f7db39824bf1e9b3597035a877b",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0688",
+      "family": "F35",
+      "mechanism": "iptal-ortasi",
+      "signature": "0abdb14b03596b94eb109857167645978fc429fc760d9e0009304b238b31e2dd",
+      "historical_status": "NOT_APPLICABLE"
+    },
+    {
+      "id": "N0689",
+      "family": "F35",
+      "mechanism": "gec-sonuc",
+      "signature": "913b9a65977d2193533a39b467ea2ef6d86a9bf0c8125b93d9fa4413609d403a",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0690",
+      "family": "F35",
+      "mechanism": "kaynak-degisimi",
+      "signature": "53eccc495eee3cd47a013551842b44e56b34880aaf928cee35c5df1ee8f8d8c5",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0693",
+      "family": "F35",
+      "mechanism": "hata",
+      "signature": "7b2e4f9244ded6f0aedfd08b8696f89cf3a8cf70866db63393956aa021a0c0c8",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0700",
+      "family": "F35",
+      "mechanism": "birlesik-akis",
+      "signature": "e3ca8492006701bcc3af4c7bf09ceac88278fdd0ab55d5010852958dd3427f67",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0804",
+      "family": "F41",
+      "mechanism": "unicode",
+      "signature": "b23c0a5753d9e5757a170f0acc043a7151e68cbd990e69407d17063f9eb39516",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0808",
+      "family": "F41",
+      "mechanism": "iptal-ortasi",
+      "signature": "992a401910698367b6f87a3abbe4c9d983febcd64c41cc2472d40154254c6b71",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0809",
+      "family": "F41",
+      "mechanism": "gec-sonuc",
+      "signature": "2a598a27377701030c05c8762f5b4f92225544cb1031963c06b42f99855ac508",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0810",
+      "family": "F41",
+      "mechanism": "kaynak-degisimi",
+      "signature": "9508693b4479fd2ae9ec0cc700ee5a04ec4f8a06d4f0174bfde14182aa71232b",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0813",
+      "family": "F41",
+      "mechanism": "hata",
+      "signature": "175236e974b2fa222a993df26dd6691bf7ae1717510d8da2ee66e7bb69ef464f",
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0820",
+      "family": "F41",
+      "mechanism": "birlesik-akis",
+      "signature": "247aa615ba6232efd35c1c1f7a7768b8442f98951f9f09c6d6509a5303a9845e",
+      "historical_status": "PASS"
+    }
+  ],
+  "excluded": [
+    {
+      "candidate": "Repeated SSE function-name fragment corruption",
+      "reason": "Actual provider consumer assembled the valid set_app_preferences tool name correctly; assertion disproved candidate."
+    }
+  ],
+  "limits": [
+    "Native H01 uses hidden separate Electron BrowserWindow and exact extracted main research-load function, not full application browsing lifecycle.",
+    "All HTTP requests remain on the synthetic localhost server through process-local host mapping; no real private service or user data was accessed.",
+    "Other UI/media cases use actual production modules with controlled IPC/media lifecycle; no physical audio acceptance."
+  ]
+}

@@ -1,0 +1,1342 @@
+[
+  {
+    "id": "N0241",
+    "family": "F13",
+    "mechanism": "normal",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "f9d8b25a8557ef4bcfab03dd273da91fc8f279cf0016d7b4953991b54e21f1f2",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0241.stdout.txt (node probes/f13-planner.py --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0242",
+    "family": "F13",
+    "mechanism": "bos",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "f83b15e7fb59cf56a37d969bae82cedef6945ebd3469847c7b8c79ea60504bf6",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0242.stdout.txt (node probes/f13-planner.py --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0243",
+    "family": "F13",
+    "mechanism": "sinir",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "33272f507c6153bc760edb7aca7fea514bc3aa77a7712a8c83debda5ba1b79e0",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0243.stdout.txt (node probes/f13-planner.py --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0244",
+    "family": "F13",
+    "mechanism": "unicode",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "78f62938face67bf39c02c09213fc573deead45372169e79f459f5360604e4a5",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0244.stdout.txt (node probes/f13-planner.py --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0245",
+    "family": "F13",
+    "mechanism": "yinelenen",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "1bdbdb680414f5441e6bc698954b457fb275be1e9a342c243adf6ee162bed4cb",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0245.stdout.txt (node probes/f13-planner.py --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0246",
+    "family": "F13",
+    "mechanism": "sira",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "c6d511e8807228b5d96fde812e5d7860997a06b2f741a5e6c01293dd6ecdc7a8",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0246.stdout.txt (node probes/f13-planner.py --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0247",
+    "family": "F13",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "9eba13aeda0075bc16f81a2c1393deda579fe7c00bb7b7711d7a6ab2285bdea2",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "[Tpkg03-N0247] exit=77 timed_out=False 0.049s  out=0B err=0B"
+  },
+  {
+    "id": "N0248",
+    "family": "F13",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "de927b35a26e2d93f193dca9151b7f8a4d8deb64290558b835c7692adeb31283",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "[Tpkg03-N0248] exit=77 timed_out=False 0.049s  out=0B err=0B"
+  },
+  {
+    "id": "N0249",
+    "family": "F13",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "f56b9cff3626140be0527a7ed21943a5e80387c7b1f32cb0713724be4623352c",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0249.stdout.txt (node probes/f13-planner.py --mech gec-sonuc, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0250",
+    "family": "F13",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "a3989725fc9a00e67d794b7b61d262b5e7e93fc828303b0f4fafab74d354bccb",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "[Tpkg03-N0250] exit=77 timed_out=False 0.049s  out=0B err=0B"
+  },
+  {
+    "id": "N0251",
+    "family": "F13",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "42b01a23ec1617148e0f63b910c6c402abe7852f9aeb4caaae31b667cd23d5d4",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "[Tpkg03-N0251] exit=77 timed_out=False 0.049s  out=0B err=0B"
+  },
+  {
+    "id": "N0252",
+    "family": "F13",
+    "mechanism": "kesik",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "dcdb9575b43263e026364de7ba0be4ef70cc7bec80f8dadf0e81c17899ffa192",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0252.stdout.txt (node probes/f13-planner.py --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0253",
+    "family": "F13",
+    "mechanism": "hata",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "8ac3ded0b01c922712b07baf73454b17a09ad871351d900455377619bb1fd5fb",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0253.stdout.txt (node probes/f13-planner.py --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0254",
+    "family": "F13",
+    "mechanism": "timeout",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "d001946764364ceaa00eb5ba9b1add142e4863eb8228baa5ae660115ecfce8c5",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0254.stdout.txt (node probes/f13-planner.py --mech timeout, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0255",
+    "family": "F13",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "333aa57ca90be7267a4c5cf3e5f26ca5365bd30afd289393a7ae92230c853b5e",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0255.stdout.txt (node probes/f13-planner.py --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0256",
+    "family": "F13",
+    "mechanism": "donusum",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "aa1a1ffb5c7febf3cd02afcca250b5829cc15843375386c85968f636d85c3774",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0256.stdout.txt (node probes/f13-planner.py --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0257",
+    "family": "F13",
+    "mechanism": "yetki",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "07091e2b7b121e1d8307cf47345ee23873ff7d5ec811932fea884345f4146f0f",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "AdaptivePlanner saf durum makinesidir; yetki siniri yok."
+  },
+  {
+    "id": "N0258",
+    "family": "F13",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "5a17b10b9662a74d000b04aa1ac2fed47da5d72f42ea0bd5b04f117991b753dc",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0258.stdout.txt (node probes/f13-planner.py --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0259",
+    "family": "F13",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "d8aa94046f4066cd4882b5b35b6f6ac19c5f43535f0fbfee56b6c4fdc744fc49",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Planner kullaniciya metin gostermez; yalniz parca/es zamanlilik karari uretir."
+  },
+  {
+    "id": "N0260",
+    "family": "F13",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "backend/translate_planner.py"
+    ],
+    "signature": "2f8641c21fa419d3c6f90e6313d6267fe1bfdc89c3bd15deea5baaa3ceadcf92",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0260.stdout.txt (node probes/f13-planner.py --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0261",
+    "family": "F14",
+    "mechanism": "normal",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "b107f22ceb111808c0c7783e619bddd9071ee5de4ac4a0a554eea308b4b2c4e2",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0261.stdout.txt (node probes/f14-quality-gate.py --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0262",
+    "family": "F14",
+    "mechanism": "bos",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "f44675d978d6d611a026998a7d7bf927c9b22b01faa9f1888ebab3f3c3cde220",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0262.stdout.txt (node probes/f14-quality-gate.py --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0263",
+    "family": "F14",
+    "mechanism": "sinir",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "c27dc7094079bc698df3753a9e20096689d358e70e7eaa76b3bb88b42a8dfcd2",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0263.stdout.txt (node probes/f14-quality-gate.py --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0264",
+    "family": "F14",
+    "mechanism": "unicode",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "2486488157d1764c8d9f8b31c2f40e4b359607da8f0b0f632f6025eb0989f871",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0264.stdout.txt (node probes/f14-quality-gate.py --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0265",
+    "family": "F14",
+    "mechanism": "yinelenen",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "65cb1976aacaa7f246a83d78302c1d852778d21670fa62cdf7c4b05601bcc26b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0265.stdout.txt (node probes/f14-quality-gate.py --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0266",
+    "family": "F14",
+    "mechanism": "sira",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "bf032863e3db702c0d4fc5f5500d53dabed2730f0c4973d06155f21edc3a65ca",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0266.stdout.txt (node probes/f14-quality-gate.py --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0267",
+    "family": "F14",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "95574c19053b25959b4448bb3e70e3d2a8d9a5b31d6060d0af8e5c211935b468",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "[Tpkg03-N0267] exit=77 timed_out=False 1.635s  out=0B err=0B"
+  },
+  {
+    "id": "N0268",
+    "family": "F14",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "4a6d09a3ffee3e3726ada1d9904be5870e6fe64419bbc9bc8ca92ee66b272aef",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "[Tpkg03-N0268] exit=77 timed_out=False 1.657s  out=0B err=0B"
+  },
+  {
+    "id": "N0269",
+    "family": "F14",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "53b70c7a354b627bbd5b743a613016dedad9678d0ec3ace2393872918a873adb",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0269.stdout.txt (node probes/f14-quality-gate.py --mech gec-sonuc, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0270",
+    "family": "F14",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "62e682cf7c6a68faa433999018420233070ff20eb81d912c1700ff5fd078bdcc",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0270.stdout.txt (node probes/f14-quality-gate.py --mech kaynak-degisimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0271",
+    "family": "F14",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "57f1756b7d33a542048c15a896a0743f63931deb989c8a159de6de337b79498d",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "[Tpkg03-N0271] exit=77 timed_out=False 1.635s  out=0B err=0B"
+  },
+  {
+    "id": "N0272",
+    "family": "F14",
+    "mechanism": "kesik",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "9b76b7e47ab4503e7c685fa9d4465dcb5ed79fbeda94891dcd90e867a878ffce",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0272.stdout.txt (node probes/f14-quality-gate.py --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0273",
+    "family": "F14",
+    "mechanism": "hata",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "76611e26d6a435b069e3988116fc03af2a1f93add2ca153ca2cd993602714c42",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0273.stdout.txt (node probes/f14-quality-gate.py --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0274",
+    "family": "F14",
+    "mechanism": "timeout",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "e27833de5928798a76752e3ea90fc7912b8c92a1889da69cb878394dd43df230",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0274.stdout.txt (node probes/f14-quality-gate.py --mech timeout, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0275",
+    "family": "F14",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "6275748fb08dfca40c0deff71b1e9b08889731f46b4853605f6ef5367a031885",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0275.stdout.txt (node probes/f14-quality-gate.py --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0276",
+    "family": "F14",
+    "mechanism": "donusum",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "a10718b86646e647bd9dd892e4872e7fcc58bcc1395b3753fe41aa019641b728",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0276.stdout.txt (node probes/f14-quality-gate.py --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0277",
+    "family": "F14",
+    "mechanism": "yetki",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "4de428f3c5024f1eb102844a9baa47f335279987fd2bc914256ac41976e306a1",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Kalite kapisi saf metin/sayi karsilastirmasidir; yetki siniri yok."
+  },
+  {
+    "id": "N0278",
+    "family": "F14",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "9bd805f6af870df4825e8e291384be6a49dd2db30f7a546119bcc16dc93522fc",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0278.stdout.txt (node probes/f14-quality-gate.py --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0279",
+    "family": "F14",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "85dbc5a647cd10bcd3a1279919c0c022639dc32d2c3f0e217456298bf8ad94e3",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0279.stdout.txt (node probes/f14-quality-gate.py --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0280",
+    "family": "F14",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "bcb44619013c0164408d6dc199e2e157a69b351b4b0f7e6c913c7ccc45377a54",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0280.stdout.txt (node probes/f14-quality-gate.py --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0301",
+    "family": "F16",
+    "mechanism": "normal",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "2dd959dbf33b7d7b140464f12016fec81776a7c3cfa4475e6e592cdd71606f0d",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0301.stdout.txt (backend/venv/Scripts/python.exe probes/p16-time-offset.py --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0302",
+    "family": "F16",
+    "mechanism": "bos",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "09299e88f164767a663f150af35c4e57330a53a5391a88e907c5b5ee57c9e25e",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0302.stdout.txt (backend/venv/Scripts/python.exe probes/p16-time-offset.py --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0303",
+    "family": "F16",
+    "mechanism": "sinir",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "24c72ea07fa39e385306b615dd3aec8f4162696b4c898013a686794c814899e9",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0303.stdout.txt (backend/venv/Scripts/python.exe probes/p16-time-offset.py --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0304",
+    "family": "F16",
+    "mechanism": "unicode",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "f193edfc94a87d0ebce4619b214fb2964df27829886fb7762cd2b1f3c935f4bb",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0304.stdout.txt (backend/venv/Scripts/python.exe probes/p16-time-offset.py --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0305",
+    "family": "F16",
+    "mechanism": "yinelenen",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "80c536c949f3c6f6fe5bafa95e1ff95588b7db8c04f1521f9f564e09385d7261",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0305.stdout.txt (backend/venv/Scripts/python.exe probes/p16-time-offset.py --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0306",
+    "family": "F16",
+    "mechanism": "sira",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "9a55807f5841d781f6e660423e8f414de0ae3b794eb00045240c079042b4e67a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0306.stdout.txt (backend/venv/Scripts/python.exe probes/p16-time-offset.py --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0307",
+    "family": "F16",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "2dbdb72c43b17938f6ec8858bed25e3812572bc79bd5c1daf50c083a158c1d22",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "parse_timecode/offset_diarization_spans/compute_media_duration/shift_srt_entries saf ve senkrondur; iptal edilecek yürüyen iş yok. İptal noktaları transcribe() akışında (cancellation_checkpoint) bulunur."
+  },
+  {
+    "id": "N0308",
+    "family": "F16",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "6c0e9dd04138e5c0086e03a7e72128147cfaeac6f65fc9bf98fe5f2d60bb437d",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Zaman offseti tek bir saf dönüşümde uygulanır (atomik); yarıda kesilecek süreç içi durum yok."
+  },
+  {
+    "id": "N0309",
+    "family": "F16",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "9e410b2f520b4d6d71724a77182180a60b7ad79c85d48774032bf9c654ab13e9",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Fonksiyonlar değer döndürür, kuyruk/gecikmeli sonuç kavramı yok; geç gelen sonuç yalnız çağıran süreçte olabilir."
+  },
+  {
+    "id": "N0310",
+    "family": "F16",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "a8e23cea6190b14d8f5c09c7e4fe30ab95cd4ec179ebf6479f6a2904275409da",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Girdi yolu tek CLI çağrısında sabittir (--input); çalışma ortasında kaynak değişimi bu katmanda yok."
+  },
+  {
+    "id": "N0311",
+    "family": "F16",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "3a1494b82c96d5c80318107febf48310ad9bcba89790aa5a138ac293efaa3788",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0311.stdout.txt (backend/venv/Scripts/python.exe probes/p16-time-offset.py --mech es-zamanli, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0312",
+    "family": "F16",
+    "mechanism": "kesik",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "169fbf3fe55cd947836fa7a2c348c060cc29fa9bb5c498e9c221ac912ac7b224",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0312.stdout.txt (backend/venv/Scripts/python.exe probes/p16-time-offset.py --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0313",
+    "family": "F16",
+    "mechanism": "hata",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "0d41e46a56e2861acc70bccccaf2a96bd601b3ffd8255d58716e8e82f70dba74",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0313.stdout.txt (backend/venv/Scripts/python.exe probes/p16-time-offset.py --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0314",
+    "family": "F16",
+    "mechanism": "timeout",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "a8a56c0eb7f152724114df420d5ed66d80b97bb74f83dc03796190bea47ebbe8",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Saf matematik; duvar saati/zamanlayıcı yok, timeout üretmez (ffmpeg sınırı _run_ffmpeg_bounded'da)."
+  },
+  {
+    "id": "N0315",
+    "family": "F16",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "4b01f6a4dc0897106942bea6bbf85a74e6005a6c3a61be79aaa19e8230fd9a79",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0315.stdout.txt (backend/venv/Scripts/python.exe probes/p16-time-offset.py --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0316",
+    "family": "F16",
+    "mechanism": "donusum",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "011fab7be7bf95b52111ae5e60bceaa4b270ae8caf76d0e22934e9b67904b5d4",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0316.stdout.txt (backend/venv/Scripts/python.exe probes/p16-time-offset.py --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0317",
+    "family": "F16",
+    "mechanism": "yetki",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "28313368c4cd5d816907219dc44b70ae29005eb343ebfebe2114886e1ce02049",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Backend CLI'de yetki katmanı yok; dosya/ayar erişimi main.js IPC tarafında doğrulanır."
+  },
+  {
+    "id": "N0318",
+    "family": "F16",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "d93a7e6aaab7dc012474be97f6e92c33474533983428a0ffb68b3bddcc6d8def",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0318.stdout.txt (backend/venv/Scripts/python.exe probes/p16-time-offset.py --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0319",
+    "family": "F16",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "b44bc750bc11c12de518e324681d813a32ad413d5f2f0613636dc53a74cc4404",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0319.stdout.txt (backend/venv/Scripts/python.exe probes/p16-time-offset.py --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0320",
+    "family": "F16",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/e2e-transcribe-edgecases.test.js"
+    ],
+    "signature": "a8c0a044baeb7a9718cd493b27a3b66c61ca2b9e9912b0577f65a67038bbc542",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0320.stdout.txt (backend/venv/Scripts/python.exe probes/p16-time-offset.py --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0321",
+    "family": "F17",
+    "mechanism": "normal",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "933264e37d5dfac219c8dd07ba73468d0c27fdb622c6abef8c63895de251f1e0",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0321.stdout.txt (backend/venv/Scripts/python.exe probes/p17-segment-merge.py --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0322",
+    "family": "F17",
+    "mechanism": "bos",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "f1750122634a45f33f276cbc3afeae1be44b8560371f44544a5daea63aa49f44",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0322.stdout.txt (backend/venv/Scripts/python.exe probes/p17-segment-merge.py --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0323",
+    "family": "F17",
+    "mechanism": "sinir",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "8d155bf6769c0ea05914848f7a8b08a9cc24be7c828bb08961315e0e0776e58d",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0323.stdout.txt (backend/venv/Scripts/python.exe probes/p17-segment-merge.py --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0324",
+    "family": "F17",
+    "mechanism": "unicode",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "b072e703a06430f7a9b9b926ccbd2d18725e9c4805fcdac37696594ffdfaab66",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0324.stdout.txt (backend/venv/Scripts/python.exe probes/p17-segment-merge.py --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0325",
+    "family": "F17",
+    "mechanism": "yinelenen",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "669f419dd4defe06f900fd25175d3ee33d130fdaaf135d853cfc188109f59dc9",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0325.stdout.txt (backend/venv/Scripts/python.exe probes/p17-segment-merge.py --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0326",
+    "family": "F17",
+    "mechanism": "sira",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "f6fc480baf96b82cc9c2db2247946592af445476ae3f15059483598d5b8ad23e",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0326.stdout.txt (backend/venv/Scripts/python.exe probes/p17-segment-merge.py --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0327",
+    "family": "F17",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "d40ba68c1f177983e735927c86454392c40cef5c63b41cfe4d3102d1e8eea37d",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "dedupe/fix/merge/split saf senkron fonksiyonlardır; iptal yüzeyi transcribe() döngüsündedir."
+  },
+  {
+    "id": "N0328",
+    "family": "F17",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "e01f69fcb948c43032d6a797c6b5e127492a0c91e7204c38ce07e9040c9f42f5",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Metin işleme tek çağrıda tamamlanır; yarıda kesilecek paylaşılan durum yok."
+  },
+  {
+    "id": "N0329",
+    "family": "F17",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "086e465877601fd21f28b10b8ee644ba2af05c3d08b2974f303e35825038793f",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Senkron dönüş; gecikmeli sonuç/kuyruk kavramı yok."
+  },
+  {
+    "id": "N0330",
+    "family": "F17",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "ff6744b7e239861f20a0ca7e185793966c961f7488fc96718a0b428823240ea8",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Girdi segment listesi çağrı başına sabittir; kaynak değişimi üst katmanda (main.js generation) ele alınır."
+  },
+  {
+    "id": "N0331",
+    "family": "F17",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "668d045109c4238f797d3f5c19c33ffdfa98377bf49c60d5a74efb7fbc78560e",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0331.stdout.txt (backend/venv/Scripts/python.exe probes/p17-segment-merge.py --mech es-zamanli, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0332",
+    "family": "F17",
+    "mechanism": "kesik",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "ed76e9f0365284721b589e06b2cc99ebd207f374e7bdaa9f06af986fdda728c8",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0332.stdout.txt (backend/venv/Scripts/python.exe probes/p17-segment-merge.py --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0333",
+    "family": "F17",
+    "mechanism": "hata",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "89d7a2dbc79ae2708e66c46c810c7dac0729f3d3ce493a7e7642c87598a92ac8",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0333.stdout.txt (backend/venv/Scripts/python.exe probes/p17-segment-merge.py --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0334",
+    "family": "F17",
+    "mechanism": "timeout",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "02b728b3723a0a10c0071831f18f7411d4d24e37810b3f53d3ff611b4f3824c9",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Saf fonksiyonlar; zamanlayıcı yok. 5000 bloklu gerçek yük N0339'da ölçüldü."
+  },
+  {
+    "id": "N0335",
+    "family": "F17",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "e59da5ba6d1451dbad712b97c820e8f2e165d82a9796e8e2e675078164713c12",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0335.stdout.txt (backend/venv/Scripts/python.exe probes/p17-segment-merge.py --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0336",
+    "family": "F17",
+    "mechanism": "donusum",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "524ce28fcd202769484e008ba8e8f922831251e6306ba30bca87dc9c008a92c0",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0336.stdout.txt (backend/venv/Scripts/python.exe probes/p17-segment-merge.py --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0337",
+    "family": "F17",
+    "mechanism": "yetki",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "cce407799a2a54ff0bd490844f3eefb4b91269ab01b1c181a0d3ecf76775efd7",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Yetki dosya/IPC katmanında; metin dönüşümünde izin kararı yok."
+  },
+  {
+    "id": "N0338",
+    "family": "F17",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "104c25e8b1f5191a4cf136d50be45502ebab395565f5e37ff30cb95387120c98",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0338.stdout.txt (backend/venv/Scripts/python.exe probes/p17-segment-merge.py --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0339",
+    "family": "F17",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "629af57c5a98faf9cd3381336e70ee558b7ed45d83015f61d4c00caaca8ed5fd",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0339.stdout.txt (backend/venv/Scripts/python.exe probes/p17-segment-merge.py --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0340",
+    "family": "F17",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "a119b2bc41f5f7956c6ab3b3ade8a510d746d2c6e884086ab70d427207f5b95a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0340.stdout.txt (backend/venv/Scripts/python.exe probes/p17-segment-merge.py --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0341",
+    "family": "F18",
+    "mechanism": "normal",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "3eab476e355e868314cc24674e4f988ab2f3e15f24bcb38243e5b5220c53067c",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0341.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0342",
+    "family": "F18",
+    "mechanism": "bos",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "7668436a5ab070c89be113b9b21a04e5d786ca03eb55ad0b58c456db5e6707da",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0342.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0343",
+    "family": "F18",
+    "mechanism": "sinir",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "d97b06b770a9eea024b058a44c65955141ecd45d111b9c179d5d2c3a034803b4",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0343.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0344",
+    "family": "F18",
+    "mechanism": "unicode",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "4c7b756a71f9385f03d0fc7455be1516bf98c02d9defa727a5e338fab3d579a2",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0344.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0345",
+    "family": "F18",
+    "mechanism": "yinelenen",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "46d4803e7d187d630ed3b2ec4493bbcbcb6ce6299b4e4f790bc70d51c981f54b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0345.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0346",
+    "family": "F18",
+    "mechanism": "sira",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "3c22673712607ec2b06d3772e53c6dc107d3d789eecae9b272efbdaeb585fb8a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0346.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0347",
+    "family": "F18",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "3ac853ea4b6d770cf858f1a9b55709ba4adb3c44746fe70a68d2f2094c65023e",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Yazıcılar senkron dosya yazımıdır; atomik yazıcı yarım dosya bırakmaz, iptal edilecek akış yok."
+  },
+  {
+    "id": "N0348",
+    "family": "F18",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "a5ad8578f8ba0fb66ad3ca6072f9063232a50c706fa919f2d59da97eb7116702",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Yazım tek atomic_text_writer bloğunda tamamlanır; süreç içi iptal noktası yok."
+  },
+  {
+    "id": "N0349",
+    "family": "F18",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "d0e120cc18c325793f23ccd43e3673e96fcfa4ba911a6edb24af57eb44feb58e",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Senkron yazma; gecikmeli sonuç yok."
+  },
+  {
+    "id": "N0350",
+    "family": "F18",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "7b8905e826078abd9da2a4c48843462de9ff634ec0b555154a57504932650ac2",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Yazıcıya verilen entries tek çağrıda sabittir; kaynak değişimi kavramı yok."
+  },
+  {
+    "id": "N0351",
+    "family": "F18",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "c258a0c7ff7016231bf76104271ffa9b3706ab3eb5d767b430b08aefd31c6da8",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0351.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech es-zamanli, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0352",
+    "family": "F18",
+    "mechanism": "kesik",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "3bb991a9c90cc162c134a4bd7239f83b8eb808e6f380a04bd1f814753101daba",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0352.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0353",
+    "family": "F18",
+    "mechanism": "hata",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "340db52f30c63fb9b6f6ebe7ed393310569514c982509ea207408a663552f1d3",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0353.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0354",
+    "family": "F18",
+    "mechanism": "timeout",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "8c5a276ccf5d0e1b05290ecbea6ec8f143daaea431bd2e1f9e37fa500a608f89",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Dosya yazımı zamanlayıcı kullanmaz; 5000 blok performansı N0359'da ölçüldü."
+  },
+  {
+    "id": "N0355",
+    "family": "F18",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "77dffef1cf8421d25b4d4aeb24639beb85274948784b4cefa47dc3d9971f79b8",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0355.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0356",
+    "family": "F18",
+    "mechanism": "donusum",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "b02561d5471ba162fec2b3c382cab34be6b1dc2bb057aad3cd0a07c19ff52a29",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0356.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0357",
+    "family": "F18",
+    "mechanism": "yetki",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "a0bb3f7045ea361eb03683851af80715b7e0b8c5c334d0a8278360eaa7306983",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Dosya yolu/izin doğrulaması main.js ve OutputTransaction katmanında; yazıcı kendi başına yetki kararı vermez."
+  },
+  {
+    "id": "N0358",
+    "family": "F18",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "83f6a0cb0f5b77f067d4244d984f59c28a9222fd4b8e8a133d77234be1660ba4",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0358.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0359",
+    "family": "F18",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "b9bd5a4ef4967c51b721c679432ffdcd09600751b18abe0cf260ab609e23810d",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0359.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0360",
+    "family": "F18",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "d3b824e8b4f6dcc02708ee71824bf2b870a66c1ec9716f54c697400a0253168f",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0360.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  }
+]

@@ -1,0 +1,53 @@
+{
+  "initialHead": "da773134a3e744885592bafa008f81f03bcdf878",
+  "head": "ae0a61a7b42c58d78bb7317680cf8f8133d5e027",
+  "method": "Original modules and one unchanged IPC handler evaluated in VM; real synthetic filesystem. Native dialog/job boundaries controlled; no personal profile or model weights used.",
+  "results": [
+    {
+      "id": "HR01",
+      "case": "displayed-and-deleted-repository-differ",
+      "displayedRepository": "models--systran--faster-whisper-large-v3-turbo",
+      "deletedRepository": "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo",
+      "reportedRemoved": true,
+      "installedAfter": true,
+      "readyRepositoryRetained": true
+    },
+    {
+      "id": "HR02",
+      "case": "job-begins-while-native-confirm-is-pending",
+      "jobActiveAtDeletion": true,
+      "cacheRemoved": true,
+      "apiOk": true,
+      "jobIsSynthetic": true,
+      "actualModelLoaded": false
+    },
+    {
+      "id": "HR03",
+      "case": "selected-repair-also-dedupes-unselected-identity",
+      "selected": [
+        "dup-catalog:selected-A"
+      ],
+      "reportedApplied": [
+        "dup-catalog:selected-A"
+      ],
+      "unselectedBefore": 2,
+      "unselectedAfter": 1,
+      "remainingUnselectedTitle": "B new",
+      "backupExists": true
+    },
+    {
+      "id": "HR04",
+      "case": "json-parseable-but-schema-invalid-backup-is-reported-restored-and-healthy",
+      "reportedApplied": [
+        "corrupt-file:media-catalog.json"
+      ],
+      "remainingHealthIssues": 0,
+      "consumerError": "Katalog dosyası ve güvenli yedeği okunamadı; veri korunuyor.",
+      "restoredDocument": {
+        "version": 1,
+        "wrongProperty": []
+      },
+      "originalMirrorPreserved": true
+    }
+  ]
+}
