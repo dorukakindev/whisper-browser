@@ -47,7 +47,11 @@
     for (const event of events) element.addEventListener(event, update);
     return () => { for (const event of events) element.removeEventListener(event, update); };
   }
-  let taskDialog, taskTimer;
+  let taskDialog, taskTimer,taskFilter='all';
+  const bindings=new Map();
+  const trackVoice=(id,context)=>{if(context)bindings.set(id,{...context});while(bindings.size>50)bindings.delete(bindings.keys().next().value);};
+  async function returnToVoice(id){const c=bindings.get(id);if(!c)throw Error(t('This job has no current source binding.','Bu işin kaynak bağlantısı yok.'));taskDialog?.close();if(c.mode==='book'){const d=$('mediaWorkflowsDialog');if(d?.open&&d.querySelector('textarea[data-project-id]')?.dataset.projectId===c.projectId&&Number(d.querySelector('textarea[data-project-id]').dataset.chapter)===c.chapter)return;await window.MediaWorkflowsUI.openProject(c.projectId,{chapter:c.chapter});return;}if(c.mode==='browser'){const tab=browserTabState(c.tabId);if(!tab||tab.generation!==c.generation)throw Error(t('The original video tab changed.','Özgün video sekmesi değişti.'));await openPlayer();setWorkspaceMode('browser');await activateBrowserTab(c.tabId);}else if(c.mode==='player'){await openLocalMedia(c.source,c.currentTime);}else throw Error(t('Open the source in its reader.','Kaynağı okuyucusunda aç.'));}
+
   function openTasks() {
     if (taskDialog?.open) { taskDialog.querySelector('button')?.focus(); return; }
     if (!taskDialog) {
@@ -55,6 +59,7 @@
       const header = el('header'), title = el('h2', '', t('Activity', 'İşlem merkezi'));
       const close = el('button', 'mh-action', '×'); close.type = 'button'; close.setAttribute('aria-label', t('Close activity', 'İşlem merkezini kapat')); close.onclick = () => taskDialog.close();
       header.append(title, close); taskDialog.append(header, el('p', 'mx-intro', t('Closing this window leaves jobs running. Use Stop to cancel a job.', 'Bu pencereyi kapatmak işleri durdurmaz. İptal etmek için Durdur’u kullan.')));
+      const filters=el('nav','mx-task-filters');for(const key of ['all','running','review','ready']){const b=el('button','mh-action');b.type='button';b.dataset.filter=key;b.onclick=()=>{taskFilter=key;drawTasks();};filters.append(b);}taskDialog.append(filters);
       const list = el('div', 'mx-tasks'); list.id = 'globalTaskList'; taskDialog.append(list); document.body.append(taskDialog);
       taskDialog.addEventListener('close', () => { clearInterval(taskTimer); if (typeof syncBrowserOcclusion === 'function') void syncBrowserOcclusion(); });
     }
@@ -62,13 +67,21 @@
     taskDialog.querySelector('.mx-intro').textContent = t('Closing this window leaves jobs running. Use Stop to cancel a job.', 'Bu pencereyi kapatmak işleri durdurmaz. İptal etmek için Durdur’u kullan.');
     taskDialog.querySelector('header button').setAttribute('aria-label',t('Close activity','İşlem merkezini kapat'));
     taskDialog.showModal(); void syncBrowserOcclusion();
-    const draw = () => updatePlayerTaskCenter({ listTarget: $('globalTaskList') });
-    draw(); taskTimer = setInterval(draw, 1000);
+    drawTasks(); taskTimer = setInterval(drawTasks, 1000);
+  }
+  function drawTasks(){
+    const list=$('globalTaskList');if(!list)return;
+    const focused=list.contains(document.activeElement)?document.activeElement:null,id=focused?.closest('[data-job-id]')?.dataset.jobId,buttonIndex=focused?[...focused.parentElement.children].indexOf(focused):-1;
+    updatePlayerTaskCenter({listTarget:list});
+    const items=[...list.querySelectorAll('.player-task-row')],labels={all:t('All','Tümü'),running:t('Running','Çalışan'),review:t('Needs attention','İnceleme'),ready:t('Ready','Hazır')};
+    for(const button of taskDialog.querySelectorAll('[data-filter]')){const key=button.dataset.filter;button.textContent=labels[key]+' · '+(key==='all'?items.length:items.filter(n=>n.dataset.jobBucket===key).length);button.setAttribute('aria-pressed',String(key===taskFilter));}
+    if(items.length){list.replaceChildren();for(const bucket of ['running','review','ready']){if(taskFilter!=='all'&&taskFilter!==bucket)continue;const rows=items.filter(n=>n.dataset.jobBucket===bucket);if(!rows.length)continue;const section=el('section','mx-task-section');section.append(el('h3','',labels[bucket]),...rows);list.append(section);}if(!list.childElementCount)list.append(el('p','mx-intro',t('No jobs in this group.','Bu grupta iş yok.')));}
+    if(id){const row=[...list.querySelectorAll('[data-job-id]')].find(n=>n.dataset.jobId===id),target=row?.querySelector('.player-task-controls')?.children[buttonIndex];target?.focus({preventScroll:true});}
   }
   const jobs = new Map();
   function taskRows() {
-    const rows = [...jobs.values()].map(row=>({...row,label:t('Voice production','Ses üretimi'),
-      actions:row.actions.map((action,index)=>({...action,label:index===0?t('Open','Aç'):t('Stop','Durdur')}))}));
+    const rows = [...jobs.values()].map(row=>({...row,label:bindings.get(row.id.slice(4))?.mode==='book'?t('Book narration','Kitap seslendirme'):t('Voice production','Ses üretimi'),
+      actions:row.actions.map((action,index)=>({...action,label:action.kind==='return'?(bindings.get(row.id.slice(4))?.mode==='book'?t('Return to book','Kitaba dön'):t('Return to video','Videoya dön')):action.kind==='stop'?t('Stop','Durdur'):t('Voice studio','Ses penceresi')}))}));
     if (player.downloading) rows.push({ id:'active-media-download', label:t('Video download','Video indirme'), state:'running',
       detail:$('playerDlText')?.textContent || t('Downloading','İndiriliyor'), percent:parseFloat($('playerDlText')?.textContent),
       actions:[{label:t('Stop','Durdur'),kind:'stop',run:()=>window.api.cancelYoutubeDownload()}] });
@@ -92,8 +105,9 @@
     const row = { ...previous, id: 'dub:' + event.id, label: t('Voice production', 'Ses üretimi'), startedAt: previous?.startedAt || Date.now(),
       state: ended ? event.type === 'error' ? 'failed' : event.type === 'cancelled' ? 'cancelled' : 'done' : 'running',
       detail: event.error || event.text || (ended ? t('Finished — open voice studio for results', 'Tamamlandı — sonuçlar için ses penceresini aç') : previous?.detail || t('Preparing voice / background audio', 'Ses / arka plan hazırlanıyor')),
+      review: event.type==='done'?(event.quality?.groups||[]).filter(g=>g.status!=='ready').length:previous?.review,
       completed: event.done ?? previous?.completed, total: event.total ?? previous?.total,
-      actions: [{ label: t('Open', 'Aç'), run: () => $('dubMainOpen')?.click() }, ...(!ended ? [{ label: t('Stop', 'Durdur'), kind: 'stop', run: () => $('dubGeneratorCancel')?.click() }] : [])],
+      actions: [...(bindings.has(event.id)?[{kind:'return',label:t('Return to video','Videoya dön'),run:()=>returnToVoice(event.id).catch(error=>{taskDialog?.showModal();const note=taskDialog?.querySelector('.mx-intro');if(note)note.textContent=error.message;})}]:[]),{ label: t('Open', 'Aç'), run: () => {taskDialog?.close();$('dubMainOpen')?.click();} }, ...(!ended ? [{ label: t('Stop', 'Durdur'), kind: 'stop', run: () => $('dubGeneratorCancel')?.click() }] : [])],
       dismiss: ended ? () => { jobs.delete('dub:' + event.id); } : null };
     jobs.set(row.id, row); while (jobs.size > 25) jobs.delete(jobs.keys().next().value);
   });
@@ -102,6 +116,6 @@
   document.addEventListener('keydown', event => {
     if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'j') { event.preventDefault(); openTasks(); }
   });
-  window.MediaExperience = Object.freeze({ setContext, context, bindPassage, openTasks, taskRows, openVoice });
+  window.MediaExperience = Object.freeze({ setContext, context, bindPassage, openTasks, taskRows, openVoice, trackVoice });
   $('mediaCatalogDialog')?.classList.add('media-surface');
 })();

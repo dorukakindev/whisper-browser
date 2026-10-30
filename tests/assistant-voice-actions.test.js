@@ -16,18 +16,18 @@ function setup({tracks=true}={}){
  const dom=new JSDOM(fs.readFileSync(path.join(__dirname,'../src/renderer/index.html'),'utf8'),{runScripts:'outside-only'}),w=dom.window,el=id=>w.document.getElementById(id);
  let event,request,proof=true,applied=0,picks=0,played=0,refUsed;
  const context={mode:'browser',tabId:'video-A',generation:2,mediaId:'media-A',mediaKey:'browser:A',source:'https://www.youtube.com/watch?v=abcdefghijk',visible:true,hasMedia:true};
- let output;
- w.HTMLMediaElement.prototype.pause=w.HTMLMediaElement.prototype.load=()=>{};w.HTMLMediaElement.prototype.play=async()=>{played++;};w.HTMLElement.prototype.scrollIntoView=()=>{};
+ let output,attached=null;
+ w.HTMLMediaElement.prototype.pause=function(){this._testPaused=true;};w.HTMLMediaElement.prototype.load=()=>{};w.HTMLMediaElement.prototype.play=async function(){played++;this._testPaused=false;};Object.defineProperty(w.HTMLMediaElement.prototype,'paused',{get(){return this._testPaused!==false;}});w.HTMLElement.prototype.scrollIntoView=()=>{};
  Object.defineProperty(w.HTMLMediaElement.prototype,'readyState',{get:()=>4});Object.defineProperty(w.HTMLMediaElement.prototype,'duration',{get:()=>10});
  el('dubGeneratorDialog').showModal=()=>{el('dubGeneratorDialog').open=true;};
- Object.assign(w,{player:{sub2Role:'translation',sub2Path:'C:\\private\\translated.srt',browserTracks:tracks?[{path:'C:\\private\\translated.srt',role:'translation'}]:[]},UiLocale:{get:()=> 'en',t:value=>value},syncBrowserOcclusion:()=>{},AssistantAppActions:{current:()=>true},BrowserDubAudioUI:{context:()=>context,originalPlayback:()=>null,stop:async()=>{},attachGenerated:async()=>{applied++;return true;}}});
+ Object.assign(w,{player:{sub2Role:'translation',sub2Path:'C:\\private\\translated.srt',browserTracks:tracks?[{path:'C:\\private\\translated.srt',role:'translation'}]:[]},UiLocale:{get:()=> 'en',t:value=>value},syncBrowserOcclusion:()=>{},AssistantAppActions:{current:()=>true},BrowserDubAudioUI:{context:()=>context,originalPlayback:()=>attached?{muted:false}:null,snapshot:()=>attached,stop:async()=>{attached=null;},attachGenerated:async value=>{applied++;attached={kind:'generated',id:value.id};return true;}}});
  const reference={id:'voice-A',name:'Saved voice',path:'C:\\private\\reference.wav',text:'Private transcript',url:'file:///fixture.wav'};
  w.api={dubConfig:async()=>({ok:true,ready:true,engine:'C:\\private\\engine',reference:reference.path,transcript:'C:\\private\\reference.txt'}),latestDub:async args=>({ok:true,output:args?.id&&args.id===output?.id&&proof?output:null}),
   onDubEvent:fn=>{const prior=event;event=value=>{prior?.(value);fn(value);};},startDub:async args=>(request=args,{ok:true}),
   listVoiceReferences:async()=>({ok:true,folder:'C:\\private',activeId:'voice-A',references:[reference]}),useVoiceReference:async args=>(refUsed=args,{ok:true}),
   selectVoiceReferenceSource:async()=>{picks++;return {ok:true,path:'C:\\private\\local.wav'};},prepareVoiceReference:async args=>({ok:true,reference:{id:'voice-A'}}),
   planDub:async()=>({ok:true,sourceHash:'source',groups:[{key:'g1',text:'Hello.',start:0,end:2000,seconds:2}]}),openPath:async()=>{},saveDubPronunciations:async()=>({ok:true})};
- for(const file of ['dub-generator-ui.js','voice-reference-ui.js','assistant-voice-actions.js'])w.eval(fs.readFileSync(path.join(__dirname,'../src/renderer',file),'utf8'));
+ for(const file of ['dub-experience-model.js','dub-generator-ui.js','voice-reference-ui.js','assistant-voice-actions.js'])w.eval(fs.readFileSync(path.join(__dirname,'../src/renderer',file),'utf8'));
  return {dom,w,el,context,read:()=>({request,applied,picks,played,refUsed}),proof:value=>proof=value,
   run:(name,args={})=>w.AssistantVoiceActions.execute(name,args,{}),
   finish:(count=1)=>{output={id:request.id,type:'done',url:'file:///fixture.wav',name:'fixture.wav',sample:false,sync:{},quality:{groups:Array.from({length:count},(_,i)=>({key:'g'+(i+1),group:i+1,text:'Hello.',status:'review',audioStart:0,audioEnd:2,verification:{status:'not_checked'}}))}};event(output);return output;}};
@@ -65,4 +65,8 @@ test('Assistant never adopts a leftover player subtitle without current browser 
   await assert.rejects(h.run('start_voice_generation'),/confirmed|subtitle|ready/i);
   assert.equal(h.read().request,undefined);
  }finally{await new Promise(resolve=>setTimeout(resolve,25));h.dom.window.close();}
+});
+
+test('a voice setting that rejects its write cannot produce a successful assistant receipt',async()=>{
+ const h=setup();try{Object.defineProperty(h.el('dubProfile'),'value',{configurable:true,get:()=> 'fast',set(){}});await assert.rejects(h.run('configure_voice_generation',{profile:'quality'}),/did not retain/);}finally{h.dom.window.close();}
 });

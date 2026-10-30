@@ -147,7 +147,7 @@ app
         'return document.querySelector("#pdfReader.mode-reading .pdf-page-prose")?.textContent.includes("controlled PDF")',
       ),
     );
-    if(process.argv.includes('--citations800')){
+    if((process.argv.includes('--citations800')||process.argv.includes('--experience801'))){
       const found=await run(`return BookAssistantUI.assistant.search({query:'Chapter 3'},()=>false)`);
       const citation=found.matches.find(c=>c.page===3);assert(citation?.navigable,'PDF search should return navigable registered citations');
       await run(`await AssistantWorkspace.prepare();const job={chatQuestion:'Find chapter three.',chatContext:{},sourceScope:aiSourceScope(),bubble:aiChatAdd('ai','See [B3-0].')};AssistantWorkspace.begin(job);AssistantWorkspace.citations(job,[${JSON.stringify(citation)}]);AssistantWorkspace.finish(job,'See [B3-0].','complete');return true`);
@@ -161,6 +161,7 @@ app
       await overlayRun(`document.getElementById('bubble').click();return true`);
 
       assert.equal(await run('return player.pdfReader.currentPage'),3);
+      if(process.argv.includes('--experience801')){await until(()=>run(`return CSS.highlights.has('pdf-citation')`),'prose citation highlight');await capture('citation-highlight-reading.png');await run(`document.querySelector('[data-pdf-view="source"]').click();return true`);await until(()=>run(`return [...document.querySelectorAll('.pdf-citation-overlay i')].some(n=>n.getBoundingClientRect().width>0)`),'original page quote boxes');await capture('citation-highlight-source.png');}
       await capture('citation-page3.png');
       await run(`document.getElementById('pdfCitationBack').click();return true`);
       await until(()=>run('return player.pdfReader.currentPage===1'),'citation return');

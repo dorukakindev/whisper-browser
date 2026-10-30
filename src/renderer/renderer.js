@@ -14492,6 +14492,7 @@ function runBrowserShortcut(key, shift = false) {
   // sekme/gezinme kısayolları arkadaki sayfaya işlemesin: "Sekme grubunu
   // düzenle" içinde yazarken Ctrl+W arkadaki sekmeyi kapatıyordu.
   if (_activeModal || document.querySelector('dialog[open]')) return true;
+  if(normalized==='voice-repair'){void window.DubExperienceUI?.repairNow();return true;}
   if (['subtitle-source', 'subtitle-translation', 'subtitle-both', 'subtitle-toggle'].includes(normalized)) {
     setSubtitleMode(normalized === 'subtitle-toggle' ? (browserSubtitleMode() === 'off' ? 'both' : 'off') : normalized.slice(9));
     saveActiveBrowserTabWorkspace();
@@ -23796,6 +23797,7 @@ function updatePlayerTaskCenter({ refresh = true, listTarget = null } = {}) {
   for (const row of rows) {
     const progress = PlayerTaskCenterModel.progressOf(row);
     const item = document.createElement('article'); item.className = 'player-task-row';
+    item.dataset.jobId=String(row.id||'');item.dataset.jobBucket=row.review||row.failed||row.recoverable||['failed','error','cancelled','paused'].includes(row.state||row.status)?'review':['done','completed','success','ready'].includes(row.state||row.status)?'ready':'running';
     if (row.recoverable) item.classList.add('is-recovery');
     if (row.failed || ['failed', 'error'].includes(row.state || row.status)) item.classList.add('is-error');
     const mark = document.createElement('span'); mark.className = 'player-task-mark';

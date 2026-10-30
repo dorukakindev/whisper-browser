@@ -1,3 +1,4 @@
+- [Rapor801](BROWSER_BUG_REPORT_801.md) — Dublaj inceleme, çeviri karşılaştırması, PDF vurgusu ve iş merkezi
 - [Rapor800](BROWSER_BUG_REPORT_800.md) — PDF alıntısı, manuel zaman kilidi, ses sessizliği, grup A/B ve çıktı hazırlığı
 - [Rapor799](BROWSER_BUG_REPORT_799.md) — Araştırma paketi adayları ve PNG teslim bütünlüğü
 - [Rapor798](BROWSER_BUG_REPORT_798.md) — API asistan: araştırma, rehber/kitap araması, işlem günlüğü ve opsiyonel MCP

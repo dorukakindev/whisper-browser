@@ -14,7 +14,7 @@
   let result,note;
   if(name==='restore_original_audio'){
    await window.BrowserDubAudioUI.stop();if(stale())throw Error(t('The source changed.','Kaynak değişti.'));
-   return {status:'completed',note:t('Replacement audio was removed.','Harici ses bağlantısı kaldırıldı.')};
+   if(window.BrowserDubAudioUI.originalPlayback())throw Error(t('Replacement audio is still attached.','Harici ses hâlâ bağlı.'));return {status:'completed',postcondition:{verified:true,kind:'attachment-removed'},note:t('Replacement audio was removed.','Harici ses bağlantısı kaldırıldı.')};
   }
   if(['set_voice_reference','pick_local_voice_reference','prepare_voice_reference'].includes(name)){
    if(!document.getElementById('dubGeneratorDialog')?.open)await window.DubGeneratorUI.prepareCurrent();if(stale())throw Error(t('The source changed.','Kaynak değişti.'));
@@ -27,7 +27,18 @@
   else if(name==='use_generated_voice'){result=await ui.use(args.output_id,stale);note=t('The matching generated voice is attached to this video.','Bu videoya ait üretilen ses bağlandı.');}
   if(stale())throw Error(t('The source changed. The previous job remains in Jobs.','Kaynak değişti. Önceki iş İşler bölümünde izlenebilir.'));
   if(!result?.ok)throw Error(t('Voice action was not confirmed. Check the existing voice panel.','Ses işlemi doğrulanamadı. Mevcut ses panelini kontrol et.'));
-  return {jobId:result.id,status:name==='start_voice_generation'||name==='voice_group'&&args.operation==='regenerate'?'accepted':'completed',note};
+  const observed=ui.state(args.group_id?{group_id:args.group_id}:{});
+  if(name==='configure_voice_generation'){
+    for(const [key,value]of Object.entries(args))if(key in (observed.settings||{})&&observed.settings[key]!==value)throw Error(t('Voice settings did not retain the requested value: ','Ses ayarı istenen değerde kalmadı: ')+key);
+    if(args.start!==undefined&&(!observed.range||observed.range.start!==args.start||observed.range.end!==args.end))throw Error(t('Voice range was not retained.','Ses aralığı korunmadı.'));
+  }
+  if(name==='set_voice_reference'){const refs=await window.api.listVoiceReferences();if(stale()||!refs?.ok||refs.activeId!==args.reference_id)throw Error(t('Active voice reference could not be verified.','Etkin ses referansı doğrulanamadı.'));}
+  if(name==='use_generated_voice'&&(!window.BrowserDubAudioUI.originalPlayback()||window.BrowserDubAudioUI.snapshot()?.id!==args.output_id))throw Error(t('Voice attachment read-back failed.','Ses bağlantısı yeniden okunarak doğrulanamadı.'));
+  if((name==='start_voice_generation'||name==='voice_group'&&args.operation==='regenerate')&&(!result.id||observed.currentJobId!==result.id&&observed.output?.id!==result.id))throw Error(t('Accepted voice job is not observable.','Kabul edilen ses işi durumdan doğrulanamadı.'));
+  if(name==='voice_group'&&args.operation==='listen'&&observed.playingGroup!==args.group_id)throw Error(t('Group audio is not playing.','Grup sesi çalmıyor.'));
+  if(name==='voice_group'&&args.operation==='open'&&document.getElementById('dubQualityGroup').value!==args.group_id)throw Error(t('The requested group is not selected.','İstenen grup seçili değil.'));
+  const verified=['configure_voice_generation','set_voice_reference','use_generated_voice','start_voice_generation','voice_group'].includes(name);
+  return {postcondition:{verified,kind:verified?'application-read-back':'operation-receipt'},jobId:result.id,status:name==='start_voice_generation'||name==='voice_group'&&args.operation==='regenerate'?'accepted':'completed',note};
  }
  window.AssistantVoiceActions=Object.freeze({execute});
 })();
