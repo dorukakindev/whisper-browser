@@ -36,18 +36,26 @@ async def stop_server(server, timeout=15):
         await bounded_call(server.stop(), timeout)
     except BaseException as error:
         # Only processes owned by this server, never a machine-wide Python kill.
+        cleanup_error = None
         for worker in getattr(server, 'servers', []):
-            proc = getattr(worker, 'process', None)
-            if proc is not None and proc.is_alive():
-                proc.terminate()
-                await asyncio.to_thread(proc.join, 2)
-                if proc.is_alive():
-                    proc.kill()
+            try:
+                proc = getattr(worker, 'process', None)
+                if proc is not None and proc.is_alive():
+                    proc.terminate()
                     await asyncio.to_thread(proc.join, 2)
-                if proc.is_alive():
-                    if isinstance(error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)):
-                        raise
-                    raise EngineStalled('Voice engine worker did not stop / Ses motoru alt süreci durmadı.') from error
-        print('DUB_WARNING server_shutdown_timeout', flush=True)
+                    if proc.is_alive():
+                        proc.kill()
+                        await asyncio.to_thread(proc.join, 2)
+                    if proc.is_alive():
+                        raise EngineStalled('Voice engine worker did not stop / Ses motoru alt süreci durmadı.')
+            except Exception as failure:
+                # A denied/stuck child must not leave the remaining owned
+                # workers running. Keep the failure until all were attempted;
+                # EngineSession retains this server for another cleanup retry.
+                if cleanup_error is None:
+                    cleanup_error = failure
         if isinstance(error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)):
             raise
+        if cleanup_error is not None:
+            raise cleanup_error from error
+        print('DUB_WARNING server_shutdown_timeout', flush=True)

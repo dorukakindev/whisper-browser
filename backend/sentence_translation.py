@@ -1537,6 +1537,67 @@ def _number_match(token, translated, target_lang):
     return None
 
 
+_TR_APPROXIMATE_PAIRS = ((1, 2), (2, 3), (3, 4), (4, 5), (5, 6),
+                         (6, 7), (7, 8), (8, 9), (9, 10), (5, 10))
+_TR_APPROXIMATE_PAIR = re.compile(
+    r'(?<!\w)(?:' + '|'.join(
+        re.escape(_turkish_integer_words(a)) + r'\s+' + re.escape(_turkish_integer_words(b))
+        for a, b in _TR_APPROXIMATE_PAIRS) + r')(?!\w)', re.I)
+_EN_APPROXIMATE_PREFIX = re.compile(r'\b(?:about|around|roughly|approximately|some)\s+(?:an?\s+)?$', re.I)
+
+
+def _turkish_approximation_added(source, translated, mentions):
+    """An exact two-hour delay is not a 'bir iki saatlik' delay.
+
+    This only checks familiar small-number reduplications, not arbitrary adjacent
+    numbers or general uncertainty. A source approximation must immediately
+    qualify the quantity. Multiple possible source mentions remain unproven.
+    """
+    quantities = list(mentions)
+    # Bare 'one' stays excluded from the general quantity gate, but is needed to
+    # recognize a genuine 'one or two' source range here.
+    quantities.extend((m.start(), '1', m) for m in re.finditer(r'\bone\b', source, re.I))
+    # The general compound-number reader intentionally rejects "two-three".
+    # Keep these small ascending hyphen ranges as separate endpoints here,
+    # rather than treating them like a compound cardinal such as twenty-two.
+    small = 'one|two|three|four|five|six|seven|eight|nine|ten'
+    values_by_word = dict(zip(small.split('|'), range(1, 11)))
+    for match in re.finditer(r'(?<![\w-])(' + small + r')-(' + small + r')(?!\w)', source, re.I):
+        left, right = (values_by_word[match[i].lower()] for i in (1, 2))
+        if left >= right:
+            continue
+        quantities = [row for row in quantities if not match.start() <= row[0] < match.end()]
+        quantities.extend([(match.start(), str(left), match), (match.start(), str(right), match)])
+    quantities.sort(key=lambda row: row[0])
+    for pair in _TR_APPROXIMATE_PAIR.finditer(translated):
+        before = translated[:pair.start()]
+        after = translated[pair.end():]
+        # Do not read part of a compound number or a counting sequence as a range.
+        previous = re.search(r'([^\W\d_]+)\s+$', before)
+        following = _TR_NEXT_WORD.match(after)
+        if (previous and previous[1].casefold() in _TR_NUMBER_WORDS
+                or following and following[1].casefold() in _TR_NUMBER_WORDS):
+            continue
+        # Require a following word: the detector targets quantified noun phrases,
+        # not dialogue counting aloud or a bare list of numbers.
+        if not following:
+            continue
+        values = next((str(a), str(b)) for a, b in _TR_APPROXIMATE_PAIRS
+                      if re.fullmatch(re.escape(_turkish_integer_words(a)) + r'\s+'
+                                      + re.escape(_turkish_integer_words(b)), pair[0], re.I))
+        relevant = [row for row in quantities if row[1] in values]
+        # Multiple possible source quantities cannot be attributed to this
+        # target phrase without semantic alignment. Leave those ambiguous cases
+        # to review; explicit ranges naturally also have multiple endpoints.
+        if len(relevant) != 1:
+            continue
+        licensed = any(_EN_APPROXIMATE_PREFIX.search(source[max(0, m.start()-30):m.start()])
+                       for _, _, m in relevant)
+        if not licensed:
+            return True
+    return False
+
+
 def _outcome_polarities(text, language):
     """Narrow lexical outcome evidence, not general sentiment analysis."""
     # Quoted titles/names are not assertions that an experiment succeeded.
@@ -1670,6 +1731,8 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
         tr_values.update(zip(_TR_TENS[1:], range(10,100,10)))
         for match in re.finditer(r'(?i)(?<!\w)('+'|'.join(tr_values)+r')(?=\s+(?:kişi|adet|elma|gün|saat|dakika|kitap|çocuk|araba)(?!\w))', source_numbers_text):
             mentions.append((match.start(),str(tr_values[match[1].casefold()]),match))
+    if turkish_target and str(source_lang or 'en').lower().split('-')[0] == 'en' and _turkish_approximation_added(source_numbers_text, translated_numbers_text, mentions):
+        issues.append('number_mismatch')
     for _,token,match in sorted(mentions,key=lambda row:row[0]):
         found = _number_match(token, translated_numbers_text, target_lang)
         if found:

@@ -170,6 +170,33 @@ function turkishClockMatch(text, hour, minute) {
   }
   return null;
 }
+function turkishApproximationAdded(source, translated) {
+  // An exact two-hour delay is not a "bir iki saatlik" delay. Only familiar
+  // small-number pairs with one attributable source quantity are hard evidence.
+  const pairs=[[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],[5,10]];
+  const pattern=new RegExp('(?<![\\p{L}\\p{N}_])(?:'+pairs.map(([a,b])=>turkishIntegerWords(a)+'\\s+'+turkishIntegerWords(b)).join('|')+')(?![\\p{L}\\p{N}_])','gu');
+  const english=['zero','one','two','three','four','five','six','seven','eight','nine','ten'];
+  const compoundPrefix='(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion)';
+  const beforeNumber=new RegExp('\\b'+compoundPrefix+'[\\s-]+$','iu'),afterNumber=/^[\s-]+(?:hundred|thousand|million|billion)\b/iu;
+  const mentions=[];
+  for(const match of source.matchAll(/(?<![\p{L}\p{N}_])(?:\d+(?:[.,]\d+)*|one|two|three|four|five|six|seven|eight|nine|ten)(?![\p{L}\p{N}_])/giu)){
+    if(beforeNumber.test(source.slice(0,match.index))||afterNumber.test(source.slice(match.index+match[0].length)))continue;
+    const word=match[0].toLowerCase(),value=english.includes(word)?english.indexOf(word):Number(word.replace(',','.'));
+    mentions.push({value,index:match.index});
+  }
+  const target=translated.toLocaleLowerCase('tr');
+  for(const match of target.matchAll(pattern)){
+    const previous=target.slice(0,match.index).match(/(\p{L}+)\s+$/u),next=target.slice(match.index+match[0].length).match(/^\s+(\p{L}+)/u);
+    if(!next||TR_NUMBER_WORDS.has(previous?.[1])||TR_NUMBER_WORDS.has(next[1]))continue;
+    const values=pairs.find(([a,b])=>match[0].replace(/\s+/gu,' ')===turkishIntegerWords(a)+' '+turkishIntegerWords(b));
+    const relevant=mentions.filter(row=>values.includes(row.value));
+    // Multiple exact/range mentions cannot be bound to this target with proof.
+    if(relevant.length!==1)continue;
+    const prefix=source.slice(Math.max(0,relevant[0].index-30),relevant[0].index);
+    if(!/\b(?:about|around|roughly|approximately|some)\s+(?:an?\s+)?$/iu.test(prefix))return true;
+  }
+  return false;
+}
 function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
   const issues = [];
   const turkishTarget = String(targetLanguage || '').toLowerCase().split('-')[0] === 'tr';
@@ -208,6 +235,7 @@ function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
     sourceForNumbers = sourceForNumbers.replace(clockPattern, ' ');
   }
   const sourceNumbers = numberTokens(sourceForNumbers);
+  if(turkishTarget&&turkishApproximationAdded(sourceForNumbers,targetForNumbers))issues.push('number_mismatch');
   const translatedNumbers = numberTokens(targetForNumbers);
   const scaledNumbers = turkishTarget ? [...targetForNumbers.matchAll(/(?<![\d-])(-?\d+(?:[.,]\d+)?)\s+(bin|milyon|milyar)(?!\p{L})/giu)]
     .map((match) => {const value=Number(match[1].replace(',', '.')) * { bin: 1000, milyon: 1000000, milyar: 1000000000 }[match[2].toLocaleLowerCase('tr')];return /(?<!\p{L})(?:eksi|minus)\s*$/iu.test(targetForNumbers.slice(Math.max(0,match.index-24),match.index))?-Math.abs(value):value;}) : [];

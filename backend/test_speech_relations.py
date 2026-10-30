@@ -99,6 +99,13 @@ class SourceRelationTests(unittest.TestCase):
   self.assertTrue(reviewed)
   payload,request=reviewed[0]
   self.assertIn('Deniz',request['messages'][0]['content'])
+  for rule in F.T.SPEECH_READALOUD_RULES:
+   self.assertIn(rule,request['messages'][0]['content'])
+  self.assertIn('Translate the supplied source dialogue',request['messages'][0]['content'])
+  for rule in F.T.TURKISH_NATIVE_REFINE_RULES[:-1]:
+   self.assertIn(rule,request['messages'][0]['content'])
+  self.assertNotIn('yalnizca gercek hatalari duzelteceksin',request['messages'][0]['content'])
+  self.assertIn('Use contrast_role',request['messages'][0]['content'])
   self.assertEqual(payload['scene_notes'],args.scene_context)
   self.assertIn('untrusted context',request['messages'][0]['content'])
  def test_ordinary_translation_has_no_extra_role_request(self):

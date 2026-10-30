@@ -1,6 +1,20 @@
 {
  "_aciklama": "Sayı kalite kapısı (translation_blocking_issues) parite korpusu. 'accept': doğal Türkçe karşılık, reddedilmemeli. 'reject': değer değişmiş, reddedilmeli. Hem backend/test_translation_number_gate.py hem tests/translation-number-gate.test.js bu dosyayı okur.",
  "accept": [
+  ["Wait two hours.", "İki saat bekle."],
+  ["Wait about two hours.", "Bir iki saat bekle."],
+  ["It is about a two-hour delay.", "Bir iki saatlik gecikme."],
+  ["Wait between two and three days.", "İki üç gün bekle."],
+  ["Wait two to three days.", "İki üç gün bekle."],
+  ["Wait two-three days.", "İki üç gün bekle."],
+  ["Wait one or two hours.", "Bir iki saat bekle."],
+  ["Wait around 2 hours.", "Bir iki saat bekle."],
+  ["Wait roughly three days.", "İki üç gün bekle."],
+  ["Wait approximately 5 minutes.", "Beş on dakika bekle."],
+  ["It takes 5 or 10 minutes.", "Beş on dakika sürer."],
+  ["We have 102 hours.", "Yüz iki saatimiz var."],
+  ["Wait twenty-two hours.", "Yirmi iki saat bekle."],
+  ["We waited 2 hours and talked for about 2 hours.", "İki saat bekledik ve bir iki saat konuştuk."],
   [
    "Give me 2 or 3 days.",
    "Bana iki üç gün ver."
@@ -103,6 +117,13 @@
   ]
  ],
  "reject": [
+  ["Great, another two-hour delay.", "Harika, bir iki saatlik gecikme daha."],
+  ["Wait 2 hours.", "Bir iki saat bekle."],
+  ["I have three children.", "İki üç çocuğum var."],
+  ["It takes five minutes.", "Beş on dakika sürer."],
+  ["Wait two-three days.", "Üç dört gün bekle."],
+  ["Think about it. Wait two hours.", "Bir düşün. Bir iki saat bekle."],
+  ["About the meeting: wait two hours.", "Toplantı için bir iki saat bekle."],
   [
    "We have 45 seconds.",
    "Kırk saniyemiz var."

@@ -26,7 +26,7 @@ class SpeechTranslationTests(unittest.TestCase):
                 self.assertNotIn(rule, prompt)
         args = F._TrArgs(translate_for_speech=True)
         current = T.translate_cache_key('A short phrase.', args, 'tr', 'en')
-        with patch.object(T, 'SPEECH_TRANSLATION_PROTOCOL', 'speech-v15-idiom-anchors'):
+        with patch.object(T, 'SPEECH_TRANSLATION_PROTOCOL', 'speech-v16-readaloud-review'):
             self.assertNotEqual(current, T.translate_cache_key('A short phrase.', args, 'tr', 'en'))
 
     def test_coverage_warning_follows_the_accepted_sentence_not_each_redistributed_cue(self):

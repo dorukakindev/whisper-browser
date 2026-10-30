@@ -7,6 +7,8 @@ import json
 import math
 import asyncio
 import sys
+import shutil
+from unittest.mock import patch
 
 import numpy as np
 
@@ -66,6 +68,36 @@ class DubTimingTests(unittest.TestCase):
                     D.build_narration_timeline(selected, files, 8000)
                 with self.assertRaisesRegex(ValueError, 'count mismatch'):
                     D.build_adaptive_timeline(selected, files, 8000, 2, 1, '.')
+                with self.assertRaisesRegex(ValueError, 'count mismatch'):
+                    D.build_fixed_timeline(selected, files, 8000, 2, 1, '.')
+
+    def test_invalid_speech_cannot_become_silent_or_corrupt_timeline(self):
+        for speech in (np.array([]), np.array([np.nan]), np.array([np.inf]), np.ones((80, 2))):
+            with self.subTest(shape=speech.shape):
+                with patch.object(D.subprocess, 'run') as convert:
+                    with self.assertRaisesRegex(ValueError, 'Invalid speech audio'):
+                        D.fit_to_window(speech, 8000, 1, 1.15, '.', 'invalid', 'uzat')
+                    convert.assert_not_called()
+                # A source sample-rate mismatch must not bypass validation by
+                # interpolating a stereo/empty/nonfinite cache entry first.
+                with tempfile.TemporaryDirectory() as folder:
+                    with patch.object(D.sf, 'read', return_value=(speech, 16000)):
+                        with self.assertRaisesRegex(ValueError, 'Invalid speech audio'):
+                            D.build_fixed_timeline([(0, 1000, 'Speech.')], ['fixture.wav'],
+                                8000, 1, 1, folder, log=lambda _: None)
+
+    @unittest.skipUnless(shutil.which('ffmpeg'), 'FFmpeg is needed for the tempo preservation fixture')
+    def test_tempo_preserves_quiet_detail_without_quantization_bias(self):
+        sr = 8000
+        quiet = (1e-5 * np.sin(np.arange(sr * 2) * 2*np.pi*220/sr)).astype(np.float32)
+        with tempfile.TemporaryDirectory() as folder:
+            fitted, report = D.fit_to_window(quiet, sr, 1.8, 1.15, folder, 'quiet', 'uzat')
+        self.assertGreater(report['tempo'], 1)
+        self.assertNotIn('tempo_error', report)
+        self.assertLess(len(fitted), len(quiet))
+        self.assertGreater(float(np.sqrt(np.mean(fitted.astype(np.float64)**2))), 4e-6)
+        self.assertLess(float(np.max(np.abs(fitted))), 1.1e-5)
+        self.assertLess(abs(float(np.mean(fitted))), 1e-7)
 
     def test_adaptive_timeline_keeps_speech_and_maps_video_without_overlap(self):
         with tempfile.TemporaryDirectory() as folder:

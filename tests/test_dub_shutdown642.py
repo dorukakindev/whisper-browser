@@ -10,6 +10,32 @@ from dub_runtime import EngineSession
 
 
 class ShutdownTests(unittest.TestCase):
+    def test_failed_child_cleanup_still_attempts_every_other_owned_child(self):
+        class Process:
+            def __init__(self, denied=False, stuck=False):
+                self.alive=True; self.denied=denied; self.stuck=stuck; self.events=[]
+            def is_alive(self): return self.alive
+            def terminate(self): self.events.append('terminate')
+            def join(self, timeout): self.events.append(('join', timeout))
+            def kill(self):
+                self.events.append('kill')
+                if self.denied: raise PermissionError('controlled child denial')
+                self.alive=self.stuck
+        class Server:
+            async def stop(self): raise self.failure
+        for denied in (False, True):
+            for cancelled in (False, True):
+                with self.subTest(denied=denied, cancelled=cancelled):
+                    blocked, healthy=Process(denied=denied, stuck=True),Process()
+                    server=Server();server.servers=[SimpleNamespace(process=p) for p in (blocked,healthy)]
+                    server.failure=asyncio.CancelledError() if cancelled else RuntimeError('controlled failed RPC')
+                    expected=asyncio.CancelledError if cancelled else PermissionError if denied else EngineStalled
+                    with self.assertRaises(expected):
+                        asyncio.run(stop_server(server))
+                    self.assertEqual(healthy.events, ['terminate', ('join', 2), 'kill', ('join', 2)])
+                    self.assertFalse(healthy.alive)
+                    self.assertTrue(blocked.alive, 'The unresolved child must still be reported to the owner')
+
     def test_failed_fallback_kill_is_not_reported_as_a_stopped_engine(self):
         class Process:
             def __init__(self): self.events=[]

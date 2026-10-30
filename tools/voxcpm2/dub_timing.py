@@ -225,6 +225,8 @@ def fit_to_window(wav, sr, window_s, max_speed, tmp_dir, tag, overflow="hata"):
     if not all(math.isfinite(n) for n in (sr, window_s, max_speed)) or sr <= 0 or window_s <= 0 or max_speed < 1 or overflow not in ('hata', 'kirp', 'uzat'):
         raise ValueError("Gecersiz zamanlama secenegi")
     wav = np.asarray(wav, dtype=np.float32)
+    if wav.ndim != 1 or not len(wav) or not np.isfinite(wav).all():
+        raise ValueError('Invalid speech audio for timing.')
     before = len(wav) / sr
     ratio = before / window_s
     report = {'before_seconds': before, 'window_seconds': window_s,
@@ -234,9 +236,11 @@ def fit_to_window(wav, sr, window_s, max_speed, tmp_dir, tag, overflow="hata"):
         if tempo > 1.001:
             src, dst = Path(tmp_dir) / f'fit_{tag}_src.wav', Path(tmp_dir) / f'fit_{tag}.wav'
             try:
-                sf.write(str(src), wav, sr, subtype='PCM_16')
+                # Keep quiet consonants/breaths through both tempo intermediates.
+                # Default WAV codecs quantize float speech to 16-bit twice.
+                sf.write(str(src), wav, sr, subtype='FLOAT')
                 result = subprocess.run(['ffmpeg', '-nostdin', '-y', '-v', 'error', '-i', str(src),
-                    '-af', tempo_filter(tempo), str(dst)], capture_output=True,
+                    '-af', tempo_filter(tempo), '-c:a', 'pcm_f32le', str(dst)], capture_output=True,
                     timeout=max(30., min(180., before * 3)),
                     creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
                 if result.returncode:
@@ -335,6 +339,8 @@ def build_narration_timeline(cues, paths, sr, tmp_dir=None):
 def build_fixed_timeline(cues, paths, sr, total_s, max_hiz, tmp_dir, log=print,
                    overflow="kirp", extra_ms=2000, end_limit_ms=None, lead_ms=300):
     """Uretilmis satir seslerini zaman cizelgesine yerlestirir."""
+    if not cues or len(cues) != len(paths):
+        raise ValueError('Speech group/audio count mismatch / Konusma grubu ve ses parcasi sayisi uyusmuyor.')
     from dub_timeline_storage import DiskTimeline, limit_peak
     total_frames = int(math.ceil(total_s * sr))
     storage = DiskTimeline(tmp_dir)
@@ -345,6 +351,8 @@ def build_fixed_timeline(cues, paths, sr, total_s, max_hiz, tmp_dir, log=print,
     previous_end_s = 0
     for i, ((start_ms, end_ms, text), path) in enumerate(zip(cues, paths)):
         wav, cue_sr = sf.read(str(path), dtype="float32")
+        if wav.ndim != 1 or not len(wav) or not np.isfinite(wav).all():
+            raise ValueError('Invalid speech audio for timing.')
         if cue_sr != sr:
             frames = int(len(wav) * sr / cue_sr)
             wav = np.interp(np.linspace(0, len(wav) - 1, frames),
