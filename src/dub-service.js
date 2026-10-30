@@ -757,7 +757,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
               const raw = JSON.parse(fs.readFileSync(qualityPath, 'utf8'));
               if (raw.version === 1 && Array.isArray(raw.groups) && raw.groups.length && raw.groups.length <= 5000) {
                 const checked = validateGroups(raw.groups);
-                quality = {...raw, groups: raw.groups.map((row, i) => ({...row, ...checked[i]}))};
+                quality = {...raw, groups: raw.groups.map((row, i) => ({...row, ...checked[i],continuity:require('./renderer/dub-experience-model').continuity(row.continuity)}))};
               }
             }
           } catch (_) {}

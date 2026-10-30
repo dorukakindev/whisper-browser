@@ -13514,7 +13514,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     // klavye odağı da uygulama penceresine geçmeli; yoksa DOM girdisi odaklı
     // görünür ama tuşlar hâlâ web sayfasına gider. Bul çubuğunun odağı
     // 'find-open' olayını işleyen yerde taşınır.
-    if (['l', 'k', 'p'].includes(key) || (key === 't' && !input.shift)) mainWindow?.webContents?.focus();
+    if (['l', 'k', 'p','voice-repair'].includes(key) || (key === 't' && !input.shift)) mainWindow?.webContents?.focus();
     sendBrowserEvent(tab, { type: 'browser-shortcut', key, shift: !!input.shift });
   });
   // Sayfa odağı aldığında renderer'daki adres çubuğu hâlâ DOM odağında kalır;

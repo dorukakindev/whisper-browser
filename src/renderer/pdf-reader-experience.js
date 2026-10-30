@@ -87,6 +87,7 @@
     }
   }
   function render(page) {
+    requestAnimationFrame(()=>window.PdfCitationUI?.refresh());
     const r = player.pdfReader,
       e = r?.pages.get(page);
     if (!e?.article) return;
@@ -207,6 +208,7 @@
         const request=++citationSequence,from=owner.currentPage||1;
         const jump=async page=>{$('pdfReaderPage').value=String(page);$('pdfReaderPage').dispatchEvent(new Event('change'));await renderPdfReaderPage(page);if(player.pdfReader!==owner||request!==citationSequence||owner.currentPage!==page)return;owner.pages.get(page)?.article?.scrollIntoView({block:'start',behavior:'instant'});};
         await jump(citation.page);
+        if(player.pdfReader===owner&&request===citationSequence)await window.PdfCitationUI?.show(owner,citation.page,citation.text);
         if(player.pdfReader!==owner||request!==citationSequence||owner.currentPage!==citation.page)return;
         let back=$('pdfCitationBack');if(!back){back=document.createElement('button');back.id='pdfCitationBack';back.className='tool-button pdf-citation-return';document.querySelector('.pdf-reader-status-line').append(back);}
         back.textContent=t('Alıntı öncesine dön · '+from,'Return to page '+from);back.onclick=()=>{if(player.pdfReader!==owner||request!==citationSequence)return;void jump(from).then(()=>{if(player.pdfReader===owner&&request===citationSequence)back.remove();}).catch(()=>{$('pdfReaderStatus').textContent=t('Sayfa açılamadı.','Could not open page.');});};back.focus({preventScroll:true});

@@ -98,6 +98,15 @@ app
       'return [...document.querySelectorAll(".mw-chapter input:checked")].map(n=>Number(n.dataset.chapter))',
     );
     assert.deepEqual(selected, [1, 2]);
+    if(process.argv.includes('--tasks801')){
+      await run(`MediaExperience.trackVoice('book-fixture',{mode:'book',projectId:${JSON.stringify(id)},chapter:2});return true`);
+      win.webContents.send('dub:event',{id:'book-fixture',type:'done',quality:{groups:[{status:'review'}]}});await wait(120);
+      await run(`MediaExperience.openTasks();return true`);await until(()=>run(`return !!document.querySelector('#globalTaskList [data-job-id="dub:book-fixture"]')`),'book job row');
+      assert(await run(`return document.querySelector('#globalTaskList [data-job-id="dub:book-fixture"]').dataset.jobBucket==='review'`));await capture('book-production-center.png');
+      await run(`[...document.querySelectorAll('#globalTaskList [data-job-id="dub:book-fixture"] button')].find(b=>b.textContent==='Kitaba dön').click();return true`);
+      await until(()=>run(`return !document.getElementById('globalTaskCenter').open&&document.querySelector('#mediaWorkflowsDialog textarea[data-project-id]')?.dataset.chapter==='2'`),'source book return');assert.equal(await run(`return document.querySelector('#mediaWorkflowsDialog textarea[data-project-id]').dataset.projectId`),id);
+      assert.equal(await run(`return document.querySelector('#mediaWorkflowsDialog textarea[data-project-id]').dataset.chapter`),'2');fs.writeFileSync(path.join(out,'acceptance801.json'),JSON.stringify({ok:true,bookReturn:true,reviewBucket:true}));console.log(JSON.stringify({ok:true,out}));app.exit(0);return;
+    }
     if(process.argv.includes('--readiness800')){
       const button=await run(`const b=[...document.querySelectorAll('.mw-dialog button')].find(b=>b.textContent==='Seçili bölümleri denetle');b.click();return !!b`);assert(button);
       await until(()=>run(`return document.querySelector('.mw-readiness')?.children.length===2`),'readiness');

@@ -32,7 +32,8 @@
         ? r.verification.status : r.verification == null ? 'not_checked' : 'unavailable';
       const status = r.status === 'failed' ? 'failed' : r.status !== 'ready'
         || ['review','unavailable'].includes(verificationStatus) || r.verification?.review === true ? 'review' : 'ready';
-      return {displayText:typeof r.displayText==='string' && r.displayText.length<=16000?r.displayText:r.text,
+      const continuity=typeof module==='object'&&module.exports?require('./dub-experience-model').continuity(r.continuity):globalThis.DubExperienceModel?.continuity(r.continuity);
+      return {...(continuity?{continuity}:{}),displayText:typeof r.displayText==='string' && r.displayText.length<=16000?r.displayText:r.text,
         ...(typeof r.pronunciationText==='string' ? {pronunciationText:r.pronunciationText} : {}),
         ...(speechRanges ? {speechRanges} : {}),key:r.key,group:i+1,text:r.text,sourceStart:r.sourceStart,sourceEnd:r.sourceEnd,
         audioStart:r.audioStart,audioEnd:r.audioEnd,status,

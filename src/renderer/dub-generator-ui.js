@@ -361,7 +361,31 @@
   window.addEventListener('voice-reference:busy', event => { referenceBusy = !!event.detail; controls(); });
   el('playerDubGenerate')?.addEventListener('click', () => { el('playerMore').open = false; void open(); });
   el('dubMainOpen').addEventListener('click', open);
-  window.DubGeneratorUI = Object.freeze({ prepareCurrent: open, takeContext:()=>({id:output?.id||'',key:el('dubQualityGroup').value,owner:mediaIdentity(),busy:!!current||referenceBusy||planning||choosing||workspaceBusy,recipeReady:!!lastRequest}), useTake:(key,token)=>start(true,[],{[key]:token}), assistant:Object.freeze({state:voiceState,configure:voiceConfigure,start:voiceStart,group:voiceGroup,use:voiceUse,refreshReference:()=>configure(undefined,true)}) });
+  async function editPlanGroup(key){
+    if(!plan)await preparePlan();const index=plan?.groups.findIndex(g=>g.key===key);if(!(index>=0))return false;
+    el('dubPlanGroup').value=String(index);showGroup();for(let node=el('dubPlanText');node;node=node.parentElement)if(node.tagName==='DETAILS')node.open=true;el('dubPlanText').scrollIntoView({block:'center'});el('dubPlanText').focus();return true;
+  }
+  async function inspectProduction(){
+    const owner=mediaIdentity(),file=srt;
+    if(!plan)await preparePlan();
+    if(!plan||owner!==mediaIdentity()||file!==srt)return null;
+    if(!lastReferenceQuality&&window.api.listVoiceReferences){const reference=cfg?.reference;const catalog=await window.api.listVoiceReferences().catch(()=>null);const active=catalog?.references?.find(r=>r.id===catalog.activeId);if(reference===cfg?.reference&&active?.path===reference&&active.quality)referenceInfo(active.quality);}
+    if(owner!==mediaIdentity()||file!==srt)return null;
+    return window.DubExperienceModel.preflight(plan.groups,{edits,reference:lastReferenceQuality,timingMode:el('dubTimingMode').value});
+  }
+  async function editAtCurrent(time){
+    const context=window.BrowserDubAudioUI?.context();
+    if(mediaContextKey!==null&&mediaContextKey!==mediaIdentity())return false;
+    if(!output||output.sample||!context?.visible||!context.hasMedia||lastRequest?.source!==(context.source||context.mediaKey||''))return false;
+    const target=window.DubExperienceModel.locate([...results.values()],time??context.currentTime);
+    if(!target||current)return false;
+    if(!modal.open)await open();
+    if(!plan)await preparePlan();
+    if(!plan?.groups.some(g=>g.key===target.key))return false;
+    el('dubQualityGroup').value=target.key;el('dubQualityGroup').dispatchEvent(new Event('change'));
+    el('dubPlanText').focus();return true;
+  }
+  window.DubGeneratorUI = Object.freeze({ editPlanGroup,inspectProduction,editAtCurrent,experience:()=>({owner:mediaIdentity(),srt,plan,edits:{...edits},groups:[...results.values()],output,source:lastRequest?.source||'',busy:!!current||planning||referenceBusy||choosing||workspaceBusy}),prepareCurrent: open, takeContext:()=>({id:output?.id||'',key:el('dubQualityGroup').value,owner:mediaIdentity(),busy:!!current||referenceBusy||planning||choosing||workspaceBusy,recipeReady:!!lastRequest}), useTake:(key,token)=>start(true,[],{[key]:token}), assistant:Object.freeze({state:voiceState,configure:voiceConfigure,start:voiceStart,group:voiceGroup,use:voiceUse,refreshReference:()=>configure(undefined,true)}) });
   el('dubGeneratorClose').addEventListener('click', () => modal.close());
   modal.addEventListener('close', () => { el('dubGeneratedPreview').pause(); syncBrowserOcclusion(); });
   el('dubStorageOpen').addEventListener('click', () => { if (cfg?.storageRoot) void window.api.openPath(cfg.storageRoot); });
@@ -468,6 +492,9 @@
   }
   async function start(retry = false, forceGroups = [], takeChoices = null) {
     if (current || referenceBusy || planning || choosing || workspaceBusy || !srt || !cfg?.ready) return;
+    const sourceBefore=requestIdentity(),srtBefore=srt;
+    if(!retry&&!plan){await preparePlan();if(!plan||sourceBefore!==requestIdentity()||srtBefore!==srt||current)return {ok:false};}
+    window.dispatchEvent(new Event('dub-preflight-ready'));
     let range;
     try { range = selectedRange(); } catch (error) { status(error.message); return; }
     current = { id: crypto.randomUUID(), qualityKey:retry?el('dubQualityGroup').value:'', voice:{reference:cfg.reference,transcript:cfg.transcript,engine:cfg.engine}, context: window.BrowserDubAudioUI?.context(), sample: retry ? lastRequest?.sample : el('dubSampleOnly').checked };
@@ -502,6 +529,7 @@
     }
     payload.source = pending.context?.source || pending.context?.mediaKey || '';
     pending.settings={...payload};refreshOverview();
+    window.MediaExperience?.trackVoice?.(pending.id,pending.context);
     lastRequest = payload;
     if (!retry) { results.clear(); showResults(); }
     const r = await window.api.startDub(payload).catch(e => ({ ok:false,error:e.message }));
@@ -701,7 +729,7 @@
     const groups=[...results.values()].sort((a,b)=>Number(a.status==='ready')-Number(b.status==='ready')||a.group-b.group);
     const offset=query.offset??0;if(!Number.isInteger(offset)||offset<0||offset>10000)throw Error('Invalid voice group offset.');
     const visible=query.group_id?groups.filter(row=>row.key===query.group_id):groups.slice(offset,offset+30),nextOffset=!query.group_id&&offset+30<groups.length?offset+30:null;
-    return {opened:modal.open,busy:!!current||referenceBusy||planning||choosing||workspaceBusy,subtitleReady:!!srt,engineAndReferenceReady:!!cfg?.ready,
+    return {playingGroup:!groupAudio.paused?el('dubQualityGroup').value:null,currentJobId:current?.id||null,opened:modal.open,busy:!!current||referenceBusy||planning||choosing||workspaceBusy,subtitleReady:!!srt,engineAndReferenceReady:!!cfg?.ready,
       settings:voiceSettings(),range,invalidRange,canRegenerate:!!lastRequest&&!!cfg?.ready,
       output:output?{id:output.id,sample:output.sample===true,syncInvalid:output.syncInvalid===true,qualityUnavailable:output.qualityUnavailable===true}:null,
       counts:{total:groups.length,review:groups.filter(row=>row.status==='review').length,failed:groups.filter(row=>row.status==='failed').length},

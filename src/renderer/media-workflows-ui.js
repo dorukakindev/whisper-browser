@@ -1982,6 +1982,7 @@
           ...(retryGroup ? { retryGroup } : {}),
         });
         const request = prep.request;
+        window.MediaExperience?.trackVoice?.(request.id,{mode:'book',projectId,chapter:indices[i]});
         prepared={id:projectId,chapter:indices[i],jobId:request.id};
         if(cancelled())break;
         Object.assign(request, settings);

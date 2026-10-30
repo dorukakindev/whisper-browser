@@ -77,3 +77,5 @@ for (const key of ['a','k','ArrowLeft',' ','Enter','F11','PageDown']) {
       'TR sorgusu regresyonu');
   } finally { globalThis.UiLocale = prev; }
 }
+
+test('voice repair bridges Ctrl+Alt+R without changing hard reload',()=>{assert.equal(browserShortcutForInput({type:'keyDown',control:true,alt:true,key:'r'}),'voice-repair');assert.equal(browserShortcutForInput({type:'keyDown',control:true,shift:true,key:'r'}),'reload-hard');});

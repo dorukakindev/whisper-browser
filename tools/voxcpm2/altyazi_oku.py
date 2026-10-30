@@ -847,18 +847,22 @@ def main(argv=None, runtime=None):
     sync = None
     print('DUB_ACTIVITY '+json.dumps({'stage':'placement'}),flush=True)
     placement_began=time.monotonic()
-    if args.narration:
-        from dub_timing import build_narration_timeline
-        timeline, timing = build_narration_timeline(timeline_cues, paths, sr, parts_dir)
-    elif args.timing_mode == 'video':
-        timeline, timing, sync = build_adaptive_timeline(timeline_cues, paths, sr, total_s,
-            args.max_hiz, parts_dir, args.bosluk_pay_ms)
-        (parts_dir / 'timing_report.json').write_text(json.dumps(timing, indent=2), encoding='utf-8')
-        print(f"Zamanlama: {timing['accelerated_groups']} grup hizlandirildi, 0 grup kirpildi, 0 grup tasiyor.", flush=True)
-    else:
-        timeline, timing = build_timeline(timeline_cues, paths, sr, total_s, args.max_hiz, parts_dir,
-                                         overflow=args.tasarsa, extra_ms=args.bosluk_pay_ms,
-                                         end_limit_ms=args.end_limit_ms, lead_ms=args.erken_pay_ms)
+    from dub_continuity import prepare as prepare_continuity
+    with prepare_continuity(paths,[text for _,_,text in cues],enabled=args.natural_speech,directory=parts_dir) as (render_paths,continuity):
+        if args.narration:
+            from dub_timing import build_narration_timeline
+            timeline, timing = build_narration_timeline(timeline_cues, render_paths, sr, parts_dir)
+        elif args.timing_mode == 'video':
+            timeline, timing, sync = build_adaptive_timeline(timeline_cues, render_paths, sr, total_s,
+                args.max_hiz, parts_dir, args.bosluk_pay_ms)
+            (parts_dir / 'timing_report.json').write_text(json.dumps(timing, indent=2), encoding='utf-8')
+            print(f"Zamanlama: {timing['accelerated_groups']} grup hizlandirildi, 0 grup kirpildi, 0 grup tasiyor.", flush=True)
+        else:
+            timeline, timing = build_timeline(timeline_cues, render_paths, sr, total_s, args.max_hiz, parts_dir,
+                                             overflow=args.tasarsa, extra_ms=args.bosluk_pay_ms,
+                                             end_limit_ms=args.end_limit_ms, lead_ms=args.erken_pay_ms)
+    for row,metrics in zip(public_groups,continuity):
+        row['continuity']=metrics
 
     args.phases.seconds['placement']=time.monotonic()-placement_began
     # Explicit video/audio coordinates make saved projects and review independent

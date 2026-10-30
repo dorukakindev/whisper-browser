@@ -60,6 +60,7 @@ function browserShortcutForInput(input = {}) {
     if (rawKey === 'BrowserForward') return 'forward';
     return '';
   }
+  if(input.alt&&!input.shift&&key==='r')return 'voice-repair';
   if (input.alt) return ({ arrowleft: 'subtitle-earlier', arrowright: 'subtitle-later',
     arrowup: 'subtitle-larger', arrowdown: 'subtitle-smaller' })[key] || '';
   if (rawKey === 'F5') return 'reload-hard';
