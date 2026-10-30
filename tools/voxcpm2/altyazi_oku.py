@@ -649,7 +649,7 @@ def parse_args(argv=None):
     p.add_argument('--force-all', action='store_true')
     p.add_argument("--output", type=Path)
     p.add_argument("--no-norm", action="store_true")
-    p.add_argument("--gruplama", choices=("cumle", "satir", "akici"), default="cumle")
+    p.add_argument("--gruplama", choices=("cumle", "satir", "akici", "anlatim"), default="cumle")
     p.add_argument("--grup-max-sn", type=float, default=12)
     p.add_argument("--grup-max-karakter", type=int, default=250)
     p.add_argument("--grup-bosluk-ms", type=int, default=600)

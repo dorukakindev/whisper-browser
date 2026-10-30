@@ -1,5 +1,9 @@
 "use strict";
 const test=require('node:test'),assert=require('node:assert/strict'),M=require('../src/renderer/dub-experience-model');
+test('reading cues describe sentence length without changing speech text or rating quality',()=>{
+ const text='Bu yüzden…';assert.deepEqual(M.readability(text),{words:2,longestSentence:2,long:false,fragment:true});assert.equal(text,'Bu yüzden…');
+ assert.equal(M.readability(' ').words,0);assert.equal(M.readability('Bir. İki üç.').longestSentence,2);assert.equal(M.readability('sözcük '.repeat(36)).long,true);
+});
 test('preflight is explicit about estimates and overlapping groups are never guessed',()=>{
  const p=M.preflight([{key:'x',text:'A very long sentence '.repeat(40),seconds:3}],{reference:{warnings:['quiet']}});assert.equal(p.dense,1);assert.equal(p.long,1);assert.deepEqual(p.referenceWarnings,['quiet']);
  assert.equal(M.locate([{key:'a',sourceStart:0,sourceEnd:2},{key:'b',sourceStart:2,sourceEnd:4}],2).key,'b');assert.equal(M.locate([{sourceStart:0,sourceEnd:3},{sourceStart:2,sourceEnd:4}],2.5),null);

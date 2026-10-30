@@ -40,5 +40,10 @@
   if(!raw||raw.status!=='measured'||!Number.isFinite(raw.levelDb)||raw.levelDb < -150||raw.levelDb>40||!Number.isFinite(raw.wordsPerSecond)||raw.wordsPerSecond<0||raw.wordsPerSecond>100||!Number.isFinite(raw.gainDb)||Math.abs(raw.gainDb)>2.01)return null;
   return {status:'measured',levelDb:raw.levelDb,wordsPerSecond:raw.wordsPerSecond,gainDb:raw.gainDb,warnings:Array.isArray(raw.warnings)?raw.warnings.filter(w=>['long-edge-pause','level-jump','pace-jump','level-correction-unavailable'].includes(w)).slice(0,4):[]};
  }
- return Object.freeze({preflight,locate,difference,overlap,cueIndex,indexedOverlap,comparisonRows,continuity});
+ function readability(value){
+  const text=String(value||'').trim(),sentences=text.split(/(?<=[.!?…])\s+/u).filter(Boolean),words=text.match(/\S+/gu)||[];
+  const longest=sentences.reduce((n,part)=>Math.max(n,(part.match(/\S+/gu)||[]).length),0);
+  return {words:words.length,longestSentence:longest,long:longest>35,fragment:words.length>0&&words.length<=4&&/(?:…|\.\.\.)$/.test(text)};
+ }
+ return Object.freeze({readability,preflight,locate,difference,overlap,cueIndex,indexedOverlap,comparisonRows,continuity});
 });

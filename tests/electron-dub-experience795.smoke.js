@@ -27,14 +27,28 @@ app.whenReady().then(async()=>{
   if(process.argv.includes('--experience801'))await run(`window.fixtureSource={...BrowserDubAudioUI.context(),mode:'browser',source:'fixture-scene',tabId:'fixture-tab',generation:1,mediaId:'fixture-media',subtitleRange:null,hasMedia:true,visible:true,currentTime:6};BrowserDubAudioUI.context=()=>window.fixtureSource;return true`);
   await run(`UiLocale.set('${locale}',false);applyUiTheme('${theme}');await DubGeneratorUI.prepareCurrent();document.getElementById('dubChooseSrt').click();return true`);
   await until(()=>run(`return document.getElementById('dubSrtName').textContent.includes('Synthetic')`));
+  if(process.argv.includes('--narration816')){
+   if(locale==='en')await run(`document.getElementById('dubPresetBalanced').click();return true`);
+   assert.equal(await run(`return document.getElementById('dubGrouping').value`),'akici','Legacy defaults remain unchanged');
+   const before=await run(`return JSON.stringify({reference:document.getElementById('dubVoiceName').textContent,sample:document.getElementById('dubSampleOnly').checked})`);
+   await run(`document.getElementById('dubReadyVoice').closest('button').click();return true`);
+   assert(await run(`return document.activeElement===document.getElementById('voiceReferenceSelect')`));await capture(locale+'-voice-shortcut');
+   await run(`document.getElementById('dubReadyRange').closest('button').click();return true`);
+   assert(await run(`return document.activeElement===document.getElementById('dubSampleOnly')`));assert.equal(request,null);
+   assert.equal(await run(`return JSON.stringify({reference:document.getElementById('dubVoiceName').textContent,sample:document.getElementById('dubSampleOnly').checked})`),before);
+   await capture(locale+'-scope-shortcut');
+   await run(`document.getElementById('dubGrouping').value='anlatim';document.getElementById('dubGrouping').dispatchEvent(new Event('change'));document.getElementById('dubProductionSettings').open=true;document.getElementById('dubGrouping').scrollIntoView({block:'center'});return true`);
+   assert(await run(`return document.getElementById('dubReadySettings').textContent.includes('${locale==='en'?'Sentence flow':'Cümle akışı'}')`));await capture(locale+'-sentence-flow');
+  }
   // Start without a prepared edit plan; Edit group text must prepare it on demand.
   await run(`document.getElementById('dubGeneratorStart').click();return true`);await until(()=>!!request);
+  if(process.argv.includes('--narration816')){assert.equal(request.grouping,'anlatim');assert(await run(`return [...document.querySelectorAll('.dub-readiness-action')].every(button=>button.disabled)`));}
   if(process.argv.includes('--review803')){const before=await run(`return JSON.stringify(DubGeneratorUI.experience().edits)`);await run(`document.getElementById('dubPlanText').value='Must not overwrite active production';document.getElementById('dubPlanApply').dispatchEvent(new Event('click'));document.getElementById('dubPlanReset').dispatchEvent(new Event('click'));return true`);assert.equal(await run(`return JSON.stringify(DubGeneratorUI.experience().edits)`),before);}
   if(process.argv.includes('--output812')){win.webContents.send('dub:event',{id:request.id,type:'progress',done:3,total:3});await wait(60);assert.equal(await run(`return document.getElementById('dubGeneratorProgress').value`),99);assert(await run(`return !document.getElementById('dubGeneratorCancel').disabled`));}
   for(let group=1;group<=8;group++)win.webContents.send('dub:event',{id:request.id,type:'activity',stage:group%2?'synthesis':'verification',group,attempt:2,elapsed:35,limit:120});
   await wait(100);await capture(locale+'-active');
   const quality={groups:[{group:1,key:'1',status:'ready',text:'First group.',verification:{status:'passed'}},{group:2,key:'2',status:'review',text:'Second group.',verification:{status:'review',recognizedText:'Second.',omission_spans:[{start:0,end:4}]}},{group:3,key:'3',status:'failed',text:'Third group.',verification:{status:'unavailable'}}]};
-  if(process.argv.includes('--review803'))quality.groups[1].verification.missing_numbers=['2065'];
+  if(process.argv.includes('--review803')||process.argv.includes('--narration816'))quality.groups[1].verification.missing_numbers=['2065'];
   if(process.argv.includes('--experience801'))for(const g of quality.groups){g.sourceStart=(g.group-1)*4;g.sourceEnd=g.group*4;g.audioStart=g.sourceStart;g.audioEnd=g.sourceEnd;g.continuity={status:'measured',levelDb:-24,wordsPerSecond:2.5,gainDb:g.group===2?2:0,warnings:g.group===2?['level-jump']:[]};}
   if(process.argv.includes('--continuity813'))quality.groups[0].continuity={status:'measured',levelDb:-20,wordsPerSecond:3.5,gainDb:0,warnings:['pace-jump']};
   win.webContents.send('dub:event',{id:request.id,type:'done',path:'controlled-missing.wav',metrics:process.argv.includes('--voice809')?{cached_groups:2,generated_groups:1}:null,settings:process.argv.includes('--voice809')?{referenceName:'Saved narrator.wav',steps:15,grouping:'akici',verification:'detailed',timingMode:'video',range:{start:5,end:65}}:null,subtitle:'Saved source.srt',name:process.argv.includes('--interface807')?'A very long controlled output name with enough detail to test truncation and access to the complete original file name.wav':'Controlled.wav',url:process.argv.includes('--continuity813')?takeUrls[0]:'file:///controlled.wav',quality});await until(()=>run(`return !document.getElementById('dubOpenQuality').hidden`));
@@ -68,6 +82,15 @@ app.whenReady().then(async()=>{
   }
   await run(`document.getElementById('dubOpenQuality').click();return true`);await capture(locale+'-results');
   assert.equal(await run(`return document.getElementById('dubQualityGroup').value`),'2');
+  if(process.argv.includes('--narration816')){
+   await run(`document.getElementById('dubQualityEvidence').open=false;return true`);
+   assert(await run(`return !document.getElementById('dubQualityEvidence').open&&!document.querySelector('.dub-review-headline').hidden&&/ASR|döküm|recognition/.test(document.querySelector('.dub-review-headline').textContent)`));
+   assert(await run(`return document.querySelector('.dub-review-headline').textContent.includes('2065')`));
+   await run(`document.querySelector('.dub-review-headline').scrollIntoView({block:'center'});return true`);await capture(locale+'-review-reason');
+   await run(`document.getElementById('dubEditSelected').click();return true`);await until(()=>run(`return document.getElementById('dubPlanGroup').options.length===3`));
+   await run(`document.getElementById('dubPlanText').value='Bu nedenle…';document.getElementById('dubPlanText').dispatchEvent(new Event('input'));document.querySelector('.dub-readability-note').scrollIntoView({block:'center'});return true`);
+   assert(await run(`return !document.querySelector('.dub-readability-note').hidden&&/fragment|yarım/.test(document.querySelector('.dub-readability-note').textContent)&&document.getElementById('dubPlanText').value==='Bu nedenle…'`));await capture(locale+'-reading-cue');
+  }
   if(process.argv.includes('--review803')){
    assert(await run(`return document.getElementById('dubQualityReasons').textContent.includes('2065')`));
    for(const [kind,key]of [['review','2'],['failed','3'],['ready','1']]){await run(`document.querySelector('[data-quality-filter="${kind}"]').click();return true`);assert.equal(await run(`return document.getElementById('dubQualityGroup').value`),key);assert.equal(await run(`return document.getElementById('dubQualityGroup').options.length`),1);}

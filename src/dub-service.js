@@ -61,7 +61,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       expression: ['calm','warm','lively'].includes(saved.expression) ? saved.expression : 'reference',
       followDelivery: saved.followDelivery === true,
       deliveryStrength: ['gentle','strong'].includes(saved.deliveryStrength) ? saved.deliveryStrength : 'balanced',
-      grouping: ['akici', 'cumle', 'satir'].includes(saved.grouping) ? saved.grouping : 'akici',
+      grouping: ['akici', 'anlatim', 'cumle', 'satir'].includes(saved.grouping) ? saved.grouping : 'akici',
       profile: saved.profile === 'fast' ? 'fast' : 'quality', concurrency: saved.concurrency === 8 ? 8 : 4 };
   }
   function emit(s, type, data = {}) {
@@ -279,7 +279,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (path.extname(srt).toLowerCase() !== '.srt' || fs.statSync(srt).size > 4000000) throw new Error('Geçersiz SRT.');
     const c = config();
     const range = rangeOption(request.range);
-    const grouping = ['akici', 'cumle', 'satir'].includes(request.grouping) ? request.grouping : c.grouping;
+    const grouping = ['akici', 'anlatim', 'cumle', 'satir'].includes(request.grouping) ? request.grouping : c.grouping;
     const result = await new Promise((resolve, reject) => {
       const proc = spawn(path.join(c.engine, '.venv', 'Scripts', 'python.exe'),
         [path.join(__dirname, '..', 'tools', 'voxcpm2', 'dub_plan.py'), srt,
@@ -453,7 +453,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (!['clip','video'].includes(timingMode)) throw new Error('Geçersiz zamanlama modu.');
       if (!['fast', 'quality'].includes(profile) || ![4, 8].includes(concurrency)) throw new Error('Geçersiz ses üretim profili.');
       c.profile = profile; c.concurrency = concurrency; c.timingMode = timingMode;
-      if (request.grouping !== undefined && !['akici', 'cumle', 'satir'].includes(request.grouping)) throw new Error('Dublaj planını yeniden hazırlayın.');
+      if (request.grouping !== undefined && !['akici', 'anlatim', 'cumle', 'satir'].includes(request.grouping)) throw new Error('Dublaj planını yeniden hazırlayın.');
       c.grouping = request.grouping ?? c.grouping;
       c.expression = request.expression ?? c.expression;
       if (!['reference','calm','warm','lively'].includes(c.expression)) throw new Error('Invalid expression profile.');
@@ -511,8 +511,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       } else fs.writeFileSync(inputSrt, sourceBytes, { flag: 'wx' });
       const args = [script, inputSrt, c.reference, '--transcript', c.transcript, '--mode', 'hifi',
         '--expression', c.followDelivery ? 'reference' : c.expression,
-        '--gruplama', c.grouping, '--grup-max-karakter', c.grouping === 'akici' ? '280' : '250',
-        '--grup-max-sn', c.grouping === 'akici' ? '18' : '12', '--tasarsa', 'kirp', '--max-hiz', String(s.settings.maxSpeed),
+        '--gruplama', c.grouping, '--grup-max-karakter', ['akici','anlatim'].includes(c.grouping) ? '280' : '250',
+        '--grup-max-sn', ['akici','anlatim'].includes(c.grouping) ? '18' : '12', '--tasarsa', 'kirp', '--max-hiz', String(s.settings.maxSpeed),
         '--bosluk-pay-ms', '2000', '--erken-pay-ms', '300',
         '--steps', String(s.settings.steps), '--eszamanli', String(concurrency), '--output', output];
       if (c.pronunciations.length) {

@@ -25,6 +25,7 @@
   const results = new Map();
   const resultOptions = new Map();
   let qualityFilter='all';
+  const preparationActions=[];
   const filterBar=document.createElement('div');filterBar.className='dub-review-filters';filterBar.dataset.uiUntranslated='';filterBar.setAttribute('role','group');
   for(const kind of ['all','review','failed','ready']){const button=document.createElement('button');button.type='button';button.className='btn btn-ghost btn-sm';button.dataset.qualityFilter=kind;button.onclick=()=>{qualityFilter=kind;showResults();syncQualityPlan(false);};filterBar.append(button);}
   el('dubQualitySummary').after(filterBar);
@@ -66,13 +67,14 @@
     for(const id of ['dubSrtName','dubGeneratedName','dubVoiceName']){const node=el(id);if(node)node.title=node.textContent;}
     const notice=el('dubInputNotice');
     if(notice){const partial=/\.partial\.srt$/i.test(srt);notice.hidden=!partial;notice.textContent=partial?(window.UiLocale?.get?.()==='en'?'This is a partial translation. Untranslated lines may be read in their original language; complete the translation for consistent dubbing.':'Bu kısmi bir çeviri. Çevrilmeyen satırlar özgün dilinde okunabilir; tutarlı dublaj için önce çeviriyi tamamlayın.'):'';}
+    for(const {button,kind}of preparationActions){button.disabled=!!current||planning||referenceBusy||choosing||workspaceBusy;button.title=kind==='source'?(window.UiLocale?.get?.()==='en'?'Choose or change subtitles':'Altyazı seç veya değiştir'):kind==='voice'?(window.UiLocale?.get?.()==='en'?'Go to reference voice':'Referans sese git'):(window.UiLocale?.get?.()==='en'?'Scope and short preview':'Kapsam ve kısa örnek');}
     const source = el('dubReadySource'), voice = el('dubReadyVoice'), range = el('dubReadyRange');
     source.textContent = srt ? basename(srt) : t('SRT seçilmedi'); source.dataset.ready = String(!!srt);
     const activeVoice=current?.voice||cfg;
     voice.textContent = activeVoice?.reference ? basename(activeVoice.reference) : t('Ses seçilmedi'); voice.dataset.ready = String(!!current||!!cfg?.ready);
     source.title=source.textContent;voice.title=voice.textContent;
     const en=window.UiLocale?.get?.()==='en', submitted=current?.settings;
-    const grouping={akici:en?'Flowing blocks':'Akıcı bloklar',cumle:en?'Sentence groups':'Cümle grupları',satir:en?'Subtitle rows':'Altyazı satırları'}[submitted?.grouping||el('dubGrouping').value];
+    const grouping={anlatim:en?'Sentence flow':'Cümle akışı',akici:en?'Flowing blocks':'Akıcı bloklar',cumle:en?'Sentence groups':'Cümle grupları',satir:en?'Subtitle rows':'Altyazı satırları'}[submitted?.grouping||el('dubGrouping').value];
     const verification={fast:en?'Audio checks':'Ses denetimi',balanced:en?'Selective text checks':'Seçili metin denetimi',detailed:en?'Full text checks':'Tam metin denetimi'}[submitted?.verification||el('dubVerification').value];
     const timing=(submitted?.timingMode||el('dubTimingMode').value)==='video'?(en?'Keep full speech':'Konuşmayı koru'):(en?'Fixed video; overflow may be cut':'Sabit video; taşan ses kesilebilir');
     el('dubReadySettings').textContent=[grouping,((submitted?.profile||el('dubProfile').value)==='fast'?10:15)+(en?' steps':' adım'),verification,timing,(en?'Requested parallel groups: ':'İstenen paralel grup: ')+(submitted?.concurrency||el('dubConcurrency').value)].join(' · ');
@@ -91,6 +93,21 @@
       : selected === 'Balanced' ? 'Dengeli profil: akıcı bloklar, 15 adım ve konuşmayı koruyan zamanlama.'
       : 'Özel ayarlar etkin. Hazır profiller sesinizi ve seçili aralığı değiştirmez.');
   }
+  const reviewHeadline=document.createElement('p');reviewHeadline.className='dub-review-headline';reviewHeadline.dataset.uiUntranslated='';reviewHeadline.hidden=true;el('dubQualityInfo').after(reviewHeadline);
+  const readabilityNote=document.createElement('p');readabilityNote.className='dub-readability-note';readabilityNote.dataset.uiUntranslated='';el('dubPlanText').after(readabilityNote);
+  function readablePreview(){const data=window.DubExperienceModel?.readability(el('dubPlanText').value),en=window.UiLocale?.get?.()==='en';readabilityNote.hidden=!data?.words;if(!data?.words)return;readabilityNote.textContent=(en?`${data.words} words · longest sentence ${data.longestSentence} words.`:`${data.words} sözcük · en uzun cümle ${data.longestSentence} sözcük.`)+(data.long?(en?' Long sentence: listen for breath and clarity.':' Uzun cümle: nefes ve anlaşılırlığı dinleyerek kontrol edin.'):data.fragment?(en?' Short unfinished fragment: sentence-flow grouping may help.':' Kısa yarım ifade: cümle akışı gruplaması yardımcı olabilir.'):'')+(en?' Text is unchanged; this is a reading cue, not a quality score.':' Metin değiştirilmez; bu bir okuma ipucu, kalite puanı değildir.');}
+  el('dubPlanText').addEventListener('input',readablePreview);document.addEventListener('ui-locale-change',readablePreview);
+  for(const [id,kind]of [['dubReadySource','source'],['dubReadyVoice','voice'],['dubReadyRange','scope']]){
+    const box=el(id).parentElement,button=document.createElement('button');
+    button.type='button';button.className='dub-readiness-action';button.append(...box.childNodes);box.append(button);preparationActions.push({button,kind});
+    button.addEventListener('click',()=>{
+      if(current||planning||referenceBusy||choosing||workspaceBusy)return;
+      if(kind==='source'){el('dubChooseSrt').click();return;}
+      const target=el(kind==='voice'?'voiceReferenceSelect':'dubSampleOnly');
+      for(let parent=target.parentElement;parent;parent=parent.parentElement)if(parent.tagName==='DETAILS')parent.open=true;
+      target.scrollIntoView?.({block:'center',behavior:'auto'});target.focus({preventScroll:true});
+    });
+  }
   function qualityInfo() {
     Promise.resolve().then(()=>window.dispatchEvent(new Event('dub-takes:context')));
     const row = results.get(el('dubQualityGroup').value);
@@ -106,6 +123,10 @@
     const en=window.UiLocale?.get?.()==='en';
     el('dubQualityEvidenceTitle').textContent=row?.status==='review'||row?.status==='failed' ? (en?'Why is this group flagged?':'Bu grup neden işaretlendi?') : (en?'Check details':'Kontrol ayrıntıları');
     const v=row?.verification||{},reasons=[];
+    const primary=verificationReasons(row,en)[0];reviewHeadline.hidden=!row||row.status==='ready';
+    reviewHeadline.textContent=row?.status==='failed'?(en?'This group has no generated speech. Regenerate it to fill the silence.':'Bu grupta üretilmiş konuşma yok. Sessizliği tamamlamak için yeniden üretin.'):
+      (primary?(en?'Listen for: ':'Dinlerken kontrol et: ')+primary.replace(/[.!?]$/,'')+'.':(en?'Listen to this group before changing it.':'Değiştirmeden önce bu grubu dinleyin.'))+
+      (en?' Automatic text recognition can mishear speech; this flag does not confirm an error.':' Otomatik döküm konuşmayı yanlış duyabilir; bu işaret kesin hata anlamına gelmez.');
     const recognized=typeof v.recognizedText==='string'?v.recognizedText.slice(0,8000):'';
     el('dubQualityExpectedLabel').textContent=en?'Expected text':'Beklenen metin';
     el('dubQualityRecognized').hidden=!recognized;
@@ -128,6 +149,7 @@
     for (const row of qualityRows()) {
       const option = document.createElement('option'); option.value = row.key;
       option.textContent = `${row.group} · ${t(row.status === 'failed' ? 'Üretilemedi; bu bölüm sessiz' : row.status === 'review' ? 'Dinleyerek kontrol edin' : 'Hazır')}`;
+      option.title=verificationReasons(row,window.UiLocale?.get?.()==='en').join(' · ');
       select.append(option);
       resultOptions.set(row.key, option);
     }
@@ -191,6 +213,7 @@
   function previewPronunciation(){const text=el('dubPlanText').value;let rendered=text;try{rendered=window.DubPronunciation?.apply(text,cfg?.pronunciations||[])||text;}catch{}pronunciationNote.hidden=!text||rendered===text;pronunciationNote.textContent=(window.UiLocale?.get?.()==='en'?'Saved dictionary preview (speech only): ':'Kayıtlı sözlük önizlemesi (yalnız ses): ')+rendered;}
   el('dubPlanText').addEventListener('input',previewPronunciation);
   function showGroup() {
+    queueMicrotask(readablePreview);
     const g = group();
     el('dubPlanOriginal').value = g?.text || '';
     el('dubPlanText').value = g ? (edits[g.key] || g.text) : '';
@@ -772,8 +795,8 @@
 
   function verificationReasons(row,en){
     const v=row?.verification||{},reasons=[];
-    for(const [flag,label]of [['spoken_number_mismatch',['Spoken quantity differs','Söylenen sayı farklı']],['lost_negation',['Negation','Olumsuzluk']],['added_negation',['Added negation','Eklenen olumsuzluk']],['semantic_mismatch',['Meaning markers','Anlam işaretleri']],['unit_mismatch',['Units','Birim']],['sign_mismatch',['Number sign','Sayı işareti']],['repetition',['Repetition','Tekrar']]])if(v[flag])reasons.push(label[en?0:1]);
-    for(const [key,label]of [['missing_numbers',['Missing number','Eksik sayı']],['added_numbers',['Added number','Ek sayı']],['missing_names',['Name recognition','Özel ad tanıma']],['omission_spans',['Potential omission','Olası atlama']],['insertion_spans',['Potential extra speech','Olası ek konuşma']]])if(v[key]?.length){const values=['missing_numbers','added_numbers','missing_names'].includes(key)?v[key].slice(0,5).map(value=>String(value).slice(0,60)).join(', '):'';reasons.push(label[en?0:1]+(values?': '+values:''));}
+    for(const [flag,label]of [['spoken_number_mismatch',['Spoken quantity differs','Söylenen sayı farklı']],['lost_negation',['Negation may sound different','Olumsuzluk farklı duyulmuş olabilir']],['added_negation',['Added negation','Eklenen olumsuzluk']],['semantic_mismatch',['Meaning markers','Anlam işaretleri']],['unit_mismatch',['Unit may sound different','Birim farklı duyulmuş olabilir']],['sign_mismatch',['Number sign','Sayı işareti']],['repetition',['Repetition','Tekrar']]])if(v[flag])reasons.push(label[en?0:1]);
+    for(const [key,label]of [['missing_numbers',['Number not recognized','Sayı tanınamadı']],['added_numbers',['Added number','Ek sayı']],['missing_names',['Name recognition','Özel ad tanıma']],['omission_spans',['Words may be missing','Bazı sözcükler eksik duyulmuş olabilir']],['insertion_spans',['Potential extra speech','Olası ek konuşma']]])if(v[key]?.length){const values=['missing_numbers','added_numbers','missing_names'].includes(key)?v[key].slice(0,5).map(value=>String(value).slice(0,60)).join(', '):'';reasons.push(label[en?0:1]+(values?': '+values:''));}
     const measured=window.DubExperienceModel?.continuity(row?.continuity);
     const labels={'level-jump':['Adjacent groups differ in level','Komşu gruplarda seviye farkı'],'pace-jump':['Adjacent groups differ in pace','Komşu gruplarda konuşma hızı farkı'],'long-edge-pause':['Long pause at a group boundary','Grup sınırında uzun durak'],'level-correction-unavailable':['Level adjustment was unavailable','Seviye düzeltmesi uygulanamadı']};
     for(const code of measured?.warnings||[])reasons.push(labels[code][en?0:1]);
