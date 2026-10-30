@@ -1,0 +1,220 @@
+[
+  {
+    "id": "HB01",
+    "input": "Please do not open the red door.",
+    "result": [
+      [
+        0.0,
+        3.0,
+        "Please open the red door now."
+      ]
+    ],
+    "calls": 1,
+    "warnings": [],
+    "progress": [
+      {
+        "type": "llm_progress",
+        "percent": 100.0,
+        "done": 1,
+        "failed": 0,
+        "total": 1
+      }
+    ],
+    "full_consumer": {
+      "artifact": "pipeline-meaning\\pipeline-source.srt",
+      "sha256": "f14bb68e1abf96a3a791020b4060a2d2847631174e75ffc9ccaaf6e86b2c3c51",
+      "output_text": "1\n00:00:00,000 --> 00:00:03,000\nPlease open the red door now.\n\n",
+      "warnings": [],
+      "done": true,
+      "progress": [
+        {
+          "type": "llm_progress",
+          "percent": 100.0,
+          "done": 1,
+          "failed": 0,
+          "total": 1
+        }
+      ]
+    },
+    "punctuation_control": [
+      [
+        0.0,
+        3.0,
+        "Hello, world."
+      ]
+    ],
+    "full_punctuation_control": {
+      "artifact": "pipeline-punctuation-control\\pipeline-source.srt",
+      "sha256": "6c54782fb5aac9de48dea52763d4f5af8d5fce7e3b57fd1e56d5d4391650a91e",
+      "output_text": "1\n00:00:00,000 --> 00:00:03,000\nHello, world.\n\n",
+      "warnings": [],
+      "done": true,
+      "progress": [
+        {
+          "type": "llm_progress",
+          "percent": 100.0,
+          "done": 1,
+          "failed": 0,
+          "total": 1
+        }
+      ]
+    }
+  },
+  {
+    "id": "HB02",
+    "input": "Hello.",
+    "output_chars": 6800,
+    "output_words": 800,
+    "warnings": [],
+    "four_word_control": [
+      [
+        0.0,
+        3.0,
+        "This is original text."
+      ]
+    ],
+    "progress": [
+      {
+        "type": "llm_progress",
+        "percent": 100.0,
+        "done": 1,
+        "failed": 0,
+        "total": 1
+      }
+    ],
+    "full_consumer": {
+      "artifact": "pipeline-expansion\\pipeline-source.srt",
+      "sha256": "6be36f5f4e925c82a9e4457eaa0c8a5f944c0d11b565011f45e2f8c939c9ee33",
+      "output_text": "1\n00:00:00,000 --> 00:00:03,000\nInvented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content.\n\n",
+      "warnings": [
+        "Noktalama uyarısı: 800 kelimelik kesintisiz bir bölüm bulundu. Daha temiz sonuç için LLM ile düzeltme → Noktalama seçeneğini açın."
+      ],
+      "done": true,
+      "progress": [
+        {
+          "type": "llm_progress",
+          "percent": 100.0,
+          "done": 1,
+          "failed": 0,
+          "total": 1
+        }
+      ]
+    },
+    "full_four_word_control": {
+      "artifact": "pipeline-size-control\\pipeline-source.srt",
+      "sha256": "994c7dea18133eba179f259a5c45a285e2025f01090c93c34c773ef68af0fec3",
+      "output_text": "1\n00:00:00,000 --> 00:00:03,000\nThis is original text.\n\n",
+      "warnings": [
+        "1/1 blok LLM ile düzeltilemedi (orijinal metin korundu)."
+      ],
+      "done": true,
+      "progress": [
+        {
+          "type": "llm_progress",
+          "percent": 100.0,
+          "done": 0,
+          "failed": 1,
+          "total": 1
+        }
+      ]
+    }
+  },
+  {
+    "id": "HB03",
+    "calls_after_fatal401": 3,
+    "expected_calls": 1,
+    "result_preserved": true,
+    "warnings": [
+      "90/90 blok LLM ile düzeltilemedi (orijinal metin korundu)."
+    ],
+    "progress": [
+      {
+        "type": "llm_progress",
+        "percent": 100.0,
+        "done": 0,
+        "failed": 90,
+        "total": 90
+      }
+    ],
+    "translation_fatal_control_calls": 1
+  },
+  {
+    "id": "CANDIDATE-missingkey",
+    "warnings": [],
+    "events": [
+      {
+        "type": "log",
+        "level": "error",
+        "message": "⚠ LLM düzeltme ATLANDI: API anahtarı boş. Gelişmiş ayarlar → 🤖 LLM ile düzeltme → API Key alanını doldurun."
+      }
+    ]
+  },
+  {
+    "id": "HB04",
+    "first_success": true,
+    "before_sha256": "eaddf8caea7df2a48e91781474a77ab811a20ad408a7ff64f845d5455f3dfe06",
+    "before_bytes": 6584,
+    "second_failure": "HTTPError",
+    "old_final_exists": false
+  },
+  {
+    "id": "CANDIDATE-container",
+    "outcome": "success"
+  },
+  {
+    "id": "HB05",
+    "english_sha": "f12f6779e98d8b42671daaaffba6da2606b19d0b8bfd5779a21cb5c4b38198ee",
+    "requested_tr_sha": "f12f6779e98d8b42671daaaffba6da2606b19d0b8bfd5779a21cb5c4b38198ee",
+    "fresh_tr_sha": "26dd278d659f97985028ba37f2321ee509746b2aa897dcce26db26cd2446064d",
+    "same_output_path": true,
+    "hits_after_en": [
+      "/en"
+    ],
+    "hits_after_cached_tr": [
+      "/en"
+    ],
+    "all_hits": [
+      "/en",
+      "/tr"
+    ],
+    "returned_existing_en_for_tr": true
+  },
+  {
+    "id": "HB06",
+    "original": "The first part explains why the door must stay shut. The last part contains the warning that must never disappear.",
+    "provider_finish_reason": "length",
+    "provider_text": "The first part explains why the door must stay shut.",
+    "full_consumer": {
+      "artifact": "pipeline-length\\pipeline-source.srt",
+      "sha256": "ec5f8e231d59b82d759ceae203f878ff609d7f7b11a9b76231fa15b601d938b5",
+      "output_text": "1\n00:00:00,000 --> 00:00:03,000\nThe first part explains why the door must stay shut.\n\n",
+      "warnings": [],
+      "done": true,
+      "progress": [
+        {
+          "type": "llm_progress",
+          "percent": 100.0,
+          "done": 1,
+          "failed": 0,
+          "total": 1
+        }
+      ]
+    },
+    "full_stop_control": {
+      "artifact": "pipeline-length-control\\pipeline-source.srt",
+      "sha256": "f606080462fb1f626ed337d237d5fdf28bd627cbe18d15b855a857078e6b6ba0",
+      "output_text": "1\n00:00:00,000 --> 00:00:03,000\nThe first part explains why the door must stay shut.\nThe last part contains the warning that must never disappear.\n\n",
+      "warnings": [],
+      "done": true,
+      "progress": [
+        {
+          "type": "llm_progress",
+          "percent": 100.0,
+          "done": 1,
+          "failed": 0,
+          "total": 1
+        }
+      ]
+    }
+  }
+]

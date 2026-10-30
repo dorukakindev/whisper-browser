@@ -1,0 +1,329 @@
+{
+  "startingHead": "da773134a3e744885592bafa008f81f03bcdf878",
+  "verifiedHead": "ae0a61a7b42c58d78bb7317680cf8f8133d5e027",
+  "productChanges": false,
+  "total": 8,
+  "findings": [
+    {
+      "id": "HB01",
+      "severity": "P2",
+      "title": "Altyazı varlık kaydı dikey yazım/sunum bilgisini kaybediyor",
+      "sources": [
+        "src/browser-asset-store.js:14",
+        "src/browser-asset-store.js:113",
+        "src/main.js:9834",
+        "src/main.js:9888",
+        "src/browser-overlay-controller.js:728"
+      ],
+      "reproduce": "Orijinal BrowserAssetStore.putTrack/getTrack round-trip içinde writingMode:rl,speaker,region,line,position taşıyan cue kaydet. Kaynak ve dönen cueyu gerçek Windows overlay scriptine sırayla ver.",
+      "observed": "Kaynakta writingMode rl, depoda alan yok. Native overlay önce vertical-rl, sonra boş writingMode döndürdü.",
+      "expected": "Depo, ürünün desteklediği dikey yazım gibi cue metadata bilgisini round-tripte korumalı.",
+      "impact": "Doğu Asya dikey altyazısı kayıttan açılınca yataya döner; konuşmacı ve sunum bilgisi JSONda da geri getirilemez.",
+      "rootCause": "Asset normalizer yalnız id/start/end/text ve sınırlı identity/quality/provenance alanlarını projekte ediyor; presentation alanları kaybediliyor.",
+      "caller": "persistBrowserTrack→BrowserAssetStore.putTrack; restorePersistedBrowserTracks→getTrack→SRT path ve cueIdentities. Orijinal overlay writingMode alanını kullanıyor.",
+      "prior": "R815-B42 backend checkpoint speaker kaybından ayrı varlık depo kökü. R444 kalite warning düzeltmesi bu alanları kapsamıyor. Önceki78de aynı kök yok.",
+      "limits": "Native ölçüm tam renderer-main yeniden açılışı değildir: gerçek kaydedilmiş cue nesnesinin gerçek overlay tüketicisindeki sonucu. line/position/region overlayde kasıtlı uygulanmıyor; bug kanıtı özellikle desteklenen writingMode ile kuruldu.",
+      "evidence": {
+        "id": "HB01-ASSET-METADATA",
+        "input": {
+          "cueId": "voice-a",
+          "start": 1,
+          "end": 3,
+          "text": "Hello",
+          "speaker": "Alice",
+          "line": "10%",
+          "position": "20%",
+          "align": "start",
+          "writingMode": "rl",
+          "region": "top"
+        },
+        "stored": {
+          "id": "0",
+          "start": 1,
+          "end": 3,
+          "text": "Hello",
+          "cueId": "voice-a"
+        },
+        "assetId": "0bb832efcb266d146dfb6a19:91ce78ca6ef4698432864805b9fc5181"
+      }
+    },
+    {
+      "id": "HB02",
+      "severity": "P2",
+      "title": "Tarayıcı oturum paketi seslendirme çevirisinin forSpeech ve protokol bilgisini siliyor",
+      "sources": [
+        "src/browser-session-package.js:76",
+        "src/main.js:16599",
+        "src/renderer/renderer.js:11535"
+      ],
+      "reproduce": "forSpeech:true ve güncel speech-v15-idiom-anchor-feedback taşıyan gerçek asset documentı createBrowserSessionPackage→inspectBrowserSessionPackage→putTrack zincirinden geçir.",
+      "observed": "Dışa aktarım öncesi true/v15; içe aktarılan asset false/boş protokol oldu.",
+      "expected": "Taşınabilir oturum, çeviri varyantının kullanım/protokol kimliğini korumalı.",
+      "impact": "Hazır seslendirme çevirisi importtan sonra sıradan çeviri sayılır; reuse eşleşmesi bozulup kullanıcı gereksiz ücretli çeviri veya yeniden hazırlamaya yönelir.",
+      "rootCause": "sanitizeVariantın izinli projeksiyonu forSpeech/speechProtocol alanlarını içermiyor; asset.safeMeta eksik değerleri false/boş varsayıyor.",
+      "caller": "collectBrowserSessionVariants saved.document toplar; package sanitizer düşürür; importBrowserSessionVariants putTrack yapar; renderer11535 forSpeech/protocol eşleşmesini zorunlu kılar.",
+      "prior": "Önceki78de yok. EX-BR07 generic streamId deposu kimlik kaybı farklı alan/normalizerdır.",
+      "limits": "Güncel v15 ile ae0a61a HEADte tekrarlandı; gerçek sağlayıcı/GPU kullanılmadı. Metin kaybı değil, varyant niteliği/reuse kaybı.",
+      "evidence": {
+        "id": "HB02-PACKAGE-SPEECH-PROVENANCE",
+        "before": {
+          "forSpeech": true,
+          "speechProtocol": "speech-v15-idiom-anchor-feedback"
+        },
+        "portable": {
+          "assetId": "a7eebef1105a7d677f883a8a:2b0d8d9c8f5fff58e71005a1d0eafb36",
+          "mediaId": "web:speech",
+          "trackId": "tr-speech",
+          "language": "",
+          "label": "",
+          "role": "translation",
+          "source": "manual",
+          "sourceHash": "",
+          "sourceTrackId": "",
+          "provider": "",
+          "model": "",
+          "createdAt": 1793397199263,
+          "updatedAt": 1793397199263,
+          "cues": [
+            {
+              "id": "0",
+              "start": 1,
+              "end": 3,
+              "text": "Hello",
+              "cueId": "voice-a"
+            }
+          ]
+        },
+        "after": {
+          "forSpeech": false,
+          "speechProtocol": ""
+        }
+      }
+    },
+    {
+      "id": "HB03",
+      "severity": "P2",
+      "title": "DASH Representation SegmentTemplate üst şablon niteliklerini devralmıyor",
+      "sources": [
+        "src/browser-subtitles.js:876",
+        "src/browser-subtitles.js:892",
+        "src/main.js:11634"
+      ],
+      "reproduce": "AdaptationSet düzeyinde media=sub-$Number$.vtt,duration5,timescale1 ve Representation düzeyinde yalnız initialization içeren geçerli MPD sun. Orijinal parseDashSubtitleMatchers çalıştır.",
+      "observed": "Kalıtımlı MPD0matcher; yalnız initialization childını kaldıran parent-only karşıörnek2matcher. Gerçek nativeHTTP ve flat capture2cue/complete:true.",
+      "expected": "Representation şablonu belirtilmeyen media/duration/timescale alanlarını üst SegmentTemplate üzerinden devralmalı.",
+      "impact": "Yaygın katmanlı DASH manifestinde sayfa oynarken altyazı keşfi tamamen boş kalır.",
+      "rootCause": "Rep template varsa adaptationTemplate tümüyle yok sayılıyor; alan bazlı inheritance yapılmıyor.",
+      "caller": "captureBrowserResponse manifest dalı main11634 parseDashSubtitleMatchers→captureDashSegments. Native kontrollü HTTPde aynı orijinal fonksiyonlar kullanıldı.",
+      "prior": "R304 geniş DASH zinciri temiz taraması bu inheritance varyantını dinamik doğrulamamış. Önceki78de yok.",
+      "limits": "DASH schema validator çalıştırılmadı. Semantik Google Shaka gerçek inheritAttribute uygulaması ve resmi MPEG/DASH kaynaklarıyla karşılaştırıldı; dış kod alınmadı.",
+      "evidence": {
+        "id": "HB03-DASH-TEMPLATE-INHERITANCE",
+        "manifest": "<MPD xmlns=\"urn:mpeg:dash:schema:mpd:2011\" mediaPresentationDuration=\"PT10S\" type=\"static\"><Period><AdaptationSet mimeType=\"text/vtt\" lang=\"en\"><SegmentTemplate timescale=\"1\" duration=\"5\" media=\"sub-$Number$.vtt\" startNumber=\"1\"/><Representation id=\"en\"><SegmentTemplate initialization=\"init.mp4\"/></Representation></AdaptationSet></Period></MPD>",
+        "inheritedResult": [],
+        "parentOnlyCount": 2
+      },
+      "references": [
+        {
+          "title": "Google Shaka MpdUtils gerçek kaynak",
+          "url": "https://shaka-project.github.io/shaka-player/docs/api/lib_dash_mpd_utils.js.html"
+        }
+      ]
+    },
+    {
+      "id": "HB04",
+      "severity": "P2",
+      "title": "Geçerli XML namespace önekli DASH MPD altyazısı keşfedilmiyor",
+      "sources": [
+        "src/browser-subtitles.js:878",
+        "src/browser-subtitles.js:1177",
+        "src/main.js:11634"
+      ],
+      "reproduce": "Aynı namespace/localName içeriğini önce default namespace <MPD>, sonra xmlns:dash bağlı <dash:MPD> şeklinde sun. Orijinal direct track parserı çağır.",
+      "observed": "Default biçim1iz; prefixed biçim0iz. Windows DOMParser localNameMPD, doğru MPEG namespace ve parserErrors0 doğruladı.",
+      "expected": "XML prefix seçimi aynı expanded namesi taşıyan manifestin işlenmesini değiştirmemeli.",
+      "impact": "Namespace öneki kullanan geçerli sağlayıcı manifestlerinde altyazı yokmuş gibi davranılır.",
+      "rootCause": "MPD,Period,AdaptationSet,Representation gibi XML öğeleri namespace-aware ayrıştırma yerine çıplak isim regexleriyle taranıyor; ilk MPD guardı bile prefixed rootu reddediyor.",
+      "caller": "main manifest parserı parseDashSubtitleTracks ve parseDashSubtitleMatchers kullanıyor; her iki giriş çıplak MPD bekliyor.",
+      "prior": "HB03 nitelik mirası; bu XML ad çözümlemesi kökü. TTML namespace temizliği R492de farklı parserdaydı. Önceki78de yok.",
+      "limits": "Canlı sağlayıcı denenmedi; gerçek Chromium XML parse ve native HTTP sentetik manifest. XML well-formedness/namespace sonucu DASH tam schema conformance iddiası değildir.",
+      "evidence": {
+        "id": "HB04-DASH-NAMESPACE",
+        "manifest": "<dash:MPD xmlns:dash=\"urn:mpeg:dash:schema:mpd:2011\"><dash:Period><dash:AdaptationSet mimeType=\"text/vtt\" lang=\"en\"><dash:Representation id=\"en\"><dash:BaseURL>captions.vtt</dash:BaseURL></dash:Representation></dash:AdaptationSet></dash:Period></dash:MPD>",
+        "plainCount": 1,
+        "prefixedCount": 0
+      },
+      "references": [
+        {
+          "title": "W3C Namespaces in XML",
+          "url": "https://www.w3.org/TR/xml-names/#ns-qualnames"
+        }
+      ]
+    },
+    {
+      "id": "HB05",
+      "severity": "P2",
+      "title": "TTML çocuk altyazısı üst zaman kapsayıcısının bitişinde kesilmiyor",
+      "sources": [
+        "src/browser-subtitles.js:1365",
+        "src/browser-subtitles.js:1382",
+        "src/browser-subtitles.js:1463",
+        "src/main.js:11796"
+      ],
+      "reproduce": "div begin10s dur2s altında p begin0s dur20s Hello içeren TTMLyi orijinal parseSubtitlePayload ile işle.",
+      "observed": "Cue10–30 oldu; kapsayıcı10–12 olduğundan beklenen son12. Native HTTPde aynı sonuç.",
+      "expected": "Çocuk görünür aktif aralığı ebeveyn kapsayıcı aktif aralığının dışına çıkmamalı.",
+      "impact": "Altyazı kapandığı sahneden18saniye sonra bile görünür; senkron ve çeviri sahne bağlamı bozulur.",
+      "rootCause": "Parent context yalnız başlangıç offseti ve sunum taşır; ebeveyn end/dur aktif sınırı hesaplanıp childa uygulanmıyor.",
+      "caller": "Ağ body parseSubtitlePayload→parseXml→storeBrowserTrack→overlay/saved subtitle. Native response200/validXML→aynı parser zinciri koştu.",
+      "prior": "R304 ebeveyn offset birikimini inceledi; bu end/dur clipping farklı invariant. Önceki78de yok.",
+      "limits": "Özel TTML profillerinin tamamı test edilmedi; W3C zaman-kapsama semantiğinin küçük fixtureı.",
+      "evidence": {
+        "id": "HB05-TTML-PARENT-ACTIVE-INTERVAL",
+        "xml": "<tt xmlns=\"http://www.w3.org/ns/ttml\"><body><div begin=\"10s\" dur=\"2s\"><p begin=\"0s\" dur=\"20s\">Hello</p></div></body></tt>",
+        "actual": [
+          {
+            "start": 10,
+            "end": 30,
+            "text": "Hello"
+          }
+        ],
+        "expectedEnd": 12
+      },
+      "references": [
+        {
+          "title": "W3C TTML1 zamanlama",
+          "url": "https://www.w3.org/TR/ttml1/#timing-attribute-timeContainer"
+        }
+      ]
+    },
+    {
+      "id": "HB06",
+      "severity": "P2",
+      "title": "TTML statik metinle karışık zamanlı span tüm paragraf boyunca erken gösteriliyor",
+      "sources": [
+        "src/browser-subtitles.js:1407",
+        "src/browser-subtitles.js:1411",
+        "src/browser-subtitles.js:1422",
+        "src/main.js:11796"
+      ],
+      "reproduce": "p begin0/end10 içinde Static metni ve span begin5/end10 Late metni ver. Orijinal TTML parserını çalıştır.",
+      "observed": "0–10 tek cue Static Late çıktı; Late 0–5 arasında5saniye erken.",
+      "expected": "0–5 Static;5–10 Static Late görünmeli veya eşdeğer zaman katmanları korunmalı.",
+      "impact": "Paragraf içi paint-on/karaoke konuşması zamansız açığa çıkar; sahne sırası ve zaman eşlemesi bozulur.",
+      "rootCause": "outsideText varsa fastpath inner metnin tamamını tek paragraph intervalinde çıkarıp timedSpans döngüsünü atlıyor.",
+      "caller": "Browser ağ TTML ve kullanıcı dosyası parseSubtitlePayload→parseXml; native HTTP aynı üretim parserını doğruladı.",
+      "prior": "R492 namespace span/br temizliği farklı; R815-B40 VTT inline timestamp başka parser ve sözdizimi. Önceki78de yok.",
+      "limits": "W3C statik anonim span+zamanlı child semantiğiyle karşılaştırıldı; fiziksel video yanında çizim değil, üretilen cue zamanları doğrulandı.",
+      "evidence": {
+        "id": "HB06-TTML-MIXED-TIMED-SPAN",
+        "xml": "<tt xmlns=\"http://www.w3.org/ns/ttml\"><body><div><p begin=\"0s\" end=\"10s\">Static <span begin=\"5s\" end=\"10s\">Late</span></p></div></body></tt>",
+        "actual": [
+          {
+            "start": 0,
+            "end": 10,
+            "text": "Static Late"
+          }
+        ],
+        "expected": "0–5 Static;5–10 Static Late"
+      },
+      "references": [
+        {
+          "title": "W3C TTML1 zamanlama",
+          "url": "https://www.w3.org/TR/ttml1/#timing-attribute-timeContainer"
+        }
+      ]
+    },
+    {
+      "id": "HB07",
+      "severity": "P2",
+      "title": "Geçerli TTML sequential ve örtük başlangıçlı paragraflar tamamen düşüyor",
+      "sources": [
+        "src/browser-subtitles.js:1383",
+        "src/browser-subtitles.js:1397",
+        "src/browser-subtitles.js:1464",
+        "src/main.js:11796"
+      ],
+      "reproduce": "div timeContainer=seq içinde p dur2 First ve p dur3 Second (begin alanları olmadan) olan TTMLyi işle.",
+      "observed": "cues[] ve format boş; beklenen First0–2,Second2–5. Native XML parserErrors0 ve HTTP200.",
+      "expected": "TTML seq kapsayıcıda begin yazılmayan çocukların başlangıcı önceki kardeş bitişinden türetilmeli.",
+      "impact": "Tamamen geçerli bir timed-text dosyası altyazı yok gibi kaybolur.",
+      "rootCause": "parseXml açık start/begin/t olmadan startnull bırakıyor; yalnız startnonnull satırı push ediyor. timeContainer seq/kardeş cursoru da hiç hesaplanmıyor.",
+      "caller": "Browser response parseSubtitlePayload→parseXml. W3C TTML1 timeContainer seq ve Pop-On Captions örneği aynı yapı/mekanizmayı tanımlar.",
+      "prior": "HB05 açık başlangıçlı cue ebeveyn end clipping; HB06 mixed span flattening. Bu seq/implicit temporal cursor kökü. Önceki78de yok.",
+      "limits": "Tek bug sayıldı: örtük begin düşmesi ve seq scheduling ayrı bug diye şişirilmedi. Profile/fps/SMPTE kapsamı denenmedi.",
+      "evidence": {
+        "id": "HB07-TTML-SEQUENTIAL",
+        "xml": "<tt xmlns=\"http://www.w3.org/ns/ttml\"><body><div timeContainer=\"seq\"><p dur=\"2s\">First</p><p dur=\"3s\">Second</p></div></body></tt>",
+        "actual": [],
+        "expected": [
+          {
+            "start": 0,
+            "end": 2,
+            "text": "First"
+          },
+          {
+            "start": 2,
+            "end": 5,
+            "text": "Second"
+          }
+        ]
+      },
+      "references": [
+        {
+          "title": "W3C TTML1 zamanlama",
+          "url": "https://www.w3.org/TR/ttml1/#timing-attribute-timeContainer"
+        }
+      ]
+    },
+    {
+      "id": "HB08",
+      "severity": "P2",
+      "title": "İçerik adresli altyazı varlığı geçerli JSON içeriği bozulunca hashini doğrulamadan kabul ediyor",
+      "sources": [
+        "src/browser-asset-store.js:121",
+        "src/browser-asset-store.js:151",
+        "src/browser-asset-store.js:156",
+        "src/browser-asset-store.js:165"
+      ],
+      "reproduce": "putTrack ile Hello cue kaydet; dosyanın yalnız cues[0].text alanını Jello yapıp geçerli JSON/assetIdyi koru; getTrack(originalAssetId) çağır.",
+      "observed": "ok:true/Jello döndü; eski sağlam SRT de otomatik Jello içeriğiyle yeniden yazıldı. AssetId değişmedi.",
+      "expected": "İçerik adresi ile kanonik meta/cues hashinin uyuşmazlığı saptanmalı; bozulmuş kanonik JSON sağlam diye kabul edilmemeli.",
+      "impact": "Yedek/kopyalama/disk bozulması geçerli JSON olarak kaldığında altyazı ve türetilmiş SRT sessizce değişir; içerik kimliği yanlış metni işaret eder.",
+      "rootCause": "getTrack yalnız version ve payload.assetId stringinin parametreye eşitliğini kontrol eder; putTrackte hesaplanan contentHash yeniden hesaplanmaz. Sonra JSON kanonik sayılıp mevcut SRT üzerine yazılır.",
+      "caller": "restorePersistedBrowserTracks main9898 ve session export collector getTrack kullanır; mevcut iyi SRTyi content-address id doğrulaması yapmadan onarır.",
+      "prior": "R25-B5 eski JSON/SRT atomik mismatch köküydü ve SRTyi kanonik JSONdan onarma giderildi. Bu ayrı içerik hash doğrulaması eksikliği; önceki78de yok.",
+      "limits": "Disk bozulması sentetik tek alan değişimiyle canlandırıldı; gerçek disk bozulma sıklığı veya kötü amaçlı dosya sistemine karşı güvenlik garantisi iddia edilmez.",
+      "evidence": {
+        "id": "HB08-ASSET-CONTENT-HASH",
+        "assetId": "0bb832efcb266d146dfb6a19:91ce78ca6ef4698432864805b9fc5181",
+        "resultOk": true,
+        "text": "Jello",
+        "derivedSrt": "﻿1\r\n00:00:01,000 --> 00:00:03,000\r\nJello\r\n"
+      }
+    }
+  ],
+  "sourceSha256": {
+    "src/browser-asset-store.js": "e0074630121be782e6787e47964ee9285002f5f0dc00c1316b215523ebf81ce9",
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+    "src/browser-overlay-controller.js": "4ce19e920c4cd7555da51fd98c4ecd756e3297397ab8893328808bca7b113f12",
+    "src/browser-session-package.js": "eb4530c22477db6ccabeda398fc571ecca28ae1e31c1407377374b17db0340dc",
+    "src/renderer/renderer.js": "6f715d67be62b19d794a9f4dbc471206b4d7d9756d60233a51cbb4de46a27f93",
+    "src/browser-subtitles.js": "7fce97cf5df6216a158fa50c3e6ba8c0e9f62f79970436bfe8d6b05d91a2cbad"
+  },
+  "nativePid": 10732,
+  "methods": [
+    "Original Node module IO/package/parser probes",
+    "Windows Electron43.5.0 net.fetch→original parser on synthetic localhost; DOMParser namespace/wellformedness countercheck",
+    "Original captureDashSegments flat-MPD positive capture:2cues/complete",
+    "Actual native overlay writingMode before/after asset round-trip"
+  ],
+  "excluded": [
+    "Download clear persistence-failure warning ambiguity not counted",
+    "HLS EXT-X-SKIP approximate timeline candidate existing timeline anchoring may repair; not counted"
+  ],
+  "commands": [
+    "node .tmp/hundred815-browser/probe.cjs ae0a61a7b42c58d78bb7317680cf8f8133d5e027",
+    "Start-Process -FilePath \"D:\\Whisper Local\\node_modules\\electron\\dist\\electron.exe\" -ArgumentList '\"D:\\Whisper Local\\.tmp\\hundred815-browser\\native-network.cjs\"' -WorkingDirectory \"D:\\Whisper Local\" -WindowStyle Hidden -PassThru"
+  ]
+}

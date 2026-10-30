@@ -1,0 +1,108 @@
+{
+  "head": "ae0a61a7b42c58d78bb7317680cf8f8133d5e027",
+  "initialHead": "da773134a3e744885592bafa008f81f03bcdf878",
+  "productChanges": false,
+  "method": "Original source modules and unchanged models:delete IPC handler; controlled native-dialog/job boundary; actual synthetic filesystem. All deletion targets were resolved under this audit's fixture directory.",
+  "findings": [
+    {
+      "id": "HR01",
+      "severity": "P2",
+      "title": "Model durumu ve silme onayı başka depoyu gösterirken ilk yarım depo siliniyor",
+      "sources": [
+        "src/model-manager.js:109",
+        "src/model-manager.js:136",
+        "src/model-manager.js:161",
+        "src/main.js:19510",
+        "src/main.js:19524"
+      ],
+      "reproduce": "Aynı large-v3-turbo kimliği için alfabetik önce gelen mobiuslabsgmbh deposunda yarım indirme, sonraki Systran deposunda tam dosya kümesi bulunsun. Model durumunu al, ardından seçili kimliği sil.",
+      "expected": "Onayda gösterilen kullanılabilir depo/boyut ile silinen hedef aynı olmalı veya birden çok kopya açıkça listelenmeli.",
+      "observed": "scanModelCache Systran deposunu installed:true ile gösteriyor; deleteCachedModel mobiuslabsgmbh yarım deposunu silip ok:true döndürüyor. Systran dosyaları duruyor ve son durum hâlâ installed:true.",
+      "cause": "Tarama ilk usable eşleşmeyi tercih ediyor; silme ise requireUsable=false ile ilk eşleşmeyi alıyor. IPC onayı model kimliğini taşıyor, gösterilen depo kimliğini dondurmuyor.",
+      "impact": "Kullanıcının kaldırdığını düşündüğü hazır model diskten kalkmaz; onaylanan boyut ile boşalan alan ve silinen depo farklı olur. Bu, modelin bütün kopyalarını silme önerisi değildir.",
+      "prior": "R815-B08 standart cache kökünün bulunmamasıydı; burada kök doğru ve aynı ID'nin iki geçerli repo durumu arasında tarama/silme seçimi ayrışıyor. R119 genel onay/silme happy-path'i bu iki-kopya sınırını kapsamıyor.",
+      "limits": "Gerçek sentetik dizin silmesi ve ürün metadata kontrolleri çalıştı. Dosyalar sahte ağırlık içerir; model yüklenebilirliği veya Hugging Face indirme kalitesi sınanmadı. Kişisel cache okunmadı/silinmedi.",
+      "acceptance": "Karma tam/yarım iki depo ve iki cache kökünde önizlenen hedef ile silinen hedef aynı kimlik olmalı; hedef değişmişse yeniden onay istenmeli.",
+      "evidence": [
+        "probe.cjs",
+        "observations.json"
+      ]
+    },
+    {
+      "id": "HR02",
+      "severity": "P2",
+      "title": "Model silme onayı beklenirken başlayan işten sonra busy koruması yeniden denetlenmiyor",
+      "sources": [
+        "src/main.js:19500",
+        "src/main.js:19505",
+        "src/main.js:19514",
+        "src/main.js:19524"
+      ],
+      "reproduce": "Başta aktif iş yokken models:delete başlat; native onay Promise'i beklesin. Bu sırada önceden sıraya alınmış bir iş activeJob durumuna geçsin; onayı tamamlat.",
+      "expected": "Silme anında da çalışan model/iş koruması geçerli olmalı; onay açılmadan önceki boş durum kalıcı kilit kabul edilmemeli.",
+      "observed": "Üretim IPC handler'ında activeJob doluyken silme ok:true döndü ve kendi sentetik model depo dizini gerçekten kaldırıldı.",
+      "cause": "Busy denetimi showMessageBox await'inden önce bir kez var; yanıt sonrası doğrudan deleteCachedModel çağrılıyor. Aynı dosyadaki benchmark handler'ı dosya diyaloğu sonrasında doğru karşı denetimi yapıyor.",
+      "impact": "Otomatik/önceden sıraya alınmış iş başladığında uygulamanın model işi sırasında silmeme sözleşmesi bozulur; dosya kilidi hatası, yeniden yükleme/indirme veya sonraki adımın dosya bulamaması riski oluşur.",
+      "prior": "R815-B30 form/capture drain kapatma koruması, R815-B18 belge export kimliği farklı sahiplik sınırlarıdır. Bu yeni kayıt models:delete'in kendi busy/onay yaşam döngüsüdür; genel aynı-await örüntüsü ayrı kök gibi tekrar sayılmadı.",
+      "limits": "Orijinal handler değiştirilmeden VM'de çalıştı; native onay ve çalışan iş kontrollü durumdur. Gerçek modal açıkken fiziksel tıklama/GPU modeli veya aktif ağırlık dosyası kilidi yaratılmadı. Parent modal inputu engelleyebilir; aday tetikleyici önceden zamanlanmış/background iş başlangıcıdır.",
+      "acceptance": "Onay beklerken activeJob/burnin/liveASR/benchmark gibi korunmuş durum oluşursa hiçbir cache dosyası silinmeden açık busy sonucu dönmeli.",
+      "evidence": [
+        "probe.cjs",
+        "observations.json"
+      ]
+    },
+    {
+      "id": "HR03",
+      "severity": "P1",
+      "title": "Tek mükerrer kayıt onarımı seçilse de seçilmeyen başka kimliklerin kayıtları da siliniyor",
+      "sources": [
+        "src/data-integrity.js:250",
+        "src/data-integrity.js:274",
+        "src/data-integrity.js:304",
+        "src/data-integrity.js:352"
+      ],
+      "reproduce": "Katalogda A ve B için ikişer farklı kayıt oluştur; veri bütünlüğü taraması iki duplicate bulsun. Yalnız dup-catalog:A onarımını seçip uygula.",
+      "expected": "Seçilen A grubu onarılmalı; seçilmeyen B'nin iki kaydı ve elle birleştirme imkânı korunmalı.",
+      "observed": "Sonuç applied yalnız A bildirirken B sayısı da 2→1 düştü; eski B kaydı ve içeriği ana belgeden kaldırıldı. .integrity.bak ilk dosyayı içeriyor.",
+      "cause": "applyRepair dedupeGeneric'i hedef key filtresi olmadan çağırıyor; yardımcı bütün belgeyi kimliğe göre tekilleştiriyor. dedupeWatchLibrary de aldığı key'i hiç kullanmıyor. Katalog/sekme/watch/tombstone çeşitleri aynı kapsam hatası olarak tek sayıldı.",
+      "impact": "Kullanıcı seçmediği kişisel kaydı kaybeder; yalnız seçilen bulguların uygulanacağı onay sözleşmesi ihlal edilir. Ham yedek bulunması izinsiz kapsam genişlemesini doğru yapmaz.",
+      "prior": "R815-B47 yanlış sohbet silme onayı başka UI/store köküdür; burada bakım aracının seçilen ID→onarım planı daraltması yoktur. Mevcut data-integrity testi farklı dosyadaki seçilmeyen bozuk kaydı koruyor; aynı dosyanın başka duplicate kimliğini sınamıyor.",
+      "limits": "Gerçek auditUserData/applyRepairs ve sentetik JSON disk durumu kullanıldı. Profil veya gerçek kayıt onarılmadı. Yedekten elle kurtarma mümkündür; fiziksel geri alınamaz silinme iddiası yoktur.",
+      "acceptance": "Her repair.key yalnız seçili grubu değiştirmeli; seçilmeyen tüm kimlikler byte/alan düzeyinde korunmalı ve uygulanan kapsam sonuçta açıkça görünmeli.",
+      "evidence": [
+        "probe.cjs",
+        "observations.json"
+      ]
+    },
+    {
+      "id": "HR04",
+      "severity": "P2",
+      "title": "Şeması geçersiz JSON yedeği sağlam sayılıp geri yükleniyor ve katalog hâlâ açılmazken sağlık temiz görünüyor",
+      "sources": [
+        "src/data-integrity.js:21",
+        "src/data-integrity.js:63",
+        "src/data-integrity.js:296",
+        "src/media-catalog-store.js:213"
+      ],
+      "reproduce": "Katalog ana dosyası bozuk JSON; .bak ise parse edilebilir ama items dizisi olmayan {version:1,wrongProperty:[]} olsun. Sağlam .bak bulundu diyen onarımı uygula; yeniden sağlık taraması ve gerçek katalog list() tüketicisini aç.",
+      "expected": "Yedek ilgili deponun şemasından geçmeden sağlam/onarılabilir sayılmamalı. Başarısız geri yükleme sonrasında sağlık temiz ve onarıldı denmemeli.",
+      "observed": "Onarım applied döndürüyor, ana dosyaya geçersiz zarfı yazıyor ve sonraki audit issues=[] veriyor. Gerçek createMediaCatalogStore.list() 'Katalog dosyası ve güvenli yedeği okunamadı' ile hâlâ başarısız.",
+      "cause": "Sağlık/restore yalnız JSON.parse başarısını ölçüyor; katalog şeması ve normal yükleyici sözleşmesi doğrulanmıyor. Dosya JSON olarak bozuk değil ama ürün verisi olarak kullanılamaz.",
+      "impact": "Kullanıcı başarılı kurtarma ve temiz sağlık sonucu alırken medya kütüphanesi kapalı kalır; sonraki sorun giderme yanlış yönlendirilir.",
+      "prior": "R815-B57 export/otomatik retention geçersiz arşivi başarı sayıyordu; bu farklı bağımsız bakım tüketicisi/backup şema doğrulamasıdır. R357 katalog ana okuyucusunun şema koruması burada çalışarak problemin sürdüğünü kanıtlıyor; o koruma kaldırılmış sayılmaz.",
+      "limits": "Orijinal bozuk dosya .integrity.bak içinde korunuyor; gerçek katalog/denetim modülleri sentetik diskle sınandı. Kişisel yedeğe dokunulmadı. Tek katalog zarfı kanıtlandı; bütün depo şemalarına sonuç genellenmedi.",
+      "acceptance": "Desteklenen her depo yedeği kendi şema/versiyon normalizer'ından geçmeli; geçersiz örnek için repair sunulmamalı ve read-only hata orijinal dosyayı korumalı.",
+      "evidence": [
+        "probe.cjs",
+        "observations.json"
+      ]
+    }
+  ],
+  "improvements": [],
+  "sourceSha256": {
+    "src/model-manager.js": "16ffd7777391461e12479ec34809f8d994b87445856786608098b5967fb5bd5f",
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+    "src/data-integrity.js": "f396ee347143f163d45ec0b5da3d7c23abb34cf31dc9927313543ee892a4cc5d",
+    "src/media-catalog-store.js": "91b3fcf1dfabece488d2497a9129f38db0484880adf1a565175266d917054681"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "electron": "43.5.0",
+  "chromium": "150.0.7871.250",
+  "hiddenWindow": true,
+  "hostResolverMappingOnlyThisTest": true,
+  "syntheticLocalPrivateTargetLoaded": 1,
+  "rejection": "Unsafe research redirect.",
+  "observed": [
+    {
+      "host": "public-fixture.invalid:55799",
+      "path": "/start"
+    },
+    {
+      "host": "127.0.0.1:55799",
+      "path": "/private-fixture"
+    }
+  ]
+}

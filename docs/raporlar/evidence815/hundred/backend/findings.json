@@ -1,0 +1,320 @@
+{
+  "initial_head": "da773134a3e744885592bafa008f81f03bcdf878",
+  "verified_head": "ae0a61a7b42c58d78bb7317680cf8f8133d5e027",
+  "product_changes_by_this_agent": false,
+  "revision_note": "Ortak çalışma ağacı R816 nedeniyle ae0a61a7ye ilerledi. Altı bulgu/final prob bu güncel revizyonda baştan yeniden çalıştırıldı. İlk da773 koşusu güncel PASS diye sunulmuyor.",
+  "runtime": "Windows-10-10.0.19045-SP0",
+  "python": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+  "dependencies": {
+    "yt-dlp": "2026.8.27.231323.dev0",
+    "openai": "2.37.0",
+    "numpy": "2.4.6"
+  },
+  "verified_bugs": 6,
+  "source_sha256": {
+    "backend/transcribe.py": "a66a8b58b66527ede8859726b525ff0eb3961769975dc675ff01119eb3b1b766",
+    "backend/media.py": "63128b096f07e9a35d561e5488a8d76690d1064e2e93b4fe795a3a817bf93d96",
+    "backend/test_transcribe.py": "bb5dfc9ac84794f283dfd015f2a684f2597c515654f3f4c11e1c3b5554b08c3e",
+    "backend/translation_auth.py": "f9e04f640807a92b8ed7647df5446fa4512a3111f882a51c576e34bbaa4be664",
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b"
+  },
+  "command": "& backend/venv/Scripts/python.exe .tmp/hundred815-backend/probe.py",
+  "findings": [
+    {
+      "id": "HB01",
+      "severity": "P1",
+      "title": "Yalnız noktalama düzeltmesi kaynak olumsuzluğunu tersine çeviren yanıtı başarılı sayıyor",
+      "location": "backend/transcribe.py:3147",
+      "method": "Gerçek transcribe→FFmpeg→llm_postprocess→SRT yazıcı/OutputTransaction; Whisper ve OpenAI yanıtları kontrollü.",
+      "reproduction": "ASR kaynak Please do not open the red door.; yalnız llm_fix_punctuation açık. Sağlayıcı finish_reason=stop ile Please open the red door now. verir.",
+      "observed": "Gerçek final SRTde Please open the red door now.; llm_progress done1 failed0, done.warnings=[]. Noktalama kontrolü hello world→Hello, world. kabul edilir.",
+      "expected": "Yalnız noktalama seçildiğinde sözcük/olumsuzluk/komut anlamı değişmemeli; sözleşme dışı çıktı korunmuş kaynak ve açık uyarıyla reddedilmeli.",
+      "impact_and_root": "Kaynağa ters düşen komut son altyazıya sessiz yazılır. Kök: kabul kapısı yalnız yaklaşık kelime/karakter büyüklüğüyle çalışıyor; seçili punctuation-only işleminde anlam taşıyan sözcük değişimini korumuyor.",
+      "previous_relation": "R815-B37/B38 ASR sonrası ses doğrulayıcısının yanlış kabulleriydi; bu ses modeline gitmeden kaynak transkripsiyonunu değiştirip son SRTye yazan ayrı LLM temizleme yolu. F14/F17 aileleriyle genel örtüşme; önceki78 içinde yok.",
+      "limits": "Gerçek ücretli LLMnin bu yanıtı verdiği iddia edilmez. Kontrollü sağlayıcının belirgin anlam değişimini gerçek tüketicinin kabulü kanıtıdır.",
+      "evidence": {
+        "id": "HB01",
+        "input": "Please do not open the red door.",
+        "result": [
+          [
+            0.0,
+            3.0,
+            "Please open the red door now."
+          ]
+        ],
+        "calls": 1,
+        "warnings": [],
+        "progress": [
+          {
+            "type": "llm_progress",
+            "percent": 100.0,
+            "done": 1,
+            "failed": 0,
+            "total": 1
+          }
+        ],
+        "full_consumer": {
+          "artifact": "pipeline-meaning\\pipeline-source.srt",
+          "sha256": "f14bb68e1abf96a3a791020b4060a2d2847631174e75ffc9ccaaf6e86b2c3c51",
+          "output_text": "1\n00:00:00,000 --> 00:00:03,000\nPlease open the red door now.\n\n",
+          "warnings": [],
+          "done": true,
+          "progress": [
+            {
+              "type": "llm_progress",
+              "percent": 100.0,
+              "done": 1,
+              "failed": 0,
+              "total": 1
+            }
+          ]
+        },
+        "punctuation_control": [
+          [
+            0.0,
+            3.0,
+            "Hello, world."
+          ]
+        ],
+        "full_punctuation_control": {
+          "artifact": "pipeline-punctuation-control\\pipeline-source.srt",
+          "sha256": "6c54782fb5aac9de48dea52763d4f5af8d5fce7e3b57fd1e56d5d4391650a91e",
+          "output_text": "1\n00:00:00,000 --> 00:00:03,000\nHello, world.\n\n",
+          "warnings": [],
+          "done": true,
+          "progress": [
+            {
+              "type": "llm_progress",
+              "percent": 100.0,
+              "done": 1,
+              "failed": 0,
+              "total": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "HB02",
+      "severity": "P2",
+      "title": "Bir veya iki kelimelik kaynakta LLM büyüklük koruması devre dışı kalıyor",
+      "location": "backend/transcribe.py:3158",
+      "method": "Gerçek llm_postprocess ve tam transcribe/FFmpeg/final SRT tüketicisi; kontrollü ASR/editor.",
+      "reproduction": "Tek kelime Hello. kaynağına800kelime/6800karakter geçerli JSON edit cevabı ver. Aynı cevabı4kelimelik This is original text. kaynağına da ver.",
+      "observed": "Tek kelimede6800karakter kabul, SRT6834karakter; cleanup done1 failed0 ve cleanupwarnlist boş. Tam tüketici ayrıca genel800kelimelik noktalama uyarısı üretir; bu boyut/uydurma ret uyarısı değildir ve dosya korunmuş kaynak yerine yeni metni içerir.4kelimelik kontrol gerçek finalSRTde kaynak metni korur, cleanupfailed1ve1/1reddi uyarısı vardır.",
+      "expected": "Kısa kaynakta da mutlak/göreli metin bütçesi aşımı reddedilmeli; birleşik kelime ayırma gibi küçük büyümeler desteklenebilir.",
+      "impact_and_root": "Tek kısa cueya yüzlerce uydurma kelime yazılır; okunamaz dosya ve gereksiz downstream kaynak tüketimi. Kök: words_off yalnız ow>=3 veya spaceless script durumunda true olabilir; chars_off tek başına hiçbir üst sınır sağlamaz.",
+      "previous_relation": "HB01 yaklaşık aynı uzunlukta anlam ters çevrilmesini; bu farklı short-input koşulunun boyut savunmasını kaldırmasını gösterir. Boyut eşiğini düzeltmek HB01i çözmez; anlam demirleriHB02nin mutlak kaynak bütçesi yerine geçmez. Önceki78de yok.",
+      "limits": "800kelime sentetik, ücretli sağlayıcı ve OOM/çökme iddiası yok; büyüklük kabulü ve gerçek dosya sonucu ölçüldü.",
+      "evidence": {
+        "id": "HB02",
+        "input": "Hello.",
+        "output_chars": 6800,
+        "output_words": 800,
+        "warnings": [],
+        "four_word_control": [
+          [
+            0.0,
+            3.0,
+            "This is original text."
+          ]
+        ],
+        "progress": [
+          {
+            "type": "llm_progress",
+            "percent": 100.0,
+            "done": 1,
+            "failed": 0,
+            "total": 1
+          }
+        ],
+        "full_consumer": {
+          "artifact": "pipeline-expansion\\pipeline-source.srt",
+          "sha256": "6be36f5f4e925c82a9e4457eaa0c8a5f944c0d11b565011f45e2f8c939c9ee33",
+          "output_text": "1\n00:00:00,000 --> 00:00:03,000\nInvented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content Invented content.\n\n",
+          "warnings": [
+            "Noktalama uyarısı: 800 kelimelik kesintisiz bir bölüm bulundu. Daha temiz sonuç için LLM ile düzeltme → Noktalama seçeneğini açın."
+          ],
+          "done": true,
+          "progress": [
+            {
+              "type": "llm_progress",
+              "percent": 100.0,
+              "done": 1,
+              "failed": 0,
+              "total": 1
+            }
+          ]
+        },
+        "full_four_word_control": {
+          "artifact": "pipeline-size-control\\pipeline-source.srt",
+          "sha256": "994c7dea18133eba179f259a5c45a285e2025f01090c93c34c773ef68af0fec3",
+          "output_text": "1\n00:00:00,000 --> 00:00:03,000\nThis is original text.\n\n",
+          "warnings": [
+            "1/1 blok LLM ile düzeltilemedi (orijinal metin korundu)."
+          ],
+          "done": true,
+          "progress": [
+            {
+              "type": "llm_progress",
+              "percent": 100.0,
+              "done": 0,
+              "failed": 1,
+              "total": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "HB03",
+      "severity": "P2",
+      "title": "LLM temizlemede kalıcı401 hatasından sonra kuyruktaki her paket sağlayıcıya gönderiliyor",
+      "location": "backend/transcribe.py:3169",
+      "method": "Gerçek ThreadPoolExecutor/llm_postprocess istek ve route_error_is_fatal yolu; kontrollü OpenAI401.",
+      "reproduction": "90cue, llm_workers=1, ilk ve bütün sağlayıcı çağrıları status_code401 invalid_api_key. Aynı corpus için mevcut llm_translate fatal kontrolünü çalıştır.",
+      "observed": "Temizleme3APIisteği yapar; ilk401 sonrası iki queued paket daha gönderilir. Çeviri negatif kontrolü1istekte durur. Kaynak metin korunur,90/90uyarı vardır.",
+      "expected": "Bilinen kalıcı kimlik/yetki hatası sonrası henüz başlamamış paketler aynı iş için tekrar gönderilmemeli; kaynak korunup terminal hata raporu kalmalı.",
+      "impact_and_root": "Uzun dosyada her30cue için boşa istek ve gecikme; geçersiz hesapta sağlayıcı baskısı artar. Kök: request() fatal hatayı yalnız o pakette fırlatır, havuzun queued işlerine ortak stop işareti ulaşmaz.",
+      "previous_relation": "llm_translate fatal_stop koruması zaten var; farklı cleanup yolu. Gece F13/F14 hata/timeout kayıtları genel aile kanıtıdır; önceki78de bu kuyruk mekanizması yok.",
+      "limits": "Gerçek401servisine veya ücretli sağlayıcıya çıkılmadı; kontrollü hata sınıfı gerçek istek/havuz yolunu çalıştırır. Metin kaybı iddia edilmez.",
+      "evidence": {
+        "id": "HB03",
+        "calls_after_fatal401": 3,
+        "expected_calls": 1,
+        "result_preserved": true,
+        "warnings": [
+          "90/90 blok LLM ile düzeltilemedi (orijinal metin korundu)."
+        ],
+        "progress": [
+          {
+            "type": "llm_progress",
+            "percent": 100.0,
+            "done": 0,
+            "failed": 90,
+            "total": 90
+          }
+        ],
+        "translation_fatal_control_calls": 1
+      }
+    },
+    {
+      "id": "HB04",
+      "severity": "P1",
+      "title": "Adaptive indirme başarısız yeniden denemede önceki sağlam video dosyasını siliyor",
+      "location": "backend/media.py:482",
+      "method": "Gerçek FFmpeg MP4, gerçek loopbackHTTP ve download_stream tüketicisi; ağ hatası gerçekHTTP404.",
+      "reproduction": "Önce aynı Synthetic media/fixture kimliğiyle1sn yerelHTTP videosunu başarılı indir. Aynı çıktı klasörü/başlık/ID ile ikinci isteği404vererek tekrar başlat.",
+      "observed": "İlk6584bayt sağlam MP4ün SHA256sı alındı; ikinci HTTPError sonrası önceki final dosya yok.404FFmpeg başlamadan gelir.",
+      "expected": "Yalnız mevcut çağrının oluşturduğu partial/staged dosyalar temizlenmeli; önceki tamamlanmış final korunmalı.",
+      "impact_and_root": "Tek ağ hatası önceki başarılı indirmeyi kalıcı kaybettirir. Kök: except BaseException her out_path varlığını bu çağrıya ait sayıp unlink ediyor.",
+      "previous_relation": "R302 indirme güvenlik kontrolünü ve yarım çıktı temizliğini kaydeder; o ifade önceki tamamlanmış dosya sahipliği sınırını doğrulamaz. R815-B19 MHTML partial overwrite ayrı modül/protokol; backend adaptive video cleanup yeni mekanizma.",
+      "limits": "Yalnız test klasöründeki sentetik MP4 silindi. Loopback dışında ağ yok; kişisel medya veya dosya silinmedi.",
+      "evidence": {
+        "id": "HB04",
+        "first_success": true,
+        "before_sha256": "eaddf8caea7df2a48e91781474a77ab811a20ad408a7ff64f845d5455f3dfe06",
+        "before_bytes": 6584,
+        "second_failure": "HTTPError",
+        "old_final_exists": false
+      }
+    },
+    {
+      "id": "HB05",
+      "severity": "P1",
+      "title": "YouTube ses dilini değiştirmek aynı videoID dosyasından eski dildeki sesi geri kullanıyor",
+      "location": "backend/transcribe.py:359",
+      "method": "Gerçek yt-dlp selector+HTTP downloader, gerçek FFmpeg Opus fixtureları ve T.download_youtube. Yalnız YouTube extractor metadata kontrollü.",
+      "reproduction": "Aynı video için EN440Hz ve TR880Hz iki mevcutwebm ses formatı sun. Önce audio_lang=en indir; aynı klasörde audio_lang=tr iste. Ayrı yeni klasörde TR kontrolünü indir.",
+      "observed": "İkinciTR isteğinde /tr HTTPisteği hiç yok; aynıID.webm ve ENhash döner. Yeni klasördeTR /tr isteği oluşur ve farklıhash gelir.",
+      "expected": "Gerçek format/dil değişince eski ses yeniden kullanılmamalı; disk kimliği seçili dil/formatı ayırmalı veya mevcut dosyanın tarifi doğrulanmalı.",
+      "impact_and_root": "Oynatıcıda TR seçen kullanıcı Whispere ENses gönderebilir; yanlış dil/kaynak bağlamı ve boşa transkripsiyon. Kök: outtmpl yalnız%(id)s.%(ext)s; yt-dlp aynı uzantı dosyasını already-downloaded sayıyor, audio_lang kimliğe katılmıyor.",
+      "previous_relation": "R815-B41/B70 LLM çeviri hafızasının prompt bağlamıydı; burada medya baytları indirilmeden önceki ses parçası/dil kimliği eksik. Önceki78de yok; F16 kırpılmışmedya kaynak ailesiyle ilişkili.",
+      "limits": "Gerçek YouTube bağlantısı/hesap gerekmedi. Kontrollü extractor metadata dışında gerçek kurulmuş yt-dlp indirme/yeniden kullanım davranışıdır; frekanslar dil semantiği değil kesin farklı stream baytlarıdır.",
+      "evidence": {
+        "id": "HB05",
+        "english_sha": "f12f6779e98d8b42671daaaffba6da2606b19d0b8bfd5779a21cb5c4b38198ee",
+        "requested_tr_sha": "f12f6779e98d8b42671daaaffba6da2606b19d0b8bfd5779a21cb5c4b38198ee",
+        "fresh_tr_sha": "26dd278d659f97985028ba37f2321ee509746b2aa897dcce26db26cd2446064d",
+        "same_output_path": true,
+        "hits_after_en": [
+          "/en"
+        ],
+        "hits_after_cached_tr": [
+          "/en"
+        ],
+        "all_hits": [
+          "/en",
+          "/tr"
+        ],
+        "returned_existing_en_for_tr": true
+      }
+    },
+    {
+      "id": "HB06",
+      "severity": "P1",
+      "title": "LLM temizleme açık length bitişini yok sayıp kesik metni final SRTye yazıyor",
+      "location": "backend/transcribe.py:3136",
+      "method": "Gerçek transcribe/FFmpeg/cleanup/final writer; kontrollü OpenAI finish_reason=length.",
+      "reproduction": "İki cümleli geçerli kaynak; sağlayıcı ilk cümleyi içeren geçerliJSON ama finish_reason=length döndürsün. Kaynağın son uyarı cümlesi yoktur.",
+      "observed": "Kesik ilk cümle sonSRTye yazılır; llm_progress done1 failed0, done.warnings=[]. Açık token truncation sinyali hiç okunmaz.",
+      "expected": "Sağlayıcı length bitişi, içerik JSON olsa da eksik kabul edilmeli; kaynak korunup paket yeniden denenmeli veya açık başarısız sayılmalı.",
+      "impact_and_root": "Kaynak cümle/uyarı kaybı tam temizleme gibi yayımlanır. Kök: cleanup cevap protokolünde choices[0].finish_reason incelenmeden content parse edilip kabul edilir.",
+      "previous_relation": "HB01 stop ile dönen tam görünümlü anlam terslemesi, HB02 kısa kaynak boyut kapısıdır. length kontrolünü eklemek onları çözmez; bu ayrı provider terminal sözleşmesi. Çeviri yolunda truncation mekanizması mevcut. Önceki78de yok.",
+      "limits": "Gerçek model token limitine sokulmadı; sağlayıcının açık terminal bayrağına üretim tüketicisinin verdiği yanıt kanıtlandı.",
+      "evidence": {
+        "id": "HB06",
+        "original": "The first part explains why the door must stay shut. The last part contains the warning that must never disappear.",
+        "provider_finish_reason": "length",
+        "provider_text": "The first part explains why the door must stay shut.",
+        "full_consumer": {
+          "artifact": "pipeline-length\\pipeline-source.srt",
+          "sha256": "ec5f8e231d59b82d759ceae203f878ff609d7f7b11a9b76231fa15b601d938b5",
+          "output_text": "1\n00:00:00,000 --> 00:00:03,000\nThe first part explains why the door must stay shut.\n\n",
+          "warnings": [],
+          "done": true,
+          "progress": [
+            {
+              "type": "llm_progress",
+              "percent": 100.0,
+              "done": 1,
+              "failed": 0,
+              "total": 1
+            }
+          ]
+        },
+        "full_stop_control": {
+          "artifact": "pipeline-length-control\\pipeline-source.srt",
+          "sha256": "f606080462fb1f626ed337d237d5fdf28bd627cbe18d15b855a857078e6b6ba0",
+          "output_text": "1\n00:00:00,000 --> 00:00:03,000\nThe first part explains why the door must stay shut.\nThe last part contains the warning that must never disappear.\n\n",
+          "warnings": [],
+          "done": true,
+          "progress": [
+            {
+              "type": "llm_progress",
+              "percent": 100.0,
+              "done": 1,
+              "failed": 0,
+              "total": 1
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "excluded": [
+    {
+      "id": "CANDIDATE-container",
+      "reason": "MP4 video+Vorbis webm ses mevcut gerçekFFmpeg ile başarıyla remuxlandı; bug değil."
+    },
+    {
+      "id": "CANDIDATE-missingkey",
+      "reason": "Anahtarın boşluğu destek/politika sözleşmesi net olmadığından bug sayılmadı."
+    },
+    {
+      "id": "speaker-label-GPU",
+      "reason": "GPU hazır11005/12282MiB,0compute; System.Speech sentetikreferans üretimi kullanılabilirvoice/securitysetting engeline takıldı. Kanıtlı mevcut sentetikreferans yok; kişisel varsayılan okunmadı, GPUmodelbaşlatılmadı, etiketin gerçekten okunması iddia edilmez."
+    }
+  ],
+  "limits": "Ürün/test/ayar/kurulum/Git/docs değişikliği yok. Ücretli API yok. Gerçek FFmpeg/yt-dlp/loopbackHTTP kapsamı ile kontrollü ASR/LLM kapsamı ayrıdır. Native UI, model kalitesi, fiziksel ses veya genel npm/CI başarısı iddia edilmez."
+}
