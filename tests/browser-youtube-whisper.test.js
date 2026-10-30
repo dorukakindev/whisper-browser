@@ -201,6 +201,13 @@ vm.runInContext(section('async function startProgressivePlayerTranscription(', '
   speechJobs.pop(); // Keep the remaining independent assertions on the original job index.
   ctx.state.running = false;
   ctx.player.browserTracks[0].speechProtocol = 'speech-v8-nominal-quote-gates';
+  await ctx.startBrowserYoutubeWhisper(true, { forSpeech: true });
+  assert.equal(speechJobs.length,2,'v8 speech must not bypass v12 meaning checks');
+  speechJobs.pop();ctx.state.running=false;
+  const backendProtocol=fs.readFileSync(require('node:path').join(__dirname,'../backend/transcribe.py'),'utf8').match(/SPEECH_TRANSLATION_PROTOCOL = '([^']+)'/)[1];
+  assert.equal(backendProtocol,'speech-v13-modal-retry-feedback');
+  assert(code.includes("speechProtocol: forSpeech ? '"+backendProtocol+"'"),'new track labels must match backend');
+  ctx.player.browserTracks[0].speechProtocol = backendProtocol;
   ctx.useBrowserTrack = async (_translate, id) => { ctx.player.subPath = ctx.player.browserTracks.find(t => t.id === id).path; };
   await ctx.startBrowserYoutubeWhisper(true, { forSpeech: true });
   assert.equal(speechJobs.length, 1, 'ready speech translation was regenerated');

@@ -787,6 +787,7 @@
     const offset=query.offset??0;if(!Number.isInteger(offset)||offset<0||offset>10000)throw Error('Invalid voice group offset.');
     const visible=query.group_id?groups.filter(row=>row.key===query.group_id):groups.slice(offset,offset+30),nextOffset=!query.group_id&&offset+30<groups.length?offset+30:null;
     return {playingGroup:!groupAudio.paused?el('dubQualityGroup').value:null,currentJobId:current?.id||null,opened:modal.open,busy:!!current||referenceBusy||planning||choosing||workspaceBusy,subtitleReady:!!srt,engineAndReferenceReady:!!cfg?.ready,
+      reference:{ready:!!cfg?.ready,name:cfg?.ready?basename(cfg.reference).slice(0,100):''},
       settings:voiceSettings(),range,invalidRange,canRegenerate:!!lastRequest&&!!cfg?.ready,
       output:output?{id:output.id,sample:output.sample===true,syncInvalid:output.syncInvalid===true,qualityUnavailable:output.qualityUnavailable===true}:null,
       counts:{total:groups.length,review:groups.filter(row=>row.status==='review').length,failed:groups.filter(row=>row.status==='failed').length},

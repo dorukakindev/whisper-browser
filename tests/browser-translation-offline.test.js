@@ -18,7 +18,7 @@ const { BrowserTranslationScheduler } = require('../src/browser-translation-sche
     pieces: [{ cueId: 'cue-1', start: 0, end: 1, text: 'Source.' }],
   }]);
   scheduler.completeAll();
-  await new Promise((resolve) => setTimeout(resolve, 20));
+  await new Promise(setImmediate);
   assert.equal(calls, 0, 'çevrimdışıyken sağlayıcı çağrılmamalı');
   assert.equal(scheduler.snapshot().queued.length, 1);
   assert.equal(states.at(-1).paused, true);

@@ -81,7 +81,7 @@ const context = {
   cancelBrowserPermissionRequestsForTab() {},
   clearBrowserCloudflareTimer() {},
   crashRecoveryPolicy: () => ({ action: 'manual-reload', message: '', messageKey: 'x', params: {} }),
-  mainWindowClosing: false,
+  mainWindowClosing: false, assistantJobs: require('../src/assistant-jobs').createJobs(),
   applyBrowserViewsLayout() {},
   resumeRestoredBrowserPage() {},
 };

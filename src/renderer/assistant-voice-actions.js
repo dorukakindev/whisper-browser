@@ -8,7 +8,7 @@
   if(name==='get_voice_status')return {status:'completed',voice:ui?.state(args)||{opened:false},attached:!!window.BrowserDubAudioUI?.originalPlayback(),note:t('Only selected settings and bounded check results; the model has not listened to this audio.','Yalnız seçili ayarlar ve sınırlı kontrol sonuçlarıdır; model bu sesi dinlemedi.')};
   if(name==='list_voice_references'){
    const result=await window.api.listVoiceReferences();if(stale()||!result?.ok)throw Error(t('References could not be read.','Referanslar okunamadı.'));
-   return {status:'completed',activeId:result.activeId,references:(result.references||[]).slice(0,80).map(row=>({id:row.id,name:String(row.name||'').slice(0,100)}))};
+   return {status:'completed',activeId:result.activeId,configuredReference:ui?.state()?.reference||{ready:false},note:t('activeId identifies a saved library entry only. A ready configuredReference remains usable without selecting a new reference ID.','activeId yalnız kayıtlı kütüphane kaydını belirtir. Hazır configuredReference yeni bir referans kimliği seçmeden kullanılabilir.'),references:(result.references||[]).slice(0,80).map(row=>({id:row.id,name:String(row.name||'').slice(0,100)}))};
   }
   if(!ui)throw Error(t('Voice controls are unavailable.','Ses kontrolleri kullanılamıyor.'));
   let result,note;

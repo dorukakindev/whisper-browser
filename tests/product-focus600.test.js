@@ -8,14 +8,15 @@ const {auditSubtitlePair,alignByTimestamp}=require('../src/subtitle-pair-quality
 const {evidenceOf,actionsOf}=require('../src/assistant-thread-store');
 function fake(){const child=new EventEmitter();child.stdout=new PassThrough();child.stderr=new PassThrough();return child;}
 for(const kind of ['abort','timeout','overflow','consume']) test(`P0${['abort','timeout','overflow','consume'].indexOf(kind)+1} reference ${kind} waits for confirmed closure`,async()=>{
- const child=fake(),controller=new AbortController();let complete=false,requested=false,close;
+ const child=fake(),controller=new AbortController();let complete=false,requested=false,close,notifyRequest;
+ const requestStarted=new Promise(resolve=>notifyRequest=resolve);
  const terminated=new Promise(r=>close=r);
  const pending=processOutput('fixture',[],{spawnImpl:()=>child,signal:controller.signal,timeout:kind==='timeout'?2:500,
  limit:kind==='overflow'?1:1024,consume:kind==='consume'?()=>{throw Error('consumer failed')}:undefined,
- terminate:()=>{requested=true;return terminated;}}).then(()=>{complete=true;},e=>{complete=true;return e;});
+ terminate:()=>{requested=true;notifyRequest();return terminated;}}).then(()=>{complete=true;},e=>{complete=true;return e;});
  if(kind==='abort')controller.abort();
  if(kind==='overflow'||kind==='consume')child.stdout.write(Buffer.from('more'));
- await new Promise(r=>setTimeout(r,15));assert(requested);assert.equal(complete,false);
+ await requestStarted;assert(requested);assert.equal(complete,false);
  child.emit('close',0);close(true);const error=await pending;
  assert(error instanceof Error);assert.match(error.message,/iptal|zaman|boyutu|consumer/);
 });

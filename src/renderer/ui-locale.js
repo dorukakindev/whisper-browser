@@ -4,6 +4,8 @@
   // Interface copy only. User subtitles, page content, notes and file names are
   // data, not UI strings, and must never be passed through this dictionary.
   const entries = [
+    ["Kayıtlı dökümü geri yükle", "Restore saved transcript"],
+    ["Seçili zaman kilidini kaldır", "Unlock selected timing"],
     ["Çalışan iş özeti", "Running job summary"],
     ["Yalnız transkripsiyon", "Transcription only"],
     ["Tam kaynak", "Entire source"],

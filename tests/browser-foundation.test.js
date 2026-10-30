@@ -41,7 +41,7 @@ test('ana süreç tek örnek kilidi, yetkili bildirim ve izole sayfa köprüsü 
   const root = path.join(__dirname, '..', 'src');
   const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
   const browserPreload = fs.readFileSync(path.join(root, 'browser-preload.js'), 'utf8');
-  assert.match(main, /app\.requestSingleInstanceLock\(\)/);
+  assert.match(main, /app\.requestSingleInstanceLock\(\{openTextStudio:/);
   assert.match(main, /app\.on\('second-instance'/);
   assert.match(main, /ipcMain\.handle\('notify', \(event, opts\)/);
   assert.match(main, /event\.sender !== mainWindow\.webContents/);

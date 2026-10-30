@@ -251,7 +251,7 @@ test('üretim wiringi tek writer, revision ve senkron kapanış protokolünü ta
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
   const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf8');
   const renderer = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'renderer.js'), 'utf8');
-  assert(/requestSingleInstanceLock\(\)/.test(main), 'ikinci ana süreç writer kilidi yok');
+  assert(/requestSingleInstanceLock\(\{openTextStudio:/.test(main), 'ikinci ana süreç writer kilidi yok');
   assert(/if \(hasSingleInstanceLock\) app\.whenReady\(\)/.test(main), 'pencere açılışı instance kilidiyle kapılı değil');
   assert(/if \(hasSingleInstanceLock\) app\.on\('activate'/.test(main), 'yeniden etkinleştirme instance kilidiyle kapılı değil');
   assert(/library:upsert-before-close/.test(main) && /library:upsert-before-close/.test(preload), 'kapanış-save senkron IPC hattı yok');
@@ -265,7 +265,7 @@ test('üretim wiringi tek writer, revision ve senkron kapanış protokolünü ta
 
 test('fake app tek-instance kilidi ikinci writerı kapatır ve ilk pencereyi öne getirir', () => {
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
-  const start = main.indexOf('const hasSingleInstanceLock = app.requestSingleInstanceLock()');
+  const start = main.indexOf('const hasSingleInstanceLock = app.requestSingleInstanceLock(');
   const end = main.indexOf('let mainWindow;', start);
   assert(start >= 0 && end > start, 'instance kilidi kaynak dilimi bulunamadı');
   const source = main.slice(start, end);
@@ -277,7 +277,7 @@ test('fake app tek-instance kilidi ikinci writerı kapatır ve ilk pencereyi ön
     quit: () => { quitCount++; },
     on: (name, fn) => { deniedHandlers[name] = fn; },
   };
-  new Function('app', 'mainWindow', source)(deniedApp, null);
+  new Function('app', 'mainWindow','process', source)(deniedApp, null,{env:{}});
   assert(quitCount === 1 && !deniedHandlers['second-instance'], 'ikinci süreç writer olarak yaşamaya devam etti');
 
   const handlers = {};
@@ -294,7 +294,7 @@ test('fake app tek-instance kilidi ikinci writerı kapatır ve ilk pencereyi ön
     show: () => calls.push('show'),
     focus: () => calls.push('focus'),
   };
-  new Function('app', 'mainWindow', source)(allowedApp, fakeWindow);
+  new Function('app', 'mainWindow','process', source)(allowedApp, fakeWindow,{env:{}});
   assert(typeof handlers['second-instance'] === 'function', 'ikinci-instance callback kaydolmadı');
   handlers['second-instance']();
   assert(calls.join(',') === 'restore,show,focus', `ilk pencere öne getirilmedi: ${calls.join(',')}`);

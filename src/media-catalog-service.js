@@ -120,6 +120,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           if (Array.isArray(raw.episodes)) {
             patch.episodes = raw.episodes.map(ep => ({
               id: ep.id, season: ep.season, number: ep.number, title: ep.title, watchStatus: ep.watchStatus, airDate: ep.airDate,
+              // Stable episode IDs preserve an explicitly selected source when renumbered.
               source: previous?.episodes?.find(old => old.id === ep.id)?.source || null,
             }));
           }

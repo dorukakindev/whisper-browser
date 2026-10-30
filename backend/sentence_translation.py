@@ -449,9 +449,9 @@ def _initial_name_swap(source, translated):
     if len(first) < 3 or not first[0].isupper():
         return ""
     lowered = first.lower().rstrip(".?!,;:!…")
-    # "Can I/you/we ...?" is an English modal, not the proper name Can.
+    # An auxiliary followed by a pronoun starts a question, not a person name.
     # Keep the name check for "Can arrived ..." and other non-modal uses.
-    if lowered == "can" and len(words) > 1 \
+    if lowered in {"can", "did", "do", "does", "is", "are", "was", "were", "have", "has", "had", "could", "would", "should", "will", "must"} and len(words) > 1 \
             and words[1].lower().strip(".?!,;:!…") in {
                 "i", "you", "he", "she", "we", "they", "it"}:
         return ""
@@ -529,6 +529,13 @@ def _proper_names(text):
             continue
         if lowered in ABBREVIATIONS or lowered in _WEEKDAY_MONTH \
                 or lowered in _NAME_STOPWORDS:
+            continue
+        # A pause/ellipsis can continue a sentence while starting a fresh pronoun
+        # clause. "She was" / "We all do" are not lost personal names.
+        following = words[index + 1].lower().strip(".?!,;:…") if index + 1 < len(words) else ''
+        if not explicit_name and lowered in {'i','he','she','we','they','it','you'} and following in {
+                'am','is','are','was','were','have','has','had','do','does','did','will','would',
+                'can','could','should','must','may','might','all','also','only','never','always','just'}:
             continue
         # A new quoted sentence has its own initial word, not a proper name.
         quote_initial = word.startswith(('"', "“", "‘", "«")) and lowered in _INITIAL_STOPWORDS
@@ -806,6 +813,22 @@ def _consume_opaque_identifiers(source, target):
     return source, target
 
 
+def _translated_non_name_anchor(name, source, translated):
+    """Bounded lexical aliases, never a general permission to rename people."""
+    key = str(name).strip('.').lower()
+    translated = normalized_text(translated)
+    if key in {'t-shirt', 't-shirts'}:
+        return bool(re.search(r'\btişört\w*\b', translated, re.I))
+    if key == 'l.a':
+        return bool(re.search(r'\bLos Angeles(?:[’\']\w*)?\b', translated))
+    if key == 'nativity' and re.search(r'\bNativity\s+play\b', source):
+        return bool(re.search(r'\bdoğuş\b.{0,16}\boyun\w*\b', translated, re.I))
+    degrees = {'ma': r'yüksek\s+lisans\w*', 'ba': r'(?<!yüksek )lisans\w*', 'phd': r'doktora\w*'}
+    if key in degrees and re.search(r'\b(?:need|needs|required|degree|qualification|job|university)\b', source, re.I):
+        return bool(re.search(r'\b'+degrees[key]+r'\b', translated, re.I))
+    return False
+
+
 def _localized_work_title(name, source, translated):
     """Only explicitly introduced work titles can be translated as phrases.
 
@@ -910,6 +933,8 @@ def part_anchor_issue(source_parts, translated_parts, target_lang="tr", source_l
             if _name_preserved(name, str(translated)) \
                     or _name_localized(name, str(translated)) \
                     or _localized_work_title(name, str(source), str(translated)):
+                continue
+            if str(target_lang or '').lower().split('-')[0] == 'tr' and _translated_non_name_anchor(name, str(source), str(translated)):
                 continue
             # ≥2 tokenlık adlı-varlık öbeği ('French Revolution'→'Fransız
             # Devrimi'): hedefte en az bir ad kalıntısı varsa yerelleştirme

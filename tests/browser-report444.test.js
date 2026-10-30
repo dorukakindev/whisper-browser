@@ -18,7 +18,7 @@ test('keyless readiness uses the selected endpoint and accepts only loopback', (
   const controls = { translateApiKey: { value: '' }, translateBaseUrl: { value: 'http://localhost:1234/v1' },
     translateEndpointPreset: { value: 'custom' } };
   const scope = { URL, $: id => controls[id] };
-  vm.runInNewContext(renderer.slice(renderer.indexOf('function translationEndpointReady('))
+  vm.runInNewContext(section(renderer, 'function translationEndpointReady(', '\n}')+'\n}'
     + section(renderer, 'function translationReadyForCreate()', 'function openTranslationKeySetup()')
     + section(main, 'function safeTranslationEndpoint(', 'function browserTranslationConfigProblem('), scope);
   assert.equal(scope.translationReadyForCreate(), true);

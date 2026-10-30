@@ -47,7 +47,7 @@ function makeCtx(userData, over = {}) {
     browserTabs: new Map(),
     mainWindow: null,
     createBrowserAdblock: (c) => { calls.ablock.push(c); return ctx.__adblock ?? (ctx.__adblock = { c, setEnabled: async () => ({ ok: true, enabled: true }) }); },
-    browserAdblockInitiallyEnabled: true,
+    browserAdblockInitiallyEnabled: true, installYoutubeStreamHeaders: () => {},
     session: { fromPartition: (p, o) => ({ p, o }) },
     BROWSER_PARTITION: 'persist:browser',
     browserTabSnapshot: (t) => ({ url: t?.restoredUrl || '' }),

@@ -70,7 +70,7 @@ function mediaFixture() {
     require(name) {
       if (name === 'node:child_process') return { spawn: () => child };
       if (name === './settings-security') return { withoutSecretEnv: () => ({}) };
-      throw new Error(name);
+      return require('node:module').createRequire(path.join(root,'src/browser-reference-media.js'))(name);
     }, process: { env: {} } };
   vm.runInNewContext(fs.readFileSync(path.join(root, 'src/browser-reference-media.js'), 'utf8')
     + '\nmodule.exports.processOutput = processOutput;', sandbox);

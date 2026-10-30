@@ -29,10 +29,10 @@ test('Voice preparation cannot report completed when its existing window failed 
 test('AppActions checks source and range before dispatching a real adapter',async()=>{
  const h=setup(),owner=h.actions.snapshot();
  await h.actions.execute('open_settings',{section:'general'},owner);assert.equal(h.effects(),1);assert.equal(h.opened()[1].preserveAssistantContext,true);
- await assert.rejects(h.actions.execute('open_settings',{section:'general'},owner,{deadline:Date.now()-1}),/expired/);assert.equal(h.effects(),1);
+ await assert.rejects(h.actions.execute('open_settings',{section:'general'},owner,{deadline:1}),/expired/);assert.equal(h.effects(),1);
  h.player.browserWhisperRange={start:5,end:20};
  await assert.rejects(h.actions.execute('open_settings',{section:'general'},owner),/changed/);assert.equal(h.effects(),1);
- await assert.rejects(h.actions.execute('open_settings',{section:'general',token:'forbidden'},h.actions.snapshot()),/Invalid/);assert.equal(h.effects(),1);
+ await assert.rejects(h.actions.execute('open_settings',{section:'general',token:'forbidden'},h.actions.snapshot()),/Unknown action field/);assert.equal(h.effects(),1);
 });
 test('Agent UI pagehide unsubscribes and its idle state does not occupy media state',()=>{
  const listeners={},window={api:{assistantAgentRun:()=>{},onAssistantAgentEvent:()=>()=>{window.unsubscribed=true;}},addEventListener:(name,fn)=>listeners[name]=fn};

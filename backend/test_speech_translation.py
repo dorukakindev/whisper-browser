@@ -313,6 +313,51 @@ class SpeechTranslationTests(unittest.TestCase):
             self.assertEqual(seen[-1][1],{},'old speech metadata bypassed the new quality protocol')
 
 
+class SpeechRetryFeedbackTests(unittest.TestCase):
+    def test_modal_loss_retry_receives_actionable_group_feedback_and_keeps_gate(self):
+        source=[(0,4,'There would be three themes during the conference.')]
+        bad='Konferansta üç tema öne çıkıyor.'
+        good='Konferansta üç tema öne çıkardı.'
+        def answer(payload):
+            group=payload['sentence_groups'][0]
+            feedback=group.get('retry_feedback',[])
+            self.assertEqual(payload['response_contract']['sentence_ids'],[0])
+            text=good if any('source modal' in row for row in feedback) else bad
+            return {'sentences':{'0':text},'items':{'0':text}}
+        out,calls,_,_=F._sentence_translate(source,F._TrArgs(translate_for_speech=True,translate_cache=False),answer)
+        self.assertEqual(' '.join(row[2] for row in out),good)
+        self.assertNotIn('retry_feedback',calls[0][0]['sentence_groups'][0])
+        feedback=[p['sentence_groups'][0]['retry_feedback'] for p,_ in calls if p['sentence_groups'][0].get('retry_feedback')]
+        self.assertTrue(feedback,'The rejected group must carry an actionable retry diagnosis')
+        self.assertTrue(all('Konferansta' not in hint for rows in feedback for hint in rows),'Provider prose must not become retry instructions')
+        self.assertIn('modal_missing',S.translation_blocking_issues(source[0][2],bad,'tr','en'))
+
+    def test_incomplete_group_retry_explains_exact_sentence_and_item_contract(self):
+        source=[(0,2,'It took 30'),(2.1,4,'years to finish.')]
+        def answer(payload):
+            row=payload['sentence_groups'][0]
+            if row.get('retry_feedback'):
+                self.assertTrue(any('complete group' in hint for hint in row['retry_feedback']))
+                return {'sentences':{'0':'Tamamlanması otuz yıl sürdü.'},'items':{'0':'Tamamlanması','1':'otuz yıl sürdü.'}}
+            return {'sentences':{'0':'Tamamlanması'},'items':{'0':'Tamamlanması'}}
+        out,calls,_,_=F._sentence_translate(source,F._TrArgs(translate_for_speech=True,translate_cache=False),answer)
+        self.assertEqual(' '.join(row[2] for row in out),'Tamamlanması otuz yıl sürdü.')
+        self.assertGreaterEqual(len(calls),2)
+
+class RealTalkAnchorTests(unittest.TestCase):
+    def test_english_pronoun_clauses_and_auxiliary_questions_are_not_person_names(self):
+        pairs=[('Because… She was…','Çünkü… O…'),("Children dance all the time, if they're allowed to. We all do.",'Çocuklar izin verilirse sürekli dans eder. Hepimiz ederiz.'),('Did I miss a meeting?','Bir toplantıyı mı kaçırdım?')]
+        for source,target in pairs:self.assertEqual(S.part_anchor_issue([source],[target],'tr','en'),'')
+        self.assertNotEqual(S.part_anchor_issue(['Lawson missed a meeting.'],['Larson bir toplantıyı kaçırdı.'],'tr','en'),'')
+        self.assertNotEqual(S.part_anchor_issue(['Can arrived at school.'],['Cem okula geldi.'],'tr','en'),'')
+
+    def test_localized_common_nouns_degrees_and_city_abbreviation_keep_exact_meaning(self):
+        pairs=[('Agents and T-shirts.','Ajanlar ve tişörtler.'),('You need an MA, where the job required a BA.','İş için eskiden lisans yeterliyken şimdi yüksek lisans gerekiyor.'),('Now you need a PhD for the other job.','Diğer iş içinse artık doktora gerekiyor.'),('This was a transition from L.A.','Bu Los Angeles’tan bir geçişti.'),('He was in the Nativity play.','Doğuş oyunundaydı.')]
+        for source,target in pairs:self.assertEqual(S.part_anchor_issue([source],[target],'tr','en'),'')
+        self.assertNotEqual(S.part_anchor_issue(['You need an MA.'],['Lisans gerekiyor.'],'tr','en'),'')
+        self.assertNotEqual(S.part_anchor_issue(['The job requires a BA.'],['İş için yüksek  lisans gerekiyor.'],'tr','en'),'')
+        self.assertNotEqual(S.part_anchor_issue(['We met Joseph.'],['Yusuf ile tanıştık.'],'tr','en'),'')
+
 class SentenceMeaningAcceptanceTests(unittest.TestCase):
     def test_negative_plural_ability_is_preserved(self):
         for target in ('Hiçbirimiz bunu yapamayız.', 'Oraya gidemeyiz.'):

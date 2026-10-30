@@ -1,6 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{JSDOM}=require('jsdom');
 const tick=()=>new Promise(setImmediate);
+async function closeDialog(dialog){const closed=new Promise(resolve=>dialog.addEventListener('close',resolve,{once:true}));dialog.close();await closed;}
 function gate(){let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};}
 function fixture({bookGate,configGate,approvalGate,saveGate,extraChapter=false,workflowCall}={}){
  const dom=new JSDOM('<body></body>',{runScripts:'outside-only'}),w=dom.window;let context;
@@ -26,7 +27,7 @@ for (const leave of ['switch','close']) test(`late approval cannot reclaim a boo
  const form=f.w.document.querySelector('.mw-confirm form');assert(form);
  form.dispatchEvent(new f.w.Event('submit',{bubbles:true,cancelable:true}));await tick();await tick();
  if(leave==='switch') await f.w.MediaWorkflowsUI.openProject('two');
- else { f.w.document.querySelector('.mw-dialog').close(); await new Promise(r=>setTimeout(r,5)); }
+ else { await closeDialog(f.w.document.querySelector('.mw-dialog')); }
  approval.resolve({ok:true,project:f.project('one')});await tick();await tick();
  assert.equal(f.w.document.querySelector('textarea[data-chapter]')?.dataset.projectId,leave==='switch'?'two':undefined);
  assert.equal(f.w.MediaWorkflowsUI.assistant.state()?.id,leave==='switch'?'two':undefined);
@@ -42,7 +43,7 @@ for(const leave of ['new-selection','external-open','close'])test(`late saved-bo
   choose.value='one';const newer=choose.onchange();await tick();second.resolve({ok:true,project:f.project('one')});await newer;
  }else if(leave==='external-open'){
   delayed=false;await f.w.MediaWorkflowsUI.openProject('one');
- }else{f.w.document.querySelector('.mw-dialog').close();await new Promise(r=>setTimeout(r,5));}
+ }else{await closeDialog(f.w.document.querySelector('.mw-dialog'));}
  first.resolve({ok:true,project:f.project('two')});await initial;await tick();
  assert.equal(f.w.MediaWorkflowsUI.assistant.state()?.id,leave==='close'?undefined:'one');
  assert.equal(f.w.document.querySelector('textarea[data-chapter]')?.dataset.projectId,leave==='close'?undefined:'one');

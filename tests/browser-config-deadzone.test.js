@@ -31,7 +31,7 @@ function makeCtx(userData, over = {}) {
     Math, Object, Date, console, process,
     setImmediate, setTimeout, clearTimeout,
     path, fs,
-    require: Object.assign((m) => require(m), { resolve: (m) => require.resolve(m) }),
+    require: Object.assign(require('node:module').createRequire(require.resolve('../src/main.js')), { resolve: (m) => require.resolve(m) }),
     app: {
       getPath: (k) => k === 'userData' ? userData : `/tmp/${k}`,
       isReady: () => true,
@@ -177,7 +177,8 @@ function t_translation_config() {
   evalAll(ctx);
   ctx.__settings = {};
   let c = vm.runInContext('browserTranslationConfig()', ctx);
-  assert.strictEqual(c.endpoint, 'https://api.shuaiapi.com/v1');
+  assert.strictEqual(c.endpoint, require('../src/assistant-settings').ENDPOINT);
+  assert.strictEqual(c.model, require('../src/assistant-settings').MODEL);
   assert.strictEqual(c.targetLanguage, 'tr');
   assert.strictEqual(c.sourceLanguage, '');
   assert.strictEqual(c.workers, 2);

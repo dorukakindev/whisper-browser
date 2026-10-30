@@ -46,7 +46,7 @@ const HTML = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'index.html'), '
 // - ayna kontroller: aynı tercihin ikinci görünümü (kaynağı persist'tedir)
 const OTHER_STORE = new Set([
   // Dedicated assistant group in appSettingsPayload; key uses assistant.apiKey vault field.
-  'assistantEndpointPreset', 'assistantModel', 'assistantApiKey',
+  'assistantEndpointPreset', 'assistantModel', 'assistantApiKey', 'assistantFlex',
   // TMDB controls persist through tmdb:config, separately from transcription settings.
   'tmdbApiKey', 'tmdbLanguage', 'tmdbWatchRegion',
   // Dialog draft mirrors the persisted translateForSpeech control on Apply.
@@ -78,6 +78,13 @@ const OTHER_STORE = new Set([
 // Kasıtlı geçici: arama/süzgeç kutuları, diyalog alanları, menü <details> öğeleri,
 // oturum-içi oynatıcı durumu, araç çalışma argümanları, ölü taşıyıcılar.
 const TRANSIENT = new Set([
+  // Reader disclosures, search and current-page narration preview are per reader.
+  'pdfAssistantTools','pdfTranslateTools','pdfFindText','pdfVoicePreview','pdfVoicePreviewPage','pdfVoicePreviewText',
+  // Timeline analysis arguments and scene note draft: explicit Save writes interval notes.
+  'timelineQcProfile','timelineQcFps','timelineAnalysisFrom','timelineAnalysisTo','timelineAnalysisTrack',
+  'sceneSummary','sceneTerms','sceneCharacters',
+  // Disclosure visibility and library search are not synthesis configuration.
+  'dubProductionSettings','dubDeliverySettings','voiceReferenceComparison','voiceReferenceSearch',
   // Reader-only follow toggle; quality evidence is a disclosure, not a setting.
   'pdfVoiceFollow', 'dubQualityEvidence',
   // PDF narration range/source are per-open-reader draft values, reset by PdfReaderExperience.opened.

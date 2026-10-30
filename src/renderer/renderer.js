@@ -1461,7 +1461,7 @@ function logLine(message, level = 'info') {
   line.className = `log-line log-${level}`;
   const t = new Date();
   const ts = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}:${String(t.getSeconds()).padStart(2, '0')}`;
-  line.innerHTML = `<span class="log-time">${ts}</span>${escapeHtml(logDisplayText(message))}`;
+  line.innerHTML = `<span class="log-time">${escapeHtml(ts)}</span>${escapeHtml(logDisplayText(message))}`;
   log.appendChild(line);
   if (stick) log.scrollTop = log.scrollHeight;
   trimLogLines(log);
@@ -1691,7 +1691,7 @@ function createSegmentEl(seg, idx) {
   if (fast) el.classList.add('segment-fast');
   el.innerHTML = `
     <span class="segment-state-rail" aria-hidden="true"></span>
-    <span class="segment-time">${start} → ${end}${fast ? ` · ${cps.toFixed(0)} CPS` : ''}</span>
+    <span class="segment-time">${escapeHtml(start)} → ${escapeHtml(end)}${fast ? ` · ${cps.toFixed(0)} CPS` : ''}</span>
     <span class="segment-copy">
       <span class="segment-text" role="textbox" tabindex="0" aria-label="Segment metni — düzenlemek için Enter veya Tab kullanın" contenteditable="true" spellcheck="false" title="Düzenlemek için tıkla — Kopyala/JSON yeniden-üret bu metni kullanır">${escapeHtml(seg.text)}</span>
       <span class="segment-state-summary"></span>
@@ -5089,7 +5089,7 @@ function registerCompletedBrowserOutputs(outputs, job) {
       updatedAt: Date.now(),
       generatedBy: job.clipRange ? 'whisper-range' : item.generatedBy || job.generatedBy || 'whisper', clipRange: job.clipRange ? { ...job.clipRange } : null,
       forSpeech,
-      speechProtocol: forSpeech ? 'speech-v8-nominal-quote-gates' : '',
+      speechProtocol: forSpeech ? 'speech-v13-modal-retry-feedback' : '',
       sourceHash: String(item.sourceHash || ''),
       sourceTrackId: role === 'translation' ? sourceTrackId : id,
       status: item.status || 'complete',
@@ -11533,7 +11533,7 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
     ['whisper', 'whisper-range'].includes(track.generatedBy) && sameRange(track) && track.role === 'translation' && track.path
       && track.language === targetLanguage
       && !!track.forSpeech === forSpeech
-      && (!forSpeech || track.speechProtocol === 'speech-v8-nominal-quote-gates')
+      && (!forSpeech || track.speechProtocol === 'speech-v13-modal-retry-feedback')
       && (!selectedModel || track.model === selectedModel)
       && (!selectedProvider || String(track.provider || '').replace(/\/+$/, '') === selectedProvider)
       && track.status === 'complete' && !Number(track.failed)) : null;

@@ -41,13 +41,10 @@ const TOP_BOOLEAN_OP = /===|!==|==|!=|<=|>=|<|>|\binstanceof\b|\bin\b/;
 // Satır kayması izni bozmaz; RHS değişimi veya yinelenen sink yeniden inceleme ister.
 // Yalnız ifadenin ürettiği değerin kanıtlı güvenli olduğu durumlar.
 const ALLOWED = new Set([
+  'src/renderer/renderer.js@87c89bf42ef468eb242418159b52a9c8b4674845d8dbef8b3c27efeb938021e6::hwSummary',              // aynı kapsamda kaçışlı kurulan yerel (gpuName/cpuModel escapeHtml'li)
   'src/renderer/renderer.js@780adb2e9a45a3c9e8598b3e89d369a7e921208c20390e8355cbb1ebf3a70db2::icon',                    // static SVG literal ternary
   'src/renderer/renderer.js@852bfcaa5e9f84ec2366436b0cecfe67b6315fdacc2c069ae23773279a584100::pts',                    // resourceSparkPoints — toFixed sayısal koordinat listesi
   'src/renderer/renderer.js@852bfcaa5e9f84ec2366436b0cecfe67b6315fdacc2c069ae23773279a584100::gpuPts',                 // resourceSparkPoints — toFixed sayısal koordinat listesi
-  'src/renderer/renderer.js@2490ff4f91be4d81181795fb9b6732b5f3c27d91a86ff6e5605086367920c697::ts',                     // String(...).padStart saat/dakika/saniye — yalnız basamak+iki nokta
-  'src/renderer/renderer.js@9726e39ff5a00a321cd077d7bd6ebae82c563cecda3d08c064f62b5ad97f40f8::start',                  // formatTime() çıktısı
-  'src/renderer/renderer.js@9726e39ff5a00a321cd077d7bd6ebae82c563cecda3d08c064f62b5ad97f40f8::end',                    // formatTime() çıktısı
-  'src/renderer/renderer.js@87c89bf42ef468eb242418159b52a9c8b4674845d8dbef8b3c27efeb938021e6::hwSummary',              // aynı kapsamda kaçışlı kurulan yerel (gpuName/cpuModel escapeHtml'li)
   'src/renderer/renderer.js@87c89bf42ef468eb242418159b52a9c8b4674845d8dbef8b3c27efeb938021e6::list',                   // aynı kapsamda kaçışlı kurulan yerel (id/state escapeHtml'li, gerisi enum/literal)
   'src/renderer/renderer.js@87c89bf42ef468eb242418159b52a9c8b4674845d8dbef8b3c27efeb938021e6::recLine',                // model/device/computeType/engine/batchSize — yardımcı enum değerleri
   'src/renderer/renderer.js@87c89bf42ef468eb242418159b52a9c8b4674845d8dbef8b3c27efeb938021e6::notes',                  // recommendedHardwareConfig sabit literal notları

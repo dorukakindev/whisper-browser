@@ -58,7 +58,7 @@ with patch.object(T, 'cancellation_checkpoint', controller.checkpoint), \
         T.call_api_with_retry(op_fail2, attempts=4, base_delay=0)
         ok(False, 'marker varken iptal fırlatmalıydı')
     except PipelineCancelled:
-        ok(len(calls2) == 1, 'marker varken tek deneme')
+        ok(len(calls2) == 0, 'marker varken API isteği başlamaz')
         ok(len(sleeps2) == 0, 'marker varken hiç uyumadı')
 
 # 3) Kesinti sınıflandırması kullanıcıya doğru kodu taşır (yapısal status).

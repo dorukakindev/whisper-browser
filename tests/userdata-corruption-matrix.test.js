@@ -135,7 +135,9 @@ describe('R325-1: userData bozulma matrisi', () => {
       //  (b) bu whitelist — kullanıcıya dönük çıktı yolları (dışa aktarım,
       //      live-audio wav, sohbet yedeği, iptal işareti). Liste yalnız
       //      KÜÇÜLÜR: yeni çıplak-tanımlayıcı yazımı inceleme gerektirir.
-      const NON_TEMP_OUTPUT_VARS = new Set(['filePath', 'p', 'cancelFilePath']);
+      // scene-context.json is private job-temporary data, not a persistent store.
+      if(file==='main.js'){assert.match(src,/const contextPath = path\.join\(activeJobTempDir, 'scene-context\.json'\)/);assert.match(src,/writeFileSync\(contextPath,[^\n]+mode: 0o600/);}
+      const NON_TEMP_OUTPUT_VARS = new Set(['filePath', 'p', 'cancelFilePath', 'contextPath']);
       const bare = [...src.matchAll(/writeFileSync\(([^,;\n]+)/g)]
         .map((m) => m[1].trim())
         .filter((arg) => /^[a-zA-Z_$][a-zA-Z0-9_$.]*$/.test(arg))
