@@ -1,0 +1,45 @@
+{
+  "head": "df94b3d60b7123a682cd0062371bbb2850a5fb60",
+  "sourceSha256": {
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+    "src/browser-note-store.js": "12d66846246eee6d931dfc3369c379d69d95ae929c82c5af9b1c6a37a08444b0",
+    "src/browser-research-notebook.js": "3e96300d3a2513f3c3cd6b7394812a53572945bc996d9fd9235a7cb89b87619c",
+    "src/browser-learning.js": "469a0c323aa7459f9884251bb337161a09c4818500c83d570771ffef464db68d",
+    "src/renderer/renderer.js": "4853b2fe48da6a383e2438895c747a0ba79820eb58470da5ac66de476f8b66d6",
+    "src/renderer/index.html": "2098777b6c1fbb42b67bb8b5c2fd92b450aa21e976cf3a84ee819093b9b5d29a",
+    "src/preload.js": "c035a7b77125def6b44ce121ff21a6f0dde717179c9ff38970d1d5b335e2796c"
+  },
+  "acceptedStoreCount": 5001,
+  "overLimit": {
+    "response": {
+      "ok": true,
+      "count": 5000
+    },
+    "exportedRows": 5000,
+    "oldestPresent": false,
+    "newestPresent": true,
+    "partialField": [],
+    "markdownBytes": 443969
+  },
+  "smallControl": {
+    "response": {
+      "ok": true,
+      "count": 3
+    },
+    "exportedRows": 3,
+    "oldestPresent": true,
+    "newestPresent": true,
+    "partialField": [],
+    "markdownBytes": 334
+  },
+  "directFormatterControlRows": 5001,
+  "searchCase": {
+    "source": "Important context",
+    "uiQuery": "important",
+    "lowercaseResults": 0,
+    "sameCaseControl": 1,
+    "noIControl": 1,
+    "commonStoreSearchControl": 1
+  },
+  "limits": "Actual BrowserNoteStore load/filter/search, unchanged IPC, renderer filter builder and Markdown formatter, real atomic file write; native SaveDialog/auth/DOM input boundary controlled. Only synthetic notes inside mkdtemp fixture, no personal notebook or profile."
+}
