@@ -1,3 +1,4 @@
+- [Rapor812](BROWSER_BUG_REPORT_812.md) — Ürün100 son paket: çıktı açma, M4B hedef ve yüzde99 sınırı
 - [Rapor811](BROWSER_BUG_REPORT_811.md) — Ürün100 pasif eylem yardımı, modal odak ve dar ekran
 - [Rapor810](BROWSER_BUG_REPORT_810.md) — Ürün100 keşfet çevirisi ve doğrudan yorum incelemesi
 - [Rapor809](BROWSER_BUG_REPORT_809.md) — Ürün100 ses referansı, cache ve kayıtlı üretim tarifi
