@@ -1,0 +1,75 @@
+{
+  "observations": [
+    {
+      "id": "BR-UNLOAD-CHECKBOX-FILE-EDITABLE",
+      "state": {
+        "stateKnown": true,
+        "mediaPlaying": false,
+        "fullscreen": false,
+        "pictureInPicture": false,
+        "formOrLogin": false,
+        "dirtyDraft": false
+      },
+      "decision": {
+        "allowed": true,
+        "reason": "",
+        "reasons": [],
+        "message": "Sekme güvenli biçimde bellekten boşaltılabilir."
+      }
+    },
+    {
+      "id": "BR-UNLOAD-CHILD-DOM",
+      "state": {
+        "stateKnown": true,
+        "mediaPlaying": false,
+        "fullscreen": false,
+        "pictureInPicture": false,
+        "formOrLogin": false,
+        "dirtyDraft": false
+      },
+      "decision": {
+        "allowed": true,
+        "reason": "",
+        "reasons": [],
+        "message": "Sekme güvenli biçimde bellekten boşaltılabilir."
+      }
+    },
+    {
+      "id": "COUNTERCHECK-TOP-TEXTAREA",
+      "state": {
+        "stateKnown": true,
+        "mediaPlaying": false,
+        "fullscreen": false,
+        "pictureInPicture": false,
+        "formOrLogin": true,
+        "dirtyDraft": false
+      },
+      "decision": {
+        "allowed": false,
+        "reason": "form_or_login",
+        "reasons": [
+          "form_or_login"
+        ],
+        "message": "Sekmede doldurulmuş form veya giriş alanı bulundu."
+      }
+    },
+    {
+      "id": "BR-CONTEXT-MENU-WRONG-MEDIA",
+      "clickedMedia": "small",
+      "event": {
+        "type": "browser-shortcut",
+        "key": "media-loop"
+      },
+      "result": {
+        "handled": true,
+        "currentTime": 0,
+        "playbackRate": 1,
+        "paused": true,
+        "volume": 1,
+        "muted": false
+      },
+      "smallLoop": false,
+      "largeLoop": true
+    }
+  ]
+}

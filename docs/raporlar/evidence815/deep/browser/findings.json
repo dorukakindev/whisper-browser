@@ -1,0 +1,288 @@
+{
+  "metadata": {
+    "head": "6b3df86e35db8bc3271440f06c779cfb0acb2c22",
+    "node": "v24.22.0",
+    "platform": "win32",
+    "method": "Original production module/function VM + JSDOM; deterministic IO/process/native-edge fixtures",
+    "sourceHashes": {
+      "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+      "src/browser-reading-list.js": "cc1465a83b4cd9b5bae1ed32161f6259f9f2a731aee62b6ab084dafb667a7cb2",
+      "src/browser-feature-services.js": "d21ea5659852cfa99f94b6228241aa68a5fae671dda1a22d07f2972898699fec",
+      "src/browser-media-tools.js": "efc150e380c8d925043e2f6c18c7c53c98302aa168cedd390f0d2fc806d12aad",
+      "src/browser-media-controller.js": "7a21d16562e49f0064db882fb7c470ed3102f9d2c42577b63a7d6a87022c7b19"
+    }
+  },
+  "count": 15,
+  "newlyVerifiedMechanisms": 14,
+  "existingReverified": 1,
+  "findings": [
+    {
+      "id": "BR01",
+      "severity": "P1",
+      "title": "PDF/MHTML dışa aktarımı kayıt diyaloğu sırasında belge değişimini doğrulamıyor",
+      "source": [
+        "src/main.js:9313",
+        "src/main.js:17608"
+      ],
+      "evidence": "probe.cjs / BR-EXPORT-SOURCE-MHTML + BR-EXPORT-SOURCE-PDF",
+      "reproduce": "A sayfasında PDF/MHTML dışa aktar; native kayıt diyaloğu pending iken aynı WebContents otomatik B sayfasına gezinsin; seçimi tamamla.",
+      "observed": "İki orijinal fonksiyon da ok:true döndü; A için açılan dosyaya B içeriği yazıldı.",
+      "expected": "İşlem A belgesini sabitlemeli veya generation/URL değişimini reddetmeli.",
+      "reachability": "browser:archivePage→saveBrowserPageArchive; browser:exportPagePdf→saveBrowserPagePdf; preload ve renderer düğmeleri mevcut.",
+      "impact": "Yanlış belge dışa aktarımı; otomatik sayfa değişiminde özel B içeriği A adı altında paylaşılabilir.",
+      "counterchecks": "PDF/MHTML aynı sahiplik kökü olduğu için TEK bulgu. Kullanıcı diyaloğu açıkken elle gezinme gerekmiyor; site script/redirect yeterli. Capture PNG zaten diyaloğun öncesinde görüntüyü sabitliyor: bu bulgu ona uygulanmadı.",
+      "priorStatus": "No same mechanism found in targeted prior report keyword search; root final dedupe required"
+    },
+    {
+      "id": "BR02",
+      "severity": "P1",
+      "title": "Çevrimdışı kopya yenilemesindeki kısmi yazma son sağlam MHTML kopyasını bozuyor",
+      "source": [
+        "src/main.js:17540",
+        "src/main.js:17575"
+      ],
+      "evidence": "probe.cjs / BR-READING-REFRESH-LOSS",
+      "reproduce": "Var olan KNOWN-GOOD-ARCHIVE kaydını yenile; native savePage hedefe PARTIAL yazdıktan sonra ENOSPC fırlatsın.",
+      "observed": "API ok:false döndü ama tek arşiv PARTIAL oldu; indeks eski 18 byte metadata ile kaldı.",
+      "expected": "Başarısız yenilemede son sağlam çevrimdışı kopya korunmalı; yeni çıktı staging dosyasında doğrulanmalı.",
+      "reachability": "readingList:refresh→refreshTarget aynı filePath→saveBrowserPageToReadingList→wc.savePage doğrudan mevcut hedef.",
+      "impact": "İnternet yokken erişilebilen tek sayfa kopyasının geri alınamaz kaybı.",
+      "counterchecks": "Gerçek diski doldurmadık; kontrollü savePage IO kenarı kısmiwrite+reject üretiyor. İndeks _writeIndex atomikliği mevcut ve bu içerik kaybını engellemiyor.",
+      "priorStatus": "No same mechanism found in targeted prior report keyword search; root final dedupe required"
+    },
+    {
+      "id": "BR03",
+      "severity": "P2",
+      "title": "Kilitli çevrimdışı kopyanın silinmesi başarı gösterip özel MHTML dosyasını diskte bırakıyor",
+      "source": [
+        "src/browser-reading-list.js:127",
+        "src/renderer/renderer.js:13781"
+      ],
+      "evidence": "probe.cjs / BR-READING-LOCKED-DELETE",
+      "reproduce": "Mevcut MHTML unlinkSync işlemini Windows EPERM ile engelle; remove(id) çağır.",
+      "observed": "ok:true, liste 0; MHTML dosyası hâlâ var. _writeIndex tekrar temizliği cleanupWarnings üretiyor ama remove bunu dönüşe taşımıyor.",
+      "expected": "Silinmeyen kopya kayıt ve görünür uyarıyla korunmalı; başarı iddiası çıkmamalı.",
+      "reachability": "browser:readingList:remove→BrowserReadingList.remove; renderer ok:true üzerine listeyi yenileyip kaydı gizliyor.",
+      "impact": "Kullanıcı sildiğini düşünürken çevrimdışı özel sayfa içeriği kalır; liste kaybolduğu için yeniden silme yolu da kaybolur.",
+      "counterchecks": "Tüm IO hata varsayımı değil: yalnız hedef MHTML unlink EPERM, indeks yazımı normal. Dosyayı sonra silme denemesi de kilit nedeniyle başarısız.",
+      "priorStatus": "No same mechanism found in targeted prior report keyword search; root final dedupe required"
+    },
+    {
+      "id": "BR04",
+      "severity": "P2",
+      "title": "Bekleyen çevrimdışı yenileme, kullanıcı tarafından kaldırılan kaydı yeniden diriltiyor",
+      "source": [
+        "src/main.js:17540",
+        "src/browser-reading-list.js:106",
+        "src/renderer/renderer.js:13774"
+      ],
+      "evidence": "probe.cjs / BR-READING-REMOVAL-RESURRECTION",
+      "reproduce": "Yenileme savePage promiseini beklet; aynı listede Sil eylemini tamamla; pending savePage tamamlanıp commit etsin.",
+      "observed": "Silme başarılı olduktan sonra aynı id ve MHTML yeniden ortaya çıktı; liste tekrar 1 kayıt.",
+      "expected": "Son kullanıcı silme kararı pending yenileme tarafından geri alınmamalı.",
+      "reachability": "Ayrı refresh/remove IPC handlerları kilit/sürüm/tombstone paylaşmıyor; renderer refresh beklerken remove düğmesini disable etmiyor.",
+      "impact": "İstenmeyen veri geri gelişi; silme eyleminin anlamını ve mahremiyeti bozuyor.",
+      "counterchecks": "BR03 dosya silinememe değil: burada remove ve fiziksel silme başarılı; sonraki asenkron commit kaydı yeniden yaratıyor.",
+      "priorStatus": "No same mechanism found in targeted prior report keyword search; root final dedupe required"
+    },
+    {
+      "id": "BR05",
+      "severity": "P2",
+      "title": "Tam sayfa yakalama uzun sayfaları sessizce 30.000 CSS piksele kesiyor",
+      "source": [
+        "src/main.js:9207",
+        "src/main.js:9222"
+      ],
+      "evidence": "probe.cjs / BR-CAPTURE-FULL-TRUNCATION",
+      "reproduce": "LayoutMetrics için width1000/height45000 dönen belge üzerinde Tam sayfa ekran görüntüsü iste.",
+      "observed": "Page.captureScreenshot clip.height30000 oldu; alt15000CSSpx yok, işlem hatasız devam etti.",
+      "expected": "Tam belge veya açık eksik-yakalama/hata bildirimi gerekli.",
+      "reachability": "Komut paleti capture-full-page→captureBrowserPageMode→browser:capturePage→captureBrowserFullPage.",
+      "impact": "Uzun makale/transkript/arşivin üçte biri dışa aktarımda sessiz kayboluyor.",
+      "counterchecks": "45milyon piksel örneği120milyon güvenli bütçenin altında. Sorun sınır olması değil, clampın başarı diye sunulması.",
+      "priorStatus": "No same mechanism found in targeted prior report keyword search; root final dedupe required"
+    },
+    {
+      "id": "BR06",
+      "severity": "P2",
+      "title": "Eşzamanlı video yakalamaları kontrol çubuğunu kalıcı gizli bırakıyor",
+      "source": [
+        "src/main.js:9238",
+        "src/main.js:9268",
+        "src/renderer/renderer.js:20598"
+      ],
+      "evidence": "probe.cjs / BR-CAPTURE-OVERLAP-HIDDEN",
+      "reproduce": "İki video/video-captions capture isteğini ilkinin wc.capturePage promisei bitmeden başlat; sırayla tamamla.",
+      "observed": "Başlangıç visibility boştu; iki finally sonrasında ytp-chrome-bottom visibility:hidden kaldı.",
+      "expected": "Her operasyon kendi önceki görünürlük listesini restore etmeli veya aynı belge yakalaması seri yürümeli.",
+      "reachability": "Komut paleti ve OCR captureFrame aynı fonksiyona ulaşır; screenshot helperı/IPC girişinde busy veya mutex yok.",
+      "impact": "Video oynatma, seek, tam ekran kontrolleri sayfa yenilenene kadar görünmez olabilir.",
+      "counterchecks": "Orijinal hideScript/restoreScript gerçek JSDOM DOM üzerinde çalıştı; ortak __whisperCaptureHidden ikinci operasyon tarafından eziliyor.",
+      "priorStatus": "No same mechanism found in targeted prior report keyword search; root final dedupe required"
+    },
+    {
+      "id": "BR07",
+      "severity": "P2",
+      "title": "Kısmen ekran dışında kalan videonun temiz karesine komşu sayfa içeriği ekleniyor",
+      "source": [
+        "src/main.js:9254",
+        "src/main.js:9258"
+      ],
+      "evidence": "probe.cjs / BR-CAPTURE-NEGATIVE-BOUNDS",
+      "reproduce": "Videoyu sola100/yukarı80CSSpx taşmış durumda yakala; bounds(-100,-80,640,360), zoom1.",
+      "observed": "Kırpma(0,0,640,360); doğru görünür kesişim(0,0,540,280) olmalı. Sağdan100/alttan80 komşu içerik dahil.",
+      "expected": "Rectangle viewport ile video sınırlarının gerçek kesişimi olmalı.",
+      "reachability": "Video karesi kaydet/panoya kopyala ve OCR kare al→captureBrowserVideoFrame.",
+      "impact": "Temiz video dışa aktarımı/OCR yanlış görsel alan ve site metni içerir.",
+      "counterchecks": "Pozitif koordinatta zaten sınır clampı var; burada eksik olan negatif sol/üst kısmın genişlik/yükseklikten düşülmesi. Native piksel doğrulaması yapılmadı; orijinal wc.capturePage argümanı kanıtlandı.",
+      "priorStatus": "No same mechanism found in targeted prior report keyword search; root final dedupe required"
+    },
+    {
+      "id": "BR08",
+      "severity": "P2",
+      "title": "Başarısız atlama aralığı yazımı bellekte uygulanıyor ve sonraki kayıtta diske sızıyor",
+      "source": [
+        "src/browser-feature-services.js:381",
+        "src/browser-feature-services.js:391",
+        "src/browser-feature-services.js:40"
+      ],
+      "evidence": "features-probe.cjs / BR-SKIP-FAILED-SAVE-APPLIES",
+      "reproduce": "skip-save(idfailed-save,autoskiptrue) için writeFileSync EACCES ver; skip-list yap; IO normale dönünce bağımsız good-save ekle.",
+      "observed": "İlk API ok:false; skip-list failed-save içerdi; sonraki başarılı kayıtta diskte failed-save+good-save var.",
+      "expected": "Başarısız yazma belleği geri almalı; kullanıcıya başarısız denen mutasyon sonradan uygulanmamalı.",
+      "reachability": "browser:extras skip-save/skip-delete önce data().records mutasyonu sonra save(); catch yalnız hata dönüşü.",
+      "impact": "Kullanıcının kaydedilmediğini düşündüğü aralık videoyu otomatik atlatabilir; yeniden açılışta beklenmedik kayıt kalır.",
+      "counterchecks": "Sadece fixture IO enjeksiyonu; gerçek izin değiştirilmedi. BrowserSeriesContext ayrı copy-on-write kullanıyor; bulgu ona genellenmedi.",
+      "priorStatus": "No same mechanism found in targeted prior report keyword search; root final dedupe required"
+    },
+    {
+      "id": "BR09",
+      "severity": "P1",
+      "title": "Ana belgedeki değişmiş checkbox ve geçerli contenteditable taslakları kapatma/boşaltmada korunmuyor",
+      "source": [
+        "src/main.js:16058",
+        "src/main.js:16064",
+        "src/main.js:16069"
+      ],
+      "evidence": "runtime-probe.cjs / BR-UNLOAD-CHECKBOX-FILE-EDITABLE",
+      "reproduce": "Başlangıç unchecked checkboxı checked yap ve <div contenteditable> içinde kaydedilmemiş yazı bırak; runtime ölç ve unload kararı al.",
+      "observed": "stateKnown:true,formOrLogin:false,dirtyDraft:false; allowed:true.",
+      "expected": "Değişmiş onay/seçim ve gerçek düzenlenebilir taslak kullanıcı onayı olmadan kaybolmamalı.",
+      "reachability": "browserTabRuntimeState hem browser:tab:close hem unloadBrowserTab tarafından kullanılır; close wc.close(waitForBeforeUnload:false).",
+      "impact": "Form seçimleri ve yazılı taslak onaysız kaybolabilir.",
+      "counterchecks": "Top textarea positivecountercheck korumayı tetikliyor. checkbox/radio/file tamamen atlanıyor; [contenteditable=\"true\"] yalnız exactattribute yakalıyor, boşattr/plaintext-only desteklenmiyor. Bu tür seçimi açıkları TEK bulguya toplandı. R83 B83-02 ters yöndeki falsepositiveydi.",
+      "priorStatus": "No same mechanism found in targeted prior report keyword search; root final dedupe required"
+    },
+    {
+      "id": "BR10",
+      "severity": "P1",
+      "title": "Iframe ve shadow DOM içindeki kaydedilmemiş form/taslaklar güvenli boşaltma taramasına girmiyor",
+      "source": [
+        "src/main.js:16052",
+        "src/main.js:16056",
+        "src/main.js:16103"
+      ],
+      "evidence": "runtime-probe.cjs / BR-UNLOAD-CHILD-DOM",
+      "reproduce": "Sameorigin iframe textarea içine kullanıcı metni yaz; open shadowroot içine contenteditabletrue taslağı ekle; runtime ölç.",
+      "observed": "Topdocument querySelectorAll ikisini de görmedi; stateKnown:true ve unload allowed:true.",
+      "expected": "Alt belge/komponent kapsamı ölçülmeli; ölçülemeyen düzenleme alanı güvenli diye kabul edilmemeli.",
+      "reachability": "Aynı çalışma durumu probu unload ve tabclose korumasının yetkili kaynağı.",
+      "impact": "Gömülü formlar/modern webcomponent editörleri kapama veya bellekten boşaltmada onaysız veri kaybeder.",
+      "counterchecks": "BR09 başka kök: burada desteklenen textarea/contenteditabletrue türleri kullanıldı; yalnız belge/ağaç sınırı görünmez. Sameorigin fixture, çaprazorigin erişim varsayılmadı.",
+      "priorStatus": "No same mechanism found in targeted prior report keyword search; root final dedupe required"
+    },
+    {
+      "id": "BR11",
+      "severity": "P2",
+      "title": "Videonun sağtık menüsündeki Döngü/Oynat eylemi sağtıklanan medya yerine en büyük medyaya gidiyor",
+      "source": [
+        "src/main.js:6112",
+        "src/main.js:6141",
+        "src/renderer/renderer.js:14503"
+      ],
+      "evidence": "runtime-probe.cjs / BR-CONTEXT-MENU-WRONG-MEDIA",
+      "reproduce": "İki duraklatılmış görünür video aç (küçük200px/büyük800px); küçük video üzerinde nativecontextmenu Loop seç.",
+      "observed": "Menu bridge yalnız key:media-loop gönderdi, srcURL/koordinat/hedef yok. Orijinal controller scriptinde küçük.loopfalse,büyük.looptrue oldu.",
+      "expected": "Bağlam menüsü eylemi kullanıcının sağtıklayıp açtığı öğeye uygulanmalı.",
+      "reachability": "installBrowserContextMenu→browser-shortcut→renderer browserCommand→bestmedia seçimi.",
+      "impact": "Kullanıcı yanlış videoyu oynatır/döngüye alır/PiP açar; çok videolu sitelerde kontrol belirsizleşir.",
+      "counterchecks": "Global player toolbarı için enbüyük video seçimi geçerli olabilir; bu bulgu yalnız öğeye özel contextmenu. Gerçek menuitem model ve controller scripti dinamik çalıştırıldı.",
+      "priorStatus": "No same mechanism found in targeted prior report keyword search; root final dedupe required"
+    },
+    {
+      "id": "BR12",
+      "severity": "P1",
+      "title": "Dışa aktarma uzantı ekleyince kullanıcı tarafından seçilmemiş mevcut hedefin üzerine yazabiliyor",
+      "source": [
+        "src/main.js:17620",
+        "src/main.js:9328",
+        "src/main.js:9306",
+        "src/main.js:17854"
+      ],
+      "evidence": "ipc-probe.cjs / BR-EXPORT-SUFFIX-OVERWRITE",
+      "reproduce": "SaveDialog filePath olarak chosen-name.txt dönsün; chosen-name.txt.pdf önceden sentinel içersin; PDF kaydını tamamla.",
+      "observed": "Seçilen hedefchosen-name.txt iken actualchosen-name.txt.pdf üzerine NEW PDF yazıldı; API ok:true.",
+      "expected": "Nihai hedef diyalog/overwrite izninin gösterdiği hedef olmalı veya değişince ayrıca varlık/üzerineyazma onayı alınmalı.",
+      "reachability": "saveBrowserPagePdf,saveBrowserPageArchive,saveBrowserPageCapture,subtitleexport uzantı ekleme kalıbı; tek ortak rootpattern.",
+      "impact": "Ayrı mevcut PDF/PNG/MHTML/altyazı dosyasının kullanıcı seçmeden üzerine yazılması.",
+      "counterchecks": "Finaltarget için ayrıca fs.exists/overwriteconfirm kapısı yok. Native Windows diyalogunun özel dosyaadını döndürmesi bu tur UI ile denenmedi; APIresult kontratı kontrollü döndürüldü. Gerçek disk sentinel overwrite doğrulandı.",
+      "priorStatus": "No same mechanism found in targeted prior report keyword search; root final dedupe required"
+    },
+    {
+      "id": "BR13",
+      "severity": "P1",
+      "title": "Sekme kapanışında ilk form kontrolünden sonra capture drain beklerken yazılan taslak son kontrolden geçmiyor",
+      "source": [
+        "src/main.js:15492",
+        "src/main.js:15507",
+        "src/main.js:15529"
+      ],
+      "evidence": "ipc-probe.cjs / BR-CLOSE-LATE-DRAFT-LOSS",
+      "reproduce": "Boş aktifsekme close başlat; ilk runtime kontrolü false dönsün; drainBrowserCaptureBeforeClose beklerken kullanıcı taslak yazsın; drain tamamla.",
+      "observed": "runtime ölçümü1kez; typedAfterInitialChecktrue, destroyBrowserTab çalıştı, APIok:true.",
+      "expected": "Asenkron kapanış hazırlığı biterken form/draft/job koruması yeniden doğrulanmalı.",
+      "reachability": "browser:tab:close queuedtransition; runtime kontrolü drain öncesi; destroy sonrası check yok.",
+      "impact": "Kapanış düğmesinden sonra sayfada devam eden kullanıcı girdisi onaysız silinir.",
+      "counterchecks": "unloadBrowserTab aynı sınırda ikinci runtime/finalCheck yapıyor; bugclosea özgü. Queue sekme geçişini seri kılar, sayfaDOM kullanıcı/script olaylarını kilitlemez.",
+      "priorStatus": "No same mechanism found in targeted prior report keyword search; root final dedupe required"
+    },
+    {
+      "id": "BR14",
+      "severity": "P2",
+      "title": "Harici oynatıcı native başlatma hatası yutulurken API başarı döndürüyor",
+      "source": [
+        "src/main.js:17474",
+        "src/main.js:17476",
+        "src/main.js:17478"
+      ],
+      "evidence": "ipc-probe.cjs / BR-EXTERNAL-PLAYER-FALSE-SUCCESS",
+      "reproduce": "Çözülen mpv/VLC yolunu spawn et; child asenkron error(EACCES/ENOENT/ENOEXEC) yayımlasın.",
+      "observed": "Handler önce ok:true döndü; child error listener boş; kullanıcıya başarısızlık bildirimi yok.",
+      "expected": "Başarı child spawn olayından sonra, hata error olayından sonram oluşmalı.",
+      "reachability": "player:external IPC→resolveExternalPlayerPath→spawn; renderer dışoynatıcı eylemi.",
+      "impact": "Kurulu ama çalışmayan/izin engelli/çözümdensonrasilinmiş oynatıcıda işlem açıldı sanılır; tanı ve kurtarma kaybolur.",
+      "counterchecks": "Eksik executable için erken exists kontrolü var; bulgu native spawnın daha sonra bildirdiği hataya özgü. Gerçek kişisel oynatıcı çalıştırılmadı/bozulmadı.",
+      "priorStatus": "No same mechanism found in targeted prior report keyword search; root final dedupe required"
+    },
+    {
+      "id": "BR15",
+      "severity": "P2",
+      "title": "Kalıcı anlamsal worker düzeltmesi caller her istekte yeni factory kurduğu için tekrar model süreci yaratıyor",
+      "source": [
+        "src/browser-feature-services.js:172",
+        "src/browser-feature-services.js:345",
+        "src/browser-media-tools.js:113",
+        "src/browser-media-tools.js:206",
+        "backend/browser_media_tools.py:88"
+      ],
+      "evidence": "features-probe.cjs / BR-SEMANTIC-WORKER-NO-REUSE",
+      "reproduce": "Aynı tab/serviste iki ardışık semantic-search çağır; orijinal media-tools factory içinde spawnları say.",
+      "observed": "İki başarılı arama2ayrıworker spawnladı; herfactory kendi worker/10dakikaidletimerına sahip.",
+      "expected": "Sonraki arama aynı servisin hazır semantik işçisini kullanmalı.",
+      "reachability": "browser:extras semantic-search→tools()→createBrowserMediaTools→pythonServe→ensureWorker.",
+      "impact": "Her arama yeni Python/SentenceTransformer yüklemesi ve10dakika gereksiz eşzamanlı süreç tutma maliyeti yaratır.",
+      "counterchecks": "ÖNCEKİ BİLİNEN: R85 P79-04; R162 modüldeki kalıcıworkerı temiz saymış fakat callerı doğrulamamış. Yeni keşif diye sayılmamalı; yeni dinamik entegrekanıtla güncel açıktekrar. Gerçek modelMB/süre ölçülmedi; büyüklük iddiası yok.",
+      "priorStatus": "existing-reverified-R85-P79-04"
+    }
+  ]
+}
