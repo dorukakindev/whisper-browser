@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-30-0920.md](docs/devir/2026-10-30-0920.md) — Ürün100 menü, filtre ve arka plan çevirisi
 Güncel çalışma: [docs/devir/2026-10-30-0905.md](docs/devir/2026-10-30-0905.md) — Ürün100 PDF konumu, aralık ve çıktı hazırlığı
 Güncel çalışma: [docs/devir/2026-10-30-0848.md](docs/devir/2026-10-30-0848.md) — Ürün100 asistan işlem ve bağlam açıklığı
 Güncel çalışma: [docs/devir/2026-10-30-0830.md](docs/devir/2026-10-30-0830.md) — Ürün100 çeviri karşılaştırması ve retry rehberi
