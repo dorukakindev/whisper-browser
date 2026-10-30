@@ -108,7 +108,7 @@ def reported_quote_continues(ending, following):
     following sentences still count, and punctuation/text are never removed.
     """
     return bool(re.search(r'["\'”’]$', ending) and re.match(
-        r'^\s+(?:dedi(?:m|n|k|niz|ler)?|diyor(?:du|muş)?|demiş(?:ti)?|diye\s+(?:sordu|ekledi|yanıtladı|cevapladı))\b',
+        r'^\s+(?:dedi(?:m|n|k|niz|ler)?|der(?:im|sin|iz|siniz|ler)?|diyor(?:du|muş)?|demiş(?:ti)?|diye\s+(?:sordu|ekledi|yanıtladı|cevapladı|düşün(?:dü|ür|üyor)\w*))\b',
         following, re.I))
 
 

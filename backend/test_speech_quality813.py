@@ -16,6 +16,23 @@ class SignedSpeechTests(unittest.TestCase):
         for text in [target, S.insert_sentence_breaks(target)]:
             self.assertEqual(wrap_text(text, wrap_mode='sentence'), '"İyiyim." dedi.\nAma sesi bambaşka bir şey anlatıyordu.')
 
+    def test_quoted_questions_with_reporting_thought_are_not_extra_sentences(self):
+        source = 'They think, oh my God, why me?'
+        for target in ['"Aman Tanrım, neden ben?" diye düşünürler.',
+                       '"Aman Tanrım, neden ben?" diye düşündüler.',
+                       '"Neden ben?" diye düşünüyorlar.',
+                       '"Ne iş yapıyorsunuz?" derler.']:
+            with self.subTest(target=target):
+                self.assertEqual(S.sentence_end_count(target), 1)
+                self.assertEqual(S.sentence_part_boundary_issue([source], [target], 'en'), '')
+                self.assertNotIn('\n', S.insert_sentence_breaks(target))
+        target = '"Neden ben?" diye düşünürler. Başka bir haber eklediler.'
+        self.assertEqual(S.sentence_end_count(target), 2)
+        self.assertTrue(S.sentence_part_boundary_issue([source], [target], 'en'))
+        self.assertTrue(S.sentence_part_boundary_issue(
+            ['You see their faces. They think, why me?'],
+            ['Yüzlerini görürsünüz. "Neden ben?" diye düşünürler. Bir haber daha.'], 'en'))
+
     def test_live_correct_spoken_temperature_change(self):
         source = 'The temperature fell from five degrees to minus five. That is a ten-degree drop.'
         target = 'Sıcaklık beş dereceden eksi beşe düştü. Bu, on derecelik bir düşüş demek.'

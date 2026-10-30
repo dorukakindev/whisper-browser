@@ -5089,7 +5089,7 @@ function registerCompletedBrowserOutputs(outputs, job) {
       updatedAt: Date.now(),
       generatedBy: job.clipRange ? 'whisper-range' : item.generatedBy || job.generatedBy || 'whisper', clipRange: job.clipRange ? { ...job.clipRange } : null,
       forSpeech,
-      speechProtocol: forSpeech ? 'speech-v13-modal-retry-feedback' : '',
+      speechProtocol: forSpeech ? 'speech-v14-quoted-thought-feedback' : '',
       sourceHash: String(item.sourceHash || ''),
       sourceTrackId: role === 'translation' ? sourceTrackId : id,
       status: item.status || 'complete',
@@ -11533,7 +11533,7 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
     ['whisper', 'whisper-range'].includes(track.generatedBy) && sameRange(track) && track.role === 'translation' && track.path
       && track.language === targetLanguage
       && !!track.forSpeech === forSpeech
-      && (!forSpeech || track.speechProtocol === 'speech-v13-modal-retry-feedback')
+      && (!forSpeech || track.speechProtocol === 'speech-v14-quoted-thought-feedback')
       && (!selectedModel || track.model === selectedModel)
       && (!selectedProvider || String(track.provider || '').replace(/\/+$/, '') === selectedProvider)
       && track.status === 'complete' && !Number(track.failed)) : null;

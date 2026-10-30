@@ -3292,7 +3292,7 @@ def resolve_translate_routes(base_url):
     return [raw]
 
 
-SPEECH_TRANSLATION_PROTOCOL = 'speech-v13-modal-retry-feedback'
+SPEECH_TRANSLATION_PROTOCOL = 'speech-v14-quoted-thought-feedback'
 
 
 def translation_cue_interval(args):
