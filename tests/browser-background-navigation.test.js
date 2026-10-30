@@ -21,6 +21,7 @@ function harness() {
     snapshot() { return { results: [{ cues: [{ id: '1', start: 0, end: 1, text: 'Eski çeviri' }] }] }; }
   }
   const context = vm.createContext({ tab, wc, view: tab.view, Map, createHash,
+    assistantJobs: require('../src/assistant-jobs').createJobs(),
     browserExtras: null,
     terminologyPrompt: require('../src/browser-terminology').terminologyPrompt,
     browserActiveTabId: 'foreground', browserOverlay: { source: ['foreground'] },
@@ -45,6 +46,7 @@ function harness() {
   if (source.includes('function invalidateBrowserTabSubtitles(')) {
     vm.runInContext(slice('function invalidateBrowserTabSubtitles(', 'function resetBrowserCaptureState('), context);
   }
+  vm.runInContext(slice('function observeAssistantCaptionJob(', 'function sendEvent('), context);
   vm.runInContext(slice('function startBrowserTranslation(', 'function persistCompletedBrowserTranslation('), context);
   for (const event of ['did-start-navigation', 'did-navigate-in-page']) {
     const start = source.indexOf(`wc.on('${event}',`);

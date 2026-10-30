@@ -1,0 +1,17 @@
+[
+  {
+    "file": "tr-retained-task-filter.png",
+    "sha256": "2fbe139b11040884769e469f8fc168cd0d8429dc25094c7d115e8af1e7eb540e",
+    "source": "isolated Windows Electron synthetic job/source fixtures"
+  },
+  {
+    "file": "en-retained-task-filter.png",
+    "sha256": "4f8f597fc50dcd8dd6e070c3101f213d58bc41a0abaa5e301644b102d6dfbf94",
+    "source": "isolated Windows Electron synthetic job/source fixtures"
+  },
+  {
+    "file": "en-results.png",
+    "sha256": "268ac1ba8fbbd2d61a8b54740f7419f19ec67a1c8382f1f74b628f05648a4efc",
+    "source": "isolated Windows Electron synthetic job/source fixtures"
+  }
+]
