@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "method": "browser",
+  "sources": [
+    {
+      "url": "https://github.com/OpenBMB/VoxCPM/",
+      "title": "GitHub - OpenBMB/VoxCPM: VoxCPM2: Tokenizer-Free TTS for Multilingual Speech Generation, Creative Voice Design, and True-to-Life Cloning · GitHub"
+    },
+    {
+      "url": "https://github.com/OpenBMB",
+      "title": "OpenBMB · GitHub"
+    },
+    {
+      "url": "https://huggingface.co/openbmb/VoxCPM2",
+      "title": "openbmb/VoxCPM2 · Hugging Face"
+    }
+  ],
+  "blocked": [],
+  "activeTabUnchanged": true,
+  "tabsBefore": 1,
+  "tabsAfter": 1
+}

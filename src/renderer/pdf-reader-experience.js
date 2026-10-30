@@ -200,6 +200,7 @@
     const owner = player.pdfReader;
     stopBookAssistant = window.BookAssistantUI?.mount($("pdfBookAssistant"), {
       t: (en, tr) => t(tr, en),
+      onSearch:(args,current)=>window.AssistantBookSearch.scan({total:owner.pdf.numPages,start:args.start||1,query:args.query,current,title:context()?.title||'',getText:async page=>{const loaded=await owner.pdf.getPage(page);const content=await loaded.getTextContent();return content.items.map(item=>item.str||'').join(' ');}}),
       onPrepare:async(args,stale,actionOwner)=>{if(player.pdfReader!==owner||stale())throw Error("Document changed.");$("pdfVoiceFrom").value=String(args.from);$("pdfVoiceTo").value=String(args.to);$("pdfVoiceText").value=args.text==='translation'?'translation':'source';return prepareVoice(stale,false,actionOwner);},
       onNarrate:()=>{if(player.pdfReader!==owner)return false;$("pdfVoicePanel").classList.remove("hidden");$("pdfVoiceOpen").setAttribute("aria-expanded","true");for(const id of ["pdfVoiceFrom","pdfVoiceTo"])$(id).value=String(owner.currentPage||1);$("pdfVoiceFrom").focus();return true;},
       isCurrent: () =>

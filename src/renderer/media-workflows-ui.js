@@ -971,6 +971,7 @@
       });
     stopBookAssistant = window.BookAssistantUI?.mount(edit, {
       t, compact: true,
+      onSearch:(args,current)=>window.AssistantBookSearch.scan({total:project.chapters.length,start:args.start||1,query:args.query,current,title:project.title,getText:async page=>project.chapters[page-1].text||''}),
       isBusy: () => busy,
       isCurrent: () =>
         textarea.isConnected &&
@@ -1692,6 +1693,7 @@
     const title = dialog.querySelector('header h1'); if (title) title.textContent = project.title || t('Audiobook', 'Sesli kitap');
     stopBookAssistant = window.BookAssistantUI?.mount(head, {
       t, compact: true,
+      onSearch:(args,current)=>window.AssistantBookSearch.scan({total:project.chapters.length,start:args.start||1,query:args.query,current,title:project.title,getText:async page=>project.chapters[page-1].text||''}),
       isBusy: () => busy,
       isCurrent: () =>
         generation === readerGeneration &&

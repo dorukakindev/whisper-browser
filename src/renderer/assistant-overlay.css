@@ -149,3 +149,16 @@ header{gap:14px;padding:20px 20px 16px}
 #assistantWorkspace .sources{min-width:0}.sources>.source-card{flex:1 1 100%;min-width:0}
 #assistantWorkspace .message :is(p,h3,pre){max-width:100%}
 @media(max-height:620px){#assistantWorkspace>#log{flex-basis:100px;min-height:100px}}
+/* One quiet disclosure per answer. No fixed overlay, no repeated entry motion. */
+.assistant-run-card{margin:10px 0 16px;border:1px solid var(--line);border-radius:12px;background:var(--raised);min-width:0;overflow:hidden}
+.assistant-run-card>summary{display:flex;align-items:center;gap:10px;padding:10px 12px;color:var(--muted);font-size:12px;line-height:1.5;list-style:none;min-height:40px}
+.assistant-run-card>summary::before{content:'›';color:var(--accent);font-size:18px;transform:rotate(0);transition:transform .15s ease-out}
+.assistant-run-card[open]>summary::before{transform:rotate(90deg)}
+.run-count{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--muted)}
+.assistant-run-card ol{list-style:none;margin:0;padding:0 12px 10px;max-height:230px;overflow:auto;overscroll-behavior:contain}
+.assistant-run-card li{display:grid;grid-template-columns:8px minmax(0,1fr);align-items:center;gap:4px 9px;padding:9px 0;border-top:1px solid var(--line);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.assistant-run-card li small{grid-column:2;color:var(--muted);font-variant-numeric:tabular-nums}
+.run-dot{width:5px;height:5px;border-radius:50%;background:var(--muted)}
+.assistant-run-card li[data-state=running] .run-dot,.assistant-run-card li[data-state=proposed] .run-dot{background:var(--accent)}
+.assistant-run-card li[data-state=failed] .run-dot{background:var(--error)}
+@media(prefers-reduced-motion:reduce){.assistant-run-card>summary::before{transition:none}}

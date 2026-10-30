@@ -45,7 +45,7 @@ function cleanThread(raw){
   if(!raw||!id(raw.id)||typeof raw.sourceKey!=='string'||!raw.sourceKey||raw.sourceKey.length>6000||!Array.isArray(raw.messages)||raw.messages.length>200)throw Error('Invalid assistant conversation.');
   const messages=parentsFirst(raw.messages.map(row=>{
     if(!row||!id(row.id)||row.parentId!==null&&!id(row.parentId)||!['user','assistant'].includes(row.role)||typeof row.text!=='string'||row.text.length>32000)throw Error('Invalid assistant message.');
-    return {id:row.id,parentId:row.parentId,role:row.role,text:row.text,status:['complete','streaming','stopped','failed'].includes(row.status)?row.status:'complete',evidence:evidenceOf(row.evidence),actions:actionsOf(row.actions)};
+    return {id:row.id,parentId:row.parentId,role:row.role,text:row.text,status:['complete','streaming','stopped','failed'].includes(row.status)?row.status:'complete',evidence:evidenceOf(row.evidence),actions:actionsOf(row.actions),steps:require('./assistant-run-steps').clean(row.steps)};
   }));
   const seen=new Set();for(const row of messages){if(seen.has(row.id)||row.parentId!==null&&!seen.has(row.parentId))throw Error('Conversation contains a cycle, duplicate or missing parent.');seen.add(row.id);}
   if(raw.headId!==null&&!seen.has(raw.headId))throw Error('Conversation head is missing.');

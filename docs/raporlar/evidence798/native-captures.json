@@ -1,0 +1,37 @@
+{
+  "captures": [
+    {
+      "file": "agent-applied-dark.png",
+      "bytes": 81266,
+      "sha256": "860b25d25189c4a6207a12acf0f8e417dc0794464ddeb7c69e2943ae0d43bb24"
+    },
+    {
+      "file": "agent-cancelled-compact-light.png",
+      "bytes": 85820,
+      "sha256": "ff9a0377c285001cfa99710cad7f1d389ba8be6eecc287988b3daf7b0c4d1acd"
+    },
+    {
+      "file": "agent-proposal-dark.png",
+      "bytes": 81256,
+      "sha256": "462d8f12fb66764fa7508d8410ca23205b50650847f1a08c28a8dd8fef954efe"
+    },
+    {
+      "file": "agent-reading-compact-light.png",
+      "bytes": 89486,
+      "sha256": "b3b151b1707c90452bccbc4c010f4d860ae50f20a332294b8298809790dd8a7b"
+    },
+    {
+      "file": "agent-reading-dark.png",
+      "bytes": 82354,
+      "sha256": "741bcd8753f4f47843846802413a735a10cfe395605d76cb0aedaab63d3476b8"
+    }
+  ],
+  "controlledProviderRequests": 5,
+  "nativeWindows": true,
+  "compactCssWidth": 480,
+  "themeCases": [
+    "tr-dark",
+    "en-light"
+  ],
+  "limits": "Actual Windows captures of synthetic controlled data; not full site/GPU validation."
+}

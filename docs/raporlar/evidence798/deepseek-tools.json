@@ -1,0 +1,40 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+  "standardTier": true,
+  "requests": 5,
+  "results": [
+    {
+      "kind": "studio",
+      "passed": true,
+      "calls": [
+        {
+          "name": "search_app_guide",
+          "args": {
+            "query": "Whisper altyazı çıkarma çeviri hazırlama ses üretimi farkı sırası"
+          }
+        }
+      ],
+      "answer": "Rehberden çıkan sonuçlara göre (kaynak kimlikleri: G-whisper, G-translation, G-jobs, G-books):\n\n**1. Whisper ile altyazı çıkarma (transkripsiyon)**\n- Whisper transkripsiyonu, konuşmayı metne döker; seçili zaman aralığı özgün videoyla hizalı kalır [G-whisper].\n- Açık bir Whisper isteğinde önce altyazı sorgulamak zorunlu değildir [G-whisper].\n- `translate=true` seçilirse transkripsiyondan **sonra** çeviri aşaması da aynı iş içinde yapılır [G-whisper].\n- Otomatik/YouTube altyazıları hatalı olabileceği için sonuç her zaman doğru kabul edilmemelidir [G-captions].\n\n**2. Ses için çeviri hazırlama**\n- Ses için çeviri, çeviri metnini doğal konuşma metnine uygun hale getirmeyi amaçlar; **ses üretmez** [G-translation].\n- Kısmi veya başarısız satırlar varsa bunlar ayrıca gözden geçirilmelidir [G-translation].\n- Belirli bir model isteniyorsa önce mevcut yapılandırılmış profillerin listelenmesi gerekir [G-translation].\n\n**3. Ses üretmek**\n- Hazırlık (prepare) üretim değildir; seslendirme çıktısı ise yalnızca gerçekten tamamlanmış çıktılar olduğunda mümkündür [G-books].\n- İşin kabul edilmesi tamamlandı anlamına gelmez; tamamlanma da bütün çevirinin veya ses doğallığının doğrulandığı anlamına gelmez [G-jobs].\n\n**Önerilen sıra:** (1) Whisper ile altyazı/transkripsiyon → (2) ses için çeviri metninin hazırlanması ve kısmi satırların incelenmesi → (3) ancak ondan sonra seslendirme üretimi.\n\nBu açıklama yalnızca bilgi amaçlıdır; hiçbir iş başlatılmadı ve hiçbir ayar değiştirilmedi."
+    },
+    {
+      "kind": "book",
+      "passed": true,
+      "calls": [
+        {
+          "name": "search_book",
+          "args": {
+            "query": "kızıl anahtar"
+          }
+        },
+        {
+          "name": "search_book",
+          "args": {
+            "query": "kızıl anahtar",
+            "start": 41
+          }
+        }
+      ],
+      "answer": "İki parti tarandı: 1–40. sayfalar (40 sayfa, sonuç yok) ve 41–45. sayfalar (5 sayfa, toplu 45 sayfa tamamlandı, `next` yok).\n\nYalnızca bir eşleşme bulundu:\n\n- **B45-0** — sayfa 45: \"Kızıl anahtar kırk beşinci bölümde taş köprünün altında saklıdır.\"\n\nNot: Bu, anahtar sözcük tabanlı bir arama sonucudur; tüm kitabın anlamsal olarak incelendiği anlamına gelmez. Başka bir işlem yapmadım."
+    }
+  ]
+}
