@@ -101,6 +101,21 @@ def _numeric_separator(text, match, ordinals=None):
     return nxt.islower()
 
 
+def reported_quote_continues(ending, following):
+    """A Turkish reporting clause closes the quoted sentence, not a new cue.
+
+    Only a closing quote plus a known reporting verb qualifies. Ordinary
+    following sentences still count, and punctuation/text are never removed.
+    """
+    return bool(re.search(r'["\'”’]$', ending) and re.match(
+        r'^\s+(?:dedi(?:m|n|k|niz|ler)?|diyor(?:du|muş)?|demiş(?:ti)?|diye\s+(?:sordu|ekledi|yanıtladı|cevapladı))\b',
+        following, re.I))
+
+
+def _reported_quote_boundary(text, match):
+    return reported_quote_continues(match[0], text[match.end():])
+
+
 def sentence_end_count(text, language=None):
     """Metindeki gerçek cümle sonu sayısı (kısaltma/üç nokta sayılmaz).
 
@@ -112,6 +127,7 @@ def sentence_end_count(text, language=None):
     ordinals = _target_ordinals if language is None else _lang_ordinals(language)
     return sum(1 for match in _END_RUN.finditer(text)
                if not _numeric_separator(text, match, ordinals)
+               and not _reported_quote_boundary(text, match)
                and not re.match(r'[A-Za-z]\.', text[match.end():])
                and sentence_ended(text[:match.end()]))
 
@@ -127,6 +143,7 @@ def internal_sentence_end_count(text, language=None):
     ordinals = _target_ordinals if language is None else _lang_ordinals(language)
     return sum(1 for match in _END_RUN.finditer(text)
                if not _numeric_separator(text, match, ordinals)
+               and not _reported_quote_boundary(text, match)
                and not re.match(r'[A-Za-z]\.', text[match.end():])
                and sentence_ended(text[:match.end()])
                and normalized_text(text[match.end():]))
@@ -936,7 +953,7 @@ def insert_sentence_breaks(text):
     cursor = 0
     for match in _END_RUN.finditer(text):
         end = match.end()
-        if _numeric_separator(text, match) or re.match(r"[A-Za-z]\.", text[end:]):
+        if _numeric_separator(text, match) or _reported_quote_boundary(text, match) or re.match(r"[A-Za-z]\.", text[end:]):
             continue
         tail = re.sub(r"^(?:\s*(?:</[a-z][^>]*>|♪|♫|[\"'”’)}\]]))+", "", text[end:], flags=re.I)
         if not normalized_text(tail):
@@ -1581,14 +1598,23 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
     mixed = list(re.finditer(r'(?<![\w.,])(\d+(?:[.,]\d+)?)\s+(hundred|thousand|million|billion)(?!\w)', source_numbers_text, re.I)) if turkish_target else []
     def covered(match):
         return any(row.start() <= match.start() < row.end() for row in mixed)
-    mentions = [(match.start(), _canonical_number(match[0], source_lang), match) for match in _NUMBER_TOKEN.finditer(source_numbers_text) if not covered(match)]
+    def spoken_sign(token, match):
+        if turkish_target and not token.startswith('-') and re.search(r'(?i)\b(?:minus|negative)[\s-]+$', source_numbers_text[max(0, match.start()-24):match.start()]):
+            return '-' + token.lstrip('+')
+        return token
+    mentions = [(match.start(), spoken_sign(_canonical_number(match[0], source_lang), match), match) for match in _NUMBER_TOKEN.finditer(source_numbers_text) if not covered(match)]
     for match in mixed:
         value = float(_canonical_number(match[1], source_lang)) * {'hundred':100,'thousand':1000,'million':1000000,'billion':1000000000}[match[2].lower()]
         if math.isfinite(value): mentions.append((match.start(), format(value, '.15g'), match))
     # Bare "one" is often a pronoun/indefinite article; do not invent a quantity.
     for match in (_EN_EXACT_PATTERN.finditer(source_numbers_text) if turkish_target else []):
-        if covered(match) or match[0].lower() == 'one': continue
+        if covered(match): continue
         token = _english_quantity_value(match[0])
+        # An explicit spoken sign belongs to the quantity. Treating "minus
+        # five" as a second positive five rejects a correct "eksi beşe" after
+        # the first positive occurrence was consumed. "Not five" is not a sign.
+        if token is not None: token = spoken_sign(token, match)
+        if match[0].lower() == 'one' and token == '1': continue
         if token is not None: mentions.append((match.start(), token, match))
     if str(source_lang or '').split('-')[0] == 'tr' and str(target_lang or '').split('-')[0] == 'en':
         # Only explicit quantity contexts; 'altı' can also mean 'underneath'.

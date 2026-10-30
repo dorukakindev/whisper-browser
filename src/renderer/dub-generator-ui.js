@@ -115,7 +115,7 @@
     el('dubQualitySimilarity').textContent=recognized&&similarity!==null ? (en?`Text match (ASR): ${similarity}% · Not a naturalness score.`:`Metin eşleşmesi (ASR): %${similarity} · Doğallık puanı değildir.`) : '';
 
     reasons.push(...verificationReasons(row,en));
-    el('dubQualityReasons').textContent=reasons.length?reasons.join(' · ')+(en?' — ASR can be wrong; listen before editing.':' — Otomatik tanıma yanılabilir; düzenlemeden önce dinle.'):row?.status==='review'?(en?'Acoustic or verification check needs listening.':'Ses veya doğrulama kontrolü dinleme gerektiriyor.'):(v.status==='passed' ? (en?'No issue flagged by these checks. This is not a naturalness score.':'Bu kontrollerde işaret yok. Bu bir doğallık puanı değildir.') : (en?'No text comparison is available. Listen before judging completeness or pronunciation.':'Metin karşılaştırması mevcut değil. Eksiksizlik ve telaffuz için dinleyerek kontrol edin.'));
+    el('dubQualityReasons').textContent=reasons.length?reasons.join(' · ')+(en?' — Automatic checks can be wrong; listen before editing.':' — Otomatik kontroller yanılabilir; düzenlemeden önce dinle.'):row?.status==='review'?(en?'Acoustic or verification check needs listening.':'Ses veya doğrulama kontrolü dinleme gerektiriyor.'):(v.status==='passed' ? (en?'No issue flagged by these checks. This is not a naturalness score.':'Bu kontrollerde işaret yok. Bu bir doğallık puanı değildir.') : (en?'No text comparison is available. Listen before judging completeness or pronunciation.':'Metin karşılaştırması mevcut değil. Eksiksizlik ve telaffuz için dinleyerek kontrol edin.'));
     el('dubQualityExpected').textContent=String(row?.text||row?.displayText||'').slice(0,8000);
     const pronunciation=typeof row?.pronunciationText==='string'?row.pronunciationText.slice(0,8000):'';
     el('dubQualityPronunciation').hidden=!pronunciation||pronunciation===row?.text;
@@ -774,6 +774,9 @@
     const v=row?.verification||{},reasons=[];
     for(const [flag,label]of [['spoken_number_mismatch',['Spoken quantity differs','Söylenen sayı farklı']],['lost_negation',['Negation','Olumsuzluk']],['added_negation',['Added negation','Eklenen olumsuzluk']],['semantic_mismatch',['Meaning markers','Anlam işaretleri']],['unit_mismatch',['Units','Birim']],['sign_mismatch',['Number sign','Sayı işareti']],['repetition',['Repetition','Tekrar']]])if(v[flag])reasons.push(label[en?0:1]);
     for(const [key,label]of [['missing_numbers',['Missing number','Eksik sayı']],['added_numbers',['Added number','Ek sayı']],['missing_names',['Name recognition','Özel ad tanıma']],['omission_spans',['Potential omission','Olası atlama']],['insertion_spans',['Potential extra speech','Olası ek konuşma']]])if(v[key]?.length){const values=['missing_numbers','added_numbers','missing_names'].includes(key)?v[key].slice(0,5).map(value=>String(value).slice(0,60)).join(', '):'';reasons.push(label[en?0:1]+(values?': '+values:''));}
+    const measured=window.DubExperienceModel?.continuity(row?.continuity);
+    const labels={'level-jump':['Adjacent groups differ in level','Komşu gruplarda seviye farkı'],'pace-jump':['Adjacent groups differ in pace','Komşu gruplarda konuşma hızı farkı'],'long-edge-pause':['Long pause at a group boundary','Grup sınırında uzun durak'],'level-correction-unavailable':['Level adjustment was unavailable','Seviye düzeltmesi uygulanamadı']};
+    for(const code of measured?.warnings||[])reasons.push(labels[code][en?0:1]);
     return reasons;
   }
   function voiceSettings(){return {profile:el('dubProfile').value,concurrency:Number(el('dubConcurrency').value),grouping:el('dubGrouping').value,verification:el('dubVerification').value,timingMode:el('dubTimingMode').value,expression:el('dubExpression').value,keepBackground:el('dubKeepBackground').checked,followDelivery:el('dubFollowDelivery').checked,deliveryStrength:el('dubDeliveryStrength').value,sample:el('dubSampleOnly').checked};}
@@ -787,7 +790,7 @@
       settings:voiceSettings(),range,invalidRange,canRegenerate:!!lastRequest&&!!cfg?.ready,
       output:output?{id:output.id,sample:output.sample===true,syncInvalid:output.syncInvalid===true,qualityUnavailable:output.qualityUnavailable===true}:null,
       counts:{total:groups.length,review:groups.filter(row=>row.status==='review').length,failed:groups.filter(row=>row.status==='failed').length},
-      groups:visible.map(row=>({id:row.key,number:row.group,status:row.status,text:String(row.text||row.displayText||'').slice(0,220),verification:String(row.verification?.status||'not_checked'),reviewReasons:verificationReasons(row,window.UiLocale?.get?.()==='en'),needsListening:row.status==='review'||row.status==='failed',qualityEvidence:'automatic_checks_only'})),groupOffset:offset,nextOffset,groupsTruncated:nextOffset!==null};
+      groups:visible.map(row=>({id:row.key,number:row.group,status:row.status,text:String(row.text||row.displayText||'').slice(0,220),verification:String(row.verification?.status||'not_checked'),reviewReasons:verificationReasons(row,window.UiLocale?.get?.()==='en'),needsListening:row.status==='review'||row.status==='failed'||!!window.DubExperienceModel?.continuity(row.continuity)?.warnings.length,continuity:window.DubExperienceModel?.continuity(row.continuity)||null,qualityEvidence:'automatic_checks_only'})),groupOffset:offset,nextOffset,groupsTruncated:nextOffset!==null};
   }
   async function ensureVoice(isCancelled){
     if(!modal.open)await window.DubGeneratorUI.prepareCurrent();else if(!cfg)await configure();

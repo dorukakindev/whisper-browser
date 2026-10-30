@@ -12,6 +12,42 @@ function fixture(fetchImpl,extras={}){
 }
 const reply=message=>new Response(JSON.stringify({choices:[{message,finish_reason:'stop'}]}),{headers:{'content-type':'application/json'}});
 
+test('Whisper → exact translated track → voice → attachment advances only from applied matching receipts',async()=>{
+ const jobs=require('../src/assistant-jobs').createJobs();let textId,voiceId,turn=0,phase="start",phaseTurn=0,subtitleLoaded=false,voiceStarts=0,attached=false;
+ const tool=(name,args={})=>reply({role:'assistant',tool_calls:[{id:'step-'+turn,function:{name,arguments:JSON.stringify(args)}}]});
+ const goal='Whisper the first five minutes, translate for speech, then dub and attach.';
+ const h=fixture(async(_url,options)=>{
+  const body=JSON.parse(options.body);assert.equal(body.messages.filter(m=>m.role==='user').at(-1).content,goal);turn++;phaseTurn++;
+  if(phase==='start'&&phaseTurn===1)return tool('start_whisper',{translate:true,forSpeech:true,target_language:'tr',start:0,end:300});
+  if(phase==='load'&&phaseTurn===1)return tool('start_voice_generation'); // Deliberately premature: old subtitles exist.
+  if(phase==='load'&&phaseTurn===2){assert.match(body.messages.at(-1).content,/Load this exact job output/);return tool('use_job_subtitles',{job_id:textId,role:'translation'});}
+  if(phase==='voice'&&phaseTurn===1)return tool('start_voice_generation');
+  if(phase==='attach'&&phaseTurn===1)return tool('use_generated_voice',{output_id:'voice-output'});
+  return reply({role:'assistant',content:'Review the next real action.'});
+ },{getJobs:jobs.snapshot,resolveJobId:external=>external==='text-backend'?textId:external==='voice-backend'?voiceId:null});
+ const send=h.sender.send;h.sender.send=(channel,value)=>{send(channel,value);if(value.type==='action')queueMicrotask(()=>{
+  let result;
+  if(value.name==='start_whisper'){textId=jobs.start({kind:'transcription'});result={status:'accepted',jobId:'text-backend'};}
+  if(value.name==='use_job_subtitles'){subtitleLoaded=true;assert.equal(value.args.job_id,'text-backend');result={status:'completed',track:{id:'new-tr',role:'translation',partial:false}};}
+  if(value.name==='get_voice_status')result={status:'completed',voice:{busy:false,subtitleReady:true,engineAndReferenceReady:true,output:voiceId?{id:'voice-output',sample:false,syncInvalid:false}:null}};
+  if(value.name==='start_voice_generation'){assert(subtitleLoaded);voiceStarts++;voiceId=jobs.start({kind:'voice'});result={status:'accepted',jobId:'voice-backend'};}
+  if(value.name==='use_generated_voice'){assert.equal(jobs.snapshot().jobs.find(j=>j.id===voiceId).state,'completed');attached=true;result={status:'completed'};}
+  assert(result,'Unexpected renderer action '+value.name);h.call('agentResult',{callId:value.callId,result});
+ });};
+ let token;
+ async function run(nextPhase){phase=nextPhase;phaseTurn=0;h.events.length=0;const result=await h.call('agentRun',{requestId:'chain-'+turn,question:goal,owner:h.owner,...(token?{continuationId:token}:{})});assert(result.ok);return h.events.filter(e=>e.value.type==='proposal').map(e=>e.value.action);}
+ async function apply(card){const result=await h.call('agentApply',{proposalId:card.proposalId,owner:h.owner});assert(result.ok);token=result.result.continuationId;assert(token);}
+ try{
+  let cards=await run('start');assert.equal(cards.length,1);assert.equal(cards[0].tool,'start_whisper');await apply(cards[0]);
+  assert((await h.call('agentRun',{requestId:'waiting',question:goal,owner:h.owner,continuationId:token})).waiting);assert.equal(turn,2);
+  jobs.update(textId,{type:'done',outputs:[{path:'C:/synthetic/tr.srt',role:'translation',language:'tr',total:12,completed:12,failed:0}]});
+  cards=await run('load');assert.equal(cards.length,1);assert.equal(cards[0].tool,'use_job_subtitles');assert.equal(voiceStarts,0);await apply(cards[0]);
+  cards=await run('voice');assert.equal(cards[0]?.tool,'start_voice_generation');await apply(cards[0]);assert.equal(voiceStarts,1);
+  const beforeWaiting=turn;assert((await h.call('agentRun',{requestId:'voice-wait',question:goal,owner:h.owner,continuationId:token})).waiting);assert.equal(attached,false);assert.equal(turn,beforeWaiting);
+  jobs.update(voiceId,{type:'done'});cards=await run('attach');assert.equal(cards[0].tool,'use_generated_voice');await apply(cards[0]);assert(attached);
+ }finally{h.app.emit('will-quit');}
+});
+
 test('Book cards reject impossible source ranges, blank pages and empty production selections before offering an action',async()=>{
  const page={reader:{canPrepare:true,source:{type:'book-page',totalPages:5,text:'Readable'}}},chapter={reader:{canPrepare:true,source:{type:'book-chapter',chapterNumber:2,text:'Readable'}}};
  for(const [name,args,state,expected] of [

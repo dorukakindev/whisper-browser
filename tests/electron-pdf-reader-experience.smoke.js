@@ -83,9 +83,9 @@ const workflowModule = require("../src/media-workflows"),
 let service;
 workflowModule.registerMediaWorkflows = (args) => (service = register(args));
 const {ipcMain}=require('electron');
-let prepareTextHandler;
+let prepareTextHandler, holdListen=false, pendingListen=null;
 const originalHandle=ipcMain.handle.bind(ipcMain);
-ipcMain.handle=(channel,handler)=>{if(channel==='pdf:prepareText')prepareTextHandler=handler;return originalHandle(channel,handler)};
+ipcMain.handle=(channel,handler)=>{if(channel==='pdf:prepareText')prepareTextHandler=handler;return originalHandle(channel,channel==='media-workflows:request'?async(event,request)=>{if(holdListen&&request?.action==='book-listen'){holdListen=false;return new Promise((resolve,reject)=>{pendingListen={resolve,reject};});}return handler(event,request);}:handler)};
 require("../src/main");
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function until(fn, label) {
@@ -592,7 +592,29 @@ app
     await run(
       'document.getElementById("mediaWorkflowsDialog")?.close();setPdfReaderView("reading");return true',
     );
+    if(process.argv.includes('--quality813')){
+      holdListen=true;await run('document.getElementById("pdfVoiceListen").click();return true');
+      await until(()=>!!pendingListen,'held old-page narration');
+      await run('document.getElementById("pdfPrevious").click();return true');
+      await until(()=>run('return player.pdfReader.currentPage===2'),'new page during narration load');
+      await run('document.getElementById("pdfVoiceStatus").textContent="Güncel sayfa hazır";return true');
+      pendingListen.reject(Error('Controlled old-page failure'));pendingListen=null;await wait(150);
+      assert.equal(await run('return document.getElementById("pdfVoiceStatus").textContent'),'Güncel sayfa hazır','Late old-page failure must not overwrite the current page');
+      holdListen=true;await run('document.getElementById("pdfVoiceListen").click();return true');await until(()=>!!pendingListen,'held current narration');
+      pendingListen.reject(Error('Controlled current narration failure'));pendingListen=null;
+      await until(()=>run('return document.getElementById("pdfVoiceStatus").textContent.includes("Controlled current narration failure")'),'current failure remains visible');
+      await run('document.getElementById("pdfVoiceListen").click();return true');
+      await until(()=>run('return !document.getElementById("pdfVoiceAudio").classList.contains("hidden")'),'retry restores narration');
+      await run('document.getElementById("pdfVoiceAudio").pause();return true');
+      fs.writeFileSync(path.join(out,'ownership813.json'),JSON.stringify({oldFailureDropped:true,currentFailureVisible:true,retry:true,realPdf:true,realRendererAndIPC:true,syntheticAudio:true}));
+    }
     win.setContentSize(820, 900);
+    if(process.argv.includes('--quality813')){
+      await run('document.getElementById("pdfReaderTitle").textContent="A very long controlled book title without useful spaces "+"LongTitle".repeat(50);document.getElementById("pdfVoiceStatus").textContent="ControlledNarrationDiagnosis".repeat(50);return true');
+      const measured=await run('const bar=document.querySelector(".pdf-reader-toolbar"),title=document.getElementById("pdfReaderTitle"),panel=document.getElementById("pdfVoicePanel");return {barClient:bar.clientWidth,barScroll:bar.scrollWidth,titleWidth:title.getBoundingClientRect().width,panelClient:panel.clientWidth,panelScroll:panel.scrollWidth,statusRight:document.getElementById("pdfVoiceStatus").getBoundingClientRect().right,width:innerWidth};');
+      assert(measured.barScroll<=measured.barClient+1&&measured.panelScroll<=measured.panelClient+1&&measured.statusRight<=measured.width+1,JSON.stringify(measured));
+      fs.writeFileSync(path.join(out,'layout813.json'),JSON.stringify(measured));
+    }
     await capture("reading-narrow.png");
     const bounds = await run(
       'const r=document.getElementById("pdfReader");return {client:r.clientWidth,scroll:r.scrollWidth};',

@@ -1,6 +1,16 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const {describe}=require('../src/assistant-flow-state');
+
+test('Completed partial artifacts request inspection; streaming partial alone is not an incomplete result',()=>{
+ const row={jobId:'exact',waiting:true,expires:1000};
+ const completed={id:'exact',state:'completed',partial:true,result:{artifacts:[{role:'source',total:12,completed:12,failed:0,partial:false},{role:'translation',total:12,completed:11,failed:1,partial:true}]}};
+ const info=describe(row,[completed],0);assert.equal(info.state,'partial');assert.equal(info.partial,true);assert.equal(info.ready,true);
+ for(const artifacts of [undefined,[{role:'translation',total:12,completed:12,failed:0,partial:false}]]){
+  assert.equal(describe(row,[{...completed,result:{artifacts}}],0).state,'ready');
+ }
+ assert.equal(describe(row,[{...completed,state:'running'}],0).ready,false);
+});
 test('Only the exact completed job makes a continuation ready; running never resends a model request',()=>{
  const row={jobId:'exact',waiting:true,expires:1000};
  assert.equal(describe(row,[{id:'other',state:'completed'}],0).ready,false);

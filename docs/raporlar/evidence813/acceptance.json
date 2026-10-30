@@ -1,0 +1,147 @@
+{
+  "base": "c2812e4da3b6aeb5739ae97b81779d1679703c02",
+  "translation": {
+    "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+    "tier": "standard",
+    "blocks": 12,
+    "completed": 12,
+    "failed": 0,
+    "requests": 2,
+    "protocol": "speech-v12-signed-reported-speech",
+    "sourceTimingUnchanged": true
+  },
+  "assistant": {
+    "liveModel": true,
+    "tier": "standard",
+    "applicationActions": "synthetic read/proposal adapters, not applied live GPU actions",
+    "rows": [
+      {
+        "id": "CHAIN-LOAD-EXACT-TRANSLATION",
+        "pass": true,
+        "requests": 3,
+        "tools": [
+          "get_job_status",
+          "get_job_result",
+          "use_job_subtitles"
+        ]
+      },
+      {
+        "id": "CHAIN-PARTIAL-ASK-FIRST",
+        "pass": true,
+        "requests": 2,
+        "tools": [
+          "get_job_result",
+          "get_voice_status"
+        ]
+      },
+      {
+        "id": "CHAIN-START-READY-VOICE",
+        "pass": true,
+        "requests": 4,
+        "tools": [
+          "get_voice_status",
+          "list_voice_references",
+          "start_voice_generation"
+        ]
+      },
+      {
+        "id": "CHAIN-PREPARE-IS-NOT-GENERATE",
+        "pass": true,
+        "requests": 2,
+        "tools": [
+          "open_voice_preparation",
+          "get_voice_status"
+        ]
+      },
+      {
+        "id": "CHAIN-ATTACH-COMPLETED-VOICE",
+        "pass": true,
+        "requests": 3,
+        "tools": [
+          "get_voice_status",
+          "use_generated_voice"
+        ]
+      }
+    ]
+  },
+  "audio": {
+    "realGPU": true,
+    "sameTextAndReference": true,
+    "naturalnessWinner": null,
+    "coldWarmBias": true,
+    "samples": [
+      {
+        "sample": "A",
+        "grouping": "satir",
+        "groups": 4,
+        "ready": 4,
+        "integrityPassed": true,
+        "frames": 1612800,
+        "rate": 48000,
+        "clipping": 0.0,
+        "peak": 0.67730712890625,
+        "phases": {
+          "model_load_seconds": 23.219,
+          "reference_seconds": 5.313,
+          "synthesis_seconds": 52.437,
+          "verification_seconds": 20.048,
+          "placement_seconds": 0.031,
+          "normalization_seconds": 0.532,
+          "file_write_seconds": 0.031,
+          "wall_seconds": 78.594
+        }
+      },
+      {
+        "sample": "B",
+        "grouping": "akici",
+        "groups": 2,
+        "ready": 2,
+        "integrityPassed": true,
+        "frames": 1612800,
+        "rate": 48000,
+        "clipping": 0.0,
+        "peak": 0.658050537109375,
+        "phases": {
+          "model_load_seconds": 0,
+          "reference_seconds": 0,
+          "synthesis_seconds": 38.407,
+          "verification_seconds": 4.14,
+          "placement_seconds": 0.0,
+          "normalization_seconds": 0.485,
+          "file_write_seconds": 0.03,
+          "wall_seconds": 23.969
+        }
+      }
+    ]
+  },
+  "native": [
+    {
+      "id": "reader",
+      "code": 0,
+      "error": null
+    },
+    {
+      "id": "flows",
+      "code": 0,
+      "error": null
+    },
+    {
+      "id": "dub",
+      "code": 0,
+      "error": null
+    },
+    {
+      "id": "bridge",
+      "code": 0,
+      "error": null
+    }
+  ],
+  "baselineCI": {
+    "sha": "c2812e4da3b6aeb5739ae97b81779d1679703c02",
+    "windows": "failure",
+    "ubuntu": "failure",
+    "windowsFailedTestFiles": 47,
+    "fullRootCauseTriage": false,
+    "disabled": false
+  }
+}

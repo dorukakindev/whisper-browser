@@ -194,4 +194,8 @@
 
 .mx-task-filter-hint{font-size:12px;line-height:1.6;color:var(--text-dim);margin:0 0 14px;}
 #dubGeneratedName{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dub-continuity-row{display:flex;align-items:center;gap:12px;padding-block:8px;border-top:1px solid var(--border);min-width:0;}
+.dub-continuity-row .dub-continuity-copy{flex:1;min-width:0;justify-content:flex-start;text-align:left;white-space:normal;overflow-wrap:anywhere;line-height:1.6;}
+.dub-continuity-row>.btn-secondary{flex:none;min-height:38px;}
+@media(max-width:520px){.dub-continuity-row{align-items:flex-start;gap:8px;}}
 .dub-files-panel{max-height:min(360px,50vh);overflow-y:auto;overscroll-behavior:contain;}
