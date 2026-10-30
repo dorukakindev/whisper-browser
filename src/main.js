@@ -20228,11 +20228,33 @@ ipcMain.handle('media:extractSubtitleTrack', async (event, request) => {
 
 // Zamanlama editoru icin dusuk cozumunurluklu ses tepe dizisi. 50 Hz mono
 // PCM, saatlerce videoda bile birkac MB'dir; renderer'a en fazla 1800 nokta gider.
-require('./assistant-web-research').register({app,ipcMain,authorized:authorizedBrowserSender,getConfig:()=>{const c=assistantProviderConfig();return{...c,endpoint:safeTranslationEndpoint(c.endpoint)};},readJson:r=>readJsonResponseLimited(r,2*1024*1024,'Web search')});
+// Assistant-only transient tabs never replace or close a user-owned tab.
+const assistantBrowserResearch=require('./assistant-browser-research').createResearch({openPage:async()=>{
+ if(browserTabs.size>=MAX_SESSION_TABS)throw Error('No free research tab.');
+ const previousActive=browserActiveTabId;const tab=createBrowserTabRecord();if(!previousActive&&browserActiveTabId===tab.id)browserActiveTabId='';tab.assistantResearch=true;tab.keepAwake=true;
+ const view=ensureBrowserView(tab),wc=view?.webContents;if(!wc){destroyBrowserTab(tab);throw Error('Research view unavailable.');}
+ wc.setAudioMuted(true);
+ let closed=false;
+ const close=()=>{if(closed)return;closed=true;if(browserActiveTabId!==tab.id)destroyBrowserTab(tab);else {tab.assistantResearch=false;tab.keepAwake=false;if(!wc.isDestroyed())wc.setAudioMuted(false);}};
+ return {close,load:async(url,signal)=>{if(closed||wc.isDestroyed())throw Error('Research tab closed.');signal?.throwIfAborted();let timer;
+  try{await Promise.race([wc.loadURL(url),new Promise((_,reject)=>{timer=setTimeout(()=>{wc.stop();reject(Error('Research page timeout.'));},12000);})]);signal?.throwIfAborted();if(!require('./assistant-web-research').safeSource(wc.getURL()))throw Error('Unsafe research redirect.');}finally{clearTimeout(timer);}},
+  read:async kind=>{if(closed||wc.isDestroyed())throw Error('Research tab closed.');return wc.executeJavaScript(kind==='results'?`({links:[...document.querySelectorAll('a:has(h3),h2 a,a.result__a,a[data-testid=result-title-a]')].slice(0,20).map(a=>({url:a.href,title:a.innerText}))})`:`(()=>{const node=document.querySelector('article')||document.querySelector('main')||document.body;const text=node?.innerText||'';return {url:location.href,title:document.title,text:text.slice(0,6000),truncated:text.length>6000,challenge:/^(?:Just a moment|Verify you are human|Access denied)/i.test(document.title)||!!document.querySelector('#challenge-running,#challenge-stage')};})()`);}};
+}});
+const assistantResearch=(query,signal)=>assistantBrowserResearch(query,{signal});
+// Opt-in developer integration. No listener or model runtime is started by default.
+if(process.env.WHISPER_MCP_TOKEN&&process.env.WHISPER_MCP_PORT){
+ try {const bridge=require('./assistant-mcp-bridge').createBridge({token:process.env.WHISPER_MCP_TOKEN,port:Number(process.env.WHISPER_MCP_PORT),
+  getJobs:()=>({jobs:assistantJobs.snapshot().jobs.slice(-30).map(row=>({id:row.id,state:row.state,kind:row.kind,progress:row.progress}))}),
+  getTabs:()=>({tabs:browserTabsSnapshot().slice(0,50).map(row=>({id:row.id,title:String(row.title||'').slice(0,180),active:row.id===browserActiveTabId}))})});
+  void bridge.start().catch(()=>{console.warn('Optional assistant MCP bridge could not start.');});app.once('will-quit',()=>void bridge.stop());
+ }catch{console.warn('Optional assistant MCP configuration is invalid.');}
+}
+
+require('./assistant-web-research').register({app,ipcMain,authorized:authorizedBrowserSender,researchImpl:(q,_config,options)=>assistantResearch(q,options.signal),getConfig:()=>{const c=assistantProviderConfig();return{...c,endpoint:safeTranslationEndpoint(c.endpoint)};},readJson:r=>readJsonResponseLimited(r,2*1024*1024,'Web search')});
 require('./assistant-jobs').register({ipcMain,authorized:authorizedBrowserSender,jobs:assistantJobs});
 require('./assistant-agent-service').register({app,ipcMain,authorized:authorizedBrowserSender,
   getJobs:()=>assistantJobs.snapshot(),resolveJobId:resolveAssistantJobId,cancelJob:id=>assistantJobs.cancel(id),
-  researchWeb:(query,signal)=>{const config=assistantProviderConfig();return require('./assistant-web-research').research(query,{...config,endpoint:safeTranslationEndpoint(config.endpoint)},{signal,readJson:r=>readJsonResponseLimited(r,2*1024*1024,'Web search')});},
+  researchWeb:assistantResearch,
   probeVideo:async(owner,signal)=>{
     const tab=browserTabById(owner.tabId),url=tab?.url||tab?.view?.webContents.getURL()||'';
     const parsed=new URL(url);if(parsed.protocol!=='https:'||!['youtube.com','www.youtube.com','m.youtube.com','youtu.be'].includes(parsed.hostname))throw Error('Open a YouTube video.');

@@ -33,6 +33,7 @@
   let text=result?.ok?(result.text?prefix+String(result.text):task.text):[task.text,task.cancelled?t('Stopped. Received text was kept.','Durduruldu. Alınan metin korundu.'):errorText(result?.error)||t('Assistant request failed.','Asistan isteği başarısız oldu.')].filter(Boolean).join('\n\n');
   if(result?.ok&&result.capabilities?.tools==='unsupported')text+='\n\n'+t('This provider rejected application tools. The reply is text only; no application action was performed.','Bu sağlayıcı uygulama araçlarını reddetti. Yanıt yalnız metindir; uygulama işlemi yapılmadı.');
   if(text.length>32000)text=t('Earlier flow text was shortened.\n','Önceki akış metni kısaltıldı.\n')+text.slice(-31800);
+  task.trace=(task.trace||[]).map(row=>row.state==='running'?{...row,state:'stopped'}:row);window.AssistantWorkspace?.steps?.(task.job,task.trace);
   task.job.bubble.classList.remove('is-loading');if(state!=='complete')task.job.bubble.classList.add('ai-msg-err');
   renderAiText(task.job.bubble,text);window.AssistantWorkspace?.finish(task.job,text,state);
   if(result?.ok&&current){player.chatHistory=[...history,{role:'user',content:question},{role:'assistant',content:text}].slice(-24);player.chatHistoryScope=scope;document.dispatchEvent(new CustomEvent('assistant-answer',{detail:{text,context}}));}
@@ -50,7 +51,8 @@
   }
   const task=pending;if(!task||packet.requestId!==task.id||task.cancelled)return;
   if(!window.AssistantAppActions.current(task.owner)){void cancel();return;}
-  if(packet.type==='progress'){task.phase=['tool','reasoning','writing'].includes(packet.phase)?packet.phase:'thinking';task.domain=String(packet.domain||'');
+  if(packet.type==='tool-step'){task.trace=task.trace||[];const at=task.trace.findIndex(row=>row.id===packet.step?.id);if(at>=0)task.trace[at]=packet.step;else task.trace.push(packet.step);task.trace=window.AssistantRunSteps.clean(task.trace);window.AssistantWorkspace?.steps?.(task.job,task.trace);
+  }else if(packet.type==='progress'){task.phase=['tool','reasoning','writing'].includes(packet.phase)?packet.phase:'thinking';task.domain=String(packet.domain||'');
   }else if(packet.type==='replace'){task.text=task.prefix+String(packet.text||'');task.job.bubble.textContent=task.text;window.AssistantWorkspace?.partial(task.job,task.text);
   }else if(packet.type==='delta'){
    task.text=(task.text+String(packet.text||'')).slice(0,32000);task.job.bubble.textContent=task.text;window.AssistantWorkspace?.partial(task.job,task.text);
