@@ -11,10 +11,11 @@
  const files=el('details','dub-files-menu'),fileLabel=el('summary','btn btn-ghost'),filePanel=el('div','dub-files-panel');files.append(fileLabel,filePanel);for(const id of ['dubGeneratorOutput','dubStorageOpen','dubGeneratorLog'])filePanel.append($(id));$('dubGeneratorCancel').parentElement.append(files);
  $('dubGeneratorDialog').addEventListener('pointerdown',event=>{if(!files.contains(event.target))files.open=false;});
  $('dubGeneratorDialog').addEventListener('scroll',()=>{files.open=false;},true);
+ $('dubGeneratorDialog').addEventListener('close',()=>{files.open=false;});
  files.addEventListener('click',event=>{if(event.target.closest('button'))files.open=false;});
  files.addEventListener('keydown',event=>{if(event.key==='Escape'&&files.open){files.open=false;event.preventDefault();event.stopPropagation();fileLabel.focus();}});
  let serial=0,lastOwner=ui().experience().owner;
- document.addEventListener('media-context-changed',()=>{const owner=ui().experience().owner;if(owner===lastOwner)return;lastOwner=owner;serial++;inspect.disabled=false;status.textContent='';details.hidden=true;list.replaceChildren();});
+ document.addEventListener('media-context-changed',()=>{const owner=ui().experience().owner;if(owner===lastOwner)return;lastOwner=owner;files.open=false;serial++;inspect.disabled=false;status.textContent='';details.hidden=true;list.replaceChildren();});
  function labels(){fileLabel.textContent=t('Files & log','Dosyalar ve kayıt');title.textContent=t('Review & repair','İnceleme ve onarım');inspect.textContent=t('Inspect script','Metni denetle');compare.textContent=t('Compare translations','Çevirileri karşılaştır');repair.textContent=t('Repair current moment · Ctrl+Alt+R','İzlediğim anı düzelt · Ctrl+Alt+R');}
  async function preflight(){const request=++serial,identity=JSON.stringify([ui().experience().owner,ui().experience().srt]);inspect.disabled=true;
   try{const report=await ui().inspectProduction();if(request!==serial||identity!==JSON.stringify([ui().experience().owner,ui().experience().srt]))return;if(!report){status.textContent=t('Select a subtitle first.','Önce altyazı seç.');return;}
@@ -26,7 +27,7 @@
   }catch(error){if(request===serial)status.textContent=error.message;}finally{if(request===serial)inspect.disabled=false;}
  }
  async function repairNow(){const ok=await ui().editAtCurrent();if(!ok)status.textContent=t('No matching completed dub group at the current video time.','Güncel video anında eşleşen tamamlanmış dublaj grubu yok.');else status.textContent=t('Group opened. Edit and apply the text, then regenerate only this group.','Grup açıldı. Metni düzenleyip uygula; sonra yalnız bu grubu yeniden üret.');}
- async function comparison(){
+ async function comparison(){files.open=false;
   const d=el('dialog','speech-compare-dialog media-surface'),h=el('header'),heading=el('h2','',t('Translation workbench','Çeviri karşılaştırması')),close=button('×',()=>d.close());close.setAttribute('aria-label',t('Close comparison','Karşılaştırmayı kapat'));h.append(heading,close);
   const note=el('p','',t('Compare overlapping timestamps. Differences are review clues, not proof of an error. Files stay unchanged.','Örtüşen zamanları karşılaştırır. Farklar inceleme ipucudur, kesin hata kanıtı değildir. Dosyalar değişmez.'));
   const controls=el('div','speech-compare-controls'),filters=el('div','speech-compare-filters'),body=el('div','speech-compare-body'),pager=el('div','speech-compare-pager'),feedback=el('p');feedback.setAttribute('role','status');let page=0,alive=true;const versions={source:0,normal:0,speech:0},data={source:[],normal:[],speech:[]},names={},fileLabels={};let comparison=model.comparisonRows(data);

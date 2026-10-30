@@ -47,21 +47,23 @@
     for (const event of events) element.addEventListener(event, update);
     return () => { for (const event of events) element.removeEventListener(event, update); };
   }
-  let taskDialog, taskTimer,taskFilter='all';
+  let taskDialog, taskTimer,taskFilter='all',taskOrigin=null;
   const bindings=new Map();
   const trackVoice=(id,context)=>{if(context)bindings.set(id,{...context});while(bindings.size>50)bindings.delete(bindings.keys().next().value);};
   async function returnToVoice(id){const c=bindings.get(id);if(!c)throw Error(t('This job has no current source binding.','Bu işin kaynak bağlantısı yok.'));taskDialog?.close();if(c.mode==='book'){const d=$('mediaWorkflowsDialog');if(d?.open&&d.querySelector('textarea[data-project-id]')?.dataset.projectId===c.projectId&&Number(d.querySelector('textarea[data-project-id]').dataset.chapter)===c.chapter)return;await window.MediaWorkflowsUI.openProject(c.projectId,{chapter:c.chapter});return;}if(c.mode==='browser'){const tab=browserTabState(c.tabId);if(!tab||tab.generation!==c.generation)throw Error(t('The original video tab changed.','Özgün video sekmesi değişti.'));await openPlayer();setWorkspaceMode('browser');await activateBrowserTab(c.tabId);}else if(c.mode==='player'){await openLocalMedia(c.source,c.currentTime);}else throw Error(t('Open the source in its reader.','Kaynağı okuyucusunda aç.'));}
 
+  function localizeTasks(){if(!taskDialog)return;taskDialog.querySelector('h2').textContent=t('Activity','İşlem merkezi');taskDialog.querySelector('.mx-intro').textContent=t('Closing this window leaves jobs running. Use Stop to cancel a job.','Bu pencereyi kapatmak işleri durdurmaz. İptal etmek için Durdur’u kullan.');taskDialog.querySelector('header button').setAttribute('aria-label',t('Close activity','İşlem merkezini kapat'));}
   function openTasks() {
     if (taskDialog?.open) { taskDialog.querySelector('button')?.focus(); return; }
+    taskOrigin=document.activeElement;
     if (!taskDialog) {
       taskDialog = el('dialog', 'mx-dialog media-surface'); taskDialog.id = 'globalTaskCenter';
       const header = el('header'), title = el('h2', '', t('Activity', 'İşlem merkezi'));
       const close = el('button', 'mh-action', '×'); close.type = 'button'; close.setAttribute('aria-label', t('Close activity', 'İşlem merkezini kapat')); close.onclick = () => taskDialog.close();
       header.append(title, close); taskDialog.append(header, el('p', 'mx-intro', t('Closing this window leaves jobs running. Use Stop to cancel a job.', 'Bu pencereyi kapatmak işleri durdurmaz. İptal etmek için Durdur’u kullan.')));
-      const filters=el('nav','mx-task-filters');for(const key of ['all','running','review','ready']){const b=el('button','mh-action');b.type='button';b.dataset.filter=key;b.onclick=()=>{taskFilter=key;drawTasks();};filters.append(b);}taskDialog.append(filters);
+      const filters=el('nav','mx-task-filters');for(const key of ['all','running','review','ready']){const b=el('button','mh-action');b.type='button';b.dataset.filter=key;b.onclick=()=>{taskFilter=key;drawTasks();};filters.append(b);}taskDialog.append(filters);const hint=el('p','mx-task-filter-hint');hint.id='globalTaskFilterHint';hint.setAttribute('role','status');taskDialog.append(hint);
       const list = el('div', 'mx-tasks'); list.id = 'globalTaskList'; taskDialog.append(list); document.body.append(taskDialog);
-      taskDialog.addEventListener('close', () => { clearInterval(taskTimer); if (typeof syncBrowserOcclusion === 'function') void syncBrowserOcclusion(); });
+      taskDialog.addEventListener('close', () => { clearInterval(taskTimer); if(taskOrigin?.isConnected)taskOrigin.focus({preventScroll:true}); if (typeof syncBrowserOcclusion === 'function') void syncBrowserOcclusion(); });
     }
     taskDialog.querySelector('h2').textContent = t('Activity', 'İşlem merkezi');
     taskDialog.querySelector('.mx-intro').textContent = t('Closing this window leaves jobs running. Use Stop to cancel a job.', 'Bu pencereyi kapatmak işleri durdurmaz. İptal etmek için Durdur’u kullan.');
@@ -75,9 +77,11 @@
     updatePlayerTaskCenter({listTarget:list});
     const items=[...list.querySelectorAll('.player-task-row')],labels={all:t('All','Tümü'),running:t('Running','Çalışan'),review:t('Needs attention','İnceleme'),ready:t('Ready','Hazır')};
     for(const button of taskDialog.querySelectorAll('[data-filter]')){const key=button.dataset.filter;button.textContent=labels[key]+' · '+(key==='all'?items.length:items.filter(n=>n.dataset.jobBucket===key).length);button.setAttribute('aria-pressed',String(key===taskFilter));}
+    const hiddenCount=taskFilter==='all'?0:items.filter(n=>n.dataset.jobBucket!==taskFilter).length,hint=$('globalTaskFilterHint');hint.hidden=!hiddenCount;hint.textContent=hiddenCount?t(`${hiddenCount} other jobs are hidden by this filter. Choose All to see new jobs in other groups.`,`${hiddenCount} diğer iş bu filtreyle gizleniyor. Diğer gruplardaki yeni işler için Tümü’nü seç.`):'';
     if(items.length){list.replaceChildren();for(const bucket of ['running','review','ready']){if(taskFilter!=='all'&&taskFilter!==bucket)continue;const rows=items.filter(n=>n.dataset.jobBucket===bucket);if(!rows.length)continue;const section=el('section','mx-task-section');section.append(el('h3','',labels[bucket]),...rows);list.append(section);}if(!list.childElementCount)list.append(el('p','mx-intro',t('No jobs in this group.','Bu grupta iş yok.')));}
     if(id){const row=[...list.querySelectorAll('[data-job-id]')].find(n=>n.dataset.jobId===id),target=row?.querySelector('.player-task-controls')?.children[buttonIndex];target?.focus({preventScroll:true});}
   }
+  document.addEventListener('ui-locale-change',()=>{if(taskDialog?.open){localizeTasks();drawTasks();}});
   const jobs = new Map();
   function taskRows() {
     const rows = [...jobs.values()].map(row=>({...row,label:bindings.get(row.id.slice(4))?.mode==='book'?t('Book narration','Kitap seslendirme'):t('Voice production','Ses üretimi'),
@@ -114,7 +118,7 @@
   document.addEventListener('media-playback-preferences-changed', () => { if (player.mediaKey) void flushWatchState(false, false); });
   // Global keyboard shortcut is scoped to this app and does not intercept typing.
   document.addEventListener('keydown', event => {
-    if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'j') { event.preventDefault(); openTasks(); }
+    if (event.ctrlKey && event.shiftKey && !event.altKey && !event.repeat && event.key.toLowerCase() === 'j' && !/^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName) && !event.target.isContentEditable) { event.preventDefault(); openTasks(); }
   });
   window.MediaExperience = Object.freeze({ setContext, context, bindPassage, openTasks, taskRows, openVoice, trackVoice });
   $('mediaCatalogDialog')?.classList.add('media-surface');

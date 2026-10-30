@@ -34,7 +34,14 @@ app.whenReady().then(async()=>{
   const quality={groups:[{group:1,key:'1',status:'ready',text:'First group.',verification:{status:'passed'}},{group:2,key:'2',status:'review',text:'Second group.',verification:{status:'review',recognizedText:'Second.',omission_spans:[{start:0,end:4}]}},{group:3,key:'3',status:'failed',text:'Third group.',verification:{status:'unavailable'}}]};
   if(process.argv.includes('--review803'))quality.groups[1].verification.missing_numbers=['2065'];
   if(process.argv.includes('--experience801'))for(const g of quality.groups){g.sourceStart=(g.group-1)*4;g.sourceEnd=g.group*4;g.audioStart=g.sourceStart;g.audioEnd=g.sourceEnd;g.continuity={status:'measured',levelDb:-24,wordsPerSecond:2.5,gainDb:g.group===2?2:0,warnings:g.group===2?['level-jump']:[]};}
-  win.webContents.send('dub:event',{id:request.id,type:'done',name:'Controlled.wav',url:'file:///controlled.wav',quality});await until(()=>run(`return !document.getElementById('dubOpenQuality').hidden`));
+  win.webContents.send('dub:event',{id:request.id,type:'done',name:process.argv.includes('--interface807')?'A very long controlled output name with enough detail to test truncation and access to the complete original file name.wav':'Controlled.wav',url:'file:///controlled.wav',quality});await until(()=>run(`return !document.getElementById('dubOpenQuality').hidden`));
+  if(process.argv.includes('--interface807')){
+   assert(await run(`return document.getElementById('dubGeneratedName').title===document.getElementById('dubGeneratedName').textContent&&document.getElementById('dubReadySource').title===document.getElementById('dubReadySource').textContent`));
+   await run(`const menu=document.querySelector('.dub-files-menu');menu.open=true;menu.querySelector('summary').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));return true`);
+   assert(await run(`return !document.querySelector('.dub-files-menu').open&&document.activeElement===document.querySelector('.dub-files-menu>summary')`));
+   await run(`document.querySelector('.dub-files-menu').open=true;document.querySelector('.dub-studio-scroll').dispatchEvent(new Event('scroll'));return true`);assert(await run(`return !document.querySelector('.dub-files-menu').open`));
+   await run(`document.querySelector('.dub-files-menu').open=true;document.querySelector('.dub-studio-scroll').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));return true`);assert(await run(`return !document.querySelector('.dub-files-menu').open`));
+  }
   await run(`document.getElementById('dubOpenQuality').click();return true`);await capture(locale+'-results');
   assert.equal(await run(`return document.getElementById('dubQualityGroup').value`),'2');
   if(process.argv.includes('--review803')){
@@ -52,8 +59,10 @@ app.whenReady().then(async()=>{
    const previousId=request.id;await run(`document.getElementById('dubRegenerateGroup').click();return true`);await until(()=>request.id!==previousId);assert.deepEqual(request.forceGroups,['2']);assert.equal(request.dubText.edits['2'],'Edited second sentence.');
    win.webContents.send('dub:event',{id:request.id,type:'done',name:'Controlled repaired.wav',url:'file:///controlled.wav',quality});await until(()=>run(`return !DubGeneratorUI.experience().busy`));
    await run(`fixtureSource.source='other-scene';return true`);assert.equal(await run(`return DubGeneratorUI.editAtCurrent(6)`),false);await run(`fixtureSource.source='fixture-scene';return true`);
+   if(process.argv.includes('--interface807')){win.webContents.debugger.attach('1.3');await win.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});await run(`document.querySelector('.dub-files-menu').open=true;return true`);}
    // Three real subtitle files through the existing authorized file chooser/read IPC.
    await run(`await DubExperienceUI.comparison();return true`);await until(()=>run(`return !!document.querySelector('.speech-compare-dialog[open]')`));
+   if(process.argv.includes('--interface807')){assert(await run(`return !document.querySelector('.dub-files-menu').open&&getComputedStyle(document.querySelector('.speech-compare-dialog')).animationName==='none'`));win.webContents.debugger.detach();}
    selectedFixture=subtitleFiles.source;await run(`document.querySelector('.speech-compare-controls button:first-child').click();return true`);await until(()=>run(`return document.querySelector('.speech-compare-columns section:first-child p')?.textContent.includes('people')`));
    selectedFixture=subtitleFiles.normal;await run(`document.querySelector('.speech-compare-controls .speech-file-control:nth-child(2) button').click();return true`);await until(()=>run(`return !!document.querySelector('.speech-compare-diff')`));await run(`document.querySelector('.speech-compare-diff').open=true;return true`);assert(await run(`return document.querySelector('.speech-compare-diff').textContent.includes('12')`));
    if(process.argv.includes('--compare804')){
@@ -66,7 +75,17 @@ app.whenReady().then(async()=>{
    const compareBounds=await run(`const d=document.querySelector('.speech-compare-dialog'),b=d.querySelector('.speech-compare-body'),f=d.querySelector('.speech-compare-pager');return {overflow:d.scrollWidth>d.clientWidth+1,separate:b.getBoundingClientRect().bottom<=f.getBoundingClientRect().top+1}`);assert(!compareBounds.overflow&&compareBounds.separate);await capture(locale+'-speech-comparison');
    await run(`document.querySelector('.speech-compare-dialog').close();return true`);
    if(process.argv.includes('--compare804')){await run(`fixtureSource.subtitleRange={start:2,end:8};await DubGeneratorUI.prepareCurrent();return true`);assert(await run(`return !document.getElementById('dubRangeOrigin').hidden`));await run(`document.getElementById('dubRangeEnd').value='0:09';document.getElementById('dubRangeEnd').dispatchEvent(new Event('input'));return true`);assert(await run(`return document.getElementById('dubRangeOrigin').hidden`));}
-   await run(`document.getElementById('dubGeneratorDialog').close();MediaExperience.openTasks();return true`);await until(()=>run(`return !!document.querySelector('#globalTaskCenter [data-filter=review]')`));
+   if(process.argv.includes('--interface807'))await run(`document.querySelector('.dub-files-menu').open=true;return true`);
+   await run(`document.getElementById('dubGeneratorDialog').close();MediaExperience.openTasks();return true`);
+   if(process.argv.includes('--interface807')){await wait(70);assert(await run(`return !document.querySelector('.dub-files-menu').open`),'Closed studio cannot keep a visible old file menu');}await until(()=>run(`return !!document.querySelector('#globalTaskCenter [data-filter=review]')`));
+   if(process.argv.includes('--interface807')){
+    win.webContents.send('dub:event',{id:'other-ready-job',type:'done',quality:{groups:[{key:'one',group:1,status:'ready'}]}});await wait(70);
+    await run(`document.querySelector('#globalTaskCenter [data-filter=ready]').click();document.getElementById('globalTaskCenter').close();return true`);await wait(80);
+    await run(`MediaExperience.openTasks();return true`);assert(await run(`return document.querySelector('#globalTaskCenter [data-filter=ready]').getAttribute('aria-pressed')==='true'&&!document.getElementById('globalTaskFilterHint').hidden`));
+    await run(`UiLocale.set('${locale==='en'?'tr':'en'}',false);return true`);assert.equal(await run(`return document.querySelector('#globalTaskCenter h2').textContent`),locale==='en'?'İşlem merkezi':'Activity');
+    await run(`UiLocale.set('${locale}',false);return true`);await capture(locale+'-retained-task-filter');
+    await run(`document.querySelector('#globalTaskCenter [data-filter=all]').click();return true`);assert(await run(`return document.getElementById('globalTaskFilterHint').hidden`));
+   }
    assert(await run(`return document.querySelectorAll('#globalTaskCenter .mx-task-section').length>0`));await capture(locale+'-production-center');await run(`document.getElementById('globalTaskCenter').close();return true`);continue;
   }
   if(process.argv.includes('--ab800')){
