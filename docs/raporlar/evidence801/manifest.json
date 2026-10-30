@@ -1,0 +1,37 @@
+{
+  "nativeWindows": true,
+  "syntheticFixtures": true,
+  "personalProfileUsed": false,
+  "screens": [
+    {
+      "file": "translation-dark.png",
+      "bytes": 83520,
+      "sha256": "535c715522c8732623686afa19eed1f646fa843765efe182423082a9810f6ae4"
+    },
+    {
+      "file": "translation-narrow-light.png",
+      "bytes": 90790,
+      "sha256": "98a9051975a04882c9bf104df9308fd39a1fc466379850d70990173380896159"
+    },
+    {
+      "file": "preflight-narrow-light.png",
+      "bytes": 142400,
+      "sha256": "1e1a8a947fb1ee6884a6076d4339fe89b74c90f883665e14f63a68a31c22a2db"
+    },
+    {
+      "file": "pdf-citation.png",
+      "bytes": 326917,
+      "sha256": "bb45d9c898f4ea3f2fb1ff320aec56cf6382375f7d0525ff53d1b43dd4665fb0"
+    },
+    {
+      "file": "book-tasks.png",
+      "bytes": 174246,
+      "sha256": "bb4e7a7bc6fb4384e669bf20b60278798d046117f009a730940abfaad3fac4fd"
+    },
+    {
+      "file": "assistant-narrow-light.png",
+      "bytes": 89534,
+      "sha256": "d98bb282f9d7b7ca09091ffa6dcd260a4aacb6abee69a186cd1715697d89a8ff"
+    }
+  ]
+}
