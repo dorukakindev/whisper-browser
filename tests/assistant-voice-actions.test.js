@@ -10,7 +10,7 @@ test('Assistant can inspect every quality group past the first 30 without exposi
  const exact=(await h.run('get_voice_status',{group_id:'g61'})).voice;assert.equal(exact.groups.length,1);assert.equal(exact.groups[0].number,61);assert(!JSON.stringify(exact).includes('private'));
  await assert.rejects(h.run('get_voice_status',{offset:1.5}),/offset/);
  h.context.mediaId='different-video';const changed=(await h.run('get_voice_status')).voice;assert(changed.sourceChanged);assert.equal(changed.groups.length,0);assert.equal(changed.output,null);assert.equal(changed.subtitleReady,false);
- }finally{await new Promise(resolve=>setTimeout(resolve,25));h.dom.window.close();}
+ }finally{await new Promise(setImmediate);h.dom.window.close();}
 });
 function setup({tracks=true}={}){
  const dom=new JSDOM(fs.readFileSync(path.join(__dirname,'../src/renderer/index.html'),'utf8'),{runScripts:'outside-only'}),w=dom.window,el=id=>w.document.getElementById(id);
@@ -44,7 +44,7 @@ test('Ready speech with a measured pace boundary remains available but assistant
   assert(!JSON.stringify(group).includes('private'));assert(!JSON.stringify(group).includes('unknown-secret'));
   h.el('dubQualityGroup').value='g1';h.el('dubQualityGroup').dispatchEvent(new h.w.Event('change'));
   assert.match(h.el('dubQualityReasons').textContent,/differ in pace/);
- }finally{await new Promise(resolve=>setTimeout(resolve,25));h.dom.window.close();}
+ }finally{await new Promise(setImmediate);h.dom.window.close();}
 });
 test('Real dubbing UI accepts typed options and starts only after an explicit action',async()=>{
  const h=setup();try{
@@ -53,7 +53,7 @@ test('Real dubbing UI accepts typed options and starts only after an explicit ac
   const refs=await h.run('list_voice_references');assert.equal(refs.references[0].name,'Saved voice');assert(!JSON.stringify(refs).includes('Private transcript'));assert(!JSON.stringify(refs).includes('private'));
   await h.run('set_voice_reference',{reference_id:'voice-A'});assert.equal(h.el('dubProfile').value,'fast','Reference refresh must preserve the selected profile');
   const started=await h.run('start_voice_generation',{sample:true});assert.equal(started.status,'accepted');const args=h.read().request;assert.equal(args.sample,true);assert.equal(args.profile,'fast');assert.equal(args.concurrency,8);assert.equal(args.range.start,5);assert.equal(args.range.end,25);assert(args.keepBackground&&args.followDelivery);
- }finally{await new Promise(resolve=>setTimeout(resolve,25));h.dom.window.close();}
+ }finally{await new Promise(setImmediate);h.dom.window.close();}
 });
 test('Only real output/group IDs work; source-proof mismatch never attaches another video voice',async()=>{
  const h=setup();try{
@@ -64,13 +64,13 @@ test('Only real output/group IDs work; source-proof mismatch never attaches anot
   h.proof(false);await assert.rejects(h.run('use_generated_voice',{output_id:output.id}),/not confirmed/);assert.equal(h.read().applied,0);
   h.proof(true);assert.equal((await h.run('use_generated_voice',{output_id:output.id})).status,'completed');assert.equal(h.read().applied,1);
   const regenerated=await h.run('voice_group',{group_id:'g1',operation:'regenerate'});assert.equal(regenerated.status,'accepted');assert.equal(h.read().request.forceGroups[0],'g1');
- }finally{await new Promise(resolve=>setTimeout(resolve,25));h.dom.window.close();}
+ }finally{await new Promise(setImmediate);h.dom.window.close();}
 });
 test('Local picker and reference preparation remain separate from applying the reference',async()=>{
  const h=setup();try{
   await h.run('pick_local_voice_reference');assert.equal(h.read().picks,1);assert.equal(h.read().refUsed,undefined);
   await h.run('prepare_voice_reference',{source:'selected_local',start:0,end:15,name:'Local voice'});assert.equal(h.read().refUsed,undefined);
- }finally{await new Promise(resolve=>setTimeout(resolve,25));h.dom.window.close();}
+ }finally{await new Promise(setImmediate);h.dom.window.close();}
 });
 
 test('Assistant never adopts a leftover player subtitle without current browser track ownership',async()=>{
@@ -78,7 +78,7 @@ test('Assistant never adopts a leftover player subtitle without current browser 
   const status=await h.run('get_voice_status');assert.equal(status.voice.subtitleReady,false);
   await assert.rejects(h.run('start_voice_generation'),/confirmed|subtitle|ready/i);
   assert.equal(h.read().request,undefined);
- }finally{await new Promise(resolve=>setTimeout(resolve,25));h.dom.window.close();}
+ }finally{await new Promise(setImmediate);h.dom.window.close();}
 });
 
 test('a voice setting that rejects its write cannot produce a successful assistant receipt',async()=>{
@@ -88,5 +88,15 @@ test('a voice setting that rejects its write cannot produce a successful assista
 test('Assistant receives bounded localized review reasons without raw ASR or private diagnostics',async()=>{
  const h=setup();try{await h.run('configure_voice_generation',{profile:'quality'});await h.run('start_voice_generation');h.finish(1,{status:'review',lost_negation:true,missing_numbers:['2065'],recognizedText:'private raw ASR',debug:'C:/private/key'});
  const group=(await h.run('get_voice_status')).voice.groups[0];assert.deepEqual(Array.from(group.reviewReasons),['Negation','Missing number: 2065']);assert.equal(group.needsListening,true);assert.equal(group.qualityEvidence,'automatic_checks_only');assert(!JSON.stringify(group).includes('private'));
- }finally{await new Promise(resolve=>setTimeout(resolve,25));h.dom.window.close();}
+ }finally{await new Promise(setImmediate);h.dom.window.close();}
+});
+
+test('An already configured local reference stays usable when it has no saved-library ID',async()=>{
+ const h=setup();try{
+  await h.run('configure_voice_generation',{profile:'quality'});
+  h.w.api.listVoiceReferences=async()=>({ok:true,activeId:'',references:[]});
+  const list=await h.run('list_voice_references');assert.equal(list.activeId,'');assert.equal(list.references.length,0);
+  assert.equal(list.configuredReference.ready,true);assert.equal(list.configuredReference.name,'reference.wav');assert(!JSON.stringify(list).includes('private'));
+  await h.run('start_voice_generation');assert(h.read().request);assert.equal(h.read().refUsed,undefined,'No reference change or extra local picker is required');
+ }finally{await new Promise(setImmediate);h.dom.window.close();}
 });

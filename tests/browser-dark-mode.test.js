@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { MAX_DARK_READER_CSS_CHARS, buildDarkReaderCssScript } = require('../src/browser-dark-mode');
-const bundle = fs.readFileSync(path.join(__dirname, '..', 'node_modules', 'darkreader', 'darkreader.js'), 'utf8');
+const bundle = fs.readFileSync(require.resolve('darkreader'), 'utf8');
 const script = buildDarkReaderCssScript(bundle, { brightness: 999, contrast: 10, sepia: 20 });
 const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
 assert.match(script, /"brightness":150/);

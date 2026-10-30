@@ -31,7 +31,7 @@ class Resume(unittest.TestCase):
             folder=Path(temp); paths=[folder/'good.wav',folder/'missing.wav']
             voice=(np.sin(np.arange(8000)*.1)*.1).astype('float32')
             sf.write(paths[0],voice,8000)
-            paths[0].with_suffix('.json').write_text(json.dumps({'status':'ready','text':'İlk cümle.', 'verification':{'status':'passed'}}))
+            paths[0].with_suffix('.json').write_text(json.dumps({'status':'ready','text':'İlk cümle.', 'audioIdentity':__import__('dub_quality').audio_identity(paths[0]), 'verification':{'status':'passed'}}))
             before=paths[0].read_bytes()
             args=SimpleNamespace(eszamanli=4,report_dir=folder,group_keys=['1','2'],force_groups=set())
             cues=[(0,1000,'İlk cümle.'),(1100,2100,'Eksik cümle.')];calls=[]

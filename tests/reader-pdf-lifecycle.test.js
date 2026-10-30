@@ -97,7 +97,7 @@ function fixture({ textGate, renderGate } = {}) {
       n.textContent = text;
       return n;
     },
-    t: (en) => en,
+    t: (en) => en, uiLabel: en=>en,
     status() {},
     bookContext() {},
     mountBookSearch() {},

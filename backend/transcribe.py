@@ -3292,7 +3292,7 @@ def resolve_translate_routes(base_url):
     return [raw]
 
 
-SPEECH_TRANSLATION_PROTOCOL = 'speech-v12-signed-reported-speech'
+SPEECH_TRANSLATION_PROTOCOL = 'speech-v14-quoted-thought-feedback'
 
 
 def translation_cue_interval(args):
@@ -4331,6 +4331,20 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 return issue
         return ""
 
+    # Authored feedback only: rejected provider prose must not become instructions.
+    retry_hints = {}
+    retry_messages = {
+        'group_completeness': 'Return the complete group translation in sentences[group-first ID] and every required item ID; joined item text must equal that complete sentence.',
+        'part_boundary': 'Keep complete source sentences within their permitted cue boundaries; do not add extra sentence endings to a cue or leave a broken connective at a cue end.',
+        'source_echo': 'Translate this group into the target language; do not echo the source words.',
+        'modal_missing': 'Preserve the source modal (would, can, should, must, etc.) explicitly; do not turn a conditional or ability into a plain factual event.',
+        'modal_certainty_flip': 'Preserve uncertainty or possibility; do not turn may/might/could into a certain claim.',
+        'modal_weakened': 'Preserve obligation or necessity; do not weaken must/should/need to into mere possibility.',
+        'negation_missing': 'Preserve the source negation and who or what it applies to.',
+        'negation_added': 'Remove negation that is absent from the source.',
+        'number_mismatch': 'Preserve all source quantities and their signs in the translated group.',
+    }
+
     def translation_payload(chunk_idx, refine=False):
         positions = {index: pos for pos, index in enumerate(chunk_idx)}
         items = []
@@ -4360,8 +4374,19 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 row['speaker'] = speakers_in_group[0]
             if refine:
                 row['translation'] = ' '.join(out_texts[i] for i in group)
+            with lock:
+                feedback = sorted({hint for index in group for hint in retry_hints.get(index, ())})
+            if feedback:
+                row['retry_feedback'] = [retry_messages[issue] for issue in feedback if issue in retry_messages]
             mapped.append(row)
         payload = {"items": items, "sentence_groups": mapped}
+        if getattr(args, 'translate_for_speech', False):
+            payload['response_contract'] = {
+                'sentence_ids': [row['ids'][0] for row in mapped],
+                'sentences': 'One COMPLETE translation per listed group-first ID, not one fragment per cue.',
+                'items': 'Every item i exactly once; its group items joined in ID order equal the complete sentence.',
+                'retry_feedback': 'Application validation feedback: retranslate from the source and correct the reported meaning loss, without changing facts or skipping text.'}
+
         if document_context:
             payload['document_context'] = document_context
         before, after = source_context(chunk_idx[0], chunk_idx[-1])
@@ -4818,6 +4843,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             issue = sentence_reply_issue(data, row['ids'])
             if issue:
                 rejected[issue] = rejected.get(issue, 0) + 1
+                with lock:
+                    for index in group:
+                        retry_hints[index] = ('group_completeness',)
                 continue
             record = accept_sentence_reply(data, row['ids'])
             if not record:
@@ -4828,6 +4856,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             if gate_issue and (not lenient_mode or gate_issue.startswith('locked_translation_changed:')):
                 key = "part_kapisi_" + gate_issue
                 rejected[key] = rejected.get(key, 0) + 1
+                with lock:
+                    for index in group:
+                        retry_hints[index] = ('part_boundary',)
                 continue
             # Sağlayıcı bazen yapısal olarak doğru JSON döndürüp kaynak cümleyi
             # olduğu gibi yankılıyor. Bunu başarı/cache sayarsak sonraki
@@ -4840,6 +4871,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 rejected["kaynak_yankisi"] = rejected.get("kaynak_yankisi", 0) + 1
                 with lock:
                     echo_seen[group[0]] = echo_seen.get(group[0], 0) + 1
+                    for index in group:
+                        retry_hints[index] = ('source_echo',)
                 continue
             meaning_issues = translation_blocking_issues(row['source'], record['text'], target, source_lang)
             if meaning_issues and not lenient_mode:
@@ -4851,6 +4884,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 with lock:
                     for index in group:
                         failure_by_index.setdefault(index, "meaning_" + meaning_issues[0])
+                        retry_hints[index] = tuple(issue for issue in meaning_issues if issue in retry_messages)
                 continue
             untrusted = bool(gate_issue or is_echo or meaning_issues)
             with lock:

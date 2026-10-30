@@ -478,8 +478,8 @@ test('izleme kütüphanesi gerçek kalıcı IPC yöntemlerini kullanıyor', () =
   assert(/progress\.setAttribute\('role', 'progressbar'\)/.test(js)
     && /aria-valuenow/.test(js) && /aria-valuetext/.test(js),
   'izleme ilerlemesi yalnız görsel renk şeridi olarak kalıyor');
-  assert(/\.player-library-status\s*\{[^}]*color:\s*#858589/.test(css)
-    && /\.player-library-meta\s*\{[^}]*color:\s*#858589/.test(css),
+  assert(/\.player-library-status\s*\{[^}]*color:\s*var\(--text-muted\)/.test(css)
+    && /\.player-library-meta\s*\{[^}]*color:\s*var\(--text-muted\)/.test(css),
   'kütüphane durum ve metadata metinleri AA kontrast eşiğinin altında');
 });
 
@@ -1232,7 +1232,9 @@ test('ses çubuğu dolgusu JS tarafından güncelleniyor', () => {
   assert(/setProperty\('--vol'/.test(js), 'syncVolumeFill --vol yazmiyor');
   const i = js.indexOf("$('playerVolume').addEventListener('input'");
   assert(i > 0, 'ses girdisi dinleyicisi yok');
-  assert(/syncVolumeFill\(\)/.test(js.slice(i, i + 240)), 'suruklerken dolgu guncellenmiyor');
+  assert(/setPlayerVolume\(e\.target\.value \/ 100\)/.test(js.slice(i, js.indexOf('\n  });',i))), 'volume input must use the shared volume controller');
+  const controller=js.slice(js.indexOf('function setPlayerVolume('),js.indexOf('function togglePlayerMute('));
+  assert(/syncVolumeFill\(\)/.test(controller), 'shared controller must refresh slider fill');
 });
 
 test('ortam ışığı video tarafından opak siyahla örtülmüyor', () => {

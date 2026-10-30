@@ -80,10 +80,16 @@ test('498-12 catalogue video routes do not persist fragment credentials',()=>tem
  const source=load('media-catalog-store').sourceOf({type:'browser',value:'https://example.test/#/watch/1?token=PRIVATE',watchKey:'browser:https://example.test/?token=PRIVATE'});
  assert.doesNotMatch(JSON.stringify(source),/PRIVATE/);
 }));
-test('498-13 changing an episode position does not transfer its old video',()=>temp(async dir=>{
+test('498-13 a replacement episode ID cannot inherit another episode video',()=>temp(async dir=>{
  catalog(path.join(dir,'media-catalog.json')).upsert({id:'series',kind:'series',title:'Show',episodes:[{id:'e',season:1,number:1,source:{type:'local',value:'C:\\Movies\\one.mp4'}}]});
- const result=await catalogService(dir)({action:'save',item:{id:'series',episodes:[{id:'e',season:1,number:2}]}});
+ const result=await catalogService(dir)({action:'save',item:{id:'series',episodes:[{id:'replacement',season:1,number:1}]}});
  assert.equal(result.ok,true,result.error);assert.equal(result.item.episodes[0].source,null);
+}));
+test('498-13b title edits at the same episode position preserve its selected local source',()=>temp(async dir=>{
+ const source={type:'local',value:'C:\\Movies\\one.mp4'};
+ catalog(path.join(dir,'media-catalog.json')).upsert({id:'series',kind:'series',title:'Show',episodes:[{id:'e',season:1,number:1,source}]});
+ const result=await catalogService(dir)({action:'save',item:{id:'series',episodes:[{id:'e',season:1,number:1,title:'Revised title'}]}});
+ assert.equal(result.ok,true,result.error);assert.equal(result.item.episodes[0].source.value,source.value);
 }));
 test('498-14 reopening a closed tab retains its viewing and grouping preferences',()=>{
  const H=load('browser-tab-history').BrowserClosedTabHistory,h=new H();

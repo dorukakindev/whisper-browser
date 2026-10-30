@@ -26,9 +26,10 @@ assert(!/app\.on\(['"]open-url['"]/.test(main),
 // 3) second-instance handler'ı argv URL'si açmaz (Windows derin-link kanalı).
 {
   const start = main.indexOf("app.on('second-instance'");
-  const end = main.indexOf('mainWindow.focus()', start);
-  const body = main.slice(start, end);
-  assert(!/argv|loadURL|openExternal/.test(body),
+  const end = main.indexOf('\n});', start);
+  assert(start >= 0 && end > start);
+  const body = main.slice(main.indexOf('=> {', start) + 4, end);
+  assert(!/\b_?argv\b|loadURL|openExternal/.test(body),
     'second-instance argv/URL işliyor — tek-örnek derin-link yüzeyi');
 }
 

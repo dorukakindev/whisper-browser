@@ -30,9 +30,11 @@ describe('R324-5: kalıcı-emitter listener envanteri', () => {
       const count = (main.match(new RegExp(`webRequest\\.${hook}\\(`, 'g')) || []).length;
       assert.ok(count <= 2, `${hook} ${count} çağrı — yığma riski`);
     }
-    // installYoutubeStreamHeaders tek init çağrısına indirgenmeli
-    const calls = (main.match(/installYoutubeStreamHeaders\(\)/g) || []).length;
-    assert.equal(calls, 2, 'tanım + tek çağrı'); // function decl + 1 call site
+    // Each browser partition installs once; repeated calls must be guarded.
+    assert.equal((main.match(/function installYoutubeStreamHeaders\(/g)||[]).length,1);
+    assert.match(main,/youtubeHeaderSessions\.has\(ses\)/);
+    assert.match(main,/youtubeHeaderSessions\.add\(ses\)/);
+    assert.match(main,/installYoutubeStreamHeaders\(browserSession\)/);
   });
 
   it('ipcMain.handle kanalları preload yüzeyiyle sınırlı kalır (genel gevşek üst sınır)', () => {

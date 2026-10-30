@@ -95,8 +95,8 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       fs.writeFileSync(file, original);
       const access = new SubtitleFileAccess(); access.grant(file);
       const context = vm.createContext({ fs, path, Buffer, MAX_SUBTITLE_BYTES,
-        decodeSubtitleBuffer, renameSyncResilient, markOwnSubtitleWrite: () => {},
-        authorizedBrowserSender: auth, subtitleFileAccess: access,
+        decodeSubtitleBuffer, renameSyncResilient, atomicWriteFileSync: require('../src/fsync-utils').atomicWriteFileSync, markOwnSubtitleWrite: () => {},
+        require: require('node:module').createRequire(require.resolve('../src/main.js')), loadHistory:()=>[], authorizedBrowserSender: auth, subtitleFileAccess: access,
         dialog: { showMessageBox: async () => ({ response: 0 }) }, mainWindow: {} });
       const snippets = [
         main.slice(main.indexOf('function backupOnce'), main.indexOf('function queueStatePath')),
@@ -266,6 +266,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     fs.mkdirSync(path.join(fakeAppDir, 'backend'), { recursive: true });
     fs.writeFileSync(path.join(fakeAppDir, 'backend', 'transcribe.py'), '# stub\n');
     const context = {
+      require: require('node:module').createRequire(require.resolve('../src/main.js')), authorizeLocalMediaPath:p=>p,
       authorizedBrowserSender: () => true, buildSecretEnv, clonePublicOptions, createNdjsonLineBuffer, parseNdjsonLine, parseNdjsonLine,
       activeJob: null, activeQueueItemId: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
       // transcribe:start başlatma yarışı koruması (R51-28/29): authorize
@@ -350,6 +351,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     // yetkilendiricisinde reddedilir ve açıklama işi hiç başlayamazdı.
     const subCalls = [], mediaCalls = [], spawned = [];
     const context = {
+      require: require('node:module').createRequire(require.resolve('../src/main.js')), authorizeLocalMediaPath:p=>p,
       authorizedBrowserSender: () => true, buildSecretEnv, clonePublicOptions, createNdjsonLineBuffer, parseNdjsonLine, parseNdjsonLine,
       activeJob: null, activeQueueItemId: null, burninJob: null, burninStartPending: false, browserLiveAsr: null,
       jobStarting: false, jobStartSeq: 0, jobCancelSeq: 0, dubWorkspace: { running: () => false }, dubService: { running: () => false, releaseIdle: async () => {} },

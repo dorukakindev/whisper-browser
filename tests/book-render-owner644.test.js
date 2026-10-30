@@ -1,6 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{JSDOM}=require('jsdom');
 const tick=()=>new Promise(setImmediate);
+async function closeDialog(dialog){const closed=new Promise(resolve=>dialog.addEventListener('close',resolve,{once:true}));dialog.close();await closed;}
 function gate(){let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};}
 function fixture({bookGate,configGate}={}){
  const dom=new JSDOM('<body></body>',{runScripts:'outside-only'}),w=dom.window;let context;
@@ -49,7 +50,7 @@ test('A late render cannot append duplicate editors after a project selection cl
 test('Closing during preparation rejects the pending opening and cannot recreate its context',async t=>{
  const config=gate(),f=fixture({configGate:config});t.after(()=>f.dom.window.close());
  const pending=f.w.MediaWorkflowsUI.openProject('one').catch(e=>e);await tick();await tick();
- f.w.document.querySelector('dialog').close();await new Promise(r=>setTimeout(r,5));config.resolve({});
+ await closeDialog(f.w.document.querySelector('dialog'));config.resolve({});
  const error=await pending;assert.match(error.message,/replaced|closed/);assert.equal(f.w.document.querySelector('dialog'),null);assert.equal(f.w.MediaWorkflowsUI.assistant.state(),null);
 });
 
@@ -70,7 +71,7 @@ test('An assistant open action cannot report completed after its book view was c
  const config=gate();let calls=0;const f=fixture({configGate:()=>++calls===1?Promise.resolve({}):config.promise});t.after(()=>f.dom.window.close());
  await f.w.MediaWorkflowsUI.openProject('one');
  const pending=f.w.MediaWorkflowsUI.assistant.execute('book_chapter',{chapter:1,operation:'open'},()=>false).catch(e=>e);
- await tick();f.w.document.querySelector('dialog').close();await new Promise(r=>setTimeout(r,5));config.resolve({});
+ await tick();await closeDialog(f.w.document.querySelector('dialog'));config.resolve({});
  const result=await pending;assert.match(result.message||'',/Book changed/);assert.notEqual(result.status,'completed');
 });
 

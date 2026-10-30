@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict');
 const {BrowserTranslationScheduler}=require('../src/browser-translation-scheduler');
 const sentence=(id,start)=>({id,start,end:start+1,text:'Hello.',pieces:[{cueId:id,start,end:start+1,text:'Hello.'}]});
-const tick=()=>new Promise(r=>setTimeout(r,10));
+const tick=()=>new Promise(setImmediate);
 (async()=>{
  const calls=[],results=[];
  const scheduler=new BrowserTranslationScheduler({maxConcurrent:1,lookAhead:5,lookBehind:1,translate:(sentence,context)=>new Promise(resolve=>calls.push({id:sentence.id,resolve,context})),onResult:r=>results.push(r)});

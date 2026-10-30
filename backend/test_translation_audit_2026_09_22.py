@@ -235,9 +235,12 @@ class TranslationQualityEventTests(unittest.TestCase):
         self.assertEqual(quality[0]["model"], "m")
         self.assertEqual(quality[0]["invalid_batches"], 1)
         self.assertEqual(quality[0]["rejections"].get("kimlik_araligi_disinda"), 1)
-        # Tek toplu istekli iş (kalanı kurtarma/fallback): batches>=2 eşiği
-        # sağlanmaz, sağlıksız sayılmaz — tek seferlik tökezleme bildirim üretmez.
-        self.assertEqual(quality[0]["unhealthy"], False)
+        # Recovery requests count as actual provider batches too (R802).
+        # One rejected request out of three exceeds the quality warning ratio.
+        self.assertEqual(quality[0]["batches"], len(calls))
+        self.assertEqual(quality[0]["batches"], 3)
+        self.assertEqual(quality[0]["invalid_batches"], 1)
+        self.assertEqual(quality[0]["unhealthy"], True)
 
     def test_unhealthy_flag_fires_when_batch_fail_ratio_high(self):
         # 25 blok → 2 toplu paket; ilki 1'den numaralı (aralık dışı) dönüp
@@ -275,6 +278,7 @@ class TranslationQualityEventTests(unittest.TestCase):
         quality = [event for event in events if event.get("type") == "translation_quality"]
         self.assertEqual(len(quality), 1)
         self.assertEqual(quality[0]["invalid_batches"], 0)
+        self.assertEqual(quality[0]["batches"], 1)
         self.assertEqual(quality[0]["unhealthy"], False)
 
 

@@ -71,7 +71,8 @@ function t_fold() {
   const f = (v) => { ctx.__v = v; return vm.runInContext('foldWatchSearchText(__v)', ctx); };
   // Türkçe İ → i (tr-TR locale davranışı)
   assert.strictEqual(f('İSTANBUL'), 'istanbul');
-  assert.strictEqual(f('TITLE'), 't\u0131tle', 'tr-TR: I→ı');
+  assert.strictEqual(f('TITLE'), 'title', 'English I folds without splitting the same media title');
+  assert.strictEqual(f(f('TITLE')), 'title', 'Search folding remains idempotent');
   // NFKC: ligatür/uyumluluk
   assert.strictEqual(f('ﬁlm'), 'film');
   assert.strictEqual(f(null), '');

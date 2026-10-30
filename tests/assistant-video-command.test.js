@@ -41,7 +41,7 @@ test('Whisper only passes the selected range and never requests translation',asy
   assert.equal(h.w.player.browserWhisperRange.range.end,600);
   assert.equal(h.done.length,0);
   h.w.player.job.assistantOutcome={loaded:true,sourceCount:12,translationCount:0};
-  await new Promise(resolve=>setTimeout(resolve,700));
+  const deadline=Date.now()+3000;while(h.done[0]?.status!=='complete'){if(Date.now()>deadline)throw Error('Caption command did not complete');await new Promise(setImmediate);}
   assert.equal(h.done[0].status,'complete');
  }finally{h.dom.window.close();}
 });

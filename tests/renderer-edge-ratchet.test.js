@@ -77,7 +77,7 @@ ok(/player\.editing/.test(renderer) && /player\.editing\s*=\s*true/.test(rendere
 //    yeniden çizer — sözlük taraması (scan) yalnız sabit girdileri çevirir;
 //    interfaceChoice/describe çıktıları handler içinde tazelenmelidir.
 {
-  const handler = renderer.slice(renderer.indexOf("addEventListener('ui-locale-change'"), renderer.indexOf("addEventListener('ui-locale-change'") + 1200);
+  const handler = renderer.slice(renderer.indexOf("addEventListener('ui-locale-change', () =>"), renderer.indexOf("addEventListener('ui-locale-change', () =>") + 1200);
   for (const fn of ['renderTranslationModelScore', 'updateGpuBadge', 'renderIntegrityResults',
     'renderRuntimeStatus', 'renderBrowserDiagnostics', 'renderBrowserPlaybackDiagnostics', 'renderBrowserPageReport']) {
     ok(handler.includes(`${fn}(`), `ui-locale-change ${fn} tazelemiyor`);

@@ -40,8 +40,7 @@ function test(name, fn) {
 }
 
 test('gerçek MPEG-TS segmentinden CC1 ve CC3 cue üretir', () => {
-  const fixture = fs.readFileSync(path.join(ROOT,
-    'node_modules', 'mux.js', 'test', 'segments', 'multi-channel-608-captions.ts'));
+  const fixture = fs.readFileSync(path.join(path.dirname(require.resolve('mux.js/package.json')), 'test/segments/multi-channel-608-captions.ts'));
   const cues = new CeaCaptionDecoder().decodeTransportStream(fixture);
   assert.ok(cues.some((cue) => cue.stream === 'CC1' && /PERIOD, FOLKS/.test(cue.text)));
   assert.ok(cues.some((cue) => cue.stream === 'CC3' && cue.text.includes('période')));
@@ -49,7 +48,7 @@ test('gerçek MPEG-TS segmentinden CC1 ve CC3 cue üretir', () => {
 });
 
 test('gerçek fMP4 segmentinden CC1 cue üretir', () => {
-  const dir = path.join(ROOT, 'node_modules', 'mux.js', 'test', 'segments');
+  const dir = path.join(path.dirname(require.resolve('mux.js/package.json')), 'test/segments');
   const init = fs.readFileSync(path.join(dir, 'dash-608-captions-init.mp4'));
   const segment = fs.readFileSync(path.join(dir, 'dash-608-captions-seg.m4s'));
   const cues = new CeaCaptionDecoder().decodeFragmentedMp4(segment, init);
@@ -58,7 +57,7 @@ test('gerçek fMP4 segmentinden CC1 cue üretir', () => {
 });
 
 test('fMP4 tfdt epoku HLS parça başlangıcına taşınır', () => {
-  const dir = path.join(ROOT, 'node_modules', 'mux.js', 'test', 'segments');
+  const dir = path.join(path.dirname(require.resolve('mux.js/package.json')), 'test/segments');
   const init = fs.readFileSync(path.join(dir, 'dash-608-captions-init.mp4'));
   const shifted = Buffer.from(fs.readFileSync(path.join(dir, 'dash-608-captions-seg.m4s')));
   const tfdt = shifted.indexOf('tfdt');

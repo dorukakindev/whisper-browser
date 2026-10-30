@@ -1139,7 +1139,7 @@ test('Tarayıcı modu IPC ve güvenlik sınırları üç katmanda bağlıdır', 
   assert.match(renderer, /offset: player\.offset/);
   assert.match(renderer, /scheduleActiveBrowserTrackRefresh/);
   assert.match(renderer, /waitForBrowserTrackStable/);
-  assert.match(renderer, /opts\.language = browserLanguage/);
+  assert.match(renderer, /opts\.language = config\.sourceLanguage \|\| browserLanguage/);
   assert.match(renderer, /browserSourceCueCount/);
   assert.doesNotMatch(renderer, /attempt < 120/);
   assert.match(renderer, /selectedBefore \|\| event\.track\.id/);

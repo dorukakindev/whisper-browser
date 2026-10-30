@@ -110,7 +110,7 @@ test('gizli anahtarlar maskeli ve klavye erişimli görünürlük düğmesine sa
 });
 
 test('global scrollbar, AA muted token ve azaltılmış hareket sözleşmesi var', () => {
-  assert(/--text-muted:\s*#84929c/.test(css), 'AA muted token runtimea geçmemiş');
+  assert(/--text-muted:\s*#90909b/.test(css), 'AA muted token runtimea geçmemiş');
   assert(/scrollbar-color:/.test(css) && /\*::-webkit-scrollbar/.test(css), 'çift motorlu global scrollbar yok');
   assert(/forced-colors:\s*active/.test(css), 'forced colors yolu yok');
   assert(/prefers-reduced-motion:\s*reduce[\s\S]*gpu-badge \.dot/.test(css), 'döngüsel hareket azaltılmıyor');

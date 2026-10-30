@@ -55,11 +55,19 @@
     if (!normalized) return source;
     return source.filter((item) => {
       if (!item || typeof item !== 'object') return false;
-      const signature = `${item.title || ''}\u0000${item.sourceRef || ''}\u0000${(item.collections || []).join('\u0001')}`;
+      const title = item.title || '', sourceRef = item.sourceRef || '';
+      const collections = Array.isArray(item.collections) ? item.collections : [];
       const cached = metadataTextCache.get(item);
-      if (cached && cached.signature === signature) return cached.text.includes(normalized);
-      const text = signature.toLocaleLowerCase('tr');
-      metadataTextCache.set(item, { signature, text });
+      let same = !!cached && cached.title === title && cached.sourceRef === sourceRef
+        && cached.collections.length === collections.length;
+      if (same) for (let i = 0; i < collections.length; i++) {
+        if (cached.collections[i] !== collections[i]) { same = false; break; }
+      }
+      if (same) return cached.text.includes(normalized);
+      // Avoid rebuilding 10k signature strings for each keystroke. Keep a copy
+      // of collection values so in-place edits invalidate just this item's text.
+      const text = `${title}\u0000${sourceRef}\u0000${collections.join('\u0001')}`.toLocaleLowerCase('tr');
+      metadataTextCache.set(item, { title, sourceRef, collections: collections.slice(), text });
       return text.includes(normalized);
     });
   }

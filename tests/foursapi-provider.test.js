@@ -12,8 +12,8 @@ const renderer = fs.readFileSync(path.join(root, 'src', 'renderer', 'renderer.js
 const main = fs.readFileSync(path.join(root, 'src', 'main.js'), 'utf8');
 
 assert.match(html,
-  /value="https:\/\/4sapi\.com\/v1" data-default-model="gemini-3\.8-flash" selected>4SAPI · GPT-5\.4 \/ Gemini 3\.8 Flash/,
-  '4SAPI altyazı sağlayıcısı seçili ve Gemini 3.8 Flash önerisiyle bulunmalı');
+  /value="https:\/\/4sapi\.com\/v1" data-default-model="gemini-3\.8-flash">4SAPI · GPT-5\.4 \/ Gemini 3\.8 Flash/,
+  '4SAPI altyazı sağlayıcısı mevcut ve Gemini 3.8 Flash önerisiyle bulunmalı');
 assert.match(html,
   /value="https:\/\/4sapi\.com\/v1" data-default-model="gemini-3\.8-flash">4SAPI · GPT-5\.4 \/ Gemini 3\.8 Flash/,
   '4SAPI manga sağlayıcısı Gemini 3.8 Flash önerisiyle bulunmalı');

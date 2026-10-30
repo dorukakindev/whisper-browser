@@ -172,7 +172,7 @@ const watchdog = setTimeout(() => { console.error('Tur 4 testleri tamamlanamadı
   const chat = vm.runInNewContext(chatCode + '\naiChatSend', {
     state: {}, player: { chatHistory: history }, buildOptsFromUI: () => ({}), aiChatContext: () => ({}),
     window: {}, globalAssistantContext: () => null,
-    aiTranscriptEvidence: () => null,
+    aiTranscriptEvidence: () => null, assistantProviderSelection:()=>({endpoint:'fixture',model:'fixture',apiKey:'fixture'}),
     aiChatPreparing:null,aiSourceScope:()=> 'scope',updateAiChatActions(){},
   });
   assert.deepStrictEqual(JSON.parse(JSON.stringify((await chat('Test')).history)), history.slice(-8));

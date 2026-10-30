@@ -64,7 +64,8 @@ test("chapter regeneration forces its complete fresh plan; group regeneration fo
       voicePrefs: { referenceId: "book-reference" },
       stopRequested: false,
       job: null,
-      dialog: { open: true },
+      dialog: { open: true, querySelectorAll:()=>[] },
+      uiLabel: en=>en,
       t: (en) => en,
       status() {},
       saveChapter: async () => {},
@@ -107,7 +108,7 @@ test("chapter regeneration forces its complete fresh plan; group regeneration fo
       },
     };
     vm.createContext(ctx);
-    vm.runInContext(source.slice(start, end), ctx);
+    vm.runInContext(source.slice(source.indexOf('  function syncBookStop()'),source.indexOf('  function button(',source.indexOf('  function syncBookStop()')))+source.slice(start, end), ctx);
     await ctx.generate(force, hasRetry ? retry : null);
     assert.deepEqual(
       Array.from(request.forceGroups),

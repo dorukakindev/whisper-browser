@@ -133,7 +133,7 @@ describe('R324-4: statik yayılım bütünlüğü', () => {
     for (const [label, body] of [
       ['manga işçi döngüsü', extractFn(main, 'translateMangaCandidate')],
       ['pdf çeviri döngüsü', extractHandler('pdf:translatePages')],
-      ['sayfa çevirisi blok döngüsü', extractFn(main, 'runBrowserPageTranslationBlocks')],
+      ['sayfa çevirisi blok döngüsü', extractFn(main, 'runBrowserPageTranslationBlocksCore')],
     ]) {
       assert.ok(body, `${label}: anchor bulunamadı — refaktörde bu test güncellenmeli`);
       assert.ok(/\.aborted|mangaJobIsCurrent|pageTranslationJobIsCurrent|cancelAll/.test(body),

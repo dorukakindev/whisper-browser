@@ -180,7 +180,7 @@ const turn = () => new Promise(resolve => setImmediate(resolve));
       Buffer,
       resolveFfTool: () => 'ffprobe', authorizeLocalMediaPath: (value) => value, spawn: () => proc,
       setTimeout: fn => { timeout = fn; return { unref() {} }; }, clearTimeout() {},
-      terminateProcessTree: () => { killed++; }, parseSubtitleStreams: () => [], subtitleTrackLabel: () => '',
+      terminateProcessTree: () => { killed++; }, parseAudioStreams: require('../src/media-audio-tracks').parseAudioStreams, parseSubtitleStreams: () => [], subtitleTrackLabel: () => '',
     });
     const pending = probe.run({}, '/synthetic/video.mp4');
     if (scenario === 'timeout') timeout();

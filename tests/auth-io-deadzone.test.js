@@ -25,7 +25,7 @@ function makeCtx(extra = {}) {
   const ctx = {
     fs, path, os, console, process, Buffer, URL, JSON, Math, Date, Number, Array, Object, Set, Map, Promise, RegExp, Error, TypeError, String, Boolean, Intl,
     setTimeout, clearTimeout, setInterval, clearInterval, queueMicrotask,
-    require: Object.assign((m) => require(m), { resolve: (m) => require.resolve(m) }),
+    require: Object.assign(require("node:module").createRequire(path.join(__dirname, "../src/main.js")), { resolve: (m) => require.resolve(m) }),
     app: { getPath: () => TEST_ROOT },
     __dirname: path.join(__dirname, '..', 'src'),
     ...extra,
@@ -625,22 +625,23 @@ function t_stream_headers() {
   const hooks = {};
   const ses = {
     webRequest: {
-      onBeforeSendHeaders: (filter, fn) => { hooks.send = { filter, fn }; },
-      onHeadersReceived: (filter, fn) => { hooks.recv = { filter, fn }; },
+      onBeforeSendHeaders: (fn) => { hooks.send = { fn }; },
+      onHeadersReceived: (fn) => { hooks.recv = { fn }; },
     },
   };
   const ctx = defineIn(makeCtx({
-    session: { defaultSession: ses },
+    session: { defaultSession: ses }, youtubeHeaderSessions: new WeakSet(),
     YT_MEDIA_FILTER: { urls: ['https://*.googlevideo.com/*'] },
   }), [section('function installYoutubeStreamHeaders(', '// ===== İzleme ekranı')]);
   vm.runInContext('installYoutubeStreamHeaders()', ctx);
-  assert.strictEqual(JSON.stringify(hooks.send.filter.urls), JSON.stringify(['https://*.googlevideo.com/*']));
+  const installed=hooks.send.fn; vm.runInContext('installYoutubeStreamHeaders()', ctx); assert.strictEqual(hooks.send.fn,installed,'same session must not register again');
+  const unrelated={}; hooks.send.fn({url:'https://example.com/',requestHeaders:{A:'b'}},r=>Object.assign(unrelated,r));assert.deepStrictEqual(unrelated,{},'host filters remain isolated inside the shared listener');
   const req = {};
-  hooks.send.fn({ requestHeaders: { A: 'b' } }, (r) => Object.assign(req, r));
+  hooks.send.fn({ url:'https://rr1.googlevideo.com/videoplayback', requestHeaders: { A: 'b' } }, (r) => Object.assign(req, r));
   assert.strictEqual(req.requestHeaders.Origin, 'https://www.youtube.com');
   assert.strictEqual(req.requestHeaders.Referer, 'https://www.youtube.com/');
   const res = {};
-  hooks.recv.fn({ responseHeaders: { 'Cross-Origin-Resource-Policy': ['x'], Other: ['y'] } }, (r) => Object.assign(res, r));
+  hooks.recv.fn({ url:'https://rr1.googlevideo.com/videoplayback', responseHeaders: { 'Cross-Origin-Resource-Policy': ['x'], Other: ['y'] } }, (r) => Object.assign(res, r));
   assert.strictEqual(res.responseHeaders['Access-Control-Allow-Origin'][0], '*');
   assert.strictEqual('Cross-Origin-Resource-Policy' in res.responseHeaders, false);
   assert.strictEqual(res.responseHeaders.Other[0], 'y');

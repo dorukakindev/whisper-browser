@@ -78,8 +78,9 @@ test('main.js: çökme kurtarmada manga durumu sıfırlanır + unload loadError 
 });
 
 test('main.js: ses-iz probu null-stream TypeError\'a karşı korunur', () => {
-  assert.ok(SRC_MAIN.includes("filter((s) => s && s.codec_type === 'audio')"),
-    'null stream filtresi eksik');
+  const {parseAudioStreams}=require('../src/media-audio-tracks');
+  assert.deepEqual(parseAudioStreams({streams:[null,{},false,{codec_type:'video'}]}),[]);
+  assert.equal(parseAudioStreams({streams:[null,{codec_type:'audio',index:2,codec_name:'aac'}]})[0].index,0);
 });
 
 test('renderer.js: yan-boyutlandırıcı yalnız başlatan pointerId\'yi sürükler', () => {

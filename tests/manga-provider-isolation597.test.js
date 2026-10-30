@@ -4,7 +4,7 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
 const source=fs.readFileSync(require.resolve('../src/main.js'),'utf8');
 function fn(name,async=false){const start=source.indexOf(`${async?'async ':''}function ${name}(`);assert(start>=0);return source.slice(start,source.indexOf('\n}',start)+2);}
 let settings,capture;
-const ctx={loadSettings:()=>settings,AbortController,setTimeout,clearTimeout,Buffer,
+const ctx={require:require('node:module').createRequire(require.resolve('../src/main.js')),loadSettings:()=>settings,AbortController,setTimeout,clearTimeout,Buffer,
  safeTranslationEndpoint:base=>base+'/chat/completions',mangaGenerationParameters:()=>({}),resolveTranslationEndpoints:base=>[base],buildMangaPrompt:()=>'',
  extractJsonPayload:JSON.parse,normalizeMangaRegions:x=>x.regions,
  readJsonResponseLimited:async()=>({choices:[{message:{content:'{"regions":[]}'}}]}),

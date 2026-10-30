@@ -9,14 +9,14 @@ function setup(){
 }
 test('PDF search opens with Ctrl+F, goes to the matching original page, and Escape closes only search',async()=>{
  const h=setup();try{h.w.document.dispatchEvent(new h.w.KeyboardEvent('keydown',{key:'f',ctrlKey:true,bubbles:true,cancelable:true}));assert(!h.el('pdfFindPanel').classList.contains('hidden'));assert.equal(h.w.document.activeElement,h.el('pdfFindText'));
- h.el('pdfFindText').value='unique';h.el('pdfFindForm').dispatchEvent(new h.w.Event('submit',{cancelable:true}));await new Promise(r=>setTimeout(r,30));assert.deepEqual(h.jumps,['2']);assert.match(h.el('pdfFindStatus').textContent,/page 2/);assert.match(h.el('pdfFindExcerpt').textContent,/unique/);
+ h.el('pdfFindText').value='unique';h.el('pdfFindForm').dispatchEvent(new h.w.Event('submit',{cancelable:true}));await searchReady(h);assert.deepEqual(h.jumps,['2']);assert.match(h.el('pdfFindStatus').textContent,/page 2/);assert.match(h.el('pdfFindExcerpt').textContent,/unique/);
  h.w.document.dispatchEvent(new h.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));assert(h.el('pdfFindPanel').classList.contains('hidden'));assert(h.w.player.pdfReader);assert.equal(h.w.document.activeElement,h.el('pdfFindOpen'));
  }finally{h.close();}
 });
 test('Closing a pending search suppresses late results and replacement resets the source text',async()=>{
  const h=setup();try{let release;h.reader.pdf.getPage=()=>new Promise(done=>release=done);h.w.PdfReaderSearchUI.open();h.el('pdfFindText').value='unique';h.el('pdfFindForm').dispatchEvent(new h.w.Event('submit',{cancelable:true}));h.w.PdfReaderSearchUI.reset();release({getTextContent:async()=>({items:[{str:'unique'}]})});await new Promise(setImmediate);assert.equal(h.el('pdfFindStatus').textContent,'');assert.equal(h.el('pdfFindText').value,'');assert.deepEqual(h.jumps,[]);}finally{h.close();}
 });
-const settle=()=>new Promise(resolve=>setTimeout(resolve,20));
+const settle=()=>new Promise(setImmediate);
 async function searchReady(h){const end=Date.now()+2000;while(h.el('pdfFindNext').disabled&&Date.now()<end)await settle();assert.equal(h.el('pdfFindNext').disabled,false);}
 test('A failed old PDF jump cannot overwrite a new search or closed panel',async()=>{
  for(const replace of [false,true]){

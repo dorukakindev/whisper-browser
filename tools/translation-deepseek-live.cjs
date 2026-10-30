@@ -7,7 +7,7 @@ if(!process.argv.includes('--run-live-speech-translation')){console.error('Expli
 const root=path.resolve(__dirname,'..'),flag=process.argv.indexOf('--source');
 if(flag<0||!process.argv[flag+1]){console.error('--source synthetic.srt required');app.exit(2);return;}
 const source=path.resolve(process.argv[flag+1]);assert(fs.statSync(source).isFile()&&fs.statSync(source).size<=100000);
-const speechMode=!process.argv.includes('--normal-translation');
+const speechMode=!process.argv.includes('--normal-translation'),longAcceptance=process.argv.includes('--long-acceptance');
 const out=path.join(root,'.uiprev','speech-translation-live',Date.now()+'-'+process.pid);fs.mkdirSync(path.join(out,'profile'),{recursive:true});app.setPath('userData',path.join(out,'profile'));app.commandLine.appendSwitch('disable-gpu');
 let key='',requests=0,backend;const records=[],events=[];
 function stopBackend(){if(backend?.pid&&backend.exitCode===null&&backend.signalCode===null){cp.spawnSync('taskkill',['/PID',String(backend.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'})}backend=null;}
@@ -21,7 +21,7 @@ const keyReady=new Promise((resolve,reject)=>{
 const relay=http.createServer((req,res)=>{
  let body='';req.on('data',b=>{body+=b;if(body.length>1000000)req.destroy()});
  req.on('end',async()=>{try{
-  await keyReady;const input=JSON.parse(body);assert.equal(input.model,'deepseek-ai/DeepSeek-V4.1-Flash-1017');assert(!input.service_tier);if(++requests>40)throw Error('Live evaluation request budget exceeded');
+  await keyReady;const input=JSON.parse(body);assert.equal(input.model,'deepseek-ai/DeepSeek-V4.1-Flash-1017');assert(!input.service_tier);if(++requests>(longAcceptance?100:40))throw Error('Live evaluation request budget exceeded');
   const began=Date.now(),response=await fetch('https://api.deepinfra.com/v1/openai/chat/completions',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify(input),signal:AbortSignal.timeout(90000)});
   const text=await response.text();records.push({request:input,status:response.status,elapsedMs:Date.now()-began,response:response.ok?JSON.parse(text):{error:'Provider request failed'}});
   fs.writeFileSync(path.join(out,'requests.json'),JSON.stringify(records,null,2));res.writeHead(response.status,{'Content-Type':'application/json'});res.end(response.ok?text:'{"error":"Provider request failed"}');
@@ -40,4 +40,4 @@ app.whenReady().then(async()=>{
  const result={code,requests,standardTier:true,speechMode,complete,quality:quality||null,done:done||null,errors:events.filter(e=>e.type==='error')};fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify(result,null,2));fs.writeFileSync(path.join(out,'stderr.txt'),stderr);key='';relay.close();console.log(JSON.stringify({out,code,requests,speechMode,complete}));app.exit(code===0&&complete?0:1);
 }).catch(()=>{stopBackend();key='';relay.close();console.error('Live speech translation acceptance failed; inspect isolated evidence.');app.exit(1)});
 app.on('will-quit',stopBackend);
-setTimeout(()=>{stopBackend();key='';relay.close();console.error('Live speech translation acceptance timed out');app.exit(2)},360000).unref();
+setTimeout(()=>{stopBackend();key='';relay.close();console.error('Live speech translation acceptance timed out');app.exit(2)},longAcceptance?1800000:360000).unref();

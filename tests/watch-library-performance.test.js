@@ -88,6 +88,17 @@ test('100–250% ölçek karşılığı görünüm yüksekliklerinde aralıklar 
   }
 });
 
+test('cached search follows in-place titles, source changes and collection edits', () => {
+  const record={title:'Original',sourceRef:'first.mp4',collections:['Keep']},rows=[record];
+  assert.equal(view.searchMetadata(rows,'original').length,1);
+  record.title='Changed';assert.equal(view.searchMetadata(rows,'original').length,0);assert.equal(view.searchMetadata(rows,'changed').length,1);
+  record.sourceRef='second.mp4';assert.equal(view.searchMetadata(rows,'first.mp4').length,0);assert.equal(view.searchMetadata(rows,'second.mp4').length,1);
+  record.collections[0]='Updated';assert.equal(view.searchMetadata(rows,'keep').length,0);assert.equal(view.searchMetadata(rows,'updated').length,1);
+  record.collections.push('Extra');assert.equal(view.searchMetadata(rows,'extra').length,1);
+  record.collections=[];assert.equal(view.searchMetadata(rows,'extra').length,0);
+  assert.deepEqual(view.searchMetadata([null,record],'changed'),[record]);
+});
+
 const searchDurations = [];
 const filterDurations = [];
 const resizeDurations = [];
