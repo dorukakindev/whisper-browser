@@ -53,7 +53,7 @@ from sentence_translation import (ABBREVIATIONS, SENTENCE_PROTOCOL_VERSION, sent
                                   validate_sentence_parts, normalized_text,
                                   uses_spaceless_script, translation_meaning_issues,
                                   translation_blocking_issues, detect_scene_boundaries,
-                                  scene_context_bounds)
+                                  scene_context_bounds, translation_retry_hint)
 
 
 # UTF-8 stdout (Windows'ta Türkçe karakter sorunları için)
@@ -4938,6 +4938,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         return (made >= TRANSLATION_BATCH_SUSTAINED_REQUESTS
                 and good / made < TRANSLATION_BATCH_MIN_YIELD)
 
+    def retry_feedback(indices):
+        with lock:
+            reasons = [failure_by_index[index] for index in indices if index in failure_by_index]
+            if not reasons: reasons = list(translation_metrics['rejections'])
+        return translation_retry_hint(reasons)
+
     def retry_groups_once(groups_to_retry, *, batched=True):
         """Eksik grupları önce ikili küçük paket, gerekirse tek grup olarak kurtar."""
         recovered = 0
@@ -5015,7 +5021,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 mark_recovery_timeout(group)
                 return rec
             try:
-                rec += task_once(group, phase="fallback")
+                rec += task_once(group, phase="fallback", prompt_suffix=retry_feedback(group))
             except Exception as first_error:
                 first_reason = classify_translation_error(first_error)
             if all(index in done_idx for index in group):
@@ -5032,7 +5038,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                     and not recovery_budget_exhausted():
                 try:
                     rec += task_once(group, phase="fallback",
-                                     prompt_suffix=RESCUE_SUFFIX)
+                                     prompt_suffix=RESCUE_SUFFIX+retry_feedback(group))
                 except Exception as second_error:
                     # İkinci deneme de raise etti — yankı iki turda
                     # kanıtlanmışsa yine değişmeden kabul edilir (eskiden
@@ -5073,7 +5079,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                 rec = rescue_group(bundle_groups[0])
             else:
                 try:
-                    rec += task_once(bundle, phase="fallback")
+                    rec += task_once(bundle, phase="fallback", prompt_suffix=retry_feedback(bundle))
                     missing_after_bundle = [
                         group for group in bundle_groups
                         if not all(index in done_idx for index in group)

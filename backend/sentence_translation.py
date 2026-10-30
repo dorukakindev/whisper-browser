@@ -1994,3 +1994,25 @@ def scene_context_bounds(breaks, lo, hi, max_lines, entry_count):
     if next_scene:
         right = min(right, min(next_scene) - 1)
     return left, right
+
+
+def translation_retry_hint(reasons):
+    """Static repair guidance only; never interpolate provider-controlled text."""
+    rules = {
+        'number_mismatch': 'Keep every source quantity, year, sign, percentage and unit unchanged in meaning; do not substitute a different number.',
+        'negation_missing': 'Preserve the source negation in the matching clause; do not turn a negative assertion into a positive one.',
+        'negation_added': 'Do not invent a negative assertion that is absent from the source clause.',
+        'modal_certainty_flip': 'Preserve uncertainty; do not turn a possibility or lack of knowledge into a certain prediction.',
+        'modal_weakened': 'Preserve obligation and necessity; do not replace must/should with mere possibility.',
+        'proper_name_missing': 'Preserve each source person, place and title; do not omit a named entity.',
+        'source_echo': 'Translate the ordinary source prose into the target language; do not repeat it unchanged.',
+    }
+    selected=[]
+    for reason in reasons:
+        value=str(reason)
+        for prefix in ('anlam_', 'meaning_', 'part_kapisi_'):
+            if value.startswith(prefix): value=value[len(prefix):]
+        value=value.split(':',1)[0]
+        value={'sayi_kaydi':'number_mismatch','ozel_ad_kaydi':'proper_name_missing'}.get(value,value)
+        if value in rules and rules[value] not in selected:selected.append(rules[value])
+    return '\n\nPrevious reply checks require attention:\n'+'\n'.join('- '+text for text in selected[:4]) if selected else ''

@@ -20,9 +20,25 @@
   const matches=[];for(let i=lo-1;i>=0;i--){const c=cues[i];if(c.end>start&&c.start<end)matches.push(c);}
   return matches.reverse().map(c=>c.text).join(' ');
  }
+ function cueIndex(input){
+  const valid=(Array.isArray(input)?input:[]).filter(c=>Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.end>c.start).slice().sort((a,b)=>a.start-b.start),rows=valid.slice(0,5000),ends=[];let maximum=-Infinity;
+  for(const row of rows){maximum=Math.max(maximum,row.end);ends.push(maximum);}
+  return {rows,ends,limited:valid.length>rows.length,cutoff:valid[5000]?.start??Infinity};
+ }
+ function indexedOverlap(index,start,end){
+  let lo=0,hi=index.rows.length;while(lo<hi){const mid=(lo+hi)>>1;if(index.rows[mid].start<end)lo=mid+1;else hi=mid;}
+  const found=[];let limited=index.limited&&end>index.cutoff;for(let i=lo-1;i>=0&&index.ends[i]>start;i--){const c=index.rows[i];if(c.end>start){if(found.length>=64){limited=true;break;}found.push(String(c.text||''));}}
+  const text=found.reverse().join(' ');return {text:text.slice(0,8192),limited:limited||text.length>8192};
+ }
+ function comparisonRows(data){
+  const indexes=Object.fromEntries(['source','normal','speech'].map(key=>[key,cueIndex(data[key])])),base=indexes.speech.rows.length?indexes.speech:indexes.normal.rows.length?indexes.normal:indexes.source;
+  const rows=base.rows.map(cue=>{const a=indexedOverlap(indexes.normal,cue.start,cue.end),b=indexedOverlap(indexes.speech,cue.start,cue.end),limited=a.limited||b.limited;
+   const diff=!limited&&a.text&&b.text?difference(a.text,b.text):null;return {cue,changed:diff?.changed===true,missingNumbers:diff?.removedNumbers||[],limited};});
+  return {rows,indexes,limited:Object.values(indexes).some(index=>index.limited)};
+ }
  function continuity(raw){
   if(!raw||raw.status!=='measured'||!Number.isFinite(raw.levelDb)||raw.levelDb < -150||raw.levelDb>40||!Number.isFinite(raw.wordsPerSecond)||raw.wordsPerSecond<0||raw.wordsPerSecond>100||!Number.isFinite(raw.gainDb)||Math.abs(raw.gainDb)>2.01)return null;
   return {status:'measured',levelDb:raw.levelDb,wordsPerSecond:raw.wordsPerSecond,gainDb:raw.gainDb,warnings:Array.isArray(raw.warnings)?raw.warnings.filter(w=>['long-edge-pause','level-jump','pace-jump','level-correction-unavailable'].includes(w)).slice(0,4):[]};
  }
- return Object.freeze({preflight,locate,difference,overlap,continuity});
+ return Object.freeze({preflight,locate,difference,overlap,cueIndex,indexedOverlap,comparisonRows,continuity});
 });
