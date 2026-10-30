@@ -1,5 +1,5 @@
 'use strict';
-const { app, BrowserWindow, session, nativeImage } = require('electron');
+const { app, BrowserWindow, session, nativeImage, ipcMain } = require('electron');
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
 const { createMediaCatalogStore } = require('../src/media-catalog-store');
 const {spawnSync}=require('node:child_process');
@@ -35,6 +35,18 @@ app.whenReady().then(async () => {
   let win; await until(() => { win = BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('index.html') && !w.webContents.isLoading()); return win; }, 'main');
   win.webContents.setBackgroundThrottling(false); win.showInactive(); win.setContentSize(1920, 1080);
   const run = code => win.webContents.executeJavaScript(`(async()=>{${code}})()`, true);
+  if(process.argv.includes('--library810')){
+    // Model/Letterboxd response transport is controlled. Metadata resolution,
+    // decision-get, preload, dialogs and catalog counts use the real services.
+    const original=ipcMain._invokeHandlers.get('media-discovery:request'),translations=new Map();
+    ipcMain.removeHandler('media-discovery:request');ipcMain.handle('media-discovery:request',async(e,input)=>{
+      if(input.action==='synopsis-translate'){const response=await original(e,{...input,action:'detail'});translations.set(input.kind+':'+input.id,'Kontrollü Türkçe konu özeti.');return {...response,item:{...response.item,synopsisTr:'Kontrollü Türkçe konu özeti.'}};}
+      const response=await original(e,input);const tr=translations.get(input.kind+':'+input.id);if(input.action==='detail'&&tr&&response.item)response.item={...response.item,synopsisTr:tr};return response;
+    });
+    const tools=ipcMain._invokeHandlers.get('media-tools:request');assert(tools);
+    ipcMain.removeHandler('media-tools:request');ipcMain.handle('media-tools:request',async(e,input)=>input.action==='reviews-auto'?{ok:true,reviews:Array.from({length:10},(_,i)=>({id:'R'+(i+1),text:'Controlled review '+i+' praises the acting.',author:'Synthetic '+i})),identity:{title:rows[0].name,year:2026},match:{state:'matched'},url:'https://letterboxd.com/film/controlled/reviews/',pages:1}:tools(e,input));
+  }
+
   await run('await initialSettingsReady;window.UiLocale.set("tr",false);applyUiTheme("dark");document.querySelector("[data-home-page=discover]").click();return true');
   await until(() => run('return document.querySelectorAll(".md-card").length>0'), 'discover list');
   assert(await run('const host=document.getElementById("mediaHome");return host.scrollHeight>host.clientHeight'), 'Discover has scrollable content');
@@ -79,13 +91,13 @@ app.whenReady().then(async () => {
   assert(await run('return !document.querySelector(".md-heading")'), 'Discover omits redundant heading');
   const fonts = await run('await document.fonts.ready;return {heading:getComputedStyle(document.querySelector(".md-tab")).fontFamily,plex:document.fonts.check(\'400 14px "IBM Plex Sans"\',"İstanbul şğ")}');
   assert(fonts.plex, JSON.stringify(fonts)); assert(fonts.heading.includes('IBM Plex Sans'));
-  const beforeHover = await run('return getComputedStyle(document.querySelectorAll(".md-tab")[1]).backgroundColor');
+  const beforeHover = await run('return getComputedStyle(document.querySelectorAll(".md-tab")[1]).color');
   const hover = await run('const r=document.querySelectorAll(".md-tab")[1].getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}');
   // Native assistant focus may still belong to its WebContentsView after minimizing.
   // Electron input injection requires the target WebContents to be focused.
   win.focus(); win.webContents.focus();
   win.webContents.sendInputEvent({ type: 'mouseMove', ...hover }); await wait(100);
-  assert.notEqual(await run('return getComputedStyle(document.querySelectorAll(".md-tab")[1]).backgroundColor'), beforeHover, 'Actual renderer pointer hover feedback');
+  assert.notEqual(await run('return getComputedStyle(document.querySelectorAll(".md-tab")[1]).color'), beforeHover, 'Actual renderer pointer hover feedback');
   win.webContents.sendInputEvent({ type: 'mouseMove', x: 5, y: 45 });
   win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab' }); win.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab' });
   assert(await run('return document.activeElement!==document.body && getComputedStyle(document.activeElement).outlineStyle!=="none"'), 'Keyboard focus remains visible');
@@ -115,6 +127,19 @@ app.whenReady().then(async () => {
   assert.equal(await run('return globalAssistantContext().title'),title,'Assistant follows explicit discovery selection');
   await run('await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true'); await wait(300);
   fs.writeFileSync(path.join(out, 'discover-details-tr.png'), (await win.webContents.capturePage()).toPNG());
+
+  if(process.argv.includes('--library810')){
+    await run('document.querySelector("[data-discovery-action=translate]").click();return true');await until(()=>run('return document.querySelector(".md-synopsis").textContent.includes("Kontrollü Türkçe")'),'translated story');
+    await run('document.querySelector(".md-close").click();document.querySelector(".md-card").click();return true');await until(()=>run('return document.querySelector(".md-synopsis")?.textContent.includes("Kontrollü Türkçe")'),'reopened translation');
+    await run('document.querySelector("[data-discovery-action=reviews]").click();return true');await until(()=>run('return !!document.querySelector("[data-review-action=auto]")'),'discovery review panel');
+    assert.equal(await run('return (await window.api.mediaCatalog({action:"list"})).items.length'),initialCount,'Review panel never adds a film');
+    await run('document.querySelector("[data-review-action=auto]").click();return true');await until(()=>run('return document.querySelector(".mrv-job").textContent.includes("10 yorum")'),'ten controlled reviews');
+    win.setContentSize(1000,950);win.webContents.setZoomFactor(1.25);await wait(250);
+    assert(await run('const d=document.getElementById("mediaToolsDialog");return d.scrollWidth<=d.clientWidth+1'),'reviews narrow overflow');
+    fs.writeFileSync(path.join(out,'discovery-reviews-tr-125.png'),(await win.webContents.capturePage()).toPNG());
+    assert.equal(await run('return (await window.api.mediaCatalog({action:"list"})).items.length'),initialCount,'Loading a sample does not add a film');
+    await run('document.getElementById("mediaToolsDialog").close();return true');win.setContentSize(1920,1080);win.webContents.setZoomFactor(1);
+  }
   await run('document.querySelector(".md-detail .mh-primary").click();return true');
   await until(() => run('return document.getElementById("mediaTitleDialog")?.open && !!document.querySelector(".mtd-hero")'), 'watchlist record');
   assert(await run('return !!document.querySelector(".mtd-hero .mh-primary") && globalAssistantContext().type==="library-title"'), 'Details expose our subtitle / dub workflow');

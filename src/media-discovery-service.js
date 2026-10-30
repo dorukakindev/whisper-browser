@@ -149,7 +149,11 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
           while (previews.size > 24) previews.delete(previews.keys().next().value);
           return await previewTranslation.start(previewId, input.token);
         }
-        if (input.action === 'detail') return { ok: true, item: row, catalogId: existing?.id || null };
+        if (input.action === 'detail') {
+          const cached=existing?.synopsis===row.synopsis?existing:previews.get(previewId);
+          const valid=cached?.synopsis===row.synopsis&&cached.synopsisTr&&cached.synopsisTrSource===require('./catalog-synopsis').synopsisHash(row.synopsis);
+          return {ok:true,item:{...row,...(valid?{synopsisTr:cached.synopsisTr}: {})},catalogId:existing?.id||null};
+        }
         if (existing) return { ok: true, item: existing, existing: true };
         let posterBytes = null;
         if (row.poster && nativeImage && userData) try {

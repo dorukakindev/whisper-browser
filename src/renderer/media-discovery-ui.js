@@ -42,9 +42,9 @@
     window.MediaExperience?.setContext(dialog, { id: item.providerId, type: 'discovery-title', title: item.title, synopsis: item.synopsis });
     content.append(el('h2', '', item.title), el('p', 'md-meta', [item.year, item.rating ? `IMDb ${item.rating}/10` : '', item.runtime ? `${item.runtime} ${t('min', 'dk')}` : '', item.kind === 'series' ? t('Series', 'Dizi') : t('Film', 'Film')].filter(Boolean).join(' · ')));
     const genres = el('div', 'md-chips'); item.genres.forEach(genre => genres.append(el('span', '', genre))); content.append(genres);
-    const storyHeading=el('div','md-story-heading'),synopsis=el('p','md-synopsis',item.synopsis||t('No synopsis is available for this title.','Bu yapımın açıklaması henüz yok.'));
+    const storyHeading=el('div','md-story-heading'),synopsis=el('p','md-synopsis',item.synopsisTr||item.synopsis||t('No synopsis is available for this title.','Bu yapımın açıklaması henüz yok.'));
     storyHeading.append(el('h3','',t('Story','Konu')));
-    if(item.synopsis){let translated='',showOriginal=false;const translate=btn(t('Translate to Turkish','Türkçeye çevir'),async()=>{
+    if(item.synopsis){let translated=item.synopsisTr||'',showOriginal=false;const translate=btn(translated?t('Show original','Özgününü göster'):t('Translate to Turkish','Türkçeye çevir'),async()=>{
       if(translated){showOriginal=!showOriginal;synopsis.textContent=showOriginal?item.synopsis:translated;translate.textContent=showOriginal?t('Show Turkish','Türkçesini göster'):t('Show original','Özgününü göster');return;}
       translate.disabled=true;translationToken=crypto.randomUUID();const token=translationToken;placeholder.textContent=t('Translating the story…','Konu çevriliyor…');
       try{const r=await window.api.mediaDiscovery({action:'synopsis-translate',kind:row.kind,id:row.providerId,token});if(!dialog.open||translationToken!==token)return;if(!r?.ok)throw Error(r?.error||t('Translation stopped.','Çeviri durduruldu.'));translated=r.item.synopsisTr;synopsis.textContent=translated;translate.textContent=t('Show original','Özgününü göster');placeholder.textContent=t('Turkish · AI translation','Türkçe · AI çevirisi');}
@@ -78,11 +78,11 @@
     }));
     const reviews=btn(t('Letterboxd reviews & analysis','Letterboxd yorumları ve analiz'),async()=>{
       reviews.disabled=true;
-      try{const saved=await api('add',{kind:item.kind,id:item.providerId});if(!dialog.open)return;result.catalogId=saved.item.id;document.dispatchEvent(new Event('media-library-changed'));await window.MediaToolsUI.open('decision',saved.item);}
+      try{await window.MediaToolsUI.open('decision',{...item,id:`discovery:${item.kind}:${item.providerId}`,imdbId:item.providerId,discovery:{kind:item.kind,id:item.providerId}});}
       catch(error){if(dialog.open)placeholder.textContent=failure(error);}
       finally{if(dialog.open)reviews.disabled=false;}
     });reviews.dataset.discoveryAction='reviews';actions.append(reviews);
-    content.append(el('small','md-provider',t('Review analysis saves this title to your watchlist and opens the Letterboxd import tools. No video is downloaded.','Yorum analizi yapımı izleneceklere kaydeder ve Letterboxd yorum alma araçlarını açar. Video indirilmez.')));
+    content.append(el('small','md-provider',t('Review a Letterboxd sample without adding this title to your library. Analysis uses only the reviews you approve.','Yapımı kütüphaneye eklemeden Letterboxd örneğini incele. Analiz yalnız onayladığın yorumları kullanır.')));
     content.append(actions, el('p', 'md-provider', t('Metadata: Cinemeta / IMDb. Adding a title does not download a video.', 'Yapım bilgileri: Cinemeta / IMDb. Kütüphaneye eklemek video indirmez.')));
     placeholder.textContent = ''; body.append(image(item.poster || row.poster, 'md-detail-poster'), content); dialog.append(body);
   }
