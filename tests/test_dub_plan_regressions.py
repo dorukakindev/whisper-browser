@@ -134,5 +134,15 @@ class DubPlanRegressionTests(unittest.TestCase):
                 grouping.assert_not_called()
 
 
+class EncodingMetadataTests(unittest.TestCase):
+    def test_exact_bytes_and_turkish_text_are_preserved_with_read_metadata(self):
+        text='1\n00:00:00,000 --> 00:00:02,000\nİğne ışığı güzel.\n'
+        with tempfile.TemporaryDirectory() as temp:
+            for codec,expected in [('utf-8','utf-8'),('utf-16','utf-16le'),('cp1254','cp1254')]:
+                with self.subTest(codec=codec):
+                    source=Path(temp)/'Türkçe.srt';raw=text.encode(codec);source.write_bytes(raw);result=dub_plan.plan(source);
+                    self.assertEqual(result['sourceDecoding']['encoding'],expected);self.assertFalse(result['sourceDecoding']['repaired']);self.assertIn('İğne ışığı',result['groups'][0]['text']);self.assertEqual(source.read_bytes(),raw)
+
+
 if __name__ == '__main__':
     unittest.main()

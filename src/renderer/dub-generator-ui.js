@@ -50,8 +50,10 @@
   el('translateModel')?.addEventListener('input',editorProviderHint);
   el('translateModel')?.addEventListener('change',editorProviderHint);
   document.addEventListener('ui-locale-change',editorProviderHint);
+  const decodingInfo=document.createElement('p');decodingInfo.id='dubPlanDecoding';decodingInfo.className='dub-dictionary-preview';decodingInfo.hidden=true;decodingInfo.dataset.uiUntranslated='';el('dubPlanPrepare').parentElement.after(decodingInfo);
   function refreshOverview() {
     editorProviderHint();
+    const decoding=plan?.sourceDecoding;decodingInfo.hidden=!decoding;decodingInfo.textContent=decoding?(window.UiLocale?.get?.()==='en'?'Text read using '+decoding.encoding+(decoding.repaired?' · automatic text repair applied':'')+'. Check characters before generating speech. Source file unchanged.':'Metin '+decoding.encoding+' ile okundu'+(decoding.repaired?' · otomatik metin onarımı uygulandı':'')+'. Ses üretmeden önce harfleri kontrol et. Kaynak dosya değiştirilmedi.'):'';
     for(const id of ['dubSrtName','dubGeneratedName','dubVoiceName']){const node=el(id);if(node)node.title=node.textContent;}
     const notice=el('dubInputNotice');
     if(notice){const partial=/\.partial\.srt$/i.test(srt);notice.hidden=!partial;notice.textContent=partial?(window.UiLocale?.get?.()==='en'?'This is a partial translation. Untranslated lines may be read in their original language; complete the translation for consistent dubbing.':'Bu kısmi bir çeviri. Çevrilmeyen satırlar özgün dilinde okunabilir; tutarlı dublaj için önce çeviriyi tamamlayın.'):'';}

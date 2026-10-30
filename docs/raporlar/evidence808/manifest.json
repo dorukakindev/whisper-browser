@@ -1,0 +1,12 @@
+[
+  {
+    "file": "tr-source-decoding.png",
+    "sha256": "ed859dc8628dc7d5e9fe4dd6bd66dd645421c1cae78a2babaf525bb3dfba8abd",
+    "source": "isolated Windows native UI, synthetic plan transport; real encoding bytes verified separately in Python"
+  },
+  {
+    "file": "en-source-decoding.png",
+    "sha256": "1024fe0a1f1c7a43b10a07f8a40166e65e921a38b8ede22a3109d151be8ba281",
+    "source": "isolated Windows native UI, synthetic plan transport; real encoding bytes verified separately in Python"
+  }
+]

@@ -89,6 +89,7 @@ const TR_NUMBER_SUFFIX = "(?:['’]?(?:"
   + '|[ıiuü]?m[ıiuü]z(?:[ıiuü]n?|[dt][ae]n?|[ea]|[ıiuü])?'
   + '|[ıiuü]?n[ıiuü]z(?:[ıiuü]n?|[dt][ae]n?|[ea])?'
   + '|s[ıiuü](?:n[ıiuü]n?|n[ae]|nd[ae]n?|n[ıiuü])?'
+  + '|[dt][ıiuü](?:r|m|n|k|n[ıiuü]z|l[ae]r)?'
   + '|y[ıiuü]|y[ae]|y[ıiuü]n'
   + '|[ıiuü](?:n[ıiuü]n?|n[ae]|nd[ae]n?)?|[dt][ae]n?|[ea]|[ıiuü]n'
   + '))?';
@@ -119,12 +120,13 @@ function turkishContinuationChangesValue(previousWord, nextWord) {
   if (a === undefined || b === undefined) return false;
   return b < a;
 }
-function turkishNumberPhraseMatch(text, phrase) {
+function turkishNumberPhraseMatch(text, phrase, allowNegative = true) {
   const value = String(text || '');
   const pattern = turkishNumberPhrasePattern(phrase);
   const lastWord = String(phrase || '').split(/\s+/u).filter(Boolean).at(-1) || '';
   let match;
   while ((match = pattern.exec(value)) !== null) {
+    if(!allowNegative&&/(?<!\p{L})(?:eksi|minus)\s*$/iu.test(value.slice(Math.max(0,match.index-24),match.index)))continue;
     const following = value.slice(pattern.lastIndex).match(/^\s+(\p{L}+)/u);
     const bare = match[0].toLocaleLowerCase('tr').endsWith(lastWord.toLocaleLowerCase('tr'));
     if (following && bare && turkishContinuationChangesValue(lastWord, following[1])) continue;
@@ -208,7 +210,7 @@ function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
   const sourceNumbers = numberTokens(sourceForNumbers);
   const translatedNumbers = numberTokens(targetForNumbers);
   const scaledNumbers = turkishTarget ? [...targetForNumbers.matchAll(/(?<![\d-])(-?\d+(?:[.,]\d+)?)\s+(bin|milyon|milyar)(?!\p{L})/giu)]
-    .map((match) => Number(match[1].replace(',', '.')) * { bin: 1000, milyon: 1000000, milyar: 1000000000 }[match[2].toLocaleLowerCase('tr')]) : [];
+    .map((match) => {const value=Number(match[1].replace(',', '.')) * { bin: 1000, milyon: 1000000, milyar: 1000000000 }[match[2].toLocaleLowerCase('tr')];return /(?<!\p{L})(?:eksi|minus)\s*$/iu.test(targetForNumbers.slice(Math.max(0,match.index-24),match.index))?-Math.abs(value):value;}) : [];
   // Saat olarak eşlenen sözcükler ikinci kez başka bir kaynak sayıyı
   // karşılamasın: Python tarafı gibi kalan (saat çıkarılmış) metinde ara.
   let normalizedTranslation = normalizeText(targetForNumbers).toLocaleLowerCase('tr');
@@ -224,7 +226,7 @@ function translationMeaningIssues(source, translated, targetLanguage = 'tr') {
     const phrase = [token.endsWith('%') ? 'yüzde' : '', token.startsWith('-') ? 'eksi' : '', words].filter(Boolean).join(' ');
     // "kırk beş" bileşik sayısında 'kırk' tek başına 40 sayılmaz; "iki üç gün"
     // gibi yaklaşık aralıkta ise iki ayrı sayı vardır (turkishNumberPhraseMatch).
-    const found = turkishNumberPhraseMatch(normalizedTranslation, phrase);
+    const found = turkishNumberPhraseMatch(normalizedTranslation, phrase, token.startsWith('-'));
     if (!found) return true;
     normalizedTranslation = `${normalizedTranslation.slice(0,found.index)} ${normalizedTranslation.slice(found.end)}`;
     return false;
@@ -260,6 +262,13 @@ function markupPreserved(source, translated) {
 }
 function translationBlockingIssues(source, translated, targetLanguage = 'tr') {
   const issues=translationMeaningIssues(source, translated, targetLanguage).filter(issue => issue === 'number_mismatch' || issue === 'negation_missing' || issue === 'negation_added' || issue === 'modal_weakened' || issue === 'modal_certainty_flip');
+  const original=numberTokens(source),target=numberTokens(translated),lang=String(targetLanguage).split('-')[0];
+  if(['en','tr'].includes(lang)&&original.length===1){
+    const base=original[0].replace(/%$/u,''),value=Number(base),words=Number.isInteger(Math.abs(value))?turkishIntegerWords(Math.abs(value)):'';
+    const same=target.length===1&&target[0].replace(/%$/u,'')===base||!target.length&&lang==='tr'&&words&&turkishNumberPhraseMatch(String(translated).toLocaleLowerCase('tr'),[value<0?'eksi':'',words].filter(Boolean).join(' '),value<0);
+    const percent=text=>/%|(?<!\p{L})(?:percent|per\s+cent|yüzde|yuzde)(?!\p{L})/iu.test(text);
+    if(same&&percent(source)!==percent(translated)&&!/(?<!\p{L})(?:convert\p{L}*|equivalent|fraction|decimal|dönüş\p{L}*|çevril\p{L}*|kesir|ondalık)(?!\p{L})/iu.test(source+' '+translated))issues.push('percentage_mismatch');
+  }
   if (!markupPreserved(source,translated)) issues.push('markup_mismatch');
   return issues;
 }

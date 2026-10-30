@@ -31,6 +31,7 @@ class SourceCues(list):
     def __init__(self):
         super().__init__()
         self.source_ids = []
+        self.source_decoding = None
 
 
 def speech_body(body):
@@ -65,10 +66,12 @@ def parse_srt(path, source_bytes=None, skipped=None):
     data = read_source_bytes(path) if source_bytes is None else source_bytes
     if len(data) > MAX_SOURCE_BYTES:
         raise ValueError('SRT cok buyuk.')
-    text = decode_subtitle_bytes(data)[0].replace("\r\n", "\n").replace("\r", "\n")
+    text, encoding, repaired = decode_subtitle_bytes(data)
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
     # SRT separators may contain spaces/tabs from subtitle editors.
     text = re.sub(r'(?m)^[ \t]+$', '', text)
     cues = SourceCues()
+    cues.source_decoding={'encoding':'utf-8' if encoding=='utf-8-sig' else 'latin-1' if encoding.startswith('latin-1') else encoding, 'repaired':bool(repaired)}
     source_ordinal = 0
     timings = list(TIME_RE.finditer(text))
     valid_starts = {match.start() for match in timings}
@@ -194,14 +197,15 @@ def plan(path, start=None, end=None, grouping='cumle'):
     source = Path(path)
     source_bytes = read_source_bytes(source)
     skipped = []
-    groups = make_groups(parse_srt(source, source_bytes, skipped), start, end, **grouping_options(grouping))
+    cues=parse_srt(source, source_bytes, skipped)
+    groups = make_groups(cues, start, end, **grouping_options(grouping))
     if not groups or len(groups) > 5000:
         raise ValueError('SRT grup sayisi gecersiz.')
     for g in groups:
         g['key'] = ','.join(map(str, g['source_ids']))
         g['seconds'] = (g['end'] - g['start']) / 1000
     return {'sourceHash': hashlib.sha256(source_bytes).hexdigest(), 'groups': groups,
-            'skipped': len(skipped)}
+            'skipped': len(skipped), 'sourceDecoding': cues.source_decoding}
 
 if __name__ == '__main__':
     import argparse
