@@ -1,0 +1,1637 @@
+{
+  "head": "6a789329d96c4f97cdc17bd9518df0b540b13444",
+  "sourceSha256": {
+    "src/assistant-mcp-bridge.js": "cb659b058890e3ac02e2e58302aefb910d8ab318ab2e7836ebe622d65d375e7c",
+    "tools/whisper-mcp.cjs": "9c5bc939f93b4647fa5b173461c6ee5513b9bcbfc69599cf5667ff000ed98638",
+    "src/assistant-guide.js": "7551952730ccdae751258f67da120ebcf2c82b39d4e6b0caeb121ea2608597a2",
+    "src/assistant-retrieval.js": "ceb1aa7e2b81e5f369e5976f8c17c1cb0fddb8f3655891250e0f952dc67cf0d8",
+    "src/browser-workflow-recorder.js": "5ced29a76b6fb8be754707656bcc5ec4e17fa45aa4fc217c9ce9743116f57d9d",
+    "src/browser-automation-rules.js": "571319b9334ccd2f41e16ae1204e98ed67773d09333ea03ceef7b4d6eada7965",
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+    "src/renderer/renderer.js": "4853b2fe48da6a383e2438895c747a0ba79820eb58470da5ac66de476f8b66d6",
+    "src/renderer/renderer-helpers.js": "f07116b7d1cdafa1398a2f42511914ef86991d0f88ff436bdcd29a49036ccb53",
+    "src/browser-subtitles.js": "7fce97cf5df6216a158fa50c3e6ba8c0e9f62f79970436bfe8d6b05d91a2cbad"
+  },
+  "prior118": [
+    {
+      "id": "R815-B01",
+      "title": "Kayıtlı PDF yazı boyutu açılışta sıfırlanıyor"
+    },
+    {
+      "id": "R815-B02",
+      "title": "PDF çevirisinin hedef dili paketler arasında değişiyor"
+    },
+    {
+      "id": "R815-B03",
+      "title": "PDF proje importu beklenirken değişen seçim eski projeyi açıyor"
+    },
+    {
+      "id": "R815-B04",
+      "title": "Büyük harfli video uzantısı gömme işinin kurtarma kaydını geçersiz kılıyor"
+    },
+    {
+      "id": "R815-B05",
+      "title": "Kitap projesi yedeği yer imlerini geri yüklemiyor"
+    },
+    {
+      "id": "R815-B06",
+      "title": "Kitap yedeği 1000 üzerindeki konuşma gruplarını sessiz kesiyor"
+    },
+    {
+      "id": "R815-B07",
+      "title": "Kaydedilebilen uzun kitap bölümü başarıyla yedekleniyor ama geri yüklenemiyor"
+    },
+    {
+      "id": "R815-B08",
+      "title": "Model yöneticisi güncel HF_HUB_CACHE yolunu görmüyor"
+    },
+    {
+      "id": "R815-B09",
+      "title": "Bozuk okuma listesi indeksi sonraki kayıtta sessizce üzerine yazılıyor"
+    },
+    {
+      "id": "R815-B10",
+      "title": "Yeni bölüm sesi seçilince eski M4B hâlâ güncel sayılıyor"
+    },
+    {
+      "id": "R815-B11",
+      "title": "Browser tablist içinde tab olmayan etkileşimli düğmeler bulunuyor"
+    },
+    {
+      "id": "R815-B12",
+      "title": "Browser araç menüsünün ARIA menu rolü içindeki kontrollerle uyuşmuyor"
+    },
+    {
+      "id": "R815-B13",
+      "title": "Oynatma merkezindeki altyazı araması senkron gecikmesini yok sayarak seek yapıyor"
+    },
+    {
+      "id": "R815-B14",
+      "title": "MKV içindeki TTC font koleksiyonları font çıkarımında atlanıyor"
+    },
+    {
+      "id": "R815-B15",
+      "title": "HTTPS ağ medyası HTTP/RTSP yolundaki native oynatıcı geçişini atlıyor"
+    },
+    {
+      "id": "R815-B16",
+      "title": "WMV/WMA kaynakta altyazı gömme MP4e uyumsuz ses kopyalıyor"
+    },
+    {
+      "id": "R815-B17",
+      "title": "Arşivlenmiş projelerle geçerli kitap yedeği 100 proje sınırında geri yüklenemiyor"
+    },
+    {
+      "id": "R815-B18",
+      "title": "PDF/MHTML dışa aktarımı kayıt diyaloğu sırasında belge değişimini doğrulamıyor"
+    },
+    {
+      "id": "R815-B19",
+      "title": "Çevrimdışı kopya yenilemesindeki kısmi yazma son sağlam MHTML kopyasını bozuyor"
+    },
+    {
+      "id": "R815-B20",
+      "title": "Kilitli çevrimdışı kopyanın silinmesi başarı gösterip özel MHTML dosyasını diskte bırakıyor"
+    },
+    {
+      "id": "R815-B21",
+      "title": "Bekleyen çevrimdışı yenileme, kullanıcı tarafından kaldırılan kaydı yeniden diriltiyor"
+    },
+    {
+      "id": "R815-B22",
+      "title": "Tam sayfa yakalama uzun sayfaları sessizce 30.000 CSS piksele kesiyor"
+    },
+    {
+      "id": "R815-B23",
+      "title": "Eşzamanlı video yakalamaları kontrol çubuğunu kalıcı gizli bırakıyor"
+    },
+    {
+      "id": "R815-B24",
+      "title": "Kısmen ekran dışında kalan videonun temiz karesine komşu sayfa içeriği ekleniyor"
+    },
+    {
+      "id": "R815-B25",
+      "title": "Başarısız atlama aralığı yazımı bellekte uygulanıyor ve sonraki kayıtta diske sızıyor"
+    },
+    {
+      "id": "R815-B26",
+      "title": "Ana belgedeki değişmiş checkbox ve geçerli contenteditable taslakları kapatma/boşaltmada korunmuyor"
+    },
+    {
+      "id": "R815-B27",
+      "title": "Iframe ve shadow DOM içindeki kaydedilmemiş form/taslaklar güvenli boşaltma taramasına girmiyor"
+    },
+    {
+      "id": "R815-B28",
+      "title": "Videonun sağtık menüsündeki Döngü/Oynat eylemi sağtıklanan medya yerine en büyük medyaya gidiyor"
+    },
+    {
+      "id": "R815-B29",
+      "title": "Dışa aktarma uzantı ekleyince kullanıcı tarafından seçilmemiş mevcut hedefin üzerine yazabiliyor"
+    },
+    {
+      "id": "R815-B30",
+      "title": "Sekme kapanışında ilk form kontrolünden sonra capture drain beklerken yazılan taslak son kontrolden geçmiyor"
+    },
+    {
+      "id": "R815-B31",
+      "title": "Harici oynatıcı native başlatma hatası yutulurken API başarı döndürüyor"
+    },
+    {
+      "id": "R815-B32",
+      "title": "Kalıcı anlamsal worker düzeltmesi caller her istekte yeni factory kurduğu için tekrar model süreci yaratıyor"
+    },
+    {
+      "id": "R815-B33",
+      "title": "Başka hedef dilde çeviri önceki çift dilli dosyayı eziyor"
+    },
+    {
+      "id": "R815-B34",
+      "title": "Auto kaynakta Türkçe açılış, kalan İngilizce konuşmayı çevrilmiş gibi tamamlıyor"
+    },
+    {
+      "id": "R815-B35",
+      "title": "ASS vektör çizim koordinatları gerçek çeviri girdisi oluyor"
+    },
+    {
+      "id": "R815-B36",
+      "title": "SRT gövdesindeki zaman aralığı dublajda hayalet cue ve kimlik kayması üretiyor"
+    },
+    {
+      "id": "R815-B37",
+      "title": "ASR'de yalın özel ad değişimi passed/ready kalıyor"
+    },
+    {
+      "id": "R815-B38",
+      "title": "Aynı sayıların kişiler arasında takası ASR miktar kapısından geçiyor"
+    },
+    {
+      "id": "R815-B39",
+      "title": "Literal WebVTT etiketi yeniden dışa aktarımda gerçek stile dönüşüyor"
+    },
+    {
+      "id": "R815-B40",
+      "title": "WebVTT inline zaman etiketi çeviriye konuşma, çıktıya görünen metin olarak taşınıyor"
+    },
+    {
+      "id": "R815-B41",
+      "title": "Kullanıcı sahne notu değişince eski çeviri fuzzy hafızadan geri geliyor"
+    },
+    {
+      "id": "R815-B42",
+      "title": "Checkpoint'ten devamda korunmuş eski cue'lar konuşmacı kimliğini kaybediyor"
+    },
+    {
+      "id": "R815-B43",
+      "title": "Kişisel puan 10'luk ve 5'lik ölçeklerde farklı yorumlanıyor"
+    },
+    {
+      "id": "R815-B44",
+      "title": "Kapatılan Keşfet ayrıntısı, geç gelen ekleme yanıtıyla kütüphaneyi açıyor"
+    },
+    {
+      "id": "R815-B45",
+      "title": "Keşfet Tercihlerindeki yapım türü filtresi çalışmıyor"
+    },
+    {
+      "id": "R815-B46",
+      "title": "Bu akşam bölümünün geç oynatma yanıtı yeni açılan başka pencereyi kapatıyor"
+    },
+    {
+      "id": "R815-B47",
+      "title": "Sohbet silme onayı başka sohbete yönleniyor"
+    },
+    {
+      "id": "R815-B48",
+      "title": "Ana süreç doğrulama eki uygulamanın JSON yorum analizi akışını bozuyor"
+    },
+    {
+      "id": "R815-B49",
+      "title": "Sabitlenen notlar ilgisiz normal web sayfaları arasında karışıyor"
+    },
+    {
+      "id": "R815-B50",
+      "title": "Onaylanan altyazı işlemi yeni izin aynı konumsal U kimliğine kayıyor"
+    },
+    {
+      "id": "R815-B51",
+      "title": "Zevk tercihlerini kaydetme yanıtı daha yeni taslağı siliyor"
+    },
+    {
+      "id": "R815-B52",
+      "title": "Keşfet tercih hatası etkin ayrıntı penceresinin dışında gösteriliyor"
+    },
+    {
+      "id": "R815-B53",
+      "title": "Yerel kayıtlı Keşfet tercihi çevrimdışıyken geri alınamıyor"
+    },
+    {
+      "id": "R815-B54",
+      "title": "Önceki kitabın geciken açılışı son kitap seçiminin üzerine geliyor"
+    },
+    {
+      "id": "R815-B55",
+      "title": "Video paketinin geri yüklenmesi çıkarılan videoyu kataloğa bağlamıyor"
+    },
+    {
+      "id": "R815-B56",
+      "title": "POSIX kaynak kökü taşıma sihirbazında baştaki ayıracını kaybediyor ve seçilen eşleme uygulanmıyor"
+    },
+    {
+      "id": "R815-B57",
+      "title": "Bozuk kaynak katalog otomatik yedeklemede başarı sayılıyor ve son sağlam yedek budanıyor"
+    },
+    {
+      "id": "R815-B58",
+      "title": "Çalışma paketi yalnız önizlenirken paket içindeki doğrulanmamış UNC yoluna dosya varlık sorgusu gönderiliyor"
+    },
+    {
+      "id": "R815-B59",
+      "title": "Var olan hosta sonradan eklenen açık shadow root içindeki video keşfedilmiyor"
+    },
+    {
+      "id": "R815-B60",
+      "title": "CSS visibility:hidden büyük video görünür oynatıcıdan önce seçiliyor"
+    },
+    {
+      "id": "R815-B61",
+      "title": "Aynı belgede oynatıcı değişince eski docToken yeni medya üzerinde komuta izin veriyor"
+    },
+    {
+      "id": "R815-B62",
+      "title": "Dublaj hız geçersiz kılma kaydı aynı video elementinin yeni kaynağına taşınıyor"
+    },
+    {
+      "id": "R815-B63",
+      "title": "Normalizasyon kurulmuş medya CORS izinsiz kaynağa geçince normal oynarken sessiz kalıyor"
+    },
+    {
+      "id": "R815-B64",
+      "title": "Çapraz-origin karelerin bağlantı etiketleri aynı kısayolu kullanıyor ve seçimden sonra diğer katman kalıyor"
+    },
+    {
+      "id": "R815-B65",
+      "title": "Genel web akışlarının altyazı tercihi stream kimliğini kaybedip aynı sayfanın başka videosuyla birleşiyor"
+    },
+    {
+      "id": "R815-B66",
+      "title": "Geçerli WebVTT cue gövdesindeki NOTE/STYLE/REGION konuşması siliniyor"
+    },
+    {
+      "id": "R815-B67",
+      "title": "Altyazı referans hizalamasında örtüşen cue katmanları güven puanını şişiriyor"
+    },
+    {
+      "id": "R815-B68",
+      "title": "Doğru milyar değerleri ASR doğrulamasında sayı kaybı/ekleme diye reddediliyor"
+    },
+    {
+      "id": "R815-B69",
+      "title": "Senkron işi ortak iptal/geçici dosya yaşam döngüsüne katılmadığı için ses kalıntısı bırakıyor"
+    },
+    {
+      "id": "R815-B70",
+      "title": "Dizi kanon hafızası sonradan oluşunca exact çeviri cache eski terminolojiyi geri getiriyor"
+    },
+    {
+      "id": "R815-B71",
+      "title": "Yorum isteği kimlik çözümlemesindeyken verilen durdurma kayboluyor"
+    },
+    {
+      "id": "R815-B72",
+      "title": "IMDb eşleşmesi değişmiş eski yorum analizi yeni kimliğe kaydedilip güncel gösteriliyor"
+    },
+    {
+      "id": "R815-B73",
+      "title": "Yapım yüklenirken dil değişimi eski başlığı gösterip yeni kaydı değiştiriyor"
+    },
+    {
+      "id": "R815-B74",
+      "title": "Sürekli gelen asistan metni ara kayda yazılmıyor, kapanışta bütünüyle kaybolabiliyor"
+    },
+    {
+      "id": "R815-B75",
+      "title": "Açık olumsuz watchlist isteği doğrudan ekleme işlemi yapıyor"
+    },
+    {
+      "id": "R815-B76",
+      "title": "Geçerli Türkçe TMDB türü Sana özel önerilerde yok sayılıyor"
+    },
+    {
+      "id": "R815-B77",
+      "title": "Native duraklatma başarısızken asistan tamamlandı ve durakladı bildiriyor"
+    },
+    {
+      "id": "R815-B78",
+      "title": "Geçerli SSE Content-Type harf değişimi sağlayıcı yanıtını bozuyor"
+    },
+    {
+      "id": "R815-B79",
+      "title": "Model durumu ve silme onayı başka depoyu gösterirken ilk yarım depo siliniyor"
+    },
+    {
+      "id": "R815-B80",
+      "title": "Model silme onayı beklenirken başlayan işten sonra busy koruması yeniden denetlenmiyor"
+    },
+    {
+      "id": "R815-B81",
+      "title": "Tek mükerrer kayıt onarımı seçilse de seçilmeyen başka kimliklerin kayıtları da siliniyor"
+    },
+    {
+      "id": "R815-B82",
+      "title": "Şeması geçersiz JSON yedeği sağlam sayılıp geri yükleniyor ve katalog hâlâ açılmazken sağlık temiz görünüyor"
+    },
+    {
+      "id": "R815-B83",
+      "title": "Altyazı varlık kaydı dikey yazım/sunum bilgisini kaybediyor"
+    },
+    {
+      "id": "R815-B84",
+      "title": "Tarayıcı oturum paketi seslendirme çevirisinin forSpeech ve protokol bilgisini siliyor"
+    },
+    {
+      "id": "R815-B85",
+      "title": "DASH Representation SegmentTemplate üst şablon niteliklerini devralmıyor"
+    },
+    {
+      "id": "R815-B86",
+      "title": "Geçerli XML namespace önekli DASH MPD altyazısı keşfedilmiyor"
+    },
+    {
+      "id": "R815-B87",
+      "title": "TTML çocuk altyazısı üst zaman kapsayıcısının bitişinde kesilmiyor"
+    },
+    {
+      "id": "R815-B88",
+      "title": "TTML statik metinle karışık zamanlı span tüm paragraf boyunca erken gösteriliyor"
+    },
+    {
+      "id": "R815-B89",
+      "title": "Geçerli TTML sequential ve örtük başlangıçlı paragraflar tamamen düşüyor"
+    },
+    {
+      "id": "R815-B90",
+      "title": "İçerik adresli altyazı varlığı geçerli JSON içeriği bozulunca hashini doğrulamadan kabul ediyor"
+    },
+    {
+      "id": "R815-B91",
+      "title": "Yalnız noktalama düzeltmesi kaynak olumsuzluğunu tersine çeviren yanıtı başarılı sayıyor"
+    },
+    {
+      "id": "R815-B92",
+      "title": "Bir veya iki kelimelik kaynakta LLM büyüklük koruması devre dışı kalıyor"
+    },
+    {
+      "id": "R815-B93",
+      "title": "LLM temizlemede kalıcı401 hatasından sonra kuyruktaki her paket sağlayıcıya gönderiliyor"
+    },
+    {
+      "id": "R815-B94",
+      "title": "Adaptive indirme başarısız yeniden denemede önceki sağlam video dosyasını siliyor"
+    },
+    {
+      "id": "R815-B95",
+      "title": "YouTube ses dilini değiştirmek aynı videoID dosyasından eski dildeki sesi geri kullanıyor"
+    },
+    {
+      "id": "R815-B96",
+      "title": "LLM temizleme açık length bitişini yok sayıp kesik metni final SRTye yazıyor"
+    },
+    {
+      "id": "R815-B97",
+      "title": "Araştırma güvenlik kontrolü özel adrese yönlendirme yüklendikten sonra çalışıyor"
+    },
+    {
+      "id": "R815-B98",
+      "title": "Araştırma kaynak bütçesi dolunca yeni W1 metni eski W1 kaynak listesine bağlanıyor"
+    },
+    {
+      "id": "R815-B99",
+      "title": "Sonuçla devam et önceki atıfları ve işlem günlüğünü kalıcı kayıttan kaldırıyor"
+    },
+    {
+      "id": "R815-B100",
+      "title": "Korece kitap araması normalleştirilmiş ofsetle özgün metni kesip boş kanıt döndürüyor"
+    },
+    {
+      "id": "R815-B101",
+      "title": "Başarısız ayar değişimi geri alınsa da önceki geçerli Geri al kaydı siliniyor"
+    },
+    {
+      "id": "R815-B102",
+      "title": "Tümünü tekrarla döngüsü biten parçayı eski devam konumundan başlatıyor"
+    },
+    {
+      "id": "R815-B103",
+      "title": "Eski ses oynatıcısını kapatma yanıtı sonradan başlayan yeni parçayı siliyor"
+    },
+    {
+      "id": "R815-B104",
+      "title": "Windows dağıtım filtresi yerel sır, profil, günlük ve medyayı pakete alıyor"
+    },
+    {
+      "id": "R815-B105",
+      "title": "Paketleyici kilit dosyasını atlıyor; paket içindeki install.bat ön kontrolü çalışamıyor"
+    },
+    {
+      "id": "R815-B106",
+      "title": "Başarısız torrent dosya seçimi mevcut job nesnesine ve sonra diske sızıyor"
+    },
+    {
+      "id": "R815-B107",
+      "title": "Aynı torrentte eşzamanlı iki dosya seçimi bir seçimi kaybediyor"
+    },
+    {
+      "id": "R815-B108",
+      "title": "Bekleyen torrent motor başlangıcı close/quit sonrasında yeni süreç başlatabiliyor"
+    },
+    {
+      "id": "R815-B109",
+      "title": "Native kare çözülürken video değişirse eski kare yeni videonun altyazısı ve adıyla kaydediliyor"
+    },
+    {
+      "id": "R815-B110",
+      "title": "501 kanallı içe aktarma başarılı görünürken son kanal kalıcı kayıttan düşüyor"
+    },
+    {
+      "id": "R815-B111",
+      "title": "Kanal ekle kutusu geçerli Türkçe handle’ı çıplak biçimde reddediyor"
+    },
+    {
+      "id": "R815-B112",
+      "title": "YouTube handle kimliği harf büyüklüğüne göre iki ayrı abonelik sayılıyor"
+    },
+    {
+      "id": "R815-B113",
+      "title": "Yerel aboneliklerde Yenile komutu beş dakikalık önbelleği aşamıyor"
+    },
+    {
+      "id": "R815-B114",
+      "title": "RSS kaynağındaki tüm istekler başarısızken kullanıcıya boş akış gösterilip başarı önbelleği yazılıyor"
+    },
+    {
+      "id": "R815-B115",
+      "title": "Atom xml:base ile tanımlanan göreli medya bağlantıları içe alınamıyor"
+    },
+    {
+      "id": "R815-B116",
+      "title": "Podcast yenilemesi aynı GUID için değişen medya adresinde dinleme konumunu siliyor"
+    },
+    {
+      "id": "R815-B117",
+      "title": "EPUB içindeki normal hidden öğeler okuyucuda görünür metne dönüştürülüyor"
+    },
+    {
+      "id": "R815-B118",
+      "title": "Boştaki Spotify içe aktarma penceresini kapatmak kayıtlı parçanın hazırlanmasını iptal ediyor"
+    }
+  ],
+  "findings": [
+    {
+      "id": "WF-AUTO-01",
+      "severity": "P2",
+      "title": "Otomasyon kaynak ve oturum karakter bütçesini gerçek altyazı metninden ölçmüyor",
+      "sources": [
+        "src/main.js:9834–9886 persistBrowserTrack",
+        "src/main.js:9984–10050 publishBrowserTrackNow",
+        "src/renderer/renderer.js:10408–10444 browserSubtitleAutomationInput/handleBrowserSubtitleAutomation",
+        "src/browser-automation-rules.js:44–57"
+      ],
+      "reproduce": "node .tmp/next815-workflows/probe.cjs. Gerçek normalizeCues ve publisher/persist ile 401 cue/200001 karakter kaynak yayınla; gerçek renderer input/decision uygula. Ardından iki ayrı medya için380 cue/190000 karakter kaynak yayınlayıp gerçek automation handler çalıştır.",
+      "expected": "200000 üzeri gerçek kaynak karakteri kullanıcı onayına geçer. Başlatılabilir iki190000karakter işin ikincisi300000 oturum karakter bütçesinde engellenir.",
+      "observed": "200001gerçek karakter32080olarak sayılır ve eligible. İki190000karakter kaynak için iki useBrowserTrack başlatması, toplam380000karakter; browserAutomationLiveCharacters0kalır. Doğru gerçek karakter değerleri verilen aynı karar modülü sırasıyla blocked_by_limit döner.",
+      "cause": "Publisher/persist track üzerinde characterCount ve appendedCharacters üretmiyor. Renderer sourceCharacters için cueCount*80 tahmini, newCharacters için0kullanıyor; bütçe handlerı yalnız bu0değerini topluyor. Bu alanların başka üreticisi repo src taramasında yok. Kaynak ve kümülatif bütçe aynı eksik karakter muhasebesinin iki yüzüdür; tek kök sayıldı.",
+      "impact": "Otomatik altyazı çevirisi açık sitelerde açık harcama/onay sınırları aşılabilir; uzun kaynaklar kullanıcı onayı gerektirmeden işbaşlatma yoluna ulaşır.",
+      "prior": "R815 önceki118eşleme içinde aynı kök yok. Night1000F11/F19kaynak/scheduler/kuyruk aileleri yakın; gerçek publisher→renderer bütçe metadata zinciri yok. R46claim/Tur4Y-NEW-1claim başarısızlığı, R46-74/Tur4O-NEW-9iptal kapısı kökleri yeniden sayılmadı.",
+      "limits": "Gerçek kaynak fonksiyonlarıVM içinde aynen çalıştırıldı; kalıcı varlık store, dosya yazıcı, indeks, IPC ve useBrowserTrack bağımlılıkları kontrollü facade. Gerçek normalizeCues kullanıldı ve karakter sayıları normalize edilmiş cueIdentities üzerinden toplandı. Gerçek sağlayıcı çağrısı, harcanan para veya tüm altyazı siteleri kanıtı değildir. Onay kapısının otomatik başlatma sınırı kanıtlandı. Başlatmanın ayrık mediaId kullanmasıyla gate normal dedup davranışı korunur.",
+      "acceptance": "Gerçek kaynak uzunluğu ve ilk/yeni karakter artışı metadata/renderer boyunca tutarlı sayılmalı;200001kaynak bloke, iki190000işin ikincisi bloke; aynı kaynağın tekrarı/önbellek durumu çift sayılmamalı.",
+      "sourceSha256": {
+        "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+        "src/renderer/renderer.js": "4853b2fe48da6a383e2438895c747a0ba79820eb58470da5ac66de476f8b66d6",
+        "src/browser-automation-rules.js": "571319b9334ccd2f41e16ae1204e98ed67773d09333ea03ceef7b4d6eada7965",
+        "src/browser-subtitles.js": "7fce97cf5df6216a158fa50c3e6ba8c0e9f62f79970436bfe8d6b05d91a2cbad"
+      }
+    },
+    {
+      "id": "WF-MCP-02",
+      "severity": "P2",
+      "title": "MCP köprüsü HTTP parçası sınırında Unicode JSON-RPC istek kimliğini bozuyor",
+      "sources": [
+        "src/assistant-mcp-bridge.js:24 HTTP gövdesi data+=chunk",
+        "tools/whisper-mcp.cjs:9 yanıt kimliğini değiştirmeden stdout aktarımı"
+      ],
+      "reproduce": "Aynı probe gerçek createBridge sunucusunu127.0.0.1ephemeralportunda başlatır. tools/call get_jobs isteğinin fixture-ş-id string kimliğindeki ş UTF-8 baytlarını iki HTTP Buffer arasında40msayırır.",
+      "expected": "Geçerli UTF-8 JSON isteği HTTP parçalanmasından bağımsız aynı string id ile eşleşir; sonuç id fixture-ş-id kalır.",
+      "observed": "HTTP200başarılı result var; response.id fixture-��-id. Aynı gövde tek Bufferda fixture-ş-id, ASCIIiki Bufferda ascii-id korunur; yanlış token ve Origin403reddedilir.",
+      "cause": "Bufferların her biri data+=chunk ile bağımsız UTF-8 stringe dönüşür. İki parçaya bölünmüş karakter için streaming decoder veya Buffer.concat yok; her eksik parça replacement karakterine dönüşür. Adapter fetch yanıtını JSON.stringifyile aynen geçirir; kimlik eşleşmesi düzeltilmez.",
+      "impact": "Unicode string id kullanan MCP istemcisi yanıtı bekleyen isteğe bağlayamaz; geçerli saltokuma araç isteği cevabı kayıp/timeout gibi görünür. Rehber sorgusunun Unicode karakterleri de aynı gövde okumasından geçer.",
+      "prior": "R815 önceki118eşleme içinde MCP taşıma kökü yok. R798MCP kimlik/auth/Origin/read-only ve Node stdio kabulü ASCIIid/single-body yolunu kanıtlıyordu; bölünmüş UTF-8 değil. Night1000F48/F49en yakın payload/NDJSON aileleridir; yeniMCPbridge o kaynak senaryolarında kayıtlı değil.",
+      "limits": "Gerçek HTTPserver/bridge ve localhostkullanıldı; getJobs/getTabs kontrollü boş fixture. Gerçek dışMCPistemcisi veya stdioadapter çalıştırılmadı; adapter tüketici ilişkisi koddan incelendi. Ağın doğal olarak bu parçalamayı ne sıklıkta oluşturduğu ölçülmedi. Tüm istemciler Unicode id üretir iddiası yok.",
+      "acceptance": "UTF-8kod noktası her olasıbaytsınırında bölündüğünde JSONRPCidve sorgu aynen korunmalı; mevcut65536bayt,Originveauthretleri korunmalı.",
+      "sourceSha256": {
+        "src/assistant-mcp-bridge.js": "cb659b058890e3ac02e2e58302aefb910d8ab318ab2e7836ebe622d65d375e7c",
+        "tools/whisper-mcp.cjs": "9c5bc939f93b4647fa5b173461c6ee5513b9bcbfc69599cf5667ff000ed98638"
+      }
+    }
+  ],
+  "coverage": [
+    {
+      "finding": "WF-AUTO-01",
+      "previousID": [
+        "N0201",
+        "N0202",
+        "N0203",
+        "N0204",
+        "N0205",
+        "N0206",
+        "N0207",
+        "N0208",
+        "N0209",
+        "N0210",
+        "N0211",
+        "N0212",
+        "N0213",
+        "N0214",
+        "N0215",
+        "N0216",
+        "N0217",
+        "N0218",
+        "N0219",
+        "N0220",
+        "N0361",
+        "N0362",
+        "N0363",
+        "N0364",
+        "N0365",
+        "N0366",
+        "N0367",
+        "N0368",
+        "N0369",
+        "N0370",
+        "N0371",
+        "N0372",
+        "N0373",
+        "N0374",
+        "N0375",
+        "N0376",
+        "N0377",
+        "N0378",
+        "N0379",
+        "N0380"
+      ],
+      "signature": [
+        "176cc846a54fca39272f253d92929ab5263b86c96cff141bf449ff2efeffd711",
+        "dc874db7fae5059ae175a1fc2295a5528966deb4c4674c45fad06e9bd05ba80f",
+        "125a41bfb37114ac0bae9ca903f9046fab8a4bb57044e50d49577178eda64a23",
+        "62d57cb25c1762f93a1d78b50e71c453ea5372da0f4c11c5280c37800087f0bb",
+        "69980364e7d634c346435fa72166c72e7470bbffb61973fd7799ed397fcbba07",
+        "e0760e9445405c5be3fef7bfa302c3387c05e2c0c0e05c26dfcec7d39697a9ed",
+        "a8b7866bf60ff540773d18b0303fa158044dd1574adc485d51e7ab8e996c2c34",
+        "b08bda9a4811f999a7c993ee43dc1775962ab2373c5739c2923c6daaab795100",
+        "ac0580f2141e50ccf14f11ad8df890d7d8716d69fab69cd3e5d9fca0dff41ffe",
+        "a7853330a99ea26d8a1f7927705a12e97d74d35cf50591676b2a6ccd871d1d63",
+        "d1c68d9717ab2413e0734416e17f30e8524f8f26c8924ab2ba5b41ac2b90bdab",
+        "4e40cbbb4ee1a96cb8d0f58f71e7d58a49b955b67125f110a8925838a88c2e1e",
+        "0309564c6b5b496f6fcefea12adcb74e64480f0cb161f48468d53c24de041277",
+        "2f2ecf358118f171cdecf842c60b6479cd278e09d8bca6551273536484290832",
+        "57aa8d26d25a683a8487eb4bb1d2c0a6c2fa060b06be42ebb6821982d4c1551f",
+        "0a1cd4845365b5006ff51d5a8db7db70539f54907f5e6ab0bbfe3bbf5c7d91ca",
+        "c43c8f44391384da110dca49632fa117f6b7eff54128024cf99056122b6e6374",
+        "35cfdd93c2cdadd7e71a86fa6e5cc9c866b5bb2a9772ca6cb51f110ae584eb50",
+        "b1acaa2020a881005a3123ed1e2da5b6e7619554cc48e2135e72e79c43ad222e",
+        "22bea8a10c77abffad4e61af37521d205682fb73a12b497748145c8ac4643391",
+        "23d37135a10a2c3307fbb9249a3e816c0519efa1d9387e0b524b0d1fe7ca73c0",
+        "19731bb519e2636b477fdea9ba9edeeec78ef4cfcd38aaaf6fa6c4a57a8d2f83",
+        "ea70dfa74ffbec1fc902b5c743286b90e0b14d85c772907371f748e7827541c0",
+        "24cec33bca54a41c73b70eaf667732ef81c1a4727be9ec31a6c176b319cf15ab",
+        "3c1583e1752e9af4e6e48e3c52a1198e36a28ace625a67b4900f6856d1e7c88c",
+        "107dc3b1c4741f11b5ffb66a42ec7a6dfedb7d62f155619c715c7d73400c6644",
+        "b12bf1843130754c242813dfd96bd9cb8f1dfd036bfb5b5e0342286ef79a02d8",
+        "937d8043c4501f44fa91e4a5d315b29bd69aff277ac6d77c281bdc8e5bf5f8bf",
+        "77801a08805d0e0047051e30682bfecfb8570f9fc92ed3f6809cdde8a802a1bb",
+        "092514eaa2d9f4f57c24d9bb00c5fc003006ead94479f11d572c9484599a1695",
+        "f88f83d60ec935632eddde506b010fda5dc8b2d80c4eec8b0a8cfa936ed846b9",
+        "ccfaec70601cb76b5d72c0cf59155c2be2a897595cb68f5b1d87aa890c44190d",
+        "2d389ca36edbc732271d28d0a669be465739f4508dc9f5d4ff8107234b46e656",
+        "65f2a5c20928ff3db2301d79d3194588da1e48e5e902bc5f5740e367a9013e47",
+        "8ff9d0802d202945be426f4976f5e1f4dd78ab9e300891eb281f728304f5c129",
+        "c97f84c3fc2c662c87f56d398fbf764c98cc8eaf8e48cb62623a78308b586e45",
+        "2f1c6211ee2da734e83c8f0e985abef7cc73f90c5354e0ed58b6561c4dadc243",
+        "2d67005901bc2ec1bb3c70fa9f636735adb418104a82fae09f17febf44ff2e92",
+        "7f206726b62e4695d9df0fe7784b39172c97f527f6463743f13161c4b76614bc",
+        "cc03c9ad88b5519fce0af0abc091f0963d5f5b3957e73391cc6381859ec45e51"
+      ],
+      "newInvariant": "Gerçek yayımlanan cue metninin ilk iş ve oturum bütçesine karakterdoğru taşınması",
+      "unverified": "Sağlayıcı/gerçek site/canlı artış/dinamik cache ücretleri"
+    },
+    {
+      "finding": "WF-MCP-02",
+      "previousID": [
+        "N0941",
+        "N0942",
+        "N0943",
+        "N0944",
+        "N0945",
+        "N0946",
+        "N0947",
+        "N0948",
+        "N0949",
+        "N0950",
+        "N0951",
+        "N0952",
+        "N0953",
+        "N0954",
+        "N0955",
+        "N0956",
+        "N0957",
+        "N0958",
+        "N0959",
+        "N0960",
+        "N0961",
+        "N0962",
+        "N0963",
+        "N0964",
+        "N0965",
+        "N0966",
+        "N0967",
+        "N0968",
+        "N0969",
+        "N0970",
+        "N0971",
+        "N0972",
+        "N0973",
+        "N0974",
+        "N0975",
+        "N0976",
+        "N0977",
+        "N0978",
+        "N0979",
+        "N0980"
+      ],
+      "signature": [
+        "ff539900e28e974d383e1b79973508898728bece037598c5af8f8d629bf4d31c",
+        "61fac7cd9b9536e6d70c5e3569517ccb14f0e88eb5ca620bda41efa1ccbea904",
+        "4846a5fa54f6276fe4dd5ff4ab2c2cd382707998cdadb20821f7e82ca78ab25d",
+        "288d71c27987bf3b21fe1d68b5b457a2a313d89d01a4b956b80cddee69810861",
+        "d11ba388b6ddcc24dc4c5e432f7c0ec85fc9c38da8cc9f51f02d94e5d4c70320",
+        "de70dade4c21821dff3f2b51b6b9bf1d41fb8d353545874c000d05ffb7887e5e",
+        "ce925741a081b369e132ebcd359adfdce5fea24eee3556175e23c447cb940cd6",
+        "5c3f86abac2fb93b79d1ae5f55ebc97fcb35e606dd0e428e3763ea2a6cdb3224",
+        "dd3ec9b4c55e90235dc2633af4c5d3b302fdf83f83c26467414d31c817cb9b29",
+        "1c52779379538d4794093df9758dd6091f183b09986b63ee0986575193bc968f",
+        "33696490f214461f55a9e710115f8caf0ca8802c8d86714268052ec61b24c0fe",
+        "d783b795b1e6c8ca0952e7ed6891873148b16504ad1112d8744b541f4d019d09",
+        "e5b65f8318b3abfb79c90f117229db9765705bea8fc025a2bd3f2a5587dea9d2",
+        "428f23bc90dcf5a8e7dc729629182f97fe10ff7a826086287781e73be310e882",
+        "0e41696fa7b551104b57edccdf00f52c3584502ad40bb0373c91a2e02a92c0b8",
+        "36be1fb586cf63839ca077b2cabc3a284d0860346038e252b9a35813d48dfa01",
+        "61c9729dc0d44930800c5730c480629c20db4fec893b986c96c2d84f980aab6d",
+        "4e9eb61ee02c747dfd378ff4864d14980fb5d1ddf7b8f33c8822f3f29cddcc77",
+        "9198baaa112d4f7650295d29b77587f17ba508130e1b690669743db3c7ec8060",
+        "1f1c77553b352ccd115beaad30a7bc835f9fcaeb9130d9ce7a65378d8dfba87a",
+        "83d98a3f922d724e3390532e084582d41a5a48e87862eb0e9d643d32e011346e",
+        "6818040f83b40f4901b0eb32e2c9df65707c7b9b167f01526c4d4111b0d5d8c4",
+        "541db71c25d6636829123eaf358b19df02cb59e80dd58577640fea2511f46c80",
+        "01d49c23f22ceb8955a1e60913e4bfcee0ce3bb2c83ba826a923ff4a477b389d",
+        "98884d30b11645763de0ec48eea87d0ba974ece335b2bb0eb2cd29c2161c8fc2",
+        "9c407379ee2805a83eb3f13c190bdeb453b41cb5423759843e688e2d67d9e0e8",
+        "1d481e4accc56f29676f3d6302cf0ba438f045383e8f7e714635e5a2ba252223",
+        "92568b0afcb944919e67aa965cc7c50169574de3f087ced44d90101d1183061d",
+        "402949efb73ab03b26c4c9fc52a9d52bbfc83ebfd6ee2c94e843ed1c708d05fd",
+        "5c92ae43b8c7154c232af0bfb15d8374794a896d6f28f02f4d06f6920ce005b5",
+        "387c4961344ea475e7a99eb6a26b066f14fb8f28bf5ff51d58119765120508c7",
+        "de341922b2688a6064f67dca266a4d789ec653f7127d316bd88c87ff2d36448d",
+        "47367268513c53086ff444e3a7570e8aaf111f2ec475858c7201dcaffd321b7e",
+        "c091df8dfe4b05f86aa20b0b9f6ab51efffeb69cd191790ec07834c01fd8c980",
+        "8198b5bd1c3e926ae4047139b07c3ad76532ba9754d01cfc102cafea67221155",
+        "71d98ec3fa5c3edcbb59cb3fa1b42aad03d7db03053f367808c2faaa4d6904d6",
+        "fc0918b79384b0b78bc29c4fa2f37f97b4c8b9c9d14009e24672d71729eb566b",
+        "158987db597a421d6c67075bf27c9a33df8a628bbd0d5d0a25cbc1f0849d7d3d",
+        "9944e3d003e63020e4d20046493fa522fb9fe0d1d83a086ed771e81cea0c2f95",
+        "ba06cfc6162a4448f3bd0c92b35efa6926b3de85b840befdf82e167662a7ee43"
+      ],
+      "newInvariant": "MCP HTTP chunk sınırı Unicode istek kimliği korelasyonunu değiştirmez",
+      "unverified": "Gerçek dış istemci, ağ segmentasyon sıklığı ve stdio gerçek süreç"
+    }
+  ],
+  "registryComparison": [
+    {
+      "previousID": "N0201",
+      "family": "F11",
+      "mechanism": "normal",
+      "signature": "176cc846a54fca39272f253d92929ab5263b86c96cff141bf449ff2efeffd711",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0202",
+      "family": "F11",
+      "mechanism": "bos",
+      "signature": "dc874db7fae5059ae175a1fc2295a5528966deb4c4674c45fad06e9bd05ba80f",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0203",
+      "family": "F11",
+      "mechanism": "sinir",
+      "signature": "125a41bfb37114ac0bae9ca903f9046fab8a4bb57044e50d49577178eda64a23",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0204",
+      "family": "F11",
+      "mechanism": "unicode",
+      "signature": "62d57cb25c1762f93a1d78b50e71c453ea5372da0f4c11c5280c37800087f0bb",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0205",
+      "family": "F11",
+      "mechanism": "yinelenen",
+      "signature": "69980364e7d634c346435fa72166c72e7470bbffb61973fd7799ed397fcbba07",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0206",
+      "family": "F11",
+      "mechanism": "sira",
+      "signature": "e0760e9445405c5be3fef7bfa302c3387c05e2c0c0e05c26dfcec7d39697a9ed",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0207",
+      "family": "F11",
+      "mechanism": "iptal-oncesi",
+      "signature": "a8b7866bf60ff540773d18b0303fa158044dd1574adc485d51e7ab8e996c2c34",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "NOT_APPLICABLE"
+    },
+    {
+      "previousID": "N0208",
+      "family": "F11",
+      "mechanism": "iptal-ortasi",
+      "signature": "b08bda9a4811f999a7c993ee43dc1775962ab2373c5739c2923c6daaab795100",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "NOT_APPLICABLE"
+    },
+    {
+      "previousID": "N0209",
+      "family": "F11",
+      "mechanism": "gec-sonuc",
+      "signature": "ac0580f2141e50ccf14f11ad8df890d7d8716d69fab69cd3e5d9fca0dff41ffe",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0210",
+      "family": "F11",
+      "mechanism": "kaynak-degisimi",
+      "signature": "a7853330a99ea26d8a1f7927705a12e97d74d35cf50591676b2a6ccd871d1d63",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0211",
+      "family": "F11",
+      "mechanism": "es-zamanli",
+      "signature": "d1c68d9717ab2413e0734416e17f30e8524f8f26c8924ab2ba5b41ac2b90bdab",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "NOT_APPLICABLE"
+    },
+    {
+      "previousID": "N0212",
+      "family": "F11",
+      "mechanism": "kesik",
+      "signature": "4e40cbbb4ee1a96cb8d0f58f71e7d58a49b955b67125f110a8925838a88c2e1e",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0213",
+      "family": "F11",
+      "mechanism": "hata",
+      "signature": "0309564c6b5b496f6fcefea12adcb74e64480f0cb161f48468d53c24de041277",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0214",
+      "family": "F11",
+      "mechanism": "timeout",
+      "signature": "2f2ecf358118f171cdecf842c60b6479cd278e09d8bca6551273536484290832",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "NOT_APPLICABLE"
+    },
+    {
+      "previousID": "N0215",
+      "family": "F11",
+      "mechanism": "yeniden-giris",
+      "signature": "57aa8d26d25a683a8487eb4bb1d2c0a6c2fa060b06be42ebb6821982d4c1551f",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0216",
+      "family": "F11",
+      "mechanism": "donusum",
+      "signature": "0a1cd4845365b5006ff51d5a8db7db70539f54907f5e6ab0bbfe3bbf5c7d91ca",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0217",
+      "family": "F11",
+      "mechanism": "yetki",
+      "signature": "c43c8f44391384da110dca49632fa117f6b7eff54128024cf99056122b6e6374",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "NOT_APPLICABLE"
+    },
+    {
+      "previousID": "N0218",
+      "family": "F11",
+      "mechanism": "kaynak-butcesi",
+      "signature": "35cfdd93c2cdadd7e71a86fa6e5cc9c866b5bb2a9772ca6cb51f110ae584eb50",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0219",
+      "family": "F11",
+      "mechanism": "kullanici-geribildirimi",
+      "signature": "b1acaa2020a881005a3123ed1e2da5b6e7619554cc48e2135e72e79c43ad222e",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "NOT_APPLICABLE"
+    },
+    {
+      "previousID": "N0220",
+      "family": "F11",
+      "mechanism": "birlesik-akis",
+      "signature": "22bea8a10c77abffad4e61af37521d205682fb73a12b497748145c8ac4643391",
+      "sources": [
+        "src/browser-translation-scheduler.js",
+        " tests/cue-translation-pairing.test.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0361",
+      "family": "F19",
+      "mechanism": "normal",
+      "signature": "23d37135a10a2c3307fbb9249a3e816c0519efa1d9387e0b524b0d1fe7ca73c0",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0362",
+      "family": "F19",
+      "mechanism": "bos",
+      "signature": "19731bb519e2636b477fdea9ba9edeeec78ef4cfcd38aaaf6fa6c4a57a8d2f83",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0363",
+      "family": "F19",
+      "mechanism": "sinir",
+      "signature": "ea70dfa74ffbec1fc902b5c743286b90e0b14d85c772907371f748e7827541c0",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0364",
+      "family": "F19",
+      "mechanism": "unicode",
+      "signature": "24cec33bca54a41c73b70eaf667732ef81c1a4727be9ec31a6c176b319cf15ab",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0365",
+      "family": "F19",
+      "mechanism": "yinelenen",
+      "signature": "3c1583e1752e9af4e6e48e3c52a1198e36a28ace625a67b4900f6856d1e7c88c",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0366",
+      "family": "F19",
+      "mechanism": "sira",
+      "signature": "107dc3b1c4741f11b5ffb66a42ec7a6dfedb7d62f155619c715c7d73400c6644",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0367",
+      "family": "F19",
+      "mechanism": "iptal-oncesi",
+      "signature": "b12bf1843130754c242813dfd96bd9cb8f1dfd036bfb5b5e0342286ef79a02d8",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0368",
+      "family": "F19",
+      "mechanism": "iptal-ortasi",
+      "signature": "937d8043c4501f44fa91e4a5d315b29bd69aff277ac6d77c281bdc8e5bf5f8bf",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0369",
+      "family": "F19",
+      "mechanism": "gec-sonuc",
+      "signature": "77801a08805d0e0047051e30682bfecfb8570f9fc92ed3f6809cdde8a802a1bb",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0370",
+      "family": "F19",
+      "mechanism": "kaynak-degisimi",
+      "signature": "092514eaa2d9f4f57c24d9bb00c5fc003006ead94479f11d572c9484599a1695",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0371",
+      "family": "F19",
+      "mechanism": "es-zamanli",
+      "signature": "f88f83d60ec935632eddde506b010fda5dc8b2d80c4eec8b0a8cfa936ed846b9",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0372",
+      "family": "F19",
+      "mechanism": "kesik",
+      "signature": "ccfaec70601cb76b5d72c0cf59155c2be2a897595cb68f5b1d87aa890c44190d",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0373",
+      "family": "F19",
+      "mechanism": "hata",
+      "signature": "2d389ca36edbc732271d28d0a669be465739f4508dc9f5d4ff8107234b46e656",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0374",
+      "family": "F19",
+      "mechanism": "timeout",
+      "signature": "65f2a5c20928ff3db2301d79d3194588da1e48e5e902bc5f5740e367a9013e47",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0375",
+      "family": "F19",
+      "mechanism": "yeniden-giris",
+      "signature": "8ff9d0802d202945be426f4976f5e1f4dd78ab9e300891eb281f728304f5c129",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0376",
+      "family": "F19",
+      "mechanism": "donusum",
+      "signature": "c97f84c3fc2c662c87f56d398fbf764c98cc8eaf8e48cb62623a78308b586e45",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0377",
+      "family": "F19",
+      "mechanism": "yetki",
+      "signature": "2f1c6211ee2da734e83c8f0e985abef7cc73f90c5354e0ed58b6561c4dadc243",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0378",
+      "family": "F19",
+      "mechanism": "kaynak-butcesi",
+      "signature": "2d67005901bc2ec1bb3c70fa9f636735adb418104a82fae09f17febf44ff2e92",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0379",
+      "family": "F19",
+      "mechanism": "kullanici-geribildirimi",
+      "signature": "7f206726b62e4695d9df0fe7784b39172c97f527f6463743f13161c4b76614bc",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0380",
+      "family": "F19",
+      "mechanism": "birlesik-akis",
+      "signature": "cc03c9ad88b5519fce0af0abc091f0963d5f5b3957e73391cc6381859ec45e51",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0941",
+      "family": "F48",
+      "mechanism": "normal",
+      "signature": "ff539900e28e974d383e1b79973508898728bece037598c5af8f8d629bf4d31c",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0942",
+      "family": "F48",
+      "mechanism": "bos",
+      "signature": "61fac7cd9b9536e6d70c5e3569517ccb14f0e88eb5ca620bda41efa1ccbea904",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0943",
+      "family": "F48",
+      "mechanism": "sinir",
+      "signature": "4846a5fa54f6276fe4dd5ff4ab2c2cd382707998cdadb20821f7e82ca78ab25d",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0944",
+      "family": "F48",
+      "mechanism": "unicode",
+      "signature": "288d71c27987bf3b21fe1d68b5b457a2a313d89d01a4b956b80cddee69810861",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0945",
+      "family": "F48",
+      "mechanism": "yinelenen",
+      "signature": "d11ba388b6ddcc24dc4c5e432f7c0ec85fc9c38da8cc9f51f02d94e5d4c70320",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0946",
+      "family": "F48",
+      "mechanism": "sira",
+      "signature": "de70dade4c21821dff3f2b51b6b9bf1d41fb8d353545874c000d05ffb7887e5e",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0947",
+      "family": "F48",
+      "mechanism": "iptal-oncesi",
+      "signature": "ce925741a081b369e132ebcd359adfdce5fea24eee3556175e23c447cb940cd6",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0948",
+      "family": "F48",
+      "mechanism": "iptal-ortasi",
+      "signature": "5c3f86abac2fb93b79d1ae5f55ebc97fcb35e606dd0e428e3763ea2a6cdb3224",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "NOT_APPLICABLE"
+    },
+    {
+      "previousID": "N0949",
+      "family": "F48",
+      "mechanism": "gec-sonuc",
+      "signature": "dd3ec9b4c55e90235dc2633af4c5d3b302fdf83f83c26467414d31c817cb9b29",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0950",
+      "family": "F48",
+      "mechanism": "kaynak-degisimi",
+      "signature": "1c52779379538d4794093df9758dd6091f183b09986b63ee0986575193bc968f",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0951",
+      "family": "F48",
+      "mechanism": "es-zamanli",
+      "signature": "33696490f214461f55a9e710115f8caf0ca8802c8d86714268052ec61b24c0fe",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "NOT_APPLICABLE"
+    },
+    {
+      "previousID": "N0952",
+      "family": "F48",
+      "mechanism": "kesik",
+      "signature": "d783b795b1e6c8ca0952e7ed6891873148b16504ad1112d8744b541f4d019d09",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0953",
+      "family": "F48",
+      "mechanism": "hata",
+      "signature": "e5b65f8318b3abfb79c90f117229db9765705bea8fc025a2bd3f2a5587dea9d2",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0954",
+      "family": "F48",
+      "mechanism": "timeout",
+      "signature": "428f23bc90dcf5a8e7dc729629182f97fe10ff7a826086287781e73be310e882",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "NOT_APPLICABLE"
+    },
+    {
+      "previousID": "N0955",
+      "family": "F48",
+      "mechanism": "yeniden-giris",
+      "signature": "0e41696fa7b551104b57edccdf00f52c3584502ad40bb0373c91a2e02a92c0b8",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0956",
+      "family": "F48",
+      "mechanism": "donusum",
+      "signature": "36be1fb586cf63839ca077b2cabc3a284d0860346038e252b9a35813d48dfa01",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0957",
+      "family": "F48",
+      "mechanism": "yetki",
+      "signature": "61c9729dc0d44930800c5730c480629c20db4fec893b986c96c2d84f980aab6d",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0958",
+      "family": "F48",
+      "mechanism": "kaynak-butcesi",
+      "signature": "4e9eb61ee02c747dfd378ff4864d14980fb5d1ddf7b8f33c8822f3f29cddcc77",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0959",
+      "family": "F48",
+      "mechanism": "kullanici-geribildirimi",
+      "signature": "9198baaa112d4f7650295d29b77587f17ba508130e1b690669743db3c7ec8060",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0960",
+      "family": "F48",
+      "mechanism": "birlesik-akis",
+      "signature": "1f1c77553b352ccd115beaad30a7bc835f9fcaeb9130d9ce7a65378d8dfba87a",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0961",
+      "family": "F49",
+      "mechanism": "normal",
+      "signature": "83d98a3f922d724e3390532e084582d41a5a48e87862eb0e9d643d32e011346e",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0962",
+      "family": "F49",
+      "mechanism": "bos",
+      "signature": "6818040f83b40f4901b0eb32e2c9df65707c7b9b167f01526c4d4111b0d5d8c4",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0963",
+      "family": "F49",
+      "mechanism": "sinir",
+      "signature": "541db71c25d6636829123eaf358b19df02cb59e80dd58577640fea2511f46c80",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0964",
+      "family": "F49",
+      "mechanism": "unicode",
+      "signature": "01d49c23f22ceb8955a1e60913e4bfcee0ce3bb2c83ba826a923ff4a477b389d",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0965",
+      "family": "F49",
+      "mechanism": "yinelenen",
+      "signature": "98884d30b11645763de0ec48eea87d0ba974ece335b2bb0eb2cd29c2161c8fc2",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0966",
+      "family": "F49",
+      "mechanism": "sira",
+      "signature": "9c407379ee2805a83eb3f13c190bdeb453b41cb5423759843e688e2d67d9e0e8",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0967",
+      "family": "F49",
+      "mechanism": "iptal-oncesi",
+      "signature": "1d481e4accc56f29676f3d6302cf0ba438f045383e8f7e714635e5a2ba252223",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0968",
+      "family": "F49",
+      "mechanism": "iptal-ortasi",
+      "signature": "92568b0afcb944919e67aa965cc7c50169574de3f087ced44d90101d1183061d",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0969",
+      "family": "F49",
+      "mechanism": "gec-sonuc",
+      "signature": "402949efb73ab03b26c4c9fc52a9d52bbfc83ebfd6ee2c94e843ed1c708d05fd",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0970",
+      "family": "F49",
+      "mechanism": "kaynak-degisimi",
+      "signature": "5c92ae43b8c7154c232af0bfb15d8374794a896d6f28f02f4d06f6920ce005b5",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0971",
+      "family": "F49",
+      "mechanism": "es-zamanli",
+      "signature": "387c4961344ea475e7a99eb6a26b066f14fb8f28bf5ff51d58119765120508c7",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0972",
+      "family": "F49",
+      "mechanism": "kesik",
+      "signature": "de341922b2688a6064f67dca266a4d789ec653f7127d316bd88c87ff2d36448d",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0973",
+      "family": "F49",
+      "mechanism": "hata",
+      "signature": "47367268513c53086ff444e3a7570e8aaf111f2ec475858c7201dcaffd321b7e",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0974",
+      "family": "F49",
+      "mechanism": "timeout",
+      "signature": "c091df8dfe4b05f86aa20b0b9f6ab51efffeb69cd191790ec07834c01fd8c980",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0975",
+      "family": "F49",
+      "mechanism": "yeniden-giris",
+      "signature": "8198b5bd1c3e926ae4047139b07c3ad76532ba9754d01cfc102cafea67221155",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0976",
+      "family": "F49",
+      "mechanism": "donusum",
+      "signature": "71d98ec3fa5c3edcbb59cb3fa1b42aad03d7db03053f367808c2faaa4d6904d6",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0977",
+      "family": "F49",
+      "mechanism": "yetki",
+      "signature": "fc0918b79384b0b78bc29c4fa2f37f97b4c8b9c9d14009e24672d71729eb566b",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "NOT_APPLICABLE"
+    },
+    {
+      "previousID": "N0978",
+      "family": "F49",
+      "mechanism": "kaynak-butcesi",
+      "signature": "158987db597a421d6c67075bf27c9a33df8a628bbd0d5d0a25cbc1f0849d7d3d",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0979",
+      "family": "F49",
+      "mechanism": "kullanici-geribildirimi",
+      "signature": "9944e3d003e63020e4d20046493fa522fb9fe0d1d83a086ed771e81cea0c2f95",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "PASS"
+    },
+    {
+      "previousID": "N0980",
+      "family": "F49",
+      "mechanism": "birlesik-akis",
+      "signature": "ba06cfc6162a4448f3bd0c92b35efa6926b3de85b840befdf82e167662a7ee43",
+      "sources": [
+        "src/process-io.js",
+        " src/process-lifecycle.js",
+        " src/ndjson-lines.js"
+      ],
+      "status": "PASS"
+    }
+  ],
+  "excluded": [
+    "R46-39 workflow timeout/abort signal: mevcut kök; yeni sayılmadı.",
+    "R46-40 stale recorder active temizliği: mevcut kök; yeni sayılmadı.",
+    "R46-41 boş mediaIdentity: mevcut kök; yeni sayılmadı.",
+    "R46-73 operationKey newline veR46-74iptal/gate entegrasyonu: mevcut kök; yeni sayılmadı.",
+    "Workflow completeTranslation gerçek selecti kullanır; yanlış iz yönlendirme adayı doğrulanmadı.",
+    "MCP tüm hataların-32602olması/notification doğrulama ayrımı düşük etkili protokol ayrıntısı; bug sayılmadı."
+  ],
+  "optionalProposals": [
+    {
+      "id": "WF-G01",
+      "title": "Workflowkayıtlarını adlandırma/seçme ve adımları çalıştırmadan önce gösteren düzenleyici",
+      "reason": "Mevcut son-workflowoynatma yüzeyini anlaşılır kılabilir; mevcut sözleşme ihlali kanıtlanmadığından öneri."
+    }
+  ],
+  "reproduce": "node .tmp/next815-workflows/probe.cjs; farklıçıktıiçin R815_WORKFLOWS_OUT=.tmp/next815-workflows/parent-run",
+  "limits": "Yalnız kontrollü sentetik prob; ürün/test/Git/ana rapor değişikliği yok. .tmpdışında dosya yazılmadı.",
+  "publishedEvidence": "results.json"
+}

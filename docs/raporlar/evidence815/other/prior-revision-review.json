@@ -1,0 +1,14 @@
+{
+  "previousAuditHead": "182817b7e0b4a02563577f4c00d6fdd40df861f0",
+  "currentAuditHead": "6a789329d96c4f97cdc17bd9518df0b540b13444",
+  "reason": "Separate narration continuity/studio work was merged before this audit. No product changes by this audit.",
+  "reviewedChanges": [
+    "backend/transcribe.py speech-v16 protocol and readaloud prompt rules",
+    "src/renderer/renderer.js two speech protocol identity strings",
+    "tools/voxcpm2/altyazi_oku.py grouping choice",
+    "tools/voxcpm2/dub_plan.py grouping mode",
+    "src/dub-service.js grouping plumbing; other studio UI/timing tests"
+  ],
+  "old118Status": "Previous118 are historical verified records, preserved byte-for-byte in mapping. They are not all rerun or newly confirmed open at this revision. No old defect is added to new8; no status changed without targeted evidence.",
+  "newEvidence": "All new8 original function paths/source hashes checked at current head and independently rerun. No live narration quality or completion inference from unrelated merge."
+}

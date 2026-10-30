@@ -1,0 +1,170 @@
+{
+  "head": "6a789329d96c4f97cdc17bd9518df0b540b13444",
+  "sourceSha256": {
+    "src/assistant-mcp-bridge.js": "cb659b058890e3ac02e2e58302aefb910d8ab318ab2e7836ebe622d65d375e7c",
+    "tools/whisper-mcp.cjs": "9c5bc939f93b4647fa5b173461c6ee5513b9bcbfc69599cf5667ff000ed98638",
+    "src/assistant-guide.js": "7551952730ccdae751258f67da120ebcf2c82b39d4e6b0caeb121ea2608597a2",
+    "src/assistant-retrieval.js": "ceb1aa7e2b81e5f369e5976f8c17c1cb0fddb8f3655891250e0f952dc67cf0d8",
+    "src/browser-workflow-recorder.js": "5ced29a76b6fb8be754707656bcc5ec4e17fa45aa4fc217c9ce9743116f57d9d",
+    "src/browser-automation-rules.js": "571319b9334ccd2f41e16ae1204e98ed67773d09333ea03ceef7b4d6eada7965",
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+    "src/renderer/renderer.js": "4853b2fe48da6a383e2438895c747a0ba79820eb58470da5ac66de476f8b66d6",
+    "src/renderer/renderer-helpers.js": "f07116b7d1cdafa1398a2f42511914ef86991d0f88ff436bdcd29a49036ccb53",
+    "src/browser-subtitles.js": "7fce97cf5df6216a158fa50c3e6ba8c0e9f62f79970436bfe8d6b05d91a2cbad"
+  },
+  "automation": {
+    "single": {
+      "actualCharacters": 200001,
+      "input": {
+        "operationKey": "d820c22c0324cc10",
+        "mode": "auto",
+        "tabCurrent": true,
+        "mediaId": "fixture-video",
+        "sourceReady": true,
+        "advertisementUncertain": false,
+        "sourceCharacters": 32080,
+        "newCharacters": 0,
+        "targetLanguage": "tr",
+        "completed": false,
+        "running": false,
+        "sessionJobs": 0,
+        "liveCharacters": 0
+      },
+      "decision": {
+        "state": "eligible",
+        "reason": "eligible",
+        "message": "Altyazı bulundu; bu site kuralına göre çeviri başlatılabilir."
+      },
+      "countercontrol": {
+        "state": "blocked_by_limit",
+        "reason": "limit_reached",
+        "message": "Kaynak altyazı sınırı aşıldı (200001/200000 karakter). Kullanıcı onayı gerekiyor."
+      }
+    },
+    "twoJobs": [
+      {
+        "id": "normal-a",
+        "actualCharacters": 190000,
+        "input": {
+          "operationKey": "af69de5177d963bb",
+          "mode": "auto",
+          "tabCurrent": true,
+          "mediaId": "normal-a",
+          "sourceReady": true,
+          "advertisementUncertain": false,
+          "sourceCharacters": 30400,
+          "newCharacters": 0,
+          "targetLanguage": "tr",
+          "completed": false,
+          "running": false,
+          "sessionJobs": 0,
+          "liveCharacters": 0
+        },
+        "decision": {
+          "state": "eligible",
+          "reason": "eligible",
+          "message": "Altyazı bulundu; bu site kuralına göre çeviri başlatılabilir."
+        }
+      },
+      {
+        "id": "normal-b",
+        "actualCharacters": 190000,
+        "input": {
+          "operationKey": "5a757ccc0d0baec4",
+          "mode": "auto",
+          "tabCurrent": true,
+          "mediaId": "normal-b",
+          "sourceReady": true,
+          "advertisementUncertain": false,
+          "sourceCharacters": 30400,
+          "newCharacters": 0,
+          "targetLanguage": "tr",
+          "completed": false,
+          "running": false,
+          "sessionJobs": 1,
+          "liveCharacters": 0
+        },
+        "decision": {
+          "state": "eligible",
+          "reason": "eligible",
+          "message": "Altyazı bulundu; bu site kuralına göre çeviri başlatılabilir."
+        }
+      }
+    ],
+    "totalActualCharacters": 380000,
+    "calls": [
+      "normal-a",
+      "normal-b"
+    ],
+    "counterLiveCharacters": 0,
+    "countercontrol": {
+      "state": "blocked_by_limit",
+      "reason": "limit_reached",
+      "message": "Canlı çeviri sınırı aşıldı (380000/300000 karakter). Kullanıcı onayı gerekiyor."
+    },
+    "producerEvents": [
+      {
+        "type": "subtitle-found",
+        "hasCharacterCount": false,
+        "hasAppendedCharacters": false
+      },
+      {
+        "type": "subtitle-found",
+        "hasCharacterCount": false,
+        "hasAppendedCharacters": false
+      },
+      {
+        "type": "subtitle-found",
+        "hasCharacterCount": false,
+        "hasAppendedCharacters": false
+      }
+    ],
+    "limits": "Gerçek main publisher/persist ve renderer input/handler; asset store/disk/IPC/translation facade kontrollü; gerçek sağlayıcı yok."
+  },
+  "mcp": {
+    "requestedId": "fixture-ş-id",
+    "splitByteOffset": 32,
+    "unsplit": {
+      "status": 200,
+      "body": {
+        "jsonrpc": "2.0",
+        "id": "fixture-ş-id",
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"jobs\":[]}"
+            }
+          ]
+        }
+      }
+    },
+    "asciiSplit": {
+      "status": 200,
+      "body": {
+        "jsonrpc": "2.0",
+        "id": "ascii-id",
+        "result": {}
+      }
+    },
+    "split": {
+      "status": 200,
+      "body": {
+        "jsonrpc": "2.0",
+        "id": "fixture-��-id",
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"jobs\":[]}"
+            }
+          ]
+        }
+      }
+    },
+    "badAuthStatus": 403,
+    "originRejectedStatus": 403,
+    "limits": "Gerçek createBridge HTTP127.0.0.1; Unicode id iki Buffer arasında bölündü. Gerçek istemci/kişisel MCP ayarı kullanılmadı."
+  },
+  "passed": true
+}

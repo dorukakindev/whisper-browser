@@ -1,0 +1,958 @@
+{
+  "ok": true,
+  "head": "6a789329d96c4f97cdc17bd9518df0b540b13444",
+  "sourceSha256": {
+    "src/browser-downloads.js": "8f6712b337f027d6509a8d49c31d0224594ac277a087b33af96c8dbe8fe8de96",
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+    "src/preload.js": "c035a7b77125def6b44ce121ff21a6f0dde717179c9ff38970d1d5b335e2796c",
+    "src/renderer/renderer.js": "4853b2fe48da6a383e2438895c747a0ba79820eb58470da5ac66de476f8b66d6"
+  },
+  "cases": [
+    {
+      "extension": "m4b",
+      "visible": true,
+      "result": {
+        "ok": false,
+        "error": "Bu dosya yerel oynatıcıda desteklenen bir medya türü değil."
+      },
+      "error": "Bu dosya yerel oynatıcıda desteklenen bir medya türü değil.",
+      "playerOpened": false
+    },
+    {
+      "extension": "M4B",
+      "visible": true,
+      "result": {
+        "ok": false,
+        "error": "Bu dosya yerel oynatıcıda desteklenen bir medya türü değil."
+      },
+      "error": "Bu dosya yerel oynatıcıda desteklenen bir medya türü değil.",
+      "playerOpened": false
+    },
+    {
+      "extension": "m4a",
+      "visible": true,
+      "result": {
+        "ok": true,
+        "path": "D:\\Whisper Local\\.tmp\\next815-parent-downloads-final\\run-DfVz48\\fixture.m4a"
+      },
+      "error": "",
+      "playerOpened": true
+    },
+    {
+      "extension": "mp4",
+      "visible": true,
+      "result": {
+        "ok": true,
+        "path": "D:\\Whisper Local\\.tmp\\next815-parent-downloads-final\\run-DfVz48\\fixture.mp4"
+      },
+      "error": "",
+      "playerOpened": true
+    },
+    {
+      "extension": "zip",
+      "visible": false,
+      "result": {
+        "ok": false,
+        "error": "Bu dosya yerel oynatıcıda desteklenen bir medya türü değil."
+      },
+      "error": "",
+      "playerOpened": false
+    }
+  ],
+  "counterchecks": {
+    "unauthorizedIPCRejected": true,
+    "m4aAndMp4Open": true,
+    "zipHiddenAndRejected": true,
+    "pauseResumeInterruptedCancel": true,
+    "revealM4bWorks": true,
+    "noActiveLeak": true,
+    "noUpdatedListenerLeak": true
+  },
+  "registryMatches": [
+    {
+      "id": "N0281",
+      "family": "F15",
+      "mechanism": "normal",
+      "signature": "8def892bdddaf4d4ae43683a2561c8a4f052f4286306119248bbea3beda7bbf9",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0282",
+      "family": "F15",
+      "mechanism": "bos",
+      "signature": "c09cc98b848a4f13938d2222fc4c70d78b426b7555f078d1877e3fd16f0a360a",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0283",
+      "family": "F15",
+      "mechanism": "sinir",
+      "signature": "2d47494697cb3a7b171564302b2f8c920ed06ea3f366ac44c237b978d04f6df0",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0284",
+      "family": "F15",
+      "mechanism": "unicode",
+      "signature": "add6c124e0a5f4a509c419418f82e955164cb49f35a5171feacc96421a993dcc",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0285",
+      "family": "F15",
+      "mechanism": "yinelenen",
+      "signature": "566c32fa473a5b6f5f43471267418f8b78b13a1cd6c696b1c3538d3aa83b7a5b",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0286",
+      "family": "F15",
+      "mechanism": "sira",
+      "signature": "33b30dc4d2387948857345e25ef43461ceca33fd034a1b1643ba59cb321a2f90",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0287",
+      "family": "F15",
+      "mechanism": "iptal-oncesi",
+      "signature": "2bd298a78cbd107d381799590f727bd3fe5278ccf7731d2c37f5506956f10557",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0288",
+      "family": "F15",
+      "mechanism": "iptal-ortasi",
+      "signature": "ebd178a8f71ffac0478abc795597232f5be492e35d480db9895ec77965bef816",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0289",
+      "family": "F15",
+      "mechanism": "gec-sonuc",
+      "signature": "ad477ca266b25ef7d5fcf57ae1060d86583b23a72830868a9e8bc54c820fcbfb",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0290",
+      "family": "F15",
+      "mechanism": "kaynak-degisimi",
+      "signature": "7bca9647110d08d458de0269ec1f682f1ff2b966e37a4ddb2789426b456b4c82",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0291",
+      "family": "F15",
+      "mechanism": "es-zamanli",
+      "signature": "e9b55deb5276d435c27975494490b9d59410c008c33af626d5fc817a9950b0be",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "NOT_APPLICABLE"
+    },
+    {
+      "id": "N0292",
+      "family": "F15",
+      "mechanism": "kesik",
+      "signature": "bb3ef818f23acf887b8a0022bcb918c41e4c5f3cf97bb925ca94da972347857f",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0293",
+      "family": "F15",
+      "mechanism": "hata",
+      "signature": "2ea803ece944accbf7506f5d3139be3e2d06fe4ae9b7e28c13798ed429859387",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0294",
+      "family": "F15",
+      "mechanism": "timeout",
+      "signature": "8137dbf19890ed4f6b2ea5846cae853a5ecec029133a945a25303aeaa5a9758b",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "NOT_APPLICABLE"
+    },
+    {
+      "id": "N0295",
+      "family": "F15",
+      "mechanism": "yeniden-giris",
+      "signature": "eb2b401b9aaee260e707463849029dc5d698d1605f4fdf721d9937a313de6a4d",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0296",
+      "family": "F15",
+      "mechanism": "donusum",
+      "signature": "fe8c3dac9f54a0b91d2f2f3e3dffabeac0086553e87d27230ca2aa3ca5a4eb6a",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0297",
+      "family": "F15",
+      "mechanism": "yetki",
+      "signature": "86cf473789dbbcd25d9d45ab98ae02a21feed1eea6100293e89a50db458efe1c",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "NOT_APPLICABLE"
+    },
+    {
+      "id": "N0298",
+      "family": "F15",
+      "mechanism": "kaynak-butcesi",
+      "signature": "45758f3ef352f465ba0165971ee58ae3912ddf60c804ea0b9180462dc0a6a077",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0299",
+      "family": "F15",
+      "mechanism": "kullanici-geribildirimi",
+      "signature": "51cd6dfc70aa3dfde590efc1ecc7fce91d1a9d70651c32261b47c88002a100a5",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0300",
+      "family": "F15",
+      "mechanism": "birlesik-akis",
+      "signature": "b87f4d1c0ddb6b98affbc1231fecae940146c6381570cddbed96042259f0e7ac",
+      "sources": [
+        "tests/browser-page-translation-main.test.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0361",
+      "family": "F19",
+      "mechanism": "normal",
+      "signature": "23d37135a10a2c3307fbb9249a3e816c0519efa1d9387e0b524b0d1fe7ca73c0",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0362",
+      "family": "F19",
+      "mechanism": "bos",
+      "signature": "19731bb519e2636b477fdea9ba9edeeec78ef4cfcd38aaaf6fa6c4a57a8d2f83",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0363",
+      "family": "F19",
+      "mechanism": "sinir",
+      "signature": "ea70dfa74ffbec1fc902b5c743286b90e0b14d85c772907371f748e7827541c0",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0364",
+      "family": "F19",
+      "mechanism": "unicode",
+      "signature": "24cec33bca54a41c73b70eaf667732ef81c1a4727be9ec31a6c176b319cf15ab",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0365",
+      "family": "F19",
+      "mechanism": "yinelenen",
+      "signature": "3c1583e1752e9af4e6e48e3c52a1198e36a28ace625a67b4900f6856d1e7c88c",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0366",
+      "family": "F19",
+      "mechanism": "sira",
+      "signature": "107dc3b1c4741f11b5ffb66a42ec7a6dfedb7d62f155619c715c7d73400c6644",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0367",
+      "family": "F19",
+      "mechanism": "iptal-oncesi",
+      "signature": "b12bf1843130754c242813dfd96bd9cb8f1dfd036bfb5b5e0342286ef79a02d8",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0368",
+      "family": "F19",
+      "mechanism": "iptal-ortasi",
+      "signature": "937d8043c4501f44fa91e4a5d315b29bd69aff277ac6d77c281bdc8e5bf5f8bf",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0369",
+      "family": "F19",
+      "mechanism": "gec-sonuc",
+      "signature": "77801a08805d0e0047051e30682bfecfb8570f9fc92ed3f6809cdde8a802a1bb",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0370",
+      "family": "F19",
+      "mechanism": "kaynak-degisimi",
+      "signature": "092514eaa2d9f4f57c24d9bb00c5fc003006ead94479f11d572c9484599a1695",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0371",
+      "family": "F19",
+      "mechanism": "es-zamanli",
+      "signature": "f88f83d60ec935632eddde506b010fda5dc8b2d80c4eec8b0a8cfa936ed846b9",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0372",
+      "family": "F19",
+      "mechanism": "kesik",
+      "signature": "ccfaec70601cb76b5d72c0cf59155c2be2a897595cb68f5b1d87aa890c44190d",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0373",
+      "family": "F19",
+      "mechanism": "hata",
+      "signature": "2d389ca36edbc732271d28d0a669be465739f4508dc9f5d4ff8107234b46e656",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0374",
+      "family": "F19",
+      "mechanism": "timeout",
+      "signature": "65f2a5c20928ff3db2301d79d3194588da1e48e5e902bc5f5740e367a9013e47",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0375",
+      "family": "F19",
+      "mechanism": "yeniden-giris",
+      "signature": "8ff9d0802d202945be426f4976f5e1f4dd78ab9e300891eb281f728304f5c129",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0376",
+      "family": "F19",
+      "mechanism": "donusum",
+      "signature": "c97f84c3fc2c662c87f56d398fbf764c98cc8eaf8e48cb62623a78308b586e45",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0377",
+      "family": "F19",
+      "mechanism": "yetki",
+      "signature": "2f1c6211ee2da734e83c8f0e985abef7cc73f90c5354e0ed58b6561c4dadc243",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0378",
+      "family": "F19",
+      "mechanism": "kaynak-butcesi",
+      "signature": "2d67005901bc2ec1bb3c70fa9f636735adb418104a82fae09f17febf44ff2e92",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0379",
+      "family": "F19",
+      "mechanism": "kullanici-geribildirimi",
+      "signature": "7f206726b62e4695d9df0fe7784b39172c97f527f6463743f13161c4b76614bc",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0380",
+      "family": "F19",
+      "mechanism": "birlesik-akis",
+      "signature": "cc03c9ad88b5519fce0af0abc091f0963d5f5b3957e73391cc6381859ec45e51",
+      "sources": [
+        "src/renderer/renderer.js",
+        " src/queue-persistence.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0861",
+      "family": "F44",
+      "mechanism": "normal",
+      "signature": "8f5e8b60a03e27f8ddb56e8ea5b5eaafc0a820aa20b646724f20298c5ed70505",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0862",
+      "family": "F44",
+      "mechanism": "bos",
+      "signature": "a6d193d0ea746a8e9260621b53b751fccf5035bc07b8a4bda0f29a12195e8d26",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0863",
+      "family": "F44",
+      "mechanism": "sinir",
+      "signature": "4439e3bacb5b554ccb53e673632cf25000e9789fb6aa6ac15c34f30cb9de4010",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0864",
+      "family": "F44",
+      "mechanism": "unicode",
+      "signature": "8e9123b6cfb30fd901c02826b4b658bfa93c39ac63dbd1985d2779f0e7a5ac46",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0865",
+      "family": "F44",
+      "mechanism": "yinelenen",
+      "signature": "934a7daa9acf05f3dd47ba5a58c2cb7018d9c85ce44074d966be526d8f9e80ff",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0866",
+      "family": "F44",
+      "mechanism": "sira",
+      "signature": "a6832850902eacf1dde43b96c6f324ca80005932f4d218ebdd6725c5d47f61d7",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0867",
+      "family": "F44",
+      "mechanism": "iptal-oncesi",
+      "signature": "9abdea0d0a3b8ccbd0bb46002459eb1068ad0b863f8788e1bec1531397c44363",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0868",
+      "family": "F44",
+      "mechanism": "iptal-ortasi",
+      "signature": "38122e5a019ecd8c012e0a5dc5cb32029a2e2308eceb05107f36a6758994900d",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0869",
+      "family": "F44",
+      "mechanism": "gec-sonuc",
+      "signature": "aacfc2bf7c50d7fc2b5a777adcfd8fe9e52877985ebebcda8624e84867e98d6a",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0870",
+      "family": "F44",
+      "mechanism": "kaynak-degisimi",
+      "signature": "1f7f702677c2024dba676fa3b1acd5a391e40296a8939bfe0c15684f3e1156e9",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0871",
+      "family": "F44",
+      "mechanism": "es-zamanli",
+      "signature": "0a6e199ea3ca324d75790ef9bfd77e17ab42cb0419618490204a9fdd49f25967",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0872",
+      "family": "F44",
+      "mechanism": "kesik",
+      "signature": "290714f288ed8397ded6a460d1312cea03286c94ecfe6ea39b1985c71bb4674f",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0873",
+      "family": "F44",
+      "mechanism": "hata",
+      "signature": "9ee7ffbb06d2777f6c653998a0e5bdec0b8f253b536580fd10e86e4373333c47",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0874",
+      "family": "F44",
+      "mechanism": "timeout",
+      "signature": "203db3e0f11ef723e36251544f5552ba864bbd4c952afa13c8da1e217a145e7e",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "NOT_APPLICABLE"
+    },
+    {
+      "id": "N0875",
+      "family": "F44",
+      "mechanism": "yeniden-giris",
+      "signature": "08999fcaffdf914c01d28269d5fb90004301756e97e313ac3b6a8d9990c6bcb2",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0876",
+      "family": "F44",
+      "mechanism": "donusum",
+      "signature": "55219373ee5cb2e7e7132ac84a54daafe145c49f50044bc04b47e9e80e69c90c",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0877",
+      "family": "F44",
+      "mechanism": "yetki",
+      "signature": "439275de7928ee2ac5c8efe9325399e69bdcc038b9c5aa8c0ac7250fffa81cfe",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "NOT_APPLICABLE"
+    },
+    {
+      "id": "N0878",
+      "family": "F44",
+      "mechanism": "kaynak-butcesi",
+      "signature": "4c110bed5d25080d56913de9ec92e726e0e09152c1369ef654192780070ece00",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0879",
+      "family": "F44",
+      "mechanism": "kullanici-geribildirimi",
+      "signature": "3d04e461556ce9c5495d182298348a62416c7aa88adbea04dc0f79df9a310e22",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "NOT_APPLICABLE"
+    },
+    {
+      "id": "N0880",
+      "family": "F44",
+      "mechanism": "birlesik-akis",
+      "signature": "8c93a2955156d4dd5b48a2309d7fd9ebcb4e7a6a612d9dac60d75791c3b84679",
+      "sources": [
+        "tests/electron-browser-trusted-bridge.smoke.js",
+        " src/main.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0941",
+      "family": "F48",
+      "mechanism": "normal",
+      "signature": "ff539900e28e974d383e1b79973508898728bece037598c5af8f8d629bf4d31c",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0942",
+      "family": "F48",
+      "mechanism": "bos",
+      "signature": "61fac7cd9b9536e6d70c5e3569517ccb14f0e88eb5ca620bda41efa1ccbea904",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0943",
+      "family": "F48",
+      "mechanism": "sinir",
+      "signature": "4846a5fa54f6276fe4dd5ff4ab2c2cd382707998cdadb20821f7e82ca78ab25d",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0944",
+      "family": "F48",
+      "mechanism": "unicode",
+      "signature": "288d71c27987bf3b21fe1d68b5b457a2a313d89d01a4b956b80cddee69810861",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0945",
+      "family": "F48",
+      "mechanism": "yinelenen",
+      "signature": "d11ba388b6ddcc24dc4c5e432f7c0ec85fc9c38da8cc9f51f02d94e5d4c70320",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0946",
+      "family": "F48",
+      "mechanism": "sira",
+      "signature": "de70dade4c21821dff3f2b51b6b9bf1d41fb8d353545874c000d05ffb7887e5e",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0947",
+      "family": "F48",
+      "mechanism": "iptal-oncesi",
+      "signature": "ce925741a081b369e132ebcd359adfdce5fea24eee3556175e23c447cb940cd6",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0948",
+      "family": "F48",
+      "mechanism": "iptal-ortasi",
+      "signature": "5c3f86abac2fb93b79d1ae5f55ebc97fcb35e606dd0e428e3763ea2a6cdb3224",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "NOT_APPLICABLE"
+    },
+    {
+      "id": "N0949",
+      "family": "F48",
+      "mechanism": "gec-sonuc",
+      "signature": "dd3ec9b4c55e90235dc2633af4c5d3b302fdf83f83c26467414d31c817cb9b29",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0950",
+      "family": "F48",
+      "mechanism": "kaynak-degisimi",
+      "signature": "1c52779379538d4794093df9758dd6091f183b09986b63ee0986575193bc968f",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0951",
+      "family": "F48",
+      "mechanism": "es-zamanli",
+      "signature": "33696490f214461f55a9e710115f8caf0ca8802c8d86714268052ec61b24c0fe",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "NOT_APPLICABLE"
+    },
+    {
+      "id": "N0952",
+      "family": "F48",
+      "mechanism": "kesik",
+      "signature": "d783b795b1e6c8ca0952e7ed6891873148b16504ad1112d8744b541f4d019d09",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0953",
+      "family": "F48",
+      "mechanism": "hata",
+      "signature": "e5b65f8318b3abfb79c90f117229db9765705bea8fc025a2bd3f2a5587dea9d2",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0954",
+      "family": "F48",
+      "mechanism": "timeout",
+      "signature": "428f23bc90dcf5a8e7dc729629182f97fe10ff7a826086287781e73be310e882",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "NOT_APPLICABLE"
+    },
+    {
+      "id": "N0955",
+      "family": "F48",
+      "mechanism": "yeniden-giris",
+      "signature": "0e41696fa7b551104b57edccdf00f52c3584502ad40bb0373c91a2e02a92c0b8",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0956",
+      "family": "F48",
+      "mechanism": "donusum",
+      "signature": "36be1fb586cf63839ca077b2cabc3a284d0860346038e252b9a35813d48dfa01",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0957",
+      "family": "F48",
+      "mechanism": "yetki",
+      "signature": "61c9729dc0d44930800c5730c480629c20db4fec893b986c96c2d84f980aab6d",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0958",
+      "family": "F48",
+      "mechanism": "kaynak-butcesi",
+      "signature": "4e9eb61ee02c747dfd378ff4864d14980fb5d1ddf7b8f33c8822f3f29cddcc77",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0959",
+      "family": "F48",
+      "mechanism": "kullanici-geribildirimi",
+      "signature": "9198baaa112d4f7650295d29b77587f17ba508130e1b690669743db3c7ec8060",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "PASS"
+    },
+    {
+      "id": "N0960",
+      "family": "F48",
+      "mechanism": "birlesik-akis",
+      "signature": "1f1c77553b352ccd115beaad30a7bc835f9fcaeb9130d9ce7a65378d8dfba87a",
+      "sources": [
+        "src/preload.js",
+        " src/local-file-access.js"
+      ],
+      "historical_status": "PASS"
+    }
+  ],
+  "limits": [
+    "Controlled DownloadItem EventEmitter and DOM facade; real module, IPC callback and renderer consumer unchanged.",
+    "No HTTP/Electron/native save dialog/codec decode/playback, start.bat, GPU or personal profile used.",
+    "Fixture bytes are not an encoded audiobook; rejection occurs before decoder."
+  ]
+}

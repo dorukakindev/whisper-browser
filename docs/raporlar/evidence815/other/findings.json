@@ -1,0 +1,1390 @@
+{
+  "initialHead": "6a789329d96c4f97cdc17bd9518df0b540b13444",
+  "verifiedHead": "6a789329d96c4f97cdc17bd9518df0b540b13444",
+  "date": "2026-10-31",
+  "branch": "codex/audit815-other-areas",
+  "productChangesByThisAudit": false,
+  "previousTotal": 118,
+  "added": 8,
+  "total": 126,
+  "counts": {
+    "P1": 33,
+    "P2": 93
+  },
+  "addedCounts": {
+    "P1": 2,
+    "P2": 6
+  },
+  "mapping": [
+    {
+      "id": "R815-B01",
+      "originalId": "B01",
+      "domain": "previous",
+      "severity": "P2",
+      "title": "Kayıtlı PDF yazı boyutu açılışta sıfırlanıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B02",
+      "originalId": "B02",
+      "domain": "previous",
+      "severity": "P1",
+      "title": "PDF çevirisinin hedef dili paketler arasında değişiyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B03",
+      "originalId": "B03",
+      "domain": "previous",
+      "severity": "P2",
+      "title": "PDF proje importu beklenirken değişen seçim eski projeyi açıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B04",
+      "originalId": "ROOT01",
+      "domain": "root",
+      "severity": "P2",
+      "title": "Büyük harfli video uzantısı gömme işinin kurtarma kaydını geçersiz kılıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B05",
+      "originalId": "ROOT02",
+      "domain": "root",
+      "severity": "P1",
+      "title": "Kitap projesi yedeği yer imlerini geri yüklemiyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B06",
+      "originalId": "ROOT03",
+      "domain": "root",
+      "severity": "P1",
+      "title": "Kitap yedeği 1000 üzerindeki konuşma gruplarını sessiz kesiyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B07",
+      "originalId": "ROOT04",
+      "domain": "root",
+      "severity": "P1",
+      "title": "Kaydedilebilen uzun kitap bölümü başarıyla yedekleniyor ama geri yüklenemiyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B08",
+      "originalId": "ROOT05",
+      "domain": "root",
+      "severity": "P2",
+      "title": "Model yöneticisi güncel HF_HUB_CACHE yolunu görmüyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B09",
+      "originalId": "ROOT06",
+      "domain": "root",
+      "severity": "P1",
+      "title": "Bozuk okuma listesi indeksi sonraki kayıtta sessizce üzerine yazılıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B10",
+      "originalId": "ROOT07",
+      "domain": "root",
+      "severity": "P2",
+      "title": "Yeni bölüm sesi seçilince eski M4B hâlâ güncel sayılıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B11",
+      "originalId": "ROOT08",
+      "domain": "root",
+      "severity": "P2",
+      "title": "Browser tablist içinde tab olmayan etkileşimli düğmeler bulunuyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B12",
+      "originalId": "ROOT09",
+      "domain": "root",
+      "severity": "P2",
+      "title": "Browser araç menüsünün ARIA menu rolü içindeki kontrollerle uyuşmuyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B13",
+      "originalId": "ROOT10",
+      "domain": "root",
+      "severity": "P2",
+      "title": "Oynatma merkezindeki altyazı araması senkron gecikmesini yok sayarak seek yapıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B14",
+      "originalId": "ROOT11",
+      "domain": "root",
+      "severity": "P2",
+      "title": "MKV içindeki TTC font koleksiyonları font çıkarımında atlanıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B15",
+      "originalId": "ROOT12",
+      "domain": "root",
+      "severity": "P2",
+      "title": "HTTPS ağ medyası HTTP/RTSP yolundaki native oynatıcı geçişini atlıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B16",
+      "originalId": "ROOT13",
+      "domain": "root",
+      "severity": "P2",
+      "title": "WMV/WMA kaynakta altyazı gömme MP4e uyumsuz ses kopyalıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B17",
+      "originalId": "ROOT14",
+      "domain": "root",
+      "severity": "P1",
+      "title": "Arşivlenmiş projelerle geçerli kitap yedeği 100 proje sınırında geri yüklenemiyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B18",
+      "originalId": "BR01",
+      "domain": "browser",
+      "severity": "P1",
+      "title": "PDF/MHTML dışa aktarımı kayıt diyaloğu sırasında belge değişimini doğrulamıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B19",
+      "originalId": "BR02",
+      "domain": "browser",
+      "severity": "P1",
+      "title": "Çevrimdışı kopya yenilemesindeki kısmi yazma son sağlam MHTML kopyasını bozuyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B20",
+      "originalId": "BR03",
+      "domain": "browser",
+      "severity": "P2",
+      "title": "Kilitli çevrimdışı kopyanın silinmesi başarı gösterip özel MHTML dosyasını diskte bırakıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B21",
+      "originalId": "BR04",
+      "domain": "browser",
+      "severity": "P2",
+      "title": "Bekleyen çevrimdışı yenileme, kullanıcı tarafından kaldırılan kaydı yeniden diriltiyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B22",
+      "originalId": "BR05",
+      "domain": "browser",
+      "severity": "P2",
+      "title": "Tam sayfa yakalama uzun sayfaları sessizce 30.000 CSS piksele kesiyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B23",
+      "originalId": "BR06",
+      "domain": "browser",
+      "severity": "P2",
+      "title": "Eşzamanlı video yakalamaları kontrol çubuğunu kalıcı gizli bırakıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B24",
+      "originalId": "BR07",
+      "domain": "browser",
+      "severity": "P2",
+      "title": "Kısmen ekran dışında kalan videonun temiz karesine komşu sayfa içeriği ekleniyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B25",
+      "originalId": "BR08",
+      "domain": "browser",
+      "severity": "P2",
+      "title": "Başarısız atlama aralığı yazımı bellekte uygulanıyor ve sonraki kayıtta diske sızıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B26",
+      "originalId": "BR09",
+      "domain": "browser",
+      "severity": "P1",
+      "title": "Ana belgedeki değişmiş checkbox ve geçerli contenteditable taslakları kapatma/boşaltmada korunmuyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B27",
+      "originalId": "BR10",
+      "domain": "browser",
+      "severity": "P1",
+      "title": "Iframe ve shadow DOM içindeki kaydedilmemiş form/taslaklar güvenli boşaltma taramasına girmiyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B28",
+      "originalId": "BR11",
+      "domain": "browser",
+      "severity": "P2",
+      "title": "Videonun sağtık menüsündeki Döngü/Oynat eylemi sağtıklanan medya yerine en büyük medyaya gidiyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B29",
+      "originalId": "BR12",
+      "domain": "browser",
+      "severity": "P1",
+      "title": "Dışa aktarma uzantı ekleyince kullanıcı tarafından seçilmemiş mevcut hedefin üzerine yazabiliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B30",
+      "originalId": "BR13",
+      "domain": "browser",
+      "severity": "P1",
+      "title": "Sekme kapanışında ilk form kontrolünden sonra capture drain beklerken yazılan taslak son kontrolden geçmiyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B31",
+      "originalId": "BR14",
+      "domain": "browser",
+      "severity": "P2",
+      "title": "Harici oynatıcı native başlatma hatası yutulurken API başarı döndürüyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B32",
+      "originalId": "BR15",
+      "domain": "browser",
+      "severity": "P2",
+      "title": "Kalıcı anlamsal worker düzeltmesi caller her istekte yeni factory kurduğu için tekrar model süreci yaratıyor",
+      "existing": true
+    },
+    {
+      "id": "R815-B33",
+      "originalId": "BE01",
+      "domain": "backend",
+      "severity": "P1",
+      "title": "Başka hedef dilde çeviri önceki çift dilli dosyayı eziyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B34",
+      "originalId": "BE02",
+      "domain": "backend",
+      "severity": "P1",
+      "title": "Auto kaynakta Türkçe açılış, kalan İngilizce konuşmayı çevrilmiş gibi tamamlıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B35",
+      "originalId": "BE03",
+      "domain": "backend",
+      "severity": "P2",
+      "title": "ASS vektör çizim koordinatları gerçek çeviri girdisi oluyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B36",
+      "originalId": "BE04",
+      "domain": "backend",
+      "severity": "P2",
+      "title": "SRT gövdesindeki zaman aralığı dublajda hayalet cue ve kimlik kayması üretiyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B37",
+      "originalId": "BE05",
+      "domain": "backend",
+      "severity": "P2",
+      "title": "ASR'de yalın özel ad değişimi passed/ready kalıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B38",
+      "originalId": "BE06",
+      "domain": "backend",
+      "severity": "P2",
+      "title": "Aynı sayıların kişiler arasında takası ASR miktar kapısından geçiyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B39",
+      "originalId": "BE07",
+      "domain": "backend",
+      "severity": "P2",
+      "title": "Literal WebVTT etiketi yeniden dışa aktarımda gerçek stile dönüşüyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B40",
+      "originalId": "BE08",
+      "domain": "backend",
+      "severity": "P2",
+      "title": "WebVTT inline zaman etiketi çeviriye konuşma, çıktıya görünen metin olarak taşınıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B41",
+      "originalId": "BE09",
+      "domain": "backend",
+      "severity": "P1",
+      "title": "Kullanıcı sahne notu değişince eski çeviri fuzzy hafızadan geri geliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B42",
+      "originalId": "BE10",
+      "domain": "backend",
+      "severity": "P2",
+      "title": "Checkpoint'ten devamda korunmuş eski cue'lar konuşmacı kimliğini kaybediyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B43",
+      "originalId": "A01",
+      "domain": "assistant",
+      "severity": "P2",
+      "title": "Kişisel puan 10'luk ve 5'lik ölçeklerde farklı yorumlanıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B44",
+      "originalId": "A02",
+      "domain": "assistant",
+      "severity": "P2",
+      "title": "Kapatılan Keşfet ayrıntısı, geç gelen ekleme yanıtıyla kütüphaneyi açıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B45",
+      "originalId": "A03",
+      "domain": "assistant",
+      "severity": "P2",
+      "title": "Keşfet Tercihlerindeki yapım türü filtresi çalışmıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B46",
+      "originalId": "A04",
+      "domain": "assistant",
+      "severity": "P2",
+      "title": "Bu akşam bölümünün geç oynatma yanıtı yeni açılan başka pencereyi kapatıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B47",
+      "originalId": "A05",
+      "domain": "assistant",
+      "severity": "P1",
+      "title": "Sohbet silme onayı başka sohbete yönleniyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B48",
+      "originalId": "A06",
+      "domain": "assistant",
+      "severity": "P2",
+      "title": "Ana süreç doğrulama eki uygulamanın JSON yorum analizi akışını bozuyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B49",
+      "originalId": "A07",
+      "domain": "assistant",
+      "severity": "P2",
+      "title": "Sabitlenen notlar ilgisiz normal web sayfaları arasında karışıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B50",
+      "originalId": "A08",
+      "domain": "assistant",
+      "severity": "P2",
+      "title": "Onaylanan altyazı işlemi yeni izin aynı konumsal U kimliğine kayıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B51",
+      "originalId": "A10",
+      "domain": "assistant",
+      "severity": "P2",
+      "title": "Zevk tercihlerini kaydetme yanıtı daha yeni taslağı siliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B52",
+      "originalId": "A11",
+      "domain": "assistant",
+      "severity": "P2",
+      "title": "Keşfet tercih hatası etkin ayrıntı penceresinin dışında gösteriliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B53",
+      "originalId": "A12",
+      "domain": "assistant",
+      "severity": "P2",
+      "title": "Yerel kayıtlı Keşfet tercihi çevrimdışıyken geri alınamıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B54",
+      "originalId": "A13",
+      "domain": "assistant",
+      "severity": "P2",
+      "title": "Önceki kitabın geciken açılışı son kitap seçiminin üzerine geliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B55",
+      "domain": "root",
+      "originalId": "XROOT01",
+      "severity": "P1",
+      "title": "Video paketinin geri yüklenmesi çıkarılan videoyu kataloğa bağlamıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B56",
+      "domain": "root",
+      "originalId": "XROOT02",
+      "severity": "P2",
+      "title": "POSIX kaynak kökü taşıma sihirbazında baştaki ayıracını kaybediyor ve seçilen eşleme uygulanmıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B57",
+      "domain": "root",
+      "originalId": "XROOT03",
+      "severity": "P1",
+      "title": "Bozuk kaynak katalog otomatik yedeklemede başarı sayılıyor ve son sağlam yedek budanıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B58",
+      "domain": "root",
+      "originalId": "XROOT04",
+      "severity": "P1",
+      "title": "Çalışma paketi yalnız önizlenirken paket içindeki doğrulanmamış UNC yoluna dosya varlık sorgusu gönderiliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B59",
+      "domain": "browser",
+      "originalId": "EX-BR01",
+      "severity": "P2",
+      "title": "Var olan hosta sonradan eklenen açık shadow root içindeki video keşfedilmiyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B60",
+      "domain": "browser",
+      "originalId": "EX-BR02",
+      "severity": "P2",
+      "title": "CSS visibility:hidden büyük video görünür oynatıcıdan önce seçiliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B61",
+      "domain": "browser",
+      "originalId": "EX-BR03",
+      "severity": "P2",
+      "title": "Aynı belgede oynatıcı değişince eski docToken yeni medya üzerinde komuta izin veriyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B62",
+      "domain": "browser",
+      "originalId": "EX-BR04",
+      "severity": "P2",
+      "title": "Dublaj hız geçersiz kılma kaydı aynı video elementinin yeni kaynağına taşınıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B63",
+      "domain": "browser",
+      "originalId": "EX-BR05",
+      "severity": "P1",
+      "title": "Normalizasyon kurulmuş medya CORS izinsiz kaynağa geçince normal oynarken sessiz kalıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B64",
+      "domain": "browser",
+      "originalId": "EX-BR06",
+      "severity": "P2",
+      "title": "Çapraz-origin karelerin bağlantı etiketleri aynı kısayolu kullanıyor ve seçimden sonra diğer katman kalıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B65",
+      "domain": "browser",
+      "originalId": "EX-BR07",
+      "severity": "P2",
+      "title": "Genel web akışlarının altyazı tercihi stream kimliğini kaybedip aynı sayfanın başka videosuyla birleşiyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B66",
+      "domain": "backend",
+      "originalId": "XB01",
+      "severity": "P2",
+      "title": "Geçerli WebVTT cue gövdesindeki NOTE/STYLE/REGION konuşması siliniyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B67",
+      "domain": "backend",
+      "originalId": "XB04",
+      "severity": "P2",
+      "title": "Altyazı referans hizalamasında örtüşen cue katmanları güven puanını şişiriyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B68",
+      "domain": "backend",
+      "originalId": "XB05",
+      "severity": "P2",
+      "title": "Doğru milyar değerleri ASR doğrulamasında sayı kaybı/ekleme diye reddediliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B69",
+      "domain": "backend",
+      "originalId": "XB06",
+      "severity": "P2",
+      "title": "Senkron işi ortak iptal/geçici dosya yaşam döngüsüne katılmadığı için ses kalıntısı bırakıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B70",
+      "domain": "backend",
+      "originalId": "XB07",
+      "severity": "P1",
+      "title": "Dizi kanon hafızası sonradan oluşunca exact çeviri cache eski terminolojiyi geri getiriyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B71",
+      "domain": "assistant",
+      "originalId": "E01",
+      "severity": "P2",
+      "title": "Yorum isteği kimlik çözümlemesindeyken verilen durdurma kayboluyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B72",
+      "domain": "assistant",
+      "originalId": "E02",
+      "severity": "P2",
+      "title": "IMDb eşleşmesi değişmiş eski yorum analizi yeni kimliğe kaydedilip güncel gösteriliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B73",
+      "domain": "assistant",
+      "originalId": "E03",
+      "severity": "P1",
+      "title": "Yapım yüklenirken dil değişimi eski başlığı gösterip yeni kaydı değiştiriyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B74",
+      "domain": "assistant",
+      "originalId": "E04",
+      "severity": "P2",
+      "title": "Sürekli gelen asistan metni ara kayda yazılmıyor, kapanışta bütünüyle kaybolabiliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B75",
+      "domain": "assistant",
+      "originalId": "E05",
+      "severity": "P1",
+      "title": "Açık olumsuz watchlist isteği doğrudan ekleme işlemi yapıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B76",
+      "domain": "assistant",
+      "originalId": "E06",
+      "severity": "P2",
+      "title": "Geçerli Türkçe TMDB türü Sana özel önerilerde yok sayılıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B77",
+      "domain": "assistant",
+      "originalId": "E07",
+      "severity": "P2",
+      "title": "Native duraklatma başarısızken asistan tamamlandı ve durakladı bildiriyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B78",
+      "domain": "assistant",
+      "originalId": "E08",
+      "severity": "P2",
+      "title": "Geçerli SSE Content-Type harf değişimi sağlayıcı yanıtını bozuyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B79",
+      "domain": "root",
+      "originalId": "HR01",
+      "severity": "P2",
+      "title": "Model durumu ve silme onayı başka depoyu gösterirken ilk yarım depo siliniyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B80",
+      "domain": "root",
+      "originalId": "HR02",
+      "severity": "P2",
+      "title": "Model silme onayı beklenirken başlayan işten sonra busy koruması yeniden denetlenmiyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B81",
+      "domain": "root",
+      "originalId": "HR03",
+      "severity": "P1",
+      "title": "Tek mükerrer kayıt onarımı seçilse de seçilmeyen başka kimliklerin kayıtları da siliniyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B82",
+      "domain": "root",
+      "originalId": "HR04",
+      "severity": "P2",
+      "title": "Şeması geçersiz JSON yedeği sağlam sayılıp geri yükleniyor ve katalog hâlâ açılmazken sağlık temiz görünüyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B83",
+      "domain": "browser",
+      "originalId": "HB01",
+      "severity": "P2",
+      "title": "Altyazı varlık kaydı dikey yazım/sunum bilgisini kaybediyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B84",
+      "domain": "browser",
+      "originalId": "HB02",
+      "severity": "P2",
+      "title": "Tarayıcı oturum paketi seslendirme çevirisinin forSpeech ve protokol bilgisini siliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B85",
+      "domain": "browser",
+      "originalId": "HB03",
+      "severity": "P2",
+      "title": "DASH Representation SegmentTemplate üst şablon niteliklerini devralmıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B86",
+      "domain": "browser",
+      "originalId": "HB04",
+      "severity": "P2",
+      "title": "Geçerli XML namespace önekli DASH MPD altyazısı keşfedilmiyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B87",
+      "domain": "browser",
+      "originalId": "HB05",
+      "severity": "P2",
+      "title": "TTML çocuk altyazısı üst zaman kapsayıcısının bitişinde kesilmiyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B88",
+      "domain": "browser",
+      "originalId": "HB06",
+      "severity": "P2",
+      "title": "TTML statik metinle karışık zamanlı span tüm paragraf boyunca erken gösteriliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B89",
+      "domain": "browser",
+      "originalId": "HB07",
+      "severity": "P2",
+      "title": "Geçerli TTML sequential ve örtük başlangıçlı paragraflar tamamen düşüyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B90",
+      "domain": "browser",
+      "originalId": "HB08",
+      "severity": "P2",
+      "title": "İçerik adresli altyazı varlığı geçerli JSON içeriği bozulunca hashini doğrulamadan kabul ediyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B91",
+      "domain": "backend",
+      "originalId": "HB01",
+      "severity": "P1",
+      "title": "Yalnız noktalama düzeltmesi kaynak olumsuzluğunu tersine çeviren yanıtı başarılı sayıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B92",
+      "domain": "backend",
+      "originalId": "HB02",
+      "severity": "P2",
+      "title": "Bir veya iki kelimelik kaynakta LLM büyüklük koruması devre dışı kalıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B93",
+      "domain": "backend",
+      "originalId": "HB03",
+      "severity": "P2",
+      "title": "LLM temizlemede kalıcı401 hatasından sonra kuyruktaki her paket sağlayıcıya gönderiliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B94",
+      "domain": "backend",
+      "originalId": "HB04",
+      "severity": "P1",
+      "title": "Adaptive indirme başarısız yeniden denemede önceki sağlam video dosyasını siliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B95",
+      "domain": "backend",
+      "originalId": "HB05",
+      "severity": "P1",
+      "title": "YouTube ses dilini değiştirmek aynı videoID dosyasından eski dildeki sesi geri kullanıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B96",
+      "domain": "backend",
+      "originalId": "HB06",
+      "severity": "P1",
+      "title": "LLM temizleme açık length bitişini yok sayıp kesik metni final SRTye yazıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B97",
+      "domain": "assistant",
+      "originalId": "H01",
+      "severity": "P1",
+      "title": "Araştırma güvenlik kontrolü özel adrese yönlendirme yüklendikten sonra çalışıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B98",
+      "domain": "assistant",
+      "originalId": "H02",
+      "severity": "P2",
+      "title": "Araştırma kaynak bütçesi dolunca yeni W1 metni eski W1 kaynak listesine bağlanıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B99",
+      "domain": "assistant",
+      "originalId": "H03",
+      "severity": "P2",
+      "title": "Sonuçla devam et önceki atıfları ve işlem günlüğünü kalıcı kayıttan kaldırıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B100",
+      "domain": "assistant",
+      "originalId": "H04",
+      "severity": "P2",
+      "title": "Korece kitap araması normalleştirilmiş ofsetle özgün metni kesip boş kanıt döndürüyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B101",
+      "domain": "assistant",
+      "originalId": "H05",
+      "severity": "P2",
+      "title": "Başarısız ayar değişimi geri alınsa da önceki geçerli Geri al kaydı siliniyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B102",
+      "domain": "assistant",
+      "originalId": "H06",
+      "severity": "P2",
+      "title": "Tümünü tekrarla döngüsü biten parçayı eski devam konumundan başlatıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B103",
+      "domain": "assistant",
+      "originalId": "H07",
+      "severity": "P2",
+      "title": "Eski ses oynatıcısını kapatma yanıtı sonradan başlayan yeni parçayı siliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B104",
+      "domain": "packaging",
+      "originalId": "PK01",
+      "severity": "P1",
+      "title": "Windows dağıtım filtresi yerel sır, profil, günlük ve medyayı pakete alıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B105",
+      "domain": "packaging",
+      "originalId": "PK02",
+      "severity": "P1",
+      "title": "Paketleyici kilit dosyasını atlıyor; paket içindeki install.bat ön kontrolü çalışamıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B106",
+      "domain": "engines",
+      "originalId": "UE01",
+      "severity": "P2",
+      "title": "Başarısız torrent dosya seçimi mevcut job nesnesine ve sonra diske sızıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B107",
+      "domain": "engines",
+      "originalId": "UE02",
+      "severity": "P2",
+      "title": "Aynı torrentte eşzamanlı iki dosya seçimi bir seçimi kaybediyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B108",
+      "domain": "engines",
+      "originalId": "UE03",
+      "severity": "P2",
+      "title": "Bekleyen torrent motor başlangıcı close/quit sonrasında yeni süreç başlatabiliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B109",
+      "domain": "engines",
+      "originalId": "UE04",
+      "severity": "P2",
+      "title": "Native kare çözülürken video değişirse eski kare yeni videonun altyazısı ve adıyla kaydediliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B110",
+      "domain": "subscriptions",
+      "originalId": "UN-SUB01",
+      "severity": "P2",
+      "title": "501 kanallı içe aktarma başarılı görünürken son kanal kalıcı kayıttan düşüyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B111",
+      "domain": "subscriptions",
+      "originalId": "UN-SUB02",
+      "severity": "P2",
+      "title": "Kanal ekle kutusu geçerli Türkçe handle’ı çıplak biçimde reddediyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B112",
+      "domain": "subscriptions",
+      "originalId": "UN-SUB03",
+      "severity": "P2",
+      "title": "YouTube handle kimliği harf büyüklüğüne göre iki ayrı abonelik sayılıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B113",
+      "domain": "subscriptions",
+      "originalId": "UN-SUB04",
+      "severity": "P2",
+      "title": "Yerel aboneliklerde Yenile komutu beş dakikalık önbelleği aşamıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B114",
+      "domain": "subscriptions",
+      "originalId": "UN-SUB05",
+      "severity": "P2",
+      "title": "RSS kaynağındaki tüm istekler başarısızken kullanıcıya boş akış gösterilip başarı önbelleği yazılıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B115",
+      "domain": "library",
+      "originalId": "UL01",
+      "severity": "P2",
+      "title": "Atom xml:base ile tanımlanan göreli medya bağlantıları içe alınamıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B116",
+      "domain": "library",
+      "originalId": "UL02",
+      "severity": "P2",
+      "title": "Podcast yenilemesi aynı GUID için değişen medya adresinde dinleme konumunu siliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B117",
+      "domain": "library",
+      "originalId": "UL03",
+      "severity": "P2",
+      "title": "EPUB içindeki normal hidden öğeler okuyucuda görünür metne dönüştürülüyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B118",
+      "domain": "library",
+      "originalId": "UL04",
+      "severity": "P2",
+      "title": "Boştaki Spotify içe aktarma penceresini kapatmak kayıtlı parçanın hazırlanmasını iptal ediyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B119",
+      "domain": "root",
+      "originalId": "NR01",
+      "severity": "P1",
+      "title": "Tanı paketi serbest hata metnindeki kanonik sır alanlarını gizlemeden diske yazıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B120",
+      "domain": "root",
+      "originalId": "NR02",
+      "severity": "P1",
+      "title": "Tanı üreticisindeki kırpma uzun altyazının gizlilik filtresini atlatıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B121",
+      "domain": "root",
+      "originalId": "NR03",
+      "severity": "P2",
+      "title": "Aynı medya kimlikli SPA geçişinde eski sayfa profili isteği yeni yola kaydediliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B122",
+      "domain": "downloads",
+      "originalId": "DL01",
+      "severity": "P2",
+      "title": "İndirilen M4B için gösterilen Oynatıcıda aç işlemi backend beyaz listesinde reddediliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B123",
+      "domain": "liveasr",
+      "originalId": "LA01",
+      "severity": "P2",
+      "title": "Canlı ASR yeniden başlatıldığında cue kimlik çakışması önceki farklı zamanlı konuşmayı siliyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B124",
+      "domain": "liveasr",
+      "originalId": "LA02",
+      "severity": "P2",
+      "title": "Worklet modülü yüklenirken biten sistem sesi izi sonrasında etkin oturum olarak kalıyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B125",
+      "domain": "workflows",
+      "originalId": "WF-AUTO-01",
+      "severity": "P2",
+      "title": "Otomasyon kaynak ve oturum karakter bütçesini gerçek altyazı metninden ölçmüyor",
+      "existing": false
+    },
+    {
+      "id": "R815-B126",
+      "domain": "workflows",
+      "originalId": "WF-MCP-02",
+      "severity": "P2",
+      "title": "MCP köprüsü HTTP parçası sınırında Unicode JSON-RPC istek kimliğini bozuyor",
+      "existing": false
+    }
+  ],
+  "newFindings": [
+    {
+      "id": "R815-B119",
+      "domain": "root",
+      "originalId": "NR01",
+      "severity": "P1",
+      "title": "Tanı paketi serbest hata metnindeki kanonik sır alanlarını gizlemeden diske yazıyor",
+      "detail": {
+        "id": "NR01",
+        "severity": "P1",
+        "title": "Tanı paketi serbest hata metnindeki kanonik sır alanlarını gizlemeden diske yazıyor",
+        "sources": [
+          "src/main.js:5258–5292",
+          "src/main.js:5355–5450",
+          "src/main.js:17871–17919",
+          "src/browser-diagnostics-export.js:9–18",
+          "src/browser-sensitive-keys.js:19–76"
+        ],
+        "reproduce": "Gerçek noteBrowserCapture üreticisine clientSecret/accessToken/private_key alanlarında yalnız FAKE marker içeren hata ver. Gerçek preview JSON’unu gerçek export handler’ına ilet; izole dosyada gerçek atomicWriteFileSync çıktısını oku. api_key alanını karşı kontrol olarak kullan.",
+        "expected": "Ortak hassas anahtar sözlüğünde sır sayılan clientSecret/accessToken/private_key değerleri önizleme ve kaydedilen tanı dosyasından kaldırılmalı.",
+        "observed": "Üç FAKE marker preview ve disk JSON’unda aynı kaldı. Aynı üretici/preview/export zincirinde api_key=FAKE_CLASSIC_MARKER gizlendi. Önizlenen JSON ile disk byte içeriği eşit.",
+        "cause": "sanitizeDiagnosticsSecrets nesne anahtarlarında ortak sözlüğü kullanıyor fakat string alanlarını eski dar redactBrowserDiagnosticsText regexine veriyor. CamelCase/alt çizgili hassas adların bir bölümü serbest hata atamalarında eşleşmiyor.",
+        "impact": "Bu biçimde kimlik bilgisi taşıyan hata oluşursa kullanıcı mahremiyet filtresinden geçtiğini düşündüğü tanı dosyasını sır değeriyle paylaşabilir. Gerçek kullanıcı anahtarının sızdığı iddia edilmez; yalnız sentetik alan/değerler kullanıldı.",
+        "prior": "Önceki R815 B01–B118 içinde yok. R69 K7 camelCase savunmasını browser-playback-diagnostics.redactDiagnosticText ve persistentBrowserMediaUrl yollarında ele alır; bu export string tüketicisi aynı yardımcıyı kullanmıyor. R356 ve 13.09.2026.07 derin acquisition/coverage sansürü kısa/klasik anahtar fixture’larıdır; burada gerçek noteBrowserCapture→preview→export zincirindeki farklı anahtar kapsamı sınandı.",
+        "limits": "Gerçek orijinal main üretici/handler ve gerçek atomik dosya yazımı; native dialog yetkili sentetik hedefe yönlendirilir. Hata metni kontrollü fixture’dır; sağlayıcı/canlı hesap/kişisel sır kullanılmadı. Tüm olası sır biçimlerini yakalama garantisi iddia edilmez.",
+        "acceptance": "Aynı fixture serbest hata atamalarında ve nesne anahtarlarında aynı kanonik sır politikasını uygulamalı; klasik api_key karşı kontrolü ve normal tanı metni korunmalı."
+      }
+    },
+    {
+      "id": "R815-B120",
+      "domain": "root",
+      "originalId": "NR02",
+      "severity": "P1",
+      "title": "Tanı üreticisindeki kırpma uzun altyazının gizlilik filtresini atlatıyor",
+      "detail": {
+        "id": "NR02",
+        "severity": "P1",
+        "title": "Tanı üreticisindeki kırpma uzun altyazının gizlilik filtresini atlatıyor",
+        "sources": [
+          "src/main.js:5279–5290",
+          "src/main.js:5387–5390",
+          "src/main.js:5444–5450",
+          "src/browser-diagnostics-export.js:40–80"
+        ],
+        "reproduce": "Tam metni browserTrackBuffers içinde bulunan 823 karakterlik sahte cue’yu gerçek noteBrowserCapture hata detayına koy. Üreticinin 160 karakterlik kaydı gerçek preview/export hattından geçir. 22 karakterlik kısa cue ile karşı kontrol çalıştır.",
+        "expected": "Tanı paketine tam cue yerine yalnız öneki taşınsa bile kullanıcı altyazısı gizlenmeli; metin boyu sınırı gizlilik filtresini etkisiz kılmamalı.",
+        "observed": "Tam cue tamponda bilinirken üretici hata detayını 160 karaktere kesiyor; export filtresi tam metni artık bulamıyor. FAKE_PRIVATE_CUE_START ve devamındaki altyazı öneki kaydedilen JSON’da duruyor. Aynı zincirde kısa cue gizleniyor.",
+        "cause": "Cue sansürü tam metin includes eşleşmesi yapıyor; üretici/snapshot string kısaltmaları ondan önce çalışıyor. Kırpılmış parça uzun cue ile eşleşemediğinden son katman altyazı dışarıda varsayımını sağlayamıyor.",
+        "impact": "Uzun replik veya altyazıyı içeren hata/ayrıştırıcı detayının başlangıcı tanı dosyasına taşınabilir. NR01’den bağımsızdır: sır anahtarı yoktur; doğru kanonik anahtar regexi eklemek bu cue önekini gizlemez.",
+        "prior": "R815 önceki118’de yok. R356/13.09.2026.07 mevcut tam cue derin sansürünü kanıtlar; mevcut browser-diagnostics-export testi kısa tam cue’yu doğrudan filtreye verir. Yeni invariant üretici kırpması ile son gizlilik katmanının bileşimidir. Tarihsel sansür başarısı yeniden keşif sayılmadı.",
+        "limits": "Tamamen sentetik uzun metin, gerçek üretici/preview/export/disk; gerçek kişisel altyazı veya dış paylaşım yok. Bütün provider hatalarının altyazı metni içerdiği iddia edilmez. Koşul, kaydedilecek hata alanına bilinen cue metni gelmesidir.",
+        "acceptance": "Kısa ve uzun cue, hata öneki/soneki ve üretici boy sınırında kesilme hallerinde diske kullanıcı metni taşınmamalı; normal tanı sözcükleri korunmalı."
+      }
+    },
+    {
+      "id": "R815-B121",
+      "domain": "root",
+      "originalId": "NR03",
+      "severity": "P2",
+      "title": "Aynı medya kimlikli SPA geçişinde eski sayfa profili isteği yeni yola kaydediliyor",
+      "detail": {
+        "id": "NR03",
+        "severity": "P2",
+        "title": "Aynı medya kimlikli SPA geçişinde eski sayfa profili isteği yeni yola kaydediliyor",
+        "sources": [
+          "src/main.js:13705–13746",
+          "src/main.js:17048–17075",
+          "src/renderer/renderer.js:9141–9154",
+          "src/browser-site-profiles.js:144–187"
+        ],
+        "reproduce": "Aynı YouTube video kimliğine ait /watch?v=abcdefghijk için path kapsamlı subtitleMode=both isteğini oluştur. Gerçek did-navigate-in-page callback’iyle /shorts/abcdefghijk yoluna geç; eski url/generation/origin içeren isteği gerçek browser:profile:update handler’ına ver. Sabit yol ve farklı generation karşı kontrollerini çalıştır.",
+        "expected": "Sayfaya özel istek kendi path kimliğini hedeflemeli; yol değişmişse eski istek stale olarak reddedilmeli veya açıkça başlangıç yoluna uygulanmalı.",
+        "observed": "Gerçek adapter iki URL’ye de youtube:abcdefghijk kimliği verdi. Gerçek SPA callback generation=3 değerini korudu. Eski request.url=/watch isteği ok:true ile /shorts/abcdefghijk pathProfiles kaydı oluşturdu; /watch yok. Farklı generation reddediliyor, sabit yol doğru yere kaydediliyor.",
+        "cause": "Main generation ve origin doğruluyor, fakat request.url/pathKey’i kontrol etmiyor. Aynı medya kimlikli SPA geçişi generation artırmadığı için handler güncel URL’yi kullanıp önceki sayfa isteğini yeni yola yönlendiriyor.",
+        "impact": "Kullanıcının belirli sayfa için yaptığı altyazı/diğer profil değişikliği başka rota altında saklanabilir ve sonraki ziyaretleri etkileyebilir. Site kapsamının origin ile korunması bu path kapsamı farkını çözmez.",
+        "prior": "Önceki118’de site/path profil kökü yok. R77/R85 zoom ve R301 profil/depo yardımcıları tarihsel kapsamdır. R815 B50 altyazı konumsal kimlik onayı, B73 yapım/dil yükleme ve B109 native kare decode farklı tüketici ve state mekanizmalarıdır.",
+        "limits": "Gerçek main SPA callback/IPC ve gerçek adapter/profile yardımcıları; places/flush/sayfa olayları kontrollü bellek durumudur. Gerçek YouTube yüklenmedi veya kişisel profil değiştirilmedi. Tam renderer tıklama/gerçek IPC zamanlaması E2E iddiası yok; eski path isteğinin kabulü deterministik olarak kanıtlandı.",
+        "acceptance": "Aynı mediaId/origin/generation altında path değişimi eski path isteğini yeni profile uygulamamalı; sabit yol kabulü ve generation ret karşı kontrolleri korunmalı."
+      }
+    },
+    {
+      "id": "R815-B122",
+      "domain": "downloads",
+      "originalId": "DL01",
+      "severity": "P2",
+      "title": "İndirilen M4B için gösterilen Oynatıcıda aç işlemi backend beyaz listesinde reddediliyor",
+      "detail": {
+        "id": "DL01",
+        "severity": "P2",
+        "title": "İndirilen M4B için gösterilen Oynatıcıda aç işlemi backend beyaz listesinde reddediliyor",
+        "sources": [
+          {
+            "file": "src/browser-downloads.js",
+            "lines": "142–148"
+          },
+          {
+            "file": "src/renderer/renderer.js",
+            "lines": "9275–9278,9302–9303"
+          },
+          {
+            "file": "src/main.js",
+            "lines": "15698–15702,18183–18186"
+          },
+          {
+            "file": "src/preload.js",
+            "lines": "browserDownloads binding"
+          }
+        ],
+        "reproduce": [
+          "Repo kökünden node .tmp/next815-downloads/probe.cjs çalıştır. Çıktı tabanı R815_DOWNLOADS_OUT ile seçilebilir; her çağrı mkdtemp ile yeni run dizini yaratır.",
+          "Kontrollü DownloadItem will-download → done(completed), mevcut fixture.m4b dosyası ve gerçek module snapshotını gerçek renderer tüketicisine ver.",
+          "Görünür open-player düğmesinin mevcut click callbackini çalıştır; mevcut browser:downloads IPC handlerı mevcut manager.actiona gider.",
+          "Aynı zincirde M4B, M4A, MP4 ve ZIP karşı kontrollerini incele."
+        ],
+        "expected": "Uygulamanın MEDIA_EXTS listesinde ve renderer oynatılabilir denetiminde bulunan M4B dosyasında gösterilen açma düğmesi mevcut dosya için path döndürmeli ve yerel oynatıcı geçişini çağırmalı.",
+        "observed": "m4b ve M4B: düğme görünür, result.ok=false, desteklenmeyen medya türü hatası, openLocalMedia çağrılmaz. m4a ve mp4 aynı zincirde ok=true ve openLocalMedia çağrılır. zip düğmesi gizlidir ve IPC reddeder.",
+        "cause": "browser-downloads.js bağımsız open-player uzantı regexinde m4b yok; renderer regexi ve main MEDIA_EXTS aynı uzantıyı kabul ediyor.",
+        "impact": "Tarayıcıdan indirilmiş sesli kitabı indirmeler panelinden uygulamanın yerel oynatıcısına açma yolu her denemede başarısızdır. Klasörde göster çalışır; elle dosya açma geçici yoludur. Dosya kaybı iddia edilmez.",
+        "prior": {
+          "r815": "Önceki 118 eşleme incelendi; tek M4B B10, kitap çıktısının güncellik/hash köküdür. B94 backend adaptive indirme temizliğidir; bu handler değildir.",
+          "historical": [
+            "R64-25 indirme yolunun mediaFileAccess yetkisi ayrı kök; mevcut uzantı reddi ondan önce gerçekleşir.",
+            "R46-10 kesintili indirmelerin aktif yuvası, R46-83 persist mesajı ve R46-84 native getter başka mekanizmalardır.",
+            "R167 geçmişteki terminal kayıttan resume olmamasını gizlilik tasarım sınırı diye kaydeder; yeni bug sayılmadı.",
+            "R476-09 native setup throw ve R479-04 destroyed getter için mevcut güvenli yolları tekrar bug saymadık."
+          ],
+          "registry": "1000 satırda browser-downloads.js kaynak imzası yok. main/renderer/preload ortaklığı nedeniyle 80 tarihsel satır F15/F19/F44/F48 eşleşir; detaylar coverageMatrix içindedir; bu kaynak ortaklığı yeni invariantın tarihsel olarak çalıştırıldığını göstermez."
+        },
+        "limits": [
+          "Controlled DownloadItem EventEmitter and DOM facade; real module, IPC callback and renderer consumer unchanged.",
+          "No HTTP/Electron/native save dialog/codec decode/playback, start.bat, GPU or personal profile used.",
+          "Fixture bytes are not an encoded audiobook; rejection occurs before decoder."
+        ],
+        "acceptance": [
+          "Gerçek mevcut download manager, handler ve renderer callback değiştirilmeden çalıştırıldı.",
+          "Eksiksiz m4b/M4B görünürlük→IPC ret zinciri ve m4a/mp4 açma, zip ret karşı kontrolleri.",
+          "Pause/resume/interrupted/cancel, unauthorized IPC, native save-path çağrılmaması, active/listener cleanup ve M4B reveal karşı kontrolleri geçti.",
+          "Sadece raporlama; ürün/test/Git mutasyonu yapılmadı."
+        ],
+        "sourceSha256": {
+          "src/browser-downloads.js": "8f6712b337f027d6509a8d49c31d0224594ac277a087b33af96c8dbe8fe8de96",
+          "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+          "src/preload.js": "c035a7b77125def6b44ce121ff21a6f0dde717179c9ff38970d1d5b335e2796c",
+          "src/renderer/renderer.js": "4853b2fe48da6a383e2438895c747a0ba79820eb58470da5ac66de476f8b66d6"
+        }
+      }
+    },
+    {
+      "id": "R815-B123",
+      "domain": "liveasr",
+      "originalId": "LA01",
+      "severity": "P2",
+      "title": "Canlı ASR yeniden başlatıldığında cue kimlik çakışması önceki farklı zamanlı konuşmayı siliyor",
+      "detail": {
+        "id": "LA01",
+        "severity": "P2",
+        "title": "Canlı ASR yeniden başlatıldığında cue kimlik çakışması önceki farklı zamanlı konuşmayı siliyor",
+        "sources": [
+          "src/main.js:9648-9649",
+          "src/main.js:9667",
+          "src/main.js:9682",
+          "src/main.js:10093-10101",
+          "src/browser-subtitles.js:223-239"
+        ],
+        "reproduce": [
+          "Aynı sekme/video/acquisition için gerçek startBrowserLiveAsr ile oturum1 başlat; backend protokolünden Merhaba@10–11 ve Devam@20–21 segmentlerini ilet.",
+          "Gerçek stopBrowserLiveAsr ve süreç close olayını işlet; videoda geriye sarılmış konumdan aynı acquisition üzerinde yeni oturum başlat.",
+          "Yeni oturum ilk segmenti Merhaba@0–1 olsun; gerçek storeBrowserTrack ve mergeBrowserStreamCues tamponunu incele."
+        ],
+        "expected": "0–1,10–11,20–21 farklı zamanlı üç cue korunmalı; yeni oturum eski ayrı repliğin revizyonu değildir.",
+        "observed": {
+          "sessions": [
+            "session-1",
+            "session-2"
+          ],
+          "streamKey": "live-asr:7:stable-acquisition",
+          "before": [
+            {
+              "id": "live-0",
+              "start": 10,
+              "end": 11,
+              "text": "Merhaba"
+            },
+            {
+              "id": "live-1",
+              "start": 20,
+              "end": 21,
+              "text": "Devam"
+            }
+          ],
+          "after": [
+            {
+              "id": "live-0",
+              "start": 0,
+              "end": 1,
+              "text": "Merhaba"
+            },
+            {
+              "id": "live-1",
+              "start": 20,
+              "end": 21,
+              "text": "Devam"
+            }
+          ],
+          "countercontrolDistinctCueId": [
+            {
+              "id": "live-2",
+              "start": 0,
+              "end": 1,
+              "text": "Merhaba"
+            },
+            {
+              "id": "live-0",
+              "start": 10,
+              "end": 11,
+              "text": "Merhaba"
+            },
+            {
+              "id": "live-1",
+              "start": 20,
+              "end": 21,
+              "text": "Devam"
+            }
+          ]
+        },
+        "cause": "streamKey acquisition düzeyinde sabit; job.nextCueId her startta0. İki ayrı oturum live-0 kullanır. Geriye zamanlı cue genel merge yoluna girince kimlik+metin eşleşmesi önceki live-0@10 kaydını revizyon sanarak siler.",
+        "impact": "Aynı videoyu durdurup yeniden canlı yazıya çevirme ve geri sarma sonrasında daha önce yakalanan gerçek konuşma birikmiş altyazı tamponundan kaybolur. Bu kanıt, aynı kimlik ve aynı metnin geriye zamanlı yeni oturumda tekrarlanmasıyla sınırlıdır; ileri zamanlı hızlı yolda bu silme iddia edilmez.",
+        "prior": "R815 önceki118 listesinde yok. F20 N0390 kaynak değişimi worklet hız/saatini; N0395 yeniden giriş tek worklet flush/sync ve monitor rewarn kontrolünü yapar. Main ASR session→stream/cue identity entegrasyonu yok. Genel merge fonksiyonunun sağlayıcı revizyonu temizleme davranışı bilinen ve amaçlı; hata yeni oturumun aynı identity alanını yeniden kullanmasıdır.",
+        "limits": "Gerçek main başlangıç/consumer/stop, storeBrowserTrack ve merge çalıştı. Python süreç ve segmentler protokol fixture; modelin böyle döküm ürettiği, final SRT diski veya native playback kabulü iddia edilmez.",
+        "acceptance": "Aynı acquisition üstünde iki stop/start oturumunda cue kimlikleri çakışmamalı veya oturum izleri ayrılmalı. Geriye sarılmış yeni oturum aynı metni farklı zamanda üretince eski cue korunmalı; aynı oturum gerçek sağlayıcı cue revizyonu güncellenmeye devam etmeli."
+      }
+    },
+    {
+      "id": "R815-B124",
+      "domain": "liveasr",
+      "originalId": "LA02",
+      "severity": "P2",
+      "title": "Worklet modülü yüklenirken biten sistem sesi izi sonrasında etkin oturum olarak kalıyor",
+      "detail": {
+        "id": "LA02",
+        "severity": "P2",
+        "title": "Worklet modülü yüklenirken biten sistem sesi izi sonrasında etkin oturum olarak kalıyor",
+        "sources": [
+          "src/renderer/renderer.js:11602-11609",
+          "src/renderer/renderer.js:11648-11655"
+        ],
+        "reproduce": [
+          "Gerçek startBrowserLiveAsrCapture başlat; audioWorklet.addModule yanıtını kısa beklet.",
+          "Paylaşılan audio track henüz ended listener kurulmadan doğal olarak ended durumuna geçsin.",
+          "Modül yüklemesini tamamla; production start fonksiyonunu ve mikro görevleri bitir."
+        ],
+        "expected": "Zaten ended ses izi yeniden etkin capture gibi bağlanmamalı; capture/context/stream temizlenip scoped backend stop çağrılmalı.",
+        "observed": {
+          "observed": {
+            "trackReadyState": "ended",
+            "active": true,
+            "captureRetained": true,
+            "nodes": 1,
+            "backendStops": 0
+          },
+          "countercontrolEndAfterListener": {
+            "active": false,
+            "backendStops": 1,
+            "trackStopped": true
+          }
+        },
+        "cause": "ended listener addModule await sonrasında kuruluyor; track.readyState başlangıçta ve await sonrasında denetlenmiyor. EventTarget geçmiş ended olayını yeni dinleyiciye tekrar iletmez.",
+        "impact": "Kullanıcı Windows paylaşımını ilk modül yüklemesi sırasında kapatırsa ses yakalama bitmiş olmasına rağmen active=true ve model oturumu açık kalır; yeni konuşma gelmez. Kullanıcı manuel durdurabilir.",
+        "prior": "R815 önceki118 listesinde yok. R648 module-load iptal testi uygulama Stop akışını sınar; trackin await penceresinde doğal ended olmasını kapsamaz. F20 N0392 yalnız worklet process([]) kanal kaybını sınar; MediaStreamTrack listener penceresi yok.",
+        "limits": "Gerçek renderer fonksiyonları VMde; AudioContext/track EventTarget sınırı kontrollü. Gerçek getDisplayMedia veya Windows paylaşım paneli açılmadı. End sonrası listener kurulumunun geçmiş olayı replay etmemesi browser event sözleşmesini temsil eder. Bağlanan ended trackin native ek davranışı ayrıca ölçülmedi.",
+        "acceptance": "Modül beklemesinden önce veya beklerken ended olan track captureı aktif bırakmamalı; ended listener sonrası olağan stop davranışı korunmalı. Backend scoped stop bir kez, tracks/context kapalı ve active=false olmalı."
+      }
+    },
+    {
+      "id": "R815-B125",
+      "domain": "workflows",
+      "originalId": "WF-AUTO-01",
+      "severity": "P2",
+      "title": "Otomasyon kaynak ve oturum karakter bütçesini gerçek altyazı metninden ölçmüyor",
+      "detail": {
+        "id": "WF-AUTO-01",
+        "severity": "P2",
+        "title": "Otomasyon kaynak ve oturum karakter bütçesini gerçek altyazı metninden ölçmüyor",
+        "sources": [
+          "src/main.js:9834–9886 persistBrowserTrack",
+          "src/main.js:9984–10050 publishBrowserTrackNow",
+          "src/renderer/renderer.js:10408–10444 browserSubtitleAutomationInput/handleBrowserSubtitleAutomation",
+          "src/browser-automation-rules.js:44–57"
+        ],
+        "reproduce": "node .tmp/next815-workflows/probe.cjs. Gerçek normalizeCues ve publisher/persist ile 401 cue/200001 karakter kaynak yayınla; gerçek renderer input/decision uygula. Ardından iki ayrı medya için380 cue/190000 karakter kaynak yayınlayıp gerçek automation handler çalıştır.",
+        "expected": "200000 üzeri gerçek kaynak karakteri kullanıcı onayına geçer. Başlatılabilir iki190000karakter işin ikincisi300000 oturum karakter bütçesinde engellenir.",
+        "observed": "200001gerçek karakter32080olarak sayılır ve eligible. İki190000karakter kaynak için iki useBrowserTrack başlatması, toplam380000karakter; browserAutomationLiveCharacters0kalır. Doğru gerçek karakter değerleri verilen aynı karar modülü sırasıyla blocked_by_limit döner.",
+        "cause": "Publisher/persist track üzerinde characterCount ve appendedCharacters üretmiyor. Renderer sourceCharacters için cueCount*80 tahmini, newCharacters için0kullanıyor; bütçe handlerı yalnız bu0değerini topluyor. Bu alanların başka üreticisi repo src taramasında yok. Kaynak ve kümülatif bütçe aynı eksik karakter muhasebesinin iki yüzüdür; tek kök sayıldı.",
+        "impact": "Otomatik altyazı çevirisi açık sitelerde açık harcama/onay sınırları aşılabilir; uzun kaynaklar kullanıcı onayı gerektirmeden işbaşlatma yoluna ulaşır.",
+        "prior": "R815 önceki118eşleme içinde aynı kök yok. Night1000F11/F19kaynak/scheduler/kuyruk aileleri yakın; gerçek publisher→renderer bütçe metadata zinciri yok. R46claim/Tur4Y-NEW-1claim başarısızlığı, R46-74/Tur4O-NEW-9iptal kapısı kökleri yeniden sayılmadı.",
+        "limits": "Gerçek kaynak fonksiyonlarıVM içinde aynen çalıştırıldı; kalıcı varlık store, dosya yazıcı, indeks, IPC ve useBrowserTrack bağımlılıkları kontrollü facade. Gerçek normalizeCues kullanıldı ve karakter sayıları normalize edilmiş cueIdentities üzerinden toplandı. Gerçek sağlayıcı çağrısı, harcanan para veya tüm altyazı siteleri kanıtı değildir. Onay kapısının otomatik başlatma sınırı kanıtlandı. Başlatmanın ayrık mediaId kullanmasıyla gate normal dedup davranışı korunur.",
+        "acceptance": "Gerçek kaynak uzunluğu ve ilk/yeni karakter artışı metadata/renderer boyunca tutarlı sayılmalı;200001kaynak bloke, iki190000işin ikincisi bloke; aynı kaynağın tekrarı/önbellek durumu çift sayılmamalı.",
+        "sourceSha256": {
+          "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+          "src/renderer/renderer.js": "4853b2fe48da6a383e2438895c747a0ba79820eb58470da5ac66de476f8b66d6",
+          "src/browser-automation-rules.js": "571319b9334ccd2f41e16ae1204e98ed67773d09333ea03ceef7b4d6eada7965",
+          "src/browser-subtitles.js": "7fce97cf5df6216a158fa50c3e6ba8c0e9f62f79970436bfe8d6b05d91a2cbad"
+        }
+      }
+    },
+    {
+      "id": "R815-B126",
+      "domain": "workflows",
+      "originalId": "WF-MCP-02",
+      "severity": "P2",
+      "title": "MCP köprüsü HTTP parçası sınırında Unicode JSON-RPC istek kimliğini bozuyor",
+      "detail": {
+        "id": "WF-MCP-02",
+        "severity": "P2",
+        "title": "MCP köprüsü HTTP parçası sınırında Unicode JSON-RPC istek kimliğini bozuyor",
+        "sources": [
+          "src/assistant-mcp-bridge.js:24 HTTP gövdesi data+=chunk",
+          "tools/whisper-mcp.cjs:9 yanıt kimliğini değiştirmeden stdout aktarımı"
+        ],
+        "reproduce": "Aynı probe gerçek createBridge sunucusunu127.0.0.1ephemeralportunda başlatır. tools/call get_jobs isteğinin fixture-ş-id string kimliğindeki ş UTF-8 baytlarını iki HTTP Buffer arasında40msayırır.",
+        "expected": "Geçerli UTF-8 JSON isteği HTTP parçalanmasından bağımsız aynı string id ile eşleşir; sonuç id fixture-ş-id kalır.",
+        "observed": "HTTP200başarılı result var; response.id fixture-��-id. Aynı gövde tek Bufferda fixture-ş-id, ASCIIiki Bufferda ascii-id korunur; yanlış token ve Origin403reddedilir.",
+        "cause": "Bufferların her biri data+=chunk ile bağımsız UTF-8 stringe dönüşür. İki parçaya bölünmüş karakter için streaming decoder veya Buffer.concat yok; her eksik parça replacement karakterine dönüşür. Adapter fetch yanıtını JSON.stringifyile aynen geçirir; kimlik eşleşmesi düzeltilmez.",
+        "impact": "Unicode string id kullanan MCP istemcisi yanıtı bekleyen isteğe bağlayamaz; geçerli saltokuma araç isteği cevabı kayıp/timeout gibi görünür. Rehber sorgusunun Unicode karakterleri de aynı gövde okumasından geçer.",
+        "prior": "R815 önceki118eşleme içinde MCP taşıma kökü yok. R798MCP kimlik/auth/Origin/read-only ve Node stdio kabulü ASCIIid/single-body yolunu kanıtlıyordu; bölünmüş UTF-8 değil. Night1000F48/F49en yakın payload/NDJSON aileleridir; yeniMCPbridge o kaynak senaryolarında kayıtlı değil.",
+        "limits": "Gerçek HTTPserver/bridge ve localhostkullanıldı; getJobs/getTabs kontrollü boş fixture. Gerçek dışMCPistemcisi veya stdioadapter çalıştırılmadı; adapter tüketici ilişkisi koddan incelendi. Ağın doğal olarak bu parçalamayı ne sıklıkta oluşturduğu ölçülmedi. Tüm istemciler Unicode id üretir iddiası yok.",
+        "acceptance": "UTF-8kod noktası her olasıbaytsınırında bölündüğünde JSONRPCidve sorgu aynen korunmalı; mevcut65536bayt,Originveauthretleri korunmalı.",
+        "sourceSha256": {
+          "src/assistant-mcp-bridge.js": "cb659b058890e3ac02e2e58302aefb910d8ab318ab2e7836ebe622d65d375e7c",
+          "tools/whisper-mcp.cjs": "9c5bc939f93b4647fa5b173461c6ee5513b9bcbfc69599cf5667ff000ed98638"
+        }
+      }
+    }
+  ],
+  "sourceSha256": {
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b",
+    "src/renderer/renderer.js": "4853b2fe48da6a383e2438895c747a0ba79820eb58470da5ac66de476f8b66d6",
+    "src/browser-diagnostics-export.js": "9dce503c2d83502a5569a30e039eba35f114d95b85667c6b2ac6db4b7ffe9646",
+    "src/browser-adapters.js": "91917268f4d1a285638a3d1b0b806758b309aacfa3ea851b0694b13572d62de0",
+    "src/browser-sensitive-keys.js": "77bf73ac726e6d102a9ab98688811384d135ced03432354b9a12eab7eb03676c",
+    "src/browser-site-profiles.js": "1c7999a6e782a4e763b12cc096ae7712ae39802df0692286ab6f0e6ee3c38102",
+    "src/browser-adapter-registry.js": "2edbb5c5fbe2d643efb8087fd872d91170fff16aa7d5deb084828466536245d9",
+    "src/fsync-utils.js": "7bdc3c1ebc7bfa349fdb2f092590e308865c787d0e89668b551997c3c5f744c9",
+    "src/browser-downloads.js": "8f6712b337f027d6509a8d49c31d0224594ac277a087b33af96c8dbe8fe8de96",
+    "src/preload.js": "c035a7b77125def6b44ce121ff21a6f0dde717179c9ff38970d1d5b335e2796c",
+    "src/renderer/renderer-helpers.js": "f07116b7d1cdafa1398a2f42511914ef86991d0f88ff436bdcd29a49036ccb53",
+    "src/browser-subtitles.js": "7fce97cf5df6216a158fa50c3e6ba8c0e9f62f79970436bfe8d6b05d91a2cbad",
+    "src/live-asr-realtime.js": "728061ef20db08e21b30d885854903be911cc9f5a5710768610b927dba9624a1",
+    "src/renderer/live-asr-worklet.js": "461787b919b3b195dbd0b94859d1fcf0cfdec322816ae8b52162fa948b547337",
+    "backend/live_asr.py": "4be26bcdc5ec835af919618e8ec75c79e08daf968f007863ef47e47d09fd8bc0",
+    "src/assistant-mcp-bridge.js": "cb659b058890e3ac02e2e58302aefb910d8ab318ab2e7836ebe622d65d375e7c",
+    "tools/whisper-mcp.cjs": "9c5bc939f93b4647fa5b173461c6ee5513b9bcbfc69599cf5667ff000ed98638",
+    "src/assistant-guide.js": "7551952730ccdae751258f67da120ebcf2c82b39d4e6b0caeb121ea2608597a2",
+    "src/assistant-retrieval.js": "ceb1aa7e2b81e5f369e5976f8c17c1cb0fddb8f3655891250e0f952dc67cf0d8",
+    "src/browser-workflow-recorder.js": "5ced29a76b6fb8be754707656bcc5ec4e17fa45aa4fc217c9ce9743116f57d9d",
+    "src/browser-automation-rules.js": "571319b9334ccd2f41e16ae1204e98ed67773d09333ea03ceef7b4d6eada7965"
+  },
+  "previousMapping": "../unseen/findings.json",
+  "coverage": "coverage.json",
+  "verification": "parent-verification.json",
+  "priorRevisionReview": "prior-revision-review.json",
+  "recommendations": "G01–G34 preserved, new G35–G36 kept separate; zero recommendations count as bugs."
+}
