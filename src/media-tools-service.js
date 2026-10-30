@@ -72,7 +72,9 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
     if(!input.discovery)return known(input.itemId);
     const d=input.discovery;if(!d||!['film','series'].includes(d.kind)||!/^tt\d{7,12}$/.test(d.id||'')||!resolveDiscovery)throw Error('Invalid discovery title.');
     const result=await resolveDiscovery(event,{kind:d.kind,id:d.id});if(!result?.ok||!result.item||result.item.providerId!==d.id||result.item.kind!==d.kind)throw Error('Discovery title could not be verified.');
-    return {...result.item,imdbId:result.item.providerId};
+    const id=`discovery:${d.kind}:${d.id}`;
+    if(input.itemId!==undefined&&input.itemId!==id)throw Error('Discovery review identity mismatch.');
+    return {...result.item,id,imdbId:result.item.providerId};
   }
   async function health(job) {
     const rows=[], hashes=new Map(), items=catalogStore().list();
@@ -139,20 +141,20 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
         finally{jobs.delete(id);}
       }
       if(action==='reviews-fetch'){
-        known(input.itemId);const allowedUrl=require('./letterboxd-reviews').publicFilmUrl(input.url);if(!allowedUrl)throw Error('Use a public Letterboxd reviews URL.');const url=new URL(allowedUrl);
+        const selected=await reviewItem(event,input);const allowedUrl=require('./letterboxd-reviews').publicFilmUrl(input.url);if(!allowedUrl)throw Error('Use a public Letterboxd reviews URL.');const url=new URL(allowedUrl);
         if(jobs.size)throw Error('A review request is already running.');const id=text(input.id,80);if(!id)throw Error('Request ID required.');const controller=new AbortController();jobs.set(id,controller);
         try{const response=await fetchImpl(url.href,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(20000)]),redirect:'error',credentials:'omit'});if(!response.ok)throw Error(response.status===403?'Letterboxd returned HTTP 403. Automatic access is unavailable; open the page normally, then paste or import reviews.':'Review site returned HTTP '+response.status+'. Paste or import reviews instead.');let html='',bytes=0;const decoder=new TextDecoder();for await(const chunk of response.body){bytes+=chunk.byteLength;if(bytes>3000000)throw Error('Review page too large.');html+=decoder.decode(chunk,{stream:true});if(html.length>3000000)throw Error('Review page too large.');}
           html+=decoder.decode();controller.signal.throwIfAborted();
           const parsed=require('./letterboxd-reviews').parseLetterboxdReviews(html);
-          if(!parsed.reviews.length)throw Error('No readable reviews found. The site may require access or its format changed; paste or import reviews.');return {ok:true,...parsed,url:url.href,match:require('./letterboxd-reviews').matchFilm(known(input.itemId),parsed.identity)};
+          if(!parsed.reviews.length)throw Error('No readable reviews found. The site may require access or its format changed; paste or import reviews.');return {ok:true,...parsed,url:url.href,match:require('./letterboxd-reviews').matchFilm(selected,parsed.identity)};
         }finally{jobs.delete(id);}
       }
-      if(action==='decision-get'){known(input.itemId);const data=read();return {ok:true,value:(Object.hasOwn(data.titles,input.itemId)?data.titles[input.itemId]:{})};}
+      if(action==='decision-get'){const selected=await reviewItem(event,input);const data=read();return {ok:true,value:(Object.hasOwn(data.titles,selected.id)?data.titles[selected.id]:{})};}
       if(['decision-save','feedback-save'].includes(action)){
-        const selected=known(input.itemId);if(action==='decision-save'&&input.itemIdentity){for(const key of ['kind','title','year','tmdbId'])if(String(input.itemIdentity[key]??'')!==String(selected[key]??''))throw Error('The film identity changed. Review the new title before saving this analysis.');}const data=read(),previous=Object.hasOwn(data.titles,input.itemId)?data.titles[input.itemId]:{};
-        if(action==='feedback-save'){const feedback={reaction:['like','neutral','dislike'].includes(input.reaction)?input.reaction:'neutral',note:text(input.note),aspects:Array.isArray(input.aspects)?input.aspects.filter(k=>require('./media-taste').ASPECTS.includes(k)):[],at:Date.now()};data.titles[input.itemId]={...previous,feedback};}
-        else{const reviews=reviewRows(JSON.stringify(input.reviews)),analysis=verifyDecision(input.analysis,reviews);data.titles[input.itemId]={...previous,history:[{analysis,reviews,identity:{kind:selected.kind,title:selected.title,year:selected.year,tmdbId:selected.tmdbId}},...(previous.history||[])].slice(0,8)};}
-        save(data);return {ok:true,value:data.titles[input.itemId]};
+        const selected=await reviewItem(event,input);if(action==='decision-save'&&input.itemIdentity){for(const key of ['kind','title','year','tmdbId'])if(String(input.itemIdentity[key]??'')!==String(selected[key]??''))throw Error('The film identity changed. Review the new title before saving this analysis.');}const data=read(),previous=Object.hasOwn(data.titles,selected.id)?data.titles[selected.id]:{};
+        if(action==='feedback-save'){const feedback={reaction:['like','neutral','dislike'].includes(input.reaction)?input.reaction:'neutral',note:text(input.note),aspects:Array.isArray(input.aspects)?input.aspects.filter(k=>require('./media-taste').ASPECTS.includes(k)):[],at:Date.now()};data.titles[selected.id]={...previous,feedback};}
+        else{const reviews=reviewRows(JSON.stringify(input.reviews)),analysis=verifyDecision(input.analysis,reviews);data.titles[selected.id]={...previous,history:[{analysis,reviews,identity:{kind:selected.kind,title:selected.title,year:selected.year,tmdbId:selected.tmdbId}},...(previous.history||[])].slice(0,8)};}
+        save(data);return {ok:true,value:data.titles[selected.id]};
       }
       if(action==='backup-export'){
         const picked=await dialog.showSaveDialog(owner(),{defaultPath:'Whisper-media-'+new Date().toISOString().slice(0,10)+'.wbp',filters:[{name:'Workspace backup',extensions:['wbp']}]});if(picked.canceled)return {ok:true,canceled:true};return {ok:true,...require('./workspace-package').exportPackage(root(),picked.filePath)};

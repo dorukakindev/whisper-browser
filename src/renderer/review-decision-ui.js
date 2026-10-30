@@ -17,6 +17,7 @@
   }parent.append(columns);
  }
  function mount(body,item,saved,draft,{current,redraw,status}){
+  const api=async(action,values={})=>{const result=await window.api.mediaTools({action,...values,...(item.discovery?{discovery:item.discovery}:{})});if(!result?.ok)throw Error(result?.error||t('The action failed.','İşlem başarısız oldu.'));return result;};
   const source=el('section','mtx-section mrv-source');source.append(el('h2','',t('Understand the reviews','Yorumları birlikte değerlendirelim')),el('p','mtx-muted',t('Use the reviews already loaded in Browser, fetch a public page, or paste a sample. Nothing is sent to AI until you review it.','Browser’da yüklediğin yorumları kullan, açık sayfayı getir veya örnek yapıştır. Örneği incelemeden AI’ya gönderilmez.')));
   const jobCard=el('section','mrv-job');jobCard.setAttribute('aria-live','polite');source.append(jobCard);
   const provenance=el('p','mrv-provenance');provenance.setAttribute('role','status');source.append(provenance);

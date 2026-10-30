@@ -4,14 +4,16 @@ const fs = require('node:fs'), os = require('node:os'), path = require('node:pat
 const { registerMediaDiscovery, normalizeMeta } = require('../src/media-discovery-service');
 const { createMediaCatalogStore } = require('../src/media-catalog-store');
 test('discovery translation is cancelable, cached and never silently adds a watchlist record',async()=>{
-  const handlers=new Map();let translations=0;
-  registerMediaDiscovery({ipcMain:{handle:(n,f)=>handlers.set(n,f)},authorized:()=>true,catalogStore:()=>({list:()=>[],upsert:()=>{throw Error('must not save');}}),
+  const handlers=new Map();let clock=0,translations=0,description="A witness does not claim certainty.";
+  registerMediaDiscovery({now:()=>clock,ipcMain:{handle:(n,f)=>handlers.set(n,f)},authorized:()=>true,catalogStore:()=>({list:()=>[],upsert:()=>{throw Error('must not save');}}),
     translateSynopsis:async()=>{translations++;return 'Bir tanık kesinlik iddia etmiyor.';},
-    fetchImpl:async()=>new Response(JSON.stringify({meta:{id:'tt1234567',name:'Witness',description:'A witness does not claim certainty.'}}))});
+    fetchImpl:async()=>new Response(JSON.stringify({meta:{id:'tt1234567',name:'Witness',description}}))});
   const run=(action,token)=>handlers.get('media-discovery:request')({},{action,kind:'film',id:'tt1234567',token});
   assert.equal((await run('synopsis-translate','request-first')).item.synopsisTr,'Bir tanık kesinlik iddia etmiyor.');
   assert((await run('synopsis-translate','request-again')).cached);assert.equal(translations,1);
+  assert.equal((await run('detail')).item.synopsisTr,'Bir tanık kesinlik iddia etmiyor.','reopened detail retains this exact source translation');
   await run('synopsis-stop','request-stopped');assert((await run('synopsis-translate','request-stopped')).canceled);assert.equal(translations,1);
+  description='A different story.';clock+=600001;assert.equal((await run('detail')).item.synopsisTr,undefined,'changed source cannot show stale translation');
 });
 test('discovery normalizes trusted image origins, identities and bounded metadata', () => {
   assert.equal(normalizeMeta({ id: '../../secret', name: 'No' }, 'movie'), null);
