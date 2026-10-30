@@ -1,0 +1,46 @@
+{
+  "sourceSha256": "6f715d67be62b19d794a9f4dbc471206b4d7d9756d60233a51cbb4de46a27f93",
+  "execution": "Original capturePlayerFrame, controlled Image decode barrier/canvas/API; no actual native player or screenshot pixels",
+  "stable": {
+    "drawn": [
+      "data:image/png;base64,SOURCE_A"
+    ],
+    "subtitles": [
+      "Subtitle A"
+    ],
+    "saved": [
+      {
+        "dataUrl": "data:image/png;base64,CONTROLLED_CANVAS",
+        "suggestedName": "synthetic_A_12s.png"
+      }
+    ],
+    "osd": [
+      "Ekran görüntüsü kaydedildi"
+    ]
+  },
+  "beforeResponse": {
+    "drawn": [],
+    "subtitles": [],
+    "saved": [],
+    "osd": [
+      "Video değişti; yeniden deneyin."
+    ]
+  },
+  "duringDecode": {
+    "drawn": [
+      "data:image/png;base64,SOURCE_A"
+    ],
+    "subtitles": [
+      "Subtitle B"
+    ],
+    "saved": [
+      {
+        "dataUrl": "data:image/png;base64,CONTROLLED_CANVAS",
+        "suggestedName": "synthetic_B_45s.png"
+      }
+    ],
+    "osd": [
+      "Ekran görüntüsü kaydedildi"
+    ]
+  }
+}

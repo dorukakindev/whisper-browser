@@ -1,0 +1,53 @@
+{
+  "initialHead": "da773134a3e744885592bafa008f81f03bcdf878",
+  "verifiedHead": "ae0a61a7b42c58d78bb7317680cf8f8133d5e027",
+  "productChangedByThisAudit": false,
+  "agentModel": "gpt-6.1-sol",
+  "agentReasoningEffort": "medium",
+  "newDefectWorkflows": 6,
+  "commands": [
+    {
+      "command": "node .tmp/hundred815-root/probe.cjs",
+      "exit": 0
+    },
+    {
+      "command": "node .tmp/hundred815-parent-browser/probe.cjs",
+      "exit": 0
+    },
+    {
+      "command": "Start-Process electron .tmp/hundred815-parent-browser/native-network.cjs -Wait",
+      "exit": 0,
+      "checks": "No error observations; native overlay vertical loss, HTTP200 XML parserErrors0, incorrect cue intervals, flat DASH positive complete capture asserted"
+    },
+    {
+      "command": "backend/venv/Scripts/python.exe .tmp/hundred815-parent-backend/probe.py",
+      "exit": 0,
+      "checks": "Final probe with three final-SRT countercontrols; controlled LLM/ASR, real FFmpeg/yt-dlp/HTTP; generic punctuation warning retained"
+    },
+    {
+      "command": "node .tmp/hundred815-parent-assistant/probe.cjs",
+      "exit": 0
+    },
+    {
+      "command": "Start-Process electron .tmp/hundred815-parent-assistant/native-redirect.cjs -Wait",
+      "exit": 0,
+      "checks": "Synthetic local redirect target received one request before Unsafe research redirect rejection; test-only host mapping"
+    }
+  ],
+  "priorRevalidationWorkflows": 3,
+  "limits": [
+    "No product fixes or existing test changes",
+    "Native standalone production functions/scripts are not a full personal-profile end-to-end test",
+    "No paid provider or live ASR/TTS/GPU model inference",
+    "No real external private network, credentials or account",
+    "No full npm suite, fresh launcher install/start acceptance, physical listening or screen reader",
+    "CI result not awaited or claimed"
+  ],
+  "excluded": [
+    "Speaker-label GPU candidate: synthetic System.Speech voice unavailable/security setting, no inference started",
+    "SSE equal name fragments: counterexample disproved suspected issue",
+    "MP4+Vorbis container candidate: real FFmpeg succeeded",
+    "Empty API key policy ambiguity",
+    "HLS EXT-X-SKIP timeline candidate and download cleanup warning ambiguity"
+  ]
+}

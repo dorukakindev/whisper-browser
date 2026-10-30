@@ -1,0 +1,55 @@
+{
+  "head": "ae0a61a7b42c58d78bb7317680cf8f8133d5e027",
+  "results": [
+    {
+      "id": "H01",
+      "initialURL": "https://public-fixture.invalid/start",
+      "privateTargetOnlyLocalFixture": true,
+      "syntheticTargetRequestsBeforeRejection": 1,
+      "rejectedAfterLoad": true
+    },
+    {
+      "id": "H02",
+      "successfulSearches": 5,
+      "fifthText": "[W1] https://source5-1.example/article\n[W2] https://source5-2.example/article\n[W3] https://source5-3.example/article",
+      "fifthSourceW1": "https://source1-1.example/article",
+      "newSourcesInReturnedList": false
+    },
+    {
+      "id": "H03",
+      "textStillContainsEarlierCitation": true,
+      "remainingCitations": 0,
+      "remainingPriorSteps": 0,
+      "persistedCitationCount": 0
+    },
+    {
+      "id": "H04",
+      "sourceContainsExactQuery": true,
+      "sourceLength": 423,
+      "returnedMatchText": "",
+      "returnedOffset": 693,
+      "queryInReturnedMatch": false,
+      "actualBookAssistantConsumerReturnedEmpty": true
+    },
+    {
+      "id": "H05",
+      "failedEditRolledBack": true,
+      "priorValuesUnchanged": true,
+      "previousUndoAvailableBefore": true,
+      "previousUndoAvailableAfter": false
+    },
+    {
+      "id": "H06",
+      "savedResumePosition": 30,
+      "trackEndedAt": 100,
+      "repeatMode": "all",
+      "nextCycleStart": 30
+    },
+    {
+      "id": "H07",
+      "newTrackBeforeOldCloseReply": "trackB",
+      "currentAfterOldCloseReply": null,
+      "oldCloseRemovedNewPlayback": true
+    }
+  ]
+}

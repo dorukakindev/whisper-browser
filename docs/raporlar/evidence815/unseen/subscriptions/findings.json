@@ -1,0 +1,324 @@
+{
+  "date": "2026-10-31",
+  "head": "db65f2e7f6e7b50649c440cb183cb88863ebf241",
+  "productChanged": false,
+  "strictCount": 5,
+  "severityCounts": {
+    "P2": 5
+  },
+  "runtime": "Windows Node + original modules/renderer VM/JSDOM + loopback HTTP",
+  "command": "$env:AUDIT_HEAD = git rev-parse HEAD; node .tmp/unseen815-subscriptions/probe.cjs",
+  "result": "PASS",
+  "sourceSha256": {
+    "src/subscriptions-io.js": "cc5c51e5cf32a0bbacaddbf6bf0c409530ffe6a4f6ed204774abde2eea0d5776",
+    "src/subscription-feed.js": "94d990790920885671f467b82f992529ca785c980a5c933f7351728856738c9e",
+    "src/renderer/renderer.js": "6f715d67be62b19d794a9f4dbc471206b4d7d9756d60233a51cbb4de46a27f93",
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b"
+  },
+  "priorMapping": "docs/raporlar/evidence815/hundred/findings.json (103)",
+  "registry": {
+    "path": "docs/audits/deepseek-night1000-20261027/COVERAGE-REGISTRY.json",
+    "historicalRows": 1000,
+    "keywordMatches": 0
+  },
+  "coverage": [
+    {
+      "source": "src/subscriptions-io.js + renderer30962–31025",
+      "trigger": "JSON501 → gerçek import click → localStorage → reload",
+      "registry": "1000senaryoda açık abonelik anahtar eşleşmesi yok",
+      "newBoundary": "Modül1000/UI500 ve kalıcı kayıt zinciri",
+      "unexamined": "Gerçek Windows dosya seçici; 2MiB sınırı aşan dosya"
+    },
+    {
+      "source": "src/subscriptions-io.js12–67 + renderer31007",
+      "trigger": "Unicode çıplak/URL ve case-varyant handle",
+      "registry": "Açık handle/subscription aile eşleşmesi yok; tarihsel modül testleri var",
+      "newBoundary": "Gerçek ekleme callback’i ve import kimlik karşılaştırması",
+      "unexamined": "Canlı handle sahipliği; Unicode casefold/normalizasyon tüm dilleri"
+    },
+    {
+      "source": "src/subscriptions-io.js154–158",
+      "trigger": "Handle-only OPML export/own roundtrip",
+      "registry": "Tarihsel OPML export/parse testleri var",
+      "newBoundary": "RSS xmlUrl tüketici sözleşmesi",
+      "unexamined": "Üçüncü taraf RSS okuyucusu ve canlı YouTube endpoint; bug sayılmadı"
+    },
+    {
+      "source": "renderer29137–29185,31128–31164,32040–32043",
+      "trigger": "İlk açılış → force:true → TTL expire",
+      "registry": "R815103 içinde bu cache yok; açık abonelik senaryosu yok",
+      "newBoundary": "Yenile force parametresinin yerel dala taşınması",
+      "unexamined": "Hesaplı YouTube/Invidious abonelik dalı"
+    },
+    {
+      "source": "main19833–19900 + renderer31146–31161",
+      "trigger": "Gerçek handler → loopback503 → gerçek panel",
+      "registry": "R160/R354 bounded read/redirect geçmişi var; hata durumunun UI tüketimi ayrı",
+      "newBoundary": "Tam kaynak arızası başarı/boş akış ayrımı",
+      "unexamined": "Canlı CDN, redirect sınırları, proxy/TLS, gerçek networkOnline olayları"
+    }
+  ],
+  "findings": [
+    {
+      "id": "UN-SUB01",
+      "severity": "P2",
+      "title": "501 kanallı içe aktarma başarılı görünürken son kanal kalıcı kayıttan düşüyor",
+      "sources": [
+        {
+          "file": "src/renderer/renderer.js",
+          "line": 30972,
+          "sha256": "6f715d67be62b19d794a9f4dbc471206b4d7d9756d60233a51cbb4de46a27f93"
+        },
+        {
+          "file": "src/renderer/renderer.js",
+          "line": 31020,
+          "sha256": "6f715d67be62b19d794a9f4dbc471206b4d7d9756d60233a51cbb4de46a27f93"
+        },
+        {
+          "file": "src/subscriptions-io.js",
+          "line": 11,
+          "sha256": "cc5c51e5cf32a0bbacaddbf6bf0c409530ffe6a4f6ed204774abde2eea0d5776"
+        }
+      ],
+      "reproduce": "501 ayrı sentetik UCID JSON dizisini gerçek İçe aktar düğmesinin callback’iyle yükle; canlı stSubs ile localStorage ve yeniden yüklenen listeyi karşılaştır.",
+      "expected": "Ya tüm kabul edilen kanallar kalıcı saklanmalı ya kapasite aşanlar eklenmeden açık sayıyla reddedilmeli.",
+      "observed": "UI “501 kanal içe aktarıldı (json).”; canlı liste 501, localStorage 500, tekrar yüklemede 500. UC0000000000000000000500 kayboluyor.",
+      "cause": "Parser 1000 giriş kabul ediyor; import döngüsü ST_SUBS_MAX kontrol etmiyor; saveStSubs yalnız ilk500 girdiyi sessizce yazar.",
+      "impact": "Başarı bildirimi alan kullanıcı uygulamayı kapattığında aboneliğini kaybediyor; yeniden export canlı fazlalığı içerirken yeniden açılış içermiyor.",
+      "acceptance": "499 mevcut+2 yeni ve boş+501 girişte kabul/ret/persist/reload sayıları tutarlı; kayıp veya sessiz kırpma yok.",
+      "test": "importLimit",
+      "prior": "R815 B01–B103 hundred/findings.json içinde abonelik/SmartTube kökü yok. Night1000 kayıtlarının serileştirilmiş senaryo alanlarında subscription/abonelik/smarttube eşleşmesi yok. Tarihsel R134/R160/R177/R301/R354/R481 modül incelemeleri bu UI-kalıcılık/kimlik/yenileme/hata zincirini kanıtlamıyor; önceki PASS yeni başarı sayılmadı.",
+      "limits": "Gerçek Windows Node üzerinde değişmeden alınan renderer kaynak bloğu JSDOM/VM içinde çalıştırıldı. Tam Electron/native pencere görseli ve gerçek YouTube hesabı/site başarısı iddiası yok; kişisel profil kullanılmadı.",
+      "command": "$env:AUDIT_HEAD = git rev-parse HEAD; node .tmp/unseen815-subscriptions/probe.cjs",
+      "evidence": {
+        "live": 501,
+        "persisted": 500,
+        "message": [
+          "501 kanal içe aktarıldı (json)."
+        ],
+        "missing": "UC0000000000000000000500",
+        "reloadCount": 500
+      }
+    },
+    {
+      "id": "UN-SUB02",
+      "severity": "P2",
+      "title": "Kanal ekle kutusu geçerli Türkçe handle’ı çıplak biçimde reddediyor",
+      "sources": [
+        {
+          "file": "src/renderer/renderer.js",
+          "line": 31007,
+          "sha256": "6f715d67be62b19d794a9f4dbc471206b4d7d9756d60233a51cbb4de46a27f93"
+        },
+        {
+          "file": "src/subscriptions-io.js",
+          "line": 12,
+          "sha256": "cc5c51e5cf32a0bbacaddbf6bf0c409530ffe6a4f6ed204774abde2eea0d5776"
+        },
+        {
+          "file": "src/subscriptions-io.js",
+          "line": 30,
+          "sha256": "cc5c51e5cf32a0bbacaddbf6bf0c409530ffe6a4f6ed204774abde2eea0d5776"
+        }
+      ],
+      "reproduce": "Kanal ekle callback’ine önce @çağrı, temiz fixture’da https://www.youtube.com/@çağrı ver.",
+      "expected": "Kutunun vaat ettiği @handle girdisi, aynı handle URL’siyle aynı kanal kaydını oluşturmalı.",
+      "observed": "@çağrı: sıfır kayıt ve “Kanal tanınamadı.”; URL biçimi: bir kayıt ve hata yok.",
+      "cause": "UI çıplak handle için ASCII \\w düzenli ifadesi kullanıyor; normSub Unicode harfleri kabul ediyor fakat url alanındaki çıplak handle URL olarak çözülemiyor.",
+      "impact": "Türkçe/uluslararası kanal adlarını yönergede belirtilen kısa biçimde ekleme engelleniyor.",
+      "acceptance": "Türkçe karakterli çıplak ve yüzde kodlu/tam URL handle girdileri aynı normalize kayda dönüşmeli.",
+      "test": "unicode",
+      "references": [
+        "https://support.google.com/youtube/answer/11585688?hl=en",
+        "https://blog.youtube/inside-youtube/international-handles/"
+      ],
+      "prior": "R815 B01–B103 hundred/findings.json içinde abonelik/SmartTube kökü yok. Night1000 kayıtlarının serileştirilmiş senaryo alanlarında subscription/abonelik/smarttube eşleşmesi yok. Tarihsel R134/R160/R177/R301/R354/R481 modül incelemeleri bu UI-kalıcılık/kimlik/yenileme/hata zincirini kanıtlamıyor; önceki PASS yeni başarı sayılmadı.",
+      "limits": "Gerçek Windows Node üzerinde değişmeden alınan renderer kaynak bloğu JSDOM/VM içinde çalıştırıldı. Tam Electron/native pencere görseli ve gerçek YouTube hesabı/site başarısı iddiası yok; kişisel profil kullanılmadı.",
+      "command": "$env:AUDIT_HEAD = git rev-parse HEAD; node .tmp/unseen815-subscriptions/probe.cjs",
+      "evidence": {
+        "bare": {
+          "count": 0,
+          "messages": [
+            "Kanal tanınamadı."
+          ]
+        },
+        "url": {
+          "count": 1,
+          "messages": []
+        }
+      }
+    },
+    {
+      "id": "UN-SUB03",
+      "severity": "P2",
+      "title": "YouTube handle kimliği harf büyüklüğüne göre iki ayrı abonelik sayılıyor",
+      "sources": [
+        {
+          "file": "src/subscriptions-io.js",
+          "line": 60,
+          "sha256": "cc5c51e5cf32a0bbacaddbf6bf0c409530ffe6a4f6ed204774abde2eea0d5776"
+        },
+        {
+          "file": "src/renderer/renderer.js",
+          "line": 30974,
+          "sha256": "6f715d67be62b19d794a9f4dbc471206b4d7d9756d60233a51cbb4de46a27f93"
+        },
+        {
+          "file": "src/renderer/renderer.js",
+          "line": 30979,
+          "sha256": "6f715d67be62b19d794a9f4dbc471206b4d7d9756d60233a51cbb4de46a27f93"
+        }
+      ],
+      "reproduce": "Gerçek stSubToggle ile @NewsFeed ve @newsfeed ekle; aynı ikiliyi gerçek parseSubscriptions ile JSON’dan geçir. Karşı kontrol olarak @newsfeed’i iki kez parse et.",
+      "expected": "YouTube case-insensitive handle kimliğine göre bir abonelik; görüntü biçimi korunabilir.",
+      "observed": "Toggle ve import parser ikisi de iki ayrı kayıt tutuyor; birebir aynı handle iki kez verilince bir kayıt oluyor.",
+      "cause": "Kimlik anahtarında handle için case normalization yok; UCID ve handle aynı case-sensitive string yolu kullanıyor.",
+      "impact": "Aynı kanal iki kez listelenir, kota tüketir; başka harf biçiminden abonelik denetimi/çıkışı tutarsızlaşır.",
+      "acceptance": "ASCII case varyantları tek abonelikte birleşmeli; UCID harf büyüklüğünün anlamı korunmalı.",
+      "test": "caseIdentity",
+      "references": [
+        "https://support.google.com/youtube/answer/11585688?hl=en"
+      ],
+      "prior": "R815 B01–B103 hundred/findings.json içinde abonelik/SmartTube kökü yok. Night1000 kayıtlarının serileştirilmiş senaryo alanlarında subscription/abonelik/smarttube eşleşmesi yok. Tarihsel R134/R160/R177/R301/R354/R481 modül incelemeleri bu UI-kalıcılık/kimlik/yenileme/hata zincirini kanıtlamıyor; önceki PASS yeni başarı sayılmadı.",
+      "limits": "Gerçek Windows Node üzerinde değişmeden alınan renderer kaynak bloğu JSDOM/VM içinde çalıştırıldı. Tam Electron/native pencere görseli ve gerçek YouTube hesabı/site başarısı iddiası yok; kişisel profil kullanılmadı.",
+      "command": "$env:AUDIT_HEAD = git rev-parse HEAD; node .tmp/unseen815-subscriptions/probe.cjs",
+      "evidence": {
+        "live": 2,
+        "parser": 2,
+        "exactDuplicate": 1
+      }
+    },
+    {
+      "id": "UN-SUB04",
+      "severity": "P2",
+      "title": "Yerel aboneliklerde Yenile komutu beş dakikalık önbelleği aşamıyor",
+      "sources": [
+        {
+          "file": "src/renderer/renderer.js",
+          "line": 32043,
+          "sha256": "6f715d67be62b19d794a9f4dbc471206b4d7d9756d60233a51cbb4de46a27f93"
+        },
+        {
+          "file": "src/renderer/renderer.js",
+          "line": 29143,
+          "sha256": "6f715d67be62b19d794a9f4dbc471206b4d7d9756d60233a51cbb4de46a27f93"
+        },
+        {
+          "file": "src/renderer/renderer.js",
+          "line": 29180,
+          "sha256": "6f715d67be62b19d794a9f4dbc471206b4d7d9756d60233a51cbb4de46a27f93"
+        },
+        {
+          "file": "src/renderer/renderer.js",
+          "line": 31144,
+          "sha256": "6f715d67be62b19d794a9f4dbc471206b4d7d9756d60233a51cbb4de46a27f93"
+        }
+      ],
+      "reproduce": "Hesapsız subscriptions bölümünü gerçek renderSmartTubeSection ile aç, ardından gerçek Yenile callback’inin çağırdığı {force:true} ile tekrar aç. Cache zamanını sıfırlayıp üçüncü kez çağır.",
+      "expected": "Açık Yenile eylemi aynı liste için yeni akış isteği yapmalı.",
+      "observed": "İlk açılış+force:true toplam1 API çağrısı; cache süresi geçmiş karşı kontrolde toplam2. Testte errors=0; ağ hatası gerekmiyor.",
+      "cause": "Üst işlev opts.force okur fakat yerel abonelik dalı renderStSubsPanel/renderStSubsFeed’e force iletmiyor; alt işlev yalnız TTL/anahtar kontrol ediyor.",
+      "impact": "Kullanıcı yeni yüklenen videoları istemesine rağmen eski akışta kalır; TTL dolmadan düğme etkisizdir.",
+      "acceptance": "Taze cache ile normal yeniden açış çağrısız; açık Yenile her seferinde tek yeni istek üretmeli.",
+      "test": "forceRefresh",
+      "prior": "R815 B01–B103 hundred/findings.json içinde abonelik/SmartTube kökü yok. Night1000 kayıtlarının serileştirilmiş senaryo alanlarında subscription/abonelik/smarttube eşleşmesi yok. Tarihsel R134/R160/R177/R301/R354/R481 modül incelemeleri bu UI-kalıcılık/kimlik/yenileme/hata zincirini kanıtlamıyor; önceki PASS yeni başarı sayılmadı.",
+      "limits": "Gerçek Windows Node üzerinde değişmeden alınan renderer kaynak bloğu JSDOM/VM içinde çalıştırıldı. Tam Electron/native pencere görseli ve gerçek YouTube hesabı/site başarısı iddiası yok; kişisel profil kullanılmadı.",
+      "command": "$env:AUDIT_HEAD = git rev-parse HEAD; node .tmp/unseen815-subscriptions/probe.cjs",
+      "evidence": {
+        "requests": 1,
+        "cache": {
+          "key": "UC0000000000000000000001",
+          "at": 1793399545335,
+          "videos": [],
+          "errors": 0
+        },
+        "visible": "Kanal ekleİçe aktarDışa aktarUC0000000000000000000001Grup✕Liste bu cihazda tutulur; YouTube/Invidious hesabına yüklenmez.Aboneliklerden yeni videolarAkışta video yok.",
+        "expiredCacheRequests": 2
+      }
+    },
+    {
+      "id": "UN-SUB05",
+      "severity": "P2",
+      "title": "RSS kaynağındaki tüm istekler başarısızken kullanıcıya boş akış gösterilip başarı önbelleği yazılıyor",
+      "sources": [
+        {
+          "file": "src/main.js",
+          "line": 19883,
+          "sha256": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b"
+        },
+        {
+          "file": "src/main.js",
+          "line": 19900,
+          "sha256": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b"
+        },
+        {
+          "file": "src/renderer/renderer.js",
+          "line": 31148,
+          "sha256": "6f715d67be62b19d794a9f4dbc471206b4d7d9756d60233a51cbb4de46a27f93"
+        },
+        {
+          "file": "src/renderer/renderer.js",
+          "line": 31152,
+          "sha256": "6f715d67be62b19d794a9f4dbc471206b4d7d9756d60233a51cbb4de46a27f93"
+        },
+        {
+          "file": "src/renderer/renderer.js",
+          "line": 31158,
+          "sha256": "6f715d67be62b19d794a9f4dbc471206b4d7d9756d60233a51cbb4de46a27f93"
+        }
+      ],
+      "reproduce": "Orijinal subs:rssFeed IPC handler’ını tek sentetik UCID ile çağır; yalnız fetch hedefini loopback HTTP503 sunucusuna yönlendir. Orijinal yanıtı gerçek renderer abonelik paneline ver.",
+      "expected": "Hiçbir kanal alınamadığında hata/yeniden dene durumu; geçerli boş kanal sonucu ile kaynak arızası ayrılmalı.",
+      "observed": "Gerçek handler: ok:true,videos:[],errors:1. Renderer “Akışta video yok.” yazar ve errors:1 yanıtını taze beş dakikalık akış cache’ine koyar.",
+      "cause": "Main tümü başarısız sonucu da ok:true döndürür; renderer errors alanını cache’e taşır fakat hiç yorumlamaz.",
+      "impact": "Sunucu kesintisi veya HTTP hatası yeni video olmadığı bilgisine dönüşür; kullanıcı doğru teşhisi ve hemen tekrar deneme fırsatını kaybeder.",
+      "acceptance": "HTTP503/tüm timeout ve geçerli boş Atom feed ayrı durumlar; kısmi hatada alınan videolar gösterilirken eksiklik görünür.",
+      "test": "allFailures",
+      "limits": "Gerçek Windows Node üzerinde değişmeden alınan renderer kaynak bloğu JSDOM/VM içinde çalıştırıldı. Tam Electron/native pencere görseli ve gerçek YouTube hesabı/site başarısı iddiası yok; kişisel profil kullanılmadı. Main sender/online guard’ı yetkili/online fixture; fetch gerçek Node HTTP isteğini yalnız 127.0.0.1’e yaptı. HTTP503 gövde okunmadan reddedildiğinden bounded-reader stub çağrılmadı. UN-SUB04’ten bağımsız olarak ilk cache-miss istekte hata oluşur; force aktarımı düzeltilse bile yanlış boş mesaj devam eder.",
+      "prior": "R815 B01–B103 hundred/findings.json içinde abonelik/SmartTube kökü yok. Night1000 kayıtlarının serileştirilmiş senaryo alanlarında subscription/abonelik/smarttube eşleşmesi yok. Tarihsel R134/R160/R177/R301/R354/R481 modül incelemeleri bu UI-kalıcılık/kimlik/yenileme/hata zincirini kanıtlamıyor; önceki PASS yeni başarı sayılmadı.",
+      "command": "$env:AUDIT_HEAD = git rev-parse HEAD; node .tmp/unseen815-subscriptions/probe.cjs",
+      "evidence": {
+        "requests": 1,
+        "response": {
+          "ok": true,
+          "videos": [],
+          "errors": 1,
+          "skipped": 1
+        },
+        "visible": "Kanal ekleİçe aktarDışa aktarUC0000000000000000000001Grup✕Liste bu cihazda tutulur; YouTube/Invidious hesabına yüklenmez.Aboneliklerden yeni videolarAkışta video yok.",
+        "cache": {
+          "key": "UC0000000000000000000001",
+          "at": 1793399545372,
+          "videos": [],
+          "errors": 1
+        }
+      }
+    }
+  ],
+  "excluded": [
+    {
+      "title": "Handle-only OPML RSS adresinde boş channel_id",
+      "observed": {
+        "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<opml version=\"1.0\">\n  <head><title>Whisper abonelikleri</title></head>\n  <body>\n    <outline text=\"Synthetic\" title=\"Synthetic\" type=\"rss\" xmlUrl=\"https://www.youtube.com/feeds/videos.xml?channel_id=\" htmlUrl=\"https://www.youtube.com/@newsfeed\"/>\n  </body>\n</opml>\n",
+        "ownRoundTrip": [
+          {
+            "authorId": "",
+            "handle": "@newsfeed",
+            "author": "Synthetic",
+            "group": ""
+          }
+        ],
+        "ucidControl": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<opml version=\"1.0\">\n  <head><title>Whisper abonelikleri</title></head>\n  <body>\n    <outline text=\"UC0000000000000000000001\" title=\"\" type=\"rss\" xmlUrl=\"https://www.youtube.com/feeds/videos.xml?channel_id=UC0000000000000000000001\" htmlUrl=\"https://www.youtube.com/channel/UC0000000000000000000001\"/>\n  </body>\n</opml>\n"
+      },
+      "reason": "Çıktı kusuru belirgin: htmlUrl geçerli handle fakat xmlUrl channel_id boş; kendi importer htmlUrl önceliğiyle gizliyor. Üçüncü taraf okuyucu/canlı endpoint doğrulanmadığı için strict sayımdan ayrı tutuldu.",
+      "reference": "https://opml.org/spec2.opml",
+      "recommendation": "Handle’ı UCID’ye çözümle veya RSS aktarımı yapılamayan girdileri açık sayıyla bildir; kabul: her type=rss outline tüketilebilir kanal beslemesini göstermeli."
+    },
+    {
+      "title": "30 kanal sabit bütçe ve skipped metriği",
+      "reason": "Main ilk30 kanal sonrası duruyor; tüketilen channels dizisi boşaldığı için skipped=raw.length oluyor. Mevcut UI skipped okumadığından ayrı maddi bug sayılmadı.",
+      "recommendation": "Kanal başına güncelleme durumu/rotasyon ve doğru işlenen-atlanan sayıları; kabul: 31kanallı listede hiçbiri süresiz görünmez kalmamalı ve sayılar toplamla tutarlı olmalı."
+    }
+  ],
+  "processes": "Electron veya başka native süreç başlatılmadı. Tek loopback HTTP sunucusu finally server.close ile kapatıldı. Probe childprocess başlatmaz; HEAD PowerShell env ile verilir."
+}

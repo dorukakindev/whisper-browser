@@ -1,0 +1,131 @@
+{
+  "head": "ae0a61a7b42c58d78bb7317680cf8f8133d5e027",
+  "platform": "win32",
+  "node": "v24.22.0",
+  "files": {
+    "src/browser-subtitles.js": "7fce97cf5df6216a158fa50c3e6ba8c0e9f62f79970436bfe8d6b05d91a2cbad",
+    "src/browser-asset-store.js": "e0074630121be782e6787e47964ee9285002f5f0dc00c1316b215523ebf81ce9",
+    "src/browser-session-package.js": "eb4530c22477db6ccabeda398fc571ecca28ae1e31c1407377374b17db0340dc",
+    "src/main.js": "93f0b76d0f463599bea346e9e0b4fd2714ab2bfa4b0bd9c265e94e02908a514b"
+  },
+  "rows": [
+    {
+      "id": "HB01-ASSET-METADATA",
+      "input": {
+        "cueId": "voice-a",
+        "start": 1,
+        "end": 3,
+        "text": "Hello",
+        "speaker": "Alice",
+        "line": "10%",
+        "position": "20%",
+        "align": "start",
+        "writingMode": "rl",
+        "region": "top"
+      },
+      "stored": {
+        "id": "0",
+        "start": 1,
+        "end": 3,
+        "text": "Hello",
+        "cueId": "voice-a"
+      },
+      "assetId": "0bb832efcb266d146dfb6a19:91ce78ca6ef4698432864805b9fc5181"
+    },
+    {
+      "id": "HB02-PACKAGE-SPEECH-PROVENANCE",
+      "before": {
+        "forSpeech": true,
+        "speechProtocol": "speech-v15-idiom-anchor-feedback"
+      },
+      "portable": {
+        "assetId": "a7eebef1105a7d677f883a8a:2b0d8d9c8f5fff58e71005a1d0eafb36",
+        "mediaId": "web:speech",
+        "trackId": "tr-speech",
+        "language": "",
+        "label": "",
+        "role": "translation",
+        "source": "manual",
+        "sourceHash": "",
+        "sourceTrackId": "",
+        "provider": "",
+        "model": "",
+        "createdAt": 1793397199263,
+        "updatedAt": 1793397199263,
+        "cues": [
+          {
+            "id": "0",
+            "start": 1,
+            "end": 3,
+            "text": "Hello",
+            "cueId": "voice-a"
+          }
+        ]
+      },
+      "after": {
+        "forSpeech": false,
+        "speechProtocol": ""
+      }
+    },
+    {
+      "id": "HB03-DASH-TEMPLATE-INHERITANCE",
+      "manifest": "<MPD xmlns=\"urn:mpeg:dash:schema:mpd:2011\" mediaPresentationDuration=\"PT10S\" type=\"static\"><Period><AdaptationSet mimeType=\"text/vtt\" lang=\"en\"><SegmentTemplate timescale=\"1\" duration=\"5\" media=\"sub-$Number$.vtt\" startNumber=\"1\"/><Representation id=\"en\"><SegmentTemplate initialization=\"init.mp4\"/></Representation></AdaptationSet></Period></MPD>",
+      "inheritedResult": [],
+      "parentOnlyCount": 2
+    },
+    {
+      "id": "HB04-DASH-NAMESPACE",
+      "manifest": "<dash:MPD xmlns:dash=\"urn:mpeg:dash:schema:mpd:2011\"><dash:Period><dash:AdaptationSet mimeType=\"text/vtt\" lang=\"en\"><dash:Representation id=\"en\"><dash:BaseURL>captions.vtt</dash:BaseURL></dash:Representation></dash:AdaptationSet></dash:Period></dash:MPD>",
+      "plainCount": 1,
+      "prefixedCount": 0
+    },
+    {
+      "id": "HB05-TTML-PARENT-ACTIVE-INTERVAL",
+      "xml": "<tt xmlns=\"http://www.w3.org/ns/ttml\"><body><div begin=\"10s\" dur=\"2s\"><p begin=\"0s\" dur=\"20s\">Hello</p></div></body></tt>",
+      "actual": [
+        {
+          "start": 10,
+          "end": 30,
+          "text": "Hello"
+        }
+      ],
+      "expectedEnd": 12
+    },
+    {
+      "id": "HB06-TTML-MIXED-TIMED-SPAN",
+      "xml": "<tt xmlns=\"http://www.w3.org/ns/ttml\"><body><div><p begin=\"0s\" end=\"10s\">Static <span begin=\"5s\" end=\"10s\">Late</span></p></div></body></tt>",
+      "actual": [
+        {
+          "start": 0,
+          "end": 10,
+          "text": "Static Late"
+        }
+      ],
+      "expected": "0–5 Static;5–10 Static Late"
+    },
+    {
+      "id": "HB07-TTML-SEQUENTIAL",
+      "xml": "<tt xmlns=\"http://www.w3.org/ns/ttml\"><body><div timeContainer=\"seq\"><p dur=\"2s\">First</p><p dur=\"3s\">Second</p></div></body></tt>",
+      "actual": [],
+      "expected": [
+        {
+          "start": 0,
+          "end": 2,
+          "text": "First"
+        },
+        {
+          "start": 2,
+          "end": 5,
+          "text": "Second"
+        }
+      ]
+    },
+    {
+      "id": "HB08-ASSET-CONTENT-HASH",
+      "assetId": "0bb832efcb266d146dfb6a19:91ce78ca6ef4698432864805b9fc5181",
+      "resultOk": true,
+      "text": "Jello",
+      "derivedSrt": "﻿1\r\n00:00:01,000 --> 00:00:03,000\r\nJello\r\n"
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "head": "ae0a61a7b42c58d78bb7317680cf8f8133d5e027",
+  "pid": 20592,
+  "electron": "43.5.0",
+  "platform": "win32",
+  "observations": [
+    {
+      "id": "HB03-DASH-TEMPLATE-INHERITANCE",
+      "status": 200,
+      "xmlState": {
+        "localName": "MPD",
+        "namespace": "urn:mpeg:dash:schema:mpd:2011",
+        "parserErrors": 0
+      },
+      "actual": []
+    },
+    {
+      "id": "HB04-DASH-NAMESPACE",
+      "status": 200,
+      "xmlState": {
+        "localName": "MPD",
+        "namespace": "urn:mpeg:dash:schema:mpd:2011",
+        "parserErrors": 0
+      },
+      "actual": []
+    },
+    {
+      "id": "HB05-TTML-PARENT-ACTIVE-INTERVAL",
+      "status": 200,
+      "xmlState": {
+        "localName": "tt",
+        "namespace": "http://www.w3.org/ns/ttml",
+        "parserErrors": 0
+      },
+      "actual": {
+        "cues": [
+          {
+            "start": 10,
+            "end": 30,
+            "text": "Hello"
+          }
+        ],
+        "format": "ttml"
+      }
+    },
+    {
+      "id": "HB06-TTML-MIXED-TIMED-SPAN",
+      "status": 200,
+      "xmlState": {
+        "localName": "tt",
+        "namespace": "http://www.w3.org/ns/ttml",
+        "parserErrors": 0
+      },
+      "actual": {
+        "cues": [
+          {
+            "start": 0,
+            "end": 10,
+            "text": "Static Late"
+          }
+        ],
+        "format": "ttml"
+      }
+    },
+    {
+      "id": "HB07-TTML-SEQUENTIAL",
+      "status": 200,
+      "xmlState": {
+        "localName": "tt",
+        "namespace": "http://www.w3.org/ns/ttml",
+        "parserErrors": 0
+      },
+      "actual": {
+        "cues": [],
+        "format": ""
+      }
+    },
+    {
+      "id": "HB01-NATIVE-VERTICAL-LOSS",
+      "beforeMode": "vertical-rl",
+      "afterMode": ""
+    },
+    {
+      "id": "COUNTERCHECK-FLAT-DASH-CAPTURE",
+      "complete": true,
+      "matchers": 2,
+      "captured": [
+        {
+          "start": 0,
+          "end": 1,
+          "text": "Segment 0"
+        },
+        {
+          "start": 5,
+          "end": 6,
+          "text": "Segment 5"
+        }
+      ]
+    }
+  ]
+}
