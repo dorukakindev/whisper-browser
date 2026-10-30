@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-30",
+  "copiedCode": false,
+  "dependenciesAdded": false,
+  "sources": {
+    "WaveSubs": {
+      "url": "https://github.com/jason-jm/wavesubs",
+      "tree": "cbe91e7f4f472d8acfab46b4c8ff3e08697e290d",
+      "license": "MIT",
+      "file": "src/main/core/translate/translateCues.ts",
+      "observed": "20 normal, 6 retry, then individual cues; preserve successful translations"
+    },
+    "SubtitleEdit": {
+      "url": "https://github.com/SubtitleEdit/subtitleedit",
+      "tree": "df663f4db754b6b5fcd8af6b3a7e62adaf99be42",
+      "license": "MIT",
+      "file": "src/ui/Features/Shared/WaveformSeekSilence/WaveformSeekSilenceViewModel.cs",
+      "observed": "Explicit silence duration and volume thresholds"
+    }
+  },
+  "fingerprints": {
+    "subtitleedit-LICENSE": {
+      "bytes": 1092,
+      "sha256": "4ed40bfa9c91bf1a67fd78fa6fc4a5b4efbbed2ca2c80c0b048a82cf8e6de639"
+    },
+    "subtitleedit-WaveformSeekSilenceViewModel.cs": {
+      "bytes": 2312,
+      "sha256": "0317ad78738ece5bca41a2d59d2cd57a032b3123456cd8c01aa97b6fd7809220"
+    },
+    "wavesubs-LICENSE": {
+      "bytes": 1086,
+      "sha256": "3fd126824f56ba4c0f949fb787578356d7d63a46264a72501cada7f5ebecf7f7"
+    },
+    "wavesubs-translateCues.ts": {
+      "bytes": 5160,
+      "sha256": "6003b5068b48fb5f60f026d7be3ef34ec3f000e407fabd44dcf6b13a8f9e81a3"
+    }
+  }
+}

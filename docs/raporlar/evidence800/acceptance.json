@@ -1,0 +1,49 @@
+{
+  "windows": {
+    "citationButtonToPage": 3,
+    "returnPage": 1,
+    "wrongDocumentRejected": true,
+    "manualTimingPreserved": true,
+    "undoAndUnlock": true,
+    "groupABPlayAndPause": true,
+    "ABPositionPreserved": true,
+    "changedRecipeCompareOnly": true,
+    "readinessMissingAudio": true,
+    "readinessChapterJump": true,
+    "assistantReadinessBlocked": true,
+    "darkTRAndLightENAB": true
+  },
+  "node": {
+    "passed": 45,
+    "failed": 0
+  },
+  "python": {
+    "passed": 5,
+    "failed": 0
+  },
+  "screens": {
+    "pdf-citation.png": {
+      "sha256": "37b633938498dd115dc326a9fda7eda0df91a4fdb775c14f61a487216756767c",
+      "bytes": 297236,
+      "controlledProfile": true
+    },
+    "dub-group-ab.png": {
+      "sha256": "812a6bb3c5c96b1d720f4e2c75dfd5cabd15084cb8c76cbfe5fb96d4468c05f9",
+      "bytes": 164408,
+      "controlledProfile": true
+    },
+    "export-readiness.png": {
+      "sha256": "d5bd46d5f737fc32af2fcd19257f5b8b685721a414ed398d382a74fe49bec462",
+      "bytes": 115963,
+      "controlledProfile": true
+    }
+  },
+  "notVerified": [
+    "new GPU synthesis",
+    "live DeepSeek output quality",
+    "YouTube/DRM",
+    "full npm test",
+    "start.bat relaunch",
+    "CI"
+  ]
+}
