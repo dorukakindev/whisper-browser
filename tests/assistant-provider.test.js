@@ -7,6 +7,14 @@ const sse=(body)=>new Response(body+'data: [DONE]\n\n',{headers:{'content-type':
 const json=message=>new Response(JSON.stringify({choices:[{message,finish_reason:'stop'}]}),{headers:{'content-type':'application/json'}});
 const config={endpoint:'https://provider.fixture/v1',model:'fixture',apiKey:'fixture-only'};
 
+test('A fictional prepared card gets one bounded correction turn and only a real tool result counts',async()=>{
+ const requests=[],calls=[],replaced=[];
+ const responses=[json({role:'assistant',content:'Sıradaki kartı önerdim.'}),json({role:'assistant',tool_calls:[{id:'real',function:{name:'start_voice_generation',arguments:'{}'}}]}),json({role:'assistant',content:'Gerçek ses üretim kartını kontrol edebilirsin.'})];
+ const result=await run({question:'Üretilen altyazıyı kayıtlı sesimle seslendir.',owner,config,onReplace:t=>replaced.push(t),execute:async(name,args)=>{calls.push({name,args});return {status:'proposed',proposalId:'actual-card'};},fetchImpl:async(_,request)=>{requests.push(JSON.parse(request.body));return responses.shift();}});
+ assert.equal(requests.length,3);assert(requests[1].messages.at(-1).content.includes('ZERO real review cards'));assert.equal(calls.length,1);assert.equal(calls[0].name,'start_voice_generation');assert(replaced.includes(''));assert(!result.text.includes('Sıradaki kartı önerdim.'));
+ let count=0;await run({question:'Explain only',owner,config,execute:async()=>{throw Error('No mutation allowed');},fetchImpl:async()=>{count++;return json({role:'assistant',content:'Kartı hazırladım.'});}});assert.equal(count,2,'An uncooperative provider must not create an infinite repair loop');
+});
+
 test('Streamed tool loop retains cumulative names and opaque fields, returns a real proposal, and excludes settings',async()=>{
  const requests=[],calls=[],deltas=[];
  const responses=[sse(event({tool_calls:[{index:0,id:'call1',function:{name:'start_',arguments:'{"translate":'},extra_content:{google:{thought_signature:'signature'}}}]})+event({tool_calls:[{index:0,id:'call1',function:{name:'start_whisper',arguments:'false}'}}]})+event({tool_calls:[{index:0,id:'call1',function:{name:'start_whisper',arguments:''}}]})),sse(event({content:'Öneri hazır.'}))];

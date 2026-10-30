@@ -95,6 +95,16 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
      const prerequisite=previous.find(prior=>(['start_whisper','translate_video_captions','translate_captions'].includes(prior)&&entry.domain==='voice')||(['configure_voice_generation','prepare_voice_reference','set_voice_reference'].includes(prior)&&['start_voice_generation','use_generated_voice'].includes(name))||(['prepare_book_narration','select_book_chapters','start_book_narration'].includes(prior)&&['start_book_narration','export_book_audio'].includes(name)));
      if(prerequisite){return {status:'blocked',note:'Apply the prerequisite card '+prerequisite+' first, then Continue with result after exact job completion. No dependent card or job was created.'};}
 
+     if(entry.domain==='voice'){
+      const subtitleIndex=flow.steps.findLastIndex(step=>['start_whisper','translate_video_captions','translate_captions'].includes(step.tool));
+      const subtitle=flow.steps[subtitleIndex];
+      if(subtitle?.jobId){
+       const role=subtitle.tool==='start_whisper'&&!subtitle.args.translate?'source':'translation';
+       const attached=flow.steps.slice(subtitleIndex+1).some(step=>step.tool==='use_job_subtitles'&&step.status==='completed'&&step.args.job_id===subtitle.jobId&&step.args.role===role&&step.result?.track?.role===role);
+       if(!attached)return {status:'blocked',note:'Load this exact job output before voice preparation: use_job_subtitles with job_id '+subtitle.jobId+' and role '+role+'. A previously loaded subtitle is not proof that the new translation was loaded. Partial output still requires explicit partial-result review. No voice card or job was created.'};
+      }
+     }
+
      if(flows.repeated(flow,name,args))return {status:'completed',note:'This exact step already ran in this flow. Read current status; do not repeat it.'};
      if(name==='translate_video_captions'){const probe=captionProbes.get(event.sender.id);if(!probe||probe.expires<Date.now()||!manifest.same(probe.owner,owner)||!probe.languages.some(row=>row.id===args.caption_id))throw Error('Probe this video first and select a real caption ID.');}
      if(name==='use_job_subtitles')subtitleBinding(args,owner);

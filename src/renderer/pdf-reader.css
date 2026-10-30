@@ -26,7 +26,7 @@
 .pdf-reader-toolbar > div { margin: 0; min-width: 0; }
 .pdf-reader-toolbar .pdf-reader-heading { display: block; flex: 1 1 180px; }
 .pdf-reader-heading > div { min-width: 0; }
-.pdf-reader-toolbar strong { display: block; font: 600 19px/1.45 'Sora', 'IBM Plex Sans', sans-serif; }
+.pdf-reader-toolbar strong { display: block; font: 600 19px/1.45 'Sora', 'IBM Plex Sans', sans-serif; overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 .pdf-reader-toolbar .pdf-reader-status-line { display: flex; align-items: center; gap: 12px; margin-top: 3px; }
 .pdf-reader-toolbar span { font-size: 12px; color: var(--text-muted); }
 .pdf-reader-progress { margin: 0; }
@@ -186,3 +186,8 @@
 @media(prefers-reduced-motion:reduce){.pdf-reader :is(.btn,.btn-icon,.pdf-reader-home,.pdf-view-modes button,.pdf-reader-tools summary){transition:none;}}
 
 .pdf-voice-range-summary{flex:1 0 100%;font-size:12px;line-height:1.6;color:var(--text-dim);margin:0;padding-top:4px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
+
+/* Long diagnoses stay inside narration controls, leaving the page scroll intact. */
+.pdf-reader-voice{overscroll-behavior:contain;}
+#pdfVoiceStatus{min-width:0;overflow-wrap:anywhere;line-height:1.65;display:block;max-height:4.95em;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;}
+.pdf-page-prose .pdf-spoken-group:focus-visible{outline:2px solid var(--accent);outline-offset:3px;}

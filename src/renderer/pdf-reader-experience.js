@@ -189,6 +189,7 @@
     changed(true);
   }
   function refresh() {
+    $("pdfReaderTitle").title=$("pdfReaderTitle").textContent;
     $("pdfVoiceFollowLabel").textContent=t("Konuşulan metni takip et", "Follow spoken text");
     for (const page of player.pdfReader?.pages.keys() || []) render(page);
   }
@@ -497,6 +498,7 @@
       if(actionOwner&&window.AssistantAgentUI?.bookPreparation)
         await window.AssistantAgentUI.bookPreparation(actionOwner,id,Math.max(0,focus),openProduction);
       else await openProduction();
+      if(preparation!==prepareToken || player.pdfReader!==r || stale()) return;
       status.textContent = t(
         "Ses ayarlarını kontrol et; Seçili bölümleri seslendir ile üret, Dinle ve takip et ile oku.",
         "Review voice settings, generate selected chapters, then choose Read & follow.",
@@ -515,7 +517,9 @@
     if (!r || v?.reader !== r) return;
     stopVoice();
     const token = voiceToken,
-      index = v.pages.indexOf(r.currentPage),
+      page = r.currentPage,
+      current = () => token === voiceToken && player.pdfReader === r && r.currentPage === page,
+      index = v.pages.indexOf(page),
       status = $("pdfVoiceStatus");
     if (index < 0) {
       status.textContent = t(
@@ -524,6 +528,7 @@
       );
       return;
     }
+    status.textContent = t("Ses yükleniyor…", "Loading narration…");
     try {
       const result = await window.api.mediaWorkflows({
         action: "book-listen",
@@ -531,13 +536,13 @@
         id: v.id,
         chapter: index,
       });
-      if (token !== voiceToken || player.pdfReader !== r) return;
+      if (!current()) return;
       if (!result.ok) throw Error(result.error || "Audio is not ready");
-      await renderPdfReaderPage(r.currentPage);
-      if (token !== voiceToken || player.pdfReader !== r) return;
+      await renderPdfReaderPage(page);
+      if (!current()) return;
       setPdfReaderView("reading");
       const prose = r.pages
-        .get(r.currentPage)
+        .get(page)
         ?.article.querySelector(".pdf-page-prose");
       if (!prose) return;
       prose.replaceChildren();
@@ -569,15 +574,15 @@
       const audio = $("pdfVoiceAudio");
       audio.src = pathToFileUrl(result.path);
       audio.classList.remove("hidden");
-      playback=pdfPlayback=window.ReaderAudioControl.create(audio,{position:result.position||0,isCurrent:()=>token===voiceToken&&player.pdfReader===r,onError:error=>{status.textContent=error.message;},errors:{timeout:t('Ses bilgisi zaman aşımına uğradı. Yeniden dinlemeyi dene.','Audio metadata timed out. Try listening again.'),unavailable:t('Ses dosyası yüklenemedi.','Audio could not be loaded.'),range:t('Bu pasajın ses aralığı dosyada bulunamadı.','This passage is outside the audio file.')}});
-      const pageEntry = r.pages.get(r.currentPage),
+      playback=pdfPlayback=window.ReaderAudioControl.create(audio,{position:result.position||0,isCurrent:current,onError:error=>{if(current())status.textContent=error.message;},errors:{timeout:t('Ses bilgisi zaman aşımına uğradı. Yeniden dinlemeyi dene.','Audio metadata timed out. Try listening again.'),unavailable:t('Ses dosyası yüklenemedi.','Audio could not be loaded.'),range:t('Bu pasajın ses aralığı dosyada bulunamadı.','This passage is outside the audio file.')}});
+      const pageEntry = r.pages.get(page),
         sourceCanvas = pageEntry.article.querySelector(
           ".pdf-page-source canvas",
         );
       if (sourceCanvas) {
-        const original = await r.pdf.getPage(r.currentPage);
-        if (token !== voiceToken || player.pdfReader !== r) return;
-        spokenView={reader:r,page:r.currentPage,token,prose,groups,original,canvas:sourceCanvas};
+        const original = await r.pdf.getPage(page);
+        if (!current()) return;
+        spokenView={reader:r,page,token,prose,groups,original,canvas:sourceCanvas};
         pdfMap = window.PdfSpokenMap?.mount(
           pageEntry.article.querySelector(".pdf-page-source"),
           sourceCanvas,
@@ -589,7 +594,7 @@
         );
       }
       audio.ontimeupdate = () => {
-        if (token !== voiceToken) return;
+        if (!current()) return;
         const i = groups.findIndex(
           (g) => audio.currentTime >= g.start && audio.currentTime < g.end,
         );
@@ -618,13 +623,13 @@
             });if(!saved?.ok)lastSaved=-1;}catch{lastSaved=-1;}
       }};
       playbackProgress=progress;
-      audio.onpause = () => {if(token===voiceToken)void progress.save(audio.currentTime);};
+      audio.onpause = () => {if(current())void progress.save(audio.currentTime);};
       status.textContent = t(
         "Vurgu sesin gerçek konuşma gruplarını izler; oynatmak için sesi başlat.",
         "Highlight follows actual speech groups. Start audio to listen.",
       );
     } catch (e) {
-      status.textContent = e.message;
+      if (current()) status.textContent = e.message;
     }
   };
   document.addEventListener("selectionchange", () => {

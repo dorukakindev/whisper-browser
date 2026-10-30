@@ -30,8 +30,22 @@ function setup({tracks=true}={}){
  for(const file of ['dub-run-info.js','dub-experience-model.js','dub-generator-ui.js','voice-reference-ui.js','assistant-voice-actions.js'])w.eval(fs.readFileSync(path.join(__dirname,'../src/renderer',file),'utf8'));
  return {dom,w,el,context,read:()=>({request,applied,picks,played,refUsed}),proof:value=>proof=value,
   run:(name,args={})=>w.AssistantVoiceActions.execute(name,args,{}),
-  finish:(count=1,verification={status:'not_checked'})=>{output={id:request.id,type:'done',url:'file:///fixture.wav',name:'fixture.wav',sample:false,sync:{},quality:{groups:Array.from({length:count},(_,i)=>({key:'g'+(i+1),group:i+1,text:'Hello.',status:'review',audioStart:0,audioEnd:2,verification}))}};event(output);return output;}};
+  finish:(count=1,verification={status:'not_checked'},overrides={})=>{output={id:request.id,type:'done',url:'file:///fixture.wav',name:'fixture.wav',sample:false,sync:{},quality:{groups:Array.from({length:count},(_,i)=>({key:'g'+(i+1),group:i+1,text:'Hello.',status:'review',audioStart:0,audioEnd:2,verification,...overrides}))}};event(output);return output;}};
 }
+
+test('Ready speech with a measured pace boundary remains available but assistant and UI request listening',async()=>{
+ const h=setup();try{
+  await h.run('configure_voice_generation',{profile:'quality'});await h.run('start_voice_generation');
+  h.finish(1,{status:'passed'},{status:'ready',continuity:{status:'measured',levelDb:-20,wordsPerSecond:3.5,gainDb:0,warnings:['pace-jump','unknown-secret'],private:'C:/private/ref.wav'}});
+  const group=(await h.run('get_voice_status')).voice.groups[0];
+  assert.equal(group.status,'ready');assert.equal(group.needsListening,true);
+  assert.deepEqual(Array.from(group.reviewReasons),['Adjacent groups differ in pace']);
+  assert.deepEqual(Array.from(group.continuity.warnings),['pace-jump']);
+  assert(!JSON.stringify(group).includes('private'));assert(!JSON.stringify(group).includes('unknown-secret'));
+  h.el('dubQualityGroup').value='g1';h.el('dubQualityGroup').dispatchEvent(new h.w.Event('change'));
+  assert.match(h.el('dubQualityReasons').textContent,/differ in pace/);
+ }finally{await new Promise(resolve=>setTimeout(resolve,25));h.dom.window.close();}
+});
 test('Real dubbing UI accepts typed options and starts only after an explicit action',async()=>{
  const h=setup();try{
   const configured=await h.run('configure_voice_generation',{profile:'fast',concurrency:8,grouping:'cumle',verification:'balanced',timingMode:'video',expression:'warm',keepBackground:true,followDelivery:true,start:5,end:25});assert.equal(configured.status,'completed');assert.equal(h.read().request,undefined);

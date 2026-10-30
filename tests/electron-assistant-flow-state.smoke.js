@@ -19,6 +19,16 @@ app.whenReady().then(async()=>{
   fs.writeFileSync(path.join(out,state+'.png'),(await win.webContents.capturePage()).toPNG());
  }
  assert(Math.max(...composer)-Math.min(...composer)<1,'Running/completed/failed changes must not move the composer');
+ if(process.argv.includes('--partial813')){
+  const info=describe(row,[{id:'exact',state:'completed',result:{artifacts:[{role:'translation',partial:true,total:12,completed:11,failed:1}]}}]);
+  assert.equal(info.state,'partial');
+  for(const [locale,theme] of [['tr','dark'],['en','light']]){
+   const note=locale==='tr'?'Bu iş kısmi çıktıyla bitti. Ses hazırlamadan önce eksik satırları kontrol et.':'This job finished with a partial output. Inspect the missing lines before preparing voice.';
+   win.webContents.send('assistant:snapshot',{...base,locale,theme,messages:[{...base.messages[0],actions:[{...base.messages[0].actions[0],canContinue:info.ready,waiting:info.waiting,partial:info.partial,flowNote:note}]}]});await wait(150);
+   const label=locale==='tr'?'Kısmi sonucu incele':'Review partial result';assert.equal(await run("document.querySelector('.flow-continue').textContent"),label);assert(await run("document.getElementById('log').textContent.includes("+JSON.stringify(note)+")"));
+   fs.writeFileSync(path.join(out,'partial-'+locale+'.png'),(await win.webContents.capturePage()).toPNG());
+  }
+ }
  const focusSnapshot={...base,messages:[{...base.messages[0],actions:[{...base.messages[0].actions[0],canContinue:true,waiting:false}]}]};
  win.webContents.send('assistant:snapshot',focusSnapshot);await wait(100);await run("document.querySelector('.flow-continue').focus()");
  win.webContents.send('assistant:snapshot',{...focusSnapshot,messages:[{...focusSnapshot.messages[0],text:'Updated job receipt'}]});await wait(100);
