@@ -14,7 +14,7 @@ function generator(latest=null){
   selectFile:async()=>'fixture.srt',planDub:async()=>({ok:true,sourceHash:'fixture',groups:[{key:'1',text:'Original.',start:0,end:1000,seconds:1}]}),
   onDubEvent:fn=>{event=fn;},startDub:async value=>{request=value;return {ok:true};}};
  el('dubGeneratorDialog').showModal=()=>{};
- w.eval(fs.readFileSync(path.join(root,'src/renderer/dub-generator-ui.js'),'utf8'));
+ w.DubRunInfo=require('../src/renderer/dub-run-info');w.eval(fs.readFileSync(path.join(root,'src/renderer/dub-generator-ui.js'),'utf8'));
  return {w,el,calls,close:()=>w.close(),event:value=>event(value),request:()=>request};
 }
 

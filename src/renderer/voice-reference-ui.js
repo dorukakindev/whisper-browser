@@ -158,7 +158,11 @@
     const item=selected();if(active||applying||selectingSource||typeof item?.transcriptBaseline!=='string')return;
     el('voiceReferenceText').value=item.transcriptBaseline;rememberDraft();controls();
   });
-  el('voiceReferenceFolder').addEventListener('click', () => { if (folder) void api.openPath(folder); });
+  el('voiceReferenceFolder').addEventListener('click', async () => {
+    const target=folder,sequence=refreshSequence;if(!target)return;
+    let failed=false;try{const result=await api.openPath(target);failed=typeof result==='string'?!!result:result?.ok===false;}catch{failed=true;}
+    if(failed&&sequence===refreshSequence&&!active&&!applying&&!selectingSource&&folder===target&&el('dubGeneratorDialog').open)status(window.UiLocale?.get?.()==='en'?'Could not open the reference folder. Check that it still exists and that opening was allowed.':'Referans klasörü açılamadı. Hâlâ yerinde olduğunu ve açma iznini kontrol edin.');
+  });
   const seconds = raw => {
     const value = raw.trim();
     if (!/^\d+(?::[0-5]?\d){0,2}(?:\.\d{1,3})?$/.test(value)) throw new Error();

@@ -455,3 +455,17 @@ test("real M4B metadata preserves reserved characters and chapter-marker text",{
  const actual=JSON.parse(raw);assert.equal(actual.format.tags.title,d.title);assert.equal(actual.format.tags.artist,d.author);
  assert.equal(actual.chapters.length,2);assert.deepEqual(actual.chapters.map(c=>c.tags.title),d.chapters.map(c=>c.title));
 });
+
+
+test('Suffix normalization cannot bypass overwrite confirmation for an existing M4B',async t=>{
+ let root,allow=false,confirmations=0;
+ const f=await fixture(t,{dialog:{showSaveDialog:async()=>({filePath:path.join(root,'existing')}),showMessageBox:async(_owner,options)=>{confirmations++;assert.equal(options.defaultId,0);assert.equal(options.cancelId,0);assert(!options.title.includes(' / '));assert.equal(options.buttons[0],allow?'Cancel':'İptal');return {response:allow?1:0};}}});root=f.root;
+ const cancelled=await f.call('book-export',{id:f.id,chapters:[0],locale:'tr'});assert(cancelled.canceled);assert.equal(f.encoded(),0);assert.equal(fs.readFileSync(f.target,'utf8'),'keep original');assert.equal(confirmations,1);
+ allow=true;const exported=await f.call('book-export',{id:f.id,chapters:[0]});assert(exported.ok,exported.error);assert.equal(exported.path,f.target);assert.equal(confirmations,2);assert.equal(fs.readFileSync(f.target,'utf8'),'complete AAC fixture');
+});
+
+test('A destination modified during encoding is preserved instead of overwritten',async t=>{
+ let root;
+ const f=await fixture(t,{runTool:async(tool,args)=>{if(tool==='probe')return '2';fs.writeFileSync(path.join(root,'existing.m4b'),'another application wrote this');fs.writeFileSync(args.at(-1),'new encoded output');return '';}});root=f.root;
+ const result=await f.call('book-export',{id:f.id,chapters:[0]});assert.equal(result.ok,false);assert.match(result.error,/destination changed/);assert.equal(fs.readFileSync(f.target,'utf8'),'another application wrote this');assert(!fs.readdirSync(root).some(name=>name.startsWith('.audiobook-')));
+});

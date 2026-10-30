@@ -87,9 +87,9 @@ test('494-19: missing quality manifest cannot automatically attach a possibly pa
  try{
   w.HTMLMediaElement.prototype.load=w.HTMLMediaElement.prototype.pause=()=>{};w.syncBrowserOcclusion=()=>{};
   w.BrowserDubAudioUI={context:()=>({mode:'player',tabId:'p',mediaKey:'fixture',visible:true,hasMedia:true}),attachGenerated:async()=>{attached++;return true;}};
-  w.api={dubConfig:async()=>({ok:true,ready:true}),latestDub:async()=>({ok:true}),selectFile:async()=>'fixture.srt',onDubEvent:fn=>event=fn,startDub:async r=>{request=r;return {ok:true};}};
+  w.api={dubConfig:async()=>({ok:true,ready:true}),planDub:async()=>({ok:true,sourceHash:'fixture',groups:[{key:'1',text:'Fixture speech.',start:0,end:2000,seconds:2}]}),latestDub:async()=>({ok:true}),selectFile:async()=>'fixture.srt',onDubEvent:fn=>event=fn,startDub:async r=>{request=r;return {ok:true};}};
   el('dubGeneratorDialog').showModal=()=>{};
-  w.eval(fs.readFileSync(path.join(root,'src/renderer/dub-generator-ui.js'),'utf8'));
+  w.DubRunInfo=require('../src/renderer/dub-run-info');w.eval(fs.readFileSync(path.join(root,'src/renderer/dub-generator-ui.js'),'utf8'));
   el('dubMainOpen').click();await turn();el('dubChooseSrt').click();await turn();el('dubGeneratorStart').click();await turn();
   event({type:'done',id:request.id,url:'file:///voice.wav',quality:null,qualityUnavailable:true});await turn();assert.equal(attached,0);
  }finally{w.close();}
