@@ -4,9 +4,9 @@
  const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
  const el=(tag,cls,text)=>{const n=document.createElement(tag);n.className=cls||'';if(text!==undefined)n.textContent=text;return n;};
  const button=(text,run)=>{const b=el('button','btn btn-ghost',text);b.type='button';b.onclick=run;return b;};
- const host=el('section','dub-experience'),head=el('div','dub-experience-head'),title=el('h3'),tools=el('div','dub-experience-tools'),status=el('p','dub-experience-status');status.setAttribute('role','status');
+ const host=el('details','dub-experience'),head=el('div','dub-experience-head'),title=el('summary'),tools=el('div','dub-experience-tools'),status=el('p','dub-experience-status');status.setAttribute('role','status');
  const inspect=button('',()=>void preflight()),compare=button('',()=>void comparison()),repair=button('',()=>void repairNow());
- const details=el('details','dub-preflight'),summary=el('summary'),list=el('div','dub-preflight-list');details.hidden=true;details.append(summary,list);tools.append(inspect,compare,repair);head.append(title,tools);host.append(head,status,details);
+ const details=el('details','dub-preflight'),summary=el('summary'),list=el('div','dub-preflight-list');details.hidden=true;details.append(summary,list);tools.append(inspect,compare,repair);head.append(tools);host.append(title,head,status,details);
  $('dubGeneratorDialog').querySelector('.dub-studio-scroll').prepend(host);
  const files=el('details','dub-files-menu'),fileLabel=el('summary','btn btn-ghost'),filePanel=el('div','dub-files-panel');files.append(fileLabel,filePanel);for(const id of ['dubGeneratorOutput','dubStorageOpen','dubGeneratorLog'])filePanel.append($(id));$('dubGeneratorCancel').parentElement.append(files);
  $('dubGeneratorDialog').addEventListener('pointerdown',event=>{if(!files.contains(event.target))files.open=false;});
@@ -15,14 +15,14 @@
  files.addEventListener('keydown',event=>{if(event.key==='Escape'&&files.open){files.open=false;event.preventDefault();event.stopPropagation();fileLabel.focus();}});
  let serial=0,lastOwner=ui().experience().owner;
  document.addEventListener('media-context-changed',()=>{const owner=ui().experience().owner;if(owner===lastOwner)return;lastOwner=owner;serial++;inspect.disabled=false;status.textContent='';details.hidden=true;list.replaceChildren();});
- function labels(){fileLabel.textContent=t('Files & log','Dosyalar ve kayıt');title.textContent=t('Production check','Üretim kontrolü');inspect.textContent=t('Inspect script','Metni denetle');compare.textContent=t('Compare translations','Çevirileri karşılaştır');repair.textContent=t('Repair current moment · Ctrl+Alt+R','İzlediğim anı düzelt · Ctrl+Alt+R');}
+ function labels(){fileLabel.textContent=t('Files & log','Dosyalar ve kayıt');title.textContent=t('Review & repair','İnceleme ve onarım');inspect.textContent=t('Inspect script','Metni denetle');compare.textContent=t('Compare translations','Çevirileri karşılaştır');repair.textContent=t('Repair current moment · Ctrl+Alt+R','İzlediğim anı düzelt · Ctrl+Alt+R');}
  async function preflight(){const request=++serial,identity=JSON.stringify([ui().experience().owner,ui().experience().srt]);inspect.disabled=true;
   try{const report=await ui().inspectProduction();if(request!==serial||identity!==JSON.stringify([ui().experience().owner,ui().experience().srt]))return;if(!report){status.textContent=t('Select a subtitle first.','Önce altyazı seç.');return;}
    summary.textContent=t(`${report.rows.length} groups · ${report.dense} dense · ${report.long} long`,`${report.rows.length} grup · ${report.dense} yoğun · ${report.long} uzun`);
    status.textContent=t('Duration is an estimate, not a naturalness score. ','Süre tahminidir; doğallık puanı değildir. ')+(report.referenceChecked?(report.referenceWarnings.length?t('Reference needs review: ','Referansı kontrol et: ')+report.referenceWarnings.map(w=>({quiet:t('low level','kısık ses'),clipping:t('clipping','ses patlaması'),silence:t('long silence','uzun sessizlik'),short:t('too short','çok kısa')}[w]||w)).join(', '):t('Reference level was checked.','Referans seviyesi kontrol edildi.')):t('Reference audio has not been measured in this session.','Referans sesi bu oturumda henüz ölçülmedi.'));
    list.replaceChildren();for(const row of report.rows.filter(r=>r.dense||r.long).slice(0,20)){const text=t(`${Number.isFinite(row.seconds)?row.seconds.toFixed(1):"—"} s available · ~${row.estimated} s estimated`,`${Number.isFinite(row.seconds)?row.seconds.toFixed(1):"—"} sn aralık · ~${row.estimated} sn tahmin`);const b=button(text+' · '+row.text.slice(0,110),()=>void ui().editPlanGroup(row.key));list.append(b);}
    if(!list.childElementCount)list.append(el('p','',t('No dense or long groups flagged. Listen to a sample before deciding.','Yoğun veya uzun grup işaretlenmedi. Karar vermeden önce kısa örneği dinle.')));
-   details.hidden=false;details.open=report.dense>0||report.long>0;
+   details.hidden=false;details.open=report.dense>0||report.long>0;if(details.open)host.open=true;
   }catch(error){if(request===serial)status.textContent=error.message;}finally{if(request===serial)inspect.disabled=false;}
  }
  async function repairNow(){const ok=await ui().editAtCurrent();if(!ok)status.textContent=t('No matching completed dub group at the current video time.','Güncel video anında eşleşen tamamlanmış dublaj grubu yok.');else status.textContent=t('Group opened. Edit and apply the text, then regenerate only this group.','Grup açıldı. Metni düzenleyip uygula; sonra yalnız bu grubu yeniden üret.');}

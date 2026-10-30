@@ -18,6 +18,7 @@ const captionCases=[
  {id:'CAPTION-SAVED-RANGE',kind:'video',tracks:[capturedTrack],range:{start:12.5,end:44.75},question:'Kaydettiğim seçili aralıkta açık kaynak altyazıyı Türkçeye çevir. Tüm videoyu çevirme, Whisper kullanma.',expected:'translate_captions',check:a=>a.track_id===capturedTrack.id&&a.target_language==='tr'&&(a.start===undefined&&a.end===undefined||a.start===12.5&&a.end===44.75)}
 ];
 const cases=[
+ {id:'DUB-FIRST-THREE-MINUTES',kind:'video',question:'Bu videonun ilk üç dakikasını önce Whisper ile çıkar, Türkçeye seslendirmeye uygun çevir ve ardından seslendir. İlk uygulanmamış adımı hazırla; çeviri tamamlanmadan dublaj başlatma.',expected:'start_whisper',check:a=>a.translate===true&&a.start===0&&a.end===180&&a.target_language==='tr'&&a.forSpeech===true},
  {id:'PAGE-TARGET',kind:'page',question:'Bu Türkçe web sayfasını sayfanın üstünde İngilizceye çevir. Altyazı veya Whisper işlemi başlatma.',expected:'translate_page',check:a=>a.target_language==='en'},
  {id:'BOOK-SCOPE',kind:'book',question:'Açık PDF kitabın 3 ile 6. sayfalarını orijinal metniyle seslendirmeye hazırla. Ses üretimini henüz başlatma.',expected:'prepare_book_narration',check:a=>a.from===3&&a.to===6&&a.text==='original',reads:['get_book_context']},
  {id:'WHISPER-ONLY',kind:'video',question:'Bu videonun 5 ile 25. saniyesi için yalnız Whisper ile altyazı çıkar. Çeviri veya dublaj istemiyorum.',expected:'start_whisper',check:a=>a.translate===false&&a.start===5&&a.end===25},

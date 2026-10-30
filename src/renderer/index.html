@@ -3861,7 +3861,7 @@
     <input id="voiceReferenceSearch" type="search" maxlength="160" placeholder="Ad ile ara" aria-describedby="voiceReferenceCount" autocomplete="off" />
     <p id="voiceReferenceCount" class="voice-reference-count" role="status" aria-live="polite" data-ui-untranslated></p>
     <label for="voiceReferenceSelect">Referans sesler</label>
-    <select id="voiceReferenceSelect" aria-label="Referans sesler"></select></div>
+    <select id="voiceReferenceSelect" aria-label="Referans sesler"></select><audio id="voiceReferencePreview" controls preload="metadata" class="hidden"></audio><div class="dub-generator-row"><button id="voiceReferenceUse" type="button" class="btn btn-primary" disabled>Bu sesi kullan</button><button id="voiceReferenceFolder" type="button" class="btn btn-ghost">Referans sesler klasörünü aç</button></div></div>
 <details id="dubEngineSettings"><summary>Ses ve motor ayarları</summary>
     <section class="dub-pronunciations" data-ui-untranslated>
       <h4 id="dubPronunciationTitle">Telaffuz sözlüğü</h4>
@@ -3896,7 +3896,7 @@
       <p id="voiceReferenceQuality" role="status"></p>
     <label for="voiceReferenceName">Referans adı</label>
     <div class="dub-generator-row"><input id="voiceReferenceName" type="text" maxlength="160" data-ui-untranslated /><button id="voiceReferenceRename" type="button" class="btn btn-secondary" disabled>Adı kaydet</button></div>
-    <audio id="voiceReferencePreview" controls preload="metadata" class="hidden"></audio>
+
     <div id="voiceReferenceAB"></div>
     <label for="voiceReferenceText">Referans dökümü</label>
     <textarea id="voiceReferenceText" rows="3" maxlength="8000" data-ui-untranslated></textarea>
@@ -3909,7 +3909,7 @@
       </div>
       <button id="voiceReferenceRestoreTranscript" type="button" class="btn btn-secondary" data-ui-untranslated></button>
     </details>
-    <div class="dub-generator-row"><button id="voiceReferenceUse" type="button" class="btn btn-primary" disabled>Bu sesi kullan</button><button id="voiceReferenceFolder" type="button" class="btn btn-ghost">Referans sesler klasörünü aç</button></div>
+
   </details></section><section class="dub-card"><details><summary>Müzik ve ortam</summary>
 <label class="dub-generator-row"><input id="dubKeepBackground" type="checkbox" />Müzik ve ortam seslerini koru</label>
   <p>Açık YouTube videosunun sesi ayrıştırılır. İlk işlem model indirir; bazı konuşma izleri kalabilir. İstersen yerel kaynak seç.</p>

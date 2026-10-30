@@ -1611,10 +1611,20 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
     # alternatives (edip etmeme / olup olmama) need no finite negative verb.
     if lang == 'tr' and re.search(r"\bwhether\s+or\s+not\b", negation_source, re.I) and re.search(r"\b\w+(?:[ıiuü]p)\s+\w+m[ae]m[ae]\w*\b", translated, re.I):
         negation_source = re.sub(r"\bwhether\s+or\s+not\b", 'whether', negation_source, flags=re.I)
+    # Lexical negative adjectives translate into Turkish negative-looking roots.
+    # Mask only the corresponding lexeme, retaining any independent negation.
+    negative_target = translated
+    if lang == 'tr':
+        for source_pattern, target_pattern in (
+            (r'\bunpredictab(?:le|ility)\b', r'\böngörülemez(?:lik)?(?:liği|liğiyle|lik)?\b'),
+            (r'\bruthless(?:ly|ness)?\b', r'\bacımasız(?:ca|lık)?\b'),
+        ):
+            if re.search(source_pattern, source, re.I):
+                negative_target = re.sub(target_pattern, ' ', negative_target, flags=re.I)
     if lang in _NEGATION_TARGET_LANGS and _SOURCE_NEGATION.search(negation_source) \
-            and not (_target_negation(translated, negation_source) or (lang == 'en' and translated_outcome == {-1}) or original_outcome == translated_outcome == {1}):
+            and not (_target_negation(negative_target, negation_source) or (lang == 'en' and translated_outcome == {-1}) or original_outcome == translated_outcome == {1}):
         issues.append('negation_missing')
-    target_negative = _target_negation(re.sub(r'(?:\"[^\"\n]*\"|“[^”\n]*”|«[^»\n]*»)(?=\s+(?:adlı|isimli)\b)', ' ', translated, flags=re.I), negation_source) if lang == 'tr' else bool(_SOURCE_NEGATION.search(translated.replace('’', "'"))) if lang == 'en' else False
+    target_negative = _target_negation(re.sub(r'(?:\"[^\"\n]*\"|“[^”\n]*”|«[^»\n]*»)(?=\s+(?:adlı|isimli)\b)', ' ', negative_target, flags=re.I), negation_source) if lang == 'tr' else bool(_SOURCE_NEGATION.search(translated.replace('’', "'"))) if lang == 'en' else False
     target_negative = target_negative or (lang == 'en' and translated_outcome == {-1})
     source_negative = bool(_SOURCE_NEGATION.search(negation_source)) or original_outcome == {-1} or (lang == 'en' and str(source_lang or '').split('-')[0] == 'tr' and _target_negation(source, translated))
     if lang == 'en' and str(source_lang or '').split('-')[0] == 'tr' and _target_negation(source, translated) and not target_negative:
@@ -1641,7 +1651,7 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
         # anlam kaybıdır; -acak gelecek ihtimal kanıtı sayılmaz.
         uncertainty_source = _REQUEST_COULD.sub(' ', modal_source)
         if _SOURCE_UNCERTAINTY.search(uncertainty_source) \
-                and not _TARGET_UNCERTAINTY.search(translated):
+                and not (_TARGET_UNCERTAINTY.search(translated) or (re.search(r"\b(?:no idea|(?:don't|do not) know)\b", source, re.I) and re.search(r'\b(?:fikr\w*\s+yok\w*|bilmi[yıiuü]\w*)\b', translated, re.I))):
             issues.append('modal_certainty_flip')
         if _SOURCE_NECESSITY.search(modal_source) \
                 and not _TARGET_NECESSITY.search(translated):
