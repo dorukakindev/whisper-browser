@@ -1,0 +1,40 @@
+{
+  "observations": [
+    {
+      "id": "BR-EXPORT-SUFFIX-OVERWRITE",
+      "selectedPath": "D:\\Whisper Local\\.tmp\\deep815-browser\\chosen-name.txt",
+      "actualPath": "D:\\Whisper Local\\.tmp\\deep815-browser\\chosen-name.txt.pdf",
+      "preexistingTargetOverwritten": true,
+      "result": {
+        "ok": true,
+        "path": "D:\\Whisper Local\\.tmp\\deep815-browser\\chosen-name.txt.pdf",
+        "format": "PDF"
+      }
+    },
+    {
+      "id": "BR-CLOSE-LATE-DRAFT-LOSS",
+      "runtimeCalls": 1,
+      "typedAfterInitialCheck": true,
+      "closed": true,
+      "result": {
+        "ok": true,
+        "activeTabId": "a",
+        "tabs": [],
+        "split": {},
+        "captureEnabled": true,
+        "diagnostics": {},
+        "playbackDiagnostics": {}
+      }
+    },
+    {
+      "id": "BR-EXTERNAL-PLAYER-FALSE-SUCCESS",
+      "ipcResult": {
+        "ok": true,
+        "player": "mpv",
+        "path": "fixture-mpv.exe"
+      },
+      "asynchronousNativeLaunchError": "EACCES",
+      "errorEventEmitted": true
+    }
+  ]
+}

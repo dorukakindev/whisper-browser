@@ -1,0 +1,40 @@
+[
+  {
+    "case": "native-stream-start"
+  },
+  {
+    "case": "stream-protocol-native",
+    "url": "http://example.invalid/movie.mkv",
+    "nativeCalled": true
+  },
+  {
+    "case": "stream-protocol-native",
+    "url": "https://example.invalid/movie.mkv",
+    "nativeCalled": false
+  },
+  {
+    "case": "native-stream-start"
+  },
+  {
+    "case": "stream-protocol-native",
+    "url": "rtsp://example.invalid/movie",
+    "nativeCalled": true
+  },
+  {
+    "case": "subtitle-search-offset",
+    "subtitleStart": 20,
+    "offset": 10,
+    "expectedMediaTime": 30,
+    "actual": 20
+  },
+  {
+    "case": "ttc-font-attachment",
+    "attachments": [
+      {
+        "filename": "collection.ttc",
+        "codec_type": "attachment"
+      }
+    ],
+    "result": []
+  }
+]

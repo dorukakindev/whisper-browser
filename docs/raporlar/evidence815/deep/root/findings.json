@@ -1,0 +1,211 @@
+[
+  {
+    "id": "ROOT01",
+    "severity": "P2",
+    "title": "Büyük harfli video uzantısı gömme işinin kurtarma kaydını geçersiz kılıyor",
+    "source": [
+      "src/burnin-output.js:12",
+      "src/burnin-output.js:162",
+      "src/main.js:20746"
+    ],
+    "reproduce": "movie.MP4 veya movie.MKV için burninOutputPaths ile oluşturulan temp/out yollarını aynı recovery doğrulayıcısına ver.",
+    "observed": "Küçük harfli movie.mp4 recoveryMatches=true; .MP4 ve .MKV false. Oluşturulan ad movie.MP4.altyazili… olurken recovery regexi movie.altyazili… bekliyor.",
+    "expected": "Uygulamanın kendisinin ürettiği yollar kurtarma doğrulamasından geçmeli; uzantının harf büyüklüğü etkisiz olmalı.",
+    "impact": "Windows kamera/video dosyalarındaki yaygın büyük harfli uzantıda kesilen uzun gömme işi sonradan tanınmayabilir; yeniden başlatma gerekebilir. Kaynak dosyanın silindiği iddia edilmez.",
+    "evidence": "root/candidates.cjs / burnin-case",
+    "limits": "Üretim yol üretici ve doğrulayıcı doğrudan çalıştırıldı; uzun ffmpeg işi kesilmedi."
+  },
+  {
+    "id": "ROOT02",
+    "severity": "P1",
+    "title": "Kitap projesi yedeği yer imlerini geri yüklemiyor",
+    "source": [
+      "src/book-project-backup.js:9",
+      "src/book-bookmarks.js:66"
+    ],
+    "reproduce": "Yer imi olan geçerli proje için ses dahil exportBooks, ardından boş klasöre importBooks çalıştır.",
+    "observed": "Başlangıçtaki bookmarks dizisi geri yüklenen project.json içinde tamamen yok. export/import ikisi de başarılı.",
+    "expected": "Kullanıcıya proje yedeği olarak sunulan dosya yer imlerini korumalı veya kapsam dışı olduğunu dışa aktarmadan önce açıkça bildirmeli.",
+    "impact": "Yeni bilgisayarda geri yükleme sonrası işaretlenmiş pasaj ve dinleme noktaları kaybolur. Orijinal proje bu denetimde değiştirilmedi.",
+    "evidence": "root/candidates.cjs / backup-bookmarks",
+    "limits": "Sentetik bölüm/ses ve metadata; kişisel kitap veya yedek kullanılmadı."
+  },
+  {
+    "id": "ROOT03",
+    "severity": "P1",
+    "title": "Kitap yedeği 1000 üzerindeki konuşma gruplarını sessiz kesiyor",
+    "source": [
+      "src/book-project-backup.js:36",
+      "src/media-workflows.js:38"
+    ],
+    "reproduce": "Üretimin izin verdiği en çok5000 grubun altında kalan1001 gruplu bölüm oluştur; son grubu review yap; ses dahil yedekle ve geri yükle.",
+    "observed": "1001 grup1000 oluyor; sondaki tek review grubu yok oluyor. Tam ses dosyası korunuyor, ancak son bölümün konuşma haritası ve inceleme girdisi kayboluyor. Ayrıca taşınan grupların verification ayrıntıları da dar yedek şemasında yok.",
+    "expected": "Geçerli grup listesi kayıpsız taşınmalı veya yedek oluşturma açık boyut hatasıyla reddedilmeli; başarıyla sessiz kırpılmamalı.",
+    "impact": "Sesin sonundaki vurgulama/inceleme ve grup bazlı onarım eksik kalır; sorunlu grubun neden/konumu kaybolur. Verification alanı kaybı aynı yedekleme kapsamı içinde ele alındı, ayrı bug sayılmadı.",
+    "evidence": "root/candidates.cjs / backup-quality-group-limit, backup-verification",
+    "limits": "1001 saniyelik sentetik sessiz WAV ve metin grupları; model kalitesi denenmedi. Bölümün status=review alanı otomatik ready oldu iddiası yok."
+  },
+  {
+    "id": "ROOT04",
+    "severity": "P1",
+    "title": "Kaydedilebilen uzun kitap bölümü başarıyla yedekleniyor ama geri yüklenemiyor",
+    "source": [
+      "src/media-workflows.js:1062",
+      "src/book-project-backup.js:174"
+    ],
+    "reproduce": "Book-save900000 karaktere kadar kabul ederken100001 karakterli geçerli bölümü ses hariç yedekle ve geri yükle.",
+    "observed": "Export başarılı; import Invalid chapter. hatası veriyor. Dışa aktarma, kendi geri yükleme sözleşmesinin100000 karakter tavanını uygulamıyor.",
+    "expected": "Uygulamada geçerli ve başarıyla yedeklenmiş bölüm tekrar içe alınabilmeli; aksi durumda yedek daha oluşturulmadan açık ret verilmeli.",
+    "impact": "Yedek var sanılarak makine taşındığında veya orijinal kaldırıldığında kullanıcının uzun bölümüne uygulama içinden erişilemiyor.",
+    "evidence": "root/candidates.cjs / backup-long-chapter",
+    "limits": "Asıl900000 sınırı gerçek book-save yolundan okundu;100001 örneği gerçek export/import ile çalıştırıldı."
+  },
+  {
+    "id": "ROOT05",
+    "severity": "P2",
+    "title": "Model yöneticisi güncel HF_HUB_CACHE yolunu görmüyor",
+    "source": [
+      "src/model-manager.js:21",
+      "src/main.js:19350"
+    ],
+    "reproduce": "Hugging Face standart HF_HUB_CACHE özel dizinini kullan; modelCacheRoots/scanModelCache ile durum al. Aynı dizini eski HUGGINGFACE_HUB_CACHE ile vererek karşılaştır.",
+    "observed": "HF_HUB_CACHE ve yalnız HOME verilen durumda kök listesi boş. Kod yalnız eski HUGGINGFACE_HUB_CACHE, HF_HOME, TRANSFORMERS_CACHE, USERPROFILE ve uygulama model klasörünü okuyor.",
+    "expected": "Backend indirme/yükleme ile model yöneticisi aynı standart önbellek köklerini izlemeli.",
+    "impact": "Kurulu model yok/eksik görünebilir; disk bilgisi ve silme yönetimi yanlış önbelleği hedefler. Linux HOME/XDG varsayılanları da aynı kök çözümleme sorununun parçasıdır, ayrı sayılmadı.",
+    "evidence": "root/candidates.cjs / model-cache-env",
+    "limits": "Gerçek model indirilmedi. Standart değişken Hugging Face birincil belgesinden doğrulandı; kişisel ortam değiştirilmedi."
+  },
+  {
+    "id": "ROOT06",
+    "severity": "P1",
+    "title": "Bozuk okuma listesi indeksi sonraki kayıtta sessizce üzerine yazılıyor",
+    "source": [
+      "src/browser-reading-list.js:43",
+      "src/browser-reading-list.js:107"
+    ],
+    "reproduce": "Mevcut MHTML dosyası varken index.json bozuk JSON olsun; başka sayfa için prepare/commit çalıştır.",
+    "observed": "Okuma hatası boş liste sayılıyor; yeni indeks yalnız yeni sayfayı içeriyor. Eski arşiv dosyası diskte kalıyor ama uygulama artık onu listelemiyor; kayıt işlemi başarı dönüyor.",
+    "expected": "Bozuk indeks korunmalı, kullanıcı uyarılmalı ve kurtarma/yeniden oluşturma açık tercih olmalı.",
+    "impact": "Kayıtlı çevrimdışı sayfaların dizini ve metadata kurtarılabilir son haliyle korunmuyor. Bu, BR02 içerik dosyasının yarım yazılması ve BR03 silme hatasından farklıdır.",
+    "evidence": "root/candidates.cjs / reading-corrupt-index",
+    "limits": "Sentetik bozuk indeks ve iki sahte MHTML kullanıldı; kişisel arşiv yok."
+  },
+  {
+    "id": "ROOT07",
+    "severity": "P2",
+    "title": "Yeni bölüm sesi seçilince eski M4B hâlâ güncel sayılıyor",
+    "source": [
+      "src/media-workflows.js:184",
+      "src/media-workflows.js:214",
+      "src/media-workflows.js:1633"
+    ],
+    "reproduce": "Bölüm metni aynı kalırken sesli kitap dışa aktar; sonra bölüm için farklı ses kaydı/take seç veya yeniden üret. audiobookInfo sonucunu oku.",
+    "observed": "take-A→take-B değişiminden önce/sonra current=true. Metin değişikliği negatif kontrolünde false. M4B kaydı yalnız textHash saklıyor; ses çıktı kimliği yok.",
+    "expected": "Dışa aktarımın güncelliği kullanılan bölüm sesi kimliğini de izlemeli; eski kayıt önceki sürüm olarak oynatılabilir ama güncel denmemeli.",
+    "impact": "Kullanıcı düzeltilmiş sesin paketlenmiş olduğunu sanıp eski sesli kitabı dinler veya paylaşır.",
+    "evidence": "root/candidates.cjs / audiobook-current-voice",
+    "limits": "Gerçek nested audiobookInfo fonksiyonu ve dosya statı çalıştırıldı; M4B yeniden kodlanmadı. Mevcut açıkça önceki çıktıyı oynatma hakkı kaldırılması önerilmez."
+  },
+  {
+    "id": "ROOT08",
+    "severity": "P2",
+    "title": "Browser tablist içinde tab olmayan etkileşimli düğmeler bulunuyor",
+    "source": [
+      "src/renderer/index.html:1236"
+    ],
+    "reproduce": "Ayrı Windows profiliyle Browser ekranını ve araç menüsünü aç; gerçek render üzerinde axe WCAG taraması yap.",
+    "observed": "browserTabStrip role=tablist için aria-required-children critical: sıradan button/aria-busy çocukları. Sekme şeridi, tab rolü sözleşmesine uymuyor.",
+    "expected": "Sekmeler ve kapatma/yeni sekme eylemleri doğru erişilebilir rol/ağaç düzenini korumalı.",
+    "impact": "Ekran okuyucuda sekme sayısı/seçimi ve düğmelerin ilişkisi yanlış sunulabilir; klavye/yardımcı teknoloji gezinmesi tutarsızlaşır.",
+    "evidence": "native-axe-browser.json / more-menu, translate-menu; browser-more-menu.png",
+    "limits": "Gerçek Windows Electron+axe ve screenshot doğrulandı. NVDA/JAWS ile fiziksel kullanım yapılmadı. Aynı öğelerin çok dil/ekrandaki tekrarları ayrı sayılmadı."
+  },
+  {
+    "id": "ROOT09",
+    "severity": "P2",
+    "title": "Browser araç menüsünün ARIA menu rolü içindeki kontrollerle uyuşmuyor",
+    "source": [
+      "src/renderer/index.html:1542"
+    ],
+    "reproduce": "Browser üç nokta menüsünü açıp gerçek render üzerinde axe çalıştır.",
+    "observed": "browser-more-popover role=menu altında input,button,summary var; aria-required-children critical. Menü öğesi rolleriyle uyumlu ağaç yok.",
+    "expected": "Karışık form/araç içeriği uygun popover semantiği taşımalı veya menu/menuitem klavye ve rol düzeni tamamlanmalı.",
+    "impact": "Yardımcı teknoloji bu alanı menü diye ele alırken içteki arama/zoom/alt menülere beklenen biçimde erişemeyebilir.",
+    "evidence": "native-axe-browser.json / more-menu; browser-more-menu.png",
+    "limits": "ROOT08 farklı role sahip başka DOM köküdür; ikisi ayrı semantik yapılandırma gerektirir. Axe sınıflandırması ekran okuyucu uçtan uca kabulü diye sunulmadı."
+  },
+  {
+    "id": "ROOT10",
+    "severity": "P2",
+    "title": "Oynatma merkezindeki altyazı araması senkron gecikmesini yok sayarak seek yapıyor",
+    "source": [
+      "src/renderer/media-hub-ui.js:72"
+    ],
+    "reproduce": "Altyazı20sn, etkin gecikme+10sn olsun; Oynatma ve sahneler içindeki altyazı aramasından o satıra tıkla.",
+    "observed": "Video20sn konumuna gidiyor; aynı altyazının video zamanı subtitleVideoTime ile30sn olmalı. Gerçek tam modülün arama düğmesi çalıştırıldı.",
+    "expected": "Arama sonucu, ana oynatıcıdaki diğer altyazı eylemleri gibi kaynak-altyazı→video zaman dönüşümünü kullanmalı.",
+    "impact": "Senkronu ayarlanmış filmde aranan replik yerine yanlış sahne açılır.",
+    "evidence": "root/integrations.cjs / subtitle-search-offset",
+    "limits": "Kontrollü HTML video ve10sn dönüşüm; fiziksel video dinlenmedi."
+  },
+  {
+    "id": "ROOT11",
+    "severity": "P2",
+    "title": "MKV içindeki TTC font koleksiyonları font çıkarımında atlanıyor",
+    "source": [
+      "src/browser-fonts.js:28"
+    ],
+    "reproduce": "Gerçek Windows cambria.ttc fontunu0,4sn sentetik MKVye attachment olarak ekle; extractFonts çağır.",
+    "observed": "ffprobe TTC attachmentı gördüğü halde sonuç0font. readFonts TTC imzasını destekliyor, fakat attachment filtresi yalnız ttf/otf/woff/woff2 uzantısını alıyor.",
+    "expected": "Desteklenen TTC koleksiyonu da keşfedilip seçilebilir/uygulanabilir olmalı veya destek eksikliği kullanıcıya açıklanmalı.",
+    "impact": "Gömülü font koleksiyonu kullanan özellikle CJK ASS altyazıları beklenen fontu alamaz; fallback/eksik glif riski oluşur.",
+    "evidence": "root/integrations.cjs / ttc-font-attachment; native-media.json / actualTtcExtraction",
+    "limits": "Gerçek ffmpeg/ffprobe/modül doğrulaması yapıldı; font ve medya Git’e alınmadı. Farklı CJK gliflerinin görsel çıktısı ölçülmedi."
+  },
+  {
+    "id": "ROOT12",
+    "severity": "P2",
+    "title": "HTTPS ağ medyası HTTP/RTSP yolundaki native oynatıcı geçişini atlıyor",
+    "source": [
+      "src/renderer/media-hub-ui.js:55",
+      "src/renderer/media-hub-ui.js:63"
+    ],
+    "reproduce": "Medya merkezindeki aynı ağ akışını sırasıyla http,https,rtsp protokolüyle playStream üzerinden aç.",
+    "observed": "Gerçek playStream fonksiyonunda HTTP ve RTSP NativePlayerUI.start çağırıyor; HTTPS çağırmıyor. Regex https harfini içermiyor. HTTPS m3u8 için ayrı HLS kolu var; bu bulgu m3u8 dışındaki ağ medyasına aittir.",
+    "expected": "Güvenli HTTPS normal akışları da amaçlanan motor seçiminden geçmeli; protokol yazım farkı codec yeteneğini değiştirmemeli.",
+    "impact": "Chromiumun çözemediği ama native motorun desteklediği HTTPS medya, HTTP eşdeğeri çalışırken açılamayabilir; kullanıcı motoru ayrıca değiştirmek zorunda kalır.",
+    "evidence": "root/integrations.cjs / stream-protocol-native",
+    "limits": "Native dispatch farkı doğrudan doğrulandı; uzak HEVC/DTS sunucusu veya DRM kabulü yapılmadı. HTTPSte desteklenen Chromium videolarının hepsi bozuk denmiyor."
+  },
+  {
+    "id": "ROOT13",
+    "severity": "P2",
+    "title": "WMV/WMA kaynakta altyazı gömme MP4e uyumsuz ses kopyalıyor",
+    "source": [
+      "src/burnin-output.js:19",
+      "src/main.js:20776"
+    ],
+    "reproduce": "0,4sn sentetik WMV video+wmav2 ses oluştur; burninAudioArgs sonucundaki -c:a copy ile MP4 mux et.",
+    "observed": "wmv için helper copy seçiyor; gerçek FFmpeg codec wmav2 in stream1 not supported in container, exit-22. Aynı iş AAC yeniden kodlandığında mux desteklenir.",
+    "expected": "Hedef kapsayıcıyla uyumsuz ses codec/kapsayıcı geçişinde AAC gibi uyumlu ses üretimi seçilmeli veya baştan açık destek uyarısı olmalı.",
+    "impact": "Windows WMV videolarında gömme işlemi gereksiz biçimde başarısız olur. Kaynak/video silinmez.",
+    "evidence": "native-media.json / wmvAudioCopy; REPRODUCE.md",
+    "limits": "Üretim audio argüman seçimi ve gerçek FFmpeg mux aşaması doğrulandı; tam libass yakma yapılmadı. AVI/PCM örneği mevcut FFmpegde çalıştı ve bug sayılmadı."
+  },
+  {
+    "id": "ROOT14",
+    "severity": "P1",
+    "title": "Arşivlenmiş projelerle geçerli kitap yedeği 100 proje sınırında geri yüklenemiyor",
+    "source": [
+      "src/media-workflows.js:146",
+      "src/media-workflows.js:857",
+      "src/book-project-backup.js:139"
+    ],
+    "reproduce": "100projeyi arşivleyip1yeni aktif proje oluştur (aktif sınır1/100); bütün projeleri ses hariç yedekle ve boş hedefe geri yükle.",
+    "observed": "exportBooks count101 ile başarı verir; importBooks books.length>100 nedeniyle Invalid book backup. döndürür.",
+    "expected": "Geçerli proje kütüphanesinin yedeği geri yüklenebilmeli veya dışa aktarmada toplam sınır açıkça yönetilmeli.",
+    "impact": "Arşivlemenin izin verdiği kütüphane boyutunda uygulamanın ürettiği bütün yedek kullanılamaz hale gelir. ROOT04 tek bölüm boyutuna, bu bulgu aktif/arşivlenmiş proje sayısı sözleşmesine aittir.",
+    "evidence": "root/candidates.cjs / backup-archived-count",
+    "limits": "101küçük sentetik proje kullanıldı; kişisel arşiv yok. Tek aktif proje, normal ürün aktif limitini aşmaz."
+  }
+]

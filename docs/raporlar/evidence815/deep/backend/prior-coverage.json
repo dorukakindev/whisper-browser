@@ -1,0 +1,1102 @@
+[
+  {
+    "id": "N0261",
+    "family": "F14",
+    "mechanism": "normal",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "b107f22ceb111808c0c7783e619bddd9071ee5de4ac4a0a554eea308b4b2c4e2",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0261.stdout.txt (node probes/f14-quality-gate.py --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0262",
+    "family": "F14",
+    "mechanism": "bos",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "f44675d978d6d611a026998a7d7bf927c9b22b01faa9f1888ebab3f3c3cde220",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0262.stdout.txt (node probes/f14-quality-gate.py --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0263",
+    "family": "F14",
+    "mechanism": "sinir",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "c27dc7094079bc698df3753a9e20096689d358e70e7eaa76b3bb88b42a8dfcd2",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0263.stdout.txt (node probes/f14-quality-gate.py --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0264",
+    "family": "F14",
+    "mechanism": "unicode",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "2486488157d1764c8d9f8b31c2f40e4b359607da8f0b0f632f6025eb0989f871",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0264.stdout.txt (node probes/f14-quality-gate.py --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0265",
+    "family": "F14",
+    "mechanism": "yinelenen",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "65cb1976aacaa7f246a83d78302c1d852778d21670fa62cdf7c4b05601bcc26b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0265.stdout.txt (node probes/f14-quality-gate.py --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0266",
+    "family": "F14",
+    "mechanism": "sira",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "bf032863e3db702c0d4fc5f5500d53dabed2730f0c4973d06155f21edc3a65ca",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0266.stdout.txt (node probes/f14-quality-gate.py --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0267",
+    "family": "F14",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "95574c19053b25959b4448bb3e70e3d2a8d9a5b31d6060d0af8e5c211935b468",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "[Tpkg03-N0267] exit=77 timed_out=False 1.635s  out=0B err=0B"
+  },
+  {
+    "id": "N0268",
+    "family": "F14",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "4a6d09a3ffee3e3726ada1d9904be5870e6fe64419bbc9bc8ca92ee66b272aef",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "[Tpkg03-N0268] exit=77 timed_out=False 1.657s  out=0B err=0B"
+  },
+  {
+    "id": "N0269",
+    "family": "F14",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "53b70c7a354b627bbd5b743a613016dedad9678d0ec3ace2393872918a873adb",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0269.stdout.txt (node probes/f14-quality-gate.py --mech gec-sonuc, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0270",
+    "family": "F14",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "62e682cf7c6a68faa433999018420233070ff20eb81d912c1700ff5fd078bdcc",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0270.stdout.txt (node probes/f14-quality-gate.py --mech kaynak-degisimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0271",
+    "family": "F14",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "57f1756b7d33a542048c15a896a0743f63931deb989c8a159de6de337b79498d",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "[Tpkg03-N0271] exit=77 timed_out=False 1.635s  out=0B err=0B"
+  },
+  {
+    "id": "N0272",
+    "family": "F14",
+    "mechanism": "kesik",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "9b76b7e47ab4503e7c685fa9d4465dcb5ed79fbeda94891dcd90e867a878ffce",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0272.stdout.txt (node probes/f14-quality-gate.py --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0273",
+    "family": "F14",
+    "mechanism": "hata",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "76611e26d6a435b069e3988116fc03af2a1f93add2ca153ca2cd993602714c42",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0273.stdout.txt (node probes/f14-quality-gate.py --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0274",
+    "family": "F14",
+    "mechanism": "timeout",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "e27833de5928798a76752e3ea90fc7912b8c92a1889da69cb878394dd43df230",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0274.stdout.txt (node probes/f14-quality-gate.py --mech timeout, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0275",
+    "family": "F14",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "6275748fb08dfca40c0deff71b1e9b08889731f46b4853605f6ef5367a031885",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0275.stdout.txt (node probes/f14-quality-gate.py --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0276",
+    "family": "F14",
+    "mechanism": "donusum",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "a10718b86646e647bd9dd892e4872e7fcc58bcc1395b3753fe41aa019641b728",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0276.stdout.txt (node probes/f14-quality-gate.py --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0277",
+    "family": "F14",
+    "mechanism": "yetki",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "4de428f3c5024f1eb102844a9baa47f335279987fd2bc914256ac41976e306a1",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Kalite kapisi saf metin/sayi karsilastirmasidir; yetki siniri yok."
+  },
+  {
+    "id": "N0278",
+    "family": "F14",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "9bd805f6af870df4825e8e291384be6a49dd2db30f7a546119bcc16dc93522fc",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0278.stdout.txt (node probes/f14-quality-gate.py --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0279",
+    "family": "F14",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "85dbc5a647cd10bcd3a1279919c0c022639dc32d2c3f0e217456298bf8ad94e3",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0279.stdout.txt (node probes/f14-quality-gate.py --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0280",
+    "family": "F14",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "backend/transcribe.py",
+      " tests/backend-sentence-translation.test.js"
+    ],
+    "signature": "bcb44619013c0164408d6dc199e2e157a69b351b4b0f7e6c913c7ccc45377a54",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg03-N0280.stdout.txt (node probes/f14-quality-gate.py --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0341",
+    "family": "F18",
+    "mechanism": "normal",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "3eab476e355e868314cc24674e4f988ab2f3e15f24bcb38243e5b5220c53067c",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0341.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0342",
+    "family": "F18",
+    "mechanism": "bos",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "7668436a5ab070c89be113b9b21a04e5d786ca03eb55ad0b58c456db5e6707da",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0342.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0343",
+    "family": "F18",
+    "mechanism": "sinir",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "d97b06b770a9eea024b058a44c65955141ecd45d111b9c179d5d2c3a034803b4",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0343.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0344",
+    "family": "F18",
+    "mechanism": "unicode",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "4c7b756a71f9385f03d0fc7455be1516bf98c02d9defa727a5e338fab3d579a2",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0344.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0345",
+    "family": "F18",
+    "mechanism": "yinelenen",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "46d4803e7d187d630ed3b2ec4493bbcbcb6ce6299b4e4f790bc70d51c981f54b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0345.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0346",
+    "family": "F18",
+    "mechanism": "sira",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "3c22673712607ec2b06d3772e53c6dc107d3d789eecae9b272efbdaeb585fb8a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0346.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0347",
+    "family": "F18",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "3ac853ea4b6d770cf858f1a9b55709ba4adb3c44746fe70a68d2f2094c65023e",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Yazıcılar senkron dosya yazımıdır; atomik yazıcı yarım dosya bırakmaz, iptal edilecek akış yok."
+  },
+  {
+    "id": "N0348",
+    "family": "F18",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "a5ad8578f8ba0fb66ad3ca6072f9063232a50c706fa919f2d59da97eb7116702",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Yazım tek atomic_text_writer bloğunda tamamlanır; süreç içi iptal noktası yok."
+  },
+  {
+    "id": "N0349",
+    "family": "F18",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "d0e120cc18c325793f23ccd43e3673e96fcfa4ba911a6edb24af57eb44feb58e",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Senkron yazma; gecikmeli sonuç yok."
+  },
+  {
+    "id": "N0350",
+    "family": "F18",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "7b8905e826078abd9da2a4c48843462de9ff634ec0b555154a57504932650ac2",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Yazıcıya verilen entries tek çağrıda sabittir; kaynak değişimi kavramı yok."
+  },
+  {
+    "id": "N0351",
+    "family": "F18",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "c258a0c7ff7016231bf76104271ffa9b3706ab3eb5d767b430b08aefd31c6da8",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0351.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech es-zamanli, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0352",
+    "family": "F18",
+    "mechanism": "kesik",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "3bb991a9c90cc162c134a4bd7239f83b8eb808e6f380a04bd1f814753101daba",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0352.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0353",
+    "family": "F18",
+    "mechanism": "hata",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "340db52f30c63fb9b6f6ebe7ed393310569514c982509ea207408a663552f1d3",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0353.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0354",
+    "family": "F18",
+    "mechanism": "timeout",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "8c5a276ccf5d0e1b05290ecbea6ec8f143daaea431bd2e1f9e37fa500a608f89",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Dosya yazımı zamanlayıcı kullanmaz; 5000 blok performansı N0359'da ölçüldü."
+  },
+  {
+    "id": "N0355",
+    "family": "F18",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "77dffef1cf8421d25b4d4aeb24639beb85274948784b4cefa47dc3d9971f79b8",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0355.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0356",
+    "family": "F18",
+    "mechanism": "donusum",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "b02561d5471ba162fec2b3c382cab34be6b1dc2bb057aad3cd0a07c19ff52a29",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0356.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0357",
+    "family": "F18",
+    "mechanism": "yetki",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "a0bb3f7045ea361eb03683851af80715b7e0b8c5c334d0a8278360eaa7306983",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Dosya yolu/izin doğrulaması main.js ve OutputTransaction katmanında; yazıcı kendi başına yetki kararı vermez."
+  },
+  {
+    "id": "N0358",
+    "family": "F18",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "83f6a0cb0f5b77f067d4244d984f59c28a9222fd4b8e8a133d77234be1660ba4",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0358.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0359",
+    "family": "F18",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "b9bd5a4ef4967c51b721c679432ffdcd09600751b18abe0cf260ab609e23810d",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0359.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0360",
+    "family": "F18",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "d3b824e8b4f6dcc02708ee71824bf2b870a66c1ec9716f54c697400a0253168f",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0360.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0401",
+    "family": "F21",
+    "mechanism": "normal",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "6d89779fdf88a2adc71ccabcc4e39e8da4f66ba27fe9fa5272754627a4384a64",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0401.stdout.txt (backend/venv/Scripts/python.exe probes/p21-dub-plan.py --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0402",
+    "family": "F21",
+    "mechanism": "bos",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "8af4d6c59d39154f3612b9534781366b85af225cae94e86e7f5863ba7d6c782c",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0402.stdout.txt (backend/venv/Scripts/python.exe probes/p21-dub-plan.py --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0403",
+    "family": "F21",
+    "mechanism": "sinir",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "36ecc1f59e4c7b3a8f0c640171347f9af8624a4dbed576edb92ea71e1e6b140b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0403.stdout.txt (backend/venv/Scripts/python.exe probes/p21-dub-plan.py --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0404",
+    "family": "F21",
+    "mechanism": "unicode",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "7d1a10666af8b5929f2c30449b2ae6e316003b7f01b49a53ca7a36ce9c3ae631",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0404.stdout.txt (backend/venv/Scripts/python.exe probes/p21-dub-plan.py --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0405",
+    "family": "F21",
+    "mechanism": "yinelenen",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "1178589e460db12e75f4afb2392252a52b942c84c5ce4d39801868c9d5dda821",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0405.stdout.txt (backend/venv/Scripts/python.exe probes/p21-dub-plan.py --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0406",
+    "family": "F21",
+    "mechanism": "sira",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "fb4f6a549386a8a543133ad335208973a63d45380f71d3b446b9de0b5dee238b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0406.stdout.txt (backend/venv/Scripts/python.exe probes/p21-dub-plan.py --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0407",
+    "family": "F21",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "978e56e18a84d2f2a0b884e159539b1775913f809c46594bc0665bd891a47004",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "parse_srt/make_groups/sentence_plan saf ve senkrondur; iptal edilecek yürüyen iş yok (iptal dublaj iş akışında, dub-service/main katmanında)."
+  },
+  {
+    "id": "N0408",
+    "family": "F21",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "f319e941d8e6a7573c3c44d8a5184e46271f4dcdb29aa4e600c1be44f7fc912f",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Gruplama tek çağrıda tamamlanır; yarıda kesilecek paylaşılan durum yok."
+  },
+  {
+    "id": "N0409",
+    "family": "F21",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "e23455de7167931b269f231054fd7275d3cb2cf025edc5fe49d26fedce64ae8c",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Senkron değer döndüren fonksiyonlar; gecikmeli sonuç/kuyruk yok."
+  },
+  {
+    "id": "N0410",
+    "family": "F21",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "64afa1dfeebb46837a1778ef39cbc30e3787133870aff6ce48692962629e40e2",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0410.stdout.txt (backend/venv/Scripts/python.exe probes/p21-dub-plan.py --mech kaynak-degisimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0411",
+    "family": "F21",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "2aac5337d5689c66f5183ba7cbcf986cc457f1b51bdfb444e5c514caedadc985",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0411.stdout.txt (backend/venv/Scripts/python.exe probes/p21-dub-plan.py --mech es-zamanli, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0412",
+    "family": "F21",
+    "mechanism": "kesik",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "d11915c54c5e748e0324d010ae1ab84ad6d923e3792fa3a36f39eb1b736f017f",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0412.stdout.txt (backend/venv/Scripts/python.exe probes/p21-dub-plan.py --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0413",
+    "family": "F21",
+    "mechanism": "hata",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "6a25e76ff529cc521d67670351f8c7cfb530ecb37e799b14104a9d408807f7a5",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0413.stdout.txt (backend/venv/Scripts/python.exe probes/p21-dub-plan.py --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0414",
+    "family": "F21",
+    "mechanism": "timeout",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "4d2604ade40bd75d9dd5005d2f8bba3e231f61ec78eaeefe54de771baa70bc35",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Zamanlayıcı yok; 3000 cue'luk yük N0439'da ölçüldü."
+  },
+  {
+    "id": "N0415",
+    "family": "F21",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "f01fab26009e25f6fe02079636a5d52997c96781b8d82387f0d04e6754a80ae4",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0415.stdout.txt (backend/venv/Scripts/python.exe probes/p21-dub-plan.py --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0416",
+    "family": "F21",
+    "mechanism": "donusum",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "49675ea2c8b278a046387c56ca83b6f864fee8a99ad6037bd087183e6aa0a8f6",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0416.stdout.txt (backend/venv/Scripts/python.exe probes/p21-dub-plan.py --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0417",
+    "family": "F21",
+    "mechanism": "yetki",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "6bc4cbc1a26a5091667d9b9f0c0e262365d615a4f0ccaeb584263428b1a814b4",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Dosya/izin kararı IPC katmanında; planlayıcı yalnız verilen yolu okur."
+  },
+  {
+    "id": "N0418",
+    "family": "F21",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "bc309bfaaf86a673a82b4c34ca7a3278df5658e54db0a44d3c26d34e911f636f",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0418.stdout.txt (backend/venv/Scripts/python.exe probes/p21-dub-plan.py --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0419",
+    "family": "F21",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "29e7d6086f0440c713c928cdc3612a9cdf87a6c5a1d2e1ab83c72629a81a90f4",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0419.stdout.txt (backend/venv/Scripts/python.exe probes/p21-dub-plan.py --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0420",
+    "family": "F21",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "tools/voxcpm2/dub_plan.py",
+      " tools/voxcpm2/dub_utterance.py"
+    ],
+    "signature": "eac259235ace02771b913845e1ac3da55b8c6c43f39371422630763a893994f6",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0420.stdout.txt (backend/venv/Scripts/python.exe probes/p21-dub-plan.py --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0481",
+    "family": "F25",
+    "mechanism": "normal",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "7ac5c53c4e4325c228fa8538dc9ef4ddd89a7e63c9e1fd368176b3a95cf0c31a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0481.stdout.txt (backend/venv/Scripts/python.exe probes/p25-dub-finish.py --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0482",
+    "family": "F25",
+    "mechanism": "bos",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "ba7c3f6d4801424b384b2834527ee199362d1600b3735400876b2e7d43683d58",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0482.stdout.txt (backend/venv/Scripts/python.exe probes/p25-dub-finish.py --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0483",
+    "family": "F25",
+    "mechanism": "sinir",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "6bfc2fdf0629f9e8e1f1edaa2687befd3bd0e06f30fadd494497d74b4abf2498",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0483.stdout.txt (backend/venv/Scripts/python.exe probes/p25-dub-finish.py --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0484",
+    "family": "F25",
+    "mechanism": "unicode",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "9916244549644c9ab8cd4bcb41ee4a37ef4500f16dc3e023c2304672e3f01d08",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0484.stdout.txt (backend/venv/Scripts/python.exe probes/p25-dub-finish.py --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0485",
+    "family": "F25",
+    "mechanism": "yinelenen",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "9fbe7f5cd6c0ea3a87f943d865657fca01e30b73fddf5ded6017fb4b9231edeb",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0485.stdout.txt (backend/venv/Scripts/python.exe probes/p25-dub-finish.py --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0486",
+    "family": "F25",
+    "mechanism": "sira",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "fa2775dbfaa9217b534126a2d2bd86c55222b135700f38e5b90e429f52c313f1",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0486.stdout.txt (backend/venv/Scripts/python.exe probes/p25-dub-finish.py --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0487",
+    "family": "F25",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "fe321a9c27f099bdcc546a0a1f9038e8e39dbcd0199efd4bd3efdd7ae63547ab",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Ses bitirme/ölçüm fonksiyonları saf ve senkrondur; iptal yüzeyi iş akışında."
+  },
+  {
+    "id": "N0488",
+    "family": "F25",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "c660ef13718de10d2de1770d292dd41049fb0f19ffa0d72a6608f9eddda3fb46",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Tek çağrıda tamamlanır; yarıda kesilecek durum yok."
+  },
+  {
+    "id": "N0489",
+    "family": "F25",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "c5c9d1969330a258392003d38f8f9ccb13b93ca0687faf4e42b2fd6956a59ce1",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Senkron dönüş; gecikmeli sonuç yok."
+  },
+  {
+    "id": "N0490",
+    "family": "F25",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "95c4d62e863e032a7cd474518d190eff2c2193bac69653f2bd3d4318373a14e2",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Girdi ses dizisi çağrı başına sabittir; kaynak değişimi kavramı yok."
+  },
+  {
+    "id": "N0491",
+    "family": "F25",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "c8de5c3ee75a691290e16ba5838f5766a4e85dfa2b2150b1e1489a26a3ce7f37",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Modül durumsuz; paralel çağrılar paylaşılan değiştirilebilir durum kullanmaz."
+  },
+  {
+    "id": "N0492",
+    "family": "F25",
+    "mechanism": "kesik",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "7d95775a6987fc0908e4423d2ccf3f85d3454a82df71f9a4a446c8a5144f97fe",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0492.stdout.txt (backend/venv/Scripts/python.exe probes/p25-dub-finish.py --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0493",
+    "family": "F25",
+    "mechanism": "hata",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "e3471eb5e4754c70d2d3ff699cb3517938cff77688ac5cc6824d0102a4c79888",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0493.stdout.txt (backend/venv/Scripts/python.exe probes/p25-dub-finish.py --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0494",
+    "family": "F25",
+    "mechanism": "timeout",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "49b26d04d8c6ba2f50103b23529eb6e0404003d45faf2efae95d9dde8cbff5a6",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Zamanlayıcı yok; 60 sn ses maliyeti N0499'da ölçüldü."
+  },
+  {
+    "id": "N0495",
+    "family": "F25",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "3f3b1b086bde1e50ad4d4d1068f1e2f6d27e7794a4e007ad6d3ff44d3412e6af",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0495.stdout.txt (backend/venv/Scripts/python.exe probes/p25-dub-finish.py --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0496",
+    "family": "F25",
+    "mechanism": "donusum",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "884344d8b1abc656e639183ca146a9e86a518ec95fff17953724f7a3facac9df",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0496.stdout.txt (backend/venv/Scripts/python.exe probes/p25-dub-finish.py --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0497",
+    "family": "F25",
+    "mechanism": "yetki",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "69827f10f2962b30844bb065f1bf3e4a2caf6d3c88a7fd04a541e6ace51dbe24",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Dosya/izin kararı üst katmanda; ölçüm modülü kendi başına yetki vermez."
+  },
+  {
+    "id": "N0498",
+    "family": "F25",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "be909068ae00ae92fcab82a58f91499af60b2c232067fef8d7d69b74ac3a2031",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0498.stdout.txt (backend/venv/Scripts/python.exe probes/p25-dub-finish.py --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0499",
+    "family": "F25",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "16b78b185c9a9645f5590b05982928af7b956a02806af4b3499b210327bfa1c1",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0499.stdout.txt (backend/venv/Scripts/python.exe probes/p25-dub-finish.py --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0500",
+    "family": "F25",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "tools/voxcpm2/dub_quality.py",
+      " tools/voxcpm2/dub_finish.py"
+    ],
+    "signature": "b79ac2931bc103f55bb1df34d3d0b5e8a0749e624fa60795bf8638298d5b5213",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0500.stdout.txt (backend/venv/Scripts/python.exe probes/p25-dub-finish.py --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  }
+]

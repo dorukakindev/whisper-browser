@@ -1,0 +1,234 @@
+{
+  "head": "6b3df86e35db8bc3271440f06c779cfb0acb2c22",
+  "platform": "win32",
+  "node": "v24.22.0",
+  "command": "node .tmp/deep815-assistant/probe.cjs",
+  "nativeAcceptance": false,
+  "counts": {
+    "verified": 12,
+    "evidenceGaps": 1
+  },
+  "findings": [
+    {
+      "id": "A01",
+      "title": "P2 — Kişisel puan 10'luk ve 5'lik ölçeklerde farklı yorumlanıyor",
+      "status": "verified",
+      "severity": "P2",
+      "details": "Kaynak: `src/renderer/media-title.js:70–71`, `src/media-taste.js:14–16`, `src/media-discovery-service.js:25–27`; kalıcılık `src/media-catalog-store.js:23–31`.\n\nAdımlar: Gerçek yapım panelinde açıkça 0–10 etiketli kişisel puana 4 girip kaydet; aynı yapımla eşleşen içe aktarılmış izleme günlüğünün zevk profilini ve Sana özel öneri tohumunu incele. Beklenen: 4/10, 2/5 olarak değerlendirilerek düşük puan niteliğini korumalı. Gözlenen: Kayıtlı 4 değeri 4/5 kabul ediliyor ve 3,5 eşiğini aşan olumlu öneri tohumu oluyor. 8/10 kaydedildiğinde effective() 5 üzerini reddedip eski günlük puanı 1/5'e sessizce dönüyor. Etki: Kullanıcının açık puanı zevk ve öneri sonuçlarında anlam değiştiriyor veya kayboluyor. Bunlar tek ölçek sözleşmesi hatasıdır. Prob gerçek başlık kaydetme callback'ini ve itemOf/profile/recommendationSeeds kodunu çalıştırdı; bozuk girdi kullanılmadı.",
+      "observation": {
+        "id": "A01",
+        "ratingUI": "0–10",
+        "saved": "4",
+        "lowRatingTasteAverage": 4,
+        "lowRatingIsPositiveRecommendationSeed": true,
+        "highRating8FallsBackToImported1": 1
+      }
+    },
+    {
+      "id": "A02",
+      "title": "P2 — Kapatılan Keşfet ayrıntısı, geç gelen ekleme yanıtıyla kütüphaneyi açıyor",
+      "status": "verified",
+      "severity": "P2",
+      "details": "Kaynak: `src/renderer/media-discovery-ui.js:65–72`.\n\nAdımlar: İzleneceklere ekle'ye bas; IPC beklerken ayrıntıyı kapatıp başka yere geç; ekleme yanıtını tamamlat. Beklenen: Başlatılmış kayıt tamamlanabilir fakat kapatılmış ayrıntı yeniden gezinme başlatmamalı. Gözlenen: Eski dialog kaldırıldıktan sonra koşulsuz MediaTitleUI.open('catalogA') çağrılıyor. Etki: Kullanıcının sonraki ekranı ve bağlamı kesiliyor. Gerçek ayrıntı düğmesi callback'i sınandı. A04/A13'ten bağımsız Keşfet bileşenidir; ortak bir sahiplik koruma helper'ı yoktur.",
+      "observation": {
+        "id": "A02",
+        "detailClosedBeforeReply": true,
+        "unexpectedOpen": [
+          "catalogA"
+        ]
+      }
+    },
+    {
+      "id": "A03",
+      "title": "P2 — Keşfet Tercihlerindeki yapım türü filtresi çalışmıyor",
+      "status": "verified",
+      "severity": "P2",
+      "details": "Kaynak: `src/renderer/media-discovery-ui.js:120,148`; `src/media-discovery-service.js:98` feedback-list.\n\nAdımlar: Bir film ve bir dizi tercihi kaydet; Tercihler → Filmler seç. Beklenen: Yalnız film tercihleri gösterilmeli. Gözlenen: Üretim handler'ı kind:'film' isteğine rağmen hem dizi hem film döndürüyor; UI ek tür filtresi uygulamıyor. Etki: Özellikle büyük tercih listelerinde seçilen filtreyle uyuşmayan sonuçlar gösteriliyor. Geçerli kayıtlar ve gerçek IPC handler'ı kullanıldı; ağ gerekmedi.",
+      "observation": {
+        "id": "A03",
+        "requestedKind": "film",
+        "returnedKinds": [
+          "series",
+          "film"
+        ]
+      }
+    },
+    {
+      "id": "A04",
+      "title": "P2 — Bu akşam bölümünün geç oynatma yanıtı yeni açılan başka pencereyi kapatıyor",
+      "status": "verified",
+      "severity": "P2",
+      "details": "Kaynak: `src/renderer/media-tools-ui.js:13,37–44`.\n\nAdımlar: Bu akşam → Aç ve oynat; oynatma IPC'si beklerken pencereyi kapat; Dinleme'yi aç; eski yanıtı döndür. Beklenen: Kapatılmış Bu akşam isteği yeni pencereyi kapatmamalı veya eski kaynağı oynatmamalı. Gözlenen: close() küresel güncel modalı hedefleyip Dinleme'yi kapatıyor; ardından openMediaCatalogPlayback eski dosyayı açıyor. Tam üretim modülü sınandı. Başlangıç listesindeki epoch koruması oynatma yanıtına uygulanmıyor.",
+      "observation": {
+        "id": "A04",
+        "newListeningModalClosed": true,
+        "unexpectedPlayback": [
+          "file:synthetic"
+        ]
+      }
+    },
+    {
+      "id": "A05",
+      "title": "P1 — Sohbet silme onayı başka sohbete yönleniyor",
+      "status": "verified",
+      "severity": "P1",
+      "details": "Kaynak: `src/renderer/assistant-overlay.js:22,45,84–90,179`; `src/renderer/global-assistant.js:111`; `src/renderer/assistant-workspace.js:75–82,95`.\n\nAdımlar: A sohbetinde Sohbeti sil onayını aç; onaylamadan mevcut B sohbetine geç; Devam et'e bas. Beklenen: Onay geçersizleşmeli veya A kimliğine bağlı kalmalı. Gözlenen: Onay alanı açık kalıyor; onay paketi güncel sourceToken='source|thread:B' ile delete-thread gönderiyor; workspace komutu current() olan B'yi siliyor. Aynı kök neden Temizle'yi de etkiliyor; ayrı sayılmadı. Etki: İlgisiz sohbetin kalıcı kaybı. Gerçek overlay HTML+JS tekrarı gönderilen paketi doğruladı; güncel sohbeti silen kod yolu ayrıca incelendi. İş çalışmadığından sohbet seçimi etkin; aynı kaynağın sohbetleri arasında öneriler değişmediği için öneri yenilemesi bu onayı temizlemiyor.",
+      "observation": {
+        "id": "A05",
+        "reviewOpenedFor": "A",
+        "confirmationAfterSelecting": "B",
+        "sentAction": "delete-thread",
+        "sentSourceToken": "source|thread:B"
+      }
+    },
+    {
+      "id": "A06",
+      "title": "P2 — Ana süreç doğrulama eki uygulamanın JSON yorum analizi akışını bozuyor",
+      "status": "verified",
+      "severity": "P2",
+      "details": "Kaynak: `src/assistant-agent-service.js:159` son doğrulama regex'i/eki; `src/renderer/media-taste-ui.js:63–76`.\n\nAdımlar: Zevk profili → Örneği incele ve AI ile analiz et → Gönder. Geçerli sağlayıcı JSON'unun özeti 'A completed story with moving characters.' içerir. Beklenen: Yapılandırılmış JSON, inceleme ve alıntı doğrulaması için ayrıştırılabilir kalmalı. Gözlenen: Ana süreç özette /completed/ eşleştiğinden JSON sonuna düz metin ekliyor; gerçek tüketicide JSON.parse başarısız oluyor, yanıtın geçerli JSON olmadığı mesajı gösteriliyor ve kaydetme sunulmuyor. Prob gerçek agentRun'ı kontrollü geçerli sağlayıcı yanıtıyla çalıştırdı; ardından gerçek zevk profili reviewSample/gönderme/assistant-answer tüketicisindeki reddi doğruladı. Bu yalnız kullanıcının rastgele JSON istemesi değildir: Uygulamanın yerleşik akışı JSON'u açıkça istiyor ve ayrıştırıcıya bağlı. Araç veya işlem istenmedi, uygulanmadı.",
+      "observation": {
+        "id": "A06",
+        "providerReturnedValidJSON": true,
+        "mainReturnedValidJSON": false,
+        "appendedSuffix": "\n\nApplication verification: 0 real action cards created; this request applied no cards and started no transcription/dubbing.",
+        "actualTasteConsumerRejected": true,
+        "consumerMessage": "The response was not valid JSON. It remains in the assistant; nothing was saved."
+      }
+    },
+    {
+      "id": "A07",
+      "title": "P2 — Sabitlenen notlar ilgisiz normal web sayfaları arasında karışıyor",
+      "status": "verified",
+      "severity": "P2",
+      "details": "Kaynak: `src/renderer/global-assistant.js:26`; `src/renderer/assistant-overlay.js:34–38,141`.\n\nAdımlar: Medya içermeyen A makalesinde metin sabitle; aynı boş mediaKey'e sahip ilgisiz B makalesine geç; Sabitlenen'i aç. Beklenen: Sohbetlerde olduğu gibi sayfaya özel notlar ayrılmalı. Gözlenen: pinScope pageKey'i kullanmıyor; [browser,mediaKey] iki sayfada da '[\"browser\",\"\"]' oluyor. Overlay filter/isPinned/unpin aynı anahtarı kullandığından A'nın arşiv notları B'de görünüyor ve aynı metinli sabitlemeler çakışıyor. Prob iki normal sayfada üretimdeki ifadenin aynısını çalıştırdı. R542 sohbet anahtarını ve geç sonuçların sayfa kimliğini düzeltmişti; açık kalan pinScope yolu ayrı bulgudur. Eski sohbet hatasının tekrar keşfi sayılmadı.",
+      "observation": {
+        "id": "A07",
+        "pageA": "https://fixture.invalid/a",
+        "pageB": "https://fixture.invalid/b",
+        "pinScopeA": "[\"browser\",\"\"]",
+        "pinScopeB": "[\"browser\",\"\"]"
+      }
+    },
+    {
+      "id": "A08",
+      "title": "P2 — Onaylanan altyazı işlemi yeni izin aynı konumsal U kimliğine kayıyor",
+      "status": "verified",
+      "severity": "P2",
+      "details": "Kaynak: `src/renderer/assistant-workspace.js:99–107`; `src/renderer/assistant-app-actions.js:18–21,74–95`; `src/assistant-context-manifest.js:12` same(); `src/renderer/renderer.js:22376–22402` loadSubtitle.\n\nAdımlar: Eski izin U0 satırından 10. saniyeye gitme/düzenleyici kartı iste; aynı videoda başka altyazı dosyası yükle ve yeni U0'ın zamanı 120 olsun; eski kartı uygula. Beklenen: Bayat kart reddedilmeli veya özgün kesin satıra bağlı kalmalı. Gözlenen: same/kaynak kapsamı iz ve satır kimliğini içermediğinden sahip hâlâ güncel kabul ediliyor; execute source_id'yi yeni toolContext içinde çözüp 120'ye gidiyor. Tam AppActions+Capabilities modülü sınandı. loadSubtitle satırları/yolu değiştirirken generation artırmıyor; generation video açılışında artırılıyor. Aynı kök neden open_subtitle_editor'ı da yanlış satıra götürebilir; ayrı sayılmadı. Geçerli altyazı değişimi kullanıldı.",
+      "observation": {
+        "id": "A08",
+        "proposalSource": {
+          "id": "U0",
+          "start": 10,
+          "text": "OLD source sentence"
+        },
+        "newSource": {
+          "id": "U0",
+          "start": 120,
+          "text": "DIFFERENT subtitle file sentence"
+        },
+        "oldOwnerStillCurrent": true,
+        "appliedSeek": 120
+      }
+    },
+    {
+      "id": "A09",
+      "title": "İNCELEME / P2 adayı — Zevk profili kaynak bağlamı varsayılan ile kayıtlı tercihi ayırmıyor",
+      "status": "evidence-gap-review",
+      "severity": "P2",
+      "details": "Kaynak: `src/renderer/media-taste-ui.js:14`; `src/media-taste.js:41–46`.\n\nAdımlar: Tercih kaydedilmemiş taze zevk profilini aç; asistanın kaynak/tercih açıklamasını incele. Beklenen: Kaynak yükünde tercihlerin yapılandırılmadığı veya varsayılan olduğu belirtilmeli. Gözlenen: Profil preferencesConfigured:false taşıyor fakat setContext alıntısı bu bayrak olmadan bütün ağırlıkları 3 olan preferences nesnesini gönderiyor. Tam profil renderer'ı ve bağlam hedefi doğrulandı. JSON'da bunların kullanıcı tarafından yazıldığına dair birebir iddia yoktur; kanıtın kaynağı ayrımı kaybolmaktadır. Somut tüketici etkisi gösterilmeden güçlü hata sayısına katılmamalı, kanıt boşluğu olarak tutulmalı. Canlı model halüsinasyonu/kalitesi sınanmadı. R540 decisionEvidence/önizleme yolunu düzeltmişti; güncel zevk profili setContext yolu farklıdır.",
+      "observation": {
+        "id": "A09",
+        "savedPreferencesConfigured": false,
+        "sourceContextPreferences": {
+          "weights": {
+            "story": 3,
+            "characters": 3,
+            "pace": 3,
+            "visuals": 3,
+            "sound": 3,
+            "emotion": 3
+          },
+          "avoid": [],
+          "note": ""
+        },
+        "sourceContextHasConfiguredFlag": false
+      }
+    },
+    {
+      "id": "A10",
+      "title": "P2 — Zevk tercihlerini kaydetme yanıtı daha yeni taslağı siliyor",
+      "status": "verified",
+      "severity": "P2",
+      "details": "Kaynak: `src/renderer/media-taste-ui.js:30–34`.\n\nAdımlar: A notunu yazıp Tercihleri kaydet'e bas; kayıt beklerken etkin kalan alana yeni B notunu yaz; A kaydının yanıtını döndür. Beklenen: B taslağı korunmalı veya bekleyen işlem sırasında düzenleme kapatılmalı. Gözlenen: data.preferences=A atamasından sonra draw() formu değiştiriyor; not A'ya dönüyor ve B kayboluyor. Gerçek modül ve geciktirilmiş geçerli IPC yanıtı sınandı. Etki: Kullanıcının yeni tercih metni ve aralık değişiklikleri atılabiliyor. Sağlayıcı veya kaynak değişimi gerekmiyor.",
+      "observation": {
+        "id": "A10",
+        "typedDuringSave": "newer draft typed during save",
+        "noteAfterReply": "first saved note"
+      }
+    },
+    {
+      "id": "A11",
+      "title": "P2 — Keşfet tercih hatası etkin ayrıntı penceresinin dışında gösteriliyor",
+      "status": "verified",
+      "severity": "P2",
+      "details": "Kaynak: `src/renderer/media-discovery-ui.js:7–9,15–18,58–63`.\n\nAdımlar: Ayrıntıyı aç; tercih dosyasının yazılamadığı koşulda İlgilenmiyorum'a bas. Beklenen: Hata etkin ayrıntı durum alanında görünmeli ve yeniden deneme anlaşılır olmalı. Gözlenen: Ortak btn hata yakalayıcısı state.root içindeki arka plan .md-status alanına yazıyor; ayrıntının durumu boş kalıyor. Tam modülde ok:false yanıtıyla, etkin dialog'un hata içermediği ve arka planın içerdiği doğrulandı. Etki: Kullanıcı işlem sessizce sonuçsuz kalmış gibi görüyor; arka plan modal açıkken örtülü/inert ve erişilemiyor. A12'nin bağımlılık kapısından farklı hata yönlendirme nedenidir.",
+      "observation": {
+        "id": "A11",
+        "mutationFailed": true,
+        "errorVisibleInsideModal": false,
+        "errorOnlyInBehindModalPage": true
+      }
+    },
+    {
+      "id": "A12",
+      "title": "P2 — Yerel kayıtlı Keşfet tercihi çevrimdışıyken geri alınamıyor",
+      "status": "verified",
+      "severity": "P2",
+      "details": "Kaynak: `src/renderer/media-discovery-ui.js:30–40,58–63,108`; `src/media-discovery-service.js:98–109`.\n\nAdımlar: Çevrimdışıyken Tercihler'i aç; yerel feedback-list başarılıdır; gizlenmiş kaydın tercihini geri almak için karta bas. Beklenen: Yerel tercihi geri alma katalog ağına bağlı olmamalı. Gözlenen: Geri alma düğmeleri ancak uzak ayrıntı isteği başarılı olduktan sonra oluşturuluyor; ağ hatasında yalnız Kapat kalıyor. Yerel feedback güncelleme hizmeti ağ gerektirmediğinden bu, yerel geri alınabilir veriye gereksiz ağ bağımlılığıdır. Gerçek liste/kart/ayrıntı UI'ı sınandı; hata sonrası geri alma düğmesi yok. Etki: Kullanıcı gizlenmiş/izlenmiş tercihlerini uzak servis dönene kadar geri alamıyor.",
+      "observation": {
+        "id": "A12",
+        "savedPreferenceVisibleOffline": true,
+        "detailFetchFailed": true,
+        "localUndoControlAvailable": false
+      }
+    },
+    {
+      "id": "A13",
+      "title": "P2 — Önceki kitabın geciken açılışı son kitap seçiminin üzerine geliyor",
+      "status": "verified",
+      "severity": "P2",
+      "details": "Kaynak: `src/renderer/media-shelf-ui.js:255–265,315,326,402`.\n\nAdımlar: A kitabının book-open IPC'si beklerken B'yi seç; B önce, A sonra dönsün. Beklenen: Son seçim B etkin kalmalı veya eski istek iptal edilmeli. Gözlenen: A yanıtı B'nin üzerinde ikinci modal oluşturuyor; prob pencere sırasını [Newly chosen book,Older delayed book] olarak ölçtü. Tam üretim shelf+queue modülleri ve geçerli TXT fixture'ı kullanıldı; gerçek dosya/profil yok. Etki: Yanlış kitap/kaynak etkinleşiyor ve asistan bağlamı onu izliyor. Okuyucunun mevcut seslendirme korumaları ilk openBook await'ini kapsamıyor.",
+      "observation": {
+        "id": "A13",
+        "requestedOrder": [
+          "old",
+          "new"
+        ],
+        "openedModalOrder": [
+          "Newly chosen book",
+          "Older delayed book"
+        ],
+        "topModalIsOldBook": true
+      }
+    }
+  ],
+  "sourceSHA256": {
+    "src/renderer/media-title.js": "2df4b1161addce116eaca45b547f209137b494c70c1324c4f81fd7a2906dbd28",
+    "src/media-taste.js": "7cdb2ed6c2217033aeba63ae4e21ba1c3ab8edeee9e38ef9860bb5a118f006ac",
+    "src/media-discovery-service.js": "a5b9061ca91ee7ea65ac6ca72fe85ea86e042465aa84319949609adf4bf1bdf3",
+    "src/media-catalog-store.js": "91b3fcf1dfabece488d2497a9129f38db0484880adf1a565175266d917054681",
+    "src/renderer/media-discovery-ui.js": "ff33bd0414b47f86c962a552392a9e8f10cdba5146efb10d02655a6e9ae77e63",
+    "src/renderer/media-tools-ui.js": "e3510df3b8301025dfcd6ad39066e5bcf06c5359d308dcb95afdd12f85a390c9",
+    "src/renderer/assistant-overlay.js": "f3be5d7f8d180c496404dea648e1b709c084e2dabe7ccf85547fe3906f91301f",
+    "src/renderer/global-assistant.js": "3db812647fb2a38e17d9685a72ee44671fddd9ec087324d2d31dda59ecc7dd23",
+    "src/renderer/assistant-workspace.js": "146198cada8ee85d6e33e4db273f85af9fb7e7801c97125590d7bb7939f27a7b",
+    "src/assistant-agent-service.js": "92001fed26489e0686e6866548e73f7ccb473ac76a6a789b983eb3a32a0eac6b",
+    "src/renderer/media-taste-ui.js": "d0ff41f0cb0a3b8aee6877b3e98402bd271b6d3886540f2586345d025931b11e",
+    "src/renderer/assistant-app-actions.js": "d8c420b8860a38e48db66c8551d079ec2a22b5ca45f2d9fa837cd55477a56d08",
+    "src/assistant-context-manifest.js": "17552ab1edd751a2a31e8040c2c4e35b43a142dab3dc874839c43fe45d8e181a",
+    "src/renderer/renderer.js": "143e0d96372bc22e3828448cea01439482da9a7fbd942c4264a944258e0231c6",
+    "src/renderer/media-shelf-ui.js": "40223222eeff8b79cdffe4be5497dae3de53f016229667c328bf055267772707"
+  }
+}

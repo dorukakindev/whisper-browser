@@ -1,0 +1,128 @@
+[
+  {
+    "name": "initial",
+    "violations": [
+      {
+        "id": "aria-prohibited-attr",
+        "impact": "serious",
+        "description": "Ensure ARIA attributes are not prohibited for an element's role",
+        "nodes": [
+          {
+            "target": [
+              ".mh-brand"
+            ],
+            "html": "<div class=\"mh-brand\" title=\"Whisper Browser\" aria-label=\"Whisper Browser\"><svg viewBox=\"0 0 48 48\" aria-hidden=\"true\"><path d=\"M8 11h32v26H8z M16 11v26 M32 11v26 M8 19h8 M8 29h8 M32 19h8 M32 29h8 M22 20l7 4-7 4z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\"></path></svg></div>",
+            "summary": "Fix all of the following:\n  aria-label attribute cannot be used on a div with no valid role attribute."
+          }
+        ]
+      }
+    ],
+    "dialogs": [],
+    "locale": "en"
+  },
+  {
+    "name": "settings",
+    "violations": [
+      {
+        "id": "aria-prohibited-attr",
+        "impact": "serious",
+        "description": "Ensure ARIA attributes are not prohibited for an element's role",
+        "nodes": [
+          {
+            "target": [
+              ".mh-brand"
+            ],
+            "html": "<div class=\"mh-brand\" title=\"Whisper Browser\" aria-label=\"Whisper Browser\"><svg viewBox=\"0 0 48 48\" aria-hidden=\"true\"><path d=\"M8 11h32v26H8z M16 11v26 M32 11v26 M8 19h8 M8 29h8 M32 19h8 M32 29h8 M22 20l7 4-7 4z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\"></path></svg></div>",
+            "summary": "Fix all of the following:\n  aria-label attribute cannot be used on a div with no valid role attribute."
+          }
+        ]
+      }
+    ],
+    "dialogs": [],
+    "locale": "en"
+  },
+  {
+    "name": "studio",
+    "violations": [
+      {
+        "id": "aria-prohibited-attr",
+        "impact": "serious",
+        "description": "Ensure ARIA attributes are not prohibited for an element's role",
+        "nodes": [
+          {
+            "target": [
+              ".mh-brand"
+            ],
+            "html": "<div class=\"mh-brand\" title=\"Whisper Browser\" aria-label=\"Whisper Browser\"><svg viewBox=\"0 0 48 48\" aria-hidden=\"true\"><path d=\"M8 11h32v26H8z M16 11v26 M32 11v26 M8 19h8 M8 29h8 M32 19h8 M32 29h8 M22 20l7 4-7 4z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\"></path></svg></div>",
+            "summary": "Fix all of the following:\n  aria-label attribute cannot be used on a div with no valid role attribute."
+          }
+        ]
+      }
+    ],
+    "dialogs": [],
+    "locale": "en"
+  },
+  {
+    "name": "browser",
+    "violations": [],
+    "dialogs": [],
+    "locale": "en"
+  },
+  {
+    "name": "more-menu",
+    "violations": [
+      {
+        "id": "aria-required-children",
+        "impact": "critical",
+        "description": "Ensure elements with an ARIA role that require child roles contain them",
+        "nodes": [
+          {
+            "target": [
+              "#browserTabStrip"
+            ],
+            "html": "<div class=\"browser-tab-strip\" id=\"browserTabStrip\" role=\"tablist\" aria-label=\"Browser tabs\" data-keyboard-ready=\"true\">",
+            "summary": "Fix any of the following:\n  Element has children which are not allowed: button[aria-busy]"
+          },
+          {
+            "target": [
+              ".browser-more-popover"
+            ],
+            "html": "<div class=\"browser-menu-popover browser-more-popover\" role=\"menu\" aria-label=\"Other browser tools\">",
+            "summary": "Fix any of the following:\n  Element has children which are not allowed: input[aria-label], button[aria-disabled], button[aria-label], summary"
+          }
+        ]
+      }
+    ],
+    "dialogs": [],
+    "locale": "en"
+  },
+  {
+    "name": "translate-menu",
+    "violations": [
+      {
+        "id": "aria-required-children",
+        "impact": "critical",
+        "description": "Ensure elements with an ARIA role that require child roles contain them",
+        "nodes": [
+          {
+            "target": [
+              "#browserTabStrip"
+            ],
+            "html": "<div class=\"browser-tab-strip\" id=\"browserTabStrip\" role=\"tablist\" aria-label=\"Browser tabs\" data-keyboard-ready=\"true\">",
+            "summary": "Fix any of the following:\n  Element has children which are not allowed: button[aria-busy]"
+          }
+        ]
+      }
+    ],
+    "dialogs": [],
+    "locale": "en"
+  },
+  {
+    "name": "voice",
+    "violations": [],
+    "dialogs": [
+      "dubGeneratorDialog"
+    ],
+    "locale": "en"
+  }
+]

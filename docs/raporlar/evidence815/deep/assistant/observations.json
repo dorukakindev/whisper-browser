@@ -1,0 +1,115 @@
+[
+  {
+    "id": "A01",
+    "ratingUI": "0–10",
+    "saved": "4",
+    "lowRatingTasteAverage": 4,
+    "lowRatingIsPositiveRecommendationSeed": true,
+    "highRating8FallsBackToImported1": 1
+  },
+  {
+    "id": "A02",
+    "detailClosedBeforeReply": true,
+    "unexpectedOpen": [
+      "catalogA"
+    ]
+  },
+  {
+    "id": "A03",
+    "requestedKind": "film",
+    "returnedKinds": [
+      "series",
+      "film"
+    ]
+  },
+  {
+    "id": "A04",
+    "newListeningModalClosed": true,
+    "unexpectedPlayback": [
+      "file:synthetic"
+    ]
+  },
+  {
+    "id": "A05",
+    "reviewOpenedFor": "A",
+    "confirmationAfterSelecting": "B",
+    "sentAction": "delete-thread",
+    "sentSourceToken": "source|thread:B"
+  },
+  {
+    "id": "A06",
+    "providerReturnedValidJSON": true,
+    "mainReturnedValidJSON": false,
+    "appendedSuffix": "\n\nApplication verification: 0 real action cards created; this request applied no cards and started no transcription/dubbing.",
+    "actualTasteConsumerRejected": true,
+    "consumerMessage": "The response was not valid JSON. It remains in the assistant; nothing was saved."
+  },
+  {
+    "id": "A07",
+    "pageA": "https://fixture.invalid/a",
+    "pageB": "https://fixture.invalid/b",
+    "pinScopeA": "[\"browser\",\"\"]",
+    "pinScopeB": "[\"browser\",\"\"]"
+  },
+  {
+    "id": "A08",
+    "proposalSource": {
+      "id": "U0",
+      "start": 10,
+      "text": "OLD source sentence"
+    },
+    "newSource": {
+      "id": "U0",
+      "start": 120,
+      "text": "DIFFERENT subtitle file sentence"
+    },
+    "oldOwnerStillCurrent": true,
+    "appliedSeek": 120
+  },
+  {
+    "id": "A09",
+    "savedPreferencesConfigured": false,
+    "sourceContextPreferences": {
+      "weights": {
+        "story": 3,
+        "characters": 3,
+        "pace": 3,
+        "visuals": 3,
+        "sound": 3,
+        "emotion": 3
+      },
+      "avoid": [],
+      "note": ""
+    },
+    "sourceContextHasConfiguredFlag": false
+  },
+  {
+    "id": "A10",
+    "typedDuringSave": "newer draft typed during save",
+    "noteAfterReply": "first saved note"
+  },
+  {
+    "id": "A11",
+    "mutationFailed": true,
+    "errorVisibleInsideModal": false,
+    "errorOnlyInBehindModalPage": true
+  },
+  {
+    "id": "A12",
+    "savedPreferenceVisibleOffline": true,
+    "detailFetchFailed": true,
+    "localUndoControlAvailable": false
+  },
+  {
+    "id": "A13",
+    "requestedOrder": [
+      "old",
+      "new"
+    ],
+    "openedModalOrder": [
+      "Newly chosen book",
+      "Older delayed book"
+    ],
+    "topModalIsOldBook": true
+  }
+]

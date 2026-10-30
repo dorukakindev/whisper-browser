@@ -1,0 +1,27 @@
+{
+  "head": "6b3df86e35db8bc3271440f06c779cfb0acb2c22",
+  "wmvAudioCopy": {
+    "fixture": "0.4 s 32x32 WMV2 video + WMAV2 audio, lavfi sources",
+    "helperArgs": [
+      "-c:a",
+      "copy"
+    ],
+    "ffmpegExit": -22,
+    "error": [
+      "[mp4 @ 000001e666572780] Could not find tag for codec wmav2 in stream #1, codec not currently supported in container",
+      "[out#0/mp4 @ 000001e6664a99c0] Could not write header (incorrect codec parameters ?): Invalid argument"
+    ]
+  },
+  "actualTtcExtraction": {
+    "fixture": "0.4s synthetic MKV, Windows Cambria TTC attachment",
+    "ffprobeAttachmentPresent": true,
+    "extractedFonts": 0,
+    "fontOrMediaPublished": false
+  },
+  "negativeChecks": {
+    "aviPcmMp4": "Passed with installed FFmpeg; excluded",
+    "rf64": "Candidate did not establish supported real producer/caller case; excluded",
+    "symlinkSize": "Windows symlink fixture EPERM; excluded"
+  },
+  "realModelOrPersonalDataUsed": false
+}
