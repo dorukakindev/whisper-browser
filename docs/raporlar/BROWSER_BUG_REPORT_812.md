@@ -31,3 +31,11 @@ Testmaterial: R809yeniUMDhelperi indexteyüklüydü ama eskiJSdom8düzenekte yok
 R802gerçekGPU+DeepSeekkabulü dahaönceteslim. P01–100satırlarıtekil,tümüneR803–R812kanıt/sınırbağlandı. İnsanABkazananıbelirlenmedi;doğallıkgarantisi verilmiyor.56mevcutbaşlığınbazılarındatümgenişkapsamyeni koşulmadı(P66dilsupportclassification,P80fullscreen/DPI,P85tümbildirim/ekranokuyucu);kayıtlar bunlarıbaşarıdiyeörtmez. Finalteslimde PRmaster/anakopyaeşitliğiayrıdoğrulanır. Kişisel430untracked/manifest/INDEX516/start.shsilmedurumukorunur. Müzikanalizi/yerelLLMyok.
 
 [evidence812](evidence812/) sentetikUI;anahtar/kullanıcıprofili/rawlogyok. Kod/belgeayrıcommit;devir1928.
+
+## Son teslim doğrulaması — 30Ekim19:40
+
+[PR709](https://github.com/dorukakindev/whisper-browser/pull/709) merged=true;merge `69be5d8f1753dd44c10dafaf076e8e20691b028b`. D:\Whisper Local master veorigin/masteraynıhash. R802veR803–81211ürüncommit'inin tümübu master'ınatası.100tekilID/44iyileştirme sayısıkaynaklistedensayılıpdoğrulandı;pendingadayyok.56mevcut/sınırlıinceleme içindeki doğrulanmayan genişmatrisler aynı sınırla kalır;evrenselbaşarıiddiasıyok.
+
+430untrackedkorundu,boyutdeğişimi0;OFFLINE-MANIFESTbaytaynı,start.bataynı,kişiselINDEX516ve silinmişstart.shdurumukorundu. Devçalışmaağacıtemiz. Bu son belgeonayıürünkodunudeğiştirmez;ürünhash73a6a0e0olarakkalır.
+
+GitHubanlıkgözleminde master69be5d8fiçin WindowsveUbuntu testleri `in_progress`,conclusion=null. Sonuçbeklenmedi,yeşildenmedi,CIkapatılmadı. Önceki başarısıztestdenemelerikökneden/düzeltmeleriyukarıdakayıtlı;tamnpmpaketi yereldeyenidenkoşulmadı.
