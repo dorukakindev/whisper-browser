@@ -1,0 +1,65 @@
+[
+  {
+    "file": "browser-assistant (1).png",
+    "bytes": 435486,
+    "sha256": "2b98151a32ff9c45b313b332b1563580629e660ef76cbe5df3c6140579710314",
+    "signature": "89504e470a1a0a0000000d49",
+    "validPngSignature": false
+  },
+  {
+    "file": "browser-assistant.png",
+    "bytes": 435486,
+    "sha256": "2b98151a32ff9c45b313b332b1563580629e660ef76cbe5df3c6140579710314",
+    "signature": "89504e470a1a0a0000000d49",
+    "validPngSignature": false
+  },
+  {
+    "file": "media-docs.png",
+    "bytes": 349728,
+    "sha256": "383d1066be20e144c05da2b117c6211ea4a230a41e060b39fc482dd4e7c29728",
+    "signature": "89504e470a1a0a0000000d49",
+    "validPngSignature": false
+  },
+  {
+    "file": "music-library.png",
+    "bytes": 784000,
+    "sha256": "9d2e885b72f89da44ab1b9d8a59951e3f1733211b9066910145a14f578e4d421",
+    "signature": "89504e470a1a0a0000000d49",
+    "validPngSignature": false
+  },
+  {
+    "file": "pdf-deep.png",
+    "bytes": 596273,
+    "sha256": "0fc1cce32c1c2792ece865106442e29e9708e10fd205c8878ced8196f0ebd683",
+    "signature": "89504e470a1a0a0000000d49",
+    "validPngSignature": false
+  },
+  {
+    "file": "R800-DUBBING-AUDIO-CONTACT.png",
+    "bytes": 632408,
+    "sha256": "cf87a1d3c038849396772c6bb7a554b810a5a0045816004a568cec9cd2cdb5e8",
+    "signature": "89504e470a1a0a0000000d49",
+    "validPngSignature": false
+  },
+  {
+    "file": "R800-MUSIC-CONTACT.png",
+    "bytes": 201024,
+    "sha256": "a7b5ba95dfb2f32d467c14c69c6e7fb0905ebaadabdf17de3c325ddd0f7308cd",
+    "signature": "89504e470a1a0a0000000d49",
+    "validPngSignature": false
+  },
+  {
+    "file": "R800-PDF-CONTACT.png",
+    "bytes": 179042,
+    "sha256": "f3a7cfd7d61bc00cb3a2bd98172f34b18a1d51fcd9397bc1f8e75098517c2fae",
+    "signature": "89504e470a1a0a0000000d49",
+    "validPngSignature": false
+  },
+  {
+    "file": "subtitle-dubbing.png",
+    "bytes": 622449,
+    "sha256": "2844eb74cdc09e70ddf0b4d1116398169eb62b714ef272e16920b647147d3802",
+    "signature": "89504e470a1a0a0000000d49",
+    "validPngSignature": false
+  }
+]

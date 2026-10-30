@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-30-0418.md](docs/devir/2026-10-30-0418.md) — Araştırma paketi ve bozuk görsel kanıtı
 Güncel çalışma: [docs/devir/2026-10-30-0345.md](docs/devir/2026-10-30-0345.md) — API asistan araştırma, kaynaklı arama ve işlem günlüğü
 Güncel çalışma: [docs/devir/2026-10-30-0300.md](docs/devir/2026-10-30-0300.md) — LumaBrowser kaynak incelemesi
 Güncel çalışma: [docs/devir/2026-10-30-0250.md](docs/devir/2026-10-30-0250.md) — Dış denetim doğrulaması ve anlam/ses bütünlüğü
