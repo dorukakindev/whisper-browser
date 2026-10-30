@@ -11,7 +11,7 @@ async function capture(name){win.show();win.focus();await run('await document.fo
  const data=await run(`const d=document.getElementById('dubGeneratorDialog'),f=d.querySelector('footer'),s=d.querySelector('.dub-studio-scroll'),fr=f.getBoundingClientRect(),sr=s.getBoundingClientRect();return {overflow:d.scrollWidth>d.clientWidth+1,footerVisible:fr.bottom<=innerHeight+1&&fr.top>=0,scrollAboveFooter:sr.bottom<=fr.top+1,activity:document.getElementById('dubGeneratorActivity').textContent,summary:document.getElementById('dubQualitySummary').textContent};`);
  assert(!data.overflow&&data.footerVisible&&data.scrollAboveFooter,name+' layout');rows.push({name,...data});fs.writeFileSync(path.join(out,name+'.png'),(await win.webContents.capturePage()).toPNG());}
 app.whenReady().then(async()=>{
- await until(()=>{win=BrowserWindow.getAllWindows().find(w=>!w.isDestroyed()&&w.webContents.getURL().includes('index.html')&&!w.webContents.isLoading());return win;});win.showInactive();win.setMinimumSize(600,480);await run('await initialSettingsReady');
+ await until(()=>{win=BrowserWindow.getAllWindows().find(w=>!w.isDestroyed()&&w.webContents.getURL().includes('index.html')&&!w.webContents.isLoading());return win;});const quitCount=app.listenerCount('before-quit');globalThis.__quitCount=quitCount;win.showInactive();win.setMinimumSize(600,480);if(process.argv.includes('--narrow815'))win.setContentSize(820,820);await run('await initialSettingsReady');
  for(const channel of ['dub:groupTakes','dub:config','dub:latest','dub:start','dub:plan','dub:pronunciations','dialog:openFile'])if(channel!=='dialog:openFile'||!process.argv.includes('--experience801'))ipcMain.removeHandler(channel);
  ipcMain.handle('dub:config',()=>({ok:true,ready:true,keepEngine:true,pronunciations:process.argv.includes('--compare804')?[{from:'Synthetic',to:'Sentetik'}]:[],engine:'fixture',reference:'Synthetic voice.wav',transcript:'Synthetic reference.txt'}));
  let takeUrls=[];ipcMain.handle('dub:groupTakes',()=>({ok:true,choices:[{token:'current',current:true,recordedAt:Date.now(),status:'ready',text:'Current group take.',url:takeUrls[0]},{token:'previous',current:false,recordedAt:Date.now()-60000,status:'ready',text:'Previous group take.',url:takeUrls[1]},{token:'changed',current:false,compareOnly:true,recordedAt:Date.now()-120000,status:'ready',text:'Different text: comparison only.',url:takeUrls[1]}]}));
@@ -23,7 +23,7 @@ app.whenReady().then(async()=>{
  if(process.argv.includes('--output812')){ipcMain.removeHandler('shell:openPath');ipcMain.handle('shell:openPath',()=> 'Controlled missing file');}
  ipcMain.handle('dub:plan',()=>({ok:true,sourceHash:'fixture',sourceDecoding:process.argv.includes('--quantity808')?{encoding:'cp1254',repaired:false}:null,groups:[1,2,3].map(i=>({key:String(i),text:'Synthetic group '+i,seconds:4,start:(i-1)*4000,end:i*4000}))}));
  for(const [locale,theme,width,zoom] of [['tr','dark',1440,1],['en','light',900,1.25]]){
-  win.setContentSize(width,950);win.webContents.setZoomFactor(zoom);request=null;if(process.argv.includes('--experience801'))selectedFixture=subtitleFiles.speech;
+  win.setContentSize(process.argv.includes('--narrow815')?820:width,process.argv.includes('--narrow815')?820:950);win.webContents.setZoomFactor(zoom);request=null;if(process.argv.includes('--experience801'))selectedFixture=subtitleFiles.speech;
   if(process.argv.includes('--experience801'))await run(`window.fixtureSource={...BrowserDubAudioUI.context(),mode:'browser',source:'fixture-scene',tabId:'fixture-tab',generation:1,mediaId:'fixture-media',subtitleRange:null,hasMedia:true,visible:true,currentTime:6};BrowserDubAudioUI.context=()=>window.fixtureSource;return true`);
   await run(`UiLocale.set('${locale}',false);applyUiTheme('${theme}');await DubGeneratorUI.prepareCurrent();document.getElementById('dubChooseSrt').click();return true`);
   await until(()=>run(`return document.getElementById('dubSrtName').textContent.includes('Synthetic')`));
@@ -131,5 +131,11 @@ app.whenReady().then(async()=>{
   await run(`document.getElementById('dubNextFlagged').click();document.getElementById('dubQualityEvidence').open=true;document.getElementById('dubQualityEvidence').scrollIntoView({block:'center'});return true`);await capture(locale+'-evidence');
   await run(`document.getElementById('dubGeneratorDialog').close();return true`);
  }
- fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify(rows,null,2));console.log(JSON.stringify({ok:true,out,screens:rows.length}));app.exit(0);
+ let resources=null;
+ if(process.argv.includes('--soak815')){
+  const measure=()=>({rssBytes:process.memoryUsage().rss,workingSetKiB:app.getAppMetrics().reduce((sum,m)=>sum+(m.memory?.workingSetSize||0),0),quitListeners:app.listenerCount('before-quit')});
+  const before=measure();await run(`const d=document.getElementById('dubGeneratorDialog');for(let i=0;i<20;i++){d.showModal();await new Promise(requestAnimationFrame);d.close();await new Promise(requestAnimationFrame);}return true`);await wait(500);resources={cycles:20,before,after:measure(),limits:'Short native dialog cycles, not an overnight memory plateau or GPU production.'};fs.writeFileSync(path.join(out,'resources.json'),JSON.stringify(resources,null,2));
+ }
+ assert.equal(app.listenerCount('before-quit'),globalThis.__quitCount,'UI cycles must not accumulate app quit listeners');
+ fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify(rows,null,2));console.log(JSON.stringify({ok:true,out,screens:rows.length,quitListeners:app.listenerCount('before-quit'),quitListenersStable:app.listenerCount('before-quit')===globalThis.__quitCount}));app.exit(0);
 }).catch(e=>{console.error(e.stack);app.exit(1);});setTimeout(()=>app.exit(2),90000).unref();

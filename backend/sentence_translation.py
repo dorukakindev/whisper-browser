@@ -449,6 +449,10 @@ def _initial_name_swap(source, translated):
     if len(first) < 3 or not first[0].isupper():
         return ""
     lowered = first.lower().rstrip(".?!,;:!…")
+    # The same grammatical contractions excluded by _proper_names are not
+    # sentence-initial person names either (He's / Isn't / I'm).
+    if re.fullmatch(r"(?:i|he|she|it|we|they|you|that|there|here|what|who|how|where|when|let)['’](?:m|ll|ve|d|s|re)|(?:don|doesn|didn|can|couldn|won|wouldn|shouldn|mustn|isn|aren|wasn|weren|hasn|haven|hadn|needn)['’]t", lowered):
+        return ''
     # An auxiliary followed by a pronoun starts a question, not a person name.
     # Keep the name check for "Can arrived ..." and other non-modal uses.
     if lowered in {"can", "did", "do", "does", "is", "are", "was", "were", "have", "has", "had", "could", "would", "should", "will", "must"} and len(words) > 1 \
@@ -528,14 +532,14 @@ def _proper_names(text):
         if lowered in {'celsius', 'fahrenheit'} and lowered in _unit_markers(text):
             continue
         if lowered in ABBREVIATIONS or lowered in _WEEKDAY_MONTH \
-                or lowered in _NAME_STOPWORDS:
+                or lowered in _NAME_STOPWORDS or (not explicit_name and lowered in {"actually", "if"}):
             continue
         # A pause/ellipsis can continue a sentence while starting a fresh pronoun
         # clause. "She was" / "We all do" are not lost personal names.
         following = words[index + 1].lower().strip(".?!,;:…") if index + 1 < len(words) else ''
         if not explicit_name and lowered in {'i','he','she','we','they','it','you'} and following in {
                 'am','is','are','was','were','have','has','had','do','does','did','will','would',
-                'can','could','should','must','may','might','all','also','only','never','always','just'}:
+                'can','could','should','must','may','might','know','all','also','only','never','always','just'}:
             continue
         # A new quoted sentence has its own initial word, not a proper name.
         quote_initial = word.startswith(('"', "“", "‘", "«")) and lowered in _INITIAL_STOPWORDS
@@ -823,6 +827,14 @@ def _translated_non_name_anchor(name, source, translated):
         return bool(re.search(r'\bLos Angeles(?:[’\']\w*)?\b', translated))
     if key == 'nativity' and re.search(r'\bNativity\s+play\b', source):
         return bool(re.search(r'\bdoğuş\b.{0,16}\boyun\w*\b', translated, re.I))
+    if key == 'joseph' and re.search(r'\bpart of Joseph\b', source):
+        return bool(re.search(r'\bYusuf\s+rol\w*', translated))
+    if key == 'adhd':
+        return bool(re.search(r'\bDEHB(?:[’\']\w*)?\b', translated))
+    if key in {'royal', 'ballet', 'school'} and 'Royal Ballet' in source:
+        return bool(re.search(r'\bKraliyet\s+Bale\w*', translated)) and (key != 'school' or bool(re.search(r'\bokul\w*', translated, re.I)))
+    if key in {'dance', 'company'} and 'Dance Company' in source:
+        return bool(re.search(r'\bDans\w*', translated)) if key == 'dance' else bool(re.search(r'\b(?:Toplulu|Şirket|Kumpanya)\w*', translated))
     degrees = {'ma': r'yüksek\s+lisans\w*', 'ba': r'(?<!yüksek )lisans\w*', 'phd': r'doktora\w*'}
     if key in degrees and re.search(r'\b(?:need|needs|required|degree|qualification|job|university)\b', source, re.I):
         return bool(re.search(r'\b'+degrees[key]+r'\b', translated, re.I))
@@ -936,11 +948,18 @@ def part_anchor_issue(source_parts, translated_parts, target_lang="tr", source_l
                 continue
             if str(target_lang or '').lower().split('-')[0] == 'tr' and _translated_non_name_anchor(name, str(source), str(translated)):
                 continue
+            if str(target_lang or '').lower().split('-')[0] == 'tr' and (
+                    (name.lower() in {'royal','ballet','school'} and 'Royal Ballet' in str(source))
+                    or (name.lower() in {'dance','company'} and 'Dance Company' in str(source))):
+                return f'ozel_ad_kaydi:{index}'
             # ≥2 tokenlık adlı-varlık öbeği ('French Revolution'→'Fransız
             # Devrimi'): hedefte en az bir ad kalıntısı varsa yerelleştirme
             # sayılır; öbek tümüyle silindiyse ('the revolution'→'devrim')
             # eksiklik olarak kalır. Öbek içinde ada yakın-yazımlı farklı
             # token varsa ('Detective Lawson'→'Dedektif Larson') yine ret.
+            # A localized company suffix must not hide its missing founder/name.
+            if re.search(r'\b' + re.escape(name) + r'\s+Dance Company\b', str(source)):
+                return f'ozel_ad_kaydi:{index}'
             if _name_run_size(name, str(source)) >= 2:
                 if _near_name_token(name, translated):
                     return f"ozel_ad_bozulma:{index}"
@@ -1003,7 +1022,7 @@ def sentence_ended(text):
     # Nokta/ünlem/soru görünse bile üç nokta, bağlaç veya edatla biten cue
     # çoğu zaman bir sonraki cue'nun devamıdır. Erken kapatmak, modelin
     # özne/nesne ilişkisini görmeden parçayı çevirmesine yol açar.
-    if _CONTINUATION_END.search(text):
+    if _CONTINUATION_END.search(text) and not re.search(r'\b(?:allowed|want|wants|wanted) to[.!?]$', text, re.I):
         return False
     last = text.split()[-1].lstrip('\"\'“”‘’([«')
     initialism = re.fullmatch(r'(?:[^\W\d_]\.){2,}', last)
@@ -1061,6 +1080,10 @@ def _target_negation(text, source=''):
     # aç-ma-ma-sı-nı / gel-me-me-mi are negative nominal clauses, unlike
     # positive aç-ma-sı-nı / gel-me-mi. Check BEFORE masking obligations:
     # gitmemem gerekiyor is negative, gitmem gerekiyor is positive.
+    if re.search(r'\b' + _TR_ROOT_PATTERN + r'(?:y?[ae])?m[ae](?:s[ae]\w*|y[ıi]z)\b', str(text), re.I):
+        return True
+    if re.fullmatch(r'\s*[Nn]eden olmasın[?! .]*', str(text)) and re.fullmatch(r'\s*[Ww]hy not[?! .]*', source):
+        return True
     if _TARGET_NEGATIVE_NOMINAL.search(str(text)):
         return True
     text = re.sub(r'\b\w+m[ae]m(?:[ıiuü]z|[ıiuü]n)?\b(?=\s+(?:gerek\w*|lazım\w*|zorunlu\w*))', ' ', str(text), flags=re.I)
@@ -1258,7 +1281,7 @@ _EN_NUMBER_WORDS = ('one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eigh
                     'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety', 'hundred',
                     'thousand', 'million', 'billion', 'half', 'quarter', 'dozen', 'pair',
                     'couple', 'few', 'several')
-_QUANTITY_WORDS = _EN_NUMBER_WORDS + _TR_NUMBER_WORDS + ('yarım', 'çeyrek', 'düzine')
+_QUANTITY_WORDS = _EN_NUMBER_WORDS + _TR_NUMBER_WORDS + ('yarım', 'çeyrek', 'düzine', 'birkaç', 'birçok')
 _QUANTITY_BEFORE = re.compile(
     r'(?:\d[\d.,]*|(?:' + '|'.join(sorted(_QUANTITY_WORDS, key=len, reverse=True))
     + r'))[\s\W]{0,5}$', re.I)
@@ -1677,6 +1700,10 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
                        r"(?=(?:feel|notice|wonder|think|create|see|smile|laugh|cry|"
                        r"admire|worry|remember|agree|suspect|be|fall|marvel)\b)", re.I)
     negation_source = idiom.sub(' ', src_norm)
+    if lang == 'tr':
+        if re.search(r'\bmore often than not\b', negation_source, re.I) and re.search(r'\b(?:çoğu zaman|genellikle|çoğunlukla)\b', translated, re.I):
+            negation_source = re.sub(r'\bmore often than not\b', 'often', negation_source, flags=re.I)
+
     # Alternative questions are not negative assertions. Turkish nominalized
     # alternatives (edip etmeme / olup olmama) need no finite negative verb.
     if lang == 'tr' and re.search(r"\bwhether\s+or\s+not\b", negation_source, re.I) and re.search(r"\b\w+(?:[ıiuü]p)\s+\w+m[ae]m[ae]\w*\b", translated, re.I):
@@ -1688,6 +1715,8 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
         for source_pattern, target_pattern in (
             (r'\bunpredictab(?:le|ility)\b', r'\böngörülemez(?:lik)?(?:liği|liğiyle|lik)?\b'),
             (r'\bruthless(?:ly|ness)?\b', r'\bacımasız(?:ca|lık)?\b'),
+            (r'\bhopeless\b', r'\bumutsuz\w*\b'),
+            (r'\buncontrollably\b', r'\b(?:tutamadan|kontrol edemez)\b'),
         ):
             if re.search(source_pattern, source, re.I):
                 negative_target = re.sub(target_pattern, ' ', negative_target, flags=re.I)
@@ -1702,6 +1731,8 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
     if lang in ('tr', 'en') and target_negative and not source_negative and len(source.split()) <= 12 and not re.search(r"[;!?]|\b(?:but|unless|hardly|barely|without|stop|avoid|lack|fail(?:ed|s|ing)?|refuse|deny)\b", source, re.I):
         issues.append('negation_added')
     modal_source = _NEGATED_MODAL.sub(' ', src_norm)
+    if lang == 'tr' and re.search(r'\bgördüğünüz gibi\b', translated, re.I):
+        modal_source = re.sub(r'\bas you can see\b', 'as you see', modal_source, flags=re.I)
     # Past habitual relative clauses: 'anything he would write' ->
     # 'yazdığı her şey'. Do not mask standalone conditional 'he would write'.
     if lang == 'tr' and re.search(r"\b(?:her\s+şey\w*|ne\s+\w+[ds][ıiuü]\w*)\b", translated, re.I):

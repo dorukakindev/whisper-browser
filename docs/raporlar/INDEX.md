@@ -1,3 +1,5 @@
+- [Rapor815](BROWSER_BUG_REPORT_815.md) — Ayrı oturumun salt-okunur denetimi
+- [Rapor816](BROWSER_BUG_REPORT_816.md) — Uzun Türkçe ses, çeviri tamamlama ve kapanış kaynakları
 - [Rapor814](BROWSER_BUG_REPORT_814.md) — CI sözleşmeleri, gerçek asistan/GPU ve uzun ses kabulü
 - [Rapor813](BROWSER_BUG_REPORT_813.md) — Konuşma çevirisi, gerçek kart, dublaj dinleme ve PDF sahipliği
 - [Rapor812](BROWSER_BUG_REPORT_812.md) — Ürün100 son paket: çıktı açma, M4B hedef ve yüzde99 sınırı

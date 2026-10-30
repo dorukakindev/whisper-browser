@@ -1,4 +1,5 @@
 'use strict';
+const {registerQuitCleanup}=require('./quit-cleanup');
 const fs=require('node:fs'),{spawn}=require('node:child_process');
 function range(request){const start=Number(request?.start),end=Number(request?.end),track=Number(request?.track??0);if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end<=start||end-start>1800||!Number.isInteger(track)||track<0||track>31)throw Error('Choose a valid interval of up to 30 minutes / En fazla 30 dakikalık geçerli aralık seç.');return{start,end,track};}
 async function analyze(file,request,{ffmpeg,signal,spawnImpl=spawn}={}){
@@ -29,6 +30,6 @@ function registerMediaAnalysis({app,ipcMain,authorized,authorize,ffmpeg}){
  ipcMain.handle('media:analyze',async(event,request)=>{if(!authorized(event))return{ok:false,error:'Unauthorized'};let controller;try{const r=range(request),file=authorize(request?.file),st=fs.statSync(file),key=JSON.stringify([file,st.size,st.mtimeMs,r]);if(jobs.has(event.sender.id))throw Error('Analysis already running / İnceleme zaten çalışıyor.');if(cache.has(key))return{ok:true,...cache.get(key)};
  controller=new AbortController();jobs.set(event.sender.id,controller);const value=await analyze(file,r,{ffmpeg:ffmpeg(),signal:controller.signal});if(controller.signal.aborted)throw Error('Cancelled / İptal edildi.');cache.set(key,value);while(cache.size>4)cache.delete(cache.keys().next().value);return{ok:true,...value};}catch(error){return{ok:false,code:controller?.signal.aborted?'cancelled':/timed out|zaman aşımı/i.test(error.message)?'timeout':'analysis_failed',error:error.message};}finally{if(controller&&jobs.get(event.sender.id)===controller)jobs.delete(event.sender.id);}});
  ipcMain.handle('media:analyzeCancel',event=>{if(!authorized(event))return{ok:false};jobs.get(event.sender.id)?.abort();return{ok:true};});
- app.on('before-quit',()=>{for(const job of jobs.values())job.abort();});
+ registerQuitCleanup(app,()=>{for(const job of jobs.values())job.abort();});
 }
 module.exports={range,analyze,registerMediaAnalysis};
