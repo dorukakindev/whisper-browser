@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-30-0848.md](docs/devir/2026-10-30-0848.md) — Ürün100 asistan işlem ve bağlam açıklığı
 Güncel çalışma: [docs/devir/2026-10-30-0830.md](docs/devir/2026-10-30-0830.md) — Ürün100 çeviri karşılaştırması ve retry rehberi
 Güncel çalışma: [docs/devir/2026-10-30-0804.md](docs/devir/2026-10-30-0804.md) — Ürün50 ilk10: dublaj inceleme ve referans durumu
 Güncel çalışma: [docs/devir/2026-10-30-0748.md](docs/devir/2026-10-30-0748.md) — Gerçek konuşma çevirisi, GPU dublaj ve sade stüdyo
