@@ -3,6 +3,8 @@
   const el = id => document.getElementById(id), api = window.api;
   if (!api.prepareVoiceReference) return;
   const panel = el('voiceReferenceRecorder');
+  let activeReferenceId='',appliedReferenceText='';const selectionStatus=document.createElement('p');selectionStatus.className='voice-selection-status';selectionStatus.id='voiceReferenceSelectionStatus';selectionStatus.setAttribute('role','status');el('voiceReferenceUse').parentElement.after(selectionStatus);
+
   const comparison = window.VoiceReferenceCompare?.mount(el('voiceReferenceAB'), {
     onUse: id => window.VoiceReferenceUI.use(id),
     onError: error => status(error.message),
@@ -54,6 +56,10 @@
     }
   }
   function controls() {
+    const chosen=selected(),en=window.UiLocale?.get?.()==='en',changed=chosen?.id===activeReferenceId&&String(el('voiceReferenceText').value)!==appliedReferenceText;
+    selectionStatus.textContent=!chosen?(en?'Choose a reference voice.':'Referans ses seçin.'):chosen.id!==activeReferenceId?(en?'Selected, not applied — use this voice to activate it.':'Seçildi, uygulanmadı — etkinleştirmek için Bu sesi kullan.'):changed?(en?'Transcript changes are not applied yet.':'Döküm değişiklikleri henüz uygulanmadı.'):(en?'This reference is active.':'Bu referans etkin.');
+    selectionStatus.dataset.state=chosen&&(chosen.id!==activeReferenceId||changed)?'pending':'active';
+
     for (const id of ['voiceReferencePrepare','voiceReferenceStart','voiceReferenceEnd','voiceReferenceSearch','voiceReferenceSelect','voiceReferenceText','voiceReferenceName']) el(id).disabled = !!active || applying || selectingSource;
     el('voiceReferenceCancel').disabled = !active || stopping;
     const generating = !el('dubGeneratorCancel').disabled;
@@ -105,12 +111,13 @@
   const revealPicker = () => el('voiceReferencePicker').scrollIntoView?.({block:'nearest',behavior:'auto'});
   el('voiceReferenceSearch').addEventListener('focus', revealPicker);
   el('voiceReferenceSearch').addEventListener('input', () => { rememberDraft();renderReferences();controls();revealPicker(); });
-  document.addEventListener('ui-locale-change', () => {renderReferences();transcriptComparison();});
+  document.addEventListener('ui-locale-change', () => {renderReferences();controls();});
   async function refresh(preferred) {
     const sequence = ++refreshSequence;
     const result = await api.listVoiceReferences().catch(() => null);
     if (sequence !== refreshSequence) return false;
     if (!result?.ok) { if (preferred) { el('voiceReferenceSelect').value = ''; show(); } status('Referans sesler okunamadı.'); return false; }
+    activeReferenceId=result.activeId||'';appliedReferenceText=String(result.references?.find(item=>item.id===activeReferenceId)?.text||'');
     const prior = preferred || el('voiceReferenceSelect').value || result.activeId;
     folder = result.folder; references = result.references;
     renderReferences(prior, !preferred);
@@ -217,6 +224,7 @@
     try {
       const result = await api.useVoiceReference({ id: item.id, text: el('voiceReferenceText').value });
       if (!result?.ok) { status('Referans sesi uygulanamadı.'); return; }
+      activeReferenceId=item.id;appliedReferenceText=el('voiceReferenceText').value;
       if(Object.hasOwn(result,'transcriptBaseline'))item.transcriptBaseline=result.transcriptBaseline;
       item.text = el('voiceReferenceText').value; rememberDraft();
       window.dispatchEvent(new CustomEvent('voice-reference:changed'));

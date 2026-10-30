@@ -172,3 +172,11 @@
 #voiceReferencePicker #voiceReferencePreview { width:100%; height:38px; margin-block:12px; }
 #voiceReferencePicker>.dub-generator-row { gap:8px; flex-wrap:wrap; margin-top:10px; }
 #voiceReferencePicker>.dub-generator-row button { font-size:12px; padding:7px 11px; min-height:34px; }
+
+.dub-review-filters { display:flex; gap:6px; flex-wrap:wrap; margin-block:12px; }
+.dub-review-filters button[aria-pressed=true] { color:var(--accent); border-color:var(--accent); background:var(--bg-2); }
+.voice-selection-status { font-size:12px; line-height:1.6; color:var(--text-dim); margin:8px 0; }
+.voice-selection-status[data-state=pending] { color:var(--accent); }
+
+.dub-review-navigation { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-block:10px 14px; }
+#dubGeneratorDialog .dub-review-navigation button { flex:1 1 180px; min-width:0; font-size:12px; line-height:1.4; min-height:34px; padding:7px 11px; }
