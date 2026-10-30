@@ -1,0 +1,42 @@
+{
+  "head": "55bfcca53a995e1217edb547655a50720ff59320",
+  "results": [
+    {
+      "id": "XROOT01",
+      "case": "real-video-package-export-preview-apply",
+      "exportVideos": 1,
+      "scopeVideos": 1,
+      "applyOk": true,
+      "restarted": true,
+      "restoredValue": "{{VIDEO}}/videos/b2ff7d250093a4b9dd32a181a540d0d9d03c753ff9159a8916300803c031e3b0.mp4",
+      "extractedFiles": 1,
+      "restoredPathExists": false,
+      "consumerSource": null,
+      "method": "Actual ZIP/Python extraction and production catalog extension/itemOf; owner localStorage boundary controlled"
+    },
+    {
+      "id": "XROOT02",
+      "case": "unc-migration-root",
+      "source": "\\\\audit-server\\share\\folder\\movie.mp4",
+      "offeredRoot": "audit-server\\share\\folder",
+      "restoredUnchanged": true,
+      "method": "Production missingLocalMedia and restorePackage; existence check controlled to avoid contacting a network share"
+    },
+    {
+      "id": "XROOT02",
+      "case": "valid-posix-catalog-migration-root",
+      "source": "/mnt/previous/film/movie.mp4",
+      "offeredRoot": "mnt/previous/film",
+      "restoredUnchanged": true,
+      "method": "Production itemOf, missingLocalMedia and restorePackage, valid Linux source path imported on Windows"
+    },
+    {
+      "id": "XROOT03",
+      "case": "corrupt-json-export-success-restore-reject",
+      "exportOk": true,
+      "count": 1,
+      "readError": "Expected property name or '}' in JSON at position 1 (line 1 column 2)",
+      "method": "Actual production export and read; synthetically corrupt source catalog"
+    }
+  ]
+}

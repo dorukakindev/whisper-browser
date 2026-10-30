@@ -1,0 +1,75 @@
+{
+  "head": "55bfcca53a995e1217edb547655a50720ff59320",
+  "productChanges": false,
+  "bugReproductionWorkflows": 8,
+  "performanceWorkflows": 1,
+  "commands": [
+    {
+      "command": "node .tmp/extra815-root/workspace-probe.cjs",
+      "exit": 0,
+      "scope": "Actual FFmpeg fixture + Python ZIP + production apply/itemOf, POSIX migration; storage/restart boundaries controlled"
+    },
+    {
+      "command": "node .tmp/extra815-root/auto-backup-probe.cjs",
+      "exit": 0,
+      "scope": "Controlled daily clock/timer, real export/read/retention"
+    },
+    {
+      "command": "node .tmp/extra815-root/package-preview-network-probe.cjs",
+      "exit": 0,
+      "scope": "Real package-preview; all UNC calls blocked before network"
+    },
+    {
+      "command": "node .tmp/extra815-parent-browser/prefs.cjs",
+      "exit": 0
+    },
+    {
+      "command": "electron .tmp/extra815-parent-browser/native.cjs",
+      "scope": "Parent read final JSON and asserted six observed defects; separate Windows native process, local HTTP origins; no error record"
+    },
+    {
+      "command": "backend/venv/Scripts/python.exe .tmp/extra815-parent-backend/probe.py",
+      "exit": 0
+    },
+    {
+      "command": "backend/venv/Scripts/python.exe .tmp/extra815-parent-backend/sync-cancel-probe.py",
+      "exit": 0,
+      "scope": "Only own child terminated after real FFmpeg extraction"
+    },
+    {
+      "command": "node .tmp/extra815-parent-assistant/probe.cjs",
+      "exit": 0
+    },
+    {
+      "command": "node .tmp/extra815-root/backup-load-probe.cjs",
+      "exit": 0,
+      "scope": "Performance proposal only, 96 MiB synthetic blobs"
+    }
+  ],
+  "longSoak": {
+    "command": "node tests/run-resource-soak.js --cycles=200 --warmup=10 --hibernation-cycles=50 --output=.tmp/extra815-root/soak-report.json",
+    "exit": 1,
+    "capture": {
+      "attempts": 200,
+      "successes": 200
+    },
+    "hibernation": {
+      "requested": 50,
+      "failedAt": 3,
+      "successesBeforeFailure": 2
+    },
+    "error": "1 altyazı yanıtı henüz işlenmedi; sekme bellekten boşaltılmadı.",
+    "finalJsonWritten": false,
+    "classification": "Incomplete run; pending capture safety guard may be correct or fixture timing; no resource budget PASS and not counted as a product bug",
+    "knownWarning": "11 before-quit listeners, previously recorded; not a new finding",
+    "launcher": "Windows runner invoked cmd /d /s /c start.bat; isolated temporary profile; not an interactive personal-profile or DRM acceptance"
+  },
+  "limits": [
+    "No product fixes",
+    "No full npm test or fresh bridge suite",
+    "No paid provider calls or real Whisper/TTS models/GPU synthesis",
+    "No physical listening, screen reader or general DPI matrix",
+    "No personal profile or external UNC connection",
+    "CI result not awaited or claimed"
+  ]
+}

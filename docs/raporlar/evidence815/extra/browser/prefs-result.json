@@ -1,0 +1,23 @@
+{
+  "id": "EX-BR07-STREAM-PREFERENCE-IDENTITY",
+  "head": "55bfcca53a995e1217edb547655a50720ff59320",
+  "base": "web:url:e33e0eff46e5420eb41d5937",
+  "episodeA": "web:url:e33e0eff46e5420eb41d5937:stream:b86a6d2f22d82d6ab30f0941",
+  "episodeB": "web:url:e33e0eff46e5420eb41d5937:stream:a26898e9777219f84048459f",
+  "stored": [
+    {
+      "mediaId": "web:url:e33e0eff46e5420eb41d5937",
+      "url": "https://fixture.example/watch",
+      "subtitleSelection": {
+        "primaryId": "episode-b-fr",
+        "secondaryId": ""
+      },
+      "subtitleMode": "source",
+      "subtitleSyncRecords": []
+    }
+  ],
+  "getA": null,
+  "getB": null,
+  "afterReloadA": null,
+  "youtubeStreamCountercheck": true
+}

@@ -1,0 +1,47 @@
+{
+  "head": "55bfcca53a995e1217edb547655a50720ff59320",
+  "id": "XROOT03",
+  "method": "Original registerMediaTools module VM, controlled daily clock/timer, real filesystem and core export/read",
+  "initialValidBackup": true,
+  "days": [
+    {
+      "day": 1,
+      "error": "",
+      "reportedSuccess": true
+    },
+    {
+      "day": 2,
+      "error": "",
+      "reportedSuccess": true
+    },
+    {
+      "day": 3,
+      "error": "",
+      "reportedSuccess": true
+    },
+    {
+      "day": 4,
+      "error": "",
+      "reportedSuccess": true
+    },
+    {
+      "day": 5,
+      "error": "",
+      "reportedSuccess": true
+    },
+    {
+      "day": 6,
+      "error": "",
+      "reportedSuccess": true
+    },
+    {
+      "day": 7,
+      "error": "",
+      "reportedSuccess": true
+    }
+  ],
+  "retained": 7,
+  "readable": 0,
+  "initialGoodRemoved": true,
+  "sourceCorruptedSynthetically": true
+}

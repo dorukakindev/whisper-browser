@@ -1,6 +1,10 @@
-# Rapor 815 — Genişletilmiş salt raporlama denetimi
+# Rapor 815 — 78 bug ve geliştirme önerileri, yalnız raporlama
 
-> **31 Ekim genişletmesi: 54 doğrulanmış güncel hata (16 P1, 38 P2).** Önceki 3 + bu tur eklenen 50 + geçmişte bilinen 1 yeniden doğrulama. Öneriler ve kanıt boşlukları bug sayısına katılmadı. **Hiçbir hata düzeltilmedi.** [54 bulgunun dizini](#genişletilmiş-bulgu-dizini) · [tam kanıt ve ID eşlemesi](evidence815/deep/findings.json) · [yeniden üretme](evidence815/deep/REPRODUCE.md).
+> **Son güncelleme — 31 Ekim 2026: 24 yeni bug eklendi; toplam 78 (23 P1, 55 P2).** Bu tur ayrıca **27 geliştirme önerisi / ayrıntılandırma** eklenmiştir; öneriler bug sayısına katılmaz. Önceki 54 kayıt korunur. **Ürün kodu ve ayarlar değiştirilmedi, hiçbir bug düzeltilmedi.**
+>
+> [Yeni 24 bulgu](#ek-tarama-24-yeni-bulgu) · [Yeni öneriler](#ek-geliştirme-önerileri) · [78 kimliğin eşlemesi ve yeni kaynak hashleri](evidence815/extra/findings.json) · [Tekrar üretme ve sınırlar](evidence815/extra/REPRODUCE.md)
+
+> **Önceki genişletme: 54 doğrulanmış güncel hata (16 P1, 38 P2).** Önceki 3 + o tur eklenen 50 + geçmişte bilinen 1 yeniden doğrulama. Öneriler ve kanıt boşlukları bug sayısına katılmadı. **Hiçbir hata düzeltilmedi.** [54 bulgunun dizini](#genişletilmiş-bulgu-dizini) · [tam kanıt ve ID eşlemesi](evidence815/deep/findings.json) · [yeniden üretme](evidence815/deep/REPRODUCE.md).
 
 İlk tarama: **30 Ekim 2026**, Windows. İncelenen ürün: **`00a01f92f109f11183b02bc55dd1dfed25ed3e9f`**, başlangıç dalı `master`; rapor dalı `codex/audit-report815`.
 
@@ -8,7 +12,7 @@ Kullanıcının talebi yalnız inceleme ve ayrıntılı rapordur. **Ürün kodu,
 
 ## İlk dar tarama — B01–B03 (30 Ekim)
 
-Bu bölüm ilk turun tarihsel kapsamıdır. Genişletilmiş toplam aşağıda 54 bulgudur. **İlk turda 3 doğrulanmış hata:** bir yüksek öncelikli çeviri bütünlüğü sorunu ve iki orta öncelikli okuma/hazırlık sorunu. Bunlardan ayrı **5 geliştirme alanı** aşağıda gerekçeleri ve kabul ölçütleriyle bulunur. Çökme, dosya silinmesi veya güvenlik açığı keşfedildiği iddia edilmez.
+Bu bölüm ilk turun tarihsel kapsamıdır. Bu bölümün ilk genişletme toplamı 54 bulgudur; son güncel toplam üstte 78 olarak verilmiştir. **İlk turda 3 doğrulanmış hata:** bir yüksek öncelikli çeviri bütünlüğü sorunu ve iki orta öncelikli okuma/hazırlık sorunu. Bunlardan ayrı **5 geliştirme alanı** aşağıda gerekçeleri ve kabul ölçütleriyle bulunur. Çökme, dosya silinmesi veya güvenlik açığı keşfedildiği iddia edilmez.
 
 | Kimlik | Öncelik | Hata | Doğrulama |
 |---|---|---|---|
@@ -149,7 +153,9 @@ Yeni bağımlılık, kurulum, veri şeması, lisanslı dış kod aktarımı veya
 
 <!-- DEEP-AUDIT-815 -->
 
-## Genişletilmiş bulgu dizini
+<a id="genişletilmiş-bulgu-dizini"></a>
+
+## Genişletilmiş bulgu dizini — önceki 54 bulgu
 
 31 Ekim 2026; inceleme HEAD **`6b3df86e35db8bc3271440f06c779cfb0acb2c22`**, dal `codex/deep-report815`. Ürün kaynakları önceki raporla aynı; yalnız rapor/kanıtlar eklendi. Kullanıcının onayıyla üç **GPT‑6.1 Sol / medium effort** ajanı browser, backend ve asistan/kütüphane alanlarını ayırdı. Ana ajan kanıtları okuyup 7 ajan probunu ve 2 kendi probunu yeniden çalıştırdı: 9/9 exit0, yani hatalar yeniden üretildi; düzeltme/test paketi başarısı değildir.
 
@@ -781,3 +787,906 @@ Model önbelleği standardı [Hugging Face HF_HUB_CACHE belgesine](https://huggi
 ## Son teslim sınırı
 
 Bu rapor bugları **açık bırakır**. 50 hedefi ürün düzeltme yetkisi değildir. Kaynak dosyaları aynı ürün revizyonunda kalır. Önceden var olan OFFLINE-MANIFEST/raporINDEX değişiklikleri, yerel start.sh silinmesi ve kişisel untracked dosyalar commit dışında korunur. Bu genişletme rapor+kanıt+devir olarak ayrı PR ile master'a teslim edilir; CI sonucu beklenmez veya görülmeden yeşil denmez.
+
+
+<!-- EXTRA-AUDIT-815 -->
+
+## Ek tarama: 24 yeni bulgu
+
+İnceleme başlangıcı **55bfcca53a995e1217edb547655a50720ff59320**, dal **codex/audit815-extra**. Önceki 54 ile aynı ürün dosyaları incelendi. Üç ajan kullanıcının tercihiyle **GPT‑6.1 Sol / medium effort** kullandı. Yeni kayıtlar eski bugların dil/ekran varyantlarını sayı artırmak için ayırmaz. Önceki rapor/registry ilişkileri her kayıtta yazılıdır.
+
+| ID | Önem | Hata | Kanıt alanı / eski ID |
+|---|---|---|---|
+| [R815-B55](#r815-b55) | P1 | Video paketinin geri yüklenmesi çıkarılan videoyu kataloğa bağlamıyor | root / XROOT01 |
+| [R815-B56](#r815-b56) | P2 | POSIX kaynak kökü taşıma sihirbazında baştaki ayıracını kaybediyor ve seçilen eşleme uygulanmıyor | root / XROOT02 |
+| [R815-B57](#r815-b57) | P1 | Bozuk kaynak katalog otomatik yedeklemede başarı sayılıyor ve son sağlam yedek budanıyor | root / XROOT03 |
+| [R815-B58](#r815-b58) | P1 | Çalışma paketi yalnız önizlenirken paket içindeki doğrulanmamış UNC yoluna dosya varlık sorgusu gönderiliyor | root / XROOT04 |
+| [R815-B59](#r815-b59) | P2 | Var olan hosta sonradan eklenen açık shadow root içindeki video keşfedilmiyor | browser / EX-BR01 |
+| [R815-B60](#r815-b60) | P2 | CSS visibility:hidden büyük video görünür oynatıcıdan önce seçiliyor | browser / EX-BR02 |
+| [R815-B61](#r815-b61) | P2 | Aynı belgede oynatıcı değişince eski docToken yeni medya üzerinde komuta izin veriyor | browser / EX-BR03 |
+| [R815-B62](#r815-b62) | P2 | Dublaj hız geçersiz kılma kaydı aynı video elementinin yeni kaynağına taşınıyor | browser / EX-BR04 |
+| [R815-B63](#r815-b63) | P1 | Normalizasyon kurulmuş medya CORS izinsiz kaynağa geçince normal oynarken sessiz kalıyor | browser / EX-BR05 |
+| [R815-B64](#r815-b64) | P2 | Çapraz-origin karelerin bağlantı etiketleri aynı kısayolu kullanıyor ve seçimden sonra diğer katman kalıyor | browser / EX-BR06 |
+| [R815-B65](#r815-b65) | P2 | Genel web akışlarının altyazı tercihi stream kimliğini kaybedip aynı sayfanın başka videosuyla birleşiyor | browser / EX-BR07 |
+| [R815-B66](#r815-b66) | P2 | Geçerli WebVTT cue gövdesindeki NOTE/STYLE/REGION konuşması siliniyor | backend / XB01 |
+| [R815-B67](#r815-b67) | P2 | Altyazı referans hizalamasında örtüşen cue katmanları güven puanını şişiriyor | backend / XB04 |
+| [R815-B68](#r815-b68) | P2 | Doğru milyar değerleri ASR doğrulamasında sayı kaybı/ekleme diye reddediliyor | backend / XB05 |
+| [R815-B69](#r815-b69) | P2 | Senkron işi ortak iptal/geçici dosya yaşam döngüsüne katılmadığı için ses kalıntısı bırakıyor | backend / XB06 |
+| [R815-B70](#r815-b70) | P1 | Dizi kanon hafızası sonradan oluşunca exact çeviri cache eski terminolojiyi geri getiriyor | backend / XB07 |
+| [R815-B71](#r815-b71) | P2 | Yorum isteği kimlik çözümlemesindeyken verilen durdurma kayboluyor | assistant / E01 |
+| [R815-B72](#r815-b72) | P2 | IMDb eşleşmesi değişmiş eski yorum analizi yeni kimliğe kaydedilip güncel gösteriliyor | assistant / E02 |
+| [R815-B73](#r815-b73) | P1 | Yapım yüklenirken dil değişimi eski başlığı gösterip yeni kaydı değiştiriyor | assistant / E03 |
+| [R815-B74](#r815-b74) | P2 | Sürekli gelen asistan metni ara kayda yazılmıyor, kapanışta bütünüyle kaybolabiliyor | assistant / E04 |
+| [R815-B75](#r815-b75) | P1 | Açık olumsuz watchlist isteği doğrudan ekleme işlemi yapıyor | assistant / E05 |
+| [R815-B76](#r815-b76) | P2 | Geçerli Türkçe TMDB türü Sana özel önerilerde yok sayılıyor | assistant / E06 |
+| [R815-B77](#r815-b77) | P2 | Native duraklatma başarısızken asistan tamamlandı ve durakladı bildiriyor | assistant / E07 |
+| [R815-B78](#r815-b78) | P2 | Geçerli SSE Content-Type harf değişimi sağlayıcı yanıtını bozuyor | assistant / E08 |
+
+### Bu turun gerçek yükü ve sınırları
+
+Donanımda **RTX 4070 SUPER, 12282 MiB VRAM** doğrulandı; eski notlardaki 4070 Ti varsayılmadı. Mevcut Windows kaynak testi **start.bat hattıyla**, ayrı sentetik profilde çalıştırıldı: **200/200 yakalama**, ardından 50 planlı bellekten boşaltma döngüsünün **3. adımında pending-response koruması nedeniyle exit 1**. Son JSON oluşmadı. İlk iki boşaltma tamamlanmış olması veya 200 yakalama, tam kaynak bütçesinin geçtiği anlamına gelmez. Koruma/fixture zamanlaması ayrıştırılmadan bu sonuç yeni ürün bugı sayılmadı. Bilinen 11 before-quit dinleyici uyarısı tekrar gözlendi, yeni bug sayılmadı.
+
+Ana süreç **8 hata yeniden üretme iş akışını**, bunlardan ayrı **1 performans probunu** çalıştırdı. Native browser probunda altı davranış orijinal üretim scriptleriyle gerçek Windows Chromium üzerinde ve iki localhost origininde tekrarlandı; ana süreç ölçümleri ayrıca assertion ile kontrol etti. Ürün main/renderer'ın tüm UI zinciri için E2E kabulü iddia edilmez. Diğer kayıtlar gerçek modül/tüketici + kontrollü IPC, sağlayıcı, ASR, saat ve IO sınırlarına dayanır. [Tekrar kaydı](evidence815/extra/parent-verification.json), [ana süreç sonuçları](evidence815/extra/parent/browser-native-result.json).
+
+96 MiB sentetik paket yükünde **export 2448 ms**, export sonrasında Node RSS artışı **333479936 bayt (yaklaşık 318 MiB)** ölçüldü. Timer gecikmesi **3446 ms** olup export sonrasındaki doğrulama okumasını da içerir; yalnız export süresi veya gerçek Electron UI donması diye sunulmaz. Arşiv geri okunabildi. Bu ölçüm **performans önerisidir, bug/OOM/çökme sayılmadı**. [Ölçüm](evidence815/extra/root/backup-load-observations.json).
+
+Bu tur gerçek GPU modeli/sentezi veya ücretli API kullanılmadı; işlevsel kararlar için kontrollü sağlayıcı yeterliydi. Fiziksel dinleme, kişisel hesap/DRM, dış ağ paylaşımı ve tam npm/CI sonucu doğrulanmadı. Gerçek FFmpeg, Python ZIP çıkarımı ve yalnız sahip olunan test çocuğunun Windows terminate kontrolü yapıldı; kullanıcının uygulaması kapatılmadı.
+
+<a id="r815-b55"></a>
+
+### R815-B55 · P1 — Video paketinin geri yüklenmesi çıkarılan videoyu kataloğa bağlamıyor
+
+**Alt kanıt:** root / XROOT01; [yapılandırılmış kayıt](evidence815/extra/root/findings.json).
+
+**Kod:** `src/catalog-extensions.js:145`, `src/catalog-extensions.js:148`, `src/catalog-extensions.js:166`, `src/workspace-video-package.js:88`, `src/media-catalog-store.js:45`
+
+**Tekrar:** Gerçek kısa MP4 içeren geçerli kataloğu includeVideos ile dışa aktar. Boş ayrı profilde gerçek package-preview → package-apply zincirini çalıştır; yeniden açılış tüketicisi itemOf ile kaydı oku.
+
+**Beklenen:** Çıkarılan dosyanın yeni yerel yolu katalog kaynağına ve ilgili kayıt kimliklerine uygulanmalı; hazır video ilk açılışta erişilebilir olmalı.
+
+**Gözlenen:** Python ZIP çıkarımı 1 MP4 üretiyor; apply ok:true ve restart callback'i çalışıyor. Katalog source.value '{{VIDEO}}/videos/<hash>.mp4' olarak kalıyor; gerçek itemOf bu yolu yerel mutlak yol saymadığı için source:null döndürüyor.
+
+**Kök neden:** videoMappings dizisi extract() çağrısından önce kopyalanıyor. extract() sonradan data.videoMappings alanına güvenilir yolları yazıyor fakat restorePackage eski boş diziyi kullanıyor.
+
+**Etki:** Başarıyla taşındığı bildirilen videonun katalog bağlantısı kaybolur; çıkarılan medya diskte dururken kullanıcı yeniden dosya seçmek zorunda kalır. Film ve bölüm çeşitleri tek köktür.
+
+**Önceki kapsam:** R86-01 paket kaynaklarını takma kimliğe çevirdi; bu kayıt o gizlilik onarımını geri alınmış saymaz. Yeni sınır, extract tamamlanınca üretilen eşlemenin gerçek apply caller'ına geçmemesidir. Önceki R815-B01–B54'te yok.
+
+**Sınır:** Gerçek FFmpeg MP4, Python ZIP ve üretim apply/tüketici çalıştırıldı. Electron restart yerine kontrollü callback ve localStorage sınırı kullanıldı; kişisel medya/profil yok. Video baytları silinmedi.
+
+**Kabul ölçütü:** Film ve dizi bölümü içeren gerçek ZIP export→preview→apply→yeni store açılışında bütün çıkarılan source.value değerleri mevcut dosyalara gitmeli; takma kimlikler normal katalog tüketicisine kalmamalı. Eksik video açıkça ayrı gösterilmeli.
+
+**Kanıt dosyaları:** [workspace-probe.cjs](evidence815/extra/root/workspace-probe.cjs), [workspace-observations.json](evidence815/extra/root/workspace-observations.json).
+
+<a id="r815-b56"></a>
+
+### R815-B56 · P2 — POSIX kaynak kökü taşıma sihirbazında baştaki ayıracını kaybediyor ve seçilen eşleme uygulanmıyor
+
+**Alt kanıt:** root / XROOT02; [yapılandırılmış kayıt](evidence815/extra/root/findings.json).
+
+**Kod:** `src/workspace-package.js:298`, `src/workspace-package.js:312`, `src/workspace-package.js:314`, `src/catalog-extensions.js:135`, `src/renderer/media-catalog.js:513`
+
+**Tekrar:** Linux kaynağından gelen geçerli katalogda /mnt/previous/film/movie.mp4 bulunsun. Windows'ta önizlemenin sunduğu eksik kök için yeni yerel klasör seçip geri yükle.
+
+**Beklenen:** Sihirbazın sunduğu kök özgün yolun gerçek öneki olmalı ve seçilen klasör kaynak yoluna uygulanmalı.
+
+**Gözlenen:** missingLocalMedia kökü 'mnt/previous/film' döndürüyor; baştaki '/' yok. Bu köke bağlanan geçerli hedefle restorePackage çalışınca source.value hâlâ '/mnt/previous/film/movie.mp4'. Gerçek itemOf kaynak kaydını kabul ediyor. Aynı kök bölme işlemi UNC ayıraçlarını da düşürüyor; UNC örneği ayrı bug sayılmadı.
+
+**Kök neden:** split(/[\/]+/).filter(Boolean) kök bilgisini kaybediyor; yeniden join hacim/kök ayıracını geri koymuyor. rewrite ise doğru olarak tam önek aradığı için yanlış kökü eşleştirmiyor.
+
+**Etki:** Linux'tan Windows'a geçişte kullanıcı klasör eşlemesini seçmesine rağmen medya yolları eksik kalır. Her dosyayı yeniden bağlamak gerekir.
+
+**Önceki kapsam:** R388 madde25 proje taşıma özelliğinin açık kalan kök biçimi; mevcut drive-letter testi yeni keşif sayılmadı. Registry F38 ağırlıkla media-relink-matcher/store yollarıdır; bu sihirbazın POSIX kök üretimi farklı entegrasyon sınırıdır.
+
+**Sınır:** Geçerli POSIX katalog kaydı, üretim itemOf/missingLocalMedia/restorePackage ve Windows dosya sistemi kullanıldı. Gerçek Linux GUI oturumu açılmadı. UNC ağına bağlanılmadı; modern kataloğun UNC reddi nedeniyle o varyant ana kanıt yapılmadı.
+
+**Kabul ölçütü:** Drive-letter, POSIX ve açık desteklenen ağ yolu biçimlerinde üretilen kök özgün kaynağın sınır duyarlı öneki olmalı; Windows hedef seçimiyle doğru dosya yoluna dönüşmeli.
+
+**Kanıt dosyaları:** [workspace-probe.cjs](evidence815/extra/root/workspace-probe.cjs), [workspace-observations.json](evidence815/extra/root/workspace-observations.json).
+
+<a id="r815-b57"></a>
+
+### R815-B57 · P1 — Bozuk kaynak katalog otomatik yedeklemede başarı sayılıyor ve son sağlam yedek budanıyor
+
+**Alt kanıt:** root / XROOT03; [yapılandırılmış kayıt](evidence815/extra/root/findings.json).
+
+**Kod:** `src/workspace-package.js:104`, `src/workspace-package.js:105`, `src/media-tools-service.js:61`, `src/media-tools-service.js:63`, `src/media-tools-service.js:64`
+
+**Tekrar:** Önce geri okunabilen bir otomatik yedek oluştur. Sentetik katalog JSON'unu boz; gerçek kayıtlı günlük yedekleyiciyi kontrollü saatle 7 gün ilerleterek çalıştır. Kalan yedekleri readPackage ile geri oku.
+
+**Beklenen:** Geçersiz kaynak dosya yüzünden geri yüklenemeyecek arşiv sağlam yedek yerine geçmemeli; hata görünmeli ve son doğrulanmış yedek korunmalı.
+
+**Gözlenen:** exportPackage bozuk JSON parse hatasını yutup ham baytları paketliyor. Yedi günlük işlem de schedule.error='' ve güncellenmiş last ile başarı gösteriyor. Sonuçta 7 arşivin hiçbiri readPackage'ten geçmiyor; başlangıçtaki tek sağlam arşiv retention ile silinmiş.
+
+**Kök neden:** Export catch yalnız WP_DEPTH hatasını yeniden fırlatıyor. Normal SyntaxError yutuluyor; otomatik döngü paketi geri doğrulamadan 7 dosyalık retention uyguluyor ve başarı zamanını yazıyor.
+
+**Etki:** Disk/uygulama arızasından sonra otomatik yedekleme kurtarma sağlamak yerine son sağlam geri dönüş noktasını da tüketebilir. Elle export başarısı aynı kökün başka yüzeyidir, ayrı sayılmadı.
+
+**Önceki kapsam:** R357 derin JSON/WP_DEPTH onarımını koruyor; bu yeni doğrulama sıradan sözdizimi bozukluğu ve otomatik retention birleşimini sınar. R815-B09 okuma listesi indeksinin doğrudan ezilmesidir; burada arşiv geçerliliği ve sağlam yedek rotasyonu farklı köktür.
+
+**Sınır:** Üretim modülü VM içinde, yalnız saat ve timer kontrollü; export/read/retention gerçek sentetik dosyalarla çalıştı. Yedi gerçek gün beklenmedi, elektrik kesintisi veya kişisel dosya bozulması oluşturulmadı.
+
+**Kabul ölçütü:** Bozuk katalog/sohbet/not girdilerinde export açık hata veya bölümsel uyarı vermeli; geri okunamayan arşiv başarı sayılmamalı ve son doğrulanmış yedek retention dışında korunmalı.
+
+**Kanıt dosyaları:** [workspace-probe.cjs](evidence815/extra/root/workspace-probe.cjs), [workspace-observations.json](evidence815/extra/root/workspace-observations.json), [auto-backup-probe.cjs](evidence815/extra/root/auto-backup-probe.cjs), [auto-backup-observations.json](evidence815/extra/root/auto-backup-observations.json).
+
+<a id="r815-b58"></a>
+
+### R815-B58 · P1 — Çalışma paketi yalnız önizlenirken paket içindeki doğrulanmamış UNC yoluna dosya varlık sorgusu gönderiliyor
+
+**Alt kanıt:** root / XROOT04; [yapılandırılmış kayıt](evidence815/extra/root/findings.json).
+
+**Kod:** `src/catalog-extensions.js:120`, `src/catalog-extensions.js:127`, `src/workspace-package.js:174`, `src/workspace-package.js:307`, `src/workspace-package.js:324`
+
+**Tekrar:** Sentetik .wbp katalog kaydının local kaynağına UNC yolu koy. Gerçek package-preview zincirini, UNC fs.existsSync çağrılarını ağdan önce kaydeden/bloklayan kontrollü sınırla çalıştır; apply çağırma.
+
+**Beklenen:** Önizleme paket içindeki doğrulanmamış uzak dosya yollarına otomatik erişmemeli. Katalog normalizasyonunun reddettiği yol, eksik medya taramasına ham biçimde geçmemeli.
+
+**Gözlenen:** Paket doğrulaması ve preview ok:true; apply yapılmadan fs.existsSync('\\audit.invalid\private-share\movie.mp4') çağrısı kaydedildi. Aynı sourceOf gerçek katalog tüketicisinde null olarak reddediliyor. validate, itemOf sonucunu atıp ham kaydı kullanmayı sürdürüyor.
+
+**Kök neden:** Paket önizlemesi ham files içindeki source.value üzerinde missingLocalMedia çağırıyor. looksLikeLocalMediaPath UNC'yi yerel medya gibi kabul ediyor ve kullanıcı eşlemesi/restore onayından önce existsFn(value) çalıştırıyor.
+
+**Etki:** Windows dosya API'si ağ paylaşımına erişmeye çalışabilir; beklenmeyen giden SMB ve bekleme riski vardır. Kimlik doğrulama politikası izin veriyorsa NTLM isteği riski de doğar. Bu tur kimlik sızıntısı veya başarılı bağlantı gösterilmedi.
+
+**Önceki kapsam:** R30 B45 katalog/nMDB tüketicisi UNC reddini, R198 history:authorizeFiles imported korumasını kapatmıştı. Onlar kaldırılmış sayılmaz: yeni kaçak sink R388'de eklenen package-preview/missingLocalMedia ön taramasıdır. Registry F48/F50 eski IPC/depo kontrolleriyle aynı test diye sayılmadı.
+
+**Sınır:** Bütün UNC dosya sorguları intercept edilerek false döndürüldü; DNS/SMB/NTLM işlemi veya gerçek ağ hedefi kullanılmadı. Kanıt, üretim preview yolunun yasaklanması gereken çağrıyı yapmasıdır; işletim sistemi politikası sonucu çıkarım olarak ayrı tutulur.
+
+**Kabul ölçütü:** Paket önizleme/metadata/kapsam taramasında UNC, device-UNC ve ağ yolu varyantları hiçbir dosya varlık/stat/açma API'sine ulaşmamalı; yalnız kullanıcı tarafından doğrulanmış yerel eşleme veya açık yetkili açma akışı erişim vermeli.
+
+**Kanıt dosyaları:** [package-preview-network-probe.cjs](evidence815/extra/root/package-preview-network-probe.cjs), [package-preview-network-observations.json](evidence815/extra/root/package-preview-network-observations.json).
+
+<a id="r815-b59"></a>
+
+### R815-B59 · P2 — Var olan hosta sonradan eklenen açık shadow root içindeki video keşfedilmiyor
+
+**Alt kanıt:** browser / EX-BR01; [yapılandırılmış kayıt](evidence815/extra/browser/findings.json).
+
+**Kod:** `src/browser-media-controller.js:264`, `src/browser-media-controller.js:284`, `src/browser-media-controller.js:407`
+
+**Tekrar:** Boş, bağlı div host bulunan yerel sayfada buildBrowserMediaProbeScript çalıştır; host.attachShadow({mode:open}) ile video ekle; ikinci probe çalıştır.
+
+**Beklenen:** Yeni açık shadow root içindeki oynatıcı keşfedilmeli; kontrol/altyazı araçları sayfayı yeniden yükleme gerektirmemeli.
+
+**Gözlenen:** Shadow DOM içinde 1 video olmasına rağmen önceki ve sonraki probe null döndü.
+
+**Kök neden:** Document MutationObserver shadow root yaratılmasını görmüyor; rootun kendi observerı kurulamadığı için içerideki video eklenmesi de görülmüyor. select yalnız observer kotası aşılırsa yeniden scan yapıyor.
+
+**Etki:** Geç kurulan web component oynatıcılarında oynat/duraklat, seek ve medya karesi işlemleri erişilemez kalır.
+
+**Gerçek tüketici:** main browser:command satır16218 tüm karelere bu probe scriptini gönderir; hiç aday yoksa komut Sayfada kontrol edilebilen video bulunamadı ile biter. browser:capturePage video modu da aynı probu kullanır.
+
+**Önceki kapsam:** Önceki54te yok. R648 bridge shadow smoke başlangıçta var olan/açılışta eklenen rootları kapsıyor; bu geç attach sınırı ayrı.
+
+**Sınır:** Gerçek Windows Chromium DOM ve orijinal script. Açık root test edildi; kapalı root destek iddiası yok. Üst belgeye host yeniden eklenmesi gibi başka mutationlar tesadüfen kurtarabilir.
+
+**Native/modül sonucu:** [native-result.json](evidence815/extra/browser/native-result.json).
+
+<a id="r815-b60"></a>
+
+### R815-B60 · P2 — CSS visibility:hidden büyük video görünür oynatıcıdan önce seçiliyor
+
+**Alt kanıt:** browser / EX-BR02; [yapılandırılmış kayıt](evidence815/extra/browser/findings.json).
+
+**Kod:** `src/browser-media-selection.js:3`, `src/browser-media-controller.js:407`, `src/browser-media-controller.js:631`
+
+**Tekrar:** Aynı sayfada görünür küçük video ve visibility:hidden büyük video oluştur; ikisine aynı sentetik medya kaynağını yükle; probe ve loop komutu gönder.
+
+**Beklenen:** Görünür kullanılabilir medya, CSS ile saklanan medyadan önce seçilmeli.
+
+**Gözlenen:** Hidden video area320000 ile seçildi; visible.loop=false, hidden.loop=true oldu.
+
+**Kök neden:** Rank yalnız clientWidth×clientHeight, paused, muted ve readyState okuyor. visibility:hidden, opacity ve viewport görünürlüğü sıralama girdisine alınmıyor.
+
+**Etki:** Önizleme/sayfa arkaplanı gibi gizli büyük medya bulunduğunda genel oynatma komutları görünür filmi kontrol etmez; capture/OCR yanlış alanı hedefleyebilir.
+
+**Gerçek tüketici:** browser:command probe→rankBrowserMediaCandidates→buildBrowserMediaCommandScript; sayfa içi controller.select aynı compareMedia kullanır. Sağtık menüsüne özel değildir.
+
+**Önceki kapsam:** R815-B28 sağtık hedefinin kaybolmasıydı. Burada genel araç komutu ve farklı kök olan görünürlük sıralaması söz konusu. R46daki ASS seçicisinin farklı opacity sorunu bu controller değildir.
+
+**Sınır:** Gerçek DOM ve metadata yüklü sentetik medya; fiziksel video görüntüsü/ses dinlemesi yapılmadı. display:none durumuna genellenmedi.
+
+**Native/modül sonucu:** [native-result.json](evidence815/extra/browser/native-result.json).
+
+<a id="r815-b61"></a>
+
+### R815-B61 · P2 — Aynı belgede oynatıcı değişince eski docToken yeni medya üzerinde komuta izin veriyor
+
+**Alt kanıt:** browser / EX-BR03; [yapılandırılmış kayıt](evidence815/extra/browser/findings.json).
+
+**Kod:** `src/browser-media-controller.js:609`, `src/browser-media-controller.js:628`, `src/browser-media-controller.js:631`, `src/main.js:16218`
+
+**Tekrar:** Orijinal video için probe docToken al; aynı document içinde videoyu başka elementle değiştir; MutationObserver turundan sonra eski token ile loop komutu çalıştır.
+
+**Beklenen:** Probe ile mutasyon arasındaki hedef medya değişimi reddedilmeli veya kullanıcı eylemi yeni medyaya taşınmadan önce yeniden doğrulanmalı.
+
+**Gözlenen:** Komut handled:true döndü ve replacement video loop=true oldu.
+
+**Kök neden:** docToken controller/window ömrüne bağlı. Token eşleşmesinden sonra controller.select yeniden en iyi öğeyi seçiyor; probun seçtiği HTMLMediaElement kimliği veya src revizyonu taşınmıyor.
+
+**Etki:** SPA bölüm/reklam geçişinde eski oynatıcı için başlatılmış seek/pause/loop komutu yeni oynatıcıya uygulanabilir.
+
+**Gerçek tüketici:** main browser:command satır16218–16242 her kareden probe bekledikten sonra candidate.media.docTokenı komut scriptine verir. Bekleme sırasında aynı-belge medya değişebilir; main tab generation/URL guardı henüz değişmemiş olabilir.
+
+**Önceki kapsam:** Önceki54te yok. R815-B18 export dialog belge değişimiyle farklı; burada belge aynı ve eski docToken doğru görünmesine rağmen medya nesnesi değişiyor.
+
+**Sınır:** Ürün command/probe scriptleri native Chromiumda çalıştı; tam uygulamada değişimin main pollingden önceki dar zamanlaması ayrıca yürütülmedi. Her SPA geçişi için garanti iddiası yok.
+
+**Native/modül sonucu:** [native-result.json](evidence815/extra/browser/native-result.json).
+
+<a id="r815-b62"></a>
+
+### R815-B62 · P2 — Dublaj hız geçersiz kılma kaydı aynı video elementinin yeni kaynağına taşınıyor
+
+**Alt kanıt:** browser / EX-BR04; [yapılandırılmış kayıt](evidence815/extra/browser/findings.json).
+
+**Kod:** `src/browser-media-controller.js:199`, `src/browser-media-controller.js:475`, `src/browser-media-controller.js:483`, `src/main.js:18255`
+
+**Tekrar:** Orijinal dub-rate scriptiyle video playbackRate .5/baseRate1 yap; aynı elementin srcsini yeni medyaya değiştir; loadstart/loadedmetadata sonrası hızı ölç.
+
+**Beklenen:** Kaynağa ait geçici dublaj hız düzeltmesi başka srcye geçince serbest bırakılmalı; yeni kaynak temel hızdan başlamalı.
+
+**Gözlenen:** Yeni currentSrc yüklendiği halde playbackRate .5 kaldı.
+
+**Kök neden:** setDubRate state.source alanını kaydediyor ama applyPlaybackPreference dub kaydını kaynakla karşılaştırmadan tekrar uygular. loadstart/loadedmetadata reapply bunu sürdürüyor.
+
+**Etki:** Aynı video elementini yeniden kullanan sayfalarda yeni bölüm, reklam veya fragman önceki dublaj hızını 3 saniyeye kadar devralır; sonraki yenilemeler pencereyi uzatabilir.
+
+**Gerçek tüketici:** Gerçek dub:rate servisi main18255te buildBrowserMediaCommandScript(dub-rate) kullanır. dubRateTargets cached frame/docTokenı da aynı belge içinde korur.
+
+**Önceki kapsam:** Önceki54te yok. EX-BR03 element replacement anındaki komut hedeflemesi; bu farklı kök aynı element üzerinde zaten tutulmuş geçici rate state/source ömrüdür.
+
+**Sınır:** Ölçüm yeni kaynak yüklenmesinden100ms sonra yapıldı; kalıcı hız bozukluğu iddia edilmiyor, yerel3sn TTL var. Gerçek GPU dublaj üretimi kullanılmadı.
+
+**Native/modül sonucu:** [native-result.json](evidence815/extra/browser/native-result.json).
+
+<a id="r815-b63"></a>
+
+### R815-B63 · P1 — Normalizasyon kurulmuş medya CORS izinsiz kaynağa geçince normal oynarken sessiz kalıyor
+
+**Alt kanıt:** browser / EX-BR05; [yapılandırılmış kayıt](evidence815/extra/browser/findings.json).
+
+**Kod:** `src/browser-media-controller.js:100`, `src/browser-media-controller.js:114`, `src/browser-media-controller.js:120`, `src/browser-media-controller.js:133`
+
+**Tekrar:** Bir localhost origininde aynı-origin PCM WAV audio yükle; orijinal media-preference normalizeAudio:true uygula; aynı elementi ikinci localhost portundaki Access-Control-Allow-Origin içermeyen WAVa geçir; source nodea ölçüm analyserını yeniden bağlayıp dalga tepe değerini ölç.
+
+**Beklenen:** Normalizasyon özelliği normal HTML medya oynatımını sessizliğe çevirmemeli; desteklenmeyen kaynak geçişinde güvenli yeniden kurulum veya görünür durum/geri dönüş olmalı.
+
+**Gözlenen:** Aynı-origin peak .36622065; kaynak değişiminden sonra peak0. Yeni medya readyState4, pausedfalse ve zaman .35sn ilerliyor; graph1.
+
+**Kök neden:** İlk aynı-origin kaynak için MediaElementAudioSourceNode kuruluyor. Sonraki CORSsuz kaynağı audioGraphAllowed reddetse de graph.source doğrudan destinationa bağlanıyor. Bu node artık spesifikasyona göre sıfır çıkarıyor; direct-connect onu doğal HTML çıkışına geri döndürmüyor.
+
+**Etki:** CDN/kaynak değiştiren gerçek oynatıcılarda video/ses zamanı ilerlerken kullanıcı ses alamaz. Kontrol panelinde sessizlik/bozuk durum nedeni görünmez.
+
+**Gerçek tüketici:** Play/seek/loadstart/loadedmetadata eventleri applyPlaybackPreference→applyAudioPreference çağırır. Browser genel/site normalizeAudio tercihi orijinal buildBrowserMediaPreferenceScript üzerinden kurulur.
+
+**Önceki kapsam:** R87 R78-08b başlangıçtan cross-origin medyada graph kurmama kararını tasarlanmış saymıştı. Bu yeni geçişte graph zaten var; guard yeterli olmuyor. Önceki54te yok.
+
+**Sınır:** Fiziksel hoparlör dinlemesi yerine native AudioContext dalga ölçümü. İlk ölçüm bağlantısının fallbackte kopabileceği karşı denetimde fark edilip son koşuda CORS geçişinden sonra source→analyser yeniden bağlandı; sonuç yine0. CORS politikası aşılmadı.
+
+**Native/modül sonucu:** [native-result.json](evidence815/extra/browser/native-result.json).
+
+<a id="r815-b64"></a>
+
+### R815-B64 · P2 — Çapraz-origin karelerin bağlantı etiketleri aynı kısayolu kullanıyor ve seçimden sonra diğer katman kalıyor
+
+**Alt kanıt:** browser / EX-BR06; [yapılandırılmış kayıt](evidence815/extra/browser/findings.json).
+
+**Kod:** `src/browser-link-hints.js:26`, `src/browser-link-hints.js:72`, `src/browser-link-hints.js:121`, `src/main.js:16194`
+
+**Tekrar:** İki localhost portuyla top sayfaya bir button ve çapraz-origin iframe içine ikinci button koy; mainin yaptığı gibi her frame üzerinde orijinal link-hints scriptini çalıştır; top documentta A tuşu gönder.
+
+**Beklenen:** Sayfa genelindeki görünen etiketler tekil/eylem hedefi açık olmalı; seçim bittiğinde bütün frame katmanları birlikte kapanmalı.
+
+**Gözlenen:** Top ve child aynı A etiketini gösterdi. A top buttonı tıkladı (1), child tıklaması0; child etiket katmanı kaldı.
+
+**Kök neden:** Cross-origin frame kendi bağımsız instance/kod alanını başlatır. Ana süreç tüm framelere aynı başlangıç algoritmasını gönderir. Activate yalnız yerel cleanup yapar; Escape için eklenen broadcastCleanup seçim yolunda kullanılmaz.
+
+**Etki:** Kullanıcı iframe içinde gördüğü A etiketini yazsa da topframe A eylemi tetiklenebilir. Seçimden kalan etiketler sonraki yazmayı yakalayabilir ve etiket modu bitmiş görünümünü bozabilir.
+
+**Gerçek tüketici:** browser:command link-hints main16194 tüm browserFrames üzerinde buildBrowserLinkHintsScript çalıştırıyor. Probe iki gerçek Chromium frameinde aynı scripti çalıştırdı.
+
+**Önceki kapsam:** R83 B83-11/R85 ESC frame cleanup şüphesiydi, güncel kod ESC broadcast içeriyor. Bu yeni test Escape değil, görünür kod çakışması ve başarılı activate sonrası diğer katmanın kalması. Önceki54te yok.
+
+**Sınır:** Tuş native Chromium document KeyboardEventiyle topa yöneltildi; fiziksel klavye odağının bütün varyantları test edilmedi. Same-origin frame delegation bu sorundan farklı ve gizli same-origin iframe negativecheck düzgünce tek etiket verdi.
+
+**Native/modül sonucu:** [native-result.json](evidence815/extra/browser/native-result.json).
+
+<a id="r815-b65"></a>
+
+### R815-B65 · P2 — Genel web akışlarının altyazı tercihi stream kimliğini kaybedip aynı sayfanın başka videosuyla birleşiyor
+
+**Alt kanıt:** browser / EX-BR07; [yapılandırılmış kayıt](evidence815/extra/browser/findings.json).
+
+**Kod:** `src/browser-subtitle-preferences.js:47`, `src/browser-subtitle-preferences.js:49`, `src/browser-session-store.js:197`, `src/main.js:6387`, `src/main.js:16559`
+
+**Tekrar:** canonicalMediaIdentity ile generic watch sayfasının web:url kimliğini üret; deriveStreamMediaIdentity ile A/B manifestleri için iki streamId oluştur; BrowserSubtitlePreferences.put ile herbirine farklı iz seç; get(streamId) ve yeniden yükleme yap.
+
+**Beklenen:** Tercih yazım ve lookupı aynı canonical stream kimliğini kullanmalı; aynı sayfanın farklı videosu kendi altyazı/senkron seçimini korumalı.
+
+**Gözlenen:** İki farklı streamId tek base web:url anahtarına indirildi. Diskte yalnız Bnin tercihi kaldı; get(A)=null,get(B)=null; yeniden yüklemede de A yok.
+
+**Kök neden:** Preferences.put normalizeSessionTabı çağırır. normalizeSessionTab mediaId içinde :url: varsa persistedParts türetmez ve URLden yalnız base kimliği yeniden üretir. Main ise put/get için streamMediaId kullanıyor.
+
+**Etki:** Genel sayfalarda bölüm değiştirip dönünce seçilen kaynak/çeviri izleri ve senkron kayıtları hatırlanmaz; aynı watch URL altındaki başka video önceki tercihin üstüne yazar.
+
+**Gerçek tüketici:** main16559 browser:session:updateTab put({mediaId:tab.streamMediaId||tab.mediaId}) yapıyor; main6387 restore get(tab.streamMediaId||tab.mediaId) arıyor.
+
+**Önceki kapsam:** Önceki54te yok; R815-B49 pinned notların generic sayfa kimliği karışması başka depo/çağrı yoludur.
+
+**Sınır:** Orijinal Node modülü; canlı site/profil değiştirilmedi. YouTube service:id stream kimliği counterchecki korunuyor; bulgu generic web:url tabanı ve benzeri URL kimliklerine özgü.
+
+**Native/modül sonucu:** [prefs-result.json](evidence815/extra/browser/prefs-result.json).
+
+<a id="r815-b66"></a>
+
+### R815-B66 · P2 — Geçerli WebVTT cue gövdesindeki NOTE/STYLE/REGION konuşması siliniyor
+
+**Alt kanıt:** backend / XB01; [yapılandırılmış kayıt](evidence815/extra/backend/findings.json).
+
+**Kod:** backend/transcribe.py:9699
+
+**Yöntem:** Gerçek translate_existing_subtitle ve VTT parser; sağlayıcı çağrısı gerekmez.
+
+**Tekrar:** Geçerli VTT zaman satırının altına NOTE this is spoken dialogue. yaz; aynı dil EN→EN çevirisini başlat. STYLE/REGION ayrı negatif çeşitlerdir.
+
+**Beklenen:** Metaveri yalnız yeni NOTE/STYLE/REGION blok başlığında tanınmalı; zaman satırından sonraki cue gövdesi metindir.
+
+**Gözlenen:** parse_subtitle_entries=[]; gerçek dosya işi Altyazi okunamadi veya bos hatası verir. A spoken note. kontrolü bir cue olarak kalır.
+
+**Etki ve kök:** Altyazı satırları sessiz kaybolur; tek cue dosyası bütünüyle kullanılamaz. Kök: paragraf filtresini mevcut cue gövdesine de uygulama.
+
+**Önceki kapsam:** R815-B35/B39/B40 farklı ASS çizimi, entity provenance ve inline timestamp mekanizmalarıdır; bu yeni metadata/body sınırıdır. F18 N0341–0360 ile aile örtüşür.
+
+**Sınır:** Native UI/model kalitesi değil; geçerli dosyadan gerçek backend hata yolu.
+
+**Sonuç:** [observations.json](evidence815/extra/backend/observations.json).
+
+<a id="r815-b67"></a>
+
+### R815-B67 · P2 — Altyazı referans hizalamasında örtüşen cue katmanları güven puanını şişiriyor
+
+**Alt kanıt:** backend / XB04; [yapılandırılmış kayıt](evidence815/extra/backend/findings.json).
+
+**Kod:** backend/browser_align.py:53
+
+**Yöntem:** Gerçek browser_align.align, gerçek srt/ffsubsync parser; ffsubsync çıktısı kontrollü.
+
+**Tekrar:** Dört zaman bölgesinde aynı ilk3sn boyunca iki geçerli eşzamanlı referans cue; her bölgede10sn hedef cue. Kontrollü hizalama hedefi bu10sn pencerelere getirir.
+
+**Beklenen:** Aynı referans saniyesi bir hedef cue için bir kez sayılmalı; .3 örtüşme .45 medium eşiğini geçmemeli.
+
+**Gözlenen:** overlapBefore=0, overlapAfter=.6, confidence=medium. Gerçek referans zaman birleşimi yalnız .3 hedef kapsamına sahiptir.
+
+**Etki ve kök:** Kullanıcı zayıf eşlemeyi orta güvenli sanabilir. Kök: referans aralıklarının birleşimi yerine her örtüşmenin ayrı toplanması.
+
+**Önceki kapsam:** R815-B42 checkpoint diarization kaybından farklıdır. F18/F41 benzeri senkron ailelerinin genel dönüşüm kayıtları mevcut; bu çift katmanlı güven metriği yeni tetikleyicidir.
+
+**Sınır:** autoApply=False korunur; yanlış hizalamanın otomatik uygulandığı veya gerçek ffsubsync modelinin bu sonucu ürettiği iddia edilmez.
+
+**Sonuç:** [observations.json](evidence815/extra/backend/observations.json).
+
+<a id="r815-b68"></a>
+
+### R815-B68 · P2 — Doğru milyar değerleri ASR doğrulamasında sayı kaybı/ekleme diye reddediliyor
+
+**Alt kanıt:** backend / XB05; [yapılandırılmış kayıt](evidence815/extra/backend/findings.json).
+
+**Kod:** tools/voxcpm2/dub_quality.py:74
+
+**Yöntem:** Gerçek SpeechVerifier.check sınıfı ve generation_status; kontrollü ASR yanıtı.
+
+**Tekrar:** Beklenen Dünya nüfusu sekiz milyar insanı geçti.; tanınan Dünya nüfusu 8 milyar insanı geçti.; numericReference doğru8milyar.
+
+**Beklenen:** Sekiz milyar ile8milyar aynı miktar olarak karşılaştırılmalı; yanlış9milyar ayrı kalmalı.
+
+**Gözlenen:** Review; similarity=.7273, missing_numbers=[8], added_numbers=[8000000000]. Doğru50bin kontrolü review=False; yanlış9milyar review=True.
+
+**Etki ve kök:** Doğru uzun belgesel/ekonomi cümlesi gereksiz sentez/ASR tekrarına ve manuel incelemeye düşer. Kök: mixed_number milyarı rakama açıyor, spoken_text/integer_words üst sınırı1milyarın altı; iki normalizasyon yönü tutarsız.
+
+**Önceki kapsam:** R815-B37/B38 yanlış isim/miktar sahipliği için yanlış kabul mekanizmalarıdır; bu doğru büyük miktarın yanlış ret mekanizması. test_dub_grouped_numbers yalnız50bin/1milyon kapsar; F25 aile örtüşmesi.
+
+**Sınır:** Kontrollü ASR transportu; canlı motorun nasıl ses ürettiği veya milyarı nasıl döktüğü iddia edilmez.
+
+**Sonuç:** [observations.json](evidence815/extra/backend/observations.json).
+
+<a id="r815-b69"></a>
+
+### R815-B69 · P2 — Senkron işi ortak iptal/geçici dosya yaşam döngüsüne katılmadığı için ses kalıntısı bırakıyor
+
+**Alt kanıt:** backend / XB06; [yapılandırılmış kayıt](evidence815/extra/backend/findings.json).
+
+**Kod:** backend/transcribe.py:10253
+
+**Yöntem:** Gerçek FFmpeg PCM çıkarımı; native Windows child process terminate; sentetik4sn WAV. Ek kooperatif iptal kontrolü gerçek pipeline controller ile.
+
+**Tekrar:** WHISPER_JOB_TEMP_DIR ve WHISPER_CANCEL_FILE vererek sync_subtitles çalıştır; gerçek ses çıkarımı sonrasında iptal et/çocuğu sonlandır.
+
+**Beklenen:** Scratch main-owned iş kökü içinde olmalı ve extract sonrasındaki hesaplama/yazım iptal checkpointlerine katılmalı.
+
+**Gözlenen:** 128078bayt audio.wav, main-owned klasörü dışında system-temp/whisper_sync_* altında kalır. Normal tamamlanışta scratch temizlenir. Çıkarımdan hemen sonra gerçek controller markerı oluşturulan ayrı koşu yine done ve synced.srt yazar.
+
+**Etki ve kök:** Büyük/tekrarlı iptallerde tam medya PCM sesi disk tüketir ve iş temizliği bu sesi kaldıramaz; iptal sonrası final de yazılabilir. Kök: sync alt modunun ham tempfile.mkdtemp ve eksik stage checkpointleriyle ortak job protokolünden ayrılması.
+
+**Önceki kapsam:** Önceki54 içinde yok. R815-B42 resume diarization başka downstream ses kapsamı sorunudur. F16/F41 senkron/iptal aileleriyle ilişkili; pipeline_control.job_temp_directory doğru kontrol örneğidir.
+
+**Sınır:** Yalnız sentetik128KB ses; kişisel medya yok. Tüm gerçek kullanıcı uygulamasının iptal edildiği iddia edilmez; sahip olunan test child öldürüldü. İki gözlem tek yaşam döngüsü kökü sayıldı.
+
+**Sonuç:** [observations.json](evidence815/extra/backend/observations.json) · [sync-observations.json](evidence815/extra/backend/sync-observations.json).
+
+<a id="r815-b70"></a>
+
+### R815-B70 · P1 — Dizi kanon hafızası sonradan oluşunca exact çeviri cache eski terminolojiyi geri getiriyor
+
+**Alt kanıt:** backend / XB07; [yapılandırılmış kayıt](evidence815/extra/backend/findings.json).
+
+**Kod:** backend/transcribe.py:4125
+
+**Yöntem:** Gerçek llm_translate, SeriesMemory dosya kilidi/atomik kayıt ve exact cache; kontrollü OpenAI sağlayıcı.
+
+**Tekrar:** Önce Synthetic_Show.S01E02 içinde The captain is nearby.→Kaptan yakınlarda. çevirisini cachele. Sonra öncekiS01E01 kanon kararını captain=Reis olarak gerçek SeriesMemory.merge ile kaydet. S01E02yi yeniden çevir.
+
+**Beklenen:** Modele verilen kanon bağlamı değişince exact cache ve fuzzy scope bu yeni kanon kimliğini ayırmalı.
+
+**Gözlenen:** Yeni prompt hint captain=Reis içerir; ikinci iş0sağlayıcı çağrısıyla Kaptan yakınlarda. getirir. Cache kapalı1çağrı kontrolü Reis yakınlarda. döndürür.
+
+**Etki ve kök:** Bölümler sıra dışı çevrildiğinde sonradan edinilen seri tutarlılığı önceki cache tarafından etkisizleştirilir. Kök: system_prompta series_hint ekleniyor ama translate_cache_key çağrısına veya tm_scopea kimliği taşınmıyor.
+
+**Önceki kapsam:** R815-B41de exact key kullanıcı sahne notunu doğru ayırırken TM fallback yanlış kullanıyordu; burada yeni tetikleyici sonradan oluşan önceki bölüm kanonu ve ilk exact cache katmanı, notlar hiç değişmiyor. F12 N0221–0240 cache ailesiyle ilişkili.
+
+**Sınır:** Ücretli API kullanılmadı. Kanonun dil kalitesi değil, gerçek dosya/cache invalidation davranışı kanıtlandı.
+
+**Sonuç:** [observations.json](evidence815/extra/backend/observations.json).
+
+<a id="r815-b71"></a>
+
+### R815-B71 · P2 — Yorum isteği kimlik çözümlemesindeyken verilen durdurma kayboluyor
+
+**Alt kanıt:** assistant / E01; [yapılandırılmış kayıt](evidence815/extra/assistant/findings.json).
+
+**Konum:** `src/media-tools-service.js:71–79,134,136–147`; `src/renderer/review-decision-ui.js:32,45,69–74`.
+
+**Tekrar:** Keşfet yapımından açık yorum sayfası getirmeyi başlat; discovery kimliğinin uzak metaveri çözümü beklesin. Bu sırada Okumayı durdur veya pencereyi kapat. Kimlik yanıtı sonradan gelsin. UI durdururken geçerli fetchRequest kimliğiyle reviews-stop gönderir.
+
+**Beklenen:** Durdurulmuş istek kimlik çözümü sonrasında indirme başlatmamalı; sonraki görevleri meşgul etmemeli.
+
+**Gözlenen:** reviews-stop `jobs.get(id)?.abort()` çağırıp başarı döner; jobs kaydı ancak await reviewItem sonrasında kurulmaktadır. Probda durdurma onayından sonra bir ağ isteği başladı ve eski iş `ok:true` tamamlandı. Renderer geç yanıtı atsa da ana süreçteki iş durmamıştır.
+
+**Etki:** Kapatılmış isteğin kaynak tüketimi sürer; jobs.size kontrolü nedeniyle yeni yorum isteklerini de bloke edebilir. Son sonuç UI'a uygulandı iddiası yoktur.
+
+**Kanıt/sınır:** Gerçek registerMediaTools handler'ı; geciktirilmiş resolveDiscovery ve kontrollü HTML Response. Canlı Letterboxd veya model kullanılmadı. Önceki R815-B44/B46/B54 geç UI açılışıyla ilgilidir; burada ayrı ana süreç iptal/kayıt sırası vardır.
+
+<a id="r815-b72"></a>
+
+### R815-B72 · P2 — IMDb eşleşmesi değişmiş eski yorum analizi yeni kimliğe kaydedilip güncel gösteriliyor
+
+**Alt kanıt:** assistant / E02; [yapılandırılmış kayıt](evidence815/extra/assistant/findings.json).
+
+**Konum:** `src/media-tools-service.js:153–157`; `src/renderer/review-decision-ui.js:54,116–118`.
+
+**Tekrar:** IMDb ile tanımlı, TMDB eşleşmesi olmayan bir yapım için analiz al. Başlık/yıl aynı kalırken yanlış IMDb kimliği düzeltilsin. Önceki analizi eski itemIdentity ile kaydet ve kayıtlı analiz bölümünü aç.
+
+**Beklenen:** Kimlik değişimi reddedilmeli veya önceki eşleşme olarak açıkça ayrılmalı.
+
+**Gözlenen:** decision-save yalnız kind/title/year/tmdbId kontrol ediyor; eski `tt1234567` ile güncel `tt7654321` farkını kabul ediyor. Diskteki history.identity IMDb alanını da saklamıyor. Gerçek renderer tarihçe tüketicisi eski analizi `Earlier match` uyarısı olmadan güncel kayıt olarak çizdi.
+
+**Etki:** Kullanıcının doğrulanmış analiz kaydı başka filme bağlanıyor; sonraki oturumda kaydın yanlış eşleşmeye ait olduğunu ayıran kimlik kanıtı yok.
+
+**Kanıt/sınır:** Gerçek servis, gerçek sentetik disk JSON'u ve tam review-decision-ui tüketicisi. IMDb düzenlemesi geçerli katalog davranışıdır; bozuk kimlik girdisi kullanılmadı. Kimlik değişiminin gerçek native modal etkileşimi bu tur sınanmadı. R542/R540'ın film eşleşmesi korumalarında bulunmayan IMDb alanı sınırıdır; R815-B48 JSON ayrıştırma hatasından farklıdır.
+
+<a id="r815-b73"></a>
+
+### R815-B73 · P1 — Yapım yüklenirken dil değişimi eski başlığı gösterip yeni kaydı değiştiriyor
+
+**Alt kanıt:** assistant / E03; [yapılandırılmış kayıt](evidence815/extra/assistant/findings.json).
+
+**Konum:** `src/renderer/media-title.js:6,36–39,59,80–87`.
+
+**Tekrar:** A ayrıntısını aç; ardından B ayrıntısını açarken katalog liste yanıtını geciktir. Yanıt beklerken EN/TR dilini değiştir. Sonra B yanıtını döndür ve Favorilere ekle düğmesine bas.
+
+**Beklenen:** B yüklenene kadar yükleniyor durumu korunmalı; A'nın görünür düğmeleri B üzerinde çalışmamalı.
+
+**Gözlenen:** open(B) selected=B yaparken küresel item hâlâ A'dır. Locale olayı `draw(++generation)` ile A'yı yeni dialog'a çizer ve bekleyen B yanıtını generation kontrolüyle geçersiz kılar. Yanıt geldikten sonra başlık A kalır; görünür A favori düğmesi `{id:'B',favorite:...}` gönderir.
+
+**Etki:** Kullanıcı gördüğü yapımdan farklı bir kaydı değiştirebilir. Bekleyen B yanıtının gelmesi görünümü kendiliğinden düzeltmez.
+
+**Kanıt/sınır:** Değiştirilmemiş tam media-title.js; gerçek locale olayı, gecikmeli IPC ve gerçek düğme callback'i. Native görsel kabul yapılmadı. R815-B54 kitap açılış sırasından farklı bileşen/kök; burada eski item, yeni selected ve locale generation birleşimidir.
+
+<a id="r815-b74"></a>
+
+### R815-B74 · P2 — Sürekli gelen asistan metni ara kayda yazılmıyor, kapanışta bütünüyle kaybolabiliyor
+
+**Alt kanıt:** assistant / E04; [yapılandırılmış kayıt](evidence815/extra/assistant/findings.json).
+
+**Konum:** `src/renderer/assistant-workspace.js:32–36,72,107`; kapanış tüketicisi `src/main.js:15066–15128`.
+
+**Tekrar:** Yeni bir asistan cevabı akarken her bir saniyeden kısa aralıkta delta almaya devam et; cevap tamamlanmadan pencereyi kapat.
+
+**Beklenen:** Uzun yanıtın alınan kısmı belirli aralıklarla kalıcı olmalı veya kapanışta son metin flush edilmeli.
+
+**Gözlenen:** partial her deltada aynı bir saniyelik zamanlayıcıyı sıfırlar. Sürekli akışta ara kayıt hiç çalışmaz; pagehide zamanlayıcıyı temizleyip kaydetmez. Prob 200 partial çağrısı sonrası bellekte `Received continuous response 200` varken gerçek assistant-conversations.json cevabının hâlâ boş/streaming olduğunu doğruladı. Ana pencere kapanışı browser/session/watch yazımlarını beklerken asistan arşivi için flush istemiyor.
+
+**Etki:** Uzun cevabın tüm alınmış kısmı, yalnız son saniyesi değil, kaybolabilir; tekrar sağlayıcı çağrısı gerekebilir. Sonraki yüklemede streaming→stopped dönüşümü metni geri getirmez.
+
+**Kanıt/sınır:** Tam workspace modülü ve gerçek assistant-thread-store/disk. Deterministik timer sınırı kullanıldı; normal Windows kapanışı canlı asistanla uçtan uca yeniden oynatılmadı. R531'in yarım kaydı stopped gösterme davranışını geri alınmış saymıyoruz; eksik olan metnin periyodik/kapanış kalıcılığıdır. R815-B47 silme onayıyla ilgisizdir.
+
+<a id="r815-b75"></a>
+
+### R815-B75 · P1 — Açık olumsuz watchlist isteği doğrudan ekleme işlemi yapıyor
+
+**Alt kanıt:** assistant / E05; [yapılandırılmış kayıt](evidence815/extra/assistant/findings.json).
+
+**Konum:** `src/assistant-media-command.js:6–7`; `src/renderer/assistant-media-commands.js:9–23`; `src/renderer/renderer.js:20010–20032`.
+
+**Tekrar:** Geçerli bir kütüphane yapımı seçiliyken asistana `Never add this to my watchlist.` gönder.
+
+**Beklenen:** Açık olumsuz cümle hiçbir katalog mutasyonu başlatmamalı; gerekirse normal sohbet yolunda yanıtlanmalı.
+
+**Gözlenen:** Matcher don't/do not biçimlerini dışlarken never biçimini dışlamıyor. Gerçek aiChatSend dispatcher'ı bu cümleyi doğrudan AssistantMediaCommands'a yönlendiriyor; handler mevcut unspecified kaydını planned olarak kaydediyor. Typed agent çağrısı sıfır: modelin yanlış yorumu veya yalnız regex birim denemesi değildir.
+
+**Etki:** Kullanıcının açıkça istemediği kütüphane durum değişikliği gerçekleştirilir; işlem kartı değerlendirme yolu da çalışmaz.
+
+**Kanıt/sınır:** Gerçek dispatcher fonksiyonu, tam intent/handler modülleri ve kontrollü katalog API tüketicisi. Yalnız bu kesin İngilizce olumsuz örnek sayıldı; diğer diller/komutlar için genelleme yapılmadı. Önceki 54 arasında karşılığı yoktur; backend çeviri olumsuzluk bulguları farklı alandır.
+
+<a id="r815-b76"></a>
+
+### R815-B76 · P2 — Geçerli Türkçe TMDB türü Sana özel önerilerde yok sayılıyor
+
+**Alt kanıt:** assistant / E06; [yapılandırılmış kayıt](evidence815/extra/assistant/findings.json).
+
+**Konum:** `src/catalog-discovery.js:134–141`; `src/media-discovery-service.js:115–122`.
+
+**Tekrar:** Bilgi dili tr-TR iken TMDB'nin Suç türünü taşıyan yapımını favorile; Sana özel bölümünü aç. Başka favori/tür kanıtı bulunmasın.
+
+**Beklenen:** TMDB Suç türü Cinemeta Crime türüne eşlenerek öneri oluşturmalı; mevcut favori tanınmalı.
+
+**Gözlenen:** MetadataClient gerçek detail yolu `genres:['Suç']` üretir. For-you aliases tablosunda Suç yoktur; GENRES yalnız Crime içerir. selected boş kalır, ağ öneri isteği hiç yapılmadan `needsRatings:true` döner. Kullanıcıya zaten yaptığı favori/tür ekleme işi yeniden önerilir.
+
+**Etki:** Varsayılan Türkçe metaveri akışındaki geçerli favoriler bazı türlerde kişiselleştirmeyi tamamen sonuçsuz bırakır.
+
+**Kanıt/sınır:** Gerçek metadata detail→discovery handler zinciri ve kontrollü resmi şemaya uygun TMDB yanıtı. Canlı TMDB hesabı kullanılmadı. Tek Suç örneği doğrulandı; aynı tablodaki diğer eksik çeviriler ayrı bug sayılmadı. R815-B43 puan ölçeğinden farklıdır: bu örnekte hiç puan gerekmiyor, favorite=true yeterlidir.
+
+<a id="r815-b77"></a>
+
+### R815-B77 · P2 — Native duraklatma başarısızken asistan tamamlandı ve durakladı bildiriyor
+
+**Alt kanıt:** assistant / E07; [yapılandırılmış kayıt](evidence815/extra/assistant/findings.json).
+
+**Konum:** `src/renderer/native-player-ui.js:6–13`; `src/renderer/assistant-library-actions.js:21` playback_control.
+
+**Tekrar:** Native oynatıcı etkin ve oynuyor olsun. Asistanın duraklatma işlemi sırasında native komut IPC'si `{ok:false}` dönsün; örneğin mpv iletişim hattı kullanılamaz hâle gelsin.
+
+**Beklenen:** Asistan duraklatmayı doğrulanmış tamamlanma saymamalı; başarısızlık ve gerçek oynatma durumu ayrılmalı.
+
+**Gözlenen:** Native köprü video.pause() içinde sample.paused=true yapıyor, komut sonucunu void bırakıyor ve pause olayı gönderiyor. AssistantLibraryActions bu void çağrıdan sonra completed döndürüyor. Prob `Synthetic pipe unavailable` reddine rağmen asistan completed ve kamuya açık video.paused=true sonucunu doğruladı.
+
+**Etki:** Gerçek oynatıcı durmamış olabileceği hâlde kullanıcı ve takip eden asistan adımları durdu sanabilir. Aynı köprünün seek/volume/speed setter'ları da sonuçları beklemiyor; bu varyantlar ayrı sayılmadı.
+
+**Kanıt/sınır:** Tam native-player-ui + AssistantLibraryActions tüketicisi; kontrollü native IPC. Gerçek mpv/hardware hatası oluşturulmadı, sesin fiziksel olarak sürdüğü iddia edilmez. Yerel başarı bilgisinin başarısız komutla çelişmesi kanıtlandı. R815-B31 native başlatma hatası başka işlem/kod yoludur.
+
+<a id="r815-b78"></a>
+
+### R815-B78 · P2 — Geçerli SSE Content-Type harf değişimi sağlayıcı yanıtını bozuyor
+
+**Alt kanıt:** assistant / E08; [yapılandırılmış kayıt](evidence815/extra/assistant/findings.json).
+
+**Konum:** `src/assistant-provider.js:17–19,98`.
+
+**Tekrar:** OpenAI uyumlu sağlayıcı geçerli SSE gövdesini `Content-Type: Text/Event-Stream` ile döndürsün; aynı gövdeyi küçük harfli text/event-stream ile karşılaştır.
+
+**Beklenen:** MIME türünün büyük/küçük harf farkı ayrıştırma biçimini değiştirmemeli. Tür/alt tür eşleşmesinin harfe duyarsız olması [RFC 2045 §5.1](https://www.rfc-editor.org/rfc/rfc2045#section-5.1) sözleşmesidir.
+
+**Gözlenen:** Büyük/küçük harfe duyarlı includes('text/event-stream') testi karışık harfli türü JSON yanıtı sanıyor. Aynı SSE küçük harfle Fixture answer döndürürken karışık harfle JSON.parse Unexpected token 'd' hatası veriyor. Gerçek provider.run yolu çalıştırıldı.
+
+**Etki:** Protokol açısından eşdeğer bir header kullanan sağlayıcıdan hiçbir yanıt alınamıyor. Bu sağlayıcı uyumluluğu hatasıdır; varsayılan DeepInfra'nın bu header'ı kullandığı iddia edilmez.
+
+**Kanıt/sınır:** Geçerli Response/SSE fixture'ı, gerçek provider.run ve küçük harfli başarılı karşı örnek. Ücretli ağ çağrısı yapılmadı. R815-B48 ana sürecin JSON cevabına düz metin eklemesinden farklıdır: burada SSE yanlış protokolle ayrıştırılmaktadır.
+
+## Ek geliştirme önerileri
+
+Aşağıdaki **27 öneri / ayrıntılandırma bug değildir**. Bazıları yukarıdaki buglar için daha geniş ürün kabulünü, bazıları önceki G01–G05 hedeflerinin somutlaştırılmasını içerir. Örneğin çıktı preflightı ve yerel karışım önizlemesi birbirini tamamlar; tek bir uygulama planında birleştirilebilir. Ham aday sayısı bağımsız özellik sayısı olarak yorumlanmamalı. Ürün koduna uygulanmadılar.
+
+| Öncelik sırası | Paket | Neden önce |
+|---|---|---|
+| 1 | Yedek geçerliliği, son sağlam yedek, restore bağlantıları | Geri alınamaz veri/iş kaybını önler. |
+| 2 | Ses kaynağı ve medya hedefi, native komut makbuzu | İzlenen filmin sesi/kontrolü ve asistan durumunun doğruluğu. |
+| 3 | Akış metni checkpointi, yorum iptal/sahiplik | Uzun işin sonucunu ve kullanıcı niyetini korur. |
+| 4 | Ölçülen kapasite, worker, preflight/örnek | Güçlü donanımın verimini tepki ve maliyet sınırlarıyla artırır. |
+| 5 | Kaynak kimlikleri, dil/tür metadata, tanı | Taşıma ve sonraki oturumlarda tutarlılığı artırır. |
+
+<a id="r815-g06"></a>
+
+### R815-G06 — Büyük yedekleri ana süreç dışında, ilerleme ve iptalle hazırla
+
+**Kaynak öneri:** root / XGROOT01.
+
+**Dayanak:** backup-load-observations.json: 96 MiB sentetik dosyada export 2448 ms; export sonrası RSS +333479936 bayt. Sıfır gecikmeli timer 3446 ms bekledi; bu değer sonraki doğrulama okumasını da içerir, yalnız export süresi diye sunulmaz.
+
+**Fayda:** Güçlü bilgisayarda dahi paket sıkıştırması sırasında IPC, oynatma ve kapatma tepkisini korur.
+
+**Kabul ölçütü:** Ayrı worker/utility process, sınırlı bellek akışı, kullanıcıya bayt/dosya ilerlemesi ve iptal; 100 MiB ve sınıra yakın arşivlerde native UI eylem gecikmesi ayrıca ölçülmeli; yarım paket başarı diye yayımlanmamalı.
+
+<a id="r815-g07"></a>
+
+### R815-G07 — Uzun testler başarısız olsa da kısmi ölçümleri ve son aşamayı kaydet
+
+**Kaynak öneri:** root / XGROOT02.
+
+**Dayanak:** Gerçek start.bat soak: 200/200 capture; hibernasyon3/50 pending-response korumasında durdu; final JSON oluşmadı.
+
+**Fayda:** Saatler süren testin işe yarayan kanıtı kaybolmaz; koruma, fixture yarışı ve kaynak sızıntısı birbirinden ayrılır.
+
+**Kabul ölçütü:** Her50döngü ve aşama sonunda atomik checkpoint; failure JSON'unda tamamlanan döngüler, son guard, kaynak snapshot, stderr sınıflaması; mevcut eşikler yükseltilmemeli ve eksik koşu geçti sayılmamalı.
+
+<a id="r815-g08"></a>
+
+### R815-G08 — Yedeğin kapsadığı ve dışarıda bıraktığı veriyi işlem öncesinde tek envanterde göster
+
+**Kaynak öneri:** root / XGROOT03.
+
+**Dayanak:** Çalışma paketi ile ayrı kitap projesi yedeği farklı kapsamlar taşıyor; STOR­AGE_KEYS yalnız belirli renderer değerlerini alıyor.
+
+**Fayda:** Kullanıcı kitap projesi, ses, model, hesap ve sohbet metninin hangi yedekte olduğunu anlamak için farklı ekranları karşılaştırmaz.
+
+**Kabul ölçütü:** Dosya/kayıt kategorileri, dahil/harici/anahtar içermez bilgisi; son doğrulanmış tarih ve açık geri yükleme denemesi; kişisel mesaj metni gibi içerikler sürpriz olmamalı.
+
+<a id="r815-g09"></a>
+
+### R815-G09 — Windows medya çıktısında kapsayıcı ve codec planını başlamadan doğrula
+
+**Kaynak öneri:** root / XGROOT04.
+
+**Dayanak:** Önceki R815-B16 gerçek WMV/WMA→MP4 audio-copy hatası ve mevcut export araçlarının farklı whitelistleri.
+
+**Fayda:** Uzun video gömme/çeviri işi sonunda önceden bilinebilecek mux hatasını azaltır.
+
+**Kabul ölçütü:** Kapsayıcı, seçilen ses akışı ve encoder uyumluluğu için kısa ffprobe tabanlı plan; kopya mümkün değilse açık yeniden kodlama seçimi; kaynak korunmalı, tespit sonucu tüm videolar için garanti diye sunulmamalı.
+
+<a id="r815-g10"></a>
+
+### R815-G10 — Taşınabilir kayıt kimliğini dosya konumundan ayır
+
+**Kaynak öneri:** root / XGROOT05.
+
+**Dayanak:** Video paketi, eksik kök eşleme ve altyazı/not/watchKey referansları birden çok yol temsili kullanıyor.
+
+**Fayda:** Sürücü harfi veya makine değişince izleme geçmişi, not ve senkronların ayrı ayrı yeniden bağlanma ihtiyacını azaltır.
+
+**Kabul ölçütü:** Kararlı varlık kimliği + yerel locator; dosya taşındığında bütün ilişkiler tek transaction ile güncellenmeli; eski profil migrasyonu geri alınabilir ve çakışma kullanıcıya açık olmalı.
+
+<a id="r815-g11"></a>
+
+### R815-G11 — Donanıma göre ölçülen iş bütçesi ve gerçek zamanlı kaynak görünürlüğü ekle
+
+**Kaynak öneri:** root / XGROOT06.
+
+**Dayanak:** Gerçek GPU RTX4070SUPER12GB; donanım adı kapasite garantisi değil. Üretimde ASR/TTS, video decode ve Electron birlikte kaynak kullanıyor.
+
+**Fayda:** Güçlü PC daha fazla işi taşıyabilirken VRAM baskısında video ve altyazı deneyimi korunur.
+
+**Kabul ölçütü:** Opt-in sentetik kalibrasyon; aktif iş/model başına VRAM/RSS/duvar süresi ve kuyruk; sabit eşik gevşetmek yerine eşzamanlılık ölçüme dayansın; müzik analizi kapsamı açılmasın.
+
+<a id="r815-g12"></a>
+
+### R815-G12 — Geri yükleme sonrası bağlantı doğrulaması ve toplu yeniden bağlama özeti sun
+
+**Kaynak öneri:** root / XGROOT07.
+
+**Dayanak:** XROOT01/02 bağlantıların dosyalar mevcutken bile çözümlenemediğini gösteriyor.
+
+**Fayda:** Restore ok:true ile gerçek kullanılabilirlik arasındaki fark kullanıcıya görünür olur.
+
+**Kabul ölçütü:** Yerel izinli dosyalarda bulunan/eksik/belirsiz kaynaklar, etkilenen not/altyazı/proje sayısı; ağ yoluna kendiliğinden dokunmadan tek klasör seçimiyle kontrollü plan; kullanıcı onayı öncesi mevcut ilişkiler değişmemeli.
+
+<a id="r815-g13"></a>
+
+### R815-G13 — Denetlenen medya hedefini görünür kıl
+
+**Kaynak öneri:** browser / EX-G01.
+
+**Fayda:** Çok videolu sayfada hangi element/framein komut, OCR ve dublaj hedefi olduğunu kullanıcı doğrulayabilir.
+
+**Kabul ölçütü:** Medya araçları seçili hedefin sayfa/kare, görünürlük ve oynatma durumunu gösterir; kullanıcı başka görünür medyayı seçebilir; gizli/iframe aday değişiminde seçim sessizce kaymaz.
+
+<a id="r815-g14"></a>
+
+### R815-G14 — Ses işleme sağlık durumu ve güvenli kaynak değişimi
+
+**Kaynak öneri:** browser / EX-G02.
+
+**Fayda:** Normalizasyon açıldıktan sonraki sessizlik nedenini ses ayarı/Windows sorunu sanmadan anlaşılır kılar.
+
+**Kabul ölçütü:** Kaynak origin/CORS değişimi tanıda görünür; güvenli olmayan graph geçişi belirgin uyarı verir; kaynak yeniden kurulduğunda zaman/mute/volume tercihi korunur; CORS atlatma yok.
+
+<a id="r815-g15"></a>
+
+### R815-G15 — Sayfa genelinde tek bağlantı etiketi oturumu
+
+**Kaynak öneri:** browser / EX-G03.
+
+**Fayda:** Cross-origin iframe bulunan video/ödeme/giriş sayfalarında klavye gezintisi tahmin edilebilir olur.
+
+**Kabul ölçütü:** Aynı görünür anda tüm frame kodları benzersizdir; activate,Escape,scroll,navigation tüm alt frame katmanlarını temizler; odağın top/child olduğu iki native senaryo doğrulanır.
+
+<a id="r815-g16"></a>
+
+### R815-G16 — Akış tercihi deposu için veri kaybı olmadan kimlik geçişi
+
+**Kaynak öneri:** browser / EX-G04.
+
+**Fayda:** Mevcut generic tercihleri çöpe atmadan stream bazlı seçim ve senkron devamlılığı sağlar.
+
+**Kabul ölçütü:** Aynı watch URLdeki iki manifest ayrı kayıtla round-trip olur; eski base kayıt tekvideoya tahminle bağlanmaz; belirsiz eski seçim kullanıcıya geri kazanma seçeneğiyle sunulur.
+
+<a id="r815-g17"></a>
+
+### R815-G17 — Düşük maliyetli, olay destekli shadow medya yeniden keşfi
+
+**Kaynak öneri:** browser / EX-G05.
+
+**Fayda:** Geç yüklenen web component oynatıcıları çalışırken büyük SPA sayfalarının sürekli tam taranmasını önler.
+
+**Kabul ölçütü:** Başlangıç rootu, sonradan attachShadow, host çıkarıp yeniden takma ve observer128sınırı ayrı native fixturelarla çalışır; kapalı root için açık destek sınırı gösterilir; timer/observer bütçesi ölçülür.
+
+<a id="r815-g18"></a>
+
+### R815-G18 — Mini oynatıcıda ortak dil ve erişilebilirlik sözleşmesi
+
+**Kaynak öneri:** browser / EX-G06.
+
+**Fayda:** İngilizce ana arayüz kullanan kişi ayrı pencerede Türkçe düğmelerle karşılaşmaz; küçük penceredeki kontrol amaçları açık olur.
+
+**Kabul ölçütü:** Mini player title,document.lang,nav aria-label,dört düğme ve hata metni EN/TR seçimini izler; dil değişimi/reopen aynı sonucu verir. Bug sayısına eklenmedi; mevcut browser-mini.html/js metin borcudur.
+
+<a id="r815-g19"></a>
+
+### R815-G19 — Kaynak değişimi için kısa native kabul matrisi
+
+**Kaynak öneri:** browser / EX-G07.
+
+**Fayda:** Salt birim testlerin kaçırdığı belge/element/src yaşam döngüsü sınırlarını az sayıda hedefli kontrolle kapsar.
+
+**Kabul ölçütü:** Aynı-belge element replacement, aynı-element src replacement, cross-origin ses geçişi ve dub-rate release ayrı beklenen durumlar verir; testler kendi PID/profil/localhost sunucularını kapatır; kişisel oturum kullanılmaz.
+
+<a id="r815-g20"></a>
+
+### R815-G20 — Sıcak motor kapasitesinin yeniden boyutlandırılmasını açık politika yap
+
+**Kaynak öneri:** backend / XI01.
+
+**Fayda:** 4paralel yüklü motorun8isteğini sessizce4te tutması yerine kullanıcı GPU bütçesi/yeniden yükleme kararını anlar.
+
+**Kabul ölçütü:** Kontrollü4→8 senaryosunda yeterli kapasite varsa güvenli motor yenilenir veya8in sonraki soğuk başlangıçta uygulanacağı açık gösterilir;4→4 gereksiz yüklemez.
+
+**Sınıflandırma:** Tasarım/geliştirme; mevcut GPUya göre kapasite düşürme politikası nedeniyle bug sayılmadı.
+
+<a id="r815-g21"></a>
+
+### R815-G21 — Üretim öncesi kaynak ses parçası kimliğini tek tarifte dondur
+
+**Kaynak öneri:** backend / XI02.
+
+**Fayda:** Referans hazırlama, prosody, arka plan ayırma ve Whisper farklı çok dilli kanalları sessizce seçmez.
+
+**Kabul ölçütü:** Çok sesli sentetik MKVde seçili kanal kimliği bütün alt işlere taşınır; belirsiz YouTube çok dilinde seçim veya sınırlı uyarı olur. Kişisel sağlayıcı ayarı değişmez.
+
+<a id="r815-g22"></a>
+
+### R815-G22 — Kısa örnek için gerçek tahmini süre ve bütçe göster
+
+**Kaynak öneri:** backend / XI03.
+
+**Fayda:** Tek büyük cue veya yavaş konuşma örneğinin beklenenden uzun sürmesi önceden görülür.
+
+**Kabul ölçütü:** Örnek planı kaynak aralığı, seçili grup, tahmini ses/sentez süresini gösterir;55sn hedefi aşılınca açık neden ve kapsam seçimi vardır; metin otomatik kesilmez.
+
+<a id="r815-g23"></a>
+
+### R815-G23 — Kalite kartında akustik, ASR ve insan dinlemesini ayrı kanıtlar olarak tut
+
+**Kaynak öneri:** backend / XI04.
+
+**Fayda:** Ready/Review tek rozeti doğrulayıcı yokluğu veya yalnız kelime benzerliğiyle insan doğallığı onayını karıştırmaz.
+
+**Kabul ölçütü:** Saved project→reopen sonrasında acoustic checked, ASR passed/review/unavailable/not_checked ve listening unchecked/checked ayrı korunur; hiçbir kontrollü ASR testi insan dinlemesi diye işaretlenmez.
+
+<a id="r815-g24"></a>
+
+### R815-G24 — Senkron önizlemesinde ölçülebilir güven özeti sun
+
+**Kaynak öneri:** backend / XI05.
+
+**Fayda:** Sessiz/ritimsiz kaynakta0korelasyon veya az destek yanlış bir başarı hissi oluşturmaz.
+
+**Kabul ölçütü:** Aktif ses oranı, aday offset/ratio skoru ve zayıf/bağlı sonuç görünür; sessiz4sn fixture kesin hizalanmış diye sunulmaz. Kaynak/önceki çıktı kullanıcı kararı olmadan değişmez.
+
+<a id="r815-g25"></a>
+
+### R815-G25 — Dublajı dışa aktarmadan önce kısa lokal karışım önizlemesi ve hedef preflightı
+
+**Kaynak öneri:** backend / XI06.
+
+**Fayda:** Uzun render öncesi ses katmanı seviyesi, hedef disk alanı ve dosya sistemi sınırları anlaşılır.
+
+**Kabul ölçütü:** Aynı mix/sync motoruyla seçili5–10sn önizleme; sessiz/tepe sınırı görünür. Yetersiz boş alan veya exclusive-install desteği eksik hedef render başlamadan açıklanır; kullanıcının kişisel ses/ayarları değiştirilmez.
+
+<a id="r815-g26"></a>
+
+### R815-G26 — Canlı ASR dil geçişinde düşük güvenli ara gözlemlerin politikasını açıklaştır
+
+**Kaynak öneri:** backend / XI07.
+
+**Fayda:** Bir önceki dilde fallback ile çözülen kararsız parçanın dil değiştirme aday sayacını kesip kesmediği belirli olur.
+
+**Kabul ölçütü:** ENyüksek→TRyüksek→DEdüşük/ENfallback→TRyüksek senaryosunun beklenen durumu ürün kararı olarak belgelenir; ardından gerçek sesli dil değişimi/kararsızlık kabulü yapılır. Araya yüksek güvenliEN girince mevcut reset korunur.
+
+**Sınıflandırma:** XB03 deterministik davranışı ölçüldü; mevcut kodun düşük güvenli gözlemleri yok sayma politikası olabileceğinden kesin bug sayılmadı.
+
+<a id="r815-g27"></a>
+
+### R815-G27 — Yorum kanıtını sürüm ve kaynak kimliğiyle birlikte karşılaştır
+
+**Kaynak öneri:** assistant / G-E01.
+
+**Fayda:** Önceki ve yeni analizlerin hangi IMDb/TMDB kimliğine, hangi yorum örneğine ve hangi tarihe ait olduğu tek bakışta anlaşılır; aynı film adı eski analizi güncelmiş gibi göstermez.
+
+**Kabul ölçütü:** Analiz kaydında tam yapım kimliği, yorum örneği hash'i, kaynak URL listesi, sağlayıcı/model adı ve tarih bulunur; anahtar/tam kişisel yol saklanmaz. Aynı filmde yeni örnek karşılaştırması özetlenir; farklı kimlikteki eski analiz ayrı tutulur. Eski şema kayıtları eksik kanıt etiketiyle korunur.
+
+<a id="r815-g28"></a>
+
+### R815-G28 — Sohbette gerçekten diske yazılan son yanıt durumunu göster
+
+**Kaynak öneri:** assistant / G-E02.
+
+**Fayda:** Kullanıcı uzun cevap sırasında hangi metnin kurtarılabilir olduğunu bilir; kaydetme hatası sıradan sohbet cevabına karışmaz.
+
+**Kabul ölçütü:** Periyodik checkpoint'in tamamlandığı revision/tarih gösterilebilir; debounce veya sadece bellek güncellemesi kaydedildi sayılmaz. Kapanışta bounded flush, disk hatasında açık durum ve tekrar deneme bulunur. Kontrollü sürekli akış/kapanış/disk reddi senaryolarında gösterilen durum diskle eşleşir.
+
+<a id="r815-g29"></a>
+
+### R815-G29 — Yorum okuma aşamalarını durdurma sahibiyle görünür kıl
+
+**Kaynak öneri:** assistant / G-E03.
+
+**Fayda:** Film kimliği çözümü, sayfa indirme, metin ayıklama ve model analizi birbirinden ayrılır; kullanıcı hangi işi durdurduğunu anlayabilir.
+
+**Kabul ölçütü:** İstek kimliği ilk asenkron aşamadan önce kaydedilir; iptal yalnız aynı kimliği etkiler. Durduruldu terminalinden sonra yeni ağ çağrısı olmaz. Yeni deneme eski görevin geç sonucu veya iptal onayıyla etkilenmez; örnek metni korunur.
+
+<a id="r815-g30"></a>
+
+### R815-G30 — Tür bilgisini görünen dilden bağımsız kanonik kimlikle taşı
+
+**Kaynak öneri:** assistant / G-E04.
+
+**Fayda:** Türkçe/İngilizce etiket veya kaynak değişikliği öneri sonuçlarını sessizce ortadan kaldırmaz; kullanıcının tür metni kendi dilinde kalabilir.
+
+**Kabul ölçütü:** TMDB sayısal tür kimlikleri/Cinemeta eşlemeleri üzerinden kararlı bir iç tür saklanır; görünen etiket ayrı tutulur. Suç/Crime ve kaynakların farklı Science Fiction/Sci-Fi adları aynı kategoriye gider. Eşlenemeyen tür için gerekçe görünür; yanlış needsRatings mesajı verilmez.
+
+<a id="r815-g31"></a>
+
+### R815-G31 — Native oynatma işlemlerine doğrulanmış sonuç makbuzu ekle
+
+**Kaynak öneri:** assistant / G-E05.
+
+**Fayda:** Kullanıcı ve asistan bir komutun gönderilmesini, kabulünü ve gerçek oynatıcı durumunu ayırabilir; başarısız komut sonraki adımı yanlış bilgiyle başlatmaz.
+
+**Kabul ölçütü:** pause/seek/rate/volume için komut kimliği ve bounded timeout vardır; completed ancak eşleşen başarı/durum geri okumasıyla üretilir. Hata sonradan gelen başka komutun durumunu geri sarmaz. Gerçek native süreç kabulü ve kontrollü IPC reddi ayrı raporlanır; UI iyimser gösterim varsa geçici olduğu belirtilir.
+
+<a id="r815-g32"></a>
+
+### R815-G32 — Sağlayıcı bağlantı tanısında protokol aşamalarını ayır
+
+**Kaynak öneri:** assistant / G-E06.
+
+**Fayda:** Kullanıcı kimlik doğrulama, HTTP, MIME/SSE ayrıştırması ve model formatı hatalarını birbirinden ayırarak doğru sağlayıcı ayarını düzeltebilir.
+
+**Kabul ölçütü:** Tanı çıktısı anahtar, ham özel kaynak veya Authorization header içermez. MIME harf farkı, standart SSE satır sonları, yarım akış ve JSON fallback kontrollü yanıtlarla sınanır. Kontrol sonucu canlı model kalitesi veya bütün sağlayıcıların desteği diye sunulmaz.
+
+
+## Ek turda dışarıda bırakılanlar ve birincil kaynaklar
+
+Sıcak motorun 4→8 isteği, düşük güvenli dil ara gözlemlerinin politika yorumu ve [man] etiketinin gerçek sentez etkisi strict bug sayısına girmedi. Gizli iframe etiket karşı kontrolü geçti. Bu olumsuz sonuçlar/kararsızlıklar kanıt JSON'larında saklandı; sayıyı doldurmak için bug yapılmadı. Önceki dependency advisories bu 24 ek içinde de sayılmadı.
+
+Kaynaklar uygulamaya kod olarak alınmadı. Ses graph güvenliği [W3C 2021 Recommendation](https://www.w3.org/TR/2021/REC-webaudio-20210617/#MediaElementAudioSourceOptions-security), MIME türü eşdeğerliği [RFC9110§8.3.1](https://www.rfc-editor.org/rfc/rfc9110.html#section-8.3.1) ve [RFC2045§5.1](https://www.rfc-editor.org/rfc/rfc2045#section-5.1), Windows ağ yolu ayrımı [Microsoft dosya yolları](https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file) ile karşılaştırıldı. UNC sorgusunun NTLM sonucu işletim sistemi politikasına bağlıdır; [Microsoft SMB NTLM açıklaması](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-ntlm-blocking) riskin koşullu olduğunu destekler. Testte hiçbir UNC bağlantısı yapılmadı. Performans önerisi [Electron süreç metrikleri](https://www.electronjs.org/docs/latest/api/app#appgetappmetrics) ve mevcut synchronous paket yoluna dayanır.
+
+**Teslim:** Yalnız rapor, seçilmiş sentetik kanıt ve tarihli devir. Ürün/test/bağımlılık/ayar değişikliği yok; bu 78 bug açık bırakıldı. Önceden değişmiş OFFLINE-MANIFEST/raporINDEX, silinmiş start.sh ve kişisel untracked dosyalar commit dışında korunur.

@@ -1,0 +1,14 @@
+{
+  "head": "55bfcca53a995e1217edb547655a50720ff59320",
+  "id": "XROOT04",
+  "previewOk": true,
+  "applyNotCalled": true,
+  "networkExistenceCalls": [
+    "\\\\audit.invalid\\private-share\\movie.mp4"
+  ],
+  "allNetworkAccessIntercepted": true,
+  "packageValidationAccepted": true,
+  "catalogConsumerDropsUnc": true,
+  "method": "Real plain-package read/validation + package-preview handler; fs.existsSync intercept records and blocks all UNC checks, no DNS/SMB/credential attempt was made",
+  "limit": "OS authentication leakage is a conditional risk, not measured or attempted"
+}
