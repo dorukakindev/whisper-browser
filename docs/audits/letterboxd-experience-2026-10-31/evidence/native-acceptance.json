@@ -1,0 +1,183 @@
+{
+  "ok": true,
+  "nativeApp": true,
+  "publicHtml": "controlled fixture",
+  "analysis": "controlled fixture",
+  "cases": [
+    "discovery analysis visible under real catalog ID; feedback stays on discovery",
+    "same title/year with unrelated provider identity receives no saved analysis or feedback",
+    "library analysis visible in discovery; unrelated movie excluded and feedback remains library-only",
+    "saved origin labels, collapsed separate feedback, keyboard reuse, source match and populated/empty/loading/error at 1280 dark TR and 720 light EN"
+  ],
+  "screenshots": [
+    {
+      "name": "tr-1280-empty",
+      "width": 1280,
+      "height": 900,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    },
+    {
+      "name": "tr-1280-loading",
+      "width": 1280,
+      "height": 900,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    },
+    {
+      "name": "tr-1280-error",
+      "width": 1280,
+      "height": 900,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    },
+    {
+      "name": "en-720-empty",
+      "width": 720,
+      "height": 900,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    },
+    {
+      "name": "en-720-loading",
+      "width": 720,
+      "height": 900,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    },
+    {
+      "name": "en-720-error",
+      "width": 720,
+      "height": 900,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    },
+    {
+      "name": "loaded-discovery-reader",
+      "width": 1280,
+      "height": 900,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    },
+    {
+      "name": "loaded-library-reader",
+      "width": 1280,
+      "height": 900,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    },
+    {
+      "name": "tr-1280-discovery-populated",
+      "width": 1280,
+      "height": 900,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    },
+    {
+      "name": "tr-1280-discovery-reused",
+      "width": 1280,
+      "height": 900,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    },
+    {
+      "name": "en-720-discovery-populated",
+      "width": 720,
+      "height": 900,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    },
+    {
+      "name": "en-720-discovery-reused",
+      "width": 720,
+      "height": 900,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    },
+    {
+      "name": "tr-1280-library-populated",
+      "width": 1280,
+      "height": 900,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    },
+    {
+      "name": "tr-1280-library-reused",
+      "width": 1280,
+      "height": 900,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    },
+    {
+      "name": "en-720-library-populated",
+      "width": 720,
+      "height": 900,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    },
+    {
+      "name": "en-720-library-reused",
+      "width": 720,
+      "height": 900,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    }
+  ],
+  "keyboardFocus": [
+    {
+      "locale": "tr",
+      "width": 1280,
+      "origin": "discovery",
+      "top": 827.53125,
+      "bottom": 869.03125,
+      "left": 149,
+      "right": 333.6354217529297,
+      "visible": true,
+      "hit": true
+    },
+    {
+      "locale": "en",
+      "width": 720,
+      "origin": "discovery",
+      "top": 13.161458969116211,
+      "bottom": 54.66145896911621,
+      "left": 38,
+      "right": 182.33334350585938,
+      "visible": true,
+      "hit": true
+    },
+    {
+      "locale": "tr",
+      "width": 1280,
+      "origin": "library",
+      "top": 827.4010620117188,
+      "bottom": 868.9010620117188,
+      "left": 149,
+      "right": 333.6354217529297,
+      "visible": true,
+      "hit": true
+    },
+    {
+      "locale": "en",
+      "width": 720,
+      "origin": "library",
+      "top": 13.03125,
+      "bottom": 54.53125,
+      "left": 38,
+      "right": 182.33334350585938,
+      "visible": true,
+      "hit": true
+    }
+  ],
+  "reads": [
+    "https://letterboxd.com/imdb/tt14173636/",
+    "https://letterboxd.com/imdb/tt76543210/",
+    "https://letterboxd.com/imdb/tt14173636/",
+    "https://letterboxd.com/film/controlled-discovery/",
+    "https://letterboxd.com/film/controlled-discovery/reviews/by/activity/",
+    "https://letterboxd.com/imdb/tt76543210/",
+    "https://letterboxd.com/film/controlled-library/",
+    "https://letterboxd.com/film/controlled-library/reviews/by/activity/"
+  ],
+  "limits": "Controlled public HTML and assistant completion; no live Letterboxd, paid provider, personal profile, real media playback, or model-quality claim."
+}

@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-31-2243.md](docs/devir/2026-10-31-2243.md) — Letterboxd: ortak analiz geçmişi, yorum okuyucusu ve kaynak/model doğruluğu
 Güncel çalışma: [docs/devir/2026-10-31-2159.md](docs/devir/2026-10-31-2159.md) — Ürün tasarım turu: ayarlar, asistan, Keşfet/PDF; görüntülü doğrulama ve beceriler
 Güncel çalışma: [docs/devir/2026-10-31-0535.md](docs/devir/2026-10-31-0535.md) — R823: ajanlarla3yeniişlevselbug; hiçbir düzeltme yok
 Güncel çalışma: [docs/devir/2026-10-31-0524.md](docs/devir/2026-10-31-0524.md) — R822: 3 yeni bug, R815-G10 önerisinden doğrulanan 1 bug; yalnız rapor
