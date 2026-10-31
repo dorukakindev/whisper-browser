@@ -23,3 +23,15 @@ test('a stale begin cannot attach its job to the newly selected source',async()=
 test('delete waits for an already dispatched save, and late streaming cannot recreate it',async()=>{const h=harness();try{await h.api.prepare();const job=h.begin();await h.settle();const original=h.w.api.assistantThreads;let release,entered=false;h.w.api.assistantThreads=async input=>{if(input.action==='save'){entered=true;await new Promise(resolve=>release=resolve);}return original(input);};h.api.partial(job,'in flight');for(const [id,fn] of [...h.timers]){h.timers.delete(id);fn();}await h.settle();assert(entered);const deleting=h.api.command('delete-thread');await h.settle();h.api.partial(job,'late');h.api.finish(job,'late final','complete');release();await deleting;await h.flush();assert.equal(h.disk.size,0);}finally{h.close();}});
 
 test('continuation after a source reload uses the visible reply in the new scope',async()=>{const h=harness();try{await h.api.prepare();const old=h.begin();h.api.evidence(old,{actions:[{proposalId:'proposal'}]});h.api.finish(old,'Answer','complete');await h.settle();h.w.player.scope='A-generation-2';h.w.document.dispatchEvent(new h.w.CustomEvent('media-context-changed'));assert.equal(old.bubble.hidden,true);const resumed=h.api.resume('proposal',{}).job;assert.notEqual(resumed.bubble,old.bubble);assert.equal(resumed.bubble._sourceScope,'A-generation-2');assert.equal(resumed.bubble.hidden,false);}finally{h.close();}});
+
+
+test('refresh replaces only the current conversation card and clears its failed receipt',async()=>{const h=harness();try{
+ await h.api.prepare();const job=h.begin();h.api.evidence(job,{actions:[{kind:'app_action',tool:'set_app_preferences',proposalId:'old',label:'Theme',summary:'dark to light'}]});h.api.finish(job,'Review the card','complete');
+ h.api.actionResult('old',{status:'failed',refreshable:true,error:'Settings changed'});await h.flush();
+ assert.equal(h.api.snapshot().current.messages.at(-1).actions[0].refreshable,true);
+ h.api.replaceProposal('old',{kind:'app_action',tool:'set_app_preferences',proposalId:'fresh',label:'Theme',summary:'system to light'});await h.flush();
+ const action=h.disk.get(job.assistantRecord.thread.id).messages.at(-1).actions[0];assert.equal(action.proposalId,'fresh');assert.equal(action.resultStatus,undefined);assert.equal(action.refreshable,undefined);assert.equal(action.summary,'system to light');
+ assert.throws(()=>h.api.replaceProposal('old',{kind:'app_action',proposalId:'again'}),/proposal changed/);
+ h.w.player.source='B';await h.api.prepare();assert.throws(()=>h.api.replaceProposal('fresh',{kind:'app_action',proposalId:'cross'}),/proposal changed/);
+ assert.equal(h.disk.get(job.assistantRecord.thread.id).messages.at(-1).actions[0].proposalId,'fresh');
+}finally{h.close();}});

@@ -4,6 +4,10 @@
  const check=r=>{if(!r?.ok)throw Error(r?.error||t('Action failed.','İşlem başarısız.'));return r;};
  const prefIds={theme:'uiTheme',language:'uiLocale',sponsorMode:'browserSponsorMode'};let undo=null,preferenceBusy=false;
  const preferences=()=>Object.fromEntries(Object.entries(prefIds).map(([k,id])=>[k,document.getElementById(id)?.value]));
+ function preferenceUndoState(){
+  const now=preferences(),canUndo=!!undo&&JSON.stringify(now)===JSON.stringify(undo.after);
+  return {canUndo,...(canUndo?{undoChanges:Object.fromEntries(Object.keys(undo.before).filter(key=>undo.before[key]!==undo.after[key]).map(key=>[key,undo.before[key]]))}:{})};
+ }
  async function catalog(){return check(await window.api.mediaCatalog({action:'list'})).items;}
  function parse(value){let m=/^catalog:([\w-]{1,120})$/.exec(value);if(m)return {catalogId:m[1]};m=/^discovery:(film|series):(tt\d{7,12})$/.exec(value);if(m)return {kind:m[1],providerId:m[2]};throw Error(t('Use a returned title ID.','Dönen yapım kimliğini kullan.'));}
  const identity=row=>JSON.stringify([row.kind,row.title,row.year,row.imdbId||row.providerId,row.tmdbId]);
@@ -41,13 +45,26 @@
   }finally{preferenceBusy=false;}
  }
 
- async function execute(name,args,owner,{deadline=Infinity,isCancelled=()=>false}={}){
+ function matchesExpectedPreferences(packet,values,undoing){
+  const own=(object,key)=>Object.prototype.hasOwnProperty.call(object,key),record=value=>!!value&&typeof value==='object'&&!Array.isArray(value),now=preferences();
+  if(!record(packet)||Object.keys(packet).some(key=>!['kind','values','canUndo','undoChanges'].includes(key))||!own(packet,'kind')||packet.kind!=='preferences'||!own(packet,'values')||!record(packet.values)||!values)return false;
+  const keys=Object.keys(packet.values),requested=Object.keys(values);
+  if(!keys.length||keys.length!==requested.length||keys.some(key=>!own(prefIds,key)||!own(values,key)||typeof packet.values[key]!=='string'||packet.values[key]!==now[key]))return false;
+  if(undoing){
+   if(!own(packet,'canUndo')||packet.canUndo!==true||!preferenceUndoState().canUndo||!own(packet,'undoChanges')||!record(packet.undoChanges))return false;
+   const changes=Object.keys(packet.undoChanges);
+   if(changes.length!==requested.length||changes.some(key=>!own(values,key)||packet.undoChanges[key]!==values[key]))return false;
+  }else if(own(packet,'canUndo')||own(packet,'undoChanges'))return false;
+  return true;
+ }
+ async function execute(name,args,owner,{deadline=Infinity,isCancelled=()=>false,expectedSettings}={}){
   const stale=()=>isCancelled()||Date.now()>=deadline||!window.AssistantAppActions.current(owner),guard=()=>{if(stale())throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));};guard();
-  if(name==='get_app_preferences')return {status:'completed',preferences:preferences(),canUndo:!!undo&&JSON.stringify(preferences())===JSON.stringify(undo.after)};
+  if(name==='get_app_preferences')return {status:'completed',preferences:preferences(),...preferenceUndoState()};
+  if(['set_app_preferences','undo_app_preferences'].includes(name)&&expectedSettings!==undefined&&!matchesExpectedPreferences(expectedSettings,name==='undo_app_preferences'?preferenceUndoState().undoChanges:args,name==='undo_app_preferences'))return {status:'failed',stale:true,error:t('Settings changed; refresh and review.','Ayarlar değişti; yenileyip inceleyin.')};
   if(name==='set_app_preferences')return commitPreferences(args,guard);
   if(name==='undo_app_preferences'){
    if(!undo||JSON.stringify(preferences())!==JSON.stringify(undo.after))throw Error(t('Preferences changed since that edit; undo was refused.','Sonradan ayarlar değişti; geri alma reddedildi.'));
-   return commitPreferences(undo.before,guard,true);
+   return commitPreferences(preferenceUndoState().undoChanges,guard,true);
   }
   if(name==='navigate_workspace'){await window.MediaHomeUI.navigate(args.page);return {status:'completed',page:args.page};}
   if(name==='get_playback_state'){const ctx=window.BrowserDubAudioUI?.context();if(!ctx?.visible||!ctx.hasMedia)throw Error('No visible media.');const browser=player.workspaceMode==='browser',v=document.getElementById('playerVideo'),finite=n=>Number.isFinite(n)?n:null;return {status:'completed',playback:{position:finite(browser?player.browserTime:v.currentTime),duration:finite(browser?player.browserDuration:v.duration),rate:finite(browser?player.browserRate:v.playbackRate),volume:finite(browser?player.browserVolume:v.volume),paused:browser?!!player.browserPaused:v.paused},note:t('Playback state only; audio and video were not analyzed.','Yalnız oynatma durumu; ses ve video analiz edilmedi.')};}

@@ -1,4 +1,6 @@
-# 200 önemli ürün hedefi
+> **Kapsam değişti:** Kullanıcı 31 Ekim 2026’da keyfi/sayı dolduran işleri kaldırıp yalnız önemli sorunları istemiştir. Aşağıdaki 200 satır tarihsel aday listesidir; tamamının yapılması artık zorunlu değildir. Güncel kabul ölçütleri [CRITICAL-FOCUS.md](CRITICAL-FOCUS.md) içindedir. Yeni kozmetik/özellik genişletmesi ancak gerçek bir kullanım engelini gideriyorsa yapılır.
+
+# Önceki 200 adaylık plan — sayı hedefi kaldırıldı
 
 31 Ekim 2026 · başlangıç master `206fac90` · durum: uygulama aktif; ilk paket kaynak/sohbet/yorum akışları.
 
@@ -140,37 +142,37 @@ Kod dayanağı: `src/assistant-capabilities.js; src/assistant-agent-service.js; 
 
 - Tür: Mevcut temeli geliştirme.
 - Kabul: Yalnız değişecek alanlar listelensin.
-- Durum: Bekliyor — kullanıcı uygulamayı onayladı.
+- Durum: Uygulandı — kontrollü servis ve native onay akışı. Tercih, workflow ve ses kartları önce/sonra değerlerini okunabilir etiketlerle gösterir; sıfır değişiklik ve etkili davranışlar açık.
 
 ### P022 — “Yalnız bu iş” ile kalıcı varsayılan değişikliğini ayır.
 
 - Tür: Mevcut temeli geliştirme.
 - Kabul: Geçici tercih sonraki işleri etkilemesin.
-- Durum: Bekliyor — kullanıcı uygulamayı onayladı.
+- Durum: Kısmen uygulandı. Mevcut Whisper/çeviri işine özel seçimler korunur. Dublaj sample isteği artık yalnız o işe aittir; genel workflow için kalıcılık seçimi bu pakette tamamlanmadı.
 
 ### P023 — Bir ayarın bağlı seçeneklere etkisini anlaşılır açıkla.
 
 - Tür: Mevcut temeli geliştirme.
 - Kabul: Kullanıcı gizli yan etkiyle karşılaşmasın.
-- Durum: Bekliyor — kullanıcı uygulamayı onayladı.
+- Durum: Uygulandı — etkin davranış özeti. Ses için çeviri açıkken refine/lenient etkileri, dublaj timingMode konuşma korunması/kesilmesi kartta gösterilir; gizli ayarlar açılmaz.
 
 ### P024 — Kart hazırlanırken yapılan elle ayar değişikliğini koru.
 
 - Tür: Önce doğrula; eksikse düzelt.
 - Kabul: Yeni insan tercihi sessizce ezilmesin.
-- Durum: Bekliyor — kullanıcı uygulamayı onayladı.
+- Durum: Uygulandı — main ve gerçek mutasyon sınırı. Onaylanan önceki değerler ayrı yetkili paketle taşınır. Manuel düzenleme aradaki transport veya ses hazırlığı sırasında olsa bile korunur; ilgisiz değişiklik serbest.
 
 ### P025 — Geri alma başarısızlığını ve yeniden denemeyi gerçek kayıtla sına.
 
 - Tür: Önce doğrula; eksikse düzelt.
 - Kabul: Ekran ve disk farklı kalmasın.
-- Durum: Bekliyor — kullanıcı uygulamayı onayladı.
+- Durum: Doğrulandı — gerçek geçici ayar diski. Başarısız undo, kayıtlı rollback, retry, çift kayıt hatası, daha yeni manuel düzenleme ve disk/UI sonuçları gerçek serializer/atomik kayıtla sınandı. Mevcut doğru davranışa gereksiz kod eklenmedi.
 
 ### P026 — Eskimiş işlem kartını güncel durumdan yeniden hazırlayabil.
 
 - Tür: Mevcut temeli geliştirme.
 - Kabul: Eski hedefe körlemesine işlem uygulanmasın.
-- Durum: Bekliyor — kullanıcı uygulamayı onayladı.
+- Durum: Uygulandı — native yenileme ve ayrı uygulama. Eski kart kullanılamaz; açık Yenile güncel değerlerle yeni inceleme kartı üretir. Yeni kart kullanıcı ayrıca Uygula deyip onaylamadan çalışmaz; replay ve yanlış sohbet reddedilir.
 
 ### P027 — Çok adımlı işin tamamlanan, çalışan ve kalan adımlarını göster.
 

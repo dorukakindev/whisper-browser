@@ -1,0 +1,47 @@
+{
+  "ok": true,
+  "out": "D:\\Whisper Local\\tmp\\assistant618\\.uiprev\\assistant-settings200\\1793460427870-24020",
+  "requests": 2,
+  "dark": {
+    "width": 480,
+    "scroll": 480,
+    "height": 720,
+    "header": 81,
+    "logTop": 242.796875,
+    "logBottom": 458,
+    "formTop": 560,
+    "formBottom": 699,
+    "messages": [
+      {
+        "top": -234.53646850585938,
+        "bottom": -70.44271850585938
+      },
+      {
+        "top": -42.442710876464844,
+        "bottom": 410.0833511352539
+      }
+    ]
+  },
+  "compact": {
+    "width": 480,
+    "scroll": 480,
+    "height": 616,
+    "header": 67,
+    "logTop": 178.14584350585938,
+    "logBottom": 432.00001525878906,
+    "formTop": 482,
+    "formBottom": 601,
+    "messages": [
+      {
+        "top": -198.1875,
+        "bottom": -76.44270324707031
+      },
+      {
+        "top": -54.442710876464844,
+        "bottom": 398.0833511352539
+      }
+    ]
+  },
+  "provider": "isolated controlled HTTP fixture",
+  "nativeWindows": true
+}

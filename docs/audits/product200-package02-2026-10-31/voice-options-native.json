@@ -1,0 +1,108 @@
+{
+  "ok": true,
+  "realWindowsRendererPreloadIPC": true,
+  "isolatedProfile": true,
+  "oneJobSampleOverride": true,
+  "nextEmptyRequestUsesRetainedSample": true,
+  "nextRequestSample": false,
+  "retainedRange": {
+    "start": 5,
+    "end": 25
+  },
+  "failedPreflightPreservesSample": true,
+  "requests": [
+    {
+      "id": "e17dfa4a-e090-451d-a56a-f587d5ce9ad9",
+      "srt": "C:/synthetic/acceptance.srt",
+      "resultMode": "natural",
+      "sample": true,
+      "keepEngine": true,
+      "profile": "quality",
+      "concurrency": 4,
+      "grouping": "akici",
+      "expression": "reference",
+      "followDelivery": false,
+      "deliveryStrength": "balanced",
+      "prosodySource": "",
+      "verification": "detailed",
+      "autoFit": true,
+      "naturalSpeech": true,
+      "keepBackground": false,
+      "backgroundSource": "",
+      "backgroundTab": {
+        "tabId": "fixture",
+        "generation": 1,
+        "mediaId": "fixture"
+      },
+      "timingMode": "video",
+      "range": {
+        "start": 5,
+        "end": 25
+      },
+      "dubText": {
+        "sourceHash": "synthetic-source",
+        "edits": {}
+      },
+      "source": "synthetic-video"
+    },
+    {
+      "id": "b2430f57-53be-4d26-80b9-29430dec3787",
+      "srt": "C:/synthetic/acceptance.srt",
+      "resultMode": "natural",
+      "sample": false,
+      "keepEngine": true,
+      "profile": "quality",
+      "concurrency": 4,
+      "grouping": "akici",
+      "expression": "reference",
+      "followDelivery": false,
+      "deliveryStrength": "balanced",
+      "prosodySource": "",
+      "verification": "detailed",
+      "autoFit": true,
+      "naturalSpeech": true,
+      "keepBackground": false,
+      "backgroundSource": "",
+      "backgroundTab": {
+        "tabId": "fixture",
+        "generation": 1,
+        "mediaId": "fixture"
+      },
+      "timingMode": "video",
+      "range": {
+        "start": 5,
+        "end": 25
+      },
+      "dubText": {
+        "sourceHash": "synthetic-source",
+        "edits": {}
+      },
+      "source": "synthetic-video"
+    }
+  ],
+  "receipts": [
+    {
+      "postcondition": {
+        "verified": true,
+        "kind": "application-read-back"
+      },
+      "jobId": "e17dfa4a-e090-451d-a56a-f587d5ce9ad9",
+      "status": "accepted",
+      "note": "Voice job accepted. Follow progress in Jobs; quality is not yet confirmed."
+    },
+    {
+      "postcondition": {
+        "verified": true,
+        "kind": "application-read-back"
+      },
+      "jobId": "b2430f57-53be-4d26-80b9-29430dec3787",
+      "status": "accepted",
+      "note": "Voice job accepted. Follow progress in Jobs; quality is not yet confirmed."
+    }
+  ],
+  "failed": {
+    "rejected": true,
+    "message": "Voice action was not confirmed. Check the existing voice panel."
+  },
+  "limits": "Synthetic source, configuration and voice job events. No engine, GPU synthesis, live provider, acoustic quality claim or personal profile access."
+}

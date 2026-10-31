@@ -1128,6 +1128,11 @@
   });
   const changes=rows.filter(row=>row!==null);
   if(snapshot&&!changes.length)return tr?'İstenen ayarlar zaten etkin; değişiklik yok.':'Requested settings are already active; no changes.';
+  if(name==='translation'&&snapshot){
+   const after={...snapshot.values,...values},effective=state=>({refine:state.forSpeech===true||state.refine===true,lenient:state.forSpeech===true?false:state.lenient===true});
+   const beforeEffective=effective(snapshot.values),afterEffective=effective(after);
+   for(const key of ['refine','lenient'])if(beforeEffective[key]!==afterEffective[key]||after[key]!==afterEffective[key])changes.push((tr?'Etkin ':'Effective ')+fields[key].label[tr?'tr':'en']+': '+display(key,beforeEffective[key])+' → '+display(key,afterEffective[key]));
+  }
   return changes.join(snapshot?'\n':' · ')+(name==='browser'?(tr?' · Tarayıcı ayarları hemen uygulanır; otomasyon sayfa çevirisi başlatabilir.':' · Browser changes apply immediately; automation may start page translation.'):'');
  }
 

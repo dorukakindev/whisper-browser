@@ -157,10 +157,16 @@
         const detail=document.createElement('p');detail.textContent=[proposed.excerpt,proposed.translation].filter(Boolean).join('\n→ ');
         const apply=document.createElement('button');
         apply.dataset.toolControl='apply';
-        apply.textContent=proposed.resultStatus?t(({accepted:'Accepted',completed:'Applied',failed:'Failed',stopped:'Stopped'})[proposed.resultStatus]||'Finished',({accepted:'Kabul edildi',completed:'Uygulandı',failed:'Başarısız',stopped:'Durduruldu'})[proposed.resultStatus]||'Bitti'):proposed.kind==='preview_translation_change'?t('Copy suggestion','Öneriyi kopyala'):t('Apply','Uygula');
+        apply.textContent=proposed.refreshable&&proposed.resultStatus==='failed'?t('Settings changed','Ayarlar de\u011fi\u015fti'):proposed.resultStatus?t(({accepted:'Accepted',completed:'Applied',failed:'Failed',stopped:'Stopped'})[proposed.resultStatus]||'Finished',({accepted:'Kabul edildi',completed:'Uygulandı',failed:'Başarısız',stopped:'Durduruldu'})[proposed.resultStatus]||'Bitti'):proposed.kind==='preview_translation_change'?t('Copy suggestion','Öneriyi kopyala'):t('Apply','Uygula');
         apply.disabled=busy||!!proposed.resultStatus;
         apply.onclick=()=>{reviewing={action:'apply-tool',id:proposed.id};$('reviewText').textContent=title.textContent+'\n'+detail.textContent+'\n'+(proposed.kind==='app_action'?t('Runs this application action on the attached source using your current settings.','Bu uygulama işlemini bağlı kaynakta mevcut ayarlarınla çalıştırır.'):t('Runs only this action. No file is modified and no voice is generated.','Yalnız bu işlem uygulanır. Dosya değişmez ve ses üretimi başlamaz.'));$('review').hidden=false;};
         card.append(title,detail,apply);
+        if(proposed.refreshable&&proposed.resultStatus==='failed'){
+          const refresh=document.createElement('button');refresh.dataset.toolControl='refresh';refresh.className='flow-continue';
+          refresh.textContent=t('Refresh from current settings','Güncel ayarlarla yenile');refresh.disabled=busy;
+          refresh.title=t('Creates a new proposal for review. Does not apply settings.','İncelemek için yeni bir öneri hazırlar. Ayarları uygulamaz.');
+          refresh.onclick=()=>action('refresh-tool',proposed.id);card.append(refresh);
+        }
         if(proposed.canContinue){const next=document.createElement('button');next.dataset.toolControl='continue';next.className='flow-continue';next.textContent=proposed.waiting?t('Waiting for this job…','İşin bitmesi bekleniyor…'):proposed.partial?t('Review partial result','Kısmi sonucu incele'):t('Continue with result','Sonuçla devam et');next.disabled=busy||proposed.waiting;next.onclick=()=>action('continue-tool',proposed.id);card.append(next);}
 
         if(proposed.flowNote){const note=document.createElement('p');note.className='action-receipt';note.setAttribute('role','status');note.textContent=proposed.flowNote;card.append(note);}

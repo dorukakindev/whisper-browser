@@ -1,13 +1,14 @@
 'use strict';
 const {randomUUID}=require('node:crypto');
 const registry=require('./assistant-capabilities'),manifest=require('./assistant-context-manifest'),provider=require('./assistant-provider');
+const settingProposals=require('./assistant-setting-proposals');
 const fold=value=>String(value||'').normalize('NFKD').replace(/\p{M}/gu,'').replace(/ı/g,'i').toLowerCase();
 const identifier=value=>typeof value==='string'&&/^[\w-]{1,100}$/.test(value);
 const workflowSnapshot=(name,state)=>JSON.stringify(name==='undo_workflow_settings'?{values:state.values,canUndo:state.canUndo,undoChanges:state.undoChanges}:state.values);
 
 function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetchImpl=fetch,getJobs=()=>({jobs:[]}),cancelJob=async()=>({ok:false}),probeVideo=async()=>({ok:false}),resolveJobId=()=>null,researchWeb=async()=>({})}){
  const flows=require('./assistant-flows').createFlows({getJobs}),applications=new Map();
- const sessions=new Map(),proposals=new Map(),pending=new Map(),captionProbes=new Map(),jobBindings=new Map();
+ const sessions=new Map(),proposals=new Map(),pending=new Map(),refreshable=new Map(),captionProbes=new Map(),jobBindings=new Map();
  const emit=(sender,packet)=>{if(!sender.isDestroyed())sender.send('assistant:agentEvent',packet);};
  function sameJobSource(binding,owner){return !!binding&&manifest.same({...binding.owner,thread:owner.thread},owner);}
  function jobResult(id,owner){
@@ -22,7 +23,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
   return binding;
  }
  function requireOwner(owner){if(!owner.owner||!owner.thread||!validateOwner(owner))throw Error('The source changed / Kaynak değişti.');}
- function requestRenderer(sender,owner,name,args,signal){
+ function requestRenderer(sender,owner,name,args,signal,expectedSettings){
   requireOwner(owner);const callId=randomUUID(),budget=['prepare_voice_reference','start_voice_generation','voice_group','pick_local_voice_reference','prepare_book_narration','start_book_narration','book_chapter','export_book_audio','load_title_reviews','translate_title_synopsis'].includes(name)?120000:name==='translate_video_captions'?100000:30000;
   return new Promise((resolve,reject)=>{
    const cancel=error=>{if(!pending.has(callId))return;emit(sender,{type:'action-cancel',callId});finish(null,error);};
@@ -32,8 +33,30 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    const finish=(value,error)=>{if(!pending.has(callId))return;pending.delete(callId);clearTimeout(timer);signal?.removeEventListener('abort',abort);sender.removeListener('destroyed',destroyed);error?reject(error):resolve(value);};
    pending.set(callId,{sender,owner,finish,cancel});signal?.addEventListener('abort',abort,{once:true});sender.once('destroyed',destroyed);
    if(signal?.aborted){abort();return;}if(sender.isDestroyed()){destroyed();return;}
-   emit(sender,{type:'action',callId,owner,name,args,deadline:Date.now()+budget});
+   emit(sender,{type:'action',callId,owner,name,args,...(expectedSettings?{expectedSettings}:{}),deadline:Date.now()+budget});
   });
+ }
+ function settingsSnapshot(name,args,state,owner){
+  if(name==='undo_app_preferences')registry.validate('set_app_preferences',state.undoChanges,owner);
+  return settingProposals.snapshot(name,args,state);
+ }
+ async function captureSettings(sender,owner,row,signal){
+  if(['set_app_preferences','undo_app_preferences','configure_voice_generation'].includes(row.name)){
+   const state=await requestRenderer(sender,owner,row.name!=='configure_voice_generation'?'get_app_preferences':'get_voice_status',{},signal);
+   row.settingsIdentity=settingsSnapshot(row.name,row.args,state,owner);
+   row.summary=settingProposals.summary(row.name,row.args,row.settingsIdentity,row.locale);
+   row.expectedSettings=row.name==='undo_app_preferences'?{kind:'preferences',...JSON.parse(row.settingsIdentity)}:{kind:row.name==='set_app_preferences'?'preferences':'voice',values:JSON.parse(row.settingsIdentity)};
+  }
+  if(['configure_workflow','undo_workflow_settings'].includes(row.name)){
+   const state=await requestRenderer(sender,owner,'get_workflow_settings',{domain:row.args.domain},signal);
+   if(state.status!=='completed'||!state.values)throw Error('Workflow settings unavailable.');
+   if(row.name==='undo_workflow_settings'&&!state.canUndo)throw Error('No unchanged workflow action to undo.');
+   row.workflowIdentity=workflowSnapshot(row.name,state);
+   const changes=row.name==='configure_workflow'?require('./assistant-workflow-settings').parse(row.args.domain,row.args.changes_json):state.undoChanges;
+   row.expectedSettings={kind:'workflow',domain:row.args.domain,values:Object.fromEntries(Object.keys(changes).map(key=>[key,state.values[key]])),...(row.name==='undo_workflow_settings'?{canUndo:state.canUndo,undoChanges:state.undoChanges}:{})};
+   row.summary=require('./assistant-workflow-settings').summary(row.args.domain,row.name==='configure_workflow'?row.args.changes_json:JSON.stringify(state.undoChanges),row.locale,state);
+  }
+  return row;
  }
  ipcMain.handle('assistant:agentResult',(event,input={})=>{
   if(!authorized(event)||!identifier(input.callId))return {ok:false};
@@ -122,7 +145,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
      if(proposals.size>=100||session.proposalCount>=8)throw Error('Too many pending assistant actions.');
      session.proposalCount=(session.proposalCount||0)+1;
      const proposalId=randomUUID();let libraryIdentity,collectionIdentity,workflowIdentity,translationIdentity;let {label,summary}=registry.describe(name,args,input.locale,owner);
-     if(['configure_workflow','undo_workflow_settings'].includes(name)){const state=await requestRenderer(event.sender,owner,'get_workflow_settings',{domain:args.domain},controller.signal);if(state.status!=='completed'||!state.values)throw Error('Workflow settings unavailable.');workflowIdentity=workflowSnapshot(name,state);if(name==='configure_workflow')summary=require('./assistant-workflow-settings').summary(args.domain,args.changes_json,input.locale,state);else {if(!state.canUndo)throw Error('No unchanged workflow action to undo.');summary=require('./assistant-workflow-settings').summary(args.domain,JSON.stringify(state.undoChanges),input.locale,state);}}
+
      if(args.translation_profile||name==='set_translation_profile'){const state=await requestRenderer(event.sender,owner,'get_translation_profile',{profile_id:args.translation_profile||args.profile_id},controller.signal);if(state.status!=='completed'||!state.profile)throw Error('Configured translation model unavailable.');translationIdentity=JSON.stringify(state.profile);summary+=' · '+state.profile.model+' ('+state.profile.provider+')';}
      if(name==='set_voice_reference'){const state=await requestRenderer(event.sender,owner,'list_voice_references',{},controller.signal);const ref=state.references?.find(row=>row.id===args.reference_id);if(!ref)throw Error('Unknown saved voice reference.');summary=(input.locale==='tr'?'Referans: ':'Reference: ')+ref.name+(input.locale==='tr'?' · üretim başlamaz.':' · generation does not start.');}
      if(['voice_group','use_generated_voice','start_voice_generation'].includes(name)){const state=await requestRenderer(event.sender,owner,'get_voice_status',name==='voice_group'?{group_id:args.group_id}:{},controller.signal);const voice=state.voice;if(!voice||voice.busy)throw Error('Voice panel unavailable or busy.');if(name==='voice_group'){const group=voice.groups?.find(row=>row.id===args.group_id);if(!group)throw Error('Unknown current voice group.');summary=(input.locale==='tr'?'Grup ':'Group ')+group.number+' · '+summary;}if(name==='use_generated_voice'&&(!voice.output||voice.output.id!==args.output_id||voice.output.sample||voice.output.syncInvalid))throw Error('No matching full voice output.');if(name==='start_voice_generation'&&(!voice.subtitleReady||!voice.engineAndReferenceReady))throw Error('Open voice preparation and select subtitles/reference first.');}
@@ -144,8 +167,9 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
      if(entry.domain==='library'&&args.item_id){const state=await requestRenderer(event.sender,owner,'get_title_details',{item_id:args.item_id},controller.signal);if(!state.item||!state.identity)throw Error('Title identity unavailable.');libraryIdentity=state.identity;summary=String(state.item.title).slice(0,160)+' · '+summary;}
      if(name==='apply_library_collection'){const state=await requestRenderer(event.sender,owner,'get_collection_plan',{plan_id:args.plan_id},controller.signal);if(!state.plan)throw Error('Collection plan unavailable.');collectionIdentity=JSON.stringify(state.plan);summary=(state.plan.member===false?(input.locale==='tr'?'Üyelikten çıkar: ':'Remove membership: '):(input.locale==='tr'?'Üyeliğe ekle: ':'Add membership: '))+state.plan.name+' · '+state.plan.items.map(row=>row.title).join(', ').slice(0,1200);}
      controller.signal.throwIfAborted();requireOwner(owner);
-     const action={kind:'app_action',proposalId,tool:name,label,summary};
-     proposals.set(proposalId,{sender:event.sender,owner,name,args,flow,label,summary,libraryIdentity,collectionIdentity,workflowIdentity,translationIdentity,expires:Date.now()+10*60*1000});
+     const row=await captureSettings(event.sender,owner,{sender:event.sender,owner,name,args,flow,label,summary,locale:input.locale,libraryIdentity,collectionIdentity,workflowIdentity,translationIdentity,expires:Date.now()+10*60*1000},controller.signal);
+     summary=row.summary;const action={kind:'app_action',proposalId,tool:name,label,summary};
+     proposals.set(proposalId,row);
      emit(event.sender,{type:'proposal',requestId:session.id,action});
      const receipt={status:'proposed',label,proposalId,tool:name,note:'A real action card was created. It has not run; the user may apply it.'};offered.set(signature,receipt);if(name==='apply_library_collection')planned.delete(args.plan_id);return receipt;
     }
@@ -174,6 +198,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
  ipcMain.handle('assistant:agentApply',async(event,input={})=>{
   if(!authorized(event))return {ok:false,error:'Unauthorized assistant action.'};
   if(sessions.has(event.sender.id)||applications.has(event.sender.id))return {ok:false,error:'Another assistant action is running / Başka asistan işlemi sürüyor.'};
+  if(input.mode==='refresh')return refreshProposal(event,input);
   const row=proposals.get(input.proposalId);if(!row||row.sender!==event.sender)return {ok:false,error:'This action expired; ask again / Öneri eskidi; yeniden iste.'};
   try{
    const current=manifest.clean(input.owner);if(row.expires<Date.now()||!manifest.same(row.owner,current))throw Error('The source or conversation changed / Kaynak veya sohbet değişti.');
@@ -183,10 +208,25 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    const controller=new AbortController(),timer=setTimeout(()=>controller.abort('timeout'),['prepare_voice_reference','start_voice_generation','voice_group','pick_local_voice_reference','prepare_book_narration','start_book_narration','book_chapter','export_book_audio','load_title_reviews','translate_title_synopsis'].includes(row.name)?120000:row.name==='translate_video_captions'?100000:30000);
    const stop=()=>controller.abort('closed');event.sender.once('destroyed',stop);if(event.sender.isDestroyed())stop();
    applications.set(event.sender.id,{id:input.proposalId,controller});
-   try{if(row.translationIdentity){const state=await requestRenderer(event.sender,current,'get_translation_profile',{profile_id:row.args.translation_profile||row.args.profile_id},controller.signal);if(JSON.stringify(state.profile)!==row.translationIdentity)throw Error('Translation profile changed; ask again / Çeviri profili değişti; yeniden isteyin.');}if(row.workflowIdentity){const state=await requestRenderer(event.sender,current,'get_workflow_settings',{domain:row.args.domain},controller.signal);if(workflowSnapshot(row.name,state)!==row.workflowIdentity)throw Error('Workflow settings changed; ask again / İşlem ayarları değişti; yeniden isteyin.');}if(row.libraryIdentity){const state=await requestRenderer(event.sender,current,'get_title_details',{item_id:row.args.item_id},controller.signal);if(state.identity!==row.libraryIdentity)throw Error('Title changed; ask again.');}if(row.collectionIdentity){const state=await requestRenderer(event.sender,current,'get_collection_plan',{plan_id:row.args.plan_id},controller.signal);if(JSON.stringify(state.plan)!==row.collectionIdentity)throw Error('Collection plan changed; ask again.');}if(row.name==='cancel_job'){const result=await cancelJob(row.args.job_id);return result.ok?{ok:true,result}:{ok:false,error:result.error};}const binding=row.name==='use_job_subtitles'?subtitleBinding(row.args,current):null;const result=await requestRenderer(event.sender,current,row.name,binding?{...row.args,job_id:binding.externalId}:row.args,controller.signal);const exactId=resolveJobId(result?.jobId);if(result?.status==='accepted'&&exactId){jobBindings.set(exactId,{owner:current,externalId:result.jobId,tool:row.name});while(jobBindings.size>50)jobBindings.delete(jobBindings.keys().next().value);}const continuation=flows.record(row.flow,row.name,row.args,result,resolveJobId(result?.jobId));const invalidated=[];if(['accepted','completed'].includes(result?.status))for(const [id,other] of proposals)if(other.flow===row.flow){proposals.delete(id);invalidated.push(id);}return {ok:true,result:{...result,...continuation,invalidatedProposalIds:invalidated}};}finally{clearTimeout(timer);event.sender.removeListener('destroyed',stop);applications.delete(event.sender.id);}
-  }catch(error){return {ok:false,error:String(error.message).slice(0,300)};}
+   try{if(row.settingsIdentity){const state=await requestRenderer(event.sender,current,row.name!=='configure_voice_generation'?'get_app_preferences':'get_voice_status',{},controller.signal);if(settingsSnapshot(row.name,row.args,state,current)!==row.settingsIdentity)throw Object.assign(Error('Settings changed; refresh and review / Ayarlar değişti; yenileyip inceleyin.'),{stale:true});}if(row.translationIdentity){const state=await requestRenderer(event.sender,current,'get_translation_profile',{profile_id:row.args.translation_profile||row.args.profile_id},controller.signal);if(JSON.stringify(state.profile)!==row.translationIdentity)throw Error('Translation profile changed; ask again / Çeviri profili değişti; yeniden isteyin.');}if(row.workflowIdentity){const state=await requestRenderer(event.sender,current,'get_workflow_settings',{domain:row.args.domain},controller.signal);if(workflowSnapshot(row.name,state)!==row.workflowIdentity)throw Object.assign(Error('Workflow settings changed; refresh and review / İşlem ayarları değişti; yenileyip inceleyin.'),{stale:true});}if(row.libraryIdentity){const state=await requestRenderer(event.sender,current,'get_title_details',{item_id:row.args.item_id},controller.signal);if(state.identity!==row.libraryIdentity)throw Error('Title changed; ask again.');}if(row.collectionIdentity){const state=await requestRenderer(event.sender,current,'get_collection_plan',{plan_id:row.args.plan_id},controller.signal);if(JSON.stringify(state.plan)!==row.collectionIdentity)throw Error('Collection plan changed; ask again.');}if(row.name==='cancel_job'){const result=await cancelJob(row.args.job_id);return result.ok?{ok:true,result}:{ok:false,error:result.error};}const binding=row.name==='use_job_subtitles'?subtitleBinding(row.args,current):null;const result=await requestRenderer(event.sender,current,row.name,binding?{...row.args,job_id:binding.externalId}:row.args,controller.signal,row.expectedSettings);if(row.expectedSettings&&result?.status==='failed'&&result.stale===true)throw Object.assign(Error(String(result.error||'Settings changed; refresh and review.').slice(0,300)),{stale:true});const exactId=resolveJobId(result?.jobId);if(result?.status==='accepted'&&exactId){jobBindings.set(exactId,{owner:current,externalId:result.jobId,tool:row.name});while(jobBindings.size>50)jobBindings.delete(jobBindings.keys().next().value);}const continuation=flows.record(row.flow,row.name,row.args,result,resolveJobId(result?.jobId));const invalidated=[];if(['accepted','completed'].includes(result?.status))for(const [id,other] of proposals)if(other.flow===row.flow){proposals.delete(id);invalidated.push(id);}return {ok:true,result:{...result,...continuation,invalidatedProposalIds:invalidated}};}finally{clearTimeout(timer);event.sender.removeListener('destroyed',stop);applications.delete(event.sender.id);}
+  }catch(error){if(error.stale){for(const [id,other] of refreshable)if(other.expires<Date.now())refreshable.delete(id);if(refreshable.size>=100)refreshable.delete(refreshable.keys().next().value);refreshable.set(input.proposalId,row);}return {ok:false,...(error.stale?{stale:true,refreshable:true}:{}),error:String(error.message).slice(0,300)};}
  });
- app.once('will-quit',()=>{for(const row of sessions.values())row.controller.abort('closed');for(const row of applications.values())row.controller.abort('closed');for(const row of pending.values())row.finish(null,Error('Application closing.'));proposals.clear();flows.tokens.clear();captionProbes.clear();jobBindings.clear();});
+ async function refreshProposal(event,input={}){
+  if(!authorized(event))return {ok:false,error:'Unauthorized assistant action.'};
+  if(sessions.has(event.sender.id)||applications.has(event.sender.id))return {ok:false,error:'Another assistant action is running.'};
+  const row=refreshable.get(input.proposalId);if(!row||row.sender!==event.sender)return {ok:false,error:'This refresh expired; ask again.'};
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort('timeout'),30000);
+  try{
+   const owner=manifest.clean(input.owner);if(row.expires<Date.now()||!manifest.same(row.owner,owner))throw Error('The source or conversation changed.');
+   requireOwner(owner);registry.validate(row.name,row.args,owner);
+   applications.set(event.sender.id,{id:input.proposalId,controller});
+   const fresh=await captureSettings(event.sender,owner,{...row,expires:Date.now()+10*60*1000},controller.signal);
+   requireOwner(owner);if(proposals.size>=100)throw Error('Too many pending assistant actions.');
+   const proposalId=randomUUID();proposals.set(proposalId,fresh);refreshable.delete(input.proposalId);
+   return {ok:true,action:{kind:'app_action',proposalId,tool:fresh.name,label:fresh.label,summary:fresh.summary}};
+  }catch(error){return {ok:false,error:String(error.message).slice(0,300)};}finally{clearTimeout(timer);applications.delete(event.sender.id);}
+ }
+ app.once('will-quit',()=>{for(const row of sessions.values())row.controller.abort('closed');for(const row of applications.values())row.controller.abort('closed');for(const row of pending.values())row.finish(null,Error('Application closing.'));proposals.clear();refreshable.clear();flows.tokens.clear();captionProbes.clear();jobBindings.clear();});
  return {sessions,proposals,flows,applications};
 }
 module.exports={register};

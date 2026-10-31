@@ -1,0 +1,151 @@
+{
+  "fullBeforeFinalUndoExtension": {
+    "exit": 0,
+    "sourceFilesHashed": 1618,
+    "sourceStable": true,
+    "changedDuringRun": [],
+    "nodeFiles": 722,
+    "pythonFiles": 171
+  },
+  "postFullChange": "Bind preference undo to its exact approved restoration destination; main/helper/renderer and related tests only.",
+  "finalFocused": {
+    "files": 11,
+    "runnerReportedTests": 120,
+    "pass": 120,
+    "fail": 0,
+    "includesPlainRatchetFiles": true
+  },
+  "syntax": [
+    {
+      "file": "src/assistant-agent-service.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/assistant-overlay.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/assistant-thread-store.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/assistant-workflow-settings.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/assistant-agent-ui.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/assistant-app-actions.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/assistant-library-actions.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/assistant-overlay.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/assistant-voice-actions.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/assistant-workflow-actions.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/assistant-workspace.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/dub-generator-ui.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/global-assistant.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/assistant-conversation.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/assistant-voice-actions.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/assistant-workspace-ownership200.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/assistant-setting-proposals.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/assistant-setting-proposals200.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/assistant-settings-disk200.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/electron-assistant-settings200.smoke.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/electron-voice-job-options200.smoke.js",
+      "exit": 0,
+      "error": ""
+    }
+  ],
+  "finalProductHashes": {
+    "src/assistant-agent-service.js": "87d4b1e3c18a773020bb896264b3699278fdb5fa45e0c8dcb8d550fe95be5e28",
+    "src/assistant-overlay.js": "2edeb9a9c7a9507a00231bad4ed557f4bf5a2bf6dd1879b49bad76bf39573f43",
+    "src/assistant-thread-store.js": "4a070333fb4dd4aad4829c01d87a155cd8e513e1e4e3eb690452f9cda601277f",
+    "src/assistant-workflow-settings.js": "023ed7594a21568b0ea7aacb47d3cb00de1c62e228df6ef1a2848bd41ca09af8",
+    "src/renderer/assistant-agent-ui.js": "992cd12e5eac65563f3649012353b5ff72585907d8ea90a9564ebbc7d5b756a5",
+    "src/renderer/assistant-app-actions.js": "5ec6ea754f9bed6dfd196aed01e1cebd3169e1bf531ca8faa6bade029b93ce29",
+    "src/renderer/assistant-library-actions.js": "fbd52fbcd0316cb13e745d4e7850ccae8a35125e58488f3251760e4e91924eac",
+    "src/renderer/assistant-overlay.js": "26588ec3bed5a60fffb3d1869305f1f7d9223f917151c75e4241875abb183625",
+    "src/renderer/assistant-voice-actions.js": "871573f768128d0b78bf656b235bbace1ff8a53bcc6d43d06a5e57d19c0a68c6",
+    "src/renderer/assistant-workflow-actions.js": "d075a2bc6565a9b1a48caaff3668945cee1f49fafc569439f7b884b34ee06043",
+    "src/renderer/assistant-workspace.js": "4cee94cfe352695ca4be54fad9324df52e2bc0b14650b5352ecb8bc27c0cfb89",
+    "src/renderer/dub-generator-ui.js": "429752e098b7ca96ec556d6a71def26f742f2a7499ec5b094523456efda7afce",
+    "src/renderer/global-assistant.js": "97814757397743f282e55f3b7a360336d6829d80239f9f21c95f3f18b2148f67",
+    "tests/assistant-conversation.test.js": "b4e98b592e623ced1e9effeefc9ec791eaa012860f47a27de6566f45f9fe53bd",
+    "tests/assistant-voice-actions.test.js": "aa49dfd6fcd644aec2c6b6cabcdb7d4379cb1680b85190d5e9d4a304fe154f47",
+    "tests/assistant-workspace-ownership200.test.js": "e9568270bc0cd7cfee304bd790804dc147eaf03ad5308a6650feccb1d5284935",
+    "src/assistant-setting-proposals.js": "427ffaa5c9574c286486ebd84861874c612c4b83e799d19f203837c88111594c",
+    "tests/assistant-setting-proposals200.test.js": "7e32f770760bc2529b56e01e65d6196efa44612d94c397cc222906cac45ff606",
+    "tests/assistant-settings-disk200.test.js": "46a7c13e9525e198c3bf7d6a6b6ffabff844c9154e2f3a5dfe075c946c7e91d0",
+    "tests/electron-assistant-settings200.smoke.js": "4567bd7c75da7b45215dbb7334d248c7e0ab8861d1e3a53acecc79b7a6f496b4",
+    "tests/electron-voice-job-options200.smoke.js": "7d0baa8e4f8e4d1bdb67e80e2c2cc46c5c43febf539bc78e19957e5bfa19bf9c"
+  },
+  "liveProvider": false,
+  "gpu": false,
+  "humanListening": false
+}

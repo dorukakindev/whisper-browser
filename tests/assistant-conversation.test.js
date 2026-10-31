@@ -75,3 +75,12 @@ test('an accepted new question clears the old tool notice without hiding rejecte
  accept=true;listener({action:'send',text:'Accepted question',sourceToken:'A',requestId:'accept'});await wait();assert.equal(last.receipt.accepted,true);assert.equal(last.workspaceError,'');
  }finally{w.close()}
 });
+
+
+test('stale card refresh prepares a new unapplied card and still requires explicit confirmation',()=>{const ui=overlay();try{
+ ui.snapshot({messages:[{role:'ai',text:'Review theme',actions:[{id:'old',kind:'app_action',label:'Theme',excerpt:'dark to light',resultStatus:'failed',refreshable:true,resultText:'Settings changed'}]}]});
+ const refresh=ui.w.document.querySelector('[data-tool-control="refresh"]');assert(refresh);refresh.click();assert.equal(ui.commands.at(-1).action,'refresh-tool');assert.equal(ui.commands.at(-1).text,'old');assert.equal(ui.$('review').hidden,true);
+ ui.snapshot({messages:[{role:'ai',text:'Review theme',actions:[{id:'fresh',kind:'app_action',label:'Theme',excerpt:'system to light'}]}]});
+ assert.equal(ui.w.document.querySelector('[data-tool-control="refresh"]'),null);assert.equal(ui.commands.filter(row=>row.action==='apply-tool').length,0);
+ const apply=ui.w.document.querySelector('.tool-card button');assert.equal(apply.disabled,false);apply.click();assert.equal(ui.$('review').hidden,false);ui.$('reviewConfirm').click();assert.equal(ui.commands.at(-1).action,'apply-tool');assert.equal(ui.commands.at(-1).text,'fresh');
+}finally{ui.w.close();}});

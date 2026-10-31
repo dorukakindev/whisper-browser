@@ -34,7 +34,7 @@ function actionsOf(raw){
     if(row?.kind==='app_action'){
       if(!id(row.proposalId)||require('./assistant-capabilities').get(row.tool)?.policy!=='proposal')return [];
       return [{kind:'app_action',proposalId:row.proposalId,tool:row.tool,label:text(row.label,120),summary:text(row.summary,1000),
-        resultStatus:['accepted','completed','failed','stopped'].includes(row.resultStatus)?row.resultStatus:'',resultText:text(row.resultText,500)}];
+        resultStatus:['accepted','completed','failed','stopped'].includes(row.resultStatus)?row.resultStatus:'',refreshable:row.resultStatus==='failed'&&row.refreshable===true,resultText:text(row.resultText,500)}];
     }
     if(!row||!['seek_to_time','preview_translation_change','open_voice_preparation'].includes(row.kind))return [];
     const result={kind:row.kind,source:evidenceOf(row.source?[row.source]:[])[0]||null,translation:text(row.translation,2000)};

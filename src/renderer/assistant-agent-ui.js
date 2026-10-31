@@ -47,7 +47,7 @@
   if(packet.type==='action'){
    if(!Number.isFinite(packet.deadline)||packet.deadline<Date.now()){void window.api.assistantAgentResult({callId:packet.callId,result:{status:'failed',error:'Action expired / İşlem isteği eskidi.'}});return;}
    const call={cancelled:false};actionCalls.set(packet.callId,call);
-   void window.AssistantAppActions.execute(packet.name,packet.args,packet.owner,{deadline:packet.deadline,isCancelled:()=>call.cancelled}).then(result=>window.api.assistantAgentResult({callId:packet.callId,result}))
+   void window.AssistantAppActions.execute(packet.name,packet.args,packet.owner,{deadline:packet.deadline,isCancelled:()=>call.cancelled,expectedSettings:packet.expectedSettings}).then(result=>window.api.assistantAgentResult({callId:packet.callId,result}))
     .catch(error=>window.api.assistantAgentResult({callId:packet.callId,result:{status:'failed',error:String(error.message).slice(0,300)}})).finally(()=>actionCalls.delete(packet.callId));return;
   }
   const task=pending;if(!task||packet.requestId!==task.id||task.cancelled)return;
@@ -77,13 +77,26 @@
  async function apply(proposal){
   if(pending||applying)throw Error(t('Wait for the current assistant action.','Geçerli asistan işlemini bekle.'));
   const task={id:proposal.proposalId,owner:window.AssistantAppActions.snapshot(),phase:'applying'};applying=task;changed();let result;
-  try{const response=await window.api.assistantAgentApply({proposalId:proposal.proposalId,owner:task.owner});result=response?.ok?response.result:{status:task.cancelled?'stopped':'failed',error:response?.error||t('Action failed.','İşlem başarısız oldu.')};if(typeof result.error==='string')result.error=errorText(result.error);
+  try{const response=await window.api.assistantAgentApply({proposalId:proposal.proposalId,owner:task.owner});result=response?.ok?response.result:{status:task.cancelled?'stopped':'failed',refreshable:response?.refreshable===true,error:response?.error||t('Action failed.','İşlem başarısız oldu.')};if(typeof result.error==='string')result.error=errorText(result.error);
    if(result.continuationState==='unverified')result.note=(result.note||'')+' '+t('Follow this job in Jobs; its completion cannot be linked to an automatic next step.','Bu işi İşler bölümünden takip et; tamamlanması sonraki adıma güvenle bağlanamıyor.');
    if(result.continuationState==='limit')result.note=(result.note||'')+' '+t('Eight applied steps reached. Ask a new question to continue.','Sekiz uygulanan adıma ulaşıldı. Devam etmek için yeni bir soru sor.');
    window.AssistantWorkspace?.actionResult(proposal.proposalId,result);
    for(const id of result.invalidatedProposalIds||[])window.AssistantWorkspace?.actionResult(id,{status:'stopped',note:t('Previous results changed. Continue the latest applied step to plan again.','Önceki sonuçlar değişti. Yeniden planlamak için uygulanan son adımdan devam et.')});
    const origin=proposalTasks.get(proposal.proposalId);if(result.continuationId&&origin&&window.AssistantAppActions.current(task.owner))continuations.set(proposal.proposalId,{token:result.continuationId,proposalId:proposal.proposalId,owner:task.owner,origin,expires:Date.now()+600000,waiting:result.continuationState==='waiting',jobId:result.continuationJobId||null});while(continuations.size>50)continuations.delete(continuations.keys().next().value);
    if(['failed','stopped'].includes(result.status))throw Error(result.error||t('Action stopped. A started media job remains separately controlled in Jobs.','Asistan işlemi durdu. Başlamış medya işi İşler bölümünden ayrıca yönetilir.'));return result;
+  }finally{if(applying===task)applying=null;changed();}
+ }
+ async function refresh(proposal){
+  if(pending||applying)throw Error(t('Wait for the current assistant action.','Geçerli asistan işlemini bekle.'));
+  const task={id:proposal.proposalId,owner:window.AssistantAppActions.snapshot(),phase:'applying'};applying=task;changed();
+  try{
+   const response=await window.api.assistantAgentApply({mode:'refresh',proposalId:proposal.proposalId,owner:task.owner});
+   if(!response?.ok||!response.action)throw Error(errorText(response?.error)||t('The card could not be refreshed. Ask for a new proposal.','Kart yenilenemedi. Yeni bir öneri iste.'));
+   if(task.cancelled||!window.AssistantAppActions.current(task.owner))throw Error(t('The source changed. No action was applied.','Kaynak değişti. İşlem uygulanmadı.'));
+   window.AssistantWorkspace.replaceProposal(proposal.proposalId,response.action);
+   const origin=proposalTasks.get(proposal.proposalId);if(origin)proposalTasks.set(response.action.proposalId,origin);
+   proposalTasks.delete(proposal.proposalId);continuations.delete(proposal.proposalId);
+   return response.action;
   }finally{if(applying===task)applying=null;changed();}
  }
  const flowInfo=proposal=>{
@@ -107,7 +120,7 @@
  }
  const canRetry=()=>!!retryPacket&&window.AssistantAppActions.current(retryPacket.owner);
  async function retry(){if(!canRetry()||pending||applying)return;const row=retryPacket;await send(row.question,row.context,row.history,row.scope);}
- window.AssistantAgentUI=Object.freeze({send,status,busy:()=>!!pending||!!applying,cancel,apply,flowInfo,continueAction,canRetry,retry,bookPreparation});
+ window.AssistantAgentUI=Object.freeze({send,status,busy:()=>!!pending||!!applying,cancel,apply,refresh,flowInfo,continueAction,canRetry,retry,bookPreparation});
  document.addEventListener('media-context-changed',()=>{const task=pending||applying;
   if(task===applying&&task&&!task.cancelled&&task.bookHandoff&&window.globalAssistantContext?.()?.id===task.bookHandoff){
    const next=window.AssistantAppActions.snapshot();
