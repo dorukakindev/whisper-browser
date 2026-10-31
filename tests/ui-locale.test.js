@@ -45,6 +45,21 @@ for(const dependency of ordered){
  const at=scripts.indexOf(dependency);assert(at>previous,dependency+" must load after its prerequisites");previous=at;
 }
 const localized = new Map([...entries,...require('./helpers/owned-ui-copy')(html)]);
+// Dubbing owns its copy locally. Execute the production locale handler in both
+// directions; data attributes alone are not proof that a label is translated.
+{
+ const {JSDOM}=require('jsdom'),dom=new JSDOM(html,{runScripts:'outside-only'}),w=dom.window;
+ let locale='en';w.UiLocale={get:()=>locale,t:text=>translate(text,locale)};w.DubRunInfo=require('../src/renderer/dub-run-info');
+ w.api={onDubEvent(){}};w.HTMLMediaElement.prototype.pause=w.HTMLMediaElement.prototype.load=()=>{};
+ const fields=[...w.document.querySelectorAll('#dubGeneratorDialog [data-tr][data-en]')],original=fields.map(node=>node.textContent.trim());assert(fields.length>=8);
+ try{
+  w.eval(fs.readFileSync(path.join(__dirname,'../src/renderer/dub-generator-ui.js'),'utf8'));
+  fields.forEach((node,i)=>{assert.equal(node.textContent,node.dataset.en);localized.set(original[i],node.dataset.en);});
+  locale='tr';w.document.dispatchEvent(new w.Event('ui-locale-change'));
+  fields.forEach(node=>assert.equal(node.textContent,node.dataset.tr));
+ }finally{w.close();}
+}
+
 const staticCopy = html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '');
 // HTML entity'leri sözlük anahtarlarıyla eşleşmesi için çözülür (&lt;ad&gt; → <ad>).
 const decodeEntities = (value) => value

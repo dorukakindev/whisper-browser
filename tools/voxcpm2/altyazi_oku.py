@@ -157,15 +157,26 @@ async def rewrite_for_window(args, i, text, seconds, before='', after='', mode='
     request_id = uuid.uuid4().hex
     response_path = args.rewrite_dir / (request_id + '.json')
     rewrite_started=time.monotonic()
+    print('DUB_ACTIVITY '+json.dumps({'stage':'text_edit'}),flush=True)
     print('DUB_REWRITE ' + json.dumps({'id': request_id, 'group': i + 1,
+        'key':getattr(args,'group_keys',[])[i] if i<len(getattr(args,'group_keys',[])) else '',
+        'sourceHash':getattr(args,'source_hash',''),
         'text': text, 'seconds': min(35, seconds), 'mode':mode, 'measured':measured, 'before':before[-1500:], 'after':after[:1500]}), flush=True)
     try:
-        for _ in range(500):
+        # The editor may perform one source-meaning review after its rewrite.
+        # Both provider requests have their own deadlines; this wait is bounded.
+        for _ in range(900):
             if response_path.is_file():
                 response = json.loads(response_path.read_text(encoding='utf-8'))
                 if not isinstance(response, dict):
                     return text
+                statuses=getattr(args,'speech_edit_status',None)
+                if statuses is not None:
+                    status=response.get('status')
+                    statuses.setdefault(i,{})[mode]=status if status in ('unchanged','source_reviewed','source_unavailable','editor_unavailable','editor_failed') else 'unavailable'
                 proposed = response.get('text')
+                if proposed!=text and response.get('status')!='source_reviewed':
+                    return text
                 if isinstance(proposed, str) and 0 < len(proposed) <= (min(1000, max(len(text), round(len(text)*1.25))) if mode == 'natural' else len(text)):
                     return proposed
                 return text
@@ -266,11 +277,11 @@ async def uret(args, cues, paths, prompt_text):
         async def verify_pronunciation(audio_path, text, numeric_reference=None):
             return await verifier.check(audio_path, text, numeric_reference=numeric_reference)
 
-        async def sentez(chunk, seed, delivery=None, isolated=False):
+        async def sentez(chunk, seed, delivery=None, isolated=False, context=None):
             from dub_expression import synthesis_text
-            from dub_prosody import delivery_instruction
+            from dub_delivery import synthesis_instruction, conditioning_context
             pieces = []
-            instruction = delivery_instruction(delivery)
+            instruction = synthesis_instruction(delivery, conditioning_context(context,chunk))
             with measured(args,'synthesis'):
                 async for part in server.generate(
                         instruction + chunk if instruction else synthesis_text(chunk, getattr(args, 'expression', 'reference')),
@@ -297,6 +308,10 @@ async def uret(args, cues, paths, prompt_text):
                 original_text = text
                 delivery = getattr(args,'group_delivery',[])
                 delivery = delivery[i] if i < len(delivery) else None
+                contexts=getattr(args,'group_context',[])
+                context=contexts[i] if i<len(contexts) else None
+                from dub_delivery import synthesis_instruction, conditioning_context
+                continuation_active=bool(prompt_id and not automatic_delivery and not synthesis_instruction(delivery,context))
                 raw_scores = {}
                 synthesis_attempt = 0
                 verification_attempt = 0
@@ -312,7 +327,7 @@ async def uret(args, cues, paths, prompt_text):
                     from dub_utterance import synthesize_utterance
                     synthesis_attempt += 1
                     raw, score = await observe(synthesize_utterance(chunk, seed, sr,
-                        lambda part, value: sentez(part, value, delivery, isolated),
+                        lambda part, value: sentez(part, value, delivery, isolated, context),
                         lambda raw, rate, part: assess_chunk(raw, rate, part)[0]),
                         group=i+1, attempt=synthesis_attempt, limit=args.request_timeout)
                     raw_scores[id(raw)] = score
@@ -338,18 +353,19 @@ async def uret(args, cues, paths, prompt_text):
                     editable_text = text
                     display_speech = spoken_text(text)
                     text = render_pronunciation(text, dictionary)
+                    continuation_active=bool(prompt_id and not automatic_delivery and not synthesis_instruction(delivery,conditioning_context(context,text)))
                     def retain_before_retry(raw, quality):
                         candidate, finishing = finish_generated(raw)
                         sf.write(str(temporary), candidate, sr, subtype='PCM_16')
                         metric.update(quality, finishing=finishing,
                             naturalEdited=editable_text != original_text, rewritten=False,
                             numericReference=editable_text,
-                            referenceMode='continuation' if prompt_id else 'isolated',
+                            referenceMode='continuation' if continuation_active else 'isolated',
                             recoveryReason='acoustic_retry_interrupted')
                     best, metric = await quality_retry(lambda n: synthesize(text, n),
                         lambda raw: assess_generated(raw, text), seed,
                         args.retry, args.request_timeout, before_retry=retain_before_retry)
-                    metric['referenceMode'] = 'continuation' if prompt_id else 'isolated'
+                    metric['referenceMode'] = 'continuation' if continuation_active else 'isolated'
                     wav = prepare_audio(best, sr)
                     metric['naturalEdited'] = editable_text != original_text
                     metric['rewritten'] = False
@@ -357,9 +373,10 @@ async def uret(args, cues, paths, prompt_text):
                                       else finish_audio(wav,sr))
                     metric['finishing'] = finishing
                     metric['measured_seconds'] = len(wav)/sr
+                    accepted_fit_check=None
                     # One bounded, duration-informed edit. Preserve the original
                     # and accept the candidate only if it is valid and shorter.
-                    if (getattr(args, 'timing_mode', 'clip') != 'video'
+                    if (getattr(args, 'auto_fit', False)
                             and len(wav) / sr > window * 1.15 and len(text) > 25
                             and args.group_keys[i] not in getattr(args, 'manual_groups', set())):
                         proposed = await rewrite_for_window(args, i, editable_text, window,
@@ -374,17 +391,31 @@ async def uret(args, cues, paths, prompt_text):
                                 candidate, candidate_finishing = finish_generated(candidate)
                                 metric['attempts'] += extra['attempts']
                                 metric['retries'] += extra['attempts']
-                                if extra['quality_score'] <= metric['quality_score'] and len(candidate) < len(wav):
+                                # Faster speech is useful only if the complete,
+                                # source-reviewed alternative was actually read.
+                                fitted_check={'status':'not_checked'}
+                                if extra['quality_score']<=metric['quality_score'] and len(candidate)<len(wav):
+                                    fit_file=temporary.with_name(temporary.stem+'-fit.wav')
+                                    try:
+                                        sf.write(str(fit_file),candidate,sr,subtype='PCM_16')
+                                        fitted_check=await verify_group(fit_file,proposed,numeric_reference=proposed_display)
+                                    finally:
+                                        fit_file.unlink(missing_ok=True)
+                                metric['durationCandidateVerification']=fitted_check
+                                if (extra['quality_score'] <= metric['quality_score'] and len(candidate) < len(wav)
+                                        and fitted_check.get('status')=='passed' and not fitted_check.get('review',True)):
                                     wav, text = candidate, proposed
+                                    editable_text=proposed_display
+                                    accepted_fit_check=fitted_check
                                     display_speech = proposed_display
                                     metric['finishing'] = candidate_finishing
                                     metric['rewritten'] = True
                             except (ValueError, asyncio.TimeoutError):
                                 pass
                     sf.write(str(temporary), wav, sr, subtype='PCM_16')
-                    check = {'status': 'not_checked'}
-                    if args.verification == 'detailed' or (args.verification == 'balanced' and
-                            (metric['quality_score'] > 0 or len(wav) / sr > window * 1.15)):
+                    check = accepted_fit_check or {'status': 'not_checked'}
+                    if not accepted_fit_check and (args.verification == 'detailed' or (args.verification == 'balanced' and
+                            (metric['quality_score'] > 0 or len(wav) / sr > window * 1.15))):
                         check = await verify_group(temporary, text, numeric_reference=editable_text)
                         if check['status'] == 'review':
                             # A continuation prompt can transfer the reference
@@ -393,7 +424,7 @@ async def uret(args, cues, paths, prompt_text):
                             # latents, text and all semantic/acoustic gates.
                             # This override is request-local: parallel groups
                             # must never mutate the shared prompt/cache.
-                            isolated_retry = bool(prompt_id)
+                            isolated_retry = continuation_active
                             metric['verificationRetryMode'] = 'isolated' if isolated_retry else 'isolated-seed'
                             second = temporary.with_name(temporary.stem + '-verify.wav')
                             try:
@@ -439,7 +470,39 @@ async def uret(args, cues, paths, prompt_text):
                                 metric['recovery'] = recovery
                                 metric['finishing'] = {'parts': recovery['finishing']}
                                 sf.write(str(temporary), wav, sr, subtype='PCM_16')
+                    # A single optional alternate for objective rhythm risks.
+                    # Full ASR and measurable improvement are mandatory; this is
+                    # deliberately not an automatic "human naturalness" score.
+                    if (getattr(args,'natural_speech',False) and args.verification=='detailed'
+                            and check.get('status')=='passed' and metric['quality_score']==0):
+                        from dub_candidate import retry_reasons, measure_samples, prefer_candidate
+                        risks=retry_reasons(wav,sr,text,window)
+                        metric['rhythmRisks']=risks
+                        if risks:
+                            alternate=temporary.with_name(temporary.stem+'-rhythm.wav')
+                            try:
+                                raw=await bounded_call(synthesize(text,seed+400009,isolated=True),args.request_timeout)
+                                score=assess_generated(raw,text)
+                                candidate,candidate_finishing=finish_generated(raw)
+                                decision={'accepted':False,'reason':'acoustic-quality-regressed'}
+                                if score<=metric['quality_score'] and len(candidate):
+                                    sf.write(str(alternate),candidate,sr,subtype='PCM_16')
+                                    checked=await verify_group(alternate,text,numeric_reference=editable_text)
+                                    decision=prefer_candidate(measure_samples(wav,sr,text),measure_samples(candidate,sr,text),check,checked,window)
+                                    if decision['accepted']:
+                                        alternate.replace(temporary)
+                                        wav,check=candidate,checked
+                                        metric['finishing']=candidate_finishing
+                                        metric['referenceMode']='isolated'
+                                metric['rhythmCandidate']=decision
+                            except (ValueError,OSError,asyncio.TimeoutError) as error:
+                                metric['rhythmCandidate']={'accepted':False,'reason':type(error).__name__}
+                            finally:
+                                alternate.unlink(missing_ok=True)
+                                metric['attempts']+=1;metric['retries']+=1
                     metric.update(verification=check, text=display_speech, pronunciationText=text, numericReference=editable_text,
+                                  speechEditing=getattr(args,'speech_edit_status',{}).get(i,{}),
+                                  deliveryContext=conditioning_context(context,text),
                                   delivery=delivery, final_seconds=len(wav)/sr,
                                   status=generation_status(metric['quality_score'], check))
                     sidecar = path.with_suffix('.json')
@@ -720,6 +783,8 @@ def main(argv=None, runtime=None):
     if not cues:
         raise SystemExit("Kaydirma sonrasinda okunabilir satir kalmadi.")
     source_cues = cues
+    args.source_hash=hashlib.sha256(source_bytes).hexdigest()
+    args.speech_edit_status={}
     groups = make_groups(cues, args.range_start, args.range_end, 0 if args.representative_preview else args.limit, args.gruplama,
                          args.grup_max_karakter, args.grup_max_sn, args.grup_bosluk_ms)
     if args.dub_text:
@@ -729,6 +794,8 @@ def main(argv=None, runtime=None):
         args.range_start = args.range_end = None
     from dub_prosody import load_plan, VERSION as DELIVERY_VERSION
     args.group_delivery = load_plan(args.prosody_plan,hashlib.sha256(source_bytes).hexdigest(),groups)
+    from dub_delivery import delivery_contexts, VERSION as CONTEXT_VERSION
+    args.group_context=delivery_contexts(groups) if args.natural_speech else [None for _ in groups]
     args.group_keys = [','.join(map(str, g['source_ids'])) for g in groups]
     from dub_regeneration import select_keys
     args.force_groups=select_keys(args.force_groups,args.group_keys,args.force_all)
@@ -760,6 +827,10 @@ def main(argv=None, runtime=None):
     settings = ("dublaj-ses-v15-signed-quantities", args.auto_fit, args.timing_mode == 'video', args.natural_speech, args.editor_identity, MODEL_REVISION, ref_hash, args.steps, args.cfg,
                 args.temperature, prompt_text or args.mode, args.max_generate_length,
                 args.verification, args.expression, SPOKEN_TEXT_VERSION)
+    if args.natural_speech:
+        from dub_candidate import VERSION as CANDIDATE_VERSION
+        settings+=('source-reviewed-editor-v1',CONTEXT_VERSION,CANDIDATE_VERSION)
+    if args.auto_fit:settings+=('verified-duration-candidate-v2',)
     # Do not reuse a previously rejected continuation candidate under the new
     # recovery policy. Unverified/isolated jobs retain their existing cache.
     if prompt_text and args.verification != 'fast' and args.expression == 'reference' and not args.prosody_plan:
@@ -769,7 +840,7 @@ def main(argv=None, runtime=None):
                       or (args.natural_speech and len(text) > MAX_CHARS / 1.25)
                       for _, _, text in cues]
     # Keep old reports as well as old speech when the long-cue method changes.
-    run_identity = (settings, args.group_delivery) + ((UTTERANCE_VERSION,) if any(bounded_groups) else ())
+    run_identity = (settings, args.group_delivery,args.group_context) + ((UTTERANCE_VERSION,) if any(bounded_groups) else ())
     run_hash = hashlib.sha256(repr(run_identity).encode("utf-8")).hexdigest()[:16]
     parts_dir = OUTPUT_ROOT / f"{args.srt.stem}_altyazi" / run_hash
     parts_dir.mkdir(parents=True, exist_ok=True)
@@ -782,6 +853,7 @@ def main(argv=None, runtime=None):
         identity = settings + (UTTERANCE_VERSION,) if bounded_groups[i] else settings
         from dub_pronunciation import cache_identity
         identity = cache_identity(identity, cues[i][2], getattr(args, 'pronunciations', []))
+        if args.natural_speech:identity+=(CONTEXT_VERSION,repr(args.group_context[i]),)
         if args.prosody_plan:
             return identity + (DELIVERY_VERSION,'reference-only-preserve-dynamics-v1',
                                repr(sorted(delivery.items())) if delivery else 'no-extra-guidance')
@@ -828,6 +900,7 @@ def main(argv=None, runtime=None):
         group_results.append(record)
     cues = [(s, e, record.get('text', text)) for (s, e, text), record in zip(cues, group_results)]
     public_groups = [{k: r[k] for k in ('group', 'key', 'status', 'verification', 'rewritten', 'naturalEdited', 'delivery',
+                                      'speechEditing','deliveryContext','rhythmRisks','rhythmCandidate','durationCandidateVerification',
                                       'referenceMode', 'verificationRetryMode', 'verificationRetry') if k in r}
                      for r in group_results]
     for row,record in zip(public_groups,group_results):

@@ -1,0 +1,23 @@
+/* Dubbing uses the shared graphite/amber palette and Sora/Plex typography. */
+#dubGeneratorDialog .dub-natural-card { border-inline-start:3px solid var(--accent); }
+#dubGeneratorDialog .dub-natural-heading { display:flex; align-items:flex-start; gap:24px; }
+#dubGeneratorDialog .dub-natural-heading>div { min-width:0; flex:1; }
+#dubGeneratorDialog .dub-natural-heading h3 { margin:0 0 10px; font-size:19px; line-height:1.4; }
+#dubGeneratorDialog .dub-natural-heading p { margin:0; max-width:58ch; line-height:1.7; color:var(--text-dim); text-wrap:pretty; }
+#dubGeneratorDialog #dubNaturalState { font-size:13px; line-height:1.7; color:var(--text); }
+#dubGeneratorDialog #dubNaturalDelivery { font-size:12px; line-height:1.65; color:var(--text-dim); }
+#dubGeneratorDialog #dubManualSettings { margin-top:18px; border-top:1px solid var(--border); padding-top:8px; }
+#dubGeneratorDialog #dubManualSettings>summary { color:var(--text-dim); }
+#dubGeneratorDialog #dubScopeSettings { margin-top:14px; }
+#dubGeneratorDialog #dubNaturalReview { line-height:1.7; max-width:64ch; }
+#dubGeneratorDialog :is(button,summary,select,input,textarea):focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+#dubGeneratorDialog #dubGeneratorElapsed,#dubGeneratorDialog #dubGeneratorCount { font-variant-numeric:tabular-nums; }
+#dubGeneratorDialog #dubGeneratorStart { min-width:170px; }
+@media(max-width:700px) {
+ #dubGeneratorDialog .dub-natural-heading { gap:14px; }
+ #dubGeneratorDialog .dub-natural-heading h3 { font-size:17px; }
+ #dubGeneratorDialog #dubNaturalRecommend,#dubGeneratorDialog #dubNaturalReviewOpen { white-space:normal; height:auto; min-height:40px; text-align:start; }
+}
+
+#dubGeneratorDialog.dub-studio[open] { grid-template-rows:auto auto minmax(0,1fr) auto; }
+#dubGeneratorDialog #dubManualSettings .dub-production-summary { padding:8px 0; border:0; }

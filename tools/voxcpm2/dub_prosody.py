@@ -3,7 +3,7 @@ import numpy as np
 import json
 from pathlib import Path
 
-VERSION = 'acoustic-delivery-v1'
+VERSION = 'acoustic-delivery-v2'
 
 
 def load_plan(file, source_hash, groups):
@@ -71,31 +71,56 @@ def features(samples, rate=8000):
 
 
 def delivery_rows(rows, strength='balanced'):
+    from dub_delivery import same_scene, phrase_role
     if strength not in ('gentle','balanced','strong'):
         raise ValueError('Invalid delivery strength')
-    valid = [r['features'] for r in rows if r.get('features')]
+    def reliable(f):
+        try:
+            return (isinstance(f, dict) and all(np.isfinite(f[k]) for k in ('level','variation','pauses','confidence'))
+                    and .35 <= f['confidence'] <= 1 and f['variation'] >= 0 and f['pauses'] >= 0)
+        except (KeyError, TypeError, ValueError):
+            return False
+    valid = [r['features'] for r in rows if reliable(r.get('features'))]
     if len(valid) < 3:
         return [{**r, 'delivery': None} for r in rows]
     baseline = float(np.median([f['level'] for f in valid]))
+    # A sustained level change after a scene cut must not turn every sentence
+    # into a new expressive style. Use local evidence when sufficient, otherwise
+    # retain the conservative overall baseline. Unknown audio breaks continuity.
+    scenes, scene = [], []
+    for index, row in enumerate(rows):
+        if scene and (not same_scene(rows[index-1], row)
+                      or not reliable(rows[index-1].get('features'))
+                      or not reliable(row.get('features'))):
+            scenes.append(scene); scene = []
+        scene.append(index)
+    if scene: scenes.append(scene)
+    baselines = {}
+    for scene in scenes:
+        levels = [rows[i]['features']['level'] for i in scene if reliable(rows[i].get('features'))]
+        scene_baseline = float(np.median(levels)) if len(levels) >= 3 else baseline
+        baselines.update((i, scene_baseline) for i in scene)
     # Strength changes thresholds, never pitch-shifts the chosen speaker.
     level_delta = {'gentle':6.,'balanced':4.,'strong':3.}[strength]
     result=[]
-    for row in rows:
+    for index, row in enumerate(rows):
         f=row.get('features')
-        if not f or f['confidence'] < .35:
+        if not reliable(f):
             result.append({**row,'delivery':None}); continue
-        energy='high' if f['level'] > baseline+level_delta else 'low' if f['level'] < baseline-level_delta else 'normal'
+        local_baseline = baselines[index]
+        energy='high' if f['level'] > local_baseline+level_delta else 'low' if f['level'] < local_baseline-level_delta else 'normal'
         variation='varied' if f['variation'] > .55 else 'steady' if f['variation'] < .12 else 'normal'
         result.append({**row,'delivery':{'energy':energy,'variation':variation,
                                        'pauses':'frequent' if f['pauses'] > .65 else 'normal'}})
     # Smooth only isolated energy spikes; never across gaps or unknown speech.
+    original = list(result)
     for i in range(1,len(result)-1):
-        a,b,c=result[i-1:i+2]
+        a,b,c=original[i-1:i+2]
         if (all(r['delivery'] for r in (a,b,c))
-                and b.get('source_start',b['start'])-a.get('source_end',a['end']) <= 1200
-                and c.get('source_start',c['start'])-b.get('source_end',b['end']) <= 1200
+                and same_scene(a,b) and same_scene(b,c)
+                and phrase_role(b.get('text','')) not in ('question','emphatic','mixed')
                 and a['delivery']['energy']==c['delivery']['energy']):
-            b['delivery']={**b['delivery'],'energy':a['delivery']['energy']}
+            result[i]={**b,'delivery':{**b['delivery'],'energy':a['delivery']['energy']}}
     return result
 
 

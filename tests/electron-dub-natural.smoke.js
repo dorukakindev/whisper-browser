@@ -1,0 +1,58 @@
+'use strict';
+// Native renderer/preload acceptance; engine events controlled, GPU runs separately.
+const {app,BrowserWindow,ipcMain}=require('electron'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..'),out=path.join(root,'.uiprev','dub-natural-'+Date.now());fs.mkdirSync(out,{recursive:true});
+app.setAppPath(root);process.env.WHISPER_RESOURCE_SOAK_USER_DATA=path.join(out,'profile');app.commandLine.appendSwitch('disable-gpu');global.fetch=async()=>{throw Error('Isolated UI test');};require('../src/main');
+let win,request,configMode,legacyFast;const rows=[],wait=ms=>new Promise(r=>setTimeout(r,ms)),run=code=>win.webContents.executeJavaScript('(async()=>{'+code+'})()',true);
+async function until(fn){for(let i=0;i<220;i++){if(await fn())return;await wait(75);}throw Error('Native UI timed out');}
+async function capture(name){win.show();win.focus();await run('await document.fonts.ready;'+(name.endsWith('-focus')?'':'document.activeElement.blur();')+'await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');await wait(350);
+ const data=await run(`const d=document.getElementById('dubGeneratorDialog'),f=d.querySelector('footer'),s=d.querySelector('.dub-studio-scroll'),fr=f.getBoundingClientRect(),sr=s.getBoundingClientRect();return {overflow:d.scrollWidth>d.clientWidth+1,footerVisible:fr.bottom<=innerHeight+1&&fr.top>=0,scrollAboveFooter:sr.bottom<=fr.top+1,activity:document.getElementById('dubGeneratorActivity').textContent,summary:document.getElementById('dubQualitySummary').textContent};`);
+ assert(!data.overflow&&data.footerVisible&&data.scrollAboveFooter,name+' layout');rows.push({name,...data});fs.writeFileSync(path.join(out,name+'.png'),(await win.webContents.capturePage()).toPNG());}
+app.whenReady().then(async()=>{
+ await until(()=>{win=BrowserWindow.getAllWindows().find(w=>!w.isDestroyed()&&w.webContents.getURL().includes('index.html')&&!w.webContents.isLoading());return win;});win.showInactive();win.setMinimumSize(600,480);await run('await initialSettingsReady');
+ for(const channel of ['dub:groupTakes','dub:config','dub:latest','dub:start','dub:plan','dub:pronunciations','dialog:openFile'])ipcMain.removeHandler(channel);
+ ipcMain.handle('dub:config',()=>({ok:true,ready:true,resultMode:configMode,...(legacyFast?{profile:'fast',verification:'fast',naturalSpeech:false,autoFit:false,timingMode:'clip'}:{}),keepEngine:true,pronunciations:[],engine:'fixture',reference:'Synthetic voice.wav',transcript:'Synthetic reference.txt'}));
+ let takeUrls=[];ipcMain.handle('dub:groupTakes',()=>({ok:true,choices:[{token:'current',current:true,recordedAt:Date.now(),status:'ready',text:'Current group take.',url:takeUrls[0]},{token:'previous',current:false,recordedAt:Date.now()-60000,status:'ready',text:'Previous group take.',url:takeUrls[1]},{token:'changed',current:false,compareOnly:true,recordedAt:Date.now()-120000,status:'ready',text:'Different text: comparison only.',url:takeUrls[1]}]}));
+ const wav=Buffer.alloc(44+24000*4*2);wav.write('RIFF');wav.writeUInt32LE(wav.length-8,4);wav.write('WAVEfmt ',8);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);wav.writeUInt32LE(24000,24);wav.writeUInt32LE(48000,28);wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(wav.length-44,40);
+ for(let i=44;i<wav.length;i+=2)wav.writeInt16LE(Math.round(Math.sin(i/2*2*Math.PI*220/24000)*800),i);
+ takeUrls=await run(`return [1,2].map(()=>URL.createObjectURL(new Blob([Uint8Array.from(atob('${wav.toString('base64')}'),c=>c.charCodeAt(0))],{type:'audio/wav'})))`);
+ ipcMain.handle('dub:pronunciations',()=>({ok:true,pronunciations:[]}));ipcMain.handle('dub:latest',()=>({ok:true,output:null}));ipcMain.handle('dialog:openFile',()=> 'Synthetic scene.srt');
+ ipcMain.handle('dub:start',(_,value)=>{request=value;return {ok:true,id:value.id};});
+ ipcMain.handle('dub:plan',()=>({ok:true,sourceHash:'fixture',sourceDecoding:null,groups:[1,2,3].map(i=>({key:String(i),text:'Synthetic group '+i,seconds:4,start:(i-1)*4000,end:i*4000}))}));
+ for(const [locale,width] of [['tr',1440],['tr',820],['en',640]]){
+  legacyFast=width===820;configMode=width===640?'custom':undefined;win.setContentSize(width,950);win.webContents.setZoomFactor(1);request=null;
+  await run(`window.fixtureSource={...BrowserDubAudioUI.context(),mode:'browser',source:'fixture-'+${width},tabId:'fixture-tab',generation:1,mediaId:'fixture-'+${width},mediaKey:'fixture-'+${width},subtitleRange:null,hasMedia:true,visible:true,currentTime:0};BrowserDubAudioUI.context=()=>window.fixtureSource;UiLocale.set('${locale}',false);applyUiTheme('dark');await DubGeneratorUI.prepareCurrent();document.getElementById('dubChooseSrt').click();return true`);
+  await until(()=>run(`return document.getElementById('dubSrtName').textContent.includes('Synthetic')`));
+  assert.equal(await run(`return DubGeneratorUI.assistant.state().settings.resultMode`),legacyFast?'custom':configMode||'natural');
+  assert(await run(`return !document.getElementById('dubManualSettings').open&&!document.getElementById('dubScopeSettings').open`));
+  await run(`document.getElementById('dubQualityResults').open=false;document.querySelector('.dub-studio-scroll').scrollTop=0;return true`);assert(await run(`return document.querySelector('.dub-experience').hidden`));await capture(locale+'-'+width+'-ready');
+  // Legacy fast/off settings restore as custom; explicit recommendation upgrades quality only.
+  await run(`document.getElementById('dubProfile').value='fast';document.getElementById('dubVerification').value='fast';document.getElementById('dubNaturalSpeech').checked=false;document.getElementById('dubAutoFit').checked=false;document.getElementById('dubTimingMode').value='clip';document.getElementById('dubConcurrency').value='8';document.getElementById('dubGrouping').value='anlatim';document.getElementById('dubProfile').dispatchEvent(new Event('change'));return true`);
+  assert(await run(`return !document.getElementById('dubNaturalRecommend').hidden`));
+  if(width===1440)await run(`await DubGeneratorUI.editPlanGroup('1');document.getElementById('dubPlanText').value='Authored wording stays intact.';document.getElementById('dubPlanApply').click();document.getElementById('dubTextEditor').open=false;return true`);
+  const preserved=await run(`return JSON.stringify({voice:document.getElementById('dubVoiceName').textContent,srt:DubGeneratorUI.experience().srt,range:[document.getElementById('dubRangeEnabled').checked,document.getElementById('dubRangeStart').value,document.getElementById('dubRangeEnd').value],sample:document.getElementById('dubSampleOnly').checked,edits:DubGeneratorUI.experience().edits})`);
+  await run(`document.getElementById('dubNaturalRecommend').click();return true`);
+  assert.equal(await run(`return JSON.stringify({voice:document.getElementById('dubVoiceName').textContent,srt:DubGeneratorUI.experience().srt,range:[document.getElementById('dubRangeEnabled').checked,document.getElementById('dubRangeStart').value,document.getElementById('dubRangeEnd').value],sample:document.getElementById('dubSampleOnly').checked,edits:DubGeneratorUI.experience().edits})`),preserved);
+  assert(await run(`return document.getElementById('dubProfile').value==='quality'&&document.getElementById('dubVerification').value==='detailed'&&document.getElementById('dubNaturalSpeech').checked&&document.getElementById('dubAutoFit').checked&&document.getElementById('dubTimingMode').value==='video'&&document.getElementById('dubConcurrency').value==='8'&&document.getElementById('dubGrouping').value==='anlatim'`));
+  win.webContents.sendInputEvent({type:'keyDown',keyCode:'Tab'});win.webContents.sendInputEvent({type:'keyUp',keyCode:'Tab'});await wait(30);
+  await run(`document.getElementById('dubGeneratorStart').focus();return true`);
+  assert(await run(`const b=document.activeElement,c=getComputedStyle(b),r=b.getBoundingClientRect();return b.id==='dubGeneratorStart'&&c.outlineStyle!=='none'&&r.bottom<=innerHeight&&r.top>=0`));
+  await capture(locale+'-'+width+'-focus');
+  await run(`document.getElementById('dubGeneratorStart').click();return true`);await until(()=>!!request);
+  if(width===1440)assert.equal(request.dubText.edits['1'],'Authored wording stays intact.');assert.equal(request.resultMode,'natural');assert.equal(request.profile,'quality');assert.equal(request.verification,'detailed');assert.equal(request.naturalSpeech,true);assert.equal(request.autoFit,true);
+  win.webContents.send('dub:event',{id:request.id,type:'phase',stage:'verification'});await wait(80);assert(await run(`return document.querySelector('.dub-experience').hidden`));await capture(locale+'-'+width+'-active');
+  win.webContents.send('dub:event',{id:request.id,type:'group',group:{key:'1',group:1,status:'ready',text:'Controlled sentence.',verification:{status:'passed'}}});await until(()=>run(`return !document.querySelector('.dub-experience').hidden`));
+  win.webContents.send('dub:event',{id:request.id,type:'done',name:'Controlled.wav',path:'controlled.wav',url:takeUrls[0],settings:{speechSourceStatus:width===820?'unavailable':'available',speechSourceGroups:width===820?0:1,deliveryAutomatic:true,deliveryApplied:1},quality:{groups:[{key:'1',group:1,status:'ready',speechEditing:{natural:width===820?'source_unavailable':'source_reviewed'},text:'A natural sentence.',sourceStart:0,sourceEnd:4,audioStart:0,audioEnd:4,verification:{status:'passed'}}]}});
+  await until(()=>run(`return !document.getElementById('dubPreviewCard').hidden`));
+  if(width===820)assert.equal(await run(`return document.getElementById('dubNaturalReview').textContent`),'Kaynak metin eşleştirilemedi; mevcut Türkçe metin korundu.');
+  await run(`document.getElementById('dubPreviewCard').scrollIntoView({block:'start'});return true`);assert(await run(`return !document.querySelector('.dub-experience').hidden`));await capture(locale+'-'+width+'-review');
+  await run(`document.getElementById('dubNaturalReviewOpen').click();return true`);assert(await run(`return document.getElementById('dubQualityResults').open&&document.activeElement.id==='dubQualityGroup'`));
+  if(width===1440){
+   await run(`document.getElementById('dubProfile').value='quality';document.getElementById('dubProfile').dispatchEvent(new Event('change'));return true`);
+   request=null;await run(`document.getElementById('dubGeneratorStart').click();return true`);await until(()=>!!request);assert.equal(request.resultMode,'custom');
+   win.webContents.send('dub:event',{id:request.id,type:'done',name:'Controlled.wav',path:'controlled.wav',url:takeUrls[0],quality:{groups:[]}});await until(()=>run(`return document.getElementById('dubGeneratorCancel').disabled`));
+  }
+  await run(`document.getElementById('dubGeneratorDialog').close();return true`);
+ }
+ fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify(rows,null,2));console.log(JSON.stringify({ok:true,out,screens:rows.length}));app.exit(0);
+}).catch(e=>{console.error(e.stack);app.exit(1);});setTimeout(()=>app.exit(2),90000).unref();

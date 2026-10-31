@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="music-analysis.css" />
   <link rel="stylesheet" href="media-discovery.css" />
   <link rel="stylesheet" href="media-experience.css" />
+  <link rel="stylesheet" href="dub-natural.css" />
   <link rel="stylesheet" href="media-taste.css" />
   <link rel="stylesheet" href="media-hub.css" />
   <link rel="stylesheet" href="media-tools.css" />
@@ -3472,7 +3473,7 @@
         </header>
         <div class="timeline-toolbar">
           <div class="timeline-group">
-            <button class="tool-button" id="timelineTimingUnlock" data-en="Unlock selected timing" data-tr="Seçili zaman kilidini kaldır">Seçili zaman kilidini kaldır</button>
+            <button class="tool-button" id="timelineTimingUnlock" data-en="Unlock selected timing" data-ui-untranslated data-tr="Seçili zaman kilidini kaldır">Seçili zaman kilidini kaldır</button>
             <button class="tool-button" id="timelineBack">−100 ms</button>
             <button class="tool-button" id="timelineForward">+100 ms</button>
             <button class="tool-button" id="timelineSplit">Oynatma noktasında böl</button>
@@ -3493,32 +3494,32 @@
           </div>
         </div>
         <details class="timeline-analysis-panel" data-ui-untranslated>
-          <summary data-en="Quality & interval analysis" data-tr="Kalite ve aralık incelemesi">Kalite ve aralık incelemesi</summary>
+          <summary data-en="Quality & interval analysis" data-ui-untranslated data-tr="Kalite ve aralık incelemesi">Kalite ve aralık incelemesi</summary>
           <div class="timeline-group timeline-analysis" data-ui-untranslated aria-label="Altyazı ve medya denetimleri">
-            <label><span data-en="Quality profile" data-tr="Kalite profili">Kalite profili</span>
+            <label><span data-en="Quality profile" data-ui-untranslated data-tr="Kalite profili">Kalite profili</span>
               <select id="timelineQcProfile"><option value="custom">Custom / Özel</option><option value="tr-dialogue">TR · Dialogue / Diyalog · 17 CPS</option><option value="tr-children">TR · Children / Çocuk · 13 CPS</option><option value="tr-sdh">TR · SDH · 20 CPS</option></select></label>
             <label>FPS <select id="timelineQcFps"><option>24</option><option>25</option><option>30</option><option>50</option><option>60</option></select></label>
-            <label><span data-en="From (seconds)" data-tr="Başlangıç (saniye)">Başlangıç (saniye)</span><input id="timelineAnalysisFrom" type="number" min="0" step="0.1" value="0"></label>
-            <label><span data-en="To (seconds)" data-tr="Bitiş (saniye)">Bitiş (saniye)</span><input id="timelineAnalysisTo" type="number" min="0" step="0.1" value="120"></label>
-            <label><span data-en="Audio track" data-tr="Ses izi">Ses izi</span> <input id="timelineAnalysisTrack" type="number" min="0" max="31" value="0"></label>
+            <label><span data-en="From (seconds)" data-ui-untranslated data-tr="Başlangıç (saniye)">Başlangıç (saniye)</span><input id="timelineAnalysisFrom" type="number" min="0" step="0.1" value="0"></label>
+            <label><span data-en="To (seconds)" data-ui-untranslated data-tr="Bitiş (saniye)">Bitiş (saniye)</span><input id="timelineAnalysisTo" type="number" min="0" step="0.1" value="120"></label>
+            <label><span data-en="Audio track" data-ui-untranslated data-tr="Ses izi">Ses izi</span> <input id="timelineAnalysisTrack" type="number" min="0" max="31" value="0"></label>
             <button class="tool-button" id="timelineAnalyze">Dalga biçimi ve kesimleri incele</button><button class="tool-button" id="timelineAnalyzeCancel" disabled>İptal</button>
           </div>
-          <p data-en="Local media only · up to 30 minutes · audio tracks start at 0. Suggestions do not change subtitles." data-tr="Yalnız yerel medya · en fazla 30 dakika · ses izleri 0’dan başlar. Öneriler altyazıyı değiştirmez.">Yalnız yerel medya · en fazla 30 dakika · ses izleri 0’dan başlar. Öneriler altyazıyı değiştirmez.</p>
+          <p data-en="Local media only · up to 30 minutes · audio tracks start at 0. Suggestions do not change subtitles." data-ui-untranslated data-tr="Yalnız yerel medya · en fazla 30 dakika · ses izleri 0’dan başlar. Öneriler altyazıyı değiştirmez.">Yalnız yerel medya · en fazla 30 dakika · ses izleri 0’dan başlar. Öneriler altyazıyı değiştirmez.</p>
         </details>
         <details class="timeline-product-panel" data-ui-untranslated>
-          <summary data-en="Scene context & timing suggestions" data-tr="Sahne bağlamı ve zaman önerileri">Scene context & timing suggestions</summary>
-          <p data-en="Use the selected timeline range, or the analysis From/To interval. Notes stay with this source and interval; they are optional context, not new story facts." data-tr="Zaman çizelgesi seçimini veya analiz başlangıç/bitiş aralığını kullanır. Notlar bu kaynak ve aralıkla saklanır; yeni hikâye bilgisi değil, isteğe bağlı bağlamdır."></p>
+          <summary data-en="Scene context & timing suggestions" data-ui-untranslated data-tr="Sahne bağlamı ve zaman önerileri">Scene context & timing suggestions</summary>
+          <p data-en="Use the selected timeline range, or the analysis From/To interval. Notes stay with this source and interval; they are optional context, not new story facts." data-ui-untranslated data-tr="Zaman çizelgesi seçimini veya analiz başlangıç/bitiş aralığını kullanır. Notlar bu kaynak ve aralıkla saklanır; yeni hikâye bilgisi değil, isteğe bağlı bağlamdır."></p>
           <div class="scene-context-fields">
-            <label><span data-en="Scene summary" data-tr="Sahne özeti"></span><textarea id="sceneSummary" maxlength="2000" rows="3"></textarea></label>
-            <label><span data-en="Terms · source = translation" data-tr="Terimler · kaynak = çeviri"></span><textarea id="sceneTerms" maxlength="1500" rows="3"></textarea></label>
-            <label><span data-en="Characters & relationships" data-tr="Karakterler ve ilişkiler"></span><textarea id="sceneCharacters" maxlength="1500" rows="3"></textarea></label>
+            <label><span data-en="Scene summary" data-ui-untranslated data-tr="Sahne özeti"></span><textarea id="sceneSummary" maxlength="2000" rows="3"></textarea></label>
+            <label><span data-en="Terms · source = translation" data-ui-untranslated data-tr="Terimler · kaynak = çeviri"></span><textarea id="sceneTerms" maxlength="1500" rows="3"></textarea></label>
+            <label><span data-en="Characters & relationships" data-ui-untranslated data-tr="Karakterler ve ilişkiler"></span><textarea id="sceneCharacters" maxlength="1500" rows="3"></textarea></label>
           </div>
           <div class="timeline-analysis-controls">
-            <button class="tool-button" id="sceneLoad" data-en="Load interval notes" data-tr="Aralık notlarını yükle">Load interval notes</button>
-            <button class="tool-button" id="sceneSave" data-en="Save interval notes" data-tr="Aralık notlarını kaydet">Save interval notes</button>
-            <button class="tool-button" id="sceneTranslate" data-en="Retranslate this interval" data-tr="Bu aralığı yeniden çevir">Retranslate this interval</button>
-            <button class="tool-button" id="timingPreview" data-en="Preview timing suggestions" data-tr="Zaman önerilerini önizle">Preview timing suggestions</button>
-            <button class="tool-button" id="timingSilencePreview" data-en="Preview audio silence alignment" data-tr="Ses sessizliğine hizalamayı önizle">Preview audio silence alignment</button>
+            <button class="tool-button" id="sceneLoad" data-en="Load interval notes" data-ui-untranslated data-tr="Aralık notlarını yükle">Load interval notes</button>
+            <button class="tool-button" id="sceneSave" data-en="Save interval notes" data-ui-untranslated data-tr="Aralık notlarını kaydet">Save interval notes</button>
+            <button class="tool-button" id="sceneTranslate" data-en="Retranslate this interval" data-ui-untranslated data-tr="Bu aralığı yeniden çevir">Retranslate this interval</button>
+            <button class="tool-button" id="timingPreview" data-en="Preview timing suggestions" data-ui-untranslated data-tr="Zaman önerilerini önizle">Preview timing suggestions</button>
+            <button class="tool-button" id="timingSilencePreview" data-en="Preview audio silence alignment" data-ui-untranslated data-tr="Ses sessizliğine hizalamayı önizle">Preview audio silence alignment</button>
           </div>
           <p id="sceneStatus" role="status"></p>
         </details>
@@ -3770,25 +3771,14 @@
 </div>
 
 <dialog class="dub-generator dub-studio media-surface" id="dubGeneratorDialog" aria-labelledby="dubGeneratorTitle">
-  <header class="dub-studio-header"><div><span class="dub-eyebrow">VoxCPM2 · Dublaj stüdyosu</span><h2 id="dubGeneratorTitle">Altyazıdan ses üret</h2><p>Altyazını seç, sesini ayarla ve videoyla senkron dublaj üret.</p></div><div class="dub-header-actions"><button class="btn btn-secondary" id="dubTextStudio" type="button">Metin / TXT stüdyosunu aç</button><button class="btn-icon" id="dubGeneratorClose" type="button" aria-label="Kapat">×</button></div></header>
+  <header class="dub-studio-header"><div><span class="dub-eyebrow">VoxCPM2 · Dublaj stüdyosu</span><h2 id="dubGeneratorTitle" data-ui-untranslated data-tr="Doğal dublaj" data-en="Natural dubbing">Doğal dublaj</h2><p data-ui-untranslated data-tr="Altyazını ve sesini seç. Konuşmayı hazırlayıp zamanlamasını birlikte düzenleyelim." data-en="Choose subtitles and a voice. Prepare the speech and its timing together.">Altyazını ve sesini seç. Konuşmayı hazırlayıp zamanlamasını birlikte düzenleyelim.</p></div><div class="dub-header-actions"><button class="btn btn-secondary" id="dubTextStudio" type="button">Metin / TXT stüdyosunu aç</button><button class="btn-icon" id="dubGeneratorClose" type="button" aria-label="Kapat">×</button></div></header>
   <div class="dub-readiness" role="group" aria-label="Üretim hazırlığı"><div><small>Altyazı</small><strong id="dubReadySource" data-ui-untranslated>—</strong></div><div><small>Etkin ses</small><strong id="dubReadyVoice" data-ui-untranslated>—</strong></div><div><small>Seslendirilecek bölüm</small><strong id="dubReadyRange" data-ui-untranslated>—</strong></div></div>
-  <p id="dubReadySettings" class="dub-production-summary" role="status" aria-live="polite" data-ui-untranslated></p>
   <div class="dub-studio-scroll"><div class="dub-studio-grid"><main class="dub-studio-main">
-    <section class="dub-card" id="dubPreviewCard" hidden><div class="dub-card-heading"><h3>Üretilen ses</h3></div><p id="dubGeneratedName" data-ui-untranslated></p><audio id="dubGeneratedPreview" class="hidden" controls preload="metadata" aria-label="Üretilen sesi dinle"></audio></section>
-    <section class="dub-card"><div class="dub-card-heading"><span class="dub-step" aria-hidden="true" data-ui-untranslated data-step="1"></span><h3>Altyazı ve kapsam</h3></div>
-<div class="dub-generator-row"><button class="btn btn-secondary" id="dubChooseSrt" type="button">SRT seç</button><span id="dubSrtName" data-ui-untranslated>—</span></div>
-    <p id="dubInputNotice" class="dub-input-notice" role="status" hidden data-ui-untranslated></p>
-<label class="dub-generator-row"><input id="dubRangeEnabled" type="checkbox" />Yalnız seçilen zaman aralığını seslendir</label>
-  <div class="dub-generator-row dub-range-row">
-    <label for="dubRangeStart">Başlangıç (dk:sn)</label><input id="dubRangeStart" type="text" value="0:00" inputmode="decimal" maxlength="16" data-ui-untranslated />
-    <label for="dubRangeEnd">Bitiş (dk:sn)</label><input id="dubRangeEnd" type="text" value="1:00" inputmode="decimal" maxlength="16" data-ui-untranslated />
-    <button id="dubRangeNow" class="btn btn-ghost" type="button">Başlangıcı videodan al</button>
-  </div>
-  <p>Aralık dışında videonun özgün sesi çalar. Sınırdaki altyazı cümlesi tam okunur; yalnız sabit video modunda sığmayan sonu kesilebilir.</p>
-<label class="dub-generator-row"><input id="dubSampleOnly" type="checkbox" />Önce temsil edici kısa örnek üret</label>
-    <p>Kısa, uzun ve yoğun konuşmalı bölümlerden örnek seçilir. Önizleme videoya bağlanmaz.</p>
-    </section>
-    <section class="dub-card"><div class="dub-card-heading"><span class="dub-step" aria-hidden="true" data-ui-untranslated data-step="2"></span><h3>Üretim tercihi</h3></div>
+    <section class="dub-card" id="dubPreviewCard" hidden><div class="dub-card-heading"><h3 data-ui-untranslated data-tr="Dublaj hazır" data-en="Dubbing ready">Dublaj hazır</h3></div><p id="dubNaturalReview" data-ui-untranslated></p><button id="dubNaturalReviewOpen" class="btn btn-secondary" type="button" data-ui-untranslated data-tr="Grupları dinle ve kayıtları karşılaştır" data-en="Review groups and compare takes">Grupları dinle ve kayıtları karşılaştır</button><p id="dubGeneratedName" data-ui-untranslated></p><audio id="dubGeneratedPreview" class="hidden" controls preload="metadata" aria-label="Üretilen sesi dinle"></audio></section>
+    <section class="dub-card dub-natural-card"><div class="dub-natural-heading"><div><h3 id="dubNaturalTitle" data-ui-untranslated data-tr="Doğal dublaj (önerilen)" data-en="Natural dubbing (recommended)">Doğal dublaj (önerilen)</h3><p id="dubNaturalSummary" data-ui-untranslated></p></div></div>
+      <p id="dubNaturalState" role="status" data-ui-untranslated></p><button id="dubNaturalRecommend" class="btn btn-secondary" type="button" data-ui-untranslated data-tr="Doğal dublajı kullan" data-en="Use natural dubbing" hidden>Doğal dublajı kullan</button>
+      <p id="dubNaturalDelivery" data-ui-untranslated></p>
+      <details id="dubManualSettings"><summary data-ui-untranslated data-tr="Gelişmiş üretim ayarları" data-en="Advanced production settings">Gelişmiş üretim ayarları</summary><p id="dubReadySettings" class="dub-production-summary" role="status" aria-live="polite" data-ui-untranslated></p>
       <div class="dub-presets" role="group" aria-label="Ses üretim profilleri"><button type="button" class="dub-preset" id="dubPresetBalanced" aria-pressed="false"><strong>Dengeli</strong><small>Önerilen · 15 adım</small></button><button type="button" class="dub-preset" id="dubPresetFast" aria-pressed="false"><strong>Hızlı deneme</strong><small>10 adım · kısa bekleme</small></button><button type="button" class="dub-preset" id="dubPresetCareful" aria-pressed="false"><strong>Ayrıntılı kontrol</strong><small>15 adım · metin doğrulama</small></button></div>
       <p id="dubPresetSummary" role="status"></p>
 <label for="dubTimingMode">Konuşma süreye sığmazsa</label>
@@ -3808,7 +3798,20 @@
     <label class="dub-generator-row"><input id="dubNaturalSpeech" type="checkbox" checked />Seslendirmeden önce doğal konuşma düzenlemesi yap</label>
     <p>İkinci geçiş seçili AI sağlayıcısını kullanır; ek süre ve API kullanımı gerektirir. Altyazı korunur, okunacak metin ayrı kaydedilir. Elle uyguladığınız metin tekrar düzenlenmez.</p>
     <label class="dub-generator-row"><input id="dubAutoFit" type="checkbox" checked />Uzun konuşmayı AI ile süreye göre düzenle</label>
-    <p>Seçili çeviri sağlayıcısını kullanır. Gerçek okuma süresi ölçülür; anlamı koruyan daha kısa bir öneri denenir; sığmazsa zamanlama seçiminiz uygulanır.</p></details>
+    <p>Seçili çeviri sağlayıcısını kullanır. Gerçek okuma süresi ölçülür; anlamı koruyan daha kısa bir öneri denenir; sığmazsa zamanlama seçiminiz uygulanır.</p></details></details>
+    </section>
+    <section class="dub-card"><div class="dub-card-heading"><span class="dub-step" aria-hidden="true" data-ui-untranslated data-step="1"></span><h3>Altyazı ve kapsam</h3></div>
+<div class="dub-generator-row"><button class="btn btn-secondary" id="dubChooseSrt" type="button">SRT seç</button><span id="dubSrtName" data-ui-untranslated>—</span></div>
+    <p id="dubInputNotice" class="dub-input-notice" role="status" hidden data-ui-untranslated></p>
+<details id="dubScopeSettings"><summary data-ui-untranslated data-tr="Kısa örnek veya belirli bir bölüm" data-en="Short sample or selected range">Kısa örnek veya belirli bir bölüm</summary><label class="dub-generator-row"><input id="dubRangeEnabled" type="checkbox" />Yalnız seçilen zaman aralığını seslendir</label>
+  <div class="dub-generator-row dub-range-row">
+    <label for="dubRangeStart">Başlangıç (dk:sn)</label><input id="dubRangeStart" type="text" value="0:00" inputmode="decimal" maxlength="16" data-ui-untranslated />
+    <label for="dubRangeEnd">Bitiş (dk:sn)</label><input id="dubRangeEnd" type="text" value="1:00" inputmode="decimal" maxlength="16" data-ui-untranslated />
+    <button id="dubRangeNow" class="btn btn-ghost" type="button">Başlangıcı videodan al</button>
+  </div>
+  <p>Aralık dışında videonun özgün sesi çalar. Sınırdaki altyazı cümlesi tam okunur; yalnız sabit video modunda sığmayan sonu kesilebilir.</p>
+<label class="dub-generator-row"><input id="dubSampleOnly" type="checkbox" />Önce temsil edici kısa örnek üret</label>
+    <p>Kısa, uzun ve yoğun konuşmalı bölümlerden örnek seçilir. Önizleme videoya bağlanmaz.</p></details>
     </section>
     <section class="dub-card"><details id="dubTextEditor"><summary>Dublaj metnini düzenle</summary>
     <p>Orijinal SRT korunur. Kısaltma önerisini kontrol edip uygula; süreye sığması tahminidir.</p>
@@ -3864,7 +3867,7 @@
     <p id="dubWorkspaceStatus" role="status" aria-live="polite"></p>
     <progress id="dubWorkspaceProgress" class="hidden"></progress>
   </details></section>
-  </main><aside class="dub-studio-side" aria-label="Ses ve arka plan"><section class="dub-card"><div class="dub-card-heading"><span class="dub-step" aria-hidden="true" data-ui-untranslated data-step="3"></span><h3>Referans ses</h3></div><p>Etkin ses yukarıda görünür. Yeni ses ekleyebilir veya kayıtlı bir referansı kullanabilirsiniz.</p>
+  </main><aside class="dub-studio-side" aria-label="Ses ve arka plan"><section class="dub-card"><div class="dub-card-heading"><span class="dub-step" aria-hidden="true" data-ui-untranslated data-step="2"></span><h3>Referans ses</h3></div><p>Etkin ses yukarıda görünür. Yeni ses ekleyebilir veya kayıtlı bir referansı kullanabilirsiniz.</p>
     <div id="voiceReferencePicker" class="voice-reference-picker"><label for="voiceReferenceSearch">Referans seslerde ara</label>
     <input id="voiceReferenceSearch" type="search" maxlength="160" placeholder="Ad ile ara" aria-describedby="voiceReferenceCount" autocomplete="off" />
     <p id="voiceReferenceCount" class="voice-reference-count" role="status" aria-live="polite" data-ui-untranslated></p>
@@ -3915,7 +3918,7 @@
         <div><h4 id="voiceReferenceOriginalLabel" data-ui-untranslated></h4><p id="voiceReferenceOriginal" data-ui-untranslated></p></div>
         <div><h4 id="voiceReferenceEditedLabel" data-ui-untranslated></h4><p id="voiceReferenceEdited" data-ui-untranslated></p></div>
       </div>
-      <button id="voiceReferenceRestoreTranscript" type="button" class="btn btn-secondary" data-en="Restore saved transcript" data-tr="Kayıtlı dökümü geri yükle">Kayıtlı dökümü geri yükle</button>
+      <button id="voiceReferenceRestoreTranscript" type="button" class="btn btn-secondary" data-en="Restore saved transcript" data-ui-untranslated data-tr="Kayıtlı dökümü geri yükle">Kayıtlı dökümü geri yükle</button>
     </details>
 
   </details></section><section class="dub-card"><details><summary>Müzik ve ortam</summary>
@@ -3937,7 +3940,7 @@
   <p id="dubStartRequirement" role="status" data-ui-untranslated></p>
   <progress id="dubGeneratorProgress" max="100" value="0"></progress>
 
-  <div class="dub-generator-row"><button class="btn btn-primary" id="dubGeneratorStart" aria-describedby="dubStartRequirement" type="button">Benim sesimle üret</button><button class="btn btn-secondary" id="dubGeneratorCancel" type="button" disabled>Durdur</button><button class="btn btn-secondary hidden" id="dubGeneratorUse" type="button">Sesi kullan</button><button class="btn btn-ghost hidden" id="dubGeneratorOutput" type="button">Ses dosyasını aç</button><button class="btn btn-ghost" id="dubStorageOpen" type="button" disabled>Sesler klasörünü aç</button><button class="btn btn-ghost hidden" id="dubGeneratorLog" type="button">Üretim kaydını aç</button></div>
+  <div class="dub-generator-row"><button class="btn btn-primary" id="dubGeneratorStart" aria-describedby="dubStartRequirement" type="button" data-ui-untranslated data-tr="Dublajı başlat" data-en="Start dubbing">Dublajı başlat</button><button class="btn btn-secondary" id="dubGeneratorCancel" type="button" disabled>Durdur</button><button class="btn btn-secondary hidden" id="dubGeneratorUse" type="button">Sesi kullan</button><button class="btn btn-ghost hidden" id="dubGeneratorOutput" type="button">Ses dosyasını aç</button><button class="btn btn-ghost" id="dubStorageOpen" type="button" disabled>Sesler klasörünü aç</button><button class="btn btn-ghost hidden" id="dubGeneratorLog" type="button">Üretim kaydını aç</button></div>
   </footer>
 </dialog>
 <script src="../job-timing-helpers.js"></script>

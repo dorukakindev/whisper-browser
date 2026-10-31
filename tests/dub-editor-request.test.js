@@ -23,3 +23,20 @@ const {editorFailureCode}=require('../src/dub-editor-request');
 assert.equal(editorFailureCode({reason:'meaning_guard',message:'private text'}),'meaning_guard');
 assert.equal(editorFailureCode({reason:'secret-token',message:'private text'}),'unavailable');
 assert.equal(editorFailureCode({name:'TimeoutError'}),'timeout');
+
+const {semanticReviewMessages,semanticReviewAccepted}=require('../src/dub-editor-request');
+const sourceContext={original:'I gave her the book.',originalBefore:'She was waiting.',originalAfter:'Then I left.',
+  terminology:'book = kitap',roles:'speaker: Ali; listener: Ayşe',speaker:'Ali'};
+const grounded=editorMessages('Kitabı ona verdim.',3,{mode:'natural',...sourceContext});
+const groundedPayload=JSON.parse(grounded[1].content);
+assert.equal(groundedPayload.original,sourceContext.original);
+assert.equal(groundedPayload.original_after,'Then I left.');
+assert.equal(groundedPayload.roles,sourceContext.roles);
+assert.match(grounded[0].content,/yerli bir konuşmacı/);
+const review=semanticReviewMessages('Kitabı ona verdim.','Kitabı ondan aldım.',sourceContext);
+assert.match(review[0].content,/özne\/nesne/);
+assert.equal(JSON.parse(review[1].content).proposed,'Kitabı ondan aldım.');
+assert.equal(semanticReviewAccepted('{"equivalent":true,"reason":"ok"}'),true);
+for(const raw of ['true','{"equivalent":"true","reason":"ok"}','{"equivalent":true,"reason":"uncertain"}',
+  '{"equivalent":false,"reason":"meaning_change"}','```json\n{"equivalent":true,"reason":"ok"}\n```']) assert.equal(semanticReviewAccepted(raw),false);
+assert.throws(()=>semanticReviewMessages('Türkçe','Başka Türkçe'),/evidence/);

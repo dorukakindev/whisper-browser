@@ -10,6 +10,16 @@
     if(generated!==null)parts.push((en?'Newly generated: ':'Yeni üretilen: ')+generated);
     return parts.join(' · ');
   }
+  function speechResult(output,en){
+    if(!output?.url)return '';
+    const s=output.settings||{},states=(output.quality?.groups||[]).map(row=>row.speechEditing?.natural).filter(Boolean);
+    if(s.speechSourceStatus==='unavailable'||states.length&&states.every(state=>state==='source_unavailable'))
+      return en?'Original text could not be matched; the existing Turkish text was preserved.':'Kaynak metin eşleştirilemedi; mevcut Türkçe metin korundu.';
+    if(states.includes('editor_failed'))return en?'Some speech edits were unavailable; the existing Turkish wording was preserved for those groups.':'Bazı konuşma düzenlemeleri uygulanamadı; bu gruplarda mevcut Türkçe metin korundu.';
+    if(states.includes('source_reviewed'))return en?'Speech wording was prepared with source meaning checks.':'Konuşma metni kaynak anlamı denetlenerek hazırlandı.';
+    if(states.includes('source_unavailable'))return en?'Some groups had no matching original text; their Turkish wording was preserved.':'Bazı gruplarda kaynak metin eşleştirilemedi; bu grupların Türkçesi korundu.';
+    return '';
+  }
   function recipe(output,en){
     if(!output?.url)return [];
     const s=output.settings,rows=[],add=(label,value)=>{if(value)rows.push([label,value]);};
@@ -27,7 +37,9 @@
     add(en?'Verification':'Doğrulama',({fast:en?'Audio checks':'Ses denetimi',balanced:en?'Selective text checks':'Seçili metin denetimi',detailed:en?'Full text checks':'Tam metin denetimi'})[s.verification]);
     add(en?'Timing':'Zamanlama',s.timingMode==='video'?(en?'Keep full speech; synchronize video speed':'Konuşmayı tam tut; video hızını eşleştir'):s.timingMode==='clip'?(en?'Fixed video; overflowing speech may be cut':'Sabit video; taşan konuşma kesilebilir'):'');
     add(en?'Groups':'Gruplar',counts(output.metrics,en));
+    const editing=(output.quality?.groups||[]).map(row=>row.speechEditing?.natural).filter(Boolean);
+    if(editing.length){const reviewed=editing.filter(value=>value==='source_reviewed').length,unchanged=editing.filter(value=>value==='unchanged').length;add(en?'Speech editing':'Konuşma düzenlemesi',en?`${reviewed} source-reviewed · ${unchanged} unchanged`:`${reviewed} kaynak anlamı denetlenen · ${unchanged} değiştirilmeden korunan`);}
     return rows;
   }
-  return {counts,recipe};
+  return {counts,recipe,speechResult};
 });

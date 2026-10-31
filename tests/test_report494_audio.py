@@ -34,13 +34,26 @@ class Report494(unittest.TestCase):
     def test_494_07_invalid_optional_rewrite_keeps_original_speech(self):
         node=next(n for n in ast.parse(SOURCE).body if isinstance(n,ast.AsyncFunctionDef) and n.name=='rewrite_for_window')
         with tempfile.TemporaryDirectory() as folder:
+            events=[]; requests=[]
             def respond(line, **kwargs):
+                events.append(line)
+                # Activity/status events share stdout with rewrite requests.
+                # Only a DUB_REWRITE envelope belongs to the response protocol.
+                if not line.startswith('DUB_REWRITE '):
+                    return
                 request=json.loads(line.removeprefix('DUB_REWRITE '))
+                requests.append(request)
                 (Path(folder)/(request['id']+'.json')).write_text('{torn',encoding='utf-8')
             scope=dict(asyncio=asyncio,uuid=uuid,json=json,time=time,print=respond)
             exec(compile(ast.Module(body=[node],type_ignores=[]),'rewrite','exec'),scope)
-            args=SimpleNamespace(rewrite_dir=Path(folder),auto_fit=True,natural_speech=True)
+            args=SimpleNamespace(rewrite_dir=Path(folder),auto_fit=True,natural_speech=True,
+                                 source_hash='source-snapshot',group_keys=['4,5'])
             self.assertEqual(asyncio.run(scope['rewrite_for_window'](args,0,'Original.',1)),'Original.')
+            self.assertTrue(any(line.startswith('DUB_ACTIVITY ') for line in events))
+            self.assertEqual(len(requests),1)
+            self.assertEqual(requests[0]['sourceHash'],'source-snapshot')
+            self.assertEqual(requests[0]['key'],'4,5')
+            self.assertFalse(list(Path(folder).glob('*.json')))
 
     def test_494_08_uppercase_turkish_negation_cannot_disappear(self):
         expected='Burada HİÇ kimse uzun yıllardır böyle bir olayı görmedi ve bütün insanlar bu durumu dikkatle izliyor.'
