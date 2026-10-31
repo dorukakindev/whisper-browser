@@ -101,3 +101,123 @@ test('An already configured local reference stays usable when it has no saved-li
   await h.run('start_voice_generation');assert(h.read().request);assert.equal(h.read().refUsed,undefined,'No reference change or extra local picker is required');
  }finally{await new Promise(setImmediate);h.dom.window.close();}
 });
+
+
+test('Sample overrides belong to one request and preserve the human range and sample controls',async()=>{
+ const h=setup();try{
+  await h.run('configure_voice_generation',{sample:false,start:5,end:25,grouping:'cumle'});
+  await h.run('start_voice_generation',{sample:true});
+  assert.equal(h.read().request.sample,true);assert.equal(h.el('dubSampleOnly').checked,false);
+  assert.deepEqual(JSON.parse(JSON.stringify(h.read().request.range)),{start:5,end:25});
+  assert.equal(h.el('dubRangeStart').value,'5');assert.equal(h.el('dubRangeEnd').value,'25');
+  h.finish();await h.run('start_voice_generation');assert.equal(h.read().request.sample,false);
+  h.finish();await h.run('configure_voice_generation',{sample:true});
+  await h.run('start_voice_generation',{sample:false});assert.equal(h.read().request.sample,false);assert.equal(h.el('dubSampleOnly').checked,true);
+  h.finish();await h.run('start_voice_generation');assert.equal(h.read().request.sample,true);
+ }finally{await new Promise(setImmediate);h.dom.window.close();}
+});
+
+test('A failed sample request does not change retained settings or a later full request',async()=>{
+ const h=setup();try{
+  await h.run('configure_voice_generation',{sample:false});
+  const send=h.w.api.startDub;h.w.api.startDub=async()=>({ok:false,error:'Fixture rejection'});
+  await assert.rejects(h.run('start_voice_generation',{sample:true}),/not confirmed/);
+  assert.equal(h.el('dubSampleOnly').checked,false);
+  h.w.api.startDub=send;await h.run('start_voice_generation');assert.equal(h.read().request.sample,false);
+ }finally{await new Promise(setImmediate);h.dom.window.close();}
+});
+
+for(const mutation of ['sample','range','grouping','cancel','source'])test('Pending voice planning rejects stale '+mutation+' before sending audio work',async()=>{
+ const h=setup();try{
+  await h.run('configure_voice_generation',{sample:false,start:5,end:25});
+  const makePlan=h.w.api.planDub;let release,entered;
+  const waiting=new Promise(resolve=>entered=resolve);
+  h.w.api.planDub=async args=>{entered();await new Promise(resolve=>release=resolve);return makePlan(args);};
+  let cancelled=false;
+  const running=h.w.DubGeneratorUI.assistant.start({sample:true},()=>cancelled);
+  await waiting;
+  if(mutation==='sample')h.el('dubSampleOnly').checked=true;
+  if(mutation==='range'){h.el('dubRangeEnd').value='30';h.el('dubRangeEnd').dispatchEvent(new h.w.Event('input'));}
+  if(mutation==='grouping'){h.el('dubGrouping').value='satir';h.el('dubGrouping').dispatchEvent(new h.w.Event('change'));}
+  if(mutation==='cancel')cancelled=true;
+  if(mutation==='source')h.context.generation++;
+  release();assert.equal((await running).ok,false);assert.equal(h.read().request,undefined);
+  if(mutation==='range'||mutation==='grouping')assert.equal(h.el('dubPlanGroup').options.length,0,'Obsolete range/grouping plan must not populate the editor');
+ }finally{await new Promise(setImmediate);h.dom.window.close();}
+});
+
+
+test('A voice configure request cannot overwrite a manual edit made while readiness is pending',async()=>{
+ const h=setup();try{
+  await h.run('configure_voice_generation',{profile:'quality'});
+  const pending=h.w.DubGeneratorUI.assistant.configure({profile:'quality'},()=>false);
+  h.el('dubProfile').value='fast';
+  assert.equal((await pending).ok,false);assert.equal(h.el('dubProfile').value,'fast');
+ }finally{await new Promise(setImmediate);h.dom.window.close();}
+});
+
+test('Each grouping retains authored plan text, verification and natural source editing with sample overrides',async()=>{
+ for(const grouping of ['akici','anlatim','cumle','satir']){
+  const h=setup();try{
+   await h.run('configure_voice_generation',{grouping,verification:'detailed'});
+   h.el('dubNaturalSpeech').checked=true;h.el('dubPlanPrepare').click();await new Promise(setImmediate);
+   h.el('dubPlanText').value='Authored words stay here.';h.el('dubPlanApply').click();
+   await h.run('start_voice_generation',{sample:true});
+   const request=h.read().request;
+   assert.equal(request.grouping,grouping);assert.equal(request.verification,'detailed');assert.equal(request.naturalSpeech,true);
+   assert.equal(request.dubText.edits.g1,'Authored words stay here.');assert.equal(h.el('dubSampleOnly').checked,false);
+   h.finish();await h.run('voice_group',{group_id:'g1',operation:'regenerate'});
+   assert.equal(h.read().request.sample,true,'Group regeneration reuses its accepted recipe');
+   assert.equal(h.read().request.dubText.edits.g1,'Authored words stay here.');
+  }finally{await new Promise(setImmediate);h.dom.window.close();}
+ }
+});
+
+
+for(const timing of ['before-call','during-readiness'])test('Approved voice settings reject manual changes '+timing+' before mutation',async()=>{
+ const h=setup();try{
+  await h.run('configure_voice_generation',{profile:'quality',start:5,end:25});
+  const expected={kind:'voice',values:{profile:'quality'}};
+  if(timing==='before-call')h.el('dubProfile').value='fast';
+  const pending=h.w.DubGeneratorUI.assistant.configure({profile:'quality'},()=>false,expected);
+  if(timing==='during-readiness')h.el('dubProfile').value='fast';
+  const result=await pending;assert.equal(result.ok,false);assert.equal(result.stale,true);assert.equal(h.el('dubProfile').value,'fast');
+  assert.equal(h.el('dubRangeStart').value,'5');assert.equal(h.el('dubRangeEnd').value,'25');
+ }finally{await new Promise(setImmediate);h.dom.window.close();}
+});
+
+test('Approved voice range rejects a manual clip change without altering controls',async()=>{
+ const h=setup();try{
+  await h.run('configure_voice_generation',{start:5,end:25});
+  h.el('dubRangeEnd').value='30';
+  const result=await h.w.DubGeneratorUI.assistant.configure({start:10,end:40},()=>false,{kind:'voice',values:{start:5,end:25}});
+  assert.equal(result.stale,true);assert.equal(h.el('dubRangeStart').value,'5');assert.equal(h.el('dubRangeEnd').value,'30');
+ }finally{await new Promise(setImmediate);h.dom.window.close();}
+});
+
+
+for(const [label,expected] of [
+ ['wrong-kind',{kind:'preferences',values:{profile:'quality',sample:false}}],
+ ['empty-values',{kind:'voice',values:{}}],
+ ['missing-field',{kind:'voice',values:{profile:'quality'}}],
+ ['unknown-setting',{kind:'voice',values:{profile:'quality',sample:false,unknown:'value'}}],
+ ['array-values',{kind:'voice',values:[]}],
+ ['null-packet',null]
+])test('Voice approval fails closed for '+label,async()=>{
+ const h=setup();try{
+  await h.run('configure_voice_generation',{profile:'quality',sample:false});
+  const result=await h.w.DubGeneratorUI.assistant.configure({profile:'fast',sample:true},()=>false,expected);
+  assert.equal(result.ok,false);assert.equal(result.stale,true);
+  assert.equal(h.el('dubProfile').value,'quality');assert.equal(h.el('dubSampleOnly').checked,false);
+ }finally{await new Promise(setImmediate);h.dom.window.close();}
+});
+
+test('Exact voice approval accepts current settings including a previously disabled range',async()=>{
+ const h=setup();try{
+  await h.run('configure_voice_generation',{profile:'quality'});
+  h.el('dubRangeEnabled').checked=false;
+  const result=await h.w.DubGeneratorUI.assistant.configure({profile:'fast',start:5,end:25},()=>false,{kind:'voice',values:{profile:'quality',start:null,end:null}});
+  assert.equal(result.ok,true);assert.equal(h.el('dubProfile').value,'fast');
+  assert.equal(h.el('dubRangeEnabled').checked,true);assert.equal(h.el('dubRangeStart').value,'5');assert.equal(h.el('dubRangeEnd').value,'25');
+ }finally{await new Promise(setImmediate);h.dom.window.close();}
+});

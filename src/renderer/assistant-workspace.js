@@ -97,8 +97,15 @@
   for(const value of cache.values())for(const thread of value.threads)for(const message of thread.messages){
    const action=message.actions?.find(row=>row.proposalId===proposalId);if(!action)continue;
    action.resultStatus=['accepted','completed','failed','stopped'].includes(result?.status)?result.status:'failed';
+   action.refreshable=action.resultStatus==='failed'&&result?.refreshable===true;
    action.resultText=String(result?.note||result?.error||'').slice(0,500);void persist(thread);changed();return;
   }
+ }
+ function replaceProposal(proposalId,action){
+  const thread=current(),message=thread?.messages.find(row=>row.actions?.some(item=>item.proposalId===proposalId));
+  if(!message||action?.kind!=='app_action'||typeof action.proposalId!=='string'||!action.proposalId||action.proposalId===proposalId)throw Error(t('The conversation or proposal changed.','Sohbet veya öneri değişti.'));
+  const index=message.actions.findIndex(row=>row.proposalId===proposalId);
+  message.actions[index]=structuredClone(action);void persist(thread);changed();
  }
  function clear(){const thread=current();if(thread){cancelFlush(thread);thread.messages=[];thread.headId=null;void persist(thread);changed();}}
  // Shared unsampled source: U IDs always refer to the original row index.
@@ -128,7 +135,7 @@
   const step=Math.max(1,Math.ceil(eligible.length/3000));const pool=eligible.filter((row,index)=>index%step===0||row.start<=now&&row.end>=now).slice(0,3100).map(row=>({id:row.id,start:row.start,end:row.end,text:String(row.text||'').slice(0,500),translation:String(row.translation||'').slice(0,500)}));
   return {enabled:pool.length>0,time:now,scope,truncated:step>1,rows:pool};
  }
- window.AssistantWorkspace=Object.freeze({key,snapshot,prepare,begin,resume,canResume:proposalId=>!!current()?.messages.at(-1)?.actions?.some(action=>action.proposalId===proposalId),partial,evidence,steps,citations,finish,command,clear,toolContext,searchSubtitleContext,subtitleById,actionResult,activeId:()=>current()?.id||''});
+ window.AssistantWorkspace=Object.freeze({key,snapshot,prepare,begin,resume,canResume:proposalId=>!!current()?.messages.at(-1)?.actions?.some(action=>action.proposalId===proposalId),partial,evidence,steps,citations,finish,command,clear,toolContext,searchSubtitleContext,subtitleById,actionResult,replaceProposal,activeId:()=>current()?.id||''});
  document.addEventListener('media-context-changed',()=>{if(workspaceState())restoreLog();});
  window.addEventListener('pagehide',()=>{const pending=new Set(flushTimers.keys());for(const thread of pending)cancelFlush(thread);for(const state of cache.values())for(const thread of state.threads)if(pending.has(thread)||thread.messages.some(row=>row.status==='streaming'))void persist(thread);});
 })();

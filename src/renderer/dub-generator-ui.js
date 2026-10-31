@@ -499,11 +499,11 @@
   el('dubResetDeliverySource').addEventListener('click',()=>{deliverySource='';el('dubDeliverySourceName').textContent='';refreshOverview();});
   async function preparePlan() {
     if (planning || current || referenceBusy || choosing || !srt) return;
-    const media = requestIdentity();
+    const media = requestIdentity(), selection = planSelection();
     planning = true; controls();
     try {
       const r = await window.api.planDub({ srt, range: selectedRange(), grouping: el('dubGrouping').value });
-      if (media !== requestIdentity()) return;
+      if (media !== requestIdentity() || selection !== planSelection()) return;
       if (!r?.ok) throw new Error(r?.error || 'SRT planı okunamadı.');
       plan = r; edits = {}; el('dubPlanGroup').replaceChildren();
       r.groups.forEach((g, i) => { const option = document.createElement('option'); option.value = String(i);
@@ -593,15 +593,26 @@
       try { await configure(kind); } finally { choosing = false; controls(); }
     });
   }
-  async function start(retry = false, forceGroups = [], takeChoices = null) {
+  function planSelection() {
+    return JSON.stringify([srt,el('dubRangeEnabled').checked,el('dubRangeStart').value,el('dubRangeEnd').value,el('dubGrouping').value]);
+  }
+  function startSelection() {
+    return JSON.stringify([planSelection(),voiceSettings(),el('dubKeepEngine').checked,el('dubNaturalSpeech').checked,el('dubAutoFit').checked,backgroundSource,deliverySource,cfg,edits]);
+  }
+  async function start(retry = false, forceGroups = [], takeChoices = null, job = {}) {
     if (current || referenceBusy || planning || choosing || workspaceBusy || !srt || !cfg?.ready) return;
     artifactOpenVersion++;
-    const sourceBefore=requestIdentity(),srtBefore=srt;
-    if(!retry&&!plan){await preparePlan();if(!plan||sourceBefore!==requestIdentity()||srtBefore!==srt||current)return {ok:false};}
+    // A one-job override never writes retained controls. Reject an obsolete
+    // preflight rather than borrowing options edited while its plan was loading.
+    const sourceBefore=requestIdentity(),selectionBefore=startSelection();
+    const obsolete=()=>sourceBefore!==requestIdentity()||selectionBefore!==startSelection()||job.isCancelled?.();
+    if(!retry&&!plan){await preparePlan();if(!plan||obsolete()||current)return {ok:false};}
+    if(obsolete())return {ok:false};
     window.dispatchEvent(new Event('dub-preflight-ready'));
+    if(obsolete()||current||referenceBusy||planning||choosing||workspaceBusy)return {ok:false};
     let range;
     try { range = selectedRange(); } catch (error) { status(error.message); return; }
-    current = { id: crypto.randomUUID(), qualityKey:retry?el('dubQualityGroup').value:'', voice:{reference:cfg.reference,transcript:cfg.transcript,engine:cfg.engine}, context: window.BrowserDubAudioUI?.context(), sample: retry ? lastRequest?.sample : el('dubSampleOnly').checked };
+    current = { id: crypto.randomUUID(), qualityKey:retry?el('dubQualityGroup').value:'', voice:{reference:cfg.reference,transcript:cfg.transcript,engine:cfg.engine}, context: window.BrowserDubAudioUI?.context(), sample: retry ? lastRequest?.sample : job.sample ?? el('dubSampleOnly').checked };
     const pending = current;
     pending.fallback=output?.url?{output,rows:[...results.values()],media:mediaIdentity(),srt,sample:el('dubGeneratorUse').classList.contains('hidden')}:null;
     const started = performance.now();
@@ -859,8 +870,25 @@
     if(isCancelled())throw Error('The source changed / Kaynak değişti.');
     if(current||referenceBusy||planning||choosing||workspaceBusy)throw Error('Voice controls are busy / Ses kontrolleri meşgul.');
   }
-  async function voiceConfigure(args,isCancelled){
+  async function voiceConfigure(args,isCancelled,expectedSettings){
+    const requestedSelection=()=>{
+      const settings=voiceSettings();
+      return JSON.stringify([Object.keys(args).filter(key=>key in settings).map(key=>[key,settings[key]]),args.start===undefined?null:[el('dubRangeEnabled').checked,el('dubRangeStart').value,el('dubRangeEnd').value]]);
+    };
+    const before=requestedSelection();
     await ensureVoice(isCancelled);
+    const staleSettings=()=>({ok:false,stale:true,error:'Settings changed; refresh and review / Ayarlar değişti; yenileyip tekrar inceleyin.'});
+    if(before!==requestedSelection())return staleSettings();
+    if(expectedSettings!==undefined){
+      const approved=expectedSettings?.values,prototype=approved&&typeof approved==='object'?Object.getPrototypeOf(approved):undefined;
+      const plain=approved&&typeof approved==='object'&&!Array.isArray(approved)&&(prototype===null||Object.getPrototypeOf(prototype)===null&&Object.hasOwn(prototype,'constructor')&&prototype.constructor?.name==='Object');
+      const supported=['profile','concurrency','grouping','verification','timingMode','expression','deliveryStrength','keepBackground','followDelivery','sample','start','end'];
+      const requested=Object.keys(args),keys=plain?Object.keys(approved):[];
+      if(expectedSettings?.kind!=='voice'||!plain||!requested.length||keys.length!==requested.length||requested.some(key=>!supported.includes(key)||!Object.hasOwn(approved,key)))return staleSettings();
+      let range;try{range=selectedRange();}catch(_){return staleSettings();}
+      const actual={...voiceSettings(),start:range?.start??null,end:range?.end??null};
+      for(const key of keys)if(actual[key]!==approved[key])return staleSettings();
+    }
     const values={profile:'dubProfile',concurrency:'dubConcurrency',grouping:'dubGrouping',verification:'dubVerification',timingMode:'dubTimingMode',expression:'dubExpression',deliveryStrength:'dubDeliveryStrength'};
     const checks={keepBackground:'dubKeepBackground',followDelivery:'dubFollowDelivery',sample:'dubSampleOnly'};
     for(const [key,id] of Object.entries(values))if(args[key]!==undefined)el(id).value=String(args[key]);
@@ -869,14 +897,14 @@
     if(args.grouping!==undefined||args.start!==undefined)invalidatePlan();controls();refreshOverview();return {ok:true};
   }
   async function voiceStart(args,isCancelled){
-    await ensureVoice(isCancelled);if(args.sample!==undefined)el('dubSampleOnly').checked=args.sample;
-    if(!srt||!cfg?.ready)return {ok:false};return start();
+    await ensureVoice(isCancelled);
+    if(!srt||!cfg?.ready)return {ok:false};return start(false,[],null,{sample:args.sample,isCancelled});
   }
   async function voiceGroup(args,isCancelled){
     await ensureVoice(isCancelled);const row=results.get(args.group_id);if(!row)return {ok:false};
     if(args.operation==='open'&&!plan){await preparePlan();if(isCancelled())return {ok:false};}
     el('dubQualityGroup').value=args.group_id;el('dubQualityGroup').dispatchEvent(new Event('change'));
-    if(args.operation==='regenerate'){if(!lastRequest)return {ok:false};return start(true,[args.group_id]);}
+    if(args.operation==='regenerate'){if(!lastRequest)return {ok:false};return start(true,[args.group_id],null,{isCancelled});}
     if(args.operation==='listen')return {ok:await listenSelectedGroup()===true};
     return {ok:!!plan?.groups.some(group=>group.key===args.group_id)};
   }
