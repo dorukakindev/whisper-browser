@@ -1,0 +1,1769 @@
+{
+  "sourceRevision": "3ea7518a9cb95612cddf682f1b908ad351227967",
+  "report815": {
+    "count": 134,
+    "fixed": 133,
+    "mitigatedUnresolved": 1,
+    "findings": [
+      {
+        "id": "R815-B01",
+        "status": "verified_fixed",
+        "source": "src/renderer/pdf-reader-experience.js:opened",
+        "change": "Do not remove the saved reading-font CSS variable on document open. The initialized validated preference remains applied through close/reopen.",
+        "tests": [
+          "tests/report815-pdf-regressions.test.js:B01"
+        ],
+        "limits": "Full experience module with real controls/styles in JSDOM; no screenshot or native PDF raster claim."
+      },
+      {
+        "id": "R815-B02",
+        "status": "verified_fixed",
+        "sources": [
+          "src/renderer/renderer.js:translateVisiblePdfPagesNow",
+          "src/main.js:pdf:translatePages and pdf:cancel",
+          "src/pdf-translation-operations.js",
+          "src/preload.js:cancelPdfTranslation"
+        ],
+        "change": "Capture target once in the renderer and use one opaque operation ID with firstBatch/lastBatch. Main keeps a detached provider/model/key/glossary snapshot scoped to authenticated sender, document object and operation. Legacy calls without operation metadata keep the prior one-batch behavior. Configuration never crosses to renderer.",
+        "lifecycle": "Maximum 64 operations globally and 8 per sender; 15-minute idle expiry. Last batch, scoped cancel, sender destruction and application shutdown release snapshots. Active sender destruction aborts the job. Optional operationId in cancel prevents an old reader's delayed cleanup from cancelling a newer same-document operation.",
+        "tests": [
+          "tests/report815-pdf-regressions.test.js:B02 renderer freeze",
+          "tests/report815-pdf-regressions.test.js:B02 real main handler provider freeze",
+          "tests/report815-pdf-regressions.test.js:B02 sender/document/cancel isolation",
+          "tests/report815-pdf-regressions.test.js:B02 bounds/expiry/cleanup",
+          "tests/report815-pdf-regressions.test.js:B02 active sender destruction",
+          "tests/pdf-job-scheduler.test.js",
+          "tests/pdf-partial-retry.test.js"
+        ],
+        "limits": "Real production handler/function slices with controlled translation and state persistence. Synthetic credentials only; no paid provider request."
+      },
+      {
+        "id": "R815-B03",
+        "status": "verified_fixed",
+        "sources": [
+          "src/renderer/pdf-reader-experience.js:prepareVoice",
+          "src/renderer/media-workflows-ui.js:openProject"
+        ],
+        "change": "Invalidate prior readiness when preparation starts. Check document/range/text mode after extraction, import and production-opening awaits, and immediately before handing off to production. Optional caller isCurrent guard in openProject prevents a project load from committing after the PDF selection changes.",
+        "tests": [
+          "tests/report815-pdf-regressions.test.js:B03 extract/import/production selection barriers",
+          "tests/book-render-owner644.test.js:PDF preparation caller selection guard",
+          "tests/pdf-preparation-ownership.test.js",
+          "tests/assistant-book-handoff758.test.js"
+        ],
+        "limits": "Deterministic real module UI callbacks and controlled async stages. No generated audio or personal application interaction. An already authorized project import may finish on disk; stale preparation cannot activate readiness or reclaim the view."
+      },
+      {
+        "id": "R815-B04",
+        "status": "verified_fixed",
+        "source": "src/burnin-output.js:burninOutputPaths",
+        "change": "Strip the original case-sensitive source suffix before choosing the normalized output suffix; generated recovery paths now validate for MP4/MKV/mixed-case extensions.",
+        "tests": [
+          "tests/report815-media-regressions.test.js:B04",
+          "tests/burnin-output.test.js",
+          "tests/burnin-recovery-schema.test.js"
+        ],
+        "limits": "Interrupted long-running burn-in process was not exercised."
+      },
+      {
+        "id": "R815-B05",
+        "status": "confirmed-fixed",
+        "reason": "Project backup preserves bookmark fields and chapter source identities; restored audio retains its basename under a new project UUID, so exact bookmarks resolve.",
+        "tests": [
+          "tests/report815-book-backup.test.js: audio backup preserves bookmarks"
+        ]
+      },
+      {
+        "id": "R815-B06",
+        "status": "confirmed-fixed",
+        "reason": "All accepted groups up to5000 and their verification/acoustic/listening/manual-review evidence survive backup; unsupported counts/text lengths are rejected rather than sliced. Capture now retains provider verification evidence before saving.",
+        "tests": [
+          "tests/report815-book-backup.test.js: 1001/5000 groups and last review evidence"
+        ]
+      },
+      {
+        "id": "R815-B07",
+        "status": "confirmed-fixed",
+        "reason": "Backup export and import share the accepted900000-character chapter ceiling. Export rejects unsupported chapters before replacing an existing backup.",
+        "tests": [
+          "tests/report815-book-backup.test.js: long chapter roundtrip and failed export preserves previous backup"
+        ]
+      },
+      {
+        "id": "R815-B08",
+        "status": "fixed",
+        "evidence": "HF_HUB_CACHE participates in model cache discovery.",
+        "tests": [
+          "tests/report815-root-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B09",
+        "status": "fixed",
+        "evidence": "Malformed index is read-only with explicit list/prepare/commit/remove error; bytes preserved.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B10",
+        "status": "confirmed-fixed",
+        "reason": "M4B snapshots store per-chapter content-addressed audio output basename as well as textHash; selecting/regenerating another take makes old M4B noncurrent while it remains available for playback. Legacy records without audio identity are conservatively noncurrent.",
+        "tests": [
+          "tests/book-export.test.js: M4B freshness follows captured audio take"
+        ]
+      },
+      {
+        "id": "R815-B11",
+        "status": "confirmed-fixed",
+        "reason": "A dedicated accessible tablist owns stable IDs of the actual tab selectors; physical strip is a labeled group containing native mute, close, and collapse buttons. Owned IDs refresh after render and the empty list is hidden. Existing role=tab DOM selectors, node reuse, selected state and arrow/Home/End behavior remain intact.",
+        "tests": [
+          "tests/report815-aria.test.js",
+          "tests/report815-aria-native.smoke.js",
+          "tests/browser-tabs.test.js"
+        ]
+      },
+      {
+        "id": "R815-B12",
+        "status": "confirmed-fixed",
+        "reason": "Mixed More popover uses labeled group semantics with native buttons, search input and details summaries. Toggles expose aria-pressed, and filtering/keyboard action selectors target native command buttons instead of menuitem roles.",
+        "tests": [
+          "tests/report815-aria.test.js",
+          "tests/report815-aria-native.smoke.js",
+          "tests/browser-menu-proxy.test.js",
+          "tests/browser-adblock-ui.test.js",
+          "tests/browser-reading-design.test.js"
+        ]
+      },
+      {
+        "id": "R815-B13",
+        "status": "verified_fixed",
+        "source": "src/renderer/media-hub-ui.js:drawPlayer subtitle search",
+        "change": "Convert the primary subtitle cue time through subtitleVideoTime before seeking.",
+        "tests": [
+          "tests/report815-media-regressions.test.js:B13"
+        ],
+        "limits": "Full production renderer callback tested with controlled +10 second transform; no physical listening claim."
+      },
+      {
+        "id": "R815-B14",
+        "status": "verified_fixed",
+        "source": "src/browser-fonts.js:extractFonts",
+        "change": "Include TTC collections in the attachment discovery filter already supported by readFonts.",
+        "tests": [
+          "tests/report815-media-regressions.test.js:B14",
+          "tests/report815-media-native.test.js:B14"
+        ],
+        "limits": "Real FFmpeg/ffprobe generated MKV with local Windows TTC and production extraction passed. CJK glyph rendering was not visually measured."
+      },
+      {
+        "id": "R815-B15",
+        "status": "verified_fixed",
+        "source": "src/renderer/media-hub-ui.js:playStream",
+        "change": "Dispatch ordinary HTTPS streams to the same native transition as HTTP/RTSP; preserve HTTPS m3u8 HLS handling without native dispatch.",
+        "tests": [
+          "tests/report815-media-regressions.test.js:B15"
+        ],
+        "limits": "Production function dispatch with controlled transport/player; no remote codec/DRM playback claim."
+      },
+      {
+        "id": "R815-B16",
+        "status": "verified_fixed",
+        "source": "src/burnin-output.js:burninAudioArgs",
+        "change": "Use AAC for WMV/WMA/ASF to MP4 transitions while preserving copy to MKV and existing compatible paths.",
+        "tests": [
+          "tests/report815-media-regressions.test.js:B16",
+          "tests/report815-media-native.test.js:B16"
+        ],
+        "limits": "Real synthetic WMV/wmav2 source muxed to MP4 successfully with production audio arguments; ffprobe confirmed AAC. Full libass video burn-in was not run."
+      },
+      {
+        "id": "R815-B17",
+        "status": "confirmed-fixed",
+        "reason": "Restore capacity counts active projects only, matching the app policy; a101-project library containing100archived projects restores intact. Byte/manifest/chapter bounds remain enforced and100active projects still reject one more.",
+        "tests": [
+          "tests/report815-book-backup.test.js: archived-library restore and active overflow"
+        ]
+      },
+      {
+        "id": "R815-B18",
+        "status": "fixed",
+        "evidence": "PDF/MHTML capture URL+generation before save dialog and reject changes; PDF rechecks after rendering.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B19",
+        "status": "fixed",
+        "evidence": "Reading-list save writes unique MHTML; only commits a complete replacement; failure cleans staging and preserves prior archive.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B20",
+        "status": "fixed",
+        "evidence": "Unlink failure returns failure and retains index entry.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B21",
+        "status": "fixed",
+        "evidence": "Reading-list revision captured before async save; successful removal invalidates pending commit; staged output discarded.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B22",
+        "status": "fixed",
+        "evidence": "Full capture uses actual content dimensions under 120M pixel budget; no silent 30k clamp.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B23",
+        "status": "fixed",
+        "evidence": "Each capture owns tokenized hidden-element set; reference counts restore original visibility only after all owners finish.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B24",
+        "status": "fixed",
+        "evidence": "Video crop is true viewport intersection, including negative source coordinates; empty intersections reject.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B25",
+        "status": "fixed",
+        "evidence": "Skip-save/link/delete restore last committed in-memory snapshot on persistence error, including mkdir/write/rename paths.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B26",
+        "status": "fixed",
+        "evidence": "Dirty fields include changed checkbox/radio, selected files and all non-false contenteditable forms.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B27",
+        "status": "fixed",
+        "evidence": "Runtime scan evaluates every Electron frame and open shadow roots; failed/empty measurement remains unknown.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B28",
+        "status": "fixed",
+        "evidence": "Native context media actions target one source frame + clicked media source/bounds; ambiguous frame/element refuses action.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B29",
+        "status": "fixed",
+        "evidence": "PNG/PDF/MHTML/subtitle exports write exact dialog-selected path; app does not append unconfirmed suffix targets.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B30",
+        "status": "fixed",
+        "evidence": "Close rechecks runtime protections after capture drain and resumes hooks/polling when late draft blocks close.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B31",
+        "status": "fixed",
+        "evidence": "External-player success waits for child spawn; asynchronous native error returns failure.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B32",
+        "status": "fixed",
+        "evidence": "Media-tools factory is shared per tool-path configuration across browser extras requests; semantic worker can be reused.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B33",
+        "status": "confirmed-fixed",
+        "reason": "Dual subtitle artifacts now include target language and qualifiers; translating another target leaves the first artifact intact.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_mixed_auto_source_reaches_translation_and_dual_files_are_distinct"
+        ]
+      },
+      {
+        "id": "R815-B34",
+        "status": "confirmed-fixed",
+        "reason": "Auto-language whole-file skip requires every cue to satisfy target-language evidence, so a Turkish opening cannot skip the English remainder.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_mixed_auto_source_reaches_translation_and_dual_files_are_distinct"
+        ]
+      },
+      {
+        "id": "R815-B35",
+        "status": "confirmed-fixed",
+        "reason": "ASS parser tracks drawing-mode overrides and drops vector coordinates while retaining text after p0.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_ass_drawing_is_not_dialogue_and_p0_restores_text"
+        ]
+      },
+      {
+        "id": "R815-B36",
+        "status": "confirmed-fixed",
+        "reason": "Dubbing SRT parser requires cue header boundaries and keeps a timing-looking body line as dialogue without shifting source IDs.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_dub_literal_body_time_range_keeps_source_identity"
+        ]
+      },
+      {
+        "id": "R815-B37",
+        "status": "confirmed-fixed",
+        "reason": "ASR verifier protects bare capitalized source roots including sentence-initial names without requiring an apostrophe or ASR capitalization.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_asr_names_quantity_ownership_and_billion_equivalence"
+        ]
+      },
+      {
+        "id": "R815-B38",
+        "status": "confirmed-fixed",
+        "reason": "Spoken quantity comparison retains occurrence order, detecting same-multiset quantity swaps between people.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_asr_names_quantity_ownership_and_billion_equivalence"
+        ]
+      },
+      {
+        "id": "R815-B39",
+        "status": "confirmed-fixed",
+        "reason": "Entity-origin less-than is retained escaped only when it could be reinterpreted as an allowed VTT style opener; genuine tags stay styles.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_vtt_spoken_metadata_keywords_literal_tags_and_timestamp"
+        ]
+      },
+      {
+        "id": "R815-B40",
+        "status": "confirmed-fixed",
+        "reason": "VTT inline timestamps are removed as control markup before dialogue reaches translation or export.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_vtt_spoken_metadata_keywords_literal_tags_and_timestamp"
+        ]
+      },
+      {
+        "id": "R815-B41",
+        "status": "confirmed-fixed",
+        "reason": "Translation memory scope includes explicit user scene notes, matching exact-cache context separation.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_scene_notes_invalidate_fuzzy_memory"
+        ]
+      },
+      {
+        "id": "R815-B42",
+        "status": "confirmed-fixed",
+        "reason": "Resumed transcription still uses the suffix, but diarization extracts the full local audio and assigns one common speaker context to old and new cues.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_resume_diarization_uses_full_audio_for_old_and_new_speakers"
+        ]
+      },
+      {
+        "id": "R815-B43",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Personal ratings use 0–10; taste normalizes to /5 and positive seeds require >=7. Letterboxd imports convert /5 into /10.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B44",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Late add completes persistence without navigating after its details dialog closes.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B45",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Local feedback-list filters by requested film/series kind.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B46",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Tonight playback awaits retain their rendering epoch and reject stale responses.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B47",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Changing the overlay source token invalidates destructive review before confirmation.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B48",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Valid structured JSON stays parseable; verification footer still guards unsupported prose action claims.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B49",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Pin scope reuses source-context conversation identity, including non-media page identity.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B50",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Subtitle content/path fingerprint is captured with actions and checked before positional seek/editor mutations. It does not invalidate intentional subtitle attachments.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B51",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Successful save updates the persisted preference snapshot without rebuilding and discarding the newer draft.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B52",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Discovery button failures target the active dialog status.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B53",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Saved feedback undo is rendered before remote detail fetch, and remains available offline.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B54",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Book-open responses are ordered by an explicit request generation.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B55",
+        "status": "confirmed-fixed",
+        "reason": "Video mappings are captured after trusted ZIP extraction populates them and are used for renderer and catalogue restoration. Film and episode sources reopen as existing absolute local files.",
+        "tests": [
+          "tests/report815-video-package.test.js"
+        ]
+      },
+      {
+        "id": "R815-B56",
+        "status": "confirmed-fixed",
+        "reason": "Migration roots use the source path dialect dirname; the POSIX leading slash is retained and selected mappings apply to the original prefix.",
+        "tests": [
+          "tests/report815-storage-integrity.test.js: preview/migration"
+        ]
+      },
+      {
+        "id": "R815-B57",
+        "status": "confirmed-fixed",
+        "reason": "Workspace export rejects malformed JSON and invalid supported store envelopes before replacing output. Auto backup reads back the package before success time and retention. Seven controlled failing attempts keep the last valid backup.",
+        "tests": [
+          "tests/report815-auto-backup.test.js; tests/report815-storage-integrity.test.js"
+        ]
+      },
+      {
+        "id": "R815-B58",
+        "status": "confirmed-fixed",
+        "reason": "Missing-media preview rejects UNC, slash-UNC and device-UNC path forms before any exists call. Ordinary drive/POSIX sources remain migratable.",
+        "tests": [
+          "tests/report815-storage-integrity.test.js: remote path spy"
+        ]
+      },
+      {
+        "id": "R815-B59",
+        "status": "fixed",
+        "evidence": "One periodic discovery scan per second, including empty documents, finds late-attached open shadow roots with at most1s sampling latency; detached roots stay released. Deterministic100-probe throttle test and native fixture passed.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js",
+          "tests/report815-browser-native.smoke.js (Electron43.5.0; real local DOM/cross-origin frames; passed)"
+        ]
+      },
+      {
+        "id": "R815-B60",
+        "status": "fixed",
+        "evidence": "Command candidate selection excludes CSS hidden/collapsed/transparent media.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js",
+          "tests/report815-browser-native.smoke.js (Electron43.5.0; real local DOM/cross-origin frames; passed)"
+        ]
+      },
+      {
+        "id": "R815-B61",
+        "status": "fixed",
+        "evidence": "Probe token includes media element+source identity; replacement element/source invalidates queued command.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js",
+          "tests/report815-browser-native.smoke.js (Electron43.5.0; real local DOM/cross-origin frames; passed)"
+        ]
+      },
+      {
+        "id": "R815-B62",
+        "status": "fixed",
+        "evidence": "Dub override is released when same element switches source, restoring base rate only if override rate still owns value.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js",
+          "tests/report815-browser-native.smoke.js (Electron43.5.0; real local DOM/cross-origin frames; passed)"
+        ]
+      },
+      {
+        "id": "R815-B63",
+        "status": "mitigated-unresolved",
+        "evidence": "Confirmed remaining: MediaElementAudioSource binding cannot be detached to restore natural audio after a no-CORS source change. Added audioRecoveryRequired probe flag and once-per-source user notice directing explicit Reload, preserving unsaved forms first. captureStream redesign deferred: monitor feasible, normalization requires suppressing native output and validating site mute/volume/ad interactions.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js (B63 source-change recoveryRequired signal; simulated AudioContext, no physical audio restoration claim)",
+          "No claim of restored physical audio."
+        ]
+      },
+      {
+        "id": "R815-B64",
+        "status": "fixed",
+        "evidence": "Main assigns unique frame prefixes and shared key session; top routes key messages to descendant frames; activation cleans all layers.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js",
+          "tests/report815-browser-native.smoke.js (Electron43.5.0; real local DOM/cross-origin frames; passed)"
+        ]
+      },
+      {
+        "id": "R815-B65",
+        "status": "fixed",
+        "evidence": "Preference normalizer preserves validated generic stream suffix in memory, persistence and reload instead of collapsing to page identity.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B66",
+        "status": "confirmed-fixed",
+        "reason": "VTT metadata is excluded using actual paragraph indexes; NOTE/STYLE/REGION at the start of a timed cue body remain spoken text.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_vtt_spoken_metadata_keywords_literal_tags_and_timestamp"
+        ]
+      },
+      {
+        "id": "R815-B67",
+        "status": "confirmed-fixed",
+        "reason": "Reference intervals are unioned before coverage scoring, so overlapping layers cannot double count time.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_reference_overlays_do_not_double_count_seconds"
+        ]
+      },
+      {
+        "id": "R815-B68",
+        "status": "confirmed-fixed",
+        "reason": "Mixed digit-plus-scale ASR numbers normalize to spoken scale phrases rather than expanding beyond the integer normalizer bound.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_asr_names_quantity_ownership_and_billion_equivalence"
+        ]
+      },
+      {
+        "id": "R815-B69",
+        "status": "confirmed-fixed",
+        "reason": "Sync scratch resides under main-owned job temp directory; protocol-valid cancellation checkpoints run after extract/analysis and before publishing.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_sync_uses_owned_scratch_and_honors_cancel_after_extract"
+        ]
+      },
+      {
+        "id": "R815-B70",
+        "status": "confirmed-fixed",
+        "reason": "Current series-canon hint participates in exact cache and fuzzy-memory identities, preventing terminology reuse after new canon appears.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_new_series_canon_invalidates_exact_and_fuzzy_cache"
+        ]
+      },
+      {
+        "id": "R815-B71",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Bounded cancelled review request IDs are recorded even before discovery identity lookup resolves; later registration is refused.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B72",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "IMDb ID participates in decision save identity validation and persisted/displayed history provenance.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B73",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Opening a new title clears the previously rendered item before locale-driven rerender can cancel the new reload.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B74",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Streaming checkpoint timer is throttled rather than continually reset; pagehide requests persistence of streaming threads.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B75",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Explicit negative watchlist requests do not become immediate media commands.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B76",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Valid Turkish localized genres, including Suç, map to canonical recommendation genres.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B77",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Assistant native pause awaits the real command result and refuses failed receipts.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B78",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "SSE media-type detection is case-insensitive in parsing and capability detection.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B79",
+        "status": "fixed",
+        "evidence": "Status and deletion prefer the same usable repository over partial caches.",
+        "tests": [
+          "tests/report815-root-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B80",
+        "status": "fixed",
+        "evidence": "Model deletion freezes the approved repository and rechecks busy state after the dialog.",
+        "tests": [
+          "tests/report815-root-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B81",
+        "status": "confirmed-fixed",
+        "reason": "Repair helpers target only the selected duplicate key. Unselected records, tombstones and overflow-array placement survive unchanged; watch and tombstone repair scopes are independent.",
+        "tests": [
+          "tests/report815-storage-integrity.test.js: selected catalog/session/watch/tombstone repair"
+        ]
+      },
+      {
+        "id": "R815-B82",
+        "status": "confirmed-fixed",
+        "reason": "Health scans and backup restore validate supported store containers through shared schema checks and available normalizers. Invalid JSON envelopes stay unhealthy and cannot qualify as a sound backup.",
+        "tests": [
+          "tests/report815-storage-integrity.test.js: malformed backup schema and actual catalogue consumer"
+        ]
+      },
+      {
+        "id": "R815-B83",
+        "status": "fixed",
+        "evidence": "Asset canonical cues preserve supported presentation/speaker metadata; persisted/restored cueIdentities and renderer attach carry it through SRT transport.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B84",
+        "status": "fixed",
+        "evidence": "Portable variants retain forSpeech and speechProtocol.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B85",
+        "status": "fixed",
+        "evidence": "Representation SegmentTemplate attributes and timeline inherit unspecified fields from AdaptationSet.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B86",
+        "status": "fixed",
+        "evidence": "Bound MPEG-DASH namespace prefixes normalize supported element local names before both direct-track and matcher parsing.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B87",
+        "status": "fixed",
+        "evidence": "TTML parent active end clips child cue/span end.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B88",
+        "status": "fixed",
+        "evidence": "Mixed static/timed-span paragraph emits intervals at span boundaries, preventing early text.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B89",
+        "status": "fixed",
+        "evidence": "Implicit p begin defaults to parent origin; sequential containers advance sibling cursor.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B90",
+        "status": "fixed",
+        "evidence": "Asset JSON canonical meta/cues hash and media hash must match assetId before returning content or repairing SRT.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B91",
+        "status": "confirmed-fixed",
+        "reason": "Punctuation-only cleanup accepts casing/spacing/punctuation changes only when letters and digits are preserved; negation changes retain source.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_cleanup_rejects_negation_rewrite_and_short_expansion"
+        ]
+      },
+      {
+        "id": "R815-B92",
+        "status": "confirmed-fixed",
+        "reason": "Cleanup length guards apply to one- and two-word sources as well as longer sources.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_cleanup_rejects_negation_rewrite_and_short_expansion"
+        ]
+      },
+      {
+        "id": "R815-B93",
+        "status": "confirmed-fixed",
+        "reason": "Fatal provider auth/quota state is shared across cleanup chunks and prevents later queued requests; in-flight requests are bounded by existing workers.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_cleanup_fatal_auth_stops_queued_chunks"
+        ]
+      },
+      {
+        "id": "R815-B94",
+        "status": "confirmed-fixed",
+        "reason": "Adaptive downloads mux into invocation-owned temporary output and atomically replace the final path only after success. Failure removes only owned scratch.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_adaptive_retry_preserves_old_file_and_atomically_publishes_success"
+        ]
+      },
+      {
+        "id": "R815-B95",
+        "status": "confirmed-fixed",
+        "reason": "YouTube media byte cache and fallback lookup include requested audio-language identity, including a separate auto namespace.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_youtube_audio_language_selects_separate_cache_bytes"
+        ]
+      },
+      {
+        "id": "R815-B96",
+        "status": "confirmed-fixed",
+        "reason": "Cleanup explicitly rejects length/content-filter completion reasons and preserves originals with failure accounting.",
+        "tests": [
+          "tests/test_report815_backend.py::Report815BackendTests::test_cleanup_length_response_cannot_publish_partial_text"
+        ]
+      },
+      {
+        "id": "R815-B97",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Transient research webContents blocks unsafe navigation and redirect events before private target loading, and removes guards on cleanup.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B98",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "When the global source cap drops all new passages, local W1 fallback text is withheld instead of misattributed.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B99",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Continuation carries previous citations and step trace forward; final citation merge retains their identities.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B100",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Normalized retrieval offsets are mapped back to original Unicode character offsets before excerpt slicing.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B101",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Successful rollback restores a previously valid undo snapshot if controls still match the prior state.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B102",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "An automatically ended queue entry clears its resume position before repeat-all replay.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B103",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Close owns a playback generation and cannot clear a newer track after progress persistence awaits.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B104",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Package ignore rules exclude .env files, temp/profile/log/output directories and local media/data artifacts; actual installed packager copy tested with synthetic markers.",
+        "tests": [
+          "tests/report815-package-regressions.test.js",
+          "tests/package-integrity.test.js",
+          "tests/windows-package-ignore.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B105",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Package creation restores package-lock.json after packager defaults exclude it; required resource checker now includes the lock. Real installer preflight tested against synthetic output.",
+        "tests": [
+          "tests/report815-package-regressions.test.js",
+          "tests/package-integrity.test.js",
+          "tests/windows-package-ignore.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B106",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Selections are cloned before network updates, so a failed update cannot mutate an existing committed job.",
+        "tests": [
+          "tests/report815-engine-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B107",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Per-hash selection ownership rejects concurrent plays explicitly; a retry after completion merges both selections.",
+        "tests": [
+          "tests/report815-engine-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B108",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Terminal service close is checked before and after pending startup port allocation and during readiness polling.",
+        "tests": [
+          "tests/report815-engine-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B109",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Native snapshot capture rechecks source and generation after Image.decode before drawing or saving.",
+        "tests": [
+          "tests/report815-engine-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B110",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Renderer storage limit matches the 1000-entry subscription parser; merged over-limit imports are refused before mutation.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B111",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Bare handles pass through the Unicode-aware normalizer instead of ASCII-only prefilter.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B112",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Subscription parser and renderer compare NFC handles case-insensitively; UC IDs remain case-sensitive.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B113",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Explicit local subscription refresh invalidates the RSS freshness timestamp.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B114",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "All-failed RSS requests return failure; renderer displays error without writing a successful empty cache.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B115",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "RSS/Atom parser inherits xml:base through feed, entry and enclosure before resolving relative media URLs.",
+        "tests": [
+          "backend/test_report815_library.py"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B116",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Podcast parser preserves GUID/Atom ID; refresh merges progress by stable GUID before URL fallback.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B117",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "EPUB prose extraction suppresses elements with the HTML hidden attribute and their descendants.",
+        "tests": [
+          "backend/test_report815_library.py"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B118",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "An idle importer close does not invoke the shared Spotify cancellation action.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B119",
+        "status": "fixed",
+        "evidence": "Text key assignments use the same secret-key classifier as diagnostic objects.",
+        "tests": [
+          "tests/report815-root-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B120",
+        "status": "fixed",
+        "evidence": "Known cue content and secrets are removed before truncation; already-truncated proven long cue prefixes are redacted.",
+        "tests": [
+          "tests/report815-root-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B121",
+        "status": "fixed",
+        "evidence": "Path-scoped profile requests reject changed canonical path even when mediaId/origin/generation match.",
+        "tests": [
+          "tests/report815-browser-boundaries.test.js"
+        ]
+      },
+      {
+        "id": "R815-B122",
+        "status": "verified_fixed",
+        "source": "src/browser-downloads.js:action open-player",
+        "change": "Include M4B in the manager whitelist already supported by main MEDIA_EXTS and renderer. Root's suggested main whitelist was inspected and already included M4B.",
+        "tests": [
+          "tests/report815-media-regressions.test.js:B122",
+          "tests/browser-downloads.test.js"
+        ],
+        "limits": "Real download manager lifecycle tested with synthetic DownloadItem; complete M4B/M4A/MP4 succeed, ZIP and unfinished media remain blocked."
+      },
+      {
+        "id": "R815-B123",
+        "status": "confirmed-fixed",
+        "reason": "Live ASR cue IDs include session identity while acquisition stream identity remains stable; restart and backward seek keep earlier cues.",
+        "tests": [
+          "tests/report815-liveasr-boundaries.test.js: sessionCollision"
+        ]
+      },
+      {
+        "id": "R815-B124",
+        "status": "confirmed-fixed",
+        "reason": "Capture checks track readyState before and after worklet loading and closes capture/backend for an already ended audio track.",
+        "tests": [
+          "tests/report815-liveasr-boundaries.test.js: endedDuringModule"
+        ]
+      },
+      {
+        "id": "R815-B125",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Publisher and persistence emit real cue-text character totals and publication increments; renderer enforces source/cumulative budgets using them.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B126",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "MCP HTTP reader accumulates bounded byte buffers and decodes UTF-8 only after concatenation.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B127",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Markdown export requests all filtered annotations within the store maximum; ordinary UI pages retain their 5000 cap.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B128",
+        "status": "verified_fixed",
+        "evidence": {
+          "report": "docs/raporlar/BROWSER_BUG_REPORT_815.md",
+          "current_source_review": true,
+          "behavioral_regression": true
+        },
+        "change": "Research search uses a consistent folded I/ı/i form for both query and fields.",
+        "tests": [
+          "tests/report815-assistant-regressions.test.js"
+        ],
+        "limits": "Deterministic synthetic fixtures. No live paid-provider, real GPU, real rqbit/swarm, full packaged EXE, or visual native acceptance claimed."
+      },
+      {
+        "id": "R815-B129",
+        "status": "confirmed-fixed",
+        "reason": "Both manga source-retranslation callers pass sentence objects and consume validated result.text; cache/overlay/state receive the actual translation.",
+        "tests": [
+          "tests/report815-manga-boundaries.test.js: direct and retrySelected"
+        ]
+      },
+      {
+        "id": "R815-B130",
+        "status": "confirmed-fixed",
+        "reason": "Manga region requests join stop lifecycle via registered controllers; generation/token/page/region object checks reject stale completions and preserve newer edits.",
+        "tests": [
+          "tests/report815-manga-boundaries.test.js: stop-navigation and newer-edit"
+        ]
+      },
+      {
+        "id": "R815-B131",
+        "status": "confirmed-fixed",
+        "reason": "Sliding HLS plans derive a global offset from overlapping sequence identities, preserve known segment starts, and refresh URLs without resetting the timeline.",
+        "tests": [
+          "tests/report815-cea-boundaries.test.js: sliding and sliding-resume"
+        ]
+      },
+      {
+        "id": "R815-B132",
+        "status": "confirmed-fixed",
+        "reason": "Restored CEA transforms apply once to freshly decoded replay cues before merging; subsequent calibration accumulates relative transforms and uses existing bounds handling.",
+        "tests": [
+          "tests/report815-cea-boundaries.test.js: checkpoint offset +10/-2 and zero-offset control"
+        ]
+      },
+      {
+        "id": "R815-B133",
+        "status": "confirmed-fixed",
+        "reason": "Manual asset cleanup protects SQLite listTrackAssetPaths in addition to live/session/workspace refs and cancels cleanup if index ownership cannot be read. Actual orphan files are still removed.",
+        "tests": [
+          "tests/report815-storage-assets.test.js: real SQLite producer/restore/cache-clear"
+        ]
+      },
+      {
+        "id": "R815-B134",
+        "status": "confirmed-fixed",
+        "reason": "Archive retained-file identities are compared case-insensitively on Windows, preventing cleanup from unlinking newly retained case-alias JSON/MD/SRT files.",
+        "tests": [
+          "tests/report815-storage-assets.test.js: native Windows filesystem and actual main archive producer/consumer"
+        ]
+      }
+    ],
+    "suggestions": [
+      {
+        "id": "R815-G01",
+        "title": "Dublaj inceleme durumu asistan iş kaydına da taşınmalı",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G02",
+        "title": "Uzun Türkçe çeviri ve dublaj kalitesi için hedefli inceleme paketi",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G03",
+        "title": "Dublaj başlatma kartında kapsamın görünürlüğü",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G04",
+        "title": "Uzun oturumlarda kaynak/listener bütçesinin gerçek ölçümü",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G05",
+        "title": "Kontrol varlığı yerine sınır zamanlamasını kapsayan Windows kabulü",
+        "status": "partial",
+        "detail": "PDF selection/configuration/lifecycle boundaries covered; native UI tested at100/125/150%, not complete200%GPU/site matrix."
+      },
+      {
+        "id": "R815-G06",
+        "title": "Büyük yedekleri ana süreç dışında, ilerleme ve iptalle hazırla",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G07",
+        "title": "Uzun testler başarısız olsa da kısmi ölçümleri ve son aşamayı kaydet",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G08",
+        "title": "Yedeğin kapsadığı ve dışarıda bıraktığı veriyi işlem öncesinde tek envanterde göster",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G09",
+        "title": "Windows medya çıktısında kapsayıcı ve codec planını başlamadan doğrula",
+        "status": "partial",
+        "detail": "Known WMV/WMA→MP4 incompatibility selects AAC and actualFFmpeg test passes; general stream/codec preflight remains."
+      },
+      {
+        "id": "R815-G10",
+        "title": "Taşınabilir kayıt kimliğini dosya konumundan ayır",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G11",
+        "title": "Donanıma göre ölçülen iş bütçesi ve gerçek zamanlı kaynak görünürlüğü ekle",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G12",
+        "title": "Geri yükleme sonrası bağlantı doğrulaması ve toplu yeniden bağlama özeti sun",
+        "status": "partial",
+        "detail": "Post-extraction paths and POSIX mapping repaired, real portable-video reopen tested; unified end-user link-health summary remains."
+      },
+      {
+        "id": "R815-G13",
+        "title": "Denetlenen medya hedefini görünür kıl",
+        "status": "partial",
+        "detail": "Context-menu and source-bound commands target the correct frame/element; explicit visible target-selector redesign remains."
+      },
+      {
+        "id": "R815-G14",
+        "title": "Ses işleme sağlık durumu ve güvenli kaynak değişimi",
+        "status": "mitigated-unresolved",
+        "detail": "Source/CORS health warning and explicit reload available; transparent audio graph recovery remains open withB63."
+      },
+      {
+        "id": "R815-G15",
+        "title": "Sayfa genelinde tek bağlantı etiketi oturumu",
+        "status": "implemented",
+        "detail": "Unique frame-wide link-hint codes, global routing and cleanup; controlled native cross-origin fixture."
+      },
+      {
+        "id": "R815-G16",
+        "title": "Akış tercihi deposu için veri kaybı olmadan kimlik geçişi",
+        "status": "partial",
+        "detail": "Distinct stream identity survives persistence; no guessed migration/recovery UI for ambiguous oldrecords."
+      },
+      {
+        "id": "R815-G17",
+        "title": "Düşük maliyetli, olay destekli shadow medya yeniden keşfi",
+        "status": "partial",
+        "detail": "Late-open shadow discovery and bounded rescan corrected; closedroots remain unsupported, fullobserver128/soak budget not claimed."
+      },
+      {
+        "id": "R815-G18",
+        "title": "Mini oynatıcıda ortak dil ve erişilebilirlik sözleşmesi",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G19",
+        "title": "Kaynak değişimi için kısa native kabul matrisi",
+        "status": "partial",
+        "detail": "Controlled native source/frame/shadow/restore checks passed; physical cross-origin audio restoration not verified andB63 remains."
+      },
+      {
+        "id": "R815-G20",
+        "title": "Sıcak motor kapasitesinin yeniden boyutlandırılmasını açık politika yap",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G21",
+        "title": "Üretim öncesi kaynak ses parçası kimliğini tek tarifte dondur",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G22",
+        "title": "Kısa örnek için gerçek tahmini süre ve bütçe göster",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G23",
+        "title": "Kalite kartında akustik, ASR ve insan dinlemesini ayrı kanıtlar olarak tut",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G24",
+        "title": "Senkron önizlemesinde ölçülebilir güven özeti sun",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G25",
+        "title": "Dublajı dışa aktarmadan önce kısa lokal karışım önizlemesi ve hedef preflightı",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G26",
+        "title": "Canlı ASR dil geçişinde düşük güvenli ara gözlemlerin politikasını açıklaştır",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G27",
+        "title": "Yorum kanıtını sürüm ve kaynak kimliğiyle birlikte karşılaştır",
+        "status": "partial",
+        "detail": "Review decisions bind evidence version/fingerprint/source; no complete user-facing old/new-sample comparison."
+      },
+      {
+        "id": "R815-G28",
+        "title": "Sohbette gerçekten diske yazılan son yanıt durumunu göster",
+        "status": "partial",
+        "detail": "Streaming replies persist periodic checkpoints; user-visible disk revision/flush/error interface remains."
+      },
+      {
+        "id": "R815-G29",
+        "title": "Yorum okuma aşamalarını durdurma sahibiyle görünür kıl",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G30",
+        "title": "Tür bilgisini görünen dilden bağımsız kanonik kimlikle taşı",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G31",
+        "title": "Native oynatma işlemlerine doğrulanmış sonuç makbuzu ekle",
+        "status": "partial",
+        "detail": "External process launch acknowledgement now distinguishes spawn rejection; fullpause/seek/rate/volume receipt protocol remains."
+      },
+      {
+        "id": "R815-G32",
+        "title": "Sağlayıcı bağlantı tanısında protokol aşamalarını ayır",
+        "status": "partial",
+        "detail": "MIME case/stream decoding and JSON compatibility fixed/tested; complete protocol-stage diagnostic view remains."
+      },
+      {
+        "id": "R815-G33",
+        "title": "Dağıtımın gerçek dosya envanterini ve hashlerini üret",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G34",
+        "title": "Abonelikleri kanal başına son başarı ve dönen yenileme bütçesiyle yönet",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G35",
+        "title": "Kaydedilmiş iş akışını adlandır, seç ve çalıştırmadan önce adımlarını göster",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G36",
+        "title": "Canlı ASR’de ses kaynağı, capture ve model hazırlığını birlikte göster",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      },
+      {
+        "id": "R815-G37",
+        "title": "Yönetilen varlıkların sahiplik grafiğini ve onarım önizlemesini göster",
+        "status": "not-implemented",
+        "detail": "Separate feature proposal; no claim of delivery in this corrective package."
+      }
+    ]
+  },
+  "report817": {
+    "scope": "report817-design",
+    "mode": "full within listed seven surfaces",
+    "system": "Existing plain CSS, graphite/amber tokens, existing typography; no second styling system.",
+    "rows": [
+      {
+        "id": "R817-D01",
+        "status": "fixed",
+        "evidence": "Settings search indexes authored field labels/options/placeholders, excludes input values, folds TR/EN dotted/dotless I and accents, preserves query across category redraw and locale switches.",
+        "tests": [
+          "Native queries Flex/DeepInfra/model/API in TR and EN; nonempty matching category; Flex retained after activation."
+        ],
+        "screenshots": [
+          "01-settings-flex.png"
+        ]
+      },
+      {
+        "id": "R817-D02",
+        "status": "fixed",
+        "evidence": "Model selection and availability occupy full settings grid width. Readable12px status; maintenance/benchmark moved to closed Model management details;40px controls, shared graphite/amber field styles and danger treatment.",
+        "tests": [
+          "Native940/1000/1440x760 at100%/125%: status>=160px and no status overflow, maintenance initially closed.",
+          "Expanded maintenance controls font>=12px."
+        ],
+        "screenshots": [
+          "02-model-940-1.25.png",
+          "02-model-1000-1.png",
+          "03-model-management-open.png"
+        ]
+      },
+      {
+        "id": "R817-D03",
+        "status": "fixed",
+        "evidence": "Palette is a constrained flex column; header/search/hint remain outside the scrolling results region. Available height follows browser workspace.",
+        "tests": [
+          "Native940x680 TRdark/ENlight at100%/125%/150%: palette and hint remain inside viewport."
+        ],
+        "screenshots": [
+          "06-palette-tr-1.5.png",
+          "06-palette-en-1.25.png"
+        ]
+      },
+      {
+        "id": "R817-D04",
+        "status": "fixed",
+        "evidence": "Catalog detail grid uses minmax(0,1fr), min-width0 content and anywhere title wrapping; poster column remains stable.",
+        "tests": [
+          "Actual synthetic catalog API records for180char unbroken title, long spacedTR/EN title, normal short title; hero.scrollWidth==clientWidth."
+        ],
+        "screenshots": [
+          "08-catalog-long.png",
+          "08-catalog-words.png",
+          "08-catalog-short.png"
+        ]
+      },
+      {
+        "id": "R817-D05",
+        "status": "fixed",
+        "evidence": "Folder control shows final folder on its own line with parent context. Native button opens centered readonly full-path dialog; explicit Copy sends unmodified value, close restores focus. No automatic path logging/context export added.",
+        "tests": [
+          "Native Return key activation from focused path button; full value/readOnly verified.",
+          "tests/report817-folder-path.test.js: leaf/full value, no automatic copy, explicit clipboard API stub receives original value, close/focus."
+        ],
+        "screenshots": [
+          "04-folder-tails.png",
+          "05-folder-keyboard-detail.png"
+        ]
+      },
+      {
+        "id": "G817-01",
+        "status": "implemented",
+        "evidence": "Quick access changes4→2columns by browser container width. Related newly observed toolbar overlap also fixed: optional labels collapse below920px; two dubbing actions move to established Video overflow proxies below620px. Core navigation/address/Go/sidebar/More remain.",
+        "tests": [
+          "Native1440x900 with expanded55%/70%sidebar, browser widths633/420px: no nav/address/actions overlap, controls within workspace, overflow available.",
+          "Overflow proxy dispatch reaches hidden original dubbing button through existing handler (native picker/media action prevented by fixture capture listener)."
+        ],
+        "screenshots": [
+          "07-quickplaces-narrow-panel.png",
+          "07b-toolbar-panel-55.png",
+          "07b-toolbar-panel-70.png"
+        ]
+      },
+      {
+        "id": "G817-02",
+        "status": "implemented",
+        "evidence": "Book-reader16–30px font preference is shared across readChapter constructions and persisted in localStorage, independent of chapter.",
+        "tests": [
+          "Real renderer with controlled two-chapter book IPC and silentWAV:27px remains in chapter2; automatic-advance handler and rendererreload keep27px.",
+          "No backend narration/provider/GPU validation or physical listening claim."
+        ],
+        "screenshots": [
+          "09-book-font-next-chapter.png"
+        ]
+      }
+    ],
+    "validation": {
+      "native": "tests/report817-design.smoke.js passed Electron43.5.0,23captures; actual screenshots visually inspected.",
+      "metrics": "tmp/audit-fixes/design817/measurements.json",
+      "logs": [
+        "tmp/audit-fixes/design.stdout.log",
+        "tmp/audit-fixes/design.stderr.log"
+      ],
+      "node": [
+        "report817-folder-path passed",
+        "ui-locale14",
+        "ui-locale-dynamic73samples/111patterns",
+        "ui-locale-userdata passed",
+        "ui-locale-dedupe5",
+        "provider-model-ui7"
+      ],
+      "boundaries": [
+        "Synthetic isolated profile, catalog, paths and book IPC; no personal settings/media changed.",
+        "Browser palette screenshots use new-tab surface; live-site BrowserView occlusion and physical keyboard variants outside tested Return are not general E2E claims.",
+        "No custom animations added;10%motion replay and broad icon audit not performed.",
+        "Expected startup adblock-fetch error comes from intentional external-request block in fixture."
+      ]
+    },
+    "review": {
+      "typography": "Inspected model/status/controls, catalog wrapping and book27px rendering.",
+      "surfaces": "Inspected palette boundaries, path dialog/focus, quick-access/sidebar/container geometry.",
+      "animations": "No animation changes;10%speed replay not verified.",
+      "icons": "Existing icons retained; optional labels collapse with existing accessible names. No icon-system redesign.",
+      "performance": "No new styling/runtime dependency; native test window background throttling disabled only for fresh screenshot capture.",
+      "consideredRejected": [
+        "Shrinking model fonts further: rejected; separate maintenance disclosure retains readable status.",
+        "Changing palette colors/theme: rejected; existing graphite/amber system retained.",
+        "Two-row toolbar at420px: rejected after native composition anomaly; existing overflow proxies preserve optional actions in single-row chrome."
+      ]
+    }
+  }
+}
