@@ -1,0 +1,216 @@
+{
+  "platform": "win32",
+  "electron": "43.5.0",
+  "chromium": "150.0.7871.250",
+  "gpuDisabled": true,
+  "profile": "synthetic only",
+  "rows": [
+    {
+      "name": "01-home-baseline"
+    },
+    {
+      "name": "02-settings-flex",
+      "query": "Flex",
+      "noMatches": true,
+      "visibleCategories": 0,
+      "flexTextPresent": true
+    },
+    {
+      "name": "03-model-management",
+      "rowWidth": 153.5,
+      "controls": [
+        {
+          "tag": "SPAN",
+          "text": "Ready on this device · 1547 MB · 57.0 GB free",
+          "fontSize": "9px",
+          "width": 30.25,
+          "height": 12
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Yenile",
+          "fontSize": "9px",
+          "width": 36.203125,
+          "height": 28
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Önbellekten sil",
+          "fontSize": "9px",
+          "width": 71.046875,
+          "height": 28
+        },
+        {
+          "tag": "LABEL",
+          "text": "Klip başlangıcı",
+          "fontSize": "9px",
+          "width": 113.578125,
+          "height": 20
+        },
+        {
+          "tag": "SPAN",
+          "text": "Klip başlangıcı",
+          "fontSize": "9px",
+          "width": 56.578125,
+          "height": 12
+        },
+        {
+          "tag": "INPUT",
+          "text": "0",
+          "fontSize": "9px",
+          "width": 54,
+          "height": 20
+        },
+        {
+          "tag": "LABEL",
+          "text": "Klip süresi30 sn60 sn90 sn120 sn",
+          "fontSize": "9px",
+          "width": 107.96875,
+          "height": 39
+        },
+        {
+          "tag": "SPAN",
+          "text": "Klip süresi",
+          "fontSize": "9px",
+          "width": 39.96875,
+          "height": 12
+        },
+        {
+          "tag": "SELECT",
+          "text": "30 sn60 sn90 sn120 sn",
+          "fontSize": "9px",
+          "width": 65,
+          "height": 39
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Benchmark çalıştır",
+          "fontSize": "9px",
+          "width": 86.53125,
+          "height": 28
+        },
+        {
+          "tag": "SELECT",
+          "text": "A/B: yok\n                  vs large-v3\n                  vs large-v3-turbo\n               ",
+          "fontSize": "13px",
+          "width": 146,
+          "height": 39
+        }
+      ]
+    },
+    {
+      "name": "04-long-paths",
+      "paths": [
+        {
+          "id": "inputDir",
+          "text": "D:\\Sentetik_Tasarim_Denetimi\\Video_Projeleri\\2026\\Uzun_Ortak_Klasor_Adi\\GIRDI",
+          "client": 318,
+          "scroll": 532,
+          "title": "",
+          "tabIndex": -1
+        },
+        {
+          "id": "outputDir",
+          "text": "D:\\Sentetik_Tasarim_Denetimi\\Video_Projeleri\\2026\\Uzun_Ortak_Klasor_Adi\\CIKTI",
+          "client": 318,
+          "scroll": 532,
+          "title": "",
+          "tabIndex": -1
+        }
+      ]
+    },
+    {
+      "name": "05-palette-normal",
+      "viewport": {
+        "width": 940,
+        "height": 680
+      },
+      "palette": {
+        "x": 166,
+        "y": 111,
+        "width": 560,
+        "height": 477,
+        "top": 111,
+        "right": 726,
+        "bottom": 588,
+        "left": 166
+      },
+      "hint": {
+        "x": 185,
+        "y": 557,
+        "width": 522,
+        "height": 14,
+        "top": 557,
+        "right": 707,
+        "bottom": 571,
+        "left": 185
+      }
+    },
+    {
+      "name": "06-palette-zoom125",
+      "viewport": {
+        "width": 752,
+        "height": 544
+      },
+      "palette": {
+        "x": 72,
+        "y": 110.80000305175781,
+        "width": 560,
+        "height": 475.3999938964844,
+        "top": 110.80000305175781,
+        "right": 632,
+        "bottom": 586.1999969482422,
+        "left": 72
+      },
+      "hint": {
+        "x": 90.80000305175781,
+        "y": 556.6000366210938,
+        "width": 522.4000244140625,
+        "height": 12.800000190734863,
+        "top": 556.6000366210938,
+        "right": 613.2000274658203,
+        "bottom": 569.4000368118286,
+        "left": 90.80000305175781
+      }
+    },
+    {
+      "name": "07-palette-en-light-zoom125",
+      "viewport": {
+        "width": 752,
+        "height": 544
+      },
+      "palette": {
+        "x": 72,
+        "y": 110.80000305175781,
+        "width": 560,
+        "height": 475.3999938964844,
+        "top": 110.80000305175781,
+        "right": 632,
+        "bottom": 586.1999969482422,
+        "left": 72
+      },
+      "hint": {
+        "x": 90.80000305175781,
+        "y": 556.6000366210938,
+        "width": 522.4000244140625,
+        "height": 12.800000190734863,
+        "top": 556.6000366210938,
+        "right": 613.2000274658203,
+        "bottom": 569.4000368118286,
+        "left": 90.80000305175781
+      }
+    },
+    {
+      "name": "08-catalog-long-title",
+      "titleLength": 180,
+      "client": 852,
+      "scroll": 2637
+    },
+    {
+      "name": "09-catalog-normal-title",
+      "titleLength": 16,
+      "client": 852,
+      "scroll": 852
+    }
+  ]
+}
