@@ -1,0 +1,13 @@
+{
+  "first_files": [
+    "D:\\Whisper Local\\.uiprev\\audit821-confidence\\out\\source.json",
+    "D:\\Whisper Local\\.uiprev\\audit821-confidence\\out\\source.dusuk-guven.txt"
+  ],
+  "second_files": [
+    "D:\\Whisper Local\\.uiprev\\audit821-confidence\\out\\source.json"
+  ],
+  "second_warnings": [],
+  "stale_report_unchanged": true,
+  "stale_report_text": "# Düşük güvenli kelimeler (skor < 0.60) — 1 kelime\r\n# Whisper bu kelimelerden emin değil; özellikle ÖZEL İSİMLERİ kontrol edin.\r\n# Sık tekrar edenleri Ayarlar > Sözlük'e ekleyip yeniden çevirirseniz düzelir.\r\n\r\n## Geçtiği yerler\r\n[00:00:00] Kapı burada.\r\n    Kapı (0.20)\r\n",
+  "current_word_probability": 0.99
+}

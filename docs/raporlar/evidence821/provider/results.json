@@ -1,0 +1,32 @@
+{
+  "head": "a0b5b0927acb5c07f9be2f35e94883d57f7de8a2",
+  "over": {
+    "initialCount": 32,
+    "afterAddCount": 33,
+    "rawNewScopePresent": true,
+    "renderedChoices": [
+      ""
+    ],
+    "serializedCount": 32,
+    "newScopePersisted": false,
+    "status": ""
+  },
+  "within": {
+    "initialCount": 31,
+    "afterAddCount": 32,
+    "rawNewScopePresent": true,
+    "renderedChoices": [
+      "",
+      "new-model"
+    ],
+    "serializedCount": 32,
+    "newScopePersisted": true,
+    "status": ""
+  },
+  "perProvider64ModelReject": true,
+  "keyVariant": {
+    "afterUpdateCount": 33,
+    "newScopePersisted": false
+  },
+  "scope": "unchanged renderer add callback/render choices + actual modules and settings sanitizer; DOM/save transport controlled; no personal key/network/native UI"
+}

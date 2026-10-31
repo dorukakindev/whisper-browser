@@ -1,0 +1,262 @@
+[
+  {
+    "id": "N0341",
+    "family": "F18",
+    "mechanism": "normal",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "3eab476e355e868314cc24674e4f988ab2f3e15f24bcb38243e5b5220c53067c",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0341.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0342",
+    "family": "F18",
+    "mechanism": "bos",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "7668436a5ab070c89be113b9b21a04e5d786ca03eb55ad0b58c456db5e6707da",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0342.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0343",
+    "family": "F18",
+    "mechanism": "sinir",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "d97b06b770a9eea024b058a44c65955141ecd45d111b9c179d5d2c3a034803b4",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0343.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0344",
+    "family": "F18",
+    "mechanism": "unicode",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "4c7b756a71f9385f03d0fc7455be1516bf98c02d9defa727a5e338fab3d579a2",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0344.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0345",
+    "family": "F18",
+    "mechanism": "yinelenen",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "46d4803e7d187d630ed3b2ec4493bbcbcb6ce6299b4e4f790bc70d51c981f54b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0345.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0346",
+    "family": "F18",
+    "mechanism": "sira",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "3c22673712607ec2b06d3772e53c6dc107d3d789eecae9b272efbdaeb585fb8a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0346.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0347",
+    "family": "F18",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "3ac853ea4b6d770cf858f1a9b55709ba4adb3c44746fe70a68d2f2094c65023e",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Yazıcılar senkron dosya yazımıdır; atomik yazıcı yarım dosya bırakmaz, iptal edilecek akış yok."
+  },
+  {
+    "id": "N0348",
+    "family": "F18",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "a5ad8578f8ba0fb66ad3ca6072f9063232a50c706fa919f2d59da97eb7116702",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Yazım tek atomic_text_writer bloğunda tamamlanır; süreç içi iptal noktası yok."
+  },
+  {
+    "id": "N0349",
+    "family": "F18",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "d0e120cc18c325793f23ccd43e3673e96fcfa4ba911a6edb24af57eb44feb58e",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Senkron yazma; gecikmeli sonuç yok."
+  },
+  {
+    "id": "N0350",
+    "family": "F18",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "7b8905e826078abd9da2a4c48843462de9ff634ec0b555154a57504932650ac2",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Yazıcıya verilen entries tek çağrıda sabittir; kaynak değişimi kavramı yok."
+  },
+  {
+    "id": "N0351",
+    "family": "F18",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "c258a0c7ff7016231bf76104271ffa9b3706ab3eb5d767b430b08aefd31c6da8",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0351.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech es-zamanli, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0352",
+    "family": "F18",
+    "mechanism": "kesik",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "3bb991a9c90cc162c134a4bd7239f83b8eb808e6f380a04bd1f814753101daba",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0352.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0353",
+    "family": "F18",
+    "mechanism": "hata",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "340db52f30c63fb9b6f6ebe7ed393310569514c982509ea207408a663552f1d3",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0353.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0354",
+    "family": "F18",
+    "mechanism": "timeout",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "8c5a276ccf5d0e1b05290ecbea6ec8f143daaea431bd2e1f9e37fa500a608f89",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Dosya yazımı zamanlayıcı kullanmaz; 5000 blok performansı N0359'da ölçüldü."
+  },
+  {
+    "id": "N0355",
+    "family": "F18",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "77dffef1cf8421d25b4d4aeb24639beb85274948784b4cefa47dc3d9971f79b8",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0355.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0356",
+    "family": "F18",
+    "mechanism": "donusum",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "b02561d5471ba162fec2b3c382cab34be6b1dc2bb057aad3cd0a07c19ff52a29",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0356.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0357",
+    "family": "F18",
+    "mechanism": "yetki",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "a0bb3f7045ea361eb03683851af80715b7e0b8c5c334d0a8278360eaa7306983",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Dosya yolu/izin doğrulaması main.js ve OutputTransaction katmanında; yazıcı kendi başına yetki kararı vermez."
+  },
+  {
+    "id": "N0358",
+    "family": "F18",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "83f6a0cb0f5b77f067d4244d984f59c28a9222fd4b8e8a133d77234be1660ba4",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0358.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0359",
+    "family": "F18",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "b9bd5a4ef4967c51b721c679432ffdcd09600751b18abe0cf260ab609e23810d",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0359.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0360",
+    "family": "F18",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "backend/transcribe.py"
+    ],
+    "signature": "d3b824e8b4f6dcc02708ee71824bf2b870a66c1ec9716f54c697400a0253168f",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg04-N0360.stdout.txt (backend/venv/Scripts/python.exe probes/p18-writers.py --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  }
+]
