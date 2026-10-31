@@ -130,6 +130,9 @@ app.whenReady().then(async () => {
   assert.equal(await run('return globalAssistantContext().title'),title,'Assistant follows explicit discovery selection');
   await run('await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true'); await wait(300);
   fs.writeFileSync(path.join(out, 'discover-details-tr.png'), (await win.webContents.capturePage()).toPNG());
+  win.setContentSize(720,1000);await wait(200);
+  assert(await run('return document.getElementById("mediaHome").scrollWidth<=innerWidth+2'), 'Narrow detail does not overflow');
+  fs.writeFileSync(path.join(out,'discover-details-720.png'),(await win.webContents.capturePage()).toPNG());win.setContentSize(1920,1080);await wait(150);
 
   if(process.argv.includes('--library810')){
     await run('document.querySelector("[data-discovery-action=translate]").click();return true');await until(()=>run('return document.querySelector(".md-synopsis").textContent.includes("Kontrollü Türkçe")'),'translated story');

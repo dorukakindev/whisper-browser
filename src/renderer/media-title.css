@@ -64,3 +64,37 @@
 .media-title-page .md-detail-poster { width:100%; }
 @media(max-width:760px){.media-title-page .md-detail-body{grid-template-columns:140px minmax(0,1fr);gap:22px;}.media-title-page .md-detail-copy > .mh-actions{gap:10px;}.media-title-page.md-detail h1{font-size:28px;}}
 @media(max-width:520px){.media-title-page .md-detail-body{grid-template-columns:1fr;}.media-title-page .md-detail-poster{max-width:180px;}}
+
+/* Film pages: artwork-led masthead, quiet editorial reading area. */
+.media-title-page .md-page-hero { position:relative; isolation:isolate; margin-top:20px; background:var(--bg-1); overflow:hidden; }
+.media-title-page .md-page-backdrop { position:absolute; inset:0; z-index:-2; }
+.media-title-page .md-page-backdrop img { width:100%; height:100%; object-fit:cover; object-position:center 30%; opacity:.55; }
+.media-title-page .md-page-hero.has-art::after { content:''; position:absolute; inset:0; z-index:-1; background:linear-gradient(90deg,rgba(0,0,0,.8),rgba(0,0,0,.42)),linear-gradient(0deg,rgba(0,0,0,.65),transparent 65%); }
+.media-title-page .md-page-hero.has-art .md-detail-copy { color:#fff; }
+.media-title-page .md-page-hero.has-art .md-meta,.media-title-page .md-page-hero.has-art .md-review-note { color:#d8d8dd; }
+.media-title-page .md-detail-body { margin:0 auto; padding-top:44px; padding-bottom:44px; align-items:center; }
+.media-title-page .md-detail-poster { border:1px solid rgba(255,255,255,.15); box-shadow:0 18px 45px rgba(0,0,0,.3); border-radius:12px; }
+.media-title-page .md-page-kind { font-size:13px; font-weight:600; margin:0 0 12px; color:var(--accent); }
+.media-title-page .md-page-lower { max-width:1440px; margin:0 auto; padding:40px clamp(22px,4vw,64px) 24px; display:grid; grid-template-columns:minmax(0,1fr) 310px; gap:clamp(32px,5vw,80px); }
+.media-title-page .md-page-story { min-width:0; }
+.media-title-page .md-story-heading { margin:0 0 20px; align-items:center; gap:20px; flex-wrap:wrap; }
+.media-title-page .md-story-heading h3 { font-size:23px; margin:0; }
+.media-title-page .md-page-aside { min-width:0; display:flex; flex-direction:column; gap:24px; }
+.media-title-page .md-page-aside > .md-option-group { padding:0 0 24px; border-bottom:1px solid var(--border); }
+.media-title-page .md-page-aside h3 { margin:0 0 14px; font-size:16px; }
+.media-title-page .md-page-aside .md-cast { line-height:1.8; color:var(--text-dim); font-size:15px; }
+.media-title-page .md-detail-options { margin:0; }
+.media-title-page .md-primary-actions { gap:12px; margin:24px 0 12px; }
+.media-title-page .md-review-note { max-width:65ch; line-height:1.6; display:block; }
+.media-title-page .mtd-hero-content,.media-title-page .mtd-body { max-width:1440px; margin-inline:auto; padding-inline:clamp(22px,4vw,64px); }
+.media-title-page .mtd-hero-content { padding-block:44px; gap:clamp(28px,4vw,64px); grid-template-columns:260px minmax(0,1fr); }
+.media-title-page .mtd-body { padding-top:32px; column-gap:clamp(32px,5vw,80px); grid-template-columns:minmax(0,1fr) 310px; }
+.media-title-page .mtd-aside { padding:20px 24px; background:var(--bg-1); border:1px solid var(--border); border-radius:14px; align-self:start; gap:16px; }
+.media-title-page .mtd-aside .mh-action { white-space:normal; line-height:1.5; }
+.media-title-page .mtd-review { margin-top:36px; padding-top:24px; }
+.media-title-page .mtd-story-heading { gap:16px; flex-wrap:wrap; }
+.media-title-page .mtd-header { border-bottom:0; }
+@media(max-width:900px){.media-title-page .md-page-lower,.media-title-page .mtd-body{grid-template-columns:1fr;}.media-title-page .mtd-aside{max-width:none;}.media-title-page .md-page-aside{border-top:1px solid var(--border);padding-top:28px;}}
+@media(max-width:760px){.media-title-page .md-detail-body,.media-title-page .mtd-hero-content{grid-template-columns:150px minmax(0,1fr);gap:24px;padding-block:28px;}.media-title-page .md-page-lower{padding-top:28px;}.media-title-page .mtd-copy h1{font-size:30px;}.media-title-page .mtd-ratings{gap:18px;}}
+@media(max-width:520px){.media-title-page .md-detail-body,.media-title-page .mtd-hero-content{grid-template-columns:1fr;}.media-title-page .mtd-poster{max-width:180px;}.media-title-page .mtd-copy h1{font-size:28px;}}
+@media(prefers-reduced-motion:no-preference){.media-title-page .md-page-lower,.media-title-page .mtd-body{animation:film-page-reveal .2s ease-out;}@keyframes film-page-reveal{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}}
