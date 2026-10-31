@@ -1,0 +1,246 @@
+{
+  "head": "b821da96edd7b10c6a5d2dcc03b353192394f5eb",
+  "cases": [
+    {
+      "name": "touching",
+      "accepted": true,
+      "producerWords": [
+        [
+          " Merhaba."
+        ],
+        [
+          " Dünya."
+        ]
+      ],
+      "stats": {
+        "timed": 2,
+        "matched": 0,
+        "unmatched": 2
+      },
+      "cues": [
+        {
+          "start": 0,
+          "end": 1,
+          "text": "Merhaba.",
+          "sourceStart": 0,
+          "sourceEnd": 1,
+          "subtitleSourceIndex": 0,
+          "words": [
+            {
+              "word": " Merhaba.",
+              "start": 0.1,
+              "end": 1,
+              "probability": 0.9
+            },
+            {
+              "word": " Dünya.",
+              "start": 1,
+              "end": 1.8,
+              "probability": 0.9
+            }
+          ],
+          "wordRanges": null
+        },
+        {
+          "start": 1,
+          "end": 2,
+          "text": "Dünya.",
+          "sourceStart": 1,
+          "sourceEnd": 2,
+          "subtitleSourceIndex": 1,
+          "words": [
+            {
+              "word": " Merhaba.",
+              "start": 0.1,
+              "end": 1,
+              "probability": 0.9
+            },
+            {
+              "word": " Dünya.",
+              "start": 1,
+              "end": 1.8,
+              "probability": 0.9
+            }
+          ],
+          "wordRanges": null
+        }
+      ],
+      "highlightCalls": [
+        [
+          "reset"
+        ],
+        [
+          "reset"
+        ]
+      ]
+    },
+    {
+      "name": "near",
+      "accepted": true,
+      "producerWords": [
+        [
+          " Merhaba."
+        ],
+        [
+          " Dünya."
+        ]
+      ],
+      "stats": {
+        "timed": 2,
+        "matched": 0,
+        "unmatched": 2
+      },
+      "cues": [
+        {
+          "start": 0,
+          "end": 1,
+          "text": "Merhaba.",
+          "sourceStart": 0,
+          "sourceEnd": 1,
+          "subtitleSourceIndex": 0,
+          "words": [
+            {
+              "word": " Merhaba.",
+              "start": 0.1,
+              "end": 1,
+              "probability": 0.9
+            },
+            {
+              "word": " Dünya.",
+              "start": 1.04,
+              "end": 1.84,
+              "probability": 0.9
+            }
+          ],
+          "wordRanges": null
+        },
+        {
+          "start": 1.04,
+          "end": 2.04,
+          "text": "Dünya.",
+          "sourceStart": 1.04,
+          "sourceEnd": 2.04,
+          "subtitleSourceIndex": 1,
+          "words": [
+            {
+              "word": " Merhaba.",
+              "start": 0.1,
+              "end": 1,
+              "probability": 0.9
+            },
+            {
+              "word": " Dünya.",
+              "start": 1.04,
+              "end": 1.84,
+              "probability": 0.9
+            }
+          ],
+          "wordRanges": null
+        }
+      ],
+      "highlightCalls": [
+        [
+          "reset"
+        ],
+        [
+          "reset"
+        ]
+      ]
+    },
+    {
+      "name": "separated",
+      "accepted": true,
+      "producerWords": [
+        [
+          " Merhaba."
+        ],
+        [
+          " Dünya."
+        ]
+      ],
+      "stats": {
+        "timed": 2,
+        "matched": 2,
+        "unmatched": 0
+      },
+      "cues": [
+        {
+          "start": 0,
+          "end": 1,
+          "text": "Merhaba.",
+          "sourceStart": 0,
+          "sourceEnd": 1,
+          "subtitleSourceIndex": 0,
+          "words": [
+            {
+              "word": " Merhaba.",
+              "start": 0.1,
+              "end": 1,
+              "probability": 0.9
+            }
+          ],
+          "wordRanges": [
+            {
+              "start": 0,
+              "end": 7,
+              "timeStart": 0.1,
+              "timeEnd": 1
+            }
+          ]
+        },
+        {
+          "start": 1.2,
+          "end": 2.2,
+          "text": "Dünya.",
+          "sourceStart": 1.2,
+          "sourceEnd": 2.2,
+          "subtitleSourceIndex": 1,
+          "words": [
+            {
+              "word": " Dünya.",
+              "start": 1.2,
+              "end": 2,
+              "probability": 0.9
+            }
+          ],
+          "wordRanges": [
+            {
+              "start": 0,
+              "end": 5,
+              "timeStart": 1.2,
+              "timeEnd": 2
+            }
+          ]
+        }
+      ],
+      "highlightCalls": [
+        [
+          "active",
+          {
+            "node": {
+              "nodeType": 3
+            },
+            "start": 0,
+            "end": 7
+          }
+        ],
+        [
+          "active",
+          {
+            "node": {
+              "nodeType": 3
+            },
+            "start": 0,
+            "end": 5
+          }
+        ]
+      ]
+    }
+  ],
+  "registryRows": 80,
+  "limits": [
+    "Synthetic timing/text input to real writers; no natural ASR quality claim.",
+    "Real media:readSubtitle handler with authorization and history stubs; renderer real parse/attach/render functions extracted unmodified.",
+    "No Electron launch, real video, live site, native CSS Highlight measurement, user settings or profile."
+  ]
+}

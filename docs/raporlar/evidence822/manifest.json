@@ -1,0 +1,168 @@
+{
+  "schema": 1,
+  "report": "BROWSER_BUG_REPORT_822.md",
+  "revision": "b821da96edd7b10c6a5d2dcc03b353192394f5eb",
+  "hash_method": "SHA256 of UTF-8 with CRLF normalized to LF",
+  "confirmed_findings": [
+    "F822-01",
+    "F822-02",
+    "F822-03",
+    "F822-04"
+  ],
+  "new_discovery_ids": [
+    "F822-01",
+    "F822-02",
+    "F822-03"
+  ],
+  "prior_improvement_verified": [
+    {
+      "id": "F822-04",
+      "prior_id": "R815-G10"
+    }
+  ],
+  "new_improvements": [],
+  "fixes_applied": false,
+  "historical_row_references": 240,
+  "unique_historical_rows_reviewed": 180,
+  "sources": [
+    {
+      "path": "src/watch-index.js",
+      "sha256_lf": "8f9d9fd1f1b91a659801e07e1c7e0bf5f71dcd6ae4350e999a5e4d492c7e1e8f"
+    },
+    {
+      "path": "src/browser-page-index.js",
+      "sha256_lf": "d2e897be7e9ecdd7ef11d38ce95de78850db24f59c604d615859774a220d4561"
+    },
+    {
+      "path": "src/browser-library-tools.js",
+      "sha256_lf": "b83a49d8a8b7776847e2534f9cb9a997092277ce68f3c73553ae407ac8ca4924"
+    },
+    {
+      "path": "src/main.js",
+      "sha256_lf": "5aed5cf4c1d6114f24e68dbb7362767d62a08d3e24324c0d545c7abb0f2de68c"
+    },
+    {
+      "path": "src/preload.js",
+      "sha256_lf": "d231c6789d5b0a82976e0aacc86d6c754c73c31e06af5ed702ccc2c51147e482"
+    },
+    {
+      "path": "src/renderer/renderer.js",
+      "sha256_lf": "ff259b03f208337f960d445adfa4c28b1086b1b660ce02793174597710e600c4"
+    },
+    {
+      "path": "src/subtitle-word-sidecar.js",
+      "sha256_lf": "8d03b68e577f322aa6166dd365383718c99c20146b47a817aa7bcb069977ba11"
+    },
+    {
+      "path": "src/browser-textutil.js",
+      "sha256_lf": "e6b3adcbf57d0d2a8fb2461e6469ecda095bdc20e63bf8018347d5fcd2e271f1"
+    },
+    {
+      "path": "backend/transcribe.py",
+      "sha256_lf": "424d9ca84bc515a0bb386527d6e7c0d808edbc3cdecfb770ed87fb4f4a2f6f66"
+    },
+    {
+      "path": "backend/media.py",
+      "sha256_lf": "18733086c930bab5c93a335478390987cb1c5ccd794673f15b12d929494517b9"
+    },
+    {
+      "path": "src/browser-downloads.js",
+      "sha256_lf": "76097eb10bb956920bc8930dbf01bef24a3aa0358b634643c78078f110f1ad8d"
+    },
+    {
+      "path": "src/ndjson-lines.js",
+      "sha256_lf": "60808f186778b11e9edc91349a1361754f36176f1636e104553c60279c76c6db"
+    },
+    {
+      "path": "src/argv-escape.js",
+      "sha256_lf": "e12449410b3e8ff8abcc37f31c70cd9015b8209f0b293ba9a97362b2be037b09"
+    },
+    {
+      "path": "src/workspace-package.js",
+      "sha256_lf": "cf33bc6cbb5d41ce1e4c604c6561818f98cfc6032c1554457b0f931ed0d11e68"
+    },
+    {
+      "path": "src/workspace-video-package.js",
+      "sha256_lf": "e1b64525cb9784436610f808e2ab8bc127a8cbacc1385d5ffc7f4edcd4d5ffb3"
+    },
+    {
+      "path": "backend/workspace_video_package.py",
+      "sha256_lf": "58c7bcc55c089623b213d68fdcb2b6312893ac502b5c791bfe87481135f7cbc1"
+    },
+    {
+      "path": "src/catalog-extensions.js",
+      "sha256_lf": "60f2e06953f01afdb001d122f1bd4842d870e3bbc62431ccde30d15ee0e3c8a6"
+    },
+    {
+      "path": "src/watch-library-store.js",
+      "sha256_lf": "95680cc0bd5475ac27f9a3e793e3de54b5f66a2cbe83220a2d8476ffe5cd7f2a"
+    },
+    {
+      "path": "src/media-catalog-service.js",
+      "sha256_lf": "e2b726c0b42b5035f93466d810e0b9d5a5182eb75320deff1e6c0fbf21dc7628"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "docs/raporlar/evidence822/downloads/clip-helper.py",
+      "sha256_lf": "a030cc89e623712bb302e3cc60810d7fa4c87845a6d57c23e652b472469b4c28"
+    },
+    {
+      "path": "docs/raporlar/evidence822/downloads/probe.cjs",
+      "sha256_lf": "36057f5615a505d5b46450de55ba1c9badf8f52caddd9a184faa946c298825b0"
+    },
+    {
+      "path": "docs/raporlar/evidence822/downloads/registry-reviewed.json",
+      "sha256_lf": "14d4620495c204f3dff31910d35dd73e26b5af118e056bcc5b46deca66d52656"
+    },
+    {
+      "path": "docs/raporlar/evidence822/downloads/result.json",
+      "sha256_lf": "cbfe0cd68624fed270b70506f4a5361356016af4b9e74f02ea6248ffc502bee5"
+    },
+    {
+      "path": "docs/raporlar/evidence822/packages/probe.cjs",
+      "sha256_lf": "2348e8743f72d6f0388acfb5baa3237f63436afdb36daee4d1c06a74b553b6c4"
+    },
+    {
+      "path": "docs/raporlar/evidence822/packages/registry-reviewed.json",
+      "sha256_lf": "6fa6900d675519fe3c6e162ae85cd577883db7693209a1950c879fd300700c5c"
+    },
+    {
+      "path": "docs/raporlar/evidence822/packages/result.json",
+      "sha256_lf": "ebea9aad8b8baa86ab401246b53606511e61eee82f38bb6127a6509e10a415ce"
+    },
+    {
+      "path": "docs/raporlar/evidence822/parent-verification.json",
+      "sha256_lf": "7e8d25fca74a7da7ed27b50e262bf928a5f5ca9d9c51703422ff27d4966a076d"
+    },
+    {
+      "path": "docs/raporlar/evidence822/search/probe.cjs",
+      "sha256_lf": "fda47f045d8e0c8678c6e9d7aff1f74aea612e3c87a023fd28d6f354e0e6c7ea"
+    },
+    {
+      "path": "docs/raporlar/evidence822/search/registry-reviewed.json",
+      "sha256_lf": "10714ba690896e22e5d4149e09c94d4b688d0e1c2882d4b5aec1dd837e4c7a30"
+    },
+    {
+      "path": "docs/raporlar/evidence822/search/result.json",
+      "sha256_lf": "b92a5207c906408e765e4c5defb0b334794b0485ad301c4111d9bf43b95da937"
+    },
+    {
+      "path": "docs/raporlar/evidence822/sidecars/probe.cjs",
+      "sha256_lf": "18222e7988713f64919c34640d6c7e4c70c2fe12a9e927f42c188089c90676a6"
+    },
+    {
+      "path": "docs/raporlar/evidence822/sidecars/producer.py",
+      "sha256_lf": "8f6ca992829b427445e9d92a0a1d955edd7950c8f87b3ecd2e405b99422898c1"
+    },
+    {
+      "path": "docs/raporlar/evidence822/sidecars/registry-reviewed.json",
+      "sha256_lf": "0096b2564fe8f73acc4eba42a2ca744735dd2d66cbb5c31d13887affb582a78a"
+    },
+    {
+      "path": "docs/raporlar/evidence822/sidecars/results.json",
+      "sha256_lf": "a06eb04c7774b341d0507e336f2f3a7e11cfd12559312ba4d084aac3e1697379"
+    }
+  ],
+  "limits": "See report and parent-verification; synthetic boundaries, no native UI/live-site/GPU/start.bat acceptance."
+}

@@ -1,0 +1,562 @@
+[
+  {
+    "id": "N0821",
+    "family": "F42",
+    "mechanism": "normal",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "83b766d106efb883165786c128772d246c3d9d8ce23b02a9d9a9528679efb2d1",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0821.stdout.txt (node probes/p42-media-search-home.js --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0822",
+    "family": "F42",
+    "mechanism": "bos",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "e3a637771b8a81f713f8f4205bdb63c461a20d0e1ca4647a272a8db2a103b798",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0822.stdout.txt (node probes/p42-media-search-home.js --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0823",
+    "family": "F42",
+    "mechanism": "sinir",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "afb46eea5a565d3f2e1a0e02d7534f13154b9088212a175a4f9a143607697cb5",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0823.stdout.txt (node probes/p42-media-search-home.js --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0824",
+    "family": "F42",
+    "mechanism": "unicode",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "16dc678b0b4386ac1393f785a6b05354f0e5f510e8d201eaf2da0b24728ca1da",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0824.stdout.txt (node probes/p42-media-search-home.js --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0825",
+    "family": "F42",
+    "mechanism": "yinelenen",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "d8409712f18c8c7ca49dfc9e48e3171ca86d66f0a302e6b58297df6d9a8f5021",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0825.stdout.txt (node probes/p42-media-search-home.js --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0826",
+    "family": "F42",
+    "mechanism": "sira",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "6a0dc2e6d0f71a9f2199954467370aee16fc4eb6989d57d39aa61a01dbcd214a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0826.stdout.txt (node probes/p42-media-search-home.js --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0827",
+    "family": "F42",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "9613a4d12daebceab85f327b967fc906b8fa268ef6379ea26cea9e163c44878f",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0827.stdout.txt (node probes/p42-media-search-home.js --mech iptal-oncesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0828",
+    "family": "F42",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "410797af43dc16fbeb45d2aa056a3944d617f294f5abd771e0790d96c51a326c",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0828.stdout.txt (node probes/p42-media-search-home.js --mech iptal-ortasi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0829",
+    "family": "F42",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "8fc59144181089452f8b2f54faef8dcc26c04512e85d401c199b651efd7a8cb8",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0829.stdout.txt (node probes/p42-media-search-home.js --mech gec-sonuc, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0830",
+    "family": "F42",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "2e29c2738d49114fa9e2cdc2ef0336ec90c246ebfa0305dd59b7f867ded88bfe",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0830.stdout.txt (node probes/p42-media-search-home.js --mech kaynak-degisimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0831",
+    "family": "F42",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "0063a826a6dd637312d605c2050291e95e8a07843768ff0183cbfd9984130ba9",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0831.stdout.txt (node probes/p42-media-search-home.js --mech es-zamanli, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0832",
+    "family": "F42",
+    "mechanism": "kesik",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "f4960ca3a7442345acaa09d6abf9646e6e0ba44bbe713b460052efd2c8d6ca80",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0832.stdout.txt (node probes/p42-media-search-home.js --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0833",
+    "family": "F42",
+    "mechanism": "hata",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "38d8e2ae90dc4b4ac98174a226b6c7cea20f4b6f4112027e0074debb8bcbf363",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0833.stdout.txt (node probes/p42-media-search-home.js --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0834",
+    "family": "F42",
+    "mechanism": "timeout",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "b259c9a056bb783610ffd34f3efc2a978493fde344e5367a825a701d052cab31",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0834.stdout.txt (node probes/p42-media-search-home.js --mech timeout, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0835",
+    "family": "F42",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "73dbb581c2ca638aef7db371929898132f4e082fbe6719fda0791215b1339a35",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0835.stdout.txt (node probes/p42-media-search-home.js --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0836",
+    "family": "F42",
+    "mechanism": "donusum",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "589fac905523e852d79f3859fd24b3c9d64d5ff14ce6531eb9d847eadbd446a5",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0836.stdout.txt (node probes/p42-media-search-home.js --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0837",
+    "family": "F42",
+    "mechanism": "yetki",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "040825abb252f0e30da9a52a2a54bb9c99a5aa6a1823aaf4086999bd5ad69429",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0837.stdout.txt (node probes/p42-media-search-home.js --mech yetki, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0838",
+    "family": "F42",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "b2ecacf39f227a8f26ee01d213e9bcec38439e4be515d76e7c061c5a41436086",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0838.stdout.txt (node probes/p42-media-search-home.js --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0839",
+    "family": "F42",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "07165705398a2943e854b41269e3041bf1407551a41820caa2b6c67767e586bc",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0839.stdout.txt (node probes/p42-media-search-home.js --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0840",
+    "family": "F42",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "src/renderer/media-search-ui.js",
+      " src/renderer/media-home.js"
+    ],
+    "signature": "54b4dab09efc3cf025a7a92d9fd515076b6e91b20f6d3bf36856f8681b443f26",
+    "historical_status": "INCONCLUSIVE",
+    "evidence": "logs/Tpkg09-N0840.stdout.txt (electron tests/electron-media-home.smoke.js, exit 1)",
+    "finding_ids": "",
+    "reason": "Depodaki electron-media-home.smoke.js kırmızı: renderer içinde bir querySelector(...).click() null döndü; Electron stack/adım etiketi yüzeye çıkmadı (logs/Tpkg09-N0840.stderr.txt). Ürün kökü olarak iddia edilmiyor; aynı akışın saf model/UI katmanı N0821-N0839 problarında geçti."
+  },
+  {
+    "id": "N0941",
+    "family": "F48",
+    "mechanism": "normal",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "ff539900e28e974d383e1b79973508898728bece037598c5af8f8d629bf4d31c",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0941.stdout.txt (electron tests/electron-ipc-authority.smoke.js, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0942",
+    "family": "F48",
+    "mechanism": "bos",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "61fac7cd9b9536e6d70c5e3569517ccb14f0e88eb5ca620bda41efa1ccbea904",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0942.stdout.txt (node probes/p48-file-grant.js --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0943",
+    "family": "F48",
+    "mechanism": "sinir",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "4846a5fa54f6276fe4dd5ff4ab2c2cd382707998cdadb20821f7e82ca78ab25d",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0943.stdout.txt (node probes/p48-file-grant.js --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0944",
+    "family": "F48",
+    "mechanism": "unicode",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "288d71c27987bf3b21fe1d68b5b457a2a313d89d01a4b956b80cddee69810861",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0944.stdout.txt (node probes/p48-file-grant.js --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0945",
+    "family": "F48",
+    "mechanism": "yinelenen",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "d11ba388b6ddcc24dc4c5e432f7c0ec85fc9c38da8cc9f51f02d94e5d4c70320",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0945.stdout.txt (node tests/media-file-access.test.js, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0946",
+    "family": "F48",
+    "mechanism": "sira",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "de70dade4c21821dff3f2b51b6b9bf1d41fb8d353545874c000d05ffb7887e5e",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0946.stdout.txt (node probes/p48-file-grant.js --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0947",
+    "family": "F48",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "ce925741a081b369e132ebcd359adfdce5fea24eee3556175e23c447cb940cd6",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0947.stdout.txt (node probes/p48-file-grant.js --mech iptal-oncesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0948",
+    "family": "F48",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "5c3f86abac2fb93b79d1ae5f55ebc97fcb35e606dd0e428e3763ea2a6cdb3224",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Dosya izinleri senkron fs çağrılarıdır; yarıda kesilecek asenkron iş yok."
+  },
+  {
+    "id": "N0949",
+    "family": "F48",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "dd3ec9b4c55e90235dc2633af4c5d3b302fdf83f83c26467414d31c817cb9b29",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0949.stdout.txt (node probes/p48-file-grant.js --mech gec-sonuc, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0950",
+    "family": "F48",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "1c52779379538d4794093df9758dd6091f183b09986b63ee0986575193bc968f",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0950.stdout.txt (node probes/p48-file-grant.js --mech kaynak-degisimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0951",
+    "family": "F48",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "33696490f214461f55a9e710115f8caf0ca8802c8d86714268052ec61b24c0fe",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "İzin defteri senkron; eşzamanlı mutasyon yolu ve kilidi yok. IPC tarafı main.js sender kontrolüyle tek kanalda sıralanır."
+  },
+  {
+    "id": "N0952",
+    "family": "F48",
+    "mechanism": "kesik",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "d783b795b1e6c8ca0952e7ed6891873148b16504ad1112d8744b541f4d019d09",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0952.stdout.txt (node probes/p48-file-grant.js --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0953",
+    "family": "F48",
+    "mechanism": "hata",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "e5b65f8318b3abfb79c90f117229db9765705bea8fc025a2bd3f2a5587dea9d2",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0953.stdout.txt (node probes/p48-file-grant.js --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0954",
+    "family": "F48",
+    "mechanism": "timeout",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "428f23bc90dcf5a8e7dc729629182f97fe10ff7a826086287781e73be310e882",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Modülde zamanlayıcı/ağ/alt süreç yok; timeout sözleşmesi bulunmaz."
+  },
+  {
+    "id": "N0955",
+    "family": "F48",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "0e41696fa7b551104b57edccdf00f52c3584502ad40bb0373c91a2e02a92c0b8",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0955.stdout.txt (node probes/p48-file-grant.js --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0956",
+    "family": "F48",
+    "mechanism": "donusum",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "36be1fb586cf63839ca077b2cabc3a284d0860346038e252b9a35813d48dfa01",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0956.stdout.txt (node probes/p48-file-grant.js --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0957",
+    "family": "F48",
+    "mechanism": "yetki",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "61c9729dc0d44930800c5730c480629c20db4fec893b986c96c2d84f980aab6d",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0957.stdout.txt (node probes/p48-file-grant.js --mech yetki, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0958",
+    "family": "F48",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "4e9eb61ee02c747dfd378ff4864d14980fb5d1ddf7b8f33c8822f3f29cddcc77",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0958.stdout.txt (node probes/p48-file-grant.js --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0959",
+    "family": "F48",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "9198baaa112d4f7650295d29b77587f17ba508130e1b690669743db3c7ec8060",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0959.stdout.txt (node probes/p48-file-grant.js --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0960",
+    "family": "F48",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "src/preload.js",
+      " src/local-file-access.js"
+    ],
+    "signature": "1f1c77553b352ccd115beaad30a7bc835f9fcaeb9130d9ce7a65378d8dfba87a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0960.stdout.txt (node probes/p48-file-grant.js --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  }
+]

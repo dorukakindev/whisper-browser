@@ -1,0 +1,99 @@
+{
+  "head": "b821da96edd7b10c6a5d2dcc03b353192394f5eb",
+  "exported": {
+    "count": 2,
+    "bytes": 1132,
+    "videos": 1
+  },
+  "preview": {
+    "ok": true,
+    "videos": 1,
+    "count": 2
+  },
+  "applied": {
+    "ok": true
+  },
+  "restarts": 1,
+  "video": {
+    "catalogPath": "D:\\Whisper Local\\.uiprev\\audit822-packages-final-1793413288938\\target-video\\workspace-videos\\00b6be2b-97c4-4847-9994-2e1d33fbd053\\1486a5add23b794acd2839b44dc4a3e19b5789dd1791d72fd5804eac25097211.mp4",
+    "videoBytesEqual": true,
+    "progress": null,
+    "play": {
+      "key": "file:d:/whisper local/.uiprev/audit822-packages-final-1793413288938/target-video/workspace-videos/00b6be2b-97c4-4847-9994-2e1d33fbd053/1486a5add23b794acd2839b44dc4a3e19b5789dd1791d72fd5804eac25097211.mp4",
+      "type": "local",
+      "title": "Fixture Film",
+      "sourceRef": "D:\\Whisper Local\\.uiprev\\audit822-packages-final-1793413288938\\target-video\\workspace-videos\\00b6be2b-97c4-4847-9994-2e1d33fbd053\\1486a5add23b794acd2839b44dc4a3e19b5789dd1791d72fd5804eac25097211.mp4",
+      "localPath": "D:\\Whisper Local\\.uiprev\\audit822-packages-final-1793413288938\\target-video\\workspace-videos\\00b6be2b-97c4-4847-9994-2e1d33fbd053\\1486a5add23b794acd2839b44dc4a3e19b5789dd1791d72fd5804eac25097211.mp4",
+      "position": 0
+    },
+    "retainedHistory": [
+      {
+        "key": "file:d:/whisper local/.uiprev/audit822-packages-final-1793413288938/source-media/clip.mp4",
+        "localPath": "D:\\Whisper Local\\.uiprev\\audit822-packages-final-1793413288938\\target-video\\workspace-videos\\00b6be2b-97c4-4847-9994-2e1d33fbd053\\1486a5add23b794acd2839b44dc4a3e19b5789dd1791d72fd5804eac25097211.mp4",
+        "sourceRef": "D:\\Whisper Local\\.uiprev\\audit822-packages-final-1793413288938\\target-video\\workspace-videos\\00b6be2b-97c4-4847-9994-2e1d33fbd053\\1486a5add23b794acd2839b44dc4a3e19b5789dd1791d72fd5804eac25097211.mp4",
+        "type": "local",
+        "title": "Fixture Film",
+        "position": 123,
+        "duration": 600,
+        "prefs": {
+          "speed": 1.25
+        },
+        "firstWatched": 1793413289022,
+        "lastWatched": 1793413289022,
+        "collections": [],
+        "subtitlePaths": [],
+        "sessions": [],
+        "automaticCompleted": false,
+        "completed": false,
+        "revision": 1,
+        "totalWatchSeconds": 0
+      }
+    ]
+  },
+  "noRelocationControl": {
+    "progress": {
+      "position": 123,
+      "duration": 600,
+      "completed": false,
+      "assets": {
+        "subtitles": 0,
+        "translation": false,
+        "dub": false,
+        "speed": 1.25
+      }
+    },
+    "playPosition": 123
+  },
+  "manualMapping": {
+    "progress": null,
+    "playPosition": 0,
+    "retainedHistory": [
+      {
+        "key": "file:d:/whisper local/.uiprev/audit822-packages-final-1793413288938/source-media/clip.mp4",
+        "localPath": "D:\\Whisper Local\\.uiprev\\audit822-packages-final-1793413288938\\relocated-media\\clip.mp4",
+        "sourceRef": "D:\\Whisper Local\\.uiprev\\audit822-packages-final-1793413288938\\relocated-media\\clip.mp4",
+        "type": "local",
+        "title": "Fixture Film",
+        "position": 123,
+        "duration": 600,
+        "prefs": {
+          "speed": 1.25
+        },
+        "firstWatched": 1793413289022,
+        "lastWatched": 1793413289022,
+        "collections": [],
+        "subtitlePaths": [],
+        "sessions": [],
+        "automaticCompleted": false,
+        "completed": false,
+        "revision": 1,
+        "totalWatchSeconds": 0
+      }
+    ]
+  },
+  "boundaries": [
+    "Real JS export/preview/apply/catalog store/watch store/list/play and Python ZIP writer/reader/extractor",
+    "Owner executeJavaScript localStorage runs in VM; native picker, restart, inspect/grant controlled",
+    "Synthetic .mp4 bytes are transport fixture; actual media decoding/GPU/native UI not tested"
+  ]
+}
