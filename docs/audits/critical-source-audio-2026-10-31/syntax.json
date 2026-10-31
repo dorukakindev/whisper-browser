@@ -1,0 +1,121 @@
+{
+  "files": [
+    "src/assistant-agent-service.js",
+    "src/dub-service.js",
+    "src/main.js",
+    "src/preload.js",
+    "src/renderer/assistant-app-actions.js",
+    "src/renderer/assistant-translation-actions.js",
+    "src/renderer/assistant-voice-actions.js",
+    "src/renderer/browser-dub-audio.js",
+    "src/renderer/browser-dub-ui.js",
+    "src/renderer/voice-reference-ui.js",
+    "tests/assistant-agent-service.test.js",
+    "tests/assistant-selection-stale-critical.test.js",
+    "tests/assistant-voice-actions.test.js",
+    "tests/browser-dub-audio.test.js",
+    "tests/browser-dub-mute-ownership.test.js",
+    "tests/electron-browser-dub-mute.smoke.js",
+    "tests/test_dub_generation_quality.py",
+    "tests/test_natural_dub_generation.py",
+    "tools/voxcpm2/altyazi_oku.py"
+  ],
+  "checks": [
+    {
+      "file": "src/assistant-agent-service.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/dub-service.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/main.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/preload.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/assistant-app-actions.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/assistant-translation-actions.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/assistant-voice-actions.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/browser-dub-audio.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/browser-dub-ui.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/voice-reference-ui.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/assistant-agent-service.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/assistant-selection-stale-critical.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/assistant-voice-actions.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/browser-dub-audio.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/browser-dub-mute-ownership.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/electron-browser-dub-mute.smoke.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/test_dub_generation_quality.py",
+      "exit": 0,
+      "parser": "ast.parse"
+    },
+    {
+      "file": "tests/test_natural_dub_generation.py",
+      "exit": 0,
+      "parser": "ast.parse"
+    },
+    {
+      "file": "tools/voxcpm2/altyazi_oku.py",
+      "exit": 0,
+      "parser": "ast.parse"
+    }
+  ],
+  "ok": true
+}

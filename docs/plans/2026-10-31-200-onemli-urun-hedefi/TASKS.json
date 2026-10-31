@@ -2962,7 +2962,7 @@
       ]
     }
   ],
-  "activePackage": "02-settings-approval-job-options",
+  "activePackage": "critical-source-audio",
   "executionStatus": "Yalniz kritik kabul akislari etkin; 200 veya 100 sayisi hedef degildir.",
   "countTargetRetired": true,
   "executionPolicy": "critical-only; original 200 rows are historical candidates, not mandatory backlog",
@@ -2972,5 +2972,22 @@
     "activeAcceptance": "CRITICAL-FOCUS.md",
     "noQuota": true,
     "optionalFeatureExpansion": false
+  },
+  "criticalProgress": {
+    "evidence": "docs/audits/critical-source-audio-2026-10-31/README.md",
+    "fixed": [
+      "stale translation-provider selection",
+      "stale saved-reference selection and native write",
+      "pending initial mute bookkeeping",
+      "source/session-owned mute and human intent",
+      "complete first take before optional duration fit"
+    ],
+    "nativeAcceptance": "local cross-origin iframe, actual Windows Electron/IPC/decoders; exit 0",
+    "notClaimedComplete": [
+      "all translation meaning acceptance",
+      "all job lifecycle paths",
+      "all UI blockers",
+      "GPU/provider/acoustic quality"
+    ]
   }
 }
