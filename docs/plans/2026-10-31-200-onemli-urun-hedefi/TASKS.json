@@ -2962,7 +2962,7 @@
       ]
     }
   ],
-  "activePackage": "critical-source-audio",
+  "activePackage": "critical-job-continuity",
   "executionStatus": "Yalniz kritik kabul akislari etkin; 200 veya 100 sayisi hedef degildir.",
   "countTargetRetired": true,
   "executionPolicy": "critical-only; original 200 rows are historical candidates, not mandatory backlog",
@@ -2988,6 +2988,17 @@
       "all job lifecycle paths",
       "all UI blockers",
       "GPU/provider/acoustic quality"
-    ]
+    ],
+    "jobContinuity": {
+      "evidence": "docs/audits/critical-job-continuity-2026-10-31/README.md",
+      "fixed": [
+        "manual generated-output source proof",
+        "late Use availability follows current job",
+        "exact stop identity in dubbing/reference/book stop and close"
+      ],
+      "verifiedExisting": "Native browser subtitle scheduler progresses on Home and returns to identical source, no cancellation or restart",
+      "tests": "19 relevant files exit0; isolated native Home exit0",
+      "notClaimed": "live model/GPU quality; full Whisper backend native continuation; whole UI audit"
+    }
   }
 }

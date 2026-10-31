@@ -1,0 +1,143 @@
+{
+  "base": "f6dab324e31df075511b7661fcd787f6b6ddabed",
+  "focused": {
+    "results": [
+      {
+        "file": "tests/assistant-job-continuity-critical.test.js",
+        "exit": 0
+      },
+      {
+        "file": "tests/renderer-stop-identity-critical.test.js",
+        "exit": 0
+      },
+      {
+        "file": "tests/dub-output-owner-continuity.test.js",
+        "exit": 0
+      },
+      {
+        "file": "tests/assistant-jobs.test.js",
+        "exit": 0
+      },
+      {
+        "file": "tests/assistant-agent-service.test.js",
+        "exit": 0
+      },
+      {
+        "file": "tests/report821-job-cancel.test.js",
+        "exit": 0
+      },
+      {
+        "file": "tests/book-generation-stop645.test.js",
+        "exit": 0
+      },
+      {
+        "file": "tests/voice-reference-ui.test.js",
+        "exit": 0
+      },
+      {
+        "file": "tests/dub-service.test.js",
+        "exit": 0
+      },
+      {
+        "file": "tests/dub-service-warm-start.test.js",
+        "exit": 0
+      },
+      {
+        "file": "tests/assistant-flows.test.js",
+        "exit": 0
+      },
+      {
+        "file": "tests/assistant-flow-state.test.js",
+        "exit": 0
+      },
+      {
+        "file": "tests/dub-generator-ui.test.js",
+        "exit": 0
+      },
+      {
+        "file": "tests/dub-current-subtitle764.test.js",
+        "exit": 0
+      },
+      {
+        "file": "tests/dub-request-owner756.test.js",
+        "exit": 0
+      },
+      {
+        "file": "tests/assistant-voice-actions.test.js",
+        "exit": 0
+      },
+      {
+        "file": "tests/assistant-selection-stale-critical.test.js",
+        "exit": 0
+      },
+      {
+        "file": "tests/media-workflows.test.js",
+        "exit": 0
+      },
+      {
+        "file": "tests/ci-determinism-ratchet.test.js",
+        "exit": 0
+      }
+    ],
+    "sourceStable": true,
+    "changedDuringRun": [],
+    "allPassed": true
+  },
+  "native": {
+    "script": "tests/electron-home-job-continuity.smoke.js",
+    "exit": 0,
+    "receipt": "native-home-acceptance.json",
+    "provider": "controlled deferred fixture",
+    "actualAppIpcSchedulerVideoDecoder": true
+  },
+  "syntax": [
+    {
+      "file": "src/renderer/dub-generator-ui.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/media-workflows-ui.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/voice-reference-ui.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/assistant-job-continuity-critical.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/dub-generator-ui.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/dub-output-owner-continuity.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/electron-home-job-continuity.smoke.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/renderer-stop-identity-critical.test.js",
+      "exit": 0,
+      "error": ""
+    }
+  ],
+  "fullSuite": "Not repeated: this package changes three renderer files; 19 directly relevant test files and final native acceptance were run. Previous package full run details remain in critical-source-audio audit.",
+  "limits": [
+    "No live model/provider quality",
+    "No real YouTube/DRM/GPU",
+    "No acoustic listening assessment",
+    "Native Home acceptance tests browser subtitle scheduler, not full Whisper backend process"
+  ],
+  "productCommit": "1b0a44023b3afa1dead772004ee1c4b802cbb40e"
+}
