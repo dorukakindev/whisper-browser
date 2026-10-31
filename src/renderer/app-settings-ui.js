@@ -8,9 +8,28 @@
   const button=(text,fn)=>{const n=el('button','mh-action',text);n.type='button';n.onclick=fn;return n;};
   function restore(){for(const {node,marker}of borrowed){if(marker.parentNode)marker.replaceWith(node);}borrowed=[];}
   function mask(){for(const id of ['translateApiKey','mangaApiKey','llmApiKey','tmdbApiKey','assistantApiKey']){const input=document.getElementById(id);if(input)input.type='password';const toggle=document.querySelector(`[data-secret-target="${id}"]`);if(toggle){toggle.setAttribute('aria-pressed','false');const label=(toggle.getAttribute('aria-label')||'').replace(/ gizle$/i,' göster').replace(/^Hide /i,'Show ');toggle.setAttribute('aria-label',label);toggle.title=label;}}}
+  function localizeField(node) {
+    const translate = value => window.UiLocale?.t?.(value) ?? value;
+    // Only authored labels/attributes/options: never input values, model IDs or keys.
+    for (const label of [...(node.matches('.field-label,label') ? [node] : []), ...node.querySelectorAll('.field-label,label')]) {
+      const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const text = walker.currentNode;
+        if (!text.parentElement.closest('input,textarea,select,[data-ui-untranslated]')) text.nodeValue = translate(text.nodeValue);
+      }
+    }
+    for (const item of [node, ...node.querySelectorAll('[aria-label],[title],[placeholder]')]) {
+      for (const name of ['aria-label','title','placeholder']) if (item.hasAttribute(name)) item.setAttribute(name,translate(item.getAttribute(name)));
+    }
+    for (const select of node.querySelectorAll('select')) {
+      if (['uiTheme','uiLocale'].includes(select.id) || /EndpointPreset$/.test(select.id)) {
+        for (const option of select.options) option.textContent = translate(option.textContent);
+      }
+    }
+  }
   function fields(parent,ids){
     const grid=el('div','settings-grid');parent.append(grid);const moved=new Set();
-    for(const id of ids){const control=document.getElementById(id),node=control?.closest('.field')||control?.closest('label');if(!node||moved.has(node))continue;moved.add(node);const marker=document.createComment('settings-home:'+id);node.before(marker);borrowed.push({node,marker});grid.append(node);}
+    for(const id of ids){const control=document.getElementById(id),node=control?.closest('.field')||control?.closest('label');if(!node||moved.has(node))continue;moved.add(node);localizeField(node);const marker=document.createComment('settings-home:'+id);node.before(marker);borrowed.push({node,marker});grid.append(node);}
   }
   function section(parent,title,copy,ids){const box=el('section','aps-section');box.append(el('h2','',title),el('p','aps-copy',copy));if(ids)fields(box,ids);parent.append(box);return box;}
   function cleanup(current){if(dialog!==current){current.remove();return;}viewGeneration++;modelsGeneration++;mask();restore();current.remove();dialog=null;void syncBrowserOcclusion();const target=opener?.isConnected?opener:document.getElementById('mhSettings');target?.focus({preventScroll:true});}
@@ -69,7 +88,7 @@
   }
   const searchFold = value => String(value || '').normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/ı/g, 'i');
   function draw(){
-    if(!dialog)return;searchQuery=$('appSettingsSearch')?.value ?? searchQuery;viewGeneration++;modelsGeneration++;restore();dialog.replaceChildren();dialog.setAttribute('aria-label',t('Settings','Ayarlar'));
+    if(!dialog)return;const focused=dialog.contains(document.activeElement)?document.activeElement:null;const focusId=focused?.id;const focusSection=focused?.dataset.appSettings;searchQuery=$('appSettingsSearch')?.value ?? searchQuery;viewGeneration++;modelsGeneration++;restore();dialog.replaceChildren();dialog.setAttribute('aria-label',t('Settings','Ayarlar'));
     const header=el('header','aps-header'),copy=el('div');copy.append(el('h1','',t('Settings','Ayarlar')),el('p','aps-copy',t('Your providers, your models, one workspace.','Sağlayıcıların, modellerin, tek çalışma alanı.')));const exit=button('×',close);exit.id='appSettingsClose';exit.setAttribute('aria-label',t('Close settings','Ayarları kapat'));header.append(copy,exit);dialog.append(header);
     const layout=el('div','aps-layout'),nav=el('nav','aps-nav');nav.setAttribute('aria-label',t('Settings sections','Ayar bölümleri'));layout.append(nav);dialog.append(layout);
     const find=el('input');find.type='search';find.id='appSettingsSearch';find.value=searchQuery;find.placeholder=t('Find a setting','Ayar ara');find.setAttribute('aria-label',find.placeholder);nav.append(find);
@@ -102,7 +121,7 @@
     }
     for (const item of nav.querySelectorAll('[data-app-settings]')) item.dataset.search += ' ' + settingSearchText(item.dataset.appSettings).toLocaleLowerCase();
     const footer=el('footer','aps-footer'),status=el('p','aps-copy');status.id='appSettingsStatus';status.setAttribute('role','status');status.textContent=t('These are the existing settings. Changes use the same secure credential storage.','Bunlar mevcut ayarların. Değişiklikler aynı güvenli anahtar deposunu kullanır.');
-    const save=button(t('Save settings','Ayarları kaydet'),async()=>{const edit=editGeneration,view=viewGeneration;save.disabled=true;status.textContent=t('Saving securely…','Güvenli kaydediliyor…');try{const ok=await saveAppSettings();if(!dialog?.open||view!==viewGeneration||edit!==editGeneration)return;status.textContent=ok?t('Settings saved.','Ayarlar kaydedildi.'):t('Could not save securely. Check the application log.','Güvenli kayıt yapılamadı. Uygulama günlüğünü kontrol et.');status.classList.toggle('aps-error',!ok);}catch{if(view===viewGeneration&&edit===editGeneration){status.textContent=t('Could not save settings.','Ayarlar kaydedilemedi.');status.classList.add('aps-error');}}finally{save.disabled=false;}});save.id='appSettingsSave';save.classList.add('mh-primary');footer.append(status,save);dialog.append(footer);find.oninput();if(dialog.open)window.UiMotion?.reveal(main,'section');
+    const save=button(t('Save settings','Ayarları kaydet'),async()=>{const edit=editGeneration,view=viewGeneration;save.disabled=true;status.textContent=t('Saving securely…','Güvenli kaydediliyor…');try{const ok=await saveAppSettings();if(!dialog?.open||view!==viewGeneration||edit!==editGeneration)return;status.textContent=ok?t('Settings saved.','Ayarlar kaydedildi.'):t('Could not save securely. Check the application log.','Güvenli kayıt yapılamadı. Uygulama günlüğünü kontrol et.');status.classList.toggle('aps-error',!ok);}catch{if(view===viewGeneration&&edit===editGeneration){status.textContent=t('Could not save settings.','Ayarlar kaydedilemedi.');status.classList.add('aps-error');}}finally{save.disabled=false;}});save.id='appSettingsSave';save.classList.add('mh-primary');footer.append(status,save);dialog.append(footer);find.oninput();if(dialog.open){const target=focused?.isConnected?focused:focusId?$(focusId):focusSection?dialog.querySelector(`[data-app-settings="${focusSection}"]`):null;if(target&&dialog.contains(target))target.focus({preventScroll:true});window.UiMotion?.reveal(main,'section');}
   }
   async function open(page='ai',{preserveAssistantContext=false}={}){
     await initialSettingsReady;

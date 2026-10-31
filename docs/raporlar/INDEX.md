@@ -1,3 +1,9 @@
+- [Rapor823](BROWSER_BUG_REPORT_823.md) — Araştırma taslakları, dil kapsamı ve uzun paragraf
+- [Rapor822](BROWSER_BUG_REPORT_822.md) — Arama, kelime sahipliği, klip ve paket kimliği
+- [Rapor821](BROWSER_BUG_REPORT_821.md) — Arka plan işleri, tanı yan çıktısı ve model kayıtları
+- [Rapor820](BROWSER_BUG_REPORT_820.md) — VTT zamanları, workflow ve metadata
+- [Rapor819](BROWSER_BUG_REPORT_819.md) — Modal, asistan katmanı ve dil denetimi
+- [Rapor818](BROWSER_BUG_REPORT_818.md) — Tasarım ve klavye denetimi
 - [Rapor817](BROWSER_BUG_REPORT_817.md) — Windows tasarım, dar panel ve okuma görünümü denetimi
 - [Rapor815](BROWSER_BUG_REPORT_815.md) — Ayrı oturumun salt-okunur denetimi
 - [Rapor816](BROWSER_BUG_REPORT_816.md) — Uzun Türkçe ses, çeviri tamamlama ve kapanış kaynakları

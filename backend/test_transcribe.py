@@ -3792,8 +3792,10 @@ def test_download_paths_missing_audio_and_bracketed_clip():
         def extract_info(self, *_args, **_kwargs):
             if self.completed:
                 assert self.opts['postprocessors'][0]['key'] == 'FFmpegVideoRemuxer'
+                completed = Path(self.opts['outtmpl'].replace('%(ext)s', 'mp4'))
+                completed.write_bytes(b'new clip fixture')
                 for hook in self.opts['post_hooks']:
-                    hook(self.completed)
+                    hook(str(completed))
             return {'id': 'example', 'title': 'Örnek'}
     fake = types.ModuleType('yt_dlp')
     fake.YoutubeDL = FakeYdl
@@ -3817,7 +3819,9 @@ def test_download_paths_missing_audio_and_bracketed_clip():
         with mock.patch.object(M, '_ydl_opts', side_effect=lambda opts, **kw: opts), \
                 mock.patch.object(M, 'log'), mock.patch.object(M, 'emit') as emitted:
             M.download_clip('https://example.test/video', 1, 2, str(target))
-        assert emitted.call_args.kwargs['path'] == str(actual)
+        assert emitted.call_args.kwargs['path'] == str(target)
+        assert target.read_bytes() == b'new clip fixture'
+        assert actual.read_bytes() == b'fixture'
 
 
 def test_media_download_uses_only_final_output_not_title_or_components():

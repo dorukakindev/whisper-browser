@@ -6,12 +6,13 @@
   let signature = '';
   let requestId = 0;
   let busy = false;
+  let legacyUnconfirmed = false;
   const context = () => {
     const tab = typeof browserTabState === 'function' ? browserTabState() : null;
     return player.workspaceMode === 'browser' && tab
-      ? { tabId: tab.id, generation: tab.generation, mediaId: tab.mediaId || '' } : null;
+      ? { tabId: tab.id, generation: tab.generation, mediaId: tab.mediaId || '', targetLanguage: $('translateTo')?.value || '' } : null;
   };
-  const key = (ctx) => ctx ? `${ctx.tabId}|${ctx.generation}|${ctx.mediaId}` : '';
+  const key = (ctx) => ctx ? `${ctx.tabId}|${ctx.generation}|${ctx.mediaId}|${ctx.targetLanguage}` : '';
   function status(message, error = false) {
     $('bfContextStatus').textContent = message;
     $('bfContextStatus').classList.toggle('bf-series-error', error);
@@ -46,11 +47,13 @@
     }
   }
   function fill(record) {
+    legacyUnconfirmed = record?.legacyUnconfirmed === true;
     $('bfContextSeries').value = record?.seriesName || '';
     $('bfContextStyle').value = record?.profile?.addressStyle || '';
     $('bfContextSynopsis').value = record?.profile?.synopsis || '';
     $('bfContextTerms').value = (record?.profile?.terms || []).map((term) => `${term.source} = ${term.target}`).join('\n');
     $('bfContextIssues').replaceChildren();
+    if (legacyUnconfirmed) status('Eski kaydın hedef dili bilinmiyor. Taslak korundu; bu dil için kaydetmeden çeviride kullanılmaz.', true);
   }
   async function refresh(ctx) {
     const result = await invoke('series-context:get', {}, true);
@@ -74,7 +77,7 @@
     const result = await invoke('series-context:bind', { seriesName });
     if (result) {
       fill(result.context);
-      status('Bölüm diziye bağlandı; kayıtlı tercihler yüklendi. Sonraki çeviri bu tercihleri kullanır.');
+      if (!legacyUnconfirmed) status('Bölüm diziye bağlandı; kayıtlı tercihler yüklendi. Sonraki çeviri bu tercihleri kullanır.');
     }
   });
   $('bfContextSave').addEventListener('click', async () => {
@@ -83,10 +86,17 @@
     if (!seriesName) { status('Dizi adını girin.', true); $('bfContextSeries').focus(); return; }
     let terms;
     try { terms = parseTerms(); } catch (error) { status(error.message, true); return; }
+    const confirmLegacy = legacyUnconfirmed;
+    if (confirmLegacy && !window.confirm(window.UiLocale?.t?.('Bu eski taslağın seçili hedef dil için doğru olduğunu onaylıyor musunuz?')
+      || 'Bu eski taslağın seçili hedef dil için doğru olduğunu onaylıyor musunuz?')) return;
     const result = await invoke('series-context:save', { seriesName,
+      confirmLegacy,
       profile: { synopsis: $('bfContextSynopsis').value.trim(),
         addressStyle: $('bfContextStyle').value.trim(), terms } });
-    if (result) status('Dizi bağlamı kaydedildi. Sonraki çeviri bu tercihleri kullanır; diğer bölümleri aynı dizi adına bağlayabilirsiniz.');
+    if (result) {
+      legacyUnconfirmed = false;
+      status('Dizi bağlamı kaydedildi. Sonraki çeviri bu tercihleri kullanır; diğer bölümleri aynı dizi adına bağlayabilirsiniz.');
+    }
   });
   $('bfContextCheck').addEventListener('click', async () => {
     if (busy) return;
@@ -101,6 +111,10 @@
     if (cues.length > 10000 || translations.length > 10000) { status('Kontrol en çok 10000 replik destekler.', true); return; }
     const result = await invoke('series-context:check', { cues, translations });
     if (!result) return;
+    if (result.legacyUnconfirmed) {
+      status('Eski kaydın hedef dili bilinmiyor. Taslak korundu; bu dil için kaydetmeden çeviride kullanılmaz.', true);
+      return;
+    }
     const list = $('bfContextIssues'); list.replaceChildren();
     const issues = Array.isArray(result.issues) ? result.issues : [];
     if (!issues.length) { status(`${Number(result.checked) || 0} replik kontrol edildi; kayıtlı terim uyuşmazlığı bulunmadı.`); return; }

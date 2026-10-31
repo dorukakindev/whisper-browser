@@ -8441,6 +8441,7 @@ def transcribe(args):
                 log(f"Çift dilli dosya yazılamadı: {e}", "warn")
 
         # Düşük güvenli kelime raporu (kelime damgaları varsa)
+        obsolete_confidence_report = None
         if args.confidence_report and all_words:
             try:
                 rep_path = output_dir / f"{base_name}{name_suffix}.dusuk-guven.txt"
@@ -8459,6 +8460,8 @@ def transcribe(args):
                                + ", ".join(tops) + " (rapor: " + rep_path.name + ")")
                         log(msg, "warn")
                         warn_list.append(msg)
+                else:
+                    obsolete_confidence_report = rep_path
             except Exception as e:
                 log(f"Düşük güven raporu yazılamadı: {e}", "warn")
 
@@ -8507,6 +8510,16 @@ def transcribe(args):
         # Tum ciktilar hazir: tek seferde yerine koy. Bu noktaya kadar hicbir
         # nihai dosyaya dokunulmadi, yani iptal/cokme yarim kume birakmaz.
         output_tx.commit()
+
+        # A clean rerun supersedes the old diagnostic only after its new
+        # outputs commit. A failed/cancelled transaction keeps the old set.
+        if obsolete_confidence_report is not None:
+            try:
+                obsolete_confidence_report.unlink(missing_ok=True)
+            except OSError:
+                message = "Önceki düşük güven raporu kaldırılamadı; güncel çıktı dosyası listesini esas alın."
+                log(message, "warn")
+                warn_list.append(message)
 
         log("Performans: {} / {} / {} — {} ses, {} islem, {}x gercek zaman, "
             "{} segment{}".format(

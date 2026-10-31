@@ -7015,10 +7015,11 @@ function pageTranslationCompletion(session) {
   const translated = [...ids].filter((id) => !excludedIds.has(id) && session.translations.has(id)).length;
   const failed = [...ids].filter((id) => !session.translations.has(id)
     && !excludedIds.has(id) && session.failures.has(id)).length;
-  const pending = Math.max(0, ids.size - translated - failed - excluded);
+  const unsupported = Math.max(0, Math.min(1500, Number(session?.unsupportedBlocks) || 0));
+  const pending = Math.max(0, ids.size - translated - failed - excluded) + unsupported;
   const budgetReached = !!(session?.budgetReached || session?.deferredBlockIds?.size);
   return {
-    total: ids.size,
+    total: ids.size + unsupported,
     translated,
     failed,
     excluded,
@@ -7584,6 +7585,7 @@ async function startBrowserPageTranslation(tab, options = {}) {
     return { ok: false, error: 'Sayfa çevirisi başlatılırken sekme durumu değişti.' };
   }
   tab.pageTranslateStats = payload.stats || null;
+  session.unsupportedBlocks = Math.max(0, Math.min(1500, Number(payload.oversizedBlocks) || 0));
   if (payload.warning) sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'warning', message: payload.warning });
   const blocks = normalizePageBlocks(payload.blocks);
   session.restoredTranslations ||= new Map();
@@ -7593,7 +7595,7 @@ async function startBrowserPageTranslation(tab, options = {}) {
     if (block && translation) session.restoredTranslations.set(block.id, translation);
   }
   if (!blocks.length) {
-    const error = options.incremental ? '' : payload.selectionEmpty
+    const error = payload.oversizedBlocks > 0 ? payload.warning : options.incremental ? '' : payload.selectionEmpty
       ? 'Seçili metin bulunamadı. Önce sayfada çevrilecek metni seçin.'
       : 'Bu görünür alanda çevrilebilir metin bloğu bulunamadı.';
     if (error) sendBrowserEvent(tab, { type: 'page-translate-error', state: 'error', message: error });
@@ -7621,10 +7623,13 @@ const MAX_PENDING_DYNAMIC_BLOCKS = 3000;
 function acceptDynamicBrowserPageBlocks(tab, payload) {
   const session = tab?.pageTranslateSession;
   if (!session || session.generation !== tab.generation || !payload || payload.bridgeToken !== tab.bridgeToken) return;
+  const previousUnsupportedBlocks = session.unsupportedBlocks || 0;
   // SPA aynı blok kökünü yeni metinle yeniden taradığında eski blok kimliği
   // DOM'dan düşer; completion sayımında hayalet 'bekliyor' olarak kalmasın.
   pruneReplacedBrowserPageBlocks(session, payload.replacedIds);
   tab.pageTranslateStats = payload.stats || tab.pageTranslateStats;
+  session.unsupportedBlocks = Math.max(0, Math.min(1500, Number(payload.oversizedBlocks) || 0));
+  if (payload.warning) sendBrowserEvent(tab, { type: 'page-translate-progress', state: 'warning', message: payload.warning });
   const completion = pageTranslationCompletion(session);
   tab.pageTranslateCompletion = completion;
   sendBrowserEvent(tab, { type: 'page-translate-progress', state: tab.pageTranslateJob ? 'running' : 'ready',
@@ -7635,6 +7640,9 @@ function acceptDynamicBrowserPageBlocks(tab, payload) {
     sections: pageTranslationSectionProgress(session),
     terminology: browserPageTerminologySuggestions(session),
     paused: !!tab.pageTranslatePaused, pauseReason: tab.pageTranslatePauseReason });
+  if (previousUnsupportedBlocks !== session.unsupportedBlocks || payload.replacedIds?.length) {
+    persistBrowserPageTranslationArchive(tab, session);
+  }
   if (session.autoContinue === false) return;
   const blocks = normalizePageBlocks(payload.blocks);
   if (!blocks.length) return;
@@ -9430,7 +9438,7 @@ function startBrowserTranslation(tab, rawCues, options = {}) {
     noteBrowserDiagnosticActivity(tab, 'lastError', configProblem);
     return { ok: false, error: configProblem, code: 'BROWSER_TRANSLATION_CONFIG' };
   }
-  try { config.seriesContext = browserExtras?.translationContext(tab) || null; }
+  try { config.seriesContext = browserExtras?.translationContext(tab, config.targetLanguage) || null; }
   catch (error) {
     config.seriesContext = null;
     noteBrowserDiagnosticActivity(tab, 'lastError', `Dizi çeviri bağlamı okunamadı; bağlamsız devam edildi: ${error.message}`);
@@ -17077,7 +17085,7 @@ ipcMain.handle('browser:manga:toggle', async (event, request) => {
 
 ipcMain.handle('browser:manga:clear', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  const tab = activeRequestedBrowserTab(request && request.tabId);
+  const tab = browserTabById(request && request.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   await stopBrowserManga(tab, true);
   // retryable alanı açıkça 0 gönderilmezse renderer önceki koşunun sayısını
@@ -17426,7 +17434,7 @@ ipcMain.handle('browser:page:history', async (event, request = {}) => {
 
 ipcMain.handle('browser:page:clear', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  const tab = activeRequestedBrowserTab(request?.tabId);
+  const tab = browserTabById(request?.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   tab.pageStartEpoch=(Number(tab.pageStartEpoch)||0)+1;
   await stopBrowserPageTranslation(tab, true);
@@ -17804,7 +17812,7 @@ ipcMain.handle('browser:translation:snapshot', (event, request) => {
 
 ipcMain.handle('browser:translation:stop', async (event, request) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  const tab = activeRequestedBrowserTab(request && request.tabId);
+  const tab = browserTabById(request && request.tabId);
   if (!tab) return { ok: false, error: 'Eski sekme isteği reddedildi.' };
   tab.translationScheduler?.cancelAll('Kullanıcı durdurdu.');
   assistantJobs.update(tab.assistantCaptionJob,{type:'cancelled'});
@@ -20546,6 +20554,7 @@ ipcMain.handle('media:seekPreview', async (_event, request = {}) => {
 function shiftTimecodes(text, offsetSec) {
   const newline = String(text).includes('\r\n') ? '\r\n' : '\n';
   const lines = String(text).split(/\r?\n/);
+  const webVtt = /^\s*WEBVTT(?:\s|$)/i.test(String(text));
   const removed = new Set();
   const parse = (raw) => {
     const m = String(raw).match(/^(?:(\d+):)?(\d{1,3}):(\d{2})([,.])(\d{1,3})$/);
@@ -20586,6 +20595,23 @@ function shiftTimecodes(text, offsetSec) {
     const safeStart = Math.max(0, shiftedStart);
     const safeEnd = Math.max(safeStart + 0.001, shiftedEnd);
     lines[index] = `${match[1]}${format(safeStart, start)}${match[3]}${format(safeEnd, end)}${match[5]}`;
+    if (webVtt) {
+      const lower = Math.round(safeStart * 1000), upper = Math.round(safeEnd * 1000);
+      let previous = lower;
+      for (let body = index + 1; body < lines.length && lines[body].trim(); body++) {
+        if (/^\s*\S+\s*-->\s*\S+/.test(lines[body])) break;
+        lines[body] = lines[body].replace(/<((?:\d{2,}:)?[0-5]\d:[0-5]\d\.\d{3})>/g, (_tag, raw) => {
+          const timestamp = parse(raw);
+          const shifted = timestamp.seconds + offsetSec;
+          const milliseconds = Math.round(shifted * 1000);
+          // Clipping may place an activation at/before the new cue start.
+          // Remove only that control tag; its following speech stays intact.
+          if (milliseconds <= previous || milliseconds >= upper) return '';
+          previous = milliseconds;
+          return `<${format(shifted, timestamp)}>`;
+        });
+      }
+    }
   }
   return lines.filter((_line, index) => !removed.has(index)).join(newline);
 }
@@ -21995,6 +22021,7 @@ ipcMain.handle('transcribe:cancel', async (event) => {
 browserExtras = require('./browser-feature-services').registerBrowserFeatureServices({
   app, ipcMain, dialog, BrowserWindow,
   owner: () => mainWindow, getTab: browserTabById, activeTab: activeBrowserTab,
+  translationTargetLanguage: () => browserTranslationConfig({}).targetLanguage,
   context: browserEventContext, authorized: authorizedBrowserSender,
   frames: browserFrames, probeScript: buildBrowserMediaProbeScript,
   rankCandidates: rankBrowserMediaCandidates, commandScript: buildBrowserMediaCommandScript,

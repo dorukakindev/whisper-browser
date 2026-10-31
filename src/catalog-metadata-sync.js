@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {createHash} = require('node:crypto');
 const {atomicWriteFileSync} = require('./fsync-utils');
+const { metadataComplete } = require('./catalog-metadata-completeness');
 // One bounded worker. The renderer can leave Settings without canceling the job.
 function createMetadataSync({store, settings, userData, complete, now = Date.now}) {
   let controller = null, revision = '', attempts = null;
@@ -16,7 +17,7 @@ function createMetadataSync({store, settings, userData, complete, now = Date.now
     return attempts;
   }
   function persist() { try { atomicWriteFileSync(file(),JSON.stringify(Object.fromEntries(Object.entries(cache()).slice(-10000)))); } catch {} }
-  const missing = item => (!item.posterPath || !fs.existsSync(item.posterPath)) || !item.synopsis || !item.directors?.length || !item.runtime;
+  const missing = item => !metadataComplete(item);
   function snapshot() { return {...state,configured:!!settings().apiKey}; }
   function cancel() { if(controller){state.stopped=true;controller.abort();}return snapshot(); }
   function start({retry=false}={}) {

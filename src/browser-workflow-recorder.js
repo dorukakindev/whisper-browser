@@ -29,6 +29,7 @@
   }
 
   function normalizeStep(raw = {}) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
     const command = clean(raw.command, 64);
     if (!STEP_COMMANDS.has(command)) return null;
     const input = raw.args && typeof raw.args === 'object' && !Array.isArray(raw.args) ? raw.args : {};
@@ -74,6 +75,7 @@
   }
 
   function normalizeWorkflow(raw = {}) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
     const steps = (Array.isArray(raw.steps) ? raw.steps : [])
       .slice(0, MAX_WORKFLOW_STEPS).map(normalizeStep).filter(Boolean);
     if (!steps.length) return null;
