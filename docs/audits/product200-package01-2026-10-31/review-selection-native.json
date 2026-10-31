@@ -1,0 +1,133 @@
+{
+  "ok": true,
+  "fixture": "Synthetic HTML + controlled source bridge + controlled analysis; production main/preload/parser/preview/save/history UI. No model request or live website.",
+  "fixtureReads": 1,
+  "captures": [
+    {
+      "file": "D:\\Whisper Local\\tmp\\assistant618\\.uiprev\\product200-reviews\\1793437337262-23804\\tr-1440-dark-inclusion.png",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "dialog": [
+        200,
+        30,
+        1040,
+        940
+      ],
+      "horizontalOverflow": false,
+      "overflow": [],
+      "targetVisible": true,
+      "auditBeforeList": true,
+      "actionGap": 10
+    },
+    {
+      "file": "D:\\Whisper Local\\tmp\\assistant618\\.uiprev\\product200-reviews\\1793437337262-23804\\tr-1440-dark-metadata.png",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "dialog": [
+        200,
+        30,
+        1040,
+        940
+      ],
+      "horizontalOverflow": false,
+      "overflow": [],
+      "targetVisible": true,
+      "auditBeforeList": true,
+      "actionGap": 10
+    },
+    {
+      "file": "D:\\Whisper Local\\tmp\\assistant618\\.uiprev\\product200-reviews\\1793437337262-23804\\tr-1440-dark-selected.png",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "dialog": [
+        200,
+        30,
+        1040,
+        940
+      ],
+      "horizontalOverflow": false,
+      "overflow": [],
+      "targetVisible": true,
+      "auditBeforeList": true,
+      "actionGap": 10
+    },
+    {
+      "file": "D:\\Whisper Local\\tmp\\assistant618\\.uiprev\\product200-reviews\\1793437337262-23804\\en-760-light-inclusion.png",
+      "viewport": [
+        760,
+        900
+      ],
+      "dialog": [
+        17,
+        12,
+        726,
+        876
+      ],
+      "horizontalOverflow": false,
+      "overflow": [],
+      "targetVisible": true,
+      "auditBeforeList": true,
+      "actionGap": 10
+    },
+    {
+      "file": "D:\\Whisper Local\\tmp\\assistant618\\.uiprev\\product200-reviews\\1793437337262-23804\\en-760-light-metadata.png",
+      "viewport": [
+        760,
+        900
+      ],
+      "dialog": [
+        17,
+        12,
+        726,
+        876
+      ],
+      "horizontalOverflow": false,
+      "overflow": [],
+      "targetVisible": true,
+      "auditBeforeList": true,
+      "actionGap": 10
+    },
+    {
+      "file": "D:\\Whisper Local\\tmp\\assistant618\\.uiprev\\product200-reviews\\1793437337262-23804\\en-760-light-selected.png",
+      "viewport": [
+        760,
+        900
+      ],
+      "dialog": [
+        17,
+        12,
+        726,
+        876
+      ],
+      "horizontalOverflow": false,
+      "overflow": [],
+      "targetVisible": true,
+      "auditBeforeList": true,
+      "actionGap": 10
+    },
+    {
+      "file": "D:\\Whisper Local\\tmp\\assistant618\\.uiprev\\product200-reviews\\1793437337262-23804\\en-760-light-saved-evidence.png",
+      "viewport": [
+        760,
+        900
+      ],
+      "dialog": [
+        17,
+        12,
+        726,
+        876
+      ],
+      "horizontalOverflow": false,
+      "overflow": [],
+      "targetVisible": true,
+      "auditBeforeList": true,
+      "actionGap": null
+    }
+  ]
+}

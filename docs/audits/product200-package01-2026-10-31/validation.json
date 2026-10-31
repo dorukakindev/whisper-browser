@@ -1,0 +1,214 @@
+{
+  "exit": 0,
+  "sourceFilesHashed": 1613,
+  "sourceStable": true,
+  "changedDuringRun": [],
+  "nodeFiles": 720,
+  "pythonFiles": 171,
+  "syntaxChecks": [
+    {
+      "file": "src/assistant-agent-service.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/assistant-capabilities.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/assistant-context-manifest.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/assistant-overlay.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/browser-transcript-search.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/letterboxd-auto.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/letterboxd-reviews.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/media-tools-service.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/assistant-app-actions.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/assistant-overlay.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/assistant-workspace.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/global-assistant.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/media-tools-model.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/review-decision-ui.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/assistant-conversation.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/assistant-overlay.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/attr-sink-ratchet.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/electron-assistant-agent.smoke.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/letterboxd-auto.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/letterboxd-reviews.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/review-workflow.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tools/voxcpm2/dub_finish.py",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/assistant-source-preview.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/assistant-dynamic-retrieval200.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/assistant-source-coverage200.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/assistant-source-preview200.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/assistant-transcript-retrieval200.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/assistant-workspace-ownership200.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/electron-assistant-source200.smoke.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/electron-product200-reviews.smoke.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/test_dub_numeric_reading200.py",
+      "exit": 0,
+      "error": ""
+    }
+  ],
+  "productHashes": {
+    "src/assistant-agent-service.js": "f503a8a3b37ca2801d27498d6ca64eeed2efbe7a4a514d1337bdc997d32e3af1",
+    "src/assistant-capabilities.js": "dfba7b274a279f982694e5004f195c6954446d8a9ae2cdcdc9c90aa2233a90ee",
+    "src/assistant-context-manifest.js": "b65c893fc3bb5187d15d71a124373cfb0e53a3259087846088d467767457cb9f",
+    "src/assistant-overlay.js": "d3dfae4b093e23abc0a8083f8096c76c2e86d364087003445fe95f345ac8f3a8",
+    "src/browser-transcript-search.js": "4f5da7a0b60fc641273a9ea872f288e1a99633f1b96422f23e58a5334f99da0c",
+    "src/letterboxd-auto.js": "7a85ff55acf513591db0ff823960b8bfe33db8051e9d4fffe7fcdae1f490c31f",
+    "src/letterboxd-reviews.js": "bb44835427eb453c198e07fc9e6de59d72d36c3074e622362bc420decf64607d",
+    "src/media-tools-service.js": "f88ee6832b003d983e92090ba6192d987048fba3af29733d2624f7a82c7bcaf5",
+    "src/renderer/assistant-app-actions.js": "e92fdf7e2c39b56800988c5e9e2d5bd0a2e79eb9fc0c748d537284c0a764b6d9",
+    "src/renderer/assistant-overlay.css": "44f7ef52f2dfeb8308bb6f5891ccecf9f4322b72a65a0d549140ac839ec7aba9",
+    "src/renderer/assistant-overlay.html": "4868ff79b75de7c4f638b109984c248fe7c306224ffc74049996f98d4aaf9fde",
+    "src/renderer/assistant-overlay.js": "57ef7e2bad92430852ca93117fdd0f2bf79827cc900edb75efbdbce2eb670d0e",
+    "src/renderer/assistant-workspace.js": "42c21002506e692728654314c76bf7aefc01893a5e777c0296900d6694f5241e",
+    "src/renderer/global-assistant.js": "6e75b24680abb94bcc4ca328f37a1c4261ba83f4fad6502b901d28d466617b12",
+    "src/renderer/index.html": "412959b652591d9dbe2b007647ffb6d6ce3a675a885c75dba7923100488da75f",
+    "src/renderer/media-tools-model.js": "5284779fe13c4fde5bf325a24cf5d82951f45f0eea381b17fa7549b82534ac56",
+    "src/renderer/media-tools.css": "5d580464b9e09b43967731e38fb3059400c96c5b44d7d855b164fb991b6534ab",
+    "src/renderer/review-decision-ui.js": "655d96b6e49599a4ff945293106aa35bdf0d7f01d1961be587bf8783f2f5695f",
+    "tests/assistant-conversation.test.js": "c1d00ec12217d0fad1f2dda2359446d15c5c33d660fae6c53f7ae4eb0b80e6e7",
+    "tests/assistant-overlay.test.js": "8bd1b2e111721c2a3632881d87be218097f3d8358c792dbd9bd51b1975a95fa5",
+    "tests/attr-sink-ratchet.test.js": "6429240a79690d975e7b26229f4ce0e4922494e4c41d5d2e162d47a618a71713",
+    "tests/electron-assistant-agent.smoke.js": "ab5208fbc244a3f04866a3d4a162222241df4c84cc05336d5c397f7edc957e7c",
+    "tests/letterboxd-auto.test.js": "9a9f6fdc02faa16ee87f00084dcbc753b9e9e1da3e0a485356c26fb6b3161910",
+    "tests/letterboxd-reviews.test.js": "ec41f425db1bf42c49f72f813094a9a5aac35c3503698272d7e74183955cc94d",
+    "tests/review-workflow.test.js": "c7bde37c5585bf7fbdf2e426ef810aec66c8b540a512812412cdb8b6efdf0bdd",
+    "tools/voxcpm2/dub_finish.py": "0eb294829c5b0c5b8d03ba184269995c69d64c0414fdf275fc5848ace0704505",
+    "src/assistant-source-preview.js": "1a645b48c11b5d67ab6fb3ffd2d5b711fc56fce1eb82fd19538a3ed10a083294",
+    "tests/assistant-dynamic-retrieval200.test.js": "8dae2e6ed45d2d2917d5a60c7055e099af68d7c22e49f24849742adcb1c6a3e5",
+    "tests/assistant-source-coverage200.test.js": "ba4c4bba6cbc07569d09f8055b43f2b276aec07eed400a436531b8ffc30a3b01",
+    "tests/assistant-source-preview200.test.js": "3d4feda08bfaa61857aedabba12ee656efdbe8d36a00fc1241a5be5bc1b43494",
+    "tests/assistant-transcript-retrieval200.test.js": "348f8ec6395b2e31b07e1f197878650d1e49b56422ad554a60475d1c8a6ba93d",
+    "tests/assistant-workspace-ownership200.test.js": "356d647eba065bd49df308c227afe9661a4cadca8cfc8cb86c9f2e4da0cda5a8",
+    "tests/electron-assistant-source200.smoke.js": "993b5c3f15779c8c6f8d71e8df76f04ca94a8514a1b01dc217da5801860a88c3",
+    "tests/electron-product200-reviews.smoke.js": "f51358e4199afe4faa115ef2952f29ec3b2be9c87d1254c84e1d9e0584e9c228",
+    "tests/test_dub_numeric_reading200.py": "1c9a0dda0696448532c24c5bebdc54ce65b6acf7bfaae14ba0ab30ecc64dda49"
+  },
+  "initialRun": {
+    "exit": 1,
+    "failures": [
+      "assistant-conversation harness dependency",
+      "new reviewed HTTPS link inventory",
+      "unnecessary test wall-clock dependency"
+    ],
+    "thresholdsRelaxed": false
+  },
+  "liveProvider": false,
+  "gpu": false,
+  "humanListening": false
+}

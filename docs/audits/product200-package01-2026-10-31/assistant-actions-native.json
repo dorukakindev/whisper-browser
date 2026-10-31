@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "out": "D:\\Whisper Local\\tmp\\assistant618\\.uiprev\\assistant-agent\\1793438088851-33352",
+  "requests": 5,
+  "compact": {
+    "width": 480,
+    "scroll": 480,
+    "header": 5,
+    "send": 592,
+    "height": 616,
+    "theme": "light"
+  },
+  "provider": "controlled local HTTP/SSE; no live model",
+  "nativeWindows": true
+}

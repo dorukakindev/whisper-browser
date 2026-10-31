@@ -1,0 +1,21 @@
+---
+description: User-authorized DeepInfra test model and service-tier preference
+alwaysApply: true
+---
+
+# Live model tests
+
+- On 2026-10-31 the user authorized using DeepInfra
+  `deepseek-ai/DeepSeek-V4.1-Flash-1017` freely for useful project tests.
+- Use standard requests normally. Use Flex for unusually large, high-volume
+  batch evaluations; record the actual tier and returned usage in test evidence.
+- Do not seek renewed spending permission for ordinary tests already covered by
+  this authorization. Run meaningful cases, not calls merely to consume tokens.
+- Use existing authorized credential access. Never put keys in source, reports,
+  commits, process arguments, or user-facing output. Do not alter personal
+  provider settings simply to run a test.
+- This authorizes model usage; filesystem access checks and specific approvals
+  for encrypted personal-profile access still apply.
+- Separate live-provider, fixture, GPU, native UI and human-listening evidence.
+- Helper agents use `gpt-6.1-sol` with `medium` reasoning as recorded in
+  `agent-model-preference.mdc`.
