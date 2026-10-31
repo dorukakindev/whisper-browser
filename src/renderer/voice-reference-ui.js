@@ -226,7 +226,7 @@
   el('voiceReferenceCancel').addEventListener('click', async () => {
     const pending = active;
     if (!pending) return; stopping = true; controls(); status('Durduruluyor…');
-    const result = await api.cancelDub().catch(() => null);
+    const result = await api.cancelDub({id:pending}).catch(() => null);
     if (active !== pending) return;
     if (!result?.ok && active) { stopping = false; controls(); status('İptal doğrulanamadı; işlem izlenmeye devam ediyor.'); }
   });

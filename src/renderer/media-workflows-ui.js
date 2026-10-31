@@ -1112,7 +1112,7 @@
             "Durduruluyor… çalışan aracın kapanması bekleniyor.",
           ),
         );
-        if (job) await window.api.cancelDub();
+        if (job) await window.api.cancelDub({id:job});
         else await call("cancel");
     });
     stopButton.dataset.bookStop = "true";
@@ -2468,7 +2468,7 @@
       for (const a of d.querySelectorAll("audio")) a.pause();
       if (busy) {
         stopRequested = true; syncBookStop();
-        if (job) void window.api.cancelDub();
+        if (job) void window.api.cancelDub({id:job});
         else void call("cancel").catch(() => {});
       }
       void closeReader();
