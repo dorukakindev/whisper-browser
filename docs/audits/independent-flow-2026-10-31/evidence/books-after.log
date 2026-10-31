@@ -1,0 +1,21 @@
+✔ changed source WAV during picker cannot publish an M4B under old chapter metadata (98.9374ms)
+✔ changed source WAV during encoding cannot publish an M4B under old chapter metadata (84.7732ms)
+✔ an already registered audiobook remains available after failed replacement manifest commit (108.9753ms)
+✔ cancel during encoding preserves output/reference and permits retry; edited text cannot reuse old review/playback tokens (95.5171ms)
+✔ M4B manifest-save failure rolls back publication (existing=true, afterRename=false) and retry works (98.5473ms)
+✔ M4B manifest-save failure rolls back publication (existing=true, afterRename=true) and retry works (106.9172ms)
+✔ M4B manifest-save failure rolls back publication (existing=false, afterRename=false) and retry works (99.2253ms)
+✔ M4B manifest-save failure rolls back publication (existing=false, afterRename=true) and retry works (100.2738ms)
+✔ portable book export rejects stale text/audio before replacing an existing package; text-only retry preserves edits (103.4891ms)
+✔ PDF narration respects content/view ownership during import and retries current text (279.8567ms)
+✔ PDF narration respects content/view ownership during production and retries current text (126.8127ms)
+✔ PDF narration respects content/view ownership during listen and retries current text (125.5365ms)
+✔ PDF narration respects content/view ownership during closed and retries current text (134.5518ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2039.9468

@@ -8465,18 +8465,6 @@ def transcribe(args):
             except Exception as e:
                 log(f"Düşük güven raporu yazılamadı: {e}", "warn")
 
-        # Başarıyla tamamlandı → checkpoint'i sil (stale kalıp sonraki işi yanıltmasın)
-        if ckpt_path and os.path.exists(ckpt_path):
-            try:
-                os.remove(ckpt_path)
-            except OSError:
-                pass
-        if legacy_ckpt_path and legacy_ckpt_path != ckpt_path and os.path.exists(legacy_ckpt_path):
-            try:
-                os.remove(legacy_ckpt_path)
-            except OSError:
-                pass
-
         # --- PERFORMANS OZETI ---
         # "Hangi model daha iyi?" sorusu ancak olcumle cevaplanir. Her isin
         # sonunda gercek zaman katsayisi (RTF) ve dusuk guvenli segment sayisi
@@ -8488,7 +8476,8 @@ def transcribe(args):
         low_conf = 0
         try:
             low_conf = sum(1 for w in (all_words or [])
-                           if (w.get("probability") or 1.0) < args.confidence_threshold)
+                           if (w.get("probability") if w.get("probability") is not None else 1.0)
+                           < args.confidence_threshold)
         except Exception:
             pass
         perf = {
@@ -8510,6 +8499,14 @@ def transcribe(args):
         # Tum ciktilar hazir: tek seferde yerine koy. Bu noktaya kadar hicbir
         # nihai dosyaya dokunulmadi, yani iptal/cokme yarim kume birakmaz.
         output_tx.commit()
+
+        # Retire ASR recovery only after the complete output set commits.
+        # A final write/replace failure or cancellation must remain resumable.
+        for checkpoint_path in {ckpt_path, legacy_ckpt_path} - {None}:
+            try:
+                os.remove(checkpoint_path)
+            except OSError:
+                pass
 
         # A clean rerun supersedes the old diagnostic only after its new
         # outputs commit. A failed/cancelled transaction keeps the old set.

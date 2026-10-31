@@ -1,0 +1,2 @@
+AssertionError [ERR_ASSERTION]: {"flow":"concurrent-full-page-capture","outcomes":[{"status":"fulfilled","empty":false},{"status":"rejected","error":"target closed while handling command"}]}
+    at D:\Whisper Local\tmp\assistant618\tests\independent-browser-flow.smoke.cjs:53:3

@@ -1,0 +1,154 @@
+[
+  {
+    "file": "evidence/backend-asr-before.log",
+    "sha256": "8d1d1310c08919cb7f29e2aaa150030e8c8750455ca923e299558b0edaa138e4",
+    "bytes": 2127,
+    "originalRawSha256": "5c9cf5e462497abaae9230b743f20f4ef48e01298acbdc0168d871a8c7ae3995",
+    "originalRawBytes": 2154,
+    "canonicalization": "UTF-8, LF, trailing whitespace stripped; original raw local log digest retained"
+  },
+  {
+    "file": "evidence/backend-dub-before.log",
+    "sha256": "a30e4b0c251ae86e3500e854983acbeb5a102e964c50cc4c1a681a1d56c5dcaf",
+    "bytes": 3700,
+    "originalRawSha256": "4324c65bd340dbaa66a1ec5b049029cb377a7654375b1236bfe3d6be2e49a180",
+    "originalRawBytes": 3748,
+    "canonicalization": "UTF-8, LF, trailing whitespace stripped; original raw local log digest retained"
+  },
+  {
+    "file": "evidence/backend-focused-after.log",
+    "sha256": "1626bf47f5ae7af596b642396a6f54e8b6b61f72d236a859fb06b34d998c81d1",
+    "bytes": 4037,
+    "originalRawSha256": "794791dd1288dc5c60d9764507ba419f6ff5855729e7971eb3d2a494110fa39b",
+    "originalRawBytes": 4072,
+    "canonicalization": "UTF-8, LF, trailing whitespace stripped; original raw local log digest retained"
+  },
+  {
+    "file": "evidence/books-before.log",
+    "sha256": "f076adcfb9bbfad7cbb91eea869683e8d32181b0310f16edc51e84ed8636b5ab",
+    "bytes": 4039,
+    "originalRawSha256": "cd557570615499792446dcd5bb943d4e4eab10f8584e44486f959d3a05f8b669",
+    "originalRawBytes": 4154,
+    "canonicalization": "UTF-8, LF, trailing whitespace stripped; original raw local log digest retained"
+  },
+  {
+    "file": "evidence/books-listen-before.log",
+    "sha256": "375a12018466f3c3dd5e0ffd9029488d90e6d4c793afa8297d86127f5df37226",
+    "bytes": 880,
+    "originalRawSha256": "cefe4417f2611df3ab88fdc560ae0b8d91a18adf7b7e78f9df985807870cb0c1",
+    "originalRawBytes": 912,
+    "canonicalization": "UTF-8, LF, trailing whitespace stripped; original raw local log digest retained"
+  },
+  {
+    "file": "evidence/books-wav-source-before.log",
+    "sha256": "34c188b86dad0f0f551422d74d80e5af233e81767a9c1efd8a276c4165bd6163",
+    "bytes": 1631,
+    "originalRawSha256": "82af77db7bc1bf548a19ba63b1b2250cdef57899ae940c949e0109fb77bb0dd2",
+    "originalRawBytes": 1685,
+    "canonicalization": "UTF-8, LF, trailing whitespace stripped; original raw local log digest retained"
+  },
+  {
+    "file": "evidence/books-after.log",
+    "sha256": "ef93cc8845ca8f0e0bee467fe3995e19b5cfcf3508e8a436f34144aca821e3ae",
+    "bytes": 1570,
+    "originalRawSha256": "82f8329ce824b3cdd798c7e6a45b3a95da913e0972793a9113da10ec78caa1be",
+    "originalRawBytes": 1591,
+    "canonicalization": "UTF-8, LF, trailing whitespace stripped; original raw local log digest retained"
+  },
+  {
+    "file": "evidence/books-targeted.log",
+    "sha256": "e089f6eee12a8a1950b16973c8aecc16776a5eca7b9773e6dcaa3dee8938376d",
+    "bytes": 5612,
+    "originalRawSha256": "c2668e48af565d4f0c28edb40a0c94c66a035b70daec8a0d0daaf92a991cf2f4",
+    "originalRawBytes": 5672,
+    "canonicalization": "UTF-8, LF, trailing whitespace stripped; original raw local log digest retained"
+  },
+  {
+    "file": "evidence/dub-rate-before.log",
+    "sha256": "80bd11327ac1b0e118931fa8e13979b72d026e74fe464bee1816596789c1535f",
+    "bytes": 4127,
+    "originalRawSha256": "6173271dd26ba216dc2dc08458af084503c9dda193ea80c72ad9c32fc1dbcdc5",
+    "originalRawBytes": 4254,
+    "canonicalization": "UTF-8, LF, trailing whitespace stripped; original raw local log digest retained"
+  },
+  {
+    "file": "evidence/dub-rate-after.log",
+    "sha256": "897ee7bcaacb5825406c20ff7f92d67f49465793194649be9cceadb4420cc1c4",
+    "bytes": 1235,
+    "originalRawSha256": "c8bd579e25b29aac403852f1bee71d61fd328a5c8e0ee24ae09fb7fd0b067c94",
+    "originalRawBytes": 1256,
+    "canonicalization": "UTF-8, LF, trailing whitespace stripped; original raw local log digest retained"
+  },
+  {
+    "file": "evidence/native-assistant-before.log",
+    "sha256": "78ca21619c907ccb928ef9c3ff378b5f0ba7ff8ad8d4685cd98cdd727a15f847",
+    "bytes": 3069,
+    "originalRawSha256": "7625603ea5141bcd7220d601ab310b4a62c5e09c3d4fbf15c2b41553590bd4d8",
+    "originalRawBytes": 3146,
+    "canonicalization": "UTF-8, LF, trailing whitespace stripped; original raw local log digest retained"
+  },
+  {
+    "file": "evidence/preferences-before.log",
+    "sha256": "468bc4ba3ff9e77919d05a6c904f67c813b3b64b93e2a6c9ac80a8688fb87f59",
+    "bytes": 1874,
+    "originalRawSha256": "28cd6f3ea97eea62bee5d6244fd0258cc72a9148e51658da031dc0cd0bebfe1b",
+    "originalRawBytes": 1934,
+    "canonicalization": "UTF-8, LF, trailing whitespace stripped; original raw local log digest retained"
+  },
+  {
+    "file": "evidence/preferences-after.log",
+    "sha256": "44333a4a9aa8495079b2f3bed07c83189b22e653253fd75d268447cda386c668",
+    "bytes": 881,
+    "originalRawSha256": "59fb3ebc0096c4684f400906230490e849b0911fddb8a61e997583e77dcf00a5",
+    "originalRawBytes": 897,
+    "canonicalization": "UTF-8, LF, trailing whitespace stripped; original raw local log digest retained"
+  },
+  {
+    "file": "evidence/assistant-focused.log",
+    "sha256": "0ad2b57cade76e9ab1de9ddf4cb80649cdec6a1efa3f0589c90ebf439afd8465",
+    "bytes": 7236,
+    "originalRawSha256": "a554cff310de0f77d4646ca6812b91dff0a5f3947aeecc513488ce2974f9f804",
+    "originalRawBytes": 7315,
+    "canonicalization": "UTF-8, LF, trailing whitespace stripped; original raw local log digest retained"
+  },
+  {
+    "file": "evidence/browser-pre.log",
+    "sha256": "1b31c56980445541bbb71d278cf0e36120a522db764569873795f2331d79305c",
+    "bytes": 2439,
+    "originalRawSha256": "958ae2cdc3e98974beee0536b98a30d8672c7405fac1598a436020c501e2dc2c",
+    "originalRawBytes": 2515,
+    "canonicalization": "UTF-8, LF, trailing whitespace stripped; original raw local log digest retained"
+  },
+  {
+    "file": "evidence/browser-command-pre.log",
+    "sha256": "18fa418c64faaeea6df517b70dc8fabe7e4ea6089b7c77b563e23a3ec8139a05",
+    "bytes": 1214,
+    "originalRawSha256": "1140bdb4b4564e455c0f89e50bac97b98f19d9a3424d2beeca93afb22d16a19e",
+    "originalRawBytes": 1251,
+    "canonicalization": "UTF-8, LF, trailing whitespace stripped; original raw local log digest retained"
+  },
+  {
+    "file": "evidence/browser-timeout-pre.log",
+    "sha256": "ebbf2c6b04662f270ea55cf64eab0b02c6f98b1c3704b54038b94505c52ed056",
+    "bytes": 1512,
+    "originalRawSha256": "c7330d2289b41891dc24b66602d815a3a2ff488856d0c6231a5a1ace5e4553d1",
+    "originalRawBytes": 1550,
+    "canonicalization": "UTF-8, LF, trailing whitespace stripped; original raw local log digest retained"
+  },
+  {
+    "file": "evidence/browser-capture-native-pre.log",
+    "sha256": "45cb547c4d8062de8199be5989a285411a61b27d612c5bb02df7e591821cbc00",
+    "bytes": 278,
+    "originalRawSha256": "45cb547c4d8062de8199be5989a285411a61b27d612c5bb02df7e591821cbc00",
+    "originalRawBytes": 278,
+    "canonicalization": "UTF-8, LF, trailing whitespace stripped; original raw local log digest retained"
+  },
+  {
+    "file": "evidence/browser-preferences-pre.log",
+    "sha256": "a59f83824fd5e622f217fb11e74ed72b956356c84c2cd9647b68cd4e076cf666",
+    "bytes": 1561,
+    "originalRawSha256": "4b888cc24c82dc89744bb53b0aa22403681a3179462bc00572c335ff5f608b54",
+    "originalRawBytes": 1600,
+    "canonicalization": "UTF-8, LF, trailing whitespace stripped; original raw local log digest retained"
+  }
+]

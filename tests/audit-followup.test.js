@@ -97,23 +97,36 @@ test('oturum sınırı aktif sekmeyi korur; bozuk şema yedeği, boş oturum ken
 });
 test('yer imleri ve modal birlikte görünürken birini kapatmak webi açmaz', () => {
   const source = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
-  const start = source.indexOf('function syncBrowserOcclusion()');
   let placesOpen = false;
-  const calls = [];
+  let nativeDialogOpen = false;
+  const calls = [], assistantCalls = [];
   const context = { _activeModal: null,
-    document: { querySelector: () => null },
+    browserOcclusionApplied: false, browserOcclusionSeq: 0,
+    document: { querySelector: () => nativeDialogOpen ? {} : null },
     $: (id) => ({ classList: { contains: (name) => id === 'playerLayer'
       ? name !== 'narrow-panel-takeover' && !placesOpen
       : !placesOpen } }),
-    window: { api: { setBrowserOccluded: (value) => { calls.push(value); return Promise.resolve(); } } } };
+    window: { api: { setBrowserOccluded: (value) => { calls.push(value); return Promise.resolve(); },
+      setAssistantModalBlocked: value => assistantCalls.push(value) } } };
   vm.createContext(context);
-  vm.runInContext(source.slice(start, source.indexOf('function openManagedModal(', start)), context);
+  // Load only the functions this fixture exercises. Adjacent startup listeners
+  // have their own lifecycle and must not run against this small document stub.
+  const functions = ['syncBrowserOcclusion', 'clearBrowserFreezeFrame', 'applyBrowserOcclusion'].map(name => {
+    const start = source.search(new RegExp(`^(?:async )?function ${name}\\(`, 'm'));
+    const end = source.indexOf('\n}', start);
+    assert(start >= 0 && end > start, `${name} fixture boundary missing`);
+    return source.slice(start, end + 2);
+  });
+  vm.runInContext(functions.join('\n'), context);
   context.syncBrowserOcclusion();
   placesOpen = true; context.syncBrowserOcclusion();
   context._activeModal = {}; context.syncBrowserOcclusion();
   placesOpen = false; context.syncBrowserOcclusion();
   context._activeModal = null; context.syncBrowserOcclusion();
-  assert.deepEqual(calls, [false, true, true, true, false]);
+  nativeDialogOpen = true; context.syncBrowserOcclusion();
+  nativeDialogOpen = false; context.syncBrowserOcclusion();
+  assert.deepEqual(calls, [false, true, true, true, false, true, false]);
+  assert.deepEqual(assistantCalls, [false, false, true, true, false, true, false]);
 });
 test('bozuk oturum üzerine yazma sağlam yedeği bozmaz', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-session-regression-'));

@@ -282,6 +282,12 @@ class OutputTransaction:
             self._persist()
             raise
 
+    def stage_delete(self, final_path):
+        """Remove an obsolete member only when the entire output set commits."""
+        self.stage(final_path, lambda staged: staged.touch())
+        self.entries[-1]['delete'] = True
+        self._persist()
+
     def commit(self) -> None:
         if self.closed:
             return
@@ -295,7 +301,10 @@ class OutputTransaction:
                     shutil.copy2(final, backup)
             for entry in self.entries:
                 self.checkpoint("write", "during")
-                self._replace(entry["staged"], entry["final"])
+                if entry.get('delete'):
+                    Path(entry['final']).unlink(missing_ok=True)
+                else:
+                    self._replace(entry["staged"], entry["final"])
             self.checkpoint("write", "after")
             # Son iptal sınırı committed journal'dan ÖNCE gelir. Bu noktaya kadar
             # crash/cancel olursa hem Python hem supervisor eski çıktıyı geri alır.

@@ -1,0 +1,48 @@
+{
+  "initialFullSuite": {
+    "exit": 1,
+    "sourceFilesHashed": 1587,
+    "sourceStable": true,
+    "changedDuringRun": [],
+    "runner": "node tests/run-all.js",
+    "nodeFiles": 710,
+    "pythonFiles": 166,
+    "logSha256": "425a86a1182a16071523387c4cae57bae95da7e1417ba3392e26cafd5bb7ca6b",
+    "failedFiles": [
+      "node tests/audit-followup.test.js",
+      "node tests/persistent-schema-inventory.test.js",
+      "node tests/review-triage-r318.test.js"
+    ]
+  },
+  "finalFullSuite": {
+    "exit": 0,
+    "sourceFilesHashed": 1587,
+    "sourceStable": true,
+    "changedDuringRun": [],
+    "runner": "node tests/run-all.js",
+    "nodeFiles": 710,
+    "pythonFiles": 166,
+    "logSha256": "79fc34d8b1eb65c81517cabf4fb5021e23d4b196424bfbbbabf4190690b117f4",
+    "failedFiles": []
+  },
+  "syntax": {
+    "checked": 27,
+    "failed": 0
+  },
+  "newFocusedCases": {
+    "node": 36,
+    "python": 12,
+    "note": "Not a count of bug roots. Includes generated cases in table loops."
+  },
+  "native": "native-matrix.json",
+  "actualGpu": "gpu-summary.json",
+  "integrationRepairs": [
+    "audit-followup fixture isolates functions; existing HEAD failure reproduced",
+    "PDF cancel static one-arg regex replaced by operation-owned click handler assertions; existing HEAD failure reproduced",
+    "persistent schema inventory matches existing v5 source and v4 migration test"
+  ],
+  "sourceModifiedDuringFinalFullSuite": false,
+  "ciWaited": false,
+  "limits": "Some optional E2E tests have their own opt-in/environment gates; full local runner success is not a claim of all native/GPU/provider E2E execution.",
+  "productCommit": "501452ecc31f1f71023725d6692cfbeb1a823cf6"
+}

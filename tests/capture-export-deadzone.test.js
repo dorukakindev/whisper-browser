@@ -49,6 +49,7 @@ function makeCtx(over = {}) {
     browserDebuggerAttachPromise: null,
     browserDebuggerReady: false,
     browserDebuggerAttachAttempts: new WeakMap(),
+    browserFullPageCaptureOwners: new WeakMap(),
     nativeImage: { createFromBuffer: (b) => ({ empty: !b.length, isEmpty: () => !b.length, toPNG: () => b, __buf: b }) },
     browserFrames: () => ctx.__frames || [],
     buildBrowserMediaProbeScript: () => 'probe()',

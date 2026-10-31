@@ -1,0 +1,27 @@
+F.F
+======================================================================
+FAIL: test_cancel_after_output_replacement_preserves_resume (backend.test_independent_asr_recovery.RecoveryTests.test_cancel_after_output_replacement_preserves_resume)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Whisper Local\tmp\assistant618\backend\test_independent_asr_recovery.py", line 88, in test_cancel_after_output_replacement_preserves_resume
+    def test_cancel_after_output_replacement_preserves_resume(self): self.exercise('cancel')
+                                                                     ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Whisper Local\tmp\assistant618\backend\test_independent_asr_recovery.py", line 69, in exercise
+    self.assertTrue(checkpoint.exists(), 'failed publication must retain the ASR resume checkpoint')
+AssertionError: False is not true : failed publication must retain the ASR resume checkpoint
+
+======================================================================
+FAIL: test_zero_confidence_survives_export_and_performance_summary (backend.test_independent_asr_recovery.RecoveryTests.test_zero_confidence_survives_export_and_performance_summary)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Whisper Local\tmp\assistant618\backend\test_independent_asr_recovery.py", line 90, in test_zero_confidence_survives_export_and_performance_summary
+    def test_zero_confidence_survives_export_and_performance_summary(self): self.exercise('success')
+                                                                            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Whisper Local\tmp\assistant618\backend\test_independent_asr_recovery.py", line 85, in exercise
+    self.assertEqual(done['perf']['lowConfidenceWords'], 1, 'zero probability must not become default confidence 1.0')
+AssertionError: 0 != 1 : zero probability must not become default confidence 1.0
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.569s
+
+FAILED (failures=2)

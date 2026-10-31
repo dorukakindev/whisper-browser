@@ -1,0 +1,48 @@
+DUB_ACTIVITY {"stage": "file_write"}
+Dublaj WAV: C:\Users\K\AppData\Local\Temp\tmpyn5offbp\speech.wav
+DUB_ACTIVITY {"stage": "file_write"}
+Dublaj WAV: C:\Users\K\AppData\Local\Temp\tmp8ywuiu38\speech.wav
+DUB_ACTIVITY {"stage": "file_write"}
+Dublaj WAV: C:\Users\K\AppData\Local\Temp\tmpipveyn0h\speech.wav
+DUB_PHASES {"wall_seconds": 0.1}
+FFF
+======================================================================
+FAIL: test_metadata_failure_keeps_previous_audio_and_sidecars (backend.test_independent_dub_publication.PublicationTests.test_metadata_failure_keeps_previous_audio_and_sidecars) (error='OSError')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Whisper Local\tmp\assistant618\backend\test_independent_dub_publication.py", line 70, in test_metadata_failure_keeps_previous_audio_and_sidecars
+    self.assertEqual(self.identities(output), before)
+AssertionError: {'spe[372 chars]v': '601b237ff9004877f25e07a38ad412fde87de66a0[20 chars]e0b'} != {'spe[372 chars]v': 'e1d30988cb8016095a3eaa2ee6dd87dc89f013a2a[20 chars]159'}
+  {'speech.manifest.json': '080fec9c02a0ac272fcf2b8e690e4438537e16e9428354b975ef1667b03ec367',
+   'speech.performance.json': 'b6d5bc4dee1be8f9aefc0ff939ba5fcb9913710c584eab0d72db4d4ebd581d6c',
+   'speech.quality.json': 'f463ea3f8846d1a3ba60d8fb8078d54eb3907a749debac4eaa5108a5c5936724',
+   'speech.sync.json': 'f4451a885c6adb4207ef6f94b8cb67870d6cefc915a65518da09dbec8881a29b',
+-  'speech.wav': '601b237ff9004877f25e07a38ad412fde87de66a085270f5fcda586cde722e0b'}
++  'speech.wav': 'e1d30988cb8016095a3eaa2ee6dd87dc89f013a2a4d0d7525d085b70b3bea159'}
+
+======================================================================
+FAIL: test_metadata_failure_keeps_previous_audio_and_sidecars (backend.test_independent_dub_publication.PublicationTests.test_metadata_failure_keeps_previous_audio_and_sidecars) (error='KeyboardInterrupt')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Whisper Local\tmp\assistant618\backend\test_independent_dub_publication.py", line 70, in test_metadata_failure_keeps_previous_audio_and_sidecars
+    self.assertEqual(self.identities(output), before)
+AssertionError: {'spe[372 chars]v': '601b237ff9004877f25e07a38ad412fde87de66a0[20 chars]e0b'} != {'spe[372 chars]v': 'e1d30988cb8016095a3eaa2ee6dd87dc89f013a2a[20 chars]159'}
+  {'speech.manifest.json': '080fec9c02a0ac272fcf2b8e690e4438537e16e9428354b975ef1667b03ec367',
+   'speech.performance.json': 'b6d5bc4dee1be8f9aefc0ff939ba5fcb9913710c584eab0d72db4d4ebd581d6c',
+   'speech.quality.json': 'f463ea3f8846d1a3ba60d8fb8078d54eb3907a749debac4eaa5108a5c5936724',
+   'speech.sync.json': 'f4451a885c6adb4207ef6f94b8cb67870d6cefc915a65518da09dbec8881a29b',
+-  'speech.wav': '601b237ff9004877f25e07a38ad412fde87de66a085270f5fcda586cde722e0b'}
++  'speech.wav': 'e1d30988cb8016095a3eaa2ee6dd87dc89f013a2a4d0d7525d085b70b3bea159'}
+
+======================================================================
+FAIL: test_success_replaces_bundle_and_removes_obsolete_sync_map (backend.test_independent_dub_publication.PublicationTests.test_success_replaces_bundle_and_removes_obsolete_sync_map)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Whisper Local\tmp\assistant618\backend\test_independent_dub_publication.py", line 77, in test_success_replaces_bundle_and_removes_obsolete_sync_map
+    self.assertFalse(output.with_suffix('.sync.json').exists())
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.096s
+
+FAILED (failures=3)

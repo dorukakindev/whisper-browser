@@ -1,0 +1,52 @@
+✖ failed assistant preference undo keeps the applied state and allows retry (60.1872ms)
+✖ failed preference write restores only its own fields and retains newer human edits (7.9553ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 582.6393
+
+✖ failing tests:
+
+test at tests\independent-assistant-preferences.test.js:13:1
+✖ failed assistant preference undo keeps the applied state and allows retry (60.1872ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  'system' !== 'dark'
+
+      at TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-assistant-preferences.test.js:16:9)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'system',
+    expected: 'dark',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\independent-assistant-preferences.test.js:19:1
+✖ failed preference write restores only its own fields and retains newer human edits (7.9553ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+      language: 'tr',
+      sponsorMode: 'off',
+  +   theme: 'dark'
+  -   theme: 'system'
+    }
+
+      at TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-assistant-preferences.test.js:24:9)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { theme: 'dark', language: 'tr', sponsorMode: 'off' },
+    expected: { theme: 'system', language: 'tr', sponsorMode: 'off' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

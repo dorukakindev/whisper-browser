@@ -9244,6 +9244,7 @@ async function removeBrowserElementPickCss(tab) {
   tab.elementPickCssKey = '';
 }
 
+const browserFullPageCaptureOwners = new WeakMap();
 async function captureBrowserFullPage(wc) {
   // Kalıcı altyazı yakalama aynı CDP debugger'ını hazırlıyor olabilir. Onun
   // bağlantısını geçici ekran görüntüsü sahiplenmiş gibi sökmemek için önce
@@ -9251,11 +9252,13 @@ async function captureBrowserFullPage(wc) {
   if (!wc.debugger.isAttached() && browserDebuggerAttachPromise) {
     await browserDebuggerAttachPromise.catch(() => false);
   }
-  let attachedHere = false;
+  let lease = browserFullPageCaptureOwners.get(wc);
+  if (!lease) { lease = { count: 0, attachedHere: false }; browserFullPageCaptureOwners.set(wc, lease); }
+  lease.count++;
   try {
     if (!wc.debugger.isAttached()) {
       wc.debugger.attach('1.3');
-      attachedHere = true;
+      lease.attachedHere = true;
     }
     const metrics = await wc.debugger.sendCommand('Page.getLayoutMetrics');
     const size = metrics?.cssContentSize || metrics?.contentSize || {};
@@ -9270,8 +9273,11 @@ async function captureBrowserFullPage(wc) {
   } finally {
     // Başka bir yakalama kurulumu bu arada aynı bağlantıyı devraldıysa onun
     // hazır debugger'ını koparma. Henüz await'te olan girişim WeakMap'te görünür.
-    if (attachedHere && wc.debugger.isAttached() && !browserDebuggerReady
-        && !browserDebuggerAttachAttempts.has(wc)) wc.debugger.detach();
+    if (--lease.count === 0) {
+      browserFullPageCaptureOwners.delete(wc);
+      if (lease.attachedHere && !wc.isDestroyed() && wc.debugger.isAttached() && !browserDebuggerReady
+          && !browserDebuggerAttachAttempts.has(wc)) wc.debugger.detach();
+    }
   }
 }
 
@@ -13195,7 +13201,7 @@ async function probeActiveBrowserMedia(requestedTab = null) {
     tab.translationScheduler?.updatePlayhead(tab.position);
     const playbackDiagnostics = tab.playbackDiagnostics.observeMediaSample(safeMedia);
     for (const diagnostic of playbackDiagnostics) publishBrowserPlaybackDiagnostics(tab, diagnostic);
-    const mediaSignature = [Math.round(tab.position * 4), Math.round(tab.duration * 2), tab.rate,
+    const mediaSignature = [safeMedia.docToken || '', Math.round(tab.position * 4), Math.round(tab.duration * 2), tab.rate,
       Math.round(tab.volume * 100), tab.muted, !!safeMedia.paused, !!safeMedia.adPlaying,
       !!safeMedia.adSkippable, safeMedia.adRemaining ?? ''].join('|');
     if (mediaSignature !== tab.lastMediaEventSignature) {
@@ -16319,10 +16325,15 @@ ipcMain.handle('browser:command', async (event, payload) => {
             ? buildBrowserMediaPreferenceScript(value, candidate.media?.docToken)
             : buildBrowserMediaCommandScript(command, value, candidate.media?.docToken), true), 6000,
           'Oynatıcı komutu zaman aşımına uğradı.')
-          .catch((error) => ({ handled: false,
+          .catch((error) => ({ handled: false, timedOut: error?.code === 'ETIMEDOUT',
             error: error && error.code === 'ETIMEDOUT'
               ? 'Oynatıcı komutu zaman aşımına uğradı.'
               : 'Komut oynatıcı karesinde çalıştırılamadı.' }));
+        if (result?.stale) return { ok: false, stale: true,
+          error: dt('Medya kaynağı değiştiği için komut uygulanmadı.', 'The media source changed; the command was not applied.') };
+        // Timeout does not cancel executeJavaScript or a pending video.play().
+        // A second frame would make the same user action affect two players.
+        if (result?.timedOut) return { ok: false, timedOut: true, error: result.error };
         if (result?.error && !commandError) commandError = String(result.error).slice(0, 180);
         if (result && (result === true || result.handled)) {
           media = result;
@@ -18362,28 +18373,45 @@ const dubService = require('./dub-service').registerDubService({
   },
   setRate: async request => {
     const tab = browserTabById(request.tabId);
-    if (!tab || tab.generation !== request.generation || (request.mediaId && request.mediaId !== tab.mediaId) || !tab.view || tab.view.webContents.isDestroyed()) { dubRateTargets.delete(request.tabId); return {ok:request.release===true,stale:true}; }
-    const generation = tab.generation, view = tab.view;
+    const cached = dubRateTargets.get(request.tabId);
+    const forget = target => { if (dubRateTargets.get(request.tabId) === target) dubRateTargets.delete(request.tabId); };
+    if (!tab || tab.generation !== request.generation || (request.mediaId && request.mediaId !== tab.mediaId) || !tab.view || tab.view.webContents.isDestroyed()) {
+      if (cached?.generation === request.generation && (!request.mediaId || cached.mediaId === request.mediaId)) forget(cached);
+      return {ok:request.release===true,stale:true};
+    }
+    const generation = tab.generation, view = tab.view, mediaId = tab.mediaId;
+    const current = () => browserTabById(request.tabId) === tab && tab.generation === generation
+      && tab.mediaId === mediaId && tab.view === view && !view.webContents.isDestroyed();
     const command = token => buildBrowserMediaCommandScript('dub-rate', {
       rate:request.rate,baseRate:Math.max(.25,Math.min(4,Number(request.baseRate)||1)),release:request.release===true,
     },token);
-    const cached = dubRateTargets.get(request.tabId);
-    if (cached && cached.generation===generation && cached.view===view && cached.mediaId===tab.mediaId) {
-      const result = await withTimeout(cached.frame.executeJavaScript(command(cached.token),true),1000,'Dublaj hız komutu zaman aşımı.').catch(()=>null);
-      if (result?.handled) { if (request.release) dubRateTargets.delete(request.tabId); return {ok:true,media:result}; }
-    }
+    const attempt = async target => {
+      let result;
+      try {
+        result = await withTimeout(target.frame.executeJavaScript(command(target.token),true),1000,'Dublaj hız komutu zaman aşımı.');
+      } catch (error) {
+        // A timeout does not cancel the frame mutation. Retain its exact
+        // ownership so cleanup can release it; never try another video.
+        return {ok:false,timedOut:error?.code === 'ETIMEDOUT',error:error?.message};
+      }
+      if (!current() || result?.stale) { forget(target); return {ok:request.release===true,stale:true}; }
+      if (result?.handled) { if (request.release) forget(target); return {ok:true,media:result}; }
+      forget(target);
+      return {ok:false};
+    };
+    if (cached && cached.generation===generation && cached.view===view && cached.mediaId===mediaId) return attempt(cached);
+    if (cached) forget(cached);
+    // Release restores a previously controlled source. It must never acquire
+    // whichever unrelated player happens to be ranked first now.
+    if (request.release) return {ok:true,stale:!!cached};
     const candidates = await Promise.all(browserFrames(view).map(async frame => ({ frame,
       media: await withTimeout(frame.executeJavaScript(buildBrowserMediaProbeScript(), true), 1000, 'Dublaj video denetimi zaman aşımı.').catch(() => null) })));
-    for (const candidate of rankBrowserMediaCandidates(candidates)) {
-      if (browserTabById(request.tabId) !== tab || tab.generation !== generation || (request.mediaId && request.mediaId !== tab.mediaId) || tab.view !== view) return {ok:false};
-      const result = await withTimeout(candidate.frame.executeJavaScript(command(candidate.media?.docToken), true), 1000, 'Dublaj hız komutu zaman aşımı.').catch(() => null);
-      if (result?.handled) {
-        if (!request.release) dubRateTargets.set(request.tabId,{frame:candidate.frame,token:candidate.media?.docToken,generation,view,mediaId:tab.mediaId});
-        else dubRateTargets.delete(request.tabId);
-        return {ok:true, media:result};
-      }
-    }
-    return {ok:false};
+    if (!current()) return {ok:false,stale:true};
+    const candidate = rankBrowserMediaCandidates(candidates)[0];
+    if (!candidate) return {ok:false};
+    const target = {frame:candidate.frame,token:candidate.media?.docToken,generation,view,mediaId};
+    dubRateTargets.set(request.tabId,target);
+    return attempt(target);
   },
   editorIdentity: () => {
     const c = browserTranslationConfig();

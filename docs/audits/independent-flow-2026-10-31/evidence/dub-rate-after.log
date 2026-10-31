@@ -1,0 +1,21 @@
+browser-dub-audio: sync, pause, seek, rate, offset, ads, stale clock, cleanup and failures passed
+✔ tests\browser-dub-audio.test.js (53.9549ms)
+dub-service: authorization, single job, safe output, progress, cancellation and failure passed
+✔ tests\dub-service.test.js (599.0174ms)
+✔ cached stale release cannot restore a replacement source or another iframe (134.7521ms)
+✔ release without an owned target is a no-op and never discovers arbitrary current media (7.0175ms)
+✔ timed-out cached mutation cannot fall through and later releases the same owned frame (36.0457ms)
+✔ fresh candidate changing between probe and command cannot redirect into next iframe (22.8143ms)
+✔ successful owned rate and release preserve existing normal flow (10.8963ms)
+✔ navigation while a successful command reply is pending cannot install a stale cached target (11.5278ms)
+✔ a stale old release cannot discard the new source ownership record (10.706ms)
+✔ first acquisition timeout retains exact owner for later cleanup (38.713ms)
+✔ normal first acquisition uses actual ranking and mutates exactly one frame (16.6497ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 866.2761

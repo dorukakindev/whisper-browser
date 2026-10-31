@@ -1,0 +1,35 @@
+test_cancel_after_output_replacement_preserves_resume (backend.test_independent_asr_recovery.RecoveryTests.test_cancel_after_output_replacement_preserves_resume) ... ok
+test_writer_failure_preserves_resume (backend.test_independent_asr_recovery.RecoveryTests.test_writer_failure_preserves_resume) ... ok
+test_zero_confidence_survives_export_and_performance_summary (backend.test_independent_asr_recovery.RecoveryTests.test_zero_confidence_survives_export_and_performance_summary) ... ok
+DUB_ACTIVITY {"stage": "file_write"}
+test_cancel_after_replacements_restores_audio_metadata_and_deleted_sync (backend.test_independent_dub_publication.PublicationTests.test_cancel_after_replacements_restores_audio_metadata_and_deleted_sync) ... ok
+test_large_disk_timeline_streams_exact_length_and_releases_storage (backend.test_independent_dub_publication.PublicationTests.test_large_disk_timeline_streams_exact_length_and_releases_storage) ... ok
+DUB_ACTIVITY {"stage": "file_write"}
+DUB_ACTIVITY {"stage": "file_write"}
+test_metadata_failure_keeps_previous_audio_and_sidecars (backend.test_independent_dub_publication.PublicationTests.test_metadata_failure_keeps_previous_audio_and_sidecars) ... ok
+DUB_ACTIVITY {"stage": "file_write"}
+Dublaj WAV: C:\Users\K\AppData\Local\Temp\tmpfu7ugilj\speech.wav
+DUB_PHASES {"wall_seconds": 0.1}
+test_new_sync_and_quality_are_consumable_by_actual_scene_reader (backend.test_independent_dub_publication.PublicationTests.test_new_sync_and_quality_are_consumable_by_actual_scene_reader) ... ok
+DUB_ACTIVITY {"stage": "file_write"}
+Dublaj WAV: C:\Users\K\AppData\Local\Temp\tmp8ur77os_\speech.wav
+DUB_PHASES {"wall_seconds": 0.1}
+test_process_death_after_replacements_recovers_old_bundle_and_can_retry (backend.test_independent_dub_publication.PublicationTests.test_process_death_after_replacements_recovers_old_bundle_and_can_retry) ... ok
+DUB_ACTIVITY {"stage": "file_write"}
+Dublaj WAV: C:\Users\K\AppData\Local\Temp\tmp08ma7_rr\speech.wav
+DUB_PHASES {"wall_seconds": 0.1}
+test_success_replaces_bundle_and_removes_obsolete_sync_map (backend.test_independent_dub_publication.PublicationTests.test_success_replaces_bundle_and_removes_obsolete_sync_map) ... ok
+test_cancelled_late_provider_result_is_not_cached_as_completed (backend.test_independent_translation_flow.IndependentTranslationTests.test_cancelled_late_provider_result_is_not_cached_as_completed) ... ok
+test_changed_source_and_corrupt_cache_never_reuse_wrong_quantity (backend.test_independent_translation_flow.IndependentTranslationTests.test_changed_source_and_corrupt_cache_never_reuse_wrong_quantity) ... ok
+test_parse_plan_limits_source_change_and_immutable_take (backend.test_independent_translation_flow.IndependentTranslationTests.test_parse_plan_limits_source_change_and_immutable_take) ... ok
+test_cancel_before_first_commit_replace_preserves_old_output (backend.test_pipeline_control.OutputTransactionWarningTests.test_cancel_before_first_commit_replace_preserves_old_output) ... ok
+test_dead_owner_journal_is_recovered_without_probe_crash (backend.test_pipeline_control.OutputTransactionWarningTests.test_dead_owner_journal_is_recovered_without_probe_crash) ... ok
+test_dead_pid_is_never_treated_as_live_or_raised (backend.test_pipeline_control.OutputTransactionWarningTests.test_dead_pid_is_never_treated_as_live_or_raised) ... ok
+test_live_jobs_are_skipped_and_external_paths_are_never_touched (backend.test_pipeline_control.OutputTransactionWarningTests.test_live_jobs_are_skipped_and_external_paths_are_never_touched) ... ok
+test_locked_rollback_warns_and_preserves_journal_for_startup_recovery (backend.test_pipeline_control.OutputTransactionWarningTests.test_locked_rollback_warns_and_preserves_journal_for_startup_recovery) ... ok
+test_warning_callback_failure_does_not_mask_original_commit_error (backend.test_pipeline_control.OutputTransactionWarningTests.test_warning_callback_failure_does_not_mask_original_commit_error) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 1.900s
+
+OK

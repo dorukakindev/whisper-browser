@@ -1,0 +1,14 @@
+---
+description: Preferred helper-agent model and reasoning level
+alwaysApply: true
+---
+
+# Helper agents
+
+The user explicitly requested on 2026-10-31 that helper agents always use
+`gpt-6.1-sol` with `medium` reasoning.
+
+- Use this model and reasoning level when delegating suitable work.
+- Where the tool requires it, use a fresh context and provide the necessary task context explicitly.
+- Do not silently substitute another model or reasoning level; disclose unavailability.
+- Keep agent scopes separate, coordinate shared files, and verify their delivered changes.

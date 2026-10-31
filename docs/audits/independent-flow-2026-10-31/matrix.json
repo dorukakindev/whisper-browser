@@ -1,0 +1,404 @@
+[
+  {
+    "area": "browser",
+    "flow": "media-source-replacement",
+    "status": "pass",
+    "evidence": "New identity event despite identical measurements; stale command aborts",
+    "method": "Node + real Chromium frames"
+  },
+  {
+    "area": "browser",
+    "flow": "frame-isolation",
+    "status": "pass",
+    "evidence": "Source change between probe and mutation leaves other iframe unmodified",
+    "method": "Native"
+  },
+  {
+    "area": "browser",
+    "flow": "async-navigation",
+    "status": "pass",
+    "evidence": "Old document token cannot mutate post-navigation video; prior PDF/MHTML delayed-dialog gates remain covered",
+    "method": "Native + existing boundary tests"
+  },
+  {
+    "area": "browser",
+    "flow": "command-timeout",
+    "status": "pass",
+    "evidence": "ETIMEDOUT is reported without another iframe mutation",
+    "method": "Deterministic Node fixture"
+  },
+  {
+    "area": "browser",
+    "flow": "DOM-detach-reattach",
+    "status": "pass",
+    "evidence": "Keep newer site filter/rate; still restore our own settings and use fresh baseline",
+    "method": "Node + native DOM"
+  },
+  {
+    "area": "browser",
+    "flow": "ad-transition",
+    "status": "pass",
+    "evidence": "Replacement mute preserved; same-element owned mute restored normally",
+    "method": "Node + native DOM"
+  },
+  {
+    "area": "browser",
+    "flow": "capture-concurrency",
+    "status": "pass",
+    "evidence": "Single positive and two concurrent full-page screenshots all nonempty",
+    "method": "Native Chromium CDP"
+  },
+  {
+    "area": "browser",
+    "flow": "capture-crop-and-overlay-restore",
+    "status": "pass",
+    "evidence": "Offscreen/zoom intersection and overlapping temporary visibility restore remain valid",
+    "method": "Existing executable capture/boundary tests"
+  },
+  {
+    "area": "browser",
+    "flow": "export-cancel",
+    "status": "pass",
+    "evidence": "Canceled PDF selection neither prints nor writes",
+    "method": "New Node controlled dialog/IO"
+  },
+  {
+    "area": "browser",
+    "flow": "export-exact-path-and-refresh-failure",
+    "status": "pass",
+    "evidence": "PNG/PDF approved target and atomic reading refresh/cancel-deletion controls",
+    "method": "Existing executable boundary tests"
+  },
+  {
+    "area": "browser",
+    "flow": "preferences-context-change",
+    "status": "pass",
+    "evidence": "Late response ignored after tab switch; owned/current style/rate still applied",
+    "method": "Node + native style/rate"
+  },
+  {
+    "area": "browser",
+    "flow": "background-resize-resume-overlay",
+    "status": "pass",
+    "evidence": "Native assistant remains hidden during modal/background resize and returns after unblock",
+    "method": "Native WebContentsView with owner-validated IPC event fixture"
+  },
+  {
+    "area": "browser",
+    "flow": "modal-keyboard",
+    "status": "pass",
+    "evidence": "Backspace does not close underlying player; text editing works; native Escape closes modal",
+    "method": "Native sendInputEvent + production key handler excerpt in synthetic DOM"
+  },
+  {
+    "area": "browser",
+    "flow": "tab-unload-protection",
+    "status": "pass",
+    "evidence": "Background/resource protection code reviewed and existing controlled background controls pass",
+    "method": "Source + existing browser-controls-behavior fixture; full-app memory unload not run"
+  },
+  {
+    "area": "browser",
+    "flow": "physical-audio-CORS-recovery",
+    "status": "not-run",
+    "evidence": "Known R815-B63 remains unresolved; no restoration claim",
+    "method": "No physical audio/provider media"
+  },
+  {
+    "area": "browser",
+    "flow": "live-provider-GPU-DRM-long-session",
+    "status": "not-run",
+    "evidence": "Outside this controlled local audit",
+    "method": "No keys/services/downloads/personal app actions"
+  },
+  {
+    "area": "books",
+    "dimension": "sourcechange",
+    "status": "pass",
+    "checks": [
+      "Source WAV changed during picker/encoding rejects publication (new probes).",
+      "Changed source PDF is rejected by book-pdf; existing book data remains accessible.",
+      "Existing regression: independently changed M4B destination is preserved."
+    ]
+  },
+  {
+    "area": "books",
+    "dimension": "latepromise",
+    "status": "pass",
+    "checks": [
+      "Translation edits during import/openProduction cannot enable old narration; retry uses new text.",
+      "Late import after closed view cannot change current status or open production."
+    ]
+  },
+  {
+    "area": "books",
+    "dimension": "cancel",
+    "status": "pass",
+    "checks": [
+      "New controlled encoder cancellation preserves target/reference, cleans temp ownership and allows retry.",
+      "Existing real ffmpeg cancellation confirms process close before export cleanup."
+    ]
+  },
+  {
+    "area": "books",
+    "dimension": "retry",
+    "status": "pass",
+    "checks": [
+      "After manifest failure (including post-rename failure), after cancellation, after content edits, and after view reopen.",
+      "Stale-audio portable failure offers successful text-only round trip."
+    ]
+  },
+  {
+    "area": "books",
+    "dimension": "editedcontent",
+    "status": "pass",
+    "checks": [
+      "PDF edited content invalidates preparation and subsequent listen.",
+      "Book edited text rejects old review/playback/progress tokens and marks readiness false."
+    ]
+  },
+  {
+    "area": "books",
+    "dimension": "staleview",
+    "status": "pass",
+    "checks": [
+      "New closed-view/late-result probe plus current-view reopen success.",
+      "Existing reader PDF render/observer replacement ownership regressions."
+    ]
+  },
+  {
+    "area": "books",
+    "dimension": "failedsave",
+    "status": "pass",
+    "checks": [
+      "Reference failure before/after atomic manifest rename restores both prior file/reference.",
+      "Invalid portable active audio cannot replace the previous valid package."
+    ]
+  },
+  {
+    "area": "books",
+    "dimension": "M4B/reopen",
+    "status": "pass",
+    "checks": [
+      "New real handler project→capture→export→open→audiobook integration with deterministic encoder fixture.",
+      "Existing actual ffmpeg mixed-rate encoding, decode duration, chapter order/metadata, reserved text and cancellation checks pass."
+    ]
+  },
+  {
+    "area": "books",
+    "dimension": "native_ui_and_real_PDF_parser",
+    "status": "notrun",
+    "reason": "New PDF ownership probes execute actual renderer initializer in JSDOM; extraction/provider/native window paths are controlled. No claim of native Electron visual verification or parser quality."
+  },
+  {
+    "area": "books",
+    "dimension": "real_voice_model_or_paid_provider",
+    "status": "notrun",
+    "reason": "Synthesis/quality events are deterministic fixtures. No paid provider, GPU or model-quality claim."
+  },
+  {
+    "area": "books",
+    "dimension": "process_crash_between_multi_file_publication_steps",
+    "status": "notrun",
+    "reason": "Failure injection covers exceptions before/after manifest rename and retry, not kill/power-loss recovery across audio/reference commit. Recovery copy is retained when rollback cannot complete; no durable cross-file transaction journal introduced."
+  },
+  {
+    "area": "backend",
+    "boundary": "source -> parse -> speech-only plan",
+    "cases": [
+      "normal SRT",
+      "empty source bytes",
+      "SDH filtering retains original ordinal2",
+      ">4MB bytes rejected",
+      "5001 groups rejected without truncation"
+    ],
+    "status": "pass",
+    "test": "test_parse_plan_limits_source_change_and_immutable_take"
+  },
+  {
+    "area": "backend",
+    "boundary": "source change -> reviewed plan edits",
+    "cases": [
+      "source hash changes",
+      "old reviewed edit hash rejected"
+    ],
+    "status": "pass",
+    "test": "test_parse_plan_limits_source_change_and_immutable_take"
+  },
+  {
+    "area": "backend",
+    "boundary": "translation -> exact cache -> source change -> export",
+    "cases": [
+      "controlled provider result accepted",
+      "same input reuses cache without provider calls",
+      "45/red changes to46/green without stale reuse",
+      "poisoned700-quantity cache rejected or superseded by checked memory",
+      "actual SRT writer -> dubbing parser preserves text/time"
+    ],
+    "status": "pass",
+    "test": "test_changed_source_and_corrupt_cache_never_reuse_wrong_quantity"
+  },
+  {
+    "area": "backend",
+    "boundary": "late provider result -> cancellation -> cache",
+    "cases": [
+      "cancel flag raised after provider returns",
+      "PipelineCancelled propagated",
+      "unaccepted result absent from completed cache"
+    ],
+    "status": "pass",
+    "test": "test_cancelled_late_provider_result_is_not_cached_as_completed"
+  },
+  {
+    "area": "backend",
+    "boundary": "ASR -> checkpoint -> final output",
+    "cases": [
+      "writer failure",
+      "cancel after replacements",
+      "successful checkpoint retirement",
+      "zero confidence JSON/summary consistency"
+    ],
+    "status": "pass-after-fix",
+    "test": "backend/test_independent_asr_recovery.py"
+  },
+  {
+    "area": "backend",
+    "boundary": "audio plan -> disk timeline -> WAV export",
+    "cases": [
+      "zero-duration storage request rejected",
+      "300-second/2.4million-frame disk-backed timeline",
+      "exact WAV frame count and tail sample preservation",
+      "storage released after streaming"
+    ],
+    "status": "pass",
+    "test": "test_large_disk_timeline_streams_exact_length_and_releases_storage"
+  },
+  {
+    "area": "backend",
+    "boundary": "mutable take cache -> immutable saved take",
+    "cases": [
+      "voice recipe changes identity",
+      "source cache overwritten after snapshot",
+      "saved content SHA remains correct"
+    ],
+    "status": "pass",
+    "test": "test_parse_plan_limits_source_change_and_immutable_take"
+  },
+  {
+    "area": "backend",
+    "boundary": "audio -> sidecars -> authoritative consumer",
+    "cases": [
+      "metadata OSError",
+      "KeyboardInterrupt",
+      "normal no-sync output",
+      "new valid sync/quality read by actual scene reader"
+    ],
+    "status": "pass-after-fix",
+    "test": "backend/test_independent_dub_publication.py"
+  },
+  {
+    "area": "backend",
+    "boundary": "partial publication -> cancellation/crash -> recovery -> retry",
+    "cases": [
+      "cancel after replacements/deletion restores previous set",
+      "owned child process exits91 after replacements",
+      "journal recovery restores all previous hashes",
+      "subsequent successful retry"
+    ],
+    "status": "pass-after-fix",
+    "test": "backend/test_independent_dub_publication.py"
+  },
+  {
+    "area": "backend",
+    "boundary": "transaction API compatibility",
+    "cases": [
+      "pre-first-replace cancel",
+      "dead-owner recovery",
+      "live-owner skip",
+      "external-path rejection",
+      "locked rollback",
+      "warning callback failure"
+    ],
+    "status": "pass",
+    "test": "backend/test_pipeline_control.py"
+  },
+  {
+    "area": "backend",
+    "boundary": "dubbing rate -> selected browser source -> release/late response",
+    "cases": [
+      "no-owner release",
+      "cached/fresh source stale",
+      "cached/acquisition timeout",
+      "navigation before response",
+      "stale release cannot discard new owner",
+      "single-frame and ranked multi-frame normal controls"
+    ],
+    "status": "pass-after-fix",
+    "test": "tests/independent-dub-rate-ownership.test.js"
+  },
+  {
+    "area": "backend",
+    "boundary": "real ASR/GPU and real speech generation quality",
+    "status": "not-run",
+    "reason": "Controlled model/provider producers isolate pipeline ownership and failure behavior; no GPU was needed to reproduce these bugs."
+  },
+  {
+    "area": "backend",
+    "boundary": "all VTT/ASS encodings, all translation styles/refinement providers, video mux/normalization acoustic fidelity and concurrent independent CLI writers",
+    "status": "not-run",
+    "reason": "These paths were read selectively but are not covered by this focused executable matrix. No broad correctness claim is made."
+  },
+  {
+    "area": "assistant",
+    "boundary": "Preference undo save failure and set failure with newer human language edit",
+    "kind": "new executable proof",
+    "status": "passed",
+    "evidence": "preferences-before.log/preferences-after.log"
+  },
+  {
+    "area": "assistant",
+    "boundary": "Actual native-player facade plus assistant actions:three rejected command receipts and deferred success",
+    "kind": "new executable proof",
+    "status": "passed",
+    "evidence": "native-assistant-before.log/assistant-focused.log"
+  },
+  {
+    "area": "assistant",
+    "boundary": "Proposal owner/source/range validation, exact job output roles and partial permission",
+    "kind": "existing regression group",
+    "status": "passed",
+    "evidence": "assistant-focused.log"
+  },
+  {
+    "area": "assistant",
+    "boundary": "Continuation failure/retry and exact job cancellation/terminal ledger behavior",
+    "kind": "existing regression group",
+    "status": "passed",
+    "evidence": "assistant-focused.log"
+  },
+  {
+    "area": "assistant",
+    "boundary": "Library discovery reviews require matching identity and bounded evidence",
+    "kind": "existing regression group",
+    "status": "passed",
+    "evidence": "assistant-focused.log"
+  },
+  {
+    "area": "assistant",
+    "boundary": "Current DeepSeek live tool selection, arbitrary user prompts and remote-provider stream failures",
+    "status": "not-run",
+    "reason": "Provider replies are controlled in deterministic tool tests; no live LLM capability claim."
+  },
+  {
+    "area": "assistant",
+    "boundary": "Physical MPV playback and audio hardware after native receipt",
+    "status": "not-run",
+    "reason": "The real renderer facade and command path execute with controlled IPC; actual native process/audio hardware is not used."
+  },
+  {
+    "area": "assistant",
+    "boundary": "Whole-assistant visual stream/long-history layout and hours-long resource soak",
+    "status": "not-run",
+    "reason": "Native browser/modal interaction runs do not validate all chat layouts or long-term memory behavior."
+  }
+]

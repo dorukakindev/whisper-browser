@@ -105,6 +105,9 @@ function exportBooks(root, target, includeAudio = false) {
       c.activeJob = null;
       c.voiceSettings = {};
       if (includeAudio && c.output) {
+        if (c.textHash !== digest(Buffer.from(c.text))) {
+          throw Error("Chapter text changed; regenerate current audio or export without audio / Bölüm metni değişti; güncel sesi yeniden üretin veya sessiz dışa aktarın.");
+        }
         const name = path.basename(c.output),
           file = path.join(folder, name);
         if (

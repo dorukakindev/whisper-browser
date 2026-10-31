@@ -1,0 +1,64 @@
+✖ detaching a controlled video preserves a later site filter and rate, including reattachment (119.0818ms)
+✖ ad mute restoration does not transfer the removed video snapshot to replacement media (15.6628ms)
+✖ media identity changes publish even when playback measurements are identical (3.0039ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 141.4584
+
+✖ failing tests:
+
+test at tests\independent-browser-flow.test.js:17:1
+✖ detaching a controlled video preserves a later site filter and rate, including reattachment (119.0818ms)
+  AssertionError [ERR_ASSERTION]: cleanup must not overwrite a newer site-authored filter
+
+  '' !== 'blur(2px)'
+
+      at TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-browser-flow.test.js:24:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: 'blur(2px)',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\independent-browser-flow.test.js:31:1
+✖ ad mute restoration does not transfer the removed video snapshot to replacement media (15.6628ms)
+  AssertionError [ERR_ASSERTION]: replacement keeps its independent original mute state
+
+  false !== true
+
+      at TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-browser-flow.test.js:39:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\independent-browser-flow.test.js:42:1
+✖ media identity changes publish even when playback measurements are identical (3.0039ms)
+  AssertionError [ERR_ASSERTION]: renderer receives the replacement media identity
+
+  1 !== 2
+
+      at TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-browser-flow.test.js:57:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

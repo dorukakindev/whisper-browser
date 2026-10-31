@@ -1,0 +1,16 @@
+✔ Library evidence is bounded and strips filesystem paths (83.2757ms)
+✔ Only normal preferences are read; undo refuses later manual edits (20.3525ms)
+✔ Playback commands refuse parked media and use only the existing current browser bridge (7.7302ms)
+✔ Library pages enumerate all matching IDs without repeats or private fields (10.4283ms)
+✔ Discovery review loading uses a verified discovery key, returns ten bounded reviews and never adds a library title (9.1629ms)
+✔ Playback reads visible source state and sets volume through the existing media command (6.5499ms)
+✔ failed assistant preference undo keeps the applied state and allows retry (94.1102ms)
+✔ failed preference write restores only its own fields and retains newer human edits (13.1529ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 676.0621

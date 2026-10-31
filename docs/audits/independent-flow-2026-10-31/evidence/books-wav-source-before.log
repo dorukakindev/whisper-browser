@@ -1,0 +1,46 @@
+✖ changed source WAV during picker cannot publish an M4B under old chapter metadata (107.3967ms)
+✖ changed source WAV during encoding cannot publish an M4B under old chapter metadata (89.8795ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 662.2239
+
+✖ failing tests:
+
+test at tests\independent-books-flow.test.js:13:45
+✖ changed source WAV during picker cannot publish an M4B under old chapter metadata (107.3967ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  true !== false
+
+      at TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-books-flow.test.js:28:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\independent-books-flow.test.js:13:45
+✖ changed source WAV during encoding cannot publish an M4B under old chapter metadata (89.8795ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  true !== false
+
+      at TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-books-flow.test.js:28:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

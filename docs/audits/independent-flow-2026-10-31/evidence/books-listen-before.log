@@ -1,0 +1,28 @@
+✖ PDF narration rejects edited translation during listen and retries current text (299.3955ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 761.2896
+
+✖ failing tests:
+
+test at tests\independent-books-flow.test.js:102:57
+✖ PDF narration rejects edited translation during listen and retries current text (299.3955ms)
+  AssertionError [ERR_ASSERTION]: stale narration must not request old project audio
+
+  2 !== 1
+
+      at TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-books-flow.test.js:123:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

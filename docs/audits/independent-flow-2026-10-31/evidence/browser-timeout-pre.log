@@ -1,0 +1,34 @@
+✔ detaching a controlled video preserves a later site filter and rate, including reattachment (118.3998ms)
+✔ ad mute restoration does not transfer the removed video snapshot to replacement media (16.6009ms)
+✔ media identity changes publish even when playback measurements are identical (2.5214ms)
+✔ a source-stale best frame cannot redirect a user media command into another frame (2.3374ms)
+✔ overlapping full captures retain their debugger lease until the last result; cancellation does not write an export (5.1046ms)
+✔ cleanup restores owned playback changes and same-element ad mute normally (13.1234ms)
+✖ a timed-out frame command cannot start a second uncertain mutation in another frame (2.725ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 6
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 178.3761
+
+✖ failing tests:
+
+test at tests\independent-browser-flow.test.js:100:1
+✖ a timed-out frame command cannot start a second uncertain mutation in another frame (2.725ms)
+  AssertionError [ERR_ASSERTION]: timing out does not cancel the original native play request
+
+  1 !== 0
+
+      at TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-browser-flow.test.js:112:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
