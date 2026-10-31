@@ -14,7 +14,7 @@ w.syncBrowserOcclusion = () => {};
 w.api = {
   dubConfig: async () => ({ok:true,ready:true,engine:'fixture',storageRoot:'voice-folder',reference:'voice.wav',transcript:'voice.txt'}),
   openPath: async value => { opened=value; },
-  latestDub: async value => {latestQuery=value;return {ok:true};},
+  latestDub: async value => {latestQuery=value;return {ok:true,...(value.id?{output:{id:value.id,name:'fixture.wav',url:'fixture.wav'}}:{})};},
   saveDubPronunciations: async entries=>{savedDictionary=entries;return {ok:true,pronunciations:entries};}, selectFile: async () => 'test.srt',
   selectVoiceReferenceSource: async()=>({ok:true,path:'analysis-source.wav'}),
   onDubEvent: callback => {onEvent=callback;},

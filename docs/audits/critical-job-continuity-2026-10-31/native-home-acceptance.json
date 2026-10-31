@@ -1,0 +1,70 @@
+{
+  "ok": true,
+  "realApp": true,
+  "realScheduler": true,
+  "provider": "controlled deferred fixture",
+  "localHttp": true,
+  "cases": [
+    "first result progresses while Home",
+    "return preserves source and partial progress while next request pending",
+    "completion while Home stays on Home",
+    "same source and completed results on explicit return"
+  ],
+  "identity": {
+    "tab": "tab-mvwmhywv-1",
+    "key": "browser:web:url:fce69ea891820b11e7695322",
+    "mediaId": "web:url:fce69ea891820b11e7695322",
+    "generation": 1,
+    "url": "http://127.0.0.1:57266/source"
+  },
+  "partial": {
+    "results": 1,
+    "state": {
+      "playhead": 0.085966,
+      "total": 3,
+      "completed": 1,
+      "remaining": 2,
+      "completeTrack": true,
+      "paused": false,
+      "queued": [
+        "sentence:three:three:98faa3766963"
+      ],
+      "pending": [
+        "sentence:two:two:a68eeb793d58"
+      ],
+      "failures": [],
+      "results": [
+        {
+          "sentenceId": "sentence:one:one:4b7b5344c69b",
+          "text": "Pencereyi aç.",
+          "cached": false,
+          "cues": [
+            {
+              "cueId": "one",
+              "text": "Pencereyi aç.",
+              "start": 0,
+              "end": 1,
+              "speaker": "",
+              "protected": false
+            }
+          ]
+        }
+      ],
+      "reconcile": {
+        "unchanged": 0,
+        "added": 0,
+        "changed": 0,
+        "removed": 0
+      },
+      "stats": {
+        "providerRequests": 2,
+        "cacheHits": 0,
+        "cacheMisses": 2
+      }
+    },
+    "providerCalls": 2
+  },
+  "providerCalls": 3,
+  "aborted": 0,
+  "limits": "Real native app, local video, IPC and scheduler with controlled provider replies; no live model quality, remote site, transcription backend, account or GPU test."
+}

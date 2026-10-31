@@ -22,3 +22,9 @@ Ajanlar GPT-6.1 Sol / medium. API testleri gerektiğinde DeepInfra DeepSeek-V4.1
 Ayar/örnek paketi PR735 ile teslim edildi. Sonraki kritik onarımlar: eski sağlayıcı/referans onayı, bekleyen mute sonucu ve native mute sahipliği, isteğe bağlı süre düzenlemesinden önce tam sesin korunması. Ayrıntı ve kanıt: `docs/audits/critical-source-audio-2026-10-31/README.md`.
 
 Native cross-origin test yalnız sentetik yerel medya üzerinde gerçek Windows uygulaması/IPC/decoder doğrulamasıdır. Sağlayıcı/model kalitesi, gerçek YouTube ve GPU doğal ses kanıtı değildir. Kalan çeviri bütünlüğü, iş yaşamı ve gerçek UI engelleri topluca tamamlandı sayılmadı.
+
+## Kritik iş devamlılığı paketi — 31 Ekim
+
+PR736 ana kopyaya alındı. Sonraki doğrulamada, eski üretimin manuel Sesi kullan ile yeni videoya bağlanması ve kimliksiz Durdur çağrılarının yerine geçen işi iptal etmesi düzeltildi. Ana sayfada kısmi çevirinin sürmesi ve aynı kaynağa geri dönüş native Windows uygulamasında kontrollü sağlayıcıyla doğru çıktı; bu çalışan davranış değiştirilmedi. Ayrıntı: `docs/audits/critical-job-continuity-2026-10-31/README.md`.
+
+Tam Whisper backend devamlılığı, canlı çeviri/anlatım kalitesi ve bütün UI engelleri bu dar paketle tamamlanmış sayılmadı. Sayı hedefi hâlâ yoktur.

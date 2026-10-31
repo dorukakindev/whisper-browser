@@ -264,6 +264,7 @@
     el('dubTranscriptName').textContent = basename(voice?.transcript || '');
     if (!current && (referenceQualityPendingReset || lastReferenceQuality && lastReferenceIdentity !== cfg?.reference)) { referenceInfo(null); referenceQualityPendingReset=false; }
     const locked = !!current || referenceBusy || planning || choosing || workspaceBusy;
+    el('dubGeneratorUse').disabled = locked;
     for (const id of ['dubChooseSrt', 'dubChooseEngine', 'dubChooseVoice', 'dubChooseTranscript', 'dubSampleOnly', 'dubProfile', 'dubConcurrency', 'dubKeepEngine', 'dubTimingMode', 'dubVerification', 'dubAutoFit', 'dubNaturalSpeech']) el(id).disabled = locked;
     el('dubGrouping').disabled = locked;
     el('dubFollowDelivery').disabled = locked;
@@ -733,13 +734,29 @@
     el('dubGeneratorCancel').disabled = true;
     pending.stopping = true;
     status('Durduruluyor…');
-    const r = await window.api.cancelDub().catch(() => null);
+    const r = await window.api.cancelDub({id:pending.id}).catch(() => null);
     if (current !== pending) return;
     if (!r?.ok && current) { current.stopping = false; status('İptal doğrulanamadı; işlem izlenmeye devam ediyor.'); controls(); }
   });
   el('dubGeneratorOutput').addEventListener('click', () => { const file=output;if(file)void openArtifact(file.path,()=>output===file); });
+  async function attachSelectedOutput(selected,isCancelled=()=>false) {
+    const context=window.BrowserDubAudioUI?.context(),owner=requestIdentity();
+    if(!selected||selected.sample||selected.syncInvalid||!context?.tabId||!context.hasMedia||!context.visible)return false;
+    // Generated audio belongs to its recorded source, even when its job
+    // finishes after the user has opened another video. Imported projects have
+    // no production id and remain an intentional manual attachment.
+    let file=selected;
+    if(selected.id){
+      const proof=await window.api.latestDub({id:selected.id,source:context.source||context.mediaKey}).catch(()=>null);
+      if(!proof?.ok||proof.output?.id!==selected.id||proof.output.sample||proof.output.syncInvalid)return false;
+      file=proof.output;
+    }
+    if(isCancelled()||output!==selected||current||owner!==requestIdentity())return false;
+    el('dubGeneratedPreview').pause();
+    return await window.BrowserDubAudioUI.attachGenerated({...file,...window.DubWorkspaceUI?.attachment(selected)},context)===true;
+  }
   el('dubGeneratorUse').addEventListener('click', async () => {
-    const selected = output;
+    const selected = output,owner=requestIdentity();
     if (!selected || selected.sample || selected.syncInvalid) return;
     const context = window.BrowserDubAudioUI?.context();
     if (!context?.tabId || !context.hasMedia || !context.visible) {
@@ -748,10 +765,10 @@
     el('dubGeneratedPreview').pause();
     el('dubGeneratorUse').disabled = true;
     try {
-      const attached = await window.BrowserDubAudioUI.attachGenerated({ name: selected.name, url: selected.url, range: selected.range, sync: selected.sync, background: selected.background, ...window.DubWorkspaceUI?.attachment(selected) }, context);
-      if (output === selected) status(attached ? 'Üretim tamamlandı; dublaj videoya bağlandı.' : 'Ses bağlanamadı; videoyu kontrol edip tekrar deneyin.');
-    } catch (_) { status('Ses bağlanamadı; videoyu kontrol edip tekrar deneyin.'); }
-    finally { el('dubGeneratorUse').disabled = false; }
+      const attached = await attachSelectedOutput(selected);
+      if (output === selected && !current && owner===requestIdentity()) status(attached ? 'Üretim tamamlandı; dublaj videoya bağlandı.' : 'Ses bağlanamadı; videoyu kontrol edip tekrar deneyin.');
+    } catch (_) { if(output===selected && !current && owner===requestIdentity())status('Ses bağlanamadı; videoyu kontrol edip tekrar deneyin.'); }
+    finally { controls(); }
   });
   el('dubTextStudio').addEventListener('click', async () => {
     const r = await window.api.openTextVoiceUI().catch(() => null);
@@ -911,12 +928,7 @@
   async function voiceUse(id,isCancelled){
     await ensureVoice(isCancelled);const selected=output,context=window.BrowserDubAudioUI?.context();
     if(!selected||selected.id!==id||selected.sample||selected.syncInvalid||!context?.hasMedia||!context.visible)return {ok:false};
-    // A source+ID query proves both against the main log, rather than trusting
-    // a renderer/project's most recently displayed output from another video.
-    const proof=await window.api.latestDub({id,source:context.source||context.mediaKey});
-    if(isCancelled()||output!==selected||!proof?.ok||proof.output?.id!==id||proof.output.sample||proof.output.syncInvalid)return {ok:false};
-    el('dubGeneratedPreview').pause();
-    return {ok:await window.BrowserDubAudioUI.attachGenerated({...proof.output,...window.DubWorkspaceUI?.attachment(selected)},context)===true};
+    return {ok:await attachSelectedOutput(selected,isCancelled)};
   }
   controls();
 })();
