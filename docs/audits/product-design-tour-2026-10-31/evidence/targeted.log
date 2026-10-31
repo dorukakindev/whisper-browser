@@ -1,0 +1,65 @@
+PASS: ci-determinism-ratchet (random=0/0, aux_random=11/11, sleep=21/21, wallclock=13/13)
+  PASS  renderer kalıcılık listeleri güvenlik şemasıyla bire bir eşleşir
+  PASS  girdi ve çıktı klasörleri mutlak yol olarak korunur
+  PASS  sağlayıcıya özel model listeleri güvenli biçimde korunur
+  PASS  main import/export ve Python env çağrı yolları güvenli yardımcılara bağlıdır
+  PASS  R51-43: yardımcı alt süreç modülleri sır-env temizliğini atlayamaz
+  PASS  secret sentinel yalnız child env içinde kalır; argv, export ve görünür sonuçlarda yoktur
+  PASS  tüm secret girişleri ekranda parola alanı olarak maskelenir
+  PASS  tarayıcı yedek URLsi basic auth, hassas sorgu ve fragment secretlarını taşımaz
+  PASS  tüm kalıcı UI ayarları kaydet ve yeniden yükle turunda korunur
+  PASS  eski düz ayar ve v2/v3 yedek migration işlemleri tekrarlanabilir ve idempotenttir
+  PASS  prototype pollution anahtarları tüm derinliklerde reddedilir ve prototip değişmez
+  PASS  boyut, derinlik, kök türü, enum, tip ve path traversal sınırları uygulanır
+        fuzz=512 kabul=128 ret=384 p95=0.340 ms
+  PASS  en az 100 schema tabanlı adversarial payload deterministik olarak sınıflandırılır
+  PASS  normal JSON hedefi kabul edilir; .txt, göreli yol ve symlink hedefi reddedilir
+  PASS  çok dosyalı atomic write başarıda idempotent, orta-commit faultunda tam rollback yapar
+        process_crash_scenarios=44
+  PASS  işlem günlüğü ve tüm rename sınırlarında process kapanırsa eski durum geri kurulur
+  PASS  commit işareti yazıldıktan hemen sonra process kapanırsa yeni durum korunur
+  PASS  commit sonrası backup temizleme hatası yeniden başlatmada yeni durumu koruyarak temizlenir
+  PASS  saldırgan işlem günlüğü kendi klasörü dışındaki dosyalara dokunamaz
+  PASS  bozuk ve yarım import, mevcut ayar dosyasını değiştirmeden başarısız olur
+  PASS  R51-08: içe aktarılan clearedSecretFields kasa anahtarını gizleyemez
+  PASS  R51-84: yerel kayıtta tek bozuk UI değeri tüm ayar kaydını reddetmez
+  PASS  R51-08: yerel kayıt yolu silme işaretlerini korur ve şekli doğrular
+
+23 settings güvenlik testi geçti
+✔ Optional provider controls retain real input identity and edits through disclosures, redraw and close (657.1637ms)
+✔ Choosing a separate assistant reveals its retained model/key/tier without changing them (195.8488ms)
+✔ Settings search exposes actionable category results and never searches private key values (298.0505ms)
+✔ Model listing failure stays within advanced tools and retains ordinary manual model entry (158.707ms)
+✔ Assistant drafts are source-specific and only matching accepted receipts clear the sent draft (23.9035ms)
+✔ Assistant source details, safe formatted answers and explicit clear confirmation stay functional (12.8284ms)
+✔ Source details name the model in both languages and settings use only the existing command boundary (13.2733ms)
+✔ An empty conversation never advertises a latest reply and keeps open source details across snapshots (10.5415ms)
+✔ Parent bridge rejects stale source commands and receipts acknowledge only a newly accepted question (847.357ms)
+✔ Thread creation acknowledgement, branch controls, source cards and safe streaming Markdown (17.8392ms)
+✔ Conversation tools stay discoverable by keyboard; Escape closes tools before the assistant (11.3022ms)
+✔ an accepted new question clears the old tool notice without hiding rejected-send errors (395.3815ms)
+✔ stale card refresh prepares a new unapplied card and still requires explicit confirmation (13.7945ms)
+✔ tests\ci-determinism-ratchet.test.js (0.0723ms)
+✔ discovery translation is cancelable, cached and never silently adds a watchlist record (4.6225ms)
+✔ discovery normalizes trusted image origins, identities and bounded metadata (0.1691ms)
+✔ fixed provider routes, caching, personal exclusions and idempotent watchlist saves (50.1496ms)
+✔ provider HTTP errors and excessive response size do not alter the library (1.181ms)
+✔ imported ratings seed explained recommendations only with matched genre evidence (32.6835ms)
+✔ official Cinemeta redirect is followed; external redirect is rejected before fetching it (0.9709ms)
+✔ PDF search opens with Ctrl+F, goes to the matching original page, and Escape closes only search (132.5741ms)
+✔ Closing a pending search suppresses late results and replacement resets the source text (108.9345ms)
+✔ A failed old PDF jump cannot overwrite a new search or closed panel (217.2543ms)
+✔ Current PDF jump failures are localized and a later result remains usable (109.088ms)
+✔ A newer match navigation owns failures within the same PDF query (133.3131ms)
+✔ tests\settings-security.test.js (0.0577ms)
+✔ rapid navigation replaces motion without leaving a stale animation in control (1.0297ms)
+✔ reduced motion skips animation and changing preference cancels existing motion (0.9512ms)
+✔ detached content stays inactive and leaving the document cancels live motion (0.8092ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7417.2319

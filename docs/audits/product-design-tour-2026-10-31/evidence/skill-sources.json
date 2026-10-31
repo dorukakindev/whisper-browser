@@ -1,0 +1,26 @@
+{
+  "impeccable": {
+    "repository": "pbakaus/impeccable",
+    "commit": "4f956490f0056ae1ff5ea80372cf56e83c001d3c",
+    "installed": "2026-10-31",
+    "licenseSource": "https://raw.githubusercontent.com/pbakaus/impeccable/4f956490f0056ae1ff5ea80372cf56e83c001d3c/LICENSE",
+    "skillSha256": "fab04b31f946573b00a8559db1fc070f8ea5825254d491c2b13156e5661a86d7",
+    "hooksEnabledByThisInstall": false
+  },
+  "review-animations": {
+    "repository": "emilkowalski/skills",
+    "commit": "a81dbca07f2217b7103e510c0f13f8d5b017afc9",
+    "installed": "2026-10-31",
+    "licenseSource": "https://raw.githubusercontent.com/emilkowalski/skills/a81dbca07f2217b7103e510c0f13f8d5b017afc9/LICENSE",
+    "skillSha256": "6ff590d29e436766135aa3d137be1fac2a867165c7257fc315b189361f1873af",
+    "hooksEnabledByThisInstall": false
+  },
+  "animation-vocabulary": {
+    "repository": "emilkowalski/skills",
+    "commit": "a81dbca07f2217b7103e510c0f13f8d5b017afc9",
+    "installed": "2026-10-31",
+    "licenseSource": "https://raw.githubusercontent.com/emilkowalski/skills/a81dbca07f2217b7103e510c0f13f8d5b017afc9/LICENSE",
+    "skillSha256": "40d2b27adfdfeb0570a9f20e7d0255109d9233c50603878bcd0dcd04c923fd94",
+    "hooksEnabledByThisInstall": false
+  }
+}

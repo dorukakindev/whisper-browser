@@ -7,6 +7,10 @@ alwaysApply: true
 
 The user clarified this preference on 2026-10-31 for the entire application.
 
+- Treat aesthetic quality and everyday usability as core product requirements in both the simple and advanced experience. Advanced controls must receive the same visual care, theme consistency and interaction polish as the main screen.
+- Use Luna's balance as inspiration: clear everyday actions and sensible defaults, with practical fine-tuning available when wanted. An Advanced disclosure is not a place to dump cramped, unstyled or jargon-heavy forms.
+- Make fine-tuning easy to discover and efficient to use: coherent groups, plain labels, readable spacing and clear feedback. Simplification must preserve user control; adding settings must preserve everyday clarity.
+
 - Simplifying a screen must not remove supported expert settings, source data, or evidence. Keep them behind a clearly named, keyboard-accessible Advanced / Details disclosure or settings entry.
 - Keep essential state, failures, selected source, and primary action visible. Opening a disclosure must not reset edits or change settings. Preserve its state across same-context redraws where practical.
 - Do not bury the only recovery path when automatic access fails. Reveal or link to the relevant manual/source controls.
@@ -14,4 +18,6 @@ The user clarified this preference on 2026-10-31 for the entire application.
 - Reuse the existing theme, spacing, typography and controls. Study Luna Player for inspiration and meaningful features, improving our own workflows rather than copying an entire UI or replacing our working implementation.
 - Record the actual Luna version/reference inspected. If screenshots or current source are unavailable, state that limitation; do not claim a rendered comparison or feature parity.
 - Verify changed screens at normal and narrow widths, relevant themes, populated/loading/error/detail states. Passing build or overflow checks alone does not establish good design.
+- Prefer the application's isolated native Electron render/capture and interaction checks for screenshot review when available; Computer Use is not required merely to inspect rendered screens. Keep the user's open application and personal profile intact.
+- For design and motion work, consult relevant installed guidance such as frontend-design, Impeccable and review-animations. Apply it to a concrete observed problem, preserve the incumbent theme, and verify the rendered result; installing a skill or passing a detector alone is not a design improvement.
 - The user explicitly requested Letterboxd and design work after retiring the old task quota. This is authorized product work, not an instruction to restore arbitrary task counts.

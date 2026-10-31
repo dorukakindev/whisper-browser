@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "phase": "after",
+  "states": 24,
+  "settingsCommand": true,
+  "escapeMenu": true,
+  "motionTenPercent": true,
+  "reducedMotion": true,
+  "streamScrollPreserved": true,
+  "providerCalls": 0
+}
