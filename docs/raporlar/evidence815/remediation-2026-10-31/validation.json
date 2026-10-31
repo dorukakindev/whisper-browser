@@ -1,0 +1,1269 @@
+{
+  "fullRun": {
+    "files": 860,
+    "initialExit": 1,
+    "initialFailedFiles": 28,
+    "note": "Full run occurred during final integration; failed files were rerun after fixes. A second full run was not performed."
+  },
+  "failedFilesRechecked": [
+    {
+      "command": "node tests/assistant-conversation.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/assistant-voice-actions.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/browser-bulk-edit-locks.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/browser-config-deadzone.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/browser-controls-behavior.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/browser-page-capture.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/browser-page-translation-main.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/browser-subtitle-selfclosing.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/capture-export-deadzone.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/ci-determinism-ratchet.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/coverage-map.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/css-hardcoded-colors.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/dialog-locale.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/discovery-review810.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/docs-index-integrity.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/i18n-coverage.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/ipc-payload-fuzz.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/pdf-manga-36-40.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/persist-paths-deadzone.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/reader-pdf-lifecycle.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/renderer-edge-ratchet.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/report458-regressions.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/report67-smarttube-wiring.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/transcription-quit755.test.js",
+      "exit": 0
+    },
+    {
+      "command": "python backend/test_ass_override_roundtrip.py",
+      "exit": 0
+    },
+    {
+      "command": "python backend/test_probe_refinement_r273.py",
+      "exit": 0
+    },
+    {
+      "command": "python backend/test_report452.py",
+      "exit": 0
+    },
+    {
+      "command": "python backend/test_ytdlp_deadzones.py",
+      "exit": 0
+    }
+  ],
+  "syntax": [
+    {
+      "file": "backend/browser_align.py",
+      "exit": 0
+    },
+    {
+      "file": "backend/media.py",
+      "exit": 0
+    },
+    {
+      "file": "backend/media_shelf.py",
+      "exit": 0
+    },
+    {
+      "file": "backend/test_report815_library.py",
+      "exit": 0
+    },
+    {
+      "file": "backend/test_transcribe.py",
+      "exit": 0
+    },
+    {
+      "file": "backend/test_ytdlp_deadzones.py",
+      "exit": 0
+    },
+    {
+      "file": "backend/transcribe.py",
+      "exit": 0
+    },
+    {
+      "file": "src/assistant-agent-service.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/assistant-context-manifest.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/assistant-mcp-bridge.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/assistant-media-command.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/assistant-provider.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/assistant-retrieval.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/book-project-backup.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/browser-asset-store.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/browser-cea-full-capture.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/browser-diagnostics-export.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/browser-downloads.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/browser-feature-services.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/browser-fonts.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/browser-link-hints.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/browser-media-controller.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/browser-note-store.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/browser-reading-list.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/browser-research-notebook.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/browser-session-package.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/browser-subtitle-preferences.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/browser-subtitles.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/browser-translation-archive.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/burnin-output.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/catalog-extensions.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/data-integrity.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/main.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/media-discovery-service.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/media-shelf-service.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/media-taste.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/media-tools-service.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/media-torrents.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/media-workflows.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/model-manager.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/pdf-translation-operations.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/preload.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/app-settings-ui.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/assistant-agent-ui.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/assistant-app-actions.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/assistant-library-actions.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/assistant-overlay.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/assistant-workflow-actions.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/assistant-workspace.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/global-assistant.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/media-discovery-ui.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/media-hub-ui.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/media-shelf-ui.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/media-taste-ui.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/media-title.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/media-tools-ui.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/media-workflows-ui.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/pdf-reader-experience.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/renderer.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/review-decision-ui.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/spotify-import-ui.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/renderer/ui-locale.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/subscriptions-io.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/user-data-schema.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "src/workspace-package.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/assistant-conversation.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/assistant-voice-actions.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/book-export.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/book-render-owner644.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/browser-adblock-ui.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/browser-bulk-edit-locks.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/browser-config-deadzone.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/browser-controls-behavior.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/browser-media-controller.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/browser-menu-proxy.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/browser-page-capture.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/browser-page-translation-main.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/browser-reading-design.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/browser-reading-list.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/browser-subtitle-selfclosing.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/browser-subtitles.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/browser-tabs.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/capture-export-deadzone.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/data-integrity.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/discovery-review810.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/ipc-payload-fuzz.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/media-discovery-service.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/media-taste.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/pdf-manga-36-40.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/persist-paths-deadzone.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/reader-pdf-lifecycle.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report458-regressions.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report67-smarttube-wiring.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-aria-fixture.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-aria-native.smoke.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-aria.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-assistant-regressions.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-auto-backup.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-book-backup.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-browser-boundaries.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-browser-native.smoke.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-cea-boundaries.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-engine-regressions.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-liveasr-boundaries.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-manga-boundaries.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-media-native.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-media-regressions.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-package-regressions.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-pdf-regressions.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-root-boundaries.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-storage-assets.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-storage-integrity.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report815-video-package.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report817-design.smoke.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/report817-folder-path.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/test_report815_backend.py",
+      "exit": 0
+    },
+    {
+      "file": "tests/transcription-quit755.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/watch-index-assets.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/workspace-privacy.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tests/workspace-restore-regressions.test.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tools/package-manifest.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tools/package-windows.js",
+      "exit": 0,
+      "error": ""
+    },
+    {
+      "file": "tools/voxcpm2/dub_plan.py",
+      "exit": 0
+    },
+    {
+      "file": "tools/voxcpm2/dub_quality.py",
+      "exit": 0
+    }
+  ],
+  "ariaNative": {
+    "rendererErrors": [],
+    "axeViolations": [],
+    "tabCount": 4,
+    "tablistChildren": 4,
+    "muteAndCloseRemainNativeButtons": true,
+    "physicalArrowFromMuteActivatesNextTab": true,
+    "nativeSearchEnterInvokesPdf": true,
+    "limits": [
+      "Actual Chromium accessibility tree and axe on production HTML fragments plus original rendering/event functions.",
+      "Provider/tab IPC boundaries controlled; no personal profile or remote page."
+    ]
+  },
+  "nativeDesign": {
+    "ok": true,
+    "electron": "43.5.0",
+    "rows": [
+      {
+        "id": "D01",
+        "query": "Flex",
+        "noMatches": false,
+        "count": 1
+      },
+      {
+        "id": "D01",
+        "query": "DeepInfra",
+        "noMatches": false,
+        "count": 3
+      },
+      {
+        "id": "D01",
+        "query": "model",
+        "noMatches": false,
+        "count": 3
+      },
+      {
+        "id": "D01",
+        "query": "API",
+        "noMatches": false,
+        "count": 4
+      },
+      {
+        "id": "D01",
+        "query": "Flex",
+        "noMatches": false,
+        "count": 1
+      },
+      {
+        "id": "D01",
+        "query": "DeepInfra",
+        "noMatches": false,
+        "count": 3
+      },
+      {
+        "id": "D01",
+        "query": "model",
+        "noMatches": false,
+        "count": 3
+      },
+      {
+        "id": "D01",
+        "query": "API",
+        "noMatches": false,
+        "count": 4
+      },
+      {
+        "name": "01-settings-flex"
+      },
+      {
+        "name": "02-model-940-1",
+        "width": 940,
+        "statusWidth": 773,
+        "statusScroll": 773,
+        "font": "12px",
+        "maintenanceClosed": true,
+        "fieldWidth": 833
+      },
+      {
+        "name": "02-model-940-1.25",
+        "width": 752,
+        "statusWidth": 588,
+        "statusScroll": 588,
+        "font": "12px",
+        "maintenanceClosed": true,
+        "fieldWidth": 648
+      },
+      {
+        "name": "02-model-1000-1",
+        "width": 1000,
+        "statusWidth": 261,
+        "statusScroll": 261,
+        "font": "12px",
+        "maintenanceClosed": true,
+        "fieldWidth": 321
+      },
+      {
+        "name": "02-model-1000-1.25",
+        "width": 800,
+        "statusWidth": 636,
+        "statusScroll": 636,
+        "font": "12px",
+        "maintenanceClosed": true,
+        "fieldWidth": 696
+      },
+      {
+        "name": "02-model-1440-1",
+        "width": 1440,
+        "statusWidth": 447,
+        "statusScroll": 447,
+        "font": "12px",
+        "maintenanceClosed": true,
+        "fieldWidth": 507
+      },
+      {
+        "name": "02-model-1440-1.25",
+        "width": 1152,
+        "statusWidth": 327,
+        "statusScroll": 327,
+        "font": "12px",
+        "maintenanceClosed": true,
+        "fieldWidth": 387
+      },
+      {
+        "name": "03-model-management-open",
+        "fonts": [
+          12,
+          12,
+          13,
+          12,
+          13,
+          12,
+          13
+        ]
+      },
+      {
+        "name": "04-folder-tails"
+      },
+      {
+        "name": "05-folder-keyboard-detail",
+        "open": true,
+        "value": "D:\\Sentetik_Tasarim_Denetimi\\Video_Projeleri\\2026\\Uzun_Ortak_Klasor_Adi\\GIRDI",
+        "readOnly": true
+      },
+      {
+        "name": "06-palette-tr-1",
+        "height": 682,
+        "palette": {
+          "x": 166,
+          "y": 110.66667175292969,
+          "width": 560,
+          "height": 475.66668701171875,
+          "top": 110.66667175292969,
+          "right": 726,
+          "bottom": 586.3333587646484,
+          "left": 166
+        },
+        "hint": {
+          "x": 184.6666717529297,
+          "y": 556.3333740234375,
+          "width": 522.6666870117188,
+          "height": 13.333333969116211,
+          "top": 556.3333740234375,
+          "right": 707.3333587646484,
+          "bottom": 569.6667079925537,
+          "left": 184.6666717529297
+        }
+      },
+      {
+        "name": "06-palette-tr-1.25",
+        "height": 545,
+        "palette": {
+          "x": 72,
+          "y": 110.53334045410156,
+          "width": 560,
+          "height": 412.5333557128906,
+          "top": 110.53334045410156,
+          "right": 632,
+          "bottom": 523.0666961669922,
+          "left": 72
+        },
+        "hint": {
+          "x": 90.53334045410156,
+          "y": 493.20001220703125,
+          "width": 522.933349609375,
+          "height": 13.333333969116211,
+          "top": 493.20001220703125,
+          "right": 613.4666900634766,
+          "bottom": 506.53334617614746,
+          "left": 90.53334045410156
+        }
+      },
+      {
+        "name": "06-palette-tr-1.5",
+        "height": 454,
+        "palette": {
+          "x": 22.88888931274414,
+          "y": 110.8888931274414,
+          "width": 532.888916015625,
+          "height": 320.8888854980469,
+          "top": 110.8888931274414,
+          "right": 555.7778053283691,
+          "bottom": 431.7777786254883,
+          "left": 22.88888931274414
+        },
+        "hint": {
+          "x": 41.77777862548828,
+          "y": 401.5555725097656,
+          "width": 495.1111145019531,
+          "height": 13.333333015441895,
+          "top": 401.5555725097656,
+          "right": 536.8888931274414,
+          "bottom": 414.8889055252075,
+          "left": 41.77777862548828
+        }
+      },
+      {
+        "name": "06-palette-en-1",
+        "height": 682,
+        "palette": {
+          "x": 166,
+          "y": 110.66667175292969,
+          "width": 560,
+          "height": 475.66668701171875,
+          "top": 110.66667175292969,
+          "right": 726,
+          "bottom": 586.3333587646484,
+          "left": 166
+        },
+        "hint": {
+          "x": 184.6666717529297,
+          "y": 556.3333740234375,
+          "width": 522.6666870117188,
+          "height": 13.333333969116211,
+          "top": 556.3333740234375,
+          "right": 707.3333587646484,
+          "bottom": 569.6667079925537,
+          "left": 184.6666717529297
+        }
+      },
+      {
+        "name": "06-palette-en-1.25",
+        "height": 545,
+        "palette": {
+          "x": 72,
+          "y": 110.53334045410156,
+          "width": 560,
+          "height": 412.5333557128906,
+          "top": 110.53334045410156,
+          "right": 632,
+          "bottom": 523.0666961669922,
+          "left": 72
+        },
+        "hint": {
+          "x": 90.53334045410156,
+          "y": 493.20001220703125,
+          "width": 522.933349609375,
+          "height": 13.333333969116211,
+          "top": 493.20001220703125,
+          "right": 613.4666900634766,
+          "bottom": 506.53334617614746,
+          "left": 90.53334045410156
+        }
+      },
+      {
+        "name": "06-palette-en-1.5",
+        "height": 454,
+        "palette": {
+          "x": 22.88888931274414,
+          "y": 110.8888931274414,
+          "width": 532.888916015625,
+          "height": 320.8888854980469,
+          "top": 110.8888931274414,
+          "right": 555.7778053283691,
+          "bottom": 431.7777786254883,
+          "left": 22.88888931274414
+        },
+        "hint": {
+          "x": 41.77777862548828,
+          "y": 401.5555725097656,
+          "width": 495.1111145019531,
+          "height": 13.333333015441895,
+          "top": 401.5555725097656,
+          "right": 536.8888931274414,
+          "bottom": 414.8889055252075,
+          "left": 41.77777862548828
+        }
+      },
+      {
+        "name": "07-quickplaces-narrow-panel",
+        "workspace": 632,
+        "columns": "286.833px 286.833px",
+        "client": 584,
+        "scroll": 584
+      },
+      {
+        "name": "07b-toolbar-panel-55",
+        "width": 633,
+        "nav": {
+          "x": 22.666667938232422,
+          "y": 49.66666793823242,
+          "width": 139,
+          "height": 32,
+          "top": 49.66666793823242,
+          "right": 161.66666793823242,
+          "bottom": 81.66666793823242,
+          "left": 22.666667938232422
+        },
+        "address": {
+          "x": 169.6666717529297,
+          "y": 47.66666793823242,
+          "width": 241.6666717529297,
+          "height": 36,
+          "top": 47.66666793823242,
+          "right": 411.3333435058594,
+          "bottom": 83.66666793823242,
+          "left": 169.6666717529297
+        },
+        "actions": {
+          "x": 419.3333435058594,
+          "y": 48.66666793823242,
+          "width": 211,
+          "height": 34,
+          "top": 48.66666793823242,
+          "right": 630.3333435058594,
+          "bottom": 82.66666793823242,
+          "left": 419.3333435058594
+        },
+        "left": 10,
+        "right": 643,
+        "moreVisible": true
+      },
+      {
+        "name": "07b-toolbar-panel-70",
+        "width": 420,
+        "nav": {
+          "x": 22.666667938232422,
+          "y": 49.66666793823242,
+          "width": 139,
+          "height": 32,
+          "top": 49.66666793823242,
+          "right": 161.66666793823242,
+          "bottom": 81.66666793823242,
+          "left": 22.666667938232422
+        },
+        "address": {
+          "x": 169.6666717529297,
+          "y": 47.66666793823242,
+          "width": 102.66667175292969,
+          "height": 36,
+          "top": 47.66666793823242,
+          "right": 272.3333435058594,
+          "bottom": 83.66666793823242,
+          "left": 169.6666717529297
+        },
+        "actions": {
+          "x": 280.3333435058594,
+          "y": 48.66666793823242,
+          "width": 137,
+          "height": 34,
+          "top": 48.66666793823242,
+          "right": 417.3333435058594,
+          "bottom": 82.66666793823242,
+          "left": 280.3333435058594
+        },
+        "left": 10,
+        "right": 430,
+        "moreVisible": true
+      },
+      {
+        "name": "08-catalog-long",
+        "client": 853,
+        "scroll": 853,
+        "title": "Uzun_Kesintisiz_Dosya_Adindan_Gelen_Uzun_Kesintisiz_Dosya_Adindan_Gelen_Uzun_Kesintisiz_Dosya_Adindan_Gelen_Uzun_Kesintisiz_Dosya_Adindan_Gelen_Uzun_Kesintisiz_Dosya_Adindan_Gelen_"
+      },
+      {
+        "name": "08-catalog-words",
+        "client": 853,
+        "scroll": 853,
+        "title": "Uzun Türkçe ve English başlık Uzun Türkçe ve English başlık Uzun Türkçe ve English başlık Uzun Türkçe ve English başlık Uzun Türkçe ve English başlık Uzun Türkçe ve English başlık Uzun Türkçe ve English başlık Uzun Türkçe ve English başlık"
+      },
+      {
+        "name": "08-catalog-short",
+        "client": 853,
+        "scroll": 853,
+        "title": "Kuzeyin Hikâyesi"
+      },
+      {
+        "name": "09-book-font-next-chapter",
+        "font": "27px",
+        "value": "27",
+        "stored": "27"
+      },
+      {
+        "id": "G817-02",
+        "automaticAdvanceHandler": true,
+        "font": "27px"
+      },
+      {
+        "id": "G817-02",
+        "rendererReload": true,
+        "font": "27px"
+      }
+    ],
+    "scope": "Native app CSS/layout; book IPC synthetic, not real narration/GPU."
+  },
+  "pdfIntegration": {
+    "scope": [
+      "src/pdf-translation-operations.js sender/document/operation scoping, configuration detachment, size bounds, expiry and listener cleanup",
+      "src/main.js pdf:translatePages configuration capture and job ownership; pdf:cancel release and operation matching; shutdown cleanup",
+      "src/preload.js cancellation metadata compatibility",
+      "src/renderer/renderer.js PDF batching, finalization, close/cancel and task-center stop callers"
+    ],
+    "findings_fixed": [
+      {
+        "issue": "The task-center PDF stop callback still cancelled by hash only. A stale card could target a newer reader of the same document, and a between-batch stop did not set the local cancellation flag.",
+        "fix": "Capture reader and operation ID with the task card; reject a replaced reader/operation, mark cancelRequested and pass the scoped ID to the existing cancellation channel.",
+        "test": "PDF task-center stop is operation-scoped and cannot cancel a replacement reader"
+      },
+      {
+        "issue": "The renderer discarded its operation ID immediately after the final IPC attempt, including transport rejection, so wrapper cleanup could not release an earlier configuration snapshot if the final batch was not acknowledged.",
+        "fix": "Keep the operation ID until wrapper finally. The scoped cancellation is idempotent after normal main-side lastBatch release and cannot affect a later operation.",
+        "test": "PDF translation cleanup releases its operation even when the final IPC reply rejects"
+      }
+    ],
+    "reviewed_invariants": [
+      "Provider/model/key/glossary snapshots remain main-owned and detached; synthetic credential markers never occur in handler results.",
+      "Continuation requests cannot borrow another sender's snapshot or silently recapture changed settings.",
+      "A replaced document object fails continuation before translation dispatch.",
+      "Late scoped cancellation cannot abort a different operation on the same document.",
+      "Sender destruction and shutdown release snapshots; active job destruction aborts its owned work.",
+      "Legacy one-batch callers remain supported; capacity and idle expiry bounds remain unchanged."
+    ],
+    "validation": {
+      "focused_pdf_book_handoff_passed": 45,
+      "failed": 0,
+      "new_review_regressions": 2,
+      "diff_check": "passed"
+    },
+    "residual": "No further concrete introduced credential-scope or cancellation-release defect found in this focused review. Idle expiry is lazily pruned on operation access; the store remains hard bounded even without further requests. Native UI acceptance and live provider calls were not run."
+  },
+  "limits": [
+    "Controlled isolated profiles and fixtures; no personal application/settings/media changed.",
+    "No live translation provider, GPU TTS quality, physical audio listening or real YouTube acceptance in this package.",
+    "No final full-suite green claim;28previously failing files and targeted changed boundaries passed."
+  ],
+  "browserDiscoveryFinal": {
+    "scope": "bounded empty-document media discovery follow-up",
+    "change": "Removed empty-media bypass and redundant fallback flag; initial scan establishes the discovery clock. All periodic scans use the same1s interval; backward-clock handling remains.",
+    "latency": "Newly attached open shadow roots are discovered at the next scan, at most1s sampling latency.",
+    "results": [
+      {
+        "command": "node tests/report458-regressions.test.js",
+        "status": "passed",
+        "count": 4,
+        "evidence": "Empty document100probes causes no repeated scan;999ms no scan;1000ms finds late shadow video;100further probes stay throttled. Observer-cap countercheck remains green."
+      },
+      {
+        "command": "node tests/browser-media-controller.test.js",
+        "status": "passed",
+        "count": 37
+      },
+      {
+        "command": "node tests/report815-browser-boundaries.test.js",
+        "status": "passed",
+        "groups": 16
+      },
+      {
+        "command": "Electron43.5.0 tests/report815-browser-native.smoke.js --disable-gpu",
+        "status": "passed",
+        "exitCode": 0,
+        "ids": [
+          "B59",
+          "B60",
+          "B61",
+          "B62",
+          "B64"
+        ],
+        "notes": "B59 native fixture waits1050ms for bounded discovery. B63 physical audio restoration remains unresolved and is not claimed by native smoke."
+      }
+    ],
+    "logs": [
+      "tmp/audit-fixes/browser-native.stdout.log",
+      "tmp/audit-fixes/browser-native.stderr.log"
+    ],
+    "thresholdChanges": []
+  },
+  "backendIntegration": {
+    "scope": "Targeted follow-up of full-suite failures assigned by root",
+    "reproduced_before_changes": [
+      "backend/test_ass_override_roundtrip.py",
+      "backend/test_probe_refinement_r273.py",
+      "backend/test_report452.py",
+      "backend/test_ytdlp_deadzones.py",
+      "tests/pdf-manga-36-40.test.js"
+    ],
+    "fixes": [
+      {
+        "file": "backend/transcribe.py",
+        "reason": "Real ASS regression: retain one entry per timed Dialogue, including empty drawing/tag-only cues, until drop_empty_entries filters entries and presentation metadata together."
+      },
+      {
+        "file": "backend/transcribe.py",
+        "reason": "Retain established exact-cache keys when no series canon hint exists; nonempty canon remains included so newly available terminology invalidates stale exact results."
+      },
+      {
+        "file": "backend/transcribe.py",
+        "reason": "Resolve a file explicitly reported by the current completed download hook if requested_downloads is absent; still enforce inside-output-directory and actual-file checks, and never discover unqualified old cache by fallback."
+      },
+      {
+        "file": "backend/test_ytdlp_deadzones.py",
+        "reason": "Update fallback fixture to the current audio-auto output namespace and add explicit rejection of a preexisting unqualified cache file."
+      },
+      {
+        "file": "tests/pdf-manga-36-40.test.js",
+        "reason": "Replace obsolete string-to-string static expectation with sentence.text input and validated result.text output assertions."
+      },
+      {
+        "file": "tests/report67-smarttube-wiring.test.js",
+        "reason": "Update owned temporary-output cleanup contract; require atomic completed replacement and prohibit deletion of previous final output."
+      }
+    ],
+    "validation": {
+      "backend/test_ass_override_roundtrip.py": "9 passed",
+      "backend/test_probe_refinement_r273.py": "3 passed",
+      "backend/test_report452.py": "4 passed",
+      "backend/test_ytdlp_deadzones.py": "24 controls passed",
+      "tests/pdf-manga-36-40.test.js": "18 passed",
+      "tests/report67-smarttube-wiring.test.js": "84 passed",
+      "tests/test_report815_backend.py targeted affected regressions": "4 passed: drawing metadata/series canon/YouTube audio language/atomic adaptive retry"
+    },
+    "limits": [
+      "Only assigned failures and directly affected regression controls were run; full suite was not repeated.",
+      "No thresholds or production quality gates loosened. No personal profile or network/model used."
+    ]
+  }
+}

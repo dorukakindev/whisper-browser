@@ -18,7 +18,7 @@
   if(pending||applying)return;retryPacket=null;
   const previous=resume?window.AssistantWorkspace.resume(resume.proposalId,context):null;
   const prefix=previous?.text?(previous.text.length>16000?t('Earlier flow text was shortened.\n','Önceki akış metni kısaltıldı.\n'):'')+previous.text.slice(-16000)+'\n\n':'';
-  const task={id:crypto.randomUUID(),scope,question,history,context,owner:window.AssistantAppActions.snapshot(),text:prefix,prefix,actions:previous?.actions||[],evidence:previous?.evidence||[]};
+  const task={id:crypto.randomUUID(),scope,question,history,context,owner:window.AssistantAppActions.snapshot(),text:prefix,prefix,actions:previous?.actions||[],evidence:previous?.evidence||[],trace:previous?.steps||[],citations:previous?.citations||[]};
   if(previous)task.job=previous.job;else{aiChatAdd('user',question);task.job={chatQuestion:question,chatContext:context,sourceScope:scope,bubble:aiChatAdd('ai',t('Connecting to your assistant…','Asistana bağlanılıyor…'),'is-loading')};window.AssistantWorkspace?.begin(task.job);}
   pending=task;changed();
   document.getElementById('aiChatText').value='';autoGrowChatBox();
@@ -35,7 +35,7 @@
   if(text.length>32000)text=t('Earlier flow text was shortened.\n','Önceki akış metni kısaltıldı.\n')+text.slice(-31800);
   task.trace=(task.trace||[]).map(row=>row.state==='running'?{...row,state:'stopped'}:row);window.AssistantWorkspace?.steps?.(task.job,task.trace);
   task.job.bubble.classList.remove('is-loading');if(state!=='complete')task.job.bubble.classList.add('ai-msg-err');
-  if(result?.ok&&current)window.AssistantWorkspace?.citations?.(task.job,result.bookCitations||[]);
+  if(result?.ok&&current)window.AssistantWorkspace?.citations?.(task.job,[...new Map([...task.citations,...(result.bookCitations||[])].map(row=>[row.id,row])).values()]);
   renderAiText(task.job.bubble,text);window.AssistantWorkspace?.finish(task.job,text,state);
   if(result?.ok&&current){player.chatHistory=[...history,{role:'user',content:question},{role:'assistant',content:text}].slice(-24);player.chatHistoryScope=scope;document.dispatchEvent(new CustomEvent('assistant-answer',{detail:{text,context}}));}
   if(!resume&&!result?.ok&&current&&!task.cancelled&&!result?.cancelled)retryPacket={question,context,history,scope,owner:task.owner};

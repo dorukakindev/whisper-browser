@@ -35,6 +35,10 @@ test('The newest open request wins even when an older book reply arrives last',a
  assert.equal(f.w.document.querySelector('textarea[data-chapter]')?.dataset.projectId,'two');
  assert.equal(f.w.MediaWorkflowsUI.assistant.state()?.id,'two');
 });
+test('PDF preparation cannot commit its project after the caller selection changes while opening',async t=>{
+ const slow=gate(),f=fixture({bookGate:()=>slow.promise});t.after(()=>f.dom.window.close());let current=true;
+ const pending=f.w.MediaWorkflowsUI.openProject('one',{isCurrent:()=>current});await tick();current=false;slow.resolve({ok:true,project:f.project('one')});await assert.rejects(pending,/replaced or closed/);assert.equal(f.w.document.querySelector('textarea[data-chapter]'),null);assert.equal(f.w.MediaWorkflowsUI.assistant.state(),null);
+});
 
 test('A late render cannot append duplicate editors after a project selection clears the same body',async t=>{
  const config=gate();let calls=0;const f=fixture({configGate:()=>++calls===1?config.promise:Promise.resolve({})});t.after(()=>f.dom.window.close());

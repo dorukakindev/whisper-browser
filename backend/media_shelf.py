@@ -10,7 +10,7 @@ import sys
 import zipfile
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
-from urllib.parse import unquote, urlsplit
+from urllib.parse import unquote, urlsplit, urljoin
 
 
 def xml(data):
@@ -42,7 +42,7 @@ class Prose(HTMLParser):
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
         types = set(attributes.get('epub:type', '').split())
-        hidden = tag in ('head', 'title', 'script', 'style', 'noscript', 'nav') or 'noteref' in types
+        hidden = tag in ('head', 'title', 'script', 'style', 'noscript', 'nav') or 'noteref' in types or 'hidden' in attributes
         suppressed = hidden or (self.stack[-1][1] if self.stack else False)
         if not suppressed and tag in self.BLOCKS:
             self.parts.append('\n\n')
@@ -157,6 +157,13 @@ def rss(data):
         raise ValueError('Feed is too large.')
     root = xml(data)
     channel = next((n for n in root if local(n.tag) == 'channel'), root)
+    bases = {}
+    def inherit_base(node, parent=''):
+        base = urljoin(parent, node.attrib.get('{http://www.w3.org/XML/1998/namespace}base', ''))
+        bases[id(node)] = base
+        for child in node:
+            inherit_base(child, base)
+    inherit_base(root)
     entries = []
     for item in list(channel):
         if local(item.tag) not in ('item', 'entry'):
@@ -164,10 +171,10 @@ def rss(data):
         enclosure = next((n for n in item if local(n.tag) == 'enclosure' or (local(n.tag) == 'link' and n.attrib.get('rel') == 'enclosure')), None)
         if enclosure is None:
             continue
-        url = enclosure.attrib.get('url') or enclosure.attrib.get('href') or ''
+        url = urljoin(bases[id(enclosure)], enclosure.attrib.get('url') or enclosure.attrib.get('href') or '')
         if urlsplit(url).scheme not in ('http', 'https'):
             continue
-        entries.append(dict(title=text(first(item, 'title'))[:500], url=url, description=text(first(item, 'description'))[:3000], date=text(first(item, 'pubDate'))[:100]))
+        entries.append(dict(title=text(first(item, 'title'))[:500], url=url, guid=text(first(item, 'guid'))[:1000] or text(first(item, 'id'))[:1000], description=text(first(item, 'description'))[:3000], date=text(first(item, 'pubDate'))[:100]))
         if len(entries) >= 200:
             break
     if not entries:

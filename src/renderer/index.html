@@ -265,7 +265,7 @@
 
             <div class="settings-overview-body">
               <div class="settings-grid">
-            <div class="field">
+            <div class="field model-field">
               <label class="field-label" for="model">Model</label>
               <select id="model">
                 <option value="large-v3">large-v3</option>
@@ -276,9 +276,13 @@
                 <option value="base">base</option>
                 <option value="tiny">tiny</option>
               </select>
-              <div class="model-management-row">
+              <div class="model-availability">
                 <span id="modelInstallStatus" role="status">Önbellek denetlenmedi</span>
                 <button class="link-btn" id="modelStatusRefresh" type="button">Yenile</button>
+              </div>
+              <details class="model-management">
+                <summary>Model yönetimi</summary>
+                <div class="model-management-row">
                 <button class="link-btn" id="modelCacheDelete" type="button">Önbellekten sil</button>
                 <label class="model-benchmark-field"><span>Klip başlangıcı</span><input id="modelBenchmarkStart" type="number" min="0" max="86400" step="1" value="0" aria-label="Benchmark başlangıcı (saniye)"></label>
                 <label class="model-benchmark-field"><span>Klip süresi</span><select id="modelBenchmarkSeconds" aria-label="Benchmark süresi"><option value="30">30 sn</option><option value="60">60 sn</option><option value="90">90 sn</option><option value="120">120 sn</option></select></label>
@@ -292,7 +296,8 @@
                   <option value="base">vs base</option>
                   <option value="tiny">vs tiny</option>
                 </select>
-              </div>
+                </div>
+              </details>
             </div>
 
             <label class="field">
@@ -370,7 +375,7 @@
                 <button class="link-btn" id="pickInputFolder">Seç</button>
                 <button class="link-btn" id="resetInputFolder" title="İndirilenler/Whisper/GİRDİ klasörüne dön">Varsayılan</button>
               </span>
-              <div class="path-display" id="inputDir">İndirilenler\Whisper\GİRDİ</div>
+              <button class="path-display" id="inputDir" type="button" title="Tam yolu göster">İndirilenler\Whisper\GİRDİ</button>
               <span class="field-hint">Uygulamanın indirdiği video, ses ve kaynak altyazılar burada tutulur. Yerel dosyalar taşınmaz.</span>
             </div>
 
@@ -380,7 +385,7 @@
                 <button class="link-btn" id="pickFolder">Seç</button>
                 <button class="link-btn" id="resetFolder" title="İndirilenler/Whisper/ÇIKTI klasörüne dön">Varsayılan</button>
               </span>
-              <div class="path-display" id="outputDir">İndirilenler\Whisper\ÇIKTI</div>
+              <button class="path-display" id="outputDir" type="button" title="Tam yolu göster">İndirilenler\Whisper\ÇIKTI</button>
               <span class="field-hint">Üretilen transkripsiyon, çeviri, senkron dosyaları ve kalite raporları burada tutulur.</span>
             </div>
               </div>
@@ -1233,7 +1238,8 @@
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7M5 9v11h5v-6h4v6h5V9"/></svg><span>Home</span>
         </button>
         <div class="browser-tabbar" aria-label="Tarayıcı sekme alanı">
-          <div class="browser-tab-strip" id="browserTabStrip" role="tablist" aria-label="Tarayıcı sekmeleri"></div>
+          <div class="sr-only" id="browserTabList" role="tablist" aria-label="Tarayıcı sekmeleri" hidden></div>
+          <div class="browser-tab-strip" id="browserTabStrip" role="group" aria-label="Sekme işlemleri"></div>
           <button class="browser-tab-new" id="browserTabNew" type="button" title="Yeni sekme · Ctrl+T"
             aria-label="Yeni sekme · Ctrl+T"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg><span>Yeni sekme</span></button>
         </div>
@@ -1539,7 +1545,7 @@
                 <summary class="btn-icon browser-place-button" title="Diğer tarayıcı araçları" aria-label="Diğer tarayıcı araçları">
                   <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
                 </summary>
-                <div class="browser-menu-popover browser-more-popover" role="menu" aria-label="Diğer tarayıcı araçları">
+                <div class="browser-menu-popover browser-more-popover" role="group" aria-label="Diğer tarayıcı araçları">
                   <div class="browser-more-search-row">
                     <input id="browserMoreSearch" type="search" autocomplete="off" spellcheck="false"
                       placeholder="Menüde ara" aria-label="Menüde ara" />
@@ -1562,101 +1568,103 @@
                   </div>
                   <div class="browser-menu-separator"></div>
                   <details class="browser-more-sub"><summary><span class="browser-menu-label">Sayfa</span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></summary><div class="browser-more-sub-body">
-                  <button type="button" id="browserAdblockMenuToggle" role="menuitemcheckbox" aria-checked="true" data-browser-proxy="browserAdblockQuick">
+                  <button type="button" id="browserAdblockMenuToggle" aria-pressed="true" data-browser-proxy="browserAdblockQuick">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 20 6v5c0 5-3 8-8 10-5-2-8-5-8-10V6l8-3Zm-1 12 6-6-1.4-1.4-4.6 4.6-2.6-2.6L7 11l4 4Z"/></svg></span>
                     <span class="browser-menu-label" id="browserAdblockMenuLabel" data-ui-untranslated>Reklam engelleyici: Açık</span>
                   </button>
-                  <button type="button" role="menuitem" data-browser-proxy="browserReaderToggle">
+                  <button type="button" data-browser-proxy="browserReaderToggle">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21V5.5ZM20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5A2.5 2.5 0 0 1 20 21V5.5Z"/></svg></span>
                     <span class="browser-menu-label">Okuma görünümü</span>
                   </button>
-                  <button type="button" role="menuitem" id="browserExportPdf">
+                  <button type="button" id="browserExportPdf">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M6 20h12"/></svg></span>
                     <span class="browser-menu-label">Sayfayı PDF olarak kaydet</span>
                   </button>
-                  <button type="button" role="menuitem" id="browserCopyPageMarkdown">
+                  <button type="button" id="browserCopyPageMarkdown">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 5 5 12l4 7M15 5l4 7-4 7"/></svg></span>
                     <span class="browser-menu-label">Sayfa bağlantısını Markdown olarak kopyala</span>
                   </button>
-                  <button type="button" role="menuitem" id="browserShowQr">
+                  <button type="button" id="browserShowQr">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z"/></svg></span>
                     <span class="browser-menu-label">Sayfa QR kodunu göster</span>
                   </button>
-                  <button type="button" role="menuitem" id="browserElementPick">
+                  <button type="button" id="browserElementPick">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 13h7v7h-7zM17 4l3 3M20 4l-3 3"/></svg></span>
                     <span class="browser-menu-label">Sayfada öğe gizle…</span>
                   </button>
-                  <button type="button" role="menuitem" id="browserElementClear">
+                  <button type="button" id="browserElementClear">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span>
                     <span class="browser-menu-label">Bu sitede gizlenenleri geri yükle…</span>
                   </button>
-                  <button type="button" role="menuitem" data-browser-proxy="pdfReaderOpen">
+                  <button type="button" data-browser-proxy="pdfReaderOpen">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v5h5M8 12h8M8 16h8"/></svg></span>
                     <span class="browser-menu-label">PDF aç</span>
                   </button>
                   </div></details>
                   <details class="browser-more-sub"><summary><span class="browser-menu-label">Video</span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></summary><div class="browser-more-sub-body">
-                  <button type="button" role="menuitem" id="browserWatchInPlayer" disabled aria-disabled="true">
+                  <button type="button" data-browser-proxy="browserDubGenerate"><span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 9v6M8 5v14M12 8v8M16 3v18M20 9v6"/></svg></span><span class="browser-menu-label">SRT → Ses</span></button>
+                  <button type="button" data-browser-proxy="browserDubAdd"><span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4zM15 8a6 6 0 0 1 0 8"/></svg></span><span class="browser-menu-label">Ses ekle</span></button>
+                  <button type="button" id="browserWatchInPlayer" disabled aria-disabled="true">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5Z"/></svg></span>
                     <span class="browser-menu-label">Oynatıcıda izle</span>
                   </button>
-                  <button type="button" role="menuitem" id="browserPlayMpv">
+                  <button type="button" id="browserPlayMpv">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 5l12 7-12 7z"/></svg></span>
                     <span class="browser-menu-label">mpv ile oynat</span>
                   </button>
-                  <button type="button" role="menuitem" id="browserPlayVlc">
+                  <button type="button" id="browserPlayVlc">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4l6 10H6zM8 18h8"/></svg></span>
                     <span class="browser-menu-label">VLC ile oynat</span>
                   </button>
-                  <button type="button" role="menuitem" data-browser-proxy="playerQuickDownload">
+                  <button type="button" data-browser-proxy="playerQuickDownload">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 20h16"/></svg></span>
                     <span class="browser-menu-label">Videoyu indir</span>
                   </button>
-                  <button type="button" role="menuitem" data-browser-proxy="playerBookmark">
+                  <button type="button" data-browser-proxy="playerBookmark">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 4.5A2.5 2.5 0 0 1 8.5 2h7A2.5 2.5 0 0 1 18 4.5V21l-6-3.5L6 21V4.5Z"/></svg></span>
                     <span class="browser-menu-label">Bu anı kaydet</span><span class="browser-menu-shortcut">K</span>
                   </button>
                   </div></details>
                   <details class="browser-more-sub"><summary><span class="browser-menu-label">Site</span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></summary><div class="browser-more-sub-body">
-                  <button type="button" role="menuitemcheckbox" id="browserPinActiveTab" aria-checked="false">
+                  <button type="button" id="browserPinActiveTab" aria-pressed="false">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 3h8l-1 6 3 3v2H6v-2l3-3-1-6Zm4 11v7"/></svg></span>
                     <span class="browser-menu-label">Etkin sekmeyi sabitle</span>
                   </button>
-                  <button type="button" role="menuitem" id="browserReadLater">
+                  <button type="button" id="browserReadLater">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v10m0 0 3-3m-3 3-3-3M5 21h14M5 3h14"/></svg></span>
                     <span class="browser-menu-label">Çevrimdışı okuma listesine ekle</span>
                   </button>
-                  <button type="button" role="menuitem" data-browser-proxy="browserDownloadsToggle">
+                  <button type="button" data-browser-proxy="browserDownloadsToggle">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg></span>
                     <span class="browser-menu-label">İndirmeler</span>
                   </button>
-                  <button type="button" role="menuitem" data-browser-proxy="browserPlacesToggle">
+                  <button type="button" data-browser-proxy="browserPlacesToggle">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v13l-8-5.7L4 19.5v-13Z"/></svg></span>
                     <span class="browser-menu-label">Yer imleri ve geçmiş</span>
                   </button>
                   </div></details>
                   <details class="browser-more-sub"><summary><span class="browser-menu-label">Görünüm ve yardım</span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></summary><div class="browser-more-sub-body">
-                  <button type="button" role="menuitem" data-browser-proxy="playerLayoutQuick">
+                  <button type="button" data-browser-proxy="playerLayoutQuick">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg></span>
                     <span class="browser-menu-label">Görünüm düzeni</span>
                   </button>
-                  <button type="button" role="menuitem" data-browser-proxy="browserViewSettingsToggle">
+                  <button type="button" data-browser-proxy="browserViewSettingsToggle">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"/></svg></span>
                     <span class="browser-menu-label">Sayfa görünümü ayarları</span>
                   </button>
-                  <button type="button" role="menuitem" data-browser-proxy="browserSignalToggle">
+                  <button type="button" data-browser-proxy="browserSignalToggle">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h9M4 12h16M4 17h11"/></svg></span>
                     <span class="browser-menu-label">Altyazı sinyalini göster / gizle</span>
                   </button>
-                  <button type="button" role="menuitem" data-browser-proxy="browserChromeToggle">
+                  <button type="button" data-browser-proxy="browserChromeToggle">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m7 14 5-5 5 5"/></svg></span>
                     <span class="browser-menu-label">Sade izleme görünümü</span>
                   </button>
-                  <button type="button" role="menuitem" id="browserCommandPaletteToggle">
+                  <button type="button" id="browserCommandPaletteToggle">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5h14v14H5zM8 9h8M8 13h5"/></svg></span>
                     <span class="browser-menu-label">Komut paleti</span><span class="browser-menu-shortcut">Ctrl+K</span>
                   </button>
-                  <button type="button" role="menuitem" data-browser-proxy="browserDiagnosticsToolbar">
+                  <button type="button" data-browser-proxy="browserDiagnosticsToolbar">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg></span>
                     <span class="browser-menu-label">Yakalama ayrıntıları</span>
                   </button>

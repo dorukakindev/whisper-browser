@@ -126,6 +126,7 @@ async function fixture(t, options = {}) {
     sender,
     setDisk: (value) => (disk = value),
     encoded: () => encoded,
+    service,
   };
 }
 test("missing chapter speech returns actionable bilingual error without touching the M4B", async (t) => {
@@ -468,4 +469,16 @@ test('A destination modified during encoding is preserved instead of overwritten
  let root;
  const f=await fixture(t,{runTool:async(tool,args)=>{if(tool==='probe')return '2';fs.writeFileSync(path.join(root,'existing.m4b'),'another application wrote this');fs.writeFileSync(args.at(-1),'new encoded output');return '';}});root=f.root;
  const result=await f.call('book-export',{id:f.id,chapters:[0]});assert.equal(result.ok,false);assert.match(result.error,/destination changed/);assert.equal(fs.readFileSync(f.target,'utf8'),'another application wrote this');assert(!fs.readdirSync(root).some(name=>name.startsWith('.audiobook-')));
+});
+
+test('M4B freshness follows the captured audio take while preserving the previous playable export', async (t) => {
+ const f=await fixture(t);assert((await f.call('book-export',{id:f.id,chapters:[0]})).ok);
+ const first=await f.call('book-audiobook',{id:f.id});assert.equal(first.current,true);assert.equal(first.available,true);
+ const prepared=await f.call('book-prepare',{id:f.id,chapter:0});assert(prepared.ok,prepared.error);
+ const output=path.join(f.root,'new-take.wav');fs.writeFileSync(output,wav(3));
+ const verification={status:'passed',recognizedText:'First controlled chapter.'};
+ f.service.capture({id:prepared.request.id,path:output,quality:{groups:[{key:'group',status:'ready',displayText:'First controlled chapter.',audioStart:0,audioEnd:3,verification}]}});
+ const second=await f.call('book-audiobook',{id:f.id});assert.equal(second.ok,true);assert.equal(second.available,true);assert.equal(second.current,false);
+ const opened=await f.call('book-open',{id:f.id});assert.deepEqual(opened.project.chapters[0].groups[0].verification,verification);
+ assert.equal(opened.project.audiobook.chapters[0].textHash,opened.project.chapters[0].textHash);
 });

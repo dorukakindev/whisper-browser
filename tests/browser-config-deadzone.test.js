@@ -111,6 +111,7 @@ function evalAll(ctx) {
     section('function browserNavigationStateForTab(', 'function browserNavigationState('),
     section('function browserPlaybackSnapshot(', 'function publishBrowserPlaybackDiagnostics('),
     section('function browserTabsSnapshot(', 'function browserSplitSnapshot('),
+    section('function browserFrames(', 'async function executeBrowserViewFrames('),
     section('async function browserTabRuntimeState(', 'async function unloadBrowserTab('),
     section('function trimInsertionCollection(', 'let browserDashSubtitleMatchers'),
     section('function boundedIpcRows(', 'function boundedBrowserOverlayCues('),
@@ -320,11 +321,19 @@ async function t_runtime_state() {
   // executeJavaScript sonucu birleştirilir
   const tab = { view: { webContents: { isDestroyed: () => false,
     executeJavaScript: async () => ({ mediaPlaying: true, fullscreen: false, pictureInPicture: false, formOrLogin: false, dirtyDraft: true }) } } };
+  tab.view.webContents.mainFrame={executeJavaScript:(...args)=>tab.view.webContents.executeJavaScript(...args)};
   ctx.__t = tab;
   r = await vm.runInContext('browserTabRuntimeState(__t)', ctx);
   assert.strictEqual(r.stateKnown, true);
   assert.strictEqual(r.mediaPlaying, true);
   assert.strictEqual(r.dirtyDraft, true);
+  // Actual frame enumeration must retain draft state reported only by a child frame.
+  tab.view.webContents.mainFrame.framesInSubtree=[
+    {executeJavaScript:async()=>({mediaPlaying:false,dirtyDraft:false})},
+    {executeJavaScript:async()=>({mediaPlaying:false,dirtyDraft:true})},
+  ];
+  r=await vm.runInContext('browserTabRuntimeState(__t)',ctx);assert.strictEqual(r.stateKnown,true);assert.strictEqual(r.dirtyDraft,true);
+  delete tab.view.webContents.mainFrame.framesInSubtree;
   // exec throw → stateKnown:false
   tab.view.webContents.executeJavaScript = async () => { throw new Error('x'); };
   r = await vm.runInContext('browserTabRuntimeState(__t)', ctx);

@@ -101,8 +101,7 @@ function exportPackage(root, output, rendererValues = {}, externalAliases = null
         }
         return value;
       };
-      try { buffer = Buffer.from(JSON.stringify(visit(JSON.parse(buffer.toString('utf8'))))); }
-      catch (error) { if (error?.code === 'WP_DEPTH') throw error; }
+      buffer = Buffer.from(JSON.stringify(visit(JSON.parse(buffer.toString('utf8')))));
       seen.add(name); files.push({ name, data: buffer.toString('base64') });
       return;
     }
@@ -121,6 +120,7 @@ function exportPackage(root, output, rendererValues = {}, externalAliases = null
   // sourceRoot/mappings taşınabilir tutulur: {{ROOT}} işareti içe aktarımda
   // hedef köke eşlenir, pakette mutlak kaynak yolu kalmaz.
   const bundle = { format: 'whisper-workspace', version: 1, created: new Date().toISOString(), sourceRoot: '{{ROOT}}', mappings, files, rendererValues: storageValues(rendererValues) };
+  validate(bundle);
   const bytes = gzipSync(Buffer.from(JSON.stringify(bundle)));
   const temp = output + '.' + randomUUID() + '.tmp';
   try { fs.writeFileSync(temp, bytes, { flag: 'wx', mode: 0o600 }); renameSyncResilient(fs, temp, output); }
@@ -177,6 +177,7 @@ function validate(data) {
     names.add(file.name.toLowerCase());
     if (file.name.endsWith('.json')) {
       const value = JSON.parse(Buffer.from(file.data, 'base64').toString('utf8'));
+      require('./user-data-schema').validateStoreShape(file.name, value);
       if (file.name === 'media-catalog.json') {
         if (value.version !== 1 || !Array.isArray(value.items) || value.items.length > 10000) throw new Error('Paket kataloğu geçersiz.');
         for (const item of value.items) require('./media-catalog-store').itemOf(item);
@@ -292,7 +293,8 @@ function describePackage(data, root = null) {
 function looksLikeLocalMediaPath(value) {
   if (typeof value !== 'string' || !value || value.length > 4000) return false;
   if (/^https?:\/\//i.test(value)) return false;
-  return /^[a-zA-Z]:[\\/]/.test(value) || value.startsWith('\\\\') || value.startsWith('/');
+  if (/^(?:[\\/]{2}|\\[?.]\\)/.test(value)) return false;
+  return /^[a-zA-Z]:[\\/]/.test(value) || value.startsWith('/');
 }
 
 function missingLocalMedia(data, exists = fs.existsSync) {
@@ -309,10 +311,8 @@ function missingLocalMedia(data, exists = fs.existsSync) {
     let missing = false;
     try { missing = !existsFn(value); } catch (_) { missing = true; }
     if (!missing) return;
-    const parts = value.split(/[\\/]+/).filter(Boolean);
-    const sep = value.includes('\\') ? '\\' : '/';
-    const dir = parts.length > 1 ? parts.slice(0, -1).join(sep) : '';
-    const key = dir || parts[0] || value;
+    const parser = /^[a-zA-Z]:[\\/]/.test(value) ? path.win32 : path.posix;
+    const key = parser.dirname(value);
     const row = groups.get(key) || { root: key, count: 0 };
     row.count += 1;
     groups.set(key, row);

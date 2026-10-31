@@ -16,6 +16,8 @@ function hintCode(index, count, alphabet = HINT_ALPHABET) {
 function buildBrowserLinkHintsScript(options = {}) {
   const newTab = options.newTab === true;
   const alphabet = JSON.stringify(HINT_ALPHABET);
+  const prefix = String(options.prefix || '');
+  const session = String(options.session || '');
   return `(() => {
     const existing = window.__whisperLinkHints;
     if (existing?.cleanup) { existing.cleanup(); return { handled: true, active: false, count: 0 }; }
@@ -68,12 +70,12 @@ function buildBrowserLinkHintsScript(options = {}) {
       }
       if (candidates.length >= 700) break;
     }
-    if (!candidates.length) return { handled: false, active: false, count: 0 };
+    if (!candidates.length && !${JSON.stringify(session)}) return { handled: false, active: false, count: 0 };
     const width = Math.max(1, Math.ceil(Math.log(candidates.length) / Math.log(alphabet.length)));
     const codeAt = (index) => {
       let value = index, code = '';
       for (let i = 0; i < width; i += 1) { code = alphabet[value % alphabet.length] + code; value = Math.floor(value / alphabet.length); }
-      return code;
+      return ${JSON.stringify(prefix)} + code;
     };
     const layer = document.createElement('div');
     layer.setAttribute('data-whisper-link-hints', '');
@@ -97,6 +99,14 @@ function buildBrowserLinkHintsScript(options = {}) {
       entry.root.nodeType === 9 ? entry.root : entry.root.ownerDocument).filter(Boolean))];
     const eventWindows = [...new Set(roots.map((entry) => entry.view).filter(Boolean))];
     const onMessage = (event) => {
+      if (event?.data?.__whisperLinkHintsSession === ${JSON.stringify(session)} && ${JSON.stringify(session)} && event.data.key) {
+        if (window === window.top) {
+          const visit = (root, depth = 0) => { if (depth > 32) return;
+            try { for (let i = 0; i < root.frames.length; i++) { const child = root.frames[i]; child.postMessage(event.data, '*'); visit(child, depth + 1); } } catch (_) {} };
+          visit(window);
+        }
+        handleKey(event.data.key); return;
+      }
       // ESC hangi frame'de basılırsa basılsın tüm frame'lerdeki katmanlar
       // kapansın — frame'ler birbirinin DOM'una erişemez, postMessage köprüsü
       // gerekir (B83-11). Alıcı frame de aşağıya iletir ki derin ağaçta kök
@@ -119,6 +129,7 @@ function buildBrowserLinkHintsScript(options = {}) {
       if (window.__whisperLinkHints?.cleanup === cleanup) delete window.__whisperLinkHints;
     };
     const activate = (entry) => {
+      broadcastCleanup();
       cleanup();
       const element = entry.element;
       if (${newTab ? 'true' : 'false'} && element.href) window.open(element.href, '_blank', 'noopener');
@@ -127,17 +138,23 @@ function buildBrowserLinkHintsScript(options = {}) {
     };
     function onKey(event) {
       if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); broadcastCleanup(); cleanup(); return; }
-      if (event.key === 'Backspace') typed = typed.slice(0, -1);
+      if (event.key !== 'Backspace' && !alphabet.includes(String(event.key || '').toLowerCase())) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      if (${JSON.stringify(session)}) {
+        window.top.postMessage({ __whisperLinkHintsSession: ${JSON.stringify(session)}, key: event.key }, '*');
+      } else handleKey(event.key);
+    }
+    function handleKey(keyValue) {
+      if (keyValue === 'Backspace') typed = typed.slice(0, -1);
       else {
-        const key = String(event.key || '').toLowerCase();
+        const key = String(keyValue || '').toLowerCase();
         if (!alphabet.includes(key)) return;
         typed += key;
       }
-      event.preventDefault(); event.stopImmediatePropagation();
       const matches = hints.filter((entry) => entry.code.startsWith(typed));
       for (const entry of hints) entry.label.style.display = matches.includes(entry) ? '' : 'none';
       if (matches.length === 1 && matches[0].code === typed) activate(matches[0]);
-      else if (!matches.length) { typed = ''; for (const entry of hints) entry.label.style.display = ''; }
+      else if (!matches.length && !${JSON.stringify(session)}) { typed = ''; for (const entry of hints) entry.label.style.display = ''; }
     }
     window.__whisperLinkHints = { cleanup };
     window.addEventListener('message', onMessage, true);

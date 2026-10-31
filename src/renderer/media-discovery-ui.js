@@ -6,7 +6,7 @@
   const state = { root: null, tab: 'browse', kind: 'film', mode: 'top', genre: '', year: new Date().getFullYear(), query: '', rows: [], skip: 0, next: null, request: 0, busy: false, loadError: false };
   const btn = (label, callback, cls = 'mh-action') => {
     const node = el('button', cls, label); node.type = 'button';
-    node.addEventListener('click', () => Promise.resolve().then(callback).catch(error => status(failure(error), true))); return node;
+    node.addEventListener('click', () => Promise.resolve().then(callback).catch(error => { const local=node.closest('dialog')?.querySelector('.md-status');if(local){local.textContent=failure(error);local.classList.add('mh-error');}else status(failure(error), true); })); return node;
   };
   async function api(action, input = {}) {
     const result = await window.api.mediaDiscovery({ action, ...input });
@@ -32,6 +32,7 @@
     const dialog = el('dialog', 'md-detail media-surface'); dialog.dataset.uiUntranslated = ''; dialog.setAttribute('aria-label', row.title);
     const close = btn('×', () => dialog.close(), 'md-close'); close.setAttribute('aria-label', t('Close details', 'Ayrıntıları kapat'));
     const placeholder = el('p', 'md-status', t('Loading details…', 'Ayrıntılar yükleniyor…')); placeholder.setAttribute('role', 'status'); dialog.append(close, placeholder);
+    if(row.feedback)dialog.append(btn(t('Undo preference', 'Tercihi geri al'),async()=>{await api('feedback',{id:row.providerId,kind:row.kind,title:row.title,state:'none'});if(!dialog.open)return;state.rows=state.rows.filter(item=>item.providerId!==row.providerId||item.kind!==row.kind);dialog.close();cards();}));
     const opener = document.activeElement; document.body.append(dialog); dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion();
     dialog.addEventListener('close', () => { if(translationToken)void window.api.mediaDiscovery({action:'synopsis-stop',kind:row.kind,id:row.providerId,token:translationToken}).catch(()=>{});dialog.remove(); opener?.isConnected && opener.focus(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); }, { once: true });
     let result;
@@ -66,8 +67,10 @@
       add.disabled = true;
       try {
         const catalogId = result.catalogId || (await api('add', { kind: item.kind, id: item.providerId })).item.id;
-        result.catalogId = catalogId; dialog.close();
+        result.catalogId = catalogId;
         document.dispatchEvent(new CustomEvent('media-library-changed'));
+        if(!dialog.open)return;
+        dialog.close();
         await window.MediaTitleUI.open(catalogId);
       } catch (error) { placeholder.textContent = failure(error); add.disabled = false; }
     }, 'mh-action mh-primary');

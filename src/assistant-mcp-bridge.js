@@ -21,7 +21,7 @@ function createBridge({token,port,getJobs,getTabs}){
  }
  return {rpc,start:()=>new Promise((resolve,reject)=>{server=http.createServer(async(req,res)=>{
   const auth=Buffer.from(String(req.headers.authorization||''));if(req.method!=='POST'||req.url!=='/rpc'||req.headers.origin||auth.length!==allowed.length||!timingSafeEqual(auth,allowed)){res.writeHead(403);res.end();return;}
-  let data='',packet;try{for await(const chunk of req){data+=chunk;if(Buffer.byteLength(data)>65536)throw Error('Request too large.');}packet=JSON.parse(data);if(!packet||packet.jsonrpc!=='2.0')throw Error('Invalid RPC.');if(packet.id===undefined){res.writeHead(204);res.end();return;}const result=await rpc(packet);res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({jsonrpc:'2.0',id:packet.id,result}));}
+  let packet;try{const chunks=[];let bytes=0;for await(const chunk of req){bytes+=chunk.length;if(bytes>65536)throw Error('Request too large.');chunks.push(chunk);}packet=JSON.parse(Buffer.concat(chunks).toString('utf8'));if(!packet||packet.jsonrpc!=='2.0')throw Error('Invalid RPC.');if(packet.id===undefined){res.writeHead(204);res.end();return;}const result=await rpc(packet);res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({jsonrpc:'2.0',id:packet.id,result}));}
   catch(error){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({jsonrpc:'2.0',id:packet?.id??null,error:{code:-32602,message:String(error.message).slice(0,200)}}));}
  });server.requestTimeout=10000;server.on('error',reject);server.listen(port,'127.0.0.1',()=>resolve(server.address()));}),stop:()=>new Promise(resolve=>{if(!server)return resolve();server.closeAllConnections();server.close(resolve);})};
 }

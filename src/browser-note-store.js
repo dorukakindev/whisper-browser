@@ -283,7 +283,7 @@ class BrowserNoteStore {
   filter(filters = {}, limit = 500) {
     return filterResearchAnnotations([...this.annotations.values()], filters)
       .sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt))
-      .slice(0, Math.max(1, Math.min(5000, Number(limit) || 500)))
+      .slice(0, limit === Infinity ? this.maxNotes : Math.max(1, Math.min(5000, Number(limit) || 500)))
       .map((annotation) => structuredClone(annotation));
   }
 }

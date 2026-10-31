@@ -4348,7 +4348,7 @@ def test_completed_translation_removes_only_owned_partial_artifacts():
             T.translate_existing_subtitle(args)
         partial = root / "resume.tr.partial.srt"
         partial_meta = Path(f"{partial}.meta.json")
-        dual_partial = root / "resume.dual.partial.srt"
+        dual_partial = root / "resume.tr.dual.partial.srt"
         assert partial.exists() and partial_meta.exists() and dual_partial.exists()
 
         foreign = root / "resume.tr.yeni.partial.srt"
@@ -4374,7 +4374,7 @@ def test_completed_translation_removes_only_owned_partial_artifacts():
             T.translate_existing_subtitle(args)
 
         assert (root / "resume.tr.srt").exists()
-        assert (root / "resume.dual.srt").exists()
+        assert (root / "resume.tr.dual.srt").exists()
         assert not partial.exists() and not partial_meta.exists()
         assert not dual_partial.exists()
         assert foreign.exists() and foreign_meta.exists()

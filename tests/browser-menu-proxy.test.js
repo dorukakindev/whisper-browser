@@ -114,15 +114,15 @@ function sliceFunction(source, signature) {
     <div class="browser-more-quick" role="group"><button id="q1" title="Yeni sekme · Ctrl+T" aria-label="Yeni sekme">+</button>
       <button id="q2" title="Kapatılan sekmeyi aç" aria-label="Kapatılan sekmeyi aç">⟲</button></div>
     <div class="browser-menu-separator"></div>
-    <details class="browser-more-sub"><summary>Sayfa</summary>
-      <button role="menuitem" id="mQr">Sayfa QR kodunu göster</button>
-      <button role="menuitem" id="mHide">Sayfada öğe gizle…</button>
-      <button role="menuitem" id="mReader" data-browser-proxy="extReader">Okuma görünümü</button>
-    </details>
-    <details class="browser-more-sub"><summary>Video</summary>
-      <button role="menuitem" id="mDl" disabled aria-disabled="true">Videoyu indir</button>
-      <button role="menuitem" id="mWatch">Oynatıcıda izle</button>
-    </details>
+    <details class="browser-more-sub"><summary>Sayfa</summary><div class="browser-more-sub-body">
+      <button id="mQr">Sayfa QR kodunu göster</button>
+      <button id="mHide">Sayfada öğe gizle…</button>
+      <button id="mReader" data-browser-proxy="extReader">Okuma görünümü</button>
+    </div></details>
+    <details class="browser-more-sub"><summary>Video</summary><div class="browser-more-sub-body">
+      <button id="mDl" disabled aria-disabled="true">Videoyu indir</button>
+      <button id="mWatch">Oynatıcıda izle</button>
+    </div></details>
   </div></details>`);
   const doc = dom.window.document;
   const block = sliceBetween(renderer,
@@ -152,7 +152,7 @@ function sliceFunction(source, signature) {
   const popover = input.closest('.browser-more-popover');
   const subs = [...popover.querySelectorAll('.browser-more-sub')];
   const quickRow = popover.querySelector('.browser-more-quick');
-  const visibleItems = () => [...popover.querySelectorAll('[role^="menuitem"]')]
+  const visibleItems = () => [...popover.querySelectorAll('.browser-more-sub-body button')]
     .filter((el) => !el.classList.contains('hidden'));
   const visibleQuick = () => [...quickRow.querySelectorAll('button')]
     .filter((el) => !el.classList.contains('hidden'));

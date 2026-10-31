@@ -174,7 +174,8 @@ test('main preload renderer boyunca sekme sozlesmesi tasinir', () => {
   assert.match(preload, /closeBrowserTab/);
   assert.match(renderer, /BrowserTabEventGate/);
   assert.match(renderer, /browserActiveTabId/);
-  assert.match(html, /id="browserTabStrip" role="tablist" aria-label="Tarayıcı sekmeleri"/);
+  assert.match(html, /id="browserTabList" role="tablist" aria-label="Tarayıcı sekmeleri"/);
+  assert.match(html, /id="browserTabStrip" role="group" aria-label="Sekme işlemleri"/);
   assert.ok(html.indexOf('id="browserAdblockQuick"') > html.indexOf('id="browserSiteChip"'),
     'reklam koruması hızlı anahtarı site çipinin içinde değil');
   assert.ok(html.indexOf('id="browserSiteChipDetails"') > html.indexOf('class="browser-address-wrap"'),

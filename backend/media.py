@@ -412,6 +412,7 @@ def download_stream(video_url, audio_url, title, height, audio_lang, output_dir,
     # be writing an invtmp file in the same output directory.
     cleanup_stale_stream_temps(outdir)
     token = f'{os.getpid()}-{uuid.uuid4().hex}'
+    merged_tmp = outdir / f"{name}.invtmp-{token}{ext}"
     video_tmp = outdir / f"{name}.invtmp-{token}-video"
     audio_tmp = outdir / f"{name}.invtmp-{token}-audio"
 
@@ -462,7 +463,7 @@ def download_stream(video_url, audio_url, title, height, audio_lang, output_dir,
                 "-c", "copy",
                 "-shortest",
                 "-movflags", "+faststart",
-                str(out_path),
+                str(merged_tmp),
             ]
         else:
             cmd = [
@@ -470,26 +471,27 @@ def download_stream(video_url, audio_url, title, height, audio_lang, output_dir,
                 "-i", str(video_tmp),
                 "-c", "copy",
                 "-movflags", "+faststart",
-                str(out_path),
+                str(merged_tmp),
             ]
 
         log("Birleştiriliyor (ffmpeg)…")
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         if proc.returncode != 0:
             raise RuntimeError(f"ffmpeg birleştirme başarısız: {proc.stderr[-500:]}")
+        os.replace(merged_tmp, out_path)
 
         emit("download_progress", percent=100.0, speed=0, eta=0)
         emit("downloaded", path=str(out_path), title=title, duration=0)
     except BaseException:
         # Kısmi çıktıyı sil — yarım mp4 kalmasın
         try:
-            if out_path.exists():
-                out_path.unlink()
+            if merged_tmp.exists():
+                merged_tmp.unlink()
         except OSError:
             pass
         raise
     finally:
-        for tmp in (video_tmp, audio_tmp):
+        for tmp in (video_tmp, audio_tmp, merged_tmp):
             try:
                 if tmp and tmp.exists():
                     tmp.unlink()

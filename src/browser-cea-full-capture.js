@@ -31,7 +31,7 @@ function normalizeCeaCaptureSegments(segments = []) {
 }
 
 function remapCeaCaptureSegments(segments = [], refreshed = []) {
-  const next = new Map(normalizeCeaCaptureSegments(refreshed)
+  const next = new Map(mergeCeaCaptureSegments(segments, refreshed)
     .map((segment) => [ceaCaptureSegmentIdentity(segment), segment]));
   return normalizeCeaCaptureSegments(segments).map((segment) =>
     next.get(ceaCaptureSegmentIdentity(segment)) || segment);
@@ -40,8 +40,16 @@ function remapCeaCaptureSegments(segments = [], refreshed = []) {
 function mergeCeaCaptureSegments(previous = [], refreshed = []) {
   // Refreshed entries come last so the same sequence's renewed signed URL wins;
   // segments that slid out of the newest window remain part of the completeness ledger.
-  return normalizeCeaCaptureSegments([...normalizeCeaCaptureSegments(previous),
-    ...normalizeCeaCaptureSegments(refreshed)]);
+  const old = normalizeCeaCaptureSegments(previous);
+  const incoming = normalizeCeaCaptureSegments(refreshed);
+  const known = new Map(old.map((segment) => [ceaCaptureSegmentIdentity(segment), segment]));
+  const anchor = incoming.find((segment) => known.has(ceaCaptureSegmentIdentity(segment)));
+  const offset = anchor ? (Number(known.get(ceaCaptureSegmentIdentity(anchor)).start) || 0)
+    - (Number(anchor.start) || 0) : 0;
+  return normalizeCeaCaptureSegments([...old, ...incoming.map((segment) => {
+    const existing = known.get(ceaCaptureSegmentIdentity(segment));
+    return { ...segment, start: existing ? existing.start : (Number(segment.start) || 0) + offset };
+  })]);
 }
 
 function retainCeaExpectedDuration(previous = 0, media = {}) {

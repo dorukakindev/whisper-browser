@@ -40,6 +40,9 @@
     busy = false;
   let exportCurrent=null, refreshReferenceSettings=null;
   let reviewPaging={key:'',page:1};
+  const readerFontKey = 'whisper.bookReaderFontSize';
+  let readerFontSize = 21;
+  try { const saved = Number(localStorage.getItem(readerFontKey)); if (Number.isFinite(saved) && saved >= 16 && saved <= 30) readerFontSize = saved; } catch (_) {}
   let bodyVersion=0,projectOpenRequest=0;
   const voicePrefs = {
     profile: "quality",
@@ -1536,6 +1539,7 @@
     const layout = el("div", "mw-reading"),
       page = el("section", "mw-pdf"),
       prose = el("article", "mw-reading-text");
+    prose.style.fontSize = readerFontSize + 'px';
     prose.tabIndex = 0;
     prose.setAttribute("aria-label", t("Narrated text", "Seslendirilen metin"));
     const audio = el("audio");
@@ -1694,12 +1698,16 @@
     font.type = "range";
     font.min = "16";
     font.max = "30";
-    font.value = "21";
+    font.value = String(readerFontSize);
     font.setAttribute(
       "aria-label",
       t("Reading font size", "Okuma yazı boyutu"),
     );
-    font.oninput = () => (prose.style.fontSize = font.value + "px");
+    font.oninput = () => {
+      readerFontSize = Math.max(16, Math.min(30, Number(font.value) || 21));
+      prose.style.fontSize = readerFontSize + 'px';
+      try { localStorage.setItem(readerFontKey, String(readerFontSize)); } catch (_) {}
+    };
     const tools = el('details', 'mw-reader-tools'), toolPanel = el('div', 'mw-reader-tools-panel');
     const fontLabel = el('label', 'mw-setting', uiLabel('Reading font size', 'Okuma yazı boyutu')); fontLabel.append(font);
     toolPanel.append(fontLabel); tools.append(el('summary', 'mh-action', uiLabel('Reading tools', 'Okuma araçları')), toolPanel);
@@ -2501,7 +2509,7 @@
     openProject: async (id, focus = {}) => {
       if (busy) throw Error("Busy / Meşgul");
       const request=++projectOpenRequest,originDialog=dialog,originVersion=bodyVersion;
-      const unchanged=()=>request===projectOpenRequest&&dialog===originDialog&&bodyVersion===originVersion;
+      const unchanged=()=>request===projectOpenRequest&&dialog===originDialog&&bodyVersion===originVersion&&focus.isCurrent?.()!==false;
       const changed=()=>Error(t('Book opening was replaced or closed.','Kitap açılışı değiştirildi veya kapatıldı.'));
       await saveChapter();
       if(!unchanged())throw changed();
@@ -2526,6 +2534,7 @@
       const opening=open(),openedDialog=dialog;
       const ready=await opening;
       if(request!==projectOpenRequest||project!==next)throw changed();
+      if(focus.isCurrent?.()===false)throw changed();
       if(!ready)throw openedDialog?.renderError || changed();
       if(focus.chapter!==undefined&&focus.focusEditor!==false){const editor=openedDialog?.querySelector('textarea[data-chapter]');if(editor){editor.scrollIntoView({block:'center',behavior:'auto'});editor.focus({preventScroll:true});}}
     },

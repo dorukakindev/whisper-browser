@@ -14,7 +14,7 @@ function safeFile(row,index){
 function registerMediaTorrents({app,ipcMain,authorized,dialog,owner,protocol,grantMedia,enginePath,fetchImpl=fetch}){
   const root=()=>path.join(app.getPath('userData'),'torrent-media');
   const executable=()=>enginePath?.()||path.join(app.getPath('userData'),'media-engines','rqbit.exe');
-  let proc=null,starting=null,base='',auth='',lastError='',indexError='';const previews=new Map(),streams=new Map(),jobs=new Map();
+  let proc=null,starting=null,base='',auth='',lastError='',indexError='',closed=false;const previews=new Map(),streams=new Map(),jobs=new Map(),playing=new Set();
   const indexFile=()=>path.join(app.getPath('userData'),'torrent-library.json');
   function persist(){atomicWriteFileSync(indexFile(),JSON.stringify([...jobs.values()]));}
   function rememberStream(token,entry){streams.set(token,entry);while(streams.size>200)streams.delete(streams.keys().next().value);}
@@ -25,12 +25,14 @@ function registerMediaTorrents({app,ipcMain,authorized,dialog,owner,protocol,gra
     const text=(await readLimitedBytes(response,8_000_000,'Torrent')).toString('utf8');return text?JSON.parse(text):{};
   }
   async function start(){
+    if(closed)throw Error('Torrent service is closed.');
     if(starting)return starting;
     if(proc&&base)return;
     starting=(async()=>{
       if(!fs.existsSync(executable()))throw Error('Install the torrent engine from Media open → Torrents first.');
       if(createHash('sha256').update(fs.readFileSync(executable())).digest('hex')!==ENGINE.sha256)throw Error('Torrent engine integrity check failed.');
       const port=await new Promise((resolve,reject)=>{const s=net.createServer();s.once('error',reject);s.listen(0,'127.0.0.1',()=>{const port=s.address().port;s.close(()=>resolve(port));});});
+      if(closed)throw Error('Torrent service is closed.');
       const password=randomBytes(32).toString('hex');auth='Basic '+Buffer.from('whisper:'+password).toString('base64');base=`http://127.0.0.1:${port}`;
       fs.mkdirSync(root(),{recursive:true});
       const flags=['--http-api-listen-addr',`127.0.0.1:${port}`,'--disable-upnp-port-forward','--disable-lsd','--disable-dht-persistence'];
@@ -39,7 +41,7 @@ function registerMediaTorrents({app,ipcMain,authorized,dialog,owner,protocol,gra
       const current=proc;proc.stdout.on('data',()=>{});proc.stderr.on('data',chunk=>{lastError=String(chunk).slice(-1500).replaceAll(password,'[redacted]');});
       proc.once('error',error=>{lastError=error.message;});proc.once('close',()=>{if(proc===current){proc=null;base='';streams.clear();}});
       const end=Date.now()+12000;
-      while(Date.now()<end){if(current.exitCode!==null)throw Error('Torrent engine stopped: '+lastError);try{await api('/stats','GET',undefined,1000);return;}catch{}await new Promise(r=>setTimeout(r,150));}
+      while(Date.now()<end){if(closed){current.kill();throw Error('Torrent service is closed.');}if(current.exitCode!==null)throw Error('Torrent engine stopped: '+lastError);try{await api('/stats','GET',undefined,1000);if(closed)throw Error('Torrent service is closed.');return;}catch{}await new Promise(r=>setTimeout(r,150));}
       current.kill();throw Error('Torrent engine startup timed out.');
     })();try{await starting;}finally{starting=null;}
   }
@@ -83,13 +85,16 @@ function registerMediaTorrents({app,ipcMain,authorized,dialog,owner,protocol,gra
       if(input.action==='play'){
         const plan=previews.get(input.token);if(!plan||Date.now()-plan.at>600000)throw Error('Torrent preview expired.');
         const file=plan.files.find(r=>r.index===Number(input.index)&&r.video);if(!file)throw Error('Choose a video file first.');
+        if(playing.has(plan.hash))throw Error('Another file selection for this torrent is pending. Retry when it finishes.');
+        playing.add(plan.hash);try{
         const params=new URLSearchParams({only_files:String(file.index),overwrite:'true',sub_folder:plan.hash});
         const added=await api('/torrents?'+params,'POST',plan.bytes,90000);const torrentId=added.id ?? plan.hash;
-        const selections=jobs.get(plan.hash)?.selections || [];if(!selections.some(row=>row.index===file.index))selections.push({index:file.index,name:file.name,size:file.size});
+        const selections=(jobs.get(plan.hash)?.selections || []).map(row=>({...row}));if(!selections.some(row=>row.index===file.index))selections.push({index:file.index,name:file.name,size:file.size});
         await api(`/torrents/${torrentId}/update_only_files`,'POST',JSON.stringify({only_files:selections.map(row=>row.index)}));
         const token=randomBytes(24).toString('hex');rememberStream(token,{hash:plan.hash,route:`/torrents/${torrentId}/stream/${file.index}`});
         jobs.set(plan.hash,{hash:plan.hash,torrentId,name:file.name,index:file.index,size:file.size,selections,at:Date.now(),paused:false});persist();
         return {ok:true,url:`whisper-media://${token}/video`,hash:plan.hash,index:file.index,title:file.name.split('/').at(-1),key:`torrent:${plan.hash}:${file.index}`};
+        }finally{playing.delete(plan.hash);}
       }
       const job=jobs.get(input.hash);if(!job)throw Error('Torrent is not in this library.');
       if(input.action==='stats'){const stats=await api(`/torrents/${job.hash}/stats/v1`);return {ok:true,stats,job};}
@@ -102,7 +107,7 @@ function registerMediaTorrents({app,ipcMain,authorized,dialog,owner,protocol,gra
     }catch(error){return {ok:false,error:error.message};}
   };
   ipcMain.handle('media-torrents:request',handler);
-  app.on('before-quit',()=>{proc?.kill();});
-  return {handler,close:()=>{proc?.kill();},engine:ENGINE,nativeSource:url=>{const entry=streams.get(new URL(url).hostname);if(!entry||!base)throw Error('Expired torrent stream.');return {url:base+entry.route,headers:['Authorization: '+auth]};}};
+  const close=()=>{closed=true;proc?.kill();};app.on('before-quit',close);
+  return {handler,close,engine:ENGINE,nativeSource:url=>{const entry=streams.get(new URL(url).hostname);if(!entry||!base)throw Error('Expired torrent stream.');return {url:base+entry.route,headers:['Authorization: '+auth]};}};
 }
 module.exports={registerMediaTorrents,safeFile,ENGINE};

@@ -2,6 +2,7 @@
  'use strict';
  const contract=window.AssistantContextManifest,registry=window.AssistantCapabilities;
  const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
+ function subtitleIdentity(){let hash=2166136261;for(const value of [player.subPath,player.subPath2,JSON.stringify(player.cues||[]),JSON.stringify(player.cues2||[])])for(const char of String(value||'')){hash=Math.imul(hash^char.charCodeAt(0),16777619);}return String(hash>>>0);}
  function snapshot(){
   const selection=globalAssistantContext(),tab=player.workspaceMode==='browser'?browserTabState():null;
   const url=player.browserPageUrl||'';
@@ -10,13 +11,14 @@
    pageKey:tab?window.AssistantSourceContext.pageKey(url):'',title:selection?.title||player.browserPageTitle||document.getElementById('playerTitle')?.textContent||'',
    time:player.workspaceMode==='browser'?Number(player.browserTime)||0:subtitleSourceTime(document.getElementById('playerVideo')?.currentTime||0,false),
    hasMedia:!selection&&!!window.BrowserDubAudioUI?.context()?.hasMedia&&!!window.BrowserDubAudioUI?.context()?.visible,voiceStudio:!!document.getElementById('dubGeneratorDialog')?.open,
-   hasSubtitles:!selection&&!!(player.cues?.length||player.cues2?.length),
+   subtitleKey:subtitleIdentity(),hasSubtitles:!selection&&!!(player.cues?.length||player.cues2?.length),
    range:kind==='video'?currentBrowserWhisperRange():null,
    tracks:kind==='video'?(player.browserTracks||[]).map(row=>({id:row.id,role:row.role,language:row.language,partial:row.captureComplete===false})):[]});
  }
  function current(owner){return contract.same(owner,snapshot());}
  async function execute(name,raw,owner,{deadline=Infinity,isCancelled=()=>false}={}){
   if(!current(owner))throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));
+  if(['seek_to_time','open_subtitle_editor'].includes(name)&&owner.subtitleKey!==snapshot().subtitleKey)throw Error(t('The subtitle track changed. Ask for a new action.','Altyazı izi değişti. Yeni bir işlem isteyin.'));
   if(isCancelled()||Date.now()>=deadline)throw Error(t('Application action expired.','Uygulama işleminin süresi doldu.'));
   const args=registry.validate(name,JSON.parse(JSON.stringify(raw)),snapshot());
   const stale=()=>isCancelled()||Date.now()>=deadline||!current(owner);

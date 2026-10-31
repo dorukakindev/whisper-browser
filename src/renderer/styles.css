@@ -3448,6 +3448,7 @@ body::before {
 }
 .field select:focus, .field input[type="text"]:focus, .field input[type="password"]:focus, .field input[type="url"]:focus, .glossary-controls input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent); }
 .path-display {
+  width: 100%; text-align: left; cursor: pointer;
   border: 1px solid var(--border);
   font-size: 12px;
   white-space: nowrap;
@@ -4631,12 +4632,25 @@ html[data-theme="light"] .browser-adblock-quick:not(:disabled):hover {
 .browser-diagnostics-actions .link-btn { font-size: 9px; white-space: nowrap; }
 .browser-session-memory { display: inline-flex; align-items: center; gap: 7px; padding: 0 6px; color: #a0a0a5; font-size: 10px; }
 .browser-session-memory input { accent-color: var(--player-amber); }
-.model-management-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; margin-top: 4px; }
-.model-management-row > span { min-width: 0; flex: 1; overflow: hidden; color: var(--text-muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.model-management-row .link-btn { flex: 0 0 auto; font-size: 9px; }
-.model-benchmark-field { display: inline-flex; align-items: center; gap: 3px; color: var(--text-muted); font-size: 9px; }
-.model-benchmark-field input { width: 54px; min-width: 54px; padding: 3px 5px; font-size: 9px; }
-.model-benchmark-field select { width: auto; min-width: 60px; padding: 3px 20px 3px 5px; font-size: 9px; }
+.model-field { grid-column: 1 / -1; }
+.model-availability { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; color: var(--text-muted); font-size: 12px; }
+.model-availability > span { flex: 1 1 220px; white-space: normal; overflow-wrap: anywhere; }
+.model-availability .link-btn, .model-management-row .link-btn { min-height: 40px; padding-block: 6px; font-size: 12px; }
+.model-management { border-top: 1px solid var(--border); padding-top: 8px; }
+.model-management > summary { width: fit-content; cursor: pointer; color: var(--text-muted); font-size: 12px; padding: 5px 0; }
+.model-management-row { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; min-width: 0; margin-top: 10px; }
+.model-benchmark-field { display: grid; gap: 5px; color: var(--text-muted); font-size: 12px; }
+.model-benchmark-field input { width: 96px; min-width: 80px; min-height: 40px; padding: 7px 9px; font-size: 13px; color: var(--text); background: var(--bg-1); border: 1px solid var(--border); border-radius: 9px; }
+.model-management #modelCacheDelete { color: var(--danger); }
+.model-benchmark-field select { width: auto; min-width: 96px; padding: 7px 26px 7px 9px; font-size: 13px; }
+.path-display .folder-path-leaf { display: block; color: var(--text); white-space: normal; overflow-wrap: anywhere; }
+.path-display .folder-path-parent { display: block; overflow: hidden; text-overflow: ellipsis; font-size: 10px; margin-top: 3px; }
+.path-display:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.folder-path-dialog { width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 32px); margin: auto; overflow: auto; padding: 24px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-1); color: var(--text); }
+.folder-path-dialog::backdrop { background: var(--overlay-scrim); }
+.folder-path-dialog h2 { margin: 0 0 16px; font-size: 18px; }
+.folder-path-dialog textarea { display: block; width: 100%; min-height: 120px; resize: vertical; padding: 12px; color: var(--text); background: var(--bg-0); border: 1px solid var(--border); border-radius: 8px; font: 13px/1.6 'JetBrains Mono', Consolas, monospace; overflow-wrap: anywhere; }
+.folder-path-dialog .folder-path-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; margin-top: 16px; }
 .runtime-maintenance-body { padding: 10px 12px 12px; max-height: 640px; overflow-y: auto; }
 .runtime-status-list { display: grid; gap: 6px; margin: 10px 0; }
 .runtime-status-list > div {

@@ -25,6 +25,9 @@ function normalizeCues(rawCues) {
     const sourceCueHash = String(cue && cue.sourceCueHash || '').replace(/[^a-f0-9]/gi, '').toLowerCase().slice(0, 64);
     if (cueId) normalized.cueId = cueId;
     if (sourceCueHash) normalized.sourceCueHash = sourceCueHash;
+    for (const key of ['writingMode', 'speaker', 'region', 'line', 'position', 'align', 'size', 'vertical', 'displayAlign', 'regionExtent', 'direction', 'unicodeBidi']) {
+      if (typeof cue?.[key] === 'string' || typeof cue?.[key] === 'number') normalized[key] = String(cue[key]).slice(0, 240);
+    }
     const qualityIssues = [...new Set((Array.isArray(cue?.qualityIssues) ? cue.qualityIssues : [])
       .filter((item) => typeof item === 'string' && /^[a-z0-9_:-]{1,80}$/i.test(item)))].slice(0, 20);
     if (qualityIssues.length) normalized.qualityIssues = qualityIssues;
@@ -158,6 +161,13 @@ class BrowserAssetStore {
       }
       const cues = normalizeCues(parsed.cues);
       if (!cues.length) return { ok: false, error: 'Altyazı varlığında geçerli blok yok.' };
+      // Hash the stored canonical fields before normalization adds defaults for
+      // older versions. Never repair an SRT from unverified JSON.
+      const storedMeta = Object.fromEntries(Object.keys(safeMeta(parsed))
+        .filter((key) => Object.prototype.hasOwnProperty.call(parsed, key)).map((key) => [key, parsed[key]]));
+      if (`${hash(parsed.mediaId, 24)}:${hash(JSON.stringify({ meta: storedMeta, cues: parsed.cues }), 32)}` !== assetId) {
+        return { ok: false, error: 'Altyazı varlığının içerik özeti uyuşmuyor.' };
+      }
       // İçerik-adresli asset'in JSON'u kanoniktir; yarım kayıt veya sweep
       // sonrası eksik/uyuşmayan türetilmiş SRT'yi geri kur. Kişisel SRT değil.
       const expectedSrt = `\uFEFF${cuesToSrt(cues)}`;

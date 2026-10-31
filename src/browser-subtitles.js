@@ -873,8 +873,18 @@ function dashRepresentations(inner) {
   return reps.length ? reps : [{ tag: '', inner: '' }];
 }
 
+function normalizeDashElementNames(body) {
+  let xml = String(body || '');
+  const prefixes = [...xml.matchAll(/xmlns:([\w.-]+)\s*=\s*["']urn:mpeg:dash:schema:mpd:2011["']/g)].map((match) => match[1]);
+  for (const prefix of new Set(prefixes)) {
+    const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    xml = xml.replace(new RegExp(`(<\\/?)${escaped}:(MPD|Period|AdaptationSet|Representation|BaseURL|Role|SegmentTemplate|SegmentTimeline|SegmentList|SegmentURL|Initialization|S)(?=[\\s/>])`, 'g'), '$1$2');
+  }
+  return xml;
+}
+
 function parseDashSubtitleMatchers(body, baseUrl = '') {
-  const xml = String(body || '');
+  const xml = normalizeDashElementNames(body);
   if (!/<MPD\b/i.test(xml)) return [];
   const matchers = [];
   for (const adaptation of dashTextAdaptations(xml)) {
@@ -889,7 +899,9 @@ function parseDashSubtitleMatchers(body, baseUrl = '') {
     const periodStart = periodBounds.start;
     for (const rep of dashRepresentations(adaptation.inner)) {
       const repBase = lastBaseUrl(rep.inner, adaptationBase);
-      const template = dashSegmentTemplate(rep.inner) || adaptationTemplate || { tag: '', inner: '' };
+      const childTemplate = dashSegmentTemplate(rep.inner);
+      const template = { tag: `${childTemplate?.tag || ''} ${adaptationTemplate?.tag || ''}`,
+        inner: /<SegmentTimeline\b/i.test(childTemplate?.inner || '') ? childTemplate.inner : adaptationTemplate?.inner || '' };
       const templateTag = template.tag;
       const media = attr(templateTag, 'media');
       const representationId = attr(rep.tag, 'id');
@@ -1175,7 +1187,7 @@ function browserActiveCuesAt(cues, time) {
 }
 
 function parseDashSubtitleTracks(body, baseUrl = '') {
-  const xml = String(body || '');
+  const xml = normalizeDashElementNames(body);
   if (!/<MPD\b/i.test(xml)) return [];
   const tracks = [];
   for (const match of dashTextAdaptations(xml)) {
@@ -1363,7 +1375,7 @@ function parseXml(body) {
     return mergePresentation(inherited, region, style, presentationFromTag(tag));
   };
   const parentContexts = new Map();
-  const stack = [{ name: 'root', offset: 0, presentation: {} }];
+  const stack = [{ name: 'root', offset: 0, end: Infinity, cursor: 0, presentation: {} }];
   const localName = (value) => String(value || '').toLowerCase().split(':').pop();
   for (const token of xml.matchAll(/<\/?(?:[\w.-]+:)?(?:body|div|p)\b[^>]*>/gi)) {
     const rawTag = token[0];
@@ -1372,17 +1384,24 @@ function parseXml(body) {
     if (closing) {
       for (let index = stack.length - 1; index > 0; index--) {
         const popped = stack.pop();
+        const parent = stack[stack.length - 1];
+        if (parent?.sequential && Number.isFinite(popped.end)) parent.cursor = Math.max(parent.cursor, popped.end);
         if (popped.name === name) break;
       }
       continue;
     }
     const parent = stack[stack.length - 1] || { offset: 0, presentation: {} };
-    const parentOffset = parent.offset || 0;
+    const parentOffset = parent.sequential ? parent.cursor : parent.offset || 0;
     const presentation = resolvePresentation(rawTag, parent.presentation);
-    if (name === 'p') parentContexts.set(token.index, { offset: parentOffset, presentation: parent.presentation });
+    if (name === 'p') parentContexts.set(token.index, { offset: parentOffset, end: parent.end, presentation: parent.presentation });
     const begin = parseXmlTime(attr(rawTag, 'begin'), xml);
+    const duration = parseXmlTime(attr(rawTag, 'dur'), xml);
+    const end = parseXmlTime(attr(rawTag, 'end'), xml);
+    const offset = parentOffset + (begin || 0);
+    const activeEnd = Math.min(parent.end ?? Infinity, end !== null ? parentOffset + end : Infinity,
+      duration !== null ? offset + duration : Infinity);
     if (!/\/>$/.test(rawTag)) stack.push({
-      name, offset: parentOffset + (begin || 0), presentation,
+      name, offset, end: activeEnd, cursor: offset, sequential: attr(rawTag, 'timeContainer') === 'seq', presentation,
     });
   }
   // YouTube timedtext / srv biçimi.
@@ -1397,7 +1416,7 @@ function parseXml(body) {
     const startRaw = attr(tag, 'start') || attr(tag, 'begin') || timedTextStart;
     const durRaw = attr(tag, 'dur') || timedTextDuration;
     const endRaw = attr(tag, 'end');
-    let start = parseXmlTime(startRaw, xml);
+    let start = startRaw ? parseXmlTime(startRaw, xml) : (elementName === 'p' ? 0 : null);
     let duration = parseXmlTime(durRaw, xml);
     let end = parseXmlTime(endRaw, xml);
     const parentOffset = parentContext.offset || 0;
@@ -1410,23 +1429,20 @@ function parseXml(body) {
     if (timedSpans.length) {
       const outsideText = cleanCueText(inner.replace(
         /<(?:[\w.-]+:)?(span)\b(?:[^>]*[^/>])?>[\s\S]*?<\/(?:[\w.-]+:)?\1\s*>/gi, ''));
-      let paragraphStart = parseXmlTime(startRaw, xml);
+      let paragraphStart = startRaw ? parseXmlTime(startRaw, xml) : 0;
       if (startRaw === timedTextStart && timedTextStart && Number.isFinite(Number(startRaw))) {
         paragraphStart = Number(startRaw) / 1000;
       }
       if (durRaw === timedTextDuration && timedTextDuration && Number.isFinite(Number(durRaw))) {
         duration = Number(durRaw) / 1000;
       }
-      const paragraphEnd = end !== null ? parentOffset + end
-        : (duration !== null && paragraphStart !== null ? parentOffset + paragraphStart + duration : null);
-      if (outsideText && paragraphStart !== null) {
-        out.push({ start: parentOffset + paragraphStart, end: paragraphEnd, text: inner,
-          ...paragraphPresentation });
-        continue;
-      }
+      const ownEnd = end !== null ? parentOffset + end
+        : (duration !== null && paragraphStart !== null ? parentOffset + paragraphStart + duration : Infinity);
+      const paragraphEnd = Math.min(ownEnd, parentContext.end ?? Infinity);
       const paragraphDuration = paragraphEnd !== null && paragraphStart !== null
         ? Math.max(0, paragraphEnd - parentOffset - paragraphStart) : 0;
       const spanBase = parentOffset + (paragraphStart || 0);
+      const spanCues = [];
       for (const span of timedSpans) {
         const spanTag = span[2];
         const spanTimedStart = attr(spanTag, 't');
@@ -1439,7 +1455,7 @@ function parseXml(body) {
         let spanEnd = parseXmlTime(spanEndRaw, xml);
         if (spanStartRaw === spanTimedStart && spanTimedStart && Number.isFinite(Number(spanStartRaw))) spanStart = Number(spanStartRaw) / 1000;
         if (spanDurRaw === spanTimedDuration && spanTimedDuration && Number.isFinite(Number(spanDurRaw))) spanDuration = Number(spanDurRaw) / 1000;
-        if (spanStart === null) continue;
+        if (spanStart === null) spanStart = 0;
         // Bazı TTML üreticileri span zamanlarını p'ye göre göreli, bazıları
         // doğrudan belge mutlakı yazar. Span p başlangıcına eşitse veya p'nin
         // süresini belirgin biçimde aşıyorsa mutlak kabul et; normal göreli
@@ -1450,9 +1466,23 @@ function parseXml(body) {
         spanStart += absoluteSpan ? parentOffset : spanBase;
         if (spanEnd !== null) spanEnd += absoluteSpan ? parentOffset : spanBase;
         if (spanEnd === null && spanDuration !== null) spanEnd = spanStart + spanDuration;
-        out.push({ start: spanStart, end: spanEnd, text: span[3],
+        spanCues.push({ start: Math.max(spanBase, spanStart), end: Math.min(spanEnd ?? paragraphEnd, paragraphEnd), text: span[3],
           ...resolvePresentation(spanTag, paragraphPresentation) });
       }
+      if (outsideText && Number.isFinite(paragraphEnd)) {
+        const boundaries = [...new Set([spanBase, paragraphEnd, ...spanCues.flatMap((cue) => [cue.start, cue.end])])]
+          .filter((time) => time >= spanBase && time <= paragraphEnd).sort((a, b) => a - b);
+        for (let index = 0; index + 1 < boundaries.length; index++) {
+          const time = boundaries[index];
+          let spanIndex = 0;
+          const text = inner.replace(/<(?:[\w.-]+:)?(span)\b([^>]*[^/>])?>([\s\S]*?)<\/(?:[\w.-]+:)?\1\s*>/gi,
+            (whole, name, tag, content) => {
+              if (!/\b(?:begin|start|t|end|dur|d)\s*=/i.test(tag || '')) return whole;
+              const cue = spanCues[spanIndex++]; return cue && cue.start <= time && cue.end > time ? content : '';
+            });
+          out.push({ start: time, end: boundaries[index + 1], text, ...paragraphPresentation });
+        }
+      } else out.push(...spanCues);
       continue;
     }
     // YouTube srv3 t/d değerleri milisaniyedir.
@@ -1461,9 +1491,10 @@ function parseXml(body) {
     if (start !== null) start += parentOffset;
     if (end !== null) end += parentOffset;
     if (end === null && start !== null && duration !== null) end = start + duration;
+    if (Number.isFinite(parentContext.end)) end = Math.min(end ?? Infinity, parentContext.end);
     if (start !== null) out.push({ start, end, text: inner, ...paragraphPresentation });
   }
-  return normalizeCues(out);
+  return normalizeCues(out.filter((cue) => !Number.isFinite(cue.end) || cue.end > cue.start));
 }
 
 function parseJson(body) {

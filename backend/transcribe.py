@@ -170,7 +170,7 @@ def translation_output_labels(args, stem, qualifiers=()):
     variant = re.sub(r"[^A-Za-z0-9_-]+", "", str(getattr(args, 'translate_variant_label', '') or ''))
     if variant:
         label += '.' + variant
-    return label, f'{stem}.{label}' if variant else stem
+    return label, f'{stem}.{label}'
 
 
 def cleanup_owned_partial_translation_artifacts(output_dir, stem, target,
@@ -356,7 +356,8 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
     if audio_lang and not re.fullmatch(r"[A-Za-z0-9._-]{1,32}", str(audio_lang)):
         log("Gecersiz YouTube ses dili secimi yok sayildi.", "warn")
         audio_lang = None
-    output_template = str(Path(output_dir) / "%(id)s.%(ext)s")
+    audio_identity = f'.audio-{audio_lang.lower()}' if audio_lang else '.audio-auto'
+    output_template = str(Path(output_dir) / ("%(id)s" + audio_identity + ".%(ext)s"))
     ranged = False        # bkz. docstring - aralık indirme boğazlanıyor
 
     info_holder = {}
@@ -452,6 +453,7 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
     # Indirme bittikten sonra dosya yolunu aynı blokta çözümle.
     if info:
         video_id = info.get("id") or "audio"
+        download_id = video_id + audio_identity
         title = info.get("title") or video_id
         
         # Öncelikle yt-dlp'nin indirdiği/post-process ettiği nihai konumu tespit etmeye çalış
@@ -471,20 +473,28 @@ def download_youtube(url, output_dir, ffmpeg_path=None, clip_start=None, clip_en
             if final_path and _inside(Path(final_path)) and Path(final_path).is_file():
                 wav_path = Path(final_path)
 
+        # A completed download hook can identify the actual file even when an
+        # extractor omits requested_downloads. This is evidence from THIS
+        # download, never permission to reuse an old unqualified cache path.
+        if wav_path is None:
+            final_path = info_holder.get("filename")
+            if final_path and _inside(Path(final_path)) and Path(final_path).is_file():
+                wav_path = Path(final_path)
+
         # Bulunamadıysa klasik uzantı taraması yap. video_id extractor
         # yanıtından gelir; '/' içeren bir kimlik yolu çıktı klasörünün
         # dışına taşıracağı için adayları daima kapsama kontrolünden geçir.
         if not wav_path or not wav_path.exists():
-            wav_path = Path(output_dir) / f"{video_id}.wav"
+            wav_path = Path(output_dir) / f"{download_id}.wav"
             if not wav_path.is_file() or not _inside(wav_path):
                 wav_path = None
                 for ext in ("wav", "m4a", "webm", "mp3", "opus", "mp4"):
-                    alt = Path(output_dir) / f"{video_id}.{ext}"
+                    alt = Path(output_dir) / f"{download_id}.{ext}"
                     if alt.is_file() and _inside(alt):
                         wav_path = alt
                         break
             if wav_path is None:
-                wav_path = Path(output_dir) / f"{video_id}.wav"
+                wav_path = Path(output_dir) / f"{download_id}.wav"
                 # Son fallback de video_id'den türetilir; kapsam dışında
                 # aynı ada sahip gerçek bir dosya varsa bile alınmaz.
                 if not _inside(wav_path):
@@ -1962,6 +1972,7 @@ def write_dual_srt(source_entries, translated_entries, output_path, translation_
 
 
 _VTT_ALLOWED_TAG = re.compile(r"</?(?:i|b|u|c|v|ruby|rt|lang)(?:[.\s][^<>]*)?>", re.I)
+_VTT_TAG_SUFFIX = re.compile(r"/?(?:i|b|u|c|v|ruby|rt|lang)(?=[.\s>]|&(?:gt|#0*62|#x0*3e);)", re.I)
 _VTT_BARE_AMP = re.compile(r"&(?![A-Za-z][A-Za-z0-9]*;|#\d+;|#x[0-9A-Fa-f]+;)")
 
 
@@ -3033,6 +3044,7 @@ def llm_postprocess(entries, args, warn_list=None):
 
     # JSON modu desteği iş başına bir kez öğrenilir (paralel parçalar paylaşır).
     json_mode_state = {"on": True, "lock": threading.Lock()}
+    fatal_error = threading.Event()
 
     # Sözlükteki özel isimleri LLM'e de bildir — yanlış duyulmuş yazımları düzeltir
     glossary_terms = sanitize_glossary_terms(getattr(args, "glossary", ""))
@@ -3079,6 +3091,8 @@ def llm_postprocess(entries, args, warn_list=None):
     last_emit_ts = time.time()
 
     def task(chunk_range):
+        if fatal_error.is_set():
+            return 0
         ci_start, ci_end = chunk_range
         # Her iki yöndeki bağlam orijinal dilde kalır; yalnız items düzenlenir.
         ctx_start = max(0, ci_start - CONTEXT_LINES)
@@ -3095,6 +3109,8 @@ def llm_postprocess(entries, args, warn_list=None):
         def request(response_format=True):
             last_error = None
             for route in routes:
+                if fatal_error.is_set():
+                    raise RuntimeError("LLM düzeltme kalıcı sağlayıcı hatası nedeniyle durduruldu")
                 try:
                     kwargs = {
                         "model": args.llm_model,
@@ -3116,7 +3132,10 @@ def llm_postprocess(entries, args, warn_list=None):
                     last_error = error
                     # JSON modu reddi rotaya değil modele/sağlayıcıya aittir;
                     # diğer rotaları aynı istekle denemek boşa istek harcar.
-                    if route_error_is_fatal(error) or (response_format and json_mode_unsupported(error)):
+                    if route_error_is_fatal(error):
+                        fatal_error.set()
+                        raise
+                    if response_format and json_mode_unsupported(error):
                         raise
             raise last_error if last_error else RuntimeError("LLM düzeltme isteği başarısız")
 
@@ -3133,6 +3152,8 @@ def llm_postprocess(entries, args, warn_list=None):
                 resp = request(response_format=False)
             else:
                 raise
+        if str(getattr(resp.choices[0], 'finish_reason', '') or '') in ('length', 'content_filter'):
+            raise RuntimeError("LLM düzeltme yanıtı tamamlanmadı; kaynak metin korundu")
         content = (resp.choices[0].message.content or "").strip()
         data = parse_llm_json_object(content)
 
@@ -3156,10 +3177,16 @@ def llm_postprocess(entries, args, warn_list=None):
             # kelime sayar. Bu dillerde karakter orani tek basina koruma olur;
             # bosluklu dillerde eski kelime+karakter cift esigi korunur.
             words_off = (uses_spaceless_script(orig)
-                         or (ow >= 3 and (nw > ow * 2 or nw < ow * 0.5)))
+                         or (ow >= 1 and (nw > ow * 2 or nw < ow * 0.5)))
             chars_off = oc >= 1 and (nc > oc * 1.6 or nc < oc * 0.6)
             if words_off and chars_off:
                 continue
+            if (args.llm_fix_punctuation and not any((args.llm_fix_censorship,
+                    args.llm_fix_hallucination, args.llm_fix_consistency))):
+                # Punctuation may split joined words, but cannot change letters.
+                letters = lambda value: ''.join(re.findall(r'[^\W_]+', value.casefold()))
+                if letters(orig) != letters(new):
+                    continue
             out_texts[ci_start + local_i] = new
             accepted += 1
         return accepted
@@ -4240,6 +4267,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         "endpoint": str(args.translate_base_url).rstrip("/"), "register": args.translate_register,
         "profanity": args.translate_profanity, "refine": bool(args.translate_refine),
         "glossary": glossary_terms, "auto": auto_glossary_terms, "media": media_memory_scope,
+        "scene_context": scene_context,
+        "series_hint": series_hint,
     }
     if bool(args.translate_refine):
         tm_scope_identity["refine_protocol"] = TURKISH_NATIVE_REFINE_PROTOCOL
@@ -4296,6 +4325,9 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                                    speaker_shape=[speaker_map.get(i, "") for i in group],
                                    auto_glossary_terms=auto_glossary_terms,
                                    document_context=document_context)
+        if series_hint:
+            key = hashlib.sha1(json.dumps([key, 'series-hint-v1', series_hint],
+                ensure_ascii=False, sort_keys=True).encode('utf-8')).hexdigest()
         locks = [[position, normalized_text(out_texts[index])]
                  for position, index in enumerate(group) if index in precompleted_idx]
         if locks:
@@ -8090,14 +8122,22 @@ def transcribe(args):
                 emit("status", stage="diarize", text="Konuşmacılar tanımlanıyor...")
                 cancellation_checkpoint("diarize", "during")
                 log("Diarization başladı (pyannote.audio)")
+                diarization_wav, diarization_offset = wav_path, time_offset
+                if resumed_entries:
+                    # Resume only trims transcription. Speaker identities need
+                    # one common voice context across the complete local file.
+                    diarization_wav = str(Path(workdir) / 'diarization-full.wav')
+                    extract_audio(source_path, diarization_wav, ffmpeg_path,
+                                  audio_track=ex_track, audio_filter=args.audio_preprocess)
+                    diarization_offset = 0.0
                 spans = run_diarization(
-                    wav_path,
+                    diarization_wav,
                     hf_token=args.hf_token,
                     min_speakers=args.min_speakers or None,
                     max_speakers=args.max_speakers or None,
                 )
                 # Diarization kırpılmış ses üzerinde çalışır — entries ile aynı eksene getir
-                diarization_spans = offset_diarization_spans(spans, time_offset)
+                diarization_spans = offset_diarization_spans(spans, diarization_offset)
                 cancellation_checkpoint("diarize", "after")
                 cancellation_checkpoint("diarize", "handoff")
 
@@ -9108,7 +9148,7 @@ def translate_existing_subtitle(args):
         in {"", "auto", "unknown", "und"}
     same_language = same_translation_language(source_declared, target)
     if not same_language and target == "tr" and source_is_auto \
-            and file_looks_turkish(translation_source_entries):
+            and translation_source_entries and all(file_looks_turkish([entry]) for entry in translation_source_entries):
         same_language = True
 
     # 'Eksikleri tamamla': modele dosyanın TAMAMI gider; önceden çevrilmiş
@@ -9709,7 +9749,8 @@ def parse_srt(text, vtt=False):
             separated_cue_id = bool(candidate) and until > 1 and not lines[until - 2].strip()
             if candidate.isdigit() or separated_cue_id:
                 until -= 1
-        body_lines = lines[timing_idx + 1:until]
+        body_lines = [line for index, line in enumerate(lines[timing_idx + 1:until], timing_idx + 1)
+                      if index not in meta_lines]
         if vtt:
             # Boş satırla ayrılmış paragraflardan meta blok olanları at.
             paragraphs, current = [], []
@@ -9721,18 +9762,22 @@ def parse_srt(text, vtt=False):
                     current = []
             if current:
                 paragraphs.append(current)
-            body_lines = [line for paragraph in paragraphs
-                          if not _VTT_META_BLOCK.match(paragraph[0].strip())
-                          for line in paragraph + [""]]
+            body_lines = [line for paragraph in paragraphs for line in paragraph + [""]]
         txt = _BLANK_LINES.sub("\n", "\n".join(body_lines).strip())
         if not txt:
             continue
         if vtt:
+            txt = re.sub(r'<(?:\d{2}:)?\d{2}:\d{2}\.\d{3}>', '', txt)
             # VTT cue metni HTML karakter referansı destekler (&lt; &amp;
             # &nbsp; …); write_vtt metni bu biçimde kaçır, okuyucu geri çözmezse
             # uygulamanın kendi yazdığı VTT yeniden içe aktarıldığında "&lt;"
             # düz metin olarak kalıyor ve yeniden yazımda çift-kaçış oluyordu.
-            txt = _VTT_CHARREF.sub(_vtt_charref_rep, txt)
+            # Keep an entity-origin '<' escaped in the canonical markup text.
+            # Otherwise a literal &lt;b&gt; becomes indistinguishable from an
+            # actual <b> style when the same cue is exported again.
+            txt = _VTT_CHARREF.sub(lambda match: '&lt;' if _vtt_charref_rep(match) == '<'
+                                   and _VTT_TAG_SUFFIX.match(txt, match.end())
+                                   else _vtt_charref_rep(match), txt)
             # '&#10;&#10;' gibi referanslardan doğan boş satırlar cue
             # sınırını bozardı — metni tek satır bloklara indir; tamamen
             # boşalan cue atlanır.
@@ -9774,7 +9819,17 @@ def parse_ass(text):
         # \h ASS'nin bölünmez boşluğudur; olduğu gibi kalırsa modele ve ekrana
         # "Mr.\hSmith" diye düz metin gidiyordu.
         body = body.replace("\\h", "\u00a0")
-        body = re.sub(r"\{[^}]*\}", "", body).strip()
+        drawing, spoken = False, []
+        for token in re.split(r'(\{[^}]*\})', body):
+            if token.startswith('{'):
+                modes = re.findall(r'\\p(\d+)\b', token)
+                if modes:
+                    drawing = int(modes[-1]) > 0
+            elif not drawing:
+                spoken.append(token)
+        body = ''.join(spoken).strip()
+        # Keep one row per timed Dialogue until the shared empty-cue filter
+        # removes text and its matching presentation metadata together.
         entries.append((start, end, body))
     return entries
 
@@ -10266,15 +10321,18 @@ def sync_subtitles(args):
     if not spans:
         raise RuntimeError("Altyazıda geçerli blok bulunamadı (SRT/VTT/ASS desteklenir).")
 
-    workdir = tempfile.mkdtemp(prefix="whisper_sync_")
+    workdir = job_temp_directory("whisper_sync_")
     try:
         emit("status", stage="extract", text="Video sesi çıkarılıyor...")
         wav = str(Path(workdir) / "audio.wav")
+        cancellation_checkpoint("extract", "before")
         extract_audio(args.input, wav, ffmpeg_path)
+        cancellation_checkpoint("extract", "after")
 
         emit("status", stage="sync", text="Ses aktivitesi analiz ediliyor...")
         HZ = 50
         ref_sig, hz = audio_energy_signal(wav, HZ)
+        cancellation_checkpoint("extract", "handoff")
         if ref_sig.size == 0:
             raise RuntimeError("Ses analiz edilemedi (boş ses).")
         warn = []
@@ -10325,6 +10383,7 @@ def sync_subtitles(args):
         out_path = sync_output_path(
             srt_path, preflight_output_dir(resolve_output_dir(args)))
         emit("status", stage="write", text="Senkronlu altyazı yazılıyor...")
+        cancellation_checkpoint("write", "before")
         write_srt_raw(shifted, out_path)
         log(f"Yazıldı: {out_path}")
         if abs(offset) >= args.sync_max_shift - 0.05:

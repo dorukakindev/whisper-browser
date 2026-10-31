@@ -195,7 +195,7 @@ function extract(start, end, deps = {}) {
     browserUiLocale: () => 'tr',
     browserSearchEngine: () => 'google',
   });
-  const wc = { on(_name, callback) { handler = callback; },
+  const wc = { getURL: () => 'https://fixture.example/page', on(_name, callback) { handler = callback; },
     cut() { actions.push('cut'); }, paste() { actions.push('paste'); }, selectAll() { actions.push('all'); } };
   menuContext.installBrowserContextMenu({}, wc);
   handler({}, { isEditable: true, editFlags: { canCut: true, canPaste: true, canSelectAll: true } });

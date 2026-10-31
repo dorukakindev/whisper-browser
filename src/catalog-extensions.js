@@ -142,10 +142,10 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
           if (!fs.existsSync(to) || !fs.statSync(to).isDirectory()) throw new Error(`Hedef klasör yok: ${to.slice(0, 160)}`);
           mediaMappings.push([from, to]);
         }
-        const videoMappings = [...mediaMappings, ...(data.videoMappings || [])];
         const packages = require('./workspace-package');
         const videoPackage = require('./workspace-video-package');
         const videoFolder = await videoPackage.extract(userData(), data, pythonPath());
+        const videoMappings = [...mediaMappings, ...(data.videoMappings || [])];
         if (!canRestore()) { if (videoFolder) videoPackage.clean(userData(), videoFolder); throw new Error('Yeni işlem başladı; geri yükleme iptal edildi.'); }
         let live, storageChanged = false;
         const setStorage = values => owner().webContents.executeJavaScript(`(() => {

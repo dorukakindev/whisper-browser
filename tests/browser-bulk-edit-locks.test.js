@@ -123,6 +123,10 @@ test('attach: translation dışı rol ve boş identities passthrough', () => {
   assert.equal(ctx.attach({ role: 'source', cueIdentities: [{ cueId: 'x', start: 0, end: 1 }] }, cues), cues);
   assert.equal(ctx.attach({ role: 'translation', cueIdentities: [] }, cues), cues);
   assert.equal(ctx.attach(null, cues), cues);
+  const presentation = ctx.attach({ role: 'source', cueIdentities: [{ start: 0, end: 1, text: 'a', writingMode: 'rl', speaker: 'Alice' }] }, cues);
+  assert.equal(presentation[0].writingMode, 'rl');
+  assert.equal(presentation[0].speaker, 'Alice');
+  assert.equal(presentation[0].cueId, undefined, 'source presentation restore must not attach translation edit identities');
 });
 
 test('attach: 2ms tolerans — .0019 eşleşir, .0021 eşleşmez', () => {

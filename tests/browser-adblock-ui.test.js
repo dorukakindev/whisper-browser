@@ -21,7 +21,8 @@ async function run() {
   const group = menu.closest('.browser-more-sub');
   assert.equal(group.querySelector('summary .browser-menu-label').textContent.trim(), 'Sayfa');
   assert.equal(menu.dataset.browserProxy, 'browserAdblockQuick');
-  assert.equal(menu.getAttribute('role'), 'menuitemcheckbox');
+  assert.equal(menu.tagName, 'BUTTON');
+  assert.equal(menu.getAttribute('role'), null);
   const player = { browserActiveTabId: 'test', browserPageUrl: 'https://www.youtube.com/watch?v=fixture', workspaceMode: 'browser' };
   const tab = { generation: 1 }, calls = [];
   let siteOn = true, locale = 'tr', pending;
@@ -60,7 +61,7 @@ async function run() {
   await pending; await new Promise(setImmediate);
   assert(calls.includes(true), 'menu click must enable the actual API, not only change its label');
   assert.equal($('browserAdblockMenuLabel').textContent, 'Reklam engelleyici: Açık');
-  assert.equal(menu.getAttribute('aria-checked'), 'true');
+  assert.equal(menu.getAttribute('aria-pressed'), 'true');
   menu.click(); await pending;
   assert.equal(siteOn, false, 'second click disables current site');
   assert.equal($('browserAdblockMenuLabel').textContent, 'Reklam engelleyici: Kapalı');

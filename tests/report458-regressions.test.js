@@ -6,6 +6,26 @@ const path = require('node:path');
 const { test } = require('node:test');
 const { buildBrowserMediaProbeScript } = require('../src/browser-media-controller');
 
+test('empty documents throttle100probes and discover a late open shadow root after1second', () => {
+  let now = 10000, scans = 0;
+  class MutationObserver { observe() {} disconnect() {} }
+  const host = { nodeType: 1, children: [], isConnected: true };
+  const document = { nodeType: 9, children: [host], querySelectorAll() { scans++; return []; } };
+  const context = { window: {}, document, MutationObserver, Date: { now: () => now } };
+  assert.equal(vm.runInNewContext(buildBrowserMediaProbeScript(), context), null);
+  assert.equal(scans, 1, 'bootstrap should scan an empty document only once');
+  const controller = context.window.__whisperMediaController;
+  const video = { nodeType: 1, isConnected: true, tagName: 'VIDEO', paused: true, ended: false,
+    clientWidth: 640, clientHeight: 360, currentTime: 7, duration: 90, playbackRate: 1, style: {}, addEventListener() {} };
+  host.shadowRoot = { nodeType: 11, host, children: [video], querySelectorAll() { return this.children; } };
+  for (let i = 0; i < 100; i++) assert.equal(controller.select(), null);
+  assert.equal(scans, 1, 'empty fallback must not rescan on every probe');
+  now += 999; assert.equal(controller.select(), null); assert.equal(scans, 1);
+  now++; assert.equal(controller.select(), video); assert.equal(scans, 2);
+  for (let i = 0; i < 100; i++) assert.equal(controller.select(), video);
+  assert.equal(scans, 2, 'discovered-media fallback remains throttled');
+});
+
 test('media added beyond the observer cap is discovered without unbounded observers or scans', () => {
   let now = 10000;
   let scans = 0;

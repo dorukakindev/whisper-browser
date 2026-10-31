@@ -105,7 +105,7 @@ for (const name of ['addBrowserReadingList', 'listBrowserReadingList', 'removeBr
   assert.ok(renderer.includes(name), `renderer ${name} çağırmalı`);
 }
 assert.ok(main.includes("require('./browser-reading-list')"), 'main.js depoyu require etmeli');
-assert.match(main, /savePage\(readingEntry\.filePath, 'MHTML'\)/, 'MHTML kaydı savePage üzerinden');
+assert.match(main, /savePage\(filePath, 'MHTML'\)/, 'MHTML kaydı ayrı dosyada savePage üzerinden');
 assert.match(main, /pathToFileURL\(found\.filePath\)\.href/, 'açma file:// URL ile yapılmalı');
 assert.ok(!main.includes('showSaveDialog') || !/readingList[\s\S]{0,400}showSaveDialog/.test(main.slice(main.indexOf('browser:readingList:add'), main.indexOf('browser:readingList:add') + 900)),
   'okuma listesi kaydı kullanıcıya dosya sormamalı');

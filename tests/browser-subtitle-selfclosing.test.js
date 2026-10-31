@@ -30,10 +30,11 @@ test('timedtext: <text/> self-closing kardeş de aynı kurala uyar', () => {
 test('ttml: <span/> strip yutması span dışı metni kaybetmez', () => {
   const xml = '<timedtext><p begin="1s" dur="2s"><span/>real <span begin="1s" dur="1s">x</span></p></timedtext>';
   const { cues } = parseSubtitlePayload(xml, 'text/xml', '');
-  // outsideText korunduğu için paragraf tek cue olarak düşer; span etiketleri
-  // whitelist'te olduğundan 'real x' temiz metne katlanır.
-  assert.equal(cues.length, 1);
-  assert.equal(cues[0].text, 'real x');
+  // Mixed timed spans now retain separate intervals (R815-B88). The static
+  // text must survive on both sides of the timed span, with no markup leak.
+  assert.deepEqual(cues.map(({ start, end, text }) => [start, end, text]), [
+    [1, 2, 'real x'], [2, 3, 'real'],
+  ]);
 });
 
 test('dash: self-closing Representation kapalı kardeşin içeriğini yutmaz', () => {

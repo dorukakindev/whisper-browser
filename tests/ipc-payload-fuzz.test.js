@@ -11,7 +11,7 @@
 //     yalnız dolu string geçirir (gerçeği gibi yetkili kabul), diğerlerini reddeder.
 //   - *Access depoları: has=false, grant no-op, inspect throw.
 //   - dialog: her zaman iptal/red.
-//   - spawn()/child '.on("close"/"exit"/"finish"/"end")' dinleyicisi kuyruklanır
+//   - spawn()/child '.on("spawn"/"close"/"exit"/"finish"/"end")' dinleyicisi kuyruklanır
 //     ve kod=1 ile tetiklenir (çocuk süreç beklemesi asılı kalmasın).
 //
 // İhlal sınıfı:
@@ -105,7 +105,7 @@ function makeRecorder(calls) {
       // Çocuk-süreç/kanal olay dinleyicilerini hemen tetikle — handler'ın
       // asılı kalmasını engelle (gerçek child yakında 'close' üretir).
       if (/\.(on|once|addListener|prependListener)$/.test(p) && typeof args[1] === 'function'
-          && ['close', 'exit', 'finish', 'end'].includes(args[0])) {
+          && ['spawn', 'close', 'exit', 'finish', 'end'].includes(args[0])) {
         queueMicrotask(() => { try { args[1](1); } catch (_) {} });
       }
       return rec(`${p}()`);

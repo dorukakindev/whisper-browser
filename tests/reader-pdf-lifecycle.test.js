@@ -18,7 +18,7 @@ const deferred = () => {
   return { promise, resolve };
 };
 const tick = () => new Promise(setImmediate);
-function fixture({ textGate, renderGate } = {}) {
+function fixture({ textGate, renderGate, fontSize = 21 } = {}) {
   let renders = 0,
     mounts = 0,
     observers = 0,
@@ -72,6 +72,7 @@ function fixture({ textGate, renderGate } = {}) {
     },
   };
   const ctx = {
+    localStorage: { getItem: key => key === 'whisper.bookReaderFontSize' ? String(fontSize) : null, setItem() {} },
     readerRequest: 0,
     readerGeneration: 0,
     readerRender: null,
@@ -129,7 +130,9 @@ function fixture({ textGate, renderGate } = {}) {
     },
   };
   vm.createContext(ctx);
-  vm.runInContext(source.slice(begin, end), ctx);
+  const fontInitializer=source.slice(source.indexOf("  const readerFontKey ="),source.indexOf("  let bodyVersion="));
+  assert(fontInitializer.includes('localStorage.getItem(readerFontKey)'));
+  vm.runInContext(fontInitializer + source.slice(begin, end), ctx);
   return {
     ctx,
     nodes,
@@ -196,6 +199,9 @@ test("a current PDF still renders, mounts highlights and observes resizing", asy
     mounts: 1,
     observers: 1,
   });
+});
+test("the actual reader initializer applies a saved font preference before PDF rendering",async()=>{
+ const f=fixture({fontSize:28});await f.ctx.readChapter();const prose=f.nodes.find(n=>n.tag==='article');assert.equal(prose.style.fontSize,'28px');assert.equal(f.counts().renders,1);
 });
 
 test("zoom waits for cancelled drawing to settle before reusing its canvas", async () => {

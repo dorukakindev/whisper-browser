@@ -20,6 +20,7 @@ const MODEL_CATALOG = Object.freeze({
 
 function modelCacheRoots(appPath, env = process.env) {
   const values = [
+    env.HF_HUB_CACHE,
     env.HUGGINGFACE_HUB_CACHE,
     env.HF_HOME ? path.join(env.HF_HOME, 'hub') : '',
     env.TRANSFORMERS_CACHE,
@@ -101,12 +102,14 @@ function freeBytesFor(root) {
 function findModelRepository(appPath, model, env = process.env, requireUsable = true) {
   const normalized = String(model || '').toLowerCase();
   if (!KNOWN_MODELS.includes(normalized)) return null;
+  let partial = null;
   for (const root of modelCacheRoots(appPath, env)) {
-    const repo = cachedRepositories(root).find((entry) => repositoryMatchesModel(entry.name, normalized)
-      && (!requireUsable || repositoryHasUsableSnapshot(entry.path)));
-    if (repo) return { root, repo };
+    for (const repo of cachedRepositories(root).filter(entry => repositoryMatchesModel(entry.name, normalized))) {
+      if (repositoryHasUsableSnapshot(repo.path)) return { root, repo };
+      partial ||= { root, repo };
+    }
   }
-  return null;
+  return requireUsable ? null : partial;
 }
 
 function scanModelCache(appPath, env = process.env) {
@@ -140,9 +143,12 @@ function scanModelCache(appPath, env = process.env) {
 // F18: güvenli temizlik — yalnız bilinen modelin, bilinen önbellek kökü
 // içindeki deposu silinir. Tamamlanmamış indirmeler de temizlenebilir; gerçek
 // yol çevrelenmesi zorunlu ve model kimliği whitelist dışıysa reddedilir.
-function deleteCachedModel(appPath, model, env = process.env) {
+function deleteCachedModel(appPath, model, env = process.env, expectedRepository = null) {
   const found = findModelRepository(appPath, model, env, false);
   if (!found) return { ok: false, error: 'Model önbellekte bulunamadı.' };
+  if (expectedRepository && path.resolve(found.repo.path) !== path.resolve(expectedRepository)) {
+    return { ok: false, error: 'Model önbelleği değişti; silme işlemini yeniden başlatın.' };
+  }
   let rootResolved;
   let repoResolved;
   try {

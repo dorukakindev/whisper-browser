@@ -23,7 +23,7 @@
         : (pageContext?(player.browserPageTitle||$('playerTitle')?.textContent):$('playerTitle')?.textContent) || (tr ? 'Açık video / sayfa' : 'Current video / page');
       links.clear();
       const scope = aiSourceScope(),workspace=window.AssistantWorkspace?.snapshot(),threadId=workspace?.current?.id||'';
-      const pinScope=selectionContext?JSON.stringify(['selectionContext',selectionContext.workspace,selectionContext.page,selectionContext.id,selectionContext.chapter]):JSON.stringify([player.workspaceMode,player.mediaKey]);
+      const pinScope=selectionContext?JSON.stringify(['selectionContext',selectionContext.workspace,selectionContext.page,selectionContext.id,selectionContext.chapter]):window.AssistantSourceContext.conversation(player,null);
       if (scope !== suggestionScope) { suggestionScope = scope; ++suggestionSequence; }
       suggestions.clear();
       const opts = buildOptsFromUI();

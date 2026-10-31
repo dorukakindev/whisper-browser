@@ -91,6 +91,8 @@ function sanitizeVariant(raw = {}) {
     sourceHash: clean(raw.sourceHash, 64).replace(/[^a-f0-9]/gi, '').toLowerCase(),
     sourceTrackId: safePortableValue(raw.sourceTrackId, 180),
     provider: safePortableValue(raw.provider, 120),
+    forSpeech: raw.forSpeech === true,
+    speechProtocol: raw.forSpeech === true ? clean(raw.speechProtocol, 80) : '',
     model: clean(raw.model, 120),
     createdAt: Math.max(0, Number(raw.createdAt) || 0),
     updatedAt: Math.max(0, Number(raw.updatedAt) || 0),

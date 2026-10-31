@@ -260,7 +260,7 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           if (data.podcasts.length >= 100 && !data.podcasts.some(row => row.url === url)) throw Error('Podcast limit reached.');
           const previous = data.podcasts.find(row => row.url === url);
           const episodes = parsed.episodes.flatMap(ep => {
-            try { const url = urlOf(ep.url), old = previous?.episodes.find(row => row.url === url); return [{ ...ep, url, position: old?.position || 0, duration: old?.duration || 0 }]; } catch { return []; }
+            try { const url = urlOf(ep.url), old = previous?.episodes.find(row => ep.guid && row.guid === ep.guid) || previous?.episodes.find(row => row.url === url); return [{ ...ep, url, position: old?.position || 0, duration: old?.duration || 0 }]; } catch { return []; }
           });
           if (!episodes.length) throw Error('No public audio enclosure URLs could be saved.');
           const row = { id: previous?.id || randomUUID(), url, title: parsed.title, episodes, updated: Date.now() };
@@ -285,10 +285,10 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           if (!prepared || prepared.expires < Date.now()) throw Error('Import preview expired; choose the CSV again.');
           const catalog = catalogStore();
           const plan = csvPlan(prepared.rows, catalog.list());
-          const patches = plan.planned.map(row => ({ id: row.id, ratings: { personal: row.preserved ? catalog.get(row.id).ratings.personal : row.rating === null ? null : String(row.rating) },...(row.watched&&catalog.get(row.id).watchStatus==='unspecified'?{watchStatus:'completed'}:{}) }));
+          const patches = plan.planned.map(row => ({ id: row.id, ratings: { personal: row.preserved ? catalog.get(row.id).ratings.personal : row.rating === null ? null : String(Number(row.rating)*2) },...(row.watched&&catalog.get(row.id).watchStatus==='unspecified'?{watchStatus:'completed'}:{}) }));
           // Preserve existing personal scores. New ratings belong to the user, not the site's aggregate.
           const data = load();
-          const catalogPatches=[...patches, ...plan.added.map(row => ({ kind: 'film', title: row.title, year: row.year || null, watchStatus: row.watchedDate||row.watched ? 'completed' : 'unspecified', ratings: { personal: row.rating === null ? null : String(row.rating) } }))];
+          const catalogPatches=[...patches, ...plan.added.map(row => ({ kind: 'film', title: row.title, year: row.year || null, watchStatus: row.watchedDate||row.watched ? 'completed' : 'unspecified', ratings: { personal: row.rating === null ? null : String(Number(row.rating)*2) } }))];
           const diaryKey=row=>JSON.stringify([require('./text-fold').search(row.title),row.year||'',row.watchedDate||'',row.rewatchIndex||0]);const merged = new Map(data.diary.map(row => [diaryKey(row), row]));
           (prepared.diary||prepared.rows).forEach(row => { const key = diaryKey(row), old = merged.get(key); merged.set(key, { ...old, ...row, review:row.review || old?.review || '',rating: row.rating ?? old?.rating ?? null, watchedDate: row.watchedDate || old?.watchedDate || '' }); });
           data.diary = [...merged.values()].slice(-10000);

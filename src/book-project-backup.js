@@ -7,37 +7,55 @@ const { atomicWriteFileSync } = require("./fsync-utils");
 const digest = (b) => createHash("sha256").update(b).digest("hex");
 const LIMIT = 256 * 1024 * 1024;
 function safeProject(d) {
+  if (!d || !Array.isArray(d.chapters) || d.chapters.length > 1000
+      || (Array.isArray(d.bookmarks) && d.bookmarks.length > 100)
+      || (Array.isArray(d.selectedChapters) && d.selectedChapters.length > 1000))
+    throw Error("Invalid project.");
   const copy = {
     version: 1,
     id: d.id,
     title: d.title,
-    author: typeof d.author === "string" ? d.author.slice(0, 1000) : "",
+    author: typeof d.author === "string" ? d.author : "",
     created: d.created,
     format: ["pdf", "epub", "txt"].includes(d.format) ? d.format : "txt",
     numPages: d.numPages,
-    archived: !!d.archived,
+    archived: d.archived === true,
     source: null,
     selectedChapters: Array.isArray(d.selectedChapters)
       ? d.selectedChapters.filter(Number.isInteger).slice(0, 1000)
       : [],
     chapters: [],
+    bookmarks: Array.isArray(d.bookmarks) ? d.bookmarks.map((mark) => ({
+      id: mark.id, chapter: mark.chapter, sourceId: mark.sourceId,
+      sourceSpineIndex: mark.sourceSpineIndex, pageNumber: mark.pageNumber,
+      quote: mark.quote, position: mark.position, textHash: mark.textHash,
+      outputId: mark.outputId, groupKey: mark.groupKey, groupText: mark.groupText,
+      createdAt: mark.createdAt,
+    })) : [],
   };
   for (const c of d.chapters || []) {
+    if (!c || typeof c.text !== 'string' || c.text.length > 900000
+        || (Array.isArray(c.groups) && (c.groups.length > 5000
+          || c.groups.some((g) => typeof g.text !== 'string' || g.text.length > 900000))))
+      throw Error("Invalid chapter.");
     copy.chapters.push({
       id: c.id,
       title: c.title,
       pageNumber: c.pageNumber,
+      sourceId: c.sourceId,
+      sourceSpineIndex: c.sourceSpineIndex,
       text: c.text,
       status: c.status,
       output: c.output || null,
       textHash: c.textHash,
+      qualityMissing: c.qualityMissing === true,
       position: Number.isFinite(c.position) && c.position >= 0 ? c.position : 0,
       groups: Array.isArray(c.groups)
-        ? c.groups.slice(0, 1000).map((g) => ({
-            text: String(g.text || "").slice(0, 100000),
+        ? c.groups.map((g) => ({
+            text: g.text,
             start: g.start,
             end: g.end,
-            key: String(g.key || "").slice(0, 1000),
+            key: String(g.key || ""),
             status: ["ready", "review", "failed"].includes(g.status)
               ? g.status
               : "review",
@@ -48,6 +66,9 @@ function safeProject(d) {
                   audioHash: g.manualApproval.audioHash,
                 }
               : undefined,
+            verification: g.verification,
+            acoustic: g.acoustic,
+            listening: g.listening,
           }))
         : [],
     });
@@ -135,14 +156,18 @@ function importBooks(root, source) {
     data.format !== "whisper-books" ||
     data.version !== 1 ||
     !Array.isArray(data.books) ||
-    !data.books.length ||
-    data.books.length > 100
+    !data.books.length
   )
     throw Error("Invalid book backup.");
   fs.mkdirSync(root, { recursive: true });
   if (
-    fs.readdirSync(root).filter((n) => /^[a-f0-9-]{36}$/.test(n)).length +
-      data.books.length >
+    fs.readdirSync(root).filter((n) => /^[a-f0-9-]{36}$/.test(n)).filter((id) => {
+      try {
+        const manifest = path.join(root, id, 'project.json');
+        if (fs.lstatSync(manifest).isSymbolicLink() || fs.statSync(manifest).size > 6000000) return true;
+        return JSON.parse(fs.readFileSync(manifest, 'utf8')).archived !== true;
+      } catch { return true; }
+    }).length + data.books.filter((item) => item.project?.archived !== true).length >
     100
   )
     throw Error("Book project limit exceeded.");
@@ -171,7 +196,7 @@ function importBooks(root, source) {
         if (
           c.id !== i ||
           typeof c.text !== "string" ||
-          c.text.length > 100000 ||
+          c.text.length > 900000 ||
           typeof c.title !== "string"
         )
           throw Error("Invalid chapter.");

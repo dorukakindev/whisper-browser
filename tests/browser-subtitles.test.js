@@ -275,7 +275,11 @@ test('karışık TTML p içeriği zamanlı span dışındaki metni de korur', ()
   const result = parseSubtitlePayload(
     '<tt><body><div><p begin="00:01.00" end="00:05.00">Ahmet: <span begin="00:02.00" dur="00:01.00">Selam</span> nasılsın?</p></div></body></tt>',
     'application/ttml+xml', 'https://cdn.test/mixed.ttml');
-  assert.equal(result.cues.map((cue) => cue.text).join(' '), 'Ahmet: Selam nasılsın?');
+  assert.deepEqual(result.cues.map(({ start, end, text }) => ({ start, end, text })), [
+    { start: 1, end: 3, text: 'Ahmet: nasılsın?' },
+    { start: 3, end: 4, text: 'Ahmet: Selam nasılsın?' },
+    { start: 4, end: 5, text: 'Ahmet: nasılsın?' },
+  ]);
 });
 
 test('SAMI kapanış etiketleri son diyalog metnine sızmaz', () => {

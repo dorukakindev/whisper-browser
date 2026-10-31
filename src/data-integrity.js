@@ -17,7 +17,8 @@ const AUDITED_FILES = [
 ];
 
 function readJson(filePath, io) {
-  try { return { ok: true, value: JSON.parse(io.readFileSync(filePath, 'utf8')) }; }
+  try { return { ok: true, value: require('./user-data-schema').validateStoreShape(
+    path.basename(filePath).replace(/\.bak$/, ''), JSON.parse(io.readFileSync(filePath, 'utf8'))) }; }
   catch (error) { return { ok: false, error }; }
 }
 
@@ -62,7 +63,7 @@ function auditFileHealth(root, io) {
       kind: 'corrupt-file',
       severity: 'error',
       store: name,
-      detail: `${name} okunamıyor (JSON bozuk).${backup.ok ? ' Sağlam .bak yedeği var.' : ' .bak da okunamıyor.'}`,
+      detail: `${name} okunamıyor (JSON veya depo şeması geçersiz).${backup.ok ? ' Sağlam .bak yedeği var.' : ' .bak da okunamıyor.'}`,
       repair: backup.ok ? { type: 'restore-backup', store: name } : null,
     });
   }
@@ -245,43 +246,37 @@ function auditUserData(root, options = {}) {
 
 // ---------- onarım ----------
 
-function dedupeWatchLibrary(filePath, key, io) {
+function dedupeWatchLibrary(filePath, key, io, tombstonesOnly = false) {
   const parsed = JSON.parse(io.readFileSync(filePath, 'utf8'));
   const isArray = Array.isArray(parsed);
-  const items = isArray ? parsed
-    : [...(parsed.items || []), ...(parsed.overflowItems || [])];
-  const groups = new Map();
-  items.forEach((item) => {
-    const k = canonicalWatchKey(item && item.key);
-    if (!groups.has(k)) groups.set(k, []);
-    groups.get(k).push(item);
+  const doc = isArray ? [...parsed] : { ...parsed };
+  const fields = tombstonesOnly ? ['tombstones', 'overflowTombstones'] : ['items', 'overflowItems'];
+  const lists = isArray ? [doc] : fields.map((field) => Array.isArray(doc[field]) ? doc[field] : []);
+  const matching = lists.flat().filter((item) => canonicalWatchKey(item?.key) === key);
+  const newest = [...matching].sort((a,b) => stampOf(b)-stampOf(a))[0];
+  let emitted = false;
+  const dedupe = (list) => list.flatMap((item) => {
+    if (canonicalWatchKey(item?.key) !== key) return [item];
+    if (emitted) return [];
+    emitted = true; return [newest];
   });
-  const merged = [...groups.values()].map((records) =>
-    records.sort((a, b) => stampOf(b) - stampOf(a))[0]);
-  const tombstones = [...(parsed.tombstones || []), ...(parsed.overflowTombstones || [])];
-  const tmap = new Map();
-  tombstones.forEach((t) => {
-    const k = canonicalWatchKey(t && t.key);
-    if (k && (!tmap.has(k) || stampOf(t) > stampOf(tmap.get(k)))) tmap.set(k, t);
-  });
-  const doc = isArray
-    ? merged
-    : { ...parsed, items: merged, overflowItems: [],
-        tombstones: [...tmap.values()], overflowTombstones: [] };
+  if (isArray) {
+    const kept = dedupe(doc); doc.splice(0,doc.length,...kept);
+  } else for (const field of fields) if (Array.isArray(doc[field])) doc[field] = dedupe(doc[field]);
   atomicWrite(filePath, JSON.stringify(doc, null, 2), io);
 }
 
-function dedupeGeneric(filePath, key, selector, io) {
+function dedupeGeneric(filePath, key, selector, io, selectedKey) {
   const parsed = JSON.parse(io.readFileSync(filePath, 'utf8'));
   const list = selector(parsed);
-  const groups = new Map();
-  list.forEach((item, index) => {
-    const k = String(item?.[key] || '');
-    if (!groups.has(k)) groups.set(k, []);
-    groups.get(k).push({ item, index });
+  const matching = list.filter((item) => String(item?.[key] || '') === selectedKey);
+  const newest = [...matching].sort((a,b) => stampOf(b)-stampOf(a))[0];
+  let emitted = false;
+  const kept = list.flatMap((item) => {
+    if (String(item?.[key] || '') !== selectedKey) return [item];
+    if (emitted) return [];
+    emitted = true; return [newest];
   });
-  const kept = [...groups.values()].map((records) =>
-    records.sort((a, b) => stampOf(b.item) - stampOf(a.item) || a.index - b.index)[0].item);
   return { parsed, kept };
 }
 
@@ -301,16 +296,16 @@ function applyRepair(root, issue, io) {
     case 'dedupe': {
       if (repair.store === 'watch-library.json') dedupeWatchLibrary(filePath, repair.key, io);
       else if (repair.store === 'media-catalog.json') {
-        const { parsed, kept } = dedupeGeneric(filePath, 'id', (p) => p.items || [], io);
+        const { parsed, kept } = dedupeGeneric(filePath, 'id', (p) => p.items || [], io, repair.key);
         atomicWrite(filePath, JSON.stringify({ ...parsed, items: kept }, null, 2), io);
       } else if (repair.store === 'browser-session.json') {
-        const { parsed, kept } = dedupeGeneric(filePath, 'id', (p) => p.tabs || [], io);
+        const { parsed, kept } = dedupeGeneric(filePath, 'id', (p) => p.tabs || [], io, repair.key);
         atomicWrite(filePath, JSON.stringify({ ...parsed, tabs: kept }, null, 2), io);
       }
       return { applied: true };
     }
     case 'dedupe-tombstone': {
-      dedupeWatchLibrary(filePath, repair.key, io); // aynı birleştirme yolu
+      dedupeWatchLibrary(filePath, repair.key, io, true);
       return { applied: true };
     }
     case 'prune-paths': {

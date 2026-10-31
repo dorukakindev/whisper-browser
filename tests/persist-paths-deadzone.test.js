@@ -27,7 +27,7 @@ function makeCtx(userData, over = {}) {
   const calls = { atomic: [], bufAtomic: [], dlg: [], savePage: [], pdf: [], placeSet: [] };
   const ctx = vm.createContext(Object.assign({
     String, Number, Array, Set, Map, JSON, RegExp, Error, Promise, Buffer, URL,
-    Math, Object, Date, console, process,
+    Math, Object, Date, console, process, randomUUID: () => 'fixture-stage',
     path, fs,
     pathToFileURL: (p) => new URL(`file://${p}`),
     app: { getPath: (k) => k === 'userData' ? userData : `/tmp/${k}` },
@@ -44,6 +44,7 @@ function makeCtx(userData, over = {}) {
     browserAssetStore: () => ctx.__assetStore,
     BrowserReadingList: class {
       constructor(p) { this.p = p; }
+      revision() { return 0; }
       commit(e) { return ctx.__commitResult ?? { ok: true, entry: e }; }
     },
     browserReadingList: () => ctx.__reading ?? (ctx.__reading = new ctx.BrowserReadingList(path.join(userData, 'OkumaListesi'))),
@@ -219,7 +220,7 @@ async function t_reading_list(userData) {
   assert.strictEqual(r.ok, false);
   // savePage throw → arşivlenemedi
   r = await save({ view: { webContents: { isDestroyed: () => false,
-    savePage: async () => { throw new Error('izin'); } } } }, { filePath: '/tmp/x.mhtml' });
+    savePage: async () => { throw new Error('izin'); } } } }, { filePath: '/tmp/x.mhtml', entry: { id: 'e1' } });
   assert.strictEqual(r.ok, false);
   assert.match(r.error, /arşivlenemedi.*izin/);
   // başarı → commit
@@ -230,7 +231,7 @@ async function t_reading_list(userData) {
   assert.strictEqual(calls.savePage[0].fmt, 'MHTML');
   // commit hatası yansır
   ctx.__commitResult = { ok: false, error: 'diske yazılamadı' };
-  r = await save({ view: { webContents: wc } }, { filePath: '/tmp/y.mhtml' });
+  r = await save({ view: { webContents: wc } }, { filePath: '/tmp/y.mhtml', entry: { id: 'e1' } });
   assert.strictEqual(r.ok, false);
 }
 
@@ -245,26 +246,26 @@ async function t_pdf_save(userData) {
   assert.match(r.error, /bulunamadı/);
   // iptal → canceled
   ctx.__dlg = { canceled: true };
-  r = await save({ view: { webContents: { isDestroyed: () => false, printToPDF: async () => Buffer.from('x') } } });
+  r = await save({ view: { webContents: { isDestroyed: () => false, getURL: () => 'https://fixture.example', printToPDF: async () => Buffer.from('x') } } });
   assert.strictEqual(r.ok, false);
   assert.strictEqual(r.canceled, true);
-  // .pdf uzantısı eklenir + printBackground true. Stub writeBufferAtomic gerçek
+  // Onaylanan hedef aynen korunur + printBackground true. Stub writeBufferAtomic gerçek
   // diske yazar — Windows'ta `/tmp` olmadığından yazılabilir dizin (userData) kullanılır.
   const pdfOut = path.join(userData, 'cikti');
   ctx.__dlg = { filePath: pdfOut };
-  const wc = { isDestroyed: () => false, printToPDF: async (o) => { calls.pdf.push(o); return Buffer.from('PDF'); } };
+  const wc = { isDestroyed: () => false, getURL: () => 'https://fixture.example', printToPDF: async (o) => { calls.pdf.push(o); return Buffer.from('PDF'); } };
   r = await save({ view: { webContents: wc } });
   assert.strictEqual(r.ok, true);
-  assert.strictEqual(r.path, pdfOut + '.pdf');
+  assert.strictEqual(r.path, pdfOut);
   assert.strictEqual(calls.pdf[0].printBackground, true);
-  assert.strictEqual(calls.bufAtomic[0].t, pdfOut + '.pdf');
+  assert.strictEqual(calls.bufAtomic[0].t, pdfOut);
   // .PDF (büyük harf) → tekrar eklenmez
   const pdfUpper = path.join(userData, 'CIKTI.PDF');
   ctx.__dlg = { filePath: pdfUpper };
   r = await save({ view: { webContents: wc } });
   assert.strictEqual(r.path, pdfUpper);
   // printToPDF throw → hata
-  const wcBad = { isDestroyed: () => false, printToPDF: async () => { throw new Error('yok'); } };
+  const wcBad = { isDestroyed: () => false, getURL: () => 'https://fixture.example', printToPDF: async () => { throw new Error('yok'); } };
   ctx.__dlg = { filePath: path.join(userData, 'f.pdf') };
   r = await save({ view: { webContents: wcBad } });
   assert.strictEqual(r.ok, false);

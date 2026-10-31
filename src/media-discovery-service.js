@@ -23,7 +23,7 @@ function normalizeMeta(row, kind) {
     runtime: Number.parseInt(row.runtime, 10) > 0 ? Math.min(10000, Number.parseInt(row.runtime, 10)) : null };
 }
 function recommendationSeeds(items) {
-  return items.filter(item => item.favorite || Number(item.ratings?.personal) >= 3.5).slice(0, 20);
+  return items.filter(item => item.favorite || Number(item.ratings?.personal) >= 7).slice(0, 20);
 }
 function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, nativeImage, translateSynopsis, fetchImpl = fetch, now = () => Date.now() }) {
   const cache = new Map(), loading = new Map();
@@ -95,7 +95,7 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
   const handle = async (event, input = {}) => {
     if (!authorized(event)) return { ok: false, error: 'Unauthorized request.', errorCode: 'unauthorized' };
     try {
-      if (input.action === 'feedback-list') return { ok: true, rows: Object.values(feedback()).slice(-2000).reverse(), nextSkip: null };
+      if (input.action === 'feedback-list') return { ok: true, rows: Object.values(feedback()).filter(row => !input.kind || row.kind === input.kind).slice(-2000).reverse(), nextSkip: null };
       if (input.action === 'feedback') {
         if (!/^tt\d{7,12}$/.test(input.id || '') || !['film','series'].includes(input.kind) || !['hidden','watched','none'].includes(input.state)) throw Error('Invalid discovery preference.');
         const rows = feedback(), key = `${input.kind}:${input.id}`;
@@ -113,7 +113,7 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
       }
       if (input.action === 'personal') {
         const library = catalogStore().list(), seeds = recommendationSeeds(library), owned = new Set(library.map(item => item.imdbId).filter(Boolean));
-        const aliases = { 'Bilim-Kurgu': 'Sci-Fi', 'Bilim Kurgu': 'Sci-Fi', 'Dram': 'Drama', 'Komedi': 'Comedy', 'Aksiyon': 'Action', 'Gerilim': 'Thriller', 'Korku': 'Horror', 'Belgesel': 'Documentary', 'Animasyon': 'Animation', 'Macera': 'Adventure', 'Romantik': 'Romance' };
+        const aliases = { 'Bilim-Kurgu': 'Sci-Fi', 'Bilim Kurgu': 'Sci-Fi', 'Dram': 'Drama', 'Komedi': 'Comedy', 'Aksiyon': 'Action', 'Gerilim': 'Thriller', 'Korku': 'Horror', 'Belgesel': 'Documentary', 'Animasyon': 'Animation', 'Macera': 'Adventure', 'Romantik': 'Romance', 'Suç':'Crime', 'Aile':'Family', 'Fantastik':'Fantasy', 'Tarih':'History', 'Gizem':'Mystery', 'Savaş':'War', 'Vahşi Batı':'Western', 'Biyografi':'Biography', 'Spor':'Sport' };
         const selected = new Map();
         let genreProfile=[];
         try{const file=path.join(userData(),'media-shelf.json');if(fs.existsSync(file)&&fs.statSync(file).size<=16_000_000){const shelf=JSON.parse(fs.readFileSync(file,'utf8'));genreProfile=require('./media-taste').profile(shelf.diary||[],library,shelf.tasteProfile||{}).genres;}}catch{/* Existing favorites remain a fallback when the optional profile is unavailable. */}

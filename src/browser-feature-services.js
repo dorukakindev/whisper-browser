@@ -27,26 +27,36 @@ function registerBrowserFeatureServices(deps) {
     let origin = ''; try { origin = new URL(url).origin; } catch {}
     return { origin, key: `${origin}|${tab.mediaId || url}` };
   };
-  let skipData;
+  let skipData, skipCommitted;
+  const mediaToolInstances = new Map();
+  const tools = () => {
+    const options = { pythonPath: pythonPath(), ffmpegPath: ffmpegPath(), ffprobePath: ffprobePath() };
+    const key = JSON.stringify(options);
+    if (!mediaToolInstances.has(key)) mediaToolInstances.set(key, createBrowserMediaTools(options));
+    return mediaToolInstances.get(key);
+  };
   const dataPath = () => path.join(app.getPath('userData'), 'browser-skip-segments.json');
   function data() {
     if (!skipData) {
       try { skipData = JSON.parse(fsx.readFileSync(dataPath(), 'utf8')); } catch { skipData = {}; }
       skipData = { records: skips.normalizeRecords(skipData?.records), series: Object.fromEntries(
         Object.entries(skipData?.series || {}).filter(([key, value]) => key.length <= 2048 && typeof value === 'string' && value.length <= 512).slice(-500)) };
+      skipCommitted = JSON.parse(JSON.stringify(skipData));
     }
     return skipData;
   }
   function save() {
     const target = dataPath();
-    fsx.mkdirSync(path.dirname(target), { recursive: true });
     const temp = `${target}.${randomUUID()}.tmp`;
     try {
+      fsx.mkdirSync(path.dirname(target), { recursive: true });
       fsx.writeFileSync(temp, JSON.stringify(data()), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
       fsyncFile(temp, fsx);
       renameSyncResilient(fsx, temp, target);
       fsyncDirectory(path.dirname(target), fsx);
-    } finally { try { fsx.unlinkSync(temp); } catch {} }
+      skipCommitted = JSON.parse(JSON.stringify(skipData));
+    } catch (error) { skipData = JSON.parse(JSON.stringify(skipCommitted)); throw error; }
+    finally { try { fsx.unlinkSync(temp); } catch {} }
   }
   function writeOwnedSubtitle(filePath, text) {
     const temp = `${filePath}.${randomUUID()}.tmp`;
@@ -169,7 +179,6 @@ function registerBrowserFeatureServices(deps) {
     const controller = new AbortController(); jobs.set(key, controller);
     const current = () => valid() && !controller.signal.aborted && jobs.get(key) === controller;
     const assertCurrent = () => { if (!current()) throw new Error('Video değişti veya işlem iptal edildi.'); };
-    const tools = () => createBrowserMediaTools({ pythonPath: pythonPath(), ffmpegPath: ffmpegPath(), ffprobePath: ffprobePath() });
     const referenceTools = () => require('./browser-reference-media').createBrowserReferenceMedia({ ffmpegPath: ffmpegPath(), ffprobePath: ffprobePath() });
     const videoAnalysis = () => require('./browser-video-analysis').createBrowserVideoAnalysis({ pythonPath: pythonPath(), ffmpegPath: ffmpegPath(), ffprobePath: ffprobePath() });
     const reference = () => {

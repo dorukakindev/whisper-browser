@@ -87,7 +87,8 @@ test('a voice setting that rejects its write cannot produce a successful assista
 
 test('Assistant receives bounded localized review reasons without raw ASR or private diagnostics',async()=>{
  const h=setup();try{await h.run('configure_voice_generation',{profile:'quality'});await h.run('start_voice_generation');h.finish(1,{status:'review',lost_negation:true,missing_numbers:['2065'],recognizedText:'private raw ASR',debug:'C:/private/key'});
- const group=(await h.run('get_voice_status')).voice.groups[0];assert.deepEqual(Array.from(group.reviewReasons),['Negation','Missing number: 2065']);assert.equal(group.needsListening,true);assert.equal(group.qualityEvidence,'automatic_checks_only');assert(!JSON.stringify(group).includes('private'));
+ const group=(await h.run('get_voice_status')).voice.groups[0];assert.deepEqual(Array.from(group.reviewReasons),['Negation may sound different','Number not recognized: 2065']);assert.equal(group.needsListening,true);assert.equal(group.qualityEvidence,'automatic_checks_only');assert(!JSON.stringify(group).includes('private'));
+ h.w.UiLocale.get=()=> 'tr';const localized=(await h.run('get_voice_status')).voice.groups[0];assert.deepEqual(Array.from(localized.reviewReasons),['Olumsuzluk farklı duyulmuş olabilir','Sayı tanınamadı: 2065']);assert(!JSON.stringify(localized).includes('private'));
  }finally{await new Promise(setImmediate);h.dom.window.close();}
 });
 
