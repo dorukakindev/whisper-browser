@@ -48,6 +48,16 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         if (!Array.isArray(input.ids) || !input.ids.length) throw new Error('En az bir kayıt seçin.');
         const summary = store().mergeImport(data.items, { selectedIds: input.ids }); previews.delete(input.token); return { ok: true, summary };
       }
+      case 'metadata-film-extras':
+      case 'metadata-film-person':{
+        let selected;if(input.discovery){const d=input.discovery;if(!['film','series'].includes(d.kind)||!/^tt\d{7,12}$/.test(d.id||''))throw Error('Invalid discovery identity.');selected={kind:d.kind,imdbId:d.id};}else selected=item();
+        const signature=v=>JSON.stringify([v.kind,v.tmdbId,v.imdbId,v.title,v.year]),before=signature(selected);
+        const guard=()=>{if(!input.discovery&&signature(item())!==before)throw Error('Film changed during metadata loading.');};
+        const extras=await client.filmExtras(selected,metadataSettings().apiKey,signal);guard();
+        if(input.action==='metadata-film-extras')return {ok:true,...extras};
+        if(!extras.people.some(p=>p.id===input.personId))throw Error('Person does not belong to this film.');
+        const person=await client.person(input.personId,metadataSettings().apiKey,signal);guard();return {ok:true,person};
+      }
       case 'metadata-watch': return {ok:true,watch:await client.watchProviders(item(),metadataSettings().apiKey,input.region||metadataSettings().watchRegion||'TR',signal)};
       case 'metadata-images': return {ok:true,...await client.images(item(),metadataSettings().apiKey,signal)};
       case 'metadata-recommendations': return {ok:true,...await client.recommendations(item(),metadataSettings().apiKey,input.page??1,signal)};

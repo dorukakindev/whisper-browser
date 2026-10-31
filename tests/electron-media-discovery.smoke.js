@@ -17,6 +17,15 @@ if (!live) {
   const original = global.fetch;
   global.fetch = async (url, options) => {
     const value = String(url);
+    if(value.startsWith('https://api.themoviedb.org/3/')){
+      const u=new URL(value);let data;
+      if(u.pathname.includes('/find/'))data={movie_results:[{id:42}]};
+      else if(u.pathname.includes('/person/8/combined_credits'))data={crew:[{id:43,title:'Yönetmenin Diğer Filmi',media_type:'movie',job:'Director',genre_ids:[18]}]};
+      else if(u.pathname.includes('/person/'))data={id:Number(u.pathname.split('/').pop()),name:'Örnek Oyuncu',known_for_department:'Acting',biography:'Bu biyografi yalnız native arayüz doğrulaması için hazırlanmış sentetik bir metindir.',profile_path:'/person.jpg',combined_credits:{cast:[{id:43,title:'Seçili Filmografi Örneği',media_type:'movie',release_date:'2024-01-01',character:'Başrol',vote_count:50}]}};
+      else data={id:42,title:'Sentetik Hikâye 1',imdb_id:'tt1000000',genres:[{id:18,name:'Dram'}],credits:{cast:[{id:7,name:'Örnek Oyuncu',character:'Başrol',profile_path:'/person.jpg'}],crew:[{id:8,name:'Örnek Yönetmen',job:'Director',profile_path:'/director.jpg'}]},videos:{results:[{site:'YouTube',key:'abcdefghijk',name:'Kontrollü Fragman',type:'Trailer',official:true}]},images:{backdrops:[{file_path:'/still.jpg'}]},recommendations:{results:[{id:43,title:'İlgili Yapım Örneği',release_date:'2024-01-01',genre_ids:[18]}]}};
+      return Response.json(data);
+    }
+    if(value.startsWith('https://image.tmdb.org/'))return new Response(poster,{headers:{'content-type':'image/png'}});
     if (value.startsWith('https://images.metahub.space/')) return new Response(poster, { headers: { 'content-type': 'image/png' } });
     if (!value.startsWith('https://v3-cinemeta.strem.io/')) return original(url, options);
     const kind = value.includes('/series/') ? 'series' : 'movie';
@@ -31,7 +40,7 @@ require('../src/main.js');
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(fn, label, timeout = 25000) { const deadline = Date.now() + timeout; while (Date.now() < deadline) { if (await fn()) return; await wait(100); } throw Error(`Timed out: ${label}`); }
 app.whenReady().then(async () => {
-  if (!live) session.defaultSession.protocol.handle('https', request => new URL(request.url).hostname === 'images.metahub.space' ? new Response(poster, { headers: { 'content-type': 'image/png' } }) : Response.error());
+  if (!live) session.defaultSession.protocol.handle('https', request => ['images.metahub.space','image.tmdb.org'].includes(new URL(request.url).hostname) ? new Response(poster, { headers: { 'content-type': 'image/png' } }) : Response.error());
   let win; await until(() => { win = BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('index.html') && !w.webContents.isLoading()); return win; }, 'main');
   win.webContents.setBackgroundThrottling(false); win.showInactive(); win.setContentSize(1920, 1080);
   const run = code => win.webContents.executeJavaScript(`(async()=>{${code}})()`, true);
@@ -132,6 +141,27 @@ app.whenReady().then(async () => {
   await run('await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true'); await wait(300);
   await run(`const selected=document.querySelector('.md-card').dataset.discoveryId;const detail=(await window.api.mediaDiscovery({action:'detail',kind:'film',id:selected})).item;const reviews=Array.from({length:6},(_,i)=>({id:'sample-'+i,author:'Controlled reader '+i,text:'Strong acting and thoughtful photography. A slow middle section tests patience. Source '+i}));const r=await window.api.mediaTools({action:'decision-save',discovery:{kind:'film',id:selected},reviews,analysis:{summary:'Controlled sample: the performances and photography are praised, while the middle section divides viewers.',fit:'Controlled sample: no saved personal taste evidence was supplied.',points:[{id:'sample-0',quote:'Strong acting and thoughtful photography.',kind:'praise',reason:'The sample praises performances and the visual composition.'},{id:'sample-1',quote:'A slow middle section tests patience.',kind:'criticism',reason:'Some readers find the central section less engaging.'}]}});if(!r.ok)throw Error(r.error);document.dispatchEvent(new Event('media-review-updated'));return true`);
   await until(()=>run('return !!document.querySelector(".film-review-content .mrv-summary")'),'inline saved analysis');
+  if(!live){
+    await run(`const r=await window.api.saveSettings({tmdb:{apiKey:'controlled-fixture-key-not-a-real-account',language:'tr-TR'}});if(r?.ok===false)throw Error(r.error);document.querySelector('.film-extra-section > button').click();return true`);
+    await until(()=>run('return document.querySelectorAll(".film-person-card").length===2'),'film people extras');
+    await run('document.querySelector(".film-extra-section").scrollIntoView({block:"start"});return true');await wait(150);
+    fs.writeFileSync(path.join(out,'film-extras-wide.png'),(await win.webContents.capturePage()).toPNG());
+    const featureZoom=win.webContents.getZoomFactor();win.webContents.setZoomFactor(1);win.setMinimumSize(0,0);win.setContentSize(720,1000);await wait(180);
+    assert(await run('return innerWidth<=720&&document.getElementById("mediaHome").scrollWidth<=innerWidth+2'),'Extras fit true narrow viewport');
+    fs.writeFileSync(path.join(out,'film-extras-720-dark.png'),(await win.webContents.capturePage()).toPNG());
+    await run('applyUiTheme("light");return true');await wait(100);fs.writeFileSync(path.join(out,'film-extras-720-light.png'),(await win.webContents.capturePage()).toPNG());await run('applyUiTheme("dark");return true');
+    win.webContents.setZoomFactor(featureZoom);win.setContentSize(1920,1080);await wait(100);
+
+    await run('const b=[...document.querySelectorAll(".film-extra-body > button")].find(b=>b.textContent.includes("görsellerine"));b.click();return true');await until(()=>run('return !!document.querySelector(".mtd-gallery[open] .mtd-gallery-stage img")'),'shared film gallery');await run('document.querySelector(".mtd-gallery header button").click();return true');
+    await run('document.querySelector(".film-person-card").click();return true');
+    await until(()=>run('return !!document.querySelector(".film-person-biography")'),'person biography page');
+    await run('await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true');await wait(150);
+    fs.writeFileSync(path.join(out,'film-person-page.png'),(await win.webContents.capturePage()).toPNG());
+    win.webContents.setZoomFactor(1);win.setContentSize(720,1000);await wait(180);assert(await run('return document.getElementById("mediaHome").scrollWidth<=innerWidth+2'));fs.writeFileSync(path.join(out,'film-person-720.png'),(await win.webContents.capturePage()).toPNG());win.webContents.setZoomFactor(featureZoom);win.setContentSize(1920,1080);
+    await run('document.querySelector(".film-person-header button").click();return true');
+    await until(()=>run('return !!document.querySelector(".md-detail-body h1")'),'person return to film');
+  }
+
   fs.writeFileSync(path.join(out, 'discover-details-tr.png'), (await win.webContents.capturePage()).toPNG());
   const detailZoom=win.webContents.getZoomFactor();win.webContents.setZoomFactor(1);win.setMinimumSize(0,0);win.setContentSize(720,1000);await wait(200);
   assert(await run('return innerWidth<=720'), 'Actual CSS viewport must be narrow');
