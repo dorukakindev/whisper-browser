@@ -379,6 +379,11 @@ async def uret(args, cues, paths, prompt_text):
                     if (getattr(args, 'auto_fit', False)
                             and len(wav) / sr > window * 1.15 and len(text) > 25
                             and args.group_keys[i] not in getattr(args, 'manual_groups', set())):
+                        # The duration edit starts another engine request before
+                        # the normal cache commit. Preserve the complete first
+                        # take so a stalled/OOM fit cannot turn it into silence.
+                        sf.write(str(temporary), wav, sr, subtype='PCM_16')
+                        metric['recoveryReason'] = 'duration_fit_interrupted'
                         proposed = await rewrite_for_window(args, i, editable_text, window,
                             cues[i - 1][2] if i else '', cues[i + 1][2] if i + 1 < len(cues) else '', measured=len(wav)/sr)
                         proposed_display = spoken_text(proposed)
@@ -412,6 +417,7 @@ async def uret(args, cues, paths, prompt_text):
                                     metric['rewritten'] = True
                             except (ValueError, asyncio.TimeoutError):
                                 pass
+                        metric.pop('recoveryReason', None)
                     sf.write(str(temporary), wav, sr, subtype='PCM_16')
                     check = accepted_fit_check or {'status': 'not_checked'}
                     if not accepted_fit_check and (args.verification == 'detailed' or (args.verification == 'balanced' and

@@ -1,6 +1,7 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
+const {randomBytes,createHmac}=require('node:crypto');
 const { pathToFileURL } = require('node:url');
 const { voiceStorage, prepareVoiceStorage } = require('./voice-storage');
 const { performance } = require('node:perf_hooks');
@@ -14,6 +15,7 @@ const {identity: sourceIdentity} = require('./dub-source-identity');
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
   spawn, terminate, busy, grantMedia, environment, shorten, resolveSourceContext, editorIdentity = () => '', setRate, prepareBackground, prepareProsody, prepareReference, onOutput = output => output, observeJob = () => {} }) {
   let job = null, releasingEngine=false;
+  const referenceSelectionSecret=randomBytes(32);
   const groupTakes=require('./dub-group-takes').createGroupTakes({app,grantMedia});
   const warmEngine=require('./dub-engine-worker').createDubEngineWorker({spawn,terminate});
   require('./dub-playback-assets').registerDubPlaybackAssets({ app, ipcMain, dialog, owner, authorized, grantMedia });
@@ -149,11 +151,16 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       audio: {channels:audio.channels,sampleRate:audio.sampleRate,bits:audio.bits,seconds:audio.seconds},
       quality: meta.quality || null, transcriptBaseline: require('./voice-reference-baseline').read(p.reference,p.baseline) };
   }
+  function referenceSelectionToken(entry) {
+    const c=config(),p=referencePaths(entry.id),audio=fs.statSync(p.reference);
+    // A process-private keyed token binds the current default and exact saved audio/text.
+    return createHmac('sha256',referenceSelectionSecret).update(JSON.stringify([c.engine,c.reference,c.transcript,entry.id,entry.name,entry.createdAt,entry.text,audio.size,audio.mtimeMs,audio.ctimeMs])).digest('hex');
+  }
   ipcMain.handle('dub:references', guard(async () => {
     fs.mkdirSync(referencesRoot(), { recursive: true });
     const references = [];
     for (const id of fs.readdirSync(referencesRoot()).sort().reverse()) {
-      try { references.push(referenceEntry(id)); } catch (_) {}
+      try { const entry=referenceEntry(id);references.push({...entry,selectionToken:referenceSelectionToken(entry)}); } catch (_) {}
 
     }
     references.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -199,6 +206,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     const text = typeof request.text === 'string' ? request.text.trim() : entry.text.trim();
     if (!text || text.length > 8000) throw new Error('Check the reference transcript.');
     const p = referencePaths(request.id), c = config();
+    if (Object.hasOwn(request,'expectedSelection') && (typeof request.expectedSelection!=='string'||request.expectedSelection!==referenceSelectionToken(entry))) return {ok:false,stale:true,error:'Voice selection changed; refresh and review.'};
     atomicWriteFileSync(p.transcript, text, { encoding: 'utf8' });
     c.reference = p.reference; c.transcript = p.transcript;
     atomicWriteFileSync(configPath(), JSON.stringify(c, null, 2), { encoding: 'utf8' });

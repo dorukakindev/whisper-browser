@@ -4,13 +4,27 @@
  async function settings(){const s=await window.api.loadSettings();return s?.settings||s||{};}
  async function resolve(id){return window.AssistantTranslationProfiles.resolve(await settings(),id);}
  let changing=false;
- async function execute(name,args,owner,{deadline=Infinity,isCancelled=()=>false}={}){
+ const identities=new Map();
+ const controlIds=['translateEndpointPreset','translateBaseUrl','translateModel'];
+ let editRevision=0;
+ document.addEventListener('input',event=>{if([...controlIds,'translateApiKey'].includes(event.target.id))editRevision++;});
+ document.addEventListener('change',event=>{if([...controlIds,'translateApiKey'].includes(event.target.id))editRevision++;});
+ function identity(s,id){
+  // Private signatures stay in this renderer. Only random handles cross IPC.
+  const config=window.AssistantTranslationProfiles.resolve(s,id);
+  const signature=JSON.stringify([editRevision,controlIds.map(id=>document.getElementById(id)?.value),config.endpoint,config.model]);
+  let row=identities.get(id);if(row?.signature!==signature){row={signature,token:crypto.randomUUID()};identities.set(id,row);if(identities.size>100)identities.delete(identities.keys().next().value);}
+  return row.token;
+ }
+ async function execute(name,args,owner,{deadline=Infinity,isCancelled=()=>false,expectedSettings}={}){
   const stale=()=>isCancelled()||Date.now()>=deadline||!window.AssistantAppActions.current(owner);
   const s=await settings();if(stale())throw Error(t('The source changed.','Kaynak değişti.'));
   const profiles=window.AssistantTranslationProfiles.list(s);
   if(name==='list_translation_profiles')return {status:'completed',...window.AssistantTranslationProfiles.describe(s),note:t('Only configured profiles. No credentials are exposed. Selecting a job profile does not change global settings. Translation requests use standard scheduling.','Yalnız kayıtlı profiller. Anahtarlar gösterilmez. İş profili seçmek genel ayarları değiştirmez. Çeviri istekleri standart katmanı kullanır.')};
   const profile=profiles.find(p=>p.id===args.profile_id);if(!profile)throw Error(t('Configured profile unavailable.','Kayıtlı profil kullanılamıyor.'));
+  if(name==='get_translation_profile')return {status:'completed',profile,selectionIdentity:identity(s,args.profile_id)};
   if(name==='set_translation_profile'){
+   if(expectedSettings?.kind!=='translation-profile'||identity(s,args.profile_id)!==expectedSettings.identity)return {status:'failed',stale:true,error:t('Provider settings changed; refresh and review.','Sağlayıcı ayarları değişti; yenileyip inceleyin.')};
    if(changing)throw Error(t('Provider update is pending.','Sağlayıcı değişikliği sürüyor.'));const config=window.AssistantTranslationProfiles.resolve(s,args.profile_id),d=document;
    const controls={preset:d.getElementById('translateEndpointPreset'),url:d.getElementById('translateBaseUrl'),model:d.getElementById('translateModel'),key:d.getElementById('translateApiKey')};
    if(Object.values(controls).some(c=>!c||c.disabled))throw Error(t('Translation controls unavailable.','Çeviri kontrolleri kullanılamıyor.'));

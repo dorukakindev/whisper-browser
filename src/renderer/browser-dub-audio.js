@@ -20,8 +20,8 @@
       return !!s && ['browser', 'player'].includes(c.mode) && c.mode === s.mode && c.visible !== false && c.tabId === s.tabId
         && c.mediaKey === s.mediaKey && c.generation === s.generation && (c.mediaId || '') === (s.mediaId || '');
     }
-    muteSession(s, muted) {
-      return s.mode === 'player' ? this.mute(s.tabId, muted, s) : this.mute(s.tabId, muted);
+    muteSession(s, muted, mode = 'update') {
+      return this.mute(s.tabId, muted, s, mode);
     }
     async attach(file, c) {
       if (!c || !this.matches(c)) return false;
@@ -32,7 +32,7 @@
       await this.detachCurrent();
       if (intent !== this.intent || !this.matches(c)) return false;
       if (!file || !c.tabId || !c.mediaKey || !['browser', 'player'].includes(c.mode)) return false;
-      const s = { ...c, priorMuted, name: file.name, range: file.range || null, muted: false, url: null };
+      const s = { ...c, priorMuted, muteOwner: root.crypto.randomUUID(), name: file.name, range: file.range || null, muted: false, url: null };
       s.master = { volume: c.mode === 'player' && Number.isFinite(c.volume) ? Math.max(0, Math.min(1, c.volume)) : 1,
         muted: c.mode === 'player' && !!priorMuted };
       try { s.sync = SyncMap.validate(file.sync); } catch (_) { this.error('Geçersiz dublaj zaman haritası.'); return false; }
@@ -48,8 +48,14 @@
       this.timer = setInterval(() => this.tick(), 200);
       this.changed(s, '');
       s.desiredMuted = s.range ? !!priorMuted : true;
-      s.mutePromise = Promise.resolve().then(() => this.muteSession(s, s.desiredMuted)).then(result => {
-        s.muted = !!result?.ok && s.desiredMuted;
+      // A metadata/telemetry tick can queue a release while this first command
+      // is pending. Record what this command applied, not the newer intent, so
+      // removal can still restore it when that queued release is skipped.
+      const initialMuted = s.desiredMuted;
+      s.mutePromise = Promise.resolve().then(() => this.muteSession(s, initialMuted, 'acquire')).then(result => {
+        s.muted = !!result?.ok && initialMuted;
+        if (typeof result?.priorMuted === 'boolean') s.priorMuted = result.priorMuted;
+        s.leaseOwned = result?.leaseOwned === true;
         return result;
       });
       try {
@@ -89,8 +95,8 @@
         }
         try {
           await s.mutePromise;
-          if (s.muted) {
-            const restored = await this.muteSession(s, !!s.priorMuted);
+          if (s.muted || s.leaseOwned) {
+            const restored = await this.muteSession(s, !!s.priorMuted, 'release');
             if (!restored?.ok) this.error('Video sesi geri yüklenemedi; sekmenin ses düğmesini kullanın.');
           }
         } catch (_) { this.error('Video sesi geri yüklenemedi; sekmenin ses düğmesini kullanın.'); }
