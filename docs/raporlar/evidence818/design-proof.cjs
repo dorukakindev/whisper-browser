@@ -1,0 +1,29 @@
+'use strict';
+const {app,BrowserWindow}=require('electron'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'../../..'),out=path.resolve(process.env.AUDIT818_OUT||path.join(root,'.uiprev','audit818-proof-'+Date.now()));fs.mkdirSync(out,{recursive:true});app.setAppPath(root);process.env.WHISPER_RESOURCE_SOAK_USER_DATA=path.join(out,'profile');app.commandLine.appendSwitch('disable-gpu');global.fetch=async()=>{throw Error('Audit818 isolated main fetch');};require(path.join(root,'src/main'));
+let win;const rows=[],wait=ms=>new Promise(r=>setTimeout(r,ms)),run=code=>win.webContents.executeJavaScript('(async()=>{'+code+'})()',true);
+async function key(keyCode){win.webContents.sendInputEvent({type:'keyDown',keyCode});win.webContents.sendInputEvent({type:'keyUp',keyCode});await wait(250);}
+async function shot(name,code){await run('await document.fonts.ready');await wait(550);const result=await run(code);rows.push({name,...result});if(!win.webContents.debugger.isAttached())win.webContents.debugger.attach('1.3');const capture=await win.webContents.debugger.sendCommand('Page.captureScreenshot',{format:'png',fromSurface:false});fs.writeFileSync(path.join(out,name+'.png'),Buffer.from(capture.data,'base64'));return result;}
+app.whenReady().then(async()=>{
+ // Controlled empty voice configuration avoids loading any machine reference asset.
+ const isolatedIpc=require('electron').ipcMain;for(const channel of ['invidious:feed','invidious:search']){isolatedIpc.removeHandler(channel);isolatedIpc.handle(channel,()=>({ok:true,videos:[],items:[],instance:'synthetic offline fixture'}));}
+ const {ipcMain}=require('electron');ipcMain.removeHandler('dub:textVoice');ipcMain.handle('dub:textVoice',(_e,r)=>r.action==='config'?{ok:true,libraryId:'synthetic-voice',referenceName:'Synthetic voice (not loaded)',transcript:'',url:'',engine:'Synthetic engine fixture',engineReady:false,settings:{mode:'auto',motor:'nano',steps:10,batch:1,max_chars:180,cfg:2,temperature:1,pause:1,seed:1,normalize:true,polish:true,align:false}}:r.action==='history'?{ok:true,results:[]}:{ok:false,error:'No production in audit'});ipcMain.removeHandler('dub:references');ipcMain.handle('dub:references',()=>({ok:true,references:[]}));
+ for(let i=0;i<250;i++){win=BrowserWindow.getAllWindows().find(w=>!w.isDestroyed()&&w.webContents.getURL().includes('index.html')&&!w.webContents.isLoading());if(win)break;await wait(80);}assert(win);win.showInactive();await run('await initialSettingsReady');
+ win.setContentSize(940,680);await wait(200);await run('UiLocale.set("tr",false);applyUiTheme("dark");await TextVoiceStudioUI.open();');
+ const measure='const nodes=[".text-voice-head",".text-voice-body",".text-voice-footer"];return {viewport:{width:innerWidth,height:innerHeight,dpr:devicePixelRatio},nodes:nodes.map(s=>{const n=document.querySelector(s);return {selector:s,rect:n.getBoundingClientRect().toJSON(),client:n.clientHeight,scroll:n.scrollHeight};})};';
+ let m=await shot('01-textvoice-100',measure);assert(m.nodes[1].client>0);
+ win.webContents.setZoomFactor(1.5);await wait(250);m=await shot('02-textvoice-150',measure);assert(m.nodes[1].client>0);
+ win.webContents.setZoomFactor(2);await wait(250);m=await shot('03-textvoice-200',measure);assert.equal(m.nodes[1].client,0);assert(m.nodes[1].scroll>500);
+ await run('UiLocale.set("en",false);applyUiTheme("light");');m=await shot('04-textvoice-en-light-200',measure);assert.equal(m.nodes[1].client,0);
+ await run('document.getElementById("textVoiceStudio").close();');win.webContents.setZoomFactor(1);win.setContentSize(1000,760);await wait(250);
+ await run('MediaHomeUI.openStudio();document.getElementById("openPlayer").click();setWorkspaceMode("player");await AppSettingsUI.open("general");document.getElementById("appSettingsClose").focus();');
+ const modal='return {layerHidden:document.getElementById("playerLayer").classList.contains("hidden"),home:document.body.classList.contains("media-home-active"),dialog:!!document.getElementById("appSettingsDialog")?.open,focus:document.activeElement.id};';
+ m=await shot('05-modal-before',modal);assert(!m.layerHidden&&m.dialog&&!m.home);await key('Backspace');await wait(1500);m=await shot('06-modal-after-backspace',modal);assert(m.layerHidden&&m.dialog&&m.home);
+ // Control: native dialog Escape belongs to the modal, with underlying player intact.
+ await run('AppSettingsUI.close();MediaHomeUI.openStudio();document.getElementById("openPlayer").click();setWorkspaceMode("player");await AppSettingsUI.open("general");document.getElementById("appSettingsClose").focus();');await key('Escape');m=await shot('07-modal-escape-control',modal);assert(!m.layerHidden&&!m.dialog);
+ // The language select changes through Chromium native keyboard input, not dispatchEvent.
+ await run('UiLocale.set("tr",false);await AppSettingsUI.open("general");document.getElementById("uiLocale").focus();');
+ const focus='return {focusId:document.activeElement.id,focusTag:document.activeElement.tagName,locale:UiLocale.get(),selectValue:document.getElementById("uiLocale").value,dialog:!!document.getElementById("appSettingsDialog")?.open};';
+ m=await shot('08-language-before',focus);assert.equal(m.focusId,'uiLocale');await key('Home');await key('Enter');m=await shot('09-language-after',focus);assert.equal(m.locale,'en');assert.equal(m.focusTag,'BODY');
+ fs.writeFileSync(path.join(out,'measurements.json'),JSON.stringify({revision:process.env.AUDIT818_HEAD||'1e9a9afd20da5d851e373df02f08984410c87ed5',platform:process.platform,electron:process.versions.electron,chromium:process.versions.chrome,gpuDisabled:true,input:'Electron sendInputEvent native keydown/keyup',rows},null,2)+'\n');console.log(JSON.stringify({ok:true,out,captures:rows.length}));app.exit(0);
+}).catch(e=>{console.error(e.stack);app.exit(1);});setTimeout(()=>app.exit(2),90000).unref();
