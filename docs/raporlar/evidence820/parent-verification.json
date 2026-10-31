@@ -1,0 +1,86 @@
+{
+  "revision": "f7e5f7156260e451496895f067bed73e15587b90",
+  "agents": {
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "medium",
+    "count": 3
+  },
+  "parentReruns": [
+    {
+      "probe": "workflows/probe.cjs",
+      "runtime": "node",
+      "exitCode": 0,
+      "cases": 4
+    },
+    {
+      "probe": "mediafiles/probe.cjs",
+      "runtime": "node",
+      "exitCode": 0,
+      "normalAndRetryRequests": 0,
+      "directCompletionRequests": 1
+    },
+    {
+      "probe": "sessions/probe.cjs",
+      "runtime": "node",
+      "exitCode": 0,
+      "controls": 7,
+      "newBugs": 0
+    },
+    {
+      "probe": "shift/probe.cjs",
+      "runtime": "Windows Electron",
+      "exitCode": 0,
+      "ipcOk": true,
+      "backupExact": true
+    },
+    {
+      "probe": "startup/probe.cjs",
+      "runtime": "Windows Electron",
+      "exitCode": 0,
+      "storedBeam": "3",
+      "observedBeam": "5",
+      "workflows": 0
+    },
+    {
+      "probe": "startup/probe.cjs --valid",
+      "runtime": "Windows Electron",
+      "exitCode": 0,
+      "storedBeam": "3",
+      "observedBeam": "3",
+      "workflows": 1
+    }
+  ],
+  "existingChecks": [
+    {
+      "command": "node tests/subs-shift-accuracy.test.js",
+      "exitCode": 0,
+      "controls": 12
+    },
+    {
+      "command": "node --test tests/browser-workflow-recorder.test.js tests/catalog-metadata-sync.test.js",
+      "exitCode": 1,
+      "result": "Sandbox worker spawn EPERM before test bodies; not product failure or PASS"
+    },
+    {
+      "command": "node --test --test-isolation=none tests/browser-workflow-recorder.test.js tests/catalog-metadata-sync.test.js",
+      "exitCode": 0,
+      "runnerTests": 6,
+      "workflowInnerControls": 8,
+      "metadataTests": 5
+    }
+  ],
+  "syntaxChecks": {
+    "probes": 5,
+    "exitCode": 0
+  },
+  "limits": [
+    "No fixes",
+    "No paid/live provider",
+    "No actual normal start.bat/clean install acceptance",
+    "Synthetic JSON files and profiles only",
+    "Metadata fetch boundary controlled",
+    "Workflow nested null is malformed accepted input, not normal recorder output",
+    "No real media playback/WebVTT rendering claim",
+    "No full npm/CI result claim"
+  ]
+}

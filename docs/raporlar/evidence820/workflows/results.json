@@ -1,0 +1,139 @@
+{
+  "ok": true,
+  "head": "f7e5f7156260e451496895f067bed73e15587b90",
+  "sources": {
+    "src/browser-workflow-recorder.js": "5ced29a76b6fb8be754707656bcc5ec4e17fa45aa4fc217c9ce9743116f57d9d",
+    "src/settings-security.js": "e7c83df14a93def06a3e72f110a6e5048de233f3980dfd46714fda847a5bfa2d",
+    "src/renderer/renderer.js": "c60ddf97831223462e31a3caffd2d04935c31288807759b0d708d5d81ae59123"
+  },
+  "cases": [
+    {
+      "label": "valid-control",
+      "parserAccepted": true,
+      "importedLibrary": [
+        {
+          "id": "synthetic-recording",
+          "title": "Synthetic",
+          "createdAt": 1,
+          "mediaIdentity": "synthetic-media",
+          "steps": [
+            {
+              "command": "setSubtitleMode",
+              "args": {
+                "mode": "source"
+              }
+            }
+          ]
+        }
+      ],
+      "normalizationError": null,
+      "startupApplyUiCalls": 1,
+      "startupProviderInitializationCalls": 2,
+      "loadedWorkflowIds": [
+        "synthetic-recording"
+      ],
+      "appliedUi": {
+        "model": "tiny",
+        "beamSize": "3"
+      }
+    },
+    {
+      "label": "null-workflow",
+      "parserAccepted": true,
+      "importedLibrary": [
+        {
+          "id": "synthetic-recording",
+          "title": "Synthetic",
+          "createdAt": 1,
+          "mediaIdentity": "synthetic-media",
+          "steps": [
+            {
+              "command": "setSubtitleMode",
+              "args": {
+                "mode": "source"
+              }
+            }
+          ]
+        },
+        null
+      ],
+      "normalizationError": {
+        "name": "TypeError",
+        "message": "Cannot read properties of null (reading 'steps')"
+      },
+      "startupApplyUiCalls": 0,
+      "startupProviderInitializationCalls": 0,
+      "loadedWorkflowIds": [],
+      "appliedUi": null
+    },
+    {
+      "label": "null-step",
+      "parserAccepted": true,
+      "importedLibrary": [
+        {
+          "id": "synthetic-recording",
+          "title": "Synthetic",
+          "createdAt": 1,
+          "mediaIdentity": "synthetic-media",
+          "steps": [
+            {
+              "command": "setSubtitleMode",
+              "args": {
+                "mode": "source"
+              }
+            },
+            null
+          ]
+        }
+      ],
+      "normalizationError": {
+        "name": "TypeError",
+        "message": "Cannot read properties of null (reading 'command')"
+      },
+      "startupApplyUiCalls": 0,
+      "startupProviderInitializationCalls": 0,
+      "loadedWorkflowIds": [],
+      "appliedUi": null
+    },
+    {
+      "label": "unsupported-command-control",
+      "parserAccepted": true,
+      "importedLibrary": [
+        {
+          "id": "synthetic-recording",
+          "title": "Synthetic",
+          "createdAt": 1,
+          "mediaIdentity": "synthetic-media",
+          "steps": [
+            {
+              "command": "setSubtitleMode",
+              "args": {
+                "mode": "source"
+              }
+            }
+          ]
+        },
+        {
+          "id": "unsupported",
+          "steps": [
+            {
+              "command": "unrecognized",
+              "args": {}
+            }
+          ]
+        }
+      ],
+      "normalizationError": null,
+      "startupApplyUiCalls": 1,
+      "startupProviderInitializationCalls": 2,
+      "loadedWorkflowIds": [
+        "synthetic-recording"
+      ],
+      "appliedUi": {
+        "model": "tiny",
+        "beamSize": "3"
+      }
+    }
+  ],
+  "scope": "Real parseImportText/sanitizeSettings and workflow normalizers; unchanged complete initial-settings try/catch extracted from renderer. Controlled loadSettings/DOM/side-effect adapters; no real user settings, disk write, network, Electron or physical GPU."
+}

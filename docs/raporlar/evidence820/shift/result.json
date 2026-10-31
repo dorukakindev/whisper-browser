@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "output": "D:\\Whisper Local\\.uiprev\\audit820-published\\shift",
+  "result": {
+    "ok": true,
+    "backup": "D:\\Whisper Local\\.uiprev\\audit820-published\\shift\\karaoke.vtt.bak",
+    "note": ""
+  },
+  "original": "WEBVTT\n\ncue1\n00:00:05.000 --> 00:00:09.000\nFirst <00:00:06.000>second <00:00:08.000>third.\n",
+  "shifted": "WEBVTT\n\ncue1\n00:00:15.000 --> 00:00:19.000\nFirst <00:00:06.000>second <00:00:08.000>third.\n",
+  "validOriginalInternal": true,
+  "validShiftedInternal": false,
+  "expectedShiftedInternal": [
+    16,
+    18
+  ],
+  "backupExact": true,
+  "zeroOffsetControl": true,
+  "plainSrtControl": true
+}

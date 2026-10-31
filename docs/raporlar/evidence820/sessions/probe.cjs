@@ -1,0 +1,31 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const root=path.resolve(__dirname,'../../../..');
+const out=path.resolve(process.env.AUDIT820_OUT||path.join(root,'.uiprev','audit820-sessions-'+Date.now()));fs.mkdirSync(out,{recursive:true});
+const {sessionMux}=require(path.join(root,'src/session-webrequest-mux'));
+const perms=require(path.join(root,'src/browser-site-permissions'));
+const store=require(path.join(root,'src/browser-session-store'));
+const privacy=require(path.join(root,'src/browser-session-privacy'));
+const results=[];
+function check(name,fn){fn();results.push({name,ok:true});}
+(async()=>{
+const listeners={},ses={webRequest:new Proxy({}, {get:(_,name)=>(...args)=>listeners[name]=args.at(-1)})};
+const mux=sessionMux(ses);
+let ownerA=0,ownerB=0;
+mux.set('a','onBeforeSendHeaders',{urls:['https://*.googlevideo.com/*']},(d,cb)=>{ownerA++;cb({requestHeaders:{...d.requestHeaders,A:'1'}});cb({cancel:true});});
+mux.set('b','onBeforeSendHeaders',null,(d,cb)=>{ownerB++;cb({requestHeaders:{...d.requestHeaders,B:'2'}});});
+check('mux header composition and callback once',()=>{let count=0;listeners.onBeforeSendHeaders({url:'https://r1.googlevideo.com/v',requestHeaders:{X:'x'}},r=>{count++;assert.deepEqual(r.requestHeaders,{X:'x',A:'1',B:'2'});});assert.equal(count,1);});
+check('mux unsubscribe preserves other owner',()=>{mux.set('a','onBeforeSendHeaders',null,null);let final;listeners.onBeforeSendHeaders({url:'https://r1.googlevideo.com/v',requestHeaders:{}},r=>final=r);assert.deepEqual(final.requestHeaders,{B:'2'});assert.equal(ownerA,1);assert.equal(ownerB,2);});
+check('opaque requester does not inherit parent permission',()=>assert.equal(perms.browserPermissionRequesterUrl('https://a.test',{requestingUrl:'data:text/html,hi'},true),''));
+check('mixed camera block wins over microphone allow',()=>assert.equal(perms.browserMediaPermissionDecision({'https://a.test':{permissions:{camera:'block',microphone:'allow'}}},'https://a.test',['video','audio']),'block'));
+check('explicit ask stays ask',()=>{const r=perms.withBrowserPermission({},'https://a.test','fullscreen','ask');assert.equal(perms.browserPermissionDecision(r.sitePermissions,'https://a.test','fullscreen'),'ask');});
+const file=path.join(out,'synthetic-session.json');
+check('session mirror reset does not resurrect deleted tab',()=>{assert.equal(store.writeBrowserSessionAtomic(file,{tabs:[{id:'a',url:'https://a.test/#chapter-2'}]}).ok,true);assert.equal(store.readBrowserSession(file).tabs[0].url,'https://a.test/#chapter-2');assert.equal(store.writeBrowserSessionAtomic(file,{tabs:[]},fs,{mirrorBackup:true}).ok,true);fs.writeFileSync(file,'broken');assert.equal(store.readBrowserSession(file).tabs.length,0);});
+const calls=[];await privacy.clearBrowserSiteData({closeAllConnections:async()=>calls.push('close'),clearData:async o=>calls.push(o),clearStorageData:async o=>calls.push(o),cookies:{flushStore:async()=>calls.push('flush')}},'https://a.test/path');
+check('site clear origin narrow and excludes global cache',()=>{assert.equal(calls[0],'close');assert.deepEqual(calls[1].origins,['https://a.test']);assert.ok(!calls[1].dataTypes.includes('cache'));assert.equal(calls.at(-1),'flush');});
+const reg=require(path.join(root,'docs/audits/deepseek-night1000-20261027/COVERAGE-REGISTRY.json'));
+const families=reg.scenarios.filter(x=>['F43','F44','F45','F48'].includes(x.family));
+fs.writeFileSync(path.join(out,'registry-reviewed.json'),JSON.stringify(families,null,2));
+const output={head:'f7e5f7156260e451496895f067bed73e15587b90',newBugs:0,controls:results,registryRowsReviewed:families.length,limitations:'Actual Node modules; webRequest/session boundaries controlled; no real Electron, sites, network, profile, credentials, GPU or start.bat acceptance.'};
+fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(output,null,2));console.log(JSON.stringify(output,null,2));
+})().catch(e=>{console.error(e);process.exitCode=1});

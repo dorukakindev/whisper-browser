@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "validControl": false,
+  "stored": {
+    "browserWorkflows": [
+      {
+        "id": "synthetic-recording",
+        "title": "Synthetic",
+        "createdAt": 1,
+        "mediaIdentity": "synthetic-media",
+        "steps": [
+          {
+            "command": "setSubtitleMode",
+            "args": {
+              "mode": "source"
+            }
+          }
+        ]
+      },
+      null
+    ],
+    "ui": {
+      "beamSize": "3",
+      "model": "tiny"
+    }
+  },
+  "beam": "5",
+  "model": "large-v3-turbo",
+  "workflowIds": []
+}
