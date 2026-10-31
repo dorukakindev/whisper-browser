@@ -101,7 +101,7 @@
     narrative.append(storyHeading,synopsis);
     side.append(credits,options);lower.append(narrative,side);
     body.append(image(item.poster || row.poster, 'md-detail-poster'),content);hero.append(background,body);dialog.append(hero,lower);
-    const reviewSection=el('section','mtd-review');narrative.append(reviewSection);window.MediaReviewDecision?.mountTitle(reviewSection,{...item,id:`discovery:${item.kind}:${item.providerId}`,imdbId:item.providerId,discovery:{kind:item.kind,id:item.providerId}});
+    const reviewSection=el('section','mtd-review');narrative.append(reviewSection);window.MediaReviewDecision?.mountTitle(reviewSection,{...item,id:`discovery:${item.kind}:${item.providerId}`,imdbId:item.providerId,discovery:{kind:item.kind,id:item.providerId}});window.FilmPageEnhancements?.enhance(dialog,item);
   }
   function cards() {
     const grid = state.root?.querySelector('.md-grid'); if (!grid) return;
