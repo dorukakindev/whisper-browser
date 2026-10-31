@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-31-0535.md](docs/devir/2026-10-31-0535.md) — R823: ajanlarla3yeniişlevselbug; hiçbir düzeltme yok
 Güncel çalışma: [docs/devir/2026-10-31-0524.md](docs/devir/2026-10-31-0524.md) — R822: 3 yeni bug, R815-G10 önerisinden doğrulanan 1 bug; yalnız rapor
 Güncel çalışma: [docs/devir/2026-10-31-0511.md](docs/devir/2026-10-31-0511.md) — R821 işlevsel denetim: 3 yeni bug, 1 ayrı öneri; hiçbir düzeltme yok
 Güncel çalışma: [docs/devir/2026-10-31-0504.md](docs/devir/2026-10-31-0504.md) — R820 işlevsel denetim: 3 yeni doğrulanmış bug, tasarım hariç; hiçbir düzeltme yok

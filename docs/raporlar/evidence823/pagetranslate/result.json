@@ -1,0 +1,117 @@
+{
+  "head": "ccc8927a03be4bd4fda91246e7f55d5ecfc2171a",
+  "node": "v24.22.0",
+  "jsdom": "30.0.1",
+  "sourceFiles": {
+    "page": "655feb27744ff0835acb3ce1a2780afd2999df18bd2e97ccdec106a525a7f8a7",
+    "main": "589da3b1fa9de247359605e6abd231e7e44708b207b431287100220a512e0774"
+  },
+  "mainSentenceProducer": {
+    "startLine": 7323,
+    "endLine": 7344
+  },
+  "cases": [
+    {
+      "label": "long-replace",
+      "sourceCharacters": 2596,
+      "sourceContainsTail": true,
+      "scanCharacters": 2000,
+      "scanNodeLengths": [
+        2596
+      ],
+      "scanOverflow": false,
+      "scanWarning": "",
+      "scanPending": 0,
+      "requestCharacters": 1999,
+      "requestContainsTail": false,
+      "decodedFailures": 0,
+      "qualityIssues": [],
+      "markupPreserved": true,
+      "applied": {
+        "ok": true,
+        "partial": false,
+        "applied": 1,
+        "missing": 0,
+        "mode": "replace",
+        "view": "translation",
+        "layoutWarnings": []
+      },
+      "refOriginalCharacters": 2596,
+      "viewAfterCharacters": 2039,
+      "viewAfterContainsTail": false,
+      "rescanBlocks": 0,
+      "rescanPending": 0,
+      "bothShowsFullOriginal": true,
+      "restoreReturned": true,
+      "restoredExactly": true
+    },
+    {
+      "label": "long-bilingual-control",
+      "sourceCharacters": 2596,
+      "sourceContainsTail": true,
+      "scanCharacters": 2000,
+      "scanNodeLengths": [
+        2596
+      ],
+      "scanOverflow": false,
+      "scanWarning": "",
+      "scanPending": 0,
+      "requestCharacters": 1999,
+      "requestContainsTail": false,
+      "decodedFailures": 0,
+      "qualityIssues": [],
+      "markupPreserved": true,
+      "applied": {
+        "ok": true,
+        "partial": false,
+        "applied": 1,
+        "missing": 0,
+        "mode": "bilingual",
+        "view": "both",
+        "layoutWarnings": []
+      },
+      "refOriginalCharacters": 2596,
+      "viewAfterCharacters": 4635,
+      "viewAfterContainsTail": true,
+      "rescanBlocks": 0,
+      "rescanPending": 0,
+      "bothShowsFullOriginal": true,
+      "restoreReturned": true,
+      "restoredExactly": true
+    },
+    {
+      "label": "short-replace-control",
+      "sourceCharacters": 94,
+      "sourceContainsTail": true,
+      "scanCharacters": 94,
+      "scanNodeLengths": [
+        94
+      ],
+      "scanOverflow": false,
+      "scanWarning": "",
+      "scanPending": 0,
+      "requestCharacters": 94,
+      "requestContainsTail": true,
+      "decodedFailures": 0,
+      "qualityIssues": [],
+      "markupPreserved": true,
+      "applied": {
+        "ok": true,
+        "partial": false,
+        "applied": 1,
+        "missing": 0,
+        "mode": "replace",
+        "view": "translation",
+        "layoutWarnings": []
+      },
+      "refOriginalCharacters": 94,
+      "viewAfterCharacters": 83,
+      "viewAfterContainsTail": false,
+      "rescanBlocks": 0,
+      "rescanPending": 0,
+      "bothShowsFullOriginal": true,
+      "restoreReturned": true,
+      "restoredExactly": true
+    }
+  ]
+}

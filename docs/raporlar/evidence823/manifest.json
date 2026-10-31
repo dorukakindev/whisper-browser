@@ -1,0 +1,106 @@
+{
+  "schema": 1,
+  "report": "BROWSER_BUG_REPORT_823.md",
+  "revision": "ccc8927a03be4bd4fda91246e7f55d5ecfc2171a",
+  "hash_method": "SHA256 UTF-8 with CRLF normalized to LF",
+  "confirmed_findings": [
+    "F823-01",
+    "F823-02",
+    "F823-03"
+  ],
+  "priorities": {
+    "P2": 3
+  },
+  "new_improvements": [],
+  "fixes_applied": false,
+  "historical_rows_reviewed": 120,
+  "unique_historical_rows": 120,
+  "sources": [
+    {
+      "path": "src/main.js",
+      "sha256_lf": "5aed5cf4c1d6114f24e68dbb7362767d62a08d3e24324c0d545c7abb0f2de68c"
+    },
+    {
+      "path": "src/preload.js",
+      "sha256_lf": "d231c6789d5b0a82976e0aacc86d6c754c73c31e06af5ed702ccc2c51147e482"
+    },
+    {
+      "path": "src/renderer/renderer.js",
+      "sha256_lf": "ff259b03f208337f960d445adfa4c28b1086b1b660ce02793174597710e600c4"
+    },
+    {
+      "path": "src/browser-note-store.js",
+      "sha256_lf": "3534acc9fd81da65b8fb7aea6d5f20d8a906df9e34dfb2f7bf32565992690c0e"
+    },
+    {
+      "path": "src/browser-learning.js",
+      "sha256_lf": "97d9ff8df47815c6fe73290e70e6c5fa443b8786a6fdd2b68ab5b27fd171b96e"
+    },
+    {
+      "path": "src/browser-research-notebook.js",
+      "sha256_lf": "2bc1f784e478564f0e8459564c1d6467592fbdd133d2dbb48cdc358e0b988088"
+    },
+    {
+      "path": "src/browser-series-context.js",
+      "sha256_lf": "c20da983b6eee330a0682253dec277d54c2b2033871a203f075eec288c6f99dd"
+    },
+    {
+      "path": "src/browser-feature-services.js",
+      "sha256_lf": "57f0bee394331cb91dbef40da07e2a00a4b4d17a71e01812ceb45615a02b7413"
+    },
+    {
+      "path": "src/renderer/browser-series-context.js",
+      "sha256_lf": "456de0ca4c48a1f1ac7f184c0a73f60f833d2db498c18f5e317d96c32ca03435"
+    },
+    {
+      "path": "src/browser-page-translate.js",
+      "sha256_lf": "d99c7877eadfd751950876e9729d3789c5e74489c7ff82bdd063599ece35daa8"
+    },
+    {
+      "path": "src/subtitle-sentence-layout.js",
+      "sha256_lf": "87f8713e187d061e1342f940a019c2743a6981d64d5ce70096a71b6365bb6d45"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "docs/raporlar/evidence823/memory/probe.cjs",
+      "sha256_lf": "7f4bea4bf37c2494adb5fdc32a5991ad298ca0f0782906be9f984f1f3a515a84"
+    },
+    {
+      "path": "docs/raporlar/evidence823/memory/registry-reviewed.json",
+      "sha256_lf": "81525d90fa5b18acdd12ce27fb767ded0d944d48d52187a003b52f7478376413"
+    },
+    {
+      "path": "docs/raporlar/evidence823/memory/result.json",
+      "sha256_lf": "ebca8259e1ec671ed9b6091a6c63ed14479ff4cde5c276f1ee1de99b57e542d3"
+    },
+    {
+      "path": "docs/raporlar/evidence823/notes/probe.cjs",
+      "sha256_lf": "f911dd97c546d01b78901426a78f8bd55deb18573f2249dd5e6cea1e9e1664be"
+    },
+    {
+      "path": "docs/raporlar/evidence823/notes/registry-reviewed.json",
+      "sha256_lf": "b63af6cdbff99bae17973cfebad68fc01337471466341c2567111fb014f0dcaa"
+    },
+    {
+      "path": "docs/raporlar/evidence823/notes/result.json",
+      "sha256_lf": "540b80e71fae61b2cf9acc7a4f1e5cec7daf6665c6d142a0227528999d68032c"
+    },
+    {
+      "path": "docs/raporlar/evidence823/pagetranslate/probe.cjs",
+      "sha256_lf": "ed851abe6ef17bd6da102eaff8362da5336d00313594d90cfb1c038a051fdd44"
+    },
+    {
+      "path": "docs/raporlar/evidence823/pagetranslate/registry-reviewed.json",
+      "sha256_lf": "a79025460e071524c00b12a4fea8c167350d3330f86ad9347b4c7fc5454cd0a8"
+    },
+    {
+      "path": "docs/raporlar/evidence823/pagetranslate/result.json",
+      "sha256_lf": "831628625d239dde126ae4a3054e1513b6198aeaa692110a0399d132eabb95cb"
+    },
+    {
+      "path": "docs/raporlar/evidence823/parent-verification.json",
+      "sha256_lf": "70c11b268db618f7f782dafe890cc27296e8166d9da4e60283fe67428d36578d"
+    }
+  ]
+}
