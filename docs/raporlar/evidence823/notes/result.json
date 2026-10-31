@@ -1,0 +1,68 @@
+{
+  "head": "ccc8927a03be4bd4fda91246e7f55d5ecfc2171a",
+  "findings": 1,
+  "results": [
+    {
+      "name": "same-card edit during acknowledged save",
+      "domA": "new-A",
+      "domB": "saved-B",
+      "domBTags": "saved",
+      "domBLinks": "",
+      "diskA": "new-A",
+      "diskB": "saved-B",
+      "upsertCalls": 1,
+      "unauthorized": {
+        "ok": false,
+        "error": "Yetkisiz istek."
+      }
+    },
+    {
+      "name": "other-card draft before save",
+      "domA": "new-A",
+      "domB": "saved-B",
+      "domBTags": "saved",
+      "domBLinks": "",
+      "diskA": "new-A",
+      "diskB": "saved-B",
+      "upsertCalls": 1,
+      "unauthorized": {
+        "ok": false,
+        "error": "Yetkisiz istek."
+      }
+    },
+    {
+      "name": "positive no additional draft",
+      "domA": "new-A",
+      "domB": "saved-B",
+      "domBTags": "saved",
+      "domBLinks": "",
+      "diskA": "new-A",
+      "diskB": "saved-B",
+      "upsertCalls": 1,
+      "unauthorized": {
+        "ok": false,
+        "error": "Yetkisiz istek."
+      }
+    },
+    {
+      "name": "negative rejected save preserves both drafts",
+      "domA": "new-A",
+      "domB": "unsaved-B",
+      "domBTags": "draft-tag",
+      "domBLinks": "https://draft.test/",
+      "diskA": "saved-A",
+      "diskB": "saved-B",
+      "upsertCalls": 1,
+      "unauthorized": {
+        "ok": false,
+        "error": "Yetkisiz istek."
+      }
+    }
+  ],
+  "limits": [
+    "Real renderer source slices run in VM with JSDOM; no native Electron UI.",
+    "Real list/upsert handler source slices; IPC authorization and watch-index boundary controlled.",
+    "Real BrowserNoteStore normalization, flush, fsync, reload in fresh synthetic directories.",
+    "No network, personal profile, credentials or product changes."
+  ]
+}

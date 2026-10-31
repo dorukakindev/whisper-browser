@@ -1,0 +1,51 @@
+{
+  "revision": "ccc8927a03be4bd4fda91246e7f55d5ecfc2171a",
+  "agents": {
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "count": 3
+  },
+  "product_edits": false,
+  "new_bugs": 3,
+  "new_improvements": 0,
+  "publication_path_reruns": {
+    "node_probes": 3,
+    "exit_codes": [
+      0,
+      0,
+      0
+    ],
+    "cjs_syntax_checks": 3,
+    "fresh_output_dirs": true,
+    "memory_final_includes_real_target_IPC": true,
+    "page_final_includes_decoder_meaning_markup": true
+  },
+  "existing_tests": [
+    {
+      "command": "node --test --test-isolation=none tests/browser-series-context.test.js tests/browser-series-translation.test.js tests/browser-note-store.test.js",
+      "exit": 0,
+      "runner": 3,
+      "note_store_checks": 11
+    },
+    {
+      "command": "node --test --test-isolation=none tests/browser-page-translate.test.js tests/browser-page-translation-main.test.js tests/browser-page-archive.test.js",
+      "exit": 0,
+      "runner": 3
+    }
+  ],
+  "harness_errors_resolved": [
+    "Published notes output variable shadowed local result out; renamed outputBase then reran",
+    "One shell quoting attempt to republish memory did not parse; separate CJS adapter then reran"
+  ],
+  "limits": [
+    "VM/jsdom real source slices and modules; transport/auth/tab/UI adapters controlled",
+    "Actual note and series JSON/fsync/reload; no private profiles",
+    "No full scheduler/native Electron/site/live LLM/model quality/GPU/start.bat acceptance",
+    "Wrong-behavior assertions passing are not fixes; full npm/CI not run or awaited"
+  ],
+  "runtime": {
+    "node": "24.22.0",
+    "jsdom": "30.0.1"
+  },
+  "dependencies_added": []
+}
