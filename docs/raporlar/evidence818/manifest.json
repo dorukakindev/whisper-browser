@@ -1,0 +1,413 @@
+{
+  "revision": "1e9a9afd20da5d851e373df02f08984410c87ed5",
+  "branch": "codex/design-audit818",
+  "date": "2026-10-31",
+  "findings": [
+    {
+      "id": "D818-01",
+      "severity": "HIGH",
+      "root": "Text voice studio vertical flex budget collapses body at zoom200"
+    },
+    {
+      "id": "D818-02",
+      "severity": "MEDIUM",
+      "root": "Native settings modal missing Backspace player-shortcut guard; asynchronous exit"
+    },
+    {
+      "id": "D818-03",
+      "severity": "MEDIUM",
+      "root": "Locale redraw removes focused select and does not restore focus"
+    }
+  ],
+  "previousReportsNotRecounted": [
+    "R815",
+    "R817",
+    "R193 managed modal (native boundary specifically separated)",
+    "R732/R751 old text studio corrections"
+  ],
+  "execution": {
+    "exitCode": 0,
+    "ok": true,
+    "captures": 9,
+    "platform": "win32",
+    "nativeInput": "Electron webContents.sendInputEvent",
+    "capture": "CDP Page.captureScreenshot fromSurface:false",
+    "syntheticVoiceAndFeedIpc": true,
+    "gpuDisabled": true,
+    "physicalDpiChange": false,
+    "normalStartBatAcceptance": false,
+    "productChanges": false
+  },
+  "hashEncoding": "PNG raw bytes; UTF-8 text canonical LF",
+  "sourceHashes": [
+    {
+      "path": "src/renderer/text-voice-studio.css",
+      "sha256": "59d7c27c1ba64d613466656bcf31e4cde482b5808912d725944394aa57d8a5a0"
+    },
+    {
+      "path": "src/renderer/text-voice-studio.js",
+      "sha256": "de4606c7bd02f760df523073abea52442902ef85c2675bd9068d80a72f27a430"
+    },
+    {
+      "path": "src/renderer/app-settings-ui.js",
+      "sha256": "088b8665b2fcd850a3a415c89d81c7520186e9849e9cded4eff47744d69d0da9"
+    },
+    {
+      "path": "src/renderer/renderer.js",
+      "sha256": "ff259b03f208337f960d445adfa4c28b1086b1b660ce02793174597710e600c4"
+    },
+    {
+      "path": "src/renderer/media-home.js",
+      "sha256": "e7d5f8c43cf5811aca9209bb71ed8a2a2b8fb66054baebaf9a971199605a227b"
+    },
+    {
+      "path": "src/renderer/browser-chrome.css",
+      "sha256": "c91c146ec26fd32184c013361a220239fad4b0060850f99ba50db5fb5d7e11a2"
+    },
+    {
+      "path": "src/renderer/styles.css",
+      "sha256": "c9890b7c141b4f1d9811e5718e99e11694238c7d5b528359ce847463640c528d"
+    },
+    {
+      "path": "start.bat",
+      "sha256": "e73f1b411769e3986e347cbf6eb25e6b921a06683b4431ddbdf7df31f39be5c9"
+    },
+    {
+      "path": "install.bat",
+      "sha256": "14f6ac7d9656de759c9091b2c5fd9c05c6fde1f2bb465e15eb1e025ad52c9ad5"
+    }
+  ],
+  "evidenceHashes": [
+    {
+      "path": "01-textvoice-100.png",
+      "sha256": "edfe73328ce615b9bbde8b8ccb41dfb7b9f870eb629ba1ed3ecf61ef4f729294"
+    },
+    {
+      "path": "02-textvoice-150.png",
+      "sha256": "2301b8b00ceaa46c0870b2c60de368c9890cfed732f9904fe85d6e1b84419c63"
+    },
+    {
+      "path": "03-textvoice-200.png",
+      "sha256": "290fe31cab3637203bff8e222d76e3c56ce22b4ee06e5507a6283625918dd871"
+    },
+    {
+      "path": "04-textvoice-en-light-200.png",
+      "sha256": "39f4c3510fe6dabaa689c698ffbef7a33ab636708d710aa49c91442c70fc244e"
+    },
+    {
+      "path": "05-modal-before.png",
+      "sha256": "6368be3c2a0c0f29a9a32d99afb338ea371113fe060f104583f1f5c53c047c03"
+    },
+    {
+      "path": "06-modal-after-backspace.png",
+      "sha256": "b6a512d8ab6fcf1d1692acc33f79aef8586da012fe85347d53213e58e91d9868"
+    },
+    {
+      "path": "07-modal-escape-control.png",
+      "sha256": "3f23386af35412a8191189228fe7b167c8c97615782352da2e31d9cd92393294"
+    },
+    {
+      "path": "08-language-before.png",
+      "sha256": "e0beb05c0cd6c1f2b86d41a39e2cb7bad17e15dfa6dcc6421fe328491213762b"
+    },
+    {
+      "path": "09-language-after.png",
+      "sha256": "4d85e66ee873358a6960f0404cf38b1afb6b38a715db0cb159562ecd641779da"
+    },
+    {
+      "path": "design-proof.cjs",
+      "sha256": "9315726fe68b9cb078bcc0feb63d5318f4aeb4fe4bffb960a8e407cabd70a3c4"
+    },
+    {
+      "path": "measurements.json",
+      "sha256": "e7e91a76430729409bd4daab360bba2b828bcb81b8eebd3bd65dad6e3e369532"
+    }
+  ],
+  "historicalCoverage": {
+    "registry": "docs/audits/deepseek-night1000-20261027/COVERAGE-REGISTRY.json",
+    "sha256": "1135647211070d3d417baf4626ec693da045edf6c78bfc00b08b48f0db776253",
+    "rerun": false,
+    "scenarios": [
+      {
+        "id": "N0901",
+        "family": "F46",
+        "mechanism": "normal",
+        "signature": "c2cf505f07506c1d630003553983703686c50395ecb3e3f80550618d2e285da3",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0902",
+        "family": "F46",
+        "mechanism": "bos",
+        "signature": "6be67883ba017b4e1932d0ca151bfd9d03615b6a290dff97a0105bad8acfff56",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0903",
+        "family": "F46",
+        "mechanism": "sinir",
+        "signature": "6cfcfaf95dd959a475c1b05c295ee1c888cdcb0fd199dd683f267e94d5808334",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0904",
+        "family": "F46",
+        "mechanism": "unicode",
+        "signature": "76685178a635a59a114c7658395577dab7e9fdbc3903950b6802baa077964dd0",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0905",
+        "family": "F46",
+        "mechanism": "yinelenen",
+        "signature": "e0d2b7f19b63b8344e97767e1918fa96016e06176fdd93e39349a7d8d5dbaa00",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0906",
+        "family": "F46",
+        "mechanism": "sira",
+        "signature": "a1c19c1c388ef3512caabc5ebccfda6226efc5f6665b72c23fbe009d3104880c",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0907",
+        "family": "F46",
+        "mechanism": "iptal-oncesi",
+        "signature": "4bb6e6f638a811d3a28e7f11964ab53726d49912b7427c7ddcdd13384665e47f",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0908",
+        "family": "F46",
+        "mechanism": "iptal-ortasi",
+        "signature": "6dc30c0fb84d32a26e26ba137df0d47bec9e82a3fef88ae1790aabe7b8ad49de",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0909",
+        "family": "F46",
+        "mechanism": "gec-sonuc",
+        "signature": "635629ec5816160cb505c06140a5d03833e0c20dba0cc29009421ca01e0dc4dc",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0910",
+        "family": "F46",
+        "mechanism": "kaynak-degisimi",
+        "signature": "070e55c2958a03617e6eff1897efb0409e2f66090186a67aac2307acd72538f5",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0911",
+        "family": "F46",
+        "mechanism": "es-zamanli",
+        "signature": "f9c192198d1f12a183b0ed4a0a7725a995dff92aa22477fe660e74aca51f94ae",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0912",
+        "family": "F46",
+        "mechanism": "kesik",
+        "signature": "de40feeb3c9a0274f2a71e65d0dd363790e88277b0976cc08c4120315cd0ca11",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0913",
+        "family": "F46",
+        "mechanism": "hata",
+        "signature": "e235b30079bbd1bdc795e4bd6c3193b9538904742db864d52053f799b1e7dca5",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0914",
+        "family": "F46",
+        "mechanism": "timeout",
+        "signature": "4690efd67c94bf7f0b937592cf0e2617dd7d490dfa67557905516fa899dcabb2",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0915",
+        "family": "F46",
+        "mechanism": "yeniden-giris",
+        "signature": "1ea9dc8855e7f0944e225ac4a98e856bafbfe079a95118da82e2d70412130658",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0916",
+        "family": "F46",
+        "mechanism": "donusum",
+        "signature": "1d11188ecc0249a706f5f820278716d72296013438eabe1783b7e742237a18a9",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0917",
+        "family": "F46",
+        "mechanism": "yetki",
+        "signature": "0da3bcd4f893beb30917abfce8723374fe0d154eed30a5db89c0c2b223274bbb",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0918",
+        "family": "F46",
+        "mechanism": "kaynak-butcesi",
+        "signature": "5c47f6a290981d51691cb009e00b3b975c8a8a0675e2817f314c99aa68a861f0",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0919",
+        "family": "F46",
+        "mechanism": "kullanici-geribildirimi",
+        "signature": "1df2d6ae5bedb0d1a5e6ef5101d2cc92abd9099554de6f634cb9948cfbe8cc89",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0920",
+        "family": "F46",
+        "mechanism": "birlesik-akis",
+        "signature": "d5eb5a8146dad6005cfdc699140a1fd513ae293ec3a6c411adc0884365647048",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0921",
+        "family": "F47",
+        "mechanism": "normal",
+        "signature": "b4db91e8117f97bac17a54527372d6e3dd3315930db53e25bd427f69080f03a1",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0922",
+        "family": "F47",
+        "mechanism": "bos",
+        "signature": "2cb726eebd32ff131ab47b9751ff108a41cb41e9c53b2e2e7c84ff48f791f895",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0923",
+        "family": "F47",
+        "mechanism": "sinir",
+        "signature": "77e1c375734de00c7f46b52634b5b65db757ab303ab686cc127cb77cff0f56c0",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0924",
+        "family": "F47",
+        "mechanism": "unicode",
+        "signature": "e4e2966fac56ad688f50a4e45d3280b606342b87825b24b9f10aaaa61a817125",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0925",
+        "family": "F47",
+        "mechanism": "yinelenen",
+        "signature": "5fd339231a4b6a7a8e36826a3624a11d9a6e13a458b7d6703bda28f562b8aaac",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0926",
+        "family": "F47",
+        "mechanism": "sira",
+        "signature": "c971e6559755fca58ab93048c1c5f25f8e7343d2ac43eff8f4af1bfac6d7d1ab",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0927",
+        "family": "F47",
+        "mechanism": "iptal-oncesi",
+        "signature": "da899ffbc177a2af7b7b012f86bb9c38e66de718e2a4e7cfbb4f77292100a65e",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0928",
+        "family": "F47",
+        "mechanism": "iptal-ortasi",
+        "signature": "aacb115573f342e0b1224fcb87d535cee87d9a9d2864ee5b54d6a7b48e1a1545",
+        "historical_status": "NOT_APPLICABLE"
+      },
+      {
+        "id": "N0929",
+        "family": "F47",
+        "mechanism": "gec-sonuc",
+        "signature": "d4503abdd49bed758a03b637ebc901202318d819bd17f8d6d2405834ce8187f7",
+        "historical_status": "NOT_APPLICABLE"
+      },
+      {
+        "id": "N0930",
+        "family": "F47",
+        "mechanism": "kaynak-degisimi",
+        "signature": "25e6be446df0f8cb356e9364f1b21339d0b8b40263d36b3a251671ce4865e224",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0931",
+        "family": "F47",
+        "mechanism": "es-zamanli",
+        "signature": "f3a70d6ae166b4a9e1ca6325bf531a874da4f1e30deba5f8fa9fd722e9e09d2a",
+        "historical_status": "NOT_APPLICABLE"
+      },
+      {
+        "id": "N0932",
+        "family": "F47",
+        "mechanism": "kesik",
+        "signature": "4d16a156e75fad42f899d4d1b49906256a7f8d9a8c94463096408651c68cc203",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0933",
+        "family": "F47",
+        "mechanism": "hata",
+        "signature": "cee74f059cf5c4190034b97d27dca4de7b51be8e46058992a994f96d362b3404",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0934",
+        "family": "F47",
+        "mechanism": "timeout",
+        "signature": "f76030c8400e080eaf5c0d3c2f146c297e56f3d9f1241ca36211a3accb8fb9b1",
+        "historical_status": "NOT_APPLICABLE"
+      },
+      {
+        "id": "N0935",
+        "family": "F47",
+        "mechanism": "yeniden-giris",
+        "signature": "7c21c228d549d9e7dbbfccfe5ad8437705050d06c81e26aa523c7ea6ed7505dd",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0936",
+        "family": "F47",
+        "mechanism": "donusum",
+        "signature": "582216ed9035f62b39b14394c9ec5b03c5234da16e01c1c77d6f5b6c1d0d463c",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0937",
+        "family": "F47",
+        "mechanism": "yetki",
+        "signature": "206d562e55be4581989d66306a1d66d0bb2f68ae50e0411d3dee0b0518206829",
+        "historical_status": "NOT_APPLICABLE"
+      },
+      {
+        "id": "N0938",
+        "family": "F47",
+        "mechanism": "kaynak-butcesi",
+        "signature": "f10092182981f6996067e6aa35174a2946e74def3ea6f91a1c2e0b944e329ea6",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0939",
+        "family": "F47",
+        "mechanism": "kullanici-geribildirimi",
+        "signature": "fc7f9bbda07edccffaa434ceeadf29dfd69ecd6f1e9c1cdbc9cdbd74d8d7871f",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0940",
+        "family": "F47",
+        "mechanism": "birlesik-akis",
+        "signature": "bbc02d93c3bc3ead0699d7e4385fa8aa69538d2e1e8c5759c08f52c7553673a9",
+        "historical_status": "PASS"
+      }
+    ]
+  }
+}

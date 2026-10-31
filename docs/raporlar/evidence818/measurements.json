@@ -1,0 +1,267 @@
+{
+  "revision": "1e9a9afd20da5d851e373df02f08984410c87ed5",
+  "platform": "win32",
+  "electron": "43.5.0",
+  "chromium": "150.0.7871.250",
+  "gpuDisabled": true,
+  "input": "Electron sendInputEvent native keydown/keyup",
+  "rows": [
+    {
+      "name": "01-textvoice-100",
+      "viewport": {
+        "width": 940,
+        "height": 682,
+        "dpr": 1.5
+      },
+      "nodes": [
+        {
+          "selector": ".text-voice-head",
+          "rect": {
+            "x": 20.666667938232422,
+            "y": 20.666667938232422,
+            "width": 898.6666870117188,
+            "height": 116.79167175292969,
+            "top": 20.666667938232422,
+            "right": 919.3333549499512,
+            "bottom": 137.4583396911621,
+            "left": 20.666667938232422
+          },
+          "client": 116,
+          "scroll": 116
+        },
+        {
+          "selector": ".text-voice-body",
+          "rect": {
+            "x": 20.666667938232422,
+            "y": 137.45834350585938,
+            "width": 898.6666870117188,
+            "height": 380.54168701171875,
+            "top": 137.45834350585938,
+            "right": 919.3333549499512,
+            "bottom": 518.0000305175781,
+            "left": 20.666667938232422
+          },
+          "client": 381,
+          "scroll": 381
+        },
+        {
+          "selector": ".text-voice-footer",
+          "rect": {
+            "x": 20.666667938232422,
+            "y": 518,
+            "width": 898.6666870117188,
+            "height": 143.33334350585938,
+            "top": 518,
+            "right": 919.3333549499512,
+            "bottom": 661.3333435058594,
+            "left": 20.666667938232422
+          },
+          "client": 143,
+          "scroll": 143
+        }
+      ]
+    },
+    {
+      "name": "02-textvoice-150",
+      "viewport": {
+        "width": 626,
+        "height": 454,
+        "dpr": 2.25
+      },
+      "nodes": [
+        {
+          "selector": ".text-voice-head",
+          "rect": {
+            "x": 10.88888931274414,
+            "y": 10.88888931274414,
+            "width": 604.888916015625,
+            "height": 121.35416412353516,
+            "top": 10.88888931274414,
+            "right": 615.7778053283691,
+            "bottom": 132.2430534362793,
+            "left": 10.88888931274414
+          },
+          "client": 120,
+          "scroll": 120
+        },
+        {
+          "selector": ".text-voice-body",
+          "rect": {
+            "x": 10.88888931274414,
+            "y": 132.24305725097656,
+            "width": 604.888916015625,
+            "height": 175.9791717529297,
+            "top": 132.24305725097656,
+            "right": 615.7778053283691,
+            "bottom": 308.22222900390625,
+            "left": 10.88888931274414
+          },
+          "client": 176,
+          "scroll": 1392
+        },
+        {
+          "selector": ".text-voice-footer",
+          "rect": {
+            "x": 10.88888931274414,
+            "y": 308.22222900390625,
+            "width": 604.888916015625,
+            "height": 135.55555725097656,
+            "top": 308.22222900390625,
+            "right": 615.7778053283691,
+            "bottom": 443.7777862548828,
+            "left": 10.88888931274414
+          },
+          "client": 135,
+          "scroll": 135
+        }
+      ]
+    },
+    {
+      "name": "03-textvoice-200",
+      "viewport": {
+        "width": 470,
+        "height": 341,
+        "dpr": 3
+      },
+      "nodes": [
+        {
+          "selector": ".text-voice-head",
+          "rect": {
+            "x": 11,
+            "y": 11,
+            "width": 448,
+            "height": 113.19792175292969,
+            "top": 11,
+            "right": 459,
+            "bottom": 124.19792175292969,
+            "left": 11
+          },
+          "client": 112,
+          "scroll": 112
+        },
+        {
+          "selector": ".text-voice-body",
+          "rect": {
+            "x": 11,
+            "y": 124.19792175292969,
+            "width": 448,
+            "height": 0,
+            "top": 124.19792175292969,
+            "right": 459,
+            "bottom": 124.19792175292969,
+            "left": 11
+          },
+          "client": 0,
+          "scroll": 1365
+        },
+        {
+          "selector": ".text-voice-footer",
+          "rect": {
+            "x": 11,
+            "y": 124.19792175292969,
+            "width": 448,
+            "height": 225.6666717529297,
+            "top": 124.19792175292969,
+            "right": 459,
+            "bottom": 349.8645935058594,
+            "left": 11
+          },
+          "client": 225,
+          "scroll": 225
+        }
+      ]
+    },
+    {
+      "name": "04-textvoice-en-light-200",
+      "viewport": {
+        "width": 470,
+        "height": 341,
+        "dpr": 3
+      },
+      "nodes": [
+        {
+          "selector": ".text-voice-head",
+          "rect": {
+            "x": 11,
+            "y": 11,
+            "width": 448,
+            "height": 132.39584350585938,
+            "top": 11,
+            "right": 459,
+            "bottom": 143.39584350585938,
+            "left": 11
+          },
+          "client": 131,
+          "scroll": 131
+        },
+        {
+          "selector": ".text-voice-body",
+          "rect": {
+            "x": 11,
+            "y": 143.39584350585938,
+            "width": 448,
+            "height": 0,
+            "top": 143.39584350585938,
+            "right": 459,
+            "bottom": 143.39584350585938,
+            "left": 11
+          },
+          "client": 0,
+          "scroll": 1365
+        },
+        {
+          "selector": ".text-voice-footer",
+          "rect": {
+            "x": 11,
+            "y": 143.39584350585938,
+            "width": 448,
+            "height": 225.6666717529297,
+            "top": 143.39584350585938,
+            "right": 459,
+            "bottom": 369.06251525878906,
+            "left": 11
+          },
+          "client": 225,
+          "scroll": 225
+        }
+      ]
+    },
+    {
+      "name": "05-modal-before",
+      "layerHidden": false,
+      "home": false,
+      "dialog": true,
+      "focus": "appSettingsClose"
+    },
+    {
+      "name": "06-modal-after-backspace",
+      "layerHidden": true,
+      "home": true,
+      "dialog": true,
+      "focus": "appSettingsClose"
+    },
+    {
+      "name": "07-modal-escape-control",
+      "layerHidden": false,
+      "home": false,
+      "dialog": false,
+      "focus": "openPlayer"
+    },
+    {
+      "name": "08-language-before",
+      "focusId": "uiLocale",
+      "focusTag": "SELECT",
+      "locale": "tr",
+      "selectValue": "tr",
+      "dialog": true
+    },
+    {
+      "name": "09-language-after",
+      "focusId": "",
+      "focusTag": "BODY",
+      "locale": "en",
+      "selectValue": "en",
+      "dialog": true
+    }
+  ]
+}
