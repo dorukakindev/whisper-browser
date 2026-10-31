@@ -1,0 +1,11 @@
+---
+description: User-retired task quota and current critical-only product scope
+alwaysApply: true
+---
+
+On 2026-10-31 the user explicitly retired the 200-task quota: several items were arbitrary and even 100 may be excessive. Do only important product work.
+
+- Current acceptance is docs/plans/2026-10-31-200-onemli-urun-hedefi/CRITICAL-FOCUS.md. The old 200 rows are historical candidates, not mandatory work.
+- Prioritize wrong-source/stale assistant actions, missing/meaning-damaged translations, complete usable dubbing, sync/original-audio restoration, cancellation/retry/background continuation, and actual UI blockers.
+- Complete and safely deliver already-authorized useful fixes. Do not expand cosmetic polish, backup machinery, library features or edge-case tasks merely to fill a number.
+- Existing correct behavior may be verified without product changes. Keep evidence honest; do not count tests as new features or mark optional candidates completed to satisfy an obsolete goal label.

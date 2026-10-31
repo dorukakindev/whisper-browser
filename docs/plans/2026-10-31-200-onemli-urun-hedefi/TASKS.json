@@ -308,13 +308,15 @@
       "title": "Ayar değişikliği kartında önceki ve sonraki değerleri göster.",
       "acceptance": "Yalnız değişecek alanlar listelensin.",
       "kind": "Mevcut temeli geliştirme",
-      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "status": "Uygulandı — kontrollü servis ve native onay akışı",
       "modules": [
         "src/assistant-capabilities.js",
         "src/assistant-agent-service.js",
         "src/assistant-context-manifest.js",
         "src/renderer/assistant-workspace.js"
-      ]
+      ],
+      "progressNote": "Tercih, workflow ve ses kartları önce/sonra değerlerini okunabilir etiketlerle gösterir; sıfır değişiklik ve etkili davranışlar açık.",
+      "evidence": "docs/audits/product200-package02-2026-10-31/README.md"
     },
     {
       "id": "P022",
@@ -322,13 +324,15 @@
       "title": "“Yalnız bu iş” ile kalıcı varsayılan değişikliğini ayır.",
       "acceptance": "Geçici tercih sonraki işleri etkilemesin.",
       "kind": "Mevcut temeli geliştirme",
-      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "status": "Kısmen uygulandı",
       "modules": [
         "src/assistant-capabilities.js",
         "src/assistant-agent-service.js",
         "src/assistant-context-manifest.js",
         "src/renderer/assistant-workspace.js"
-      ]
+      ],
+      "progressNote": "Mevcut Whisper/çeviri işine özel seçimler korunur. Dublaj sample isteği artık yalnız o işe aittir; genel workflow için kalıcılık seçimi bu pakette tamamlanmadı.",
+      "evidence": "docs/audits/product200-package02-2026-10-31/README.md"
     },
     {
       "id": "P023",
@@ -336,13 +340,15 @@
       "title": "Bir ayarın bağlı seçeneklere etkisini anlaşılır açıkla.",
       "acceptance": "Kullanıcı gizli yan etkiyle karşılaşmasın.",
       "kind": "Mevcut temeli geliştirme",
-      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "status": "Uygulandı — etkin davranış özeti",
       "modules": [
         "src/assistant-capabilities.js",
         "src/assistant-agent-service.js",
         "src/assistant-context-manifest.js",
         "src/renderer/assistant-workspace.js"
-      ]
+      ],
+      "progressNote": "Ses için çeviri açıkken refine/lenient etkileri, dublaj timingMode konuşma korunması/kesilmesi kartta gösterilir; gizli ayarlar açılmaz.",
+      "evidence": "docs/audits/product200-package02-2026-10-31/README.md"
     },
     {
       "id": "P024",
@@ -350,13 +356,15 @@
       "title": "Kart hazırlanırken yapılan elle ayar değişikliğini koru.",
       "acceptance": "Yeni insan tercihi sessizce ezilmesin.",
       "kind": "Önce doğrula; eksikse düzelt",
-      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "status": "Uygulandı — main ve gerçek mutasyon sınırı",
       "modules": [
         "src/assistant-capabilities.js",
         "src/assistant-agent-service.js",
         "src/assistant-context-manifest.js",
         "src/renderer/assistant-workspace.js"
-      ]
+      ],
+      "progressNote": "Onaylanan önceki değerler ayrı yetkili paketle taşınır. Manuel düzenleme aradaki transport veya ses hazırlığı sırasında olsa bile korunur; ilgisiz değişiklik serbest.",
+      "evidence": "docs/audits/product200-package02-2026-10-31/README.md"
     },
     {
       "id": "P025",
@@ -364,13 +372,15 @@
       "title": "Geri alma başarısızlığını ve yeniden denemeyi gerçek kayıtla sına.",
       "acceptance": "Ekran ve disk farklı kalmasın.",
       "kind": "Önce doğrula; eksikse düzelt",
-      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "status": "Doğrulandı — gerçek geçici ayar diski",
       "modules": [
         "src/assistant-capabilities.js",
         "src/assistant-agent-service.js",
         "src/assistant-context-manifest.js",
         "src/renderer/assistant-workspace.js"
-      ]
+      ],
+      "progressNote": "Başarısız undo, kayıtlı rollback, retry, çift kayıt hatası, daha yeni manuel düzenleme ve disk/UI sonuçları gerçek serializer/atomik kayıtla sınandı. Mevcut doğru davranışa gereksiz kod eklenmedi.",
+      "evidence": "docs/audits/product200-package02-2026-10-31/README.md"
     },
     {
       "id": "P026",
@@ -378,13 +388,15 @@
       "title": "Eskimiş işlem kartını güncel durumdan yeniden hazırlayabil.",
       "acceptance": "Eski hedefe körlemesine işlem uygulanmasın.",
       "kind": "Mevcut temeli geliştirme",
-      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "status": "Uygulandı — native yenileme ve ayrı uygulama",
       "modules": [
         "src/assistant-capabilities.js",
         "src/assistant-agent-service.js",
         "src/assistant-context-manifest.js",
         "src/renderer/assistant-workspace.js"
-      ]
+      ],
+      "progressNote": "Eski kart kullanılamaz; açık Yenile güncel değerlerle yeni inceleme kartı üretir. Yeni kart kullanıcı ayrıca Uygula deyip onaylamadan çalışmaz; replay ve yanlış sohbet reddedilir.",
+      "evidence": "docs/audits/product200-package02-2026-10-31/README.md"
     },
     {
       "id": "P027",
@@ -2950,6 +2962,15 @@
       ]
     }
   ],
-  "activePackage": "01-source-workspace-reviews",
-  "executionStatus": "Aktif; kalan maddeler sonraki somut paketlerde sürdürülecek."
+  "activePackage": "02-settings-approval-job-options",
+  "executionStatus": "Yalniz kritik kabul akislari etkin; 200 veya 100 sayisi hedef degildir.",
+  "countTargetRetired": true,
+  "executionPolicy": "critical-only; original 200 rows are historical candidates, not mandatory backlog",
+  "scopeAmendment": {
+    "date": "2026-10-31",
+    "reason": "User explicitly said several items are arbitrary and asked to do only important work; even 100 may be too many.",
+    "activeAcceptance": "CRITICAL-FOCUS.md",
+    "noQuota": true,
+    "optionalFeatureExpansion": false
+  }
 }
