@@ -1,0 +1,82 @@
+{
+  "ok": true,
+  "realBackend": true,
+  "model": "tiny",
+  "engine": "faster",
+  "device": "cpu",
+  "computeType": "int8",
+  "offline": true,
+  "speech": "Windows SAPI synthetic English",
+  "cases": [
+    "Home while real subprocess pending preserves job/source",
+    "return while pending preserves same backend job",
+    "real transcription completes while Home without changing source",
+    "real SRT is available on original source after explicit return"
+  ],
+  "identity": {
+    "mode": "player",
+    "key": "file:d:/whisper local/tmp/assistant618/.uiprev/whisper-home-continuity/1793465239609-12008/controlled-speech.wav",
+    "path": "D:\\Whisper Local\\tmp\\assistant618\\.uiprev\\whisper-home-continuity\\1793465239609-12008\\controlled-speech.wav",
+    "generation": 1
+  },
+  "jobId": "9464bab5-9bad-4feb-a849-d30fbd1767ed",
+  "result": {
+    "cues": 14,
+    "path": "D:\\Whisper Local\\tmp\\assistant618\\.uiprev\\whisper-home-continuity\\1793465239609-12008\\output\\controlled-speech.srt",
+    "queueStatus": "done",
+    "queueFiles": [
+      "D:\\Whisper Local\\tmp\\assistant618\\.uiprev\\whisper-home-continuity\\1793465239609-12008\\output\\controlled-speech.srt",
+      "D:\\Whisper Local\\tmp\\assistant618\\.uiprev\\whisper-home-continuity\\1793465239609-12008\\output\\controlled-speech.dusuk-guven.txt"
+    ]
+  },
+  "backend": {
+    "pid": 23176,
+    "exitCode": 0,
+    "events": [
+      "status",
+      "log",
+      "log",
+      "status",
+      "log",
+      "log",
+      "status",
+      "log",
+      "language",
+      "segment",
+      "progress",
+      "segment",
+      "segment",
+      "segment",
+      "segment",
+      "segment",
+      "progress",
+      "segment",
+      "segment",
+      "segment",
+      "segment",
+      "segment",
+      "segment",
+      "progress",
+      "segment",
+      "segment",
+      "progress",
+      "log",
+      "log",
+      "log",
+      "log",
+      "preview_refresh",
+      "quality_report",
+      "log",
+      "log",
+      "status",
+      "log",
+      "log",
+      "log",
+      "log",
+      "done"
+    ],
+    "segments": 14,
+    "srt": "D:\\Whisper Local\\tmp\\assistant618\\.uiprev\\whisper-home-continuity\\1793465239609-12008\\output\\controlled-speech.srt"
+  },
+  "limits": "Cached tiny CPU transcription on local SAPI speech; no model download, translation provider, GPU, remote media or personal profile."
+}

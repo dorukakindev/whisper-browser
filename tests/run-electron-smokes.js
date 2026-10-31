@@ -5,6 +5,7 @@
  *   node tests/run-electron-smokes.js --all      -> ağ/API gerektirmeyenleri sırayla çalıştırır
  *   node tests/run-electron-smokes.js --network  -> dış ağ kullanan smoke'ları çalıştırır
  *   node tests/run-electron-smokes.js --live     -> gerçek sağlayıcı/API smoke'larını çalıştırır
+ *   node tests/run-electron-smokes.js --model    -> Windows + önbellekteki yerel model gerektiren kabul testi
  *   node tests/run-electron-smokes.js <ad...>    -> yalnız adı geçenleri çalıştırır
  *                                                   (uzantı/ön ek yazılabilir)
  *
@@ -26,18 +27,20 @@ const smokes = fs.readdirSync(__dirname)
 const args = process.argv.slice(2);
 const liveSmokes = smokes.filter((name) => /(?:page-translation-live|provider-live)/.test(name));
 const networkSmokes = smokes.filter((name) => /browser-public-sites/.test(name));
-const deterministicSmokes = smokes.filter((name) => !liveSmokes.includes(name) && !networkSmokes.includes(name));
+const modelSmokes = smokes.filter((name) => name === 'electron-whisper-home-continuity.smoke.js');
+const deterministicSmokes = smokes.filter((name) => !liveSmokes.includes(name) && !networkSmokes.includes(name) && !modelSmokes.includes(name));
 const selected = args.length === 0 ? [] :
   args.includes('--live') ? liveSmokes :
     args.includes('--network') ? networkSmokes :
+      args.includes('--model') ? modelSmokes :
       args.includes('--all') ? deterministicSmokes :
     smokes.filter((name) => args.some((arg) => name.includes(arg.replace(/\.js$/, ''))));
 
 if (!selected.length) {
   console.log('Electron smoke dosyaları (npm test kapsamı dışında, ayrı koşulur):');
   for (const name of smokes) console.log(`  electron tests/${name}`);
-  console.log('\nKoşturmak için: node tests/run-electron-smokes.js --all | --network | --live | <ad-parçası>');
-  console.log('Not: --all dış ağ ve gerçek sağlayıcı/API çağrısı yapan smoke\'ları içermez.');
+  console.log('\nKoşturmak için: node tests/run-electron-smokes.js --all | --network | --live | --model | <ad-parçası>');
+  console.log('Not: --all dış ağ, gerçek sağlayıcı/API ve önbellekte yerel model gerektiren smoke\'ları içermez.');
   process.exit(0);
 }
 

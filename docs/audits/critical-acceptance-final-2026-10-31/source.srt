@@ -1,0 +1,35 @@
+1
+00:00:00,000 --> 00:00:16,000
+Only seven of the twenty samples passed; the other thirteen still need to be tested.
+
+2
+00:00:26,000 --> 00:00:42,000
+Not every warning means the device is broken; some warnings only ask for a battery check.
+
+3
+00:00:52,000 --> 00:01:08,000
+We postponed the launch because the sensor failed, not because the weather worsened.
+
+4
+00:01:18,000 --> 00:01:34,000
+Unless the second test confirms the result, do not release the report, even if the first test passed.
+
+5
+00:01:44,000 --> 00:02:00,000
+The crew may leave now, but they must not restart the engine until the inspection is finished.
+
+6
+00:02:10,000 --> 00:02:26,000
+MARA: I lent Deniz my brother's car, not my own.
+
+7
+00:02:26,000 --> 00:02:42,000
+DENIZ: Then I should return it to your brother, not to you.
+
+8
+00:02:52,000 --> 00:03:08,000
+The balance fell from a profit of $12.50 to a loss of $3.25; that is a decrease of $15.75, not $9.25.
+
+9
+00:03:18,000 --> 00:03:34,000
+The alarm sounded after the pressure dropped, but that does not prove the pressure drop caused it.
