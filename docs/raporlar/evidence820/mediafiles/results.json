@@ -1,0 +1,68 @@
+{
+  "initial": {
+    "genres": [],
+    "synopsis": "Complete story",
+    "runtime": 90,
+    "directors": [
+      "Director"
+    ],
+    "posterExists": true
+  },
+  "beforeManual": {
+    "ordinary": {
+      "running": false,
+      "done": 0,
+      "updated": 0,
+      "total": 0,
+      "unmatched": 0,
+      "failed": 0,
+      "noPoster": 0,
+      "version": 0,
+      "issue": "",
+      "current": "",
+      "stopped": false,
+      "configured": true
+    },
+    "retried": {
+      "running": false,
+      "done": 0,
+      "updated": 0,
+      "total": 0,
+      "unmatched": 0,
+      "failed": 0,
+      "noPoster": 0,
+      "version": 0,
+      "issue": "",
+      "current": "",
+      "stopped": false,
+      "configured": true
+    },
+    "requests": [],
+    "genres": []
+  },
+  "manual": {
+    "genres": [
+      "Drama"
+    ],
+    "requests": [
+      "/3/movie/42"
+    ]
+  },
+  "completeControl": {
+    "skipped": true
+  },
+  "missingSynopsisControl": {
+    "running": false,
+    "done": 1,
+    "updated": 1,
+    "total": 1,
+    "unmatched": 0,
+    "failed": 0,
+    "noPoster": 0,
+    "version": 1,
+    "issue": "",
+    "current": "",
+    "stopped": false,
+    "configured": true
+  }
+}

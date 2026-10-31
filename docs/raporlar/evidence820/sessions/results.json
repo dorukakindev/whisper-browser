@@ -1,0 +1,36 @@
+{
+  "head": "f7e5f7156260e451496895f067bed73e15587b90",
+  "newBugs": 0,
+  "controls": [
+    {
+      "name": "mux header composition and callback once",
+      "ok": true
+    },
+    {
+      "name": "mux unsubscribe preserves other owner",
+      "ok": true
+    },
+    {
+      "name": "opaque requester does not inherit parent permission",
+      "ok": true
+    },
+    {
+      "name": "mixed camera block wins over microphone allow",
+      "ok": true
+    },
+    {
+      "name": "explicit ask stays ask",
+      "ok": true
+    },
+    {
+      "name": "session mirror reset does not resurrect deleted tab",
+      "ok": true
+    },
+    {
+      "name": "site clear origin narrow and excludes global cache",
+      "ok": true
+    }
+  ],
+  "registryRowsReviewed": 80,
+  "limitations": "Actual Node modules; webRequest/session boundaries controlled; no real Electron, sites, network, profile, credentials, GPU or start.bat acceptance."
+}
