@@ -52,8 +52,10 @@
     else document.getElementById('openPlayer')?.focus();
   }
   let returningHome=false,resuming=false,parked=null;
-  async function returnHome() {
-    if(returningHome)return;returningHome=true;
+  let homeReturnPromise=null;
+  function returnHome(){if(homeReturnPromise)return homeReturnPromise;homeReturnPromise=performReturnHome().finally(()=>{homeReturnPromise=null;});return homeReturnPromise;}
+  async function performReturnHome() {
+    returningHome=true;
     try{
       if(layer && !layer.classList.contains('hidden')){
         const intent=++player.openIntent;
@@ -480,5 +482,5 @@
   document.addEventListener('media-library-changed', () => { if (state.active) void refresh(); });
   // Do not switch workspace or touch saved jobs, captions, tabs or dub state on startup.
   renderShell(); setHome(true);
-  window.MediaHomeUI=Object.freeze({emptyState,returnHome,resumeWorkspace,openStudio,navigate:async(value)=>{await returnHome();page(value);}});
+  window.MediaHomeUI=Object.freeze({currentPage:()=>state.page,emptyState,returnHome,resumeWorkspace,openStudio,navigate:async(value)=>{await returnHome();page(value);}});
 })();

@@ -19,7 +19,7 @@ if (!live) {
     const value = String(url);
     if(value.startsWith('https://api.themoviedb.org/3/')){
       const u=new URL(value);let data;
-      if(u.pathname.includes('/find/'))data={movie_results:[{id:42}]};
+      if(u.pathname.includes('/find/tt0443680'))data={movie_results:[]};else if(u.pathname.includes('/find/'))data={movie_results:[{id:42}]};
       else if(u.pathname.includes('/person/8/combined_credits'))data={crew:[{id:43,title:'Yönetmenin Diğer Filmi',media_type:'movie',job:'Director',genre_ids:[18]}]};
       else if(u.pathname.includes('/person/'))data={id:Number(u.pathname.split('/').pop()),name:'Örnek Oyuncu',known_for_department:'Acting',biography:'Bu biyografi yalnız native arayüz doğrulaması için hazırlanmış sentetik bir metindir.',profile_path:'/person.jpg',combined_credits:{cast:[{id:43,title:'Seçili Filmografi Örneği',media_type:'movie',release_date:'2024-01-01',character:'Başrol',vote_count:50}]}};
       else data={id:42,title:'Sentetik Hikâye 1',imdb_id:'tt1000000',genres:[{id:18,name:'Dram'}],credits:{cast:[{id:7,name:'Örnek Oyuncu',character:'Başrol',profile_path:'/person.jpg'}],crew:[{id:8,name:'Örnek Yönetmen',job:'Director',profile_path:'/director.jpg'}]},videos:{results:[{site:'YouTube',key:'abcdefghijk',name:'Kontrollü Fragman',type:'Trailer',official:true}]},images:{backdrops:[{file_path:'/still.jpg'}]},recommendations:{results:[{id:43,title:'İlgili Yapım Örneği',release_date:'2024-01-01',genre_ids:[18]}]}};
@@ -40,7 +40,7 @@ require('../src/main.js');
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(fn, label, timeout = 25000) { const deadline = Date.now() + timeout; while (Date.now() < deadline) { if (await fn()) return; await wait(100); } throw Error(`Timed out: ${label}`); }
 app.whenReady().then(async () => {
-  if (!live) session.defaultSession.protocol.handle('https', request => ['images.metahub.space','image.tmdb.org'].includes(new URL(request.url).hostname) ? new Response(poster, { headers: { 'content-type': 'image/png' } }) : Response.error());
+  if (!live) session.defaultSession.protocol.handle('https', request => ['images.metahub.space','image.tmdb.org'].includes(new URL(request.url).hostname) ? new Response(poster, { headers: { 'content-type': 'image/png' } }) : new URL(request.url).hostname==='www.youtube.com'?new Response('<!doctype html><title>Controlled trailer navigation</title><main>Controlled trailer transport; no real playback.</main>',{headers:{'content-type':'text/html'}}):Response.error());
   let win; await until(() => { win = BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('index.html') && !w.webContents.isLoading()); return win; }, 'main');
   win.webContents.setBackgroundThrottling(false); win.showInactive(); win.setContentSize(1920, 1080);
   const run = code => win.webContents.executeJavaScript(`(async()=>{${code}})()`, true);
@@ -100,15 +100,17 @@ app.whenReady().then(async () => {
   assert(await run('return !document.querySelector(".md-heading")'), 'Discover omits redundant heading');
   const fonts = await run('await document.fonts.ready;return {heading:getComputedStyle(document.querySelector(".md-tab")).fontFamily,plex:document.fonts.check(\'400 14px "IBM Plex Sans"\',"İstanbul şğ")}');
   assert(fonts.plex, JSON.stringify(fonts)); assert(fonts.heading.includes('IBM Plex Sans'));
+  win.focus();win.webContents.focus();await until(()=>win.webContents.isFocused(),'renderer pointer focus');win.webContents.sendInputEvent({type:'mouseMove',x:5,y:45});await wait(180);
   const beforeHover = await run('return getComputedStyle(document.querySelectorAll(".md-tab")[1]).color');
   const hover = await run('const r=document.querySelectorAll(".md-tab")[1].getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}');
   // Native assistant focus may still belong to its WebContentsView after minimizing.
   // Electron input injection requires the target WebContents to be focused.
-  win.focus(); win.webContents.focus();
-  win.webContents.sendInputEvent({ type: 'mouseMove', ...hover }); await wait(100);
+  win.focus(); win.webContents.focus();await until(()=>win.webContents.isFocused(),'renderer input focus');
+  const contentRatio=win.getContentBounds().width/await run('return innerWidth');win.webContents.sendInputEvent({ type: 'mouseMove', x:Math.round(hover.x*contentRatio),y:Math.round(hover.y*contentRatio) });await until(async()=>await run('return getComputedStyle(document.querySelectorAll(".md-tab")[1]).color')!==beforeHover,'native hover delivered',2000);
   assert.notEqual(await run('return getComputedStyle(document.querySelectorAll(".md-tab")[1]).color'), beforeHover, 'Actual renderer pointer hover feedback');
   win.webContents.sendInputEvent({ type: 'mouseMove', x: 5, y: 45 });
   win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab' }); win.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab' });
+  await run('await new Promise(requestAnimationFrame);return true');
   assert(await run('return document.activeElement!==document.body && getComputedStyle(document.activeElement).outlineStyle!=="none"'), 'Keyboard focus remains visible');
   await wait(500); fs.writeFileSync(path.join(out, 'discover-1920-tr.png'), (await win.webContents.capturePage()).toPNG());
   if (!live) {
@@ -139,7 +141,7 @@ app.whenReady().then(async () => {
   assert.equal(await run('return globalAssistantContext().title'),title,'Assistant follows explicit discovery selection');
   await run('document.querySelector(".film-plot-toggle").click();return true');assert(await run('return document.querySelector(".md-synopsis").hidden'));await run('document.querySelector(".film-plot-toggle").click();document.querySelector(".film-poster-open").click();return true');await until(()=>run('return !!document.querySelector(".film-poster-dialog[open]")'),'poster enlargement');fs.writeFileSync(path.join(out,'film-poster-expanded.png'),(await win.webContents.capturePage()).toPNG());await run('document.querySelector(".film-poster-dialog button").click();return true');
   await run('await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true'); await wait(300);
-  await run(`const selected=document.querySelector('.md-card').dataset.discoveryId;const detail=(await window.api.mediaDiscovery({action:'detail',kind:'film',id:selected})).item;const reviews=Array.from({length:6},(_,i)=>({id:'sample-'+i,author:'Controlled reader '+i,text:'Strong acting and thoughtful photography. A slow middle section tests patience. Source '+i}));const r=await window.api.mediaTools({action:'decision-save',discovery:{kind:'film',id:selected},reviews,analysis:{summary:'Controlled sample: the performances and photography are praised, while the middle section divides viewers.',fit:'Controlled sample: no saved personal taste evidence was supplied.',points:[{id:'sample-0',quote:'Strong acting and thoughtful photography.',kind:'praise',reason:'The sample praises performances and the visual composition.'},{id:'sample-1',quote:'A slow middle section tests patience.',kind:'criticism',reason:'Some readers find the central section less engaging.'}]}});if(!r.ok)throw Error(r.error);document.dispatchEvent(new Event('media-review-updated'));return true`);
+  await run(`const selected=document.querySelector('.md-card').dataset.discoveryId;const detail=(await window.api.mediaDiscovery({action:'detail',kind:'film',id:selected})).item;const reviews=Array.from({length:6},(_,i)=>({id:'sample-'+i,author:'Controlled reader '+i,text:'Strong acting and thoughtful photography. A slow middle section tests patience. Source '+i}));await window.api.mediaTools({action:'decision-save',discovery:{kind:'film',id:selected},reviews,analysis:{summary:'Controlled previous analysis emphasized the slow middle section.',fit:'No personal evidence.',points:[{id:'sample-1',quote:'A slow middle section tests patience.',kind:'criticism',reason:'The earlier saved selection emphasizes pace.'}]}});const r=await window.api.mediaTools({action:'decision-save',discovery:{kind:'film',id:selected},reviews,analysis:{summary:'Controlled sample: the performances and photography are praised, while the middle section divides viewers.',fit:'Controlled sample: no saved personal taste evidence was supplied.',points:[{id:'sample-0',quote:'Strong acting and thoughtful photography.',kind:'praise',reason:'The sample praises performances and the visual composition.'},{id:'sample-1',quote:'A slow middle section tests patience.',kind:'criticism',reason:'Some readers find the central section less engaging.'}]}});if(!r.ok)throw Error(r.error);document.dispatchEvent(new Event('media-review-updated'));return true`);
   await until(()=>run('return !!document.querySelector(".film-review-content .mrv-summary")'),'inline saved analysis');
   if(!live){
     await run(`const r=await window.api.saveSettings({tmdb:{apiKey:'controlled-fixture-key-not-a-real-account',language:'tr-TR'}});if(r?.ok===false)throw Error(r.error);document.querySelector('.film-extra-section > button').click();return true`);
@@ -153,13 +155,20 @@ app.whenReady().then(async () => {
     win.webContents.setZoomFactor(featureZoom);win.setContentSize(1920,1080);await wait(100);
 
     await run('const b=[...document.querySelectorAll(".film-extra-body > button")].find(b=>b.textContent.includes("görsellerine"));b.click();return true');await until(()=>run('return !!document.querySelector(".mtd-gallery[open] .mtd-gallery-stage img")'),'shared film gallery');await run('document.querySelector(".mtd-gallery header button").click();return true');
+    await run('document.querySelector(".film-trailers button").click();return true');
+    await until(()=>run('return !document.getElementById("playerLayer").classList.contains("hidden")&&document.getElementById("browserMediaHome").textContent.includes("Filme dön")'),'internal trailer return control');
+    await run('document.getElementById("browserMediaHome").click();return true');
+    await until(()=>run('return document.querySelectorAll(".film-person-card").length===2'),'internal trailer return with cached extras');
+    await run('document.querySelectorAll(".film-group-tabs button")[2].click();return true');
     await run('document.querySelector(".film-person-card").click();return true');
     await until(()=>run('return !!document.querySelector(".film-person-biography")'),'person biography page');
     await run('await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true');await wait(150);
+    await run('const s=document.querySelector(".filmography-controls select");s.value="series";s.dispatchEvent(new Event("change"));return true');assert(await run('return !document.querySelector(".film-person-films .film-credit-row")'));await run('const s=document.querySelector(".filmography-controls select");s.value="all";s.dispatchEvent(new Event("change"));return true');
     fs.writeFileSync(path.join(out,'film-person-page.png'),(await win.webContents.capturePage()).toPNG());
     win.webContents.setZoomFactor(1);win.setContentSize(720,1000);await wait(180);assert(await run('return document.getElementById("mediaHome").scrollWidth<=innerWidth+2'));fs.writeFileSync(path.join(out,'film-person-720.png'),(await win.webContents.capturePage()).toPNG());win.webContents.setZoomFactor(featureZoom);win.setContentSize(1920,1080);
     await run('document.querySelector(".film-person-header button").click();return true');
     await until(()=>run('return !!document.querySelector(".md-detail-body h1")'),'person return to film');
+    await until(()=>run('return document.querySelectorAll(".film-person-card").length===2'),'restored film extras without reload click');assert(await run('return document.querySelector(".film-group-tabs [aria-pressed=true]").textContent.startsWith("Yönetmen:")'),'recommendation group is restored');
   }
 
   fs.writeFileSync(path.join(out, 'discover-details-tr.png'), (await win.webContents.capturePage()).toPNG());
@@ -189,7 +198,7 @@ app.whenReady().then(async () => {
     win.setContentSize(1920,1080);win.webContents.setZoomFactor(1);
   }
   await run('document.querySelector(".md-detail .mh-primary").click();return true');
-  await until(() => run('return document.getElementById("mediaTitleDialog")?.open && !!document.querySelector(".mtd-hero")'), 'watchlist record');
+  try{await until(() => run('return document.getElementById("mediaTitleDialog")?.open && !!document.querySelector(".mtd-hero")'), 'watchlist record');}catch(error){console.error(JSON.stringify(await run('return {home:document.body.className,pages:[...document.querySelectorAll(".media-title-page")].map(p=>({class:p.className,text:p.textContent.slice(0,1600)})),dialogs:[...document.querySelectorAll("dialog[open]")].map(d=>d.textContent.slice(0,1000))}')));throw error;}
   assert(await run('return !!document.querySelector(".mtd-hero .mh-primary") && globalAssistantContext().type==="library-title"'), 'Details expose our subtitle / dub workflow');
   assert.equal(await run('return (await window.api.mediaCatalog({action:"list"})).items.length'), 2);
   assert.equal(await run('return document.getElementById("mediaTitleDialog").tagName'),'SECTION');
@@ -251,8 +260,8 @@ app.whenReady().then(async () => {
   const article = '<!doctype html><title>Assistant native fixture</title><body style="background:#315343;color:white"><nav>NOISY NAVIGATION</nav><article><h1>Reading a film scene</h1>' + Array.from({length:8},(_,i)=>`<p>Section ${i+1}: A director builds a scene from dialogue, movement and the relationships between the people in it. Careful subtitles preserve the intention of each sentence while allowing viewers enough time to follow what happens. A balanced translation also makes natural dubbing possible without interrupting the flow of the original performance.</p>`).join('') + '<img src="javascript:alert(1)" onerror="window.readerInjected=true"><a href="javascript:alert(2)">Bad link</a></article><aside>UNRELATED SIDEBAR</aside></body>';
   const clip=path.join(out,'browser-home-video.mp4'),made=spawnSync(findMediaTool('ffmpeg'),['-hide_banner','-loglevel','error','-y','-f','lavfi','-i','color=c=0x315343:s=320x180:d=10','-c:v','libx264','-pix_fmt','yuv420p','-movflags','+faststart',clip],{windowsHide:true,encoding:'utf8',timeout:15000});assert.equal(made.status,0,made.stderr);
   session.fromPartition('persist:whisper-browser').protocol.handle('https', request => new URL(request.url).pathname==='/fixture.mp4'?new Response(fs.readFileSync(clip),{headers:{'content-type':'video/mp4'}}):new Response(article, { headers: { 'content-type': 'text/html' } }));
-  await run('document.getElementById("openPlayer").click();setWorkspaceMode("browser",false);await createBrowserTab();await navigateBrowser("https://assistant-fixture.example/");return true');
-  await until(() => win.contentView.children.some(view => view !== assistant && view.webContents?.getURL().startsWith('https://assistant-fixture.example/')), 'actual native browser');
+  await run('document.getElementById("openPlayer").click();setWorkspaceMode("browser",false);await createBrowserTab();const n=await navigateBrowser("https://assistant-fixture.example/");if(!n?.ok)throw Error(JSON.stringify(n));return true');
+  try{await until(() => win.contentView.children.some(view => view !== assistant && view.webContents?.getURL().startsWith('https://assistant-fixture.example/')), 'actual native browser');}catch(error){console.error(JSON.stringify({browser:await run('return {mode:player.workspaceMode,tabs:player.browserTabs.map(t=>({id:t.id,url:t.url})),active:player.browserActiveTabId,layer:document.getElementById("playerLayer").className}'),views:win.contentView.children.map(v=>({url:v.webContents?.getURL(),visible:v.getVisible()}))}));throw error;}
   assert.equal(win.contentView.children.at(-1), assistant, 'Assistant stays above newly created native browser');
   const browserView = win.contentView.children.find(view => view !== assistant && view.webContents?.getURL().startsWith('https://assistant-fixture.example/'));
   const boundsBefore = browserView.getBounds();
@@ -288,6 +297,16 @@ app.whenReady().then(async () => {
     await run('document.getElementById("mhResumeWorkspace").click();return true');
     await until(()=>browserView.getVisible(),'same browser view resumes');
     assert.equal(await browserView.webContents.executeJavaScript('window.homeReturnSentinel'),42,'Home does not close or reload the tab');
+  }
+  if(process.env.WHISPER_REAL_FILM_METADATA){
+    const publicFilm=JSON.parse(fs.readFileSync(process.env.WHISPER_REAL_FILM_METADATA,'utf8')).meta;assert(/^tt\d{7,12}$/.test(publicFilm.id));
+    const payload={kind:'film',title:publicFilm.name,imdbId:publicFilm.id,year:Number(String(publicFilm.releaseInfo).slice(0,4)),synopsis:publicFilm.description,genres:publicFilm.genres,cast:publicFilm.cast};
+    const savedReal=await run(`return window.api.mediaCatalog({action:'save',item:${JSON.stringify(payload)}})`);assert(savedReal.ok,savedReal.error);
+    await run(`await window.MediaTitleUI.open(${JSON.stringify(savedReal.item.id)});return true`);
+    await until(()=>run('return !!document.querySelector(".mtd-hero h1")'),'real metadata title page');
+    await until(()=>run('return document.body.classList.contains("media-home-active")&&document.getElementById("playerLayer").classList.contains("hidden")'),'real film media shell visible');await run('await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true');await wait(180);
+    win.webContents.setZoomFactor(1);win.setMinimumSize(0,0);win.setContentSize(1280,1000);await wait(200);assert(await run('return !document.getElementById("mediaTitleDialog").textContent.includes("Örnek Yönetmen")'),'Public metadata must not inherit synthetic TMDB credits');fs.writeFileSync(path.join(out,'real-film-1280.png'),(await win.webContents.capturePage()).toPNG());
+    win.setContentSize(720,1000);await run('applyUiTheme("light");return true');await wait(200);assert(await run('return document.getElementById("mediaHome").scrollWidth<=innerWidth+2'));fs.writeFileSync(path.join(out,'real-film-720-light.png'),(await win.webContents.capturePage()).toPNG());
   }
   console.log(JSON.stringify({ ok: true, live, out, title, results })); app.exit(0);
 }).catch(error => { console.error(error); app.exit(1); });

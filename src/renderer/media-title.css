@@ -195,3 +195,11 @@ html[data-theme="light"] .media-title-page .md-detail-poster,html[data-theme="li
 
 .film-credit-art { width:64px; aspect-ratio:2/3; flex:0 0 64px; border-radius:6px; overflow:hidden; background:var(--bg-2); }.film-credit-art img{width:100%;height:100%;object-fit:cover;}.film-credit-row > div:not(.film-credit-art){flex:1;}
 @media(max-width:760px){.film-credit-art{display:none;}}
+
+.filmography-controls { display:flex; align-items:center; flex-wrap:wrap; gap:14px; margin:24px 0; }
+.filmography-controls select { padding:10px 14px; min-height:42px; border:1px solid var(--border-strong); border-radius:8px; background:var(--bg-1); color:var(--text); font:inherit; }
+.filmography-only { display:flex; align-items:center; gap:10px; min-height:42px; font-size:14px; color:var(--text-dim); }.filmography-only input{accent-color:var(--accent);width:16px;height:16px;}
+.film-analysis-comparison { border-top:1px solid var(--border); margin-top:24px; padding-top:8px; }.film-comparison-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px;margin:20px 0;}.film-comparison-columns h3{font-size:16px;}.film-comparison-columns p{font-size:15px;line-height:1.8;overflow-wrap:anywhere;}.film-analysis-comparison article{padding:18px 0;border-top:1px solid var(--border);}
+@media(max-width:900px){.film-comparison-columns{grid-template-columns:1fr;}.filmography-controls{align-items:stretch;}.filmography-controls select{max-width:100%;}}
+
+.media-title-page .mtd-poster[data-art-expected=false]{aspect-ratio:auto;min-height:140px;padding:24px;box-sizing:border-box;box-shadow:none;background:var(--bg-1);color:var(--text-dim);font-size:14px;line-height:1.7;text-align:center;}.media-title-page .mtd-hero:not(:has(.mtd-backdrop img)):has(.mtd-poster[data-art-expected=false]){min-height:0;}

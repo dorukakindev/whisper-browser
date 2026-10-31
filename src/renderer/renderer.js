@@ -7859,9 +7859,11 @@ async function createBrowserTab() {
     return null;
   }
   player.browserTabCreateBusy = true;
+  player.browserWorkspaceSeq += 1; // Retire an older show response before creating the new active tab.
   updateBrowserNewTabAvailability();
   let result;
   try {
+    if (browserWorkspaceShowPromise) await browserWorkspaceShowPromise;
     await flushWatchState(false, true);
     saveActiveBrowserTabWorkspace();
     result = await window.api.createBrowserTab().catch(() => null);
@@ -13111,6 +13113,7 @@ function renderBrowserCueAt(time, previousTime, paused = player.browserPaused) {
 }
 
 async function showBrowserWorkspaceAttempt(retry = 0) {
+  if (player.browserTabCreateBusy) return;
   const bounds = browserSlotBounds();
   if (!bounds || !window.api.showBrowser) {
     if (retry < 2 && player.workspaceMode === 'browser') {
@@ -13119,11 +13122,12 @@ async function showBrowserWorkspaceAttempt(retry = 0) {
     return;
   }
   const workspaceSeq = ++player.browserWorkspaceSeq;
-  const stillCurrent = () => workspaceSeq === player.browserWorkspaceSeq && player.workspaceMode === 'browser';
   const previousActive = player.browserActiveTabId;
+  const workspaceVisible = () => player.workspaceMode === 'browser' && !$('playerLayer')?.classList.contains('hidden');
+  const stillCurrent = () => workspaceSeq === player.browserWorkspaceSeq && workspaceVisible() && !player.browserTabCreateBusy && (!previousActive || previousActive === player.browserActiveTabId);
   const result = await window.api.showBrowser(player.browserActiveTabId, bounds).catch(() => null);
   if (!stillCurrent()) {
-    if (player.workspaceMode !== 'browser') window.api.hideBrowser?.().catch(() => {});
+    if (!workspaceVisible()) window.api.hideBrowser?.().catch(() => {});
     else if (retry < 2) {
       setTimeout(() => { if (player.workspaceMode === 'browser') void showBrowserWorkspace(retry + 1); }, 80);
     }
@@ -13172,12 +13176,16 @@ async function showBrowserWorkspaceAttempt(retry = 0) {
   }
 }
 
+let browserWorkspaceShowPromise = null;
 async function showBrowserWorkspace(retry = 0) {
-  if (player.browserWorkspaceShowBusy) return;
+  if (player.browserWorkspaceShowBusy) return browserWorkspaceShowPromise;
   player.browserWorkspaceShowBusy = true;
+  const pending = showBrowserWorkspaceAttempt(retry);
+  browserWorkspaceShowPromise = pending;
   try {
-    return await showBrowserWorkspaceAttempt(retry);
+    return await pending;
   } finally {
+    if (browserWorkspaceShowPromise === pending) browserWorkspaceShowPromise = null;
     player.browserWorkspaceShowBusy = false;
   }
 }
