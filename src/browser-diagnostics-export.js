@@ -5,9 +5,15 @@ const { isSensitiveKey, startsWithSensitivePrefix } = require('./browser-sensiti
 
 const SUBTITLE_REDACTION = '[altyazı metni gizlendi]';
 const LOCAL_PATH_REDACTION = '[yol gizlendi]';
+function secretDiagnosticKey(key) {
+  return /^(?:cookie|set-cookie)$/i.test(key) || startsWithSensitivePrefix(key)
+    || (isSensitiveKey(key) && !/^(?:code|state|nonce|expires?|expiration|exp|client[_-]?id|token[_-]?type)$/i.test(key));
+}
 
 function redactBrowserDiagnosticsText(value, maxLength = 400) {
   return String(value == null ? '' : value)
+    .replace(/(["']?)([A-Za-z_][A-Za-z0-9_.-]{0,80})\1(\s*[:=]\s*)("[^"\r\n]*"|'[^'\r\n]*'|(?:(?:Bearer|Basic)\s+)?[^\s,;}\]]+)/g,
+      (match, quote, key, separator) => secretDiagnosticKey(key) ? `${quote}${key}${quote}${separator}[gizlendi]` : match)
     .replace(/https?:\/\/[^\s)"',;<>]+/gi, (url) => redactCaptureUrl(url))
     .replace(/\bfile:(?:\/\/\/?)?[^\r\n,;)"'}\]]+/gi, LOCAL_PATH_REDACTION)
     .replace(/(^|[\s"'(=:])(?:[A-Za-z]:[\\/]|\\\\[^\\/\s]+[\\/]|\/(?:home|Users)\/)[^\r\n,;)"'}\]]+/gim,
@@ -24,8 +30,7 @@ function sanitizeDiagnosticsSecrets(value) {
     if (Array.isArray(current)) return current.map(visit);
     if (!current || typeof current !== 'object') return current;
     return Object.fromEntries(Object.entries(current).map(([key, entry]) => {
-      const secret = /^(?:cookie|set-cookie)$/i.test(key) || startsWithSensitivePrefix(key)
-        || (isSensitiveKey(key) && !/^(?:code|state|nonce|expires?|expiration|exp|client[_-]?id|token[_-]?type)$/i.test(key));
+      const secret = secretDiagnosticKey(key);
       return [key, secret ? '[gizlendi]' : visit(entry)];
     }));
   }
@@ -60,6 +65,19 @@ function redactCapturedCueText(value, cueTexts = []) {
       continue;
     }
     if (output.includes(text)) output = output.split(text).join(SUBTITLE_REDACTION);
+    // A producer may already have cut an error string before this layer saw
+    // it. Remove the whole proven prefix, not merely its first fixed N chars.
+    // Short common diagnostic phrases remain untouched.
+    if (text.length >= 32) {
+      const prefix = text.slice(0, 32);
+      let from = 0, at;
+      while ((at = output.indexOf(prefix, from)) >= 0) {
+        let matched = 32;
+        while (matched < text.length && at + matched < output.length && output[at + matched] === text[matched]) matched++;
+        output = output.slice(0, at) + SUBTITLE_REDACTION + output.slice(at + matched);
+        from = at + SUBTITLE_REDACTION.length;
+      }
+    }
   }
   return output;
 }

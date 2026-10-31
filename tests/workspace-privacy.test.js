@@ -20,7 +20,7 @@ fs.writeFileSync(path.join(dir, 'watch-library.json'),
 fs.writeFileSync(path.join(dir, 'browser-notes.json'),
   JSON.stringify({ version: 1, updatedAt: 1, annotations: [{ id: 'n1', mediaId: 'file:/v.mp4', note: 'güzel sahne' }] }));
 fs.writeFileSync(path.join(dir, 'browser-session.json'),
-  JSON.stringify({ tabs: [{ id: 't1', subtitleSyncRecords: [{ offsetMs: 400 }, { offsetMs: -120 }] }] }));
+  JSON.stringify({ tabs: [{ id: 't1', url: 'https://fixture.invalid/', subtitleSyncRecords: [{ offsetMs: 400 }, { offsetMs: -120 }] }] }));
 fs.writeFileSync(path.join(dir, 'media-catalog.json'),
   JSON.stringify({ version: 1, items: [{ id: 'i1', kind: 'series', title: 'Eser',
     episodes: [{ id: 'e1', season: 1, number: 1 }, { id: 'e2', season: 1, number: 2 }] }] }));

@@ -1,5 +1,13 @@
 'use strict';
 const { normalizeSessionTab } = require('./browser-session-store');
+function normalizePreference(raw) {
+  const normalized = normalizeSessionTab({ ...raw, id: 'preference' });
+  // Generic URL identities carry a separately hashed stream suffix. Keep it
+  // only when its base matches the canonical identity for the stored page.
+  const stream = String(raw?.mediaId || '').match(/^(.*):stream:([a-f0-9]{24})$/);
+  if (normalized && stream && (stream[1] === normalized.mediaId || !stream[1].includes(':url:'))) normalized.mediaId = raw.mediaId;
+  return normalized;
+}
 // Video kimliği başına sınırlı yerel tercih deposu; erişim yetkisini çağıran main doğrular.
 class BrowserSubtitlePreferences {
   constructor({ read, readBackup, write, limit = 200 }) {
@@ -25,7 +33,7 @@ class BrowserSubtitlePreferences {
     if (!value || value.version !== 1 || !Array.isArray(value.items)) throw Error('Geçersiz altyazı tercih dosyası');
     const seen = new Set();
     if (value.items.some(row => {
-      const normalized = normalizeSessionTab({ ...row, id: 'preference' });
+      const normalized = normalizePreference(row);
       if (!row?.mediaId || !normalized?.subtitleSelection || seen.has(normalized.mediaId)) return true;
       seen.add(normalized.mediaId);
       return false;
@@ -44,7 +52,7 @@ class BrowserSubtitlePreferences {
   put(raw, persist = true) {
     if (persist && this.readOnly) throw Error('Geçersiz altyazı tercih dosyası');
     if (!raw?.mediaId || !raw.subtitleSelection) return false;
-    const normalized = normalizeSessionTab({ ...raw, id: 'preference' });
+    const normalized = normalizePreference(raw);
     if (!normalized?.subtitleSelection) return false;
     const row = { mediaId: normalized.mediaId, url: normalized.url,
       subtitleSelection: normalized.subtitleSelection, subtitleMode: normalized.subtitleMode,

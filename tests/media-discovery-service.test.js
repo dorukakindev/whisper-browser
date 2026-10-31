@@ -67,8 +67,8 @@ test('imported ratings seed explained recommendations only with matched genre ev
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'profile-discovery-'));
   try{
     const catalog=createMediaCatalogStore({filePath:path.join(dir,'catalog.json')});
-    catalog.upsert({title:'First',kind:'film',year:2024,genres:['Drama'],ratings:{personal:'4'}});
-    catalog.upsert({title:'Second',kind:'film',year:2025,genres:['Drama'],ratings:{personal:'5'}});
+    catalog.upsert({title:'First',kind:'film',year:2024,genres:['Drama'],ratings:{personal:'8'}});
+    catalog.upsert({title:'Second',kind:'film',year:2025,genres:['Drama'],ratings:{personal:'10'}});
     fs.writeFileSync(path.join(dir,'media-shelf.json'),JSON.stringify({diary:[{title:'First',year:'2024',rating:1},{title:'Second',year:'2025',rating:1}]}));
     let handler;registerMediaDiscovery({ipcMain:{handle:(_name,fn)=>handler=fn},authorized:()=>true,userData:()=>dir,catalogStore:()=>catalog,fetchImpl:async()=>new Response(JSON.stringify({metas:[{id:'tt1234999',name:'Suggestion',genres:['Drama']}]}))});
     const result=await handler({}, {action:'personal'});assert(result.ok);assert.equal(result.rows[0].profileBecause.count,2);assert.equal(result.rows[0].profileBecause.average,4.5,'Preserved personal ratings override imported scores');

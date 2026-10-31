@@ -82,6 +82,7 @@
   window.assistant.subscribe(value => {
     if(typeof value.opened==='boolean' && value.opened!==opened){opened=value.opened;$('panel').hidden=!opened;$('bubble').hidden=opened;if(opened){$('text').focus();window.UiMotion?.reveal($('panel'),'panel');}}
     const nextConversation=value.conversation||value.sourceToken||'';
+    if(snapshot.sourceToken!==value.sourceToken){reviewing=null;$('review').hidden=true;}
     const firstThread=!!pending&&!snapshot.activeThread&&!!value.activeThread&&(snapshot.pinScope||snapshot.conversation)===(value.pinScope||value.conversation);
     if(firstThread){drafts.delete(conversation);conversation=nextConversation;pending.sourceToken=value.sourceToken;}
     if(conversation!==nextConversation){rememberDraft();conversation=nextConversation;$('text').value=drafts.get(conversation)||value.draft||'';pending=null;onlyPinned=false;$('pinned').setAttribute('aria-pressed','false');$('find').value='';showStatus('');}

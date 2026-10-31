@@ -11,7 +11,7 @@ function preferences(raw = {}) {
 }
 function profile(diary, catalog, saved = {}, reviewEntries = []) {
   const items = new Map(),ambiguous=new Set();for(const item of catalog){const id=key(item);if(items.has(id)){items.delete(id);ambiguous.add(id);}else if(!ambiguous.has(id))items.set(id,item);}
-  const effective=row=>{const score=items.get(key(row))?.ratings?.personal;return score!==null&&score!==undefined&&score!==''&&Number.isFinite(Number(score))&&Number(score)>=0&&Number(score)<=5?{...row,rating:Number(score)}:row;};
+  const effective=row=>{const score=items.get(key(row))?.ratings?.personal;return score!==null&&score!==undefined&&score!==''&&Number.isFinite(Number(score))&&Number(score)>=0&&Number(score)<=10?{...row,rating:Number(score)/2}:row;};
   const rated = diary.map(effective).filter(row=>Number.isFinite(row.rating)&&row.rating>=0&&row.rating<=5);
   const average = rated.length ? rated.reduce((sum,row)=>sum+row.rating,0)/rated.length : null;
   const distribution=Array.from({length:11},(_,i)=>({rating:i/2,count:rated.filter(row=>row.rating===i/2).length}));

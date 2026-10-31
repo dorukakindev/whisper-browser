@@ -54,6 +54,8 @@ async function main() {
   if (!target || !fs.existsSync(exePath)) {
     throw new Error('Packager did not produce the expected Windows executable.');
   }
+  // Packager excludes npm locks by default; the bundled installer requires this one.
+  fs.copyFileSync(path.join(root, 'package-lock.json'), path.join(target, 'resources', 'app', 'package-lock.json'));
   // MAX_PATH (>260 karakter) desteği: Electron'un gömülü manifesti
   // longPathAware bildirmez; registry LongPathsEnabled tek başına yetmez.
   const { patchExeManifest } = require('./windows-manifest');

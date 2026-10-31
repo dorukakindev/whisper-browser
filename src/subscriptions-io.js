@@ -57,7 +57,7 @@
     const seen = new Set();
     const out = [];
     for (const s of subs) {
-      const key = s.authorId || s.handle;
+      const key = s.authorId || String(s.handle || '').normalize('NFC').toLowerCase();
       if (!key || seen.has(key)) continue;
       seen.add(key);
       out.push(s);

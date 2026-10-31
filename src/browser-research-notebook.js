@@ -7,7 +7,7 @@ function normalizeResearchTags(value) {
   const tags = [];
   for (const raw of source) {
     const tag = String(raw || '').trim().replace(/\s+/g, ' ').slice(0, 48);
-    const key = tag.toLocaleLowerCase('tr-TR');
+    const key = tag.toLocaleLowerCase('tr-TR').replace(/ı/g,'i');
     if (!tag || seen.has(key)) continue;
     seen.add(key); tags.push(tag);
     if (tags.length >= 24) break;
@@ -68,8 +68,8 @@ function scheduleReview(raw = {}, rating = 'good', now = Date.now()) {
 }
 
 function filterResearchAnnotations(rows, filters = {}, now = Date.now()) {
-  const query = String(filters.query || '').trim().toLocaleLowerCase('tr-TR');
-  const tag = String(filters.tag || '').trim().toLocaleLowerCase('tr-TR');
+  const query = String(filters.query || '').trim().toLocaleLowerCase('tr-TR').replace(/ı/g,'i');
+  const tag = String(filters.tag || '').trim().toLocaleLowerCase('tr-TR').replace(/ı/g,'i');
   const type = String(filters.type || 'all');
   const status = String(filters.status || 'all');
   const dueOnly = filters.dueOnly === true;
@@ -77,12 +77,12 @@ function filterResearchAnnotations(rows, filters = {}, now = Date.now()) {
     if (type !== 'all' && row.type !== type) return false;
     if (status !== 'all' && row.status !== status) return false;
     const tags = normalizeResearchTags(row.tags);
-    if (tag && !tags.some((value) => value.toLocaleLowerCase('tr-TR').includes(tag))) return false;
+    if (tag && !tags.some((value) => value.toLocaleLowerCase('tr-TR').replace(/ı/g,'i').includes(tag))) return false;
     if (dueOnly && Number(row.dueAt || 0) > now) return false;
     if (!query) return true;
     return [row.source, row.translation, row.note, row.mediaTitle, ...tags,
       ...normalizeResearchLinks(row.links).flatMap((link) => [link.label, link.url])]
-      .some((value) => String(value || '').toLocaleLowerCase('tr-TR').includes(query));
+      .some((value) => String(value || '').toLocaleLowerCase('tr-TR').replace(/ı/g,'i').includes(query));
   });
 }
 

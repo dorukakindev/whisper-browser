@@ -176,7 +176,9 @@ test('media.py: --url opsiyonel ve --video-id kabul edilir', () => {
 
 test('media.py: container mime\'dan seçilir + kısmi dosya silinir', () => {
   assert.match(MEDIA_PY, /def _mime_of\(/);
-  assert.match(MEDIA_PY, /out_path\.unlink\(\)/, 'kısmi çıktı silinmiyor');
+  assert.match(MEDIA_PY, /merged_tmp\.unlink\(\)/, 'işe ait kısmi çıktı silinmiyor');
+  assert.match(MEDIA_PY, /os\.replace\(merged_tmp, out_path\)/, 'sağlam hedef yalnız tamamlanmış çıktı ile değiştirilmeli');
+  assert.doesNotMatch(MEDIA_PY, /out_path\.unlink\(\)/, 'başarısız denemede önceki sağlam hedef silinmemeli');
   assert.match(MEDIA_PY, /\.invtmp-/, 'tmp soneki yok');
 });
 

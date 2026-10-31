@@ -33,6 +33,7 @@ test('Parent bridge rejects stale source commands and receipts acknowledge only 
  const dom=new JSDOM('<div id="aiChat"><div id="aiChatLog"></div></div><div id="playerTitle">Film</div><select id="aiTranscriptScope"><option value="watched">Watched</option></select>',{runScripts:'outside-only',url:'https://parent.test/'}),w=dom.window;let listener,scope='A',sends=0,last;
  try{
   Object.assign(w,{UiLocale:{get:()=> 'en'},player:{workspaceMode:'player',mediaKey:'file:fixture',job:null},state:{running:false,queueRunning:false},aiChatPreparing:null,aiChatRetryPacket:null,assistantProviderSelection:()=>({model:'fixture'}),globalAssistantContext:()=>null,aiSourceScope:()=>scope,buildOptsFromUI:()=>({translateModel:'fixture'}),api:{updateAssistant:value=>{last=value;},onAssistantCommand:fn=>{listener=fn;}},aiChatSend:async text=>{sends++;const node=w.document.createElement('div');node.className='ai-msg ai-msg-user';node._sourceScope=scope;node.textContent=text;w.document.getElementById('aiChatLog').append(node);}});
+  w.eval(fs.readFileSync(path.join(root,'../assistant-source-context.js'),'utf8'));
   w.eval(fs.readFileSync(path.join(root,'global-assistant.js'),'utf8'));
   const wait=()=>new Promise(resolve=>setTimeout(resolve,90));await wait();
   listener({action:'send',text:'Wrong target',sourceToken:'old',requestId:'old-request'});await wait();assert.equal(sends,0);assert.equal(last.receipt.accepted,false);
@@ -65,6 +66,7 @@ test('an accepted new question clears the old tool notice without hiding rejecte
  const dom=new JSDOM('<div id="aiChat"><div id="aiChatLog"></div></div><div id="playerTitle">Film</div><select id="aiTranscriptScope"><option value="watched">Watched</option></select>',{runScripts:'outside-only',url:'https://parent.test/'}),w=dom.window;let listener,last,accept=false;
  try{
  Object.assign(w,{UiLocale:{get:()=> 'en'},player:{workspaceMode:'player',mediaKey:'file:fixture'},state:{running:false,queueRunning:false},aiChatPreparing:null,aiChatRetryPacket:null,assistantProviderSelection:()=>({model:'fixture'}),globalAssistantContext:()=>null,aiSourceScope:()=> 'A',buildOptsFromUI:()=>({translateModel:'fixture'}),AssistantJobsUI:{snapshot:()=>({jobs:[]}),cancel:async()=>{throw Error('Previous tool failed')}},api:{updateAssistant:v=>last=v,onAssistantCommand:fn=>listener=fn},aiChatSend:async text=>{if(!accept)return;const node=w.document.createElement('div');node.className='ai-msg ai-msg-user';node._sourceScope='A';node.textContent=text;w.document.getElementById('aiChatLog').append(node);}});
+ w.eval(fs.readFileSync(path.join(root,'../assistant-source-context.js'),'utf8'));
  w.eval(fs.readFileSync(path.join(root,'global-assistant.js'),'utf8'));const wait=()=>new Promise(resolve=>setTimeout(resolve,90));await wait();
  listener({action:'cancel-job',text:'old-job',sourceToken:'A'});await wait();assert.equal(last.workspaceError,'Previous tool failed');
  listener({action:'send',text:'Rejected question',sourceToken:'A',requestId:'reject'});await wait();assert.equal(last.receipt.accepted,false);assert.equal(last.workspaceError,'Previous tool failed');

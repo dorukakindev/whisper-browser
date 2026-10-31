@@ -206,12 +206,20 @@ def t_filepath_resolution():
         check('filepath önceliği', os.path.abspath(path) == os.path.abspath(real), path)
         check('başlık döner', title == 'Başlık X')
         check('ranged hep False', ranged is False)
-        # Uzantı taraması: requested_downloads yok, m4a dosyası var
+        # A previous unqualified cache cannot prove the requested audio
+        # language. Only the current audio-identity namespace is reusable.
         open(os.path.join(outdir, 'bb.m4a'), 'w').close()
         FakeYDL.info_result = {'id': 'bb', 'title': 'T2'}
+        try:
+            T.download_youtube('https://x/v', outdir)
+            check('eski dil-kimliksiz cache reddi', False, 'eski cache kullanıldı')
+        except RuntimeError as e:
+            check('eski dil-kimliksiz cache reddi', 'bulunamadı' in str(e), str(e))
+        # Extension fallback uses the output template's audio-language identity.
+        open(os.path.join(outdir, 'bb.audio-auto.m4a'), 'w').close()
         path, _, _ = T.download_youtube('https://x/v', outdir)
         check('uzantı taraması', os.path.abspath(path) == os.path.abspath(
-            os.path.join(outdir, 'bb.m4a')), path)
+            os.path.join(outdir, 'bb.audio-auto.m4a')), path)
         # Traversal kimlik: '../evil' — dosya dışarı yazılsa bile _inside reddeder
         open(os.path.join(os.path.dirname(outdir), 'evil.wav'), 'w').close()
         FakeYDL.info_result = {'id': '../evil', 'title': 'T3'}

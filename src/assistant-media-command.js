@@ -4,6 +4,7 @@
  const test=(re,q)=>re.test(q)||new RegExp(re.source.replace(/ı/g,'i'),re.flags).test(q.replace(/ı/g,'i'));
  function match(value){
   const q=foldCommand(value).replace(/[’']/g,"'").trim();if(!q||q.length>240||test(/["“”`]/,q)||test(/(?:nasıl|neden|why|how|ekleme(?:yin)?|eklemey|bulma|arama|don't|do not)/u,q))return null;
+  if(test(/(?:ekleme|eklemeyin|eklemeyelim|ekle me|do not|don't|dont|never|not add)/u,q))return null;
   if(test(/(?:izleme listem[eia]|izleme listesi|watchlist)/u,q)&&test(/(?:ekle(?:yebilir|r misin|sene)?|add|save)/u,q))return test(/(?:bu film|bu dizi|bu yapım|bunu|this|selected|\bit\b)/u,q)?{kind:'watchlist'}:null;
   if(test(/(?:bu film|bu dizi|bu yapım|bunu|this (?:film|movie|show|title))/u,q)&&test(/(?:yorumlarımla karşılaştır|zevk(?:imle| profilimle) karşılaştır|compare.*(?:my reviews|my taste))/u,q))return {kind:'reviews',question:q};
   if(test(/(?:benzer(?:lerini|leri|lerini de| yapım(?:ları)?| film(?:leri)?)|similar (?:titles|movies|films|shows))/u,q)&&test(/(?:bul|göster|ara|find|show|search)/u,q))return {kind:'similar',question:q};

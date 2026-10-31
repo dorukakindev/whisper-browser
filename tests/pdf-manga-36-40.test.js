@@ -230,7 +230,8 @@ test('madde 40 — retry merged\'da düzeltmeler korunur + sourceEdited metin-yo
   assert.ok(/local\.sourceEdited === true \? \{ sourceEdited: true \}/.test(m[0]), 'merged sourceEdited korumuyor');
   assert.ok(/local\.edited === true \? \{ edited: true \}/.test(m[0]), 'merged edited korumuyor');
   assert.ok(/selectedLocal\?\.sourceEdited === true && selectedLocal\?\.source/.test(m[0]), 'sourceEdited dalı yok');
-  assert.ok(/requestBrowserSentenceTranslation\(\s*String\(selectedLocal\.source\)/.test(m[0]), 'metin-yolu çağrı yok');
+  assert.ok(/requestBrowserSentenceTranslation\(\s*\{ text: String\(selectedLocal\.source\)/.test(m[0]), 'kaynak sentence.text sözleşmesi yok');
+  assert.ok(/typeof result\?\.text === 'string' \? result\.text\.trim\(\)/.test(m[0]), 'çeviri result.text sözleşmesi yok');
 });
 
 console.log(`\n${passed} kontrol tamamlandı.`);

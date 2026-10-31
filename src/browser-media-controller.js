@@ -9,6 +9,13 @@ function controllerBootstrap() {
     // mutasyondan önce eşler — probe ile komut arasındaki gezinmede eski
     // belgenin token'i yeni belgede tutmaz ve yanlış videoda seek engellenir.
     const docToken = 'doc-' + Math.random().toString(36).slice(2) + '-' + Date.now().toString(36);
+    const mediaTokens = new WeakMap(); let mediaTokenSequence = 0;
+    const tokenFor = (item) => {
+      const source = String(item?.currentSrc || item?.src || '');
+      let state = mediaTokens.get(item);
+      if (!state || state.source !== source) { state = { source, token: docToken + '-media-' + (++mediaTokenSequence) }; mediaTokens.set(item, state); }
+      return state.token;
+    };
     const media = new Set();
     const observers = new Map();
     let adAudioSnapshot = null;
@@ -196,7 +203,12 @@ function controllerBootstrap() {
         appliedVideoFilters.set(item, item.style.filter);
       }
       applyAudioPreference(item);
-      const dub = dubRates.get(item);
+      let dub = dubRates.get(item);
+      if (dub && dub.source !== (item.currentSrc || item.src)) {
+        clearTimeout(dub.timer); dubRates.delete(item);
+        if (Math.abs(finite(item.playbackRate, 1) - dub.rate) < .001) setInternalRate(item, dub.baseRate);
+        dub = null;
+      }
       if (dub) {
         if (Math.abs(finite(item.playbackRate, 1) - dub.rate) > .001) setInternalRate(item, dub.rate);
         return;
@@ -264,6 +276,7 @@ function controllerBootstrap() {
     function scanShadowHosts(node, depth = 0) {
       if (!node || depth > 24) return;
       for (const item of node.children || []) {
+        if (item.isConnected === false) continue;
         if (item.shadowRoot) {
           observeRoot(item.shadowRoot);
           scan(item.shadowRoot);
@@ -277,7 +290,6 @@ function controllerBootstrap() {
       if (observers.size >= 128) {
         cleanupDetachedRoots();
         if (observers.size >= 128) {
-          needsDiscoveryFallback = true;
           return;
         }
       }
@@ -400,25 +412,34 @@ function controllerBootstrap() {
       target.muted = snapshot.muted;
       return true;
     };
-    // Keep observers bounded on component-heavy pages, but still discover media
-    // subsequently inserted into roots for which no observer slot was available.
-    let needsDiscoveryFallback = false;
-    let lastDiscoveryAt = -Infinity;
+    // A bounded periodic scan discovers newly attached open shadow roots and
+    // roots beyond the observer cap, including when no media exists yet.
+    let lastDiscoveryAt = Date.now();
     const select = () => {
       cleanupDetachedRoots();
+      for (const item of [...media]) if (!item.isConnected) releaseMedia(item);
       const now = Date.now();
-      if (needsDiscoveryFallback && (now - lastDiscoveryAt >= 1000 || now < lastDiscoveryAt)) {
+      if (now - lastDiscoveryAt >= 1000 || now < lastDiscoveryAt) {
         lastDiscoveryAt = now;
-        needsDiscoveryFallback = false;
         scan(document);
       }
-      for (const item of [...media]) if (!item.isConnected) releaseMedia(item);
-      return [...media].sort(compareMedia)[0] || null;
+      return [...media].filter((item) => {
+        const style = globalThis.getComputedStyle?.(item) || {};
+        return style.display !== 'none' && style.visibility !== 'hidden' && style.visibility !== 'collapse' && Number(style.opacity || 1) > .01;
+      }).sort(compareMedia)[0] || null;
     };
 
     scan(document);
     const controller = {
       select,
+      target(request) {
+        scan(document);
+        const candidates = [...media].filter((item) => item.isConnected && (!request.src || [item.currentSrc, item.src].includes(request.src)));
+        if (candidates.length === 1) return candidates[0];
+        const hits = candidates.filter((item) => { const rect = item.getBoundingClientRect();
+          return request.x >= rect.left && request.x < rect.right && request.y >= rect.top && request.y < rect.bottom; });
+        return hits.length === 1 ? hits[0] : null;
+      },
       adState() {
         const state = detectAd();
         return { adPlaying: state.adPlaying, adSkippable: state.adSkippable,
@@ -506,7 +527,7 @@ function controllerBootstrap() {
         for (const item of media) applyPlaybackPreference(item);
         return { ...playbackPreference };
       },
-      docToken,
+      get docToken() { const item = select(); return item ? tokenFor(item) : docToken; },
       probe() {
         const item = select();
         if (!item) return null;
@@ -534,7 +555,7 @@ function controllerBootstrap() {
         ]);
         const rect = item.getBoundingClientRect?.();
         return {
-          docToken,
+          docToken: tokenFor(item),
           currentTime: finite(item.currentTime),
           duration: finite(item.duration),
           paused: !!item.paused,
@@ -553,6 +574,7 @@ function controllerBootstrap() {
           spinnerVisible,
           errorCode,
           errorMessage,
+          audioRecoveryRequired: audioGraphs.has(item) && !audioGraphAllowed(item),
           adPlaying: ad.adPlaying,
           adSkippable: ad.adSkippable,
           adRemaining: ad.adRemaining,
@@ -606,7 +628,7 @@ function buildBrowserMediaProbeScript() {
   })()`;
 }
 
-function buildBrowserMediaCommandScript(command, value, expectedDocToken) {
+function buildBrowserMediaCommandScript(command, value, expectedDocToken, target = null) {
   const allowedCommands = new Set([
     'seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute',
     'volume-relative', 'volume-set', 'frame-step', 'speed', 'dub-rate', 'fullscreen', 'pip', 'skipAd', 'loop',
@@ -628,7 +650,7 @@ function buildBrowserMediaCommandScript(command, value, expectedDocToken) {
     if (${safeDocToken} && controller.docToken !== ${safeDocToken}) {
       return { handled: false, stale: true };
     }
-    const video = controller.select();
+    const video = ${target ? `controller.target(${JSON.stringify(target)})` : 'controller.select()'};
     if (!video) return false;
     const command = ${safeCommand};
     const finite = (value, fallback = 0) => {

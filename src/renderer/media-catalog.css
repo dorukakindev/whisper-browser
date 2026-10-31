@@ -36,7 +36,9 @@
 .mc-card-info .mc-fav-mark { color: var(--accent); }
 .mc-empty { grid-column: 1 / -1; padding: 44px 24px; text-align: center; color: var(--text-muted); border: 1px dashed var(--border); }
 .mc-back { margin-bottom: 17px; }
-.mc-detail-hero { display: grid; grid-template-columns: minmax(170px, 240px) 1fr; gap: 26px; margin-bottom: 24px; }
+.mc-detail-hero { display: grid; grid-template-columns: minmax(170px, 240px) minmax(0, 1fr); gap: 26px; margin-bottom: 24px; }
+.mc-detail-hero > * { min-width: 0; }
+.mc-detail-hero h3, .mc-card-info strong { overflow-wrap: anywhere; }
 .mc-detail-poster { aspect-ratio: 2 / 3; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-2); }
 .mc-detail h3, .mc-form h3, .mc-import h3 { font-size: clamp(23px, 3vw, 34px); letter-spacing: -.03em; margin: 5px 0 8px; }
 .mc-synopsis { white-space: pre-wrap; line-height: 1.55; max-width: 65ch; }

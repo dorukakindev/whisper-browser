@@ -8,11 +8,10 @@
 //   - exportSnapshot: counts≥0 int, recent≤100, redact uygulanır, cue metni
 //     sızmaz (son katman sanitize)
 //   - captureFullPage: debugger yalnız bizim takıyorsak sökülür;
-//     >120M px reddedilir; cssContentSize kelepçesi 30000
+//     >120M px reddedilir; gerçek belge boyutu sessizce kesilmez
 //   - videoFrame: candidates rank, iç-çerçeve → hata, zoom kelepçe, rect mat
-//   - savePageCapture: boş görüntü hatası, copy/save=false dalları, .png
-//     normalizasyonu + atomik yazma
-//   - savePageArchive: savePage yok → hata; uzantı .mhtml/.mht normalizasyonu
+//   - savePageCapture: boş görüntü, copy/save=false, onaylı hedefe atomik yazma
+//   - savePageArchive: savePage yok → hata; onaylı hedef adı korunur
 
 const assert = require('assert');
 const fs = require('fs');
@@ -34,7 +33,7 @@ function makeCtx(over = {}) {
   const calls = { events: [], written: [], clip: [] };
   const ctx = vm.createContext(Object.assign({
     String, Number, Array, Set, Map, WeakMap, JSON, RegExp, Error, Promise, Buffer, URL,
-    Math, Object, Date, console, process,
+    Math, Object, Date, console, process, randomUUID: () => 'fixture-capture',
     path,
     activeBrowserTab: () => ctx.__activeTab ?? null,
     browserDiagnostics: null,
@@ -89,6 +88,7 @@ function makeWc(over = {}) {
     capturePage: async (rect) => { over.__capRect = rect; return over.__pageImage ?? { isEmpty: () => true }; },
     executeJavaScript: async () => null,
     getZoomFactor: () => over.__zoom ?? 1,
+    getURL: () => 'https://fixture.example/page',
     savePage: async (p, fmt) => { over.__saved = [p, fmt]; },
     mainFrame: { id: 'mf' },
   }, over);
@@ -234,12 +234,12 @@ async function t_save_capture() {
   assert.strictEqual(r.ok, true);
   assert.strictEqual(r.copied, true);
   assert.ok(calls.clipboard, 'clipboard yazılmadı');
-  // save → .png uzantısı normalleştirilir + atomik yazma
+  // save → diyalogda onaylanan hedef aynen korunur + atomik yazma
   ctx.__saveDialog = { canceled: false, filePath: '/tmp/pictures/resim' };
   r = await vm.runInContext("saveBrowserPageCapture(__tab,'t',{mode:'viewport'})", ctx);
   assert.strictEqual(r.ok, true);
-  assert.strictEqual(r.path, '/tmp/pictures/resim.png');
-  assert.deepStrictEqual(calls.written, [['/tmp/pictures/resim.png', 3]]);
+  assert.strictEqual(r.path, '/tmp/pictures/resim');
+  assert.deepStrictEqual(calls.written, [['/tmp/pictures/resim', 3]]);
   // iptal
   ctx.__saveDialog = { canceled: true };
   r = await vm.runInContext("saveBrowserPageCapture(__tab,'t',{mode:'viewport'})", ctx);
@@ -259,12 +259,12 @@ async function t_save_archive() {
   delete wc.savePage;
   let r = await vm.runInContext('saveBrowserPageArchive(__tab)', ctx);
   assert.strictEqual(r.ok, false);
-  // uzantı normalizasyonu
+  // onaylanan arşiv hedefi aynen korunur
   wc.savePage = async (p, fmt) => { wc.__saved = [p, fmt]; };
   ctx.__saveDialog = { canceled: false, filePath: '/tmp/downloads/sayfa' };
   r = await vm.runInContext('saveBrowserPageArchive(__tab)', ctx);
   assert.strictEqual(r.ok, true);
-  assert.deepStrictEqual(wc.__saved, ['/tmp/downloads/sayfa.mhtml', 'MHTML']);
+  assert.deepStrictEqual(wc.__saved, ['/tmp/downloads/sayfa', 'MHTML']);
   // .mht korunur
   ctx.__saveDialog = { canceled: false, filePath: '/tmp/downloads/sayfa.mht' };
   r = await vm.runInContext('saveBrowserPageArchive(__tab)', ctx);

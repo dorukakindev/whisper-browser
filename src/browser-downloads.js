@@ -141,7 +141,7 @@ function createBrowserDownloads({ publish, canStart = () => true, exists, reveal
         reveal(row.path);
       } else if (command === 'open-player' && row.state === 'completed' && row.path) {
         if (!exists(row.path)) return { ok: false, error: 'Dosya taşınmış veya silinmiş. Kayıtlı konumda bulunamadı.' };
-        if (!/\.(?:mp4|mkv|avi|mov|webm|flv|wmv|m4v|ts|3gp|mp3|wav|m4a|aac|flac|ogg|opus|wma)$/i.test(row.path)) {
+        if (!/\.(?:mp4|mkv|avi|mov|webm|flv|wmv|m4v|ts|3gp|mp3|wav|m4a|m4b|aac|flac|ogg|opus|wma)$/i.test(row.path)) {
           return { ok: false, error: 'Bu dosya yerel oynatıcıda desteklenen bir medya türü değil.' };
         }
         return { ok: true, path: row.path };

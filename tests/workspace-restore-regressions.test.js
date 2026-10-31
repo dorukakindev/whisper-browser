@@ -19,7 +19,7 @@ async function main() {
     fs.mkdirSync(target, { recursive: true });
     const oldVideo = path.join(source, 'movie.mp4'), newVideo = path.join(target, 'workspace-videos', 'movie.mp4');
     const data = { format: 'whisper-workspace', version: 1, sourceRoot: source, mappings: [],
-      files: [{ name: 'browser-notes.json', data: Buffer.from(JSON.stringify({ video: oldVideo })).toString('base64') }],
+      files: [{ name: 'browser-notes.json', data: Buffer.from(JSON.stringify({ version: 1, annotations: [], video: oldVideo })).toString('base64') }],
       rendererValues: { 'browser-subtitle-drafts-v1': JSON.stringify({ [oldVideo]: { path: oldVideo } }) } };
     const mapped = packages.remapRendererValues(target, data, [[oldVideo, newVideo]]);
     assert.equal(mapped['browser-subtitle-drafts-v1'], undefined,

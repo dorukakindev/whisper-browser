@@ -214,6 +214,8 @@ function registerMediaWorkflows({
       current: a.chapters.every(
         (c) =>
           d.chapters[c.chapter]?.textHash === c.textHash &&
+          typeof c.outputId === "string" && !!c.outputId &&
+          path.basename(d.chapters[c.chapter]?.output || "") === c.outputId &&
           hash(d.chapters[c.chapter]?.text || "") === c.textHash,
       ),
     };
@@ -427,6 +429,9 @@ function registerMediaWorkflows({
           end: g.audioEnd,
           key: g.key,
           status: g.status,
+          verification: g.verification,
+          acoustic: g.acoustic,
+          listening: g.listening,
         })) || [];
       // Missing verification is never a silent pass. Offer the full, playable
       // chapter as an explicit listen-and-approve review group.
@@ -1633,6 +1638,7 @@ function registerMediaWorkflows({
               chapters: indices.map((chapter) => ({
                 chapter,
                 textHash: d.chapters[chapter].textHash,
+                outputId: path.basename(d.chapters[chapter].output || ""),
               })),
             };
             save(latest);

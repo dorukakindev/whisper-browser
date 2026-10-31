@@ -417,6 +417,14 @@
     ['Konuşmacı tanıma (pyannote)', 'Speaker diarization (pyannote)'],
     ['OCR motoru (RapidOCR)', 'OCR engine (RapidOCR)'],
     ['Model diski', 'Model storage'],
+    ['Model yönetimi', 'Model management'],
+    ['Sağ tıklanan medya artık bulunamadı.', 'The right-clicked media is no longer available.'],
+    ['Sayfa değişti. Dışa aktarmayı yeniden başlatın.', 'The page changed. Restart the export.'],
+    ['PDF hazırlanırken sayfa değişti.', 'The page changed while the PDF was being prepared.'],
+    ['Sayfa yolu değişti. Site ayarlarını yeniden açın.', 'The page path changed. Reopen the site settings.'],
+    ['Abonelik akışları alınamadı; yeniden deneyin.', 'Could not fetch subscription feeds; try again.'],
+    ['Sekme işlemleri', 'Tab actions'],
+    ['Tam yolu göster', 'Show full path'],
     ['Denetleniyor', 'Checking'],
     ['Durumu yenile', 'Refresh status'],
     ['Veri bütünlüğünü denetle', 'Audit data integrity'],
@@ -3286,6 +3294,7 @@
   // Yalnız TR→EN: kaynak metni kod her zaman Türkçe üretir, TR'ye dönüşte
   // gözlemci saklanan özgün metni geri yazar.
   const patterns = [
+    [/^Abonelik sınırı (\d+); içe aktarma kaydedilmedi\. Önce kullanılmayan kanalları kaldırın\.$/, match => `Subscription limit ${match[1]}; import was not saved. Remove unused channels first.`],
     [/^Özgün anlatım analiz ediliyor · (\d+\/\d+)$/, m => `Analyzing source delivery · ${m[1]}`],
     [/^Canlı Whisper işlem hızı düzeldi \(RTF ([\d.]+)\); bekleyen ses parçaları işleniyor\.$/, 'Live Whisper processing speed improved (RTF $1); queued audio is still processing.'],
     [/^Genel değer: (.+)$/, (m, t) => `Global value: ${m[1] === 'Açık' ? 'On' : t(m[1])}`],

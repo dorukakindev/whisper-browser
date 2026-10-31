@@ -56,11 +56,11 @@ function fakeButton() {
     browserTabState: () => tab,
   });
   context.updateBrowserPinMenu();
-  assert.equal(button.attrs['aria-checked'], 'false');
+  assert.equal(button.attrs['aria-pressed'], 'false');
   assert.match(label.textContent, /sabitle$/);
   tab.pinned = true;
   context.updateBrowserPinMenu();
-  assert.equal(button.attrs['aria-checked'], 'true');
+  assert.equal(button.attrs['aria-pressed'], 'true');
   assert.match(label.textContent, /kaldır$/);
   tab = null;
   context.updateBrowserPinMenu();

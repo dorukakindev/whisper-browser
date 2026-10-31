@@ -247,7 +247,6 @@
     selectionPage = 0;
     lastPage = "";
     document.body.classList.add("pdf-reader-active");
-    $("pdfReader").style.removeProperty("--pdf-reader-font");
     for (const id of ["playerTitle", "playerMeta"]) {
       const n = $(id);
       if (n && !playerCopy.has(id)) playerCopy.set(id, n.textContent);
@@ -424,7 +423,11 @@
     }
     clearVoicePreview();
     preparing = true;
+    voice=null;$("pdfVoiceListen").disabled=true;
     const preparation=++prepareToken;
+    const selectionCurrent=()=>preparation===prepareToken&&player.pdfReader===r&&!stale()
+      &&Number($("pdfVoiceFrom").value)===from&&Number($("pdfVoiceTo").value)===to&&$("pdfVoiceText").value===mode;
+    const guardSelection=()=>{if(!selectionCurrent())throw Error(t('Aralık, metin seçimi veya belge değişti; yeniden hazırla.','The range, text selection or document changed; prepare it again.'));};
     $("pdfVoicePrepare").disabled = true;$("pdfVoicePreviewOpen").disabled=true;
     status.textContent = t("Sayfalar hazırlanıyor…", "Preparing pages…");
     try {
@@ -433,6 +436,7 @@
         if (preparation!==prepareToken || player.pdfReader !== r || stale())
           throw Error(t("Belge değişti.", "Document changed."));
         const source = await extractPdfReaderPage(page);
+        guardSelection();
         const list = mode === "translation" ? translations(r, page) : source;
         if (!list?.length)
           throw Error(
@@ -481,24 +485,25 @@
           numPages: r.pdf.numPages,
           pages,
         });
+        guardSelection();
         if (!result?.ok) throw Error(result?.error || "Import failed");
         id = result.project.id;
         projects.set(key, id);
         while (projects.size > 20)
           projects.delete(projects.keys().next().value);
       }
-      if (preparation!==prepareToken || player.pdfReader !== r || stale()) return;
-      voice = { reader: r, id, pages: pages.map((p) => p.pageNumber) };
-      $("pdfVoiceListen").disabled = false;
+      guardSelection();
       const focus = pages.findIndex((p) => p.pageNumber === r.currentPage);
-      const openProduction=()=>window.MediaWorkflowsUI.openProject(
+      const openProduction=()=>{guardSelection();return window.MediaWorkflowsUI.openProject(
         id,
-        focus >= 0 ? { chapter: focus } : {},
-      );
+        { ...(focus >= 0 ? { chapter: focus } : {}), isCurrent:selectionCurrent },
+      );};
       if(actionOwner&&window.AssistantAgentUI?.bookPreparation)
         await window.AssistantAgentUI.bookPreparation(actionOwner,id,Math.max(0,focus),openProduction);
       else await openProduction();
-      if(preparation!==prepareToken || player.pdfReader!==r || stale()) return;
+      guardSelection();
+      voice = { reader: r, id, pages: pages.map((p) => p.pageNumber) };
+      $("pdfVoiceListen").disabled = false;
       status.textContent = t(
         "Ses ayarlarını kontrol et; Seçili bölümleri seslendir ile üret, Dinle ve takip et ile oku.",
         "Review voice settings, generate selected chapters, then choose Read & follow.",

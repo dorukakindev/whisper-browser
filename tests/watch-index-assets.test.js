@@ -61,9 +61,13 @@ try {
     legacyDocument.version = 1;
     delete legacyDocument.automatic;
     delete legacyDocument.translatedByService;
-    fs.writeFileSync(saved.jsonPath, JSON.stringify(legacyDocument), 'utf8');
+    const { version, assetId, cueCount, createdAt, updatedAt, cues, ...legacyMeta } = legacyDocument;
+    const digest = require('crypto').createHash('sha256').update(JSON.stringify({ meta: legacyMeta, cues })).digest('hex').slice(0, 32);
+    legacyDocument.assetId = `${saved.assetId.split(':')[0]}:${digest}`;
+    const legacyPaths = store.assetPaths(legacyDocument.assetId);
+    fs.writeFileSync(legacyPaths.jsonPath, JSON.stringify(legacyDocument), 'utf8');
 
-    const loaded = store.getTrack(saved.assetId);
+    const loaded = store.getTrack(legacyDocument.assetId);
     assert(loaded.ok, loaded.error);
     assert.equal(loaded.document.version, 2);
     assert.equal(loaded.document.cues[0].text, 'Legacy cue');

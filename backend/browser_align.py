@@ -33,7 +33,12 @@ def valid_cues(raw):
 
 def overlap_score(reference, candidate):
     """Zaman örtüşmesi; semantik doğruluk veya gerçek model kalitesi değildir."""
-    ref = sorted(reference)
+    ref = []
+    for start, end in sorted(reference):
+        if ref and start <= ref[-1][1]:
+            ref[-1] = (ref[-1][0], max(end, ref[-1][1]))
+        else:
+            ref.append((start, end))
     total = sum(end - start for start, end in candidate)
     if not total:
         return 0.0

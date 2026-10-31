@@ -9,7 +9,7 @@ function burninOutputPaths(videoPath, token = randomUUID()) {
   const dir = path.dirname(videoPath);
   const sourceExt = path.extname(videoPath).toLowerCase();
   const outputExt = sourceExt === '.mkv' ? '.mkv' : '.mp4';
-  const base = path.basename(videoPath, sourceExt);
+  const base = path.basename(videoPath, path.extname(videoPath));
   return {
     outPath: path.join(dir, `${base}.altyazili${outputExt}`),
     tempPath: path.join(dir, `${base}.altyazili.${token}.tmp${outputExt}`),
@@ -19,10 +19,10 @@ function burninOutputPaths(videoPath, token = randomUUID()) {
 function burninAudioArgs(videoPath, outPath) {
   const sourceExt = path.extname(String(videoPath || '')).toLowerCase();
   const outputExt = path.extname(String(outPath || '')).toLowerCase();
-  // WebM/Ogg kaynaklarinda Opus/Vorbis sesi MP4'e stream-copy etmek FFmpeg
-  // muxerinda basarisiz olabilir. Yalniz bu container gecisinde AAC'e cevir;
+  // WebM/Ogg ve Windows Media kaynaklarının sesi MP4'e stream-copy edilince
+  // muxer başarısız olabilir. Bu kapsayıcı geçişlerinde AAC'e çevir;
   // diger kaynaklarda hizli ve kayipsiz copy davranisini koru.
-  if (outputExt === '.mp4' && ['.webm', '.ogg', '.oga', '.ogv'].includes(sourceExt)) {
+  if (outputExt === '.mp4' && ['.webm', '.ogg', '.oga', '.ogv', '.wmv', '.wma', '.asf'].includes(sourceExt)) {
     return ['-c:a', 'aac', '-b:a', '192k'];
   }
   return ['-c:a', 'copy'];

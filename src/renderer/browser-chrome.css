@@ -175,6 +175,7 @@ html[data-theme="light"] {
 .browser-menu-popover button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .browser-command-palette {
   position: absolute; z-index: 40; top: 72px; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; max-height: calc(100% - 86px); min-height: 0;
   width: min(560px, calc(100% - 28px)); padding: 14px; border: 1px solid var(--border-strong);
   border-radius: 14px; background: rgba(17, 21, 25, .98); box-shadow: 0 18px 50px rgba(0,0,0,.45);
 }
@@ -183,7 +184,8 @@ html[data-theme="light"] {
 .browser-command-head strong { color: #f0d29a; font-size: 14px; }
 .browser-command-palette > input { width: 100%; min-height: 40px; padding: 8px 11px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg-1); color: var(--text); }
 .browser-command-palette > input:focus-visible { outline: 2px solid var(--player-amber); outline-offset: 1px; }
-.browser-command-list { display: grid; gap: 3px; max-height: 330px; overflow: auto; margin-top: 10px; }
+.browser-command-palette > :not(.browser-command-list) { flex-shrink: 0; }
+.browser-command-list { display: grid; gap: 3px; min-height: 0; max-height: 330px; overflow: auto; margin-top: 10px; }
 .browser-command-item { display: grid; grid-template-columns: 1fr auto; gap: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: 7px; background: transparent; color: #d6dde1; text-align: left; cursor: pointer; }
 .browser-command-item:hover, .browser-command-item[aria-selected="true"] { background: var(--bg-3); color: var(--text); }
 .browser-command-item:disabled { color: #727c83; cursor: not-allowed; }
@@ -595,6 +597,9 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 @media (hover: none) { .browser-ntp-tile-remove { opacity: .8; } }
 @media (max-width: 760px) {
 .browser-quick-places-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container browser-workspace (max-width: 680px) {
+  .browser-quick-places-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .browser-workspace-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .browser-workspace-actions .btn { width: auto; min-height: 29px; padding: 0 9px; }
@@ -1319,6 +1324,22 @@ html[data-theme="light"] #browserBookmarkToggle:hover { color: var(--text); }
 }
 .browser-address-wrap { border-radius: var(--chrome-radius-pill); }
 .browser-address-wrap { padding-left: 14px; padding-right: 6px; }
+/* The browser can be narrow inside a wide window when its side panel grows. */
+@container browser-workspace (max-width: 920px) {
+  #browserPageLabel, #browserSubtitleLabel, #browserMangaLabel,
+  #browserMediaHome > span, .browser-dub-button > span { display: none; }
+  .workspace-browser #browserPageTranslate,
+  .workspace-browser #browserDubGenerate, .workspace-browser #browserDubAdd,
+  .workspace-browser #browserMediaHome { min-width: 34px; width: 34px; padding-inline: 0; justify-content: center; }
+  .browser-toolbar-actions { gap: 3px; }
+}
+@container browser-workspace (max-width: 620px) {
+  .player-layer:not(.browser-chrome-collapsed) .browser-toolbar { grid-template-columns: auto minmax(100px, 1fr) auto; grid-template-rows: 38px; }
+  .player-layer:not(.browser-chrome-collapsed) .browser-nav { grid-column: 1; grid-row: 1; }
+  .player-layer:not(.browser-chrome-collapsed) .browser-address-wrap { grid-column: 2; grid-row: 1; }
+  .player-layer:not(.browser-chrome-collapsed) .browser-toolbar-actions { grid-column: 3; grid-row: 1; justify-content: flex-end; }
+  .browser-toolbar-actions > .browser-dub-button { display: none; }
+}
 /* ═══ R124 Adım 3 — tek satır üst çerçeve, birleşik Whisper düğmesi, durum hapı, gruplu ⋯ ═══ */
 /* 3.1 — Tarayıcı modunda üst çerçeve 38px tek satır: [logo menüsü | sekmeler | uygulama menüsü] */
 .app-mode-menu, .app-menu { position: relative; display: none; }

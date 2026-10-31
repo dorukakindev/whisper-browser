@@ -244,13 +244,14 @@ class BrowserTranslationArchive {
     this.index = next;
     // Only after committing the index, collect superseded/evicted files.
     // A path still referenced by another entry must never be removed.
+    const fileKey = (file) => process.platform === 'win32' ? file.toLowerCase() : file;
     const retained = new Set(next.entries.flatMap(item => [item.jsonPath, item.displayPath])
-      .filter(Boolean).map(relative => path.resolve(this.rootDir, relative)));
+      .filter(Boolean).map(relative => fileKey(path.resolve(this.rootDir, relative))));
     for (const previous of index.entries) for (const field of ['jsonPath', 'displayPath']) {
       const relative = String(previous?.[field] || '');
       if (!relative) continue;
       const target = path.resolve(this.rootDir, relative);
-      if (retained.has(target)) continue;
+      if (retained.has(fileKey(target))) continue;
       const parent = path.dirname(target);
       if (!target.startsWith(this.rootDir + path.sep)
           || ![this.pageDir, this.subtitleDir].includes(parent)) continue;

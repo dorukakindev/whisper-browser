@@ -90,8 +90,9 @@ def speech_check(expected, actual, numeric_reference=None):
         return digits if expected_quantity(digits) else match.group(0)
     actual = re.sub(r'(?<![\w.,])\d{1,3}(?:\.\d{3})+(?![\w.,])', grouped_number, actual)
     def mixed_number(match):
-        digits=str(int(match[1])*{'bin':1000,'milyon':1000000,'milyar':1000000000}[match[2].casefold()])
-        return digits
+        # Keep the scale spoken: integer_words deliberately bounds standalone
+        # digit expansion, whereas '8 milyar' already states an exact scale.
+        return integer_words(match[1]) + ' ' + match[2].casefold()
     actual=re.sub(r'(?<![\w.,])(\d{1,3})\s+(bin|milyon|milyar)\b',mixed_number,actual,flags=re.I)
     heard = words(actual)
     def spoken_quantities(tokens):
@@ -101,7 +102,7 @@ def speech_check(expected, actual, numeric_reference=None):
             else:
                 if current and current != ['bir']: rows.append(tuple(current))
                 current=[]
-        return Counter(rows)
+        return tuple(rows)
     spoken_number_mismatch = spoken_quantities(target) != spoken_quantities(heard)
     alignment = SequenceMatcher(None, target, heard, autojunk=False)
     similarity = alignment.ratio()
@@ -229,6 +230,11 @@ def speech_check(expected, actual, numeric_reference=None):
     semantic_mismatch = (meaning_evidence(expected) != meaning_evidence(actual)
                          or lexical_negatives(expected) != lexical_negatives(actual))
     names = re.findall(r"\b[A-ZÇĞİÖŞÜ][a-zçğıöşü]+(?=['’])", expected)
+    # Bare names may appear at sentence start and ASR need not capitalize
+    # them. Protect the source's capitalized lexical roots case-insensitively;
+    # an ordinary unchanged opening word passes the same normalized check.
+    names += re.findall(r'\b[A-ZÇĞİÖŞÜ][a-zçğıöşü]+\b', expected)
+    names = list(dict.fromkeys(names))
     def name_heard(name):
         if all(word in heard_counts for word in words(name)):
             return True

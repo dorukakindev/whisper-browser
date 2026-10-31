@@ -29,6 +29,7 @@ class BrowserReadingList {
     this.rootDir = path.resolve(rootDir);
     this.fileName = 'index.json';
     this.fs = fsImpl;
+    this.revisions = new Map();
   }
 
   get indexPath() {
@@ -43,8 +44,12 @@ class BrowserReadingList {
   _readIndex() {
     try {
       const data = JSON.parse(this.fs.readFileSync(this.indexPath, 'utf8'));
-      return Array.isArray(data?.entries) ? data.entries : [];
-    } catch (_) {
+      if (data?.version !== 1 || !Array.isArray(data.entries) || data.entries.some((entry) =>
+        !entry?.id || !entry.url || !this._safeFilePath(entry.fileName))) throw new Error('Geçersiz okuma listesi indeksi.');
+      this.indexError = '';
+      return data.entries;
+    } catch (error) {
+      this.indexError = error.code === 'ENOENT' ? '' : 'Okuma listesi indeksi okunamadı. Mevcut dosya korundu; kurtarmadan önce yedekleyin.';
       return [];
     }
   }
@@ -52,6 +57,7 @@ class BrowserReadingList {
   _writeIndex(entries) {
     this.ensure();
     const previous=this._readIndex();
+    if (this.indexError) throw new Error(this.indexError);
     const trimmed = entries.slice(0, INDEX_LIMIT);
     const target = this.indexPath;
     const temp = `${target}.tmp`;
@@ -92,6 +98,7 @@ class BrowserReadingList {
     if (!url || url.length > MAX_URL_LENGTH) return { ok: false, error: 'Arşivlenecek geçerli bir http/https adresi yok.' };
     const title = safeName(raw.title, 'Sayfa');
     const existing = this._readIndex().find((entry) => entry.url === url);
+    if (this.indexError) return { ok: false, error: this.indexError };
     const id = existing?.id || `rl-${Date.now().toString(36)}-${hash(url, 8)}`;
     const fileName = `${title}-${id.slice(-10)}.mhtml`;
     const filePath = this._safeFilePath(fileName);
@@ -104,14 +111,19 @@ class BrowserReadingList {
   }
 
   // savePage başarısından sonra çağrılır; dosya boyutunu indekse işler.
-  commit(entry) {
+  revision(id) { return this.revisions.get(id) || 0; }
+
+  commit(entry, expectedRevision = this.revision(entry?.id)) {
     if (!entry?.id || !entry?.fileName) return { ok: false, error: 'Eksik okuma kaydı.' };
+    if (this.revision(entry.id) !== expectedRevision) return { ok: false, error: 'Okuma kaydı bu sırada kaldırıldı veya değişti.' };
     const filePath = this._safeFilePath(entry.fileName);
     if (!filePath) return { ok: false, error: 'Okuma listesi dosyası doğrulanamadı.' };
     try { entry.sizeBytes = this.fs.statSync(filePath).size; } catch (_) { entry.sizeBytes = 0; }
     const entries = this._readIndex().filter((item) => item.id !== entry.id);
+    if (this.indexError) return { ok: false, error: this.indexError };
     entries.unshift({ ...entry });
     this._writeIndex(entries);
+    this.revisions.set(entry.id, expectedRevision + 1);
     return { ok: true, entry: { ...entry }, cleanupWarnings:this.cleanupWarnings||[] };
   }
 
@@ -127,11 +139,14 @@ class BrowserReadingList {
   remove(rawId) {
     const id = String(rawId || '').slice(0, 80);
     const entries = this._readIndex();
+    if (this.indexError) return { ok: false, error: this.indexError };
     const entry = entries.find((item) => item.id === id);
     if (!entry) return { ok: false, error: 'Kayıt bulunamadı.' };
     const filePath = this._safeFilePath(entry.fileName);
-    try { if (filePath && this.fs.existsSync(filePath)) this.fs.unlinkSync(filePath); } catch (_) {}
+    try { if (filePath && this.fs.existsSync(filePath)) this.fs.unlinkSync(filePath); }
+    catch (error) { return { ok: false, error: `Çevrimdışı kopya silinemedi: ${error.message}` }; }
     this._writeIndex(entries.filter((item) => item.id !== id));
+    this.revisions.set(id, this.revision(id) + 1);
     return { ok: true };
   }
 

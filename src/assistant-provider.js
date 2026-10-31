@@ -15,7 +15,7 @@ async function boundedText(response,max=2*1024*1024){
  finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
 }
 async function completion(response,{onDelta,onProgress=()=>{},signal,streamed}){
- if(!streamed||!String(response.headers.get('content-type')||'').includes('text/event-stream')){
+ if(!streamed||!String(response.headers.get('content-type')||'').toLowerCase().includes('text/event-stream')){
   const data=JSON.parse(await boundedText(response));const choice=data.choices?.[0];if(!choice?.message)throw Error('Provider returned no assistant message.');
   const text=typeof choice.message.content==='string'?choice.message.content:'';if(text.length>32000)throw Error('Assistant answer exceeded the size limit.');
   if(text){onProgress('writing');onDelta(text);}
@@ -95,7 +95,7 @@ async function run({question,continuation=[],history=[],context={},owner,pool=[]
   }
   if(!response?.ok)throw Error('Provider does not support the assistant request format.');
   const message=await completion(response,{onDelta:delta,onProgress,signal,streamed});
-  observed.stream=streamed&&String(response.headers.get('content-type')||'').includes('text/event-stream')?'supported':observed.stream;
+  observed.stream=streamed&&String(response.headers.get('content-type')||'').toLowerCase().includes('text/event-stream')?'supported':observed.stream;
   if(!message.tool_calls.length){
    const claimedCard=/(?:kart[ıi](?:n[ıi])?\s+(?:hazırladım|önerdim|oluşturdum)|(?:I(?:'ve| have)?\s+(?:prepared|created|proposed)\s+(?:the|a|an)\s+(?:review\s+)?card))/iu.test(message.content||'');
    if(claimedCard&&!outcomes.some(row=>row.status==='proposed')&&!cardRepair&&toolsEnabled&&round<4){

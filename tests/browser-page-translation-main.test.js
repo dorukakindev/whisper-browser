@@ -48,7 +48,7 @@ class FakeScheduler {
   assert.ok(pageViewHandler.includes('session.view = view; tab.pageTranslateView = view'),
     'görünüm değişikliği aktif oturumu da güncellemeli; dinamik çeviri eski görünümü geri getirmemeli');
   const source = main.slice(main.indexOf('function browserPageMemoryVersion('),
-    main.indexOf('const pdfDocuments = new Map();'));
+    main.indexOf('const pdfTranslationOperations ='));
   const events = [];
   const context = {
     assistantJobs:require('../src/assistant-jobs').createJobs(),

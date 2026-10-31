@@ -70,7 +70,7 @@ test('katalog mükerrer id + oturum mükerrer sekme dedupe kilitleri', () => {
     { id: 'm2', title: 'B', kind: 'film', updatedAt: 2 },
   ] }), 'utf8');
   fs.writeFileSync(path.join(root, 'browser-session.json'), j({ version: 8, tabs: [
-    { id: 't1', url: 'u' }, { id: 't2', url: 'v' }, { id: 't1', url: 'w' },
+    { id: 't1', url: 'https://fixture.invalid/u' }, { id: 't2', url: 'https://fixture.invalid/v' }, { id: 't1', url: 'https://fixture.invalid/w' },
   ] }), 'utf8');
   const { issues } = auditUserData(root);
   const catDup = issues.find((i) => i.id === 'dup-catalog:m1');
@@ -120,8 +120,8 @@ test('yetim not kaydı info-severity raporlanır', () => {
     { key: 'file:///mevcut.mp4', title: 'Var' },
   ]), 'utf8');
   fs.writeFileSync(path.join(root, 'browser-notes.json'), j({ version: 1, annotations: [
-    { mediaId: 'file:///mevcut.mp4', text: 'geçerli' },
-    { mediaId: 'file:///gitmis.mp4', text: 'yetim' },
+    { id: 'existing-note', mediaId: 'file:///mevcut.mp4', text: 'geçerli' },
+    { id: 'orphan-note', mediaId: 'file:///gitmis.mp4', text: 'yetim' },
   ] }), 'utf8');
   const { issues } = auditUserData(root);
   const hit = issues.find((i) => i.id === 'orphan-notes');
@@ -136,7 +136,7 @@ test('yalnız seçilen bulgular onarılır; eskiyen id atlanır', () => {
   fs.writeFileSync(path.join(root, 'history.json'), '{bozuk', 'utf8');
   fs.writeFileSync(path.join(root, 'history.json.bak'), j([]), 'utf8');
   fs.writeFileSync(path.join(root, 'media-catalog.json'), j({ version: 1, items: [
-    { id: 'x', kind: 'film' }, { id: 'x', kind: 'film' },
+    { id: 'x', kind: 'film', title: 'First' }, { id: 'x', kind: 'film', title: 'Second' },
   ] }), 'utf8');
   const { issues } = auditUserData(root);
   const repairable = issues.filter((i) => i.repair);

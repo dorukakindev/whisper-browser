@@ -73,8 +73,18 @@ def parse_srt(path, source_bytes=None, skipped=None):
     cues = SourceCues()
     cues.source_decoding={'encoding':'utf-8' if encoding=='utf-8-sig' else 'latin-1' if encoding.startswith('latin-1') else encoding, 'repaired':bool(repaired)}
     source_ordinal = 0
-    timings = list(TIME_RE.finditer(text))
-    valid_starts = {match.start() for match in timings}
+    all_timings = list(TIME_RE.finditer(text))
+    valid_starts = {match.start() for match in all_timings}
+    timings = []
+    for match in all_timings:
+        previous_end = max(0, match.start() - 1)
+        previous_start = text.rfind('\n', 0, previous_end) + 1
+        previous = text[previous_start:previous_end].strip()
+        prior_end = max(0, previous_start - 1)
+        prior_start = text.rfind('\n', 0, prior_end) + 1
+        prior = text[prior_start:prior_end].strip()
+        if not timings or not previous or previous.isdigit() or not prior:
+            timings.append(match)
     for candidate in re.finditer(r'(?m)^[ \t]*[+-]?\d+:\d{2}:\d{2}[,.]\d{1,3}[ \t]*-->[^\n]*', text):
         if candidate.start() not in valid_starts:
             line = text.count('\n', 0, candidate.start()) + 1

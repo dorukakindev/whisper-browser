@@ -16,6 +16,9 @@ const path = require('node:path');
 // tools/package-windows.js içindeki @electron/packager `ignore` değeri.
 // Burada tek kaynak tutulur; paketleme betiği ve testler aynı diziyi okur.
 const PACKAGER_IGNORE = [
+  /(?:^|\/)\.env(?:\.[^/]*)?(?:\/|$)/i,
+  /^\/(?:tmp|\.tmp|logs|out|dist|build|\.audit-files|\.audit-tests|\.codex|\.aws|\.vscode|\.idea)(?:\/|$)/i,
+  /\.(?:log|bak|tmp|wbp|sqlite|sqlite3|db|mp4|mkv|avi|webm|mov|m4v|mp3|m4a|wav|flac|m4b|srt|vtt|ass|ssa)$/i,
   /^\/(?:\.git|\.github|\.claude|\.agents|\.context_cache|\.uiprev|scratch|artifacts|tests|benchmarks|quality|design-system)(?:\/|$)/,
   /^\/docs\/(?:devir|raporlar)(?:\/|$)/,
   /^\/backend\/(?:venv|\.venv|\.venv-installing-[^/]+|\.venv-backup-[^/]+|separator-venv|separator-models|bin|__pycache__)(?:\/|$)/,
@@ -172,6 +175,7 @@ function requiredPackageFiles(root) {
 
   // Kök çalışma dosyaları: package.json + tüm .bat + bat'ların çağırdığı tools.
   files.add('package.json');
+  files.add('package-lock.json');
   for (const entry of fs.readdirSync(root)) {
     if (/\.bat$/i.test(entry)) {
       files.add(entry);

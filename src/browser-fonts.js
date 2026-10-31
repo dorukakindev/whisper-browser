@@ -25,7 +25,7 @@ function cleanupExtractedFontDir(dir, primaryError, fsModule = fs, tempDir = os.
 }
 async function extractFonts(video, ffmpeg, ffprobe, signal) {
   const probe = JSON.parse(await run(ffprobe, ['-v', 'error', '-show_streams', '-of', 'json', video], '', signal, 20000));
-  const tracks = (probe.streams || []).filter(s => s.codec_type === 'attachment' && /\.(ttf|otf|woff2?)$/i.test(s.tags?.filename || ''));
+  const tracks = (probe.streams || []).filter(s => s.codec_type === 'attachment' && /\.(ttf|ttc|otf|woff2?)$/i.test(s.tags?.filename || ''));
   if (tracks.length > 24) throw new Error('Videoda 24 üzerinde font var; gerekli fontları ayrı seçin.');
   if (!tracks.length) return [];
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-fonts-'));

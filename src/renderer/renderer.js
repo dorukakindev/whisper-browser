@@ -2144,12 +2144,40 @@ $('clearFile').addEventListener('click', () => {
 });
 
 // ===== Input / output folders =====
+function updateFolderPathDisplay(id, value) {
+  const button = $(id); if (!button) return;
+  const fullPath = String(value || ''); const parts = fullPath.split(/[\\/]/).filter(Boolean);
+  const leaf = document.createElement('span'); leaf.className = 'folder-path-leaf'; leaf.textContent = parts.pop() || fullPath;
+  const parent = document.createElement('span'); parent.className = 'folder-path-parent'; parent.textContent = parts.join('\\');
+  button.dataset.fullPath = fullPath; button.dataset.uiUntranslated = '';
+  button.title = window.UiLocale?.get?.() === 'tr' ? 'Tam yolu göster' : 'Show full path'; button.replaceChildren(leaf, parent);
+}
+async function showFolderPathDetails(id) {
+  const source = $(id); const fullPath = source?.dataset.fullPath || source?.textContent || '';
+  const dialog = document.createElement('dialog'); dialog.className = 'folder-path-dialog'; dialog.dataset.uiUntranslated = '';
+  const heading = document.createElement('h2'); heading.id = 'folderPathHeading'; heading.textContent = interfaceChoice('Klasörün tam yolu', 'Full folder path');
+  dialog.setAttribute('aria-labelledby', heading.id);
+  const value = document.createElement('textarea'); value.readOnly = true; value.value = fullPath;
+  value.setAttribute('aria-label', interfaceChoice('Tam yol', 'Full path'));
+  const actions = document.createElement('div'); actions.className = 'folder-path-actions';
+  const copy = document.createElement('button'); copy.type = 'button'; copy.className = 'btn btn-primary'; copy.textContent = interfaceChoice('Yolu kopyala', 'Copy path');
+  copy.onclick = async () => { const copied = await window.api.copyText(fullPath).catch(() => false);
+    copy.textContent = copied ? interfaceChoice('Kopyalandı', 'Copied') : interfaceChoice('Kopyalanamadı', 'Could not copy'); };
+  const close = document.createElement('button'); close.type = 'button'; close.className = 'btn'; close.textContent = interfaceChoice('Kapat', 'Close'); close.onclick = () => dialog.close();
+  actions.append(copy, close); dialog.append(heading, value, actions); document.body.append(dialog);
+  dialog.addEventListener('close', () => { dialog.remove(); source?.focus(); void syncBrowserOcclusion(); }, { once: true });
+  dialog.showModal(); value.focus(); value.select(); void syncBrowserOcclusion();
+}
+for (const id of ['inputDir','outputDir']) {
+  updateFolderPathDisplay(id, $(id)?.textContent);
+  $(id)?.addEventListener('click', () => { void showFolderPathDetails(id); });
+}
 $('pickInputFolder').addEventListener('click', async (e) => {
   e.preventDefault();
   const folder = await window.api.selectInputFolder();
   if (folder) {
     state.inputDir = folder;
-    $('inputDir').textContent = folder;
+    updateFolderPathDisplay('inputDir', folder);
     saveAppSettings();
   }
 });
@@ -2157,7 +2185,7 @@ $('pickInputFolder').addEventListener('click', async (e) => {
 $('resetInputFolder').addEventListener('click', (e) => {
   e.preventDefault();
   state.inputDir = null;
-  $('inputDir').textContent = 'İndirilenler\\Whisper\\GİRDİ';
+  updateFolderPathDisplay('inputDir', 'İndirilenler\\Whisper\\GİRDİ');
   saveAppSettings();
 });
 
@@ -2166,7 +2194,7 @@ $('pickFolder').addEventListener('click', async (e) => {
   const folder = await window.api.selectFolder();
   if (folder) {
     state.outputDir = folder;
-    $('outputDir').textContent = folder;
+    updateFolderPathDisplay('outputDir', folder);
     saveAppSettings();
   }
 });
@@ -2174,7 +2202,7 @@ $('pickFolder').addEventListener('click', async (e) => {
 $('resetFolder').addEventListener('click', (e) => {
   e.preventDefault();
   state.outputDir = null;
-  $('outputDir').textContent = 'İndirilenler\\Whisper\\ÇIKTI';
+  updateFolderPathDisplay('outputDir', 'İndirilenler\\Whisper\\ÇIKTI');
   saveAppSettings();
 });
 
@@ -3864,8 +3892,8 @@ const initialSettingsReady = (async () => {
       if (s.hfToken) $('hfToken').value = s.hfToken;
       state.inputDir = s.inputDir || null;
       state.outputDir = s.outputDir || null;
-      $('inputDir').textContent = s.inputDir || 'İndirilenler\\Whisper\\GİRDİ';
-      $('outputDir').textContent = s.outputDir || 'İndirilenler\\Whisper\\ÇIKTI';
+      updateFolderPathDisplay('inputDir', s.inputDir || 'İndirilenler\\Whisper\\GİRDİ');
+      updateFolderPathDisplay('outputDir', s.outputDir || 'İndirilenler\\Whisper\\ÇIKTI');
       if (s.playerPositions && typeof s.playerPositions === 'object') {
         player.positions = s.playerPositions;
       }
@@ -4138,6 +4166,7 @@ if ($('batchSize')) $('batchSize').addEventListener('input', updateGpuBadge);
 updateGpuBadge();
 
 document.addEventListener('ui-locale-change', () => {
+  for (const id of ['inputDir','outputDir']) if ($(id)) $(id).title = window.UiLocale?.get?.() === 'tr' ? 'Tam yolu göster' : 'Show full path';
   syncBrowserAdblockMenu();
   updatePlayerMeta();
   if (!player.cues.length) renderCueList('');
@@ -5970,8 +5999,8 @@ $('importSettings').addEventListener('click', async () => {
   state.inputDir = s.inputDir || null;
   state.outputDir = s.outputDir || null;
   state.watchDir = s.watchDir || null;
-  $('inputDir').textContent = s.inputDir || 'İndirilenler\\Whisper\\GİRDİ';
-  $('outputDir').textContent = s.outputDir || 'İndirilenler\\Whisper\\ÇIKTI';
+  updateFolderPathDisplay('inputDir', s.inputDir || 'İndirilenler\\Whisper\\GİRDİ');
+  updateFolderPathDisplay('outputDir', s.outputDir || 'İndirilenler\\Whisper\\ÇIKTI');
   if ($('watchDirPath')) $('watchDirPath').textContent = state.watchDir || uiText('Klasör seçilmedi');
   if (s.llm) {
     if (s.llm.apiKey !== undefined && $('llmApiKey')) $('llmApiKey').value = s.llm.apiKey || '';
@@ -7472,6 +7501,7 @@ function syncBrowserTabItem(item, tab, webActive, activity) {
   item.dataset.browserTabId = tab.id;
   item.draggable = !tab.pinned;
   const open = item.querySelector('.browser-tab-open');
+  open.id = `browser-tab-button-${encodeURIComponent(String(tab.id))}`;
   open.dataset.browserTabActivate = tab.id;
   open.setAttribute('aria-selected', webActive ? 'true' : 'false');
   open.setAttribute('aria-busy', tab.loading ? 'true' : 'false');
@@ -7568,6 +7598,7 @@ function renderBrowserTabs() {
       open.type = 'button';
       open.className = 'browser-tab-open';
       open.dataset.browserSettingsTabActivate = 'true';
+      open.id = 'browser-tab-settings-button';
       open.setAttribute('role', 'tab');
       open.textContent = 'Ayarlar';
       const close = document.createElement('button');
@@ -7589,6 +7620,15 @@ function renderBrowserTabs() {
     if (settingsActive) activeButton = open;
   }
   strip.replaceChildren(...ordered);
+  // ARIA ownership groups only the actual tab selectors into the tablist.
+  // Adjacent mute/close/group controls retain their native button semantics.
+  const tabList = $('browserTabList');
+  if (tabList) {
+    const owned = [...strip.querySelectorAll('[role="tab"]')].map((button) => button.id);
+    tabList.hidden = owned.length === 0;
+    if (owned.length) tabList.setAttribute('aria-owns', owned.join(' '));
+    else tabList.removeAttribute('aria-owns');
+  }
   const focusButton = focusedTabId
     ? [...strip.querySelectorAll('[data-browser-tab-activate]')]
       .find((button) => button.dataset.browserTabActivate === focusedTabId)
@@ -7687,7 +7727,7 @@ function updateBrowserPinMenu() {
   const tab = browserTabState();
   const pinned = !!tab?.pinned;
   button.disabled = !tab;
-  button.setAttribute('aria-checked', pinned ? 'true' : 'false');
+  button.setAttribute('aria-pressed', pinned ? 'true' : 'false');
   const label = button.querySelector('.browser-menu-label');
   if (label) label.textContent = pinned ? 'Sekme sabitlemesini kaldır' : 'Etkin sekmeyi sabitle';
   button.title = !tab ? 'Önce bir web sekmesi açın.'
@@ -10420,8 +10460,8 @@ function browserSubtitleAutomationInput(track) {
   return { operationKey, mode: profile.subtitleAutomation ?? 'off', tabCurrent: !!tab,
     mediaId: tab?.mediaId || '', sourceReady: Number(track?.cueCount) > 0,
     advertisementUncertain: !!player.browserAdPlaying,
-    sourceCharacters: Math.max(0, Number(track?.characterCount) || Number(track?.cueCount) * 80),
-    newCharacters: Math.max(0, Number(track?.appendedCharacters) || 0), targetLanguage,
+    sourceCharacters: Math.max(0, Number(track?.characterCount) || (track?.cueIdentities||[]).reduce((sum,cue)=>sum+String(cue.text||'').length,0)),
+    newCharacters: Math.max(0, Number(track?.appendedCharacters ?? track?.characterCount) || (track?.appendedCharacters === 0 ? 0 : (track?.cueIdentities||[]).reduce((sum,cue)=>sum+String(cue.text||'').length,0))), targetLanguage,
     completed: translated, running: player.browserTranslationTrackId === track?.id && tab?.browserTranslationComplete === false,
     sessionJobs: Number(player.browserAutomationSessionJobs) || 0,
     liveCharacters: Number(player.browserAutomationLiveCharacters) || 0,
@@ -10857,7 +10897,9 @@ function browserTranslationMapFromCues(cues) {
 
 function attachBrowserCueIdentities(track, cues) {
   const identities = Array.isArray(track?.cueIdentities) ? track.cueIdentities : [];
-  if (track?.role !== 'translation' || !identities.length) return cues;
+  if (!identities.length) return cues;
+  const presentationKeys = ['writingMode','speaker','region','line','position','align','size','vertical','displayAlign','regionExtent','direction','unicodeBidi'];
+  if (track?.role !== 'translation' && !identities.some(identity => presentationKeys.some(key => identity[key] !== undefined))) return cues;
   const used = new Set();
   return (Array.isArray(cues) ? cues : []).map((cue, index) => {
     let identity = identities[index];
@@ -10872,7 +10914,11 @@ function attachBrowserCueIdentities(track, cues) {
       if (found >= 0) used.add(found);
     } else used.add(index);
     if (!identity) return cue;
-    return { ...cue, cueId: identity.cueId || identity.id || cue.cueId,
+    const presentation = identity.text === cue.text ? Object.fromEntries(
+      presentationKeys
+        .filter((key) => identity[key] !== undefined).map((key) => [key, identity[key]])) : {};
+    if (track?.role !== 'translation') return Object.keys(presentation).length ? { ...cue, ...presentation } : cue;
+    return { ...cue, ...presentation, cueId: identity.cueId || identity.id || cue.cueId,
       sourceCueHash: identity.sourceCueHash || cue.sourceCueHash, ...(identity.text === cue.text && identity.qualityWarning ? { qualityWarning: true, qualityIssues: identity.qualityIssues || [] } : {}) };
   });
 }
@@ -11603,8 +11649,11 @@ async function startBrowserLiveAsrCapture(stream, tabId, sessionId) {
   const context = new AudioContext({ sampleRate: 16000 });
   const capture = { context, tabId, sessionId, pending: new Set(), stopping: false };
   player.browserLiveAsrCapture = capture;
+  const audioEnded = () => stream.getAudioTracks().some((track) => track.readyState === 'ended');
+  if (audioEnded()) { await stopBrowserLiveAsrCapture(true, 'Sistem sesi akışı sona erdi.'); return; }
   await context.audioWorklet.addModule('live-asr-worklet.js');
   if (player.browserLiveAsrCapture !== capture || !player.browserLiveAsrActive) { await context.close(); return; }
+  if (audioEnded()) { await stopBrowserLiveAsrCapture(true, 'Sistem sesi akışı sona erdi.'); return; }
   capture.node = new AudioWorkletNode(context, 'whisper-pcm-capture'); capture.node.port.postMessage({ type: 'configure' });
   capture.source = context.createMediaStreamSource(stream);
   capture.node.port.onmessage = ({ data }) => {
@@ -12693,7 +12742,7 @@ function syncBrowserAdblockMenu() {
     : failed ? 'Reklam engelleyici: Hata · Tekrar dene'
       : enabled ? 'Reklam engelleyici: Açık' : 'Reklam engelleyici: Kapalı');
   button.disabled = busy;
-  button.setAttribute('aria-checked', busy ? 'mixed' : String(enabled));
+  button.setAttribute('aria-pressed', busy ? 'mixed' : String(enabled));
   button.title = failed ? uiText('Reklam filtreleri yüklenemedi. Tekrar denemek için tıklayın.')
     : $('browserAdblockQuick')?.title || label.textContent;
 }
@@ -20618,6 +20667,7 @@ async function capturePlayerFrame() {
     const result=await window.api.nativePlayer({action:'snapshot',key,generation});
     if(!result?.ok||player.mediaKey!==key||player.generation!==generation){osd(result?.error||'Video değişti; yeniden deneyin.');return;}
     frame=new Image();frame.src=result.image;await frame.decode();
+    if(player.mediaKey!==key||player.generation!==generation){osd('Video değişti; yeniden deneyin.');return;}
   }
   if (!v || !(frame.naturalWidth || v.videoWidth)) { logLine('Ekran görüntüsü için önce video yüklensin.', 'warn'); return; }
   const c = document.createElement('canvas');
@@ -23584,13 +23634,13 @@ function playerTaskSnapshot() {
       dismiss: () => { state.pendingPlayerLoad = null; updatePlayerTaskCenter({ refresh: false }); } });
   }
   if (player.pdfReader?.translating) {
-    const reader = player.pdfReader;
+    const reader = player.pdfReader, operationId=reader.translationOperationId;
     rows.push({ id: 'active-pdf-translation', label: 'PDF çevirisi',
       detail: $('pdfReaderStatus')?.textContent || 'Çeviri sürüyor',
       completed: reader.translationCompleted, total: reader.translationTotal,
       failed: reader.translationFailed, state: 'running',
       actions: [{ label: 'Durdur', kind: 'stop',
-        run: () => window.api.cancelPdfTranslation?.(reader.pdfHash) }] });
+        run: () => {if(player.pdfReader!==reader||!reader.translating||reader.translationOperationId!==operationId)return;reader.cancelRequested=true;return window.api.cancelPdfTranslation?.(reader.pdfHash,operationId);} }] });
   }
   return rows;
 }
@@ -24233,7 +24283,7 @@ if (moreSearch) {
     total += quickHits;
     morePopover?.querySelectorAll('.browser-more-sub').forEach((sub) => {
       let visible = 0;
-      sub.querySelectorAll('[role^="menuitem"]').forEach((item) => {
+      sub.querySelectorAll('.browser-more-sub-body button').forEach((item) => {
         const hit = matches(item);
         item.classList.toggle('hidden', !hit);
         if (hit) visible += 1;
@@ -24263,8 +24313,8 @@ if (moreSearch) {
       && !item.closest('.browser-more-sub.hidden'));
   // ↓/↑ gezintisi alt-grup özetlerine de düşer; Enter yalnız çalıştırılabilir
   // komut öğelerini seçer (özet tıklamak grubu açar, komut değildir).
-  const moreMenuNavigables = () => moreMenuItems('.browser-more-quick button, .browser-more-sub > summary, .browser-more-sub[open] [role^="menuitem"]');
-  const moreMenuActionables = () => moreMenuItems('.browser-more-quick button, .browser-more-sub[open] [role^="menuitem"]');
+  const moreMenuNavigables = () => moreMenuItems('.browser-more-quick button, .browser-more-sub > summary, .browser-more-sub[open] .browser-more-sub-body button');
+  const moreMenuActionables = () => moreMenuItems('.browser-more-quick button, .browser-more-sub[open] .browser-more-sub-body button');
   moreSearch.addEventListener('input', filterMoreMenu);
   moreSearch.addEventListener('keydown', (event) => {
     if (event.isComposing) return;
@@ -25103,6 +25153,7 @@ async function translateVisiblePdfPages(all = false, pageList = null) {
   for (const id of ['pdfTranslateVisible', 'pdfTranslateAll']) { const button = $(id); if (button) button.disabled = true; }
   try { await translateVisiblePdfPagesNow(reader, all, pageList); }
   finally {
+    if(reader.translationOperationId){const operationId=reader.translationOperationId;reader.translationOperationId=null;void window.api.cancelPdfTranslation?.(reader.pdfHash,operationId)?.catch?.(()=>{});}
     reader.translating = false;
     // Yerini yeni bir okuyucu almışsa bile düğmeleri geri aç; yalnız o okuyucu
     // da çeviri yürütüyorsa dokunma (kendi finally'si kapayacak).
@@ -25118,6 +25169,7 @@ async function translateVisiblePdfPages(all = false, pageList = null) {
 const PDF_TRANSLATE_ALL_CONFIRM_PAGES = 40;
 async function translateVisiblePdfPagesNow(reader, all, explicitPages = null) {
   const count = reader.pdf.numPages;
+  const targetLanguage=$('pdfTargetLanguage')?.value||'tr';
   // Madde 38 — açık sayfa listesi (aralık/yalnız başarısızlar/çevrilmemişler)
   // verilirse görünüm varsayımı yerine bu kapsam çalışır; sonuçlar yine
   // belge sırasıyla yazılır çünkü listeyi sıralı tutarız.
@@ -25143,6 +25195,8 @@ async function translateVisiblePdfPagesNow(reader, all, explicitPages = null) {
     if (!proceed) { reader.translating = false; return; }
   }
   reader.cancelRequested = false;
+  const operationId=window.crypto?.randomUUID?.()||`pdf-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  reader.translationOperationId=operationId;
   reader.translationStartedAt = Date.now();
   reader.translationCompleted = 0;
   reader.translationFailed = 0;
@@ -25184,7 +25238,8 @@ async function translateVisiblePdfPagesNow(reader, all, explicitPages = null) {
         pageHeight: entry.pageHeight || 0, pageWidth: entry.pageWidth || 0,
         viewportTransform: entry.viewportTransform || [] };
     });
-    const result = await window.api.translatePdfPages?.({ pdfHash: reader.pdfHash, targetLanguage: $('pdfTargetLanguage')?.value || 'tr', pages: requests }).catch((error) => ({ ok: false, error: error.message }));
+    const lastBatch=offset+batchPages.length>=pages.length;
+    const result = await window.api.translatePdfPages?.({ pdfHash: reader.pdfHash, targetLanguage, operationId, firstBatch:offset===0, lastBatch, pages: requests }).catch((error) => ({ ok: false, error: error.message }));
     // Uçuşta kalan yanıt yeniden açılan okuyucuya uygulanamaz:
     // renderPdfTranslation geçerli player.pdfReader'a yazar.
     if (player.pdfReader !== reader) break;
@@ -25344,7 +25399,7 @@ $('pdfReaderClose')?.addEventListener('click', () => {
   reader?.observer?.disconnect();
   if (reader) reader.renderGeneration = (reader.renderGeneration || 0) + 1;
   cancelPdfReaderRenders(reader);
-  if (reader?.pdfHash) window.api.cancelPdfTranslation?.(reader.pdfHash).catch(() => {});
+  if (reader?.pdfHash) window.api.cancelPdfTranslation?.(reader.pdfHash,reader.translationOperationId).catch(() => {});
   try { Promise.resolve(reader?.loadingTask?.destroy?.()).catch(() => {}); } catch (_) {}
   const root = $('pdfReaderPages');
   if (root) { root.onscroll = null; root.replaceChildren(); }
@@ -25387,7 +25442,7 @@ $('pdfTranslateCancel')?.addEventListener('click', () => {
   // Paket arasında ana süreçte iş yoktur; bayrak döngünün bir sonraki
   // yinelemesinde durmayı sağlar (o an uçuşta olan paket de API'den iptal edilir).
   if (reader) reader.cancelRequested = true;
-  if (reader?.pdfHash) window.api.cancelPdfTranslation?.(reader.pdfHash);
+  if (reader?.pdfHash) window.api.cancelPdfTranslation?.(reader.pdfHash,reader.translationOperationId);
 });
 $('pdfExport')?.addEventListener('click', async () => {
   const result = await window.api.exportPdfTranslation?.(player.pdfReader?.pdfHash, $('pdfExportFormat')?.value || 'txt', $('pdfTargetLanguage')?.value || 'tr').catch(() => null);
@@ -29179,6 +29234,7 @@ async function renderSmartTubeSection(section, opts = {}) {
     // Invidious oturumu gerektiren uzak akış yerine cihazda tutulan kayıtlar.
     if (section === 'subscriptions' && !youtubeLoggedIn) {
       if (stale()) return;
+      if (opts.force) stSubsFeedCache.at = 0;
       renderStSubsPanel(grid);
       setSmartTubeStatus('');
       return;
@@ -30960,7 +31016,7 @@ async function stFetchSuggest(q) {
 // Invidious/YouTube oturumu olmadan çalışır; kimlik = UCID veya @handle,
 // tekilleştirme buna göre. İçe/dışa aktarma parola/oturum taşımaz.
 const ST_SUBS_KEY = 'stSubscriptions';
-const ST_SUBS_MAX = 500;
+const ST_SUBS_MAX = 1000;
 let stSubs = [];
 try {
   const raw = JSON.parse(localStorage.getItem(ST_SUBS_KEY) || '[]');
@@ -30971,10 +31027,10 @@ try {
 const saveStSubs = () => {
   try { localStorage.setItem(ST_SUBS_KEY, JSON.stringify(stSubs.slice(0, ST_SUBS_MAX))); } catch (_) {}
 };
-const stSubKey = (s) => s && (s.authorId || s.handle) || '';
-const stIsSubscribed = (key) => stSubs.some((s) => stSubKey(s) === key);
+const stSubKey = (s) => s && (s.authorId || String(s.handle || '').normalize('NFC').toLowerCase()) || '';
+const stIsSubscribed = (key) => stSubs.some((s) => stSubKey(s) === (String(key).startsWith('@') ? String(key).normalize('NFC').toLowerCase() : key));
 function stSubToggle({ authorId = '', handle = '', author = '' }) {
-  const key = authorId || handle;
+  const key = stSubKey({authorId,handle});
   if (!key) return false;
   const idx = stSubs.findIndex((s) => stSubKey(s) === key);
   if (idx >= 0) { stSubs.splice(idx, 1); saveStSubs(); return false; }
@@ -31004,7 +31060,7 @@ function renderStSubsPanel(grid) {
       confirmLabel: 'Ekle',
     });
     if (!v) return;
-    const s = window.SubscriptionIO?.normSub({ url: v.trim(), authorId: /^UC[\w-]{20,24}$/.test(v.trim()) ? v.trim() : '', handle: /^@[\w.-]{2,40}$/.test(v.trim()) ? v.trim() : '' });
+    const s = window.SubscriptionIO?.normSub({ url: v.trim(), authorId: /^UC[\w-]{20,24}$/.test(v.trim()) ? v.trim() : '', handle: v.trim().startsWith('@') ? v.trim() : '' });
     if (!s) { osd('Kanal tanınamadı.'); return; }
     if (stIsSubscribed(stSubKey(s))) { osd('Zaten abone.'); return; }
     stSubToggle(s);
@@ -31015,6 +31071,8 @@ function renderStSubsPanel(grid) {
     if (!res?.ok) { if (res && !res.canceled) osd(res.error || 'İçe aktarma başarısız.'); return; }
     const parsed = io?.parseSubscriptions(res.text, res.fileName || '');
     if (!parsed?.ok || !parsed.subs.length) { osd(parsed?.error || 'Dosyada kanal bulunamadı.'); return; }
+    const incoming=parsed.subs.filter(s=>!stIsSubscribed(stSubKey(s)));
+    if(stSubs.length+incoming.length>ST_SUBS_MAX){osd(`Abonelik sınırı ${ST_SUBS_MAX}; içe aktarma kaydedilmedi. Önce kullanılmayan kanalları kaldırın.`);return;}
     let added = 0;
     for (const s of parsed.subs) {
       if (!stIsSubscribed(stSubKey(s))) { stSubs.push(s); added++; }
