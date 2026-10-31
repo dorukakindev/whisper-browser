@@ -1,0 +1,70 @@
+{
+  "sourceRevision": "b821da96edd7b10c6a5d2dcc03b353192394f5eb",
+  "newBugs": 1,
+  "stale": {
+    "result": {
+      "ok": true,
+      "data": {
+        "type": "clip",
+        "path": "D:\\Whisper Local\\.uiprev\\audit822-downloads-final-1793413289441\\existing.mp4",
+        "title": "fixture822",
+        "start": 30,
+        "end": 40
+      }
+    },
+    "signal": {
+      "text": "A-B klibi dışa aktarıldı.",
+      "ok": true
+    },
+    "beforeHash": "5f3da9578c1fc62ef7f2e6b4d876d6b5124d8ef254d1ae3928f5209eec28f8eb",
+    "afterHash": "5f3da9578c1fc62ef7f2e6b4d876d6b5124d8ef254d1ae3928f5209eec28f8eb",
+    "beforeDuration": 2,
+    "afterDuration": 2,
+    "requestedDuration": 10,
+    "trace": {
+      "calls": [
+        {
+          "type": "extract",
+          "requestedUrl": "https://fixture.invalid/watch",
+          "downloadRangesPresent": true,
+          "overwrites": null
+        }
+      ],
+      "ytDlpVersion": "2026.08.27.231323"
+    }
+  },
+  "fresh": {
+    "result": {
+      "ok": false,
+      "error": "YouTube indirme isteğini reddetti (HTTP 403). En sık neden eski yt-dlp sürümüdür — Ayarlar > Bakım'dan yt-dlp güncellemesini çalıştırıp yeniden deneyin. Devam ederse Kaynak > YouTube bölümünden girişli bir tarayıcı seçin."
+    },
+    "signal": {
+      "text": "Klip oluşturulamadı: YouTube indirme isteğini reddetti (HTTP 403). En sık neden eski yt-dlp sürümüdür — Ayarlar > Bakım'dan yt-dlp güncellemesini çalıştırıp yeniden deneyin. Devam ederse Kaynak > YouTube bölümünden girişli bir tarayıcı seçin.",
+      "ok": false
+    },
+    "trace": {
+      "calls": [
+        {
+          "type": "extract",
+          "requestedUrl": "https://fixture.invalid/watch",
+          "downloadRangesPresent": true,
+          "overwrites": null
+        },
+        {
+          "type": "network_blocked"
+        }
+      ],
+      "ytDlpVersion": "2026.08.27.231323"
+    },
+    "fileExists": false
+  },
+  "controls": {
+    "saveCanceledNoSpawn": true,
+    "invalidRangeNoSpawn": true,
+    "unauthorizedNoSpawn": true,
+    "nativeManagerPauseResumeCompletedCleanup": true
+  },
+  "dialogCalls": 3,
+  "spawnCount": 2,
+  "limits": "Real renderer/preload/handler/runMediaCommand/media.main/yt-dlp process_ie_result; controlled authorization, dialog, URL policies, extractor metadata; new-file network is deliberately blocked. Existing fixture is real FFmpeg MP4. No live Electron/dialog/site or source decoding."
+}

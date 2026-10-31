@@ -1,0 +1,84 @@
+{
+  "revision": "b821da96edd7b10c6a5d2dcc03b353192394f5eb",
+  "captures": [
+    {
+      "ok": true
+    },
+    {
+      "ok": true
+    },
+    {
+      "ok": true
+    },
+    {
+      "ok": true
+    }
+  ],
+  "persisted": [
+    {
+      "title": "light",
+      "url": "https://audit.example/ascii-lower"
+    },
+    {
+      "title": "LIGHT",
+      "url": "https://audit.example/ascii-upper"
+    },
+    {
+      "title": "ışık",
+      "url": "https://audit.example/lower"
+    },
+    {
+      "title": "IŞIK",
+      "url": "https://audit.example/upper"
+    }
+  ],
+  "results": [
+    {
+      "query": "IŞIK",
+      "count": 1,
+      "titles": [
+        "IŞIK"
+      ],
+      "urls": [
+        "https://audit.example/upper"
+      ]
+    },
+    {
+      "query": "ışık",
+      "count": 1,
+      "titles": [
+        "ışık"
+      ],
+      "urls": [
+        "https://audit.example/lower"
+      ]
+    },
+    {
+      "query": "LIGHT",
+      "count": 2,
+      "titles": [
+        "LIGHT",
+        "light"
+      ],
+      "urls": [
+        "https://audit.example/ascii-upper",
+        "https://audit.example/ascii-lower"
+      ]
+    },
+    {
+      "query": "light",
+      "count": 2,
+      "titles": [
+        "LIGHT",
+        "light"
+      ],
+      "urls": [
+        "https://audit.example/ascii-upper",
+        "https://audit.example/ascii-lower"
+      ]
+    }
+  ],
+  "allScopeCount": 1,
+  "unauthorizedRejected": true,
+  "limits": "Actual SQLite FTS5, capture module, unified reducer, unchanged main function/handler and preload method. Capture result/session stores controlled; no native window/site/DOM capture."
+}

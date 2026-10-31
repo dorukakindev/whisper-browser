@@ -1,0 +1,84 @@
+{
+  "revision": "b821da96edd7b10c6a5d2dcc03b353192394f5eb",
+  "agents": {
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "count": 3
+  },
+  "confirmed_records": 4,
+  "new_discoveries": 3,
+  "prior_improvement_now_verified": {
+    "finding": "F822-04",
+    "prior": "R815-G10"
+  },
+  "new_improvements": 0,
+  "fixes_applied": false,
+  "publication_path_reruns": {
+    "node_probes": 4,
+    "python_producers": 1,
+    "exit_codes": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "cjs_syntax_checks": 4,
+    "fresh_output_dirs": true,
+    "package_history_rows_per_variant": 1
+  },
+  "checks": [
+    {
+      "command": "node --test --test-isolation=none tests/browser-page-index-integration.test.js tests/browser-page-index-race.test.js tests/browser-library-tools.test.js",
+      "exit": 0,
+      "runner_pass": 3,
+      "reported_inner_counts": [
+        15,
+        4,
+        17
+      ]
+    },
+    {
+      "command": "node tests/subtitle-word-highlight.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/browser-downloads.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/workspace-restore-regressions.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node tests/watch-index-assets.test.js",
+      "exit": 0,
+      "reported_checks": 20
+    },
+    {
+      "command": "node tests/workspace-video-bounds.test.js",
+      "exit": 0,
+      "reported_checks": 16,
+      "environment": "WHISPER_TEST_PYTHON=backend/venv/Scripts/python.exe; authorized child-process execution"
+    }
+  ],
+  "initial_limit": "Combined isolation-none workspace run exited early on Python-discovery sandbox spawn failure; not counted as all files passing. Restore/index rerun individually; video bounds rerun authorized and passed16.",
+  "peer_review": {
+    "packages": "G10 promotion and scope correct; default output aligned to fresh .uiprev",
+    "downloads": "Controlled boundary wording and helper docstring narrowed",
+    "sidecars": "F822-02 source/limits match; root F822-01 independently checked with SQLite in-memory tokenizer"
+  },
+  "runtime": {
+    "node": "24.22.0",
+    "python": "3.11.9",
+    "yt_dlp": "2026.08.27.231323",
+    "ffmpeg": "Existing C:/ffmpeg/bin/ffmpeg.exe and ffprobe.exe; no install"
+  },
+  "limits": [
+    "Controlled capture/job/session/IPC/dialog/auth/URL policies as documented",
+    "Real SQLite and Python ZIP/transcribe writers/yt-dlp control flow; no native window/site acceptance",
+    "Existing clip fixture is valid FFmpeg MP4; package fixture tests byte transport only",
+    "No normal start.bat/install/full npm/CI/live provider/GPU/CUDA/DRM"
+  ],
+  "dependencies_added": []
+}
