@@ -6,7 +6,7 @@
  function enhance(page,item){
   states.get(page)?.();const disposers=[];
   const nav=node('nav','film-page-navigation');nav.setAttribute('aria-label',t('On this film page','Film sayfasında gezinme'));
-  for(const [selector,en,tr]of [['.mtd-story,.md-page-story','Story','Konu'],['.film-review-section','Reviews & insights','Yorumlar ve analiz'],['.mtd-cast,.md-page-aside > .md-option-group','Cast & credits','Oyuncular ve bilgiler'],['.mtd-episodes','Episodes','Bölümler']]){
+  for(const [selector,en,tr]of [['.mtd-story,.md-page-story','Story','Konu'],['.film-review-section','Reviews & insights','Yorumlar ve analiz'],['.mtd-cast,.md-page-aside > .md-option-group','Cast & credits','Oyuncular ve bilgiler'],['.mtd-episodes','Episodes','Bölümler'],['.film-extra-section','Explore film','Filmi keşfet']]){
    const section=page.querySelector(selector);if(!section)continue;
    section.id||='film-section-'+(++sequence);const button=node('button','film-section-link',t(en,tr));button.type='button';button.setAttribute('aria-controls',section.id);
    button.onclick=event=>{const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;section.scrollIntoView({behavior:event.detail===0||reduced?'auto':'smooth',block:'start'});const heading=section.querySelector('h2,h3')||section;heading.tabIndex=-1;heading.focus({preventScroll:true});};nav.append(button);

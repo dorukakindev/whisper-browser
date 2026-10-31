@@ -70,6 +70,27 @@ function createMetadataClient(fetchImpl = fetch,{language=()=> 'tr-TR'}={}) {
     const value=await request(route,token,params,signal);if(extraCache.size>=100)extraCache.delete(extraCache.keys().next().value);extraCache.set(key,{time:Date.now(),value});return structuredClone(value);
   }
   return {
+    async filmExtras(item,token,signal){
+      let selected=item;if(!item.tmdbId){const id=await this.resolve(item,token,{signal});selected={...item,tmdbId:(item.kind==='series'?'tv':'movie')+':'+id};}
+      const {kind,id}=identity(selected),data=await cached(`${kind}/${id}`,token,{append_to_response:'credits,videos,recommendations,external_ids,images'},signal);
+      if(data.id!==id)throw Error('Film identity mismatch.');
+      const imdb=data.imdb_id||data.external_ids?.imdb_id;if(item.imdbId&&imdb!==item.imdbId)throw Error('Film identity mismatch.');
+      const photo=value=>/^\/[a-zA-Z0-9._-]+$/.test(value||'')?'https://image.tmdb.org/t/p/w185'+value:'';
+      const people=[],seen=new Set();for(const row of [...(data.credits?.crew||[]).filter(p=>p.job==='Director'),...(data.credits?.cast||[]).slice(0,20)]){if(!Number.isSafeInteger(row.id)||row.id<1||!row.name||seen.has(row.id))continue;seen.add(row.id);people.push({id:row.id,name:String(row.name).slice(0,180),role:String(row.job||row.character||'').slice(0,180),director:row.job==='Director',photo:photo(row.profile_path)});}
+      const genres=new Map((data.genres||[]).map(g=>[g.id,String(g.name).slice(0,80)]));
+      const normalize=rows=>{const seenTitles=new Set();return (Array.isArray(rows)?rows:[]).filter(r=>r.adult!==true&&Number.isSafeInteger(r.id)&&r.id>0).filter(r=>{const key=(r.media_type||kind)+':'+r.id;if(seenTitles.has(key))return false;seenTitles.add(key);return true;}).slice(0,20).map(r=>({id:r.id,kind:r.media_type==='tv'?'series':r.media_type==='movie'?'film':item.kind,tmdbId:(r.media_type==='tv'?'tv':r.media_type==='movie'?'movie':kind)+':'+r.id,title:String(r.title||r.name||'').slice(0,300),year:Number(String(r.release_date||r.first_air_date||'').slice(0,4))||null,poster:photo(r.poster_path),sharedGenres:(r.genre_ids||[]).filter(g=>genres.has(g)).map(g=>genres.get(g))})).filter(r=>r.title&&r.tmdbId!==selected.tmdbId);};
+      const videos=(data.videos?.results||[]).filter(v=>v.site==='YouTube'&&/^[A-Za-z0-9_-]{11}$/.test(v.key||'')&&['Trailer','Teaser'].includes(v.type)).sort((a,b)=>Number(b.official===true)-Number(a.official===true)).slice(0,6).map(v=>({name:String(v.name||v.type).slice(0,180),type:v.type,official:v.official===true,url:'https://www.youtube.com/watch?v='+v.key}));
+      let sameDirector=[],directorWarning='';const director=people.find(p=>p.director);if(director){try{const credits=await cached('person/'+director.id+'/combined_credits',token,{},signal);sameDirector=normalize((credits.crew||[]).filter(r=>r.job==='Director'));}catch{signal?.throwIfAborted();directorWarning='Director filmography unavailable.';}}
+      const images=[...(data.images?.backdrops||[]),...(data.images?.posters||[])].filter(r=>/^\/[a-zA-Z0-9._-]+$/.test(r.file_path||'')).slice(0,20).map(r=>({url:'https://image.tmdb.org/t/p/w1280'+r.file_path,thumbnail:'https://image.tmdb.org/t/p/w185'+r.file_path}));
+      return {images,identity:{tmdbId:selected.tmdbId,imdbId:imdb||'',title:String(data.title||data.name||'').slice(0,300)},people,videos,recommendations:normalize(data.recommendations?.results),sameDirector,director:director?.name||'',directorWarning};
+    },
+    async person(personId,token,signal){
+      if(!Number.isSafeInteger(personId)||personId<1)throw Error('Invalid person ID.');
+      const data=await cached('person/'+personId,token,{append_to_response:'combined_credits'},signal),seen=new Set();
+      if(data.id!==personId)throw Error('Person identity mismatch.');
+      const films=[...(data.combined_credits?.cast||[]),...(data.combined_credits?.crew||[]).filter(r=>r.job==='Director')].filter(r=>r.adult!==true&&['movie','tv'].includes(r.media_type)&&Number.isSafeInteger(r.id)&&r.id>0&&!seen.has(r.media_type+':'+r.id)&&seen.add(r.media_type+':'+r.id)).sort((a,b)=>(Number(b.vote_count)||0)-(Number(a.vote_count)||0)).slice(0,40).map(r=>({id:r.id,tmdbId:(r.media_type==='tv'?'tv':'movie')+':'+r.id,kind:r.media_type==='tv'?'series':'film',title:String(r.title||r.name||'').slice(0,300),year:Number(String(r.release_date||r.first_air_date||'').slice(0,4))||null,role:String(r.character||r.job||'').slice(0,160)}));
+      return {id:personId,name:String(data.name||'').slice(0,180),biography:String(data.biography||'').slice(0,16000),department:String(data.known_for_department||'').slice(0,100),birthday:String(data.birthday||'').slice(0,20),place:String(data.place_of_birth||'').slice(0,200),photo:/^\/[a-zA-Z0-9._-]+$/.test(data.profile_path||'')?'https://image.tmdb.org/t/p/w185'+data.profile_path:'',films};
+    },
     async images(item,token,signal){
       const {kind,id}=identity(item),data=await cached(`${kind}/${id}/images`,token,{include_image_language:'null,en,tr'},signal),seen=new Set(),rows=[];
       for(const [type,source]of [['backdrop',data.backdrops],['poster',data.posters]])for(const image of (Array.isArray(source)?source:[]).slice(0,type==='backdrop'?80:20)){
