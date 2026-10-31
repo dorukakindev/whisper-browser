@@ -57,10 +57,10 @@
     const hero=el('section','mtd-hero'),backdrop=el('div','mtd-backdrop');backdrop.setAttribute('aria-hidden','true');hero.append(backdrop);
     if(item.backdrop)image('backdrop',backdrop,version);
     const content=el('div','mtd-hero-content'),poster=el('div','mtd-poster');if(item.hasPoster)image('poster',poster,version,{large:true});else poster.append(el('span','',item.tmdbId?t('No poster available','Afiş bulunamadı'):t('Match a title for artwork','Afiş için yapımı eşleştir')));content.append(poster);
-    const copy=el('div','mtd-copy');copy.append(el('span','mtd-kind',item.kind==='series'?t('Series','Dizi'):t('Film','Film')));
+    const copy=el('div','mtd-copy');
     const heading=el('h1','',item.title);heading.id='mediaTitleHeading';copy.append(heading);
     if(item.originalTitle&&item.originalTitle!==item.title)copy.append(el('p','mtd-original',item.originalTitle));
-    copy.append(el('p','mtd-facts',[item.year,item.runtime?item.runtime+' '+t('min','dk'):''].filter(Boolean).join(' · ')));
+    copy.append(el('p','mtd-facts',[item.kind==='series'?t('Series','Dizi'):t('Film','Film'),item.year,item.runtime?item.runtime+' '+t('min','dk'):''].filter(Boolean).join(' · ')));
     const genres=el('div','mtd-genres');for(const name of item.genres||[])genres.append(el('span','',name));copy.append(genres);
     const ratings=el('div','mtd-ratings');for(const [label,value,scale]of [['TMDB',item.tmdbRating&&Number(item.tmdbRating).toFixed(1),'/10'],['IMDb',item.ratings?.imdb,'/10'],['Letterboxd',item.ratings?.letterboxd,'/5'],[t('Your rating','Puanın'),item.ratings?.personal,'']])if(value){const rate=el('div');rate.append(el('strong','',value+scale),el('span','',label));ratings.append(rate);}copy.append(ratings);
     if(item.tagline)copy.append(el('p','mtd-tagline',item.tagline));
@@ -75,7 +75,7 @@
     story(main);
     if(item.cast?.length){main.append(el('h2','',t('Cast','Oyuncular')));const cast=el('div','mtd-cast');for(const name of item.cast)cast.append(el('span','',name));main.append(cast);}
     const review=el('section','mtd-review');review.append(el('h2','',t('Is this for you?','Bana uygun mu?')),el('p','',t('Read reviews and compare this title with your taste profile.','Yorumları incele, yapımı zevk profilinle karşılaştır.')),button(t('Reviews & personal fit','Yorumlar ve bana uygunluğu'),()=>window.MediaToolsUI?.open('decision',item)));main.append(review);
-    const info=el('dl');for(const [label,value]of [[t('Director / creator','Yönetmen / yaratıcı'),(item.directors||[]).join(', ')],[t('Original title','Özgün adı'),item.originalTitle],[t('Watch status','İzleme durumu'),({planned:t('Watchlist','İzleme listesi'),watching:t('Watching','İzleniyor'),completed:t('Watched','İzlendi')})[item.watchStatus]]])if(value)info.append(el('dt','',label),el('dd','',value));aside.append(info);
+    const info=el('dl');for(const [label,value]of [[t('Director / creator','Yönetmen / yaratıcı'),(item.directors||[]).join(', ')],[t('Original title','Özgün adı'),item.originalTitle]])if(value)info.append(el('dt','',label),el('dd','',value));aside.append(info);
     const personal=el('div','mtd-personal'),statusLabel=el('label','',t('Watch status','İzleme durumu')),statusSelect=el('select');
     for(const [value,en,tr]of [['unspecified','Not set','Belirtilmedi'],['planned','Watchlist','İzleme listesi'],['watching','Watching','İzleniyor'],['completed','Watched','İzlendi']]){const option=el('option','',t(en,tr));option.value=value;statusSelect.append(option);}statusSelect.value=draft?.status??item.watchStatus;statusSelect.dataset.titleAction='status';statusLabel.append(statusSelect);
     const rateLabel=el('label','',t('Your rating (0–10)','Puanın (0–10)')),rate=el('input');rate.type='number';rate.min='0';rate.max='10';rate.step='0.1';rate.value=draft?.rating??item.ratings?.personal??'';rate.dataset.titleAction='rating';rateLabel.append(rate);personal.dataset.titleId=item.id;

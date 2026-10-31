@@ -98,7 +98,7 @@
     const hero=el('section','md-page-hero'),background=el('div','md-page-backdrop');background.setAttribute('aria-hidden','true');
     const backdrop=safeImage(item.backdrop);if(backdrop){const art=el('img');art.src=backdrop;art.alt='';art.referrerPolicy='no-referrer';art.addEventListener('load',()=>hero.classList.add('has-art'),{once:true});art.addEventListener('error',()=>background.remove(),{once:true});background.append(art);}
     const narrative=el('section','md-page-story'),lower=el('div','md-page-lower'),side=el('aside','md-page-aside');
-    narrative.append(storyHeading,synopsis);content.querySelector('h1').before(el('p','md-page-kind',item.kind==='series'?t('Series','Dizi'):t('Film','Film')));
+    narrative.append(storyHeading,synopsis);
     side.append(credits,options);lower.append(narrative,side);
     body.append(image(item.poster || row.poster, 'md-detail-poster'),content);hero.append(background,body);dialog.append(hero,lower);
   }

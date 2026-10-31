@@ -97,4 +97,27 @@
 @media(max-width:900px){.media-title-page .md-page-lower,.media-title-page .mtd-body{grid-template-columns:1fr;}.media-title-page .mtd-aside{max-width:none;}.media-title-page .md-page-aside{border-top:1px solid var(--border);padding-top:28px;}}
 @media(max-width:760px){.media-title-page .md-detail-body,.media-title-page .mtd-hero-content{grid-template-columns:150px minmax(0,1fr);gap:24px;padding-block:28px;}.media-title-page .md-page-lower{padding-top:28px;}.media-title-page .mtd-copy h1{font-size:30px;}.media-title-page .mtd-ratings{gap:18px;}}
 @media(max-width:520px){.media-title-page .md-detail-body,.media-title-page .mtd-hero-content{grid-template-columns:1fr;}.media-title-page .mtd-poster{max-width:180px;}.media-title-page .mtd-copy h1{font-size:28px;}}
-@media(prefers-reduced-motion:no-preference){.media-title-page .md-page-lower,.media-title-page .mtd-body{animation:film-page-reveal .2s ease-out;}@keyframes film-page-reveal{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}}
+
+
+/* Impeccable / interface craft: readable rhythm and tactile, quiet controls. */
+.media-title-page { --film-control-size:42px; }
+.media-title-page h1 { text-wrap:balance; max-width:24ch; letter-spacing:-.025em; }
+.media-title-page .mh-action { min-height:var(--film-control-size); padding:10px 18px; line-height:1.4; display:inline-flex; align-items:center; justify-content:center; gap:8px; white-space:normal; text-align:center; }
+.media-title-page .md-primary-actions,.media-title-page .mtd-actions { align-items:center; gap:12px; }
+.media-title-page .md-meta,.media-title-page .mtd-facts,.media-title-page .mtd-ratings { font-variant-numeric:tabular-nums; }
+.media-title-page .md-meta,.media-title-page .mtd-facts { font-size:15px; line-height:1.65; margin:16px 0; }
+.media-title-page .md-chips,.media-title-page .mtd-genres { gap:8px; row-gap:10px; }
+.media-title-page .md-synopsis,.media-title-page .mtd-synopsis { text-wrap:pretty; max-width:70ch; line-height:1.8; margin-top:16px; }
+.media-title-page .md-detail-poster,.media-title-page .mtd-poster { border:0; outline:1px solid rgb(255 255 255 / 10%); outline-offset:-1px; box-shadow:0 12px 24px rgb(0 0 0 / 16%),0 24px 56px rgb(0 0 0 / 18%); }
+html[data-theme="light"] .media-title-page .md-detail-poster,html[data-theme="light"] .media-title-page .mtd-poster { outline-color:rgb(0 0 0 / 10%); }
+.media-title-page .mtd-personal { display:grid; gap:16px; padding-top:20px; border-top:1px solid var(--border); }
+.media-title-page .mtd-personal label { display:grid; gap:8px; font-size:13px; color:var(--text-dim); }
+.media-title-page .mtd-personal select,.media-title-page .mtd-personal input { box-sizing:border-box; width:100%; min-height:42px; padding:10px 12px; border-radius:8px; font:inherit; color:var(--text); background:var(--bg-0); border:1px solid var(--border-strong); }
+.media-title-page .mtd-aside dl { margin:0; }
+.media-title-page .md-page-aside .md-provider,.media-title-page .md-review-note { font-size:13px; line-height:1.65; }
+.media-title-page .md-detail-options > summary { min-height:44px; box-sizing:border-box; line-height:1.6; }
+.media-title-page ::selection { background:var(--accent); color:var(--accent-contrast); }
+@media(hover:hover){.media-title-page .mh-action:not(:disabled):hover{border-color:var(--accent);}}
+@media(prefers-reduced-motion:no-preference){.media-title-page .mh-action{transition:background-color 140ms ease-out,border-color 140ms ease-out,color 140ms ease-out,transform 100ms ease-out;}.media-title-page .mh-action:not(:disabled):active{transform:scale(.96);}}
+@media(prefers-reduced-motion:reduce){.media-title-page .mh-action{transition:none;transform:none;}}
+@media(max-width:760px){.media-title-page .md-story-heading,.media-title-page .mtd-story-heading{align-items:flex-start;}.media-title-page .md-primary-actions .mh-action{flex:1 1 150px;}.media-title-page .md-review-note{margin-top:14px;}}
