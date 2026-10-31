@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-31-0453.md](docs/devir/2026-10-31-0453.md) — R819 ajansız tasarım: 3 doğrulanmış yeni kayıt; hiçbir düzeltme yok
 Güncel çalışma: [docs/devir/2026-10-31-0430.md](docs/devir/2026-10-31-0430.md) — R818 ajanlarla tasarım/klavye: 3 doğrulanmış bug; hiçbir düzeltme yok
 Güncel çalışma: [docs/devir/2026-10-31-0259.md](docs/devir/2026-10-31-0259.md) — R817 tasarım: 5 görüntülü bulgu, 2 ayrı öneri; hiçbir düzeltme yok
 Güncel çalışma: [docs/devir/2026-10-31-0235.md](docs/devir/2026-10-31-0235.md) — R815 kalan alanlar: 8 yeni bug, toplam134 kayıt; 37 ayrı öneri, hiçbir düzeltme yok

@@ -1,0 +1,424 @@
+{
+  "revision": "2285a8202e20c836c7dafc53d06af667c60f34f6",
+  "branch": "codex/design-audit819",
+  "date": "2026-10-31",
+  "agentsUsed": 0,
+  "productChanges": false,
+  "findings": [
+    {
+      "id": "D819-01",
+      "severity": "MEDIUM",
+      "root": "Book confirm dialog accessible name missing",
+      "previous": "R818 source-only candidate promoted; not previously counted"
+    },
+    {
+      "id": "D819-02",
+      "severity": "MEDIUM",
+      "root": "Native assistant view overlaps modal save target",
+      "previous": "R818 keyboard ownership is separate; native bubble images were not findings"
+    },
+    {
+      "id": "D819-03",
+      "severity": "MEDIUM",
+      "root": "Borrowed settings controls ignored by locale translation",
+      "previous": "R818 focus loss not recounted"
+    }
+  ],
+  "execution": {
+    "exitCode": 0,
+    "ok": true,
+    "captures": 7,
+    "axSnapshots": 3,
+    "platform": "win32",
+    "gpuDisabled": true,
+    "forcedDeviceScaleFactor": 1,
+    "personalProfile": false,
+    "bookImport": "actual TXT parser/store/main/UI with synthetic 96-character source",
+    "nativeInput": "parent select keys; child-targeted overlay mouse at overlap point",
+    "osMouseHitRouting": false,
+    "screenReaderAudio": false,
+    "normalStartBatAcceptance": false,
+    "physicalDpiChange": false,
+    "providerRequests": false
+  },
+  "hashEncoding": "PNG raw bytes; UTF-8 text canonical LF",
+  "sourceHashes": [
+    {
+      "path": "src/assistant-overlay.js",
+      "sha256": "4dc1e1d2f20a45ec88f4fe80cef29db5a31b2d47f0d7f77410bde9f8d8e498b6"
+    },
+    {
+      "path": "src/renderer/app-settings-ui.js",
+      "sha256": "088b8665b2fcd850a3a415c89d81c7520186e9849e9cded4eff47744d69d0da9"
+    },
+    {
+      "path": "src/renderer/ui-locale.js",
+      "sha256": "597121876bc5294659dbd942bb780f4b8c65c0b7ed4b183cbdfdffce5a00933e"
+    },
+    {
+      "path": "src/renderer/media-workflows-ui.js",
+      "sha256": "771c8996a8e6003985a9f3fe3bad0ca93ada566c2591ac6e80dbd60392a30774"
+    },
+    {
+      "path": "src/renderer/media-workflows.css",
+      "sha256": "4033814cddfe83e6efb646b1070ed26188c352d7e4fd2886b71edfd9f02e40ab"
+    },
+    {
+      "path": "src/renderer/app-settings.css",
+      "sha256": "ab4a88c859286d2a643acfff92e269f5ee81bded2048038eafcd390ff7ec7a43"
+    },
+    {
+      "path": "src/main.js",
+      "sha256": "5aed5cf4c1d6114f24e68dbb7362767d62a08d3e24324c0d545c7abb0f2de68c"
+    },
+    {
+      "path": "src/preload.js",
+      "sha256": "d231c6789d5b0a82976e0aacc86d6c754c73c31e06af5ed702ccc2c51147e482"
+    },
+    {
+      "path": "start.bat",
+      "sha256": "e73f1b411769e3986e347cbf6eb25e6b921a06683b4431ddbdf7df31f39be5c9"
+    },
+    {
+      "path": "install.bat",
+      "sha256": "14f6ac7d9656de759c9091b2c5fd9c05c6fde1f2bb465e15eb1e025ad52c9ad5"
+    }
+  ],
+  "evidenceHashes": [
+    {
+      "path": "01-rename-dialog.png",
+      "sha256": "1b2da81cae477de9cd1888f37455d9ee7e3ee8117e0f320d581d00ad2d9de131"
+    },
+    {
+      "path": "01-workspace-ax.json",
+      "sha256": "7e7a5ada174dcb3c3acff422ef3731f6c7c401d76810d9f24c6d26e7dd06356e"
+    },
+    {
+      "path": "02-archive-dialog.png",
+      "sha256": "0a9202fc8cc70e15d6d16a39730909cd4a50c2cbce1a9b70890407baa63577c5"
+    },
+    {
+      "path": "02-rename-ax.json",
+      "sha256": "5a3ee69ab8b6ce3806d35b58a1c45da4d9c4bafd6b53b32996c0fa2e5e292d32"
+    },
+    {
+      "path": "03-archive-ax.json",
+      "sha256": "13408a01ce03e5e50a836c1d919f5275a6fa893d772a40f95e5d1bba31c15b80"
+    },
+    {
+      "path": "03-locale-before.png",
+      "sha256": "091105de6ffe52749c008464731357205b82eb6bc61996e935f1af89b5670407"
+    },
+    {
+      "path": "04-locale-stale.png",
+      "sha256": "828128f7901ef5b4199d3d94e61d4a75f03b3b7e8e2bce69021109e349f550cd"
+    },
+    {
+      "path": "05-locale-reopen-control.png",
+      "sha256": "6a19d26b44d35f4877b28c78a1b908c500112c8dc06f81cea4a092ff30c154ad"
+    },
+    {
+      "path": "06-native-bubble-cover.png",
+      "sha256": "6a19d26b44d35f4877b28c78a1b908c500112c8dc06f81cea4a092ff30c154ad"
+    },
+    {
+      "path": "07-native-assistant-over-modal.png",
+      "sha256": "b44989cb3f0282f6a6b10044ffe62993a26e32752627799b55f36540f144bb8b"
+    },
+    {
+      "path": "design-proof.cjs",
+      "sha256": "550916f2a7555a2aa117edfdd60a8908ccdac97b8a7989bc61c944ab648fefdd"
+    },
+    {
+      "path": "measurements.json",
+      "sha256": "84e5fcea282ee01311e12d4e8dd534d99be2eee0ea12a5e2b51a7ea66dbf58c7"
+    }
+  ],
+  "historicalCoverage": {
+    "registry": "docs/audits/deepseek-night1000-20261027/COVERAGE-REGISTRY.json",
+    "sha256": "1135647211070d3d417baf4626ec693da045edf6c78bfc00b08b48f0db776253",
+    "rerun": false,
+    "scenarios": [
+      {
+        "id": "N0901",
+        "family": "F46",
+        "mechanism": "normal",
+        "signature": "c2cf505f07506c1d630003553983703686c50395ecb3e3f80550618d2e285da3",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0902",
+        "family": "F46",
+        "mechanism": "bos",
+        "signature": "6be67883ba017b4e1932d0ca151bfd9d03615b6a290dff97a0105bad8acfff56",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0903",
+        "family": "F46",
+        "mechanism": "sinir",
+        "signature": "6cfcfaf95dd959a475c1b05c295ee1c888cdcb0fd199dd683f267e94d5808334",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0904",
+        "family": "F46",
+        "mechanism": "unicode",
+        "signature": "76685178a635a59a114c7658395577dab7e9fdbc3903950b6802baa077964dd0",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0905",
+        "family": "F46",
+        "mechanism": "yinelenen",
+        "signature": "e0d2b7f19b63b8344e97767e1918fa96016e06176fdd93e39349a7d8d5dbaa00",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0906",
+        "family": "F46",
+        "mechanism": "sira",
+        "signature": "a1c19c1c388ef3512caabc5ebccfda6226efc5f6665b72c23fbe009d3104880c",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0907",
+        "family": "F46",
+        "mechanism": "iptal-oncesi",
+        "signature": "4bb6e6f638a811d3a28e7f11964ab53726d49912b7427c7ddcdd13384665e47f",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0908",
+        "family": "F46",
+        "mechanism": "iptal-ortasi",
+        "signature": "6dc30c0fb84d32a26e26ba137df0d47bec9e82a3fef88ae1790aabe7b8ad49de",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0909",
+        "family": "F46",
+        "mechanism": "gec-sonuc",
+        "signature": "635629ec5816160cb505c06140a5d03833e0c20dba0cc29009421ca01e0dc4dc",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0910",
+        "family": "F46",
+        "mechanism": "kaynak-degisimi",
+        "signature": "070e55c2958a03617e6eff1897efb0409e2f66090186a67aac2307acd72538f5",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0911",
+        "family": "F46",
+        "mechanism": "es-zamanli",
+        "signature": "f9c192198d1f12a183b0ed4a0a7725a995dff92aa22477fe660e74aca51f94ae",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0912",
+        "family": "F46",
+        "mechanism": "kesik",
+        "signature": "de40feeb3c9a0274f2a71e65d0dd363790e88277b0976cc08c4120315cd0ca11",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0913",
+        "family": "F46",
+        "mechanism": "hata",
+        "signature": "e235b30079bbd1bdc795e4bd6c3193b9538904742db864d52053f799b1e7dca5",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0914",
+        "family": "F46",
+        "mechanism": "timeout",
+        "signature": "4690efd67c94bf7f0b937592cf0e2617dd7d490dfa67557905516fa899dcabb2",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0915",
+        "family": "F46",
+        "mechanism": "yeniden-giris",
+        "signature": "1ea9dc8855e7f0944e225ac4a98e856bafbfe079a95118da82e2d70412130658",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0916",
+        "family": "F46",
+        "mechanism": "donusum",
+        "signature": "1d11188ecc0249a706f5f820278716d72296013438eabe1783b7e742237a18a9",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0917",
+        "family": "F46",
+        "mechanism": "yetki",
+        "signature": "0da3bcd4f893beb30917abfce8723374fe0d154eed30a5db89c0c2b223274bbb",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0918",
+        "family": "F46",
+        "mechanism": "kaynak-butcesi",
+        "signature": "5c47f6a290981d51691cb009e00b3b975c8a8a0675e2817f314c99aa68a861f0",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0919",
+        "family": "F46",
+        "mechanism": "kullanici-geribildirimi",
+        "signature": "1df2d6ae5bedb0d1a5e6ef5101d2cc92abd9099554de6f634cb9948cfbe8cc89",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0920",
+        "family": "F46",
+        "mechanism": "birlesik-akis",
+        "signature": "d5eb5a8146dad6005cfdc699140a1fd513ae293ec3a6c411adc0884365647048",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0921",
+        "family": "F47",
+        "mechanism": "normal",
+        "signature": "b4db91e8117f97bac17a54527372d6e3dd3315930db53e25bd427f69080f03a1",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0922",
+        "family": "F47",
+        "mechanism": "bos",
+        "signature": "2cb726eebd32ff131ab47b9751ff108a41cb41e9c53b2e2e7c84ff48f791f895",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0923",
+        "family": "F47",
+        "mechanism": "sinir",
+        "signature": "77e1c375734de00c7f46b52634b5b65db757ab303ab686cc127cb77cff0f56c0",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0924",
+        "family": "F47",
+        "mechanism": "unicode",
+        "signature": "e4e2966fac56ad688f50a4e45d3280b606342b87825b24b9f10aaaa61a817125",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0925",
+        "family": "F47",
+        "mechanism": "yinelenen",
+        "signature": "5fd339231a4b6a7a8e36826a3624a11d9a6e13a458b7d6703bda28f562b8aaac",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0926",
+        "family": "F47",
+        "mechanism": "sira",
+        "signature": "c971e6559755fca58ab93048c1c5f25f8e7343d2ac43eff8f4af1bfac6d7d1ab",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0927",
+        "family": "F47",
+        "mechanism": "iptal-oncesi",
+        "signature": "da899ffbc177a2af7b7b012f86bb9c38e66de718e2a4e7cfbb4f77292100a65e",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0928",
+        "family": "F47",
+        "mechanism": "iptal-ortasi",
+        "signature": "aacb115573f342e0b1224fcb87d535cee87d9a9d2864ee5b54d6a7b48e1a1545",
+        "historical_status": "NOT_APPLICABLE"
+      },
+      {
+        "id": "N0929",
+        "family": "F47",
+        "mechanism": "gec-sonuc",
+        "signature": "d4503abdd49bed758a03b637ebc901202318d819bd17f8d6d2405834ce8187f7",
+        "historical_status": "NOT_APPLICABLE"
+      },
+      {
+        "id": "N0930",
+        "family": "F47",
+        "mechanism": "kaynak-degisimi",
+        "signature": "25e6be446df0f8cb356e9364f1b21339d0b8b40263d36b3a251671ce4865e224",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0931",
+        "family": "F47",
+        "mechanism": "es-zamanli",
+        "signature": "f3a70d6ae166b4a9e1ca6325bf531a874da4f1e30deba5f8fa9fd722e9e09d2a",
+        "historical_status": "NOT_APPLICABLE"
+      },
+      {
+        "id": "N0932",
+        "family": "F47",
+        "mechanism": "kesik",
+        "signature": "4d16a156e75fad42f899d4d1b49906256a7f8d9a8c94463096408651c68cc203",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0933",
+        "family": "F47",
+        "mechanism": "hata",
+        "signature": "cee74f059cf5c4190034b97d27dca4de7b51be8e46058992a994f96d362b3404",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0934",
+        "family": "F47",
+        "mechanism": "timeout",
+        "signature": "f76030c8400e080eaf5c0d3c2f146c297e56f3d9f1241ca36211a3accb8fb9b1",
+        "historical_status": "NOT_APPLICABLE"
+      },
+      {
+        "id": "N0935",
+        "family": "F47",
+        "mechanism": "yeniden-giris",
+        "signature": "7c21c228d549d9e7dbbfccfe5ad8437705050d06c81e26aa523c7ea6ed7505dd",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0936",
+        "family": "F47",
+        "mechanism": "donusum",
+        "signature": "582216ed9035f62b39b14394c9ec5b03c5234da16e01c1c77d6f5b6c1d0d463c",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0937",
+        "family": "F47",
+        "mechanism": "yetki",
+        "signature": "206d562e55be4581989d66306a1d66d0bb2f68ae50e0411d3dee0b0518206829",
+        "historical_status": "NOT_APPLICABLE"
+      },
+      {
+        "id": "N0938",
+        "family": "F47",
+        "mechanism": "kaynak-butcesi",
+        "signature": "f10092182981f6996067e6aa35174a2946e74def3ea6f91a1c2e0b944e329ea6",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0939",
+        "family": "F47",
+        "mechanism": "kullanici-geribildirimi",
+        "signature": "fc7f9bbda07edccffaa434ceeadf29dfd69ecd6f1e9c1cdbc9cdbd74d8d7871f",
+        "historical_status": "PASS"
+      },
+      {
+        "id": "N0940",
+        "family": "F47",
+        "mechanism": "birlesik-akis",
+        "signature": "bbc02d93c3bc3ead0699d7e4385fa8aa69538d2e1e8c5759c08f52c7553673a9",
+        "historical_status": "PASS"
+      }
+    ]
+  }
+}

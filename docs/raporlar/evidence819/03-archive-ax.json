@@ -1,0 +1,18 @@
+[
+  {
+    "role": "dialog",
+    "name": ""
+  },
+  {
+    "role": "heading",
+    "name": "Archive project?"
+  },
+  {
+    "role": "button",
+    "name": "Cancel"
+  },
+  {
+    "role": "button",
+    "name": "Archive"
+  }
+]

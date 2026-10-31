@@ -1,0 +1,22 @@
+[
+  {
+    "role": "dialog",
+    "name": ""
+  },
+  {
+    "role": "heading",
+    "name": "Project name"
+  },
+  {
+    "role": "button",
+    "name": "Cancel"
+  },
+  {
+    "role": "button",
+    "name": "Save"
+  },
+  {
+    "role": "textbox",
+    "name": "Name"
+  }
+]

@@ -1,0 +1,82 @@
+[
+  {
+    "role": "dialog",
+    "name": "Production workspace"
+  },
+  {
+    "role": "heading",
+    "name": "Production workspace"
+  },
+  {
+    "role": "button",
+    "name": "Close"
+  },
+  {
+    "role": "button",
+    "name": "Audiobook"
+  },
+  {
+    "role": "button",
+    "name": "Season subtitle sync"
+  },
+  {
+    "role": "button",
+    "name": "Intro & credits"
+  },
+  {
+    "role": "button",
+    "name": "Memory"
+  },
+  {
+    "role": "button",
+    "name": "Import EPUB / PDF / TXT"
+  },
+  {
+    "role": "button",
+    "name": "Select this range"
+  },
+  {
+    "role": "heading",
+    "name": "synthetic-book"
+  },
+  {
+    "role": "button",
+    "name": "Select all"
+  },
+  {
+    "role": "button",
+    "name": "Clear selection"
+  },
+  {
+    "role": "button",
+    "name": "synthetic-book"
+  },
+  {
+    "role": "heading",
+    "name": "synthetic-book"
+  },
+  {
+    "role": "textbox",
+    "name": "Reviewed chapter text"
+  },
+  {
+    "role": "button",
+    "name": "Save text"
+  },
+  {
+    "role": "button",
+    "name": "Generate selected chapters"
+  },
+  {
+    "role": "button",
+    "name": "Stop"
+  },
+  {
+    "role": "button",
+    "name": "Read & listen"
+  },
+  {
+    "role": "button",
+    "name": "Find passage"
+  }
+]
