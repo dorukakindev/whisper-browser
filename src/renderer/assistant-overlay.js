@@ -24,7 +24,7 @@
   $('text').addEventListener('input',rememberDraft);
   const showStatus=(message,error=false)=>{$('delivery').textContent=message;$('delivery').classList.toggle('error',error);};
   $('latest').onclick=()=>{$('log').scrollTop=$('log').scrollHeight;$('latest').hidden=true;};
-  $('log').onscroll=()=>{$('latest').hidden=$('log').scrollHeight-$('log').scrollTop-$('log').clientHeight<80;};
+  $('log').onscroll=()=>{$('latest').hidden=!$('log').querySelector('.message')||$('log').scrollHeight-$('log').scrollTop-$('log').clientHeight<80;};
   function renderText(node,text,streaming=false){
     if(streaming&&window.AssistantRemend?.default)text=window.AssistantRemend.default(String(text||''));
     const inline=(node,value)=>{for(const part of value.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g)){if(!part)continue;let tag=part.startsWith('**')&&part.endsWith('**')?'strong':part.startsWith('`')&&part.endsWith('`')?'code':part.startsWith('*')&&part.endsWith('*')?'em':null;if(tag){const child=document.createElement(tag);child.textContent=part.slice(tag==='strong'?2:1,tag==='strong'?-2:-1);node.append(child);}else node.append(document.createTextNode(part));}};
@@ -98,6 +98,7 @@
     $('webSearch').textContent=value.locale==='tr'?"Web’de araştır":'Search web';$('webSearch').title=value.locale==='tr'?'Sağlayıcının web_search aracını kullanır; ek ücret olabilir.':'Uses provider web_search; additional charges may apply.';$('webSearch').disabled=!!value.busy;
     const tr = value.locale === 'tr'; const t = (en, turkish) => tr ? turkish : en;
     document.documentElement.lang = tr ? 'tr' : 'en'; document.documentElement.dataset.theme = value.theme;
+    $('modelLabel').textContent=t('Active model','Etkin model');
     $('threads').setAttribute('aria-label',t('Conversation','Sohbet'));$('newThread').textContent=t('New','Yeni');$('threadSettings').textContent=t('Manage','Yönet');$('threadNameLabel').textContent=t('Conversation name','Sohbet adı');$('renameThread').textContent=t('Save name','Adı kaydet');$('deleteThread').textContent=t('Delete conversation','Sohbeti sil');
     $('find').placeholder=t('Search conversation','Konuşmada ara');$('find').setAttribute('aria-label',$('find').placeholder);$('pinned').textContent=t('Pinned','Sabitlenen');$('export').textContent=t('Export','Dışa aktar');
     $('sourceLabel').textContent=(value.videoContext||value.transcriptScope?t('Video, subtitles & model','Video, altyazı ve model'):value.pageContext?t('Web page & model','Web sayfası ve model'):t('Source & model','Kaynak ve model'));$('assistantSettings').textContent=t('Assistant & translation settings','Asistan ve çeviri ayarları');$('conversationMenuLabel').title=t('Conversation tools','Sohbet araçları');$('conversationMenuLabel').setAttribute('aria-label',$('conversationMenuLabel').title);$('modelName').textContent=value.model||t('Your configured AI model','Ayarlı AI modelin');$('sourceDescription').textContent=value.sourceDescription||t('Only provided context is used.','Yalnız sağlanan bağlam kullanılır.');$('scope').hidden=value.transcriptScope===false;$('latest').textContent=t('Latest reply ↓','Son yanıta git ↓');
@@ -179,7 +180,7 @@
     filter();
     if(focusTarget){const card=[...log.querySelectorAll('.tool-card')].find(n=>n.dataset.proposalId===focusTarget.id);if(card&&!card.closest('[hidden]')){const button=[...card.querySelectorAll('button')].find(n=>n.dataset.toolControl===focusTarget.control&&!n.disabled);(button||card).focus({preventScroll:true});}}
     if (bottom) log.scrollTop = log.scrollHeight;else log.scrollTop=previousScroll;
-    $('latest').hidden=bottom;
+    $('latest').hidden=bottom||!value.messages?.length;
   });
   $('threads').onchange=()=>action('select-thread',$('threads').value);
   $('newThread').onclick=()=>action('new-thread');

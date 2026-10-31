@@ -83,6 +83,9 @@
   box-shadow: 0 16px 48px #0005;
 }
 .pdf-reader-tools-content .btn, .pdf-reader-tools-content select { width: 100%; }
+.pdf-tool-group{display:grid;gap:8px;min-width:0;}
+.pdf-tool-group>label{font-size:12px;font-weight:500;color:var(--text-dim);line-height:1.5;}
+.pdf-tool-group+.pdf-tool-group{padding-top:16px;margin-top:6px;border-top:1px solid var(--border);}
 #pdfBookAssistant > .book-assistant-actions { padding: 0; margin: 0; border: 0; }
 #pdfBookAssistant .book-assistant-buttons { display: grid; gap: 8px; }
 #pdfBookAssistant .mh-action { text-align: left; font-size: 13px; }
@@ -166,7 +169,7 @@
 .pdf-reading-preferences label{display:grid;gap:8px;font-size:12px;color:var(--text-dim)}.pdf-reading-preferences select{min-height:40px;border:1px solid var(--border-strong);border-radius:8px;background:var(--bg-2);color:var(--text);padding:8px 10px;font:inherit}
 .pdf-reading-preferences small{font-size:11px;line-height:1.7;color:var(--text-dim)}
 .pdf-reader.mode-reading .pdf-page-prose{text-wrap:pretty}.pdf-page-prose ::selection{background:var(--accent);color:var(--accent-contrast)}
-.pdf-reader-tools[open] .pdf-reader-tools-content{animation:pdf-tools-enter 140ms ease-out}
+.pdf-reader-tools[data-open-input=pointer][open] .pdf-reader-tools-content{animation:pdf-tools-enter 140ms var(--motion-ease,cubic-bezier(.2,.8,.2,1))}
 @keyframes pdf-tools-enter{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.pdf-reader-tools[open] .pdf-reader-tools-content{animation:none}}
 

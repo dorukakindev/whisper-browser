@@ -29,3 +29,28 @@ html[data-theme=light] .aps-dialog{color-scheme:light}
 @media(max-width:800px){.aps-content{padding:22px 20px}.aps-nav{padding:12px 16px}.aps-footer{padding:14px 18px;gap:14px}.aps-dialog .settings-grid{gap:20px}}
 
 .aps-header{flex-shrink:0}.aps-content{min-height:0}
+
+/* Keep optional provider work organised without hiding everyday setup. */
+.aps-advanced{margin-top:20px;border:1px solid var(--border-strong);border-radius:12px;background:var(--bg-2);min-width:0}
+.aps-advanced>summary{display:flex;align-items:center;gap:12px;list-style:none;padding:15px 16px;cursor:pointer;min-height:56px;border-radius:11px}
+.aps-advanced>summary::-webkit-details-marker{display:none}
+.aps-advanced>summary::before{content:'›';font-size:22px;line-height:1;color:var(--accent);flex:none}
+.aps-advanced[open]>summary::before{transform:rotate(90deg)}
+.aps-advanced>summary:hover{background:var(--bg-3)}
+.aps-advanced>summary strong{display:block;font-size:14px;font-weight:500;line-height:1.5}
+.aps-advanced>summary small{display:block;color:var(--text-dim);font-size:12px;line-height:1.6;margin-top:3px}
+.aps-advanced[open]>summary{border-bottom:1px solid var(--border)}
+.aps-advanced-body{padding:18px;min-width:0}
+.aps-advanced-body>.settings-grid{margin-top:18px}
+.aps-advanced-body>.aps-model-browser{margin:0;padding-top:0;border-top:0}
+.aps-advanced-body .aps-key-actions{margin-top:22px;padding-top:16px;border-top:1px solid var(--border)}
+#appSettingsSearchStatus{font-size:11px;line-height:1.6;margin:0 2px 6px;grid-column:1/-1}
+@media(max-width:800px){
+ .aps-nav[data-searching=true]{grid-template-columns:minmax(0,1fr);max-height:40vh;overflow-y:auto;overscroll-behavior:contain}
+ .aps-nav[data-searching=true] .aps-category-select{display:none}
+ .aps-nav[data-searching=true] [data-app-settings]:not(.hidden){display:block;white-space:normal}
+ .aps-nav[data-searching=true] #appSettingsSearch{grid-column:1/-1}
+ .aps-advanced>summary{padding:13px 14px}
+ .aps-advanced-body{padding:16px 14px}
+ .aps-setup-state{overflow-wrap:anywhere}
+}

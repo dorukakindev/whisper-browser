@@ -38,8 +38,19 @@ html[data-theme="light"] .md-detail-poster img { outline-color: rgba(0,0,0,.1); 
 .md-chips { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 15px; }
 .md-chips span { border: 1px solid var(--border); padding: 5px 10px; border-radius: 999px; font-size: 12px; }
 .md-detail .mh-actions { justify-content: flex-start; margin-top: 25px; }
+.md-primary-actions { gap:10px; }
+.md-review-note { display:block; max-width:66ch; margin-top:12px; }
+.md-detail-options { margin-top:26px; border:1px solid var(--border); border-radius:12px; background:var(--bg-2); }
+.md-detail-options>summary { padding:14px 16px; cursor:pointer; font-size:14px; font-weight:600; line-height:1.5; }
+.md-detail-options[open]>summary { border-bottom:1px solid var(--border); }
+.md-option-group { padding:18px 16px; }
+.md-option-group+.md-option-group { border-top:1px solid var(--border); }
+.md-option-group h3 { margin:0 0 10px; font-size:15px; }
+.md-option-group .md-provider,.md-option-group .md-cast { margin:0 0 14px; }
+.md-option-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.md-detail-options .mh-action { min-height:40px; }
 .md-detail :focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
-@media(max-width:700px) { .md-filters { padding: 15px; gap: 10px; } .md-field { flex: 1; min-width: 120px; } .md-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 12px; } .md-detail { padding: 20px; } .md-detail-body { grid-template-columns: 1fr; } .md-detail-poster { width: 140px; } .md-detail h2 { font-size: 26px; } }
+@media(max-width:700px) { .md-filters { padding: 15px; gap: 10px; } .md-field { flex: 1; min-width: 120px; } .md-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 12px; } .md-detail { padding: 20px; } .md-detail-body { display:block; } .md-detail-poster { float:left;width:84px;margin:0 18px 14px 0; } .md-detail h2 { font-size:26px;min-height:0; } .md-detail-copy>.md-chips { clear:both; } .md-detail .md-primary-actions { margin-top:18px; } }
 
 /* Compact search desk: labels, fields and action share a clear baseline. */
 .md-tabs{gap:20px;padding-bottom:0;margin-bottom:22px}
