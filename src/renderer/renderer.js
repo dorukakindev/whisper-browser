@@ -20103,11 +20103,12 @@ async function cancelAiChat(message='İptal edildi.'){
   window.AssistantWorkspace?.finish(job,job.streamText||'', 'stopped');
   updateAiChatActions();
 }
-async function aiChatSend(soru, translationTarget = null, expectedScope = null) {
+async function aiChatSend(soru, translationTarget = null, expectedScope = null, requestOptions = {}) {
   if(expectedScope!==null&&expectedScope!==aiSourceScope())return;
   const q = String(soru || '').trim();
   if (!q) return;
   const independentAgent=!translationTarget&&expectedScope===null&&!!window.AssistantAgentUI?.send;
+  if(requestOptions.responseContract!==undefined&&(requestOptions.responseContract!=='review-analysis'||!independentAgent))throw Error('Structured review analysis requires the native assistant.');
   if (window.AssistantAgentUI?.busy()||aiChatPreparing||(!independentAgent&&(window.BookAssistantUI?.busy()||window.AssistantVideoCommands?.busy()||window.AssistantMediaCommands?.busy()||window.AssistantPageCommands?.busy()||state.running||state.queueRunning||player.job?.awaitingExit))) {
     aiChatAdd('ai', 'Şu an başka bir iş çalışıyor — bitmesini bekleyin.', 'ai-msg-err');
     return;
@@ -20117,10 +20118,10 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null) 
     try{await window.AssistantWorkspace.prepare();}catch(error){aiChatAdd('ai',error.message,'ai-msg-err');return;}finally{if(aiChatPreparing===loading)aiChatPreparing=null;updateAiChatActions();}
     if(loading.cancelled||loading.scope!==aiSourceScope())return;
   }
-  if (expectedScope===null && !translationTarget && await window.BookAssistantUI?.handle(q)) return;
-  if (expectedScope===null && !translationTarget && await window.AssistantVideoCommands?.handle(q)) return;
-  if (expectedScope===null && !translationTarget && await window.AssistantMediaCommands?.handle(q)) return;
-  if (expectedScope===null && !translationTarget && await window.AssistantPageCommands?.handle(q)) return;
+  if (requestOptions.responseContract===undefined && expectedScope===null && !translationTarget && await window.BookAssistantUI?.handle(q)) return;
+  if (requestOptions.responseContract===undefined && expectedScope===null && !translationTarget && await window.AssistantVideoCommands?.handle(q)) return;
+  if (requestOptions.responseContract===undefined && expectedScope===null && !translationTarget && await window.AssistantMediaCommands?.handle(q)) return;
+  if (requestOptions.responseContract===undefined && expectedScope===null && !translationTarget && await window.AssistantPageCommands?.handle(q)) return;
   if(expectedScope!==null&&expectedScope!==aiSourceScope())return;
   const opts = buildOptsFromUI();
   opts.translate = true;                      // anahtar dogrulamasi icin
@@ -20171,7 +20172,7 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null) 
   }
 
   if (!translationTarget && expectedScope === null && window.AssistantAgentUI?.send) {
-    await window.AssistantAgentUI.send(q, chatContext, history, sourceScope);
+    await window.AssistantAgentUI.send(q, chatContext, history, sourceScope, undefined, requestOptions);
     return;
   }
 

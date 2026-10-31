@@ -3,6 +3,57 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const {lookupUrl,trusted,fetchReviews}=require('../src/letterboxd-auto');
 const item={kind:'film',title:'Witness',year:2026,tmdbId:'movie:123',imdbId:'tt1234567'};
 function html(rows,{title='Witness',year=2026,id='123'}={}){return `<meta property="og:title" content="${title} (${year}) • Letterboxd"><div data-tmdb-id="${id}"></div>`+rows.map((text,i)=>`<article><div class="js-review-body${text.startsWith('Spoiler')?' contains-spoilers':''}">${text}</div></article>`).join('');}
+
+test('any whole count from 1 to 48 is supported and invalid counts are refused before reading',async()=>{
+ for(const count of [1,10,20,30,37,48,undefined]){
+  const readPage=async address=>({url:address.includes('/tmdb/')?'https://letterboxd.com/film/witness/':address,html:html(Array.from({length:48},(_,i)=>'Review '+i+' offers a distinct perspective on the film.'))});
+  const result=await fetchReviews(item,{count,readPage});assert.equal(result.reviews.length,count??40);assert.equal(result.requested,count??40);assert.equal(result.sampling.mode,'popular');
+ }
+ for(const count of [0,49,-1,NaN,1.5,Infinity,'30',null]){
+  let calls=0;await assert.rejects(fetchReviews(item,{count,readPage:async()=>{calls++;}}),/whole review count from 1 to 48/);assert.equal(calls,0);
+ }
+});
+
+test('loaded browser transport collects 40 unique reviews in the same four-page budget',async()=>{
+ const calls=[],base='https://letterboxd.com/film/witness/';
+ const readPage=async(address,{signal,expectedBase})=>{
+  assert(signal instanceof AbortSignal);signal.throwIfAborted();calls.push(address);
+  if(address.includes('/tmdb/')){assert.equal(expectedBase,undefined);return {url:base,html:html([])};}
+  assert.equal(expectedBase,base);
+  const page=Number(/page\/(\d+)/.exec(address)?.[1]||1);
+  return {url:address,html:html(['A repeated opinion from the first page.',...Array.from({length:11},(_,i)=>'Distinct browser review '+page+'-'+i+' about the acting.')])};
+ };
+ const result=await fetchReviews(item,{count:40,readPage,fetchImpl:()=>{throw Error('Node fetch must not run');}});
+ assert.equal(result.reviews.length,40);assert.equal(result.pages,4);assert.equal(result.excluded.duplicate,3);
+ assert.equal(new Set(result.reviews.map(row=>row.text)).size,40);assert.equal(calls.length,5);
+ assert.equal(result.sampling.requested,40);assert.equal(result.sampling.coverage.popular,40);
+});
+
+test('loaded browser transport rejects an untrusted URL, different film, order or page even after accepted rows',async()=>{
+ const base='https://letterboxd.com/film/witness/';
+ for(const wrong of ['https://evil.example/film/witness/reviews/by/activity/page/2/','https://letterboxd.com/film/another/reviews/by/activity/page/2/',base+'reviews/page/2/',base+'reviews/by/activity/']){
+  await assert.rejects(fetchReviews(item,{readPage:async address=>({url:address.includes('/tmdb/')?base:address.includes('/page/2/')?wrong:address,html:html(['A complete first opinion about this film.'])})}),/different film|order changed/);
+ }
+ await assert.rejects(fetchReviews(item,{readPage:async()=>({url:'https://letterboxd.com.evil.example/film/witness/',html:html([])})}),/different film/);
+});
+
+test('loaded browser transport enforces UTF-8 byte bounds and verifies loaded film identity',async()=>{
+ const base='https://letterboxd.com/film/witness/';
+ await assert.rejects(fetchReviews(item,{readPage:async()=>({url:base,html:'é'.repeat(1500001)})}),/3000000 byte limit/);
+ await assert.rejects(fetchReviews(item,{readPage:async address=>({url:address.includes('/tmdb/')?base:address,html:html(['A complete review about this film.'],{id:'999'})})}),/mismatch/);
+ await assert.rejects(fetchReviews(item,{readPage:async address=>({url:address.includes('/tmdb/')?base:address,html:'<title>Just a moment</title>'})}),/verification/);
+});
+
+test('loaded browser transport receives cancellation and cannot keep a canceled collection pending',async()=>{
+ const before=new AbortController();before.abort();let calls=0;
+ await assert.rejects(fetchReviews(item,{signal:before.signal,readPage:async()=>{calls++;}}),/abort/i);assert.equal(calls,0);
+ const controller=new AbortController();let observed;
+ const result=fetchReviews(item,{signal:controller.signal,readPage:async(address,{signal})=>{observed=signal;controller.abort();return new Promise(()=>{});}});
+ await assert.rejects(result,/abort/i);assert.equal(observed.aborted,true);
+ // A reader which resolves after abort must not turn that result into accepted evidence.
+ const late=new AbortController();
+ await assert.rejects(fetchReviews(item,{signal:late.signal,readPage:async()=>{late.abort();return {url:'https://letterboxd.com/film/witness/',html:html(['A complete review.'])};}}),/abort/i);
+});
 test('identifier lookup does not guess a film slug, and redirects stay on supported HTTPS film routes',()=>{
   assert.equal(lookupUrl(item),'https://letterboxd.com/tmdb/123/');
   assert.equal(lookupUrl({...item,tmdbId:''}),'https://letterboxd.com/imdb/tt1234567/');

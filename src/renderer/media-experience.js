@@ -10,6 +10,7 @@
     contexts.delete(owner); contexts.set(owner, {
       catalogId:String(value.catalogId||'').slice(0,120),id: String(value.id || '').slice(0, 120), type: String(value.type || 'title').slice(0, 40),
       title: String(value.title || '').slice(0, 500), synopsis: String(value.synopsis || '').slice(0, 4000),
+      reviewAnalysis: window.MediaToolsModel?.normalizeReviewAnalysis(value.reviewAnalysis)||undefined,
       chapter: String(value.chapter || '').slice(0, 500), excerpt: String(value.excerpt || '').slice(0, 8000),
       selectedText: String(value.selectedText || '').slice(0, 4000),
       selectedTextTruncated: value.selectedTextTruncated === true || String(value.selectedText || '').length > 4000,
