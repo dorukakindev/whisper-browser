@@ -9,12 +9,7 @@ function reviewRows(raw) {
   return require('./renderer/media-tools-model').reviewRows(raw);
 }
 function verifyDecision(raw, reviews) {
-  if (!raw || !Array.isArray(raw.points) || !raw.points.length || raw.points.length>16) throw Error('Analysis needs 1–16 supported points.');
-  return {summary:text(raw.summary,3000), fit:text(raw.fit,2000), points:raw.points.map(row=>{
-    const source=reviews.find(r=>r.id===row.id), quote=text(row.quote,800);
-    if (!source || quote.length<8 || !source.text.includes(quote)) throw Error('A review quote could not be verified.');
-    return {id:row.id,quote,reason:text(row.reason,1500),kind:['praise','criticism','debate'].includes(row.kind)?row.kind:'debate'};
-  }),at:Date.now()};
+  return require('./renderer/media-tools-model').verifyDecision(raw,reviews);
 }
 function tonight(items, history=[], options={}) {
   const max=Math.max(0,Math.min(300,Number(options.minutes)||0));
@@ -132,7 +127,7 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
         const item=await reviewItem(event,input);if(jobs.size)throw Error('A review request is already running.');
         const id=text(input.id,80);if(!id)throw Error('Request ID required.');if(stoppedReviews.has(id))throw Error('Cancelled.');const controller=new AbortController();jobs.set(id,controller);
         const snapshot=JSON.stringify([item.kind,item.title,item.year,item.tmdbId,item.imdbId]);
-        try{const result=await require('./letterboxd-auto').fetchReviews(item,{count:input.count,spoilers:input.spoilers===true,signal:controller.signal,fetchImpl});const current=await reviewItem(event,input);if(JSON.stringify([current.kind,current.title,current.year,current.tmdbId,current.imdbId])!==snapshot)throw Error('The film match changed. Load its reviews again.');return {ok:true,...result};}
+        try{const result=await require('./letterboxd-auto').fetchReviews(item,{count:input.count,sort:input.sort,spoilers:input.spoilers===true,signal:controller.signal,fetchImpl});const current=await reviewItem(event,input);if(JSON.stringify([current.kind,current.title,current.year,current.tmdbId,current.imdbId])!==snapshot)throw Error('The film match changed. Load its reviews again.');return {ok:true,...result};}
         finally{jobs.delete(id);}
       }
       if(action==='reviews-fetch'){
@@ -140,7 +135,7 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
         if(jobs.size)throw Error('A review request is already running.');const id=text(input.id,80);if(!id)throw Error('Request ID required.');if(stoppedReviews.has(id))throw Error('Cancelled.');const controller=new AbortController();jobs.set(id,controller);
         try{const response=await fetchImpl(url.href,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(20000)]),redirect:'error',credentials:'omit'});if(!response.ok)throw Error(response.status===403?'Letterboxd returned HTTP 403. Automatic access is unavailable; open the page normally, then paste or import reviews.':'Review site returned HTTP '+response.status+'. Paste or import reviews instead.');let html='',bytes=0;const decoder=new TextDecoder();for await(const chunk of response.body){bytes+=chunk.byteLength;if(bytes>3000000)throw Error('Review page too large.');html+=decoder.decode(chunk,{stream:true});if(html.length>3000000)throw Error('Review page too large.');}
           html+=decoder.decode();controller.signal.throwIfAborted();
-          const parsed=require('./letterboxd-reviews').parseLetterboxdReviews(html);
+          const parsed=require('./letterboxd-reviews').parseLetterboxdReviews(html,{url:url.href});
           if(!parsed.reviews.length)throw Error('No readable reviews found. The site may require access or its format changed; paste or import reviews.');return {ok:true,...parsed,url:url.href,match:require('./letterboxd-reviews').matchFilm(selected,parsed.identity)};
         }finally{jobs.delete(id);}
       }
@@ -148,7 +143,7 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
       if(['decision-save','feedback-save'].includes(action)){
         const selected=await reviewItem(event,input);if(action==='decision-save'&&input.itemIdentity){for(const key of ['kind','title','year','tmdbId','imdbId'])if(String(input.itemIdentity[key]??'')!==String(selected[key]??''))throw Error('The film identity changed. Review the new title before saving this analysis.');}const data=read(),previous=Object.hasOwn(data.titles,selected.id)?data.titles[selected.id]:{};
         if(action==='feedback-save'){const feedback={reaction:['like','neutral','dislike'].includes(input.reaction)?input.reaction:'neutral',note:text(input.note),aspects:Array.isArray(input.aspects)?input.aspects.filter(k=>require('./media-taste').ASPECTS.includes(k)):[],at:Date.now()};data.titles[selected.id]={...previous,feedback};}
-        else{const reviews=reviewRows(JSON.stringify(input.reviews)),analysis=verifyDecision(input.analysis,reviews);data.titles[selected.id]={...previous,history:[{analysis,reviews,identity:{kind:selected.kind,title:selected.title,year:selected.year,tmdbId:selected.tmdbId,imdbId:selected.imdbId}},...(previous.history||[])].slice(0,8)};}
+        else{const reviews=reviewRows(JSON.stringify(input.reviews)),analysis=verifyDecision(input.analysis,reviews),evidenceSnapshot=require('./renderer/media-tools-model').validateEvidenceSnapshot(input.evidenceSnapshot,reviews,selected);data.titles[selected.id]={...previous,history:[{analysis,reviews,...(evidenceSnapshot?{evidenceSnapshot}:{}),identity:{kind:selected.kind,title:selected.title,year:selected.year,tmdbId:selected.tmdbId,imdbId:selected.imdbId}},...(previous.history||[])].slice(0,8)};}
         save(data);return {ok:true,value:data.titles[selected.id]};
       }
       if(action==='backup-export'){
