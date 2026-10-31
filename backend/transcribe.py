@@ -1926,6 +1926,70 @@ def write_srt(entries, output_path, max_line_width=42, max_lines=2, language="tr
         f.write(payload)
 
 
+def translation_cue_fingerprint(entry, index):
+    payload = json.dumps({"i": index, "s": round(float(entry[0]), 3),
+                          "e": round(float(entry[1]), 3),
+                          "t": unicodedata.normalize("NFC", str(entry[2]))},
+                         ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def stage_translation_metadata(transaction, output_path, staged_subtitle,
+                               source_entries, translated_entries, args,
+                               completed_indices, source_id, metadata_cues=None):
+    """Both translation producers bind original cues to the actual staged SRT.
+
+    No original filename is followed later. Only exact count/timing alignment
+    licenses an original snapshot; rendered labels/wrapping come from the saved
+    subtitle itself rather than a second guessed serialization.
+    """
+    if len(source_entries) != len(translated_entries):
+        return False
+    source_hash = subtitle_entries_hash(source_entries)
+    completed = set(completed_indices)
+    cues = ([dict(row) for row in metadata_cues] if metadata_cues is not None else [
+        {"key": translation_cue_fingerprint(entry, index),
+         "status": "completed" if index in completed else "failed",
+         "text": translated_entries[index][2],
+         "error": "" if index in completed else "api_failure"}
+        for index, entry in enumerate(source_entries)])
+    context = {}
+    if Path(output_path).suffix.lower() == ".srt":
+        saved_bytes = Path(staged_subtitle).read_bytes()
+        if len(saved_bytes) <= 4_000_000:
+            saved = parse_subtitle_entries(saved_bytes.decode("utf-8-sig"), ".srt")
+            aligned = len(saved) == len(source_entries) and all(
+                round(float(original[0]) * 1000) == round(float(translation[0]) * 1000) == round(float(rendered[0]) * 1000)
+                and round(float(original[1]) * 1000) == round(float(translation[1]) * 1000) == round(float(rendered[1]) * 1000)
+                for original, translation, rendered in zip(source_entries, translated_entries, saved))
+            if aligned:
+                originals = [{"startMs": round(float(s) * 1000), "endMs": round(float(e) * 1000),
+                              "text": unicodedata.normalize("NFC", str(t))} for s, e, t in source_entries]
+                canonical = json.dumps(originals, ensure_ascii=False, separators=(",", ":"))
+                if len(originals) <= 20000 and len(canonical.encode("utf-8")) <= 4_000_000:
+                    for index, rendered in enumerate(saved):
+                        cues[index]["text"] = rendered[2]
+                    context = {"sourceContextVersion": 1, "subtitleHash": hashlib.sha256(saved_bytes).hexdigest(),
+                               "originalHash": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+                               "originalCues": originals,
+                               "speechGuidance": {"terminology": str(getattr(args, "glossary", "") or "")[:3000], "roles": ""}}
+    completed_count = sum(row.get("status") == "completed" for row in cues)
+    value = {"version": 1, "role": "translation", "sourceHash": source_hash, "sourceId": source_id,
+             "total": len(cues), "completed": completed_count, "failed": len(cues) - completed_count,
+             "status": "complete" if completed_count == len(cues) else "partial",
+             "targetLanguage": str(getattr(args, "translate_to", "tr") or "tr").lower(),
+             "model": str(getattr(args, "translate_model", "") or ""),
+             "provider": str(getattr(args, "translate_base_url", "") or ""),
+             "forSpeech": bool(getattr(args, "translate_for_speech", False)),
+             **({"speechProtocol": SPEECH_TRANSLATION_PROTOCOL} if getattr(args, "translate_for_speech", False) else {}),
+             "cues": cues, **context}
+    def write_metadata(staged):
+        with atomic_text_writer(staged, encoding="utf-8") as handle:
+            handle.write(json.dumps(value, ensure_ascii=False, indent=2) + "\n")
+    transaction.stage(Path(str(output_path) + ".meta.json"), write_metadata)
+    return True
+
+
 def write_dual_srt(source_entries, translated_entries, output_path, translation_first=True,
                    max_line_width=42, language="tr", source_language=None,
                    wrap_mode="none"):
@@ -8334,11 +8398,21 @@ def transcribe(args):
             fmt = fmt.strip().lower()
             out_path = output_dir / f"{base_name}{name_suffix}.{fmt}"
 
-            def _write(items, path, lang_code, speaker_map):
+            def _write(items, path, lang_code, speaker_map, translation_metadata=False):
                 if fmt not in ("srt", "vtt", "txt", "ass", "json"):
                     return False
-                return output_tx.stage(path, lambda staged: _write_format(
-                    items, staged, lang_code, speaker_map))
+                def writer(staged):
+                    result = _write_format(items, staged, lang_code, speaker_map)
+                    if result and translation_metadata and fmt in {"srt", "vtt", "ass"}:
+                        try:
+                            stage_translation_metadata(output_tx, path, staged, entries, items,
+                                                       args, completed_indices, source_id)
+                        except PipelineCancelled:
+                            raise
+                        except (OSError, ValueError) as error:
+                            log(f"Çeviri metadata'sı yazılamadı: {error}", "warn")
+                    return result
+                return output_tx.stage(path, writer)
 
             def _write_format(items, path, lang_code, speaker_map):
                 text_items = (label_entries_for_text_output(items, speaker_map)
@@ -8390,7 +8464,7 @@ def transcribe(args):
                     log(f"Kaynak ve ceviri ayni ada denk geldi - ceviri {tr_path.name} "
                         f"olarak yazildi.", "warn")
                 if _write(translated, tr_path, (args.translate_to or "tr").lower(),
-                          translated_speakers_map):
+                          translated_speakers_map, translation_metadata=True):
                     output_files.append(str(tr_path))
                     output_descriptors.append(subtitle_output(
                         tr_path, "translation", (args.translate_to or "tr").lower(),
@@ -9057,13 +9131,7 @@ def translate_existing_subtitle(args):
 
     warn_list = []
 
-    def cue_fingerprint(entry, index):
-        # Zaman + sıra + NFC metin: aynı zaman kodlu iki cue birbirine karışmaz.
-        payload = json.dumps({"i": index, "s": round(float(entry[0]), 3),
-                              "e": round(float(entry[1]), 3),
-                              "t": unicodedata.normalize("NFC", str(entry[2]))},
-                             ensure_ascii=False, separators=(",", ":"))
-        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    cue_fingerprint = translation_cue_fingerprint
 
     source_hash = subtitle_entries_hash(entries)
     source_id = subtitle_source_id(args, source_hash)
@@ -9308,9 +9376,14 @@ def translate_existing_subtitle(args):
         warning=lambda message: log(message, "warn"),
     )
 
+    staged_output_paths = {}
     def stage_required_output(path, writer):
         try:
-            return output_tx.stage(path, writer)
+            def captured_writer(staged):
+                result = writer(staged)
+                staged_output_paths[str(path)] = staged
+                return result
+            return output_tx.stage(path, captured_writer)
         except BaseException:
             output_tx.rollback()
             raise
@@ -9391,28 +9464,13 @@ def translate_existing_subtitle(args):
                     ) if not completed else "",
                 })
             try:
-                metadata_text = json.dumps({
-                    "version": 1, "sourceHash": source_hash,
-                    "sourceId": source_id,
-                    "targetLanguage": target,
-                    "model": str(getattr(args, "translate_model", "") or ""),
-                    "provider": str(getattr(args, "translate_base_url", "") or ""),
-                    "forSpeech": bool(getattr(args, 'translate_for_speech', False)),
-                    **({"speechProtocol": SPEECH_TRANSLATION_PROTOCOL}
-                       if getattr(args, 'translate_for_speech', False) else {}),
-                    "cues": metadata_cues,
-                }, ensure_ascii=False, indent=2) + "\n"
-                metadata_path = Path(f"{out_path}.meta.json")
-
-                def _write_translation_metadata(staged):
-                    with atomic_text_writer(staged, encoding="utf-8") as handle:
-                        handle.write(metadata_text)
-
-                output_tx.stage(metadata_path, _write_translation_metadata)
+                stage_translation_metadata(output_tx, out_path, staged_output_paths[str(out_path)],
+                                           entries, translated, args, completed_source_indices,
+                                           source_id, metadata_cues=metadata_cues)
             except PipelineCancelled:
                 output_tx.rollback()
                 raise
-            except OSError as error:
+            except (OSError, ValueError) as error:
                 log(f"Çeviri metadata'sı yazılamadı: {error}", "warn")
 
     if args.dual_subtitle:

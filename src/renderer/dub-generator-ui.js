@@ -20,7 +20,7 @@
   function showActivity(){const en=window.UiLocale?.get?.()==='en';el('dubGeneratorActivity').replaceChildren(...[...activeGroups.values()].map(g=>{const node=document.createElement('span');node.className='dub-activity-chip';node.textContent=(en?'Group ':'Grup ')+g.group+' · '+(g.stage==='verification'?(en?'Text check':'Metin denetimi'):(en?'Speech':'Ses'))+' · '+(en?'attempt ':'deneme ')+g.attempt+' · '+Math.floor(g.elapsed)+(en?' s elapsed':' sn geçti')+' · '+(en?'timeout ':'zaman aşımı ')+g.limit+(en?' s':' sn');return node;}));if(activeGroups.size&&current&&!current.stopping)status(en?'Processing speech and text checks…':'Konuşma ve metin denetimleri işleniyor…');}
   let plan = null, edits = {}, planning = false;
   let backgroundSource = '', choosing = false, configSequence = 0;
-  let deliverySource = '';
+  let deliverySource = '', resultMode = 'natural';
   let lastRequest = null, lastReferenceQuality = null, lastReferenceIdentity = null, referenceQualityPendingReset = false;
   const results = new Map();
   const resultOptions = new Map();
@@ -61,8 +61,23 @@
   el('translateModel')?.addEventListener('change',editorProviderHint);
   document.addEventListener('ui-locale-change',editorProviderHint);
   const decodingInfo=document.createElement('p');decodingInfo.id='dubPlanDecoding';decodingInfo.className='dub-dictionary-preview';decodingInfo.hidden=true;decodingInfo.dataset.uiUntranslated='';el('dubPlanPrepare').parentElement.after(decodingInfo);
+  function naturalOverview() {
+    const en=window.UiLocale?.get?.()==='en', submitted=current?.settings;
+    for(const node of modal.querySelectorAll('[data-tr][data-en]')){node.dataset.uiUntranslated='';node.textContent=en?node.dataset.en:node.dataset.tr;}
+    const recommended=(submitted?.resultMode||resultMode)==='natural';
+    el('dubNaturalTitle').textContent=recommended?(en?'Natural dubbing (recommended)':'Doğal dublaj (önerilen)'):(en?'Custom settings':'Özel ayarlar');
+    el('dubNaturalSummary').textContent=en?'Your subtitles are prepared with the selected voice.':'Altyazı, seçtiğiniz sesle hazırlanır.';
+    el('dubNaturalState').textContent=recommended?(en?'Your selected voice and text are preserved.':'Seçtiğiniz ses ve metin korunur.'):(en?'Your custom production choices are active.':'Özel üretim seçimleriniz etkin.');
+    el('dubNaturalRecommend').hidden=recommended;el('dubNaturalRecommend').disabled=!!current||planning||choosing||referenceBusy||workspaceBusy;
+    el('dubNaturalRecommend').textContent=en?'Use natural dubbing':'Doğal dublajı kullan';
+    const follows=submitted?.followDelivery??el('dubFollowDelivery').checked;
+    el('dubNaturalDelivery').textContent=recommended&&!follows?(en?'Source delivery is followed automatically when usable audio is available; otherwise the selected voice is preserved.':'Kaynak uygunsa söyleyiş otomatik izlenir; değilse seçilen ses korunur.'):follows?(en?'Source delivery analysis is requested and needs usable source audio. Unclear sections keep the reference tone.':'Kaynak anlatımı analizi istendi; uygun kaynak sesi gerekir. Belirsiz bölümlerde referans tonu korunur.'):(en?'Source delivery analysis is off. The reference voice guides the tone; source emotion is not being transferred.':'Kaynak anlatımı analizi kapalı. Tonu referans ses belirler; kaynaktaki duygu aktarılmaz.');
+    el('dubNaturalReview').textContent=window.DubRunInfo?.speechResult?.(output,en)||(en?'You can listen or compare individual groups if you want to review the result.':'İsterseniz sonucu dinleyebilir veya tek tek grupları karşılaştırabilirsiniz.');
+    el('dubNaturalReviewOpen').textContent=en?'Review groups and compare takes':'Grupları dinle ve kayıtları karşılaştır';
+    el('dubNaturalReviewOpen').disabled=!!current||!results.size;
+  }
   function refreshOverview() {
-    editorProviderHint();
+    editorProviderHint();naturalOverview();
     const decoding=plan?.sourceDecoding;decodingInfo.hidden=!decoding;decodingInfo.textContent=decoding?(window.UiLocale?.get?.()==='en'?'Text read using '+decoding.encoding+(decoding.repaired?' · automatic text repair applied':'')+'. Check characters before generating speech. Source file unchanged.':'Metin '+decoding.encoding+' ile okundu'+(decoding.repaired?' · otomatik metin onarımı uygulandı':'')+'. Ses üretmeden önce harfleri kontrol et. Kaynak dosya değiştirilmedi.'):'';
     for(const id of ['dubSrtName','dubGeneratedName','dubVoiceName']){const node=el(id);if(node)node.title=node.textContent;}
     const notice=el('dubInputNotice');
@@ -316,6 +331,10 @@
     if (!current && !preserveOptions) { el('dubFollowDelivery').checked = r.followDelivery === true; el('dubDeliveryStrength').value = r.deliveryStrength || 'balanced'; }
     if (!current && !preserveOptions && !plan) el('dubGrouping').value = r.grouping || 'akici';
     if (!current && !preserveOptions) { el('dubVerification').value = r.verification || 'detailed'; el('dubAutoFit').checked = r.autoFit !== false; el('dubNaturalSpeech').checked = r.naturalSpeech !== false; }
+    if (!current && !preserveOptions) {
+      const recommended=el('dubProfile').value==='quality'&&el('dubVerification').value==='detailed'&&el('dubNaturalSpeech').checked&&el('dubAutoFit').checked&&el('dubTimingMode').value==='video';
+      resultMode=r.resultMode==='custom'||!recommended?'custom':'natural';
+    }
     if (!current && kind === 'reference') referenceInfo(null);
     if (!current && !r.ready) status('Motor veya referans eksik; ses ve motor ayarlarını kontrol edin.');
     controls();
@@ -477,7 +496,7 @@
   el('dubChooseSrt').addEventListener('click', () => chooseInput('subtitle'));
   el('dubFollowDelivery').addEventListener('change',controls);
   el('dubChooseDeliverySource').addEventListener('click',()=>chooseInput('delivery'));
-  el('dubResetDeliverySource').addEventListener('click',()=>{deliverySource='';el('dubDeliverySourceName').textContent='';});
+  el('dubResetDeliverySource').addEventListener('click',()=>{deliverySource='';el('dubDeliverySourceName').textContent='';refreshOverview();});
   async function preparePlan() {
     if (planning || current || referenceBusy || choosing || !srt) return;
     const media = requestIdentity();
@@ -505,11 +524,30 @@
       if (Object.keys(edits).length && !window.confirm(t('Gruplama değişince dublaj metni düzenlemeleri sıfırlanacak. Devam edilsin mi?'))) return;
       invalidatePlan();
     }
+    resultMode='custom';
     for (const [key,value] of Object.entries(settings)) {
       const input = el(`dub${key[0].toUpperCase()}${key.slice(1)}`);
       if (typeof value === 'boolean') input.checked = value; else input.value = value;
     }
     controls();
+  });
+  el('dubNaturalRecommend').addEventListener('click',()=>{
+    if(current||planning||choosing||referenceBusy||workspaceBusy)return;
+    // The recommendation changes quality choices only; voice, scope, grouping,
+    // concurrency and authored text remain untouched.
+    for(const key of ['profile','verification','naturalSpeech','autoFit','timingMode']){
+      const input=el(`dub${key[0].toUpperCase()}${key.slice(1)}`),value=presetSpecs.Careful[key];
+      if(typeof value==='boolean')input.checked=value;else input.value=value;
+    }
+    resultMode='natural';
+    controls();
+  });
+  el('dubNaturalReviewOpen').addEventListener('click',()=>{
+    el('dubQualityResults').open=true;el('dubQualityResults').scrollIntoView?.({block:'center'});el('dubQualityGroup').focus({preventScroll:true});
+  });
+  for(const id of ['dubProfile','dubConcurrency','dubKeepEngine','dubGrouping','dubVerification','dubTimingMode','dubNaturalSpeech','dubAutoFit','dubFollowDelivery','dubDeliveryStrength','dubExpression'])el(id).addEventListener('change',()=>{
+    if(current||planning||choosing||referenceBusy||workspaceBusy)return;
+    resultMode='custom';refreshOverview();
   });
   for (const id of ['dubProfile','dubConcurrency','dubVerification','dubTimingMode','dubNaturalSpeech','dubAutoFit']) el(id).addEventListener('change', controls);
   for (const id of ['dubRangeEnabled', 'dubRangeStart', 'dubRangeEnd']) el(id).addEventListener('input', invalidatePlan);
@@ -580,7 +618,7 @@
     runtimePhases={};runtimeError='';runtimeMetrics=null;runInfo();el('dubPhaseSummary').textContent='';
     status('Motor yükleniyor…'); controls();
     const payload = retry ? {...lastRequest, id:pending.id, forceGroups,
-      dubText: plan ? {sourceHash:plan.sourceHash, edits:{...edits}} : lastRequest.dubText} : { id: pending.id, srt, sample: pending.sample,
+      dubText: plan ? {sourceHash:plan.sourceHash, edits:{...edits}} : lastRequest.dubText} : { id: pending.id, srt, resultMode, sample: pending.sample,
       keepEngine:el('dubKeepEngine').checked, profile: el('dubProfile').value, concurrency: Number(el('dubConcurrency').value), grouping: el('dubGrouping').value,
       expression: el('dubExpression').value,
       followDelivery:el('dubFollowDelivery').checked, deliveryStrength:el('dubDeliveryStrength').value,
@@ -802,7 +840,7 @@
     for(const code of measured?.warnings||[])reasons.push(labels[code][en?0:1]);
     return reasons;
   }
-  function voiceSettings(){return {profile:el('dubProfile').value,concurrency:Number(el('dubConcurrency').value),grouping:el('dubGrouping').value,verification:el('dubVerification').value,timingMode:el('dubTimingMode').value,expression:el('dubExpression').value,keepBackground:el('dubKeepBackground').checked,followDelivery:el('dubFollowDelivery').checked,deliveryStrength:el('dubDeliveryStrength').value,sample:el('dubSampleOnly').checked};}
+  function voiceSettings(){return {resultMode,profile:el('dubProfile').value,concurrency:Number(el('dubConcurrency').value),grouping:el('dubGrouping').value,verification:el('dubVerification').value,timingMode:el('dubTimingMode').value,expression:el('dubExpression').value,keepBackground:el('dubKeepBackground').checked,followDelivery:el('dubFollowDelivery').checked,deliveryStrength:el('dubDeliveryStrength').value,sample:el('dubSampleOnly').checked};}
   function voiceState(query={}){
     if(mediaContextKey!==null&&mediaContextKey!==mediaIdentity())return {opened:modal.open,busy:!!current||planning||referenceBusy||choosing||workspaceBusy,sourceChanged:true,subtitleReady:false,engineAndReferenceReady:false,output:null,groups:[],counts:{total:0,review:0,failed:0},note:'Voice preparation belongs to another source. Open the current video voice panel / Ses hazırlığı başka kaynağa ait. Güncel videonun ses panelini aç.'};
     let range=null,invalidRange=false;try{range=selectedRange();}catch(_){invalidRange=true;}

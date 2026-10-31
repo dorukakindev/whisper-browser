@@ -85,6 +85,7 @@ const TRANSIENT = new Set([
   'sceneSummary','sceneTerms','sceneCharacters',
   // Disclosure visibility and library search are not synthesis configuration.
   'dubProductionSettings','dubDeliverySettings','voiceReferenceComparison','voiceReferenceSearch',
+  'dubManualSettings','dubScopeSettings', // disclosure visibility; no synthesis settings stored here
   // Reader-only follow toggle; quality evidence is a disclosure, not a setting.
   'pdfVoiceFollow', 'dubQualityEvidence',
   // PDF narration range/source are per-open-reader draft values, reset by PdfReaderExperience.opened.

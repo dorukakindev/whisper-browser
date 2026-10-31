@@ -152,13 +152,21 @@ class GenerationTests(unittest.TestCase):
             self.run_generation(Path(d),server,['Good.','Uncertain.'],delivery=[delivery,None],automatic=True)
             self.assertEqual(server.prompts,[None,None])
             self.assertEqual(server.calls[1],'Uncertain.')
-    def test_slow_video_mode_does_not_shorten_a_complete_translation(self):
+    def test_slow_video_mode_preserves_complete_speech_when_fit_is_not_verified(self):
+        class RejectFit(Verifier):
+            async def check(self, path, text, **kwargs):
+                return {'status':'review' if text=='Short.' else 'passed',
+                        'review':text=='Short.','similarity':0 if text=='Short.' else 1}
         with tempfile.TemporaryDirectory() as temp:
             server=Server()
             text='Bu tam cümlenin anlamı sırf kısa bir zaman aralığına sığdırmak için değiştirilmemeli.'
-            self.run_generation(Path(temp),server,[text],auto_fit=True,timing_mode='video')
-            self.assertEqual(server.calls,[text])
-            self.assertEqual(self.rewrites,[])
+            _,args,paths=self.run_generation(Path(temp),server,[text],auto_fit=True,timing_mode='video',verifier=RejectFit)
+            self.assertEqual(server.calls,[text,'Short.'])
+            record=json.loads(paths[0].with_suffix('.json').read_text())
+            self.assertEqual(record['text'],text)
+            self.assertFalse(record['rewritten'])
+            self.assertEqual(sf.info(paths[0]).frames,16000)
+            self.assertEqual(record['durationCandidateVerification']['status'],'review')
 
     def test_stalled_last_request_keeps_completed_cache_for_same_reference(self):
         from dub_lifecycle import EngineStalled

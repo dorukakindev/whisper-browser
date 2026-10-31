@@ -23,6 +23,11 @@ const service = registerDubService({ observeJob:(session,event,cancel)=>observed
   dialog:{}, owner:()=>null, authorized:()=>allowed, authorizeSubtitle:async p=>{ assert.equal(p,srt); return p; },
   busy:()=>false, grantMedia:p=>assert.ok(fs.existsSync(p)), environment:()=>({PATH:'fixture'}),
   shorten: async (text, seconds, context) => { editContext=context; assert.equal(text, 'Uzun metin.'); assert.equal(seconds, 2); return 'Kısa metin.'; },
+  resolveSourceContext: async ({subtitleBytes,preparedGroups}) => {
+    assert.equal(preparedGroups[0].key,'1','Automatic start must construct a real plan without opening manual text editing');
+    return {subtitleHash:require('node:crypto').createHash('sha256').update(subtitleBytes).digest('hex'),
+      groups:[{key:'1',text:'Uzun metin.',original:'Long text.',originalBefore:'Earlier.',speaker:'Narrator',before:'Önce.'}]};
+  },
   setRate: async request=>({ok:request.rate===.8}),
   prepareProsody: async options => {
     prosodyOptions=options;
@@ -45,7 +50,14 @@ const service = registerDubService({ observeJob:(session,event,cancel)=>observed
     calls.push({exe,args,opts}); child=new EventEmitter(); child.exitCode=null;
     child.stdout=new EventEmitter(); child.stderr=new EventEmitter();
     child.stdout.setEncoding=child.stderr.setEncoding=child.stderr.resume=()=>{};
-    queueMicrotask(() => child.emit('spawn')); return child;
+    const process=child;
+    queueMicrotask(() => {
+      process.emit('spawn');
+      if(args[0].endsWith('dub_plan.py')&&opts.stdio) {
+        process.stdout.emit('data',JSON.stringify({sourceHash:fixtureHash,groups:[{key:'1',text:'Uzun metin.',seconds:2}]}));
+        process.exitCode=0;process.emit('close',0);
+      }
+    }); return child;
   }, terminate:()=>killOK });
 const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,...args[0]};return handlers[name]({sender},...args);};
 (async()=>{
@@ -58,6 +70,10 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.equal((await call('dub:config')).expression,'reference');
     const beforeFlowConfig=fs.readFileSync(path.join(root,'dub-settings.json'),'utf8');
     assert.equal((await call('dub:start',{id:'sentence-flow',srt,grouping:'anlatim'})).ok,true);
+    assert.equal(calls.filter(row=>row.args[0].endsWith('dub_plan.py')).length,1,'Start builds the source plan automatically');
+    child.stdout.emit('data','DUB_REWRITE '+JSON.stringify({id:'e'.repeat(32),key:'1',sourceHash:fixtureHash,text:'Uzun metin.',seconds:2,mode:'natural'})+'\n');
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(editContext.original,'Long text.','Normal start reaches original source without a manually prepared plan');
     const flowArgs=calls.at(-1).args;
     assert.equal(flowArgs[flowArgs.indexOf('--gruplama')+1],'anlatim');
     assert.equal(flowArgs[flowArgs.indexOf('--grup-max-karakter')+1],'280');
@@ -229,12 +245,21 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.ok(calls[0].args.includes('--limit')); assert.equal(calls[0].opts.env.HF_HUB_DISABLE_XET,'1');
     assert.ok(calls[0].args.includes('--verification'));
     const rewriteId='a'.repeat(32);
-    child.stdout.emit('data','DUB_REWRITE '+JSON.stringify({id:rewriteId,text:'Uzun metin.',seconds:2,mode:'natural',measured:3.5})+'\n');
+    child.stdout.emit('data','DUB_REWRITE '+JSON.stringify({id:rewriteId,key:'1',sourceHash:fixtureHash,text:'Uzun metin.',seconds:2,mode:'natural',measured:3.5,original:'ATTACKER',before:'ATTACKER'})+'\n');
     await new Promise(resolve=>setImmediate(resolve));
     assert.equal(editContext.mode,'natural');assert.equal(editContext.measured,3.5);
+    assert.equal(editContext.original,'Long text.');assert.equal(editContext.before,'Önce.');
     assert.ok(calls[0].args.includes('--natural-speech'));
     const rewriteDir=calls[0].args[calls[0].args.indexOf('--rewrite-dir')+1];
     assert.equal(JSON.parse(fs.readFileSync(path.join(rewriteDir,rewriteId+'.json'),'utf8')).text,'Kısa metin.');
+    assert.equal(JSON.parse(fs.readFileSync(path.join(rewriteDir,rewriteId+'.json'),'utf8')).status,'source_reviewed');
+    for(const [id,identity] of [['b'.repeat(32),{key:'999',sourceHash:fixtureHash}],['c'.repeat(32),{key:'1',sourceHash:'wrong'}]]) {
+      editContext=null;
+      child.stdout.emit('data','DUB_REWRITE '+JSON.stringify({id,...identity,text:'Uzun metin.',seconds:2,mode:'natural'})+'\n');
+      await new Promise(resolve=>setImmediate(resolve));
+      assert.equal(editContext,null,'Unknown or stale identity must not reach provider');
+      assert.deepEqual(JSON.parse(fs.readFileSync(path.join(rewriteDir,id+'.json'),'utf8')),{text:'Uzun metin.',status:'source_unavailable'});
+    }
     child.stdout.emit('data','DUB_ACTIVITY {"stage":"synthesis","group":61,"attempt":2,"elapsed":30,"limit":180,"secret":"omit"}\n');assert.equal(events.at(-1).type,'activity');assert.equal(events.at(-1).group,61);assert.equal(events.at(-1).secret,undefined);
     child.stdout.emit('data','DUB_ACTIVITY {"stage":"verification"}\n');assert.equal(events.at(-1).type,'status');assert.equal(events.at(-1).stage,'verification');assert.match(events.at(-1).text,/doğrulanıyor/);
     child.stdout.emit('data','DUB_ACTIVITY {"stage":"verification","group":61,"attempt":1,"elapsed":12,"limit":120,"finished":true}\n');assert.equal(events.at(-2).type,'activity');assert.equal(events.at(-2).stage,'verification');assert.equal(events.at(-2).finished,true);
@@ -501,6 +526,19 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.equal((await call('dub:latest')).output.qualityIncomplete,true,'Reopening must preserve incomplete quality evidence');
     assert(observedJobs.some(row=>row.type==='start'&&typeof row.cancel==='function'),'Owned voice job exposes an exact cancellation callback');
     assert(observedJobs.some(row=>['done','cancelled','error'].includes(row.type)),'Voice terminal event reaches job observer');
-    console.log('dub-service: authorization, single job, safe output, progress, cancellation and failure passed');
+    // Natural mode requests usable source delivery automatically, while an
+    // unavailable optional source cannot prevent ordinary speech generation.
+    prosodyMode='fail';prosodyOptions=null;
+    assert.equal((await call('dub:start',{id:'natural-auto-delivery',srt,timingMode:'clip',resultMode:'natural',followDelivery:false,
+      backgroundTab:{tabId:'video',generation:1}})).ok,true);
+    assert(prosodyOptions,'Natural mode must attempt source delivery without an extra checkbox');
+    const naturalWav=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];fs.writeFileSync(naturalWav,wav);child.emit('close',0);
+    assert.equal(events.at(-1).type,'done');assert.equal(events.at(-1).settings.deliveryAutomatic,true);
+    assert.equal(events.at(-1).settings.deliveryFallback,true);
+    prosodyOptions=null;
+    assert.equal((await call('dub:start',{id:'custom-delivery-off',srt,timingMode:'clip',resultMode:'custom',followDelivery:false,
+      backgroundTab:{tabId:'video',generation:1}})).ok,true);
+    assert.equal(prosodyOptions,null,'Saved custom delivery-off choice remains respected');child.emit('close',1);
+    console.log('dub-service: authorization, single job, safe output, progress, cancellation, source ownership and natural/custom policy passed');
   } finally { fs.rmSync(root,{recursive:true,force:true}); }
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -18331,6 +18331,7 @@ async function resolveDubSource(request) {
 }
 const dubAssistantJobs=new WeakMap();
 const dubService = require('./dub-service').registerDubService({
+  resolveSourceContext: require('./dub-source-resolver').createSourceResolver({getAssetStore:browserAssetStore,getIndex:watchIndex}),
   observeJob:(session,event,cancel)=>{
     if(event.type==='start'){const id=assistantJobs.start({kind:session.settings?.kind==='reference'?'reference':'voice',cancel});dubAssistantJobs.set(session,id);linkAssistantJob(session.id,id);}
     else {const id=dubAssistantJobs.get(session);if(id)assistantJobs.update(id,event);}
@@ -18415,26 +18416,15 @@ const dubService = require('./dub-service').registerDubService({
   },
   editorIdentity: () => {
     const c = browserTranslationConfig();
-    return require('node:crypto').createHash('sha256').update(JSON.stringify([c.endpoint,c.model,'speech-editor-v4-delivery-contract'])).digest('hex');
+    return require('node:crypto').createHash('sha256').update(JSON.stringify([c.endpoint,c.model,'speech-editor-v5-source-reviewed'])).digest('hex');
   },
   shorten: async (text, seconds, context = {}) => {
     const config = browserTranslationConfig();
     const problem = browserTranslationConfigProblem(config);
     if (problem) throw Object.assign(new Error(problem), {code:'DUB_EDITOR_UNAVAILABLE',reason:'configuration'});
-    const natural = context.mode === 'natural';
-    const response = await fetch(safeTranslationEndpoint(config.endpoint), {
-      method: 'POST', signal: AbortSignal.timeout(45000),
-      headers: { 'Content-Type': 'application/json', ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}) },
-      body: JSON.stringify({ model: config.model, temperature: 0.2, max_tokens: 2400,
-        messages: require('./dub-editor-request').editorMessages(text, seconds, context) }),
-    });
-    if (!response.ok) throw Object.assign(new Error(`Dublaj metni servisi: HTTP ${response.status}`), {code:'DUB_EDITOR_UNAVAILABLE',reason:response.status===401||response.status===403?'authentication':response.status===429?'rate_limit':'provider'});
-    const data = JSON.parse((await readResponseBufferLimited(response, 32768)).toString('utf8'));
-    if (data.choices?.[0]?.finish_reason==='length') throw Object.assign(new Error('Speech editor output limit'), {reason:'output_limit'});
-    const proposed = data.choices?.[0]?.message?.content?.trim();
-    if (!proposed) throw Object.assign(new Error('Empty speech editor response'), {reason:data.choices?.[0]?.finish_reason==='length'?'output_limit':'empty_reply'});
-    if (!require('./dub-text-guard').safeShortening(text, proposed, {natural})) throw Object.assign(new Error('Uygun bir kısaltma alınamadı.'), {reason:'meaning_guard'});
-    return proposed;
+    return require('./dub-editor-client').editSpeech({text,seconds,context,config,
+      endpoint:safeTranslationEndpoint(config.endpoint),fetch,readBuffer:readResponseBufferLimited,
+      requestOptions:require('./assistant-settings').requestOptions(config.endpoint,{serviceTier:config.serviceTier||'standard'})});
   },
 });
 

@@ -7,7 +7,12 @@
  const host=el('details','dub-experience'),head=el('div','dub-experience-head'),title=el('summary'),tools=el('div','dub-experience-tools'),status=el('p','dub-experience-status');status.setAttribute('role','status');
  const inspect=button('',()=>void preflight()),compare=button('',()=>void comparison()),repair=button('',()=>void repairNow());
  const details=el('details','dub-preflight'),summary=el('summary'),list=el('div','dub-preflight-list');details.hidden=true;details.append(summary,list);tools.append(inspect,compare,repair);head.append(tools);host.append(title,head,status,details);
+ function reviewVisibility(){const snapshot=ui().experience();host.hidden=snapshot.busy?!snapshot.groups.length:!snapshot.groups.length&&!snapshot.output?.url;}
+ host.hidden=true;
+ window.addEventListener('dub-takes:context',reviewVisibility);
+ window.addEventListener('dub-generator:busy',reviewVisibility);
  $('dubGeneratorDialog').querySelector('.dub-studio-scroll').prepend(host);
+ reviewVisibility();
  const files=el('details','dub-files-menu'),fileLabel=el('summary','btn btn-ghost'),filePanel=el('div','dub-files-panel');files.append(fileLabel,filePanel);for(const id of ['dubGeneratorOutput','dubStorageOpen','dubGeneratorLog'])filePanel.append($(id));$('dubGeneratorCancel').parentElement.append(files);
  $('dubGeneratorDialog').addEventListener('pointerdown',event=>{if(!files.contains(event.target))files.open=false;});
  $('dubGeneratorDialog').addEventListener('scroll',()=>{files.open=false;},true);

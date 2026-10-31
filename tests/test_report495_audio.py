@@ -3,12 +3,14 @@ import os
 from pathlib import Path
 import sys
 import unittest
+from types import SimpleNamespace
 import numpy as np
 ROOT=Path(__file__).resolve().parents[1]
 BASE=Path(os.environ.get('REPORT495_BASE',ROOT))
 VOICE=BASE/'voxcpm2' if os.environ.get('REPORT495_BASE') else BASE/'tools'/'voxcpm2'
 sys.path.insert(0,str(VOICE))
 import dub_quality as Q
+from dub_delivery import conditioning_context
 SOURCE=(VOICE/'altyazi_oku.py').read_text(encoding='utf-8')
 class Report495(unittest.TestCase):
  def test_16_introduced_negation_is_reviewed(self):
@@ -35,10 +37,18 @@ class Report495(unittest.TestCase):
   node=next(n for n in ast.walk(ast.parse(SOURCE)) if isinstance(n,ast.Expr) and isinstance(n.value,ast.Call)
    and isinstance(n.value.func,ast.Attribute) and n.value.func.attr=='update'
    and {'verification','final_seconds','status'} <= {k.arg for k in n.value.keywords})
+  context={'scene':0,'role':'statement','joinsPrevious':False,'continuesNext':False}
   metric={'quality_score':0};scope=dict(delivery=None,metric=metric,check={'status':'unavailable'},text='Nyutin',display_speech='Newton',editable_text='Newton',wav=[0],sr=1,
-   generation_status=getattr(Q,'generation_status',lambda score,check:'ready'))
+   args=SimpleNamespace(speech_edit_status={0:{'natural':'source_unavailable'}}),i=0,context=context,
+   conditioning_context=conditioning_context,
+   generation_status=Q.generation_status)
   exec(compile(ast.Module(body=[node],type_ignores=[]),'status','exec'),scope)
   self.assertEqual(metric['status'],'review')
   self.assertEqual(metric['text'],'Newton')
   self.assertEqual(metric['pronunciationText'],'Nyutin')
+  self.assertEqual(metric['speechEditing'],{'natural':'source_unavailable'})
+  self.assertEqual(metric['deliveryContext'],conditioning_context(context,'Nyutin'))
+  scope['check']={'status':'passed','review':False}
+  exec(compile(ast.Module(body=[node],type_ignores=[]),'status','exec'),scope)
+  self.assertEqual(metric['status'],'ready')
 if __name__=='__main__':unittest.main()
