@@ -148,3 +148,20 @@ html[data-theme="light"] .media-title-page .md-detail-poster,html[data-theme="li
 .film-review-original > p { font-size:15px; line-height:1.8; white-space:pre-line; overflow-wrap:anywhere; max-width:70ch; }
 .film-review-content a { color:var(--accent); text-underline-offset:4px; }
 @media(max-width:1000px){.film-review-content .mrv-opinions{grid-template-columns:1fr;gap:20px;}}
+
+.film-page-navigation { display:flex; flex-wrap:wrap; gap:6px 18px; max-width:1440px; margin:0 auto; padding:14px clamp(22px,4vw,64px); border-bottom:1px solid var(--border); }
+.film-section-link { min-height:42px; padding:8px 2px; background:none; border:0; border-radius:4px; color:var(--text-dim); font-size:14px; line-height:1.5; cursor:pointer; }
+.film-section-link:hover,.film-section-link:focus-visible { color:var(--text); }
+.film-plot-toggle { margin-left:auto; }
+.media-title-page [id^="film-section-"] { scroll-margin-top:28px; }
+.media-title-page .mtd-poster,.media-title-page .md-detail-poster { position:relative; }
+.film-poster-open { position:absolute; bottom:10px; left:10px; right:10px; min-height:40px; border:1px solid rgb(255 255 255 / 30%); border-radius:8px; background:rgb(0 0 0 / 78%); color:#fff; font:500 13px/1.4 'IBM Plex Sans',sans-serif; cursor:pointer; }
+.film-poster-open:disabled { display:none; }
+.film-poster-dialog { width:min(780px,calc(100vw - 32px)); max-height:calc(100vh - 32px); padding:20px; border:1px solid var(--border); border-radius:14px; background:var(--bg-0); color:var(--text); overflow:auto; }
+.film-poster-dialog::backdrop { background:rgb(0 0 0 / 85%); }
+.film-poster-dialog header { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:18px; }
+.film-poster-dialog h2 { margin:0; font:600 20px/1.4 'Sora',sans-serif; overflow-wrap:anywhere; }
+.film-poster-dialog > img { display:block; max-width:100%; max-height:75vh; object-fit:contain; margin:auto; border-radius:8px; }
+.film-poster-dialog :focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){.film-poster-open{opacity:0;transform:translateY(4px);transition:opacity 160ms cubic-bezier(.16,1,.3,1),transform 160ms cubic-bezier(.16,1,.3,1);}.mtd-poster:hover .film-poster-open,.md-detail-poster:hover .film-poster-open,.film-poster-open:focus-visible{opacity:1;transform:none;}}
+@media(max-width:760px){.film-plot-toggle{margin-left:0;}.film-page-navigation{gap:4px 16px;}}
