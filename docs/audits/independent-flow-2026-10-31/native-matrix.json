@@ -1,0 +1,50 @@
+{
+  "electron": "43.5.0",
+  "rows": [
+    {
+      "flow": "detach-site-ownership-reattach",
+      "passed": true,
+      "filter": "blur(2px)",
+      "rate": 1.7
+    },
+    {
+      "flow": "ad-mute-replacement",
+      "passed": true
+    },
+    {
+      "flow": "native-frame-source-change-command",
+      "passed": true,
+      "stale": true,
+      "otherMutations": 0
+    },
+    {
+      "flow": "navigation-stale-token-negative",
+      "passed": true
+    },
+    {
+      "flow": "concurrent-full-page-capture",
+      "outcomes": [
+        {
+          "status": "fulfilled",
+          "empty": false
+        },
+        {
+          "status": "fulfilled",
+          "empty": false
+        }
+      ]
+    },
+    {
+      "flow": "native-modal-keyboard-edit-escape-negative",
+      "passed": true
+    },
+    {
+      "flow": "native-overlay-background-resize-modal-resume-negative",
+      "passed": true
+    }
+  ],
+  "limits": [
+    "Muted synthetic video elements; real audio decoding/GPU/provider not exercised",
+    "Production main command handler extracted into controlled authorization context; frames/controller/native view are actual Chromium"
+  ]
+}

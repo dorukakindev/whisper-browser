@@ -1,0 +1,22 @@
+{
+  "exit": 0,
+  "gpu": "NVIDIA GeForce RTX4070SUPER12GB",
+  "wavSeconds": 30.0,
+  "sampleRate": 48000,
+  "groups": 2,
+  "groupVerification": [
+    "passed",
+    "passed"
+  ],
+  "wholeFilePassed": true,
+  "integrityPassed": true,
+  "finite": true,
+  "clippedFraction": 0.0,
+  "similarity": 1.0,
+  "wallSeconds": 62.031,
+  "settingsModified": false,
+  "referenceModified": false,
+  "modelsDownloaded": false,
+  "listeningVerified": false,
+  "limits": "Two synthetic Turkish utterances; ASR/text integrity evidence does not establish subjective naturalness or all video timing/audio cases."
+}

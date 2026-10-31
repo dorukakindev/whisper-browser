@@ -1,0 +1,33 @@
+✔ detaching a controlled video preserves a later site filter and rate, including reattachment (117.3087ms)
+✔ ad mute restoration does not transfer the removed video snapshot to replacement media (14.8153ms)
+✔ media identity changes publish even when playback measurements are identical (2.7414ms)
+✖ a source-stale best frame cannot redirect a user media command into another frame (2.9577ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 3
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 141.4269
+
+✖ failing tests:
+
+test at tests\independent-browser-flow.test.js:60:1
+✖ a source-stale best frame cannot redirect a user media command into another frame (2.9577ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - true
+
+      at TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-browser-flow.test.js:74:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

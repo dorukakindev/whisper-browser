@@ -1,0 +1,99 @@
+✖ M4B manifest-save failure rolls back publication (existing=true) and retry works (113.3812ms)
+✖ M4B manifest-save failure rolls back publication (existing=false) and retry works (84.0953ms)
+✖ portable book export rejects stale text/audio before replacing an existing package; text-only retry preserves edits (93.5895ms)
+✖ PDF narration rejects edited translation during pending import and retries current text (276.366ms)
+✖ PDF narration rejects edited translation during pending production and retries current text (131.3176ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 0
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1165.9029
+
+✖ failing tests:
+
+test at tests\independent-books-flow.test.js:13:39
+✖ M4B manifest-save failure rolls back publication (existing=true) and retry works (113.3812ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'complete AAC fixture'
+  - 'keep original'
+
+      at TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-books-flow.test.js:27:24)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'complete AAC fixture',
+    expected: 'keep original',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\independent-books-flow.test.js:13:39
+✖ M4B manifest-save failure rolls back publication (existing=false) and retry works (84.0953ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  true !== false
+
+      at TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-books-flow.test.js:28:15)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\independent-books-flow.test.js:36:1
+✖ portable book export rejects stale text/audio before replacing an existing package; text-only retry preserves edits (93.5895ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-books-flow.test.js:43:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /text changed|current.*audio/i,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests\independent-books-flow.test.js:53:47
+✖ PDF narration rejects edited translation during pending import and retries current text (276.366ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  false !== true
+
+      at TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-books-flow.test.js:72:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\independent-books-flow.test.js:53:47
+✖ PDF narration rejects edited translation during pending production and retries current text (131.3176ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  true !== false
+
+      at TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-books-flow.test.js:70:21)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

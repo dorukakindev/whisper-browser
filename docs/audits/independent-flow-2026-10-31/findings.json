@@ -1,0 +1,238 @@
+{
+  "base": "c13bee605703d1c0a9a395960962d99f955e510c",
+  "date": "2026-10-31",
+  "method": "Independent current producer/consumer invariant audit; executable pre-fix failures, fault injection, negative controls, native Electron and a real GPU production. Not selected to satisfy a bug quota.",
+  "fixedRootCount": 17,
+  "countingRules": [
+    "IF-A02 promotes the previously documented R815-G31 suggestion to an executable confirmed failure and fix; it is not presented as a new idea.",
+    "IF-B04 includes stale/timeout frame fallthrough in both browser commands and dubbing callbacks. BACKEND-INTEGRATION-05 adds unowned release/acquisition as the distinct root; shared fallthrough is not counted again.",
+    "Three stale suite contracts repaired during integration are excluded from productbug count.",
+    "Matrix rows, test cases, existing regressions and productbugs are distinct counts."
+  ],
+  "findings": [
+    {
+      "area": "browser",
+      "id": "IF-B01",
+      "status": "fixed",
+      "title": "Identical playback measurements suppress replacement-media publication",
+      "location": "src/main.js probeActiveBrowserMedia",
+      "preProof": "browser-pre.log: expected two media events for source-A→source-B, got one; unchanged-source duplicate correctly stayed at one",
+      "fix": "Include source document/media token in media-event dedup signature",
+      "regression": "independent-browser-flow.test.js: media identity changes publish even when playback measurements are identical",
+      "limits": "Main publisher executed from production source in a controlled Node context; renderer live sites were not run"
+    },
+    {
+      "area": "browser",
+      "id": "IF-B02",
+      "status": "fixed",
+      "title": "Detached-player cleanup overwrites newer site filter/rate",
+      "location": "src/browser-media-controller.js releaseMedia",
+      "preProof": "browser-pre.log: site blur(2px) replaced by empty filter on remove; cleanup also unconditionally reset temporary dub base rate",
+      "fix": "Restore only the exact filter/rate still owned by controller; discard filter baseline so reattachment reads current site style",
+      "regression": "independent-browser-flow.test.js detach and normal-owned cleanup cases; native detach-site-ownership-reattach",
+      "limits": "Real DOM and native playbackRate properties with synthetic muted video; decoding/physical sound not exercised"
+    },
+    {
+      "area": "browser",
+      "id": "IF-B03",
+      "status": "fixed",
+      "title": "Ad mute snapshot leaks from detached video to replacement video",
+      "location": "src/browser-media-controller.js restoreAdAudioIfEnded",
+      "preProof": "browser-pre.log: replacement video explicitly muted before replacement became unmuted after old ad video removal",
+      "fix": "Restore mute only on exact element that the controller muted, never fallback to selected replacement",
+      "regression": "independent-browser-flow.test.js ad replacement and same-element restore controls; native ad-mute-replacement",
+      "limits": "Synthetic ad state and video elements, not a live ad provider"
+    },
+    {
+      "area": "browser",
+      "id": "IF-B04",
+      "status": "fixed",
+      "title": "Stale or timed-out frame mutation falls through to a different player",
+      "location": "src/main.js browser:command media result handling",
+      "preProof": [
+        "browser-command-pre.log: stale first frame returned overall success through a second frame mutation",
+        "browser-timeout-pre.log: ETIMEDOUT first mutation allowed the next iframe mutation, although timeout does not cancel native execution"
+      ],
+      "fix": "Return immediately for stale source; retain timeout marker and return uncertain timeout error before trying another frame",
+      "regression": "independent-browser-flow.test.js source-stale and timeout cases; native-frame-source-change-command with real two Chromium frames and otherMutations=0",
+      "limits": "Main handler extracted into controlled authorization/context harness; timeout uses deterministic rejection, not a real network-delayed play promise",
+      "relatedOwner": "Backend agent owns related dubService.setRate integration check; count shared routing root only once if it confirms"
+    },
+    {
+      "area": "browser",
+      "id": "IF-B05",
+      "status": "fixed",
+      "title": "Concurrent full-page captures detach one another’s CDP debugger",
+      "location": "src/main.js captureBrowserFullPage + browserFullPageCaptureOwners",
+      "preProof": "browser-capture-native-pre.log: visible native window single capture succeeded; overlapping captures yielded one fulfilled and one target-closed rejection",
+      "fix": "Reference-count the shared capture debugger lease and detach only after last caller, preserving existing external/ongoing capture-hook ownership guards",
+      "regression": "independent-browser-flow.test.js delayed two-owner sequence; native concurrent-full-page-capture yields two fulfilled nonempty images after single positive control",
+      "limits": "Small synthetic document, GPU disabled; no DRM/large-page/GPU capture acceptance"
+    },
+    {
+      "area": "browser",
+      "id": "IF-B06",
+      "status": "fixed",
+      "title": "Late media-preference response overwrites newly selected tab playback rate",
+      "location": "src/renderer/renderer.js scheduleBrowserMediaPreferenceSync",
+      "preProof": "browser-preferences-pre.log: delayed A preference result changed B rate from 2 to 1.4",
+      "fix": "Snapshot tab ID/generation/URL when applying preferences and check same browser context before publishing returned rate",
+      "regression": "independent-browser-flow.test.js late preference response case",
+      "limits": "Controlled renderer callback timing, not whole-app native tab switching"
+    },
+    {
+      "area": "books",
+      "id": "BOOK-FLOW-01",
+      "status": "fixed",
+      "invariant": "A narration project/listen operation must not claim current text after that text changes, even when the document and selected page numbers remain the same.",
+      "producerConsumer": "PDF state.pages userText/translation → prepareVoice pages → book-from-reader → openProject isCurrent → voice readiness → book-listen",
+      "proof": [
+        "books-before.log: edited translation during pending import and production passed old ownership checks and enabled stale narration.",
+        "books-listen-before.log: editing after preparation still issued old-project book-listen (2 calls instead of1)."
+      ],
+      "fix": "Capture selected page text and revalidate it after async boundaries. Pass content-aware ownership to production open and retain it for subsequent listening; reject stale narration before requesting audio.",
+      "tests": [
+        "tests/independent-books-flow.test.js: pending import, pending production, post-ready listen edits and current-text retry.",
+        "Fresh closed-view/late-import control leaves new view status/controls untouched and can reopen/prepare."
+      ]
+    },
+    {
+      "area": "books",
+      "id": "BOOK-FLOW-02",
+      "status": "fixed",
+      "invariant": "A failed project-reference save cannot destroy the previous published audiobook or leave an unreferenced new destination as a successful publication.",
+      "producerConsumer": "ready chapter audio → M4B temp encoding → destination rename → project.audiobook manifest → book-open/book-audiobook",
+      "proof": [
+        "books-before.log: manifest rename EIO left old destination overwritten or newly created destination present despite failed response."
+      ],
+      "fix": "Move the old destination to a unique sibling recovery copy until project-reference commit succeeds. On save failure restore any post-rename manifest change, restore the prior destination (or remove new destination), and release export ownership for retry. Successful cleanup errors retain the recoverable previous copy.",
+      "tests": [
+        "Old/absent destination × failure before/after manifest rename: original manifest and destination restored; retry exports and reopened audiobook available.",
+        "Previously registered audiobook survives failed replacement and remains available via real book-audiobook handler."
+      ]
+    },
+    {
+      "area": "books",
+      "id": "BOOK-FLOW-03",
+      "status": "fixed",
+      "invariant": "A successful portable book export must be importable by its own consumer; a rejected export must preserve the prior package.",
+      "producerConsumer": "book-save edits chapter text while existing speech remains → exportBooks(includeAudio) → importBooks text/audio integrity validation",
+      "proof": [
+        "books-portable-before.json: exportSucceeded=true, restoreError=Corrupt backup audio.",
+        "books-before.log: exporter did not reject stale active speech before package replacement."
+      ],
+      "fix": "Reject include-audio export of a chapter whose saved speech textHash does not match its current draft, with an actionable regenerate-or-text-only error before publishing. Import safety checks unchanged.",
+      "tests": [
+        "Prior valid package stays byte-identical on rejected stale-audio export.",
+        "Text-only retry restores exact edited text with pending status and no misleading active audio."
+      ]
+    },
+    {
+      "area": "books",
+      "id": "BOOK-FLOW-04",
+      "status": "fixed",
+      "invariant": "Exported audio cannot be published under an earlier chapter identity after the source WAV changed across awaited work.",
+      "producerConsumer": "chapter output digest/manual approval → duration probes → native save picker → ffmpeg encode → M4B publication/reference",
+      "proof": [
+        "books-wav-source-before.log: same-size source WAV mutation during picker and during encoder both incorrectly returned success."
+      ],
+      "fix": "Retain exact initial source digests and validate file type/no-symlink/content after duration probing, after picker/confirmation, and after encoding before destination publication.",
+      "tests": [
+        "Picker mutation prevents encoder start and preserves existing target/manifest.",
+        "During-encoding mutation rejects completed temp output and preserves existing target/manifest."
+      ]
+    },
+    {
+      "area": "backend",
+      "id": "BACKEND-AUDIT-01",
+      "status": "confirmed-fixed",
+      "problem": "Dubbing installed the new final WAV before writing authoritative quality/manifest/performance/sync sidecars. A subsequent metadata OSError or KeyboardInterrupt left new audio paired with old metadata.",
+      "producerConsumer": "Actual altyazi_oku.main publication tail -> real WAV + JSON files -> actual review_scene.inspect reader (including Node sync-map validator). Only the external engine's write_manifest callback is supplied by the fixture; engine synthesis is not used.",
+      "before": "Actual publication tail replaced a 1-second WAV with a 2-second WAV; forced quality.write_text OSError/KeyboardInterrupt left all four old sidecar hashes unchanged and the WAV hash changed. Both preservation assertions failed.",
+      "beforeEvidence": "tmp/independent-flow-audit/backend-dub-before.log",
+      "change": "Prepare audio, optional normalization and sidecars in a same-volume owned directory. Publish all produced files using existing crash-recoverable OutputTransaction. Print the public WAV marker after commit. Immutable take files remain beside the final output, and manifest basenames remain final basenames.",
+      "after": "Metadata failure/cancel preserves all old hashes. Cancel after real replacements restores old bundle. Child os._exit(91) after replacements leaves prepared journal; startup recovery restores all old hashes, then retry produces valid new audio/sidecars. Actual scene reader accepts new sync/quality against real WAV.",
+      "regression": "backend/test_independent_dub_publication.py"
+    },
+    {
+      "area": "backend",
+      "id": "BACKEND-AUDIT-02",
+      "status": "confirmed-fixed",
+      "problem": "Reusing an output pathname for a production without adaptive sync left the previous .sync.json attached to the new waveform.",
+      "before": "Successful no-sync publication retained the fixture's old speech.sync.json; absence assertion failed.",
+      "beforeEvidence": "tmp/independent-flow-audit/backend-dub-before.log",
+      "change": "Added OutputTransaction.stage_delete for obsolete bundle members. Dubbing removes the old sync map in the same rollback journal as audio and sidecars; deletion is restored on cancel/crash recovery.",
+      "after": "Successful no-sync publication removes old map; cancellation after deletion and crash recovery both restore it; adaptive positive control installs a newly valid map consumed by actual scene reader.",
+      "regression": "backend/test_independent_dub_publication.py"
+    },
+    {
+      "area": "backend",
+      "id": "BACKEND-AUDIT-03",
+      "status": "confirmed-fixed",
+      "problem": "ASR resume checkpoint was deleted before output commit. Late cancellation correctly rolled output back but destroyed expensive ASR recovery data.",
+      "producerConsumer": "Actual transcribe with controlled faster_whisper producer -> real matching checkpoint -> actual output transaction with cancellation after replacements.",
+      "before": "Cancel at write:after left no done event/final output, but matching checkpoint was missing; preservation assertion failed. Earlier JSON-writer failure control already preserved it.",
+      "beforeEvidence": "tmp/independent-flow-audit/backend-asr-before.log",
+      "change": "Retire current/legacy checkpoint paths only after successful output commit.",
+      "after": "Late cancellation and writer failure preserve exact checkpoint bytes; normal success removes checkpoint.",
+      "regression": "backend/test_independent_asr_recovery.py"
+    },
+    {
+      "area": "backend",
+      "id": "BACKEND-AUDIT-04",
+      "status": "confirmed-fixed",
+      "problem": "An exact 0.0 word probability survived JSON export but was replaced by 1.0 through truthiness fallback when counting perf.lowConfidenceWords.",
+      "before": "Actual ASR output contained probability 0.0 while done.perf.lowConfidenceWords was 0 rather than 1.",
+      "beforeEvidence": "tmp/independent-flow-audit/backend-asr-before.log",
+      "change": "Default confidence only when probability is None; retain exact zero. Confidence thresholds and gates are unchanged.",
+      "after": "Actual JSON probability remains 0.0 and done performance summary counts 1 low-confidence word.",
+      "regression": "backend/test_independent_asr_recovery.py"
+    },
+    {
+      "area": "backend",
+      "id": "BACKEND-INTEGRATION-05",
+      "status": "confirmed-fixed",
+      "scope": "Parent explicitly authorized only main dubService.setRate callback plus focused test after browser-agent referral.",
+      "rootClassification": "Stale/timeout fallthrough is a shared root with the browser agent's browser:command finding, extended to a separately wired dubbing callback; do not count those paths as independent root causes. Release without an existing owned target and stale old-release ownership deletion are dubbing lifecycle variants.",
+      "problem": "Dubbing release acquired arbitrary current media when there was no cached owner. Cached-source stale/timeout responses also triggered rediscovery into other frames; successful late replies could install a stale target after tab/source navigation.",
+      "producerConsumer": "Actual setRate callback extracted from main -> actual probe/command scripts -> actual browser-media ranking and media-token matcher -> JSDOM video playbackRate. Real withTimeout uses a controlled shorter deadline; no stubbed command success is required.",
+      "before": "Five of six initial probes failed; normal ownership control passed. In the unowned-release probe, an unrelated video at 1.7 was reset to 1. Source-stale/timeout cases fell through and reported another mutation as successful. Navigation while the command reply was pending cached a stale target.",
+      "beforeEvidence": "tmp/independent-flow-audit/dub-rate-before.log",
+      "change": "Release acts only on an existing matching ownership record. A chosen frame remains the only mutation target; stale or uncertain outcomes never trigger another acquisition. Retain provisional ownership on timeout for cleanup of that exact frame. Validate captured generation/view/media identity after await and delete only the same ownership object; an old stale release cannot delete a newer session's owner.",
+      "after": "Nine new callback/controller cases pass: stale cached release, no-owner release, cached timeout with exact-owner cleanup, fresh probe/command source change, successful rate/release, navigation before reply, stale old release preserving new owner, first-acquisition timeout cleanup, and actual multi-frame ranking selecting exactly one frame. Existing dubbing audio/client and service compatibility files also pass.",
+      "regression": "tests/independent-dub-rate-ownership.test.js",
+      "afterEvidence": "tmp/independent-flow-audit/dub-rate-after.log",
+      "limitations": "Actual Electron process/frame scheduling is not exercised; callback, matcher, ranker and DOM rate mutations are real. A timeout does not cancel an already submitted frame script; its exact owner is retained for cleanup, and controller's existing watchdog remains unchanged. No GPU or acoustic quality claim."
+    },
+    {
+      "area": "assistant",
+      "id": "IF-A01",
+      "status": "fixed",
+      "problem": "Assistant preference save/undo failure leaves UI inconsistent with saved preferences or drops unrelated newer human edits.",
+      "beforeEvidence": "preferences-before.log:2failed producer/consumer assertions",
+      "fix": "Shared per-field owned rollback for set and undo, retryable undo state, explicit rollback-save failure and guarded concurrent operations.",
+      "tests": [
+        "tests/independent-assistant-preferences.test.js",
+        "tests/assistant-library-actions.test.js"
+      ]
+    },
+    {
+      "area": "assistant",
+      "id": "IF-A02",
+      "status": "fixed",
+      "problem": "Native assistant seek/speed/volume actions report completed even when their native IPC receipt is rejected or pending.",
+      "priorSuggestion": "R815-G31 supplied the general receipt idea; this is executable confirmation of the current consumer failure, not a new idea.",
+      "beforeEvidence": "native-assistant-before.log:4failed assertions after fixing an invalid initial fixture",
+      "fix": "Use and await the existing NativePlayerUI.command receipt for native actions; reject error and stale ownership instead of optimistic DOM setter success.",
+      "tests": [
+        "tests/independent-assistant-native.test.js"
+      ]
+    }
+  ],
+  "remaining": [
+    "R815-B63 cross-origin audio restoration remains unresolved; no claim of universal YouTube playback/adblock recovery.",
+    "No live provider selection/translation quality, real-site login/DRM/Cloudflare, physical MPV/audio hardware, subjective listening, or long-session soak proof in this delivery.",
+    "M4B handled-failure rollback tested; cross-file process-kill/power-loss recovery is not newly implemented or claimed.",
+    "Crash during pre-publication dubbing staging may leave an owned temporary directory; concurrent independent CLI publishers not covered."
+  ]
+}

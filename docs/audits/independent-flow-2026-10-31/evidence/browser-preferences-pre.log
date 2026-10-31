@@ -1,0 +1,35 @@
+✔ detaching a controlled video preserves a later site filter and rate, including reattachment (138.2458ms)
+✔ ad mute restoration does not transfer the removed video snapshot to replacement media (17.6822ms)
+✔ media identity changes publish even when playback measurements are identical (2.888ms)
+✔ a source-stale best frame cannot redirect a user media command into another frame (3.2824ms)
+✔ overlapping full captures retain their debugger lease until the last result; cancellation does not write an export (4.5907ms)
+✔ cleanup restores owned playback changes and same-element ad mute normally (19.4018ms)
+✔ a timed-out frame command cannot start a second uncertain mutation in another frame (2.4308ms)
+✖ late preference responses cannot change the newly selected tab rate (4.0103ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 7
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 212.1771
+
+✖ failing tests:
+
+test at tests\independent-browser-flow.test.js:114:1
+✖ late preference responses cannot change the newly selected tab rate (4.0103ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1.4 !== 2
+
+      at TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-browser-flow.test.js:123:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1.4,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

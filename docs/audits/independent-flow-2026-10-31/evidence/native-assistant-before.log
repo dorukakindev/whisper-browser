@@ -1,0 +1,73 @@
+✖ assistant native speed refuses failed IPC rather than reporting completion (67.4953ms)
+✖ assistant native volume refuses failed IPC rather than reporting completion (8.8499ms)
+✖ assistant native seek refuses failed IPC rather than reporting completion (6.9327ms)
+✖ native command receipt is awaited before assistant completion (6.8976ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 614.3663
+
+✖ failing tests:
+
+test at tests\independent-assistant-native.test.js:16:134
+✖ assistant native speed refuses failed IPC rather than reporting completion (67.4953ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-assistant-native.test.js:18:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Native command refused/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests\independent-assistant-native.test.js:16:134
+✖ assistant native volume refuses failed IPC rather than reporting completion (8.8499ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-assistant-native.test.js:18:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Native command refused/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests\independent-assistant-native.test.js:16:134
+✖ assistant native seek refuses failed IPC rather than reporting completion (6.9327ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-assistant-native.test.js:18:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Native command refused/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests\independent-assistant-native.test.js:21:1
+✖ native command receipt is awaited before assistant completion (6.8976ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  true !== false
+
+      at TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\independent-assistant-native.test.js:23:110)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
