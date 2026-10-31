@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-01-0045.md](docs/devir/2026-11-01-0045.md) — Film sayfalarında sinematik görünüm
 Güncel çalışma: [docs/devir/2026-11-01-0040.md](docs/devir/2026-11-01-0040.md) — Keşfet ve yerel filmler tam sayfa
 Güncel çalışma: [docs/devir/2026-11-01-0030.md](docs/devir/2026-11-01-0030.md) — Letterboxd: gerçek40 yorum, sayı seçimi ve asistan analizi
 Güncel çalışma: [docs/devir/2026-10-31-2243.md](docs/devir/2026-10-31-2243.md) — Letterboxd: ortak analiz geçmişi, yorum okuyucusu ve kaynak/model doğruluğu
