@@ -14,9 +14,15 @@ test('Discovery review loading uses a verified discovery key, returns ten bounde
  h.w.api.mediaTools=async r=>{requests.push(r);return {ok:true,match:{state:'matched'},reviews:Array.from({length:12},(_,i)=>({id:String(i),author:'Reader',text:'Review '.repeat(160)}))};};
  h.w.MediaToolsUI={keepReviewSample:(i,r)=>{draft={i,r};}};
  const result=await h.run('load_title_reviews',{item_id:'discovery:film:tt14173636',source:'automatic'});
- assert.equal(result.status,'completed');assert.equal(result.reviews.length,10);assert.equal(result.reviews[0].truncated,true);assert.equal(requests[0].discovery.id,item.providerId);assert.equal(requests[0].itemId,undefined);assert.equal(draft,undefined);assert(JSON.stringify(result).length<16000);
+ assert.equal(result.status,'completed');assert.equal(result.reviews.length,10);assert.equal(result.reviews[0].truncated,true);assert.equal(requests[0].discovery.id,item.providerId);assert.equal(requests[0].itemId,undefined);assert.equal(requests[0].count,40);assert.equal(requests[0].sort,'popular');assert.equal(result.loadedCount,12);assert.equal(draft.i.id,'discovery:film:tt14173636');assert.equal(draft.i.discovery.id,item.providerId);assert.equal(draft.r.reviews.length,12);assert(JSON.stringify(result).length<16000);
  h.w.api.mediaTools=async()=>({ok:true,match:{state:'mismatch'},reviews:[]});await assert.rejects(h.run('load_title_reviews',{item_id:'discovery:film:tt14173636',source:'automatic'}),/did not match/);
  }finally{h.dom.window.close();}
 });
 
 test('Playback reads visible source state and sets volume through the existing media command',async()=>{const h=setup();try{const calls=[];h.w.player={workspaceMode:'browser',browserTime:12,browserDuration:90,browserRate:1.25,browserVolume:.8,browserPaused:false};h.w.browserCommand=async(name,value)=>(calls.push({name,value}),{ok:true});h.w.BrowserDubAudioUI={context:()=>({hasMedia:true,visible:true})};assert.equal((await h.run('get_playback_state')).playback.position,12);await h.run('playback_control',{operation:'volume',value:.4});assert.equal(calls[0].name,'volume-set');assert.equal(calls[0].value,.4);}finally{h.dom.window.close();}});
+
+test('Discovery review analysis opens and previews the same draft without adding a library title',async()=>{
+ const h=setup();try{const item={kind:'film',providerId:'tt14173636',title:'The Invite',year:2026},opened=[],previews=[];h.w.api.mediaDiscovery=async()=>({ok:true,item});h.w.MediaToolsUI={open:(page,row)=>opened.push({page,row}),previewReviewAnalysis:(row,analysis)=>previews.push({row,analysis})};
+  await h.run('open_review_analysis',{item_id:'discovery:film:tt14173636'});await h.run('preview_title_review_analysis',{item_id:'discovery:film:tt14173636',analysis:'{"summary":"A controlled preview"}'});assert.equal(opened.length,1);assert.equal(opened[0].row.id,'discovery:film:tt14173636');assert.equal(opened[0].row.discovery.id,item.providerId);assert.equal(previews[0].row.id,opened[0].row.id);assert.equal(previews[0].analysis.summary,'A controlled preview');assert.equal(h.payloads.length,0);
+ }finally{h.dom.window.close();}
+});

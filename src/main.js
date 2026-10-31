@@ -22104,6 +22104,17 @@ mediaWorkflows = require('./media-workflows').registerMediaWorkflows({voiceRunni
 require('./assistant-thread-store').registerAssistantThreads({app,ipcMain,authorized:authorizedBrowserSender});
 require('./music-analysis-service').register({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,userData:()=>app.getPath('userData'),modelDir:()=>path.join(appResourceRoot(),'backend','models','music-clap'),musicPython:()=>{const exe=path.join(appResourceRoot(),'backend','music-venv',process.platform==='win32'?'Scripts/python.exe':'bin/python');return fs.existsSync(exe)?exe:resolvePython();},python:resolvePython,ffmpeg:()=>resolveFfTool('ffmpeg'),ffprobe:()=>resolveFfTool('ffprobe'),grantMedia:file=>mediaFileAccess.grant(file)});
 require('./assistant-collections').register({ipcMain,authorized:authorizedBrowserSender,store:mediaCatalogService.store});
-require('./media-tools-service').registerMediaTools({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,catalogStore:mediaCatalogService.store,resolveDiscovery:(event,input)=>mediaCatalogService.discovery.handle(event,{action:'detail',kind:input.kind,id:input.id}),ffprobe:()=>resolveFfTool('ffprobe'),readOpenReviews:()=>require('./letterboxd-reviews').readBrowserReviews({getTab:()=>activeBrowserTab(),execute:executeBrowserTrustedMain})});
+require('./media-tools-service').registerMediaTools({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,catalogStore:mediaCatalogService.store,resolveDiscovery:(event,input)=>mediaCatalogService.discovery.handle(event,{action:'detail',kind:input.kind,id:input.id}),ffprobe:()=>resolveFfTool('ffprobe'),readOpenReviews:()=>require('./letterboxd-reviews').readBrowserReviews({getTab:()=>activeBrowserTab(),execute:executeBrowserTrustedMain}),
+  collectBrowserReviews:async(item,options)=>{
+    // A normal, visible site window owns this public-review session. It never
+    // replaces the user's tabs or reads cookies/credentials into application code.
+    const partition='persist:whisper-letterboxd-reviews',reviewSession=session.fromPartition(partition);
+    reviewSession.setPermissionCheckHandler(()=>false);reviewSession.setPermissionRequestHandler((_contents,_permission,callback)=>callback(false));
+    const denyDownload=event=>event.preventDefault();reviewSession.on('will-download',denyDownload);
+    const reader=require('./letterboxd-browser-reader').createBrowserReviewReader({BrowserWindow,parent:mainWindow,partition,userAgent:sanitizeBrowserUserAgent(reviewSession.getUserAgent())});
+    try{return await require('./letterboxd-auto').fetchReviews(item,{...options,readPage:reader.readPage});}
+    finally{reader.close();reviewSession.removeListener('will-download',denyDownload);}
+  }
+});
 require('./media-hub-service').registerMediaHub({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,inspectMedia:validateLocalMediaPath,authorizeMedia:authorizeMediaFile,grantMedia:file=>mediaFileAccess.grant(file),catalogStore:mediaCatalogService.store,ffmpeg:()=>resolveFfTool('ffmpeg'),
   relinkHistory:async(oldKey,file)=>{if(loadWatchLibraryAll().some(row=>row.key===oldKey))await relinkLibraryItem(oldKey,file);}});

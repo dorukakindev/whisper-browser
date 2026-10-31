@@ -14,12 +14,34 @@ function trusted(value){
     &&(/^\/(?:tmdb\/[1-9]\d{0,11}|imdb\/tt\d{7,12})\/$/.test(u.pathname)||!!publicFilmUrl(u.href))?u.href:null;}catch{return null;}
 }
 const sortPaths=Object.freeze({popular:'by/activity/',new:'',high:'by/entry-rating/',low:'by/entry-rating-lowest/'});
-async function fetchReviews(item,{count=24,sort='popular',spoilers=false,signal,fetchImpl=fetch}={}){
+async function fetchReviews(item,{count=24,sort='popular',spoilers=false,signal,fetchImpl=fetch,readPage}={}){
   if(sort!=='balanced'&&!Object.hasOwn(sortPaths,sort))throw Error('Choose a supported review order.');
-  if(![12,24,48].includes(count))throw Error('Choose 12, 24 or 48 reviews.');
+  if(![12,24,40,48].includes(count))throw Error('Choose 12, 24, 40 or 48 reviews.');
+  if(readPage!==undefined&&typeof readPage!=='function')throw Error('Unsupported Letterboxd page reader.');
   const lookup=lookupUrl(item),combined=signal?AbortSignal.any([signal,AbortSignal.timeout(45000)]):AbortSignal.timeout(45000);
   async function page(address,expectedBase){
     let url=trusted(address);if(!url)throw Error('Unsupported Letterboxd address.');
+    if(readPage){
+      combined.throwIfAborted();
+      // A normal browser can supply loaded HTML, but cannot relax the source bounds.
+      // Race abort too: a reader that ignores its signal must not hold this request open.
+      let onAbort;
+      const aborted=new Promise((_,reject)=>{onAbort=()=>reject(combined.reason);combined.addEventListener('abort',onAbort,{once:true});});
+      let loaded;
+      try{loaded=await Promise.race([Promise.resolve().then(()=>{combined.throwIfAborted();return readPage(url,{signal:combined,expectedBase});}),aborted]);}
+      finally{combined.removeEventListener('abort',onAbort);}
+      combined.throwIfAborted();
+      const final=trusted(loaded?.url);
+      if(!final)throw Error('The review page belongs to a different film or unsupported Letterboxd address.');
+      if(expectedBase){
+        if(!final.startsWith(expectedBase))throw Error('The review page belongs to a different film.');
+        const before=reviewPageSource(address),after=reviewPageSource(final);
+        if(!after||after.sort!==before?.sort||after.page!==before?.page)throw Error('The requested review order changed.');
+      }
+      if(typeof loaded.html!=='string')throw Error('The Letterboxd page reader returned no HTML.');
+      if(Buffer.byteLength(loaded.html,'utf8')>3000000)throw Error('Letterboxd response exceeds the 3000000 byte limit.');
+      return {url:final,html:loaded.html};
+    }
     for(let hop=0;hop<5;hop++){
       combined.throwIfAborted();
       const r=await fetchImpl(url,{redirect:'manual',credentials:'omit',signal:combined,headers:{Accept:'text/html'}});

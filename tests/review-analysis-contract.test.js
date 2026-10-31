@@ -41,7 +41,7 @@ test('Native decision save shares quote validation, retains labelled paraphrase 
   const result=await api.handle({},{action:'decision-save',itemId:'film',reviews,analysis,evidenceSnapshot:snapshot});assert.equal(result.ok,true,result.error);
   const saved=result.value.history[0];assert.equal(saved.analysis.points[0].quoteTrKind,'paraphrase');assert.equal(saved.analysis.points[0].quote,analysis.points[0].quote);assert.equal(saved.reviews[0].authorId,'alice');assert.equal(saved.reviews[0].source.sort,'popular');assert.deepEqual(saved.evidenceSnapshot,snapshot);
   const bad=await api.handle({},{action:'decision-save',itemId:'film',reviews,analysis:{...analysis,points:[{...analysis.points[0],quote:'A fabricated quotation'}]},evidenceSnapshot:snapshot});assert.equal(bad.ok,false);
-  const mismatch=await api.handle({},{action:'decision-save',itemId:'film',reviews,analysis,evidenceSnapshot:{...snapshot,context:'x'.repeat(8001)}});assert.equal(mismatch.ok,false);
+  const mismatch=await api.handle({},{action:'decision-save',itemId:'film',reviews,analysis,evidenceSnapshot:{...snapshot,context:'x'.repeat(64001)}});assert.equal(mismatch.ok,false);
   assert.equal((await api.handle({},{action:'decision-get',itemId:'film'})).value.history.length,1);
  }finally{close.forEach(fn=>fn());fs.rmSync(dir,{recursive:true,force:true});}
 });
@@ -81,11 +81,11 @@ test('Saved analysis follows an exact provider match between discovery and libra
 });
 
 test('Prompt assessment counts canonical author accounts without display names from the selected sample and remains bounded',()=>{
- const rows=Array.from({length:30},(_,i)=>({id:'R'+i,authorId:'reviewer'+i,author:'',text:'Distinct opinion number '+i+' about the pacing and acting. '+('Long source text. '.repeat(250))}));
+ const rows=Array.from({length:50},(_,i)=>({id:'R'+i,authorId:'reviewer'+i,author:'',text:'Distinct opinion number '+i+' about the pacing and acting. '+('Long source text. '.repeat(250))}));
  const {evidence,sample}=model.decisionEvidence(item,rows,taste),assessment=model.reviewAssessment(sample.reviews);
  assert(sample.reviews.length<rows.length);assert(sample.truncated>0);
  assert.deepEqual(evidence.sampleAssessment,{distinctReviews:assessment.distinct,independentAuthors:sample.reviews.length,unknownAuthors:0,duplicates:assessment.duplicates});
- assert(JSON.stringify(evidence).length<=8000);
+ assert(JSON.stringify(evidence).length<=64000);
  const mixed=model.decisionEvidence(item,[{id:'a',authorId:'one',text:'Exactly the same review text.'},{id:'b',authorId:'one',text:'Exactly the same review text.'},{id:'c',author:'Unverified display name',text:'A different review with no canonical author.'}]).evidence;
  assert.deepEqual(mixed.sampleAssessment,{distinctReviews:2,independentAuthors:1,unknownAuthors:1,duplicates:1});
 });

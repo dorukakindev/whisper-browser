@@ -21,10 +21,10 @@ function reviewRows(raw) {
   const parsed=rows.slice(0,100).map((row,i)=>({id:text(row?.id,80)||String(i+1),author:text(row?.author,120),text:text(row?.text,4000),spoiler:!!row?.spoiler,...reviewMetadata(row||{})})).filter(r=>r.text.length>=8);
   if(new Set(parsed.map(r=>r.id)).size!==parsed.length)throw Error('Review IDs must be unique.');return parsed;
 }
-function reviewSample(reviews, limit=4500) {
+function reviewSample(reviews, limit=4500, maxReviews=20) {
  const selected=[],originals=[],decisions=[];
  for(const row of reviews){
-   if(selected.length>=20){decisions.push({id:row.id,included:false,reason:'review-limit'});continue;}
+   if(selected.length>=maxReviews){decisions.push({id:row.id,included:false,reason:'review-limit'});continue;}
    // Reserve a readable prefix for other sources before spending the rest on
    // any long opening review. JSON escaping and metadata count in both rounds.
    const candidate={...row,text:row.text.slice(0,80)};
@@ -41,7 +41,7 @@ function reviewSample(reviews, limit=4500) {
   }
   if(!changed)break;
  }
- let truncated=0;for(const row of selected){const decision=decisions.find(value=>value.id===row.id);decision.sentLength=row.text.length;if(row.text.length<decision.originalLength){decision.reason='shortened';truncated++;}}
+ let truncated=0;for(const row of selected){row.text=row.text.trimEnd();const decision=decisions.find(value=>value.id===row.id);decision.sentLength=row.text.length;if(row.text.length<decision.originalLength){decision.reason='shortened';truncated++;}}
  return {reviews:selected,omitted:reviews.length-selected.length,truncated,decisions};
 }
 function reviewAssessment(reviews, points=[]) {
@@ -96,11 +96,38 @@ function decisionSampleAssessment(reviews) {
 }
 function decisionEvidence(item,reviews,taste={}) {
  const profile=personalEvidence(taste);
- const result={title:String(item.title||'').slice(0,200),year:item.year,kind:item.kind,identity:decisionProviderIdentity(item),reviews:[],sampleAssessment:{distinctReviews:20,independentAuthors:20,unknownAuthors:20,duplicates:20},profile,limitations:'Default weights are not explicit preferences. Accepted analysis is an inference from earlier personal reviews, not a guaranteed prediction.'};
+ const result={title:String(item.title||'').slice(0,200),year:item.year,kind:item.kind,identity:decisionProviderIdentity(item),reviews:[],sampleAssessment:{distinctReviews:40,independentAuthors:40,unknownAuthors:40,duplicates:40},profile,limitations:'Default weights are not explicit preferences. Accepted analysis is an inference from earlier personal reviews, not a guaranteed prediction.'};
  const overhead=JSON.stringify(result).length;
  const normalized=reviews.map((row,i)=>({id:text(row?.id,80)||String(i+1),author:text(row?.author,120),text:text(row?.text,4000),spoiler:!!row?.spoiler,...reviewMetadata(row||{})}));
- const sample=reviewSample(normalized,Math.max(100,Math.min(4500,7700-overhead)));
+ const sample=reviewSample(normalized,Math.max(100,Math.min(60000,64000-overhead)),40);
  result.reviews=sample.reviews;result.sampleAssessment=decisionSampleAssessment(sample.reviews);return {evidence:result,sample};
+}
+// This dedicated transport accepts only the review contract, never arbitrary context keys.
+function normalizeReviewAnalysis(value) {
+ try{
+  if(typeof value!=='string'||value.length>64000)return null;
+  const raw=JSON.parse(value);if(!raw||!['film','series'].includes(raw.kind)||typeof raw.title!=='string'||!raw.title.trim()||raw.title.length>200||raw.year!==undefined&&(!Number.isInteger(raw.year)||raw.year<1800||raw.year>9999)||!Array.isArray(raw.reviews)||!raw.reviews.length||raw.reviews.length>40||JSON.stringify(raw.reviews).length>60000)return null;
+  const reviews=reviewRows(JSON.stringify(raw.reviews));if(reviews.length!==raw.reviews.length||reviews.some((row,i)=>row.id!==raw.reviews[i].id||row.text!==raw.reviews[i].text))return null;
+  const given=raw.profile;if(!given||typeof given!=='object'||Array.isArray(given)||JSON.stringify(given).length>3000)return null;
+  const bounded=(value,limit)=>typeof value==='string'?value.replace(/\0/g,'').slice(0,limit):'';
+  const aspects=['story','characters','pace','visuals','sound','emotion'],configured=given.preferencesConfigured===true;
+  const preferences=configured?{weights:Object.fromEntries(aspects.map(key=>[key,Math.max(0,Math.min(5,Number(given.preferences?.weights?.[key])||0))])),avoid:aspects.filter(key=>given.preferences?.avoid?.includes(key)),note:bounded(given.preferences?.note,600)}:null;
+  const insights=[];
+  for(const row of (Array.isArray(given.acceptedAnalysis?.insights)?given.acceptedAnalysis.insights:[]).slice(0,3)){
+   if(!aspects.includes(row?.aspect)||!['likes','dislikes','mixed'].includes(row?.direction))continue;
+   const evidence=(Array.isArray(row.evidence)?row.evidence:[]).slice(0,3).map(citation=>({id:bounded(citation?.id,80),title:bounded(citation?.title,120),quote:bounded(citation?.quote,240)})).filter(citation=>citation.id&&citation.quote.length>=8);
+   if(evidence.length)insights.push({aspect:row.aspect,direction:row.direction,reason:bounded(row.reason,120),evidence});
+  }
+  const acceptedAnalysis=insights.length?{summary:bounded(given.acceptedAnalysis.summary,400),insights}:null;
+  let questionnaire=null;const quiz=typeof module==='object'&&module.exports?require('../taste-quiz'):globalThis.TasteQuiz;
+  if(given.questionnaire?.kind==='explicit_choices'&&Array.isArray(given.questionnaire.answers)&&quiz){const answers=quiz.questions.flatMap(question=>{const answer=given.questionnaire.answers.find(row=>row?.question===question.id),choice=question.choices.find(row=>row[0]===answer?.choice);return choice?[{question:question.id,choice:choice[0],meaning:choice[1]}]:[];});if(answers.length)questionnaire={kind:'explicit_choices',answers};}
+  const profile={preferencesConfigured:configured,preferences,acceptedAnalysis,analysisEvidenceUnavailable:given.analysisEvidenceUnavailable===true||!!given.acceptedAnalysis&&!acceptedAnalysis,questionnaire};
+  if(JSON.stringify(profile).length>3000)return null;
+  const sampleAssessment=decisionSampleAssessment(reviews);
+  if(!raw.sampleAssessment||Object.keys(raw.sampleAssessment).length!==4||Object.keys(sampleAssessment).some(key=>sampleAssessment[key]!==raw.sampleAssessment[key]))return null;
+  const safe={title:raw.title,year:raw.year,kind:raw.kind,identity:decisionProviderIdentity(raw.identity),reviews,sampleAssessment,profile,limitations:'Default weights are not explicit preferences. Accepted analysis is an inference from earlier personal reviews, not a guaranteed prediction.'};
+  const encoded=JSON.stringify(safe);return encoded.length<=64000?encoded:null;
+ }catch{return null;}
 }
 function decisionContext(item,reviews,taste={}) {return JSON.stringify(decisionEvidence(item,reviews,taste).evidence);}
 function decisionFreshness(snapshot,item,reviews,taste={}) {
@@ -111,9 +138,9 @@ function decisionFreshness(snapshot,item,reviews,taste={}) {
 }
 function validateEvidenceSnapshot(raw,reviews,item) {
  if(raw===undefined)return undefined;
- if(!raw||raw.version!==1||typeof raw.context!=='string'||raw.context.length>8000||!raw.profile||typeof raw.profile!=='object'||Array.isArray(raw.profile))throw Error('Invalid analysis evidence snapshot.');
+ if(!raw||raw.version!==1||typeof raw.context!=='string'||raw.context.length>64000||!raw.profile||typeof raw.profile!=='object'||Array.isArray(raw.profile))throw Error('Invalid analysis evidence snapshot.');
  let context;try{context=JSON.parse(raw.context);}catch{throw Error('Invalid analysis evidence snapshot.');}
- if(!context||!Array.isArray(context.reviews)||JSON.stringify(context.reviews)!==JSON.stringify(reviews)||JSON.stringify(context.profile)!==JSON.stringify(raw.profile)||JSON.stringify(raw).length>16000||(item&&['title','year','kind'].some(key=>String(context[key]??'')!==String(key==='title'?text(item[key],200):item[key]??''))))throw Error('Analysis evidence snapshot does not match its review sample.');
+ if(!context||!Array.isArray(context.reviews)||JSON.stringify(context.reviews)!==JSON.stringify(reviews)||JSON.stringify(context.profile)!==JSON.stringify(raw.profile)||JSON.stringify(raw).length>132000||(item&&['title','year','kind'].some(key=>String(context[key]??'')!==String(key==='title'?text(item[key],200):item[key]??''))))throw Error('Analysis evidence snapshot does not match its review sample.');
  if(Object.hasOwn(context,'sampleAssessment')){const expected=decisionSampleAssessment(reviews),actual=context.sampleAssessment;if(!actual||typeof actual!=='object'||Object.keys(actual).length!==Object.keys(expected).length||Object.keys(expected).some(key=>actual[key]!==expected[key]))throw Error('Analysis evidence snapshot does not match its sample assessment.');}
  if(context.identity&&item&&JSON.stringify(context.identity)!==JSON.stringify(decisionProviderIdentity(item)))throw Error('Analysis evidence snapshot does not match its film identity.');
  return {version:1,context:raw.context,profile:context.profile};
@@ -126,6 +153,12 @@ function verifyDecision(raw, reviews) {
     const quoteTr=text(row.quoteTr,800);
     return {id:row.id,quote,reason:text(row.reason,1500),kind:['praise','criticism','debate'].includes(row.kind)?row.kind:'debate',...(quoteTr?{quoteTr,quoteTrKind:'paraphrase'}:{})};
   }),at:Date.now()};
+}
+function parseDecisionResponse(value,reviews) {
+ if(typeof value!=='string'||value.length>32000)throw Error('Invalid review analysis response.');
+ const trimmed=value.trim(),fenced=/^```(?:json)?\s*\n?([\s\S]*?)\s*```$/i.exec(trimmed);
+ let raw;try{raw=JSON.parse(fenced?fenced[1]:trimmed);}catch{throw Error('Review analysis must contain only a JSON object.');}
+ return verifyDecision(raw,reviews);
 }
 function tonight(items, history=[], options={}) {
   const max=Math.max(0,Math.min(300,Number(options.minutes)||0));
@@ -153,5 +186,5 @@ function tonight(items, history=[], options={}) {
   return rows.sort((a,b)=>b.score-a.score||a.title.localeCompare(b.title)).slice(0,8);
 }
 
-return Object.freeze({reviewRows,reviewMetadata,reviewSample,reviewAssessment,decisionEvidence,decisionProviderIdentity,decisionIdentityMatch,decisionContext,decisionFreshness,validateEvidenceSnapshot,verifyDecision,tonight});
+return Object.freeze({reviewRows,reviewMetadata,reviewSample,reviewAssessment,decisionEvidence,decisionProviderIdentity,decisionIdentityMatch,normalizeReviewAnalysis,decisionContext,decisionFreshness,validateEvidenceSnapshot,verifyDecision,parseDecisionResponse,tonight});
 });

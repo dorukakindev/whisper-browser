@@ -14,7 +14,8 @@
  const errorText=value=>{const parts=String(value||'').split(' / ');return window.UiLocale?.get?.()==='tr'&&parts[1]?parts[1]:parts[0];};
  const changed=()=>{updateAiChatActions();document.dispatchEvent(new Event('assistant-agent-changed'));};
  const status=()=>{const task=pending||applying;return task&&window.AssistantAppActions.current(task.owner)?{...task,activity:activity(task)}:null;};
- async function send(question,context,history,scope,resume){
+ async function send(question,context,history,scope,resume,options={}){
+  const requestOptions={responseContract:options.responseContract};
   if(pending||applying)return;retryPacket=null;
   const previous=resume?window.AssistantWorkspace.resume(resume.proposalId,context):null;
   const prefix=previous?.text?(previous.text.length>16000?t('Earlier flow text was shortened.\n','Önceki akış metni kısaltıldı.\n'):'')+previous.text.slice(-16000)+'\n\n':'';
@@ -26,7 +27,7 @@
   try{
    if(!await saveAppSettings())throw Error(t('Provider settings could not be saved securely.','Sağlayıcı ayarları güvenli kaydedilemedi.'));
    if(task.cancelled||!window.AssistantAppActions.current(task.owner))throw Error(t('The source changed.','Kaynak değişti.'));
-   result=await window.api.assistantAgentRun({requestId:task.id,question,continuationId:resume?.token,owner:task.owner,context:window.AssistantContextManifest.sourceText(context),
+   result=await window.api.assistantAgentRun({requestId:task.id,question,responseContract:requestOptions.responseContract,continuationId:resume?.token,owner:task.owner,context:window.AssistantContextManifest.sourceText(context),
     pool:window.AssistantContextManifest.pool(context.assistant_tools?.rows),history,locale:window.UiLocale?.get?.()||'en'});
   }catch(error){result={ok:false,cancelled:!!task.cancelled,error:String(error.message)};}
   const current=window.AssistantAppActions.current(task.owner),state=result?.ok&&current?'complete':task.cancelled||result?.cancelled||!current?'stopped':'failed';
@@ -38,7 +39,7 @@
   if(result?.ok&&current)window.AssistantWorkspace?.citations?.(task.job,[...new Map([...task.citations,...(result.bookCitations||[])].map(row=>[row.id,row])).values()]);
   renderAiText(task.job.bubble,text);window.AssistantWorkspace?.finish(task.job,text,state);
   if(result?.ok&&current){player.chatHistory=[...history,{role:'user',content:question},{role:'assistant',content:text}].slice(-24);player.chatHistoryScope=scope;document.dispatchEvent(new CustomEvent('assistant-answer',{detail:{text,context}}));}
-  if(!resume&&!result?.ok&&current&&!task.cancelled&&!result?.cancelled)retryPacket={question,context,history,scope,owner:task.owner};
+  if(!resume&&!result?.ok&&current&&!task.cancelled&&!result?.cancelled)retryPacket={question,context,history,scope,owner:task.owner,options:requestOptions};
   if(pending===task)pending=null;changed();return result;
  }
  const unsubscribe=window.api.onAssistantAgentEvent(packet=>{
@@ -119,7 +120,7 @@
   try{return await open();}finally{if(task.bookHandoff===target)delete task.bookHandoff;}
  }
  const canRetry=()=>!!retryPacket&&window.AssistantAppActions.current(retryPacket.owner);
- async function retry(){if(!canRetry()||pending||applying)return;const row=retryPacket;await send(row.question,row.context,row.history,row.scope);}
+ async function retry(){if(!canRetry()||pending||applying)return;const row=retryPacket;await send(row.question,row.context,row.history,row.scope,undefined,row.options);}
  window.AssistantAgentUI=Object.freeze({send,status,busy:()=>!!pending||!!applying,cancel,apply,refresh,flowInfo,continueAction,canRetry,retry,bookPreparation});
  document.addEventListener('media-context-changed',()=>{const task=pending||applying;
   if(task===applying&&task&&!task.cancelled&&task.bookHandoff&&window.globalAssistantContext?.()?.id===task.bookHandoff){

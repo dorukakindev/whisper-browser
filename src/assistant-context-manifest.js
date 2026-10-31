@@ -15,7 +15,7 @@
  function sourceSize(value={}){
   let characters=0,units=0;
   const add=(...parts)=>{const size=parts.reduce((sum,part)=>sum+(typeof part==='string'?part.replace(/\0/g,'').length:0),0);if(size){characters+=size;units++;}};
-  for(const key of ['chapterText','selectedText','excerpt','synopsis','note','cumle','mevcut_ceviri','not'])add(value[key]);
+  for(const key of ['chapterText','selectedText','excerpt','reviewAnalysis','synopsis','note','cumle','mevcut_ceviri','not'])add(value[key]);
   add(value.page?.selectedText);
   for(const row of Array.isArray(value.page?.blocks)?value.page.blocks:[])add(row?.text);
   for(const key of ['onceki','sonraki'])for(const row of Array.isArray(value[key])?value[key]:[])add(row?.metin);
@@ -24,7 +24,11 @@
   for(const row of evidence)add(row?.metin??row?.text,row?.ceviri??row?.translation);
   return {characters,units};
  }
- function sourceText(context={},budget=24000){
+ function sourceText(context={},budget){
+  const model=typeof module==='object'&&module.exports?require('./renderer/media-tools-model'):globalThis.MediaToolsModel;
+  const reviewAnalysis=model?.normalizeReviewAnalysis(context.reviewAnalysis);
+  // Only the reconstructed review contract receives a larger source allocation.
+  budget=budget===undefined?(reviewAnalysis?72000:24000):budget;
   const supplied=sourceSize(context),prior=context.sourceCoverage;
   const upstreamOmissionsUnknown=prior?prior.upstreamOmissionsUnknown===true:context.sourceTruncated===true||context.truncated===true||context.selectedTextTruncated===true||context.page?.truncated===true||context.chapterTextComplete===false||(Array.isArray(context.transcript_evidence?.evidence)?context.transcript_evidence.evidence:Array.isArray(context.evidence)?context.evidence:[]).some(row=>row?.textTruncated===true||row?.translationTruncated===true);
   // A second normalization must retain the original denominator, including previously omitted units.
@@ -36,7 +40,7 @@
    safe.sourceCoverage={scope:'provided_context',status:safe.sourceTruncated||upstreamOmissionsUnknown||prior?.status==='partial'?'partial':'provided_only',wholeSourceVerified:false,upstreamOmissionsUnknown,
     providedCharacters,includedCharacters:included.characters,omittedCharacters,providedUnits,includedUnits:included.units,omittedUnits};
   };
-  const safe={};if(['available','empty','timeout','read_failed','source_changed','unavailable'].includes(context.pageReadStatus))safe.pageReadStatus=context.pageReadStatus;
+  const safe={};if(reviewAnalysis)safe.reviewAnalysis=reviewAnalysis;if(['available','empty','timeout','read_failed','source_changed','unavailable'].includes(context.pageReadStatus))safe.pageReadStatus=context.pageReadStatus;
   if(safe.pageReadStatus&&safe.pageReadStatus!=='available')safe.pageReadHint=({empty:'The page returned no readable text. Ask the user to select a passage or open the article, then read the new context.',timeout:'Page extraction exceeded four seconds. Retry reading the current page; do not infer missing content.',read_failed:'The page reader failed. Retry or use an explicitly selected passage; the exact site cause is unknown.',source_changed:'The extracted page no longer matches the current source. Read the current page again.',unavailable:'Page text is unavailable; the exact cause is unknown. Ask for a selected passage or retry reading.'})[safe.pageReadStatus];
   if(context.sourceTruncated===true||context.truncated===true||context.selectedTextTruncated===true)safe.sourceTruncated=true;
   const suppliedPool=context.assistant_tools?.rows;
@@ -64,6 +68,7 @@
    else if(safe.evidence?.length)safe.evidence.pop();
    else if(safe.onceki?.length)safe.onceki.shift();
    else if(safe.sonraki?.length)safe.sonraki.pop();
+   else if(safe.reviewAnalysis){delete safe.reviewAnalysis;}
    else {const key=Object.keys(safe).filter(key=>typeof safe[key]==='string').sort((a,b)=>safe[b].length-safe[a].length)[0];if(!key||!safe[key].length)return budget>=24?{sourceTruncated:true}:{};safe[key]=safe[key].slice(0,Math.max(0,safe[key].length-1000));}
    updateCoverage();
   }

@@ -36,7 +36,7 @@ function tonight(items, history=[], options={}) {
   }
   return rows.sort((a,b)=>b.score-a.score||a.title.localeCompare(b.title)).slice(0,8);
 }
-function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ffprobe,readOpenReviews,resolveDiscovery,fetchImpl=fetch}) {
+function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ffprobe,readOpenReviews,resolveDiscovery,collectBrowserReviews,fetchImpl=fetch}) {
   const root=()=>app.getPath('userData'), file=()=>path.join(root(),'media-enrichment.json');
   const read=()=>{if(!fs.existsSync(file()))return {version:1,titles:{}};if(fs.statSync(file()).size>16000000)throw Error('Media notes exceed 16 MB.');const value=JSON.parse(fs.readFileSync(file(),'utf8'));if(value.version!==1||!value.titles||typeof value.titles!=='object'||Array.isArray(value.titles))throw Error('Media notes are damaged. Original file was preserved.');return value;};
   const save=value=>{const json=JSON.stringify(value);if(Buffer.byteLength(json)>16000000)throw Error('Media notes exceed 16 MB.');atomicWriteFileSync(file(),json);};
@@ -127,7 +127,16 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
         const item=await reviewItem(event,input);if(jobs.size)throw Error('A review request is already running.');
         const id=text(input.id,80);if(!id)throw Error('Request ID required.');if(stoppedReviews.has(id))throw Error('Cancelled.');const controller=new AbortController();jobs.set(id,controller);
         const snapshot=JSON.stringify([item.kind,item.title,item.year,item.tmdbId,item.imdbId]);
-        try{const result=await require('./letterboxd-auto').fetchReviews(item,{count:input.count,sort:input.sort,spoilers:input.spoilers===true,signal:controller.signal,fetchImpl});const current=await reviewItem(event,input);if(JSON.stringify([current.kind,current.title,current.year,current.tmdbId,current.imdbId])!==snapshot)throw Error('The film match changed. Load its reviews again.');return {ok:true,...result};}
+        try{
+          const options={count:input.count,sort:input.sort,spoilers:input.spoilers===true,signal:controller.signal};let result;
+          try{result=await require('./letterboxd-auto').fetchReviews(item,{...options,fetchImpl});}
+          catch(error){controller.signal.throwIfAborted();if(!collectBrowserReviews||!/^Letterboxd HTTP 403\./.test(error.message))throw error;result=await collectBrowserReviews(item,options);result={...result,transport:'browser'};}
+          if(collectBrowserReviews&&result.transport!=='browser'&&result.partial&&/^Letterboxd HTTP 403\./.test(result.warning||'')&&result.reviews?.length<(input.count||24)){
+            try{result={...await collectBrowserReviews(item,options),transport:'browser'};}
+            catch(error){controller.signal.throwIfAborted();result={...result,warning:result.warning+' Normal Browser: '+String(error.message).slice(0,300)};}
+          }
+          controller.signal.throwIfAborted();const current=await reviewItem(event,input);if(JSON.stringify([current.kind,current.title,current.year,current.tmdbId,current.imdbId])!==snapshot)throw Error('The film match changed. Load its reviews again.');return {ok:true,...result};
+        }
         finally{jobs.delete(id);}
       }
       if(action==='reviews-fetch'){
