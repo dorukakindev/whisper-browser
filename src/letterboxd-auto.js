@@ -60,7 +60,7 @@ async function fetchReviews(item,{count=24,sort='popular',spoilers=false,signal,
       parsed=parseLetterboxdReviews(got.html,{url:got.url});
       const assessment=matchFilm(item,parsed.identity);
       if(assessment.state==='mismatch')throw Error('Film identity mismatch. Review text was not accepted for this film.');
-      if(identity&&matchFilm({...item,tmdbId:identity.tmdbId||item.tmdbId,title:identity.title,year:identity.year},parsed.identity).state==='mismatch')throw Error('Film identity changed between review pages.');
+      if(identity&&matchFilm({...item,tmdbId:identity.tmdbId||item.tmdbId,imdbId:identity.imdbId||item.imdbId,title:identity.title,year:identity.year},parsed.identity).state==='mismatch')throw Error('Film identity changed between review pages.');
       source={...observed,requestedUrl:url,loaded:parsed.reviews.length+(parsed.excluded?.duplicate||0)+(parsed.excluded?.unreadable||0)+(parsed.excluded?.identity||0),accepted:0};
     }catch(error){
       if(combined.aborted)throw error;
@@ -70,7 +70,9 @@ async function fetchReviews(item,{count=24,sort='popular',spoilers=false,signal,
     pages++;sources.push(source);identity=parsed.identity;pageTitle=parsed.pageTitle;limited=limited||parsed.limited;
     excluded.duplicate+=parsed.excluded?.duplicate||0;excluded.unreadable+=parsed.excluded?.unreadable||0;if(parsed.excluded?.identity)excluded.identity=(excluded.identity||0)+parsed.excluded.identity;
     if(sort==='balanced')pools.push({rows:[...parsed.reviews]});
-    else{let added=0;for(const row of parsed.reviews)if(accept(row))added++;if(!parsed.reviews.length||!added&&requested.page>1)break;}
+    // A page containing only repeats or excluded spoilers is not the end of the list.
+    // Continue within the same four-page budget so later eligible authors can still be found.
+    else{for(const row of parsed.reviews)accept(row);if(!source.loaded)break;}
   }
   if(sort==='balanced'){
     while(pools.some(pool=>pool.rows.length))for(const pool of pools){while(pool.rows.length){if(accept(pool.rows.shift()))break;}}

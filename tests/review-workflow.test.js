@@ -117,3 +117,26 @@ test('Manual source actions, editor, append and spoiler controls remain usable i
 });
 
  test('Advanced review controls retain their disclosure choice and open after automatic source failure',async()=>{const u=ui({}, {item:{id:'film',kind:'film',title:'The Matrix',year:1999,imdbId:'tt0133093'}});try{const manual=u.w.document.querySelector('.mrv-manual');const toggled=new Promise(resolve=>manual.addEventListener('toggle',resolve,{once:true}));manual.querySelector('summary').click();await toggled;assert.equal(u.draft.manualOpen,true);const body=u.w.document.querySelector('main');body.replaceChildren();u.w.MediaReviewDecision.mount(body,{id:'film',kind:'film',title:'The Matrix',year:1999,imdbId:'tt0133093'},{},u.draft,{current:()=>true,redraw(){},status(){}});const restored=body.querySelector('.mrv-manual');assert(restored.open);restored.open=false;restored.dispatchEvent(new u.w.Event('toggle'));u.click('Find this film & get reviews');await u.wait();assert.equal(u.draft.attempt.state,'failed');assert(restored.open);assert.equal(u.draft.manualOpen,true);assert(restored.querySelector('[name=review-text]'));}finally{u.w.close();}});
+
+test('Loaded reviews can be read without AI and spoiler text stays hidden until explicitly included',async()=>{
+ const rows=[{id:'plain',author:'Reader',text:'Strong acting and a memorable atmosphere.'},{id:'spoiler',author:'Another',text:'SECRET ENDING should stay out of the reader.',spoiler:true}],u=ui({reviews:JSON.stringify(rows)});
+ try{const desk=u.w.document.querySelector('.mrv-loaded-sample');assert(!desk.hidden);assert.match(desk.textContent,/1 reviews ready/);const reader=desk.querySelector('details');reader.querySelector('summary').click();assert(reader.open);assert.match(reader.textContent,/Strong acting/);assert.doesNotMatch(reader.textContent,/SECRET ENDING/);assert.equal(u.calls.length,0);
+  const spoiler=u.w.document.querySelector('[name=review-spoilers]');spoiler.checked=true;spoiler.dispatchEvent(new u.w.Event('change'));assert(desk.querySelector('details').open,'Reading position disclosure survives policy update');assert.match(desk.textContent,/SECRET ENDING/);assert.equal(u.calls.length,0);
+ }finally{u.w.close();}
+});
+
+test('Shared saved history accepts a title alias only with matching film identity and reuses locally',async()=>{
+ const item={...contextItem,imdbId:'tt0133093'},entry={savedFrom:'discovery',identity:{...item,title:'Matrix — a localized title'},reviews:contextRows,analysis:{at:1,summary:'Saved source-based summary.',fit:'Conditional fit.',points:[]}},u=ui({},{item,saved:{history:[entry]}});
+ try{assert.match(u.w.document.querySelector('[data-saved-origin=discovery]').textContent,/Discover/);assert.doesNotMatch(u.w.document.querySelector('.mtx-history summary').textContent,/Earlier match/);assert.equal(u.w.document.querySelector('main').firstElementChild.className,'mrv-saved-analyses');u.click('Reuse this saved sample');await u.wait();assert.equal(u.calls.length,0);assert.equal(JSON.stringify(JSON.parse(u.draft.reviews)),JSON.stringify(contextRows));assert.equal(u.draft.source.match.state,'matched');assert.equal(u.w.document.activeElement.dataset.reviewAction,'preview');
+ }finally{u.w.close();}
+});
+
+test('Conflicting saved IMDb identity cannot reuse reviews even when title year and TMDB agree',async()=>{
+ const item={...contextItem,imdbId:'tt0133093',tmdbId:'movie:603'},entry={savedFrom:'library',identity:{...item,imdbId:'tt99999999'},reviews:contextRows,analysis:{at:1,summary:'Earlier identity summary.',fit:'Earlier fit.',points:[]}},u=ui({},{item,saved:{history:[entry]}});
+ try{assert.match(u.w.document.querySelector('.mtx-history summary').textContent,/Earlier match/);assert(![...u.w.document.querySelectorAll('button')].some(n=>n.textContent==='Reuse this saved sample'));assert.equal(u.draft.reviews,undefined);assert.equal(u.calls.length,0);}finally{u.w.close();}
+});
+
+test('Failed source loading retries the same source instead of analyzing an empty sample',async()=>{
+ const u=ui({},{item:{...contextItem,imdbId:'tt0133093'}});let sends=0;
+ try{u.w.aiChatSend=async()=>sends++;u.click('Find this film & get reviews');await u.wait();assert.equal(u.draft.attempt.state,'failed');u.click('Retry reading');await u.wait();assert.equal(u.calls.filter(row=>row.action==='reviews-auto').length,2);assert.equal(u.draft.attempt.state,'failed');assert.equal(sends,0);assert(!u.w.document.querySelector('.mrv-sample'));assert(u.w.document.querySelector('.mrv-manual').open);}finally{u.w.close();}
+});

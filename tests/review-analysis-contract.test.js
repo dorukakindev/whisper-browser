@@ -45,3 +45,63 @@ test('Native decision save shares quote validation, retains labelled paraphrase 
   assert.equal((await api.handle({},{action:'decision-get',itemId:'film'})).value.history.length,1);
  }finally{close.forEach(fn=>fn());fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+test('Provider rematches stale the analysis even when title and year stay the same; older identity-less snapshots remain readable',()=>{
+ const selected={...item,imdbId:'tt1234567',tmdbId:'movie:1'},evidence=model.decisionEvidence(selected,reviews,taste).evidence;
+ const snapshot={version:1,context:JSON.stringify(evidence),profile:evidence.profile};
+ assert.equal(model.decisionFreshness(snapshot,selected,reviews,taste),'current');
+ assert.equal(model.decisionFreshness(snapshot,{...selected,imdbId:'tt7654321'},reviews,taste),'stale');
+ assert.throws(()=>model.validateEvidenceSnapshot(snapshot,reviews,{...selected,tmdbId:'movie:2'}),/film identity/);
+ const {identity,...legacy}=evidence,old={...snapshot,context:JSON.stringify(legacy)};
+ assert.equal(model.decisionFreshness(old,selected,reviews,taste),'unknown');
+ assert.deepEqual(model.validateEvidenceSnapshot(old,reviews,selected),old);
+ assert.equal(model.decisionIdentityMatch(selected,{...selected,imdbId:'tt7654321'}),'mismatch');
+ assert.equal(model.decisionIdentityMatch(selected,{...selected,kind:'series'}),'mismatch');
+});
+
+test('Saved analysis follows an exact provider match between discovery and library without transferring feedback or accepting title-only/conflicting matches',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'review-shared-history-')),close=[];
+ const selected={...item,imdbId:'tt1234567',tmdbId:'movie:1'},analysis={at:100,summary:'Saved from discovery.',points:[{id:'r1',quote:'The performances are strong',reason:'Supported.'}]};
+ const entry={identity:{...selected,id:'discovery:film:tt1234567'},analysis,reviews};
+ const conflict={...entry,identity:{...entry.identity,tmdbId:'movie:2'},analysis:{...analysis,at:900,summary:'Conflicting provider'}};
+ const titleOnly={...entry,identity:{kind:'film',title:selected.title,year:selected.year},analysis:{...analysis,at:800,summary:'Same name only'}};
+ const wrongYear={...entry,identity:{...entry.identity,year:2025},analysis:{...analysis,at:700}};
+ const wrongKind={...entry,identity:{...entry.identity,kind:'series'},analysis:{...analysis,at:600}};
+ try{
+  fs.writeFileSync(path.join(dir,'media-enrichment.json'),JSON.stringify({version:1,titles:{film:{feedback:{note:'Local feedback'}},'discovery:film:tt1234567':{feedback:{note:'Discovery feedback'},history:[entry]},duplicate:{history:[entry]},conflict:{history:[conflict]},titleOnly:{history:[titleOnly]},wrongYear:{history:[wrongYear]},wrongKind:{history:[wrongKind]}}}));
+  const before=fs.readFileSync(path.join(dir,'media-enrichment.json'),'utf8');
+  const api=service.registerMediaTools({app:{getPath:()=>dir,on:(_,fn)=>close.push(fn)},ipcMain:{handle(){}},authorized:()=>true,owner:()=>null,dialog:{},catalogStore:()=>({get:()=>selected}),resolveDiscovery:async()=>({ok:true,item:{...selected,providerId:selected.imdbId}})});
+  const library=await api.handle({},{action:'decision-get',itemId:'film'});assert.equal(library.ok,true,library.error);assert.deepEqual(library.value.history,[{...entry,savedFrom:'discovery'}]);assert.equal(library.value.feedback.note,'Local feedback');
+  const discovery=await api.handle({},{action:'decision-get',itemId:'discovery:film:tt1234567',discovery:{kind:'film',id:'tt1234567'}});assert.equal(discovery.ok,true,discovery.error);assert.deepEqual(discovery.value.history,[{...entry,savedFrom:'discovery'}]);assert.equal(discovery.value.feedback.note,'Discovery feedback');
+  assert.equal(fs.readFileSync(path.join(dir,'media-enrichment.json'),'utf8'),before,'Reading shared history never migrates or mutates saved data');
+  const saved=await api.handle({},{action:'decision-save',itemId:'film',itemIdentity:selected,reviews,analysis:{...analysis,summary:'Newer library analysis'}});assert.equal(saved.ok,true,saved.error);
+  const reverse=await api.handle({},{action:'decision-get',itemId:'discovery:film:tt1234567',discovery:{kind:'film',id:'tt1234567'}});assert.equal(reverse.value.history.length,2);assert.equal(reverse.value.history[0].savedFrom,'library');assert.equal(reverse.value.history[0].analysis.summary,'Newer library analysis');assert.equal(reverse.value.history[1].savedFrom,'discovery');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir,'media-enrichment.json'),'utf8')).titles.film.history[0].savedFrom,undefined,'Origin labels are response metadata, not a storage migration');
+ }finally{close.forEach(fn=>fn());fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('Prompt assessment counts canonical author accounts without display names from the selected sample and remains bounded',()=>{
+ const rows=Array.from({length:30},(_,i)=>({id:'R'+i,authorId:'reviewer'+i,author:'',text:'Distinct opinion number '+i+' about the pacing and acting. '+('Long source text. '.repeat(250))}));
+ const {evidence,sample}=model.decisionEvidence(item,rows,taste),assessment=model.reviewAssessment(sample.reviews);
+ assert(sample.reviews.length<rows.length);assert(sample.truncated>0);
+ assert.deepEqual(evidence.sampleAssessment,{distinctReviews:assessment.distinct,independentAuthors:sample.reviews.length,unknownAuthors:0,duplicates:assessment.duplicates});
+ assert(JSON.stringify(evidence).length<=8000);
+ const mixed=model.decisionEvidence(item,[{id:'a',authorId:'one',text:'Exactly the same review text.'},{id:'b',authorId:'one',text:'Exactly the same review text.'},{id:'c',author:'Unverified display name',text:'A different review with no canonical author.'}]).evidence;
+ assert.deepEqual(mixed.sampleAssessment,{distinctReviews:2,independentAuthors:1,unknownAuthors:1,duplicates:1});
+});
+
+test('Native snapshot validation refuses invented assessment counts while old snapshots without counts remain readable',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'review-assessment-')),close=[];
+ try{
+  const api=service.registerMediaTools({app:{getPath:()=>dir,on:(_,fn)=>close.push(fn)},ipcMain:{handle(){}},authorized:()=>true,owner:()=>null,dialog:{},catalogStore:()=>({get:()=>item})});
+  const evidence=model.decisionEvidence(item,reviews,taste).evidence,analysis={points:[{id:'r1',quote:'The performances are strong',reason:'Supported.'}]},snapshot=context=>({version:1,context:JSON.stringify(context),profile:evidence.profile});
+  for(const key of Object.keys(evidence.sampleAssessment)){
+   const forged={...evidence,sampleAssessment:{...evidence.sampleAssessment,[key]:99}};
+   const result=await api.handle({},{action:'decision-save',itemId:item.id,reviews,analysis,evidenceSnapshot:snapshot(forged)});assert.equal(result.ok,false);assert.match(result.error,/sample assessment/);
+  }
+  assert.equal((await api.handle({},{action:'decision-get',itemId:item.id})).value.history,undefined);
+  const valid=await api.handle({},{action:'decision-save',itemId:item.id,reviews,analysis,evidenceSnapshot:snapshot(evidence)});assert.equal(valid.ok,true,valid.error);
+  const {sampleAssessment,...legacy}=evidence;
+  const old=await api.handle({},{action:'decision-save',itemId:item.id,reviews,analysis,evidenceSnapshot:snapshot(legacy)});assert.equal(old.ok,true,old.error);
+ }finally{close.forEach(fn=>fn());fs.rmSync(dir,{recursive:true,force:true});}
+});

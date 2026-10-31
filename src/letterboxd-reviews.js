@@ -2,8 +2,24 @@
  'use strict';
 // Bounded public-page text extraction only. No script, resource or embedded URL is executed.
 function decode(value){const names={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',hellip:'…',rsquo:'’',lsquo:'‘',rdquo:'”',ldquo:'“',ndash:'–',mdash:'—'};return value.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi,(entity,key)=>{if(key[0]!=='#')return names[key.toLowerCase()]??entity;const n=key[1].toLowerCase()==='x'?parseInt(key.slice(2),16):Number(key.slice(1));return Number.isInteger(n)&&n>0&&n<=0x10ffff&&!(n>=0xd800&&n<=0xdfff)?String.fromCodePoint(n):'�';});}
-const plain=value=>decode(String(value).replace(/<(script|style|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'').replace(/<br\b[^>]*>|<\/(?:p|div|li)\s*>/gi,'\n').replace(/<[^>]*>/g,' ')).replace(/\0/g,'').replace(/[ \t]+/g,' ').replace(/ *\n */g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+// Inline markup does not introduce whitespace in the displayed quotation.
+// Block boundaries do: keep paragraphs readable without changing word/punctuation adjacency.
+const plain=value=>decode(String(value).replace(/<(script|style|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'').replace(/<br\b[^>]*>|<\/?(?:p|div|li|blockquote|section|article|h[1-6]|ul|ol)\b[^>]*>/gi,'\n').replace(/<[^>]*>/g,'')).replace(/\0/g,'').replace(/[ \t]+/g,' ').replace(/ *\n */g,'\n').replace(/\n{3,}/g,'\n\n').trim();
 function attr(tag,name){const found=new RegExp('(?:^|\\s)'+name+'\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\')','i').exec(tag);return found?decode(found[1]??found[2]):'';}
+function filmImdbId(html){
+ // Film external links are marked by the site. A review's own links are not film metadata.
+ const stack=[],ids=new Set();
+ for(const match of html.matchAll(/<\/?([a-z][a-z0-9]*)\b[^>]*>/gi)){
+  const tag=match[1].toLowerCase(),markup=match[0];
+  if(['article','li','div','section'].includes(tag)){
+   if(markup[1]==='/'){const index=stack.findLastIndex(row=>row.tag===tag);if(index>=0)stack.splice(index);}
+   else stack.push({tag,review:tag==='article'||tag==='li'||attr(markup,'class').split(/\s+/).includes('js-review-body')});
+  }
+  if(tag!=='a'||markup[1]==='/'||attr(markup,'data-track-action').toLowerCase()!=='imdb'||stack.some(row=>row.review))continue;
+  try{const u=new URL(attr(markup,'href'));const id=/^\/title\/(tt\d{7,12})(?:\/(?:maindetails\/?)?)?$/.exec(u.pathname)?.[1];if(u.protocol==='https:'&&['imdb.com','www.imdb.com'].includes(u.hostname)&&!u.port&&!u.username&&!u.password&&id)ids.add(id);}catch{}
+ }
+ return ids.size===1?[...ids][0]:'';
+}
 function reviewPermalink(value){try{const u=new URL(value,'https://letterboxd.com');return u.protocol==='https:'&&u.hostname==='letterboxd.com'&&!u.port&&!u.username&&!u.password&&!u.search&&!u.hash&&/^\/[a-z0-9_-]+\/film\/[a-z0-9-]+\/(?:[1-9]\d*\/)?$/i.test(u.pathname)?u.href:null;}catch{return null;}}
 function cardMetadata(card){
  const links=[...card.matchAll(/<a\b[^>]*>/gi)].map(m=>m[0]);
@@ -53,15 +69,19 @@ function parseLetterboxdReviews(input,{url}={}){
  const years=/\((18\d{2}|19\d{2}|20\d{2})\)/.exec(labelled),year=Number((yearText&&attr(yearText,'content').slice(0,4))||years?.[1])||null;
  const name=(labelled.replace(/\s*\((?:18|19|20)\d{2}\).*$/,'').trim()||heading).slice(0,300);
  const tmdb=/(?:data-tmdb-id|data-film-tmdb-id)=["'](\d+)["']/i.exec(html)?.[1]||/themoviedb\.org\/movie\/(\d+)/i.exec(html)?.[1]||'';
- return {reviews:rows,limited,excluded,pageTitle,identity:{title:name,year,tmdbId:tmdb?'movie:'+tmdb:''}};
+ const imdbId=filmImdbId(html);
+ return {reviews:rows,limited,excluded,pageTitle,identity:{title:name,year,tmdbId:tmdb?'movie:'+tmdb:'',...(imdbId?{imdbId}:{})}};
 }
 function matchFilm(item,identity={}){
  const fold=v=>String(v||'').normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase('tr').replace(/ı/g,'i').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
  const known=String(item.tmdbId||''),remote=String(identity.tmdbId||'');
+ const knownImdb=String(item.imdbId||''),remoteImdb=String(identity.imdbId||'');
  if(item.kind==='series')return {state:'mismatch',reason:'film-vs-series'};
  if(known&&remote&&known!==remote)return {state:'mismatch',reason:'tmdb-id'};
+ if(knownImdb&&remoteImdb&&knownImdb!==remoteImdb)return {state:'mismatch',reason:'imdb-id'};
  if(item.year&&identity.year&&Number(item.year)!==Number(identity.year))return {state:'mismatch',reason:'year'};
  if(known&&remote&&known===remote)return {state:'matched',reason:'tmdb-id'};
+ if(knownImdb&&remoteImdb&&knownImdb===remoteImdb)return {state:'matched',reason:'imdb-id'};
  const names=[item.title,item.originalTitle].filter(Boolean).map(fold),name=fold(identity.title);
  if(name&&names.includes(name)&&item.year&&identity.year)return {state:'matched',reason:'title-year'};
  if(name&&identity.year&&names.length&&!names.includes(name))return {state:'mismatch',reason:'title'};
@@ -82,6 +102,7 @@ function reviewPageScript(){return `(()=>{
  for(const n of document.querySelectorAll('meta[property="og:title"],meta[property="og:release_date"],meta[property="video:release_date"],h1'))host.append(n.cloneNode(true));
  const tmdb=document.querySelector('[data-tmdb-id],[data-film-tmdb-id]');if(tmdb){const n=document.createElement('div');n.setAttribute('data-tmdb-id',tmdb.getAttribute('data-tmdb-id')||tmdb.getAttribute('data-film-tmdb-id'));host.append(n);}
  for(const link of document.querySelectorAll('a[href*="themoviedb.org/movie/"]')){const n=document.createElement('a');n.setAttribute('href',link.getAttribute('href'));host.append(n);}
+ for(const link of document.querySelectorAll('a[data-track-action]')){if(link.getAttribute('data-track-action').toLowerCase()!=='imdb'||link.closest('article,li,.js-review-body'))continue;const n=document.createElement('a');n.setAttribute('data-track-action','IMDb');n.setAttribute('href',link.getAttribute('href'));host.append(n);}
  const seen=new Set();for(const body of [...document.querySelectorAll('.js-review-body')].slice(0,50)){const card=body.closest('article,li')||body;if(seen.has(card))continue;seen.add(card);const copy=card.cloneNode(true);if(body.closest('.contains-spoilers,.has-spoilers,[data-spoilers="true"],[data-contains-spoilers="true"]'))copy.setAttribute('data-spoilers','true');for(const n of copy.querySelectorAll('script,style,template,input,textarea,select,form,iframe,button,img'))n.remove();host.append(copy);if(host.outerHTML.length>3000000)return {tooLarge:true};}
  return {url:location.href,title:document.title,html:host.outerHTML};})()`;}
 async function readBrowserReviews({getTab,execute}){
