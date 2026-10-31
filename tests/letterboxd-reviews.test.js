@@ -70,6 +70,6 @@ test('Renderer and saved-review normalization retain verified metadata and rejec
 });
 
 test('Every eligible review receives a precise inclusion or exclusion decision',()=>{
- const rows=Array.from({length:22},(_,i)=>({id:String(i),text:'A sufficiently long review '+i+'.'})),sample=reviewSample(rows,10000);assert.equal(sample.decisions.length,22);assert.equal(sample.decisions.filter(r=>r.included).length,20);assert.equal(sample.decisions[21].reason,'review-limit');
+ const rows=Array.from({length:49},(_,i)=>({id:String(i),text:'A sufficiently long review '+i+'.'})),sample=reviewSample(rows,10000);assert.equal(sample.decisions.length,49);assert.equal(sample.decisions.filter(r=>r.included).length,48);assert.equal(sample.decisions[48].reason,'review-limit');
  const bounded=reviewSample([{id:'long',text:'x'.repeat(4000)},{id:'later',text:'A later complete comment about the acting.'}],180);assert.equal(bounded.decisions[0].reason,'shortened');assert.equal(bounded.decisions[0].originalLength,4000);assert.equal(bounded.decisions[0].sentLength,bounded.reviews[0].text.length);assert.equal(bounded.decisions[1].reason,'included');assert.equal(bounded.reviews[1].text,'A later complete comment about the acting.');assert(JSON.stringify(bounded.reviews).length<=180);
 });

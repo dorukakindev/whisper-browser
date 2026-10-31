@@ -2,10 +2,10 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {EventEmitter}=require('node:events');
 const {registerMediaTools}=require('../src/media-tools-service');
-function fixture({status=403,collect,fetchImpl}={}){
+function fixture({status=403,collect,fetchImpl,getReviewConfig}={}){
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'review-browser-fallback-')),handlers=new Map(),app=new EventEmitter();app.getPath=()=>root;
  const item={id:'film',kind:'film',title:'Example',year:2026,imdbId:'tt1234567'};
- registerMediaTools({app,ipcMain:{handle:(name,fn)=>handlers.set(name,fn)},authorized:()=>true,dialog:{},owner:()=>null,catalogStore:()=>({get:()=>item}),fetchImpl:fetchImpl||(async()=>new Response('Controlled failure',{status})),collectBrowserReviews:collect});
+ registerMediaTools({app,ipcMain:{handle:(name,fn)=>handlers.set(name,fn)},authorized:()=>true,dialog:{},owner:()=>null,catalogStore:()=>({get:()=>item}),fetchImpl:fetchImpl||(async()=>new Response('Controlled failure',{status})),collectBrowserReviews:collect,getReviewConfig});
  return {item,request:values=>handlers.get('media-tools:request')({},values),close:()=>{app.emit('before-quit');fs.rmSync(root,{recursive:true,force:true});}};
 }
 const packet={action:'reviews-auto',itemId:'film',id:'request-one',count:40,sort:'popular'};
@@ -38,4 +38,18 @@ test('A later HTTP403 can continue in the browser, while a failed browser preser
  for(const fails of [false,true]){let calls=0;const f=fixture({fetchImpl:partialFetch,collect:async()=>{calls++;if(fails)throw Error('Finish normal site verification.');return {reviews:[{id:'browser',text:'A completed normal browser sample.'}],partial:false};}});
   try{const r=await f.request(packet);assert(r.ok,JSON.stringify(r));assert.equal(calls,1);if(fails){assert.equal(r.partial,true);assert.match(r.reviews[0].text,/before the later block/);assert.match(r.warning,/Finish normal site verification/);}else{assert.equal(r.transport,'browser');assert.equal(r.partial,false);assert.equal(r.reviews[0].id,'browser');}}finally{f.close();}
  }
+});
+
+
+test('Requested 30-review macro uses the real structured provider contract and returns verified actual counts without saving',async()=>{
+ let sent;const reviews=Array.from({length:30},(_,i)=>({id:'R'+(i+1),authorId:'reader'+i,text:'This is a thoughtful and carefully photographed film number '+i+'.'}));
+ const f=fixture({getReviewConfig:()=>({endpoint:'https://controlled.example/v1',model:'controlled'}),fetchImpl:async(url,options)=>{
+  if(String(url).includes('controlled.example')){sent=JSON.parse(options.body);return Response.json({choices:[{message:{role:'assistant',content:JSON.stringify({summary:'Thoughtful photography is praised in this sample.',fit:'No personal evidence was supplied.',points:[{id:'R30',quote:reviews[29].text,reason:'The final source praises the photography.',kind:'praise'}]})}}]});}
+  return new Response('blocked',{status:403});
+ },collect:async(_item,options)=>{assert.equal(options.count,30);return {reviews,match:{state:'matched'},identity:{title:'Example',year:2026}};}});
+ try{const r=await f.request({...packet,action:'reviews-analyze',count:30});assert(r.ok,JSON.stringify(r));assert.equal(r.requestedCount,30);assert.equal(r.loadedCount,30);assert.equal(r.analyzedCount,30);assert.equal(r.analysis.points[0].id,'R30');assert.equal(sent.tools,undefined);assert.equal(sent.response_format.type,'json_object');assert.match(JSON.stringify(sent.messages),/reader29/);}finally{f.close();}
+});
+test('A mismatched collection cannot reach the analysis provider',async()=>{
+ let configCalls=0;const f=fixture({getReviewConfig:()=>{configCalls++;return {};},collect:async()=>({reviews:[],match:{state:'mismatch'}})});
+ try{const r=await f.request({...packet,action:'reviews-analyze'});assert.equal(r.ok,false);assert.equal(configCalls,0);}finally{f.close();}
 });

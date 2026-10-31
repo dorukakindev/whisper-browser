@@ -4,6 +4,16 @@ const {lookupUrl,trusted,fetchReviews}=require('../src/letterboxd-auto');
 const item={kind:'film',title:'Witness',year:2026,tmdbId:'movie:123',imdbId:'tt1234567'};
 function html(rows,{title='Witness',year=2026,id='123'}={}){return `<meta property="og:title" content="${title} (${year}) • Letterboxd"><div data-tmdb-id="${id}"></div>`+rows.map((text,i)=>`<article><div class="js-review-body${text.startsWith('Spoiler')?' contains-spoilers':''}">${text}</div></article>`).join('');}
 
+test('any whole count from 1 to 48 is supported and invalid counts are refused before reading',async()=>{
+ for(const count of [1,10,20,30,37,48,undefined]){
+  const readPage=async address=>({url:address.includes('/tmdb/')?'https://letterboxd.com/film/witness/':address,html:html(Array.from({length:48},(_,i)=>'Review '+i+' offers a distinct perspective on the film.'))});
+  const result=await fetchReviews(item,{count,readPage});assert.equal(result.reviews.length,count??40);assert.equal(result.requested,count??40);assert.equal(result.sampling.mode,'popular');
+ }
+ for(const count of [0,49,-1,NaN,1.5,Infinity,'30',null]){
+  let calls=0;await assert.rejects(fetchReviews(item,{count,readPage:async()=>{calls++;}}),/whole review count from 1 to 48/);assert.equal(calls,0);
+ }
+});
+
 test('loaded browser transport collects 40 unique reviews in the same four-page budget',async()=>{
  const calls=[],base='https://letterboxd.com/film/witness/';
  const readPage=async(address,{signal,expectedBase})=>{

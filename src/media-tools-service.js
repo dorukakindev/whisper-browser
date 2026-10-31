@@ -36,7 +36,7 @@ function tonight(items, history=[], options={}) {
   }
   return rows.sort((a,b)=>b.score-a.score||a.title.localeCompare(b.title)).slice(0,8);
 }
-function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ffprobe,readOpenReviews,resolveDiscovery,collectBrowserReviews,fetchImpl=fetch}) {
+function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ffprobe,readOpenReviews,resolveDiscovery,collectBrowserReviews,getReviewConfig,fetchImpl=fetch}) {
   const root=()=>app.getPath('userData'), file=()=>path.join(root(),'media-enrichment.json');
   const read=()=>{if(!fs.existsSync(file()))return {version:1,titles:{}};if(fs.statSync(file()).size>16000000)throw Error('Media notes exceed 16 MB.');const value=JSON.parse(fs.readFileSync(file(),'utf8'));if(value.version!==1||!value.titles||typeof value.titles!=='object'||Array.isArray(value.titles))throw Error('Media notes are damaged. Original file was preserved.');return value;};
   const save=value=>{const json=JSON.stringify(value);if(Buffer.byteLength(json)>16000000)throw Error('Media notes exceed 16 MB.');atomicWriteFileSync(file(),json);};
@@ -123,7 +123,7 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
       if(action==='reviews-browser'){const item=await reviewItem(event,input);if(!readOpenReviews)throw Error('Browser review reading is unavailable.');const result=await readOpenReviews();return {ok:true,...result,match:require('./letterboxd-reviews').matchFilm(item,result.identity)};}
       if(action==='reviews-stop'){jobs.get(input.id)?.abort();stoppedReviews.add(input.id);while(stoppedReviews.size>100)stoppedReviews.delete(stoppedReviews.values().next().value);return {ok:true};}
       if(action==='reviews-file'){const picked=await dialog.showOpenDialog(owner(),{properties:['openFile'],filters:[{name:'Reviews TXT / JSON',extensions:['txt','json']}]});if(picked.canceled)return {ok:true,canceled:true};const target=picked.filePaths[0];if(fs.statSync(target).size>500000)throw Error('Review file is too large.');return {ok:true,reviews:reviewRows(fs.readFileSync(target,'utf8').replace(/^\uFEFF/,''))};}
-      if(action==='reviews-auto'){
+      if(action==='reviews-auto'||action==='reviews-analyze'){
         const item=await reviewItem(event,input);if(jobs.size)throw Error('A review request is already running.');
         const id=text(input.id,80);if(!id)throw Error('Request ID required.');if(stoppedReviews.has(id))throw Error('Cancelled.');const controller=new AbortController();jobs.set(id,controller);
         const snapshot=JSON.stringify([item.kind,item.title,item.year,item.tmdbId,item.imdbId]);
@@ -135,7 +135,16 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
             try{result={...await collectBrowserReviews(item,options),transport:'browser'};}
             catch(error){controller.signal.throwIfAborted();result={...result,warning:result.warning+' Normal Browser: '+String(error.message).slice(0,300)};}
           }
-          controller.signal.throwIfAborted();const current=await reviewItem(event,input);if(JSON.stringify([current.kind,current.title,current.year,current.tmdbId,current.imdbId])!==snapshot)throw Error('The film match changed. Load its reviews again.');return {ok:true,...result};
+          controller.signal.throwIfAborted();const current=await reviewItem(event,input);if(JSON.stringify([current.kind,current.title,current.year,current.tmdbId,current.imdbId])!==snapshot)throw Error('The film match changed. Load its reviews again.');if(action==='reviews-analyze'){
+            if(result.match?.state!=='matched')throw Error('The review source did not match this film.');
+            if(!getReviewConfig)throw Error('Review analysis provider unavailable.');
+            const model=require('./renderer/media-tools-model'),{evidence,sample}=model.decisionEvidence(item,result.reviews||[],{});
+            if(!sample.reviews.length)throw Error('No usable reviews to analyze.');
+            const answer=await require('./assistant-provider').run({question:model.reviewAnalysisPrompt(),responseContract:'review-analysis',context:{kind:'library',title:item.title,reviewAnalysis:JSON.stringify(evidence)},config:getReviewConfig(),locale:input.locale==='en'?'en':'tr',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(240000)]),fetchImpl});
+            controller.signal.throwIfAborted();const latest=await reviewItem(event,input);if(JSON.stringify([latest.kind,latest.title,latest.year,latest.tmdbId,latest.imdbId])!==snapshot)throw Error('The film match changed during analysis.');
+            return {ok:true,...result,analysis:model.parseDecisionResponse(answer.text,sample.reviews),analysisReviews:sample.reviews,analyzedCount:sample.reviews.length,loadedCount:result.reviews.length,requestedCount:input.count||40,shortened:sample.truncated,omitted:sample.omitted};
+          }
+          return {ok:true,...result};
         }
         finally{jobs.delete(id);}
       }

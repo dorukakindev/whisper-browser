@@ -14,9 +14,9 @@ function trusted(value){
     &&(/^\/(?:tmdb\/[1-9]\d{0,11}|imdb\/tt\d{7,12})\/$/.test(u.pathname)||!!publicFilmUrl(u.href))?u.href:null;}catch{return null;}
 }
 const sortPaths=Object.freeze({popular:'by/activity/',new:'',high:'by/entry-rating/',low:'by/entry-rating-lowest/'});
-async function fetchReviews(item,{count=24,sort='popular',spoilers=false,signal,fetchImpl=fetch,readPage}={}){
+async function fetchReviews(item,{count=40,sort='popular',spoilers=false,signal,fetchImpl=fetch,readPage}={}){
   if(sort!=='balanced'&&!Object.hasOwn(sortPaths,sort))throw Error('Choose a supported review order.');
-  if(![12,24,40,48].includes(count))throw Error('Choose 12, 24, 40 or 48 reviews.');
+  if(!Number.isInteger(count)||count<1||count>48)throw Error('Choose a whole review count from 1 to 48.');
   if(readPage!==undefined&&typeof readPage!=='function')throw Error('Unsupported Letterboxd page reader.');
   const lookup=lookupUrl(item),combined=signal?AbortSignal.any([signal,AbortSignal.timeout(45000)]):AbortSignal.timeout(45000);
   async function page(address,expectedBase){
