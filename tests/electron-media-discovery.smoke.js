@@ -129,11 +129,13 @@ app.whenReady().then(async () => {
   assert(await run('const p=document.querySelector(".md-detail").getBoundingClientRect();return p.width>=innerWidth-40'), 'Discovery uses the whole library page width');
   assert.equal(await run('return globalAssistantContext().title'),title,'Assistant follows explicit discovery selection');
   await run('await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true'); await wait(300);
+  await run(`const selected=document.querySelector('.md-card').dataset.discoveryId;const detail=(await window.api.mediaDiscovery({action:'detail',kind:'film',id:selected})).item;const reviews=Array.from({length:6},(_,i)=>({id:'sample-'+i,author:'Controlled reader '+i,text:'Strong acting and thoughtful photography. A slow middle section tests patience. Source '+i}));const r=await window.api.mediaTools({action:'decision-save',discovery:{kind:'film',id:selected},reviews,analysis:{summary:'Controlled sample: the performances and photography are praised, while the middle section divides viewers.',fit:'Controlled sample: no saved personal taste evidence was supplied.',points:[{id:'sample-0',quote:'Strong acting and thoughtful photography.',kind:'praise',reason:'The sample praises performances and the visual composition.'},{id:'sample-1',quote:'A slow middle section tests patience.',kind:'criticism',reason:'Some readers find the central section less engaging.'}]}});if(!r.ok)throw Error(r.error);document.dispatchEvent(new Event('media-review-updated'));return true`);
+  await until(()=>run('return !!document.querySelector(".film-review-content .mrv-summary")'),'inline saved analysis');
   fs.writeFileSync(path.join(out, 'discover-details-tr.png'), (await win.webContents.capturePage()).toPNG());
   const detailZoom=win.webContents.getZoomFactor();win.webContents.setZoomFactor(1);win.setMinimumSize(0,0);win.setContentSize(720,1000);await wait(200);
   assert(await run('return innerWidth<=720'), 'Actual CSS viewport must be narrow');
   assert(await run('return document.getElementById("mediaHome").scrollWidth<=innerWidth+2'), 'Narrow detail does not overflow');
-  fs.writeFileSync(path.join(out,'discover-details-720.png'),(await win.webContents.capturePage()).toPNG());win.webContents.setZoomFactor(detailZoom);win.setContentSize(1920,1080);await wait(150);
+  fs.writeFileSync(path.join(out,'discover-details-720.png'),(await win.webContents.capturePage()).toPNG());await run('document.querySelector(".film-review-section").scrollIntoView({block:"start"});return true');await wait(100);fs.writeFileSync(path.join(out,'inline-analysis-720.png'),(await win.webContents.capturePage()).toPNG());await run('document.getElementById("mediaHome").scrollTop=0;return true');win.webContents.setZoomFactor(detailZoom);win.setContentSize(1920,1080);await wait(150);
 
   if(process.argv.includes('--library810')){
     await run('document.querySelector("[data-discovery-action=translate]").click();return true');await until(()=>run('return document.querySelector(".md-synopsis").textContent.includes("Kontrollü Türkçe")'),'translated story');
@@ -160,6 +162,7 @@ app.whenReady().then(async () => {
   assert(await run('return !!document.querySelector(".mtd-hero .mh-primary") && globalAssistantContext().type==="library-title"'), 'Details expose our subtitle / dub workflow');
   assert.equal(await run('return (await window.api.mediaCatalog({action:"list"})).items.length'), 2);
   assert.equal(await run('return document.getElementById("mediaTitleDialog").tagName'),'SECTION');
+  await until(()=>run('return !!document.querySelector("#mediaTitleDialog .film-review-content .mrv-summary")'),'saved discovery analysis shared on library page');
   fs.writeFileSync(path.join(out,'library-title-page-tr.png'),(await win.webContents.capturePage()).toPNG());
   await run('document.getElementById("mediaTitleDialog").close();return true');
   await until(() => run('return document.querySelectorAll(".md-card").length>0'), 'return discovery');
