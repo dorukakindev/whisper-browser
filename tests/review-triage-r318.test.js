@@ -6,6 +6,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const { test } = require('node:test');
+const vm = require('node:vm');
 
 const ROOT = path.join(__dirname, '..');
 const SRC_MAIN = fs.readFileSync(path.join(ROOT, 'src/main.js'), 'utf8');
@@ -93,7 +94,26 @@ test('renderer.js: yan-boyutlandırıcı yalnız başlatan pointerId\'yi sürük
 test('renderer.js: PDF çeviri iptali reader kimliği + cancelRequested bayrağı', () => {
   assert.match(SRC_RND, /player\.pdfReader !== reader/);
   assert.match(SRC_RND, /if \(reader\) reader\.cancelRequested = true/);
-  assert.match(SRC_RND, /cancelPdfTranslation\?\.\(reader\.pdfHash\)/);
+  const start = SRC_RND.indexOf("$('pdfTranslateCancel')?.addEventListener('click'");
+  const end = SRC_RND.indexOf("$('pdfExport')", start);
+  assert(start >= 0 && end > start, 'PDF cancel handler fixture boundary missing');
+  let cancel;
+  const calls = [], player = { pdfReader: { pdfHash: 'same-document', translationOperationId: 'operation-one' } };
+  vm.runInNewContext(SRC_RND.slice(start, end), {
+    player, $: () => ({ addEventListener: (_event, handler) => { cancel = handler; } }),
+    window: { api: { cancelPdfTranslation: (...args) => calls.push(args) } },
+  });
+  const previous = player.pdfReader;
+  cancel();
+  assert.equal(previous.cancelRequested, true);
+  assert.deepEqual(calls, [['same-document', 'operation-one']]);
+  player.pdfReader = { pdfHash: 'same-document', translationOperationId: 'operation-two' };
+  cancel();
+  assert.equal(player.pdfReader.cancelRequested, true);
+  assert.deepEqual(calls.at(-1), ['same-document', 'operation-two'], 'same hash must cancel only the current operation');
+  player.pdfReader = null;
+  cancel();
+  assert.equal(calls.length, 2, 'closed reader must not send a stale cancellation');
   assert.match(SRC_RND, /reader\.cancelRequested = false/);
 });
 

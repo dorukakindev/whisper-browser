@@ -45,7 +45,6 @@ from kitap_ortak import (  # noqa: E402
     MODEL_ID, MODEL_REVISION, NO_WINDOW, OUTPUT_ROOT, assess_chunk,
     ensure_utf8_stdio, file_sha256, prepare_audio,
     voice_label_for, write_manifest)
-from kitap_ortak import _install_with_fallback  # noqa: E402
 from dub_normalize import loudnorm_audio
 from dub_timeline_storage import DiskTimeline, limit_peak, write_audio, manifest_segments, check_storage
 
@@ -887,48 +886,45 @@ def main(argv=None, runtime=None):
                                f"{stem}_dublaj_{args.gruplama}_{voice_label_for(args.reference)}{sample_suffix}.wav")
     wav_path = Path(wav_path)
     wav_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = wav_path.with_suffix(".tmp.wav")
-    print('DUB_ACTIVITY '+json.dumps({'stage':'file_write'}),flush=True)
-    write_began=time.monotonic()
-    write_audio(tmp, timeline, sr)
-    wav_path = _install_with_fallback(tmp, wav_path)
-    audio_write_seconds=time.monotonic()-write_began
-    if not args.no_norm:
-        print('DUB_ACTIVITY '+json.dumps({'stage':'normalization'}),flush=True)
-        with measured(args, 'normalization'):
-            normed = loudnorm_audio(wav_path)
-        if normed:
-            wav_path = Path(normed)
-        else:
-            print('DUB_WARNING normalization_unavailable',flush=True)
-    write_began=time.monotonic()
-    print(f"Dublaj WAV: {wav_path}", flush=True)
-    if sync:
-        wav_path.with_suffix('.sync.json').write_text(json.dumps(sync), encoding='utf-8')
-    wav_path.with_suffix('.quality.json').write_text(json.dumps({'version': 1,
-        'verification': args.verification, 'groups': public_groups,
-        'preview': args.representative_preview,
-        'excerpts': [{'key': key, 'start': g.get('source_start', g['start']) / 1000,
-                      'end': g.get('source_end', g['end']) / 1000}
-                     for key, g in zip(args.group_keys, groups)]}), encoding='utf-8')
+    from dub_output import staged_output
+    with staged_output(wav_path) as staged_wav:
+        print('DUB_ACTIVITY '+json.dumps({'stage':'file_write'}),flush=True)
+        write_began=time.monotonic()
+        write_audio(staged_wav, timeline, sr)
+        audio_write_seconds=time.monotonic()-write_began
+        if not args.no_norm:
+            print('DUB_ACTIVITY '+json.dumps({'stage':'normalization'}),flush=True)
+            with measured(args, 'normalization'):
+                if not loudnorm_audio(staged_wav):
+                    print('DUB_WARNING normalization_unavailable',flush=True)
+        write_began=time.monotonic()
+        if sync:
+            staged_wav.with_suffix('.sync.json').write_text(json.dumps(sync), encoding='utf-8')
+        staged_wav.with_suffix('.quality.json').write_text(json.dumps({'version': 1,
+            'verification': args.verification, 'groups': public_groups,
+            'preview': args.representative_preview,
+            'excerpts': [{'key': key, 'start': g.get('source_start', g['start']) / 1000,
+                          'end': g.get('source_end', g['end']) / 1000}
+                         for key, g in zip(args.group_keys, groups)]}), encoding='utf-8')
 
-    # An earlier production must not point into a cache overwritten by retries.
-    # Immutable raw takes are deduplicated by PCM container content, not filename.
-    from dub_take_cache import capture
-    takes = capture(paths, wav_path.parent / '_dub_takes_v1', lambda file: valid_audio(file, sf))
-    for take, key in zip(takes, cache_keys):
-        take['cache_key'] = key
-    manifest = {"version": 2, "wav": wav_path.name, "sample_rate": sr,
-                "video_offset_seconds": args.range_start or 0,
-                "grouping": args.gruplama, "timing": timing,
-                "duration": float(len(timeline) / sr),
-                "text": "\n".join(t for _, _, t in cues),
-                "original_text": "\n".join(g.get('original_text', g['text']) for g in groups),
-                "segments": manifest_segments(cues, takes, groups, timing)}
-    write_manifest(wav_path, manifest)
-    args.phases.seconds['file_write']=audio_write_seconds+time.monotonic()-write_began
-    phase_report=args.phases.snapshot()
-    wav_path.with_suffix('.performance.json').write_text(json.dumps(phase_report,indent=2),encoding='utf-8')
+        # An earlier production must not point into a cache overwritten by retries.
+        # Immutable raw takes live beside the final output, outside staging.
+        from dub_take_cache import capture
+        takes = capture(paths, wav_path.parent / '_dub_takes_v1', lambda file: valid_audio(file, sf))
+        for take, key in zip(takes, cache_keys):
+            take['cache_key'] = key
+        manifest = {"version": 2, "wav": wav_path.name, "sample_rate": sr,
+                    "video_offset_seconds": args.range_start or 0,
+                    "grouping": args.gruplama, "timing": timing,
+                    "duration": float(len(timeline) / sr),
+                    "text": "\n".join(t for _, _, t in cues),
+                    "original_text": "\n".join(g.get('original_text', g['text']) for g in groups),
+                    "segments": manifest_segments(cues, takes, groups, timing)}
+        write_manifest(staged_wav, manifest)
+        args.phases.seconds['file_write']=audio_write_seconds+time.monotonic()-write_began
+        phase_report=args.phases.snapshot()
+        staged_wav.with_suffix('.performance.json').write_text(json.dumps(phase_report,indent=2),encoding='utf-8')
+    print(f"Dublaj WAV: {wav_path}", flush=True)
     print('DUB_PHASES '+json.dumps(phase_report),flush=True)
 
     if args.video:

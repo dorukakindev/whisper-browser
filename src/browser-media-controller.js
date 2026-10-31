@@ -82,12 +82,19 @@ function controllerBootstrap() {
 
     const releaseMedia = (item) => {
       const dub = dubRates.get(item);
-      if (dub) { clearTimeout(dub.timer); dubRates.delete(item); try { setInternalRate(item, dub.baseRate); } catch (_) {} }
+      if (dub) { clearTimeout(dub.timer); dubRates.delete(item);
+        if (Math.abs(finite(item.playbackRate, 1) - dub.rate) < .001) { try { setInternalRate(item, dub.baseRate); } catch (_) {} }
+      }
       media.delete(item);
       explicitRateIntents.delete(item);
       internalRateIntents.delete(item);
       if (item?.style && originalVideoFilters.has(item)) {
-        try { item.style.filter = originalVideoFilters.get(item); } catch (_) {}
+        // A site may update styles immediately before detaching its player.
+        // Release only the filter we still own, then take a fresh baseline on reattach.
+        if (item.style.filter === appliedVideoFilters.get(item)) {
+          try { item.style.filter = originalVideoFilters.get(item); } catch (_) {}
+        }
+        originalVideoFilters.delete(item);
         appliedVideoFilters.delete(item);
       }
       const graph = audioGraphs.get(item);
@@ -403,7 +410,8 @@ function controllerBootstrap() {
       if (!adAudioSnapshot || adPlaying) return false;
       const snapshot = adAudioSnapshot;
       adAudioSnapshot = null;
-      const target = snapshot.video?.isConnected ? snapshot.video : item;
+      // Mute ownership belongs to this exact element, never its replacement.
+      const target = snapshot.video;
       if (!target) return false;
       const currentVolume = Math.max(0, Math.min(1, finite(target.volume)));
       const unchangedSinceAutoMute = !!target.muted && Math.abs(currentVolume - snapshot.volume) < .001;

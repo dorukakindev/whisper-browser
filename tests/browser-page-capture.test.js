@@ -15,7 +15,8 @@ assert.match(main, /captureBeyondViewport:\s*true/);
 assert.match(main, /width \* height > 120000000/);
 assert.match(main, /await browserDebuggerAttachPromise\.catch/,
   'tam sayfa yakalama sürmekteki kalıcı debugger kurulumunu beklemeli');
-assert.match(main, /attachedHere && wc\.debugger\.isAttached\(\) && !browserDebuggerReady/,
+assert.match(main, /if \(--lease\.count === 0\)/, 'ortak debugger bağlantısı son yakalama bitene kadar korunmalı');
+assert.match(main, /lease\.attachedHere && !wc\.isDestroyed\(\) && wc\.debugger\.isAttached\(\) && !browserDebuggerReady/,
   'yalnız geçici ve devralınmamış debugger bağlantısı sökülmeli');
 assert.match(main, /!browserDebuggerAttachAttempts\.has\(wc\)/,
   'eşzamanlı altyazı yakalama girişimi ekran görüntüsü tarafından koparılmamalı');

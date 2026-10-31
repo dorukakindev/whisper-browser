@@ -58,7 +58,7 @@ async function run() {
   });
   await test('B22', async () => {
     let clip; const debuggerApi = { isAttached: () => true, sendCommand: async (command, opts) => command === 'Page.getLayoutMetrics' ? { cssContentSize: { width: 1000, height: 45000 } } : (clip = opts.clip, { data: '' }) };
-    const ctx = vm.createContext({ Buffer, browserDebuggerAttachPromise: null, nativeImage: { createFromBuffer: () => ({}) } }); vm.runInContext(fn('captureBrowserFullPage'), ctx); await ctx.captureBrowserFullPage({ debugger: debuggerApi }); assert.equal(clip.height, 45000);
+    const ctx = vm.createContext({ Buffer, browserDebuggerAttachPromise: null, browserFullPageCaptureOwners: new WeakMap(), nativeImage: { createFromBuffer: () => ({}) } }); vm.runInContext(fn('captureBrowserFullPage'), ctx); await ctx.captureBrowserFullPage({ debugger: debuggerApi }); assert.equal(clip.height, 45000);
   });
   await test('B23 B24', async () => {
     const page = dom('<div class="ytp-chrome-bottom"></div>'); const gates = [], rects = [];

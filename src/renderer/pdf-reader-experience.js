@@ -425,8 +425,17 @@
     preparing = true;
     voice=null;$("pdfVoiceListen").disabled=true;
     const preparation=++prepareToken;
-    const selectionCurrent=()=>preparation===prepareToken&&player.pdfReader===r&&!stale()
-      &&Number($("pdfVoiceFrom").value)===from&&Number($("pdfVoiceTo").value)===to&&$("pdfVoiceText").value===mode;
+    const contentSnapshots = new Map();
+    const pageText = (list) => (list || []).map(b => mode === 'translation'
+      ? b.userText || b.translation || '' : b.source || '').join('\n\n').trim();
+    const contentCurrent = () => [...contentSnapshots].every(([page, text]) => {
+      const list = mode === 'translation' ? translations(r, page) : r.pages.get(page)?.blocks;
+      return list === undefined || pageText(list) === text;
+    });
+    const voiceSourceCurrent=()=>player.pdfReader===r
+      &&Number($("pdfVoiceFrom").value)===from&&Number($("pdfVoiceTo").value)===to&&$("pdfVoiceText").value===mode
+      &&contentCurrent();
+    const selectionCurrent=()=>preparation===prepareToken&&!stale()&&voiceSourceCurrent();
     const guardSelection=()=>{if(!selectionCurrent())throw Error(t('Aralık, metin seçimi veya belge değişti; yeniden hazırla.','The range, text selection or document changed; prepare it again.'));};
     $("pdfVoicePrepare").disabled = true;$("pdfVoicePreviewOpen").disabled=true;
     status.textContent = t("Sayfalar hazırlanıyor…", "Preparing pages…");
@@ -465,6 +474,7 @@
             ),
           );
         pages.push({ pageNumber: page, text });
+        contentSnapshots.set(page, text);
       }
       if (preparation!==prepareToken || player.pdfReader !== r || stale())
         throw Error(t("Belge değişti.", "Document changed."));
@@ -502,7 +512,7 @@
         await window.AssistantAgentUI.bookPreparation(actionOwner,id,Math.max(0,focus),openProduction);
       else await openProduction();
       guardSelection();
-      voice = { reader: r, id, pages: pages.map((p) => p.pageNumber) };
+      voice = { reader: r, id, pages: pages.map((p) => p.pageNumber), isCurrent: voiceSourceCurrent };
       $("pdfVoiceListen").disabled = false;
       status.textContent = t(
         "Ses ayarlarını kontrol et; Seçili bölümleri seslendir ile üret, Dinle ve takip et ile oku.",
@@ -520,10 +530,15 @@
     const r = player.pdfReader,
       v = voice;
     if (!r || v?.reader !== r) return;
+    if (v.isCurrent?.() === false) {
+      stopVoice(); voice = null; $("pdfVoiceListen").disabled = true;
+      $("pdfVoiceStatus").textContent = t('Aralık, metin seçimi veya belge değişti; yeniden hazırla.', 'The range, text selection or document changed; prepare it again.');
+      return;
+    }
     stopVoice();
     const token = voiceToken,
       page = r.currentPage,
-      current = () => token === voiceToken && player.pdfReader === r && r.currentPage === page,
+      current = () => token === voiceToken && player.pdfReader === r && r.currentPage === page && v.isCurrent?.() !== false,
       index = v.pages.indexOf(page),
       status = $("pdfVoiceStatus");
     if (index < 0) {

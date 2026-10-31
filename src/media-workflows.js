@@ -1433,13 +1433,25 @@ function registerMediaWorkflows({
               if (st.isSymbolicLink() || !st.isFile())
                 throw Error("Invalid chapter audio.");
             }
+            const sourceDigests = [];
             for(let i=0;i<chapters.length;i++) {
               const digest=fileDigest(files[i]);
+              sourceDigests.push(digest);
               const namedHash=path.basename(files[i]).match(/^\d+-[a-f0-9]{16}-([a-f0-9]{16})\.wav$/)?.[1];
               if(namedHash && !digest.startsWith(namedHash)) throw Error('Chapter audio changed; regenerate it / Bölüm sesi değişti; yeniden üretin.');
               for(const group of chapters[i].groups || []) if(group.manualApproval && (group.manualApproval.audioHash!==digest || group.manualApproval.textHash!==chapters[i].textHash))
                 throw Error('Approved audio changed; review it again / Onaylı ses değişti; yeniden kontrol edin.');
             }
+            const validateSourceAudio = () => {
+              for (let i = 0; i < files.length; i++) {
+                let same = false;
+                try {
+                  const stat = fs.lstatSync(files[i]);
+                  same = stat.isFile() && !stat.isSymbolicLink() && fileDigest(files[i]) === sourceDigests[i];
+                } catch {}
+                if (!same) throw Error('Chapter audio changed during export; retry after reviewing it / Dışa aktarma sırasında bölüm sesi değişti; kontrol edip yeniden deneyin.');
+              }
+            };
             const escape = (value) =>
               String(value || "").replace(/\r\n?/g, "\n").replace(/[\\=;#\n]/g, (character) => "\\" + character);
             let cursor = 0,
@@ -1490,6 +1502,7 @@ function registerMediaWorkflows({
               Math.ceil(((cursor * 160000) / 8) * 1.03) + 1024 * 1024;
             if (exportController.signal.aborted)
               throw Error("Export cancelled.");
+            validateSourceAudio();
             if (r.action === "book-export-preview")
               return {
                 ok: true,
@@ -1532,6 +1545,7 @@ function registerMediaWorkflows({
               throw Error(
                 "Not enough free space for the estimated audiobook / Tahmini sesli kitap için yeterli boş alan yok.",
               );
+            validateSourceAudio();
             meta = path.join(dir, "export-" + randomUUID() + ".txt");
             temp = path.join(
               path.dirname(pick.filePath),
@@ -1624,24 +1638,46 @@ function registerMediaWorkflows({
             );
             if (exportController.signal.aborted)
               throw Error("Export cancelled.");
+            validateSourceAudio();
             if(targetStamp()!==expectedTarget)throw Error('The export destination changed during encoding. Choose a new filename / Kodlama sırasında çıktı hedefi değişti. Yeni dosya adı seçin.');
-            fs.renameSync(temp, pick.filePath);
-            const stat = fs.statSync(pick.filePath),
-              latest = load(d.id);
-            latest.audiobook = {
-              id: randomUUID(),
-              path: path.resolve(pick.filePath),
-              size: stat.size,
-              mtimeMs: stat.mtimeMs,
-              seconds: cursor,
-              createdAt: new Date().toISOString(),
-              chapters: indices.map((chapter) => ({
-                chapter,
-                textHash: d.chapters[chapter].textHash,
-                outputId: path.basename(d.chapters[chapter].output || ""),
-              })),
-            };
-            save(latest);
+            // Keep the previous destination until the project reference commits.
+            // A failed manifest write must not destroy a previously published M4B.
+            const previousManifest = fs.readFileSync(file(d.id));
+            let previousTarget = null, published = false;
+            if (expectedTarget !== null) {
+              previousTarget = path.join(path.dirname(pick.filePath), '.audiobook-' + randomUUID() + '.previous');
+              fs.renameSync(pick.filePath, previousTarget);
+            }
+            try {
+              fs.renameSync(temp, pick.filePath);
+              published = true;
+              const stat = fs.statSync(pick.filePath), latest = load(d.id);
+              latest.audiobook = {
+                id: randomUUID(),
+                path: path.resolve(pick.filePath),
+                size: stat.size,
+                mtimeMs: stat.mtimeMs,
+                seconds: cursor,
+                createdAt: new Date().toISOString(),
+                chapters: indices.map((chapter) => ({
+                  chapter,
+                  textHash: d.chapters[chapter].textHash,
+                  outputId: path.basename(d.chapters[chapter].output || ""),
+                })),
+              };
+              save(latest);
+            } catch (error) {
+              // atomicWriteFileSync may fail during directory fsync after its
+              // rename committed. Restore that reference before restoring audio.
+              if (!fs.readFileSync(file(d.id)).equals(previousManifest)) {
+                atomicWriteFileSync(file(d.id), previousManifest);
+              }
+              if (published) fs.rmSync(pick.filePath, { force: true });
+              if (previousTarget) fs.renameSync(previousTarget, pick.filePath);
+              throw error;
+            }
+            // Cleanup failure leaves a recoverable old copy, not a failed export.
+            if (previousTarget) { try { fs.rmSync(previousTarget, { force: true }); } catch {} }
             grantMedia(pick.filePath);
             emit(e.sender, {
               type: "progress",

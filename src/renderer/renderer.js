@@ -12333,6 +12333,8 @@ function scheduleBrowserMediaPreferenceSync() {
   if (player.workspaceMode !== 'browser' || !window.api.browserCommand || !player.browserActiveTabId) return;
   player.browserMediaPreferenceTimer = setTimeout(async () => {
     player.browserMediaPreferenceTimer = null;
+    const tabId = player.browserActiveTabId, generation = browserTabState()?.generation;
+    const pageUrl = player.browserPageUrl;
     const effective = effectiveBrowserProfile().values;
     const result = await browserCommand('media-preference', {
       rate: effective.playbackRate,
@@ -12346,6 +12348,8 @@ function scheduleBrowserMediaPreferenceSync() {
       silenceThresholdDb: effective.silenceThresholdDb,
       audioProfile: effective.audioProfile,
     }).catch(() => null);
+    if (player.workspaceMode !== 'browser' || player.browserActiveTabId !== tabId
+        || browserTabState()?.generation !== generation || player.browserPageUrl !== pageUrl) return;
     if (result?.ok && result.media?.media) {
       player.browserRate = Number(result.media.media.playbackRate) || player.browserRate;
     }
