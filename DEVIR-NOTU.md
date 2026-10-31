@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-10-31-0259.md](docs/devir/2026-10-31-0259.md) — R817 tasarım: 5 görüntülü bulgu, 2 ayrı öneri; hiçbir düzeltme yok
 Güncel çalışma: [docs/devir/2026-10-31-0235.md](docs/devir/2026-10-31-0235.md) — R815 kalan alanlar: 8 yeni bug, toplam134 kayıt; 37 ayrı öneri, hiçbir düzeltme yok
 Güncel çalışma: [docs/devir/2026-10-31-0214.md](docs/devir/2026-10-31-0214.md) — R815 diğer alanlar: 8 yeni bug, toplam 126 kayıt; 36 ayrı öneri, hiçbir düzeltme yok
 Güncel çalışma: [docs/devir/2026-10-31-0142.md](docs/devir/2026-10-31-0142.md) — R815 az kapsanan alanlar: 15 yeni bug, toplam 118; 34 ayrı öneri, hiçbir ürün düzeltmesi yok
