@@ -29,14 +29,33 @@ test('Assistant source details, safe formatted answers and explicit clear confir
   ui.w.document.querySelector('.message-actions button').click();assert.equal(ui.commands.at(-1).action,'copy');
  }finally{ui.dom.window.close();}
 });
+
+test('Source details name the model in both languages and settings use only the existing command boundary',()=>{
+ const ui=overlay();try{
+  for(const locale of ['en','tr'])for(const context of [{videoContext:true},{pageContext:true},{}]){
+   ui.snapshot({locale,model:'selected-model',transcriptScope:false,...context});
+   assert.match(ui.$('sourceLabel').textContent,/model/i);assert.equal(ui.$('modelName').textContent,'selected-model');
+   assert.equal(ui.$('sourceBox').open,false,'source and model details stay optional');
+   ui.$('sourceBox').open=true;ui.$('assistantSettings').click();
+   assert.equal(ui.commands.at(-1).action,'settings');assert.equal(ui.commands.at(-1).meta.sourceToken,'A:1');
+   assert.match(ui.$('assistantSettings').textContent,locale==='tr'?/Asistan ve çeviri ayarları/:/Assistant & translation settings/);
+   ui.$('sourceBox').open=false;
+  }
+  assert.equal(ui.commands.filter(row=>row.action!=='settings'&&row.action!=='ready').length,0,'the shortcut sends no question or settings write');
+ }finally{ui.dom.window.close();}
+});
 test('Parent bridge rejects stale source commands and receipts acknowledge only a newly accepted question',async()=>{
- const dom=new JSDOM('<div id="aiChat"><div id="aiChatLog"></div></div><div id="playerTitle">Film</div><select id="aiTranscriptScope"><option value="watched">Watched</option></select>',{runScripts:'outside-only',url:'https://parent.test/'}),w=dom.window;let listener,scope='A',sends=0,last;
+  const dom=new JSDOM('<div id="aiChat"><div id="aiChatLog"></div></div><div id="playerTitle">Film</div><select id="aiTranscriptScope"><option value="watched">Watched</option></select>',{runScripts:'outside-only',url:'https://parent.test/'}),w=dom.window;let listener,scope='A',sends=0,last;const openedSettings=[];
  try{
   Object.assign(w,{UiLocale:{get:()=> 'en'},player:{workspaceMode:'player',mediaKey:'file:fixture',job:null},state:{running:false,queueRunning:false},aiChatPreparing:null,aiChatRetryPacket:null,assistantProviderSelection:()=>({model:'fixture'}),globalAssistantContext:()=>null,aiSourceScope:()=>scope,buildOptsFromUI:()=>({translateModel:'fixture'}),api:{updateAssistant:value=>{last=value;},onAssistantCommand:fn=>{listener=fn;}},aiChatSend:async text=>{sends++;const node=w.document.createElement('div');node.className='ai-msg ai-msg-user';node._sourceScope=scope;node.textContent=text;w.document.getElementById('aiChatLog').append(node);}});
   w.eval(fs.readFileSync(path.join(root,'../assistant-source-context.js'),'utf8'));
   w.eval(fs.readFileSync(path.join(root,'../assistant-source-preview.js'),'utf8'));w.subtitleSourceTime=value=>value;w.subtitleContextLanguage=()=>'';
+  w.AppSettingsUI={open:async(...args)=>openedSettings.push(args)};
   w.eval(fs.readFileSync(path.join(root,'global-assistant.js'),'utf8'));
   const wait=()=>new Promise(resolve=>setTimeout(resolve,90));await wait();
+  listener({action:'settings',text:'arbitrary section',sourceToken:'old'});await wait();assert.equal(openedSettings.length,0,'stale overlays cannot open settings for another source');
+  listener({action:'settings',text:'arbitrary section',sourceToken:'A'});await wait();assert.equal(openedSettings.length,1);assert.equal(openedSettings[0][0],'ai');assert.equal(openedSettings[0][1].preserveAssistantContext,true);assert.equal(sends,0,'opening settings never submits a model request');
+  listener({action:'settings',sourceToken:'A'});scope='B';await wait();assert.equal(openedSettings.length,1,'source ownership is rechecked before the deferred settings action');scope='A';
   listener({action:'send',text:'Wrong target',sourceToken:'old',requestId:'old-request'});await wait();assert.equal(sends,0);assert.equal(last.receipt.accepted,false);
   listener({action:'send',text:'Right target',sourceToken:'A',requestId:'good-request'});await wait();assert.equal(sends,1);assert.equal(last.receipt.id,'good-request');assert(last.receipt.accepted);assert.equal(last.messages.length,1);
   scope='B';w.document.dispatchEvent(new w.Event('media-context-changed'));await wait();assert.equal(last.sourceToken,'B');assert.equal(last.messages.length,0,'Film A messages cannot appear under Film B title');

@@ -21,6 +21,7 @@ test('native assistant accepts only its own frame; provider secrets and arbitrar
   const overlay = { sender: view.webContents, senderFrame: view.webContents.mainFrame };
   const foreign = { sender: contents(), senderFrame: {} };
   ipcMain.emit('assistant:action', foreign, { action: 'send', text: 'unauthorized' });
+  ipcMain.emit('assistant:action', foreign, { action: 'settings' });
   ipcMain.emit('assistant:action', overlay, { action: 'openFile', text: 'secret' });
   ipcMain.emit('assistant:update', foreign, { messages: [{ text: 'spoofed' }] });
   ipcMain.emit('assistant:update', {sender:window.webContents,senderFrame:{}}, {messages:[{text:'subframe spoof'}]});
@@ -37,6 +38,7 @@ test('native assistant accepts only its own frame; provider secrets and arbitrar
   ipcMain.emit('assistant:action', overlay, { action: 'send', text: 'question' });
   assert.deepEqual(sent.at(-1), { channel: 'assistant:command', value: { action: 'send', sourceToken:'',requestId:'',text: 'question' } });
   ipcMain.emit('assistant:action',overlay,{action:'continue-tool',text:'proposal'});assert.equal(sent.at(-1).value.action,'continue-tool');
+  ipcMain.emit('assistant:action',overlay,{action:'settings',text:'arbitrary section'});assert.equal(sent.at(-1).value.action,'settings');
   ipcMain.emit('assistant:show', foreign);
   ipcMain.emit('assistant:show', parent);
   assert.equal(sent.findLast(row=>row.channel==='assistant:snapshot').value.opened,true);
@@ -50,6 +52,7 @@ test('native assistant accepts only its own frame; provider secrets and arbitrar
   const beforeBlocked=sent.length;
   ipcMain.emit('assistant:action',overlay,{action:'toggle'});
   ipcMain.emit('assistant:action',overlay,{action:'send',text:'behind modal'});
+  ipcMain.emit('assistant:action',overlay,{action:'settings'});
   ipcMain.emit('assistant:show',parent);
   assert.equal(sent.length,beforeBlocked,'Hidden overlay cannot steal focus or send actions');
   window.emit('resize');

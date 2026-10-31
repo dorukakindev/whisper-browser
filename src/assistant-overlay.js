@@ -68,7 +68,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
     if (modalBlocked) return;
     if (action === 'toggle') { expanded = !expanded; window.webContents.send('assistant:visibility',{expanded}); layout(); if (!expanded) window.webContents.focus(); return; }
     if (action === 'expand') { large = !large; layout(); return; }
-    if (!['send', 'web-search', 'cancel', 'retry', 'clear', 'scope', 'citation', 'suggestion', 'copy', 'export','new-thread','select-thread','rename-thread','delete-thread','branch','apply-tool','refresh-tool','continue-tool','cancel-job'].includes(action)) return;
+    if (!['send', 'web-search', 'cancel', 'retry', 'clear', 'scope', 'citation', 'suggestion', 'copy', 'export','new-thread','select-thread','rename-thread','delete-thread','branch','apply-tool','refresh-tool','continue-tool','cancel-job','settings'].includes(action)) return;
     window.webContents.send('assistant:command', { action, sourceToken:String(packet.sourceToken||'').slice(0,8000),requestId:String(packet.requestId||'').slice(0,80),text: String(packet.text || '').slice(0, action==='export'?8000000:action==='copy'?32000:16000) });
   }
   const show = event => { if(event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame||modalBlocked)return; expanded=true; snapshot.opened=true; view.webContents.send('assistant:snapshot',snapshot); window.webContents.send('assistant:visibility',{expanded}); layout(); };

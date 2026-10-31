@@ -16,7 +16,8 @@ function cardMetadata(card){
  const rating=rated?Number(rated[1])/2:/^★{0,5}½?$/.test(stars)&&stars?([...stars].filter(c=>c==='★').length+(stars.endsWith('½')?0.5:0)):null;
  return {...(permalink?{permalink}:{}),...(date?{date}:{}),...(rating>0&&rating<=5?{rating}:{})};
 }
-function parseLetterboxdReviews(input){
+function parseLetterboxdReviews(input,{url}={}){
+ const source=reviewPageSource(url);
  let html=String(input||'');if(html.length>3000000)throw Error('Review page too large.');
  html=html.replace(/<!--[^]*?-->/g,'').replace(/<(script|style|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'');
  if(/<title[^>]*>\s*(?:Just a moment|Access denied|Security check)/i.test(html))throw Error('Letterboxd access verification is required. Open the page normally, or paste/import reviews.');
@@ -27,7 +28,7 @@ function parseLetterboxdReviews(input){
   while(depth&&(next=tokens.exec(html))){depth+=next[0][1]==='/'?-1:1;if(!depth)end=next.index;}
   if(depth)break;
   const body=html.slice(pattern.lastIndex,end);pattern.lastIndex=tokens.lastIndex;
-  const fullText=plain(body);if(fullText.length>4000)limited=true;const text=fullText.slice(0,4000);if(text.length<8){excluded.unreadable++;continue;}if(seen.has(text)){excluded.duplicate++;continue;}seen.add(text);
+  const fullText=plain(body);if(fullText.length>4000)limited=true;const text=fullText.slice(0,4000);if(text.length<8){excluded.unreadable++;continue;}if(seen.has(text)){excluded.duplicate++;continue;}
   // Find only the current card's attributes/author, never a global spoiler substring.
   const stack=[];for(const m of html.slice(0,found.index).matchAll(/<\/?(li|article|div)\b[^>]*>/gi)){if(m[0][1]==='/'){const i=stack.findLastIndex(row=>row.tag===m[1].toLowerCase());if(i>=0)stack.splice(i);}else stack.push({tag:m[1].toLowerCase(),index:m.index,open:m[0]});}const ancestorSpoiler=stack.some(row=>/class=["'][^"']*\b(?:contains-spoilers|has-spoilers)\b/i.test(row.open)||/data-(?:contains-)?spoilers?=["']true["']/i.test(row.open));const container=stack.findLast(row=>['li','article'].includes(row.tag))||stack.findLast(row=>/review|film-detail/i.test(row.open))||stack.at(-1);const card=container?html.slice(container.index,found.index):'';
   const authorTag=/<a\b[^>]*class=["'][^"']*\b(?:name|displayname)\b[^"']*["'][^>]*>([\s\S]*?)<\/a>/i.exec(card);
@@ -36,7 +37,12 @@ function parseLetterboxdReviews(input){
   // Dates/ratings can follow the body. Stop at this card's closing tag, never its neighbour.
   let completeCard=card+open+body;if(container){const token=new RegExp('<\\/?'+container.tag+'\\b[^>]*>','gi');token.lastIndex=container.index;let level=0,m;while((m=token.exec(html))){level+=m[0][1]==='/'?-1:1;if(!level){completeCard=html.slice(container.index,token.lastIndex);break;}}}
   const metadataCard=container?completeCard.slice(0,found.index-container.index)+completeCard.slice(tokens.lastIndex-container.index):'';
-  const row={id:String(rows.length+1),text,author,spoiler,...cardMetadata(metadataCard)};if(JSON.stringify([...rows,row]).length>110000){limited=true;break;}rows.push(row);
+  const metadata=cardMetadata(metadataCard),profile=authorTag&&/^https:\/\/letterboxd\.com\/([a-z0-9_-]+)\/$/i.exec((()=>{try{return new URL(attr(authorTag[0].split('>')[0],'href'),'https://letterboxd.com').href;}catch{return '';}})()),review=metadata.permalink&&/^https:\/\/letterboxd\.com\/([a-z0-9_-]+)\/film\/([a-z0-9-]+)\//i.exec(metadata.permalink);
+  if(source&&review&&new URL(source.url).pathname.split('/')[2].toLowerCase()!==review[2].toLowerCase()){excluded.identity=(excluded.identity||0)+1;continue;}
+  const authorId=review&&(!profile||profile[1].toLowerCase()===review[1].toLowerCase())?review[1].toLowerCase():!review&&profile?profile[1].toLowerCase():'';
+  if(review&&profile&&profile[1].toLowerCase()!==review[1].toLowerCase())delete metadata.permalink;
+  seen.add(text);
+  const row={id:String(rows.length+1),text,author,spoiler,...metadata,...(authorId?{authorId}:{}),...(source?{source:{...source}}:{})};if(JSON.stringify([...rows,row]).length>110000){limited=true;break;}rows.push(row);
  }
  if(rows.length>=50&&found)limited=true;
  const meta=[...html.matchAll(/<meta\b[^>]*>/gi)].map(m=>m[0]);const title=meta.find(tag=>attr(tag,'property')==='og:title');
@@ -61,7 +67,14 @@ function matchFilm(item,identity={}){
  if(name&&identity.year&&names.length&&!names.includes(name))return {state:'mismatch',reason:'title'};
  return {state:'unverified',reason:'missing-identity'};
 }
-function publicFilmUrl(value){try{const u=new URL(value);return u.protocol==='https:'&&u.hostname==='letterboxd.com'&&!u.port&&!u.username&&!u.password&&!u.hash&&[...u.searchParams.keys()].every(k=>k==='page')&&u.searchParams.getAll('page').length<=1&&(!u.search||/^[1-9]\d{0,3}$/.test(u.searchParams.get('page')))&&/^\/film\/[a-z0-9-]+\/(?:reviews\/(?:by\/(?:activity|added|rating|rating-lowest|rating-highest|popular|review-popular)\/)?(?:page\/[1-9]\d{0,3}\/)?)?$/.test(u.pathname)?u.href:null;}catch{return null;}}
+function publicFilmUrl(value){try{const u=new URL(value);return u.protocol==='https:'&&u.hostname==='letterboxd.com'&&!u.port&&!u.username&&!u.password&&!u.hash&&[...u.searchParams.keys()].every(k=>k==='page')&&u.searchParams.getAll('page').length<=1&&(!u.search||/^[1-9]\d{0,3}$/.test(u.searchParams.get('page')))&&/^\/film\/[a-z0-9-]+\/(?:reviews\/(?:by\/(?:activity|added|entry-rating|entry-rating-lowest|rating|rating-lowest|rating-highest|popular|review-popular)\/)?(?:page\/[1-9]\d{0,3}\/)?)?$/.test(u.pathname)?u.href:null;}catch{return null;}}
+function reviewPageSource(value){
+ const url=publicFilmUrl(value);if(!url)return null;
+ const u=new URL(url),pathPage=/\/page\/([1-9]\d{0,3})\/$/.exec(u.pathname),queryPage=u.searchParams.get('page');
+ if(pathPage&&queryPage&&pathPage[1]!==queryPage)return null;
+ const sort=/\/reviews\/(?:page\/\d+\/)?$/.test(u.pathname)?'new':({'activity':'popular','entry-rating':'high','entry-rating-lowest':'low'}[/\/reviews\/by\/([^/]+)\//.exec(u.pathname)?.[1]]||'unknown');
+ return {url,sort,page:Number(pathPage?.[1]||queryPage||1)};
+}
 // Only review cards and public film metadata are copied, never forms, cookies or scripts.
 function reviewPageScript(){return `(()=>{
  if(document.querySelector('#challenge-running,#challenge-stage,#challenge-form')||/just a moment|access denied|security check/i.test(document.title))return {blocked:true};
@@ -78,8 +91,8 @@ async function readBrowserReviews({getTab,execute}){
  if(getTab()!==tab||tab.generation!==generation||tab.view.webContents.isDestroyed()||tab.view.webContents.getURL()!==url)throw Error('The source changed while reading reviews. Try again on the intended page.');
  if(data?.blocked)throw Error('Finish the site verification in Browser first.');if(data?.tooLarge)throw Error('The open review page is too large.');
  if(!data||data.url!==url||typeof data.html!=='string')throw Error('The open review page could not be read.');
- const result=parseLetterboxdReviews(data.html);if(!result.reviews.length)throw Error('No loaded public reviews found. Load the reviews normally, or paste/import them.');
+ const result=parseLetterboxdReviews(data.html,{url});if(!result.reviews.length)throw Error('No loaded public reviews found. Load the reviews normally, or paste/import them.');
  return {...result,url,origin:'browser'};
 }
-return {parseLetterboxdReviews,decode,matchFilm,publicFilmUrl,reviewPermalink,reviewPageScript,readBrowserReviews};
+return {parseLetterboxdReviews,decode,matchFilm,publicFilmUrl,reviewPermalink,reviewPageSource,reviewPageScript,readBrowserReviews};
 });
