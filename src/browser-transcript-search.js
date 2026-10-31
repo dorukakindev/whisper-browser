@@ -22,15 +22,33 @@
     return h ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
       : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   }
-  function normalizedRows(cues) {
+  function excerpt(value, queryTokens, limit=4000) {
+    const original=String(value||''),text=original.trim(),leading=original.length-original.trimStart().length;
+    limit=Math.max(1,Math.min(4000,Math.floor(Number(limit)||4000)));
+    if(text.length<=limit)return {text,offset:leading,truncated:text.length!==original.length};
+    const body=fold(text),starts=new Set([0]);
+    for(const token of queryTokens){
+      const at=body.indexOf(token);if(at<0)continue;
+      // Folded offsets differ from source offsets (accents, spaces, punctuation).
+      // Prefix lengths are monotonic, so locate the original anchor without
+      // assuming the normalized text has the same character positions.
+      let low=0,high=text.length;
+      while(low<high){const mid=Math.floor((low+high)/2);if(fold(text.slice(0,mid)).length<=at)low=mid+1;else high=mid;}
+      starts.add(Math.max(0,low-1-300));
+    }
+    let best=0,bestScore=-1;
+    for(const start of starts){const window=fold(text.slice(start,start+limit)),score=queryTokens.reduce((n,token)=>n+(window.includes(token)?1:0),0);if(score>bestScore){best=start;bestScore=score;}}
+    return {text:text.slice(best,best+limit),offset:leading+best,truncated:true};
+  }
+  function normalizedRows(cues, queryTokens) {
     const validTime = value => (typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')) && Number.isFinite(Number(value));
-    return (Array.isArray(cues) ? cues : []).filter(cue => validTime(cue?.start) && validTime(cue?.end) && Number(cue.end) >= Number(cue.start)).map((cue, index) => ({
+    return (Array.isArray(cues) ? cues : []).filter(cue => validTime(cue?.start) && validTime(cue?.end) && Number(cue.end) >= Number(cue.start)).map((cue, index) => {const source=excerpt(cue?.text,queryTokens),translation=excerpt(cue?.translation,queryTokens);return ({
       index,
       start: Math.max(0, Number(cue?.start) || 0),
       end: Math.max(Math.max(0, Number(cue?.start) || 0), Number(cue?.end) || Number(cue?.start) || 0),
-      text: String(cue?.text || '').trim().slice(0, 4000),
-      translation: String(cue?.translation || '').trim().slice(0, 4000),
-    })).filter((cue) => cue.text || cue.translation).slice(0, 50000).map((cue,index)=>({...cue,index}));
+      text: source.text, translation: translation.text,
+      textOffset:source.offset,translationOffset:translation.offset,textTruncated:source.truncated,translationTruncated:translation.truncated,
+    });}).filter((cue) => cue.text || cue.translation).slice(0, 50000).map((cue,index)=>({...cue,index}));
   }
   // Tüm-transkript niyeti: kelime-başı kök eşleşmesi 'tamamen', 'tamamla',
   // 'tamamlamış' gibi ilgisiz çekimleri de pozitif sayıyordu (R86-05).
@@ -65,12 +83,12 @@
     return folded.split(/\s+/).some((word) => WHOLE_TRANSCRIPT_WORDS.has(word));
   }
   function buildTranscriptEvidence(cues, question, options = {}) {
-    const rows = normalizedRows(cues);
+    const queryTokens = tokens(question);
+    const rows = normalizedRows(cues,queryTokens);
     const scope = ['nearby', 'watched', 'full'].includes(options.scope) ? options.scope : 'watched';
     const position = Number.isFinite(Number(options.position)) ? Math.max(0, Number(options.position)) : 0;
     const eligible = scope === 'watched' ? rows.filter((row) => row.start <= position + 0.75) : rows;
     const pool = scope === 'nearby' ? eligible.filter((row) => Math.abs(row.start - position) <= 180) : eligible;
-    const queryTokens = tokens(question);
     const scored = pool.map((row) => {
       const body = fold(`${row.text} ${row.translation}`);
       let score = 0;
@@ -113,10 +131,12 @@
       .map((index) => {
       const row = rows[index];
       return { id: `T${index + 1}`, zaman: clock(row.start), baslangic: row.start,
-        bitis: row.end, metin: row.text, ceviri: row.translation };
+        bitis: row.end, metin: row.text, ceviri: row.translation,
+        ...(row.textTruncated?{textOffset:row.textOffset,textTruncated:true}:{}),
+        ...(row.translationTruncated?{translationOffset:row.translationOffset,translationTruncated:true}:{}) };
     });
     return { scope, position, totalCues: rows.length, eligibleCues: eligible.length,
       queryTerms: queryTokens, coverage: wholeTranscriptIntent(question) ? 'distributed' : 'lexical', evidence };
   }
-  return { buildTranscriptEvidence, foldTranscriptText: fold, transcriptClock: clock, transcriptTokens: tokens };
+  return { buildTranscriptEvidence, transcriptExcerpt:excerpt, foldTranscriptText: fold, transcriptClock: clock, transcriptTokens: tokens };
 });

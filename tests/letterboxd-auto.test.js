@@ -34,3 +34,8 @@ test('large fetched reviews fit the existing editor without splitting review rec
   const fetchImpl=async url=>url.includes('/tmdb/')?new Response(null,{status:302,headers:{location:'/film/witness/'}}):new Response(html(Array.from({length:48},(_,i)=>'Review '+i+' '+('a'.repeat(3900)))));
   const result=await fetchReviews(item,{count:48,fetchImpl});assert(result.limited);assert(JSON.stringify(result.reviews).length<=120000);assert(result.reviews.length>0&&result.reviews.length<48);
 });
+
+test('Automatic exclusions count only rows actually loaded, with spoiler and duplicate reasons',async()=>{
+ const fetchImpl=async url=>url.includes('/tmdb/')?new Response(null,{status:302,headers:{location:'/film/witness/'}}):new Response(html([...Array.from({length:15},(_,i)=>'Loaded unique opinion '+i+'.'),'Loaded unique opinion 0.','Spoiler final scene is revealed.']));
+ const result=await fetchReviews(item,{count:12,fetchImpl});assert.equal(result.pages,1);assert.equal(result.reviews.length,12);assert.deepEqual(result.excluded,{spoiler:1,duplicate:1,unreadable:0,size:0,requested:3});
+});

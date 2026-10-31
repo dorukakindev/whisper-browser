@@ -1,0 +1,43 @@
+{
+  "ok": true,
+  "states": [
+    {
+      "width": 480,
+      "height": 720,
+      "locale": "tr",
+      "theme": "dark",
+      "summary": "İzlenen altyazılar · 0:00–1:30 · en → tr",
+      "detail": "Yanıt için bu kapsamdan sınırlı alıntılar seçilir; tüm altyazıyı seçmek her satırın gönderildiği anlamına gelmez. Yeni Whisper / çeviri işlem aralığı: 5:00–10:00. Bu, sorunun altyazı kapsamından ayrıdır.",
+      "scroll": 480,
+      "sendBottom": 684,
+      "workspaceBottom": 560,
+      "formTop": 560
+    },
+    {
+      "width": 480,
+      "height": 696,
+      "locale": "tr",
+      "theme": "dark",
+      "summary": "İzlenen altyazılar · 0:00–1:30 · en → tr",
+      "detail": "Yanıt için bu kapsamdan sınırlı alıntılar seçilir; tüm altyazıyı seçmek her satırın gönderildiği anlamına gelmez. Yeni Whisper / çeviri işlem aralığı: 5:00–10:00. Bu, sorunun altyazı kapsamından ayrıdır.",
+      "scroll": 480,
+      "sendBottom": 660,
+      "workspaceBottom": 536,
+      "formTop": 536
+    },
+    {
+      "width": 480,
+      "height": 556,
+      "locale": "en",
+      "theme": "light",
+      "summary": "Watched captions · 0:00–1:30 · en → tr",
+      "detail": "Answers retrieve bounded excerpts from this scope; selecting all captions does not mean every line is sent. New Whisper / translation job range: 5:00–10:00. This is separate from the question’s caption scope.",
+      "scroll": 480,
+      "sendBottom": 532,
+      "workspaceBottom": 422,
+      "formTop": 422
+    }
+  ],
+  "provider": "not used",
+  "fixture": "synthetic source metadata"
+}

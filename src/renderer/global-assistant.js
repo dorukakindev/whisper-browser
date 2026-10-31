@@ -63,6 +63,7 @@
       }
       window.api.updateAssistant({ locale: tr ? 'tr' : 'en', theme: document.documentElement.dataset.theme,
         palette:Object.fromEntries(Object.entries({surface:'--bg-1',raised:'--bg-2',hover:'--bg-3',line:'--border',strong:'--border-strong',text:'--text',muted:'--text-muted',accent:'--accent'}).map(([key,token])=>[key,getComputedStyle(document.body).getPropertyValue(token).trim()])),
+        sourcePreview:window.AssistantSourcePreview.build({locale:tr?'tr':'en',selection:selectionContext,page:pageContext,video:videoContext,transcript:!!transcriptScope,scope:$('aiTranscriptScope')?.value,position:player.workspaceMode==='browser'?Number(player.browserTime)||0:subtitleSourceTime(document.getElementById('playerVideo')?.currentTime||0,false),sourceLanguage:selectionContext?'':subtitleContextLanguage('source'),targetLanguage:selectionContext?'':subtitleContextLanguage('translation'),range:videoContext?currentBrowserWhisperRange():null}),
         suggestions: specs,receipt,sourceToken:commandToken(),pinScope,threads:workspace?.threads||[],activeThread:threadId,
         jobs:window.AssistantJobsUI?.snapshot()?.jobs||[],workspaceError:workspace?.error||toolNotice,draft:workspace?.current?.draft||'',model:assistantProviderSelection().model||'',
         pageContext,videoContext,transcriptScope,blocked:!!((window.AssistantAgentUI?.busy()||window.AssistantVideoCommands?.busy()||window.AssistantPageCommands?.busy()||window.AssistantMediaCommands?.busy())&&!pageTask)||!!(player.job?.kind==='chat'&&(player.job.running||player.job.awaitingExit)),

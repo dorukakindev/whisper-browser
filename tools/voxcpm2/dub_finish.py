@@ -2,7 +2,7 @@
 import re
 import numpy as np
 
-SPOKEN_TEXT_VERSION = 'tr-spoken-v8-context-decimal'
+SPOKEN_TEXT_VERSION = 'tr-spoken-v9-explicit-inflections'
 
 _ONES = ('', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz')
 _TENS = ('', 'on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan')
@@ -50,8 +50,59 @@ def normalize_decimal_quantities(text):
     return text
 
 
+def _case_suffixes(word):
+    """Valid case endings of a spoken unit or clock value, without guessing."""
+    vowel = next(c for c in reversed(word) if c in 'aeıioöuü')
+    low = 'a' if vowel in 'aıou' else 'e'
+    high = {'a':'ı', 'ı':'ı', 'e':'i', 'i':'i', 'o':'u', 'u':'u', 'ö':'ü', 'ü':'ü'}[vowel]
+    voiced = 't' if word[-1] in 'fstkçşhp' else 'd'
+    buffer = word[-1] in 'aeıioöuü'
+    return {voiced+low, voiced+low+'n', ('y' if buffer else '')+low,
+            ('y' if buffer else '')+high, ('n' if buffer else '')+high+'n'}
+
+
+def _explicit_readings(text):
+    # Full ordinal suffixes and the conventional shortened suffix after vowels
+    # carry meaning that a bare period (3. sınıf, list numbering) does not.
+    def ordinal(match):
+        cardinal = integer_words(match[1])
+        last = cardinal.split()[-1]
+        ending = {'bir':'inci', 'iki':'nci', 'üç':'üncü', 'dört':'üncü',
+                  'beş':'inci', 'altı':'ncı', 'yedi':'nci', 'sekiz':'inci',
+                  'dokuz':'uncu', 'on':'uncu', 'yirmi':'nci', 'otuz':'uncu',
+                  'kırk':'ıncı', 'elli':'nci', 'altmış':'ıncı', 'yetmiş':'inci',
+                  'seksen':'inci', 'doksan':'ıncı', 'yüz':'üncü', 'bin':'inci',
+                  'milyon':'uncu'}[last]
+        full = ('i' if last[-1] in 'ei' else 'ı' if last[-1] in 'aı' else
+                'u' if last[-1] in 'ou' else 'ü') + ending if ending.startswith('n') else ending
+        if match[2] not in {ending, full}:
+            return match[0]
+        if last == 'dört':
+            cardinal = cardinal[:-1] + 'd'
+        return cardinal + ending
+    text = re.sub(r"(?<![\w.,:/+\-])([1-9]\d{0,8})['’](inci|ıncı|uncu|üncü|nci|ncı|ncu|ncü)(?!\w)",
+                  ordinal, text)
+
+    # Only an explicit 'saat' label disambiguates a clock from scores or IDs.
+    def clock(match):
+        hour, minute = int(match[2]), int(match[3])
+        if hour > 23 or minute > 59:
+            return match[0]
+        spoken = integer_words(str(hour))
+        if minute:
+            spoken += ' ' + ('sıfır ' if minute < 10 and hour else '') + integer_words(str(minute))
+        suffix = match[4]
+        if suffix and suffix not in _case_suffixes(spoken):
+            return match[0]
+        return match[1] + spoken + (suffix or '')
+    text = re.sub(r"(\bsaat\s+)(\d{1,2}):(\d{2})(?:['’]([a-zçğıöşü]+))?"
+                  r"(?![\w:/]|[.,](?=\d)|['’]\w)", clock, text, flags=re.I)
+    return text
+
+
 def spoken_text(text):
-    """Expand only unambiguous TR forms; leave dates, clocks, IDs and suffixes alone."""
+    """Expand explicit TR quantities; preserve ambiguous dates, clocks and IDs."""
+    text = _explicit_readings(text)
     text = normalize_decimal_quantities(text)
     # Dotted quantities are Turkish thousands only with explicit quantity
     # context. Keep version/ID/date/clock/phone spellings unchanged otherwise.
@@ -107,7 +158,14 @@ def spoken_text(text):
     # Rates are spoken as a unit pair; a bare '/h' or '/s' would be read as letters.
     units = {'km/h':'kilometre bölü saat', 'm/s':'metre bölü saniye', 'km':'kilometre', 'kg':'kilogram',
              'cm':'santimetre', 'mm':'milimetre', 'm':'metre', '°C':'derece Celsius'}
-    text = re.sub(r'(?<=\d)\s*(km/h|m/s|km|kg|cm|mm|m|°C)(?!\w)', lambda m: ' ' + units[m[1]], text)
+    def unit(match):
+        word, suffix = units[match[1]], match[2]
+        if suffix:
+            if match[1] == '°C' or suffix not in _case_suffixes(word):
+                return match[0]
+            word += suffix
+        return ' ' + word
+    text = re.sub(r"(?<=\d)\s*(km/h|m/s|km|kg|cm|mm|m|°C)(?:['’]([a-zçğıöşü]+))?(?![\w/]|['’]\w)", unit, text)
     # A currency symbol is not reliably read by the engine; the spoken form is
     # always 'amount + currency name' in Turkish, whichever side the symbol is on.
     currency = {'$':'dolar', '€':'euro', '£':'sterlin', '₺':'lira'}

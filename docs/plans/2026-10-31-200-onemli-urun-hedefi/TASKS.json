@@ -1,0 +1,2955 @@
+{
+  "date": "2026-10-31",
+  "base": "206fac905efa86ff04c4987f373e1cff9fd8efc6",
+  "implementationStarted": true,
+  "important": "200 görev, 200 doğrulanmış hata iddiası değildir. Zaten doğru çalışan davranışta gereksiz ürün değişikliği yapılmaz.",
+  "modelTesting": {
+    "provider": "DeepInfra",
+    "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+    "defaultTier": "standard",
+    "largeBatchTier": "flex"
+  },
+  "helpers": {
+    "model": "gpt-6.1-sol",
+    "reasoning": "medium"
+  },
+  "tasks": [
+    {
+      "id": "P001",
+      "area": "Asistan",
+      "title": "Bağlı kaynak, dil ve seçili aralığı gönderim öncesinde açık göster.",
+      "acceptance": "Gönderilecek gerçek kapsam görünür olsun.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Uygulandı — native Windows ve birim kontrolleri",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ],
+      "progressNote": "Kaynak, altyazı dili ve soru kapsamı görünür; yeni Whisper işlem aralığı sorunun kapsamından ayrıdır. Üç native boyut/tema.",
+      "evidence": "docs/audits/product200-package01-2026-10-31/README.md"
+    },
+    {
+      "id": "P002",
+      "area": "Asistan",
+      "title": "Uzun kaynakta gerçekten okunan ve dışarıda kalan bölümleri ayır.",
+      "acceptance": "Örnekleme tam okuma diye sunulmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Uygulandı — kontrollü veriyle doğrulandı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ],
+      "progressNote": "Sağlanan/kullanılan/dışarıda bırakılan metin ve birim sayıları, bilinmeyen önceki kırpılma ve bütçe sonrası güncel kapsam. Modelin tüm kaynağı okuduğu iddia edilmez.",
+      "evidence": "docs/audits/product200-package01-2026-10-31/README.md"
+    },
+    {
+      "id": "P003",
+      "area": "Asistan",
+      "title": "Birden fazla açık kaynaktan hangisinin kullanılacağını anlaşılır seçtir.",
+      "acceptance": "Yanlış sekme veya eser kullanılmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P004",
+      "area": "Asistan",
+      "title": "Kaynak değiştiğinde eski sohbet bilgisinin yeni kaynağa sızmasını sına.",
+      "acceptance": "Geç yanıt yeni kaynağı sahiplenmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Uygulandı — deterministik sahiplik kontrolleri",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ],
+      "progressNote": "Eski kaynağın geç yanıtı yalnız kendi sohbetinde saklanır; bitmiş, temizlenmiş, silinmiş veya başka işçe devam ettirilmiş yanıta yazamaz.",
+      "evidence": "docs/audits/product200-package01-2026-10-31/README.md"
+    },
+    {
+      "id": "P005",
+      "area": "Asistan",
+      "title": "Uzun videoda soruyla ilgili bölümü ikinci aramayla getirebil.",
+      "acceptance": "İlk örneklemede kaçan cümle bulunabilsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Uygulandı — gerçek ana süreç/renderer taşıma sözleşmesi kontrollü testte",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ],
+      "progressNote": "İkinci arama ilk örnek havuzunu değil uygun tam altyazıyı tarar. 6000+ satırda ilk örnekte olmayan U3997 bulundu, seek/editor bağlantıları doğrulandı. Canlı sağlayıcı denemesi henüz yok.",
+      "evidence": "docs/audits/product200-package01-2026-10-31/README.md"
+    },
+    {
+      "id": "P006",
+      "area": "Asistan",
+      "title": "Zaman içindeki fikir değişimini birden fazla sahneyle kanıtla.",
+      "acceptance": "Alıntılar farklı doğru zamanlara gitsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P007",
+      "area": "Asistan",
+      "title": "PDF ve kitap alıntılarında sayfa, bölüm ve eser kimliğini birlikte koru.",
+      "acceptance": "Alıntı doğru okuma konumunu açsın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P008",
+      "area": "Asistan",
+      "title": "Seçili pasajla bütün kaynak sorularını daha doğru ayırt et.",
+      "acceptance": "Pasaj seçimi bütün kitabı temsil etmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P009",
+      "area": "Asistan",
+      "title": "“Az önceki film/bu cümle/diğeri” ifadelerini konuşma bağlamına bağla.",
+      "acceptance": "Çok adımlı konuşmada hedef karışmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P010",
+      "area": "Asistan",
+      "title": "Kaynak bilgisi ile internetten bulunan bilgiyi yanıtta ayır.",
+      "acceptance": "Her iddianın dayanağı anlaşılabilsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P011",
+      "area": "Asistan",
+      "title": "Türkçe ekler, ad varyantları ve yazım hatalarıyla kaynak aramasını geliştir.",
+      "acceptance": "Kontrollü genişletme yanlış eşleşmeyi artırmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P012",
+      "area": "Asistan",
+      "title": "Eksik bağlamda tek ve işe yarar netleştirme sorusu üret.",
+      "acceptance": "Aynı bilgiyi tekrar tekrar sormasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P013",
+      "area": "Asistan",
+      "title": "Uygulama ayarları ile asistan araçlarının kapsam haritasını tamamla.",
+      "acceptance": "Desteklenmeyen işlem yapılmış gibi anlatılmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P014",
+      "area": "Asistan",
+      "title": "“Ses yetişmiyor/çeviri kötü” şikâyetini kanıta dayalı teşhise dönüştür.",
+      "acceptance": "Ölçüm olmadan rastgele ayar değiştirmesin.",
+      "kind": "Yeni uzantı/deneme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P015",
+      "area": "Asistan",
+      "title": "Birbirine yakın komutları gerçek işlem niyetine göre ayır.",
+      "acceptance": "Çeviri isteği yalnız özetle cevaplanmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P016",
+      "area": "Asistan",
+      "title": "Altyazı varsa kullan, yoksa Whisper akışını gerçek videolarla sına.",
+      "acceptance": "Aynı kaynak gereksiz yeniden işlenmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P017",
+      "area": "Asistan",
+      "title": "Bağımsız okuma araçlarını güvenle birlikte çalıştırabil.",
+      "acceptance": "Yazma işlemlerinin sırası korunabilsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P018",
+      "area": "Asistan",
+      "title": "Uzun istekleri sınırlı ve izlenebilir alt planlara böl.",
+      "acceptance": "Araç tur sınırında iş sessizce yarım kalmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P019",
+      "area": "Asistan",
+      "title": "Tekrarlanan model çağrısı ve çift tıklamada işlem tekilliğini sına.",
+      "acceptance": "Aynı üretim iki kere başlamasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P020",
+      "area": "Asistan",
+      "title": "Sağlayıcı/modelin gerçek araç çağırma yeteneğini doğrula.",
+      "acceptance": "Destek yoksa yanlış başarı üretilmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P021",
+      "area": "Asistan",
+      "title": "Ayar değişikliği kartında önceki ve sonraki değerleri göster.",
+      "acceptance": "Yalnız değişecek alanlar listelensin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P022",
+      "area": "Asistan",
+      "title": "“Yalnız bu iş” ile kalıcı varsayılan değişikliğini ayır.",
+      "acceptance": "Geçici tercih sonraki işleri etkilemesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P023",
+      "area": "Asistan",
+      "title": "Bir ayarın bağlı seçeneklere etkisini anlaşılır açıkla.",
+      "acceptance": "Kullanıcı gizli yan etkiyle karşılaşmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P024",
+      "area": "Asistan",
+      "title": "Kart hazırlanırken yapılan elle ayar değişikliğini koru.",
+      "acceptance": "Yeni insan tercihi sessizce ezilmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P025",
+      "area": "Asistan",
+      "title": "Geri alma başarısızlığını ve yeniden denemeyi gerçek kayıtla sına.",
+      "acceptance": "Ekran ve disk farklı kalmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P026",
+      "area": "Asistan",
+      "title": "Eskimiş işlem kartını güncel durumdan yeniden hazırlayabil.",
+      "acceptance": "Eski hedefe körlemesine işlem uygulanmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P027",
+      "area": "Asistan",
+      "title": "Çok adımlı işin tamamlanan, çalışan ve kalan adımlarını göster.",
+      "acceptance": "Gerçek durum işlem zinciriyle uyuşsun.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P028",
+      "area": "Asistan",
+      "title": "İş bitince doğru sohbetin doğru aşamadan devamını kolaylaştır.",
+      "acceptance": "Biten aşama yeniden çalıştırılmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Kısmen uygulandı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ],
+      "progressNote": "Yeniden yüklenen kaynakta devam doğru görünür yanıta bağlanır; genel çok aşamalı üretim sonrası devam kapsamı ayrıca tamamlanacak.",
+      "evidence": "docs/audits/product200-package01-2026-10-31/README.md"
+    },
+    {
+      "id": "P029",
+      "area": "Asistan",
+      "title": "Kısmi sonuçta eksik kalan aşama ve miktarı açık göster.",
+      "acceptance": "Kaynak/çeviri/ses kapsamları karışmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P030",
+      "area": "Asistan",
+      "title": "Birden fazla işte konuşma, kaynak ve çıktı bağını görünür kıl.",
+      "acceptance": "Yanlış işin sonucu kullanılmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P031",
+      "area": "Asistan",
+      "title": "Durdurma isteği ile gerçekten durmuş işi ayır.",
+      "acceptance": "Reddedilen iptal “durduruldu” sayılmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P032",
+      "area": "Asistan",
+      "title": "Gezinme ve sekme değişiminde geciken iş olaylarını sına.",
+      "acceptance": "Sonuç yanlış videoya bağlanmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Kısmen uygulandı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ],
+      "progressNote": "Sohbetin geç olayları ve silme/temizleme korunuyor. Tüm üretim/sekme kombinasyonlarının kabulü bu pakette yapılmadı.",
+      "evidence": "docs/audits/product200-package01-2026-10-31/README.md"
+    },
+    {
+      "id": "P033",
+      "area": "Asistan",
+      "title": "Başarısız aşamayı tamamlanmış işleri koruyarak yeniden denet.",
+      "acceptance": "İyi çıktı gereksiz tekrar üretilmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P034",
+      "area": "Asistan",
+      "title": "Uygulama yeniden açılınca eski iş kartının güncelliğini açıkla.",
+      "acceptance": "Artık mevcut olmayan iş erişilebilir sanılmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P035",
+      "area": "Asistan",
+      "title": "İşin kabulü, sağlayıcı bekleme ve gerçek tamamlanmayı ayrı göster.",
+      "acceptance": "Sahte ilerleme yüzdesi kullanılmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P036",
+      "area": "Asistan",
+      "title": "Araç hatasını ilgili adımda uygulanabilir çözüme bağla.",
+      "acceptance": "Genel hata yerine doğru düzeltme açılsın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P037",
+      "area": "Asistan",
+      "title": "“Bunu durdur/devam et” komutunu doğru etkin işe bağla.",
+      "acceptance": "Belirsiz durumda başka iş etkilenmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P038",
+      "area": "Asistan",
+      "title": "Uygulanmış plan değişince yalnız kalan adımları yeniden düzenle.",
+      "acceptance": "Önceki başarılı işlem geri dönmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P039",
+      "area": "Asistan",
+      "title": "Manuel YouTube altyazısından Türkçe dublaja tam zinciri sına.",
+      "acceptance": "Kaynak, dil ve aralık korunsun.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P040",
+      "area": "Asistan",
+      "title": "Otomatik YouTube altyazısıyla kısa aralık denemesini sına.",
+      "acceptance": "Otomatik kaynak niteliği kaybolmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P041",
+      "area": "Asistan",
+      "title": "Altyazısız videoda Whisper, çeviri ve ses hazırlığını birlikte sına.",
+      "acceptance": "Aşamalar gerçek tamamlanmayı beklesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P042",
+      "area": "Asistan",
+      "title": "Ses hazırlığındaki eksikleri tek uygulanabilir özetle çıkar.",
+      "acceptance": "Eksik referans ve eksik çeviri ayrışsın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P043",
+      "area": "Asistan",
+      "title": "“Bu sahneyi önce dene” isteğini doğru kısa örneğe dönüştür.",
+      "acceptance": "Bütün video yanlışlıkla üretilmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P044",
+      "area": "Asistan",
+      "title": "Üretimden önce okunacak Türkçe varyantı açık belirt.",
+      "acceptance": "Kaynak ve konuşma çevirisi karışmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P045",
+      "area": "Asistan",
+      "title": "“Bu cümle kötü okunmuş” ifadesini gerçek ses grubuna bağla.",
+      "acceptance": "İlgisiz grup yeniden üretilmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P046",
+      "area": "Asistan",
+      "title": "Bir metin düzeltmesinin etkileyeceği ses gruplarını göster.",
+      "acceptance": "Onaylı ilgisiz gruplar korunabilsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P047",
+      "area": "Asistan",
+      "title": "“Biraz daha doğal” isteğinde yalnız ilgili ayar/örneği karşılaştır.",
+      "acceptance": "Bütün ses profili rastgele değiştirilmesin.",
+      "kind": "Yeni uzantı/deneme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P048",
+      "area": "Asistan",
+      "title": "Üretim sonu inceleme önerisini gerçek kalite kanıtıyla hazırla.",
+      "acceptance": "Otomatik kontrol doğallık garantisi olmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P049",
+      "area": "Asistan",
+      "title": "“Bu akşam ne izleyeyim?” için süre ve izleme durumunu birleştir.",
+      "acceptance": "Önerilen yapım mevcut kısıtlara uysun.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P050",
+      "area": "Asistan",
+      "title": "Birden fazla yapımı aynı ölçütlerle karşılaştırabil.",
+      "acceptance": "Eksik bilgi uydurulmadan karşılaştırılsın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P051",
+      "area": "Asistan",
+      "title": "Keşfet sonucunu kütüphaneye eklemeden yorum incelemesine bağla.",
+      "acceptance": "Salt okuma için ekleme zorunlu olmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P052",
+      "area": "Asistan",
+      "title": "Aynı isimli filmlerde yıl/kimlik seçimini konuşmada netleştir.",
+      "acceptance": "Yanlış yapımın yorumları kullanılmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P053",
+      "area": "Asistan",
+      "title": "Koleksiyon oluşturma isteğini önizlemeli üyelik planına dönüştür.",
+      "acceptance": "Eklenecek/çıkarılacak yapımlar görülsün.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P054",
+      "area": "Asistan",
+      "title": "“Bunu neden önerdin?” sorusunu kişisel kanıta bağla.",
+      "acceptance": "Puan veya açık tercih gösterilebilsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P055",
+      "area": "Asistan",
+      "title": "“Bu öneri bana uymadı” geri bildirimini yorumlanabilir tercihe çevir.",
+      "acceptance": "Profil sessizce ve belirsiz değişmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P056",
+      "area": "Asistan",
+      "title": "İstenen kütüphane filtresini gerçekten ilgili ekranda açabil.",
+      "acceptance": "Sohbet sonucu ile görünüm aynı olsun.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P057",
+      "area": "Asistan",
+      "title": "Her araç için özgün ve anlaşılır işlem adı göster.",
+      "acceptance": "Her şey “Uygulama kontrolü” olmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P058",
+      "area": "Asistan",
+      "title": "İşlem adımlarında doğrulanmış kısa sonuç özetleri göster.",
+      "acceptance": "Bulunan sayı ve uygulanan işlem doğru olsun.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P059",
+      "area": "Asistan",
+      "title": "Bekleme göstergesini gerçek araç/iş evresine bağla.",
+      "acceptance": "Uydurma düşünce veya aşama gösterilmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P060",
+      "area": "Asistan",
+      "title": "Uzun yanıt, alıntı, kod ve kartların yerleşimini sağlamlaştır.",
+      "acceptance": "Mesajlar ve gönderme alanı çakışmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P061",
+      "area": "Asistan",
+      "title": "Yeni mesajda kaydırma ve “son yanıta dön” davranışını iyileştir.",
+      "acceptance": "Okunan eski mesajdan zorla koparmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P062",
+      "area": "Asistan",
+      "title": "Kaynak, araç adımları ve işlem kartlarını tek yanıtta ilişkilendir.",
+      "acceptance": "Gerekçe ile işlem bağı izlenebilsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P063",
+      "area": "Asistan",
+      "title": "Dar pencere ve yüksek Windows ölçeğinde asistanı görsel doğrula.",
+      "acceptance": "Kontroller ekran dışında kalmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P064",
+      "area": "Asistan",
+      "title": "Klavye, odak ve ekran okuyucu akışını tamamla.",
+      "acceptance": "Aç/kapat/gönder/durdur odak kaybetmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P065",
+      "area": "Asistan",
+      "title": "Uzun sohbette kabul edilmiş kararları kısa ve kaynaklı özetle koru.",
+      "acceptance": "Bağlam daralırken kararlar kaybolmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P066",
+      "area": "Asistan",
+      "title": "Kaynak içindeki sahte talimatlara karşı gerçek araç akışını sına.",
+      "acceptance": "Sayfa/altyazı metni işlem yetkisi sayılmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P067",
+      "area": "Asistan",
+      "title": "Geç araç yanıtı, iptal ve sohbet değişimini birlikte sına.",
+      "acceptance": "Eski yanıt yeni konuşmayı değiştirmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P068",
+      "area": "Asistan",
+      "title": "Kesilen akışta yarım araç argümanlarını işlem saymama davranışını sına.",
+      "acceptance": "Eksik JSON eylem başlatmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P069",
+      "area": "Asistan",
+      "title": "DeepSeek ile Türkçe komut seçimi için zor bir değerlendirme seti kur.",
+      "acceptance": "Beklenen araç/hedef/parametre ayrı ölçülsün.",
+      "kind": "Yeni uzantı/deneme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P070",
+      "area": "Asistan",
+      "title": "Asistanın başarısını gerçek son durumla karşılaştıran ölçüm ekle.",
+      "acceptance": "“Yaptım” ile uygulanan durum uyuşsun.",
+      "kind": "Yeni uzantı/deneme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/assistant-capabilities.js",
+        "src/assistant-agent-service.js",
+        "src/assistant-context-manifest.js",
+        "src/renderer/assistant-workspace.js"
+      ]
+    },
+    {
+      "id": "P071",
+      "area": "Altyazıdan ses",
+      "title": "Temsilî gerçek video kesitleriyle Türkçe dublaj kalite setini genişlet.",
+      "acceptance": "Belgesel, diyalog ve hızlı konuşma ayrı değerlendirilsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P072",
+      "area": "Altyazıdan ses",
+      "title": "A/B değerlendirmesini anlam, telaffuz, vurgu ve akışa ayır.",
+      "acceptance": "Tek bir ASR puanı kazanan seçmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P073",
+      "area": "Altyazıdan ses",
+      "title": "Sıra sayıları için bağlama duyarlı Türkçe okunuş geliştir.",
+      "acceptance": "Sıra numarası sıradan sayıyla karışmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Kısmen uygulandı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ],
+      "progressNote": "Açık apostroflu sıra ekleri: 3’üncü → üçüncü. Belirsiz noktalı sıra ve tarih çıkarımı eklenmedi.",
+      "evidence": "docs/audits/product200-package01-2026-10-31/README.md"
+    },
+    {
+      "id": "P074",
+      "area": "Altyazıdan ses",
+      "title": "Tarihlerin doğal okunuşunu sürüm ve kimliklerden ayır.",
+      "acceptance": "Açık tarih doğru söylenebilsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P075",
+      "area": "Altyazıdan ses",
+      "title": "Saat, süre ve skor okunuşlarını birbirinden ayır.",
+      "acceptance": "14:30 bağlama uygun okunsun.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Kısmen uygulandı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ],
+      "progressNote": "Yalnız açık saat etiketiyle 14:30 ve uyumlu ekler okunur; yalın saat/skor/tarih değiştirilmez.",
+      "evidence": "docs/audits/product200-package01-2026-10-31/README.md"
+    },
+    {
+      "id": "P076",
+      "area": "Altyazıdan ses",
+      "title": "Sayı aralıklarını negatif sayı ve ürün kodlarından ayır.",
+      "acceptance": "5–7 dakika yanlış işlenmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P077",
+      "area": "Altyazıdan ses",
+      "title": "Kesirlerin doğal okunuşunu tarih ve bölüm numarasından ayır.",
+      "acceptance": "Miktar ve birim aynı kalsın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P078",
+      "area": "Altyazıdan ses",
+      "title": "Sayılara gelen Türkçe ekleri doğru okuttur.",
+      "acceptance": "2026'da ve 5'e ek kaybetmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Kısmen uygulandı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ],
+      "progressNote": "Ölçü ekleri: 5 kg’dan → beş kilogramdan; doğal sayı/tarih eklerinin tümü henüz kapsanmıyor.",
+      "evidence": "docs/audits/product200-package01-2026-10-31/README.md"
+    },
+    {
+      "id": "P079",
+      "area": "Altyazıdan ses",
+      "title": "Büyük miktarların güvenli Türkçe okunuş kapsamını genişlet.",
+      "acceptance": "Kimlik dizileri sayısal miktara dönüşmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P080",
+      "area": "Altyazıdan ses",
+      "title": "Başında sıfır olan kodların okunuşunu koru.",
+      "acceptance": "007 gibi diziler kısaltılmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Doğrulandı — mevcut davranış korundu",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ],
+      "progressNote": "007 ve 00123 gibi başında sıfır olan kimlikler yeni kurallarla kısalmıyor. Yeni özellik diye sayılmadı.",
+      "evidence": "docs/audits/product200-package01-2026-10-31/README.md"
+    },
+    {
+      "id": "P081",
+      "area": "Altyazıdan ses",
+      "title": "Teknik sürüm ve protokol adlarının okunuşunu iyileştir.",
+      "acceptance": "v2.4 ile ondalık miktar karışmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Kısmi doğrulama",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ],
+      "progressNote": "v1.2, saat olmayan 10:18 ve protokol benzeri km/hz bozulmuyor. Teknik adların yeni telaffuz sözlüğü henüz eklenmedi.",
+      "evidence": "docs/audits/product200-package01-2026-10-31/README.md"
+    },
+    {
+      "id": "P082",
+      "area": "Altyazıdan ses",
+      "title": "Harf harf ve kelime gibi okunan kısaltmaları ayır.",
+      "acceptance": "Tanımlı kısaltma tutarlı söylensin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P083",
+      "area": "Altyazıdan ses",
+      "title": "Gerçekte kullanılan teknik birimlerin okunuş kapsamını genişlet.",
+      "acceptance": "Değer, büyüklük ve birim korunabilsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P084",
+      "area": "Altyazıdan ses",
+      "title": "Özel ad sözlüğünü Türkçe ekli biçimlerde kullanabil.",
+      "acceptance": "Ad düzelsin, aldığı ek kaybolmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P085",
+      "area": "Altyazıdan ses",
+      "title": "Telaffuz sözlüğünde Türkçe harf ve uzun ifade eşleşmesini geliştir.",
+      "acceptance": "I/ı ve İ/i doğru işlensin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P086",
+      "area": "Altyazıdan ses",
+      "title": "Çakışan telaffuz kurallarının etkisini önizle.",
+      "acceptance": "Üretimle aynı dönüşüm görülsün.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P087",
+      "area": "Altyazıdan ses",
+      "title": "Karışık dilde özel ad düzeltmesinin kapsamını sına.",
+      "acceptance": "Bütün cümlenin dili değişmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P088",
+      "area": "Altyazıdan ses",
+      "title": "Türkçe ritim riskini hece/karakter bilgisiyle kalibre et.",
+      "acceptance": "Gereksiz tekrar dinleme kanıtıyla azalsın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P089",
+      "area": "Altyazıdan ses",
+      "title": "Uzun yan cümlelerde nefes ve yüklem bağını sına.",
+      "acceptance": "Bölünmüş ses anlamı parçalamadan birleşsin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P090",
+      "area": "Altyazıdan ses",
+      "title": "Alıntı içi soru ve retorik soruda söyleyiş seçimini değerlendir.",
+      "acceptance": "Her soru işareti aynı tona zorlanmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P091",
+      "area": "Altyazıdan ses",
+      "title": "Kaynak söyleyiş analizinin gürültülü/müzikli örneklerini genişlet.",
+      "acceptance": "Zayıf kanıttan duygu uydurulmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P092",
+      "area": "Altyazıdan ses",
+      "title": "Konuşmacı ve sahne değişimindeki ton sürekliliğini sına.",
+      "acceptance": "Farklı konuşmalar yanlış birleşmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P093",
+      "area": "Altyazıdan ses",
+      "title": "Anlam odağı ve vurgu aktarımı için sınırları belli prototip değerlendir.",
+      "acceptance": "Model desteği ve dinleme kazancı kanıtlansın.",
+      "kind": "Yeni uzantı/deneme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P094",
+      "area": "Altyazıdan ses",
+      "title": "Düşük sesli son hece ve ünsüzlerin korunmasını sına.",
+      "acceptance": "Sessizlik işlemi gerçek konuşmayı kesmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P095",
+      "area": "Altyazıdan ses",
+      "title": "Korunan arka plandaki özgün konuşma sızıntısını değerlendir.",
+      "acceptance": "Türkçe sesle yarışan diyalog anlaşılabilsin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P096",
+      "area": "Altyazıdan ses",
+      "title": "Çapraz kaynak oynatıcıda dublajdan özgün sese dönüşü sına.",
+      "acceptance": "Özgün ses kalıcı sessiz kalmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P097",
+      "area": "Altyazıdan ses",
+      "title": "Yavaşlatılmış bölgede atlama, duraklatma ve hız değişimini sına.",
+      "acceptance": "Doğru ses konumuna dönülsün.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P098",
+      "area": "Altyazıdan ses",
+      "title": "Uzun videoda senkron haritasının birikimli kaymasını ölç.",
+      "acceptance": "Son bölümde de konuşma eşleşsin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P099",
+      "area": "Altyazıdan ses",
+      "title": "Yenilenen grup birleşimlerinde çıt ve hece çakışmasını denetle.",
+      "acceptance": "Giriş ve çıkış birlikte doğrulansın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P100",
+      "area": "Altyazıdan ses",
+      "title": "Gruplar arasındaki ses düzeyini doğal dinamikleri koruyarak iyileştir.",
+      "acceptance": "Kasıtlı vurgu düzleştirilmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P101",
+      "area": "Altyazıdan ses",
+      "title": "Sorunlu grubun yakın bağlamını tek hareketle dinlet.",
+      "acceptance": "Eksik yeri zaman çizelgesinde aratmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P102",
+      "area": "Altyazıdan ses",
+      "title": "Süre uyarlamasını gerçek Türkçe konuşma süresiyle kalibre et.",
+      "acceptance": "Anlam budanmadan uygun alternatif seçilsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P103",
+      "area": "Altyazıdan ses",
+      "title": "Eşdeğer konuşma ifadelerini gereksiz reddeden korumaları incele.",
+      "acceptance": "Yanlış kabul oranı artırılmadan iyileşsin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P104",
+      "area": "Altyazıdan ses",
+      "title": "Tüm onarım yollarının toplam tekrar bütçesini ölç.",
+      "acceptance": "Bir grup süresiz denenmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P105",
+      "area": "Altyazıdan ses",
+      "title": "Editör geçici hatası sonrası önbellekli sesin yeniden denemesini sına.",
+      "acceptance": "Geçerli ses korunurken düzenleme tekrar denenebilsin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P106",
+      "area": "Altyazıdan ses",
+      "title": "Çıktı yazımı/dengeleme hatasında kullanılabilir sesi doğrula.",
+      "acceptance": "Yarım dosya hazır sayılmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P107",
+      "area": "Altyazıdan ses",
+      "title": "Her konuşma grubunun çıktı karşılığını son kez uzlaştır.",
+      "acceptance": "Atlanan grup tamamlandı sayılmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P108",
+      "area": "Altyazıdan ses",
+      "title": "Örnekten tam üretime referans ve okunuş tutarlılığını sına.",
+      "acceptance": "Örnekteki seçim sessizce değişmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P109",
+      "area": "Altyazıdan ses",
+      "title": "Kaynak veya referans değişince eski sonucu doğru etiketle.",
+      "acceptance": "Yanlış videoya eski ses uygulanmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P110",
+      "area": "Altyazıdan ses",
+      "title": "İnceleme klavyesini ve sade sonuç ekranını tamamla.",
+      "acceptance": "Ana eylemler dar pencerede erişilsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "tools/voxcpm2/altyazi_oku.py",
+        "dub_finish.py",
+        "dub_candidate.py",
+        "dub_delivery.py",
+        "src/dub-service.js",
+        "src/renderer/dub-generator-ui.js"
+      ]
+    },
+    {
+      "id": "P111",
+      "area": "Ses için çeviri",
+      "title": "Videonun geç başlayan konularına yerel bağlam seçimini geliştir.",
+      "acceptance": "Açılış konusu bütün videoya dayatılmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P112",
+      "area": "Ses için çeviri",
+      "title": "İngilizce dışı kaynaklarda anlam korumasının kapsamını ölç.",
+      "acceptance": "Desteklenmeyen kontrol başarı diye sayılmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P113",
+      "area": "Ses için çeviri",
+      "title": "Şüpheli transkripsiyonun çeviriye etkisini görünür kıl.",
+      "acceptance": "Belirsiz söz kesin bilgiye dönüşmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P114",
+      "area": "Ses için çeviri",
+      "title": "Özne, nesne, alıcı ve sahiplik için zor karşılaştırma seti oluştur.",
+      "acceptance": "Rol değişiklikleri ayrı ölçülsün.",
+      "kind": "Yeni uzantı/deneme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P115",
+      "area": "Ses için çeviri",
+      "title": "Belirsiz zamirlerde güvenilir bağlam yoksa kesinleştirmeyi önle.",
+      "acceptance": "Uydurulan kişi eklenmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P116",
+      "area": "Ses için çeviri",
+      "title": "Olumsuzluk kapsamı ve çift olumsuzlukları karşılaştırmalı sına.",
+      "acceptance": "Yalnız “değil” varlığı yeterli sayılmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P117",
+      "area": "Ses için çeviri",
+      "title": "Unless/until/without türü olumsuz koşulları kapsamlı sına.",
+      "acceptance": "Koşulun yönü korunabilsin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P118",
+      "area": "Ses için çeviri",
+      "title": "Rica, alışkanlık ve olasılık kiplerini ayırt etmeyi geliştir.",
+      "acceptance": "Could/would tek kategori sayılmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P119",
+      "area": "Ses için çeviri",
+      "title": "Göreli zaman ve anlatı zamanını korumayı sına.",
+      "acceptance": "Önce/sonra veya geçmiş/gelecek ters dönmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P120",
+      "area": "Ses için çeviri",
+      "title": "Nicelik kapsamını sesli metinde korumayı sına.",
+      "acceptance": "Yalnız, en az ve hariç ayrışsın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P121",
+      "area": "Ses için çeviri",
+      "title": "Karşılaştırma yönü ve çarpanları zor örneklerle sına.",
+      "acceptance": "Özne ve değer tersine çevrilmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P122",
+      "area": "Ses için çeviri",
+      "title": "Birim ve para dönüşümlerinin kaynak dışı eklenmesini önle.",
+      "acceptance": "Doğal söyleyiş olguyu değiştirmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P123",
+      "area": "Ses için çeviri",
+      "title": "Terim karşılığı, ilk açılım ve sonraki kullanımı birlikte yönet.",
+      "acceptance": "Aynı kavram partiler arasında değişmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P124",
+      "area": "Ses için çeviri",
+      "title": "Sen/siz kararını ilişki ve sahne düzeyinde düzeltilebilir kıl.",
+      "acceptance": "Bir kişinin tercihi herkese yayılmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P125",
+      "area": "Ses için çeviri",
+      "title": "Diyalogdaki kişi ve hitap üslubunun sürekliliğini değerlendir.",
+      "acceptance": "Anlatıcı dili karaktere dayatılmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P126",
+      "area": "Ses için çeviri",
+      "title": "Deyim, mizah ve sözcük oyunu için kontrollü değerlendirme yap.",
+      "acceptance": "Akıcı çeviri şakanın işlevini ters çevirmesin.",
+      "kind": "Yeni uzantı/deneme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P127",
+      "area": "Ses için çeviri",
+      "title": "Felsefi/teknik ayrımları doğal Türkçede koruyan testler kur.",
+      "acceptance": "Yakın terimler aynı kavrama eritilmesin.",
+      "kind": "Yeni uzantı/deneme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P128",
+      "area": "Ses için çeviri",
+      "title": "Konuşma dilini gereksiz resmî isim-fiil zincirlerinden arındır.",
+      "acceptance": "Belgesel ve gündelik üslup karışmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P129",
+      "area": "Ses için çeviri",
+      "title": "Anlamlı tekrar, tereddüt ve vurgu noktalamasını sına.",
+      "acceptance": "Akıcılık adına konuşmanın işlevi silinmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P130",
+      "area": "Ses için çeviri",
+      "title": "Seçili aralığın yarım cümle sınırlarına bağlam sağla.",
+      "acceptance": "Aralık dışındaki metin değiştirilmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P131",
+      "area": "Ses için çeviri",
+      "title": "Ekran altyazısı ile konuşma metnini izlenebilir eşleştir.",
+      "acceptance": "Hangi varyantın okunduğu açık kalsın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P132",
+      "area": "Ses için çeviri",
+      "title": "Kaynak, ilk çeviri ve son konuşma metnindeki farkı göster.",
+      "acceptance": "Yalnız değişen anlamlı bölüm vurgulansın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P133",
+      "area": "Ses için çeviri",
+      "title": "Doğru eşdeğerleri reddeden kalite kapılarını hata türüne göre kalibre et.",
+      "acceptance": "Yeni anlam kaybı kabul edilmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P134",
+      "area": "Ses için çeviri",
+      "title": "Tek düzeltmede yalnız etkilenen çeviri gruplarını yeniden işle.",
+      "acceptance": "Onaylı komşular ve istekler korunabilsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P135",
+      "area": "Ses için çeviri",
+      "title": "Bir hatayı onaran adayın başka anlam hatası eklemesini sına.",
+      "acceptance": "İlk geçerli metin kaybolmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "backend/sentence_translation.py",
+        "backend/speech_relations.py",
+        "src/dub-editor-client.js"
+      ]
+    },
+    {
+      "id": "P136",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Mevcut manuel/otomatik altyazı ile Whisper seçimini kaliteye göre değerlendir.",
+      "acceptance": "Kaynak türü tek başına kalite sayılmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P137",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Video içindeki dil değişimlerinin etkisini ölç.",
+      "acceptance": "Kısa yabancı bölüm yanlış temizlenmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P138",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Seçili kesitte ilk sözcük ve özgün zaman ofsetini sına.",
+      "acceptance": "Başlangıç konuşması kaybolmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P139",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Medya sonundaki son sözcük ve cue süresini sına.",
+      "acceptance": "Son replik erken bitmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P140",
+      "area": "Normal altyazı ve Whisper",
+      "title": "VAD ve filtrelerde kısa gerçek yanıtları korumayı sına.",
+      "acceptance": "Evet/yok/dur yanlış silinmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P141",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Fısıltı ve gürültülü konuşmada güven işaretlemesini geliştir.",
+      "acceptance": "Düşük güven otomatik silmeye dönüşmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P142",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Üst üste konuşmada mevcut ayrıştırma sınırlarını açık göster.",
+      "acceptance": "Tek konuşmacı sonucu eksiksiz sanılmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P143",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Mikro cue birleştirmesinde konuşmacı sınırını doğrula.",
+      "acceptance": "Başka kişinin sözüne metin taşınmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P144",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Mikro cue birleşiminde biçim ve SDH sahipliğini koru.",
+      "acceptance": "Etiket yanlış repliğe geçmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P145",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Aynı başlangıçlı meşru cue'ların korunmasını sına.",
+      "acceptance": "Normalizasyon metin kaybettirmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P146",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Sessizliğe hizalamada yanlış komşu konuşmaya atlamayı sına.",
+      "acceptance": "Zayıf kanıtta eski zaman korunsun.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P147",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Türkçe tamlama ve özel adlarda satır kırmayı geliştir.",
+      "acceptance": "Birlikte okunacak sözler gereksiz ayrılmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P148",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Soru parçacığı, bağlaç ve yüklemin cue sınırını iyileştir.",
+      "acceptance": "Anlamsız yarım replik oluşmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P149",
+      "area": "Normal altyazı ve Whisper",
+      "title": "CPS hesabını gerçekten görünen metin üzerinden doğrula.",
+      "acceptance": "Biçim etiketleri hızı şişirmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P150",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Kalite raporunu sorunlu cue'ya doğrudan gezinmeye bağla.",
+      "acceptance": "Kullanıcı tüm dosyayı taramasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P151",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Düşük güven bilgisinin bölme/birleştirme sonrası sahipliğini sına.",
+      "acceptance": "Başka cümle yanlış vurgulanmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P152",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Gerçek tekrar ve kekelemeyi halüsinasyondan ayırmayı sına.",
+      "acceptance": "Vurgu amaçlı tekrar kaybolmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P153",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Noktalama onarımının komşu iyi metni değiştirmemesini sına.",
+      "acceptance": "Kelime-zaman ilişkisi korunabilsin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P154",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Karışık dilde ad ve kısa alıntıların temizlenmesini denetle.",
+      "acceptance": "Yabancı ad script kirliliği sayılmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P155",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Devam sınırında eksik ve çift sözcükleri birlikte sına.",
+      "acceptance": "Checkpoint birleşimi eksiksiz ve tekrarsız olsun.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P156",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Değişmiş girdide eski devam noktasının reddini sına.",
+      "acceptance": "Aynı dosya adı yanlış eşleştirmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P157",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Ana sayfaya geçiş ve dönüşte altyazı işini uçtan uca sına.",
+      "acceptance": "İş ve canlı sonuç kaldığı yerden sürsün.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P158",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Türkçe kodlama onarımını okuma, düzenleme ve kayıtta doğrula.",
+      "acceptance": "Mojibake geri yazılmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P159",
+      "area": "Normal altyazı ve Whisper",
+      "title": "SRT/VTT/ASS dönüşümlerinde metin ve biçim bütünlüğünü sına.",
+      "acceptance": "Desteklenen etiket ve diyaloglar korunsun.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P160",
+      "area": "Normal altyazı ve Whisper",
+      "title": "Altyazı görünümünü video, ölçek ve ekran kenarlarında doğrula.",
+      "acceptance": "Metin kontrolleri ezmesin ve kesilmesin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "backend/transcribe.py",
+        "src/browser-subtitles.js",
+        "src/browser-subtitle-review.js",
+        "src/subtitle-sentence-layout.js",
+        "src/subtitle-output-contract.js"
+      ]
+    },
+    {
+      "id": "P161",
+      "area": "Medya kütüphanesi",
+      "title": "Tür, yönetmen, süre, puan ve izleme durumunu birlikte filtrele.",
+      "acceptance": "Etkin filtreler ayrı kaldırılabilsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/renderer/media-catalog.js",
+        "src/media-catalog-store.js",
+        "src/media-catalog-service.js",
+        "src/catalog-metadata-sync.js"
+      ]
+    },
+    {
+      "id": "P162",
+      "area": "Medya kütüphanesi",
+      "title": "Filtreli kütüphane görünümlerini kaydedilebilir kıl.",
+      "acceptance": "Açıldığında güncel sonuçlar hesaplansın.",
+      "kind": "Yeni uzantı/deneme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/renderer/media-catalog.js",
+        "src/media-catalog-store.js",
+        "src/media-catalog-service.js",
+        "src/catalog-metadata-sync.js"
+      ]
+    },
+    {
+      "id": "P163",
+      "area": "Medya kütüphanesi",
+      "title": "Sıralamada eksik bilgi ve sıfır puanı tutarlı işle.",
+      "acceptance": "Gerçek 0 boş bilgi sayılmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/renderer/media-catalog.js",
+        "src/media-catalog-store.js",
+        "src/media-catalog-service.js",
+        "src/catalog-metadata-sync.js"
+      ]
+    },
+    {
+      "id": "P164",
+      "area": "Medya kütüphanesi",
+      "title": "Mevcut koleksiyonları kurallı üyelik önizlemesiyle geliştir.",
+      "acceptance": "Listeden çıkarma yapımı silmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/renderer/media-catalog.js",
+        "src/media-catalog-store.js",
+        "src/media-catalog-service.js",
+        "src/catalog-metadata-sync.js"
+      ]
+    },
+    {
+      "id": "P165",
+      "area": "Medya kütüphanesi",
+      "title": "Toplu durum düzenlemesini önizleme ve geri almayla güçlendir.",
+      "acceptance": "Etkilenen kayıt sayısı açık olsun.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/renderer/media-catalog.js",
+        "src/media-catalog-store.js",
+        "src/media-catalog-service.js",
+        "src/catalog-metadata-sync.js"
+      ]
+    },
+    {
+      "id": "P166",
+      "area": "Medya kütüphanesi",
+      "title": "Ayrıntıdan dönüşte filtre, kaydırma ve odağı koru.",
+      "acceptance": "Kullanıcı aynı karta dönebilsin.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/renderer/media-catalog.js",
+        "src/media-catalog-store.js",
+        "src/media-catalog-service.js",
+        "src/catalog-metadata-sync.js"
+      ]
+    },
+    {
+      "id": "P167",
+      "area": "Medya kütüphanesi",
+      "title": "Yönetmen/oyuncu bağlantılarından yerel yapımlara gezinmeyi geliştir.",
+      "acceptance": "Eşleşmenin kapsamı anlaşılır olsun.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/renderer/media-catalog.js",
+        "src/media-catalog-store.js",
+        "src/media-catalog-service.js",
+        "src/catalog-metadata-sync.js"
+      ]
+    },
+    {
+      "id": "P168",
+      "area": "Medya kütüphanesi",
+      "title": "Tam/özgün başlık ve özet aramasının sıralamasını iyileştir.",
+      "acceptance": "Tam başlık tesadüfi özet eşleşmesini geçsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/renderer/media-catalog.js",
+        "src/media-catalog-store.js",
+        "src/media-catalog-service.js",
+        "src/catalog-metadata-sync.js"
+      ]
+    },
+    {
+      "id": "P169",
+      "area": "Medya kütüphanesi",
+      "title": "Sonuç yokken kontrollü yazım önerileri sun.",
+      "acceptance": "Sorgu kendiliğinden değiştirilmesin.",
+      "kind": "Yeni uzantı/deneme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/renderer/media-catalog.js",
+        "src/media-catalog-store.js",
+        "src/media-catalog-service.js",
+        "src/catalog-metadata-sync.js"
+      ]
+    },
+    {
+      "id": "P170",
+      "area": "Medya kütüphanesi",
+      "title": "Aynı yapımın dosya sürümlerini ortak detayda yönet.",
+      "acceptance": "Kaynak, süre ve ilerleme ayrı kalsın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/renderer/media-catalog.js",
+        "src/media-catalog-store.js",
+        "src/media-catalog-service.js",
+        "src/catalog-metadata-sync.js"
+      ]
+    },
+    {
+      "id": "P171",
+      "area": "Medya kütüphanesi",
+      "title": "Dizide sıradaki bölüm ve sezon ilerlemesini tutarlı göster.",
+      "acceptance": "Görünen bölüm gerçekten oynatılsın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/renderer/media-catalog.js",
+        "src/media-catalog-store.js",
+        "src/media-catalog-service.js",
+        "src/catalog-metadata-sync.js"
+      ]
+    },
+    {
+      "id": "P172",
+      "area": "Medya kütüphanesi",
+      "title": "Yanlış metadata eşleşmesini kanıtlı önizlemeyle düzelt.",
+      "acceptance": "Doğru dosya/ilerleme bağlantısı korunsun.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/renderer/media-catalog.js",
+        "src/media-catalog-store.js",
+        "src/media-catalog-service.js",
+        "src/catalog-metadata-sync.js"
+      ]
+    },
+    {
+      "id": "P173",
+      "area": "Medya kütüphanesi",
+      "title": "Eksik afiş ve thumbnail onarımını görünür ve ölçülü yap.",
+      "acceptance": "Bozuk görsel boş kart gibi kalmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/renderer/media-catalog.js",
+        "src/media-catalog-store.js",
+        "src/media-catalog-service.js",
+        "src/catalog-metadata-sync.js"
+      ]
+    },
+    {
+      "id": "P174",
+      "area": "Medya kütüphanesi",
+      "title": "Kaybolan yerel dosyayı kimliğini koruyarak yeniden bağla.",
+      "acceptance": "İzleme geçmişi ve altyazı bağı kaybolmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/renderer/media-catalog.js",
+        "src/media-catalog-store.js",
+        "src/media-catalog-service.js",
+        "src/catalog-metadata-sync.js"
+      ]
+    },
+    {
+      "id": "P175",
+      "area": "Medya kütüphanesi",
+      "title": "Büyük kütüphanede kaydırma ve kart çizimini ölçerek iyileştir.",
+      "acceptance": "Tasarım, odak ve konum korunabilsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/renderer/media-catalog.js",
+        "src/media-catalog-store.js",
+        "src/media-catalog-service.js",
+        "src/catalog-metadata-sync.js"
+      ]
+    },
+    {
+      "id": "P176",
+      "area": "Letterboxd ve yorum analizi",
+      "title": "Her yorumun güvenli özgün bağlantısını analizde koru.",
+      "acceptance": "Alıntıdan doğru yoruma gidilsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Uygulandı — parser, kayıt ve native ekran",
+      "modules": [
+        "src/letterboxd-reviews.js",
+        "src/letterboxd-auto.js",
+        "src/renderer/review-decision-ui.js",
+        "src/renderer/media-tools-ui.js"
+      ],
+      "progressNote": "Her yorumun güvenli özgün bağlantısı kayda ve kanıt kartına taşınır; komşu yorum ve gövde içi sahte link sahiplenilmez.",
+      "evidence": "docs/audits/product200-package01-2026-10-31/README.md"
+    },
+    {
+      "id": "P177",
+      "area": "Letterboxd ve yorum analizi",
+      "title": "Yorum kartının tarih ve puanını komşusundan ayırarak al.",
+      "acceptance": "Eksik alan tahmin edilmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Uygulandı — parser, kayıt ve native ekran",
+      "modules": [
+        "src/letterboxd-reviews.js",
+        "src/letterboxd-auto.js",
+        "src/renderer/review-decision-ui.js",
+        "src/renderer/media-tools-ui.js"
+      ],
+      "progressNote": "Tarih ve 0.5–5 yıldız puanı kendi yorum kartından alınır; bulunmayan alanlar tahmin edilmez.",
+      "evidence": "docs/audits/product200-package01-2026-10-31/README.md"
+    },
+    {
+      "id": "P178",
+      "area": "Letterboxd ve yorum analizi",
+      "title": "Popüler/yeni/yüksek/düşük puan sıralamalarını örnek kaynağına bağla.",
+      "acceptance": "Analizin hangi havuzu kullandığı görülsün.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/letterboxd-reviews.js",
+        "src/letterboxd-auto.js",
+        "src/renderer/review-decision-ui.js",
+        "src/renderer/media-tools-ui.js"
+      ]
+    },
+    {
+      "id": "P179",
+      "area": "Letterboxd ve yorum analizi",
+      "title": "Olumlu, olumsuz ve yeni yorumlardan dengeli örnekleme geliştir.",
+      "acceptance": "Gerçek kapsama sayıları açık olsun.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/letterboxd-reviews.js",
+        "src/letterboxd-auto.js",
+        "src/renderer/review-decision-ui.js",
+        "src/renderer/media-tools-ui.js"
+      ]
+    },
+    {
+      "id": "P180",
+      "area": "Letterboxd ve yorum analizi",
+      "title": "Yorum örneğini görsel dahil et/çıkar kartlarıyla düzenle.",
+      "acceptance": "Yalnız seçili yorumlar modele gitsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Uygulandı — native seçim → gönder → kayıt",
+      "modules": [
+        "src/letterboxd-reviews.js",
+        "src/letterboxd-auto.js",
+        "src/renderer/review-decision-ui.js",
+        "src/renderer/media-tools-ui.js"
+      ],
+      "progressNote": "Yorumları tek tek dahil et/çıkar; bütçe her seçimde hesaplanır; yalnız gerçek seçilen metin gönderilip kaydedilir, spoiler açık izinsiz görünmez.",
+      "evidence": "docs/audits/product200-package01-2026-10-31/README.md"
+    },
+    {
+      "id": "P181",
+      "area": "Letterboxd ve yorum analizi",
+      "title": "Uzun yorumun bütün bütçeyi tüketmesini önle.",
+      "acceptance": "Kısaltılan ve dışlanan kaynak sayısı doğru kalsın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/letterboxd-reviews.js",
+        "src/letterboxd-auto.js",
+        "src/renderer/review-decision-ui.js",
+        "src/renderer/media-tools-ui.js"
+      ]
+    },
+    {
+      "id": "P182",
+      "area": "Letterboxd ve yorum analizi",
+      "title": "Yorum dili filtresi ve yanlış dil düzeltmesini ekle.",
+      "acceptance": "Bilinmeyen dil ayrıca gösterilsin.",
+      "kind": "Yeni uzantı/deneme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/letterboxd-reviews.js",
+        "src/letterboxd-auto.js",
+        "src/renderer/review-decision-ui.js",
+        "src/renderer/media-tools-ui.js"
+      ]
+    },
+    {
+      "id": "P183",
+      "area": "Letterboxd ve yorum analizi",
+      "title": "Alıntının isteğe bağlı Türkçe karşılığını özgünle birlikte göster.",
+      "acceptance": "Çeviri özgün alıntı sanılmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/letterboxd-reviews.js",
+        "src/letterboxd-auto.js",
+        "src/renderer/review-decision-ui.js",
+        "src/renderer/media-tools-ui.js"
+      ]
+    },
+    {
+      "id": "P184",
+      "area": "Letterboxd ve yorum analizi",
+      "title": "Yorum sayısıyla bağımsız yazar sayısını ayır.",
+      "acceptance": "Tek yazar çok görüş gibi görünmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/letterboxd-reviews.js",
+        "src/letterboxd-auto.js",
+        "src/renderer/review-decision-ui.js",
+        "src/renderer/media-tools-ui.js"
+      ]
+    },
+    {
+      "id": "P185",
+      "area": "Letterboxd ve yorum analizi",
+      "title": "Yakın kopya yorumları inceleme adayı olarak işaretle.",
+      "acceptance": "Benzer metin bağımsız kanıt sayılmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/letterboxd-reviews.js",
+        "src/letterboxd-auto.js",
+        "src/renderer/review-decision-ui.js",
+        "src/renderer/media-tools-ui.js"
+      ]
+    },
+    {
+      "id": "P186",
+      "area": "Letterboxd ve yorum analizi",
+      "title": "Spoiler, tekrar ve bütçe nedeniyle dışlananları ayrı say.",
+      "acceptance": "Getirilen/uygun/gönderilen sayıları uzlaşsın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Uygulandı — bilinen yüklü örneğin sayıları",
+      "modules": [
+        "src/letterboxd-reviews.js",
+        "src/letterboxd-auto.js",
+        "src/renderer/review-decision-ui.js",
+        "src/renderer/media-tools-ui.js"
+      ],
+      "progressNote": "Kaynak okuma ve analiz seçimi ayrı neden/sayılarla gösterilir; görülmeyen yorum sayısı tahmin edilmez, sınırlı örnek açıkça belirtilir.",
+      "evidence": "docs/audits/product200-package01-2026-10-31/README.md"
+    },
+    {
+      "id": "P187",
+      "area": "Letterboxd ve yorum analizi",
+      "title": "Eski ve yeni yorum örneklerini kaynak farklarıyla karşılaştır.",
+      "acceptance": "Analiz öncesi değişiklik anlaşılabilsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/letterboxd-reviews.js",
+        "src/letterboxd-auto.js",
+        "src/renderer/review-decision-ui.js",
+        "src/renderer/media-tools-ui.js"
+      ]
+    },
+    {
+      "id": "P188",
+      "area": "Letterboxd ve yorum analizi",
+      "title": "Profil veya örnek değişince analiz güncelliğini belirt.",
+      "acceptance": "Eski analiz yeniymiş gibi sunulmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/letterboxd-reviews.js",
+        "src/letterboxd-auto.js",
+        "src/renderer/review-decision-ui.js",
+        "src/renderer/media-tools-ui.js"
+      ]
+    },
+    {
+      "id": "P189",
+      "area": "Letterboxd ve yorum analizi",
+      "title": "Tempo, hikâye ve oyunculuk görüşlerini kişisel tercihle kanıtlı eşleştir.",
+      "acceptance": "Kanıt olmayan alanda yeterli yorum yok densin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/letterboxd-reviews.js",
+        "src/letterboxd-auto.js",
+        "src/renderer/review-decision-ui.js",
+        "src/renderer/media-tools-ui.js"
+      ]
+    },
+    {
+      "id": "P190",
+      "area": "Letterboxd ve yorum analizi",
+      "title": "Yorum getirmede kesinti ve erişim engelini açık yönet.",
+      "acceptance": "Önbellek ve kısmi sonuç tam sayılmasın.",
+      "kind": "Önce doğrula; eksikse düzelt",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/letterboxd-reviews.js",
+        "src/letterboxd-auto.js",
+        "src/renderer/review-decision-ui.js",
+        "src/renderer/media-tools-ui.js"
+      ]
+    },
+    {
+      "id": "P191",
+      "area": "Zevk profili",
+      "title": "Profil kanıtını IMDb/TMDB kimlikleriyle daha sağlam birleştir.",
+      "acceptance": "Farklı dilde aynı yapım tanınsın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/media-taste.js",
+        "src/taste-quiz.js",
+        "src/renderer/media-taste-ui.js",
+        "src/media-discovery-service.js"
+      ]
+    },
+    {
+      "id": "P192",
+      "area": "Zevk profili",
+      "title": "Yeniden izlemelerin profil ağırlığını görünür ve denetlenebilir yap.",
+      "acceptance": "İzleme sayısı benzersiz eserle karışmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/media-taste.js",
+        "src/taste-quiz.js",
+        "src/renderer/media-taste-ui.js",
+        "src/media-discovery-service.js"
+      ]
+    },
+    {
+      "id": "P193",
+      "area": "Zevk profili",
+      "title": "Son dönem zevkiyle bütün geçmişi karşılaştır.",
+      "acceptance": "İki dönemin örnek sayıları ayrılsın.",
+      "kind": "Yeni uzantı/deneme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/media-taste.js",
+        "src/taste-quiz.js",
+        "src/renderer/media-taste-ui.js",
+        "src/media-discovery-service.js"
+      ]
+    },
+    {
+      "id": "P194",
+      "area": "Zevk profili",
+      "title": "Tür tercihini kişinin genel puanlama eğilimine göre değerlendir.",
+      "acceptance": "Göreli beğeni açık gerekçelendirilsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/media-taste.js",
+        "src/taste-quiz.js",
+        "src/renderer/media-taste-ui.js",
+        "src/media-discovery-service.js"
+      ]
+    },
+    {
+      "id": "P195",
+      "area": "Zevk profili",
+      "title": "Tür adlarını dil yerine ortak kimlikle birleştir.",
+      "acceptance": "Drama ve Dram ayrı kanıt sayılmasın.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/media-taste.js",
+        "src/taste-quiz.js",
+        "src/renderer/media-taste-ui.js",
+        "src/media-discovery-service.js"
+      ]
+    },
+    {
+      "id": "P196",
+      "area": "Zevk profili",
+      "title": "Eşleşmeyen veya eksik profil kanıtını düzeltilebilir kuyruğa al.",
+      "acceptance": "Düzelen kayıt kapsamı güncellesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/media-taste.js",
+        "src/taste-quiz.js",
+        "src/renderer/media-taste-ui.js",
+        "src/media-discovery-service.js"
+      ]
+    },
+    {
+      "id": "P197",
+      "area": "Zevk profili",
+      "title": "Kişisel yorum analizinin örneğini çeşitlilikle seç.",
+      "acceptance": "Kullanıcı seçilen kanıtları görebilsin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/media-taste.js",
+        "src/taste-quiz.js",
+        "src/renderer/media-taste-ui.js",
+        "src/media-discovery-service.js"
+      ]
+    },
+    {
+      "id": "P198",
+      "area": "Zevk profili",
+      "title": "Analizdeki tercih çıkarımlarını tek tek kabul/ret yönet.",
+      "acceptance": "Reddedilen çıkarım öneriye girmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/media-taste.js",
+        "src/taste-quiz.js",
+        "src/renderer/media-taste-ui.js",
+        "src/media-discovery-service.js"
+      ]
+    },
+    {
+      "id": "P199",
+      "area": "Zevk profili",
+      "title": "Açık tercih, quiz ve geçmiş arasındaki çelişkiyi açık göster.",
+      "acceptance": "Kullanıcının açık tercihi ezilmesin.",
+      "kind": "Mevcut temeli geliştirme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/media-taste.js",
+        "src/taste-quiz.js",
+        "src/renderer/media-taste-ui.js",
+        "src/media-discovery-service.js"
+      ]
+    },
+    {
+      "id": "P200",
+      "area": "Zevk profili",
+      "title": "Tercih değişikliğinin önerilere etkisini kaydetmeden önizle.",
+      "acceptance": "Değişen aday ve gerekçe görülsün.",
+      "kind": "Yeni uzantı/deneme",
+      "status": "Bekliyor — kullanıcı uygulamayı onayladı",
+      "modules": [
+        "src/media-taste.js",
+        "src/taste-quiz.js",
+        "src/renderer/media-taste-ui.js",
+        "src/media-discovery-service.js"
+      ]
+    }
+  ],
+  "activePackage": "01-source-workspace-reviews",
+  "executionStatus": "Aktif; kalan maddeler sonraki somut paketlerde sürdürülecek."
+}

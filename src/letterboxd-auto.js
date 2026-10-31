@@ -33,7 +33,7 @@ async function fetchReviews(item,{count=24,spoilers=false,signal,fetchImpl=fetch
   const resolved=await page(lookup),match=/^https:\/\/letterboxd\.com\/film\/([a-z0-9-]+)\//.exec(resolved.url);
   if(!match)throw Error('No Letterboxd film matched this identifier. Use a verified film reviews URL.');
   const base='https://letterboxd.com/film/'+match[1]+'/',reviews=[],seen=new Set();
-  let identity=null,pageTitle='',pages=0,partial=false,warning='',limited=false;
+  let identity=null,pageTitle='',pages=0,partial=false,warning='',limited=false;const excluded={spoiler:0,duplicate:0,unreadable:0,size:0,requested:0};
   // At most four pages, including extra room for excluded spoilers/duplicates.
   for(let index=1;index<=4&&reviews.length<count;index++){
     const url=base+'reviews/by/activity/'+(index>1?'page/'+index+'/':'');
@@ -50,19 +50,20 @@ async function fetchReviews(item,{count=24,spoilers=false,signal,fetchImpl=fetch
       partial=true;warning=error.message;break;
     }
     pages++;identity=parsed.identity;pageTitle=parsed.pageTitle;limited=limited||parsed.limited;
-    let added=0;
+    excluded.duplicate+=parsed.excluded?.duplicate||0;excluded.unreadable+=parsed.excluded?.unreadable||0;let added=0;
     for(const row of parsed.reviews){
-      if(!spoilers&&row.spoiler)continue;
-      const key=row.text.normalize('NFKC').replace(/\s+/g,' ').trim();if(seen.has(key))continue;seen.add(key);
-      reviews.push({...row,id:String(reviews.length+1)});added++;if(reviews.length===count)break;
+      if(!spoilers&&row.spoiler){excluded.spoiler++;continue;}
+      const key=row.text.normalize('NFKC').replace(/\s+/g,' ').trim();if(seen.has(key)){excluded.duplicate++;continue;}seen.add(key);
+      if(reviews.length===count){excluded.requested++;continue;}
+      reviews.push({...row,id:String(reviews.length+1)});added++;
     }
     if(!parsed.reviews.length||(!added&&index>1))break;
   }
   if(!reviews.length)throw Error('No readable non-spoiler reviews found. Try the Browser or import a sample.');
   // The existing editor has a 120k JSON bound; preserve complete rows within it.
-  while(JSON.stringify(reviews).length>120000){reviews.pop();limited=true;}
+  while(JSON.stringify(reviews).length>120000){reviews.pop();excluded.size++;limited=true;}
   combined.throwIfAborted();
   return {reviews,url:base+'reviews/by/activity/',identity,pageTitle,pages,requested:count,
-    partial,warning,limited:limited||reviews.length<count,match:matchFilm(item,identity),resolvedBy:'provider-identifier'};
+    partial,warning,excluded,limited:limited||reviews.length<count,match:matchFilm(item,identity),resolvedBy:'provider-identifier'};
 }
 module.exports={lookupUrl,trusted,fetchReviews};

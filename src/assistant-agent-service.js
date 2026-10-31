@@ -82,10 +82,15 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
     if(name==='get_source_context')return {source:manifest.publicContext(owner),data:manifest.sourceText(input.context,10000)};
     if(name==='list_subtitle_tracks')return {tracks:owner.tracks};
     if(name==='search_subtitles'||name==='get_current_subtitle'){
-     const words=[...new Set(fold(args.query).match(/[\p{L}\p{N}]+/gu)||[])].filter(word=>word.length>1).slice(0,24);
-     const matches=name==='get_current_subtitle'?sourcePool.filter(row=>row.start<=owner.time&&row.end>=owner.time).slice(0,3):sourcePool.map(row=>({row,score:words.reduce((score,word)=>score+(fold(row.text+' '+row.translation).includes(word)?1:0),0)})).filter(row=>row.score).sort((a,b)=>b.score-a.score||a.row.start-b.row.start).slice(0,8).map(row=>row.row);
+     const result=await requestRenderer(event.sender,owner,name,args,controller.signal);
+     controller.signal.throwIfAborted();requireOwner(owner);
+     if(result?.status!=='completed')throw Error(result?.error||'Subtitle retrieval failed.');
+     if(!Array.isArray(result.matches)||result.matches.length>8||!['watched','nearby','full'].includes(result.transcriptScope)||!Number.isFinite(result.position)||result.position<0||!Number.isSafeInteger(result.searchedCues)||result.searchedCues<result.matches.length)throw Error('Invalid subtitle retrieval result.');
+     const matches=manifest.pool(result.matches);
+     if(matches.length!==result.matches.length||result.matches.some(row=>typeof row.text!=='string'||typeof row.translation!=='string'||!/^U(?:0|[1-9]\d*)$/.test(row.id)||!Number.isSafeInteger(Number(row.id.slice(1)))||(result.transcriptScope==='watched'&&row.start>result.position+.75)||(result.transcriptScope==='nearby'&&Math.abs(row.start-result.position)>180)||(name==='get_current_subtitle'&&(row.start>result.position||row.end<result.position))))throw Error('Invalid subtitle retrieval evidence.');
      for(const row of matches)evidence.set(row.id,row);
-     emit(event.sender,{type:'evidence',requestId:session.id,evidence:[...evidence.values()]});return {matches,scope:'Only the supplied subtitle pool was searched.'};
+     emit(event.sender,{type:'evidence',requestId:session.id,evidence:[...evidence.values()]});
+     return {status:'completed',matches,transcriptScope:result.transcriptScope,position:result.position,searchedCues:result.searchedCues,scope:'The complete currently eligible subtitle rows were searched; only bounded matching excerpts are returned. The rest of the transcript was not read.'};
     }
     if(entry.policy==='proposal'){
      attempted++;
@@ -109,7 +114,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
      if(name==='translate_video_captions'){const probe=captionProbes.get(event.sender.id);if(!probe||probe.expires<Date.now()||!manifest.same(probe.owner,owner)||!probe.languages.some(row=>row.id===args.caption_id))throw Error('Probe this video first and select a real caption ID.');}
      if(name==='use_job_subtitles')subtitleBinding(args,owner);
      if(name==='cancel_job'&&!getJobs().jobs.some(row=>row.id===args.job_id&&row.cancellable))throw Error('Job is no longer cancellable.');
-     if(['seek_to_time','preview_translation_change','open_subtitle_editor'].includes(name)&&!sourcePool.some(row=>row.id===args.source_id))throw Error('Unknown source subtitle ID.');
+     if(['seek_to_time','preview_translation_change','open_subtitle_editor'].includes(name)&&!sourcePool.some(row=>row.id===args.source_id)&&!evidence.has(args.source_id))throw Error('Unknown source subtitle ID.');
      if(['translate_captions','load_caption_track'].includes(name)&&!owner.tracks.some(row=>row.id===args.track_id&&(name==='load_caption_track'||row.role==='source')))throw Error('Unknown source track ID.');
      for(const [key,row] of proposals)if(row.expires<Date.now())proposals.delete(key);
      const existing=[...proposals].find(([,row])=>row.flow===flow&&row.name===name&&JSON.stringify(row.args)===JSON.stringify(args));

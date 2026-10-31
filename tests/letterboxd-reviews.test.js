@@ -23,3 +23,21 @@ test('Personal fit distinguishes unsaved defaults from explicit preferences and 
 test('Fetched reviews fit the supported import size even when source text needs JSON escaping',()=>{
  const page=Array.from({length:50},(_,i)=>'<li><div class="js-review-body">'+i+' '+('&quot;'.repeat(4000))+'</div></li>').join('');const result=parseLetterboxdReviews(page);assert(result.reviews.length>0);assert(JSON.stringify(result.reviews).length<=110000);assert.equal(result.limited,true);
 });
+
+test('Review metadata belongs to its own card, including metadata after the body',()=>{
+ const page='<article><a class="name">First</a><div class="js-review-body">Acting was excellent. <a href="/intruder/film/other/">An unrelated link</a></div><a href="/first/film/example/2/"><time datetime="2026-10-30T12:00:00Z">Yesterday</time></a><span class="rating rated-7">★★★½</span></article><article><a href="javascript:alert(1)">bad</a><div class="js-review-body">Another opinion without source metadata.</div></article>';
+ const data=parseLetterboxdReviews(page);assert.equal(data.reviews[0].permalink,'https://letterboxd.com/first/film/example/2/');assert.equal(data.reviews[0].date,'2026-10-30');assert.equal(data.reviews[0].rating,3.5);for(const key of ['permalink','date','rating'])assert.equal(data.reviews[1][key],undefined);
+ const inside=parseLetterboxdReviews('<article><div class="js-review-body">A comment <a href="/fake/film/example/">with a fake review link</a><time datetime="2026-01-01">fake date</time><span class="rating rated-10">★★★★★</span></div></article>');assert.equal(inside.reviews[0].permalink,undefined);assert.equal(inside.reviews[0].rating,undefined);
+});
+
+test('Renderer and saved-review normalization retain verified metadata and reject unsafe source claims',()=>{
+ const client=require('../src/renderer/media-tools-model'),server=require('../src/media-tools-service');
+ const raw=JSON.stringify([{id:'a',text:'A source with usable metadata.',permalink:'https://letterboxd.com/reviewer/film/example/',date:'2026-10-30',rating:4.5},{id:'b',text:'A source with untrusted metadata.',permalink:'https://letterboxd.com.evil.test/reviewer/film/example/',date:'2026-02-30',rating:6},null]);
+ const rows=client.reviewRows(raw);assert.deepEqual(server.reviewRows(raw),rows);assert.equal(rows.length,2);assert.equal(rows[0].rating,4.5);assert.equal(rows[0].date,'2026-10-30');assert.equal(rows[0].permalink,'https://letterboxd.com/reviewer/film/example/');for(const key of ['permalink','date','rating'])assert.equal(rows[1][key],undefined);
+ for(const permalink of ['javascript:alert(1)','https://user:pass@letterboxd.com/reviewer/film/example/','https://letterboxd.com/reviewer/film/example/?secret=x','https://letterboxd.com/film/example/'])assert.equal(client.reviewMetadata({permalink}).permalink,undefined);
+});
+
+test('Every eligible review receives a precise inclusion or exclusion decision',()=>{
+ const rows=Array.from({length:22},(_,i)=>({id:String(i),text:'A sufficiently long review '+i+'.'})),sample=reviewSample(rows,10000);assert.equal(sample.decisions.length,22);assert.equal(sample.decisions.filter(r=>r.included).length,20);assert.equal(sample.decisions[21].reason,'review-limit');
+ const bounded=reviewSample([{id:'long',text:'x'.repeat(4000)},{id:'later',text:'A later complete comment about the acting.'}],180);assert.equal(bounded.decisions[0].reason,'shortened');assert.equal(bounded.decisions[0].originalLength,4000);assert.equal(bounded.decisions[0].sentLength,bounded.reviews[0].text.length);assert.equal(bounded.decisions[1].reason,'size-limit');
+});

@@ -18,10 +18,15 @@
  function current(owner){return contract.same(owner,snapshot());}
  async function execute(name,raw,owner,{deadline=Infinity,isCancelled=()=>false}={}){
   if(!current(owner))throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));
-  if(['seek_to_time','open_subtitle_editor'].includes(name)&&owner.subtitleKey!==snapshot().subtitleKey)throw Error(t('The subtitle track changed. Ask for a new action.','Altyazı izi değişti. Yeni bir işlem isteyin.'));
+  if(['seek_to_time','open_subtitle_editor','search_subtitles','get_current_subtitle'].includes(name)&&owner.subtitleKey!==snapshot().subtitleKey)throw Error(t('The subtitle track changed. Ask for a new action.','Altyazı izi değişti. Yeni bir işlem isteyin.'));
   if(isCancelled()||Date.now()>=deadline)throw Error(t('Application action expired.','Uygulama işleminin süresi doldu.'));
   const args=registry.validate(name,JSON.parse(JSON.stringify(raw)),snapshot());
   const stale=()=>isCancelled()||Date.now()>=deadline||!current(owner);
+  if(['search_subtitles','get_current_subtitle'].includes(name)){
+   const result=window.AssistantWorkspace.searchSubtitleContext(name,args);
+   if(stale()||owner.subtitleKey!==snapshot().subtitleKey)throw Error(t('The subtitle track or source changed.','Altyazı izi veya kaynak değişti.'));
+   return result;
+  }
   if(registry.get(name)?.domain==='music')return window.AssistantMusicActions.execute(name,args,owner,{deadline,isCancelled});
   if(['get_browser_tabs','browser_action'].includes(name))return window.AssistantBrowserActions.execute(name,args,owner,{deadline,isCancelled});
   if(['list_translation_profiles','get_translation_profile','set_translation_profile'].includes(name))return window.AssistantTranslationActions.execute(name,args,owner,{deadline,isCancelled});
@@ -80,7 +85,7 @@
   if(name==='open_settings'){
    await window.AppSettingsUI.open(args.section,{preserveAssistantContext:true});return {status:'completed',note:t('Settings opened.','Ayarlar açıldı.')};
   }
-  const pool=contract.pool(window.AssistantWorkspace?.toolContext()?.rows),source=pool.find(row=>row.id===args.source_id);
+  const source=window.AssistantWorkspace?.subtitleById(args.source_id,owner);
   if(!source)throw Error(t('The source subtitle is no longer in scope.','Kaynak altyazı artık seçili kapsamda değil.'));
   if(name==='open_subtitle_editor'){
    if(player.workspaceMode==='browser'){

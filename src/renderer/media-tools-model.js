@@ -1,25 +1,32 @@
 (function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory();else root.MediaToolsModel=factory();})(typeof window==='object'?window:globalThis,()=>{
 'use strict';
 const text = (v, limit=2000) => String(v ?? '').replace(/\0/g,'').trim().slice(0,limit);
+function reviewMetadata(row={}) {
+ const result={};try{const u=new URL(row.permalink);if(u.protocol==='https:'&&u.hostname==='letterboxd.com'&&!u.port&&!u.username&&!u.password&&!u.search&&!u.hash&&/^\/[a-z0-9_-]+\/film\/[a-z0-9-]+\/(?:[1-9]\d*\/)?$/i.test(u.pathname))result.permalink=u.href;}catch{}
+ const date=String(row.date||'');if(/^\d{4}-\d{2}-\d{2}$/.test(date)&&Number.isFinite(Date.parse(date))&&new Date(date).toISOString().slice(0,10)===date)result.date=date;
+ if(typeof row.rating==='number'&&row.rating>=0.5&&row.rating<=5&&Number.isInteger(row.rating*2))result.rating=row.rating;
+ return result;
+}
 function reviewRows(raw) {
   if (typeof raw !== 'string' || raw.length > 120000) throw Error('Use at most 120,000 characters.');
   let rows;
   if (raw.trim().startsWith('[')) { rows=JSON.parse(raw); if (!Array.isArray(rows)) throw Error('Expected a review array.'); }
   else rows=raw.split(/\n\s*\n/).map(body=>({text:body}));
-  const parsed=rows.slice(0,100).map((row,i)=>({id:text(row.id,80)||String(i+1),author:text(row.author,120),text:text(row.text,4000),spoiler:!!row.spoiler})).filter(r=>r.text.length>=8);
+  const parsed=rows.slice(0,100).map((row,i)=>({id:text(row?.id,80)||String(i+1),author:text(row?.author,120),text:text(row?.text,4000),spoiler:!!row?.spoiler,...reviewMetadata(row||{})})).filter(r=>r.text.length>=8);
   if(new Set(parsed.map(r=>r.id)).size!==parsed.length)throw Error('Review IDs must be unique.');return parsed;
 }
 function reviewSample(reviews, limit=4500) {
- const selected=[];let truncated=0;
+ const selected=[],decisions=[];let truncated=0;
  for(const row of reviews){
-   if(selected.length>=20)break;
+   if(selected.length>=20){decisions.push({id:row.id,included:false,reason:'review-limit'});continue;}
    let candidate={...row};const remaining=limit-JSON.stringify(selected).length-JSON.stringify({...candidate,text:''}).length-4;
-   if(remaining<80)continue;
+   if(remaining<80){decisions.push({id:row.id,included:false,reason:'size-limit'});continue;}
    // Count JSON escaping, not just source characters, so previews are complete and bounded.
-   if(JSON.stringify([...selected,candidate]).length>limit){let lo=0,hi=candidate.text.length;while(lo<hi){const mid=Math.ceil((lo+hi)/2);if(JSON.stringify([...selected,{...candidate,text:candidate.text.slice(0,mid)}]).length<=limit)lo=mid;else hi=mid-1;}if(lo<80)continue;candidate.text=candidate.text.slice(0,lo);truncated++;}
+   if(JSON.stringify([...selected,candidate]).length>limit){let lo=0,hi=candidate.text.length;while(lo<hi){const mid=Math.ceil((lo+hi)/2);if(JSON.stringify([...selected,{...candidate,text:candidate.text.slice(0,mid)}]).length<=limit)lo=mid;else hi=mid-1;}if(lo<80){decisions.push({id:row.id,included:false,reason:'size-limit'});continue;}candidate.text=candidate.text.slice(0,lo);truncated++;}
    selected.push(candidate);
+   decisions.push({id:row.id,included:true,reason:candidate.text.length<row.text.length?'shortened':'included',originalLength:row.text.length,sentLength:candidate.text.length});
  }
- return {reviews:selected,omitted:reviews.length-selected.length,truncated};
+ return {reviews:selected,omitted:reviews.length-selected.length,truncated,decisions};
 }
 function reviewAssessment(reviews, points=[]) {
  const normalize=value=>String(value||'').normalize('NFKC').replace(/\s+/g,' ').trim().toLocaleLowerCase('en-US');
@@ -69,5 +76,5 @@ function tonight(items, history=[], options={}) {
   return rows.sort((a,b)=>b.score-a.score||a.title.localeCompare(b.title)).slice(0,8);
 }
 
-return Object.freeze({reviewRows,reviewSample,reviewAssessment,decisionEvidence,verifyDecision,tonight});
+return Object.freeze({reviewRows,reviewMetadata,reviewSample,reviewAssessment,decisionEvidence,verifyDecision,tonight});
 });

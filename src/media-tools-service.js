@@ -6,12 +6,7 @@ const { atomicWriteFileSync } = require('./fsync-utils');
 const { run } = require('./browser-media-tools');
 const text = (v, limit=2000) => String(v ?? '').replace(/\0/g,'').trim().slice(0,limit);
 function reviewRows(raw) {
-  if (typeof raw !== 'string' || raw.length > 120000) throw Error('Use at most 120,000 characters.');
-  let rows;
-  if (raw.trim().startsWith('[')) { rows=JSON.parse(raw); if (!Array.isArray(rows)) throw Error('Expected a review array.'); }
-  else rows=raw.split(/\n\s*\n/).map(body=>({text:body}));
-  const parsed=rows.slice(0,100).map((row,i)=>({id:text(row.id,80)||String(i+1),author:text(row.author,120),text:text(row.text,4000),spoiler:!!row.spoiler})).filter(r=>r.text.length>=8);
-  if(new Set(parsed.map(r=>r.id)).size!==parsed.length)throw Error('Review IDs must be unique.');return parsed;
+  return require('./renderer/media-tools-model').reviewRows(raw);
 }
 function verifyDecision(raw, reviews) {
   if (!raw || !Array.isArray(raw.points) || !raw.points.length || raw.points.length>16) throw Error('Analysis needs 1–16 supported points.');

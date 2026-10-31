@@ -25,7 +25,7 @@
   ['open_subtitle_editor','subtitles','proposal','Open the existing editor at a real source subtitle. Does not save or overwrite text; the user edits and saves in the existing editor.',{source_id:string},['source_id'],'Altyazı düzenleyicisini aç'],
   ['list_subtitle_tracks','video','read','List captured caption tracks for this video. IDs are application-owned; never invent one.',{},[],'Altyazı izlerini listele'],
   ['search_subtitles','subtitles','read','Search the permitted subtitle scope by keywords. Returns real U IDs and timestamps. It is not exhaustive semantic search.',{query:{...string,maxLength:400}},['query'],'Altyazıda ara'],
-  ['get_current_subtitle','subtitles','read','Read the subtitle at the supplied playback position.',{},[],'Mevcut altyazıyı oku'],
+  ['get_current_subtitle','subtitles','read','Read the subtitle at the current playback position within the selected scope.',{},[],'Mevcut altyazıyı oku'],
   ['seek_to_time','subtitles','proposal','Offer a source-bound jump to a real subtitle. The user applies the card.',{source_id:string},['source_id'],'Bu sahneye git'],
   ['preview_translation_change','subtitles','proposal','Offer a translation for a real subtitle. The card copies the suggestion; it never overwrites a file.',{source_id:string,translation:{...string,maxLength:2000}},['source_id','translation'],'Çeviri önerisi'],
   ['start_whisper','video','proposal','Offer Whisper-only transcription or Whisper plus translation for the current YouTube video. No existing captions are required. A range needs both start/end in seconds. The user starts the card.',{translate:{type:'boolean'},...captionOptions},['translate'],'Whisper işlemi'],
