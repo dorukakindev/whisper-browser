@@ -122,8 +122,11 @@ app.whenReady().then(async () => {
   }
   const initialCount = await run('return (await window.api.mediaCatalog({action:"list"})).items.length'); assert.equal(initialCount, 1);
   const title = await run('const card=document.querySelector(".md-card");const title=card.querySelector(".mh-card-title").textContent;card.click();return title');
-  await until(() => run('return !!document.querySelector(".md-detail-body h2")'), 'details');
-  assert.equal(await run('return document.querySelector(".md-detail h2").textContent'), title);
+  await until(() => run('return !!document.querySelector(".md-detail-body h1")'), 'details');
+  assert.equal(await run('return document.querySelector(".md-detail h1").textContent'), title);
+  assert.equal(await run('return document.querySelector(".md-detail").tagName'), 'SECTION');
+  assert.equal(await run('return document.querySelectorAll("dialog.md-detail[open]").length'),0);
+  assert(await run('const p=document.querySelector(".md-detail").getBoundingClientRect();return p.width>=innerWidth-40'), 'Discovery uses the whole library page width');
   assert.equal(await run('return globalAssistantContext().title'),title,'Assistant follows explicit discovery selection');
   await run('await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true'); await wait(300);
   fs.writeFileSync(path.join(out, 'discover-details-tr.png'), (await win.webContents.capturePage()).toPNG());
@@ -152,6 +155,8 @@ app.whenReady().then(async () => {
   await until(() => run('return document.getElementById("mediaTitleDialog")?.open && !!document.querySelector(".mtd-hero")'), 'watchlist record');
   assert(await run('return !!document.querySelector(".mtd-hero .mh-primary") && globalAssistantContext().type==="library-title"'), 'Details expose our subtitle / dub workflow');
   assert.equal(await run('return (await window.api.mediaCatalog({action:"list"})).items.length'), 2);
+  assert.equal(await run('return document.getElementById("mediaTitleDialog").tagName'),'SECTION');
+  fs.writeFileSync(path.join(out,'library-title-page-tr.png'),(await win.webContents.capturePage()).toPNG());
   await run('document.getElementById("mediaTitleDialog").close();return true');
   await until(() => run('return document.querySelectorAll(".md-card").length>0'), 'return discovery');
   // Personal recommendations explain a real library genre seed and exclude owned titles.

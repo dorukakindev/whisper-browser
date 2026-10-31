@@ -5,6 +5,17 @@
   const safe=value=>typeof value==='string'&&value.length<8e6&&/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(value);
   let dialog,selected,opener,generation=0,item,storyJob;
   const originalStories=new Set();
+  let activePage=null;
+  function createPage(className){
+    activePage?.close();
+    const host=document.getElementById('mediaHome'),origin=document.activeElement,scroll=host.scrollTop;
+    const page=el('section',className+' media-title-page');page.tabIndex=-1;page.open=true;
+    page.close=()=>{if(!page.open)return;page.open=false;page.dispatchEvent(new Event('close'));page.remove();host.classList.remove('has-title-page');host.removeEventListener('click',navigate,true);document.removeEventListener('keydown',escape);if(activePage===page)activePage=null;host.scrollTop=scroll;if(origin?.isConnected)origin.focus({preventScroll:true});};
+    const navigate=event=>{if(event.target.closest('.mh-header button'))page.close();};
+    const escape=event=>{if(event.key==='Escape'&&!document.querySelector('dialog[open]')){event.preventDefault();page.close();}};
+    host.addEventListener('click',navigate,true);document.addEventListener('keydown',escape);host.classList.add('has-title-page');host.append(page);host.scrollTop=0;activePage=page;return page;
+  }
+
   async function request(action,options={}){const result=await window.api.mediaCatalog({action,id:selected,...options});if(result?.canceled)return result;if(!result?.ok)throw Error(result?.error||t('Could not complete this action.','İşlem tamamlanamadı.'));return result;}
   function button(label,run,primary=false){const node=el('button','mh-action'+(primary?' mh-primary':''),label);node.type='button';node.onclick=async()=>{if(node.disabled)return;node.disabled=true;const current=dialog;try{await run();}catch(error){if(current===dialog&&dialog?.open){const status=dialog.querySelector('[role=status]');status.textContent=error.message;status.classList.add('mtd-error');}}finally{node.disabled=false;}};return node;}
   function cancelStory(owner){const job=storyJob;if(!job||job.owner!==owner)return;storyJob=null;void window.api.mediaCatalog({action:'synopsis-stop',id:job.id,token:job.token}).catch(()=>{});}
@@ -79,12 +90,13 @@
   }
   async function open(id){
     if(dialog?.open&&selected===id){dialog.focus();return;}if(dialog)close();selected=id;item=null;opener=document.activeElement;
-    const current=el('dialog','mtd-dialog media-surface');current.id='mediaTitleDialog';current.dataset.uiUntranslated='';current.setAttribute('aria-labelledby','mediaTitleHeading');dialog=current;
+    if(!document.body.classList.contains('media-home-active'))await window.MediaHomeUI.returnHome();
+    const current=createPage('mtd-dialog media-surface');current.id='mediaTitleDialog';current.dataset.uiUntranslated='';current.setAttribute('aria-labelledby','mediaTitleHeading');dialog=current;
     const origin=opener;current.addEventListener('close',()=>{cancelStory(current);current.remove();if(dialog===current){generation++;dialog=null;if(origin?.isConnected)origin.focus({preventScroll:true});}void syncBrowserOcclusion();document.dispatchEvent(new Event('media-library-changed'));});
-    document.body.append(current);current.showModal();void syncBrowserOcclusion();current.append(el('h1','',t('Loading title…','Yapım yükleniyor…')));
+    void syncBrowserOcclusion();current.append(el('h1','',t('Loading title…','Yapım yükleniyor…')));
     try{await reload();current.querySelector('header button')?.focus({preventScroll:true});}catch(error){current.replaceChildren(el('p','',error.message),button(t('Close','Kapat'),close));}
   }
   document.addEventListener('ui-locale-change',()=>{if(dialog?.open&&item)draw(++generation);});
   document.addEventListener('media-metadata-updated',()=>{if(dialog?.open)void reload().catch(()=>{});});
-  window.MediaTitleUI=Object.freeze({open,close});
+  window.MediaTitleUI=Object.freeze({open,close,createPage});
 })();

@@ -6,7 +6,7 @@
   const state = { root: null, tab: 'browse', kind: 'film', mode: 'top', genre: '', year: new Date().getFullYear(), query: '', rows: [], skip: 0, next: null, request: 0, busy: false, loadError: false };
   const btn = (label, callback, cls = 'mh-action') => {
     const node = el('button', cls, label); node.type = 'button';
-    node.addEventListener('click', () => Promise.resolve().then(callback).catch(error => { const local=node.closest('dialog')?.querySelector('.md-status');if(local){local.textContent=failure(error);local.classList.add('mh-error');}else status(failure(error), true); })); return node;
+    node.addEventListener('click', () => Promise.resolve().then(callback).catch(error => { const local=node.closest('.media-title-page')?.querySelector('.md-status');if(local){local.textContent=failure(error);local.classList.add('mh-error');}else status(failure(error), true); })); return node;
   };
   async function api(action, input = {}) {
     const result = await window.api.mediaDiscovery({ action, ...input });
@@ -29,19 +29,21 @@
   }
   async function details(row) {
     let translationToken = null;
-    const dialog = el('dialog', 'md-detail media-surface'); dialog.dataset.uiUntranslated = ''; dialog.setAttribute('aria-label', row.title);
-    const close = btn('×', () => dialog.close(), 'md-close'); close.setAttribute('aria-label', t('Close details', 'Ayrıntıları kapat'));
+    if(!document.body.classList.contains('media-home-active'))await window.MediaHomeUI.returnHome();
+    const dialog = window.MediaTitleUI.createPage('md-detail media-surface'); dialog.dataset.uiUntranslated = ''; dialog.setAttribute('aria-label', row.title);
+    const close = btn(t('← Back to Discover','← Keşfete dön'), () => dialog.close(), 'mh-action md-page-back'); close.setAttribute('aria-label', t('Close details', 'Ayrıntıları kapat'));
     const placeholder = el('p', 'md-status', t('Loading details…', 'Ayrıntılar yükleniyor…')); placeholder.setAttribute('role', 'status'); dialog.append(close, placeholder);
     if(row.feedback)dialog.append(btn(t('Undo preference', 'Tercihi geri al'),async()=>{await api('feedback',{id:row.providerId,kind:row.kind,title:row.title,state:'none'});if(!dialog.open)return;state.rows=state.rows.filter(item=>item.providerId!==row.providerId||item.kind!==row.kind);dialog.close();cards();}));
-    const opener = document.activeElement; document.body.append(dialog); dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion();
+    const opener = document.activeElement;  if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion();
     dialog.addEventListener('close', () => { if(translationToken)void window.api.mediaDiscovery({action:'synopsis-stop',kind:row.kind,id:row.providerId,token:translationToken}).catch(()=>{});dialog.remove(); opener?.isConnected && opener.focus(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); }, { once: true });
     let result;
     try { result = await api('detail', { kind: row.kind, id: row.providerId }); }
     catch (error) { if (dialog.open) placeholder.textContent = `${t('Could not load details: ', 'Ayrıntılar alınamadı: ')}${failure(error)}`; return; }
     if (!dialog.open) return;
-    const item = result.item, body = el('div', 'md-detail-body'), content = el('div', 'md-detail-copy');
+    const item = result.item; dialog.dataset.pageKind='discovery';
+    const body = el('div', 'md-detail-body'), content = el('div', 'md-detail-copy');
     window.MediaExperience?.setContext(dialog, { id: item.providerId, type: 'discovery-title', title: item.title, synopsis: item.synopsis });
-    content.append(el('h2', '', item.title), el('p', 'md-meta', [item.year, item.rating ? `IMDb ${item.rating}/10` : '', item.runtime ? `${item.runtime} ${t('min', 'dk')}` : '', item.kind === 'series' ? t('Series', 'Dizi') : t('Film', 'Film')].filter(Boolean).join(' · ')));
+    content.append(el('h1', '', item.title), el('p', 'md-meta', [item.year, item.rating ? `IMDb ${item.rating}/10` : '', item.runtime ? `${item.runtime} ${t('min', 'dk')}` : '', item.kind === 'series' ? t('Series', 'Dizi') : t('Film', 'Film')].filter(Boolean).join(' · ')));
     const genres = el('div', 'md-chips'); item.genres.forEach(genre => genres.append(el('span', '', genre))); content.append(genres);
     const storyHeading=el('div','md-story-heading'),synopsis=el('p','md-synopsis',item.synopsisTr||item.synopsis||t('No synopsis is available for this title.','Bu yapımın açıklaması henüz yok.'));
     storyHeading.append(el('h3','',t('Story','Konu')));
