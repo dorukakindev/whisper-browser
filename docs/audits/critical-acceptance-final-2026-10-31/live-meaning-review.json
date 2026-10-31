@@ -1,0 +1,247 @@
+{
+  "source": "source.srt",
+  "runs": [
+    {
+      "mode": "speech",
+      "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+      "provider": "DeepInfra",
+      "tier": "standard",
+      "backendExit": 0,
+      "httpStatuses": [
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "complete": true,
+      "quality": {
+        "type": "quality_report",
+        "translation_blocks": 9,
+        "translation_untranslated": 0,
+        "translation_empty": 0,
+        "translation_timing_mismatch": 0,
+        "translation_failed": 0,
+        "translation_untranslated_indices": [],
+        "translation_empty_indices": [],
+        "translation_timing_mismatch_indices": [],
+        "translation_number_mismatch": 0,
+        "translation_number_mismatch_indices": [],
+        "translation_negation_mismatch": 0,
+        "translation_negation_mismatch_indices": [],
+        "translation_modal_mismatch": 0,
+        "translation_modal_mismatch_indices": [],
+        "translation_currency_mismatch": 0,
+        "translation_currency_mismatch_indices": [],
+        "translation_unit_mismatch": 0,
+        "translation_unit_mismatch_indices": [],
+        "translation_date_mismatch": 0,
+        "translation_date_mismatch_indices": [],
+        "translation_truncated_fragment": 0,
+        "translation_truncated_fragment_indices": [],
+        "translation_meaning_shadow_evaluated": 9,
+        "translation_meaning_shadow_rejected": 0,
+        "translation_meaning_shadow_rejected_indices": [],
+        "translation_meaning_shadow_rejected_rate": 0,
+        "translation_meaning_hard_rejected": 0,
+        "translation_meaning_hard_rejected_rate": 0,
+        "translation_issue_indices": [],
+        "translation_issues": 0
+      },
+      "firstPassEqualsFinal": true,
+      "cues": [
+        {
+          "id": 1,
+          "times": "00:00:00,000 --> 00:00:16,000",
+          "text": "Yirmi numuneden yalnızca yedisi geçti; diğer on üçünün hâlâ test edilmesi gerekiyor."
+        },
+        {
+          "id": 2,
+          "times": "00:00:26,000 --> 00:00:42,000",
+          "text": "Her uyarı cihazın bozuk olduğu anlamına gelmez; bazı uyarılar yalnızca pil kontrolü ister."
+        },
+        {
+          "id": 3,
+          "times": "00:00:52,000 --> 00:01:08,000",
+          "text": "Fırlatmayı sensör arızalandığı için erteledik, hava kötüleştiği için değil."
+        },
+        {
+          "id": 4,
+          "times": "00:01:18,000 --> 00:01:34,000",
+          "text": "İkinci test sonucu doğrulamadıkça raporu yayımlamayın, ilk test geçmiş olsa bile."
+        },
+        {
+          "id": 5,
+          "times": "00:01:44,000 --> 00:02:00,000",
+          "text": "Mürettebat şimdi ayrılabilir, ancak denetim bitene kadar motoru yeniden çalıştırmamalılar."
+        },
+        {
+          "id": 6,
+          "times": "00:02:10,000 --> 00:02:26,000",
+          "text": "MARA: Deniz'e kendi arabamı değil, kardeşimin arabasını ödünç verdim."
+        },
+        {
+          "id": 7,
+          "times": "00:02:26,000 --> 00:02:42,000",
+          "text": "DENİZ: Öyleyse onu sana değil, kardeşine iade etmeliyim."
+        },
+        {
+          "id": 8,
+          "times": "00:02:52,000 --> 00:03:08,000",
+          "text": "Bakiye 12,50 dolarlık kârdan 3,25 dolarlık zarara düştü; bu 9,25 dolarlık değil, 15,75 dolarlık bir düşüştür."
+        },
+        {
+          "id": 9,
+          "times": "00:03:18,000 --> 00:03:34,000",
+          "text": "Alarm basınç düştükten sonra çaldı, ama bu, alarmın çalmasına basınç düşüşünün neden olduğunu kanıtlamaz."
+        }
+      ]
+    },
+    {
+      "mode": "normal",
+      "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+      "provider": "DeepInfra",
+      "tier": "standard",
+      "backendExit": 0,
+      "httpStatuses": [
+        200,
+        200
+      ],
+      "complete": true,
+      "quality": {
+        "type": "quality_report",
+        "translation_blocks": 9,
+        "translation_untranslated": 0,
+        "translation_empty": 0,
+        "translation_timing_mismatch": 0,
+        "translation_failed": 0,
+        "translation_untranslated_indices": [],
+        "translation_empty_indices": [],
+        "translation_timing_mismatch_indices": [],
+        "translation_number_mismatch": 0,
+        "translation_number_mismatch_indices": [],
+        "translation_negation_mismatch": 0,
+        "translation_negation_mismatch_indices": [],
+        "translation_modal_mismatch": 0,
+        "translation_modal_mismatch_indices": [],
+        "translation_currency_mismatch": 0,
+        "translation_currency_mismatch_indices": [],
+        "translation_unit_mismatch": 0,
+        "translation_unit_mismatch_indices": [],
+        "translation_date_mismatch": 0,
+        "translation_date_mismatch_indices": [],
+        "translation_truncated_fragment": 0,
+        "translation_truncated_fragment_indices": [],
+        "translation_meaning_shadow_evaluated": 9,
+        "translation_meaning_shadow_rejected": 0,
+        "translation_meaning_shadow_rejected_indices": [],
+        "translation_meaning_shadow_rejected_rate": 0,
+        "translation_meaning_hard_rejected": 0,
+        "translation_meaning_hard_rejected_rate": 0,
+        "translation_issue_indices": [],
+        "translation_issues": 0
+      },
+      "firstPassEqualsFinal": true,
+      "cues": [
+        {
+          "id": 1,
+          "times": "00:00:00,000 --> 00:00:16,000",
+          "text": "Yirmi numuneden yalnızca yedisi geçti; diğer on üçünün hâlâ test edilmesi gerekiyor."
+        },
+        {
+          "id": 2,
+          "times": "00:00:26,000 --> 00:00:42,000",
+          "text": "Her uyarı cihazın bozuk olduğu anlamına gelmez; bazı uyarılar yalnızca pil kontrolü ister."
+        },
+        {
+          "id": 3,
+          "times": "00:00:52,000 --> 00:01:08,000",
+          "text": "Fırlatmayı sensör arızalandığı için erteledik, hava kötüleştiği için değil."
+        },
+        {
+          "id": 4,
+          "times": "00:01:18,000 --> 00:01:34,000",
+          "text": "İkinci test sonucu doğrulamadıkça raporu yayımlamayın, ilk test geçmiş olsa bile."
+        },
+        {
+          "id": 5,
+          "times": "00:01:44,000 --> 00:02:00,000",
+          "text": "Ekip şimdi ayrılabilir, ancak denetim bitene kadar motoru yeniden çalıştırmamalılar."
+        },
+        {
+          "id": 6,
+          "times": "00:02:10,000 --> 00:02:26,000",
+          "text": "MARA: Deniz'e kendi arabamı değil, kardeşimin arabasını ödünç verdim."
+        },
+        {
+          "id": 7,
+          "times": "00:02:26,000 --> 00:02:42,000",
+          "text": "DENIZ: Öyleyse onu sana değil, kardeşine iade etmeliyim."
+        },
+        {
+          "id": 8,
+          "times": "00:02:52,000 --> 00:03:08,000",
+          "text": "Bakiye 12,50 dolarlık kârdan 3,25 dolarlık zarara düştü; bu 9,25 dolar değil, 15,75 dolarlık bir düşüş."
+        },
+        {
+          "id": 9,
+          "times": "00:03:18,000 --> 00:03:34,000",
+          "text": "Alarm basınç düştükten sonra çaldı, ama bu, alarmın basınç düşüşünden kaynaklandığını kanıtlamaz."
+        }
+      ]
+    }
+  ],
+  "semanticReview": [
+    {
+      "case": 1,
+      "expectedMeaning": "20 toplam, 7 geçti, diğer 13 test bekliyor; başarısız denmedi.",
+      "normal": "preserved in this sample",
+      "speech": "preserved in this sample"
+    },
+    {
+      "case": 2,
+      "expectedMeaning": "Her uyarı bozukluk demek değil; bazıları yalnız pil kontrolü ister.",
+      "normal": "preserved in this sample",
+      "speech": "preserved in this sample"
+    },
+    {
+      "case": 3,
+      "expectedMeaning": "Erteleme gerçekleşti; sensör neden, hava dışlanan neden.",
+      "normal": "preserved in this sample",
+      "speech": "preserved in this sample"
+    },
+    {
+      "case": 4,
+      "expectedMeaning": "İkinci doğrulama şart; ilk testin geçmesi tek başına yetmez.",
+      "normal": "preserved in this sample",
+      "speech": "preserved in this sample"
+    },
+    {
+      "case": 5,
+      "expectedMeaning": "Ayrılmaya izin var; denetim bitmeden motoru yeniden çalıştırmak yasak.",
+      "normal": "preserved in this sample",
+      "speech": "preserved in this sample"
+    },
+    {
+      "case": 6,
+      "expectedMeaning": "Mara ödünç veren, Deniz alan; araç Mara’nın kardeşine ait ve ona iade edilmeli.",
+      "normal": "preserved in this sample",
+      "speech": "preserved in this sample"
+    },
+    {
+      "case": 7,
+      "expectedMeaning": "12,50 dolar kâr → 3,25 dolar zarar; düşüş 15,75, dışlanan değer 9,25.",
+      "normal": "preserved in this sample",
+      "speech": "preserved in this sample"
+    },
+    {
+      "case": 8,
+      "expectedMeaning": "Önce basınç düştü, sonra alarm; nedensellik kanıtlanmadı.",
+      "normal": "preserved in this sample",
+      "speech": "preserved in this sample"
+    }
+  ],
+  "reviewMethod": "Primary and independent assistant read all source/final cues and first/final HTTP content; no AI grading score asserted.",
+  "nuance": "brother translated as natural gender-neutral kardeş; ownership/recipient contrast preserved, not full lexical equivalence.",
+  "limits": "8 synthetic cases /9 cues only; not general accuracy, perceptual fluency or acoustic quality."
+}

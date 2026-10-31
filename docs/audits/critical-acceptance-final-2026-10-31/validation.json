@@ -1,0 +1,105 @@
+{
+  "base": "e19f66f5c450a6b96ff09699a58c8f92abefe868",
+  "fullLocalBeforeOptInRunnerCategory": {
+    "exit": 0,
+    "sourceFilesHashed": 1627,
+    "sourceStable": true,
+    "changedDuringRun": [],
+    "nodeFiles": 727,
+    "pythonFiles": 171
+  },
+  "postFullChange": "Test runner only: cached-model acceptance excluded from --all and explicitly selectable with --model. No application source change.",
+  "runnerSelection": {
+    "ok": true,
+    "cases": [
+      {
+        "flag": "--all",
+        "exit": 0,
+        "selectedCount": 169,
+        "modelSelected": false,
+        "assistantSelected": true
+      },
+      {
+        "flag": "--model",
+        "exit": 0,
+        "selectedCount": 1,
+        "modelSelected": true,
+        "assistantSelected": false
+      },
+      {
+        "flag": "whisper-home-continuity",
+        "exit": 0,
+        "selectedCount": 1,
+        "modelSelected": true,
+        "assistantSelected": false
+      },
+      {
+        "flag": "--live",
+        "exit": 0,
+        "selectedCount": 2,
+        "modelSelected": false,
+        "assistantSelected": false
+      },
+      {
+        "flag": "--network",
+        "exit": 0,
+        "selectedCount": 1,
+        "modelSelected": false,
+        "assistantSelected": false
+      }
+    ],
+    "execution": "actual runner selection with spawn intercepted; no native process claimed"
+  },
+  "syntax": [
+    {
+      "file": "tests/electron-assistant-acceptance-final.smoke.js",
+      "exit": 0
+    },
+    {
+      "file": "tests/electron-whisper-home-continuity.smoke.js",
+      "exit": 0
+    },
+    {
+      "file": "tests/run-electron-smokes.js",
+      "exit": 0
+    }
+  ],
+  "nativeWhisper": {
+    "receipt": "native-whisper-home.json",
+    "realBackendExit": 0,
+    "realSegments": 14,
+    "model": "cached tiny / faster-whisper CPU int8",
+    "translationProvider": false
+  },
+  "nativeAssistant": {
+    "receipt": "native-assistant-ui.json",
+    "states": 8,
+    "requests": 16,
+    "provider": "controlled local SSE",
+    "exit": 0
+  },
+  "liveMeaning": {
+    "receipt": "live-meaning-review.json",
+    "normalHttp200": 2,
+    "speechHttp200": 5,
+    "bothBackendExit": 0,
+    "cueCountEach": 9,
+    "meaningCases": 8,
+    "tier": "standard"
+  },
+  "limits": [
+    "Not all 200 candidates implemented; quota explicitly retired",
+    "Not universal no-bug/UI/translation guarantee",
+    "No human acoustic naturalness superiority decision",
+    "Previous real GPU evidence historical, not rerun in this final package"
+  ],
+  "postFullNativeModelRunner": {
+    "exit": 0,
+    "command": "node tests/run-electron-smokes.js --model",
+    "receipt": "native-whisper-model-runner.json",
+    "realSegments": 24,
+    "realBackendExit": 0,
+    "singleSubprocess": true
+  },
+  "acceptanceTestsCommit": "803a0397b56bf8e241a097b410043d58ddcfc535"
+}

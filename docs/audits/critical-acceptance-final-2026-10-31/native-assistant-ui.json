@@ -1,0 +1,799 @@
+{
+  "ok": true,
+  "states": [
+    {
+      "label": "1440-tr-dark",
+      "measured": {
+        "viewport": {
+          "width": 480,
+          "height": 720,
+          "scrollWidth": 480
+        },
+        "log": {
+          "top": 314.296875,
+          "bottom": 458,
+          "height": 144
+        },
+        "form": {
+          "top": 560,
+          "bottom": 699
+        },
+        "controls": [
+          {
+            "id": "text",
+            "hidden": false,
+            "x": 36,
+            "right": 444,
+            "top": 575,
+            "bottom": 639
+          },
+          {
+            "id": "send",
+            "hidden": false,
+            "x": 361.6145935058594,
+            "right": 444.00001525878906,
+            "top": 647,
+            "bottom": 684
+          },
+          {
+            "id": "cancel",
+            "hidden": false,
+            "x": 192.9635467529297,
+            "right": 240.40625762939453,
+            "top": 647.5,
+            "bottom": 683.5
+          },
+          {
+            "id": "webSearch",
+            "hidden": false,
+            "x": 250.40625,
+            "right": 351.61458587646484,
+            "top": 647.5,
+            "bottom": 683.5
+          }
+        ],
+        "messages": [
+          {
+            "top": -2019.0364990234375,
+            "bottom": -1829.0469055175781
+          },
+          {
+            "top": -1801.046875,
+            "bottom": 409.84912109375
+          }
+        ],
+        "code": [
+          {
+            "clientWidth": 414,
+            "scrollWidth": 8782
+          }
+        ]
+      },
+      "card": {
+        "top": 359.04168701171875,
+        "bottom": 395.2396049499512,
+        "left": 42,
+        "right": 102.54166793823242,
+        "logTop": 215.796875,
+        "logBottom": 458,
+        "height": 720,
+        "width": 480
+      },
+      "review": [
+        {
+          "id": "reviewConfirm",
+          "top": 508.390625,
+          "bottom": 542.390625,
+          "height": 720
+        },
+        {
+          "id": "reviewCancel",
+          "top": 508.390625,
+          "bottom": 542.390625,
+          "height": 720
+        },
+        {
+          "id": "send",
+          "top": 647,
+          "bottom": 684,
+          "height": 720
+        }
+      ]
+    },
+    {
+      "label": "1440-tr-light",
+      "measured": {
+        "viewport": {
+          "width": 480,
+          "height": 720,
+          "scrollWidth": 480
+        },
+        "log": {
+          "top": 314.296875,
+          "bottom": 434.296875,
+          "height": 120
+        },
+        "form": {
+          "top": 560,
+          "bottom": 699
+        },
+        "controls": [
+          {
+            "id": "text",
+            "hidden": false,
+            "x": 36,
+            "right": 444,
+            "top": 575,
+            "bottom": 639
+          },
+          {
+            "id": "send",
+            "hidden": false,
+            "x": 361.6145935058594,
+            "right": 444.00001525878906,
+            "top": 647,
+            "bottom": 684
+          },
+          {
+            "id": "cancel",
+            "hidden": false,
+            "x": 192.9635467529297,
+            "right": 240.40625762939453,
+            "top": 647.5,
+            "bottom": 683.5
+          },
+          {
+            "id": "webSearch",
+            "hidden": false,
+            "x": 250.40625,
+            "right": 351.61458587646484,
+            "top": 647.5,
+            "bottom": 683.5
+          }
+        ],
+        "messages": [
+          {
+            "top": 332.296875,
+            "bottom": 522.2864685058594
+          },
+          {
+            "top": 550.2864990234375,
+            "bottom": 2761.1824951171875
+          }
+        ],
+        "code": [
+          {
+            "clientWidth": 404,
+            "scrollWidth": 8782
+          }
+        ]
+      },
+      "card": {
+        "top": 359.04168701171875,
+        "bottom": 395.2396049499512,
+        "left": 42,
+        "right": 102.54166793823242,
+        "logTop": 215.796875,
+        "logBottom": 458,
+        "height": 720,
+        "width": 480
+      },
+      "review": [
+        {
+          "id": "reviewConfirm",
+          "top": 508.390625,
+          "bottom": 542.390625,
+          "height": 720
+        },
+        {
+          "id": "reviewCancel",
+          "top": 508.390625,
+          "bottom": 542.390625,
+          "height": 720
+        },
+        {
+          "id": "send",
+          "top": 647,
+          "bottom": 684,
+          "height": 720
+        }
+      ]
+    },
+    {
+      "label": "1440-en-dark",
+      "measured": {
+        "viewport": {
+          "width": 480,
+          "height": 720,
+          "scrollWidth": 480
+        },
+        "log": {
+          "top": 314.296875,
+          "bottom": 434.296875,
+          "height": 120
+        },
+        "form": {
+          "top": 560,
+          "bottom": 699
+        },
+        "controls": [
+          {
+            "id": "text",
+            "hidden": false,
+            "x": 36,
+            "right": 444,
+            "top": 575,
+            "bottom": 639
+          },
+          {
+            "id": "send",
+            "hidden": false,
+            "x": 375.35418701171875,
+            "right": 444.0000228881836,
+            "top": 647,
+            "bottom": 684
+          },
+          {
+            "id": "cancel",
+            "hidden": false,
+            "x": 211.1979217529297,
+            "right": 268.6510467529297,
+            "top": 647.5,
+            "bottom": 683.5
+          },
+          {
+            "id": "webSearch",
+            "hidden": false,
+            "x": 278.65106201171875,
+            "right": 365.35418701171875,
+            "top": 647.5,
+            "bottom": 683.5
+          }
+        ],
+        "messages": [
+          {
+            "top": 332.296875,
+            "bottom": 485.9375
+          },
+          {
+            "top": 513.9375,
+            "bottom": 2724.83349609375
+          }
+        ],
+        "code": [
+          {
+            "clientWidth": 404,
+            "scrollWidth": 8782
+          }
+        ]
+      },
+      "card": {
+        "top": 359.02606201171875,
+        "bottom": 395.2239799499512,
+        "left": 42,
+        "right": 96.74479293823242,
+        "logTop": 215.796875,
+        "logBottom": 458,
+        "height": 720,
+        "width": 480
+      },
+      "review": [
+        {
+          "id": "reviewConfirm",
+          "top": 527.5885620117188,
+          "bottom": 561.5885620117188,
+          "height": 720
+        },
+        {
+          "id": "reviewCancel",
+          "top": 527.5885620117188,
+          "bottom": 561.5885620117188,
+          "height": 720
+        },
+        {
+          "id": "send",
+          "top": 647,
+          "bottom": 684,
+          "height": 720
+        }
+      ]
+    },
+    {
+      "label": "1440-en-light",
+      "measured": {
+        "viewport": {
+          "width": 480,
+          "height": 720,
+          "scrollWidth": 480
+        },
+        "log": {
+          "top": 314.296875,
+          "bottom": 434.296875,
+          "height": 120
+        },
+        "form": {
+          "top": 560,
+          "bottom": 699
+        },
+        "controls": [
+          {
+            "id": "text",
+            "hidden": false,
+            "x": 36,
+            "right": 444,
+            "top": 575,
+            "bottom": 639
+          },
+          {
+            "id": "send",
+            "hidden": false,
+            "x": 375.35418701171875,
+            "right": 444.0000228881836,
+            "top": 647,
+            "bottom": 684
+          },
+          {
+            "id": "cancel",
+            "hidden": false,
+            "x": 211.1979217529297,
+            "right": 268.6510467529297,
+            "top": 647.5,
+            "bottom": 683.5
+          },
+          {
+            "id": "webSearch",
+            "hidden": false,
+            "x": 278.65106201171875,
+            "right": 365.35418701171875,
+            "top": 647.5,
+            "bottom": 683.5
+          }
+        ],
+        "messages": [
+          {
+            "top": 332.296875,
+            "bottom": 485.9375
+          },
+          {
+            "top": 513.9375,
+            "bottom": 2724.83349609375
+          }
+        ],
+        "code": [
+          {
+            "clientWidth": 404,
+            "scrollWidth": 8782
+          }
+        ]
+      },
+      "card": {
+        "top": 359.02606201171875,
+        "bottom": 395.2239799499512,
+        "left": 42,
+        "right": 96.74479293823242,
+        "logTop": 215.796875,
+        "logBottom": 458,
+        "height": 720,
+        "width": 480
+      },
+      "review": [
+        {
+          "id": "reviewConfirm",
+          "top": 527.5885620117188,
+          "bottom": 561.5885620117188,
+          "height": 720
+        },
+        {
+          "id": "reviewCancel",
+          "top": 527.5885620117188,
+          "bottom": 561.5885620117188,
+          "height": 720
+        },
+        {
+          "id": "send",
+          "top": 647,
+          "bottom": 684,
+          "height": 720
+        }
+      ]
+    },
+    {
+      "label": "480-tr-dark",
+      "measured": {
+        "viewport": {
+          "width": 456,
+          "height": 576,
+          "scrollWidth": 456
+        },
+        "log": {
+          "top": 237.14584350585938,
+          "bottom": 392.00001525878906,
+          "height": 155
+        },
+        "form": {
+          "top": 442,
+          "bottom": 561
+        },
+        "controls": [
+          {
+            "id": "text",
+            "hidden": false,
+            "x": 24,
+            "right": 432,
+            "top": 451,
+            "bottom": 507
+          },
+          {
+            "id": "send",
+            "hidden": false,
+            "x": 349.6145935058594,
+            "right": 432.00001525878906,
+            "top": 515,
+            "bottom": 552
+          },
+          {
+            "id": "cancel",
+            "hidden": false,
+            "x": 24,
+            "right": 71.44271087646484,
+            "top": 515.5,
+            "bottom": 551.5
+          },
+          {
+            "id": "webSearch",
+            "hidden": false,
+            "x": 79.44271087646484,
+            "right": 180.6510467529297,
+            "top": 515.5,
+            "bottom": 551.5
+          }
+        ],
+        "messages": [
+          {
+            "top": -2058.854248046875,
+            "bottom": -1874.8646545410156
+          },
+          {
+            "top": -1852.8646240234375,
+            "bottom": 358.0313720703125
+          }
+        ],
+        "code": [
+          {
+            "clientWidth": 402,
+            "scrollWidth": 8782
+          }
+        ]
+      },
+      "card": {
+        "top": 307.078125,
+        "bottom": 343.2760429382324,
+        "left": 36,
+        "right": 96.54166793823242,
+        "logTop": 178.14584350585938,
+        "logBottom": 392.00001525878906,
+        "height": 576,
+        "width": 456
+      },
+      "review": [
+        {
+          "id": "reviewConfirm",
+          "top": 402.59375,
+          "bottom": 436.59375,
+          "height": 576
+        },
+        {
+          "id": "reviewCancel",
+          "top": 402.59375,
+          "bottom": 436.59375,
+          "height": 576
+        },
+        {
+          "id": "send",
+          "top": 515,
+          "bottom": 552,
+          "height": 576
+        }
+      ]
+    },
+    {
+      "label": "480-tr-light",
+      "measured": {
+        "viewport": {
+          "width": 456,
+          "height": 576,
+          "scrollWidth": 456
+        },
+        "log": {
+          "top": 237.14584350585938,
+          "bottom": 392.00001525878906,
+          "height": 155
+        },
+        "form": {
+          "top": 442,
+          "bottom": 561
+        },
+        "controls": [
+          {
+            "id": "text",
+            "hidden": false,
+            "x": 24,
+            "right": 432,
+            "top": 451,
+            "bottom": 507
+          },
+          {
+            "id": "send",
+            "hidden": false,
+            "x": 349.6145935058594,
+            "right": 432.00001525878906,
+            "top": 515,
+            "bottom": 552
+          },
+          {
+            "id": "cancel",
+            "hidden": false,
+            "x": 24,
+            "right": 71.44271087646484,
+            "top": 515.5,
+            "bottom": 551.5
+          },
+          {
+            "id": "webSearch",
+            "hidden": false,
+            "x": 79.44271087646484,
+            "right": 180.6510467529297,
+            "top": 515.5,
+            "bottom": 551.5
+          }
+        ],
+        "messages": [
+          {
+            "top": -2058.854248046875,
+            "bottom": -1874.8646545410156
+          },
+          {
+            "top": -1852.8646240234375,
+            "bottom": 358.0313720703125
+          }
+        ],
+        "code": [
+          {
+            "clientWidth": 402,
+            "scrollWidth": 8782
+          }
+        ]
+      },
+      "card": {
+        "top": 307.078125,
+        "bottom": 343.2760429382324,
+        "left": 36,
+        "right": 96.54166793823242,
+        "logTop": 178.14584350585938,
+        "logBottom": 392.00001525878906,
+        "height": 576,
+        "width": 456
+      },
+      "review": [
+        {
+          "id": "reviewConfirm",
+          "top": 374.9270935058594,
+          "bottom": 408.9270935058594,
+          "height": 576
+        },
+        {
+          "id": "reviewCancel",
+          "top": 374.9270935058594,
+          "bottom": 408.9270935058594,
+          "height": 576
+        },
+        {
+          "id": "send",
+          "top": 515,
+          "bottom": 552,
+          "height": 576
+        }
+      ]
+    },
+    {
+      "label": "480-en-dark",
+      "measured": {
+        "viewport": {
+          "width": 456,
+          "height": 576,
+          "scrollWidth": 456
+        },
+        "log": {
+          "top": 237.14584350585938,
+          "bottom": 392.00001525878906,
+          "height": 155
+        },
+        "form": {
+          "top": 442,
+          "bottom": 561
+        },
+        "controls": [
+          {
+            "id": "text",
+            "hidden": false,
+            "x": 24,
+            "right": 432,
+            "top": 451,
+            "bottom": 507
+          },
+          {
+            "id": "send",
+            "hidden": false,
+            "x": 363.35418701171875,
+            "right": 432.0000228881836,
+            "top": 515,
+            "bottom": 552
+          },
+          {
+            "id": "cancel",
+            "hidden": false,
+            "x": 24,
+            "right": 81.453125,
+            "top": 515.5,
+            "bottom": 551.5
+          },
+          {
+            "id": "webSearch",
+            "hidden": false,
+            "x": 89.453125,
+            "right": 176.15625,
+            "top": 515.5,
+            "bottom": 551.5
+          }
+        ],
+        "messages": [
+          {
+            "top": -2022.5208740234375,
+            "bottom": -1874.8802490234375
+          },
+          {
+            "top": -1852.8802490234375,
+            "bottom": 358.0157470703125
+          }
+        ],
+        "code": [
+          {
+            "clientWidth": 402,
+            "scrollWidth": 8782
+          }
+        ]
+      },
+      "card": {
+        "top": 307.0625,
+        "bottom": 343.2604179382324,
+        "left": 36,
+        "right": 90.74479293823242,
+        "logTop": 178.14584350585938,
+        "logBottom": 392.00001525878906,
+        "height": 576,
+        "width": 456
+      },
+      "review": [
+        {
+          "id": "reviewConfirm",
+          "top": 394.125,
+          "bottom": 428.125,
+          "height": 576
+        },
+        {
+          "id": "reviewCancel",
+          "top": 394.125,
+          "bottom": 428.125,
+          "height": 576
+        },
+        {
+          "id": "send",
+          "top": 515,
+          "bottom": 552,
+          "height": 576
+        }
+      ]
+    },
+    {
+      "label": "480-en-light",
+      "measured": {
+        "viewport": {
+          "width": 456,
+          "height": 576,
+          "scrollWidth": 456
+        },
+        "log": {
+          "top": 237.14584350585938,
+          "bottom": 392.00001525878906,
+          "height": 155
+        },
+        "form": {
+          "top": 442,
+          "bottom": 561
+        },
+        "controls": [
+          {
+            "id": "text",
+            "hidden": false,
+            "x": 24,
+            "right": 432,
+            "top": 451,
+            "bottom": 507
+          },
+          {
+            "id": "send",
+            "hidden": false,
+            "x": 363.35418701171875,
+            "right": 432.0000228881836,
+            "top": 515,
+            "bottom": 552
+          },
+          {
+            "id": "cancel",
+            "hidden": false,
+            "x": 24,
+            "right": 81.453125,
+            "top": 515.5,
+            "bottom": 551.5
+          },
+          {
+            "id": "webSearch",
+            "hidden": false,
+            "x": 89.453125,
+            "right": 176.15625,
+            "top": 515.5,
+            "bottom": 551.5
+          }
+        ],
+        "messages": [
+          {
+            "top": -2022.5208740234375,
+            "bottom": -1874.8802490234375
+          },
+          {
+            "top": -1852.8802490234375,
+            "bottom": 358.0157470703125
+          }
+        ],
+        "code": [
+          {
+            "clientWidth": 402,
+            "scrollWidth": 8782
+          }
+        ]
+      },
+      "card": {
+        "top": 307.0625,
+        "bottom": 343.2604179382324,
+        "left": 36,
+        "right": 90.74479293823242,
+        "logTop": 178.14584350585938,
+        "logBottom": 392.00001525878906,
+        "height": 576,
+        "width": 456
+      },
+      "review": [
+        {
+          "id": "reviewConfirm",
+          "top": 375.125,
+          "bottom": 409.125,
+          "height": 576
+        },
+        {
+          "id": "reviewCancel",
+          "top": 375.125,
+          "bottom": 409.125,
+          "height": 576
+        },
+        {
+          "id": "send",
+          "top": 515,
+          "bottom": 552,
+          "height": 576
+        }
+      ]
+    }
+  ],
+  "requests": 16,
+  "provider": "controlled local HTTP/SSE; synthetic content; no paid API"
+}

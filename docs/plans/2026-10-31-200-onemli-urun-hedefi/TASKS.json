@@ -2962,8 +2962,8 @@
       ]
     }
   ],
-  "activePackage": "critical-job-continuity",
-  "executionStatus": "Yalniz kritik kabul akislari etkin; 200 veya 100 sayisi hedef degildir.",
+  "activePackage": "critical-acceptance-final",
+  "executionStatus": "Kullanıcının daralttığı kritik kapsam kabul kontrolleri tamamlandı. Teslim GitHub PR ve korunan ana kopya HEAD ile doğrulanır; tarihsel 200 aday zorunlu değildir.",
   "countTargetRetired": true,
   "executionPolicy": "critical-only; original 200 rows are historical candidates, not mandatory backlog",
   "scopeAmendment": {
@@ -3000,5 +3000,14 @@
       "tests": "19 relevant files exit0; isolated native Home exit0",
       "notClaimed": "live model/GPU quality; full Whisper backend native continuation; whole UI audit"
     }
+  },
+  "criticalCompletionAudit": {
+    "scope": "six critical acceptance criteria in CRITICAL-FOCUS.md",
+    "evidence": "docs/audits/critical-acceptance-final-2026-10-31/COMPLETION-AUDIT.md",
+    "acceptance": "verified within explicitly stated bounds",
+    "delivery": "Normal PR/merge; authoritative delivery is GitHub PR status and protected primary HEAD, not a pre-merge document assertion.",
+    "original200Completed": false,
+    "countTargetRetired": true,
+    "humanListeningWinner": false
   }
 }

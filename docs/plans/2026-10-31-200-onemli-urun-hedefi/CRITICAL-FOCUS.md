@@ -28,3 +28,9 @@ Native cross-origin test yalnız sentetik yerel medya üzerinde gerçek Windows 
 PR736 ana kopyaya alındı. Sonraki doğrulamada, eski üretimin manuel Sesi kullan ile yeni videoya bağlanması ve kimliksiz Durdur çağrılarının yerine geçen işi iptal etmesi düzeltildi. Ana sayfada kısmi çevirinin sürmesi ve aynı kaynağa geri dönüş native Windows uygulamasında kontrollü sağlayıcıyla doğru çıktı; bu çalışan davranış değiştirilmedi. Ayrıntı: `docs/audits/critical-job-continuity-2026-10-31/README.md`.
 
 Tam Whisper backend devamlılığı, canlı çeviri/anlatım kalitesi ve bütün UI engelleri bu dar paketle tamamlanmış sayılmadı. Sayı hedefi hâlâ yoktur.
+
+## Son kritik kabul denetimi — 31 Ekim
+
+PR737 ana kopyaya alındı. Kalan kanıtlar bu tur tamamlandı: gerçek tiny/faster-whisper alt süreciyle Home/geri dönüş, normal ve speech üretim hattında canlı DeepInfra standard 8 anlam vakası/9 cue, sekiz native asistan yerleşim/etkileşim durumu. Tam yerel koşu 727 Node + 171 Python dosyasında geçti. Bu tur ürün bug’ı bulunmadı, ürün kodu değiştirilmedi.
+
+Güncel kritik kabul denetimi: `docs/audits/critical-acceptance-final-2026-10-31/COMPLETION-AUDIT.md`. Kanıtlar dar kapsamları ve sınırlarıyla açık tutulur; 200 adayın tamamlandığı veya her sesin insan kadar doğal olduğu iddia edilmez. Sayı kotası, yeni kozmetik/kütüphane/Letterboxd genişlemesi geri açılmaz.
