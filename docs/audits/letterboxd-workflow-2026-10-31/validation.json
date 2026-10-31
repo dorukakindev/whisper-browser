@@ -1,0 +1,26 @@
+{
+  "fullRun": {
+    "exit": 1,
+    "sourceFilesHashed": 1631,
+    "sourceStable": true,
+    "changedDuringRun": [],
+    "nodeFiles": 730,
+    "pythonFiles": 171,
+    "failedFiles": [
+      "node tests/ci-determinism-ratchet.test.js"
+    ]
+  },
+  "correction": {
+    "file": "tests/review-workflow.test.js",
+    "change": "Wait for the actual details toggle event instead of setTimeout(0); no baseline or assertion weakened.",
+    "productCodeChangedAfterFullRun": false
+  },
+  "followUp": {
+    "exit": 0,
+    "tests": 60,
+    "failed": 0,
+    "command": "node --test --test-isolation=none tests/review-workflow.test.js tests/ci-determinism-ratchet.test.js tests/review-analysis-contract.test.js tests/letterboxd-sampling-critical.test.js tests/review-discovery-handoff.test.js tests/assistant-conversation.test.js tests/assistant-overlay.test.js"
+  },
+  "nativeExit": 0,
+  "fullSuiteRerunAfterHarnessCorrection": false
+}

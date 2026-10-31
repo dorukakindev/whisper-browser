@@ -1,0 +1,17 @@
+---
+description: Simple defaults with accessible advanced controls and verified visual quality
+alwaysApply: true
+---
+
+# Simple defaults, retained control
+
+The user clarified this preference on 2026-10-31 for the entire application.
+
+- Simplifying a screen must not remove supported expert settings, source data, or evidence. Keep them behind a clearly named, keyboard-accessible Advanced / Details disclosure or settings entry.
+- Keep essential state, failures, selected source, and primary action visible. Opening a disclosure must not reset edits or change settings. Preserve its state across same-context redraws where practical.
+- Do not bury the only recovery path when automatic access fails. Reveal or link to the relevant manual/source controls.
+- Apply this to subtitles, dubbing, books, assistant, reviews and library screens; not only Letterboxd.
+- Reuse the existing theme, spacing, typography and controls. Study Luna Player for inspiration and meaningful features, improving our own workflows rather than copying an entire UI or replacing our working implementation.
+- Record the actual Luna version/reference inspected. If screenshots or current source are unavailable, state that limitation; do not claim a rendered comparison or feature parity.
+- Verify changed screens at normal and narrow widths, relevant themes, populated/loading/error/detail states. Passing build or overflow checks alone does not establish good design.
+- The user explicitly requested Letterboxd and design work after retiring the old task quota. This is authorized product work, not an instruction to restore arbitrary task counts.

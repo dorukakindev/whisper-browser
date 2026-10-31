@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "files": [
+    "src/assistant-overlay.js",
+    "src/letterboxd-auto.js",
+    "src/letterboxd-reviews.js",
+    "src/media-tools-service.js",
+    "src/renderer/assistant-overlay.js",
+    "src/renderer/global-assistant.js",
+    "src/renderer/media-tools-model.js",
+    "src/renderer/media-tools-ui.js",
+    "src/renderer/review-decision-ui.js",
+    "tests/assistant-conversation.test.js",
+    "tests/assistant-overlay.test.js",
+    "tests/letterboxd-reviews.test.js",
+    "tests/review-workflow.test.js",
+    "tests/electron-letterboxd-evidence.smoke.js",
+    "tests/letterboxd-sampling-critical.test.js",
+    "tests/review-analysis-contract.test.js",
+    "tests/review-discovery-handoff.test.js"
+  ]
+}

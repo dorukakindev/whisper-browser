@@ -1,0 +1,25 @@
+{
+  "ok": true,
+  "nativeApp": true,
+  "publicHtml": "controlled fixture",
+  "analysis": "controlled fixture",
+  "discoveryWithoutCatalog": true,
+  "cases": [
+    "discovery Browser handoff without catalog insertion",
+    "balanced verified sort pools and independent authors",
+    "original quote plus labeled Turkish paraphrase and saved provenance",
+    "profile change makes saved analysis stale",
+    "wrong title preserves cached sample",
+    "native assistant model disclosure and existing settings shortcut at normal/narrow widths"
+  ],
+  "reads": [
+    "https://letterboxd.com/imdb/tt14173636/",
+    "https://letterboxd.com/film/controlled-evidence/",
+    "https://letterboxd.com/film/controlled-evidence/reviews/by/activity/",
+    "https://letterboxd.com/film/controlled-evidence/reviews/",
+    "https://letterboxd.com/film/controlled-evidence/reviews/by/entry-rating/",
+    "https://letterboxd.com/film/controlled-evidence/reviews/by/entry-rating-lowest/"
+  ],
+  "reviewCount": 12,
+  "limits": "Controlled public HTML and assistant completion; no live Letterboxd, paid model, personal profile or claim of translation/model quality."
+}
