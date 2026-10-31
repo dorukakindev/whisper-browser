@@ -951,9 +951,19 @@ function syncBrowserOcclusion() {
     || settingsOverlay || !!document.querySelector('dialog[open]')
     || !!playerLayer?.classList.contains('narrow-panel-takeover')
     || (typeof player !== 'undefined' && (!!player.pdfReader || player.browserSurface === 'settings'));
+  window.api.setAssistantModalBlocked?.(!!_activeModal || !!document.querySelector('dialog[open]'));
   if (window.api.setBrowserOccluded) return applyBrowserOcclusion(occluded);
   return Promise.resolve(null);
 }
+
+// Native dialogs may be opened by independently loaded tools. Track their own
+// open/close lifecycle without moving or discarding their drafts.
+document.addEventListener('toggle', event => {
+  if (event.target?.tagName === 'DIALOG') void syncBrowserOcclusion();
+}, true);
+document.addEventListener('close', event => {
+  if (event.target?.tagName === 'DIALOG') void syncBrowserOcclusion();
+}, true);
 
 // R120-P1: Gizlemeden önce sayfanın donmuş karesini yuvaya boya; menü açıkken
 // sayfa siyaha dönmesin. Sıra numarası hızlı aç/kapa yarışlarını eler.
@@ -3847,11 +3857,11 @@ $('translateAddModel')?.addEventListener('click', async () => {
       providerModelProfiles, providerCredentialScopeFor('translate'), model);
     renderProviderModelChoices(model);
     await saveAppSettings();
-  } catch (_) {
+  } catch (error) {
     const output = $('translateProbeStatus');
     if (output) {
       output.dataset.state = 'error';
-      output.textContent = providerSettingText('Geçerli bir model adı girin.');
+      output.textContent = providerSettingText(error?.message || 'Geçerli bir model adı girin.');
     }
   }
 });
@@ -15892,37 +15902,50 @@ function refreshCueWordRanges(cue) {
 }
 
 // JSON segmentleriyle SRT/VTT/ASS blokları birebir olmak zorunda değildir.
-// İleri yönlü segment imleci ve zaman örtüşmesi, write_json ile aynı ±50 ms
-// toleransı kullanarak eşlemeyi toplam O(n) tutar.
+// Her kaynak kelime, tolerans penceresindeki en uygun tek cue'ya atanır.
+// Komşu cue sınırına yalnız dokunmak aynı kelimeyi iki kez sahiplenemez.
 function attachTimedWordsToCues(cues, segments, tolerance = 0.05) {
   const stats = { timed: 0, matched: 0, unmatched: 0 };
   if (!Array.isArray(cues) || !Array.isArray(segments) || !segments.length) return stats;
-  let cursor = 0;
-  for (const cue of cues) {
+  const rows = [];
+  for (const [index, cue] of cues.entries()) {
     delete cue.words;
     delete cue.wordRanges;
-    while (cursor < segments.length && Number(segments[cursor]?.end) < cue.start - tolerance) cursor++;
-    const words = [];
-    const seen = new Set();
-    let index = cursor;
-    while (index < segments.length && Number(segments[index]?.start) <= cue.end + tolerance) {
-      const segment = segments[index];
-      if (Number(segment?.end) >= cue.start - tolerance && Array.isArray(segment.words)) {
-        for (const word of segment.words) {
-          const start = Number(word?.start);
-          const end = Number(word?.end ?? word?.start);
-          if (!Number.isFinite(start) || !Number.isFinite(end)
-              || end < cue.start - tolerance || start > cue.end + tolerance) continue;
-          const key = `${start}|${end}|${String(word.word ?? '')}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          words.push(word);
-        }
-      }
-      index++;
+    if (Number.isFinite(cue.start) && Number.isFinite(cue.end) && cue.end >= cue.start) {
+      rows.push({ cue, index, words: [], normalized: wordAlignmentText(cue.text).normalized });
     }
+  }
+  rows.sort((a, b) => a.cue.start - b.cue.start || a.index - b.index);
+  const words = [], seen = new Set();
+  for (const segment of segments) for (const word of Array.isArray(segment?.words) ? segment.words : []) {
+    const start = Number(word?.start), end = Number(word?.end ?? word?.start);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) continue;
+    const key = `${start}|${end}|${String(word.word ?? '')}`;
+    if (seen.has(key)) continue;
+    seen.add(key); words.push({ word, start, end });
+  }
+  words.sort((a, b) => a.start - b.start || a.end - b.end);
+  let cursor = 0;
+  for (const { word, start, end } of words) {
+    while (cursor < rows.length && rows[cursor].cue.end < start - tolerance) cursor++;
+    const normalized = wordAlignmentText(word.word).normalized;
+    let best = null;
+    for (let index = cursor; index < rows.length && rows[index].cue.start <= end + tolerance; index++) {
+      const row = rows[index], cue = row.cue;
+      if (cue.end < start - tolerance) continue;
+      const lexical = !!normalized && row.normalized.includes(normalized);
+      const overlap = Math.max(0, Math.min(end, cue.end) - Math.max(start, cue.start));
+      const distance = Math.abs((start + end) - (cue.start + cue.end));
+      if (!best || Number(lexical) > Number(best.lexical)
+          || (lexical === best.lexical && (overlap > best.overlap
+            || (overlap === best.overlap && distance < best.distance)))) {
+        best = { row, lexical, overlap, distance };
+      }
+    }
+    if (best) best.row.words.push(word);
+  }
+  for (const { cue, words } of rows) {
     if (!words.length) continue;
-    words.sort((a, b) => Number(a.start) - Number(b.start) || Number(a.end) - Number(b.end));
     cue.words = words;
     stats.timed++;
     if (refreshCueWordRanges(cue)) stats.matched++;
@@ -19170,7 +19193,22 @@ function researchLinksFromText(value) {
   });
 }
 
-function renderResearchLibrary() {
+function captureResearchLibraryDrafts() {
+  const drafts = new Map();
+  for (const card of $('playerLibraryList')?.querySelectorAll('[data-research-id]') || []) {
+    const row = researchAnnotations.find(item => item.id === card.dataset.researchId);
+    if (!row) continue;
+    const values = Object.fromEntries(['note', 'tags', 'links'].map(field =>
+      [field, card.querySelector(`[data-research-field="${field}"]`)?.value || '']));
+    const saved = {
+      note: row.note || '', tags: (row.tags || []).join(', '),
+      links: (row.links || []).map(link => link.label ? `${link.label} | ${link.url}` : link.url).join('\n'),
+    };
+    if (Object.keys(saved).some(field => saved[field] !== values[field])) drafts.set(row.id, values);
+  }
+  return drafts;
+}
+function renderResearchLibrary(drafts = captureResearchLibraryDrafts()) {
   const list = $('playerLibraryList');
   const status = $('playerLibraryStatus');
   if (!list || !status) return;
@@ -19204,11 +19242,11 @@ function renderResearchLibrary() {
       translation.textContent = annotation.translation; card.appendChild(translation);
     }
     const note = document.createElement('textarea'); note.rows = 2; note.dataset.researchField = 'note';
-    note.value = annotation.note || ''; note.placeholder = 'Bu alıntı veya kelime hakkında notunuz…';
+    note.value = drafts.get(annotation.id)?.note ?? annotation.note ?? ''; note.placeholder = 'Bu alıntı veya kelime hakkında notunuz…';
     const tags = document.createElement('input'); tags.type = 'text'; tags.dataset.researchField = 'tags';
-    tags.value = (annotation.tags || []).join(', '); tags.placeholder = 'Etiketler (virgülle ayırın)';
+    tags.value = drafts.get(annotation.id)?.tags ?? (annotation.tags || []).join(', '); tags.placeholder = 'Etiketler (virgülle ayırın)';
     const links = document.createElement('textarea'); links.rows = 2; links.dataset.researchField = 'links';
-    links.value = (annotation.links || []).map((link) => link.label ? `${link.label} | ${link.url}` : link.url).join('\n');
+    links.value = drafts.get(annotation.id)?.links ?? (annotation.links || []).map((link) => link.label ? `${link.label} | ${link.url}` : link.url).join('\n');
     links.placeholder = 'Kaynak bağlantıları — her satıra bir URL';
     card.append(note, tags, links);
     if ((annotation.tags || []).length) {
@@ -19249,9 +19287,13 @@ async function loadResearchLibrary() {
     .catch((error) => ({ ok: false, error: error.message, annotations: [] }));
   if (seq !== researchLoadSeq || !['research', 'reviews'].includes(playerLibraryView)) return;
   $('playerLibraryList')?.setAttribute('aria-busy', 'false');
+  if (!result?.ok) {
+    logLine(`Araştırma defteri okunamadı: ${result?.error || 'bilinmeyen hata'}`, 'error');
+    return;
+  }
+  const drafts = captureResearchLibraryDrafts();
   researchAnnotations = result?.annotations || [];
-  if (!result?.ok) logLine(`Araştırma defteri okunamadı: ${result?.error || 'bilinmeyen hata'}`, 'error');
-  renderResearchLibrary();
+  renderResearchLibrary(drafts);
 }
 
 async function handleResearchLibraryAction(event) {
@@ -27295,7 +27337,7 @@ document.addEventListener('keydown', (e) => {
   if (!layer || layer.classList.contains('hidden')) return;
   // Onay/sonuç diyaloğu açıkken (odak "Vazgeç" düğmesinde) Backspace arkadaki
   // oynatıcıyı kapatıyordu; diyalog klavyesi yalnız Esc/Tab'ı yakalıyor.
-  if (typeof _activeModal !== 'undefined' && _activeModal) return;
+  if ((typeof _activeModal !== 'undefined' && _activeModal) || document.querySelector('dialog[open]')) return;
   // PDF okuyucu açıkken tuşlar okuyucuya aittir: Space gizli videoyu oynatıyor,
   // oklar sesi değiştirip klavyeyle kaydırmayı engelliyordu. Esc okuyucuyu kapatır.
   if (player.pdfReader) {

@@ -2,7 +2,7 @@ const path = require('path');
 const { safePlaceUrl } = require('./browser-place-url');
 const { canonicalWatchKey } = require('./watch-library-store');
 
-const WATCH_INDEX_VERSION = 4;
+const WATCH_INDEX_VERSION = 5;
 
 function databaseConstructor() {
   try { return require('node:sqlite').DatabaseSync; }
@@ -204,6 +204,31 @@ class WatchIndex {
     if (!annotationColumns.has('track_id')) this.db.exec("ALTER TABLE annotations ADD COLUMN track_id TEXT NOT NULL DEFAULT ''");
     if (!annotationColumns.has('cue_id')) this.db.exec("ALTER TABLE annotations ADD COLUMN cue_id TEXT NOT NULL DEFAULT ''");
     if (!annotationColumns.has('anchor_json')) this.db.exec("ALTER TABLE annotations ADD COLUMN anchor_json TEXT NOT NULL DEFAULT ''");
+    // Fold only the inverted tokens. The external content remains unchanged for
+    // display/snippets; migrate existing page rows as well as future captures.
+    if (this.hasTurkishFold && !this.db.prepare("SELECT value FROM meta WHERE key='page_fts_fold_version'").get()) {
+      this.transaction(() => {
+        this.db.exec(`
+          DROP TRIGGER IF EXISTS pages_ai;
+          DROP TRIGGER IF EXISTS pages_ad;
+          DROP TRIGGER IF EXISTS pages_au;
+          DROP TABLE IF EXISTS page_fts;
+          CREATE VIRTUAL TABLE page_fts USING fts5(title,content,content='pages',content_rowid='rowid',tokenize='unicode61 remove_diacritics 2');
+          INSERT INTO page_fts(rowid,title,content) SELECT rowid,tr_fold(title),tr_fold(content) FROM pages;
+          CREATE TRIGGER pages_ai AFTER INSERT ON pages BEGIN
+            INSERT INTO page_fts(rowid,title,content) VALUES(new.rowid,tr_fold(new.title),tr_fold(new.content));
+          END;
+          CREATE TRIGGER pages_ad AFTER DELETE ON pages BEGIN
+            INSERT INTO page_fts(page_fts,rowid,title,content) VALUES('delete',old.rowid,tr_fold(old.title),tr_fold(old.content));
+          END;
+          CREATE TRIGGER pages_au AFTER UPDATE ON pages BEGIN
+            INSERT INTO page_fts(page_fts,rowid,title,content) VALUES('delete',old.rowid,tr_fold(old.title),tr_fold(old.content));
+            INSERT INTO page_fts(rowid,title,content) VALUES(new.rowid,tr_fold(new.title),tr_fold(new.content));
+          END;
+        `);
+        this.db.prepare("INSERT INTO meta(key,value) VALUES('page_fts_fold_version','1')").run();
+      });
+    }
     this.db.prepare(`INSERT INTO meta(key, value) VALUES('schema_version', ?)
       ON CONFLICT(key) DO UPDATE SET value=excluded.value`).run(String(WATCH_INDEX_VERSION));
   }
@@ -441,7 +466,7 @@ class WatchIndex {
   }
 
   searchPages(query, limit = 50) {
-    const match = ftsQuery(query);
+    const match = ftsQuery(this.hasTurkishFold ? foldSearchText(query) : query);
     if (!match) return [];
     return this.db.prepare(`
       SELECT p.url,p.title,p.visited_at,

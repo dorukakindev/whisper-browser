@@ -28,6 +28,7 @@ import os
 import re
 import sys
 import time
+import tempfile
 import urllib.parse as urllib_parse
 from pathlib import Path
 from ndjson_utils import json_dumps_finite
@@ -302,32 +303,37 @@ def download_clip(url, start, end, output_file, cookie_browser=""):
     from yt_dlp.utils import download_range_func
     target = Path(output_file)
     target.parent.mkdir(parents=True, exist_ok=True)
-    completed_paths = []
-    # yt-dlp şablonu uzantı yer tutucusu olmadan kullanıldığında indirme
-    # aşamasındaki geçici webm/mp4 dosyası hedefin üzerine yazılır ve remux
-    # sonrası gerçek çıktı yolunu güvenilir biçimde bildiremez. Uzantıyı yt-dlp
-    # seçsin; sonrasında completed hook/info içinden gerçek yolu alıyoruz.
-    download_template = str(target.with_suffix('')) + '.%(ext)s'
-    opts = _ydl_opts({
-        "format": "bestvideo+bestaudio/best",
-        "outtmpl": download_template,
-        "merge_output_format": "mp4",
-        "download_ranges": download_range_func(None, [(start, end)]),
-        "post_hooks": [completed_paths.append],
-        "postprocessors": [{"key": "FFmpegVideoRemuxer", "preferedformat": "mp4"}],
-        "force_keyframes_at_cuts": True,
-        "noplaylist": True,
-    }, cookie_browser=cookie_browser)
-    log(f"A-B klibi hazırlanıyor: {start:.2f}–{end:.2f} sn")
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-    candidates = list(reversed(completed_paths))
-    if isinstance(info, dict) and info.get("filepath"):
-        candidates.append(info["filepath"])
-    path = next((Path(item) for item in candidates if item and Path(item).is_file()), None)
-    if path is None:
-        raise RuntimeError("Oluşturulan klip dosyası bulunamadı")
-    emit("clip", path=str(path), title=info.get("title") or "", start=start, end=end)
+    # A new owned staging directory prevents yt-dlp from treating an existing
+    # selected target as proof that this source/range has already downloaded.
+    # Keep staging on the target volume so the final replacement is atomic.
+    with tempfile.TemporaryDirectory(prefix=".whisper-clip-", dir=target.parent, ignore_cleanup_errors=True) as folder:
+        staged_root = Path(folder).resolve()
+        completed_paths = []
+        opts = _ydl_opts({
+            "format": "bestvideo+bestaudio/best",
+            "outtmpl": str(staged_root / 'clip.%(ext)s'),
+            "merge_output_format": "mp4",
+            "download_ranges": download_range_func(None, [(start, end)]),
+            "post_hooks": [completed_paths.append],
+            "postprocessors": [{"key": "FFmpegVideoRemuxer", "preferedformat": "mp4"}],
+            "force_keyframes_at_cuts": True,
+            "overwrites": True,
+            "noplaylist": True,
+        }, cookie_browser=cookie_browser)
+        log(f"A-B klibi hazırlanıyor: {start:.2f}–{end:.2f} sn")
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+        candidates = list(reversed(completed_paths))
+        if isinstance(info, dict) and info.get("filepath"):
+            candidates.append(info["filepath"])
+        finished = next((Path(item) for item in candidates if item
+            and Path(item).resolve().parent == staged_root and not Path(item).is_symlink()
+            and Path(item).is_file() and Path(item).stat().st_size > 0), None)
+        if finished is None:
+            raise RuntimeError("Oluşturulan klip dosyası bulunamadı")
+        os.replace(finished, target)
+    emit("clip", path=str(target), title=(info.get("title") or "") if isinstance(info, dict) else "",
+         start=start, end=end)
 
 
 def _mime_of(url):

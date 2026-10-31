@@ -555,6 +555,11 @@ function sanitizeSettings(input, { allowSecrets = false, existingSettings = {} }
     clean.browserWorkflows = sanitizeStructuredSetting(
       input.browserWorkflows, 'Tarayıcı iş akışları', 4 * 1024 * 1024,
     );
+    if (Array.isArray(clean.browserWorkflows)) {
+      clean.browserWorkflows = clean.browserWorkflows.filter(isPlainRecord).map(row => ({
+        ...row, ...(Array.isArray(row.steps) ? { steps: row.steps.filter(isPlainRecord) } : {}),
+      }));
+    }
   }
   if (allowSecrets && Object.prototype.hasOwnProperty.call(input, 'hfToken')) {
     clean.hfToken = boundedString(input.hfToken, 'HuggingFace token', 10000);

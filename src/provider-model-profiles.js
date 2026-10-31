@@ -84,6 +84,9 @@
     const model = cleanModel(value);
     if (!safeScope) throw new TypeError('Sağlayıcı seçilmedi.');
     if (!model) throw new TypeError('Geçerli bir model adı girin.');
+    if (!Object.hasOwn(profiles, safeScope) && Object.keys(profiles).length >= MAX_PROVIDERS) {
+      throw new TypeError(`En fazla ${MAX_PROVIDERS} sağlayıcı model listesi saklanabilir.`);
+    }
     const models = [...(profiles[safeScope] || [])];
     if (!models.includes(model)) models.push(model);
     if (models.length > MAX_MODELS_PER_PROVIDER) {

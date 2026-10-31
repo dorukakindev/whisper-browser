@@ -22,6 +22,12 @@ function registerBrowserFeatureServices(deps) {
   let seriesStore = null;
   const series = () => seriesStore ||= require('./browser-series-context').createBrowserSeriesContext({
     filePath: path.join(app.getPath('userData'), 'browser-series-context.json'), fsImpl: fsx });
+  const seriesLanguage = payload => {
+    const language = require('./browser-series-context').targetLanguageOf(
+      Object.hasOwn(payload, 'targetLanguage') ? payload.targetLanguage : deps.translationTargetLanguage?.());
+    if (!language) throw new Error('Dizi bağlamı için hedef dil gerekli.');
+    return language;
+  };
   const mediaKey = tab => {
     const url = tab.view.webContents.getURL();
     let origin = ''; try { origin = new URL(url).origin; } catch {}
@@ -279,16 +285,19 @@ function registerBrowserFeatureServices(deps) {
           assertCurrent(); if (reference() !== ref) throw new Error('Referans video değişti.');
           break;
         }
-        case 'series-context:get': result = { context: series().get(mediaKey(tab).key) }; break;
+        case 'series-context:get': result = { context: series().get(mediaKey(tab).key, seriesLanguage(payload)) }; break;
         case 'series-context:bind': {
           const identity = mediaKey(tab);
-          result = { context: series().bind(identity.key, payload.seriesName, identity.origin) }; break;
+          result = { context: series().bind(identity.key, payload.seriesName, identity.origin, seriesLanguage(payload)) }; break;
         }
         case 'series-context:save': {
           const identity = mediaKey(tab);
-          result = { context: series().bindAndSave(identity.key, payload.seriesName, identity.origin, payload.profile) }; break;
+          if (payload.confirmLegacy !== undefined && typeof payload.confirmLegacy !== 'boolean') throw new Error('Eski dizi terimleri onayı geçersiz.');
+          result = { context: series().bindAndSave(identity.key, payload.seriesName, identity.origin, payload.profile,
+            seriesLanguage(payload), { confirmLegacy: payload.confirmLegacy === true }) }; break;
         }
-        case 'series-context:check': result = series().check(mediaKey(tab).key, { cues: payload.cues, translations: payload.translations }); break;
+        case 'series-context:check': result = series().check(mediaKey(tab).key, {
+          cues: payload.cues, translations: payload.translations, targetLanguage: seriesLanguage(payload) }); break;
         case 'mini-open': result = mini.open(tab); break;
         case 'ass-load-fonts':
         case 'ass-load-mkv-fonts':
@@ -417,6 +426,9 @@ function registerBrowserFeatureServices(deps) {
       return { ok: false, stale: !current(), error: String(error.message || 'Video aracı çalıştırılamadı.').slice(0, 600) };
     } finally { if (jobs.get(key) === controller) jobs.delete(key); }
   });
-  return { mini, cancel, hasJobs: () => jobs.size > 0, translationContext: tab => series().translationContext(mediaKey(tab).key) };
+  return { mini, cancel, hasJobs: () => jobs.size > 0, translationContext: (tab, targetLanguage) => {
+    const language = require('./browser-series-context').targetLanguageOf(targetLanguage);
+    return language ? series().translationContext(mediaKey(tab).key, language) : null;
+  } };
 }
 module.exports = { registerBrowserFeatureServices };

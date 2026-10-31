@@ -48,7 +48,7 @@ assert.equal(normalized[0].text, 'Merhaba dünya');
 assert.deepEqual(normalized[0].nodes, [8, 5]);
 assert.equal(normalized[0].tag, 'h2');
 assert.equal(normalized[0].role, 'heading');
-assert.equal(normalized[1].text.length, MAX_PAGE_BLOCK_TEXT);
+assert.equal(normalized[1].text.length, MAX_PAGE_BLOCK_TEXT + 50, 'Preserve the complete source paragraph, split only provider targets');
 assert.deepEqual(normalizePageBlocks([{ id: 'year', text: '2026', tag: 'h2' }])
   .map((block) => [block.text, block.tag]), [['2026', 'h2']]);
 

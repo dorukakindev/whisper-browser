@@ -1,0 +1,24 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const {JSDOM}=require('jsdom');
+test('borrowed fields translate authored UI while retaining keys, model IDs, values and user text',()=>{
+  const source=fs.readFileSync(path.join(__dirname,'../src/renderer/app-settings-ui.js'),'utf8');
+  const helper=source.slice(source.indexOf('  function localizeField('),source.indexOf('  function fields('));
+  const dom=new JSDOM('<div id="field"><label><span class="field-label">Interface theme</span><input value="Dark" aria-label="Interface theme"></label><select id="uiTheme"><option>Dark</option></select><select id="translateSavedModel"><option>Dark</option></select><span data-ui-untranslated><label>Dark</label></span></div><label id="locale"><span class="sr-only">Interface theme</span><select id="uiLocale" aria-label="Interface theme"><option>EN</option></select></label>',{runScripts:'outside-only'});
+  const {window}=dom;
+  window.UiLocale={t:value=>({'Interface theme':'Arayüz teması','Dark':'Koyu'}[value]??value)};
+  window.eval(helper+';window.translateField=localizeField;');
+  window.translateField(window.document.getElementById('field'));
+  window.translateField(window.document.getElementById('locale'));
+  assert.equal(window.document.querySelector('.field-label').textContent,'Arayüz teması');
+  assert.equal(window.document.querySelector('input').value,'Dark');
+  assert.equal(window.document.querySelector('input').getAttribute('aria-label'),'Arayüz teması');
+  assert.equal(window.document.querySelector('#uiTheme option').textContent,'Koyu');
+  assert.equal(window.document.querySelector('#translateSavedModel option').textContent,'Dark');
+  assert.equal(window.document.querySelector('[data-ui-untranslated] label').textContent,'Dark');
+  assert.equal(window.document.querySelector('#locale .sr-only').textContent,'Arayüz teması');
+  window.close();
+});

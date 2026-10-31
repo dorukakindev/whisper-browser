@@ -4,6 +4,17 @@ const path = require('node:path');
 const { gzipSync, gunzipSync } = require('node:zlib');
 const { randomUUID, createHash } = require('node:crypto');
 const { renameSyncResilient } = require('./fsync-utils');
+const { canonicalWatchKey } = require('./watch-library-store');
+function remapFileWatchKey(value, mappings) {
+  if (typeof value !== 'string' || !value.startsWith('file:')) return value;
+  const key = canonicalWatchKey(value);
+  const candidates = mappings.map(([from, to]) => [canonicalWatchKey('file:' + from), to])
+    .sort((a, b) => b[0].length - a[0].length);
+  for (const [from, to] of candidates) {
+    if (key === from || key.startsWith(from + '/')) return canonicalWatchKey('file:' + to + key.slice(from.length));
+  }
+  return value;
+}
 const ROOTS = new Set(['media-catalog.json', 'watch-library.json', 'watch-library-tombstones.json', 'browser-notes.json', 'browser-session.json', 'history.json',
   'assistant-conversations.json', 'media-shelf.json', 'media-enrichment.json', 'media-folder-watches.json', 'torrent-library.json', 'browser-subtitle-preferences.json', 'browser-series-context.json', 'browser-skip-segments.json']);
 const DIRS = new Set(['catalog-posters', 'browser-subtitles', 'workspace-assets', 'subtitle-edits', 'OkumaListesi']);
@@ -42,6 +53,7 @@ function rewrite(value, mappings) {
   }
   replacements.sort((a, b) => b[0].length - a[0].length);
   const replacePath = current => {
+    if (current.startsWith('file:')) return remapFileWatchKey(current, replacements);
     for (const [from, to] of replacements) {
       if (current === from) return to;
       if (current.startsWith(from) && /[\\/]/.test(current.charAt(from.length))) {
@@ -76,6 +88,9 @@ function exportPackage(root, output, rendererValues = {}, externalAliases = null
       // paylaşıldığında kaynak makinenin kullanıcı adı/klasör düzeni ve
       // mappings/sourceRoot içindeki mutlak yollar ifşa olmaz (R83-33).
       const visit = (value, depth = 0) => {
+        if (typeof value === 'string' && value.startsWith('file:')) {
+          return remapFileWatchKey(value, [...(externalAliases || []), [root, '{{ROOT}}']]);
+        }
         if (typeof value === 'string' && path.isAbsolute(value)) {
           // Pakete giren video kaynakları kararlı takma kimliğe çevrilir;
           // kaynak makinenin mutlak yolu hiçbir manifest alanına yazılmaz
@@ -198,6 +213,23 @@ function restorePackage(root, data, videoMappings = []) {
     let bytes = Buffer.from(file.data, 'base64');
     if (file.name.endsWith('.json')) {
       let parsed = rewrite(JSON.parse(bytes.toString('utf8')), mappings);
+      if (file.name === 'watch-library.json') {
+        const original = JSON.parse(bytes.toString('utf8'));
+        const rows = Array.isArray(original) ? original : [
+          ...(Array.isArray(original?.items) ? original.items : []),
+          ...(Array.isArray(original?.overflowItems) ? original.overflowItems : []),
+        ];
+        const identities = new Map();
+        for (const row of rows) {
+          const before = canonicalWatchKey(row?.key);
+          if (!before.startsWith('file:')) continue;
+          const after = remapFileWatchKey(before, mappings);
+          if (identities.has(after) && identities.get(after) !== before) {
+            throw new Error('Paket dosya eşleştirmesi izleme kimliklerini çakıştırıyor.');
+          }
+          identities.set(after, before);
+        }
+      }
       if (file.name === 'browser-session.json') parsed = sanitizeImportedSession(parsed);
       if (file.name === 'media-catalog.json') parsed = sanitizeImportedCatalog(parsed);
       if (file.name === 'history.json') parsed = sanitizeImportedHistory(parsed);

@@ -4,6 +4,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { scanFolder, createMetadataClient, readLimitedBytes } = require('./catalog-discovery');
 const { atomicWriteFileSync } = require('./fsync-utils');
+const { metadataComplete } = require('./catalog-metadata-completeness');
 function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore = () => true, removeOwnedPoster = () => false, dialogText, metadataSettings = () => ({}) }) {
   const dl = dialogText || ((tr) => tr);
   const client = createMetadataClient(undefined,{language:()=>metadataSettings().language||'tr-TR'}), previews = new Map();
@@ -22,7 +23,7 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
     const item = () => { const value = store().get(input.id); if (!value) throw new Error('Eser bulunamadı.'); return value; };
     switch (input.action) {
       case 'metadata-complete-missing':{
-        const current=item(),hasPoster=!!current.posterPath&&fs.existsSync(current.posterPath);if(hasPoster&&current.synopsis&&current.genres?.length&&current.directors?.length&&current.runtime)return {ok:true,skipped:true,item:visible(current)};
+        const current=item(),hasPoster=!!current.posterPath&&fs.existsSync(current.posterPath);if(metadataComplete(current))return {ok:true,skipped:true,item:visible(current)};
         const credential=metadataSettings().apiKey;if(!credential)throw new Error('Önce Ayarlar → Film bilgileri ve afişler bölümüne TMDB anahtarını kaydedin.');
         const providerId=await client.resolve(current,credential,{automatic:context.automatic===true,signal});
         if(JSON.stringify(item())!==JSON.stringify(current))throw new Error('Yapım bilgileri değişti; yeniden başlatın.');

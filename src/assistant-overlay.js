@@ -6,6 +6,7 @@ const { pathToFileURL } = require('node:url');
 // The overlay has no file, provider, browser or shell API. The existing renderer
 // owns chat state and jobs; this native view only mirrors text and sends actions.
 function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
+  const parentContents = window.webContents;
   const file = path.join(__dirname, 'renderer', 'assistant-overlay.html');
   const url = pathToFileURL(file).href;
   const view = new WebContentsView({ webPreferences: {
@@ -13,7 +14,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
     contextIsolation: true, sandbox: true, nodeIntegration: false,
     partition: 'assistant-overlay',
   } });
-  let expanded = false, large = false, disposed = false, snapshot = {};
+  let expanded = false, large = false, disposed = false, modalBlocked = false, snapshot = {};
   view.setBackgroundColor('#00000000');
   view.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   view.webContents.on('will-navigate', (event, target) => { if (target !== url) event.preventDefault(); });
@@ -24,7 +25,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
     const bottom = 24 + Math.min(Math.max(0, Number(snapshot.bottomInset) || 0), h / 2);
     const height = expanded ? Math.min(large ? 850 : 720, Math.max(150, h - bottom - 40)) : 64;
     view.setBounds({ x: Math.max(0, w - width - 16), y: Math.max(38, h - height - bottom), width, height });
-    view.setVisible(!window.isFullScreen());
+    view.setVisible(!modalBlocked && !window.isFullScreen());
     // Browser tabs may have just been added above us. Move this view to the top.
     window.contentView.addChildView(view);
   }
@@ -63,23 +64,30 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
     if (!ownView(event) || !packet || typeof packet !== 'object') return;
     const action = packet.action;
     if (action === 'ready') { view.webContents.send('assistant:snapshot', snapshot); return; }
+    if (modalBlocked) return;
     if (action === 'toggle') { expanded = !expanded; window.webContents.send('assistant:visibility',{expanded}); layout(); if (!expanded) window.webContents.focus(); return; }
     if (action === 'expand') { large = !large; layout(); return; }
     if (!['send', 'web-search', 'cancel', 'retry', 'clear', 'scope', 'citation', 'suggestion', 'copy', 'export','new-thread','select-thread','rename-thread','delete-thread','branch','apply-tool','continue-tool','cancel-job'].includes(action)) return;
     window.webContents.send('assistant:command', { action, sourceToken:String(packet.sourceToken||'').slice(0,8000),requestId:String(packet.requestId||'').slice(0,80),text: String(packet.text || '').slice(0, action==='export'?8000000:action==='copy'?32000:16000) });
   }
-  const show = event => { if(event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame)return; expanded=true; snapshot.opened=true; view.webContents.send('assistant:snapshot',snapshot); window.webContents.send('assistant:visibility',{expanded}); layout(); };
+  const show = event => { if(event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame||modalBlocked)return; expanded=true; snapshot.opened=true; view.webContents.send('assistant:snapshot',snapshot); window.webContents.send('assistant:visibility',{expanded}); layout(); };
+  const modalHandler = (event, blocked) => { if (!owner(event)) return; modalBlocked = blocked === true; layout(); };
+  const parentReady = () => { modalBlocked = false; layout(); };
   const showHandler=(event,...args)=>{if(!owner(event))return;show(event,...args);};
   const updateHandler=(event,...args)=>{if(!owner(event))return;update(event,...args);};
   const commandHandler=(event,...args)=>{if(!ownView(event))return;command(event,...args);};
   ipcMain.on('assistant:show', showHandler);
   ipcMain.on('assistant:update', updateHandler);
   ipcMain.on('assistant:action', commandHandler);
+  ipcMain.on('assistant:modal-state', modalHandler);
+  parentContents.on('dom-ready', parentReady);
   window.on('resize', layout); window.on('enter-full-screen', layout); window.on('leave-full-screen', layout);
   view.webContents.on('did-finish-load', () => { layout(); view.webContents.send('assistant:snapshot', snapshot); });
   window.once('closed', () => {
     disposed = true;
     ipcMain.removeListener('assistant:show', showHandler);
+    ipcMain.removeListener('assistant:modal-state', modalHandler);
+    parentContents.removeListener('dom-ready', parentReady);
     ipcMain.removeListener('assistant:update', updateHandler); ipcMain.removeListener('assistant:action', commandHandler);
     if (!view.webContents.isDestroyed()) view.webContents.close();
   });

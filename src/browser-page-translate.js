@@ -5,6 +5,8 @@ const { normalizeText } = require('./subtitle-sentence-layout');
 
 const MAX_PAGE_BLOCKS = 1500;
 const MAX_PAGE_BLOCK_TEXT = 2000;
+// Preserve complete paragraphs within the existing 6000-character request budget.
+const MAX_PAGE_SOURCE_BLOCK_TEXT = 6000;
 const MAX_PAGE_CHARACTERS = 400000;
 const MAX_PAGE_BATCH_BLOCKS = 20;
 const MAX_PAGE_TARGETS_PER_REQUEST = 8;
@@ -27,7 +29,8 @@ function safeJsonForScript(value) {
 function normalizeOnePageBlock(raw, index) {
   if (!raw || typeof raw !== 'object') return null;
   const id = String(raw.id ?? '').trim().slice(0, 240);
-  const text = normalizeText(raw.text).slice(0, MAX_PAGE_BLOCK_TEXT);
+  const text = normalizeText(raw.text);
+  if (text.length > MAX_PAGE_SOURCE_BLOCK_TEXT) return null;
   const rawTag = String(raw.tag || raw.tagName || '').trim().toLowerCase().slice(0, 24);
   const numericHeading = /^h[1-6]$/u.test(rawTag) && text.length >= 1;
   if (!id || (!numericHeading && text.length < 2 && !MEANINGFUL_CJK.test(text))
@@ -275,8 +278,10 @@ function buildPageTranslationUnits(rawBlocks, selectedBlocks, options = {}) {
   });
 }
 
+const PROTECTED_PAGE_TOKEN_PATTERN = /<\/?[A-Za-z][^>]{0,200}>|\{\{[^{}]{1,160}\}\}|\$\{[^{}]{1,160}\}|%(?:\d+\$)?[sdif]|https?:\/\/[^\s<>]+/giu;
+
 function protectedPageTokens(value) {
-  const tokens = String(value || '').match(/<\/?[A-Za-z][^>]{0,200}>|\{\{[^{}]{1,160}\}\}|\$\{[^{}]{1,160}\}|%(?:\d+\$)?[sdif]|https?:\/\/[^\s<>]+/giu) || [];
+  const tokens = String(value || '').match(PROTECTED_PAGE_TOKEN_PATTERN) || [];
   // DOM textContent HTML varlıklarını zaten doğal karaktere çevirir. Literal
   // &amp; gibi gösterimler de sağlayıcı tarafından & olarak döndürülebilir;
   // bunları güvenlik belirteci saymak geçerli çeviriyi reddediyordu. URL'nin
@@ -285,11 +290,47 @@ function protectedPageTokens(value) {
     ? token.replace(/[.,:;!?]+$/u, '') : token).filter(Boolean);
 }
 
+function pageRequestTargets(sentence) {
+  const pieces = sentence?.pieces || [];
+  const used = new Set(pieces.map(piece => String(piece.cueId)));
+  const targets = [];
+  for (const piece of pieces) {
+    const sourceId = String(piece.cueId), text = normalizeText(piece.text);
+    if (text.length > MAX_PAGE_SOURCE_BLOCK_TEXT) throw new Error('Sayfa paragrafı güvenli istek sınırını aşıyor; özgün metin korundu.');
+    let rest = text, part = 0;
+    do {
+      let end = Math.min(rest.length, MAX_PAGE_BLOCK_TEXT);
+      if (end < rest.length) {
+        const space = rest.lastIndexOf(' ', end);
+        if (space >= end / 2) end = space;
+        else if (/[\uD800-\uDBFF]/u.test(rest[end - 1])) end--;
+        // Provider targets must contain whole protected tokens. Rejoining a
+        // split URL/placeholder with a space would corrupt it before validation.
+        for (const token of rest.matchAll(PROTECTED_PAGE_TOKEN_PATTERN)) {
+          const tokenEnd = token.index + token[0].length;
+          if (token.index < end && tokenEnd > end) {
+            end = tokenEnd <= MAX_PAGE_BLOCK_TEXT ? tokenEnd : token.index;
+            if (!end) throw new Error('Sayfa belirteci güvenli istek sınırını aşıyor; özgün metin korundu.');
+            break;
+          }
+        }
+      }
+      const value = rest.slice(0, end).trim();
+      let id = sourceId;
+      if (text.length > MAX_PAGE_BLOCK_TEXT) {
+        id = 'page-part:' + JSON.stringify([sourceId, part++]);
+        while (used.has(id)) id = '_' + id;
+        used.add(id);
+      }
+      targets.push({ id, sourceId, text: value, tag: String(piece.tag || ''), role: String(piece.role || '') });
+      rest = rest.slice(end).trimStart();
+    } while (rest);
+  }
+  return targets;
+}
+
 function pageTranslationRequest(sentence) {
-  const targets = (sentence?.pieces || []).map((piece) => ({
-    id: String(piece.cueId), text: String(piece.text || '').slice(0, MAX_PAGE_BLOCK_TEXT),
-    tag: String(piece.tag || ''), role: String(piece.role || ''),
-  }));
+  const targets = pageRequestTargets(sentence).map(({ sourceId, ...target }) => target);
   return {
     instruction: [
       'Profesyonel bir web sayfası çevirmenisin. İki aşamalı düşün: önce bağlamdan özne, zamir, zaman, hitap ve terimleri çöz; sonra yalnız targets alanındaki blokları çevir.',
@@ -316,7 +357,8 @@ function decodePageTranslation(raw, sentence) {
     try { raw = JSON.parse(cleaned); }
     catch (_) { throw new Error('Sayfa çevirisinin JSON yanıtı okunamadı.'); }
   }
-  const expected = (sentence?.pieces || []).map((piece) => String(piece.cueId));
+  const targets = pageRequestTargets(sentence);
+  const expected = targets.map(target => target.id);
   const rows = raw?.translations;
   if (!raw || Object.keys(raw).some((key) => key !== 'translations') || !Array.isArray(rows)
       || rows.length !== expected.length) {
@@ -338,11 +380,12 @@ function decodePageTranslation(raw, sentence) {
   // takılırsa yanındaki doğru çeviriler de atılmaz; başarısız blok kaynak
   // metniyle bırakılır ve failedIds'te raporlanır.
   const failedIds = [];
-  const parts = expected.map((id, index) => {
+  const parts = (sentence?.pieces || []).map((piece, index) => {
+    const id = String(piece.cueId);
     const source = String(sentence.pieces[index]?.text || '');
-    const translation = byId.get(id);
+    const translation = targets.filter(target => target.sourceId === id).map(target => byId.get(target.id) || '').join(' ');
     const fail = () => { failedIds.push(id); return source; };
-    if (!translation) return fail();
+    if (!translation || translation.length > 12000) return fail();
     const sourceTokens = protectedPageTokens(source).sort();
     const targetTokens = protectedPageTokens(translation).sort();
     if (JSON.stringify(sourceTokens) !== JSON.stringify(targetTokens)) return fail();
@@ -357,7 +400,7 @@ function pageBlockScanScript(options = {}) {
   return `(() => {
     const incoming = ${encoded};
     const MAX_BLOCKS = ${MAX_PAGE_BLOCKS};
-    const MAX_TEXT = ${MAX_PAGE_BLOCK_TEXT};
+    const MAX_TEXT = ${MAX_PAGE_SOURCE_BLOCK_TEXT};
     const MAX_CHARS = ${MAX_PAGE_CHARACTERS};
     const normalize = (value) => String(value == null ? '' : value).normalize('NFC').replace(/\\s+/g, ' ').trim();
     const meaningful = (value) => (value.length >= 2 || /[ぁ-ヿ㐀-鿿豈-﫿]/u.test(value))
@@ -563,7 +606,8 @@ function pageBlockScanScript(options = {}) {
     const emitNewBlocks = () => {
       if (state.destroyed || document.hidden || state.config.autoContinue === false) return;
       const result = state.scan();
-      if (result.blocks.length) {
+      if (result.blocks.length || result.replacedIds.length || result.oversizedBlocks !== (state.lastOversizedBlocks || 0)) {
+        state.lastOversizedBlocks = result.oversizedBlocks;
         globalThis.__whisperTrustedBridgeSend?.('page-blocks', {
           ...result,
           bridgeToken: state.config.bridgeToken,
@@ -599,6 +643,7 @@ function pageBlockScanScript(options = {}) {
               if (state.ownWrites?.has(node) && state.ownWrites.get(node) === value) {
                 continue;
               }
+              state.ownWrites?.delete(node);
               // SPA metin düğümünü yerinde değiştirdi. Eski kaynak metni yerine
               // yeni gerçek metni temel al ve aynı blok kökünü yeni hash ile tara.
               state.originalValues.set(node, value);
@@ -662,7 +707,9 @@ function pageBlockScanScript(options = {}) {
       }
 
       const candidates = [];
+      const replacedIds = [];
       let foundCharacters = 0;
+      let oversizedBlocks = 0;
       let currentSection = 'Genel';
       for (const group of groups.values()) {
         const text = normalize(group.originals.join(''));
@@ -674,11 +721,26 @@ function pageBlockScanScript(options = {}) {
           blockIndex = state.nextBlockIndex++;
           state.blockIndexes.set(group.owner, blockIndex);
         }
-        const boundedText = text.slice(0, MAX_TEXT);
+        const boundedText = text;
         const ownHeading = headingTag ? boundedText.slice(0, 160) : '';
         const section = ownHeading || ancestorSectionLabel(group.owner) || currentSection;
         if (ownHeading) currentSection = ownHeading;
         if (excludedSections.has(section)) continue;
+        if (text.length > MAX_TEXT) {
+          oversizedBlocks++; foundCharacters += text.length;
+          const previousId = state.latestIdByRoot.get(group.owner);
+          const previous = previousId ? state.refs.get(previousId) : null;
+          if (previous) {
+            previous.active = false;
+            previous.overlay?.remove?.(); previous.overlay = null;
+            previous.failureBadge?.remove?.(); previous.failureBadge = null;
+            state.activeByRoot?.delete(group.owner);
+            replacedIds.push(previousId);
+            state.latestIdByRoot.delete(group.owner);
+            state.knownIds.delete(previousId);
+          }
+          continue;
+        }
         const id = blockIndex + ':' + hashText(boundedText);
         if (state.knownIds.has(id)) continue;
         const role = String(group.owner.getAttribute?.('role') || '').toLowerCase().slice(0, 48);
@@ -707,7 +769,6 @@ function pageBlockScanScript(options = {}) {
       candidates.sort((a, b) => Number(b.visible) - Number(a.visible)
         || a.distance - b.distance || a.order - b.order);
       const blocks = [];
-      const replacedIds = [];
       const blockBudget = Math.max(0, state.config.maxBlocks - state.emittedCount);
       const characterBudget = Math.max(0, state.config.maxCharacters - state.emittedCharacters);
       let usedCharacters = 0;
@@ -738,19 +799,22 @@ function pageBlockScanScript(options = {}) {
       blocks.sort((a, b) => a.order - b.order);
       state.emittedCount += blocks.length;
       state.emittedCharacters += usedCharacters;
-      const pending = Math.max(0, candidates.length - blocks.length);
+      const pending = Math.max(0, candidates.length - blocks.length) + oversizedBlocks;
       const offscreen = candidates.filter((candidate) => !candidate.visible).length;
-      const overflow = candidates.length > blocks.length;
+      const overflow = candidates.length > blocks.length || oversizedBlocks > 0;
       return {
         blocks,
         overflow,
         selectionEmpty: state.config.scope === 'selection' && selectedRanges.length === 0,
         autoContinue: state.config.autoContinue !== false,
         scope: state.config.scope,
-        warning: overflow
+        oversizedBlocks,
+        warning: oversizedBlocks
+          ? 'Çok uzun paragraflar güvenli istek sınırını aştığı için çevrilmedi; özgün metinleri korundu.'
+          : overflow
           ? 'Sayfadaki bazı metinler blok veya karakter sınırı nedeniyle bu turda seçilemedi.'
           : '',
-        stats: { found: candidates.length, discovered: state.knownIds.size + pending,
+        stats: { found: candidates.length + oversizedBlocks, discovered: state.knownIds.size + pending,
           pending, offscreen, foundCharacters, selected: blocks.length, selectedCharacters: usedCharacters },
         restoredTranslations,
         replacedIds,
@@ -1448,6 +1512,7 @@ function pageMemoryClearScript() {
 module.exports = {
   MAX_PAGE_BLOCKS,
   MAX_PAGE_BLOCK_TEXT,
+  MAX_PAGE_SOURCE_BLOCK_TEXT,
   MAX_PAGE_CHARACTERS,
   MAX_PAGE_BATCH_BLOCKS,
   MAX_PAGE_TARGETS_PER_REQUEST,

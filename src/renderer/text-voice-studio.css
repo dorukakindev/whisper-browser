@@ -76,6 +76,7 @@
 
 .text-voice-studio.text-voice-theme-switch button{transition:none}
 
+
 /* Desktop workbench: long settings never stretch the manuscript off screen.
    Small screens retain one continuous, naturally ordered scrolling surface. */
 .text-voice-head h2{text-wrap:balance}
@@ -91,4 +92,11 @@
  .text-voice-rail{padding:22px 20px;gap:20px}
  .text-voice-manuscript{padding:22px 26px}
  .text-voice-editor{min-height:220px;line-height:1.9;padding:20px 24px}
+}
+/* High zoom needs one scroll owner instead of a body shrunk to zero. */
+@media(max-height:600px){
+ .text-voice-shell{overflow:auto;overscroll-behavior:contain}
+ .text-voice-head,.text-voice-footer{flex:none}
+ .text-voice-body{flex:none;min-height:240px;overflow:visible}
+ .text-voice-rail,.text-voice-manuscript{overflow:visible}
 }

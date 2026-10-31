@@ -8,6 +8,7 @@ const MAX_MEDIA = 500;
 const MAX_SERIES = 200;
 const MAX_TERMS = 80;
 const MAX_ISSUES = 100;
+const MAX_LANGUAGES = 32;
 
 function fail(message) { throw new Error(message); }
 function clean(value, max) { return String(value || '').trim().slice(0, max); }
@@ -19,6 +20,15 @@ function originOf(value) {
   } catch { fail('Dizi bağlamı için geçerli site adresi gerekli.'); }
 }
 function seriesId(origin, name) { return `${origin}|${name.toLocaleLowerCase('tr')}`; }
+function targetLanguageOf(value) {
+  if (value === undefined) return ''; // Legacy store API, never a production fallback.
+  if (typeof value !== 'string' || value.length > 35 || !/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i.test(value)) fail('Hedef dil geçersiz.');
+  try { return Intl.getCanonicalLocales(value)[0]; }
+  catch { fail('Hedef dil geçersiz.'); }
+}
+function hasProfile(profile) {
+  return !!(profile.synopsis || profile.addressStyle || profile.terms.length);
+}
 function profileOf(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) fail('Dizi bağlamı geçersiz.');
   const synopsis = clean(raw.synopsis, 2000);
@@ -73,15 +83,20 @@ function createBrowserSeriesContext({ filePath, fsImpl = fs }) {
     if (!key) fail('Video kimliği gerekli.');
     return key;
   }
-  function get(mediaKey) {
+  function get(mediaKey, targetLanguage) {
+    const language = targetLanguageOf(targetLanguage);
     const binding = read().media[mediaKeyOf(mediaKey)];
     if (!binding) return null;
     const record = read().series[binding.seriesId];
     if (!record || record.origin !== binding.origin) return null;
+    const legacy = profileOf(record.profile || {});
+    const selected = language && Object.hasOwn(record.profiles || {}, language) ? record.profiles[language] : null;
     return { seriesName: record.seriesName, origin: record.origin,
-      profile: profileOf(record.profile || {}), seriesId: binding.seriesId };
+      profile: profileOf(selected || (language ? (hasProfile(legacy) ? legacy : {}) : legacy)), seriesId: binding.seriesId,
+      ...(language ? { targetLanguage: language, legacyUnconfirmed: !selected && hasProfile(legacy) } : {}) };
   }
-  function bind(mediaKey, seriesName, origin) {
+  function bind(mediaKey, seriesName, origin, targetLanguage) {
+    targetLanguageOf(targetLanguage);
     const key = mediaKeyOf(mediaKey);
     const name = clean(seriesName, 120);
     if (!name) fail('Dizi adı gerekli.');
@@ -95,17 +110,27 @@ function createBrowserSeriesContext({ filePath, fsImpl = fs }) {
     next.media[key] = { seriesId: id, origin: site };
     next.series[id] ||= { seriesName: name, origin: site, profile: profileOf({}) };
     commit(next);
-    return get(key);
+    return get(key, targetLanguage);
   }
-  function save(mediaKey, profile) {
+  function writeProfile(record, profile, targetLanguage, { confirmLegacy = false } = {}) {
+    const language = targetLanguageOf(targetLanguage);
+    if (!language) { record.profile = profileOf(profile); return; }
+    const profiles = record.profiles || {};
+    if (!Object.hasOwn(profiles, language)) {
+      if (hasProfile(profileOf(record.profile || {})) && !confirmLegacy) fail('Eski dizi terimlerinin hedef dili bilinmiyor; bu dil için açıkça onaylayın.');
+      if (Object.keys(profiles).length >= MAX_LANGUAGES) fail('Dizi hedef dili sınırına ulaşıldı.');
+    }
+    record.profiles = { ...profiles, [language]: profileOf(profile) };
+  }
+  function save(mediaKey, profile, targetLanguage, options) {
     const key = mediaKeyOf(mediaKey), found = get(key);
     if (!found) fail('Önce videoyu bir diziye bağlayın.');
     const next = structuredClone(read());
-    next.series[found.seriesId].profile = profileOf(profile);
+    writeProfile(next.series[found.seriesId], profile, targetLanguage, options);
     commit(next);
-    return get(key);
+    return get(key, targetLanguage);
   }
-  function bindAndSave(mediaKey, seriesName, origin, profile) {
+  function bindAndSave(mediaKey, seriesName, origin, profile, targetLanguage, options) {
     const key = mediaKeyOf(mediaKey);
     const name = clean(seriesName, 120);
     if (!name) fail('Dizi adı gerekli.');
@@ -117,17 +142,19 @@ function createBrowserSeriesContext({ filePath, fsImpl = fs }) {
     if (!next.media[key] && Object.keys(next.media).length >= MAX_MEDIA) fail('Video bağlantısı sınırına ulaşıldı.');
     if (!next.series[id] && Object.keys(next.series).length >= MAX_SERIES) fail('Dizi sınırına ulaşıldı.');
     next.media[key] = { seriesId: id, origin: site };
-    next.series[id] = { seriesName: name, origin: site, profile: normalizedProfile };
+    next.series[id] ||= { seriesName: name, origin: site, profile: profileOf({}) };
+    writeProfile(next.series[id], normalizedProfile, targetLanguage, options);
     commit(next);
-    return get(key);
+    return get(key, targetLanguage);
   }
-  function translationContext(mediaKey) {
-    const found = get(mediaKey);
-    return found ? { seriesName: found.seriesName, ...found.profile } : null;
+  function translationContext(mediaKey, targetLanguage) {
+    const found = get(mediaKey, targetLanguage);
+    return found && !found.legacyUnconfirmed ? { seriesName: found.seriesName, ...found.profile } : null;
   }
-  function check(mediaKey, { cues, translations } = {}) {
-    const found = get(mediaKey);
+  function check(mediaKey, { cues, translations, targetLanguage } = {}) {
+    const found = get(mediaKey, targetLanguage);
     if (!found) return { issues: [], checked: 0 };
+    if (found.legacyUnconfirmed) return { issues: [], checked: 0, legacyUnconfirmed: true };
     if (!Array.isArray(cues) || !Array.isArray(translations) || cues.length > 10000 || translations.length > 10000)
       fail('Kontrol için en çok 10000 kaynak ve çeviri repliği verin.');
     const timed = translations.filter((row) => Number.isFinite(Number(row?.start)) && Number.isFinite(Number(row?.end)))
@@ -179,4 +206,4 @@ function createBrowserSeriesContext({ filePath, fsImpl = fs }) {
   }
   return { get, bind, save, bindAndSave, translationContext, check };
 }
-module.exports = { createBrowserSeriesContext, profileOf };
+module.exports = { createBrowserSeriesContext, profileOf, targetLanguageOf };

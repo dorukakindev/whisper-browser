@@ -49,6 +49,7 @@
     concurrency: 4,
     verification: "detailed",
   };
+  let confirmSequence = 0;
   function ask({
     title,
     description = "",
@@ -64,6 +65,12 @@
         input = el("input"),
         actions = el("div", "mw-actions");
       form.method = "dialog";
+      h.id = 'mw-confirm-title-' + (++confirmSequence);
+      d.setAttribute('aria-labelledby', h.id);
+      if (description) {
+        p.id = h.id + '-description';
+        d.setAttribute('aria-describedby', p.id);
+      }
       input.value = inputValue;
       input.maxLength = 300;
       let value = false;
