@@ -1,0 +1,277 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+  "tier": "standard",
+  "syntheticOnly": true,
+  "transport": "direct model request with production review prompt and evidence builder; native pipeline tested separately",
+  "results": [
+    {
+      "case": "explicit-preferences",
+      "httpStatus": 200,
+      "elapsedMs": 15076,
+      "evidence": {
+        "title": "Sentetik örnek film",
+        "year": 2024,
+        "kind": "film",
+        "identity": {
+          "imdbId": "",
+          "tmdbId": ""
+        },
+        "reviews": [
+          {
+            "id": "a",
+            "author": "",
+            "text": "The patient pacing gives the characters room to breathe, and the final conversation is beautifully acted.",
+            "spoiler": false,
+            "authorId": "fixture-a"
+          },
+          {
+            "id": "b",
+            "author": "",
+            "text": "The acting is excellent, but the story moves so slowly that I lost interest halfway through.",
+            "spoiler": false,
+            "authorId": "fixture-b"
+          },
+          {
+            "id": "c",
+            "author": "",
+            "text": "I admired the careful framing and quiet music. The ending left several questions unanswered.",
+            "spoiler": false,
+            "authorId": "fixture-c"
+          },
+          {
+            "id": "d",
+            "author": "",
+            "text": "The plot is thin, but the leads make their relationship feel believable and affecting.",
+            "spoiler": false,
+            "authorId": "fixture-d"
+          },
+          {
+            "id": "e",
+            "author": "",
+            "text": "This is a restrained character drama rather than an action thriller. The small gestures matter most.",
+            "spoiler": false,
+            "authorId": "fixture-e"
+          }
+        ],
+        "profile": {
+          "preferencesConfigured": true,
+          "preferences": {
+            "weights": {
+              "story": 5,
+              "characters": 4,
+              "pace": 5,
+              "visuals": 2,
+              "sound": 1,
+              "emotion": 3
+            },
+            "avoid": [
+              "pace"
+            ],
+            "note": "Yavaş ve uzatılmış tempoyu sevmiyorum; güçlü karakter ve hikâye arıyorum."
+          },
+          "acceptedAnalysis": null,
+          "analysisEvidenceUnavailable": false,
+          "questionnaire": null
+        },
+        "limitations": "Default weights are not explicit preferences. Accepted analysis is an inference from earlier personal reviews, not a guaranteed prediction."
+      },
+      "analysis": {
+        "summary": "Beş ayrı yorumda yavaş tempolu, sakin bir karakter draması öne çıkıyor. Oyunculuk ve karakter ilişkileri genellikle olumlu anılıyor; ancak yavaşlık, ince olay örgüsü ve yanıtsız kalan sorular eleştiri olarak dile getiriliyor. Yorumcuların bir kısmı bu yavaşlığı karakterlere alan tanıyan bir özellik olarak görürken, bir kısmı ilgi kaybına yol açtığını belirtiyor. Yalnızca beş bağımsız yorumcu bulunduğundan ve yazarların kimliği bilinmediğinden genel bir izleyici eğilimi hakkında sonuç çıkarmak desteklenmiyor.",
+        "fit": "Kişisel tercihlerinizde hikâye ve tempo en yüksek ağırlıkta, ayrıca yavaş ve uzatılmış tempodan kaçınmak istediğinizi belirtmişsiniz. Yorumlarda sıkça anılan yavaş tempo ve ince olay örgüsü bu tercihlerle çelişiyor gibi görünüyor; güçlü oyunculuk ve karakter ilişkileri ise olumlu bir eşleşme olabilir. Bu bir tahmindir; filmi izlemediğinize dair kişisel kanıt yok ve yorumlardan kesin bir uyum sonucu çıkarılamaz.",
+        "points": [
+          {
+            "id": "a",
+            "quote": "The patient pacing gives the characters room to breathe, and the final conversation is beautifully acted.",
+            "reason": "Yavaş tempoyu olumlu bir özellik olarak görüyor ve oyunculuğu övüyor; bu, yavaş tempodan hoşlanmayan tercihinizle çelişen bir bakış.",
+            "kind": "praise",
+            "quoteTr": "Sabırlı tempo karakterlere nefes alacak alan tanıyor ve final konuşması çok güzel oynanmış.",
+            "quoteTrKind": "paraphrase"
+          },
+          {
+            "id": "b",
+            "quote": "The acting is excellent, but the story moves so slowly that I lost interest halfway through.",
+            "reason": "Oyunculuğu överken yavaşlığın ilgi kaybına yol açtığını söylüyor; bu, tempo tercihinizle doğrudan ilgili bir eleştiri.",
+            "kind": "criticism",
+            "quoteTr": "Oyunculuk mükemmel ama hikâye o kadar yavaş ilerliyor ki yarısında ilgimi kaybettim.",
+            "quoteTrKind": "paraphrase"
+          },
+          {
+            "id": "c",
+            "quote": "I admired the careful framing and quiet music. The ending left several questions unanswered.",
+            "reason": "Görsel düzen ve sessiz müziği olumlu buluyor, ancak finalin soruları yanıtsız bırakmasını eleştiriyor.",
+            "kind": "debate",
+            "quoteTr": "Özenli çerçevelemeyi ve sakin müziği beğendim. Final birkaç soruyu yanıtsız bıraktı.",
+            "quoteTrKind": "paraphrase"
+          },
+          {
+            "id": "d",
+            "quote": "The plot is thin, but the leads make their relationship feel believable and affecting.",
+            "reason": "Olay örgüsünü zayıf bulurken başrol oyuncularının ilişkiyi inandırıcı ve etkileyici kıldığını belirtiyor; hikâye ile karakter arasında bir denge kuruyor.",
+            "kind": "debate",
+            "quoteTr": "Olay örgüsü ince, ama başroller ilişkilerini inandırıcı ve etkileyici hissettiriyor.",
+            "quoteTrKind": "paraphrase"
+          },
+          {
+            "id": "e",
+            "quote": "This is a restrained character drama rather than an action thriller. The small gestures matter most.",
+            "reason": "Filmin türünü sakin bir karakter draması olarak tanımlıyor ve küçük jestlerin önemini vurguluyor; bu, hızlı tempodan kaçınan tercihinizle uyumsuz bir tarif.",
+            "kind": "praise",
+            "quoteTr": "Bu bir aksiyon gerilimi değil, ölçülü bir karakter draması. En çok küçük jestler önem taşıyor.",
+            "quoteTrKind": "paraphrase"
+          }
+        ],
+        "at": 1793475057254
+      },
+      "assessment": {
+        "total": 5,
+        "distinct": 5,
+        "duplicates": 0,
+        "quoted": 5,
+        "independentAuthors": 5,
+        "unknownAuthors": 0,
+        "limited": false
+      },
+      "usage": {
+        "prompt_tokens": 681,
+        "total_tokens": 1758,
+        "completion_tokens": 1077,
+        "estimated_cost": 0.00035904063999999997,
+        "prompt_tokens_details": {
+          "cached_tokens": 256,
+          "cache_write_tokens": null
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    },
+    {
+      "case": "single-author-no-profile",
+      "httpStatus": 200,
+      "elapsedMs": 24915,
+      "evidence": {
+        "title": "Sentetik örnek film",
+        "year": 2024,
+        "kind": "film",
+        "identity": {
+          "imdbId": "",
+          "tmdbId": ""
+        },
+        "reviews": [
+          {
+            "id": "a",
+            "author": "",
+            "text": "The patient pacing gives the characters room to breathe, and the final conversation is beautifully acted.",
+            "spoiler": false,
+            "authorId": "same-reviewer"
+          },
+          {
+            "id": "b",
+            "author": "",
+            "text": "The acting is excellent, but the story moves so slowly that I lost interest halfway through.",
+            "spoiler": false,
+            "authorId": "same-reviewer"
+          },
+          {
+            "id": "c",
+            "author": "",
+            "text": "I admired the careful framing and quiet music. The ending left several questions unanswered.",
+            "spoiler": false,
+            "authorId": "same-reviewer"
+          },
+          {
+            "id": "d",
+            "author": "",
+            "text": "The plot is thin, but the leads make their relationship feel believable and affecting.",
+            "spoiler": false,
+            "authorId": "same-reviewer"
+          },
+          {
+            "id": "e",
+            "author": "",
+            "text": "This is a restrained character drama rather than an action thriller. The small gestures matter most.",
+            "spoiler": false,
+            "authorId": "same-reviewer"
+          }
+        ],
+        "profile": {
+          "preferencesConfigured": false,
+          "preferences": null,
+          "acceptedAnalysis": null,
+          "analysisEvidenceUnavailable": false,
+          "questionnaire": null
+        },
+        "limitations": "Default weights are not explicit preferences. Accepted analysis is an inference from earlier personal reviews, not a guaranteed prediction."
+      },
+      "analysis": {
+        "summary": "Bu örnekte beş ayrı yorum metni var, ancak hepsi aynı yazar kimliğine bağlı; bu nedenle bağımsız izleyici görüşleri olarak genel bir eğilim çıkarılamaz. Metinlerde öne çıkan ortak nokta, oyunculuğun ve sakin anlatımın olumlu bulunması; anlaşmazlık ise aynı yavaş temponun kimi yorumda nefes alma alanı sağlaması, kimi yorumda ilgi kaybına yol açması. Olay örgüsünün yalınlığı ve yanıtsız kalan sorular da eleştiri olarak dile getirilmiş. Kişisel uygunluk için açık tercih bilgisi yok; kabul edilmiş kişisel analiz de bulunmadığından size özel bir uyum değerlendirmesi yapılamaz.",
+        "fit": "Kişisel tercihler açıkça tanımlanmamış ve kabul edilmiş kişisel analiz sağlanmamış. Bu yüzden filmi sevip sevmeyeceğinize dair kanıta dayalı bir tahmin yok. Yalnızca metinlerden çıkan sınırlı çıkarım şu: sakin, karakter odaklı ve oyunculuğa dayanan bir drama ilginizi çekiyorsa olumlu yorumlarla örtüşebilir; yavaş tempoya toleransınız düşükse eleştirel yorumlar sizin için daha belirleyici olabilir. Bu bir olasılık tahmini değil, yorum içeriklerinin koşullu karşılaştırmasıdır.",
+        "points": [
+          {
+            "id": "a",
+            "quote": "The patient pacing gives the characters room to breathe, and the final conversation is beautifully acted.",
+            "reason": "Doğrudan alıntılanan gözlem: sabırlı tempo karakterlere alan tanıyor ve final konuşması güzel oynanmış. Bu, yavaş anlatımı ve oyunculuğu olumlu gören bir yorumdur; tek başına genel beğeni kanıtı sayılmaz.",
+            "kind": "praise",
+            "quoteTr": "Sabırlı tempo karakterlere nefes alacak alan bırakıyor ve finaldeki konuşma çok güzel oynanmış.",
+            "quoteTrKind": "paraphrase"
+          },
+          {
+            "id": "b",
+            "quote": "The acting is excellent, but the story moves so slowly that I lost interest halfway through.",
+            "reason": "Doğrudan alıntılanan gözlem: oyunculuk çok iyi bulunurken hikâyenin çok yavaş ilerlemesi ilgi kaybına yol açmış. Bu, a yorumundaki olumlu tempo değerlendirmesiyle çelişen bir eleştiridir.",
+            "kind": "criticism",
+            "quoteTr": "Oyunculuk mükemmel, ama hikâye o kadar yavaş ilerliyor ki yarısında ilgimi kaybettim.",
+            "quoteTrKind": "paraphrase"
+          },
+          {
+            "id": "c",
+            "quote": "I admired the careful framing and quiet music. The ending left several questions unanswered.",
+            "reason": "Doğrudan alıntılanan gözlem: özenli çerçeveleme ve sakin müzik beğenilmiş; finalin birkaç soruyu yanıtsız bırakması ise olumsuz bir nokta olarak belirtilmiş. Aynı yorum hem beğeni hem eleştiri içeriyor.",
+            "kind": "debate",
+            "quoteTr": "Özenli çerçevelemeyi ve sakin müziği beğendim. Final birkaç soruyu yanıtsız bıraktı.",
+            "quoteTrKind": "paraphrase"
+          },
+          {
+            "id": "d",
+            "quote": "The plot is thin, but the leads make their relationship feel believable and affecting.",
+            "reason": "Doğrudan alıntılanan gözlem: olay örgüsü yalın bulunmuş, buna karşılık başrollerin ilişkiyi inandırıcı ve etkileyici kılması olumlu değerlendirilmiş. Bu, zayıf gördüğü yönü oyunculukla dengeliyor.",
+            "kind": "debate",
+            "quoteTr": "Olay örgüsü yalın, ama başroller ilişkilerini inandırıcı ve etkileyici kılıyor.",
+            "quoteTrKind": "paraphrase"
+          },
+          {
+            "id": "e",
+            "quote": "This is a restrained character drama rather than an action thriller. The small gestures matter most.",
+            "reason": "Doğrudan alıntılanan gözlem: film aksiyon gerilimi değil, ölçülü bir karakter draması olarak tanımlanıyor ve küçük jestlerin önemli olduğu belirtiliyor. Bu bir tür beklentisi açıklamasıdır; beğeni ya da eleştiri olduğu kesin değil.",
+            "kind": "debate",
+            "quoteTr": "Bu, aksiyon gerilimi değil ölçülü bir karakter draması. En çok küçük jestler önem taşıyor.",
+            "quoteTrKind": "paraphrase"
+          }
+        ],
+        "at": 1793475082171
+      },
+      "assessment": {
+        "total": 5,
+        "distinct": 5,
+        "duplicates": 0,
+        "quoted": 5,
+        "independentAuthors": 1,
+        "unknownAuthors": 0,
+        "limited": true
+      },
+      "usage": {
+        "prompt_tokens": 609,
+        "total_tokens": 1915,
+        "completion_tokens": 1306,
+        "estimated_cost": 0.00041931064,
+        "prompt_tokens_details": {
+          "cached_tokens": 256,
+          "cache_write_tokens": null
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    }
+  ]
+}

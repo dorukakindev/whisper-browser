@@ -139,7 +139,22 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
           if(!parsed.reviews.length)throw Error('No readable reviews found. The site may require access or its format changed; paste or import reviews.');return {ok:true,...parsed,url:url.href,match:require('./letterboxd-reviews').matchFilm(selected,parsed.identity)};
         }finally{jobs.delete(id);}
       }
-      if(action==='decision-get'){const selected=await reviewItem(event,input);const data=read();return {ok:true,value:(Object.hasOwn(data.titles,selected.id)?data.titles[selected.id]:{})};}
+      if(action==='decision-get'){
+        const selected=await reviewItem(event,input),data=read(),own=Object.hasOwn(data.titles,selected.id)?data.titles[selected.id]:{},model=require('./renderer/media-tools-model'),current=model.decisionProviderIdentity(selected);
+        const history=(Array.isArray(own.history)?own.history:[]).map(entry=>({entry,savedFrom:selected.id.startsWith('discovery:')?'discovery':'library'}));
+        // A discovery title and its later library entry use different storage keys.
+        // Share saved evidence only through a positive provider match; feedback stays local.
+        for(const [key,value]of Object.entries(data.titles)){
+          if(key===selected.id||!Array.isArray(value?.history))continue;
+          for(const entry of value.history){
+            if(!entry?.identity||entry.identity.kind!==selected.kind||model.decisionIdentityMatch(selected,entry.identity)!=='matched')continue;
+            const saved=model.decisionProviderIdentity(entry.identity);
+            if(['imdbId','tmdbId'].some(key=>current[key]&&current[key]===saved[key]))history.push({entry,savedFrom:key.startsWith('discovery:')?'discovery':'library'});
+          }
+        }
+        const seen=new Set(),merged=history.filter(({entry})=>{const key=JSON.stringify(entry);if(seen.has(key))return false;seen.add(key);return true;}).sort((a,b)=>(Number(b.entry?.analysis?.at)||0)-(Number(a.entry?.analysis?.at)||0)).slice(0,8).map(({entry,savedFrom})=>({...entry,savedFrom}));
+        return {ok:true,value:{...own,...(merged.length?{history:merged}:{})}};
+      }
       if(['decision-save','feedback-save'].includes(action)){
         const selected=await reviewItem(event,input);if(action==='decision-save'&&input.itemIdentity){for(const key of ['kind','title','year','tmdbId','imdbId'])if(String(input.itemIdentity[key]??'')!==String(selected[key]??''))throw Error('The film identity changed. Review the new title before saving this analysis.');}const data=read(),previous=Object.hasOwn(data.titles,selected.id)?data.titles[selected.id]:{};
         if(action==='feedback-save'){const feedback={reaction:['like','neutral','dislike'].includes(input.reaction)?input.reaction:'neutral',note:text(input.note),aspects:Array.isArray(input.aspects)?input.aspects.filter(k=>require('./media-taste').ASPECTS.includes(k)):[],at:Date.now()};data.titles[selected.id]={...previous,feedback};}

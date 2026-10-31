@@ -29,3 +29,14 @@
 .mrv-quote-tr small{display:block;font-size:11px;line-height:1.65}
 .mtx-history>.mh-action{margin-top:18px;min-height:40px}
 @media(max-width:600px){.mrv-auto-controls{grid-template-columns:minmax(0,1fr);gap:12px}.mrv-auto-controls .mtx-field:first-child{order:0}}
+
+/* One reading desk: current source, readable sample and saved decisions. */
+.mrv-source>h2{margin-bottom:8px}.mrv-source>.mtx-muted{font-size:13px;line-height:1.7}
+.mrv-loaded-sample{padding:20px 0;margin:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.mrv-loaded-sample[hidden]{display:none}.mrv-sample-overview>strong{font-size:16px;font-weight:500}.mrv-sample-overview p{margin:8px 0 4px}.mrv-sample-overview small{display:block;max-width:68ch;line-height:1.7}
+.mrv-loaded-reader{margin-top:16px}.mrv-loaded-reader>summary{cursor:pointer;min-height:40px;align-content:center;font-size:14px;font-weight:500}.mrv-loaded-reader[open]>summary{margin-bottom:10px}
+.mrv-loaded-reader .mrv-sample-list{max-height:360px}.mrv-loaded-reader article>p:first-of-type{margin:10px 0}.mrv-loaded-reader .mrv-review-meta{font-size:12px;line-height:1.7}
+.mrv-saved-analyses{display:grid;gap:14px;min-width:0}.mrv-saved-analyses>h2{margin:0}.mrv-saved-analyses>.mtx-muted{margin:0 0 4px;font-size:13px}.mrv-saved-origin{font-size:12px;color:var(--text-dim);margin:16px 0 10px;line-height:1.65}
+.mrv-saved-analyses>.mtx-history{padding:20px}.mrv-saved-analyses>.mtx-history>summary{min-height:36px;align-content:center;font-weight:500;line-height:1.6}.mrv-saved-analyses .mrv-summary h2,.mrv-saved-analyses .mrv-fit h2{font-size:18px}
+.mrv-personal-feedback{border-top:1px solid var(--border);padding-top:16px}.mrv-personal-feedback>summary{cursor:pointer;min-height:44px;align-content:center;font-size:14px;font-weight:500}.mrv-personal-feedback>.mtx-section{padding:16px 0 0;border:0}.mrv-personal-feedback h2{display:none}
+@media(max-width:600px){.mrv-source>.mtx-actions{gap:8px}.mrv-saved-analyses>.mtx-history{padding:16px}.mrv-loaded-sample{padding:16px 0}.mrv-saved-analyses .mrv-summary p,.mrv-saved-analyses .mrv-fit p{font-size:15px}}

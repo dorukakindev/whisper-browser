@@ -3,6 +3,38 @@ const test=require('node:test'),assert=require('node:assert/strict');const {pars
 test('Nested review containers and once-only entities retain complete safe text',()=>{
  const data=parseLetterboxdReviews('<script>const fake=\'<div class="js-review-body">Fake reviewer content</div>\'</script><meta property="og:title" content="Reviews of Example (1999)"><article><a class="name">Test &amp; Author</a><div class="js-review-body"><p>First &#304;stanbul paragraph.</p><div>Nested <b>second</b> paragraph.</div><p>Last &#x15f; line &amp;lt;b&amp;gt;.</p><script>injected()</script></div></article>');assert.equal(data.reviews.length,1);assert.match(data.reviews[0].text,/Last ş line &lt;b&gt;/);assert.match(data.reviews[0].text,/Nested second paragraph/);assert.doesNotMatch(data.reviews[0].text,/injected/);assert.equal(data.reviews[0].author,'Test & Author');assert.equal(data.pageTitle,'Reviews of Example (1999)');assert.equal(decode('&#x110000; &#xD800;'),'� �');
 });
+
+test('Source quotations preserve inline word and punctuation adjacency while separating blocks',()=>{
+ const data=parseLetterboxdReviews('<article><a class="name">Jean-<b>Luc</b></a><div class="js-review-body"><p>An un<em>believable</em> film! <a href="/elsewhere/">See it</a>.</p><blockquote>“<strong>Beautiful</strong>,” indeed.</blockquote><p>One<br>last line &amp; goodbye.</p></div></article>');
+ assert.equal(data.reviews[0].text,'An unbelievable film! See it.\n\n“Beautiful,” indeed.\n\nOne\nlast line & goodbye.');
+ assert.equal(data.reviews[0].author,'Jean-Luc');
+});
+
+test('Film IMDb external links verify translated titles, while conflicting identifiers and years remain rejected',()=>{
+ const {matchFilm}=require('../src/letterboxd-reviews');
+ const identity=parseLetterboxdReviews('<meta property="og:title" content="The Witness (2026)"><a data-track-action="IMDb" href="https://www.imdb.com/title/tt1234567/maindetails">IMDb</a>').identity;
+ const local={kind:'film',title:'Tanık',year:2026,imdbId:'tt1234567'};
+ assert.equal(identity.imdbId,'tt1234567');
+ assert.deepEqual(matchFilm(local,identity),{state:'matched',reason:'imdb-id'});
+ assert.deepEqual(matchFilm({...local,title:identity.title,imdbId:'tt7654321'},identity),{state:'mismatch',reason:'imdb-id'});
+ assert.equal(matchFilm({...local,year:2025},identity).reason,'year');
+ assert.equal(matchFilm({...local,tmdbId:'movie:1'},{...identity,tmdbId:'movie:2'}).reason,'tmdb-id');
+ assert.equal(matchFilm({...local,tmdbId:'movie:1'},{...identity,tmdbId:'movie:1',imdbId:'tt7654321'}).reason,'imdb-id');
+});
+
+test('Review links, ambiguous markers and impostor IMDb hosts cannot claim the film identifier',()=>{
+ const link=href=>'<a data-track-action="IMDb" href="'+href+'">IMDb</a>',valid=link('https://www.imdb.com/title/tt1234567/');
+ for(const markup of ['<article>'+valid+'</article>','<li>'+valid+'</li>','<div class="js-review-body">'+valid+'</div>',link('https://www.imdb.com.evil.test/title/tt1234567/'),link('https://user:pass@www.imdb.com/title/tt1234567/'),link('https://www.imdb.com/name/tt1234567/'),valid+link('https://imdb.com/title/tt7654321/'),'<a href="https://imdb.com/title/tt1234567/">IMDb</a>']){
+  assert.equal(parseLetterboxdReviews(markup).identity.imdbId,undefined,markup);
+ }
+});
+
+test('Loaded Browser extraction retains the film IMDb marker without trusting review-body links',()=>{
+ const {JSDOM}=require('jsdom'),{reviewPageScript,matchFilm}=require('../src/letterboxd-reviews');
+ const html='<meta property="og:title" content="The Witness (2026)"><a data-track-action="IMDb" href="https://www.imdb.com/title/tt1234567/">IMDb</a><article><div class="js-review-body">A visible opinion with <a data-track-action="IMDb" href="https://imdb.com/title/tt7654321/">a different film link</a>.</div></article>';
+ const dom=new JSDOM(html,{url:'https://letterboxd.com/film/the-witness/reviews/',runScripts:'outside-only'});
+ try{const extracted=dom.window.eval(reviewPageScript()),parsed=parseLetterboxdReviews(extracted.html,{url:extracted.url});assert.equal(parsed.reviews.length,1);assert.equal(parsed.identity.imdbId,'tt1234567');assert.equal(matchFilm({kind:'film',title:'Tanık',year:2026,imdbId:'tt1234567'},parsed.identity).state,'matched');}finally{dom.window.close();}
+});
 test('A neighbouring spoiler does not mark the next review, while duplicates and challenge screens are rejected',()=>{
  const page='<li class="review contains-spoilers"><div class="js-review-body">A spoiler review reveals the ending.</div></li><li class="review"><div class="js-review-body">A clean review discusses acting only.</div></li><li><div class="js-review-body">A clean review discusses acting only.</div></li>';
  const data=parseLetterboxdReviews(page);assert.equal(data.reviews.length,2);assert(data.reviews[0].spoiler);assert.equal(data.reviews[1].spoiler,false);assert.throws(()=>parseLetterboxdReviews('<title>Just a moment...</title>'),/verification/);assert.throws(()=>parseLetterboxdReviews('x'.repeat(3000001)),/large/);

@@ -76,21 +76,46 @@ function personalEvidence(taste={}) {
  }
  return result;
 }
+function decisionProviderIdentity(item={}) {
+ const imdbId=text(item.imdbId||item.providerId,40),tmdbId=text(item.tmdbId,40);
+ return {imdbId:/^tt\d{7,12}$/.test(imdbId)?imdbId:'',tmdbId:/^(?:movie|tv):[1-9]\d*$/.test(tmdbId)?tmdbId:''};
+}
+function decisionIdentityMatch(item={},identity={}) {
+ if(item.kind&&identity.kind&&item.kind!==identity.kind)return 'mismatch';
+ const current=decisionProviderIdentity(item),saved=decisionProviderIdentity(identity);
+ for(const key of ['imdbId','tmdbId'])if(current[key]&&saved[key]&&current[key]!==saved[key])return 'mismatch';
+ if(item.year&&identity.year&&Number(item.year)!==Number(identity.year))return 'mismatch';
+ if(['imdbId','tmdbId'].some(key=>current[key]&&current[key]===saved[key]))return 'matched';
+ const fold=value=>text(value,200).normalize('NFKC').toLocaleLowerCase('en-US');
+ if(item.kind&&identity.kind&&item.year&&identity.year&&fold(item.title)&&fold(item.title)===fold(identity.title))return 'matched';
+ return 'unknown';
+}
+function decisionSampleAssessment(reviews) {
+ const assessment=reviewAssessment(reviews);
+ return {distinctReviews:assessment.distinct,independentAuthors:assessment.independentAuthors,unknownAuthors:assessment.unknownAuthors,duplicates:assessment.duplicates};
+}
 function decisionEvidence(item,reviews,taste={}) {
  const profile=personalEvidence(taste);
- const result={title:String(item.title||'').slice(0,200),year:item.year,kind:item.kind,reviews:[],profile,limitations:'Default weights are not explicit preferences. Accepted analysis is an inference from earlier personal reviews, not a guaranteed prediction.'};
+ const result={title:String(item.title||'').slice(0,200),year:item.year,kind:item.kind,identity:decisionProviderIdentity(item),reviews:[],sampleAssessment:{distinctReviews:20,independentAuthors:20,unknownAuthors:20,duplicates:20},profile,limitations:'Default weights are not explicit preferences. Accepted analysis is an inference from earlier personal reviews, not a guaranteed prediction.'};
  const overhead=JSON.stringify(result).length;
  const normalized=reviews.map((row,i)=>({id:text(row?.id,80)||String(i+1),author:text(row?.author,120),text:text(row?.text,4000),spoiler:!!row?.spoiler,...reviewMetadata(row||{})}));
  const sample=reviewSample(normalized,Math.max(100,Math.min(4500,7700-overhead)));
- result.reviews=sample.reviews;return {evidence:result,sample};
+ result.reviews=sample.reviews;result.sampleAssessment=decisionSampleAssessment(sample.reviews);return {evidence:result,sample};
 }
 function decisionContext(item,reviews,taste={}) {return JSON.stringify(decisionEvidence(item,reviews,taste).evidence);}
-function decisionFreshness(snapshot,item,reviews,taste={}) {return !snapshot?.context?'unknown':snapshot.context===decisionContext(item,reviews,taste)?'current':'stale';}
+function decisionFreshness(snapshot,item,reviews,taste={}) {
+ if(!snapshot?.context)return 'unknown';
+ let saved;try{saved=JSON.parse(snapshot.context);}catch{return 'unknown';}
+ if(!saved?.identity)return 'unknown';
+ return snapshot.context===decisionContext(item,reviews,taste)?'current':'stale';
+}
 function validateEvidenceSnapshot(raw,reviews,item) {
  if(raw===undefined)return undefined;
  if(!raw||raw.version!==1||typeof raw.context!=='string'||raw.context.length>8000||!raw.profile||typeof raw.profile!=='object'||Array.isArray(raw.profile))throw Error('Invalid analysis evidence snapshot.');
  let context;try{context=JSON.parse(raw.context);}catch{throw Error('Invalid analysis evidence snapshot.');}
  if(!context||!Array.isArray(context.reviews)||JSON.stringify(context.reviews)!==JSON.stringify(reviews)||JSON.stringify(context.profile)!==JSON.stringify(raw.profile)||JSON.stringify(raw).length>16000||(item&&['title','year','kind'].some(key=>String(context[key]??'')!==String(key==='title'?text(item[key],200):item[key]??''))))throw Error('Analysis evidence snapshot does not match its review sample.');
+ if(Object.hasOwn(context,'sampleAssessment')){const expected=decisionSampleAssessment(reviews),actual=context.sampleAssessment;if(!actual||typeof actual!=='object'||Object.keys(actual).length!==Object.keys(expected).length||Object.keys(expected).some(key=>actual[key]!==expected[key]))throw Error('Analysis evidence snapshot does not match its sample assessment.');}
+ if(context.identity&&item&&JSON.stringify(context.identity)!==JSON.stringify(decisionProviderIdentity(item)))throw Error('Analysis evidence snapshot does not match its film identity.');
  return {version:1,context:raw.context,profile:context.profile};
 }
 function verifyDecision(raw, reviews) {
@@ -128,5 +153,5 @@ function tonight(items, history=[], options={}) {
   return rows.sort((a,b)=>b.score-a.score||a.title.localeCompare(b.title)).slice(0,8);
 }
 
-return Object.freeze({reviewRows,reviewMetadata,reviewSample,reviewAssessment,decisionEvidence,decisionContext,decisionFreshness,validateEvidenceSnapshot,verifyDecision,tonight});
+return Object.freeze({reviewRows,reviewMetadata,reviewSample,reviewAssessment,decisionEvidence,decisionProviderIdentity,decisionIdentityMatch,decisionContext,decisionFreshness,validateEvidenceSnapshot,verifyDecision,tonight});
 });
