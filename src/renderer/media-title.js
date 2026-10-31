@@ -74,7 +74,7 @@
     const body=el('div','mtd-body'),main=el('main','mtd-main'),aside=el('aside','mtd-aside');
     story(main);
     if(item.cast?.length){main.append(el('h2','',t('Cast','Oyuncular')));const cast=el('div','mtd-cast');for(const name of item.cast)cast.append(el('span','',name));main.append(cast);}
-    const review=el('section','mtd-review');review.append(el('h2','',t('Is this for you?','Bana uygun mu?')),el('p','',t('Read reviews and compare this title with your taste profile.','Yorumları incele, yapımı zevk profilinle karşılaştır.')),button(t('Reviews & personal fit','Yorumlar ve bana uygunluğu'),()=>window.MediaToolsUI?.open('decision',item)));main.append(review);
+    const review=el('section','mtd-review');main.append(review);
     const info=el('dl');for(const [label,value]of [[t('Director / creator','Yönetmen / yaratıcı'),(item.directors||[]).join(', ')],[t('Original title','Özgün adı'),item.originalTitle]])if(value)info.append(el('dt','',label),el('dd','',value));aside.append(info);
     const personal=el('div','mtd-personal'),statusLabel=el('label','',t('Watch status','İzleme durumu')),statusSelect=el('select');
     for(const [value,en,tr]of [['unspecified','Not set','Belirtilmedi'],['planned','Watchlist','İzleme listesi'],['watching','Watching','İzleniyor'],['completed','Watched','İzlendi']]){const option=el('option','',t(en,tr));option.value=value;statusSelect.append(option);}statusSelect.value=draft?.status??item.watchStatus;statusSelect.dataset.titleAction='status';statusLabel.append(statusSelect);
@@ -84,7 +84,7 @@
     const id=/^(movie|tv):(\d+)$/.exec(item.tmdbId||'');if(id)aside.append(button(t('View on TMDB ↗','TMDB’de görüntüle ↗'),()=>window.api.openExternal('https://www.themoviedb.org/'+id[1]+'/'+id[2])));
     if(episodes.length){const season=el('section','mtd-episodes'),label=el('label','',t('Episodes · season ','Bölümler · sezon ')),select=el('select');for(const num of [...new Set(episodes.map(ep=>ep.season))].sort((a,b)=>a-b)){const option=el('option','',num);option.value=num;select.append(option);}label.append(select);season.append(label);const list=el('div');season.append(list);const drawEpisodes=()=>{list.replaceChildren();for(const ep of episodes.filter(ep=>ep.season===Number(select.value))){const row=el('div','mtd-episode');row.append(el('span','',String(ep.number).padStart(2,'0')),el('strong','',ep.title||t('Episode '+ep.number,ep.number+'. bölüm')));if(ep.source)row.append(button(t('Play','Oynat'),()=>play(ep.id)));else row.append(button(t('Link source','Kaynak bağla'),()=>management()));list.append(row);}};select.onchange=drawEpisodes;drawEpisodes();main.append(season);}
     window.TitleDiscoveryUI?.mount(main,aside,item);
-    body.append(main,aside);dialog.append(body,el('p','mtd-attribution','This product uses the TMDB API but is not endorsed or certified by TMDB.'));
+    body.append(main,aside);dialog.append(body,el('p','mtd-attribution','This product uses the TMDB API but is not endorsed or certified by TMDB.'));window.MediaReviewDecision?.mountTitle(review,item);
     window.MediaExperience?.setContext(dialog,{id:item.id,type:'library-title',title:item.title,synopsis:item.synopsis});dialog.scrollTop=scroll;
     if(focused)dialog.querySelector('[data-title-action="'+focused+'"]')?.focus({preventScroll:true});
   }

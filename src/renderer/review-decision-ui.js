@@ -4,7 +4,7 @@
  const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=String(text);return n;};
  const jobs=new Map();let leaveReader=null;
  const sortLabel=value=>({popular:t('Review activity','Yorum etkinliği'),new:t('Newest','En yeni'),high:t('Highest rated','Yüksek puanlı'),low:t('Lowest rated','Düşük puanlı'),balanced:t('Balanced · four lists','Dengeli · dört liste')})[value]||t('Source order','Kaynak sırası');
- const api=async(action,values={})=>{const r=await window.api.mediaTools({action,...values});if(!r?.ok)throw Error(r?.error||t('The action failed.','İşlem başarısız oldu.'));return r;};
+ const api=async(action,values={})=>{const r=await window.api.mediaTools({action,...values});if(!r?.ok)throw Error(r?.error||t('The action failed.','İşlem başarısız oldu.'));if(action==='decision-save')document.dispatchEvent(new Event('media-review-updated'));return r;};
  const prose=value=>String(value||'').replace(/preferencesConfigured\s*=\s*false/gi,t('no explicit preferences saved','kayıtlı açık tercih bulunmaması')).replace(/preferencesConfigured\s*=\s*true/gi,t('saved explicit preferences','kayıtlı açık tercihler'));
  function sourceMetadata(parent,review){
   if(!review)return;const meta=window.MediaToolsModel.reviewMetadata(review),line=el('p','mtx-muted mrv-review-meta');
@@ -22,6 +22,37 @@
    const points=analysis.points.filter(row=>row.kind===kind);if(!points.length)continue;const section=el('section');section.append(el('h3','',t(en,tr)));
    for(const point of points){const card=el('article','mrv-point');card.append(el('p','',prose(point.reason)));const quote=el('details','mrv-evidence'),review=reviews.find(r=>r.id===point.id);quote.append(el('summary','',t('Source review ','Kaynak yorum ')+point.id+(review?.author?' · '+review.author:'')),el('blockquote','',point.quote));if(point.quoteTr){const translation=el('div','mrv-quote-tr');translation.dataset.quoteKind='paraphrase';translation.append(el('strong','',t('Turkish explanation · AI paraphrase','Türkçe açıklama · AI anlatımı')),el('p','',point.quoteTr),el('small','mtx-muted',t('Not an original or verified translated quotation.','Özgün alıntı veya doğrulanmış alıntı çevirisi değildir.')));quote.append(translation);}sourceMetadata(quote,review);if(review){const full=el('details','mrv-full-source');full.append(el('summary','',t('Read the text used in this analysis','Analizde kullanılan metni oku')),el('p','',review.text));quote.append(full);}card.append(quote);section.append(card);}columns.append(section);
   }parent.append(columns);
+ }
+
+ function mountTitle(parent,item){
+  const owner=parent.closest('.media-title-page');let version=0,revealed=false,disposed=false;
+  const open=()=>window.MediaToolsUI.open('decision',item,{opener:document.activeElement});
+  const action=(label,fn)=>{const n=el('button','mh-action',label);n.type='button';n.onclick=()=>Promise.resolve().then(fn).catch(error=>{status.textContent=error.message;});return n;};
+  const heading=el('div','film-review-heading'),status=el('p','film-review-status'),content=el('div','film-review-content');status.setAttribute('role','status');
+  heading.append(el('h2','',t('Reviews & insights','Yorumlar ve değerlendirme')),action(t('Reviews & analysis','Yorumlar ve analiz'),open));parent.classList.add('film-review-section');parent.append(heading,status,content);
+  const current=ticket=>!disposed&&parent.isConnected&&version===ticket;
+  async function refresh(){
+   const ticket=++version;status.textContent=t('Loading saved reviews…','Kayıtlı yorumlar yükleniyor…');parent.setAttribute('aria-busy','true');
+   try{
+    const r=await api('decision-get',{itemId:item.id,...(item.discovery?{discovery:item.discovery}:{})});if(!current(ticket))return;
+    const draft=window.MediaToolsUI.reviewSnapshot?.(item.id),saved=(r.value?.history||[]).find(entry=>entry.identity&&window.MediaToolsModel.decisionIdentityMatch(item,entry.identity)==='matched');
+    const draftMatches=draft?.result&&window.LetterboxdReviews?.matchFilm(item,draft.identity).state==='matched';
+    const entry=(draftMatches?draft.result:null)||saved;content.replaceChildren();
+    if(!entry){status.textContent=draft?.count?t(`${draft.count} reviews loaded · ready for analysis`,`${draft.count} yorum yüklendi · analize hazır`):t('See what viewers praise, criticize and disagree about.','İzleyiciler neleri övüyor, eleştiriyor; nerede ayrışıyor?');content.append(el('p','film-review-empty',t('Load a Letterboxd sample, choose its reviews and compare it with your taste. Your saved analysis will appear here.','Letterboxd örneğini getir, yorumları seç ve zevkinle karşılaştır. Kaydettiğin analiz burada görünecek.')));return;}
+    const reviews=entry.reviews||[],analysis=window.MediaToolsModel.verifyDecision(entry.analysis,reviews);
+    status.textContent=(draftMatches?t('Unsaved analysis','Kaydedilmemiş analiz'):t('Saved analysis','Kayıtlı analiz'))+' · '+reviews.length+' '+t('source reviews','kaynak yorum')+(Number.isFinite(entry.analysis?.at)?' · '+new Date(entry.analysis.at).toLocaleDateString(t('en-US','tr-TR')):'');
+    if(reviews.some(row=>row.spoiler)&&!revealed){content.append(el('p','film-review-empty',t('This analysis uses spoiler reviews. Reveal it only if you want plot details.','Bu analiz spoiler içeren yorumlar kullanıyor. Olay örgüsü ayrıntılarını görmek istiyorsan aç.')),action(t('Reveal spoiler analysis','Spoiler içeren analizi göster'),()=>{revealed=true;void refresh();}));return;}
+    const notice=el('p','film-review-notice',t('AI synthesis of this selected sample; not the opinion of every viewer. Personal fit is conditional.','Seçili örneğin AI değerlendirmesi; tüm izleyicilerin görüşü değildir. Kişisel uygunluk koşulludur.'));content.append(notice);if(!draftMatches)content.append(el('p','film-review-notice',t('Saved interpretation uses the sample and profile available when it was created. Reanalyze after changing your preferences.','Kayıtlı değerlendirme, üretildiği zamanki örneği ve profili kullanır. Tercihlerin değiştiyse yeniden analiz et.')));
+    resultView(content,analysis,reviews);
+    const proof=el('details','film-review-proof'),assessment=content.querySelector('.mrv-assessment');proof.append(el('summary','',t('Sample details & limitations','Örnek ayrıntıları ve sınırlar')),assessment);content.append(proof);
+    const raw=el('details','film-review-originals');raw.append(el('summary','',t('Read the source reviews','Kaynak yorumları oku')));
+    for(const review of reviews){const article=el('article','film-review-original');article.append(el('h3','',review.author||t('Unknown reviewer','Yazarı belirtilmemiş')),el('p','',review.text));sourceMetadata(article,review);raw.append(article);}content.append(raw);
+   }catch(error){if(current(ticket)){content.replaceChildren(action(t('Retry loading','Yeniden yükle'),refresh));status.textContent=t('Saved analysis could not be loaded: ','Kayıtlı analiz yüklenemedi: ')+error.message;}}
+   finally{if(current(ticket))parent.setAttribute('aria-busy','false');}
+  }
+  const update=()=>{if(!parent.isConnected){dispose();return;}void refresh();};
+  const dispose=()=>{disposed=true;version++;document.removeEventListener('media-review-updated',update);owner?.removeEventListener('close',dispose);};
+  document.addEventListener('media-review-updated',update);owner?.addEventListener('close',dispose,{once:true});void refresh();
  }
  function mount(body,item,saved,draft,{current,redraw,status}){
   const api=async(action,values={})=>{const result=await window.api.mediaTools({action,...values,...(item.discovery?{discovery:item.discovery}:{})});if(!result?.ok)throw Error(result?.error||t('The action failed.','İşlem başarısız oldu.'));return result;};
@@ -178,7 +209,7 @@
   clearInterval(job.timer);jobs.delete(job.itemId);
   try{const analysis=window.MediaToolsModel.parseDecisionResponse(String(event.detail.text),job.reviews);job.draft.result={analysis,reviews:job.reviews,personalEvidence:job.personalEvidence,evidenceSnapshot:job.evidenceSnapshot};job.draft.attempt={state:'result'};}
   catch(error){job.draft.attempt={state:'failed',error:t('The response could not be verified: ','Yanıt doğrulanamadı: ')+error.message,partial:String(event.detail.text||'').slice(0,12000)};}
-  job.update?.();
+  job.update?.();document.dispatchEvent(new Event('media-review-updated'));
  });
- window.MediaReviewDecision=Object.freeze({mount,resultView,hasActive:id=>jobs.has(id),leave:()=>{leaveReader?.();leaveReader=null;}});
+ window.MediaReviewDecision=Object.freeze({mount,mountTitle,resultView,hasActive:id=>jobs.has(id),leave:()=>{leaveReader?.();leaveReader=null;}});
 })();

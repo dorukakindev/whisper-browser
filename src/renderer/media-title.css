@@ -121,3 +121,30 @@ html[data-theme="light"] .media-title-page .md-detail-poster,html[data-theme="li
 @media(prefers-reduced-motion:no-preference){.media-title-page .mh-action{transition:background-color 140ms ease-out,border-color 140ms ease-out,color 140ms ease-out,transform 100ms ease-out;}.media-title-page .mh-action:not(:disabled):active{transform:scale(.96);}}
 @media(prefers-reduced-motion:reduce){.media-title-page .mh-action{transition:none;transform:none;}}
 @media(max-width:760px){.media-title-page .md-story-heading,.media-title-page .mtd-story-heading{align-items:flex-start;}.media-title-page .md-primary-actions .mh-action{flex:1 1 150px;}.media-title-page .md-review-note{margin-top:14px;}}
+
+/* Film review reading: synthesis first, source evidence a deliberate reveal. */
+.film-review-section { padding-top:32px; border-top:1px solid var(--border); margin-top:40px; min-width:0; }
+.film-review-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; }
+.film-review-heading h2 { margin:0; font:600 23px/1.35 'Sora','Segoe UI',sans-serif; letter-spacing:-.02em; }
+.film-review-status { color:var(--text-dim); font-size:13px; line-height:1.7; margin:14px 0 24px; font-variant-numeric:tabular-nums; }
+.film-review-empty { max-width:62ch; color:var(--text-dim); font-size:16px; line-height:1.8; }
+.film-review-content { min-width:0; }
+.film-review-content .film-review-notice { font-size:13px; line-height:1.65; color:var(--text-dim); max-width:72ch; }
+.film-review-content .mrv-summary,.film-review-content .mrv-fit { margin:28px 0; padding:0; border:0; background:none; }
+.film-review-content .mrv-summary h2,.film-review-content .mrv-fit h2 { font-size:18px; line-height:1.4; margin:0 0 12px; }
+.film-review-content .mrv-summary p,.film-review-content .mrv-fit p { font-size:16px; line-height:1.8; max-width:70ch; white-space:pre-line; overflow-wrap:anywhere; }
+.film-review-content .mrv-opinions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:30px; margin:32px 0; }
+.film-review-content .mrv-opinions > section { min-width:0; padding:0; border:0; background:none; }
+.film-review-content .mrv-opinions h3 { font-size:16px; margin:0 0 18px; }
+.film-review-content .mrv-point { background:none; border:0; border-top:1px solid var(--border); border-radius:0; padding:16px 0; }
+.film-review-content .mrv-point p { font-size:15px; line-height:1.75; overflow-wrap:anywhere; }
+.film-review-content details summary { cursor:pointer; font-size:13px; line-height:1.65; min-height:40px; padding-block:10px; box-sizing:border-box; color:var(--text-dim); }
+.film-review-content details summary:hover { color:var(--text); }
+.film-review-content blockquote { margin:12px 0; padding:16px 20px; background:var(--bg-1); border:0; border-radius:8px; line-height:1.8; overflow-wrap:anywhere; }
+.film-review-content .film-review-proof,.film-review-content .film-review-originals { border-top:1px solid var(--border); margin-top:20px; }
+.film-review-content .mrv-assessment { background:none; border:0; padding:12px 0; color:var(--text-dim); font-size:13px; line-height:1.75; }
+.film-review-original { padding:20px 0; border-bottom:1px solid var(--border); }
+.film-review-original h3 { margin:0 0 10px; font-size:14px; }
+.film-review-original > p { font-size:15px; line-height:1.8; white-space:pre-line; overflow-wrap:anywhere; max-width:70ch; }
+.film-review-content a { color:var(--accent); text-underline-offset:4px; }
+@media(max-width:1000px){.film-review-content .mrv-opinions{grid-template-columns:1fr;gap:20px;}}
