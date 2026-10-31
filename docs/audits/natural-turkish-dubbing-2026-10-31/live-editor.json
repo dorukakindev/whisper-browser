@@ -1,0 +1,191 @@
+{
+  "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+  "endpoint": "https://api.deepinfra.com/v1/openai/chat/completions",
+  "serviceTier": "standard",
+  "requestOptions": {},
+  "credentialSource": "selected_translation",
+  "selectedTranslation": {
+    "endpoint": "https://api.deepinfra.com/v1/openai/chat/completions",
+    "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+    "appliesRequestedEndpoint": true
+  },
+  "cases": [
+    {
+      "id": "question",
+      "input": {
+        "original": "Why would I give up now, when we are so close?",
+        "baseline": "Biz bu kadar yakınken, şimdi neden vazgeçmem gereksin ki?",
+        "seconds": 7,
+        "mode": "natural"
+      },
+      "output": "Biz bu kadar yakınken şimdi neden vazgeçeyim ki?",
+      "accepted": true,
+      "reason": "accepted_after_checks",
+      "calls": [
+        {
+          "kind": "edit",
+          "httpStatus": 200,
+          "output": "Biz bu kadar yakınken şimdi neden vazgeçeyim ki?",
+          "elapsedMs": 992
+        },
+        {
+          "kind": "semantic_review",
+          "httpStatus": 200,
+          "output": "{\"equivalent\":true,\"reason\":\"ok\"}",
+          "elapsedMs": 1120
+        }
+      ],
+      "elapsedMs": 2125
+    },
+    {
+      "id": "negation-scope",
+      "input": {
+        "original": "Not everyone who disagrees with us is against us.",
+        "baseline": "Bizimle aynı fikirde olmayan herkes bize karşı değildir.",
+        "seconds": 6,
+        "mode": "natural"
+      },
+      "output": "Bizimle aynı fikirde olmayan herkes bize karşı değildir.",
+      "accepted": true,
+      "reason": "unchanged",
+      "calls": [
+        {
+          "kind": "edit",
+          "httpStatus": 200,
+          "output": "Bizimle aynı fikirde olmayan herkes bize karşı değildir.",
+          "elapsedMs": 670
+        }
+      ],
+      "elapsedMs": 673
+    },
+    {
+      "id": "idiom",
+      "input": {
+        "original": "You are missing the point; I never said the plan was impossible.",
+        "baseline": "Asıl meseleyi gözden kaçırıyorsun; planın imkânsız olduğunu hiçbir zaman söylemedim.",
+        "seconds": 8,
+        "mode": "natural"
+      },
+      "output": "Asıl meseleyi gözden kaçırıyorsun; planın imkânsız olduğunu hiçbir zaman söylemedim.",
+      "accepted": true,
+      "reason": "unchanged",
+      "calls": [
+        {
+          "kind": "edit",
+          "httpStatus": 200,
+          "output": "Asıl meseleyi gözden kaçırıyorsun; planın imkânsız olduğunu hiçbir zaman söylemedim.",
+          "elapsedMs": 1144
+        }
+      ],
+      "elapsedMs": 1144
+    },
+    {
+      "id": "philosophical-term",
+      "input": {
+        "original": "Being is not simply one more entity among other entities.",
+        "baseline": "Varlık, diğer varolanlar arasında yalnızca bir başka varolan değildir.",
+        "seconds": 7,
+        "mode": "natural",
+        "terminology": "Being = varlık; entity = varolan. Preserve the distinction."
+      },
+      "output": "Varlık, diğer varolanlar arasında yalnızca bir başka varolan değildir.",
+      "accepted": true,
+      "reason": "unchanged",
+      "calls": [
+        {
+          "kind": "edit",
+          "httpStatus": 200,
+          "output": "Varlık, diğer varolanlar arasında yalnızca bir başka varolan değildir.",
+          "elapsedMs": 606
+        }
+      ],
+      "elapsedMs": 607
+    },
+    {
+      "id": "possessive-roles",
+      "input": {
+        "original": "Ayşe questioned Deniz about his decision, not about her own doubts.",
+        "baseline": "Ayşe, Deniz’e kendi şüphelerini değil, Deniz’in kararını sordu.",
+        "seconds": 7,
+        "mode": "natural",
+        "roles": "Ayşe asks; Deniz made the decision; doubts belong to Ayşe."
+      },
+      "output": "Ayşe, Deniz’e kendi şüphelerini değil, Deniz’in kararını sordu.",
+      "accepted": true,
+      "reason": "unchanged",
+      "calls": [
+        {
+          "kind": "edit",
+          "httpStatus": 200,
+          "output": "Ayşe, Deniz’e kendi şüphelerini değil, Deniz’in kararını sordu.",
+          "elapsedMs": 681
+        }
+      ],
+      "elapsedMs": 682
+    },
+    {
+      "id": "causal-order",
+      "input": {
+        "original": "I stayed because you asked me to, not because I trusted him.",
+        "baseline": "Ona güvendiğimden değil, sen benden bunu istediğin için kaldım.",
+        "seconds": 7,
+        "mode": "natural"
+      },
+      "output": "Ona güvendiğimden değil, sen benden bunu istediğin için kaldım.",
+      "accepted": true,
+      "reason": "unchanged",
+      "calls": [
+        {
+          "kind": "edit",
+          "httpStatus": 200,
+          "output": "Ona güvendiğimden değil, sen benden bunu istediğin için kaldım.",
+          "elapsedMs": 663
+        }
+      ],
+      "elapsedMs": 663
+    },
+    {
+      "id": "conditional-uncertainty",
+      "input": {
+        "original": "If the evidence is incomplete, we may have to reconsider the conclusion.",
+        "baseline": "Kanıtlar tamam değilse, ulaşılan sonucu yeniden değerlendirmemiz gerekebilir.",
+        "seconds": 7,
+        "mode": "natural"
+      },
+      "output": "Kanıtlar tamam değilse, ulaşılan sonucu yeniden değerlendirmemiz gerekebilir.",
+      "accepted": true,
+      "reason": "unchanged",
+      "calls": [
+        {
+          "kind": "edit",
+          "httpStatus": 200,
+          "output": "Kanıtlar tamam değilse, ulaşılan sonucu yeniden değerlendirmemiz gerekebilir.",
+          "elapsedMs": 649
+        }
+      ],
+      "elapsedMs": 649
+    },
+    {
+      "id": "duration-fit",
+      "input": {
+        "original": "We did not close the school because attendance fell; we closed it because the building was unsafe.",
+        "baseline": "Okulu, devam eden öğrenci sayısı azaldığı için kapatmadık; binanın güvenli olmaması nedeniyle kapattık.",
+        "seconds": 6,
+        "mode": "fit",
+        "measuredSeconds": 12
+      },
+      "output": "Okulu, devam eden öğrenci sayısı azaldığı için kapatmadık; binanın güvenli olmaması nedeniyle kapattık.",
+      "accepted": false,
+      "reason": "meaning_guard",
+      "calls": [
+        {
+          "kind": "edit",
+          "httpStatus": 200,
+          "output": "Okulu, devam azaldığı için değil, bina güvenli olmadığı için kapattık.",
+          "elapsedMs": 534
+        }
+      ],
+      "elapsedMs": 534
+    }
+  ]
+}

@@ -1,0 +1,195 @@
+{
+  "base": "842378bc65f9120b0111d494472eddf9cb18ed84",
+  "fullLocalRuns": [
+    {
+      "exit": 1,
+      "sourceFilesHashed": 1604,
+      "sourceStable": true,
+      "changedDuringRun": [],
+      "nodeFiles": 715,
+      "pythonFiles": 170,
+      "logSha256": "1579d40312317ae0ca02ad6bff4b80e86f8d42e28c91cf90a74146ec730bb9a4",
+      "failedFiles": [
+        "node tests/dub-current-subtitle764.test.js",
+        "node tests/dub-shortening-draft763.test.js",
+        "node tests/renderer-state-a11y-responsive.test.js",
+        "node tests/settings-ui-persist-roundtrip.test.js",
+        "node tests/ui-locale.test.js",
+        "python tests/test_report494_audio.py",
+        "python tests/test_report495_audio.py"
+      ]
+    },
+    {
+      "exit": 0,
+      "sourceFilesHashed": 1604,
+      "sourceStable": true,
+      "changedDuringRun": [],
+      "nodeFiles": 715,
+      "pythonFiles": 170,
+      "logSha256": "300c7bc239d01b8cf3f059018d8daa1a3880a066935a63e458e35238aeb0da95",
+      "failedFiles": []
+    }
+  ],
+  "syntax": {
+    "checked": 33,
+    "failed": 0
+  },
+  "focused": {
+    "worker": {
+      "passed": 53,
+      "log": "worker-final.log"
+    },
+    "sourceEditorPlanResolver": "production producer/plan/service/editor fixtures passed",
+    "liveEditor": {
+      "file": "live-editor.json",
+      "cases": 8,
+      "http200Calls": 9,
+      "tier": "standard"
+    },
+    "gpuAB": "gpu-comparison.json"
+  },
+  "nativeUI": {
+    "cases": [
+      {
+        "name": "tr-1440-ready",
+        "overflow": false,
+        "footerVisible": true,
+        "scrollAboveFooter": true,
+        "activity": "",
+        "summary": "0 hazır0 inceleme0 üretilemedi"
+      },
+      {
+        "name": "tr-1440-focus",
+        "overflow": false,
+        "footerVisible": true,
+        "scrollAboveFooter": true,
+        "activity": "",
+        "summary": "0 hazır0 inceleme0 üretilemedi"
+      },
+      {
+        "name": "tr-1440-active",
+        "overflow": false,
+        "footerVisible": true,
+        "scrollAboveFooter": true,
+        "activity": "",
+        "summary": "0 hazır0 inceleme0 üretilemedi"
+      },
+      {
+        "name": "tr-1440-review",
+        "overflow": false,
+        "footerVisible": true,
+        "scrollAboveFooter": true,
+        "activity": "",
+        "summary": "1 hazır0 inceleme0 üretilemedi"
+      },
+      {
+        "name": "tr-820-ready",
+        "overflow": false,
+        "footerVisible": true,
+        "scrollAboveFooter": true,
+        "activity": "",
+        "summary": "0 hazır0 inceleme0 üretilemedi"
+      },
+      {
+        "name": "tr-820-focus",
+        "overflow": false,
+        "footerVisible": true,
+        "scrollAboveFooter": true,
+        "activity": "",
+        "summary": "0 hazır0 inceleme0 üretilemedi"
+      },
+      {
+        "name": "tr-820-active",
+        "overflow": false,
+        "footerVisible": true,
+        "scrollAboveFooter": true,
+        "activity": "",
+        "summary": "0 hazır0 inceleme0 üretilemedi"
+      },
+      {
+        "name": "tr-820-review",
+        "overflow": false,
+        "footerVisible": true,
+        "scrollAboveFooter": true,
+        "activity": "",
+        "summary": "1 hazır0 inceleme0 üretilemedi"
+      },
+      {
+        "name": "en-640-ready",
+        "overflow": false,
+        "footerVisible": true,
+        "scrollAboveFooter": true,
+        "activity": "",
+        "summary": "0 ready0 to review0 failed"
+      },
+      {
+        "name": "en-640-focus",
+        "overflow": false,
+        "footerVisible": true,
+        "scrollAboveFooter": true,
+        "activity": "",
+        "summary": "0 ready0 to review0 failed"
+      },
+      {
+        "name": "en-640-active",
+        "overflow": false,
+        "footerVisible": true,
+        "scrollAboveFooter": true,
+        "activity": "",
+        "summary": "0 ready0 to review0 failed"
+      },
+      {
+        "name": "en-640-review",
+        "overflow": false,
+        "footerVisible": true,
+        "scrollAboveFooter": true,
+        "activity": "",
+        "summary": "1 ready0 to review0 failed"
+      }
+    ],
+    "fixture": "tests/electron-dub-natural.smoke.js",
+    "widths": [
+      1440,
+      820,
+      640
+    ],
+    "locales": [
+      "tr",
+      "en"
+    ],
+    "proof": [
+      "ui/tr-1440-ready.png",
+      "ui/tr-820-review.png"
+    ],
+    "usesSyntheticVoice": true
+  },
+  "integrationRepairs": [
+    "Optional result helper safe access retained old subtitle/draft fixture compatibility",
+    "Accessible static fallback button names added; strict existing assertions retained",
+    "Two new disclosure-only state nodes explicitly classified transient",
+    "EN/TR dubbing handler executed in locale test instead of blanket exception",
+    "Two old AST fixtures updated for activity envelopes and real edit/context dependencies"
+  ],
+  "postFullSuiteChange": {
+    "reason": "Do not opt translation editing into Flex without explicit service tier",
+    "files": [
+      "src/main.js",
+      "tests/dub-editor-client.test.js"
+    ],
+    "validation": "9 focused Node checks pass; node --check src/main.js passes",
+    "fullSuiteRepeated": false
+  },
+  "limits": [
+    "No human listening winner or professional dubbing guarantee",
+    "GPU A/B did not combine live editor and real source acoustic analysis; connections covered by focused tests",
+    "No guarantee across all references, languages, live sites or multi-speaker actors"
+  ],
+  "credentialHandling": {
+    "explicitUserApproval": true,
+    "temporaryEncryptedProfileCopyRemoved": true,
+    "apiKeyPersistedOrPrinted": false,
+    "personalSettingsModified": false
+  },
+  "ciWaited": false,
+  "productCommit": "c98d28b7dbb0872d18712618332ab005337278fd"
+}
