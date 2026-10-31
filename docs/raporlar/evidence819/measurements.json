@@ -1,0 +1,113 @@
+{
+  "revision": "2285a8202e20c836c7dafc53d06af667c60f34f6",
+  "platform": "win32",
+  "electron": "43.5.0",
+  "gpuDisabled": true,
+  "forcedDeviceScaleFactor": 1,
+  "input": "Native sendInputEvent to parent for select; targeted native child WebContents for overlay point (not OS mouse hit testing)",
+  "bookFixture": {
+    "characters": 96,
+    "chapters": 1,
+    "cancelPreservedTitle": true
+  },
+  "rows": [
+    {
+      "name": "01-rename-dialog",
+      "heading": "Project name",
+      "ariaLabel": null,
+      "labelledby": null,
+      "describedby": null
+    },
+    {
+      "name": "02-archive-dialog",
+      "heading": "Archive project?"
+    },
+    {
+      "name": "03-locale-before",
+      "locale": "en",
+      "heading": "Settings",
+      "label": "Interface theme",
+      "aria": "Interface theme",
+      "options": [
+        "Use system setting",
+        "Dark",
+        "Light"
+      ]
+    },
+    {
+      "name": "04-locale-stale",
+      "locale": "tr",
+      "heading": "Ayarlar",
+      "label": "Interface theme",
+      "aria": "Interface theme",
+      "options": [
+        "Use system setting",
+        "Dark",
+        "Açık"
+      ]
+    },
+    {
+      "name": "05-locale-reopen-control",
+      "locale": "tr",
+      "heading": "Ayarlar",
+      "label": "Arayüz teması",
+      "aria": "Arayüz teması",
+      "options": [
+        "Sistem ayarını kullan",
+        "Koyu",
+        "Açık"
+      ]
+    },
+    {
+      "name": "06-native-bubble-cover",
+      "viewport": {
+        "width": 1000,
+        "height": 760,
+        "dpr": 1
+      },
+      "overlayBounds": {
+        "x": 920,
+        "y": 672,
+        "width": 64,
+        "height": 64
+      },
+      "bubbleWindowRect": {
+        "left": 924,
+        "top": 676,
+        "right": 980,
+        "bottom": 732
+      },
+      "save": {
+        "x": 825.515625,
+        "y": 664,
+        "width": 125.484375,
+        "height": 39,
+        "top": 664,
+        "right": 951,
+        "bottom": 703,
+        "left": 825.515625
+      },
+      "overlap": {
+        "width": 27,
+        "height": 27
+      },
+      "testPoint": {
+        "x": 940,
+        "y": 690
+      },
+      "visible": true
+    },
+    {
+      "name": "07-native-assistant-over-modal",
+      "expanded": true,
+      "modal": true,
+      "saveClicks": 0,
+      "overlayBounds": {
+        "x": 504,
+        "y": 40,
+        "width": 480,
+        "height": 696
+      }
+    }
+  ]
+}
