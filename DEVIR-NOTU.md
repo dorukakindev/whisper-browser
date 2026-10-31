@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-01-0200.md](docs/devir/2026-11-01-0200.md) — Film sürekliliği, fragman, asistan ve browser dönüşleri
 Güncel çalışma: [docs/devir/2026-11-01-0130.md](docs/devir/2026-11-01-0130.md) — Film kişi sayfaları, fragman, öneriler ve karar bağlamı
 Güncel çalışma: [docs/devir/2026-11-01-0110.md](docs/devir/2026-11-01-0110.md) — Film sayfasında gezinme, afiş ve konu kontrolleri
 Güncel çalışma: [docs/devir/2026-11-01-0100.md](docs/devir/2026-11-01-0100.md) — Film sayfasında yorumlar ve AI değerlendirmesi
