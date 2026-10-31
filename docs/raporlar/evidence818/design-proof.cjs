@@ -27,6 +27,3 @@ app.whenReady().then(async()=>{
  m=await shot('08-language-before',focus);assert.equal(m.focusId,'uiLocale');await key('Home');await key('Enter');m=await shot('09-language-after',focus);assert.equal(m.locale,'en');assert.equal(m.focusTag,'BODY');
  fs.writeFileSync(path.join(out,'measurements.json'),JSON.stringify({revision:process.env.AUDIT818_HEAD||'1e9a9afd20da5d851e373df02f08984410c87ed5',platform:process.platform,electron:process.versions.electron,chromium:process.versions.chrome,gpuDisabled:true,input:'Electron sendInputEvent native keydown/keyup',rows},null,2)+'\n');console.log(JSON.stringify({ok:true,out,captures:rows.length}));app.exit(0);
 }).catch(e=>{console.error(e.stack);app.exit(1);});setTimeout(()=>app.exit(2),90000).unref();
-
-
-
