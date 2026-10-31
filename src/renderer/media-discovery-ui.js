@@ -53,11 +53,13 @@
       finally{if(translationToken===token)translationToken=null;if(dialog.open)translate.disabled=false;}
     });translate.dataset.discoveryAction='translate';storyHeading.append(translate);}
     content.append(storyHeading,synopsis);
-    if (item.cast.length) content.append(el('p', 'md-cast', `${t('Cast', 'Oyuncular')}: ${item.cast.join(', ')}`));
-    const actions = el('div', 'mh-actions');
+    const actions = el('div', 'mh-actions md-primary-actions');
+    const options=el('details','md-detail-options'),preferences=el('section','md-option-group'),preferenceActions=el('div','md-option-actions');
+    options.append(el('summary','',t('More actions & viewing preferences','Diğer işlemler ve izleme tercihleri')));
+    preferences.append(el('h3','',t('Your discovery preferences','Keşif tercihlerin')),el('p','md-provider',t('Already watched it or not interested? Keep it out of future discovery results. You can undo these choices in Preferences.','İzledin mi veya ilgini çekmedi mi? Sonraki keşif sonuçlarında gösterilmesin. Bu seçimleri Tercihler bölümünden geri alabilirsin.')),preferenceActions);options.append(preferences);
     for (const [value, label] of [['watched', t('Already watched', 'İzledim')], ['hidden', t('Not interested', 'İlgilenmiyorum')], ['none', t('Undo preference', 'Tercihi geri al')]]) {
       if (value === 'none' && !row.feedback) continue;
-      actions.append(btn(label, async () => {
+      preferenceActions.append(btn(label, async () => {
         await api('feedback', { id: row.providerId, kind: row.kind, title: row.title, state: value });
         state.rows = state.rows.filter(item => item.providerId !== row.providerId || item.kind !== row.kind);
         dialog.close(); cards(); status(t('Preference saved. Undo it in Preferences.', 'Tercih kaydedildi. Tercihler bölümünden geri alabilirsin.'));
@@ -74,19 +76,22 @@
         await window.MediaTitleUI.open(catalogId);
       } catch (error) { placeholder.textContent = failure(error); add.disabled = false; }
     }, 'mh-action mh-primary');
-    actions.append(add, btn(t('IMDb page', 'IMDb sayfası'), async () => {
+    const credits=el('section','md-option-group');credits.append(el('h3','',t('Credits & source','Oyuncular ve kaynak')));
+    if (item.cast.length) credits.append(el('p', 'md-cast', `${t('Cast', 'Oyuncular')}: ${item.cast.join(', ')}`));
+    credits.append(btn(t('IMDb page', 'IMDb sayfası'), async () => {
       dialog.close(); document.getElementById('openPlayer').click();
       document.getElementById('browserAddress').value = `https://www.imdb.com/title/${item.providerId}/`;
       await navigateBrowserFromAddress();
-    }));
+    }),el('p', 'md-provider', t('Metadata: Cinemeta / IMDb. Adding a title does not download a video.', 'Yapım bilgileri: Cinemeta / IMDb. Kütüphaneye eklemek video indirmez.')));options.append(credits);
     const reviews=btn(t('Letterboxd reviews & analysis','Letterboxd yorumları ve analiz'),async()=>{
       reviews.disabled=true;
       try{await window.MediaToolsUI.open('decision',{...item,id:`discovery:${item.kind}:${item.providerId}`,imdbId:item.providerId,discovery:{kind:item.kind,id:item.providerId}},{opener:reviews});}
       catch(error){if(dialog.open)placeholder.textContent=failure(error);}
       finally{if(dialog.open)reviews.disabled=false;}
-    });reviews.dataset.discoveryAction='reviews';actions.append(reviews);
-    content.append(el('small','md-provider',t('Review a Letterboxd sample without adding this title to your library. Analysis uses only the reviews you approve.','Yapımı kütüphaneye eklemeden Letterboxd örneğini incele. Analiz yalnız onayladığın yorumları kullanır.')));
-    content.append(actions, el('p', 'md-provider', t('Metadata: Cinemeta / IMDb. Adding a title does not download a video.', 'Yapım bilgileri: Cinemeta / IMDb. Kütüphaneye eklemek video indirmez.')));
+    });reviews.dataset.discoveryAction='reviews';actions.append(add,reviews);
+    const reviewNote=el('small','md-provider md-review-note',t('Review a Letterboxd sample without adding this title to your library. Analysis uses only the reviews you approve.','Yapımı kütüphaneye eklemeden Letterboxd örneğini incele. Analiz yalnız onayladığın yorumları kullanır.'));
+    // Keep the everyday choices next to the title, before a long synopsis.
+    content.insertBefore(actions,storyHeading);content.insertBefore(reviewNote,storyHeading);content.append(options);
     placeholder.textContent = ''; body.append(image(item.poster || row.poster, 'md-detail-poster'), content); dialog.append(body);
   }
   function cards() {
@@ -154,7 +159,7 @@
       const genres = [['', t('All genres', 'Tüm türler')], ['Action', t('Action', 'Aksiyon')], ['Adventure', t('Adventure', 'Macera')], ['Animation', t('Animation', 'Animasyon')], ['Comedy', t('Comedy', 'Komedi')], ['Crime', t('Crime', 'Suç')], ['Documentary', t('Documentary', 'Belgesel')], ['Drama', t('Drama', 'Dram')], ['Fantasy', t('Fantasy', 'Fantastik')], ['Horror', t('Horror', 'Korku')], ['Mystery', t('Mystery', 'Gizem')], ['Romance', t('Romance', 'Romantik')], ['Sci-Fi', t('Sci-Fi', 'Bilim kurgu')], ['Thriller', t('Thriller', 'Gerilim')], ['War', t('War', 'Savaş')]];
       if (state.mode !== 'year') filters.append(select(t('Genre', 'Tür'), state.genre, genres, value => { state.genre = value; }));
       else filters.append(select(t('Year', 'Yıl'), String(state.year), Array.from({ length: 70 }, (_, index) => { const year = new Date().getFullYear() - index; return [String(year), String(year)]; }), value => { state.year = +value; }));
-      const searchLabel = el('label', 'md-field md-search'); searchLabel.append(el('span', '', t('Search', 'Ara'))); const search = el('input'); search.type = 'search'; search.maxLength = 200; search.placeholder = t('Film or series title…', 'Film veya dizi adı…'); search.value = state.query; search.name = 'discoverySearch'; search.autocomplete = 'off'; searchLabel.append(search); filters.append(searchLabel);
+      const searchLabel = el('label', 'md-field md-search'); searchLabel.append(el('span', '', t('Search', 'Ara'))); const search = el('input'); search.type = 'search'; search.maxLength = 200; search.placeholder = t('Film or series title…', 'Film veya dizi adı…'); search.value = state.query; search.name = 'discoverySearch'; search.autocomplete = 'off';search.addEventListener('input',()=>{state.query=search.value;}); searchLabel.append(search); filters.append(searchLabel);
       filters.addEventListener('submit', event => { event.preventDefault(); state.query = search.value.trim(); state.mode = 'top'; state.rows = []; draw(); void load(); });
       const submit = el('button', 'mh-action mh-primary', t('Search', 'Ara')); submit.type = 'submit'; submit.dataset.discoveryControl = '1'; filters.append(submit);
     } else filters.addEventListener('submit', event => event.preventDefault());

@@ -35,6 +35,7 @@ test('Source details name the model in both languages and settings use only the 
   for(const locale of ['en','tr'])for(const context of [{videoContext:true},{pageContext:true},{}]){
    ui.snapshot({locale,model:'selected-model',transcriptScope:false,...context});
    assert.match(ui.$('sourceLabel').textContent,/model/i);assert.equal(ui.$('modelName').textContent,'selected-model');
+   assert.equal(ui.$('modelLabel').textContent,locale==='tr'?'Etkin model':'Active model');
    assert.equal(ui.$('sourceBox').open,false,'source and model details stay optional');
    ui.$('sourceBox').open=true;ui.$('assistantSettings').click();
    assert.equal(ui.commands.at(-1).action,'settings');assert.equal(ui.commands.at(-1).meta.sourceToken,'A:1');
@@ -42,6 +43,15 @@ test('Source details name the model in both languages and settings use only the 
    ui.$('sourceBox').open=false;
   }
   assert.equal(ui.commands.filter(row=>row.action!=='settings'&&row.action!=='ready').length,0,'the shortcut sends no question or settings write');
+ }finally{ui.dom.window.close();}
+});
+
+test('An empty conversation never advertises a latest reply and keeps open source details across snapshots',()=>{
+ const ui=overlay();try{
+  ui.snapshot({messages:[{id:'old',role:'ai',text:'An earlier answer.'}]});ui.$('sourceBox').open=true;
+  ui.snapshot({messages:[]});assert.equal(ui.$('sourceBox').open,true);assert.equal(ui.$('latest').hidden,true);
+  Object.defineProperty(ui.$('log'),'scrollHeight',{value:500,configurable:true});Object.defineProperty(ui.$('log'),'clientHeight',{value:80,configurable:true});
+  ui.$('log').dispatchEvent(new ui.w.Event('scroll'));assert.equal(ui.$('latest').hidden,true,'overflowing greeting text is not a reply');
  }finally{ui.dom.window.close();}
 });
 test('Parent bridge rejects stale source commands and receipts acknowledge only a newly accepted question',async()=>{

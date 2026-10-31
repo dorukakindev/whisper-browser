@@ -328,8 +328,17 @@
     const value=values.includes(readingPrefs[key])?readingPrefs[key]:fallback;select.value=String(value);$('pdfReader').style.setProperty(property,value+unit);
     select.addEventListener('change',()=>{const selected=Number(select.value);if(!values.includes(selected))return;readingPrefs[key]=selected;$('pdfReader').style.setProperty(property,selected+unit);try{localStorage.setItem('pdf-reading-preferences-v1',JSON.stringify(readingPrefs));}catch{}});readingContent.append(label);
   }
+  // Group the existing controls in place; listeners, values and commands stay attached.
+  const translationLabels=[],translationContent=$('pdfTranslateTools').querySelector('.pdf-reader-tools-content');
+  for(const [key,tr,en,ids] of [
+    ['translation','Çeviri dili','Translation language',['pdfTargetLanguage','pdfTranslateVisible','pdfTranslateAll','pdfTranslateScope','pdfTranslateCancel']],
+    ['export','Dışa aktarma biçimi','Export format',['pdfExportFormat','pdfExport']]
+  ]){
+    const group=document.createElement('section'),label=document.createElement('label');group.className='pdf-tool-group';group.dataset.toolGroup=key;group.dataset.uiUntranslated='';label.htmlFor=ids[0];label.id='pdfToolGroup'+key;group.setAttribute('aria-labelledby',label.id);group.append(label);
+    for(const id of ids)group.append($(id));translationLabels.push([label,tr,en]);translationContent.append(group);
+  }
   const readingHint=document.createElement('small');readingContent.append(readingHint);
-  const localizeReading=()=>{readingSummary.querySelector('.pdf-tool-label').textContent=t('Okuma ayarları','Reading settings');for(const id of Object.keys(toolIcons)){const summary=$(id).querySelector('summary');summary.title=summary.textContent.trim();}readingLabels.forEach(([label,tr,en])=>label.textContent=t(tr,en));readingHint.textContent=t('Yalnız Okuma görünümündeki metni değiştirir. Orijinal PDF ve seslendirme korunur.','Applies to Reading view only. Original PDF and narration are unchanged.');};localizeReading();document.addEventListener('ui-locale-change',localizeReading);
+  const localizeReading=()=>{readingSummary.querySelector('.pdf-tool-label').textContent=t('Okuma ayarları','Reading settings');for(const id of Object.keys(toolIcons)){const summary=$(id).querySelector('summary');summary.title=summary.textContent.trim();}readingLabels.forEach(([label,tr,en])=>label.textContent=t(tr,en));translationLabels.forEach(([label,tr,en])=>label.textContent=t(tr,en));readingHint.textContent=t('Yalnız Okuma görünümündeki metni değiştirir. Orijinal PDF ve seslendirme korunur.','Applies to Reading view only. Original PDF and narration are unchanged.');};localizeReading();document.addEventListener('ui-locale-change',localizeReading);
   function fitToolMenus() {
     for(const details of document.querySelectorAll('.pdf-reader-tools[open]')){
       const content=details.querySelector('.pdf-reader-tools-content');
@@ -339,6 +348,9 @@
   window.addEventListener('resize',fitToolMenus);
   document.addEventListener('ui-locale-change',fitToolMenus);
   for (const details of document.querySelectorAll('.pdf-reader-tools')) {
+    const summary=details.querySelector('summary');
+    summary.addEventListener('pointerdown',()=>{details.dataset.openInput='pointer';});
+    summary.addEventListener('keydown',()=>{details.dataset.openInput='keyboard';});
     details.addEventListener('toggle', () => {
       if (details.open) { for (const other of document.querySelectorAll('.pdf-reader-tools')) if (other !== details) other.open = false; fitToolMenus(); }
     });

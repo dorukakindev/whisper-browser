@@ -338,6 +338,7 @@ app
     await run('document.getElementById("pdfAssistantTools").dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}));return true');
     assert(await run('return !document.getElementById("pdfAssistantTools").open && !!player.pdfReader'));
     await run('document.querySelector("#pdfTranslateTools summary").click();return true');
+    assert(await run(`const a=document.querySelector('[data-tool-group=translation]'),b=document.querySelector('[data-tool-group=export]');return a.querySelector('label').textContent==='Çeviri dili'&&a.querySelector('#pdfTargetLanguage')&&b.querySelector('label').textContent==='Dışa aktarma biçimi'&&b.querySelector('#pdfExportFormat')&&getComputedStyle(document.querySelector('#pdfTranslateTools .pdf-reader-tools-content')).animationName==='none'`),'Grouped translation/export labels and immediate programmatic/keyboard opening');
     await capture("translation-tools-tr.png");
     await run('document.getElementById("pdfTranslateTools").dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}));return true');
 
@@ -349,6 +350,7 @@ app
     await run('UiLocale.set("en",false);applyUiTheme("light");setPdfReaderView("source");return true');
     assert(await run('return UiLocale.get()==="en" && document.documentElement.dataset.theme==="light" && player.pdfReader.viewMode==="source"'));
     await capture("reader-laptop-en-light.png");
+    assert(await run(`return document.querySelector('[data-tool-group=translation]>label').textContent==='Translation language'&&document.querySelector('[data-tool-group=export]>label').textContent==='Export format'`),'Tool labels follow interface language');
     assert(await run('return document.getElementById("pdfReader").scrollWidth<=innerWidth+1'));
     win.setContentSize(1440,1000);await run('UiLocale.set("tr",false);applyUiTheme("dark");return true');
 

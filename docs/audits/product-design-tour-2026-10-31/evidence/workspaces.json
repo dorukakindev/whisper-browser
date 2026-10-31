@@ -1,0 +1,489 @@
+[
+  {
+    "name": "empty-home",
+    "scope": "#mediaHome",
+    "width": 1440,
+    "height": 1000,
+    "scopeWidth": 1440,
+    "scopeHeight": 1000,
+    "overflow": false,
+    "navHeight": 121,
+    "dialogs": [],
+    "tinyControls": []
+  },
+  {
+    "name": "home-tr-dark-1440",
+    "scope": "#mediaHome",
+    "width": 1440,
+    "height": 1000,
+    "scopeWidth": 1440,
+    "scopeHeight": 1000,
+    "overflow": false,
+    "navHeight": 121,
+    "navPage": "home",
+    "dialogs": [],
+    "tinyControls": []
+  },
+  {
+    "name": "films-tr-dark-1440",
+    "scope": "#mediaHome",
+    "width": 1440,
+    "height": 1000,
+    "scopeWidth": 1440,
+    "scopeHeight": 1000,
+    "overflow": false,
+    "navHeight": 121,
+    "navPage": "films",
+    "dialogs": [],
+    "tinyControls": []
+  },
+  {
+    "name": "books-tr-dark-1440",
+    "scope": "#mediaHome",
+    "width": 1440,
+    "height": 1000,
+    "scopeWidth": 1440,
+    "scopeHeight": 1000,
+    "overflow": false,
+    "navHeight": 121,
+    "navPage": "books",
+    "dialogs": [],
+    "tinyControls": []
+  },
+  {
+    "name": "discover-tr-dark-1440",
+    "scope": "#mediaHome",
+    "width": 1440,
+    "height": 1000,
+    "scopeWidth": 1440,
+    "scopeHeight": 1000,
+    "overflow": false,
+    "navHeight": 121,
+    "navPage": "discover",
+    "dialogs": [],
+    "tinyControls": []
+  },
+  {
+    "name": "discovery-detail-tr-dark-1440",
+    "scope": ".md-detail",
+    "width": 1440,
+    "height": 1000,
+    "scopeWidth": 1050,
+    "scopeHeight": 559.0521240234375,
+    "overflow": false,
+    "navHeight": 121,
+    "navPage": "discover",
+    "dialogs": [
+      ""
+    ],
+    "tinyControls": []
+  },
+  {
+    "name": "keyboard-focus-tr-dark-1440",
+    "scope": "#mediaHome",
+    "width": 1440,
+    "height": 1000,
+    "scopeWidth": 1440,
+    "scopeHeight": 1000,
+    "overflow": false,
+    "navHeight": 121,
+    "navPage": "discover",
+    "dialogs": [],
+    "tinyControls": []
+  },
+  {
+    "name": "settings-tr-dark-1440",
+    "scope": "#appSettingsDialog",
+    "width": 1440,
+    "height": 1000,
+    "scopeWidth": 1000,
+    "scopeHeight": 760,
+    "overflow": false,
+    "navHeight": 121,
+    "navPage": "discover",
+    "dialogs": [
+      "appSettingsDialog"
+    ],
+    "tinyControls": []
+  },
+  {
+    "name": "whisper-tr-dark-1440",
+    "scope": ".app",
+    "width": 1440,
+    "height": 1000,
+    "scopeWidth": 1440,
+    "scopeHeight": 1000,
+    "overflow": false,
+    "navHeight": 0,
+    "navPage": "discover",
+    "dialogs": [],
+    "tinyControls": [
+      {
+        "id": "mediaHomeBack",
+        "text": "Ana sayfa",
+        "height": 30
+      },
+      {
+        "id": "sourceTabFile",
+        "text": "Dosya",
+        "height": 28.666667938232422
+      },
+      {
+        "id": "sourceTabYoutube",
+        "text": "YouTube",
+        "height": 28.666667938232422
+      },
+      {
+        "id": "presetSelect",
+        "text": "\n                Film (önerilen)\n            ",
+        "height": 30
+      },
+      {
+        "id": "exportSettings",
+        "text": "Yedekle",
+        "height": 28
+      },
+      {
+        "id": "importSettings",
+        "text": "Geri yükle",
+        "height": 28
+      },
+      {
+        "id": "jobsTabQueue",
+        "text": "Kuyruk 0",
+        "height": 32
+      },
+      {
+        "id": "jobsTabHistory",
+        "text": "Geçmiş 0",
+        "height": 32
+      },
+      {
+        "id": "jobsTabReview",
+        "text": "Kontrol 0",
+        "height": 32
+      },
+      {
+        "id": "clearQueue",
+        "text": "Kuyruğu temizle",
+        "height": 28
+      },
+      {
+        "id": "startQueueBtn",
+        "text": "\n                \n                Kuyruğu baş",
+        "height": 28
+      },
+      {
+        "id": "previewSearch",
+        "text": "Canlı önizlemede ara",
+        "height": 32
+      },
+      {
+        "id": "copyPreview",
+        "text": "Kopyala",
+        "height": 32
+      },
+      {
+        "id": "clearPreview",
+        "text": "Temizle",
+        "height": 32
+      },
+      {
+        "id": "openLogFolder",
+        "text": "Kayıtlı günlükler",
+        "height": 28
+      },
+      {
+        "id": "clearLog",
+        "text": "Temizle",
+        "height": 28
+      }
+    ]
+  },
+  {
+    "name": "dubbing-tr-dark-1440",
+    "scope": "#dubGeneratorDialog",
+    "width": 1440,
+    "height": 1000,
+    "scopeWidth": 1080,
+    "scopeHeight": 940,
+    "overflow": false,
+    "navHeight": 0,
+    "navPage": "discover",
+    "dialogs": [
+      "dubGeneratorDialog"
+    ],
+    "tinyControls": [
+      {
+        "id": "voiceReferenceSelect",
+        "text": "Referans sesler",
+        "height": 34
+      },
+      {
+        "id": "voiceReferenceUse",
+        "text": "Bu sesi kullan",
+        "height": 34
+      },
+      {
+        "id": "voiceReferenceFolder",
+        "text": "Referans sesler klasörünü aç",
+        "height": 34
+      }
+    ]
+  },
+  {
+    "name": "textvoice-tr-dark-1440",
+    "scope": "#textVoiceStudio",
+    "width": 1440,
+    "height": 1000,
+    "scopeWidth": 1280,
+    "scopeHeight": 940,
+    "overflow": false,
+    "navHeight": 0,
+    "navPage": "discover",
+    "dialogs": [
+      "textVoiceStudio"
+    ],
+    "tinyControls": []
+  },
+  {
+    "name": "home-en-light-800",
+    "scope": "#mediaHome",
+    "width": 640,
+    "height": 800,
+    "scopeWidth": 640.0000610351562,
+    "scopeHeight": 800.0000610351562,
+    "overflow": false,
+    "navHeight": 170.40000915527344,
+    "navPage": "home",
+    "dialogs": [],
+    "tinyControls": []
+  },
+  {
+    "name": "films-en-light-800",
+    "scope": "#mediaHome",
+    "width": 640,
+    "height": 800,
+    "scopeWidth": 640.0000610351562,
+    "scopeHeight": 800.0000610351562,
+    "overflow": false,
+    "navHeight": 170.40000915527344,
+    "navPage": "films",
+    "dialogs": [],
+    "tinyControls": []
+  },
+  {
+    "name": "books-en-light-800",
+    "scope": "#mediaHome",
+    "width": 640,
+    "height": 800,
+    "scopeWidth": 640.0000610351562,
+    "scopeHeight": 800.0000610351562,
+    "overflow": false,
+    "navHeight": 170.40000915527344,
+    "navPage": "books",
+    "dialogs": [],
+    "tinyControls": []
+  },
+  {
+    "name": "discover-en-light-800",
+    "scope": "#mediaHome",
+    "width": 640,
+    "height": 800,
+    "scopeWidth": 640.0000610351562,
+    "scopeHeight": 800.0000610351562,
+    "overflow": false,
+    "navHeight": 170.40000915527344,
+    "navPage": "discover",
+    "dialogs": [],
+    "tinyControls": []
+  },
+  {
+    "name": "discovery-detail-en-light-800",
+    "scope": ".md-detail",
+    "width": 640,
+    "height": 800,
+    "scopeWidth": 605.0000610351562,
+    "scopeHeight": 566.86669921875,
+    "overflow": false,
+    "navHeight": 170.40000915527344,
+    "navPage": "discover",
+    "dialogs": [
+      ""
+    ],
+    "tinyControls": []
+  },
+  {
+    "name": "keyboard-focus-en-light-800",
+    "scope": "#mediaHome",
+    "width": 640,
+    "height": 800,
+    "scopeWidth": 640.0000610351562,
+    "scopeHeight": 800.0000610351562,
+    "overflow": false,
+    "navHeight": 170.40000915527344,
+    "navPage": "discover",
+    "dialogs": [],
+    "tinyControls": []
+  },
+  {
+    "name": "settings-en-light-800",
+    "scope": "#appSettingsDialog",
+    "width": 640,
+    "height": 800,
+    "scopeWidth": 620.0000610351562,
+    "scopeHeight": 736.0000610351562,
+    "overflow": false,
+    "navHeight": 170.40000915527344,
+    "navPage": "discover",
+    "dialogs": [
+      "appSettingsDialog"
+    ],
+    "tinyControls": []
+  },
+  {
+    "name": "whisper-en-light-800",
+    "scope": ".app",
+    "width": 640,
+    "height": 800,
+    "scopeWidth": 632.0000610351562,
+    "scopeHeight": 2942.10009765625,
+    "overflow": false,
+    "navHeight": 0,
+    "navPage": "discover",
+    "dialogs": [],
+    "tinyControls": [
+      {
+        "id": "mediaHomeBack",
+        "text": "Home",
+        "height": 29.60000228881836
+      },
+      {
+        "id": "sourceTabFile",
+        "text": "File",
+        "height": 28.933334350585938
+      },
+      {
+        "id": "sourceTabYoutube",
+        "text": "YouTube",
+        "height": 28.933334350585938
+      },
+      {
+        "id": "presetSelect",
+        "text": "\n                Film (recommended)\n         ",
+        "height": 29.60000228881836
+      },
+      {
+        "id": "exportSettings",
+        "text": "Back up",
+        "height": 28.000001907348633
+      },
+      {
+        "id": "importSettings",
+        "text": "Restore",
+        "height": 28.000001907348633
+      },
+      {
+        "id": "jobsTabQueue",
+        "text": "Queue 0",
+        "height": 32
+      },
+      {
+        "id": "jobsTabHistory",
+        "text": "History 0",
+        "height": 32
+      },
+      {
+        "id": "jobsTabReview",
+        "text": "Review 0",
+        "height": 32
+      },
+      {
+        "id": "clearQueue",
+        "text": "Clear queue",
+        "height": 28.000001907348633
+      },
+      {
+        "id": "startQueueBtn",
+        "text": "\n                \n                Start queue",
+        "height": 28.000001907348633
+      },
+      {
+        "id": "previewSearch",
+        "text": "Search live preview",
+        "height": 32
+      },
+      {
+        "id": "copyPreview",
+        "text": "Copy",
+        "height": 32
+      },
+      {
+        "id": "clearPreview",
+        "text": "Clear",
+        "height": 32
+      },
+      {
+        "id": "openLogFolder",
+        "text": "Saved logs",
+        "height": 28.000001907348633
+      },
+      {
+        "id": "clearLog",
+        "text": "Clear",
+        "height": 28.000001907348633
+      }
+    ]
+  },
+  {
+    "name": "dubbing-en-light-800",
+    "scope": "#dubGeneratorDialog",
+    "width": 640,
+    "height": 800,
+    "scopeWidth": 606.0000610351562,
+    "scopeHeight": 752.0000610351562,
+    "overflow": false,
+    "navHeight": 0,
+    "navPage": "discover",
+    "dialogs": [
+      "dubGeneratorDialog"
+    ],
+    "tinyControls": [
+      {
+        "id": "dubTextStudio",
+        "text": "Open text / TXT studio",
+        "height": 34
+      },
+      {
+        "id": "voiceReferenceSelect",
+        "text": "Voice references",
+        "height": 34
+      },
+      {
+        "id": "voiceReferenceUse",
+        "text": "Use this voice",
+        "height": 34
+      },
+      {
+        "id": "voiceReferenceFolder",
+        "text": "Open voice references folder",
+        "height": 34
+      }
+    ]
+  },
+  {
+    "name": "textvoice-en-light-800",
+    "scope": "#textVoiceStudio",
+    "width": 640,
+    "height": 800,
+    "scopeWidth": 620.0000610351562,
+    "scopeHeight": 780.0000610351562,
+    "overflow": false,
+    "navHeight": 0,
+    "navPage": "discover",
+    "dialogs": [
+      "textVoiceStudio"
+    ],
+    "tinyControls": []
+  }
+]

@@ -1,0 +1,329 @@
+{
+  "ok": true,
+  "before": false,
+  "rows": [
+    {
+      "name": "home-tr-dark-1440",
+      "width": 1440,
+      "height": 1000,
+      "overflow": false,
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 1000
+      },
+      "active": "Ana sayfa"
+    },
+    {
+      "name": "films-tr-dark-1440",
+      "width": 1440,
+      "height": 1000,
+      "overflow": false,
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 1000
+      },
+      "active": "Ana sayfa"
+    },
+    {
+      "name": "books-tr-dark-1440",
+      "width": 1440,
+      "height": 1000,
+      "overflow": false,
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 1000
+      },
+      "active": "Ana sayfa"
+    },
+    {
+      "name": "tools-tr-dark-1440",
+      "width": 1440,
+      "height": 1000,
+      "overflow": false,
+      "rect": {
+        "x": 0,
+        "y": 38,
+        "width": 1430,
+        "height": 121
+      },
+      "active": "Araçlar"
+    },
+    {
+      "name": "tools-escape-tr-dark-1440",
+      "menuAfterEscape": false
+    },
+    {
+      "name": "discovery-tr-dark-1440",
+      "width": 1440,
+      "height": 1000,
+      "overflow": false,
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 1000
+      },
+      "active": "Ana sayfa"
+    },
+    {
+      "name": "search-preservation-tr-dark-1440",
+      "queryAfterFilter": "Unsubmitted search"
+    },
+    {
+      "name": "detail-tr-dark-1440",
+      "width": 1440,
+      "height": 1000,
+      "overflow": false,
+      "rect": {
+        "x": 195,
+        "y": 220.47396850585938,
+        "width": 1050,
+        "height": 559.0521240234375
+      },
+      "active": "Ayrıntıları kapat"
+    },
+    {
+      "name": "detail-options-tr-dark-1440",
+      "width": 1440,
+      "height": 1000,
+      "overflow": false,
+      "rect": {
+        "x": 195,
+        "y": 59.942710876464844,
+        "width": 1050,
+        "height": 880.1146240234375
+      },
+      "active": "Diğer işlemler ve izleme tercihleri"
+    },
+    {
+      "name": "discovery-error-tr-dark-1440",
+      "width": 1440,
+      "height": 1000,
+      "overflow": false,
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 1000
+      },
+      "active": "Ana sayfa"
+    },
+    {
+      "name": "home-en-light-800",
+      "width": 640,
+      "height": 800,
+      "overflow": false,
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 640.0000610351562,
+        "height": 800.0000610351562
+      },
+      "active": "Home"
+    },
+    {
+      "name": "films-en-light-800",
+      "width": 640,
+      "height": 800,
+      "overflow": false,
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 640.0000610351562,
+        "height": 800.0000610351562
+      },
+      "active": "Home"
+    },
+    {
+      "name": "books-en-light-800",
+      "width": 640,
+      "height": 800,
+      "overflow": false,
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 640.0000610351562,
+        "height": 800.0000610351562
+      },
+      "active": "Home"
+    },
+    {
+      "name": "tools-en-light-800",
+      "width": 640,
+      "height": 800,
+      "overflow": false,
+      "rect": {
+        "x": 0,
+        "y": 38.000003814697266,
+        "width": 632.0000610351562,
+        "height": 170.40000915527344
+      },
+      "active": "Tools"
+    },
+    {
+      "name": "tools-escape-en-light-800",
+      "menuAfterEscape": false
+    },
+    {
+      "name": "discovery-en-light-800",
+      "width": 640,
+      "height": 800,
+      "overflow": false,
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 640.0000610351562,
+        "height": 800.0000610351562
+      },
+      "active": "Home"
+    },
+    {
+      "name": "search-preservation-en-light-800",
+      "queryAfterFilter": "Unsubmitted search"
+    },
+    {
+      "name": "detail-en-light-800",
+      "width": 640,
+      "height": 800,
+      "overflow": false,
+      "rect": {
+        "x": 17.5,
+        "y": 116.5666732788086,
+        "width": 605.0000610351562,
+        "height": 566.86669921875
+      },
+      "active": "Close details"
+    },
+    {
+      "name": "detail-options-en-light-800",
+      "width": 640,
+      "height": 800,
+      "overflow": false,
+      "rect": {
+        "x": 17.5,
+        "y": 35,
+        "width": 605.0000610351562,
+        "height": 730.0000610351562
+      },
+      "active": "More actions & viewing preferences"
+    },
+    {
+      "name": "discovery-error-en-light-800",
+      "width": 640,
+      "height": 800,
+      "overflow": false,
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 640.0000610351562,
+        "height": 800.0000610351562
+      },
+      "active": "Home"
+    }
+  ],
+  "calls": [
+    {
+      "action": "list",
+      "kind": "film",
+      "mode": "top",
+      "genre": "",
+      "year": 2026,
+      "query": "",
+      "skip": 0
+    },
+    {
+      "action": "list",
+      "kind": "film",
+      "mode": "top",
+      "genre": "",
+      "year": 2026,
+      "query": "",
+      "skip": 0
+    },
+    {
+      "action": "list",
+      "kind": "film",
+      "mode": "top",
+      "genre": "Drama",
+      "year": 2026,
+      "query": "Unsubmitted search",
+      "skip": 0
+    },
+    {
+      "action": "detail",
+      "kind": "film",
+      "id": "tt9900000"
+    },
+    {
+      "action": "feedback",
+      "id": "tt9900000",
+      "kind": "film",
+      "title": "Kuzeyin Hikâyesi",
+      "state": "watched"
+    },
+    {
+      "action": "list",
+      "kind": "film",
+      "mode": "top",
+      "genre": "Drama",
+      "year": 2026,
+      "query": "Unsubmitted search",
+      "skip": 0
+    },
+    {
+      "action": "list",
+      "kind": "film",
+      "mode": "top",
+      "genre": "Drama",
+      "year": 2026,
+      "query": "Unsubmitted search",
+      "skip": 0
+    },
+    {
+      "action": "list",
+      "kind": "film",
+      "mode": "top",
+      "genre": "Drama",
+      "year": 2026,
+      "query": "Unsubmitted search",
+      "skip": 0
+    },
+    {
+      "action": "detail",
+      "kind": "film",
+      "id": "tt9900000"
+    },
+    {
+      "action": "feedback",
+      "id": "tt9900000",
+      "kind": "film",
+      "title": "Kuzeyin Hikâyesi",
+      "state": "watched"
+    },
+    {
+      "action": "list",
+      "kind": "film",
+      "mode": "top",
+      "genre": "Drama",
+      "year": 2026,
+      "query": "Unsubmitted search",
+      "skip": 0
+    },
+    {
+      "action": "list",
+      "kind": "film",
+      "mode": "top",
+      "genre": "Drama",
+      "year": 2026,
+      "query": "Unsubmitted search",
+      "skip": 0
+    }
+  ],
+  "limits": "Controlled catalog/discovery/artwork and errors in real Electron; no real provider, media playback or personal profile."
+}
