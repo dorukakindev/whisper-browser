@@ -4,25 +4,41 @@
 function decode(value){const names={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',hellip:'…',rsquo:'’',lsquo:'‘',rdquo:'”',ldquo:'“',ndash:'–',mdash:'—'};return value.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi,(entity,key)=>{if(key[0]!=='#')return names[key.toLowerCase()]??entity;const n=key[1].toLowerCase()==='x'?parseInt(key.slice(2),16):Number(key.slice(1));return Number.isInteger(n)&&n>0&&n<=0x10ffff&&!(n>=0xd800&&n<=0xdfff)?String.fromCodePoint(n):'�';});}
 const plain=value=>decode(String(value).replace(/<(script|style|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'').replace(/<br\b[^>]*>|<\/(?:p|div|li)\s*>/gi,'\n').replace(/<[^>]*>/g,' ')).replace(/\0/g,'').replace(/[ \t]+/g,' ').replace(/ *\n */g,'\n').replace(/\n{3,}/g,'\n\n').trim();
 function attr(tag,name){const found=new RegExp('(?:^|\\s)'+name+'\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\')','i').exec(tag);return found?decode(found[1]??found[2]):'';}
+function reviewPermalink(value){try{const u=new URL(value,'https://letterboxd.com');return u.protocol==='https:'&&u.hostname==='letterboxd.com'&&!u.port&&!u.username&&!u.password&&!u.search&&!u.hash&&/^\/[a-z0-9_-]+\/film\/[a-z0-9-]+\/(?:[1-9]\d*\/)?$/i.test(u.pathname)?u.href:null;}catch{return null;}}
+function cardMetadata(card){
+ const links=[...card.matchAll(/<a\b[^>]*>/gi)].map(m=>m[0]);
+ const permalink=links.map(tag=>reviewPermalink(attr(tag,'href'))).find(Boolean);
+ const time=/<time\b[^>]*>/i.exec(card)?.[0],rawDate=time&&attr(time,'datetime');
+ const date=rawDate&&/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(rawDate)&&Number.isFinite(Date.parse(rawDate))&&new Date(rawDate.slice(0,10)).toISOString().slice(0,10)===rawDate.slice(0,10)?rawDate.slice(0,10):'';
+ const ratingTag=/<(?:span|i)\b[^>]*class=["'][^"']*\brating\b[^"']*["'][^>]*>([\s\S]*?)<\/(?:span|i)>/i.exec(card);
+ const rated=ratingTag&&/\brated-(10|[1-9])\b/.exec(attr(ratingTag[0].split('>')[0],'class'));
+ const stars=ratingTag?plain(ratingTag[1]).replace(/\s/g,''):'';
+ const rating=rated?Number(rated[1])/2:/^★{0,5}½?$/.test(stars)&&stars?([...stars].filter(c=>c==='★').length+(stars.endsWith('½')?0.5:0)):null;
+ return {...(permalink?{permalink}:{}),...(date?{date}:{}),...(rating>0&&rating<=5?{rating}:{})};
+}
 function parseLetterboxdReviews(input){
  let html=String(input||'');if(html.length>3000000)throw Error('Review page too large.');
  html=html.replace(/<!--[^]*?-->/g,'').replace(/<(script|style|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'');
  if(/<title[^>]*>\s*(?:Just a moment|Access denied|Security check)/i.test(html))throw Error('Letterboxd access verification is required. Open the page normally, or paste/import reviews.');
  // Match each review's own container; the preceding review must not mark its neighbour as a spoiler.
- let limited=false;const rows=[],seen=new Set();const pattern=/<(?:div|section)\b[^>]*class=["'][^"']*\bjs-review-body\b[^"']*["'][^>]*>/gi;let found;
+ let limited=false;const excluded={duplicate:0,unreadable:0};const rows=[],seen=new Set();const pattern=/<(?:div|section)\b[^>]*class=["'][^"']*\bjs-review-body\b[^"']*["'][^>]*>/gi;let found;
  while((found=pattern.exec(html))&&rows.length<50){
   const open=found[0],tag=/^<(\w+)/.exec(open)[1],tokens=tag==='div'?/<\/?div\b[^>]*>/gi:/<\/?section\b[^>]*>/gi;tokens.lastIndex=pattern.lastIndex;let depth=1,end=pattern.lastIndex,next;
   while(depth&&(next=tokens.exec(html))){depth+=next[0][1]==='/'?-1:1;if(!depth)end=next.index;}
   if(depth)break;
   const body=html.slice(pattern.lastIndex,end);pattern.lastIndex=tokens.lastIndex;
-  const fullText=plain(body);if(fullText.length>4000)limited=true;const text=fullText.slice(0,4000);if(text.length<8||seen.has(text))continue;seen.add(text);
+  const fullText=plain(body);if(fullText.length>4000)limited=true;const text=fullText.slice(0,4000);if(text.length<8){excluded.unreadable++;continue;}if(seen.has(text)){excluded.duplicate++;continue;}seen.add(text);
   // Find only the current card's attributes/author, never a global spoiler substring.
   const stack=[];for(const m of html.slice(0,found.index).matchAll(/<\/?(li|article|div)\b[^>]*>/gi)){if(m[0][1]==='/'){const i=stack.findLastIndex(row=>row.tag===m[1].toLowerCase());if(i>=0)stack.splice(i);}else stack.push({tag:m[1].toLowerCase(),index:m.index,open:m[0]});}const ancestorSpoiler=stack.some(row=>/class=["'][^"']*\b(?:contains-spoilers|has-spoilers)\b/i.test(row.open)||/data-(?:contains-)?spoilers?=["']true["']/i.test(row.open));const container=stack.findLast(row=>['li','article'].includes(row.tag))||stack.findLast(row=>/review|film-detail/i.test(row.open))||stack.at(-1);const card=container?html.slice(container.index,found.index):'';
   const authorTag=/<a\b[^>]*class=["'][^"']*\b(?:name|displayname)\b[^"']*["'][^>]*>([\s\S]*?)<\/a>/i.exec(card);
   const author=authorTag?plain(authorTag[1]).slice(0,120):'';
   const spoiler=ancestorSpoiler||/\b(?:contains-spoilers|has-spoilers)\b/i.test(open+' '+card.match(/^<[^>]+>/)?.[0])||/class=["'][^"']*\b(?:spoiler-warning|spoiler-message|has-spoilers)\b/i.test(card+open+body)||/data-(?:contains-)?spoilers?=["']true["']/i.test(card+open);
-  const row={id:String(rows.length+1),text,author,spoiler};if(JSON.stringify([...rows,row]).length>110000){limited=true;break;}rows.push(row);
+  // Dates/ratings can follow the body. Stop at this card's closing tag, never its neighbour.
+  let completeCard=card+open+body;if(container){const token=new RegExp('<\\/?'+container.tag+'\\b[^>]*>','gi');token.lastIndex=container.index;let level=0,m;while((m=token.exec(html))){level+=m[0][1]==='/'?-1:1;if(!level){completeCard=html.slice(container.index,token.lastIndex);break;}}}
+  const metadataCard=container?completeCard.slice(0,found.index-container.index)+completeCard.slice(tokens.lastIndex-container.index):'';
+  const row={id:String(rows.length+1),text,author,spoiler,...cardMetadata(metadataCard)};if(JSON.stringify([...rows,row]).length>110000){limited=true;break;}rows.push(row);
  }
+ if(rows.length>=50&&found)limited=true;
  const meta=[...html.matchAll(/<meta\b[^>]*>/gi)].map(m=>m[0]);const title=meta.find(tag=>attr(tag,'property')==='og:title');
  const pageTitle=plain(title?attr(title,'content'):(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1]||'')).slice(0,300);
  const yearText=meta.find(tag=>/^(?:og:release_date|video:release_date)$/.test(attr(tag,'property')));
@@ -31,7 +47,7 @@ function parseLetterboxdReviews(input){
  const years=/\((18\d{2}|19\d{2}|20\d{2})\)/.exec(labelled),year=Number((yearText&&attr(yearText,'content').slice(0,4))||years?.[1])||null;
  const name=(labelled.replace(/\s*\((?:18|19|20)\d{2}\).*$/,'').trim()||heading).slice(0,300);
  const tmdb=/(?:data-tmdb-id|data-film-tmdb-id)=["'](\d+)["']/i.exec(html)?.[1]||/themoviedb\.org\/movie\/(\d+)/i.exec(html)?.[1]||'';
- return {reviews:rows,limited,pageTitle,identity:{title:name,year,tmdbId:tmdb?'movie:'+tmdb:''}};
+ return {reviews:rows,limited,excluded,pageTitle,identity:{title:name,year,tmdbId:tmdb?'movie:'+tmdb:''}};
 }
 function matchFilm(item,identity={}){
  const fold=v=>String(v||'').normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase('tr').replace(/ı/g,'i').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
@@ -65,5 +81,5 @@ async function readBrowserReviews({getTab,execute}){
  const result=parseLetterboxdReviews(data.html);if(!result.reviews.length)throw Error('No loaded public reviews found. Load the reviews normally, or paste/import them.');
  return {...result,url,origin:'browser'};
 }
-return {parseLetterboxdReviews,decode,matchFilm,publicFilmUrl,reviewPageScript,readBrowserReviews};
+return {parseLetterboxdReviews,decode,matchFilm,publicFilmUrl,reviewPermalink,reviewPageScript,readBrowserReviews};
 });

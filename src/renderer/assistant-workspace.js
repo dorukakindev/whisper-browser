@@ -1,6 +1,6 @@
 (() => {
  'use strict';
- const cache=new Map(),failedLoads=new Set();let pendingLoad=null,lastError='',flushTimer;const queues=new Map();
+ const cache=new Map(),failedLoads=new Set();let pendingLoad=null,lastError='';const queues=new Map(),flushTimers=new Map(),removedThreads=new WeakSet(),replyOwners=new WeakMap();
  const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
  const uid=()=>crypto.randomUUID();
  const changed=()=>document.dispatchEvent(new CustomEvent('assistant-workspace-changed'));
@@ -29,9 +29,17 @@
   const r=await request('list',sourceKey);if(cache.has(sourceKey))return cache.get(sourceKey);
   const value={threads:r.threads,active:r.threads[0]?.id||null};cache.set(sourceKey,value);if(sourceKey===key())restoreLog();changed();return value;
  }
+ function cancelFlush(thread){clearTimeout(flushTimers.get(thread));flushTimers.delete(thread);}
+ function scheduleFlush(thread){if(removedThreads.has(thread)||flushTimers.has(thread))return;flushTimers.set(thread,setTimeout(()=>{flushTimers.delete(thread);void persist(thread);},1000));}
+ // A job owns its original reply even after navigation, but never a cleared,
+ // deleted, completed, or resumed-by-another-job reply.
+ function record(job){const rec=job.assistantRecord;if(!rec||removedThreads.has(rec.thread)||replyOwners.get(rec.reply)!==rec||rec.reply.status!=='streaming'||!rec.thread.messages.includes(rec.reply))return null;return rec;}
+ function own(job,thread,reply){const rec={thread,reply};job.assistantRecord=rec;replyOwners.set(reply,rec);}
  function persist(thread){
+  if(removedThreads.has(thread))return Promise.resolve();
   const previous=queues.get(thread.id)||Promise.resolve();
   const task=previous.catch(()=>{}).then(async()=>{
+   if(removedThreads.has(thread))return;
    const data=structuredClone(thread);const r=await request('save',thread.sourceKey,{thread:data});thread.revision=r.thread.revision;thread.updatedAt=r.thread.updatedAt;lastError='';changed();
   });queues.set(thread.id,task);task.catch(fail).finally(()=>{if(queues.get(thread.id)===task)queues.delete(thread.id);});return task;
  }
@@ -54,24 +62,24 @@
   return {ready:true,error:lastError,threads:value.threads.map(r=>({id:r.id,title:r.title,updatedAt:r.updatedAt})),current:current()};
  }
  function begin(job){
-  const thread=current();if(!thread)return;
+  const thread=current();if(!thread||job.sourceScope&&job.sourceScope!==aiSourceScope()||job.bubble?._assistantThreadId&&job.bubble._assistantThreadId!==thread.id)return;
   const user={id:uid(),parentId:thread.headId,role:'user',text:job.chatQuestion,status:'complete',evidence:[],actions:[]};
   const reply={id:uid(),parentId:user.id,role:'assistant',text:'',status:'streaming',evidence:[],actions:[]};
   thread.messages.push(user,reply);thread.headId=reply.id;
   if(thread.messages.length===2)thread.title=job.chatQuestion.slice(0,90);
-  job.assistantRecord={thread,reply};
+  own(job,thread,reply);
   job.bubble._assistantMessageId=reply.id;job.bubble._assistantThreadId=thread.id;
-  const nodes=[...document.querySelectorAll('#aiChatLog .ai-msg-user')];const node=nodes.at(-1);if(node){node._assistantMessageId=user.id;node._assistantThreadId=thread.id;}
+  const nodes=[...document.querySelectorAll('#aiChatLog .ai-msg-user')];const node=nodes.filter(node=>node._sourceScope===aiSourceScope()&&node._assistantThreadId===thread.id).at(-1);if(node){node._assistantMessageId=user.id;node._assistantThreadId=thread.id;}
   const original=job.chatContext?.transcript_evidence?.evidence||[];
   reply.evidence=original.slice(0,40).map(row=>({id:row.id,start:Number(row.baslangic),end:Number(row.bitis)||Number(row.baslangic),text:String(row.metin||'').slice(0,1200),translation:String(row.ceviri||'').slice(0,1200)})).filter(row=>Number.isFinite(row.start));
   void persist(thread);changed();
  }
- function resume(proposalId,context){const thread=current(),reply=thread?.messages.find(row=>row.actions?.some(action=>action.proposalId===proposalId));if(!reply||thread.headId!==reply.id)throw Error(t('Continue only the latest reply in this conversation.','Bu sohbette yalnız son yanıttan devam edilebilir.'));restoreLog();const bubble=[...document.querySelectorAll('#aiChatLog .ai-msg')].find(node=>node._assistantMessageId===reply.id&&node._assistantThreadId===thread.id);if(!bubble)throw Error('Reply is unavailable.');reply.status='streaming';bubble.classList.add('is-loading');bubble.classList.remove('ai-msg-err');const job={chatContext:context,sourceScope:aiSourceScope(),bubble,assistantRecord:{thread,reply}};changed();return {job,text:reply.text,actions:reply.actions||[],evidence:reply.evidence||[],citations:reply.citations||[],steps:reply.steps||[]};}
- function citations(job,rows){const rec=job.assistantRecord;if(!rec)return;rec.reply.citations=rows||[];changed();}
- function steps(job,rows){const rec=job.assistantRecord;if(!rec)return;rec.reply.steps=window.AssistantRunSteps.clean(rows);changed();}
- function partial(job,text){const rec=job.assistantRecord;if(!rec)return;rec.reply.text=text;if(!flushTimer)flushTimer=setTimeout(()=>{flushTimer=null;void persist(rec.thread);},1000);changed();}
- function evidence(job,event){const rec=job.assistantRecord;if(!rec)return;rec.reply.evidence=[...new Map([...rec.reply.evidence,...(event.evidence||[])].map(row=>[row.id,row])).values()].slice(-40);rec.reply.actions=event.actions||[];changed();}
- function finish(job,text,status){const rec=job.assistantRecord;if(!rec)return;if(rec.reply.status!=='streaming')return;clearTimeout(flushTimer);flushTimer=null;rec.reply.text=String(text||rec.reply.text||'').slice(0,32000);rec.reply.status=status;void persist(rec.thread);changed();}
+ function resume(proposalId,context){const thread=current(),reply=thread?.messages.find(row=>row.actions?.some(action=>action.proposalId===proposalId));if(!reply||thread.headId!==reply.id)throw Error(t('Continue only the latest reply in this conversation.','Bu sohbette yalnız son yanıttan devam edilebilir.'));restoreLog();const bubble=[...document.querySelectorAll('#aiChatLog .ai-msg')].find(node=>node._assistantMessageId===reply.id&&node._assistantThreadId===thread.id&&node._sourceScope===aiSourceScope());if(!bubble)throw Error('Reply is unavailable.');reply.status='streaming';bubble.classList.add('is-loading');bubble.classList.remove('ai-msg-err');const job={chatContext:context,sourceScope:aiSourceScope(),bubble};own(job,thread,reply);scheduleFlush(thread);changed();return {job,text:reply.text,actions:reply.actions||[],evidence:reply.evidence||[],citations:reply.citations||[],steps:reply.steps||[]};}
+ function citations(job,rows){const rec=record(job);if(!rec)return;rec.reply.citations=structuredClone(rows||[]);scheduleFlush(rec.thread);changed();}
+ function steps(job,rows){const rec=record(job);if(!rec)return;rec.reply.steps=window.AssistantRunSteps.clean(rows);scheduleFlush(rec.thread);changed();}
+ function partial(job,text){const rec=record(job);if(!rec)return;rec.reply.text=String(text||'').slice(0,32000);scheduleFlush(rec.thread);changed();}
+ function evidence(job,event){const rec=record(job);if(!rec)return;rec.reply.evidence=[...new Map([...rec.reply.evidence,...(event.evidence||[])].map(row=>[row.id,row])).values()].slice(-40);rec.reply.actions=structuredClone(event.actions||[]);scheduleFlush(rec.thread);changed();}
+ function finish(job,text,status){const rec=record(job);if(!rec)return;cancelFlush(rec.thread);rec.reply.text=String(text||rec.reply.text||'').slice(0,32000);rec.reply.status=status;void persist(rec.thread);changed();}
  async function command(action,value){
   if(aiChatPreparing||stateGlobalBusy())throw Error(t('Stop the running job before switching conversations.','Sohbet değiştirmeden önce çalışan işi durdur.'));
   const sourceKey=key();await load(sourceKey);if(sourceKey!==key())throw Error(t('The source changed.','Kaynak değişti.'));
@@ -79,7 +87,7 @@
   if(action==='new-thread')await create();
   if(action==='select-thread'){if(!state.threads.some(r=>r.id===value))throw Error('Conversation not found.');state.active=value;}
   if(action==='rename-thread'){const thread=current();if(!thread)return;thread.title=String(value||'').trim().slice(0,200)||thread.title;await persist(thread);}
-  if(action==='delete-thread'){const thread=current();if(!thread)return;await queues.get(thread.id)?.catch(()=>{});await request('delete',sourceKey,{id:thread.id});state.threads=state.threads.filter(r=>r.id!==thread.id);state.active=state.threads[0]?.id||null;}
+  if(action==='delete-thread'){const thread=current();if(!thread)return;removedThreads.add(thread);cancelFlush(thread);try{await queues.get(thread.id)?.catch(()=>{});await request('delete',sourceKey,{id:thread.id});}catch(error){removedThreads.delete(thread);scheduleFlush(thread);throw error;}state.threads=state.threads.filter(r=>r.id!==thread.id);state.active=state.threads[0]?.id||null;}
   if(action==='branch'){const thread=current(),index=thread?.messages.findIndex(row=>row.id===value);if(index==null||index<0)throw Error('Message no longer exists.');let end=index,question='';if(thread.messages[index].role==='assistant'){end=Math.max(0,index-1);question=thread.messages[end]?.role==='user'?thread.messages[end].text:'';}else question=thread.messages[index].text;const next=await create(t('Branch: ','Dal: ')+thread.title,thread.id,thread.messages.slice(0,end));next.draft=question;}
   if(current()){player.chatHistory=history(current());player.chatHistoryScope=aiSourceScope();}else{player.chatHistory=[];player.chatHistoryScope=null;}
   restoreLog();changed();
@@ -92,17 +100,35 @@
    action.resultText=String(result?.note||result?.error||'').slice(0,500);void persist(thread);changed();return;
   }
  }
- function clear(){const thread=current();if(thread){thread.messages=[];thread.headId=null;void persist(thread);changed();}}
+ function clear(){const thread=current();if(thread){cancelFlush(thread);thread.messages=[];thread.headId=null;void persist(thread);changed();}}
+ // Shared unsampled source: U IDs always refer to the original row index.
+ function subtitleContextRows(){
+  if(globalAssistantContext())return {now:0,scope:'watched',rows:[]};
+  const position=player.workspaceMode==='browser'?player.browserTime:subtitleSourceTime(document.getElementById('playerVideo')?.currentTime||0,false);
+  const now=Number.isFinite(position)?Math.max(0,position):0;
+  const chosen=document.getElementById('aiTranscriptScope')?.value,scope=['nearby','full'].includes(chosen)?chosen:'watched';
+  let rows;if(player.workspaceMode==='browser')rows=aiVideoRows();else{const roles=browserSubtitleRoleCues(),source=roles.source.length?roles.source:roles.translation;const translations=roles.source.length&&roles.translation.length?translationsForCues(source,roles.translation):[];rows=source.map((row,index)=>({...row,translation:translations[index]||''}));}
+  const eligible=rows.map((row,index)=>({...row,id:'U'+index})).filter(row=>Number.isFinite(row.start)&&Number.isFinite(row.end)&&row.start>=0&&row.end>=row.start&&(scope!=='watched'||row.start<=now+.75)&&(scope!=='nearby'||Math.abs(row.start-now)<=180));
+  return {now,scope,rows:eligible};
+ }
+ function subtitleById(id,owner){if(!owner||!window.AssistantAppActions.current(owner)||owner.subtitleKey!==window.AssistantAppActions.snapshot().subtitleKey)return undefined;return /^U\d+$/.test(id)?subtitleContextRows().rows.find(row=>row.id===id):undefined;}
+ function searchSubtitleContext(name,args={}){
+  const {now,scope,rows}=subtitleContextRows(),search=window.BrowserTranscriptSearch;
+  if(!search?.transcriptExcerpt)throw Error(t('Subtitle retrieval is unavailable.','Altyazı araması kullanılamıyor.'));
+  const terms=name==='search_subtitles'?search.transcriptTokens(args.query):[];
+  if(name==='search_subtitles'&&!terms.length)throw Error(t('Use at least one searchable keyword of two or more characters.','En az iki karakterli aranabilir bir sözcük kullanın.'));
+  const selected=name==='get_current_subtitle'?rows.filter(row=>row.start<=now&&row.end>=now).slice(0,3):terms.length?rows.map(row=>{const body=search.foldTranscriptText(String(row.text||'')+' '+String(row.translation||''));return {row,score:terms.reduce((score,word)=>score+(body.includes(word)?1:0),0)};}).filter(hit=>hit.score>0).sort((a,b)=>b.score-a.score||a.row.start-b.row.start||Number(a.row.id.slice(1))-Number(b.row.id.slice(1))).slice(0,8).map(hit=>hit.row):[];
+  const matches=selected.map(row=>{const source=search.transcriptExcerpt(row.text,terms,700),translation=search.transcriptExcerpt(row.translation,terms,700);return {id:row.id,start:row.start,end:row.end,text:source.text,translation:translation.text,
+   ...(source.truncated?{textOffset:source.offset,textTruncated:true}:{}),...(translation.truncated?{translationOffset:translation.offset,translationTruncated:true}:{})};});
+  return {status:'completed',matches,transcriptScope:scope,position:now,searchedCues:rows.length};
+ }
  function toolContext(){
   if(globalAssistantContext())return null;
-  const now=player.workspaceMode==='browser'?player.browserTime:subtitleSourceTime(document.getElementById('playerVideo')?.currentTime||0,false);
-  const scope=document.getElementById('aiTranscriptScope')?.value||'watched';
-  let rows;if(player.workspaceMode==='browser')rows=aiVideoRows();else{const roles=browserSubtitleRoleCues(),source=roles.source.length?roles.source:roles.translation;const translations=roles.source.length&&roles.translation.length?translationsForCues(source,roles.translation):[];rows=source.map((row,index)=>({...row,translation:translations[index]||''}));}
-  const eligible=rows.map((row,index)=>({...row,id:'U'+index})).filter(row=>Number.isFinite(row.start)&&Number.isFinite(row.end)&&(scope!=='watched'||row.start<=now+.75)&&(scope!=='nearby'||Math.abs(row.start-now)<=180));
+  const {now,scope,rows:eligible}=subtitleContextRows();
   const step=Math.max(1,Math.ceil(eligible.length/3000));const pool=eligible.filter((row,index)=>index%step===0||row.start<=now&&row.end>=now).slice(0,3100).map(row=>({id:row.id,start:row.start,end:row.end,text:String(row.text||'').slice(0,500),translation:String(row.translation||'').slice(0,500)}));
   return {enabled:pool.length>0,time:now,scope,truncated:step>1,rows:pool};
  }
- window.AssistantWorkspace=Object.freeze({key,snapshot,prepare,begin,resume,canResume:proposalId=>!!current()?.messages.at(-1)?.actions?.some(action=>action.proposalId===proposalId),partial,evidence,steps,citations,finish,command,clear,toolContext,actionResult,activeId:()=>current()?.id||''});
+ window.AssistantWorkspace=Object.freeze({key,snapshot,prepare,begin,resume,canResume:proposalId=>!!current()?.messages.at(-1)?.actions?.some(action=>action.proposalId===proposalId),partial,evidence,steps,citations,finish,command,clear,toolContext,searchSubtitleContext,subtitleById,actionResult,activeId:()=>current()?.id||''});
  document.addEventListener('media-context-changed',()=>{if(workspaceState())restoreLog();});
- window.addEventListener('pagehide',()=>{clearTimeout(flushTimer);flushTimer=null;for(const state of cache.values())for(const thread of state.threads)if(thread.messages.some(row=>row.status==='streaming'))void persist(thread);});
+ window.addEventListener('pagehide',()=>{const pending=new Set(flushTimers.keys());for(const thread of pending)cancelFlush(thread);for(const state of cache.values())for(const thread of state.threads)if(pending.has(thread)||thread.messages.some(row=>row.status==='streaming'))void persist(thread);});
 })();

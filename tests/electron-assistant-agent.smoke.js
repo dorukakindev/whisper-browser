@@ -53,7 +53,7 @@ provider.listen(0,'127.0.0.1',()=>{
   await run("document.getElementById('text').value='Durum göstergesi için mevcut uygulama ayarlarını oku, değiştirme.';document.getElementById('form').requestSubmit();return true");
   await until(()=>run("return document.getElementById('agentProgress').textContent.includes('Uygulama ayarları okunuyor')"),'actual tool progress');await capture('agent-reading-dark');
   win.setMinimumSize(0,0);win.setContentSize(720,680);await parent("UiLocale.set('en',false);applyUiTheme('light');return true");await until(()=>run("return document.getElementById('agentProgress').textContent.includes('Reading application settings')"),'localized progress');await capture('agent-reading-compact-light');
-  await parent("releasePreferencesRead();return true");await until(()=>parent('return !AssistantAgentUI.busy()'),'preference result');await until(()=>run("return document.getElementById('agentProgress').textContent===''") ,'progress clears');
+  await parent("releasePreferencesRead();return true");await until(()=>parent('return !AssistantAgentUI.busy()'),'preference result');await until(()=>run("return document.getElementById('agentProgress').hidden&&getComputedStyle(document.getElementById('agentProgress')).display==='none'") ,'progress clears');
   win.setContentSize(1440,1000);await parent("UiLocale.set('tr',false);applyUiTheme('dark');return true");
   await run("document.getElementById('text').value='Yarım yanıtı sınayalım';document.getElementById('form').requestSubmit();return true");
   await until(()=>run("return document.getElementById('log').textContent.includes('Korunacak kısmi')"),'real SSE partial');

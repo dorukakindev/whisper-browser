@@ -162,3 +162,10 @@ header{gap:14px;padding:20px 20px 16px}
 .assistant-run-card li[data-state=running] .run-dot,.assistant-run-card li[data-state=proposed] .run-dot{background:var(--accent)}
 .assistant-run-card li[data-state=failed] .run-dot{background:var(--error)}
 @media(prefers-reduced-motion:reduce){.assistant-run-card>summary::before{transition:none}}
+
+/* A quiet source receipt stays visible while its explanation shares the existing disclosure. */
+#sourcePreview{flex:none;margin:0 18px;padding:10px 0 2px;font-size:12px;line-height:1.65;color:var(--text);overflow-wrap:anywhere}
+#sourcePreviewDetail{color:var(--muted);font-size:12px;line-height:1.65;margin-block:8px 12px}
+@media(max-height:620px){#sourcePreview{margin-inline:12px;padding-top:6px;font-size:11px}}
+
+#modelName{display:block;overflow-wrap:anywhere;font-size:12px;line-height:1.6;margin-block:8px}

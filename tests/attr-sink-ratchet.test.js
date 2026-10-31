@@ -50,6 +50,8 @@ for (const file of FILES) {
 // --- href atama envanteri: yalnız bilinen güvenli noktalar ------------
 // Her kayıt: dosya adı + atama hattındaki ayırt edici dizgi.
 const HREF_INVENTORY = [
+  { file: 'review-decision-ui.js', mark: 'link.href = meta.permalink' }, // HTTPS-only exact Letterboxd review path, no query/hash/auth; click uses policy-backed openExternal. Parser + model normalization tested.
+
   { file: 'renderer.js', mark: 'link.href = vurl' }, // verification_url main'de https'e indirgenir
 ];
 const foundHrefs = [];
