@@ -29,7 +29,7 @@ function fixture({ priorMuted = false, mute, setRate, backgroundAudio, musicAudi
     setRate,
     backgroundAudio, musicAudio,
     urls: { createObjectURL: () => 'blob:test', revokeObjectURL: u => revoked.push(u) },
-    mute: mute || (async (...args) => { calls.push(args); return { ok: true }; }),
+    mute: mute || (async (...args) => { calls.push(args.slice(0,2)); return { ok: true }; }),
     error: e => errors.push(e) });
   return { dub, audio, calls, errors, revoked, c, advance: n => { clock += n; } };
 }
@@ -127,6 +127,37 @@ function fixture({ priorMuted = false, mute, setRate, backgroundAudio, musicAudi
   const remove = late.dub.remove(); resolveMute({ ok: true });
   await Promise.all([attach, remove]);
   assert.equal(late.audio.paused, true); assert.equal(late.dub.session, null);
+  // A telemetry tick during the first async mute queues a release. If removal
+  // supersedes that release, cleanup must still remember the applied mute.
+  for (const mode of ['browser', 'player']) {
+    for (const replace of [false, true]) {
+      let actualMuted = false, finishInitial;
+      const calls = [];
+      const pending = fixture({ setRate: async () => ({ok:true}), mute: async (_id, value) => {
+        calls.push(value);
+        if (calls.length === 1) await new Promise(resolve => { finishInitial = resolve; });
+        actualMuted = value; return { ok: true };
+      } });
+      pending.c.mode = mode;
+      const file = name => ({name, sync:{version:1,videoDuration:100,audioDuration:100,
+        segments:[{v0:0,v1:100,a0:0,a1:100}]}});
+      try {
+        const first = pending.dub.attach(file('pending.wav'), pending.c);
+        await flush();
+        pending.dub.tick(); // No URL/sample yet: queue release while mute is pending.
+        const next = replace ? pending.dub.attach(file('replacement.wav'), pending.c) : pending.dub.remove();
+        finishInitial();
+        assert.equal(await first, false);
+        await next;
+        if (replace) {
+          assert.equal(actualMuted, true, 'replacement still owns original mute');
+          await pending.dub.remove();
+        }
+        assert.equal(actualMuted, false, mode + ': pending mute stranded original audio');
+        assert.deepEqual(calls, replace ? [true,false,true,false] : [true,false]);
+      } finally { await pending.dub.remove(); }
+    }
+  }
   const blocked = fixture();
   blocked.audio.play = () => Promise.reject(new Error('autoplay rejected'));
   await blocked.dub.attach({ name: 'blocked.wav' }, blocked.c);

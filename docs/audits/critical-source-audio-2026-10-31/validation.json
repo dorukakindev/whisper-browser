@@ -1,0 +1,34 @@
+{
+  "fullBeforeFixtureWaitCorrection": {
+    "exit": 1,
+    "sourceFilesHashed": 1621,
+    "sourceStable": true,
+    "changedDuringRun": [],
+    "nodeFiles": 724,
+    "pythonFiles": 171,
+    "failedFiles": [
+      "tests/ci-determinism-ratchet.test.js"
+    ],
+    "failure": "New selection test used fixed 10ms sleep; no product assertion failure."
+  },
+  "finalChange": "Test only: observe saved-reference option insertion instead of fixed 10ms sleep. Product sources unchanged after full run.",
+  "finalFocused": {
+    "command": "node --test --test-isolation=none tests/assistant-selection-stale-critical.test.js tests/ci-determinism-ratchet.test.js",
+    "exit": 0,
+    "reportedTests": 17,
+    "pass": 17,
+    "fail": 0,
+    "includesPlainRatchetFile": true
+  },
+  "native": {
+    "script": "tests/electron-browser-dub-mute.smoke.js",
+    "exit": 0,
+    "syntheticLocalMedia": true,
+    "actualWindowsElectronIpcControllerDecoders": true,
+    "receipt": "native-mute-acceptance.json",
+    "liveProviderGpuDrmAcousticQuality": false
+  },
+  "syntax": true,
+  "notRun": "Full suite not repeated after test-only wait correction. No live provider/GPU/real YouTube validation.",
+  "productCommit": "27c8ab9564348269c38b8931b50b4ebb3b898811"
+}

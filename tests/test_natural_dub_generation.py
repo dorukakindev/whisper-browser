@@ -232,5 +232,29 @@ class NaturalGenerationTests(unittest.TestCase):
         second=chunk_key(scope['group_settings'](1),groups[1]['text'],42)
         self.assertNotEqual(first,second)
 
+    def test_duration_fit_engine_failure_and_cancel_keep_complete_original_take(self):
+        original='Bugün bu uzun cümlenin bütün ayrıntılarını birlikte değerlendirdik.'
+        for failure in (EngineStalled('controlled fit stall'),
+                        RuntimeError('CUDA out of memory'), asyncio.CancelledError()):
+            with self.subTest(failure=type(failure).__name__), tempfile.TemporaryDirectory() as folder:
+                folder=Path(folder)
+                server=RecordingServer((2,),failure)
+                with self.assertRaises(type(failure)):
+                    self.run_generation(folder,server,[original],natural=False,windows=[1],auto_fit=True,
+                        responses=lambda request:{'text':'Bugün değerlendirdik.','status':'source_reviewed'})
+                self.assertEqual(len(server.calls),2)
+                self.assertTrue(server.stopped)
+                self.assertTrue(fixture.valid_audio(folder/'0.wav',sf))
+                expected,_=finish_audio(np.full(16000,.1,dtype=np.float32),8000)
+                np.testing.assert_allclose(sf.read(folder/'0.wav')[0],expected,atol=1/32768)
+                record=json.loads((folder/'0.json').read_text(encoding='utf-8'))
+                self.assertEqual(record['text'],original)
+                self.assertFalse(record['rewritten'])
+                self.assertEqual(record['status'],'review')
+                self.assertNotEqual(record['verification']['status'],'passed')
+                self.assertEqual(record['recoveryReason'],'duration_fit_interrupted')
+                self.assertIn('1',self.last_args.force_groups)
+                self.assertFalse(list(folder.glob('*.tmp.wav')))
+
 
 if __name__=='__main__':unittest.main()

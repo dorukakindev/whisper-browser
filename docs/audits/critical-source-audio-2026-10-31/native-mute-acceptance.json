@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "crossOriginIframe": true,
+  "syntheticMedia": true,
+  "realController": true,
+  "realIpc": true,
+  "realWebContentsMute": true,
+  "cases": [
+    "ordinary removal restores original",
+    "idempotent manual mute survives removal",
+    "manual unmute wins through seek/pause/resume/removal",
+    "navigation releases old owned mute"
+  ],
+  "origins": [
+    "http://127.0.0.1:62835",
+    "http://127.0.0.1:62834"
+  ],
+  "decoded": {
+    "muted": false,
+    "paused": false,
+    "readyState": 4
+  },
+  "generation": {
+    "before": 1,
+    "after": 2
+  },
+  "limits": "Synthetic local HTTP iframe and real decoders/IPC only; no live site, account, DRM, GPU or acoustic loopback measurement."
+}

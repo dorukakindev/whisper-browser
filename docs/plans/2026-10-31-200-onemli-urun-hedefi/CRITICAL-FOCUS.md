@@ -16,3 +16,9 @@ Kullanıcı, 31 Ekim 2026’da önceki 200 aday listesindeki bazı işleri keyfi
 Hazır paket02’deki ayar/örnek üretim onarımları doğrulanıp ana sürüme teslim edilir. Sonra bu kabul ölçütleri gerçek kod ve hedefli akışlarla denetlenir; zaten doğru davranış için gereksiz değişiklik yapılmaz. Bulunan önemli hatalar düzeltilir; yeni özellik fikirleri zorunlu işe dönüştürülmez. Kütüphane/Letterboxd/zevk profili yeni genişletmeleri bekler; mevcut teslim edilen yararlı onarımlar korunur.
 
 Ajanlar GPT-6.1 Sol / medium. API testleri gerektiğinde DeepInfra DeepSeek-V4.1 standard, çok büyük toplu işler Flex. Kişisel anahtarlar/profil dosyaları raporlanmaz; kişisel uygulama kapatılmaz. Fixture, native arayüz, gerçek model, GPU ve insan dinleme kanıtları ayrıdır. CI arka planda devam eder; sonucu beklemek teslimin varsayılan şartı değildir.
+
+## Kritik kaynak/ses paketi — 31 Ekim
+
+Ayar/örnek paketi PR735 ile teslim edildi. Sonraki kritik onarımlar: eski sağlayıcı/referans onayı, bekleyen mute sonucu ve native mute sahipliği, isteğe bağlı süre düzenlemesinden önce tam sesin korunması. Ayrıntı ve kanıt: `docs/audits/critical-source-audio-2026-10-31/README.md`.
+
+Native cross-origin test yalnız sentetik yerel medya üzerinde gerçek Windows uygulaması/IPC/decoder doğrulamasıdır. Sağlayıcı/model kalitesi, gerçek YouTube ve GPU doğal ses kanıtı değildir. Kalan çeviri bütünlüğü, iş yaşamı ve gerçek UI engelleri topluca tamamlandı sayılmadı.

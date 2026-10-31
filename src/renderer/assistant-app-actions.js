@@ -29,7 +29,7 @@
   }
   if(registry.get(name)?.domain==='music')return window.AssistantMusicActions.execute(name,args,owner,{deadline,isCancelled});
   if(['get_browser_tabs','browser_action'].includes(name))return window.AssistantBrowserActions.execute(name,args,owner,{deadline,isCancelled});
-  if(['list_translation_profiles','get_translation_profile','set_translation_profile'].includes(name))return window.AssistantTranslationActions.execute(name,args,owner,{deadline,isCancelled});
+  if(['list_translation_profiles','get_translation_profile','set_translation_profile'].includes(name))return window.AssistantTranslationActions.execute(name,args,owner,{deadline,isCancelled,expectedSettings});
   if(['get_workflow_settings','configure_workflow','undo_workflow_settings'].includes(name))return window.AssistantWorkflowActions.execute(name,args,owner,{deadline,isCancelled,expectedSettings});
   if(registry.get(name)?.domain==='library'||['get_app_preferences','set_app_preferences','undo_app_preferences','navigate_workspace','get_playback_state','playback_control'].includes(name))return window.AssistantLibraryActions.execute(name,args,owner,{deadline,isCancelled,expectedSettings});
   if(registry.get(name)?.domain==='book')return window.AssistantBookActions.execute(name,args,owner,{deadline,isCancelled});

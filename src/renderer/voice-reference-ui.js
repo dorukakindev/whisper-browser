@@ -118,9 +118,11 @@
   el('voiceReferenceSearch').addEventListener('focus', revealPicker);
   el('voiceReferenceSearch').addEventListener('input', () => { rememberDraft();renderReferences();controls();revealPicker(); });
   document.addEventListener('ui-locale-change', () => {renderReferences();controls();});
-  async function refresh(preferred) {
+  async function refresh(preferred, beforeApply) {
     const sequence = ++refreshSequence;
     const result = await api.listVoiceReferences().catch(() => null);
+    if (sequence !== refreshSequence) return false;
+    if (beforeApply && !await beforeApply(result)) return false;
     if (sequence !== refreshSequence) return false;
     if (!result?.ok) { if (preferred) { el('voiceReferenceSelect').value = ''; show(); } status('Referans sesler okunamadı.'); return false; }
     activeReferenceId=result.activeId||'';appliedReferenceText=String(result.references?.find(item=>item.id===activeReferenceId)?.text||'');
@@ -228,12 +230,12 @@
     if (active !== pending) return;
     if (!result?.ok && active) { stopping = false; controls(); status('İptal doğrulanamadı; işlem izlenmeye devam ediyor.'); }
   });
-  async function useSelected() {
+  async function useSelected(expectedSelection) {
     const item = selected(); if (!item || active) return;
     applying = true; ++refreshSequence; controls();
     try {
-      const result = await api.useVoiceReference({ id: item.id, text: el('voiceReferenceText').value });
-      if (!result?.ok) { status('Referans sesi uygulanamadı.'); return; }
+      const result = await api.useVoiceReference({ id: item.id, text: el('voiceReferenceText').value,...(typeof expectedSelection==='string'?{expectedSelection}:{}) });
+      if (!result?.ok) { status('Referans sesi uygulanamadı.'); return result; }
       activeReferenceId=item.id;appliedReferenceText=el('voiceReferenceText').value;
       if(Object.hasOwn(result,'transcriptBaseline'))item.transcriptBaseline=result.transcriptBaseline;
       item.text = el('voiceReferenceText').value; rememberDraft();
@@ -255,7 +257,7 @@
   panel.addEventListener('toggle', () => { if (!panel.open) comparison?.stop(); });
   window.VoiceReferenceUI=Object.freeze({
     chooseLocal,
-    use:async(id,isCancelled=()=>false)=>{if(active||applying||selectingSource||isCancelled())return {ok:false};if(!await refresh(id)||isCancelled())return {ok:false};return useSelected();},
+    use:async(id,isCancelled=()=>false,beforeApply,expectedSelection)=>{if(active||applying||selectingSource||isCancelled())return {ok:false};if(!await refresh(id,beforeApply)||isCancelled())return {ok:false};return useSelected(expectedSelection);},
     prepare:async(args,isCancelled=()=>false)=>{
       if(active||applying||selectingSource||isCancelled())return {ok:false};
       if(args.source==='video'){const c=window.BrowserDubAudioUI?.context();if(!c?.hasMedia||!c.visible)return {ok:false};localSource='';}

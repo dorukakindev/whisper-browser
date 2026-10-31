@@ -16824,15 +16824,40 @@ ipcMain.handle('browser:favicons:list', (event) => {
   return { ok: true, favicons: Object.fromEntries(readBrowserFavicons()) };
 });
 
-ipcMain.handle('browser:tab:mute', (event, tabId, muted) => {
+ipcMain.handle('browser:tab:mute', (event, tabId, muted, lease) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = browserTabById(tabId), wc = tab?.view?.webContents;
   if (!wc || wc.isDestroyed()) return { ok: false, error: 'Sekme henüz yüklenmedi.' };
+  let priorMuted;
+  if (lease !== undefined) {
+    if (!lease || typeof lease !== 'object' || typeof muted !== 'boolean'
+        || typeof lease.owner !== 'string' || !/^[a-zA-Z0-9-]{1,100}$/.test(lease.owner)
+        || !['acquire','update','release'].includes(lease.mode)
+        || !Number.isSafeInteger(lease.generation) || typeof lease.mediaId !== 'string') return {ok:false,error:'Invalid audio ownership.'};
+    const old = tab.dubAudioMute;
+    if (lease.mode === 'release') {
+      // The mute bit belongs to WebContents and can survive navigation. Release
+      // only our own remaining bit; a manual action or newer lease wins.
+      if (!old || old.owner !== lease.owner) return {ok:true,skipped:true};
+      tab.dubAudioMute = null;
+      if (old.wc !== wc || wc.isAudioMuted() !== old.applied) return {ok:true,skipped:true};
+      muted = old.priorMuted;
+    } else {
+      if (tab.generation !== lease.generation || String(tab.mediaId || '') !== lease.mediaId) return {ok:lease.mode==='update',stale:true};
+      if (lease.mode === 'update' && (!old || old.owner !== lease.owner || old.wc !== wc)) return {ok:true,skipped:true};
+      priorMuted = old && old.wc === wc && wc.isAudioMuted() === old.applied ? old.priorMuted : wc.isAudioMuted();
+      muted = muted || priorMuted;
+      tab.dubAudioMute = {owner:lease.owner,wc,priorMuted,applied:muted};
+    }
+  } else {
+    // Manual mute/toggle establishes a new human choice, even if idempotent.
+    tab.dubAudioMute = null;
+  }
   wc.setAudioMuted(typeof muted === 'boolean' ? muted : !wc.isAudioMuted());
   tab.tabMuted = wc.isAudioMuted();
   const audio = { tabMuted: tab.tabMuted, audible: wc.isCurrentlyAudible() };
   sendBrowserEvent(tab, { type: 'tab-audio', ...audio });
-  return { ok: true, ...audio };
+  return { ok: true, ...audio, ...(typeof priorMuted === 'boolean' ? {priorMuted} : {}), ...(lease && lease.mode !== 'release' ? {leaseOwned:true} : {}) };
 });
 
 ipcMain.handle('browser:places:folder', (event, url, folder) => {

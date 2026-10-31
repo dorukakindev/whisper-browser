@@ -55,8 +55,8 @@
     ? osd(message) : setBrowserSignal(message, false, { priority: 90, holdMs: 7000 });
   const controller = new window.BrowserDubAudio({ audio, context,
     backgroundAudio: byId('browserDubBackground'), musicAudio: byId('browserDubMusic'), ambienceAudio: byId('browserDubAmbience'),
-    mute: (id, muted, expected) => {
-      if (id !== 'player-video') return window.api.muteBrowserTab(id, muted);
+    mute: (id, muted, expected, mode) => {
+      if (id !== 'player-video') return window.api.muteBrowserTab(id, muted, expected ? {owner:expected.muteOwner,generation:expected.generation,mediaId:expected.mediaId||'',mode} : undefined);
       if (expected && (player.mediaKey !== expected.mediaKey || player.generation !== expected.generation)) return { ok: true, skipped: true };
       video.muted = muted; return { ok: true };
     }, error: notify,

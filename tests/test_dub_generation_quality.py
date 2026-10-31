@@ -242,6 +242,29 @@ class GenerationTests(unittest.TestCase):
             self.assertEqual(record['recoveryReason'], 'acoustic_retry_interrupted')
             self.assertFalse(list(folder.glob('*.tmp.wav')))
 
+    def test_last_group_duration_fit_stall_recovers_every_complete_source_group(self):
+        from dub_lifecycle import EngineStalled
+        class FitStall(Server):
+            async def generate(self,text,**kwargs):
+                if text=='Short.': raise EngineStalled('controlled final fit stall')
+                async for part in super().generate(text,**kwargs): yield part
+        original='This final sentence must retain all of its original spoken details.'
+        with tempfile.TemporaryDirectory() as temp:
+            folder=Path(temp)
+            rate,args,paths=self.run_generation(folder,FitStall(),['Good.',original],
+                auto_fit=True,timing_mode='video',fallback=True)
+            self.assertEqual(rate,8000)
+            self.assertTrue(all(valid_audio(path,sf) for path in paths))
+            rows=sorted(args.group_results,key=lambda row:row['group'])
+            self.assertEqual([row['key'] for row in rows],['1','2'])
+            self.assertEqual([row['status'] for row in rows],['ready','review'])
+            self.assertEqual(rows[1]['text'],original)
+            self.assertEqual(rows[1]['recoveryReason'],'duration_fit_interrupted')
+            self.assertIn('2',args.force_groups)
+            self.assertEqual(sf.info(paths[1]).frames,16000)
+            expected,_=finish_audio(np.ones(16000,dtype='float32')*.1,8000)
+            np.testing.assert_allclose(sf.read(paths[1])[0],expected,atol=1/32768)
+
     def test_decimal_verification_stays_ready_when_reopening_generated_cache(self):
         from dub_quality import cached_record, speech_check
         class DecimalVerifier(Verifier):

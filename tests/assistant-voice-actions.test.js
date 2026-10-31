@@ -21,7 +21,7 @@ function setup({tracks=true}={}){
  Object.defineProperty(w.HTMLMediaElement.prototype,'readyState',{get:()=>4});Object.defineProperty(w.HTMLMediaElement.prototype,'duration',{get:()=>10});
  el('dubGeneratorDialog').showModal=()=>{el('dubGeneratorDialog').open=true;};
  Object.assign(w,{player:{sub2Role:'translation',sub2Path:'C:\\private\\translated.srt',browserTracks:tracks?[{path:'C:\\private\\translated.srt',role:'translation'}]:[]},UiLocale:{get:()=> 'en',t:value=>value},syncBrowserOcclusion:()=>{},AssistantAppActions:{current:()=>true},BrowserDubAudioUI:{context:()=>context,originalPlayback:()=>attached?{muted:false}:null,snapshot:()=>attached,stop:async()=>{attached=null;},attachGenerated:async value=>{applied++;attached={kind:'generated',id:value.id};return true;}}});
- const reference={id:'voice-A',name:'Saved voice',path:'C:\\private\\reference.wav',text:'Private transcript',url:'file:///fixture.wav'};
+ const reference={selectionToken:'native-A',id:'voice-A',name:'Saved voice',path:'C:\\private\\reference.wav',text:'Private transcript',url:'file:///fixture.wav'};
  w.api={dubConfig:async()=>({ok:true,ready:true,engine:'C:\\private\\engine',reference:reference.path,transcript:'C:\\private\\reference.txt'}),latestDub:async args=>({ok:true,output:args?.id&&args.id===output?.id&&proof?output:null}),
   onDubEvent:fn=>{const prior=event;event=value=>{prior?.(value);fn(value);};},startDub:async args=>(request=args,{ok:true}),
   listVoiceReferences:async()=>({ok:true,folder:'C:\\private',activeId:'voice-A',references:[reference]}),useVoiceReference:async args=>(refUsed=args,{ok:true}),
@@ -29,7 +29,7 @@ function setup({tracks=true}={}){
   planDub:async()=>({ok:true,sourceHash:'source',groups:[{key:'g1',text:'Hello.',start:0,end:2000,seconds:2}]}),openPath:async()=>{},saveDubPronunciations:async()=>({ok:true})};
  for(const file of ['dub-run-info.js','dub-experience-model.js','dub-generator-ui.js','voice-reference-ui.js','assistant-voice-actions.js'])w.eval(fs.readFileSync(path.join(__dirname,'../src/renderer',file),'utf8'));
  return {dom,w,el,context,read:()=>({request,applied,picks,played,refUsed}),proof:value=>proof=value,
-  run:(name,args={})=>w.AssistantVoiceActions.execute(name,args,{}),
+  run:(name,args={},options={})=>w.AssistantVoiceActions.execute(name,args,{},options),
   finish:(count=1,verification={status:'not_checked'},overrides={})=>{output={id:request.id,type:'done',url:'file:///fixture.wav',name:'fixture.wav',sample:false,sync:{},quality:{groups:Array.from({length:count},(_,i)=>({key:'g'+(i+1),group:i+1,text:'Hello.',status:'review',audioStart:0,audioEnd:2,verification,...overrides}))}};event(output);return output;}};
 }
 
@@ -51,7 +51,7 @@ test('Real dubbing UI accepts typed options and starts only after an explicit ac
   const configured=await h.run('configure_voice_generation',{profile:'fast',concurrency:8,grouping:'cumle',verification:'balanced',timingMode:'video',expression:'warm',keepBackground:true,followDelivery:true,start:5,end:25});assert.equal(configured.status,'completed');assert.equal(h.read().request,undefined);
   const status=await h.run('get_voice_status');assert(status.voice.subtitleReady);assert.equal(status.voice.settings.profile,'fast');assert(!JSON.stringify(status).includes('private'));
   const refs=await h.run('list_voice_references');assert.equal(refs.references[0].name,'Saved voice');assert(!JSON.stringify(refs).includes('Private transcript'));assert(!JSON.stringify(refs).includes('private'));
-  await h.run('set_voice_reference',{reference_id:'voice-A'});assert.equal(h.el('dubProfile').value,'fast','Reference refresh must preserve the selected profile');
+  assert.equal((await h.run('set_voice_reference',{reference_id:'voice-A'},{expectedSettings:{kind:'voice-reference',identity:refs.selectionIdentity,selectionToken:'native-A'}})).status,'completed');assert.equal(h.el('dubProfile').value,'fast','Reference refresh must preserve the selected profile');
   const started=await h.run('start_voice_generation',{sample:true});assert.equal(started.status,'accepted');const args=h.read().request;assert.equal(args.sample,true);assert.equal(args.profile,'fast');assert.equal(args.concurrency,8);assert.equal(args.range.start,5);assert.equal(args.range.end,25);assert(args.keepBackground&&args.followDelivery);
  }finally{await new Promise(setImmediate);h.dom.window.close();}
 });
