@@ -1,0 +1,75 @@
+{
+  "candidate": "reexport_json_segment_metrics_lost",
+  "source_metrics": [
+    {
+      "avg_logprob": -1.7,
+      "no_speech_prob": 0.8,
+      "compression_ratio": 2.9
+    },
+    {
+      "avg_logprob": -0.1,
+      "no_speech_prob": 0.02,
+      "compression_ratio": 1.1
+    }
+  ],
+  "output_metric_keys": [
+    [],
+    []
+  ],
+  "controls": {
+    "source_unchanged": true,
+    "timing_text_speaker_words_preserved": true,
+    "successful_done": true
+  },
+  "original_quality": {
+    "blocks": 2,
+    "cps_violations": 0,
+    "overlaps": 0,
+    "too_long": 0,
+    "too_short": 0,
+    "max_cps": 9.1,
+    "longest_dur": 2.25,
+    "longest_at": 2.5,
+    "low_confidence_segments": 1,
+    "high_no_speech_segments": 1
+  },
+  "rebuilt_quality": {
+    "blocks": 2,
+    "cps_violations": 0,
+    "overlaps": 0,
+    "too_long": 0,
+    "too_short": 0,
+    "max_cps": 9.1,
+    "longest_dur": 2.25,
+    "longest_at": 2.5,
+    "low_confidence_segments": 0,
+    "high_no_speech_segments": 0
+  },
+  "done": {
+    "type": "done",
+    "files": [
+      "D:\\Whisper Local\\.uiprev\\audit821-fidelity\\output\\input.json",
+      "D:\\Whisper Local\\.uiprev\\audit821-fidelity\\output\\input.txt",
+      "D:\\Whisper Local\\.uiprev\\audit821-fidelity\\output\\input.ass"
+    ],
+    "outputs": [
+      {
+        "path": "D:\\Whisper Local\\.uiprev\\audit821-fidelity\\output\\input.ass",
+        "role": "source",
+        "language": "tr",
+        "sourceId": "9af132fee938cafdaffb22cdc5083314ef7576e85ac3c4d0eb57ba197e771ae9",
+        "sourceHash": "3aaa588efebf4db1f4a5b97917917f43eaa4e722a9958b0134372fa78835a398",
+        "status": "complete",
+        "total": 2,
+        "completed": 2,
+        "failed": 0,
+        "lastError": ""
+      }
+    ],
+    "sourceId": "9af132fee938cafdaffb22cdc5083314ef7576e85ac3c4d0eb57ba197e771ae9",
+    "sourceHash": "3aaa588efebf4db1f4a5b97917917f43eaa4e722a9958b0134372fa78835a398",
+    "segments": 2,
+    "language": "tr",
+    "warnings": []
+  }
+}

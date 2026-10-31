@@ -1,0 +1,26 @@
+{
+  "revision": "a0b5b0927acb5c07f9be2f35e94883d57f7de8a2",
+  "agents": {
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "count": 3
+  },
+  "product_edits": false,
+  "independent_parent_reruns": [
+    "jobs:6 cases exit0",
+    "provider:32→33 failure,31→32 success,65th model rejected; exit0",
+    "confidence:two real transcribe calls with controlled engine/audio; exit0",
+    "fidelity:write_json→reexport_from_json; improvement only; exit0"
+  ],
+  "existing_checks": [
+    "node --test --test-isolation=none tests/provider-model-profiles.test.js tests/provider-api-keys.test.js: runner2/2, model inner4",
+    "node tests/active-jobs-center.test.js: exit0",
+    "backend/venv/Scripts/python.exe backend/test_golden_matrix.py:3/3"
+  ],
+  "limits": [
+    "VM/jsdom job/provider chain; no native Electron acceptance",
+    "Controlled ASR engine/audio extraction; no speech quality claim",
+    "No normal start.bat/install/full npm/CI/GPU/CUDA/DRM/live provider/site"
+  ],
+  "dependencies_added": []
+}

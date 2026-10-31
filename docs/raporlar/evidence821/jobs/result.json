@@ -1,0 +1,96 @@
+{
+  "revision": "a0b5b0927acb5c07f9be2f35e94883d57f7de8a2",
+  "bug": "global task action uses active-tab-only IPC for background job",
+  "results": [
+    {
+      "activeTab": "tab-A",
+      "targetTab": "tab-B",
+      "kind": "subtitle-translation",
+      "button": "Durdur",
+      "consumerCalled": false,
+      "warning": [
+        {
+          "message": "Eski sekme isteği reddedildi.",
+          "level": "warn"
+        }
+      ]
+    },
+    {
+      "activeTab": "tab-A",
+      "targetTab": "tab-B",
+      "kind": "page-translation",
+      "button": "Durdur",
+      "consumerCalled": false,
+      "warning": [
+        {
+          "message": "Eski sekme isteği reddedildi.",
+          "level": "warn"
+        }
+      ]
+    },
+    {
+      "activeTab": "tab-A",
+      "targetTab": "tab-B",
+      "kind": "manga",
+      "button": "Durdur",
+      "consumerCalled": false,
+      "warning": [
+        {
+          "message": "Eski sekme isteği reddedildi.",
+          "level": "warn"
+        }
+      ]
+    },
+    {
+      "activeTab": "tab-B",
+      "targetTab": "tab-B",
+      "kind": "subtitle-translation",
+      "button": "Durdur",
+      "consumerCalled": true,
+      "warning": []
+    },
+    {
+      "activeTab": "tab-B",
+      "targetTab": "tab-B",
+      "kind": "page-translation",
+      "button": "Durdur",
+      "consumerCalled": true,
+      "warning": []
+    },
+    {
+      "activeTab": "tab-B",
+      "targetTab": "tab-B",
+      "kind": "manga",
+      "button": "Durdur",
+      "consumerCalled": true,
+      "warning": []
+    }
+  ],
+  "calls": [
+    {
+      "channel": "browser:translation:stop",
+      "tabId": "tab-B"
+    },
+    {
+      "channel": "browser:page:clear",
+      "tabId": "tab-B"
+    },
+    {
+      "channel": "browser:manga:clear",
+      "tabId": "tab-B"
+    },
+    {
+      "channel": "browser:translation:stop",
+      "tabId": "tab-B"
+    },
+    {
+      "channel": "browser:page:clear",
+      "tabId": "tab-B"
+    },
+    {
+      "channel": "browser:manga:clear",
+      "tabId": "tab-B"
+    }
+  ],
+  "limits": "Unchanged production function slices and real model/preload bridge; controlled tab/job stores and stop consumers. No native Electron/site/provider run."
+}

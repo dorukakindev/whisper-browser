@@ -1,0 +1,302 @@
+[
+  {
+    "id": "N0981",
+    "family": "F50",
+    "mechanism": "normal",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "f33e6871dd99251ce3d504f7ec09b4bb692b78ad0610968ceddec27e32fa5708",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0981.stdout.txt (node probes/p50-settings-secret-atomic.js --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0982",
+    "family": "F50",
+    "mechanism": "bos",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "63ad0aec328d4ebe7ce81ea552472f52da0f69130ba9aaaa717e42c944aa967f",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0982.stdout.txt (node probes/p50-settings-secret-atomic.js --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0983",
+    "family": "F50",
+    "mechanism": "sinir",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "c9500445ddc7de82c4622cd3365b60b8007efef7d2e64e1d8b0494d9bf9f2d23",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0983.stdout.txt (node tests/settings-security.test.js, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0984",
+    "family": "F50",
+    "mechanism": "unicode",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "5c0f8b3c5efecd11137703c6861b5c5674842a78d23e184574b9adc06b846b3c",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0984.stdout.txt (node probes/p50-settings-secret-atomic.js --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0985",
+    "family": "F50",
+    "mechanism": "yinelenen",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "b9342a02af10920f87985a0dd59aa4d9f67ecd2579c5446db28fd4cafe982b54",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0985.stdout.txt (node probes/p50-settings-secret-atomic.js --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0986",
+    "family": "F50",
+    "mechanism": "sira",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "008e6730424aef4ddde3a6084a3bbbae5b42ee32c0f55eb44745f13be69f73af",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0986.stdout.txt (node probes/p50-settings-secret-atomic.js --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0987",
+    "family": "F50",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "c853d0bcb7c5561348b04566ec51351480c8b2bb167f3d620ce58eecfc6a5e3b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0987.stdout.txt (node probes/p50-settings-secret-atomic.js --mech iptal-oncesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0988",
+    "family": "F50",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "5bf79cf1486d15c2d896afc0088acf9230ab88d031b70b2e328fb04cc6ff7b35",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0988.stdout.txt (node probes/p50-settings-secret-atomic.js --mech iptal-ortasi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0989",
+    "family": "F50",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "e518416ce98cbc677823fb5cacc3c97746b83909e7823bff2b01a7c12866b526",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0989.stdout.txt (node probes/p50-settings-secret-atomic.js --mech gec-sonuc, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0990",
+    "family": "F50",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "9f0b902233c1a2d593cadb0c3883a4cfcf39869e6e1df1b175e30d84c4e34e8e",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0990.stdout.txt (node probes/p50-settings-secret-atomic.js --mech kaynak-degisimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0991",
+    "family": "F50",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "0e5c778a8d5786f5097fa8882ec11cd5766506b847d973bf163c8b08031f2847",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Ayar/kasa yazımları senkron fs işlemleridir; eşzamanlı yazım sözleşmesi main.js kuyruk/tek-yazar katmanındadır, bu modülde kilit yok."
+  },
+  {
+    "id": "N0992",
+    "family": "F50",
+    "mechanism": "kesik",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "67896032894f9e322825e085b3d785e545b47de28a78830205467028f51ac0e9",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0992.stdout.txt (node tests/secret-store-recovery.test.js, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0993",
+    "family": "F50",
+    "mechanism": "hata",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "236426c197ba58d91b73e0669c86da5451255fa733c6eb1221abc8696ae3e5f9",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0993.stdout.txt (node tests/atomic-write-kill.test.js, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0994",
+    "family": "F50",
+    "mechanism": "timeout",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "bf731b261d782898bfc9862d8aa8d954811eb9b83d57491189ef6ccbad1a2531",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Modüllerde zamanlayıcı/alt süreç yok; timeout sözleşmesi bulunmaz."
+  },
+  {
+    "id": "N0995",
+    "family": "F50",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "be4819346950bfbdd38e0c9c15e058d5ebc58600e6432395675195603fdf2e85",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0995.stdout.txt (node probes/p50-settings-secret-atomic.js --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0996",
+    "family": "F50",
+    "mechanism": "donusum",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "f860a6f43408707a2dff1ed965426b6f77cfd458e2d63d60a05d86a6b1567c34",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0996.stdout.txt (node probes/p50-settings-secret-atomic.js --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0997",
+    "family": "F50",
+    "mechanism": "yetki",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "6c3686dcb0990fd41b89a068a8c76e23dcf1565ff75793892500fa1553eeb65a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0997.stdout.txt (node probes/p50-settings-secret-atomic.js --mech yetki, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0998",
+    "family": "F50",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "bf18f1b7957c5223b72346ea4ea2936efa94c819a74c1158c14e202c4994c353",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0998.stdout.txt (node probes/p50-settings-secret-atomic.js --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0999",
+    "family": "F50",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "14857e58a4317de71d6662cfb6eb0361f0d51f31b2881c830e40daab8eb2ad8c",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0999.stdout.txt (node probes/p50-settings-secret-atomic.js --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N1000",
+    "family": "F50",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "20b6b23a261410d45fd47898f692ad0e9a89ce858c1daa440a8f165ce44fc35a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N1000.stdout.txt (node probes/p50-settings-secret-atomic.js --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  }
+]
