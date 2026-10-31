@@ -1,0 +1,273 @@
+{
+  "base": "3dee62d38088d3075b3cfbb3ad5afc15983f40d2",
+  "scope": "R818–R823:19findings, not previous R815/R817 repeats",
+  "fixed": 19,
+  "findings": [
+    {
+      "id": "D818-01",
+      "key": "D81801",
+      "status": "fixed",
+      "severity": "HIGH",
+      "location": "src/renderer/text-voice-studio.css",
+      "before": "Fixed viewport flex shell allowed the body to shrink to 0px at 200% zoom.",
+      "after": "Below 600 CSS px height the entire shell scrolls; heading/body/footer keep natural height and the editor/settings/actions remain reachable.",
+      "tests": [
+        "16 combinations: TR/EN x dark/light x zoom 100/125/150/200 at 940x680",
+        "Long synthetic status: body 1365px, editor and output-name action visibly reachable"
+      ],
+      "nativeEvidence": "tmp/reports818-823/design-native/studio-long-status-editor.png"
+    },
+    {
+      "id": "D818-02",
+      "key": "D81802",
+      "status": "fixed",
+      "severity": "MEDIUM",
+      "location": "src/renderer/renderer.js global player keydown",
+      "before": "Native dialog buttons allowed Backspace to close the underlying player.",
+      "after": "All player shortcuts return when a managed modal or native dialog is open; native Escape and editable Backspace retain ownership.",
+      "tests": [
+        "Native Backspace + 1.5s async settle preserves player and settings",
+        "Native Escape closes only settings; native search input Backspace edits text",
+        "Existing managed appDialog + native Backspace preserves player"
+      ],
+      "nativeEvidence": "tmp/reports818-823/design-native/06-modal-after-backspace.png"
+    },
+    {
+      "id": "D818-03",
+      "key": "D81803",
+      "status": "fixed",
+      "severity": "MEDIUM",
+      "location": "src/renderer/app-settings-ui.js draw",
+      "before": "Locale redraw detached the active select and left focus on BODY.",
+      "after": "Redraw restores the surviving control or same ID/nav counterpart only when focus previously belonged to settings.",
+      "tests": [
+        "Native Home/End + Enter locale changes both directions retain uiLocale focus",
+        "Native Tab remains inside modal"
+      ],
+      "nativeEvidence": "tmp/reports818-823/design-native/09-language-after.png"
+    },
+    {
+      "id": "D819-01",
+      "key": "D81901",
+      "status": "fixed",
+      "severity": "MEDIUM",
+      "location": "src/renderer/media-workflows-ui.js ask",
+      "before": "Rename/archive confirmations had empty AX dialog names and unbound description.",
+      "after": "Unique heading IDs label each confirmation; nonempty description is explicitly associated.",
+      "tests": [
+        "Real synthetic TXT import, rename/archive native AX names match headings",
+        "Archive AX description is present; rename textbox remains Name",
+        "Native Escape cancels both and project title/archive state remain unchanged"
+      ],
+      "nativeEvidence": "tmp/reports818-823/design-native/Archive-project-ax.json"
+    },
+    {
+      "id": "D819-02",
+      "key": "D81902",
+      "status": "fixed",
+      "severity": "MEDIUM",
+      "location": "src/assistant-overlay.js; src/preload.js; src/renderer/renderer.js syncBrowserOcclusion",
+      "before": "Separate native WebContentsView assistant obscured modal actions and accepted actions above the modal.",
+      "after": "Owner-main-frame-only modal state IPC hides native assistant and blocks its commands/show while any native/managed modal owns UI; expansion state is retained and restored after final close; reload resets obsolete ownership.",
+      "tests": [
+        "Native view hidden at widths 940/1440 and zoom100/150/200",
+        "Nested workflow/confirmation close keeps hidden until last modal closes",
+        "Unit tests reject foreign contents/subframes, blocked commands/show; retain hidden on overlay reload/layout; parent reload clears state; listeners clean up"
+      ],
+      "nativeEvidence": "tmp/reports818-823/design-native/settings-native-overlay-hidden.png"
+    },
+    {
+      "id": "D819-03",
+      "key": "D81903",
+      "status": "fixed",
+      "severity": "MEDIUM",
+      "location": "src/renderer/app-settings-ui.js localizeField/fields",
+      "before": "Borrowed settings under untranslated dialog retained old label/ARIA/options language.",
+      "after": "Explicitly translate authored label text, UI attributes and allowlisted theme/language/provider preset options before moving fields; user values and model IDs remain untouched.",
+      "tests": [
+        "Native EN/TR reversals update theme label/ARIA/options without reopening",
+        "Targeted JSDOM test preserves input value, dynamic model option, untranslated user text and translates nested/outer labels"
+      ],
+      "nativeEvidence": "tmp/reports818-823/design-native/measurements.json"
+    },
+    {
+      "id": "F820-01",
+      "status": "confirmed-fixed",
+      "source": [
+        "src/main.js:shiftTimecodes"
+      ],
+      "reproduced": "Actual current helper shifted the cue from5–9to15–19 while leaving inline activation6/8 unchanged.",
+      "fix": "For WebVTT, inline cue-body timestamps now use the same offset and timestamp shape rules. Tags clipped at/before cue start, outside cue end, or no longer strictly increasing are discarded while spoken text remains. SRT literal tags are unchanged.",
+      "tests": [
+        "tests/report820-822-subtitles.test.js: actual shift IPC disk/backup path; positive/negative/clamp/zero/CRLF/voice/class/settings/two-cue/hour promotion",
+        "tests/subs-shift-accuracy.test.js:12 existing checks including1000-case timing oracle"
+      ],
+      "evidence": [
+        "repro-shift.log",
+        "subtitle-tests.log",
+        "shift-compatibility-tests.log"
+      ]
+    },
+    {
+      "id": "F820-02",
+      "status": "fixed",
+      "evidence": "Confirmed: null workflow/step entered structured settings and threw before UI/provider restoration. Both import sanitization and runtime normalizers now isolate non-record rows while retaining valid/legacy records.",
+      "reportProbe": "docs/raporlar/evidence820/workflows/probe.cjs",
+      "test": "tests/reports820-823/workflow.cjs",
+      "validation": "Actual parseImportText/sanitizeSettings and startup source block with controlled settings/DOM; valid/null-row/null-step/unsupported controls plus direct raw stored-library normalization."
+    },
+    {
+      "id": "F820-03",
+      "status": "fixed",
+      "evidence": "Confirmed: scheduler missing predicate excluded genres even though completion consumer required them. Shared completeness predicate now includes genres in both paths.",
+      "reportProbe": "docs/raporlar/evidence820/mediafiles/probe.cjs",
+      "test": "tests/reports820-823/metadata.cjs",
+      "validation": "Real catalog store, scheduler and completion consumer; genre-only record automatically fetches once, stores Drama; complete record skips and missing synopsis still completes. Official-shaped fetch fixture; no real provider request."
+    },
+    {
+      "id": "F821-01",
+      "status": "fixed",
+      "fix": "Authorized task-center stop resolves the explicitly addressed existing tab without requiring activation; missing and unauthorized tabs are rejected.",
+      "tests": [
+        "tests/report821-job-cancel.test.js"
+      ]
+    },
+    {
+      "id": "F821-02",
+      "status": "confirmed-fixed",
+      "source": [
+        "backend/transcribe.py:transcribe confidence-report staging and final commit"
+      ],
+      "reproduced": "Real transcribe .20then.99 reruns left the first low-confidence text sidecar unchanged beside the current.99 JSON.",
+      "fix": "A successfully computed zero-low-word report marks only its exact old sidecar obsolete. Removal occurs after the new output transaction commits; failure to remove is surfaced in done warnings. A failed/cancelled commit leaves the earlier report intact.",
+      "tests": [
+        "tests/test_reports821_822_backend.py:clean real pipeline rerun removes obsolete report; unrelated sidecar preserved",
+        "tests/test_reports821_822_backend.py:injected cancellation after output replacements invokes real transaction rollback, restores old JSON and preserves old report"
+      ],
+      "evidence": [
+        "repro-confidence.log",
+        "backend-tests.log",
+        "backend-test-observations.json"
+      ]
+    },
+    {
+      "id": "F821-03",
+      "status": "fixed",
+      "evidence": "Confirmed: addProviderModel allowed scope33 while serializer retained32. Add now rejects a new scope before mutation at the existing32 limit; renderer shows the translated capacity error. Existing scope at32 and scope32 addition from31 remain supported.",
+      "reportProbe": "docs/raporlar/evidence821/provider/probe.cjs",
+      "test": "tests/reports820-823/provider.cjs",
+      "validation": "Actual renderer callback/model-choice functions, model/profile/settings modules with JSDOM; over-limit no mutation, visible error, allowed add survives sanitizer, existing-scope update and64-model limit."
+    },
+    {
+      "id": "F822-01",
+      "status": "fixed",
+      "evidence": "Confirmed: page FTS tokens and query differed on Turkish I/ı. Schema5 migration atomically rebuilds folded page tokens and folded insert/update/delete triggers while retaining original page content for display/snippets. Queries use the same fold.",
+      "reportProbe": "docs/raporlar/evidence822/search/probe.cjs",
+      "test": "tests/reports820-823/search.cjs",
+      "validation": "Real SQLite/capture/unified reducer/main/preload source chain: both Turkish queries find both original titles; ASCII controls/auth denial/all-scope preserved. Additional v4 migration test covers original snippets, prefix/multiword/limit/update/delete/reopen/clear."
+    },
+    {
+      "id": "F822-02",
+      "status": "confirmed-fixed",
+      "source": [
+        "src/renderer/renderer.js:attachTimedWordsToCues"
+      ],
+      "reproduced": "Actual write_srt/write_json→readSubtitle→parse/attach/render chain returnedmatched0and2resets for touching and40ms-gap cues;200ms control matched2.",
+      "fix": "Each deduplicated source timed word gets one owner among temporally admissible cues, selected by text compatibility, positive overlap, and proximity. Adjacent boundary contact cannot assign it to both cues. Existing alignment rejection and punctuation/rounding tolerance remain.",
+      "tests": [
+        "tests/report820-822-subtitles.test.js:actual producer/readSubtitle/renderer nowmatched2and2active for touching,40ms,200ms fixtures",
+        "tests/report820-822-subtitles.test.js:different JSON segmentation, repeated boundary words and small rounding tolerance",
+        "tests/subtitle-word-highlight.test.js:existing mismatch/entity/punctuation/sidecar gates"
+      ],
+      "evidence": [
+        "repro-sidecars.log",
+        "subtitle-tests.log",
+        "word-observations.json",
+        "word-compatibility-tests.log"
+      ]
+    },
+    {
+      "id": "F822-03",
+      "status": "confirmed-fixed",
+      "source": [
+        "backend/media.py:download_clip"
+      ],
+      "reproduced": "Network-blocked real yt-dlp reused an existing valid2-second MP4 for a requested30–40clip and the actual renderer/main/child chain reported success without downloader entry.",
+      "fix": "Download/remux runs in a new owned directory on the destination volume. Only a nonempty completed file inside that directory can be published, by atomic replacement of the chosen target. Existing final files are never completion evidence. Failure and cancellation retain the previous target.",
+      "tests": [
+        "tests/test_reports821_822_backend.py:real yt-dlp+FFmpeg over a local synthetic HTTP fixture changes old2-second target to10.0seconds and emits exact chosen path",
+        "tests/test_reports821_822_backend.py:real prior MP4 retained on blocked downloader failure and KeyboardInterrupt; normal owned staging cleanup",
+        "tests/test_reports821_822_backend.py:old target reported as an out-of-stage completion is rejected",
+        "adapted original renderer/preload/main/child probe:blocked current attempt now reports failure while old SHA256 and2-second duration remain",
+        "backend/test_transcribe.py::test_download_paths_missing_audio_and_bracketed_clip plus backend/test_media.py:6 passed"
+      ],
+      "evidence": [
+        "repro-clip.log",
+        "clip-ui-fixed.log",
+        "backend-tests.log",
+        "backend-test-observations.json",
+        "media-compatibility-tests.log"
+      ]
+    },
+    {
+      "id": "F822-04",
+      "status": "fixed",
+      "evidence": "Confirmed: package rewrite ignored file: canonical watch identity although localPath/sourceRef relocated. Export aliases and import mappings now rewrite canonical file identities using longest boundary match. Colliding distinct histories are rejected before writes.",
+      "reportProbe": "docs/raporlar/evidence822/packages/probe.cjs",
+      "test": "tests/reports820-823/package.cjs",
+      "validation": "Real JS export/preview/apply/catalog/watch/list/play and Python ZIP writer/reader/extractor: included-video and manual-root relocation keep position123 and speed1.25; unmoved control remains123. Additional watch envelope collision test rejects before writes. Synthetic video transport bytes, no playback decoding."
+    },
+    {
+      "id": "F823-01",
+      "status": "fixed",
+      "evidence": "Confirmed: reload after card save rebuilt every textarea from stored data, erasing other-card and newer same-card drafts. Capture dirty field values before replacing annotation baseline and reapply by ID on rerender; failed reload preserves current cards.",
+      "reportProbe": "docs/raporlar/evidence823/notes/probe.cjs",
+      "test": "tests/reports820-823/notes.cjs",
+      "validation": "Actual renderer source functions + main list/upsert source handlers + real BrowserNoteStore with JSDOM. Same-card pending save, other-card note/tags/links, ordinary save, rejected save, failed list reload, disk reload and unauthorized upsert controls."
+    },
+    {
+      "id": "F823-02",
+      "status": "fixed",
+      "reportProbe": "docs/raporlar/evidence823/memory/probe.cjs",
+      "cause": "A series held one profile shared by all translation targets; main prepended its terms as mandatory glossary regardless of requested target.",
+      "changes": [
+        "Series records retain legacy profile intact and add bounded profiles keyed by validated canonical target language (max32). No language is guessed for legacy data.",
+        "Legacy no-language store API remains compatible, but production feature get/bind/save/check resolves the UI current target or validates explicit payload.targetLanguage. Feature translationContext requires explicit target from the job snapshot.",
+        "Unknown-language legacy profile is returned only as an unconfirmed visible draft; production translation and consistency checks exclude it until explicitly confirmed for the selected language. Saving one target leaves legacy and other target profiles untouched.",
+        "Renderer identity includes translateTo; target changes refresh the correct profile, reject stale responses and send target snapshot. Legacy save asks for explicit confirmation; cancellation retains the draft.",
+        "Parent main changes pass config.targetLanguage to translationContext and inject current settings target into feature dependencies."
+      ],
+      "tests": {
+        "runner": "tests/report823-series-language.test.js",
+        "fixture": "tests/reports820-823/series.cjs",
+        "log": "tmp/reports818-823/series-tests.log",
+        "newCases": [
+          "Actual feature handler → real series disk store → actual main config forwarding/injection slice → actual provider request function with controlled fetch: TR Captain=Kaptan then DE excludes Kaptan; DE review does not enforce Turkish; TR restored; independent DE Captain=Kapitän retained; malformed explicit language rejected; authorization/unbound controls.",
+          "Legacy file retained byte-for-byte after rejected unconfirmed save; unknown target never injected; scoped confirmation persists through store reopen, leaves legacy intact, and isolates TR/DE; bounded target capacity.",
+          "Actual series renderer with JSDOM: target changes refetch/repopulate TR and DE; unknown legacy status/draft preserved; cancelled confirmation issues no save, accepted confirmation sends selected target."
+        ],
+        "existingPassed": [
+          "tests/browser-series-context.test.js",
+          "tests/browser-series-translation.test.js",
+          "tests/browser-feature-services.test.js",
+          "tests/crash-integrity.test.js",
+          "tests/ipc-payload-fuzz.test.js",
+          "tests/interval-inventory.test.js"
+        ]
+      },
+      "limits": [
+        "Controlled provider response validates request contents and target isolation, not translation quality.",
+        "Renderer uses JSDOM; no native Electron UI or real provider/network.",
+        "No full suite, changed thresholds, commits, or pushes."
+      ]
+    },
+    {
+      "id": "F823-03",
+      "status": "fixed",
+      "fix": "Complete paragraphs within6000characters retain their source identity and are sent as protected-token-safe targets of atmost2000characters. Decoder rejoins alltargets before replacing anynode; incomplete repliesfail. Longer paragraphs stayvisible withwarning andpendingcompletion. Dynamic replacement retires staleIDs andupdates archive completeness.",
+      "tests": [
+        "tests/report823-page-completeness.test.js"
+      ]
+    }
+  ]
+}

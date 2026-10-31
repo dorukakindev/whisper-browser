@@ -1,0 +1,804 @@
+{
+  "integration": {
+    "pythonExit": 0,
+    "pythonEvidence": "python-final.log",
+    "nodeExit": 0
+  },
+  "nodeTests": 40,
+  "pythonTests": 5,
+  "syntax": [
+    {
+      "file": "backend/media.py",
+      "exit": 0
+    },
+    {
+      "file": "backend/test_transcribe.py",
+      "exit": 0
+    },
+    {
+      "file": "backend/transcribe.py",
+      "exit": 0
+    },
+    {
+      "file": "src/assistant-overlay.js",
+      "exit": 0
+    },
+    {
+      "file": "src/browser-feature-services.js",
+      "exit": 0
+    },
+    {
+      "file": "src/browser-page-translate.js",
+      "exit": 0
+    },
+    {
+      "file": "src/browser-series-context.js",
+      "exit": 0
+    },
+    {
+      "file": "src/browser-workflow-recorder.js",
+      "exit": 0
+    },
+    {
+      "file": "src/catalog-extensions.js",
+      "exit": 0
+    },
+    {
+      "file": "src/catalog-metadata-completeness.js",
+      "exit": 0
+    },
+    {
+      "file": "src/catalog-metadata-sync.js",
+      "exit": 0
+    },
+    {
+      "file": "src/main.js",
+      "exit": 0
+    },
+    {
+      "file": "src/preload.js",
+      "exit": 0
+    },
+    {
+      "file": "src/provider-model-profiles.js",
+      "exit": 0
+    },
+    {
+      "file": "src/renderer/app-settings-ui.js",
+      "exit": 0
+    },
+    {
+      "file": "src/renderer/browser-series-context.js",
+      "exit": 0
+    },
+    {
+      "file": "src/renderer/media-workflows-ui.js",
+      "exit": 0
+    },
+    {
+      "file": "src/renderer/renderer.js",
+      "exit": 0
+    },
+    {
+      "file": "src/renderer/ui-locale.js",
+      "exit": 0
+    },
+    {
+      "file": "src/settings-security.js",
+      "exit": 0
+    },
+    {
+      "file": "src/watch-index.js",
+      "exit": 0
+    },
+    {
+      "file": "src/workspace-package.js",
+      "exit": 0
+    },
+    {
+      "file": "tests/assistant-overlay.test.js",
+      "exit": 0
+    },
+    {
+      "file": "tests/browser-page-translate.test.js",
+      "exit": 0
+    },
+    {
+      "file": "tests/report820-822-subtitles.test.js",
+      "exit": 0
+    },
+    {
+      "file": "tests/report821-job-cancel.test.js",
+      "exit": 0
+    },
+    {
+      "file": "tests/report823-page-completeness.test.js",
+      "exit": 0
+    },
+    {
+      "file": "tests/report823-series-language.test.js",
+      "exit": 0
+    },
+    {
+      "file": "tests/reports818-819-design.smoke.cjs",
+      "exit": 0
+    },
+    {
+      "file": "tests/reports818-819-design.test.js",
+      "exit": 0
+    },
+    {
+      "file": "tests/reports820-823.test.js",
+      "exit": 0
+    },
+    {
+      "file": "tests/reports820-823/metadata.cjs",
+      "exit": 0
+    },
+    {
+      "file": "tests/reports820-823/notes.cjs",
+      "exit": 0
+    },
+    {
+      "file": "tests/reports820-823/package.cjs",
+      "exit": 0
+    },
+    {
+      "file": "tests/reports820-823/provider.cjs",
+      "exit": 0
+    },
+    {
+      "file": "tests/reports820-823/search.cjs",
+      "exit": 0
+    },
+    {
+      "file": "tests/reports820-823/series.cjs",
+      "exit": 0
+    },
+    {
+      "file": "tests/reports820-823/workflow.cjs",
+      "exit": 0
+    },
+    {
+      "file": "tests/test_reports821_822_backend.py",
+      "exit": 0
+    }
+  ],
+  "nativeDesign": {
+    "revision": "3dee62d3 + working tree reports818-823 fixes",
+    "platform": "win32",
+    "electron": "43.5.0",
+    "chromium": "150.0.7871.250",
+    "gpuDisabled": true,
+    "input": "Electron sendInputEvent native keydown/keyup",
+    "rows": [
+      {
+        "viewport": {
+          "width": 940,
+          "height": 680,
+          "dpr": 3
+        },
+        "nodes": [
+          {
+            "selector": ".text-voice-head",
+            "rect": {
+              "x": 21,
+              "y": 21,
+              "width": 898,
+              "height": 117.13021087646484,
+              "top": 21,
+              "right": 919,
+              "bottom": 138.13021087646484,
+              "left": 21
+            },
+            "client": 116,
+            "scroll": 116
+          },
+          {
+            "selector": ".text-voice-body",
+            "rect": {
+              "x": 21,
+              "y": 138.13021850585938,
+              "width": 898,
+              "height": 377.203125,
+              "top": 138.13021850585938,
+              "right": 919,
+              "bottom": 515.3333435058594,
+              "left": 21
+            },
+            "client": 377,
+            "scroll": 377
+          },
+          {
+            "selector": ".text-voice-footer",
+            "rect": {
+              "x": 21,
+              "y": 515.3333740234375,
+              "width": 898,
+              "height": 143.6666717529297,
+              "top": 515.3333740234375,
+              "right": 919,
+              "bottom": 659.0000457763672,
+              "left": 21
+            },
+            "client": 143,
+            "scroll": 143
+          }
+        ],
+        "capture": "01-textvoice-100"
+      },
+      {
+        "viewport": {
+          "width": 626,
+          "height": 453,
+          "dpr": 4.5
+        },
+        "nodes": [
+          {
+            "selector": ".text-voice-head",
+            "rect": {
+              "x": 10.88888931274414,
+              "y": 10.88888931274414,
+              "width": 598.2222290039062,
+              "height": 121.35416412353516,
+              "top": 10.88888931274414,
+              "right": 609.1111183166504,
+              "bottom": 132.2430534362793,
+              "left": 10.88888931274414
+            },
+            "client": 120,
+            "scroll": 120
+          },
+          {
+            "selector": ".text-voice-body",
+            "rect": {
+              "x": 10.88888931274414,
+              "y": 132.24305725097656,
+              "width": 598.2222290039062,
+              "height": 1391.7535400390625,
+              "top": 132.24305725097656,
+              "right": 609.1111183166504,
+              "bottom": 1523.996597290039,
+              "left": 10.88888931274414
+            },
+            "client": 1392,
+            "scroll": 1392
+          },
+          {
+            "selector": ".text-voice-footer",
+            "rect": {
+              "x": 10.88888931274414,
+              "y": 1523.99658203125,
+              "width": 598.2222290039062,
+              "height": 135.3333282470703,
+              "top": 1523.99658203125,
+              "right": 609.1111183166504,
+              "bottom": 1659.3299102783203,
+              "left": 10.88888931274414
+            },
+            "client": 134,
+            "scroll": 134
+          }
+        ],
+        "capture": "02-textvoice-150"
+      },
+      {
+        "viewport": {
+          "width": 470,
+          "height": 340,
+          "dpr": 6
+        },
+        "nodes": [
+          {
+            "selector": ".text-voice-head",
+            "rect": {
+              "x": 11,
+              "y": 11,
+              "width": 443,
+              "height": 132.2291717529297,
+              "top": 11,
+              "right": 454,
+              "bottom": 143.2291717529297,
+              "left": 11
+            },
+            "client": 131,
+            "scroll": 131
+          },
+          {
+            "selector": ".text-voice-body",
+            "rect": {
+              "x": 11,
+              "y": 143.2291717529297,
+              "width": 443,
+              "height": 1364.53125,
+              "top": 143.2291717529297,
+              "right": 454,
+              "bottom": 1507.7604217529297,
+              "left": 11
+            },
+            "client": 1365,
+            "scroll": 1365
+          },
+          {
+            "selector": ".text-voice-footer",
+            "rect": {
+              "x": 11,
+              "y": 1507.760498046875,
+              "width": 443,
+              "height": 225.6666717529297,
+              "top": 1507.760498046875,
+              "right": 454,
+              "bottom": 1733.4271697998047,
+              "left": 11
+            },
+            "client": 225,
+            "scroll": 225
+          }
+        ],
+        "capture": "03-textvoice-200"
+      },
+      {
+        "viewport": {
+          "width": 470,
+          "height": 340,
+          "dpr": 6
+        },
+        "nodes": [
+          {
+            "selector": ".text-voice-head",
+            "rect": {
+              "x": 11,
+              "y": 11,
+              "width": 443,
+              "height": 132.2291717529297,
+              "top": 11,
+              "right": 454,
+              "bottom": 143.2291717529297,
+              "left": 11
+            },
+            "client": 131,
+            "scroll": 131
+          },
+          {
+            "selector": ".text-voice-body",
+            "rect": {
+              "x": 11,
+              "y": 143.2291717529297,
+              "width": 443,
+              "height": 1364.53125,
+              "top": 143.2291717529297,
+              "right": 454,
+              "bottom": 1507.7604217529297,
+              "left": 11
+            },
+            "client": 1365,
+            "scroll": 1365
+          },
+          {
+            "selector": ".text-voice-footer",
+            "rect": {
+              "x": 11,
+              "y": 1507.760498046875,
+              "width": 443,
+              "height": 225.6666717529297,
+              "top": 1507.760498046875,
+              "right": 454,
+              "bottom": 1733.4271697998047,
+              "left": 11
+            },
+            "client": 225,
+            "scroll": 225
+          }
+        ],
+        "capture": "04-textvoice-en-light-200"
+      },
+      {
+        "layerHidden": false,
+        "home": false,
+        "dialog": true,
+        "focus": "appSettingsClose",
+        "capture": "05-modal-before"
+      },
+      {
+        "layerHidden": false,
+        "home": false,
+        "dialog": true,
+        "focus": "appSettingsClose",
+        "capture": "06-modal-after-backspace"
+      },
+      {
+        "layerHidden": false,
+        "home": false,
+        "dialog": false,
+        "focus": "openPlayer",
+        "capture": "07-modal-escape-control"
+      },
+      {
+        "focusId": "uiLocale",
+        "focusTag": "SELECT",
+        "locale": "tr",
+        "selectValue": "tr",
+        "dialog": true,
+        "capture": "08-language-before"
+      },
+      {
+        "focusId": "uiLocale",
+        "focusTag": "SELECT",
+        "locale": "en",
+        "selectValue": "en",
+        "dialog": true,
+        "capture": "09-language-after"
+      },
+      {
+        "name": "managed-modal-backspace-control",
+        "playerPreserved": true
+      },
+      {
+        "body": 1365,
+        "visible": true,
+        "capture": "studio-long-status-editor"
+      },
+      {
+        "visible": true,
+        "capture": "studio-long-status-actions"
+      },
+      {
+        "body": 377,
+        "shellClient": 638,
+        "shellScroll": 638,
+        "editor": {
+          "x": 367,
+          "y": 210.796875,
+          "width": 516,
+          "height": 220,
+          "top": 210.796875,
+          "right": 883,
+          "bottom": 430.796875,
+          "left": 367
+        },
+        "viewport": 680,
+        "focus": true,
+        "capture": "studio-en-dark-1"
+      },
+      {
+        "body": 1391,
+        "shellClient": 522,
+        "shellScroll": 1648,
+        "editor": {
+          "x": 38.80000305175781,
+          "y": 111.93334197998047,
+          "width": 666.4000244140625,
+          "height": 320.0000305175781,
+          "top": 111.93334197998047,
+          "right": 705.2000274658203,
+          "bottom": 431.9333724975586,
+          "left": 38.80000305175781
+        },
+        "viewport": 544,
+        "focus": true,
+        "capture": "studio-en-dark-1.25"
+      },
+      {
+        "body": 1392,
+        "shellClient": 432,
+        "shellScroll": 1705,
+        "editor": {
+          "x": 38.88888931274414,
+          "y": 66.6875,
+          "width": 542.2222290039062,
+          "height": 320,
+          "top": 66.6875,
+          "right": 581.1111183166504,
+          "bottom": 386.6875,
+          "left": 38.88888931274414
+        },
+        "viewport": 453,
+        "focus": true,
+        "capture": "studio-en-dark-1.5"
+      },
+      {
+        "body": 1365,
+        "shellClient": 318,
+        "shellScroll": 1722,
+        "editor": {
+          "x": 27,
+          "y": 10.0625,
+          "width": 411,
+          "height": 320,
+          "top": 10.0625,
+          "right": 438,
+          "bottom": 330.0625,
+          "left": 27
+        },
+        "viewport": 340,
+        "focus": true,
+        "capture": "studio-en-dark-2"
+      },
+      {
+        "body": 377,
+        "shellClient": 638,
+        "shellScroll": 638,
+        "editor": {
+          "x": 367,
+          "y": 210.796875,
+          "width": 516,
+          "height": 220,
+          "top": 210.796875,
+          "right": 883,
+          "bottom": 430.796875,
+          "left": 367
+        },
+        "viewport": 680,
+        "focus": true,
+        "capture": "studio-en-light-1"
+      },
+      {
+        "body": 1391,
+        "shellClient": 522,
+        "shellScroll": 1648,
+        "editor": {
+          "x": 38.80000305175781,
+          "y": 111.93334197998047,
+          "width": 666.4000244140625,
+          "height": 320.0000305175781,
+          "top": 111.93334197998047,
+          "right": 705.2000274658203,
+          "bottom": 431.9333724975586,
+          "left": 38.80000305175781
+        },
+        "viewport": 544,
+        "focus": true,
+        "capture": "studio-en-light-1.25"
+      },
+      {
+        "body": 1392,
+        "shellClient": 432,
+        "shellScroll": 1705,
+        "editor": {
+          "x": 38.88888931274414,
+          "y": 66.6875,
+          "width": 542.2222290039062,
+          "height": 320,
+          "top": 66.6875,
+          "right": 581.1111183166504,
+          "bottom": 386.6875,
+          "left": 38.88888931274414
+        },
+        "viewport": 453,
+        "focus": true,
+        "capture": "studio-en-light-1.5"
+      },
+      {
+        "body": 1365,
+        "shellClient": 318,
+        "shellScroll": 1722,
+        "editor": {
+          "x": 27,
+          "y": 10.0625,
+          "width": 411,
+          "height": 320,
+          "top": 10.0625,
+          "right": 438,
+          "bottom": 330.0625,
+          "left": 27
+        },
+        "viewport": 340,
+        "focus": true,
+        "capture": "studio-en-light-2"
+      },
+      {
+        "body": 377,
+        "shellClient": 638,
+        "shellScroll": 638,
+        "editor": {
+          "x": 367,
+          "y": 210.796875,
+          "width": 516,
+          "height": 220,
+          "top": 210.796875,
+          "right": 883,
+          "bottom": 430.796875,
+          "left": 367
+        },
+        "viewport": 680,
+        "focus": true,
+        "capture": "studio-tr-dark-1"
+      },
+      {
+        "body": 1391,
+        "shellClient": 522,
+        "shellScroll": 1648,
+        "editor": {
+          "x": 38.80000305175781,
+          "y": 111.93334197998047,
+          "width": 666.4000244140625,
+          "height": 320.0000305175781,
+          "top": 111.93334197998047,
+          "right": 705.2000274658203,
+          "bottom": 431.9333724975586,
+          "left": 38.80000305175781
+        },
+        "viewport": 544,
+        "focus": true,
+        "capture": "studio-tr-dark-1.25"
+      },
+      {
+        "body": 1392,
+        "shellClient": 432,
+        "shellScroll": 1648,
+        "editor": {
+          "x": 38.88888931274414,
+          "y": 66.6875,
+          "width": 542.2222290039062,
+          "height": 320,
+          "top": 66.6875,
+          "right": 581.1111183166504,
+          "bottom": 386.6875,
+          "left": 38.88888931274414
+        },
+        "viewport": 453,
+        "focus": true,
+        "capture": "studio-tr-dark-1.5"
+      },
+      {
+        "body": 1365,
+        "shellClient": 318,
+        "shellScroll": 1722,
+        "editor": {
+          "x": 27,
+          "y": 10.0625,
+          "width": 411,
+          "height": 320,
+          "top": 10.0625,
+          "right": 438,
+          "bottom": 330.0625,
+          "left": 27
+        },
+        "viewport": 340,
+        "focus": true,
+        "capture": "studio-tr-dark-2"
+      },
+      {
+        "body": 377,
+        "shellClient": 638,
+        "shellScroll": 638,
+        "editor": {
+          "x": 367,
+          "y": 210.796875,
+          "width": 516,
+          "height": 220,
+          "top": 210.796875,
+          "right": 883,
+          "bottom": 430.796875,
+          "left": 367
+        },
+        "viewport": 680,
+        "focus": true,
+        "capture": "studio-tr-light-1"
+      },
+      {
+        "body": 1391,
+        "shellClient": 522,
+        "shellScroll": 1648,
+        "editor": {
+          "x": 38.80000305175781,
+          "y": 111.93334197998047,
+          "width": 666.4000244140625,
+          "height": 320.0000305175781,
+          "top": 111.93334197998047,
+          "right": 705.2000274658203,
+          "bottom": 431.9333724975586,
+          "left": 38.80000305175781
+        },
+        "viewport": 544,
+        "focus": true,
+        "capture": "studio-tr-light-1.25"
+      },
+      {
+        "body": 1392,
+        "shellClient": 432,
+        "shellScroll": 1648,
+        "editor": {
+          "x": 38.88888931274414,
+          "y": 66.6875,
+          "width": 542.2222290039062,
+          "height": 320,
+          "top": 66.6875,
+          "right": 581.1111183166504,
+          "bottom": 386.6875,
+          "left": 38.88888931274414
+        },
+        "viewport": 453,
+        "focus": true,
+        "capture": "studio-tr-light-1.5"
+      },
+      {
+        "body": 1365,
+        "shellClient": 318,
+        "shellScroll": 1722,
+        "editor": {
+          "x": 27,
+          "y": 10.0625,
+          "width": 411,
+          "height": 320,
+          "top": 10.0625,
+          "right": 438,
+          "bottom": 330.0625,
+          "left": 27
+        },
+        "viewport": 340,
+        "focus": true,
+        "capture": "studio-tr-light-2"
+      },
+      {
+        "name": "locale-authored-labels",
+        "focus": "uiLocale",
+        "label": "Arayüz teması",
+        "aria": "Arayüz teması",
+        "options": [
+          "Sistem ayarını kullan",
+          "Koyu",
+          "Açık"
+        ]
+      },
+      {
+        "modal": true,
+        "focus": "",
+        "capture": "settings-native-overlay-hidden"
+      },
+      {
+        "name": "Project name",
+        "capture": "Rename-project"
+      },
+      {
+        "name": "Archive project?",
+        "capture": "Archive-project"
+      },
+      {
+        "name": "native-overlay-modal-stack",
+        "hiddenAcrossSixSizes": true,
+        "restoredAfterLastClose": true,
+        "cancelPreservedTitle": true
+      }
+    ]
+  },
+  "pageReview": {
+    "id": "F823-03",
+    "scope": "Focused review of parent page completeness implementation",
+    "status": "confirmed-fixed",
+    "confirmedIssues": [
+      {
+        "issue": "A protected URL or placeholder crossing the 2000-character target boundary was split and then rejoined with an inserted space, causing protected-token validation to reject otherwise valid translations.",
+        "reproduction": "1990 A characters followed by https://example.invalid/ plus 150 x characters produced target lengths 2000/169 and failedIds [p] for identity target responses.",
+        "fix": "Chunk boundaries now preserve existing protected-token spans. An indivisible token longer than the per-target limit fails safely without raising that limit. Protected-token validation remains unchanged."
+      },
+      {
+        "issue": "A supported DOM paragraph growing beyond 6000 characters skipped the scanner's previous-ID retirement, retaining stale session source/translation and bilingual overlay.",
+        "fix": "Retire the previous root ID, remove obsolete overlays, emit replacement-only updates, reject stale apply through latest-root identity, and allow the original source ID to be rediscovered if the content returns. A genuine external text edit now clears obsolete own-write identity so a subsequent return to the original source is observed."
+      },
+      {
+        "issue": "Dynamic oversized-only discoveries changed completion but did not visibly relay their warning or update archived partial-snapshot completeness.",
+        "fix": "Dynamic handler forwards the scanner warning and persists remaining translated rows when unsupported counts or replaced IDs change. Existing independent historical complete snapshots retain their existing archive semantics. Warning no longer promises unsupported smaller-selection behavior."
+      }
+    ],
+    "validation": {
+      "command": "node --test tests/report823-page-completeness.test.js tests/browser-page-translate.test.js tests/browser-page-translation-main.test.js",
+      "result": "10 passed, 0 failed (8 focused tests and 2 existing compatibility test files)",
+      "log": "tmp/reports818-823/page-review-tests.log",
+      "endpoint": "Actual requestBrowserSentenceTranslationAtEndpoint executed with controlled fetch and actual request/decoder helpers: expanded targets sent, each <=2000, full tail placeholder retained, one original piece returned, partial chunk response rejected.",
+      "dynamic": "Observed DOM mutation short -> 6001 characters -> original short text; stale bilingual translation removed; late old-ID apply rejected; original source ID reemitted; unsupported completion pending and archive complete:false; removing unsupported content restores complete:true."
+    },
+    "limits": [
+      "No live provider, GPU, full suite or personal data used.",
+      "Existing translation quality gates and character limits were retained.",
+      "Node worker spawning required sandbox escalation after EPERM; the focused run then completed."
+    ]
+  },
+  "limits": [
+    "Targeted suites only; no full npm test or CI result wait.",
+    "Controlled provider responses are not live translation quality evidence.",
+    "Native Electron with isolated profile and GPU disabled; zoom is not physical Windows DPI.",
+    "Personal application was not stopped; no personal API key/profile/media used.",
+    "Previous R815-B63 transparent cross-origin audio recovery remains open, outside these19findings."
+  ]
+}
