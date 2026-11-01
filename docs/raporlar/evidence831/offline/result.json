@@ -1,0 +1,45 @@
+{
+  "head": "34b5747b5181db819443cf708185b5eebce754f9",
+  "scope": "real main handler source cuts + BrowserReadingList + real filesystem; controlled savePage/loadURL transport and injected index rename/unlink errors",
+  "checks": [
+    {
+      "id": "FIRST_USE_PARENT",
+      "freshResult": {
+        "ok": false,
+        "error": "Sayfa arşivlenemedi: ENOENT: no such file or directory, open 'D:\\Whisper Local\\.uiprev\\audit831-parent-offline\\first-use\\OkumaListesi\\Sentetik yazı-6-2f2ec1d6-5630685e-d409-4af1-b3b7-b92b84ff8404.mhtml'"
+      },
+      "attempts": [
+        {
+          "parentExists": false,
+          "format": "MHTML"
+        },
+        {
+          "parentExists": true,
+          "format": "MHTML"
+        }
+      ],
+      "afterEnsureOk": true,
+      "afterEnsureOpenOk": true,
+      "qualification": "Native Electron savePage not invoked; directory creation failure is demonstrated at actual main/store-to-file-transport boundary."
+    },
+    {
+      "id": "REMOVE_INDEX_FAILURE",
+      "rejected": "EPERM: fixture locked index",
+      "renameAttempts": 10,
+      "indexBytesUnchanged": true,
+      "indexRows": 1,
+      "archiveExists": false,
+      "openResult": {
+        "ok": false,
+        "error": "Kayıt veya arşiv dosyası bulunamadı."
+      },
+      "retryAfterUnlock": {
+        "ok": true,
+        "rows": 0
+      },
+      "normalRemoveOk": true,
+      "archiveUnlinkFailurePreserved": true,
+      "qualification": "Index rename lock is injected; actual Windows locking/AV not reproduced. Real unlink, write, fsync and store/main consumers run."
+    }
+  ]
+}

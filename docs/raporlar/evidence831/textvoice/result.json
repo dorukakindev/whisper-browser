@@ -1,0 +1,31 @@
+{
+  "head": "34b5747b5181db819443cf708185b5eebce754f9",
+  "newBugs": 0,
+  "checks": [
+    "real service producer writes two request/source/job records and WAVs",
+    "history newest first",
+    "new history service restores records",
+    "full renderer open-result preserves text/transcript/settings",
+    "selection alone does not replace output",
+    "missing different result retains previous output",
+    "missing current result clears output and history",
+    "restored result reopens",
+    "invalid ID rejected",
+    "history operations do not spawn"
+  ],
+  "spawnCount": 2,
+  "historyFields": [
+    "id",
+    "path",
+    "name",
+    "sample",
+    "finishedAt",
+    "elapsedSeconds"
+  ],
+  "sourceManuscriptOnDisk": true,
+  "referencePathInRequest": true,
+  "limits": [
+    "synthetic WAV; controlled worker/IPC/audio APIs",
+    "no native Electron decode, actual GPU, paid call, start.bat or personal profile"
+  ]
+}

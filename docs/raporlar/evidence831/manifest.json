@@ -1,0 +1,123 @@
+{
+  "head": "34b5747b5181db819443cf708185b5eebce754f9",
+  "product_commit": "ba04414f9289e6e61a51070bcf15e8e693e64b6c",
+  "hash_mode": "UTF-8 text with CRLF normalized to LF",
+  "new_bugs": [
+    "F831-01",
+    "F831-02",
+    "F831-03",
+    "F831-04"
+  ],
+  "reopened": [],
+  "improvements": [
+    "G831-01",
+    "G831-02",
+    "G831-03",
+    "G831-04",
+    "G831-05",
+    "G831-06"
+  ],
+  "fixes_applied": false,
+  "historical_references": 220,
+  "unique_historical_rows": 140,
+  "sources": [
+    {
+      "path": "src/browser-reading-list.js",
+      "sha256_lf": "f0d6fa00d02b6591dab3464d7c97e99321ce1ee81ce46905b336401e69b81c95"
+    },
+    {
+      "path": "src/main.js",
+      "sha256_lf": "0ebef330460249f2922ff658fe8c5a4140fea47994f7907848908bf6fab9a7a3"
+    },
+    {
+      "path": "src/renderer/renderer.js",
+      "sha256_lf": "17e41d785ffea8a8cca6398f2a4fa46d40853d6d4d0d5ac0460f754ca152e97d"
+    },
+    {
+      "path": "src/subscriptions-io.js",
+      "sha256_lf": "ec361976159b4ecfc70d74162887417d5f737770efec810355ddb9902de54146"
+    },
+    {
+      "path": "src/text-voice-studio.js",
+      "sha256_lf": "e438d1348f72808075898d96caea7e87953f71d348e24958984116f3ab8eb836"
+    },
+    {
+      "path": "src/text-voice-history.js",
+      "sha256_lf": "ebc12d2ac1a491f59c98132fa08490d5552bccc95f277c1baa57523d8827d248"
+    },
+    {
+      "path": "src/renderer/text-voice-studio.js",
+      "sha256_lf": "de4606c7bd02f760df523073abea52442902ef85c2675bd9068d80a72f27a430"
+    },
+    {
+      "path": "src/dub-service.js",
+      "sha256_lf": "973cec29cc216fee7386776e3d4765663c9bae43fc84125d70ff608f0fd5ff1e"
+    },
+    {
+      "path": "src/voice-output.js",
+      "sha256_lf": "5d393d6461953d3d585e8d5aa25930e2d173de80bf32ae7ddc2441b94bdd5928"
+    },
+    {
+      "path": "tests/helpers/wav-fixture.js",
+      "sha256_lf": "374e8130d55257550804141e68b91097d7f869be98f5e33fcf0b418973ba98bc"
+    },
+    {
+      "path": "start.bat",
+      "sha256_lf": "e73f1b411769e3986e347cbf6eb25e6b921a06683b4431ddbdf7df31f39be5c9"
+    },
+    {
+      "path": "install.bat",
+      "sha256_lf": "14f6ac7d9656de759c9091b2c5fd9c05c6fde1f2bb465e15eb1e025ad52c9ad5"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "docs/raporlar/evidence831/offline/native-probe.cjs",
+      "sha256_lf": "0e143f32bdeff9f48d37697ff662ceaa549a839b36970120b94b068b43de71e4"
+    },
+    {
+      "path": "docs/raporlar/evidence831/offline/native-result.json",
+      "sha256_lf": "dee32480d0da3fabedd6e75914ddaf2e67d789db36beff49c472ee411b66f9dd"
+    },
+    {
+      "path": "docs/raporlar/evidence831/offline/probe.cjs",
+      "sha256_lf": "8fd21c106f42efedd7d077abc590680345027d1d5b7d3e66a3f6ea1ded4d7202"
+    },
+    {
+      "path": "docs/raporlar/evidence831/offline/registry-reviewed.json",
+      "sha256_lf": "b7e98c3086899bc44dc02ad24c3353a51e52cfec6ddd22402400f8a5f98a1e32"
+    },
+    {
+      "path": "docs/raporlar/evidence831/offline/result.json",
+      "sha256_lf": "df030c22ddf1986d0e342b4db895d66ce046b0129994c471019ca8ab6cef87c5"
+    },
+    {
+      "path": "docs/raporlar/evidence831/subscriptions/probe.cjs",
+      "sha256_lf": "efd6f79fe3f4f3c4c9652c29fe84a83b17599b7c4681653d153f64b1c770496a"
+    },
+    {
+      "path": "docs/raporlar/evidence831/subscriptions/registry-reviewed.json",
+      "sha256_lf": "a445fbaaf0696a331abb65b4db456dea88f80c13dcb146b6a7cc2d608b9fd6d8"
+    },
+    {
+      "path": "docs/raporlar/evidence831/subscriptions/result.json",
+      "sha256_lf": "e475af3c825b6504bb4721fba5caa747620692bb709865082054af8495d2a9e7"
+    },
+    {
+      "path": "docs/raporlar/evidence831/textvoice/probe.cjs",
+      "sha256_lf": "b6442c7fc2c148a335ab0fe6030b15eb29c0c4bb3a552a80c5dc3f5045898b4c"
+    },
+    {
+      "path": "docs/raporlar/evidence831/textvoice/registry-reviewed.json",
+      "sha256_lf": "b9d9bd8668c04bbd926f3368a0133554065451c348bd6a212869c14cef1d4b3d"
+    },
+    {
+      "path": "docs/raporlar/evidence831/textvoice/result.json",
+      "sha256_lf": "e151d32abc59d6ba796d20e9e27eab2f7efd7c0e01d95056c6ced05b8d43b127"
+    },
+    {
+      "path": "docs/raporlar/evidence831/parent-verification.json",
+      "sha256_lf": "01c2cf115738400a851945345a5ecfbcc33430b72890f4e20a08facb2d71063e"
+    }
+  ]
+}

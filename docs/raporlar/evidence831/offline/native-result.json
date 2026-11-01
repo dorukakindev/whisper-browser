@@ -1,0 +1,21 @@
+{
+  "electron": "43.5.0",
+  "scope": "actual main add/save wrapper + actual BrowserReadingList + real webContents.savePage; synthetic data document, controlled https tab metadata and sender/active-tab resolver",
+  "first": {
+    "ok": false,
+    "error": "Sayfa arşivlenemedi: Failed to save the page."
+  },
+  "before": {
+    "parent": false,
+    "rows": 0
+  },
+  "second": {
+    "ok": true,
+    "sizeBytes": 951
+  },
+  "after": {
+    "rows": 1,
+    "file": true,
+    "containsSyntheticDocument": true
+  }
+}
