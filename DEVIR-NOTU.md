@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-02-0210.md](docs/devir/2026-11-02-0210.md) — Film yorum/analiz alt bölümünün yeni görsel hiyerarşisi
 Güncel çalışma: [docs/devir/2026-11-02-0155.md](docs/devir/2026-11-02-0155.md) — Kişisel medya taslak koruması, doğru bildirim ve pratik konum girişi
 Güncel çalışma: [docs/devir/2026-11-02-0115.md](docs/devir/2026-11-02-0115.md) — Asistan, Keşfet, film/bölüm ve web içeriklerinde ortak kişisel tercih/devam konumu
 Güncel çalışma: [docs/devir/2026-11-02-0013.md](docs/devir/2026-11-02-0013.md) — RSS görünür giriş, Windows EXE, açık onaylı uygulama güncellemeleri ve R843 düzeltmeleri
