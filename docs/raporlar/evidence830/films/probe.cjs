@@ -1,0 +1,37 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const {JSDOM}=require('jsdom');
+const root=path.resolve(__dirname,'../../../..'),model=require(path.join(root,'src/renderer/media-tools-model'));
+const outputBase=path.resolve(process.env.AUDIT830_OUT||path.join(root,'.uiprev/audit830-films-'+Date.now()));fs.mkdirSync(outputBase,{recursive:true});
+const service=require(path.join(root,'src/media-tools-service'));
+const wait=async()=>{for(let i=0;i<5;i++)await new Promise(setImmediate);};
+const item={id:'fixture-library',kind:'film',title:'Audit fixture film',year:2026,tmdbId:'movie:42',imdbId:'tt1234567',synopsis:'A supplied metadata story.'};
+const taste={preferencesConfigured:true,preferences:{weights:{story:5,pace:2},avoid:['sound'],note:'Saved fixture preference.'},quiz:{version:1,answers:['human','quiet',null,null,null,null]}};
+const rows=[{id:'one',author:'Fixture reviewer',text:'Strong acting throughout this film.',permalink:'https://letterboxd.com/fixture/film/audit-fixture/'}];
+const analysis={summary:'Controlled provider result.',fit:'Conditional comparison.',points:[{id:'one',quote:'Strong acting',reason:'A selected source praises acting.',kind:'praise'}]};
+const closes=[],packets=[];
+const disk=path.join(outputBase,'synthetic-profile');fs.mkdirSync(disk,{recursive:true});
+const app={getPath:()=>disk,on:(_,fn)=>closes.push(fn)};
+const svc=service.registerMediaTools({app,ipcMain:{handle(){}},authorized:()=>true,owner:()=>null,dialog:{},catalogStore:()=>({get:id=>id===item.id?item:null}),resolveDiscovery:async(_e,d)=>({ok:true,item:{...item,kind:d.kind,providerId:d.id}}),fetchImpl:()=>{throw Error('Network forbidden');}});
+async function run(selected){
+ const dom=new JSDOM('<dialog open><main></main></dialog>',{runScripts:'outside-only',url:'https://fixture.invalid/'}),w=dom.window;let context={},draft={reviews:JSON.stringify(rows)};
+ Object.assign(w,{UiLocale:{get:()=> 'en'},player:{job:null},state:{running:false,queueRunning:false},aiChatPreparing:null,buildOptsFromUI:()=>({}),translationEndpointReady:()=>true,globalAssistantContext:()=>context,MediaExperience:{setContext:(_,c)=>context=c},LetterboxdReviews:require(path.join(root,'src/letterboxd-reviews')),api:{mediaTools:async packet=>{const value=await svc.handle({},JSON.parse(JSON.stringify(packet)));packets.push({packet:JSON.parse(JSON.stringify(packet)),response:value});return value;},mediaShelf:async()=>({ok:true,taste}),openExternal:async()=>{throw Error('External open forbidden');}},aiChatSend:async()=>{const sent=JSON.parse(context.reviewAnalysis);assert.equal(model.normalizeReviewAnalysis(JSON.stringify(sent)),JSON.stringify(sent));w.document.dispatchEvent(new w.CustomEvent('assistant-answer',{detail:{context,text:JSON.stringify(analysis)}}));}});
+ w.HTMLElement.prototype.scrollIntoView=function(){};
+ for(const source of ['src/taste-quiz.js','src/renderer/media-tools-model.js','src/renderer/review-decision-ui.js'])w.eval(fs.readFileSync(path.join(root,source),'utf8'));
+ w.MediaReviewDecision.mount(w.document.querySelector('main'),selected,{},draft,{current:()=>true,redraw(){},status(){}});
+ const click=label=>{const button=[...w.document.querySelectorAll('button')].find(n=>n.textContent===label);assert(button,label);button.click();};
+ click('Preview & analyze');await wait();assert(w.document.querySelector('.mrv-sample'));w.document.querySelector('[name=review-title-confirmed]').checked=true;
+ click('Send this sample');await wait();assert(draft.result);assert.equal(draft.result.evidenceSnapshot.profile.questionnaire.answers.length,2);
+ const basis=w.document.querySelector('.mrv-fit-basis').textContent;
+ click('Verify quotes & save');await wait();assert.equal(draft.attempt.state,'saved');assert(!draft.result);
+ const request={action:'decision-get',itemId:selected.id,...(selected.discovery?{discovery:selected.discovery}:{})};
+ const loaded=await svc.handle({},request);assert(loaded.ok);const entry=loaded.value.history[0];assert(entry);
+ assert.equal(model.decisionFreshness(entry.evidenceSnapshot,selected,entry.reviews,taste),'current');
+ const changed={...taste,preferences:{...taste.preferences,note:'Changed fixture preference.'}};
+ assert.equal(model.decisionFreshness(entry.evidenceSnapshot,selected,entry.reviews,changed),'stale');
+ const forged=await svc.handle({},{action:'decision-save',itemId:selected.id,...(selected.discovery?{discovery:selected.discovery}:{}),reviews:entry.reviews,analysis:entry.analysis,itemIdentity:{...selected,imdbId:'tt7654321'},evidenceSnapshot:entry.evidenceSnapshot});assert(!forged.ok);
+ const before=entry.evidenceSnapshot.profile.preferences.note;
+ const host=w.document.querySelector('main');host.replaceChildren();w.MediaReviewDecision.mount(host,selected,loaded.value,{}, {current:()=>true,redraw(){},status(){}});await wait();click('Reuse this saved sample');await wait();assert.equal(JSON.parse(host.querySelector('[name=review-text]').value)[0].text,rows[0].text);
+ const result={id:selected.id,saved:true,currentAndStaleControls:true,wrongIdentityRejected:forged.error,savedNote:before,basisText:basis,questionnaireChoicesInSavedSnapshot:entry.evidenceSnapshot.profile.questionnaire.answers.map(a=>a.meaning),choiceTextVisibleInBasis:entry.evidenceSnapshot.profile.questionnaire.answers.some(a=>basis.includes(a.meaning)),reuseWithoutFetch:true};w.close();return result;
+}
+(async()=>{try{const library=await run(item),discovery=await run({...item,id:'discovery:film:'+item.imdbId,discovery:{kind:'film',id:item.imdbId}});const result={head:process.env.AUDIT830_HEAD||'6d4c2d661257263f0f9414b2bdf8ba53f84513c9',environment:'Windows Node/jsdom, actual renderer modules and actual media-tools service, synthetic disk only',networkRequests:0,library,discovery,savePackets:packets.filter(r=>r.packet.action==='decision-save'),confirmedNewBugs:0};fs.writeFileSync(path.join(outputBase,'result.json'),JSON.stringify(result,null,2));process.stdout.write(JSON.stringify({ok:true,head:result.head,librarySaved:library.saved,discoverySaved:discovery.saved,discoverySaveHasIdentity:!!result.savePackets.find(r=>r.packet.discovery)?.packet.discovery,confirmedNewBugs:0})+'\n');}finally{for(const fn of closes)fn();}})().catch(e=>{console.error(e);process.exitCode=1;});

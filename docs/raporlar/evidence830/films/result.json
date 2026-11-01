@@ -1,0 +1,350 @@
+{
+  "head": "6d4c2d661257263f0f9414b2bdf8ba53f84513c9",
+  "environment": "Windows Node/jsdom, actual renderer modules and actual media-tools service, synthetic disk only",
+  "networkRequests": 0,
+  "library": {
+    "id": "fixture-library",
+    "saved": true,
+    "currentAndStaleControls": true,
+    "wrongIdentityRejected": "The film identity changed. Review the new title before saving this analysis.",
+    "savedNote": "Saved fixture preference.",
+    "basisText": "What this personal comparison usedSaved priorities: Story · PacePrefer to avoid: SoundSaved fixture preference.Your saved questionnaire choices were included.These are the inputs saved with this analysis. Preferences are choices; earlier-review inferences are interpretations, not a guarantee of liking.",
+    "questionnaireChoicesInSavedSnapshot": [
+      "An intimate human story",
+      "Room to observe and reflect"
+    ],
+    "choiceTextVisibleInBasis": false,
+    "reuseWithoutFetch": true
+  },
+  "discovery": {
+    "id": "discovery:film:tt1234567",
+    "saved": true,
+    "currentAndStaleControls": true,
+    "wrongIdentityRejected": "The film identity changed. Review the new title before saving this analysis.",
+    "savedNote": "Saved fixture preference.",
+    "basisText": "What this personal comparison usedSaved priorities: Story · PacePrefer to avoid: SoundSaved fixture preference.Your saved questionnaire choices were included.These are the inputs saved with this analysis. Preferences are choices; earlier-review inferences are interpretations, not a guarantee of liking.",
+    "questionnaireChoicesInSavedSnapshot": [
+      "An intimate human story",
+      "Room to observe and reflect"
+    ],
+    "choiceTextVisibleInBasis": false,
+    "reuseWithoutFetch": true
+  },
+  "savePackets": [
+    {
+      "packet": {
+        "action": "decision-save",
+        "itemId": "fixture-library",
+        "reviews": [
+          {
+            "id": "one",
+            "author": "Fixture reviewer",
+            "text": "Strong acting throughout this film.",
+            "spoiler": false,
+            "permalink": "https://letterboxd.com/fixture/film/audit-fixture/",
+            "authorId": "fixture"
+          }
+        ],
+        "analysis": {
+          "summary": "Controlled provider result.",
+          "fit": "Conditional comparison.",
+          "points": [
+            {
+              "id": "one",
+              "quote": "Strong acting",
+              "reason": "A selected source praises acting.",
+              "kind": "praise"
+            }
+          ],
+          "at": 1793525186912
+        },
+        "itemIdentity": {
+          "id": "fixture-library",
+          "kind": "film",
+          "title": "Audit fixture film",
+          "year": 2026,
+          "tmdbId": "movie:42",
+          "imdbId": "tt1234567",
+          "synopsis": "A supplied metadata story."
+        },
+        "evidenceSnapshot": {
+          "version": 1,
+          "context": "{\"title\":\"Audit fixture film\",\"year\":2026,\"kind\":\"film\",\"identity\":{\"imdbId\":\"tt1234567\",\"tmdbId\":\"movie:42\"},\"reviews\":[{\"id\":\"one\",\"author\":\"Fixture reviewer\",\"text\":\"Strong acting throughout this film.\",\"spoiler\":false,\"permalink\":\"https://letterboxd.com/fixture/film/audit-fixture/\",\"authorId\":\"fixture\"}],\"sampleAssessment\":{\"distinctReviews\":1,\"independentAuthors\":1,\"unknownAuthors\":0,\"duplicates\":0},\"profile\":{\"preferencesConfigured\":true,\"preferences\":{\"weights\":{\"story\":5,\"characters\":0,\"pace\":2,\"visuals\":0,\"sound\":0,\"emotion\":0},\"avoid\":[\"sound\"],\"note\":\"Saved fixture preference.\"},\"acceptedAnalysis\":null,\"analysisEvidenceUnavailable\":false,\"questionnaire\":{\"kind\":\"explicit_choices\",\"answers\":[{\"question\":\"story\",\"choice\":\"human\",\"meaning\":\"An intimate human story\"},{\"question\":\"pace\",\"choice\":\"quiet\",\"meaning\":\"Room to observe and reflect\"}]}},\"limitations\":\"Default weights are not explicit preferences. Accepted analysis is an inference from earlier personal reviews, not a guaranteed prediction.\",\"story\":{\"kind\":\"title_metadata\",\"synopsis\":\"A supplied metadata story.\"}}",
+          "profile": {
+            "preferencesConfigured": true,
+            "preferences": {
+              "weights": {
+                "story": 5,
+                "characters": 0,
+                "pace": 2,
+                "visuals": 0,
+                "sound": 0,
+                "emotion": 0
+              },
+              "avoid": [
+                "sound"
+              ],
+              "note": "Saved fixture preference."
+            },
+            "acceptedAnalysis": null,
+            "analysisEvidenceUnavailable": false,
+            "questionnaire": {
+              "kind": "explicit_choices",
+              "answers": [
+                {
+                  "question": "story",
+                  "choice": "human",
+                  "meaning": "An intimate human story"
+                },
+                {
+                  "question": "pace",
+                  "choice": "quiet",
+                  "meaning": "Room to observe and reflect"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "response": {
+        "ok": true,
+        "value": {
+          "history": [
+            {
+              "analysis": {
+                "summary": "Controlled provider result.",
+                "fit": "Conditional comparison.",
+                "points": [
+                  {
+                    "id": "one",
+                    "quote": "Strong acting",
+                    "reason": "A selected source praises acting.",
+                    "kind": "praise"
+                  }
+                ],
+                "at": 1793525186918
+              },
+              "reviews": [
+                {
+                  "id": "one",
+                  "author": "Fixture reviewer",
+                  "text": "Strong acting throughout this film.",
+                  "spoiler": false,
+                  "permalink": "https://letterboxd.com/fixture/film/audit-fixture/",
+                  "authorId": "fixture"
+                }
+              ],
+              "evidenceSnapshot": {
+                "version": 1,
+                "context": "{\"title\":\"Audit fixture film\",\"year\":2026,\"kind\":\"film\",\"identity\":{\"imdbId\":\"tt1234567\",\"tmdbId\":\"movie:42\"},\"reviews\":[{\"id\":\"one\",\"author\":\"Fixture reviewer\",\"text\":\"Strong acting throughout this film.\",\"spoiler\":false,\"permalink\":\"https://letterboxd.com/fixture/film/audit-fixture/\",\"authorId\":\"fixture\"}],\"sampleAssessment\":{\"distinctReviews\":1,\"independentAuthors\":1,\"unknownAuthors\":0,\"duplicates\":0},\"profile\":{\"preferencesConfigured\":true,\"preferences\":{\"weights\":{\"story\":5,\"characters\":0,\"pace\":2,\"visuals\":0,\"sound\":0,\"emotion\":0},\"avoid\":[\"sound\"],\"note\":\"Saved fixture preference.\"},\"acceptedAnalysis\":null,\"analysisEvidenceUnavailable\":false,\"questionnaire\":{\"kind\":\"explicit_choices\",\"answers\":[{\"question\":\"story\",\"choice\":\"human\",\"meaning\":\"An intimate human story\"},{\"question\":\"pace\",\"choice\":\"quiet\",\"meaning\":\"Room to observe and reflect\"}]}},\"limitations\":\"Default weights are not explicit preferences. Accepted analysis is an inference from earlier personal reviews, not a guaranteed prediction.\",\"story\":{\"kind\":\"title_metadata\",\"synopsis\":\"A supplied metadata story.\"}}",
+                "profile": {
+                  "preferencesConfigured": true,
+                  "preferences": {
+                    "weights": {
+                      "story": 5,
+                      "characters": 0,
+                      "pace": 2,
+                      "visuals": 0,
+                      "sound": 0,
+                      "emotion": 0
+                    },
+                    "avoid": [
+                      "sound"
+                    ],
+                    "note": "Saved fixture preference."
+                  },
+                  "acceptedAnalysis": null,
+                  "analysisEvidenceUnavailable": false,
+                  "questionnaire": {
+                    "kind": "explicit_choices",
+                    "answers": [
+                      {
+                        "question": "story",
+                        "choice": "human",
+                        "meaning": "An intimate human story"
+                      },
+                      {
+                        "question": "pace",
+                        "choice": "quiet",
+                        "meaning": "Room to observe and reflect"
+                      }
+                    ]
+                  }
+                }
+              },
+              "identity": {
+                "kind": "film",
+                "title": "Audit fixture film",
+                "year": 2026,
+                "tmdbId": "movie:42",
+                "imdbId": "tt1234567"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "packet": {
+        "action": "decision-save",
+        "itemId": "discovery:film:tt1234567",
+        "reviews": [
+          {
+            "id": "one",
+            "author": "Fixture reviewer",
+            "text": "Strong acting throughout this film.",
+            "spoiler": false,
+            "permalink": "https://letterboxd.com/fixture/film/audit-fixture/",
+            "authorId": "fixture"
+          }
+        ],
+        "analysis": {
+          "summary": "Controlled provider result.",
+          "fit": "Conditional comparison.",
+          "points": [
+            {
+              "id": "one",
+              "quote": "Strong acting",
+              "reason": "A selected source praises acting.",
+              "kind": "praise"
+            }
+          ],
+          "at": 1793525186968
+        },
+        "itemIdentity": {
+          "id": "discovery:film:tt1234567",
+          "kind": "film",
+          "title": "Audit fixture film",
+          "year": 2026,
+          "tmdbId": "movie:42",
+          "imdbId": "tt1234567",
+          "synopsis": "A supplied metadata story.",
+          "discovery": {
+            "kind": "film",
+            "id": "tt1234567"
+          }
+        },
+        "evidenceSnapshot": {
+          "version": 1,
+          "context": "{\"title\":\"Audit fixture film\",\"year\":2026,\"kind\":\"film\",\"identity\":{\"imdbId\":\"tt1234567\",\"tmdbId\":\"movie:42\"},\"reviews\":[{\"id\":\"one\",\"author\":\"Fixture reviewer\",\"text\":\"Strong acting throughout this film.\",\"spoiler\":false,\"permalink\":\"https://letterboxd.com/fixture/film/audit-fixture/\",\"authorId\":\"fixture\"}],\"sampleAssessment\":{\"distinctReviews\":1,\"independentAuthors\":1,\"unknownAuthors\":0,\"duplicates\":0},\"profile\":{\"preferencesConfigured\":true,\"preferences\":{\"weights\":{\"story\":5,\"characters\":0,\"pace\":2,\"visuals\":0,\"sound\":0,\"emotion\":0},\"avoid\":[\"sound\"],\"note\":\"Saved fixture preference.\"},\"acceptedAnalysis\":null,\"analysisEvidenceUnavailable\":false,\"questionnaire\":{\"kind\":\"explicit_choices\",\"answers\":[{\"question\":\"story\",\"choice\":\"human\",\"meaning\":\"An intimate human story\"},{\"question\":\"pace\",\"choice\":\"quiet\",\"meaning\":\"Room to observe and reflect\"}]}},\"limitations\":\"Default weights are not explicit preferences. Accepted analysis is an inference from earlier personal reviews, not a guaranteed prediction.\",\"story\":{\"kind\":\"title_metadata\",\"synopsis\":\"A supplied metadata story.\"}}",
+          "profile": {
+            "preferencesConfigured": true,
+            "preferences": {
+              "weights": {
+                "story": 5,
+                "characters": 0,
+                "pace": 2,
+                "visuals": 0,
+                "sound": 0,
+                "emotion": 0
+              },
+              "avoid": [
+                "sound"
+              ],
+              "note": "Saved fixture preference."
+            },
+            "acceptedAnalysis": null,
+            "analysisEvidenceUnavailable": false,
+            "questionnaire": {
+              "kind": "explicit_choices",
+              "answers": [
+                {
+                  "question": "story",
+                  "choice": "human",
+                  "meaning": "An intimate human story"
+                },
+                {
+                  "question": "pace",
+                  "choice": "quiet",
+                  "meaning": "Room to observe and reflect"
+                }
+              ]
+            }
+          }
+        },
+        "discovery": {
+          "kind": "film",
+          "id": "tt1234567"
+        }
+      },
+      "response": {
+        "ok": true,
+        "value": {
+          "history": [
+            {
+              "analysis": {
+                "summary": "Controlled provider result.",
+                "fit": "Conditional comparison.",
+                "points": [
+                  {
+                    "id": "one",
+                    "quote": "Strong acting",
+                    "reason": "A selected source praises acting.",
+                    "kind": "praise"
+                  }
+                ],
+                "at": 1793525186972
+              },
+              "reviews": [
+                {
+                  "id": "one",
+                  "author": "Fixture reviewer",
+                  "text": "Strong acting throughout this film.",
+                  "spoiler": false,
+                  "permalink": "https://letterboxd.com/fixture/film/audit-fixture/",
+                  "authorId": "fixture"
+                }
+              ],
+              "evidenceSnapshot": {
+                "version": 1,
+                "context": "{\"title\":\"Audit fixture film\",\"year\":2026,\"kind\":\"film\",\"identity\":{\"imdbId\":\"tt1234567\",\"tmdbId\":\"movie:42\"},\"reviews\":[{\"id\":\"one\",\"author\":\"Fixture reviewer\",\"text\":\"Strong acting throughout this film.\",\"spoiler\":false,\"permalink\":\"https://letterboxd.com/fixture/film/audit-fixture/\",\"authorId\":\"fixture\"}],\"sampleAssessment\":{\"distinctReviews\":1,\"independentAuthors\":1,\"unknownAuthors\":0,\"duplicates\":0},\"profile\":{\"preferencesConfigured\":true,\"preferences\":{\"weights\":{\"story\":5,\"characters\":0,\"pace\":2,\"visuals\":0,\"sound\":0,\"emotion\":0},\"avoid\":[\"sound\"],\"note\":\"Saved fixture preference.\"},\"acceptedAnalysis\":null,\"analysisEvidenceUnavailable\":false,\"questionnaire\":{\"kind\":\"explicit_choices\",\"answers\":[{\"question\":\"story\",\"choice\":\"human\",\"meaning\":\"An intimate human story\"},{\"question\":\"pace\",\"choice\":\"quiet\",\"meaning\":\"Room to observe and reflect\"}]}},\"limitations\":\"Default weights are not explicit preferences. Accepted analysis is an inference from earlier personal reviews, not a guaranteed prediction.\",\"story\":{\"kind\":\"title_metadata\",\"synopsis\":\"A supplied metadata story.\"}}",
+                "profile": {
+                  "preferencesConfigured": true,
+                  "preferences": {
+                    "weights": {
+                      "story": 5,
+                      "characters": 0,
+                      "pace": 2,
+                      "visuals": 0,
+                      "sound": 0,
+                      "emotion": 0
+                    },
+                    "avoid": [
+                      "sound"
+                    ],
+                    "note": "Saved fixture preference."
+                  },
+                  "acceptedAnalysis": null,
+                  "analysisEvidenceUnavailable": false,
+                  "questionnaire": {
+                    "kind": "explicit_choices",
+                    "answers": [
+                      {
+                        "question": "story",
+                        "choice": "human",
+                        "meaning": "An intimate human story"
+                      },
+                      {
+                        "question": "pace",
+                        "choice": "quiet",
+                        "meaning": "Room to observe and reflect"
+                      }
+                    ]
+                  }
+                }
+              },
+              "identity": {
+                "kind": "film",
+                "title": "Audit fixture film",
+                "year": 2026,
+                "tmdbId": "movie:42",
+                "imdbId": "tt1234567"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "confirmedNewBugs": 0
+}

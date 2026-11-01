@@ -1,0 +1,1082 @@
+[
+  {
+    "id": "N0001",
+    "family": "F01",
+    "mechanism": "normal",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "0ab73b3d21b1d4532d302cfee671aa4672c0070908519fc6327c3aae9f4b7d2b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0001.stdout.txt (node probes/f01-ownership.js --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0002",
+    "family": "F01",
+    "mechanism": "bos",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "8231e3785d27f5c1c68b321998fa253909e51bc160f7fc8f7c431de97d59316c",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0002.stdout.txt (node probes/f01-ownership.js --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0003",
+    "family": "F01",
+    "mechanism": "sinir",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "48265169a8a38bfb7450c4e007049bb3b6bfdfcd575c3a9a5665c4b2ed30bcc6",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0003.stdout.txt (node probes/f01-ownership.js --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0004",
+    "family": "F01",
+    "mechanism": "unicode",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "1385292bc3299144f41f70f5221f71446727318ac315538fd7c12bc2bf416835",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0004.stdout.txt (node probes/f01-ownership.js --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0005",
+    "family": "F01",
+    "mechanism": "yinelenen",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "4dbd1d5dc1fe2b27a0a56e187bcf3f7caa4fcf9408d78ea3e5ffa1bbc53a9ed9",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0005.stdout.txt (node probes/f01-ownership.js --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0006",
+    "family": "F01",
+    "mechanism": "sira",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "08c57687204ea1aaddb4cd1b1c597cfa33ad3ed92b16ba6f6b87bb54a44c702a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0006.stdout.txt (node probes/f01-ownership.js --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0007",
+    "family": "F01",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "70eac6813ce7e508ef0195fbc63f6baeb8ebb279400b5338311d4d051f6da9c3",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0007.stdout.txt (node probes/f01-ownership.js --mech iptal-oncesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0008",
+    "family": "F01",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "697b07673b3b5dccc467d929df7eac058540cfc83da88fa9a8cf022da544c6ce",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0008.stdout.txt (node probes/f01-ownership.js --mech iptal-ortasi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0009",
+    "family": "F01",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "9468438cb43940d77946aedad88300323dc7dbf59e69283430ee9004d7e5acc7",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0009.stdout.txt (node probes/f01-ownership.js --mech gec-sonuc, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0010",
+    "family": "F01",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "c1a4b0e1176d75e65cbb21a5564611a3a205f16af03216851130ab55a3397185",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0010.stdout.txt (node probes/f01-ownership.js --mech kaynak-degisimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0011",
+    "family": "F01",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "7c992249166927cb10651ddc62707321e54681549f02b1cf2c9c4971ce7ca91c",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0011.stdout.txt (node probes/f01-ownership.js --mech es-zamanli, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0012",
+    "family": "F01",
+    "mechanism": "kesik",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "20201f856d546a4455204449ceee1294a1ac3f9551b84edf1d86c27b2f1b467c",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0012.stdout.txt (node probes/f01-ownership.js --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0013",
+    "family": "F01",
+    "mechanism": "hata",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "2aed9f9e1b6883fd96c91419868eb42f0b3738d3faee76a190f8e2c239072052",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0013.stdout.txt (node probes/f01-ownership.js --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0014",
+    "family": "F01",
+    "mechanism": "timeout",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "e767cb00edfcc6bc9556a7a5637aa3bbf44318571e164507d28de89ca3a3ae74",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Sahiplik katmaninin kendi zamanlayicisi yok: agentRun zaman asimi assistant-settings.timeout() ile provider cagrisina baglanir; F05/F06 satirlarinda olculdu."
+  },
+  {
+    "id": "N0015",
+    "family": "F01",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "2cc9e4c977fe7432575aa1faa72799d071d7bfcc3ea841542ae11360b9ba6b2e",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0015.stdout.txt (node probes/f01-ownership.js --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0016",
+    "family": "F01",
+    "mechanism": "donusum",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "8f05b1a64e5bfcac827486bde13ab8703496b067b44febcfdf976f482638dba5",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0016.stdout.txt (node probes/f01-ownership.js --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0017",
+    "family": "F01",
+    "mechanism": "yetki",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "c922e794e762ace80b773570739fc43e877ea03332ecd190b3059a033082a3be",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0017.stdout.txt (node probes/f01-ownership.js --mech yetki, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0018",
+    "family": "F01",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "fbdf41c632c153519408a95234a9a39a45688908c952b1c6e7c5a2f1cb05840f",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0018.stdout.txt (node probes/f01-ownership.js --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0019",
+    "family": "F01",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "d17d0b30d105acd3253bcc3407e4f5b9bf527b80c8904209de01db95adaf0ef3",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0019.stdout.txt (node probes/f01-ownership.js --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0020",
+    "family": "F01",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "src/assistant-context-manifest.js",
+      " src/assistant-agent-service.js"
+    ],
+    "signature": "3b8242c0ab09326eb29a20b359adc4c6ab54f8727443cba918f8609325e33915",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0020.stdout.txt (node probes/f01-ownership.js --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0021",
+    "family": "F02",
+    "mechanism": "normal",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "7d24b4baaf0b88e02450c2f9c20b5acd23f8fc4fc139d3d64d32a46d819ac0b5",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0021.stdout.txt (node probes/f02-action-cards.js --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0022",
+    "family": "F02",
+    "mechanism": "bos",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "19de1a2b540a8ca45bee360adcb7c28e19562d5703c7d2ff572090af460acf09",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0022.stdout.txt (node probes/f02-action-cards.js --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0023",
+    "family": "F02",
+    "mechanism": "sinir",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "d9b58bfe7c1739d894df3428ec6731567e72ba725742bfc9ece5aabb6b13af00",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0023.stdout.txt (node probes/f02-action-cards.js --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0024",
+    "family": "F02",
+    "mechanism": "unicode",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "dad7970688dbf2ef305bdf6165048f0a483864dd887015dd02bbe854920d734e",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0024.stdout.txt (node probes/f02-action-cards.js --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0025",
+    "family": "F02",
+    "mechanism": "yinelenen",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "e7ee088430a6e570e9128b0748c3d47bb6d7a851afbe18e4d6a3cf9fccf49a0f",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0025.stdout.txt (node probes/f02-action-cards.js --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0026",
+    "family": "F02",
+    "mechanism": "sira",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "cbda12bb0ba0a3eb829dfaae4fa919893866cc1331a71fa757570fe53482d1f2",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0026.stdout.txt (node probes/f02-action-cards.js --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0027",
+    "family": "F02",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "48b8810364e7ecdbaa159d5c687f0e54bf2b578cdacad729d243754bfdfa2818",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0027.stdout.txt (node probes/f02-action-cards.js --mech iptal-oncesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0028",
+    "family": "F02",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "e3a61f45d21ba1e0b4316e59d3915c53ac2f685ef04ec0b8aeb6e3e92cf51686",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0028.stdout.txt (node probes/f02-action-cards.js --mech iptal-ortasi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0029",
+    "family": "F02",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "6eddb2b2acf28358191805eab967648ccfccf83b6d0b4f3aa5e3fde0cbae3333",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0029.stdout.txt (node probes/f02-action-cards.js --mech gec-sonuc, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0030",
+    "family": "F02",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "6e277a83001d8cf40e247670165cb2195ca8411052f346bd2026a7fefb853fea",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0030.stdout.txt (node probes/f02-action-cards.js --mech kaynak-degisimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0031",
+    "family": "F02",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "96d9ea4b19074b6142ce1c579aa6519be39a1101f75e1a099be20235bc2fa895",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0031.stdout.txt (node probes/f02-action-cards.js --mech es-zamanli, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0032",
+    "family": "F02",
+    "mechanism": "kesik",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "121c42a7b66d97adbeb0c020b36f020889f797f4f60ce049764bad9bc0e7cfa7",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0032.stdout.txt (node probes/f02-action-cards.js --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0033",
+    "family": "F02",
+    "mechanism": "hata",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "b7966995d1c1e36a3cdf31d67bdb8693fb3e1b265225b9c0cd674a4952c8035a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0033.stdout.txt (node probes/f02-action-cards.js --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0034",
+    "family": "F02",
+    "mechanism": "timeout",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "75f516be8c99b52e8d8522b57e9a8360ceb4167ca9f73d4e8218545736a873c4",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0034.stdout.txt (node probes/f02-action-cards.js --mech timeout, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0035",
+    "family": "F02",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "741149364e06cc28e15d2304c0dff3d458ad0e2a94a8ea008946ad1f32207464",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0035.stdout.txt (node probes/f02-action-cards.js --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0036",
+    "family": "F02",
+    "mechanism": "donusum",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "42e7380df954c2c32260e80b87ef0f8ca5258de97643320044bbe57041b37b0e",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0036.stdout.txt (node probes/f02-action-cards.js --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0037",
+    "family": "F02",
+    "mechanism": "yetki",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "d0146425bfbeeaedd785beea4bc36ae3d9db7cd931c528955fa64c1838241a04",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0037.stdout.txt (node probes/f02-action-cards.js --mech yetki, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0038",
+    "family": "F02",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "c57aa2014642fac1ea9e85bb29131633c157d3ead0eb31c67d0699b10a07528b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0038.stdout.txt (node probes/f02-action-cards.js --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0039",
+    "family": "F02",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "37ec4b44fe6dbf0fc0084860cbbde5862da04cad9a08bf5b5970cad94fffc9e9",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0039.stdout.txt (node probes/f02-action-cards.js --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0040",
+    "family": "F02",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "src/assistant-agent-service.js",
+      " src/renderer/assistant-agent-ui.js"
+    ],
+    "signature": "373432bae45982b7629e88e54fc6e48bdf33b8e5ba77c957fcf2e9fa27a85767",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0040.stdout.txt (node probes/f02-action-cards.js --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0041",
+    "family": "F03",
+    "mechanism": "normal",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "723fec3b247824535e1dc7872e27f342db9aa34cb5c19ae8cddf6be95ed350ae",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0041.stdout.txt (node probes/f03-continuation.js --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0042",
+    "family": "F03",
+    "mechanism": "bos",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "7a02adb9c5d5da5c6bb0a251b408638e897d1e75334d6a7fb0e71b81e09f15f4",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0042.stdout.txt (node probes/f03-continuation.js --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0043",
+    "family": "F03",
+    "mechanism": "sinir",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "4964500698244b393084cd93b62badec8a56f8a01ca9aa14a6d6f2a8a663ac4a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0043.stdout.txt (node probes/f03-continuation.js --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0044",
+    "family": "F03",
+    "mechanism": "unicode",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "b461ac505cda40a7145cd9358efbaa80c7b70a02ae5f8df22acc2111dd17d7bd",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0044.stdout.txt (node probes/f03-continuation.js --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0045",
+    "family": "F03",
+    "mechanism": "yinelenen",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "00f2b8a62ef4f888f67d67f8eb5f0647e21918192871477289c9f9cb762df581",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0045.stdout.txt (node probes/f03-continuation.js --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0046",
+    "family": "F03",
+    "mechanism": "sira",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "98fdd7033d1332c44f2d6bcc9a3db0fea22ec47ad2adb2dfc5e239ca8a9665e5",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0046.stdout.txt (node probes/f03-continuation.js --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0047",
+    "family": "F03",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "6535aa8b683e33f0fa4b27a03474c11e2efa1a83c40204fef2d059767716dfda",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0047.stdout.txt (node probes/f03-continuation.js --mech iptal-oncesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0048",
+    "family": "F03",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "a0899d305612f34286e6eb1a44092ff9c62540d6371dc65f9573225f11830775",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0048.stdout.txt (node probes/f03-continuation.js --mech iptal-ortasi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0049",
+    "family": "F03",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "4f5ac60d2e42978a04acd54b9783d1743a5b6a326056af1633d47ac32337a565",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0049.stdout.txt (node probes/f03-continuation.js --mech gec-sonuc, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0050",
+    "family": "F03",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "0a5280f4d6486284e00d265cb184806dd14df3c17bffff09f86b27a529a50bfd",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0050.stdout.txt (node probes/f03-continuation.js --mech kaynak-degisimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0051",
+    "family": "F03",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "51711800137aef751d3f3d5be56e25df2a6e699c0bdbfeb883d431c326b25372",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0051.stdout.txt (node probes/f03-continuation.js --mech es-zamanli, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0052",
+    "family": "F03",
+    "mechanism": "kesik",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "927d73a68093b120c2a806747a124c557a0a442ef6f7daa1eac3ca6fcac3d850",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0052.stdout.txt (node probes/f03-continuation.js --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0053",
+    "family": "F03",
+    "mechanism": "hata",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "340b1f87aa73fbf55e9f77fad465208f2e8f8a2aa7516309e6516ca3353dfeb3",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0053.stdout.txt (node probes/f03-continuation.js --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0054",
+    "family": "F03",
+    "mechanism": "timeout",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "889d39223175b952345cbc0738d29a5a070ccfcd7073b3151dd919ebc566b995",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0054.stdout.txt (node probes/f03-continuation.js --mech timeout, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0055",
+    "family": "F03",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "639d56df481d532fc4bd4dfdae3e55e6bdfa695957c4f4e9341c639e88c43f01",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0055.stdout.txt (node probes/f03-continuation.js --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0056",
+    "family": "F03",
+    "mechanism": "donusum",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "38cc2078e32fff3553cda2209720a1f2660615261ad95d7e97df4e8c1353823b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0056.stdout.txt (node probes/f03-continuation.js --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0057",
+    "family": "F03",
+    "mechanism": "yetki",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "873031fb128f37c610052692d12f8abac91f6d54f6acf19a65f86ead90a061eb",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0057.stdout.txt (node probes/f03-continuation.js --mech yetki, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0058",
+    "family": "F03",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "78fb19353d697c2695e26684a11cabd9e9bd9798abafc00e493faa958aea814f",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0058.stdout.txt (node probes/f03-continuation.js --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0059",
+    "family": "F03",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "aeb035b58989f7b3469176ea97c7cb0b090a73b592df19577881f101a2f2ba49",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0059.stdout.txt (node probes/f03-continuation.js --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0060",
+    "family": "F03",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "src/assistant-flows.js"
+    ],
+    "signature": "d8bbb3684509848a213860ff554656f78592d404587362da922b621a9486ee42",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0060.stdout.txt (node probes/f03-continuation.js --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0061",
+    "family": "F04",
+    "mechanism": "normal",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "7d29df34c884c8c2a201661a8172ea4bbe34cb8fcc5841b6b21a2818223ef0bd",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0061.stdout.txt (node probes/f04-capabilities.js --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0062",
+    "family": "F04",
+    "mechanism": "bos",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "34106ef61fb86913a341456090a49d1720ea7081212fe622b830f26c8c127dd4",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0062.stdout.txt (node probes/f04-capabilities.js --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0063",
+    "family": "F04",
+    "mechanism": "sinir",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "f6d1cb9caac8485239005d8ce3d3f70d7c1cff31d749e4eb1c720eeb0b82f1bd",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0063.stdout.txt (node probes/f04-capabilities.js --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0064",
+    "family": "F04",
+    "mechanism": "unicode",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "debe74859fc4bc534bb4febf9b8055ed098b501da246a7e652a1522cf0120222",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0064.stdout.txt (node probes/f04-capabilities.js --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0065",
+    "family": "F04",
+    "mechanism": "yinelenen",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "996d15fe954d2f4377cb8977b7ad7824df362008882a97af640f7c42ead1aa7b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0065.stdout.txt (node probes/f04-capabilities.js --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0066",
+    "family": "F04",
+    "mechanism": "sira",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "22cc7b2d21f0fec5984be08fff31751e70b857f0fcd8eec427371bf41e3b924d",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0066.stdout.txt (node probes/f04-capabilities.js --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0067",
+    "family": "F04",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "fbb9cf6404f4ea44ff33573febcba9edeead9ebc02d5527250ce293456c02815",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "assistant-capabilities saf ve senkron sema moduludur; iptal edilecek bir islem/akisi yok."
+  },
+  {
+    "id": "N0068",
+    "family": "F04",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "6743d7b81f33b5df3d1ce3f204b9393dde6b393388692c0f1bc781ab70f9acf4",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Sema modulunde surdurulen islem yok; iptal yuzeyi yalniz cagiran katmanda (agent-service) bulunur."
+  },
+  {
+    "id": "N0069",
+    "family": "F04",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "2425b2ba492eed98904a5d23aebb8d78a7301748408cbb1387678d7820ab909d",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Deger donduren senkron fonksiyonlar; gecikmis sonuc/kuyruk kavrami yok."
+  },
+  {
+    "id": "N0070",
+    "family": "F04",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "13c29148779e75b50ff499aff89f28fd091571dfd0d11220d84aa3edc256cfd6",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0070.stdout.txt (node probes/f04-capabilities.js --mech kaynak-degisimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0071",
+    "family": "F04",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "38e577c6d249039327c99a61c5abf6f6d21c9b32fd8539e766d781eaeacd3ed0",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Modul durumsuz ve senkrondur; es zamanli cagrilar arasinda paylasilan degistirilebilir durum yok (N0070 determinizm ile dogrulandi)."
+  },
+  {
+    "id": "N0072",
+    "family": "F04",
+    "mechanism": "kesik",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "1383e6cff6af261666c55b632742991bad15f04b2de0e7c2983f8802dbb00eff",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0072.stdout.txt (node probes/f04-capabilities.js --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0073",
+    "family": "F04",
+    "mechanism": "hata",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "4ae2afe588683129bce32dd4fe90d3b99de0259f80c8c0d826ba680ca6a78c0b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0073.stdout.txt (node probes/f04-capabilities.js --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0074",
+    "family": "F04",
+    "mechanism": "timeout",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "96173971376c1acb122af360ace65af6e1ac93af3803ea674517864722c7f48f",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Sema dogrulama zaman asimi uretmez; butun cagrilar senkron ve sabit maliyetli."
+  },
+  {
+    "id": "N0075",
+    "family": "F04",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "724382a8bb97c1feb398a7a5deb5b8e8961395370876c37146cd153da9e56741",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0075.stdout.txt (node probes/f04-capabilities.js --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0076",
+    "family": "F04",
+    "mechanism": "donusum",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "0236697f4f569c0a84f8b67a66debd8414c55c9bc74eedb71c1c006fd9c83007",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0076.stdout.txt (node probes/f04-capabilities.js --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0077",
+    "family": "F04",
+    "mechanism": "yetki",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "c6a03d22fc919f330a0af172128ca3e1ae886e92689ca729d82356e119b5bb72",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0077.stdout.txt (node probes/f04-capabilities.js --mech yetki, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0078",
+    "family": "F04",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "4d6f26449ff911442c9c2f3a2c5813bebd7648ab7a6c2e32e974fc923902ad6a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0078.stdout.txt (node probes/f04-capabilities.js --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0079",
+    "family": "F04",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "122c12e7759e2bc216dd58089e904019b3ea2d3fc0b3788b048ba7c179c96d3c",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0079.stdout.txt (node probes/f04-capabilities.js --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0080",
+    "family": "F04",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "src/assistant-capabilities.js"
+    ],
+    "signature": "81c0ba991a90338efc86faa38450f9d136d8dff7ec70cebe2713e918663fc328",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg01-N0080.stdout.txt (node probes/f04-capabilities.js --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  }
+]

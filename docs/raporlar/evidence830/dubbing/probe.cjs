@@ -1,0 +1,26 @@
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const {JSDOM}=require('jsdom');const root=path.resolve(__dirname,'../../../..');
+const outputBase=path.resolve(process.env.AUDIT830_OUT||path.join(root,'.uiprev/audit830-dubbing-'+Date.now()));fs.mkdirSync(outputBase,{recursive:true});
+const dom=new JSDOM(fs.readFileSync(path.join(root,'src/renderer/index.html'),'utf8'),{runScripts:'outside-only'});
+const w=dom.window,el=id=>w.document.getElementById(id),tick=()=>new Promise(setImmediate);
+w.HTMLElement.prototype.scrollIntoView=()=>{};w.HTMLMediaElement.prototype.load=()=>{};w.HTMLMediaElement.prototype.pause=()=>{};w.HTMLMediaElement.prototype.play=async()=>{};
+w.syncBrowserOcclusion=()=>{};w.UiLocale={get:()=> 'en',t:s=>s};
+const context={mode:'player',tabId:'player',mediaKey:'fixture',mediaId:'fixture',generation:1,visible:true,hasMedia:true};
+w.BrowserDubAudioUI={context:()=>({...context}),seekSource:async()=>true,pauseSource:async()=>true,stop(){},setMix(){}};
+w.DubWorkspaceModel=require(path.join(root,'src/renderer/dub-workspace-model'));w.DubSyncMap=require(path.join(root,'src/renderer/dub-sync-map'));w.DubRunInfo=require(path.join(root,'src/renderer/dub-run-info'));w.DubExperienceModel=require(path.join(root,'src/renderer/dub-experience-model'));
+w.api={onDubEvent(){},saveDubPronunciations:async()=>({ok:true,entries:[],pronunciations:[]}),dubConfig:async()=>({ok:true,ready:true,pronunciations:[]})};
+for(const file of ['dub-workspace-ui.js','dub-generator-ui.js'])w.eval(fs.readFileSync(path.join(root,'src/renderer',file),'utf8'));
+const rows=[{key:'ready-first',group:1,text:'Ready first sentence',sourceStart:2,sourceEnd:4,audioStart:2,audioEnd:4,status:'ready',verification:{status:'passed'}},{key:'review-second',group:2,text:'Review second sentence',sourceStart:8,sourceEnd:10,audioStart:8,audioEnd:10,status:'review',verification:{status:'review'}}];
+const output={path:'synthetic.wav',url:'file:///synthetic.wav',name:'synthetic',quality:{groups:rows}};
+const audio=el('dubGeneratedPreview');let position=0,isPaused=true,plays=0;
+Object.defineProperties(audio,{duration:{configurable:true,get:()=>12},readyState:{configurable:true,get:()=>1},currentTime:{configurable:true,get:()=>position,set:v=>{position=v;}},paused:{configurable:true,get:()=>isPaused},seeking:{configurable:true,get:()=>false}});
+audio.pause=()=>{if(!isPaused){isPaused=true;audio.dispatchEvent(new w.Event('pause'));}};audio.play=async()=>{plays++;isPaused=false;audio.dispatchEvent(new w.Event('play'));};
+(async()=>{const results=[];el('dubGeneratorDialog').open=true;
+for(const filter of ['all','review']){w.DubWorkspaceUI.setOutput(output);w.dispatchEvent(new w.CustomEvent('dub-workspace:loaded',{detail:output}));await tick();
+w.document.querySelector(`[data-quality-filter="${filter}"]`).click();
+el('dubTimeline').querySelector('[data-key="ready-first"]').click();await tick();
+const before={timeline:el('dubTimeline').querySelector('[aria-pressed="true"]').dataset.key,quality:el('dubQualityGroup').value};
+el('dubTimelineContextListen').click();await tick();
+const after={timeline:el('dubTimeline').querySelector('[aria-pressed="true"]').dataset.key,quality:el('dubQualityGroup').value,position,plays,info:el('dubTimelineInfo').textContent};results.push({filter,before,after});el('dubMixStop').click();}
+assert.equal(results[0].after.position,.75);assert.equal(results[0].after.timeline,'ready-first');assert.equal(results[1].before.timeline,'ready-first');assert.equal(results[1].after.timeline,'review-second');assert.equal(results[1].after.position,6.75);
+const report={head:'6d4c2d661257263f0f9414b2bdf8ba53f84513c9',results};fs.writeFileSync(path.join(outputBase,'result.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));dom.window.close();})().catch(e=>{console.error(e);dom.window.close();process.exitCode=1});

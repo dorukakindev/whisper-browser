@@ -1,0 +1,862 @@
+[
+  {
+    "id": "N0421",
+    "family": "F22",
+    "mechanism": "normal",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "fdf210d4a8c3580adcabae984801f4aa39332a64eced75c3b177cd302455e5e5",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0421.stdout.txt (node probes/p22-dub-warm.js --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0422",
+    "family": "F22",
+    "mechanism": "bos",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "afb94c6f7788d132a66873d9575e35ebfd41fe138b560e9906c1b14d1a7b732e",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0422.stdout.txt (node probes/p22-dub-warm.js --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0423",
+    "family": "F22",
+    "mechanism": "sinir",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "228e3ace9b4d1ee8985151f5e1f15fce2184b6e529308ed91d2486dcce26d31b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0423.stdout.txt (node probes/p22-dub-warm.js --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0424",
+    "family": "F22",
+    "mechanism": "unicode",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "bedeca99759ac8b5515b5ae3fe2b4a2e9ebe977430616c7724014b3d7f7d017b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0424.stdout.txt (node probes/p22-dub-warm.js --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0425",
+    "family": "F22",
+    "mechanism": "yinelenen",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "e15816ea99b23c76262348e2cc24ef1288500b0016ccdd90d276fd43a61e20bf",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0425.stdout.txt (node probes/p22-dub-warm.js --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0426",
+    "family": "F22",
+    "mechanism": "sira",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "74ed2c07597f41618ba06166575a0a1e92e0b17a11f0f3872a04a683c1ceb17d",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0426.stdout.txt (node probes/p22-dub-warm.js --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0427",
+    "family": "F22",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "c1d7ce0608cadbab8b07b77ea97acecf4faea5e22bd18a363c2ddf4acc1476fa",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0427.stdout.txt (node probes/p22-dub-warm.js --mech iptal-oncesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0428",
+    "family": "F22",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "0e47740034d19cad0c8931bd91923c33562c32903e803d2ad8f5474223b32761",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0428.stdout.txt (node probes/p22-dub-warm.js --mech iptal-ortasi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0429",
+    "family": "F22",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "0d064cbb3b7a3f5da808644c617776a1027182d8ee6f150f8955eb9b22243559",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0429.stdout.txt (node probes/p22-dub-warm.js --mech gec-sonuc, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0430",
+    "family": "F22",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "581b3f2989a7c1a3fdf7137e285d627e70b04d907e85b9f447bbde8058abb3c7",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0430.stdout.txt (node probes/p22-dub-warm.js --mech kaynak-degisimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0431",
+    "family": "F22",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "e36513073427e06bdb4ca359b62dd03a7fcd427d6f3edd508e1a696f906a2619",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0431.stdout.txt (node probes/p22-dub-warm.js --mech es-zamanli, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0432",
+    "family": "F22",
+    "mechanism": "kesik",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "d359375f973ed786648ae5b8c8f4cb32fbda819fa39331f439b12ff268d6639c",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0432.stdout.txt (node probes/p22-dub-warm.js --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0433",
+    "family": "F22",
+    "mechanism": "hata",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "2a3bb4bfe823c9dbc636e0c94d00954896bfdda2661ea136cf972914c44e55fa",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0433.stdout.txt (node probes/p22-dub-warm.js --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0434",
+    "family": "F22",
+    "mechanism": "timeout",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "398622ba616ecc29a46e151c07006bf9c1ce5f57b4adedb62e285921b0210589",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0434.stdout.txt (node probes/p22-dub-warm.js --mech timeout, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0435",
+    "family": "F22",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "2ca03d0a1c5d1f0dfc53f57b725a4f6b4dc332f5c83fed30023df19c6f38faa4",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0435.stdout.txt (node probes/p22-dub-warm.js --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0436",
+    "family": "F22",
+    "mechanism": "donusum",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "1d8e9fb4c4f8550eee503fd53a77e83655331bb0be3b1abe2bf5ce83b3eadae8",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0436.stdout.txt (node probes/p22-dub-warm.js --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0437",
+    "family": "F22",
+    "mechanism": "yetki",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "0cb01fe092e7609d9582de7a8519839b40d27fe87ae01eeaa65eadcc8b00566d",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0437.stdout.txt (node probes/p22-dub-warm.js --mech yetki, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0438",
+    "family": "F22",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "808934eb8ce71f62c4c190212b54e2cce2a509caf0394e50372e8fecdf080c31",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0438.stdout.txt (node probes/p22-dub-warm.js --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0439",
+    "family": "F22",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "d75df2b841709036593c79698f1569fc57dbf0fb61d53babbc7cb2141675d26c",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0439.stdout.txt (node probes/p22-dub-warm.js --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0440",
+    "family": "F22",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "src/dub-service.js",
+      " tests/dub-engine-worker.test.js"
+    ],
+    "signature": "98aadc19b2c5b33dadf0e19d1bf3feb2ca21fb75b6c8fbc1b220b77003e05d9a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg05-N0440.stdout.txt (node probes/p22-dub-warm.js --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0501",
+    "family": "F26",
+    "mechanism": "normal",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "13c505a5765ab82463b4a51872ae1489a21504d5ebeab522ad364e6ce092679a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg06-N0501.stdout.txt (node probes/p26-voice-reference.js --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0502",
+    "family": "F26",
+    "mechanism": "bos",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "6025200a3d18cc10c0fc6f8f2ed669bfc5de75a99b3d24e6001bf3971db234a2",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg06-N0502.stdout.txt (node probes/p26-voice-reference.js --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0503",
+    "family": "F26",
+    "mechanism": "sinir",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "0f13cedd35ad335028028f50651876098de90f9258b353e8b9770d62cab73cec",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg06-N0503.stdout.txt (node probes/p26-voice-reference.js --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0504",
+    "family": "F26",
+    "mechanism": "unicode",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "cf784b5f6dfaec52310778bd2a2f428a1687e6cb33406ffddbc1bc075a771e3b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg06-N0504.stdout.txt (node probes/p26-voice-reference.js --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0505",
+    "family": "F26",
+    "mechanism": "yinelenen",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "8d6a1e32a7cb20551c26c2275331c5cac8cc58ac9d11e580c1a0383e63eab86d",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg06-N0505.stdout.txt (node probes/p26-voice-reference.js --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0506",
+    "family": "F26",
+    "mechanism": "sira",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "724153878c8c8f4af30c2ee4134fe1f38f97e1d4f78ac123689c0ee3bf101e3a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg06-N0506.stdout.txt (node probes/p26-voice-reference.js --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0507",
+    "family": "F26",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "d852f7a592da2f25b02232c5fb2271b3be32292857162dd688c038766cf82bd1",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg06-N0507.stdout.txt (node probes/p26-voice-reference.js --mech iptal-oncesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0508",
+    "family": "F26",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "1348e358afec0fb0baf34ba5d173178b26bb794634e56d7691ceb8a44233a648",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg06-N0508.stdout.txt (node probes/p26-voice-reference.js --mech iptal-ortasi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0509",
+    "family": "F26",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "ff9d3d18981d2367d02fffd7087f5de3dc5d0e6085f1c99520d3b276baf69b8a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg06-N0509.stdout.txt (node probes/p26-voice-reference.js --mech gec-sonuc, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0510",
+    "family": "F26",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "6b6d83fdf29980311a593321b829d723d3351531fafb16fb8dbe142b657ab42f",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg06-N0510.stdout.txt (node probes/p26-voice-reference.js --mech kaynak-degisimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0511",
+    "family": "F26",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "6bb437811cf74b96beb5d80c5f49d14539432fa1a2bcf09d0db175f742f58dc0",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg06-N0511.stdout.txt (node probes/p26-voice-reference.js --mech es-zamanli, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0512",
+    "family": "F26",
+    "mechanism": "kesik",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "e7e248799fa8437647dadf8c2fa9755bde9d899905149108e06c97d35813e61e",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg06-N0512.stdout.txt (node probes/p26-voice-reference.js --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0513",
+    "family": "F26",
+    "mechanism": "hata",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "874cc5e02974598bfc9d6d36544ef7021e367a9c368874ca7afb555dbb7b7dd7",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg06-N0513.stdout.txt (node probes/p26-voice-reference.js --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0514",
+    "family": "F26",
+    "mechanism": "timeout",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "c05a84d54da6faeecd61f96f34490c2e922716430918364278445bb6a565f29f",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg06-N0514.stdout.txt (node probes/p26-voice-reference.js --mech timeout, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0515",
+    "family": "F26",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "b64d4111785bf043ea28275ac89fd5b446f874b83e64953c87bc72864dd46c2b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg06-N0515.stdout.txt (node probes/p26-voice-reference.js --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0516",
+    "family": "F26",
+    "mechanism": "donusum",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "0dce01a03bffacdeb90879c2005318d0ae3bd3780e3c3e8d230c835577013f30",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg06-N0516.stdout.txt (node probes/p26-voice-reference.js --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0517",
+    "family": "F26",
+    "mechanism": "yetki",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "1ded63c32e1457fcc2f27444b8280e10c748ffd1a757fe51d6ea58ca86049d2b",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Yetki/izin kararı dub-service ve main katmanında; bu modül yalnız verilen yolları kullanır."
+  },
+  {
+    "id": "N0518",
+    "family": "F26",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "db6446acb7738daac945745964ce86ebf405e0368462dda79d703010b539f130",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg06-N0518.stdout.txt (node probes/p26-voice-reference.js --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0519",
+    "family": "F26",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "bea7b22f7b554c86a52519cb59a7f098c40cdfe5d8011a9869a90483a182f3e2",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg06-N0519.stdout.txt (node probes/p26-voice-reference.js --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0520",
+    "family": "F26",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "src/voice-reference.js",
+      " tests/dub-reference-pairing.test.js"
+    ],
+    "signature": "784c887182d9d454db8037c2e8f3acb44803f096ee932621e164f21f06b37676",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg06-N0520.stdout.txt (node probes/p26-voice-reference.js --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0981",
+    "family": "F50",
+    "mechanism": "normal",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "f33e6871dd99251ce3d504f7ec09b4bb692b78ad0610968ceddec27e32fa5708",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0981.stdout.txt (node probes/p50-settings-secret-atomic.js --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0982",
+    "family": "F50",
+    "mechanism": "bos",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "63ad0aec328d4ebe7ce81ea552472f52da0f69130ba9aaaa717e42c944aa967f",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0982.stdout.txt (node probes/p50-settings-secret-atomic.js --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0983",
+    "family": "F50",
+    "mechanism": "sinir",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "c9500445ddc7de82c4622cd3365b60b8007efef7d2e64e1d8b0494d9bf9f2d23",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0983.stdout.txt (node tests/settings-security.test.js, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0984",
+    "family": "F50",
+    "mechanism": "unicode",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "5c0f8b3c5efecd11137703c6861b5c5674842a78d23e184574b9adc06b846b3c",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0984.stdout.txt (node probes/p50-settings-secret-atomic.js --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0985",
+    "family": "F50",
+    "mechanism": "yinelenen",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "b9342a02af10920f87985a0dd59aa4d9f67ecd2579c5446db28fd4cafe982b54",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0985.stdout.txt (node probes/p50-settings-secret-atomic.js --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0986",
+    "family": "F50",
+    "mechanism": "sira",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "008e6730424aef4ddde3a6084a3bbbae5b42ee32c0f55eb44745f13be69f73af",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0986.stdout.txt (node probes/p50-settings-secret-atomic.js --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0987",
+    "family": "F50",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "c853d0bcb7c5561348b04566ec51351480c8b2bb167f3d620ce58eecfc6a5e3b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0987.stdout.txt (node probes/p50-settings-secret-atomic.js --mech iptal-oncesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0988",
+    "family": "F50",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "5bf79cf1486d15c2d896afc0088acf9230ab88d031b70b2e328fb04cc6ff7b35",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0988.stdout.txt (node probes/p50-settings-secret-atomic.js --mech iptal-ortasi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0989",
+    "family": "F50",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "e518416ce98cbc677823fb5cacc3c97746b83909e7823bff2b01a7c12866b526",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0989.stdout.txt (node probes/p50-settings-secret-atomic.js --mech gec-sonuc, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0990",
+    "family": "F50",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "9f0b902233c1a2d593cadb0c3883a4cfcf39869e6e1df1b175e30d84c4e34e8e",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0990.stdout.txt (node probes/p50-settings-secret-atomic.js --mech kaynak-degisimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0991",
+    "family": "F50",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "0e5c778a8d5786f5097fa8882ec11cd5766506b847d973bf163c8b08031f2847",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Ayar/kasa yazımları senkron fs işlemleridir; eşzamanlı yazım sözleşmesi main.js kuyruk/tek-yazar katmanındadır, bu modülde kilit yok."
+  },
+  {
+    "id": "N0992",
+    "family": "F50",
+    "mechanism": "kesik",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "67896032894f9e322825e085b3d785e545b47de28a78830205467028f51ac0e9",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0992.stdout.txt (node tests/secret-store-recovery.test.js, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0993",
+    "family": "F50",
+    "mechanism": "hata",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "236426c197ba58d91b73e0669c86da5451255fa733c6eb1221abc8696ae3e5f9",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0993.stdout.txt (node tests/atomic-write-kill.test.js, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0994",
+    "family": "F50",
+    "mechanism": "timeout",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "bf731b261d782898bfc9862d8aa8d954811eb9b83d57491189ef6ccbad1a2531",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Modüllerde zamanlayıcı/alt süreç yok; timeout sözleşmesi bulunmaz."
+  },
+  {
+    "id": "N0995",
+    "family": "F50",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "be4819346950bfbdd38e0c9c15e058d5ebc58600e6432395675195603fdf2e85",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0995.stdout.txt (node probes/p50-settings-secret-atomic.js --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0996",
+    "family": "F50",
+    "mechanism": "donusum",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "f860a6f43408707a2dff1ed965426b6f77cfd458e2d63d60a05d86a6b1567c34",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0996.stdout.txt (node probes/p50-settings-secret-atomic.js --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0997",
+    "family": "F50",
+    "mechanism": "yetki",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "6c3686dcb0990fd41b89a068a8c76e23dcf1565ff75793892500fa1553eeb65a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0997.stdout.txt (node probes/p50-settings-secret-atomic.js --mech yetki, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0998",
+    "family": "F50",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "bf18f1b7957c5223b72346ea4ea2936efa94c819a74c1158c14e202c4994c353",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0998.stdout.txt (node probes/p50-settings-secret-atomic.js --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0999",
+    "family": "F50",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "14857e58a4317de71d6662cfb6eb0361f0d51f31b2881c830e40daab8eb2ad8c",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N0999.stdout.txt (node probes/p50-settings-secret-atomic.js --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N1000",
+    "family": "F50",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "src/settings-security.js",
+      " src/provider-api-keys.js",
+      " src/fsync-utils.js"
+    ],
+    "signature": "20b6b23a261410d45fd47898f692ad0e9a89ce858c1daa440a8f165ce44fc35a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg10-N1000.stdout.txt (node probes/p50-settings-secret-atomic.js --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  }
+]

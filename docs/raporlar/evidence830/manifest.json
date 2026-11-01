@@ -1,0 +1,163 @@
+{
+  "schema": 1,
+  "report": "BROWSER_BUG_REPORT_830.md",
+  "revision": "6d4c2d661257263f0f9414b2bdf8ba53f84513c9",
+  "hash_method": "SHA256 UTF-8 with CRLF normalized to LF",
+  "new_bugs": [
+    "F830-01",
+    "F830-02"
+  ],
+  "reopened": [
+    {
+      "id": "R830-01",
+      "prior": "R815-B98"
+    }
+  ],
+  "improvements": [
+    "G830-01",
+    "G830-02",
+    "G830-03",
+    "G830-04",
+    "G830-05",
+    "G830-06"
+  ],
+  "fixes_applied": false,
+  "historical_references": 300,
+  "unique_historical_rows": 260,
+  "sources": [
+    {
+      "path": "src/dub-service.js",
+      "sha256_lf": "973cec29cc216fee7386776e3d4765663c9bae43fc84125d70ff608f0fd5ff1e"
+    },
+    {
+      "path": "src/dub-pronunciation-store.js",
+      "sha256_lf": "01d2c5d9f558184ff9531123d03aa2589a91221c7a80e71fdd15cd0aaa9faeed"
+    },
+    {
+      "path": "src/dub-pronunciation.js",
+      "sha256_lf": "6ba1190d4a408cc6f113e20ab08d6d896afd5b41b585a99da12c78bf429ab5e5"
+    },
+    {
+      "path": "src/dub-source-identity.js",
+      "sha256_lf": "401f753c2bffcd996349f026df85c27ed1865f50a094dc91ae5d17ab934339d7"
+    },
+    {
+      "path": "src/preload.js",
+      "sha256_lf": "15ba5aa7b46c84f440ffa27815ba4680909b48c35038a0456c07ecb677517582"
+    },
+    {
+      "path": "src/renderer/index.html",
+      "sha256_lf": "446134589985dd959c603a55ecfdae66596952bb75d49cb2d541c617f52cb5ba"
+    },
+    {
+      "path": "src/renderer/dub-workspace-ui.js",
+      "sha256_lf": "f6781550596de5c1071e94a706452d6a021e4880dab95586ad0586c47bcde326"
+    },
+    {
+      "path": "src/renderer/dub-generator-ui.js",
+      "sha256_lf": "df97b7eaec32cbef107a84cb938ea1611b9717f35060fb41e8882fc0ecf6e2a6"
+    },
+    {
+      "path": "src/renderer/dub-workspace-model.js",
+      "sha256_lf": "88e89d615e04b156b2453146af758aed0cd8d0448412026aa500efffb0022821"
+    },
+    {
+      "path": "src/renderer/dub-experience-model.js",
+      "sha256_lf": "8db9a6b8e9a82fea268ce38e74affabf34ca470720a1f21ef8df37b87360478b"
+    },
+    {
+      "path": "src/assistant-browser-research.js",
+      "sha256_lf": "f0665a230607abb82b25ce452c141cacfd52a2f19622270df8623f14285bffc0"
+    },
+    {
+      "path": "src/assistant-agent-service.js",
+      "sha256_lf": "1dbe8143580f465655b6c3d1d21153bfa824dea1956d538fd79377306afbe639"
+    },
+    {
+      "path": "src/assistant-provider.js",
+      "sha256_lf": "0573390da9e8dcd8a6db64c737b3e63b2a6ae01d7894793e1b24abfadea57603"
+    },
+    {
+      "path": "src/assistant-workflow-plan.js",
+      "sha256_lf": "a9ee2bcc6766d658f809afa602c386a91698115a6dd34ba4ea0a4f57c3659dd2"
+    },
+    {
+      "path": "src/main.js",
+      "sha256_lf": "0ebef330460249f2922ff658fe8c5a4140fea47994f7907848908bf6fab9a7a3"
+    },
+    {
+      "path": "src/renderer/review-decision-ui.js",
+      "sha256_lf": "15b7f0a71b72a030392bea7d9936399a9461ac8a4701eb422ee91e1c58ea908e"
+    },
+    {
+      "path": "src/renderer/media-tools-model.js",
+      "sha256_lf": "c52ae163cc4ac2ffe9e968b251924b635896988dc0da456f3608658c782bc2d3"
+    },
+    {
+      "path": "src/media-tools-service.js",
+      "sha256_lf": "01c443d177828c2b4fb34fa60e9427b5e00ea8a091900bd48ae0fe5794c71da2"
+    },
+    {
+      "path": "src/letterboxd-reviews.js",
+      "sha256_lf": "75271eeeea40f75c5a3b93bb00825f6612aa6fca40b1f194239129d1c90f8d6b"
+    },
+    {
+      "path": "src/taste-quiz.js",
+      "sha256_lf": "80f85ace12f9b956c870766e0b754daf83ff5f24c884a14c66388cf80391d522"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "docs/raporlar/evidence830/assistant/probe.cjs",
+      "sha256_lf": "872f3354dbadf91993a856d355100723898deafe134aaa05ffcd83bc742bd0a3"
+    },
+    {
+      "path": "docs/raporlar/evidence830/assistant/registry-reviewed.json",
+      "sha256_lf": "06dab75d479da4027c839227d8b36d3df3cd1f19653d42bc0ebc4e2f03694ed3"
+    },
+    {
+      "path": "docs/raporlar/evidence830/assistant/result.json",
+      "sha256_lf": "bfa69452f68bb3ce059cfee365b6959052cff91bd1e1c553646fe9b18c90c4fe"
+    },
+    {
+      "path": "docs/raporlar/evidence830/dubbing/probe.cjs",
+      "sha256_lf": "9227f6318a10446a6950c95841a721d0db305a3b947376d3f72bd8f19b5c1175"
+    },
+    {
+      "path": "docs/raporlar/evidence830/dubbing/registry-reviewed.json",
+      "sha256_lf": "e2350bd31aace99cc56d007a6b7775309ddcda5db5df1182c10b7e2f1a8ba6f9"
+    },
+    {
+      "path": "docs/raporlar/evidence830/dubbing/result.json",
+      "sha256_lf": "8726307a564cb639cda98c0cbff3390a11688ca8c1cf2542a1b9f38cf94998d5"
+    },
+    {
+      "path": "docs/raporlar/evidence830/films/probe.cjs",
+      "sha256_lf": "fa634bf281f136bd5064942a091451b83f8e14235d1f83bf05ac401ff5b030bb"
+    },
+    {
+      "path": "docs/raporlar/evidence830/films/registry-reviewed.json",
+      "sha256_lf": "44f18d115c4ab2a220a18edec7504d6c0ab1a5aa592a7053951a5d1077bdc774"
+    },
+    {
+      "path": "docs/raporlar/evidence830/films/result.json",
+      "sha256_lf": "fe21aa803d9b98ff9f1bdb604c453d269d08a41a96fdfb72dbce55703bdd7466"
+    },
+    {
+      "path": "docs/raporlar/evidence830/parent-verification.json",
+      "sha256_lf": "d90e215feb1f59909835be77f78de25e1f4947027be7208da085d0e9e3d0dad9"
+    },
+    {
+      "path": "docs/raporlar/evidence830/pronunciation/probe.cjs",
+      "sha256_lf": "e779a6688f0ddaf0d09e821bc3a13e377fe0bfe6071a26074c4e7cad12f573ba"
+    },
+    {
+      "path": "docs/raporlar/evidence830/pronunciation/registry-reviewed.json",
+      "sha256_lf": "a4c15ed8bcc94d95b0ccfcdda3f4e34aac71cd1f4af5dea0e737c6985a8bafe3"
+    },
+    {
+      "path": "docs/raporlar/evidence830/pronunciation/result.json",
+      "sha256_lf": "f068a26ee7df5bf577b831535b0405302e8ca6bd4084a1f018805fecc8ecb431"
+    }
+  ]
+}

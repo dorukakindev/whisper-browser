@@ -1,0 +1,80 @@
+{
+  "revision": "6d4c2d661257263f0f9414b2bdf8ba53f84513c9",
+  "agents": {
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "count": 3
+  },
+  "new_bugs": [
+    "F830-01",
+    "F830-02"
+  ],
+  "reopened": [
+    {
+      "id": "R830-01",
+      "prior": "R815-B98"
+    }
+  ],
+  "improvements": 6,
+  "fixes_applied": false,
+  "publication_probes": {
+    "count": 4,
+    "exit_codes": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "syntax_checks": 4,
+    "fresh_output_dirs": true
+  },
+  "existing_checks": [
+    {
+      "command": "node --test --test-isolation=none --test-name-pattern=\"B98:\" tests/report815-assistant-regressions.test.js",
+      "exit": 1,
+      "pass": 0,
+      "fail": 1,
+      "assertion": {
+        "expected": "",
+        "actual": "[W1] https://source5-1.example/article\n[W2] https://source5-2.example/article\n[W3] https://source5-3.example/article"
+      },
+      "classification": "Confirmed existing-test regression, not an environment failure; unchanged test."
+    },
+    {
+      "command": "node --test --test-isolation=none tests/dub-pronunciation-store.test.js tests/dub-pronunciation.test.js",
+      "exit": 0,
+      "pass": 3
+    },
+    {
+      "command": "node tests/dub-workspace-ui.test.js",
+      "exit": 0
+    },
+    {
+      "command": "node --test --test-isolation=none tests/dub-workspace.test.js",
+      "exit": 0,
+      "pass": 5
+    },
+    {
+      "command": "node --test --test-isolation=none tests/assistant-flow-state.test.js tests/assistant-quality829.test.js tests/review-analysis-context.test.js tests/letterboxd-sampling-critical.test.js",
+      "exit": 0,
+      "pass": 30
+    }
+  ],
+  "peer_review": [
+    "Dubbing: selection proof supported; narrowed source-get vs panel-open wording; P3 high precondition appropriate",
+    "Assistant: reopened vs new distinction supported; corrected proposal references to R618/R798/R829",
+    "Films: no new bug, proposal extensions and actual save/reuse controls supported"
+  ],
+  "limits": [
+    "Actual modules/UI scripts with jsdom/controlled audio transport, auth/grants/source context",
+    "Actual pronunciation service/config/store/get/start and film JSON/fsync; no executable generation",
+    "Actual research producer/agent/provider tool message; browser IO/provider HTTP controlled",
+    "No native Electron/audio/GPU/TTS/live-site/LLM/DRM/start.bat/install/long-soak acceptance",
+    "Audit assertions of wrong behavior passing do not mean fixes. Full npm/CI not run or awaited."
+  ],
+  "runtime": {
+    "node": "24.22.0",
+    "jsdom": "30.0.1"
+  },
+  "dependencies_added": []
+}
