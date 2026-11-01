@@ -1,8 +1,12 @@
-# R835 — Yorum okuma, örnek seçimi ve analiz düzeni
+# R836 — Yorum okuma, örnek seçimi ve analiz düzeni
 
 1 Kasım 2026. Başlangıç `8892c44b4e647e839b38eeb3ad99114901b036b3`; ürün commit'i `0096aa6db86453f055c7622938134755aa1a38c5`. Dal `codex/review-reading833`; çalışma kimliğindeki833, bağımsız işlevsel R833 raporunun numarası değildir. Eşzamanlı R834 yalnız belge teslimi değişmeden birleştirildi.
 
 Kullanıcı yorum/analiz alanının görünümünü yeniden tasarlamamı istedi. Bu teslim yalnız o akışı yeniler. R834'ün T16 önerisi karşılandı, T20 ortak kontrol disiplini yorum yüzeyinde uygulandı. R834'teki genel gezinme, Whisper stüdyosu, kalıcı dublaj sayfası, asistan alan bütçesi, browser görev grupları ve okuyucu odak modu bu paketle tamamlandı diye sunulmaz. R830/831/833 işlevsel denetimleri de bu tasarım tesliminin düzelttiği bug listesi değildir; mevcut kayıtlar korunur.
+
+## Eşzamanlı numara çakışması
+
+İlk yayımdan sonra ana kopya güncellemesi, başka sohbetin yerelde yeni oluşturduğu farklı içerikli `BROWSER_BUG_REPORT_835.md` dosyasına dokunmadan Git tarafından durduruldu. O dosya **asistan/browser/dublaj denetimi**; bu tasarım raporu değildir. Yerel yabancı rapor değiştirilmedi, taşınmadı veya commit'e alınmadı. Yalnız bu tasarım raporu ve kendi görsel klasörü836 olarak yeniden adlandırıldı. Önceki835 adı Git geçmişinde kalır; kanonik tasarım raporu R836'dır. Ürün kodu ve kabul sonuçları değişmedi.
 
 ## Tasarım kararı ve uygulama
 
@@ -28,39 +32,39 @@ Aynı kontrollü metinler, native Windows Electron, EN/TR. Ekran pikseli Windows
 ### Kaynak okuma
 
 Önce:
-![Önce kaynak](review835/before-loaded.png)
+![Önce kaynak](review836/before-loaded.png)
 
 Sonra:
-![Sonra kaynak](review835/after-loaded.png)
+![Sonra kaynak](review836/after-loaded.png)
 
 ### Türkçe önizleme,900CSS ve125% uygulama zoom
 
 Önce:
-![Önce önizleme](review835/before-preview.png)
+![Önce önizleme](review836/before-preview.png)
 
 Sonra:
-![Sonra önizleme](review835/after-preview.png)
+![Sonra önizleme](review836/after-preview.png)
 
 ### Analiz
 
-![Kayıtlı analiz, koyu/geniş](review835/analysis-dark.png)
+![Kayıtlı analiz, koyu/geniş](review836/analysis-dark.png)
 
 Dar/açık tema eski kanıt kartı:
-![Önce bağımsız analiz](review835/before-workspace.png)
+![Önce bağımsız analiz](review836/before-workspace.png)
 
 Dar/açık tema yeni anlatı sırası; eski profil uyarısı bilerek görünür:
-![Açık tema dar analiz](review835/analysis-light.png)
+![Açık tema dar analiz](review836/analysis-light.png)
 
-[Tamamı açılmış uzun kaynak](review835/long-source.png) · [Yerinde doğrulama hatası](review835/validation.png)
+[Tamamı açılmış uzun kaynak](review836/long-source.png) · [Yerinde doğrulama hatası](review836/validation.png)
 
 ## Kabul ve yeniden çalıştırma
 
-- **10 hedefli Node dosyası: 90 PASS / 0 FAIL**, exit0: review-workflow, film-review-editor/inline, review-analysis-contract/context/response-contract, review-discovery-handoff, letterboxd-full-text, design-system, ui-motion. [Gerçek günlük](review835/targeted-tests.log).
-- **41 final native görüntü**: EN1440 koyu, TR1440 koyu, TR900/125% koyu, EN620 açık. Öncesi 25 görüntü; 41 görüntü bağımsız bug sayısı değildir. [Metrikler ve etkileşimler](review835/native-evidence.json).
+- **10 hedefli Node dosyası: 90 PASS / 0 FAIL**, exit0: review-workflow, film-review-editor/inline, review-analysis-contract/context/response-contract, review-discovery-handoff, letterboxd-full-text, design-system, ui-motion. [Gerçek günlük](review836/targeted-tests.log).
+- **41 final native görüntü**: EN1440 koyu, TR1440 koyu, TR900/125% koyu, EN620 açık. Öncesi 25 görüntü; 41 görüntü bağımsız bug sayısı değildir. [Metrikler ve etkileşimler](review836/native-evidence.json).
 - Her kipte 6 kaynak DOM'da; sadece 1 görünür. Native seçici/r3→önceki/sonraki, uzun metni açma, sayfa içinde kesintisiz okuma, kaynak ve önizleme seçiminin yeniden açılışı, checkbox bütçesi/odak, gelişmiş kontroller, Tab/Escape, inline aç/kapat odak dönüşü denetlendi.
 - Dört kipte yapım onayı kaldırılıp Send: görünür yerelalert, edinim alanı kapalı, özgünJSON aynı ve **assistant:agentRun çağrısı0**.
 - Root/text overflow 0; her aktif yorum adımında en fazla 1 etkin primary. Geometri tek başına estetik başarı sayılmadı; son geniş/koyu, dar/açık, uzun metin ve Türkçe125% görüntüleri açılarak incelendi.
-- Önceki tam yorum regresyonu final kaynakta native exit0:7×14051 karakter, özgün son işaretleri, metadata/spoiler/120keditör/64kanaliz bütçesi ve no-provider korundu. Eski test yalnız sunum değişimine uyarlandı: yeni Tamamını oku eylemi ve gerçek kaynak paragrafına kaydırma. [Kanıt](review835/full-source-evidence.json).
+- Önceki tam yorum regresyonu final kaynakta native exit0:7×14051 karakter, özgün son işaretleri, metadata/spoiler/120keditör/64kanaliz bütçesi ve no-provider korundu. Eski test yalnız sunum değişimine uyarlandı: yeni Tamamını oku eylemi ve gerçek kaynak paragrafına kaydırma. [Kanıt](review836/full-source-evidence.json).
 - 4 JS syntax ve scoped diffcheck0. Impeccable layout detector `[]` exit0; bu sonuç görsel kalite kanıtı yerine kullanılmadı.
 
 Komutlar (proje kökünde):
