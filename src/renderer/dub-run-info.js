@@ -30,7 +30,7 @@
     if(failed)return en?`${failed} ${failed===1?'group':'groups'} could not be generated; those sections may be silent. Review groups before using the audio.`:`${failed} grup üretilemedi; bu bölümler sessiz olabilir. Sesi kullanmadan önce grupları kontrol edin.`;
     if(review)return en?`${review} ${review===1?'group needs':'groups need'} a listening check. Open Review groups to hear or regenerate them.`:`${review} grup dinleme kontrolü gerektiriyor. Dinlemek veya yeniden üretmek için Grupları dinle bölümünü açın.`;
     const verified=rows.filter(row=>row.verification?.status==='passed').length;
-    if(verified===rows.length)return en?`Text checks passed for ${rows.length===1?'the group':'all '+rows.length+' groups'}. Naturalness still needs listening.`:`${rows.length} grubun tamamı metin denetiminden geçti. Doğallığı dinleyerek değerlendirin.`;
+    if(verified===rows.length)return en?`Text checks passed against the supplied subtitles for ${rows.length===1?'the group':'all '+rows.length+' groups'}. This does not verify the original transcription. Naturalness still needs listening.`:`${rows.length} grubun tamamı altyazıya göre metin denetiminden geçti. Bu, özgün konuşmanın doğru çözümlendiğini kanıtlamaz. Doğallığı dinleyerek değerlendirin.`;
     return en?`${rows.length} ${rows.length===1?'group is':'groups are'} ready; ${verified} ${verified===1?'has':'have'} a passed text check. Unchecked groups are not verified readings.`:`${rows.length} grup hazır; ${verified} grubun metin denetimi geçti. Denetlenmeyen grupların doğru okunduğu doğrulanmadı.`;
   }
   function recipe(output,en){

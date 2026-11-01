@@ -12,7 +12,7 @@ function fixture(fetchImpl,extras={}){
 }
 const reply=message=>new Response(JSON.stringify({choices:[{message,finish_reason:'stop'}]}),{headers:{'content-type':'application/json'}});
 
-test('Whisper → exact translated track → voice → attachment advances only from applied matching receipts',async()=>{
+test('Whisper → exact translated track → failed voice retry → attachment retains completed stages and requires each approval',async()=>{
  const jobs=require('../src/assistant-jobs').createJobs();let textId,voiceId,turn=0,phase="start",phaseTurn=0,subtitleLoaded=false,voiceStarts=0,attached=false;
  const tool=(name,args={})=>reply({role:'assistant',tool_calls:[{id:'step-'+turn,function:{name,arguments:JSON.stringify(args)}}]});
  const goal='Whisper the first five minutes, translate for speech, then dub and attach.';
@@ -21,6 +21,7 @@ test('Whisper → exact translated track → voice → attachment advances only 
   if(phase==='start'&&phaseTurn===1)return tool('start_whisper',{translate:true,forSpeech:true,target_language:'tr',start:0,end:300});
   if(phase==='load'&&phaseTurn===1)return tool('start_voice_generation'); // Deliberately premature: old subtitles exist.
   if(phase==='load'&&phaseTurn===2){assert.match(body.messages.at(-1).content,/Load this exact job output/);return tool('use_job_subtitles',{job_id:textId,role:'translation'});}
+  if(phase==='retry'&&phaseTurn===1)return reply({role:'assistant',tool_calls:[{id:'restart',function:{name:'start_whisper',arguments:JSON.stringify({translate:true,forSpeech:true,target_language:'tr',start:0,end:300})}},{id:'attach-partial',function:{name:'use_generated_voice',arguments:'{"output_id":"voice-output"}'}},{id:'change-range',function:{name:'start_voice_generation',arguments:'{"sample":true}'}},{id:'retry-stage',function:{name:'start_voice_generation',arguments:'{}'}}]});
   if(phase==='voice'&&phaseTurn===1)return tool('start_voice_generation');
   if(phase==='attach'&&phaseTurn===1)return tool('use_generated_voice',{output_id:'voice-output'});
   return reply({role:'assistant',content:'Review the next real action.'});
@@ -44,6 +45,7 @@ test('Whisper → exact translated track → voice → attachment advances only 
   cards=await run('load');assert.equal(cards.length,1);assert.equal(cards[0].tool,'use_job_subtitles');assert.equal(voiceStarts,0);await apply(cards[0]);
   cards=await run('voice');assert.equal(cards[0]?.tool,'start_voice_generation');await apply(cards[0]);assert.equal(voiceStarts,1);
   const beforeWaiting=turn;assert((await h.call('agentRun',{requestId:'voice-wait',question:goal,owner:h.owner,continuationId:token})).waiting);assert.equal(attached,false);assert.equal(turn,beforeWaiting);
+  jobs.update(voiceId,{type:'error'});cards=await run('retry');assert.equal(cards.length,1);assert.equal(cards[0].tool,'start_voice_generation');assert.equal(voiceStarts,1,'Retry review must not generate audio');assert.equal(attached,false);assert.equal(h.events.filter(e=>e.value.type==='tool-step'&&e.value.step.state==='blocked').length,3);await apply(cards[0]);assert.equal(voiceStarts,2);
   jobs.update(voiceId,{type:'done'});cards=await run('attach');assert.equal(cards[0].tool,'use_generated_voice');await apply(cards[0]);assert(attached);
  }finally{h.app.emit('will-quit');}
 });
@@ -177,11 +179,11 @@ test('Applying is serialized and cancellation rejects late renderer receipts',as
 });
 
 
-test('An accepted exact linked job waits without provider calls and stops the flow on failure',async()=>{
+test('An accepted exact linked job waits without provider calls and keeps failed-stage evidence for reviewed retry',async()=>{
  const jobs=require('../src/assistant-jobs').createJobs();let turn=0,linked;
  const h=fixture(async()=>++turn===1?reply({role:'assistant',tool_calls:[{id:'page',function:{name:'translate_page',arguments:'{}'}}]}):reply({role:'assistant',content:'Proposed.'}),{getJobs:jobs.snapshot,resolveJobId:external=>external==='backend-exact'?linked:null});
  await h.call('agentRun',{requestId:'accepted-flow',question:'Translate then explain',owner:h.owner});const p=h.events.find(row=>row.value.type==='proposal').value.action;const apply=h.call('agentApply',{proposalId:p.proposalId,owner:h.owner});await new Promise(r=>setImmediate(r));const action=h.events.find(row=>row.value.type==='action').value;linked=jobs.start({});await h.call('agentResult',{callId:action.callId,result:{status:'accepted',jobId:'backend-exact'}});const receipt=await apply;assert(receipt.result.continuationId);
- const waiting=await h.call('agentRun',{requestId:'waiting-flow',question:'Continue',continuationId:receipt.result.continuationId,owner:h.owner});assert(waiting.waiting);assert.equal(turn,2);jobs.update(linked,{type:'error'});assert.equal((await h.call('agentRun',{requestId:'failed-flow',question:'Continue',continuationId:receipt.result.continuationId,owner:h.owner})).ok,false);assert.equal(turn,2);h.app.emit('will-quit');
+ const waiting=await h.call('agentRun',{requestId:'waiting-flow',question:'Continue',continuationId:receipt.result.continuationId,owner:h.owner});assert(waiting.waiting);assert.equal(turn,2);jobs.update(linked,{type:'error'});assert.equal((await h.call('agentRun',{requestId:'failed-flow',question:'Continue',continuationId:receipt.result.continuationId,owner:h.owner})).ok,true);assert.equal(turn,3);h.app.emit('will-quit');
 });
 
 test('Duplicate cards are emitted once; un-applied translation blocks dependent voice preparation',async()=>{

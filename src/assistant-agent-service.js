@@ -132,6 +132,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
     }
     if(entry.policy==='proposal'){
      attempted++;
+     if(!flows.retryAllowed(flow,name,args))return {status:'blocked',note:'The previous exact job failed. Only retry its same stage and arguments with a new approval card. Completed earlier stages and dependent stages are blocked.'};
      const signature=name+':'+JSON.stringify(Object.fromEntries(Object.keys(args).sort().map(key=>[key,args[key]])));
      if(offered.has(signature))return {...offered.get(signature),note:'This exact review card already exists. It has not run.'};
      const previous=[...offered.values()].map(row=>row.tool);

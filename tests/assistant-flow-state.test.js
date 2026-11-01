@@ -20,3 +20,5 @@ test('Only the exact completed job makes a continuation ready; running never res
  assert.equal(describe(row,[{id:'exact',state:'completed'}],1000).state,'expired');
  assert.equal(describe({expires:1000,waiting:false},[],0).ready,true);
 });
+
+test('Only a failed exact job offers stage retry; stopped and missing jobs stay closed',()=>{const row={jobId:'exact',waiting:true,expires:1000};for(const state of ['failed','stopped','running','cancelling','completed'])assert.equal(describe(row,[{id:'exact',state}],0).retryable===true,state==='failed');assert.equal(describe(row,[{id:'other',state:'failed'}],0).retryable===true,false);});

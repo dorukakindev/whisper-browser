@@ -10,7 +10,7 @@
   // successful jobs. Only terminal artifact descriptors establish a partial
   // translation; do not mistake process completion for complete translated text.
   const partial=job.state==='completed'&&job.result?.artifacts?.some(a=>a.partial===true||a.failed>0||Number.isSafeInteger(a.total)&&Number.isSafeInteger(a.completed)&&a.completed<a.total);
-  return {state:job.state==='completed'?(partial?'partial':'ready'):job.state,ready:job.state==='completed',waiting:false,partial:!!partial};
+  return {state:job.state==='completed'?(partial?'partial':'ready'):job.state,ready:job.state==='completed',retryable:job.state==='failed',waiting:false,partial:!!partial};
  }
  return Object.freeze({describe});
 });

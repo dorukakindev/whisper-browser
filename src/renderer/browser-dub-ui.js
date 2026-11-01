@@ -178,7 +178,8 @@
       byId('browserDubOffset').value = controller.offset;
       remember(snapshot()); controller.tick(); return true;
     },
-    stop: () => { if (controller.session) remember(snapshot()); return controller.remove(); }, checkContext: () => controller.tick(),
+    stop: () => { if (controller.session) remember(snapshot()); return controller.remove(); },
+    suspend: () => controller.suspend(), checkContext: () => controller.tick(),
     context,
     seekSource: async (seconds, expected) => {
       const c=context();

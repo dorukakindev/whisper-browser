@@ -15,10 +15,22 @@
       backgroundAudio?.addEventListener('loadedmetadata',()=>this.tick());
       for(const a of [backgroundAudio,musicAudio,ambienceAudio]){a?.addEventListener('loadedmetadata',()=>this.tick());a?.addEventListener('error',()=>this.layerFailed(a));}
     }
-    matches(s = this.session) {
+    owns(s = this.session) {
       const c = this.context();
-      return !!s && ['browser', 'player'].includes(c.mode) && c.mode === s.mode && c.visible !== false && c.tabId === s.tabId
+      return !!s && ['browser', 'player'].includes(c.mode) && c.mode === s.mode && c.tabId === s.tabId
         && c.mediaKey === s.mediaKey && c.generation === s.generation && (c.mediaId || '') === (s.mediaId || '');
+    }
+    matches(s = this.session) {
+      return this.owns(s) && this.context().visible !== false;
+    }
+    suspend() {
+      const s = this.session;
+      if (!s) return Promise.resolve();
+      this.sample = null;
+      this.rangeMute(s, !!s.priorMuted);
+      if (s.sync) this.videoRate(s, s.baseRate, true);
+      this.pauseAll();
+      return Promise.all([s.mutePromise, s.ratePromise]);
     }
     muteSession(s, muted, mode = 'update') {
       return this.mute(s.tabId, muted, s, mode);
@@ -212,7 +224,13 @@
     tick() {
       const s = this.session;
       if (!s) return;
-      if (!this.matches()) { void this.remove(); return; }
+      if (!this.owns()) { void this.remove(); return; }
+      // Home hides the same workspace; it does not choose a different source.
+      // Keep its decoded attachment and offset, but suspend audio and release
+      // the source controls until the user explicitly returns to the video.
+      if (!this.matches()) {
+        void this.suspend(); return;
+      }
       const m = this.sample, a = this.audio;
       if (!s.url || !m || this.now() - m.at > 2200 || m.adPlaying
           || m.spinnerVisible || (m.readyState !== undefined && m.readyState < 3)) {
