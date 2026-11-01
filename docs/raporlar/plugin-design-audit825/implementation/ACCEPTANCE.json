@@ -1,0 +1,4481 @@
+{
+  "base": "24e775672d9445cc7ce07d74adf030dbc3e5d05b",
+  "productCommit": "20c8dc0998c6bc2f4bbd93dac7479d964d30726f",
+  "fixture": true,
+  "providerCalls": 0,
+  "personalApplicationStopped": false,
+  "settings": {
+    "ok": true,
+    "phase": "after",
+    "states": [
+      {
+        "label": "1440-tr-ai",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "dialog": {
+          "left": 220,
+          "right": 1220,
+          "top": 120,
+          "bottom": 880
+        },
+        "content": {
+          "width": 779,
+          "scrollWidth": 779,
+          "height": 585
+        },
+        "save": {
+          "bottom": 863.3333740234375,
+          "right": 1191.3334197998047
+        },
+        "active": "ai",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "block"
+          },
+          {
+            "id": "manga",
+            "display": "block"
+          },
+          {
+            "id": "metadata",
+            "display": "block"
+          },
+          {
+            "id": "cleanup",
+            "display": "block"
+          },
+          {
+            "id": "general",
+            "display": "block"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "Sağlayıcı",
+          "Model",
+          "API anahtarı",
+          "Özel endpoint URL",
+          "Hedef dil",
+          "Asistan sağlayıcısı"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 362.1875,
+            "bottom": 404.1875,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 362.1875,
+            "bottom": 401.1875,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 442.1875,
+            "bottom": 481.1875,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "1440-tr-search-tmdb",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "dialog": {
+          "left": 220,
+          "right": 1220,
+          "top": 120,
+          "bottom": 880
+        },
+        "content": {
+          "width": 779,
+          "scrollWidth": 779,
+          "height": 585
+        },
+        "save": {
+          "bottom": 863.3333740234375,
+          "right": 1191.3334197998047
+        },
+        "active": "ai",
+        "visibleSections": [
+          {
+            "id": "metadata",
+            "display": "block"
+          }
+        ],
+        "search": "tmdb",
+        "labels": [
+          "Sağlayıcı",
+          "Model",
+          "API anahtarı",
+          "Özel endpoint URL",
+          "Hedef dil",
+          "Asistan sağlayıcısı"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 362.1875,
+            "bottom": 404.1875,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 362.1875,
+            "bottom": 401.1875,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 442.1875,
+            "bottom": 481.1875,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "1440-tr-search-opened",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "dialog": {
+          "left": 220,
+          "right": 1220,
+          "top": 120,
+          "bottom": 880
+        },
+        "content": {
+          "width": 779,
+          "scrollWidth": 779,
+          "height": 585
+        },
+        "save": {
+          "bottom": 863.3333740234375,
+          "right": 1191.3334197998047
+        },
+        "active": "metadata",
+        "visibleSections": [
+          {
+            "id": "metadata",
+            "display": "block"
+          }
+        ],
+        "search": "tmdb",
+        "labels": [
+          "TMDB API okuma belirteci / API anahtarı",
+          "Bilgi dili",
+          "Nerede izlenir · ülke"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "1440-tr-search-empty",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "dialog": {
+          "left": 220,
+          "right": 1220,
+          "top": 120,
+          "bottom": 880
+        },
+        "content": {
+          "width": 779,
+          "scrollWidth": 779,
+          "height": 585
+        },
+        "save": {
+          "bottom": 863.3333740234375,
+          "right": 1191.3334197998047
+        },
+        "active": "metadata",
+        "visibleSections": [],
+        "search": "no-such-setting-xyz",
+        "labels": [
+          "TMDB API okuma belirteci / API anahtarı",
+          "Bilgi dili",
+          "Nerede izlenir · ülke"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "1440-tr-advanced",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "dialog": {
+          "left": 220,
+          "right": 1220,
+          "top": 120,
+          "bottom": 880
+        },
+        "content": {
+          "width": 779,
+          "scrollWidth": 779,
+          "height": 585
+        },
+        "save": {
+          "bottom": 863.3333740234375,
+          "right": 1191.3334197998047
+        },
+        "active": "ai",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "block"
+          },
+          {
+            "id": "manga",
+            "display": "block"
+          },
+          {
+            "id": "metadata",
+            "display": "block"
+          },
+          {
+            "id": "cleanup",
+            "display": "block"
+          },
+          {
+            "id": "general",
+            "display": "block"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "Sağlayıcı",
+          "Model",
+          "API anahtarı",
+          "Özel endpoint URL",
+          "Hedef dil",
+          "Asistan sağlayıcısı"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": -152.4791717529297,
+            "bottom": -110.47917175292969,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": -152.4791717529297,
+            "bottom": -113.47917175292969,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": -72.47917175292969,
+            "bottom": -33.47917175292969,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "1440-tr-advanced-loading",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "dialog": {
+          "left": 220,
+          "right": 1220,
+          "top": 120,
+          "bottom": 880
+        },
+        "content": {
+          "width": 779,
+          "scrollWidth": 779,
+          "height": 585
+        },
+        "save": {
+          "bottom": 863.3333740234375,
+          "right": 1191.3334197998047
+        },
+        "active": "ai",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "block"
+          },
+          {
+            "id": "manga",
+            "display": "block"
+          },
+          {
+            "id": "metadata",
+            "display": "block"
+          },
+          {
+            "id": "cleanup",
+            "display": "block"
+          },
+          {
+            "id": "general",
+            "display": "block"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "Sağlayıcı",
+          "Model",
+          "API anahtarı",
+          "Özel endpoint URL",
+          "Hedef dil",
+          "Asistan sağlayıcısı"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": -229.4791717529297,
+            "bottom": -187.4791717529297,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": -229.4791717529297,
+            "bottom": -190.4791717529297,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": -149.4791717529297,
+            "bottom": -110.47917175292969,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "1440-tr-advanced-error",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "dialog": {
+          "left": 220,
+          "right": 1220,
+          "top": 120,
+          "bottom": 880
+        },
+        "content": {
+          "width": 779,
+          "scrollWidth": 779,
+          "height": 585
+        },
+        "save": {
+          "bottom": 863.3333740234375,
+          "right": 1191.3334197998047
+        },
+        "active": "ai",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "block"
+          },
+          {
+            "id": "manga",
+            "display": "block"
+          },
+          {
+            "id": "metadata",
+            "display": "block"
+          },
+          {
+            "id": "cleanup",
+            "display": "block"
+          },
+          {
+            "id": "general",
+            "display": "block"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "Sağlayıcı",
+          "Model",
+          "API anahtarı",
+          "Özel endpoint URL",
+          "Hedef dil",
+          "Asistan sağlayıcısı"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": -229.4791717529297,
+            "bottom": -187.4791717529297,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": -229.4791717529297,
+            "bottom": -190.4791717529297,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": -149.4791717529297,
+            "bottom": -110.47917175292969,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "1440-tr-metadata",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "dialog": {
+          "left": 220,
+          "right": 1220,
+          "top": 120,
+          "bottom": 880
+        },
+        "content": {
+          "width": 779,
+          "scrollWidth": 779,
+          "height": 585
+        },
+        "save": {
+          "bottom": 863.3333740234375,
+          "right": 1191.3334197998047
+        },
+        "active": "metadata",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "block"
+          },
+          {
+            "id": "manga",
+            "display": "block"
+          },
+          {
+            "id": "metadata",
+            "display": "block"
+          },
+          {
+            "id": "cleanup",
+            "display": "block"
+          },
+          {
+            "id": "general",
+            "display": "block"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "TMDB API okuma belirteci / API anahtarı",
+          "Bilgi dili",
+          "Nerede izlenir · ülke"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "1440-tr-cleanup",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "dialog": {
+          "left": 220,
+          "right": 1220,
+          "top": 120,
+          "bottom": 880
+        },
+        "content": {
+          "width": 779,
+          "scrollWidth": 779,
+          "height": 585
+        },
+        "save": {
+          "bottom": 863.3333740234375,
+          "right": 1191.3334197998047
+        },
+        "active": "cleanup",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "block"
+          },
+          {
+            "id": "manga",
+            "display": "block"
+          },
+          {
+            "id": "metadata",
+            "display": "block"
+          },
+          {
+            "id": "cleanup",
+            "display": "block"
+          },
+          {
+            "id": "general",
+            "display": "block"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "Endpoint (base URL)",
+          "Model",
+          "\n                  API Key\n                  platform.deepseek.com\n                ",
+          "Özel endpoint URL"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "1440-tr-general",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "dialog": {
+          "left": 220,
+          "right": 1220,
+          "top": 120,
+          "bottom": 880
+        },
+        "content": {
+          "width": 779,
+          "scrollWidth": 779,
+          "height": 585
+        },
+        "save": {
+          "bottom": 863.3333740234375,
+          "right": 1191.3334197998047
+        },
+        "active": "general",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "block"
+          },
+          {
+            "id": "manga",
+            "display": "block"
+          },
+          {
+            "id": "metadata",
+            "display": "block"
+          },
+          {
+            "id": "cleanup",
+            "display": "block"
+          },
+          {
+            "id": "general",
+            "display": "block"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "Arayüz teması"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "640-en-ai",
+        "viewport": {
+          "width": 640,
+          "height": 720
+        },
+        "dialog": {
+          "left": 10,
+          "right": 630,
+          "top": 32,
+          "bottom": 688
+        },
+        "content": {
+          "width": 609,
+          "scrollWidth": 609,
+          "height": 436
+        },
+        "save": {
+          "bottom": 673.3333740234375,
+          "right": 611.3333587646484
+        },
+        "active": "ai",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "none"
+          },
+          {
+            "id": "manga",
+            "display": "none"
+          },
+          {
+            "id": "metadata",
+            "display": "none"
+          },
+          {
+            "id": "cleanup",
+            "display": "none"
+          },
+          {
+            "id": "general",
+            "display": "none"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "Provider",
+          "Model",
+          "API key",
+          "Custom endpoint URL",
+          "Target language",
+          "Assistant provider"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 316.875,
+            "bottom": 358.875,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 396.875,
+            "bottom": 435.875,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 473.875,
+            "bottom": 512.875,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "640-en-search-tmdb",
+        "viewport": {
+          "width": 640,
+          "height": 720
+        },
+        "dialog": {
+          "left": 10,
+          "right": 630,
+          "top": 32,
+          "bottom": 688
+        },
+        "content": {
+          "width": 609,
+          "scrollWidth": 609,
+          "height": 358
+        },
+        "save": {
+          "bottom": 673.3333740234375,
+          "right": 611.3333587646484
+        },
+        "active": "ai",
+        "visibleSections": [
+          {
+            "id": "metadata",
+            "display": "block"
+          }
+        ],
+        "search": "tmdb",
+        "labels": [
+          "Provider",
+          "Model",
+          "API key",
+          "Custom endpoint URL",
+          "Target language",
+          "Assistant provider"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 394.66668701171875,
+            "bottom": 436.66668701171875,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 474.66668701171875,
+            "bottom": 513.6666870117188,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 551.6666870117188,
+            "bottom": 590.6666870117188,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "640-en-search-opened",
+        "viewport": {
+          "width": 640,
+          "height": 720
+        },
+        "dialog": {
+          "left": 10,
+          "right": 630,
+          "top": 32,
+          "bottom": 688
+        },
+        "content": {
+          "width": 609,
+          "scrollWidth": 609,
+          "height": 358
+        },
+        "save": {
+          "bottom": 673.3333740234375,
+          "right": 611.3333587646484
+        },
+        "active": "metadata",
+        "visibleSections": [
+          {
+            "id": "metadata",
+            "display": "block"
+          }
+        ],
+        "search": "tmdb",
+        "labels": [
+          "TMDB API Read Access Token / API Key",
+          "Information language",
+          "Where to watch · country"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "640-en-search-empty",
+        "viewport": {
+          "width": 640,
+          "height": 720
+        },
+        "dialog": {
+          "left": 10,
+          "right": 630,
+          "top": 32,
+          "bottom": 688
+        },
+        "content": {
+          "width": 609,
+          "scrollWidth": 609,
+          "height": 408
+        },
+        "save": {
+          "bottom": 673.3333740234375,
+          "right": 611.3333587646484
+        },
+        "active": "metadata",
+        "visibleSections": [],
+        "search": "no-such-setting-xyz",
+        "labels": [
+          "TMDB API Read Access Token / API Key",
+          "Information language",
+          "Where to watch · country"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "640-en-advanced",
+        "viewport": {
+          "width": 640,
+          "height": 720
+        },
+        "dialog": {
+          "left": 10,
+          "right": 630,
+          "top": 32,
+          "bottom": 688
+        },
+        "content": {
+          "width": 609,
+          "scrollWidth": 609,
+          "height": 436
+        },
+        "save": {
+          "bottom": 673.3333740234375,
+          "right": 611.3333587646484
+        },
+        "active": "ai",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "none"
+          },
+          {
+            "id": "manga",
+            "display": "none"
+          },
+          {
+            "id": "metadata",
+            "display": "none"
+          },
+          {
+            "id": "cleanup",
+            "display": "none"
+          },
+          {
+            "id": "general",
+            "display": "none"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "Provider",
+          "Model",
+          "API key",
+          "Custom endpoint URL",
+          "Target language",
+          "Assistant provider"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": -345.79168701171875,
+            "bottom": -303.79168701171875,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": -265.79168701171875,
+            "bottom": -226.79168701171875,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": -188.7916717529297,
+            "bottom": -149.7916717529297,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "640-en-advanced-loading",
+        "viewport": {
+          "width": 640,
+          "height": 720
+        },
+        "dialog": {
+          "left": 10,
+          "right": 630,
+          "top": 32,
+          "bottom": 688
+        },
+        "content": {
+          "width": 609,
+          "scrollWidth": 609,
+          "height": 436
+        },
+        "save": {
+          "bottom": 673.3333740234375,
+          "right": 611.3333587646484
+        },
+        "active": "ai",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "none"
+          },
+          {
+            "id": "manga",
+            "display": "none"
+          },
+          {
+            "id": "metadata",
+            "display": "none"
+          },
+          {
+            "id": "cleanup",
+            "display": "none"
+          },
+          {
+            "id": "general",
+            "display": "none"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "Provider",
+          "Model",
+          "API key",
+          "Custom endpoint URL",
+          "Target language",
+          "Assistant provider"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": -345.79168701171875,
+            "bottom": -303.79168701171875,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": -265.79168701171875,
+            "bottom": -226.79168701171875,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": -188.7916717529297,
+            "bottom": -149.7916717529297,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "640-en-advanced-error",
+        "viewport": {
+          "width": 640,
+          "height": 720
+        },
+        "dialog": {
+          "left": 10,
+          "right": 630,
+          "top": 32,
+          "bottom": 688
+        },
+        "content": {
+          "width": 609,
+          "scrollWidth": 609,
+          "height": 436
+        },
+        "save": {
+          "bottom": 673.3333740234375,
+          "right": 611.3333587646484
+        },
+        "active": "ai",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "none"
+          },
+          {
+            "id": "manga",
+            "display": "none"
+          },
+          {
+            "id": "metadata",
+            "display": "none"
+          },
+          {
+            "id": "cleanup",
+            "display": "none"
+          },
+          {
+            "id": "general",
+            "display": "none"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "Provider",
+          "Model",
+          "API key",
+          "Custom endpoint URL",
+          "Target language",
+          "Assistant provider"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": -345.79168701171875,
+            "bottom": -303.79168701171875,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": -265.79168701171875,
+            "bottom": -226.79168701171875,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": -188.7916717529297,
+            "bottom": -149.7916717529297,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "640-en-metadata",
+        "viewport": {
+          "width": 640,
+          "height": 720
+        },
+        "dialog": {
+          "left": 10,
+          "right": 630,
+          "top": 32,
+          "bottom": 688
+        },
+        "content": {
+          "width": 609,
+          "scrollWidth": 609,
+          "height": 436
+        },
+        "save": {
+          "bottom": 673.3333740234375,
+          "right": 611.3333587646484
+        },
+        "active": "metadata",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "none"
+          },
+          {
+            "id": "manga",
+            "display": "none"
+          },
+          {
+            "id": "metadata",
+            "display": "none"
+          },
+          {
+            "id": "cleanup",
+            "display": "none"
+          },
+          {
+            "id": "general",
+            "display": "none"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "TMDB API Read Access Token / API Key",
+          "Information language",
+          "Where to watch · country"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "640-en-cleanup",
+        "viewport": {
+          "width": 640,
+          "height": 720
+        },
+        "dialog": {
+          "left": 10,
+          "right": 630,
+          "top": 32,
+          "bottom": 688
+        },
+        "content": {
+          "width": 609,
+          "scrollWidth": 609,
+          "height": 436
+        },
+        "save": {
+          "bottom": 673.3333740234375,
+          "right": 611.3333587646484
+        },
+        "active": "cleanup",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "none"
+          },
+          {
+            "id": "manga",
+            "display": "none"
+          },
+          {
+            "id": "metadata",
+            "display": "none"
+          },
+          {
+            "id": "cleanup",
+            "display": "none"
+          },
+          {
+            "id": "general",
+            "display": "none"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "Endpoint (base URL)",
+          "Model",
+          "\n                  API Key\n                  platform.deepseek.com\n                ",
+          "Custom endpoint URL"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "640-en-general",
+        "viewport": {
+          "width": 640,
+          "height": 720
+        },
+        "dialog": {
+          "left": 10,
+          "right": 630,
+          "top": 32,
+          "bottom": 688
+        },
+        "content": {
+          "width": 609,
+          "scrollWidth": 609,
+          "height": 436
+        },
+        "save": {
+          "bottom": 673.3333740234375,
+          "right": 611.3333587646484
+        },
+        "active": "general",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "none"
+          },
+          {
+            "id": "manga",
+            "display": "none"
+          },
+          {
+            "id": "metadata",
+            "display": "none"
+          },
+          {
+            "id": "cleanup",
+            "display": "none"
+          },
+          {
+            "id": "general",
+            "display": "none"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "Interface theme"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "520-tr-ai",
+        "viewport": {
+          "width": 520,
+          "height": 640
+        },
+        "dialog": {
+          "left": 10,
+          "right": 510,
+          "top": 32,
+          "bottom": 608
+        },
+        "content": {
+          "width": 489,
+          "scrollWidth": 489,
+          "height": 356
+        },
+        "save": {
+          "bottom": 593.3333740234375,
+          "right": 491.33335876464844
+        },
+        "active": "ai",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "none"
+          },
+          {
+            "id": "manga",
+            "display": "none"
+          },
+          {
+            "id": "metadata",
+            "display": "none"
+          },
+          {
+            "id": "cleanup",
+            "display": "none"
+          },
+          {
+            "id": "general",
+            "display": "none"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "Sağlayıcı",
+          "Model",
+          "API anahtarı",
+          "Özel endpoint URL",
+          "Hedef dil",
+          "Asistan sağlayıcısı"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 333.2083435058594,
+            "bottom": 375.2083435058594,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 413.2083435058594,
+            "bottom": 452.2083435058594,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 490.2083435058594,
+            "bottom": 529.2083435058594,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "520-tr-search-tmdb",
+        "viewport": {
+          "width": 520,
+          "height": 640
+        },
+        "dialog": {
+          "left": 10,
+          "right": 510,
+          "top": 32,
+          "bottom": 608
+        },
+        "content": {
+          "width": 489,
+          "scrollWidth": 489,
+          "height": 278
+        },
+        "save": {
+          "bottom": 593.3333740234375,
+          "right": 491.33335876464844
+        },
+        "active": "ai",
+        "visibleSections": [
+          {
+            "id": "metadata",
+            "display": "block"
+          }
+        ],
+        "search": "tmdb",
+        "labels": [
+          "Sağlayıcı",
+          "Model",
+          "API anahtarı",
+          "Özel endpoint URL",
+          "Hedef dil",
+          "Asistan sağlayıcısı"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 411,
+            "bottom": 453,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 491,
+            "bottom": 530,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 568,
+            "bottom": 607,
+            "scrollToReveal": 66.33331298828125
+          }
+        }
+      },
+      {
+        "label": "520-tr-search-opened",
+        "viewport": {
+          "width": 520,
+          "height": 640
+        },
+        "dialog": {
+          "left": 10,
+          "right": 510,
+          "top": 32,
+          "bottom": 608
+        },
+        "content": {
+          "width": 489,
+          "scrollWidth": 489,
+          "height": 278
+        },
+        "save": {
+          "bottom": 593.3333740234375,
+          "right": 491.33335876464844
+        },
+        "active": "metadata",
+        "visibleSections": [
+          {
+            "id": "metadata",
+            "display": "block"
+          }
+        ],
+        "search": "tmdb",
+        "labels": [
+          "TMDB API okuma belirteci / API anahtarı",
+          "Bilgi dili",
+          "Nerede izlenir · ülke"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "520-tr-search-empty",
+        "viewport": {
+          "width": 520,
+          "height": 640
+        },
+        "dialog": {
+          "left": 10,
+          "right": 510,
+          "top": 32,
+          "bottom": 608
+        },
+        "content": {
+          "width": 489,
+          "scrollWidth": 489,
+          "height": 328
+        },
+        "save": {
+          "bottom": 593.3333740234375,
+          "right": 491.33335876464844
+        },
+        "active": "metadata",
+        "visibleSections": [],
+        "search": "no-such-setting-xyz",
+        "labels": [
+          "TMDB API okuma belirteci / API anahtarı",
+          "Bilgi dili",
+          "Nerede izlenir · ülke"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "520-tr-advanced",
+        "viewport": {
+          "width": 520,
+          "height": 640
+        },
+        "dialog": {
+          "left": 10,
+          "right": 510,
+          "top": 32,
+          "bottom": 608
+        },
+        "content": {
+          "width": 489,
+          "scrollWidth": 489,
+          "height": 356
+        },
+        "save": {
+          "bottom": 593.3333740234375,
+          "right": 491.33335876464844
+        },
+        "active": "ai",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "none"
+          },
+          {
+            "id": "manga",
+            "display": "none"
+          },
+          {
+            "id": "metadata",
+            "display": "none"
+          },
+          {
+            "id": "cleanup",
+            "display": "none"
+          },
+          {
+            "id": "general",
+            "display": "none"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "Sağlayıcı",
+          "Model",
+          "API anahtarı",
+          "Özel endpoint URL",
+          "Hedef dil",
+          "Asistan sağlayıcısı"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": -345.4583435058594,
+            "bottom": -303.4583435058594,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": -265.4583435058594,
+            "bottom": -226.45834350585938,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": -188.45834350585938,
+            "bottom": -149.45834350585938,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "520-tr-advanced-loading",
+        "viewport": {
+          "width": 520,
+          "height": 640
+        },
+        "dialog": {
+          "left": 10,
+          "right": 510,
+          "top": 32,
+          "bottom": 608
+        },
+        "content": {
+          "width": 489,
+          "scrollWidth": 489,
+          "height": 356
+        },
+        "save": {
+          "bottom": 593.3333740234375,
+          "right": 491.33335876464844
+        },
+        "active": "ai",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "none"
+          },
+          {
+            "id": "manga",
+            "display": "none"
+          },
+          {
+            "id": "metadata",
+            "display": "none"
+          },
+          {
+            "id": "cleanup",
+            "display": "none"
+          },
+          {
+            "id": "general",
+            "display": "none"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "Sağlayıcı",
+          "Model",
+          "API anahtarı",
+          "Özel endpoint URL",
+          "Hedef dil",
+          "Asistan sağlayıcısı"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": -345.4583435058594,
+            "bottom": -303.4583435058594,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": -265.4583435058594,
+            "bottom": -226.45834350585938,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": -188.45834350585938,
+            "bottom": -149.45834350585938,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "520-tr-advanced-error",
+        "viewport": {
+          "width": 520,
+          "height": 640
+        },
+        "dialog": {
+          "left": 10,
+          "right": 510,
+          "top": 32,
+          "bottom": 608
+        },
+        "content": {
+          "width": 489,
+          "scrollWidth": 489,
+          "height": 356
+        },
+        "save": {
+          "bottom": 593.3333740234375,
+          "right": 491.33335876464844
+        },
+        "active": "ai",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "none"
+          },
+          {
+            "id": "manga",
+            "display": "none"
+          },
+          {
+            "id": "metadata",
+            "display": "none"
+          },
+          {
+            "id": "cleanup",
+            "display": "none"
+          },
+          {
+            "id": "general",
+            "display": "none"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "Sağlayıcı",
+          "Model",
+          "API anahtarı",
+          "Özel endpoint URL",
+          "Hedef dil",
+          "Asistan sağlayıcısı"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": -345.4583435058594,
+            "bottom": -303.4583435058594,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": -265.4583435058594,
+            "bottom": -226.45834350585938,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": -188.45834350585938,
+            "bottom": -149.45834350585938,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "520-tr-metadata",
+        "viewport": {
+          "width": 520,
+          "height": 640
+        },
+        "dialog": {
+          "left": 10,
+          "right": 510,
+          "top": 32,
+          "bottom": 608
+        },
+        "content": {
+          "width": 489,
+          "scrollWidth": 489,
+          "height": 356
+        },
+        "save": {
+          "bottom": 593.3333740234375,
+          "right": 491.33335876464844
+        },
+        "active": "metadata",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "none"
+          },
+          {
+            "id": "manga",
+            "display": "none"
+          },
+          {
+            "id": "metadata",
+            "display": "none"
+          },
+          {
+            "id": "cleanup",
+            "display": "none"
+          },
+          {
+            "id": "general",
+            "display": "none"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "TMDB API okuma belirteci / API anahtarı",
+          "Bilgi dili",
+          "Nerede izlenir · ülke"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "520-tr-cleanup",
+        "viewport": {
+          "width": 520,
+          "height": 640
+        },
+        "dialog": {
+          "left": 10,
+          "right": 510,
+          "top": 32,
+          "bottom": 608
+        },
+        "content": {
+          "width": 489,
+          "scrollWidth": 489,
+          "height": 356
+        },
+        "save": {
+          "bottom": 593.3333740234375,
+          "right": 491.33335876464844
+        },
+        "active": "cleanup",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "none"
+          },
+          {
+            "id": "manga",
+            "display": "none"
+          },
+          {
+            "id": "metadata",
+            "display": "none"
+          },
+          {
+            "id": "cleanup",
+            "display": "none"
+          },
+          {
+            "id": "general",
+            "display": "none"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "Endpoint (base URL)",
+          "Model",
+          "\n                  API Key\n                  platform.deepseek.com\n                ",
+          "Özel endpoint URL"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          }
+        }
+      },
+      {
+        "label": "520-tr-general",
+        "viewport": {
+          "width": 520,
+          "height": 640
+        },
+        "dialog": {
+          "left": 10,
+          "right": 510,
+          "top": 32,
+          "bottom": 608
+        },
+        "content": {
+          "width": 489,
+          "scrollWidth": 489,
+          "height": 356
+        },
+        "save": {
+          "bottom": 593.3333740234375,
+          "right": 491.33335876464844
+        },
+        "active": "general",
+        "visibleSections": [
+          {
+            "id": "ai",
+            "display": "none"
+          },
+          {
+            "id": "manga",
+            "display": "none"
+          },
+          {
+            "id": "metadata",
+            "display": "none"
+          },
+          {
+            "id": "cleanup",
+            "display": "none"
+          },
+          {
+            "id": "general",
+            "display": "none"
+          }
+        ],
+        "search": "",
+        "labels": [
+          "Arayüz teması"
+        ],
+        "model": "fixture-model-not-a-provider",
+        "keyType": "password",
+        "taskGeometry": {
+          "translateEndpointPreset": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateModel": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          },
+          "translateApiKey": {
+            "top": 0,
+            "bottom": 0,
+            "scrollToReveal": 0
+          }
+        }
+      }
+    ],
+    "fixtureRequests": 3,
+    "network": "no external provider requests; model list is a controlled failure fixture"
+  },
+  "assistant": {
+    "ok": true,
+    "phase": "after",
+    "states": 24,
+    "settingsCommand": true,
+    "escapeMenu": true,
+    "motionTenPercent": true,
+    "reducedMotion": true,
+    "streamScrollPreserved": true,
+    "shortPanelBudget": true,
+    "nativeSuggestionKeyboard": true,
+    "boundedDraft": true,
+    "providerCalls": 0
+  },
+  "assistantMeasurements": [
+    {
+      "name": "empty",
+      "width": 480,
+      "height": 720,
+      "locale": "tr",
+      "theme": "dark",
+      "documentWidth": 480,
+      "workspace": {
+        "top": 81,
+        "bottom": 560,
+        "height": 479,
+        "scroll": 479,
+        "client": 479,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "log": {
+        "top": 184,
+        "bottom": 366.296875,
+        "height": 182.296875,
+        "scroll": 182,
+        "client": 182,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "source": {
+        "top": 81,
+        "bottom": 120,
+        "height": 39,
+        "scroll": 38,
+        "client": 38,
+        "width": 438,
+        "scrollWidth": 438
+      },
+      "suggestions": {
+        "top": 366.296875,
+        "bottom": 410.296875,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "form": {
+        "top": 560,
+        "bottom": 699,
+        "height": 139,
+        "scroll": 137,
+        "client": 137,
+        "width": 436,
+        "scrollWidth": 436
+      },
+      "send": {
+        "top": 647,
+        "bottom": 684,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 80,
+        "scrollWidth": 80
+      },
+      "menu": {
+        "top": 132,
+        "bottom": 172,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": {
+        "height": 144.296875,
+        "headingBottom": 264.796875
+      }
+    },
+    {
+      "name": "source-details",
+      "width": 480,
+      "height": 720,
+      "locale": "tr",
+      "theme": "dark",
+      "documentWidth": 480,
+      "workspace": {
+        "top": 81,
+        "bottom": 560,
+        "height": 479,
+        "scroll": 521,
+        "client": 479,
+        "width": 460,
+        "scrollWidth": 460
+      },
+      "log": {
+        "top": 366,
+        "bottom": 548.296875,
+        "height": 182.296875,
+        "scroll": 182,
+        "client": 182,
+        "width": 460,
+        "scrollWidth": 460
+      },
+      "source": {
+        "top": 81,
+        "bottom": 302,
+        "height": 221,
+        "scroll": 220,
+        "client": 220,
+        "width": 428,
+        "scrollWidth": 428
+      },
+      "suggestions": {
+        "top": 548.296875,
+        "bottom": 592.296875,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 460,
+        "scrollWidth": 460
+      },
+      "form": {
+        "top": 560,
+        "bottom": 699,
+        "height": 139,
+        "scroll": 137,
+        "client": 137,
+        "width": 436,
+        "scrollWidth": 436
+      },
+      "send": {
+        "top": 647,
+        "bottom": 684,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 80,
+        "scrollWidth": 80
+      },
+      "menu": {
+        "top": 314,
+        "bottom": 354,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": {
+        "height": 144.296875,
+        "headingBottom": 446.796875
+      }
+    },
+    {
+      "name": "conversation",
+      "width": 480,
+      "height": 720,
+      "locale": "tr",
+      "theme": "dark",
+      "documentWidth": 480,
+      "workspace": {
+        "top": 81,
+        "bottom": 560,
+        "height": 479,
+        "scroll": 479,
+        "client": 479,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "log": {
+        "top": 184,
+        "bottom": 469,
+        "height": 285,
+        "scroll": 631,
+        "client": 285,
+        "width": 460,
+        "scrollWidth": 460
+      },
+      "source": {
+        "top": 81,
+        "bottom": 120,
+        "height": 39,
+        "scroll": 38,
+        "client": 38,
+        "width": 438,
+        "scrollWidth": 438
+      },
+      "suggestions": {
+        "top": 506,
+        "bottom": 550,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "form": {
+        "top": 560,
+        "bottom": 699,
+        "height": 139,
+        "scroll": 137,
+        "client": 137,
+        "width": 436,
+        "scrollWidth": 436
+      },
+      "send": {
+        "top": 647,
+        "bottom": 684,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 80,
+        "scrollWidth": 80
+      },
+      "menu": {
+        "top": 132,
+        "bottom": 172,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": null
+    },
+    {
+      "name": "long-code",
+      "width": 480,
+      "height": 720,
+      "locale": "tr",
+      "theme": "dark",
+      "documentWidth": 480,
+      "workspace": {
+        "top": 81,
+        "bottom": 560,
+        "height": 479,
+        "scroll": 479,
+        "client": 479,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "log": {
+        "top": 184,
+        "bottom": 469,
+        "height": 285,
+        "scroll": 1173,
+        "client": 285,
+        "width": 460,
+        "scrollWidth": 460
+      },
+      "source": {
+        "top": 81,
+        "bottom": 120,
+        "height": 39,
+        "scroll": 38,
+        "client": 38,
+        "width": 438,
+        "scrollWidth": 438
+      },
+      "suggestions": {
+        "top": 506,
+        "bottom": 550,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "form": {
+        "top": 560,
+        "bottom": 699,
+        "height": 139,
+        "scroll": 137,
+        "client": 137,
+        "width": 436,
+        "scrollWidth": 436
+      },
+      "send": {
+        "top": 647,
+        "bottom": 684,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 80,
+        "scrollWidth": 80
+      },
+      "menu": {
+        "top": 132,
+        "bottom": 172,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": null
+    },
+    {
+      "name": "streaming",
+      "width": 480,
+      "height": 720,
+      "locale": "tr",
+      "theme": "dark",
+      "documentWidth": 480,
+      "workspace": {
+        "top": 81,
+        "bottom": 560,
+        "height": 479,
+        "scroll": 479,
+        "client": 479,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "log": {
+        "top": 282.5,
+        "bottom": 513,
+        "height": 230.5,
+        "scroll": 409,
+        "client": 231,
+        "width": 460,
+        "scrollWidth": 460
+      },
+      "source": {
+        "top": 81,
+        "bottom": 120,
+        "height": 39,
+        "scroll": 38,
+        "client": 38,
+        "width": 438,
+        "scrollWidth": 438
+      },
+      "suggestions": {
+        "top": 0,
+        "bottom": 0,
+        "height": 0,
+        "scroll": 0,
+        "client": 0,
+        "width": 0,
+        "scrollWidth": 0
+      },
+      "form": {
+        "top": 560,
+        "bottom": 699,
+        "height": 139,
+        "scroll": 137,
+        "client": 137,
+        "width": 436,
+        "scrollWidth": 436
+      },
+      "send": {
+        "top": 647,
+        "bottom": 684,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 80,
+        "scrollWidth": 80
+      },
+      "menu": {
+        "top": 132,
+        "bottom": 172,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": null
+    },
+    {
+      "name": "conversation-menu",
+      "width": 480,
+      "height": 720,
+      "locale": "tr",
+      "theme": "dark",
+      "documentWidth": 480,
+      "workspace": {
+        "top": 81,
+        "bottom": 560,
+        "height": 479,
+        "scroll": 479,
+        "client": 479,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "log": {
+        "top": 184,
+        "bottom": 469,
+        "height": 285,
+        "scroll": 439,
+        "client": 285,
+        "width": 460,
+        "scrollWidth": 460
+      },
+      "source": {
+        "top": 81,
+        "bottom": 120,
+        "height": 39,
+        "scroll": 38,
+        "client": 38,
+        "width": 438,
+        "scrollWidth": 438
+      },
+      "suggestions": {
+        "top": 506,
+        "bottom": 550,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "form": {
+        "top": 560,
+        "bottom": 699,
+        "height": 139,
+        "scroll": 137,
+        "client": 137,
+        "width": 436,
+        "scrollWidth": 436
+      },
+      "send": {
+        "top": 647,
+        "bottom": 684,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 80,
+        "scrollWidth": 80
+      },
+      "menu": {
+        "top": 132,
+        "bottom": 172,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": null
+    },
+    {
+      "name": "empty",
+      "width": 360,
+      "height": 600,
+      "locale": "en",
+      "theme": "light",
+      "documentWidth": 360,
+      "workspace": {
+        "top": 60,
+        "bottom": 474,
+        "height": 414,
+        "scroll": 414,
+        "client": 414,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "log": {
+        "top": 143,
+        "bottom": 285.09375,
+        "height": 142.09375,
+        "scroll": 142,
+        "client": 142,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "source": {
+        "top": 60,
+        "bottom": 91,
+        "height": 31,
+        "scroll": 30,
+        "client": 30,
+        "width": 326,
+        "scrollWidth": 326
+      },
+      "suggestions": {
+        "top": 285.09375,
+        "bottom": 329.09375,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "form": {
+        "top": 474,
+        "bottom": 585,
+        "height": 111,
+        "scroll": 109,
+        "client": 109,
+        "width": 328,
+        "scrollWidth": 328
+      },
+      "send": {
+        "top": 539,
+        "bottom": 576,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 67,
+        "scrollWidth": 67
+      },
+      "menu": {
+        "top": 97,
+        "bottom": 137,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": {
+        "height": 118.09375,
+        "headingBottom": 201.59375
+      }
+    },
+    {
+      "name": "source-details",
+      "width": 360,
+      "height": 600,
+      "locale": "en",
+      "theme": "light",
+      "documentWidth": 360,
+      "workspace": {
+        "top": 60,
+        "bottom": 474,
+        "height": 414,
+        "scroll": 429,
+        "client": 414,
+        "width": 340,
+        "scrollWidth": 340
+      },
+      "log": {
+        "top": 297,
+        "bottom": 439.09375,
+        "height": 142.09375,
+        "scroll": 142,
+        "client": 142,
+        "width": 340,
+        "scrollWidth": 340
+      },
+      "source": {
+        "top": 60,
+        "bottom": 245,
+        "height": 185,
+        "scroll": 184,
+        "client": 184,
+        "width": 316,
+        "scrollWidth": 316
+      },
+      "suggestions": {
+        "top": 439.09375,
+        "bottom": 483.09375,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 340,
+        "scrollWidth": 340
+      },
+      "form": {
+        "top": 474,
+        "bottom": 585,
+        "height": 111,
+        "scroll": 109,
+        "client": 109,
+        "width": 328,
+        "scrollWidth": 328
+      },
+      "send": {
+        "top": 539,
+        "bottom": 576,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 67,
+        "scrollWidth": 67
+      },
+      "menu": {
+        "top": 251,
+        "bottom": 291,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": {
+        "height": 118.09375,
+        "headingBottom": 355.59375
+      }
+    },
+    {
+      "name": "conversation",
+      "width": 360,
+      "height": 600,
+      "locale": "en",
+      "theme": "light",
+      "documentWidth": 360,
+      "workspace": {
+        "top": 60,
+        "bottom": 474,
+        "height": 414,
+        "scroll": 414,
+        "client": 414,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "log": {
+        "top": 143,
+        "bottom": 387,
+        "height": 244,
+        "scroll": 677,
+        "client": 244,
+        "width": 340,
+        "scrollWidth": 340
+      },
+      "source": {
+        "top": 60,
+        "bottom": 91,
+        "height": 31,
+        "scroll": 30,
+        "client": 30,
+        "width": 326,
+        "scrollWidth": 326
+      },
+      "suggestions": {
+        "top": 424,
+        "bottom": 468,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "form": {
+        "top": 474,
+        "bottom": 585,
+        "height": 111,
+        "scroll": 109,
+        "client": 109,
+        "width": 328,
+        "scrollWidth": 328
+      },
+      "send": {
+        "top": 539,
+        "bottom": 576,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 67,
+        "scrollWidth": 67
+      },
+      "menu": {
+        "top": 97,
+        "bottom": 137,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": null
+    },
+    {
+      "name": "long-code",
+      "width": 360,
+      "height": 600,
+      "locale": "en",
+      "theme": "light",
+      "documentWidth": 360,
+      "workspace": {
+        "top": 60,
+        "bottom": 474,
+        "height": 414,
+        "scroll": 414,
+        "client": 414,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "log": {
+        "top": 143,
+        "bottom": 387,
+        "height": 244,
+        "scroll": 1412,
+        "client": 244,
+        "width": 340,
+        "scrollWidth": 340
+      },
+      "source": {
+        "top": 60,
+        "bottom": 91,
+        "height": 31,
+        "scroll": 30,
+        "client": 30,
+        "width": 326,
+        "scrollWidth": 326
+      },
+      "suggestions": {
+        "top": 424,
+        "bottom": 468,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "form": {
+        "top": 474,
+        "bottom": 585,
+        "height": 111,
+        "scroll": 109,
+        "client": 109,
+        "width": 328,
+        "scrollWidth": 328
+      },
+      "send": {
+        "top": 539,
+        "bottom": 576,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 67,
+        "scrollWidth": 67
+      },
+      "menu": {
+        "top": 97,
+        "bottom": 137,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": null
+    },
+    {
+      "name": "streaming",
+      "width": 360,
+      "height": 600,
+      "locale": "en",
+      "theme": "light",
+      "documentWidth": 360,
+      "workspace": {
+        "top": 60,
+        "bottom": 474,
+        "height": 414,
+        "scroll": 414,
+        "client": 414,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "log": {
+        "top": 202,
+        "bottom": 431,
+        "height": 229,
+        "scroll": 441,
+        "client": 229,
+        "width": 340,
+        "scrollWidth": 340
+      },
+      "source": {
+        "top": 60,
+        "bottom": 91,
+        "height": 31,
+        "scroll": 30,
+        "client": 30,
+        "width": 326,
+        "scrollWidth": 326
+      },
+      "suggestions": {
+        "top": 0,
+        "bottom": 0,
+        "height": 0,
+        "scroll": 0,
+        "client": 0,
+        "width": 0,
+        "scrollWidth": 0
+      },
+      "form": {
+        "top": 474,
+        "bottom": 585,
+        "height": 111,
+        "scroll": 109,
+        "client": 109,
+        "width": 328,
+        "scrollWidth": 328
+      },
+      "send": {
+        "top": 539,
+        "bottom": 576,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 67,
+        "scrollWidth": 67
+      },
+      "menu": {
+        "top": 97,
+        "bottom": 137,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": null
+    },
+    {
+      "name": "conversation-menu",
+      "width": 360,
+      "height": 600,
+      "locale": "en",
+      "theme": "light",
+      "documentWidth": 360,
+      "workspace": {
+        "top": 60,
+        "bottom": 474,
+        "height": 414,
+        "scroll": 414,
+        "client": 414,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "log": {
+        "top": 143,
+        "bottom": 387,
+        "height": 244,
+        "scroll": 471,
+        "client": 244,
+        "width": 340,
+        "scrollWidth": 340
+      },
+      "source": {
+        "top": 60,
+        "bottom": 91,
+        "height": 31,
+        "scroll": 30,
+        "client": 30,
+        "width": 326,
+        "scrollWidth": 326
+      },
+      "suggestions": {
+        "top": 424,
+        "bottom": 468,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "form": {
+        "top": 474,
+        "bottom": 585,
+        "height": 111,
+        "scroll": 109,
+        "client": 109,
+        "width": 328,
+        "scrollWidth": 328
+      },
+      "send": {
+        "top": 539,
+        "bottom": 576,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 67,
+        "scrollWidth": 67
+      },
+      "menu": {
+        "top": 97,
+        "bottom": 137,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": null
+    },
+    {
+      "name": "empty",
+      "width": 480,
+      "height": 720,
+      "locale": "en",
+      "theme": "light",
+      "documentWidth": 480,
+      "workspace": {
+        "top": 81,
+        "bottom": 560,
+        "height": 479,
+        "scroll": 479,
+        "client": 479,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "log": {
+        "top": 184,
+        "bottom": 366.296875,
+        "height": 182.296875,
+        "scroll": 182,
+        "client": 182,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "source": {
+        "top": 81,
+        "bottom": 120,
+        "height": 39,
+        "scroll": 38,
+        "client": 38,
+        "width": 438,
+        "scrollWidth": 438
+      },
+      "suggestions": {
+        "top": 366.296875,
+        "bottom": 410.296875,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "form": {
+        "top": 560,
+        "bottom": 699,
+        "height": 139,
+        "scroll": 137,
+        "client": 137,
+        "width": 436,
+        "scrollWidth": 436
+      },
+      "send": {
+        "top": 647,
+        "bottom": 684,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 67,
+        "scrollWidth": 67
+      },
+      "menu": {
+        "top": 132,
+        "bottom": 172,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": {
+        "height": 144.296875,
+        "headingBottom": 264.796875
+      }
+    },
+    {
+      "name": "source-details",
+      "width": 480,
+      "height": 720,
+      "locale": "en",
+      "theme": "light",
+      "documentWidth": 480,
+      "workspace": {
+        "top": 81,
+        "bottom": 560,
+        "height": 479,
+        "scroll": 521,
+        "client": 479,
+        "width": 460,
+        "scrollWidth": 460
+      },
+      "log": {
+        "top": 366,
+        "bottom": 548.296875,
+        "height": 182.296875,
+        "scroll": 182,
+        "client": 182,
+        "width": 460,
+        "scrollWidth": 460
+      },
+      "source": {
+        "top": 81,
+        "bottom": 302,
+        "height": 221,
+        "scroll": 220,
+        "client": 220,
+        "width": 428,
+        "scrollWidth": 428
+      },
+      "suggestions": {
+        "top": 548.296875,
+        "bottom": 592.296875,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 460,
+        "scrollWidth": 460
+      },
+      "form": {
+        "top": 560,
+        "bottom": 699,
+        "height": 139,
+        "scroll": 137,
+        "client": 137,
+        "width": 436,
+        "scrollWidth": 436
+      },
+      "send": {
+        "top": 647,
+        "bottom": 684,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 67,
+        "scrollWidth": 67
+      },
+      "menu": {
+        "top": 314,
+        "bottom": 354,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": {
+        "height": 144.296875,
+        "headingBottom": 446.796875
+      }
+    },
+    {
+      "name": "conversation",
+      "width": 480,
+      "height": 720,
+      "locale": "en",
+      "theme": "light",
+      "documentWidth": 480,
+      "workspace": {
+        "top": 81,
+        "bottom": 560,
+        "height": 479,
+        "scroll": 479,
+        "client": 479,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "log": {
+        "top": 184,
+        "bottom": 469,
+        "height": 285,
+        "scroll": 595,
+        "client": 285,
+        "width": 460,
+        "scrollWidth": 460
+      },
+      "source": {
+        "top": 81,
+        "bottom": 120,
+        "height": 39,
+        "scroll": 38,
+        "client": 38,
+        "width": 438,
+        "scrollWidth": 438
+      },
+      "suggestions": {
+        "top": 506,
+        "bottom": 550,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "form": {
+        "top": 560,
+        "bottom": 699,
+        "height": 139,
+        "scroll": 137,
+        "client": 137,
+        "width": 436,
+        "scrollWidth": 436
+      },
+      "send": {
+        "top": 647,
+        "bottom": 684,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 67,
+        "scrollWidth": 67
+      },
+      "menu": {
+        "top": 132,
+        "bottom": 172,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": null
+    },
+    {
+      "name": "long-code",
+      "width": 480,
+      "height": 720,
+      "locale": "en",
+      "theme": "light",
+      "documentWidth": 480,
+      "workspace": {
+        "top": 81,
+        "bottom": 560,
+        "height": 479,
+        "scroll": 479,
+        "client": 479,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "log": {
+        "top": 184,
+        "bottom": 469,
+        "height": 285,
+        "scroll": 1173,
+        "client": 285,
+        "width": 460,
+        "scrollWidth": 460
+      },
+      "source": {
+        "top": 81,
+        "bottom": 120,
+        "height": 39,
+        "scroll": 38,
+        "client": 38,
+        "width": 438,
+        "scrollWidth": 438
+      },
+      "suggestions": {
+        "top": 506,
+        "bottom": 550,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "form": {
+        "top": 560,
+        "bottom": 699,
+        "height": 139,
+        "scroll": 137,
+        "client": 137,
+        "width": 436,
+        "scrollWidth": 436
+      },
+      "send": {
+        "top": 647,
+        "bottom": 684,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 67,
+        "scrollWidth": 67
+      },
+      "menu": {
+        "top": 132,
+        "bottom": 172,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": null
+    },
+    {
+      "name": "streaming",
+      "width": 480,
+      "height": 720,
+      "locale": "en",
+      "theme": "light",
+      "documentWidth": 480,
+      "workspace": {
+        "top": 81,
+        "bottom": 560,
+        "height": 479,
+        "scroll": 479,
+        "client": 479,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "log": {
+        "top": 282.5,
+        "bottom": 513,
+        "height": 230.5,
+        "scroll": 409,
+        "client": 231,
+        "width": 460,
+        "scrollWidth": 460
+      },
+      "source": {
+        "top": 81,
+        "bottom": 120,
+        "height": 39,
+        "scroll": 38,
+        "client": 38,
+        "width": 438,
+        "scrollWidth": 438
+      },
+      "suggestions": {
+        "top": 0,
+        "bottom": 0,
+        "height": 0,
+        "scroll": 0,
+        "client": 0,
+        "width": 0,
+        "scrollWidth": 0
+      },
+      "form": {
+        "top": 560,
+        "bottom": 699,
+        "height": 139,
+        "scroll": 137,
+        "client": 137,
+        "width": 436,
+        "scrollWidth": 436
+      },
+      "send": {
+        "top": 647,
+        "bottom": 684,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 67,
+        "scrollWidth": 67
+      },
+      "menu": {
+        "top": 132,
+        "bottom": 172,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": null
+    },
+    {
+      "name": "conversation-menu",
+      "width": 480,
+      "height": 720,
+      "locale": "en",
+      "theme": "light",
+      "documentWidth": 480,
+      "workspace": {
+        "top": 81,
+        "bottom": 560,
+        "height": 479,
+        "scroll": 479,
+        "client": 479,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "log": {
+        "top": 184,
+        "bottom": 469,
+        "height": 285,
+        "scroll": 439,
+        "client": 285,
+        "width": 460,
+        "scrollWidth": 460
+      },
+      "source": {
+        "top": 81,
+        "bottom": 120,
+        "height": 39,
+        "scroll": 38,
+        "client": 38,
+        "width": 438,
+        "scrollWidth": 438
+      },
+      "suggestions": {
+        "top": 506,
+        "bottom": 550,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 470,
+        "scrollWidth": 470
+      },
+      "form": {
+        "top": 560,
+        "bottom": 699,
+        "height": 139,
+        "scroll": 137,
+        "client": 137,
+        "width": 436,
+        "scrollWidth": 436
+      },
+      "send": {
+        "top": 647,
+        "bottom": 684,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 67,
+        "scrollWidth": 67
+      },
+      "menu": {
+        "top": 132,
+        "bottom": 172,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": null
+    },
+    {
+      "name": "empty",
+      "width": 360,
+      "height": 600,
+      "locale": "tr",
+      "theme": "dark",
+      "documentWidth": 360,
+      "workspace": {
+        "top": 60,
+        "bottom": 474,
+        "height": 414,
+        "scroll": 414,
+        "client": 414,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "log": {
+        "top": 143,
+        "bottom": 285.09375,
+        "height": 142.09375,
+        "scroll": 142,
+        "client": 142,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "source": {
+        "top": 60,
+        "bottom": 91,
+        "height": 31,
+        "scroll": 30,
+        "client": 30,
+        "width": 326,
+        "scrollWidth": 326
+      },
+      "suggestions": {
+        "top": 285.09375,
+        "bottom": 329.09375,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "form": {
+        "top": 474,
+        "bottom": 585,
+        "height": 111,
+        "scroll": 109,
+        "client": 109,
+        "width": 328,
+        "scrollWidth": 328
+      },
+      "send": {
+        "top": 539,
+        "bottom": 576,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 80,
+        "scrollWidth": 80
+      },
+      "menu": {
+        "top": 97,
+        "bottom": 137,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": {
+        "height": 118.09375,
+        "headingBottom": 201.59375
+      }
+    },
+    {
+      "name": "source-details",
+      "width": 360,
+      "height": 600,
+      "locale": "tr",
+      "theme": "dark",
+      "documentWidth": 360,
+      "workspace": {
+        "top": 60,
+        "bottom": 474,
+        "height": 414,
+        "scroll": 429,
+        "client": 414,
+        "width": 340,
+        "scrollWidth": 340
+      },
+      "log": {
+        "top": 297,
+        "bottom": 439.09375,
+        "height": 142.09375,
+        "scroll": 142,
+        "client": 142,
+        "width": 340,
+        "scrollWidth": 340
+      },
+      "source": {
+        "top": 60,
+        "bottom": 245,
+        "height": 185,
+        "scroll": 184,
+        "client": 184,
+        "width": 316,
+        "scrollWidth": 316
+      },
+      "suggestions": {
+        "top": 439.09375,
+        "bottom": 483.09375,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 340,
+        "scrollWidth": 340
+      },
+      "form": {
+        "top": 474,
+        "bottom": 585,
+        "height": 111,
+        "scroll": 109,
+        "client": 109,
+        "width": 328,
+        "scrollWidth": 328
+      },
+      "send": {
+        "top": 539,
+        "bottom": 576,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 80,
+        "scrollWidth": 80
+      },
+      "menu": {
+        "top": 251,
+        "bottom": 291,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": {
+        "height": 118.09375,
+        "headingBottom": 355.59375
+      }
+    },
+    {
+      "name": "conversation",
+      "width": 360,
+      "height": 600,
+      "locale": "tr",
+      "theme": "dark",
+      "documentWidth": 360,
+      "workspace": {
+        "top": 60,
+        "bottom": 474,
+        "height": 414,
+        "scroll": 414,
+        "client": 414,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "log": {
+        "top": 143,
+        "bottom": 387,
+        "height": 244,
+        "scroll": 677,
+        "client": 244,
+        "width": 340,
+        "scrollWidth": 340
+      },
+      "source": {
+        "top": 60,
+        "bottom": 91,
+        "height": 31,
+        "scroll": 30,
+        "client": 30,
+        "width": 326,
+        "scrollWidth": 326
+      },
+      "suggestions": {
+        "top": 424,
+        "bottom": 468,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "form": {
+        "top": 474,
+        "bottom": 585,
+        "height": 111,
+        "scroll": 109,
+        "client": 109,
+        "width": 328,
+        "scrollWidth": 328
+      },
+      "send": {
+        "top": 539,
+        "bottom": 576,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 80,
+        "scrollWidth": 80
+      },
+      "menu": {
+        "top": 97,
+        "bottom": 137,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": null
+    },
+    {
+      "name": "long-code",
+      "width": 360,
+      "height": 600,
+      "locale": "tr",
+      "theme": "dark",
+      "documentWidth": 360,
+      "workspace": {
+        "top": 60,
+        "bottom": 474,
+        "height": 414,
+        "scroll": 414,
+        "client": 414,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "log": {
+        "top": 143,
+        "bottom": 387,
+        "height": 244,
+        "scroll": 1448,
+        "client": 244,
+        "width": 340,
+        "scrollWidth": 340
+      },
+      "source": {
+        "top": 60,
+        "bottom": 91,
+        "height": 31,
+        "scroll": 30,
+        "client": 30,
+        "width": 326,
+        "scrollWidth": 326
+      },
+      "suggestions": {
+        "top": 424,
+        "bottom": 468,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "form": {
+        "top": 474,
+        "bottom": 585,
+        "height": 111,
+        "scroll": 109,
+        "client": 109,
+        "width": 328,
+        "scrollWidth": 328
+      },
+      "send": {
+        "top": 539,
+        "bottom": 576,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 80,
+        "scrollWidth": 80
+      },
+      "menu": {
+        "top": 97,
+        "bottom": 137,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": null
+    },
+    {
+      "name": "streaming",
+      "width": 360,
+      "height": 600,
+      "locale": "tr",
+      "theme": "dark",
+      "documentWidth": 360,
+      "workspace": {
+        "top": 60,
+        "bottom": 474,
+        "height": 414,
+        "scroll": 414,
+        "client": 414,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "log": {
+        "top": 202,
+        "bottom": 431,
+        "height": 229,
+        "scroll": 441,
+        "client": 229,
+        "width": 340,
+        "scrollWidth": 340
+      },
+      "source": {
+        "top": 60,
+        "bottom": 91,
+        "height": 31,
+        "scroll": 30,
+        "client": 30,
+        "width": 326,
+        "scrollWidth": 326
+      },
+      "suggestions": {
+        "top": 0,
+        "bottom": 0,
+        "height": 0,
+        "scroll": 0,
+        "client": 0,
+        "width": 0,
+        "scrollWidth": 0
+      },
+      "form": {
+        "top": 474,
+        "bottom": 585,
+        "height": 111,
+        "scroll": 109,
+        "client": 109,
+        "width": 328,
+        "scrollWidth": 328
+      },
+      "send": {
+        "top": 539,
+        "bottom": 576,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 80,
+        "scrollWidth": 80
+      },
+      "menu": {
+        "top": 97,
+        "bottom": 137,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": null
+    },
+    {
+      "name": "conversation-menu",
+      "width": 360,
+      "height": 600,
+      "locale": "tr",
+      "theme": "dark",
+      "documentWidth": 360,
+      "workspace": {
+        "top": 60,
+        "bottom": 474,
+        "height": 414,
+        "scroll": 414,
+        "client": 414,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "log": {
+        "top": 143,
+        "bottom": 387,
+        "height": 244,
+        "scroll": 471,
+        "client": 244,
+        "width": 340,
+        "scrollWidth": 340
+      },
+      "source": {
+        "top": 60,
+        "bottom": 91,
+        "height": 31,
+        "scroll": 30,
+        "client": 30,
+        "width": 326,
+        "scrollWidth": 326
+      },
+      "suggestions": {
+        "top": 424,
+        "bottom": 468,
+        "height": 44,
+        "scroll": 44,
+        "client": 44,
+        "width": 350,
+        "scrollWidth": 350
+      },
+      "form": {
+        "top": 474,
+        "bottom": 585,
+        "height": 111,
+        "scroll": 109,
+        "client": 109,
+        "width": 328,
+        "scrollWidth": 328
+      },
+      "send": {
+        "top": 539,
+        "bottom": 576,
+        "height": 37,
+        "scroll": 35,
+        "client": 35,
+        "width": 80,
+        "scrollWidth": 80
+      },
+      "menu": {
+        "top": 97,
+        "bottom": 137,
+        "height": 40,
+        "scroll": 40,
+        "client": 40,
+        "width": 40,
+        "scrollWidth": 40
+      },
+      "empty": null
+    }
+  ],
+  "shortAssistantBefore": {
+    "name": "streaming",
+    "width": 360,
+    "height": 600,
+    "locale": "en",
+    "theme": "light",
+    "documentWidth": 360,
+    "workspace": {
+      "top": 67,
+      "bottom": 466,
+      "height": 399,
+      "scroll": 399,
+      "client": 399,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "log": {
+      "top": 237.140625,
+      "bottom": 379,
+      "height": 141.859375,
+      "scroll": 441,
+      "client": 142,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "source": {
+      "top": 93.140625,
+      "bottom": 124.140625,
+      "height": 31,
+      "scroll": 30,
+      "client": 30,
+      "width": 326,
+      "scrollWidth": 326
+    },
+    "form": {
+      "top": 466,
+      "bottom": 585,
+      "height": 119,
+      "scroll": 117,
+      "client": 117,
+      "width": 328,
+      "scrollWidth": 328
+    },
+    "send": {
+      "top": 539,
+      "bottom": 576,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 67,
+      "scrollWidth": 67
+    },
+    "menu": {
+      "top": 131.140625,
+      "bottom": 171.140625,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  "shortAssistantAfter": {
+    "name": "streaming",
+    "width": 360,
+    "height": 600,
+    "locale": "en",
+    "theme": "light",
+    "documentWidth": 360,
+    "workspace": {
+      "top": 60,
+      "bottom": 474,
+      "height": 414,
+      "scroll": 414,
+      "client": 414,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "log": {
+      "top": 202,
+      "bottom": 431,
+      "height": 229,
+      "scroll": 441,
+      "client": 229,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "source": {
+      "top": 60,
+      "bottom": 91,
+      "height": 31,
+      "scroll": 30,
+      "client": 30,
+      "width": 326,
+      "scrollWidth": 326
+    },
+    "suggestions": {
+      "top": 0,
+      "bottom": 0,
+      "height": 0,
+      "scroll": 0,
+      "client": 0,
+      "width": 0,
+      "scrollWidth": 0
+    },
+    "form": {
+      "top": 474,
+      "bottom": 585,
+      "height": 111,
+      "scroll": 109,
+      "client": 109,
+      "width": 328,
+      "scrollWidth": 328
+    },
+    "send": {
+      "top": 539,
+      "bottom": 576,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 67,
+      "scrollWidth": 67
+    },
+    "menu": {
+      "top": 97,
+      "bottom": 137,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  "film": {
+    "fixture": true,
+    "metrics": [
+      {
+        "name": "film-top-1440-tr-dark",
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "overflow": false,
+        "hero": {
+          "x": 0,
+          "y": 226.92709350585938,
+          "width": 1430,
+          "height": 326,
+          "top": 226.92709350585938,
+          "right": 1430,
+          "bottom": 552.9270935058594,
+          "left": 0
+        },
+        "review": {
+          "x": 98.19792175292969,
+          "y": 784.78125,
+          "width": 896.0104370117188,
+          "height": 252.92709350585938,
+          "top": 784.78125,
+          "right": 994.2083587646484,
+          "bottom": 1037.7083435058594,
+          "left": 98.19792175292969
+        },
+        "status": "Henüz kayıtlı analiz yok."
+      },
+      {
+        "name": "film-empty-1440-tr-dark",
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "overflow": false,
+        "hero": {
+          "x": 0,
+          "y": -3.0729167461395264,
+          "width": 1430,
+          "height": 326,
+          "top": -3.0729167461395264,
+          "right": 1430,
+          "bottom": 322.9270832538605,
+          "left": 0
+        },
+        "review": {
+          "x": 98.19792175292969,
+          "y": 554.78125,
+          "width": 896.0104370117188,
+          "height": 252.92709350585938,
+          "top": 554.78125,
+          "right": 994.2083587646484,
+          "bottom": 807.7083435058594,
+          "left": 98.19792175292969
+        },
+        "status": "Henüz kayıtlı analiz yok."
+      },
+      {
+        "name": "film-editor-1440-tr-dark",
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "overflow": false,
+        "hero": {
+          "x": 0,
+          "y": -164.40625,
+          "width": 1430,
+          "height": 326,
+          "top": -164.40625,
+          "right": 1430,
+          "bottom": 161.59375,
+          "left": 0
+        },
+        "review": {
+          "x": 98.19792175292969,
+          "y": 393.44793701171875,
+          "width": 896.0104370117188,
+          "height": 414.5520935058594,
+          "top": 393.44793701171875,
+          "right": 994.2083587646484,
+          "bottom": 808.0000305175781,
+          "left": 98.19792175292969
+        },
+        "status": "Henüz kayıtlı analiz yok."
+      },
+      {
+        "name": "film-loading-1440-tr-dark",
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "overflow": false,
+        "hero": {
+          "x": 0,
+          "y": -164.40625,
+          "width": 1430,
+          "height": 326,
+          "top": -164.40625,
+          "right": 1430,
+          "bottom": 161.59375,
+          "left": 0
+        },
+        "review": {
+          "x": 98.19792175292969,
+          "y": 393.44793701171875,
+          "width": 896.0104370117188,
+          "height": 503.34375,
+          "top": 393.44793701171875,
+          "right": 994.2083587646484,
+          "bottom": 896.7916870117188,
+          "left": 98.19792175292969
+        },
+        "status": "Henüz kayıtlı analiz yok."
+      },
+      {
+        "name": "film-sample-1440-tr-dark",
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "overflow": false,
+        "hero": {
+          "x": 0,
+          "y": -164.40625,
+          "width": 1430,
+          "height": 326,
+          "top": -164.40625,
+          "right": 1430,
+          "bottom": 161.59375,
+          "left": 0
+        },
+        "review": {
+          "x": 98.19792175292969,
+          "y": 393.44793701171875,
+          "width": 896.0104370117188,
+          "height": 551.375,
+          "top": 393.44793701171875,
+          "right": 994.2083587646484,
+          "bottom": 944.8229370117188,
+          "left": 98.19792175292969
+        },
+        "status": "Henüz kayıtlı analiz yok."
+      },
+      {
+        "name": "film-change-sample-1440-tr-dark",
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "overflow": false,
+        "hero": {
+          "x": 0,
+          "y": -164.40625,
+          "width": 1430,
+          "height": 326,
+          "top": -164.40625,
+          "right": 1430,
+          "bottom": 161.59375,
+          "left": 0
+        },
+        "review": {
+          "x": 98.19792175292969,
+          "y": 393.44793701171875,
+          "width": 896.0104370117188,
+          "height": 693.1666870117188,
+          "top": 393.44793701171875,
+          "right": 994.2083587646484,
+          "bottom": 1086.6146240234375,
+          "left": 98.19792175292969
+        },
+        "status": "Henüz kayıtlı analiz yok."
+      },
+      {
+        "name": "film-error-1440-tr-dark",
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "overflow": false,
+        "hero": {
+          "x": 0,
+          "y": -164.40625,
+          "width": 1430,
+          "height": 326,
+          "top": -164.40625,
+          "right": 1430,
+          "bottom": 161.59375,
+          "left": 0
+        },
+        "review": {
+          "x": 98.19792175292969,
+          "y": 393.44793701171875,
+          "width": 896.0104370117188,
+          "height": 1288.3958740234375,
+          "top": 393.44793701171875,
+          "right": 994.2083587646484,
+          "bottom": 1681.8438110351562,
+          "left": 98.19792175292969
+        },
+        "status": "Henüz kayıtlı analiz yok."
+      },
+      {
+        "name": "film-top-800-en-light",
+        "innerWidth": 640,
+        "innerHeight": 800,
+        "overflow": false,
+        "hero": {
+          "x": 0,
+          "y": 228.2666778564453,
+          "width": 632.0000610351562,
+          "height": 253.53334045410156,
+          "top": 228.2666778564453,
+          "right": 632.0000610351562,
+          "bottom": 481.8000183105469,
+          "left": 0
+        },
+        "review": {
+          "x": 22.000001907348633,
+          "y": 783.1333618164062,
+          "width": 588.0000610351562,
+          "height": 244.2666778564453,
+          "top": 783.1333618164062,
+          "right": 610.0000629425049,
+          "bottom": 1027.4000396728516,
+          "left": 22.000001907348633
+        },
+        "status": "No saved analysis yet."
+      },
+      {
+        "name": "film-empty-800-en-light",
+        "innerWidth": 640,
+        "innerHeight": 800,
+        "overflow": false,
+        "hero": {
+          "x": 0,
+          "y": -474.13336181640625,
+          "width": 632.0000610351562,
+          "height": 253.53334045410156,
+          "top": -474.13336181640625,
+          "right": 632.0000610351562,
+          "bottom": -220.6000213623047,
+          "left": 0
+        },
+        "review": {
+          "x": 22.000001907348633,
+          "y": 80.73333740234375,
+          "width": 588.0000610351562,
+          "height": 244.2666778564453,
+          "top": 80.73333740234375,
+          "right": 610.0000629425049,
+          "bottom": 325.00001525878906,
+          "left": 22.000001907348633
+        },
+        "status": "No saved analysis yet."
+      },
+      {
+        "name": "film-editor-800-en-light",
+        "innerWidth": 640,
+        "innerHeight": 800,
+        "overflow": false,
+        "hero": {
+          "x": 0,
+          "y": -526.933349609375,
+          "width": 632.0000610351562,
+          "height": 253.53334045410156,
+          "top": -526.933349609375,
+          "right": 632.0000610351562,
+          "bottom": -273.40000915527344,
+          "left": 0
+        },
+        "review": {
+          "x": 22.000001907348633,
+          "y": 27.933334350585938,
+          "width": 588.0000610351562,
+          "height": 405.63336181640625,
+          "top": 27.933334350585938,
+          "right": 610.0000629425049,
+          "bottom": 433.5666961669922,
+          "left": 22.000001907348633
+        },
+        "status": "No saved analysis yet."
+      },
+      {
+        "name": "film-loading-800-en-light",
+        "innerWidth": 640,
+        "innerHeight": 800,
+        "overflow": false,
+        "hero": {
+          "x": 0,
+          "y": -526.933349609375,
+          "width": 632.0000610351562,
+          "height": 253.53334045410156,
+          "top": -526.933349609375,
+          "right": 632.0000610351562,
+          "bottom": -273.40000915527344,
+          "left": 0
+        },
+        "review": {
+          "x": 22.000001907348633,
+          "y": 27.933334350585938,
+          "width": 588.0000610351562,
+          "height": 494.0333557128906,
+          "top": 27.933334350585938,
+          "right": 610.0000629425049,
+          "bottom": 521.9666900634766,
+          "left": 22.000001907348633
+        },
+        "status": "No saved analysis yet."
+      },
+      {
+        "name": "film-sample-800-en-light",
+        "innerWidth": 640,
+        "innerHeight": 800,
+        "overflow": false,
+        "hero": {
+          "x": 0,
+          "y": -526.933349609375,
+          "width": 632.0000610351562,
+          "height": 253.53334045410156,
+          "top": -526.933349609375,
+          "right": 632.0000610351562,
+          "bottom": -273.40000915527344,
+          "left": 0
+        },
+        "review": {
+          "x": 22.000001907348633,
+          "y": 27.933334350585938,
+          "width": 588.0000610351562,
+          "height": 542.86669921875,
+          "top": 27.933334350585938,
+          "right": 610.0000629425049,
+          "bottom": 570.8000335693359,
+          "left": 22.000001907348633
+        },
+        "status": "No saved analysis yet."
+      },
+      {
+        "name": "film-change-sample-800-en-light",
+        "innerWidth": 640,
+        "innerHeight": 800,
+        "overflow": false,
+        "hero": {
+          "x": 0,
+          "y": -526.933349609375,
+          "width": 632.0000610351562,
+          "height": 253.53334045410156,
+          "top": -526.933349609375,
+          "right": 632.0000610351562,
+          "bottom": -273.40000915527344,
+          "left": 0
+        },
+        "review": {
+          "x": 22.000001907348633,
+          "y": 27.933334350585938,
+          "width": 588.0000610351562,
+          "height": 684.2667236328125,
+          "top": 27.933334350585938,
+          "right": 610.0000629425049,
+          "bottom": 712.2000579833984,
+          "left": 22.000001907348633
+        },
+        "status": "No saved analysis yet."
+      },
+      {
+        "name": "film-error-800-en-light",
+        "innerWidth": 640,
+        "innerHeight": 800,
+        "overflow": false,
+        "hero": {
+          "x": 0,
+          "y": -526.933349609375,
+          "width": 632.0000610351562,
+          "height": 253.53334045410156,
+          "top": -526.933349609375,
+          "right": 632.0000610351562,
+          "bottom": -273.40000915527344,
+          "left": 0
+        },
+        "review": {
+          "x": 22.000001907348633,
+          "y": 27.933334350585938,
+          "width": 588.0000610351562,
+          "height": 1348.8333740234375,
+          "top": 27.933334350585938,
+          "right": 610.0000629425049,
+          "bottom": 1376.7667083740234,
+          "left": 22.000001907348633
+        },
+        "status": "No saved analysis yet."
+      }
+    ]
+  },
+  "filmAxe": {
+    "film-editor-800-en-light-audit.json": {
+      "violations": [],
+      "viewport": {
+        "width": 640,
+        "height": 800,
+        "dpr": 1.875
+      }
+    },
+    "film-empty-1440-tr-dark-audit.json": {
+      "violations": [],
+      "viewport": {
+        "width": 1440,
+        "height": 1000,
+        "dpr": 1.5
+      }
+    },
+    "film-error-800-en-light-audit.json": {
+      "violations": [],
+      "viewport": {
+        "width": 640,
+        "height": 800,
+        "dpr": 1.875
+      }
+    },
+    "film-sample-1440-tr-dark-audit.json": {
+      "violations": [],
+      "viewport": {
+        "width": 1440,
+        "height": 1000,
+        "dpr": 1.5
+      }
+    }
+  },
+  "dub": [
+    {
+      "name": "tr-1440-input-flow",
+      "width": 1440,
+      "children": [
+        "dub-card dub-source-card",
+        "dub-card dub-natural-card"
+      ],
+      "height": 373.32293701171875,
+      "source": 169.33334350585938,
+      "production": 189.98959350585938
+    },
+    {
+      "name": "tr-1440-ready",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 hazır0 inceleme0 üretilemedi"
+    },
+    {
+      "name": "tr-1440-saved-voices",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 hazır0 inceleme0 üretilemedi"
+    },
+    {
+      "name": "tr-1440-focus",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 hazır0 inceleme0 üretilemedi"
+    },
+    {
+      "name": "tr-1440-active",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 hazır0 inceleme0 üretilemedi"
+    },
+    {
+      "name": "tr-1440-review",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "1 hazır0 inceleme0 üretilemedi"
+    },
+    {
+      "name": "tr-820-input-flow",
+      "width": 820,
+      "children": [
+        "dub-card dub-source-card",
+        "dub-card dub-natural-card"
+      ],
+      "height": 419.32293701171875,
+      "source": 165.33334350585938,
+      "production": 239.98959350585938
+    },
+    {
+      "name": "tr-820-ready",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 hazır0 inceleme0 üretilemedi"
+    },
+    {
+      "name": "tr-820-focus",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 hazır0 inceleme0 üretilemedi"
+    },
+    {
+      "name": "tr-820-active",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 hazır0 inceleme0 üretilemedi"
+    },
+    {
+      "name": "tr-820-review",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "1 hazır0 inceleme0 üretilemedi"
+    },
+    {
+      "name": "en-640-input-flow",
+      "width": 640,
+      "children": [
+        "dub-card dub-source-card",
+        "dub-card dub-natural-card"
+      ],
+      "height": 438.5208435058594,
+      "source": 165.33334350585938,
+      "production": 259.1875
+    },
+    {
+      "name": "en-640-ready",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 ready0 to review0 failed"
+    },
+    {
+      "name": "en-640-focus",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 ready0 to review0 failed"
+    },
+    {
+      "name": "en-640-active",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 ready0 to review0 failed"
+    },
+    {
+      "name": "en-640-review",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 ready1 to review0 failed"
+    },
+    {
+      "name": "en-640-pronunciation",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 ready1 to review0 failed"
+    }
+  ],
+  "reader": {
+    "ok": true,
+    "selectedPages": [
+      2,
+      3
+    ],
+    "realPdf": true,
+    "noModelGeneration": true,
+    "fixtureInlineAudio": true
+  },
+  "focusedChecks": {
+    "combined": 50,
+    "ownershipAndLocale": 15,
+    "syntaxJs": 18,
+    "allPreviousHtmlIdsPreserved": true
+  }
+}

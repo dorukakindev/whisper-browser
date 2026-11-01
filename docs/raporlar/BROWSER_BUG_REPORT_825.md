@@ -1,5 +1,7 @@
 # R825 — Yeni plugin ölçütleriyle görüntülü tasarım denetimi
 
+**Uygulama eki (1 Kasım):** Aşağıdaki özgün denetim tarihsel kayıttır. Beş UX önerisi ve LOW semantik hata, önceki onarımlar korunarak [ürün ve görüntülü kabul paketinde](plugin-design-audit825/implementation/README.md) uygulandı; ürün commit'i `20c8dc0998c6bc2f4bbd93dac7479d964d30726f`. Özgün bulgular ve önce görüntüleri değiştirilmedi.
+
 1 Kasım 2026. Taban `fe0e3fe0d040ccd4b6b18d6a32c96cfc686d65d8`. **Ürün kodu değişmedi. Bir düşük önemde semantik uyumsuzluk ve beş görsel/UX geliştirme yönü var; bunlar altı kritik bug değildir.** Önceki R824'ün onarımlarını yeni keşif diye saymıyoruz. Genel estetik kabulü verilmedi.
 
 Kullanıcının “yeni pluginlerle de tarat” talebi kapsamında Redesign'ın teşhis kontrol listesi ve Designly Visual QA'nın hiyerarşi, kompozisyon, tipografi, işlevsiz süs ve kimlik ölçütleri uygulandı. Product Design audit çerçevesi ve context preflight okundu; kayıtlı context yoktu. Yakalama gerçek Windows Electron'da yapıldı; **Product Design'ın IAB tabanlı tam akışı çalıştırılmış değildir.** Ayrıntılı plugin kullanım/erişim kaydı [SNAPSHOT.json](plugin-design-audit825/SNAPSHOT.json) içinde.

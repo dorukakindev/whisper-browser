@@ -1,0 +1,233 @@
+{
+  "viewport": {
+    "width": 640,
+    "height": 800,
+    "dpr": 1.875
+  },
+  "reduce": false,
+  "animations": [],
+  "controls": [
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Close review workspace",
+      "rect": {
+        "x": 435.13336181640625,
+        "y": 48.466670989990234,
+        "width": 154.33334350585938,
+        "height": 38.000003814697266,
+        "top": 48.466670989990234,
+        "right": 589.4667053222656,
+        "bottom": 86.4666748046875,
+        "left": 435.13336181640625
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Retry reading",
+      "rect": {
+        "x": 480.3000183105469,
+        "y": 125.30000305175781,
+        "width": 109.16667175292969,
+        "height": 37.866668701171875,
+        "top": 125.30000305175781,
+        "right": 589.4666900634766,
+        "bottom": 163.1666717529297,
+        "left": 480.3000183105469
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Read the loaded reviews",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 282.2666931152344,
+        "width": 546.933349609375,
+        "height": 40.000003814697266,
+        "top": 282.2666931152344,
+        "right": 589.4666862487793,
+        "bottom": 322.26669692993164,
+        "left": 42.5333366394043
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Preview & analyze",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 411.4666748046875,
+        "width": 142.60000610351562,
+        "height": 39.26667022705078,
+        "top": 411.4666748046875,
+        "right": 185.13334274291992,
+        "bottom": 450.7333450317383,
+        "left": 42.5333366394043
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Change review sample",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 463.2666931152344,
+        "width": 546.933349609375,
+        "height": 40.000003814697266,
+        "top": 463.2666931152344,
+        "right": 589.4666862487793,
+        "bottom": 503.26669692993164,
+        "left": 42.5333366394043
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "INPUT",
+      "text": "",
+      "rect": {
+        "x": 472.5333557128906,
+        "y": 544.7333374023438,
+        "width": 90.00000762939453,
+        "height": 44.06666946411133,
+        "top": 544.7333374023438,
+        "right": 562.5333633422852,
+        "bottom": 588.8000068664551,
+        "left": 472.5333557128906
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SELECT",
+      "text": "Balanced · four listsReview activityNewestHighest ratedLowest rated",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 544.800048828125,
+        "width": 416.0000305175781,
+        "height": 44.000003814697266,
+        "top": 544.800048828125,
+        "right": 458.5333671569824,
+        "bottom": 588.8000526428223,
+        "left": 42.5333366394043
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Find this film & get reviews",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 606.800048828125,
+        "width": 157.82501220703125,
+        "height": 37.866668701171875,
+        "top": 606.800048828125,
+        "right": 200.35834884643555,
+        "bottom": 644.6667175292969,
+        "left": 42.5333366394043
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Open this film in Browser",
+      "rect": {
+        "x": 208.35833740234375,
+        "y": 606.800048828125,
+        "width": 148.35833740234375,
+        "height": 37.866668701171875,
+        "top": 606.800048828125,
+        "right": 356.7166748046875,
+        "bottom": 644.6667175292969,
+        "left": 208.35833740234375
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Advanced · sources & review options",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 671.2000122070312,
+        "width": 546.933349609375,
+        "height": 40.000003814697266,
+        "top": 671.2000122070312,
+        "right": 589.4666862487793,
+        "bottom": 711.2000160217285,
+        "left": 42.5333366394043
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "INPUT",
+      "text": "",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 754.2667236328125,
+        "width": 546.933349609375,
+        "height": 44.06666946411133,
+        "top": 754.2667236328125,
+        "right": 589.4666862487793,
+        "bottom": 798.3333930969238,
+        "left": 42.5333366394043
+      },
+      "font": "14px",
+      "disabled": false
+    }
+  ],
+  "violations": [],
+  "incomplete": [
+    {
+      "id": "aria-prohibited-attr",
+      "nodes": 1
+    }
+  ],
+  "passes": [
+    "aria-allowed-attr",
+    "aria-conditional-attr",
+    "aria-deprecated-role",
+    "aria-hidden-body",
+    "aria-hidden-focus",
+    "aria-prohibited-attr",
+    "aria-required-attr",
+    "aria-roles",
+    "aria-valid-attr-value",
+    "aria-valid-attr",
+    "autocomplete-valid",
+    "button-name",
+    "bypass",
+    "color-contrast",
+    "document-title",
+    "duplicate-id-aria",
+    "form-field-multiple-labels",
+    "html-has-lang",
+    "html-lang-valid",
+    "image-alt",
+    "label",
+    "nested-interactive",
+    "role-img-alt",
+    "scrollable-region-focusable",
+    "select-name",
+    "summary-name"
+  ]
+}

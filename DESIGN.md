@@ -64,6 +64,12 @@ Kontroller ve gruplarda mevcut 6–8 px köşe ailesi korunur. Eylemi açıklama
 
 ## Components
 
+### Günlük görev ve isteğe bağlı ayrıntı
+
+Temel sağlayıcı/model/maskeli anahtar ayarları önce; ayrı asistan yapılandırması yalnız seçildiğinde görünür. Kısa asistan panelinde kaynak tek özet satırıdır; tam bağlam açılır, ilk öneri görünür ve diğer komutlar menüdedir. Meşgulken kullanılamayan öneriler yanıt alanını daraltmaz; İptal ve taslak görünür kalır.
+
+Hazır film yorum örneği ayar formundan önce gelir; sayı/havuz/yenileme isteğe bağlı ayrıntıdır. Dublajda etkin ses ile değiştirilmek üzere seçilmiş ses ayrı durumlardır; boş kitaplık formu yerine yerel ekleme sunulur. PDF ses hazırlığı okuma alanını sürekli işgal etmez; hazır oynatma ve aralık bilgisi açık kalır. Bu sadeleştirmeler gelişmiş seçenekleri silme gerekçesi değildir. [R825 uygulaması](docs/raporlar/plugin-design-audit825/implementation/README.md) native örnekleri ve sınırları kaydeder.
+
 Native select ve Electron dosya seçicisi bu mevcut Windows uygulamasının kabul edilen sahipleridir; popup geometrisi işletim sistemine aittir. Metin alanları görünür etiket, düğmeler klavye odağı taşır. İşlem beklerken aynı eylem tekrar başlatılmaz; durum alanı hata ve boş sonucu bildirir. Sonuç metni HTML olarak çalıştırılmaz.
 
 ### Medya iş akışlarında görsel hiyerarşi

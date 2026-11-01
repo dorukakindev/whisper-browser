@@ -1,0 +1,92 @@
+[
+  {
+    "path": "assets/settings-520-tr-ai.png",
+    "sha256": "164655d90bd0467e558b6a67698ec25c2646f3cd95bb8bfcb83443e2ca223153",
+    "bytes": 55758
+  },
+  {
+    "path": "assets/settings-640-en-ai.png",
+    "sha256": "cb5fb62b6aca8e358e289736122707fcc9ca01202e9a52f117a3044b19392da3",
+    "bytes": 77719
+  },
+  {
+    "path": "assets/assistant-360-en-light-streaming.png",
+    "sha256": "42d84e221d52d8c6245a51bcfe1d359147fc3d00a3f0ee518c4300ffdcc766a4",
+    "bytes": 39155
+  },
+  {
+    "path": "assets/assistant-360-tr-dark-more-suggestions.png",
+    "sha256": "c289210b9f501329da0cb30f179ba6578664a6011a0ebc8e0454edb01254f68d",
+    "bytes": 31493
+  },
+  {
+    "path": "assets/assistant-360-en-light-streaming-long-draft.png",
+    "sha256": "db41c8792733435597bb2e03245189bd16a2fd269f2a91cee73f2dbd62619e59",
+    "bytes": 38868
+  },
+  {
+    "path": "assets/film-film-sample-1440-tr-dark.png",
+    "sha256": "db93477608dccb10a1df8bd8a86ea955779560f0ee291bbfb34d80d3f9224bce",
+    "bytes": 137502
+  },
+  {
+    "path": "assets/film-film-change-sample-1440-tr-dark.png",
+    "sha256": "935772d596cb5b205c4211f195515a1695d1edf9c390aa18adc0e2b2cfb54365",
+    "bytes": 145962
+  },
+  {
+    "path": "assets/film-film-editor-800-en-light.png",
+    "sha256": "4c25ce54d6fff3fef44476ed60c1bf0e997d9664b23f6f20338eaf51e13cbe07",
+    "bytes": 103803
+  },
+  {
+    "path": "assets/dub-tr-1440-ready.png",
+    "sha256": "46fb038ccf3f0d4ea2e5bef9ce437ff225d8bdaebf8450a2790d3c330d94ee27",
+    "bytes": 167818
+  },
+  {
+    "path": "assets/dub-tr-1440-saved-voices.png",
+    "sha256": "2718422f4454e14e19289d038bdcdfc8ffd32807eee3b818d06debfc5b9b42df",
+    "bytes": 170891
+  },
+  {
+    "path": "assets/dub-en-640-review.png",
+    "sha256": "cd1715f6a71d2641715f525c1b05ac3e9c077931f32189fd03a0d5b08011505c",
+    "bytes": 126390
+  },
+  {
+    "path": "assets/reader-text-reader-520.png",
+    "sha256": "b9c3ca832e2b0c0bf724b6262995fda598923b2479cc7a19ad2c8ecb8301d392",
+    "bytes": 34640
+  },
+  {
+    "path": "assets/reader-reading-en-light-calm.png",
+    "sha256": "1cf6640a4c33f1b3f17dc0c3bd86145e0d342f2dfb1db27c219e7d2ac9a46fb5",
+    "bytes": 280308
+  },
+  {
+    "path": "assets/reader-inline-listening.png",
+    "sha256": "c8ebc33891e10e7c097a5ce39f82ba8b29f9ee043800c471fd7e6292f3acc437",
+    "bytes": 276610
+  },
+  {
+    "path": "assets/film-editor-800-en-light-audit.json",
+    "sha256": "99a89514adf5a14ee77f77e8c4be4448a9a2dcc2c7d39023097662d2ad8c2710",
+    "bytes": 9471
+  },
+  {
+    "path": "assets/film-empty-1440-tr-dark-audit.json",
+    "sha256": "6e617691436e2bd696cafd01745e35ca8e92c32f0be3d9dd970f7d58ad5b17ec",
+    "bytes": 10859
+  },
+  {
+    "path": "assets/film-error-800-en-light-audit.json",
+    "sha256": "d473b472f66803fd307f44b505fbf8f340c166a108b1234c6436871ef315ba6e",
+    "bytes": 5969
+  },
+  {
+    "path": "assets/film-sample-1440-tr-dark-audit.json",
+    "sha256": "58409f0d32cebe13ca05d637a7256d11cfb5b288d83ad4ff2e7c120951304517",
+    "bytes": 14706
+  }
+]
