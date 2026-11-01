@@ -1,5 +1,5 @@
 'use strict';
-const {publicFilmUrl,reviewPageSource,reviewPageScript}=require('./letterboxd-reviews');
+const {publicFilmUrl,reviewPageSource,reviewPageScript,expandReviewHtml,fullTextFetchScript}=require('./letterboxd-reviews');
 const LIMIT=3000000;
 function trusted(value){
  try{const u=new URL(value);if(u.protocol!=='https:'||u.hostname!=='letterboxd.com'||u.port||u.username||u.password||u.search||u.hash)return null;
@@ -124,7 +124,9 @@ function createBrowserReviewReader({BrowserWindow,parent,partition,userAgent,onD
      }else{emptySince=0;emptyHtml='';}
      if(!new URL(current).pathname.includes('/reviews/')||cards||emptySince&&Date.now()-emptySince>=1800){
       if(!film(current))throw Error('No Letterboxd film matched this identifier.');
-      filmId=film(current);diagnostic('page-read',current);return {url:current,html:data.html};
+      const expanded=!new URL(current).pathname.includes('/reviews/')?{html:data.html}:await race(expandReviewHtml(data.html,{signal,load:async address=>{if(!allowed(currentUrl())||currentUrl()!==current)throw Error('Letterboxd page changed while reading a full review.');return race(window.webContents.executeJavaScript(fullTextFetchScript(address),false));}}));
+      if(currentUrl()!==current||!allowed(currentUrl()))throw Error('Letterboxd page changed while reading reviews.');
+      filmId=film(current);diagnostic('page-read',current);return {url:current,html:expanded.html};
      }
     }
     await race(new Promise(resolve=>{pauseTimer=setTimeout(resolve,300);}));

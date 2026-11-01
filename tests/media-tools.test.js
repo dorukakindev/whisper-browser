@@ -124,9 +124,10 @@ test('A review analysis cannot be saved against a different film identity after 
 test('Discovery review bridge resolves trusted metadata without requiring or writing a library item',async()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'discovery-review-')),close=[];let resolved=0;
  try{const svc=tools.registerMediaTools({app:{getPath:()=>dir,on:(_,fn)=>close.push(fn)},ipcMain:{handle(){}},authorized:e=>e?.trusted===true,dialog:{},catalogStore:()=>({get:()=>{throw Error('No library item');}}),resolveDiscovery:async(e,d)=>{assert(e.trusted);resolved++;return {ok:true,item:{kind:d.kind,providerId:d.id,title:'Verified film',year:2026}};},readOpenReviews:async()=>({reviews:[],identity:{title:'Verified film',year:2026}})});
- const r=await svc.handle({trusted:true},{action:'reviews-browser',discovery:{kind:'film',id:'tt14173636'}});assert.equal(r.ok,true);assert.equal(resolved,1);
- const bad=await svc.handle({trusted:true},{action:'reviews-browser',discovery:{kind:'film',id:'https://private'}});assert.equal(bad.ok,false);assert.equal(resolved,1);
- const denied=await svc.handle({}, {action:'reviews-browser',discovery:{kind:'film',id:'tt14173636'}});assert.equal(denied.ok,false);assert.equal(resolved,1);
+ // Full-text loading is asynchronous: re-resolve the same discovery identity after it finishes.
+ const r=await svc.handle({trusted:true},{action:'reviews-browser',discovery:{kind:'film',id:'tt14173636'}});assert.equal(r.ok,true);assert.equal(resolved,2);
+ const bad=await svc.handle({trusted:true},{action:'reviews-browser',discovery:{kind:'film',id:'https://private'}});assert.equal(bad.ok,false);assert.equal(resolved,2);
+ const denied=await svc.handle({}, {action:'reviews-browser',discovery:{kind:'film',id:'tt14173636'}});assert.equal(denied.ok,false);assert.equal(resolved,2);
  }finally{close.forEach(fn=>fn());fs.rmSync(dir,{recursive:true,force:true});}
 });
 

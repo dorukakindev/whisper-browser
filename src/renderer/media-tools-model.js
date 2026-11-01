@@ -18,7 +18,8 @@ function reviewRows(raw) {
   let rows;
   if (raw.trim().startsWith('[')) { rows=JSON.parse(raw); if (!Array.isArray(rows)) throw Error('Expected a review array.'); }
   else rows=raw.split(/\n\s*\n/).map(body=>({text:body}));
-  const parsed=rows.slice(0,100).map((row,i)=>({id:text(row?.id,80)||String(i+1),author:text(row?.author,120),text:text(row?.text,4000),spoiler:!!row?.spoiler,...reviewMetadata(row||{})})).filter(r=>r.text.length>=8);
+  if(rows.some(row=>String(row?.text??'').length>20000))throw Error('A review exceeds 20,000 characters; shorten it explicitly before importing.');
+  const parsed=rows.slice(0,100).map((row,i)=>({id:text(row?.id,80)||String(i+1),author:text(row?.author,120),text:text(row?.text,20000),spoiler:!!row?.spoiler,...reviewMetadata(row||{})})).filter(r=>r.text.length>=8);
   if(new Set(parsed.map(r=>r.id)).size!==parsed.length)throw Error('Review IDs must be unique.');return parsed;
 }
 function reviewSample(reviews, limit=4500, maxReviews=48) {
@@ -49,7 +50,7 @@ function reviewAssessment(reviews, points=[]) {
  const normalize=value=>String(value||'').normalize('NFKC').replace(/\s+/g,' ').trim().toLocaleLowerCase('en-US');
  const unique=new Set(reviews.map(r=>normalize(r.text))),quoted=new Set(points.filter(p=>reviews.some(r=>r.id===p.id)).map(p=>normalize(reviews.find(r=>r.id===p.id).text)));
  const authors=reviews.map(row=>reviewMetadata(row).authorId),independentAuthors=new Set(authors.filter(Boolean)).size,unknownAuthors=authors.filter(value=>!value).length;
- return {shortTexts:reviews.filter(row=>text(row.text,4000).length<80).length,spoilerTexts:reviews.filter(row=>row.spoiler).length,total:reviews.length,distinct:unique.size,duplicates:reviews.length-unique.size,quoted:quoted.size,independentAuthors,unknownAuthors,limited:unique.size<5||independentAuthors<5};
+ return {shortTexts:reviews.filter(row=>text(row.text,20000).length<80).length,spoilerTexts:reviews.filter(row=>row.spoiler).length,total:reviews.length,distinct:unique.size,duplicates:reviews.length-unique.size,quoted:quoted.size,independentAuthors,unknownAuthors,limited:unique.size<5||independentAuthors<5};
 }
 function personalEvidence(taste={}) {
  const aspects=['story','characters','pace','visuals','sound','emotion'],configured=taste.preferencesConfigured===true;
@@ -101,7 +102,7 @@ function decisionEvidence(item,reviews,taste={}) {
  const result={title:String(item.title||'').slice(0,200),year:item.year,kind:item.kind,identity:decisionProviderIdentity(item),reviews:[],sampleAssessment:{distinctReviews:48,independentAuthors:48,unknownAuthors:48,duplicates:48},profile,limitations:'Default weights are not explicit preferences. Accepted analysis is an inference from earlier personal reviews, not a guaranteed prediction.'};
  const story=decisionStory(item);if(story)result.story=story;
  const overhead=JSON.stringify(result).length;
- const normalized=reviews.map((row,i)=>({id:text(row?.id,80)||String(i+1),author:text(row?.author,120),text:text(row?.text,4000),spoiler:!!row?.spoiler,...reviewMetadata(row||{})}));
+ const normalized=reviews.map((row,i)=>({id:text(row?.id,80)||String(i+1),author:text(row?.author,120),text:text(row?.text,20000),spoiler:!!row?.spoiler,...reviewMetadata(row||{})}));
  const sample=reviewSample(normalized,Math.max(100,Math.min(60000,64000-overhead)),48);
  result.reviews=sample.reviews;result.sampleAssessment=decisionSampleAssessment(sample.reviews);return {evidence:result,sample};
 }
