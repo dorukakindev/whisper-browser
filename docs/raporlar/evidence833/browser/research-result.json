@@ -1,0 +1,407 @@
+{
+  "head": "1b211e4ed37f622dcc3e2144517590ae7aff9cee",
+  "results": [
+    {
+      "name": "literal pipe in URL",
+      "created": {
+        "id": "a",
+        "type": "note",
+        "mediaId": "https://media.invalid/video",
+        "start": 0,
+        "end": 0,
+        "source": "Synthetic source",
+        "translation": "",
+        "note": "Before",
+        "status": "new",
+        "screenshotRef": "",
+        "audioRef": "",
+        "createdAt": 1793526306718,
+        "updatedAt": 1793526306718,
+        "mediaTitle": "",
+        "mediaType": "",
+        "mediaUrl": "",
+        "trackId": "",
+        "cueId": "",
+        "anchor": null,
+        "tags": [
+          "normal"
+        ],
+        "links": [
+          {
+            "label": "Source",
+            "url": "https://evidence.invalid/chapter?select=a|b"
+          }
+        ],
+        "dueAt": 0,
+        "intervalDays": 0,
+        "ease": 2.5,
+        "reviewCount": 0,
+        "lapses": 0,
+        "lastReviewedAt": 0
+      },
+      "beforeText": "Source | https://evidence.invalid/chapter?select=a|b",
+      "beforeTags": "normal",
+      "after": {
+        "id": "a",
+        "type": "note",
+        "mediaId": "https://media.invalid/video",
+        "start": 0,
+        "end": 0,
+        "source": "Synthetic source",
+        "translation": "",
+        "note": "Edited note only",
+        "status": "new",
+        "screenshotRef": "",
+        "audioRef": "",
+        "createdAt": 1793526306718,
+        "updatedAt": 1793526306845,
+        "mediaTitle": "",
+        "mediaType": "",
+        "mediaUrl": "",
+        "trackId": "",
+        "cueId": "",
+        "anchor": null,
+        "tags": [
+          "normal"
+        ],
+        "links": [],
+        "dueAt": 0,
+        "intervalDays": 0,
+        "ease": 2.5,
+        "reviewCount": 0,
+        "lapses": 0,
+        "lastReviewedAt": 0
+      },
+      "notices": [
+        "Araştırma notu kaydedildi"
+      ],
+      "unauthorized": false
+    },
+    {
+      "name": "encoded pipe in URL",
+      "created": {
+        "id": "a",
+        "type": "note",
+        "mediaId": "https://media.invalid/video",
+        "start": 0,
+        "end": 0,
+        "source": "Synthetic source",
+        "translation": "",
+        "note": "Before",
+        "status": "new",
+        "screenshotRef": "",
+        "audioRef": "",
+        "createdAt": 1793526306866,
+        "updatedAt": 1793526306866,
+        "mediaTitle": "",
+        "mediaType": "",
+        "mediaUrl": "",
+        "trackId": "",
+        "cueId": "",
+        "anchor": null,
+        "tags": [
+          "normal"
+        ],
+        "links": [
+          {
+            "label": "Source",
+            "url": "https://evidence.invalid/chapter?select=a%7Cb"
+          }
+        ],
+        "dueAt": 0,
+        "intervalDays": 0,
+        "ease": 2.5,
+        "reviewCount": 0,
+        "lapses": 0,
+        "lastReviewedAt": 0
+      },
+      "beforeText": "Source | https://evidence.invalid/chapter?select=a%7Cb",
+      "beforeTags": "normal",
+      "after": {
+        "id": "a",
+        "type": "note",
+        "mediaId": "https://media.invalid/video",
+        "start": 0,
+        "end": 0,
+        "source": "Synthetic source",
+        "translation": "",
+        "note": "Edited note only",
+        "status": "new",
+        "screenshotRef": "",
+        "audioRef": "",
+        "createdAt": 1793526306866,
+        "updatedAt": 1793526306900,
+        "mediaTitle": "",
+        "mediaType": "",
+        "mediaUrl": "",
+        "trackId": "",
+        "cueId": "",
+        "anchor": null,
+        "tags": [
+          "normal"
+        ],
+        "links": [
+          {
+            "label": "Source",
+            "url": "https://evidence.invalid/chapter?select=a%7Cb"
+          }
+        ],
+        "dueAt": 0,
+        "intervalDays": 0,
+        "ease": 2.5,
+        "reviewCount": 0,
+        "lapses": 0,
+        "lastReviewedAt": 0
+      },
+      "notices": [
+        "Araştırma notu kaydedildi"
+      ],
+      "unauthorized": false
+    },
+    {
+      "name": "pipe in label safe control",
+      "created": {
+        "id": "a",
+        "type": "note",
+        "mediaId": "https://media.invalid/video",
+        "start": 0,
+        "end": 0,
+        "source": "Synthetic source",
+        "translation": "",
+        "note": "Before",
+        "status": "new",
+        "screenshotRef": "",
+        "audioRef": "",
+        "createdAt": 1793526306918,
+        "updatedAt": 1793526306918,
+        "mediaTitle": "",
+        "mediaType": "",
+        "mediaUrl": "",
+        "trackId": "",
+        "cueId": "",
+        "anchor": null,
+        "tags": [
+          "normal"
+        ],
+        "links": [
+          {
+            "label": "Source | Section",
+            "url": "https://evidence.invalid/chapter"
+          }
+        ],
+        "dueAt": 0,
+        "intervalDays": 0,
+        "ease": 2.5,
+        "reviewCount": 0,
+        "lapses": 0,
+        "lastReviewedAt": 0
+      },
+      "beforeText": "Source | Section | https://evidence.invalid/chapter",
+      "beforeTags": "normal",
+      "after": {
+        "id": "a",
+        "type": "note",
+        "mediaId": "https://media.invalid/video",
+        "start": 0,
+        "end": 0,
+        "source": "Synthetic source",
+        "translation": "",
+        "note": "Edited note only",
+        "status": "new",
+        "screenshotRef": "",
+        "audioRef": "",
+        "createdAt": 1793526306918,
+        "updatedAt": 1793526306952,
+        "mediaTitle": "",
+        "mediaType": "",
+        "mediaUrl": "",
+        "trackId": "",
+        "cueId": "",
+        "anchor": null,
+        "tags": [
+          "normal"
+        ],
+        "links": [
+          {
+            "label": "Source | Section",
+            "url": "https://evidence.invalid/chapter"
+          }
+        ],
+        "dueAt": 0,
+        "intervalDays": 0,
+        "ease": 2.5,
+        "reviewCount": 0,
+        "lapses": 0,
+        "lastReviewedAt": 0
+      },
+      "notices": [
+        "Araştırma notu kaydedildi"
+      ],
+      "unauthorized": false
+    },
+    {
+      "name": "ordinary URL",
+      "created": {
+        "id": "a",
+        "type": "note",
+        "mediaId": "https://media.invalid/video",
+        "start": 0,
+        "end": 0,
+        "source": "Synthetic source",
+        "translation": "",
+        "note": "Before",
+        "status": "new",
+        "screenshotRef": "",
+        "audioRef": "",
+        "createdAt": 1793526306970,
+        "updatedAt": 1793526306970,
+        "mediaTitle": "",
+        "mediaType": "",
+        "mediaUrl": "",
+        "trackId": "",
+        "cueId": "",
+        "anchor": null,
+        "tags": [
+          "normal"
+        ],
+        "links": [
+          {
+            "label": "",
+            "url": "https://evidence.invalid/chapter"
+          }
+        ],
+        "dueAt": 0,
+        "intervalDays": 0,
+        "ease": 2.5,
+        "reviewCount": 0,
+        "lapses": 0,
+        "lastReviewedAt": 0
+      },
+      "beforeText": "https://evidence.invalid/chapter",
+      "beforeTags": "normal",
+      "after": {
+        "id": "a",
+        "type": "note",
+        "mediaId": "https://media.invalid/video",
+        "start": 0,
+        "end": 0,
+        "source": "Synthetic source",
+        "translation": "",
+        "note": "Edited note only",
+        "status": "new",
+        "screenshotRef": "",
+        "audioRef": "",
+        "createdAt": 1793526306970,
+        "updatedAt": 1793526306999,
+        "mediaTitle": "",
+        "mediaType": "",
+        "mediaUrl": "",
+        "trackId": "",
+        "cueId": "",
+        "anchor": null,
+        "tags": [
+          "normal"
+        ],
+        "links": [
+          {
+            "label": "",
+            "url": "https://evidence.invalid/chapter"
+          }
+        ],
+        "dueAt": 0,
+        "intervalDays": 0,
+        "ease": 2.5,
+        "reviewCount": 0,
+        "lapses": 0,
+        "lastReviewedAt": 0
+      },
+      "notices": [
+        "Araştırma notu kaydedildi"
+      ],
+      "unauthorized": false
+    },
+    {
+      "name": "comma inside accepted tag",
+      "created": {
+        "id": "a",
+        "type": "note",
+        "mediaId": "https://media.invalid/video",
+        "start": 0,
+        "end": 0,
+        "source": "Synthetic source",
+        "translation": "",
+        "note": "Before",
+        "status": "new",
+        "screenshotRef": "",
+        "audioRef": "",
+        "createdAt": 1793526307015,
+        "updatedAt": 1793526307015,
+        "mediaTitle": "",
+        "mediaType": "",
+        "mediaUrl": "",
+        "trackId": "",
+        "cueId": "",
+        "anchor": null,
+        "tags": [
+          "one,two"
+        ],
+        "links": [
+          {
+            "label": "",
+            "url": "https://evidence.invalid/chapter"
+          }
+        ],
+        "dueAt": 0,
+        "intervalDays": 0,
+        "ease": 2.5,
+        "reviewCount": 0,
+        "lapses": 0,
+        "lastReviewedAt": 0
+      },
+      "beforeText": "https://evidence.invalid/chapter",
+      "beforeTags": "one,two",
+      "after": {
+        "id": "a",
+        "type": "note",
+        "mediaId": "https://media.invalid/video",
+        "start": 0,
+        "end": 0,
+        "source": "Synthetic source",
+        "translation": "",
+        "note": "Edited note only",
+        "status": "new",
+        "screenshotRef": "",
+        "audioRef": "",
+        "createdAt": 1793526307015,
+        "updatedAt": 1793526307041,
+        "mediaTitle": "",
+        "mediaType": "",
+        "mediaUrl": "",
+        "trackId": "",
+        "cueId": "",
+        "anchor": null,
+        "tags": [
+          "one",
+          "two"
+        ],
+        "links": [
+          {
+            "label": "",
+            "url": "https://evidence.invalid/chapter"
+          }
+        ],
+        "dueAt": 0,
+        "intervalDays": 0,
+        "ease": 2.5,
+        "reviewCount": 0,
+        "lapses": 0,
+        "lastReviewedAt": 0
+      },
+      "notices": [
+        "Araştırma notu kaydedildi"
+      ],
+      "unauthorized": false
+    }
+  ],
+  "limits": "Real upsert/list handlers, real disk store and reload, unchanged full research renderer functions with JSDOM. Authorized sender/index boundary adapters. No native UI, user profile or network."
+}

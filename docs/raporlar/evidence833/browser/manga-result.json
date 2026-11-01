@@ -1,0 +1,401 @@
+{
+  "head": "1b211e4ed37f622dcc3e2144517590ae7aff9cee",
+  "scenarios": [
+    {
+      "kind": "new-language",
+      "first": {
+        "ok": true,
+        "translated": 2
+      },
+      "second": {
+        "ok": true,
+        "translated": 2
+      },
+      "settingStatus": "Ayar uygulandı. Devam eden çeviri işi değişmedi; dil seçimi sonraki işte kullanılır.",
+      "realClearPreservedMap": true,
+      "firstScope": "https://manga-a.invalid|tr",
+      "secondScope": "https://manga-a.invalid|en",
+      "promptLeak": true,
+      "persisted": [
+        {
+          "source": "Iron Dragon",
+          "target": "Demir Ejderha",
+          "count": 4
+        }
+      ],
+      "secondRequests": [
+        {
+          "language": "en",
+          "textRoute": true,
+          "config": {
+            "endpoint": "http://127.0.0.1/fixture",
+            "model": "fixture-model",
+            "workers": 2,
+            "maxImages": 48,
+            "apiKey": "",
+            "targetLanguage": "en",
+            "fontScale": 1,
+            "fontFamily": "comic",
+            "verticalText": false,
+            "sfxStyle": true,
+            "terminologyEnabled": true,
+            "terminologyText": "Iron Dragon=Demir Ejderha"
+          }
+        },
+        {
+          "language": "en",
+          "textRoute": true,
+          "config": {
+            "endpoint": "http://127.0.0.1/fixture",
+            "model": "fixture-model",
+            "workers": 2,
+            "maxImages": 48,
+            "apiKey": "",
+            "targetLanguage": "en",
+            "fontScale": 1,
+            "fontFamily": "comic",
+            "verticalText": false,
+            "sfxStyle": true,
+            "terminologyEnabled": true,
+            "terminologyText": "Iron Dragon=Demir Ejderha"
+          }
+        }
+      ],
+      "firstRequests": 2,
+      "events": [
+        {
+          "state": "running",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 1
+        },
+        {
+          "state": "running",
+          "translated": 2
+        },
+        {
+          "state": "ready",
+          "translated": 2
+        },
+        {
+          "state": "idle",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 1
+        },
+        {
+          "state": "running",
+          "translated": 2
+        },
+        {
+          "state": "ready",
+          "translated": 2
+        }
+      ]
+    },
+    {
+      "kind": "new-origin",
+      "first": {
+        "ok": true,
+        "translated": 2
+      },
+      "second": {
+        "ok": true,
+        "translated": 2
+      },
+      "settingStatus": "Ayar uygulandı. Devam eden çeviri işi değişmedi; dil seçimi sonraki işte kullanılır.",
+      "realClearPreservedMap": true,
+      "firstScope": "https://manga-a.invalid|tr",
+      "secondScope": "https://manga-b.invalid|en",
+      "promptLeak": true,
+      "persisted": [
+        {
+          "source": "Iron Dragon",
+          "target": "Demir Ejderha",
+          "count": 4
+        }
+      ],
+      "secondRequests": [
+        {
+          "language": "en",
+          "textRoute": true,
+          "config": {
+            "endpoint": "http://127.0.0.1/fixture",
+            "model": "fixture-model",
+            "workers": 2,
+            "maxImages": 48,
+            "apiKey": "",
+            "targetLanguage": "en",
+            "fontScale": 1,
+            "fontFamily": "comic",
+            "verticalText": false,
+            "sfxStyle": true,
+            "terminologyEnabled": true,
+            "terminologyText": "Iron Dragon=Demir Ejderha"
+          }
+        },
+        {
+          "language": "en",
+          "textRoute": true,
+          "config": {
+            "endpoint": "http://127.0.0.1/fixture",
+            "model": "fixture-model",
+            "workers": 2,
+            "maxImages": 48,
+            "apiKey": "",
+            "targetLanguage": "en",
+            "fontScale": 1,
+            "fontFamily": "comic",
+            "verticalText": false,
+            "sfxStyle": true,
+            "terminologyEnabled": true,
+            "terminologyText": "Iron Dragon=Demir Ejderha"
+          }
+        }
+      ],
+      "firstRequests": 2,
+      "events": [
+        {
+          "state": "running",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 1
+        },
+        {
+          "state": "running",
+          "translated": 2
+        },
+        {
+          "state": "ready",
+          "translated": 2
+        },
+        {
+          "state": "idle",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 1
+        },
+        {
+          "state": "running",
+          "translated": 2
+        },
+        {
+          "state": "ready",
+          "translated": 2
+        }
+      ]
+    },
+    {
+      "kind": "same-scope",
+      "first": {
+        "ok": true,
+        "translated": 2
+      },
+      "second": {
+        "ok": true,
+        "translated": 2
+      },
+      "settingStatus": "Ayar uygulandı. Devam eden çeviri işi değişmedi; dil seçimi sonraki işte kullanılır.",
+      "realClearPreservedMap": true,
+      "firstScope": "https://manga-a.invalid|tr",
+      "secondScope": "https://manga-a.invalid|tr",
+      "promptLeak": false,
+      "persisted": [
+        {
+          "source": "Iron Dragon",
+          "target": "Demir Ejderha",
+          "count": 4
+        }
+      ],
+      "secondRequests": [],
+      "firstRequests": 2,
+      "events": [
+        {
+          "state": "running",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 1
+        },
+        {
+          "state": "running",
+          "translated": 2
+        },
+        {
+          "state": "ready",
+          "translated": 2
+        },
+        {
+          "state": "idle",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 1
+        },
+        {
+          "state": "running",
+          "translated": 2
+        },
+        {
+          "state": "ready",
+          "translated": 2
+        }
+      ]
+    },
+    {
+      "kind": "new-tab",
+      "first": {
+        "ok": true,
+        "translated": 2
+      },
+      "second": {
+        "ok": true,
+        "translated": 2
+      },
+      "settingStatus": "Ayar uygulandı. Devam eden çeviri işi değişmedi; dil seçimi sonraki işte kullanılır.",
+      "realClearPreservedMap": false,
+      "firstScope": "https://manga-a.invalid|tr",
+      "secondScope": "https://manga-a.invalid|en",
+      "promptLeak": false,
+      "persisted": [
+        {
+          "source": "Iron Dragon",
+          "target": "Iron Dragon",
+          "count": 2
+        }
+      ],
+      "secondRequests": [
+        {
+          "language": "en",
+          "textRoute": true,
+          "config": {
+            "endpoint": "http://127.0.0.1/fixture",
+            "model": "fixture-model",
+            "workers": 2,
+            "maxImages": 48,
+            "apiKey": "",
+            "targetLanguage": "en",
+            "fontScale": 1,
+            "fontFamily": "comic",
+            "verticalText": false,
+            "sfxStyle": true,
+            "terminologyEnabled": true,
+            "terminologyText": ""
+          }
+        },
+        {
+          "language": "en",
+          "textRoute": true,
+          "config": {
+            "endpoint": "http://127.0.0.1/fixture",
+            "model": "fixture-model",
+            "workers": 2,
+            "maxImages": 48,
+            "apiKey": "",
+            "targetLanguage": "en",
+            "fontScale": 1,
+            "fontFamily": "comic",
+            "verticalText": false,
+            "sfxStyle": true,
+            "terminologyEnabled": true,
+            "terminologyText": ""
+          }
+        }
+      ],
+      "firstRequests": 2,
+      "events": [
+        {
+          "state": "running",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 1
+        },
+        {
+          "state": "running",
+          "translated": 2
+        },
+        {
+          "state": "ready",
+          "translated": 2
+        },
+        {
+          "state": "idle",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 0
+        },
+        {
+          "state": "running",
+          "translated": 1
+        },
+        {
+          "state": "running",
+          "translated": 2
+        },
+        {
+          "state": "ready",
+          "translated": 2
+        }
+      ]
+    }
+  ],
+  "limits": "Actual unchanged startBrowserManga, translateMangaCandidate, request wrapper, endpoint body/parser, terminology seed/learn/persist; real prompt/region normalizers. Controlled image/candidate/native overlay/config/cache/HTTP response adapters. No external network, real model quality, or visible native UI."
+}
