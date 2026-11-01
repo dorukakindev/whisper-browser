@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "publicPage": "https://letterboxd.com/film/before-sunrise/reviews/by/activity/page/2/",
+  "sourceRows": 12,
+  "expandedRows": 2,
+  "characterCounts": [
+    {
+      "before": 462,
+      "after": 1409
+    },
+    {
+      "before": 436,
+      "after": 678
+    }
+  ],
+  "collapsedMarkersRemaining": 0,
+  "fullEndpointStatus": 200,
+  "profile": "isolated, no personal account",
+  "limits": "One live page and its own fragments; prior45-second unfiltered run timed out. Final probe filtered only third-party ad resources in its own session; no challenge bypass. No provider calls or raw review text published."
+}

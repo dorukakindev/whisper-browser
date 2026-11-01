@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-01-1232.md](docs/devir/2026-11-01-1232.md) — R832 Letterboxd tam yorum/More, kaynak ve analiz ayrımı
 Güncel çalışma: [docs/devir/2026-11-01-1235.md](docs/devir/2026-11-01-1235.md) — R831: 4 yeni bug ve 6 ayrı öneri; ajanlarla yalnız rapor
 Güncel çalışma: [docs/devir/2026-11-01-1228.md](docs/devir/2026-11-01-1228.md) — R830: 2 yeni bug, 1 regresyon ve 6 ayrı öneri; yalnız rapor
 Güncel çalışma: [docs/devir/2026-11-01-1141.md](docs/devir/2026-11-01-1141.md) — R829 onaylı30hedef; dublaj/sesçevirisi,asistan,film ve gerçekGPU/DeepSeek kabulü

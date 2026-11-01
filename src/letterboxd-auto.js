@@ -1,6 +1,6 @@
 'use strict';
 // Original integration: identifier resolution, bounded sample and strict redirects.
-const {publicFilmUrl,parseLetterboxdReviews,matchFilm,reviewPageSource}=require('./letterboxd-reviews');
+const {publicFilmUrl,parseLetterboxdReviews,matchFilm,reviewPageSource,expandReviewHtml}=require('./letterboxd-reviews');
 const {readLimitedBytes}=require('./catalog-discovery');
 function lookupUrl(item){
   if(item?.kind!=='film')throw Error('Automatic Letterboxd lookup requires a film, not a series.');
@@ -52,7 +52,9 @@ async function fetchReviews(item,{count=40,sort='popular',spoilers=false,signal,
         url=next;continue;
       }
       if(!r.ok){await r.body?.cancel();throw Error('Letterboxd HTTP '+r.status+'. Open the film page in Browser and use its loaded reviews, or paste/import a sample.');}
-      const html=(await readLimitedBytes(r,3000000,'Letterboxd')).toString('utf8');combined.throwIfAborted();return {url,html};
+      const raw=(await readLimitedBytes(r,3000000,'Letterboxd')).toString('utf8');combined.throwIfAborted();
+      const expanded=!expectedBase?{html:raw}:await expandReviewHtml(raw,{signal:combined,load:async address=>{const result=await fetchImpl(address,{redirect:'manual',credentials:'omit',signal:combined,headers:{Accept:'text/html'}});if(!result.ok){await result.body?.cancel();throw Error('Letterboxd full review HTTP '+result.status);}return (await readLimitedBytes(result,200000,'Letterboxd full review')).toString('utf8');}});
+      return {url,html:expanded.html};
     }
     throw Error('Too many Letterboxd redirects.');
   }
@@ -83,7 +85,7 @@ async function fetchReviews(item,{count=40,sort='popular',spoilers=false,signal,
       const assessment=matchFilm(item,parsed.identity);
       if(assessment.state==='mismatch')throw Error('Film identity mismatch. Review text was not accepted for this film.');
       if(identity&&matchFilm({...item,tmdbId:identity.tmdbId||item.tmdbId,imdbId:identity.imdbId||item.imdbId,title:identity.title,year:identity.year},parsed.identity).state==='mismatch')throw Error('Film identity changed between review pages.');
-      source={...observed,requestedUrl:url,loaded:parsed.reviews.length+(parsed.excluded?.duplicate||0)+(parsed.excluded?.unreadable||0)+(parsed.excluded?.identity||0),accepted:0};
+      source={...observed,requestedUrl:url,loaded:parsed.reviews.length+Object.values(parsed.excluded||{}).reduce((sum,value)=>sum+value,0),accepted:0};
     }catch(error){
       if(combined.aborted)throw error;
       if(!reviews.length&&!pools.some(pool=>pool.rows.length)||/identity|different film|order changed/.test(error.message))throw error;
@@ -91,6 +93,7 @@ async function fetchReviews(item,{count=40,sort='popular',spoilers=false,signal,
     }
     pages++;sources.push(source);identity=parsed.identity;pageTitle=parsed.pageTitle;limited=limited||parsed.limited;
     excluded.duplicate+=parsed.excluded?.duplicate||0;excluded.unreadable+=parsed.excluded?.unreadable||0;if(parsed.excluded?.identity)excluded.identity=(excluded.identity||0)+parsed.excluded.identity;
+    if(parsed.excluded?.incomplete){excluded.incomplete=(excluded.incomplete||0)+parsed.excluded.incomplete;partial=true;warning='Some full review continuations could not be loaded. Incomplete excerpts were excluded; retry or import the complete text.';}
     if(sort==='balanced')pools.push({rows:[...parsed.reviews]});
     // A page containing only repeats or excluded spoilers is not the end of the list.
     // Continue within the same four-page budget so later eligible authors can still be found.
