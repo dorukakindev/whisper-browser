@@ -1,3 +1,4 @@
+- [Rapor824](BROWSER_BUG_REPORT_824.md) — Görüntülü tasarım denetimi: film, asistan, okuyucu/dublaj ve browser; yalnız rapor
 - [Rapor823](BROWSER_BUG_REPORT_823.md) — Araştırma taslakları, dil kapsamı ve uzun paragraf
 - [Rapor822](BROWSER_BUG_REPORT_822.md) — Arama, kelime sahipliği, klip ve paket kimliği
 - [Rapor821](BROWSER_BUG_REPORT_821.md) — Arka plan işleri, tanı yan çıktısı ve model kayıtları

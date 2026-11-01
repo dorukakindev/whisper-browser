@@ -1,0 +1,275 @@
+{
+  "fixture": true,
+  "metrics": [
+    {
+      "name": "film-top-1440-tr-dark",
+      "innerWidth": 1440,
+      "innerHeight": 1000,
+      "overflow": false,
+      "hero": {
+        "x": 0,
+        "y": 240.92709350585938,
+        "width": 1430,
+        "height": 402,
+        "top": 240.92709350585938,
+        "right": 1430,
+        "bottom": 642.9270935058594,
+        "left": 0
+      },
+      "review": {
+        "x": 98.19792175292969,
+        "y": 882.78125,
+        "width": 896.0104370117188,
+        "height": 252.92709350585938,
+        "top": 882.78125,
+        "right": 994.2083587646484,
+        "bottom": 1135.7083435058594,
+        "left": 98.19792175292969
+      },
+      "status": "Henüz kayıtlı analiz yok."
+    },
+    {
+      "name": "film-empty-1440-tr-dark",
+      "innerWidth": 1440,
+      "innerHeight": 1000,
+      "overflow": false,
+      "hero": {
+        "x": 0,
+        "y": -87.07292175292969,
+        "width": 1430,
+        "height": 402,
+        "top": -87.07292175292969,
+        "right": 1430,
+        "bottom": 314.9270782470703,
+        "left": 0
+      },
+      "review": {
+        "x": 98.19792175292969,
+        "y": 554.78125,
+        "width": 896.0104370117188,
+        "height": 252.92709350585938,
+        "top": 554.78125,
+        "right": 994.2083587646484,
+        "bottom": 807.7083435058594,
+        "left": 98.19792175292969
+      },
+      "status": "Henüz kayıtlı analiz yok."
+    },
+    {
+      "name": "film-editor-1440-tr-dark",
+      "innerWidth": 1440,
+      "innerHeight": 1000,
+      "overflow": false,
+      "hero": {
+        "x": 0,
+        "y": -594.40625,
+        "width": 1430,
+        "height": 402,
+        "top": -594.40625,
+        "right": 1430,
+        "bottom": -192.40625,
+        "left": 0
+      },
+      "review": {
+        "x": 98.19792175292969,
+        "y": 47.44791793823242,
+        "width": 896.0104370117188,
+        "height": 760.2083740234375,
+        "top": 47.44791793823242,
+        "right": 994.2083587646484,
+        "bottom": 807.6562919616699,
+        "left": 98.19792175292969
+      },
+      "status": "Henüz kayıtlı analiz yok."
+    },
+    {
+      "name": "film-loading-1440-tr-dark",
+      "innerWidth": 1440,
+      "innerHeight": 1000,
+      "overflow": false,
+      "hero": {
+        "x": 0,
+        "y": -595.0729370117188,
+        "width": 1430,
+        "height": 402,
+        "top": -595.0729370117188,
+        "right": 1430,
+        "bottom": -193.07293701171875,
+        "left": 0
+      },
+      "review": {
+        "x": 98.19792175292969,
+        "y": 46.78125,
+        "width": 896.0104370117188,
+        "height": 779.6666870117188,
+        "top": 46.78125,
+        "right": 994.2083587646484,
+        "bottom": 826.4479370117188,
+        "left": 98.19792175292969
+      },
+      "status": "Henüz kayıtlı analiz yok."
+    },
+    {
+      "name": "film-sample-1440-tr-dark",
+      "innerWidth": 1440,
+      "innerHeight": 1000,
+      "overflow": false,
+      "hero": {
+        "x": 0,
+        "y": -595.0729370117188,
+        "width": 1430,
+        "height": 402,
+        "top": -595.0729370117188,
+        "right": 1430,
+        "bottom": -193.07293701171875,
+        "left": 0
+      },
+      "review": {
+        "x": 98.19792175292969,
+        "y": 46.78125,
+        "width": 896.0104370117188,
+        "height": 923.0521240234375,
+        "top": 46.78125,
+        "right": 994.2083587646484,
+        "bottom": 969.8333740234375,
+        "left": 98.19792175292969
+      },
+      "status": "Henüz kayıtlı analiz yok."
+    },
+    {
+      "name": "film-top-800-en-light",
+      "innerWidth": 640,
+      "innerHeight": 800,
+      "overflow": false,
+      "hero": {
+        "x": 0,
+        "y": 290.2666931152344,
+        "width": 632.0000610351562,
+        "height": 1163.533447265625,
+        "top": 290.2666931152344,
+        "right": 632.0000610351562,
+        "bottom": 1453.8001403808594,
+        "left": 0
+      },
+      "review": {
+        "x": 22.000001907348633,
+        "y": 1759.1334228515625,
+        "width": 588.0000610351562,
+        "height": 244.2666778564453,
+        "top": 1759.1334228515625,
+        "right": 610.0000629425049,
+        "bottom": 2003.4001007080078,
+        "left": 22.000001907348633
+      },
+      "status": "10 reviews loaded · ready for analysis"
+    },
+    {
+      "name": "film-empty-800-en-light",
+      "innerWidth": 640,
+      "innerHeight": 800,
+      "overflow": false,
+      "hero": {
+        "x": 0,
+        "y": -1388.1334228515625,
+        "width": 632.0000610351562,
+        "height": 1163.533447265625,
+        "top": -1388.1334228515625,
+        "right": 632.0000610351562,
+        "bottom": -224.5999755859375,
+        "left": 0
+      },
+      "review": {
+        "x": 22.000001907348633,
+        "y": 80.73333740234375,
+        "width": 588.0000610351562,
+        "height": 244.2666778564453,
+        "top": 80.73333740234375,
+        "right": 610.0000629425049,
+        "bottom": 325.00001525878906,
+        "left": 22.000001907348633
+      },
+      "status": "10 reviews loaded · ready for analysis"
+    },
+    {
+      "name": "film-editor-800-en-light",
+      "innerWidth": 640,
+      "innerHeight": 800,
+      "overflow": false,
+      "hero": {
+        "x": 0,
+        "y": -1716.666748046875,
+        "width": 632.0000610351562,
+        "height": 1163.533447265625,
+        "top": -1716.666748046875,
+        "right": 632.0000610351562,
+        "bottom": -553.13330078125,
+        "left": 0
+      },
+      "review": {
+        "x": 22.000001907348633,
+        "y": -247.80001831054688,
+        "width": 588.0000610351562,
+        "height": 912.8333740234375,
+        "top": -247.80001831054688,
+        "right": 610.0000629425049,
+        "bottom": 665.0333557128906,
+        "left": 22.000001907348633
+      },
+      "status": "10 reviews loaded · ready for analysis"
+    },
+    {
+      "name": "film-loading-800-en-light",
+      "innerWidth": 640,
+      "innerHeight": 800,
+      "overflow": false,
+      "hero": {
+        "x": 0,
+        "y": -1716.666748046875,
+        "width": 632.0000610351562,
+        "height": 1163.533447265625,
+        "top": -1716.666748046875,
+        "right": 632.0000610351562,
+        "bottom": -553.13330078125,
+        "left": 0
+      },
+      "review": {
+        "x": 22.000001907348633,
+        "y": -247.80001831054688,
+        "width": 588.0000610351562,
+        "height": 1019.2333984375,
+        "top": -247.80001831054688,
+        "right": 610.0000629425049,
+        "bottom": 771.4333801269531,
+        "left": 22.000001907348633
+      },
+      "status": "10 reviews loaded · ready for analysis"
+    },
+    {
+      "name": "film-sample-800-en-light",
+      "innerWidth": 640,
+      "innerHeight": 800,
+      "overflow": false,
+      "hero": {
+        "x": 0,
+        "y": -1716.666748046875,
+        "width": 632.0000610351562,
+        "height": 1163.533447265625,
+        "top": -1716.666748046875,
+        "right": 632.0000610351562,
+        "bottom": -553.13330078125,
+        "left": 0
+      },
+      "review": {
+        "x": 22.000001907348633,
+        "y": -247.80001831054688,
+        "width": 588.0000610351562,
+        "height": 1019.2333984375,
+        "top": -247.80001831054688,
+        "right": 610.0000629425049,
+        "bottom": 771.4333801269531,
+        "left": 22.000001907348633
+      },
+      "status": "10 reviews loaded · ready for analysis"
+    }
+  ]
+}

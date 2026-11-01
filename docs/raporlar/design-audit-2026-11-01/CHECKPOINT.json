@@ -1,0 +1,77 @@
+{
+  "audit": "R824",
+  "state": "reported_not_fixed",
+  "sourceCommit": "2bb0e861de044ea25c70892009ce361fb651ebe0",
+  "productEdits": false,
+  "existingTestEdits": false,
+  "findings": [
+    {
+      "id": "F1",
+      "status": "reported_not_fixed",
+      "report": "FILM.md"
+    },
+    {
+      "id": "F2",
+      "status": "reported_not_fixed",
+      "report": "FILM.md"
+    },
+    {
+      "id": "F3",
+      "status": "reported_not_fixed",
+      "report": "FILM.md"
+    },
+    {
+      "id": "F4",
+      "status": "reported_not_fixed",
+      "report": "FILM.md"
+    },
+    {
+      "id": "A-01",
+      "status": "reported_not_fixed",
+      "report": "ASSISTANT.md"
+    },
+    {
+      "id": "A-02",
+      "status": "reported_not_fixed",
+      "report": "ASSISTANT.md"
+    },
+    {
+      "id": "RD-01",
+      "status": "reported_not_fixed",
+      "report": "READING-DUB.md"
+    },
+    {
+      "id": "RD-02",
+      "status": "reported_not_fixed",
+      "report": "READING-DUB.md"
+    },
+    {
+      "id": "RD-03",
+      "status": "reported_not_fixed",
+      "report": "READING-DUB.md"
+    },
+    {
+      "id": "RD-04",
+      "status": "reported_not_fixed",
+      "report": "READING-DUB.md"
+    },
+    {
+      "id": "RD-05",
+      "status": "reported_not_fixed",
+      "report": "READING-DUB.md"
+    },
+    {
+      "id": "S-01",
+      "status": "reported_not_fixed",
+      "report": "SHELL-BROWSER.md"
+    },
+    {
+      "id": "S-02",
+      "status": "reported_not_fixed",
+      "report": "SHELL-BROWSER.md"
+    }
+  ],
+  "nextAction": "Wait for explicit user request to implement. Reproduce selected finding against current code before editing.",
+  "evidence": "MANIFEST.json",
+  "boundaries": "See main report and per-area limits; synthetic Windows Electron, no personal account/provider/model acceptance."
+}

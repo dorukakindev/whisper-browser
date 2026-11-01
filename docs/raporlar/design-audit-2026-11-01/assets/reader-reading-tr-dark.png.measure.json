@@ -1,0 +1,49 @@
+{
+  "viewport": [
+    1440,
+    1000
+  ],
+  "devicePixelRatio": 1.5,
+  "reader": {
+    "x": 0,
+    "y": 0,
+    "width": 1440,
+    "height": 1000,
+    "scroll": 1000,
+    "client": 1000
+  },
+  "pages": {
+    "x": 0,
+    "y": 191.875,
+    "width": 1440,
+    "height": 808.125,
+    "scroll": 3571,
+    "client": 808
+  },
+  "voice": {
+    "x": 0,
+    "y": 0,
+    "width": 0,
+    "height": 0,
+    "scroll": 0,
+    "client": 0
+  },
+  "preview": {
+    "x": 0,
+    "y": 0,
+    "width": 0,
+    "height": 0,
+    "scroll": 0,
+    "client": 0
+  },
+  "text": {
+    "x": 0,
+    "y": 0,
+    "width": 0,
+    "height": 0,
+    "scroll": 0,
+    "client": 0
+  },
+  "toolbar": 113.875,
+  "controls": 78
+}
