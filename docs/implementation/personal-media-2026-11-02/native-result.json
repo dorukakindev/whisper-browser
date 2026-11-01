@@ -1,0 +1,55 @@
+{
+  "ok": true,
+  "checks": [
+    {
+      "kind": "film-like-shared",
+      "watchUnchanged": true,
+      "networkLinked": true
+    },
+    {
+      "kind": "series-resume",
+      "season": 2,
+      "episode": 4,
+      "position": 750,
+      "noImplicitLikesOrPreviousEpisodes": true
+    },
+    {
+      "width": 1440,
+      "locale": "tr",
+      "theme": "dark",
+      "viewingPanel": true,
+      "overflow": false
+    },
+    {
+      "width": 680,
+      "locale": "en",
+      "theme": "light",
+      "viewingPanel": true,
+      "overflow": false
+    },
+    {
+      "kind": "sidebar-saved-status-refresh",
+      "ratingDraftPreserved": true
+    },
+    {
+      "kind": "actual-renderer-assistant-personal-read",
+      "reaction": "like"
+    },
+    {
+      "kind": "stale-native-source-rejected",
+      "ok": true
+    },
+    {
+      "kind": "web-like",
+      "domain": "reading",
+      "notAFilm": true,
+      "networkLinked": true
+    }
+  ],
+  "screens": [
+    "personal-1440-dark.png",
+    "personal-680-light.png"
+  ],
+  "errors": [],
+  "scope": "Actual application isolated native catalog/assistant API/browser binding/web owner; controlled content, no personal profile/model/Actions."
+}
