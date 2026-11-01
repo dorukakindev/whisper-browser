@@ -1,0 +1,357 @@
+{
+  "ok": true,
+  "fixture": true,
+  "actualIpc": true,
+  "provider": "none",
+  "reviewReads": 0,
+  "metrics": [
+    {
+      "name": "film-long-title-tr",
+      "width": 1152,
+      "height": 800,
+      "overflow": false,
+      "editors": [
+        {
+          "html": "",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          }
+        }
+      ],
+      "sources": [],
+      "overflows": [],
+      "freshness": "current"
+    },
+    {
+      "name": "film-saved-result-tr",
+      "width": 1152,
+      "height": 800,
+      "overflow": false,
+      "editors": [
+        {
+          "html": "",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          }
+        }
+      ],
+      "sources": [],
+      "overflows": [],
+      "freshness": "current"
+    },
+    {
+      "name": "film-evidence-tr",
+      "width": 1152,
+      "height": 800,
+      "overflow": false,
+      "editors": [
+        {
+          "html": "",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          }
+        }
+      ],
+      "sources": [],
+      "overflows": [],
+      "freshness": "current"
+    },
+    {
+      "name": "film-changed-taste-tr",
+      "width": 1152,
+      "height": 800,
+      "overflow": false,
+      "editors": [
+        {
+          "html": "",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          }
+        }
+      ],
+      "sources": [],
+      "overflows": [],
+      "freshness": "stale"
+    },
+    {
+      "name": "film-reused-sample-tr",
+      "width": 1152,
+      "height": 800,
+      "overflow": false,
+      "editors": [
+        {
+          "html": "<div><p class=\"film-editor-status\" role=\"status\"></p><div class=\"film-editor-body\"><details class=\"mrv-saved-analyses\" open=\"\"><summary>Kayıtlı analizler</summary><p class=\"mtx-muted\">Yorum çekmeden ve yeni analiz istemeden önceki sonuçları okuyabilirsin.</p><details class=\"mtx-history\" open=\"\"><summary>Kayıtlı analiz · 01.11.2026 10:46:39</summary><p class=\"mrv-saved-origin\" data-saved-origin=\"library\">Kütüphanende kaydedildi</p><p class=\"mrv-freshness\" role=\"status\" data-freshness=\"stale\">Önceki bağlam · yapım bilgileri, profilin veya örnek değişti. Güncel karşılaştırma için yeniden analiz et.</p><aside class=\"mrv-assessment\" data-limited=\"true\"><strong>Bu örnekteki kanıt</strong><p>3 farklı yorum · 3 alıntılanan kaynak · 0 tekrar metin</p><p>Küçük örnek: bu görüşlerden genel izleyici ka",
+          "rect": {
+            "x": 34.55833435058594,
+            "y": -1309.85009765625,
+            "width": 737.2833862304688,
+            "height": 1801.0667724609375,
+            "top": -1309.85009765625,
+            "right": 771.8417205810547,
+            "bottom": 491.2166748046875,
+            "left": 34.55833435058594
+          }
+        }
+      ],
+      "sources": [
+        {
+          "parent": "film-editor-body",
+          "rect": {
+            "x": 34.55833435058594,
+            "y": 117.15000915527344,
+            "width": 737.2833862304688,
+            "height": 374.0666809082031,
+            "top": 117.15000915527344,
+            "right": 771.8417205810547,
+            "bottom": 491.21669006347656,
+            "left": 34.55833435058594
+          },
+          "html": "<section class=\"mtx-section mrv-source\" data-sample-ready=\"true\"><h2>Letterboxd yorumları</h2><p class=\"mtx-muted\">Filmi bul, yorum örneğini oku ve zevkinle karşılaştır. AI’ya gidecek yorumları sen se"
+        }
+      ],
+      "overflows": [],
+      "freshness": "stale"
+    },
+    {
+      "name": "film-current-preview-tr",
+      "width": 1152,
+      "height": 800,
+      "overflow": false,
+      "editors": [
+        {
+          "html": "<div><p class=\"film-editor-status\" role=\"status\"></p><div class=\"film-editor-body\"><details class=\"mrv-saved-analyses\" open=\"\"><summary>Kayıtlı analizler</summary><p class=\"mtx-muted\">Yorum çekmeden ve yeni analiz istemeden önceki sonuçları okuyabilirsin.</p><details class=\"mtx-history\" open=\"\"><summary>Kayıtlı analiz · 01.11.2026 10:46:39</summary><p class=\"mrv-saved-origin\" data-saved-origin=\"library\">Kütüphanende kaydedildi</p><p class=\"mrv-freshness\" role=\"status\" data-freshness=\"stale\">Önceki bağlam · yapım bilgileri, profilin veya örnek değişti. Güncel karşılaştırma için yeniden analiz et.</p><aside class=\"mrv-assessment\" data-limited=\"true\"><strong>Bu örnekteki kanıt</strong><p>3 farklı yorum · 3 alıntılanan kaynak · 0 tekrar metin</p><p>Küçük örnek: bu görüşlerden genel izleyici ka",
+          "rect": {
+            "x": 34.55833435058594,
+            "y": -1825.050048828125,
+            "width": 737.2833862304688,
+            "height": 2516.666748046875,
+            "top": -1825.050048828125,
+            "right": 771.8417205810547,
+            "bottom": 691.61669921875,
+            "left": 34.55833435058594
+          }
+        }
+      ],
+      "sources": [
+        {
+          "parent": "film-editor-body",
+          "rect": {
+            "x": 34.55833435058594,
+            "y": -398.0500183105469,
+            "width": 737.2833862304688,
+            "height": 374.0666809082031,
+            "top": -398.0500183105469,
+            "right": 771.8417205810547,
+            "bottom": -23.98333740234375,
+            "left": 34.55833435058594
+          },
+          "html": "<section class=\"mtx-section mrv-source\" data-sample-ready=\"true\"><h2>Letterboxd yorumları</h2><p class=\"mtx-muted\">Filmi bul, yorum örneğini oku ve zevkinle karşılaştır. AI’ya gidecek yorumları sen se"
+        }
+      ],
+      "overflows": [],
+      "freshness": "stale"
+    },
+    {
+      "name": "film-long-title-en",
+      "width": 600,
+      "height": 666,
+      "overflow": false,
+      "editors": [
+        {
+          "html": "",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          }
+        }
+      ],
+      "sources": [],
+      "overflows": [],
+      "freshness": "current"
+    },
+    {
+      "name": "film-saved-result-en",
+      "width": 600,
+      "height": 666,
+      "overflow": false,
+      "editors": [
+        {
+          "html": "",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          }
+        }
+      ],
+      "sources": [],
+      "overflows": [],
+      "freshness": "current"
+    },
+    {
+      "name": "film-evidence-en",
+      "width": 600,
+      "height": 666,
+      "overflow": false,
+      "editors": [
+        {
+          "html": "",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          }
+        }
+      ],
+      "sources": [],
+      "overflows": [],
+      "freshness": "current"
+    },
+    {
+      "name": "film-changed-taste-en",
+      "width": 600,
+      "height": 666,
+      "overflow": false,
+      "editors": [
+        {
+          "html": "",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          }
+        }
+      ],
+      "sources": [],
+      "overflows": [],
+      "freshness": "stale"
+    },
+    {
+      "name": "film-reused-sample-en",
+      "width": 600,
+      "height": 666,
+      "overflow": false,
+      "editors": [
+        {
+          "html": "<div><p class=\"film-editor-status\" role=\"status\"></p><div class=\"film-editor-body\"><section class=\"mtx-section mrv-source\" data-sample-ready=\"true\"><h2>Letterboxd reviews</h2><p class=\"mtx-muted\">Find this film, read a sample, then compare it with your taste. You choose what reaches AI.</p><section class=\"mrv-job\" aria-live=\"polite\" data-state=\"ready\"><div><strong>Review sample ready</strong><p>3 reviews loaded. This is a selected sample, not a consensus.</p></div></section><section class=\"mrv-loaded-sample\"><div class=\"mrv-sample-overview\"><strong>3 reviews ready to inspect</strong><p class=\"mtx-muted\">0 identified authors · 0 spoiler reviews excluded</p><small class=\"mtx-muted\">The next step lets you choose reviews and see the exact text sent for analysis.</small></div><details class=\"mr",
+          "rect": {
+            "x": 22,
+            "y": 0.0833333358168602,
+            "width": 549.3333129882812,
+            "height": 2003.5694580078125,
+            "top": 0.0833333358168602,
+            "right": 571.3333129882812,
+            "bottom": 2003.6527913436294,
+            "left": 22
+          }
+        }
+      ],
+      "sources": [
+        {
+          "parent": "film-editor-body",
+          "rect": {
+            "x": 22,
+            "y": 0.0833333358168602,
+            "width": 549.3333129882812,
+            "height": 375.28472900390625,
+            "top": 0.0833333358168602,
+            "right": 571.3333129882812,
+            "bottom": 375.3680623397231,
+            "left": 22
+          },
+          "html": "<section class=\"mtx-section mrv-source\" data-sample-ready=\"true\"><h2>Letterboxd reviews</h2><p class=\"mtx-muted\">Find this film, read a sample, then compare it with your taste. You choose what reaches"
+        }
+      ],
+      "overflows": [],
+      "freshness": "stale"
+    },
+    {
+      "name": "film-current-preview-en",
+      "width": 600,
+      "height": 666,
+      "overflow": false,
+      "editors": [
+        {
+          "html": "<div><p class=\"film-editor-status\" role=\"status\"></p><div class=\"film-editor-body\"><section class=\"mtx-section mrv-source\" data-sample-ready=\"true\"><h2>Letterboxd reviews</h2><p class=\"mtx-muted\">Find this film, read a sample, then compare it with your taste. You choose what reaches AI.</p><section class=\"mrv-job\" aria-live=\"polite\" data-state=\"ready\"><div><strong>Review sample ready</strong><p>3 reviews loaded. This is a selected sample, not a consensus.</p></div></section><section class=\"mrv-loaded-sample\"><div class=\"mrv-sample-overview\"><strong>3 reviews ready to inspect</strong><p class=\"mtx-muted\">0 identified authors · 0 spoiler reviews excluded</p><small class=\"mtx-muted\">The next step lets you choose reviews and see the exact text sent for analysis.</small></div><details class=\"mr",
+          "rect": {
+            "x": 22,
+            "y": -2027.4722900390625,
+            "width": 549.3333129882812,
+            "height": 2742.77783203125,
+            "top": -2027.4722900390625,
+            "right": 571.3333129882812,
+            "bottom": 715.3055419921875,
+            "left": 22
+          }
+        }
+      ],
+      "sources": [
+        {
+          "parent": "film-editor-body",
+          "rect": {
+            "x": 22,
+            "y": -2027.4722900390625,
+            "width": 549.3333129882812,
+            "height": 375.28472900390625,
+            "top": -2027.4722900390625,
+            "right": 571.3333129882812,
+            "bottom": -1652.1875610351562,
+            "left": 22
+          },
+          "html": "<section class=\"mtx-section mrv-source\" data-sample-ready=\"true\"><h2>Letterboxd reviews</h2><p class=\"mtx-muted\">Find this film, read a sample, then compare it with your taste. You choose what reaches"
+        }
+      ],
+      "overflows": [],
+      "freshness": "stale"
+    }
+  ]
+}

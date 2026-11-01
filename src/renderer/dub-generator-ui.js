@@ -4,7 +4,7 @@
   const modal = el('dubGeneratorDialog');
   const inputColumn=document.createElement('div');inputColumn.className='dub-input-column';
   const sourceCard=modal.querySelector('.dub-source-card');sourceCard.before(inputColumn);
-  inputColumn.append(sourceCard,modal.querySelector('.dub-natural-card'));
+  inputColumn.append(sourceCard);
   el('voiceReferenceLocal').parentElement.append(el('voiceReferenceFolder'));
 
   // Elapsed time belongs to production details, not the always-visible action bar.

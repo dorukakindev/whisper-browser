@@ -78,10 +78,12 @@ app.whenReady().then(async () => {
     const groups=[...panel.querySelectorAll(':scope > details')];
     return {groups:groups.length, overflow:panel.scrollWidth>panel.clientWidth+1,
       height:panel.getBoundingClientRect().height,
+      settingsVisible:document.getElementById('sideAppSettings').getBoundingClientRect().height>0,
+      labeledTabs:[...document.querySelectorAll('.side-tabs .side-tab > span:last-child')].every(label=>getComputedStyle(label).clipPath==='none' && label.getBoundingClientRect().width>10),
       cues:document.getElementById('cueList').getBoundingClientRect().height,
       nested:!!document.getElementById('browserFeatures').contains(document.getElementById('bvaSaveSrt'))};`);
   fs.writeFileSync(path.join(out,'inspect.png'),(await win.webContents.capturePage()).toPNG());
-  assert.equal(check.groups, 9); assert(!check.overflow); assert(check.height>300); assert.equal(check.cues,0);assert(check.nested);
+  assert(check.settingsVisible, 'Tools must retain settings access'); assert(check.labeledTabs, 'All four destinations retain readable labels'); assert.equal(check.groups, 9); assert(!check.overflow); assert(check.height>300); assert.equal(check.cues,0);assert(check.nested);
   fs.writeFileSync(path.join(out,'tools-dark.png'),(await win.webContents.capturePage()).toPNG());
   fs.writeFileSync(path.join(out,'video-surface.png'),(await page.capturePage()).toPNG());
   await run(`document.getElementById('bfFindTitle').click();document.getElementById('bfTitle').value='Uzun bir film adı';document.getElementById('bfFindTitle').click();document.getElementById('bfFindTitle').click();return true`);
@@ -125,6 +127,8 @@ app.whenReady().then(async () => {
     }, 'Dar görünüm yerleşimi', 15000);
   } catch (_) {}
   assert(narrow?.width>0,JSON.stringify(narrow));assert(narrow.scroll<=narrow.width+1,JSON.stringify(narrow));
+  await wait(300);
+  assert(await run('const r=document.querySelector(".bf-workspace").getBoundingClientRect();return r.left>=0 && r.right<=innerWidth+1 && r.height>150'), 'Narrow tools remain within the rendered viewport');
   fs.writeFileSync(path.join(out,'tools-narrow.png'),(await win.webContents.capturePage()).toPNG());
   await run('setWorkspaceMode("player",false);return true');
   assert.equal(await run('return player.sideTab'),'subs');

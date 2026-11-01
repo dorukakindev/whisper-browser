@@ -1870,3 +1870,53 @@ details.browser-translate-split.hidden { display: none !important; }
 .dub-saved-recipe dt { color:var(--text-muted); }
 .dub-saved-recipe dd { margin:0; overflow-wrap:anywhere; line-height:1.5; }
 #dubCacheInfo:empty { display:none; }
+
+/* R828 — navigation and utility actions have separate width budgets. */
+.workspace-browser .player-side:not(.side-rail) .side-tabbar {
+  display: flex;
+  flex-wrap: wrap;
+  min-height: 0;
+  gap: 8px;
+  padding-block: 8px;
+}
+.workspace-browser .player-side:not(.side-rail) .side-tabs {
+  flex: 1 0 100%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: visible;
+  gap: 4px;
+}
+.player-layer.workspace-browser .player-side:not(.side-rail) .side-tab {
+  min-width: 0;
+  min-height: 36px;
+  justify-content: center;
+  padding: 7px 6px;
+  gap: 5px;
+}
+.player-layer.workspace-browser .player-side:not(.side-rail) .side-tab:not(.active) > span:not(.side-tab-ico):not(.side-tab-icon) {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  clip-path: none;
+  white-space: normal;
+}
+.workspace-browser .player-side:not(.side-rail) .side-tab-actions { margin-left: auto; }
+.workspace-browser .player-side:not(.side-rail) .narrow-panel-back { order: 0; }
+.workspace-browser .player-side:not(.side-rail) .side-tabs { order: -1; }
+@container player-sidebar (max-width: 370px) {
+  .player-layer.workspace-browser .player-side:not(.side-rail) .side-tab .side-tab-ico { display: none; }
+}
+/* Status details follow the browser viewport, including when the sidebar grows. */
+.workspace-browser .browser-signal-popover {
+  box-sizing: border-box;
+  min-width: min(460px, calc(100cqw - 20px));
+  max-width: min(640px, calc(100cqw - 20px));
+  padding: 12px;
+}
+.workspace-browser .browser-signal-popover .browser-subtitle-health { gap: 8px; line-height: 1.5; }
+.workspace-browser .browser-signal-popover .browser-subtitle-health-actions { gap: 8px; flex-wrap: wrap; }
+
+/* Settings and panel controls remain reachable in the tools destination. */
+.workspace-browser .player-side.tools-mode:not(.side-rail) .side-tab-actions { display: flex; }

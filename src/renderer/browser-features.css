@@ -116,3 +116,37 @@
 #bfEncodingPreview { flex-basis: 100%; min-width: 0; }
 #bfEncodingPreview pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; }
 #bdText { width: 100%; min-height: 180px; resize: none; background: var(--bg-1); color: var(--text); border: 1px solid var(--border); }
+
+/* R828 — tools belong to the sidebar, rather than a second inset panel. */
+.workspace-browser .player-side.tools-mode #browserFeatures {
+  margin: 0 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+#browserFeatures > .bf-workspace { padding: 4px 2px 16px; }
+#browserFeatures .bf-context { margin: 0 0 12px; }
+#browserFeatures .bf-top-actions { gap: 8px; align-items: stretch; }
+#browserFeatures .bf-top-actions button { border-radius: var(--radius-sm); text-align: left; }
+#browserFeatures .bf-top-actions button:first-child { border-color: var(--border-strong); }
+#browserFeatures .bf-top-actions button[data-bf-action="ass-clear"] { grid-column: 1 / -1; }
+#browserFeatures .bf-top-actions button:hover:not(:disabled) { background: var(--bg-3); color: var(--text); border-color: var(--border-strong); }
+#browserFeatures .bf-footer { padding-block: 12px; min-height: 0; }
+#browserFeatures .bf-section > summary { padding: 14px 2px; }
+#browserFeatures .bf-group-body { padding: 0 2px 16px; }
+#browserFeatures .bf-group-body > p { margin: 0 0 12px; }
+#browserFeatures .bf-grid { margin-bottom: 12px; gap: 12px; }
+#browserFeatures .bf-inline { gap: 8px; }
+#browserFeatures .bf-credentials { margin-block: 12px; border-radius: var(--radius-sm); }
+#browserFeatures .bf-credentials > summary { padding-block: 4px; }
+#browserFeatures .bf-section, #browserFeatures .bf-credentials { scroll-margin-block: 12px; }
+#browserFeatures .bf-results:empty { display: none; }
+#browserFeatures .bf-grid label:has(> #bfTitle),
+#browserFeatures .bf-grid label:has(> #bfRelease),
+#browserFeatures .bf-grid label:has(> #bfApiKey),
+#browserFeatures .bf-grid label:has(> #bfContextSeries),
+#browserFeatures .bf-grid label:has(> #bfContextStyle) { grid-column: 1 / -1; }
+@container player-sidebar (max-width: 340px) {
+  #browserFeatures > .bf-workspace { padding-inline: 2px; }
+  #browserFeatures .bf-top-actions { grid-template-columns: minmax(0, 1fr); }
+}

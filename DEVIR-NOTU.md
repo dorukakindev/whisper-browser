@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-01-1059.md](docs/devir/2026-11-01-1059.md) — R828 beş yüzeyde yerleşim, alan kullanımı ve görüntülü Windows kabulü
 Güncel çalışma: [docs/devir/2026-11-01-1025.md](docs/devir/2026-11-01-1025.md) — R827 hesap gerektirmeyen ortak tema, hareket ve Windows görüntülü kabul
 Güncel çalışma: [docs/devir/2026-11-01-0935.md](docs/devir/2026-11-01-0935.md) — R826 gerçek kullanım: güvenli asistan retry, browser sürekliliği, film profili ve canlı GPU/DeepSeek kabulü
 Güncel çalışma: [docs/devir/2026-11-01-0825.md](docs/devir/2026-11-01-0825.md) — R825 uygulaması: ayarlar, asistan, film yorumları, dublaj ve okuyucu; Windows görüntülü kabul

@@ -1,0 +1,2330 @@
+[
+  {
+    "name": "empty",
+    "width": 480,
+    "height": 720,
+    "locale": "tr",
+    "theme": "dark",
+    "documentWidth": 480,
+    "workspace": {
+      "top": 81,
+      "bottom": 559,
+      "height": 478,
+      "scroll": 478,
+      "client": 478,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "log": {
+      "top": 184,
+      "bottom": 366.296875,
+      "height": 182.296875,
+      "scroll": 182,
+      "client": 182,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "source": {
+      "top": 81,
+      "bottom": 120,
+      "height": 39,
+      "scroll": 38,
+      "client": 38,
+      "width": 438,
+      "scrollWidth": 438
+    },
+    "suggestions": {
+      "top": 366.296875,
+      "bottom": 410.296875,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "form": {
+      "top": 559,
+      "bottom": 699,
+      "height": 140,
+      "scroll": 138,
+      "client": 138,
+      "width": 436,
+      "scrollWidth": 436
+    },
+    "send": {
+      "top": 647,
+      "bottom": 684,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 80,
+      "scrollWidth": 80
+    },
+    "menu": {
+      "top": 132,
+      "bottom": 172,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": {
+      "height": 144.296875,
+      "headingBottom": 264.796875
+    }
+  },
+  {
+    "name": "source-details",
+    "width": 480,
+    "height": 720,
+    "locale": "tr",
+    "theme": "dark",
+    "documentWidth": 480,
+    "workspace": {
+      "top": 81,
+      "bottom": 559,
+      "height": 478,
+      "scroll": 521,
+      "client": 478,
+      "width": 460,
+      "scrollWidth": 460
+    },
+    "log": {
+      "top": 366,
+      "bottom": 548.296875,
+      "height": 182.296875,
+      "scroll": 182,
+      "client": 182,
+      "width": 460,
+      "scrollWidth": 460
+    },
+    "source": {
+      "top": 81,
+      "bottom": 302,
+      "height": 221,
+      "scroll": 220,
+      "client": 220,
+      "width": 428,
+      "scrollWidth": 428
+    },
+    "suggestions": {
+      "top": 548.296875,
+      "bottom": 592.296875,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 460,
+      "scrollWidth": 460
+    },
+    "form": {
+      "top": 559,
+      "bottom": 699,
+      "height": 140,
+      "scroll": 138,
+      "client": 138,
+      "width": 436,
+      "scrollWidth": 436
+    },
+    "send": {
+      "top": 647,
+      "bottom": 684,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 80,
+      "scrollWidth": 80
+    },
+    "menu": {
+      "top": 314,
+      "bottom": 354,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": {
+      "height": 144.296875,
+      "headingBottom": 446.796875
+    }
+  },
+  {
+    "name": "conversation",
+    "width": 480,
+    "height": 720,
+    "locale": "tr",
+    "theme": "dark",
+    "documentWidth": 480,
+    "workspace": {
+      "top": 81,
+      "bottom": 559,
+      "height": 478,
+      "scroll": 478,
+      "client": 478,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "log": {
+      "top": 184,
+      "bottom": 468,
+      "height": 284,
+      "scroll": 469,
+      "client": 284,
+      "width": 460,
+      "scrollWidth": 460
+    },
+    "source": {
+      "top": 81,
+      "bottom": 120,
+      "height": 39,
+      "scroll": 38,
+      "client": 38,
+      "width": 438,
+      "scrollWidth": 438
+    },
+    "suggestions": {
+      "top": 505,
+      "bottom": 549,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "form": {
+      "top": 559,
+      "bottom": 699,
+      "height": 140,
+      "scroll": 138,
+      "client": 138,
+      "width": 436,
+      "scrollWidth": 436
+    },
+    "send": {
+      "top": 647,
+      "bottom": 684,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 80,
+      "scrollWidth": 80
+    },
+    "menu": {
+      "top": 132,
+      "bottom": 172,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "long-code",
+    "width": 480,
+    "height": 720,
+    "locale": "tr",
+    "theme": "dark",
+    "documentWidth": 480,
+    "workspace": {
+      "top": 81,
+      "bottom": 559,
+      "height": 478,
+      "scroll": 478,
+      "client": 478,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "log": {
+      "top": 184,
+      "bottom": 468,
+      "height": 284,
+      "scroll": 979,
+      "client": 284,
+      "width": 460,
+      "scrollWidth": 460
+    },
+    "source": {
+      "top": 81,
+      "bottom": 120,
+      "height": 39,
+      "scroll": 38,
+      "client": 38,
+      "width": 438,
+      "scrollWidth": 438
+    },
+    "suggestions": {
+      "top": 505,
+      "bottom": 549,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "form": {
+      "top": 559,
+      "bottom": 699,
+      "height": 140,
+      "scroll": 138,
+      "client": 138,
+      "width": 436,
+      "scrollWidth": 436
+    },
+    "send": {
+      "top": 647,
+      "bottom": 684,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 80,
+      "scrollWidth": 80
+    },
+    "menu": {
+      "top": 132,
+      "bottom": 172,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "streaming",
+    "width": 480,
+    "height": 720,
+    "locale": "tr",
+    "theme": "dark",
+    "documentWidth": 480,
+    "workspace": {
+      "top": 81,
+      "bottom": 559,
+      "height": 478,
+      "scroll": 478,
+      "client": 478,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "log": {
+      "top": 282.5,
+      "bottom": 512,
+      "height": 229.5,
+      "scroll": 830,
+      "client": 230,
+      "width": 460,
+      "scrollWidth": 460
+    },
+    "source": {
+      "top": 81,
+      "bottom": 120,
+      "height": 39,
+      "scroll": 38,
+      "client": 38,
+      "width": 438,
+      "scrollWidth": 438
+    },
+    "suggestions": {
+      "top": 0,
+      "bottom": 0,
+      "height": 0,
+      "scroll": 0,
+      "client": 0,
+      "width": 0,
+      "scrollWidth": 0
+    },
+    "form": {
+      "top": 559,
+      "bottom": 699,
+      "height": 140,
+      "scroll": 138,
+      "client": 138,
+      "width": 436,
+      "scrollWidth": 436
+    },
+    "send": {
+      "top": 647,
+      "bottom": 684,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 80,
+      "scrollWidth": 80
+    },
+    "menu": {
+      "top": 132,
+      "bottom": 172,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "conversation-menu",
+    "width": 480,
+    "height": 720,
+    "locale": "tr",
+    "theme": "dark",
+    "documentWidth": 480,
+    "workspace": {
+      "top": 81,
+      "bottom": 559,
+      "height": 478,
+      "scroll": 478,
+      "client": 478,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "log": {
+      "top": 184,
+      "bottom": 468,
+      "height": 284,
+      "scroll": 331,
+      "client": 284,
+      "width": 460,
+      "scrollWidth": 460
+    },
+    "source": {
+      "top": 81,
+      "bottom": 120,
+      "height": 39,
+      "scroll": 38,
+      "client": 38,
+      "width": 438,
+      "scrollWidth": 438
+    },
+    "suggestions": {
+      "top": 505,
+      "bottom": 549,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "form": {
+      "top": 559,
+      "bottom": 699,
+      "height": 140,
+      "scroll": 138,
+      "client": 138,
+      "width": 436,
+      "scrollWidth": 436
+    },
+    "send": {
+      "top": 647,
+      "bottom": 684,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 80,
+      "scrollWidth": 80
+    },
+    "menu": {
+      "top": 132,
+      "bottom": 172,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "tool-evidence",
+    "width": 480,
+    "height": 720,
+    "locale": "tr",
+    "theme": "dark",
+    "documentWidth": 480,
+    "workspace": {
+      "top": 81,
+      "bottom": 559,
+      "height": 478,
+      "scroll": 478,
+      "client": 478,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "log": {
+      "top": 184,
+      "bottom": 505,
+      "height": 321,
+      "scroll": 912,
+      "client": 321,
+      "width": 460,
+      "scrollWidth": 460
+    },
+    "source": {
+      "top": 81,
+      "bottom": 120,
+      "height": 39,
+      "scroll": 38,
+      "client": 38,
+      "width": 438,
+      "scrollWidth": 438
+    },
+    "suggestions": {
+      "top": 505,
+      "bottom": 549,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "form": {
+      "top": 559,
+      "bottom": 699,
+      "height": 140,
+      "scroll": 138,
+      "client": 138,
+      "width": 436,
+      "scrollWidth": 436
+    },
+    "send": {
+      "top": 647,
+      "bottom": 684,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 80,
+      "scrollWidth": 80
+    },
+    "menu": {
+      "top": 132,
+      "bottom": 172,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "long-question",
+    "width": 480,
+    "height": 720,
+    "locale": "tr",
+    "theme": "dark",
+    "documentWidth": 480,
+    "workspace": {
+      "top": 81,
+      "bottom": 559,
+      "height": 478,
+      "scroll": 478,
+      "client": 478,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "log": {
+      "top": 184,
+      "bottom": 468,
+      "height": 284,
+      "scroll": 837,
+      "client": 284,
+      "width": 460,
+      "scrollWidth": 460
+    },
+    "source": {
+      "top": 81,
+      "bottom": 120,
+      "height": 39,
+      "scroll": 38,
+      "client": 38,
+      "width": 438,
+      "scrollWidth": 438
+    },
+    "suggestions": {
+      "top": 505,
+      "bottom": 549,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "form": {
+      "top": 559,
+      "bottom": 699,
+      "height": 140,
+      "scroll": 138,
+      "client": 138,
+      "width": 436,
+      "scrollWidth": 436
+    },
+    "send": {
+      "top": 647,
+      "bottom": 684,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 80,
+      "scrollWidth": 80
+    },
+    "menu": {
+      "top": 132,
+      "bottom": 172,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "empty",
+    "width": 360,
+    "height": 600,
+    "locale": "en",
+    "theme": "light",
+    "documentWidth": 360,
+    "workspace": {
+      "top": 60,
+      "bottom": 473,
+      "height": 413,
+      "scroll": 413,
+      "client": 413,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "log": {
+      "top": 143,
+      "bottom": 285.09375,
+      "height": 142.09375,
+      "scroll": 142,
+      "client": 142,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "source": {
+      "top": 60,
+      "bottom": 91,
+      "height": 31,
+      "scroll": 30,
+      "client": 30,
+      "width": 326,
+      "scrollWidth": 326
+    },
+    "suggestions": {
+      "top": 285.09375,
+      "bottom": 329.09375,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "form": {
+      "top": 473,
+      "bottom": 585,
+      "height": 112,
+      "scroll": 110,
+      "client": 110,
+      "width": 328,
+      "scrollWidth": 328
+    },
+    "send": {
+      "top": 539,
+      "bottom": 576,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 67,
+      "scrollWidth": 67
+    },
+    "menu": {
+      "top": 97,
+      "bottom": 137,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": {
+      "height": 118.09375,
+      "headingBottom": 201.59375
+    }
+  },
+  {
+    "name": "source-details",
+    "width": 360,
+    "height": 600,
+    "locale": "en",
+    "theme": "light",
+    "documentWidth": 360,
+    "workspace": {
+      "top": 60,
+      "bottom": 473,
+      "height": 413,
+      "scroll": 429,
+      "client": 413,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "log": {
+      "top": 297,
+      "bottom": 439.09375,
+      "height": 142.09375,
+      "scroll": 142,
+      "client": 142,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "source": {
+      "top": 60,
+      "bottom": 245,
+      "height": 185,
+      "scroll": 184,
+      "client": 184,
+      "width": 316,
+      "scrollWidth": 316
+    },
+    "suggestions": {
+      "top": 439.09375,
+      "bottom": 483.09375,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "form": {
+      "top": 473,
+      "bottom": 585,
+      "height": 112,
+      "scroll": 110,
+      "client": 110,
+      "width": 328,
+      "scrollWidth": 328
+    },
+    "send": {
+      "top": 539,
+      "bottom": 576,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 67,
+      "scrollWidth": 67
+    },
+    "menu": {
+      "top": 251,
+      "bottom": 291,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": {
+      "height": 118.09375,
+      "headingBottom": 355.59375
+    }
+  },
+  {
+    "name": "conversation",
+    "width": 360,
+    "height": 600,
+    "locale": "en",
+    "theme": "light",
+    "documentWidth": 360,
+    "workspace": {
+      "top": 60,
+      "bottom": 473,
+      "height": 413,
+      "scroll": 413,
+      "client": 413,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "log": {
+      "top": 143,
+      "bottom": 386,
+      "height": 243,
+      "scroll": 549,
+      "client": 243,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "source": {
+      "top": 60,
+      "bottom": 91,
+      "height": 31,
+      "scroll": 30,
+      "client": 30,
+      "width": 326,
+      "scrollWidth": 326
+    },
+    "suggestions": {
+      "top": 423,
+      "bottom": 467,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "form": {
+      "top": 473,
+      "bottom": 585,
+      "height": 112,
+      "scroll": 110,
+      "client": 110,
+      "width": 328,
+      "scrollWidth": 328
+    },
+    "send": {
+      "top": 539,
+      "bottom": 576,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 67,
+      "scrollWidth": 67
+    },
+    "menu": {
+      "top": 97,
+      "bottom": 137,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "long-code",
+    "width": 360,
+    "height": 600,
+    "locale": "en",
+    "theme": "light",
+    "documentWidth": 360,
+    "workspace": {
+      "top": 60,
+      "bottom": 473,
+      "height": 413,
+      "scroll": 413,
+      "client": 413,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "log": {
+      "top": 143,
+      "bottom": 386,
+      "height": 243,
+      "scroll": 1204,
+      "client": 243,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "source": {
+      "top": 60,
+      "bottom": 91,
+      "height": 31,
+      "scroll": 30,
+      "client": 30,
+      "width": 326,
+      "scrollWidth": 326
+    },
+    "suggestions": {
+      "top": 423,
+      "bottom": 467,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "form": {
+      "top": 473,
+      "bottom": 585,
+      "height": 112,
+      "scroll": 110,
+      "client": 110,
+      "width": 328,
+      "scrollWidth": 328
+    },
+    "send": {
+      "top": 539,
+      "bottom": 576,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 67,
+      "scrollWidth": 67
+    },
+    "menu": {
+      "top": 97,
+      "bottom": 137,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "streaming",
+    "width": 360,
+    "height": 600,
+    "locale": "en",
+    "theme": "light",
+    "documentWidth": 360,
+    "workspace": {
+      "top": 60,
+      "bottom": 473,
+      "height": 413,
+      "scroll": 413,
+      "client": 413,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "log": {
+      "top": 202,
+      "bottom": 430,
+      "height": 228,
+      "scroll": 1055,
+      "client": 228,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "source": {
+      "top": 60,
+      "bottom": 91,
+      "height": 31,
+      "scroll": 30,
+      "client": 30,
+      "width": 326,
+      "scrollWidth": 326
+    },
+    "suggestions": {
+      "top": 0,
+      "bottom": 0,
+      "height": 0,
+      "scroll": 0,
+      "client": 0,
+      "width": 0,
+      "scrollWidth": 0
+    },
+    "form": {
+      "top": 473,
+      "bottom": 585,
+      "height": 112,
+      "scroll": 110,
+      "client": 110,
+      "width": 328,
+      "scrollWidth": 328
+    },
+    "send": {
+      "top": 539,
+      "bottom": 576,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 67,
+      "scrollWidth": 67
+    },
+    "menu": {
+      "top": 97,
+      "bottom": 137,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "conversation-menu",
+    "width": 360,
+    "height": 600,
+    "locale": "en",
+    "theme": "light",
+    "documentWidth": 360,
+    "workspace": {
+      "top": 60,
+      "bottom": 473,
+      "height": 413,
+      "scroll": 413,
+      "client": 413,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "log": {
+      "top": 143,
+      "bottom": 386,
+      "height": 243,
+      "scroll": 360,
+      "client": 243,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "source": {
+      "top": 60,
+      "bottom": 91,
+      "height": 31,
+      "scroll": 30,
+      "client": 30,
+      "width": 326,
+      "scrollWidth": 326
+    },
+    "suggestions": {
+      "top": 423,
+      "bottom": 467,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "form": {
+      "top": 473,
+      "bottom": 585,
+      "height": 112,
+      "scroll": 110,
+      "client": 110,
+      "width": 328,
+      "scrollWidth": 328
+    },
+    "send": {
+      "top": 539,
+      "bottom": 576,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 67,
+      "scrollWidth": 67
+    },
+    "menu": {
+      "top": 97,
+      "bottom": 137,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "tool-evidence",
+    "width": 360,
+    "height": 600,
+    "locale": "en",
+    "theme": "light",
+    "documentWidth": 360,
+    "workspace": {
+      "top": 60,
+      "bottom": 473,
+      "height": 413,
+      "scroll": 413,
+      "client": 413,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "log": {
+      "top": 143,
+      "bottom": 386,
+      "height": 243,
+      "scroll": 913,
+      "client": 243,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "source": {
+      "top": 60,
+      "bottom": 91,
+      "height": 31,
+      "scroll": 30,
+      "client": 30,
+      "width": 326,
+      "scrollWidth": 326
+    },
+    "suggestions": {
+      "top": 423,
+      "bottom": 467,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "form": {
+      "top": 473,
+      "bottom": 585,
+      "height": 112,
+      "scroll": 110,
+      "client": 110,
+      "width": 328,
+      "scrollWidth": 328
+    },
+    "send": {
+      "top": 539,
+      "bottom": 576,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 67,
+      "scrollWidth": 67
+    },
+    "menu": {
+      "top": 97,
+      "bottom": 137,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "long-question",
+    "width": 360,
+    "height": 600,
+    "locale": "en",
+    "theme": "light",
+    "documentWidth": 360,
+    "workspace": {
+      "top": 60,
+      "bottom": 473,
+      "height": 413,
+      "scroll": 413,
+      "client": 413,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "log": {
+      "top": 143,
+      "bottom": 386,
+      "height": 243,
+      "scroll": 1088,
+      "client": 243,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "source": {
+      "top": 60,
+      "bottom": 91,
+      "height": 31,
+      "scroll": 30,
+      "client": 30,
+      "width": 326,
+      "scrollWidth": 326
+    },
+    "suggestions": {
+      "top": 423,
+      "bottom": 467,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "form": {
+      "top": 473,
+      "bottom": 585,
+      "height": 112,
+      "scroll": 110,
+      "client": 110,
+      "width": 328,
+      "scrollWidth": 328
+    },
+    "send": {
+      "top": 539,
+      "bottom": 576,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 67,
+      "scrollWidth": 67
+    },
+    "menu": {
+      "top": 97,
+      "bottom": 137,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "empty",
+    "width": 480,
+    "height": 720,
+    "locale": "en",
+    "theme": "light",
+    "documentWidth": 480,
+    "workspace": {
+      "top": 81,
+      "bottom": 559,
+      "height": 478,
+      "scroll": 478,
+      "client": 478,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "log": {
+      "top": 184,
+      "bottom": 366.296875,
+      "height": 182.296875,
+      "scroll": 182,
+      "client": 182,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "source": {
+      "top": 81,
+      "bottom": 120,
+      "height": 39,
+      "scroll": 38,
+      "client": 38,
+      "width": 438,
+      "scrollWidth": 438
+    },
+    "suggestions": {
+      "top": 366.296875,
+      "bottom": 410.296875,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "form": {
+      "top": 559,
+      "bottom": 699,
+      "height": 140,
+      "scroll": 138,
+      "client": 138,
+      "width": 436,
+      "scrollWidth": 436
+    },
+    "send": {
+      "top": 647,
+      "bottom": 684,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 67,
+      "scrollWidth": 67
+    },
+    "menu": {
+      "top": 132,
+      "bottom": 172,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": {
+      "height": 144.296875,
+      "headingBottom": 264.796875
+    }
+  },
+  {
+    "name": "source-details",
+    "width": 480,
+    "height": 720,
+    "locale": "en",
+    "theme": "light",
+    "documentWidth": 480,
+    "workspace": {
+      "top": 81,
+      "bottom": 559,
+      "height": 478,
+      "scroll": 521,
+      "client": 478,
+      "width": 460,
+      "scrollWidth": 460
+    },
+    "log": {
+      "top": 366,
+      "bottom": 548.296875,
+      "height": 182.296875,
+      "scroll": 182,
+      "client": 182,
+      "width": 460,
+      "scrollWidth": 460
+    },
+    "source": {
+      "top": 81,
+      "bottom": 302,
+      "height": 221,
+      "scroll": 220,
+      "client": 220,
+      "width": 428,
+      "scrollWidth": 428
+    },
+    "suggestions": {
+      "top": 548.296875,
+      "bottom": 592.296875,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 460,
+      "scrollWidth": 460
+    },
+    "form": {
+      "top": 559,
+      "bottom": 699,
+      "height": 140,
+      "scroll": 138,
+      "client": 138,
+      "width": 436,
+      "scrollWidth": 436
+    },
+    "send": {
+      "top": 647,
+      "bottom": 684,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 67,
+      "scrollWidth": 67
+    },
+    "menu": {
+      "top": 314,
+      "bottom": 354,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": {
+      "height": 144.296875,
+      "headingBottom": 446.796875
+    }
+  },
+  {
+    "name": "conversation",
+    "width": 480,
+    "height": 720,
+    "locale": "en",
+    "theme": "light",
+    "documentWidth": 480,
+    "workspace": {
+      "top": 81,
+      "bottom": 559,
+      "height": 478,
+      "scroll": 478,
+      "client": 478,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "log": {
+      "top": 184,
+      "bottom": 468,
+      "height": 284,
+      "scroll": 469,
+      "client": 284,
+      "width": 460,
+      "scrollWidth": 460
+    },
+    "source": {
+      "top": 81,
+      "bottom": 120,
+      "height": 39,
+      "scroll": 38,
+      "client": 38,
+      "width": 438,
+      "scrollWidth": 438
+    },
+    "suggestions": {
+      "top": 505,
+      "bottom": 549,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "form": {
+      "top": 559,
+      "bottom": 699,
+      "height": 140,
+      "scroll": 138,
+      "client": 138,
+      "width": 436,
+      "scrollWidth": 436
+    },
+    "send": {
+      "top": 647,
+      "bottom": 684,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 67,
+      "scrollWidth": 67
+    },
+    "menu": {
+      "top": 132,
+      "bottom": 172,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "long-code",
+    "width": 480,
+    "height": 720,
+    "locale": "en",
+    "theme": "light",
+    "documentWidth": 480,
+    "workspace": {
+      "top": 81,
+      "bottom": 559,
+      "height": 478,
+      "scroll": 478,
+      "client": 478,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "log": {
+      "top": 184,
+      "bottom": 468,
+      "height": 284,
+      "scroll": 979,
+      "client": 284,
+      "width": 460,
+      "scrollWidth": 460
+    },
+    "source": {
+      "top": 81,
+      "bottom": 120,
+      "height": 39,
+      "scroll": 38,
+      "client": 38,
+      "width": 438,
+      "scrollWidth": 438
+    },
+    "suggestions": {
+      "top": 505,
+      "bottom": 549,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "form": {
+      "top": 559,
+      "bottom": 699,
+      "height": 140,
+      "scroll": 138,
+      "client": 138,
+      "width": 436,
+      "scrollWidth": 436
+    },
+    "send": {
+      "top": 647,
+      "bottom": 684,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 67,
+      "scrollWidth": 67
+    },
+    "menu": {
+      "top": 132,
+      "bottom": 172,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "streaming",
+    "width": 480,
+    "height": 720,
+    "locale": "en",
+    "theme": "light",
+    "documentWidth": 480,
+    "workspace": {
+      "top": 81,
+      "bottom": 559,
+      "height": 478,
+      "scroll": 478,
+      "client": 478,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "log": {
+      "top": 282.5,
+      "bottom": 512,
+      "height": 229.5,
+      "scroll": 830,
+      "client": 230,
+      "width": 460,
+      "scrollWidth": 460
+    },
+    "source": {
+      "top": 81,
+      "bottom": 120,
+      "height": 39,
+      "scroll": 38,
+      "client": 38,
+      "width": 438,
+      "scrollWidth": 438
+    },
+    "suggestions": {
+      "top": 0,
+      "bottom": 0,
+      "height": 0,
+      "scroll": 0,
+      "client": 0,
+      "width": 0,
+      "scrollWidth": 0
+    },
+    "form": {
+      "top": 559,
+      "bottom": 699,
+      "height": 140,
+      "scroll": 138,
+      "client": 138,
+      "width": 436,
+      "scrollWidth": 436
+    },
+    "send": {
+      "top": 647,
+      "bottom": 684,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 67,
+      "scrollWidth": 67
+    },
+    "menu": {
+      "top": 132,
+      "bottom": 172,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "conversation-menu",
+    "width": 480,
+    "height": 720,
+    "locale": "en",
+    "theme": "light",
+    "documentWidth": 480,
+    "workspace": {
+      "top": 81,
+      "bottom": 559,
+      "height": 478,
+      "scroll": 478,
+      "client": 478,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "log": {
+      "top": 184,
+      "bottom": 468,
+      "height": 284,
+      "scroll": 331,
+      "client": 284,
+      "width": 460,
+      "scrollWidth": 460
+    },
+    "source": {
+      "top": 81,
+      "bottom": 120,
+      "height": 39,
+      "scroll": 38,
+      "client": 38,
+      "width": 438,
+      "scrollWidth": 438
+    },
+    "suggestions": {
+      "top": 505,
+      "bottom": 549,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "form": {
+      "top": 559,
+      "bottom": 699,
+      "height": 140,
+      "scroll": 138,
+      "client": 138,
+      "width": 436,
+      "scrollWidth": 436
+    },
+    "send": {
+      "top": 647,
+      "bottom": 684,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 67,
+      "scrollWidth": 67
+    },
+    "menu": {
+      "top": 132,
+      "bottom": 172,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "tool-evidence",
+    "width": 480,
+    "height": 720,
+    "locale": "en",
+    "theme": "light",
+    "documentWidth": 480,
+    "workspace": {
+      "top": 81,
+      "bottom": 559,
+      "height": 478,
+      "scroll": 478,
+      "client": 478,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "log": {
+      "top": 184,
+      "bottom": 505,
+      "height": 321,
+      "scroll": 912,
+      "client": 321,
+      "width": 460,
+      "scrollWidth": 460
+    },
+    "source": {
+      "top": 81,
+      "bottom": 120,
+      "height": 39,
+      "scroll": 38,
+      "client": 38,
+      "width": 438,
+      "scrollWidth": 438
+    },
+    "suggestions": {
+      "top": 505,
+      "bottom": 549,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "form": {
+      "top": 559,
+      "bottom": 699,
+      "height": 140,
+      "scroll": 138,
+      "client": 138,
+      "width": 436,
+      "scrollWidth": 436
+    },
+    "send": {
+      "top": 647,
+      "bottom": 684,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 67,
+      "scrollWidth": 67
+    },
+    "menu": {
+      "top": 132,
+      "bottom": 172,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "long-question",
+    "width": 480,
+    "height": 720,
+    "locale": "en",
+    "theme": "light",
+    "documentWidth": 480,
+    "workspace": {
+      "top": 81,
+      "bottom": 559,
+      "height": 478,
+      "scroll": 478,
+      "client": 478,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "log": {
+      "top": 184,
+      "bottom": 468,
+      "height": 284,
+      "scroll": 837,
+      "client": 284,
+      "width": 460,
+      "scrollWidth": 460
+    },
+    "source": {
+      "top": 81,
+      "bottom": 120,
+      "height": 39,
+      "scroll": 38,
+      "client": 38,
+      "width": 438,
+      "scrollWidth": 438
+    },
+    "suggestions": {
+      "top": 505,
+      "bottom": 549,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 470,
+      "scrollWidth": 470
+    },
+    "form": {
+      "top": 559,
+      "bottom": 699,
+      "height": 140,
+      "scroll": 138,
+      "client": 138,
+      "width": 436,
+      "scrollWidth": 436
+    },
+    "send": {
+      "top": 647,
+      "bottom": 684,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 67,
+      "scrollWidth": 67
+    },
+    "menu": {
+      "top": 132,
+      "bottom": 172,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "empty",
+    "width": 360,
+    "height": 600,
+    "locale": "tr",
+    "theme": "dark",
+    "documentWidth": 360,
+    "workspace": {
+      "top": 60,
+      "bottom": 473,
+      "height": 413,
+      "scroll": 413,
+      "client": 413,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "log": {
+      "top": 143,
+      "bottom": 285.09375,
+      "height": 142.09375,
+      "scroll": 142,
+      "client": 142,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "source": {
+      "top": 60,
+      "bottom": 91,
+      "height": 31,
+      "scroll": 30,
+      "client": 30,
+      "width": 326,
+      "scrollWidth": 326
+    },
+    "suggestions": {
+      "top": 285.09375,
+      "bottom": 329.09375,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "form": {
+      "top": 473,
+      "bottom": 585,
+      "height": 112,
+      "scroll": 110,
+      "client": 110,
+      "width": 328,
+      "scrollWidth": 328
+    },
+    "send": {
+      "top": 539,
+      "bottom": 576,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 80,
+      "scrollWidth": 80
+    },
+    "menu": {
+      "top": 97,
+      "bottom": 137,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": {
+      "height": 118.09375,
+      "headingBottom": 201.59375
+    }
+  },
+  {
+    "name": "source-details",
+    "width": 360,
+    "height": 600,
+    "locale": "tr",
+    "theme": "dark",
+    "documentWidth": 360,
+    "workspace": {
+      "top": 60,
+      "bottom": 473,
+      "height": 413,
+      "scroll": 429,
+      "client": 413,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "log": {
+      "top": 297,
+      "bottom": 439.09375,
+      "height": 142.09375,
+      "scroll": 142,
+      "client": 142,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "source": {
+      "top": 60,
+      "bottom": 245,
+      "height": 185,
+      "scroll": 184,
+      "client": 184,
+      "width": 316,
+      "scrollWidth": 316
+    },
+    "suggestions": {
+      "top": 439.09375,
+      "bottom": 483.09375,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "form": {
+      "top": 473,
+      "bottom": 585,
+      "height": 112,
+      "scroll": 110,
+      "client": 110,
+      "width": 328,
+      "scrollWidth": 328
+    },
+    "send": {
+      "top": 539,
+      "bottom": 576,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 80,
+      "scrollWidth": 80
+    },
+    "menu": {
+      "top": 251,
+      "bottom": 291,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": {
+      "height": 118.09375,
+      "headingBottom": 355.59375
+    }
+  },
+  {
+    "name": "conversation",
+    "width": 360,
+    "height": 600,
+    "locale": "tr",
+    "theme": "dark",
+    "documentWidth": 360,
+    "workspace": {
+      "top": 60,
+      "bottom": 473,
+      "height": 413,
+      "scroll": 413,
+      "client": 413,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "log": {
+      "top": 143,
+      "bottom": 386,
+      "height": 243,
+      "scroll": 549,
+      "client": 243,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "source": {
+      "top": 60,
+      "bottom": 91,
+      "height": 31,
+      "scroll": 30,
+      "client": 30,
+      "width": 326,
+      "scrollWidth": 326
+    },
+    "suggestions": {
+      "top": 423,
+      "bottom": 467,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "form": {
+      "top": 473,
+      "bottom": 585,
+      "height": 112,
+      "scroll": 110,
+      "client": 110,
+      "width": 328,
+      "scrollWidth": 328
+    },
+    "send": {
+      "top": 539,
+      "bottom": 576,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 80,
+      "scrollWidth": 80
+    },
+    "menu": {
+      "top": 97,
+      "bottom": 137,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "long-code",
+    "width": 360,
+    "height": 600,
+    "locale": "tr",
+    "theme": "dark",
+    "documentWidth": 360,
+    "workspace": {
+      "top": 60,
+      "bottom": 473,
+      "height": 413,
+      "scroll": 413,
+      "client": 413,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "log": {
+      "top": 143,
+      "bottom": 386,
+      "height": 243,
+      "scroll": 1204,
+      "client": 243,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "source": {
+      "top": 60,
+      "bottom": 91,
+      "height": 31,
+      "scroll": 30,
+      "client": 30,
+      "width": 326,
+      "scrollWidth": 326
+    },
+    "suggestions": {
+      "top": 423,
+      "bottom": 467,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "form": {
+      "top": 473,
+      "bottom": 585,
+      "height": 112,
+      "scroll": 110,
+      "client": 110,
+      "width": 328,
+      "scrollWidth": 328
+    },
+    "send": {
+      "top": 539,
+      "bottom": 576,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 80,
+      "scrollWidth": 80
+    },
+    "menu": {
+      "top": 97,
+      "bottom": 137,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "streaming",
+    "width": 360,
+    "height": 600,
+    "locale": "tr",
+    "theme": "dark",
+    "documentWidth": 360,
+    "workspace": {
+      "top": 60,
+      "bottom": 473,
+      "height": 413,
+      "scroll": 413,
+      "client": 413,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "log": {
+      "top": 202,
+      "bottom": 430,
+      "height": 228,
+      "scroll": 1055,
+      "client": 228,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "source": {
+      "top": 60,
+      "bottom": 91,
+      "height": 31,
+      "scroll": 30,
+      "client": 30,
+      "width": 326,
+      "scrollWidth": 326
+    },
+    "suggestions": {
+      "top": 0,
+      "bottom": 0,
+      "height": 0,
+      "scroll": 0,
+      "client": 0,
+      "width": 0,
+      "scrollWidth": 0
+    },
+    "form": {
+      "top": 473,
+      "bottom": 585,
+      "height": 112,
+      "scroll": 110,
+      "client": 110,
+      "width": 328,
+      "scrollWidth": 328
+    },
+    "send": {
+      "top": 539,
+      "bottom": 576,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 80,
+      "scrollWidth": 80
+    },
+    "menu": {
+      "top": 97,
+      "bottom": 137,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "conversation-menu",
+    "width": 360,
+    "height": 600,
+    "locale": "tr",
+    "theme": "dark",
+    "documentWidth": 360,
+    "workspace": {
+      "top": 60,
+      "bottom": 473,
+      "height": 413,
+      "scroll": 413,
+      "client": 413,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "log": {
+      "top": 143,
+      "bottom": 386,
+      "height": 243,
+      "scroll": 360,
+      "client": 243,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "source": {
+      "top": 60,
+      "bottom": 91,
+      "height": 31,
+      "scroll": 30,
+      "client": 30,
+      "width": 326,
+      "scrollWidth": 326
+    },
+    "suggestions": {
+      "top": 423,
+      "bottom": 467,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "form": {
+      "top": 473,
+      "bottom": 585,
+      "height": 112,
+      "scroll": 110,
+      "client": 110,
+      "width": 328,
+      "scrollWidth": 328
+    },
+    "send": {
+      "top": 539,
+      "bottom": 576,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 80,
+      "scrollWidth": 80
+    },
+    "menu": {
+      "top": 97,
+      "bottom": 137,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "tool-evidence",
+    "width": 360,
+    "height": 600,
+    "locale": "tr",
+    "theme": "dark",
+    "documentWidth": 360,
+    "workspace": {
+      "top": 60,
+      "bottom": 473,
+      "height": 413,
+      "scroll": 413,
+      "client": 413,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "log": {
+      "top": 143,
+      "bottom": 386,
+      "height": 243,
+      "scroll": 913,
+      "client": 243,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "source": {
+      "top": 60,
+      "bottom": 91,
+      "height": 31,
+      "scroll": 30,
+      "client": 30,
+      "width": 326,
+      "scrollWidth": 326
+    },
+    "suggestions": {
+      "top": 423,
+      "bottom": 467,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "form": {
+      "top": 473,
+      "bottom": 585,
+      "height": 112,
+      "scroll": 110,
+      "client": 110,
+      "width": 328,
+      "scrollWidth": 328
+    },
+    "send": {
+      "top": 539,
+      "bottom": 576,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 80,
+      "scrollWidth": 80
+    },
+    "menu": {
+      "top": 97,
+      "bottom": 137,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  },
+  {
+    "name": "long-question",
+    "width": 360,
+    "height": 600,
+    "locale": "tr",
+    "theme": "dark",
+    "documentWidth": 360,
+    "workspace": {
+      "top": 60,
+      "bottom": 473,
+      "height": 413,
+      "scroll": 413,
+      "client": 413,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "log": {
+      "top": 143,
+      "bottom": 386,
+      "height": 243,
+      "scroll": 1088,
+      "client": 243,
+      "width": 340,
+      "scrollWidth": 340
+    },
+    "source": {
+      "top": 60,
+      "bottom": 91,
+      "height": 31,
+      "scroll": 30,
+      "client": 30,
+      "width": 326,
+      "scrollWidth": 326
+    },
+    "suggestions": {
+      "top": 423,
+      "bottom": 467,
+      "height": 44,
+      "scroll": 44,
+      "client": 44,
+      "width": 350,
+      "scrollWidth": 350
+    },
+    "form": {
+      "top": 473,
+      "bottom": 585,
+      "height": 112,
+      "scroll": 110,
+      "client": 110,
+      "width": 328,
+      "scrollWidth": 328
+    },
+    "send": {
+      "top": 539,
+      "bottom": 576,
+      "height": 37,
+      "scroll": 35,
+      "client": 35,
+      "width": 80,
+      "scrollWidth": 80
+    },
+    "menu": {
+      "top": 97,
+      "bottom": 137,
+      "height": 40,
+      "scroll": 40,
+      "client": 40,
+      "width": 40,
+      "scrollWidth": 40
+    },
+    "empty": null
+  }
+]

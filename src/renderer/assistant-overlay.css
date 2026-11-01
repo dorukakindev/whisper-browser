@@ -239,3 +239,34 @@ header{padding-inline:16px;gap:12px}
  #assistantWorkspace{padding-bottom:6px}
  #text{field-sizing:content;height:auto;min-height:48px;max-height:96px;overflow-y:auto}
 }
+
+/* R828: prose leads the reading column; explicit card decisions form a tight group.
+   Markdown already emits paragraphs: blank-line <br>s must not add a second rhythm. */
+.message > br{display:none}
+.message{line-height:1.75}
+.message-role{margin-bottom:6px}
+.message h3{margin-block:16px 8px;line-height:1.5;text-wrap:pretty}
+.message-role + h3{margin-top:0}
+.message p{margin-block:0 12px}
+.message .answer-list{margin-block:0 6px;padding-left:12px}
+.message-actions{gap:4px;margin-top:8px}
+.message-actions button{min-height:28px;padding:3px 6px}
+.message.user{width:fit-content;max-width:calc(100% - 16px);margin-left:auto;padding:12px;border-radius:12px 12px 4px 12px}
+.message.user > p:last-of-type{margin-bottom:0}
+/* Long evidence has its own bound; the title and decision row never join that scroll. */
+.tool-card{display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;padding:12px}
+.tool-card > strong,.tool-card > p{flex:0 0 100%;min-width:0;margin:0;line-height:1.65}
+.tool-card > strong{line-height:1.5}
+.tool-card > button{flex:0 1 auto;min-width:0;max-width:100%;margin:0;white-space:normal;overflow-wrap:anywhere;text-align:left;line-height:1.5}
+.tool-card .flow-continue{margin-inline-start:0}
+.tool-card .action-receipt{margin:4px 0 0;padding-top:8px}
+.source-card > p{max-height:144px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;padding-right:4px}
+.source-card > small{display:block;max-height:112px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;line-height:1.65}
+.tool-card > p,.source-card > p,.source-card > small{scrollbar-color:var(--strong) transparent}
+/* The draft and command row have one clear seam, without changing their scroll owner. */
+#form > div{border-top:1px solid var(--line);padding-top:8px}
+@media(max-width:400px){
+ .source-card{padding:12px}
+ .tool-card > button{min-height:36px}
+ #form > div{column-gap:8px;row-gap:6px}
+}
