@@ -2,6 +2,11 @@
   'use strict';
   const el = id => document.getElementById(id);
   const modal = el('dubGeneratorDialog');
+  const inputColumn=document.createElement('div');inputColumn.className='dub-input-column';
+  const sourceCard=modal.querySelector('.dub-source-card');sourceCard.before(inputColumn);
+  inputColumn.append(sourceCard,modal.querySelector('.dub-natural-card'));
+  el('voiceReferenceLocal').parentElement.append(el('voiceReferenceFolder'));
+
   // Elapsed time belongs to production details, not the always-visible action bar.
   const runDetails=modal.querySelector('.dub-run-details');
   runDetails.querySelector('.dub-run-details-body').prepend(modal.querySelector('.dub-job-meta>p'));
@@ -95,6 +100,11 @@
     const source = el('dubReadySource'), voice = el('dubReadyVoice'), range = el('dubReadyRange');
     source.textContent = srt ? basename(srt) : t('SRT seçilmedi'); source.dataset.ready = String(!!srt);
     const activeVoice=current?.voice||cfg;
+    const currentVoice=el('dubCurrentVoiceName'),currentVoiceHint=el('dubCurrentVoiceHint');
+    currentVoice.textContent=activeVoice?.reference?basename(activeVoice.reference):(window.UiLocale?.get?.()==='en'?'Choose a voice':'Ses seçin');
+    currentVoice.title=currentVoice.textContent;
+    currentVoiceHint.textContent=activeVoice?.reference?(window.UiLocale?.get?.()==='en'?'This voice will be used. Change it only if you want a different narrator.':'Bu ses kullanılacak. Yalnız farklı bir anlatıcı istiyorsanız değiştirin.'):(window.UiLocale?.get?.()==='en'?'Add a local recording or choose a saved reference.':'Yerel bir kayıt ekleyin veya kayıtlı referans seçin.');
+
     voice.textContent = activeVoice?.reference ? basename(activeVoice.reference) : t('Ses seçilmedi'); voice.dataset.ready = String(!!current||!!cfg?.ready);
     source.title=source.textContent;voice.title=voice.textContent;
     const en=window.UiLocale?.get?.()==='en', submitted=current?.settings;
@@ -127,7 +137,7 @@
     button.addEventListener('click',()=>{
       if(current||planning||referenceBusy||choosing||workspaceBusy)return;
       if(kind==='source'){el('dubChooseSrt').click();return;}
-      const target=el(kind==='voice'?'voiceReferenceSelect':'dubSampleOnly');
+      const target=el(kind==='voice'?(el('voiceReferenceLibrary')?.hidden?'voiceReferenceLocal':'voiceReferenceSelect'):'dubSampleOnly');
       for(let parent=target.parentElement;parent;parent=parent.parentElement)if(parent.tagName==='DETAILS')parent.open=true;
       target.scrollIntoView?.({block:'center',behavior:'auto'});target.focus({preventScroll:true});
     });
@@ -453,6 +463,8 @@
     syncBrowserOcclusion();
     const openedMedia=requestIdentity();
     await configure();
+    if (openedMedia !== requestIdentity()) return;
+    await window.VoiceReferenceUI?.refresh();
     if (openedMedia !== requestIdentity()) return;
     if (candidate === currentSubtitle()) adoptCurrentSubtitle(candidate);
     if (!current && !output) {

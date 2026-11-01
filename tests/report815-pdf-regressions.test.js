@@ -40,3 +40,11 @@ test('PDF task-center stop is operation-scoped and cannot cancel a replacement r
 test('PDF translation cleanup releases its operation even when the final IPC reply rejects',async()=>{
  const source=fs.readFileSync(path.join(root,'src/renderer/renderer.js'),'utf8'),code=source.slice(source.indexOf('async function translateVisiblePdfPages('),source.indexOf('async function openPdfReader(')),reader={pdf:{numPages:6},pdfHash:'fixture',currentPage:1,pages:new Map(),state:{pages:{}}},calls=[],released=[],elements=new Map(['pdfTargetLanguage','pdfTranslateVisible','pdfTranslateAll','pdfTranslateCancel'].map(id=>[id,{value:id==='pdfTargetLanguage'?'tr':'',disabled:false}]));const context={player:{pdfReader:reader},$:id=>elements.get(id),interfaceChoice:(_tr,en)=>en,pdfReaderSetStatus(){},renderPdfReaderPage:async()=>{},extractPdfReaderPage:async p=>reader.pages.set(p,{blocks:[{source:'Page '+p}]}),renderPdfTranslation(){},updatePdfReaderProgress(){},window:{api:{translatePdfPages:async args=>{calls.push(args);if(args.lastBatch)throw Error('Controlled lost final reply');return {ok:true,state:{pages:{}}};},cancelPdfTranslation:async(...args)=>released.push(args)}}};vm.createContext(context);vm.runInContext(code,context);await context.translateVisiblePdfPages(true);assert.equal(calls.length,2);assert.equal(released.length,1);assert.equal(released[0][0],'fixture');assert.equal(released[0][1],calls[0].operationId);assert.equal(reader.translationOperationId,null);
 });
+
+test('R825 narration disclosure preserves range inputs and close/reopen restores an actionable focus',t=>{
+ const h=readerFixture(t);h.w.PdfReaderExperience.opened();const from=h.$('pdfVoiceFrom'),to=h.$('pdfVoiceTo'),setup=h.$('pdfNarrationSetup');
+ h.$('pdfVoiceOpen').click();assert.equal(setup.open,true);assert.equal(h.w.document.activeElement,from);
+ from.value='2';to.value='3';from.dispatchEvent(new h.w.Event('input'));setup.open=false;
+ h.$('pdfVoiceClose').click();assert.equal(h.w.document.activeElement,h.$('pdfVoiceOpen'));assert(h.$('pdfVoicePanel').classList.contains('hidden'));
+ h.$('pdfVoiceOpen').click();assert.equal(setup.open,true);assert.equal(h.$('pdfVoiceFrom'),from);assert.equal(from.value,'2');assert.equal(to.value,'3');assert.equal(h.w.document.activeElement,from);assert.match(h.$('pdfVoiceRangeSummary').textContent,/2–3/);
+});

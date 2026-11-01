@@ -118,15 +118,22 @@ body.media-shelf-player-open .ms-dock { display: none; }
 .sp-address[hidden]{display:none}
 /* Book and PDF tools use the same restrained button and popover family. */
 .ms-reader { font-family:'IBM Plex Sans','Segoe UI',sans-serif; }
-.ms-reader header { padding:12px 64px 12px 16px; gap:8px; }
+.ms-reader header { padding:12px 64px 12px 20px; gap:8px; flex:none; }
+.ms-reader .ms-reader-title{flex:1 0 100%;max-width:100%;font:500 12px/1.5 'IBM Plex Sans','Segoe UI',sans-serif;color:var(--text-dim);}
+.ms-reader .ms-reader-title[hidden]{display:none;}
+.ms-reader-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px;width:100%;min-width:0;}
+.ms-reader-controls>select{flex:1 1 220px;min-width:0;max-width:430px;height:40px;box-sizing:border-box;font:500 13px/1.4 'IBM Plex Sans','Segoe UI',sans-serif;border-radius:8px;border-color:var(--border-strong);}
+.ms-reader-controls>.ms-reader-tools{margin-left:0;}
+.ms-reader-controls>.book-assistant-compact{margin-left:0;}
+.ms-reader-controls>.book-assistant-compact .book-assistant-panel{text-align:left;}
 .ms-reader header :is(button,summary) { box-sizing:border-box; min-height:40px; border-radius:10px; font:500 13px/1.4 'IBM Plex Sans','Segoe UI',sans-serif; padding:8px 14px; }
 .ms-reader header .ms-reader-close { min-width:40px; width:40px; height:40px; top:12px; right:12px; padding:8px; }
-.ms-reader header>strong { font-family:'Sora','IBM Plex Sans',sans-serif; font-size:16px; font-weight:600; }
+.ms-reader header>strong:not(.ms-reader-title) { font-family:'Sora','IBM Plex Sans',sans-serif; font-size:16px; font-weight:600; }
 .ms-reader .ms-reader-tool-panel { border-radius:14px; padding:18px; gap:10px; }
 .ms-reader .ms-reader-tool-panel button { width:100%; text-align:left; }
 .ms-reader header :is(button,summary):not(:disabled):hover { background:var(--bg-2); border-color:var(--border-strong); color:var(--text); }
 .ms-reader header .mh-primary:not(:disabled):hover { background:var(--accent-hover); color:var(--accent-contrast); }
 .ms-reader :is(button,summary,select) { transition:background-color 140ms ease-out,border-color 140ms ease-out,color 140ms ease-out; }
 .ms-prose ::selection { background:var(--accent); color:var(--accent-contrast); }
-@media(max-width:700px) { .ms-reader header { padding:12px 60px 12px 14px; } }
+@media(max-width:700px) { .ms-reader header { padding:12px 60px 12px 16px; }.ms-reader-controls>select{flex-basis:100%;max-width:none;}.ms-reader .ms-reader-title{flex-basis:100%;}.ms-reader-controls>.ms-reader-tools .ms-reader-tool-panel{left:auto;right:0;} }
 @media(prefers-reduced-motion:reduce) { .ms-reader :is(button,summary,select) { transition:none; } }

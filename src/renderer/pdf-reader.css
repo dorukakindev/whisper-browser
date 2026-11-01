@@ -15,7 +15,7 @@
   align-items: center;
   flex-wrap: nowrap;
   flex: 0 0 auto;
-  gap: 18px;
+  gap: 12px;
   min-height: 0;
   padding: calc(6px + var(--window-controls-safe-height, 38px)) 20px 6px;
   background: var(--bg-0);
@@ -26,7 +26,7 @@
 .pdf-reader-toolbar > div { margin: 0; min-width: 0; }
 .pdf-reader-toolbar .pdf-reader-heading { display: block; flex: 1 1 180px; }
 .pdf-reader-heading > div { min-width: 0; }
-.pdf-reader-toolbar strong { display: block; font: 600 19px/1.45 'Sora', 'IBM Plex Sans', sans-serif; overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.pdf-reader-toolbar strong { display: block; font: 600 16px/1.45 'Sora', 'IBM Plex Sans', sans-serif; overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 .pdf-reader-toolbar .pdf-reader-status-line { display: flex; align-items: center; gap: 12px; margin-top: 3px; }
 .pdf-reader-toolbar span { font-size: 12px; color: var(--text-muted); }
 .pdf-reader-progress { margin: 0; }
@@ -55,8 +55,8 @@
   align-items: center;
   flex-wrap: wrap;
   flex: 0 0 auto;
-  gap: 12px 20px;
-  padding: 12px 28px 18px;
+  gap: 8px 12px;
+  padding: 8px 20px 12px;
   background: var(--bg-0);
   border-bottom: 1px solid var(--border);
 }
@@ -198,6 +198,12 @@
 /* One narration scroller plus the text preview, never nested preview/details scrollers. */
 .pdf-reader-voice { position:relative; align-items:center; padding:12px 56px 12px 20px; scrollbar-gutter:stable; }
 .pdf-reader-voice .pdf-voice-close { position:absolute; right:12px; top:12px; }
+.pdf-narration-setup{flex:1 0 100%;min-width:0;font-size:12px;}
+.pdf-narration-setup>summary{cursor:pointer;color:var(--text-dim);padding:0 0 8px;line-height:1.5;}
+.pdf-narration-setup:not([open])>summary{padding:0;}
+.pdf-narration-controls{display:flex;align-items:end;gap:8px 12px;flex-wrap:wrap;}
+.pdf-narration-controls .btn{white-space:normal;text-align:left;}
+.pdf-reader-voice:has(.pdf-narration-setup:not([open])) .pdf-voice-range-summary{flex-basis:auto;padding:0;}
 .pdf-voice-preview { padding:8px 0 0; }
 .pdf-voice-preview-tools { margin:8px 0; }
 .pdf-reader-status-line .pdf-reader-progress { color:var(--text-dim); }

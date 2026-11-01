@@ -265,7 +265,7 @@
       if (!Number.isInteger(focusIndex) || !c || (focus.sourceId && (c.sourceId !== focus.sourceId || c.sourceSpineIndex !== focus.sourceSpineIndex))) throw Error(t('The source chapter could not be matched.', 'Kaynak bölüm eşleştirilemedi.'));
     }
     const dialog = el('dialog', 'ms-reader media-surface'); dialog.dataset.uiUntranslated = ''; dialog.setAttribute('aria-label', book.title);
-    const header = el('header'), chapters = el('select'); chapters.setAttribute('aria-label', t('Chapter', 'Bölüm'));
+    const header = el('header'), bookTitle=el('strong','ms-reader-title',book.title), controls=el('div','ms-reader-controls'), chapters = el('select'); chapters.setAttribute('aria-label', t('Chapter', 'Bölüm'));
     book.chapters.forEach((chapter, index) => { const opt = el('option', '', chapter.title || `${t('Chapter', 'Bölüm')} ${index + 1}`); opt.value = index; chapters.append(opt); });
     let index = focusIndex ?? Math.min(book.chapter || 0, book.chapters.length - 1), timer = null;
     const prose = el('article', 'ms-prose'); prose.tabIndex = 0;
@@ -277,7 +277,7 @@
     const save = () => api('book-progress', { id: book.id, ...position() }).catch(error => { readerStatus.textContent = error.message; return false; });
     const readerStatus = el('p', 'ms-status'); readerStatus.setAttribute('role', 'status');
     function show(next, scroll = 0) {
-      index = Math.max(0, Math.min(book.chapters.length - 1, next)); chapters.value = index; prose.replaceChildren();
+      index = Math.max(0, Math.min(book.chapters.length - 1, next)); chapters.value = index; bookTitle.hidden=chapters.selectedOptions[0]?.textContent.trim()===book.title.trim(); prose.replaceChildren();
       book.chapters[index].text.split(/\n\s*\n/).forEach(paragraph => prose.append(el('p', '', paragraph)));
       window.MediaExperience?.setContext(dialog, { id: book.id+':'+index, type: 'book-chapter', title: book.title, chapter: book.chapters[index].title || String(index + 1), excerpt: book.chapters[index].text.slice(0, 8000) });
       requestAnimationFrame(() => { prose.scrollTop = scroll * Math.max(0, prose.scrollHeight - prose.clientHeight); });
@@ -299,7 +299,7 @@
       if(!dialog.open||index!==sourceIndex||stale())throw Error(t('The chapter changed; the project was kept without opening another source.','Bölüm değişti; proje korundu, başka kaynak açılmadı.'));
       await window.MediaWorkflowsUI.openProject(result.project.id,{chapter:result.focusChapter,selectChapter:true});dialog.close();return true;
     };
-    header.append(el('strong', '', book.title), chapters, font, marks, btn(t('Bookmark / quote', 'Yer imi / alıntı'), async () => {
+    header.append(bookTitle, chapters, font, marks, btn(t('Bookmark / quote', 'Yer imi / alıntı'), async () => {
       const selection = window.getSelection(), quote = selection && prose.contains(selection.anchorNode) ? selection.toString().slice(0, 2000) : '';
       const mark = { ...position(), quote }; await api('book-progress', { id: book.id, ...mark, bookmark: true });
       book.bookmarks.push(mark); const opt = el('option', '', quote || `${t('Chapter', 'Bölüm')} ${index + 1}`); opt.value = book.bookmarks.length - 1; marks.append(opt); readerStatus.textContent = t('Saved.', 'Kaydedildi.');
@@ -316,7 +316,7 @@
     dialog.addEventListener('toggle', event=>{const opened=event.target;if(opened.tagName==='DETAILS'&&opened.open)for(const menu of header.querySelectorAll('details[open]'))if(menu!==opened)menu.open=false;},true);
     dialog.addEventListener('pointerdown',event=>{for(const menu of header.querySelectorAll('details[open]'))if(!menu.contains(event.target))menu.open=false;});
     dialog.addEventListener('keydown',event=>{if(event.key!=='Escape')return;const menu=header.querySelector('details[open]');if(menu){menu.open=false;menu.querySelector('summary')?.focus();event.preventDefault();event.stopPropagation();}},true);
-    dialog.append(header);const disposeAssistant=window.BookAssistantUI?.mount(header,{t,compact:true,onSearch:(args,current)=>window.AssistantBookSearch.scan({total:book.chapters.length,start:args.start||1,query:args.query,current,title:book.title,getText:async page=>book.chapters[page-1].text}),onNarrate:()=>narrateChapter(),onPrepare:async(args,stale)=>({ok:await narrateChapter(args,stale)}),isCurrent:()=>dialog.open&&dialog.isConnected,getSource:()=>{const base=window.MediaExperience.context(),id=book.id+':'+index;return {id,type:'book-chapter',chapterNumber:index+1,totalChapters:book.chapters.length,title:book.title,chapter:book.chapters[index].title||String(index+1),text:book.chapters[index].text,selectedText:base?.id===id?base.selectedText:'',selectedTextTruncated:base?.id===id&&base.selectedTextTruncated===true,excerpt:base?.id===id?base.excerpt:''};}});dialog.append(readerStatus, prose); document.body.append(dialog); dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); show(index, book.scroll || 0);
+    dialog.append(header);const disposeAssistant=window.BookAssistantUI?.mount(header,{t,compact:true,onSearch:(args,current)=>window.AssistantBookSearch.scan({total:book.chapters.length,start:args.start||1,query:args.query,current,title:book.title,getText:async page=>book.chapters[page-1].text}),onNarrate:()=>narrateChapter(),onPrepare:async(args,stale)=>({ok:await narrateChapter(args,stale)}),isCurrent:()=>dialog.open&&dialog.isConnected,getSource:()=>{const base=window.MediaExperience.context(),id=book.id+':'+index;return {id,type:'book-chapter',chapterNumber:index+1,totalChapters:book.chapters.length,title:book.title,chapter:book.chapters[index].title||String(index+1),text:book.chapters[index].text,selectedText:base?.id===id?base.selectedText:'',selectedTextTruncated:base?.id===id&&base.selectedTextTruncated===true,excerpt:base?.id===id?base.excerpt:''};}});for(const node of [...header.children])if(node!==bookTitle&&!node.classList.contains('ms-reader-close'))controls.append(node);header.insertBefore(controls,header.querySelector('.ms-reader-close'));dialog.append(readerStatus, prose); document.body.append(dialog); dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); show(index, book.scroll || 0);
     prose.addEventListener('scroll', () => { clearTimeout(timer); timer = setTimeout(save, 900); });
     dialog.addEventListener('cancel', event => { event.preventDefault(); void save().then(result => { if (result !== false) dialog.close(); }); });
     dialog.addEventListener('close', () => { disposeAssistant?.();clearTimeout(timer); dialog.remove(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); void reload(); });

@@ -401,7 +401,7 @@
     const playerHome=document.getElementById('playerBack');if(playerHome){playerHome.querySelector('span').textContent=t('Home','Ana sayfa');playerHome.title=t('Media home — keep this session','Medya ana sayfası — oturumu koru');playerHome.setAttribute('aria-label',t('Home','Ana sayfa'));}
     host.replaceChildren(el('div', 'mh-titlebar'));
     const header = el('header', 'mh-header'), brand = el('div', 'mh-brand');
-    brand.title = 'Whisper Browser'; brand.setAttribute('aria-label', 'Whisper Browser'); brand.append(icon());
+    brand.title = 'Whisper Browser'; brand.setAttribute('role', 'img'); brand.setAttribute('aria-label', 'Whisper Browser'); brand.append(icon());
     const modes = el('div', 'mh-modes'); modes.setAttribute('aria-label', t('Media type', 'Medya türü'));
     for (const [key, label, target] of [['film', t('Film', 'Film'), 'home'], ['music', t('Music', 'Müzik'), 'music'], ['books', t('Books', 'Kitaplar'), 'books']]) {
       const mode = button(label, () => page(target)); mode.dataset.homeMode = key;
