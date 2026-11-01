@@ -1,4 +1,4 @@
-- [Rapor835](BROWSER_BUG_REPORT_835.md) — Yorum okuma/önizleme/analiz aşamaları; native önce/sonra ve tam kaynak kabulü
+- [Rapor836](BROWSER_BUG_REPORT_836.md) — Yorum okuma/önizleme/analiz aşamaları; native önce/sonra ve tam kaynak kabulü
 - [Rapor834](BROWSER_BUG_REPORT_834.md) — Sekiz yüzeyde görsel tasarım eleştirisi;20öneri, yalnız rapor
 - [Rapor833](BROWSER_BUG_REPORT_833.md) — Bağımsız işlevsel denetim;11bug ve15ayrı öneri, yalnız rapor
 - [Rapor832](BROWSER_BUG_REPORT_832.md) — Letterboxd More devamları, tam kaynak/analiz sınırı ayrımı; gerçek site ve native uzun yorum kabulü
