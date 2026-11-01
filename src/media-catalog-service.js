@@ -27,10 +27,11 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
       assets: { subtitles: (found.subtitlePaths || []).length, translation: !!(found.prefs?.secondSubPath || found.prefs?.selectedSubRole === 'translation'),
         dub: !!found.prefs?.dubPlayback, speed: Number(found.prefs?.speed) || 1 } } : null;
   };
-  function visible(item, history = watchItems()) {
+  function visible(item, history = watchItems(), titles = require('./personal-media-state').readFeedback(userData()).titles) {
     if (!item) return null;
     const { posterPath, ...row } = item;
-    return { ...row, synopsisTr:row.synopsisTrSource===require('./catalog-synopsis').synopsisHash(row.synopsis)?row.synopsisTr:'', hasPoster: !!posterPath && fs.existsSync(posterPath), progress: progress(require('./catalog-library-model').playbackSource(row).source, history),
+    const personalMedia=require('./personal-media-state').personal(item,titles,history instanceof Map?[...history.values()]:history);
+    return { ...row,personalMedia, synopsisTr:row.synopsisTrSource===require('./catalog-synopsis').synopsisHash(row.synopsis)?row.synopsisTr:'', hasPoster: !!posterPath && fs.existsSync(posterPath), progress: progress(require('./catalog-library-model').playbackSource(row).source, history),
       editions: (row.editions||[]).map(edition=>({...edition,progress:progress(edition.source,history),parts:edition.parts.map(part=>({...part,progress:progress(part.source,history)}))})),
       extras: (row.extras||[]).map(extra=>({...extra,progress:progress(extra.source,history)})),
       episodes: (row.episodes || []).map(ep => ({ ...ep, progress: progress(ep.source, history) })) };
@@ -114,7 +115,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
         case 'list': {
           const history = watchItems();
           const index = historyIndex(history);
-          return { ok: true, items: store().list().map(item => visible(item, index)) };
+          const titles=require('./personal-media-state').readFeedback(userData()).titles;return { ok: true, items: store().list().map(item => visible(item, index,titles)) };
         }
         case 'save': {
           const raw = input.item || input.patch || {};

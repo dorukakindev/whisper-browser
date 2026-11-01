@@ -12,7 +12,9 @@
  function parse(value){let m=/^catalog:([\w-]{1,120})$/.exec(value);if(m)return {catalogId:m[1]};m=/^discovery:(film|series):(tt\d{7,12})$/.exec(value);if(m)return {kind:m[1],providerId:m[2]};throw Error(t('Use a returned title ID.','Dönen yapım kimliğini kullan.'));}
  const identity=row=>JSON.stringify([row.kind,row.title,row.year,row.imdbId||row.providerId,row.tmdbId]);
  const safeTitle=row=>({id:row.providerId?'discovery:'+row.kind+':'+row.providerId:'catalog:'+row.id,title:String(row.title||'').slice(0,300),kind:row.kind,year:row.year,imdbId:row.imdbId||row.providerId,tmdbId:row.tmdbId,genres:(row.genres||[]).slice(0,10),synopsis:String(row.synopsis||'').slice(0,2000),synopsisTr:String(row.synopsisTr||'').slice(0,2500),watchStatus:row.watchStatus,collections:(row.collections||[]).slice(0,40),cast:(row.cast||[]).slice(0,10),runtime:row.runtime});
- const summary=row=>{const r=safeTitle(row);return {id:r.id,title:r.title.slice(0,200),kind:r.kind,year:r.year,genres:r.genres.slice(0,5).map(v=>v.slice(0,50)),watchStatus:r.watchStatus,collections:r.collections.slice(0,5).map(v=>v.slice(0,60)),synopsis:r.synopsis.slice(0,350)};};
+ const personalSummary=row=>{const p=row.personalMedia||row;return {reaction:p.reaction??null,watchStatus:p.watchStatus,manualResume:p.manualResume?{episodeId:p.manualResume.episodeId,season:p.manualResume.season,number:p.manualResume.number,positionSeconds:p.manualResume.positionSeconds}:null};};
+ const personalRecord=item=>({item_id:item.item_id||(item.identity?.contentId?'content:'+item.identity.contentId:item.catalogId?.startsWith('discovery:')?item.catalogId:'catalog:'+item.catalogId),catalogId:item.catalogId,identity:item.identity,title:String(item.title||'').slice(0,300),kind:item.kind,year:item.year,revision:item.revision,...personalSummary(item),note:String(item.note||'').slice(0,2000),episodes:(item.episodes||[]).slice(-10).map(e=>({id:e.id,season:e.season,number:e.number,watchStatus:e.watchStatus})),episodeCount:(item.episodes||[]).length,episodesTruncated:(item.episodes||[]).length>10,playback:(item.playback||[]).slice(-10)});
+ const summary=row=>{const r=safeTitle(row);return {id:r.id,title:r.title.slice(0,200),kind:r.kind,year:r.year,genres:r.genres.slice(0,5).map(v=>v.slice(0,50)),watchStatus:r.watchStatus,personalMedia:personalSummary(row),collections:r.collections.slice(0,5).map(v=>v.slice(0,60)),synopsis:r.synopsis.slice(0,350)};};
  async function title(id){const key=parse(id);if(key.catalogId){const row=(await catalog()).find(row=>row.id===key.catalogId);if(!row)throw Error('Library title no longer exists.');return {key,row};}return {key,row:check(await window.api.mediaDiscovery({action:'detail',kind:key.kind,id:key.providerId})).item};}
  async function setPreferences(values){
   const controls=Object.entries(values).map(([key,value])=>{
@@ -57,8 +59,36 @@
   }else if(own(packet,'canUndo')||own(packet,'undoChanges'))return false;
   return true;
  }
- async function execute(name,args,owner,{deadline=Infinity,isCancelled=()=>false,expectedSettings}={}){
+ async function execute(name,args,owner,{deadline=Infinity,isCancelled=()=>false,expectedSettings,personalSource}={}){
   const stale=()=>isCancelled()||Date.now()>=deadline||!window.AssistantAppActions.current(owner),guard=()=>{if(stale())throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));};guard();
+  if(['get_current_media_match','read_personal_media','propose_personal_media_update'].includes(name)){
+   const source=personalSource?await personalSource():null;guard();
+   const scope={sourceToken:source?.sourceToken||owner.owner,thread:owner.thread};
+   if(!scope.sourceToken||!scope.thread)throw Error('Current source and conversation ownership are required.');
+   const request=async payload=>{const result=check(await window.api.personalMedia(payload));guard();return result;};
+   if(name==='get_current_media_match'){
+    let result=source?await request({action:'resolve',owner:scope}):{status:'unmatched',candidates:[]};
+    const query=args.query||source?.title;if(result.status!=='matched'&&query)result=await request({action:'resolve',query});
+    const itemId=item=>item.item_id||(item.identity?.contentId?'content:'+item.identity.contentId:item.catalogId?.startsWith('discovery:')?item.catalogId:item.catalogId?'catalog:'+item.catalogId:item.identity?.imdbId?'discovery:'+item.kind+':'+item.identity.imdbId:null);
+    const candidate=item=>({item_id:itemId(item),title:item.title,kind:item.kind,domain:item.domain,currentContent:!!item.identity?.contentId,year:item.year,personalMedia:personalSummary(item)});
+    return {status:'completed',match:result.status,currentContent:result.currentContent===true,needsSelection:result.status!=='matched'||result.needsSelection===true,...(result.status==='matched'&&result.item?{item:candidate(result.item)}:{}),candidates:(result.candidates||[]).slice(0,30).map(candidate).filter(row=>row.item_id),source:source?{tabId:source.tabId,generation:source.generation,title:source.title,hasMedia:source.hasMedia}:null,note:result.status==='matched'?(result.currentContent?'This is the exact current web content, not proof of a film/series identity. Film or episode requests still require title selection. No personal state changed.':'Exact native source binding matched. No personal state changed.'):'The current source has no proven unique title match. Ask the human to choose a returned title before proposing an update; a browser title is not identity proof.'};
+   }
+   const content=/^content:([a-f0-9]{64})$/.exec(args.item_id);
+   const resolved=content?{row:{kind:'content'}}:await title(args.item_id);guard();const {key,row}=resolved;
+   if(content&&args.bind_current_source===true)throw Error('Current web content is already source-bound; omit the separate film binding field.');
+   if(content&&args.season!==undefined)throw Error('A web source is not an identified series episode. Choose the exact series first.');
+   const exact=content?{contentId:content[1]}:key.catalogId?{catalogId:key.catalogId,kind:row.kind,imdbId:row.imdbId,tmdbId:row.tmdbId}:{kind:key.kind,imdbId:key.providerId};
+   if(name==='read_personal_media'){const result=await request({action:'get',identity:exact,...(content?{owner:scope}:{})});return {status:'completed',item:personalRecord(result.item),personalIdentity:JSON.stringify([result.item.identity,result.item.revision]),note:'Saved personal state only. Reaction, watch status, manual resume and observed playback remain distinct. Episode rows are bounded; omitted episodes are not proven watched.'};}
+   if(expectedSettings!==undefined){
+    if(expectedSettings?.kind!=='personal-media'||typeof expectedSettings.token!=='string'||expectedSettings.itemId!==args.item_id||expectedSettings.args!==JSON.stringify(args)||JSON.stringify(scope)!==JSON.stringify(expectedSettings.owner))return {status:'failed',stale:true,error:'Personal media preview or source changed. Review again.'};
+    const result=await request({action:'apply',token:expectedSettings.token,owner:scope});document.dispatchEvent(new Event('media-library-changed'));document.dispatchEvent(new Event('media-metadata-updated'));return {status:'completed',item:personalRecord(result.item),note:'The reviewed personal media update was saved. No unspecified episodes, watch flags or reactions were inferred.'};
+   }
+   const changes={};if(args.reaction!==undefined)changes.reaction=args.reaction;if(args.watch_status!==undefined)changes.watchStatus=args.watch_status;if(args.note!==undefined)changes.note=args.note;if(args.season!==undefined)changes.episode={season:args.season,number:args.episode};if(args.position_seconds!==undefined)changes.positionSeconds=args.position_seconds;if(args.bind_current_source===true)changes.bindSource=true;
+   const result=await request({action:'preview',identity:exact,changes,owner:scope});
+   if(!result.token||!result.preview||!result.item?.revision)throw Error('A verified personal media preview is required.');
+   const p=result.preview,parts=[String(p.title).slice(0,180),content?t('Web content','Web içeriği'):row.kind==='series'?t('Series','Dizi'):t('Film','Film')];if(p.episode)parts.push('S'+p.episode.season+'E'+p.episode.number);if(changes.reaction!==undefined)parts.push(t('Reaction: ','Tepki: ')+changes.reaction);if(changes.watchStatus!==undefined)parts.push(t('Watch state: ','İzlenme: ')+changes.watchStatus);if(changes.positionSeconds!==undefined)parts.push(Math.floor(changes.positionSeconds/60)+':'+String(Math.floor(changes.positionSeconds%60)).padStart(2,'0'));if(changes.note!==undefined)parts.push(t('Note: ','Not: ')+changes.note);if(p.createPersonalRecord)parts.push(t('Creates a personal library record','Kişisel kütüphane kaydı oluşturur'));if(p.source)parts.push(t('Bind this browser source','Bu tarayıcı kaynağını bağla'));parts.push(t('Only these explicit changes will be saved.','Yalnız bu açık değişiklikler kaydedilir.'));
+   return {status:'completed',operation:'preview',preview:p,token:result.token,personalIdentity:JSON.stringify([result.item.identity,result.item.revision]),owner:scope,summary:parts.join(' · '),note:'Preview only. Nothing has been saved.'};
+  }
   if(name==='get_app_preferences')return {status:'completed',preferences:preferences(),...preferenceUndoState()};
   if(['set_app_preferences','undo_app_preferences'].includes(name)&&expectedSettings!==undefined&&!matchesExpectedPreferences(expectedSettings,name==='undo_app_preferences'?preferenceUndoState().undoChanges:args,name==='undo_app_preferences'))return {status:'failed',stale:true,error:t('Settings changed; refresh and review.','Ayarlar değişti; yenileyip inceleyin.')};
   if(name==='set_app_preferences')return commitPreferences(args,guard);

@@ -16,6 +16,12 @@
    tracks:kind==='video'?(player.browserTracks||[]).map(row=>({id:row.id,role:row.role,language:row.language,partial:row.captureComplete===false})):[]});
  }
  function current(owner){return contract.same(owner,snapshot());}
+ async function personalSource(owner,guard){
+  if(!owner.tabId||!['video','page'].includes(owner.kind))return null;
+  const state=await window.api.getBrowserState();guard();const source=state?.personalMediaSource;
+  if(!state?.ok||state.activeTabId!==owner.tabId||!source||source.tabId!==owner.tabId||source.generation!==owner.generation||typeof source.sourceToken!=='string'||!source.sourceToken||source.sourceToken.length>8000)throw Error(t('The native browser source changed. Read the current page again.','Yerel tarayıcı kaynağı değişti. Geçerli sayfayı yeniden oku.'));
+  return {sourceToken:source.sourceToken,tabId:source.tabId,generation:source.generation,title:String(source.title||'').slice(0,300),hasMedia:source.hasMedia===true,positionSeconds:source.positionSeconds,duration:source.duration};
+ }
  async function execute(name,raw,owner,{deadline=Infinity,isCancelled=()=>false,expectedSettings}={}){
   if(!current(owner))throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));
   if(['seek_to_time','open_subtitle_editor','search_subtitles','get_current_subtitle'].includes(name)&&owner.subtitleKey!==snapshot().subtitleKey)throw Error(t('The subtitle track changed. Ask for a new action.','Altyazı izi değişti. Yeni bir işlem isteyin.'));
@@ -32,7 +38,7 @@
   if(['list_translation_profiles','get_translation_profile','set_translation_profile'].includes(name))return window.AssistantTranslationActions.execute(name,args,owner,{deadline,isCancelled,expectedSettings});
   if(['get_workflow_settings','configure_workflow','undo_workflow_settings'].includes(name))return window.AssistantWorkflowActions.execute(name,args,owner,{deadline,isCancelled,expectedSettings});
   if(name==='search_sources')return window.AssistantFeedSources.search(args.query,owner,()=>!stale());
-  if(registry.get(name)?.domain==='library'||['get_app_preferences','set_app_preferences','undo_app_preferences','navigate_workspace','get_playback_state','playback_control'].includes(name))return window.AssistantLibraryActions.execute(name,args,owner,{deadline,isCancelled,expectedSettings});
+  if(registry.get(name)?.domain==='library'||['get_app_preferences','set_app_preferences','undo_app_preferences','navigate_workspace','get_playback_state','playback_control'].includes(name))return window.AssistantLibraryActions.execute(name,args,owner,{deadline,isCancelled,expectedSettings,personalSource:()=>personalSource(owner,()=>{if(stale())throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));})});
   if(registry.get(name)?.domain==='book')return window.AssistantBookActions.execute(name,args,owner,{deadline,isCancelled});
   if(registry.get(name)?.domain==='voice'&&name!=='open_voice_preparation')return window.AssistantVoiceActions.execute(name,args,owner,{deadline,isCancelled,expectedSettings});
   if(name==='get_job_status')return {status:'completed',...await window.api.assistantJobs()};
