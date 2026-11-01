@@ -1,0 +1,253 @@
+{
+  "head": "f3713c9fe7855f9e9a92bab5fcf65e2d5a69a74d",
+  "controlledNetwork": true,
+  "liveProviderCalls": 0,
+  "results": [
+    {
+      "mode": "all403",
+      "result": {
+        "ok": false,
+        "error": "No readable non-spoiler reviews found. Try the Browser or import a sample."
+      },
+      "browserCalls": 0,
+      "lookups": 1,
+      "requests": [
+        "https://letterboxd.com/tmdb/123/",
+        "https://letterboxd.com/film/witness/",
+        "https://letterboxd.com/film/witness/reviews/by/activity/",
+        "https://letterboxd.com/s/full-text/viewing:123/",
+        "https://letterboxd.com/film/witness/reviews/by/activity/page/2/",
+        "https://letterboxd.com/s/full-text/viewing:123/",
+        "https://letterboxd.com/film/witness/reviews/by/activity/page/3/",
+        "https://letterboxd.com/s/full-text/viewing:123/",
+        "https://letterboxd.com/film/witness/reviews/by/activity/page/4/",
+        "https://letterboxd.com/s/full-text/viewing:123/"
+      ],
+      "currentItem": {
+        "id": "film",
+        "kind": "film",
+        "title": "Witness",
+        "year": 2026,
+        "tmdbId": "movie:123"
+      }
+    },
+    {
+      "mode": "mixed403",
+      "result": {
+        "ok": true,
+        "reviews": [
+          {
+            "id": "1",
+            "text": "A separate complete review praises the performances.",
+            "author": "Other",
+            "spoiler": false,
+            "authorId": "other",
+            "source": {
+              "url": "https://letterboxd.com/film/witness/reviews/by/activity/",
+              "sort": "popular",
+              "page": 1
+            }
+          }
+        ],
+        "url": "https://letterboxd.com/film/witness/reviews/by/activity/",
+        "identity": {
+          "title": "Witness",
+          "year": 2026,
+          "tmdbId": "movie:123"
+        },
+        "pageTitle": "Witness (2026) • Letterboxd",
+        "pages": 4,
+        "requested": 2,
+        "partial": true,
+        "warning": "Some full review continuations could not be loaded. Incomplete excerpts were excluded; retry or import the complete text.",
+        "excluded": {
+          "spoiler": 0,
+          "duplicate": 3,
+          "unreadable": 0,
+          "size": 0,
+          "requested": 0,
+          "incomplete": 4
+        },
+        "sources": [
+          {
+            "url": "https://letterboxd.com/film/witness/reviews/by/activity/",
+            "sort": "popular",
+            "page": 1,
+            "requestedUrl": "https://letterboxd.com/film/witness/reviews/by/activity/",
+            "loaded": 2,
+            "accepted": 1
+          },
+          {
+            "url": "https://letterboxd.com/film/witness/reviews/by/activity/page/2/",
+            "sort": "popular",
+            "page": 2,
+            "requestedUrl": "https://letterboxd.com/film/witness/reviews/by/activity/page/2/",
+            "loaded": 2,
+            "accepted": 0
+          },
+          {
+            "url": "https://letterboxd.com/film/witness/reviews/by/activity/page/3/",
+            "sort": "popular",
+            "page": 3,
+            "requestedUrl": "https://letterboxd.com/film/witness/reviews/by/activity/page/3/",
+            "loaded": 2,
+            "accepted": 0
+          },
+          {
+            "url": "https://letterboxd.com/film/witness/reviews/by/activity/page/4/",
+            "sort": "popular",
+            "page": 4,
+            "requestedUrl": "https://letterboxd.com/film/witness/reviews/by/activity/page/4/",
+            "loaded": 2,
+            "accepted": 0
+          }
+        ],
+        "sampling": {
+          "mode": "popular",
+          "requested": 2,
+          "returned": 1,
+          "independentAuthors": 1,
+          "unknownAuthors": 0,
+          "coverage": {
+            "popular": 1
+          },
+          "representative": false
+        },
+        "limited": true,
+        "match": {
+          "state": "matched",
+          "reason": "tmdb-id"
+        },
+        "resolvedBy": "provider-identifier"
+      },
+      "browserCalls": 0,
+      "lookups": 2,
+      "requests": [
+        "https://letterboxd.com/tmdb/123/",
+        "https://letterboxd.com/film/witness/",
+        "https://letterboxd.com/film/witness/reviews/by/activity/",
+        "https://letterboxd.com/s/full-text/viewing:123/",
+        "https://letterboxd.com/film/witness/reviews/by/activity/page/2/",
+        "https://letterboxd.com/s/full-text/viewing:123/",
+        "https://letterboxd.com/film/witness/reviews/by/activity/page/3/",
+        "https://letterboxd.com/s/full-text/viewing:123/",
+        "https://letterboxd.com/film/witness/reviews/by/activity/page/4/",
+        "https://letterboxd.com/s/full-text/viewing:123/"
+      ],
+      "currentItem": {
+        "id": "film",
+        "kind": "film",
+        "title": "Witness",
+        "year": 2026,
+        "tmdbId": "movie:123"
+      }
+    },
+    {
+      "mode": "page403",
+      "result": {
+        "ok": true,
+        "reviews": [
+          {
+            "id": "browser",
+            "text": "Browser successfully read this public complete review."
+          }
+        ],
+        "match": {
+          "state": "matched"
+        },
+        "transport": "browser"
+      },
+      "browserCalls": 1,
+      "lookups": 2,
+      "requests": [
+        "https://letterboxd.com/tmdb/123/",
+        "https://letterboxd.com/film/witness/",
+        "https://letterboxd.com/film/witness/reviews/by/activity/"
+      ],
+      "currentItem": {
+        "id": "film",
+        "kind": "film",
+        "title": "Witness",
+        "year": 2026,
+        "tmdbId": "movie:123"
+      }
+    },
+    {
+      "mode": "stale",
+      "result": {
+        "ok": true,
+        "reviews": [
+          {
+            "id": "1",
+            "text": "A thoughtful review about the dialogue and acting and a complete ending.",
+            "author": "Reader",
+            "spoiler": false,
+            "authorId": "reader",
+            "source": {
+              "url": "https://letterboxd.com/film/witness/reviews/by/activity/",
+              "sort": "popular",
+              "page": 1
+            }
+          }
+        ],
+        "limited": false,
+        "excluded": {
+          "duplicate": 0,
+          "unreadable": 0
+        },
+        "pageTitle": "Witness (2026) • Letterboxd",
+        "identity": {
+          "title": "Witness",
+          "year": 2026,
+          "tmdbId": "movie:123"
+        },
+        "partial": false,
+        "warning": "",
+        "url": "https://letterboxd.com/film/witness/reviews/by/activity/",
+        "match": {
+          "state": "matched",
+          "reason": "tmdb-id"
+        }
+      },
+      "browserCalls": 0,
+      "lookups": 1,
+      "requests": [
+        "https://letterboxd.com/film/witness/reviews/by/activity/",
+        "https://letterboxd.com/s/full-text/viewing:123/"
+      ],
+      "currentItem": {
+        "id": "film",
+        "kind": "film",
+        "title": "Another Film",
+        "year": 2026,
+        "tmdbId": "movie:999"
+      }
+    }
+  ],
+  "identityResults": [
+    {
+      "withLink": false,
+      "identity": {
+        "title": "Witness",
+        "year": 2026,
+        "tmdbId": "movie:123"
+      },
+      "match": {
+        "state": "matched",
+        "reason": "tmdb-id"
+      }
+    },
+    {
+      "withLink": true,
+      "identity": {
+        "title": "Witness",
+        "year": 2026,
+        "tmdbId": "movie:999"
+      },
+      "match": {
+        "state": "mismatch",
+        "reason": "tmdb-id"
+      }
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-01-1447.md](docs/devir/2026-11-01-1447.md) — R840: Review/Debug/Superpowers/omgskills ile 5 bug +3 ayrı öneri; düzeltme yok
 Güncel çalışma: [docs/devir/2026-11-01-1420.md](docs/devir/2026-11-01-1420.md) — R839: AI browser/medya, asistan, Keşfet ve Letterboxd araştırması; R838 korundu
 Güncel çalışma: [docs/devir/2026-11-01-1345.md](docs/devir/2026-11-01-1345.md) — R837: 4 yeni bug +26 ayrı öneri; yalnız rapor
 Güncel çalışma: [docs/devir/2026-11-01-1325.md](docs/devir/2026-11-01-1325.md) — R835: 7 doğrulanmış bug +23 ayrı öneri; yalnız rapor

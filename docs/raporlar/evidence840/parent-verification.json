@@ -1,0 +1,63 @@
+{
+  "head": "f3713c9fe7855f9e9a92bab5fcf65e2d5a69a74d",
+  "parentNode": {
+    "passed": 102,
+    "command": "node --test --test-isolation=none tests/assistant-quality829.test.js tests/assistant-workflow654.test.js tests/assistant-flows.test.js tests/assistant-threads.test.js tests/assistant-jobs.test.js tests/assistant-collections.test.js tests/assistant-workspace-ownership200.test.js tests/letterboxd-full-text.test.js tests/review-analysis-context.test.js tests/review-workflow.test.js",
+    "exitCode": 0,
+    "failed": 0,
+    "tests": 102
+  },
+  "parentPython": {
+    "passed": 14,
+    "command": "backend/venv/Scripts/python.exe backend/test_speech_relations.py",
+    "exitCode": 0,
+    "tests": 14
+  },
+  "specRepro": {
+    "domControls": 2,
+    "serviceCases": 4,
+    "command": "node docs/raporlar/evidence840/spec/probe.cjs",
+    "exitCode": 0,
+    "proves": "Current defects and safe controls, not repairs"
+  },
+  "speechRepro": {
+    "command": "backend/venv/Scripts/python.exe docs/raporlar/evidence840/parent/probe.py",
+    "exitCode": 0,
+    "proves": "Scene-boundary metadata mismatch; initial context-loss hypothesis falsified"
+  },
+  "speechCorrectnessAssertion": {
+    "message": "Caller splits scenes but role request merges both into scene 0",
+    "exitCode": 1,
+    "argument": "--expect-correct",
+    "expectedFailure": true
+  },
+  "agentSystem": {
+    "command": "node --test --test-isolation=none tests/settings-roundtrip.test.js tests/subs-shift-accuracy.test.js",
+    "exitCode": 0,
+    "nodeFileTests": 2,
+    "internalChecks": {
+      "settings": 10,
+      "subtitle": 12
+    },
+    "parentRerun": true
+  },
+  "initialEnvironmentFailure": {
+    "reason": "Sandbox child-process spawn EPERM; no test bodies ran",
+    "command": "node --test (agent first 3 files)",
+    "exitCode": 1,
+    "subsequentRun": "--test-isolation=none passed; not counted as a product defect"
+  },
+  "limits": [
+    "No native UI/site/account/GPU/DRM/provider-quality acceptance",
+    "No fixes made",
+    "No full npm suite, CI result, normal start.bat or clean install.bat acceptance"
+  ],
+  "browserRepro": {
+    "command": "node docs/raporlar/evidence840/browser/probe.cjs",
+    "exitCode": 0,
+    "realMainHandler": true,
+    "controlledWebContents": true,
+    "nativeUI": false,
+    "parentRerun": true
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "checkedAtUtc": "2026-11-01T11:50:59.780774+00:00",
+  "status": "PASS-report-integrity-only",
+  "head": "f3713c9fe7855f9e9a92bab5fcf65e2d5a69a74d",
+  "base": "d78242ead655c3257b2139d3b5690d7d15c63e26",
+  "hashMode": "canonical-lf-utf8-no-bom: decode UTF-8-sig, replace CRLF by LF, encode UTF-8, SHA256; binary artifacts would use raw bytes",
+  "bugIds": [
+    "F840-01",
+    "F840-02",
+    "F840-03",
+    "F840-04",
+    "F840-05"
+  ],
+  "priorities": {
+    "P2": 4,
+    "P3": 1
+  },
+  "suggestions": 3,
+  "localSourceChecks": 61,
+  "jsonParseChecksExcludingThisManifest": 12,
+  "markdownLinks": 29,
+  "historicalRegistryRows": 360,
+  "historicalRowsAreNotNewTests": true,
+  "productChanged": false,
+  "priorReportsChanged": false,
+  "fileCountExcludingManifest": 23,
+  "files": [
+    {
+      "path": "docs/raporlar/BROWSER_BUG_REPORT_840.md",
+      "sha256": "6e87d7d6800b8237c3d87f5a5966a895575f081736adf3f712e1c810a3441e41"
+    },
+    {
+      "path": "docs/devir/2026-11-01-1447.md",
+      "sha256": "67e6fd7ec6c91b41034bd31da58fe64eace3feaa1f770df0133c35c9b51481ed"
+    },
+    {
+      "path": "DEVIR-NOTU.md",
+      "sha256": "58c1f357018903443e14d8e0e8229c2fdf5b27e8523cd4b4c3402268d6b40290"
+    },
+    {
+      "path": "docs/raporlar/evidence840/browser/notes.md",
+      "sha256": "19f840f9f34ef3b210a0a41b7e382f14a54917059d9d46f7df108788deb2a77e"
+    },
+    {
+      "path": "docs/raporlar/evidence840/browser/probe.cjs",
+      "sha256": "89b07c14bc4ff8751126e8e8c3d076ff6fd1005b5a721fc876e5c70ee350aed1"
+    },
+    {
+      "path": "docs/raporlar/evidence840/browser/registry-reviewed.json",
+      "sha256": "ea64c2773c903e7772078172e52e6b62df31c5197a0de1845cca817e077d8ba8"
+    },
+    {
+      "path": "docs/raporlar/evidence840/browser/results.json",
+      "sha256": "6312a583f2227d5d30b1dd819b2dfd11f31ae4493276aeae11ae6419af0cb2ec"
+    },
+    {
+      "path": "docs/raporlar/evidence840/methods.json",
+      "sha256": "26e343f8506f088a9040ce572e3caa3184ab48dfa253ba9d0e9e75787af900c4"
+    },
+    {
+      "path": "docs/raporlar/evidence840/parent/hash-portability.json",
+      "sha256": "797dc25e160b5ba13b71d1f9278e43c5b031499113aaf89e9382d61a9ce4527f"
+    },
+    {
+      "path": "docs/raporlar/evidence840/parent/notes.md",
+      "sha256": "82157c21479247e00870b5e9fd2748f650f1eb150dd752f3d1c6f6560a2da1bf"
+    },
+    {
+      "path": "docs/raporlar/evidence840/parent/probe.py",
+      "sha256": "324aeb950c25569f269b428aad9ea2cd85cdbc10c2b55985b1115234f9f6d7e8"
+    },
+    {
+      "path": "docs/raporlar/evidence840/parent/registry-reviewed.json",
+      "sha256": "42604efabdf42098726da6c3395d62d4a8b1416a43e9c3be877a01110e3481f2"
+    },
+    {
+      "path": "docs/raporlar/evidence840/parent/speech-result.json",
+      "sha256": "25864215a013aa2b632aaf4c21005a73f8c5a3a071e3ee976f2d87f568751e8f"
+    },
+    {
+      "path": "docs/raporlar/evidence840/parent-verification.json",
+      "sha256": "ea89bc1c9d5ef99b5dca1e35e8cb3ed536e0c5232738fb9c114895f1dd4deceb"
+    },
+    {
+      "path": "docs/raporlar/evidence840/source-baseline.json",
+      "sha256": "2506bc0977aded515bd0a04c1540d10537bbd7a0788e9a7c90ab95e64e178c12"
+    },
+    {
+      "path": "docs/raporlar/evidence840/spec/notes.md",
+      "sha256": "8788ac3a8dd546c511963a487973232a84f10b5849d169ecf811ff69208a9b5f"
+    },
+    {
+      "path": "docs/raporlar/evidence840/spec/probe.cjs",
+      "sha256": "a91beabc60f7583572a13e76097349d57b4154a77073a84309b2392e633c87a5"
+    },
+    {
+      "path": "docs/raporlar/evidence840/spec/registry-reviewed.json",
+      "sha256": "8019e85127ac63c974efd20a292e882cde9e98cabe8ab930c0a421ffb2643da0"
+    },
+    {
+      "path": "docs/raporlar/evidence840/spec/results.json",
+      "sha256": "96aace30d299d1ab90e74de6cbc80e45fc6bb810ed79b1596a93cc6f1957fe3d"
+    },
+    {
+      "path": "docs/raporlar/evidence840/standards/notes.md",
+      "sha256": "a00f2523f0772dd5e6cd0f7146ba7c96977c3241fbedee78aef13734cb9ba941"
+    },
+    {
+      "path": "docs/raporlar/evidence840/standards/registry-reviewed.json",
+      "sha256": "3c602964f920e0be18e57099bec4242bd30e4c384f899b7e6c6b04bf1ac1fcf5"
+    },
+    {
+      "path": "docs/raporlar/evidence840/system/notes.md",
+      "sha256": "f45274313d9afc9701e4584ff1ecbf88b82f05529678fa2626e7ae2b3e96bb47"
+    },
+    {
+      "path": "docs/raporlar/evidence840/system/registry-reviewed.json",
+      "sha256": "7eb7f29b9d6668fbb2742aeec5832fb3852007bbc48697bf64f8e26316341c3b"
+    }
+  ],
+  "limits": [
+    "Local links checked for existence; remote URLs not all live checked",
+    "Report-only verification is not product acceptance",
+    "Controlled reproduction PASS confirms wrong current behavior",
+    "No fixes, native UI, live site or model quality acceptance"
+  ]
+}

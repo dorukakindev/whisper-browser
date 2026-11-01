@@ -1,0 +1,48 @@
+{
+  "head": "f3713c9fe7855f9e9a92bab5fcf65e2d5a69a74d",
+  "realMainHandler": true,
+  "realReaderScriptAndButtons": true,
+  "controlledWebContents": true,
+  "nativeWindow": false,
+  "afterFont": {
+    "controller": {
+      "fontSize": 21,
+      "lineHeight": 1.7,
+      "width": 760
+    },
+    "fontInMain": 20,
+    "events": 1
+  },
+  "afterClose": {
+    "hostExists": false,
+    "controllerExists": false,
+    "activeInMain": true,
+    "fontInMain": 20,
+    "events": 1
+  },
+  "reopened": {
+    "ok": true,
+    "active": true,
+    "preferences": {
+      "fontSize": 20,
+      "lineHeight": 1.7,
+      "width": 760
+    },
+    "title": "Controlled article",
+    "headings": 0,
+    "textLength": 617
+  },
+  "ipcClosed": {
+    "ok": true,
+    "active": false,
+    "preferences": {
+      "fontSize": 21,
+      "lineHeight": 1.7,
+      "width": 760
+    },
+    "title": "",
+    "headings": 0,
+    "textLength": 0
+  },
+  "eventCount": 3
+}
