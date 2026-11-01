@@ -2,6 +2,18 @@ import unittest
 import sentence_translation as S
 
 class TurkishNegationContextTests(unittest.TestCase):
+    def test_nominal_locatives_do_not_invent_negation(self):
+        for source, target in [
+            ('Link in the description.', 'Bağlantı açıklamada.'),
+            ('The result is in the study.', 'Sonuç çalışmada.'),
+            ('The setting is in the application.', 'Ayar uygulamada.'),
+        ]:
+            with self.subTest(target=target):
+                self.assertNotIn('negation_added', S.translation_blocking_issues(source, target, 'tr', 'en'))
+        for target in ['Bunu açıklamadı.', 'Bunu açıklamadan gitti.', 'Orada çalışmadık.', 'Bunu uygulamadım.']:
+            with self.subTest(target=target):
+                self.assertIn('negation_added', S.translation_blocking_issues('He explained it.', target, 'tr', 'en'))
+
     def test_nominal_forms_are_not_standalone_negative_verbs(self):
         good=[('I need to call the office.','Ofisi aramam gerekiyor.'),('I need to do it.','Bunu yapmam gerekiyor.'),('We need to do it.','Bunu yapmamız lazım.'),('I have 3 apples.','3 elmam var.'),('Okay.','Tamam.'),('This is a bathhouse.','Bu bir hamam.'),('Come before delivery arrives.','Teslimat gelmeden önce gel.')]
         for source,target in good:

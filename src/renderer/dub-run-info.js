@@ -16,9 +16,22 @@
     if(s.speechSourceStatus==='unavailable'||states.length&&states.every(state=>state==='source_unavailable'))
       return en?'Original text could not be matched; the existing Turkish text was preserved.':'Kaynak metin eşleştirilemedi; mevcut Türkçe metin korundu.';
     if(states.includes('editor_failed'))return en?'Some speech edits were unavailable; the existing Turkish wording was preserved for those groups.':'Bazı konuşma düzenlemeleri uygulanamadı; bu gruplarda mevcut Türkçe metin korundu.';
-    if(states.includes('source_reviewed'))return en?'Speech wording was prepared with source meaning checks.':'Konuşma metni kaynak anlamı denetlenerek hazırlandı.';
     if(states.includes('source_unavailable'))return en?'Some groups had no matching original text; their Turkish wording was preserved.':'Bazı gruplarda kaynak metin eşleştirilemedi; bu grupların Türkçesi korundu.';
+    if(states.includes('source_reviewed'))return en?'Speech wording was prepared with source meaning checks.':'Konuşma metni kaynak anlamı denetlenerek hazırlandı.';
     return '';
+  }
+  function verificationSummary(output,en){
+    if(!output?.url)return '';
+    if(output.qualityUnavailable)return en?'Speech verification is unavailable. Listen before using this output.':'Ses doğrulama kaydı yok. Bu çıktıyı kullanmadan önce dinleyin.';
+    const rows=output.quality?.groups;
+    if(!Array.isArray(rows)||!rows.length)return '';
+    const failed=rows.filter(row=>row.status==='failed').length;
+    const review=rows.filter(row=>row.status!=='ready'&&row.status!=='failed').length;
+    if(failed)return en?`${failed} ${failed===1?'group':'groups'} could not be generated; those sections may be silent. Review groups before using the audio.`:`${failed} grup üretilemedi; bu bölümler sessiz olabilir. Sesi kullanmadan önce grupları kontrol edin.`;
+    if(review)return en?`${review} ${review===1?'group needs':'groups need'} a listening check. Open Review groups to hear or regenerate them.`:`${review} grup dinleme kontrolü gerektiriyor. Dinlemek veya yeniden üretmek için Grupları dinle bölümünü açın.`;
+    const verified=rows.filter(row=>row.verification?.status==='passed').length;
+    if(verified===rows.length)return en?`Text checks passed for ${rows.length===1?'the group':'all '+rows.length+' groups'}. Naturalness still needs listening.`:`${rows.length} grubun tamamı metin denetiminden geçti. Doğallığı dinleyerek değerlendirin.`;
+    return en?`${rows.length} ${rows.length===1?'group is':'groups are'} ready; ${verified} ${verified===1?'has':'have'} a passed text check. Unchecked groups are not verified readings.`:`${rows.length} grup hazır; ${verified} grubun metin denetimi geçti. Denetlenmeyen grupların doğru okunduğu doğrulanmadı.`;
   }
   function recipe(output,en){
     if(!output?.url)return [];
@@ -41,5 +54,5 @@
     if(editing.length){const reviewed=editing.filter(value=>value==='source_reviewed').length,unchanged=editing.filter(value=>value==='unchanged').length;add(en?'Speech editing':'Konuşma düzenlemesi',en?`${reviewed} source-reviewed · ${unchanged} unchanged`:`${reviewed} kaynak anlamı denetlenen · ${unchanged} değiştirilmeden korunan`);}
     return rows;
   }
-  return {counts,recipe,speechResult};
+  return {counts,recipe,speechResult,verificationSummary};
 });

@@ -1044,7 +1044,9 @@ _TARGET_NEGATION = re.compile(
     # 'yoktu' retleri üretiyordu.
     r"\b(?:değil\w*|degil\w*|yok\w*|hiç|hic|asla|kimse\w*|hiçbir\w*|hicbir\w*|olmadan|hayır|hayir|not|never|no|without|nein|nicht|kein\w*|nie\w*|ohne|sans|jamais|rien|personne|pas|aucun|aucune|sin\b|nada|nadie|tampoco|jamás|senza|mai\b|nessun\w*|neanche|nunca|não|nao|sem|ninguém|nem)\b"
     # Türkçe fiil olumsuzluğu: gelmiyor, sanmıyorum, gelmedi, yapmaz vb.
-    r"|\b\w{2,}m[ıiuü]yor\w*\b|\b\w{2,}m[ae]d\w*\b|\b\w{2,}m[ae]z\w*\b"
+    # Past negative -mAdI and negative converb -mAdAn, not the nominal
+    # locative -mAdA: 'açıklamada/çalışmada' do not negate an assertion.
+    r"|\b\w{2,}m[ıiuü]yor\w*\b|\b\w{2,}m[ae]d(?:[ıiuü]\w*|[ae]n\w*)\b|\b\w{2,}m[ae]z\w*\b"
     # -mAyAcAk olumsuz gelecek ğ'li çekimlerde de kanıttır
     # (söylemeyeceğim, gelmeyeceğiz — 'k' kalıbı 'ğ'yi kaçırıyordu).
     r"|\b\w{2,}m[ae]y?[ae]c[ae][kğ]\w*\b|\b\w{2,}mamış\w*\b|\b\w{2,}memiş\w*\b"
