@@ -77,7 +77,7 @@ test('Review checkboxes recompute the budget and only the current selection reac
  try{u.click('Preview & analyze');await u.wait();const pick=id=>u.w.document.querySelector('[data-review-pick="'+id+'"]'),toggle=id=>{const n=pick(id);n.checked=!n.checked;n.dispatchEvent(new u.w.Event('change'));},included=()=>[...u.w.document.querySelectorAll('.mrv-review-choice[data-included=true]')].map(n=>n.dataset.reviewId);
  assert.deepEqual(included(),['first','large','later']);assert(pick('spoiler').disabled);assert.doesNotMatch(u.w.document.querySelector('.mrv-sample').textContent,/SECRET SELECTABLE/);
  toggle('large');assert.deepEqual(included(),['first','later']);assert.match(u.w.document.querySelector('.mrv-selection-audit').textContent,/Review large · Excluded by you/);assert.equal(u.draft.reviews,original);
- toggle('large');assert.deepEqual(included(),['first','large','later']);toggle('large');u.click('Close preview');u.click('Preview & analyze');await u.wait();assert(!pick('large').checked);assert.deepEqual(included(),['first','later']);
+ toggle('large');assert.deepEqual(included(),['first','large','later']);toggle('large');u.click('Back to reviews');u.click('Preview & analyze');await u.wait();assert(!pick('large').checked);assert.deepEqual(included(),['first','later']);
  u.w.document.querySelector('[name=review-title-confirmed]').checked=true;u.w.aiChatSend=async()=>{sent=JSON.parse(u.context().reviewAnalysis||u.context().excerpt);u.w.document.dispatchEvent(new u.w.CustomEvent('assistant-answer',{detail:{context:u.context(),text:JSON.stringify({summary:'A fixture analysis.',fit:'Limited personal evidence.',points:[{id:'later',quote:'praises the visuals',reason:'A selected source.',kind:'praise'}]})}}));};u.click('Send this sample');await u.wait();assert.deepEqual(sent.reviews.map(r=>r.id),['first','later']);assert.equal(u.draft.reviews,original);assert.deepEqual(Array.from(u.draft.result.reviews,r=>r.id),['first','later']);u.click('Verify quotes & save');await u.wait();assert.deepEqual(Array.from(u.calls.find(c=>c.action==='decision-save').reviews,r=>r.id),['first','later']);
  }finally{u.w.close();}
 });
@@ -131,7 +131,7 @@ test('Manual source actions, editor, append and spoiler controls remain usable i
 
 test('Loaded reviews can be read without AI and spoiler text stays hidden until explicitly included',async()=>{
  const rows=[{id:'plain',author:'Reader',text:'Strong acting and a memorable atmosphere.'},{id:'spoiler',author:'Another',text:'SECRET ENDING should stay out of the reader.',spoiler:true}],u=ui({reviews:JSON.stringify(rows)});
- try{const desk=u.w.document.querySelector('.mrv-loaded-sample');assert(!desk.hidden);assert.match(desk.textContent,/1 reviews ready/);const reader=desk.querySelector('details');reader.querySelector('summary').click();assert(reader.open);assert.match(reader.textContent,/Strong acting/);assert.doesNotMatch(reader.textContent,/SECRET ENDING/);assert.equal(u.calls.length,0);
+ try{const desk=u.w.document.querySelector('.mrv-loaded-sample');assert(!desk.hidden);assert.match(desk.textContent,/1 reviews ready/);const reader=desk.querySelector('details');assert(reader.open,'Loaded source is readable immediately');reader.querySelector('summary').click();assert(!reader.open);reader.querySelector('summary').click();assert(reader.open);assert.match(reader.textContent,/Strong acting/);assert.doesNotMatch(reader.textContent,/SECRET ENDING/);assert.equal(u.calls.length,0);
   const spoiler=u.w.document.querySelector('[name=review-spoilers]');spoiler.checked=true;spoiler.dispatchEvent(new u.w.Event('change'));assert(desk.querySelector('details').open,'Reading position disclosure survives policy update');assert.match(desk.textContent,/SECRET ENDING/);assert.equal(u.calls.length,0);
  }finally{u.w.close();}
 });
@@ -164,4 +164,28 @@ test('personal comparison discloses the profile saved with analysis, preserving 
  const entry={identity:contextItem,reviews:evidence.reviews,evidenceSnapshot:{version:1,context:JSON.stringify(evidence),profile:evidence.profile},analysis:{at:Date.now(),summary:'A selected sample.',fit:'Conditional acting fit.',points:[{id:contextRows[0].id,quote:'Strong acting',reason:'Explicit performance praise.',kind:'praise'}]}};
  const u=ui({},{item:contextItem,taste:{preferencesConfigured:true,preferences:{weights:{visuals:5},note:'Later profile note'}},saved:{history:[entry]}});
  try{await u.wait();const basis=u.w.document.querySelector('.mrv-fit-basis');assert(basis);assert.equal(basis.open,false);assert.match(basis.textContent,/Saved priorities: Characters · Pace/);assert.match(basis.textContent,/Prefer to avoid: Sound/);assert.match(basis.textContent,/Controlled preference note/);assert.doesNotMatch(basis.textContent,/Later profile note/);assert.match(basis.textContent,/inputs saved with this analysis/);basis.querySelector('summary').click();assert(basis.open);}finally{u.w.close();}
+});
+
+
+test('Focused source reader preserves full text, selection and Back without fetching or changing evidence',async()=>{
+ const long='A complete source paragraph. '.repeat(40)+'VISIBLE SOURCE END',rows=[{id:'a',author:'First author',text:'First source with enough detail to analyze.'},{id:'b',author:'Second author',text:long}],original=JSON.stringify(rows),u=ui({reviews:original});
+ try{
+  const loaded=u.w.document.querySelector('.mrv-loaded-reader'),list=loaded.querySelector('.mrv-reading-list'),select=loaded.querySelector('select');assert.equal(list.querySelectorAll('article:not([hidden])').length,1);assert.equal(select.options.length,2);
+  select.selectedIndex=1;select.dispatchEvent(new u.w.Event('change'));assert.equal(list.querySelector('article:not([hidden])').dataset.reviewId,'b');assert.equal(list.querySelector('article:not([hidden]) .mrv-reader-text').textContent,long);
+  const expand=list.querySelector('article:not([hidden]) .mrv-fulltext-toggle');assert.equal(expand.getAttribute('aria-expanded'),'false');expand.click();assert.equal(expand.getAttribute('aria-expanded'),'true');assert(!list.querySelector('article:not([hidden]) .mrv-reader-text').classList.contains('mrv-reader-collapsed'));
+  u.click('Preview & analyze');await u.wait();const body=u.w.document.querySelector('main'),preview=body.querySelector('.mrv-sample');assert.equal(body.dataset.reviewStage,'preview');assert.equal(u.w.document.activeElement,preview);assert.equal(preview.querySelectorAll('.mrv-reading-list>article:not([hidden])').length,1);
+  const pick=preview.querySelector('select');pick.selectedIndex=1;pick.dispatchEvent(new u.w.Event('change'));const checkbox=preview.querySelector('[data-review-pick=b]');checkbox.checked=false;checkbox.dispatchEvent(new u.w.Event('change'));assert.equal(preview.querySelector('.mrv-reading-list>article:not([hidden])').dataset.reviewId,'b');assert.equal(u.w.document.activeElement,preview.querySelector('[data-review-pick=b]'));
+  u.click('Back to reviews');assert.equal(body.dataset.reviewStage,'sample');assert.equal(u.w.document.activeElement,body.querySelector('[data-review-action=preview]'));assert.equal(u.draft.reviews,original);
+  u.click('Preview & analyze');await u.wait();assert.equal(body.querySelector('.mrv-sample .mrv-reading-list>article:not([hidden])').dataset.reviewId,'b');assert.equal(body.querySelector('[data-review-pick=b]').checked,false);assert.equal(u.calls.length,0);
+ }finally{u.w.close();}
+});
+test('Analysis narrative precedes optional accounting for every saved result surface',()=>{
+ const u=ui();try{const target=u.w.document.createElement('section');u.w.MediaReviewDecision.resultView(target,{summary:'Actual synthesis first.',fit:'Conditional personal fit.',points:[]},[{id:'a',text:'Source text.',author:'Author'}]);assert.equal(target.firstElementChild.className,'mrv-analysis-overview');assert.equal(target.querySelector('.film-review-proof').open,false);assert(target.querySelector('.film-review-proof .mrv-assessment'));assert.match(target.querySelector('.mrv-summary').textContent,/Actual synthesis first/);}finally{u.w.close();}
+});
+
+test('Preview validation stays visible in its active step, and source replacement restores the reading stage',async()=>{
+ const u=ui({reviews:JSON.stringify([{id:'a',text:'A source with enough text for the analysis.'}])});try{
+  u.click('Preview & analyze');await u.wait();u.w.document.querySelector('[name=review-title-confirmed]').checked=false;u.click('Send this sample');await u.wait();const error=u.w.document.querySelector('.mrv-preview-error');assert.equal(error.hidden,false);assert.equal(error.getAttribute('role'),'alert');assert.match(error.textContent,/Check the title and year/);assert.equal(u.w.document.querySelector('main').dataset.reviewStage,'preview');
+  u.click('Use reviews from open Browser page');await u.wait();assert.equal(u.w.document.querySelector('.mrv-sample'),null);assert.equal(u.w.document.querySelector('main').dataset.reviewStage,'sample');assert.equal(u.draft.attempt.state,'ready');
+ }finally{u.w.close();}
 });
