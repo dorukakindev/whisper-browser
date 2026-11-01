@@ -1,0 +1,375 @@
+{
+  "viewport": {
+    "width": 640,
+    "height": 800,
+    "dpr": 1.875
+  },
+  "reduce": false,
+  "animations": [],
+  "controls": [
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Close review workspace",
+      "rect": {
+        "x": 435.13336181640625,
+        "y": 48.466670989990234,
+        "width": 154.33334350585938,
+        "height": 38.000003814697266,
+        "top": 48.466670989990234,
+        "right": 589.4667053222656,
+        "bottom": 86.4666748046875,
+        "left": 435.13336181640625
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "INPUT",
+      "text": "",
+      "rect": {
+        "x": 472.5333557128906,
+        "y": 170.03334045410156,
+        "width": 90.00000762939453,
+        "height": 44.06666946411133,
+        "top": 170.03334045410156,
+        "right": 562.5333633422852,
+        "bottom": 214.1000099182129,
+        "left": 472.5333557128906
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SELECT",
+      "text": "Balanced · four listsReview activityNewestHighest ratedLowest rated",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 170.10000610351562,
+        "width": 416.0000305175781,
+        "height": 44.000003814697266,
+        "top": 170.10000610351562,
+        "right": 458.5333671569824,
+        "bottom": 214.1000099182129,
+        "left": 42.5333366394043
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Find this film & get reviews",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 232.10000610351562,
+        "width": 546.933349609375,
+        "height": 37.866668701171875,
+        "top": 232.10000610351562,
+        "right": 589.4666862487793,
+        "bottom": 269.9666748046875,
+        "left": 42.5333366394043
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Open this film in Browser",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 279.9666748046875,
+        "width": 268.4666748046875,
+        "height": 37.866668701171875,
+        "top": 279.9666748046875,
+        "right": 311.0000114440918,
+        "bottom": 317.8333435058594,
+        "left": 42.5333366394043
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Advanced · sources & review options",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 344.36669921875,
+        "width": 546.933349609375,
+        "height": 40.000003814697266,
+        "top": 344.36669921875,
+        "right": 589.4666862487793,
+        "bottom": 384.36670303344727,
+        "left": 42.5333366394043
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "INPUT",
+      "text": "",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 424.433349609375,
+        "width": 546.933349609375,
+        "height": 44.06666946411133,
+        "top": 424.433349609375,
+        "right": 589.4666862487793,
+        "bottom": 468.5000190734863,
+        "left": 42.5333366394043
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Use reviews from open Browser page",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 483.5000305175781,
+        "width": 268.4666748046875,
+        "height": 37.866668701171875,
+        "top": 483.5000305175781,
+        "right": 311.0000114440918,
+        "bottom": 521.36669921875,
+        "left": 42.5333366394043
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Fetch public page",
+      "rect": {
+        "x": 321.0000305175781,
+        "y": 483.5000305175781,
+        "width": 268.4666748046875,
+        "height": 37.866668701171875,
+        "top": 483.5000305175781,
+        "right": 589.4667053222656,
+        "bottom": 521.36669921875,
+        "left": 321.0000305175781
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Import TXT / JSON",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 531.36669921875,
+        "width": 268.4666748046875,
+        "height": 37.866668701171875,
+        "top": 531.36669921875,
+        "right": 311.0000114440918,
+        "bottom": 569.2333679199219,
+        "left": 42.5333366394043
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Open page ↗",
+      "rect": {
+        "x": 321.0000305175781,
+        "y": 531.36669921875,
+        "width": 268.4666748046875,
+        "height": 37.866668701171875,
+        "top": 531.36669921875,
+        "right": 589.4667053222656,
+        "bottom": 569.2333679199219,
+        "left": 321.0000305175781
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "INPUT",
+      "text": "",
+      "rect": {
+        "x": 400.3333435058594,
+        "y": 584.2333374023438,
+        "width": 18,
+        "height": 18,
+        "top": 584.2333374023438,
+        "right": 418.3333435058594,
+        "bottom": 602.2333374023438,
+        "left": 400.3333435058594
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "TEXTAREA",
+      "text": "",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 642.300048828125,
+        "width": 546.933349609375,
+        "height": 149.06668090820312,
+        "top": 642.300048828125,
+        "right": 589.4666862487793,
+        "bottom": 791.3667297363281,
+        "left": 42.5333366394043
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Your taste preferences",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 418.9000244140625,
+        "width": 546.933349609375,
+        "height": 42.000003814697266,
+        "top": 418.9000244140625,
+        "right": 589.4666862487793,
+        "bottom": 460.90002822875977,
+        "left": 42.5333366394043
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Open taste profile",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 510.10003662109375,
+        "width": 141.33334350585938,
+        "height": 39.26667022705078,
+        "top": 510.10003662109375,
+        "right": 183.86668014526367,
+        "bottom": 549.3667068481445,
+        "left": 42.5333366394043
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Load film extras",
+      "rect": {
+        "x": 480.2833557128906,
+        "y": 541.9666748046875,
+        "width": 129.7166748046875,
+        "height": 39.26667022705078,
+        "top": 541.9666748046875,
+        "right": 610.0000305175781,
+        "bottom": 581.2333450317383,
+        "left": 480.2833557128906
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "IMDb page",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 724.1000366210938,
+        "width": 88.55000305175781,
+        "height": 38.000003814697266,
+        "top": 724.1000366210938,
+        "right": 131.0833396911621,
+        "bottom": 762.100040435791,
+        "left": 42.5333366394043
+      },
+      "font": "13px",
+      "disabled": false
+    }
+  ],
+  "violations": [
+    {
+      "id": "aria-prohibited-attr",
+      "impact": "serious",
+      "tags": [
+        "cat.aria",
+        "wcag2a",
+        "wcag412",
+        "EN-301-549",
+        "EN-9.4.1.2",
+        "RGAAv4",
+        "RGAA-7.1.1"
+      ],
+      "description": "Ensure ARIA attributes are not prohibited for an element's role",
+      "help": "Elements must only use permitted ARIA attributes",
+      "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/aria-prohibited-attr?application=axeAPI",
+      "nodes": [
+        {
+          "any": [],
+          "all": [],
+          "none": [
+            {
+              "id": "aria-prohibited-attr",
+              "data": {
+                "role": null,
+                "nodeName": "div",
+                "messageKey": "noRoleSingular",
+                "prohibited": [
+                  "aria-label"
+                ]
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "aria-label attribute cannot be used on a div with no valid role attribute."
+            }
+          ],
+          "impact": "serious",
+          "html": "<div class=\"mh-brand\" title=\"Whisper Browser\" aria-label=\"Whisper Browser\"><svg viewBox=\"0 0 48 48\" aria-hidden=\"true\"><path d=\"M8 11h32v26H8z M16 11v26 M32 11v26 M8 19h8 M8 29h8 M32 19h8 M32 29h8 M22 20l7 4-7 4z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\"></path></svg></div>",
+          "target": [
+            ".mh-brand"
+          ],
+          "failureSummary": "Fix all of the following:\n  aria-label attribute cannot be used on a div with no valid role attribute."
+        }
+      ]
+    }
+  ],
+  "incomplete": [
+    {
+      "id": "aria-prohibited-attr",
+      "nodes": 1
+    }
+  ],
+  "passes": [
+    "aria-allowed-attr",
+    "aria-conditional-attr",
+    "aria-hidden-body",
+    "aria-hidden-focus",
+    "aria-prohibited-attr",
+    "aria-valid-attr-value",
+    "aria-valid-attr",
+    "button-name",
+    "bypass",
+    "color-contrast",
+    "document-title",
+    "duplicate-id-aria",
+    "form-field-multiple-labels",
+    "html-has-lang",
+    "html-lang-valid",
+    "image-alt",
+    "label",
+    "nested-interactive",
+    "scrollable-region-focusable",
+    "select-name",
+    "summary-name"
+  ]
+}

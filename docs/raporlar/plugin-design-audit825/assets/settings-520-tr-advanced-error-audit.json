@@ -1,0 +1,647 @@
+{
+  "viewport": {
+    "width": 520,
+    "height": 640,
+    "dpr": 1.5
+  },
+  "reduce": false,
+  "animations": [],
+  "controls": [
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Film",
+      "rect": {
+        "x": 61.66666793823242,
+        "y": 53.66666793823242,
+        "width": 52.44791793823242,
+        "height": 40,
+        "top": 53.66666793823242,
+        "right": 114.11458587646484,
+        "bottom": 93.66666793823242,
+        "left": 61.66666793823242
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Müzik",
+      "rect": {
+        "x": 117.11458587646484,
+        "y": 53.66666793823242,
+        "width": 61.677085876464844,
+        "height": 40,
+        "top": 53.66666793823242,
+        "right": 178.7916717529297,
+        "bottom": 93.66666793823242,
+        "left": 117.11458587646484
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Kitaplar",
+      "rect": {
+        "x": 181.7916717529297,
+        "y": 53.66666793823242,
+        "width": 74.52083587646484,
+        "height": 40,
+        "top": 53.66666793823242,
+        "right": 256.31250762939453,
+        "bottom": 93.66666793823242,
+        "left": 181.7916717529297
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "mhHome",
+      "tag": "BUTTON",
+      "text": "Ana sayfa",
+      "rect": {
+        "x": 16,
+        "y": 157.33334350585938,
+        "width": 71.07292175292969,
+        "height": 40,
+        "top": 157.33334350585938,
+        "right": 87.07292175292969,
+        "bottom": 197.33334350585938,
+        "left": 16
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Keşfet",
+      "rect": {
+        "x": 93.07292175292969,
+        "y": 157.33334350585938,
+        "width": 49.25,
+        "height": 40,
+        "top": 157.33334350585938,
+        "right": 142.3229217529297,
+        "bottom": 197.33334350585938,
+        "left": 93.07292175292969
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Filmler",
+      "rect": {
+        "x": 148.3229217529297,
+        "y": 157.33334350585938,
+        "width": 52.85416793823242,
+        "height": 40,
+        "top": 157.33334350585938,
+        "right": 201.1770896911621,
+        "bottom": 197.33334350585938,
+        "left": 148.3229217529297
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Diziler",
+      "rect": {
+        "x": 207.17709350585938,
+        "y": 157.33334350585938,
+        "width": 48.708335876464844,
+        "height": 40,
+        "top": 157.33334350585938,
+        "right": 255.88542938232422,
+        "bottom": 197.33334350585938,
+        "left": 207.17709350585938
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Radyo / podcast",
+      "rect": {
+        "x": 261.88543701171875,
+        "y": 157.33334350585938,
+        "width": 106.13542175292969,
+        "height": 40,
+        "top": 157.33334350585938,
+        "right": 368.02085876464844,
+        "bottom": 197.33334350585938,
+        "left": 261.88543701171875
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Zevk profilim",
+      "rect": {
+        "x": 374.0208435058594,
+        "y": 157.33334350585938,
+        "width": 87.78125,
+        "height": 40,
+        "top": 157.33334350585938,
+        "right": 461.8020935058594,
+        "bottom": 197.33334350585938,
+        "left": 374.0208435058594
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Web",
+      "rect": {
+        "x": 16,
+        "y": 199.33334350585938,
+        "width": 38.07291793823242,
+        "height": 40,
+        "top": 199.33334350585938,
+        "right": 54.07291793823242,
+        "bottom": 239.33334350585938,
+        "left": 16
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Son oynatılanlar",
+      "rect": {
+        "x": 60.07291793823242,
+        "y": 199.33334350585938,
+        "width": 106.23958587646484,
+        "height": 40,
+        "top": 199.33334350585938,
+        "right": 166.31250381469727,
+        "bottom": 239.33334350585938,
+        "left": 60.07291793823242
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Browser",
+      "rect": {
+        "x": 173.8541717529297,
+        "y": 107.33333587646484,
+        "width": 70.20833587646484,
+        "height": 40,
+        "top": 107.33333587646484,
+        "right": 244.06250762939453,
+        "bottom": 147.33333587646484,
+        "left": 173.8541717529297
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Medya aç",
+      "rect": {
+        "x": 251.0625,
+        "y": 107.33333587646484,
+        "width": 76.13542175292969,
+        "height": 40,
+        "top": 107.33333587646484,
+        "right": 327.1979217529297,
+        "bottom": 147.33333587646484,
+        "left": 251.0625
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "mhSearchToggle",
+      "tag": "BUTTON",
+      "text": "Kütüphanede ara",
+      "rect": {
+        "x": 334.19793701171875,
+        "y": 107.33333587646484,
+        "width": 40,
+        "height": 40,
+        "top": 107.33333587646484,
+        "right": 374.19793701171875,
+        "bottom": 147.33333587646484,
+        "left": 334.19793701171875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Araçlar",
+      "rect": {
+        "x": 381.19793701171875,
+        "y": 107.33333587646484,
+        "width": 65.80208587646484,
+        "height": 40,
+        "top": 107.33333587646484,
+        "right": 447.0000228881836,
+        "bottom": 147.33333587646484,
+        "left": 381.19793701171875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Üretim çalışma alanı",
+      "rect": {
+        "x": 255.6666717529297,
+        "y": 164,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 164,
+        "right": 438.3333435058594,
+        "bottom": 204,
+        "left": 255.6666717529297
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Stüdyo",
+      "rect": {
+        "x": 255.6666717529297,
+        "y": 208,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 208,
+        "right": 438.3333435058594,
+        "bottom": 248,
+        "left": 255.6666717529297
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Altyazı → ses",
+      "rect": {
+        "x": 255.6666717529297,
+        "y": 252,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 252,
+        "right": 438.3333435058594,
+        "bottom": 292,
+        "left": 255.6666717529297
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Bu akşam",
+      "rect": {
+        "x": 255.6666717529297,
+        "y": 296,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 296,
+        "right": 438.3333435058594,
+        "bottom": 336,
+        "left": 255.6666717529297
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Arşiv bakımı",
+      "rect": {
+        "x": 255.6666717529297,
+        "y": 340,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 340,
+        "right": 438.3333435058594,
+        "bottom": 380,
+        "left": 255.6666717529297
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "İşlemler",
+      "rect": {
+        "x": 255.6666717529297,
+        "y": 384,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 384,
+        "right": 438.3333435058594,
+        "bottom": 424,
+        "left": 255.6666717529297
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "mhSettings",
+      "tag": "BUTTON",
+      "text": "Ayarlar",
+      "rect": {
+        "x": 454,
+        "y": 107.33333587646484,
+        "width": 40,
+        "height": 40,
+        "top": 107.33333587646484,
+        "right": 494,
+        "bottom": 147.33333587646484,
+        "left": 454
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Medya aç",
+      "rect": {
+        "x": 80,
+        "y": 427.9895935058594,
+        "width": 84.13542175292969,
+        "height": 40,
+        "top": 427.9895935058594,
+        "right": 164.1354217529297,
+        "bottom": 467.9895935058594,
+        "left": 80
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Browserı aç",
+      "rect": {
+        "x": 174.1354217529297,
+        "y": 427.9895935058594,
+        "width": 96.47917175292969,
+        "height": 40,
+        "top": 427.9895935058594,
+        "right": 270.6145935058594,
+        "bottom": 467.9895935058594,
+        "left": 174.1354217529297
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Altyazı → ses",
+      "rect": {
+        "x": 36.66666793823242,
+        "y": 607.7396240234375,
+        "width": 115.23958587646484,
+        "height": 40.66666793823242,
+        "top": 607.7396240234375,
+        "right": 151.90625381469727,
+        "bottom": 648.4062919616699,
+        "left": 36.66666793823242
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "appSettingsClose",
+      "tag": "BUTTON",
+      "text": "Ayarları kapat",
+      "rect": {
+        "x": 441.3333435058594,
+        "y": 54.66666793823242,
+        "width": 40,
+        "height": 40.66666793823242,
+        "top": 54.66666793823242,
+        "right": 481.3333435058594,
+        "bottom": 95.33333587646484,
+        "left": 441.3333435058594
+      },
+      "font": "24px",
+      "disabled": false
+    },
+    {
+      "id": "appSettingsSearch",
+      "tag": "INPUT",
+      "text": "Ayar ara",
+      "rect": {
+        "x": 26.666667938232422,
+        "y": 130,
+        "width": 191.52084350585938,
+        "height": 42,
+        "top": 130,
+        "right": 218.1875114440918,
+        "bottom": 172,
+        "left": 26.666667938232422
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "appSettingsSection",
+      "tag": "SELECT",
+      "text": "Ayar bölümleri",
+      "rect": {
+        "x": 225.1875,
+        "y": 130,
+        "width": 268.13543701171875,
+        "height": 42,
+        "top": 130,
+        "right": 493.32293701171875,
+        "bottom": 172,
+        "left": 225.1875
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "translateBaseUrl",
+      "tag": "INPUT",
+      "text": "https://api.example.com/v1",
+      "rect": {
+        "x": 30.666667938232422,
+        "y": 36.625,
+        "width": 448.66668701171875,
+        "height": 39,
+        "top": 36.625,
+        "right": 479.3333549499512,
+        "bottom": 75.625,
+        "left": 30.666667938232422
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "translateTo",
+      "tag": "SELECT",
+      "text": "Türkçe\n                  İngilizce\n                  Almanca\n                  Fransızca\n ",
+      "rect": {
+        "x": 30.666667938232422,
+        "y": 122.625,
+        "width": 448.66668701171875,
+        "height": 42,
+        "top": 122.625,
+        "right": 479.3333549499512,
+        "bottom": 164.625,
+        "left": 30.666667938232422
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Gelişmiş sağlayıcı araçlarıModel listesi, bağlantı testi ve anahtar yönetimi",
+      "rect": {
+        "x": 31.33333396911621,
+        "y": 185.2916717529297,
+        "width": 447.3333435058594,
+        "height": 69.86458587646484,
+        "top": 185.2916717529297,
+        "right": 478.6666774749756,
+        "bottom": 255.15625762939453,
+        "left": 31.33333396911621
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "appFetchModels",
+      "tag": "BUTTON",
+      "text": "Modelleri getir",
+      "rect": {
+        "x": 45.333335876464844,
+        "y": 357.38543701171875,
+        "width": 120.69792175292969,
+        "height": 38,
+        "top": 357.38543701171875,
+        "right": 166.03125762939453,
+        "bottom": 395.38543701171875,
+        "left": 45.333335876464844
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "appModelFilter",
+      "tag": "INPUT",
+      "text": "Model kimliklerinde ara",
+      "rect": {
+        "x": 45.333335876464844,
+        "y": 462.28125,
+        "width": 419.3333435058594,
+        "height": 42,
+        "top": 462.28125,
+        "right": 464.6666793823242,
+        "bottom": 504.28125,
+        "left": 45.333335876464844
+      },
+      "font": "14px",
+      "disabled": true
+    },
+    {
+      "id": "appRemoteModels",
+      "tag": "SELECT",
+      "text": "Sağlayıcının döndürdüğü modeller",
+      "rect": {
+        "x": 45.333335876464844,
+        "y": 516.28125,
+        "width": 419.3333435058594,
+        "height": 42,
+        "top": 516.28125,
+        "right": 464.6666793823242,
+        "bottom": 558.28125,
+        "left": 45.333335876464844
+      },
+      "font": "14px",
+      "disabled": true
+    },
+    {
+      "id": "translateSavedModel",
+      "tag": "SELECT",
+      "text": "Bu sağlayıcıdaki kayıtlı modeller",
+      "rect": {
+        "x": 45.333335876464844,
+        "y": 621.9479370117188,
+        "width": 419.3333435058594,
+        "height": 42,
+        "top": 621.9479370117188,
+        "right": 464.6666793823242,
+        "bottom": 663.9479370117188,
+        "left": 45.333335876464844
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "appSettingsSave",
+      "tag": "BUTTON",
+      "text": "Ayarları kaydet",
+      "rect": {
+        "x": 370.51043701171875,
+        "y": 555.3333740234375,
+        "width": 120.82292175292969,
+        "height": 38,
+        "top": 555.3333740234375,
+        "right": 491.33335876464844,
+        "bottom": 593.3333740234375,
+        "left": 370.51043701171875
+      },
+      "font": "13px",
+      "disabled": false
+    }
+  ],
+  "violations": [],
+  "incomplete": [],
+  "passes": [
+    "aria-allowed-attr",
+    "aria-conditional-attr",
+    "aria-deprecated-role",
+    "aria-hidden-body",
+    "aria-hidden-focus",
+    "aria-prohibited-attr",
+    "aria-required-attr",
+    "aria-roles",
+    "aria-valid-attr-value",
+    "aria-valid-attr",
+    "autocomplete-valid",
+    "button-name",
+    "color-contrast",
+    "duplicate-id-aria",
+    "form-field-multiple-labels",
+    "label",
+    "nested-interactive",
+    "scrollable-region-focusable",
+    "select-name",
+    "summary-name"
+  ]
+}

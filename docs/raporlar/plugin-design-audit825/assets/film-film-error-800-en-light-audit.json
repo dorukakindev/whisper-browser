@@ -1,0 +1,243 @@
+{
+  "viewport": {
+    "width": 640,
+    "height": 800,
+    "dpr": 1.875
+  },
+  "reduce": false,
+  "animations": [],
+  "controls": [
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Close review workspace",
+      "rect": {
+        "x": 435.13336181640625,
+        "y": 48.466670989990234,
+        "width": 154.33334350585938,
+        "height": 38.000003814697266,
+        "top": 48.466670989990234,
+        "right": 589.4667053222656,
+        "bottom": 86.4666748046875,
+        "left": 435.13336181640625
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Retry reading",
+      "rect": {
+        "x": 480.3000183105469,
+        "y": 167.40000915527344,
+        "width": 109.16667175292969,
+        "height": 37.866668701171875,
+        "top": 167.40000915527344,
+        "right": 589.4666900634766,
+        "bottom": 205.2666778564453,
+        "left": 480.3000183105469
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "INPUT",
+      "text": "",
+      "rect": {
+        "x": 472.5333557128906,
+        "y": 335.3000183105469,
+        "width": 90.00000762939453,
+        "height": 44.06666946411133,
+        "top": 335.3000183105469,
+        "right": 562.5333633422852,
+        "bottom": 379.3666877746582,
+        "left": 472.5333557128906
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SELECT",
+      "text": "Balanced · four listsReview activityNewestHighest ratedLowest rated",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 335.36669921875,
+        "width": 416.0000305175781,
+        "height": 44.000003814697266,
+        "top": 335.36669921875,
+        "right": 458.5333671569824,
+        "bottom": 379.36670303344727,
+        "left": 42.5333366394043
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Find this film & get reviews",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 397.36669921875,
+        "width": 268.4666748046875,
+        "height": 37.866668701171875,
+        "top": 397.36669921875,
+        "right": 311.0000114440918,
+        "bottom": 435.2333679199219,
+        "left": 42.5333366394043
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Open this film in Browser",
+      "rect": {
+        "x": 321.0000305175781,
+        "y": 397.36669921875,
+        "width": 268.4666748046875,
+        "height": 37.866668701171875,
+        "top": 397.36669921875,
+        "right": 589.4667053222656,
+        "bottom": 435.2333679199219,
+        "left": 321.0000305175781
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Read the loaded reviews",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 577.5667114257812,
+        "width": 546.933349609375,
+        "height": 40.000003814697266,
+        "top": 577.5667114257812,
+        "right": 589.4666862487793,
+        "bottom": 617.5667152404785,
+        "left": 42.5333366394043
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Preview & analyze",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 653.5667114257812,
+        "width": 142.60000610351562,
+        "height": 39.26667022705078,
+        "top": 653.5667114257812,
+        "right": 185.13334274291992,
+        "bottom": 692.833381652832,
+        "left": 42.5333366394043
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Advanced · sources & review options",
+      "rect": {
+        "x": 42.5333366394043,
+        "y": 719.36669921875,
+        "width": 546.933349609375,
+        "height": 40.000003814697266,
+        "top": 719.36669921875,
+        "right": 589.4666862487793,
+        "bottom": 759.3667030334473,
+        "left": 42.5333366394043
+      },
+      "font": "14px",
+      "disabled": false
+    }
+  ],
+  "violations": [
+    {
+      "id": "aria-prohibited-attr",
+      "impact": "serious",
+      "tags": [
+        "cat.aria",
+        "wcag2a",
+        "wcag412",
+        "EN-301-549",
+        "EN-9.4.1.2",
+        "RGAAv4",
+        "RGAA-7.1.1"
+      ],
+      "description": "Ensure ARIA attributes are not prohibited for an element's role",
+      "help": "Elements must only use permitted ARIA attributes",
+      "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/aria-prohibited-attr?application=axeAPI",
+      "nodes": [
+        {
+          "any": [],
+          "all": [],
+          "none": [
+            {
+              "id": "aria-prohibited-attr",
+              "data": {
+                "role": null,
+                "nodeName": "div",
+                "messageKey": "noRoleSingular",
+                "prohibited": [
+                  "aria-label"
+                ]
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "aria-label attribute cannot be used on a div with no valid role attribute."
+            }
+          ],
+          "impact": "serious",
+          "html": "<div class=\"mh-brand\" title=\"Whisper Browser\" aria-label=\"Whisper Browser\"><svg viewBox=\"0 0 48 48\" aria-hidden=\"true\"><path d=\"M8 11h32v26H8z M16 11v26 M32 11v26 M8 19h8 M8 29h8 M32 19h8 M32 29h8 M22 20l7 4-7 4z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\"></path></svg></div>",
+          "target": [
+            ".mh-brand"
+          ],
+          "failureSummary": "Fix all of the following:\n  aria-label attribute cannot be used on a div with no valid role attribute."
+        }
+      ]
+    }
+  ],
+  "incomplete": [
+    {
+      "id": "aria-prohibited-attr",
+      "nodes": 1
+    }
+  ],
+  "passes": [
+    "aria-allowed-attr",
+    "aria-conditional-attr",
+    "aria-deprecated-role",
+    "aria-hidden-body",
+    "aria-hidden-focus",
+    "aria-prohibited-attr",
+    "aria-required-attr",
+    "aria-roles",
+    "aria-valid-attr-value",
+    "aria-valid-attr",
+    "autocomplete-valid",
+    "button-name",
+    "bypass",
+    "color-contrast",
+    "document-title",
+    "duplicate-id-aria",
+    "form-field-multiple-labels",
+    "html-has-lang",
+    "html-lang-valid",
+    "image-alt",
+    "label",
+    "nested-interactive",
+    "scrollable-region-focusable",
+    "select-name",
+    "summary-name"
+  ]
+}

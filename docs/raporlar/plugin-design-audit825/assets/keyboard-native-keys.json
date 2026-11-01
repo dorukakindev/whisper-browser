@@ -1,0 +1,56 @@
+[
+  {
+    "mode": "busy-log",
+    "before": {
+      "active": true,
+      "tag": "DIV",
+      "id": "log",
+      "scrollTop": 0,
+      "scrollLeft": 0,
+      "clientWidth": 341,
+      "scrollWidth": 341,
+      "clientHeight": 149,
+      "scrollHeight": 3193,
+      "tabIndex": -1
+    },
+    "after": {
+      "active": true,
+      "tag": "DIV",
+      "id": "log",
+      "scrollTop": 36.66666793823242,
+      "scrollLeft": 0,
+      "clientWidth": 341,
+      "scrollWidth": 341,
+      "clientHeight": 112,
+      "scrollHeight": 3193,
+      "tabIndex": -1
+    }
+  },
+  {
+    "mode": "code",
+    "before": {
+      "active": true,
+      "tag": "PRE",
+      "id": "",
+      "scrollTop": 0,
+      "scrollLeft": 0,
+      "clientWidth": 315,
+      "scrollWidth": 9626,
+      "clientHeight": 43,
+      "scrollHeight": 43,
+      "tabIndex": -1
+    },
+    "after": {
+      "active": true,
+      "tag": "PRE",
+      "id": "",
+      "scrollTop": 0,
+      "scrollLeft": 36.66666793823242,
+      "clientWidth": 315,
+      "scrollWidth": 9626,
+      "clientHeight": 43,
+      "scrollHeight": 43,
+      "tabIndex": -1
+    }
+  }
+]

@@ -1,0 +1,143 @@
+{
+  "tabOrder": [
+    {
+      "id": "sourceLabel",
+      "tag": "SUMMARY",
+      "text": "Source & model"
+    },
+    {
+      "id": "conversationMenuLabel",
+      "tag": "SUMMARY",
+      "text": "•••"
+    },
+    {
+      "id": "find",
+      "tag": "INPUT",
+      "text": ""
+    },
+    {
+      "id": "pinned",
+      "tag": "BUTTON",
+      "text": "Pinned"
+    },
+    {
+      "id": "export",
+      "tag": "BUTTON",
+      "text": "Export"
+    },
+    {
+      "id": "threadSettings",
+      "tag": "BUTTON",
+      "text": "Manage"
+    },
+    {
+      "id": "log",
+      "tag": "DIV",
+      "text": "ASSISTANTA controlled long explanation remain"
+    },
+    {
+      "id": "latest",
+      "tag": "BUTTON",
+      "text": "Latest reply ↓"
+    },
+    {
+      "id": "suggestions",
+      "tag": "DIV",
+      "text": "Summarize the chapterExplain this passageComp"
+    },
+    {
+      "id": "text",
+      "tag": "TEXTAREA",
+      "text": ""
+    },
+    {
+      "id": "cancel",
+      "tag": "BUTTON",
+      "text": "Cancel"
+    },
+    {
+      "id": "expand",
+      "tag": "BUTTON",
+      "text": "↗"
+    },
+    {
+      "id": "close",
+      "tag": "BUTTON",
+      "text": "×"
+    },
+    {
+      "id": "sourceLabel",
+      "tag": "SUMMARY",
+      "text": "Source & model"
+    },
+    {
+      "id": "conversationMenuLabel",
+      "tag": "SUMMARY",
+      "text": "•••"
+    },
+    {
+      "id": "find",
+      "tag": "INPUT",
+      "text": ""
+    },
+    {
+      "id": "pinned",
+      "tag": "BUTTON",
+      "text": "Pinned"
+    },
+    {
+      "id": "export",
+      "tag": "BUTTON",
+      "text": "Export"
+    },
+    {
+      "id": "threadSettings",
+      "tag": "BUTTON",
+      "text": "Manage"
+    },
+    {
+      "id": "log",
+      "tag": "DIV",
+      "text": "ASSISTANTA controlled long explanation remain"
+    },
+    {
+      "id": "latest",
+      "tag": "BUTTON",
+      "text": "Latest reply ↓"
+    },
+    {
+      "id": "suggestions",
+      "tag": "DIV",
+      "text": "Summarize the chapterExplain this passageComp"
+    },
+    {
+      "id": "text",
+      "tag": "TEXTAREA",
+      "text": ""
+    },
+    {
+      "id": "cancel",
+      "tag": "BUTTON",
+      "text": "Cancel"
+    }
+  ],
+  "focusAttempt": {
+    "active": "log",
+    "log": {
+      "x": 5,
+      "y": 237.140625,
+      "width": 350,
+      "height": 141.859375,
+      "top": 237.140625,
+      "right": 355,
+      "bottom": 379,
+      "left": 5
+    },
+    "tabIndex": -1,
+    "logScroll": 2416,
+    "logClient": 142,
+    "suggestionsTab": -1,
+    "suggestionsScroll": 78,
+    "suggestionsClient": 40
+  }
+}

@@ -1,0 +1,106 @@
+[
+  {
+    "name": "tr-1440-ready",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi"
+  },
+  {
+    "name": "tr-1440-focus",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi"
+  },
+  {
+    "name": "tr-1440-active",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi"
+  },
+  {
+    "name": "tr-1440-review",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "1 hazır0 inceleme0 üretilemedi"
+  },
+  {
+    "name": "tr-820-ready",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi"
+  },
+  {
+    "name": "tr-820-focus",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi"
+  },
+  {
+    "name": "tr-820-active",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi"
+  },
+  {
+    "name": "tr-820-review",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "1 hazır0 inceleme0 üretilemedi"
+  },
+  {
+    "name": "en-640-ready",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready0 to review0 failed"
+  },
+  {
+    "name": "en-640-focus",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready0 to review0 failed"
+  },
+  {
+    "name": "en-640-active",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready0 to review0 failed"
+  },
+  {
+    "name": "en-640-review",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready1 to review0 failed"
+  },
+  {
+    "name": "en-640-pronunciation",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready1 to review0 failed"
+  }
+]
