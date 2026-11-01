@@ -1,0 +1,127 @@
+{
+  "head": "9b3f9e462abaebfd1e3a321fcb72e9594b8c7533",
+  "alias": {
+    "preview": {
+      "ok": true,
+      "token": "53b20ca2-f281-4054-9f8f-6d5a9675b5f6",
+      "count": 1,
+      "reviews": 0,
+      "matches": 1,
+      "newTitles": 0,
+      "ambiguous": [],
+      "preserved": 1
+    },
+    "applied": {
+      "ok": true,
+      "matched": 1,
+      "added": 0,
+      "skipped": 0
+    },
+    "storedPersonal": "9",
+    "average": 1,
+    "metadataMatched": 0,
+    "genres": []
+  },
+  "canonicalControl": {
+    "average": 4.5,
+    "metadataMatched": 1,
+    "genres": [
+      {
+        "name": "Drama",
+        "count": 1,
+        "sum": 4.5,
+        "titles": [
+          "Original Film"
+        ],
+        "average": 4.5,
+        "confidence": "single"
+      }
+    ]
+  },
+  "rewatch": {
+    "catalogTitles": 1,
+    "diaryRows": 2,
+    "genre": {
+      "name": "Drama",
+      "count": 2,
+      "sum": 10,
+      "titles": [
+        "Repeat Film",
+        "Repeat Film"
+      ],
+      "average": 5,
+      "confidence": "emerging"
+    },
+    "recommendation": {
+      "providerId": "tt1234567",
+      "kind": "film",
+      "title": "Candidate",
+      "year": null,
+      "poster": "",
+      "backdrop": "",
+      "synopsis": "",
+      "genres": [
+        "Drama"
+      ],
+      "cast": [],
+      "directors": [],
+      "rating": null,
+      "runtime": null,
+      "profileBecause": {
+        "genre": "Drama",
+        "count": 2,
+        "average": 5
+      }
+    },
+    "quiz": {
+      "id": "pending",
+      "title": "Pending",
+      "genres": [
+        "Drama"
+      ],
+      "supported": [
+        "Drama"
+      ],
+      "score": 1.25
+    }
+  },
+  "singleControl": {
+    "genre": {
+      "name": "Drama",
+      "count": 1,
+      "sum": 5,
+      "titles": [
+        "Repeat Film"
+      ],
+      "average": 5,
+      "confidence": "single"
+    },
+    "recommendation": {
+      "providerId": "tt1234567",
+      "kind": "film",
+      "title": "Candidate",
+      "year": null,
+      "poster": "",
+      "backdrop": "",
+      "synopsis": "",
+      "genres": [
+        "Drama"
+      ],
+      "cast": [],
+      "directors": [],
+      "rating": null,
+      "runtime": null,
+      "because": "Repeat Film"
+    },
+    "quiz": {
+      "id": "pending",
+      "title": "Pending",
+      "genres": [
+        "Drama"
+      ],
+      "supported": [],
+      "score": 1
+    }
+  },
+  "limits": "Real Python parser, IPC handlers, catalog and shelf disk writes, taste profile, discovery and quiz. Dialog/network are synthetic adapters; no native UI/site/model acceptance."
+}
