@@ -151,3 +151,10 @@ test('Failed source loading retries the same source instead of analyzing an empt
  const u=ui({},{item:{...contextItem,imdbId:'tt0133093'}});let sends=0;
  try{u.w.aiChatSend=async()=>sends++;u.click('Find this film & get reviews');await u.wait();assert.equal(u.draft.attempt.state,'failed');u.click('Retry reading');await u.wait();assert.equal(u.calls.filter(row=>row.action==='reviews-auto').length,2);assert.equal(u.draft.attempt.state,'failed');assert.equal(sends,0);assert(!u.w.document.querySelector('.mrv-sample'));assert(u.w.document.querySelector('.mrv-manual').open);}finally{u.w.close();}
 });
+
+test('Replacing an unsaved result with a saved sample removes the obsolete save controls and sample preview',async()=>{
+ const model=require('../src/renderer/media-tools-model'),evidence=model.decisionEvidence(contextItem,contextRows,contextTaste).evidence;
+ const entry={identity:contextItem,reviews:evidence.reviews,analysis:{summary:'Saved interpretation',fit:'Conditional',points:[{id:'context-review',quote:'Strong acting',reason:'Verified source',kind:'praise'}]}};
+ const draft={reviews:JSON.stringify(contextRows),result:{...entry,personalEvidence:false}},u=ui(draft,{item:contextItem,taste:contextTaste,saved:{history:[entry]}});
+ try{assert(u.w.document.querySelector('.mrv-output button'));const old=u.w.document.createElement('section');old.className='mrv-sample';u.w.document.querySelector('main').append(old);u.click('Reuse this saved sample');await u.wait();assert.equal(draft.result,undefined);assert.equal(u.w.document.querySelector('.mrv-output').children.length,0);assert.equal(u.w.document.querySelector('.mrv-sample'),null);assert.equal(u.calls.length,0);assert.match(u.w.document.querySelector('.mtx-history').textContent,/Saved interpretation/);}finally{u.w.close();}
+});

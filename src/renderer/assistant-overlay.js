@@ -182,7 +182,7 @@
           refresh.title=t('Creates a new proposal for review. Does not apply settings.','İncelemek için yeni bir öneri hazırlar. Ayarları uygulamaz.');
           refresh.onclick=()=>action('refresh-tool',proposed.id);card.append(refresh);
         }
-        if(proposed.canContinue){const next=document.createElement('button');next.dataset.toolControl='continue';next.className='flow-continue';next.textContent=proposed.waiting?t('Waiting for this job…','İşin bitmesi bekleniyor…'):proposed.partial?t('Review partial result','Kısmi sonucu incele'):t('Continue with result','Sonuçla devam et');next.disabled=busy||proposed.waiting;next.onclick=()=>action('continue-tool',proposed.id);card.append(next);}
+        if(proposed.canContinue){const next=document.createElement('button');next.dataset.toolControl='continue';next.className='flow-continue';next.textContent=proposed.waiting?t('Waiting for this job…','İşin bitmesi bekleniyor…'):proposed.retryable?t('Review stage retry','Adımı yeniden denemeyi incele'):proposed.partial?t('Review partial result','Kısmi sonucu incele'):t('Continue with result','Sonuçla devam et');next.disabled=busy||proposed.waiting;next.onclick=()=>action('continue-tool',proposed.id);card.append(next);}
 
         if(proposed.flowNote){const note=document.createElement('p');note.className='action-receipt';note.setAttribute('role','status');note.textContent=proposed.flowNote;card.append(note);}
         if(proposed.resultText){const receipt=document.createElement('p');receipt.className='action-receipt';receipt.setAttribute('role','status');receipt.textContent=proposed.resultText;card.append(receipt);}

@@ -1,3 +1,4 @@
+- [Rapor826](BROWSER_BUG_REPORT_826.md) — Gerçek dublaj, asistan aşama retry, browser sürekliliği ve film profil bağlamı
 - [Rapor825](BROWSER_BUG_REPORT_825.md) — Yeni plugin ölçütleriyle görüntülü denetim; bir semantik uyumsuzluk, beş görsel/UX önerisi
 - [Rapor824](BROWSER_BUG_REPORT_824.md) — Görüntülü tasarım denetimi: film, asistan, okuyucu/dublaj ve browser; yalnız rapor
 - [Rapor823](BROWSER_BUG_REPORT_823.md) — Araştırma taslakları, dil kapsamı ve uzun paragraf

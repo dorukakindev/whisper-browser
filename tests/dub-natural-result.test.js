@@ -25,6 +25,8 @@ test('a source-reviewed group does not hide another group with no original evide
 test('generated audio, text verification and human naturalness stay separate',()=>{
  const result=groups=>({url:'fixture.wav',quality:{groups}});
  assert.match(verificationSummary(result([{status:'ready',verification:{status:'passed'}}]),true),/Naturalness still needs listening/);
+ assert.match(verificationSummary(result([{status:'ready',verification:{status:'passed'}}]),true),/against the supplied subtitles.*does not verify the original transcription/);
+ assert.match(verificationSummary(result([{status:'ready',verification:{status:'passed'}}]),false),/altyazıya göre.*doğru çözümlendiğini kanıtlamaz/);
  assert.match(verificationSummary(result([{status:'ready',verification:{status:'skipped'}}]),true),/0 have a passed text check/);
  assert.match(verificationSummary(result([{status:'review',verification:{status:'passed'}}]),false),/dinleme kontrolü/);
  assert.match(verificationSummary(result([{status:'failed'}]),true),/may be silent/);

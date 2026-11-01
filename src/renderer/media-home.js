@@ -63,8 +63,9 @@
         if(mode==='browser'&&tabId)await browserCommand('pause',undefined,tabId);
         if(intent!==player.openIntent)return;
         document.getElementById('playerVideo')?.pause();
-        const voice=window.BrowserDubAudioUI?.snapshot();
-        await window.BrowserDubAudioUI?.stop();
+        const voice=window.BrowserDubAudioUI?.suspend ? null : window.BrowserDubAudioUI?.snapshot();
+        if(window.BrowserDubAudioUI?.suspend)await window.BrowserDubAudioUI.suspend();
+        else await window.BrowserDubAudioUI?.stop();
         if(intent!==player.openIntent)return;
         if(document.fullscreenElement)await document.exitFullscreen().catch(()=>{});
         if(document.pictureInPictureElement)await document.exitPictureInPicture().catch(()=>{});

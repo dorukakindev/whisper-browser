@@ -1,0 +1,742 @@
+{
+  "base": "2f5d68bd3182fd6e66a622df52840fac5b96aff8",
+  "productCommit": "51dc2149636315ce2eab2825918b19c50ee5dcb6",
+  "humanNaturalnessVerified": false,
+  "personalApplicationStopped": false,
+  "livePipeline": {
+    "workflowAccepted": true,
+    "allGroupsReady": true,
+    "qualityCounts": {
+      "ready": 1,
+      "review": 0,
+      "failed": 0
+    },
+    "requests": 3,
+    "standardTier": true,
+    "whisperModel": "large-v3-turbo",
+    "whisperDevice": "cuda",
+    "selectedRange": [
+      0,
+      19
+    ],
+    "preparedRange": {
+      "start": 0,
+      "end": 19
+    },
+    "gpuGenerationHere": true,
+    "attachedToOriginalVideo": true,
+    "rangeAndPause": true
+  },
+  "firstPilot": {
+    "workflowAccepted": true,
+    "allGroupsReady": false,
+    "qualityCounts": {
+      "ready": 2,
+      "review": 1,
+      "failed": 0
+    },
+    "requests": 2,
+    "standardTier": true,
+    "whisperModel": "small",
+    "whisperDevice": "cpu",
+    "selectedRange": [
+      2,
+      19
+    ],
+    "preparedRange": {
+      "start": 2,
+      "end": 19
+    },
+    "gpuGenerationHere": true,
+    "attachedToOriginalVideo": true,
+    "rangeAndPause": true
+  },
+  "sourceAccuracy": "Manual captions from the previous public download differ from Whisper on two phrases. Workflow/ASR-against-subtitle success does not certify original speech meaning. No source text was silently repaired.",
+  "speechEditorRequests": 1,
+  "finalWav": {
+    "seconds": 5.515,
+    "verification": {
+      "status": "passed",
+      "decimalEvidence": [],
+      "recognizedText": "Pekala, işte burdeyiz, filler den biri. Bu arkadaşların havalı yanı gerçekten ama gerçekten ama gerçekten uzun hortumları olması ve bu çok havalı ve söylenecek hemen hemen her şey bu kadar.",
+      "similarity": 0.8814,
+      "omission_spans": [],
+      "insertion_spans": [],
+      "missing_numbers": [],
+      "added_numbers": [],
+      "percentage_mismatch": false,
+      "semantic_mismatch": false,
+      "spoken_number_mismatch": false,
+      "lost_negation": false,
+      "added_negation": false,
+      "unit_mismatch": false,
+      "repetition": false,
+      "sign_mismatch": false,
+      "missing_names": [],
+      "review": false
+    },
+    "frames": 912000,
+    "sample_rate": 48000,
+    "finite": true,
+    "peak": 0.79437255859375,
+    "clipped_fraction": 0.0,
+    "passed": true
+  },
+  "audioDurationSeconds": 19.0,
+  "voiceElapsedSeconds": 60.38867569999999,
+  "voiceMetrics": {
+    "load_seconds": 15.765999999974156,
+    "reference_seconds": 2.14000000001397,
+    "generation_seconds": 36.812999999994645,
+    "attempts": 1,
+    "retries": 0,
+    "cached_groups": 0,
+    "generated_groups": 1,
+    "steps": 15,
+    "concurrency": 4
+  },
+  "speechEditing": [
+    {
+      "natural": "unchanged"
+    }
+  ],
+  "assistant": {
+    "ok": true,
+    "out": "D:\\Whisper Local\\tmp\\assistant618\\.uiprev\\assistant-flow-state\\1793513499286-32128",
+    "states": 4,
+    "liveProvider": false,
+    "native": true
+  },
+  "film": {
+    "ok": true,
+    "fixture": true,
+    "actualIpc": true,
+    "provider": "none",
+    "reviewReads": 0,
+    "metrics": [
+      {
+        "name": "film-long-title-tr",
+        "width": 1152,
+        "height": 800,
+        "overflow": false,
+        "editors": [
+          {
+            "html": "",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            }
+          }
+        ],
+        "sources": [],
+        "overflows": [],
+        "freshness": "current"
+      },
+      {
+        "name": "film-saved-result-tr",
+        "width": 1152,
+        "height": 800,
+        "overflow": false,
+        "editors": [
+          {
+            "html": "",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            }
+          }
+        ],
+        "sources": [],
+        "overflows": [],
+        "freshness": "current"
+      },
+      {
+        "name": "film-evidence-tr",
+        "width": 1152,
+        "height": 800,
+        "overflow": false,
+        "editors": [
+          {
+            "html": "",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            }
+          }
+        ],
+        "sources": [],
+        "overflows": [],
+        "freshness": "current"
+      },
+      {
+        "name": "film-changed-taste-tr",
+        "width": 1152,
+        "height": 800,
+        "overflow": false,
+        "editors": [
+          {
+            "html": "",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            }
+          }
+        ],
+        "sources": [],
+        "overflows": [],
+        "freshness": "stale"
+      },
+      {
+        "name": "film-reused-sample-tr",
+        "width": 1152,
+        "height": 800,
+        "overflow": false,
+        "editors": [
+          {
+            "html": "<div><p class=\"film-editor-status\" role=\"status\"></p><div class=\"film-editor-body\"><details class=\"mrv-saved-analyses\" open=\"\"><summary>Kayıtlı analizler</summary><p class=\"mtx-muted\">Yorum çekmeden ve yeni analiz istemeden önceki sonuçları okuyabilirsin.</p><details class=\"mtx-history\" open=\"\"><summary>Kayıtlı analiz · 01.11.2026 09:13:53</summary><p class=\"mrv-saved-origin\" data-saved-origin=\"library\">Kütüphanende kaydedildi</p><p class=\"mrv-freshness\" role=\"status\" data-freshness=\"stale\">Önceki bağlam · yapım bilgileri, profilin veya örnek değişti. Güncel karşılaştırma için yeniden analiz et.</p><aside class=\"mrv-assessment\" data-limited=\"true\"><strong>Bu örnekteki kanıt</strong><p>3 farklı yorum · 3 alıntılanan kaynak · 0 tekrar metin</p><p>Küçük örnek: bu görüşlerden genel izleyici ka",
+            "rect": {
+              "x": 59.091670989990234,
+              "y": -1362.916748046875,
+              "width": 688.2166748046875,
+              "height": 1829.8668212890625,
+              "top": -1362.916748046875,
+              "right": 747.3083457946777,
+              "bottom": 466.9500732421875,
+              "left": 59.091670989990234
+            }
+          }
+        ],
+        "sources": [
+          {
+            "parent": "film-editor-body",
+            "rect": {
+              "x": 59.091670989990234,
+              "y": 92.88333892822266,
+              "width": 688.2166748046875,
+              "height": 374.0666809082031,
+              "top": 92.88333892822266,
+              "right": 747.3083457946777,
+              "bottom": 466.9500198364258,
+              "left": 59.091670989990234
+            },
+            "html": "<section class=\"mtx-section mrv-source\" data-sample-ready=\"true\"><h2>Letterboxd yorumları</h2><p class=\"mtx-muted\">Filmi bul, yorum örneğini oku ve zevkinle karşılaştır. AI’ya gidecek yorumları sen se"
+          }
+        ],
+        "overflows": [],
+        "freshness": "stale"
+      },
+      {
+        "name": "film-current-preview-tr",
+        "width": 1152,
+        "height": 800,
+        "overflow": false,
+        "editors": [
+          {
+            "html": "<div><p class=\"film-editor-status\" role=\"status\"></p><div class=\"film-editor-body\"><details class=\"mrv-saved-analyses\" open=\"\"><summary>Kayıtlı analizler</summary><p class=\"mtx-muted\">Yorum çekmeden ve yeni analiz istemeden önceki sonuçları okuyabilirsin.</p><details class=\"mtx-history\" open=\"\"><summary>Kayıtlı analiz · 01.11.2026 09:13:53</summary><p class=\"mrv-saved-origin\" data-saved-origin=\"library\">Kütüphanende kaydedildi</p><p class=\"mrv-freshness\" role=\"status\" data-freshness=\"stale\">Önceki bağlam · yapım bilgileri, profilin veya örnek değişti. Güncel karşılaştırma için yeniden analiz et.</p><aside class=\"mrv-assessment\" data-limited=\"true\"><strong>Bu örnekteki kanıt</strong><p>3 farklı yorum · 3 alıntılanan kaynak · 0 tekrar metin</p><p>Küçük örnek: bu görüşlerden genel izleyici ka",
+            "rect": {
+              "x": 59.091670989990234,
+              "y": -1854.1168212890625,
+              "width": 688.2166748046875,
+              "height": 2545.466796875,
+              "top": -1854.1168212890625,
+              "right": 747.3083457946777,
+              "bottom": 691.3499755859375,
+              "left": 59.091670989990234
+            }
+          }
+        ],
+        "sources": [
+          {
+            "parent": "film-editor-body",
+            "rect": {
+              "x": 59.091670989990234,
+              "y": -398.3166809082031,
+              "width": 688.2166748046875,
+              "height": 374.0666809082031,
+              "top": -398.3166809082031,
+              "right": 747.3083457946777,
+              "bottom": -24.25,
+              "left": 59.091670989990234
+            },
+            "html": "<section class=\"mtx-section mrv-source\" data-sample-ready=\"true\"><h2>Letterboxd yorumları</h2><p class=\"mtx-muted\">Filmi bul, yorum örneğini oku ve zevkinle karşılaştır. AI’ya gidecek yorumları sen se"
+          }
+        ],
+        "overflows": [],
+        "freshness": "stale"
+      },
+      {
+        "name": "film-long-title-en",
+        "width": 600,
+        "height": 666,
+        "overflow": false,
+        "editors": [
+          {
+            "html": "",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            }
+          }
+        ],
+        "sources": [],
+        "overflows": [],
+        "freshness": "current"
+      },
+      {
+        "name": "film-saved-result-en",
+        "width": 600,
+        "height": 666,
+        "overflow": false,
+        "editors": [
+          {
+            "html": "",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            }
+          }
+        ],
+        "sources": [],
+        "overflows": [],
+        "freshness": "current"
+      },
+      {
+        "name": "film-evidence-en",
+        "width": 600,
+        "height": 666,
+        "overflow": false,
+        "editors": [
+          {
+            "html": "",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            }
+          }
+        ],
+        "sources": [],
+        "overflows": [],
+        "freshness": "current"
+      },
+      {
+        "name": "film-changed-taste-en",
+        "width": 600,
+        "height": 666,
+        "overflow": false,
+        "editors": [
+          {
+            "html": "",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            }
+          }
+        ],
+        "sources": [],
+        "overflows": [],
+        "freshness": "stale"
+      },
+      {
+        "name": "film-reused-sample-en",
+        "width": 600,
+        "height": 666,
+        "overflow": false,
+        "editors": [
+          {
+            "html": "<div><p class=\"film-editor-status\" role=\"status\"></p><div class=\"film-editor-body\"><section class=\"mtx-section mrv-source\" data-sample-ready=\"true\"><h2>Letterboxd reviews</h2><p class=\"mtx-muted\">Find this film, read a sample, then compare it with your taste. You choose what reaches AI.</p><section class=\"mrv-job\" aria-live=\"polite\" data-state=\"ready\"><div><strong>Review sample ready</strong><p>3 reviews loaded. This is a selected sample, not a consensus.</p></div></section><section class=\"mrv-loaded-sample\"><div class=\"mrv-sample-overview\"><strong>3 reviews ready to inspect</strong><p class=\"mtx-muted\">0 identified authors · 0 spoiler reviews excluded</p><small class=\"mtx-muted\">The next step lets you choose reviews and see the exact text sent for analysis.</small></div><details class=\"mr",
+            "rect": {
+              "x": 42.88888931274414,
+              "y": 0.0833333358168602,
+              "width": 507.5555725097656,
+              "height": 2040.986083984375,
+              "top": 0.0833333358168602,
+              "right": 550.4444618225098,
+              "bottom": 2041.0694173201919,
+              "left": 42.88888931274414
+            }
+          }
+        ],
+        "sources": [
+          {
+            "parent": "film-editor-body",
+            "rect": {
+              "x": 42.88888931274414,
+              "y": 0.0833333358168602,
+              "width": 507.5555725097656,
+              "height": 394.4791564941406,
+              "top": 0.0833333358168602,
+              "right": 550.4444618225098,
+              "bottom": 394.5624898299575,
+              "left": 42.88888931274414
+            },
+            "html": "<section class=\"mtx-section mrv-source\" data-sample-ready=\"true\"><h2>Letterboxd reviews</h2><p class=\"mtx-muted\">Find this film, read a sample, then compare it with your taste. You choose what reaches"
+          }
+        ],
+        "overflows": [],
+        "freshness": "stale"
+      },
+      {
+        "name": "film-current-preview-en",
+        "width": 600,
+        "height": 666,
+        "overflow": false,
+        "editors": [
+          {
+            "html": "<div><p class=\"film-editor-status\" role=\"status\"></p><div class=\"film-editor-body\"><section class=\"mtx-section mrv-source\" data-sample-ready=\"true\"><h2>Letterboxd reviews</h2><p class=\"mtx-muted\">Find this film, read a sample, then compare it with your taste. You choose what reaches AI.</p><section class=\"mrv-job\" aria-live=\"polite\" data-state=\"ready\"><div><strong>Review sample ready</strong><p>3 reviews loaded. This is a selected sample, not a consensus.</p></div></section><section class=\"mrv-loaded-sample\"><div class=\"mrv-sample-overview\"><strong>3 reviews ready to inspect</strong><p class=\"mtx-muted\">0 identified authors · 0 spoiler reviews excluded</p><small class=\"mtx-muted\">The next step lets you choose reviews and see the exact text sent for analysis.</small></div><details class=\"mr",
+            "rect": {
+              "x": 42.88888931274414,
+              "y": -2064.8056640625,
+              "width": 507.5555725097656,
+              "height": 2780.194580078125,
+              "top": -2064.8056640625,
+              "right": 550.4444618225098,
+              "bottom": 715.388916015625,
+              "left": 42.88888931274414
+            }
+          }
+        ],
+        "sources": [
+          {
+            "parent": "film-editor-body",
+            "rect": {
+              "x": 42.88888931274414,
+              "y": -2064.8056640625,
+              "width": 507.5555725097656,
+              "height": 394.4791564941406,
+              "top": -2064.8056640625,
+              "right": 550.4444618225098,
+              "bottom": -1670.3265075683594,
+              "left": 42.88888931274414
+            },
+            "html": "<section class=\"mtx-section mrv-source\" data-sample-ready=\"true\"><h2>Letterboxd reviews</h2><p class=\"mtx-muted\">Find this film, read a sample, then compare it with your taste. You choose what reaches"
+          }
+        ],
+        "overflows": [],
+        "freshness": "stale"
+      }
+    ]
+  },
+  "browser": {
+    "ok": true,
+    "realApp": true,
+    "realScheduler": true,
+    "provider": "controlled deferred fixture",
+    "localHttp": true,
+    "cases": [
+      "browser settings preserves native paused playhead, manually imported subtitles and attached decoded dub",
+      "Home and application settings preserve playhead, subtitles and attached dub",
+      "first result progresses while Home",
+      "return preserves source and partial progress while next request pending",
+      "completion while Home stays on Home",
+      "same source and completed results on explicit return",
+      "explicit Play resumes original attached WAV at retained video position; return itself does not autoplay",
+      "new page generation discards old attachment and releases owned source mute"
+    ],
+    "identity": {
+      "tab": "tab-mvxfnvve-1",
+      "key": "browser:web:url:762410095de7fe718977e66b",
+      "mediaId": "web:url:762410095de7fe718977e66b",
+      "generation": 1,
+      "url": "http://127.0.0.1:51094/source"
+    },
+    "subtitle": {
+      "path": "D:\\Whisper Local\\tmp\\assistant618\\.uiprev\\browser-continuity826\\1793513553377-33900\\source.srt",
+      "cues": [
+        {
+          "start": 0,
+          "end": 14,
+          "text": "Open the window."
+        },
+        {
+          "start": 14,
+          "end": 29,
+          "text": "Close the door."
+        }
+      ]
+    },
+    "dub": {
+      "url": "file:///D:/Whisper%20Local/tmp/assistant618/.uiprev/browser-continuity826/1793513553377-33900/dub.wav",
+      "name": "dub.wav",
+      "attached": true
+    },
+    "partial": {
+      "results": 1,
+      "state": {
+        "playhead": 0.224755,
+        "total": 3,
+        "completed": 1,
+        "remaining": 2,
+        "completeTrack": true,
+        "paused": false,
+        "queued": [
+          "sentence:three:three:98faa3766963"
+        ],
+        "pending": [
+          "sentence:two:two:a68eeb793d58"
+        ],
+        "failures": [],
+        "results": [
+          {
+            "sentenceId": "sentence:one:one:4b7b5344c69b",
+            "text": "Pencereyi aç.",
+            "cached": false,
+            "cues": [
+              {
+                "cueId": "one",
+                "text": "Pencereyi aç.",
+                "start": 0,
+                "end": 1,
+                "speaker": "",
+                "protected": false
+              }
+            ]
+          }
+        ],
+        "reconcile": {
+          "unchanged": 0,
+          "added": 0,
+          "changed": 0,
+          "removed": 0
+        },
+        "stats": {
+          "providerRequests": 2,
+          "cacheHits": 0,
+          "cacheMisses": 2
+        }
+      },
+      "providerCalls": 2
+    },
+    "completedSubtitle": {
+      "path": "D:\\Whisper Local\\tmp\\assistant618\\.uiprev\\browser-continuity826\\1793513553377-33900\\profile\\browser-assets\\00af8a6c07221bbfe7e2d970\\e218acacde254cd2b6fb0f46d6da2050.srt",
+      "cues": [
+        {
+          "start": 0,
+          "end": 1,
+          "text": "Pencereyi aç."
+        },
+        {
+          "start": 5,
+          "end": 6,
+          "text": "Pencereyi aç."
+        },
+        {
+          "start": 10,
+          "end": 11,
+          "text": "Pencereyi aç."
+        }
+      ]
+    },
+    "providerCalls": 3,
+    "aborted": 0,
+    "limits": "Real native app, local video, IPC and scheduler with controlled provider replies; no live model quality, remote site, transcription backend, account or GPU test."
+  },
+  "dubGeometry": [
+    {
+      "name": "tr-1440-input-flow",
+      "width": 1440,
+      "children": [
+        "dub-card dub-source-card",
+        "dub-card dub-natural-card"
+      ],
+      "height": 373.32293701171875,
+      "source": 169.33334350585938,
+      "production": 189.98959350585938
+    },
+    {
+      "name": "tr-1440-ready",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 hazır0 inceleme0 üretilemedi"
+    },
+    {
+      "name": "tr-1440-saved-voices",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 hazır0 inceleme0 üretilemedi"
+    },
+    {
+      "name": "tr-1440-focus",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 hazır0 inceleme0 üretilemedi"
+    },
+    {
+      "name": "tr-1440-active",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 hazır0 inceleme0 üretilemedi"
+    },
+    {
+      "name": "tr-1440-review",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "1 hazır0 inceleme0 üretilemedi"
+    },
+    {
+      "name": "tr-820-input-flow",
+      "width": 820,
+      "children": [
+        "dub-card dub-source-card",
+        "dub-card dub-natural-card"
+      ],
+      "height": 419.32293701171875,
+      "source": 165.33334350585938,
+      "production": 239.98959350585938
+    },
+    {
+      "name": "tr-820-ready",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 hazır0 inceleme0 üretilemedi"
+    },
+    {
+      "name": "tr-820-focus",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 hazır0 inceleme0 üretilemedi"
+    },
+    {
+      "name": "tr-820-active",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 hazır0 inceleme0 üretilemedi"
+    },
+    {
+      "name": "tr-820-review",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "1 hazır0 inceleme0 üretilemedi"
+    },
+    {
+      "name": "en-640-input-flow",
+      "width": 640,
+      "children": [
+        "dub-card dub-source-card",
+        "dub-card dub-natural-card"
+      ],
+      "height": 438.5208435058594,
+      "source": 165.33334350585938,
+      "production": 259.1875
+    },
+    {
+      "name": "en-640-ready",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 ready0 to review0 failed"
+    },
+    {
+      "name": "en-640-focus",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 ready0 to review0 failed"
+    },
+    {
+      "name": "en-640-active",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 ready0 to review0 failed"
+    },
+    {
+      "name": "en-640-review",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 ready1 to review0 failed"
+    },
+    {
+      "name": "en-640-pronunciation",
+      "overflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true,
+      "activity": "",
+      "summary": "0 ready1 to review0 failed"
+    }
+  ],
+  "tests": {
+    "combinedNode": 130,
+    "i18n": 1,
+    "unchangedPythonGuards": 20,
+    "standaloneBrowserAudio": "passed",
+    "changedJsSyntax": 26
+  },
+  "liveLimits": [
+    "19-second previously downloaded public video; not a 2-3 minute or full-length benchmark",
+    "Synthetic English voice reference, not the users personal clone",
+    "Live Whisper/DeepSeek/VoxCPM2 and local player; browser continuity uses controlled deferred provider",
+    "First pilot clipped source at 2 seconds and used small CPU; second used complete start and large-v3-turbo GPU. Not a controlled A/B model ranking.",
+    "No full suite/start.bat restart/live account/DRM/screen reader/long soak/CI-result claim"
+  ]
+}

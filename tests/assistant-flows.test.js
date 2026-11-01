@@ -19,7 +19,25 @@ test('A failed continuation retry preserves original goal and exact completed jo
 });
 test('Only real same-source single-use receipts resume; duplicate steps and expiry are bounded',()=>{let clock=0;const flows=createFlows({now:()=>clock}),flow=flows.start(7,owner,'Original goal'),r=flows.record(flow,'open_settings',{section:'general'},{status:'completed',note:'Opened'});assert(flows.repeated(flow,'open_settings',{section:'general'}));assert.throws(()=>flows.resume(r.continuationId,8,owner));assert.throws(()=>flows.resume(r.continuationId,7,{...owner,generation:2}));assert.equal(flows.resume(r.continuationId,7,owner).flow.question,'Original goal');assert.throws(()=>flows.resume(r.continuationId,7,owner));const next=flows.record(flow,'open_settings',{section:'ai'},{status:'completed'});clock=600001;assert.throws(()=>flows.resume(next.continuationId,7,owner));});
 test('Accepted jobs wait for the exact ledger ID; another completed job is insufficient',()=>{const jobs=createJobs(),flows=createFlows({getJobs:jobs.snapshot}),flow=flows.start(7,owner,'Goal'),id=jobs.start({});const r=flows.record(flow,'start_whisper',{}, {status:'accepted'},id);const other=jobs.start({});jobs.update(other,{type:'done'});assert.equal(flows.resume(r.continuationId,7,owner).waiting,true);jobs.update(id,{type:'done'});assert.equal(flows.resume(r.continuationId,7,owner).flow.steps[0].status,'completed');});
-test('Failed/stopped jobs, uncorrelated acceptance and failed actions never advance',()=>{for(const type of ['error','cancelled']){const jobs=createJobs(),flows=createFlows({getJobs:jobs.snapshot}),flow=flows.start(7,owner,'Goal'),id=jobs.start({}),r=flows.record(flow,'start_whisper',{}, {status:'accepted'},id);jobs.update(id,{type});assert.throws(()=>flows.resume(r.continuationId,7,owner));}const flows=createFlows(),flow=flows.start(7,owner,'Goal');assert.equal(flows.record(flow,'start',{}, {status:'accepted'}).continuationId,undefined);assert.equal(flows.record(flow,'start',{}, {status:'failed'}).continuationId,undefined);});
+test('Stopped jobs, uncorrelated acceptance and failed actions never advance',()=>{for(const type of ['cancelled']){const jobs=createJobs(),flows=createFlows({getJobs:jobs.snapshot}),flow=flows.start(7,owner,'Goal'),id=jobs.start({}),r=flows.record(flow,'start_whisper',{}, {status:'accepted'},id);jobs.update(id,{type});assert.throws(()=>flows.resume(r.continuationId,7,owner));}const flows=createFlows(),flow=flows.start(7,owner,'Goal');assert.equal(flows.record(flow,'start',{}, {status:'accepted'}).continuationId,undefined);assert.equal(flows.record(flow,'start',{}, {status:'failed'}).continuationId,undefined);});
 test('Continuation evidence strips private keys and bounds large results',()=>{const flows=createFlows(),flow=flows.start(7,owner,'Goal');flows.record(flow,'tool',{analysis:'x'.repeat(12000)},{status:'completed',path:'private',apiKey:'secret',rows:Array(100).fill({text:'x'.repeat(12000)})});const data=flows.evidence(flow);assert.equal(data[0].truncated,true);assert(JSON.stringify(data).length<6000);assert(!JSON.stringify(data).includes('private'));assert(!JSON.stringify(data).includes('secret'));});
 
 test('Flow steps and outstanding continuations stay bounded',()=>{const flows=createFlows(),flow=flows.start(7,owner,'Goal');for(let i=0;i<8;i++){const r=flows.record(flow,'step',{i},{status:'completed'});if(i<7)assert(flows.resume(r.continuationId,7,owner).flow===flow);else{assert.equal(r.continuationState,'limit');assert.equal(r.continuationId,undefined);}}for(let i=0;i<70;i++)flows.record(flows.start(7,owner,'Goal'),'step',{}, {status:'completed'});assert.equal(flows.tokens.size,50);});
+
+
+test('Failed exact stage retains completed steps and permits only the identical reviewed retry',()=>{
+ const jobs=createJobs(),flows=createFlows({getJobs:jobs.snapshot}),flow=flows.start(7,owner,'Translate then dub');
+ const first=flows.record(flow,'use_job_subtitles',{job_id:'translated',role:'translation'},{status:'completed'});
+ flows.resume(first.continuationId,7,owner);
+ const id=jobs.start({}),args={sample:false},r=flows.record(flow,'start_voice_generation',args,{status:'accepted'},id);
+ jobs.update(id,{type:'error'});
+ const attempt=flows.resume(r.continuationId,7,owner,{deferCommit:true});
+ assert.equal(attempt.flow.steps[0].status,'completed');assert.equal(attempt.flow.steps[1].status,'failed');
+ assert.equal(flows.repeated(flow,'start_voice_generation',args),false);
+ assert.equal(flows.retryAllowed(flow,'start_voice_generation',args),true);
+ for(const [name,values] of [['start_whisper',{}],['start_voice_generation',{sample:true}],['use_generated_voice',{output_id:'partial'}]])assert.equal(flows.retryAllowed(flow,name,values),false);
+ assert.equal(flows.evidence(flow)[1].result.job.state,'failed');attempt.settle(false);
+ assert.throws(()=>flows.resume(r.continuationId,7,{...owner,generation:2}),/changed/);
+ flows.resume(r.continuationId,7,owner,{deferCommit:true}).settle(true);
+ assert.throws(()=>flows.resume(r.continuationId,7,owner),/expired/);
+});

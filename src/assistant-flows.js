@@ -9,8 +9,8 @@ function createFlows({now=Date.now,getJobs=()=>({jobs:[]})}={}){
   if(last.status==='accepted'){
    const job=getJobs().jobs.find(j=>j.id===last.jobId);if(!job)throw Error('The exact job cannot be verified. Open Jobs / İlgili iş doğrulanamadı. İşler bölümünü aç.');
    if(['running','cancelling'].includes(job.state))return {waiting:true,flow,text:'This exact job is still running; no next step started / İlgili iş sürüyor; sonraki adım başlamadı.'};
-   if(job.state!=='completed'){tokens.delete(id);throw Error('The previous job failed or stopped. Review its partial result / Önceki iş başarısız veya durduruldu. Kısmi sonucu kontrol et.');}
-   last.status='completed';last.result={...last.result,status:'completed',job:{id:job.id,state:job.state,partial:job.partial,result:job.result||null,counts:job.counts||null},note:'Main job ledger confirms process completion, not complete translation or audio quality. Inspect artifact partial/failed counts before using the result.'};
+   if(!['completed','failed'].includes(job.state)){tokens.delete(id);throw Error('The previous job stopped. Review its partial result / Önceki iş durduruldu. Kısmi sonucu kontrol et.');}
+   last.status=job.state;last.result={...last.result,status:job.state,job:{id:job.id,state:job.state,partial:job.partial,result:job.result||null,counts:job.counts||null},note:job.state==='failed'?'The exact job failed. Only a new approval card for this same stage and arguments may be proposed. Earlier completed stages must not be repeated; partial output must not be used as complete.':'Main job ledger confirms process completion, not complete translation or audio quality. Inspect artifact partial/failed counts before using the result.'};
   }
   if(!deferCommit){tokens.delete(id);flow.count++;return {flow};}
   row.active=true;let settled=false;
@@ -25,7 +25,8 @@ function createFlows({now=Date.now,getJobs=()=>({jobs:[]})}={}){
   if(flow.steps.length>=8)return {continuationState:'limit'};
   clean();if(tokens.size>=50)tokens.delete(tokens.keys().next().value);const id=randomUUID();tokens.set(id,{flow,expires:now()+600000});return {continuationId:id,continuationState:result.status==='accepted'?'waiting':'ready',continuationJobId:jobId};
  }
- function repeated(flow,name,args){return flow.steps.some(step=>signature(step.tool,step.args)===signature(name,args));}
+ function repeated(flow,name,args){return flow.steps.some(step=>step.status!=='failed'&&signature(step.tool,step.args)===signature(name,args));}
+ function retryAllowed(flow,name,args){const last=flow.steps.at(-1);return last?.status!=='failed'||signature(last.tool,last.args)===signature(name,args);}
  function evidence(flow){return flow.steps.map(step=>{
   let truncated=false;
   const trim=(value,depth=0)=>{
@@ -44,6 +45,6 @@ function createFlows({now=Date.now,getJobs=()=>({jobs:[]})}={}){
   return {tool:step.tool,args,status:step.status,jobId:step.jobId,result,truncated};
  });}
 
- return {start,resume,record,repeated,evidence,tokens};
+ return {start,resume,record,repeated,retryAllowed,evidence,tokens};
 }
 module.exports={createFlows};
