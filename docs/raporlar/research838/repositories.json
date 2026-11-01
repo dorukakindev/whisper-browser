@@ -1,0 +1,142 @@
+[
+  {
+    "repo": "rexxars/eventsource-parser",
+    "url": "https://github.com/rexxars/eventsource-parser",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-10-25T21:36:28Z",
+    "head": "f46b5575f72682527ed936763983bdda0e1283f5",
+    "headDate": "2026-10-25T21:36:08Z"
+  },
+  {
+    "repo": "ajv-validator/ajv",
+    "url": "https://github.com/ajv-validator/ajv",
+    "defaultBranch": "master",
+    "archived": false,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-09-06T19:59:32Z",
+    "head": "f177fe323420ccb23e1a79445fd470cbf80aee7c",
+    "headDate": "2026-04-24T13:46:21Z"
+  },
+  {
+    "repo": "statelyai/xstate",
+    "url": "https://github.com/statelyai/xstate",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-10-29T19:21:36Z",
+    "head": "060cd63378b46b32e7559d569ed3ad112ee60084",
+    "headDate": "2026-10-25T09:36:54Z"
+  },
+  {
+    "repo": "langchain-ai/langgraph",
+    "url": "https://github.com/langchain-ai/langgraph",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-11-01T06:12:27Z",
+    "head": "e5c961d7fbe7ca6fdd4c94c84d90511372514d55",
+    "headDate": "2026-10-31T00:26:39Z"
+  },
+  {
+    "repo": "tkarabela/pysubs2",
+    "url": "https://github.com/tkarabela/pysubs2",
+    "defaultBranch": "master",
+    "archived": false,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-10-30T00:22:27Z",
+    "head": "6371ae8bc2f9fed19aeb51a8e09d920e8bb86ce5",
+    "headDate": "2026-10-30T00:22:12Z"
+  },
+  {
+    "repo": "smacke/ffsubsync",
+    "url": "https://github.com/smacke/ffsubsync",
+    "defaultBranch": "master",
+    "archived": false,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-07-24T04:53:31Z",
+    "head": "de310ac6944b8260431a48ee741e7063cec49b0f",
+    "headDate": "2026-07-24T04:50:44Z"
+  },
+  {
+    "repo": "jianfch/stable-ts",
+    "url": "https://github.com/jianfch/stable-ts",
+    "defaultBranch": "main",
+    "archived": true,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-05-30T18:41:03Z",
+    "head": "e312072cc024ae9fceb25b057d7d18524873a02b",
+    "headDate": "2026-05-30T18:41:03Z"
+  },
+  {
+    "repo": "AcademySoftwareFoundation/OpenTimelineIO",
+    "url": "https://github.com/AcademySoftwareFoundation/OpenTimelineIO",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "Apache-2.0",
+    "pushedAt": "2026-10-31T01:15:54Z",
+    "head": "80c5ff30938e4adffe9c94f419b1055856cee9f5",
+    "headDate": "2026-10-30T23:42:18Z"
+  },
+  {
+    "repo": "SubtitleEdit/subtitleedit",
+    "url": "https://github.com/SubtitleEdit/subtitleedit",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-11-01T10:44:29Z",
+    "head": "0590b6e95d08c21e83b3881893b00012974d7af7",
+    "headDate": "2026-11-01T10:16:34Z"
+  },
+  {
+    "repo": "jellyfin/jellyfin",
+    "url": "https://github.com/jellyfin/jellyfin",
+    "defaultBranch": "master",
+    "archived": false,
+    "licenseApi": "GPL-2.0",
+    "pushedAt": "2026-11-01T05:32:43Z",
+    "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+    "headDate": "2026-11-01T05:32:05Z"
+  },
+  {
+    "repo": "mozilla/readability",
+    "url": "https://github.com/mozilla/readability",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "Apache-2.0",
+    "pushedAt": "2026-08-04T00:16:05Z",
+    "head": "ab4027a8b37669745016869a37a504727992b2ba",
+    "headDate": "2026-07-09T11:32:19Z"
+  },
+  {
+    "repo": "katspaugh/wavesurfer.js",
+    "url": "https://github.com/katspaugh/wavesurfer.js",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "BSD-3-Clause",
+    "pushedAt": "2026-10-30T17:12:09Z",
+    "head": "09d2c875983e421303b239cd918da34e76aa853e",
+    "headDate": "2026-10-30T17:05:59Z"
+  },
+  {
+    "repo": "FFmpeg/FFmpeg",
+    "url": "https://github.com/FFmpeg/FFmpeg",
+    "defaultBranch": "master",
+    "archived": false,
+    "licenseApi": "NOASSERTION",
+    "pushedAt": "2026-11-01T05:04:23Z",
+    "head": "e2740a3e0daab338b0ec60de407e444f68f9d119",
+    "headDate": "2026-11-01T05:04:00Z"
+  },
+  {
+    "repo": "kepano/defuddle",
+    "url": "https://github.com/kepano/defuddle",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-10-25T15:58:32Z",
+    "head": "3e8bde9f5f855bc968e95837a750c5968a9fe639",
+    "headDate": "2026-10-25T15:56:33Z"
+  }
+]

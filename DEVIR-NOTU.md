@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-01-1420.md](docs/devir/2026-11-01-1420.md) — R839: AI browser/medya, asistan, Keşfet ve Letterboxd araştırması; R838 korundu
 Güncel çalışma: [docs/devir/2026-11-01-1345.md](docs/devir/2026-11-01-1345.md) — R837: 4 yeni bug +26 ayrı öneri; yalnız rapor
 Güncel çalışma: [docs/devir/2026-11-01-1325.md](docs/devir/2026-11-01-1325.md) — R835: 7 doğrulanmış bug +23 ayrı öneri; yalnız rapor
 Güncel çalışma: [docs/devir/2026-11-01-1327.md](docs/devir/2026-11-01-1327.md) — R836 tasarım raporu; eşzamanlı yerel R835 korundu

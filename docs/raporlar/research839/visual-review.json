@@ -1,0 +1,90 @@
+[
+  {
+    "repo": "aleksilassila/reiverr",
+    "head": "dbdd50dfa8366a0c311b21ba513aabbbc0f28c87",
+    "path": "images/screenshot-1.png",
+    "url": "https://raw.githubusercontent.com/aleksilassila/reiverr/dbdd50dfa8366a0c311b21ba513aabbbc0f28c87/images/screenshot-1.png",
+    "sha256": "a3b49f6c58dde0702ec7ec3b8d6acf60dfbff87136a19f082d1aaeb8bbbcd6e4",
+    "inspection": "Official upstream image visually inspected at readable size. Not a live native UI acceptance test; not copied into product."
+  },
+  {
+    "repo": "aleksilassila/reiverr",
+    "head": "dbdd50dfa8366a0c311b21ba513aabbbc0f28c87",
+    "path": "images/screenshot-2.png",
+    "url": "https://raw.githubusercontent.com/aleksilassila/reiverr/dbdd50dfa8366a0c311b21ba513aabbbc0f28c87/images/screenshot-2.png",
+    "sha256": "e257bd212459ea3808095f6b23edc21fdcb6aecac87308eb3be20582575b12c8",
+    "inspection": "Official upstream image visually inspected at readable size. Not a live native UI acceptance test; not copied into product."
+  },
+  {
+    "repo": "browseros-ai/BrowserOS",
+    "head": "b04405ad9826bde42cd55d2aeab17096a5fb12e3",
+    "path": "docs/images/browserclaw--task-detail.png",
+    "url": "https://raw.githubusercontent.com/browseros-ai/BrowserOS/b04405ad9826bde42cd55d2aeab17096a5fb12e3/docs/images/browserclaw--task-detail.png",
+    "sha256": "45f3fbcd99db14d887524e23aee7b0ac4b2ca5d8d17330cd997f7d302786beb2",
+    "inspection": "Official upstream image visually inspected at readable size. Not a live native UI acceptance test; not copied into product."
+  },
+  {
+    "repo": "browseros-ai/BrowserOS",
+    "head": "b04405ad9826bde42cd55d2aeab17096a5fb12e3",
+    "path": "docs/browseros/features/cowork/cowork-research-example.png",
+    "url": "https://raw.githubusercontent.com/browseros-ai/BrowserOS/b04405ad9826bde42cd55d2aeab17096a5fb12e3/docs/browseros/features/cowork/cowork-research-example.png",
+    "sha256": "f68355ab80d1c164d23c7c4c785326f59320f71b6b40f08999dfeef32afe1d29",
+    "inspection": "Official upstream image visually inspected at readable size. Not a live native UI acceptance test; not copied into product."
+  },
+  {
+    "repo": "ItzCrazyKns/Vane",
+    "head": "348feca3e378fb4157b217724ed508dc707f853f",
+    "path": ".assets/vane-screenshot.png",
+    "url": "https://raw.githubusercontent.com/ItzCrazyKns/Vane/348feca3e378fb4157b217724ed508dc707f853f/.assets/vane-screenshot.png",
+    "sha256": "88d37102dfa70d2c363d329e072fcb9176da3f7f1fdb4f9be1d32cd686239bd4",
+    "inspection": "Official upstream image visually inspected at readable size. Not a live native UI acceptance test; not copied into product."
+  },
+  {
+    "repo": "seerr-team/seerr",
+    "head": "dca1af6af26312ec13ffb4920e5dd948049962ad",
+    "path": "public/preview.jpg",
+    "url": "https://raw.githubusercontent.com/seerr-team/seerr/dca1af6af26312ec13ffb4920e5dd948049962ad/public/preview.jpg",
+    "sha256": "63622574230a5b0461dd57e23ffada3ca3a2c663981c90bc8081cfeaa54fde57",
+    "inspection": "Official upstream image visually inspected at readable size. Not a live native UI acceptance test; not copied into product."
+  },
+  {
+    "repo": "debpalash/Opal",
+    "head": "d56c55e323a83b40ae210bfaca3d5e2da2688ae3",
+    "path": "assets/readme/ai.webp",
+    "url": "https://raw.githubusercontent.com/debpalash/Opal/d56c55e323a83b40ae210bfaca3d5e2da2688ae3/assets/readme/ai.webp",
+    "sha256": "5dfa77e3a41342041650a0e7ba48e0ba7d0ef947931a6beb9a83039ca96bc3ee",
+    "inspection": "Official upstream image visually inspected at readable size. Not a live native UI acceptance test; not copied into product."
+  },
+  {
+    "repo": "debpalash/Opal",
+    "head": "d56c55e323a83b40ae210bfaca3d5e2da2688ae3",
+    "path": "assets/readme/browse.webp",
+    "url": "https://raw.githubusercontent.com/debpalash/Opal/d56c55e323a83b40ae210bfaca3d5e2da2688ae3/assets/readme/browse.webp",
+    "sha256": "93220b20b8408daf3ab055fe83a66c92e4eb5b3f126b5177f6ecac5bedb15541",
+    "inspection": "Official upstream image visually inspected at readable size. Not a live native UI acceptance test; not copied into product."
+  },
+  {
+    "repo": "debpalash/Opal",
+    "head": "d56c55e323a83b40ae210bfaca3d5e2da2688ae3",
+    "path": "assets/readme/player.webp",
+    "url": "https://raw.githubusercontent.com/debpalash/Opal/d56c55e323a83b40ae210bfaca3d5e2da2688ae3/assets/readme/player.webp",
+    "sha256": "892c9b1943ad79b0377f0758f24d0115af9d9fb33320c34fc4239a4ecc76c6f3",
+    "inspection": "Official upstream image visually inspected at readable size. Not a live native UI acceptance test; not copied into product."
+  },
+  {
+    "repo": "doctoroyy/open-filmly",
+    "head": "9d3c95487b242c07df8ed725afb09434d2d52c02",
+    "path": "docs/screenshots/home.png",
+    "url": "https://raw.githubusercontent.com/doctoroyy/open-filmly/9d3c95487b242c07df8ed725afb09434d2d52c02/docs/screenshots/home.png",
+    "sha256": "77a57765eff438894c1bf6ee19a4b924b4620b4f9d139e5474fd86c11eea7f58",
+    "inspection": "Official upstream image visually inspected at readable size. Not a live native UI acceptance test; not copied into product."
+  },
+  {
+    "repo": "doctoroyy/open-filmly",
+    "head": "9d3c95487b242c07df8ed725afb09434d2d52c02",
+    "path": "docs/screenshots/tv-detail.png",
+    "url": "https://raw.githubusercontent.com/doctoroyy/open-filmly/9d3c95487b242c07df8ed725afb09434d2d52c02/docs/screenshots/tv-detail.png",
+    "sha256": "017288b9c99351e40d97a4df94ff63d4df8c302196258be1e29942f142a6676b",
+    "inspection": "Official upstream image visually inspected at readable size. Not a live native UI acceptance test; not copied into product."
+  }
+]

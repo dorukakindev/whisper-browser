@@ -1,0 +1,149 @@
+[
+  {
+    "repo": "browseros-ai/BrowserOS",
+    "url": "https://github.com/browseros-ai/BrowserOS",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "AGPL-3.0",
+    "pushedAt": "2026-11-01T00:47:54Z",
+    "head": "b04405ad9826bde42cd55d2aeab17096a5fb12e3",
+    "headDate": "2026-11-01T00:28:39Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "nanobrowser/nanobrowser",
+    "url": "https://github.com/nanobrowser/nanobrowser",
+    "defaultBranch": "master",
+    "archived": false,
+    "licenseApi": "Apache-2.0",
+    "pushedAt": "2026-10-24T07:28:41Z",
+    "head": "19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458",
+    "headDate": "2026-10-24T07:27:10Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "browserbase/stagehand",
+    "url": "https://github.com/browserbase/stagehand",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-10-30T23:33:45Z",
+    "head": "b7a4b899079f198a0ee78a6dcb62ad02f545cf49",
+    "headDate": "2026-10-30T01:04:01Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "browser-use/browser-use",
+    "url": "https://github.com/browser-use/browser-use",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-10-31T01:18:25Z",
+    "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+    "headDate": "2026-10-30T04:28:48Z",
+    "treeTruncated": false
+  },
+  {
+    "error": "Public source metadata unavailable",
+    "repo": "Nothingman333/Luna-Player"
+  },
+  {
+    "repo": "debpalash/Opal",
+    "url": "https://github.com/debpalash/Opal",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "GPL-3.0",
+    "pushedAt": "2026-11-01T09:18:10Z",
+    "head": "d56c55e323a83b40ae210bfaca3d5e2da2688ae3",
+    "headDate": "2026-11-01T09:18:08Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "jj-tsao/rag-movie-recommender-app",
+    "url": "https://github.com/jj-tsao/rag-movie-recommender-app",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": null,
+    "pushedAt": "2026-09-30T18:25:10Z",
+    "head": "e47b0c9ce7e96dd099cf1fbfae16d988e42e50b6",
+    "headDate": "2026-09-30T18:25:03Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "giuseppe99barchetta/SuggestArr",
+    "url": "https://github.com/giuseppe99barchetta/SuggestArr",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-10-31T08:54:18Z",
+    "head": "f0a9fd7cd5bf6b1e2ca7bf207eadd584ffd93b30",
+    "headDate": "2026-10-31T08:52:17Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "aleksilassila/reiverr",
+    "url": "https://github.com/aleksilassila/reiverr",
+    "defaultBranch": "master",
+    "archived": false,
+    "licenseApi": "AGPL-3.0",
+    "pushedAt": "2026-10-31T22:30:28Z",
+    "head": "dbdd50dfa8366a0c311b21ba513aabbbc0f28c87",
+    "headDate": "2025-02-22T01:58:57Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "seerr-team/seerr",
+    "url": "https://github.com/seerr-team/seerr",
+    "defaultBranch": "develop",
+    "archived": false,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-11-01T04:25:08Z",
+    "head": "dca1af6af26312ec13ffb4920e5dd948049962ad",
+    "headDate": "2026-11-01T04:25:07Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "ItzCrazyKns/Vane",
+    "url": "https://github.com/ItzCrazyKns/Vane",
+    "defaultBranch": "master",
+    "archived": false,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-09-01T14:12:12Z",
+    "head": "348feca3e378fb4157b217724ed508dc707f853f",
+    "headDate": "2026-09-01T14:12:10Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "doctoroyy/open-filmly",
+    "url": "https://github.com/doctoroyy/open-filmly",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": null,
+    "pushedAt": "2026-07-25T06:27:57Z",
+    "head": "9d3c95487b242c07df8ed725afb09434d2d52c02",
+    "headDate": "2026-07-25T06:27:44Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "victorverma3/Letterboxd-Movie-Recommendations",
+    "url": "https://github.com/victorverma3/Letterboxd-Movie-Recommendations",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-02-13T18:15:59Z",
+    "head": "13ab7f17c97142facc3acfa993df9a860b78f726",
+    "headDate": "2026-02-13T18:15:57Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "thatmanspr/letterboxd-taste-matcher",
+    "url": "https://github.com/thatmanspr/letterboxd-taste-matcher",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-05-05T13:28:37Z",
+    "head": "19a9860a47130bf0c93972bb34ce07a5be29a171",
+    "headDate": "2026-05-05T13:28:37Z",
+    "treeTruncated": false
+  }
+]
