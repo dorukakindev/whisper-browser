@@ -1,0 +1,50 @@
+[
+  {
+    "file": "freshrss-01-stream.jpg",
+    "url": "https://demo.freshrss.org/i/",
+    "capturedAt": "2026-11-01T15:27:04+03:00",
+    "sha256": "cf20a7dfd668f32f5a5d2b5ddcb7e72a92b72ca1b854e76f5b64682dd2be7eb0",
+    "buildCommit": "unknown",
+    "scope": "Actual CUA IAB public demo or logged-out onboarding UI; no changes saved/model calls/private user data."
+  },
+  {
+    "file": "freshrss-02-reader.jpg",
+    "url": "https://demo.freshrss.org/i/?a=reader",
+    "capturedAt": "2026-11-01T15:28:01+03:00",
+    "sha256": "8431d3ae22152bb280101996211eb86c0a44f8fb187f82f479823a1e184ac9bb",
+    "buildCommit": "unknown",
+    "scope": "Actual CUA IAB public demo or logged-out onboarding UI; no changes saved/model calls/private user data."
+  },
+  {
+    "file": "folo-01-timeline.jpg",
+    "url": "https://app.folo.is/timeline/articles/all/pending",
+    "capturedAt": "2026-11-01T15:27:28+03:00",
+    "sha256": "6579e360a7a401b36c624ebf8e889a5f4d546086b0b8beb63b87a10de721b174",
+    "buildCommit": "unknown",
+    "scope": "Actual CUA IAB public demo or logged-out onboarding UI; no changes saved/model calls/private user data."
+  },
+  {
+    "file": "folo-02-discover.jpg",
+    "url": "https://app.folo.is/discover",
+    "capturedAt": "2026-11-01T15:27:53+03:00",
+    "sha256": "37e4a8b31ca0c84fa4bfd09c6471e299e93b88c7c8bc2e0601af49ca0f7ece72",
+    "buildCommit": "unknown",
+    "scope": "Actual CUA IAB public demo or logged-out onboarding UI; no changes saved/model calls/private user data."
+  },
+  {
+    "file": "karakeep-01-rss-settings.jpg",
+    "url": "https://try.karakeep.com/settings/feeds",
+    "capturedAt": "2026-11-01T15:28:44+03:00",
+    "sha256": "3c8678745328e620b4f53393edf73a62ec3bd1fc3ad783ac522bc92cf7af2ffc",
+    "buildCommit": "unknown",
+    "scope": "Actual CUA IAB public demo or logged-out onboarding UI; no changes saved/model calls/private user data."
+  },
+  {
+    "file": "karakeep-02-rss-add.jpg",
+    "url": "https://try.karakeep.com/settings/feeds",
+    "capturedAt": "2026-11-01T15:29:36+03:00",
+    "sha256": "019aef64435d4b2b45e991dbe3894e55ae2a5cce663c013263db93d076fe3642",
+    "buildCommit": "unknown",
+    "scope": "Actual CUA IAB public demo or logged-out onboarding UI; no changes saved/model calls/private user data."
+  }
+]

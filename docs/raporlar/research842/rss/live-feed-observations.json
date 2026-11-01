@@ -1,0 +1,26 @@
+[
+  {
+    "name": "criterion-current",
+    "capturedAt": "2026-11-01T15:30:59.1706948+03:00",
+    "httpStatus": 200,
+    "sha256": "502414aa12238ada72ccee2501e094a15c6a9defe8d601c174c27c1e4073be22",
+    "url": "https://www.criterion.com/feeds/current",
+    "bytes": 335641,
+    "contentType": "application/xml; charset=UTF-8",
+    "rootTag": "rss",
+    "entriesInSnapshot": 20,
+    "scope": "Public RSS XML fetched and parsed by Python stdlib; no playback/provider/account acceptance. Body not published."
+  },
+  {
+    "name": "criterion-daily",
+    "capturedAt": "2026-11-01T15:30:59.8539636+03:00",
+    "httpStatus": 200,
+    "sha256": "436ce770af2ce3e6170601182839a0f37d1dc413d2a455177db4f3371f9cc0d1",
+    "url": "https://www.criterion.com/feeds/the-daily",
+    "bytes": 277529,
+    "contentType": "application/xml; charset=UTF-8",
+    "rootTag": "rss",
+    "entriesInSnapshot": 20,
+    "scope": "Public RSS XML fetched and parsed by Python stdlib; no playback/provider/account acceptance. Body not published."
+  }
+]

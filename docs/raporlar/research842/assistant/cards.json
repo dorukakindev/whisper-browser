@@ -1,0 +1,973 @@
+[
+  {
+    "id": "A842-01",
+    "title": "“Bu filmin tarihsel arka planını araştır” sorusunu görünür alt sorulara ayır",
+    "family": "F1 · film araştırması",
+    "classification": "OLD-DEEPENING",
+    "previousIds": [
+      "R839-A06",
+      "R839-A05"
+    ],
+    "repo": "assafelovic/gpt-researcher",
+    "upstreamHead": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "source": {
+      "path": "gpt_researcher/skills/deep_research.py",
+      "symbol": "generate_research_plan",
+      "line": 298,
+      "permalink": "https://github.com/assafelovic/gpt-researcher/blob/3582a6841fe7dc801e2a34e34ee408641aea9bce/gpt_researcher/skills/deep_research.py#L298",
+      "rawSha256": "260fe19e0c6d5b5252b1901cb1c2f0ef9fe2a849a330d9f7eac34b1b1d0c892c",
+      "canonicalSha256": "260fe19e0c6d5b5252b1901cb1c2f0ef9fe2a849a330d9f7eac34b1b1d0c892c"
+    },
+    "observed": "DeepResearchSkill plan sorularını üretir; generate_search_queries her sorguyu researchGoal ile eşler. Böylece sorgunun hangi bilgi ihtiyacına hizmet ettiği metin olarak korunur. Bu bir film uzmanlığı veya kaynak doğruluk garantisi değildir.",
+    "productSynthesis": "Seçili film için “yapım koşulları/yönetmen açıklaması/gerçek olay farkı” planı gösterilir; kullanıcı ilgisiz dalı çıkarabilir. Daha önce önerilen derin modun içi bu sözleşmeyle doldurulur. Metadata özeti tam eser analizi diye sunulmaz; araştırma yalnız seçilen yapımın doğrulanmış kimliğine bağlanır.",
+    "localBaseline": {
+      "key": "web",
+      "path": "src/assistant-browser-research.js",
+      "symbol": "function createResearch",
+      "line": 3,
+      "behavior": "Arama motorlarını sırayla dener,4 URL toplar,ilk 3 sayfanın ilk 6000 karakterini okur. Hedef sorulara ayrılmış araştırma ağacı yok.",
+      "canonicalSha256": "f0665a230607abb82b25ce452c141cacfd52a2f19622270df8623f14285bffc0",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/assistant-browser-research.js#L3"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "M",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/assafelovic/gpt-researcher/blob/3582a6841fe7dc801e2a34e34ee408641aea9bce/LICENSE",
+      "bounds": "Seçilen Python kaynakları; Apache notice ve varsa NOTICE korunur. Arama/LLM servis koşulları ayrı."
+    },
+    "acceptance": "Aynı adlı iki filmin planı karışmaz; kaldırılan alt soru için arama yapılmaz; yanıt her plan maddesinde bulunan/eksik kanıtı ayırır.",
+    "risk": "Renderer CSP korunur; ağ ve dosya erişimi main IPC üzerinden. Seçilmeyen kişisel film/izleme geçmişi sağlayıcıya gönderilmez. Bu tur kurulum, canlı model çağrısı ve Windows UI kabulü yapılmadı.",
+    "supportingSources": [],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "Önceki fikrin bu yeni depodaki gözlenmiş kodla somut derinleştirmesi; yeni fikir sayımına eklenmez."
+  },
+  {
+    "id": "A842-02",
+    "title": "“İki videonun iddiası neden çelişiyor?” araştırmasında yalnız açık kalan soruyu takip et",
+    "family": "F1 · film araştırması",
+    "classification": "NEW",
+    "previousIds": [],
+    "repo": "assafelovic/gpt-researcher",
+    "upstreamHead": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "source": {
+      "path": "gpt_researcher/skills/deep_research.py",
+      "symbol": "process_research_results",
+      "line": 352,
+      "permalink": "https://github.com/assafelovic/gpt-researcher/blob/3582a6841fe7dc801e2a34e34ee408641aea9bce/gpt_researcher/skills/deep_research.py#L352",
+      "rawSha256": "260fe19e0c6d5b5252b1901cb1c2f0ef9fe2a849a330d9f7eac34b1b1d0c892c",
+      "canonicalSha256": "260fe19e0c6d5b5252b1901cb1c2f0ef9fe2a849a330d9f7eac34b1b1d0c892c"
+    },
+    "observed": "process_research_results sonuçtan learnings ve followUpQuestions çıkarır. deep_research bunları önceki researchGoal ile sonraki sorguya taşır; başarısız boş sonuçta alt araştırmaya inmeyi durdurur. Soru ağacı URL gezinme grafından ayrıdır.",
+    "productSynthesis": "Kullanıcının seçtiği iki video veya röportajdaki tarih/isim iddiası için kanıtlı bulgular ve hâlâ açık kalan soru görünür. “Hangi sürümden söz ediyorlar?” dalı açılabilir; aynı aramayı yalnız uzun rapor üretmek için tekrarlamak yerine bilgi boşluğuna yönelir. Çelişkiyi otomatik hakem kararıyla çözmüş sayılmaz.",
+    "localBaseline": {
+      "key": "web",
+      "path": "src/assistant-browser-research.js",
+      "symbol": "function createResearch",
+      "line": 3,
+      "behavior": "Arama motorlarını sırayla dener,4 URL toplar,ilk 3 sayfanın ilk 6000 karakterini okur. Hedef sorulara ayrılmış araştırma ağacı yok.",
+      "canonicalSha256": "f0665a230607abb82b25ce452c141cacfd52a2f19622270df8623f14285bffc0",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/assistant-browser-research.js#L3"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "M",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/assafelovic/gpt-researcher/blob/3582a6841fe7dc801e2a34e34ee408641aea9bce/LICENSE",
+      "bounds": "Seçilen Python kaynakları; Apache notice ve varsa NOTICE korunur. Arama/LLM servis koşulları ayrı."
+    },
+    "acceptance": "Bir kaynak sürüm tarihini açıklarken diğeri açıklamıyorsa sonuç “çelişki kesin çözüldü” demez; takip sorgusu yalnız eksik sürüm bilgisini arar; iki kaynak kimliği korunur.",
+    "risk": "Çok dallı araştırma LLM ve arama maliyetini katlar; kullanıcıya alt soru sayısı/üst sınır gösterilmeli. Kaynak metni talimat olamaz; döngü ve iptal kontrolleri mevcut job hattına bağlanmalı.",
+    "supportingSources": [],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "NEW yalnız R838/R839/R841 yakın kartlarına göre yeni mekanizma farkıdır; bütün tarihsel raporlarda yokluk iddiası değildir."
+  },
+  {
+    "id": "A842-03",
+    "title": "Film araştırmasında her bulguyu onu söyleyen URL ile birlikte tut",
+    "family": "F1 · film araştırması",
+    "classification": "OLD-DEEPENING",
+    "previousIds": [
+      "R839-A05",
+      "R839-F08"
+    ],
+    "repo": "assafelovic/gpt-researcher",
+    "upstreamHead": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "source": {
+      "path": "gpt_researcher/skills/deep_research.py",
+      "symbol": "parse_research_results_response",
+      "line": 149,
+      "permalink": "https://github.com/assafelovic/gpt-researcher/blob/3582a6841fe7dc801e2a34e34ee408641aea9bce/gpt_researcher/skills/deep_research.py#L149",
+      "rawSha256": "260fe19e0c6d5b5252b1901cb1c2f0ef9fe2a849a330d9f7eac34b1b1d0c892c",
+      "canonicalSha256": "260fe19e0c6d5b5252b1901cb1c2f0ef9fe2a849a330d9f7eac34b1b1d0c892c"
+    },
+    "observed": "Parser learnings içindeki insight/learning ve sourceUrl/citation alanlarını okur; alternatif satır biçimlerinden de alıntı URL çıkarır. Eksik URL boş kalabilir. Bu kaynak metninin iddiayı gerçekten desteklediğini doğrulayan entailment motoru değildir.",
+    "productSynthesis": "“Yönetmen bu sahneyi nereden esinlenmiş?” cevabında bulgu→kaynak bağı araştırma boyunca korunur; URL bulunmayan model çıkarımı ayrı işaretlenir. Önceki kaynaklı dosya ve yorum-alıntı zinciri fikri film gerçekleri düzeyinde derinleşir. İddia metni aynı olsa bile farklı kaynak desteklerini tek sözlük anahtarında kaybetmemek bizim veri modelimizde ayrıca çözülür.",
+    "localBaseline": {
+      "key": "citation",
+      "path": "src/assistant-agent-service.js",
+      "symbol": "session.webSources",
+      "line": 119,
+      "behavior": "Web kaynakları W kimliğiyle oturumda birikir,yanıta liste eklenir;kitap alıntıları ayrıca tutulur. Her web iddiasına doğrulanmış kanıt kenarı üretilmiş sayılmaz.",
+      "canonicalSha256": "1dbe8143580f465655b6c3d1d21153bfa824dea1956d538fd79377306afbe639",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/assistant-agent-service.js#L119"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "M",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/assafelovic/gpt-researcher/blob/3582a6841fe7dc801e2a34e34ee408641aea9bce/LICENSE",
+      "bounds": "Seçilen Python kaynakları; Apache notice ve varsa NOTICE korunur. Arama/LLM servis koşulları ayrı."
+    },
+    "acceptance": "Desteksiz yorum “yönetmenin açıklaması” diye görünmez; iki URL aynı bulguyu destekleyebilir; geçersiz veya hiç okunmamış URL alıntıya dönüştürülmez.",
+    "risk": "Renderer CSP korunur; ağ ve dosya erişimi main IPC üzerinden. Seçilmeyen kişisel film/izleme geçmişi sağlayıcıya gönderilmez. Bu tur kurulum, canlı model çağrısı ve Windows UI kabulü yapılmadı.",
+    "supportingSources": [],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "Önceki fikrin bu yeni depodaki gözlenmiş kodla somut derinleştirmesi; yeni fikir sayımına eklenmez."
+  },
+  {
+    "id": "A842-04",
+    "title": "Türkçe/orijinal ad ve çeviri terimleriyle aynı film kaynağını bul",
+    "family": "F2 · kütüphane kanıt araması",
+    "classification": "NEW",
+    "previousIds": [],
+    "repo": "deepset-ai/haystack",
+    "upstreamHead": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+    "source": {
+      "path": "haystack/components/retrievers/multi_query_text_retriever.py",
+      "symbol": "def run_async",
+      "line": 137,
+      "permalink": "https://github.com/deepset-ai/haystack/blob/8e38c633190ee43b80c136b335f8c9d6c79cc5d6/haystack/components/retrievers/multi_query_text_retriever.py#L137",
+      "rawSha256": "c47eee390e37c8802dd5c2b2fc7700a21b5a3b647b8d58ffd6996dfb791bf3d9",
+      "canonicalSha256": "c47eee390e37c8802dd5c2b2fc7700a21b5a3b647b8d58ffd6996dfb791bf3d9"
+    },
+    "observed": "MultiQueryTextRetriever sorguları sınırlı eşzamanlılıkla çalıştırır, dönen belgeleri kimliğine göre tekilleştirir ve puana göre sıralar. Sorgu alternatiflerini kendisi üretmez; film alias doğrulaması bu bileşende yoktur.",
+    "productSynthesis": "“Esaretin Bedeli özgürlük teması” sorusu doğrulanmış originalTitle ile ikinci bir arama yapabilir; İngilizce makale ve Türkçe kişisel not aynı kaynak rafında bulunur. Aliasları katalog kimliğinden alırız; rastgele LLM çevirisiyle yanlış filme genişleme yapılmaz. Bir başarısız varyant kalan sonuçları yok etmez.",
+    "localBaseline": {
+      "key": "library",
+      "path": "src/renderer/assistant-library-actions.js",
+      "symbol": "name==='search_library'",
+      "line": 72,
+      "behavior": "Başlık/orijinal başlık/özet içinde substring ve tür/durum/genre filtreleri;8 sonuç sayfalama. Film bilgisi,kişi,yorum,zevk ve koleksiyon araçları zaten var.",
+      "canonicalSha256": "b156a8e7de63400489c7e4bc24a5547fc5c6db8cd86357600ed2adff1aa4d9f3",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/renderer/assistant-library-actions.js#L72"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "M",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/deepset-ai/haystack/blob/8e38c633190ee43b80c136b335f8c9d6c79cc5d6/LICENSE",
+      "bounds": "Seçilen dosyaların SPDX Apache-2.0 başlığı da gözlendi; model ve üçüncü taraf adapter lisansları bu kapsam değildir."
+    },
+    "acceptance": "Türkçe adla bulunmayan kayıt orijinal adla gelir; aynı pasaj bir kez görünür; remake/yıl farkı korunur; iptal tüm varyantları durdurur.",
+    "risk": "Algoritma Node portuyla CPU düzeyinde ucuzdur; web varyantları dış servise film ilgisini açar ve arama sayısını artırır. Her varyantın amacı/sayısı görünür olmalı; kişisel yorum sorguya kendiliğinden eklenmemeli.",
+    "supportingSources": [],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "NEW yalnız R838/R839/R841 yakın kartlarına göre yeni mekanizma farkıdır; bütün tarihsel raporlarda yokluk iddiası değildir."
+  },
+  {
+    "id": "A842-05",
+    "title": "Hatırladığım ifade ile anlattığım temayı aynı kaynak aramasında birleştir",
+    "family": "F2 · kütüphane kanıt araması",
+    "classification": "NEW",
+    "previousIds": [],
+    "repo": "deepset-ai/haystack",
+    "upstreamHead": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+    "source": {
+      "path": "haystack/utils/misc.py",
+      "symbol": "def _reciprocal_rank_fusion",
+      "line": 175,
+      "permalink": "https://github.com/deepset-ai/haystack/blob/8e38c633190ee43b80c136b335f8c9d6c79cc5d6/haystack/utils/misc.py#L175",
+      "rawSha256": "13bd31760020f72c0f04c36ac7e960f968d49669a0cda0cce4b4c62cb6cdb612",
+      "canonicalSha256": "13bd31760020f72c0f04c36ac7e960f968d49669a0cda0cce4b4c62cb6cdb612"
+    },
+    "observed": "Gerçek _reciprocal_rank_fusion gövdesi farklı sonuç listelerinin sıralarından birleştirilmiş puan üretir; belge kimliğine göre destekleri toplar. DocumentJoiner._rrf bunu çağırır. Bu yöntem embedding üretmez ve tek başına semantik arama sağlamaz.",
+    "productSynthesis": "“İzlediğim filmlerde eve dönme ve aidiyet üzerine notları bul” sorusunda tam sözcük eşleşmesi, varsa semantik pasaj adayları ve başlık eşleşmesi ayrı kanallardan birleşir. Kullanıcı sonuçta “notta tam ifade/tematik benzerlik” desteğini görür. Bu film öneri rankerı değil, seçilen kütüphane metinlerinde kanıt bulma sıralamasıdır.",
+    "localBaseline": {
+      "key": "retrieval",
+      "path": "src/assistant-retrieval.js",
+      "symbol": "function search",
+      "line": 6,
+      "behavior": "Sözcük eşleşmesiyle puanlar; satırın eşleşen bölgesinden en fazla900 karakter çıkarır,en fazla12 sonuç. Embedding/graf/hiyerarşik bölüm araması yok.",
+      "canonicalSha256": "8109beccea82ba2fd98dee49e5ec1088406a04e129839cd849078fa7c0540eac",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/assistant-retrieval.js#L6"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "M",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/deepset-ai/haystack/blob/8e38c633190ee43b80c136b335f8c9d6c79cc5d6/LICENSE",
+      "bounds": "Seçilen dosyaların SPDX Apache-2.0 başlığı da gözlendi; model ve üçüncü taraf adapter lisansları bu kapsam değildir."
+    },
+    "acceptance": "Bir kanalın100puanı diğerinin0.8puanını ölçek farkıyla ezmez; aynı sourceRevision/passage tek sonuçtur; semantik kanal kapalıyken sözcüksel arama sürer.",
+    "risk": "Embedding ancak ayrıca ölçülen opt-in pilotla eklenir; model/indeks Windows dağıtımı ve Türkçe kalite sınırı ayrı. Füzyon portu ağ gerektirmez; rank skoru doğruluk olasılığı gibi gösterilmez.",
+    "supportingSources": [
+      {
+        "path": "haystack/components/joiners/document_joiner.py",
+        "symbol": "def _rrf",
+        "permalink": "https://github.com/deepset-ai/haystack/blob/8e38c633190ee43b80c136b335f8c9d6c79cc5d6/haystack/components/joiners/document_joiner.py",
+        "head": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6"
+      }
+    ],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "NEW yalnız R838/R839/R841 yakın kartlarına göre yeni mekanizma farkıdır; bütün tarihsel raporlarda yokluk iddiası değildir."
+  },
+  {
+    "id": "A842-06",
+    "title": "Röportajdan tek cümle yerine gerektiğinde ilgili bölümün tamamını getir",
+    "family": "F2 · kütüphane kanıt araması",
+    "classification": "NEW",
+    "previousIds": [],
+    "repo": "deepset-ai/haystack",
+    "upstreamHead": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+    "source": {
+      "path": "haystack/components/retrievers/auto_merging_retriever.py",
+      "symbol": "def run(",
+      "line": 117,
+      "permalink": "https://github.com/deepset-ai/haystack/blob/8e38c633190ee43b80c136b335f8c9d6c79cc5d6/haystack/components/retrievers/auto_merging_retriever.py#L117",
+      "rawSha256": "efda751bf02885c9112ee580551c8d901502e15d0c2067cfe8a6f2e463a766d5",
+      "canonicalSha256": "efda751bf02885c9112ee580551c8d901502e15d0c2067cfe8a6f2e463a766d5"
+    },
+    "observed": "AutoMergingRetriever yaprakları parent ID ile toplar; bulunan çocukların tüm çocuklara oranı threshold değerini aşınca parent belgeye çıkar ve hiyerarşide tekrarlayabilir. Threshold eşitliği değil, büyüktür koşulu kullanılır.",
+    "productSynthesis": "Film hakkında dört komşu paragraf isabet ettiğinde asistana kopuk parçalar yerine aynı “çekim süreci” bölümü verilir. Tek ufak eşleşmede bütün röportaj gönderilmez. Kütüphane araştırma kaydında bölüm başlığı ve içerdiği alt pasajlar açılabilir. Kaynak ve bölüm sınırları yeni indeks metadata sözleşmesi gerektirir; upstream bunu mevcut document store üzerinde uygular.",
+    "localBaseline": {
+      "key": "retrieval",
+      "path": "src/assistant-retrieval.js",
+      "symbol": "function search",
+      "line": 6,
+      "behavior": "Sözcük eşleşmesiyle puanlar; satırın eşleşen bölgesinden en fazla900 karakter çıkarır,en fazla12 sonuç. Embedding/graf/hiyerarşik bölüm araması yok.",
+      "canonicalSha256": "8109beccea82ba2fd98dee49e5ec1088406a04e129839cd849078fa7c0540eac",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/assistant-retrieval.js#L6"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "M–L",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/deepset-ai/haystack/blob/8e38c633190ee43b80c136b335f8c9d6c79cc5d6/LICENSE",
+      "bounds": "Seçilen dosyaların SPDX Apache-2.0 başlığı da gözlendi; model ve üçüncü taraf adapter lisansları bu kapsam değildir."
+    },
+    "acceptance": "Aynı makalede farklı bölümler birleşmez; eşik altındaki tek pasaj korunur; parent kayıpsa açık hata/leaf fallback; spoiler sınırını aşan parent verilmez.",
+    "risk": "Renderer CSP korunur; ağ ve dosya erişimi main IPC üzerinden. Seçilmeyen kişisel film/izleme geçmişi sağlayıcıya gönderilmez. Bu tur kurulum, canlı model çağrısı ve Windows UI kabulü yapılmadı.",
+    "supportingSources": [],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "NEW yalnız R838/R839/R841 yakın kartlarına göre yeni mekanizma farkıdır; bütün tarihsel raporlarda yokluk iddiası değildir."
+  },
+  {
+    "id": "A842-07",
+    "title": "“Burada kimden söz ediyor?” sorusunda komşu replikleri zaman sınırıyla getir",
+    "family": "F2 · kütüphane kanıt araması",
+    "classification": "OLD-DEEPENING",
+    "previousIds": [
+      "R839-A08",
+      "B841-19"
+    ],
+    "repo": "deepset-ai/haystack",
+    "upstreamHead": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+    "source": {
+      "path": "haystack/components/retrievers/sentence_window_retriever.py",
+      "symbol": "def _build_filter_conditions",
+      "line": 345,
+      "permalink": "https://github.com/deepset-ai/haystack/blob/8e38c633190ee43b80c136b335f8c9d6c79cc5d6/haystack/components/retrievers/sentence_window_retriever.py#L345",
+      "rawSha256": "26f886da497bd619c8a1a399f59a16f683d621dec600a8aa1e9c109ac61f53aa",
+      "canonicalSha256": "26f886da497bd619c8a1a399f59a16f683d621dec600a8aa1e9c109ac61f53aa"
+    },
+    "observed": "SentenceWindowRetriever source_id ve split_id metadata aralığıyla komşu parçaları alır; pencereleri birleştirir ve overlap metnini tekrar ettirmemeye çalışır. Kodun veri birimi cümle parçalarıdır, video cue/timestamp değildir.",
+    "productSynthesis": "Sahne açıklaması veya zamir sorusunda bulunan repliğin önceki/sonraki iki cue’su açılır. Önceki sahne araması ve ilgili pasaj fikrinin uygulama derinleştirmesidir. Cue zamanına eşleme, kaynak revizyonu ve izlenen noktaya kadarki spoiler filtresi bize aittir. Kullanıcı “eşleşme” ile “bağlam için eklenen” satırları ayırabilir; normal altyazı düzenleyicisine yeni hedef eklenmez.",
+    "localBaseline": {
+      "key": "retrieval",
+      "path": "src/assistant-retrieval.js",
+      "symbol": "function search",
+      "line": 6,
+      "behavior": "Sözcük eşleşmesiyle puanlar; satırın eşleşen bölgesinden en fazla900 karakter çıkarır,en fazla12 sonuç. Embedding/graf/hiyerarşik bölüm araması yok.",
+      "canonicalSha256": "8109beccea82ba2fd98dee49e5ec1088406a04e129839cd849078fa7c0540eac",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/assistant-retrieval.js#L6"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "M",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/deepset-ai/haystack/blob/8e38c633190ee43b80c136b335f8c9d6c79cc5d6/LICENSE",
+      "bounds": "Seçilen dosyaların SPDX Apache-2.0 başlığı da gözlendi; model ve üçüncü taraf adapter lisansları bu kapsam değildir."
+    },
+    "acceptance": "Komşu pencere başka videoya veya bölüm sonrasına geçmez; örtüşen pencereler çift replik üretmez; kaynağa tıklama orijinal video zamanına gider.",
+    "risk": "Renderer CSP korunur; ağ ve dosya erişimi main IPC üzerinden. Seçilmeyen kişisel film/izleme geçmişi sağlayıcıya gönderilmez. Bu tur kurulum, canlı model çağrısı ve Windows UI kabulü yapılmadı.",
+    "supportingSources": [],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "Önceki fikrin bu yeni depodaki gözlenmiş kodla somut derinleştirmesi; yeni fikir sayımına eklenmez."
+  },
+  {
+    "id": "A842-08",
+    "title": "İki filmi karşılaştırırken alıntıları film→kaynak→zaman sırasıyla düzenle",
+    "family": "F2 · kütüphane kanıt araması",
+    "classification": "NEW",
+    "previousIds": [],
+    "repo": "deepset-ai/haystack",
+    "upstreamHead": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+    "source": {
+      "path": "haystack/components/rankers/meta_field_grouping_ranker.py",
+      "symbol": "def run(",
+      "line": 77,
+      "permalink": "https://github.com/deepset-ai/haystack/blob/8e38c633190ee43b80c136b335f8c9d6c79cc5d6/haystack/components/rankers/meta_field_grouping_ranker.py#L77",
+      "rawSha256": "fa3969996bf5a7c47cf8c576f0a25e54ba5659818fef87acf395e2e4bdf0dc03",
+      "canonicalSha256": "fa3969996bf5a7c47cf8c576f0a25e54ba5659818fef87acf395e2e4bdf0dc03"
+    },
+    "observed": "MetaFieldGroupingRanker önce belge kimliğiyle dedup yapar, group_by ve isteğe bağlı subgroup_by ile gruplar; sort_docs_by alanıyla içeriyi sıralar. Çıktı düz listedir; kaynak çeşitliliği veya adil kota algoritması değildir.",
+    "productSynthesis": "“Bu iki film yalnızlığı nasıl anlatıyor?” cevabına seçilmiş pasajlar karışık skor yığını olarak gitmez. Film kimliği altında makale/röportaj, onun altında sayfa veya video zamanı düzeni korunur. Her filmin bölümünü kullanıcı açarak kanıt akışını okuyabilir. Film başına eşit sonuç kotası ve önem sırası ayrıca tasarlanır; gruplama sırf düzen sağlar.",
+    "localBaseline": {
+      "key": "library",
+      "path": "src/renderer/assistant-library-actions.js",
+      "symbol": "name==='search_library'",
+      "line": 72,
+      "behavior": "Başlık/orijinal başlık/özet içinde substring ve tür/durum/genre filtreleri;8 sonuç sayfalama. Film bilgisi,kişi,yorum,zevk ve koleksiyon araçları zaten var.",
+      "canonicalSha256": "b156a8e7de63400489c7e4bc24a5547fc5c6db8cd86357600ed2adff1aa4d9f3",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/renderer/assistant-library-actions.js#L72"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "M",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/deepset-ai/haystack/blob/8e38c633190ee43b80c136b335f8c9d6c79cc5d6/LICENSE",
+      "bounds": "Seçilen dosyaların SPDX Apache-2.0 başlığı da gözlendi; model ve üçüncü taraf adapter lisansları bu kapsam değildir."
+    },
+    "acceptance": "Aynı isimde iki film ID ile ayrı kalır; eksik metadata “bilinmiyor” grubuna gider; sıralanamaz karma tarih tipleri açıklanır; kaynakların doğal replik sırası korunur.",
+    "risk": "Renderer CSP korunur; ağ ve dosya erişimi main IPC üzerinden. Seçilmeyen kişisel film/izleme geçmişi sağlayıcıya gönderilmez. Bu tur kurulum, canlı model çağrısı ve Windows UI kabulü yapılmadı.",
+    "supportingSources": [],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "NEW yalnız R838/R839/R841 yakın kartlarına göre yeni mekanizma farkıdır; bütün tarihsel raporlarda yokluk iddiası değildir."
+  },
+  {
+    "id": "A842-09",
+    "title": "“Kütüphanemdeki göç ve aidiyet temasını hangi kaynaklar bağlıyor?” diye sor",
+    "family": "F3 · kaynaklı medya bilgi grafı",
+    "classification": "NEW",
+    "previousIds": [],
+    "repo": "HKUDS/LightRAG",
+    "upstreamHead": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+    "source": {
+      "path": "lightrag/operate.py",
+      "symbol": "async def _perform_kg_search",
+      "line": 5280,
+      "permalink": "https://github.com/HKUDS/LightRAG/blob/aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a/lightrag/operate.py#L5280",
+      "rawSha256": "176585e3f686574ab98657b666982302ce47d58229baacb529ef601bd6799326",
+      "canonicalSha256": "176585e3f686574ab98657b666982302ce47d58229baacb529ef601bd6799326"
+    },
+    "observed": "_perform_kg_search low-level anahtarlarla entity, high-level anahtarlarla relation arar; local/global/hybrid/mix yollarını ayırır. Mix vektör chunklarını da ekler. Entity/ilişki çıkarımı ve embedding gerektirir; hazır film ontolojisi yoktur.",
+    "productSynthesis": "Film/kişi metadata bağlantısının ötesinde kullanıcının seçtiği eleştiriler, video çözümlemeleri ve notlardan tema ilişkileri bulunur. “Göç→aidiyet→iki filmde farklı sonuç” gibi bağlantı yalnız kaynak pasajlarıyla önerilir. Filmin gerçeği, eleştirmenin yorumu ve kişisel not ayrı ilişki türleri olmalıdır; bütün kütüphanenin gizlice modele çıkarılması önerilmez.",
+    "localBaseline": {
+      "key": "library",
+      "path": "src/renderer/assistant-library-actions.js",
+      "symbol": "name==='search_library'",
+      "line": 72,
+      "behavior": "Başlık/orijinal başlık/özet içinde substring ve tür/durum/genre filtreleri;8 sonuç sayfalama. Film bilgisi,kişi,yorum,zevk ve koleksiyon araçları zaten var.",
+      "canonicalSha256": "b156a8e7de63400489c7e4bc24a5547fc5c6db8cd86357600ed2adff1aa4d9f3",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/renderer/assistant-library-actions.js#L72"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "L",
+    "license": {
+      "name": "MIT",
+      "url": "https://github.com/HKUDS/LightRAG/blob/aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a/LICENSE",
+      "bounds": "İncelenen çekirdek kaynaklar; çıkarım modeli,embedding ağırlıkları ve store bağımlılıklarının koşulları ayrıca incelenir."
+    },
+    "acceptance": "Sadece ortak tür etiketine sahip iki film “aynı tema kanıtı” sayılmaz; her bağa kaynak açılır; çıkarım/alıntı ayrılır; kapsam dışı yapım sonuçta görünmez.",
+    "risk": "MIT algoritma uyarlaması veya opt-in Python sidecar pilotu; tam graph server şart değil. Entity çıkarımı çok sayıda ücretli LLM/embedding çağrısı doğurabilir; indeks önizleme, miktar ve iptal gerekir. Windows GPU/venv mevcut ASR ortamından ayrılmalı.",
+    "supportingSources": [
+      {
+        "path": "lightrag/operate.py",
+        "symbol": "async def _build_query_context",
+        "permalink": "https://github.com/HKUDS/LightRAG/blob/aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a/lightrag/operate.py",
+        "head": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a"
+      }
+    ],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "NEW yalnız R838/R839/R841 yakın kartlarına göre yeni mekanizma farkıdır; bütün tarihsel raporlarda yokluk iddiası değildir."
+  },
+  {
+    "id": "A842-10",
+    "title": "Bir sahneye yakıştırılan etkiyi ilişki zinciri ve dayanak pasajıyla incele",
+    "family": "F3 · kaynaklı medya bilgi grafı",
+    "classification": "NEW",
+    "previousIds": [],
+    "repo": "HKUDS/LightRAG",
+    "upstreamHead": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+    "source": {
+      "path": "lightrag/operate.py",
+      "symbol": "async def _find_most_related_edges_from_entities",
+      "line": 6260,
+      "permalink": "https://github.com/HKUDS/LightRAG/blob/aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a/lightrag/operate.py#L6260",
+      "rawSha256": "176585e3f686574ab98657b666982302ce47d58229baacb529ef601bd6799326",
+      "canonicalSha256": "176585e3f686574ab98657b666982302ce47d58229baacb529ef601bd6799326"
+    },
+    "observed": "Fonksiyon entity graphlarından komşu ilişkileri alır; ilişki verisi degree/rank ve ağırlıkla sıralanabilir. _get_node_data ve _get_edge_data bunları query bağlamına taşır. Graph kenarı tek başına nedensellik veya tarihsel etki kanıtı değildir.",
+    "productSynthesis": "“Bu sahneye neden Alman dışavurumculuğu deniyor?” sorusunda sahne notu→görsel tema→eleştiri kaynağı bağlantıları gösterilir. Kaynak açıkça esinlenme demiyorsa “olası benzerlik” olarak kalır. TMDB ortak ekip listesi olan D841-07’den farklı hedef kaynaklı eleştirel ilişkilerdir; isimleri birleştirmenin otomatik doğru olduğu varsayılmaz. Kullanıcı her adımda hangi yoruma dayandığını görebilir.",
+    "localBaseline": {
+      "key": "retrieval",
+      "path": "src/assistant-retrieval.js",
+      "symbol": "function search",
+      "line": 6,
+      "behavior": "Sözcük eşleşmesiyle puanlar; satırın eşleşen bölgesinden en fazla900 karakter çıkarır,en fazla12 sonuç. Embedding/graf/hiyerarşik bölüm araması yok.",
+      "canonicalSha256": "8109beccea82ba2fd98dee49e5ec1088406a04e129839cd849078fa7c0540eac",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/assistant-retrieval.js#L6"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "L",
+    "license": {
+      "name": "MIT",
+      "url": "https://github.com/HKUDS/LightRAG/blob/aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a/LICENSE",
+      "bounds": "İncelenen çekirdek kaynaklar; çıkarım modeli,embedding ağırlıkları ve store bağımlılıklarının koşulları ayrıca incelenir."
+    },
+    "acceptance": "Bir modelin ürettiği ilişki “yönetmenin itirafı” olamaz; en az bir somut pasaj yoksa etki iddiası kurulmaz; döngüde aynı kaynak tekrar kanıt diye sayılmaz.",
+    "risk": "Bu kaynak graph komşuluğu sağlar; film sahnesi çözümleme/ilişki tipi ve kimlik çözümü ürün sentezidir. Dış metinler güvensiz girdidir; renderer’a yürütülebilir graph HTML taşınmaz. Görselleştirme kendi CSP ile güvenli metin olarak kurulmalı.",
+    "supportingSources": [
+      {
+        "path": "lightrag/operate.py",
+        "symbol": "async def _build_query_context",
+        "permalink": "https://github.com/HKUDS/LightRAG/blob/aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a/lightrag/operate.py",
+        "head": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a"
+      }
+    ],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "NEW yalnız R838/R839/R841 yakın kartlarına göre yeni mekanizma farkıdır; bütün tarihsel raporlarda yokluk iddiası değildir."
+  },
+  {
+    "id": "A842-11",
+    "title": "Yanlış röportajı kaldırınca ona dayanan film bilgisini de geri çek",
+    "family": "F3 · kaynaklı medya bilgi grafı",
+    "classification": "NEW",
+    "previousIds": [],
+    "repo": "HKUDS/LightRAG",
+    "upstreamHead": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+    "source": {
+      "path": "lightrag/lightrag.py",
+      "symbol": "async def adelete_by_doc_id",
+      "line": 6727,
+      "permalink": "https://github.com/HKUDS/LightRAG/blob/aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a/lightrag/lightrag.py#L6727",
+      "rawSha256": "f92e25bf1bf8082dba64f604fe22badaeaa69ef2eaa34d23c5058059be8031d3",
+      "canonicalSha256": "f92e25bf1bf8082dba64f604fe22badaeaa69ef2eaa34d23c5058059be8031d3"
+    },
+    "observed": "adelete_by_doc_id ve yardımcı rollback yolu kaynak chunk sahipliğini inceler. Başka kaynağı kalan entity/relations için yeniden kurma, hiç kaynağı kalmayanlar için silme vardır; chunk ve recovery kayıtlarının silme sırası ayrıca korunur. Yalnız belge listesinden satır silme değildir.",
+    "productSynthesis": "Kullanıcı yanlış filme bağlanan bir incelemeyi araştırma paketinden kaldırırsa “bu yönetmen şu romandan etkilendi” gibi türetilmiş bilgiler hâlâ cevaplarda yaşamaz. Başka bağımsız kaynakla desteklenen ilişki korunur. Böylece kütüphanedeki bilgi grafı kendi kanıt yaşam döngüsüne sahip olur; genel kişisel bellek silme özelliğinin tekrar sayımı değildir.",
+    "localBaseline": {
+      "key": "identity",
+      "path": "src/assistant-source-context.js",
+      "symbol": "function scope",
+      "line": 16,
+      "behavior": "Seçimin kimlik ve excerpt hashleriyle bağlamı sabitler. Kaynak revizyonu kontrolü var;türetilmiş tema grafı deposu yok.",
+      "canonicalSha256": "795e902116a69c2f3fcf612b6e5445f762e3bbab8b5804b13e310c769bdb26ea",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/assistant-source-context.js#L16"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "L",
+    "license": {
+      "name": "MIT",
+      "url": "https://github.com/HKUDS/LightRAG/blob/aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a/LICENSE",
+      "bounds": "İncelenen çekirdek kaynaklar; çıkarım modeli,embedding ağırlıkları ve store bağımlılıklarının koşulları ayrıca incelenir."
+    },
+    "acceptance": "A ve B kaynaklı ilişki A kaldırılınca B ile kalır; yalnızA kaynaklı iddia kaybolur; yarıda kapanan temizleme devam edebilir; orijinal video veya kullanıcı not dosyası silinmez.",
+    "risk": "Doğrudan port büyük store işlem sözleşmesi gerektirir; önce mevcut manifest üstünde bağımsız dependency index daha hafif olabilir. Bu tur hata kurtarma çalıştırılmadı. Silme açık kullanıcı kapsamı ve türetilmiş veriye sınırlı olmalı.",
+    "supportingSources": [
+      {
+        "path": "lightrag/operate.py",
+        "symbol": "async def _build_query_context",
+        "permalink": "https://github.com/HKUDS/LightRAG/blob/aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a/lightrag/operate.py",
+        "head": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a"
+      }
+    ],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "NEW yalnız R838/R839/R841 yakın kartlarına göre yeni mekanizma farkıdır; bütün tarihsel raporlarda yokluk iddiası değildir."
+  },
+  {
+    "id": "A842-12",
+    "title": "Yanıt ürettirmeden “bu film hakkında elinde hangi kanıt var?” diye bak",
+    "family": "F3 · kaynaklı medya bilgi grafı",
+    "classification": "NEW",
+    "previousIds": [],
+    "repo": "HKUDS/LightRAG",
+    "upstreamHead": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+    "source": {
+      "path": "lightrag/base.py",
+      "symbol": "only_need_context",
+      "line": 102,
+      "permalink": "https://github.com/HKUDS/LightRAG/blob/aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a/lightrag/base.py#L102",
+      "rawSha256": "e7f0ec700659071d616b4c81c8711626d512d356d0036ce6f8da8d9a37a19f28",
+      "canonicalSha256": "e7f0ec700659071d616b4c81c8711626d512d356d0036ce6f8da8d9a37a19f28"
+    },
+    "observed": "QueryParam only_need_context ve only_need_prompt bayraklarını tanımlar. _build_query_context arama, truncation, merge, format aşamalarından context ve structured raw_data döndürür; keywords ve processing_info içerir. Retrieval hâlâ embedding/anahtar çıkarım çağrısı yapabilir; tamamen modelsiz mod değildir.",
+    "productSynthesis": "Film bilgi sayfasında önce kanıt görünümü açılır:bilinen kişi/tema bağlantıları, alınan pasajlar, hangi kaynakların elendiği. Kullanıcı zayıf/yanlış eşleşmeyi son sentez çağrısından önce fark eder. Bu genel token bütçesi kartı değil, cevabın dayanağını inceleme yoludur; kaynakta hazır bulunan teknik bağlamı grafit/amber medya paneline dönüştürmek bize aittir.",
+    "localBaseline": {
+      "key": "retrieval",
+      "path": "src/assistant-retrieval.js",
+      "symbol": "function search",
+      "line": 6,
+      "behavior": "Sözcük eşleşmesiyle puanlar; satırın eşleşen bölgesinden en fazla900 karakter çıkarır,en fazla12 sonuç. Embedding/graf/hiyerarşik bölüm araması yok.",
+      "canonicalSha256": "8109beccea82ba2fd98dee49e5ec1088406a04e129839cd849078fa7c0540eac",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/assistant-retrieval.js#L6"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "M–L",
+    "license": {
+      "name": "MIT",
+      "url": "https://github.com/HKUDS/LightRAG/blob/aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a/LICENSE",
+      "bounds": "İncelenen çekirdek kaynaklar; çıkarım modeli,embedding ağırlıkları ve store bağımlılıklarının koşulları ayrıca incelenir."
+    },
+    "acceptance": "Yalnız kanıt görüntüleme son cevap LLM’ini çağırmaz; yine de yapılan embedding/keyword çağrıları açık görünür; hiç pasaj yoksa uydurma film açıklaması gelmez.",
+    "risk": "Bağlam önizlemesi kişisel notu dış modele göndermeden önce yerel gösterilebilir. Upstream full path referanslarını arayüze veya sağlayıcıya ham geçirmek yerine yetkili sourceID gerekir. CSP için kendi güvenli metin rendererı kullanılmalı.",
+    "supportingSources": [
+      {
+        "path": "lightrag/operate.py",
+        "symbol": "async def _build_query_context",
+        "permalink": "https://github.com/HKUDS/LightRAG/blob/aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a/lightrag/operate.py",
+        "head": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a"
+      }
+    ],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "NEW yalnız R838/R839/R841 yakın kartlarına göre yeni mekanizma farkıdır; bütün tarihsel raporlarda yokluk iddiası değildir."
+  },
+  {
+    "id": "A842-13",
+    "title": "Repliği olmayan sahneyi görüntü ve konuşmayı bir arada kullanarak bul",
+    "family": "F4 · video araştırma kanıtı",
+    "classification": "OLD-DEEPENING",
+    "previousIds": [
+      "R839-A08",
+      "R839-A10"
+    ],
+    "repo": "HKUDS/RAG-Anything",
+    "upstreamHead": "2cd2b3329c470ccb53923f8a6d320596b34e56c5",
+    "source": {
+      "path": "raganything/modalprocessors_video.py",
+      "symbol": "def _merge_channels",
+      "line": 440,
+      "permalink": "https://github.com/HKUDS/RAG-Anything/blob/2cd2b3329c470ccb53923f8a6d320596b34e56c5/raganything/modalprocessors_video.py#L440",
+      "rawSha256": "98284a188cade85df01c4dd686f5f219e14f4bcf7f0a08f4acf54aec98fdc2bf",
+      "canonicalSha256": "98284a188cade85df01c4dd686f5f219e14f4bcf7f0a08f4acf54aec98fdc2bf"
+    },
+    "observed": "VideoModalProcessor sahne algılama, keyframe VLM açıklaması ve audio transcription çıktısını zaman aralıklarıyla birleştirir. generate_chunk_sections çoklu pencere üretir. Kare seek yaklaşık olabilir; bu gerçek kare hassasiyetli sahne tanıma garantisi değildir.",
+    "productSynthesis": "“Kırmızı koridorda yürüdüğü ama konuşmadığı sahne” seçilmiş yerel videolarda görsel açıklamayla bulunabilir; sonuçta “görsel betimleme/konuşma” ayrımı ve zaman aralığı gösterilir. R839 sahneyi tarifle bulma ve görsel bağlamın gerçek kaynak derinleştirmesidir. Mevcut transkripsiyon yeniden çalıştırılmamalı; bizim faster-whisper çıktısı adapterla kullanılmalı. Film kimliği veya oyuncu tanıma bu modülden hazır gelmez.",
+    "localBaseline": {
+      "key": "context",
+      "path": "src/renderer/global-assistant.js",
+      "symbol": "sourceDescription",
+      "line": 80,
+      "behavior": "Seçili yapımın metadata/pasajı ile kaynak bağlamını ayırır;bütün eser ekli değildir uyarısı var. Pixel analizi yapılmadığını açıklar.",
+      "canonicalSha256": "d76355b26bcfe20b83831309dce583dd1165b978ae33538711692a28cddb110f",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/renderer/global-assistant.js#L80"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "L",
+    "license": {
+      "name": "MIT",
+      "url": "https://github.com/HKUDS/RAG-Anything/blob/2cd2b3329c470ccb53923f8a6d320596b34e56c5/LICENSE",
+      "bounds": "Seçilen raganything kaynakları; MinerU/model/FFmpeg/OpenCV opsiyonel bileşenlerinin dağıtım hakları otomatik devralınmaz."
+    },
+    "acceptance": "Sessiz sahne sonuç verebilir; modelin görmediği aralık açık kalır; kare zamanı yaklaşık etiketi korunur; altyazı zamanları orijinal videoya hizalanır.",
+    "risk": "Opt-in Python sidecar veya algoritma adapterı; OpenCV/SceneDetect/MoviePy, FFmpeg ve VLM uyumu Windows’ta doğrulanmalı. Karelerin ücretli sağlayıcıya gönderimi ayrı açık seçim ister; DRM/korunan browser videosu kopyalanmış sayılmaz.",
+    "supportingSources": [],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "Önceki fikrin bu yeni depodaki gözlenmiş kodla somut derinleştirmesi; yeni fikir sayımına eklenmez."
+  },
+  {
+    "id": "A842-14",
+    "title": "Sahne taramasının atladığı açılış/kapanış konuşmasını araştırmada kaybetme",
+    "family": "F4 · video araştırma kanıtı",
+    "classification": "NEW",
+    "previousIds": [],
+    "repo": "HKUDS/RAG-Anything",
+    "upstreamHead": "2cd2b3329c470ccb53923f8a6d320596b34e56c5",
+    "source": {
+      "path": "raganything/modalprocessors_video.py",
+      "symbol": "def _add_audio_only_segments",
+      "line": 401,
+      "permalink": "https://github.com/HKUDS/RAG-Anything/blob/2cd2b3329c470ccb53923f8a6d320596b34e56c5/raganything/modalprocessors_video.py#L401",
+      "rawSha256": "98284a188cade85df01c4dd686f5f219e14f4bcf7f0a08f4acf54aec98fdc2bf",
+      "canonicalSha256": "98284a188cade85df01c4dd686f5f219e14f4bcf7f0a08f4acf54aec98fdc2bf"
+    },
+    "observed": "_add_audio_only_segments retained görsel sahnelerle örtüşmeyen ASR segmentlerini audio-only satırlara ekler; örtüşenler iki kez eklenmez. Sahne dizisindeki boşluklar ile konuşma aralıkları karşılaştırılır. Video analiz hattında somut tamamlayıcı mekanizmadır.",
+    "productSynthesis": "Film sonundaki yönetmen söyleşisi veya görselde değişim olmayan giriş açıklaması sahne seçicisi tarafından atlandığında kullanıcı “bu videoda söylenmedi” cevabı almaz. Sonuçta görüntü kanıtı bulunmayan ama ses kaynağı olan satır açık görünür. Bu tek başına ayrı video ürünü değil, F4 ailesinin eksik konuşmayı koruyan seçilebilir parçasıdır; upstream’deki kaynak hata fallback metni başarılı transkripsiyon sayılmaz.",
+    "localBaseline": {
+      "key": "context",
+      "path": "src/renderer/global-assistant.js",
+      "symbol": "sourceDescription",
+      "line": 80,
+      "behavior": "Seçili yapımın metadata/pasajı ile kaynak bağlamını ayırır;bütün eser ekli değildir uyarısı var. Pixel analizi yapılmadığını açıklar.",
+      "canonicalSha256": "d76355b26bcfe20b83831309dce583dd1165b978ae33538711692a28cddb110f",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/renderer/global-assistant.js#L80"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "M",
+    "license": {
+      "name": "MIT",
+      "url": "https://github.com/HKUDS/RAG-Anything/blob/2cd2b3329c470ccb53923f8a6d320596b34e56c5/LICENSE",
+      "bounds": "Seçilen raganything kaynakları; MinerU/model/FFmpeg/OpenCV opsiyonel bileşenlerinin dağıtım hakları otomatik devralınmaz."
+    },
+    "acceptance": "İlk sahneden önce ve son sahneden sonra konuşma aranabilir; aynı ASR satırı çift kanıt olmaz; ses yoksa görüntü açıklamasına konuşma uydurulmaz; kaynak zamanı korunur.",
+    "risk": "Mevcut ASR segmentleriyle yerel hesap yeterlidir; yeni ücretli VLM çağrısı şart değildir. Windows yol/loglarda kişisel video adı maskelenmeli. Ürün mevcut görüntü analizi yok uyarısını yalnız gerçekten indekslenen aralıklarda değiştirebilir.",
+    "supportingSources": [],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "NEW yalnız R838/R839/R841 yakın kartlarına göre yeni mekanizma farkıdır; bütün tarihsel raporlarda yokluk iddiası değildir."
+  },
+  {
+    "id": "A842-15",
+    "title": "Basın dosyasındaki fotoğrafı başlığı ve çevresindeki açıklamayla araştır",
+    "family": "F5 · film yan kaynakları",
+    "classification": "NEW",
+    "previousIds": [],
+    "repo": "HKUDS/RAG-Anything",
+    "upstreamHead": "2cd2b3329c470ccb53923f8a6d320596b34e56c5",
+    "source": {
+      "path": "raganything/modalprocessors.py",
+      "symbol": "def _extract_page_context",
+      "line": 154,
+      "permalink": "https://github.com/HKUDS/RAG-Anything/blob/2cd2b3329c470ccb53923f8a6d320596b34e56c5/raganything/modalprocessors.py#L154",
+      "rawSha256": "e3df47cfbb7acfbf51988201ed6de748c894cd4690de273453c2266a05bd843c",
+      "canonicalSha256": "e3df47cfbb7acfbf51988201ed6de748c894cd4690de273453c2266a05bd843c"
+    },
+    "observed": "ContextExtractor page/chunk penceresiyle çevre metni toplar; ImageModalProcessor caption/footnote ve bağlamı VLM açıklamasına ekleyebilir. Filtrelenen içerik türleri ve context_window sınırı vardır. PDF/presskit özel film tanıma motoru değildir.",
+    "productSynthesis": "Kullanıcı seçili filmin basın PDF’ini eklediğinde “bu kostüm hangi döneme dayanıyor?” sorusunda görsel tek başına tahmin edilmez; sayfa başlığı, tasarımcı açıklaması ve altyazısı beraber kullanılır. Kaynak sayfası gösterilir, üretilmiş görsel betimleme alıntı metniyle karışmaz. Mevcut kitap/PDF araçları korunarak film araştırmasının yan kaynak katmanı oluşur; altyazı editörüne hedef eklenmez.",
+    "localBaseline": {
+      "key": "context",
+      "path": "src/renderer/global-assistant.js",
+      "symbol": "sourceDescription",
+      "line": 80,
+      "behavior": "Seçili yapımın metadata/pasajı ile kaynak bağlamını ayırır;bütün eser ekli değildir uyarısı var. Pixel analizi yapılmadığını açıklar.",
+      "canonicalSha256": "d76355b26bcfe20b83831309dce583dd1165b978ae33538711692a28cddb110f",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/renderer/global-assistant.js#L80"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "L",
+    "license": {
+      "name": "MIT",
+      "url": "https://github.com/HKUDS/RAG-Anything/blob/2cd2b3329c470ccb53923f8a6d320596b34e56c5/LICENSE",
+      "bounds": "Seçilen raganything kaynakları; MinerU/model/FFmpeg/OpenCV opsiyonel bileşenlerinin dağıtım hakları otomatik devralınmaz."
+    },
+    "acceptance": "Bir sonraki filmin sayfasındaki caption komşuluk nedeniyle bağlanmaz; görselin kendisinde olmayan dönem metinden geldiyse belirtilir; sayfaya geri dönüş çalışır.",
+    "risk": "MIT seçilmiş adapter veya sidecar; MinerU ve opsiyonel parser/model lisansları ayrıca incelenmeli. Kişisel PDF tamamı otomatik VLM’ye gitmez. Dosya yolu ve görseller renderer’dan doğrudan okunmaz; main yetkili ID verir.",
+    "supportingSources": [],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "NEW yalnız R838/R839/R841 yakın kartlarına göre yeni mekanizma farkıdır; bütün tarihsel raporlarda yokluk iddiası değildir."
+  },
+  {
+    "id": "A842-16",
+    "title": "Elimdeki afiş/kareyle ilgili kayıtlı eleştirileri bul",
+    "family": "F5 · film yan kaynakları",
+    "classification": "OLD-DEEPENING",
+    "previousIds": [
+      "R839-A10"
+    ],
+    "repo": "HKUDS/RAG-Anything",
+    "upstreamHead": "2cd2b3329c470ccb53923f8a6d320596b34e56c5",
+    "source": {
+      "path": "raganything/query.py",
+      "symbol": "async def _process_multimodal_query_content",
+      "line": 478,
+      "permalink": "https://github.com/HKUDS/RAG-Anything/blob/2cd2b3329c470ccb53923f8a6d320596b34e56c5/raganything/query.py#L478",
+      "rawSha256": "556de2e13496bfed735d8b48fcabbd518a7f65417fdcdfb4bc745fdf86d75cae",
+      "canonicalSha256": "556de2e13496bfed735d8b48fcabbd518a7f65417fdcdfb4bc745fdf86d75cae"
+    },
+    "observed": "QueryMixin görsel dahil multimodal içeriği açıklamaya çevirerek sorgu metnine ekler. _describe_image_for_query yerel görüntüyü base64 VLM çağrısına gönderir; yoksa caption/footnote fallback kullanır. Bu CLIP görsel benzerlik indeksi değildir.",
+    "productSynthesis": "Kullanıcı bir afişi veya seçtiği kareyi “bu motif üzerine kaydettiğim yazılar var mı?” sorusuna ekler. Yanıt görseldeki nesne/renk betimlemesini metin kaynaklarıyla ilişkilendirir; aynı filmi veya kişiyi tanıdığı iddia edilmez. R839 görsel bağlam önerisinin somut sorgu genişletme dalıdır, ayrı yeni görüntü ürünü diye sayılmaz. Arama kapsamı seçilen kütüphane paketidir.",
+    "localBaseline": {
+      "key": "context",
+      "path": "src/renderer/global-assistant.js",
+      "symbol": "sourceDescription",
+      "line": 80,
+      "behavior": "Seçili yapımın metadata/pasajı ile kaynak bağlamını ayırır;bütün eser ekli değildir uyarısı var. Pixel analizi yapılmadığını açıklar.",
+      "canonicalSha256": "d76355b26bcfe20b83831309dce583dd1165b978ae33538711692a28cddb110f",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/renderer/global-assistant.js#L80"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "M",
+    "license": {
+      "name": "MIT",
+      "url": "https://github.com/HKUDS/RAG-Anything/blob/2cd2b3329c470ccb53923f8a6d320596b34e56c5/LICENSE",
+      "bounds": "Seçilen raganything kaynakları; MinerU/model/FFmpeg/OpenCV opsiyonel bileşenlerinin dağıtım hakları otomatik devralınmaz."
+    },
+    "acceptance": "Belirsiz kare başka filmle kesin eşleşmez; VLM çalışmadıysa fallback nedeni görünür; görsel açıklaması arama metni olarak gösterilir; kullanıcı sorgudan çıkarabilir.",
+    "risk": "Gönderilecek kare ve sağlayıcı açık seçilmeli; görsel başına token/maliyet olabilir. Windows görsel yolu yetkili ID ile çözülür; raw file path prompt’a girmez. Görüntüye gömülü talimatlar kaynak içeriğidir.",
+    "supportingSources": [],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "Önceki fikrin bu yeni depodaki gözlenmiş kodla somut derinleştirmesi; yeni fikir sayımına eklenmez."
+  },
+  {
+    "id": "A842-17",
+    "title": "Filmin ilk gösterim dönemindeki kaynakları bugünkü güncellenmiş yazılardan ayır",
+    "family": "F6 · tarihli medya bilgisi",
+    "classification": "NEW",
+    "previousIds": [],
+    "repo": "onyx-dot-app/onyx",
+    "upstreamHead": "3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48",
+    "source": {
+      "path": "backend/onyx/context/search/models.py",
+      "symbol": "class TimeRange",
+      "line": 75,
+      "permalink": "https://github.com/onyx-dot-app/onyx/blob/3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48/backend/onyx/context/search/models.py#L75",
+      "rawSha256": "6b19726ecab84dbb5804b3edf52563a6f4c63b835968e93611bc73db777483bd",
+      "canonicalSha256": "6b19726ecab84dbb5804b3edf52563a6f4c63b835968e93611bc73db777483bd"
+    },
+    "observed": "BaseFilters created_at_range ve updated_at_range alanlarını ayrı taşır; TimeRange inclusive aralıkları kesiştirir ve start>end durumunu boş olarak tanır. Model naive tarihi UTC sayar. Kaynak yayın tarihini otomatik çıkardığı anlamına gelmez.",
+    "productSynthesis": "“Film çıktığında eleştiriler ne diyordu?” sorusunda 2012’de yayımlanıp 2025’te güncellenmiş yazı iki tarihiyle görünür. Bugün kaydedilmiş olması ilk gösterim dönemine ait olmadığını göstermez. Yayın/güncelleme tarihi güvenle bulunamadıysa “tarihi bilinmiyor” seçeneği olur. Bu kaynak güncelliği B841-22’ye komşudur ama amaç geçmiş dönem bilgi kesitidir; yaş filtresiyle tarihsel iddia kurulmaz.",
+    "localBaseline": {
+      "key": "web",
+      "path": "src/assistant-browser-research.js",
+      "symbol": "function createResearch",
+      "line": 3,
+      "behavior": "Arama motorlarını sırayla dener,4 URL toplar,ilk 3 sayfanın ilk 6000 karakterini okur. Hedef sorulara ayrılmış araştırma ağacı yok.",
+      "canonicalSha256": "f0665a230607abb82b25ce452c141cacfd52a2f19622270df8623f14285bffc0",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/assistant-browser-research.js#L3"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "M",
+    "license": {
+      "name": "MIT (non-ee)",
+      "url": "https://github.com/onyx-dot-app/onyx/blob/3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48/LICENSE",
+      "bounds": "Yalnız backend/onyx/context/search altındaki incelenen non-ee kod. backend/ee/LICENSE üretimde abonelik/lisans koşulu içerir; enterprise kod aktarımı önerilmez."
+    },
+    "acceptance": "Yayın tarihi 2012, güncelleme 2025 olan yazı istenen yayın kesitine girer; kayıt tarihi 2026 diye dışlanmaz; çelişen tarih aralıkları tüm web’e genişlemez.",
+    "risk": "Non-ee MIT sözleşme portu; Onyx enterprise backend taşınmaz. Europe/Istanbul ve UTC sınırları açık dönüştürülmeli. Kaynak tarih metadata’sı çıkarım ise etiketlenmeli; tam kaynak güvenilirlik ölçümü yapılmış sayılmaz.",
+    "supportingSources": [],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "NEW yalnız R838/R839/R841 yakın kartlarına göre yeni mekanizma farkıdır; bütün tarihsel raporlarda yokluk iddiası değildir."
+  },
+  {
+    "id": "A842-18",
+    "title": "“Yapım aşamalarını sırayla anlat” cevabında yazı tarihi ile anlattığı olayı ayır",
+    "family": "F6 · tarihli medya bilgisi",
+    "classification": "NEW",
+    "previousIds": [],
+    "repo": "memvid/memvid",
+    "upstreamHead": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813",
+    "source": {
+      "path": "src/memvid/timeline.rs",
+      "symbol": "fn build_timeline_temporal_metadata",
+      "line": 148,
+      "permalink": "https://github.com/memvid/memvid/blob/e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813/src/memvid/timeline.rs#L148",
+      "rawSha256": "1a278d571e9fdd908c2971287628c3857b6b495b886da19bdcbfbb57d5e0353a",
+      "canonicalSha256": "1a278d571e9fdd908c2971287628c3857b6b495b886da19bdcbfbb57d5e0353a"
+    },
+    "observed": "Timeline metadata anchor ile mentions ayrımını taşır; mention kaydı orijinal text ve tarih içerir. Search time_filter önce temporal mentions/anchors, sonra mevcut zaman index fallback yollarını kullanır. Memvid frame burada kayıt birimidir, video karesi değildir.",
+    "productSynthesis": "2025 tarihli röportajın 2010 çekim anısını doğru yere yerleştirmek için olay tarihi, belge tarihi ve alınma zamanı ayrı saklanır. Film yapım kronolojisi kaynak cümlesine geri döner; belirsiz olaylar keskin gün uydurmak yerine aralıkla gösterilir. Hazır film kronolojisi upstream’de yoktur; tarihli kayıt modelini mevcut film ID/araştırma manifestiyle birleştirmek bize aittir.",
+    "localBaseline": {
+      "key": "citation",
+      "path": "src/assistant-agent-service.js",
+      "symbol": "session.webSources",
+      "line": 119,
+      "behavior": "Web kaynakları W kimliğiyle oturumda birikir,yanıta liste eklenir;kitap alıntıları ayrıca tutulur. Her web iddiasına doğrulanmış kanıt kenarı üretilmiş sayılmaz.",
+      "canonicalSha256": "1dbe8143580f465655b6c3d1d21153bfa824dea1956d538fd79377306afbe639",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/assistant-agent-service.js#L119"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "L",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/memvid/memvid/blob/e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813/LICENSE",
+      "bounds": "İncelenen Rust kaynakları ve Cargo.toml; core2.0.140,Rust1.85/edition2024. Native/model özellikleri ayrıca değerlendirilmeli."
+    },
+    "acceptance": "Yeni yüklenen eski anı kronolojinin 2026 sonuna düşmez; yalnız belge tarihi biliniyorsa olay tarihi diye kullanılamaz; her satır kaynak cümlesini gösterir.",
+    "risk": "Apache küçük temporal DTO/algoritma portu önce; Rust sidecar ancak değer ölçülürse. Memvid feature flags ve Rust native bağımlılıkları Windows’ta denenmedi. Web kaynağındaki kişisel/veri içeren ayrıntılar yalnız seçilen kapsamda kalmalı.",
+    "supportingSources": [
+      {
+        "path": "src/memvid/search/time_filter.rs",
+        "symbol": "frame_ids_for_temporal_filter",
+        "permalink": "https://github.com/memvid/memvid/blob/e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813/src/memvid/search/time_filter.rs",
+        "head": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813"
+      }
+    ],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "NEW yalnız R838/R839/R841 yakın kartlarına göre yeni mekanizma farkıdır; bütün tarihsel raporlarda yokluk iddiası değildir."
+  },
+  {
+    "id": "A842-19",
+    "title": "Eski röportajdaki “geçen yıl” ifadesini bugüne göre yorumlama",
+    "family": "F6 · tarihli medya bilgisi",
+    "classification": "NEW",
+    "previousIds": [],
+    "repo": "memvid/memvid",
+    "upstreamHead": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813",
+    "source": {
+      "path": "src/analysis/temporal_enrich.rs",
+      "symbol": "pub fn enrich_chunk",
+      "line": 656,
+      "permalink": "https://github.com/memvid/memvid/blob/e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813/src/analysis/temporal_enrich.rs#L656",
+      "rawSha256": "29da36ebc59b6b03adc74e8f690ae0afbad1071559607de28d3d97b4a7208dd4",
+      "canonicalSha256": "29da36ebc59b6b03adc74e8f690ae0afbad1071559607de28d3d97b4a7208dd4"
+    },
+    "observed": "TemporalAnchorTracker document metadata, explicit header, inline date veya inherited kaynaktan anchor tutar. enrich_chunk relative phrase konumu ve çözümünü üretir; İngilizce regex/phrase kuralları gözlendi. Film dilindeki her tarihi anlayan çok dilli parser değildir.",
+    "productSynthesis": "2018 röportajındaki “last year” 2017 olarak,2022 röportajındaki aynı söz 2021 olarak araştırma notuna eklenebilir; orijinal alıntı değiştirilmez. Kullanıcı varsayılan tarihi ve kaynağını görebilir. Türkçe “geçen yıl” desteği bağımsız kurallar ve yanlış anchor değerlendirmesi gerektirir. Aynı belge içindeki tarih başlığı değişince sonraki sözlerin bağlamı da değişmelidir; kullanıcı görmeden kesin üretim kronolojisi kurulmaz.",
+    "localBaseline": {
+      "key": "citation",
+      "path": "src/assistant-agent-service.js",
+      "symbol": "session.webSources",
+      "line": 119,
+      "behavior": "Web kaynakları W kimliğiyle oturumda birikir,yanıta liste eklenir;kitap alıntıları ayrıca tutulur. Her web iddiasına doğrulanmış kanıt kenarı üretilmiş sayılmaz.",
+      "canonicalSha256": "1dbe8143580f465655b6c3d1d21153bfa824dea1956d538fd79377306afbe639",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/assistant-agent-service.js#L119"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "M",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/memvid/memvid/blob/e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813/LICENSE",
+      "bounds": "İncelenen Rust kaynakları ve Cargo.toml; core2.0.140,Rust1.85/edition2024. Native/model özellikleri ayrıca değerlendirilmeli."
+    },
+    "acceptance": "İki tarihli bölüm birbirinden anchor devralmaz; tarih belirsizse çözüm bilinmiyor kalır; orijinal cümle ve offset korunur; Türkçe destek yokken varmış gibi sunulmaz.",
+    "risk": "Yerel port ücretli çağrı gerektirmez. Kaynak tarihi güvenilmez olabilir; dosyanın indirme zamanı anchor yapılmamalı. Yanlış tarih çekim/ödül bilgisi gibi gerçek kabul edilmeden kullanıcı incelemesine açık kalmalı.",
+    "supportingSources": [],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "NEW yalnız R838/R839/R841 yakın kartlarına göre yeni mekanizma farkıdır; bütün tarihsel raporlarda yokluk iddiası değildir."
+  },
+  {
+    "id": "A842-20",
+    "title": "“Geçen sonbahar gördüğüm film yazısı” sorgusunda tarih yorumunu göster",
+    "family": "F6 · tarihli medya bilgisi",
+    "classification": "NEW",
+    "previousIds": [],
+    "repo": "memvid/memvid",
+    "upstreamHead": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813",
+    "source": {
+      "path": "src/analysis/temporal.rs",
+      "symbol": "pub fn resolve(",
+      "line": 92,
+      "permalink": "https://github.com/memvid/memvid/blob/e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813/src/analysis/temporal.rs#L92",
+      "rawSha256": "dd072a20ec45c350377f6dac639308e1aa14639e7b49f200b26958a3e004f4b0",
+      "canonicalSha256": "dd072a20ec45c350377f6dac639308e1aa14639e7b49f200b26958a3e004f4b0"
+    },
+    "observed": "TemporalNormalizer bağlam anchor/timezone/week_start taşır; çözüm Date, DateRange, DateTime veya Month olabilir. Ambiguous/Relative bayrakları ve sayısal confidence var. Örnek İngilizce sabitler ve numeric date belirsizliği mevcut; confidence kalibre başarı oranı değildir.",
+    "productSynthesis": "Kütüphane kaynak aramasında “geçen ay kaydettiğim yönetmen yazıları” tarih çipine dönüşür. Kullanıcı kayıt zamanı mı yayım zamanı mı arandığını seçer;“03/04” belirsizliğinde gizli Amerikan tarih varsayımıyla filtrelenmez. Bu genel takvim özelliği değil, kendi medya araştırma kaydını tekrar bulma yoludur. Önceki alanlı arama fikrine doğal dil tarih yorumunu görünür ekler; hazır Türkçe NLP olarak sunulmaz.",
+    "localBaseline": {
+      "key": "library",
+      "path": "src/renderer/assistant-library-actions.js",
+      "symbol": "name==='search_library'",
+      "line": 72,
+      "behavior": "Başlık/orijinal başlık/özet içinde substring ve tür/durum/genre filtreleri;8 sonuç sayfalama. Film bilgisi,kişi,yorum,zevk ve koleksiyon araçları zaten var.",
+      "canonicalSha256": "b156a8e7de63400489c7e4bc24a5547fc5c6db8cd86357600ed2adff1aa4d9f3",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/renderer/assistant-library-actions.js#L72"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "M",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/memvid/memvid/blob/e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813/LICENSE",
+      "bounds": "İncelenen Rust kaynakları ve Cargo.toml; core2.0.140,Rust1.85/edition2024. Native/model özellikleri ayrıca değerlendirilmeli."
+    },
+    "acceptance": "TR ve EN tarihleri açık ISO aralığına çevrilir; belirsizlik sorulur veya çip düzenlenir; boş kesişim tüm sonuçları döndürmez; yerel saat gece sınırında kaymaz.",
+    "risk": "Algoritma referansı ve Türkçe bağımsız parser; doğrudan Rust dependency zorunlu değil. UTC/Istanbul/DST geçmişi ve İngilizce kural kapsamı ayrı doğrulanmalı. Kullanıcı sorgusunu dış modele göndermeden yerelde çözülebilir.",
+    "supportingSources": [],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "NEW yalnız R838/R839/R841 yakın kartlarına göre yeni mekanizma farkıdır; bütün tarihsel raporlarda yokluk iddiası değildir."
+  },
+  {
+    "id": "A842-21",
+    "title": "“Yalnız şu üç filmin eklediğim kaynaklarını kullan” sınırını bütün arama dallarında koru",
+    "family": "F2 · kütüphane kanıt araması",
+    "classification": "OLD-DEEPENING",
+    "previousIds": [
+      "A841-24",
+      "B841-16"
+    ],
+    "repo": "onyx-dot-app/onyx",
+    "upstreamHead": "3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48",
+    "source": {
+      "path": "backend/onyx/context/search/retrieval/search_runner.py",
+      "symbol": "def search_chunks",
+      "line": 89,
+      "permalink": "https://github.com/onyx-dot-app/onyx/blob/3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48/backend/onyx/context/search/retrieval/search_runner.py#L89",
+      "rawSha256": "cea8bd614c06ff3e70484aa6a9aadc000d80b23d1548a8f347e59eca41181713",
+      "canonicalSha256": "cea8bd614c06ff3e70484aa6a9aadc000d80b23d1548a8f347e59eca41181713"
+    },
+    "observed": "search_chunks source_types/document_set_names filtrelerini federated retrieval seçimine verir; indexed kaynak kalmadıysa normal hybrid aramayı açmaz. forced_document_set modülü eksik adın sonuçları genişletmemesini hedefler. Bu tenant kapsamı bizim film koleksiyonuna hazır adapter değildir.",
+    "productSynthesis": "Üç yapımlık araştırma seçimiyle sorulan karşılaştırma web’e veya tüm kişisel arşive sessiz genişlemez. Önceki scope-before-ranking fikri birden fazla arama kolunda somutlaşır. Ancak kullanıcı “dış kaynakları da araştır” seçerse kapsam genişleme açık yeni aşama olur; cevapta eski ve yeni kaynak kümeleri ayrılır. Eşleşme yok cevabı genel kültürle doldurulmaz.",
+    "localBaseline": {
+      "key": "library",
+      "path": "src/renderer/assistant-library-actions.js",
+      "symbol": "name==='search_library'",
+      "line": 72,
+      "behavior": "Başlık/orijinal başlık/özet içinde substring ve tür/durum/genre filtreleri;8 sonuç sayfalama. Film bilgisi,kişi,yorum,zevk ve koleksiyon araçları zaten var.",
+      "canonicalSha256": "b156a8e7de63400489c7e4bc24a5547fc5c6db8cd86357600ed2adff1aa4d9f3",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/renderer/assistant-library-actions.js#L72"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "M",
+    "license": {
+      "name": "MIT (non-ee)",
+      "url": "https://github.com/onyx-dot-app/onyx/blob/3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48/LICENSE",
+      "bounds": "Yalnız backend/onyx/context/search altındaki incelenen non-ee kod. backend/ee/LICENSE üretimde abonelik/lisans koşulu içerir; enterprise kod aktarımı önerilmez."
+    },
+    "acceptance": "Seçili koleksiyon silinmiş veya boşsa sıfır sonuç gelir; federated branch filtreyi atlayamaz; dış web kapalıysa dış servis çağrısı olmaz; yeniden adlandırma yetkiyi genişletmez.",
+    "risk": "Yalnız non-ee MIT referans/port; bütün Onyx ACL sistemi alınmaz. Main sourceID/revision yetkisi renderer filtresinden önce doğrulanmalı. Kişisel medya adları arama sağlayıcısına kapsam genişletme seçimi olmadan gitmemeli.",
+    "supportingSources": [
+      {
+        "path": "backend/onyx/context/search/forced_document_set.py",
+        "symbol": "get_forced_document_set_names",
+        "permalink": "https://github.com/onyx-dot-app/onyx/blob/3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48/backend/onyx/context/search/forced_document_set.py",
+        "head": "3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48"
+      }
+    ],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "Önceki fikrin bu yeni depodaki gözlenmiş kodla somut derinleştirmesi; yeni fikir sayımına eklenmez."
+  },
+  {
+    "id": "A842-22",
+    "title": "“Bu iddia hangi kaynaktan?” sorusunda uydurma alıntı numarasını tıklanabilir yapma",
+    "family": "F1 · film araştırması",
+    "classification": "OLD-DEEPENING",
+    "previousIds": [
+      "B841-20",
+      "R839-F08"
+    ],
+    "repo": "deepset-ai/haystack",
+    "upstreamHead": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+    "source": {
+      "path": "haystack/components/builders/answer_builder.py",
+      "symbol": "def _extract_reference_idxs",
+      "line": 281,
+      "permalink": "https://github.com/deepset-ai/haystack/blob/8e38c633190ee43b80c136b335f8c9d6c79cc5d6/haystack/components/builders/answer_builder.py#L281",
+      "rawSha256": "0b68cf0de48ae07c6d72f31df32db81fd2a6d6eb49b6720e0f340d5f7bd075b4",
+      "canonicalSha256": "0b68cf0de48ae07c6d72f31df32db81fd2a6d6eb49b6720e0f340d5f7bd075b4"
+    },
+    "observed": "AnswerBuilder yanıt reference pattern eşleşmelerini belge dizisine bağlar; range expansion seçeneğinde aralık sonunu belge sayısıyla sınırlar. Parser ID bağını kurar, iddianın semantik doğruluğunu kanıtlamaz. Kaynak indeksinin her turda aynı sıralanması önemli.",
+    "productSynthesis": "Film araştırma yanıtındaki [2] tıklandığında gerçekten o tur sağlanan ikinci belge ve pasajı açılır. Model [999] üretirse sahte kaynak kartı yaratılmaz. Önceki yapılı alıntı sözleşmesinin ayrıştırma ve bounds denetimi derinleşir. Kitap alıntılarındaki var olan doğrulama korunarak web/film kanıtlarına ortak kayıt eklenebilir; gösterilen URL tek başına okunmuş sayılmaz.",
+    "localBaseline": {
+      "key": "citation",
+      "path": "src/assistant-agent-service.js",
+      "symbol": "session.webSources",
+      "line": 119,
+      "behavior": "Web kaynakları W kimliğiyle oturumda birikir,yanıta liste eklenir;kitap alıntıları ayrıca tutulur. Her web iddiasına doğrulanmış kanıt kenarı üretilmiş sayılmaz.",
+      "canonicalSha256": "1dbe8143580f465655b6c3d1d21153bfa824dea1956d538fd79377306afbe639",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/assistant-agent-service.js#L119"
+    },
+    "acquisition": "Seçilmiş algoritma/sözleşme Node portu; tam upstream sunucu veya arayüz gömülmez.",
+    "effort": "M",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/deepset-ai/haystack/blob/8e38c633190ee43b80c136b335f8c9d6c79cc5d6/LICENSE",
+      "bounds": "Seçilen dosyaların SPDX Apache-2.0 başlığı da gözlendi; model ve üçüncü taraf adapter lisansları bu kapsam değildir."
+    },
+    "acceptance": "Geçersiz numara alıntı olarak işaretlenmez;[1-999999999] belleği şişirmez; belge sırası değişse sourceID bağı bozulmaz; desteklemeyen pasaj “doğrulandı” etiketi almaz.",
+    "risk": "Apache küçük parser portu; regex alanları uygulama kontrolünde olmalı. Güvenli URL/açma politikası ve main kaynak çözümü korunur. Bu tur model halüsinasyonu ölçülmedi; kabul gelecekteki kontrollü örnekleri tarif eder.",
+    "supportingSources": [],
+    "status": "Araştırma adayı; uygulanmadı, upstream veya ürün çalıştırılmadı.",
+    "newnessNote": "Önceki fikrin bu yeni depodaki gözlenmiş kodla somut derinleştirmesi; yeni fikir sayımına eklenmez."
+  }
+]

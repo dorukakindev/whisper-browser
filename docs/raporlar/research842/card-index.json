@@ -1,0 +1,1126 @@
+[
+  {
+    "id": "A842-01",
+    "title": "“Bu filmin tarihsel arka planını araştır” sorusunu görünür alt sorulara ayır",
+    "classification": "OLD-DEEPENING",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "assafelovic/gpt-researcher",
+        "head": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+        "path": "gpt_researcher/skills/deep_research.py",
+        "symbol": "generate_research_plan",
+        "line": 298,
+        "permalink": "https://github.com/assafelovic/gpt-researcher/blob/3582a6841fe7dc801e2a34e34ee408641aea9bce/gpt_researcher/skills/deep_research.py#L298",
+        "rawSha256": "260fe19e0c6d5b5252b1901cb1c2f0ef9fe2a849a330d9f7eac34b1b1d0c892c",
+        "canonicalSha256": "260fe19e0c6d5b5252b1901cb1c2f0ef9fe2a849a330d9f7eac34b1b1d0c892c"
+      }
+    ]
+  },
+  {
+    "id": "A842-02",
+    "title": "“İki videonun iddiası neden çelişiyor?” araştırmasında yalnız açık kalan soruyu takip et",
+    "classification": "NEW",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "assafelovic/gpt-researcher",
+        "head": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+        "path": "gpt_researcher/skills/deep_research.py",
+        "symbol": "process_research_results",
+        "line": 352,
+        "permalink": "https://github.com/assafelovic/gpt-researcher/blob/3582a6841fe7dc801e2a34e34ee408641aea9bce/gpt_researcher/skills/deep_research.py#L352",
+        "rawSha256": "260fe19e0c6d5b5252b1901cb1c2f0ef9fe2a849a330d9f7eac34b1b1d0c892c",
+        "canonicalSha256": "260fe19e0c6d5b5252b1901cb1c2f0ef9fe2a849a330d9f7eac34b1b1d0c892c"
+      }
+    ]
+  },
+  {
+    "id": "A842-03",
+    "title": "Film araştırmasında her bulguyu onu söyleyen URL ile birlikte tut",
+    "classification": "OLD-DEEPENING",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "assafelovic/gpt-researcher",
+        "head": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+        "path": "gpt_researcher/skills/deep_research.py",
+        "symbol": "parse_research_results_response",
+        "line": 149,
+        "permalink": "https://github.com/assafelovic/gpt-researcher/blob/3582a6841fe7dc801e2a34e34ee408641aea9bce/gpt_researcher/skills/deep_research.py#L149",
+        "rawSha256": "260fe19e0c6d5b5252b1901cb1c2f0ef9fe2a849a330d9f7eac34b1b1d0c892c",
+        "canonicalSha256": "260fe19e0c6d5b5252b1901cb1c2f0ef9fe2a849a330d9f7eac34b1b1d0c892c"
+      }
+    ]
+  },
+  {
+    "id": "A842-04",
+    "title": "Türkçe/orijinal ad ve çeviri terimleriyle aynı film kaynağını bul",
+    "classification": "NEW",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "deepset-ai/haystack",
+        "head": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+        "path": "haystack/components/retrievers/multi_query_text_retriever.py",
+        "symbol": "def run_async",
+        "line": 137,
+        "permalink": "https://github.com/deepset-ai/haystack/blob/8e38c633190ee43b80c136b335f8c9d6c79cc5d6/haystack/components/retrievers/multi_query_text_retriever.py#L137",
+        "rawSha256": "c47eee390e37c8802dd5c2b2fc7700a21b5a3b647b8d58ffd6996dfb791bf3d9",
+        "canonicalSha256": "c47eee390e37c8802dd5c2b2fc7700a21b5a3b647b8d58ffd6996dfb791bf3d9"
+      }
+    ]
+  },
+  {
+    "id": "A842-05",
+    "title": "Hatırladığım ifade ile anlattığım temayı aynı kaynak aramasında birleştir",
+    "classification": "NEW",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "deepset-ai/haystack",
+        "head": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+        "path": "haystack/utils/misc.py",
+        "symbol": "def _reciprocal_rank_fusion",
+        "line": 175,
+        "permalink": "https://github.com/deepset-ai/haystack/blob/8e38c633190ee43b80c136b335f8c9d6c79cc5d6/haystack/utils/misc.py#L175",
+        "rawSha256": "13bd31760020f72c0f04c36ac7e960f968d49669a0cda0cce4b4c62cb6cdb612",
+        "canonicalSha256": "13bd31760020f72c0f04c36ac7e960f968d49669a0cda0cce4b4c62cb6cdb612"
+      }
+    ]
+  },
+  {
+    "id": "A842-06",
+    "title": "Röportajdan tek cümle yerine gerektiğinde ilgili bölümün tamamını getir",
+    "classification": "NEW",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "deepset-ai/haystack",
+        "head": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+        "path": "haystack/components/retrievers/auto_merging_retriever.py",
+        "symbol": "def run(",
+        "line": 117,
+        "permalink": "https://github.com/deepset-ai/haystack/blob/8e38c633190ee43b80c136b335f8c9d6c79cc5d6/haystack/components/retrievers/auto_merging_retriever.py#L117",
+        "rawSha256": "efda751bf02885c9112ee580551c8d901502e15d0c2067cfe8a6f2e463a766d5",
+        "canonicalSha256": "efda751bf02885c9112ee580551c8d901502e15d0c2067cfe8a6f2e463a766d5"
+      }
+    ]
+  },
+  {
+    "id": "A842-07",
+    "title": "“Burada kimden söz ediyor?” sorusunda komşu replikleri zaman sınırıyla getir",
+    "classification": "OLD-DEEPENING",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "deepset-ai/haystack",
+        "head": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+        "path": "haystack/components/retrievers/sentence_window_retriever.py",
+        "symbol": "def _build_filter_conditions",
+        "line": 345,
+        "permalink": "https://github.com/deepset-ai/haystack/blob/8e38c633190ee43b80c136b335f8c9d6c79cc5d6/haystack/components/retrievers/sentence_window_retriever.py#L345",
+        "rawSha256": "26f886da497bd619c8a1a399f59a16f683d621dec600a8aa1e9c109ac61f53aa",
+        "canonicalSha256": "26f886da497bd619c8a1a399f59a16f683d621dec600a8aa1e9c109ac61f53aa"
+      }
+    ]
+  },
+  {
+    "id": "A842-08",
+    "title": "İki filmi karşılaştırırken alıntıları film→kaynak→zaman sırasıyla düzenle",
+    "classification": "NEW",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "deepset-ai/haystack",
+        "head": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+        "path": "haystack/components/rankers/meta_field_grouping_ranker.py",
+        "symbol": "def run(",
+        "line": 77,
+        "permalink": "https://github.com/deepset-ai/haystack/blob/8e38c633190ee43b80c136b335f8c9d6c79cc5d6/haystack/components/rankers/meta_field_grouping_ranker.py#L77",
+        "rawSha256": "fa3969996bf5a7c47cf8c576f0a25e54ba5659818fef87acf395e2e4bdf0dc03",
+        "canonicalSha256": "fa3969996bf5a7c47cf8c576f0a25e54ba5659818fef87acf395e2e4bdf0dc03"
+      }
+    ]
+  },
+  {
+    "id": "A842-09",
+    "title": "“Kütüphanemdeki göç ve aidiyet temasını hangi kaynaklar bağlıyor?” diye sor",
+    "classification": "NEW",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "HKUDS/LightRAG",
+        "head": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+        "path": "lightrag/operate.py",
+        "symbol": "async def _perform_kg_search",
+        "line": 5280,
+        "permalink": "https://github.com/HKUDS/LightRAG/blob/aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a/lightrag/operate.py#L5280",
+        "rawSha256": "176585e3f686574ab98657b666982302ce47d58229baacb529ef601bd6799326",
+        "canonicalSha256": "176585e3f686574ab98657b666982302ce47d58229baacb529ef601bd6799326"
+      }
+    ]
+  },
+  {
+    "id": "A842-10",
+    "title": "Bir sahneye yakıştırılan etkiyi ilişki zinciri ve dayanak pasajıyla incele",
+    "classification": "NEW",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "HKUDS/LightRAG",
+        "head": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+        "path": "lightrag/operate.py",
+        "symbol": "async def _find_most_related_edges_from_entities",
+        "line": 6260,
+        "permalink": "https://github.com/HKUDS/LightRAG/blob/aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a/lightrag/operate.py#L6260",
+        "rawSha256": "176585e3f686574ab98657b666982302ce47d58229baacb529ef601bd6799326",
+        "canonicalSha256": "176585e3f686574ab98657b666982302ce47d58229baacb529ef601bd6799326"
+      }
+    ]
+  },
+  {
+    "id": "A842-11",
+    "title": "Yanlış röportajı kaldırınca ona dayanan film bilgisini de geri çek",
+    "classification": "NEW",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "HKUDS/LightRAG",
+        "head": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+        "path": "lightrag/lightrag.py",
+        "symbol": "async def adelete_by_doc_id",
+        "line": 6727,
+        "permalink": "https://github.com/HKUDS/LightRAG/blob/aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a/lightrag/lightrag.py#L6727",
+        "rawSha256": "f92e25bf1bf8082dba64f604fe22badaeaa69ef2eaa34d23c5058059be8031d3",
+        "canonicalSha256": "f92e25bf1bf8082dba64f604fe22badaeaa69ef2eaa34d23c5058059be8031d3"
+      }
+    ]
+  },
+  {
+    "id": "A842-12",
+    "title": "Yanıt ürettirmeden “bu film hakkında elinde hangi kanıt var?” diye bak",
+    "classification": "NEW",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "HKUDS/LightRAG",
+        "head": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+        "path": "lightrag/base.py",
+        "symbol": "only_need_context",
+        "line": 102,
+        "permalink": "https://github.com/HKUDS/LightRAG/blob/aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a/lightrag/base.py#L102",
+        "rawSha256": "e7f0ec700659071d616b4c81c8711626d512d356d0036ce6f8da8d9a37a19f28",
+        "canonicalSha256": "e7f0ec700659071d616b4c81c8711626d512d356d0036ce6f8da8d9a37a19f28"
+      }
+    ]
+  },
+  {
+    "id": "A842-13",
+    "title": "Repliği olmayan sahneyi görüntü ve konuşmayı bir arada kullanarak bul",
+    "classification": "OLD-DEEPENING",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "HKUDS/RAG-Anything",
+        "head": "2cd2b3329c470ccb53923f8a6d320596b34e56c5",
+        "path": "raganything/modalprocessors_video.py",
+        "symbol": "def _merge_channels",
+        "line": 440,
+        "permalink": "https://github.com/HKUDS/RAG-Anything/blob/2cd2b3329c470ccb53923f8a6d320596b34e56c5/raganything/modalprocessors_video.py#L440",
+        "rawSha256": "98284a188cade85df01c4dd686f5f219e14f4bcf7f0a08f4acf54aec98fdc2bf",
+        "canonicalSha256": "98284a188cade85df01c4dd686f5f219e14f4bcf7f0a08f4acf54aec98fdc2bf"
+      }
+    ]
+  },
+  {
+    "id": "A842-14",
+    "title": "Sahne taramasının atladığı açılış/kapanış konuşmasını araştırmada kaybetme",
+    "classification": "NEW",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "HKUDS/RAG-Anything",
+        "head": "2cd2b3329c470ccb53923f8a6d320596b34e56c5",
+        "path": "raganything/modalprocessors_video.py",
+        "symbol": "def _add_audio_only_segments",
+        "line": 401,
+        "permalink": "https://github.com/HKUDS/RAG-Anything/blob/2cd2b3329c470ccb53923f8a6d320596b34e56c5/raganything/modalprocessors_video.py#L401",
+        "rawSha256": "98284a188cade85df01c4dd686f5f219e14f4bcf7f0a08f4acf54aec98fdc2bf",
+        "canonicalSha256": "98284a188cade85df01c4dd686f5f219e14f4bcf7f0a08f4acf54aec98fdc2bf"
+      }
+    ]
+  },
+  {
+    "id": "A842-15",
+    "title": "Basın dosyasındaki fotoğrafı başlığı ve çevresindeki açıklamayla araştır",
+    "classification": "NEW",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "HKUDS/RAG-Anything",
+        "head": "2cd2b3329c470ccb53923f8a6d320596b34e56c5",
+        "path": "raganything/modalprocessors.py",
+        "symbol": "def _extract_page_context",
+        "line": 154,
+        "permalink": "https://github.com/HKUDS/RAG-Anything/blob/2cd2b3329c470ccb53923f8a6d320596b34e56c5/raganything/modalprocessors.py#L154",
+        "rawSha256": "e3df47cfbb7acfbf51988201ed6de748c894cd4690de273453c2266a05bd843c",
+        "canonicalSha256": "e3df47cfbb7acfbf51988201ed6de748c894cd4690de273453c2266a05bd843c"
+      }
+    ]
+  },
+  {
+    "id": "A842-16",
+    "title": "Elimdeki afiş/kareyle ilgili kayıtlı eleştirileri bul",
+    "classification": "OLD-DEEPENING",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "HKUDS/RAG-Anything",
+        "head": "2cd2b3329c470ccb53923f8a6d320596b34e56c5",
+        "path": "raganything/query.py",
+        "symbol": "async def _process_multimodal_query_content",
+        "line": 478,
+        "permalink": "https://github.com/HKUDS/RAG-Anything/blob/2cd2b3329c470ccb53923f8a6d320596b34e56c5/raganything/query.py#L478",
+        "rawSha256": "556de2e13496bfed735d8b48fcabbd518a7f65417fdcdfb4bc745fdf86d75cae",
+        "canonicalSha256": "556de2e13496bfed735d8b48fcabbd518a7f65417fdcdfb4bc745fdf86d75cae"
+      }
+    ]
+  },
+  {
+    "id": "A842-17",
+    "title": "Filmin ilk gösterim dönemindeki kaynakları bugünkü güncellenmiş yazılardan ayır",
+    "classification": "NEW",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "onyx-dot-app/onyx",
+        "head": "3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48",
+        "path": "backend/onyx/context/search/models.py",
+        "symbol": "class TimeRange",
+        "line": 75,
+        "permalink": "https://github.com/onyx-dot-app/onyx/blob/3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48/backend/onyx/context/search/models.py#L75",
+        "rawSha256": "6b19726ecab84dbb5804b3edf52563a6f4c63b835968e93611bc73db777483bd",
+        "canonicalSha256": "6b19726ecab84dbb5804b3edf52563a6f4c63b835968e93611bc73db777483bd"
+      }
+    ]
+  },
+  {
+    "id": "A842-18",
+    "title": "“Yapım aşamalarını sırayla anlat” cevabında yazı tarihi ile anlattığı olayı ayır",
+    "classification": "NEW",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "memvid/memvid",
+        "head": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813",
+        "path": "src/memvid/timeline.rs",
+        "symbol": "fn build_timeline_temporal_metadata",
+        "line": 148,
+        "permalink": "https://github.com/memvid/memvid/blob/e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813/src/memvid/timeline.rs#L148",
+        "rawSha256": "1a278d571e9fdd908c2971287628c3857b6b495b886da19bdcbfbb57d5e0353a",
+        "canonicalSha256": "1a278d571e9fdd908c2971287628c3857b6b495b886da19bdcbfbb57d5e0353a"
+      }
+    ]
+  },
+  {
+    "id": "A842-19",
+    "title": "Eski röportajdaki “geçen yıl” ifadesini bugüne göre yorumlama",
+    "classification": "NEW",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "memvid/memvid",
+        "head": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813",
+        "path": "src/analysis/temporal_enrich.rs",
+        "symbol": "pub fn enrich_chunk",
+        "line": 656,
+        "permalink": "https://github.com/memvid/memvid/blob/e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813/src/analysis/temporal_enrich.rs#L656",
+        "rawSha256": "29da36ebc59b6b03adc74e8f690ae0afbad1071559607de28d3d97b4a7208dd4",
+        "canonicalSha256": "29da36ebc59b6b03adc74e8f690ae0afbad1071559607de28d3d97b4a7208dd4"
+      }
+    ]
+  },
+  {
+    "id": "A842-20",
+    "title": "“Geçen sonbahar gördüğüm film yazısı” sorgusunda tarih yorumunu göster",
+    "classification": "NEW",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "memvid/memvid",
+        "head": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813",
+        "path": "src/analysis/temporal.rs",
+        "symbol": "pub fn resolve(",
+        "line": 92,
+        "permalink": "https://github.com/memvid/memvid/blob/e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813/src/analysis/temporal.rs#L92",
+        "rawSha256": "dd072a20ec45c350377f6dac639308e1aa14639e7b49f200b26958a3e004f4b0",
+        "canonicalSha256": "dd072a20ec45c350377f6dac639308e1aa14639e7b49f200b26958a3e004f4b0"
+      }
+    ]
+  },
+  {
+    "id": "A842-21",
+    "title": "“Yalnız şu üç filmin eklediğim kaynaklarını kullan” sınırını bütün arama dallarında koru",
+    "classification": "OLD-DEEPENING",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "onyx-dot-app/onyx",
+        "head": "3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48",
+        "path": "backend/onyx/context/search/retrieval/search_runner.py",
+        "symbol": "def search_chunks",
+        "line": 89,
+        "permalink": "https://github.com/onyx-dot-app/onyx/blob/3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48/backend/onyx/context/search/retrieval/search_runner.py#L89",
+        "rawSha256": "cea8bd614c06ff3e70484aa6a9aadc000d80b23d1548a8f347e59eca41181713",
+        "canonicalSha256": "cea8bd614c06ff3e70484aa6a9aadc000d80b23d1548a8f347e59eca41181713"
+      }
+    ]
+  },
+  {
+    "id": "A842-22",
+    "title": "“Bu iddia hangi kaynaktan?” sorusunda uydurma alıntı numarasını tıklanabilir yapma",
+    "classification": "OLD-DEEPENING",
+    "domain": "assistant",
+    "sourceRefs": [
+      {
+        "repo": "deepset-ai/haystack",
+        "head": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+        "path": "haystack/components/builders/answer_builder.py",
+        "symbol": "def _extract_reference_idxs",
+        "line": 281,
+        "permalink": "https://github.com/deepset-ai/haystack/blob/8e38c633190ee43b80c136b335f8c9d6c79cc5d6/haystack/components/builders/answer_builder.py#L281",
+        "rawSha256": "0b68cf0de48ae07c6d72f31df32db81fd2a6d6eb49b6720e0f340d5f7bd075b4",
+        "canonicalSha256": "0b68cf0de48ae07c6d72f31df32db81fd2a6d6eb49b6720e0f340d5f7bd075b4"
+      }
+    ]
+  },
+  {
+    "id": "B842-01",
+    "title": "Açık sayfadan tekrar giriş istemeden gerçek okuma kaydı",
+    "classification": "OLD-DEEPENING",
+    "domain": "browser",
+    "sourceRefs": [
+      {
+        "repo": "omnivore-app/omnivore",
+        "head": "29de91e8e43d8f546af398b6b0138dc6aba052bc",
+        "path": "packages/api/src/services/save_page.ts",
+        "symbol": "export const savePage",
+        "line": 77,
+        "url": "https://github.com/omnivore-app/omnivore/blob/29de91e8e43d8f546af398b6b0138dc6aba052bc/packages/api/src/services/save_page.ts#L77"
+      }
+    ]
+  },
+  {
+    "id": "B842-02",
+    "title": "Haricî Edge/Chrome’dan medya kütüphanesine tek seferlik gönderim",
+    "classification": "NEW",
+    "domain": "browser",
+    "sourceRefs": [
+      {
+        "repo": "wxt-dev/wxt",
+        "head": "66897f0d189ae9236d40a08ecea329c2455444a6",
+        "path": "packages/wxt/src/utils/content-script-ui/shadow-root.ts",
+        "symbol": "export async function createShadowRootUi",
+        "line": 20,
+        "url": "https://github.com/wxt-dev/wxt/blob/66897f0d189ae9236d40a08ecea329c2455444a6/packages/wxt/src/utils/content-script-ui/shadow-root.ts#L20"
+      }
+    ]
+  },
+  {
+    "id": "B842-03",
+    "title": "Web PDF’sini sayfa metni sanmadan dosya ve okunabilir belge olarak alma",
+    "classification": "NEW",
+    "domain": "browser",
+    "sourceRefs": [
+      {
+        "repo": "steel-dev/steel-browser",
+        "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+        "path": "api/src/modules/actions/actions.controller.ts",
+        "symbol": "export const handleScrape",
+        "line": 75,
+        "url": "https://github.com/steel-dev/steel-browser/blob/9fb9b9239325794b3e2d2a56c7e54c400a7d30bd/api/src/modules/actions/actions.controller.ts#L75"
+      }
+    ]
+  },
+  {
+    "id": "B842-04",
+    "title": "Tamamlanan indirmeyi kaynağıyla kütüphane taslağına devretme",
+    "classification": "NEW",
+    "domain": "browser",
+    "sourceRefs": [
+      {
+        "repo": "browser-use/browser-use",
+        "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+        "path": "browser_use/browser/watchdogs/downloads_watchdog.py",
+        "symbol": "async def _handle_cdp_download",
+        "line": 937,
+        "url": "https://github.com/browser-use/browser-use/blob/b49a68e4060acb226da8f784194fef301c53a6d7/browser_use/browser/watchdogs/downloads_watchdog.py#L937"
+      }
+    ]
+  },
+  {
+    "id": "B842-05",
+    "title": "Bir sayfa listesini eklemeden önce gerçek örnekleri gösterme",
+    "classification": "NEW",
+    "domain": "browser",
+    "sourceRefs": [
+      {
+        "repo": "ArchiveBox/ArchiveBox",
+        "head": "09041760bc0fe25eb584e62cc9c7756e85ff855e",
+        "path": "archivebox/importers/service.py",
+        "symbol": "def enqueue(",
+        "line": 32,
+        "url": "https://github.com/ArchiveBox/ArchiveBox/blob/09041760bc0fe25eb584e62cc9c7756e85ff855e/archivebox/importers/service.py#L32"
+      }
+    ]
+  },
+  {
+    "id": "B842-06",
+    "title": "Büyük kütüphane ithalini kaldığı öğeden devam ettirme",
+    "classification": "NEW",
+    "domain": "browser",
+    "sourceRefs": [
+      {
+        "repo": "ArchiveBox/ArchiveBox",
+        "head": "09041760bc0fe25eb584e62cc9c7756e85ff855e",
+        "path": "archivebox/importers/service.py",
+        "symbol": "def _finish(",
+        "line": 166,
+        "url": "https://github.com/ArchiveBox/ArchiveBox/blob/09041760bc0fe25eb584e62cc9c7756e85ff855e/archivebox/importers/service.py#L166"
+      }
+    ]
+  },
+  {
+    "id": "B842-07",
+    "title": "Omnivore ve Pocket arşivlerini tarih/etiket/okundu bilgisiyle alma",
+    "classification": "NEW",
+    "domain": "browser",
+    "sourceRefs": [
+      {
+        "repo": "wallabag/wallabag",
+        "head": "42033e0253e74281c9f7588146324ab7222c3592",
+        "path": "src/Import/OmnivoreImport.php",
+        "symbol": "public function parseEntry",
+        "line": 80,
+        "url": "https://github.com/wallabag/wallabag/blob/42033e0253e74281c9f7588146324ab7222c3592/src/Import/OmnivoreImport.php#L80"
+      }
+    ]
+  },
+  {
+    "id": "B842-08",
+    "title": "Film araştırma dosyasını bölüm bölüm EPUB antolojisi yapma",
+    "classification": "NEW",
+    "domain": "browser",
+    "sourceRefs": [
+      {
+        "repo": "wallabag/wallabag",
+        "head": "42033e0253e74281c9f7588146324ab7222c3592",
+        "path": "src/Helper/EntriesExport.php",
+        "symbol": "private function produceEpub",
+        "line": 148,
+        "url": "https://github.com/wallabag/wallabag/blob/42033e0253e74281c9f7588146324ab7222c3592/src/Helper/EntriesExport.php#L148"
+      }
+    ]
+  },
+  {
+    "id": "B842-09",
+    "title": "Okumaya kalan süreyi medya seçimine katma",
+    "classification": "NEW",
+    "domain": "browser",
+    "sourceRefs": [
+      {
+        "repo": "wallabag/wallabag",
+        "head": "42033e0253e74281c9f7588146324ab7222c3592",
+        "path": "src/Form/Type/EntryFilterType.php",
+        "symbol": "public function buildForm",
+        "line": 33,
+        "url": "https://github.com/wallabag/wallabag/blob/42033e0253e74281c9f7588146324ab7222c3592/src/Form/Type/EntryFilterType.php#L33"
+      }
+    ]
+  },
+  {
+    "id": "B842-10",
+    "title": "Kaynak yenilenirken kullanıcının düzelttiği medya bilgisini koruma",
+    "classification": "OLD-DEEPENING",
+    "domain": "browser",
+    "sourceRefs": [
+      {
+        "repo": "wallabag/wallabag",
+        "head": "42033e0253e74281c9f7588146324ab7222c3592",
+        "path": "src/Helper/ContentProxy.php",
+        "symbol": "public function updateEntry",
+        "line": 43,
+        "url": "https://github.com/wallabag/wallabag/blob/42033e0253e74281c9f7588146324ab7222c3592/src/Helper/ContentProxy.php#L43"
+      }
+    ]
+  },
+  {
+    "id": "B842-11",
+    "title": "Tekrarlanan sayfa görevini DOM uygunsa model çağırmadan yürütme",
+    "classification": "OLD-DEEPENING",
+    "domain": "browser",
+    "sourceRefs": [
+      {
+        "repo": "browserbase/stagehand",
+        "head": "b7a4b899079f198a0ee78a6dcb62ad02f545cf49",
+        "path": "packages/extension/services/cacheService.ts",
+        "symbol": "export async function withCache",
+        "line": 202,
+        "url": "https://github.com/browserbase/stagehand/blob/b7a4b899079f198a0ee78a6dcb62ad02f545cf49/packages/extension/services/cacheService.ts#L202"
+      }
+    ]
+  },
+  {
+    "id": "B842-12",
+    "title": "Sayfadan serbest özet yerine denetlenebilir medya kayıt şeması",
+    "classification": "OLD-DEEPENING",
+    "domain": "browser",
+    "sourceRefs": [
+      {
+        "repo": "browser-use/browser-use",
+        "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+        "path": "browser_use/tools/extraction/schema_utils.py",
+        "symbol": "def schema_dict_to_pydantic_model",
+        "line": 145,
+        "url": "https://github.com/browser-use/browser-use/blob/b49a68e4060acb226da8f784194fef301c53a6d7/browser_use/tools/extraction/schema_utils.py#L145"
+      }
+    ]
+  },
+  {
+    "id": "B842-13",
+    "title": "Sonsuz kaydırmada yalnız istenen bölümü sınırlı açma",
+    "classification": "OLD-DEEPENING",
+    "domain": "browser",
+    "sourceRefs": [
+      {
+        "repo": "browser-use/browser-use",
+        "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+        "path": "browser_use/tools/service.py",
+        "symbol": "async def scroll(",
+        "line": 1383,
+        "url": "https://github.com/browser-use/browser-use/blob/b49a68e4060acb226da8f784194fef301c53a6d7/browser_use/tools/service.py#L1383"
+      }
+    ]
+  },
+  {
+    "id": "B842-14",
+    "title": "Açık oturumu kullanırken taşınabilir araştırma paketini ayrı tutma",
+    "classification": "OLD-DEEPENING",
+    "domain": "browser",
+    "sourceRefs": [
+      {
+        "repo": "steel-dev/steel-browser",
+        "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+        "path": "api/src/services/context/chrome-context.service.ts",
+        "symbol": "public async getSessionData",
+        "line": 29,
+        "url": "https://github.com/steel-dev/steel-browser/blob/9fb9b9239325794b3e2d2a56c7e54c400a7d30bd/api/src/services/context/chrome-context.service.ts#L29"
+      }
+    ]
+  },
+  {
+    "id": "B842-15",
+    "title": "Uzun browser adımına yeniden bağlanıp aynı işi ikinci kez başlatmama",
+    "classification": "OLD-DEEPENING",
+    "domain": "browser",
+    "sourceRefs": [
+      {
+        "repo": "steel-dev/steel-browser",
+        "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+        "path": "api/src/services/commands/engine.ts",
+        "symbol": "private async submit(",
+        "line": 253,
+        "url": "https://github.com/steel-dev/steel-browser/blob/9fb9b9239325794b3e2d2a56c7e54c400a7d30bd/api/src/services/commands/engine.ts#L253"
+      }
+    ]
+  },
+  {
+    "id": "B842-16",
+    "title": "Son kaldığı yer ile en ileri okunan noktayı ayırma",
+    "classification": "OLD-DEEPENING",
+    "domain": "browser",
+    "sourceRefs": [
+      {
+        "repo": "omnivore-app/omnivore",
+        "head": "29de91e8e43d8f546af398b6b0138dc6aba052bc",
+        "path": "packages/api/src/services/cached_reading_position.ts",
+        "symbol": "export const reduceCachedReadingPositionMembers",
+        "line": 124,
+        "url": "https://github.com/omnivore-app/omnivore/blob/29de91e8e43d8f546af398b6b0138dc6aba052bc/packages/api/src/services/cached_reading_position.ts#L124"
+      }
+    ]
+  },
+  {
+    "id": "B842-17",
+    "title": "JSON dönen kaynakları boş web sayfası yerine yapılı kaynak öğesi alma",
+    "classification": "NEW",
+    "domain": "browser",
+    "sourceRefs": [
+      {
+        "repo": "steel-dev/steel-browser",
+        "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+        "path": "api/src/modules/actions/actions.controller.ts",
+        "symbol": "const isJson = isJsonContentType",
+        "line": 142,
+        "url": "https://github.com/steel-dev/steel-browser/blob/9fb9b9239325794b3e2d2a56c7e54c400a7d30bd/api/src/modules/actions/actions.controller.ts#L142"
+      }
+    ]
+  },
+  {
+    "id": "B842-18",
+    "title": "Tek film kaydındaki web çıktılarında tutarlı dosya ve önizleme sırası",
+    "classification": "OLD-DEEPENING",
+    "domain": "browser",
+    "sourceRefs": [
+      {
+        "repo": "ArchiveBox/ArchiveBox",
+        "head": "09041760bc0fe25eb584e62cc9c7756e85ff855e",
+        "path": "archivebox/plugins/output_groups.py",
+        "symbol": "def order_snapshot_outputs",
+        "line": 129,
+        "url": "https://github.com/ArchiveBox/ArchiveBox/blob/09041760bc0fe25eb584e62cc9c7756e85ff855e/archivebox/plugins/output_groups.py#L129"
+      }
+    ]
+  },
+  {
+    "id": "L842-01",
+    "title": "Aynı eserin kesim ve dosya sürümlerini tek kayıtta seçme",
+    "classification": "NEW",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "MediaBrowser.Controller/Entities/Video.cs",
+        "symbol": "LocalAlternateVersions",
+        "line": 38,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/MediaBrowser.Controller/Entities/Video.cs#L38"
+      },
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "Emby.Naming/Video/VideoListResolver.cs",
+        "symbol": "OrganizeAlternateVersions",
+        "line": 156,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/Emby.Naming/Video/VideoListResolver.cs#L156"
+      }
+    ]
+  },
+  {
+    "id": "L842-02",
+    "title": "Fragman, sahne arkası ve bonus videolarını esere bağlı raf yapma",
+    "classification": "NEW",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "Emby.Naming/Video/VideoListResolver.cs",
+        "symbol": "nonExtras",
+        "line": 53,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/Emby.Naming/Video/VideoListResolver.cs#L53"
+      },
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "MediaBrowser.Controller/Entities/Video.cs",
+        "symbol": "ExtraType",
+        "line": 67,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/MediaBrowser.Controller/Entities/Video.cs#L67"
+      }
+    ]
+  },
+  {
+    "id": "L842-03",
+    "title": "CD1/CD2 gibi bölünmüş filmi tek oynatma eseri olarak yönetme",
+    "classification": "NEW",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "Emby.Naming/Video/VideoListResolver.cs",
+        "symbol": "StackResolver.Resolve",
+        "line": 57,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/Emby.Naming/Video/VideoListResolver.cs#L57"
+      },
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "MediaBrowser.Controller/Entities/Video.cs",
+        "symbol": "AdditionalParts",
+        "line": 37,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/MediaBrowser.Controller/Entities/Video.cs#L37"
+      }
+    ]
+  },
+  {
+    "id": "L842-04",
+    "title": "Bölüm kimliğinden ayrı izleme sırası ve özel bölüm yerleşimi",
+    "classification": "NEW",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "Komet/MediaElch",
+        "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+        "path": "src/media_center/kodi/EpisodeXmlReader.cpp",
+        "symbol": "displayseason",
+        "line": 79,
+        "url": "https://github.com/Komet/MediaElch/blob/e60309e6b4917db30001a261ff91ae38ad465a0e/src/media_center/kodi/EpisodeXmlReader.cpp#L79"
+      },
+      {
+        "repo": "Komet/MediaElch",
+        "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+        "path": "src/media_center/kodi/EpisodeXmlReader.cpp",
+        "symbol": "displayepisode",
+        "line": 83,
+        "url": "https://github.com/Komet/MediaElch/blob/e60309e6b4917db30001a261ff91ae38ad465a0e/src/media_center/kodi/EpisodeXmlReader.cpp#L83"
+      }
+    ]
+  },
+  {
+    "id": "L842-05",
+    "title": "Dizide kaldığım yerden sonraki gerçekten oynatılabilir bölüm",
+    "classification": "OLD-DEEPENING:D841-04;R839-D06",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "Jellyfin.Server.Implementations/Item/NextUpService.cs",
+        "symbol": "GetNextUpEpisodesBatch",
+        "line": 73,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/Jellyfin.Server.Implementations/Item/NextUpService.cs#L73"
+      }
+    ]
+  },
+  {
+    "id": "L842-06",
+    "title": "Kodi/Jellyfin NFO yan dosyasından çevrimdışı katalog zenginleştirme",
+    "classification": "NEW",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "Komet/MediaElch",
+        "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+        "path": "src/media_center/KodiXml.cpp",
+        "symbol": "KodiXml::loadMovie",
+        "line": 293,
+        "url": "https://github.com/Komet/MediaElch/blob/e60309e6b4917db30001a261ff91ae38ad465a0e/src/media_center/KodiXml.cpp#L293"
+      },
+      {
+        "repo": "Komet/MediaElch",
+        "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+        "path": "src/media_center/kodi/EpisodeXmlReader.cpp",
+        "symbol": "uniqueid",
+        "line": 42,
+        "url": "https://github.com/Komet/MediaElch/blob/e60309e6b4917db30001a261ff91ae38ad465a0e/src/media_center/kodi/EpisodeXmlReader.cpp#L42"
+      }
+    ]
+  },
+  {
+    "id": "L842-07",
+    "title": "Elle düzeltilen metadata alanını kalıcı kilitleme",
+    "classification": "NEW",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "jellyfin/jellyfin-web",
+        "head": "fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09",
+        "path": "src/components/metadataEditor/metadataEditor.js",
+        "symbol": "LockedFields",
+        "line": 168,
+        "url": "https://github.com/jellyfin/jellyfin-web/blob/fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09/src/components/metadataEditor/metadataEditor.js#L168"
+      }
+    ]
+  },
+  {
+    "id": "L842-08",
+    "title": "Seçilen kütüphane klasörü için artımlı değişiklik gelen kutusu",
+    "classification": "NEW",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "Emby.Server.Implementations/IO/LibraryMonitor.cs",
+        "symbol": "StartWatchingPath",
+        "line": 159,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/Emby.Server.Implementations/IO/LibraryMonitor.cs#L159"
+      },
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "Emby.Server.Implementations/IO/LibraryMonitor.cs",
+        "symbol": "ReportFileSystemChangeBeginning",
+        "line": 83,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/Emby.Server.Implementations/IO/LibraryMonitor.cs#L83"
+      }
+    ]
+  },
+  {
+    "id": "L842-09",
+    "title": "Kütüphane seçiminde gerçek dosyanın ses ve görüntü özellikleri",
+    "classification": "OLD-DEEPENING:D841-02;D841-24",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "Komet/MediaElch",
+        "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+        "path": "src/media/StreamDetails.cpp",
+        "symbol": "StreamDetails::detailToString(VideoDetails",
+        "line": 21,
+        "url": "https://github.com/Komet/MediaElch/blob/e60309e6b4917db30001a261ff91ae38ad465a0e/src/media/StreamDetails.cpp#L21"
+      },
+      {
+        "repo": "jellyfin/jellyfin-web",
+        "head": "fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09",
+        "path": "src/apps/modern/features/libraries/components/filter/FiltersAudioLanguages.tsx",
+        "symbol": "FiltersAudioLanguages",
+        "line": 7,
+        "url": "https://github.com/jellyfin/jellyfin-web/blob/fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09/src/apps/modern/features/libraries/components/filter/FiltersAudioLanguages.tsx#L7"
+      }
+    ]
+  },
+  {
+    "id": "L842-10",
+    "title": "Altyazı hazır mı: dosya ve dil durumunu çalışma kuyruğuna bağlama",
+    "classification": "OLD-DEEPENING:D841-24;R839-D06",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "jellyfin/jellyfin-web",
+        "head": "fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09",
+        "path": "src/apps/modern/features/libraries/components/filter/FiltersFeatures.tsx",
+        "symbol": "FeatureFilters.HasSubtitles",
+        "line": 9,
+        "url": "https://github.com/jellyfin/jellyfin-web/blob/fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09/src/apps/modern/features/libraries/components/filter/FiltersFeatures.tsx#L9"
+      },
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "MediaBrowser.Controller/Entities/Video.cs",
+        "symbol": "SubtitleFiles",
+        "line": 39,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/MediaBrowser.Controller/Entities/Video.cs#L39"
+      }
+    ]
+  },
+  {
+    "id": "L842-11",
+    "title": "Dosya ve yan dosyalar için çakışma gösteren düzenleme planı",
+    "classification": "NEW",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "Komet/MediaElch",
+        "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+        "path": "src/renamer/MovieRenamer.cpp",
+        "symbol": "MovieRenamer::renameMovie",
+        "line": 112,
+        "url": "https://github.com/Komet/MediaElch/blob/e60309e6b4917db30001a261ff91ae38ad465a0e/src/renamer/MovieRenamer.cpp#L112"
+      },
+      {
+        "repo": "Komet/MediaElch",
+        "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+        "path": "src/renamer/Renamer.cpp",
+        "symbol": "bool Renamer::rename",
+        "line": 52,
+        "url": "https://github.com/Komet/MediaElch/blob/e60309e6b4917db30001a261ff91ae38ad465a0e/src/renamer/Renamer.cpp#L52"
+      }
+    ]
+  },
+  {
+    "id": "L842-12",
+    "title": "Birden fazla eserde alan bazlı metadata düzeltme makbuzu",
+    "classification": "NEW",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "Kometa-Team/Kometa",
+        "head": "cc35af0686967b74ead474277d9eb16119bc888c",
+        "path": "modules/meta.py",
+        "symbol": "def update_metadata",
+        "line": 1659,
+        "url": "https://github.com/Kometa-Team/Kometa/blob/cc35af0686967b74ead474277d9eb16119bc888c/modules/meta.py#L1659"
+      },
+      {
+        "repo": "Kometa-Team/Kometa",
+        "head": "cc35af0686967b74ead474277d9eb16119bc888c",
+        "path": "modules/meta.py",
+        "symbol": "def edit_tags",
+        "line": 1639,
+        "url": "https://github.com/Kometa-Team/Kometa/blob/cc35af0686967b74ead474277d9eb16119bc888c/modules/meta.py#L1639"
+      }
+    ]
+  },
+  {
+    "id": "L842-13",
+    "title": "Koleksiyona yalnız eser değil sezon ve bölüm de ekleme",
+    "classification": "NEW",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "bonukai/MediaTracker",
+        "head": "22aedac26329893b6441d74d12be9a48e190ca9c",
+        "path": "server/src/entity/list.ts",
+        "symbol": "seasonId?: number",
+        "line": 33,
+        "url": "https://github.com/bonukai/MediaTracker/blob/22aedac26329893b6441d74d12be9a48e190ca9c/server/src/entity/list.ts#L33"
+      },
+      {
+        "repo": "bonukai/MediaTracker",
+        "head": "22aedac26329893b6441d74d12be9a48e190ca9c",
+        "path": "server/src/entity/list.ts",
+        "symbol": "episodeId?: number",
+        "line": 34,
+        "url": "https://github.com/bonukai/MediaTracker/blob/22aedac26329893b6441d74d12be9a48e190ca9c/server/src/entity/list.ts#L34"
+      }
+    ]
+  },
+  {
+    "id": "L842-14",
+    "title": "Ara verdim ve bıraktım durumlarını izleniyor listesinden ayırma",
+    "classification": "NEW",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "FuzzyGrim/Yamtrack",
+        "head": "387274467e771845cf84fe3ceb1b249ad8405e41",
+        "path": "src/app/models.py",
+        "symbol": "class Status(models.TextChoices)",
+        "line": 774,
+        "url": "https://github.com/FuzzyGrim/Yamtrack/blob/387274467e771845cf84fe3ceb1b249ad8405e41/src/app/models.py#L774"
+      }
+    ]
+  },
+  {
+    "id": "L842-15",
+    "title": "İzleme günlüğünde yeniden izleme oturumunu ayrı tutma",
+    "classification": "OLD-DEEPENING:D841-23",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "FuzzyGrim/Yamtrack",
+        "head": "387274467e771845cf84fe3ceb1b249ad8405e41",
+        "path": "src/app/models.py",
+        "symbol": "def watch(self, episode_number, end_date, notes=",
+        "line": 1597,
+        "url": "https://github.com/FuzzyGrim/Yamtrack/blob/387274467e771845cf84fe3ceb1b249ad8405e41/src/app/models.py#L1597"
+      },
+      {
+        "repo": "bonukai/MediaTracker",
+        "head": "22aedac26329893b6441d74d12be9a48e190ca9c",
+        "path": "server/src/entity/progress.ts",
+        "symbol": "export type Progress",
+        "line": 1,
+        "url": "https://github.com/bonukai/MediaTracker/blob/22aedac26329893b6441d74d12be9a48e190ca9c/server/src/entity/progress.ts#L1"
+      }
+    ]
+  },
+  {
+    "id": "L842-16",
+    "title": "Bölüme bağlı kısa not ve izleme sonrası düşünce",
+    "classification": "NEW",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "FuzzyGrim/Yamtrack",
+        "head": "387274467e771845cf84fe3ceb1b249ad8405e41",
+        "path": "src/app/models.py",
+        "symbol": "class Episode(models.Model)",
+        "line": 1773,
+        "url": "https://github.com/FuzzyGrim/Yamtrack/blob/387274467e771845cf84fe3ceb1b249ad8405e41/src/app/models.py#L1773"
+      },
+      {
+        "repo": "FuzzyGrim/Yamtrack",
+        "head": "387274467e771845cf84fe3ceb1b249ad8405e41",
+        "path": "src/app/models.py",
+        "symbol": "notes = models.TextField",
+        "line": 865,
+        "url": "https://github.com/FuzzyGrim/Yamtrack/blob/387274467e771845cf84fe3ceb1b249ad8405e41/src/app/models.py#L865"
+      }
+    ]
+  },
+  {
+    "id": "L842-17",
+    "title": "Koleksiyon yenilemesinde ekle/çıkar farkı ve üyelik politikası",
+    "classification": "OLD-DEEPENING:R839-F09;D841-08",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "Kometa-Team/Kometa",
+        "head": "cc35af0686967b74ead474277d9eb16119bc888c",
+        "path": "modules/builder.py",
+        "symbol": "def run_collections_again",
+        "line": 6783,
+        "url": "https://github.com/Kometa-Team/Kometa/blob/cc35af0686967b74ead474277d9eb16119bc888c/modules/builder.py#L6783"
+      },
+      {
+        "repo": "Kometa-Team/Kometa",
+        "head": "cc35af0686967b74ead474277d9eb16119bc888c",
+        "path": "modules/builder.py",
+        "symbol": "self.sync = self.library.sync_mode",
+        "line": 1544,
+        "url": "https://github.com/Kometa-Team/Kometa/blob/cc35af0686967b74ead474277d9eb16119bc888c/modules/builder.py#L1544"
+      }
+    ]
+  },
+  {
+    "id": "L842-18",
+    "title": "İzlenmemiş bölümün görsel ve açıklamasını kütüphanede gizleme",
+    "classification": "OLD-DEEPENING:R839-A09;D841-21",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "FuzzyGrim/Yamtrack",
+        "head": "387274467e771845cf84fe3ceb1b249ad8405e41",
+        "path": "src/users/models.py",
+        "symbol": "obfuscate_unseen_episodes",
+        "line": 315,
+        "url": "https://github.com/FuzzyGrim/Yamtrack/blob/387274467e771845cf84fe3ceb1b249ad8405e41/src/users/models.py#L315"
+      }
+    ]
+  },
+  {
+    "id": "L842-19",
+    "title": "Yerel arşiv için sahne küçük görselleriyle görsel göz atma",
+    "classification": "OLD-DEEPENING:R76-1.1",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "Jellyfin.Server.Implementations/Trickplay/TrickplayManager.cs",
+        "symbol": "CanGenerateTrickplay",
+        "line": 86,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/Jellyfin.Server.Implementations/Trickplay/TrickplayManager.cs#L86"
+      }
+    ]
+  },
+  {
+    "id": "L842-20",
+    "title": "Eklenme tarihi ile yayın ve izleme tarihini ayrı sıralama",
+    "classification": "NEW",
+    "domain": "library",
+    "sourceRefs": [
+      {
+        "repo": "jellyfin/jellyfin-web",
+        "head": "fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09",
+        "path": "src/components/metadataEditor/metadataEditor.js",
+        "symbol": "DateCreated: getDateValue",
+        "line": 157,
+        "url": "https://github.com/jellyfin/jellyfin-web/blob/fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09/src/components/metadataEditor/metadataEditor.js#L157"
+      },
+      {
+        "repo": "bonukai/MediaTracker",
+        "head": "22aedac26329893b6441d74d12be9a48e190ca9c",
+        "path": "server/src/entity/list.ts",
+        "symbol": "'recently-added'",
+        "line": 5,
+        "url": "https://github.com/bonukai/MediaTracker/blob/22aedac26329893b6441d74d12be9a48e190ca9c/server/src/entity/list.ts#L5"
+      }
+    ]
+  }
+]

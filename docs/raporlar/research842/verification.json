@@ -1,0 +1,21 @@
+{
+  "result": "PASS",
+  "baseline": "df972383ab5a9b736b832ba64401b206beb6dedc",
+  "researchCards": 60,
+  "newMechanisms": 37,
+  "oldDeepening": 23,
+  "rssDesignDecisions": 26,
+  "repositories": 26,
+  "downloadedSourceLicensePackageFiles": 259,
+  "uniquePinnedFiles": 259,
+  "assistantContextOnlyFiles": 37,
+  "localProductFilesVerifiedAgainstWorkingTreeAndGit": 40,
+  "publicDemoScreenshots": 6,
+  "livePublicFeedSnapshots": 2,
+  "documentJsSyntaxExamples": 3,
+  "jsonFilesParsed": 24,
+  "localLinksChecked": 49,
+  "turkishUtf8ContentPass": true,
+  "errors": [],
+  "scope": "Documentation/source-byte and canonical-LF checks, example JS syntax; public UI/feed observations separately bounded. No product tests, builds, live AI or native Windows acceptance."
+}

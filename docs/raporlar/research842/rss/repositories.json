@@ -1,0 +1,79 @@
+[
+  {
+    "repo": "karakeep-app/karakeep",
+    "url": "https://github.com/karakeep-app/karakeep",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "AGPL-3.0",
+    "pushedAt": "2026-10-31T20:32:23Z",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "headDate": "2026-10-31T20:32:21Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "FreshRSS/FreshRSS",
+    "url": "https://github.com/FreshRSS/FreshRSS",
+    "defaultBranch": "edge",
+    "archived": false,
+    "licenseApi": "AGPL-3.0",
+    "pushedAt": "2026-10-31T15:54:05Z",
+    "head": "fa040c2ebbf01dd1d9ef854c855ace3a342d26f9",
+    "headDate": "2026-10-31T15:54:05Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "miniflux/v2",
+    "url": "https://github.com/miniflux/v2",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "Apache-2.0",
+    "pushedAt": "2026-11-01T03:55:11Z",
+    "head": "faecfa2fac61a91f4f69550bb1afd506c4b51749",
+    "headDate": "2026-11-01T03:55:08Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "RSSNext/Folo",
+    "url": "https://github.com/RSSNext/Folo",
+    "defaultBranch": "dev",
+    "archived": false,
+    "licenseApi": "AGPL-3.0",
+    "pushedAt": "2026-10-30T14:04:03Z",
+    "head": "70a630a62a46de8aed945d7f11812a292df7fab1",
+    "headDate": "2026-10-30T14:03:44Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "DIYgod/RSSHub",
+    "url": "https://github.com/DIYgod/RSSHub",
+    "defaultBranch": "master",
+    "archived": false,
+    "licenseApi": "AGPL-3.0",
+    "pushedAt": "2026-11-01T09:06:59Z",
+    "head": "986522cde7e5332a8adb634e6600c5788ede93a0",
+    "headDate": "2026-11-01T08:23:18Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "rbren/rss-parser",
+    "url": "https://github.com/rbren/rss-parser",
+    "defaultBranch": "master",
+    "archived": false,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-08-25T14:50:41Z",
+    "head": "394178530e87fa010efc6e8d5dd4e801715c5e63",
+    "headDate": "2026-08-25T14:50:41Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "martinrotter/rssguard",
+    "url": "https://github.com/martinrotter/rssguard",
+    "defaultBranch": "master",
+    "archived": false,
+    "licenseApi": "GPL-3.0",
+    "pushedAt": "2026-10-30T03:15:45Z",
+    "head": "de5530b5af73ab6f600bd838513e59f7c54ab591",
+    "headDate": "2026-10-28T09:03:55Z",
+    "treeTruncated": false
+  }
+]
