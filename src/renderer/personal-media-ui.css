@@ -30,3 +30,16 @@
 .pm-preview ul { margin: 8px 0 12px; padding-left: 18px; white-space: pre-wrap; }
 .pm-card-summary { display: block; color: var(--accent); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 @media (max-width: 520px) { .pm-actions { gap: 7px; } .pm-watch { flex-basis: 100%; } .pm-panel .mh-action { padding: 9px 10px; } .pm-preview { padding: 12px; } }
+
+.pm-heading { grid-template-columns: auto minmax(0,1fr); align-items: baseline; column-gap: 16px; }
+.pm-panel .pm-summary { font-variant-numeric: tabular-nums; }
+.pm-details > summary { list-style: none; display: flex; align-items: center; gap: 8px; }
+.pm-details > summary::-webkit-details-marker { display: none; }
+.pm-details > summary::before { content: ''; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform 160ms ease; }
+.pm-details[open] > summary::before { transform: rotate(45deg); }
+.pm-panel .mh-action { transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease; }
+.pm-panel .pm-target { margin: 4px 0 10px; color: var(--text-dim); }
+.pm-preview { border-radius: 0 8px 8px 0; }
+.pm-resume input { font-variant-numeric: tabular-nums; }
+@media (max-width: 700px) { .pm-heading { grid-template-columns: minmax(0,1fr); } }
+@media (prefers-reduced-motion: reduce) { .pm-panel .mh-action, .pm-details > summary::before { transition: none; } }

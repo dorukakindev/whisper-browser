@@ -10,20 +10,20 @@ test('shared viewing panel shows saved episode/note, previews explicit changes, 
  w.eval(fs.readFileSync(require.resolve('../src/renderer/personal-media-ui.js'),'utf8'));
  assert.match(w.PersonalMediaUI.summary({...value,effectiveResume:{episodeId:'s4e6',season:4,number:6,positionSeconds:600}}),/Season 4.*Episode 6.*00:10:00/,'Newer observed resume overrides an older manual bookmark in the visible summary');
  const host=w.document.getElementById('host'),button=text=>[...host.querySelectorAll('button')].find(node=>node.textContent===text);
- const controller=w.PersonalMediaUI.mount(host,{item:{id:'series-1',kind:'series'},identity:{catalogId:'series-1'}});await tick();
+ const controller=w.PersonalMediaUI.mount(host,{item:{id:'series-1',kind:'series'},identity:{catalogId:'series-1'}});assert(button('Liked it').disabled,'Do not edit while initial saved state is loading');await tick();
  assert.match(host.querySelector('.pm-summary').textContent,/Watching.*Season 2.*Episode 3.*00:01:30/);assert.equal(host.querySelector('.pm-note').textContent,'My saved note');assert.equal(host.querySelector('details').open,false);
  button('Liked it').click();assert(button('Liked it').disabled);await tick();
  assert.equal(calls.filter(row=>row.action==='apply').length,0);assert.equal(JSON.stringify(staged.changes),'{"reaction":"like"}');assert(button('Confirm save'));
  button('Confirm save').click();button('Confirm save').click();await tick();
  assert.equal(calls.filter(row=>row.action==='apply').length,1);assert.equal(value.watchStatus,'watching');assert.equal(events.length,1);assert.equal(button('Liked it').getAttribute('aria-pressed'),'true');
- const details=host.querySelector('details');details.open=true;const note=details.querySelector('textarea');note.value='Updated note';note.dispatchEvent(new w.Event('input'));
- const inputs=details.querySelectorAll('input');inputs[0].value='4';inputs[1].value='5';inputs[2].value='00:42:15';
+ const details=host.querySelector('details');details.open=true;const note=details.querySelector('textarea');note.value='Updated note';note.dispatchEvent(new w.Event('input'));const reads=calls.filter(r=>r.action==='get').length;w.document.dispatchEvent(new w.CustomEvent('media-personal-changed',{detail:{catalogId:'other-title'}}));await tick();assert.equal(calls.filter(r=>r.action==='get').length,reads);assert.equal(note.value,'Updated note','Unrelated updates preserve the draft');
+ const inputs=details.querySelectorAll('input');inputs[0].value='4';inputs[1].value='5';inputs[2].value='42:15';
  button('Preview changes').click();await tick();assert.equal(staged.changes.episode.season,4);assert.equal(staged.changes.episode.number,5);assert.equal(staged.changes.positionSeconds,2535);assert.equal(staged.changes.note,'Updated note');assert(!Object.hasOwn(staged.changes,'watchStatus'));
  note.value='Edited after preview';note.dispatchEvent(new w.Event('input'));assert.equal(button('Confirm save'),undefined);
  let resolve;delay=new Promise(done=>{resolve=done;});button('Not for me').click();controller.dispose();
  const replacement=w.PersonalMediaUI.mount(host,{item:{id:'series-1',kind:'series'},identity:{catalogId:'series-1'}});await tick();
  resolve({ok:true,token:'stale',preview:{changes:{reaction:'dislike'}}});await tick();
- assert.equal(host.querySelectorAll('.pm-panel').length,1);assert.equal(button('Confirm save'),undefined);assert.equal(calls.filter(row=>row.action==='apply').length,1);assert.equal(events.length,1);
+ assert.equal(host.querySelectorAll('.pm-panel').length,1);assert.equal(button('Confirm save'),undefined);assert.equal(calls.filter(row=>row.action==='apply').length,1);assert.equal(events.length,2);
  replacement.dispose();
 });
 test('title personal refresh replaces stale sidebar status while preserving an unsaved rating',async t=>{
