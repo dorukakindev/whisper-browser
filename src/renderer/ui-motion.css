@@ -3,6 +3,9 @@
   --ui-motion-quick: 100ms;
   --ui-motion-control: 150ms;
   --ui-motion-surface: 180ms;
+  --ui-motion-panel: 160ms;
+  --ui-motion-section-offset: 4px;
+  --ui-motion-panel-offset: 0px;
   --ui-motion-ease: cubic-bezier(.2, .8, .2, 1);
   --ui-elevation: var(--elev-2, 0 8px 24px rgb(0 0 0 / .22));
 }
@@ -15,14 +18,14 @@
     color var(--ui-motion-control), box-shadow var(--ui-motion-control), scale var(--ui-motion-quick);
 }
 :is(.media-home, .media-surface, .player-layer) :is(.mh-action, .tool-button, .btn, .btn-icon):active:not(:disabled),
-.mh-more > summary:active { scale: .96; }
+.mh-more > summary:active { scale: .985; }
 
 .mh-card .mh-art {
   transition: translate var(--ui-motion-surface) var(--ui-motion-ease),
     border-color var(--ui-motion-control), box-shadow var(--ui-motion-control);
 }
 @media (hover: hover) and (pointer: fine) {
-  .mh-card:hover .mh-art { translate: 0 -3px; box-shadow: var(--elev-2); }
+  .mh-card:hover .mh-art { translate: 0 -2px; box-shadow: var(--elev-2); }
 }
 .mh-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; border-radius: 9px; }
 .mh-card-title { line-height: 1.45; }
@@ -44,7 +47,7 @@
 }
 .assistant-surface #form button { min-height: 36px; }
 .assistant-surface :is(#close, #expand) { min-width: 40px; min-height: 40px; }
-.assistant-surface #send:active:not(:disabled) { scale: .96; }
+.assistant-surface #send:active:not(:disabled) { scale: .985; }
 
 /* Entry only: do not defer close(), hidden, focus return or native webview occlusion. */
 dialog.media-surface[open], dialog.md-detail[open],
