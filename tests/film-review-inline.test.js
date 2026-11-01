@@ -15,3 +15,12 @@ for(const state of ['current','stale','unknown'])test('Film reading page checks 
  const h=await setup([entry],{taste:state==='stale'?{...taste,preferences:{...taste.preferences,note:'Faster stories'}}:taste,profileError:state==='unknown'});
  try{assert.equal(h.w.document.querySelector('.film-review-content .mrv-freshness').dataset.freshness,state);assert.match(h.text(),/Acting praised/);if(state==='stale')assert.match(h.text(),/reuse the saved sample/);if(state==='unknown')assert.match(h.text(),/context could not be checked/);}finally{h.dom.window.close();}
 });
+
+
+test('Film visual rail follows delayed existing artwork and keeps the source reader available',async()=>{
+ const h=await setup([{identity:item,analysis,reviews}]);try{
+  const art=h.w.document.querySelector('.film-review-art');assert(art.hidden);
+  const backdrop=h.w.document.createElement('div');backdrop.className='mtd-backdrop';const image=h.w.document.createElement('img');image.src='data:image/png;base64,AA==';backdrop.append(image);h.w.document.querySelector('.media-title-page').append(backdrop);
+  await new Promise(r=>setTimeout(r,0));assert.equal(art.hidden,false);assert.equal(art.querySelector('img').src,image.src);assert.equal(h.w.document.querySelector('.film-review-originals').open,true);assert.equal(h.w.document.querySelector('.film-review-rail .mrv-fit h2').textContent,'Through your lens');
+ }finally{h.dom.window.close();}
+});
