@@ -1,0 +1,92 @@
+[
+  {
+    "group": [
+      "assistant-conversation",
+      "assistant-source-preview200",
+      "assistant-overlay"
+    ],
+    "exit": 0
+  },
+  {
+    "group": [
+      "film-review-inline",
+      "film-review-editor"
+    ],
+    "exit": 0
+  },
+  {
+    "group": [
+      "pdf-reader-search-ui",
+      "dub-natural-result"
+    ],
+    "exit": 0
+  },
+  {
+    "syntax": "src/assistant-overlay.js",
+    "exit": 0
+  },
+  {
+    "syntax": "src/assistant-source-preview.js",
+    "exit": 0
+  },
+  {
+    "syntax": "src/renderer/assistant-overlay.js",
+    "exit": 0
+  },
+  {
+    "syntax": "src/renderer/dub-generator-ui.js",
+    "exit": 0
+  },
+  {
+    "syntax": "src/renderer/global-assistant.js",
+    "exit": 0
+  },
+  {
+    "syntax": "src/renderer/media-home.js",
+    "exit": 0
+  },
+  {
+    "syntax": "src/renderer/media-shelf-ui.js",
+    "exit": 0
+  },
+  {
+    "syntax": "src/renderer/pdf-reader-experience.js",
+    "exit": 0
+  },
+  {
+    "syntax": "src/renderer/renderer.js",
+    "exit": 0
+  },
+  {
+    "syntax": "src/renderer/review-decision-ui.js",
+    "exit": 0
+  },
+  {
+    "syntax": "tests/assistant-conversation.test.js",
+    "exit": 0
+  },
+  {
+    "syntax": "tests/assistant-overlay.test.js",
+    "exit": 0
+  },
+  {
+    "syntax": "tests/assistant-source-preview200.test.js",
+    "exit": 0
+  },
+  {
+    "syntax": "tests/electron-browser-chrome-design.smoke.js",
+    "exit": 0
+  },
+  {
+    "syntax": "tests/electron-home-discovery-design.smoke.js",
+    "exit": 0
+  },
+  {
+    "syntax": "tests/electron-assistant-review824.smoke.js",
+    "exit": 0
+  },
+  {
+    "syntax": "tests/electron-film-design824.smoke.js",
+    "exit": 0
+  }
+]

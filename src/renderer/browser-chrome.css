@@ -792,7 +792,7 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-signal-body { display: grid; grid-template-columns: minmax(0, 1fr); }
 .browser-view-settings-grid { grid-template-columns: repeat(3, minmax(130px, 1fr)); }
 }
-@container browser-workspace (max-width: 920px) {
+@container browser-workspace (max-width: 1180px) {
 .browser-signal-head { grid-template-columns: minmax(0, 1fr); gap: 7px; }
 .browser-signal-state-actions { justify-content: flex-start; flex-wrap: wrap; }
 }
@@ -1318,6 +1318,10 @@ html[data-theme="light"] #browserBookmarkToggle:hover { color: var(--text); }
   .workspace-browser #browserPageTranslate { min-width: 34px; width: 34px; padding-inline: 0; justify-content: center; }
   #browserSubtitleLabel { max-width: 110px; }
   .browser-toolbar-actions { gap: 3px; }
+}
+@container browser-workspace (min-width: 621px) and (max-width: 1180px) {
+ .browser-toolbar-actions>.browser-dub-button{display:none}
+ .workspace-browser .browser-address-wrap{min-width:280px}
 }
 @media (hover: none) {
 .browser-tab .browser-tab-close { opacity: 1 !important; }

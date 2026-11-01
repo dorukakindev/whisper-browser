@@ -113,3 +113,30 @@ test('stale card refresh prepares a new unapplied card and still requires explic
  assert.equal(ui.w.document.querySelector('[data-tool-control="refresh"]'),null);assert.equal(ui.commands.filter(row=>row.action==='apply-tool').length,0);
  const apply=ui.w.document.querySelector('.tool-card button');assert.equal(apply.disabled,false);apply.click();assert.equal(ui.$('review').hidden,false);ui.$('reviewConfirm').click();assert.equal(ui.commands.at(-1).action,'apply-tool');assert.equal(ui.commands.at(-1).text,'fresh');
 }finally{ui.w.close();}});
+
+test('source-free home and studio retain honest localized metadata and no content starters',async()=>{
+ for(const locale of ['en','tr'])for(const workspace of ['media-library','subtitle-studio']){
+  const dom=new JSDOM('<div id="aiChatLog"></div><div id="playerTitle"></div>',{runScripts:'outside-only',url:'https://parent.test/'}),w=dom.window;let last;
+  try{Object.assign(w,{UiLocale:{get:()=>locale},player:{workspaceMode:'player'},state:{},aiChatPreparing:null,aiChatRetryPacket:null,assistantProviderSelection:()=>({model:'fixture'}),globalAssistantContext:()=>({workspace,page:'home',heading:'Home',note:'No active video is attached. Do not infer contents of a previously opened video.'}),aiSourceScope:()=>workspace,buildOptsFromUI:()=>({}),api:{updateAssistant:v=>{last=v},onAssistantCommand:()=>{}},subtitleSourceTime:v=>v,subtitleContextLanguage:()=>''});
+   w.eval(fs.readFileSync(path.join(root,'../assistant-source-context.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'../assistant-source-preview.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'global-assistant.js'),'utf8'));await new Promise(r=>setTimeout(r,80));
+   assert.equal(last.sourcePreview.attached,false);assert(!last.suggestions.some(r=>/:summary$|:explain$/.test(r.id)));assert(!last.sourceDescription.includes('Do not infer'));assert.match(last.sourceDescription,locale==='tr'?/Henüz video/:/No video/);assert(last.suggestions.some(r=>/:tasks$/.test(r.id)));
+  }finally{dom.window.close()}
+ }
+});
+
+test('inline action review requires confirmation and restores its trigger on cancel and Escape',()=>{
+ const ui=overlay();try{
+  const values={opened:true,messages:[{id:'a',role:'ai',text:'Review this proposal',actions:[{id:'one',kind:'app_action',label:'Open appearance',excerpt:'Open settings without changing values.'}]}]};
+  ui.snapshot(values);const apply=()=>ui.w.document.querySelector('.tool-card button');apply().focus();apply().click();assert.equal(ui.w.document.activeElement,ui.$('reviewConfirm'));assert(!ui.commands.some(c=>c.action==='apply-tool'));
+  ui.$('reviewCancel').click();assert.equal(ui.w.document.activeElement,apply());assert(ui.$('review').hidden);
+  apply().click();ui.w.document.dispatchEvent(new ui.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));assert.equal(ui.w.document.activeElement,apply());assert(!ui.$('panel').hidden);assert(!ui.commands.some(c=>c.action==='apply-tool'));
+  apply().click();ui.$('reviewConfirm').click();assert.equal(ui.commands.filter(c=>c.action==='apply-tool').length,1);ui.$('reviewConfirm').click();assert.equal(ui.commands.filter(c=>c.action==='apply-tool').length,1);
+  apply().click();ui.snapshot({...values,sourceToken:'B:1'});assert(ui.$('review').hidden);ui.$('reviewConfirm').click();assert.equal(ui.commands.filter(c=>c.action==='apply-tool').length,1,'source changes invalidate pending approval');
+ }finally{ui.dom.window.close()}
+});
+
+test('empty greeting updates as an attached source becomes available without replacing the conversation',()=>{
+ const ui=overlay();try{ui.snapshot({sourcePreview:{attached:false}});assert.match(ui.w.document.querySelector('.empty h2').textContent,/How can I help/);ui.snapshot({sourcePreview:{attached:true}});assert.match(ui.w.document.querySelector('.empty h2').textContent,/closer look/);
+  ui.snapshot({opened:true});ui.$('conversationMenu').open=true;ui.$('threadSettings').click();ui.$('deleteThread').click();ui.w.document.dispatchEvent(new ui.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));assert(ui.$('review').hidden,'Escape cancels the active decision before closing its underlying menu');assert.equal(ui.w.document.activeElement,ui.$('deleteThread'));
+ }finally{ui.dom.window.close()}
+});

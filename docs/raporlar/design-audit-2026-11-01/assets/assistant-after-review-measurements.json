@@ -1,0 +1,257 @@
+[
+  {
+    "width": 480,
+    "height": 600,
+    "locale": "tr",
+    "theme": "dark",
+    "dpr": 1,
+    "review": {
+      "x": 21,
+      "y": 300,
+      "width": 438,
+      "height": 148,
+      "top": 300,
+      "right": 459,
+      "bottom": 448,
+      "left": 21
+    },
+    "confirm": {
+      "x": 32,
+      "y": 401,
+      "width": 76.421875,
+      "height": 36,
+      "top": 401,
+      "right": 108.421875,
+      "bottom": 437,
+      "left": 32
+    },
+    "cancel": {
+      "x": 116.421875,
+      "y": 401,
+      "width": 61.8125,
+      "height": 36,
+      "top": 401,
+      "right": 178.234375,
+      "bottom": 437,
+      "left": 116.421875
+    },
+    "form": {
+      "x": 15,
+      "y": 466,
+      "width": 450,
+      "height": 119,
+      "top": 466,
+      "right": 465,
+      "bottom": 585,
+      "left": 15
+    },
+    "textClient": 72,
+    "textScroll": 77,
+    "active": "reviewConfirm",
+    "documentWidth": 480
+  },
+  {
+    "width": 360,
+    "height": 600,
+    "locale": "tr",
+    "theme": "dark",
+    "dpr": 1,
+    "review": {
+      "x": 21,
+      "y": 300,
+      "width": 318,
+      "height": 148,
+      "top": 300,
+      "right": 339,
+      "bottom": 448,
+      "left": 21
+    },
+    "confirm": {
+      "x": 32,
+      "y": 401,
+      "width": 76.421875,
+      "height": 36,
+      "top": 401,
+      "right": 108.421875,
+      "bottom": 437,
+      "left": 32
+    },
+    "cancel": {
+      "x": 116.421875,
+      "y": 401,
+      "width": 61.8125,
+      "height": 36,
+      "top": 401,
+      "right": 178.234375,
+      "bottom": 437,
+      "left": 116.421875
+    },
+    "form": {
+      "x": 15,
+      "y": 466,
+      "width": 330,
+      "height": 119,
+      "top": 466,
+      "right": 345,
+      "bottom": 585,
+      "left": 15
+    },
+    "textClient": 72,
+    "textScroll": 96,
+    "active": "reviewConfirm",
+    "documentWidth": 360
+  },
+  {
+    "width": 480,
+    "height": 600,
+    "locale": "en",
+    "theme": "light",
+    "dpr": 1,
+    "review": {
+      "x": 21,
+      "y": 300,
+      "width": 438,
+      "height": 148,
+      "top": 300,
+      "right": 459,
+      "bottom": 448,
+      "left": 21
+    },
+    "confirm": {
+      "x": 32,
+      "y": 401,
+      "width": 74.125,
+      "height": 36,
+      "top": 401,
+      "right": 106.125,
+      "bottom": 437,
+      "left": 32
+    },
+    "cancel": {
+      "x": 114.125,
+      "y": 401,
+      "width": 60.5,
+      "height": 36,
+      "top": 401,
+      "right": 174.625,
+      "bottom": 437,
+      "left": 114.125
+    },
+    "form": {
+      "x": 15,
+      "y": 466,
+      "width": 450,
+      "height": 119,
+      "top": 466,
+      "right": 465,
+      "bottom": 585,
+      "left": 15
+    },
+    "textClient": 72,
+    "textScroll": 96,
+    "active": "reviewConfirm",
+    "documentWidth": 480
+  },
+  {
+    "width": 360,
+    "height": 600,
+    "locale": "en",
+    "theme": "light",
+    "dpr": 1,
+    "review": {
+      "x": 21,
+      "y": 300,
+      "width": 318,
+      "height": 148,
+      "top": 300,
+      "right": 339,
+      "bottom": 448,
+      "left": 21
+    },
+    "confirm": {
+      "x": 32,
+      "y": 401,
+      "width": 74.125,
+      "height": 36,
+      "top": 401,
+      "right": 106.125,
+      "bottom": 437,
+      "left": 32
+    },
+    "cancel": {
+      "x": 114.125,
+      "y": 401,
+      "width": 60.5,
+      "height": 36,
+      "top": 401,
+      "right": 174.625,
+      "bottom": 437,
+      "left": 114.125
+    },
+    "form": {
+      "x": 15,
+      "y": 466,
+      "width": 330,
+      "height": 119,
+      "top": 466,
+      "right": 345,
+      "bottom": 585,
+      "left": 15
+    },
+    "textClient": 72,
+    "textScroll": 96,
+    "active": "reviewConfirm",
+    "documentWidth": 360
+  },
+  {
+    "width": 480,
+    "height": 720,
+    "locale": "tr",
+    "theme": "dark",
+    "dpr": 1,
+    "review": {
+      "x": 21,
+      "y": 381.25,
+      "width": 438,
+      "height": 158.75,
+      "top": 381.25,
+      "right": 459,
+      "bottom": 540,
+      "left": 21
+    },
+    "confirm": {
+      "x": 34,
+      "y": 491,
+      "width": 76.421875,
+      "height": 36,
+      "top": 491,
+      "right": 110.421875,
+      "bottom": 527,
+      "left": 34
+    },
+    "cancel": {
+      "x": 118.421875,
+      "y": 491,
+      "width": 61.8125,
+      "height": 36,
+      "top": 491,
+      "right": 180.234375,
+      "bottom": 527,
+      "left": 118.421875
+    },
+    "form": {
+      "x": 21,
+      "y": 560,
+      "width": 438,
+      "height": 139,
+      "top": 560,
+      "right": 459,
+      "bottom": 699,
+      "left": 21
+    },
+    "textClient": 77,
+    "textScroll": 77,
+    "active": "reviewConfirm",
+    "documentWidth": 480
+  }
+]

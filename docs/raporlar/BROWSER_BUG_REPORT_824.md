@@ -1,5 +1,7 @@
 # R824 — Görüntülü tasarım denetimi, yalnız raporlama
 
+> **Sonraki uygulama:** Kullanıcının açık düzeltme talimatıyla 1 Kasım 2026'da bu rapordaki 13 kayıt hedefli olarak uygulandı. Önce/sonra görüntüleri ve doğrulama sınırları [IMPLEMENTATION.md](design-audit-2026-11-01/IMPLEMENTATION.md) içindedir. Aşağıdaki ilk denetim, kendi anlık görüntüsünün tarihsel kaydı olarak korunur; ilk CHECKPOINT yerine devam durumu IMPLEMENTATION.json'dadır.
+
 Durum: **tamamlandı; hiçbir ürün veya test düzeltmesi yapılmadı.**
 
 - Kullanıcı kapsamı: ajanlarla tasarımı incele, bulguları görüntüleriyle kalıcı rapora yaz; düzeltmeleri sonraki açık talimatta yap.

@@ -1,0 +1,1212 @@
+[
+  {
+    "name": "tr-1440-ready",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi",
+    "geometry": {
+      "viewport": [
+        1440,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 180,
+        "y": 28.5,
+        "width": 1080,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 180.6666717529297,
+        "y": 29.166667938232422,
+        "width": 1078.666748046875,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 180.6666717529297,
+        "y": 101.83333587646484,
+        "width": 1078.666748046875,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 180.6666717529297,
+        "y": 153.1666717529297,
+        "width": 1078.666748046875,
+        "height": 662,
+        "scroll": 1216,
+        "client": 662
+      },
+      "footer": {
+        "x": 180.6666717529297,
+        "y": 815.1666870117188,
+        "width": 1078.666748046875,
+        "height": 105.66667175292969,
+        "scroll": 105,
+        "client": 105
+      }
+    }
+  },
+  {
+    "name": "tr-1440-focus",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi",
+    "geometry": {
+      "viewport": [
+        1440,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 180,
+        "y": 28.5,
+        "width": 1080,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 180.6666717529297,
+        "y": 29.166667938232422,
+        "width": 1078.666748046875,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 180.6666717529297,
+        "y": 101.83333587646484,
+        "width": 1078.666748046875,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 180.6666717529297,
+        "y": 153.1666717529297,
+        "width": 1078.666748046875,
+        "height": 662,
+        "scroll": 1216,
+        "client": 662
+      },
+      "footer": {
+        "x": 180.6666717529297,
+        "y": 815.1666870117188,
+        "width": 1078.666748046875,
+        "height": 105.66667175292969,
+        "scroll": 105,
+        "client": 105
+      }
+    }
+  },
+  {
+    "name": "tr-1440-active",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi",
+    "geometry": {
+      "viewport": [
+        1440,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 180,
+        "y": 28.5,
+        "width": 1080,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 180.6666717529297,
+        "y": 29.166667938232422,
+        "width": 1078.666748046875,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 180.6666717529297,
+        "y": 101.83333587646484,
+        "width": 1078.666748046875,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 180.6666717529297,
+        "y": 153.1666717529297,
+        "width": 1078.666748046875,
+        "height": 647,
+        "scroll": 1216,
+        "client": 647
+      },
+      "footer": {
+        "x": 180.6666717529297,
+        "y": 800.1666870117188,
+        "width": 1078.666748046875,
+        "height": 120.66667175292969,
+        "scroll": 120,
+        "client": 120
+      }
+    }
+  },
+  {
+    "name": "tr-1440-review",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "1 hazır0 inceleme0 üretilemedi",
+    "geometry": {
+      "viewport": [
+        1440,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 180,
+        "y": 28.5,
+        "width": 1080,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 180.6666717529297,
+        "y": 29.166667938232422,
+        "width": 1078.666748046875,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 180.6666717529297,
+        "y": 101.83333587646484,
+        "width": 1078.666748046875,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 180.6666717529297,
+        "y": 153.1666717529297,
+        "width": 1078.666748046875,
+        "height": 654,
+        "scroll": 1684,
+        "client": 654
+      },
+      "footer": {
+        "x": 180.6666717529297,
+        "y": 807.1666870117188,
+        "width": 1078.666748046875,
+        "height": 113.66667175292969,
+        "scroll": 113,
+        "client": 113
+      }
+    }
+  },
+  {
+    "name": "tr-820-ready",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi",
+    "geometry": {
+      "viewport": [
+        820,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 17,
+        "y": 28.5,
+        "width": 786,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 17.666667938232422,
+        "y": 29.166667938232422,
+        "width": 784.6666870117188,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 17.666667938232422,
+        "y": 101.83333587646484,
+        "width": 784.6666870117188,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 17.666667938232422,
+        "y": 153.1666717529297,
+        "width": 784.6666870117188,
+        "height": 675,
+        "scroll": 1406,
+        "client": 675
+      },
+      "footer": {
+        "x": 17.666667938232422,
+        "y": 828.1666870117188,
+        "width": 784.6666870117188,
+        "height": 92.66667175292969,
+        "scroll": 92,
+        "client": 92
+      }
+    }
+  },
+  {
+    "name": "tr-820-focus",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi",
+    "geometry": {
+      "viewport": [
+        820,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 17,
+        "y": 28.5,
+        "width": 786,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 17.666667938232422,
+        "y": 29.166667938232422,
+        "width": 784.6666870117188,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 17.666667938232422,
+        "y": 101.83333587646484,
+        "width": 784.6666870117188,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 17.666667938232422,
+        "y": 153.1666717529297,
+        "width": 784.6666870117188,
+        "height": 675,
+        "scroll": 1352,
+        "client": 675
+      },
+      "footer": {
+        "x": 17.666667938232422,
+        "y": 828.1666870117188,
+        "width": 784.6666870117188,
+        "height": 92.66667175292969,
+        "scroll": 92,
+        "client": 92
+      }
+    }
+  },
+  {
+    "name": "tr-820-active",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi",
+    "geometry": {
+      "viewport": [
+        820,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 17,
+        "y": 28.5,
+        "width": 786,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 17.666667938232422,
+        "y": 29.166667938232422,
+        "width": 784.6666870117188,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 17.666667938232422,
+        "y": 101.83333587646484,
+        "width": 784.6666870117188,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 17.666667938232422,
+        "y": 153.1666717529297,
+        "width": 784.6666870117188,
+        "height": 660,
+        "scroll": 1352,
+        "client": 660
+      },
+      "footer": {
+        "x": 17.666667938232422,
+        "y": 813.1666870117188,
+        "width": 784.6666870117188,
+        "height": 107.66667175292969,
+        "scroll": 107,
+        "client": 107
+      }
+    }
+  },
+  {
+    "name": "tr-820-review",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "1 hazır0 inceleme0 üretilemedi",
+    "geometry": {
+      "viewport": [
+        820,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 17,
+        "y": 28.5,
+        "width": 786,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 17.666667938232422,
+        "y": 29.166667938232422,
+        "width": 784.6666870117188,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 17.666667938232422,
+        "y": 101.83333587646484,
+        "width": 784.6666870117188,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 17.666667938232422,
+        "y": 153.1666717529297,
+        "width": 784.6666870117188,
+        "height": 667,
+        "scroll": 1813,
+        "client": 667
+      },
+      "footer": {
+        "x": 17.666667938232422,
+        "y": 820.1666870117188,
+        "width": 784.6666870117188,
+        "height": 100.66667175292969,
+        "scroll": 100,
+        "client": 100
+      }
+    }
+  },
+  {
+    "name": "en-640-ready",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready0 to review0 failed",
+    "geometry": {
+      "viewport": [
+        640,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 17,
+        "y": 28.5,
+        "width": 606,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 17.666667938232422,
+        "y": 29.166667938232422,
+        "width": 604.6666870117188,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 17.666667938232422,
+        "y": 101.83333587646484,
+        "width": 604.6666870117188,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 17.666667938232422,
+        "y": 153.1666717529297,
+        "width": 604.6666870117188,
+        "height": 675,
+        "scroll": 1426,
+        "client": 675
+      },
+      "footer": {
+        "x": 17.666667938232422,
+        "y": 828.1666870117188,
+        "width": 604.6666870117188,
+        "height": 92.66667175292969,
+        "scroll": 92,
+        "client": 92
+      }
+    }
+  },
+  {
+    "name": "after-dub-tr-dark-ready",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi",
+    "geometry": {
+      "viewport": [
+        640,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 17,
+        "y": 28.5,
+        "width": 606,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 17.666667938232422,
+        "y": 29.166667938232422,
+        "width": 604.6666870117188,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 17.666667938232422,
+        "y": 101.83333587646484,
+        "width": 604.6666870117188,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 17.666667938232422,
+        "y": 153.1666717529297,
+        "width": 604.6666870117188,
+        "height": 675,
+        "scroll": 1406,
+        "client": 675
+      },
+      "footer": {
+        "x": 17.666667938232422,
+        "y": 828.1666870117188,
+        "width": 604.6666870117188,
+        "height": 92.66667175292969,
+        "scroll": 92,
+        "client": 92
+      }
+    }
+  },
+  {
+    "name": "after-dub-en-light-ready",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready0 to review0 failed",
+    "geometry": {
+      "viewport": [
+        640,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 17,
+        "y": 28.5,
+        "width": 606,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 17.666667938232422,
+        "y": 29.166667938232422,
+        "width": 604.6666870117188,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 17.666667938232422,
+        "y": 101.83333587646484,
+        "width": 604.6666870117188,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 17.666667938232422,
+        "y": 153.1666717529297,
+        "width": 604.6666870117188,
+        "height": 675,
+        "scroll": 1426,
+        "client": 675
+      },
+      "footer": {
+        "x": 17.666667938232422,
+        "y": 828.1666870117188,
+        "width": 604.6666870117188,
+        "height": 92.66667175292969,
+        "scroll": 92,
+        "client": 92
+      }
+    }
+  },
+  {
+    "name": "after-dub-en-dark-ready",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready0 to review0 failed",
+    "geometry": {
+      "viewport": [
+        640,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 17,
+        "y": 28.5,
+        "width": 606,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 17.666667938232422,
+        "y": 29.166667938232422,
+        "width": 604.6666870117188,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 17.666667938232422,
+        "y": 101.83333587646484,
+        "width": 604.6666870117188,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 17.666667938232422,
+        "y": 153.1666717529297,
+        "width": 604.6666870117188,
+        "height": 675,
+        "scroll": 1426,
+        "client": 675
+      },
+      "footer": {
+        "x": 17.666667938232422,
+        "y": 828.1666870117188,
+        "width": 604.6666870117188,
+        "height": 92.66667175292969,
+        "scroll": 92,
+        "client": 92
+      }
+    }
+  },
+  {
+    "name": "after-dub-tr-light-ready",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi",
+    "geometry": {
+      "viewport": [
+        640,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 17,
+        "y": 28.5,
+        "width": 606,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 17.666667938232422,
+        "y": 29.166667938232422,
+        "width": 604.6666870117188,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 17.666667938232422,
+        "y": 101.83333587646484,
+        "width": 604.6666870117188,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 17.666667938232422,
+        "y": 153.1666717529297,
+        "width": 604.6666870117188,
+        "height": 675,
+        "scroll": 1406,
+        "client": 675
+      },
+      "footer": {
+        "x": 17.666667938232422,
+        "y": 828.1666870117188,
+        "width": 604.6666870117188,
+        "height": 92.66667175292969,
+        "scroll": 92,
+        "client": 92
+      }
+    }
+  },
+  {
+    "name": "after-dub-en-light-advanced",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready0 to review0 failed",
+    "geometry": {
+      "viewport": [
+        640,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 17,
+        "y": 28.5,
+        "width": 606,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 17.666667938232422,
+        "y": 29.166667938232422,
+        "width": 604.6666870117188,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 17.666667938232422,
+        "y": 101.83333587646484,
+        "width": 604.6666870117188,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 17.666667938232422,
+        "y": 153.1666717529297,
+        "width": 604.6666870117188,
+        "height": 675,
+        "scroll": 2189,
+        "client": 675
+      },
+      "footer": {
+        "x": 17.666667938232422,
+        "y": 828.1666870117188,
+        "width": 604.6666870117188,
+        "height": 92.66667175292969,
+        "scroll": 92,
+        "client": 92
+      }
+    }
+  },
+  {
+    "name": "en-640-focus",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready0 to review0 failed",
+    "geometry": {
+      "viewport": [
+        640,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 17,
+        "y": 28.5,
+        "width": 606,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 17.666667938232422,
+        "y": 29.166667938232422,
+        "width": 604.6666870117188,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 17.666667938232422,
+        "y": 101.83333587646484,
+        "width": 604.6666870117188,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 17.666667938232422,
+        "y": 153.1666717529297,
+        "width": 604.6666870117188,
+        "height": 675,
+        "scroll": 1372,
+        "client": 675
+      },
+      "footer": {
+        "x": 17.666667938232422,
+        "y": 828.1666870117188,
+        "width": 604.6666870117188,
+        "height": 92.66667175292969,
+        "scroll": 92,
+        "client": 92
+      }
+    }
+  },
+  {
+    "name": "en-640-active",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready0 to review0 failed",
+    "geometry": {
+      "viewport": [
+        640,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 17,
+        "y": 28.5,
+        "width": 606,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 17.666667938232422,
+        "y": 29.166667938232422,
+        "width": 604.6666870117188,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 17.666667938232422,
+        "y": 101.83333587646484,
+        "width": 604.6666870117188,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 17.666667938232422,
+        "y": 153.1666717529297,
+        "width": 604.6666870117188,
+        "height": 660,
+        "scroll": 1372,
+        "client": 660
+      },
+      "footer": {
+        "x": 17.666667938232422,
+        "y": 813.1666870117188,
+        "width": 604.6666870117188,
+        "height": 107.66667175292969,
+        "scroll": 107,
+        "client": 107
+      }
+    }
+  },
+  {
+    "name": "en-640-review",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready1 to review0 failed",
+    "geometry": {
+      "viewport": [
+        640,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 17,
+        "y": 28.5,
+        "width": 606,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 17.666667938232422,
+        "y": 29.166667938232422,
+        "width": 604.6666870117188,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 17.666667938232422,
+        "y": 101.83333587646484,
+        "width": 604.6666870117188,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 17.666667938232422,
+        "y": 153.1666717529297,
+        "width": 604.6666870117188,
+        "height": 667,
+        "scroll": 1832,
+        "client": 667
+      },
+      "footer": {
+        "x": 17.666667938232422,
+        "y": 820.1666870117188,
+        "width": 604.6666870117188,
+        "height": 100.66667175292969,
+        "scroll": 100,
+        "client": 100
+      }
+    }
+  },
+  {
+    "name": "after-dub-tr-dark-review",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır1 inceleme0 üretilemedi",
+    "geometry": {
+      "viewport": [
+        640,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 17,
+        "y": 28.5,
+        "width": 606,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 17.666667938232422,
+        "y": 29.166667938232422,
+        "width": 604.6666870117188,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 17.666667938232422,
+        "y": 101.83333587646484,
+        "width": 604.6666870117188,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 17.666667938232422,
+        "y": 153.1666717529297,
+        "width": 604.6666870117188,
+        "height": 660.3333740234375,
+        "scroll": 1836,
+        "client": 660
+      },
+      "footer": {
+        "x": 17.666667938232422,
+        "y": 813.5,
+        "width": 604.6666870117188,
+        "height": 107.33333587646484,
+        "scroll": 107,
+        "client": 107
+      }
+    }
+  },
+  {
+    "name": "after-dub-en-light-review",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready1 to review0 failed",
+    "geometry": {
+      "viewport": [
+        640,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 17,
+        "y": 28.5,
+        "width": 606,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 17.666667938232422,
+        "y": 29.166667938232422,
+        "width": 604.6666870117188,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 17.666667938232422,
+        "y": 101.83333587646484,
+        "width": 604.6666870117188,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 17.666667938232422,
+        "y": 153.1666717529297,
+        "width": 604.6666870117188,
+        "height": 667,
+        "scroll": 1832,
+        "client": 667
+      },
+      "footer": {
+        "x": 17.666667938232422,
+        "y": 820.1666870117188,
+        "width": 604.6666870117188,
+        "height": 100.66667175292969,
+        "scroll": 100,
+        "client": 100
+      }
+    }
+  },
+  {
+    "name": "after-dub-en-dark-review",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready1 to review0 failed",
+    "geometry": {
+      "viewport": [
+        640,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 17,
+        "y": 28.5,
+        "width": 606,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 17.666667938232422,
+        "y": 29.166667938232422,
+        "width": 604.6666870117188,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 17.666667938232422,
+        "y": 101.83333587646484,
+        "width": 604.6666870117188,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 17.666667938232422,
+        "y": 153.1666717529297,
+        "width": 604.6666870117188,
+        "height": 667,
+        "scroll": 1832,
+        "client": 667
+      },
+      "footer": {
+        "x": 17.666667938232422,
+        "y": 820.1666870117188,
+        "width": 604.6666870117188,
+        "height": 100.66667175292969,
+        "scroll": 100,
+        "client": 100
+      }
+    }
+  },
+  {
+    "name": "after-dub-tr-light-review",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır1 inceleme0 üretilemedi",
+    "geometry": {
+      "viewport": [
+        640,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 17,
+        "y": 28.5,
+        "width": 606,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 17.666667938232422,
+        "y": 29.166667938232422,
+        "width": 604.6666870117188,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 17.666667938232422,
+        "y": 101.83333587646484,
+        "width": 604.6666870117188,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 17.666667938232422,
+        "y": 153.1666717529297,
+        "width": 604.6666870117188,
+        "height": 660.3333740234375,
+        "scroll": 1836,
+        "client": 660
+      },
+      "footer": {
+        "x": 17.666667938232422,
+        "y": 813.5,
+        "width": 604.6666870117188,
+        "height": 107.33333587646484,
+        "scroll": 107,
+        "client": 107
+      }
+    }
+  },
+  {
+    "name": "en-640-pronunciation",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready1 to review0 failed",
+    "geometry": {
+      "viewport": [
+        640,
+        950
+      ],
+      "devicePixelRatio": 1.5,
+      "dialog": {
+        "x": 17,
+        "y": 28.5,
+        "width": 606,
+        "height": 893,
+        "scroll": 892,
+        "client": 892
+      },
+      "head": {
+        "x": 17.666667938232422,
+        "y": 29.166667938232422,
+        "width": 604.6666870117188,
+        "height": 72.66667175292969,
+        "scroll": 72,
+        "client": 72
+      },
+      "context": {
+        "x": 17.666667938232422,
+        "y": 101.83333587646484,
+        "width": 604.6666870117188,
+        "height": 51.333335876464844,
+        "scroll": 51,
+        "client": 51
+      },
+      "body": {
+        "x": 17.666667938232422,
+        "y": 153.1666717529297,
+        "width": 604.6666870117188,
+        "height": 667,
+        "scroll": 3023,
+        "client": 667
+      },
+      "footer": {
+        "x": 17.666667938232422,
+        "y": 820.1666870117188,
+        "width": 604.6666870117188,
+        "height": 100.66667175292969,
+        "scroll": 100,
+        "client": 100
+      }
+    }
+  }
+]

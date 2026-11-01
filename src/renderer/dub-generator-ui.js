@@ -2,6 +2,11 @@
   'use strict';
   const el = id => document.getElementById(id);
   const modal = el('dubGeneratorDialog');
+  // Elapsed time belongs to production details, not the always-visible action bar.
+  const runDetails=modal.querySelector('.dub-run-details');
+  runDetails.querySelector('.dub-run-details-body').prepend(modal.querySelector('.dub-job-meta>p'));
+  runDetails.addEventListener('keydown',event=>{if(event.key==='Escape'&&runDetails.open){runDetails.open=false;runDetails.querySelector('summary').focus();event.preventDefault();event.stopPropagation();}});
+
   function fileName(id,value){const node=el(id);node.textContent=String(value||'');node.title=node.textContent;}
   let srt = '', cfg = null, current = null, output = null;
   let timer = null, logPath = null;
@@ -80,6 +85,7 @@
     el('dubNaturalReviewOpen').disabled=!!current||!results.size;
   }
   function refreshOverview() {
+    modal.dataset.running=String(!!current);
     editorProviderHint();naturalOverview();
     const decoding=plan?.sourceDecoding;decodingInfo.hidden=!decoding;decodingInfo.textContent=decoding?(window.UiLocale?.get?.()==='en'?'Text read using '+decoding.encoding+(decoding.repaired?' · automatic text repair applied':'')+'. Check characters before generating speech. Source file unchanged.':'Metin '+decoding.encoding+' ile okundu'+(decoding.repaired?' · otomatik metin onarımı uygulandı':'')+'. Ses üretmeden önce harfleri kontrol et. Kaynak dosya değiştirilmedi.'):'';
     for(const id of ['dubSrtName','dubGeneratedName','dubVoiceName']){const node=el(id);if(node)node.title=node.textContent;}

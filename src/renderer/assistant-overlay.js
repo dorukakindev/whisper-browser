@@ -41,8 +41,20 @@
   $('pinned').onclick=()=>{onlyPinned=!onlyPinned;$('pinned').setAttribute('aria-pressed',String(onlyPinned));filter();};
   $('export').onclick=()=>{const content=(snapshot.messages||[]).map(r=>'## '+(r.role==='user'?'You':'Assistant')+'\n\n'+r.text).join('\n\n');if(content)action('export',content);};
   document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='f'&&opened){event.preventDefault();$('conversationMenu').open=true;$('find').focus();}});
-  $('reviewCancel').onclick = () => { reviewing = null; $('review').hidden = true; };
-  $('reviewConfirm').onclick = () => { if (reviewing && !busy) action(reviewing.action,reviewing.id); reviewing = null; $('review').hidden = true; };
+  let reviewTrigger=null;
+  function closeReview(restore=true){
+    reviewing=null;$('review').hidden=true;
+    if(restore){let target=reviewTrigger;if(!target?.isConnected&&target?.dataset.toolControl){const card=[...$('log').querySelectorAll('.tool-card')].find(n=>n.dataset.proposalId===target._reviewProposal);target=card?.querySelector('[data-tool-control="'+target.dataset.toolControl+'"]');}if(!target?.isConnected||target.disabled||target.closest('[hidden]'))target=$('text');if(target.closest('#conversationMenu')&&!$('conversationMenu').open)target=$('conversationMenuLabel');target.focus();}
+    reviewTrigger=null;
+  }
+  function openReview(request,text,trigger=document.activeElement){
+    reviewing=request;reviewTrigger=trigger;
+    if(trigger?.dataset.toolControl)trigger._reviewProposal=trigger.closest('.tool-card')?.dataset.proposalId;
+    $('reviewText').textContent=text;$('review').hidden=false;$('reviewText').scrollTop=0;
+    $('reviewConfirm').focus({preventScroll:true});$('review').scrollIntoView?.({block:'nearest'});
+  }
+  $('reviewCancel').onclick=()=>closeReview();
+  $('reviewConfirm').onclick=()=>{if(!reviewing||busy)return;const request=reviewing;closeReview();action(request.action,request.id);};
   let jobsKey='';
   function renderJobs(value){
     const rows=[...(value.jobs||[]).filter(row=>['running','cancelling'].includes(row.state)),...(value.jobs||[]).filter(row=>!['running','cancelling'].includes(row.state))].slice(0,6),key=JSON.stringify([value.locale,rows]);if(key===jobsKey)return;jobsKey=key;
@@ -73,17 +85,17 @@
   $('expand').onclick = () => action('expand');
   $('assistantSettings').onclick = () => action('settings');
   for (const name of ['cancel','retry']) $(name).onclick=()=>action(name);
-  $('clear').onclick=()=>{reviewing={action:'clear'};$('reviewText').textContent=snapshot.locale==='tr'?'Mevcut sohbet geçmişi temizlenecek. Sabitlenen notların korunur.':'This clears the current chat history. Pinned notes are kept.';$('conversationMenu').open=false;$('review').hidden=false;$('reviewConfirm').focus();};
+  $('clear').onclick=()=>{$('conversationMenu').open=false;openReview({action:'clear'},snapshot.locale==='tr'?'Mevcut sohbet geçmişi temizlenecek. Sabitlenen notların korunur.':'This clears the current chat history. Pinned notes are kept.',$('conversationMenuLabel'));};
   $('scope').onchange = () => action('scope', $('scope').value);
   function send(mode='send') { const text = $('text').value.trim(); if (!text || busy || pending || snapshot.blocked) return; pending={text,id:'q-'+Date.now()+'-'+(++requestSequence),sourceToken:snapshot.sourceToken};action(mode,text,{requestId:pending.id});$('send').disabled=true;showStatus(snapshot.locale==='tr'?'Soru gönderiliyor…':'Sending question…'); }
   $('webSearch').onclick=()=>send('web-search');
   $('form').onsubmit = event => { event.preventDefault(); send(); };
   $('text').onkeydown = event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); send(); } };
-  document.addEventListener('keydown', event => { if (event.key === 'Escape' && opened) { event.preventDefault(); if($('conversationMenu').open){$('conversationMenu').open=false;$('conversationMenuLabel').focus();}else if(!$('review').hidden){$('reviewCancel').click();$('text').focus();}else toggle(); } });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && opened) { event.preventDefault(); if(!$('review').hidden){$('reviewCancel').click();}else if($('conversationMenu').open){$('conversationMenu').open=false;$('conversationMenuLabel').focus();}else toggle(); } });
   window.assistant.subscribe(value => {
     if(typeof value.opened==='boolean' && value.opened!==opened){opened=value.opened;$('panel').hidden=!opened;$('bubble').hidden=opened;if(opened){$('text').focus();window.UiMotion?.reveal($('panel'),'panel');}}
     const nextConversation=value.conversation||value.sourceToken||'';
-    if(snapshot.sourceToken!==value.sourceToken){reviewing=null;$('review').hidden=true;}
+    if(snapshot.sourceToken!==value.sourceToken){const focused=$('review').contains(document.activeElement);closeReview(false);if(focused)$('text').focus();}
     const firstThread=!!pending&&!snapshot.activeThread&&!!value.activeThread&&(snapshot.pinScope||snapshot.conversation)===(value.pinScope||value.conversation);
     if(firstThread){drafts.delete(conversation);conversation=nextConversation;pending.sourceToken=value.sourceToken;}
     if(conversation!==nextConversation){rememberDraft();conversation=nextConversation;$('text').value=drafts.get(conversation)||value.draft||'';pending=null;onlyPinned=false;$('pinned').setAttribute('aria-pressed','false');$('find').value='';showStatus('');}
@@ -98,7 +110,7 @@
     $('webSearch').textContent=value.locale==='tr'?"Web’de araştır":'Search web';$('webSearch').title=value.locale==='tr'?'Sağlayıcının web_search aracını kullanır; ek ücret olabilir.':'Uses provider web_search; additional charges may apply.';$('webSearch').disabled=!!value.busy;
     const tr = value.locale === 'tr'; const t = (en, turkish) => tr ? turkish : en;
     document.documentElement.lang = tr ? 'tr' : 'en'; document.documentElement.dataset.theme = value.theme;
-    $('modelLabel').textContent=t('Active model','Etkin model');
+    $('modelLabel').textContent=t('Active model','Etkin model');$('review').setAttribute('role','group');$('review').setAttribute('aria-label',t('Confirm action','İşlemi onayla'));
     $('threads').setAttribute('aria-label',t('Conversation','Sohbet'));$('newThread').textContent=t('New','Yeni');$('threadSettings').textContent=t('Manage','Yönet');$('threadNameLabel').textContent=t('Conversation name','Sohbet adı');$('renameThread').textContent=t('Save name','Adı kaydet');$('deleteThread').textContent=t('Delete conversation','Sohbeti sil');
     $('find').placeholder=t('Search conversation','Konuşmada ara');$('find').setAttribute('aria-label',$('find').placeholder);$('pinned').textContent=t('Pinned','Sabitlenen');$('export').textContent=t('Export','Dışa aktar');
     $('sourceLabel').textContent=(value.videoContext||value.transcriptScope?t('Video, subtitles & model','Video, altyazı ve model'):value.pageContext?t('Web page & model','Web sayfası ve model'):t('Source & model','Kaynak ve model'));$('assistantSettings').textContent=t('Assistant & translation settings','Asistan ve çeviri ayarları');$('conversationMenuLabel').title=t('Conversation tools','Sohbet araçları');$('conversationMenuLabel').setAttribute('aria-label',$('conversationMenuLabel').title);$('modelName').textContent=value.model||t('Your configured AI model','Ayarlı AI modelin');$('sourceDescription').textContent=value.sourceDescription||t('Only provided context is used.','Yalnız sağlanan bağlam kullanılır.');$('scope').hidden=value.transcriptScope===false;$('latest').textContent=t('Latest reply ↓','Son yanıta git ↓');
@@ -113,10 +125,10 @@
     $('reviewConfirm').textContent = t('Continue', 'Devam et'); $('reviewCancel').textContent = t('Cancel','Vazgeç');
     const nextSuggestions = JSON.stringify(value.suggestions || []);
     if (nextSuggestions !== suggestionKey) {
-      suggestionKey = nextSuggestions; $('suggestions').replaceChildren(); reviewing = null; $('review').hidden = true;
+      suggestionKey = nextSuggestions; $('suggestions').replaceChildren(); closeReview(false);
       for (const row of value.suggestions || []) {
         const button = document.createElement('button'); button.type = 'button'; button.textContent = row.label;
-        button.onclick = () => { if(row.direct){if(!busy&&!snapshot.blocked)action('suggestion',row.id);return;} reviewing = {action:'suggestion',id:row.id}; $('reviewText').textContent = row.review; $('review').hidden = false; $('reviewConfirm').focus(); };
+        button.onclick = () => { if(row.direct){if(!busy&&!snapshot.blocked)action('suggestion',row.id);return;} openReview({action:'suggestion',id:row.id},row.review,button); };
         $('suggestions').append(button);
       }
     }
@@ -129,14 +141,14 @@
     }
     if(value.blocked&&!pending){$('delivery').dataset.blocked='true';showStatus(t('Another task is running. Your question stays in the draft.','Başka bir iş çalışıyor. Sorun taslakta kalır.'));}else if(!value.blocked&&$('delivery').dataset.blocked==='true'){$('delivery').dataset.blocked='false';if(!value.receipt?.message)showStatus('');}
     renderJobs(value);
-    const key = JSON.stringify([value.locale, value.conversation, value.pageContext, value.transcriptScope, value.busy, value.messages]);
+    const key = JSON.stringify([value.locale, value.conversation, value.pageContext, value.videoContext, value.transcriptScope, value.sourcePreview?.attached, value.busy, value.messages]);
     if (key === lastMessages) return; lastMessages = key;
     const log = $('log'), previousScroll=log.scrollTop, threadChanged=renderedConversation!==value.conversation, bottom=threadChanged||log.scrollHeight-log.scrollTop-log.clientHeight<60;
     renderedConversation=value.conversation;
     const focused=document.activeElement,focusCard=log.contains(focused)?focused.closest('.tool-card'):null;
     const focusTarget=focusCard?{id:focusCard.dataset.proposalId,control:focused.dataset.toolControl}:null;
     log.replaceChildren();
-    if (!value.messages?.length) { const empty=document.createElement('section');empty.className='empty';const eyebrow=document.createElement('small'),heading=document.createElement('h2'),detail=document.createElement('p');eyebrow.textContent=t('YOUR SOURCE, IN FOCUS','KAYNAĞIN, ODAKTA');heading.textContent=value.videoContext?t('Your video, ready to work.','Videon hazır. Ne yapalım?'):value.pageContext?t('Read. Understand. Explore.','Oku. Anla. Keşfet.'):t('A closer look at your source.','Kaynağına birlikte bakalım.');detail.textContent=value.videoContext?t('Translate existing captions or start Whisper. The selected video range is used; progress appears in this conversation.','Mevcut altyazıyı çevir veya Whisper başlat. Seçili video aralığı kullanılır; ilerleme bu sohbette gösterilir.'):value.pageContext?t('Summarize this page, ask about its claims, or translate it directly on the page.','Bu sayfayı özetle, iddialarını sor veya doğrudan sayfanın üzerinde çevir.'):value.transcriptScope?t('Ask about the dialogue, compare translations, or revisit a scene with subtitle evidence.','Konuşmayı sor, çevirileri karşılaştır veya altyazı kanıtlarıyla bir sahneye dön.'):t('Ask about the selected text or title. Only the supplied source is used.','Seçili metni veya yapımı sor. Yalnız sağlanan kaynak kullanılır.');empty.append(eyebrow,heading,detail);log.append(empty); }
+    if (!value.messages?.length) { const empty=document.createElement('section');empty.className='empty';const heading=document.createElement('h2'),detail=document.createElement('p');heading.textContent=value.sourcePreview?.attached===false?t('How can I help?','Nasıl yardımcı olayım?'):value.videoContext?t('Your video, ready to work.','Videon hazır. Ne yapalım?'):value.pageContext?t('Read. Understand. Explore.','Oku. Anla. Keşfet.'):t('A closer look at your source.','Kaynağına birlikte bakalım.');detail.textContent=value.sourcePreview?.attached===false?t('Ask about the app or search your library. Open a video, book or title to explore its content.','Uygulama hakkında sor veya kütüphanende ara. İçeriğini incelemek için bir video, kitap veya yapım aç.'):value.videoContext?t('Translate existing captions or start Whisper. The selected video range is used; progress appears in this conversation.','Mevcut altyazıyı çevir veya Whisper başlat. Seçili video aralığı kullanılır; ilerleme bu sohbette gösterilir.'):value.pageContext?t('Summarize this page, ask about its claims, or translate it directly on the page.','Bu sayfayı özetle, iddialarını sor veya doğrudan sayfanın üzerinde çevir.'):value.transcriptScope?t('Ask about the dialogue, compare translations, or revisit a scene with subtitle evidence.','Konuşmayı sor, çevirileri karşılaştır veya altyazı kanıtlarıyla bir sahneye dön.'):t('Ask about the selected text or title. Only the supplied source is used.','Seçili metni veya yapımı sor. Yalnız sağlanan kaynak kullanılır.');empty.append(heading,detail);log.append(empty); }
     for (const row of value.messages || []) {
       const node = document.createElement('div'); node.className = 'message ' + row.role; node._searchText=row.text;const role=document.createElement('span');role.className='message-role';role.textContent=row.role==='user'?t('YOU','SEN'):t('ASSISTANT','ASİSTAN');node.append(role);const runCard=window.AssistantRunCard?.create(row.steps,value.conversation+':'+row.id,value.locale);if(runCard)node.append(runCard);renderText(node,row.text,row.loading);if(row.loading)node.classList.add('loading');if(row.error)node.classList.add('failed');node.dataset.pinned=String(isPinned(row));
       const actions=document.createElement('div');actions.className='message-actions';
@@ -161,7 +173,7 @@
         apply.dataset.toolControl='apply';
         apply.textContent=proposed.refreshable&&proposed.resultStatus==='failed'?t('Settings changed','Ayarlar de\u011fi\u015fti'):proposed.resultStatus?t(({accepted:'Accepted',completed:'Applied',failed:'Failed',stopped:'Stopped'})[proposed.resultStatus]||'Finished',({accepted:'Kabul edildi',completed:'Uygulandı',failed:'Başarısız',stopped:'Durduruldu'})[proposed.resultStatus]||'Bitti'):proposed.kind==='preview_translation_change'?t('Copy suggestion','Öneriyi kopyala'):t('Apply','Uygula');
         apply.disabled=busy||!!proposed.resultStatus;
-        apply.onclick=()=>{reviewing={action:'apply-tool',id:proposed.id};$('reviewText').textContent=title.textContent+'\n'+detail.textContent+'\n'+(proposed.kind==='app_action'?t('Runs this application action on the attached source using your current settings.','Bu uygulama işlemini bağlı kaynakta mevcut ayarlarınla çalıştırır.'):t('Runs only this action. No file is modified and no voice is generated.','Yalnız bu işlem uygulanır. Dosya değişmez ve ses üretimi başlamaz.'));$('review').hidden=false;};
+        apply.onclick=()=>openReview({action:'apply-tool',id:proposed.id},title.textContent+'\n'+detail.textContent+'\n'+(proposed.kind==='app_action'?t('Runs this application action on the attached source using your current settings.','Bu uygulama işlemini bağlı kaynakta mevcut ayarlarınla çalıştırır.'):t('Runs only this action. No file is modified and no voice is generated.','Yalnız bu işlem uygulanır. Dosya değişmez ve ses üretimi başlamaz.')),apply);
         card.append(title,detail,apply);
         if(proposed.refreshable&&proposed.resultStatus==='failed'){
           const refresh=document.createElement('button');refresh.dataset.toolControl='refresh';refresh.className='flow-continue';
@@ -186,7 +198,7 @@
   $('newThread').onclick=()=>action('new-thread');
   $('threadSettings').onclick=()=>{$('threadEditor').hidden=!$('threadEditor').hidden;$('threadSettings').setAttribute('aria-expanded',String(!$('threadEditor').hidden));};
   $('renameThread').onclick=()=>action('rename-thread',$('threadName').value);
-  $('deleteThread').onclick=()=>{reviewing={action:'delete-thread'};$('reviewText').textContent=snapshot.locale==='tr'?'Bu sohbet kalıcı olarak silinecek. Diğer sohbetler ve sabitlenen notlar korunur.':'This conversation will be permanently deleted. Other chats and pinned notes are kept.';$('review').hidden=false;};
+  $('deleteThread').onclick=()=>openReview({action:'delete-thread'},snapshot.locale==='tr'?'Bu sohbet kalıcı olarak silinecek. Diğer sohbetler ve sabitlenen notlar korunur.':'This conversation will be permanently deleted. Other chats and pinned notes are kept.',$('deleteThread'));
   document.addEventListener('click',event=>{if(!$('conversationMenu').contains(event.target))$('conversationMenu').open=false;});
   action('ready');
 })();

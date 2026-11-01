@@ -25095,7 +25095,8 @@ function updatePdfReaderProgress() {
       && Number(key) <= total && Array.isArray(blocks)
       && blocks.every(block => block && (block.status === 'translated'
         || block.status === 'skipped' || (typeof block.userText === 'string' && block.userText.trim())))).length : 0;
-  node.textContent = total ? `${Math.min(translated, total)}/${total} sayfa` : '0/0 sayfa';
+  const count = `${Math.min(translated, total)}/${total}`;
+  node.textContent = window.UiLocale?.get?.() === 'en' ? `Translated pages: ${count}` : `Çevrilen sayfa: ${count}`;
   node.classList.toggle('is-complete', total > 0 && translated >= total);
 }
 

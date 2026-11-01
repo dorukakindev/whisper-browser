@@ -76,7 +76,18 @@ app.whenReady().then(async () => {
   await wait(250);
   const measure=()=>run(`const s=document.getElementById('browserSignal');const r=s.getBoundingClientRect();const p=document.querySelector('#browserSignalMenu .browser-signal-popover');const pr=p?p.getBoundingClientRect():null;return {height:r.height,width:r.width,popoverHeight:pr?pr.height:0,popoverWidth:pr?pr.width:0,popoverRight:pr?pr.right:0,health:document.getElementById('browserSubtitleHealthText').textContent};`);
   const normal=await measure();
+  const addressWidth=await run('return document.getElementById("browserAddress").getBoundingClientRect().width');
+  normal.addressWidth=addressWidth;
+  assert(addressWidth>=220,'Open sidebar must leave the address readable: '+addressWidth);
+  assert(await run('return !!document.querySelector(\'[data-browser-proxy="browserDubGenerate"]\')&&!!document.querySelector(\'[data-browser-proxy="browserDubAdd"]\')'),'Collapsed voice controls retain their menu actions');
   fs.writeFileSync(path.join(out,'chrome-dark.png'),(await win.webContents.capturePage()).toPNG());
+  const toolbarMatrix=[];
+  for(const [width,zoom] of [[1280,1],[1440,1.25],[1024,1.25]]){
+    win.setContentSize(width,960);win.webContents.setZoomFactor(zoom);await wait(180);
+    const shape=await run('const address=document.getElementById("browserAddress").getBoundingClientRect(),bar=document.querySelector(".browser-toolbar");return {viewport:innerWidth,address:address.width,scroll:bar.scrollWidth,client:bar.clientWidth}');
+    toolbarMatrix.push({width,zoom,...shape});assert(shape.scroll<=shape.client+1,'Toolbar must fit at zoom '+JSON.stringify(shape));assert(shape.address>=60,'Address remains usable at narrow zoom '+JSON.stringify(shape));
+  }
+  win.webContents.setZoomFactor(1);win.setContentSize(1440,960);await wait(180);
   // 3.3: sinyal artık 32px süzülen hap — şerit değil; ikincil eylemler ⋮ popover'ında.
   assert(normal.height>=30&&normal.height<=36,JSON.stringify(normal));
   await run('document.getElementById("browserSignalMenu").open=true;return true');await wait(120);
@@ -112,5 +123,5 @@ app.whenReady().then(async () => {
   fs.writeFileSync(path.join(out,'fullscreen-native.png'),(await page.capturePage()).toPNG());
   await page.executeJavaScript('document.exitFullscreen()',true);
   await until(()=>view.getBounds().y>0&&view.getBounds().width<=win.getContentBounds().width,'exit fullscreen restores browser slot');
-  fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({ok:true,normal,expanded,error,narrow,nativeBounds:bounds,actualViewport:900,videoPixels:true,videoAdvances:true,fullscreenRoundTrip:true},null,2));clearTimeout(watchdog);app.quit();
+  fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({ok:true,normal,expanded,error,narrow,toolbarMatrix,nativeBounds:bounds,actualViewport:900,videoPixels:true,videoAdvances:true,fullscreenRoundTrip:true},null,2));clearTimeout(watchdog);app.quit();
 }).catch(error=>{console.error(error);app.exit(1)});

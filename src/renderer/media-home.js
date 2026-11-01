@@ -7,7 +7,7 @@
   host.addEventListener('pointerdown',()=>{host.dataset.navigationInput='pointer';},true);
   host.addEventListener('keydown',event=>{if(['Tab','ArrowLeft','ArrowRight','Home','End'].includes(event.key))host.dataset.navigationInput='keyboard';},true);
   const state = { page: 'home', query: '', filter: 'all', limit: 48, active: true,
-    data: model.snapshot([], []), request: 0, render: 0, busy: false, loaded: false, error: '', featuredKey: '' };
+    data: model.snapshot([], []), request: 0, render: 0, busy: false, loaded: false, error: '', featuredKey: '', searchOpen: false };
   try{const saved=localStorage.getItem('media-home-featured-v1');if(saved&&saved.length<=8192)state.featuredKey=saved;}catch{}
   let virtualDisposers=[];
   const english = () => window.UiLocale?.get?.() !== 'tr';
@@ -419,13 +419,18 @@
       const control = button(label, () => page(key)); control.dataset.homePage = key;
       control.setAttribute('aria-current', state.page === key ? 'page' : 'false'); if (key === 'home') control.id = 'mhHome'; nav.append(control);
     }
-    const searchWrap = el('label', 'mh-search'), search = el('input'); search.type = 'search'; search.id = 'mhSearch'; search.maxLength = 200;
+    const searchWrap = el('div', 'mh-search'), search = el('input'); searchWrap.id='mhSearchRegion';search.type = 'search'; search.id = 'mhSearch'; search.maxLength = 200;
     search.placeholder = t('Search your library', 'Kütüphanende ara'); search.setAttribute('aria-label', search.placeholder); search.value = state.query;
     let searchTimer;
-    search.addEventListener('input', () => { state.query = search.value; state.limit = 48; clearTimeout(searchTimer); searchTimer = setTimeout(renderContent, 120); });
+    const searchToggle=button('',()=>{setSearchOpen(!state.searchOpen);if(state.searchOpen)search.focus();},'mh-action mh-search-toggle');searchToggle.id='mhSearchToggle';searchToggle.setAttribute('aria-controls',searchWrap.id);
+    const searchClear=button(t('Clear','Temizle'),()=>{clearTimeout(searchTimer);search.value='';state.query='';state.limit=48;updateSearch();renderContent();search.focus();},'mh-search-clear');searchClear.setAttribute('aria-label',t('Clear library search','Kütüphane aramasını temizle'));
+    function updateSearch(){searchClear.hidden=!search.value;searchWrap.classList.toggle('has-query',!!search.value);searchToggle.setAttribute('aria-expanded',String(state.searchOpen));searchToggle.setAttribute('aria-label',t('Search library','Kütüphanede ara'));searchToggle.title=search.value?t(`Search: ${search.value}`,`Arama: ${search.value}`):t('Search library','Kütüphanede ara');searchToggle.classList.toggle('has-query',!!search.value);}
+    function setSearchOpen(open){state.searchOpen=open;header.classList.toggle('mh-search-open',open);updateSearch();}
+    search.addEventListener('input', () => { state.query = search.value; state.limit = 48;updateSearch();clearTimeout(searchTimer); searchTimer = setTimeout(renderContent, 120); });
+    search.addEventListener('keydown',event=>{if(event.key==='Escape'&&state.searchOpen){event.preventDefault();event.stopPropagation();setSearchOpen(false);searchToggle.focus();}});
     search.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();void window.MediaSearchUI.open(search.value);}});
     const searchAll=button('',()=>window.MediaSearchUI.open(search.value),'mh-search-all');searchAll.setAttribute('aria-label',t('Search all media sources','Tüm medya kaynaklarında ara'));searchAll.title=t('Search all sources · Enter','Tüm kaynaklarda ara · Enter');
-    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),path=document.createElementNS('http://www.w3.org/2000/svg','path');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');path.setAttribute('d','M21 21l-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0');svg.append(path);searchAll.append(svg);searchWrap.append(search,searchAll);nav.append(searchWrap);
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),path=document.createElementNS('http://www.w3.org/2000/svg','path');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');path.setAttribute('d','M21 21l-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0');svg.append(path);searchAll.append(svg);searchToggle.append(svg.cloneNode(true));actions.insertBefore(searchToggle,more);searchWrap.append(search,searchClear,searchAll);nav.append(searchWrap);setSearchOpen(state.searchOpen);
     const content = el('main', 'mh-content'); content.id = 'mhContent';
     header.append(brand, modes, nav, actions); const metadata=el('div','mh-metadata');metadata.id='mhMetadataStatus';host.append(header,metadata, content);drawMetadata(metadata);renderContent();
     if (focused && host.querySelector(`#${focused}`)) document.getElementById(focused).focus();

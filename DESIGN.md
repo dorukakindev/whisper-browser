@@ -13,7 +13,9 @@ colors:
   danger: '#d06b63'
 typography:
   sans:
-    fontFamily: "Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif"
+    fontFamily: "IBM Plex Sans, Segoe UI, sans-serif"
+  display:
+    fontFamily: "Sora, Segoe UI, sans-serif"
   mono:
     fontFamily: "JetBrains Mono, Consolas, monospace"
 rounded:
@@ -46,6 +48,8 @@ Mürekkep/grafit katmanlar, sıcak amber etkileşim vurgusu. Hata, seçim ve pas
 
 Mevcut sans serif yığını Türkçe metinleri taşır. Kod, süre ve teknik değerler için mevcut mono yığın kullanılabilir. Yeni bağımlı font veya CDN yüklenmez. Açıklamalar kısa, eylemler fiille başlayan Türkçedir.
 
+Medya kabuğu ve asistanın mevcut self-hosted ailesi başlıklarda Sora, gövdede IBM Plex Sans'tır. Yukarıdaki font kaydı bu sahipliği belgeler; stüdyo/teknik alanların mevcut fontunu topluca değiştirmez. Kitap prose serifini korur. Runtime renklerin sahibi CSS değişkenleridir; bu belge yeni bağımsız tema değerleri üretmez.
+
 ## Layout
 
 Video alanı ile yan panel ayrı kaydırma sahipleridir. Video araçları açılabilir panelde gruplanır; kapalı panel izlemeyi daraltmaz. Formlar dar genişlikte kırılır, sonuç listeleri sınırlı yükseklikte kayar. Native video WebContentsView, küçük oynatıcıya aynı örnek olarak taşınır. Pencere yakalaması çocuk video yüzeyini içermediğinden ayrıca video yakalanarak doğrulanır.
@@ -61,6 +65,14 @@ Kontroller ve gruplarda mevcut 6–8 px köşe ailesi korunur. Eylemi açıklama
 ## Components
 
 Native select ve Electron dosya seçicisi bu mevcut Windows uygulamasının kabul edilen sahipleridir; popup geometrisi işletim sistemine aittir. Metin alanları görünür etiket, düğmeler klavye odağı taşır. İşlem beklerken aynı eylem tekrar başlatılmaz; durum alanı hata ve boş sonucu bildirir. Sonuç metni HTML olarak çalıştırılmaz.
+
+### Medya iş akışlarında görsel hiyerarşi
+
+Aktif görev alanında bir dolu amber ana eylem kullanılır; ikinciller sessiz yüzey/hayalet veya metin biçimindedir. Mod/seçili durum ana eylem değildir; medya modları nötr yüzey, aynı düzeydeki sayfa gezinmesi ince alt çizgi kullanır. Klavye odağı seçimden ayrıdır ve korunur. Yoğun küçük kabukta kütüphane araması ikonla açılır; Escape sorguyu silmeden kapatır, açık temizleme eylemi sorguyu temizler. Geniş pencerede doğrudan arama kalır.
+
+Alan bütçesinde medya, okuma ve konuşma içeriği önceliklidir. İkincil araçlar mevcut açılır alanlarda kalır; gelişmiş kontroller kaldırılmaz veya kullanıcının özel ayarları sıfırlanmaz. Normal panel aralığı16px, ilişkili kontroller8–12px başlangıç ritmidir; yoğun toolbar ve metin okuma kendi belgeli varyantını kullanır. Görev kontrollerini gizlemek veya okunamayacak küçültmek alan kazanımı sayılmaz.
+
+Native browser araç çubuğu kullanılabilir içerik genişliğine göre ses eylemlerini mevcut menüye taşır; adres metni okunur kalır. Menü proxy'leri ve mevcut klavye komutları tek işlev sahibini korur. PDF/kitapta ana sayfa, gezinme, okuma ve ses araçları aynı kısa kontrol ailesini paylaşır; uzun açıklama kendi kaydırıcısında, karar düğmeleri görünür satırdadır.
 
 ### İş akışı sözleşmesi
 

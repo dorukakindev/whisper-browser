@@ -190,6 +190,8 @@
   }
   function refresh() {
     $("pdfReaderTitle").title=$("pdfReaderTitle").textContent;
+    $("pdfVoiceClose").setAttribute('aria-label',t('Sesli okuma ayarlarını kapat','Close narration settings'));
+    $("pdfVoicePanel").setAttribute('aria-label',t('Sesli okuma ayarları','Narration settings'));
     $("pdfVoiceFollowLabel").textContent=t("Konuşulan metni takip et", "Follow spoken text");
     for (const page of player.pdfReader?.pages.keys() || []) render(page);
   }
@@ -386,6 +388,7 @@
       $("pdfVoiceFrom").focus();
     }
   };
+  $("pdfVoiceClose").onclick=()=>{ $("pdfVoicePanel").classList.add("hidden"); $("pdfVoiceOpen").setAttribute("aria-expanded","false"); $("pdfVoiceOpen").focus(); };
   function clearVoicePreview() {
     voicePreview=null;$("pdfVoicePreview").hidden=true;
     $("pdfVoicePreviewText").value='';$("pdfVoicePreviewPage").replaceChildren();
@@ -698,6 +701,7 @@
   document.addEventListener("ui-locale-change", () => {
     if (player.pdfReader) {
       updatePdfReaderZoomLabel();
+      updatePdfReaderProgress();
       if ($("playerTitle"))
         $("playerTitle").textContent = t("Kitap okuyucu", "Book reader");
       if ($("playerMeta"))
