@@ -273,10 +273,13 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           const data = load();
           if (data.podcasts.length >= 100 && !data.podcasts.some(row => row.url === url)) throw Error('Podcast limit reached.');
           const previous = data.podcasts.find(row => row.url === url);
+          const refreshed = new Set();
           const episodes = parsed.episodes.flatMap(ep => {
-            try { const url = urlOf(ep.url), old = previous?.episodes.find(row => ep.guid && row.guid === ep.guid) || previous?.episodes.find(row => row.url === url); return [{ ...old,...ep, url, position: old?.position || 0, duration: old?.duration || 0 }]; } catch { return []; }
+            try { const url = urlOf(ep.url), old = previous?.episodes.find(row => ep.guid && row.guid === ep.guid) || previous?.episodes.find(row => row.url === url); if (old) refreshed.add(old); return [{ ...old,...ep, url, position: old?.position || 0, duration: old?.duration || 0 }]; } catch { return []; }
           });
           if (!episodes.length) throw Error('No public audio enclosure URLs could be saved.');
+          // A rolling feed is not a deletion request. Keep older episode identities and their personal state.
+          episodes.push(...(previous?.episodes || []).filter(episode => !refreshed.has(episode)));
           const row = { id: previous?.id || randomUUID(), url, title: parsed.title, episodes, updated: Date.now() };
           data.podcasts = [...data.podcasts.filter(row => row.url !== url), row]; save(data); return { ok: true };
         }

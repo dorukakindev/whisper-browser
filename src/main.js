@@ -14188,9 +14188,10 @@ function resumeRestoredBrowserPage(tab) {
       || !['', 'about:blank'].includes(view.webContents.getURL())) return;
   tab.restoringPage = true;
   const requestSeq = tab.navigationRequestSeq = (Number(tab.navigationRequestSeq) || 0) + 1;
-  const requestIsCurrent = () => browserTabById(tab.id) === tab && tab.view === view
+  const requestOwnsTab = () => browserTabById(tab.id) === tab && tab.view === view
     && view.webContents && !view.webContents.isDestroyed() && tab.navigationRequestSeq === requestSeq
-    && tab.restoredUrl === url && ['', 'about:blank'].includes(view.webContents.getURL());
+    && tab.restoredUrl === url;
+  const requestIsCurrent = () => requestOwnsTab() && ['', 'about:blank'].includes(view.webContents.getURL());
   // Yalnız seçilen sekmeyi aç; ağ yüklemesini sekme geçiş kuyruğuna kilitleme.
   void (async () => {
     try {
@@ -14207,9 +14208,10 @@ function resumeRestoredBrowserPage(tab) {
       suspendBrowserInstrumentationForNavigation(tab, view);
       const history = browserNavigationStateStore.normalizeNavigationHistory(tab.navigationHistory);
       const matches = history?.entries[history.index]?.url === browserNavigationStateStore.historyUrl(url);
-      if (!matches || !await browserNavigationStateStore.restoreNavigationHistory(view.webContents,history)) await view.webContents.loadURL(url);
+      const restored = matches && await browserNavigationStateStore.restoreNavigationHistory(view.webContents,history);
+      if (!restored && requestIsCurrent()) await view.webContents.loadURL(url);
     } catch (error) {
-      if (browserTabById(tab.id) === tab && !isAbortedBrowserNavigation(error)) {
+      if (requestOwnsTab() && !isAbortedBrowserNavigation(error)) {
         // Sonraki sekme etkinleştirmesi 'restore_failed' kuşağını yeniden
         // yüklemeyi denesin; 'restoring'de takılı kalan sekme unload kararını
         // ve oturum görüntüsünü bozuyordu (B83-30).
@@ -16235,25 +16237,29 @@ async function browserHostWorkState() {
   }catch(_){return {known:false,busy:false};}
 }
 async function refreshBrowserUnloadProtection(tab){
-  const host=await browserHostWorkState();tab.hostWorkBusy=host.busy;
-  if(!host.known)tab.stateKnown=false;
-  try{tab.audible=!!tab.view?.webContents?.isCurrentlyAudible?.();}catch(_){tab.stateKnown=false;}
-  return host;
+  const view=tab.view,generation=tab.generation;
+  const host=await browserHostWorkState(),runtime=await browserTabRuntimeState(tab);
+  // A fresh complete measurement can recover an earlier unknown state. A host
+  // answer alone must never erase an unknown frame/form/media measurement.
+  if(tab.view!==view||tab.generation!==generation)return {known:false,busy:host.busy};
+  let audible=false,nativeKnown=false;
+  try{const wc=view?.webContents;if(wc&&!wc.isDestroyed()&&typeof wc.isCurrentlyAudible==='function'){audible=wc.isCurrentlyAudible();nativeKnown=typeof audible==='boolean';}}catch(_){}
+  Object.assign(tab,runtime,{hostWorkBusy:host.busy,audible:audible===true,
+    stateKnown:host.known===true&&runtime.stateKnown===true&&nativeKnown});
+  return {known:tab.stateKnown,busy:host.busy};
 }
 async function unloadBrowserTab(rawId) {
   const tab = browserTabById(rawId);
   if (!tab) return { ok: false, error: 'Tarayıcı sekmesi bulunamadı.' };
   if(browserExtras?.mini.owns(tab))return {ok:false,protected:true,reason:'mini',error:dt('Küçük oynatıcıdaki sekme korunuyor.','The mini-player tab is protected.')};
-  await refreshBrowserUnloadProtection(tab);
+  const protection=await refreshBrowserUnloadProtection(tab);
+  if(!protection.known)return {ok:false,protected:true,reason:'unknown_state',error:'Sekmenin güvenli durumu doğrulanamadı.'};
   if (tab.id === browserSplitSecondaryTabId) {
     return { ok: false, protected: true, reason: 'split', error: 'İkiye bölünmüş görünümdeki ikincil sekme önce bölmeden çıkarılmalı.' };
   }
   const initial = browserTabUnloadDecision(tab, { activeTabId: browserActiveTabId });
   if (!initial.allowed) return { ok: false, protected: true, reason: initial.reason, error: initial.message };
   const action = tab.resourceActionSeq = (Number(tab.resourceActionSeq) || 0) + 1;
-  Object.assign(tab, await browserTabRuntimeState(tab));
-  const checked = browserTabUnloadDecision(tab, { activeTabId: browserActiveTabId });
-  if (!checked.allowed) return { ok: false, protected: true, reason: checked.reason, error: checked.message };
   const view = tab.view; const wc = view?.webContents;
   if (!view || !wc || wc.isDestroyed()) return { ok: false, error: 'Sekme görünümü kullanılamıyor.' };
   const captureStatus = await browserTabCapturePending(tab, true);
@@ -16270,10 +16276,9 @@ async function unloadBrowserTab(rawId) {
   tab.restoredTitle = wc.getTitle() || tab.restoredTitle || '';
   tab.navigationHistory = browserNavigationStateStore.captureNavigationHistory(wc,tab.navigationHistory);
   tab.lifecycle = 'unloading'; sendBrowserEvent({ type: 'tabs-changed', tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId });
-  Object.assign(tab, await browserTabRuntimeState(tab));
-  await refreshBrowserUnloadProtection(tab);
+  const finalProtection=await refreshBrowserUnloadProtection(tab);
   const finalCheck = browserTabUnloadDecision(tab, { activeTabId: browserActiveTabId });
-  if (browserTabById(tab.id) !== tab || tab.resourceActionSeq !== action || !finalCheck.allowed) {
+  if (browserTabById(tab.id) !== tab || tab.view !== view || tab.resourceActionSeq !== action || !finalProtection.known || !finalCheck.allowed) {
     // Yakalama pending ölçümü sırasında duraklatıldı — iptal edilen boşaltma
     // sonrası sekme yaşamaya devam ederse hook'u tekrar açıyoruz (R83-29).
     if (tab.captureEnabled !== false && !tab.compatibilityMode) {
