@@ -1,0 +1,72 @@
+{
+  "ok": true,
+  "normal": {
+    "height": 32,
+    "width": 487.01043701171875,
+    "popoverHeight": 101.33333587646484,
+    "popoverWidth": 460,
+    "popoverRight": 955.0104370117188,
+    "health": "28 cues ready · 0 site tracks.",
+    "addressWidth": 232.58334350585938
+  },
+  "expanded": {
+    "height": 32,
+    "width": 487.01043701171875,
+    "popoverHeight": 101.33333587646484,
+    "popoverWidth": 460,
+    "popoverRight": 481.3333339691162,
+    "health": "28 cues ready · 0 site tracks."
+  },
+  "error": {
+    "height": 32,
+    "width": 487.01043701171875,
+    "popoverHeight": 110.66667175292969,
+    "popoverWidth": 460,
+    "popoverRight": 481.3333339691162,
+    "health": "3 çeviri bloğu başarısız."
+  },
+  "narrow": {
+    "height": 32,
+    "width": 487.01043701171875,
+    "popoverHeight": 114.33333587646484,
+    "popoverWidth": 640,
+    "popoverRight": 661.3333339691162,
+    "health": "Bazı çeviri blokları tamamlanamadı. Hazır repliklerle izlemeye devam edebilir veya hatalı blokları yeniden deneyebilirsiniz."
+  },
+  "toolbarMatrix": [
+    {
+      "width": 1280,
+      "zoom": 1,
+      "viewport": 1280,
+      "address": 320.01043701171875,
+      "scroll": 892,
+      "client": 892
+    },
+    {
+      "width": 1440,
+      "zoom": 1.25,
+      "viewport": 1152,
+      "address": 193.808349609375,
+      "scroll": 765,
+      "client": 765
+    },
+    {
+      "width": 1024,
+      "zoom": 1.25,
+      "viewport": 819,
+      "address": 230.94168090820312,
+      "scroll": 802,
+      "client": 802
+    }
+  ],
+  "nativeBounds": {
+    "x": 11,
+    "y": 93,
+    "width": 879,
+    "height": 856
+  },
+  "actualViewport": 900,
+  "videoPixels": true,
+  "videoAdvances": true,
+  "fullscreenRoundTrip": true
+}
