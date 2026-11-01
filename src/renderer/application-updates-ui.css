@@ -1,0 +1,19 @@
+.apu-dialog { width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 24px); margin: auto; padding: 0; overflow: auto; border: 1px solid var(--border, var(--theme-border)); border-radius: 12px; background: var(--bg-0, var(--theme-bg-0)); color: var(--text, var(--theme-text)); box-shadow: 0 22px 80px rgb(var(--media-scrim-rgb) / .6); }
+.apu-dialog::backdrop { background: rgb(var(--media-transport-ink-rgb) / .79); }
+.apu-dialog * { box-sizing: border-box; }
+.apu-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 22px 24px; border-bottom: 1px solid var(--border, var(--theme-border)); background: var(--bg-1, var(--theme-bg-1)); }
+.apu-header h2 { margin: 0; font-size: 22px; line-height: 1.3; letter-spacing: -.025em; }
+.apu-body { display: grid; gap: 18px; padding: 24px; font-size: 13px; line-height: 1.6; }
+.apu-body p { margin: 0; overflow-wrap: anywhere; }
+.apu-muted, .apu-versions dt { color: var(--text-muted, var(--theme-text-muted)); }
+.apu-versions { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 24px; margin: 0; }
+.apu-versions dd { margin: 0; overflow-wrap: anywhere; }
+.apu-status { min-height: 42px; color: var(--accent, var(--theme-accent)); }
+.apu-status.apu-error { color: var(--danger); }
+.apu-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--border, var(--theme-border)); }
+.apu-dialog button { flex-shrink: 0; padding: 8px 12px; border: 1px solid var(--border, var(--theme-border)); border-radius: 6px; font: inherit; line-height: 1.4; background: var(--bg-2, var(--theme-bg-2)); color: inherit; cursor: pointer; }
+.apu-dialog button:hover:not(:disabled) { border-color: var(--accent, var(--theme-accent)); }
+.apu-dialog button:disabled { opacity: .48; cursor: default; }
+.apu-dialog button:focus-visible { outline: 2px solid var(--accent, var(--theme-accent)); outline-offset: 3px; }
+.apu-dialog .apu-install { background: var(--accent, var(--theme-accent)); color: var(--bg-0, var(--theme-bg-0)); border-color: var(--accent, var(--theme-accent)); font-weight: 650; }
+@media (max-width: 440px) { .apu-header, .apu-body, .apu-actions { padding: 16px; } .apu-header h2 { font-size: 19px; } }

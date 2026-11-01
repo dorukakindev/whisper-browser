@@ -16228,7 +16228,8 @@ async function browserHostWorkState() {
     const busy=await withTimeout(mainWindow.webContents.executeJavaScript(`(() => {
       return [...document.querySelectorAll('audio,video')].some(media=>!media.paused&&!media.ended)
         || !!(typeof state==='object'&&(state.running||state.queueRunning))
-        || !!(typeof player==='object'&&player.job?.running);
+        || !!(typeof player==='object'&&player.job?.running)
+        || !!window.AssistantAgentUI?.busy?.() || !!window.AssistantRecallSources?.busy?.();
     })()`,true),700,'Application media state unavailable.');
     return {known:typeof busy==='boolean',busy:busy===true};
   }catch(_){return {known:false,busy:false};}
@@ -22031,6 +22032,27 @@ ipcMain.handle('ocr:frame', async (event, payload = {}) => {
     return { ok: false, error: error.message };
   }
 });
+
+// Local installation updater: explicit check/approval, no Actions or remote
+// executable feed. Source changes apply only after this process has exited.
+const sourceUpdates = require('./source-updates').createSourceUpdates({
+  root:appResourceRoot(),
+  isBusy:async()=>{
+    if(activeJob||jobStarting||burninJob||burninStartPending||modelBenchmarkJob||updateJob||dubWorkspace.running()||dubService.running()||browserLiveAsr||pdfTranslationJobs.size||modelProcesses.size)return true;
+    if(browserUnifiedJobsSnapshot().some(job=>!['done','complete','completed','cancelled','failed','error'].includes(job.status)))return true;
+    const host=await browserHostWorkState();return !host.known||host.busy;
+  },
+  readLast:()=>{try{return JSON.parse(fs.readFileSync(path.join(app.getPath('userData'),'application-update-result.json'),'utf8'));}catch(_){return null;}},
+  schedule:async job=>{
+    const folder=path.join(app.getPath('userData'),'application-updates',randomUUID());fs.mkdirSync(folder,{recursive:true});
+    const runner=path.join(folder,'runner.cjs'),file=path.join(folder,'job.json');
+    fs.copyFileSync(path.join(__dirname,'source-update-runner.js'),runner);
+    fs.writeFileSync(file,JSON.stringify({...job,pid:process.pid,electron:process.execPath,result:path.join(app.getPath('userData'),'application-update-result.json')}));
+    const child=rawSpawn(process.execPath,[runner,file],{cwd:folder,env:{...process.env,ELECTRON_RUN_AS_NODE:'1'},detached:true,windowsHide:true,stdio:'ignore'});
+    await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});child.unref();setTimeout(()=>app.quit(),350);
+  },
+});
+ipcMain.handle('application:updates',async(event,request)=>authorizedBrowserSender(event)?sourceUpdates.request(request):{ok:false,error:'unsupported'});
 
 // Madde 48 — güncelleme ön kontrolü: kullanıcı yeni sürüm kurmadan önce açık
 // işler, kurtarılabilir kayıtlar, disk ve bağlantı durumunu tek çağrıda görür.
