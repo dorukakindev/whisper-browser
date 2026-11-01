@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-01-0417.md](docs/devir/2026-11-01-0417.md) — Gerçek Letterboxd/DeepSeek, doğal asistan komutu ve kayıt sürekliliği
 Güncel çalışma: [docs/devir/2026-11-01-0323.md](docs/devir/2026-11-01-0323.md) — Film sayfasında yorum iş akışı ve asistan
 Güncel çalışma: [docs/devir/2026-11-01-0300.md](docs/devir/2026-11-01-0300.md) — Film sayfasında ölçek, yorum boş durumu ve düzen
 Güncel çalışma: [docs/devir/2026-11-01-0200.md](docs/devir/2026-11-01-0200.md) — Film sürekliliği, fragman, asistan ve browser dönüşleri
