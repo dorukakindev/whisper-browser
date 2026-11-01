@@ -82,6 +82,10 @@ Native browser araç çubuğu kullanılabilir içerik genişliğine göre ses ey
 
 ### İş akışı sözleşmesi
 
+- Home'a dönüş aynı kaynağın dublajını silmez: video/ses duraklar, owned mute/hız bırakılır; WAV, mix/offset ve zaman haritası korunur. Geri dönüş kendiliğinden Play değildir; yeni kaynak/generation eski bağlantıyı kaldırır. Arka planda çeviri ilerler, odağı çalmaz.
+- Asistanın başarısız aşamayı yeniden denemesi aynı işin ledger kanıtına bağlıdır; eski başarılı adımlar yeniden oynatılmaz. Devam yalnız yeni onay kartı hazırlar. Stopped iş devam izni değildir; kısmi ses tamamlanmış çıktı sayılmaz.
+- Filmde kayıtlı analiz okunurken profil/evidence güncelliği current/stale/unknown olarak ayrılır. Kayıtlı örneği yeniden kullanmak kendiliğinden ağ/model isteği göndermez; örnek değişince eski kaydedilmemiş sonucun kontrolleri temizlenir. Ses metin denetimi verilen altyazıyı karşılaştırır, kaynak ASR doğruluğu veya insan doğallığı garantisi değildir.
+
 - Medya araçları etkin sekme, gezinme nesli ve medya kimliğine bağlıdır. Gecikmiş sonuçlar farklı videoya uygulanmaz.
 - Sessizlikte hızlanma, ses profili ve otomatik jenerik/özet atlama varsayılan kapalıdır. Kaydedilen açık tercih kullanıcı kararıdır.
 - Altyazı aday puanı sürüm metadatası eşleşmesidir; zaman senkronunun garantisi veya yüzde güven değildir.

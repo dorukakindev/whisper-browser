@@ -1,0 +1,67 @@
+[
+  {
+    "path": "assets/assistant-failed.png",
+    "sha256": "16f65e378f292dbd53e4e1a8f55c0e2f917429dfb41d6f0ad02fb1e91cdc7806",
+    "bytes": 59266
+  },
+  {
+    "path": "assets/assistant-partial-en.png",
+    "sha256": "745aba0db3d8f4557a5b66d3761594628b94f52cb26300109c4833e7db970472",
+    "bytes": 63069
+  },
+  {
+    "path": "assets/film-film-long-title-tr.png",
+    "sha256": "5284bd151d0d156c7a856f709410585c6f133593963a0c37eaa1cda6e7c32b5d",
+    "bytes": 169162
+  },
+  {
+    "path": "assets/film-film-changed-taste-tr.png",
+    "sha256": "98a5deef89058049ed5017ddf76e78c3e9e46a385976bcb72dc38b05df67308b",
+    "bytes": 217007
+  },
+  {
+    "path": "assets/film-film-reused-sample-en.png",
+    "sha256": "0dde15c14fbecc0596647dbd85ca2c1b5de09e403210e57a458e28efcad8ff15",
+    "bytes": 119354
+  },
+  {
+    "path": "assets/film-film-current-preview-en.png",
+    "sha256": "951dd48b6ef88b2693dd7c26419296087d400878f30f6676dbca9bf98649eb17",
+    "bytes": 206791
+  },
+  {
+    "path": "assets/browser-home-app-settings.png",
+    "sha256": "ce53f011f226254cc4401c159939ecd72a347c4e7dbfc92f6d49c865d716e250",
+    "bytes": 140602
+  },
+  {
+    "path": "assets/browser-returned-complete.png",
+    "sha256": "249da6056c69624931188fa823eded4d50caac5f7fc04c242d36ecbf52c6e477",
+    "bytes": 121203
+  },
+  {
+    "path": "assets/browser-native-source.png",
+    "sha256": "38ae3b5f24fca529f610d24f11cd1348ad1a1e4bb800fa1a9ddbb867cc1c41c6",
+    "bytes": 24993
+  },
+  {
+    "path": "assets/dub-tr-1440-review.png",
+    "sha256": "a36da77fd67df968c8e0cfc3b8fd990d0d2918500e070f87bea0a354605b577d",
+    "bytes": 178870
+  },
+  {
+    "path": "assets/dub-en-640-review.png",
+    "sha256": "cd1715f6a71d2641715f525c1b05ac3e9c077931f32189fd03a0d5b08011505c",
+    "bytes": 126390
+  },
+  {
+    "path": "assets/pipeline-prepared.png",
+    "sha256": "2df7a78c4c8d5c60462b78e611ea5b9480761fd8026f645b8650e0b7f591f2c1",
+    "bytes": 339522
+  },
+  {
+    "path": "assets/pipeline-pipeline.png",
+    "sha256": "4dcc11dc14bb0f1f098098dc0cbaed2e716a41f991d8caca6d8fdecb1d33155b",
+    "bytes": 1249936
+  }
+]

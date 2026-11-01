@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-01-0935.md](docs/devir/2026-11-01-0935.md) — R826 gerçek kullanım: güvenli asistan retry, browser sürekliliği, film profili ve canlı GPU/DeepSeek kabulü
 Güncel çalışma: [docs/devir/2026-11-01-0825.md](docs/devir/2026-11-01-0825.md) — R825 uygulaması: ayarlar, asistan, film yorumları, dublaj ve okuyucu; Windows görüntülü kabul
 Güncel çalışma: [docs/devir/2026-11-01-0744.md](docs/devir/2026-11-01-0744.md) — Yeni plugin ölçütleriyle R825 tasarım denetimi; yalnız rapor ve görüntüler
 Güncel çalışma: [docs/devir/2026-11-01-0720.md](docs/devir/2026-11-01-0720.md) — R824 tasarım düzeltmeleri, önce/sonra görüntüleri ve hedefli Windows kabulü
