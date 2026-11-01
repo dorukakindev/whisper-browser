@@ -9,6 +9,7 @@
   let runtimePhases={},runtimeError='',runtimeMetrics=null,artifactOpenVersion=0;
   const cacheInfo=document.createElement('p');cacheInfo.id='dubCacheInfo';cacheInfo.dataset.uiUntranslated='';el('dubPhaseSummary').before(cacheInfo);
   const savedRecipe=document.createElement('details');savedRecipe.id='dubSavedRecipe';savedRecipe.className='dub-saved-recipe';savedRecipe.dataset.uiUntranslated='';el('dubPreviewCard').append(savedRecipe);
+  const verificationSummary=document.createElement('p');verificationSummary.id='dubVerificationSummary';verificationSummary.className='hint';verificationSummary.dataset.uiUntranslated='';verificationSummary.hidden=true;el('dubNaturalReview').after(verificationSummary);
   function runInfo(){
     const en=window.UiLocale?.get?.()==='en';cacheInfo.textContent=window.DubRunInfo.counts(runtimeMetrics,en);cacheInfo.hidden=!cacheInfo.textContent;
     const rows=window.DubRunInfo.recipe(output,en);savedRecipe.hidden=!rows.length;savedRecipe.replaceChildren();
@@ -73,6 +74,7 @@
     const follows=submitted?.followDelivery??el('dubFollowDelivery').checked;
     el('dubNaturalDelivery').textContent=recommended&&!follows?(en?'Source delivery is followed automatically when usable audio is available; otherwise the selected voice is preserved.':'Kaynak uygunsa söyleyiş otomatik izlenir; değilse seçilen ses korunur.'):follows?(en?'Source delivery analysis is requested and needs usable source audio. Unclear sections keep the reference tone.':'Kaynak anlatımı analizi istendi; uygun kaynak sesi gerekir. Belirsiz bölümlerde referans tonu korunur.'):(en?'Source delivery analysis is off. The reference voice guides the tone; source emotion is not being transferred.':'Kaynak anlatımı analizi kapalı. Tonu referans ses belirler; kaynaktaki duygu aktarılmaz.');
     el('dubNaturalReview').textContent=window.DubRunInfo?.speechResult?.(output,en)||(en?'You can listen or compare individual groups if you want to review the result.':'İsterseniz sonucu dinleyebilir veya tek tek grupları karşılaştırabilirsiniz.');
+    verificationSummary.textContent=window.DubRunInfo?.verificationSummary?.(output,en)||'';verificationSummary.hidden=!verificationSummary.textContent;
     el('dubNaturalReviewOpen').textContent=en?'Review groups and compare takes':'Grupları dinle ve kayıtları karşılaştır';
     el('dubNaturalReviewOpen').disabled=!!current||!results.size;
   }
