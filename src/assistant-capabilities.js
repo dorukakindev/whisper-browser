@@ -50,6 +50,7 @@
   ['book_chapter','book','proposal','Open review editor, listen/read or regenerate one 1-based production chapter. Listening approval is manual, never automatic.',{chapter:{type:'number',minimum:1,maximum:100000},operation:{type:'string',enum:['open','listen','regenerate']}},['chapter','operation'],'Kitap bölümünü işle'],
   ['preview_book_export','book','read','Report per-chapter missing audio, changed text and review blockers, then validate ready audio with the existing M4B preview. Never bypass review.',{},[],'M4B hazırlığını denetle'],
   ['export_book_audio','book','proposal','Export selected chapters using existing review checks and native destination picker. Never approve audio or supply a path.',{},[],'Kitabı M4B olarak kaydet'],
+  ['search_sources','library','read','Search only the explicitly selected bounded feed snapshots. Returns actual F source IDs and excerpts; never search other entries, invent aliases, claim semantic relevance, or imply an entire article when scope is summary.',{query:{...string,maxLength:400}},['query'],'Seçili kaynaklarda ara'],
   ['search_library','library','read','Search existing catalog metadata, not entire media content. Return real catalog IDs. Optional exact genre/kind/status filters. Use returned nextOffset with the same filters to page beyond eight matches.',{query:{...string,maxLength:200},kind:{type:'string',enum:['all','film','series']},status:{type:'string',enum:['all','planned','watching','completed']},genre:string,offset:{type:'number',minimum:0,maximum:10000}},[],'Kütüphanede ara'],
   ['discover_titles','library','read','Search the existing discovery catalog. Use returned nextSkip for more results with the same filters; never invent an offset or IDs. Results are catalog metadata, not personal predictions.',{query:{...string,maxLength:200},kind:{type:'string',enum:['film','series']},genre:string,skip:{type:'number',minimum:0,maximum:2000}},[],'Keşfette ara'],
   ['get_title_details','library','read','Read metadata for an exact catalog:ID or discovery:kind:ID returned by search. Does not watch the film.',{item_id:string},['item_id'],'Yapım bilgilerini oku'],
@@ -84,6 +85,8 @@
  ].map(([name,domain,policy,description,properties,required,label])=>Object.freeze({name,domain,policy,description,label,parameters:{type:'object',properties,required,additionalProperties:false}}));
  const byName=new Map(entries.map(entry=>[entry.name,entry]));
  function available(entry,context={}){
+  if(context.hasFeedSources===true&&entry.name==='research_web')return false;
+  if(entry.name==='search_sources')return context.hasFeedSources===true;
   if(entry.domain==='voice'&&entry.name!=='open_voice_preparation')return context.kind==='video'||context.hasMedia===true||context.voiceStudio===true;
   if(entry.domain==='library')return context.kind==='library'||entry.policy==='read'||['analyze_title_reviews','load_title_reviews','translate_title_synopsis','add_discovery_title'].includes(entry.name);
   if(entry.domain==='playback')return context.hasMedia===true;

@@ -131,13 +131,16 @@
     }
     if (quoted) return { ok: false, error: 'CSV okunamadı.' };
     row.push(cell.trim()); rows.push(row);
+    const header = rows[0] || [];
+    const urlColumn = header.findIndex(cell => /^(?:url|channel url)$/i.test(cell));
+    const nameColumn = header.findIndex(cell => /^(?:kanal|channel(?: name)?|name|title)$/i.test(cell));
     for (const row of rows) {
       if (!row.length) continue;
       // "Kanal adı, https://youtube.com/channel/UC..." veya "UCid, url"
-      const urlCell = row.find((c) => /https?:\/\//i.test(c)) || '';
-      const idCell = row.find((c) => UCID_RE.test(c)) || '';
-      const nameCell = row.find((c) => c && !/https?:\/\//i.test(c) && !UCID_RE.test(c)) || '';
-      const ref = idCell ? { authorId: idCell.match(UCID_RE)[0] } : channelRefFromUrl(urlCell);
+      const urlCell = (urlColumn >= 0 ? row[urlColumn] : row.find((c) => /^https?:\/\//i.test(c))) || '';
+      const idCell = row.find((c) => c.match(UCID_RE)?.[0] === c) || '';
+      const nameCell = (nameColumn >= 0 ? row[nameColumn] : row.find((c) => c && c !== urlCell && c !== idCell)) || '';
+      const ref = channelRefFromUrl(urlCell) || (idCell ? { authorId: idCell } : null);
       const s = ref && normSub({ author: nameCell, url: urlCell, authorId: ref.authorId || '', handle: ref.handle || '' });
       if (s) subs.push(s);
     }

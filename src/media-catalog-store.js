@@ -109,6 +109,7 @@ function itemOf(raw, old = null) {
     posterPath: posterPath(raw.posterPath ?? old?.posterPath),
     ratings: ratingsOf(raw.ratings, old?.ratings),
     source: incomingSource, episodes,
+    ...require('./catalog-library-model').relations(raw, old, sourceOf),
     importRef: text(raw.importRef ?? old?.importRef, 120),
   };
 }
@@ -187,7 +188,7 @@ function mergeRecord(target, incoming) {
     else episodes[at] = { ...episodes[at], title: episodes[at].title || episode.title,
       source: episodes[at].source || episode.source };
   }
-  return itemOf({ ...target, title: target.title || incoming.title,
+  const merged = { ...target, title: target.title || incoming.title,
     originalTitle: target.originalTitle || incoming.originalTitle,
     synopsis: target.synopsis || incoming.synopsis,
     imdbId: imdbIdOf(target.imdbId) || incoming.imdbId,
@@ -198,7 +199,9 @@ function mergeRecord(target, incoming) {
     source: target.source || incoming.source,
     importRef: target.importRef || incoming.importRef,
     collections:[...new Set([...(target.collections||[]),...(incoming.collections||[])])],
-    episodes, watchStatus: target.watchStatus, favorite: target.favorite }, target);
+    episodes, watchStatus: target.watchStatus, favorite: target.favorite };
+  for(const field of target.fieldLocks||[])merged[field]=target[field];
+  return itemOf(merged,target);
 }
 function createMediaCatalogStore({ filePath, fsImpl }) {
   if (!filePath) fail('Katalog dosya yolu gerekli.');
@@ -216,7 +219,7 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
       fail('Katalog dosyası geçersiz; veri korunuyor.');
     const items = parsed.items.map((item) => itemOf(item));
     if (new Set(items.map(item=>item.id)).size !== items.length) fail('Katalog kimlikleri tekrarlanıyor; veri korunuyor.');
-    return { version: 1, items };
+    return { version: 1, items, folderSnapshots: require('./catalog-folder-diff').normalizeSnapshots(parsed.folderSnapshots) };
   }
   function read() {
     if (cache) return cache;
@@ -234,14 +237,14 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
     }
     return cache;
   }
-  function commit(items, { mirrorBackup = false } = {}) {
+  function commit(items, { mirrorBackup = false, folderSnapshots = read().folderSnapshots || [] } = {}) {
     if (items.length > MAX_ITEMS) fail('Katalog kapasitesi doldu.');
     for (const file of [filePath, backupPath]) {
       let value;
       try { value = JSON.parse(io.readFileSync(file,'utf8')); } catch (_) { continue; }
       if (typeof value?.version === 'number' && value.version > 1) fail('Katalog dosyası geçersiz; veri korunuyor.');
     }
-    const next = { version: 1, items };
+    const next = { version: 1, items, folderSnapshots };
     io.mkdirSync(path.dirname(filePath), { recursive: true });
     const temp = `${filePath}.${randomUUID()}.tmp`;
     try {
@@ -324,6 +327,8 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
     if (planned.report.added.length || planned.report.updated.length) commit(planned.items);
     return planned.report;
   }
-  return { list, get, upsert, upsertMany, remove, previewImport, mergeImport };
+  function folderSnapshot(root) { return structuredClone((read().folderSnapshots||[]).find(row=>row.root.toLowerCase()===root.toLowerCase())||null); }
+  function saveFolderSnapshot(root,rows) { const snapshots=(read().folderSnapshots||[]).filter(row=>row.root.toLowerCase()!==root.toLowerCase());snapshots.push({root,rows,updatedAt:Date.now()});const next=require('./catalog-folder-diff').normalizeSnapshots(snapshots.slice(-10));commit(list(),{folderSnapshots:next});return folderSnapshot(root); }
+  return { list, get, upsert, upsertMany, remove, previewImport, mergeImport, folderSnapshot, saveFolderSnapshot };
 }
 module.exports = { createMediaCatalogStore, itemOf, sourceOf, posterPath, ratingsOf, imdbIdOf, tmdbIdOf };

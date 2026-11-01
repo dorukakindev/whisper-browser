@@ -78,12 +78,15 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         if (JSON.stringify(current) !== data.before) throw new Error('Eser önizleme sırasında değişti; yeniden eşleştirin.');
         const fields = Array.isArray(input.fields) ? input.fields : [];
         const patch = { id: current.id, tmdbId: data.patch.tmdbId };
+        const locks = new Set(current.fieldLocks||[]);
         const replacing=!!current.tmdbId&&current.tmdbId!==data.patch.tmdbId;
+        if(replacing&&locks.size)throw new Error(dialogText ? dl('Yapım kimliğini değiştirmeden korunan metadata alanlarının kilidini açın.','Unlock protected metadata fields before changing the work identity.') : 'Unlock protected metadata fields before changing the work identity.');
         if(replacing&&input.replaceIdentity!==true)throw new Error('Farklı yapım eşleşmesini yeniden önizleyip onaylayın.');
         if(replacing){for(const key of ['originalTitle','year','synopsis','imdbId','genres','cast','runtime','directors','tagline','backdrop','tmdbRating','tmdbVotes'])patch[key]=Array.isArray(current[key])?[]:'';patch.ratings={...current.ratings,imdb:null,letterboxd:null};patch.posterPath='';patch.synopsisTr='';patch.synopsisTrSource='';}
 
-        for (const key of ['title', 'originalTitle', 'year', 'synopsis', 'imdbId', 'genres', 'cast', 'runtime', 'directors', 'tagline', 'backdrop', 'tmdbRating', 'tmdbVotes']) if (fields.includes(key)) patch[key] = data.patch[key];
-        if (fields.includes('poster') && data.poster) {
+        for (const key of ['title', 'originalTitle', 'year', 'synopsis', 'imdbId', 'genres', 'cast', 'runtime', 'directors', 'tagline', 'backdrop', 'tmdbRating', 'tmdbVotes']) if (fields.includes(key) && !locks.has(key)) patch[key] = data.patch[key];
+        for(const key of locks)delete patch[key];
+        if (fields.includes('poster') && data.poster && !locks.has('posterPath')) {
           const response = await fetch('https://image.tmdb.org/t/p/w500' + data.poster, { signal: signal ? AbortSignal.any([signal,AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000), redirect: 'error' });
           if (!response.ok) throw new Error('Afiş indirilemedi; seçimi kaldırıp yeniden deneyin.');
           const buffer = await readLimitedBytes(response, 8e6, 'Afiş');

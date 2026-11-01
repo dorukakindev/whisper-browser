@@ -16,7 +16,9 @@
    if(row.status==='streaming')node.classList.add('is-loading');if(['stopped','failed'].includes(row.status))node.classList.add('ai-msg-err');
    node._sourceScope=scope;node._assistantThreadId=thread.id;node._assistantMessageId=row.id;
    const evidence=(row.evidence||[]).map(e=>({id:e.id,baslangic:e.start,bitis:e.end,metin:e.text,ceviri:e.translation}));
-   node._transcriptEvidence=evidence;node._chatContext={transcript_evidence:{evidence:evidence.filter(e=>e.id.startsWith('T'))},assistant_tool_evidence:evidence.filter(e=>e.id.startsWith('U'))};
+   node._feedEvidence=row.feedEvidence||[];
+   node._transcriptEvidence=evidence;node._chatContext={transcript_evidence:{evidence:evidence.filter(e=>e.id.startsWith('T'))},assistant_tool_evidence:evidence.filter(e=>e.id.startsWith('U')),page:row.pageEvidence?.length?{blocks:row.pageEvidence,source:row.pageEvidence[0].source}:null};
+   if(row.pageEvidence?.[0]?.source?.tabId)node.dataset.pageSourceTabId=row.pageEvidence[0].source.tabId;
    if(row.role==='assistant')renderAiText(node,row.text);else node.textContent=row.text;log.append(node);
   }
   document.getElementById('aiChatEmpty')?.classList.toggle('hidden',!!thread?.messages.length);
@@ -72,6 +74,10 @@
   const nodes=[...document.querySelectorAll('#aiChatLog .ai-msg-user')];const node=nodes.filter(node=>node._sourceScope===aiSourceScope()&&node._assistantThreadId===thread.id).at(-1);if(node){node._assistantMessageId=user.id;node._assistantThreadId=thread.id;}
   const original=job.chatContext?.transcript_evidence?.evidence||[];
   reply.evidence=original.slice(0,40).map(row=>({id:row.id,start:Number(row.baslangic),end:Number(row.bitis)||Number(row.baslangic),text:String(row.metin||'').slice(0,1200),translation:String(row.ceviri||'').slice(0,1200)})).filter(row=>Number.isFinite(row.start));
+  reply.feedEvidence=(job.chatContext?.feedSources||[]).slice(0,3).map(({id,entryId,title,url,scope,revision,text,shortened})=>({id,entryId,title,url,scope,revision,text:String(text||'').slice(0,1200),shortened:!!shortened}));
+  job.bubble._feedEvidence=reply.feedEvidence;
+  const page=job.chatContext?.page;
+  reply.pageEvidence=(page?.blocks||[]).slice(0,80).filter(row=>/^S[0-9]{1,5}$/.test(row.id)&&typeof row.text==='string').map(row=>({id:row.id,text:row.text.slice(0,2000),source:page.source||{tabId:job.sourcePageTabId||job.bubble.dataset?.pageSourceTabId||player.browserActiveTabId||'',generation:typeof browserTabState==='function'?browserTabState()?.generation:null,pageUrl:page.url||player.browserPageUrl||''}}));
   void persist(thread);changed();
  }
  function resume(proposalId,context){const thread=current(),reply=thread?.messages.find(row=>row.actions?.some(action=>action.proposalId===proposalId));if(!reply||thread.headId!==reply.id)throw Error(t('Continue only the latest reply in this conversation.','Bu sohbette yalnız son yanıttan devam edilebilir.'));restoreLog();const bubble=[...document.querySelectorAll('#aiChatLog .ai-msg')].find(node=>node._assistantMessageId===reply.id&&node._assistantThreadId===thread.id&&node._sourceScope===aiSourceScope());if(!bubble)throw Error('Reply is unavailable.');reply.status='streaming';bubble.classList.add('is-loading');bubble.classList.remove('ai-msg-err');const job={chatContext:context,sourceScope:aiSourceScope(),bubble};own(job,thread,reply);scheduleFlush(thread);changed();return {job,text:reply.text,actions:reply.actions||[],evidence:reply.evidence||[],citations:reply.citations||[],steps:reply.steps||[]};}

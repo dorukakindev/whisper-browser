@@ -120,6 +120,8 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-translation-archive-
   const events = [];
   const integration = {
     loadSettings: () => ({ ui: { browserPageTarget: 'tr' } }),
+    readBrowserPlaces: () => ({}),
+    ...require('../src/browser-site-profiles'),
     browserTranslationArchive: () => ({
       hasPage: () => true,
       findPage: () => ({ path: 'arşiv.md', record: {

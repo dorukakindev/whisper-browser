@@ -647,7 +647,7 @@ function renderQueue() {
       if (item && item.files && item.files[0]) window.api.showInFolder(item.files[0]);
     });
   });
-  list.querySelectorAll('.queue-remove[data-id]').forEach(btn => {
+  list.querySelectorAll('.queue-remove[data-id]:not(.queue-move)').forEach(btn => {
     btn.addEventListener('click', () => removeFromQueue(parseInt(btn.dataset.id, 10)));
   });
   list.querySelectorAll('.queue-move').forEach(btn => {
@@ -814,6 +814,7 @@ async function processNextQueueItem() {
 
   const r = await startTranscribeSafe(opts);
   if (!r.ok) {
+    state.activeOutputJob = null;
     if (r.cancelled) {
       // Kullanıcı başlatma IPC'si yoldayken İptal'e bastı; ana süreç spawn'a
       // girmedi. Öğeyi hatalı göstermeden bekleyen durumuna döndür.
@@ -5875,7 +5876,7 @@ $('queueAddBtn').addEventListener('click', () => {
       showJobValidation({ message: 'Kuyruğa eklemek için YouTube bağlantısını girin.', fieldId: 'youtubeUrl' });
       return;
     }
-    addToQueue('youtube', url);
+    if (!addToQueue('youtube', url)) return;
     $('youtubeUrl').value = '';
     logLine(`+ Kuyruğa eklendi: ${url.slice(0, 50)}...`);
   } else {
@@ -5884,7 +5885,7 @@ $('queueAddBtn').addEventListener('click', () => {
       showJobValidation({ message: 'Kuyruğa eklemek için önce bir video veya ses dosyası seçin.', fieldId: 'dropZone' });
       return;
     }
-    addToQueue('file', state.inputFile);
+    if (!addToQueue('file', state.inputFile)) return;
     logLine(`+ Kuyruğa eklendi: ${state.inputFile.split(/[\\/]/).pop()}`);
     // Dosyayı temizle (kuyruğa eklendi, bir sonrakini seçebilsin)
     state.inputFile = null;
@@ -19199,8 +19200,10 @@ function researchStatusLabel(status) {
 
 function researchLinksFromText(value) {
   return String(value || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
-    const parts = line.split('|');
-    if (parts.length > 1) return { label: parts.slice(0, -1).join('|').trim(), url: parts.at(-1).trim() };
+    // Only a delimiter immediately before the URL separates its label. Pipes
+    // inside a valid URL remain part of that URL.
+    const separator = /\|\s*(?=https?:\/\/)/i.exec(line);
+    if (!/^https?:\/\//i.test(line) && separator) return { label: line.slice(0, separator.index).trim(), url: line.slice(separator.index + 1).trim() };
     return { label: '', url: line };
   });
 }
@@ -19324,8 +19327,15 @@ async function handleResearchLibraryAction(event) {
   const action = event.target.closest('[data-research-action]')?.dataset.researchAction;
   if (action === 'save') {
     const note = card.querySelector('[data-research-field="note"]')?.value || '';
-    const tags = card.querySelector('[data-research-field="tags"]')?.value || '';
-    const links = researchLinksFromText(card.querySelector('[data-research-field="links"]')?.value || '');
+    const tagText = card.querySelector('[data-research-field="tags"]')?.value || '';
+    const tags = tagText === (annotation.tags || []).join(', ') ? annotation.tags : tagText;
+    const linkText = card.querySelector('[data-research-field="links"]')?.value || '';
+    const savedLinks = (annotation.links || []).map(link => link.label ? `${link.label} | ${link.url}` : link.url).join('\n');
+    const links = linkText === savedLinks ? annotation.links : researchLinksFromText(linkText);
+    if ((links || []).some(link => {try {return !['http:', 'https:'].includes(new URL(link.url).protocol);} catch (_) {return true;}})) {
+      logLine(window.UiLocale?.get?.() === 'tr' ? 'Kaynak bağlantısı geçersiz. Not kaydedilmedi; bağlantıyı düzeltin.' : 'Invalid source link. The note was not saved; correct the link.', 'error');
+      return;
+    }
     const result = await window.api.upsertResearchAnnotation({ ...annotation, note, tags, links })
       .catch((error) => ({ ok: false, error: error.message }));
     if (!result?.ok) logLine(`Araştırma notu kaydedilemedi: ${result?.error || 'bilinmeyen hata'}`, 'error');
@@ -19838,9 +19848,12 @@ function subtitleContextLanguage(role) {
 
 function globalAssistantContext() {
   const selection = window.MediaExperience?.context();
-  if (selection) return window.BookAssistantUI?.context(selection) || selection;
+  if (selection && selection.type !== 'taste-profile') return window.BookAssistantUI?.context(selection) || selection;
   const pdfContext = window.PdfReaderExperience?.context();
   if (pdfContext) return window.BookAssistantUI?.context(pdfContext) || pdfContext;
+  const feedContext = window.AssistantFeedSources?.context();
+  if (feedContext) return feedContext;
+  if (selection) return selection;
   if (!$('playerLayer')?.classList.contains('hidden')) return null;
   const home = document.body.classList.contains('media-home-active');
   return { workspace: home ? 'media-library' : 'subtitle-studio',
@@ -19992,23 +20005,24 @@ function renderAiText(el, text) {
   const raw = String(text || '');
   const sourceTabId = String(el.dataset?.pageSourceTabId || '');
   const transcriptEvidence = Array.isArray(el._transcriptEvidence) ? el._transcriptEvidence : [];
-  const re = /(^|[^\d])((?:\d{1,2}:)?[0-5]?\d:[0-5]\d)(?!\d)|\[((?:S|T|U)\d{1,5})\]/g;
+  const re = /(^|[^\d])((?:\d{1,2}:)?[0-5]?\d:[0-5]\d)(?!\d)|\[((?:S|T|U)\d{1,5}|F[a-f0-9]{16})\]/g;
   let last = 0, match;
   while ((match = re.exec(raw))) {
     const tokenStart = match[3] ? match.index : match.index + match[1].length;
     el.appendChild(document.createTextNode(raw.slice(last, tokenStart)));
     if (match[3]) {
       const sourceId = match[3];
-      const verified=sourceId.startsWith('U')?el._chatContext?.assistant_tool_evidence?.find(row=>row.id===sourceId):sourceId.startsWith('T')?window.BrowserAiContext.citation(el._chatContext,sourceId)
+      const verified=sourceId.startsWith('F')?el._feedEvidence?.find(row=>row.id===sourceId):sourceId.startsWith('U')?el._chatContext?.assistant_tool_evidence?.find(row=>row.id===sourceId):sourceId.startsWith('T')?window.BrowserAiContext.citation(el._chatContext,sourceId)
         :el._chatContext?.page?.blocks?.find(row=>row.id===sourceId);
       if(!verified){el.appendChild(document.createTextNode(`[${sourceId}]`));last=re.lastIndex;continue;}
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = !sourceId.startsWith('S') ? 'ai-source-link ai-transcript-link' : 'ai-source-link';
+      button.className = !/^[SF]/.test(sourceId) ? 'ai-source-link ai-transcript-link' : 'ai-source-link';
       button.textContent = `[${sourceId}]`;
-      button.title = !sourceId.startsWith('S') ? 'Transkriptteki kaynak repliğe git' : 'Sayfadaki kaynak paragrafa git';
+      button.title = sourceId.startsWith('F') ? (window.UiLocale?.get?.()==='tr'?'Akıştaki özgün kaynağı aç':'Open the original feed source') : !sourceId.startsWith('S') ? 'Transkriptteki kaynak repliğe git' : 'Sayfadaki kaynak paragrafa git';
       button.addEventListener('click', async () => {
         if(el._sourceScope!==aiSourceScope()){setBrowserSignal('Bu yanıt başka bir video veya sekmeye ait.',false);return;}
+        if(sourceId.startsWith('F')){await window.api.openExternal(verified.url);return;}
         if (!sourceId.startsWith('S')) {
           const evidence = transcriptEvidence.find((item) => item.id === sourceId);
           if (!evidence) { setBrowserSignal('Bu transkript kanıtı artık bulunamıyor.', false); return; }
@@ -20025,6 +20039,8 @@ function renderAiText(el, text) {
           return;
         }
         const tabId = sourceTabId || (player.workspaceMode === 'browser' ? player.browserActiveTabId : '');
+        const pageSource=el._chatContext?.page?.source;
+        if(pageSource && (pageSource.tabId!==player.browserActiveTabId||pageSource.pageUrl!==player.browserPageUrl||pageSource.generation!==browserTabState()?.generation)){setBrowserSignal(window.UiLocale?.get?.()==='tr'?'Kaynak sayfa sürümü değişti.':'The source page revision changed.',false);return;}
         if (!tabId || !window.api.revealBrowserPageContext) {
           setBrowserSignal('Bu kaynak sayfa artık açık değil.', false);
           return;
@@ -20153,6 +20169,7 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null, 
       new Promise(resolve=>{timer=setTimeout(()=>resolve({ok:false,contextFailure:'timeout'}),4000);})]);
     clearTimeout(timer);
     if (page?.ok && page.url && window.AssistantSourceContext.pageKey(page.url) === window.AssistantSourceContext.pageKey(player.browserPageUrl)) chatContext.page = {
+      source: page.source ? {tabId:page.source.tabId,generation:page.source.generation,pageUrl:page.source.pageUrl} : null,
       title: String(page.title || '').slice(0, 300),
       url: String(page.url || '').slice(0, 1000),
       blocks: Array.isArray(page.blocks) ? page.blocks.slice(0, 80) : [],
@@ -22910,14 +22927,15 @@ async function writeSubtitleBulkFiles(files, desired, action) {
           const changes = subtitleBulkLogChanges(written, rollbackSide);
           const rollback = await window.api.writeSubtitle(written.path, written[rollbackSide], {
             action: 'bulk-rollback', changeCount: changes.length, changes: changes.slice(0, 200),
-          });
+          }, written.writtenStat);
           if (!rollback?.ok) rollbackFailed = true;
+          else noteSubtitleStat(written.path, rollback);
         } catch (_) { rollbackFailed = true; }
       }
       return { ok: false, error: result?.error || 'bilinmeyen hata', rollbackFailed };
     }
     noteSubtitleStat(operation.path, result);
-    completed.push(operation);
+    completed.push({ ...operation, writtenStat: { mtimeMs: result.mtimeMs, size: result.size } });
     if (result.warning) warnings.push(result.warning);
   }
   return { ok: true, warnings };
@@ -29964,6 +29982,7 @@ function stPlaylistEnqueue(listId) {
   }
   saveStQueue();
   updatePlaylistButtons();
+  stRefreshQueueRail();
   return added;
 }
 // "Oynat": listeyi kuyruğa yükleyip baştan başlatır — kuyruk değiştirilebilir
@@ -29971,9 +29990,13 @@ function stPlaylistEnqueue(listId) {
 function stPlaylistPlay(listId) {
   const list = stPlaylistById(listId);
   if (!list || !list.items.length) return false;
+  if (list.items.length > ST_QUEUE_MAX && !window.confirm(interfaceChoice(
+    `Bu listede ${list.items.length} video var. İlk ${ST_QUEUE_MAX} videoyu oynatmak istiyor musunuz?`,
+    `This list contains ${list.items.length} videos. Play the first ${ST_QUEUE_MAX} videos?`))) return false;
   stQueue = list.items.slice(0, ST_QUEUE_MAX).map((v) => ({ ...v }));
   saveStQueue();
   updatePlaylistButtons();
+  stRefreshQueueRail();
   return stQueuePlayNext();
 }
 function renderStPlaylistPanel() {
@@ -30194,6 +30217,7 @@ function stQueueShuffle() {
   }
   saveStQueue();
   updatePlaylistButtons();
+  stRefreshQueueRail();
   osd(window.UiLocale?.t('Sıra karıştırıldı.') || 'Sıra karıştırıldı.', 3000);
   return true;
 }
@@ -30968,9 +30992,11 @@ async function openInvidiousPlaylistPage(playlistId) {
       }
       page += 1;
       const got = next.videos || [];
-      const added = appendVideos(got);
+      const previousSeen = seen.size;
+      appendVideos(got);
+      const newSources = seen.size - previousSeen;
       // Son sayfa ya da tamamen tekrar eden sayfa — devam düğmesini kaldır.
-      if (!got.length || !added || got.length < 20) { row.remove(); return; }
+      if (!got.length || !newSources || got.length < 20) { row.remove(); return; }
       btn.disabled = false;
       btn.textContent = window.UiLocale?.t('Daha fazla') || 'Daha fazla';
     });
@@ -31156,6 +31182,7 @@ function renderStSubsPanel(grid) {
 
   const groups = stSubGroups();
   let activeGroup = grid.dataset.stSubGroup || '';
+  if (activeGroup && !groups.includes(activeGroup)) { activeGroup = ''; grid.dataset.stSubGroup = ''; }
   if (groups.length) {
     const chips = document.createElement('div');
     chips.className = 'st-chips';
@@ -33237,7 +33264,7 @@ $('timelineAnalyze')?.addEventListener('click',async()=>{
   if(staleGeneration(generation)||file!==player.localPath)return;
   if(!result.ok)throw Error(result.code==='cancelled'?interfaceChoice('İnceleme iptal edildi.','Analysis cancelled.'):result.code==='timeout'?interfaceChoice('İnceleme zaman aşımına uğradı; daha kısa aralık seç.','Analysis timed out; choose a shorter interval.'):result.error);
   player.timeline.analysis=result;
-  if(result.waveform){player.timeline.waveform=result.waveform.points;player.timeline.waveformDuration=result.waveform.duration;player.timeline.waveformStart=result.waveform.start;}
+  player.timeline.waveform=result.waveform?.points||[];player.timeline.waveformDuration=result.waveform?.duration||0;player.timeline.waveformStart=result.waveform?.start||0;
   $('timelineStatus').textContent=interfaceChoice(`${result.shots.length} kesim bulundu.${result.warnings.length?' Bazı veriler alınamadı; ses izini ve dosyayı kontrol et.':''}`,`${result.shots.length} cuts found.${result.warnings.length?' Some data unavailable; check audio track and file.':''}`);drawTimeline();renderTimelineIssues();
  }catch(error){if(!staleGeneration(generation))$('timelineStatus').textContent=error.message;}
  finally{button.disabled=false;cancel.disabled=true;}

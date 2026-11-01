@@ -103,6 +103,7 @@ class BrowserReadingList {
     const fileName = `${title}-${id.slice(-10)}.mhtml`;
     const filePath = this._safeFilePath(fileName);
     if (!filePath) return { ok: false, error: 'Okuma listesi dosya adı üretilemedi.' };
+    this.ensure();
     return { ok: true, entry: {
       id, url, title: String(raw.title || title).slice(0, 200),
       createdAt: existing?.createdAt || Date.now(), updatedAt: Date.now(),
@@ -143,9 +144,19 @@ class BrowserReadingList {
     const entry = entries.find((item) => item.id === id);
     if (!entry) return { ok: false, error: 'Kayıt bulunamadı.' };
     const filePath = this._safeFilePath(entry.fileName);
-    try { if (filePath && this.fs.existsSync(filePath)) this.fs.unlinkSync(filePath); }
-    catch (error) { return { ok: false, error: `Çevrimdışı kopya silinemedi: ${error.message}` }; }
-    this._writeIndex(entries.filter((item) => item.id !== id));
+    const backup = filePath && this.fs.existsSync(filePath) ? `${filePath}.${crypto.randomUUID()}.remove-backup` : '';
+    try {
+      if (backup) { this.fs.copyFileSync(filePath, backup); this.fs.unlinkSync(filePath); }
+    } catch (error) {
+      try { if (backup && this.fs.existsSync(backup)) this.fs.unlinkSync(backup); } catch (_) {}
+      return { ok: false, error: `Çevrimdışı kopya silinemedi: ${error.message}` };
+    }
+    try { this._writeIndex(entries.filter((item) => item.id !== id)); }
+    catch (error) {
+      if (backup) this.fs.renameSync(backup, filePath);
+      return { ok: false, error: error.message };
+    }
+    try { if (backup) this.fs.unlinkSync(backup); } catch (_) { this.cleanupWarnings.push(path.basename(backup)); }
     this.revisions.set(id, this.revision(id) + 1);
     return { ok: true };
   }

@@ -46,7 +46,8 @@
     "hls.js": "^1.7.3",
     "mux.js": "6.3.0",
     "pdfjs-dist": "6.3.289",
-    "remend": "1.4.0"
+    "remend": "1.4.0",
+    "saxes": "6.0.0"
   },
   "keywords": [
     "whisper",

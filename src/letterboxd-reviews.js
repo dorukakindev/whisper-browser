@@ -14,7 +14,7 @@ function stripMore(body){return body.replace(/<a\b[^>]*data-js-trigger=["']colla
 async function expandReviewHtml(input,{load,signal}={}){
  let html=String(input||'');if(html.length>3000000)throw Error('Review page too large.');
  html=html.replace(/<!--[^]*?-->/g,'').replace(/<(script|style|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'');
- const pattern=/<(div|section)\b[^>]*class=["'][^"']*\bjs-review-body\b[^"']*["'][^>]*>/gi,changes=[],tasks=[];let found,expanded=0,failed=0;
+ const pattern=/<(div|section)\b[^>]*class=["'][^"']*\bjs-review-body\b[^"']*["'][^>]*>/gi,changes=[],tasks=[];let found,expanded=0,failed=0,blocked=0;
  while((found=pattern.exec(html))&&tasks.length<50){
   const start=found.index,open=found[0],tag=found[1],begin=pattern.lastIndex,tokens=new RegExp('<\\/?'+tag+'\\b[^>]*>','gi');tokens.lastIndex=begin;let depth=1,end=begin,next;
   while(depth&&(next=tokens.exec(html))){depth+=next[0][1]==='/'?-1:1;if(!depth)end=next.index;}if(depth)break;pattern.lastIndex=tokens.lastIndex;
@@ -28,12 +28,12 @@ async function expandReviewHtml(input,{load,signal}={}){
    if(text.length<8||text.length>20000||prefix&&!text.startsWith(prefix))throw Error('Full review does not match its visible text.');
    // Keep no returned markup: safe text is re-encoded into this exact source card.
    replacement=open.replace(/\sdata-full-text-url\s*=\s*(?:"[^"]*"|'[^']*')/i,'')+'<p>'+text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')+'</p>';expanded++;
-  }catch(error){signal?.throwIfAborted();replacement=open.replace(/>$/,' data-review-incomplete="true">');failed++;}
+  }catch(error){signal?.throwIfAborted();if(error.status===403||/\bHTTP 403\b/.test(error.message))blocked++;replacement=open.replace(/>$/,' data-review-incomplete="true">');failed++;}
   changes.push({start,end,replacement});});
  }
  for(let i=0;i<tasks.length;i+=2)await Promise.all(tasks.slice(i,i+2).map(run=>run()));
  for(const change of changes.sort((a,b)=>b.start-a.start))html=html.slice(0,change.start)+change.replacement+html.slice(change.end);
- return {html,expanded,failed};
+ return {html,expanded,failed,blocked};
 }
 function fullTextFetchScript(value){const url=fullTextUrl(value);if(!url)throw Error('Unsupported full review address.');return `(async()=>{if(location.origin!=='https://letterboxd.com')throw Error('Review origin changed');const r=await fetch(${JSON.stringify(url)},{credentials:'omit',redirect:'error',signal:AbortSignal.timeout(8000),headers:{Accept:'text/html'}});if(!r.ok)throw Error('Full review HTTP '+r.status);const reader=r.body.getReader();const parts=[];let size=0;try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>200000)throw Error('Full review too large');parts.push(value);}}finally{await reader.cancel().catch(()=>{});}const bytes=new Uint8Array(size);let offset=0;for(const part of parts){bytes.set(part,offset);offset+=part.length;}return new TextDecoder().decode(bytes);})()`;}
 function filmImdbId(html){
@@ -49,6 +49,22 @@ function filmImdbId(html){
   try{const u=new URL(attr(markup,'href'));const id=/^\/title\/(tt\d{7,12})(?:\/(?:maindetails\/?)?)?$/.exec(u.pathname)?.[1];if(u.protocol==='https:'&&['imdb.com','www.imdb.com'].includes(u.hostname)&&!u.port&&!u.username&&!u.password&&id)ids.add(id);}catch{}
  }
  return ids.size===1?[...ids][0]:'';
+}
+function filmTmdbIdentity(html){
+ // Provider IDs belong to the film metadata, never to a comment's linked recommendations.
+ const stack=[],explicit=new Set(),links=new Set();
+ for(const match of html.matchAll(/<\/?([a-z][a-z0-9]*)\b[^>]*>/gi)){
+  const tag=match[1].toLowerCase(),markup=match[0];
+  if(['article','li','div','section'].includes(tag)){
+   if(markup[1]==='/'){const index=stack.findLastIndex(row=>row.tag===tag);if(index>=0)stack.splice(index);}
+   else stack.push({tag,review:tag==='article'||tag==='li'||attr(markup,'class').split(/\s+/).includes('js-review-body')});
+  }
+  if(markup[1]==='/'||stack.some(row=>row.review))continue;
+  const id=attr(markup,'data-tmdb-id')||attr(markup,'data-film-tmdb-id');if(/^[1-9]\d{0,11}$/.test(id))explicit.add(id);
+  if(tag!=='a')continue;
+  try{const u=new URL(attr(markup,'href'));const id=/^\/movie\/([1-9]\d{0,11})(?:-[^/]*)?\/?$/.exec(u.pathname)?.[1];if(u.protocol==='https:'&&['themoviedb.org','www.themoviedb.org'].includes(u.hostname)&&!u.port&&!u.username&&!u.password&&id)links.add(id);}catch{}
+ }
+ const ids=explicit.size?explicit:links;return {tmdbId:ids.size===1?'movie:'+ [...ids][0]:'',...(ids.size>1?{tmdbAmbiguous:true}:{})};
 }
 function reviewPermalink(value){try{const u=new URL(value,'https://letterboxd.com');return u.protocol==='https:'&&u.hostname==='letterboxd.com'&&!u.port&&!u.username&&!u.password&&!u.search&&!u.hash&&/^\/[a-z0-9_-]+\/film\/[a-z0-9-]+\/(?:[1-9]\d*\/)?$/i.test(u.pathname)?u.href:null;}catch{return null;}}
 function cardMetadata(card){
@@ -100,9 +116,9 @@ function parseLetterboxdReviews(input,{url}={}){
  const heading=plain(headline), labelled=pageTitle.replace(/^(?:Reviews of|Review of)\s+/i,'').replace(/\s*[•|]\s*Letterboxd.*$/i,'').trim();
  const years=/\((18\d{2}|19\d{2}|20\d{2})\)/.exec(labelled),year=Number((yearText&&attr(yearText,'content').slice(0,4))||years?.[1])||null;
  const name=(labelled.replace(/\s*\((?:18|19|20)\d{2}\).*$/,'').trim()||heading).slice(0,300);
- const tmdb=/(?:data-tmdb-id|data-film-tmdb-id)=["'](\d+)["']/i.exec(html)?.[1]||/themoviedb\.org\/movie\/(\d+)/i.exec(html)?.[1]||'';
+ const tmdb=filmTmdbIdentity(html);
  const imdbId=filmImdbId(html);
- return {reviews:rows,limited,excluded,pageTitle,identity:{title:name,year,tmdbId:tmdb?'movie:'+tmdb:'',...(imdbId?{imdbId}:{})}};
+ return {reviews:rows,limited,excluded,pageTitle,identity:{title:name,year,...tmdb,...(imdbId?{imdbId}:{})}};
 }
 function matchFilm(item,identity={}){
  const fold=v=>String(v||'').normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase('tr').replace(/ı/g,'i').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
@@ -112,6 +128,7 @@ function matchFilm(item,identity={}){
  if(known&&remote&&known!==remote)return {state:'mismatch',reason:'tmdb-id'};
  if(knownImdb&&remoteImdb&&knownImdb!==remoteImdb)return {state:'mismatch',reason:'imdb-id'};
  if(item.year&&identity.year&&Number(item.year)!==Number(identity.year))return {state:'mismatch',reason:'year'};
+ if(identity.tmdbAmbiguous)return {state:'unverified',reason:'ambiguous-tmdb-metadata'};
  if(known&&remote&&known===remote)return {state:'matched',reason:'tmdb-id'};
  if(knownImdb&&remoteImdb&&knownImdb===remoteImdb)return {state:'matched',reason:'imdb-id'};
  const names=[item.title,item.originalTitle].filter(Boolean).map(fold),name=fold(identity.title);
@@ -132,8 +149,8 @@ function reviewPageScript(){return `(()=>{
  if(document.querySelector('#challenge-running,#challenge-stage,#challenge-form')||/just a moment|access denied|security check/i.test(document.title))return {blocked:true};
  const host=document.createElement('section');
  for(const n of document.querySelectorAll('meta[property="og:title"],meta[property="og:release_date"],meta[property="video:release_date"],h1'))host.append(n.cloneNode(true));
- const tmdb=document.querySelector('[data-tmdb-id],[data-film-tmdb-id]');if(tmdb){const n=document.createElement('div');n.setAttribute('data-tmdb-id',tmdb.getAttribute('data-tmdb-id')||tmdb.getAttribute('data-film-tmdb-id'));host.append(n);}
- for(const link of document.querySelectorAll('a[href*="themoviedb.org/movie/"]')){const n=document.createElement('a');n.setAttribute('href',link.getAttribute('href'));host.append(n);}
+ for(const tmdb of document.querySelectorAll('[data-tmdb-id],[data-film-tmdb-id]')){if(tmdb.closest('article,li,.js-review-body'))continue;const n=document.createElement('div');n.setAttribute('data-tmdb-id',tmdb.getAttribute('data-tmdb-id')||tmdb.getAttribute('data-film-tmdb-id'));host.append(n);}
+ for(const link of document.querySelectorAll('a[href*="themoviedb.org/movie/"]')){if(link.closest('article,li,.js-review-body'))continue;const n=document.createElement('a');n.setAttribute('href',link.getAttribute('href'));host.append(n);}
  for(const link of document.querySelectorAll('a[data-track-action]')){if(link.getAttribute('data-track-action').toLowerCase()!=='imdb'||link.closest('article,li,.js-review-body'))continue;const n=document.createElement('a');n.setAttribute('data-track-action','IMDb');n.setAttribute('href',link.getAttribute('href'));host.append(n);}
  const seen=new Set();for(const body of [...document.querySelectorAll('.js-review-body')].slice(0,50)){const card=body.closest('article,li')||body;if(seen.has(card))continue;seen.add(card);const copy=card.cloneNode(true);if(body.closest('.contains-spoilers,.has-spoilers,[data-spoilers="true"],[data-contains-spoilers="true"]'))copy.setAttribute('data-spoilers','true');for(const text of copy.querySelectorAll('.js-review-body')){const expanded=text.querySelector('.expanded-text');if(expanded)text.replaceChildren(...expanded.childNodes);}for(const n of copy.querySelectorAll('script,style,template,input,textarea,select,form,iframe,button,img'))n.remove();host.append(copy);if(host.outerHTML.length>3000000)return {tooLarge:true};}
  return {url:location.href,title:document.title,html:host.outerHTML};})()`;}

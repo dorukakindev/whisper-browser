@@ -5,7 +5,7 @@
   const kind=['video','page','book','library','studio'].includes(raw.kind)?raw.kind:'studio';
   return {version:1,kind,owner:text(raw.owner,8000),thread:text(raw.thread,100),tabId:text(raw.tabId,200),generation:Number.isSafeInteger(raw.generation)?raw.generation:0,
    subtitleKey:text(raw.subtitleKey,100),title:text(raw.title,300),pageKey:text(raw.pageKey,100),time:Number.isFinite(raw.time)?Math.max(0,raw.time):0,
-   hasSubtitles:raw.hasSubtitles===true,hasMedia:raw.hasMedia===true,voiceStudio:raw.voiceStudio===true,
+   hasFeedSources:raw.hasFeedSources===true,hasSubtitles:raw.hasSubtitles===true,hasMedia:raw.hasMedia===true,voiceStudio:raw.voiceStudio===true,
    range:raw.range&&Number.isFinite(raw.range.start)&&Number.isFinite(raw.range.end)&&raw.range.start>=0&&raw.range.end>raw.range.start?{start:raw.range.start,end:raw.range.end}:null,
    tracks:(Array.isArray(raw.tracks)?raw.tracks:[]).slice(0,60).filter(row=>row&&typeof row.id==='string').map(row=>({id:text(row.id,200),role:row.role==='translation'?'translation':'source',language:text(row.language,24),partial:row.partial===true}))};
  }
@@ -17,6 +17,7 @@
   const add=(...parts)=>{const size=parts.reduce((sum,part)=>sum+(typeof part==='string'?part.replace(/\0/g,'').length:0),0);if(size){characters+=size;units++;}};
   for(const key of ['chapterText','selectedText','excerpt','reviewAnalysis','synopsis','note','cumle','mevcut_ceviri','not'])add(value[key]);
   add(value.page?.selectedText);
+  for(const source of Array.isArray(value.feedSources)?value.feedSources:[])add(source?.text);
   for(const row of Array.isArray(value.page?.blocks)?value.page.blocks:[])add(row?.text);
   for(const key of ['onceki','sonraki'])for(const row of Array.isArray(value[key])?value[key]:[])add(row?.metin);
   add(value.hedef?.metin);
@@ -54,6 +55,7 @@
    const limit=key==='chapterText'?16000:key==='excerpt'?8000:4000;
    const value=context[key];if(typeof value==='string'){safe[key]=text(value,limit);if(value.length>limit)safe.sourceTruncated=true;}else if(typeof value==='boolean')safe[key]=value;
   }
+  if(context.type==='feed-sources'&&Array.isArray(context.feedSources)){let remaining=16000;safe.feedSources=context.feedSources.slice(0,3).filter(s=>s&&/^F[a-f0-9]{16}$/.test(s.id)&&typeof s.text==='string').map(s=>{const body=text(s.text,Math.min(6000,remaining));remaining-=body.length;return {id:s.id,title:text(s.title,300),url:text(s.url,2000),scope:s.scope==='feed-full'?'feed-full':'summary',revision:text(s.revision,100),text:body,shortened:s.shortened===true||body.length<s.text.length};});}
   if(typeof context.chapterText==='string'&&context.chapterText.length>16000)safe.chapterTextComplete=false;
   for(const key of ['onceki','sonraki'])if(Array.isArray(context[key]))safe[key]=context[key].slice(0,8).filter(row=>row&&typeof row==='object').map(row=>({zaman:text(row.zaman,30),metin:text(row.metin,1200)}));
   if(context.hedef)safe.hedef={zaman:text(context.hedef.zaman,30),metin:text(context.hedef.metin,1200),baslangic:Number(context.hedef.baslangic)||0,bitis:Number(context.hedef.bitis)||0};
@@ -70,6 +72,7 @@
    safe.sourceTruncated=true;
    if(safe.page?.blocks.length){safe.page.blocks.pop();safe.page.truncated=true;}
    else if(safe.chapterText?.length>1000){safe.chapterText=safe.chapterText.slice(0,-1000);safe.chapterTextComplete=false;}
+   else if(safe.feedSources?.length){safe.feedSources.pop();}
    else if(safe.evidence?.length)safe.evidence.pop();
    else if(safe.onceki?.length)safe.onceki.shift();
    else if(safe.sonraki?.length)safe.sonraki.pop();

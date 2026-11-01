@@ -85,7 +85,8 @@
     stop();
     // The generator owns another exact-row boundary on this same audio element.
     // Its existing selection-change handler clears that boundary before a new owner starts.
-    el('dubQualityGroup').dispatchEvent(new Event('change'));
+    if(window.DubGeneratorUI?.selectQuality)window.DubGeneratorUI.selectQuality(selected.key);
+    else el('dubQualityGroup').dispatchEvent(new Event('change'));
     const row={output,key:selected.key,context,src:voice.getAttribute('src'),started:false,start:Math.max(0,selected.audioStart-1.25),end:selected.audioEnd+1.25};
     if(!samePreviewSource(context)){note('Video değişti; önce doğru videoyu açın.');return;}if(!el('dubGeneratorDialog').open)return;
     neighbour=row;previewTimer=setInterval(()=>{if(!neighbourCurrent(row))stop();else syncPreview();},80);

@@ -84,7 +84,18 @@
     const id=/^(movie|tv):(\d+)$/.exec(item.tmdbId||'');if(id)aside.append(button(t('View on TMDB ↗','TMDB’de görüntüle ↗'),()=>window.api.openExternal('https://www.themoviedb.org/'+id[1]+'/'+id[2])));
     if(episodes.length){const season=el('section','mtd-episodes'),label=el('label','',t('Episodes · season ','Bölümler · sezon ')),select=el('select');for(const num of [...new Set(episodes.map(ep=>ep.season))].sort((a,b)=>a-b)){const option=el('option','',num);option.value=num;select.append(option);}label.append(select);season.append(label);const list=el('div');season.append(list);const drawEpisodes=()=>{list.replaceChildren();for(const ep of episodes.filter(ep=>ep.season===Number(select.value))){const row=el('div','mtd-episode');row.append(el('span','',String(ep.number).padStart(2,'0')),el('strong','',ep.title||t('Episode '+ep.number,ep.number+'. bölüm')));if(ep.source)row.append(button(t('Play','Oynat'),()=>play(ep.id)));else row.append(button(t('Link source','Kaynak bağla'),()=>management()));list.append(row);}};select.onchange=drawEpisodes;drawEpisodes();main.append(season);}
     window.TitleDiscoveryUI?.mount(main,aside,item);window.FilmContextFeatures?.mount(main,item,((id)=>()=>open(id))(item.id));
-    body.append(main,aside,review);dialog.append(body,el('p','mtd-attribution','This product uses the TMDB API but is not endorsed or certified by TMDB.'));window.MediaReviewDecision?.mountTitle(review,item);
+    body.append(main,aside,review);
+    if(window.api.feedsRequest){const sourceTitleId=item.id,sourceGeneration=generation;
+      void window.api.feedsRequest({action:'related',catalogId:item.id}).then(result=>{
+        if(sourceGeneration!==generation||sourceTitleId!==selected||!body.isConnected||!result?.ok||!result.rows?.length)return;
+        const related=el('section','mtd-feed-sources');related.append(el('h2','',t('Sources about this title','Bu yapım hakkında kaynaklar')));
+        const list=el('div','mtd-feed-source-list');for(const source of result.rows.slice(0,6)){
+          const link=button(source.title,()=>window.MediaHomeUI?.openFeedEntry(source.id));
+          link.append(el('small','',source.provenance?.map(row=>row.title).filter(Boolean).join(' · ')||t('Saved feed source','Kayıtlı akış kaynağı')));list.append(link);
+        }related.append(list);body.append(related);
+      }).catch(()=>{});
+    }
+    dialog.append(body,el('p','mtd-attribution','This product uses the TMDB API but is not endorsed or certified by TMDB.'));window.MediaReviewDecision?.mountTitle(review,item);
     window.MediaExperience?.setContext(dialog,{id:item.id,type:'library-title',title:item.title,synopsis:item.synopsis});document.getElementById('mediaHome').scrollTop=scroll;window.FilmPageEnhancements?.enhance(dialog,item);
     if(focused)dialog.querySelector('[data-title-action="'+focused+'"]')?.focus({preventScroll:true});
   }

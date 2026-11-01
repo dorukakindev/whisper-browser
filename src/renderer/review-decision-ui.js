@@ -250,7 +250,7 @@
   const active=jobs.get(item.id);if(active)active.update=()=>{renderJob();renderResult();};
   function historicalResult(target,entry){
    const show=()=>resultView(target,entry.analysis,entry.reviews||[],entry.evidenceSnapshot?.profile);
-   if(!spoiler.checked&&(entry.reviews||[]).some(row=>row.spoiler)){
+   if((entry.reviews||[]).some(row=>row.spoiler)){
     const gate=el('div','mrv-history-spoiler');gate.dataset.reviewSpoilerGate='';gate.append(el('p','mtx-muted',t('This saved analysis includes plot details from spoiler reviews.','Bu kayıtlı analiz, spoiler yorumlarından olay örgüsü ayrıntıları içeriyor.')),button(t('Reveal this spoiler analysis','Spoiler içeren bu analizi göster'),()=>{gate.remove();show();}));target.append(gate);
    }else show();
   }

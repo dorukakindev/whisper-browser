@@ -18,7 +18,7 @@ async function python(exe, payload) {
 function sources(root) {
   const catalog = path.join(root, 'media-catalog.json'); if (!fs.existsSync(catalog)) return [];
   const files = new Set();
-  for (const item of JSON.parse(fs.readFileSync(catalog, 'utf8')).items || []) for (const source of [item.source, ...(item.episodes || []).map(e => e.source)]) {
+  for (const item of JSON.parse(fs.readFileSync(catalog, 'utf8')).items || []) for (const source of require('./catalog-library-model').allSources(item)) {
     if (source?.type === 'local' && VIDEO.test(source.value)) files.add(source.value);
   }
   let total = 0;

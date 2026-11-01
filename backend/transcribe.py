@@ -29,6 +29,7 @@ import threading
 import time
 import traceback
 import warnings
+from bisect import bisect_right
 from contextlib import contextmanager
 from io_errors import classify_ytdlp_error
 from pipeline_control import (
@@ -4350,6 +4351,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     # bozmasin. 0 = kapali (klasik sabit pencere).
     SCENE_GAP = max(0.0, float(getattr(args, 'translate_scene_gap', 8.0) or 0.0))
     scene_breaks = detect_scene_boundaries(entries, speaker_map, SCENE_GAP)
+    scene_starts = sorted(scene_breaks)
     if scene_breaks:
         log(f"Sahne bağlamı: {len(scene_breaks)} sahne sınırı "
             f"(sessizlik >= {SCENE_GAP:g} sn veya mekan işareti)")
@@ -4472,6 +4474,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         for group in chunk_groups(chunk_idx):
             row = {"ids": [positions[i] for i in group],
                    "source": ' '.join(entries[i][2] for i in group),
+                   "scene": bisect_right(scene_starts, group[0]),
                    "start": float(entries[group[0]][0]),
                    "end": float(entries[group[-1]][1]),
                    "duration": max(0.0, float(entries[group[-1]][1]) - float(entries[group[0]][0]))}

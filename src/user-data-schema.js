@@ -9,7 +9,7 @@ function validateStoreShape(name, value) {
   switch (name) {
     case 'media-catalog.json':
       valid = object(value) && value.version === 1 && rows(value.items) && value.items.length <= 10000;
-      if (valid) for (const item of value.items) require('./media-catalog-store').itemOf(item);
+      if (valid) {for (const item of value.items) require('./media-catalog-store').itemOf(item);require('./catalog-folder-diff').normalizeSnapshots(value.folderSnapshots);}
       break;
     case 'watch-library.json':
       valid = rows(value) || (object(value) && rows(value.items)
