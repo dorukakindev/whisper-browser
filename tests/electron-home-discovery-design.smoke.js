@@ -20,6 +20,16 @@ app.whenReady().then(async()=>{
  for(const mode of [{locale:'tr',theme:'dark',width:1440,zoom:1},{locale:'en',theme:'light',width:800,zoom:1.25}]){
   win.setContentSize(mode.width,1000);win.webContents.setZoomFactor(mode.zoom);await run('UiLocale.set('+JSON.stringify(mode.locale)+',false);applyUiTheme('+JSON.stringify(mode.theme)+');return true');const suffix=mode.locale+'-'+mode.theme+'-'+mode.width;
   for(const page of ['home','films','books']){await run('await MediaHomeUI.navigate('+JSON.stringify(page)+');return true');await shot(page+'-'+suffix,'#mediaHome');}
+  if(!before&&mode.width===800){
+   const compact=await run('return document.querySelector(".mh-header").getBoundingClientRect().height');assert(compact<=140,'Closed search leaves a two-row header: '+compact);
+   await run('document.getElementById("mhSearchToggle").click();return true');
+   assert(await run('return document.activeElement.id==="mhSearch"&&document.getElementById("mhSearchToggle").getAttribute("aria-expanded")==="true"'),'Search opens and takes focus');
+   await run('const n=document.getElementById("mhSearch");n.value="North";n.dispatchEvent(new Event("input",{bubbles:true}));return true');
+   await shot('search-open-'+suffix,'.mh-header');
+   await run('document.querySelector(".mh-search-clear").click();return true');assert(await run('return document.getElementById("mhSearch").value===""&&document.activeElement.id==="mhSearch"'),'Clear stays local and keeps focus');
+   await run('document.getElementById("mhSearch").dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}));return true');
+   assert(await run('return document.activeElement.id==="mhSearchToggle"&&document.getElementById("mhSearchToggle").getAttribute("aria-expanded")==="false"'),'Escape closes search and returns focus');
+  }
   await run('await MediaHomeUI.navigate("home");document.querySelector(".mh-more").open=true;document.querySelector(".mh-more summary").focus();return true');await shot('tools-'+suffix,'.mh-header');
   win.webContents.focus();win.webContents.sendInputEvent({type:'keyDown',keyCode:'Escape'});win.webContents.sendInputEvent({type:'keyUp',keyCode:'Escape'});await wait(70);const menuAfterEscape=await run('return document.querySelector(".mh-more").open');rows.push({name:'tools-escape-'+suffix,menuAfterEscape});if(!before)assert.equal(menuAfterEscape,false,'Tools closes on Escape');
   await run('document.querySelector(".mh-more").open=false;await MediaHomeUI.navigate("discover");return true');await until(()=>run('return document.querySelectorAll(".md-card").length===6'),'controlled discovery');await shot('discovery-'+suffix,'#mediaHome');

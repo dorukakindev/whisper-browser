@@ -191,3 +191,22 @@ header{gap:14px;padding:20px 20px 16px}
  .source-detail-content{max-height:148px;padding:11px 12px;border-radius:10px}
  #assistantWorkspace:has(.empty) .empty{padding:20px 0 14px}
 }
+
+/* Assistant decisions stay visible while only the explanation scrolls. */
+#review{display:grid;grid-template-columns:max-content max-content minmax(0,1fr);gap:10px 8px;max-height:none;overflow:visible;padding:12px;margin-inline:16px}
+#reviewText{grid-column:1/-1;min-height:0;max-height:112px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--strong) transparent;padding-right:6px;margin:0}
+#review button{margin:0;min-height:36px}
+#reviewConfirm{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:600}
+#panel:has(#review:not([hidden])) #send{background:var(--raised);border-color:var(--line);color:var(--muted)}
+#panel:has(#review:not([hidden])) #suggestions{display:none}
+header{padding-inline:16px;gap:12px}
+#threadBar{padding-inline:16px}
+#sourcePreview,#sourceBox{margin-inline:16px}
+#log{padding-inline:16px}
+#panel:has(.empty) #suggestions{padding-inline:16px}
+.empty{padding-block:32px 24px}
+#text{caret-color:var(--accent)}
+::selection{background:var(--accent);color:var(--accent-text)}
+#assistantWorkspace,#log,.source-detail-content{scrollbar-color:var(--strong) transparent}
+@media(max-width:400px),(max-height:650px){header,#threadBar,#log{padding-inline:12px}#sourcePreview,#sourceBox{margin-inline:12px}#panel:has(.empty) #suggestions{padding-inline:12px}}
+@media(max-height:620px){#review{max-height:none;gap:8px;padding:10px;margin-bottom:8px}#reviewText{max-height:72px}}

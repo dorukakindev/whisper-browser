@@ -19,3 +19,11 @@ test('metadata and uncaptioned page previews never invent video content',()=>{
  assert.match(preview.build({page:true}).summary,/Current web page/);
  assert.match(preview.build({locale:'tr'}).summary,/Ekli metin kaynağı yok/);
 });
+
+test('home and studio are not selected sources while actual typed media context remains attached',()=>{
+ for(const workspace of ['media-library','subtitle-studio'])for(const locale of ['en','tr']){
+  const source={workspace,page:'home',heading:'Home',note:'Do not infer old video'};
+  const empty=preview.build({selection:source,locale});assert.equal(empty.attached,false);assert(!empty.detail.includes('Do not infer'));
+  assert.equal(preview.build({selection:{...source,type:'library-title',id:'film:1'},locale}).attached,true);
+ }
+});

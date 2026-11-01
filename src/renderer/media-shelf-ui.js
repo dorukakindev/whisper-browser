@@ -306,7 +306,7 @@
     }), btn(t('Copy chapter', 'Bölümü kopyala'), () => window.api.copyText(book.chapters[index].text)), btn(t('Open chapter in voice production', 'Bölümü sesli üretimde aç'), narrateChapter), btn(t('Voice studio', 'Ses stüdyosu'), () => window.api.openTextVoiceUI()), btn('×', async () => { if (await save() !== false) dialog.close(); }));
     header.lastChild.setAttribute('aria-label', t('Close reader', 'Okuyucuyu kapat'));
     header.lastChild.classList.add('ms-reader-close');
-    const tools=el('details','ms-reader-tools'),summary=el('summary','mh-action',t('Reading tools','Okuma araçları')),toolPanel=el('div','ms-reader-tool-panel');
+    const tools=el('details','ms-reader-tools'),summary=el('summary','mh-action',t('Reading settings','Okuma ayarları')),toolPanel=el('div','ms-reader-tool-panel');
     for(const [control,label]of [[font,t('Text size','Yazı boyutu')],[marks,t('Bookmarks & quotes','Yer imleri ve alıntılar')]]){const wrap=el('label','',label);wrap.append(control);toolPanel.append(wrap);}
     for(const button of [...header.querySelectorAll('button')]){
       if([t('Bookmark / quote','Yer imi / alıntı'),t('Copy chapter','Bölümü kopyala'),t('Voice studio','Ses stüdyosu')].includes(button.textContent))toolPanel.append(button);

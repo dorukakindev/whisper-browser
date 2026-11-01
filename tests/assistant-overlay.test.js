@@ -27,8 +27,8 @@ test('native assistant accepts only its own frame; provider secrets and arbitrar
   ipcMain.emit('assistant:update', {sender:window.webContents,senderFrame:{}}, {messages:[{text:'subframe spoof'}]});
   ipcMain.emit('assistant:action', {sender:view.webContents,senderFrame:{}}, {action:'send',text:'subframe spoof'});
   assert.equal(sent.length, 0);
-  ipcMain.emit('assistant:update', parent, { apiKey: 'not-forwarded',sourcePreview:{summary:'Captions 0:00–1:30',detail:'Bounded excerpts',apiKey:'not-forwarded'},phase:'reasoning',palette:{accent:'#d5a35c',text:'url(secret)'}, locale: 'tr', scope: 'full',pinScope:'media',activeThread:'one',threads:[{id:'one',title:'First'}],messages: [{id:'reply', role: 'user', text: '<img onerror=bad>',links:[{id:'x'.repeat(85),excerpt:'verified'}],actions:[{id:'proposal',kind:'seek_to_time',canContinue:true,waiting:true}]}] });
-  assert.equal(sent[0].value.apiKey, undefined);assert.deepEqual(sent[0].value.sourcePreview,{summary:'Captions 0:00–1:30',detail:'Bounded excerpts'});assert.equal(sent[0].value.phase,'reasoning');
+  ipcMain.emit('assistant:update', parent, { apiKey: 'not-forwarded',sourcePreview:{attached:true,summary:'Captions 0:00–1:30',detail:'Bounded excerpts',apiKey:'not-forwarded'},phase:'reasoning',palette:{accent:'#d5a35c',text:'url(secret)'}, locale: 'tr', scope: 'full',pinScope:'media',activeThread:'one',threads:[{id:'one',title:'First'}],messages: [{id:'reply', role: 'user', text: '<img onerror=bad>',links:[{id:'x'.repeat(85),excerpt:'verified'}],actions:[{id:'proposal',kind:'seek_to_time',canContinue:true,waiting:true}]}] });
+  assert.equal(sent[0].value.apiKey, undefined);assert.deepEqual(sent[0].value.sourcePreview,{attached:true,summary:'Captions 0:00–1:30',detail:'Bounded excerpts'});assert.equal(sent[0].value.phase,'reasoning');
   assert.equal(sent[0].value.messages[0].actions[0].canContinue,true);assert.equal(sent[0].value.messages[0].actions[0].waiting,true);
   assert.deepEqual(sent[0].value.palette,{accent:'#d5a35c'});
   assert.equal(sent[0].value.activeThread,'one');assert.equal(sent[0].value.pinScope,'media');assert.equal(sent[0].value.messages[0].links[0].id.length,85);
