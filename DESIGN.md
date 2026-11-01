@@ -137,3 +137,14 @@ Günlük ikincil düğmeler8px, arama10px, panel16px ailesini izler; mod seçici
 Hareket sahibi `ui-motion.css` ve `ui-motion.js`: panel160ms/seyahat yok; bölüm180ms/4px; kontrol renk150ms, basış100ms/.985; ince pointer'da kapak2px yükselir. WAAPI bu CSS rollerini doğrulayarak okur; eksik/geçersiz değerler güvenli varsayılana döner. Tekrarlı giriş eski hareketi iptal edip mevcut görünümden devam eder. Reduced-motion ve pagehide etkin animasyonu iptal eder; gezinme animasyonu beklemez. Bu süreler ürün kararıdır, FPS/performans ölçümü iddiası değildir.
 
 Hesapsız tema yöntemi ve gerçek önce/sonra kanıtı [R827](docs/raporlar/BROWSER_BUG_REPORT_827.md) altında saklanır. Statik üretilmiş tasarım panosu çalışan uygulama kanıtı değildir; native görüntüler ayrı tutulur. Yeni dış hesap, CDN, font, paket veya ayar şeması eklenmez.
+
+
+### Yüzey yerleşimi — R828
+
+Filmde kayıtlı analiz aynı okuma düzlemindedir; dış review kartı kullanılmaz. Güncel bağlam kısa metin, stale/unknown açıklaması belirgin durum alanıdır. Yönetim ikincildir; boş yorumda yükleme ana eylem olarak kalır. Sağdaki kişisel durum/puan formu ile kaynak düzenleme metin eylemleri ayrıdır; dar ekranda aside alta geçer. Tüm ayrıntı ve kaynak kanıtı mevcut disclosures üzerinden erişilir.
+
+Asistan markdown paragraf boşluğu tek ritimdir; doğrudan blank-line br fazladan satır oluşturmaz. Uzun tool/kaynak metni sınırlı kayar, başlık ve karar düğmeleri o kaydırıcıya girmez. Composer komut satırı taslaktan görsel olarak ayrıdır; İptal ve kullanıcı taslağı korunur.
+
+Browser'da ray dışı sidebar dört etiketli hedef ve ayrı yardımcı eylem satırı taşır. Araçlar modu ana ayarları saklamaz; tek bf-workspace kaydırma sahibi korunur. Uzun metin form alanları tam kolonu, kısa alanlar eşit kolonları kullanır.
+
+Dublaj DOM ve görsel görev sırası altyazı→referans ses→üretimdir; kaynak/ses genişte yan yana, dar ekranda aynı sırada alt alta. Üretim ileri ayarlarını önce göstererek referans seçimini aşağı itmez. PDF okuma ölçüsü/serif korunur; gereksiz dikey padding içerik aleyhine birikmez. Bu kararların native önce/sonrası [R828](docs/raporlar/BROWSER_BUG_REPORT_828.md) içindedir.

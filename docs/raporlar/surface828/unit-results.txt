@@ -1,0 +1,38 @@
+browser-reading-design: sekme, adres, altyazı, okuma, AI bağlamı, eylem ve dar panel sözleşmeleri geçti
+  OK  tema, boşluk, köşe ve amber token sözleşmesi var
+  OK  tema kontrolü güvenli ayar şemasıyla birlikte kalıcı
+  OK  ilk açılışta temel ayarlar sade ve kullanıcı tercihiyle kalıcı
+  OK  eski ve etkin CSS bölgeleri arasında gölge seçici kalmadı
+  OK  odak göstergeleri bileşen kuralları tarafından kapatılmıyor
+  OK  amber dolgu üzerindeki metin her zaman --accent-contrast kullanır
+  OK  kanonik palet iki renderer girisinden once yuklenir ve amber tek yerde tanimlanir
+  OK  rapordaki kontrast düzeltmeleri kaynakta sabit
+
+Tasarım sistemi ve tema sözleşmesi geçti.
+✔ tests\browser-reading-design.test.js (0.641ms)
+✔ tests\design-system.test.js (0.0852ms)
+✔ tests\dub-generator-ui.test.js (0.0667ms)
+✔ Film page links focus actual sections with reduced-motion scrolling and can hide the plot (25.2394ms)
+✔ Copy uses canonical title link and poster opens with keyboard focus restoration (15.1378ms)
+✔ Repeated enhancement keeps one navigation and close cleans it up (12.0998ms)
+✔ Closing the film page also closes its owned poster preview (11.7066ms)
+✔ Closing an inline workspace before a late response never mounts it (26.8246ms)
+✔ Closing the owning film disposes its review reader exactly once (15.6986ms)
+✔ Replacing an inline workspace invalidates the previous loading response (158.859ms)
+✔ Film page displays saved verified analysis and original sources without any model call (67.8731ms)
+✔ Conflicting film identity is never shown on this page (17.5304ms)
+✔ Spoiler sources hide the entire synthesis until explicit reveal (73.7607ms)
+✔ Saved-analysis comparison cannot reveal prior spoilers without explicit consent (35.1716ms)
+✔ Film review entry point changes from load to manage without another analysis call (65.1305ms)
+✔ Film reading page checks saved context against the current taste profile: current (25.1505ms)
+✔ Film reading page checks saved context against the current taste profile: stale (33.3632ms)
+✔ Film reading page checks saved context against the current taste profile: unknown (65.3662ms)
+dub-generator-ui: selected background range, confirmed stop and failed stop passed
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2438.8702

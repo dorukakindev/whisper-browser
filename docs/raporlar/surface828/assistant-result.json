@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "phase": "after",
+  "states": 32,
+  "settingsCommand": true,
+  "escapeMenu": true,
+  "motionTenPercent": true,
+  "reducedMotion": true,
+  "streamScrollPreserved": true,
+  "shortPanelBudget": true,
+  "nativeSuggestionKeyboard": true,
+  "boundedDraft": true,
+  "providerCalls": 0
+}
