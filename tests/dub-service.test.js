@@ -66,10 +66,20 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.equal((await call('dub:pronunciations',[{from:'Newton',to:'Nyutin'}])).ok,true);
     assert.deepEqual((await call('dub:config')).pronunciations,[{from:'Newton',to:'Nyutin'}]);
     assert.equal((await call('dub:pronunciations',[{from:'12',to:'x'}])).ok,false);
+    const scopedSource='https://www.youtube.com/watch?v=abcdefghijk';
+    const settingsBeforeScope=fs.readFileSync(path.join(root,'dub-settings.json'));
+    const scopedEntries=[{from:'Newton',to:'Nyuton'},{from:'Gaia',to:'Gaya'}];
+    assert.equal((await call('dub:pronunciations',{action:'save',srt,source:scopedSource,entries:scopedEntries})).ok,true);
+    assert.deepEqual((await call('dub:pronunciations',{action:'get',srt,source:'https://youtu.be/abcdefghijk?t=12'})).pronunciations,scopedEntries);
+    assert.deepEqual((await call('dub:pronunciations',{action:'get',srt,source:'https://youtu.be/12345678901'})).pronunciations,[{from:'Newton',to:'Nyutin'}]);
+    assert.deepEqual(fs.readFileSync(path.join(root,'dub-settings.json')),settingsBeforeScope);
     assert.equal((await call('dub:config')).grouping,'akici');
     assert.equal((await call('dub:config')).expression,'reference');
     const beforeFlowConfig=fs.readFileSync(path.join(root,'dub-settings.json'),'utf8');
-    assert.equal((await call('dub:start',{id:'sentence-flow',srt,grouping:'anlatim'})).ok,true);
+    for(const sourceDuration of [0,-1,NaN,Infinity,86401,'12',true])assert.equal((await call('dub:start',{id:'invalid-duration',srt,sourceDuration})).ok,false);
+    assert.equal((await call('dub:start',{id:'sentence-flow',srt,source:scopedSource,sourceDuration:19.014,grouping:'anlatim'})).ok,true);
+    {const args=calls.at(-1).args;assert.deepEqual(JSON.parse(fs.readFileSync(args[args.indexOf('--pronunciations')+1],'utf8')),scopedEntries);}
+    assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--source-duration')+1],'19.014');
     assert.equal(calls.filter(row=>row.args[0].endsWith('dub_plan.py')).length,1,'Start builds the source plan automatically');
     child.stdout.emit('data','DUB_REWRITE '+JSON.stringify({id:'e'.repeat(32),key:'1',sourceHash:fixtureHash,text:'Uzun metin.',seconds:2,mode:'natural'})+'\n');
     await new Promise(resolve=>setImmediate(resolve));
@@ -181,7 +191,8 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.equal(calls.at(-1).args[calls.at(-1).args.indexOf('--expression')+1],'reference');
     assert.equal((await call('dub:pronunciations',[])).ok,false);
     const dictionaryFile=calls.at(-1).args[calls.at(-1).args.indexOf('--pronunciations')+1];
-    assert.deepEqual(JSON.parse(fs.readFileSync(dictionaryFile,'utf8')),[{from:'Newton',to:'Nyutin'}]);
+    assert.deepEqual(JSON.parse(fs.readFileSync(dictionaryFile,'utf8')),scopedEntries);
+    assert.deepEqual((await call('dub:config')).pronunciations,[{from:'Newton',to:'Nyutin'}]);
     assert.equal(prosodyOptions.range.start,20);
     assert.equal(prosodyOptions.range.end,30);
     assert.equal(prosodyOptions.strength,'balanced');

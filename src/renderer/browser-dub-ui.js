@@ -40,7 +40,7 @@
     source: player.localPath || player.mediaKey || '',
     generation: player.generation, subtitleRange: selectedLocalSubtitleRange(),
     priorMuted: video.muted, volume: video.volume, playbackRate: video.playbackRate,
-    currentTime: video.currentTime, backgroundSource: player.localPath || '',
+    currentTime: video.currentTime, duration:video.duration, backgroundSource: player.localPath || '',
     hasMedia: !!(video.currentSrc || video.getAttribute('src')),
     visible: !byId('playerLayer').classList.contains('hidden'),
   }) : ({ mode: player.workspaceMode, tabId: player.browserActiveTabId,
@@ -49,7 +49,7 @@
     subtitleRange: selectedSubtitleRange(),
     priorMuted: !!browserTabState()?.tabMuted,
     hasMedia: !!player.browserMediaSeen,
-    playbackRate: player.browserRate || 1, currentTime: player.browserTime,
+    playbackRate: player.browserRate || 1, currentTime: player.browserTime, duration:player.browserDuration,
     visible: !byId('playerLayer').classList.contains('hidden') });
   const notify = message => player.workspaceMode === 'player'
     ? osd(message) : setBrowserSignal(message, false, { priority: 90, holdMs: 7000 });

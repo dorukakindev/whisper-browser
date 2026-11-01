@@ -17,6 +17,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   let job = null, releasingEngine=false;
   const referenceSelectionSecret=randomBytes(32);
   const groupTakes=require('./dub-group-takes').createGroupTakes({app,grantMedia});
+  const pronunciationStore=()=>require('./dub-pronunciation-store').createStore(path.join(app.getPath('userData'),'dub-source-pronunciations.json'));
+  function pronunciationScope(source,bytes){const media=sourceIdentity(source);return media?'media-'+media:'subtitle-'+require('node:crypto').createHash('sha256').update(bytes).digest('hex');}
   const warmEngine=require('./dub-engine-worker').createDubEngineWorker({spawn,terminate});
   require('./dub-playback-assets').registerDubPlaybackAssets({ app, ipcMain, dialog, owner, authorized, grantMedia });
   let textUI = null;
@@ -397,6 +399,16 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     return { ok: true, output: null };
   }));
   ipcMain.handle('dub:pronunciations', guard(async (_event, entries) => {
+    if(entries&&!Array.isArray(entries)&&typeof entries==='object'){
+      if(!['get','save'].includes(entries.action))throw Error('Invalid pronunciation action.');
+      const srt=await authorizeSubtitle(entries.srt);
+      if(path.extname(srt).toLowerCase()!=='.srt'||fs.statSync(srt).size>4000000)throw Error('Choose a valid SRT.');
+      const bytes=fs.readFileSync(srt);if(bytes.length>4000000)throw Error('SRT too large.');
+      const c=config(),key=pronunciationScope(entries.source,bytes);
+      if(entries.action==='get')return {ok:true,...pronunciationStore().resolve(key,c.pronunciations)};
+      if(job||textUI||releasingEngine||busy())throw Error('Finish the active voice job before saving pronunciations.');
+      return {ok:true,...pronunciationStore().save(key,entries.entries,c.pronunciations)};
+    }
     if (job || textUI || releasingEngine || busy()) throw new Error('Finish the active voice job before saving pronunciations.');
     const c=config(); c.pronunciations=normalizePronunciations(entries);
     atomicWriteFileSync(configPath(), JSON.stringify(c,null,2), {encoding:'utf8'});
@@ -429,6 +441,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     if (textUI) throw new Error('SRT üretimi için önce metin stüdyosunu kapatın.');
     if (job || releasingEngine || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
     if (!/^[a-zA-Z0-9-]{1,80}$/.test(request.id || '')) throw new Error('Geçersiz iş kimliği.');
+    const sourceDuration=request.narration===true?undefined:request.sourceDuration;
+    if(sourceDuration!==undefined&&(typeof sourceDuration!=='number'||!Number.isFinite(sourceDuration)||sourceDuration<=0||sourceDuration>86400))throw Error('Invalid source video duration.');
     const s = { id: request.id, sender: e.sender, proc: null, cancelled: false, tail: '', stderr: '',
       started: performance.now(), startedAt: new Date().toISOString(), sample: request.sample === true };
     ownJob(s);
@@ -495,6 +509,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const sourceBytes = fs.readFileSync(srt);
       s.subtitleHash = require('node:crypto').createHash('sha256').update(sourceBytes).digest('hex');
       if (sourceBytes.length > 4000000) throw new Error('SRT çok büyük.');
+      const effectivePronunciations=pronunciationStore().resolve(pronunciationScope(request.source,sourceBytes),c.pronunciations).pronunciations;
       const prepared = plans.get(e.sender.id);
       if (prepared?.srt === srt && JSON.stringify(prepared.range) === JSON.stringify(s.range)
           && prepared.sourceHash !== require('node:crypto').createHash('sha256').update(sourceBytes).digest('hex')) {
@@ -563,12 +578,15 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         '--grup-max-sn', ['akici','anlatim'].includes(c.grouping) ? '18' : '12', '--tasarsa', 'kirp', '--max-hiz', String(s.settings.maxSpeed),
         '--bosluk-pay-ms', '2000', '--erken-pay-ms', '300',
         '--steps', String(s.settings.steps), '--eszamanli', String(concurrency), '--output', output];
-      if (c.pronunciations.length) {
+      if(sourceDuration!==undefined){
+        args.push('--source-duration',String(sourceDuration));s.settings.sourceDuration=sourceDuration;
+      }
+      if (effectivePronunciations.length) {
         const file=output.replace(/\.wav$/i,'.pronunciations.json');
         claimArtifacts(s,[file]);
-        fs.writeFileSync(file,JSON.stringify(c.pronunciations),{encoding:'utf8',flag:'wx'});
+        fs.writeFileSync(file,JSON.stringify(effectivePronunciations),{encoding:'utf8',flag:'wx'});
         args.push('--pronunciations',file);
-        s.settings.pronunciationEntries=c.pronunciations.length;
+        s.settings.pronunciationEntries=effectivePronunciations.length;
       }
       args.push('--timing-mode', timingMode);
       if(request.narration===true)args.push('--narration');

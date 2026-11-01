@@ -1,5 +1,23 @@
 # VoxCPM2 altyazı dublaj aracı
 
+## Kaynağa özel telaffuz ve video sonu
+
+Browser/oynatıcı dublajında **Ses ve motor ayarları → Telaffuz sözlüğü** alanı,
+**Bu video / altyazı** veya **Genel sözlük** seçimi sunar. Kaynağa özel eşleşme
+aynı sözcüğün genel kuralının önüne geçer; diğer genel kurallar uygulanır.
+Yalnız ses üretim metni değişir, özgün SRT değiştirilmez. Video kimliği biliniyorsa
+sözlük o videoya bağlanır; video yoksa SRT içeriğinin hash'ine bağlanır, dolayısıyla
+değişmiş bağımsız bir SRT ayrı kaynak sayılır. Kaynak kuralları uygulama profilindeki
+`dub-source-pronunciations.json` dosyasında tutulur. Kalite sonucunda özel ad uyarısı
+varsa **Adın okunuşunu düzenle** aynı gelişmiş alanı açar; tahmin otomatik kaydedilmez.
+
+Bilinen video süresi browser/oynatıcıdan üretime aktarılır. CLI'da aynı bilgi
+`--source-duration 19.014` ile verilebilir; bu seçenek video gömmez. Kaynak süresi
+ve seçili aralık üretimden önce doğrulanır. Video doğal biçimde sona erdiğinde,
+zaten çalan senkron sesin en fazla 350 ms'lik sonu tamamlanabilir; kullanıcı
+duraklatması, kaynak değişimi veya reklam bu devamı başlatmaz. Bu koruma eksik
+veya yanlış senkron haritasını onarmaz.
+
 ## Elle gerçek ses kabulü
 
 `accept_dub.py` normal test paketinde model başlatmaz. Argümansız çalıştırma

@@ -10,6 +10,7 @@
   const cacheInfo=document.createElement('p');cacheInfo.id='dubCacheInfo';cacheInfo.dataset.uiUntranslated='';el('dubPhaseSummary').before(cacheInfo);
   const savedRecipe=document.createElement('details');savedRecipe.id='dubSavedRecipe';savedRecipe.className='dub-saved-recipe';savedRecipe.dataset.uiUntranslated='';el('dubPreviewCard').append(savedRecipe);
   const verificationSummary=document.createElement('p');verificationSummary.id='dubVerificationSummary';verificationSummary.className='hint';verificationSummary.dataset.uiUntranslated='';verificationSummary.hidden=true;el('dubNaturalReview').after(verificationSummary);
+  const pronunciationAction=document.createElement('button');pronunciationAction.id='dubEditPronunciation';pronunciationAction.type='button';pronunciationAction.className='btn btn-ghost btn-sm';pronunciationAction.dataset.uiUntranslated='';pronunciationAction.hidden=true;el('dubQualityPronunciation').after(pronunciationAction);
   function runInfo(){
     const en=window.UiLocale?.get?.()==='en';cacheInfo.textContent=window.DubRunInfo.counts(runtimeMetrics,en);cacheInfo.hidden=!cacheInfo.textContent;
     const rows=window.DubRunInfo.recipe(output,en);savedRecipe.hidden=!rows.length;savedRecipe.replaceChildren();
@@ -158,6 +159,8 @@
     const pronunciation=typeof row?.pronunciationText==='string'?row.pronunciationText.slice(0,8000):'';
     el('dubQualityPronunciation').hidden=!pronunciation||pronunciation===row?.text;
     el('dubQualityPronunciation').textContent=pronunciation?(en?'Pronunciation used for synthesis: ':'Üretimde kullanılan okunuş: ')+pronunciation:'';
+    pronunciationAction.hidden=!row||!v.missing_names?.length;pronunciationAction.disabled=!!current||planning||referenceBusy||choosing||workspaceBusy;
+    pronunciationAction.textContent=en?'Edit name pronunciation':'Adın okunuşunu düzenle';
   }
   function showResults() {
     const select = el('dubQualityGroup'), previous = select.value;
@@ -289,7 +292,7 @@
     for (const id of ['dubRangeStart', 'dubRangeEnd', 'dubRangeNow']) el(id).disabled = locked || !el('dubRangeEnabled').checked;
     el('dubGeneratorCancel').disabled = !current;
     el('dubTextStudio').disabled = locked; el('dubListenPrevious').disabled=locked;
-    el('dubPronunciations').disabled = locked; el('dubPronunciationSave').disabled = locked;
+    el('dubPronunciations').disabled = locked||pronunciationLoading; el('dubPronunciationSave').disabled = locked||pronunciationLoading || (el('dubPronunciationScope').value==='source'&&!srt);el('dubPronunciationScope').disabled=locked||pronunciationLoading;
     for (const name of Object.keys(presetSpecs)) el(`dubPreset${name}`).disabled = locked;
     refreshOverview();
     window.dispatchEvent(new CustomEvent('dub-generator:busy',{detail:!!current||referenceBusy||planning||choosing}));
@@ -299,12 +302,45 @@
   const pronunciationLabels = () => {
     const en = document.documentElement.lang !== 'tr';
     el('dubPronunciationTitle').textContent = en ? 'Pronunciation dictionary' : 'Telaffuz sözlüğü';
+    el('dubPronunciationScopeLabel').textContent=en?'Apply to':'Kullanım alanı';
+    el('dubPronunciationScope').options[0].textContent=en?'This video / subtitle':'Bu video / altyazı';el('dubPronunciationScope').options[1].textContent=en?'Global dictionary':'Genel sözlük';
     el('dubPronunciationHelp').textContent = en ? 'One case-sensitive entry per line: Newton = Nyutın. Applies only to speech; subtitles stay unchanged.' : 'Her satıra bir eşleşme: Newton = Nyutın. Büyük/küçük harf duyarlıdır. Yalnız üretilen sese uygulanır; altyazı değişmez.';
-    el('dubPronunciationSave').textContent = en ? 'Save pronunciations' : 'Telaffuzları kaydet';
+    el('dubPronunciationSave').textContent = el('dubPronunciationScope').value==='source'?(en?'Save for this source':'Bu kaynağa kaydet'):(en?'Save global dictionary':'Genel sözlüğü kaydet');
     if (el('dubPronunciationStatus').dataset.saved) el('dubPronunciationStatus').textContent=en?'Saved. Applies to the next generation.':'Kaydedildi. Sonraki ses üretiminde uygulanır.';
   };
+  let pronunciationSequence=0,pronunciationLoading=false;
+  const pronunciationSource=()=>{const c=window.BrowserDubAudioUI?.context();return c?.source||c?.mediaKey||'';};
+  async function loadPronunciations(preserveDraft=false){
+    const sequence=++pronunciationSequence,selected=srt,scope=el('dubPronunciationScope').value,source=pronunciationSource();
+    pronunciationLoading=false;
+    pronunciationLabels();delete el('dubPronunciationStatus').dataset.saved;
+    if(!cfg)return;
+    if(scope==='global'){
+      cfg.pronunciations=cfg.globalPronunciations||[];if(!preserveDraft)el('dubPronunciations').value=cfg.pronunciations.map(row=>`${row.from} = ${row.to}`).join('\n');el('dubPronunciationStatus').textContent='';previewPronunciation();controls();return;
+    }
+    if(!preserveDraft)el('dubPronunciations').value='';cfg.pronunciations=cfg.globalPronunciations||[];previewPronunciation();controls();
+    if(!selected){el('dubPronunciationStatus').textContent=window.UiLocale?.get?.()==='en'?'Choose subtitles first.':'Önce altyazı seçin.';return;}
+    pronunciationLoading=true;controls();
+    try{
+      const result=await window.api.saveDubPronunciations({action:'get',srt:selected,source});
+      if(sequence!==pronunciationSequence||srt!==selected||source!==pronunciationSource()||scope!==el('dubPronunciationScope').value)return;
+      if(!result?.ok)throw Error(result?.error||'Pronunciation load failed');
+      cfg.pronunciations=result.pronunciations;if(!preserveDraft)el('dubPronunciations').value=(result.entries||[]).map(row=>`${row.from} = ${row.to}`).join('\n');
+      el('dubPronunciationStatus').textContent=window.UiLocale?.get?.()==='en'?'Source entries override matching global entries; other global entries still apply.':'Bu kaynağın eşleşmeleri genel sözlüğün önüne geçer; diğer genel eşleşmeler uygulanır.';previewPronunciation();
+    }catch(error){if(sequence===pronunciationSequence&&srt===selected)el('dubPronunciationStatus').textContent=error.message;}
+    finally{if(sequence===pronunciationSequence){pronunciationLoading=false;controls();}}
+  }
+  el('dubPronunciationScope').addEventListener('change',()=>{void loadPronunciations();});
+  pronunciationAction.addEventListener('click',async()=>{
+    if(current||planning||referenceBusy||choosing||workspaceBusy)return;
+    const owner=requestIdentity();
+    if(el('dubPronunciationScope').value!=='source'){el('dubPronunciationScope').value='source';await loadPronunciations();}
+    if(owner!==requestIdentity())return;
+    for(let node=el('dubPronunciations');node;node=node.parentElement)if(node.tagName==='DETAILS')node.open=true;
+    el('dubPronunciationTitle').scrollIntoView?.({block:'center'});el('dubPronunciations').focus({preventScroll:true});
+  });
   el('dubPronunciationSave').addEventListener('click', async () => {
-    if (current || planning || referenceBusy || choosing || workspaceBusy) return;
+    if (current || planning || referenceBusy || choosing || workspaceBusy || pronunciationLoading) return;
     const en = document.documentElement.lang !== 'tr';
     try {
       const entries=el('dubPronunciations').value.split(/\r?\n/).filter(line=>line.trim()).map(line=>{
@@ -312,9 +348,11 @@
         if(index<1) throw new Error(en?'Use: word = pronunciation':'Biçim: sözcük = okunuş');
         return {from:line.slice(0,index).trim(),to:line.slice(index+1).trim()};
       });
-      const result=await window.api.saveDubPronunciations(entries);
+      const selected=srt,source=pronunciationSource(),scope=el('dubPronunciationScope').value,sequence=++pronunciationSequence;
+      const result=await window.api.saveDubPronunciations(scope==='source'?{action:'save',srt:selected,source,entries}:entries);
+      if(sequence!==pronunciationSequence||srt!==selected||source!==pronunciationSource()||scope!==el('dubPronunciationScope').value)return;
       if(!result?.ok) throw new Error(result?.error || 'Save failed');
-      cfg.pronunciations=result.pronunciations;previewPronunciation(); el('dubPronunciationStatus').dataset.saved='true';
+      cfg.pronunciations=result.pronunciations;if(scope==='global')cfg.globalPronunciations=result.pronunciations;previewPronunciation(); el('dubPronunciationStatus').dataset.saved='true';
       el('dubPronunciationStatus').textContent=en?'Saved. Applies to the next generation.':'Kaydedildi. Sonraki ses üretiminde uygulanır.';
     } catch(error) {delete el('dubPronunciationStatus').dataset.saved;el('dubPronunciationStatus').textContent=error.message;}
   });
@@ -325,6 +363,7 @@
     if (sequence !== configSequence) return;
     if (!r?.ok) { cfg = null; controls(); status(r?.error || 'Ses ayarları yüklenemedi.'); return; }
     cfg = r;
+    cfg.globalPronunciations=r.pronunciations||[];
     if (!current && !preserveOptions) el('dubPronunciations').value = (r.pronunciations || []).map(row => `${row.from} = ${row.to}`).join('\n');
     if(!current && !preserveOptions)el('dubKeepEngine').checked=r.keepEngine!==false;
     el('dubStorageOpen').disabled = !r.storageRoot;
@@ -341,6 +380,7 @@
     if (!current && kind === 'reference') referenceInfo(null);
     if (!current && !r.ready) status('Motor veya referans eksik; ses ve motor ayarlarını kontrol edin.');
     controls();
+    if(!current)void loadPronunciations(preserveOptions);
   }
   function inheritSubtitleRange() {
     if (current || planning) return;
@@ -397,6 +437,7 @@
   function adoptCurrentSubtitle(candidate) {
     if (!candidate || srt || current || planning || choosing || workspaceBusy) return;
     srt = candidate; lastRequest = null;qualityFilter='all'; results.clear(); showResults(); invalidatePlan();
+    void loadPronunciations();
     fileName('dubSrtName',basename(candidate)); refreshOverview(); status('Hazır');
   }
   async function open() {
@@ -488,7 +529,7 @@
         }
       } else if (kind === 'subtitle') {
         if (typeof result === 'string' && /\.srt$/i.test(result)) {
-          srt = result; lastRequest = null;qualityFilter='all'; results.clear(); showResults(); invalidatePlan(); fileName('dubSrtName',basename(result)); status('Hazır');
+          srt = result; lastRequest = null;qualityFilter='all'; results.clear(); showResults(); invalidatePlan();void loadPronunciations(); fileName('dubSrtName',basename(result)); status('Hazır');
         } else if (result) status('Bir SRT altyazı dosyası seçin.');
       } else if (Array.isArray(result) && typeof result[0] === 'string') {
         backgroundSource = result[0]; el('dubBackgroundName').textContent = basename(backgroundSource);
@@ -546,6 +587,8 @@
     controls();
   });
   el('dubNaturalReviewOpen').addEventListener('click',()=>{
+    const flagged=[...results.values()].sort((a,b)=>a.group-b.group).find(row=>row.status!=='ready');
+    if(flagged){qualityFilter='all';showResults();selectQuality(flagged.key);}
     el('dubQualityResults').open=true;el('dubQualityResults').scrollIntoView?.({block:'center'});el('dubQualityGroup').focus({preventScroll:true});
   });
   for(const id of ['dubProfile','dubConcurrency','dubKeepEngine','dubGrouping','dubVerification','dubTimingMode','dubNaturalSpeech','dubAutoFit','dubFollowDelivery','dubDeliveryStrength','dubExpression'])el(id).addEventListener('change',()=>{
@@ -646,6 +689,7 @@
       for(const key of forceGroups)delete payload.groupTakes[key];
     }
     payload.source = pending.context?.source || pending.context?.mediaKey || '';
+    if(Number.isFinite(pending.context?.duration)&&pending.context.duration>0&&pending.context.duration<=86400)payload.sourceDuration=pending.context.duration;
     pending.settings={...payload};refreshOverview();
     window.MediaExperience?.trackVoice?.(pending.id,pending.context);
     lastRequest = payload;
@@ -852,7 +896,7 @@
     el('dubGeneratorOutput').classList.remove('hidden');
     el('dubGeneratorUse').classList.toggle('hidden',output.sample===true || output.syncInvalid===true);
     // A project carries rendered media, not an executable engine request.
-    srt=output.subtitle || ''; lastRequest=null; plan=null; edits={};
+    srt=output.subtitle || ''; lastRequest=null; plan=null; edits={};void loadPronunciations();
     el('dubRangeEnabled').checked=!!output.range;
     if(output.range){el('dubRangeStart').value=String(output.range.start);el('dubRangeEnd').value=String(output.range.end);}
     fileName('dubSrtName',basename(srt)); controls();
