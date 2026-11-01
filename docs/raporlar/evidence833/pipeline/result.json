@@ -1,0 +1,114 @@
+{
+  "head": "1b211e4ed37f622dcc3e2144517590ae7aff9cee",
+  "baselineHead": "08bccd48fb830046662397f764f06949886308d4",
+  "baselineProductRevision": "ba04414f9289e6e61a51070bcf15e8e693e64b6c",
+  "node": "v24.22.0",
+  "scenarios": [
+    {
+      "id": "PIPE-01",
+      "before": [
+        1,
+        2,
+        3
+      ],
+      "expectedAfter": [
+        2,
+        1,
+        3
+      ],
+      "observedAfter": [
+        1,
+        3
+      ],
+      "persisted": [
+        1,
+        3
+      ],
+      "controls": {
+        "directMove": [
+          2,
+          1,
+          3
+        ],
+        "explicitRemove": [
+          1
+        ]
+      },
+      "verdict": "BUG: move click removes item before move listener"
+    },
+    {
+      "id": "PIPE-02-youtube",
+      "source": "youtube",
+      "queueLength": 0,
+      "originalSelectionCleared": true,
+      "falseSuccess": "+ Kuyruğa eklendi: https://www.youtube.com/watch?v=synthetic01...",
+      "validationTarget": "clipEnd",
+      "correctedRetryQueueLength": 0,
+      "resetAudioTracks": 0,
+      "logs": [
+        {
+          "message": "Kuyruğa eklenmedi — Zaman aralığı geçersiz: bitiş, başlangıçtan büyük olmalı.",
+          "level": "error"
+        },
+        {
+          "message": "+ Kuyruğa eklendi: https://www.youtube.com/watch?v=synthetic01..."
+        },
+        {
+          "message": "YouTube URL boş",
+          "level": "warn"
+        }
+      ],
+      "verdict": "BUG: rejected add clears source and reports success"
+    },
+    {
+      "id": "PIPE-02-file",
+      "source": "file",
+      "queueLength": 0,
+      "originalSelectionCleared": true,
+      "falseSuccess": "+ Kuyruğa eklendi: Seçili Türkçe.mp4",
+      "validationTarget": "clipEnd",
+      "correctedRetryQueueLength": 0,
+      "resetAudioTracks": 1,
+      "logs": [
+        {
+          "message": "Kuyruğa eklenmedi — Zaman aralığı geçersiz: bitiş, başlangıçtan büyük olmalı.",
+          "level": "error"
+        },
+        {
+          "message": "+ Kuyruğa eklendi: Seçili Türkçe.mp4"
+        },
+        {
+          "message": "Önce bir dosya seç",
+          "level": "warn"
+        }
+      ],
+      "verdict": "BUG: rejected add clears source and reports success"
+    },
+    {
+      "id": "PIPE-CONTROL",
+      "acceptedQueueLength": 1,
+      "persistedItems": 1,
+      "selectionCleared": true
+    },
+    {
+      "id": "PIPE-03",
+      "mainRejection": "Yalnızca http/https medya URL'leri kullanılabilir.",
+      "queueStatus": "error",
+      "queueRunning": false,
+      "running": false,
+      "activeJobId": null,
+      "staleActiveOutputJob": true,
+      "disabledCacheKinds": [
+        "models",
+        "translation",
+        "manga",
+        "tmp",
+        "assets",
+        "logs"
+      ],
+      "cacheCallsBeforeCleanup": 0,
+      "cacheCallsAfterExistingFinishRunControl": 1,
+      "verdict": "BUG: failed queue leaves stale output owner and blocks model/tmp cache controls"
+    }
+  ]
+}

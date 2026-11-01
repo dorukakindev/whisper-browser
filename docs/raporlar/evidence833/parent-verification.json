@@ -1,0 +1,146 @@
+{
+  "initial_head": "08bccd48fb830046662397f764f06949886308d4",
+  "final_audited_head": "1b211e4ed37f622dcc3e2144517590ae7aff9cee",
+  "concurrent_delivery": "R832 Letterboxd merged independently; reviewed diff; unrelated changes preserved. All final probes rerun on current head.",
+  "report": "R833",
+  "agents": {
+    "count": 3,
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium"
+  },
+  "new_bugs": [
+    "F833-01",
+    "F833-02",
+    "F833-03",
+    "F833-04",
+    "F833-05",
+    "F833-06",
+    "F833-07",
+    "F833-08",
+    "F833-09",
+    "F833-10",
+    "F833-11"
+  ],
+  "reopened": [],
+  "improvements": [
+    "G833-01",
+    "G833-02",
+    "G833-03",
+    "G833-04",
+    "G833-05",
+    "G833-06",
+    "G833-07",
+    "G833-08",
+    "G833-09",
+    "G833-10",
+    "G833-11",
+    "G833-12",
+    "G833-13",
+    "G833-14",
+    "G833-15"
+  ],
+  "fixes_applied": false,
+  "conditional_hint_bug_counted": false,
+  "publication_runs": [
+    {
+      "command": "node docs/raporlar/evidence833/pipeline/probe.cjs",
+      "exit": 0,
+      "head": "1b211e4ed37f622dcc3e2144517590ae7aff9cee",
+      "fresh_output": true
+    },
+    {
+      "command": "node docs/raporlar/evidence833/browser/probe.cjs",
+      "exit": 0,
+      "head": "1b211e4ed37f622dcc3e2144517590ae7aff9cee",
+      "fresh_output": true
+    },
+    {
+      "command": "node docs/raporlar/evidence833/browser/manga-probe.cjs",
+      "exit": 0,
+      "head": "1b211e4ed37f622dcc3e2144517590ae7aff9cee",
+      "fresh_output": true
+    },
+    {
+      "command": "node docs/raporlar/evidence833/browser/research-probe.cjs",
+      "exit": 0,
+      "head": "1b211e4ed37f622dcc3e2144517590ae7aff9cee",
+      "fresh_output": true
+    },
+    {
+      "command": "node docs/raporlar/evidence833/media/probe.cjs",
+      "exit": 0,
+      "head": "1b211e4ed37f622dcc3e2144517590ae7aff9cee",
+      "fresh_output": true
+    },
+    {
+      "command": "node docs/raporlar/evidence833/media/waveform-probe.cjs",
+      "exit": 0,
+      "head": "1b211e4ed37f622dcc3e2144517590ae7aff9cee",
+      "fresh_output": true
+    },
+    {
+      "command": "node docs/raporlar/evidence833/smarttube/probe.cjs",
+      "exit": 0,
+      "head": "1b211e4ed37f622dcc3e2144517590ae7aff9cee",
+      "fresh_output": true
+    }
+  ],
+  "syntax": {
+    "files": 7,
+    "exit": 0
+  },
+  "existing_checks": [
+    {
+      "file": "tests/queue-ordering-invariants.test.js",
+      "exit": 0,
+      "pass_lines": 18,
+      "early_summary": 5
+    },
+    {
+      "file": "tests/queue-lifecycle.test.js",
+      "exit": 0,
+      "pass": 21
+    },
+    {
+      "file": "tests/job-resource-scheduler.test.js",
+      "exit": 0,
+      "pass": 14
+    },
+    {
+      "file": "tests/smarttube-channel-depth.test.js",
+      "exit": 0,
+      "pass": 4
+    },
+    {
+      "file": "tests/smarttube-playlists-parti5b.test.js",
+      "exit": 0,
+      "result": "OK; no numbered count claimed"
+    },
+    {
+      "file": "tests/subtitle-find-replace-integration.test.js",
+      "exit": 0,
+      "reported_tests": 13
+    }
+  ],
+  "peer_review": {
+    "agents": 3,
+    "material_unresolved": 0,
+    "refinements": [
+      "Manga settings/save/store disk adapters are controlled; persisted payload measured, not native disk reload.",
+      "Research store write and disk reload are real.",
+      "Queue arrow line refs636/637/650 and R379 historical description corrected.",
+      "Own-write watcher is not run in media probe.",
+      "Link-hint behavior is a separate recommendation, not a confirmed bug."
+    ]
+  },
+  "limits": [
+    "No source/test/settings/dependency changes or fixes in this task.",
+    "UI source slices/generated scripts/full feature scripts run in JSDOM with controlled boundaries, not full native Windows app.",
+    "Queue persist transport captures payload; cache consumer counts calls only.",
+    "Manga real user-action/config/start/request/persist producer, controlled config/save/site storage/image/native/HTTP boundaries; no paid model or disk reload.",
+    "Bulk file writes/backup/atomic filesystem are real; secondary error and concurrent outside edit injected.",
+    "Waveform uses real FFmpeg on synthetic3secone-track MKV and actual UI preview/apply, no speaker/GPU/native media acceptance.",
+    "No private profile/key/media, external account/site/DRM, normalstart.bat/cleaninstall, DPI, live ASR/TTS/LLM, long soak/fullsuite/CI result.",
+    "R830 B98 known FAIL not rerun or claimed fixed."
+  ]
+}

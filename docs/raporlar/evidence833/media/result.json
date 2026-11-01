@@ -1,0 +1,133 @@
+{
+  "head": "1b211e4ed37f622dcc3e2144517590ae7aff9cee",
+  "platform": "win32",
+  "node": "v24.22.0",
+  "out": "D:\\Whisper Local\\.uiprev\\audit833-parent-media-final",
+  "scope": "synthetic filesystem + exact original main/renderer slices; no UI process/profile/provider",
+  "rollbackExternalOverwrite": {
+    "result": {
+      "ok": false,
+      "error": "controlled secondary disk failure",
+      "rollbackFailed": false
+    },
+    "calls": [
+      {
+        "file": "kaynak.srt",
+        "action": "bulk-edit",
+        "expect": {
+          "size": 46,
+          "mtimeMs": 1793526329300.895
+        }
+      },
+      {
+        "file": "çeviri.srt",
+        "action": "bulk-edit",
+        "expect": {
+          "size": 51,
+          "mtimeMs": 1793526329300.895
+        }
+      },
+      {
+        "file": "kaynak.srt",
+        "action": "bulk-rollback",
+        "expect": null
+      }
+    ],
+    "firstAfter": "1\n00:00:01,000 --> 00:00:02,000\nSOURCE BEFORE\n",
+    "playerStat": {
+      "mtimeMs": 1793526329303.8948,
+      "size": 48
+    },
+    "diskStat": {
+      "size": 49,
+      "mtimeMs": 1793526329304.8948
+    },
+    "sourceBak": "1\n00:00:01,000 --> 00:00:02,000\nSOURCE BEFORE\n",
+    "uiLogs": [
+      {
+        "message": "Toplu değiştirme kaydedilemedi: controlled secondary disk failure.",
+        "level": "error"
+      }
+    ],
+    "applying": false,
+    "externalLost": true
+  },
+  "rollbackStaleStat": {
+    "result": {
+      "ok": false,
+      "error": "controlled secondary disk failure",
+      "rollbackFailed": false
+    },
+    "calls": [
+      {
+        "file": "kaynak.srt",
+        "action": "bulk-edit",
+        "expect": {
+          "size": 46,
+          "mtimeMs": 1793526329306.8943
+        }
+      },
+      {
+        "file": "çeviri.srt",
+        "action": "bulk-edit",
+        "expect": {
+          "size": 51,
+          "mtimeMs": 1793526329306.8943
+        }
+      },
+      {
+        "file": "kaynak.srt",
+        "action": "bulk-rollback",
+        "expect": null
+      },
+      {
+        "file": "kaynak.srt",
+        "action": "bulk-edit",
+        "expect": {
+          "mtimeMs": 1793526329307.895,
+          "size": 48
+        }
+      }
+    ],
+    "firstAfter": "1\n00:00:01,000 --> 00:00:02,000\nSOURCE BEFORE\n",
+    "playerStat": {
+      "mtimeMs": 1793526329307.895,
+      "size": 48
+    },
+    "diskStat": {
+      "size": 49,
+      "mtimeMs": 1793526329307.895
+    },
+    "sourceBak": "1\n00:00:01,000 --> 00:00:02,000\nSOURCE BEFORE\n",
+    "uiLogs": [
+      {
+        "message": "Toplu değiştirme kaydedilemedi: controlled secondary disk failure.",
+        "level": "error"
+      }
+    ],
+    "applying": false,
+    "retry": {
+      "ok": false,
+      "error": "Altyazı dosyası dışarıdan değiştirildi; düzenleme uygulanmadı. Dosyayı yeniden açın.",
+      "rollbackFailed": false
+    },
+    "retryUiLogs": [
+      {
+        "message": "Toplu değiştirme kaydedilemedi: Altyazı dosyası dışarıdan değiştirildi; düzenleme uygulanmadı. Dosyayı yeniden açın..",
+        "level": "error"
+      }
+    ],
+    "diskStillOriginal": true
+  },
+  "guardControl": {
+    "ok": false,
+    "error": "Altyazı dosyası dışarıdan değiştirildi; düzenleme uygulanmadı. Dosyayı yeniden açın."
+  },
+  "normalWrite": {
+    "ok": true,
+    "backup": "D:\\Whisper Local\\.uiprev\\audit833-parent-media-final\\normal.srt.bak",
+    "warning": "",
+    "mtimeMs": 1793526329311.8948,
+    "size": 43
+  }
+}

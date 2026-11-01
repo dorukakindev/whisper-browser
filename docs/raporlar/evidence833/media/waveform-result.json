@@ -1,0 +1,42 @@
+{
+  "head": "1b211e4ed37f622dcc3e2144517590ae7aff9cee",
+  "node": "v24.22.0",
+  "platform": "win32",
+  "source": {
+    "audioTracks": 1,
+    "duration": 3
+  },
+  "first": {
+    "track": 0,
+    "points": 60,
+    "duration": 3
+  },
+  "second": {
+    "track": 1,
+    "waveform": null,
+    "warnings": [
+      "Stream map '' matches no streams.\r\nTo ignore this, add a trailing '?' to the map.\r\nFailed to set value '0:a:1' for option 'map': Invalid argument\r\nError parsing options for output file pipe:1.\r\nError opening output files: Invalid argument\r\n"
+    ],
+    "uiStatus": "0 cuts found. Some data unavailable; check audio track and file."
+  },
+  "oldWaveformRetained": true,
+  "preview": "Review timing suggestionsExtends into silence only; does not trim speech. Undo is available after applying.#1 · Test spoken interval\n0.900–1.100 → 0.800–1.200CancelApply",
+  "appliedAfterFailedAudioProbe": {
+    "start": 0.8,
+    "end": 1.2000000000000002,
+    "text": "Test spoken interval"
+  },
+  "undo": 2,
+  "dirty": [
+    "Timing suggestions applied; undo available.",
+    "Timing suggestions applied; undo available."
+  ],
+  "clearedWaveformControl": "No suggestions. Load the local waveform; locked cues and cues away from silence are preserved.",
+  "offsetControl": {
+    "start": 0.7000000000000001,
+    "end": 1.1,
+    "text": "Offset control"
+  },
+  "staleTransformGuard": "Review timing suggestionsSource changed; reopen preview.#1 · Transform stale guard\n0.800–1.000 → 0.700–1.100CancelApply",
+  "limits": "Real FFmpeg and original listener/sceneInterval/subtitleSourceTime/preview; jsdom UI, raw number-input allowed track index 1 of one-track file, no native window/speaker/GPU"
+}

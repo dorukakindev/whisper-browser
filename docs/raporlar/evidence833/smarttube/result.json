@@ -1,0 +1,134 @@
+{
+  "head": "1b211e4ed37f622dcc3e2144517590ae7aff9cee",
+  "scope": "Actual production queue/playlist/render/click/source blocks; JSDOM, controlled video transport and deterministic shuffle randomness. No network/private profile.",
+  "checks": {
+    "playlistTruncation": {
+      "savedCount": 51,
+      "label": "Sentetik liste (51)",
+      "queueCount": 50,
+      "lastQueued": "vid00000050",
+      "omitted": "vid00000051",
+      "signals": [
+        [
+          "“Sentetik liste” listesine eklendi.",
+          true,
+          {
+            "priority": 50,
+            "holdMs": 3000
+          }
+        ]
+      ],
+      "probe": [
+        "youtube:vid00000001",
+        "youtube:vid00000002",
+        "youtube:vid00000003",
+        "youtube:vid00000004",
+        "youtube:vid00000005",
+        "youtube:vid00000006",
+        "youtube:vid00000007",
+        "youtube:vid00000008",
+        "youtube:vid00000009",
+        "youtube:vid00000010",
+        "youtube:vid00000011",
+        "youtube:vid00000012",
+        "youtube:vid00000013",
+        "youtube:vid00000014",
+        "youtube:vid00000015",
+        "youtube:vid00000016",
+        "youtube:vid00000017",
+        "youtube:vid00000018",
+        "youtube:vid00000019",
+        "youtube:vid00000020",
+        "youtube:vid00000021",
+        "youtube:vid00000022",
+        "youtube:vid00000023",
+        "youtube:vid00000024",
+        "youtube:vid00000025",
+        "youtube:vid00000026",
+        "youtube:vid00000027",
+        "youtube:vid00000028",
+        "youtube:vid00000029",
+        "youtube:vid00000030",
+        "youtube:vid00000031",
+        "youtube:vid00000032",
+        "youtube:vid00000033",
+        "youtube:vid00000034",
+        "youtube:vid00000035",
+        "youtube:vid00000036",
+        "youtube:vid00000037",
+        "youtube:vid00000038",
+        "youtube:vid00000039",
+        "youtube:vid00000040",
+        "youtube:vid00000041",
+        "youtube:vid00000042",
+        "youtube:vid00000043",
+        "youtube:vid00000044",
+        "youtube:vid00000045",
+        "youtube:vid00000046",
+        "youtube:vid00000047",
+        "youtube:vid00000048",
+        "youtube:vid00000049",
+        "youtube:vid00000050"
+      ],
+      "after50": {
+        "remaining": 0,
+        "next": false,
+        "lastOpened": "youtube:vid00000050"
+      }
+    },
+    "fiftyControl": {
+      "saved": 50,
+      "queued": 50
+    },
+    "staleRail": {
+      "afterEnqueue": {
+        "stored": [
+          "vid00000001",
+          "vid00000002",
+          "vid00000003"
+        ],
+        "visible": [
+          "vid00000001",
+          "vid00000002"
+        ]
+      },
+      "afterShuffle": {
+        "stored": [
+          "vid00000002",
+          "vid00000003",
+          "vid00000001"
+        ],
+        "visible": [
+          "vid00000001",
+          "vid00000002"
+        ]
+      },
+      "afterExistingRefresh": [
+        "vid00000002",
+        "vid00000003",
+        "vid00000001"
+      ]
+    },
+    "filteredPage": {
+      "requests": [
+        1,
+        2
+      ],
+      "cards": 20,
+      "more": false
+    },
+    "unfilteredPageControl": {
+      "requests": [
+        1,
+        2
+      ],
+      "cards": 40,
+      "more": true,
+      "afterNextRequests": [
+        1,
+        2,
+        3
+      ]
+    }
+  }
+}
