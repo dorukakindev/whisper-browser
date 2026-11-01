@@ -1,4 +1,5 @@
-Güncel çalışma: [docs/devir/2026-11-01-1321.md](docs/devir/2026-11-01-1321.md) — R835 yorum/önizleme/analiz düzeni; native önce/sonra kabulü
+Güncel çalışma: [docs/devir/2026-11-01-1327.md](docs/devir/2026-11-01-1327.md) — R836 tasarım raporu; eşzamanlı yerel R835 korundu
+Güncel çalışma: [docs/devir/2026-11-01-1321.md](docs/devir/2026-11-01-1321.md) — R836 yorum/önizleme/analiz düzeni; native önce/sonra kabulü
 Güncel çalışma: [docs/devir/2026-11-01-1304.md](docs/devir/2026-11-01-1304.md) — R834: 20 görsel tasarım önerisi, 14 güncel görüntü; yalnız rapor
 Güncel çalışma: [docs/devir/2026-11-01-1246.md](docs/devir/2026-11-01-1246.md) — R833: 11 yeni bug ve 15 ayrı öneri; geniş ajan denetimi, düzeltme yok
 Güncel çalışma: [docs/devir/2026-11-01-1232.md](docs/devir/2026-11-01-1232.md) — R832 Letterboxd tam yorum/More, kaynak ve analiz ayrımı
