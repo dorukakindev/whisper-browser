@@ -1,0 +1,64 @@
+{
+  "ok": true,
+  "states": 3,
+  "nativeDisclosureKeyboard": true,
+  "callbacks": true,
+  "toolApproval": true,
+  "providerCalls": 0,
+  "metrics": [
+    {
+      "width": 360,
+      "height": 580,
+      "overflow": false,
+      "draft": 38,
+      "formBottom": 565,
+      "logBottom": 427,
+      "formTop": 470,
+      "logHeight": 288,
+      "directActions": true
+    },
+    {
+      "height": 96,
+      "scroll": 622,
+      "formBottom": 565,
+      "logBottom": 369,
+      "formTop": 412
+    },
+    {
+      "width": 480,
+      "height": 720,
+      "overflow": false,
+      "draft": 42,
+      "formBottom": 705,
+      "logBottom": 559,
+      "formTop": 606,
+      "logHeight": 411,
+      "directActions": true
+    },
+    {
+      "height": 112,
+      "scroll": 328,
+      "formBottom": 705,
+      "logBottom": 526,
+      "formTop": 536
+    },
+    {
+      "width": 680,
+      "height": 800,
+      "overflow": false,
+      "draft": 42,
+      "formBottom": 785,
+      "logBottom": 639,
+      "formTop": 686,
+      "logHeight": 491,
+      "directActions": true
+    },
+    {
+      "height": 112,
+      "scroll": 328,
+      "formBottom": 785,
+      "logBottom": 606,
+      "formTop": 616
+    }
+  ]
+}

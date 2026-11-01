@@ -1,0 +1,45 @@
+✖ discovery review decisions are verified, namespaced and never create a library item (5.7532ms)
+✔ discovery translation is cancelable, cached and never silently adds a watchlist record (4.1188ms)
+✔ discovery normalizes trusted image origins, identities and bounded metadata (0.28ms)
+✔ fixed provider routes, caching, personal exclusions and idempotent watchlist saves (52.3787ms)
+✔ provider HTTP errors and excessive response size do not alter the library (5.1725ms)
+✔ imported ratings seed explained recommendations only with matched genre evidence (40.1526ms)
+✔ official Cinemeta redirect is followed; external redirect is rejected before fetching it (0.7093ms)
+✔ Discovery Browser review return resolves the original provider identity without a library insertion (86.0044ms)
+✔ Discovery review return rejects changed identity {"title":"Different film"} (11.6899ms)
+✔ Discovery review return rejects changed identity {"year":2025} (10.3077ms)
+✔ Discovery review return rejects changed identity {"providerId":"tt99999999"} (13.0333ms)
+✔ Discovery review return rejects changed identity {"kind":"series"} (11.3925ms)
+✔ A dismissed discovery handoff cannot reopen a late detail result (13.8011ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 12
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 834.8101
+
+✖ failing tests:
+
+test at tests\discovery-review810.test.js:3:1
+✖ discovery review decisions are verified, namespaced and never create a library item (5.7532ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+  + {
+  +   feedback: undefined,
+  +   feedbackIdentity: undefined
+  + }
+  - {}
+
+      at TestContext.<anonymous> (D:\Whisper Local\tmp\assistant618\tests\discovery-review810.test.js:9:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: {},
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,3247 @@
+{
+  "out": "<WORKTREE>\\tmp\\visual-identity\\browser-player-after-1793537193374",
+  "phase": "after",
+  "screens": [
+    {
+      "name": "browser-wide",
+      "file": "<WORKTREE>\\tmp\\visual-identity\\browser-player-after-1793537193374\\browser-wide.png",
+      "width": 1440,
+      "height": 1000,
+      "mode": "browser",
+      "overflow": false,
+      "homeAbove": false,
+      "settingsVisible": false,
+      "transportOpen": false,
+      "transportMenu": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "transportOpacity": "0",
+      "videoReady": 0,
+      "videoTime": 0,
+      "header": [
+        {
+          "id": "",
+          "label": "Whisper uygulama menüsü",
+          "r": {
+            "x": 10,
+            "y": 4,
+            "width": 30,
+            "height": 30,
+            "top": 4,
+            "right": 40,
+            "bottom": 34,
+            "left": 10
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.66666793823242,
+            "y": 31.666667938232422,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 31.666667938232422,
+            "right": 253.3333396911621,
+            "bottom": 71.66666793823242,
+            "left": 50.66666793823242
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.66666793823242,
+            "y": 106.33333587646484,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 106.33333587646484,
+            "right": 253.3333396911621,
+            "bottom": 146.33333587646484,
+            "left": 50.66666793823242
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.66666793823242,
+            "y": 148.33334350585938,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 148.33334350585938,
+            "right": 253.3333396911621,
+            "bottom": 188.33334350585938,
+            "left": 50.66666793823242
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.66666793823242,
+            "y": 190.33334350585938,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 190.33334350585938,
+            "right": 253.3333396911621,
+            "bottom": 230.33334350585938,
+            "left": 50.66666793823242
+          }
+        },
+        {
+          "id": "browser-tab-button-tab-mvxtqkkb-1",
+          "label": null,
+          "r": {
+            "x": 48.66666793823242,
+            "y": 11,
+            "width": 94.78125,
+            "height": 16,
+            "top": 11,
+            "right": 143.44791793823242,
+            "bottom": 27,
+            "left": 48.66666793823242
+          }
+        },
+        {
+          "id": "",
+          "label": "Sekmeyi kapat",
+          "r": {
+            "x": 143.4479217529297,
+            "y": 5,
+            "width": 28,
+            "height": 28,
+            "top": 5,
+            "right": 171.4479217529297,
+            "bottom": 33,
+            "left": 143.4479217529297
+          }
+        },
+        {
+          "id": "browserTabNew",
+          "label": "Yeni sekme · Ctrl+T",
+          "r": {
+            "x": 177.11459350585938,
+            "y": 3,
+            "width": 32,
+            "height": 32,
+            "top": 3,
+            "right": 209.11459350585938,
+            "bottom": 35,
+            "left": 177.11459350585938
+          }
+        },
+        {
+          "id": "",
+          "label": "Uygulama ayarları ve araçlar",
+          "r": {
+            "x": 1252,
+            "y": 4,
+            "width": 30,
+            "height": 30,
+            "top": 4,
+            "right": 1282,
+            "bottom": 34,
+            "left": 1252
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 1068.666748046875,
+            "y": 124.33333587646484,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 124.33333587646484,
+            "right": 1271.3334197998047,
+            "bottom": 164.33333587646484,
+            "left": 1068.666748046875
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 1068.666748046875,
+            "y": 166.33334350585938,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 166.33334350585938,
+            "right": 1271.3334197998047,
+            "bottom": 206.33334350585938,
+            "left": 1068.666748046875
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 1068.666748046875,
+            "y": 208.33334350585938,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 208.33334350585938,
+            "right": 1271.3334197998047,
+            "bottom": 248.33334350585938,
+            "left": 1068.666748046875
+          }
+        }
+      ]
+    },
+    {
+      "name": "browser-menu-wide",
+      "file": "<WORKTREE>\\tmp\\visual-identity\\browser-player-after-1793537193374\\browser-menu-wide.png",
+      "width": 1440,
+      "height": 1000,
+      "mode": "browser",
+      "overflow": false,
+      "homeAbove": false,
+      "settingsVisible": false,
+      "transportOpen": false,
+      "transportMenu": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "transportOpacity": "0",
+      "videoReady": 0,
+      "videoTime": 0,
+      "header": [
+        {
+          "id": "",
+          "label": "Whisper uygulama menüsü",
+          "r": {
+            "x": 10,
+            "y": 4,
+            "width": 30,
+            "height": 30,
+            "top": 4,
+            "right": 40,
+            "bottom": 34,
+            "left": 10
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.66666793823242,
+            "y": 31.666667938232422,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 31.666667938232422,
+            "right": 253.3333396911621,
+            "bottom": 71.66666793823242,
+            "left": 50.66666793823242
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.66666793823242,
+            "y": 106.33333587646484,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 106.33333587646484,
+            "right": 253.3333396911621,
+            "bottom": 146.33333587646484,
+            "left": 50.66666793823242
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.66666793823242,
+            "y": 148.33334350585938,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 148.33334350585938,
+            "right": 253.3333396911621,
+            "bottom": 188.33334350585938,
+            "left": 50.66666793823242
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.66666793823242,
+            "y": 190.33334350585938,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 190.33334350585938,
+            "right": 253.3333396911621,
+            "bottom": 230.33334350585938,
+            "left": 50.66666793823242
+          }
+        },
+        {
+          "id": "browser-tab-button-tab-mvxtqkkb-1",
+          "label": null,
+          "r": {
+            "x": 48.66666793823242,
+            "y": 11,
+            "width": 94.78125,
+            "height": 16,
+            "top": 11,
+            "right": 143.44791793823242,
+            "bottom": 27,
+            "left": 48.66666793823242
+          }
+        },
+        {
+          "id": "",
+          "label": "Sekmeyi kapat",
+          "r": {
+            "x": 143.4479217529297,
+            "y": 5,
+            "width": 28,
+            "height": 28,
+            "top": 5,
+            "right": 171.4479217529297,
+            "bottom": 33,
+            "left": 143.4479217529297
+          }
+        },
+        {
+          "id": "browserTabNew",
+          "label": "Yeni sekme · Ctrl+T",
+          "r": {
+            "x": 177.11459350585938,
+            "y": 3,
+            "width": 32,
+            "height": 32,
+            "top": 3,
+            "right": 209.11459350585938,
+            "bottom": 35,
+            "left": 177.11459350585938
+          }
+        },
+        {
+          "id": "",
+          "label": "Uygulama ayarları ve araçlar",
+          "r": {
+            "x": 1252,
+            "y": 4,
+            "width": 30,
+            "height": 30,
+            "top": 4,
+            "right": 1282,
+            "bottom": 34,
+            "left": 1252
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 1068.666748046875,
+            "y": 124.33333587646484,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 124.33333587646484,
+            "right": 1271.3334197998047,
+            "bottom": 164.33333587646484,
+            "left": 1068.666748046875
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 1068.666748046875,
+            "y": 166.33334350585938,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 166.33334350585938,
+            "right": 1271.3334197998047,
+            "bottom": 206.33334350585938,
+            "left": 1068.666748046875
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 1068.666748046875,
+            "y": 208.33334350585938,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 208.33334350585938,
+            "right": 1271.3334197998047,
+            "bottom": 248.33334350585938,
+            "left": 1068.666748046875
+          }
+        }
+      ]
+    },
+    {
+      "name": "browser-submenu-wide",
+      "file": "<WORKTREE>\\tmp\\visual-identity\\browser-player-after-1793537193374\\browser-submenu-wide.png",
+      "width": 1440,
+      "height": 1000,
+      "mode": "browser",
+      "overflow": false,
+      "homeAbove": false,
+      "settingsVisible": false,
+      "transportOpen": false,
+      "transportMenu": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "transportOpacity": "0",
+      "videoReady": 0,
+      "videoTime": 0,
+      "header": [
+        {
+          "id": "",
+          "label": "Whisper uygulama menüsü",
+          "r": {
+            "x": 10,
+            "y": 4,
+            "width": 30,
+            "height": 30,
+            "top": 4,
+            "right": 40,
+            "bottom": 34,
+            "left": 10
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.66666793823242,
+            "y": 31.666667938232422,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 31.666667938232422,
+            "right": 253.3333396911621,
+            "bottom": 71.66666793823242,
+            "left": 50.66666793823242
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.66666793823242,
+            "y": 106.33333587646484,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 106.33333587646484,
+            "right": 253.3333396911621,
+            "bottom": 146.33333587646484,
+            "left": 50.66666793823242
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.66666793823242,
+            "y": 148.33334350585938,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 148.33334350585938,
+            "right": 253.3333396911621,
+            "bottom": 188.33334350585938,
+            "left": 50.66666793823242
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.66666793823242,
+            "y": 190.33334350585938,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 190.33334350585938,
+            "right": 253.3333396911621,
+            "bottom": 230.33334350585938,
+            "left": 50.66666793823242
+          }
+        },
+        {
+          "id": "browser-tab-button-tab-mvxtqkkb-1",
+          "label": null,
+          "r": {
+            "x": 48.66666793823242,
+            "y": 11,
+            "width": 94.78125,
+            "height": 16,
+            "top": 11,
+            "right": 143.44791793823242,
+            "bottom": 27,
+            "left": 48.66666793823242
+          }
+        },
+        {
+          "id": "",
+          "label": "Sekmeyi kapat",
+          "r": {
+            "x": 143.4479217529297,
+            "y": 5,
+            "width": 28,
+            "height": 28,
+            "top": 5,
+            "right": 171.4479217529297,
+            "bottom": 33,
+            "left": 143.4479217529297
+          }
+        },
+        {
+          "id": "browserTabNew",
+          "label": "Yeni sekme · Ctrl+T",
+          "r": {
+            "x": 177.11459350585938,
+            "y": 3,
+            "width": 32,
+            "height": 32,
+            "top": 3,
+            "right": 209.11459350585938,
+            "bottom": 35,
+            "left": 177.11459350585938
+          }
+        },
+        {
+          "id": "",
+          "label": "Uygulama ayarları ve araçlar",
+          "r": {
+            "x": 1252,
+            "y": 4,
+            "width": 30,
+            "height": 30,
+            "top": 4,
+            "right": 1282,
+            "bottom": 34,
+            "left": 1252
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 1068.666748046875,
+            "y": 124.33333587646484,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 124.33333587646484,
+            "right": 1271.3334197998047,
+            "bottom": 164.33333587646484,
+            "left": 1068.666748046875
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 1068.666748046875,
+            "y": 166.33334350585938,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 166.33334350585938,
+            "right": 1271.3334197998047,
+            "bottom": 206.33334350585938,
+            "left": 1068.666748046875
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 1068.666748046875,
+            "y": 208.33334350585938,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 208.33334350585938,
+            "right": 1271.3334197998047,
+            "bottom": 248.33334350585938,
+            "left": 1068.666748046875
+          }
+        }
+      ]
+    },
+    {
+      "name": "browser-settings-wide",
+      "file": "<WORKTREE>\\tmp\\visual-identity\\browser-player-after-1793537193374\\browser-settings-wide.png",
+      "width": 1440,
+      "height": 1000,
+      "mode": "browser",
+      "overflow": false,
+      "homeAbove": false,
+      "settingsVisible": true,
+      "transportOpen": false,
+      "transportMenu": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "transportOpacity": "0",
+      "videoReady": 0,
+      "videoTime": 0,
+      "header": [
+        {
+          "id": "",
+          "label": "Whisper uygulama menüsü",
+          "r": {
+            "x": 10,
+            "y": 4,
+            "width": 30,
+            "height": 30,
+            "top": 4,
+            "right": 40,
+            "bottom": 34,
+            "left": 10
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.66666793823242,
+            "y": 35.66666793823242,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 35.66666793823242,
+            "right": 253.3333396911621,
+            "bottom": 75.66666793823242,
+            "left": 50.66666793823242
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.66666793823242,
+            "y": 110.33333587646484,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 110.33333587646484,
+            "right": 253.3333396911621,
+            "bottom": 150.33333587646484,
+            "left": 50.66666793823242
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.66666793823242,
+            "y": 152.33334350585938,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 152.33334350585938,
+            "right": 253.3333396911621,
+            "bottom": 192.33334350585938,
+            "left": 50.66666793823242
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.66666793823242,
+            "y": 194.33334350585938,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 194.33334350585938,
+            "right": 253.3333396911621,
+            "bottom": 234.33334350585938,
+            "left": 50.66666793823242
+          }
+        },
+        {
+          "id": "browser-tab-button-tab-mvxtqkkb-1",
+          "label": null,
+          "r": {
+            "x": 48.66666793823242,
+            "y": 11,
+            "width": 94.78125,
+            "height": 16,
+            "top": 11,
+            "right": 143.44791793823242,
+            "bottom": 27,
+            "left": 48.66666793823242
+          }
+        },
+        {
+          "id": "",
+          "label": "Sekmeyi kapat",
+          "r": {
+            "x": 143.4479217529297,
+            "y": 5,
+            "width": 28,
+            "height": 28,
+            "top": 5,
+            "right": 171.4479217529297,
+            "bottom": 33,
+            "left": 143.4479217529297
+          }
+        },
+        {
+          "id": "browser-tab-settings-button",
+          "label": null,
+          "r": {
+            "x": 179.78125,
+            "y": 11,
+            "width": 82.66667175292969,
+            "height": 16,
+            "top": 11,
+            "right": 262.4479217529297,
+            "bottom": 27,
+            "left": 179.78125
+          }
+        },
+        {
+          "id": "",
+          "label": "Ayarlar sekmesini kapat",
+          "r": {
+            "x": 262.44793701171875,
+            "y": 5,
+            "width": 28,
+            "height": 28,
+            "top": 5,
+            "right": 290.44793701171875,
+            "bottom": 33,
+            "left": 262.44793701171875
+          }
+        },
+        {
+          "id": "browserTabNew",
+          "label": "Yeni sekme · Ctrl+T",
+          "r": {
+            "x": 296.1145935058594,
+            "y": 3,
+            "width": 32,
+            "height": 32,
+            "top": 3,
+            "right": 328.1145935058594,
+            "bottom": 35,
+            "left": 296.1145935058594
+          }
+        },
+        {
+          "id": "",
+          "label": "Uygulama ayarları ve araçlar",
+          "r": {
+            "x": 1252,
+            "y": 4,
+            "width": 30,
+            "height": 30,
+            "top": 4,
+            "right": 1282,
+            "bottom": 34,
+            "left": 1252
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 1068.666748046875,
+            "y": 128.33334350585938,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 128.33334350585938,
+            "right": 1271.3334197998047,
+            "bottom": 168.33334350585938,
+            "left": 1068.666748046875
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 1068.666748046875,
+            "y": 170.33334350585938,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 170.33334350585938,
+            "right": 1271.3334197998047,
+            "bottom": 210.33334350585938,
+            "left": 1068.666748046875
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 1068.666748046875,
+            "y": 212.33334350585938,
+            "width": 202.6666717529297,
+            "height": 40,
+            "top": 212.33334350585938,
+            "right": 1271.3334197998047,
+            "bottom": 252.33334350585938,
+            "left": 1068.666748046875
+          }
+        }
+      ]
+    },
+    {
+      "name": "player-wide",
+      "file": "<WORKTREE>\\tmp\\visual-identity\\browser-player-after-1793537193374\\player-wide.png",
+      "width": 1440,
+      "height": 1000,
+      "mode": "player",
+      "overflow": false,
+      "homeAbove": false,
+      "settingsVisible": false,
+      "transportOpen": false,
+      "transportMenu": {
+        "x": 695.1354370117188,
+        "y": 611,
+        "width": 260,
+        "height": 345.3333435058594,
+        "top": 611,
+        "right": 955.1354370117188,
+        "bottom": 956.3333435058594,
+        "left": 695.1354370117188
+      },
+      "transportOpacity": "0",
+      "videoReady": 4,
+      "videoTime": 5,
+      "header": [
+        {
+          "id": "playerBack",
+          "label": "Ana sayfa",
+          "r": {
+            "x": 14,
+            "y": 46,
+            "width": 100.96875,
+            "height": 42,
+            "top": 46,
+            "right": 114.96875,
+            "bottom": 88,
+            "left": 14
+          }
+        },
+        {
+          "id": "workspacePlayerMode",
+          "label": null,
+          "r": {
+            "x": 932.0625,
+            "y": 52,
+            "width": 68.65625,
+            "height": 30,
+            "top": 52,
+            "right": 1000.71875,
+            "bottom": 82,
+            "left": 932.0625
+          }
+        },
+        {
+          "id": "workspaceBrowserMode",
+          "label": null,
+          "r": {
+            "x": 1002.71875,
+            "y": 52,
+            "width": 65.17708587646484,
+            "height": 30,
+            "top": 52,
+            "right": 1067.8958358764648,
+            "bottom": 82,
+            "left": 1002.71875
+          }
+        },
+        {
+          "id": "playerCatalogEntry",
+          "label": null,
+          "r": {
+            "x": 1083.5625,
+            "y": 50,
+            "width": 76.4375,
+            "height": 34,
+            "top": 50,
+            "right": 1160,
+            "bottom": 84,
+            "left": 1083.5625
+          }
+        },
+        {
+          "id": "playerQuickDownload",
+          "label": "Videoyu indir",
+          "r": {
+            "x": 1166,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1200,
+            "bottom": 84,
+            "left": 1166
+          }
+        },
+        {
+          "id": "playerBookmark",
+          "label": "Aktif cümleyi kaydet",
+          "r": {
+            "x": 1206,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1240,
+            "bottom": 84,
+            "left": 1206
+          }
+        },
+        {
+          "id": "playerLayoutQuick",
+          "label": "Görünüm düzeni",
+          "r": {
+            "x": 1259,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1293,
+            "bottom": 84,
+            "left": 1259
+          }
+        },
+        {
+          "id": "playerSidebarToggle",
+          "label": "Altyazı panelini aç/kapat",
+          "r": {
+            "x": 1299,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1333,
+            "bottom": 84,
+            "left": 1299
+          }
+        },
+        {
+          "id": "",
+          "label": "Diğer araçlar",
+          "r": {
+            "x": 1352,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1386,
+            "bottom": 84,
+            "left": 1352
+          }
+        },
+        {
+          "id": "playerTaskCenterToggle",
+          "label": "Aktif işleri aç",
+          "r": {
+            "x": 1301.3333740234375,
+            "y": 96.66667175292969,
+            "width": 34,
+            "height": 34,
+            "top": 96.66667175292969,
+            "right": 1335.3333740234375,
+            "bottom": 130.6666717529297,
+            "left": 1301.3333740234375
+          }
+        },
+        {
+          "id": "pdfReaderOpen",
+          "label": "PDF kitap aç",
+          "r": {
+            "x": 1341.3333740234375,
+            "y": 96.66667175292969,
+            "width": 34,
+            "height": 34,
+            "top": 96.66667175292969,
+            "right": 1375.3333740234375,
+            "bottom": 130.6666717529297,
+            "left": 1341.3333740234375
+          }
+        },
+        {
+          "id": "playerHeadSettings",
+          "label": "Ayarlar",
+          "r": {
+            "x": 1392,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1426,
+            "bottom": 84,
+            "left": 1392
+          }
+        }
+      ]
+    },
+    {
+      "name": "player-transport-menu-wide",
+      "file": "<WORKTREE>\\tmp\\visual-identity\\browser-player-after-1793537193374\\player-transport-menu-wide.png",
+      "width": 1440,
+      "height": 1000,
+      "mode": "player",
+      "overflow": false,
+      "homeAbove": false,
+      "settingsVisible": false,
+      "transportOpen": true,
+      "transportMenu": {
+        "x": 695.1354370117188,
+        "y": 577,
+        "width": 260,
+        "height": 345.3333435058594,
+        "top": 577,
+        "right": 955.1354370117188,
+        "bottom": 922.3333435058594,
+        "left": 695.1354370117188
+      },
+      "transportOpacity": "1",
+      "videoReady": 4,
+      "videoTime": 5.301896,
+      "header": [
+        {
+          "id": "playerBack",
+          "label": "Ana sayfa",
+          "r": {
+            "x": 14,
+            "y": 46,
+            "width": 100.96875,
+            "height": 42,
+            "top": 46,
+            "right": 114.96875,
+            "bottom": 88,
+            "left": 14
+          }
+        },
+        {
+          "id": "workspacePlayerMode",
+          "label": null,
+          "r": {
+            "x": 932.0625,
+            "y": 52,
+            "width": 68.65625,
+            "height": 30,
+            "top": 52,
+            "right": 1000.71875,
+            "bottom": 82,
+            "left": 932.0625
+          }
+        },
+        {
+          "id": "workspaceBrowserMode",
+          "label": null,
+          "r": {
+            "x": 1002.71875,
+            "y": 52,
+            "width": 65.17708587646484,
+            "height": 30,
+            "top": 52,
+            "right": 1067.8958358764648,
+            "bottom": 82,
+            "left": 1002.71875
+          }
+        },
+        {
+          "id": "playerCatalogEntry",
+          "label": null,
+          "r": {
+            "x": 1083.5625,
+            "y": 50,
+            "width": 76.4375,
+            "height": 34,
+            "top": 50,
+            "right": 1160,
+            "bottom": 84,
+            "left": 1083.5625
+          }
+        },
+        {
+          "id": "playerQuickDownload",
+          "label": "Videoyu indir",
+          "r": {
+            "x": 1166,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1200,
+            "bottom": 84,
+            "left": 1166
+          }
+        },
+        {
+          "id": "playerBookmark",
+          "label": "Aktif cümleyi kaydet",
+          "r": {
+            "x": 1206,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1240,
+            "bottom": 84,
+            "left": 1206
+          }
+        },
+        {
+          "id": "playerLayoutQuick",
+          "label": "Görünüm düzeni",
+          "r": {
+            "x": 1259,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1293,
+            "bottom": 84,
+            "left": 1259
+          }
+        },
+        {
+          "id": "playerSidebarToggle",
+          "label": "Altyazı panelini aç/kapat",
+          "r": {
+            "x": 1299,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1333,
+            "bottom": 84,
+            "left": 1299
+          }
+        },
+        {
+          "id": "",
+          "label": "Diğer araçlar",
+          "r": {
+            "x": 1352,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1386,
+            "bottom": 84,
+            "left": 1352
+          }
+        },
+        {
+          "id": "playerTaskCenterToggle",
+          "label": "Aktif işleri aç",
+          "r": {
+            "x": 1301.3333740234375,
+            "y": 100.66667175292969,
+            "width": 34,
+            "height": 34,
+            "top": 100.66667175292969,
+            "right": 1335.3333740234375,
+            "bottom": 134.6666717529297,
+            "left": 1301.3333740234375
+          }
+        },
+        {
+          "id": "pdfReaderOpen",
+          "label": "PDF kitap aç",
+          "r": {
+            "x": 1341.3333740234375,
+            "y": 100.66667175292969,
+            "width": 34,
+            "height": 34,
+            "top": 100.66667175292969,
+            "right": 1375.3333740234375,
+            "bottom": 134.6666717529297,
+            "left": 1341.3333740234375
+          }
+        },
+        {
+          "id": "playerHeadSettings",
+          "label": "Ayarlar",
+          "r": {
+            "x": 1392,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1426,
+            "bottom": 84,
+            "left": 1392
+          }
+        }
+      ]
+    },
+    {
+      "name": "player-menu-wide",
+      "file": "<WORKTREE>\\tmp\\visual-identity\\browser-player-after-1793537193374\\player-menu-wide.png",
+      "width": 1440,
+      "height": 1000,
+      "mode": "player",
+      "overflow": false,
+      "homeAbove": false,
+      "settingsVisible": false,
+      "transportOpen": false,
+      "transportMenu": {
+        "x": 695.1354370117188,
+        "y": 615,
+        "width": 260,
+        "height": 345.3333435058594,
+        "top": 615,
+        "right": 955.1354370117188,
+        "bottom": 960.3333435058594,
+        "left": 695.1354370117188
+      },
+      "transportOpacity": "1",
+      "videoReady": 4,
+      "videoTime": 5.301896,
+      "header": [
+        {
+          "id": "playerBack",
+          "label": "Ana sayfa",
+          "r": {
+            "x": 14,
+            "y": 46,
+            "width": 100.96875,
+            "height": 42,
+            "top": 46,
+            "right": 114.96875,
+            "bottom": 88,
+            "left": 14
+          }
+        },
+        {
+          "id": "workspacePlayerMode",
+          "label": null,
+          "r": {
+            "x": 932.0625,
+            "y": 52,
+            "width": 68.65625,
+            "height": 30,
+            "top": 52,
+            "right": 1000.71875,
+            "bottom": 82,
+            "left": 932.0625
+          }
+        },
+        {
+          "id": "workspaceBrowserMode",
+          "label": null,
+          "r": {
+            "x": 1002.71875,
+            "y": 52,
+            "width": 65.17708587646484,
+            "height": 30,
+            "top": 52,
+            "right": 1067.8958358764648,
+            "bottom": 82,
+            "left": 1002.71875
+          }
+        },
+        {
+          "id": "playerCatalogEntry",
+          "label": null,
+          "r": {
+            "x": 1083.5625,
+            "y": 50,
+            "width": 76.4375,
+            "height": 34,
+            "top": 50,
+            "right": 1160,
+            "bottom": 84,
+            "left": 1083.5625
+          }
+        },
+        {
+          "id": "playerQuickDownload",
+          "label": "Videoyu indir",
+          "r": {
+            "x": 1166,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1200,
+            "bottom": 84,
+            "left": 1166
+          }
+        },
+        {
+          "id": "playerBookmark",
+          "label": "Aktif cümleyi kaydet",
+          "r": {
+            "x": 1206,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1240,
+            "bottom": 84,
+            "left": 1206
+          }
+        },
+        {
+          "id": "playerLayoutQuick",
+          "label": "Görünüm düzeni",
+          "r": {
+            "x": 1259,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1293,
+            "bottom": 84,
+            "left": 1259
+          }
+        },
+        {
+          "id": "playerSidebarToggle",
+          "label": "Altyazı panelini aç/kapat",
+          "r": {
+            "x": 1299,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1333,
+            "bottom": 84,
+            "left": 1299
+          }
+        },
+        {
+          "id": "",
+          "label": "Diğer araçlar",
+          "r": {
+            "x": 1352,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1386,
+            "bottom": 84,
+            "left": 1352
+          }
+        },
+        {
+          "id": "playerTaskCenterToggle",
+          "label": "Aktif işleri aç",
+          "r": {
+            "x": 1301.3333740234375,
+            "y": 100.66667175292969,
+            "width": 34,
+            "height": 34,
+            "top": 100.66667175292969,
+            "right": 1335.3333740234375,
+            "bottom": 134.6666717529297,
+            "left": 1301.3333740234375
+          }
+        },
+        {
+          "id": "pdfReaderOpen",
+          "label": "PDF kitap aç",
+          "r": {
+            "x": 1341.3333740234375,
+            "y": 100.66667175292969,
+            "width": 34,
+            "height": 34,
+            "top": 100.66667175292969,
+            "right": 1375.3333740234375,
+            "bottom": 134.6666717529297,
+            "left": 1341.3333740234375
+          }
+        },
+        {
+          "id": "playerHeadSettings",
+          "label": "Ayarlar",
+          "r": {
+            "x": 1392,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1426,
+            "bottom": 84,
+            "left": 1392
+          }
+        }
+      ]
+    },
+    {
+      "name": "player-settings-wide",
+      "file": "<WORKTREE>\\tmp\\visual-identity\\browser-player-after-1793537193374\\player-settings-wide.png",
+      "width": 1440,
+      "height": 1000,
+      "mode": "player",
+      "overflow": false,
+      "homeAbove": false,
+      "settingsVisible": false,
+      "transportOpen": false,
+      "transportMenu": {
+        "x": 695.1354370117188,
+        "y": 615,
+        "width": 260,
+        "height": 345.3333435058594,
+        "top": 615,
+        "right": 955.1354370117188,
+        "bottom": 960.3333435058594,
+        "left": 695.1354370117188
+      },
+      "transportOpacity": "1",
+      "videoReady": 4,
+      "videoTime": 5.301896,
+      "header": [
+        {
+          "id": "playerBack",
+          "label": "Ana sayfa",
+          "r": {
+            "x": 14,
+            "y": 46,
+            "width": 100.96875,
+            "height": 42,
+            "top": 46,
+            "right": 114.96875,
+            "bottom": 88,
+            "left": 14
+          }
+        },
+        {
+          "id": "workspacePlayerMode",
+          "label": null,
+          "r": {
+            "x": 932.0625,
+            "y": 52,
+            "width": 68.65625,
+            "height": 30,
+            "top": 52,
+            "right": 1000.71875,
+            "bottom": 82,
+            "left": 932.0625
+          }
+        },
+        {
+          "id": "workspaceBrowserMode",
+          "label": null,
+          "r": {
+            "x": 1002.71875,
+            "y": 52,
+            "width": 65.17708587646484,
+            "height": 30,
+            "top": 52,
+            "right": 1067.8958358764648,
+            "bottom": 82,
+            "left": 1002.71875
+          }
+        },
+        {
+          "id": "playerCatalogEntry",
+          "label": null,
+          "r": {
+            "x": 1083.5625,
+            "y": 50,
+            "width": 76.4375,
+            "height": 34,
+            "top": 50,
+            "right": 1160,
+            "bottom": 84,
+            "left": 1083.5625
+          }
+        },
+        {
+          "id": "playerQuickDownload",
+          "label": "Videoyu indir",
+          "r": {
+            "x": 1166,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1200,
+            "bottom": 84,
+            "left": 1166
+          }
+        },
+        {
+          "id": "playerBookmark",
+          "label": "Aktif cümleyi kaydet",
+          "r": {
+            "x": 1206,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1240,
+            "bottom": 84,
+            "left": 1206
+          }
+        },
+        {
+          "id": "playerLayoutQuick",
+          "label": "Görünüm düzeni",
+          "r": {
+            "x": 1259,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1293,
+            "bottom": 84,
+            "left": 1259
+          }
+        },
+        {
+          "id": "playerSidebarToggle",
+          "label": "Altyazı panelini aç/kapat",
+          "r": {
+            "x": 1299,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1333,
+            "bottom": 84,
+            "left": 1299
+          }
+        },
+        {
+          "id": "",
+          "label": "Diğer araçlar",
+          "r": {
+            "x": 1352,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1386,
+            "bottom": 84,
+            "left": 1352
+          }
+        },
+        {
+          "id": "playerTaskCenterToggle",
+          "label": "Aktif işleri aç",
+          "r": {
+            "x": 1301.3333740234375,
+            "y": 100.66667175292969,
+            "width": 34,
+            "height": 34,
+            "top": 100.66667175292969,
+            "right": 1335.3333740234375,
+            "bottom": 134.6666717529297,
+            "left": 1301.3333740234375
+          }
+        },
+        {
+          "id": "pdfReaderOpen",
+          "label": "PDF kitap aç",
+          "r": {
+            "x": 1341.3333740234375,
+            "y": 100.66667175292969,
+            "width": 34,
+            "height": 34,
+            "top": 100.66667175292969,
+            "right": 1375.3333740234375,
+            "bottom": 134.6666717529297,
+            "left": 1341.3333740234375
+          }
+        },
+        {
+          "id": "playerHeadSettings",
+          "label": "Ayarlar",
+          "r": {
+            "x": 1392,
+            "y": 50,
+            "width": 34,
+            "height": 34,
+            "top": 50,
+            "right": 1426,
+            "bottom": 84,
+            "left": 1392
+          }
+        }
+      ]
+    },
+    {
+      "name": "browser-narrow",
+      "file": "<WORKTREE>\\tmp\\visual-identity\\browser-player-after-1793537193374\\browser-narrow.png",
+      "width": 720,
+      "height": 800,
+      "mode": "browser",
+      "overflow": false,
+      "homeAbove": false,
+      "settingsVisible": false,
+      "transportOpen": false,
+      "transportMenu": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "transportOpacity": "0",
+      "videoReady": 4,
+      "videoTime": 5.301896,
+      "header": [
+        {
+          "id": "",
+          "label": "Whisper uygulama menüsü",
+          "r": {
+            "x": 10.000000953674316,
+            "y": 4,
+            "width": 30.000001907348633,
+            "height": 30.000001907348633,
+            "top": 4,
+            "right": 40.00000286102295,
+            "bottom": 34.00000190734863,
+            "left": 10.000000953674316
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.5333366394043,
+            "y": 31.533334732055664,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 31.533334732055664,
+            "right": 253.4666862487793,
+            "bottom": 71.53333854675293,
+            "left": 50.5333366394043
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.5333366394043,
+            "y": 105.93334197998047,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 105.93334197998047,
+            "right": 253.4666862487793,
+            "bottom": 145.93334579467773,
+            "left": 50.5333366394043
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.5333366394043,
+            "y": 147.93333435058594,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 147.93333435058594,
+            "right": 253.4666862487793,
+            "bottom": 187.9333381652832,
+            "left": 50.5333366394043
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.5333366394043,
+            "y": 189.933349609375,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 189.933349609375,
+            "right": 253.4666862487793,
+            "bottom": 229.93335342407227,
+            "left": 50.5333366394043
+          }
+        },
+        {
+          "id": "browser-tab-button-tab-mvxtqkkb-1",
+          "label": null,
+          "r": {
+            "x": 48.5333366394043,
+            "y": 11.000000953674316,
+            "width": 94.78334045410156,
+            "height": 16,
+            "top": 11.000000953674316,
+            "right": 143.31667709350586,
+            "bottom": 27.000000953674316,
+            "left": 48.5333366394043
+          }
+        },
+        {
+          "id": "",
+          "label": "Sekmeyi kapat",
+          "r": {
+            "x": 143.31668090820312,
+            "y": 5.000000476837158,
+            "width": 28.000001907348633,
+            "height": 28.000001907348633,
+            "top": 5.000000476837158,
+            "right": 171.31668281555176,
+            "bottom": 33.00000238418579,
+            "left": 143.31668090820312
+          }
+        },
+        {
+          "id": "browserTabNew",
+          "label": "Yeni sekme · Ctrl+T",
+          "r": {
+            "x": 176.85000610351562,
+            "y": 3.000000238418579,
+            "width": 32,
+            "height": 32,
+            "top": 3.000000238418579,
+            "right": 208.85000610351562,
+            "bottom": 35.00000023841858,
+            "left": 176.85000610351562
+          }
+        },
+        {
+          "id": "",
+          "label": "Uygulama ayarları ve araçlar",
+          "r": {
+            "x": 532,
+            "y": 4,
+            "width": 30.000001907348633,
+            "height": 30.000001907348633,
+            "top": 4,
+            "right": 562.0000019073486,
+            "bottom": 34.00000190734863,
+            "left": 532
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 348.5333557128906,
+            "y": 123.93334197998047,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 123.93334197998047,
+            "right": 551.4667053222656,
+            "bottom": 163.93334579467773,
+            "left": 348.5333557128906
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 348.5333557128906,
+            "y": 165.933349609375,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 165.933349609375,
+            "right": 551.4667053222656,
+            "bottom": 205.93335342407227,
+            "left": 348.5333557128906
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 348.5333557128906,
+            "y": 207.933349609375,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 207.933349609375,
+            "right": 551.4667053222656,
+            "bottom": 247.93335342407227,
+            "left": 348.5333557128906
+          }
+        }
+      ]
+    },
+    {
+      "name": "browser-menu-narrow",
+      "file": "<WORKTREE>\\tmp\\visual-identity\\browser-player-after-1793537193374\\browser-menu-narrow.png",
+      "width": 720,
+      "height": 800,
+      "mode": "browser",
+      "overflow": false,
+      "homeAbove": false,
+      "settingsVisible": false,
+      "transportOpen": false,
+      "transportMenu": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "transportOpacity": "0",
+      "videoReady": 4,
+      "videoTime": 5.301896,
+      "header": [
+        {
+          "id": "",
+          "label": "Whisper uygulama menüsü",
+          "r": {
+            "x": 10.000000953674316,
+            "y": 4,
+            "width": 30.000001907348633,
+            "height": 30.000001907348633,
+            "top": 4,
+            "right": 40.00000286102295,
+            "bottom": 34.00000190734863,
+            "left": 10.000000953674316
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.5333366394043,
+            "y": 35.5333366394043,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 35.5333366394043,
+            "right": 253.4666862487793,
+            "bottom": 75.53334045410156,
+            "left": 50.5333366394043
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.5333366394043,
+            "y": 109.93334197998047,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 109.93334197998047,
+            "right": 253.4666862487793,
+            "bottom": 149.93334579467773,
+            "left": 50.5333366394043
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.5333366394043,
+            "y": 151.93333435058594,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 151.93333435058594,
+            "right": 253.4666862487793,
+            "bottom": 191.9333381652832,
+            "left": 50.5333366394043
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.5333366394043,
+            "y": 193.933349609375,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 193.933349609375,
+            "right": 253.4666862487793,
+            "bottom": 233.93335342407227,
+            "left": 50.5333366394043
+          }
+        },
+        {
+          "id": "browser-tab-button-tab-mvxtqkkb-1",
+          "label": null,
+          "r": {
+            "x": 48.5333366394043,
+            "y": 11.000000953674316,
+            "width": 94.78334045410156,
+            "height": 16,
+            "top": 11.000000953674316,
+            "right": 143.31667709350586,
+            "bottom": 27.000000953674316,
+            "left": 48.5333366394043
+          }
+        },
+        {
+          "id": "",
+          "label": "Sekmeyi kapat",
+          "r": {
+            "x": 143.31668090820312,
+            "y": 5.000000476837158,
+            "width": 28.000001907348633,
+            "height": 28.000001907348633,
+            "top": 5.000000476837158,
+            "right": 171.31668281555176,
+            "bottom": 33.00000238418579,
+            "left": 143.31668090820312
+          }
+        },
+        {
+          "id": "browserTabNew",
+          "label": "Yeni sekme · Ctrl+T",
+          "r": {
+            "x": 176.85000610351562,
+            "y": 3.000000238418579,
+            "width": 32,
+            "height": 32,
+            "top": 3.000000238418579,
+            "right": 208.85000610351562,
+            "bottom": 35.00000023841858,
+            "left": 176.85000610351562
+          }
+        },
+        {
+          "id": "",
+          "label": "Uygulama ayarları ve araçlar",
+          "r": {
+            "x": 532,
+            "y": 4,
+            "width": 30.000001907348633,
+            "height": 30.000001907348633,
+            "top": 4,
+            "right": 562.0000019073486,
+            "bottom": 34.00000190734863,
+            "left": 532
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 348.5333557128906,
+            "y": 127.93334197998047,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 127.93334197998047,
+            "right": 551.4667053222656,
+            "bottom": 167.93334579467773,
+            "left": 348.5333557128906
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 348.5333557128906,
+            "y": 169.933349609375,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 169.933349609375,
+            "right": 551.4667053222656,
+            "bottom": 209.93335342407227,
+            "left": 348.5333557128906
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 348.5333557128906,
+            "y": 211.933349609375,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 211.933349609375,
+            "right": 551.4667053222656,
+            "bottom": 251.93335342407227,
+            "left": 348.5333557128906
+          }
+        }
+      ]
+    },
+    {
+      "name": "browser-submenu-narrow",
+      "file": "<WORKTREE>\\tmp\\visual-identity\\browser-player-after-1793537193374\\browser-submenu-narrow.png",
+      "width": 720,
+      "height": 800,
+      "mode": "browser",
+      "overflow": false,
+      "homeAbove": false,
+      "settingsVisible": false,
+      "transportOpen": false,
+      "transportMenu": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "transportOpacity": "0",
+      "videoReady": 4,
+      "videoTime": 5.301896,
+      "header": [
+        {
+          "id": "",
+          "label": "Whisper uygulama menüsü",
+          "r": {
+            "x": 10.000000953674316,
+            "y": 4,
+            "width": 30.000001907348633,
+            "height": 30.000001907348633,
+            "top": 4,
+            "right": 40.00000286102295,
+            "bottom": 34.00000190734863,
+            "left": 10.000000953674316
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.5333366394043,
+            "y": 35.5333366394043,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 35.5333366394043,
+            "right": 253.4666862487793,
+            "bottom": 75.53334045410156,
+            "left": 50.5333366394043
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.5333366394043,
+            "y": 109.93334197998047,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 109.93334197998047,
+            "right": 253.4666862487793,
+            "bottom": 149.93334579467773,
+            "left": 50.5333366394043
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.5333366394043,
+            "y": 151.93333435058594,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 151.93333435058594,
+            "right": 253.4666862487793,
+            "bottom": 191.9333381652832,
+            "left": 50.5333366394043
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.5333366394043,
+            "y": 193.933349609375,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 193.933349609375,
+            "right": 253.4666862487793,
+            "bottom": 233.93335342407227,
+            "left": 50.5333366394043
+          }
+        },
+        {
+          "id": "browser-tab-button-tab-mvxtqkkb-1",
+          "label": null,
+          "r": {
+            "x": 48.5333366394043,
+            "y": 11.000000953674316,
+            "width": 94.78334045410156,
+            "height": 16,
+            "top": 11.000000953674316,
+            "right": 143.31667709350586,
+            "bottom": 27.000000953674316,
+            "left": 48.5333366394043
+          }
+        },
+        {
+          "id": "",
+          "label": "Sekmeyi kapat",
+          "r": {
+            "x": 143.31668090820312,
+            "y": 5.000000476837158,
+            "width": 28.000001907348633,
+            "height": 28.000001907348633,
+            "top": 5.000000476837158,
+            "right": 171.31668281555176,
+            "bottom": 33.00000238418579,
+            "left": 143.31668090820312
+          }
+        },
+        {
+          "id": "browserTabNew",
+          "label": "Yeni sekme · Ctrl+T",
+          "r": {
+            "x": 176.85000610351562,
+            "y": 3.000000238418579,
+            "width": 32,
+            "height": 32,
+            "top": 3.000000238418579,
+            "right": 208.85000610351562,
+            "bottom": 35.00000023841858,
+            "left": 176.85000610351562
+          }
+        },
+        {
+          "id": "",
+          "label": "Uygulama ayarları ve araçlar",
+          "r": {
+            "x": 532,
+            "y": 4,
+            "width": 30.000001907348633,
+            "height": 30.000001907348633,
+            "top": 4,
+            "right": 562.0000019073486,
+            "bottom": 34.00000190734863,
+            "left": 532
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 348.5333557128906,
+            "y": 127.93334197998047,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 127.93334197998047,
+            "right": 551.4667053222656,
+            "bottom": 167.93334579467773,
+            "left": 348.5333557128906
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 348.5333557128906,
+            "y": 169.933349609375,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 169.933349609375,
+            "right": 551.4667053222656,
+            "bottom": 209.93335342407227,
+            "left": 348.5333557128906
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 348.5333557128906,
+            "y": 211.933349609375,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 211.933349609375,
+            "right": 551.4667053222656,
+            "bottom": 251.93335342407227,
+            "left": 348.5333557128906
+          }
+        }
+      ]
+    },
+    {
+      "name": "browser-settings-narrow",
+      "file": "<WORKTREE>\\tmp\\visual-identity\\browser-player-after-1793537193374\\browser-settings-narrow.png",
+      "width": 720,
+      "height": 800,
+      "mode": "browser",
+      "overflow": false,
+      "homeAbove": false,
+      "settingsVisible": true,
+      "transportOpen": false,
+      "transportMenu": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "transportOpacity": "0",
+      "videoReady": 4,
+      "videoTime": 5.301896,
+      "header": [
+        {
+          "id": "",
+          "label": "Whisper uygulama menüsü",
+          "r": {
+            "x": 10.000000953674316,
+            "y": 4,
+            "width": 30.000001907348633,
+            "height": 30.000001907348633,
+            "top": 4,
+            "right": 40.00000286102295,
+            "bottom": 34.00000190734863,
+            "left": 10.000000953674316
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.5333366394043,
+            "y": 35.5333366394043,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 35.5333366394043,
+            "right": 253.4666862487793,
+            "bottom": 75.53334045410156,
+            "left": 50.5333366394043
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.5333366394043,
+            "y": 109.93334197998047,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 109.93334197998047,
+            "right": 253.4666862487793,
+            "bottom": 149.93334579467773,
+            "left": 50.5333366394043
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.5333366394043,
+            "y": 151.93333435058594,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 151.93333435058594,
+            "right": 253.4666862487793,
+            "bottom": 191.9333381652832,
+            "left": 50.5333366394043
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 50.5333366394043,
+            "y": 193.933349609375,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 193.933349609375,
+            "right": 253.4666862487793,
+            "bottom": 233.93335342407227,
+            "left": 50.5333366394043
+          }
+        },
+        {
+          "id": "browser-tab-button-tab-mvxtqkkb-1",
+          "label": null,
+          "r": {
+            "x": 48.5333366394043,
+            "y": 11.000000953674316,
+            "width": 94.78334045410156,
+            "height": 16,
+            "top": 11.000000953674316,
+            "right": 143.31667709350586,
+            "bottom": 27.000000953674316,
+            "left": 48.5333366394043
+          }
+        },
+        {
+          "id": "",
+          "label": "Sekmeyi kapat",
+          "r": {
+            "x": 143.31668090820312,
+            "y": 5.000000476837158,
+            "width": 28.000001907348633,
+            "height": 28.000001907348633,
+            "top": 5.000000476837158,
+            "right": 171.31668281555176,
+            "bottom": 33.00000238418579,
+            "left": 143.31668090820312
+          }
+        },
+        {
+          "id": "browser-tab-settings-button",
+          "label": null,
+          "r": {
+            "x": 179.3833465576172,
+            "y": 11.000000953674316,
+            "width": 82.93333435058594,
+            "height": 16,
+            "top": 11.000000953674316,
+            "right": 262.3166809082031,
+            "bottom": 27.000000953674316,
+            "left": 179.3833465576172
+          }
+        },
+        {
+          "id": "",
+          "label": "Ayarlar sekmesini kapat",
+          "r": {
+            "x": 262.3166809082031,
+            "y": 5.000000476837158,
+            "width": 28.000001907348633,
+            "height": 28.000001907348633,
+            "top": 5.000000476837158,
+            "right": 290.31668281555176,
+            "bottom": 33.00000238418579,
+            "left": 262.3166809082031
+          }
+        },
+        {
+          "id": "browserTabNew",
+          "label": "Yeni sekme · Ctrl+T",
+          "r": {
+            "x": 295.8500061035156,
+            "y": 3.000000238418579,
+            "width": 32,
+            "height": 32,
+            "top": 3.000000238418579,
+            "right": 327.8500061035156,
+            "bottom": 35.00000023841858,
+            "left": 295.8500061035156
+          }
+        },
+        {
+          "id": "",
+          "label": "Uygulama ayarları ve araçlar",
+          "r": {
+            "x": 532,
+            "y": 4,
+            "width": 30.000001907348633,
+            "height": 30.000001907348633,
+            "top": 4,
+            "right": 562.0000019073486,
+            "bottom": 34.00000190734863,
+            "left": 532
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 348.5333557128906,
+            "y": 127.93334197998047,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 127.93334197998047,
+            "right": 551.4667053222656,
+            "bottom": 167.93334579467773,
+            "left": 348.5333557128906
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 348.5333557128906,
+            "y": 169.933349609375,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 169.933349609375,
+            "right": 551.4667053222656,
+            "bottom": 209.93335342407227,
+            "left": 348.5333557128906
+          }
+        },
+        {
+          "id": "",
+          "label": null,
+          "r": {
+            "x": 348.5333557128906,
+            "y": 211.933349609375,
+            "width": 202.933349609375,
+            "height": 40.000003814697266,
+            "top": 211.933349609375,
+            "right": 551.4667053222656,
+            "bottom": 251.93335342407227,
+            "left": 348.5333557128906
+          }
+        }
+      ]
+    },
+    {
+      "name": "player-narrow",
+      "file": "<WORKTREE>\\tmp\\visual-identity\\browser-player-after-1793537193374\\player-narrow.png",
+      "width": 720,
+      "height": 800,
+      "mode": "player",
+      "overflow": false,
+      "homeAbove": false,
+      "settingsVisible": false,
+      "transportOpen": false,
+      "transportMenu": {
+        "x": 397.4666748046875,
+        "y": 185.933349609375,
+        "width": 260,
+        "height": 345.0666809082031,
+        "top": 185.933349609375,
+        "right": 657.4666748046875,
+        "bottom": 531.0000305175781,
+        "left": 397.4666748046875
+      },
+      "transportOpacity": "0",
+      "videoReady": 4,
+      "videoTime": 5,
+      "header": [
+        {
+          "id": "playerBack",
+          "label": "Ana sayfa",
+          "r": {
+            "x": 14.000000953674316,
+            "y": 46.000003814697266,
+            "width": 42.000003814697266,
+            "height": 42.000003814697266,
+            "top": 46.000003814697266,
+            "right": 56.00000476837158,
+            "bottom": 88.00000762939453,
+            "left": 14.000000953674316
+          }
+        },
+        {
+          "id": "workspacePlayerMode",
+          "label": null,
+          "r": {
+            "x": 258.5833435058594,
+            "y": 52.000003814697266,
+            "width": 62.64167022705078,
+            "height": 30.000001907348633,
+            "top": 52.000003814697266,
+            "right": 321.22501373291016,
+            "bottom": 82.0000057220459,
+            "left": 258.5833435058594
+          }
+        },
+        {
+          "id": "workspaceBrowserMode",
+          "label": null,
+          "r": {
+            "x": 323.2250061035156,
+            "y": 52.000003814697266,
+            "width": 59.17500305175781,
+            "height": 30.000001907348633,
+            "top": 52.000003814697266,
+            "right": 382.40000915527344,
+            "bottom": 82.0000057220459,
+            "left": 323.2250061035156
+          }
+        },
+        {
+          "id": "playerCatalogEntry",
+          "label": null,
+          "r": {
+            "x": 397.933349609375,
+            "y": 50.000003814697266,
+            "width": 42.06666946411133,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 440.0000190734863,
+            "bottom": 84.00000381469727,
+            "left": 397.933349609375
+          }
+        },
+        {
+          "id": "playerQuickDownload",
+          "label": "Videoyu indir",
+          "r": {
+            "x": 446.0000305175781,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 480.0000305175781,
+            "bottom": 84.00000381469727,
+            "left": 446.0000305175781
+          }
+        },
+        {
+          "id": "playerBookmark",
+          "label": "Aktif cümleyi kaydet",
+          "r": {
+            "x": 486.0000305175781,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 520.0000305175781,
+            "bottom": 84.00000381469727,
+            "left": 486.0000305175781
+          }
+        },
+        {
+          "id": "playerLayoutQuick",
+          "label": "Görünüm düzeni",
+          "r": {
+            "x": 539,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 573,
+            "bottom": 84.00000381469727,
+            "left": 539
+          }
+        },
+        {
+          "id": "playerSidebarToggle",
+          "label": "Altyazı panelini aç/kapat",
+          "r": {
+            "x": 579,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 613,
+            "bottom": 84.00000381469727,
+            "left": 579
+          }
+        },
+        {
+          "id": "",
+          "label": "Diğer araçlar",
+          "r": {
+            "x": 632.0000610351562,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 666.0000610351562,
+            "bottom": 84.00000381469727,
+            "left": 632.0000610351562
+          }
+        },
+        {
+          "id": "playerTaskCenterToggle",
+          "label": "Aktif işleri aç",
+          "r": {
+            "x": 581.4666748046875,
+            "y": 96.53334045410156,
+            "width": 34,
+            "height": 34,
+            "top": 96.53334045410156,
+            "right": 615.4666748046875,
+            "bottom": 130.53334045410156,
+            "left": 581.4666748046875
+          }
+        },
+        {
+          "id": "pdfReaderOpen",
+          "label": "PDF kitap aç",
+          "r": {
+            "x": 621.4666748046875,
+            "y": 96.53334045410156,
+            "width": 34,
+            "height": 34,
+            "top": 96.53334045410156,
+            "right": 655.4666748046875,
+            "bottom": 130.53334045410156,
+            "left": 621.4666748046875
+          }
+        },
+        {
+          "id": "playerHeadSettings",
+          "label": "Ayarlar",
+          "r": {
+            "x": 672.0000610351562,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 706.0000610351562,
+            "bottom": 84.00000381469727,
+            "left": 672.0000610351562
+          }
+        }
+      ]
+    },
+    {
+      "name": "player-transport-menu-narrow",
+      "file": "<WORKTREE>\\tmp\\visual-identity\\browser-player-after-1793537193374\\player-transport-menu-narrow.png",
+      "width": 720,
+      "height": 800,
+      "mode": "player",
+      "overflow": false,
+      "homeAbove": false,
+      "settingsVisible": false,
+      "transportOpen": true,
+      "transportMenu": {
+        "x": 397.4666748046875,
+        "y": 151.93333435058594,
+        "width": 260,
+        "height": 345.0666809082031,
+        "top": 151.93333435058594,
+        "right": 657.4666748046875,
+        "bottom": 497.00001525878906,
+        "left": 397.4666748046875
+      },
+      "transportOpacity": "1",
+      "videoReady": 4,
+      "videoTime": 5.299101,
+      "header": [
+        {
+          "id": "playerBack",
+          "label": "Ana sayfa",
+          "r": {
+            "x": 14.000000953674316,
+            "y": 46.000003814697266,
+            "width": 42.000003814697266,
+            "height": 42.000003814697266,
+            "top": 46.000003814697266,
+            "right": 56.00000476837158,
+            "bottom": 88.00000762939453,
+            "left": 14.000000953674316
+          }
+        },
+        {
+          "id": "workspacePlayerMode",
+          "label": null,
+          "r": {
+            "x": 258.5833435058594,
+            "y": 52.000003814697266,
+            "width": 62.64167022705078,
+            "height": 30.000001907348633,
+            "top": 52.000003814697266,
+            "right": 321.22501373291016,
+            "bottom": 82.0000057220459,
+            "left": 258.5833435058594
+          }
+        },
+        {
+          "id": "workspaceBrowserMode",
+          "label": null,
+          "r": {
+            "x": 323.2250061035156,
+            "y": 52.000003814697266,
+            "width": 59.17500305175781,
+            "height": 30.000001907348633,
+            "top": 52.000003814697266,
+            "right": 382.40000915527344,
+            "bottom": 82.0000057220459,
+            "left": 323.2250061035156
+          }
+        },
+        {
+          "id": "playerCatalogEntry",
+          "label": null,
+          "r": {
+            "x": 397.933349609375,
+            "y": 50.000003814697266,
+            "width": 42.06666946411133,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 440.0000190734863,
+            "bottom": 84.00000381469727,
+            "left": 397.933349609375
+          }
+        },
+        {
+          "id": "playerQuickDownload",
+          "label": "Videoyu indir",
+          "r": {
+            "x": 446.0000305175781,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 480.0000305175781,
+            "bottom": 84.00000381469727,
+            "left": 446.0000305175781
+          }
+        },
+        {
+          "id": "playerBookmark",
+          "label": "Aktif cümleyi kaydet",
+          "r": {
+            "x": 486.0000305175781,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 520.0000305175781,
+            "bottom": 84.00000381469727,
+            "left": 486.0000305175781
+          }
+        },
+        {
+          "id": "playerLayoutQuick",
+          "label": "Görünüm düzeni",
+          "r": {
+            "x": 539,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 573,
+            "bottom": 84.00000381469727,
+            "left": 539
+          }
+        },
+        {
+          "id": "playerSidebarToggle",
+          "label": "Altyazı panelini aç/kapat",
+          "r": {
+            "x": 579,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 613,
+            "bottom": 84.00000381469727,
+            "left": 579
+          }
+        },
+        {
+          "id": "",
+          "label": "Diğer araçlar",
+          "r": {
+            "x": 632.0000610351562,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 666.0000610351562,
+            "bottom": 84.00000381469727,
+            "left": 632.0000610351562
+          }
+        },
+        {
+          "id": "playerTaskCenterToggle",
+          "label": "Aktif işleri aç",
+          "r": {
+            "x": 581.4666748046875,
+            "y": 100.53334045410156,
+            "width": 34,
+            "height": 34,
+            "top": 100.53334045410156,
+            "right": 615.4666748046875,
+            "bottom": 134.53334045410156,
+            "left": 581.4666748046875
+          }
+        },
+        {
+          "id": "pdfReaderOpen",
+          "label": "PDF kitap aç",
+          "r": {
+            "x": 621.4666748046875,
+            "y": 100.53334045410156,
+            "width": 34,
+            "height": 34,
+            "top": 100.53334045410156,
+            "right": 655.4666748046875,
+            "bottom": 134.53334045410156,
+            "left": 621.4666748046875
+          }
+        },
+        {
+          "id": "playerHeadSettings",
+          "label": "Ayarlar",
+          "r": {
+            "x": 672.0000610351562,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 706.0000610351562,
+            "bottom": 84.00000381469727,
+            "left": 672.0000610351562
+          }
+        }
+      ]
+    },
+    {
+      "name": "player-menu-narrow",
+      "file": "<WORKTREE>\\tmp\\visual-identity\\browser-player-after-1793537193374\\player-menu-narrow.png",
+      "width": 720,
+      "height": 800,
+      "mode": "player",
+      "overflow": false,
+      "homeAbove": false,
+      "settingsVisible": false,
+      "transportOpen": false,
+      "transportMenu": {
+        "x": 397.4666748046875,
+        "y": 189.933349609375,
+        "width": 260,
+        "height": 345.0666809082031,
+        "top": 189.933349609375,
+        "right": 657.4666748046875,
+        "bottom": 535.0000305175781,
+        "left": 397.4666748046875
+      },
+      "transportOpacity": "1",
+      "videoReady": 4,
+      "videoTime": 5.299101,
+      "header": [
+        {
+          "id": "playerBack",
+          "label": "Ana sayfa",
+          "r": {
+            "x": 14.000000953674316,
+            "y": 46.000003814697266,
+            "width": 42.000003814697266,
+            "height": 42.000003814697266,
+            "top": 46.000003814697266,
+            "right": 56.00000476837158,
+            "bottom": 88.00000762939453,
+            "left": 14.000000953674316
+          }
+        },
+        {
+          "id": "workspacePlayerMode",
+          "label": null,
+          "r": {
+            "x": 258.5833435058594,
+            "y": 52.000003814697266,
+            "width": 62.64167022705078,
+            "height": 30.000001907348633,
+            "top": 52.000003814697266,
+            "right": 321.22501373291016,
+            "bottom": 82.0000057220459,
+            "left": 258.5833435058594
+          }
+        },
+        {
+          "id": "workspaceBrowserMode",
+          "label": null,
+          "r": {
+            "x": 323.2250061035156,
+            "y": 52.000003814697266,
+            "width": 59.17500305175781,
+            "height": 30.000001907348633,
+            "top": 52.000003814697266,
+            "right": 382.40000915527344,
+            "bottom": 82.0000057220459,
+            "left": 323.2250061035156
+          }
+        },
+        {
+          "id": "playerCatalogEntry",
+          "label": null,
+          "r": {
+            "x": 397.933349609375,
+            "y": 50.000003814697266,
+            "width": 42.06666946411133,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 440.0000190734863,
+            "bottom": 84.00000381469727,
+            "left": 397.933349609375
+          }
+        },
+        {
+          "id": "playerQuickDownload",
+          "label": "Videoyu indir",
+          "r": {
+            "x": 446.0000305175781,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 480.0000305175781,
+            "bottom": 84.00000381469727,
+            "left": 446.0000305175781
+          }
+        },
+        {
+          "id": "playerBookmark",
+          "label": "Aktif cümleyi kaydet",
+          "r": {
+            "x": 486.0000305175781,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 520.0000305175781,
+            "bottom": 84.00000381469727,
+            "left": 486.0000305175781
+          }
+        },
+        {
+          "id": "playerLayoutQuick",
+          "label": "Görünüm düzeni",
+          "r": {
+            "x": 539,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 573,
+            "bottom": 84.00000381469727,
+            "left": 539
+          }
+        },
+        {
+          "id": "playerSidebarToggle",
+          "label": "Altyazı panelini aç/kapat",
+          "r": {
+            "x": 579,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 613,
+            "bottom": 84.00000381469727,
+            "left": 579
+          }
+        },
+        {
+          "id": "",
+          "label": "Diğer araçlar",
+          "r": {
+            "x": 632.0000610351562,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 666.0000610351562,
+            "bottom": 84.00000381469727,
+            "left": 632.0000610351562
+          }
+        },
+        {
+          "id": "playerTaskCenterToggle",
+          "label": "Aktif işleri aç",
+          "r": {
+            "x": 581.4666748046875,
+            "y": 100.53334045410156,
+            "width": 34,
+            "height": 34,
+            "top": 100.53334045410156,
+            "right": 615.4666748046875,
+            "bottom": 134.53334045410156,
+            "left": 581.4666748046875
+          }
+        },
+        {
+          "id": "pdfReaderOpen",
+          "label": "PDF kitap aç",
+          "r": {
+            "x": 621.4666748046875,
+            "y": 100.53334045410156,
+            "width": 34,
+            "height": 34,
+            "top": 100.53334045410156,
+            "right": 655.4666748046875,
+            "bottom": 134.53334045410156,
+            "left": 621.4666748046875
+          }
+        },
+        {
+          "id": "playerHeadSettings",
+          "label": "Ayarlar",
+          "r": {
+            "x": 672.0000610351562,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 706.0000610351562,
+            "bottom": 84.00000381469727,
+            "left": 672.0000610351562
+          }
+        }
+      ]
+    },
+    {
+      "name": "player-settings-narrow",
+      "file": "<WORKTREE>\\tmp\\visual-identity\\browser-player-after-1793537193374\\player-settings-narrow.png",
+      "width": 720,
+      "height": 800,
+      "mode": "player",
+      "overflow": false,
+      "homeAbove": false,
+      "settingsVisible": false,
+      "transportOpen": false,
+      "transportMenu": {
+        "x": 405.4666748046875,
+        "y": 189.933349609375,
+        "width": 260,
+        "height": 345.0666809082031,
+        "top": 189.933349609375,
+        "right": 665.4666748046875,
+        "bottom": 535.0000305175781,
+        "left": 405.4666748046875
+      },
+      "transportOpacity": "1",
+      "videoReady": 4,
+      "videoTime": 5.299101,
+      "header": [
+        {
+          "id": "playerBack",
+          "label": "Ana sayfa",
+          "r": {
+            "x": 14.000000953674316,
+            "y": 46.000003814697266,
+            "width": 42.000003814697266,
+            "height": 42.000003814697266,
+            "top": 46.000003814697266,
+            "right": 56.00000476837158,
+            "bottom": 88.00000762939453,
+            "left": 14.000000953674316
+          }
+        },
+        {
+          "id": "workspacePlayerMode",
+          "label": null,
+          "r": {
+            "x": 258.5833435058594,
+            "y": 52.000003814697266,
+            "width": 62.64167022705078,
+            "height": 30.000001907348633,
+            "top": 52.000003814697266,
+            "right": 321.22501373291016,
+            "bottom": 82.0000057220459,
+            "left": 258.5833435058594
+          }
+        },
+        {
+          "id": "workspaceBrowserMode",
+          "label": null,
+          "r": {
+            "x": 323.2250061035156,
+            "y": 52.000003814697266,
+            "width": 59.17500305175781,
+            "height": 30.000001907348633,
+            "top": 52.000003814697266,
+            "right": 382.40000915527344,
+            "bottom": 82.0000057220459,
+            "left": 323.2250061035156
+          }
+        },
+        {
+          "id": "playerCatalogEntry",
+          "label": null,
+          "r": {
+            "x": 397.933349609375,
+            "y": 50.000003814697266,
+            "width": 42.06666946411133,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 440.0000190734863,
+            "bottom": 84.00000381469727,
+            "left": 397.933349609375
+          }
+        },
+        {
+          "id": "playerQuickDownload",
+          "label": "Videoyu indir",
+          "r": {
+            "x": 446.0000305175781,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 480.0000305175781,
+            "bottom": 84.00000381469727,
+            "left": 446.0000305175781
+          }
+        },
+        {
+          "id": "playerBookmark",
+          "label": "Aktif cümleyi kaydet",
+          "r": {
+            "x": 486.0000305175781,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 520.0000305175781,
+            "bottom": 84.00000381469727,
+            "left": 486.0000305175781
+          }
+        },
+        {
+          "id": "playerLayoutQuick",
+          "label": "Görünüm düzeni",
+          "r": {
+            "x": 539,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 573,
+            "bottom": 84.00000381469727,
+            "left": 539
+          }
+        },
+        {
+          "id": "playerSidebarToggle",
+          "label": "Altyazı panelini aç/kapat",
+          "r": {
+            "x": 579,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 613,
+            "bottom": 84.00000381469727,
+            "left": 579
+          }
+        },
+        {
+          "id": "",
+          "label": "Diğer araçlar",
+          "r": {
+            "x": 632.0000610351562,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 666.0000610351562,
+            "bottom": 84.00000381469727,
+            "left": 632.0000610351562
+          }
+        },
+        {
+          "id": "playerTaskCenterToggle",
+          "label": "Aktif işleri aç",
+          "r": {
+            "x": 581.4666748046875,
+            "y": 100.53334045410156,
+            "width": 34,
+            "height": 34,
+            "top": 100.53334045410156,
+            "right": 615.4666748046875,
+            "bottom": 134.53334045410156,
+            "left": 581.4666748046875
+          }
+        },
+        {
+          "id": "pdfReaderOpen",
+          "label": "PDF kitap aç",
+          "r": {
+            "x": 621.4666748046875,
+            "y": 100.53334045410156,
+            "width": 34,
+            "height": 34,
+            "top": 100.53334045410156,
+            "right": 655.4666748046875,
+            "bottom": 134.53334045410156,
+            "left": 621.4666748046875
+          }
+        },
+        {
+          "id": "playerHeadSettings",
+          "label": "Ayarlar",
+          "r": {
+            "x": 672.0000610351562,
+            "y": 50.000003814697266,
+            "width": 34,
+            "height": 34,
+            "top": 50.000003814697266,
+            "right": 706.0000610351562,
+            "bottom": 84.00000381469727,
+            "left": 672.0000610351562
+          }
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "label": "browser advanced submenu wide",
+      "ok": true
+    },
+    {
+      "label": "browser menu keyboard Escape wide",
+      "ok": true
+    },
+    {
+      "label": "settings title retained without redundant eyebrow wide",
+      "ok": true
+    },
+    {
+      "label": "Home horizontal baseline or accessible narrow icon wide",
+      "ok": true
+    },
+    {
+      "label": "actual play pause wide",
+      "ok": true
+    },
+    {
+      "label": "transport preserves source wide",
+      "ok": true
+    },
+    {
+      "label": "transport menu viewport fit wide",
+      "ok": true
+    },
+    {
+      "label": "transport Escape focus wide",
+      "ok": true
+    },
+    {
+      "label": "browser advanced submenu narrow",
+      "ok": true
+    },
+    {
+      "label": "browser menu keyboard Escape narrow",
+      "ok": true
+    },
+    {
+      "label": "settings title retained without redundant eyebrow narrow",
+      "ok": true
+    },
+    {
+      "label": "Home horizontal baseline or accessible narrow icon narrow",
+      "ok": true
+    },
+    {
+      "label": "actual play pause narrow",
+      "ok": true
+    },
+    {
+      "label": "transport preserves source narrow",
+      "ok": true
+    },
+    {
+      "label": "transport menu viewport fit narrow",
+      "ok": true
+    },
+    {
+      "label": "transport Escape focus narrow",
+      "ok": true
+    },
+    {
+      "label": "no player root horizontal overflow",
+      "ok": true
+    },
+    {
+      "label": "home header contained below player",
+      "ok": true
+    },
+    {
+      "label": "home launcher paints above own hero after isolation",
+      "ok": true
+    }
+  ],
+  "actualApp": true,
+  "isolated": true,
+  "noProvider": true
+}

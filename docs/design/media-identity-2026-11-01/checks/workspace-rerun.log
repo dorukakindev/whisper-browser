@@ -1,0 +1,18 @@
+✔ guide is source-backed, model-free and excludes credentials (3.1112ms)
+✔ large result pages stay valid JSON and are isolated to a turn (4.1266ms)
+✔ book search scans actual batches with exact page IDs and detects stale reads (676.4045ms)
+✔ research owns only its workspace and reports failed pages without fake absence (1.0197ms)
+✔ MCP is explicitly configured, read-only, authenticated and rejects browser origins (35.5258ms)
+✔ run cards preserve disclosures and render untrusted tool identifiers as text (85.3137ms)
+✔ provider can retrieve a large result without losing its tail or calling arbitrary actions (6.3023ms)
+✔ failed registered checks get one evidence repair, never an automatic mutation retry (1.4201ms)
+✔ stdio MCP adapter interoperates with the opt-in read-only bridge (130.7629ms)
+✔ persisted activity strips argument payloads and preserves only bounded actual step states (2.6231ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1482.32
