@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-01-1959.md](docs/devir/2026-11-01-1959.md) — Ana sohbete aktarım: odak ve tam tarihsel rapor ZIP'leri, yollar ve belge durum indeksi; ürün değişikliği yok
 Güncel çalışma: [docs/devir/2026-11-01-1944.md](docs/devir/2026-11-01-1944.md) — Sinematik medya hiyerarşisi; üst menü, film/yorum, asistan, browser/player ve native kabul
 Güncel çalışma: [docs/devir/2026-11-01-1547.md](docs/devir/2026-11-01-1547.md) — R842: medya kütüphanesi/asistan/Browser için37yeni mekanizma; RSS için26karar, kod ve tasarım örnekleri; yalnız rapor
 Güncel çalışma: [docs/devir/2026-11-01-1517.md](docs/devir/2026-11-01-1517.md) — R841: asistan/Browser/Keşfet için29repo,73kart ve5gerçek görüntü; yalnız araştırma, düzeltme yok
