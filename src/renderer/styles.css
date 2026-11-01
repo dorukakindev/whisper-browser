@@ -7324,7 +7324,7 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
 .player-layer:not(.workspace-browser) .player-controls {
   padding: 30px 20px 16px;
   gap: 10px;
-  background: linear-gradient(to top, rgb(8 9 11 / .96), rgb(8 9 11 / .64) 56%, transparent);
+  background: linear-gradient(to top, rgb(var(--media-transport-ink-rgb) / .96), rgb(var(--media-transport-ink-rgb) / .64) 56%, transparent);
 }
 .player-layer:not(.workspace-browser) .player-controls .pc-group {
   gap: 7px;
@@ -7335,7 +7335,7 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
   backdrop-filter: none;
 }
 .player-layer:not(.workspace-browser) .player-controls .btn-icon:hover:not(:disabled) {
-  background: rgb(255 255 255 / .12);
+  background: rgb(var(--media-highlight-rgb) / .12);
 }
 .player-layer:not(.workspace-browser) .player-controls #playPause {
   width: 44px;
@@ -7358,7 +7358,7 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
 .player-layer:not(.workspace-browser) .player-controls .player-speed-menu > summary {
   background: transparent;
   border-radius: 7px;
-  border-color: rgb(255 255 255 / .2);
+  border-color: rgb(var(--media-highlight-rgb) / .2);
   backdrop-filter: none;
 }
 .player-layer:not(.workspace-browser) .player-more-menu {
