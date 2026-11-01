@@ -18,7 +18,7 @@
     mounted.get(host)?.dispose();
     identity=identity||{catalogId:item.id};
     const owner={sourceToken:'personal-ui:'+crypto.randomUUID()},root=el('section','pm-panel');root.dataset.uiUntranslated='';root.setAttribute('aria-label',t('My viewing','İzleme durumum'));host.append(root);
-    let disposed=false,epoch=0,pending=false,value=item.personalMedia||null,preview=null;
+    let disposed=false,epoch=0,pending=true,value=item.personalMedia||null,preview=null;
     const abort=new AbortController(),alive=()=>!disposed&&root.isConnected;
     const api=async(action,input={})=>{const result=await window.api.personalMedia({action,...input});if(!result?.ok)throw Error(result?.error||t('Could not save your viewing details.','İzleme bilgilerin kaydedilemedi.'));return result;};
     const notice=message=>{if(alive()){const status=root.querySelector('.pm-status');if(status)status.textContent=message;}};
@@ -34,13 +34,13 @@
     }
     function changeLines(changes){const lines=[];if(Object.hasOwn(changes,'watchStatus'))lines.push(t('Viewing: ','İzleme: ')+statusName(changes.watchStatus));if(Object.hasOwn(changes,'reaction'))lines.push(t('Reaction: ','Tepki: ')+(reactionName(changes.reaction)||t('Cleared','Kaldırıldı')));if(changes.episode)lines.push(t(`Season ${changes.episode.season} · Episode ${changes.episode.number}`,`Sezon ${changes.episode.season} · Bölüm ${changes.episode.number}`));if(Object.hasOwn(changes,'positionSeconds'))lines.push(t('Continue from: ','Devam konumu: ')+time(changes.positionSeconds));if(Object.hasOwn(changes,'note'))lines.push(t('Note: ','Not: ')+(changes.note||t('Cleared','Kaldırıldı')));return lines;}
     function drawPreview(info){
-      const box=el('section','pm-preview');box.setAttribute('aria-label',t('Confirm personal changes','Kişisel değişiklikleri onayla'));box.append(el('strong','',t('Save these changes?','Bu değişiklikler kaydedilsin mi?')));
+      const box=el('section','pm-preview');box.setAttribute('aria-label',t('Confirm personal changes','Kişisel değişiklikleri onayla'));box.append(el('strong','',t('Save these changes?','Bu değişiklikler kaydedilsin mi?')),el('p','pm-target',info?.title||item.title||''));
       const list=el('ul');for(const line of changeLines(preview.changes))list.append(el('li','',line));box.append(list);
       if(info?.createPersonalRecord)box.append(el('p','pm-muted',t('A personal library record will be created for this title. No video is downloaded.','Bu yapım için kütüphanede kişisel kayıt oluşturulacak. Video indirilmez.')));
       const actions=el('div','pm-actions');actions.append(button(t('Confirm save','Kaydetmeyi onayla'),async()=>{
         const exact=preview;if(!exact)return;const ticket=++epoch;
         const result=await api('apply',{token:exact.token,owner});if(!alive()||ticket!==epoch)return;
-        value=result.item;preview=null;draw();notice(t('Viewing details saved.','İzleme bilgilerin kaydedildi.'));
+        value=result.item;preview=null;draw();notice(result.networkSync?.ok===false?t('Saved. Taste network could not be updated; your viewing details are safe.','Kaydedildi. Zevk ağı güncellenemedi; izleme bilgilerin korundu.'):t('Viewing details saved.','İzleme bilgilerin kaydedildi.'));
         document.dispatchEvent(new CustomEvent('media-personal-changed',{detail:{identity:value.identity,catalogId:value.catalogId,personalMedia:value}}));
         if(alive())onChanged?.(value);
       },'pm-confirm'),button(t('Cancel','Vazgeç'),()=>{preview=null;draw();}));box.append(actions);root.append(box);controls();
@@ -59,23 +59,23 @@
       const resume=value?.manualResume,episode=(value?.episodes||[]).find(row=>row.id===resume?.episodeId),series=(value?.kind||item.kind)==='series';
       const row=el('div','pm-resume');let season,number;
       if(series){season=field(t('Season','Sezon'),'number',resume?.season??episode?.season??'',{min:'0',max:'1000',step:'1'});number=field(t('Episode','Bölüm'),'number',resume?.number??episode?.number??'',{min:'1',max:'10000',step:'1'});row.append(season.wrap,number.wrap);}
-      const position=field(t('Time (hh:mm:ss)','Konum (ss:dd:sn)'),'text',resume?time(resume.positionSeconds):'',{placeholder:'00:00:00',maxLength:12});position.input.inputMode='numeric';row.append(position.wrap);form.append(row);
+      const position=field(t('Continue from (mm:ss)','Devam konumu (dk:sn)'),'text',resume?time(resume.positionSeconds):'',{placeholder:'12:30',maxLength:12});position.input.inputMode='numeric';row.append(position.wrap);form.append(row);
       const initial=[season?.input.value,number?.input.value,position.input.value].join('|');
       form.append(button(t('Preview changes','Değişiklikleri önizle'),()=>{
         if(!form.reportValidity())return;const changes={};if(note.input.value!==(value?.note||''))changes.note=note.input.value;
         if([season?.input.value,number?.input.value,position.input.value].join('|')!==initial){
           if(series){if(!season.input.value||!number.input.value)throw Error(t('Enter both season and episode.','Sezon ve bölümün ikisini de girin.'));changes.episode={season:Number(season.input.value),number:Number(number.input.value)};}
-          const text=position.input.value.trim();if(text){const match=/^(\d{1,4}):([0-5]\d):([0-5]\d)$/.exec(text);if(!match)throw Error(t('Use hh:mm:ss, for example 00:42:15.','ss:dd:sn biçimini kullanın; örnek: 00:42:15.'));changes.positionSeconds=Number(match[1])*3600+Number(match[2])*60+Number(match[3]);}
+          const text=position.input.value.trim();if(text){const match=/^(?:(\d{1,4}):)?(\d{1,4}):([0-5]\d)$/.exec(text);if(!match||(match[1]!==undefined&&Number(match[2])>59))throw Error(t('Use mm:ss or hh:mm:ss, for example 12:30.','dk:sn veya sa:dk:sn biçimini kullanın; örnek: 12:30.'));changes.positionSeconds=Number(match[1]||0)*3600+Number(match[2])*60+Number(match[3]);}
           else if(!series)throw Error(t('Enter a time to continue from.','Devam edilecek konumu girin.'));
         }
         return stage(changes);
       }));disclosure.append(form);root.append(disclosure);
       const status=el('p','pm-status');status.setAttribute('role','status');status.setAttribute('aria-live','polite');root.append(status);controls();
     }
-    async function reload(){const ticket=++epoch;preview=null;try{const result=await api('get',{identity});if(!alive()||ticket!==epoch)return;value=result.item;draw();}catch(error){if(alive()&&ticket===epoch)notice(error.message);}}
+    async function reload(){const ticket=++epoch;preview=null;try{const result=await api('get',{identity});if(!alive()||ticket!==epoch)return;value=result.item;draw();}catch(error){if(alive()&&ticket===epoch)notice(error.message);}finally{if(alive()&&ticket===epoch){pending=false;controls();}}}
     function dispose(){disposed=true;epoch++;abort.abort();root.remove();mounted.delete(host);}
     draw();void reload();
-    document.addEventListener('media-personal-changed',()=>{if(alive()&&!pending)void reload();},{signal:abort.signal});
+    document.addEventListener('media-personal-changed',event=>{const detail=event.detail;if(detail?.catalogId&&detail.catalogId!==value?.catalogId)return;if(alive()&&!pending&&!root.querySelector('details[open]')&&!preview)void reload();},{signal:abort.signal});
     const controller={dispose,reload};mounted.set(host,controller);return controller;
   }
   window.PersonalMediaUI=Object.freeze({mount,summary});
