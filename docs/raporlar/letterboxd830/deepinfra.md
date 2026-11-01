@@ -1,0 +1,23 @@
+# DeepInfra e-postası — salt okunur inceleme
+
+İncelenen ürün: `D:\Whisper Local`, master `6d4c2d661257263f0f9414b2bdf8ba53f84513c9`. Bu incelemede ürün/model/ayar değiştirilmedi; anahtar, kişisel ayar veya e-posta hesabı okunmadı; ücretli API çağrısı yapılmadı. Alt ajana tam e-posta gövdesi verilmedi; görev özeti bunun onboarding metni olduğunu ve örnekte unsuffixed model kullandığını belirtiyor. E-postanın gerçekliği ve neden tam o tarihte o kullanıcıya gönderildiği başlıklar/sağlayıcı kampanya kaydı olmadan doğrulanamaz. Genel kullanım önerisi içeren onboarding metni tek başına uygulama hatası veya yanlış API kullanımı kanıtı değildir.
+
+## Kodun gösterdiği durum
+
+- `src/assistant-settings.js:3–6`: varsayılan base URL `https://api.deepinfra.com/v1/openai`, model `deepseek-ai/DeepSeek-V4.1-Flash-1017`. Ayrı asistan ayarı veya miras alınan mevcut ayar bunları geçersiz kılabilir; kişisel kayıt okunmadığından bunlar **kod varsayılanıdır**, o anki hesabın ölçülmüş etkin ayarı değildir. Model adı istek gövdesine aynen aktarılır.
+- `src/assistant-provider.js:5–8,88–107`: gerçek Chat Completions adresi `/v1/openai/chat/completions`; asistan (film yorum analizi dahil) `stream:true` ile başlar. SSE parçalarını okuyup ekrana aktarır; ilk istekte4xx yanıtı açıkça stream desteğini reddederse JSON/non-streaming uyumluluk denemesi yapar. Dolayısıyla “streaming kullan” önerisi asistan için zaten uygulanıyor. `backend/assistant_stream.py:141–180` eski Python sohbet yolunda da stream kullanır. Altyazı çevirisi/tekil açıklama gibi bütün uygulama işlerinin stream olması ayrı bir gereksinimdir; örneğin `backend/transcribe.py:8912` tekil açıklamayı normal Chat Completion ile okur.
+- DeepInfra için `service_tier:'flex'` varsayılanı var; kullanıcı standard seçerse eklenmez (`assistant-settings.js:5`). Asistan DeepInfra timeout'u12dakika. Flex bir öncelik/hız garantisi değildir; streaming açmak sağlayıcı kapasite bekleme süresini kaldırmaz.
+- `assistant-provider.js:72–86`: uzun sabit uygulama talimatları önde; ilk system mesajının sonunda değişken `Source manifest` (başlık/aralık/oynatma zamanı vb.), sonra review sözleşmesi (gerekiyorsa), sağlanan kaynak verisi, continuation, sohbet geçmişi ve en sonda yeni soru var. Her turda tools dizisi bağlama göre seçilir. Bu düzen **önbelleksiz** değildir: ilk sabit talimat kısmı tekrar kullanılabilir. Ancak erken değişen manifest ve kaynak, ardından gelen ortak geçmişin daha uzun bir prefix olarak yeniden kullanımını azaltabilir.
+- Bu yolda `prompt_cache_key`, `prompt_cache_options`, `prompt_cache_breakpoint` veya `stream_options.include_usage` gönderilmiyor; `usage.prompt_tokens_details.cached_tokens` okunup raporlanmıyor. Gerçek hit oranı/maliyet kazancı ölçülmedi. Yerel altyazı çeviri önbelleği (`translate-cache.json`/translation memory) sağlayıcının KV-prefix önbelleğinden farklıdır.
+
+## Resmî kaynaklarla karşılaştırma
+
+[DeepInfra1017 API sayfası](https://deepinfra.com/deepseek-ai/DeepSeek-V4.1-Flash-1017/api) aynı endpoint/model adını ve `stream:true` SSE kullanımını belgeliyor;1017'yi V4.1-Flash'ın küçük güncellemesi olarak tanımlıyor. [Unsuffixed modelin ayrı API sayfası](https://deepinfra.com/deepseek-ai/DeepSeek-V4.1-Flash/api) da mevcut. Bunlardan iki adın kesin alias olduğu veya bizim modelin yanlış olduğu sonucu çıkmaz; e-postadaki örnek için modeli değiştirmek gerekmez.
+
+[Prompt caching belgesi](https://docs.deepinfra.com/chat/prompt-caching): desteklenen modellerde prefix caching otomatik, ek bayrak zorunlu değil. Aynı model/hesapta sabit başlangıç yararlı; değişken bölümü sona almak daha fazla tekrar kullanım sağlayabilir. İsteğe bağlı session cache key var; isabeti `usage.prompt_tokens_details.cached_tokens` ile kontrol etmek gerekiyor. Bu nedenle mevcut kodda cache parametresi olmaması bir bağlantı hatası değildir.
+
+[Retention belgesi](https://docs.deepinfra.com/chat/prompt-cache-retention):5dakika/1saat TTL ayrı ücretli yazma seçeneği; güncel destek tablosu yalnız Nemotron3Ultra ve KimiK2.7Code listeliyor. DeepSeek'e körlemesine retention/TTL eklemek önerilmez. [Streaming belgesi](https://docs.deepinfra.com/chat/streaming) de standart SSE/stream:true yolunu doğruluyor.
+
+## Karar
+
+Bu e-postaya dayanarak doğrulanmış yeni işlevsel bug yok; endpoint,1017 model adı ve asistan streaming kodu resmî örnekle uyumlu. Anlamlı sonraki iyileştirme, istenirse, sabit güvenlik/talimat önekini koruyup değişken manifest/kaynak sırasını ölçmek ve güvenli usage/cache-hit telemetrisi eklemek olur. Bu **ölçülmemiş optimizasyon fırsatıdır**, cache tamamen kapalı veya fatura yanlış iddiası değildir. Şimdiki görevde herhangi bir değişiklik, canlı cache deneyi veya hesap/fatura incelemesi yapılmadı.

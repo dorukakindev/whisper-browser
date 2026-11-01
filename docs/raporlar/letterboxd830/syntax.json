@@ -1,0 +1,42 @@
+[
+  {
+    "file": "src/letterboxd-auto.js",
+    "exit": 0
+  },
+  {
+    "file": "src/letterboxd-browser-reader.js",
+    "exit": 0
+  },
+  {
+    "file": "src/letterboxd-reviews.js",
+    "exit": 0
+  },
+  {
+    "file": "src/main.js",
+    "exit": 0
+  },
+  {
+    "file": "src/media-tools-service.js",
+    "exit": 0
+  },
+  {
+    "file": "src/renderer/media-tools-model.js",
+    "exit": 0
+  },
+  {
+    "file": "src/renderer/review-decision-ui.js",
+    "exit": 0
+  },
+  {
+    "file": "tests/media-tools.test.js",
+    "exit": 0
+  },
+  {
+    "file": "tests/letterboxd-full-text.test.js",
+    "exit": 0
+  },
+  {
+    "file": "tests/electron-letterboxd-full830.smoke.js",
+    "exit": 0
+  }
+]
