@@ -1,0 +1,479 @@
+[
+  {
+    "id": "B842-01",
+    "title": "Açık sayfadan tekrar giriş istemeden gerçek okuma kaydı",
+    "classification": "OLD-DEEPENING",
+    "priorReferences": [
+      "R76-6.4",
+      "B841-11",
+      "R839-A01"
+    ],
+    "sourceReferences": [
+      {
+        "repo": "omnivore-app/omnivore",
+        "head": "29de91e8e43d8f546af398b6b0138dc6aba052bc",
+        "path": "packages/api/src/services/save_page.ts",
+        "symbol": "export const savePage",
+        "line": 77,
+        "url": "https://github.com/omnivore-app/omnivore/blob/29de91e8e43d8f546af398b6b0138dc6aba052bc/packages/api/src/services/save_page.ts#L77"
+      }
+    ],
+    "sourceObserved": "savePage istemcinin originalContent alanını PreparedDocumentInput olarak parsePreparedContent yoluna veriyor; FORCE_PUPPETEER_URLS bazı kaynakları yeniden backend okumaya yönlendiriyor. Her URL için istemci HTML’i yeterlidir iddiası yok.",
+    "productSynthesis": "Film röportajını açık sekmenin görülen revizyonundan alıp okunabilir makale varlığı olarak kütüphaneye ekleme; kaynak sayfa ve makale kimliği ayrı, kullanıcı hangi metni aldığını önizler.",
+    "localDifference": "BrowserReadingList.prepare/commit MHTML kaydediyor; runBrowserPageIndexCapture okunabilir arama metni yakalıyor. R76§6.4 MHTML+page-index birleşimini, B841-11 kaynak paketini zaten önermişti. Ayrı makale lifecycle’ının üründe bulunmadığı kanıtlanmadığından NEW sayılmıyor; prepared-document edinim sözleşmesi bu fikrin derinleşmesidir.",
+    "acquisition": "AGPL-3.0 kaynak; doğrudan uyarlama için dağıtım şartları değerlendirilir. Önce bağımsız prepared-document sözleşmesi, mevcut reader/parser hattı; tüm Omnivore servisi eklenmez.",
+    "mediaUX": "Grafit panelde başlık, kaynak, metin önizlemesi ve filmle ilişkilendir eylemi; EN/TR etiket. Kaydetmeden model gerekmez.",
+    "effort": "Orta: 3–5 gün pilot",
+    "acceptance": "Girişli örnek sayfa yeniden ağ isteği gerektirmeden seçilmiş metni kaydeder; SPA sayfa değişirse önceki revizyon yanlış filmle bağlanmaz; iptalde kayıt oluşmaz.",
+    "limits": "Windows WebContents yakalama ve büyük HTML sınırı gerekir; CSP temizlenmiş içerik ister. Paywall/DRM aşma veya bütün site uyumu doğrulanmadı.",
+    "evidenceLevel": "Pinned source read; not built, installed or UI verified"
+  },
+  {
+    "id": "B842-02",
+    "title": "Haricî Edge/Chrome’dan medya kütüphanesine tek seferlik gönderim",
+    "classification": "NEW",
+    "priorReferences": [],
+    "sourceReferences": [
+      {
+        "repo": "wxt-dev/wxt",
+        "head": "66897f0d189ae9236d40a08ecea329c2455444a6",
+        "path": "packages/wxt/src/utils/content-script-ui/shadow-root.ts",
+        "symbol": "export async function createShadowRootUi",
+        "line": 20,
+        "url": "https://github.com/wxt-dev/wxt/blob/66897f0d189ae9236d40a08ecea329c2455444a6/packages/wxt/src/utils/content-script-ui/shadow-root.ts#L20"
+      }
+    ],
+    "sourceObserved": "createShadowRootUi izole stil, mount/remove ve context invalidation temizliği içeriyor. ContentScriptContext eski betikleri durduruyor; demo locationchange dinliyor. WXT hazır Whisper köprüsü veya sayfa kaydetme ürünü değil.",
+    "productSynthesis": "Kullanıcının normal tarayıcısında seçtiği röportajı, altyazı bağlantısını veya festival programını Whisper gelen kutusuna gönderen küçük companion extension. Tam tarayıcıyı değiştirmek gerekmez.",
+    "localDifference": "preload/main yalnız uygulama içi IPC sağlar; browser-session-package uygulama oturumu taşır. Haricî tarayıcıdan kullanıcı seçimiyle gelen payload için ayrı giriş adaptörü gerekecek.",
+    "acquisition": "MIT WXT ile ayrı paket prototipi; Native Messaging veya açık paket dosyası yolunu önce karşılaştır. Masaüstü protokol kaydı bu araştırmada yapılmadı.",
+    "mediaUX": "Sayfa üstü küçük grafit/amber önizleme; kaynak adı, seçili metin ve hedef film görünür. Kaydet kullanıcı eylemidir; bütün sekmeler otomatik okunmaz.",
+    "effort": "Büyük: 1–2 hafta pilot",
+    "acceptance": "Edge SPA gezinmesinde iki kopya buton oluşmaz; gönderilen URL/metin tek öğeye bağlanır; Whisper kapalıysa kullanıcıya tekrar açılabilir bekleyen paket kalır.",
+    "limits": "Windows Native Messaging kayıt/kurulum ve CSP ayrıca doğrulanır; extension store dağıtımı, mobile ve Firefox uyumu kabul edilmedi. Sağlayıcı anahtarı extension’a taşınmaz.",
+    "evidenceLevel": "Pinned source read; not built, installed or UI verified"
+  },
+  {
+    "id": "B842-03",
+    "title": "Web PDF’sini sayfa metni sanmadan dosya ve okunabilir belge olarak alma",
+    "classification": "NEW",
+    "priorReferences": [],
+    "sourceReferences": [
+      {
+        "repo": "steel-dev/steel-browser",
+        "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+        "path": "api/src/modules/actions/actions.controller.ts",
+        "symbol": "export const handleScrape",
+        "line": 75,
+        "url": "https://github.com/steel-dev/steel-browser/blob/9fb9b9239325794b3e2d2a56c7e54c400a7d30bd/api/src/modules/actions/actions.controller.ts#L75"
+      }
+    ],
+    "sourceObserved": "handleScrape safeGoto sonucunu ve content-type’ı kullanarak PDF/JSON/HTML yollarını ayırıyor; PDF fetchPdf ile alınarak MuPDF dönüşümü ve metadata/links üretiliyor. pdfAcquisition kaynak yöntemi kaydediliyor.",
+    "productSynthesis": "Film basın dosyası veya senaryo PDF’si Browser’dan kaydedilirken belge öğesi, özgün dosya ve okunabilir metin ilişkili oluşur; asistan boş PDF-viewer DOM’unu özetlemez.",
+    "localDifference": "main whisper-pdf protokolü ve mevcut PDF reader/çeviri hattı, media shelf PDF/EPUB içeriyor. Eksik olduğu iddia edilen PDF desteği değil; web yakalama ile bu dosya kimliğine tür temelli devir.",
+    "acquisition": "Apache-2.0 Steel algoritma referansı; fetch ve mevcut PDF araçlarına küçük adaptör. MuPDF ticari/AGPL koşulları ayrıca incelenmeden paket alınmaz.",
+    "mediaUX": "Kütüphanede belge rozeti, sayfa sayısı ve özgün kaynak; PDF oku ve metinle sor aynı kartta.",
+    "effort": "Orta: 4–6 gün",
+    "acceptance": "application/pdf dönen uzantısız URL PDF olarak ele alınır; özgün URL, indirilen byte ve okuyucu kimliği eşleşir; bozuk belge boş başarı dönmez.",
+    "limits": "Windows dosya izinleri ve Türkçe adlar, kaynak oturumuyla fetch ayrı kabul gerekir. DRM/erişim hakkı engeli aşılmaz; PDF düzeni doğruluğu ölçülmedi.",
+    "evidenceLevel": "Pinned source read; not built, installed or UI verified"
+  },
+  {
+    "id": "B842-04",
+    "title": "Tamamlanan indirmeyi kaynağıyla kütüphane taslağına devretme",
+    "classification": "NEW",
+    "priorReferences": [],
+    "sourceReferences": [
+      {
+        "repo": "browser-use/browser-use",
+        "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+        "path": "browser_use/browser/watchdogs/downloads_watchdog.py",
+        "symbol": "async def _handle_cdp_download",
+        "line": 937,
+        "url": "https://github.com/browser-use/browser-use/blob/b49a68e4060acb226da8f784194fef301c53a6d7/browser_use/browser/watchdogs/downloads_watchdog.py#L937"
+      }
+    ],
+    "sourceObserved": "DownloadsWatchdog CDP indirme yaşam döngüsü ve son dosya yolunu takip ediyor; tools.service içindeki done yalnız gerçek session downloads listesini ek olarak iliştiriyor. İndirme başlatıldı ile çıktı var ayrımı kodda var.",
+    "productSynthesis": "Asistanın bulduğu yasal fragman, söyleşi sesi, EPUB veya altyazı indirildiğinde bir import taslağı: kaynak URL, yerel dosya ve bağlanacak film; dosya seçiciyi tekrar gezmeden kütüphaneye ekle.",
+    "localDifference": "createBrowserDownloads zaten progress/pause/resume/reveal/open-player ve terminal kalıcılığı sunuyor; URL/cookie bilerek tutmuyor. Yenilik indirme yönetimi değil, kısa ömürlü provenance→kütüphane devri.",
+    "acquisition": "MIT mekanizma Node/Electron will-download sonlandırıcısına uyarlanır; Python watchdog veya bütün browser-use bağımlılığı alınmaz.",
+    "mediaUX": "Bitti kartında oynat yanında kütüphaneye ekle; kitap PDF/EPUB, video oynatıcı, altyazı ilgili medya rotasına gider.",
+    "effort": "Orta: 3–5 gün",
+    "acceptance": "Kesilen indirme öğe üretmez; taşınan dosya yeniden bulunabilir; aynı indirme iki kez eklenmez; mevcut native overwrite diyaloğu sürer.",
+    "limits": "Windows uzun/Türkçe dosya yolları ve dosya türü doğrulanır. İndirme yetkisi otomatik transkripsiyon/model ücretine izin sayılmaz; provider çağrısı ayrı eylem.",
+    "evidenceLevel": "Pinned source read; not built, installed or UI verified"
+  },
+  {
+    "id": "B842-05",
+    "title": "Bir sayfa listesini eklemeden önce gerçek örnekleri gösterme",
+    "classification": "NEW",
+    "priorReferences": [],
+    "sourceReferences": [
+      {
+        "repo": "ArchiveBox/ArchiveBox",
+        "head": "09041760bc0fe25eb584e62cc9c7756e85ff855e",
+        "path": "archivebox/importers/service.py",
+        "symbol": "def enqueue(",
+        "line": 32,
+        "url": "https://github.com/ArchiveBox/ArchiveBox/blob/09041760bc0fe25eb584e62cc9c7756e85ff855e/archivebox/importers/service.py#L32"
+      }
+    ],
+    "sourceObserved": "enqueue PREVIEW için limiti min(source.limit,20) yapıyor; feed/settings/checkpoint request snapshot’ı oluşturuyor. Uygun başarılı preview sayısı gerçek import isteğine eklenebiliyor.",
+    "productSynthesis": "Bir yönetmen röportajları listesinde önce en çok 20 aday başlık, tür ve URL; kullanıcı film ilişkilerini ve hariç bırakacaklarını seçtikten sonra gerçek toplu kütüphane alma. Gizli crawl yerine reviewable aday listesi.",
+    "localDifference": "assistant-browser-research ilk4 arama URL’sinden3 sayfa okuyor; koleksiyon üyeliği hazır. Bu pilot kaynak keşif grafiği değil, seçilmiş importer çıktısının önizleme/commit ayrımı.",
+    "acquisition": "MIT iş modeli bağımsız Node sözleşmesine port edilir. ArchiveBox dev Python>=3.13/Django servisi mevcut Whisper venv’ine kurulmaz.",
+    "mediaUX": "Önizleme tablosu film, kaynak türü, tahmini boyut, alınacak/atlanacak; asistan yalnız taslağı üretir.",
+    "effort": "Orta: 4–6 gün; B842-06 ile aynı aile",
+    "acceptance": "Önizleme dosya indirme veya kütüphane yazımı yapmaz; seçim değişince commit yalnız son listeyi alır;20 üstü örnek tamlık iddiası olmaz.",
+    "limits": "Kaynak importer bağımlılıkları ve site koşulları ayrıca incelenir. Windows subprocess yolu yeni servis alınırsa risk; bu öneride ağ/main adaptörü ve provider bütçesi sınırlı.",
+    "evidenceLevel": "Pinned source read; not built, installed or UI verified"
+  },
+  {
+    "id": "B842-06",
+    "title": "Büyük kütüphane ithalini kaldığı öğeden devam ettirme",
+    "classification": "NEW",
+    "priorReferences": [],
+    "sourceReferences": [
+      {
+        "repo": "ArchiveBox/ArchiveBox",
+        "head": "09041760bc0fe25eb584e62cc9c7756e85ff855e",
+        "path": "archivebox/importers/service.py",
+        "symbol": "def _finish(",
+        "line": 166,
+        "url": "https://github.com/ArchiveBox/ArchiveBox/blob/09041760bc0fe25eb584e62cc9c7756e85ff855e/archivebox/importers/service.py#L166"
+      }
+    ],
+    "sourceObserved": "_finish başarılı importer sonucunu, hesabı, checkpoint’i ve crawl enqueue işlemini kısa transaction içinde bağlıyor; cancelled iş checkpoint ilerletmiyor. has_more varsa güncel checkpoint ile sonraki run üretiliyor; recover_interrupted da mevcut.",
+    "productSynthesis": "Yüzlerce eski röportaj/bookmark içe alımında kapanma sonrası kalan öğeler devam eder; bitmiş/atlanmış/hatalı öğeler tek import oturumunda görünür. Genel web crawl önceliklendirmesinden farklı kalıcı aktarım durumu.",
+    "localDifference": "BrowserReadingList revizyon korur; medya kuyrukları mevcut. Seçilmiş dış kütüphane importunun cursor ve sonuç günlüğü bunlara bağlanacak yeni sözleşme.",
+    "acquisition": "MIT transaction/checkpoint deseni Node SQLite portu; ArchiveBox çalışan servisi gerekmiyor. Başlangıçta tek dosya importer ve mevcut scheduler kullanılır.",
+    "mediaUX": "Gelen kutusunda120/300alındı,18atlandı,2yeniden dene; kullanıcı filtreleyip kalanlardan devam eder.",
+    "effort": "Orta/büyük: 1 hafta; B842-05 bağımlılığı",
+    "acceptance": "İşlem ortasında kapanıp açılınca önceki öğeler çoğalmaz; iptal edilen batch cursor ilerletmez; hatalı öğe tüm ithali durdurmaz.",
+    "limits": "Windows atomik kayıt ve uygulama kapanışı kabul edilmeli. Sağlayıcı kapalıyken import sürmeli; model önerisi başarısı veri taşıma başarısı değildir.",
+    "evidenceLevel": "Pinned source read; not built, installed or UI verified"
+  },
+  {
+    "id": "B842-07",
+    "title": "Omnivore ve Pocket arşivlerini tarih/etiket/okundu bilgisiyle alma",
+    "classification": "NEW",
+    "priorReferences": [],
+    "sourceReferences": [
+      {
+        "repo": "wallabag/wallabag",
+        "head": "42033e0253e74281c9f7588146324ab7222c3592",
+        "path": "src/Import/OmnivoreImport.php",
+        "symbol": "public function parseEntry",
+        "line": 80,
+        "url": "https://github.com/wallabag/wallabag/blob/42033e0253e74281c9f7588146324ab7222c3592/src/Import/OmnivoreImport.php#L80"
+      }
+    ],
+    "sourceObserved": "OmnivoreImport URL+user ile mevcut kaydı atlıyor; title,Archived state,savedAt,labels,author,publishedAt,thumbnail alanlarını Entry’ye taşıyor. PocketCsvImport ayrıca CSV title/url/time/tags/archive alanlarını parse ediyor; annotation tamlığı bu kodda yok.",
+    "productSynthesis": "Kullanıcının yıllardır topladığı sinema yazılarını boş URL listesine indirmeden medya araştırma kütüphanesine göç ettirme; film eşleştirmesi önce öneri kalır.",
+    "localDifference": "browser-session-package Whisper’ın kendi version1 paketini taşır; subscriptions-io OPML YouTube kanalı ve CSV araçları başka kapsam. Bunlar Omnivore/Pocket alan eşleme adaptörü kabulü değildir.",
+    "acquisition": "MIT PHP eşleme mantığı Node importer’a port edilebilir; export biçimi fixture ile sabitlenir. Wallabag sunucusu kurulmaz.",
+    "mediaUX": "İçe alma özeti yeni/aynı URL/bozuk tarih/eksik içerik sayıları; eski okundu durumu yeni izleme geçmişine dönüştürülmez.",
+    "effort": "Orta: 3–5 gün",
+    "acceptance": "Aynı dosya ikinci kez alınınca çoğalmaz; Türkçe başlık ve tarih korunur; görünmeyen notların taşındığı iddia edilmez; mevcut kullanıcı notu ezilmez.",
+    "limits": "Windows UTF-8/BOM ve CSV alıntıları kabul gerekir. Ağ yeniden fetch başarısızlığı eski metadata’yı kaybettirmemeli; kapatılan Omnivore cloud servisine bağımlılık kurulmaz.",
+    "evidenceLevel": "Pinned source read; not built, installed or UI verified"
+  },
+  {
+    "id": "B842-08",
+    "title": "Film araştırma dosyasını bölüm bölüm EPUB antolojisi yapma",
+    "classification": "NEW",
+    "priorReferences": [],
+    "sourceReferences": [
+      {
+        "repo": "wallabag/wallabag",
+        "head": "42033e0253e74281c9f7588146324ab7222c3592",
+        "path": "src/Helper/EntriesExport.php",
+        "symbol": "private function produceEpub",
+        "line": 148,
+        "url": "https://github.com/wallabag/wallabag/blob/42033e0253e74281c9f7588146324ab7222c3592/src/Helper/EntriesExport.php#L148"
+      }
+    ],
+    "sourceObserved": "produceEpub birden çok Entry için yazar/tarih/URL/etiket metadata kapağı ve ayrı içerik chapter oluşturuyor; BCP47 dil dönüşümü ve setIdentifier var. Tek kayıt için preview cover seçilebiliyor.",
+    "productSynthesis": "Bir filmin röportaj, eleştiri ve yapım notlarını kaynakları korunmuş taşınabilir okuma dosyasına dönüştürme; filmden önce/sonra okunacak bölümler kullanıcı sırasıyla bir araya gelir.",
+    "localDifference": "Mevcut media shelf EPUB okur; browser-research-notebook Markdown dışa aktarır, session package oturum taşır. Fark kitap okuma değil, seçilmiş web kaynaklarını kaynaklı EPUB üretimi.",
+    "acquisition": "MIT bölümleme modeli port edilir; PHPePub ve her asset lisansı ayrıca incelenmeden kopyalanmaz. Mevcut EPUB araçlarını önce araştır; genel PHP runtime ekleme.",
+    "mediaUX": "Dışa aktar önizlemesinde bölüm sırası, dahil metin/notlar ve eksik offline görseller; kütüphaneye geri ekleme isteğe bağlı.",
+    "effort": "Orta/büyük: 1 hafta",
+    "acceptance": "Üç yazı üç kaynak URL’li bölüm olur; Türkçe karakter ve EN/TR başlıklar Windows EPUB okuyucusunda doğrulanır; eksik görsel kitabı bozmaz.",
+    "limits": "Yeniden dağıtım hakkı kaynak içeriğe bağlı; export özel kullanım seçimiyle sınırlandırılır. DRM kitap üretme/aşma yok. Hiçbir EPUB bu araştırmada render edilmedi.",
+    "evidenceLevel": "Pinned source read; not built, installed or UI verified"
+  },
+  {
+    "id": "B842-09",
+    "title": "Okumaya kalan süreyi medya seçimine katma",
+    "classification": "NEW",
+    "priorReferences": [],
+    "sourceReferences": [
+      {
+        "repo": "wallabag/wallabag",
+        "head": "42033e0253e74281c9f7588146324ab7222c3592",
+        "path": "src/Form/Type/EntryFilterType.php",
+        "symbol": "public function buildForm",
+        "line": 33,
+        "url": "https://github.com/wallabag/wallabag/blob/42033e0253e74281c9f7588146324ab7222c3592/src/Form/Type/EntryFilterType.php#L33"
+      }
+    ],
+    "sourceObserved": "EntryFilterType readingTime aralığını kullanıcının readingSpeed değeriyle ölçekleyip alt/üst/between koşullarına çeviriyor. Entry süre alanını, EntriesExport aynı kullanıcıya göre gösterimi içeriyor.",
+    "productSynthesis": "Asistana20dakikam var dendiğinde10dakikalık röportaj okuması ile8dakikalık video arasında açıklanabilir seçenek; kalan süre, toplam süre ve tahmin niteliği ayrı gösterilir.",
+    "localDifference": "watch-index duration/position ve media shelf okuma konumu var. R76§5.3 TTS, §6.4 offline listeyi içerir; readingSpeed ile ölçeklenen okuma süresi aralık sorgusu bulunmadı. NEW burada genel okuma/süre rozeti değil, kelime sayısı ve açık hızla hesaplanan aralık filtresidir.",
+    "acquisition": "MIT filtre hesabı port adayı; kullanıcı okuma hızını istemezse varsayılan ve tahmin etiketi. Ölçüm olmadan kişisel hız öğrenildi iddiası yok.",
+    "mediaUX": "Süre filtresi5/15/30dakika; asistan önerisinde9dk okuma, yaklaşık etiketi ve kaynak türü.",
+    "effort": "Küçük/orta: 2–3 gün",
+    "acceptance": "Alt/üst/açık uçlu filtreler aynı ölçeği kullanır; okunmuş kısım kalan süreden düşer; bilinmeyen süre sıfır gösterilmez.",
+    "limits": "Windows dar panel/DPI ve iki dil etiketleri kabul edilir; öğrenme/kelime ezberi ürünü değildir. Provider gerekmez; gerçek okuma hızının doğruluğu bu kaynakla kanıtlanmaz.",
+    "evidenceLevel": "Pinned source read; not built, installed or UI verified"
+  },
+  {
+    "id": "B842-10",
+    "title": "Kaynak yenilenirken kullanıcının düzelttiği medya bilgisini koruma",
+    "classification": "OLD-DEEPENING",
+    "priorReferences": [
+      "B841-22"
+    ],
+    "sourceReferences": [
+      {
+        "repo": "wallabag/wallabag",
+        "head": "42033e0253e74281c9f7588146324ab7222c3592",
+        "path": "src/Helper/ContentProxy.php",
+        "symbol": "public function updateEntry",
+        "line": 43,
+        "url": "https://github.com/wallabag/wallabag/blob/42033e0253e74281c9f7588146324ab7222c3592/src/Helper/ContentProxy.php#L43"
+      }
+    ],
+    "sourceObserved": "updateEntry prefetched HTML’i cleanup yoluna verir; fetching error durumunda ithal metadata’yı korur, başarılı fetch’te içerik alanlarını birleştirir. Başlık sanitizasyonu, URL ve givenUrl ayrıca saklanır.",
+    "productSynthesis": "Yanlış röportaj başlığını/yazarını kullanıcı düzelttiğinde yenileme bunları sessizce değiştirmesin; yeni gelen değer ile kullanıcı değeri alan bazında karşılaştırılsın. Bu son alan provenance UI’sı ürün sentezidir.",
+    "localDifference": "BrowserReadingList.refreshTarget aynı canonical URL koşulunu ve revizyonu kontrol eder. R841 güncellik önerisine ek değer kaynak durumundan alan sahipliğine inen merge sözleşmesi.",
+    "acquisition": "MIT merge modeli uyarlama adayı; ayrı extractor sonucu ve curated alanlar şeması. Bütün ContentProxy/Graby bağımlılığı alınmaz.",
+    "mediaUX": "Başlık yanında kullanıcı düzeltmesi; yenilemede3metadata değişikliği önizleme ve kabul; notlar ayrı.",
+    "effort": "Orta: 3–5 gün",
+    "acceptance": "Yenileme hatasında eski başlık/not kaybolmaz; otomatik veri kullanıcı düzeltmesini ezmez; canonical değişim aynı film varsayılmaz.",
+    "limits": "Windows dosya revizyonu/UTF-8 ve CSP temizliği ayrıca gerekir. Kaynak parser doğruluğu veya tüm yönlendirmeler bu okumayla kabul edilmedi; model metadata’yı doğrulanmış gerçek yapmaz.",
+    "evidenceLevel": "Pinned source read; not built, installed or UI verified"
+  },
+  {
+    "id": "B842-11",
+    "title": "Tekrarlanan sayfa görevini DOM uygunsa model çağırmadan yürütme",
+    "classification": "OLD-DEEPENING",
+    "priorReferences": [
+      "R839-A02",
+      "R839-A07"
+    ],
+    "sourceReferences": [
+      {
+        "repo": "browserbase/stagehand",
+        "head": "b7a4b899079f198a0ee78a6dcb62ad02f545cf49",
+        "path": "packages/extension/services/cacheService.ts",
+        "symbol": "export async function withCache",
+        "line": 202,
+        "url": "https://github.com/browserbase/stagehand/blob/b7a4b899079f198a0ee78a6dcb62ad02f545cf49/packages/extension/services/cacheService.ts#L202"
+      }
+    ],
+    "sourceObserved": "withCache CDP accessibility tree toplayıp API cache sorgular; observe/extract hit’i doğrudan döner, act hit’i replay eder. onHit dahil başarısızlık execute yoluna düşer; replay_failed metadata ayrılır.",
+    "productSynthesis": "Aynı festival programından her seferinde aynı alanları alma gibi kullanıcı başlattığı görevlerde doğrulanmış akış yeniden kullanılır; sayfa değişince yeni keşif. Genel otomasyon değil küçük, gözlenebilir tarif.",
+    "localDifference": "browserAutomationOperationKey altyazı çevirisini tekrar başlatmayı engeller; assistant-browser-research sayfaları yeniden okur. Fark iş dedup değil, DOM koşullu extractor/eylem replay.",
+    "acquisition": "MIT küçük local cache adaptörü; Stagehand uzaktaki cache API sözleşmesi Electron’da hazır servis değildir. Cache key/provenance uygulamaya özgü kurulmalı.",
+    "mediaUX": "Görev kartında hazır tarif kullanıldı veya sayfa değişti, yeniden okundu; kullanıcı tarif içeriğini görebilir.",
+    "effort": "Büyük: 1–2 hafta pilot",
+    "acceptance": "Aynı sayfada ikinci okuma model çağrısını azaltır; DOM değişince yanlış alan doldurulmaz; replay başarısı gerçek son koşulla doğrulanır.",
+    "limits": "Windows CDP/Electron sürüm uyumu ve CSP API sınırı gerekir; cloud/provider maliyeti ayrı. Cache’e girişli sayfa sırları veya key yazılmaz; öneri çalışma zamanı kabulü değildir.",
+    "evidenceLevel": "Pinned source read; not built, installed or UI verified"
+  },
+  {
+    "id": "B842-12",
+    "title": "Sayfadan serbest özet yerine denetlenebilir medya kayıt şeması",
+    "classification": "OLD-DEEPENING",
+    "priorReferences": [
+      "R839-A02",
+      "B841-20"
+    ],
+    "sourceReferences": [
+      {
+        "repo": "browser-use/browser-use",
+        "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+        "path": "browser_use/tools/extraction/schema_utils.py",
+        "symbol": "def schema_dict_to_pydantic_model",
+        "line": 145,
+        "url": "https://github.com/browser-use/browser-use/blob/b49a68e4060acb226da8f784194fef301c53a6d7/browser_use/tools/extraction/schema_utils.py#L145"
+      }
+    ],
+    "sourceObserved": "schema_dict_to_pydantic_model JSON Schema’dan runtime Pydantic modeli kuruyor; _StrictBase extra=forbid. $ref/anyOf/oneOf gibi unsupported desenler açık reddediliyor; tam JSON Schema uygulaması değil.",
+    "productSynthesis": "Röportaj sayfasından başlık,yazar,yayın tarihi,video URL,kaynak pasajı gibi küçük şema; boş alan null/unknown kalır. Film eşleştirme asistan önerisi, kullanıcı kabulüyle mevcut ID’ye bağlanır.",
+    "localDifference": "assistant-browser-research title/url/text kesitleri döndürüyor; kaynak bağlam manifesti hazır. Yeni pilot bu kesiti typed library-draft sonucuna dönüştürür; doğrudan katalog yazmaz.",
+    "acquisition": "MIT şema yaklaşımı mevcut Node doğrulayıcıyla bağımsız uygulanır; Python Pydantic çevrimini uygulamaya eklemek gerekmez.",
+    "mediaUX": "Kaydetmeden alanlar düzenlenir; her alanın sayfadaki kanıtı açılır; çıkarılamayan tarih hayal edilmez.",
+    "effort": "Orta: 4–6 gün",
+    "acceptance": "Yanlış tip/extra alan reddedilir; belirlenemeyen film kimliği otomatik birleşmez;20kısmi örnekte başarı ve eksik alan oranı ayrı raporlanır.",
+    "limits": "Sağlayıcı structured-output yeteneği ve JSON sınırları doğrulanmalı; Windows provider adapter/CSP main katmanından geçer. Kaynak model başarısı veya gerçek extraction kalitesi bu tur ölçülmedi.",
+    "evidenceLevel": "Pinned source read; not built, installed or UI verified"
+  },
+  {
+    "id": "B842-13",
+    "title": "Sonsuz kaydırmada yalnız istenen bölümü sınırlı açma",
+    "classification": "OLD-DEEPENING",
+    "priorReferences": [
+      "R839-A02",
+      "B841-17"
+    ],
+    "sourceReferences": [
+      {
+        "repo": "browser-use/browser-use",
+        "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+        "path": "browser_use/tools/service.py",
+        "symbol": "async def scroll(",
+        "line": 1383,
+        "url": "https://github.com/browser-use/browser-use/blob/b49a68e4060acb226da8f784194fef301c53a6d7/browser_use/tools/service.py#L1383"
+      }
+    ],
+    "sourceObserved": "scroll index ile scrollable element hedefleyebiliyor; kök index0 özel. Viewport tabanlı sayfa miktarıyla ScrollEvent dispatch ediyor; find_text ayrı ScrollToTextEvent ve bulunamadı sonucu veriyor.",
+    "productSynthesis": "Asistan kullanıcı isterse eleştiri listesinde sonraki görünür20öğeyi bulsun veya yorum bölümüne gitsin; bütün siteyi sınırsız taramasın. Her adımda yeni öğe/durma nedeni görünür.",
+    "localDifference": "Letterboxd özel More/yorum akışı zaten var; browser-research statik sayfa metni okuyor. Yenilik her site için doğru otomasyon iddiası değil, küçük generic scroll/read pilotu.",
+    "acquisition": "MIT event yaklaşımı mevcut WebContents/frame adaptöründe bağımsız port; keyfi evaluate aracını modele açma.",
+    "mediaUX": "Görev kartında sonraki bölüm, bulunan ek öğe sayısı ve durdur; açık videonun oynatma konumu korunur.",
+    "effort": "Orta/büyük: 1 hafta",
+    "acceptance": "İç scroll paneli hedeflenir; yeni öğe gelmeyince durur; navigasyon veya iptalde eski tab’da eylem sürmez;20üst sınırı aşılmaz.",
+    "limits": "Windows native medya/iframe ve DPI ayrıca gerçek kabul gerekir. Sayfa10adımda tam tarandı denmez; site erişim/pagination/hesap koşulları ve provider tur bütçesi sınırdır.",
+    "evidenceLevel": "Pinned source read; not built, installed or UI verified"
+  },
+  {
+    "id": "B842-14",
+    "title": "Açık oturumu kullanırken taşınabilir araştırma paketini ayrı tutma",
+    "classification": "OLD-DEEPENING",
+    "priorReferences": [
+      "B841-03",
+      "R839-A02"
+    ],
+    "sourceReferences": [
+      {
+        "repo": "steel-dev/steel-browser",
+        "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+        "path": "api/src/services/context/chrome-context.service.ts",
+        "symbol": "public async getSessionData",
+        "line": 29,
+        "url": "https://github.com/steel-dev/steel-browser/blob/9fb9b9239325794b3e2d2a56c7e54c400a7d30bd/api/src/services/context/chrome-context.service.ts#L29"
+      }
+    ],
+    "sourceObserved": "getSessionData cache ve inFlight ile aynı profil okumasını paylaşır. Gerçek extractSessionData yalnız localStorage+sessionStorage okur; docstring ve SessionData tipindeki cookies/indexedDB desteği burada tam uygulama değildir.",
+    "productSynthesis": "Girişli makaleyi yeniden giriş döngüsüne sokmadan seçilen Electron browser partition’da kullanıcı başlatmış okuma; paylaşılan medya araştırma paketi ise yalnız URL/metin/not taşır. Kimlikli oturum taşımak ayrı, isteğe bağlı deneydir.",
+    "localDifference": "browser-session-package zaten safePlaceUrl,portableSession ve variant sanitizasyonu içeriyor; bunu genel cookie yedeği diye yeniden icat etmiyoruz. Mevcut partition üzerinden okuma daha uygun ilk rota.",
+    "acquisition": "Apache-2.0 Steel storage yaklaşımı kaynak referansı; LevelDB profil kopyalama yerine Electron session API pilotu. Kişisel profil dosyası okunmadı.",
+    "mediaUX": "Kaynak kartında açık oturumdan okundu ve pakete giriş bilgisi dahil değil; login gerektiğinde kullanıcı sayfada tamamlar.",
+    "effort": "Büyük: 1 hafta pilot",
+    "acceptance": "Seçilen partition okunur, başka hesaba geçmez; taşınabilir pakette auth verisi yoktur; kapalı oturum açıkmış gibi raporlanmaz.",
+    "limits": "Windows DPAPI/Chrome profil kilitleri ve DRM oturumları taşınabilirlik garantisi vermez. Cloud CDP uç noktası açılmadı; provider’a yalnız seçilmiş içerik gider.",
+    "evidenceLevel": "Pinned source read; not built, installed or UI verified"
+  },
+  {
+    "id": "B842-15",
+    "title": "Uzun browser adımına yeniden bağlanıp aynı işi ikinci kez başlatmama",
+    "classification": "OLD-DEEPENING",
+    "priorReferences": [
+      "R839-A02",
+      "R839-A03"
+    ],
+    "sourceReferences": [
+      {
+        "repo": "steel-dev/steel-browser",
+        "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+        "path": "api/src/services/commands/engine.ts",
+        "symbol": "private async submit(",
+        "line": 253,
+        "url": "https://github.com/steel-dev/steel-browser/blob/9fb9b9239325794b3e2d2a56c7e54c400a7d30bd/api/src/services/commands/engine.ts#L253"
+      }
+    ],
+    "sourceObserved": "CommandEngine.submit session-scoped idempotency key+command hash ile önceki execution’ı bulur; farklı komutta key_conflict, süresi geçen operation’da kontrol et uyarısı. status/cancel ve bounded queue ayrı.",
+    "productSynthesis": "Büyük sayfayı al veya seçilmiş dosyayı indir görevi UI timeout olduğunda aynı browser eylemini yeniden başlatmak yerine mevcut task sonucuna bağlanır; kullanıcı neyin bittiğini görebilir.",
+    "localDifference": "browserAutomationGate altyazı işlem anahtarları ve asistan job kayıtları hazır. R839 sonuç doğrulama/döngü korumasının yeni kaynakla derinleşmesi; generic exactly-once garantisi değil.",
+    "acquisition": "Apache-2.0 command record deseni mevcut assistant-jobs kimliğine uyarlanır; Steel REST server/Chromium daemon kurma ön şartı yok.",
+    "mediaUX": "Çalışıyor/sonucu al/iptal kartı; sayfa yenilense konuşmadaki aynı görev ID’si açılır, tekrar ücretli çağrı önerilmez.",
+    "effort": "Orta/büyük: 1 hafta",
+    "acceptance": "Yanıt deadline sonrası status aynı execution’ı döndürür; aynı key farklı komutta reddedilir; belirsiz yarım eylem tamamlandı sayılmaz.",
+    "limits": "Windows kapanış/yeniden açılış için kalıcılık ayrıca tasarlanmalı; upstream kayıtları kendiliğinden disk kalıcı değildir. CSP/main adaptörü ve provider retry bütçesi ayrıca kabul edilir.",
+    "evidenceLevel": "Pinned source read; not built, installed or UI verified"
+  },
+  {
+    "id": "B842-16",
+    "title": "Son kaldığı yer ile en ileri okunan noktayı ayırma",
+    "classification": "OLD-DEEPENING",
+    "priorReferences": [
+      "B841-03",
+      "R839-D06"
+    ],
+    "sourceReferences": [
+      {
+        "repo": "omnivore-app/omnivore",
+        "head": "29de91e8e43d8f546af398b6b0138dc6aba052bc",
+        "path": "packages/api/src/services/cached_reading_position.ts",
+        "symbol": "export const reduceCachedReadingPositionMembers",
+        "line": 124,
+        "url": "https://github.com/omnivore-app/omnivore/blob/29de91e8e43d8f546af398b6b0138dc6aba052bc/packages/api/src/services/cached_reading_position.ts#L124"
+      }
+    ],
+    "sourceObserved": "ReadingProgressCacheItem yüzde,topPercent,anchorIndex ve updatedAt taşır; reducer bunları bağımsız max alır. Bu davranış latest cursor değildir ve birbirine ait tek örnek üretmez.",
+    "productSynthesis": "Uzun sinema yazısında geri dönüp not okuma, okundu yüzdesini geriye çekmesin; devam et son cursor’a, ilerleme en ileri doğrulanmış anchor’a baksın. Max kopyalanmaz, aynı revizyonlu atomik snapshot kullanılır.",
+    "localDifference": "browser-library-tools text anchor çözümü ve media-shelf chapter/scroll mevcut. Öneri konum saklamayı yeniden eklemek değil; son konum ve consumed progress anlamlarını ayırmak.",
+    "acquisition": "AGPL-3.0 kaynak, bağımsız davranış modeli tercih edilir. Redis servisi Electron’a eklenmez; mevcut yerel mağaza kullanılır.",
+    "mediaUX": "Kartta%72okundu; yeniden açmak son incelenen%40’a dönebilir. Kullanıcı baştan başla ile progress’i açıkça sıfırlar.",
+    "effort": "Orta: 3–4 gün",
+    "acceptance": "Geri kaydırma en ileri okunmayı azaltmaz; yeni belge revizyonu eski yüzdeyi yanlış yere taşımaz; eski gecikmiş event yeni cursor’ı ezmez.",
+    "limits": "Windows kapanışta debounce flush ve iki pencere sırası kabul edilir. Öğrenme takibi değildir; model gerekmez. Omnivore reducer’ının doğru concurrency çözdüğü bu okumayla iddia edilmez.",
+    "evidenceLevel": "Pinned source read; not built, installed or UI verified"
+  },
+  {
+    "id": "B842-17",
+    "title": "JSON dönen kaynakları boş web sayfası yerine yapılı kaynak öğesi alma",
+    "classification": "NEW",
+    "priorReferences": [],
+    "sourceReferences": [
+      {
+        "repo": "steel-dev/steel-browser",
+        "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+        "path": "api/src/modules/actions/actions.controller.ts",
+        "symbol": "const isJson = isJsonContentType",
+        "line": 142,
+        "url": "https://github.com/steel-dev/steel-browser/blob/9fb9b9239325794b3e2d2a56c7e54c400a7d30bd/api/src/modules/actions/actions.controller.ts#L142"
+      }
+    ],
+    "sourceObserved": "handleScrape isJsonContentType ile response.text alıyor; originalContentType/status/timestamp metadata tutuyor ve jsonToMarkdown yoluna ayırıyor. HTML DOM okunabilirliği JSON yanıtına zorlanmıyor.",
+    "productSynthesis": "Kamuya açık festival programı veya bölüm metadata bağlantısı JSON döndüğünde kaynak yapısını koruyan önizleme; kullanıcı seçilmiş kayıtları medya araştırma taslağına çevirir. Tüm API’lere genel erişim iddiası yok.",
+    "localDifference": "assistant-browser-research page.read(article) metnine dayanıyor; browser page index makale yolu hazır. JSON kaynak için tür tanıma ve sınırlı key/value provenance yenilik.",
+    "acquisition": "Apache-2.0 dönüşüm yaklaşımı küçük Node adaptörü; arbitrary API shell değil, mevcut network politikası ve byte sınırları içinde kaynak okuma.",
+    "mediaUX": "Kaynak kartında JSON ve şema özeti; alan seçimi, ham/kullanılan değer ve bağlı film önizlemesi.",
+    "effort": "Orta: 3–5 gün",
+    "acceptance": "JSON içerik HTML diye parse edilmez; büyük veya hatalı JSON sınırlı hata verir; tarih/sayı/string tipleri korunur; kişi/film ID’si onaysız birleşmez.",
+    "limits": "Windows ağ timeout/UTF-8 ve CSP fetch main sınırı gerekir. API kota/veri lisansı her endpoint için ayrıca incelenir; sağlayıcıya bütün ham veri gönderilmez.",
+    "evidenceLevel": "Pinned source read; not built, installed or UI verified"
+  },
+  {
+    "id": "B842-18",
+    "title": "Tek film kaydındaki web çıktılarında tutarlı dosya ve önizleme sırası",
+    "classification": "OLD-DEEPENING",
+    "priorReferences": [
+      "B841-13",
+      "B841-12"
+    ],
+    "sourceReferences": [
+      {
+        "repo": "ArchiveBox/ArchiveBox",
+        "head": "09041760bc0fe25eb584e62cc9c7756e85ff855e",
+        "path": "archivebox/plugins/output_groups.py",
+        "symbol": "def order_snapshot_outputs",
+        "line": 129,
+        "url": "https://github.com/ArchiveBox/ArchiveBox/blob/09041760bc0fe25eb584e62cc9c7756e85ff855e/archivebox/plugins/output_groups.py#L129"
+      }
+    ],
+    "sourceObserved": "order_snapshot_outputs HTML,raster,article_text,embedded_media,metadata,other gruplarını manifest tercihleriyle sıralıyor. plugin_output_sizes paylaşılan dosyayı bir kez sayıyor; snapshot_thumbnail_result ilk mevcut uygun çıktıyı seçiyor.",
+    "productSynthesis": "Film dosyasında röportajın makalesi, görselleri, PDF’si ve metadata’sı ayrı bozuk kart yığını olmasın; kaynak öğesi altında tür grupları ve gerçek boyut, eksik çıktı durumu görünür.",
+    "localDifference": "BrowserReadingList tek MHTML boyutu saklıyor; varlık/variant ve kütüphane indeksleri hazır. R841 çok format durumunun somut output manifest/sunum sırası ile derinleşmesi.",
+    "acquisition": "MIT taxonomy/sıralama saf mantığı port adayı; ArchiveBox plugin runtime ve Python3.13 venv alınmaz.",
+    "mediaUX": "Önce oku/izle eylemi, altında özgün dosyalar; thumbnail eksikse metadata temelli kapak. Dekoratif arşiv rozeti her dosyayı başarı saymaz.",
+    "effort": "Orta: 4–6 gün",
+    "acceptance": "Aynı asset iki biçimde referanslanınca byte toplamı ikiye katlanmaz; bilinmeyen format Other’da kaybolmaz; olmayan screenshot boş thumbnail seçmez.",
+    "limits": "Windows dosya adı/uzun yol ve thumbnail gerçek native görünüm kabul gerekir. Çıktı grupları DRM medyanın indirilebildiğini göstermez; extractor build ve dosya kalitesi denenmedi.",
+    "evidenceLevel": "Pinned source read; not built, installed or UI verified"
+  }
+]

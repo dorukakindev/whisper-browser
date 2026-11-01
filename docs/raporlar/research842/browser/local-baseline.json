@@ -1,0 +1,82 @@
+{
+  "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+  "hashMode": "raw bytes plus UTF-8 BOM stripped CRLF/CR to LF SHA256",
+  "files": [
+    {
+      "path": "src/assistant-browser-research.js",
+      "rawSha256": "81324e6796acdc163245480cf5464897238008c5a82edddb031262005b21081b",
+      "canonicalLfSha256": "f0665a230607abb82b25ce452c141cacfd52a2f19622270df8623f14285bffc0"
+    },
+    {
+      "path": "src/browser-reading-list.js",
+      "rawSha256": "a37a0f6161550dab18e520b8943988ed27ba5dc529eb68bab2aae0ecffb1a244",
+      "canonicalLfSha256": "f0d6fa00d02b6591dab3464d7c97e99321ce1ee81ce46905b336401e69b81c95"
+    },
+    {
+      "path": "src/browser-library-tools.js",
+      "rawSha256": "7b32241b72a70d829fe270a892b7589c8b9df0518d6c5ab9abce2622804fdff8",
+      "canonicalLfSha256": "b83a49d8a8b7776847e2534f9cb9a997092277ce68f3c73553ae407ac8ca4924"
+    },
+    {
+      "path": "src/browser-session-package.js",
+      "rawSha256": "25578e969af7d03be3d0aaabcb42a7b936cc8165a471d450f9f60fc833f044d2",
+      "canonicalLfSha256": "3877834f65d9be5458d953b2794dfe88fb0c28f8dc7a5d92f7f0eb394c19fcfb"
+    },
+    {
+      "path": "src/browser-automation-rules.js",
+      "rawSha256": "571319b9334ccd2f41e16ae1204e98ed67773d09333ea03ceef7b4d6eada7965",
+      "canonicalLfSha256": "571319b9334ccd2f41e16ae1204e98ed67773d09333ea03ceef7b4d6eada7965"
+    },
+    {
+      "path": "src/browser-note-store.js",
+      "rawSha256": "b534a30b441bf925d5199e059fc9e42e248e34a864201dfca354b051168a0da0",
+      "canonicalLfSha256": "3534acc9fd81da65b8fb7aea6d5f20d8a906df9e34dfb2f7bf32565992690c0e"
+    },
+    {
+      "path": "src/browser-page-index.js",
+      "rawSha256": "d2e897be7e9ecdd7ef11d38ce95de78850db24f59c604d615859774a220d4561",
+      "canonicalLfSha256": "d2e897be7e9ecdd7ef11d38ce95de78850db24f59c604d615859774a220d4561"
+    },
+    {
+      "path": "src/watch-index.js",
+      "rawSha256": "8d89ce23ea8a5096a117b903846a9ecf5c6aa7038a55a244f952634cf8367f57",
+      "canonicalLfSha256": "e295c487f44d231bd55e0581a2573640f021de46e0e07aea6f1883fd54e08025"
+    },
+    {
+      "path": "src/browser-research-notebook.js",
+      "rawSha256": "bc9320d6175192e2b06323c16706c52dde3ea88869591932474467604b515234",
+      "canonicalLfSha256": "2bc1f784e478564f0e8459564c1d6467592fbdd133d2dbb48cdc358e0b988088"
+    },
+    {
+      "path": "src/browser-downloads.js",
+      "rawSha256": "1d023ec149fcdfd1be7aecf0f5dd939c41ed9fed86a606125749407fc32d5444",
+      "canonicalLfSha256": "76097eb10bb956920bc8930dbf01bef24a3aa0358b634643c78078f110f1ad8d"
+    },
+    {
+      "path": "src/media-shelf-service.js",
+      "rawSha256": "769943b15e53085addf72d4936d37cb13a89e27ebdc8877a5fde70891216371c",
+      "canonicalLfSha256": "a9a50568b7861ac692cb8b71ab7a98f3f9f8804932b105784286a89c1ae6fc8b"
+    },
+    {
+      "path": "src/preload.js",
+      "rawSha256": "e3fb1a2854e4bc4d3840cddcd88175af8c6b5cf64344c9faf686f2201adc649d",
+      "canonicalLfSha256": "15ba5aa7b46c84f440ffa27815ba4680909b48c35038a0456c07ecb677517582"
+    },
+    {
+      "path": "src/main.js",
+      "rawSha256": "c9cfcdddc0f22e492411a810f42ff3dbfa541f23b2a4c907d859f9fd099f3020",
+      "canonicalLfSha256": "5935bea63222e651ffe279dfdb774e6e7f988048bc6577f2a5940763abe44c66"
+    },
+    {
+      "path": "src/browser-tab-resources.js",
+      "rawSha256": "eed13f038a08f3fbad25592ede23997273a9cc9d1dab6e2d1081a1339f5f1f1d",
+      "canonicalLfSha256": "eed13f038a08f3fbad25592ede23997273a9cc9d1dab6e2d1081a1339f5f1f1d"
+    },
+    {
+      "path": "src/browser-site-profiles.js",
+      "rawSha256": "1c7999a6e782a4e763b12cc096ae7712ae39802df0692286ab6f0e6ee3c38102",
+      "canonicalLfSha256": "8584f3152282e1e98c0a613a5be305f5d0e07d513bdd09eb850c96102c1337d9"
+    }
+  ],
+  "scope": "Inspected source-path baseline, not assertion entire project lacks a capability; main/preload searched for relevant paths"
+}

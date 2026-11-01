@@ -1,0 +1,689 @@
+[
+  {
+    "id": "L842-01",
+    "title": "Aynı eserin kesim ve dosya sürümlerini tek kayıtta seçme",
+    "classification": "NEW",
+    "priority": "P1",
+    "sourceEvidence": [
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "MediaBrowser.Controller/Entities/Video.cs",
+        "symbol": "LocalAlternateVersions",
+        "line": 38,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/MediaBrowser.Controller/Entities/Video.cs#L38"
+      },
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "Emby.Naming/Video/VideoListResolver.cs",
+        "symbol": "OrganizeAlternateVersions",
+        "line": 156,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/Emby.Naming/Video/VideoListResolver.cs#L156"
+      }
+    ],
+    "observedMechanism": "Video, ana sürüm kimliği ve alternatif yerel/bağlı sürümleri ayrı tutuyor; resolver adlandırma ve yıl kontrolleriyle alternatifleri örgütlüyor. Bu bir indirme veya otomatik en iyi kalite seçimi değildir.",
+    "localBaseline": [
+      "src/media-catalog-store.js:itemOf/sourceOf",
+      "src/catalog-discovery.js:scanFolder",
+      "src/renderer/media-catalog.js:sourceControls"
+    ],
+    "proposedCapability": "Şimdiki eser ve her bölüm tek source taşır. Aynı yapımın theatrical/extended veya 1080p/4K dosyalarını ayrı filmmiş gibi çoğaltmadan sürüm altına bağlama; farklı kesimlerde konum ve altyazıyı sürüm bazında koruma.",
+    "tangibleUX": "Filmde Oynat yanında Sürüm seç: süre, kesim adı, ses/altyazı ve yerel erişim görünür. Kullanıcı extended sürümüne geçince theatrical zamanına sessizce atlanmaz.",
+    "acquisitionRoute": "GPL kaynak algoritmasını birebir port etmek yerine eser/sürüm/kaynak şemasını bağımsız kur; kullanıcı seçimiyle eşleştir. Jellyfin API bağlayıcısı ayrıca mümkün.",
+    "effort": "Büyük; kalıcı şema ve oynatma kimliği",
+    "acceptance": "Aynı IMDb kimliğine bağlı iki farklı süre tek eser altında görünür; yanlış otomatik birleştirme geri alınır; her sürüm kendi konumunu korur.",
+    "windowsThemeMetadata": "Windows sürücü harfi/uzun yol kimliği korunur. Grafit/amber küçük seçim paneli; Edition/Kesim çift dil. TMDB kimliği kesim eşitliği kanıtı değildir."
+  },
+  {
+    "id": "L842-02",
+    "title": "Fragman, sahne arkası ve bonus videolarını esere bağlı raf yapma",
+    "classification": "NEW",
+    "priority": "P2",
+    "sourceEvidence": [
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "Emby.Naming/Video/VideoListResolver.cs",
+        "symbol": "nonExtras",
+        "line": 53,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/Emby.Naming/Video/VideoListResolver.cs#L53"
+      },
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "MediaBrowser.Controller/Entities/Video.cs",
+        "symbol": "ExtraType",
+        "line": 67,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/MediaBrowser.Controller/Entities/Video.cs#L67"
+      }
+    ],
+    "observedMechanism": "Resolver ana videoları ExtraType dolu dosyalardan ayırır; Video bazı ekstra türlerinde resume desteğini farklı değerlendirir. Bonus dosyası ana filme eşdeğer sayılmaz.",
+    "localBaseline": [
+      "backend/catalog_scan.py:scan",
+      "src/catalog-discovery.js:scanFolder",
+      "src/media-catalog-store.js:itemOf"
+    ],
+    "proposedCapability": "Yerel bonusları kullanıcı onaylı tür ve ana eser ilişkisiyle saklama. Mevcut çevrimiçi fragman eylemi ile yerel extras koleksiyonu farklıdır; katalogda aynı filmin beş kopyası oluşmasını azaltır.",
+    "tangibleUX": "Film ayrıntısında Ek videolar bölümü: fragman, röportaj, silinen sahne; kullanıcı yanlış sınıflanan dosyayı ana eserden ayırabilir.",
+    "acquisitionRoute": "Sınıflama davranışını bağımsız uygula; GPL resolver kopyalanacaksa uyumlu türev dağıtım kararı gerekir. Dosya adı yalnız aday sinyalidir.",
+    "effort": "Orta; ilişki şeması ve tarama önizlemesi",
+    "acceptance": "Film-trailer.mkv ana film tamamlanma durumunu değiştirmez; bir bonusun kaldırılması ana kaydı veya dosyayı silmez.",
+    "windowsThemeMetadata": "Dosyalara yazmadan seçili klasörde envanter; Türkçe dosya adları desteklenir. Public bonus videoları dahi otomatik indirilmez. Grafit ayrıntı rafında küçük rozetler."
+  },
+  {
+    "id": "L842-03",
+    "title": "CD1/CD2 gibi bölünmüş filmi tek oynatma eseri olarak yönetme",
+    "classification": "NEW",
+    "priority": "P2",
+    "sourceEvidence": [
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "Emby.Naming/Video/VideoListResolver.cs",
+        "symbol": "StackResolver.Resolve",
+        "line": 57,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/Emby.Naming/Video/VideoListResolver.cs#L57"
+      },
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "MediaBrowser.Controller/Entities/Video.cs",
+        "symbol": "AdditionalParts",
+        "line": 37,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/MediaBrowser.Controller/Entities/Video.cs#L37"
+      }
+    ],
+    "observedMechanism": "VideoListResolver stack sonucunu Files listesine dönüştürür; Video AdditionalParts tutar. Alternatif sürümlerden farklı olarak parçalar aynı içeriğin sıralı bölümleridir.",
+    "localBaseline": [
+      "backend/catalog_scan.py:scan",
+      "src/media-catalog-store.js:sourceOf",
+      "src/watch-library-store.js"
+    ],
+    "proposedCapability": "Kullanıcı onaylı parça sırası, parça içi konum ve toplam ilerleme modeli. Çok dosyalı film iki bağımsız film veya iki farklı kesim olarak yanlış sunulmasın.",
+    "tangibleUX": "Kütüphane kartında 2 parça; ayrıntıda sıra düzenleme. Oynatma ikinci parçadaysa devam kartı doğru parçayı ve dakikayı açar.",
+    "acquisitionRoute": "GPL resolveri kopyalamadan sıralama modelini bağımsız uygula; sadece ad kalıbıyla parçaları sessiz birleştirme.",
+    "effort": "Büyük; zaman ekseni ve oynatıcı geçişi",
+    "acceptance": "İkinci parça bulunamazsa ilkinden başlatmak yerine eksik parça açıkça gösterilir; her parçanın altyazı yolu ve zaman ekseni ayrıdır.",
+    "windowsThemeMetadata": "Windows doğal sayısal sıralaması CD2/CD10 için doğrulanmalı. Ürün genelindeki not/altyazı konumlarını toplam süreye körlemesine dönüştürme; kesim kartıyla aynı aile ama ayrı mekanizma."
+  },
+  {
+    "id": "L842-04",
+    "title": "Bölüm kimliğinden ayrı izleme sırası ve özel bölüm yerleşimi",
+    "classification": "NEW",
+    "priority": "P1",
+    "sourceEvidence": [
+      {
+        "repo": "Komet/MediaElch",
+        "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+        "path": "src/media_center/kodi/EpisodeXmlReader.cpp",
+        "symbol": "displayseason",
+        "line": 79,
+        "url": "https://github.com/Komet/MediaElch/blob/e60309e6b4917db30001a261ff91ae38ad465a0e/src/media_center/kodi/EpisodeXmlReader.cpp#L79"
+      },
+      {
+        "repo": "Komet/MediaElch",
+        "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+        "path": "src/media_center/kodi/EpisodeXmlReader.cpp",
+        "symbol": "displayepisode",
+        "line": 83,
+        "url": "https://github.com/Komet/MediaElch/blob/e60309e6b4917db30001a261ff91ae38ad465a0e/src/media_center/kodi/EpisodeXmlReader.cpp#L83"
+      }
+    ],
+    "observedMechanism": "EpisodeXmlReader sezon/bölüm değerlerinin yanında displayseason/displayepisode değerlerini ayrı okur. Kaynak kod yalnız NFO alan ayrımını kanıtlar; bütün sağlayıcılarda DVD/absolute order desteği varsayılmadı.",
+    "localBaseline": [
+      "src/media-catalog-store.js:episodeOf",
+      "src/catalog-extensions.js:season-apply",
+      "src/renderer/media-catalog.js"
+    ],
+    "proposedCapability": "Kalıcı episode ID ve kaynak bağlantısını koruyup gösterim/izleme sırasını ayrı düzenleme. Special bölüm araya girdiğinde sezon numarasını değiştirerek geçmişi bozmak gerekmez.",
+    "tangibleUX": "Dizi ayrıntısında Sıra: yayın / kişisel; özel bölümü iki bölüm arasına taşıma. Hangi sıranın etkin olduğu görünür.",
+    "acquisitionRoute": "MediaElch LGPL parserini doğrudan taşımadan alan modelini bağımsız kur; veri alınacak sağlayıcının order alanı ayrı doğrulanır.",
+    "effort": "Orta-büyük; bölüm şeması göçü",
+    "acceptance": "Sıra değişince kayıtlı kaynak, not ve izleme geçmişi aynı episode ID üzerinde kalır; aynı sezon/bölüm doğrulaması gevşetilmez.",
+    "windowsThemeMetadata": "Türkçe özel bölüm başlıkları ve dar pencere sıralama kontrolü; metadata sıra bilgisi olmadığı durumda tahmin gösterilmez. Yerel dosya taşınmaz."
+  },
+  {
+    "id": "L842-05",
+    "title": "Dizide kaldığım yerden sonraki gerçekten oynatılabilir bölüm",
+    "classification": "OLD-DEEPENING:D841-04;R839-D06",
+    "priority": "P2",
+    "sourceEvidence": [
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "Jellyfin.Server.Implementations/Item/NextUpService.cs",
+        "symbol": "GetNextUpEpisodesBatch",
+        "line": 73,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/Jellyfin.Server.Implementations/Item/NextUpService.cs#L73"
+      }
+    ],
+    "observedMechanism": "NextUpService kullanıcıya göre izlenmeyen adayları ve isteğe bağlı özel bölümleri toplu hesaplar. Bu servis tek başına yerel dosyanın Windows üzerinde oynayabildiğini kanıtlamaz.",
+    "localBaseline": [
+      "src/media-catalog-service.js:visible/progress",
+      "src/media-catalog-store.js:episodeOf",
+      "src/renderer/media-catalog.js:renderResume"
+    ],
+    "proposedCapability": "Seri tamamlama önerisini yeniymiş gibi saymadan, mevcut bölüm ilerlemesinden sonraki aday + kaynak var/yok + sıra açıklamasını tek kartta birleştirme.",
+    "tangibleUX": "S02E04 tamamlanınca Sonraki: S02E05 görünür; dosya bağlı değilse Oynat yerine Dosya bağla çıkar. Sıra seçimi L842-04 ile uyumlu olur.",
+    "acquisitionRoute": "GPL sorgu kodu .NET/EF bağımlılığıyla taşınmaz; mevcut küçük JSON kataloğundan bağımsız hesaplama.",
+    "effort": "Orta; L842-04 ile ortak bölüm kimliği",
+    "acceptance": "İzlenmiş, henüz yayınlanmamış veya kaynağı olmayan bölüm sessizce oynatılmaz; özel bölüm atlama tercihi açıklanır.",
+    "windowsThemeMetadata": "Native Windows dosya erişimi başlatma anında doğrulanır; ağ yokken yerel bölüm çalışır. Grafit/amber tek ana eylem, EN/TR."
+  },
+  {
+    "id": "L842-06",
+    "title": "Kodi/Jellyfin NFO yan dosyasından çevrimdışı katalog zenginleştirme",
+    "classification": "NEW",
+    "priority": "P1",
+    "sourceEvidence": [
+      {
+        "repo": "Komet/MediaElch",
+        "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+        "path": "src/media_center/KodiXml.cpp",
+        "symbol": "KodiXml::loadMovie",
+        "line": 293,
+        "url": "https://github.com/Komet/MediaElch/blob/e60309e6b4917db30001a261ff91ae38ad465a0e/src/media_center/KodiXml.cpp#L293"
+      },
+      {
+        "repo": "Komet/MediaElch",
+        "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+        "path": "src/media_center/kodi/EpisodeXmlReader.cpp",
+        "symbol": "uniqueid",
+        "line": 42,
+        "url": "https://github.com/Komet/MediaElch/blob/e60309e6b4917db30001a261ff91ae38ad465a0e/src/media_center/kodi/EpisodeXmlReader.cpp#L42"
+      }
+    ],
+    "observedMechanism": "KodiXml yerel NFO konumunu bulup UTF-8 XML içeriğini okur; EpisodeXmlReader farklı sağlayıcılara ait uniqueid alanlarını ayırır. Tam NFO standardının tüm varyantları test edilmedi.",
+    "localBaseline": [
+      "backend/catalog_scan.py:scan",
+      "src/catalog-discovery.js:scanFolder",
+      "src/catalog-extensions.js:metadata-preview",
+      "src/media-catalog-store.js:itemOf"
+    ],
+    "proposedCapability": "Mevcut video taramasına isteğe bağlı yerel movie.nfo/dosya-adı.nfo okuma ekleyerek TMDB anahtarı olmadan başlık, yıl, kimlik ve bölüm bilgisi edinme. Mevcut elle metadata eşleştirmesinin yerine sessizce yazma yapılmaz.",
+    "tangibleUX": "Tarama önizlemesinde Kaynak: yerel NFO; alan bazlı eski/yeni farkı. Kullanıcı kimliği kabul ederken synopsis alanını reddedebilir.",
+    "acquisitionRoute": "LGPL XML reader kopyalanabilirliği incelenebilir; ilk tercih sınırlı ve dış varlık çözmeyen bağımsız parser. NFO export ayrı karar, ilk dilim yalnız okuma.",
+    "effort": "Orta; XML sınırı ve alan eşleme",
+    "acceptance": "Bozuk/çok büyük XML, dış entity ve dış ağ referansı açılmaz; çakışan TMDB/IMDb kimliği önizlemede durur; video dosyası değişmez.",
+    "windowsThemeMetadata": "UTF-8 BOM/Türkçe karakter, aynı klasörde çok film ve case-insensitive adlar sınanmalı. Seçilen kök dışında yan dosya takip edilmez. Afiş/veri hakları kod lisansından ayrıdır."
+  },
+  {
+    "id": "L842-07",
+    "title": "Elle düzeltilen metadata alanını kalıcı kilitleme",
+    "classification": "NEW",
+    "priority": "P1",
+    "sourceEvidence": [
+      {
+        "repo": "jellyfin/jellyfin-web",
+        "head": "fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09",
+        "path": "src/components/metadataEditor/metadataEditor.js",
+        "symbol": "LockedFields",
+        "line": 168,
+        "url": "https://github.com/jellyfin/jellyfin-web/blob/fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09/src/components/metadataEditor/metadataEditor.js#L168"
+      }
+    ],
+    "observedMechanism": "Metadata editor seçilmiş kilit alanlarını LockedFields olarak gönderir; ProviderIds ayrı tutulur. Bizdeki alan seçmeli önizleme zaten mevcut olduğundan öneri tekrar bir eşleştirme ekranı değildir.",
+    "localBaseline": [
+      "src/catalog-extensions.js:metadata-apply",
+      "src/catalog-extensions.js:metadata-complete-missing",
+      "src/catalog-metadata-sync.js:createMetadataSync",
+      "src/media-catalog-store.js:itemOf"
+    ],
+    "proposedCapability": "Eser bazında kalıcı fieldLocks + kullanıcı düzenlemesi/kaynak bilgisi. Yalnız eksik alanı doldurma bugünkü yaklaşımını koruyarak daha sonra toplu yenileme eklenince bilinçli düzeltmeyi koruma.",
+    "tangibleUX": "Synopsis yanında Elle koru; güncelleme önizlemesinde 3 alan güncellenecek, 1 alan kilitli. Kilidi açmak veri silmez.",
+    "acquisitionRoute": "GPL UI kodu yerine mevcut DOM mimarisinde bağımsız veri sözleşmesi. Kaynağın birebir görseli veya React kontrolü alınmaz.",
+    "effort": "Orta; kalıcı şema ve tüm metadata yazıcıları",
+    "acceptance": "Elle düzeltilen Türkçe başlık yeniden eşleştirme/senkron sonrasında korunur; farklı eser kimliğine geçişte kilitlerin kapsamı kullanıcıya gösterilir.",
+    "windowsThemeMetadata": "Grafit/amber kilit simgesi tek başına anlam taşımaz, metin açıklaması ve klavye erişimi gerekir. Provider lisansı ve atıf bilgisi alan kaynağına bağlı tutulur."
+  },
+  {
+    "id": "L842-08",
+    "title": "Seçilen kütüphane klasörü için artımlı değişiklik gelen kutusu",
+    "classification": "NEW",
+    "priority": "P1",
+    "sourceEvidence": [
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "Emby.Server.Implementations/IO/LibraryMonitor.cs",
+        "symbol": "StartWatchingPath",
+        "line": 159,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/Emby.Server.Implementations/IO/LibraryMonitor.cs#L159"
+      },
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "Emby.Server.Implementations/IO/LibraryMonitor.cs",
+        "symbol": "ReportFileSystemChangeBeginning",
+        "line": 83,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/Emby.Server.Implementations/IO/LibraryMonitor.cs#L83"
+      }
+    ],
+    "observedMechanism": "LibraryMonitor FileSystemWatcher olayları, geçici ignore listesi ve watcher nesliyle yaşam döngüsü yönetir. Bu C# servisinin varlığı Node fs.watch davranışının eşdeğer veya kusursuz olduğu anlamına gelmez.",
+    "localBaseline": [
+      "backend/catalog_scan.py:scan",
+      "src/catalog-extensions.js:folder-preview/folder-apply",
+      "src/media-relink-matcher.js"
+    ],
+    "proposedCapability": "Bugünkü elle klasör taramasına seçili kök, son tarama imzası ve yeni/değişen/kayıp aday gelen kutusu ekleme. Otomatik katalog silme veya sürekli tüm diski tarama yok.",
+    "tangibleUX": "Kütüphanede 3 yeni dosya, 1 taşınmış, 1 erişilemiyor bildirimi; kullanıcı önizleyip kabul eder. Klasör takibini durdurabilir.",
+    "acquisitionRoute": "Jellyfin yaşam döngüsü yaklaşımını bağımsız uygula; Node watcher + periyodik salt okunur mutabakat birlikte düşünülür.",
+    "effort": "Orta-büyük; çalışma işi ve kalıcı kök izinleri",
+    "acceptance": "USB çıkarılınca bütün katalog silinmez; yarım kopyalanan dosya hemen eklenmez; aynı olay patlaması tek aday üretir; izleme kapatılınca watcher kapanır.",
+    "windowsThemeMetadata": "Windows reparse/junction dışına çıkılmaz; izin ve dosya kilidi hataları görünür. Grafit küçük gelen kutusu, kişisel dosya yolları dış sağlayıcıya gönderilmez."
+  },
+  {
+    "id": "L842-09",
+    "title": "Kütüphane seçiminde gerçek dosyanın ses ve görüntü özellikleri",
+    "classification": "OLD-DEEPENING:D841-02;D841-24",
+    "priority": "P2",
+    "sourceEvidence": [
+      {
+        "repo": "Komet/MediaElch",
+        "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+        "path": "src/media/StreamDetails.cpp",
+        "symbol": "StreamDetails::detailToString(VideoDetails",
+        "line": 21,
+        "url": "https://github.com/Komet/MediaElch/blob/e60309e6b4917db30001a261ff91ae38ad465a0e/src/media/StreamDetails.cpp#L21"
+      },
+      {
+        "repo": "jellyfin/jellyfin-web",
+        "head": "fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09",
+        "path": "src/apps/modern/features/libraries/components/filter/FiltersAudioLanguages.tsx",
+        "symbol": "FiltersAudioLanguages",
+        "line": 7,
+        "url": "https://github.com/jellyfin/jellyfin-web/blob/fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09/src/apps/modern/features/libraries/components/filter/FiltersAudioLanguages.tsx#L7"
+      }
+    ],
+    "observedMechanism": "StreamDetails codec, boyut, HDR türü, ses dili/kanal ve altyazı dili alanlarını ayırır; Jellyfin web ses dilini ayrı filtreler. Codec etiketi tek başına cihaz uyumluluğu kanıtı değildir.",
+    "localBaseline": [
+      "src/library-filters.js:applyLibraryFilters",
+      "src/media-compatibility.js",
+      "src/media-audio-tracks.js",
+      "src/media-catalog-store.js:itemOf"
+    ],
+    "proposedCapability": "Mevcut dil/altyazı filtrelerini yeniymiş gibi saymadan, catalog source sürümüne bağlı stream envanteriyle ses dili + kanal + HDR/codec filtresi ve teknik durum sunma.",
+    "tangibleUX": "Türkçe sesli yerel filmler filtresi; kart ayrıntısında 1080p HEVC, HDR, TR 5.1 ve envanter tarihi. Bilinmeyen veri eşleşmiş sayılmaz.",
+    "acquisitionRoute": "MediaElch Qt/MediaInfo katmanı taşınmaz; mevcut ffprobe/track altyapısı tekrar kullanılır; GPL/ LGPL kaynaklar model referansı.",
+    "effort": "Orta; sonuç önbelleği ve source fingerprint",
+    "acceptance": "Aynı filmin iki sürümünde farklı ses dili doğru görünür; dosya değişince teknik bilgi bayatlar; bilinmeyen özellik için boş sonucu kesin yok diye göstermez.",
+    "windowsThemeMetadata": "GPU/DRM desteği etiketle vaat edilmez. Windows ffprobe yolu ve Türkçe metadata doğrulanır; küçük erişilebilir filtre çipleri; müzik analizi hedefi eklenmez."
+  },
+  {
+    "id": "L842-10",
+    "title": "Altyazı hazır mı: dosya ve dil durumunu çalışma kuyruğuna bağlama",
+    "classification": "OLD-DEEPENING:D841-24;R839-D06",
+    "priority": "P2",
+    "sourceEvidence": [
+      {
+        "repo": "jellyfin/jellyfin-web",
+        "head": "fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09",
+        "path": "src/apps/modern/features/libraries/components/filter/FiltersFeatures.tsx",
+        "symbol": "FeatureFilters.HasSubtitles",
+        "line": 9,
+        "url": "https://github.com/jellyfin/jellyfin-web/blob/fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09/src/apps/modern/features/libraries/components/filter/FiltersFeatures.tsx#L9"
+      },
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "MediaBrowser.Controller/Entities/Video.cs",
+        "symbol": "SubtitleFiles",
+        "line": 39,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/MediaBrowser.Controller/Entities/Video.cs#L39"
+      }
+    ],
+    "observedMechanism": "Jellyfin dosya/özellik modelinde SubtitleFiles ve HasSubtitles ayrımı, UI tarafında altyazı varlığı filtresi var. Kaynak otomatik transkripsiyon yapmıyor; önerilen görev bağlantısı bize ait sentezdir.",
+    "localBaseline": [
+      "src/library-filters.js:applyLibraryFilters",
+      "src/media-catalog-service.js:progress",
+      "src/media-subtitle-tracks.js",
+      "src/renderer/media-workflows-ui.js"
+    ],
+    "proposedCapability": "Mevcut hasSubs filtresini aşan, sürüme bağlı kaynak dil/çeviri/hazır/değişmiş/eksik dosya özeti; seçilen birkaç eserden altyazı oluşturma iş önizlemesine gitme.",
+    "tangibleUX": "Bu akşam listesinde Türkçe altyazı hazır 4/7; eksik 3 eseri seçince mevcut iş akışında her dosyanın ayarı ve tahmini iş gösterilir.",
+    "acquisitionRoute": "Özellik modelini bağımsız uygula; mevcut kuyruğu tekrar kullan. Harici sağlayıcıdan altyazı indirme bu kartın kapsamında değil.",
+    "effort": "Orta; source ile asset ilişkilendirmesi",
+    "acceptance": "Altyazı dosyası taşınmışsa hazır görünmez; bir sürümün altyazısı diğerine sessiz atanmaz; iş önizlemesinden çıkınca kuyruk değişmez.",
+    "windowsThemeMetadata": "Windows yol kontrolü gerçek dosya seçici/grant üzerinden; İngilizce/Türkçe durum metni. Dil bilgisi dosya adına göre kesinleştirilmez, kişisel altyazı dışa yüklenmez."
+  },
+  {
+    "id": "L842-11",
+    "title": "Dosya ve yan dosyalar için çakışma gösteren düzenleme planı",
+    "classification": "NEW",
+    "priority": "P2",
+    "sourceEvidence": [
+      {
+        "repo": "Komet/MediaElch",
+        "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+        "path": "src/renamer/MovieRenamer.cpp",
+        "symbol": "MovieRenamer::renameMovie",
+        "line": 112,
+        "url": "https://github.com/Komet/MediaElch/blob/e60309e6b4917db30001a261ff91ae38ad465a0e/src/renamer/MovieRenamer.cpp#L112"
+      },
+      {
+        "repo": "Komet/MediaElch",
+        "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+        "path": "src/renamer/Renamer.cpp",
+        "symbol": "bool Renamer::rename",
+        "line": 52,
+        "url": "https://github.com/Komet/MediaElch/blob/e60309e6b4917db30001a261ff91ae38ad465a0e/src/renamer/Renamer.cpp#L52"
+      }
+    ],
+    "observedMechanism": "MovieRenamer ad şablonunu hesaplar, önizleme tablosuna işlem ekler ve gerçek rename yolunu ayırır; Renamer case-only değişimlerde geçici ad kullanır. Tam rollback garantisi kaynakta varsayılmadı.",
+    "localBaseline": [
+      "src/media-relink-matcher.js",
+      "src/catalog-discovery.js:scanFolder",
+      "src/watch-library-store.js"
+    ],
+    "proposedCapability": "Kütüphane düzenlemek isteyen kullanıcı için önce salt okunur eski/yeni yol ve çakışma planı; sonra ayrı açık onaylı dosya düzenleme. Mevcut taşınanı yeniden bağlama işlevinden farklıdır.",
+    "tangibleUX": "Film adı (Yıl) düzeni önerisi; video, SRT ve NFO beraber gösterilir. Çakışma veya açık dosya varsa ilgili satır uygulanamaz.",
+    "acquisitionRoute": "LGPL renamer kopyalamadan bağımsız planlayıcı; gerçek uygulama yapılacaksa dosya sistemi ve katalog güncellemesi için journal/rollback tasarımı şart.",
+    "effort": "Büyük; veri kaybı riski sebebiyle sonraki faz",
+    "acceptance": "Plan açılması hiçbir dosya taşımaz; iki dosya aynı hedefi alamaz; yarım hatada katalog kaynağı eski/yeni gerçek konumla tutarlı kalır.",
+    "windowsThemeMetadata": "Windows reserved adlar, MAX_PATH, case-only rename, Türkçe NFC ve kilitli dosya özel kabul gerektirir. Amber Uygula ancak plan gözden geçirildikten sonra; otomatik düzenleyici yok."
+  },
+  {
+    "id": "L842-12",
+    "title": "Birden fazla eserde alan bazlı metadata düzeltme makbuzu",
+    "classification": "NEW",
+    "priority": "P1",
+    "sourceEvidence": [
+      {
+        "repo": "Kometa-Team/Kometa",
+        "head": "cc35af0686967b74ead474277d9eb16119bc888c",
+        "path": "modules/meta.py",
+        "symbol": "def update_metadata",
+        "line": 1659,
+        "url": "https://github.com/Kometa-Team/Kometa/blob/cc35af0686967b74ead474277d9eb16119bc888c/modules/meta.py#L1659"
+      },
+      {
+        "repo": "Kometa-Team/Kometa",
+        "head": "cc35af0686967b74ead474277d9eb16119bc888c",
+        "path": "modules/meta.py",
+        "symbol": "def edit_tags",
+        "line": 1639,
+        "url": "https://github.com/Kometa-Team/Kometa/blob/cc35af0686967b74ead474277d9eb16119bc888c/modules/meta.py#L1639"
+      }
+    ],
+    "observedMechanism": "Kometa metadata işlemlerini eşleşen eserlere uygular ve etiketlerde ekle/çıkar/senkron kiplerini ayırır. Mevcut kod Plex nesnelerine bağlıdır; geri alınabilir Electron önizlemesi hazır bileşen değildir.",
+    "localBaseline": [
+      "src/catalog-extensions.js:metadata-apply",
+      "src/catalog-metadata-sync.js",
+      "src/renderer/media-catalog.js:renderMetadata"
+    ],
+    "proposedCapability": "Bizde tek eser için alan seçimi ve eksik metadata senkronu var. Yeni kısım çoklu seçimde ortak alan düzeltme, her satır eski/yeni farkı, kilitleri koruma ve işlem makbuzudur.",
+    "tangibleUX": "Beş filmi seç, tür etiketine Belgesel ekle; mevcut türleri değiştirmeden neyin ekleneceği görünür. Senkron/yerine koy kipi ayrı ve açık olur.",
+    "acquisitionRoute": "MIT küçük etiket fark algoritmaları notice ile port adayı; Plex/Docker veya Python çalışma sistemi kurulmaz. Mevcut store yazıcıları kullanılır.",
+    "effort": "Orta; toplu atomiklik ve L842-07",
+    "acceptance": "Eşzamanlı değişen satır sessiz ezilmez; bir satır hatası diğerlerinin durumunu doğru raporlar; kişisel puan/izleme durumu metadata işiyle değişmez.",
+    "windowsThemeMetadata": "Windows dosya yazımı mevcut fsync akışıyla; dar pencerede yatay sonsuz tablo yerine satır ayrıntısı. TMDB veri yenileme kotası ayrı; kontrolsüz toplu API çağrısı yok."
+  },
+  {
+    "id": "L842-13",
+    "title": "Koleksiyona yalnız eser değil sezon ve bölüm de ekleme",
+    "classification": "NEW",
+    "priority": "P2",
+    "sourceEvidence": [
+      {
+        "repo": "bonukai/MediaTracker",
+        "head": "22aedac26329893b6441d74d12be9a48e190ca9c",
+        "path": "server/src/entity/list.ts",
+        "symbol": "seasonId?: number",
+        "line": 33,
+        "url": "https://github.com/bonukai/MediaTracker/blob/22aedac26329893b6441d74d12be9a48e190ca9c/server/src/entity/list.ts#L33"
+      },
+      {
+        "repo": "bonukai/MediaTracker",
+        "head": "22aedac26329893b6441d74d12be9a48e190ca9c",
+        "path": "server/src/entity/list.ts",
+        "symbol": "episodeId?: number",
+        "line": 34,
+        "url": "https://github.com/bonukai/MediaTracker/blob/22aedac26329893b6441d74d12be9a48e190ca9c/server/src/entity/list.ts#L34"
+      }
+    ],
+    "observedMechanism": "MediaTracker ListItem hem mediaItemId hem isteğe bağlı seasonId/episodeId taşır. Bu kaynak liste üyeliğinin kapsamını kanıtlar; bir oynatma motoru veya paylaşım kabulü değildir.",
+    "localBaseline": [
+      "src/media-catalog-store.js:itemOf/episodeOf",
+      "src/media-shelf-service.js",
+      "src/renderer/media-shelf-ui.js"
+    ],
+    "proposedCapability": "Eser düzeyindeki collections alanından ayrı, stable kimlikli üye referanslarıyla seçilmiş bölümler rafı. Antoloji, özel gece veya hatırlanan bölümlere doğrudan erişim sağlanır.",
+    "tangibleUX": "En sevdiğim beş bölüm koleksiyonu, dizi afişiyle birlikte bölüm adı ve numarasını gösterir; aç eylemi doğru bölüm ayrıntısına gider.",
+    "acquisitionRoute": "MIT üyelik tipi notice korunarak port adayı; SQL/React servisinin bütünü taşınmaz. Kendi JSON store sınırlarına uygun üyelik kaydı.",
+    "effort": "Orta; sezon/bölüm kimliği ve silme ilişkisi",
+    "acceptance": "Bir bölüm başka sıraya taşınınca koleksiyon referansı bozulmaz; dizi silinirse kırık üye kullanıcıya görünür; kaldırma dosyayı silmez.",
+    "windowsThemeMetadata": "Türkçe uzun bölüm adları ve tek dil UI; yerel yol listelerde paylaşılmaz. İsteğe bağlı liste dışa aktarma ayrı kapsam, bu kart çevrimiçi sosyal özellik gerektirmez."
+  },
+  {
+    "id": "L842-14",
+    "title": "Ara verdim ve bıraktım durumlarını izleniyor listesinden ayırma",
+    "classification": "NEW",
+    "priority": "P1",
+    "sourceEvidence": [
+      {
+        "repo": "FuzzyGrim/Yamtrack",
+        "head": "387274467e771845cf84fe3ceb1b249ad8405e41",
+        "path": "src/app/models.py",
+        "symbol": "class Status(models.TextChoices)",
+        "line": 774,
+        "url": "https://github.com/FuzzyGrim/Yamtrack/blob/387274467e771845cf84fe3ceb1b249ad8405e41/src/app/models.py#L774"
+      }
+    ],
+    "observedMechanism": "Yamtrack Status modeli PAUSED ve DROPPED durumlarını açık tutar; Media.process_status ilerleme/durum ilişkisini işler. Bu mekanizma bir filme düşük puan vermeyle aynı değildir.",
+    "localBaseline": [
+      "src/media-catalog-store.js:STATUSES",
+      "src/renderer/media-catalog.js:statusLabels/filtered",
+      "src/media-discovery-service.js"
+    ],
+    "proposedCapability": "Mevcut planned/watching/completed/unspecified durumlarına isteğe bağlı paused/dropped ekleme; yarım kalmış bir dizi devam rafını sürekli işgal etmesin. Bırakmayı otomatik olumsuz zevk sinyaline çevirmeme.",
+    "tangibleUX": "Dizi menüsünde Ara ver / Bıraktım; devam rafından kalkar, ayrı filtrede bulunur; Yeniden başla eski konumu korur.",
+    "acquisitionRoute": "AGPL Django kodunu taşımadan basit enum ve geçiş politikasını bağımsız uygula. Kayıt göçü eski durumları aynen korur.",
+    "effort": "Küçük-orta; tüm filtre ve aktarım sözleşmeleri",
+    "acceptance": "Bıraktım seçimi izlenmiş işaretlemez; puanı veya konumu silmez; geri alınır; paket içe/dışa aktarmada durum kaybolmaz.",
+    "windowsThemeMetadata": "EN/TR Paused/Ara verildi ve Dropped/Bırakıldı metinleri net; renk tek sinyal olmaz. Windows dosya erişimi gerektirmeyen tamamen yerel özellik."
+  },
+  {
+    "id": "L842-15",
+    "title": "İzleme günlüğünde yeniden izleme oturumunu ayrı tutma",
+    "classification": "OLD-DEEPENING:D841-23",
+    "priority": "P2",
+    "sourceEvidence": [
+      {
+        "repo": "FuzzyGrim/Yamtrack",
+        "head": "387274467e771845cf84fe3ceb1b249ad8405e41",
+        "path": "src/app/models.py",
+        "symbol": "def watch(self, episode_number, end_date, notes=",
+        "line": 1597,
+        "url": "https://github.com/FuzzyGrim/Yamtrack/blob/387274467e771845cf84fe3ceb1b249ad8405e41/src/app/models.py#L1597"
+      },
+      {
+        "repo": "bonukai/MediaTracker",
+        "head": "22aedac26329893b6441d74d12be9a48e190ca9c",
+        "path": "server/src/entity/progress.ts",
+        "symbol": "export type Progress",
+        "line": 1,
+        "url": "https://github.com/bonukai/MediaTracker/blob/22aedac26329893b6441d74d12be9a48e190ca9c/server/src/entity/progress.ts#L1"
+      }
+    ],
+    "observedMechanism": "Yamtrack sezon watch işlemi bölüm için tekrar kaydı üretir; MediaTracker progress zaman, bölüm, süre ve cihaz alanlarını ayırır. Bütün progress olaylarının tekrar izleme oturumu olduğu varsayılmaz.",
+    "localBaseline": [
+      "src/media-shelf-service.js:diaryKey/rewatchIndex",
+      "src/watch-library-store.js",
+      "src/media-catalog-service.js:progress"
+    ],
+    "proposedCapability": "Bizde içe aktarılan günlükte rewatchIndex zaten var. Gelişim: yerel oynatmayla ikinci izlemeyi bilinçli başlatma, ayrı oturum tarihçesi ve güncel resume bilgisinin geçmiş puanı ezmemesi.",
+    "tangibleUX": "Tekrar izlemeye başla seçimi yeni oturum açar; film ayrıntısında 2025 ve 2026 izlemeleri ayrı görünür; önceki yorum kaybolmaz.",
+    "acquisitionRoute": "AGPL tarihçe modeli bağımsız uygulanır; MIT progress alanları notice ile aday. Dış tracker scrobble, hesap ve webhook zorunlu değil.",
+    "effort": "Orta-büyük; olay/oturum ayrımı",
+    "acceptance": "Bir videoyu duraklatıp sürdürmek iki rewatch üretmez; yarım oturum tamamlanmış gösterilmez; yanlış açılan oturum eski günlüğü bozmadan kaldırılır.",
+    "windowsThemeMetadata": "Windows saat dilimi ve tarih değişimleri korunur; yalnız izinli yerel olaylar kaydedilir. D841-23 export kartı yeni diye tekrar sayılmadı."
+  },
+  {
+    "id": "L842-16",
+    "title": "Bölüme bağlı kısa not ve izleme sonrası düşünce",
+    "classification": "NEW",
+    "priority": "P2",
+    "sourceEvidence": [
+      {
+        "repo": "FuzzyGrim/Yamtrack",
+        "head": "387274467e771845cf84fe3ceb1b249ad8405e41",
+        "path": "src/app/models.py",
+        "symbol": "class Episode(models.Model)",
+        "line": 1773,
+        "url": "https://github.com/FuzzyGrim/Yamtrack/blob/387274467e771845cf84fe3ceb1b249ad8405e41/src/app/models.py#L1773"
+      },
+      {
+        "repo": "FuzzyGrim/Yamtrack",
+        "head": "387274467e771845cf84fe3ceb1b249ad8405e41",
+        "path": "src/app/models.py",
+        "symbol": "notes = models.TextField",
+        "line": 865,
+        "url": "https://github.com/FuzzyGrim/Yamtrack/blob/387274467e771845cf84fe3ceb1b249ad8405e41/src/app/models.py#L865"
+      }
+    ],
+    "observedMechanism": "Episode modelinde notes ve tarihçe alanı bulunur; MediaManager notlarda metin aramasını da kapsayabilir. Kaynak timestamp alıntılı sahne notu motoru değildir.",
+    "localBaseline": [
+      "src/media-catalog-store.js:episodeOf",
+      "src/watch-library-store.js",
+      "src/renderer/media-catalog.js:renderEpisodeForm"
+    ],
+    "proposedCapability": "Mevcut dosya/not/altyazı bağlamına ek olarak oynatıcı açmadan stable bölüm kimliğine kısa düşünce kaydetme. Dosya sonra yeniden bağlansa veya katalog sırası değişse de bölüm notu kalır.",
+    "tangibleUX": "Bölüm satırından Not ekle; dizi ayrıntısında yalnız benim notlarım görünümü. Aynı dizinin notlarında arama doğrudan ilgili bölümü açar.",
+    "acquisitionRoute": "AGPL model kodu taşınmaz; mevcut not mimarisine bağımsız entityRef genişlemesi. Oynatma zamanı olan notlar ayrı referansını korur.",
+    "effort": "Orta; iki not türünü anlaşılır bağlama",
+    "acceptance": "Bölüm yeniden numaralansa not ID ile kalır; arama sonuçları başka dizideki aynı S01E01 ile karışmaz; not dış metadata yenilemesiyle değişmez.",
+    "windowsThemeMetadata": "Yerel not hiçbir sağlayıcıya varsayılan gönderilmez; EN/TR kontrol etiketleri, kullanıcı notunun içeriği çevrilmez. Grafit yan panelde okunabilir metin alanı.",
+    "existingNotesClarification": "Yerel watch-library ve medya notları zaten vardır. Öneri not özelliğinin yokluğunu iddia etmez; oynatıcı dosyası/zamanından bağımsız stable episode ID üzerinde katalog düşüncesi ve bu notların bölüm bazlı bulunabilirliği içindir."
+  },
+  {
+    "id": "L842-17",
+    "title": "Koleksiyon yenilemesinde ekle/çıkar farkı ve üyelik politikası",
+    "classification": "OLD-DEEPENING:R839-F09;D841-08",
+    "priority": "P2",
+    "sourceEvidence": [
+      {
+        "repo": "Kometa-Team/Kometa",
+        "head": "cc35af0686967b74ead474277d9eb16119bc888c",
+        "path": "modules/builder.py",
+        "symbol": "def run_collections_again",
+        "line": 6783,
+        "url": "https://github.com/Kometa-Team/Kometa/blob/cc35af0686967b74ead474277d9eb16119bc888c/modules/builder.py#L6783"
+      },
+      {
+        "repo": "Kometa-Team/Kometa",
+        "head": "cc35af0686967b74ead474277d9eb16119bc888c",
+        "path": "modules/builder.py",
+        "symbol": "self.sync = self.library.sync_mode",
+        "line": 1544,
+        "url": "https://github.com/Kometa-Team/Kometa/blob/cc35af0686967b74ead474277d9eb16119bc888c/modules/builder.py#L1544"
+      }
+    ],
+    "observedMechanism": "Kometa append/sync ayrımını ve collection üyelerinin eklenme/çıkarılma mekanizmalarını tutar. Bu kaynak salt okunur önizlemeyi hazır sunuyor denmedi; bizim makbuz önerimiz sentezdir.",
+    "localBaseline": [
+      "src/media-catalog-store.js:itemOf.collections",
+      "src/media-shelf-service.js",
+      "src/renderer/media-shelf-ui.js"
+    ],
+    "proposedCapability": "Önceki kaydedilen raf/editoryal liste fikirlerini derinleştir: yenilemede elle eklenen üyeyi koru, yalnız kaynağın üyelerini eşitle veya sadece ekle kipleri. Dış liste değişince kişisel çalışma kaybolmasın.",
+    "tangibleUX": "Listeyi yenile: 4 eklenecek, 2 kaynaktan çıktı, 1 elle eklenen korunacak. Kullanıcı farkı görüp uygular; kaynaktan çıktı dosyası silinmez.",
+    "acquisitionRoute": "MIT set fark/senkron kavramı notice ile port adayı; Radarr/Sonarr/torrent ve otomatik indirme dalları tamamen kapsam dışı.",
+    "effort": "Orta; üyelik provenance ve revision",
+    "acceptance": "Boş/başarısız kaynak yanıtı bütün üyeleri çıkarmaz; aynı revizyon ikinci kez işlendiğinde fark oluşmaz; elle üyeler seçilen politikaya göre korunur.",
+    "windowsThemeMetadata": "Yerel katalog kaydı ve dosya silme aynı işlem değildir. Liste/veri atıfları korunur; grafit fark paneli ve EN/TR kip açıklaması gerekir."
+  },
+  {
+    "id": "L842-18",
+    "title": "İzlenmemiş bölümün görsel ve açıklamasını kütüphanede gizleme",
+    "classification": "OLD-DEEPENING:R839-A09;D841-21",
+    "priority": "P2",
+    "sourceEvidence": [
+      {
+        "repo": "FuzzyGrim/Yamtrack",
+        "head": "387274467e771845cf84fe3ceb1b249ad8405e41",
+        "path": "src/users/models.py",
+        "symbol": "obfuscate_unseen_episodes",
+        "line": 315,
+        "url": "https://github.com/FuzzyGrim/Yamtrack/blob/387274467e771845cf84fe3ceb1b249ad8405e41/src/users/models.py#L315"
+      }
+    ],
+    "observedMechanism": "Yamtrack kullanıcı modelinde izlenmemiş bölüm resim/açıklamasını gizlemeye yönelik obfuscate_unseen_episodes ayarı var. Bu tur render template/çalışan UI doğrulanmadı; gözlenen kanıt yapılandırma sözleşmesidir.",
+    "localBaseline": [
+      "src/media-catalog-store.js:episodeOf",
+      "src/renderer/media-catalog.js",
+      "src/renderer/media-discovery-ui.js"
+    ],
+    "proposedCapability": "Önceki spoiler güvenli asistan/yorum planını kütüphanenin bölüm görseli ve synopsis yüzeyine taşıma; görüntüye uygulanan gizleme AI bağlamında spoiler garantisi diye sunulmaz.",
+    "tangibleUX": "Henüz izlenmeyen bölümde nötr küçük görsel ve Açıklamayı göster eylemi; tek sefer açmak bölümü izlendi işaretlemez.",
+    "acquisitionRoute": "AGPL ayar kodu yerine bağımsız yerel tercih; template davranışı incelenmeden hazır blur bileşeni alındı denmez.",
+    "effort": "Küçük-orta; tüm bölüm preview yüzeylerini izleme",
+    "acceptance": "Arama/hover/koleksiyon/sonraki bölüm yüzeylerinde aynı tercih uygulanır; ekran okuyucu gizli synopsis metnini okumaz; açıkça göster eylemi geri alınabilir.",
+    "windowsThemeMetadata": "Spoiler kapatma için yalnız CSS blur yeterli değildir; DOM/erişilebilir adlar da ele alınır. EN/TR kısa kontrol, Windows klavye odağı; D841-21 tekrar sayılmadı."
+  },
+  {
+    "id": "L842-19",
+    "title": "Yerel arşiv için sahne küçük görselleriyle görsel göz atma",
+    "classification": "OLD-DEEPENING:R76-1.1",
+    "priority": "P2",
+    "sourceEvidence": [
+      {
+        "repo": "jellyfin/jellyfin",
+        "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+        "path": "Jellyfin.Server.Implementations/Trickplay/TrickplayManager.cs",
+        "symbol": "CanGenerateTrickplay",
+        "line": 86,
+        "url": "https://github.com/jellyfin/jellyfin/blob/5b385862fb97201d954a6ac7c9c745d791a738fa/Jellyfin.Server.Implementations/Trickplay/TrickplayManager.cs#L86"
+      }
+    ],
+    "observedMechanism": "TrickplayManager mevcut görsel tablolarını keşfeder, çözünürlük/zaman aralığı bilgisiyle tile envanterini yönetir ve FFmpeg üretim akışına sahiptir. Semantik video arama veya sahne tanıma değildir.",
+    "localBaseline": [
+      "src/renderer/media-catalog.js",
+      "src/media-workflows.js",
+      "src/media-compatibility.js",
+      "src/media-catalog-service.js"
+    ],
+    "proposedCapability": "Kütüphanede aynı adlı yerel kaydı ayırt etmek veya hatırlanan bölüme göz atmak için isteğe bağlı, bütçeli zaman çizgisi küçük görselleri. Varsayılan tüm arşivi GPU işine sokma yok.",
+    "tangibleUX": "Ayrıntıda Sahnelere göz at: belli aralıklarda küçük görseller ve zaman kodları. Birine basınca dosya izinleri doğrulanıp oynatıcı o noktayı açar.",
+    "acquisitionRoute": "GPL tile manager kopyalanmaz; mevcut FFmpeg çevresinde bağımsız sınırlı iş, iptal ve cache modeli. Üretim yalnız açık kullanıcı eylemiyle.",
+    "effort": "Büyük; görev kuyruğu ve disk bütçesi",
+    "acceptance": "İptal yarım görselleri hazır göstermez; dosya sürümü değişince önbellek geçersizleşir; ağ videosu/DRM için çalışıyor iddiası yok.",
+    "windowsThemeMetadata": "Windows FFmpeg yolu, dosya kilidi ve silinmiş kaynak kabulü gerekir. Yerel kareler kişiseldir, buluta gönderilmez/Git olmaz; EN/TR kontrol ve sade amber odak.",
+    "dedupNote": "R76-1.1 Jellyfin TrickplayManager seekbar preview mekanizmasını zaten öneriyordu; kütüphane göz atma yüzeyi yeni bağımsız mekanizma sayılmadı."
+  },
+  {
+    "id": "L842-20",
+    "title": "Eklenme tarihi ile yayın ve izleme tarihini ayrı sıralama",
+    "classification": "NEW",
+    "priority": "P2",
+    "sourceEvidence": [
+      {
+        "repo": "jellyfin/jellyfin-web",
+        "head": "fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09",
+        "path": "src/components/metadataEditor/metadataEditor.js",
+        "symbol": "DateCreated: getDateValue",
+        "line": 157,
+        "url": "https://github.com/jellyfin/jellyfin-web/blob/fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09/src/components/metadataEditor/metadataEditor.js#L157"
+      },
+      {
+        "repo": "bonukai/MediaTracker",
+        "head": "22aedac26329893b6441d74d12be9a48e190ca9c",
+        "path": "server/src/entity/list.ts",
+        "symbol": "'recently-added'",
+        "line": 5,
+        "url": "https://github.com/bonukai/MediaTracker/blob/22aedac26329893b6441d74d12be9a48e190ca9c/server/src/entity/list.ts#L5"
+      }
+    ],
+    "observedMechanism": "Jellyfin editor DateCreated ve PremiereDate alanlarını ayırır; MediaTracker liste sıralamasında recently-added/recently-watched/release-date farklıdır ve üyede addedAt vardır.",
+    "localBaseline": [
+      "src/media-catalog-store.js:itemOf",
+      "src/renderer/media-catalog.js:filtered",
+      "src/media-shelf-service.js"
+    ],
+    "proposedCapability": "Katalog kaydının ilk eklenme tarihi, koleksiyona giriş tarihi, yayın yılı ve son oynatma zamanını karıştırmadan sıralama; toplu eski arşiv ithali de kaynağıyla gösterilsin.",
+    "tangibleUX": "Kütüphanede Yeni eklenenler: bu hafta bağladığım eski filmler. Ayrıntıda Kütüphaneye eklendi ve Yayın tarihi açıkça ayrı yer alır.",
+    "acquisitionRoute": "Basit tarih modelini bağımsız kur; MIT liste sort sözleşmesi notice ile port adayı. Eski kayıtlara sahte ilk eklenme tarihi uydurulmaz.",
+    "effort": "Küçük-orta; şema ve eski veri açıklaması",
+    "acceptance": "Metadata yenileme addedAt değerini değiştirmez; bir koleksiyona tekrar ekleme eser tarihini ezmez; bilinmeyen eski tarih belirsiz gösterilir.",
+    "windowsThemeMetadata": "Windows yerel saat dilimi/tarih gösterimi ve kararlı eşitlik sıralaması doğrulanır. Türkçe/İngilizce tarih etiketleri net; ham UTC saklanıp kullanıcıya yerel gösterilir."
+  }
+]
