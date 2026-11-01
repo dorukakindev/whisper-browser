@@ -1,0 +1,48 @@
+{
+  "cards": 20,
+  "uniqueIds": 20,
+  "new": 13,
+  "oldDeepening": 7,
+  "repositories": 6,
+  "sources": 48,
+  "localFiles": 19,
+  "sourceByteHashPass": true,
+  "sourceCanonicalHashPass": true,
+  "symbolLinePass": true,
+  "productTestsRun": false,
+  "upstreamBuildRun": false,
+  "windowsUiVerified": false,
+  "runtimeQualityClaim": false,
+  "scope": "documentation-only",
+  "dedupScope": "R838 repository registry + R839 + R841 main/card-index/discovery; current local baseline inspected; not exhaustive historical search; R76-1.1 trickplay mechanism",
+  "rejected": [
+    {
+      "repo": "Yamtrack/Yamtrack",
+      "reason": "404; correct canonical FuzzyGrim/Yamtrack used"
+    },
+    {
+      "repo": "immich-app/immich",
+      "reason": "photo archive focus; no strong new video/subtitle library card selected"
+    },
+    {
+      "repo": "seerr-team/seerr",
+      "reason": "already R839, not new repository count"
+    }
+  ],
+  "localBaselineGitCanonicalPass": true,
+  "allJsonParsePass": true,
+  "sourceReferencesManifestPass": true,
+  "sourceSymbolsAtPinnedLinesPass": true,
+  "noThirdPartySourceBodiesPublished": true,
+  "checksRun": [
+    "python .tmp/research842/library/publish.py",
+    "python .tmp/research842/library/verify.py",
+    "git diff --check -- docs/raporlar/research842/library"
+  ],
+  "newRepositories": 5,
+  "oldRepositoryDeepening": 1,
+  "repositoryDedupNote": "jellyfin/jellyfin already R838 at same 5b385862fb97201d954a6ac7c9c745d791a738fa HEAD; distinct mechanism cards retained",
+  "dedupCorrections": [
+    "L842-19 OLD-DEEPENING:R76-1.1; same trickplay mechanism applied to library browsing"
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+  "files": [
+    {
+      "key": "retrieval",
+      "path": "src/assistant-retrieval.js",
+      "symbol": "function search",
+      "line": 6,
+      "behavior": "Sözcük eşleşmesiyle puanlar; satırın eşleşen bölgesinden en fazla900karakter çıkarır,en fazla12sonuç. Embedding/graf/hiyerarşik bölüm araması yok.",
+      "canonicalSha256": "8109beccea82ba2fd98dee49e5ec1088406a04e129839cd849078fa7c0540eac",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/assistant-retrieval.js#L6"
+    },
+    {
+      "key": "web",
+      "path": "src/assistant-browser-research.js",
+      "symbol": "function createResearch",
+      "line": 3,
+      "behavior": "Arama motorlarını sırayla dener,4URL toplar,ilk3sayfanın ilk6000karakterini okur. Hedef sorulara ayrılmış araştırma ağacı yok.",
+      "canonicalSha256": "f0665a230607abb82b25ce452c141cacfd52a2f19622270df8623f14285bffc0",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/assistant-browser-research.js#L3"
+    },
+    {
+      "key": "library",
+      "path": "src/renderer/assistant-library-actions.js",
+      "symbol": "name==='search_library'",
+      "line": 72,
+      "behavior": "Başlık/orijinal başlık/özet içinde substring ve tür/durum/genre filtreleri;8sonuç sayfalama. Film bilgisi,kişi,yorum,zevk ve koleksiyon araçları zaten var.",
+      "canonicalSha256": "b156a8e7de63400489c7e4bc24a5547fc5c6db8cd86357600ed2adff1aa4d9f3",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/renderer/assistant-library-actions.js#L72"
+    },
+    {
+      "key": "context",
+      "path": "src/renderer/global-assistant.js",
+      "symbol": "sourceDescription",
+      "line": 80,
+      "behavior": "Seçili yapımın metadata/pasajı ile kaynak bağlamını ayırır;bütün eser ekli değildir uyarısı var. Pixel analizi yapılmadığını açıklar.",
+      "canonicalSha256": "d76355b26bcfe20b83831309dce583dd1165b978ae33538711692a28cddb110f",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/renderer/global-assistant.js#L80"
+    },
+    {
+      "key": "citation",
+      "path": "src/assistant-agent-service.js",
+      "symbol": "session.webSources",
+      "line": 119,
+      "behavior": "Web kaynakları Wkimliğiyle oturumda birikir,yanıta liste eklenir;kitap alıntıları ayrıca tutulur. Her web iddiasına doğrulanmış kanıt kenarı üretilmiş sayılmaz.",
+      "canonicalSha256": "1dbe8143580f465655b6c3d1d21153bfa824dea1956d538fd79377306afbe639",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/assistant-agent-service.js#L119"
+    },
+    {
+      "key": "identity",
+      "path": "src/assistant-source-context.js",
+      "symbol": "function scope",
+      "line": 16,
+      "behavior": "Seçimin kimlik ve excerpt hashleriyle bağlamı sabitler. Kaynak revizyonu kontrolü var;türetilmiş tema grafı deposu yok.",
+      "canonicalSha256": "795e902116a69c2f3fcf612b6e5445f762e3bbab8b5804b13e310c769bdb26ea",
+      "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+      "permalink": "https://github.com/dorukakindev/whisper-browser/blob/df972383ab5a9b736b832ba64401b206beb6dedc/src/assistant-source-context.js#L16"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "status": "PASS",
+  "checkedAtUtc": "2026-11-01T12:35:43.792616+00:00",
+  "cards": 22,
+  "classificationCounts": {
+    "OLD-DEEPENING": 7,
+    "NEW": 15
+  },
+  "families": 6,
+  "repositories": 6,
+  "uniqueDownloadedFiles": 65,
+  "sourceReviewCounts": {
+    "license-observed": 7,
+    "downloaded-context-only": 37,
+    "card-code-observed": 18,
+    "supporting-code-observed": 3
+  },
+  "localFiles": 6,
+  "checks": [
+    "JSON parse",
+    "unique IDs",
+    "full pinned HEADs",
+    "card source/symbol/line bindings",
+    "65 raw and canonical hashes",
+    "6 local canonical hashes",
+    "license manifests",
+    "minimum120words/corecard"
+  ],
+  "notRun": [
+    "upstream build",
+    "product tests",
+    "install.bat/start.bat",
+    "native Windows UI",
+    "GPU/DRM",
+    "live provider/model/embedding calls",
+    "full transitive and model/data license audit"
+  ],
+  "errors": []
+}

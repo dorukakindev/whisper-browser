@@ -1,0 +1,2333 @@
+[
+  {
+    "domain": "assistant",
+    "repo": "assafelovic/gpt-researcher",
+    "head": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "path": "LICENSE",
+    "rawSha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "canonicalLfSha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "reviewStatus": "license-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "assafelovic/gpt-researcher",
+    "head": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "path": "README.md",
+    "rawSha256": "a43c071ae3d19ae35631ae325742b973a8a925ecc3669563c67ed759398ec0e2",
+    "canonicalLfSha256": "a43c071ae3d19ae35631ae325742b973a8a925ecc3669563c67ed759398ec0e2",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "onyx-dot-app/onyx",
+    "head": "3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48",
+    "path": "LICENSE",
+    "rawSha256": "d4847240794058c7ac3cfdf8e5d528fe8b0edf15b32a96612ecb9b3e182092b7",
+    "canonicalLfSha256": "d4847240794058c7ac3cfdf8e5d528fe8b0edf15b32a96612ecb9b3e182092b7",
+    "reviewStatus": "license-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "onyx-dot-app/onyx",
+    "head": "3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48",
+    "path": "README.md",
+    "rawSha256": "215ae9ec26ba1deeffcb00a883c72e71da3ee4cae3145588984f2c07ff5374a6",
+    "canonicalLfSha256": "215ae9ec26ba1deeffcb00a883c72e71da3ee4cae3145588984f2c07ff5374a6",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "onyx-dot-app/onyx",
+    "head": "3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48",
+    "path": "package.json",
+    "rawSha256": "6e1c7daa3a1ce53eede22d9a864e660c9ca4a35eb2579b402acfb1b236a55c46",
+    "canonicalLfSha256": "6e1c7daa3a1ce53eede22d9a864e660c9ca4a35eb2579b402acfb1b236a55c46",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "deepset-ai/haystack",
+    "head": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+    "path": "LICENSE",
+    "rawSha256": "3f0a3af7e9b0f3b6358aaa3c7501ab522a67dc5483b870e9a8b3db41ea42e249",
+    "canonicalLfSha256": "3f0a3af7e9b0f3b6358aaa3c7501ab522a67dc5483b870e9a8b3db41ea42e249",
+    "reviewStatus": "license-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "deepset-ai/haystack",
+    "head": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+    "path": "README.md",
+    "rawSha256": "e016e944fa840265e85e73520522c6152798330720d53d3d64fdffcc448554e6",
+    "canonicalLfSha256": "e016e944fa840265e85e73520522c6152798330720d53d3d64fdffcc448554e6",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/LightRAG",
+    "head": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+    "path": "LICENSE",
+    "rawSha256": "0c16924564059e493c86854574660a47ed1dcc2a476ba7b5f949d3f2f73a1984",
+    "canonicalLfSha256": "0c16924564059e493c86854574660a47ed1dcc2a476ba7b5f949d3f2f73a1984",
+    "reviewStatus": "license-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/LightRAG",
+    "head": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+    "path": "README.md",
+    "rawSha256": "b495a0fb015976fca63152962ebd4a4daf82f32fdd8c3bb146fab90a0b09e8e4",
+    "canonicalLfSha256": "b495a0fb015976fca63152962ebd4a4daf82f32fdd8c3bb146fab90a0b09e8e4",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/RAG-Anything",
+    "head": "2cd2b3329c470ccb53923f8a6d320596b34e56c5",
+    "path": "LICENSE",
+    "rawSha256": "68c9fc511bb10d1488522aa139d1e91289b76ab998fc8ca815e93a85c4ea4850",
+    "canonicalLfSha256": "68c9fc511bb10d1488522aa139d1e91289b76ab998fc8ca815e93a85c4ea4850",
+    "reviewStatus": "license-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/RAG-Anything",
+    "head": "2cd2b3329c470ccb53923f8a6d320596b34e56c5",
+    "path": "README.md",
+    "rawSha256": "205edbf406c02ee6f5822f87aa10d807adac11d3514703c0ce9e39a5d6303a43",
+    "canonicalLfSha256": "205edbf406c02ee6f5822f87aa10d807adac11d3514703c0ce9e39a5d6303a43",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "memvid/memvid",
+    "head": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813",
+    "path": "LICENSE",
+    "rawSha256": "fd64d7380c9889373ec5e3d99ee0e154c8f1707c036054090dc2437eb765cb98",
+    "canonicalLfSha256": "fd64d7380c9889373ec5e3d99ee0e154c8f1707c036054090dc2437eb765cb98",
+    "reviewStatus": "license-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "memvid/memvid",
+    "head": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813",
+    "path": "README.md",
+    "rawSha256": "3a2f6a0fea87ed03b4b5a21de90a166ed005627c897a26807c33cd2fd854ce77",
+    "canonicalLfSha256": "3a2f6a0fea87ed03b4b5a21de90a166ed005627c897a26807c33cd2fd854ce77",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "assafelovic/gpt-researcher",
+    "head": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "path": "gpt_researcher/skills/deep_research.py",
+    "rawSha256": "260fe19e0c6d5b5252b1901cb1c2f0ef9fe2a849a330d9f7eac34b1b1d0c892c",
+    "canonicalLfSha256": "260fe19e0c6d5b5252b1901cb1c2f0ef9fe2a849a330d9f7eac34b1b1d0c892c",
+    "reviewStatus": "card-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "assafelovic/gpt-researcher",
+    "head": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "path": "gpt_researcher/skills/researcher.py",
+    "rawSha256": "7b2558a28719e1d23e2d1d0bb66007cf735ff91017a615a245f44833bc809c6e",
+    "canonicalLfSha256": "7b2558a28719e1d23e2d1d0bb66007cf735ff91017a615a245f44833bc809c6e",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "assafelovic/gpt-researcher",
+    "head": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "path": "gpt_researcher/skills/curator.py",
+    "rawSha256": "0f3f2658a8185f3401eb5c587a9325f8c4d524389954c1605cd9dd66bf8a0f01",
+    "canonicalLfSha256": "0f3f2658a8185f3401eb5c587a9325f8c4d524389954c1605cd9dd66bf8a0f01",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "assafelovic/gpt-researcher",
+    "head": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "path": "gpt_researcher/skills/context_manager.py",
+    "rawSha256": "8403bab89ab159af94622cd04d181b43036920a53cdaf30b003ef21ca5bd22ba",
+    "canonicalLfSha256": "8403bab89ab159af94622cd04d181b43036920a53cdaf30b003ef21ca5bd22ba",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "assafelovic/gpt-researcher",
+    "head": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "path": "gpt_researcher/skills/writer.py",
+    "rawSha256": "f7571673ba13cba29dbb6bc22675012b6afbe288cda067dc611772e2e42f9152",
+    "canonicalLfSha256": "f7571673ba13cba29dbb6bc22675012b6afbe288cda067dc611772e2e42f9152",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "assafelovic/gpt-researcher",
+    "head": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "path": "gpt_researcher/actions/query_processing.py",
+    "rawSha256": "aa8ccb47136be004deec41721e85e6604e16354dc624afef9af2b9818246a538",
+    "canonicalLfSha256": "aa8ccb47136be004deec41721e85e6604e16354dc624afef9af2b9818246a538",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "assafelovic/gpt-researcher",
+    "head": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "path": "gpt_researcher/actions/report_generation.py",
+    "rawSha256": "2012eea9cae179b9336ce68e95ae936a745995fda1ae06d33d5eae9621aef79b",
+    "canonicalLfSha256": "2012eea9cae179b9336ce68e95ae936a745995fda1ae06d33d5eae9621aef79b",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "assafelovic/gpt-researcher",
+    "head": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "path": "gpt_researcher/prompts.py",
+    "rawSha256": "f6364087be42bb7e1b913c89ea7943a039331939fa25c89dfe340b618c68346d",
+    "canonicalLfSha256": "f6364087be42bb7e1b913c89ea7943a039331939fa25c89dfe340b618c68346d",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "assafelovic/gpt-researcher",
+    "head": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "path": "gpt_researcher/config/variables/default.py",
+    "rawSha256": "31ad2123102bba1d82af3369664d867839a420b894b32bf538a1ddf875950ee0",
+    "canonicalLfSha256": "31ad2123102bba1d82af3369664d867839a420b894b32bf538a1ddf875950ee0",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "assafelovic/gpt-researcher",
+    "head": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "path": "pyproject.toml",
+    "rawSha256": "53b8d59bb05e5e1ec854703b6e487ababaeab53d49f0a25a3e549947312dfcd6",
+    "canonicalLfSha256": "53b8d59bb05e5e1ec854703b6e487ababaeab53d49f0a25a3e549947312dfcd6",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "onyx-dot-app/onyx",
+    "head": "3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48",
+    "path": "backend/onyx/context/search/pipeline.py",
+    "rawSha256": "0b862107c72fdd06bede43c1d362e4c5a6c61f42dfcfc0f86ce73f78a887a2bd",
+    "canonicalLfSha256": "0b862107c72fdd06bede43c1d362e4c5a6c61f42dfcfc0f86ce73f78a887a2bd",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "onyx-dot-app/onyx",
+    "head": "3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48",
+    "path": "backend/onyx/context/search/models.py",
+    "rawSha256": "6b19726ecab84dbb5804b3edf52563a6f4c63b835968e93611bc73db777483bd",
+    "canonicalLfSha256": "6b19726ecab84dbb5804b3edf52563a6f4c63b835968e93611bc73db777483bd",
+    "reviewStatus": "card-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "onyx-dot-app/onyx",
+    "head": "3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48",
+    "path": "backend/onyx/context/search/retrieval/search_runner.py",
+    "rawSha256": "cea8bd614c06ff3e70484aa6a9aadc000d80b23d1548a8f347e59eca41181713",
+    "canonicalLfSha256": "cea8bd614c06ff3e70484aa6a9aadc000d80b23d1548a8f347e59eca41181713",
+    "reviewStatus": "card-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "onyx-dot-app/onyx",
+    "head": "3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48",
+    "path": "backend/onyx/context/search/forced_document_set.py",
+    "rawSha256": "ef3a15e21c4e3177ae0fad2e9c9119ef070ed8aa5975c77097d88a04940948fb",
+    "canonicalLfSha256": "ef3a15e21c4e3177ae0fad2e9c9119ef070ed8aa5975c77097d88a04940948fb",
+    "reviewStatus": "supporting-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "onyx-dot-app/onyx",
+    "head": "3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48",
+    "path": "backend/onyx/context/search/utils.py",
+    "rawSha256": "3eddb5d83541457edec05ff96f2d60ed4fbe102de1f824104ac144e1f9217515",
+    "canonicalLfSha256": "3eddb5d83541457edec05ff96f2d60ed4fbe102de1f824104ac144e1f9217515",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "onyx-dot-app/onyx",
+    "head": "3eb6420f6c7d6c0a94a0b7107a6138509c6d0f48",
+    "path": "backend/ee/LICENSE",
+    "rawSha256": "38099c15fbd2f7f63245cb24a147f8f4b51e84b17a79560b9f74e7bdd4211edd",
+    "canonicalLfSha256": "38099c15fbd2f7f63245cb24a147f8f4b51e84b17a79560b9f74e7bdd4211edd",
+    "reviewStatus": "license-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "deepset-ai/haystack",
+    "head": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+    "path": "haystack/components/retrievers/auto_merging_retriever.py",
+    "rawSha256": "efda751bf02885c9112ee580551c8d901502e15d0c2067cfe8a6f2e463a766d5",
+    "canonicalLfSha256": "efda751bf02885c9112ee580551c8d901502e15d0c2067cfe8a6f2e463a766d5",
+    "reviewStatus": "card-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "deepset-ai/haystack",
+    "head": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+    "path": "haystack/components/retrievers/sentence_window_retriever.py",
+    "rawSha256": "26f886da497bd619c8a1a399f59a16f683d621dec600a8aa1e9c109ac61f53aa",
+    "canonicalLfSha256": "26f886da497bd619c8a1a399f59a16f683d621dec600a8aa1e9c109ac61f53aa",
+    "reviewStatus": "card-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "deepset-ai/haystack",
+    "head": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+    "path": "haystack/components/retrievers/multi_query_text_retriever.py",
+    "rawSha256": "c47eee390e37c8802dd5c2b2fc7700a21b5a3b647b8d58ffd6996dfb791bf3d9",
+    "canonicalLfSha256": "c47eee390e37c8802dd5c2b2fc7700a21b5a3b647b8d58ffd6996dfb791bf3d9",
+    "reviewStatus": "card-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "deepset-ai/haystack",
+    "head": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+    "path": "haystack/components/joiners/document_joiner.py",
+    "rawSha256": "e47bdc6ac28e096d597982d366559e80ebe9bd81f395100804572595ff2f4af8",
+    "canonicalLfSha256": "e47bdc6ac28e096d597982d366559e80ebe9bd81f395100804572595ff2f4af8",
+    "reviewStatus": "supporting-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "deepset-ai/haystack",
+    "head": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+    "path": "haystack/components/preprocessors/hierarchical_document_splitter.py",
+    "rawSha256": "9c311e0f3eb92a6f889a27df24ba2b4b1d6435159c36cda8794862c8425427b4",
+    "canonicalLfSha256": "9c311e0f3eb92a6f889a27df24ba2b4b1d6435159c36cda8794862c8425427b4",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "deepset-ai/haystack",
+    "head": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+    "path": "haystack/components/rankers/meta_field_grouping_ranker.py",
+    "rawSha256": "fa3969996bf5a7c47cf8c576f0a25e54ba5659818fef87acf395e2e4bdf0dc03",
+    "canonicalLfSha256": "fa3969996bf5a7c47cf8c576f0a25e54ba5659818fef87acf395e2e4bdf0dc03",
+    "reviewStatus": "card-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "deepset-ai/haystack",
+    "head": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+    "path": "haystack/components/builders/answer_builder.py",
+    "rawSha256": "0b68cf0de48ae07c6d72f31df32db81fd2a6d6eb49b6720e0f340d5f7bd075b4",
+    "canonicalLfSha256": "0b68cf0de48ae07c6d72f31df32db81fd2a6d6eb49b6720e0f340d5f7bd075b4",
+    "reviewStatus": "card-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "deepset-ai/haystack",
+    "head": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+    "path": "pyproject.toml",
+    "rawSha256": "32bb5c86562e406d81ab4668388f81392edbeab14ad816549afb74eac9d36dcb",
+    "canonicalLfSha256": "32bb5c86562e406d81ab4668388f81392edbeab14ad816549afb74eac9d36dcb",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/LightRAG",
+    "head": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+    "path": "lightrag/operate.py",
+    "rawSha256": "176585e3f686574ab98657b666982302ce47d58229baacb529ef601bd6799326",
+    "canonicalLfSha256": "176585e3f686574ab98657b666982302ce47d58229baacb529ef601bd6799326",
+    "reviewStatus": "card-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/LightRAG",
+    "head": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+    "path": "lightrag/lightrag.py",
+    "rawSha256": "f92e25bf1bf8082dba64f604fe22badaeaa69ef2eaa34d23c5058059be8031d3",
+    "canonicalLfSha256": "f92e25bf1bf8082dba64f604fe22badaeaa69ef2eaa34d23c5058059be8031d3",
+    "reviewStatus": "card-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/LightRAG",
+    "head": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+    "path": "lightrag/base.py",
+    "rawSha256": "e7f0ec700659071d616b4c81c8711626d512d356d0036ce6f8da8d9a37a19f28",
+    "canonicalLfSha256": "e7f0ec700659071d616b4c81c8711626d512d356d0036ce6f8da8d9a37a19f28",
+    "reviewStatus": "card-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/LightRAG",
+    "head": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+    "path": "lightrag/prompt.py",
+    "rawSha256": "db0cf2d0f5d420a8372fac2b33043d8b4f14c84ec0a60653862e4e53a27047e1",
+    "canonicalLfSha256": "db0cf2d0f5d420a8372fac2b33043d8b4f14c84ec0a60653862e4e53a27047e1",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/LightRAG",
+    "head": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+    "path": "lightrag/chunk_schema.py",
+    "rawSha256": "f90f42171bbfaf2d0e1c09e62da50373141e80b76b3221848167d3d8919b604d",
+    "canonicalLfSha256": "f90f42171bbfaf2d0e1c09e62da50373141e80b76b3221848167d3d8919b604d",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/LightRAG",
+    "head": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+    "path": "lightrag/kg/networkx_impl.py",
+    "rawSha256": "451bb427d46c8047b52531c211366084f97e455d675a0bdd316ec87f315f9da7",
+    "canonicalLfSha256": "451bb427d46c8047b52531c211366084f97e455d675a0bdd316ec87f315f9da7",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/LightRAG",
+    "head": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+    "path": "pyproject.toml",
+    "rawSha256": "cbeb6e6e201a36913d73597e4f9b6148c152751666a9cecc4a2b0301916f5ab0",
+    "canonicalLfSha256": "cbeb6e6e201a36913d73597e4f9b6148c152751666a9cecc4a2b0301916f5ab0",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/RAG-Anything",
+    "head": "2cd2b3329c470ccb53923f8a6d320596b34e56c5",
+    "path": "raganything/modalprocessors_video.py",
+    "rawSha256": "98284a188cade85df01c4dd686f5f219e14f4bcf7f0a08f4acf54aec98fdc2bf",
+    "canonicalLfSha256": "98284a188cade85df01c4dd686f5f219e14f4bcf7f0a08f4acf54aec98fdc2bf",
+    "reviewStatus": "card-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/RAG-Anything",
+    "head": "2cd2b3329c470ccb53923f8a6d320596b34e56c5",
+    "path": "raganything/modalprocessors_audio.py",
+    "rawSha256": "c0bd5b208750a60f3682c081925f5f8c2d60082923cc6c4b88207b8fd401db7a",
+    "canonicalLfSha256": "c0bd5b208750a60f3682c081925f5f8c2d60082923cc6c4b88207b8fd401db7a",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/RAG-Anything",
+    "head": "2cd2b3329c470ccb53923f8a6d320596b34e56c5",
+    "path": "raganything/modalprocessors.py",
+    "rawSha256": "e3df47cfbb7acfbf51988201ed6de748c894cd4690de273453c2266a05bd843c",
+    "canonicalLfSha256": "e3df47cfbb7acfbf51988201ed6de748c894cd4690de273453c2266a05bd843c",
+    "reviewStatus": "card-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/RAG-Anything",
+    "head": "2cd2b3329c470ccb53923f8a6d320596b34e56c5",
+    "path": "raganything/query.py",
+    "rawSha256": "556de2e13496bfed735d8b48fcabbd518a7f65417fdcdfb4bc745fdf86d75cae",
+    "canonicalLfSha256": "556de2e13496bfed735d8b48fcabbd518a7f65417fdcdfb4bc745fdf86d75cae",
+    "reviewStatus": "card-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/RAG-Anything",
+    "head": "2cd2b3329c470ccb53923f8a6d320596b34e56c5",
+    "path": "raganything/document_context.py",
+    "rawSha256": "b4d752d70b9e21416db8533ef42feb597de9f2a998f628a71a5d6744088a531d",
+    "canonicalLfSha256": "b4d752d70b9e21416db8533ef42feb597de9f2a998f628a71a5d6744088a531d",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/RAG-Anything",
+    "head": "2cd2b3329c470ccb53923f8a6d320596b34e56c5",
+    "path": "raganything/processor.py",
+    "rawSha256": "c4865d58c52c6c5b98615ae04523f4f66573834950b4b14c5d1a932b4e0216e6",
+    "canonicalLfSha256": "c4865d58c52c6c5b98615ae04523f4f66573834950b4b14c5d1a932b4e0216e6",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/RAG-Anything",
+    "head": "2cd2b3329c470ccb53923f8a6d320596b34e56c5",
+    "path": "raganything/parser.py",
+    "rawSha256": "b0be79403d61a47f2fb6cbc2fb065b7e1af5ec70e3bd388d463f5c134af26646",
+    "canonicalLfSha256": "b0be79403d61a47f2fb6cbc2fb065b7e1af5ec70e3bd388d463f5c134af26646",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/RAG-Anything",
+    "head": "2cd2b3329c470ccb53923f8a6d320596b34e56c5",
+    "path": "raganything/config.py",
+    "rawSha256": "261ff5facaf1499154c46f1e8dba31c47a747718e71f4a07e5e6662be55b1d4c",
+    "canonicalLfSha256": "261ff5facaf1499154c46f1e8dba31c47a747718e71f4a07e5e6662be55b1d4c",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "HKUDS/RAG-Anything",
+    "head": "2cd2b3329c470ccb53923f8a6d320596b34e56c5",
+    "path": "pyproject.toml",
+    "rawSha256": "46a4cd296f4b8acd69854c660bd430b88b0749381f5c289946119ab2bae50ae5",
+    "canonicalLfSha256": "46a4cd296f4b8acd69854c660bd430b88b0749381f5c289946119ab2bae50ae5",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "memvid/memvid",
+    "head": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813",
+    "path": "src/memvid/search/api.rs",
+    "rawSha256": "bf5f7c0667f659659238e930dc208b918ba8a5dff26874d21494774febc77690",
+    "canonicalLfSha256": "bf5f7c0667f659659238e930dc208b918ba8a5dff26874d21494774febc77690",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "memvid/memvid",
+    "head": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813",
+    "path": "src/memvid/search/time_filter.rs",
+    "rawSha256": "149fe97d701ee0562680a84077b664ba0963a7525ffca936f009669442c0423e",
+    "canonicalLfSha256": "149fe97d701ee0562680a84077b664ba0963a7525ffca936f009669442c0423e",
+    "reviewStatus": "supporting-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "memvid/memvid",
+    "head": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813",
+    "path": "src/memvid/timeline.rs",
+    "rawSha256": "1a278d571e9fdd908c2971287628c3857b6b495b886da19bdcbfbb57d5e0353a",
+    "canonicalLfSha256": "1a278d571e9fdd908c2971287628c3857b6b495b886da19bdcbfbb57d5e0353a",
+    "reviewStatus": "card-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "memvid/memvid",
+    "head": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813",
+    "path": "src/memvid/planner.rs",
+    "rawSha256": "e4ff8de1b45372ce2af7389a14cad92353c596a7f299ab5f9e6bc67eb65e9989",
+    "canonicalLfSha256": "e4ff8de1b45372ce2af7389a14cad92353c596a7f299ab5f9e6bc67eb65e9989",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "memvid/memvid",
+    "head": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813",
+    "path": "src/analysis/temporal.rs",
+    "rawSha256": "dd072a20ec45c350377f6dac639308e1aa14639e7b49f200b26958a3e004f4b0",
+    "canonicalLfSha256": "dd072a20ec45c350377f6dac639308e1aa14639e7b49f200b26958a3e004f4b0",
+    "reviewStatus": "card-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "memvid/memvid",
+    "head": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813",
+    "path": "src/analysis/temporal_enrich.rs",
+    "rawSha256": "29da36ebc59b6b03adc74e8f690ae0afbad1071559607de28d3d97b4a7208dd4",
+    "canonicalLfSha256": "29da36ebc59b6b03adc74e8f690ae0afbad1071559607de28d3d97b4a7208dd4",
+    "reviewStatus": "card-code-observed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "memvid/memvid",
+    "head": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813",
+    "path": "src/graph_search.rs",
+    "rawSha256": "c975ed17f4ae34f402f083dbddd0726742e09196ae5514b6f5f8843fef5830d8",
+    "canonicalLfSha256": "c975ed17f4ae34f402f083dbddd0726742e09196ae5514b6f5f8843fef5830d8",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "memvid/memvid",
+    "head": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813",
+    "path": "src/search/tantivy/query.rs",
+    "rawSha256": "7e6bc33301a1538cd06cbdcb5cd5b49212b8a2b259051fff653244976faf2e74",
+    "canonicalLfSha256": "7e6bc33301a1538cd06cbdcb5cd5b49212b8a2b259051fff653244976faf2e74",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "memvid/memvid",
+    "head": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813",
+    "path": "src/reader/xlsx_chunker.rs",
+    "rawSha256": "f0c3f7d0c9defda5cbbf0477530e611aa6009d21748b39d97fe27830b2de3fbb",
+    "canonicalLfSha256": "f0c3f7d0c9defda5cbbf0477530e611aa6009d21748b39d97fe27830b2de3fbb",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "memvid/memvid",
+    "head": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813",
+    "path": "src/structure/chunker.rs",
+    "rawSha256": "d37cb628ad960ca7e499139140c5445ee5f170b1168c2f200ed31c43ac446c88",
+    "canonicalLfSha256": "d37cb628ad960ca7e499139140c5445ee5f170b1168c2f200ed31c43ac446c88",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "memvid/memvid",
+    "head": "e6bd9f7b9c38cd8d5370fa0fc936ac1dcd751813",
+    "path": "Cargo.toml",
+    "rawSha256": "57ebd4a661792c7e30380fc2edf350d6e7fb926684627b01e5ae6ab13c298795",
+    "canonicalLfSha256": "57ebd4a661792c7e30380fc2edf350d6e7fb926684627b01e5ae6ab13c298795",
+    "reviewStatus": "downloaded-context-only"
+  },
+  {
+    "domain": "assistant",
+    "repo": "deepset-ai/haystack",
+    "head": "8e38c633190ee43b80c136b335f8c9d6c79cc5d6",
+    "path": "haystack/utils/misc.py",
+    "rawSha256": "13bd31760020f72c0f04c36ac7e960f968d49669a0cda0cce4b4c62cb6cdb612",
+    "canonicalLfSha256": "13bd31760020f72c0f04c36ac7e960f968d49669a0cda0cce4b4c62cb6cdb612",
+    "reviewStatus": "card-code-observed"
+  },
+  {
+    "domain": "browser",
+    "repo": "browser-use/browser-use",
+    "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+    "path": "browser_use/dom/markdown_extractor.py",
+    "rawSha256": "047a7f7ba0c1eb04e2f42abc92b147a058ec4c2119b6743dbaf3186d819b2236",
+    "canonicalLfSha256": "047a7f7ba0c1eb04e2f42abc92b147a058ec4c2119b6743dbaf3186d819b2236",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "browser-use/browser-use",
+    "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+    "path": "browser_use/tools/service.py",
+    "rawSha256": "25746ddfe719c0a800b2b4fcc399aea4fc8be20c48b04ab4118841fd5419eb73",
+    "canonicalLfSha256": "25746ddfe719c0a800b2b4fcc399aea4fc8be20c48b04ab4118841fd5419eb73",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "browser-use/browser-use",
+    "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+    "path": "browser_use/browser/watchdogs/downloads_watchdog.py",
+    "rawSha256": "a27d9d5ef87d0d2c459cc26e7b6a77b3b6520b24758b4b1fe582920529ff4a07",
+    "canonicalLfSha256": "a27d9d5ef87d0d2c459cc26e7b6a77b3b6520b24758b4b1fe582920529ff4a07",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "browser-use/browser-use",
+    "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+    "path": "browser_use/browser/session_manager.py",
+    "rawSha256": "3b2b861ac143e214ba6e8a0a773192a6dbb72653089a1f278f7c21e3faf7455c",
+    "canonicalLfSha256": "3b2b861ac143e214ba6e8a0a773192a6dbb72653089a1f278f7c21e3faf7455c",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "browser-use/browser-use",
+    "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+    "path": "browser_use/browser/session.py",
+    "rawSha256": "524ec4547e5f9d81dac9ac3d7dcb705e5c6e9aec1255f6316d29cdaa1b19e822",
+    "canonicalLfSha256": "524ec4547e5f9d81dac9ac3d7dcb705e5c6e9aec1255f6316d29cdaa1b19e822",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "browser-use/browser-use",
+    "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+    "path": "browser_use/tools/extraction/schema_utils.py",
+    "rawSha256": "e4536393a9e4f985359d269dd6ea558e4796b67969a6b673f89bfd24bee94092",
+    "canonicalLfSha256": "e4536393a9e4f985359d269dd6ea558e4796b67969a6b673f89bfd24bee94092",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "browser-use/browser-use",
+    "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+    "path": "pyproject.toml",
+    "rawSha256": "750d2f19a0b13f209326397388a9f3ff3c0ab893a6b006dfd06fe41bc4f0edb1",
+    "canonicalLfSha256": "750d2f19a0b13f209326397388a9f3ff3c0ab893a6b006dfd06fe41bc4f0edb1",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "browser-use/browser-use",
+    "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+    "path": "README.md",
+    "rawSha256": "21a31ea5601d3cd6622bff2ea62b26c2d4f40cdb5805810e38a3fb37db241c11",
+    "canonicalLfSha256": "21a31ea5601d3cd6622bff2ea62b26c2d4f40cdb5805810e38a3fb37db241c11",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "browser-use/browser-use",
+    "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+    "path": "LICENSE",
+    "rawSha256": "135c57671b0ee957669b05a0ca00cc06f645496d351e2e732832c6e276da9a5e",
+    "canonicalLfSha256": "135c57671b0ee957669b05a0ca00cc06f645496d351e2e732832c6e276da9a5e",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "browserbase/stagehand",
+    "head": "b7a4b899079f198a0ee78a6dcb62ad02f545cf49",
+    "path": "packages/extension/services/cacheService.ts",
+    "rawSha256": "6765890fdc455894d24886a2585946b84a7969eca0b52e54ff9c34e1860af6d7",
+    "canonicalLfSha256": "6765890fdc455894d24886a2585946b84a7969eca0b52e54ff9c34e1860af6d7",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "browserbase/stagehand",
+    "head": "b7a4b899079f198a0ee78a6dcb62ad02f545cf49",
+    "path": "packages/extension/services/actService.ts",
+    "rawSha256": "e67fea018a6e710d024086a466d510e0eac96c3bad31ba18513a11563c62dc62",
+    "canonicalLfSha256": "e67fea018a6e710d024086a466d510e0eac96c3bad31ba18513a11563c62dc62",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "browserbase/stagehand",
+    "head": "b7a4b899079f198a0ee78a6dcb62ad02f545cf49",
+    "path": "packages/extension/services/extractService.ts",
+    "rawSha256": "deac01797d3e26e0fb5711dbd907a821eae63d250f33d26c1bdb0b6d525a4fea",
+    "canonicalLfSha256": "deac01797d3e26e0fb5711dbd907a821eae63d250f33d26c1bdb0b6d525a4fea",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "browserbase/stagehand",
+    "head": "b7a4b899079f198a0ee78a6dcb62ad02f545cf49",
+    "path": "packages/extension/handlers/handlerUtils/actHandlerUtils.ts",
+    "rawSha256": "4bdf612f7ca891b9f56d4d02781ba08b2c99387e32603cbcbe553323b944ec81",
+    "canonicalLfSha256": "4bdf612f7ca891b9f56d4d02781ba08b2c99387e32603cbcbe553323b944ec81",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "browserbase/stagehand",
+    "head": "b7a4b899079f198a0ee78a6dcb62ad02f545cf49",
+    "path": "packages/extension/understudy/a11y/snapshot/sessions.ts",
+    "rawSha256": "1dfe110829059015e5f8fa0436dece2377b70104f98e7a2b668fe4234818e6da",
+    "canonicalLfSha256": "1dfe110829059015e5f8fa0436dece2377b70104f98e7a2b668fe4234818e6da",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "browserbase/stagehand",
+    "head": "b7a4b899079f198a0ee78a6dcb62ad02f545cf49",
+    "path": "packages/sdk-ts/package.json",
+    "rawSha256": "40e693d5c459dc5ca7a99455408840abee72a0c0ce29093bfb59acb440ad2d55",
+    "canonicalLfSha256": "40e693d5c459dc5ca7a99455408840abee72a0c0ce29093bfb59acb440ad2d55",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "browserbase/stagehand",
+    "head": "b7a4b899079f198a0ee78a6dcb62ad02f545cf49",
+    "path": "README.md",
+    "rawSha256": "e95982d4ad892ce0eea0ca80c8f98533424745bef2ddd9fb5094c8e0aba6ca7b",
+    "canonicalLfSha256": "e95982d4ad892ce0eea0ca80c8f98533424745bef2ddd9fb5094c8e0aba6ca7b",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "browserbase/stagehand",
+    "head": "b7a4b899079f198a0ee78a6dcb62ad02f545cf49",
+    "path": "LICENSE",
+    "rawSha256": "fac7e7cd1cfc504054ee1fc53c38e0f3099d7357917e85a73792f6511fe0ea96",
+    "canonicalLfSha256": "fac7e7cd1cfc504054ee1fc53c38e0f3099d7357917e85a73792f6511fe0ea96",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "ArchiveBox/ArchiveBox",
+    "head": "09041760bc0fe25eb584e62cc9c7756e85ff855e",
+    "path": "archivebox/plugins/output_groups.py",
+    "rawSha256": "f6e3707f5f33960cf8d6d5b68fbd8f26c4f2a07699fcc11bbe22e420d0bc068c",
+    "canonicalLfSha256": "f6e3707f5f33960cf8d6d5b68fbd8f26c4f2a07699fcc11bbe22e420d0bc068c",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "ArchiveBox/ArchiveBox",
+    "head": "09041760bc0fe25eb584e62cc9c7756e85ff855e",
+    "path": "archivebox/services/archive_result_service.py",
+    "rawSha256": "7e66d55e56ffa197238ff9427371bd61af85ef8fab2b54c2dcd49123b34aed21",
+    "canonicalLfSha256": "7e66d55e56ffa197238ff9427371bd61af85ef8fab2b54c2dcd49123b34aed21",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "ArchiveBox/ArchiveBox",
+    "head": "09041760bc0fe25eb584e62cc9c7756e85ff855e",
+    "path": "archivebox/services/snapshot_service.py",
+    "rawSha256": "82a67149f8137671813e89e37b8c5f647646ee66d3c43b29016aa3b290f4aff5",
+    "canonicalLfSha256": "82a67149f8137671813e89e37b8c5f647646ee66d3c43b29016aa3b290f4aff5",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "ArchiveBox/ArchiveBox",
+    "head": "09041760bc0fe25eb584e62cc9c7756e85ff855e",
+    "path": "archivebox/importers/service.py",
+    "rawSha256": "e3d06a5be5f94886a7d59df58e79473136bfd10a47095ca52964c77f081111f3",
+    "canonicalLfSha256": "e3d06a5be5f94886a7d59df58e79473136bfd10a47095ca52964c77f081111f3",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "ArchiveBox/ArchiveBox",
+    "head": "09041760bc0fe25eb584e62cc9c7756e85ff855e",
+    "path": "archivebox/importers/catalog.py",
+    "rawSha256": "f1e01352a88610f2961c560d908f3a54ee4504f78cae6abe39cfadf304ace0e0",
+    "canonicalLfSha256": "f1e01352a88610f2961c560d908f3a54ee4504f78cae6abe39cfadf304ace0e0",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "ArchiveBox/ArchiveBox",
+    "head": "09041760bc0fe25eb584e62cc9c7756e85ff855e",
+    "path": "archivebox/crawls/models.py",
+    "rawSha256": "cfe5b8ec6d5be540bf23ab55bd0f1773535d3d476c789d507a92286d26b09ead",
+    "canonicalLfSha256": "cfe5b8ec6d5be540bf23ab55bd0f1773535d3d476c789d507a92286d26b09ead",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "ArchiveBox/ArchiveBox",
+    "head": "09041760bc0fe25eb584e62cc9c7756e85ff855e",
+    "path": "archivebox/personas/importers.py",
+    "rawSha256": "16c9ff8fd334ee189654024429f22f03378159df3f019529d14a8767754feaf7",
+    "canonicalLfSha256": "16c9ff8fd334ee189654024429f22f03378159df3f019529d14a8767754feaf7",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "ArchiveBox/ArchiveBox",
+    "head": "09041760bc0fe25eb584e62cc9c7756e85ff855e",
+    "path": "pyproject.toml",
+    "rawSha256": "20f41c7b680dcb1279162b27196da3acc554766349f6698a7f138d3c42867467",
+    "canonicalLfSha256": "20f41c7b680dcb1279162b27196da3acc554766349f6698a7f138d3c42867467",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "ArchiveBox/ArchiveBox",
+    "head": "09041760bc0fe25eb584e62cc9c7756e85ff855e",
+    "path": "README.md",
+    "rawSha256": "0be113af22873e5f974680e2f1545c377f04950b294c4cc8b96a0ed33b675bad",
+    "canonicalLfSha256": "0be113af22873e5f974680e2f1545c377f04950b294c4cc8b96a0ed33b675bad",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "ArchiveBox/ArchiveBox",
+    "head": "09041760bc0fe25eb584e62cc9c7756e85ff855e",
+    "path": "LICENSE",
+    "rawSha256": "94e19d573d2a152c04409ba6995f8754ec212c56d0cf1796626445046bcbf92a",
+    "canonicalLfSha256": "94e19d573d2a152c04409ba6995f8754ec212c56d0cf1796626445046bcbf92a",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "wallabag/wallabag",
+    "head": "42033e0253e74281c9f7588146324ab7222c3592",
+    "path": "src/Helper/ContentProxy.php",
+    "rawSha256": "3b252fffab30f4adc4b62f69fd5188dcf46b1f1d73fa3303088fdb32d64668db",
+    "canonicalLfSha256": "3b252fffab30f4adc4b62f69fd5188dcf46b1f1d73fa3303088fdb32d64668db",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "wallabag/wallabag",
+    "head": "42033e0253e74281c9f7588146324ab7222c3592",
+    "path": "src/Helper/EntriesExport.php",
+    "rawSha256": "bda9621da27b7a0c1664bcf22cf8f6a7f14b940d19513bd7dec4b5f1326e74f7",
+    "canonicalLfSha256": "bda9621da27b7a0c1664bcf22cf8f6a7f14b940d19513bd7dec4b5f1326e74f7",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "wallabag/wallabag",
+    "head": "42033e0253e74281c9f7588146324ab7222c3592",
+    "path": "src/Import/OmnivoreImport.php",
+    "rawSha256": "7b79a7838ea693c7904912c4d927fa791df4bf6d49c5dd7be416ab90b60c4160",
+    "canonicalLfSha256": "7b79a7838ea693c7904912c4d927fa791df4bf6d49c5dd7be416ab90b60c4160",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "wallabag/wallabag",
+    "head": "42033e0253e74281c9f7588146324ab7222c3592",
+    "path": "src/Import/PocketCsvImport.php",
+    "rawSha256": "0520e668eb6be918acd52adc1a8b4b13f4e67ff967f0af1bb1b42932470cc177",
+    "canonicalLfSha256": "0520e668eb6be918acd52adc1a8b4b13f4e67ff967f0af1bb1b42932470cc177",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "wallabag/wallabag",
+    "head": "42033e0253e74281c9f7588146324ab7222c3592",
+    "path": "src/Entity/Entry.php",
+    "rawSha256": "ea96bdfe829067ef96821565fbeab47569eb92bdec07b63595b6740b6bc65229",
+    "canonicalLfSha256": "ea96bdfe829067ef96821565fbeab47569eb92bdec07b63595b6740b6bc65229",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "wallabag/wallabag",
+    "head": "42033e0253e74281c9f7588146324ab7222c3592",
+    "path": "src/Controller/Api/EntryRestController.php",
+    "rawSha256": "cc9f51dff9cb364a46f9cd0e7c032e16620e8e5a66dd6a2447e6133b34b570ed",
+    "canonicalLfSha256": "cc9f51dff9cb364a46f9cd0e7c032e16620e8e5a66dd6a2447e6133b34b570ed",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "wallabag/wallabag",
+    "head": "42033e0253e74281c9f7588146324ab7222c3592",
+    "path": "src/Controller/EntryController.php",
+    "rawSha256": "863fa81f9d30a63789c21ba7811732399a8897a5d86cee56319d3be8b85aadb2",
+    "canonicalLfSha256": "863fa81f9d30a63789c21ba7811732399a8897a5d86cee56319d3be8b85aadb2",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "wallabag/wallabag",
+    "head": "42033e0253e74281c9f7588146324ab7222c3592",
+    "path": "src/Helper/DownloadImages.php",
+    "rawSha256": "d85b18f0ff0b1f07b6c67d5a877e06d5c2a4bd7757a11d3b3d0ce9dd671a92ac",
+    "canonicalLfSha256": "d85b18f0ff0b1f07b6c67d5a877e06d5c2a4bd7757a11d3b3d0ce9dd671a92ac",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "wallabag/wallabag",
+    "head": "42033e0253e74281c9f7588146324ab7222c3592",
+    "path": "src/Repository/EntryRepository.php",
+    "rawSha256": "a60939c31c586422b55eac36fcd020dde0373512e174670beda84cef7a256c65",
+    "canonicalLfSha256": "a60939c31c586422b55eac36fcd020dde0373512e174670beda84cef7a256c65",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "wallabag/wallabag",
+    "head": "42033e0253e74281c9f7588146324ab7222c3592",
+    "path": "composer.json",
+    "rawSha256": "19167fa14d9b5f2e5657192888f7f6aef1bf2524d596602cc0e56bea4d1f69f3",
+    "canonicalLfSha256": "19167fa14d9b5f2e5657192888f7f6aef1bf2524d596602cc0e56bea4d1f69f3",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "wallabag/wallabag",
+    "head": "42033e0253e74281c9f7588146324ab7222c3592",
+    "path": "README.md",
+    "rawSha256": "0dd89f0f2c9e197ae8ef1b5d9f650b3f11384eb951c1d9be38c724ffdc4df4f8",
+    "canonicalLfSha256": "0dd89f0f2c9e197ae8ef1b5d9f650b3f11384eb951c1d9be38c724ffdc4df4f8",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "omnivore-app/omnivore",
+    "head": "29de91e8e43d8f546af398b6b0138dc6aba052bc",
+    "path": "README.md",
+    "rawSha256": "56becabeacbd3ed26cc04b6565374d6be54268c02f7b31f037da2fe38c4c9dcc",
+    "canonicalLfSha256": "56becabeacbd3ed26cc04b6565374d6be54268c02f7b31f037da2fe38c4c9dcc",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "omnivore-app/omnivore",
+    "head": "29de91e8e43d8f546af398b6b0138dc6aba052bc",
+    "path": "packages/api/src/services/save_page.ts",
+    "rawSha256": "e01b6cc9a9cd872ced02bbd5d52c1c034d20b2b5909837b5e3254434bd2a735e",
+    "canonicalLfSha256": "e01b6cc9a9cd872ced02bbd5d52c1c034d20b2b5909837b5e3254434bd2a735e",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "omnivore-app/omnivore",
+    "head": "29de91e8e43d8f546af398b6b0138dc6aba052bc",
+    "path": "packages/api/src/services/save_url.ts",
+    "rawSha256": "98097d2e3f05beef2ced27e92430d6af664ec01aedc1016d58b27b9907af3c86",
+    "canonicalLfSha256": "98097d2e3f05beef2ced27e92430d6af664ec01aedc1016d58b27b9907af3c86",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "omnivore-app/omnivore",
+    "head": "29de91e8e43d8f546af398b6b0138dc6aba052bc",
+    "path": "packages/api/src/services/cached_reading_position.ts",
+    "rawSha256": "5b1d16d84e760b67244de6b7881932dd258960e9ba40f9e37e680cbc4505aa49",
+    "canonicalLfSha256": "5b1d16d84e760b67244de6b7881932dd258960e9ba40f9e37e680cbc4505aa49",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "omnivore-app/omnivore",
+    "head": "29de91e8e43d8f546af398b6b0138dc6aba052bc",
+    "path": "packages/api/src/services/highlights.ts",
+    "rawSha256": "05b72fa3a3e2fcda9d61afbea090058a58932b018d6aad9d786c7e88420a54fb",
+    "canonicalLfSha256": "05b72fa3a3e2fcda9d61afbea090058a58932b018d6aad9d786c7e88420a54fb",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "omnivore-app/omnivore",
+    "head": "29de91e8e43d8f546af398b6b0138dc6aba052bc",
+    "path": "packages/api/src/routers/text_to_speech.ts",
+    "rawSha256": "2f66e473d5c99767e14570af28890872c6f71c24791e6c76f2f47a62dcfabff0",
+    "canonicalLfSha256": "2f66e473d5c99767e14570af28890872c6f71c24791e6c76f2f47a62dcfabff0",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "omnivore-app/omnivore",
+    "head": "29de91e8e43d8f546af398b6b0138dc6aba052bc",
+    "path": "packages/web/components/templates/article/EpubContainer.tsx",
+    "rawSha256": "04daea812d74c2f06a459a9b84d97d12310009eacc56606684c6c7c69e47b3a7",
+    "canonicalLfSha256": "04daea812d74c2f06a459a9b84d97d12310009eacc56606684c6c7c69e47b3a7",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "omnivore-app/omnivore",
+    "head": "29de91e8e43d8f546af398b6b0138dc6aba052bc",
+    "path": "packages/web/components/templates/article/Article.tsx",
+    "rawSha256": "973637e7caa7372261f06648b6b028d51e9b7ec0099a680d9f28d1448400fd7a",
+    "canonicalLfSha256": "973637e7caa7372261f06648b6b028d51e9b7ec0099a680d9f28d1448400fd7a",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "omnivore-app/omnivore",
+    "head": "29de91e8e43d8f546af398b6b0138dc6aba052bc",
+    "path": "packages/api/src/entity/library_item.ts",
+    "rawSha256": "7b892c43fe1fabb3fbefa4ce2fca97fa47d60e27756f9e503e35bc66d255a284",
+    "canonicalLfSha256": "7b892c43fe1fabb3fbefa4ce2fca97fa47d60e27756f9e503e35bc66d255a284",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "omnivore-app/omnivore",
+    "head": "29de91e8e43d8f546af398b6b0138dc6aba052bc",
+    "path": "packages/api/src/services/upload_file.ts",
+    "rawSha256": "6db419f2e4e4d9ade6d20e71b1110e60661c5ce35ca15c97d1308fd5ba50de3a",
+    "canonicalLfSha256": "6db419f2e4e4d9ade6d20e71b1110e60661c5ce35ca15c97d1308fd5ba50de3a",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "omnivore-app/omnivore",
+    "head": "29de91e8e43d8f546af398b6b0138dc6aba052bc",
+    "path": "package.json",
+    "rawSha256": "19c8dbc3f7d9abd08d241f969e011fb9fb627012c7a14ef17ae82f95bf9f6353",
+    "canonicalLfSha256": "19c8dbc3f7d9abd08d241f969e011fb9fb627012c7a14ef17ae82f95bf9f6353",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "omnivore-app/omnivore",
+    "head": "29de91e8e43d8f546af398b6b0138dc6aba052bc",
+    "path": "LICENSE",
+    "rawSha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef",
+    "canonicalLfSha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "steel-dev/steel-browser",
+    "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+    "path": "api/src/modules/actions/actions.controller.ts",
+    "rawSha256": "c4015ed92748d90b2f926c3ebf747b67a92bd59e865597fbf4d6ad0b944b6657",
+    "canonicalLfSha256": "c4015ed92748d90b2f926c3ebf747b67a92bd59e865597fbf4d6ad0b944b6657",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "steel-dev/steel-browser",
+    "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+    "path": "api/src/modules/sessions/sessions.schema.ts",
+    "rawSha256": "be1968f27d100fe2c301ca330210820be630ab6576029cc819af2564694797e5",
+    "canonicalLfSha256": "be1968f27d100fe2c301ca330210820be630ab6576029cc819af2564694797e5",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "steel-dev/steel-browser",
+    "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+    "path": "api/src/services/session.service.ts",
+    "rawSha256": "df2d38b6e4a68a7c458cf320ad1f93990043e42fbea506c76e6d457f2c7878f5",
+    "canonicalLfSha256": "df2d38b6e4a68a7c458cf320ad1f93990043e42fbea506c76e6d457f2c7878f5",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "steel-dev/steel-browser",
+    "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+    "path": "api/src/services/commands/session.ts",
+    "rawSha256": "55b0f26b635c52b37f32f2f757924f1a67a8f1ee5e5862661b4b48e771541ccb",
+    "canonicalLfSha256": "55b0f26b635c52b37f32f2f757924f1a67a8f1ee5e5862661b4b48e771541ccb",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "steel-dev/steel-browser",
+    "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+    "path": "api/src/services/leveldb/sessionstorage.ts",
+    "rawSha256": "69efe4eefd408cc7523baf4bd7e41e4d90f734df1c48c9d32a1c74923bb6ffc8",
+    "canonicalLfSha256": "69efe4eefd408cc7523baf4bd7e41e4d90f734df1c48c9d32a1c74923bb6ffc8",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "steel-dev/steel-browser",
+    "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+    "path": "api/src/modules/files/files.controller.ts",
+    "rawSha256": "f78b50bdaedf9f36f761c60af7c31eb9ee941f3c30e6f70912e24de2787b80d7",
+    "canonicalLfSha256": "f78b50bdaedf9f36f761c60af7c31eb9ee941f3c30e6f70912e24de2787b80d7",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "steel-dev/steel-browser",
+    "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+    "path": "api/package.json",
+    "rawSha256": "205eb7bb8ee3e6692b42a895c23e049fd7fe3f9b99a898051ba9d9c548ff513c",
+    "canonicalLfSha256": "205eb7bb8ee3e6692b42a895c23e049fd7fe3f9b99a898051ba9d9c548ff513c",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "steel-dev/steel-browser",
+    "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+    "path": "README.md",
+    "rawSha256": "3e84a22a2631abbc00dc83baf91c7f9060eb6bb5de00029dcee7b70a74dbb844",
+    "canonicalLfSha256": "3e84a22a2631abbc00dc83baf91c7f9060eb6bb5de00029dcee7b70a74dbb844",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "steel-dev/steel-browser",
+    "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+    "path": "LICENSE",
+    "rawSha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "canonicalLfSha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "wxt-dev/wxt",
+    "head": "66897f0d189ae9236d40a08ecea329c2455444a6",
+    "path": "packages/wxt/src/utils/content-script-ui/shadow-root.ts",
+    "rawSha256": "ac9f8d22d303ea01993626392bf3789731f079ae43d157ef41270cc2082f320e",
+    "canonicalLfSha256": "ac9f8d22d303ea01993626392bf3789731f079ae43d157ef41270cc2082f320e",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "wxt-dev/wxt",
+    "head": "66897f0d189ae9236d40a08ecea329c2455444a6",
+    "path": "packages/wxt-demo/src/entrypoints/location-change.content.ts",
+    "rawSha256": "31f0c8a91eabe6f8feb98fe43fc1727b06084fe4205c5eb4b628ec085c40c525",
+    "canonicalLfSha256": "31f0c8a91eabe6f8feb98fe43fc1727b06084fe4205c5eb4b628ec085c40c525",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "wxt-dev/wxt",
+    "head": "66897f0d189ae9236d40a08ecea329c2455444a6",
+    "path": "packages/wxt/src/utils/content-script-context.ts",
+    "rawSha256": "a84aeb8b0f641f6cc4b139d80490404ec31116b1c99127d721cad8e2f6473cf0",
+    "canonicalLfSha256": "a84aeb8b0f641f6cc4b139d80490404ec31116b1c99127d721cad8e2f6473cf0",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "wxt-dev/wxt",
+    "head": "66897f0d189ae9236d40a08ecea329c2455444a6",
+    "path": "packages/wxt/package.json",
+    "rawSha256": "63c58e8ba237db0b8abe5a0b1c251227e851895d81f3831cfc6d0ed3d4124944",
+    "canonicalLfSha256": "63c58e8ba237db0b8abe5a0b1c251227e851895d81f3831cfc6d0ed3d4124944",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "wxt-dev/wxt",
+    "head": "66897f0d189ae9236d40a08ecea329c2455444a6",
+    "path": "README.md",
+    "rawSha256": "4064c4520b722e10e871530edde97dffeabae58c4229ca80a6b02290d9bd87d4",
+    "canonicalLfSha256": "4064c4520b722e10e871530edde97dffeabae58c4229ca80a6b02290d9bd87d4",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "wxt-dev/wxt",
+    "head": "66897f0d189ae9236d40a08ecea329c2455444a6",
+    "path": "LICENSE",
+    "rawSha256": "7b0b00fcdbc6a036078aad84d0bc0fae240ac67144b86c911149c2daa37c9f85",
+    "canonicalLfSha256": "7b0b00fcdbc6a036078aad84d0bc0fae240ac67144b86c911149c2daa37c9f85",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "wallabag/wallabag",
+    "head": "42033e0253e74281c9f7588146324ab7222c3592",
+    "path": "src/Form/Type/EntryFilterType.php",
+    "rawSha256": "6cdc1399229b5b0665be16e4cf0192a579e18408eb6d27fba24469593964aa16",
+    "canonicalLfSha256": "6cdc1399229b5b0665be16e4cf0192a579e18408eb6d27fba24469593964aa16",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "steel-dev/steel-browser",
+    "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+    "path": "api/src/services/commands/engine.ts",
+    "rawSha256": "a0a090dd47db8605d2f4e8d3a8ae441eea967b9eac1b5d133ac38b19ad8e1cca",
+    "canonicalLfSha256": "a0a090dd47db8605d2f4e8d3a8ae441eea967b9eac1b5d133ac38b19ad8e1cca",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "steel-dev/steel-browser",
+    "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+    "path": "api/src/services/commands/records.ts",
+    "rawSha256": "5b31908509e672993f4f00520315e46fdb9e6cd79a399b40cedb8cf4879dc08e",
+    "canonicalLfSha256": "5b31908509e672993f4f00520315e46fdb9e6cd79a399b40cedb8cf4879dc08e",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "steel-dev/steel-browser",
+    "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+    "path": "api/src/services/commands/handlers/context.ts",
+    "rawSha256": "4d5db63c504e2721d6f09c7e9a76bf812506722d34e9ba5724cc7e0d15ae77fd",
+    "canonicalLfSha256": "4d5db63c504e2721d6f09c7e9a76bf812506722d34e9ba5724cc7e0d15ae77fd",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "steel-dev/steel-browser",
+    "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+    "path": "api/src/services/context/types.ts",
+    "rawSha256": "f5f4e2a6f9c6569b6761a6cb75c2fe09fb27798fd6d19027f625d663be1d3af5",
+    "canonicalLfSha256": "f5f4e2a6f9c6569b6761a6cb75c2fe09fb27798fd6d19027f625d663be1d3af5",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "steel-dev/steel-browser",
+    "head": "9fb9b9239325794b3e2d2a56c7e54c400a7d30bd",
+    "path": "api/src/services/context/chrome-context.service.ts",
+    "rawSha256": "6f097a426e052a55a27c5bd977235558a2adb78a2f8e78673a2f01a7b4c72bd5",
+    "canonicalLfSha256": "6f097a426e052a55a27c5bd977235558a2adb78a2f8e78673a2f01a7b4c72bd5",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "browser",
+    "repo": "wallabag/wallabag",
+    "head": "42033e0253e74281c9f7588146324ab7222c3592",
+    "path": "COPYING.md",
+    "rawSha256": "9927812ed1d034e6b6ed0c71160b2bf33ececf980947806ddf73993013669496",
+    "canonicalLfSha256": "9927812ed1d034e6b6ed0c71160b2bf33ececf980947806ddf73993013669496",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "jellyfin/jellyfin-web",
+    "head": "fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09",
+    "path": "LICENSE",
+    "rawSha256": "f371b80469fb235bc500ec29e0e85b682d4a6157a158567d828ff0be544d4f1d",
+    "canonicalLfSha256": "f371b80469fb235bc500ec29e0e85b682d4a6157a158567d828ff0be544d4f1d",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "jellyfin/jellyfin-web",
+    "head": "fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09",
+    "path": "package.json",
+    "rawSha256": "9775aa9efa3c2d287f88901acd5fa460f8041b537546190bd833331695e2d33e",
+    "canonicalLfSha256": "9775aa9efa3c2d287f88901acd5fa460f8041b537546190bd833331695e2d33e",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "jellyfin/jellyfin-web",
+    "head": "fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09",
+    "path": "src/apps/modern/features/details/components/buttons/SplitVersionsButton.tsx",
+    "rawSha256": "c74a732acd66a5d48ac588237b0f46a72be32025bc03c4edcd0e6e0af773d658",
+    "canonicalLfSha256": "c74a732acd66a5d48ac588237b0f46a72be32025bc03c4edcd0e6e0af773d658",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "jellyfin/jellyfin-web",
+    "head": "fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09",
+    "path": "src/apps/modern/features/libraries/components/filter/FiltersAudioLanguages.tsx",
+    "rawSha256": "2363dbcf8393e11b36f3ef861c98c9757781e28cb35bff950e831d9da181f9df",
+    "canonicalLfSha256": "2363dbcf8393e11b36f3ef861c98c9757781e28cb35bff950e831d9da181f9df",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "jellyfin/jellyfin-web",
+    "head": "fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09",
+    "path": "src/apps/modern/features/libraries/components/filter/FiltersFeatures.tsx",
+    "rawSha256": "d8b0724bae8bc97c2c822060a731c3dd9086a578edab9b9807b5e2211e059b7e",
+    "canonicalLfSha256": "d8b0724bae8bc97c2c822060a731c3dd9086a578edab9b9807b5e2211e059b7e",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "jellyfin/jellyfin-web",
+    "head": "fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09",
+    "path": "src/components/homesections/sections/nextUp.ts",
+    "rawSha256": "461cbf9932c44994c321c207c6e1f3fd5055451c5edb6ab2f9b331a408671cc5",
+    "canonicalLfSha256": "461cbf9932c44994c321c207c6e1f3fd5055451c5edb6ab2f9b331a408671cc5",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "jellyfin/jellyfin-web",
+    "head": "fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09",
+    "path": "src/components/itemidentifier/itemidentifier.js",
+    "rawSha256": "adad72e63d17412ee65f687c1665adc9e94963e0afddde34b28934a9455ba8df",
+    "canonicalLfSha256": "adad72e63d17412ee65f687c1665adc9e94963e0afddde34b28934a9455ba8df",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "jellyfin/jellyfin-web",
+    "head": "fb34d1c6f2cbda2b1a8f4e5cf5853b9db9b52c09",
+    "path": "src/components/metadataEditor/metadataEditor.js",
+    "rawSha256": "db0d6dbf4b8563b079672c478187cc8169938cff19dabf8ca926741a2e524d45",
+    "canonicalLfSha256": "db0d6dbf4b8563b079672c478187cc8169938cff19dabf8ca926741a2e524d45",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "jellyfin/jellyfin",
+    "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+    "path": "Emby.Naming/TV/EpisodeResolver.cs",
+    "rawSha256": "4b9f3e88c537dbcba6fa04e478d5b0521072ce4e1c7950932f70686914670996",
+    "canonicalLfSha256": "4b9f3e88c537dbcba6fa04e478d5b0521072ce4e1c7950932f70686914670996",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "jellyfin/jellyfin",
+    "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+    "path": "Emby.Naming/Video/VideoListResolver.cs",
+    "rawSha256": "5cf1e54f677781c0206dcb38ba90cb191cc3165411d1d9eb9d9ea0757560f165",
+    "canonicalLfSha256": "5cf1e54f677781c0206dcb38ba90cb191cc3165411d1d9eb9d9ea0757560f165",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "jellyfin/jellyfin",
+    "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+    "path": "Emby.Server.Implementations/IO/LibraryMonitor.cs",
+    "rawSha256": "977ff967b90d3ad22aad7ede03036b2803e5305c1e5e5550f2b74686c3180afc",
+    "canonicalLfSha256": "977ff967b90d3ad22aad7ede03036b2803e5305c1e5e5550f2b74686c3180afc",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "jellyfin/jellyfin",
+    "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+    "path": "Jellyfin.Server.Implementations/Item/NextUpService.cs",
+    "rawSha256": "4d7658595b0db38ef96828c41078ecbf97987883df02ed7382590174927f6035",
+    "canonicalLfSha256": "4d7658595b0db38ef96828c41078ecbf97987883df02ed7382590174927f6035",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "jellyfin/jellyfin",
+    "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+    "path": "Jellyfin.Server.Implementations/Trickplay/TrickplayManager.cs",
+    "rawSha256": "5b9174d9de508751e7c041bf89e8814faab6d4a2c8bd34b16c2de26455b9d534",
+    "canonicalLfSha256": "5b9174d9de508751e7c041bf89e8814faab6d4a2c8bd34b16c2de26455b9d534",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "jellyfin/jellyfin",
+    "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+    "path": "LICENSE",
+    "rawSha256": "f371b80469fb235bc500ec29e0e85b682d4a6157a158567d828ff0be544d4f1d",
+    "canonicalLfSha256": "f371b80469fb235bc500ec29e0e85b682d4a6157a158567d828ff0be544d4f1d",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "jellyfin/jellyfin",
+    "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+    "path": "MediaBrowser.Controller/Entities/Video.cs",
+    "rawSha256": "03df015992ee4e95e175c499b36a7b21d9facc4f391cfd89235ad652d2eb0b11",
+    "canonicalLfSha256": "03df015992ee4e95e175c499b36a7b21d9facc4f391cfd89235ad652d2eb0b11",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "jellyfin/jellyfin",
+    "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+    "path": "MediaBrowser.Model/Configuration/MetadataOptions.cs",
+    "rawSha256": "bd8457ba08e1940e2e22a4e1a19ac1fc41f9f18fa75930b7039bf21a4177d54c",
+    "canonicalLfSha256": "bd8457ba08e1940e2e22a4e1a19ac1fc41f9f18fa75930b7039bf21a4177d54c",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "Kometa-Team/Kometa",
+    "head": "cc35af0686967b74ead474277d9eb16119bc888c",
+    "path": "LICENSE",
+    "rawSha256": "ec4e791bbefa93c524a162a29c1ccb7cefb182225c0372aa913182874afaccb5",
+    "canonicalLfSha256": "ec4e791bbefa93c524a162a29c1ccb7cefb182225c0372aa913182874afaccb5",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "Kometa-Team/Kometa",
+    "head": "cc35af0686967b74ead474277d9eb16119bc888c",
+    "path": "modules/builder.py",
+    "rawSha256": "2f07e7bcaf97855d61503d84bbc643c4777eebc3cad79a3ab05c992344bc7e0c",
+    "canonicalLfSha256": "2f07e7bcaf97855d61503d84bbc643c4777eebc3cad79a3ab05c992344bc7e0c",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "Kometa-Team/Kometa",
+    "head": "cc35af0686967b74ead474277d9eb16119bc888c",
+    "path": "modules/config.py",
+    "rawSha256": "7158b953178bd9360ad6b372df0baea205e49406b951210f818e040e24752189",
+    "canonicalLfSha256": "7158b953178bd9360ad6b372df0baea205e49406b951210f818e040e24752189",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "Kometa-Team/Kometa",
+    "head": "cc35af0686967b74ead474277d9eb16119bc888c",
+    "path": "modules/meta.py",
+    "rawSha256": "df0ec7dac32edb42db57ff102b89e50242e24d524f4d235a77dedce8ccb18344",
+    "canonicalLfSha256": "df0ec7dac32edb42db57ff102b89e50242e24d524f4d235a77dedce8ccb18344",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "Kometa-Team/Kometa",
+    "head": "cc35af0686967b74ead474277d9eb16119bc888c",
+    "path": "modules/plex.py",
+    "rawSha256": "68aff1e4ea50f075f0adf80e540c1542259ea8add61b16e32db3f30f9e6226ef",
+    "canonicalLfSha256": "68aff1e4ea50f075f0adf80e540c1542259ea8add61b16e32db3f30f9e6226ef",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "Kometa-Team/Kometa",
+    "head": "cc35af0686967b74ead474277d9eb16119bc888c",
+    "path": "modules/util.py",
+    "rawSha256": "e255452ffb8ce6d9d11063aaf673a1b6fd5ae043427c9da3b6b0069051a036f2",
+    "canonicalLfSha256": "e255452ffb8ce6d9d11063aaf673a1b6fd5ae043427c9da3b6b0069051a036f2",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "Kometa-Team/Kometa",
+    "head": "cc35af0686967b74ead474277d9eb16119bc888c",
+    "path": "pyproject.toml",
+    "rawSha256": "95db27d1654187821d1565468f9ee8c30d8d36a23aa4e7c4330de4f5cb92305e",
+    "canonicalLfSha256": "95db27d1654187821d1565468f9ee8c30d8d36a23aa4e7c4330de4f5cb92305e",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "bonukai/MediaTracker",
+    "head": "22aedac26329893b6441d74d12be9a48e190ca9c",
+    "path": "client/src/components/SetProgress.tsx",
+    "rawSha256": "71952d9aa9a79e7c4abbee6863518b8491e33042d57b0aa004ae146c0949a4e8",
+    "canonicalLfSha256": "71952d9aa9a79e7c4abbee6863518b8491e33042d57b0aa004ae146c0949a4e8",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "bonukai/MediaTracker",
+    "head": "22aedac26329893b6441d74d12be9a48e190ca9c",
+    "path": "LICENSE.md",
+    "rawSha256": "cb2e47fc09bf30b6db5e7f7df95a5f4acb9e8cf1451c43481ebfedb0d3fcc2d2",
+    "canonicalLfSha256": "cb2e47fc09bf30b6db5e7f7df95a5f4acb9e8cf1451c43481ebfedb0d3fcc2d2",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "bonukai/MediaTracker",
+    "head": "22aedac26329893b6441d74d12be9a48e190ca9c",
+    "path": "package.json",
+    "rawSha256": "27f807bad82389fce74ee366e875691d885818815e81fe191cba35aed58cf987",
+    "canonicalLfSha256": "27f807bad82389fce74ee366e875691d885818815e81fe191cba35aed58cf987",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "bonukai/MediaTracker",
+    "head": "22aedac26329893b6441d74d12be9a48e190ca9c",
+    "path": "server/src/controllers/progress.ts",
+    "rawSha256": "ff537330673f175054b010b3b2027773e3e568ac8c1a7806e01d07210b0267d2",
+    "canonicalLfSha256": "7cb86a7420a3f93d7807046877604aece73038e3a867707dd92d6dae82b2b26d",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "bonukai/MediaTracker",
+    "head": "22aedac26329893b6441d74d12be9a48e190ca9c",
+    "path": "server/src/entity/list.ts",
+    "rawSha256": "a1b7dda8c37a2708d7b0798b7e98e4cb6c6527fd5ed9ad88c76c34a791ad720e",
+    "canonicalLfSha256": "a1b7dda8c37a2708d7b0798b7e98e4cb6c6527fd5ed9ad88c76c34a791ad720e",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "bonukai/MediaTracker",
+    "head": "22aedac26329893b6441d74d12be9a48e190ca9c",
+    "path": "server/src/entity/progress.ts",
+    "rawSha256": "2c0685a9660dd4a2c083a29134fd4beeac4d76d10442b0fa258353c2fa295a7d",
+    "canonicalLfSha256": "fbf763936c619ef4aa2420f70d196933b3fb1630a5a352146ef4a6535b676e85",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "bonukai/MediaTracker",
+    "head": "22aedac26329893b6441d74d12be9a48e190ca9c",
+    "path": "server/src/metadata/findByExternalId.ts",
+    "rawSha256": "6ba83803650a39dcfc0af7d66be82fbfc942dfdfc65382397fa183726f949343",
+    "canonicalLfSha256": "2369ea69c538b5a864d9e6ebbb2ece4b35d80bb4570e42d3c3acc66175504ee2",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "bonukai/MediaTracker",
+    "head": "22aedac26329893b6441d74d12be9a48e190ca9c",
+    "path": "server/src/repository/progress.ts",
+    "rawSha256": "0c197e86b4e85adc938146247630fd57455b81d3eee480cf3471f725d49106e9",
+    "canonicalLfSha256": "0c197e86b4e85adc938146247630fd57455b81d3eee480cf3471f725d49106e9",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "FuzzyGrim/Yamtrack",
+    "head": "387274467e771845cf84fe3ceb1b249ad8405e41",
+    "path": "LICENSE",
+    "rawSha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef",
+    "canonicalLfSha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "FuzzyGrim/Yamtrack",
+    "head": "387274467e771845cf84fe3ceb1b249ad8405e41",
+    "path": "pyproject.toml",
+    "rawSha256": "f5d8ad4fea470a496f0df0a6b9437d4e347d4fb4ea94ef1cc69de9890c15af49",
+    "canonicalLfSha256": "f5d8ad4fea470a496f0df0a6b9437d4e347d4fb4ea94ef1cc69de9890c15af49",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "FuzzyGrim/Yamtrack",
+    "head": "387274467e771845cf84fe3ceb1b249ad8405e41",
+    "path": "src/app/history_processor.py",
+    "rawSha256": "3a533b03b0d6ee6f926c5e599c6d7f6d2785c6b4908a8b2e34026351bb83dff3",
+    "canonicalLfSha256": "3a533b03b0d6ee6f926c5e599c6d7f6d2785c6b4908a8b2e34026351bb83dff3",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "FuzzyGrim/Yamtrack",
+    "head": "387274467e771845cf84fe3ceb1b249ad8405e41",
+    "path": "src/app/models.py",
+    "rawSha256": "a66e5fc28f456476d753358bf8fce3a8174c1acf5d88daab21bdd31b7d6047c7",
+    "canonicalLfSha256": "a66e5fc28f456476d753358bf8fce3a8174c1acf5d88daab21bdd31b7d6047c7",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "FuzzyGrim/Yamtrack",
+    "head": "387274467e771845cf84fe3ceb1b249ad8405e41",
+    "path": "src/app/views.py",
+    "rawSha256": "80fe81a90c26fffced14b7716c0a0e57bc8ce7cf5bc3b154d66f9047d3650489",
+    "canonicalLfSha256": "80fe81a90c26fffced14b7716c0a0e57bc8ce7cf5bc3b154d66f9047d3650489",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "FuzzyGrim/Yamtrack",
+    "head": "387274467e771845cf84fe3ceb1b249ad8405e41",
+    "path": "src/lists/models.py",
+    "rawSha256": "b5b27aecbab6bcf5f8725e5db67c84a1c8d98a696a7f0dffce920b7ea78f3c36",
+    "canonicalLfSha256": "b5b27aecbab6bcf5f8725e5db67c84a1c8d98a696a7f0dffce920b7ea78f3c36",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "FuzzyGrim/Yamtrack",
+    "head": "387274467e771845cf84fe3ceb1b249ad8405e41",
+    "path": "src/users/models.py",
+    "rawSha256": "a46bc749b85351984ebf4d4c275bf82b7cde9022cef41bfc003e079f7e9d8a24",
+    "canonicalLfSha256": "a46bc749b85351984ebf4d4c275bf82b7cde9022cef41bfc003e079f7e9d8a24",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "Komet/MediaElch",
+    "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+    "path": "COPYING",
+    "rawSha256": "ea8af5e789cb2d4e9b10bce3874982ade163b749b6bfbdb32e2df21c4d106de1",
+    "canonicalLfSha256": "ea8af5e789cb2d4e9b10bce3874982ade163b749b6bfbdb32e2df21c4d106de1",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "Komet/MediaElch",
+    "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+    "path": "src/data/tv_show/EpisodeMap.cpp",
+    "rawSha256": "6684b207ece41e282c3af3a3031be9889f3ffd4d79fe27c581cc671caafbd32a",
+    "canonicalLfSha256": "6684b207ece41e282c3af3a3031be9889f3ffd4d79fe27c581cc671caafbd32a",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "Komet/MediaElch",
+    "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+    "path": "src/file_search/movie/MovieDirScan.cpp",
+    "rawSha256": "18c4240b81413078bc99f3b5e58b493d3ef728dfc9b2958617cb04d58e30911c",
+    "canonicalLfSha256": "18c4240b81413078bc99f3b5e58b493d3ef728dfc9b2958617cb04d58e30911c",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "Komet/MediaElch",
+    "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+    "path": "src/media_center/KodiXml.cpp",
+    "rawSha256": "5d427fb23944ea80160ce63ae9d81daca099aadbfaf838c74771f8a5d57bcb0a",
+    "canonicalLfSha256": "5d427fb23944ea80160ce63ae9d81daca099aadbfaf838c74771f8a5d57bcb0a",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "Komet/MediaElch",
+    "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+    "path": "src/media_center/kodi/EpisodeXmlReader.cpp",
+    "rawSha256": "1661ebf068863b0921b41bc9fb706c4f95f78ac1c5e5a8cb44b8dabc129449e9",
+    "canonicalLfSha256": "1661ebf068863b0921b41bc9fb706c4f95f78ac1c5e5a8cb44b8dabc129449e9",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "Komet/MediaElch",
+    "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+    "path": "src/media/StreamDetails.cpp",
+    "rawSha256": "a74b41a551ba4fb8dc275df877b579a49cab12df18a3d343c6d848377d208b02",
+    "canonicalLfSha256": "a74b41a551ba4fb8dc275df877b579a49cab12df18a3d343c6d848377d208b02",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "Komet/MediaElch",
+    "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+    "path": "src/renamer/EpisodeRenamer.cpp",
+    "rawSha256": "37459fc84bb0e1e658b0be2db162cc03f69a918e34660523c71a23db5c532982",
+    "canonicalLfSha256": "37459fc84bb0e1e658b0be2db162cc03f69a918e34660523c71a23db5c532982",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "Komet/MediaElch",
+    "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+    "path": "src/renamer/MovieRenamer.cpp",
+    "rawSha256": "692f7352d3dc02cbf4dd549e9e9dabeb001d74712cb3877db4700d4516fcd08e",
+    "canonicalLfSha256": "692f7352d3dc02cbf4dd549e9e9dabeb001d74712cb3877db4700d4516fcd08e",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "Komet/MediaElch",
+    "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+    "path": "src/renamer/Renamer.cpp",
+    "rawSha256": "16a09cd26e5387c3788e9edf2660b381092df312e54e5c2891d569820cf6b6f7",
+    "canonicalLfSha256": "16a09cd26e5387c3788e9edf2660b381092df312e54e5c2891d569820cf6b6f7",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "library",
+    "repo": "Komet/MediaElch",
+    "head": "e60309e6b4917db30001a261ff91ae38ad465a0e",
+    "path": "src/scrapers/movie/MovieIdentifier.cpp",
+    "rawSha256": "362a49983a5d0d81a03e40d74abe1293cb51061cdbbba07a3930bf0afc367f6e",
+    "canonicalLfSha256": "362a49983a5d0d81a03e40d74abe1293cb51061cdbbba07a3930bf0afc367f6e",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "LICENSE",
+    "rawSha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef",
+    "canonicalLfSha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "README.md",
+    "rawSha256": "412730d7123866351eef25d0e5d607b249567ff2e97014182226c58ec98c671a",
+    "canonicalLfSha256": "412730d7123866351eef25d0e5d607b249567ff2e97014182226c58ec98c671a",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "package.json",
+    "rawSha256": "1d9dee07b2fa329ff7f88ba1f6a459612aa4d7f243a5360a758bea8d0c375393",
+    "canonicalLfSha256": "1d9dee07b2fa329ff7f88ba1f6a459612aa4d7f243a5360a758bea8d0c375393",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "FreshRSS/FreshRSS",
+    "head": "fa040c2ebbf01dd1d9ef854c855ace3a342d26f9",
+    "path": "LICENSE.txt",
+    "rawSha256": "e9df4c4e4e64b8168a71c3c67668dcffabbe8fca11d4ac4a7d5482562cd1679c",
+    "canonicalLfSha256": "e9df4c4e4e64b8168a71c3c67668dcffabbe8fca11d4ac4a7d5482562cd1679c",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "FreshRSS/FreshRSS",
+    "head": "fa040c2ebbf01dd1d9ef854c855ace3a342d26f9",
+    "path": "README.md",
+    "rawSha256": "ea3e2b057d7b4c8bbdbef3d258ded62bfc07a7b7c670585c30380aba09b30ffb",
+    "canonicalLfSha256": "ea3e2b057d7b4c8bbdbef3d258ded62bfc07a7b7c670585c30380aba09b30ffb",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "FreshRSS/FreshRSS",
+    "head": "fa040c2ebbf01dd1d9ef854c855ace3a342d26f9",
+    "path": "package.json",
+    "rawSha256": "eb4a571a2f65480d89451186862b11d95488c1cf8e75ff233b1a455c9bcbfe41",
+    "canonicalLfSha256": "eb4a571a2f65480d89451186862b11d95488c1cf8e75ff233b1a455c9bcbfe41",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "miniflux/v2",
+    "head": "faecfa2fac61a91f4f69550bb1afd506c4b51749",
+    "path": "LICENSE",
+    "rawSha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+    "canonicalLfSha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "miniflux/v2",
+    "head": "faecfa2fac61a91f4f69550bb1afd506c4b51749",
+    "path": "README.md",
+    "rawSha256": "2a18e492d96193f6bb1122bd493944e07987920a06005a48651c304e310a4a48",
+    "canonicalLfSha256": "2a18e492d96193f6bb1122bd493944e07987920a06005a48651c304e310a4a48",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "RSSNext/Folo",
+    "head": "70a630a62a46de8aed945d7f11812a292df7fab1",
+    "path": "LICENSE",
+    "rawSha256": "d4d9a9105552e3db12fa1ac3c9304757da4e7da48277a8eab7d226601a685886",
+    "canonicalLfSha256": "d4d9a9105552e3db12fa1ac3c9304757da4e7da48277a8eab7d226601a685886",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "RSSNext/Folo",
+    "head": "70a630a62a46de8aed945d7f11812a292df7fab1",
+    "path": "README.md",
+    "rawSha256": "45bd16f0b831734a06ebed60b8dd3d10e177e5c312d3b8117d0e8f18b01a5ca8",
+    "canonicalLfSha256": "45bd16f0b831734a06ebed60b8dd3d10e177e5c312d3b8117d0e8f18b01a5ca8",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "RSSNext/Folo",
+    "head": "70a630a62a46de8aed945d7f11812a292df7fab1",
+    "path": "package.json",
+    "rawSha256": "0f579b32930b5ed2ef58baedeef1570a6846a96c2690ec5bf998e3a71ec7dfb9",
+    "canonicalLfSha256": "0f579b32930b5ed2ef58baedeef1570a6846a96c2690ec5bf998e3a71ec7dfb9",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "DIYgod/RSSHub",
+    "head": "986522cde7e5332a8adb634e6600c5788ede93a0",
+    "path": "LICENSE",
+    "rawSha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef",
+    "canonicalLfSha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "DIYgod/RSSHub",
+    "head": "986522cde7e5332a8adb634e6600c5788ede93a0",
+    "path": "README.md",
+    "rawSha256": "609c8a6d00591b92b8ca55328339738f148b0cfa5da1fe27f3879258641453b4",
+    "canonicalLfSha256": "609c8a6d00591b92b8ca55328339738f148b0cfa5da1fe27f3879258641453b4",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "DIYgod/RSSHub",
+    "head": "986522cde7e5332a8adb634e6600c5788ede93a0",
+    "path": "package.json",
+    "rawSha256": "dd94c9fd15c8b2f09dc643c12b2587d27955f0e2ad3749d6d0b5158e2f238486",
+    "canonicalLfSha256": "dd94c9fd15c8b2f09dc643c12b2587d27955f0e2ad3749d6d0b5158e2f238486",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "miniflux/v2",
+    "head": "faecfa2fac61a91f4f69550bb1afd506c4b51749",
+    "path": "internal/reader/subscription/finder.go",
+    "rawSha256": "a71fbc606e1b0c29a7418d2f440725a474b7c376aa8ec5cb8b242a70b6ca97fe",
+    "canonicalLfSha256": "a71fbc606e1b0c29a7418d2f440725a474b7c376aa8ec5cb8b242a70b6ca97fe",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "miniflux/v2",
+    "head": "faecfa2fac61a91f4f69550bb1afd506c4b51749",
+    "path": "internal/reader/subscription/subscription.go",
+    "rawSha256": "a810154f9f0fa855b78830e02a480cc8eb7fba43ba1213c5813324f45d05a92c",
+    "canonicalLfSha256": "a810154f9f0fa855b78830e02a480cc8eb7fba43ba1213c5813324f45d05a92c",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "miniflux/v2",
+    "head": "faecfa2fac61a91f4f69550bb1afd506c4b51749",
+    "path": "internal/reader/parser/parser.go",
+    "rawSha256": "5360250098253e1205a2fe3759338378a808f6260374e4bcedf112eb2f7de5eb",
+    "canonicalLfSha256": "5360250098253e1205a2fe3759338378a808f6260374e4bcedf112eb2f7de5eb",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "miniflux/v2",
+    "head": "faecfa2fac61a91f4f69550bb1afd506c4b51749",
+    "path": "internal/reader/rss/adapter.go",
+    "rawSha256": "36b497af155031f6a180c29d1c7b1823fbbd058dfbd7925460f98bfbc95afaa4",
+    "canonicalLfSha256": "36b497af155031f6a180c29d1c7b1823fbbd058dfbd7925460f98bfbc95afaa4",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "miniflux/v2",
+    "head": "faecfa2fac61a91f4f69550bb1afd506c4b51749",
+    "path": "internal/reader/atom/atom_10_adapter.go",
+    "rawSha256": "ce7b5540af15725f9859659feeac64dc9d6c2ab7e3a3577e00c50eec8b7eeee9",
+    "canonicalLfSha256": "ce7b5540af15725f9859659feeac64dc9d6c2ab7e3a3577e00c50eec8b7eeee9",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "miniflux/v2",
+    "head": "faecfa2fac61a91f4f69550bb1afd506c4b51749",
+    "path": "internal/reader/json/adapter.go",
+    "rawSha256": "82469d97257516dd76cca677bec7ab31f8b714bc6bafd8e804e9830f3b645250",
+    "canonicalLfSha256": "82469d97257516dd76cca677bec7ab31f8b714bc6bafd8e804e9830f3b645250",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "miniflux/v2",
+    "head": "faecfa2fac61a91f4f69550bb1afd506c4b51749",
+    "path": "internal/reader/fetcher/request_builder.go",
+    "rawSha256": "f3700830da64280a89b6c91bd08a56e65a806efa1988b9ee6b9bb0e7b7d40625",
+    "canonicalLfSha256": "f3700830da64280a89b6c91bd08a56e65a806efa1988b9ee6b9bb0e7b7d40625",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "miniflux/v2",
+    "head": "faecfa2fac61a91f4f69550bb1afd506c4b51749",
+    "path": "internal/reader/fetcher/response_handler.go",
+    "rawSha256": "f034101ee364887137fe722dbb31ef1fa547431e9d9a57abde96336e48af4bf9",
+    "canonicalLfSha256": "f034101ee364887137fe722dbb31ef1fa547431e9d9a57abde96336e48af4bf9",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "miniflux/v2",
+    "head": "faecfa2fac61a91f4f69550bb1afd506c4b51749",
+    "path": "internal/reader/processor/processor.go",
+    "rawSha256": "9b5db068b294081a0f25928d5f08ce9a228b1f707e17894685e90cd613828959",
+    "canonicalLfSha256": "9b5db068b294081a0f25928d5f08ce9a228b1f707e17894685e90cd613828959",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "miniflux/v2",
+    "head": "faecfa2fac61a91f4f69550bb1afd506c4b51749",
+    "path": "internal/model/enclosure.go",
+    "rawSha256": "e03d4de27c362ab2fbf87c08cccf716ae62fe31c7ad431325b23a61db931e4f8",
+    "canonicalLfSha256": "e03d4de27c362ab2fbf87c08cccf716ae62fe31c7ad431325b23a61db931e4f8",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "miniflux/v2",
+    "head": "faecfa2fac61a91f4f69550bb1afd506c4b51749",
+    "path": "internal/storage/enclosure.go",
+    "rawSha256": "6c79da6ebf789a5a18614e850d0b0d7be18063b3d9c8f25340101eac6503e9da",
+    "canonicalLfSha256": "6c79da6ebf789a5a18614e850d0b0d7be18063b3d9c8f25340101eac6503e9da",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "miniflux/v2",
+    "head": "faecfa2fac61a91f4f69550bb1afd506c4b51749",
+    "path": "internal/reader/opml/parser.go",
+    "rawSha256": "937d3c3814612a0d123d54865052d9c6a68ef3cd54c2c3d632073f743ad5d80f",
+    "canonicalLfSha256": "937d3c3814612a0d123d54865052d9c6a68ef3cd54c2c3d632073f743ad5d80f",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "miniflux/v2",
+    "head": "faecfa2fac61a91f4f69550bb1afd506c4b51749",
+    "path": "internal/reader/opml/serializer.go",
+    "rawSha256": "dcacee9b3ccb629ce45f506d8306a460334dcd2bc20615a36a2fe53c65d70b3d",
+    "canonicalLfSha256": "dcacee9b3ccb629ce45f506d8306a460334dcd2bc20615a36a2fe53c65d70b3d",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "miniflux/v2",
+    "head": "faecfa2fac61a91f4f69550bb1afd506c4b51749",
+    "path": "internal/http/client/client.go",
+    "rawSha256": "cfaafe99f6c9eef3226ee170001c999cfd30b847c076e962a886aee499ebd20a",
+    "canonicalLfSha256": "cfaafe99f6c9eef3226ee170001c999cfd30b847c076e962a886aee499ebd20a",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "apps/workers/workers/feedWorker.ts",
+    "rawSha256": "538f0e8714e9f0ea17f4eb2832a6feb6ed066dcbe03a58aeabf87a32f8519018",
+    "canonicalLfSha256": "538f0e8714e9f0ea17f4eb2832a6feb6ed066dcbe03a58aeabf87a32f8519018",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "apps/workers/workers/utils/feedParser.ts",
+    "rawSha256": "0d1ceb24fd70ed76090c252d0c0356ba673d21ad893873aa7c882e6ea1cc07ba",
+    "canonicalLfSha256": "0d1ceb24fd70ed76090c252d0c0356ba673d21ad893873aa7c882e6ea1cc07ba",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "packages/trpc/models/feeds.service.ts",
+    "rawSha256": "d9fa4bdf12e2624bc97a869be0e7a66bb48ce450b1b9f58c61d67a2a5a347c50",
+    "canonicalLfSha256": "d9fa4bdf12e2624bc97a869be0e7a66bb48ce450b1b9f58c61d67a2a5a347c50",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "packages/trpc/models/feeds.repo.ts",
+    "rawSha256": "0b52e8f975a8330cf61a17aad4d10eb5caed138da5df9ecc124108f9214390bc",
+    "canonicalLfSha256": "0b52e8f975a8330cf61a17aad4d10eb5caed138da5df9ecc124108f9214390bc",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "packages/trpc/routers/feeds.ts",
+    "rawSha256": "1f546aa91eee14a2839bd3f0acae7f41e876b4513f7ccdb7782089b740470805",
+    "canonicalLfSha256": "1f546aa91eee14a2839bd3f0acae7f41e876b4513f7ccdb7782089b740470805",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "packages/shared/types/feeds.ts",
+    "rawSha256": "def34cf40490d0366f84ee7602720b7aacb1652b93a78482fc6e0c5e26da2a7d",
+    "canonicalLfSha256": "def34cf40490d0366f84ee7602720b7aacb1652b93a78482fc6e0c5e26da2a7d",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "packages/api/routes/rss.ts",
+    "rawSha256": "a3565eea1a20fa3f0cb1d3eb305bb83ff3292818294c6a6a9920241369dec4dc",
+    "canonicalLfSha256": "a3565eea1a20fa3f0cb1d3eb305bb83ff3292818294c6a6a9920241369dec4dc",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "packages/api/utils/rss.ts",
+    "rawSha256": "ed59bf53108011675edeec9d82115685407e5556512626d56b93b0553f80b0b2",
+    "canonicalLfSha256": "ed59bf53108011675edeec9d82115685407e5556512626d56b93b0553f80b0b2",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "apps/web/components/settings/FeedSettings.tsx",
+    "rawSha256": "c65cab635a4f571ceb9c9d4ee47accc01d9424aaa0e42a88d374b7b4582b2d1a",
+    "canonicalLfSha256": "c65cab635a4f571ceb9c9d4ee47accc01d9424aaa0e42a88d374b7b4582b2d1a",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "apps/web/components/dashboard/feeds/FeedSelector.tsx",
+    "rawSha256": "40acfe58de9c75ec75268872c6adacb66af5e33a8f12ae4daf6669098acdca17",
+    "canonicalLfSha256": "40acfe58de9c75ec75268872c6adacb66af5e33a8f12ae4daf6669098acdca17",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "docs/docs/05-integrations/06-rss-feeds.md",
+    "rawSha256": "61725a3f709ab5d3be4afcb452f4cbfe3a6b066881d9f306b0f67c0c8c413720",
+    "canonicalLfSha256": "61725a3f709ab5d3be4afcb452f4cbfe3a6b066881d9f306b0f67c0c8c413720",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "DIYgod/RSSHub",
+    "head": "986522cde7e5332a8adb634e6600c5788ede93a0",
+    "path": "lib/api/radar/rules/one.ts",
+    "rawSha256": "36abed21b3950fe2b1af4fb809112dc6a6625d0c226975956d36f64ef72f6afd",
+    "canonicalLfSha256": "36abed21b3950fe2b1af4fb809112dc6a6625d0c226975956d36f64ef72f6afd",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "DIYgod/RSSHub",
+    "head": "986522cde7e5332a8adb634e6600c5788ede93a0",
+    "path": "lib/middleware/cache.ts",
+    "rawSha256": "86242e5616fb055cfd847952b93f01445919ee532fad57f7d79e6d412aa8ef58",
+    "canonicalLfSha256": "86242e5616fb055cfd847952b93f01445919ee532fad57f7d79e6d412aa8ef58",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "DIYgod/RSSHub",
+    "head": "986522cde7e5332a8adb634e6600c5788ede93a0",
+    "path": "lib/utils/cache/index.ts",
+    "rawSha256": "3cc761902e3f9f0b617052148f99e8eed3d82464c4a91824f761edd4a4e5f80b",
+    "canonicalLfSha256": "3cc761902e3f9f0b617052148f99e8eed3d82464c4a91824f761edd4a4e5f80b",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "DIYgod/RSSHub",
+    "head": "986522cde7e5332a8adb634e6600c5788ede93a0",
+    "path": "lib/utils/rss-parser.ts",
+    "rawSha256": "f6a15e5c5eaeae2c48f3642c3c061328c74bc0b91a588e66911b51779fd96d73",
+    "canonicalLfSha256": "f6a15e5c5eaeae2c48f3642c3c061328c74bc0b91a588e66911b51779fd96d73",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "FreshRSS/FreshRSS",
+    "head": "fa040c2ebbf01dd1d9ef854c855ace3a342d26f9",
+    "path": "app/Models/Feed.php",
+    "rawSha256": "3f4fe3a030175c681c375ab209a0afeca97c1c7dc0f935caf03acfca4d8de663",
+    "canonicalLfSha256": "3f4fe3a030175c681c375ab209a0afeca97c1c7dc0f935caf03acfca4d8de663",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "FreshRSS/FreshRSS",
+    "head": "fa040c2ebbf01dd1d9ef854c855ace3a342d26f9",
+    "path": "app/Models/FeedDAO.php",
+    "rawSha256": "12cc71777aa7ddbd796589c83244e27d4b876dbe17c8e5d250a97fad4b8bf13a",
+    "canonicalLfSha256": "12cc71777aa7ddbd796589c83244e27d4b876dbe17c8e5d250a97fad4b8bf13a",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "FreshRSS/FreshRSS",
+    "head": "fa040c2ebbf01dd1d9ef854c855ace3a342d26f9",
+    "path": "app/Models/EntryDAO.php",
+    "rawSha256": "ebd1b08adda866eecdc44c22f0e327167ee2c77afed6b42d892c51ef741afdbc",
+    "canonicalLfSha256": "ebd1b08adda866eecdc44c22f0e327167ee2c77afed6b42d892c51ef741afdbc",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "FreshRSS/FreshRSS",
+    "head": "fa040c2ebbf01dd1d9ef854c855ace3a342d26f9",
+    "path": "app/Controllers/subscriptionController.php",
+    "rawSha256": "f09f2c48fb761999b09df4e3710751bc2bfd13917488a5806361aa73299c77ce",
+    "canonicalLfSha256": "f09f2c48fb761999b09df4e3710751bc2bfd13917488a5806361aa73299c77ce",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "FreshRSS/FreshRSS",
+    "head": "fa040c2ebbf01dd1d9ef854c855ace3a342d26f9",
+    "path": "app/views/subscription/feed.phtml",
+    "rawSha256": "455a550991ac3c93e8406b082b6bd8a4ea02509db1c3470f7ef4313643e71304",
+    "canonicalLfSha256": "455a550991ac3c93e8406b082b6bd8a4ea02509db1c3470f7ef4313643e71304",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "FreshRSS/FreshRSS",
+    "head": "fa040c2ebbf01dd1d9ef854c855ace3a342d26f9",
+    "path": "lib/lib_rss.php",
+    "rawSha256": "cf5a00391e4146457ca2d75b583f218a51ff619425b53c525c5a706e15ed869b",
+    "canonicalLfSha256": "cf5a00391e4146457ca2d75b583f218a51ff619425b53c525c5a706e15ed869b",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "FreshRSS/FreshRSS",
+    "head": "fa040c2ebbf01dd1d9ef854c855ace3a342d26f9",
+    "path": "lib/http-conditional.php",
+    "rawSha256": "ff88becfceed3932f0e0bebdc6639e88059f38643e2ab5ad0d106a3b7ae8b39d",
+    "canonicalLfSha256": "ff88becfceed3932f0e0bebdc6639e88059f38643e2ab5ad0d106a3b7ae8b39d",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "RSSNext/Folo",
+    "head": "70a630a62a46de8aed945d7f11812a292df7fab1",
+    "path": "apps/desktop/layer/renderer/src/modules/discover/UnifiedDiscoverForm.tsx",
+    "rawSha256": "78abc62140bc97da799eb436221c092c0a6b90068cfc6021ed2a0fb8d5a68c1a",
+    "canonicalLfSha256": "78abc62140bc97da799eb436221c092c0a6b90068cfc6021ed2a0fb8d5a68c1a",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "RSSNext/Folo",
+    "head": "70a630a62a46de8aed945d7f11812a292df7fab1",
+    "path": "apps/desktop/layer/renderer/src/modules/discover/FeedForm.tsx",
+    "rawSha256": "ce0bbef6bdcde8a53a73d0edcb43272f676d3fa9dbe51b6eece0aa57375a9b9b",
+    "canonicalLfSha256": "ce0bbef6bdcde8a53a73d0edcb43272f676d3fa9dbe51b6eece0aa57375a9b9b",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "RSSNext/Folo",
+    "head": "70a630a62a46de8aed945d7f11812a292df7fab1",
+    "path": "apps/desktop/layer/renderer/src/modules/discover/OpmlSelectionModal.tsx",
+    "rawSha256": "c4ce20cc2cd2d4bbd57aef8bf2d140d607ecf68bf27ad80d9f69ba4854698a91",
+    "canonicalLfSha256": "c4ce20cc2cd2d4bbd57aef8bf2d140d607ecf68bf27ad80d9f69ba4854698a91",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "RSSNext/Folo",
+    "head": "70a630a62a46de8aed945d7f11812a292df7fab1",
+    "path": "apps/desktop/layer/renderer/src/modules/entry-column/Items/getItemComponentByView.ts",
+    "rawSha256": "fd5a0efe8c146dd5ea2145abe554d3f7f5ad4d0c5e621f308575ab2ab653292f",
+    "canonicalLfSha256": "fd5a0efe8c146dd5ea2145abe554d3f7f5ad4d0c5e621f308575ab2ab653292f",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "RSSNext/Folo",
+    "head": "70a630a62a46de8aed945d7f11812a292df7fab1",
+    "path": "apps/desktop/layer/renderer/src/modules/entry-column/Items/video-item.tsx",
+    "rawSha256": "e73f5e2e7cd484b8bede4ac37df95d197588502f6067eb770fafbd0be7af8e6a",
+    "canonicalLfSha256": "e73f5e2e7cd484b8bede4ac37df95d197588502f6067eb770fafbd0be7af8e6a",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "RSSNext/Folo",
+    "head": "70a630a62a46de8aed945d7f11812a292df7fab1",
+    "path": "apps/desktop/layer/renderer/src/modules/entry-column/Items/audio-item.tsx",
+    "rawSha256": "3b1ac6b1611201b5272e721c44e6142fa2ec2249573f69420b8905f23fde76a6",
+    "canonicalLfSha256": "3b1ac6b1611201b5272e721c44e6142fa2ec2249573f69420b8905f23fde76a6",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "RSSNext/Folo",
+    "head": "70a630a62a46de8aed945d7f11812a292df7fab1",
+    "path": "apps/desktop/layer/renderer/src/modules/entry-column/hooks/useEntryMarkReadHandler.tsx",
+    "rawSha256": "f92f1364b04185dd5f225221bdae8af64339056cb0a8eed438ec67e5bfcce1b1",
+    "canonicalLfSha256": "f92f1364b04185dd5f225221bdae8af64339056cb0a8eed438ec67e5bfcce1b1",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "RSSNext/Folo",
+    "head": "70a630a62a46de8aed945d7f11812a292df7fab1",
+    "path": "apps/desktop/layer/renderer/src/modules/action/rule-summary.ts",
+    "rawSha256": "114ab9c71b35af7a148ae8e102ffc8cd5b162ce6ef2b8d939e33a38064ea8a4f",
+    "canonicalLfSha256": "114ab9c71b35af7a148ae8e102ffc8cd5b162ce6ef2b8d939e33a38064ea8a4f",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "RSSNext/Folo",
+    "head": "70a630a62a46de8aed945d7f11812a292df7fab1",
+    "path": "packages/internal/utils/src/url-for-video.ts",
+    "rawSha256": "da577bd2790859b4a1bfe1062bc38b0a4471a7e38f44d8448a93895c23cc6796",
+    "canonicalLfSha256": "da577bd2790859b4a1bfe1062bc38b0a4471a7e38f44d8448a93895c23cc6796",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "RSSNext/Folo",
+    "head": "70a630a62a46de8aed945d7f11812a292df7fab1",
+    "path": "apps/desktop/layer/renderer/src/queries/discover.ts",
+    "rawSha256": "a2423e1e5c0e4d5a9045cd4f7157879b6e0790bfe3907d47d7422aab282486ac",
+    "canonicalLfSha256": "a2423e1e5c0e4d5a9045cd4f7157879b6e0790bfe3907d47d7422aab282486ac",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "DIYgod/RSSHub",
+    "head": "986522cde7e5332a8adb634e6600c5788ede93a0",
+    "path": "lib/routes/letterboxd/userdiary.ts",
+    "rawSha256": "1146b13bf7438c028e8f4e6f5bc9f8eb581569a3769b614a001341008dad21b1",
+    "canonicalLfSha256": "1146b13bf7438c028e8f4e6f5bc9f8eb581569a3769b614a001341008dad21b1",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "DIYgod/RSSHub",
+    "head": "986522cde7e5332a8adb634e6600c5788ede93a0",
+    "path": "lib/routes/letterboxd/utils.ts",
+    "rawSha256": "05dd433eb09974614f56fffef2c9543999b8f8a90b4b27d78e3a703eaefa1643",
+    "canonicalLfSha256": "05dd433eb09974614f56fffef2c9543999b8f8a90b4b27d78e3a703eaefa1643",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "DIYgod/RSSHub",
+    "head": "986522cde7e5332a8adb634e6600c5788ede93a0",
+    "path": "lib/routes/imdb/chart.tsx",
+    "rawSha256": "5c933938184a3e30e287a70593ee8709bf7250e44d6288f6d9873e8e3a476260",
+    "canonicalLfSha256": "5c933938184a3e30e287a70593ee8709bf7250e44d6288f6d9873e8e3a476260",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "rbren/rss-parser",
+    "head": "394178530e87fa010efc6e8d5dd4e801715c5e63",
+    "path": "LICENSE",
+    "rawSha256": "9458c58d2acb5e431a4d27d84f5f7294acc413a7068256ff757907b04527df70",
+    "canonicalLfSha256": "9458c58d2acb5e431a4d27d84f5f7294acc413a7068256ff757907b04527df70",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "rbren/rss-parser",
+    "head": "394178530e87fa010efc6e8d5dd4e801715c5e63",
+    "path": "README.md",
+    "rawSha256": "648c27ee4eca7a37b618cb5ec8eaa5b73502ce2d440488f4c704f7409c5fa131",
+    "canonicalLfSha256": "648c27ee4eca7a37b618cb5ec8eaa5b73502ce2d440488f4c704f7409c5fa131",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "rbren/rss-parser",
+    "head": "394178530e87fa010efc6e8d5dd4e801715c5e63",
+    "path": "package.json",
+    "rawSha256": "729cb1aa371cc2a25ed4f9949a5ddf8ba44b8c2a0fe27b6ea10b6bbe6071776c",
+    "canonicalLfSha256": "729cb1aa371cc2a25ed4f9949a5ddf8ba44b8c2a0fe27b6ea10b6bbe6071776c",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "martinrotter/rssguard",
+    "head": "de5530b5af73ab6f600bd838513e59f7c54ab591",
+    "path": "LICENSE.md",
+    "rawSha256": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2",
+    "canonicalLfSha256": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "martinrotter/rssguard",
+    "head": "de5530b5af73ab6f600bd838513e59f7c54ab591",
+    "path": "README.md",
+    "rawSha256": "0d1bbf4d5bdea53ca22a1e7576e0c1ea82415cb7a6b24cc0610baa697ebff692",
+    "canonicalLfSha256": "fa49446c9e43de80f21021995f620a207c054feae79bab35eee9f34ba17e1fd6",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "martinrotter/rssguard",
+    "head": "de5530b5af73ab6f600bd838513e59f7c54ab591",
+    "path": "src/librssguard-standard/src/parsers/feedparser.cpp",
+    "rawSha256": "4b7b5064e187ecc4b0301cb9803ef0748da57867502fe2033e2492e7733ba0ee",
+    "canonicalLfSha256": "4b7b5064e187ecc4b0301cb9803ef0748da57867502fe2033e2492e7733ba0ee",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "martinrotter/rssguard",
+    "head": "de5530b5af73ab6f600bd838513e59f7c54ab591",
+    "path": "src/librssguard/core/feeddownloader.cpp",
+    "rawSha256": "74a98a3652612a6f8bc206616937a4ea5566d04f19b4cb2f6396b5fa4e1dcfec",
+    "canonicalLfSha256": "73988c4b06d12fbc35605758fde5d8617a4a4de054f04e4def80cd44f4046bbb",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "martinrotter/rssguard",
+    "head": "de5530b5af73ab6f600bd838513e59f7c54ab591",
+    "path": "src/librssguard/gui/mediaplayer/qtmultimedia/qtmultimediabackend.cpp",
+    "rawSha256": "615ac8be13c1cd87e7a835a6a534bb97812ead96ba7bcaa1e467f78871a45faa",
+    "canonicalLfSha256": "e71577cad4a78820d63cbdf6f941fb56a684b59ac03eafdbaff3174a2edfda86",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "rbren/rss-parser",
+    "head": "394178530e87fa010efc6e8d5dd4e801715c5e63",
+    "path": "lib/parser.js",
+    "rawSha256": "839e2ead2a58103b37c132aca77def9eb7dad59ab9378fad08d9420ac846f95f",
+    "canonicalLfSha256": "839e2ead2a58103b37c132aca77def9eb7dad59ab9378fad08d9420ac846f95f",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "rbren/rss-parser",
+    "head": "394178530e87fa010efc6e8d5dd4e801715c5e63",
+    "path": "lib/fields.js",
+    "rawSha256": "e78dc2ae980a6502ac43bdcb8d68febe7086aa1ab9ce104665e3ec6882319a0a",
+    "canonicalLfSha256": "e78dc2ae980a6502ac43bdcb8d68febe7086aa1ab9ce104665e3ec6882319a0a",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  },
+  {
+    "domain": "rss",
+    "repo": "rbren/rss-parser",
+    "head": "394178530e87fa010efc6e8d5dd4e801715c5e63",
+    "path": "lib/utils.js",
+    "rawSha256": "7d9f940f6b29da50d51034c8e21a1457ed013aa2a66be6e50c974b29fc23a9e7",
+    "canonicalLfSha256": "7d9f940f6b29da50d51034c8e21a1457ed013aa2a66be6e50c974b29fc23a9e7",
+    "reviewStatus": "selected-source-or-license/context; see domain report"
+  }
+]

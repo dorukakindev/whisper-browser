@@ -1,0 +1,42 @@
+[
+  {
+    "path": "src/subscription-feed.js",
+    "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+    "canonicalLfSha256": "75c70cb18b77e45ec08be5e3fda11605411c060378a4b9373ae63439e6119abe"
+  },
+  {
+    "path": "src/subscriptions-io.js",
+    "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+    "canonicalLfSha256": "ec361976159b4ecfc70d74162887417d5f737770efec810355ddb9902de54146"
+  },
+  {
+    "path": "src/media-shelf-service.js",
+    "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+    "canonicalLfSha256": "a9a50568b7861ac692cb8b71ab7a98f3f9f8804932b105784286a89c1ae6fc8b"
+  },
+  {
+    "path": "src/renderer/media-shelf-ui.js",
+    "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+    "canonicalLfSha256": "810bccdd09bdc6863a1194dc15c441aff9d6220451b16eccd6ae7042d1010890"
+  },
+  {
+    "path": "src/main.js",
+    "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+    "canonicalLfSha256": "5935bea63222e651ffe279dfdb774e6e7f988048bc6577f2a5940763abe44c66"
+  },
+  {
+    "path": "src/preload.js",
+    "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+    "canonicalLfSha256": "15ba5aa7b46c84f440ffa27815ba4680909b48c35038a0456c07ecb677517582"
+  },
+  {
+    "path": "src/media-discovery-service.js",
+    "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+    "canonicalLfSha256": "aa850b63c8b9e2928b3c79d2483fb21f5d4d5b809d9a7daba420aa2127de2783"
+  },
+  {
+    "path": "src/browser-reading-list.js",
+    "head": "df972383ab5a9b736b832ba64401b206beb6dedc",
+    "canonicalLfSha256": "f0d6fa00d02b6591dab3464d7c97e99321ce1ee81ce46905b336401e69b81c95"
+  }
+]
