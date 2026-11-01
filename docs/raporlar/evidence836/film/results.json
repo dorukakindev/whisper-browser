@@ -1,0 +1,50 @@
+{
+  "head": "2cc48e6d49fcc8552bd62fda51fb4bf67cc77b0e",
+  "spoiler": {
+    "filmGate": true,
+    "realManageReviewsButton": true,
+    "savedAnalysesDisclosureOpened": true,
+    "spoilerOption": false,
+    "historyOpen": true,
+    "historySummaryVisible": true
+  },
+  "feedback": {
+    "library": {
+      "reaction": "like",
+      "note": "Earlier library reaction",
+      "aspects": [],
+      "at": 1793529008609
+    },
+    "discovery": {
+      "reaction": "dislike",
+      "note": "Latest corrected reaction",
+      "aspects": [],
+      "at": 1793529008640
+    },
+    "newerSharedFeedbackIgnored": true
+  },
+  "sampling": {
+    "withRepeatedAuthor": [
+      "author-a"
+    ],
+    "excluded": {
+      "spoiler": 0,
+      "duplicate": 1,
+      "unreadable": 0,
+      "size": 0,
+      "requested": 0,
+      "author": 1
+    },
+    "withoutRejectedRow": [
+      "author-a",
+      "author-b"
+    ],
+    "calls": [
+      "https://letterboxd.com/tmdb/42/",
+      "https://letterboxd.com/film/fixture/reviews/by/activity/",
+      "https://letterboxd.com/film/fixture/reviews/by/activity/page/2/",
+      "https://letterboxd.com/film/fixture/reviews/by/activity/page/3/"
+    ]
+  },
+  "networkRequests": 0
+}

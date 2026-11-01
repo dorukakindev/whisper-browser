@@ -1,0 +1,26 @@
+{
+  "head": "2cc48e6d49fcc8552bd62fda51fb4bf67cc77b0e",
+  "missingPassage": {
+    "rowsWithSpeech": 2,
+    "rowsWithoutSpeech": 3,
+    "retainedStarts": [
+      0,
+      12
+    ],
+    "missingNumberWarnings": [],
+    "omittedNormalCue": 8
+  },
+  "editingEvidence": {
+    "input": {
+      "natural": "editor_failed"
+    },
+    "before": "Some speech edits were unavailable; the existing Turkish wording was preserved for those groups.",
+    "registered": null,
+    "manifest": null,
+    "restored": null,
+    "after": "",
+    "saveOk": true,
+    "openOk": true
+  },
+  "limits": "Real production JS modules and project save/open IPC; synthetic bytes copied only, no audio decode, UI/GPU/provider or personal settings."
+}

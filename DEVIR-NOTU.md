@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-01-1325.md](docs/devir/2026-11-01-1325.md) — R836: 7 doğrulanmış bug +23 ayrı öneri; yalnız rapor
 Güncel çalışma: [docs/devir/2026-11-01-1321.md](docs/devir/2026-11-01-1321.md) — R835 yorum/önizleme/analiz düzeni; native önce/sonra kabulü
 Güncel çalışma: [docs/devir/2026-11-01-1304.md](docs/devir/2026-11-01-1304.md) — R834: 20 görsel tasarım önerisi, 14 güncel görüntü; yalnız rapor
 Güncel çalışma: [docs/devir/2026-11-01-1246.md](docs/devir/2026-11-01-1246.md) — R833: 11 yeni bug ve 15 ayrı öneri; geniş ajan denetimi, düzeltme yok

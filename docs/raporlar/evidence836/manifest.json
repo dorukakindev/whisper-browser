@@ -1,0 +1,135 @@
+{
+  "revision": "2cc48e6d49fcc8552bd62fda51fb4bf67cc77b0e",
+  "sourceHashes": [
+    {
+      "path": "src/renderer/renderer.js",
+      "canonicalLfSha256": "17e41d785ffea8a8cca6398f2a4fa46d40853d6d4d0d5ac0460f754ca152e97d"
+    },
+    {
+      "path": "src/renderer/assistant-workspace.js",
+      "canonicalLfSha256": "90d5c77923967b8b36a5b70883b9cacee6af1be9ae63f1c6bdd55f4cefcef82b"
+    },
+    {
+      "path": "src/renderer/assistant-agent-ui.js",
+      "canonicalLfSha256": "8165b89f676bea0adce3c71f20b9d560d225b04a4c8aa698aa6ef2b7e0b9b49b"
+    },
+    {
+      "path": "src/renderer/global-assistant.js",
+      "canonicalLfSha256": "d76355b26bcfe20b83831309dce583dd1165b978ae33538711692a28cddb110f"
+    },
+    {
+      "path": "src/renderer/assistant-book-search.js",
+      "canonicalLfSha256": "faceb3db297aff328aa56e9bfa2bdc4079311ab321d92fa24c1d2a2fc67300d3"
+    },
+    {
+      "path": "src/assistant-agent-service.js",
+      "canonicalLfSha256": "1dbe8143580f465655b6c3d1d21153bfa824dea1956d538fd79377306afbe639"
+    },
+    {
+      "path": "src/renderer/review-decision-ui.js",
+      "canonicalLfSha256": "80c2dfe3e4fd5a6041fd40e62479aa2fbc6e7eb3a1c965e2a87579303970677b"
+    },
+    {
+      "path": "src/media-tools-service.js",
+      "canonicalLfSha256": "6fdb39adb4a5c5c1e2c23b2771d14a0ab551fe7c7a29639057b050d231bd3a28"
+    },
+    {
+      "path": "src/letterboxd-auto.js",
+      "canonicalLfSha256": "02f4493fa2cb5fbcbc90cc7ead8a0d2248672ee5f23a9185f68932add393a166"
+    },
+    {
+      "path": "src/renderer/dub-experience-model.js",
+      "canonicalLfSha256": "8db9a6b8e9a82fea268ce38e74affabf34ca470720a1f21ef8df37b87360478b"
+    },
+    {
+      "path": "src/renderer/dub-workspace-model.js",
+      "canonicalLfSha256": "88e89d615e04b156b2453146af758aed0cd8d0448412026aa500efffb0022821"
+    },
+    {
+      "path": "src/dub-workspace.js",
+      "canonicalLfSha256": "9c4102c6e02066eeefa8354fcc732493e5d105060f7348bce3e9f5eee8a68cde"
+    },
+    {
+      "path": "src/renderer/dub-run-info.js",
+      "canonicalLfSha256": "dc0d201cbcbdd2ccfe6475efd40c41acd600bad7bf95fcd819f2ace696c3f3c9"
+    },
+    {
+      "path": "src/browser-subtitle-sync.js",
+      "canonicalLfSha256": "76d507ec27a605a798dbdd54a7da4664c7bf1d4d8ec25b657190afe84fef7c50"
+    },
+    {
+      "path": "src/browser-subtitle-review.js",
+      "canonicalLfSha256": "34d879caf8c20702d6825744cd13cd46b458a225dc3fd2012e1b35a9d33d4eba"
+    },
+    {
+      "path": "src/browser-session-package.js",
+      "canonicalLfSha256": "3877834f65d9be5458d953b2794dfe88fb0c28f8dc7a5d92f7f0eb394c19fcfb"
+    },
+    {
+      "path": "src/browser-downloads.js",
+      "canonicalLfSha256": "76097eb10bb956920bc8930dbf01bef24a3aa0358b634643c78078f110f1ad8d"
+    }
+  ],
+  "proposals": 23,
+  "confirmedBugs": 7,
+  "fixes": 0,
+  "evidenceHashes": [
+    {
+      "path": "docs/raporlar/evidence836/wolfram.json",
+      "canonicalLfSha256": "d1cd4448a8104cb1e8c92f47f8e8acc2b3c52c392624273728e4f1ec06a80f00"
+    },
+    {
+      "path": "docs/raporlar/evidence836/assistant/notes.md",
+      "canonicalLfSha256": "450ab9c8f880db46756a1120550f5dae08993b1a7519c10d2d92bd6fa4a51fb4"
+    },
+    {
+      "path": "docs/raporlar/evidence836/assistant/probe.cjs",
+      "canonicalLfSha256": "fba7e865531ca8c28507ad0add5118d0998e1ce9942126050eaf8a4d769b5b29"
+    },
+    {
+      "path": "docs/raporlar/evidence836/assistant/registry-reviewed.json",
+      "canonicalLfSha256": "97e11dc41b083e2601785885dee65bc8a70a501c100ec13eee4e39e98f11154a"
+    },
+    {
+      "path": "docs/raporlar/evidence836/assistant/result.json",
+      "canonicalLfSha256": "ee24e6ee9a9089245d7cacc645bc473a714da415cac4072f79e4d55901b7b62b"
+    },
+    {
+      "path": "docs/raporlar/evidence836/film/notes.md",
+      "canonicalLfSha256": "198fd6d06975adbf47857f6dc75a9fbe64317754e168b3eee789b927b46b9db6"
+    },
+    {
+      "path": "docs/raporlar/evidence836/film/probe.cjs",
+      "canonicalLfSha256": "014b7c2e56b2c4b0a86cac9ec9958775f5e36a8b8a0a714602ad9c4c298e3e9a"
+    },
+    {
+      "path": "docs/raporlar/evidence836/film/registry-reviewed.json",
+      "canonicalLfSha256": "704d5191dce144852c758fad0733113fe92a529185f52ef972016d6642cd45d0"
+    },
+    {
+      "path": "docs/raporlar/evidence836/film/results.json",
+      "canonicalLfSha256": "c18a65ce88db3e7caca3e74224870fdb9936c85b39ecaef602304f0d3a1fa415"
+    },
+    {
+      "path": "docs/raporlar/evidence836/dub/notes.md",
+      "canonicalLfSha256": "40847e020c5aa7b5d787336b5a13bd21be79e52a4a4dd225d58a8ec25abd4346"
+    },
+    {
+      "path": "docs/raporlar/evidence836/dub/probe.cjs",
+      "canonicalLfSha256": "098eb42d6373f5fe854a4c1d0541fdcc20dea994cf9e79fa3fa356866dc8ed39"
+    },
+    {
+      "path": "docs/raporlar/evidence836/dub/result.json",
+      "canonicalLfSha256": "3aacebe0caad3029ec004d7bf48e95cf3310a41677535c5279c14551c884883c"
+    },
+    {
+      "path": "docs/raporlar/evidence836/browser/probe.cjs",
+      "canonicalLfSha256": "f067db89946105ed8a8f5476f510101542f62d04b79512743217ab667c37bfbe"
+    },
+    {
+      "path": "docs/raporlar/evidence836/browser/results.json",
+      "canonicalLfSha256": "5acc6c6c77ea656457468b8764dd5144094955c8baa85e98dbe26ed06abb8d94"
+    }
+  ],
+  "baselineRevision": "ad4f17932c284b665dbfd567cb932888f7c5c125"
+}
