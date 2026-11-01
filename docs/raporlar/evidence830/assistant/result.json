@@ -1,0 +1,242 @@
+{
+  "head": "6d4c2d661257263f0f9414b2bdf8ba53f84513c9",
+  "classification": "Confirmed recurrence of R815-B98 through R829 text fallback; not a newly discovered root.",
+  "positive": {
+    "count": 1,
+    "queryNumber": 1,
+    "closed": 1,
+    "result": {
+      "ok": true,
+      "text": "The requested sources were inspected.\n\nWeb sources:\n[W1] Article 1\nhttps://source1-1.example/article\n[W2] Article 1\nhttps://source1-2.example/article\n[W3] Article 1\nhttps://source1-3.example/article",
+      "capabilities": {
+        "tools": "supported",
+        "stream": "not-observed"
+      },
+      "execution": {
+        "cards": 0,
+        "pendingPlans": 0,
+        "attempted": 0,
+        "blockedOrFailed": 0,
+        "appliedActions": 0
+      },
+      "bookCitations": []
+    },
+    "tools": [
+      {
+        "search": 1,
+        "status": "completed",
+        "sourceKind": "web_page_excerpts",
+        "text": "[W1] Article 1\nhttps://source1-1.example/article\nVerified excerpt for https://source1-1.example/article\n\n[W2] Article 1\nhttps://source1-2.example/article\nVerified excerpt for https://source1-2.example/article\n\n[W3] Article 1\nhttps://source1-3.example/article\nVerified excerpt for https://source1-3.example/article",
+        "passages": [
+          {
+            "id": "W1",
+            "url": "https://source1-1.example/article",
+            "title": "Article 1",
+            "text": "Verified excerpt for https://source1-1.example/article",
+            "truncated": false
+          },
+          {
+            "id": "W2",
+            "url": "https://source1-2.example/article",
+            "title": "Article 1",
+            "text": "Verified excerpt for https://source1-2.example/article",
+            "truncated": false
+          },
+          {
+            "id": "W3",
+            "url": "https://source1-3.example/article",
+            "title": "Article 1",
+            "text": "Verified excerpt for https://source1-3.example/article",
+            "truncated": false
+          }
+        ],
+        "sourceUrls": [
+          "https://source1-1.example/article",
+          "https://source1-2.example/article",
+          "https://source1-3.example/article"
+        ]
+      }
+    ]
+  },
+  "limit": {
+    "count": 5,
+    "queryNumber": 5,
+    "closed": 5,
+    "result": {
+      "ok": true,
+      "text": "The requested sources were inspected.\n\nWeb sources:\n[W1] Article 1\nhttps://source1-1.example/article\n[W2] Article 1\nhttps://source1-2.example/article\n[W3] Article 1\nhttps://source1-3.example/article\n[W4] Article 2\nhttps://source2-1.example/article\n[W5] Article 2\nhttps://source2-2.example/article\n[W6] Article 2\nhttps://source2-3.example/article\n[W7] Article 3\nhttps://source3-1.example/article\n[W8] Article 3\nhttps://source3-2.example/article\n[W9] Article 3\nhttps://source3-3.example/article\n[W10] Article 4\nhttps://source4-1.example/article",
+      "capabilities": {
+        "tools": "supported",
+        "stream": "not-observed"
+      },
+      "execution": {
+        "cards": 0,
+        "pendingPlans": 0,
+        "attempted": 0,
+        "blockedOrFailed": 0,
+        "appliedActions": 0
+      },
+      "bookCitations": []
+    },
+    "tools": [
+      {
+        "search": 1,
+        "status": "completed",
+        "sourceKind": "web_page_excerpts",
+        "text": "[W1] Article 1\nhttps://source1-1.example/article\nVerified excerpt for https://source1-1.example/article\n\n[W2] Article 1\nhttps://source1-2.example/article\nVerified excerpt for https://source1-2.example/article\n\n[W3] Article 1\nhttps://source1-3.example/article\nVerified excerpt for https://source1-3.example/article",
+        "passages": [
+          {
+            "id": "W1",
+            "url": "https://source1-1.example/article",
+            "title": "Article 1",
+            "text": "Verified excerpt for https://source1-1.example/article",
+            "truncated": false
+          },
+          {
+            "id": "W2",
+            "url": "https://source1-2.example/article",
+            "title": "Article 1",
+            "text": "Verified excerpt for https://source1-2.example/article",
+            "truncated": false
+          },
+          {
+            "id": "W3",
+            "url": "https://source1-3.example/article",
+            "title": "Article 1",
+            "text": "Verified excerpt for https://source1-3.example/article",
+            "truncated": false
+          }
+        ],
+        "sourceUrls": [
+          "https://source1-1.example/article",
+          "https://source1-2.example/article",
+          "https://source1-3.example/article"
+        ]
+      },
+      {
+        "search": 2,
+        "status": "completed",
+        "sourceKind": "web_page_excerpts",
+        "text": "[W4] Article 2\nhttps://source2-1.example/article\nVerified excerpt for https://source2-1.example/article\n\n[W5] Article 2\nhttps://source2-2.example/article\nVerified excerpt for https://source2-2.example/article\n\n[W6] Article 2\nhttps://source2-3.example/article\nVerified excerpt for https://source2-3.example/article",
+        "passages": [
+          {
+            "id": "W4",
+            "url": "https://source2-1.example/article",
+            "title": "Article 2",
+            "text": "Verified excerpt for https://source2-1.example/article",
+            "truncated": false
+          },
+          {
+            "id": "W5",
+            "url": "https://source2-2.example/article",
+            "title": "Article 2",
+            "text": "Verified excerpt for https://source2-2.example/article",
+            "truncated": false
+          },
+          {
+            "id": "W6",
+            "url": "https://source2-3.example/article",
+            "title": "Article 2",
+            "text": "Verified excerpt for https://source2-3.example/article",
+            "truncated": false
+          }
+        ],
+        "sourceUrls": [
+          "https://source1-1.example/article",
+          "https://source1-2.example/article",
+          "https://source1-3.example/article",
+          "https://source2-1.example/article",
+          "https://source2-2.example/article",
+          "https://source2-3.example/article"
+        ]
+      },
+      {
+        "search": 3,
+        "status": "completed",
+        "sourceKind": "web_page_excerpts",
+        "text": "[W7] Article 3\nhttps://source3-1.example/article\nVerified excerpt for https://source3-1.example/article\n\n[W8] Article 3\nhttps://source3-2.example/article\nVerified excerpt for https://source3-2.example/article\n\n[W9] Article 3\nhttps://source3-3.example/article\nVerified excerpt for https://source3-3.example/article",
+        "passages": [
+          {
+            "id": "W7",
+            "url": "https://source3-1.example/article",
+            "title": "Article 3",
+            "text": "Verified excerpt for https://source3-1.example/article",
+            "truncated": false
+          },
+          {
+            "id": "W8",
+            "url": "https://source3-2.example/article",
+            "title": "Article 3",
+            "text": "Verified excerpt for https://source3-2.example/article",
+            "truncated": false
+          },
+          {
+            "id": "W9",
+            "url": "https://source3-3.example/article",
+            "title": "Article 3",
+            "text": "Verified excerpt for https://source3-3.example/article",
+            "truncated": false
+          }
+        ],
+        "sourceUrls": [
+          "https://source1-1.example/article",
+          "https://source1-2.example/article",
+          "https://source1-3.example/article",
+          "https://source2-1.example/article",
+          "https://source2-2.example/article",
+          "https://source2-3.example/article",
+          "https://source3-1.example/article",
+          "https://source3-2.example/article",
+          "https://source3-3.example/article"
+        ]
+      },
+      {
+        "search": 4,
+        "status": "completed",
+        "sourceKind": "web_page_excerpts",
+        "text": "[W10] Article 4\nhttps://source4-1.example/article\nVerified excerpt for https://source4-1.example/article",
+        "passages": [
+          {
+            "id": "W10",
+            "url": "https://source4-1.example/article",
+            "title": "Article 4",
+            "text": "Verified excerpt for https://source4-1.example/article",
+            "truncated": false
+          }
+        ],
+        "sourceUrls": [
+          "https://source1-1.example/article",
+          "https://source1-2.example/article",
+          "https://source1-3.example/article",
+          "https://source2-1.example/article",
+          "https://source2-2.example/article",
+          "https://source2-3.example/article",
+          "https://source3-1.example/article",
+          "https://source3-2.example/article",
+          "https://source3-3.example/article",
+          "https://source4-1.example/article"
+        ]
+      },
+      {
+        "search": 5,
+        "status": "completed",
+        "sourceKind": "provider_synthesis",
+        "text": "[W1] Article 5\nhttps://source5-1.example/article\nVerified excerpt for https://source5-1.example/article\n\n[W2] Article 5\nhttps://source5-2.example/article\nVerified excerpt for https://source5-2.example/article\n\n[W3] Article 5\nhttps://source5-3.example/article\nVerified excerpt for https://source5-3.example/article",
+        "passages": [],
+        "sourceUrls": [
+          "https://source1-1.example/article",
+          "https://source1-2.example/article",
+          "https://source1-3.example/article",
+          "https://source2-1.example/article",
+          "https://source2-2.example/article",
+          "https://source2-3.example/article",
+          "https://source3-1.example/article",
+          "https://source3-2.example/article",
+          "https://source3-3.example/article",
+          "https://source4-1.example/article"
+        ]
+      }
+    ]
+  },
+  "assertions": "PASS: real browser research producer, agent service and provider tool consumer; one-search and fourth-search controls; five-search recurrence; no network, credentials, profile or mutations"
+}

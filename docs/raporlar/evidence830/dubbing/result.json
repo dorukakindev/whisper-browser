@@ -1,0 +1,33 @@
+{
+  "head": "6d4c2d661257263f0f9414b2bdf8ba53f84513c9",
+  "results": [
+    {
+      "filter": "all",
+      "before": {
+        "timeline": "ready-first",
+        "quality": "ready-first"
+      },
+      "after": {
+        "timeline": "ready-first",
+        "quality": "ready-first",
+        "position": 0.75,
+        "plays": 1,
+        "info": "2.00–4.00 s · Hazır · 1.00×\nAltyazı: Ready first sentence\nOkunan metin: Ready first sentence"
+      }
+    },
+    {
+      "filter": "review",
+      "before": {
+        "timeline": "ready-first",
+        "quality": "review-second"
+      },
+      "after": {
+        "timeline": "review-second",
+        "quality": "review-second",
+        "position": 6.75,
+        "plays": 2,
+        "info": "8.00–10.00 s · Dinleyerek kontrol edin · 1.00×\nAltyazı: Review second sentence\nOkunan metin: Review second sentence"
+      }
+    }
+  ]
+}
