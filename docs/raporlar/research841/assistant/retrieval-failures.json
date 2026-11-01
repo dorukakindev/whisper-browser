@@ -1,0 +1,17 @@
+[
+  {
+    "stage": "initial metadata batch",
+    "repos": [
+      "danny-avila/LibreChat",
+      "Mintplex-Labs/anything-llm",
+      "lobehub/lobe-chat",
+      "khoj-ai/khoj",
+      "CherryHQ/cherry-studio",
+      "iOfficeAI/AionUi",
+      "mastra-ai/mastra",
+      "letta-ai/letta"
+    ],
+    "error": "Sandbox SSL connection could not be established",
+    "resolution": "Same read-only official GitHub fetch succeeded with escalated network permission; no credential printed or stored in report."
+  }
+]

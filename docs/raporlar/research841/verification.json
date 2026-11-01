@@ -1,0 +1,15 @@
+{
+  "result": "PASS",
+  "baseline": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+  "cards": 73,
+  "newMechanismCandidates": 46,
+  "oldDeepening": 27,
+  "sourceRecordsVerified": 208,
+  "uniquePinnedSourceFiles": 208,
+  "uniqueLocalProductFiles": 42,
+  "jsonFilesParsed": 23,
+  "localLinksChecked": 30,
+  "publicDemoScreenshotsVerified": 5,
+  "errors": [],
+  "scope": "Documentation, source-byte hashes and local baseline only. No product or upstream runtime acceptance; hosted UI observations recorded separately."
+}

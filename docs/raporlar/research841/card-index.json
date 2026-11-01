@@ -1,0 +1,440 @@
+[
+  {
+    "id": "A841-01",
+    "title": "Sürümlü görev talimatları: taslak ile etkin profili ayır",
+    "classification": "NEW",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-02",
+    "title": "Kullanıcının düzenlediği hızlı komut kitaplığı",
+    "classification": "NEW",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-03",
+    "title": "Sohbete bağlı çalışma klasörü ve çıktı hedefi",
+    "classification": "NEW",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-04",
+    "title": "Açıkça kaydedilen ve düzenlenebilen asistan belleği",
+    "classification": "OLD-DEEPENING:R839-F12",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-05",
+    "title": "Belleğin kaynak/proje ve genel kapsamını açık ayır",
+    "classification": "NEW",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-06",
+    "title": "Belleği kullanmayı durdurma ve değişiklik makbuzu",
+    "classification": "NEW",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-07",
+    "title": "Araç şemalarını ihtiyaç halinde keşfetme",
+    "classification": "NEW",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-08",
+    "title": "Araç seçiminde ölçülen yerel reranker pilotu",
+    "classification": "NEW",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-09",
+    "title": "Büyük araç çıktısına konuşma boyunca dayanıklı erişim",
+    "classification": "OLD-DEEPENING:24Ekim kaynak kartları; R839-A05",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-10",
+    "title": "Gönderilmeden önce görünür bağlam bütçesi",
+    "classification": "OLD-DEEPENING:R839-A04;24Ekim attachmentBudget",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-11",
+    "title": "Sağlayıcı yetenek ve taşıma modu profili",
+    "classification": "NEW",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-12",
+    "title": "Model değişince desteklenmeyen ekleri açıkça dönüştür",
+    "classification": "NEW",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-13",
+    "title": "İsteğe bağlı yerel asistan model keşfi",
+    "classification": "NEW",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-14",
+    "title": "Sohbet dalına model ayarı anlık görüntüsü",
+    "classification": "NEW",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-15",
+    "title": "Arka plan işinde değişmez çağrı sahipliği",
+    "classification": "OLD-DEEPENING:R838 uzun iş sürekliliği;R839-A07",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-16",
+    "title": "Başlamış medya operasyonunu asistan işine devralma",
+    "classification": "NEW",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-17",
+    "title": "İş bitti ile sonuç asistana teslim edildi durumunu ayır",
+    "classification": "NEW",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-18",
+    "title": "Yalnız başarısız aşamadan devam; restart ayrı eylem",
+    "classification": "OLD-DEEPENING:R838 checkpoint;R839-A07",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-19",
+    "title": "Gecikmiş sonuç için ilk çağrının denetimlerini yeniden kur",
+    "classification": "OLD-DEEPENING:R840-Ö02;R839-A02",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-20",
+    "title": "Yanıt çıktısının sohbetten ayrı sürüm geçmişi",
+    "classification": "OLD-DEEPENING:R839-A05 araştırma dosyası",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-21",
+    "title": "Asistan düzeltmesinde dosya ve diff önizlemesi",
+    "classification": "NEW",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-22",
+    "title": "Artifact yaşam döngüsü: taslak, hazır, kayıp ve temizleme",
+    "classification": "NEW",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-23",
+    "title": "Kullanıcı geri bildirimini tekrar oynatılabilir görev değerlendirmesine bağla",
+    "classification": "NEW",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-24",
+    "title": "Kapsam kontrolünü sıralamadan önce yapan retrieval",
+    "classification": "OLD-DEEPENING:24EkimAnythingLLM;R839-A08",
+    "domain": "assistant"
+  },
+  {
+    "id": "A841-25",
+    "title": "Bellek düzeltmesinde tek sahipli ve sınırlandırılmış onarım",
+    "classification": "NEW",
+    "domain": "assistant"
+  },
+  {
+    "id": "D841-01",
+    "title": "Tek sorguda kütüphane ve dış katalog",
+    "classification": "NEW",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-02",
+    "title": "Arama filtresinde sağlayıcının gerçekten desteklediği seçenekler",
+    "classification": "OLD-DEEPENING: R839-F01",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-03",
+    "title": "İzleme ülkesi ve uygunluk bilgisinin tarihi",
+    "classification": "OLD-DEEPENING: mevcut watchProviders",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-04",
+    "title": "Seriyi tamamlama ve doğru sırada izleme",
+    "classification": "NEW",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-05",
+    "title": "Bütün profil yerine seçilen koleksiyonun ruhundan öneri",
+    "classification": "OLD-DEEPENING: R839-F09",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-06",
+    "title": "Yalnız takip ettiğim yapımların yayın takvimi",
+    "classification": "NEW",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-07",
+    "title": "Kişi filmografisinde izleme boşlukları ve ortak ekip",
+    "classification": "NEW",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-08",
+    "title": "Editoryal listeyi kaynağı ve güncelliğiyle izleme",
+    "classification": "NEW",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-09",
+    "title": "Çevrimdışı da açılan son Keşfet oturumu",
+    "classification": "NEW",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-10",
+    "title": "Kartı görmek, geçmek ve beğenmemek farklı olaylar olsun",
+    "classification": "OLD-DEEPENING: R839-F10",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-11",
+    "title": "Öneri turunu sabitle, kararı geri alınca aynı yere dön",
+    "classification": "OLD-DEEPENING: R839-F10/F09",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-12",
+    "title": "“Bu akşam” tercihi kalıcı zevk profilini değiştirmesin",
+    "classification": "OLD-DEEPENING: R839-F02/F04",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-13",
+    "title": "“Bu tercihi çıkarırsam neden sıra değişir?”",
+    "classification": "OLD-DEEPENING: R839-F05",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-14",
+    "title": "Yeni kullanıcıya rastgele altı soru yerine ayırt edici ikili film seçimi",
+    "classification": "OLD-DEEPENING: R839-F11",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-15",
+    "title": "Öneri motorunu geleceği sızdırmadan kişisel geçmişle ölç",
+    "classification": "NEW",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-16",
+    "title": "“Çeşitli görünüyor” yerine popülerlik ve katalog kapsama denetimi",
+    "classification": "OLD-DEEPENING: R839-F06",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-17",
+    "title": "Eski zevk ile yeni zevk arasındaki değişimi isteğe bağlı göster",
+    "classification": "NEW",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-18",
+    "title": "Yeni eklenen filmler için modeli baştan kurmadan kimlik/özellik güncelleme",
+    "classification": "NEW",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-19",
+    "title": "Neden dün başka önerildiğini yeniden üretebilme",
+    "classification": "NEW",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-20",
+    "title": "Davranışı olmayan yeni filmi metadata ile puanlama",
+    "classification": "OLD-DEEPENING: R839-F03/F11",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-21",
+    "title": "Yorumdan spoiler sızmayan kanıt paketi",
+    "classification": "OLD-DEEPENING: R839-F08",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-22",
+    "title": "Az yorumun “izleyici ortak fikri” diye sunulmasını önleyen ayrışma görünümü",
+    "classification": "OLD-DEEPENING: R839-F08",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-23",
+    "title": "Letterboxd'a geri taşınabilir izleme günlüğü",
+    "classification": "NEW",
+    "domain": "discovery"
+  },
+  {
+    "id": "D841-24",
+    "title": "Eksik metadata'nın kişisel öneriyi ne kadar sınırladığını gör",
+    "classification": "NEW",
+    "domain": "discovery"
+  },
+  {
+    "id": "B841-01",
+    "title": "Workspace'i kaydedilmiş fotoğraftan çalışan araştırma alanına yükseltmek",
+    "classification": "NEW",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-02",
+    "title": "Tüm alanlarda arama, sonucu ilgili alanda açma",
+    "classification": "NEW",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-03",
+    "title": "Açılışta önceki araştırmayı güvenle arka planda tutma",
+    "classification": "NEW",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-04",
+    "title": "Yerel aramada “neden bu sonuç?” ve konu yakınlığı sırası",
+    "classification": "NEW",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-05",
+    "title": "Ücretli model olmadan kişisel etiket önerisi",
+    "classification": "NEW",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-06",
+    "title": "Kayıtlı sorgudan canlı araştırma koleksiyonu",
+    "classification": "NEW",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-07",
+    "title": "Sayfa kaydında yerel düzenleme kuralları",
+    "classification": "NEW",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-08",
+    "title": "Aramada yazılabilir alan ve olumsuz filtreler",
+    "classification": "NEW",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-09",
+    "title": "Tüm vurguları kaynaklarına geri götüren ayrı görünüm",
+    "classification": "NEW",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-10",
+    "title": "MHTML yanında taşınabilir tek HTML arşiv pilotu",
+    "classification": "NEW",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-11",
+    "title": "Tam sayfa yerine seçilmiş bölümün kaynak paketi",
+    "classification": "OLD-DEEPENING",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-12",
+    "title": "Arşivleme sırasında kısmi yakalama nedenleri",
+    "classification": "NEW",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-13",
+    "title": "Aynı kaynağın okunabilir metin, görüntü ve PDF durumu",
+    "classification": "NEW",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-14",
+    "title": "Arşiv alt kaynakları için ayrı ağ sınırı",
+    "classification": "NEW",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-15",
+    "title": "Dosya yolu yerine yetkili arşiv kimliğiyle açma",
+    "classification": "NEW",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-16",
+    "title": "Sağlayıcı sorgusundan sonra da zorlanan kaynak filtreleri",
+    "classification": "NEW",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-17",
+    "title": "Kaynak sayısından ayrı sayfa derinliği ve gezinme grafiği",
+    "classification": "OLD-DEEPENING",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-18",
+    "title": "Hangi bağlantıyı önce okuyacağını gerekçeli seçme",
+    "classification": "OLD-DEEPENING",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-19",
+    "title": "İlk 6000 karakter yerine soruyla ilgili pasajlar",
+    "classification": "OLD-DEEPENING",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-20",
+    "title": "Tablo ve listeyi bozmayan alıntı parçaları",
+    "classification": "OLD-DEEPENING",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-21",
+    "title": "Aynı URL'yi tekrar okumayla yeni araştırma niyetini ayırma",
+    "classification": "OLD-DEEPENING",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-22",
+    "title": "Kaynak güncelliğini “değişmedi / değişti / bilinmiyor” diye ayırma",
+    "classification": "NEW",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-23",
+    "title": "Host başına bekleme, görünür kısmi toplama ve devam",
+    "classification": "OLD-DEEPENING",
+    "domain": "browser"
+  },
+  {
+    "id": "B841-24",
+    "title": "Araştırma aramasında seçilebilir SearXNG adaptörü",
+    "classification": "NEW",
+    "domain": "browser"
+  }
+]

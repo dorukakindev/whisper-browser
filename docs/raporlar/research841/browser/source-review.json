@@ -1,0 +1,346 @@
+[
+  {
+    "url": "https://raw.githubusercontent.com/minbrowser/min/c92079cde045c38ab844e53501e9c5178d503a45/js/tabState/task.js",
+    "head": "c92079cde045c38ab844e53501e9c5178d503a45",
+    "sha256": "3236ed9a13f56e4790ff54a84e38c6ab85f4428bbc5671f68c9250976b5eca8f",
+    "repo": "minbrowser/min",
+    "path": "js/tabState/task.js",
+    "localCacheRelativePath": ".tmp/research841/browser/minbrowser--min/js__tabState__task.js"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/minbrowser/min/c92079cde045c38ab844e53501e9c5178d503a45/js/sessionRestore.js",
+    "head": "c92079cde045c38ab844e53501e9c5178d503a45",
+    "sha256": "819932b3b59903a60ec4a89e2c27d522e88fe4de30e1221348f58d7865f12c39",
+    "repo": "minbrowser/min",
+    "path": "js/sessionRestore.js",
+    "localCacheRelativePath": ".tmp/research841/browser/minbrowser--min/js__sessionRestore.js"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/minbrowser/min/c92079cde045c38ab844e53501e9c5178d503a45/js/places/fullTextSearch.js",
+    "head": "c92079cde045c38ab844e53501e9c5178d503a45",
+    "sha256": "841b1d8d15e0261109dcd11155286acf46ae4dfd240f7ee70b70e8fd6615eed3",
+    "repo": "minbrowser/min",
+    "path": "js/places/fullTextSearch.js",
+    "localCacheRelativePath": ".tmp/research841/browser/minbrowser--min/js__places__fullTextSearch.js"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/minbrowser/min/c92079cde045c38ab844e53501e9c5178d503a45/js/places/placesService.js",
+    "head": "c92079cde045c38ab844e53501e9c5178d503a45",
+    "sha256": "47b3e74aac46b3773b7b1615eb61761bfd6ec12c53abe5e70f20c7fe6616ba24",
+    "repo": "minbrowser/min",
+    "path": "js/places/placesService.js",
+    "localCacheRelativePath": ".tmp/research841/browser/minbrowser--min/js__places__placesService.js"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/minbrowser/min/c92079cde045c38ab844e53501e9c5178d503a45/js/places/tagIndex.js",
+    "head": "c92079cde045c38ab844e53501e9c5178d503a45",
+    "sha256": "9adf9f8722cac45766fbf8b29d7ebbb81682cecdbba8b8a216b4b3a2005f4b56",
+    "repo": "minbrowser/min",
+    "path": "js/places/tagIndex.js",
+    "localCacheRelativePath": ".tmp/research841/browser/minbrowser--min/js__places__tagIndex.js"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/minbrowser/min/c92079cde045c38ab844e53501e9c5178d503a45/main/permissionManager.js",
+    "head": "c92079cde045c38ab844e53501e9c5178d503a45",
+    "sha256": "4ce77bdb69bc542e10e13e7cf24b50e91d43ac1c4bab099b29a0554be58abac0",
+    "repo": "minbrowser/min",
+    "path": "main/permissionManager.js",
+    "localCacheRelativePath": ".tmp/research841/browser/minbrowser--min/main__permissionManager.js"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/minbrowser/min/c92079cde045c38ab844e53501e9c5178d503a45/js/taskOverlay/taskOverlay.js",
+    "head": "c92079cde045c38ab844e53501e9c5178d503a45",
+    "sha256": "2845cfdb3c9015653b824aad36c3f9755fd02e9d69753ab805d30f9d660c75de",
+    "repo": "minbrowser/min",
+    "path": "js/taskOverlay/taskOverlay.js",
+    "localCacheRelativePath": ".tmp/research841/browser/minbrowser--min/js__taskOverlay__taskOverlay.js"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/minbrowser/min/c92079cde045c38ab844e53501e9c5178d503a45/js/bookmarkConverter.js",
+    "head": "c92079cde045c38ab844e53501e9c5178d503a45",
+    "sha256": "deaa318464b75931743c4131711effc827a707d58a60cd1a7b08e41b7d959b40",
+    "repo": "minbrowser/min",
+    "path": "js/bookmarkConverter.js",
+    "localCacheRelativePath": ".tmp/research841/browser/minbrowser--min/js__bookmarkConverter.js"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/n4ze3m/page-assist/1ecdac5ca3b4a13be657740add2e29ea1669097f/src/utils/text-splitter.ts",
+    "head": "1ecdac5ca3b4a13be657740add2e29ea1669097f",
+    "sha256": "8aad9da5c69da5e46b2a531c477e25fde7ee707f9061b1eb68c0b5ccbcb6852f",
+    "repo": "n4ze3m/page-assist",
+    "path": "src/utils/text-splitter.ts",
+    "localCacheRelativePath": ".tmp/research841/browser/n4ze3m--page-assist/src__utils__text-splitter.ts"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/n4ze3m/page-assist/1ecdac5ca3b4a13be657740add2e29ea1669097f/src/utils/file-processor.ts",
+    "head": "1ecdac5ca3b4a13be657740add2e29ea1669097f",
+    "sha256": "c4dccb3c245a418e52a03234da784f92df1d446e35be482b67b506cf2d5c6e9b",
+    "repo": "n4ze3m/page-assist",
+    "path": "src/utils/file-processor.ts",
+    "localCacheRelativePath": ".tmp/research841/browser/n4ze3m--page-assist/src__utils__file-processor.ts"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/n4ze3m/page-assist/1ecdac5ca3b4a13be657740add2e29ea1669097f/src/hooks/chat-modes/ragMode.ts",
+    "head": "1ecdac5ca3b4a13be657740add2e29ea1669097f",
+    "sha256": "c0f24d6b32b9462b97eac3854e09c55af2d6925f82ea2a65e9ac513b5b857950",
+    "repo": "n4ze3m/page-assist",
+    "path": "src/hooks/chat-modes/ragMode.ts",
+    "localCacheRelativePath": ".tmp/research841/browser/n4ze3m--page-assist/src__hooks__chat-modes__ragMode.ts"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/n4ze3m/page-assist/1ecdac5ca3b4a13be657740add2e29ea1669097f/src/services/search.ts",
+    "head": "1ecdac5ca3b4a13be657740add2e29ea1669097f",
+    "sha256": "420d7bc043a02aa8c2ea45a9a3dabf26c3f943d1efac4eba24f079bd1834081b",
+    "repo": "n4ze3m/page-assist",
+    "path": "src/services/search.ts",
+    "localCacheRelativePath": ".tmp/research841/browser/n4ze3m--page-assist/src__services__search.ts"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/n4ze3m/page-assist/1ecdac5ca3b4a13be657740add2e29ea1669097f/src/web/search-engines/searxng.ts",
+    "head": "1ecdac5ca3b4a13be657740add2e29ea1669097f",
+    "sha256": "a828ae45ad649675f0c5ef573175fda7e201203381b7d2ae21a41f32e2f86261",
+    "repo": "n4ze3m/page-assist",
+    "path": "src/web/search-engines/searxng.ts",
+    "localCacheRelativePath": ".tmp/research841/browser/n4ze3m--page-assist/src__web__search-engines__searxng.ts"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/n4ze3m/page-assist/1ecdac5ca3b4a13be657740add2e29ea1669097f/src/parser/reader.ts",
+    "head": "1ecdac5ca3b4a13be657740add2e29ea1669097f",
+    "sha256": "6b31876b95d438a4cf846737e72129e64458094b07a47c8092b8adbc452982a0",
+    "repo": "n4ze3m/page-assist",
+    "path": "src/parser/reader.ts",
+    "localCacheRelativePath": ".tmp/research841/browser/n4ze3m--page-assist/src__parser__reader.ts"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/karakeep-app/karakeep/17a04dc839ea0267a47d305ba431e90545343746/packages/trpc/models/rules.ts",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "sha256": "8eaa300a03de1f95bffa11159067c74937f825a77822b4d34bc9df66b8aecd4e",
+    "repo": "karakeep-app/karakeep",
+    "path": "packages/trpc/models/rules.ts",
+    "localCacheRelativePath": ".tmp/research841/browser/karakeep-app--karakeep/packages__trpc__models__rules.ts"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/karakeep-app/karakeep/17a04dc839ea0267a47d305ba431e90545343746/packages/trpc/routers/highlights.ts",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "sha256": "03ed331dadff6862f911679741263466c6db28f2118af4c8c8889c6d11df6f47",
+    "repo": "karakeep-app/karakeep",
+    "path": "packages/trpc/routers/highlights.ts",
+    "localCacheRelativePath": ".tmp/research841/browser/karakeep-app--karakeep/packages__trpc__routers__highlights.ts"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/karakeep-app/karakeep/17a04dc839ea0267a47d305ba431e90545343746/packages/shared/search.ts",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "sha256": "68d324c0c817182f7ee151172ea95709d949a5132f00812733d56bfd75a0e962",
+    "repo": "karakeep-app/karakeep",
+    "path": "packages/shared/search.ts",
+    "localCacheRelativePath": ".tmp/research841/browser/karakeep-app--karakeep/packages__shared__search.ts"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/karakeep-app/karakeep/17a04dc839ea0267a47d305ba431e90545343746/packages/trpc/models/lists.ts",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "sha256": "263e4e99bd6a33514f9c487fd37550068126b4d5dc4c02d19bf26ce84668a011",
+    "repo": "karakeep-app/karakeep",
+    "path": "packages/trpc/models/lists.ts",
+    "localCacheRelativePath": ".tmp/research841/browser/karakeep-app--karakeep/packages__trpc__models__lists.ts"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/karakeep-app/karakeep/17a04dc839ea0267a47d305ba431e90545343746/packages/shared/types/rules.ts",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "sha256": "50747febb335b8563a05d2ec491e729b1071cbf4189af2ec11091a76bcb8d240",
+    "repo": "karakeep-app/karakeep",
+    "path": "packages/shared/types/rules.ts",
+    "localCacheRelativePath": ".tmp/research841/browser/karakeep-app--karakeep/packages__shared__types__rules.ts"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/karakeep-app/karakeep/17a04dc839ea0267a47d305ba431e90545343746/packages/shared-react/components/highlights.ts",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "sha256": "f4a4401a6da8da7d52b43ddc99d0d64b17485c03a605cc5b927479dca6158431",
+    "repo": "karakeep-app/karakeep",
+    "path": "packages/shared-react/components/highlights.ts",
+    "localCacheRelativePath": ".tmp/research841/browser/karakeep-app--karakeep/packages__shared-react__components__highlights.ts"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/linkwarden/linkwarden/eff7c6b735f6b20a4766745dc86c6bdc52bd9840/apps/worker/lib/preservationScheme/handleScreenshotAndPdf.ts",
+    "head": "eff7c6b735f6b20a4766745dc86c6bdc52bd9840",
+    "sha256": "15143113c11b73407f005bc74df230a4fd41e08ae8517ca2e2fa327e10e1795c",
+    "repo": "linkwarden/linkwarden",
+    "path": "apps/worker/lib/preservationScheme/handleScreenshotAndPdf.ts",
+    "localCacheRelativePath": ".tmp/research841/browser/linkwarden--linkwarden/apps__worker__lib__preservationScheme__handleScreenshotAndPdf.ts"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/linkwarden/linkwarden/eff7c6b735f6b20a4766745dc86c6bdc52bd9840/apps/worker/lib/archiveHandler.ts",
+    "head": "eff7c6b735f6b20a4766745dc86c6bdc52bd9840",
+    "sha256": "ba5cb2ec0a47a3f11334194512bc99e778704d24149c0a32c50382b86f130a28",
+    "repo": "linkwarden/linkwarden",
+    "path": "apps/worker/lib/archiveHandler.ts",
+    "localCacheRelativePath": ".tmp/research841/browser/linkwarden--linkwarden/apps__worker__lib__archiveHandler.ts"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/linkwarden/linkwarden/eff7c6b735f6b20a4766745dc86c6bdc52bd9840/apps/web/lib/api/searchQueryBuilder.ts",
+    "head": "eff7c6b735f6b20a4766745dc86c6bdc52bd9840",
+    "sha256": "a67508182256383231ff3bd4618d8c2db4bc0d472fa6b6081eb7b399b3c33364",
+    "repo": "linkwarden/linkwarden",
+    "path": "apps/web/lib/api/searchQueryBuilder.ts",
+    "localCacheRelativePath": ".tmp/research841/browser/linkwarden--linkwarden/apps__web__lib__api__searchQueryBuilder.ts"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/linkwarden/linkwarden/eff7c6b735f6b20a4766745dc86c6bdc52bd9840/apps/web/lib/api/controllers/highlights/postOrUpdateHighlight.ts",
+    "head": "eff7c6b735f6b20a4766745dc86c6bdc52bd9840",
+    "sha256": "41629772f679ed9d24825eea8dae370cb197d193c6cbc4f38e0db05395917ba0",
+    "repo": "linkwarden/linkwarden",
+    "path": "apps/web/lib/api/controllers/highlights/postOrUpdateHighlight.ts",
+    "localCacheRelativePath": ".tmp/research841/browser/linkwarden--linkwarden/apps__web__lib__api__controllers__highlights__postOrUpdateHighlight.ts"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/linkwarden/linkwarden/eff7c6b735f6b20a4766745dc86c6bdc52bd9840/apps/worker/lib/preservationScheme/sanitizeHtmlForMonolith.ts",
+    "head": "eff7c6b735f6b20a4766745dc86c6bdc52bd9840",
+    "sha256": "a5070f4df7fce2a198927de88402f196b507a8e490fd3d85c4b742aecffe15e0",
+    "repo": "linkwarden/linkwarden",
+    "path": "apps/worker/lib/preservationScheme/sanitizeHtmlForMonolith.ts",
+    "localCacheRelativePath": ".tmp/research841/browser/linkwarden--linkwarden/apps__worker__lib__preservationScheme__sanitizeHtmlForMonolith.ts"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/linkwarden/linkwarden/eff7c6b735f6b20a4766745dc86c6bdc52bd9840/apps/web/lib/api/archives/resolveAccessibleArchive.ts",
+    "head": "eff7c6b735f6b20a4766745dc86c6bdc52bd9840",
+    "sha256": "ba640ea0273eb0c88bd2ee281fef641330d645d33e7439baae097a02f56243b6",
+    "repo": "linkwarden/linkwarden",
+    "path": "apps/web/lib/api/archives/resolveAccessibleArchive.ts",
+    "localCacheRelativePath": ".tmp/research841/browser/linkwarden--linkwarden/apps__web__lib__api__archives__resolveAccessibleArchive.ts"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/gildas-lormeau/SingleFile/b98ad61e8bc09ceed8edb7a5efca17980afe040d/src/core/content/content.js",
+    "head": "b98ad61e8bc09ceed8edb7a5efca17980afe040d",
+    "sha256": "fcde5e3a8a63e3de1634f6d30164c27619a237d1ba23a72a3df2d28d14879d56",
+    "repo": "gildas-lormeau/SingleFile",
+    "path": "src/core/content/content.js",
+    "localCacheRelativePath": ".tmp/research841/browser/gildas-lormeau--SingleFile/src__core__content__content.js"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/gildas-lormeau/SingleFile/b98ad61e8bc09ceed8edb7a5efca17980afe040d/src/core/content/content-frames.js",
+    "head": "b98ad61e8bc09ceed8edb7a5efca17980afe040d",
+    "sha256": "dd49c5088583373bc9718790b26388610a38da2fdf593838021ac16850ac4446",
+    "repo": "gildas-lormeau/SingleFile",
+    "path": "src/core/content/content-frames.js",
+    "localCacheRelativePath": ".tmp/research841/browser/gildas-lormeau--SingleFile/src__core__content__content-frames.js"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/gildas-lormeau/SingleFile/b98ad61e8bc09ceed8edb7a5efca17980afe040d/src/core/bg/config.js",
+    "head": "b98ad61e8bc09ceed8edb7a5efca17980afe040d",
+    "sha256": "1754fb26403dc0d8f119d2ac8aceb01aae15715b06278d13c1dba05ccc58cb35",
+    "repo": "gildas-lormeau/SingleFile",
+    "path": "src/core/bg/config.js",
+    "localCacheRelativePath": ".tmp/research841/browser/gildas-lormeau--SingleFile/src__core__bg__config.js"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/gildas-lormeau/SingleFile/b98ad61e8bc09ceed8edb7a5efca17980afe040d/src/core/bg/autosave.js",
+    "head": "b98ad61e8bc09ceed8edb7a5efca17980afe040d",
+    "sha256": "74a36742fc0b79f7042c36b3732f4ebdec3e3a092f41e8b588cb68e490e7903c",
+    "repo": "gildas-lormeau/SingleFile",
+    "path": "src/core/bg/autosave.js",
+    "localCacheRelativePath": ".tmp/research841/browser/gildas-lormeau--SingleFile/src__core__bg__autosave.js"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/gildas-lormeau/SingleFile/b98ad61e8bc09ceed8edb7a5efca17980afe040d/src/core/bg/downloads.js",
+    "head": "b98ad61e8bc09ceed8edb7a5efca17980afe040d",
+    "sha256": "57c0e282d3a6747889c330ec61771b5e27013091f35af0960e3c6e5caba24f0f",
+    "repo": "gildas-lormeau/SingleFile",
+    "path": "src/core/bg/downloads.js",
+    "localCacheRelativePath": ".tmp/research841/browser/gildas-lormeau--SingleFile/src__core__bg__downloads.js"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/gildas-lormeau/SingleFile/b98ad61e8bc09ceed8edb7a5efca17980afe040d/src/core/bg/external-capture-permissions.js",
+    "head": "b98ad61e8bc09ceed8edb7a5efca17980afe040d",
+    "sha256": "6c203db51d6cfc85473c2c2c13e08816b483d4530af6ca89edff03c7b847e048",
+    "repo": "gildas-lormeau/SingleFile",
+    "path": "src/core/bg/external-capture-permissions.js",
+    "localCacheRelativePath": ".tmp/research841/browser/gildas-lormeau--SingleFile/src__core__bg__external-capture-permissions.js"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/unclecode/crawl4ai/888299fb5f0b82181897dc0e61bfb4b036f0aea5/crawl4ai/deep_crawling/filters.py",
+    "head": "888299fb5f0b82181897dc0e61bfb4b036f0aea5",
+    "sha256": "55858c24196e99536e3ed15c13dcbe40f0ab2eb10c65dd1a23af4f553dd08ef6",
+    "repo": "unclecode/crawl4ai",
+    "path": "crawl4ai/deep_crawling/filters.py",
+    "localCacheRelativePath": ".tmp/research841/browser/unclecode--crawl4ai/crawl4ai__deep_crawling__filters.py"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/unclecode/crawl4ai/888299fb5f0b82181897dc0e61bfb4b036f0aea5/crawl4ai/deep_crawling/scorers.py",
+    "head": "888299fb5f0b82181897dc0e61bfb4b036f0aea5",
+    "sha256": "549ddd640613b3795dc0bca8a5ce72bb3ff27f8633810781d571192030c776d8",
+    "repo": "unclecode/crawl4ai",
+    "path": "crawl4ai/deep_crawling/scorers.py",
+    "localCacheRelativePath": ".tmp/research841/browser/unclecode--crawl4ai/crawl4ai__deep_crawling__scorers.py"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/unclecode/crawl4ai/888299fb5f0b82181897dc0e61bfb4b036f0aea5/crawl4ai/deep_crawling/bfs_strategy.py",
+    "head": "888299fb5f0b82181897dc0e61bfb4b036f0aea5",
+    "sha256": "3c2b64cde51213302541eba34a08892a92e7072fff1973e8ca075c9350af2df9",
+    "repo": "unclecode/crawl4ai",
+    "path": "crawl4ai/deep_crawling/bfs_strategy.py",
+    "localCacheRelativePath": ".tmp/research841/browser/unclecode--crawl4ai/crawl4ai__deep_crawling__bfs_strategy.py"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/unclecode/crawl4ai/888299fb5f0b82181897dc0e61bfb4b036f0aea5/crawl4ai/markdown_generation_strategy.py",
+    "head": "888299fb5f0b82181897dc0e61bfb4b036f0aea5",
+    "sha256": "f6ea10df7b96f2876c8769afc7638a83884315c87abf41036f8710420669fa00",
+    "repo": "unclecode/crawl4ai",
+    "path": "crawl4ai/markdown_generation_strategy.py",
+    "localCacheRelativePath": ".tmp/research841/browser/unclecode--crawl4ai/crawl4ai__markdown_generation_strategy.py"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/unclecode/crawl4ai/888299fb5f0b82181897dc0e61bfb4b036f0aea5/crawl4ai/content_filter_strategy.py",
+    "head": "888299fb5f0b82181897dc0e61bfb4b036f0aea5",
+    "sha256": "e31a6ad933bc673dcb18359792098a245a0c6d23e76a27c92b37fa292f2f92ba",
+    "repo": "unclecode/crawl4ai",
+    "path": "crawl4ai/content_filter_strategy.py",
+    "localCacheRelativePath": ".tmp/research841/browser/unclecode--crawl4ai/crawl4ai__content_filter_strategy.py"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/unclecode/crawl4ai/888299fb5f0b82181897dc0e61bfb4b036f0aea5/crawl4ai/async_dispatcher.py",
+    "head": "888299fb5f0b82181897dc0e61bfb4b036f0aea5",
+    "sha256": "928abf53ebde72046378997087bb91d5599fe0f798ecb358d3bc2db8aa6345ef",
+    "repo": "unclecode/crawl4ai",
+    "path": "crawl4ai/async_dispatcher.py",
+    "localCacheRelativePath": ".tmp/research841/browser/unclecode--crawl4ai/crawl4ai__async_dispatcher.py"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/unclecode/crawl4ai/888299fb5f0b82181897dc0e61bfb4b036f0aea5/crawl4ai/cache_validator.py",
+    "head": "888299fb5f0b82181897dc0e61bfb4b036f0aea5",
+    "sha256": "2c0245a9f17a9fc33f84c3d884409053a00035f3a656ee06acee77988c4deee7",
+    "repo": "unclecode/crawl4ai",
+    "path": "crawl4ai/cache_validator.py",
+    "localCacheRelativePath": ".tmp/research841/browser/unclecode--crawl4ai/crawl4ai__cache_validator.py"
+  },
+  {
+    "path": "apps/api/src/lib/highlight-spans.ts",
+    "url": "https://raw.githubusercontent.com/firecrawl/firecrawl/7e6bd701febaacc3bb95c0fb7eee2c509a4813c5/apps/api/src/lib/highlight-spans.ts",
+    "sha256": "a502a4be98c2ba66289bddb3fd6fe5a9324056bc29e38793ba271ba54dffa725",
+    "repo": "firecrawl/firecrawl",
+    "head": "7e6bd701febaacc3bb95c0fb7eee2c509a4813c5",
+    "localCacheRelativePath": ".tmp/research841/browser/mendableai--firecrawl/apps__api__src__lib__highlight-spans.ts"
+  },
+  {
+    "path": "apps/api/src/search/operators.ts",
+    "url": "https://raw.githubusercontent.com/firecrawl/firecrawl/7e6bd701febaacc3bb95c0fb7eee2c509a4813c5/apps/api/src/search/operators.ts",
+    "sha256": "8a65a67ab6ae7864235b49f9cd40c78598dff224933cd9de30ec5fea583321a6",
+    "repo": "firecrawl/firecrawl",
+    "head": "7e6bd701febaacc3bb95c0fb7eee2c509a4813c5",
+    "localCacheRelativePath": ".tmp/research841/browser/mendableai--firecrawl/apps__api__src__search__operators.ts"
+  },
+  {
+    "path": "apps/api/src/services/monitoring/search/dedupe.ts",
+    "url": "https://raw.githubusercontent.com/firecrawl/firecrawl/7e6bd701febaacc3bb95c0fb7eee2c509a4813c5/apps/api/src/services/monitoring/search/dedupe.ts",
+    "sha256": "bc6d611d55232b31e431be8e4cb802918fdace95a3dd00124775cf2252b5cbaf",
+    "repo": "firecrawl/firecrawl",
+    "head": "7e6bd701febaacc3bb95c0fb7eee2c509a4813c5",
+    "localCacheRelativePath": ".tmp/research841/browser/mendableai--firecrawl/apps__api__src__services__monitoring__search__dedupe.ts"
+  },
+  {
+    "path": "apps/api/src/lib/search-query-builder.ts",
+    "url": "https://raw.githubusercontent.com/firecrawl/firecrawl/7e6bd701febaacc3bb95c0fb7eee2c509a4813c5/apps/api/src/lib/search-query-builder.ts",
+    "sha256": "4054df44da139b98b34f774acab352ea4ef3f46318b66bd9ac0149d3c5c45fad",
+    "repo": "firecrawl/firecrawl",
+    "head": "7e6bd701febaacc3bb95c0fb7eee2c509a4813c5",
+    "localCacheRelativePath": ".tmp/research841/browser/mendableai--firecrawl/apps__api__src__lib__search-query-builder.ts"
+  }
+]

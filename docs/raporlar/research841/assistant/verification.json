@@ -1,0 +1,26 @@
+{
+  "result": "PASS",
+  "cards": 25,
+  "newMechanismCandidates": 17,
+  "oldDeepening": 8,
+  "retrievedFiles": 73,
+  "uniqueSourceFiles": 73,
+  "reposIncludingHistoricalRedirect": 9,
+  "checks": [
+    "JSON parse",
+    "25 distinct card IDs",
+    "all card source refs match retrieved pinned files",
+    "full40SHA/64SHA256 shape",
+    "per-card mechanism at least250chars",
+    "25 cards re-reviewed: observed code explicitly separated from proposed product synthesis; A841-04 deduplicated against R839-F12"
+  ],
+  "notRun": [
+    "product tests",
+    "start.bat",
+    "install.bat",
+    "upstream source execution",
+    "native UI",
+    "live model",
+    "embedding/reranker quality"
+  ]
+}

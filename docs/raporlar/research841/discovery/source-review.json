@@ -1,0 +1,498 @@
+[
+  {
+    "repo": "streamyfin/streamyfin",
+    "head": "284d5527f3aa0f099a7124b6e9d7fb8321ccd51c",
+    "path": "components/search/TVSearchPage.tsx",
+    "url": "https://raw.githubusercontent.com/streamyfin/streamyfin/284d5527f3aa0f099a7124b6e9d7fb8321ccd51c/components/search/TVSearchPage.tsx",
+    "sha256": "21b149e4a96b184fa7627874d5a8634b8edeede8cba35c68be6dc4d37842ddce",
+    "bytes": 12276
+  },
+  {
+    "repo": "streamyfin/streamyfin",
+    "head": "284d5527f3aa0f099a7124b6e9d7fb8321ccd51c",
+    "path": "components/search/DiscoverFilters.tsx",
+    "url": "https://raw.githubusercontent.com/streamyfin/streamyfin/284d5527f3aa0f099a7124b6e9d7fb8321ccd51c/components/search/DiscoverFilters.tsx",
+    "sha256": "fba04d6ace14745bda99a0f7611f250e12f53d98ecba3627eef787deb20c3c8d",
+    "bytes": 4288
+  },
+  {
+    "repo": "streamyfin/streamyfin",
+    "head": "284d5527f3aa0f099a7124b6e9d7fb8321ccd51c",
+    "path": "components/home/StreamystatsRecommendations.tsx",
+    "url": "https://raw.githubusercontent.com/streamyfin/streamyfin/284d5527f3aa0f099a7124b6e9d7fb8321ccd51c/components/home/StreamystatsRecommendations.tsx",
+    "sha256": "3fcea09cddc15932f352865b0ee69f4c61ec56b744c3c6e5e84c7b943d0a788b",
+    "bytes": 3891
+  },
+  {
+    "repo": "streamyfin/streamyfin",
+    "head": "284d5527f3aa0f099a7124b6e9d7fb8321ccd51c",
+    "path": "components/ItemCollections.tsx",
+    "url": "https://raw.githubusercontent.com/streamyfin/streamyfin/284d5527f3aa0f099a7124b6e9d7fb8321ccd51c/components/ItemCollections.tsx",
+    "sha256": "426bf4f76b0c97889ae320c39ce562d67bedd0a653b218dc447a4b3b509fc9c2",
+    "bytes": 879
+  },
+  {
+    "repo": "leepeuker/movary",
+    "head": "0271a92eb145a2f3525963424efa7b77754546b7",
+    "path": "src/HttpController/Web/Movie/MovieWatchProviderController.php",
+    "url": "https://raw.githubusercontent.com/leepeuker/movary/0271a92eb145a2f3525963424efa7b77754546b7/src/HttpController/Web/Movie/MovieWatchProviderController.php",
+    "sha256": "fa2939b446d2223b16f04ee32244020ded2d2e0e0751f0c356c7532d5c58473d",
+    "bytes": 1751
+  },
+  {
+    "repo": "leepeuker/movary",
+    "head": "0271a92eb145a2f3525963424efa7b77754546b7",
+    "path": "src/Api/Tmdb/Dto/TmdbWatchProviderCollection.php",
+    "url": "https://raw.githubusercontent.com/leepeuker/movary/0271a92eb145a2f3525963424efa7b77754546b7/src/Api/Tmdb/Dto/TmdbWatchProviderCollection.php",
+    "sha256": "003d7b10960e05521b8626d53230775ff12c2bcbf13b9a2199b357dd948b16a4",
+    "bytes": 1960
+  },
+  {
+    "repo": "leepeuker/movary",
+    "head": "0271a92eb145a2f3525963424efa7b77754546b7",
+    "path": "src/HttpController/Web/PersonController.php",
+    "url": "https://raw.githubusercontent.com/leepeuker/movary/0271a92eb145a2f3525963424efa7b77754546b7/src/HttpController/Web/PersonController.php",
+    "sha256": "be8907aba448f8e60dca2983e453b7319d40153e1baa4c310027049e70be5a48",
+    "bytes": 5516
+  },
+  {
+    "repo": "leepeuker/movary",
+    "head": "0271a92eb145a2f3525963424efa7b77754546b7",
+    "path": "src/Service/Letterboxd/LetterboxdExporter.php",
+    "url": "https://raw.githubusercontent.com/leepeuker/movary/0271a92eb145a2f3525963424efa7b77754546b7/src/Service/Letterboxd/LetterboxdExporter.php",
+    "sha256": "6267d084234d4e240727291e5cb83ca5d7393374d2b31063200ea8acbf6df1d2",
+    "bytes": 4894
+  },
+  {
+    "repo": "leepeuker/movary",
+    "head": "0271a92eb145a2f3525963424efa7b77754546b7",
+    "path": "templates/component/watch-providers.html.twig",
+    "url": "https://raw.githubusercontent.com/leepeuker/movary/0271a92eb145a2f3525963424efa7b77754546b7/templates/component/watch-providers.html.twig",
+    "sha256": "d5f747d41860645c2944994983e1195d81e3936ebdb90c731ee991ec68eb3e0c",
+    "bytes": 591
+  },
+  {
+    "repo": "leepeuker/movary",
+    "head": "0271a92eb145a2f3525963424efa7b77754546b7",
+    "path": "src/HttpController/Api/RequestMapper/SearchRequestMapper.php",
+    "url": "https://raw.githubusercontent.com/leepeuker/movary/0271a92eb145a2f3525963424efa7b77754546b7/src/HttpController/Api/RequestMapper/SearchRequestMapper.php",
+    "sha256": "697b523caa2e1fc329f38689ba2a3fa31caf7116ce1da3fff50bc70d89641f52",
+    "bytes": 608
+  },
+  {
+    "repo": "IgnisDa/ryot",
+    "head": "822cc6701b46aedbc436abbf02e7efb94afd5f05",
+    "path": "crates/services/collection/src/recommendation_operations.rs",
+    "url": "https://raw.githubusercontent.com/IgnisDa/ryot/822cc6701b46aedbc436abbf02e7efb94afd5f05/crates/services/collection/src/recommendation_operations.rs",
+    "sha256": "087f3863ba5747f2c81f1a4ba125ca287bd172bd2b48aff5acf06776f79bbe30",
+    "bytes": 3711
+  },
+  {
+    "repo": "IgnisDa/ryot",
+    "head": "822cc6701b46aedbc436abbf02e7efb94afd5f05",
+    "path": "crates/services/user/src/recommendation_operations.rs",
+    "url": "https://raw.githubusercontent.com/IgnisDa/ryot/822cc6701b46aedbc436abbf02e7efb94afd5f05/crates/services/user/src/recommendation_operations.rs",
+    "sha256": "2e7288a861f845d5f7edeae8c6fd5e9314c09cdbc9966c2fe476896bbad541d3",
+    "bytes": 6656
+  },
+  {
+    "repo": "IgnisDa/ryot",
+    "head": "822cc6701b46aedbc436abbf02e7efb94afd5f05",
+    "path": "crates/services/miscellaneous/search/src/lib.rs",
+    "url": "https://raw.githubusercontent.com/IgnisDa/ryot/822cc6701b46aedbc436abbf02e7efb94afd5f05/crates/services/miscellaneous/search/src/lib.rs",
+    "sha256": "fc05a9755ccfb6ff747738bca015f96f1ed398956424b30f1bad0ea2e23a6236",
+    "bytes": 6795
+  },
+  {
+    "repo": "IgnisDa/ryot",
+    "head": "822cc6701b46aedbc436abbf02e7efb94afd5f05",
+    "path": "crates/services/miscellaneous/calendar/src/lib.rs",
+    "url": "https://raw.githubusercontent.com/IgnisDa/ryot/822cc6701b46aedbc436abbf02e7efb94afd5f05/crates/services/miscellaneous/calendar/src/lib.rs",
+    "sha256": "9e70dc9af03d21f38f22ec4f8765ec5d6c8b073da68a1c26f55db3c22825b0c8",
+    "bytes": 7727
+  },
+  {
+    "repo": "IgnisDa/ryot",
+    "head": "822cc6701b46aedbc436abbf02e7efb94afd5f05",
+    "path": "crates/services/collection/src/event_operations.rs",
+    "url": "https://raw.githubusercontent.com/IgnisDa/ryot/822cc6701b46aedbc436abbf02e7efb94afd5f05/crates/services/collection/src/event_operations.rs",
+    "sha256": "ce1c760b5915840ffe226c9b1d87d8ee40b7334df7a5923ae840c43d25fd95f4",
+    "bytes": 3535
+  },
+  {
+    "repo": "IgnisDa/ryot",
+    "head": "822cc6701b46aedbc436abbf02e7efb94afd5f05",
+    "path": "apps/frontend/app/components/routes/collections/filters-state.ts",
+    "url": "https://raw.githubusercontent.com/IgnisDa/ryot/822cc6701b46aedbc436abbf02e7efb94afd5f05/apps/frontend/app/components/routes/collections/filters-state.ts",
+    "sha256": "f1a1ba84c8307dad4192e62d052b6bec068a66578914074a6a5424c105b42ab3",
+    "bytes": 2197
+  },
+  {
+    "repo": "IgnisDa/ryot",
+    "head": "822cc6701b46aedbc436abbf02e7efb94afd5f05",
+    "path": "crates/models/database/src/collection_entity_membership.rs",
+    "url": "https://raw.githubusercontent.com/IgnisDa/ryot/822cc6701b46aedbc436abbf02e7efb94afd5f05/crates/models/database/src/collection_entity_membership.rs",
+    "sha256": "630972ed04f886d9a303504a3828f3d72fcc88bcc7f36d784a95689fe4fc5357",
+    "bytes": 1014
+  },
+  {
+    "repo": "Stremio/stremio-web",
+    "head": "c34935cc36e28c00ec15f066c38bbc6f6f59f716",
+    "path": "src/routes/Calendar/useCalendar.ts",
+    "url": "https://raw.githubusercontent.com/Stremio/stremio-web/c34935cc36e28c00ec15f066c38bbc6f6f59f716/src/routes/Calendar/useCalendar.ts",
+    "sha256": "6ffc1c33d2e439a6ed2745c6626bd09ef64b458d1016d7d96a3df72cc8199187",
+    "bytes": 803
+  },
+  {
+    "repo": "Stremio/stremio-web",
+    "head": "c34935cc36e28c00ec15f066c38bbc6f6f59f716",
+    "path": "src/core/types/models/Search.d.ts",
+    "url": "https://raw.githubusercontent.com/Stremio/stremio-web/c34935cc36e28c00ec15f066c38bbc6f6f59f716/src/core/types/models/Search.d.ts",
+    "sha256": "cd68ba748e907ad186a9b4134a76066fd76d86514336436531cdf67517b34bc4",
+    "bytes": 33
+  },
+  {
+    "repo": "Stremio/stremio-web",
+    "head": "c34935cc36e28c00ec15f066c38bbc6f6f59f716",
+    "path": "src/core/types/models/Discover.d.ts",
+    "url": "https://raw.githubusercontent.com/Stremio/stremio-web/c34935cc36e28c00ec15f066c38bbc6f6f59f716/src/core/types/models/Discover.d.ts",
+    "sha256": "7e06885f65f3f8f1011f799a59b06f5fbb835322ee1217a658f43a87d40611a4",
+    "bytes": 703
+  },
+  {
+    "repo": "Stremio/stremio-web",
+    "head": "c34935cc36e28c00ec15f066c38bbc6f6f59f716",
+    "path": "src/components/NavBar/HorizontalNavBar/SearchBar/useLocalSearch.js",
+    "url": "https://raw.githubusercontent.com/Stremio/stremio-web/c34935cc36e28c00ec15f066c38bbc6f6f59f716/src/components/NavBar/HorizontalNavBar/SearchBar/useLocalSearch.js",
+    "sha256": "1c895d236b1eabff8cc83d2660cd166a08b2b05ceda7594904fa19533115f1ca",
+    "bytes": 875
+  },
+  {
+    "repo": "Stremio/stremio-web",
+    "head": "c34935cc36e28c00ec15f066c38bbc6f6f59f716",
+    "path": "src/routes/Discover/Discover.js",
+    "url": "https://raw.githubusercontent.com/Stremio/stremio-web/c34935cc36e28c00ec15f066c38bbc6f6f59f716/src/routes/Discover/Discover.js",
+    "sha256": "4c5c4992e2a76d89d02c274b06fadd6e5595a3d6bce771cd42387399eebb855d",
+    "bytes": 20938
+  },
+  {
+    "repo": "gorse-io/gorse",
+    "head": "2145bd0567f03b59f83f43ea2575a17a9bdaa016",
+    "path": "logics/recommend.go",
+    "url": "https://raw.githubusercontent.com/gorse-io/gorse/2145bd0567f03b59f83f43ea2575a17a9bdaa016/logics/recommend.go",
+    "sha256": "e6c055bd7e68101f0d75ce3ec95e8ed8bccb3e6c55eb79147e42f9dceadb87ed",
+    "bytes": 12787
+  },
+  {
+    "repo": "gorse-io/gorse",
+    "head": "2145bd0567f03b59f83f43ea2575a17a9bdaa016",
+    "path": "config/config.go",
+    "url": "https://raw.githubusercontent.com/gorse-io/gorse/2145bd0567f03b59f83f43ea2575a17a9bdaa016/config/config.go",
+    "sha256": "fe0002265d0ec8ad7d13d90e007b0f19c6b9f3a2a0a99e877b7d9e6566a88858",
+    "bytes": 43376
+  },
+  {
+    "repo": "gorse-io/gorse",
+    "head": "2145bd0567f03b59f83f43ea2575a17a9bdaa016",
+    "path": "server/server.go",
+    "url": "https://raw.githubusercontent.com/gorse-io/gorse/2145bd0567f03b59f83f43ea2575a17a9bdaa016/server/server.go",
+    "sha256": "6d4bdcd8664970064f27148a9feb51cc145d542f6571348f3678a83b4e4cca23",
+    "bytes": 8608
+  },
+  {
+    "repo": "lyst/lightfm",
+    "head": "0c9c31e027b976beab2385e268b58010fff46096",
+    "path": "lightfm/data.py",
+    "url": "https://raw.githubusercontent.com/lyst/lightfm/0c9c31e027b976beab2385e268b58010fff46096/lightfm/data.py",
+    "sha256": "a9a521b73f3f8c0e9f96c2d405ea5d59648d86031281cd7a7e2f4286a416fc2a",
+    "bytes": 14295
+  },
+  {
+    "repo": "lyst/lightfm",
+    "head": "0c9c31e027b976beab2385e268b58010fff46096",
+    "path": "lightfm/lightfm.py",
+    "url": "https://raw.githubusercontent.com/lyst/lightfm/0c9c31e027b976beab2385e268b58010fff46096/lightfm/lightfm.py",
+    "sha256": "ddf73c062453a05b9f182a5e981c7c1cb7db58a7f193349354c8e20472498138",
+    "bytes": 40823
+  },
+  {
+    "repo": "lyst/lightfm",
+    "head": "0c9c31e027b976beab2385e268b58010fff46096",
+    "path": "lightfm/evaluation.py",
+    "url": "https://raw.githubusercontent.com/lyst/lightfm/0c9c31e027b976beab2385e268b58010fff46096/lightfm/evaluation.py",
+    "sha256": "4337cb0496771a077f3ca2b5176d517a5945146a3457a95d3b35b6551f5d00cd",
+    "bytes": 12162
+  },
+  {
+    "repo": "lyst/lightfm",
+    "head": "0c9c31e027b976beab2385e268b58010fff46096",
+    "path": "setup.py",
+    "url": "https://raw.githubusercontent.com/lyst/lightfm/0c9c31e027b976beab2385e268b58010fff46096/setup.py",
+    "sha256": "26dece86b148f0c00dff9c33d9f5de8ba6da2e917619c638c5b36d42f3348f05",
+    "bytes": 5462
+  },
+  {
+    "repo": "RUCAIBox/RecBole",
+    "head": "7b02be5ec80a88310f2d04a27a82adfcbb5dc211",
+    "path": "recbole/data/dataset/dataset.py",
+    "url": "https://raw.githubusercontent.com/RUCAIBox/RecBole/7b02be5ec80a88310f2d04a27a82adfcbb5dc211/recbole/data/dataset/dataset.py",
+    "sha256": "0e8c17f6e33d3a8dc775121d7523af18264f385357f5c3fd571e70f0b560a6dd",
+    "bytes": 88419
+  },
+  {
+    "repo": "RUCAIBox/RecBole",
+    "head": "7b02be5ec80a88310f2d04a27a82adfcbb5dc211",
+    "path": "recbole/evaluator/metrics.py",
+    "url": "https://raw.githubusercontent.com/RUCAIBox/RecBole/7b02be5ec80a88310f2d04a27a82adfcbb5dc211/recbole/evaluator/metrics.py",
+    "sha256": "22b17aa31975de0f0b6900668164a63aa703317422adcf67e2e6f02186b8a7e5",
+    "bytes": 29173
+  },
+  {
+    "repo": "RUCAIBox/RecBole",
+    "head": "7b02be5ec80a88310f2d04a27a82adfcbb5dc211",
+    "path": "recbole/config/configurator.py",
+    "url": "https://raw.githubusercontent.com/RUCAIBox/RecBole/7b02be5ec80a88310f2d04a27a82adfcbb5dc211/recbole/config/configurator.py",
+    "sha256": "fa9bc256b8bed0c364ab5a9939465f905695d194cdf1c195beb195b47f392618",
+    "bytes": 26100
+  },
+  {
+    "repo": "jxxghp/MoviePilot",
+    "head": "7f227857d8588df9d350cd108c8a1bc9549c9638",
+    "path": "app/chain/recommend.py",
+    "url": "https://raw.githubusercontent.com/jxxghp/MoviePilot/7f227857d8588df9d350cd108c8a1bc9549c9638/app/chain/recommend.py",
+    "sha256": "e76c3d1c532ee899c1caa6e570a05dd55efc54bd3cb93121d26aed949a52cbcd",
+    "bytes": 32109
+  },
+  {
+    "repo": "jxxghp/MoviePilot",
+    "head": "7f227857d8588df9d350cd108c8a1bc9549c9638",
+    "path": "app/chain/search/cache.py",
+    "url": "https://raw.githubusercontent.com/jxxghp/MoviePilot/7f227857d8588df9d350cd108c8a1bc9549c9638/app/chain/search/cache.py",
+    "sha256": "6226436cc36f5123d09ab509ef9ec59fe9dfd4594829364eb496f18463415f90",
+    "bytes": 6808
+  },
+  {
+    "repo": "jxxghp/MoviePilot",
+    "head": "7f227857d8588df9d350cd108c8a1bc9549c9638",
+    "path": "app/chain/search/plan.py",
+    "url": "https://raw.githubusercontent.com/jxxghp/MoviePilot/7f227857d8588df9d350cd108c8a1bc9549c9638/app/chain/search/plan.py",
+    "sha256": "9ab72b52d3e0afe4437714a2974b399d4e32f01869651008b29fc3dfbdbd75a9",
+    "bytes": 4762
+  },
+  {
+    "repo": "jxxghp/MoviePilot",
+    "head": "7f227857d8588df9d350cd108c8a1bc9549c9638",
+    "path": "app/chain/search/result.py",
+    "url": "https://raw.githubusercontent.com/jxxghp/MoviePilot/7f227857d8588df9d350cd108c8a1bc9549c9638/app/chain/search/result.py",
+    "sha256": "65aff698269e58b741006b1ab083d9d4f9ae049db4685b04968bd1e5c50181fb",
+    "bytes": 21806
+  },
+  {
+    "repo": "jxxghp/MoviePilot",
+    "head": "7f227857d8588df9d350cd108c8a1bc9549c9638",
+    "path": "app/api/endpoints/discover.py",
+    "url": "https://raw.githubusercontent.com/jxxghp/MoviePilot/7f227857d8588df9d350cd108c8a1bc9549c9638/app/api/endpoints/discover.py",
+    "sha256": "47637be681c914f41015ce1d09577824131d3a298ab9c034015f0f5156b95b47",
+    "bytes": 5568
+  },
+  {
+    "repo": "microsoft/recommenders",
+    "head": "b6b7d2b87a1185747f70a742a68dcae1dddebbfd",
+    "path": "recommenders/datasets/python_splitters.py",
+    "url": "https://raw.githubusercontent.com/microsoft/recommenders/b6b7d2b87a1185747f70a742a68dcae1dddebbfd/recommenders/datasets/python_splitters.py",
+    "sha256": "eadccfa59945b374bcddc7f305ac8f09fde559ba9f9a1faf63db1f999d1885c2",
+    "bytes": 10075
+  },
+  {
+    "repo": "microsoft/recommenders",
+    "head": "b6b7d2b87a1185747f70a742a68dcae1dddebbfd",
+    "path": "recommenders/evaluation/python_evaluation.py",
+    "url": "https://raw.githubusercontent.com/microsoft/recommenders/b6b7d2b87a1185747f70a742a68dcae1dddebbfd/recommenders/evaluation/python_evaluation.py",
+    "sha256": "4aadafd55b69af1f12143bdc471a89d04e3ae30316aeb2c14991cb9fd672bad6",
+    "bytes": 64612
+  },
+  {
+    "repo": "microsoft/recommenders",
+    "head": "b6b7d2b87a1185747f70a742a68dcae1dddebbfd",
+    "path": "pyproject.toml",
+    "url": "https://raw.githubusercontent.com/microsoft/recommenders/b6b7d2b87a1185747f70a742a68dcae1dddebbfd/pyproject.toml",
+    "sha256": "9a6d8439c927b13dbcfcf2cb03f96b31aa280dc0715e9f654fada8ef6b220ced",
+    "bytes": 451
+  },
+  {
+    "repo": "DevMatze/VidSelector",
+    "head": "cf3b5c7635917f1dee8106d2e8350bb0cf64b104",
+    "path": "lib/recommendations/config.ts",
+    "url": "https://raw.githubusercontent.com/DevMatze/VidSelector/cf3b5c7635917f1dee8106d2e8350bb0cf64b104/lib/recommendations/config.ts",
+    "sha256": "83c9b0b9babbfdf53a56cea7e7a040e52a64cb689250380f291f84313584343e",
+    "bytes": 483
+  },
+  {
+    "repo": "DevMatze/VidSelector",
+    "head": "cf3b5c7635917f1dee8106d2e8350bb0cf64b104",
+    "path": "lib/recommendations/engine.ts",
+    "url": "https://raw.githubusercontent.com/DevMatze/VidSelector/cf3b5c7635917f1dee8106d2e8350bb0cf64b104/lib/recommendations/engine.ts",
+    "sha256": "9cc19f5d306a5fbaf27ea5c7bf03a7f50376e724920ef702ced537ccd7c7e737",
+    "bytes": 9155
+  },
+  {
+    "repo": "streamyfin/streamyfin",
+    "head": "284d5527f3aa0f099a7124b6e9d7fb8321ccd51c",
+    "path": "LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/streamyfin/streamyfin/284d5527f3aa0f099a7124b6e9d7fb8321ccd51c/LICENSE.txt",
+    "sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04",
+    "bytes": 16726
+  },
+  {
+    "repo": "streamyfin/streamyfin",
+    "head": "284d5527f3aa0f099a7124b6e9d7fb8321ccd51c",
+    "path": "package.json",
+    "url": "https://raw.githubusercontent.com/streamyfin/streamyfin/284d5527f3aa0f099a7124b6e9d7fb8321ccd51c/package.json",
+    "sha256": "50837c2d105f40aa24b24e296428c85294a49faa138b7b22b2955ed238c5ae6f",
+    "bytes": 7708
+  },
+  {
+    "repo": "streamyfin/streamyfin",
+    "head": "284d5527f3aa0f099a7124b6e9d7fb8321ccd51c",
+    "path": "app/(auth)/(tabs)/(home,libraries,search,favorites,watchlists)/persons/[personId].tsx",
+    "url": "https://raw.githubusercontent.com/streamyfin/streamyfin/284d5527f3aa0f099a7124b6e9d7fb8321ccd51c/app/(auth)/(tabs)/(home,libraries,search,favorites,watchlists)/persons/[personId].tsx",
+    "sha256": "6af26f4d791d2930d74abde57b4026384a81fe12b7d8b2e587726dd739320767",
+    "bytes": 4090
+  },
+  {
+    "repo": "leepeuker/movary",
+    "head": "0271a92eb145a2f3525963424efa7b77754546b7",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/leepeuker/movary/0271a92eb145a2f3525963424efa7b77754546b7/LICENSE",
+    "sha256": "c01059e41d71e2ae3d720867b03cf0a240cc952438ddc83c8bf1217c613c6f08",
+    "bytes": 1067
+  },
+  {
+    "repo": "leepeuker/movary",
+    "head": "0271a92eb145a2f3525963424efa7b77754546b7",
+    "path": "package.json",
+    "url": "https://raw.githubusercontent.com/leepeuker/movary/0271a92eb145a2f3525963424efa7b77754546b7/package.json",
+    "sha256": "51ec49144a41e6ddc1b20e9106377fd077bbd8e605492e6d338b4785e66b6a79",
+    "bytes": 414
+  },
+  {
+    "repo": "IgnisDa/ryot",
+    "head": "822cc6701b46aedbc436abbf02e7efb94afd5f05",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/IgnisDa/ryot/822cc6701b46aedbc436abbf02e7efb94afd5f05/LICENSE",
+    "sha256": "e57f1c320b8cf8798a7d2ff83a6f9e06a33a03585f6e065fea97f1d86db84052",
+    "bytes": 35150
+  },
+  {
+    "repo": "IgnisDa/ryot",
+    "head": "822cc6701b46aedbc436abbf02e7efb94afd5f05",
+    "path": "package.json",
+    "url": "https://raw.githubusercontent.com/IgnisDa/ryot/822cc6701b46aedbc436abbf02e7efb94afd5f05/package.json",
+    "sha256": "39e998f39cc61562ee64b49fdbf869269d25df43bf386c95b09d833a0d874c7f",
+    "bytes": 565
+  },
+  {
+    "repo": "Stremio/stremio-web",
+    "head": "c34935cc36e28c00ec15f066c38bbc6f6f59f716",
+    "path": "LICENSE.md",
+    "url": "https://raw.githubusercontent.com/Stremio/stremio-web/c34935cc36e28c00ec15f066c38bbc6f6f59f716/LICENSE.md",
+    "sha256": "aef8b4222b79d0dbf6bf17cfff71c90a6a6bb8917a4162abe417b469ed22da2e",
+    "bytes": 17895
+  },
+  {
+    "repo": "Stremio/stremio-web",
+    "head": "c34935cc36e28c00ec15f066c38bbc6f6f59f716",
+    "path": "package.json",
+    "url": "https://raw.githubusercontent.com/Stremio/stremio-web/c34935cc36e28c00ec15f066c38bbc6f6f59f716/package.json",
+    "sha256": "82115ddab330ef3e83bc5193b4a5463dc5ab52450e7fc7888e64e1db5de3b73c",
+    "bytes": 3393
+  },
+  {
+    "repo": "gorse-io/gorse",
+    "head": "2145bd0567f03b59f83f43ea2575a17a9bdaa016",
+    "path": "go.mod",
+    "url": "https://raw.githubusercontent.com/gorse-io/gorse/2145bd0567f03b59f83f43ea2575a17a9bdaa016/go.mod",
+    "sha256": "c305b797234a31a4cd65fdc9778fdfaba68811990c1a893dbd04f9936be7b196",
+    "bytes": 16060
+  },
+  {
+    "repo": "gorse-io/gorse",
+    "head": "2145bd0567f03b59f83f43ea2575a17a9bdaa016",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/gorse-io/gorse/2145bd0567f03b59f83f43ea2575a17a9bdaa016/LICENSE",
+    "sha256": "43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1",
+    "bytes": 11356
+  },
+  {
+    "repo": "lyst/lightfm",
+    "head": "0c9c31e027b976beab2385e268b58010fff46096",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/lyst/lightfm/0c9c31e027b976beab2385e268b58010fff46096/LICENSE",
+    "sha256": "12cb63e0379bcd1fa65d8518c1f77c73390b2e2927edcb14224f6fb373121924",
+    "bytes": 11334
+  },
+  {
+    "repo": "RUCAIBox/RecBole",
+    "head": "7b02be5ec80a88310f2d04a27a82adfcbb5dc211",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/RUCAIBox/RecBole/7b02be5ec80a88310f2d04a27a82adfcbb5dc211/LICENSE",
+    "sha256": "2c33dad5fede86236b54db22e0be64e72095d151f324bcadd354ab88f40c52fe",
+    "bytes": 1065
+  },
+  {
+    "repo": "RUCAIBox/RecBole",
+    "head": "7b02be5ec80a88310f2d04a27a82adfcbb5dc211",
+    "path": "setup.py",
+    "url": "https://raw.githubusercontent.com/RUCAIBox/RecBole/7b02be5ec80a88310f2d04a27a82adfcbb5dc211/setup.py",
+    "sha256": "099de0464f9082702d5a1a1dd960444c90af00a95a160a25608043e81e905646",
+    "bytes": 2170
+  },
+  {
+    "repo": "jxxghp/MoviePilot",
+    "head": "7f227857d8588df9d350cd108c8a1bc9549c9638",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/jxxghp/MoviePilot/7f227857d8588df9d350cd108c8a1bc9549c9638/LICENSE",
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+    "bytes": 35149
+  },
+  {
+    "repo": "jxxghp/MoviePilot",
+    "head": "7f227857d8588df9d350cd108c8a1bc9549c9638",
+    "path": "pyproject.toml",
+    "url": "https://raw.githubusercontent.com/jxxghp/MoviePilot/7f227857d8588df9d350cd108c8a1bc9549c9638/pyproject.toml",
+    "sha256": "8483f380611b71d0f8ea48fa2d8ddd3ccd7fb18927eaa4b2d735d0d31c7600f4",
+    "bytes": 5607
+  },
+  {
+    "repo": "microsoft/recommenders",
+    "head": "b6b7d2b87a1185747f70a742a68dcae1dddebbfd",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/microsoft/recommenders/b6b7d2b87a1185747f70a742a68dcae1dddebbfd/LICENSE",
+    "sha256": "c1aa8025098719446d02e43f16b4545a3283d872b57de8d25b8202fe44bc6b8b",
+    "bytes": 1212
+  },
+  {
+    "repo": "microsoft/recommenders",
+    "head": "b6b7d2b87a1185747f70a742a68dcae1dddebbfd",
+    "path": "setup.py",
+    "url": "https://raw.githubusercontent.com/microsoft/recommenders/b6b7d2b87a1185747f70a742a68dcae1dddebbfd/setup.py",
+    "sha256": "e80d07ed996659a71dbc6a806fa27111fc3465f945eb1b53e80bf270fd7c2961",
+    "bytes": 4828
+  },
+  {
+    "repo": "DevMatze/VidSelector",
+    "head": "cf3b5c7635917f1dee8106d2e8350bb0cf64b104",
+    "path": "LICENSE.md",
+    "url": "https://raw.githubusercontent.com/DevMatze/VidSelector/cf3b5c7635917f1dee8106d2e8350bb0cf64b104/LICENSE.md",
+    "sha256": "10e8254e627a19d72d1d8c45e7206652acc5c205d36e3bd1cc313594614180a4",
+    "bytes": 336
+  },
+  {
+    "repo": "DevMatze/VidSelector",
+    "head": "cf3b5c7635917f1dee8106d2e8350bb0cf64b104",
+    "path": "package.json",
+    "url": "https://raw.githubusercontent.com/DevMatze/VidSelector/cf3b5c7635917f1dee8106d2e8350bb0cf64b104/package.json",
+    "sha256": "ecbcb27519a1975c750e2b263b05b31869978e5285b789991f55d1b147320266",
+    "bytes": 1918
+  }
+]

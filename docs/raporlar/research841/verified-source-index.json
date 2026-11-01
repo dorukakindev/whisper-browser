@@ -1,0 +1,1666 @@
+[
+  {
+    "domain": "assistant",
+    "repo": "LibreChat-AI/LibreChat",
+    "head": "f4154b649efa37e1345ccc517a4d8d1ed2178c82",
+    "path": "LICENSE",
+    "rawSha256": "1ce5c9d51e5ab764b44142cd44d1e687f5bfe32f807c7221c14d061007309b97",
+    "canonicalLfSha256": "1ce5c9d51e5ab764b44142cd44d1e687f5bfe32f807c7221c14d061007309b97"
+  },
+  {
+    "domain": "assistant",
+    "repo": "LibreChat-AI/LibreChat",
+    "head": "f4154b649efa37e1345ccc517a4d8d1ed2178c82",
+    "path": "README.md",
+    "rawSha256": "84a943a2e911f9a3566e9c959d6a5b0a7ceb69481d67d9d66817f4ea2bc95412",
+    "canonicalLfSha256": "84a943a2e911f9a3566e9c959d6a5b0a7ceb69481d67d9d66817f4ea2bc95412"
+  },
+  {
+    "domain": "assistant",
+    "repo": "LibreChat-AI/LibreChat",
+    "head": "f4154b649efa37e1345ccc517a4d8d1ed2178c82",
+    "path": "package.json",
+    "rawSha256": "12d4a4c6607a51a6b81ed52a97a55c67d60e75e0b49f715f1a6f27292718c9a0",
+    "canonicalLfSha256": "12d4a4c6607a51a6b81ed52a97a55c67d60e75e0b49f715f1a6f27292718c9a0"
+  },
+  {
+    "domain": "assistant",
+    "repo": "Mintplex-Labs/anything-llm",
+    "head": "9caf2b4c29d9782f1cba4142be2525ebfa0ecd43",
+    "path": "LICENSE",
+    "rawSha256": "782d2dc18a1ed9028ca992520f42b2e0b6187807da0d14455b8ae608e2e5692e",
+    "canonicalLfSha256": "782d2dc18a1ed9028ca992520f42b2e0b6187807da0d14455b8ae608e2e5692e"
+  },
+  {
+    "domain": "assistant",
+    "repo": "Mintplex-Labs/anything-llm",
+    "head": "9caf2b4c29d9782f1cba4142be2525ebfa0ecd43",
+    "path": "README.md",
+    "rawSha256": "54fa19d813e8bb7bbed9346771e17ad29a9d5753effa19427bea4c38de6c7a2c",
+    "canonicalLfSha256": "54fa19d813e8bb7bbed9346771e17ad29a9d5753effa19427bea4c38de6c7a2c"
+  },
+  {
+    "domain": "assistant",
+    "repo": "Mintplex-Labs/anything-llm",
+    "head": "9caf2b4c29d9782f1cba4142be2525ebfa0ecd43",
+    "path": "package.json",
+    "rawSha256": "ed313926f6abe8238a74b865f8615b79b61d8c36eac2aa5f562a6b6dcab10536",
+    "canonicalLfSha256": "ed313926f6abe8238a74b865f8615b79b61d8c36eac2aa5f562a6b6dcab10536"
+  },
+  {
+    "domain": "assistant",
+    "repo": "lobehub/lobehub",
+    "head": "4441d89c9ea0aebecdcb0a0d3d2327cc422ddf98",
+    "path": "LICENSE",
+    "rawSha256": "790a8c42f10beb4f5e9122e05a8e65d5522de49f89ac69cd31063c0f2be93ea4",
+    "canonicalLfSha256": "790a8c42f10beb4f5e9122e05a8e65d5522de49f89ac69cd31063c0f2be93ea4"
+  },
+  {
+    "domain": "assistant",
+    "repo": "lobehub/lobehub",
+    "head": "4441d89c9ea0aebecdcb0a0d3d2327cc422ddf98",
+    "path": "README.md",
+    "rawSha256": "eab1f94ce7d5822cf3a9cb59ccc17cc7deb55942a9f23947bb5a995859d032f7",
+    "canonicalLfSha256": "eab1f94ce7d5822cf3a9cb59ccc17cc7deb55942a9f23947bb5a995859d032f7"
+  },
+  {
+    "domain": "assistant",
+    "repo": "lobehub/lobehub",
+    "head": "4441d89c9ea0aebecdcb0a0d3d2327cc422ddf98",
+    "path": "package.json",
+    "rawSha256": "d501d32bef9670cb165e9f15a7f24ddb49b5b3f81bca28c0c5485ed109651497",
+    "canonicalLfSha256": "d501d32bef9670cb165e9f15a7f24ddb49b5b3f81bca28c0c5485ed109651497"
+  },
+  {
+    "domain": "assistant",
+    "repo": "khoj-ai/khoj",
+    "head": "ae229ca894c0b80ad84664afcfdde523b5e87057",
+    "path": "LICENSE",
+    "rawSha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef",
+    "canonicalLfSha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef"
+  },
+  {
+    "domain": "assistant",
+    "repo": "khoj-ai/khoj",
+    "head": "ae229ca894c0b80ad84664afcfdde523b5e87057",
+    "path": "README.md",
+    "rawSha256": "f43b29f1ad9d5792d4a2b1d46454c26249212c5f93e59923adc718463a3ac1ba",
+    "canonicalLfSha256": "f43b29f1ad9d5792d4a2b1d46454c26249212c5f93e59923adc718463a3ac1ba"
+  },
+  {
+    "domain": "assistant",
+    "repo": "CherryHQ/cherry-studio",
+    "head": "db125b265ecb6658d3bc99f2a65004605c237cab",
+    "path": "LICENSE",
+    "rawSha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
+    "canonicalLfSha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
+  },
+  {
+    "domain": "assistant",
+    "repo": "CherryHQ/cherry-studio",
+    "head": "db125b265ecb6658d3bc99f2a65004605c237cab",
+    "path": "README.md",
+    "rawSha256": "cbdd7003c8a2ac2d5b387ebb8f359d0f90c31df389f6a5593e32754a52adf170",
+    "canonicalLfSha256": "cbdd7003c8a2ac2d5b387ebb8f359d0f90c31df389f6a5593e32754a52adf170"
+  },
+  {
+    "domain": "assistant",
+    "repo": "CherryHQ/cherry-studio",
+    "head": "db125b265ecb6658d3bc99f2a65004605c237cab",
+    "path": "package.json",
+    "rawSha256": "28be96512f237b130b50c3cebcbc9a27ac1a87480a3b612e6149ff8d44c18658",
+    "canonicalLfSha256": "28be96512f237b130b50c3cebcbc9a27ac1a87480a3b612e6149ff8d44c18658"
+  },
+  {
+    "domain": "assistant",
+    "repo": "iOfficeAI/AionUi",
+    "head": "11cd2a9a20d1e033157636efc570b41384c66d85",
+    "path": "LICENSE",
+    "rawSha256": "a515d5a76da6c082f0d3d33a597bf82e32ecdac8841ed1783ac081ebd6d62ebf",
+    "canonicalLfSha256": "a515d5a76da6c082f0d3d33a597bf82e32ecdac8841ed1783ac081ebd6d62ebf"
+  },
+  {
+    "domain": "assistant",
+    "repo": "iOfficeAI/AionUi",
+    "head": "11cd2a9a20d1e033157636efc570b41384c66d85",
+    "path": "package.json",
+    "rawSha256": "f437f7350dcf27a375c96658dc10a4ef405cc7750f509d7490cbe5f34d290039",
+    "canonicalLfSha256": "f437f7350dcf27a375c96658dc10a4ef405cc7750f509d7490cbe5f34d290039"
+  },
+  {
+    "domain": "assistant",
+    "repo": "iOfficeAI/AionUi",
+    "head": "11cd2a9a20d1e033157636efc570b41384c66d85",
+    "path": "readme.md",
+    "rawSha256": "c72cd625c8e1ed4d23956d5320daac2824604e7c3d69b46eeaed6e7a7a8d8954",
+    "canonicalLfSha256": "c72cd625c8e1ed4d23956d5320daac2824604e7c3d69b46eeaed6e7a7a8d8954"
+  },
+  {
+    "domain": "assistant",
+    "repo": "mastra-ai/mastra",
+    "head": "e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58",
+    "path": "LICENSE.md",
+    "rawSha256": "f0351b469d1548e547882f01d2486a90f6bd0ff3c89defec841bbf5641265776",
+    "canonicalLfSha256": "f0351b469d1548e547882f01d2486a90f6bd0ff3c89defec841bbf5641265776"
+  },
+  {
+    "domain": "assistant",
+    "repo": "mastra-ai/mastra",
+    "head": "e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58",
+    "path": "README.md",
+    "rawSha256": "49dd3ceb119209ed5130d4c8654c9082bae072191ca0ef4d43ecc3ecd5c80d28",
+    "canonicalLfSha256": "49dd3ceb119209ed5130d4c8654c9082bae072191ca0ef4d43ecc3ecd5c80d28"
+  },
+  {
+    "domain": "assistant",
+    "repo": "mastra-ai/mastra",
+    "head": "e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58",
+    "path": "package.json",
+    "rawSha256": "d7b9842aeab7c38a0ec54277f47670c43330d1bedd810cfca0b7aece52d152ef",
+    "canonicalLfSha256": "d7b9842aeab7c38a0ec54277f47670c43330d1bedd810cfca0b7aece52d152ef"
+  },
+  {
+    "domain": "assistant",
+    "repo": "letta-ai/letta",
+    "head": "8816d3a8516893bfdc0fa14bfb1235226012e295",
+    "path": "LICENSE",
+    "rawSha256": "984c6db99fc6609803108dfc196762118662cd94b82a456dd9217583f18f3612",
+    "canonicalLfSha256": "984c6db99fc6609803108dfc196762118662cd94b82a456dd9217583f18f3612"
+  },
+  {
+    "domain": "assistant",
+    "repo": "letta-ai/letta",
+    "head": "8816d3a8516893bfdc0fa14bfb1235226012e295",
+    "path": "README.md",
+    "rawSha256": "67ec50661bb95db1839101863f08eaaa3cae3f2cc804adb2250a058393e56417",
+    "canonicalLfSha256": "67ec50661bb95db1839101863f08eaaa3cae3f2cc804adb2250a058393e56417"
+  },
+  {
+    "domain": "assistant",
+    "repo": "khoj-ai/khoj",
+    "head": "ae229ca894c0b80ad84664afcfdde523b5e87057",
+    "path": "src/interface/web/app/components/userMemory/userMemory.tsx",
+    "rawSha256": "6e84b565d282018d5df72a991b0b2e79632c09ec79371bec68c98e56efc7b34b",
+    "canonicalLfSha256": "6e84b565d282018d5df72a991b0b2e79632c09ec79371bec68c98e56efc7b34b"
+  },
+  {
+    "domain": "assistant",
+    "repo": "khoj-ai/khoj",
+    "head": "ae229ca894c0b80ad84664afcfdde523b5e87057",
+    "path": "src/khoj/processor/conversation/prompts.py",
+    "rawSha256": "15e4224aa5ce376d8412c9156023ff79d95d899a675a01b09c1b6426ecb9a5c7",
+    "canonicalLfSha256": "15e4224aa5ce376d8412c9156023ff79d95d899a675a01b09c1b6426ecb9a5c7"
+  },
+  {
+    "domain": "assistant",
+    "repo": "CherryHQ/cherry-studio",
+    "head": "db125b265ecb6658d3bc99f2a65004605c237cab",
+    "path": "src/main/ai/contextBuild/resolveContextWindow.ts",
+    "rawSha256": "21cd0589a6b1bc9374e0d8c44a135380fbe7d7a29d68a252b87e80521c977721",
+    "canonicalLfSha256": "21cd0589a6b1bc9374e0d8c44a135380fbe7d7a29d68a252b87e80521c977721"
+  },
+  {
+    "domain": "assistant",
+    "repo": "CherryHQ/cherry-studio",
+    "head": "db125b265ecb6658d3bc99f2a65004605c237cab",
+    "path": "src/main/ai/mcp/servers/agentMemory.ts",
+    "rawSha256": "61f00a7f1254c10a3f4fca95c69cbd391ede7406663f9ee22247ece61e2caa7b",
+    "canonicalLfSha256": "61f00a7f1254c10a3f4fca95c69cbd391ede7406663f9ee22247ece61e2caa7b"
+  },
+  {
+    "domain": "assistant",
+    "repo": "CherryHQ/cherry-studio",
+    "head": "db125b265ecb6658d3bc99f2a65004605c237cab",
+    "path": "src/main/ai/messages/messageCapabilities.ts",
+    "rawSha256": "4eae0bcd2649df68d3451f9e8190ab59942dc5bbcc5ff0d543fce6ae5f3b1a25",
+    "canonicalLfSha256": "4eae0bcd2649df68d3451f9e8190ab59942dc5bbcc5ff0d543fce6ae5f3b1a25"
+  },
+  {
+    "domain": "assistant",
+    "repo": "CherryHQ/cherry-studio",
+    "head": "db125b265ecb6658d3bc99f2a65004605c237cab",
+    "path": "src/main/ai/runtime/aiSdk/params/capabilities.ts",
+    "rawSha256": "8e692bf9f00ccf1c001e1104e44613aa4a0efcdf0240b25599c8a8756c30d70a",
+    "canonicalLfSha256": "8e692bf9f00ccf1c001e1104e44613aa4a0efcdf0240b25599c8a8756c30d70a"
+  },
+  {
+    "domain": "assistant",
+    "repo": "CherryHQ/cherry-studio",
+    "head": "db125b265ecb6658d3bc99f2a65004605c237cab",
+    "path": "src/main/ai/runtime/aiSdk/prompts/deferredTools.ts",
+    "rawSha256": "de5145af67ae4c0a7f00f0e6bfdb968a9eee2ea56c1b04494e58e8f957a5ae74",
+    "canonicalLfSha256": "de5145af67ae4c0a7f00f0e6bfdb968a9eee2ea56c1b04494e58e8f957a5ae74"
+  },
+  {
+    "domain": "assistant",
+    "repo": "CherryHQ/cherry-studio",
+    "head": "db125b265ecb6658d3bc99f2a65004605c237cab",
+    "path": "src/main/ai/runtime/fork/checkpoint.ts",
+    "rawSha256": "b8648e79756f2467721dd3a6885b36da65f63348d7e4414f2b9bb49141daebf8",
+    "canonicalLfSha256": "b8648e79756f2467721dd3a6885b36da65f63348d7e4414f2b9bb49141daebf8"
+  },
+  {
+    "domain": "assistant",
+    "repo": "Mintplex-Labs/anything-llm",
+    "head": "9caf2b4c29d9782f1cba4142be2525ebfa0ecd43",
+    "path": "frontend/src/components/WorkspaceChat/ChatContainer/MemoriesSidebar/MemoryModal/index.jsx",
+    "rawSha256": "f34736c108316f9abe0993b7c263a6723eef5ed7fd2baecda75a11c632611bf2",
+    "canonicalLfSha256": "f34736c108316f9abe0993b7c263a6723eef5ed7fd2baecda75a11c632611bf2"
+  },
+  {
+    "domain": "assistant",
+    "repo": "Mintplex-Labs/anything-llm",
+    "head": "9caf2b4c29d9782f1cba4142be2525ebfa0ecd43",
+    "path": "server/endpoints/memory.js",
+    "rawSha256": "cc8229f9d0bd2c1ff53aab09df487ab653db1b228543bb74574e476faca2e054",
+    "canonicalLfSha256": "cc8229f9d0bd2c1ff53aab09df487ab653db1b228543bb74574e476faca2e054"
+  },
+  {
+    "domain": "assistant",
+    "repo": "Mintplex-Labs/anything-llm",
+    "head": "9caf2b4c29d9782f1cba4142be2525ebfa0ecd43",
+    "path": "server/models/memory.js",
+    "rawSha256": "87c9682c3bbf52e5b5776f3e96e3de324dfdd750cd570844ee2ebf0ac6f2f4e0",
+    "canonicalLfSha256": "87c9682c3bbf52e5b5776f3e96e3de324dfdd750cd570844ee2ebf0ac6f2f4e0"
+  },
+  {
+    "domain": "assistant",
+    "repo": "Mintplex-Labs/anything-llm",
+    "head": "9caf2b4c29d9782f1cba4142be2525ebfa0ecd43",
+    "path": "server/models/slashCommandsPresets.js",
+    "rawSha256": "c53c8a9640bd33f425191eeca88b99ed0e271c9ba0a3fc137c836294414ed7a5",
+    "canonicalLfSha256": "c53c8a9640bd33f425191eeca88b99ed0e271c9ba0a3fc137c836294414ed7a5"
+  },
+  {
+    "domain": "assistant",
+    "repo": "Mintplex-Labs/anything-llm",
+    "head": "9caf2b4c29d9782f1cba4142be2525ebfa0ecd43",
+    "path": "server/utils/agents/aibitat/utils/toolReranker.js",
+    "rawSha256": "07bcaf134421599ddb513257d085eab73c3d746bb16abc4e00a6a12473a70171",
+    "canonicalLfSha256": "07bcaf134421599ddb513257d085eab73c3d746bb16abc4e00a6a12473a70171"
+  },
+  {
+    "domain": "assistant",
+    "repo": "Mintplex-Labs/anything-llm",
+    "head": "9caf2b4c29d9782f1cba4142be2525ebfa0ecd43",
+    "path": "server/utils/chats/stream.js",
+    "rawSha256": "ba53dbb043c313b39a180459e7652a29f085243094ab4dcaa437baf9cf48d18d",
+    "canonicalLfSha256": "ba53dbb043c313b39a180459e7652a29f085243094ab4dcaa437baf9cf48d18d"
+  },
+  {
+    "domain": "assistant",
+    "repo": "iOfficeAI/AionUi",
+    "head": "11cd2a9a20d1e033157636efc570b41384c66d85",
+    "path": "packages/desktop/src/common/utils/modelCapabilities.ts",
+    "rawSha256": "13df47dc1010557959915eb55e0a8596e072ca74bd9c02d6dd5a5138e622a14f",
+    "canonicalLfSha256": "13df47dc1010557959915eb55e0a8596e072ca74bd9c02d6dd5a5138e622a14f"
+  },
+  {
+    "domain": "assistant",
+    "repo": "iOfficeAI/AionUi",
+    "head": "11cd2a9a20d1e033157636efc570b41384c66d85",
+    "path": "packages/desktop/src/renderer/components/workspace/recentWorkspaces.ts",
+    "rawSha256": "03dc82b5f1a51385b1ec40fd0cf84ee3c54386870ac2c5682be2cf1064896848",
+    "canonicalLfSha256": "03dc82b5f1a51385b1ec40fd0cf84ee3c54386870ac2c5682be2cf1064896848"
+  },
+  {
+    "domain": "assistant",
+    "repo": "iOfficeAI/AionUi",
+    "head": "11cd2a9a20d1e033157636efc570b41384c66d85",
+    "path": "packages/desktop/src/renderer/hooks/file/useDiffPreviewHandlers.ts",
+    "rawSha256": "4d20dbbe14cbb2db8209d542eb9732a31efa000a7f15e4bc87454de5a5ee68df",
+    "canonicalLfSha256": "4d20dbbe14cbb2db8209d542eb9732a31efa000a7f15e4bc87454de5a5ee68df"
+  },
+  {
+    "domain": "assistant",
+    "repo": "iOfficeAI/AionUi",
+    "head": "11cd2a9a20d1e033157636efc570b41384c66d85",
+    "path": "packages/desktop/src/renderer/hooks/file/useWorkspaceSelector.ts",
+    "rawSha256": "3828910a65c079dfa9aeaef7ed717715cff58be69891b0661bf16bbb91c1baa5",
+    "canonicalLfSha256": "3828910a65c079dfa9aeaef7ed717715cff58be69891b0661bf16bbb91c1baa5"
+  },
+  {
+    "domain": "assistant",
+    "repo": "iOfficeAI/AionUi",
+    "head": "11cd2a9a20d1e033157636efc570b41384c66d85",
+    "path": "packages/desktop/src/renderer/pages/conversation/Messages/artifacts.tsx",
+    "rawSha256": "cb5816dcf21357c652023aa63cfd035dc37e4b16031ec205a65d789aaf169f02",
+    "canonicalLfSha256": "cb5816dcf21357c652023aa63cfd035dc37e4b16031ec205a65d789aaf169f02"
+  },
+  {
+    "domain": "assistant",
+    "repo": "iOfficeAI/AionUi",
+    "head": "11cd2a9a20d1e033157636efc570b41384c66d85",
+    "path": "packages/desktop/src/renderer/pages/conversation/Preview/components/PreviewPanel/PreviewTabs.tsx",
+    "rawSha256": "489abe71b37044c4401dc7bac34a93d3ab3bb40e6e17288d5863d5228ee8ee36",
+    "canonicalLfSha256": "489abe71b37044c4401dc7bac34a93d3ab3bb40e6e17288d5863d5228ee8ee36"
+  },
+  {
+    "domain": "assistant",
+    "repo": "mastra-ai/mastra",
+    "head": "e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58",
+    "path": "packages/core/src/background-tasks/adoption.ts",
+    "rawSha256": "723c002393bc8df2de724a8fb7be8b63e561a5bfd1f9313fe932d3dc6df657cf",
+    "canonicalLfSha256": "723c002393bc8df2de724a8fb7be8b63e561a5bfd1f9313fe932d3dc6df657cf"
+  },
+  {
+    "domain": "assistant",
+    "repo": "mastra-ai/mastra",
+    "head": "e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58",
+    "path": "packages/core/src/background-tasks/create.ts",
+    "rawSha256": "b451a78ea2a8789d50f86b9a65d815a5f79f794954f2ed5772ad724157552625",
+    "canonicalLfSha256": "b451a78ea2a8789d50f86b9a65d815a5f79f794954f2ed5772ad724157552625"
+  },
+  {
+    "domain": "assistant",
+    "repo": "mastra-ai/mastra",
+    "head": "e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58",
+    "path": "packages/core/src/background-tasks/manager.ts",
+    "rawSha256": "bed3028bc944a7bc740f5898ad5a57c804488b46526fc3de8d6b5d53c4fbb704",
+    "canonicalLfSha256": "bed3028bc944a7bc740f5898ad5a57c804488b46526fc3de8d6b5d53c4fbb704"
+  },
+  {
+    "domain": "assistant",
+    "repo": "mastra-ai/mastra",
+    "head": "e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58",
+    "path": "packages/core/src/datasets/experiment/scorer.ts",
+    "rawSha256": "8f3b59daa126c9c89b7facf35c9a48acff284c362fd213519d895336b5510638",
+    "canonicalLfSha256": "8f3b59daa126c9c89b7facf35c9a48acff284c362fd213519d895336b5510638"
+  },
+  {
+    "domain": "assistant",
+    "repo": "mastra-ai/mastra",
+    "head": "e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58",
+    "path": "packages/core/src/knowledge/semantic.ts",
+    "rawSha256": "3675b55d59a9b70e9f371220f17a1c1a7910b0a0192f2f428073e04283079fd6",
+    "canonicalLfSha256": "3675b55d59a9b70e9f371220f17a1c1a7910b0a0192f2f428073e04283079fd6"
+  },
+  {
+    "domain": "assistant",
+    "repo": "mastra-ai/mastra",
+    "head": "e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58",
+    "path": "packages/core/src/memory/working-memory-utils.ts",
+    "rawSha256": "dc636cbefd0a3626cf99ecab6b59e2932c98710bb292d821758ac4d2bc4a547e",
+    "canonicalLfSha256": "dc636cbefd0a3626cf99ecab6b59e2932c98710bb292d821758ac4d2bc4a547e"
+  },
+  {
+    "domain": "assistant",
+    "repo": "LibreChat-AI/LibreChat",
+    "head": "f4154b649efa37e1345ccc517a4d8d1ed2178c82",
+    "path": "api/server/services/Tools/search.js",
+    "rawSha256": "88af1581e57bcdde388b845bea4f42f491df4a1998f1c3772c1b148e78ad557f",
+    "canonicalLfSha256": "88af1581e57bcdde388b845bea4f42f491df4a1998f1c3772c1b148e78ad557f"
+  },
+  {
+    "domain": "assistant",
+    "repo": "LibreChat-AI/LibreChat",
+    "head": "f4154b649efa37e1345ccc517a4d8d1ed2178c82",
+    "path": "client/src/components/Artifacts/ArtifactVersion.tsx",
+    "rawSha256": "2e7fdf3810b748172109ac86d7f564a9d6d418f7a6ce720d8cdad613a4324cca",
+    "canonicalLfSha256": "2e7fdf3810b748172109ac86d7f564a9d6d418f7a6ce720d8cdad613a4324cca"
+  },
+  {
+    "domain": "assistant",
+    "repo": "LibreChat-AI/LibreChat",
+    "head": "f4154b649efa37e1345ccc517a4d8d1ed2178c82",
+    "path": "client/src/components/Chat/BackgroundTasks/rows.ts",
+    "rawSha256": "11b8a055d919f35be41b20ccd68eb2f9b8972a1e89eb0ec2344a49b3f8fe4c26",
+    "canonicalLfSha256": "11b8a055d919f35be41b20ccd68eb2f9b8972a1e89eb0ec2344a49b3f8fe4c26"
+  },
+  {
+    "domain": "assistant",
+    "repo": "LibreChat-AI/LibreChat",
+    "head": "f4154b649efa37e1345ccc517a4d8d1ed2178c82",
+    "path": "client/src/components/Chat/BackgroundTasks/useTasks.ts",
+    "rawSha256": "3795c1356816dda9157efef49651e2fcc43a104852851ae5bdd0bab5903b7b2b",
+    "canonicalLfSha256": "3795c1356816dda9157efef49651e2fcc43a104852851ae5bdd0bab5903b7b2b"
+  },
+  {
+    "domain": "assistant",
+    "repo": "LibreChat-AI/LibreChat",
+    "head": "f4154b649efa37e1345ccc517a4d8d1ed2178c82",
+    "path": "client/src/components/Chat/Messages/Content/MemoryInfo.tsx",
+    "rawSha256": "e28d04a27da893a73d74512055aaf245e25664535f1f3ab49810f958adcc6c66",
+    "canonicalLfSha256": "e28d04a27da893a73d74512055aaf245e25664535f1f3ab49810f958adcc6c66"
+  },
+  {
+    "domain": "assistant",
+    "repo": "LibreChat-AI/LibreChat",
+    "head": "f4154b649efa37e1345ccc517a4d8d1ed2178c82",
+    "path": "client/src/components/Nav/Settings/MemoryToggle.tsx",
+    "rawSha256": "342690c35a6de3115680e41c04f35d9ddd528a27f005e90db2cc0e54dd6ec786",
+    "canonicalLfSha256": "342690c35a6de3115680e41c04f35d9ddd528a27f005e90db2cc0e54dd6ec786"
+  },
+  {
+    "domain": "assistant",
+    "repo": "LibreChat-AI/LibreChat",
+    "head": "f4154b649efa37e1345ccc517a4d8d1ed2178c82",
+    "path": "client/src/components/Prompts/display/PromptVersions.tsx",
+    "rawSha256": "4d0768bfd55fc68156cff36141ad17104986ba819e3e5e3aad6056ef0f83a3d4",
+    "canonicalLfSha256": "4d0768bfd55fc68156cff36141ad17104986ba819e3e5e3aad6056ef0f83a3d4"
+  },
+  {
+    "domain": "assistant",
+    "repo": "lobehub/lobehub",
+    "head": "4441d89c9ea0aebecdcb0a0d3d2327cc422ddf98",
+    "path": "apps/server/src/modules/AgentRuntime/resolveModelMediaCapabilities.ts",
+    "rawSha256": "9e93675685e8b25317a626d2a2c5bb4a1fb0892c0bd63acc7d2a96d70d44cd36",
+    "canonicalLfSha256": "9e93675685e8b25317a626d2a2c5bb4a1fb0892c0bd63acc7d2a96d70d44cd36"
+  },
+  {
+    "domain": "assistant",
+    "repo": "lobehub/lobehub",
+    "head": "4441d89c9ea0aebecdcb0a0d3d2327cc422ddf98",
+    "path": "apps/server/src/routers/lambda/_helpers/acceptanceFeedbackRepair.ts",
+    "rawSha256": "89b4746df8e95a6c5cc311593279ee1286aaea224f1d7242d6e9be1defc3ff1a",
+    "canonicalLfSha256": "89b4746df8e95a6c5cc311593279ee1286aaea224f1d7242d6e9be1defc3ff1a"
+  },
+  {
+    "domain": "assistant",
+    "repo": "lobehub/lobehub",
+    "head": "4441d89c9ea0aebecdcb0a0d3d2327cc422ddf98",
+    "path": "apps/server/src/routers/lambda/userMemory.ts",
+    "rawSha256": "6689aea7d485b3dc6cd26d7bbaeed9e901003e87e4e6100720800ba9d2cd3e52",
+    "canonicalLfSha256": "6689aea7d485b3dc6cd26d7bbaeed9e901003e87e4e6100720800ba9d2cd3e52"
+  },
+  {
+    "domain": "assistant",
+    "repo": "lobehub/lobehub",
+    "head": "4441d89c9ea0aebecdcb0a0d3d2327cc422ddf98",
+    "path": "apps/server/src/services/agentRuntime/AgentRuntimeService/executeStep/deferredInit.ts",
+    "rawSha256": "cae25c8adaf277a196fd05fdb0dd278e75eba3f8a030b5384ff7199f486c6f72",
+    "canonicalLfSha256": "cae25c8adaf277a196fd05fdb0dd278e75eba3f8a030b5384ff7199f486c6f72"
+  },
+  {
+    "domain": "assistant",
+    "repo": "lobehub/lobehub",
+    "head": "4441d89c9ea0aebecdcb0a0d3d2327cc422ddf98",
+    "path": "apps/server/src/services/agentRuntime/hooks/deferredToolResultControl.ts",
+    "rawSha256": "b134111863b99659e1fa453a3a85ec997f1ee3293f76d138c5f986f2defd86cd",
+    "canonicalLfSha256": "b134111863b99659e1fa453a3a85ec997f1ee3293f76d138c5f986f2defd86cd"
+  },
+  {
+    "domain": "assistant",
+    "repo": "lobehub/lobehub",
+    "head": "4441d89c9ea0aebecdcb0a0d3d2327cc422ddf98",
+    "path": "apps/server/src/services/agentSignal/policies/analyzeIntent/actions/userMemory.ts",
+    "rawSha256": "2d3b0243db43b491acfc2056ebd4a31a8cf0b88f7c1e32c8719cb90b9a7633ba",
+    "canonicalLfSha256": "2d3b0243db43b491acfc2056ebd4a31a8cf0b88f7c1e32c8719cb90b9a7633ba"
+  },
+  {
+    "domain": "assistant",
+    "repo": "lobehub/lobehub",
+    "head": "4441d89c9ea0aebecdcb0a0d3d2327cc422ddf98",
+    "path": "apps/server/src/services/aiAgent/pipeline/deferredInit.ts",
+    "rawSha256": "751c5e03e28ecad58f7a56addc181a0e21a72d0fc2c084176b9c7d7d4e23c701",
+    "canonicalLfSha256": "751c5e03e28ecad58f7a56addc181a0e21a72d0fc2c084176b9c7d7d4e23c701"
+  },
+  {
+    "domain": "assistant",
+    "repo": "lobehub/lobehub",
+    "head": "4441d89c9ea0aebecdcb0a0d3d2327cc422ddf98",
+    "path": "packages/const/src/userMemory.ts",
+    "rawSha256": "b912214bacf724c6b17cda9d7ab13b4b3a4dd8686e98248e880f137197588144",
+    "canonicalLfSha256": "b912214bacf724c6b17cda9d7ab13b4b3a4dd8686e98248e880f137197588144"
+  },
+  {
+    "domain": "assistant",
+    "repo": "lobehub/lobehub",
+    "head": "4441d89c9ea0aebecdcb0a0d3d2327cc422ddf98",
+    "path": "packages/memory-user-memory/src/providers/existingUserMemory.ts",
+    "rawSha256": "0290475823aab8d7c992c93b8d462fd7a00d257b8918671c14a69f22bf77af98",
+    "canonicalLfSha256": "0290475823aab8d7c992c93b8d462fd7a00d257b8918671c14a69f22bf77af98"
+  },
+  {
+    "domain": "assistant",
+    "repo": "lobehub/lobehub",
+    "head": "4441d89c9ea0aebecdcb0a0d3d2327cc422ddf98",
+    "path": "packages/tool-view-model/src/projectors/userMemory.ts",
+    "rawSha256": "24bcce09670c8d67dcb8bce5f42ff8c92ed96d6548995ab3c937a72f267e2d18",
+    "canonicalLfSha256": "24bcce09670c8d67dcb8bce5f42ff8c92ed96d6548995ab3c937a72f267e2d18"
+  },
+  {
+    "domain": "assistant",
+    "repo": "CherryHQ/cherry-studio",
+    "head": "db125b265ecb6658d3bc99f2a65004605c237cab",
+    "path": "src/main/ai/contextBuild/toolOutputStore.ts",
+    "rawSha256": "61e699c71b3344482e841b2845261f623a64dacc8ca9f10bcbf4959f3aa274d6",
+    "canonicalLfSha256": "61e699c71b3344482e841b2845261f623a64dacc8ca9f10bcbf4959f3aa274d6"
+  },
+  {
+    "domain": "assistant",
+    "repo": "CherryHQ/cherry-studio",
+    "head": "db125b265ecb6658d3bc99f2a65004605c237cab",
+    "path": "src/main/ai/contextBuild/resolveInputRoom.ts",
+    "rawSha256": "bc357e871efdc80ec829d977159f541f2a24a639dc8387fa093ef9a69c67127d",
+    "canonicalLfSha256": "bc357e871efdc80ec829d977159f541f2a24a639dc8387fa093ef9a69c67127d"
+  },
+  {
+    "domain": "assistant",
+    "repo": "CherryHQ/cherry-studio",
+    "head": "db125b265ecb6658d3bc99f2a65004605c237cab",
+    "path": "src/main/ai/contextBuild/resolveOutputReservation.ts",
+    "rawSha256": "9c98ed59f14dd14772c1f4386dbf3ff111bbb31007ead6201510bd706483fc79",
+    "canonicalLfSha256": "9c98ed59f14dd14772c1f4386dbf3ff111bbb31007ead6201510bd706483fc79"
+  },
+  {
+    "domain": "assistant",
+    "repo": "letta-ai/letta-code",
+    "head": "ebd590b11bef049884b923da5ed3f5d087af81e0",
+    "path": "src/agent/memory-constraints.ts",
+    "rawSha256": "22096ac634517519892328aa2e9f6ce95f53b2c6a3a259e83a3dc7a5889f5690",
+    "canonicalLfSha256": "22096ac634517519892328aa2e9f6ce95f53b2c6a3a259e83a3dc7a5889f5690"
+  },
+  {
+    "domain": "assistant",
+    "repo": "letta-ai/letta-code",
+    "head": "ebd590b11bef049884b923da5ed3f5d087af81e0",
+    "path": "src/agent/memory-conflict-repair.ts",
+    "rawSha256": "d45b77562bb6954e3d265a804803de32d424f6faf31b0c5940bc8ed109d9589e",
+    "canonicalLfSha256": "d45b77562bb6954e3d265a804803de32d424f6faf31b0c5940bc8ed109d9589e"
+  },
+  {
+    "domain": "assistant",
+    "repo": "letta-ai/letta-code",
+    "head": "ebd590b11bef049884b923da5ed3f5d087af81e0",
+    "path": "src/agent/max-context.ts",
+    "rawSha256": "72b6df3ca741db7c6a1bcae7b1f264cfda0b2c6134297dc4a1d16c9e0e48c9ed",
+    "canonicalLfSha256": "72b6df3ca741db7c6a1bcae7b1f264cfda0b2c6134297dc4a1d16c9e0e48c9ed"
+  },
+  {
+    "domain": "assistant",
+    "repo": "letta-ai/letta-code",
+    "head": "ebd590b11bef049884b923da5ed3f5d087af81e0",
+    "path": "src/agent/conversation-model-carryover.ts",
+    "rawSha256": "7cc438296448c2bdfaea21f8d38a241cc74694033665bd97c5d96a10b551560a",
+    "canonicalLfSha256": "7cc438296448c2bdfaea21f8d38a241cc74694033665bd97c5d96a10b551560a"
+  },
+  {
+    "domain": "assistant",
+    "repo": "letta-ai/letta-code",
+    "head": "ebd590b11bef049884b923da5ed3f5d087af81e0",
+    "path": "src/backend/local/local-model-config.ts",
+    "rawSha256": "c861f307f89012dfa9f1017ec899ab372bc070f2415afce2e4d1619373d90e32",
+    "canonicalLfSha256": "c861f307f89012dfa9f1017ec899ab372bc070f2415afce2e4d1619373d90e32"
+  },
+  {
+    "domain": "browser",
+    "repo": "minbrowser/min",
+    "head": "c92079cde045c38ab844e53501e9c5178d503a45",
+    "path": "js/tabState/task.js",
+    "rawSha256": "3236ed9a13f56e4790ff54a84e38c6ab85f4428bbc5671f68c9250976b5eca8f",
+    "canonicalLfSha256": "3236ed9a13f56e4790ff54a84e38c6ab85f4428bbc5671f68c9250976b5eca8f"
+  },
+  {
+    "domain": "browser",
+    "repo": "minbrowser/min",
+    "head": "c92079cde045c38ab844e53501e9c5178d503a45",
+    "path": "js/sessionRestore.js",
+    "rawSha256": "819932b3b59903a60ec4a89e2c27d522e88fe4de30e1221348f58d7865f12c39",
+    "canonicalLfSha256": "819932b3b59903a60ec4a89e2c27d522e88fe4de30e1221348f58d7865f12c39"
+  },
+  {
+    "domain": "browser",
+    "repo": "minbrowser/min",
+    "head": "c92079cde045c38ab844e53501e9c5178d503a45",
+    "path": "js/places/fullTextSearch.js",
+    "rawSha256": "841b1d8d15e0261109dcd11155286acf46ae4dfd240f7ee70b70e8fd6615eed3",
+    "canonicalLfSha256": "841b1d8d15e0261109dcd11155286acf46ae4dfd240f7ee70b70e8fd6615eed3"
+  },
+  {
+    "domain": "browser",
+    "repo": "minbrowser/min",
+    "head": "c92079cde045c38ab844e53501e9c5178d503a45",
+    "path": "js/places/placesService.js",
+    "rawSha256": "47b3e74aac46b3773b7b1615eb61761bfd6ec12c53abe5e70f20c7fe6616ba24",
+    "canonicalLfSha256": "47b3e74aac46b3773b7b1615eb61761bfd6ec12c53abe5e70f20c7fe6616ba24"
+  },
+  {
+    "domain": "browser",
+    "repo": "minbrowser/min",
+    "head": "c92079cde045c38ab844e53501e9c5178d503a45",
+    "path": "js/places/tagIndex.js",
+    "rawSha256": "9adf9f8722cac45766fbf8b29d7ebbb81682cecdbba8b8a216b4b3a2005f4b56",
+    "canonicalLfSha256": "9adf9f8722cac45766fbf8b29d7ebbb81682cecdbba8b8a216b4b3a2005f4b56"
+  },
+  {
+    "domain": "browser",
+    "repo": "minbrowser/min",
+    "head": "c92079cde045c38ab844e53501e9c5178d503a45",
+    "path": "main/permissionManager.js",
+    "rawSha256": "4ce77bdb69bc542e10e13e7cf24b50e91d43ac1c4bab099b29a0554be58abac0",
+    "canonicalLfSha256": "4ce77bdb69bc542e10e13e7cf24b50e91d43ac1c4bab099b29a0554be58abac0"
+  },
+  {
+    "domain": "browser",
+    "repo": "minbrowser/min",
+    "head": "c92079cde045c38ab844e53501e9c5178d503a45",
+    "path": "js/taskOverlay/taskOverlay.js",
+    "rawSha256": "2845cfdb3c9015653b824aad36c3f9755fd02e9d69753ab805d30f9d660c75de",
+    "canonicalLfSha256": "2845cfdb3c9015653b824aad36c3f9755fd02e9d69753ab805d30f9d660c75de"
+  },
+  {
+    "domain": "browser",
+    "repo": "minbrowser/min",
+    "head": "c92079cde045c38ab844e53501e9c5178d503a45",
+    "path": "js/bookmarkConverter.js",
+    "rawSha256": "deaa318464b75931743c4131711effc827a707d58a60cd1a7b08e41b7d959b40",
+    "canonicalLfSha256": "deaa318464b75931743c4131711effc827a707d58a60cd1a7b08e41b7d959b40"
+  },
+  {
+    "domain": "browser",
+    "repo": "n4ze3m/page-assist",
+    "head": "1ecdac5ca3b4a13be657740add2e29ea1669097f",
+    "path": "src/utils/text-splitter.ts",
+    "rawSha256": "8aad9da5c69da5e46b2a531c477e25fde7ee707f9061b1eb68c0b5ccbcb6852f",
+    "canonicalLfSha256": "8aad9da5c69da5e46b2a531c477e25fde7ee707f9061b1eb68c0b5ccbcb6852f"
+  },
+  {
+    "domain": "browser",
+    "repo": "n4ze3m/page-assist",
+    "head": "1ecdac5ca3b4a13be657740add2e29ea1669097f",
+    "path": "src/utils/file-processor.ts",
+    "rawSha256": "c4dccb3c245a418e52a03234da784f92df1d446e35be482b67b506cf2d5c6e9b",
+    "canonicalLfSha256": "c4dccb3c245a418e52a03234da784f92df1d446e35be482b67b506cf2d5c6e9b"
+  },
+  {
+    "domain": "browser",
+    "repo": "n4ze3m/page-assist",
+    "head": "1ecdac5ca3b4a13be657740add2e29ea1669097f",
+    "path": "src/hooks/chat-modes/ragMode.ts",
+    "rawSha256": "c0f24d6b32b9462b97eac3854e09c55af2d6925f82ea2a65e9ac513b5b857950",
+    "canonicalLfSha256": "c0f24d6b32b9462b97eac3854e09c55af2d6925f82ea2a65e9ac513b5b857950"
+  },
+  {
+    "domain": "browser",
+    "repo": "n4ze3m/page-assist",
+    "head": "1ecdac5ca3b4a13be657740add2e29ea1669097f",
+    "path": "src/services/search.ts",
+    "rawSha256": "420d7bc043a02aa8c2ea45a9a3dabf26c3f943d1efac4eba24f079bd1834081b",
+    "canonicalLfSha256": "420d7bc043a02aa8c2ea45a9a3dabf26c3f943d1efac4eba24f079bd1834081b"
+  },
+  {
+    "domain": "browser",
+    "repo": "n4ze3m/page-assist",
+    "head": "1ecdac5ca3b4a13be657740add2e29ea1669097f",
+    "path": "src/web/search-engines/searxng.ts",
+    "rawSha256": "a828ae45ad649675f0c5ef573175fda7e201203381b7d2ae21a41f32e2f86261",
+    "canonicalLfSha256": "a828ae45ad649675f0c5ef573175fda7e201203381b7d2ae21a41f32e2f86261"
+  },
+  {
+    "domain": "browser",
+    "repo": "n4ze3m/page-assist",
+    "head": "1ecdac5ca3b4a13be657740add2e29ea1669097f",
+    "path": "src/parser/reader.ts",
+    "rawSha256": "6b31876b95d438a4cf846737e72129e64458094b07a47c8092b8adbc452982a0",
+    "canonicalLfSha256": "6b31876b95d438a4cf846737e72129e64458094b07a47c8092b8adbc452982a0"
+  },
+  {
+    "domain": "browser",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "packages/trpc/models/rules.ts",
+    "rawSha256": "8eaa300a03de1f95bffa11159067c74937f825a77822b4d34bc9df66b8aecd4e",
+    "canonicalLfSha256": "8eaa300a03de1f95bffa11159067c74937f825a77822b4d34bc9df66b8aecd4e"
+  },
+  {
+    "domain": "browser",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "packages/trpc/routers/highlights.ts",
+    "rawSha256": "03ed331dadff6862f911679741263466c6db28f2118af4c8c8889c6d11df6f47",
+    "canonicalLfSha256": "03ed331dadff6862f911679741263466c6db28f2118af4c8c8889c6d11df6f47"
+  },
+  {
+    "domain": "browser",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "packages/shared/search.ts",
+    "rawSha256": "68d324c0c817182f7ee151172ea95709d949a5132f00812733d56bfd75a0e962",
+    "canonicalLfSha256": "68d324c0c817182f7ee151172ea95709d949a5132f00812733d56bfd75a0e962"
+  },
+  {
+    "domain": "browser",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "packages/trpc/models/lists.ts",
+    "rawSha256": "263e4e99bd6a33514f9c487fd37550068126b4d5dc4c02d19bf26ce84668a011",
+    "canonicalLfSha256": "263e4e99bd6a33514f9c487fd37550068126b4d5dc4c02d19bf26ce84668a011"
+  },
+  {
+    "domain": "browser",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "packages/shared/types/rules.ts",
+    "rawSha256": "50747febb335b8563a05d2ec491e729b1071cbf4189af2ec11091a76bcb8d240",
+    "canonicalLfSha256": "50747febb335b8563a05d2ec491e729b1071cbf4189af2ec11091a76bcb8d240"
+  },
+  {
+    "domain": "browser",
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "packages/shared-react/components/highlights.ts",
+    "rawSha256": "f4a4401a6da8da7d52b43ddc99d0d64b17485c03a605cc5b927479dca6158431",
+    "canonicalLfSha256": "f4a4401a6da8da7d52b43ddc99d0d64b17485c03a605cc5b927479dca6158431"
+  },
+  {
+    "domain": "browser",
+    "repo": "linkwarden/linkwarden",
+    "head": "eff7c6b735f6b20a4766745dc86c6bdc52bd9840",
+    "path": "apps/worker/lib/preservationScheme/handleScreenshotAndPdf.ts",
+    "rawSha256": "15143113c11b73407f005bc74df230a4fd41e08ae8517ca2e2fa327e10e1795c",
+    "canonicalLfSha256": "15143113c11b73407f005bc74df230a4fd41e08ae8517ca2e2fa327e10e1795c"
+  },
+  {
+    "domain": "browser",
+    "repo": "linkwarden/linkwarden",
+    "head": "eff7c6b735f6b20a4766745dc86c6bdc52bd9840",
+    "path": "apps/worker/lib/archiveHandler.ts",
+    "rawSha256": "ba5cb2ec0a47a3f11334194512bc99e778704d24149c0a32c50382b86f130a28",
+    "canonicalLfSha256": "ba5cb2ec0a47a3f11334194512bc99e778704d24149c0a32c50382b86f130a28"
+  },
+  {
+    "domain": "browser",
+    "repo": "linkwarden/linkwarden",
+    "head": "eff7c6b735f6b20a4766745dc86c6bdc52bd9840",
+    "path": "apps/web/lib/api/searchQueryBuilder.ts",
+    "rawSha256": "a67508182256383231ff3bd4618d8c2db4bc0d472fa6b6081eb7b399b3c33364",
+    "canonicalLfSha256": "a67508182256383231ff3bd4618d8c2db4bc0d472fa6b6081eb7b399b3c33364"
+  },
+  {
+    "domain": "browser",
+    "repo": "linkwarden/linkwarden",
+    "head": "eff7c6b735f6b20a4766745dc86c6bdc52bd9840",
+    "path": "apps/web/lib/api/controllers/highlights/postOrUpdateHighlight.ts",
+    "rawSha256": "41629772f679ed9d24825eea8dae370cb197d193c6cbc4f38e0db05395917ba0",
+    "canonicalLfSha256": "41629772f679ed9d24825eea8dae370cb197d193c6cbc4f38e0db05395917ba0"
+  },
+  {
+    "domain": "browser",
+    "repo": "linkwarden/linkwarden",
+    "head": "eff7c6b735f6b20a4766745dc86c6bdc52bd9840",
+    "path": "apps/worker/lib/preservationScheme/sanitizeHtmlForMonolith.ts",
+    "rawSha256": "a5070f4df7fce2a198927de88402f196b507a8e490fd3d85c4b742aecffe15e0",
+    "canonicalLfSha256": "a5070f4df7fce2a198927de88402f196b507a8e490fd3d85c4b742aecffe15e0"
+  },
+  {
+    "domain": "browser",
+    "repo": "linkwarden/linkwarden",
+    "head": "eff7c6b735f6b20a4766745dc86c6bdc52bd9840",
+    "path": "apps/web/lib/api/archives/resolveAccessibleArchive.ts",
+    "rawSha256": "ba640ea0273eb0c88bd2ee281fef641330d645d33e7439baae097a02f56243b6",
+    "canonicalLfSha256": "ba640ea0273eb0c88bd2ee281fef641330d645d33e7439baae097a02f56243b6"
+  },
+  {
+    "domain": "browser",
+    "repo": "gildas-lormeau/SingleFile",
+    "head": "b98ad61e8bc09ceed8edb7a5efca17980afe040d",
+    "path": "src/core/content/content.js",
+    "rawSha256": "fcde5e3a8a63e3de1634f6d30164c27619a237d1ba23a72a3df2d28d14879d56",
+    "canonicalLfSha256": "fcde5e3a8a63e3de1634f6d30164c27619a237d1ba23a72a3df2d28d14879d56"
+  },
+  {
+    "domain": "browser",
+    "repo": "gildas-lormeau/SingleFile",
+    "head": "b98ad61e8bc09ceed8edb7a5efca17980afe040d",
+    "path": "src/core/content/content-frames.js",
+    "rawSha256": "dd49c5088583373bc9718790b26388610a38da2fdf593838021ac16850ac4446",
+    "canonicalLfSha256": "dd49c5088583373bc9718790b26388610a38da2fdf593838021ac16850ac4446"
+  },
+  {
+    "domain": "browser",
+    "repo": "gildas-lormeau/SingleFile",
+    "head": "b98ad61e8bc09ceed8edb7a5efca17980afe040d",
+    "path": "src/core/bg/config.js",
+    "rawSha256": "1754fb26403dc0d8f119d2ac8aceb01aae15715b06278d13c1dba05ccc58cb35",
+    "canonicalLfSha256": "1754fb26403dc0d8f119d2ac8aceb01aae15715b06278d13c1dba05ccc58cb35"
+  },
+  {
+    "domain": "browser",
+    "repo": "gildas-lormeau/SingleFile",
+    "head": "b98ad61e8bc09ceed8edb7a5efca17980afe040d",
+    "path": "src/core/bg/autosave.js",
+    "rawSha256": "74a36742fc0b79f7042c36b3732f4ebdec3e3a092f41e8b588cb68e490e7903c",
+    "canonicalLfSha256": "74a36742fc0b79f7042c36b3732f4ebdec3e3a092f41e8b588cb68e490e7903c"
+  },
+  {
+    "domain": "browser",
+    "repo": "gildas-lormeau/SingleFile",
+    "head": "b98ad61e8bc09ceed8edb7a5efca17980afe040d",
+    "path": "src/core/bg/downloads.js",
+    "rawSha256": "57c0e282d3a6747889c330ec61771b5e27013091f35af0960e3c6e5caba24f0f",
+    "canonicalLfSha256": "57c0e282d3a6747889c330ec61771b5e27013091f35af0960e3c6e5caba24f0f"
+  },
+  {
+    "domain": "browser",
+    "repo": "gildas-lormeau/SingleFile",
+    "head": "b98ad61e8bc09ceed8edb7a5efca17980afe040d",
+    "path": "src/core/bg/external-capture-permissions.js",
+    "rawSha256": "6c203db51d6cfc85473c2c2c13e08816b483d4530af6ca89edff03c7b847e048",
+    "canonicalLfSha256": "6c203db51d6cfc85473c2c2c13e08816b483d4530af6ca89edff03c7b847e048"
+  },
+  {
+    "domain": "browser",
+    "repo": "unclecode/crawl4ai",
+    "head": "888299fb5f0b82181897dc0e61bfb4b036f0aea5",
+    "path": "crawl4ai/deep_crawling/filters.py",
+    "rawSha256": "55858c24196e99536e3ed15c13dcbe40f0ab2eb10c65dd1a23af4f553dd08ef6",
+    "canonicalLfSha256": "55858c24196e99536e3ed15c13dcbe40f0ab2eb10c65dd1a23af4f553dd08ef6"
+  },
+  {
+    "domain": "browser",
+    "repo": "unclecode/crawl4ai",
+    "head": "888299fb5f0b82181897dc0e61bfb4b036f0aea5",
+    "path": "crawl4ai/deep_crawling/scorers.py",
+    "rawSha256": "549ddd640613b3795dc0bca8a5ce72bb3ff27f8633810781d571192030c776d8",
+    "canonicalLfSha256": "549ddd640613b3795dc0bca8a5ce72bb3ff27f8633810781d571192030c776d8"
+  },
+  {
+    "domain": "browser",
+    "repo": "unclecode/crawl4ai",
+    "head": "888299fb5f0b82181897dc0e61bfb4b036f0aea5",
+    "path": "crawl4ai/deep_crawling/bfs_strategy.py",
+    "rawSha256": "3c2b64cde51213302541eba34a08892a92e7072fff1973e8ca075c9350af2df9",
+    "canonicalLfSha256": "3c2b64cde51213302541eba34a08892a92e7072fff1973e8ca075c9350af2df9"
+  },
+  {
+    "domain": "browser",
+    "repo": "unclecode/crawl4ai",
+    "head": "888299fb5f0b82181897dc0e61bfb4b036f0aea5",
+    "path": "crawl4ai/markdown_generation_strategy.py",
+    "rawSha256": "f6ea10df7b96f2876c8769afc7638a83884315c87abf41036f8710420669fa00",
+    "canonicalLfSha256": "f6ea10df7b96f2876c8769afc7638a83884315c87abf41036f8710420669fa00"
+  },
+  {
+    "domain": "browser",
+    "repo": "unclecode/crawl4ai",
+    "head": "888299fb5f0b82181897dc0e61bfb4b036f0aea5",
+    "path": "crawl4ai/content_filter_strategy.py",
+    "rawSha256": "e31a6ad933bc673dcb18359792098a245a0c6d23e76a27c92b37fa292f2f92ba",
+    "canonicalLfSha256": "e31a6ad933bc673dcb18359792098a245a0c6d23e76a27c92b37fa292f2f92ba"
+  },
+  {
+    "domain": "browser",
+    "repo": "unclecode/crawl4ai",
+    "head": "888299fb5f0b82181897dc0e61bfb4b036f0aea5",
+    "path": "crawl4ai/async_dispatcher.py",
+    "rawSha256": "928abf53ebde72046378997087bb91d5599fe0f798ecb358d3bc2db8aa6345ef",
+    "canonicalLfSha256": "928abf53ebde72046378997087bb91d5599fe0f798ecb358d3bc2db8aa6345ef"
+  },
+  {
+    "domain": "browser",
+    "repo": "unclecode/crawl4ai",
+    "head": "888299fb5f0b82181897dc0e61bfb4b036f0aea5",
+    "path": "crawl4ai/cache_validator.py",
+    "rawSha256": "2c0245a9f17a9fc33f84c3d884409053a00035f3a656ee06acee77988c4deee7",
+    "canonicalLfSha256": "2c0245a9f17a9fc33f84c3d884409053a00035f3a656ee06acee77988c4deee7"
+  },
+  {
+    "domain": "browser",
+    "repo": "firecrawl/firecrawl",
+    "head": "7e6bd701febaacc3bb95c0fb7eee2c509a4813c5",
+    "path": "apps/api/src/lib/highlight-spans.ts",
+    "rawSha256": "a502a4be98c2ba66289bddb3fd6fe5a9324056bc29e38793ba271ba54dffa725",
+    "canonicalLfSha256": "a502a4be98c2ba66289bddb3fd6fe5a9324056bc29e38793ba271ba54dffa725"
+  },
+  {
+    "domain": "browser",
+    "repo": "firecrawl/firecrawl",
+    "head": "7e6bd701febaacc3bb95c0fb7eee2c509a4813c5",
+    "path": "apps/api/src/search/operators.ts",
+    "rawSha256": "8a65a67ab6ae7864235b49f9cd40c78598dff224933cd9de30ec5fea583321a6",
+    "canonicalLfSha256": "8a65a67ab6ae7864235b49f9cd40c78598dff224933cd9de30ec5fea583321a6"
+  },
+  {
+    "domain": "browser",
+    "repo": "firecrawl/firecrawl",
+    "head": "7e6bd701febaacc3bb95c0fb7eee2c509a4813c5",
+    "path": "apps/api/src/services/monitoring/search/dedupe.ts",
+    "rawSha256": "bc6d611d55232b31e431be8e4cb802918fdace95a3dd00124775cf2252b5cbaf",
+    "canonicalLfSha256": "bc6d611d55232b31e431be8e4cb802918fdace95a3dd00124775cf2252b5cbaf"
+  },
+  {
+    "domain": "browser",
+    "repo": "firecrawl/firecrawl",
+    "head": "7e6bd701febaacc3bb95c0fb7eee2c509a4813c5",
+    "path": "apps/api/src/lib/search-query-builder.ts",
+    "rawSha256": "4054df44da139b98b34f774acab352ea4ef3f46318b66bd9ac0149d3c5c45fad",
+    "canonicalLfSha256": "4054df44da139b98b34f774acab352ea4ef3f46318b66bd9ac0149d3c5c45fad"
+  },
+  {
+    "domain": "discovery",
+    "repo": "streamyfin/streamyfin",
+    "head": "284d5527f3aa0f099a7124b6e9d7fb8321ccd51c",
+    "path": "components/search/TVSearchPage.tsx",
+    "rawSha256": "21b149e4a96b184fa7627874d5a8634b8edeede8cba35c68be6dc4d37842ddce",
+    "canonicalLfSha256": "21b149e4a96b184fa7627874d5a8634b8edeede8cba35c68be6dc4d37842ddce"
+  },
+  {
+    "domain": "discovery",
+    "repo": "streamyfin/streamyfin",
+    "head": "284d5527f3aa0f099a7124b6e9d7fb8321ccd51c",
+    "path": "components/search/DiscoverFilters.tsx",
+    "rawSha256": "fba04d6ace14745bda99a0f7611f250e12f53d98ecba3627eef787deb20c3c8d",
+    "canonicalLfSha256": "fba04d6ace14745bda99a0f7611f250e12f53d98ecba3627eef787deb20c3c8d"
+  },
+  {
+    "domain": "discovery",
+    "repo": "streamyfin/streamyfin",
+    "head": "284d5527f3aa0f099a7124b6e9d7fb8321ccd51c",
+    "path": "components/home/StreamystatsRecommendations.tsx",
+    "rawSha256": "3fcea09cddc15932f352865b0ee69f4c61ec56b744c3c6e5e84c7b943d0a788b",
+    "canonicalLfSha256": "3fcea09cddc15932f352865b0ee69f4c61ec56b744c3c6e5e84c7b943d0a788b"
+  },
+  {
+    "domain": "discovery",
+    "repo": "streamyfin/streamyfin",
+    "head": "284d5527f3aa0f099a7124b6e9d7fb8321ccd51c",
+    "path": "components/ItemCollections.tsx",
+    "rawSha256": "426bf4f76b0c97889ae320c39ce562d67bedd0a653b218dc447a4b3b509fc9c2",
+    "canonicalLfSha256": "426bf4f76b0c97889ae320c39ce562d67bedd0a653b218dc447a4b3b509fc9c2"
+  },
+  {
+    "domain": "discovery",
+    "repo": "leepeuker/movary",
+    "head": "0271a92eb145a2f3525963424efa7b77754546b7",
+    "path": "src/HttpController/Web/Movie/MovieWatchProviderController.php",
+    "rawSha256": "fa2939b446d2223b16f04ee32244020ded2d2e0e0751f0c356c7532d5c58473d",
+    "canonicalLfSha256": "fa2939b446d2223b16f04ee32244020ded2d2e0e0751f0c356c7532d5c58473d"
+  },
+  {
+    "domain": "discovery",
+    "repo": "leepeuker/movary",
+    "head": "0271a92eb145a2f3525963424efa7b77754546b7",
+    "path": "src/Api/Tmdb/Dto/TmdbWatchProviderCollection.php",
+    "rawSha256": "003d7b10960e05521b8626d53230775ff12c2bcbf13b9a2199b357dd948b16a4",
+    "canonicalLfSha256": "003d7b10960e05521b8626d53230775ff12c2bcbf13b9a2199b357dd948b16a4"
+  },
+  {
+    "domain": "discovery",
+    "repo": "leepeuker/movary",
+    "head": "0271a92eb145a2f3525963424efa7b77754546b7",
+    "path": "src/HttpController/Web/PersonController.php",
+    "rawSha256": "be8907aba448f8e60dca2983e453b7319d40153e1baa4c310027049e70be5a48",
+    "canonicalLfSha256": "be8907aba448f8e60dca2983e453b7319d40153e1baa4c310027049e70be5a48"
+  },
+  {
+    "domain": "discovery",
+    "repo": "leepeuker/movary",
+    "head": "0271a92eb145a2f3525963424efa7b77754546b7",
+    "path": "src/Service/Letterboxd/LetterboxdExporter.php",
+    "rawSha256": "6267d084234d4e240727291e5cb83ca5d7393374d2b31063200ea8acbf6df1d2",
+    "canonicalLfSha256": "6267d084234d4e240727291e5cb83ca5d7393374d2b31063200ea8acbf6df1d2"
+  },
+  {
+    "domain": "discovery",
+    "repo": "leepeuker/movary",
+    "head": "0271a92eb145a2f3525963424efa7b77754546b7",
+    "path": "templates/component/watch-providers.html.twig",
+    "rawSha256": "d5f747d41860645c2944994983e1195d81e3936ebdb90c731ee991ec68eb3e0c",
+    "canonicalLfSha256": "d5f747d41860645c2944994983e1195d81e3936ebdb90c731ee991ec68eb3e0c"
+  },
+  {
+    "domain": "discovery",
+    "repo": "leepeuker/movary",
+    "head": "0271a92eb145a2f3525963424efa7b77754546b7",
+    "path": "src/HttpController/Api/RequestMapper/SearchRequestMapper.php",
+    "rawSha256": "697b523caa2e1fc329f38689ba2a3fa31caf7116ce1da3fff50bc70d89641f52",
+    "canonicalLfSha256": "697b523caa2e1fc329f38689ba2a3fa31caf7116ce1da3fff50bc70d89641f52"
+  },
+  {
+    "domain": "discovery",
+    "repo": "IgnisDa/ryot",
+    "head": "822cc6701b46aedbc436abbf02e7efb94afd5f05",
+    "path": "crates/services/collection/src/recommendation_operations.rs",
+    "rawSha256": "087f3863ba5747f2c81f1a4ba125ca287bd172bd2b48aff5acf06776f79bbe30",
+    "canonicalLfSha256": "087f3863ba5747f2c81f1a4ba125ca287bd172bd2b48aff5acf06776f79bbe30"
+  },
+  {
+    "domain": "discovery",
+    "repo": "IgnisDa/ryot",
+    "head": "822cc6701b46aedbc436abbf02e7efb94afd5f05",
+    "path": "crates/services/user/src/recommendation_operations.rs",
+    "rawSha256": "2e7288a861f845d5f7edeae8c6fd5e9314c09cdbc9966c2fe476896bbad541d3",
+    "canonicalLfSha256": "2e7288a861f845d5f7edeae8c6fd5e9314c09cdbc9966c2fe476896bbad541d3"
+  },
+  {
+    "domain": "discovery",
+    "repo": "IgnisDa/ryot",
+    "head": "822cc6701b46aedbc436abbf02e7efb94afd5f05",
+    "path": "crates/services/miscellaneous/search/src/lib.rs",
+    "rawSha256": "fc05a9755ccfb6ff747738bca015f96f1ed398956424b30f1bad0ea2e23a6236",
+    "canonicalLfSha256": "fc05a9755ccfb6ff747738bca015f96f1ed398956424b30f1bad0ea2e23a6236"
+  },
+  {
+    "domain": "discovery",
+    "repo": "IgnisDa/ryot",
+    "head": "822cc6701b46aedbc436abbf02e7efb94afd5f05",
+    "path": "crates/services/miscellaneous/calendar/src/lib.rs",
+    "rawSha256": "9e70dc9af03d21f38f22ec4f8765ec5d6c8b073da68a1c26f55db3c22825b0c8",
+    "canonicalLfSha256": "9e70dc9af03d21f38f22ec4f8765ec5d6c8b073da68a1c26f55db3c22825b0c8"
+  },
+  {
+    "domain": "discovery",
+    "repo": "IgnisDa/ryot",
+    "head": "822cc6701b46aedbc436abbf02e7efb94afd5f05",
+    "path": "crates/services/collection/src/event_operations.rs",
+    "rawSha256": "ce1c760b5915840ffe226c9b1d87d8ee40b7334df7a5923ae840c43d25fd95f4",
+    "canonicalLfSha256": "ce1c760b5915840ffe226c9b1d87d8ee40b7334df7a5923ae840c43d25fd95f4"
+  },
+  {
+    "domain": "discovery",
+    "repo": "IgnisDa/ryot",
+    "head": "822cc6701b46aedbc436abbf02e7efb94afd5f05",
+    "path": "apps/frontend/app/components/routes/collections/filters-state.ts",
+    "rawSha256": "f1a1ba84c8307dad4192e62d052b6bec068a66578914074a6a5424c105b42ab3",
+    "canonicalLfSha256": "f1a1ba84c8307dad4192e62d052b6bec068a66578914074a6a5424c105b42ab3"
+  },
+  {
+    "domain": "discovery",
+    "repo": "IgnisDa/ryot",
+    "head": "822cc6701b46aedbc436abbf02e7efb94afd5f05",
+    "path": "crates/models/database/src/collection_entity_membership.rs",
+    "rawSha256": "630972ed04f886d9a303504a3828f3d72fcc88bcc7f36d784a95689fe4fc5357",
+    "canonicalLfSha256": "630972ed04f886d9a303504a3828f3d72fcc88bcc7f36d784a95689fe4fc5357"
+  },
+  {
+    "domain": "discovery",
+    "repo": "Stremio/stremio-web",
+    "head": "c34935cc36e28c00ec15f066c38bbc6f6f59f716",
+    "path": "src/routes/Calendar/useCalendar.ts",
+    "rawSha256": "6ffc1c33d2e439a6ed2745c6626bd09ef64b458d1016d7d96a3df72cc8199187",
+    "canonicalLfSha256": "6ffc1c33d2e439a6ed2745c6626bd09ef64b458d1016d7d96a3df72cc8199187"
+  },
+  {
+    "domain": "discovery",
+    "repo": "Stremio/stremio-web",
+    "head": "c34935cc36e28c00ec15f066c38bbc6f6f59f716",
+    "path": "src/core/types/models/Search.d.ts",
+    "rawSha256": "cd68ba748e907ad186a9b4134a76066fd76d86514336436531cdf67517b34bc4",
+    "canonicalLfSha256": "cd68ba748e907ad186a9b4134a76066fd76d86514336436531cdf67517b34bc4"
+  },
+  {
+    "domain": "discovery",
+    "repo": "Stremio/stremio-web",
+    "head": "c34935cc36e28c00ec15f066c38bbc6f6f59f716",
+    "path": "src/core/types/models/Discover.d.ts",
+    "rawSha256": "7e06885f65f3f8f1011f799a59b06f5fbb835322ee1217a658f43a87d40611a4",
+    "canonicalLfSha256": "7e06885f65f3f8f1011f799a59b06f5fbb835322ee1217a658f43a87d40611a4"
+  },
+  {
+    "domain": "discovery",
+    "repo": "Stremio/stremio-web",
+    "head": "c34935cc36e28c00ec15f066c38bbc6f6f59f716",
+    "path": "src/components/NavBar/HorizontalNavBar/SearchBar/useLocalSearch.js",
+    "rawSha256": "1c895d236b1eabff8cc83d2660cd166a08b2b05ceda7594904fa19533115f1ca",
+    "canonicalLfSha256": "1c895d236b1eabff8cc83d2660cd166a08b2b05ceda7594904fa19533115f1ca"
+  },
+  {
+    "domain": "discovery",
+    "repo": "Stremio/stremio-web",
+    "head": "c34935cc36e28c00ec15f066c38bbc6f6f59f716",
+    "path": "src/routes/Discover/Discover.js",
+    "rawSha256": "4c5c4992e2a76d89d02c274b06fadd6e5595a3d6bce771cd42387399eebb855d",
+    "canonicalLfSha256": "4c5c4992e2a76d89d02c274b06fadd6e5595a3d6bce771cd42387399eebb855d"
+  },
+  {
+    "domain": "discovery",
+    "repo": "gorse-io/gorse",
+    "head": "2145bd0567f03b59f83f43ea2575a17a9bdaa016",
+    "path": "logics/recommend.go",
+    "rawSha256": "e6c055bd7e68101f0d75ce3ec95e8ed8bccb3e6c55eb79147e42f9dceadb87ed",
+    "canonicalLfSha256": "e6c055bd7e68101f0d75ce3ec95e8ed8bccb3e6c55eb79147e42f9dceadb87ed"
+  },
+  {
+    "domain": "discovery",
+    "repo": "gorse-io/gorse",
+    "head": "2145bd0567f03b59f83f43ea2575a17a9bdaa016",
+    "path": "config/config.go",
+    "rawSha256": "fe0002265d0ec8ad7d13d90e007b0f19c6b9f3a2a0a99e877b7d9e6566a88858",
+    "canonicalLfSha256": "fe0002265d0ec8ad7d13d90e007b0f19c6b9f3a2a0a99e877b7d9e6566a88858"
+  },
+  {
+    "domain": "discovery",
+    "repo": "gorse-io/gorse",
+    "head": "2145bd0567f03b59f83f43ea2575a17a9bdaa016",
+    "path": "server/server.go",
+    "rawSha256": "6d4bdcd8664970064f27148a9feb51cc145d542f6571348f3678a83b4e4cca23",
+    "canonicalLfSha256": "6d4bdcd8664970064f27148a9feb51cc145d542f6571348f3678a83b4e4cca23"
+  },
+  {
+    "domain": "discovery",
+    "repo": "lyst/lightfm",
+    "head": "0c9c31e027b976beab2385e268b58010fff46096",
+    "path": "lightfm/data.py",
+    "rawSha256": "a9a521b73f3f8c0e9f96c2d405ea5d59648d86031281cd7a7e2f4286a416fc2a",
+    "canonicalLfSha256": "a9a521b73f3f8c0e9f96c2d405ea5d59648d86031281cd7a7e2f4286a416fc2a"
+  },
+  {
+    "domain": "discovery",
+    "repo": "lyst/lightfm",
+    "head": "0c9c31e027b976beab2385e268b58010fff46096",
+    "path": "lightfm/lightfm.py",
+    "rawSha256": "ddf73c062453a05b9f182a5e981c7c1cb7db58a7f193349354c8e20472498138",
+    "canonicalLfSha256": "ddf73c062453a05b9f182a5e981c7c1cb7db58a7f193349354c8e20472498138"
+  },
+  {
+    "domain": "discovery",
+    "repo": "lyst/lightfm",
+    "head": "0c9c31e027b976beab2385e268b58010fff46096",
+    "path": "lightfm/evaluation.py",
+    "rawSha256": "4337cb0496771a077f3ca2b5176d517a5945146a3457a95d3b35b6551f5d00cd",
+    "canonicalLfSha256": "4337cb0496771a077f3ca2b5176d517a5945146a3457a95d3b35b6551f5d00cd"
+  },
+  {
+    "domain": "discovery",
+    "repo": "lyst/lightfm",
+    "head": "0c9c31e027b976beab2385e268b58010fff46096",
+    "path": "setup.py",
+    "rawSha256": "26dece86b148f0c00dff9c33d9f5de8ba6da2e917619c638c5b36d42f3348f05",
+    "canonicalLfSha256": "26dece86b148f0c00dff9c33d9f5de8ba6da2e917619c638c5b36d42f3348f05"
+  },
+  {
+    "domain": "discovery",
+    "repo": "RUCAIBox/RecBole",
+    "head": "7b02be5ec80a88310f2d04a27a82adfcbb5dc211",
+    "path": "recbole/data/dataset/dataset.py",
+    "rawSha256": "0e8c17f6e33d3a8dc775121d7523af18264f385357f5c3fd571e70f0b560a6dd",
+    "canonicalLfSha256": "0e8c17f6e33d3a8dc775121d7523af18264f385357f5c3fd571e70f0b560a6dd"
+  },
+  {
+    "domain": "discovery",
+    "repo": "RUCAIBox/RecBole",
+    "head": "7b02be5ec80a88310f2d04a27a82adfcbb5dc211",
+    "path": "recbole/evaluator/metrics.py",
+    "rawSha256": "22b17aa31975de0f0b6900668164a63aa703317422adcf67e2e6f02186b8a7e5",
+    "canonicalLfSha256": "22b17aa31975de0f0b6900668164a63aa703317422adcf67e2e6f02186b8a7e5"
+  },
+  {
+    "domain": "discovery",
+    "repo": "RUCAIBox/RecBole",
+    "head": "7b02be5ec80a88310f2d04a27a82adfcbb5dc211",
+    "path": "recbole/config/configurator.py",
+    "rawSha256": "fa9bc256b8bed0c364ab5a9939465f905695d194cdf1c195beb195b47f392618",
+    "canonicalLfSha256": "fa9bc256b8bed0c364ab5a9939465f905695d194cdf1c195beb195b47f392618"
+  },
+  {
+    "domain": "discovery",
+    "repo": "jxxghp/MoviePilot",
+    "head": "7f227857d8588df9d350cd108c8a1bc9549c9638",
+    "path": "app/chain/recommend.py",
+    "rawSha256": "e76c3d1c532ee899c1caa6e570a05dd55efc54bd3cb93121d26aed949a52cbcd",
+    "canonicalLfSha256": "e76c3d1c532ee899c1caa6e570a05dd55efc54bd3cb93121d26aed949a52cbcd"
+  },
+  {
+    "domain": "discovery",
+    "repo": "jxxghp/MoviePilot",
+    "head": "7f227857d8588df9d350cd108c8a1bc9549c9638",
+    "path": "app/chain/search/cache.py",
+    "rawSha256": "6226436cc36f5123d09ab509ef9ec59fe9dfd4594829364eb496f18463415f90",
+    "canonicalLfSha256": "6226436cc36f5123d09ab509ef9ec59fe9dfd4594829364eb496f18463415f90"
+  },
+  {
+    "domain": "discovery",
+    "repo": "jxxghp/MoviePilot",
+    "head": "7f227857d8588df9d350cd108c8a1bc9549c9638",
+    "path": "app/chain/search/plan.py",
+    "rawSha256": "9ab72b52d3e0afe4437714a2974b399d4e32f01869651008b29fc3dfbdbd75a9",
+    "canonicalLfSha256": "9ab72b52d3e0afe4437714a2974b399d4e32f01869651008b29fc3dfbdbd75a9"
+  },
+  {
+    "domain": "discovery",
+    "repo": "jxxghp/MoviePilot",
+    "head": "7f227857d8588df9d350cd108c8a1bc9549c9638",
+    "path": "app/chain/search/result.py",
+    "rawSha256": "65aff698269e58b741006b1ab083d9d4f9ae049db4685b04968bd1e5c50181fb",
+    "canonicalLfSha256": "65aff698269e58b741006b1ab083d9d4f9ae049db4685b04968bd1e5c50181fb"
+  },
+  {
+    "domain": "discovery",
+    "repo": "jxxghp/MoviePilot",
+    "head": "7f227857d8588df9d350cd108c8a1bc9549c9638",
+    "path": "app/api/endpoints/discover.py",
+    "rawSha256": "47637be681c914f41015ce1d09577824131d3a298ab9c034015f0f5156b95b47",
+    "canonicalLfSha256": "47637be681c914f41015ce1d09577824131d3a298ab9c034015f0f5156b95b47"
+  },
+  {
+    "domain": "discovery",
+    "repo": "microsoft/recommenders",
+    "head": "b6b7d2b87a1185747f70a742a68dcae1dddebbfd",
+    "path": "recommenders/datasets/python_splitters.py",
+    "rawSha256": "eadccfa59945b374bcddc7f305ac8f09fde559ba9f9a1faf63db1f999d1885c2",
+    "canonicalLfSha256": "eadccfa59945b374bcddc7f305ac8f09fde559ba9f9a1faf63db1f999d1885c2"
+  },
+  {
+    "domain": "discovery",
+    "repo": "microsoft/recommenders",
+    "head": "b6b7d2b87a1185747f70a742a68dcae1dddebbfd",
+    "path": "recommenders/evaluation/python_evaluation.py",
+    "rawSha256": "4aadafd55b69af1f12143bdc471a89d04e3ae30316aeb2c14991cb9fd672bad6",
+    "canonicalLfSha256": "4aadafd55b69af1f12143bdc471a89d04e3ae30316aeb2c14991cb9fd672bad6"
+  },
+  {
+    "domain": "discovery",
+    "repo": "microsoft/recommenders",
+    "head": "b6b7d2b87a1185747f70a742a68dcae1dddebbfd",
+    "path": "pyproject.toml",
+    "rawSha256": "9a6d8439c927b13dbcfcf2cb03f96b31aa280dc0715e9f654fada8ef6b220ced",
+    "canonicalLfSha256": "9a6d8439c927b13dbcfcf2cb03f96b31aa280dc0715e9f654fada8ef6b220ced"
+  },
+  {
+    "domain": "discovery",
+    "repo": "DevMatze/VidSelector",
+    "head": "cf3b5c7635917f1dee8106d2e8350bb0cf64b104",
+    "path": "lib/recommendations/config.ts",
+    "rawSha256": "83c9b0b9babbfdf53a56cea7e7a040e52a64cb689250380f291f84313584343e",
+    "canonicalLfSha256": "83c9b0b9babbfdf53a56cea7e7a040e52a64cb689250380f291f84313584343e"
+  },
+  {
+    "domain": "discovery",
+    "repo": "DevMatze/VidSelector",
+    "head": "cf3b5c7635917f1dee8106d2e8350bb0cf64b104",
+    "path": "lib/recommendations/engine.ts",
+    "rawSha256": "9cc19f5d306a5fbaf27ea5c7bf03a7f50376e724920ef702ced537ccd7c7e737",
+    "canonicalLfSha256": "9cc19f5d306a5fbaf27ea5c7bf03a7f50376e724920ef702ced537ccd7c7e737"
+  },
+  {
+    "domain": "discovery",
+    "repo": "streamyfin/streamyfin",
+    "head": "284d5527f3aa0f099a7124b6e9d7fb8321ccd51c",
+    "path": "LICENSE.txt",
+    "rawSha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04",
+    "canonicalLfSha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04"
+  },
+  {
+    "domain": "discovery",
+    "repo": "streamyfin/streamyfin",
+    "head": "284d5527f3aa0f099a7124b6e9d7fb8321ccd51c",
+    "path": "package.json",
+    "rawSha256": "50837c2d105f40aa24b24e296428c85294a49faa138b7b22b2955ed238c5ae6f",
+    "canonicalLfSha256": "50837c2d105f40aa24b24e296428c85294a49faa138b7b22b2955ed238c5ae6f"
+  },
+  {
+    "domain": "discovery",
+    "repo": "streamyfin/streamyfin",
+    "head": "284d5527f3aa0f099a7124b6e9d7fb8321ccd51c",
+    "path": "app/(auth)/(tabs)/(home,libraries,search,favorites,watchlists)/persons/[personId].tsx",
+    "rawSha256": "6af26f4d791d2930d74abde57b4026384a81fe12b7d8b2e587726dd739320767",
+    "canonicalLfSha256": "6af26f4d791d2930d74abde57b4026384a81fe12b7d8b2e587726dd739320767"
+  },
+  {
+    "domain": "discovery",
+    "repo": "leepeuker/movary",
+    "head": "0271a92eb145a2f3525963424efa7b77754546b7",
+    "path": "LICENSE",
+    "rawSha256": "c01059e41d71e2ae3d720867b03cf0a240cc952438ddc83c8bf1217c613c6f08",
+    "canonicalLfSha256": "c01059e41d71e2ae3d720867b03cf0a240cc952438ddc83c8bf1217c613c6f08"
+  },
+  {
+    "domain": "discovery",
+    "repo": "leepeuker/movary",
+    "head": "0271a92eb145a2f3525963424efa7b77754546b7",
+    "path": "package.json",
+    "rawSha256": "51ec49144a41e6ddc1b20e9106377fd077bbd8e605492e6d338b4785e66b6a79",
+    "canonicalLfSha256": "51ec49144a41e6ddc1b20e9106377fd077bbd8e605492e6d338b4785e66b6a79"
+  },
+  {
+    "domain": "discovery",
+    "repo": "IgnisDa/ryot",
+    "head": "822cc6701b46aedbc436abbf02e7efb94afd5f05",
+    "path": "LICENSE",
+    "rawSha256": "e57f1c320b8cf8798a7d2ff83a6f9e06a33a03585f6e065fea97f1d86db84052",
+    "canonicalLfSha256": "e57f1c320b8cf8798a7d2ff83a6f9e06a33a03585f6e065fea97f1d86db84052"
+  },
+  {
+    "domain": "discovery",
+    "repo": "IgnisDa/ryot",
+    "head": "822cc6701b46aedbc436abbf02e7efb94afd5f05",
+    "path": "package.json",
+    "rawSha256": "39e998f39cc61562ee64b49fdbf869269d25df43bf386c95b09d833a0d874c7f",
+    "canonicalLfSha256": "39e998f39cc61562ee64b49fdbf869269d25df43bf386c95b09d833a0d874c7f"
+  },
+  {
+    "domain": "discovery",
+    "repo": "Stremio/stremio-web",
+    "head": "c34935cc36e28c00ec15f066c38bbc6f6f59f716",
+    "path": "LICENSE.md",
+    "rawSha256": "aef8b4222b79d0dbf6bf17cfff71c90a6a6bb8917a4162abe417b469ed22da2e",
+    "canonicalLfSha256": "aef8b4222b79d0dbf6bf17cfff71c90a6a6bb8917a4162abe417b469ed22da2e"
+  },
+  {
+    "domain": "discovery",
+    "repo": "Stremio/stremio-web",
+    "head": "c34935cc36e28c00ec15f066c38bbc6f6f59f716",
+    "path": "package.json",
+    "rawSha256": "82115ddab330ef3e83bc5193b4a5463dc5ab52450e7fc7888e64e1db5de3b73c",
+    "canonicalLfSha256": "82115ddab330ef3e83bc5193b4a5463dc5ab52450e7fc7888e64e1db5de3b73c"
+  },
+  {
+    "domain": "discovery",
+    "repo": "gorse-io/gorse",
+    "head": "2145bd0567f03b59f83f43ea2575a17a9bdaa016",
+    "path": "go.mod",
+    "rawSha256": "c305b797234a31a4cd65fdc9778fdfaba68811990c1a893dbd04f9936be7b196",
+    "canonicalLfSha256": "c305b797234a31a4cd65fdc9778fdfaba68811990c1a893dbd04f9936be7b196"
+  },
+  {
+    "domain": "discovery",
+    "repo": "gorse-io/gorse",
+    "head": "2145bd0567f03b59f83f43ea2575a17a9bdaa016",
+    "path": "LICENSE",
+    "rawSha256": "43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1",
+    "canonicalLfSha256": "43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1"
+  },
+  {
+    "domain": "discovery",
+    "repo": "lyst/lightfm",
+    "head": "0c9c31e027b976beab2385e268b58010fff46096",
+    "path": "LICENSE",
+    "rawSha256": "12cb63e0379bcd1fa65d8518c1f77c73390b2e2927edcb14224f6fb373121924",
+    "canonicalLfSha256": "12cb63e0379bcd1fa65d8518c1f77c73390b2e2927edcb14224f6fb373121924"
+  },
+  {
+    "domain": "discovery",
+    "repo": "RUCAIBox/RecBole",
+    "head": "7b02be5ec80a88310f2d04a27a82adfcbb5dc211",
+    "path": "LICENSE",
+    "rawSha256": "2c33dad5fede86236b54db22e0be64e72095d151f324bcadd354ab88f40c52fe",
+    "canonicalLfSha256": "2c33dad5fede86236b54db22e0be64e72095d151f324bcadd354ab88f40c52fe"
+  },
+  {
+    "domain": "discovery",
+    "repo": "RUCAIBox/RecBole",
+    "head": "7b02be5ec80a88310f2d04a27a82adfcbb5dc211",
+    "path": "setup.py",
+    "rawSha256": "099de0464f9082702d5a1a1dd960444c90af00a95a160a25608043e81e905646",
+    "canonicalLfSha256": "099de0464f9082702d5a1a1dd960444c90af00a95a160a25608043e81e905646"
+  },
+  {
+    "domain": "discovery",
+    "repo": "jxxghp/MoviePilot",
+    "head": "7f227857d8588df9d350cd108c8a1bc9549c9638",
+    "path": "LICENSE",
+    "rawSha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+    "canonicalLfSha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  },
+  {
+    "domain": "discovery",
+    "repo": "jxxghp/MoviePilot",
+    "head": "7f227857d8588df9d350cd108c8a1bc9549c9638",
+    "path": "pyproject.toml",
+    "rawSha256": "8483f380611b71d0f8ea48fa2d8ddd3ccd7fb18927eaa4b2d735d0d31c7600f4",
+    "canonicalLfSha256": "8483f380611b71d0f8ea48fa2d8ddd3ccd7fb18927eaa4b2d735d0d31c7600f4"
+  },
+  {
+    "domain": "discovery",
+    "repo": "microsoft/recommenders",
+    "head": "b6b7d2b87a1185747f70a742a68dcae1dddebbfd",
+    "path": "LICENSE",
+    "rawSha256": "c1aa8025098719446d02e43f16b4545a3283d872b57de8d25b8202fe44bc6b8b",
+    "canonicalLfSha256": "c1aa8025098719446d02e43f16b4545a3283d872b57de8d25b8202fe44bc6b8b"
+  },
+  {
+    "domain": "discovery",
+    "repo": "microsoft/recommenders",
+    "head": "b6b7d2b87a1185747f70a742a68dcae1dddebbfd",
+    "path": "setup.py",
+    "rawSha256": "e80d07ed996659a71dbc6a806fa27111fc3465f945eb1b53e80bf270fd7c2961",
+    "canonicalLfSha256": "e80d07ed996659a71dbc6a806fa27111fc3465f945eb1b53e80bf270fd7c2961"
+  },
+  {
+    "domain": "discovery",
+    "repo": "DevMatze/VidSelector",
+    "head": "cf3b5c7635917f1dee8106d2e8350bb0cf64b104",
+    "path": "LICENSE.md",
+    "rawSha256": "10e8254e627a19d72d1d8c45e7206652acc5c205d36e3bd1cc313594614180a4",
+    "canonicalLfSha256": "10e8254e627a19d72d1d8c45e7206652acc5c205d36e3bd1cc313594614180a4"
+  },
+  {
+    "domain": "discovery",
+    "repo": "DevMatze/VidSelector",
+    "head": "cf3b5c7635917f1dee8106d2e8350bb0cf64b104",
+    "path": "package.json",
+    "rawSha256": "ecbcb27519a1975c750e2b263b05b31869978e5285b789991f55d1b147320266",
+    "canonicalLfSha256": "ecbcb27519a1975c750e2b263b05b31869978e5285b789991f55d1b147320266"
+  },
+  {
+    "domain": "comparison",
+    "repo": "chatboxai/chatbox",
+    "head": "d17455c5ca8fd3ff44385c6d4d2118599e4c970f",
+    "path": "LICENSE",
+    "rawSha256": "8b1ba204bb69a0ade2bfcf65ef294a920f6bb361b317dba43c7ef29d96332b9b",
+    "canonicalLfSha256": "8b1ba204bb69a0ade2bfcf65ef294a920f6bb361b317dba43c7ef29d96332b9b"
+  },
+  {
+    "domain": "comparison",
+    "repo": "chatboxai/chatbox",
+    "head": "d17455c5ca8fd3ff44385c6d4d2118599e4c970f",
+    "path": "README.md",
+    "rawSha256": "0e246b5ff1728a72f13640035396befe03665fe5b4c4c7a193d66fce1ea2fc2f",
+    "canonicalLfSha256": "0e246b5ff1728a72f13640035396befe03665fe5b4c4c7a193d66fce1ea2fc2f"
+  },
+  {
+    "domain": "comparison",
+    "repo": "chatboxai/chatbox",
+    "head": "d17455c5ca8fd3ff44385c6d4d2118599e4c970f",
+    "path": "package.json",
+    "rawSha256": "15c6496c6ecbb00b1a25320a56a03e9ea1b997a9ba76feef043d95c0038559dc",
+    "canonicalLfSha256": "15c6496c6ecbb00b1a25320a56a03e9ea1b997a9ba76feef043d95c0038559dc"
+  },
+  {
+    "domain": "comparison",
+    "repo": "open-webui/open-webui",
+    "head": "f7ac7ee10962ddec0017f5c29b6740d9b9c5faca",
+    "path": "LICENSE",
+    "rawSha256": "5f1bd74c48bf13ab0f82e177ad9e637313b92533d20ead2593d49347a47fc232",
+    "canonicalLfSha256": "5f1bd74c48bf13ab0f82e177ad9e637313b92533d20ead2593d49347a47fc232"
+  },
+  {
+    "domain": "comparison",
+    "repo": "open-webui/open-webui",
+    "head": "f7ac7ee10962ddec0017f5c29b6740d9b9c5faca",
+    "path": "README.md",
+    "rawSha256": "8fd5f1fb10d0252cab2de70953169bb16157ab2ffd5cdac1dc93c5e553cd254b",
+    "canonicalLfSha256": "8fd5f1fb10d0252cab2de70953169bb16157ab2ffd5cdac1dc93c5e553cd254b"
+  },
+  {
+    "domain": "comparison",
+    "repo": "open-webui/open-webui",
+    "head": "f7ac7ee10962ddec0017f5c29b6740d9b9c5faca",
+    "path": "package.json",
+    "rawSha256": "3dad273d8f160ecf9f255d345dd0a1de17413a018cfec12260674dfbbb816bbf",
+    "canonicalLfSha256": "3dad273d8f160ecf9f255d345dd0a1de17413a018cfec12260674dfbbb816bbf"
+  },
+  {
+    "domain": "comparison",
+    "repo": "ChatGPTNextWeb/NextChat",
+    "head": "1d3dc331512929a4b1d3e82354e72acce33b5c7a",
+    "path": "LICENSE",
+    "rawSha256": "abe83c6910b9437f7342b2184c213678b4adbb191d323e0244336039abbccc01",
+    "canonicalLfSha256": "abe83c6910b9437f7342b2184c213678b4adbb191d323e0244336039abbccc01"
+  },
+  {
+    "domain": "comparison",
+    "repo": "ChatGPTNextWeb/NextChat",
+    "head": "1d3dc331512929a4b1d3e82354e72acce33b5c7a",
+    "path": "README.md",
+    "rawSha256": "99b65bd305d6ad2e41befc5f4441b218e5a064b5673a5f3a1f2f8d5c86f7a450",
+    "canonicalLfSha256": "99b65bd305d6ad2e41befc5f4441b218e5a064b5673a5f3a1f2f8d5c86f7a450"
+  },
+  {
+    "domain": "comparison",
+    "repo": "ChatGPTNextWeb/NextChat",
+    "head": "1d3dc331512929a4b1d3e82354e72acce33b5c7a",
+    "path": "package.json",
+    "rawSha256": "07fe3e59f031df84e4cb538d95e752a5fcbc5af4c71fbedf771030b172d3f6a1",
+    "canonicalLfSha256": "07fe3e59f031df84e4cb538d95e752a5fcbc5af4c71fbedf771030b172d3f6a1"
+  },
+  {
+    "domain": "comparison",
+    "repo": "ChatGPTNextWeb/NextChat",
+    "head": "1d3dc331512929a4b1d3e82354e72acce33b5c7a",
+    "path": "app/store/mask.ts",
+    "rawSha256": "bc03e14c94e269ac6f76b98f992c784ad56bbe2f3372469c7e711521d7f5847c",
+    "canonicalLfSha256": "bc03e14c94e269ac6f76b98f992c784ad56bbe2f3372469c7e711521d7f5847c"
+  },
+  {
+    "domain": "comparison",
+    "repo": "ChatGPTNextWeb/NextChat",
+    "head": "1d3dc331512929a4b1d3e82354e72acce33b5c7a",
+    "path": "app/components/mask.tsx",
+    "rawSha256": "5c3779b6c7c863bb805c00a42cb69f3d0851b3a78747aefb0def8a373b8f5426",
+    "canonicalLfSha256": "5c3779b6c7c863bb805c00a42cb69f3d0851b3a78747aefb0def8a373b8f5426"
+  },
+  {
+    "domain": "comparison",
+    "repo": "ChatGPTNextWeb/NextChat",
+    "head": "1d3dc331512929a4b1d3e82354e72acce33b5c7a",
+    "path": "app/components/artifacts.tsx",
+    "rawSha256": "6f401f5661627204ff5d7c653a1673edcee5a1dc1824c24677b6cd0df0b462b9",
+    "canonicalLfSha256": "6f401f5661627204ff5d7c653a1673edcee5a1dc1824c24677b6cd0df0b462b9"
+  },
+  {
+    "domain": "comparison",
+    "repo": "ChatGPTNextWeb/NextChat",
+    "head": "1d3dc331512929a4b1d3e82354e72acce33b5c7a",
+    "path": "app/api/artifacts/route.ts",
+    "rawSha256": "f00e0d98dda85dbdc3781c58ba5de75ebe88526fa8d70f4e2e2be206e7343768",
+    "canonicalLfSha256": "f00e0d98dda85dbdc3781c58ba5de75ebe88526fa8d70f4e2e2be206e7343768"
+  },
+  {
+    "domain": "comparison",
+    "repo": "chatboxai/chatbox",
+    "head": "d17455c5ca8fd3ff44385c6d4d2118599e4c970f",
+    "path": "src/renderer/components/chat/MessageNavigation.tsx",
+    "rawSha256": "365367007b62b854abf74b2c3d207fb2886603d5ec51dde55225379a404d320e",
+    "canonicalLfSha256": "365367007b62b854abf74b2c3d207fb2886603d5ec51dde55225379a404d320e"
+  },
+  {
+    "domain": "comparison",
+    "repo": "chatboxai/chatbox",
+    "head": "d17455c5ca8fd3ff44385c6d4d2118599e4c970f",
+    "path": "src/renderer/components/InputBox/SessionSettingsButton.tsx",
+    "rawSha256": "db79f2229c8ee6b3647aea9aaf67a33862e069b923261ffe112fd979d2b66372",
+    "canonicalLfSha256": "db79f2229c8ee6b3647aea9aaf67a33862e069b923261ffe112fd979d2b66372"
+  },
+  {
+    "domain": "comparison",
+    "repo": "chatboxai/chatbox",
+    "head": "d17455c5ca8fd3ff44385c6d4d2118599e4c970f",
+    "path": "src/renderer/components/InputBox/useModelToolCapabilities.ts",
+    "rawSha256": "ad9e6492c2ba83a40a1917017b3ecac564a647188023a71dab262e212a86a050",
+    "canonicalLfSha256": "ad9e6492c2ba83a40a1917017b3ecac564a647188023a71dab262e212a86a050"
+  },
+  {
+    "domain": "comparison",
+    "repo": "chatboxai/chatbox",
+    "head": "d17455c5ca8fd3ff44385c6d4d2118599e4c970f",
+    "path": "src/renderer/components/Artifact.tsx",
+    "rawSha256": "396131b6808e01ef1cc288fac6d2776793531e5b527b4501f6cf51ed517dc688",
+    "canonicalLfSha256": "396131b6808e01ef1cc288fac6d2776793531e5b527b4501f6cf51ed517dc688"
+  },
+  {
+    "domain": "comparison",
+    "repo": "chatboxai/chatbox",
+    "head": "d17455c5ca8fd3ff44385c6d4d2118599e4c970f",
+    "path": "src/main/sandbox/persist-artifact.ts",
+    "rawSha256": "c4c812525e0cbbdb764669119be682ab55bb82d64560cf48fac5512af57f89dd",
+    "canonicalLfSha256": "c4c812525e0cbbdb764669119be682ab55bb82d64560cf48fac5512af57f89dd"
+  },
+  {
+    "domain": "comparison",
+    "repo": "chatboxai/chatbox",
+    "head": "d17455c5ca8fd3ff44385c6d4d2118599e4c970f",
+    "path": "packages/chatbox-core/src/application/session/row-artifact.ts",
+    "rawSha256": "223182e3c35792a24a75ae7f1c3e5af20e2c0338f87a32b8c3cddcabc3cbf9cb",
+    "canonicalLfSha256": "223182e3c35792a24a75ae7f1c3e5af20e2c0338f87a32b8c3cddcabc3cbf9cb"
+  },
+  {
+    "domain": "comparison",
+    "repo": "chatboxai/chatbox",
+    "head": "d17455c5ca8fd3ff44385c6d4d2118599e4c970f",
+    "path": "docs/technical/tools-and-integrations.md",
+    "rawSha256": "0d8279312a2253eaf516d2b7bb97b91efbb9afd8d0e3783c148e1b57e2ef7404",
+    "canonicalLfSha256": "0d8279312a2253eaf516d2b7bb97b91efbb9afd8d0e3783c148e1b57e2ef7404"
+  },
+  {
+    "domain": "comparison",
+    "repo": "chatboxai/chatbox",
+    "head": "d17455c5ca8fd3ff44385c6d4d2118599e4c970f",
+    "path": "docs/product/tools-and-integrations.md",
+    "rawSha256": "07142484e49a12d2c408b35afd6e66fd4826589a1372a9ac83011e7619c7aaef",
+    "canonicalLfSha256": "07142484e49a12d2c408b35afd6e66fd4826589a1372a9ac83011e7619c7aaef"
+  },
+  {
+    "domain": "comparison",
+    "repo": "open-webui/open-webui",
+    "head": "f7ac7ee10962ddec0017f5c29b6740d9b9c5faca",
+    "path": "src/lib/components/chat/MessageInput/CallOverlay.svelte",
+    "rawSha256": "a751b1a95abca869b3aa02065d782293b6313a822e4b877ac5b1538677b725e0",
+    "canonicalLfSha256": "a751b1a95abca869b3aa02065d782293b6313a822e4b877ac5b1538677b725e0"
+  },
+  {
+    "domain": "comparison",
+    "repo": "open-webui/open-webui",
+    "head": "f7ac7ee10962ddec0017f5c29b6740d9b9c5faca",
+    "path": "src/lib/components/chat/MessageInput/CallOverlay/BridgeCallOverlay.svelte",
+    "rawSha256": "6837fa9dbe9b59c8f12f4ac4ab483be73b9ffe1a22c2672ef761b1485840b7f9",
+    "canonicalLfSha256": "6837fa9dbe9b59c8f12f4ac4ab483be73b9ffe1a22c2672ef761b1485840b7f9"
+  },
+  {
+    "domain": "comparison",
+    "repo": "open-webui/open-webui",
+    "head": "f7ac7ee10962ddec0017f5c29b6740d9b9c5faca",
+    "path": "src/lib/components/chat/Artifacts.svelte",
+    "rawSha256": "297b8d2ebcd990a049dd6d249370d0949ce8293ae21428a529cea9017adea6fe",
+    "canonicalLfSha256": "297b8d2ebcd990a049dd6d249370d0949ce8293ae21428a529cea9017adea6fe"
+  },
+  {
+    "domain": "comparison",
+    "repo": "open-webui/open-webui",
+    "head": "f7ac7ee10962ddec0017f5c29b6740d9b9c5faca",
+    "path": "src/lib/components/workspace/Models/Capabilities.svelte",
+    "rawSha256": "f71af6cca70c82e6ca42ac3cf26544deb989d025b2f3390ff3f67b3a74a0038f",
+    "canonicalLfSha256": "f71af6cca70c82e6ca42ac3cf26544deb989d025b2f3390ff3f67b3a74a0038f"
+  },
+  {
+    "domain": "comparison",
+    "repo": "open-webui/open-webui",
+    "head": "f7ac7ee10962ddec0017f5c29b6740d9b9c5faca",
+    "path": "src/lib/components/chat/Messages/ResponseMessage/WebSearchResults.svelte",
+    "rawSha256": "211e034a87fd23d03be6f1993c5aa184357fced1ed27ecdd4e10b48f2884fe08",
+    "canonicalLfSha256": "211e034a87fd23d03be6f1993c5aa184357fced1ed27ecdd4e10b48f2884fe08"
+  },
+  {
+    "domain": "comparison",
+    "repo": "open-webui/open-webui",
+    "head": "f7ac7ee10962ddec0017f5c29b6740d9b9c5faca",
+    "path": "LICENSE_HISTORY",
+    "rawSha256": "b1567cc9763241a41569e01f08272a167dac57273f717b95b31ba7b5ec935e17",
+    "canonicalLfSha256": "b1567cc9763241a41569e01f08272a167dac57273f717b95b31ba7b5ec935e17"
+  },
+  {
+    "domain": "comparison",
+    "repo": "chatboxai/chatbox",
+    "head": "d17455c5ca8fd3ff44385c6d4d2118599e4c970f",
+    "path": "src/renderer/components/chat/MessageMinimapRail.tsx",
+    "rawSha256": "b74c795dc8ee772cd7d50675938be7cc34743e3a419941e0750b88c615d36475",
+    "canonicalLfSha256": "b74c795dc8ee772cd7d50675938be7cc34743e3a419941e0750b88c615d36475"
+  },
+  {
+    "domain": "comparison",
+    "repo": "chatboxai/chatbox",
+    "head": "d17455c5ca8fd3ff44385c6d4d2118599e4c970f",
+    "path": "src/renderer/components/session/SessionSettingsContent.tsx",
+    "rawSha256": "215d89ad524b03c83c4239fd95b91b0412ad21977131e1034e023ad8cf60bc45",
+    "canonicalLfSha256": "215d89ad524b03c83c4239fd95b91b0412ad21977131e1034e023ad8cf60bc45"
+  },
+  {
+    "domain": "comparison",
+    "repo": "chatboxai/chatbox",
+    "head": "d17455c5ca8fd3ff44385c6d4d2118599e4c970f",
+    "path": "src/renderer/modals/SessionSettings.tsx",
+    "rawSha256": "1e6680217a74e7318411a207e1c56fcf9ec40475486fa1e104284ad3f58801c1",
+    "canonicalLfSha256": "1e6680217a74e7318411a207e1c56fcf9ec40475486fa1e104284ad3f58801c1"
+  }
+]

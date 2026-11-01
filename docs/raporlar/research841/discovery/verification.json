@@ -1,0 +1,123 @@
+{
+  "scope": "research/documentation only; no product runtime tests",
+  "baseline": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+  "repositories": 10,
+  "coreRepositories": 9,
+  "additionalRejectedForReuse": 1,
+  "sourceFilesIncludingLicensePackage": 62,
+  "verifiedRawSourceHashes": 62,
+  "cards": 24,
+  "newRelativeToR838R839R840": 12,
+  "oldDeepening": 12,
+  "pinnedSourceRefs": 42,
+  "localOnlyDeepeningCards": [
+    "D841-21"
+  ],
+  "errors": [],
+  "cardBodyWordCounts": [
+    {
+      "id": "D841-01",
+      "bodyWords": 109
+    },
+    {
+      "id": "D841-02",
+      "bodyWords": 109
+    },
+    {
+      "id": "D841-03",
+      "bodyWords": 99
+    },
+    {
+      "id": "D841-04",
+      "bodyWords": 113
+    },
+    {
+      "id": "D841-05",
+      "bodyWords": 107
+    },
+    {
+      "id": "D841-06",
+      "bodyWords": 102
+    },
+    {
+      "id": "D841-07",
+      "bodyWords": 105
+    },
+    {
+      "id": "D841-08",
+      "bodyWords": 105
+    },
+    {
+      "id": "D841-09",
+      "bodyWords": 108
+    },
+    {
+      "id": "D841-10",
+      "bodyWords": 106
+    },
+    {
+      "id": "D841-11",
+      "bodyWords": 117
+    },
+    {
+      "id": "D841-12",
+      "bodyWords": 113
+    },
+    {
+      "id": "D841-13",
+      "bodyWords": 107
+    },
+    {
+      "id": "D841-14",
+      "bodyWords": 105
+    },
+    {
+      "id": "D841-15",
+      "bodyWords": 112
+    },
+    {
+      "id": "D841-16",
+      "bodyWords": 102
+    },
+    {
+      "id": "D841-17",
+      "bodyWords": 115
+    },
+    {
+      "id": "D841-18",
+      "bodyWords": 101
+    },
+    {
+      "id": "D841-19",
+      "bodyWords": 108
+    },
+    {
+      "id": "D841-20",
+      "bodyWords": 114
+    },
+    {
+      "id": "D841-21",
+      "bodyWords": 114
+    },
+    {
+      "id": "D841-22",
+      "bodyWords": 118
+    },
+    {
+      "id": "D841-23",
+      "bodyWords": 109
+    },
+    {
+      "id": "D841-24",
+      "bodyWords": 115
+    }
+  ],
+  "limitations": [
+    "No upstream builds or runtime acceptance",
+    "No product tests or Windows UI/start.bat launch",
+    "No full transitive-license audit",
+    "No dataset or private profile import",
+    "No automatic spoiler classifier verified",
+    "No direct reuse permission for VidSelector"
+  ]
+}

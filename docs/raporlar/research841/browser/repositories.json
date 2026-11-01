@@ -1,0 +1,72 @@
+[
+  {
+    "repo": "minbrowser/min",
+    "head": "c92079cde045c38ab844e53501e9c5178d503a45",
+    "date": "2026-08-23T21:08:23Z",
+    "branch": "master",
+    "license": "Apache-2.0",
+    "archived": false,
+    "stars": 9234,
+    "treeTruncated": false
+  },
+  {
+    "repo": "n4ze3m/page-assist",
+    "head": "1ecdac5ca3b4a13be657740add2e29ea1669097f",
+    "date": "2026-10-31T17:04:49Z",
+    "branch": "main",
+    "license": "MIT",
+    "archived": false,
+    "stars": 8305,
+    "treeTruncated": false
+  },
+  {
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "date": "2026-10-31T20:32:21Z",
+    "branch": "main",
+    "license": "AGPL-3.0",
+    "archived": false,
+    "stars": 30217,
+    "treeTruncated": false
+  },
+  {
+    "repo": "linkwarden/linkwarden",
+    "head": "eff7c6b735f6b20a4766745dc86c6bdc52bd9840",
+    "date": "2026-10-26T02:39:30Z",
+    "branch": "main",
+    "license": "AGPL-3.0",
+    "archived": false,
+    "stars": 20289,
+    "treeTruncated": false
+  },
+  {
+    "repo": "gildas-lormeau/SingleFile",
+    "head": "b98ad61e8bc09ceed8edb7a5efca17980afe040d",
+    "date": "2026-10-31T09:58:18Z",
+    "branch": "main",
+    "license": "AGPL-3.0",
+    "archived": false,
+    "stars": 22795,
+    "treeTruncated": false
+  },
+  {
+    "repo": "unclecode/crawl4ai",
+    "head": "888299fb5f0b82181897dc0e61bfb4b036f0aea5",
+    "date": "2026-10-26T08:41:46Z",
+    "branch": "main",
+    "license": "Apache-2.0",
+    "archived": false,
+    "stars": 86688,
+    "treeTruncated": false
+  },
+  {
+    "repo": "firecrawl/firecrawl",
+    "head": "7e6bd701febaacc3bb95c0fb7eee2c509a4813c5",
+    "date": "2026-10-31T02:38:52Z",
+    "branch": "main",
+    "license": "AGPL-3.0",
+    "archived": false,
+    "stars": 197529,
+    "treeTruncated": false
+  }
+]

@@ -1,0 +1,715 @@
+[
+  {
+    "id": "A841-01",
+    "title": "Sürümlü görev talimatları: taslak ile etkin profili ayır",
+    "status": "NEW",
+    "sources": [
+      {
+        "repo": "LibreChat-AI/LibreChat",
+        "sha": "f4154b649efa37e1345ccc517a4d8d1ed2178c82",
+        "path": "client/src/components/Prompts/display/PromptVersions.tsx",
+        "symbol": "PromptVersions / VersionCard / group.productionId",
+        "url": "https://github.com/LibreChat-AI/LibreChat/blob/f4154b649efa37e1345ccc517a4d8d1ed2178c82/client/src/components/Prompts/display/PromptVersions.tsx"
+      },
+      {
+        "repo": "Mintplex-Labs/anything-llm",
+        "sha": "9caf2b4c29d9782f1cba4142be2525ebfa0ecd43",
+        "path": "server/models/slashCommandsPresets.js",
+        "symbol": "SlashCommandPresets.formatCommand/create/getUserPresets",
+        "url": "https://github.com/Mintplex-Labs/anything-llm/blob/9caf2b4c29d9782f1cba4142be2525ebfa0ecd43/server/models/slashCommandsPresets.js"
+      }
+    ],
+    "baselineFiles": "src/assistant-provider.js:run; src/assistant-settings.js:resolve",
+    "currentBehavior": "Sistem talimatı run içinde sabit metindir; ayarlar sağlayıcı/model çözer. Kullanıcıya ait revizyonlu görev talimatı deposu bu yollarda yok.",
+    "mechanism": "LibreChat etkin productionId ile en yeni sürümü ayrı işaretliyor; AnythingLLM kayıtlı slash adı, açıklama ve prompt tutuyor. Film yorumu, teknik video özeti ve dublaj kontrolü için kullanıcı kendi kısa görev profilini kaydedebilsin. Yeni düzenleme önce taslak olsun; eski sohbetin hangi revizyonu kullandığı görünür kalsın.",
+    "integration": "MIT seçilmiş veri modeli/DOM uyarlaması; tüm React/Mongo/Prisma uygulaması alınmaz. Kullanıcı promptu uygulama yetkisini veya sabit tool politikasını değiştirmez.",
+    "ux": "Profil menüsünde Etkin v2, taslak v3 ve önceki sürüme dön eylemi.",
+    "effort": "M",
+    "acceptance": "Aynı sohbeti v2 ile açınca sonradan yazılan v3 sessizce kullanılmaz; seçilen sürüm kaydı görünür.",
+    "windowsElectronCsp": "EN/TR etiketleri, profil metninde UTF-8; şablondan inline script üretilmez.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "PromptVersions productionId ile latest/production ayrımını çiziyor; slash modeli prompt kaydı tutuyor. Backend prompt publish/rollback işlemi bu kartta doğrulanmadı.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-02",
+    "title": "Kullanıcının düzenlediği hızlı komut kitaplığı",
+    "status": "NEW",
+    "sources": [
+      {
+        "repo": "Mintplex-Labs/anything-llm",
+        "sha": "9caf2b4c29d9782f1cba4142be2525ebfa0ecd43",
+        "path": "server/models/slashCommandsPresets.js",
+        "symbol": "SlashCommandPresets.formatCommand/create/getUserPresets",
+        "url": "https://github.com/Mintplex-Labs/anything-llm/blob/9caf2b4c29d9782f1cba4142be2525ebfa0ecd43/server/models/slashCommandsPresets.js"
+      }
+    ],
+    "baselineFiles": "src/renderer/assistant-workspace.js; src/assistant-provider.js:run",
+    "currentBehavior": "Asistan UI ve sabit uygulama araçları var; kullanıcıya ait ad/açıklama/prompt CRUD modeli incelenen sağlayıcı yolunun parçası değil.",
+    "mechanism": "SlashCommandPresets komut adını normalize ediyor, kullanıcı ile adı birlikte tekilleştiriyor ve prompt/açıklama döndürüyor. Bu desen en sık tekrar edilen “bu videoda gerekçeleri zamanlarıyla çıkar” sorusunu yeniden yazmayı azaltır. Bu, çok adımlı iş akışını otomatik çalıştırmak değil, gönderilmeden önce düzenlenebilen istem taslağıdır.",
+    "integration": "MIT küçük model referansı/port; mevcut thread deposundan ayrı yerel preset JSON kaydı. Türkçe komut adlarında upstream ASCII sınırlaması aynen taşınmamalı.",
+    "ux": "Yazı alanında / ile aranan kayıtlar; seçince nihai metin ve kaynak kapsamı önizlenir.",
+    "effort": "S",
+    "acceptance": "Komut seçimi tek başına model çağrısı veya dublaj başlatmaz; düzenlenen metin gönderilince tek soru oluşur.",
+    "windowsElectronCsp": "Windows klavyesi, Türkçe ı/ş, IME ve dar pencere kontrolü gerekir.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "SlashCommandPresets formatCommand, create, getUserPresets, update, delete fonksiyonları ad/prompt/açıklama CRUDunu içeriyor.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-03",
+    "title": "Sohbete bağlı çalışma klasörü ve çıktı hedefi",
+    "status": "NEW",
+    "sources": [
+      {
+        "repo": "iOfficeAI/AionUi",
+        "sha": "11cd2a9a20d1e033157636efc570b41384c66d85",
+        "path": "packages/desktop/src/renderer/hooks/file/useWorkspaceSelector.ts",
+        "symbol": "useWorkspaceSelector",
+        "url": "https://github.com/iOfficeAI/AionUi/blob/11cd2a9a20d1e033157636efc570b41384c66d85/packages/desktop/src/renderer/hooks/file/useWorkspaceSelector.ts"
+      }
+    ],
+    "baselineFiles": "src/assistant-thread-store.js:cleanThread; src/assistant-context-manifest.js",
+    "currentBehavior": "Konuşma sourceKey ve dallarla saklanır; cleanThread içinde kullanıcı seçilmiş çalışma klasörü alanı bulunmaz.",
+    "mechanism": "AionUi native dizin seçiciden dönen yolu konuşmanın extra.workspace alanına bağlayıp konuşma ve geçmişi tazeliyor. Medya projesi için asistan raporları ve dışa aktarımları tek kullanıcı klasöründe tutmak anlamlıdır. Kaynak medya dosyasının klasörünü otomatik yazılabilir yetki olarak kabul etmek yerine ayrı ve görünür çıktı hedefi sunulur.",
+    "integration": "Apache-2.0 yaşam döngüsü portu; genel shell veya dosya ağacı ajanı gerekmez. Yazma yalnız tanımlı export araçlarından ve main IPC üzerinden.",
+    "ux": "Sohbet başlığında çalışma klasörü ve Değiştir; göreli çıktı adlarıyla dosya listesi.",
+    "effort": "M",
+    "acceptance": "Klasör seçimi iptal edilince hedef değişmez; klasör başka diske taşındıysa kaydetme hatası sahte başarı olmaz.",
+    "windowsElectronCsp": "UNC, sürücü harfi, uzun yol, Türkçe klasör, reparse-point ve native picker kabulü gerekir.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "useWorkspaceSelector native directory sonucunu conversation.extra.workspace alanına yazıyor ve cache/event yeniliyor; yazma yetkisi politikası bu hookta yok.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-04",
+    "title": "Açıkça kaydedilen ve düzenlenebilen asistan belleği",
+    "status": "OLD-DEEPENING:R839-F12",
+    "sources": [
+      {
+        "repo": "Mintplex-Labs/anything-llm",
+        "sha": "9caf2b4c29d9782f1cba4142be2525ebfa0ecd43",
+        "path": "server/models/memory.js",
+        "symbol": "Memory.create/update/delete/promoteToGlobal/demoteToWorkspace",
+        "url": "https://github.com/Mintplex-Labs/anything-llm/blob/9caf2b4c29d9782f1cba4142be2525ebfa0ecd43/server/models/memory.js"
+      },
+      {
+        "repo": "khoj-ai/khoj",
+        "sha": "ae229ca894c0b80ad84664afcfdde523b5e87057",
+        "path": "src/interface/web/app/components/userMemory/userMemory.tsx",
+        "symbol": "UserMemory / handleUpdate / handleDelete",
+        "url": "https://github.com/khoj-ai/khoj/blob/ae229ca894c0b80ad84664afcfdde523b5e87057/src/interface/web/app/components/userMemory/userMemory.tsx"
+      }
+    ],
+    "baselineFiles": "src/assistant-thread-store.js; src/assistant-settings.js",
+    "currentBehavior": "Sohbet geçmişi kalıcı; model ayarları ve ayrı film zevk verisi var. Bu iki şey genel asistan için kullanıcı tarafından yönetilen olgu belleği değildir.",
+    "mechanism": "R839-F12deki kabul et/düzelt/sil bellek fikrinin genel asistana taşınan derinleştirmesidir; yepyeni ürün fikri sayılmadı. AnythingLLM Memory.create/update/delete ile gerçek kayıt işlemlerini, Khoj UserMemory satır üstü düzenleme/silmeyi gösteriyor. “Yanıtta önce kısa sonuç istiyorum” gibi kullanıcının açık kaydını sohbetten bağımsız tutmak mümkün. Upstream UI callback sonrası başarı toastı gösteriyor; bizim entegrasyon başarıyı main yazma sonucundan sonra göstermeli. Bellek çıkarımı varsayılan sessiz arka plan işi yapılmamalı.",
+    "integration": "MIT model uyarlaması ve AGPL Khoj tasarım referansı; Khoj kodu alınırsa ilgili AGPL dağıtım yükümlülükleri planlanır.",
+    "ux": "Belleğim panelinde metin, kapsam, oluşma tarihi; kaydet/düzenle/sil.",
+    "effort": "M",
+    "acceptance": "Kaydı silen kullanıcı sonraki isteğin bağlamında aynı olgunun gönderilmediğini görebilir.",
+    "windowsElectronCsp": "Yerel userData, atomik yazma, kişisel belleğin Git/log dışında kalması, EN/TR arayüzü.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "Memory modeli create/update/delete sunuyor; Khoj UserMemory edit/delete callbacklerini çağırıyor. Genel asistan bellek onayı bizim önerdiğimiz ürün politikasıdır.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-05",
+    "title": "Belleğin kaynak/proje ve genel kapsamını açık ayır",
+    "status": "NEW",
+    "sources": [
+      {
+        "repo": "Mintplex-Labs/anything-llm",
+        "sha": "9caf2b4c29d9782f1cba4142be2525ebfa0ecd43",
+        "path": "server/models/memory.js",
+        "symbol": "Memory.create/update/delete/promoteToGlobal/demoteToWorkspace",
+        "url": "https://github.com/Mintplex-Labs/anything-llm/blob/9caf2b4c29d9782f1cba4142be2525ebfa0ecd43/server/models/memory.js"
+      }
+    ],
+    "baselineFiles": "src/assistant-context-manifest.js; src/assistant-thread-store.js:sourceKey",
+    "currentBehavior": "Kaynak kimliği ve sohbet kapsamı mevcut; genel asistan olgularının kaynaktan genele terfi modeli bu dosyalarda yok.",
+    "mechanism": "AnythingLLM workspace/global kapsamları, ayrı limitler, promoteToGlobal ve demoteToWorkspace işlemleri kullanıyor. Bir karakterin adını o film için hatırlamak ile kullanıcının cevap tercihini bütün uygulama için hatırlamak aynı şey değildir. Kapsam değişikliği görünür işlem olmalı; yalnız film sohbetinde yazılan tahmin tüm videolara taşınmamalı. Upstream limit5/20 ürün ihtiyacına göre ölçülmeli, aynen standart ilan edilmemeli.",
+    "integration": "MIT saf kapsam modeli portu; mevcut sourceKey/revision kimliğiyle bağlama.",
+    "ux": "Bellek kartında Yalnız bu kaynak / Tüm sohbetler seçimi ve kapsam taşıma önizlemesi.",
+    "effort": "M",
+    "acceptance": "Kaynak A karakter notu kaynak B isteğine eklenmez; kullanıcı açıkça genele taşırsa uygulanır.",
+    "windowsElectronCsp": "Dosya yolu yerine opaque kaynak ID; Windows büyük/küçük harf eşlemesi kaynağı birleştirmemeli.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "Memory modeli workspace/global, promoteToGlobal/demoteToWorkspace ve kapsam limitlerini içeriyor.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-06",
+    "title": "Belleği kullanmayı durdurma ve değişiklik makbuzu",
+    "status": "NEW",
+    "sources": [
+      {
+        "repo": "LibreChat-AI/LibreChat",
+        "sha": "f4154b649efa37e1345ccc517a4d8d1ed2178c82",
+        "path": "client/src/components/Nav/Settings/MemoryToggle.tsx",
+        "symbol": "MemoryToggle / onToggle",
+        "url": "https://github.com/LibreChat-AI/LibreChat/blob/f4154b649efa37e1345ccc517a4d8d1ed2178c82/client/src/components/Nav/Settings/MemoryToggle.tsx"
+      },
+      {
+        "repo": "LibreChat-AI/LibreChat",
+        "sha": "f4154b649efa37e1345ccc517a4d8d1ed2178c82",
+        "path": "client/src/components/Chat/Messages/Content/MemoryInfo.tsx",
+        "symbol": "MemoryInfo",
+        "url": "https://github.com/LibreChat-AI/LibreChat/blob/f4154b649efa37e1345ccc517a4d8d1ed2178c82/client/src/components/Chat/Messages/Content/MemoryInfo.tsx"
+      }
+    ],
+    "baselineFiles": "src/assistant-settings.js; src/assistant-provider.js:run",
+    "currentBehavior": "Sağlayıcı/akış gözlemleri var; incelenen run bağlamında kaydedilmiş genel bellek kullanım anahtarı ve bellek mutasyon makbuzu yok.",
+    "mechanism": "LibreChat MemoryToggle tercih yazımı sürerken anahtarı kilitliyor ve hata halinde UI değerini geri alıyor. MemoryInfo update/delete/error olaylarını, bütçe aşımını ayrı gösteriyor. Yeni bellek eklenirse kullanıcı tek tur için belleği kapatabilmeli; asistanın hangi kaydı güncellediğini sonradan bulabilmeli. Kaydı saklamak ile o istekte modele göndermek ayrı tercihlerdir.",
+    "integration": "MIT iki küçük davranışın tek bellek denetim akışı olarak DOM uyarlaması.",
+    "ux": "Bu sohbette belleği kullan anahtarı; cevabın altında iki kayıt kullanıldı, bir kayıt güncellendi ayrıntısı.",
+    "effort": "M",
+    "acceptance": "Kapalı turda kayıtlar durur fakat isteme eklenmez; kaydetme reddedilince anahtar ve makbuz doğru kalır.",
+    "windowsElectronCsp": "Kişisel içerik istemsiz telemetryye yazılmaz; dar panel ve klavye odağı korunur.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "MemoryToggle tercih mutationı ve hata halinde UI rollback içeriyor; MemoryInfo update/delete/error artifactlerini gösteriyor. Tek tur için kapatma bizim sentezimizdir.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-07",
+    "title": "Araç şemalarını ihtiyaç halinde keşfetme",
+    "status": "NEW",
+    "sources": [
+      {
+        "repo": "CherryHQ/cherry-studio",
+        "sha": "db125b265ecb6658d3bc99f2a65004605c237cab",
+        "path": "src/main/ai/runtime/aiSdk/prompts/deferredTools.ts",
+        "symbol": "getDeferredToolsSystemPrompt",
+        "url": "https://github.com/CherryHQ/cherry-studio/blob/db125b265ecb6658d3bc99f2a65004605c237cab/src/main/ai/runtime/aiSdk/prompts/deferredTools.ts"
+      }
+    ],
+    "baselineFiles": "src/assistant-capabilities.js:definitions/help; src/assistant-provider.js:run",
+    "currentBehavior": "Aktif kaynağa göre araçlar filtreleniyor; run kalan araçların bütün şemalarını tools dizisine koyuyor. Namespace bazlı şema keşfi ayrı protokol değil.",
+    "mechanism": "Cherry deferred-tools promptu namespace envanteri, tool_search, tool_inspect ve tool_invoke sırası tanımlıyor. Çok sayıda film, video, kitap ve ayar aracını her turda taşımak yerine çekirdek araçlar ile konu dizini sunulabilir. Keşif sonuçları yürütme yetkisi vermez; nihai invoke halen mevcut validate ve source-bound proposal yolundan geçmelidir. Bu dosya prompt sözleşmesini kanıtlar, bütün meta-tool uygulamasının runtime kabulünü değil.",
+    "integration": "AGPL koşullarıyla seçilmiş port veya bağımsız davranış uygulaması; bütün Cherry Electron uygulaması alınmaz.",
+    "ux": "Gerekirse Araçlar: video3, kitap4 gibi sade durum; kullanıcıya teknik JSON akıtılmaz.",
+    "effort": "L",
+    "acceptance": "Film sorusunda ilgisiz onlarca şema gönderilmez; keşfedilen dublaj aracı onay politikasını atlayamaz.",
+    "windowsElectronCsp": "Main registry tek otorite; CSP eval veya renderer Node erişimi eklenmez.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "getDeferredToolsSystemPrompt namespace sayımı ve tool_search/inspect/invoke kullanım sözleşmesini oluşturuyor. Bu dosya meta-tool handler implementasyonunu kanıtlamaz.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-08",
+    "title": "Araç seçiminde ölçülen yerel reranker pilotu",
+    "status": "NEW",
+    "sources": [
+      {
+        "repo": "Mintplex-Labs/anything-llm",
+        "sha": "9caf2b4c29d9782f1cba4142be2525ebfa0ecd43",
+        "path": "server/utils/agents/aibitat/utils/toolReranker.js",
+        "symbol": "ToolReranker.rerank / #toolToDocument",
+        "url": "https://github.com/Mintplex-Labs/anything-llm/blob/9caf2b4c29d9782f1cba4142be2525ebfa0ecd43/server/utils/agents/aibitat/utils/toolReranker.js"
+      }
+    ],
+    "baselineFiles": "src/assistant-capabilities.js:list/definitions",
+    "currentBehavior": "Alan erişilebilirlik filtresi var; kullanıcı sorusuna göre araç açıklamaları üzerinde alaka sıralaması yok.",
+    "mechanism": "AnythingLLM ToolReranker açıklama, parametre adları ve örnekleri belgeye çevirip NativeEmbeddingReranker ile topN seçiyor; hata halinde özgün seti geri döndürüyor. Keşif protokolünden farklı olarak bu mekanizma modelin önüne hangi araçların geldiğini sıralar. Bizde önce sözcüksel düşük maliyetli aday seçimiyle kıyaslanmalı; sessiz araç kaybı ve yanlış alaka ölçülmeden yerel model zorunlu yapılmamalı.",
+    "integration": "MIT saf dönüşüm/fallback portu; yerel reranker bağımlılığı yalnız ölçüm sonrası opsiyonel.",
+    "ux": "Deneysel hızlı araç seçimi ayarı; yanlışsa tüm uygun araçlara geri dön seçeneği.",
+    "effort": "L",
+    "acceptance": "“Altyazıyı Türkçeye çevir” sorgusunda çeviri aracı kalır; reranker yokken normal çalışma sürer.",
+    "windowsElectronCsp": "Native model indirme/bellek/VRAM bütçesi; Whisper/dublaj GPU işine öncelik verilir.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": true,
+    "observedCode": "ToolReranker.rerank araç açıklamalarını NativeEmbeddingRerankera verir, topN seçer; exceptionda özgün araç setine döner.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-09",
+    "title": "Büyük araç çıktısına konuşma boyunca dayanıklı erişim",
+    "status": "OLD-DEEPENING:24Ekim kaynak kartları; R839-A05",
+    "sources": [
+      {
+        "repo": "CherryHQ/cherry-studio",
+        "sha": "db125b265ecb6658d3bc99f2a65004605c237cab",
+        "path": "src/main/ai/contextBuild/toolOutputStore.ts",
+        "symbol": "persistToolOutputText/extractPersistableText/reconstructOutput",
+        "url": "https://github.com/CherryHQ/cherry-studio/blob/db125b265ecb6658d3bc99f2a65004605c237cab/src/main/ai/contextBuild/toolOutputStore.ts"
+      }
+    ],
+    "baselineFiles": "src/assistant-tool-results.js:ToolResults.encode/read",
+    "currentBehavior": "12000 karakter üzeri sonuç turn içi Mapte tutuluyor; read_tool_result6000 karakter sayfalar; tek tur kapsamı açıkça belirtiliyor.",
+    "mechanism": "Cherry toolOutputStore içerik hashli internal blob, mesaj referansı ve delete_when_unreferenced yaşamı tanımlıyor; text/MCP-text dışındaki şekli kayıpsız korunamıyorsa dönüştürmüyor. Bizde yeni değer tool result saklamayı yeniden icat etmek değil, uzun araştırmanın sonraki turunda aynı izinli sonucu ID ile yeniden okuyabilmek ve kopya büyük metni azaltmaktır. Byte/karakter bütçesi ve silme politikası açık olmalı.",
+    "integration": "AGPL seçilmiş port veya bağımsız içerik adresli store; mevcut Map kısa işler için kalabilir.",
+    "ux": "Kaynak kartında tam sonucu aç/dışa aktar ve saklama süresi.",
+    "effort": "M",
+    "acceptance": "Uygulama yeniden açıldıktan sonra izinli aynı sonuç bulunur; sohbet silinince referanssız blob temizlenir.",
+    "windowsElectronCsp": "userData atomik dosya, maksimum disk alanı; modelin uydurduğu blob ID dosya okuma yetkisi sayılmaz.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "toolOutputStore içerik adresli blob, internal cleanup niteliği, text/MCP şekil projeksiyonu ve yeniden kurma fonksiyonları içeriyor.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-10",
+    "title": "Gönderilmeden önce görünür bağlam bütçesi",
+    "status": "OLD-DEEPENING:R839-A04;24Ekim attachmentBudget",
+    "sources": [
+      {
+        "repo": "CherryHQ/cherry-studio",
+        "sha": "db125b265ecb6658d3bc99f2a65004605c237cab",
+        "path": "src/main/ai/contextBuild/resolveInputRoom.ts",
+        "symbol": "resolveInputRoom",
+        "url": "https://github.com/CherryHQ/cherry-studio/blob/db125b265ecb6658d3bc99f2a65004605c237cab/src/main/ai/contextBuild/resolveInputRoom.ts"
+      },
+      {
+        "repo": "CherryHQ/cherry-studio",
+        "sha": "db125b265ecb6658d3bc99f2a65004605c237cab",
+        "path": "src/main/ai/contextBuild/resolveOutputReservation.ts",
+        "symbol": "resolveRequestedMaxOutputTokens",
+        "url": "https://github.com/CherryHQ/cherry-studio/blob/db125b265ecb6658d3bc99f2a65004605c237cab/src/main/ai/contextBuild/resolveOutputReservation.ts"
+      },
+      {
+        "repo": "CherryHQ/cherry-studio",
+        "sha": "db125b265ecb6658d3bc99f2a65004605c237cab",
+        "path": "src/main/ai/contextBuild/resolveContextWindow.ts",
+        "symbol": "resolveContextWindow/resolveMinContextWindow",
+        "url": "https://github.com/CherryHQ/cherry-studio/blob/db125b265ecb6658d3bc99f2a65004605c237cab/src/main/ai/contextBuild/resolveContextWindow.ts"
+      }
+    ],
+    "baselineFiles": "src/assistant-provider.js:run",
+    "currentBehavior": "Geçmiş son12mesaj ve her biri5000karakterle kesilir; max_tokens2400 sabittir. Sistem/araç/kaynak paylarını gösteren gerçek istek bütçesi yok.",
+    "mechanism": "Cherry geçerli contextWindow, istekte gerçekten ayrılan output reservation ve kalan input room hesaplarını ayırıyor; bilinmeyen pencereyi NaN yerine null döndürüyor. Kullanıcıya “geçmişin dört eski turu gönderilmedi” açıklaması verilmesi sessiz kırpmayı görünür yapar. Bu bir başka compaction algoritması önerisi değil; gönderim öncesi saydamlık ve bütçenin doğru paylaştırılmasıdır. Token tahmini ölçülen tokenizerla ya da açık tahmin etiketiyle sunulur.",
+    "integration": "AGPL saf budget yardımcıları veya bağımsız uygulama.",
+    "ux": "Yazı alanı altında kaynak/geçmiş/araç/yanıt rezervi; çıkarılan parçalar açılabilir.",
+    "effort": "M",
+    "acceptance": "Küçük pencereli modelde araç şemaları bütçeye dahil edilir; bilinmeyen pencerede sahte yüzde gösterilmez.",
+    "windowsElectronCsp": "Renderer hesapları güvence yerine geçmez; main nihai bütçeyi kurar, EN/TR sayılar okunur.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "resolveContextWindow geçersiz değerde null döndürür; resolveRequestedMaxOutputTokens öncelik sırası ve resolveInputRoom rezerv sonrası girdi alanını hesaplar. Görünür bütçe UIı kaynakta incelenmedi.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-11",
+    "title": "Sağlayıcı yetenek ve taşıma modu profili",
+    "status": "NEW",
+    "sources": [
+      {
+        "repo": "iOfficeAI/AionUi",
+        "sha": "11cd2a9a20d1e033157636efc570b41384c66d85",
+        "path": "packages/desktop/src/common/utils/modelCapabilities.ts",
+        "symbol": "supportsOpenAiApiMode/updateModelSettings/hasSpecificModelCapability",
+        "url": "https://github.com/iOfficeAI/AionUi/blob/11cd2a9a20d1e033157636efc570b41384c66d85/packages/desktop/src/common/utils/modelCapabilities.ts"
+      },
+      {
+        "repo": "CherryHQ/cherry-studio",
+        "sha": "db125b265ecb6658d3bc99f2a65004605c237cab",
+        "path": "src/main/ai/runtime/aiSdk/params/capabilities.ts",
+        "symbol": "resolveCapabilities",
+        "url": "https://github.com/CherryHQ/cherry-studio/blob/db125b265ecb6658d3bc99f2a65004605c237cab/src/main/ai/runtime/aiSdk/params/capabilities.ts"
+      }
+    ],
+    "baselineFiles": "src/assistant-settings.js:resolve; src/assistant-provider.js:run",
+    "currentBehavior": "DeepInfra ya da inherit yapılandırması ve tools/stream için gözlenen supported/unsupported durumu var; model/endpoint/API modu ayrımı genellenmiş değil.",
+    "mechanism": "AionUi model ayarlarında auto ile açık image_input/openai_api_mode değerlerini ayırıyor; Cherry resolveCapabilities model+provider+assistant ve gerçek runtime providerID ile istek özelliklerini çözüyor. Bu sayede Chat Completions uyumlu endpoint ile Responses yeteneği aynı sanılmaz. Regex eşleşmesi güçlü garanti değildir; açık kullanıcı ayarı ve kontrollü probe sonucu tahmine üstün gelmeli.",
+    "integration": "Apache AionUi ayar modeli portu; AGPL Cherry çözümleyici referansı veya şartlı port.",
+    "ux": "Model kartında Araçlar: gözlendi, görüntü: bilinmiyor, taşıma: Chat Completions gibi anlaşılır durum.",
+    "effort": "L",
+    "acceptance": "Tool desteklemeyen modelde eylem uygulanmış gibi görünmez; API modu değişince önceki gözlem yeniden değerlendirilir.",
+    "windowsElectronCsp": "Anahtar endpointler arasında taşınmaz; yeni originler main allowlist ve mevcut kasa ile çözülür.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "AionUi auto/açık image_input ve openai_api_mode ayarlarını ayırır; Cherry gerçek runtime providerID ile capabilities/web plugin config üretir. Uçtan uca probe kartın önerisidir.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-12",
+    "title": "Model değişince desteklenmeyen ekleri açıkça dönüştür",
+    "status": "NEW",
+    "sources": [
+      {
+        "repo": "CherryHQ/cherry-studio",
+        "sha": "db125b265ecb6658d3bc99f2a65004605c237cab",
+        "path": "src/main/ai/messages/messageCapabilities.ts",
+        "symbol": "stripUnsupportedMedia/resolveToolResultMediaCapabilities/routeToolResultMedia",
+        "url": "https://github.com/CherryHQ/cherry-studio/blob/db125b265ecb6658d3bc99f2a65004605c237cab/src/main/ai/messages/messageCapabilities.ts"
+      }
+    ],
+    "baselineFiles": "src/assistant-provider.js:run; src/assistant-source-context.js",
+    "currentBehavior": "Bugünkü asistan kaynakları metin tabanlı ve seçili vision önerisi R839da var; model değişiminde geçmiş medya parçası dönüştürücüsü bu run yolunda bulunmaz.",
+    "mechanism": "Cherry stripUnsupportedMedia geçmişteki audio/video file parçalarını sessiz silmek yerine açık omitted note ile değiştiriyor. routeToolResultMedia görüntüyü model yeteneği ile wire şekline göre, tool-call/result komşuluğunu koruyarak user mesajına taşıyor. Bu, yeni ekran anlama fikri değildir; gelecekte eklenecek medyanın sağlayıcı değişiminde doğru serileştirilmesidir. Base64 metni modele anlamsız JSON olarak göndermekten kaçınır.",
+    "integration": "AGPL seçilmiş dönüşüm veya bağımsız adapter; medya ekleri uygulanınca önkoşul.",
+    "ux": "Gönderim önizlemesinde video bu modelde kullanılamadı; metin dökümü kullanıldı açıklaması.",
+    "effort": "M",
+    "acceptance": "Vision modelden text modele geçince eski görüntü gizlice görülmüş sayılmaz ve tool eşleri bozulmaz.",
+    "windowsElectronCsp": "Dosya okuma/main MIME kontrolü, boyut limiti, CSP altında yerel güvenli önizleme.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": true,
+    "observedCode": "messageCapabilities geçmişte desteklenmeyen audio/video file parçalarını note ile değiştirir; tool-result imagesı wirea göre synthetic user mesaja taşır.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-13",
+    "title": "İsteğe bağlı yerel asistan model keşfi",
+    "status": "NEW",
+    "sources": [
+      {
+        "repo": "letta-ai/letta-code",
+        "sha": "ebd590b11bef049884b923da5ed3f5d087af81e0",
+        "path": "src/backend/local/local-model-config.ts",
+        "symbol": "resolveLocalProvider/listLocalModels/localModelSettingsForHandle",
+        "url": "https://github.com/letta-ai/letta-code/blob/ebd590b11bef049884b923da5ed3f5d087af81e0/src/backend/local/local-model-config.ts"
+      }
+    ],
+    "baselineFiles": "src/assistant-settings.js:resolve; src/assistant-translation-profiles.js",
+    "currentBehavior": "Kayıtlı çeviri profilleri var; asistan resolve kendi endpointini DeepInfra ile sınırlar veya shared ayarı devralır. Yerel asistan model envanteri ayrı değil.",
+    "mechanism": "Letta local-model-config yapılandırılmış provider kayıtları, provider-published model discovery ve supported thinking levels bilgisini aynı runtime üzerinden çözüyor. Ürün için yerel kısa özet/etiketleme asistanı isteğe bağlı sunulabilir; kişisel metnin cihazda kalmasını isteyen kullanıcıya yarar. Yerel modeli otomatik kalite eşdeğeri ilan etmek veya canlı sağlayıcıdan gizli fallback yapmak uygun değil. Donanım gücü tek başına Türkçe doğruluğunu kanıtlamaz.",
+    "integration": "Apache adapter/veri modeli portu; Letta bütün terminal ajanı veya otomatik model kurulumu gerekmez.",
+    "ux": "Yerel sağlayıcı ekle, modelleri tara, araç destek durumu ve test isteği.",
+    "effort": "L",
+    "acceptance": "Yerel servis kapalıyken anlaşılır bağlantı hatası; açık seçim olmadan buluta gönderim yapılmaz.",
+    "windowsElectronCsp": "Loopback/origin güvenliği, Windows port/servis, CUDA VRAM çakışması ve start.bat env kabulü.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": true,
+    "observedCode": "Letta listLocalModels runtime.refreshAll üzerinden modelleri toplar, handle dedup ve reasoning/context bilgilerini döndürür. Otomatik yerel/bulut kalite routerı değildir.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-14",
+    "title": "Sohbet dalına model ayarı anlık görüntüsü",
+    "status": "NEW",
+    "sources": [
+      {
+        "repo": "letta-ai/letta-code",
+        "sha": "ebd590b11bef049884b923da5ed3f5d087af81e0",
+        "path": "src/agent/conversation-model-carryover.ts",
+        "symbol": "buildConversationModelCarryoverUpdate",
+        "url": "https://github.com/letta-ai/letta-code/blob/ebd590b11bef049884b923da5ed3f5d087af81e0/src/agent/conversation-model-carryover.ts"
+      }
+    ],
+    "baselineFiles": "src/assistant-thread-store.js:cleanThread; src/assistant-settings.js",
+    "currentBehavior": "Thread title/source/revision/messages tutulur; thread schema içinde modelHandle, context limit ve reasoning/serviceTier anlık görüntüsü yok.",
+    "mechanism": "Letta buildConversationModelCarryoverUpdate model handle normalizasyonu, destekli reasoning ve geçerli context window değerlerini yeni konuşmaya taşırken backendin sahip olduğu limitleri ayırıyor. Bizde eski cevabın hangi modelle üretildiği ve yeni dalın hangi ayarla devam ettiği görünür olmalı. Kayıt anahtar içermez; model değiştirme yetkisi ile credential taşıma birbirinden ayrı kalır. Upstream legacy128k iyileştirmesi bize kör taşınmaz.",
+    "integration": "Apache küçük snapshot/normalizasyon modeli portu.",
+    "ux": "Cevap altında model/taşıma etiketi; Dal aç menüsünde mevcut ayarı koru veya güncel varsayılan.",
+    "effort": "M",
+    "acceptance": "Global model değiştikten sonra eski dal sessiz farklı modelle sürmez; seçim görünür yapılır.",
+    "windowsElectronCsp": "Şema göçü ve eski arşiv importu geriye uyumlu; endpoint anahtarı thread JSONa girmez.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "buildConversationModelCarryoverUpdate handle/reasoning/context güncelleme alanlarını korur. Her yanıta kalıcı model provenance etiketi eklemek bizim ürün sentezimizdir.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-15",
+    "title": "Arka plan işinde değişmez çağrı sahipliği",
+    "status": "OLD-DEEPENING:R838 uzun iş sürekliliği;R839-A07",
+    "sources": [
+      {
+        "repo": "mastra-ai/mastra",
+        "sha": "e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58",
+        "path": "packages/core/src/background-tasks/create.ts",
+        "symbol": "createBackgroundTask/checkIfExisting/resume/restart",
+        "url": "https://github.com/mastra-ai/mastra/blob/e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58/packages/core/src/background-tasks/create.ts"
+      }
+    ],
+    "baselineFiles": "src/assistant-agent-service.js:jobBindings; src/assistant-jobs.js:createJobs",
+    "currentBehavior": "Main-owned job ledger, exact jobID ve source binding mevcut; jobBindings ve akış kayıtları süreç içi Mapler.",
+    "mechanism": "Mastra createBackgroundTask dispatch hooklarını her handle içinde tutuyor; checkIfExisting toolCallID/runID/agentID/threadID/resourceID/toolName ile tek kaydı arıyor, birden fazla eşleşmeyi hata sayıyor. Bizde ek değer daha çok iş türünü aynı kimlik sözleşmesine bağlamak ve renderer yeniden bağlandığında başka konuşmanın işini sahiplenmemektir. Yeni iş sistemi kurmak yerine mevcut IDs üzerine genişletilir.",
+    "integration": "Apache non-ee core davranış portu; Mastra frameworkünün tümünü kurmak ilk adım değil.",
+    "ux": "İş kartında hangi sorudan ve hangi kaynaktan doğduğu, aynı karta geri dönme.",
+    "effort": "M",
+    "acceptance": "İki konuşma aynı çeviri aracını çağırınca sonuçlar tool adına göre çapraz bağlanmaz.",
+    "windowsElectronCsp": "Main process otoritesi, pencere kapanışında listener temizliği, process restart ayrı kabul gerektirir.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "createBackgroundTask handleı dispatch contextini kapatır; checkIfExisting çoklu kimlik alanlarıyla kayıt arar ve birden fazla kaydı reddeder.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-16",
+    "title": "Başlamış medya operasyonunu asistan işine devralma",
+    "status": "NEW",
+    "sources": [
+      {
+        "repo": "mastra-ai/mastra",
+        "sha": "e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58",
+        "path": "packages/core/src/background-tasks/adoption.ts",
+        "symbol": "executeAdoptedBackgroundOperation",
+        "url": "https://github.com/mastra-ai/mastra/blob/e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58/packages/core/src/background-tasks/adoption.ts"
+      }
+    ],
+    "baselineFiles": "src/assistant-agent-service.js:requestRenderer; src/assistant-jobs.js:start/cancel",
+    "currentBehavior": "Renderer eylem isteği ve main job kayıtları var; çağrının zaten başlamış asenkron operation/completion/cancel nesnesini tek kez adopt eden soyut sözleşme yok.",
+    "mechanism": "Mastra executeAdoptedBackgroundOperation aracın dönmesinden önce yalnız bir operation devralır; completionı izler, abortu cancel fonksiyonuna bağlar, arıza halinde tekrar iptali birleştirir. Bir dublaj sürecini hem araç promiseı hem job ledger ayrı sahiplenince belirsiz kapanış yaratmak yerine tek gerçek operationa iki görünüm bağlanabilir. Bu, kullanıcı onayı sonrası başlamış işe ilişkindir; otomatik yeni iş yetkisi değildir.",
+    "integration": "Apache küçük yaşam döngüsü helperı port adayı.",
+    "ux": "Araç kartı Hazırlanıyor yerine gerçek iş aşamasına bağlanır; Durdur tek işlem.",
+    "effort": "M",
+    "acceptance": "İptal iki farklı UI yüzeyinden istenince alttaki işlem bir kez iptal edilir ve tamamlandı taklidi oluşmaz.",
+    "windowsElectronCsp": "Windows child process yaşamı, listener sızıntısı ve kapalı pencere callbackleri hedefli doğrulanır.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "executeAdoptedBackgroundOperation yalnız bir operationı dönüş öncesi adopt eder; completion ve cancel promiseını izler, abort listenerını temizler.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-17",
+    "title": "İş bitti ile sonuç asistana teslim edildi durumunu ayır",
+    "status": "NEW",
+    "sources": [
+      {
+        "repo": "LibreChat-AI/LibreChat",
+        "sha": "f4154b649efa37e1345ccc517a4d8d1ed2178c82",
+        "path": "client/src/components/Chat/BackgroundTasks/rows.ts",
+        "symbol": "findToolCallArgs/buildTaskRows/undelivered",
+        "url": "https://github.com/LibreChat-AI/LibreChat/blob/f4154b649efa37e1345ccc517a4d8d1ed2178c82/client/src/components/Chat/BackgroundTasks/rows.ts"
+      }
+    ],
+    "baselineFiles": "src/assistant-jobs.js:update; src/renderer/assistant-jobs-ui.js",
+    "currentBehavior": "Ledger running/cancelling/completed/failed/stopped ve partial bilgisi tutar; model continuationa teslim pending/failed durumu ayrı veri değil.",
+    "mechanism": "LibreChat rows.ts terminal taskın delivery pending veya failed olmasını ayrı sıralıyor; findToolCallArgs yalnız belirsiz olmayan message/toolCall/step kimliğini kabul ediyor. Üretim başarıyla bittiği halde ağ kesildiği için asistanın sonucu öğrenememesi yeni üretim gerekçesi değildir. Kullanıcı yeniden bildir eylemiyle tamamlanmış sonucu taşıyabilmeli. İşin kendisini yeniden başlatmakla teslimi tekrarlamak ayrılır.",
+    "integration": "MIT projection ve durum modeli portu.",
+    "ux": "Tamamlandı • asistan bildirimi bekliyor ve Sonucu tekrar bildir eylemi.",
+    "effort": "M",
+    "acceptance": "SSE kopması sonrası sadece teslim tekrarlanır; ikinci ücretli dublaj veya çeviri başlatılmaz.",
+    "windowsElectronCsp": "Kalıcı makbuz kimliği, yeniden açma ve offline/online dönüşü; kişisel dosya yolu modele dökülmez.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "rows.ts task status ile delivery pending/failed alanlarını ayırır ve belirsiz tool-call arg eşleşmelerini siler. Sunucu tarafı yeniden teslim APIı bu UI dosyasında kanıtlanmadı.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-18",
+    "title": "Yalnız başarısız aşamadan devam; restart ayrı eylem",
+    "status": "OLD-DEEPENING:R838 checkpoint;R839-A07",
+    "sources": [
+      {
+        "repo": "mastra-ai/mastra",
+        "sha": "e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58",
+        "path": "packages/core/src/background-tasks/create.ts",
+        "symbol": "createBackgroundTask/checkIfExisting/resume/restart",
+        "url": "https://github.com/mastra-ai/mastra/blob/e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58/packages/core/src/background-tasks/create.ts"
+      },
+      {
+        "repo": "mastra-ai/mastra",
+        "sha": "e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58",
+        "path": "packages/core/src/background-tasks/manager.ts",
+        "symbol": "BackgroundTaskManager.resume/restart / ownedLeases",
+        "url": "https://github.com/mastra-ai/mastra/blob/e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58/packages/core/src/background-tasks/manager.ts"
+      }
+    ],
+    "baselineFiles": "src/assistant-flows.js; src/assistant-flow-state.js",
+    "currentBehavior": "Devam kartları ve exact job sonucu ile önceki adımların korunması var; kalıcı görev/checkpoint yürütme kapsamı sınırlı.",
+    "mechanism": "Mastra resume ile restartı açık APIler olarak ayırıyor; manager task lease ownerını fenced terminal yazımlarda kontrol ediyor, kaynak bazlı task olaylarını filtreliyor. Bizim fark hedefi asistanın bütün görevi tekrar sorması yerine hangi aşamanın yeniden çalışacağını görünür seçtirmek. Checkpoint yalnız çıktı dosyası varlığı değildir; kaynak revizyonu ve önceki stage sonucu da doğrulanmalıdır. Upstreamin bütün dağıtık işçi altyapısı masaüstüne şart değildir.",
+    "integration": "Apache seçilmiş state/identity desenini mevcut flows üstüne port.",
+    "ux": "Whisper tamamlandı, çeviri başarısız, dublaj başlamadı aşama kartında yalnız Çeviriyi yeniden dene.",
+    "effort": "L",
+    "acceptance": "Başarısız çeviri tekrarında Whisper çalışmaz; kaynak değiştiyse önceki checkpoint reddedilir.",
+    "windowsElectronCsp": "Windows çökme/yeniden açma, GPU subprocess, atomik checkpoint ve kullanıcı dosyası kabulü gerekir.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "BackgroundTaskManager.resume yalnız suspended durumu, restart pending/running durumunu kabul eder; queue/slot ve lease ownership ayrımı kaynakta var. Whisper stage checkpoint adaptörü bizim sentezimizdir.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-19",
+    "title": "Gecikmiş sonuç için ilk çağrının denetimlerini yeniden kur",
+    "status": "OLD-DEEPENING:R840-Ö02;R839-A02",
+    "sources": [
+      {
+        "repo": "lobehub/lobehub",
+        "sha": "4441d89c9ea0aebecdcb0a0d3d2327cc422ddf98",
+        "path": "apps/server/src/services/agentRuntime/hooks/deferredToolResultControl.ts",
+        "symbol": "controlDeferredToolResult/loadDurableToolResultHooks",
+        "url": "https://github.com/lobehub/lobehub/blob/4441d89c9ea0aebecdcb0a0d3d2327cc422ddf98/apps/server/src/services/agentRuntime/hooks/deferredToolResultControl.ts"
+      }
+    ],
+    "baselineFiles": "src/assistant-agent-service.js:requireOwner/jobResult; src/assistant-context-manifest.js",
+    "currentBehavior": "Kaynak revizyonu ve owner denetimi mevcut; bunları sıfırdan varmış gibi önermiyoruz.",
+    "mechanism": "Lobe controlDeferredToolResult duraklatılmış çağrının persisted tool metadata ve ilk operation hooklarını geri okuyor; özgün çağrı kurulamazsa onaysız backfill yapmıyor. Arka plan sonucu farklı anda gelirse ilk onay ve güncel ortam denetimini ikisini de koruma örneği. Bizde bu, film sekmesi değiştikten sonra gelen uzun yorum analizi veya dublaj sonucunun yanlış yere uygulanmasını engelleyen denetimlerin daha tekil bir yaşam döngüsüne alınmasıdır.",
+    "integration": "Community lisanslı kod için özel ticari türev dağıtım şartını kaydet; bağımsız tasarım uygulaması veya uygun lisanslı kullanım. Kaynak fikir dışlanmadı.",
+    "ux": "Kaynak değiştiyse Sonuç hazır, ilgili konuşmayı aç; yanlış açık ekrana otomatik uygulama yok.",
+    "effort": "M",
+    "acceptance": "Eski kaynak sonucu yeni kaynağın cevap/eylem kartına bağlanmaz; özgün kimlik yoksa açık kurtarma durumu görünür.",
+    "windowsElectronCsp": "Mainde yetki yeniden değerlendirmesi; serialized hook içeriği renderer veya modele verilmez.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "controlDeferredToolResult persisted call metadata/operation hooklarını kurar, özgün bağlam yoksa hata verir ve after-tool kontrolünü uygular.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-20",
+    "title": "Yanıt çıktısının sohbetten ayrı sürüm geçmişi",
+    "status": "OLD-DEEPENING:R839-A05 araştırma dosyası",
+    "sources": [
+      {
+        "repo": "LibreChat-AI/LibreChat",
+        "sha": "f4154b649efa37e1345ccc517a4d8d1ed2178c82",
+        "path": "client/src/components/Artifacts/ArtifactVersion.tsx",
+        "symbol": "ArtifactVersion/onVersionChange",
+        "url": "https://github.com/LibreChat-AI/LibreChat/blob/f4154b649efa37e1345ccc517a4d8d1ed2178c82/client/src/components/Artifacts/ArtifactVersion.tsx"
+      },
+      {
+        "repo": "iOfficeAI/AionUi",
+        "sha": "11cd2a9a20d1e033157636efc570b41384c66d85",
+        "path": "packages/desktop/src/renderer/pages/conversation/Messages/artifacts.tsx",
+        "symbol": "ConversationArtifactProvider/upsertArtifacts",
+        "url": "https://github.com/iOfficeAI/AionUi/blob/11cd2a9a20d1e033157636efc570b41384c66d85/packages/desktop/src/renderer/pages/conversation/Messages/artifacts.tsx"
+      }
+    ],
+    "baselineFiles": "src/assistant-thread-store.js:cleanThread; src/assistant-collections.js",
+    "currentBehavior": "Mesaj dalları ve analiz kayıtları var; aynı çıktı belgesinin revizyon seçicisi ve sohbetten bağımsız artifact kimliği ayrı schema değil.",
+    "mechanism": "LibreChat ArtifactVersion sürüm sayısı birden fazlaysa erişilebilir seçici sunuyor; AionUi artifact providerı id ile upsert edip konuşma değişiminde eski eventleri dışlıyor. Araştırma özeti veya karşılaştırma tablosunu “daha kısa yap” ile revize etmek yeni sohbet dalından ayrı belge v2 üretir. Önceki belge korunur; seçilen sürümün hangi kaynak revizyonlarından geldiği saklanır. UI tek başına kalıcı sürüm backendini kanıtlamaz.",
+    "integration": "MIT/Apache veri ve UI deseni portu; yeni artifact deposu ayrıca tasarlanır.",
+    "ux": "Sohbetin yanında belge, v1/v2 seçici, dışa aktar ve kaynağa dön.",
+    "effort": "M",
+    "acceptance": "v2 düzenlemesi v1i değiştirmez; eski sürüm exportu eski metni verir.",
+    "windowsElectronCsp": "CSP altında model HTML çalıştırılmaz; ilk kapsam metin/Markdown/tablo, yerel dosya kaydı main üzerinden.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "ArtifactVersion indeks seçimi UIı; ConversationArtifactProvider ID bazlı upsert ve conversation event filtresi içerir. Kalıcı artifact revizyon backendini bu iki dosya kanıtlamaz.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-21",
+    "title": "Asistan düzeltmesinde dosya ve diff önizlemesi",
+    "status": "NEW",
+    "sources": [
+      {
+        "repo": "iOfficeAI/AionUi",
+        "sha": "11cd2a9a20d1e033157636efc570b41384c66d85",
+        "path": "packages/desktop/src/renderer/hooks/file/useDiffPreviewHandlers.ts",
+        "symbol": "useDiffPreviewHandlers/handleFileClick/handleDiffClick",
+        "url": "https://github.com/iOfficeAI/AionUi/blob/11cd2a9a20d1e033157636efc570b41384c66d85/packages/desktop/src/renderer/hooks/file/useDiffPreviewHandlers.ts"
+      }
+    ],
+    "baselineFiles": "src/assistant-source-preview.js; src/renderer/assistant-caption-actions.js",
+    "currentBehavior": "Kaynak ve çeviri önerisi önizlemeleri var; genel asistan artifact metni için file/diff çift görünümü yok.",
+    "mechanism": "AionUi useDiffPreviewHandlers aynı değişiklik kartından gerçek dosyayı ve salt okunur diffi açıyor; fallback metni ve dosya türüne göre editable bilgisini ayırıyor. Bizde örneğin hazırlanan inceleme raporunun yalnız ikinci paragrafını değiştirirken kullanıcının tamamını tekrar okuması gerekmez. Bu, altyazı düzeltmesini otomatik diske yazma önerisi değil; onay öncesi değişiklik alanını açık gösterme mekanizmasıdır.",
+    "integration": "Apache küçük launch sözleşmesi portu; editör framework göçü gerekmez.",
+    "ux": "Önce/Sonra, yalnız değişen satırlar, uygula veya vazgeç.",
+    "effort": "M",
+    "acceptance": "Asistan bir paragrafı değiştirince diğer paragraflar ve orijinal dosya kullanıcı uygulayana kadar aynı kalır.",
+    "windowsElectronCsp": "UTF-8/BOM, CRLF ve Windows yolu korunur; diff html textContent/izinli DOM ile çizilir.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "useDiffPreviewHandlers dosya görünümü ile salt okunur diff görünümünü farklı launchPreview argümanlarıyla açar; ürünün gerçek diske apply/write işlemi bu hookta yok.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-22",
+    "title": "Artifact yaşam döngüsü: taslak, hazır, kayıp ve temizleme",
+    "status": "NEW",
+    "sources": [
+      {
+        "repo": "iOfficeAI/AionUi",
+        "sha": "11cd2a9a20d1e033157636efc570b41384c66d85",
+        "path": "packages/desktop/src/renderer/pages/conversation/Messages/artifacts.tsx",
+        "symbol": "ConversationArtifactProvider/upsertArtifacts",
+        "url": "https://github.com/iOfficeAI/AionUi/blob/11cd2a9a20d1e033157636efc570b41384c66d85/packages/desktop/src/renderer/pages/conversation/Messages/artifacts.tsx"
+      },
+      {
+        "repo": "CherryHQ/cherry-studio",
+        "sha": "db125b265ecb6658d3bc99f2a65004605c237cab",
+        "path": "src/main/ai/contextBuild/toolOutputStore.ts",
+        "symbol": "persistToolOutputText/extractPersistableText/reconstructOutput",
+        "url": "https://github.com/CherryHQ/cherry-studio/blob/db125b265ecb6658d3bc99f2a65004605c237cab/src/main/ai/contextBuild/toolOutputStore.ts"
+      }
+    ],
+    "baselineFiles": "src/assistant-jobs.js:result.artifacts; src/assistant-thread-store.js",
+    "currentBehavior": "İşlerde role/count/partial çıktıları var; genel konuşma artifacti için id/status/updatedAt olay projeksiyonu yok.",
+    "mechanism": "AionUi ConversationArtifactProvider başlangıç listesini IPCden alır, gelen olayları conversation_id ile filtreler, id bazlı birleştirir ve state değişimlerini tutar. Cherry referanssız içeriği temizleme deseni saklama ömrünü tamamlar. Kısmi oluşturulan belgeyi tam dosya diye sunmamak ve silinen dosyayı hâlâ indirilebilir göstermemek somut kullanıcı yararıdır. Bu kart sürüm geçmişinden farklı olarak dosyanın kullanılabilirlik durumunu yönetir.",
+    "integration": "Apache provider yaşam döngüsü + AGPL store ref koşullarıyla port/bağımsız uygulama.",
+    "ux": "Dosyalar alanında hazırlanıyor/hazır/eksik; yeniden oluştur yerine dosyayı bul veya export et.",
+    "effort": "M",
+    "acceptance": "Sohbet değişirken önceki artifact event yeni listeye düşmez; dosya silinince Hazır etiketi korunmaz.",
+    "windowsElectronCsp": "Opaque IDden main dosya çözümleme; modelin verdiği keyfi yerel yoldan indirme yok.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "ConversationArtifactProvider IPC listesini/eventini conversation_id ile filtreler ve status günceller; toolOutputStore referanssız blob temizleme politikasını belirtir. Kayıp dosya tespiti ve durum seti bizim sentezimizdir.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-23",
+    "title": "Kullanıcı geri bildirimini tekrar oynatılabilir görev değerlendirmesine bağla",
+    "status": "NEW",
+    "sources": [
+      {
+        "repo": "mastra-ai/mastra",
+        "sha": "e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58",
+        "path": "packages/core/src/datasets/experiment/scorer.ts",
+        "symbol": "runScorersForItem/experimentScoreId",
+        "url": "https://github.com/mastra-ai/mastra/blob/e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58/packages/core/src/datasets/experiment/scorer.ts"
+      }
+    ],
+    "baselineFiles": "src/assistant-run-steps.js; src/assistant-job-diagnostics.js; tests/assistant-provider.test.js",
+    "currentBehavior": "Araç adımları, hata sınıfları ve hedefli testler var; kullanıcı geri bildirimiyle seçilen örneği sürümlü ölçüm girdisine bağlayan deney kaydı yok.",
+    "mechanism": "Mastra runScorersForItem içerik çıktısı ile trajectoryyi ayırıyor, her scorer hatasını izole ediyor ve aynı experiment/item/attempt/scorer için kararlı skorID kullanıyor. Bizde “yanlış kaynağı kullandı” bildirimi anonimleştirilmiş kaynak/araç iziyle yerel inceleme örneğine dönüşebilir. Önce deterministik yanlış kaynak, tamamlanma iddiası ve araç sırası ölçülmeli; LLM hakemi tek başına doğru kabul edilmemeli. Gerçek kullanıcı konuşmasını otomatik yayına göndermek gerekmez.",
+    "integration": "Apache non-ee seçilmiş skor kontratı portu; tam Mastra eval altyapısı opsiyonel.",
+    "ux": "Cevap altında Sorunu bildir: yanlış kaynak/eksik cevap/eylem; paylaşılacak içeriğin önizlemesi.",
+    "effort": "M",
+    "acceptance": "Aynı örneğin retryı çift skor üretmez; değerlendirici hatası0puan diye kalite regresyonu sayılmaz.",
+    "windowsElectronCsp": "Kişisel veri redaksiyonu ve yerelde saklama; gerçek anahtar/log eklenmez, CI dışarı veri göndermez.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": false,
+    "observedCode": "runScorersForItem trajectory/normal output ayrımı, scorer hata izolasyonu ve kararlı skorID kullanır. Kullanıcı feedback yakalama/redaksiyon UIı bu dosyada yok.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-24",
+    "title": "Kapsam kontrolünü sıralamadan önce yapan retrieval",
+    "status": "OLD-DEEPENING:24EkimAnythingLLM;R839-A08",
+    "sources": [
+      {
+        "repo": "mastra-ai/mastra",
+        "sha": "e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58",
+        "path": "packages/core/src/knowledge/semantic.ts",
+        "symbol": "KnowledgeSemanticIndex.search/indexPage/reindex",
+        "url": "https://github.com/mastra-ai/mastra/blob/e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58/packages/core/src/knowledge/semantic.ts"
+      }
+    ],
+    "baselineFiles": "src/assistant-retrieval.js:search; src/assistant-context-manifest.js",
+    "currentBehavior": "Bağımsız sözcüksel arama ve kaynak manifesti var; embedding fikri önceki araştırmada zaten var.",
+    "mechanism": "Mastra KnowledgeSemanticIndex vektörde yalnız ID tutar; her adayı storage üzerinden güncel scope ile yeniden okur, reddedilenler slot tüketmesin diye sınırlı overfetch/refill yapar. Bize yeni ayrıntı embedding modeli seçimi değil, silinmiş/başka kaynağa ait eski indeks sonucunun cevaba sızmamasıdır. Embedding yazımı store committen sonra yapılır; başarısız indeks yalnız recall kaybıdır, eski içeriğe yetki değildir.",
+    "integration": "Apache saf arama/persistence kontratı portu; vektör sağlayıcı kurmak ilk adım değil.",
+    "ux": "Arama sonucu yalnız seçili kaynaklar içinden; eksik indeks için yeniden dizinle durumu.",
+    "effort": "L",
+    "acceptance": "A kaynağının silinen chunkIDsi indeksde kalsa bile B sohbetinde metni döndürülmez.",
+    "windowsElectronCsp": "Yerel model depolaması ve GPU isteğe bağlı; opaque ID/revision doğrulaması main tarafında.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": true,
+    "observedCode": "KnowledgeSemanticIndex.search ID adaylarını accept callbackinden geçirir ve reddedilenlerden sonra sınırlı overfetch/refill yapar; index yazısı storage sonrası tasarlanmıştır.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  },
+  {
+    "id": "A841-25",
+    "title": "Bellek düzeltmesinde tek sahipli ve sınırlandırılmış onarım",
+    "status": "NEW",
+    "sources": [
+      {
+        "repo": "letta-ai/letta-code",
+        "sha": "ebd590b11bef049884b923da5ed3f5d087af81e0",
+        "path": "src/agent/memory-conflict-repair.ts",
+        "symbol": "claimMemoryConflictRepair/completeMemoryConflictRepair/clearMemoryConflictRepair",
+        "url": "https://github.com/letta-ai/letta-code/blob/ebd590b11bef049884b923da5ed3f5d087af81e0/src/agent/memory-conflict-repair.ts"
+      }
+    ],
+    "baselineFiles": "src/assistant-thread-store.js:revision save guard; src/fsync-utils.js",
+    "currentBehavior": "Thread yazımı revision çakışmasını reddediyor; genel asistan belleği henüz yok. Yeni bellek eklenirse çakışma çözümünün ayrı tasarımı gerekir.",
+    "mechanism": "Letta claimMemoryConflictRepair conflict signature ve tokenla CAS geçişi yapıyor; canlı süreçteki işi yaşına bakarak ele geçirmiyor, aynı çözülemeyen çatışmaya her tur yeniden ajan başlatmıyor. Bu deseni kullanıcı belleği veya eşzamanlı artifact düzeltmelerine uygulamak, iki pencerenin son yazanı kazanır yaklaşımından daha güvenilir. Letta Git-memory altyapısını kullanıcı profilimize doğrudan kurmak gerekmez; sınırlı sahiplik ve açık çakışma görünümü alınır.",
+    "integration": "Apache algoritma referansı/port; bellek özelliğinden sonra opsiyonel sertleştirme.",
+    "ux": "Kayıt başka pencerede değişti; iki metni karşılaştır, benimkini koru veya yeniyi al.",
+    "effort": "M",
+    "acceptance": "İki pencere aynı belleği değiştirince biri kaybolmaz; aynı çözülemeyen çatışma her mesajda yeni iş başlatmaz.",
+    "windowsElectronCsp": "Windows PID yeniden kullanımı, dosya kilidi ve ani kapanış; mevcut atomik yazma sözleşmesi korunur.",
+    "maturity": "Kaynak kodu incelendi; upstream çalışma zamanı ve ürüne entegrasyon denenmedi.",
+    "optional": true,
+    "observedCode": "claimMemoryConflictRepair signature/token/PID-start ile kilitli claim; complete/clear yalnız eş token üzerinde çalışır. Genel JSON bellek editörü entegrasyonu bizim sentezimizdir.",
+    "productSynthesis": "UX, Windows/Electron entegrasyonu ve kabul örneği bu ürün için önerilen sentezdir; upstreamde aynen var veya çalıştırılmış sayılmaz."
+  }
+]

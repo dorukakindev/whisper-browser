@@ -1,0 +1,92 @@
+[
+  {
+    "path": "src/assistant-provider.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "rawSha256": "eae148d20791404f8c29c2a4de65a9d5030f9a53f323b5c17a478926b1262927",
+    "canonicalSha256": "0573390da9e8dcd8a6db64c737b3e63b2a6ae01d7894793e1b24abfadea57603"
+  },
+  {
+    "path": "src/assistant-settings.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "rawSha256": "592fcbca65fa98f6d1622998805897e8a2f39b9abaf8044722d9d0e042591f55",
+    "canonicalSha256": "39956c4fa99d32a2819c4b99e6102b48353351d1e1824478b0fe85c55d979cb3"
+  },
+  {
+    "path": "src/assistant-thread-store.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "rawSha256": "4a070333fb4dd4aad4829c01d87a155cd8e513e1e4e3eb690452f9cda601277f",
+    "canonicalSha256": "9977d85b3ffbfbc93110c7972137c1a3d34657f4b8158f05bbde7586db09f1c8"
+  },
+  {
+    "path": "src/assistant-retrieval.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "rawSha256": "b9c7e5e8d60b8eb302b857997240f0abdd487995e92e38a2d296101a0c5bbbcd",
+    "canonicalSha256": "8109beccea82ba2fd98dee49e5ec1088406a04e129839cd849078fa7c0540eac"
+  },
+  {
+    "path": "src/assistant-agent-service.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "rawSha256": "81641ec8540fad2929adab970acda4d0c656a64a648c4e06683c07f515f9dad7",
+    "canonicalSha256": "1dbe8143580f465655b6c3d1d21153bfa824dea1956d538fd79377306afbe639"
+  },
+  {
+    "path": "src/assistant-jobs.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "rawSha256": "eb598ab3233321559f6f4bb8bdb55828106f94db445facdd6626d348fddbdfe6",
+    "canonicalSha256": "b4ab39dc3216c5423b8449392abb81198ad39a7e45c21a1843370928ceb2816e"
+  },
+  {
+    "path": "src/assistant-capabilities.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "rawSha256": "39d8d5ea82487548388e59e328fa0ed88955957cb9a7580e82196c9c66580e72",
+    "canonicalSha256": "0c3c447ba542fc939dac2c25b684075d874e40d5756f1467d8993f8f7a509642"
+  },
+  {
+    "path": "src/assistant-tool-results.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "rawSha256": "1a7d115ddd2102b252d013f7722b1820a0a7d25dba25e353dde507399b878fbc",
+    "canonicalSha256": "fd6822a6f990d09ba767a537e0841db9a5f8c7e06af164c4502b3da6f6019167"
+  },
+  {
+    "path": "src/assistant-context-manifest.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "rawSha256": "b64b084513eef727692111b8ccddb77704bc0a8baa2eac0af03cae1480f4e95c",
+    "canonicalSha256": "b2481b94c6ec1e03a8dcec24258be416d8e9cf1940647d34a9ff7337b7415b0e"
+  },
+  {
+    "path": "src/assistant-flows.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "rawSha256": "b8709cbb3b7372f1d4c3cfad571df2f7534ded7d0d34a7b3c4c18cc8ec2d8640",
+    "canonicalSha256": "25ff2184b8bae2f8e42c520ccc478ff837ec6b7598123f88ee8ab8a29603bbbe"
+  },
+  {
+    "path": "src/assistant-flow-state.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "rawSha256": "827f981c7433693a549cb4b5b01a541c83d3a50dec4cf927261506945683c3a2",
+    "canonicalSha256": "f03cb5c3e26db63000ef2176f650eee7e5453d971562d81d409484b40e654c86"
+  },
+  {
+    "path": "src/renderer/assistant-workspace.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "rawSha256": "4cee94cfe352695ca4be54fad9324df52e2bc0b14650b5352ecb8bc27c0cfb89",
+    "canonicalSha256": "90d5c77923967b8b36a5b70883b9cacee6af1be9ae63f1c6bdd55f4cefcef82b"
+  },
+  {
+    "path": "src/assistant-collections.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "rawSha256": "ce552867460f3228f6724528a44584b5b03a636491f989849c523a2a4ebae51f",
+    "canonicalSha256": "731772a5fac19f0d906bba1ea9047e17882381a3c7c3ce897d1113a28e51838e"
+  },
+  {
+    "path": "src/assistant-source-preview.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "rawSha256": "bcd42614b268aaa21f11576447e39bd84ebf784247273eec271ed973493fae52",
+    "canonicalSha256": "36e825b479ddb74844c87b391cefd883dc5684aa03c061bdbd50720ed3fc015d"
+  },
+  {
+    "path": "src/assistant-source-context.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "rawSha256": "267b6c686bae5735bfdeee792f720ceebbe3f1e838cb6e68b9934db5e661e394",
+    "canonicalSha256": "795e902116a69c2f3fcf612b6e5445f762e3bbab8b5804b13e310c769bdb26ea"
+  }
+]
