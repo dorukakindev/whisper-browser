@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-02-0240.md](docs/devir/2026-11-02-0240.md) — Görsel taslaktan uygulamaya film analiz kompozisyonu
 Güncel çalışma: [docs/devir/2026-11-02-0210.md](docs/devir/2026-11-02-0210.md) — Film yorum/analiz alt bölümünün yeni görsel hiyerarşisi
 Güncel çalışma: [docs/devir/2026-11-02-0155.md](docs/devir/2026-11-02-0155.md) — Kişisel medya taslak koruması, doğru bildirim ve pratik konum girişi
 Güncel çalışma: [docs/devir/2026-11-02-0115.md](docs/devir/2026-11-02-0115.md) — Asistan, Keşfet, film/bölüm ve web içeriklerinde ortak kişisel tercih/devam konumu

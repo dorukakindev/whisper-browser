@@ -4,6 +4,8 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Yeni oturumda önce oku — kalıcı kullanıcı tercihleri
 
+- Kullanıcının 2026-11-02 kesin tasarım çalışma kuralı: HER arayüz işinde önce görsel tasarım yap, sonra üretim kodunu uygula. Gerçek veya açıkça işaretlenmiş temsilî içerikle ekranın tamamlanmış görsel kompozisyonunu hazırlayıp göster; yerleşim/hiyerarşi, tipografi, yüzeyler, medya atmosferi ve etkileşim durumları çözülmeden CSS/kart eklemeye başlama. Mevcut düzenin boşluk/kenarlık düzeltmesini özgün tasarım diye sunma. Gri kutulara metin dağıtmak, daha fazla amber veya animasyon eklemek kalite kanıtı değildir. Beğenilmiş üst medya menüsü ve film üst bölümü gibi alanları kullanıcı istemedikçe değiştirme; grafit/amber medya player/browser kimliğini koru. Uygulama sonrası gerçek geniş/dar görüntüyü taslakla karşılaştır; taşmama ve test başarısını estetik başarısı sayma. Görmeden “güzel/mükemmel oldu” deme. Gereksiz onay döngüsü yaratma; fakat görsel taslağı atlayıp tekrar bitmiş ürün iddiasıyla teslim etme.
+
 - Kullanıcının 2026-11-01 son teslim tercihi: GitHub Actions kredisi bitti; yeni Actions çalışması başlatma. Push/PR/merge teslimlerini `[skip ci]` ile yap; uzun CI veya gereksiz test tekrarlarıyla bekletme. Değişen akışın kısa anlamlı yerel ve gerekirse native kontrolü korunur; görülmeyen sonuç başarılı sayılmaz.
 
 
