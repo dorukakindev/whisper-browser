@@ -80,3 +80,25 @@ test('absent, malformed and unbounded CSS tokens use safe timing and offset defa
     assert.equal(f.animations[1].frames[0].translate, 'none');
   }
 });
+
+
+test('Deliberate page navigation has a distinct motion role and retains rapid-navigation and reduced-motion safeguards',async()=>{
+ const f=fixture(false,{'--ui-motion-page':'360ms','--ui-motion-page-offset':'12px','--ui-motion-surface':'220ms'});f.api.reveal(f.node,'page');assert.equal(f.animations[0].options.duration,360);assert.equal(f.animations[0].frames[0].translate,'0 12px');assert.equal(f.animations[0].frames[0].opacity,.18);f.api.reveal(f.node,'page');assert(f.animations[0].cancelled);assert.equal(f.animations[1].frames[0].translate,'0px 2px');f.preference.matches=true;f.events.change();assert(f.animations[1].cancelled);f.api.reveal(f.node,'page');assert.equal(f.animations.length,2);await Promise.resolve();
+});
+
+
+function mediaFixture(){
+ const events={},preference={matches:false,addEventListener:(_,fn)=>events.change=fn},images=[],animations=[],observers=[];
+ const document={body:{append(node){images.push(node);}},createElement(){const n={style:{},dataset:{},attributes:{},setAttribute(k,v){this.attributes[k]=v;},remove(){const i=images.indexOf(this);if(i>=0)images.splice(i,1);},animate(frames,options){let resolve,reject;const a={frames,options,cancelled:false,finished:new Promise((r,j)=>{resolve=r;reject=j;}),cancel(){this.cancelled=true;reject(Error('cancelled'));},finish(){resolve();}};animations.push(a);return a;}};return n;}};
+ class Observer{constructor(fn){this.fn=fn;observers.push(this);}observe(){}disconnect(){this.disconnected=true;}}
+ const window={matchMedia:()=>preference,addEventListener:(name,fn)=>events[name]=fn};
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../src/renderer/ui-motion.js'),'utf8'),{window,document,MutationObserver:Observer,getComputedStyle:()=>({borderRadius:'12px',getPropertyValue:()=>''})});
+ const source={tagName:'IMG',isConnected:true,complete:true,naturalWidth:640,currentSrc:'data:image/png;base64,AA==',getBoundingClientRect:()=>({x:40,y:120,width:160,height:240})};
+ const target={isConnected:true,style:{opacity:'.8'},getBoundingClientRect:()=>({x:200,y:180,width:120,height:180})};return{api:window.UiMotion,source,target,images,animations,observers,preference,events};
+}
+test('Shared media capture rejects missing or unloaded artwork and transfer hides only its target while preserving input routing',async()=>{
+ const f=mediaFixture();f.source.complete=false;assert.equal(f.api.captureMedia(f.source),null);f.source.complete=true;const snapshot=f.api.captureMedia(f.source);assert.equal(snapshot.width,160);f.api.mediaTransfer(snapshot,f.target);assert.equal(f.images.length,1);assert.equal(f.target.style.opacity,'0');assert.equal(f.images[0].attributes['aria-hidden'],'true');assert.equal(f.images[0].style.pointerEvents,'none');assert.equal(f.animations[0].options.duration,420);assert.match(f.animations[0].frames[1].transform,/translate\(160px,60px\) scale\(0.75,0.75\)/);f.animations[0].finish();await Promise.resolve();assert.equal(f.images.length,0);assert.equal(f.target.style.opacity,'.8');
+});
+test('Shared media motion cleans up and restores artwork on rapid navigation, target removal, reduced motion and page leave',async()=>{
+ const f=mediaFixture(),snapshot=f.api.captureMedia(f.source);f.api.mediaTransfer(snapshot,f.target);f.api.mediaTransfer(snapshot,f.target);assert(f.animations[0].cancelled);assert.equal(f.images.length,1);f.target.isConnected=false;f.observers.at(-1).fn();await Promise.resolve();assert.equal(f.images.length,0);assert.equal(f.target.style.opacity,'.8');f.target.isConnected=true;f.api.mediaTransfer(snapshot,f.target);f.preference.matches=true;f.events.change();await Promise.resolve();assert.equal(f.images.length,0);assert.equal(f.target.style.opacity,'.8');f.api.mediaTransfer(snapshot,f.target);assert.equal(f.images.length,0);f.preference.matches=false;f.api.mediaTransfer(snapshot,f.target);f.events.pagehide();await Promise.resolve();assert.equal(f.images.length,0);assert.equal(f.target.style.opacity,'.8');
+});

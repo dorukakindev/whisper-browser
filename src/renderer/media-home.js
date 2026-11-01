@@ -10,6 +10,7 @@
     data: model.snapshot([], []), request: 0, render: 0, busy: false, loaded: false, error: '', featuredKey: '', searchOpen: false };
   try{const saved=localStorage.getItem('media-home-featured-v1');if(saved&&saved.length<=8192)state.featuredKey=saved;}catch{}
   let virtualDisposers=[];
+  let disposeShell = () => {};
   const english = () => window.UiLocale?.get?.() !== 'tr';
   const t = (en, tr) => english() ? en : tr;
   const el = (tag, cls, text) => {
@@ -160,23 +161,28 @@
   const artworkKey = item => item?.key || item?.id || '';
   const hasArtwork = item => model.hasArtwork(item) && (failedArtwork.get(artworkKey(item)) || 0) < Date.now();
   function artError(node) { node.dispatchEvent(new Event('home-art-error', { bubbles: true })); }
-  function loadArt(node, src) {
+  function loadArt(node, src, upgrade = false) {
     const image = el('img'); image.alt = ''; image.loading = node.dataset.artRequired ? 'eager' : 'lazy'; image.referrerPolicy = 'no-referrer';
     const youtube = /^https:\/\/i\.ytimg\.com\/vi\/[a-zA-Z0-9_-]{11}\/hqdefault\.jpg$/.test(src);
     if (youtube) image.className = 'mh-remote-thumbnail';
     const candidates=youtube?['hq720.jpg','hqdefault.jpg','mqdefault.jpg'].map(name=>src.replace('hqdefault.jpg',name)):[src];let candidate=0;
     const unavailable = () => {
+      if (upgrade || node.dataset.artWideReady === 'true') { image.remove(); return; }
       if (++candidate<candidates.length) {image.src=candidates[candidate];return;}
       image.remove(); if (node.isConnected) artError(node);
     };
     image.onload = () => {
       if (!node.isConnected) return;
+      if (!upgrade && node.dataset.artWideReady === 'true') { image.remove(); return; }
+      if (upgrade && image.naturalWidth / image.naturalHeight < 1.2) { image.remove(); return; }
       // YouTube sometimes returns its tiny generic missing-image tile with HTTP 200.
       if (!image.naturalWidth || youtube && image.naturalWidth <= 120) return unavailable();
       if(youtube)image.classList.toggle('mh-letterboxed-thumbnail',Math.abs(image.naturalWidth/image.naturalHeight-4/3)<.04);
+      if (upgrade) { node.dataset.artWideReady = 'true'; image.style.opacity = ''; }
       node.replaceChildren(image); node.dispatchEvent(new Event('home-art-ready', { bubbles:true }));
     };
     image.onerror = unavailable;
+    if (upgrade) image.style.opacity = '0';
     node.append(image); image.src = candidates[0];
   }
   const safePoster = value => typeof value === 'string' && value.length < 8_000_000 && /^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(value);
@@ -185,15 +191,15 @@
       const task = posterQueue.shift();
       if (!task.node.isConnected || task.generation !== state.render) continue;
       posterActive++;
-      const cached = posters.get(task.id);
-      Promise.resolve(cached || window.api.mediaCatalog({ action: 'poster', id: task.id }))
+      const cacheKey = task.cacheKey || 'poster:'+task.id, cached = posters.get(cacheKey);
+      Promise.resolve(cached || window.api.mediaCatalog({ action: task.upgrade ? 'backdrop' : 'poster', id: task.id }))
         .then(result => {
-          if (!safePoster(result?.image)) { artError(task.node); return; }
-          posters.set(task.id, result);
+          if (!safePoster(result?.image)) { if (!task.upgrade) artError(task.node); return; }
+          posters.set(cacheKey, result);
           while (posters.size > 80) posters.delete(posters.keys().next().value);
           if (!task.node.isConnected || task.generation !== state.render) return;
-          loadArt(task.node, result.image);
-        }).catch(() => { if (task.node.isConnected && task.generation === state.render) artError(task.node); }).finally(() => { posterActive--; pumpPosters(); });
+          loadArt(task.node, result.image, task.upgrade);
+        }).catch(() => { if (!task.upgrade && task.node.isConnected && task.generation === state.render) artError(task.node); }).finally(() => { posterActive--; pumpPosters(); });
     }
   }
   const posterObserver = new IntersectionObserver(entries => {
@@ -206,6 +212,15 @@
   function art(item, cls, required = false) {
     const node = el('div', cls); node.append(icon());
     if (required) node.dataset.artRequired = 'true';
+    if (cls === 'mh-hero-art' && item?.id && item.backdrop) {
+      const generation=state.render;
+      node.addEventListener('home-art-ready',()=>{
+        if(!node.isConnected || generation!==state.render)return;
+        // Show the cached cover immediately, then use the wide film image when ready.
+        // The shared queue keeps this enhancement within the same three-request budget.
+        posterQueue.unshift({node,id:item.id,generation,upgrade:true,cacheKey:'backdrop:'+item.backdrop});pumpPosters();
+      },{once:true});
+    }
     node.addEventListener('home-art-error', () => { if (required) failedArtwork.set(artworkKey(item), Date.now()+60000); }, { once: true });
     if (item?.hasPoster && item.id && !(model.medium(item)==='web'&&model.thumbnail(item))) {
       node.dataset.homePoster = item.id;
@@ -391,6 +406,9 @@
     if (focusKey) [...content.querySelectorAll('[data-home-item]')].find(node => node.dataset.homeItem === focusKey)?.focus({ preventScroll: true });
   }
   function renderShell() {
+    disposeShell();
+    const lifetime = new AbortController();
+    let openTimer, closeTimer, resizeFrame;
     const focused = document.activeElement?.id;
     if (state.page === 'discover') window.MediaDiscoveryUI?.leave();
     host.setAttribute('aria-label', t('Media home', 'Medya ana sayfası'));
@@ -401,24 +419,89 @@
     const menuHome=document.getElementById('browserMediaHomeMenuLabel');if(menuHome)menuHome.textContent=t('Home','Ana sayfa');
     const playerHome=document.getElementById('playerBack');if(playerHome){playerHome.querySelector('span').textContent=t('Home','Ana sayfa');playerHome.title=t('Media home — keep this session','Medya ana sayfası — oturumu koru');playerHome.setAttribute('aria-label',t('Home','Ana sayfa'));}
     host.replaceChildren(el('div', 'mh-titlebar'));
-    const header = el('header', 'mh-header'), brand = el('div', 'mh-brand');
-    brand.title = 'Whisper Browser'; brand.setAttribute('role', 'img'); brand.setAttribute('aria-label', 'Whisper Browser'); brand.append(icon());
+    const header = el('header', 'mh-header');
+    const launcher = el('div', 'mh-launcher');
+    const brand = button('', () => setMenu(menu.hidden), 'mh-brand');
+    brand.id = 'mhAppMenu'; brand.title = t('Application menu', 'Uygulama menüsü');
+    brand.setAttribute('aria-label', brand.title); brand.setAttribute('aria-expanded', 'false');
+    brand.setAttribute('aria-controls', 'mhAppMenuPanel'); brand.append(icon());
+    const menu = el('div', 'mh-launcher-menu'); menu.id = 'mhAppMenuPanel'; menu.hidden = true;
+    menu.setAttribute('role', 'region'); menu.setAttribute('aria-label', brand.title);
+    const modeSlot = el('div', 'mh-menu-modes');
+    const extraNav = el('div', 'mh-menu-nav');
+    const toolsGroup = el('div', 'mh-menu-tools');
+    menu.append(modeSlot, extraNav, toolsGroup); launcher.append(brand, menu);
+    function setMenu(open, returnFocus = false) {
+      clearTimeout(openTimer); clearTimeout(closeTimer);
+      if (!header.isConnected) return;
+      const changed = menu.hidden === open;
+      menu.hidden = !open; brand.setAttribute('aria-expanded', String(open));
+      if (open && changed) window.UiMotion?.reveal(menu, 'panel');
+      if (!open && returnFocus) brand.focus({preventScroll:true});
+    }
+    launcher.addEventListener('pointerenter', event => {
+      if (event.pointerType === 'touch') return;
+      clearTimeout(closeTimer); openTimer = setTimeout(() => setMenu(true), 70);
+    });
+    launcher.addEventListener('pointerleave', () => {
+      clearTimeout(openTimer); closeTimer = setTimeout(() => {
+        if (!menu.contains(document.activeElement)) setMenu(false);
+      }, 180);
+    });
+    launcher.addEventListener('focusout', event => {
+      if (!launcher.contains(event.relatedTarget)) setMenu(false);
+    });
+    brand.addEventListener('keydown', event => {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault(); setMenu(true); menu.querySelector('button')?.focus();
+      }
+    });
+    document.addEventListener('pointerdown', event => {
+      if (!launcher.contains(event.target)) setMenu(false);
+      if (!header.contains(event.target) && state.searchOpen) setSearchOpen(false);
+    }, {signal:lifetime.signal});
+    header.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !menu.hidden) {
+        event.preventDefault(); event.stopPropagation(); setMenu(false, true);
+      }
+    });
     const modes = el('div', 'mh-modes'); modes.setAttribute('aria-label', t('Media type', 'Medya türü'));
     for (const [key, label, target] of [['film', t('Film', 'Film'), 'home'], ['music', t('Music', 'Müzik'), 'music'], ['books', t('Books', 'Kitaplar'), 'books']]) {
       const mode = button(label, () => page(target)); mode.dataset.homeMode = key;
       mode.setAttribute('aria-pressed', String(key === (['music', 'radio'].includes(state.page) ? 'music' : state.page === 'books' ? 'books' : 'film'))); modes.append(mode);
     }
     const actions = el('div', 'mh-actions');
-    actions.append(button('Browser', openBrowser),button(t('Open media','Medya aç'),()=>window.MediaHubUI?.open(),'mh-action mh-primary'));
-    const more=el('details','mh-more'),trigger=el('summary','mh-action',t('Tools','Araçlar'));more.append(trigger);const menu=el('div','mh-more-menu');
-    for(const [label,run]of [[t('Production workspace','Üretim çalışma alanı'),()=>window.MediaWorkflowsUI.open()],[t('Studio','Stüdyo'),openStudio],[t('Subtitle → voice','Altyazı → ses'),()=>click('dubMainOpen')],[t('Tonight','Bu akşam'),()=>window.MediaToolsUI?.open('tonight')],[t('Library care','Arşiv bakımı'),()=>window.MediaToolsUI?.open('health')],[t('Activity','İşlemler'),()=>window.MediaExperience?.openTasks()]])menu.append(button(label,()=>{more.open=false;return run();}));more.append(menu);actions.append(more);
+    const browser = button('', openBrowser, 'mh-action mh-browser-action');
+    const openMedia = button('', () => window.MediaHubUI?.open(), 'mh-action mh-primary mh-open-media');
+    function actionIcon(node, d, label) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true');
+      const path = document.createElementNS(svg.namespaceURI, 'path'); path.setAttribute('d', d);
+      svg.append(path); node.append(svg, el('span', '', label)); node.setAttribute('aria-label', label); node.title = label;
+    }
+    actionIcon(browser, 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3c4 5 4 13 0 18-4-5-4-13 0-18Z', 'Browser');
+    actionIcon(openMedia, 'M3 6h6l2 2h10v12H3V6Z', t('Open media', 'Medya aç'));
+    actions.append(browser, openMedia);
+    for (const [label, run] of [
+      [t('Production workspace','Üretim çalışma alanı'),()=>window.MediaWorkflowsUI.open()],
+      [t('Studio','Stüdyo'),openStudio],
+      [t('Subtitle → voice','Altyazı → ses'),()=>click('dubMainOpen')],
+      [t('Tonight','Bu akşam'),()=>window.MediaToolsUI?.open('tonight')],
+      [t('Library care','Arşiv bakımı'),()=>window.MediaToolsUI?.open('health')],
+      [t('Activity','İşlemler'),()=>window.MediaExperience?.openTasks()]
+    ]) toolsGroup.append(button(label, () => { setMenu(false); return run(); }));
     const settings=button('',()=>window.AppSettingsUI.open());settings.id='mhSettings';settings.classList.add('mh-settings-icon');settings.title=t('Settings','Ayarlar');settings.setAttribute('aria-label',settings.title);
     const gear=document.createElementNS('http://www.w3.org/2000/svg','svg');gear.setAttribute('viewBox','0 0 24 24');gear.setAttribute('aria-hidden','true');gear.setAttribute('fill','none');gear.setAttribute('stroke','currentColor');gear.setAttribute('stroke-width','1.6');
     const outline=document.createElementNS(gear.namespaceURI,'path');let points=[];for(let i=0;i<32;i++){const angle=i*Math.PI/16-Math.PI/2,r=i%4===1||i%4===2?10:8;points.push((12+Math.cos(angle)*r).toFixed(2)+','+(12+Math.sin(angle)*r).toFixed(2));}outline.setAttribute('d','M'+points.join('L')+'Z');const center=document.createElementNS(gear.namespaceURI,'circle');center.setAttribute('cx','12');center.setAttribute('cy','12');center.setAttribute('r','3.2');gear.append(outline,center);settings.append(gear);actions.append(settings);
+    const mainPages = [];
     const nav = el('nav', 'mh-nav'); nav.setAttribute('aria-label', t('Media navigation', 'Medya gezinmesi'));
     for (const [key, label] of [['home', t('Home', 'Ana sayfa')], ['discover', t('Discover', 'Keşfet')], ['films', t('Films', 'Filmler')], ['series', t('Series', 'Diziler')], ['radio', t('Radio / podcast', 'Radyo / podcast')], ['taste', t('Taste profile','Zevk profilim')], ['web', 'Web'], ['recent', t('Recent', 'Son oynatılanlar')]]) {
       const control = button(label, () => page(key)); control.dataset.homePage = key;
-      control.setAttribute('aria-current', state.page === key ? 'page' : 'false'); if (key === 'home') control.id = 'mhHome'; nav.append(control);
+      control.setAttribute('aria-current', state.page === key ? 'page' : 'false');
+      if (key === 'home') control.id = 'mhHome';
+      control.addEventListener('click', () => setMenu(false));
+      if (['home','discover','films','series'].includes(key)) { mainPages.push(control); nav.append(control); }
+      else extraNav.append(control);
     }
     const searchWrap = el('div', 'mh-search'), search = el('input'); searchWrap.id='mhSearchRegion';search.type = 'search'; search.id = 'mhSearch'; search.maxLength = 200;
     search.placeholder = t('Search your library', 'Kütüphanende ara'); search.setAttribute('aria-label', search.placeholder); search.value = state.query;
@@ -431,9 +514,28 @@
     search.addEventListener('keydown',event=>{if(event.key==='Escape'&&state.searchOpen){event.preventDefault();event.stopPropagation();setSearchOpen(false);searchToggle.focus();}});
     search.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();void window.MediaSearchUI.open(search.value);}});
     const searchAll=button('',()=>window.MediaSearchUI.open(search.value),'mh-search-all');searchAll.setAttribute('aria-label',t('Search all media sources','Tüm medya kaynaklarında ara'));searchAll.title=t('Search all sources · Enter','Tüm kaynaklarda ara · Enter');
-    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),path=document.createElementNS('http://www.w3.org/2000/svg','path');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');path.setAttribute('d','M21 21l-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0');svg.append(path);searchAll.append(svg);searchToggle.append(svg.cloneNode(true));actions.insertBefore(searchToggle,more);searchWrap.append(search,searchClear,searchAll);nav.append(searchWrap);setSearchOpen(state.searchOpen);
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),path=document.createElementNS('http://www.w3.org/2000/svg','path');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');path.setAttribute('d','M21 21l-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0');svg.append(path);searchAll.append(svg);searchToggle.append(svg.cloneNode(true));actions.prepend(searchToggle);searchWrap.append(search,searchClear,searchAll);actions.append(searchWrap);setSearchOpen(state.searchOpen);
     const content = el('main', 'mh-content'); content.id = 'mhContent';
-    header.append(brand, modes, nav, actions); const metadata=el('div','mh-metadata');metadata.id='mhMetadataStatus';host.append(header,metadata, content);drawMetadata(metadata);renderContent();
+    header.append(launcher, modes, nav, actions);
+    function fitHeader() {
+      cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => {
+        if (!header.isConnected) return;
+        const compact = header.clientWidth < 1100;
+        header.classList.toggle('is-compact', compact);
+        if (compact) modeSlot.append(modes); else header.insertBefore(modes, nav);
+        modeSlot.hidden = !compact;
+        for (const control of mainPages) nav.append(control);
+        // Move complete controls, never clip labels or create a second navigation row.
+        while (nav.scrollWidth > nav.clientWidth + 1 && nav.children.length > 1) {
+          extraNav.prepend(nav.lastElementChild);
+        }
+      });
+    }
+    const resize = new ResizeObserver(fitHeader); resize.observe(header);
+    document.fonts?.ready.then(() => { if (header.isConnected) fitHeader(); });
+    disposeShell = () => { lifetime.abort(); resize.disconnect(); cancelAnimationFrame(resizeFrame); clearTimeout(openTimer); clearTimeout(closeTimer); };
+    const metadata=el('div','mh-metadata');metadata.id='mhMetadataStatus';host.append(header,metadata, content);fitHeader();drawMetadata(metadata);renderContent();
     if (focused && host.querySelector(`#${focused}`)) document.getElementById(focused).focus();
   }
   async function refresh({metadata=true}={}) {

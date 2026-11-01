@@ -11,7 +11,7 @@
     const host=document.getElementById('mediaHome'),origin=document.activeElement,scroll=host.scrollTop;
     const page=el('section',className+' media-title-page');page.tabIndex=-1;page.open=true;
     page.close=()=>{if(!page.open)return;page.open=false;page.dispatchEvent(new Event('close'));page.remove();host.classList.remove('has-title-page');host.removeEventListener('click',navigate,true);document.removeEventListener('keydown',escape);if(activePage===page)activePage=null;host.scrollTop=scroll;if(origin?.isConnected)origin.focus({preventScroll:true});};
-    const navigate=event=>{if(event.target.closest('.mh-header button'))page.close();};
+    const navigate=event=>{if(event.target.closest('.mh-header [data-home-page],.mh-header [data-home-mode]'))page.close();};
     const escape=event=>{if(event.key==='Escape'&&!document.querySelector('dialog[open]')){event.preventDefault();page.close();}};
     host.addEventListener('click',navigate,true);document.addEventListener('keydown',escape);host.classList.add('has-title-page');host.append(page);host.scrollTop=0;activePage=page;return page;
   }
@@ -74,7 +74,7 @@
     const body=el('div','mtd-body'),main=el('main','mtd-main'),aside=el('aside','mtd-aside');
     story(main);
     if(item.cast?.length){main.append(el('h2','',t('Cast','Oyuncular')));const cast=el('div','mtd-cast');for(const name of item.cast)cast.append(el('span','',name));main.append(cast);}
-    const review=el('section','mtd-review');main.append(review);
+    const review=el('section','mtd-review');
     const info=el('dl');for(const [label,value]of [[t('Director / creator','Yönetmen / yaratıcı'),(item.directors||[]).join(', ')],[t('Original title','Özgün adı'),item.originalTitle]])if(value)info.append(el('dt','',label),el('dd','',value));aside.append(info);
     const personal=el('div','mtd-personal'),statusLabel=el('label','',t('Watch status','İzleme durumu')),statusSelect=el('select');
     for(const [value,en,tr]of [['unspecified','Not set','Belirtilmedi'],['planned','Watchlist','İzleme listesi'],['watching','Watching','İzleniyor'],['completed','Watched','İzlendi']]){const option=el('option','',t(en,tr));option.value=value;statusSelect.append(option);}statusSelect.value=draft?.status??item.watchStatus;statusSelect.dataset.titleAction='status';statusLabel.append(statusSelect);
@@ -84,17 +84,17 @@
     const id=/^(movie|tv):(\d+)$/.exec(item.tmdbId||'');if(id)aside.append(button(t('View on TMDB ↗','TMDB’de görüntüle ↗'),()=>window.api.openExternal('https://www.themoviedb.org/'+id[1]+'/'+id[2])));
     if(episodes.length){const season=el('section','mtd-episodes'),label=el('label','',t('Episodes · season ','Bölümler · sezon ')),select=el('select');for(const num of [...new Set(episodes.map(ep=>ep.season))].sort((a,b)=>a-b)){const option=el('option','',num);option.value=num;select.append(option);}label.append(select);season.append(label);const list=el('div');season.append(list);const drawEpisodes=()=>{list.replaceChildren();for(const ep of episodes.filter(ep=>ep.season===Number(select.value))){const row=el('div','mtd-episode');row.append(el('span','',String(ep.number).padStart(2,'0')),el('strong','',ep.title||t('Episode '+ep.number,ep.number+'. bölüm')));if(ep.source)row.append(button(t('Play','Oynat'),()=>play(ep.id)));else row.append(button(t('Link source','Kaynak bağla'),()=>management()));list.append(row);}};select.onchange=drawEpisodes;drawEpisodes();main.append(season);}
     window.TitleDiscoveryUI?.mount(main,aside,item);window.FilmContextFeatures?.mount(main,item,((id)=>()=>open(id))(item.id));
-    body.append(main,aside);dialog.append(body,el('p','mtd-attribution','This product uses the TMDB API but is not endorsed or certified by TMDB.'));window.MediaReviewDecision?.mountTitle(review,item);
+    body.append(main,aside,review);dialog.append(body,el('p','mtd-attribution','This product uses the TMDB API but is not endorsed or certified by TMDB.'));window.MediaReviewDecision?.mountTitle(review,item);
     window.MediaExperience?.setContext(dialog,{id:item.id,type:'library-title',title:item.title,synopsis:item.synopsis});document.getElementById('mediaHome').scrollTop=scroll;window.FilmPageEnhancements?.enhance(dialog,item);
     if(focused)dialog.querySelector('[data-title-action="'+focused+'"]')?.focus({preventScroll:true});
   }
   async function open(id){
-    if(dialog?.open&&selected===id){dialog.focus();return;}if(dialog)close();selected=id;item=null;opener=document.activeElement;
+    if(dialog?.open&&selected===id){dialog.focus();return;}if(dialog)close();selected=id;item=null;opener=document.activeElement;const mediaCard=opener?.closest?.('[data-home-item]'),mediaOrigin=mediaCard?.dataset.homeItem===id?window.UiMotion?.captureMedia(mediaCard):null;
     if(!document.body.classList.contains('media-home-active')||!document.getElementById('playerLayer')?.classList.contains('hidden'))await window.MediaHomeUI.returnHome();
     const current=createPage('mtd-dialog media-surface');current.id='mediaTitleDialog';current.dataset.uiUntranslated='';current.setAttribute('aria-labelledby','mediaTitleHeading');dialog=current;
     const origin=opener;current.addEventListener('close',()=>{cancelStory(current);current.remove();if(dialog===current){generation++;dialog=null;if(origin?.isConnected)origin.focus({preventScroll:true});}void syncBrowserOcclusion();document.dispatchEvent(new Event('media-library-changed'));});
     void syncBrowserOcclusion();current.append(el('h1','',t('Loading title…','Yapım yükleniyor…')));
-    try{await reload();current.querySelector('header button')?.focus({preventScroll:true});}catch(error){current.replaceChildren(el('p','',error.message),button(t('Close','Kapat'),close));}
+    try{await reload();if(dialog===current&&current.open){window.UiMotion?.mediaTransfer(mediaOrigin,current.querySelector('.mtd-poster'));window.UiMotion?.reveal(current,'page');}current.querySelector('header button')?.focus({preventScroll:true});}catch(error){current.replaceChildren(el('p','',error.message),button(t('Close','Kapat'),close));}
   }
   document.addEventListener('ui-locale-change',()=>{if(dialog?.open&&item)draw(++generation);});
   document.addEventListener('media-metadata-updated',()=>{if(dialog?.open)void reload().catch(()=>{});});

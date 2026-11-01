@@ -4,6 +4,7 @@
   let opened = false, lastMessages = '', busy = false, pending = null, renderedConversation = null;
   let suggestionKey = '', reviewing = null, snapshot={},onlyPinned=false,pins=[];
   const drafts=new Map();let conversation=null,requestSequence=0;
+  const openMessageActions=new Set();
   let progressStarted=0,progressTimer=null;
   function renderProgress(value){
     const panel=$('agentProgress'),tr=value.locale==='tr';
@@ -22,6 +23,16 @@
   const action=(name,text,meta={})=>window.assistant.action(name,text,{sourceToken:snapshot.sourceToken||'',...meta});
   const rememberDraft=()=>{if(conversation===null)return;drafts.delete(conversation);drafts.set(conversation,$('text').value);while(drafts.size>20)drafts.delete(drafts.keys().next().value);};
   $('text').addEventListener('input',rememberDraft);
+  function messageActions(key,copy){
+    const tr=snapshot.locale==='tr',box=document.createElement('div'),direct=document.createElement('button'),more=document.createElement('details'),summary=document.createElement('summary'),options=document.createElement('div');
+    box.className='message-actions';box.dataset.messageKey=key;direct.type='button';direct.dataset.messageControl='copy';direct.textContent=tr?'Kopyala':'Copy';direct.onclick=copy;
+    more.className='message-more';more.open=openMessageActions.has(key);summary.dataset.messageControl='more';summary.title=tr?'Diğer mesaj işlemleri':'More message actions';summary.setAttribute('aria-label',summary.title);
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');for(const cx of [5,12,19]){const dot=document.createElementNS('http://www.w3.org/2000/svg','circle');dot.setAttribute('cx',String(cx));dot.setAttribute('cy','12');dot.setAttribute('r','1.5');svg.append(dot);}summary.append(svg);
+    options.className='message-more-options';more.append(summary,options);box.append(direct,more);
+    more.addEventListener('toggle',()=>{if(!more.isConnected)return;if(more.open)openMessageActions.add(key);else openMessageActions.delete(key);while(openMessageActions.size>100)openMessageActions.delete(openMessageActions.values().next().value);});
+    more.addEventListener('keydown',event=>{if(event.key==='Escape'&&more.open){event.preventDefault();event.stopPropagation();more.open=false;openMessageActions.delete(key);summary.focus({preventScroll:true});}});
+    let count=0;return {box,add(label,fn){const b=document.createElement('button');b.type='button';b.dataset.messageControl='secondary-'+count++;b.textContent=label;b.onclick=()=>{more.open=false;openMessageActions.delete(key);summary.focus({preventScroll:true});fn();if(!summary.isConnected||summary.closest('[hidden]'))$('text').focus({preventScroll:true});};options.append(b);return b;}};
+  }
   const showStatus=(message,error=false)=>{$('delivery').textContent=message;$('delivery').classList.toggle('error',error);};
   $('latest').onclick=()=>{$('log').scrollTop=$('log').scrollHeight;$('latest').hidden=true;};
   $('log').onscroll=()=>{$('latest').hidden=!$('log').querySelector('.message')||$('log').scrollHeight-$('log').scrollTop-$('log').clientHeight<80;};
@@ -35,7 +46,7 @@
   const isPinned=row=>pins.some(p=>p.scope===(snapshot.pinScope||snapshot.conversation)&&p.text===row.text);
   const filter=()=>{
     for(const n of $('log').querySelectorAll('[data-archived]'))n.remove();
-    if(onlyPinned)for(const saved of pins.filter(p=>p.scope===(snapshot.pinScope||snapshot.conversation)&&!snapshot.messages?.some(r=>r.text===p.text))){const n=document.createElement('div');n.className='message ai';n.dataset.pinned='true';n.dataset.archived='true';n.textContent=saved.text;n._searchText=saved.text;const actions=document.createElement('div');actions.className='message-actions';const copy=document.createElement('button');copy.textContent=snapshot.locale==='tr'?'Kopyala':'Copy';copy.onclick=()=>action('copy',saved.text);const remove=document.createElement('button');remove.textContent=snapshot.locale==='tr'?'Sabitlemeyi kaldır':'Unpin';remove.onclick=()=>{pins=pins.filter(p=>p!==saved);try{localStorage.setItem('assistant-pins-v1',JSON.stringify(pins));}catch{}filter();};actions.append(copy,remove);n.append(actions);$('log').append(n);}
+    if(onlyPinned)for(const [index,saved]of pins.filter(p=>p.scope===(snapshot.pinScope||snapshot.conversation)&&!snapshot.messages?.some(r=>r.text===p.text)).entries()){const n=document.createElement('div');n.className='message ai';n.dataset.pinned='true';n.dataset.archived='true';n.textContent=saved.text;n._searchText=saved.text;const actions=messageActions('archived-'+index,()=>action('copy',saved.text));actions.add(snapshot.locale==='tr'?'Sabitlemeyi kaldır':'Unpin',()=>{pins=pins.filter(p=>p!==saved);try{localStorage.setItem('assistant-pins-v1',JSON.stringify(pins));}catch{}filter();});n.append(actions.box);$('log').append(n);}
     let count=0;for(const n of $('log').querySelectorAll('.message')){n.hidden=!!($('find').value&&!(n._searchText||n.textContent).toLocaleLowerCase().includes($('find').value.toLocaleLowerCase()))||(onlyPinned&&n.dataset.pinned!=='true');if(!n.hidden)count++;}$('findCount').textContent=$('find').value||onlyPinned?String(count):'';};
   $('find').oninput=filter;
   $('pinned').onclick=()=>{onlyPinned=!onlyPinned;$('pinned').setAttribute('aria-pressed',String(onlyPinned));filter();};
@@ -148,13 +159,13 @@
     renderedConversation=value.conversation;
     const focused=document.activeElement,focusCard=log.contains(focused)?focused.closest('.tool-card'):null;
     const focusTarget=focusCard?{id:focusCard.dataset.proposalId,control:focused.dataset.toolControl}:null;
+    const messageFocus=log.contains(focused)&&focused.closest('.message-actions')?{key:focused.closest('.message-actions').dataset.messageKey,control:focused.dataset.messageControl}:null;
+    if(threadChanged)openMessageActions.clear();else for(const more of log.querySelectorAll('.message-more[open]'))openMessageActions.add(more.closest('.message-actions').dataset.messageKey);
     log.replaceChildren();
     if (!value.messages?.length) { const empty=document.createElement('section');empty.className='empty';const heading=document.createElement('h2'),detail=document.createElement('p');heading.textContent=value.sourcePreview?.attached===false?t('How can I help?','Nasıl yardımcı olayım?'):value.videoContext?t('Your video, ready to work.','Videon hazır. Ne yapalım?'):value.pageContext?t('Read. Understand. Explore.','Oku. Anla. Keşfet.'):t('A closer look at your source.','Kaynağına birlikte bakalım.');detail.textContent=value.sourcePreview?.attached===false?t('Ask about the app or search your library. Open a video, book or title to explore its content.','Uygulama hakkında sor veya kütüphanende ara. İçeriğini incelemek için bir video, kitap veya yapım aç.'):value.videoContext?t('Translate existing captions or start Whisper. The selected video range is used; progress appears in this conversation.','Mevcut altyazıyı çevir veya Whisper başlat. Seçili video aralığı kullanılır; ilerleme bu sohbette gösterilir.'):value.pageContext?t('Summarize this page, ask about its claims, or translate it directly on the page.','Bu sayfayı özetle, iddialarını sor veya doğrudan sayfanın üzerinde çevir.'):value.transcriptScope?t('Ask about the dialogue, compare translations, or revisit a scene with subtitle evidence.','Konuşmayı sor, çevirileri karşılaştır veya altyazı kanıtlarıyla bir sahneye dön.'):t('Ask about the selected text or title. Only the supplied source is used.','Seçili metni veya yapımı sor. Yalnız sağlanan kaynak kullanılır.');empty.append(heading,detail);log.append(empty); }
-    for (const row of value.messages || []) {
+    for (const [index,row] of (value.messages || []).entries()) {
       const node = document.createElement('div'); node.className = 'message ' + row.role; node._searchText=row.text;const role=document.createElement('span');role.className='message-role';role.textContent=row.role==='user'?t('YOU','SEN'):t('ASSISTANT','ASİSTAN');node.append(role);const runCard=window.AssistantRunCard?.create(row.steps,value.conversation+':'+row.id,value.locale);if(runCard)node.append(runCard);renderText(node,row.text,row.loading);if(row.loading)node.classList.add('loading');if(row.error)node.classList.add('failed');node.dataset.pinned=String(isPinned(row));
-      const actions=document.createElement('div');actions.className='message-actions';
-      const addAction=(label,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=fn;actions.append(b);return b;};
-      addAction(t('Copy','Kopyala'),()=>action('copy',row.text));
+      const actionGroup=messageActions(row.id||'message-'+index,()=>action('copy',row.text)),actions=actionGroup.box,addAction=actionGroup.add;
       const pin=addAction(isPinned(row)?t('Unpin','Sabitlemeyi kaldır'):t('Pin','Sabitle'),()=>{if(isPinned(row))pins=pins.filter(p=>p.scope!==(value.pinScope||value.conversation)||p.text!==row.text);else pins=[...pins,{scope:value.pinScope||value.conversation,text:row.text}].slice(-100);try{localStorage.setItem('assistant-pins-v1',JSON.stringify(pins));}catch{}node.dataset.pinned=String(isPinned(row));pin.textContent=isPinned(row)?t('Unpin','Sabitlemeyi kaldır'):t('Pin','Sabitle');filter();});
       if(row.id&&!row.loading)addAction(t('Branch from here','Buradan dallandır'),()=>action('branch',row.id));
       if(row.status==='stopped'||row.status==='failed'){const status=document.createElement('small');status.className='answer-status';status.textContent=row.status==='stopped'?t('Stopped','Durduruldu'):t('Failed — see details above','Başarısız — ayrıntılar yukarıda');node.append(status);}
@@ -192,6 +203,7 @@
     }
     filter();
     if(focusTarget){const card=[...log.querySelectorAll('.tool-card')].find(n=>n.dataset.proposalId===focusTarget.id);if(card&&!card.closest('[hidden]')){const button=[...card.querySelectorAll('button')].find(n=>n.dataset.toolControl===focusTarget.control&&!n.disabled);(button||card).focus({preventScroll:true});}}
+    if(messageFocus&&!threadChanged){const group=[...log.querySelectorAll('.message-actions')].find(n=>n.dataset.messageKey===messageFocus.key);if(group&&!group.closest('[hidden]')){const target=[...group.querySelectorAll('[data-message-control]')].find(n=>n.dataset.messageControl===messageFocus.control),more=target?.closest('details');(more&&!more.open?more.querySelector('summary'):target)?.focus({preventScroll:true});}}
     if (bottom) log.scrollTop = log.scrollHeight;else log.scrollTop=previousScroll;
     $('latest').hidden=bottom||!value.messages?.length;
   });
@@ -200,6 +212,6 @@
   $('threadSettings').onclick=()=>{$('threadEditor').hidden=!$('threadEditor').hidden;$('threadSettings').setAttribute('aria-expanded',String(!$('threadEditor').hidden));};
   $('renameThread').onclick=()=>action('rename-thread',$('threadName').value);
   $('deleteThread').onclick=()=>openReview({action:'delete-thread'},snapshot.locale==='tr'?'Bu sohbet kalıcı olarak silinecek. Diğer sohbetler ve sabitlenen notlar korunur.':'This conversation will be permanently deleted. Other chats and pinned notes are kept.',$('deleteThread'));
-  document.addEventListener('click',event=>{if(!$('conversationMenu').contains(event.target))$('conversationMenu').open=false;});
+  document.addEventListener('click',event=>{if(!$('conversationMenu').contains(event.target))$('conversationMenu').open=false;for(const more of $('log').querySelectorAll('.message-more[open]'))if(!more.contains(event.target)){more.open=false;openMessageActions.delete(more.closest('.message-actions').dataset.messageKey);}});
   action('ready');
 })();

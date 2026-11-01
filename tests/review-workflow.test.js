@@ -189,3 +189,8 @@ test('Preview validation stays visible in its active step, and source replacemen
   u.click('Use reviews from open Browser page');await u.wait();assert.equal(u.w.document.querySelector('.mrv-sample'),null);assert.equal(u.w.document.querySelector('main').dataset.reviewStage,'sample');assert.equal(u.draft.attempt.state,'ready');
  }finally{u.w.close();}
 });
+
+test('Saved spoiler analysis stays absent from workspace DOM until a separate explicit reveal',async()=>{
+ const entry={identity:{title:'The Matrix',year:1999},analysis:{at:Date.now(),summary:'SECRET PLOT IN SAVED SUMMARY',fit:'Conditional fit.',points:[]},reviews:[{id:'a',text:'A spoiler review describing the SECRET ENDING.',spoiler:true}]},u=ui({},{saved:{history:[entry]}});
+ try{const history=u.w.document.querySelector('.mrv-saved-analyses');assert.equal(u.w.document.querySelector('[name=review-spoilers]').checked,false);assert.doesNotMatch(history.textContent,/SECRET PLOT|SECRET ENDING/);assert(history.querySelector('[data-review-spoiler-gate]'));u.click('Reveal this spoiler analysis');await u.wait();assert.match(history.querySelector('.mrv-summary').textContent,/SECRET PLOT/);assert.equal(u.w.document.querySelector('[name=review-spoilers]').checked,false);assert.equal(u.calls.length,0);}finally{u.w.close();}
+});

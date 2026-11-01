@@ -66,3 +66,31 @@ html[data-theme="light"] .md-detail-poster img { outline-color: rgba(0,0,0,.1); 
 .md-detail p{line-height:1.8;text-wrap:pretty}
 .md-detail .md-meta{line-height:1.7;margin-block:12px 18px}
 @media(max-width:700px){.md-tabs{gap:16px;flex-wrap:wrap}.md-filters{display:grid;grid-template-columns:1fr 1fr;padding:16px;gap:14px}.md-field{min-width:0}.md-search{grid-column:1/-1}.md-filters>.mh-action{justify-self:start}.md-grid{gap:24px 14px}}
+
+/* A media collection, not a settings form. Native controls retain their labels and behavior. */
+.md-page .md-filters{background:transparent;border:0;border-radius:0;padding:0;margin-bottom:24px;gap:12px;align-items:end}
+.md-page .md-field{gap:6px;font-size:11px;min-width:120px}
+.md-page .md-field input,.md-page .md-field select{height:38px;min-height:38px;font-size:13px;padding:8px 11px;background:var(--bg-1);border-color:var(--border)}
+.md-page .md-filters>.mh-action{min-height:38px;padding:8px 18px}
+.md-page .md-tabs{gap:24px;margin-bottom:24px}
+.md-page .md-grid{grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:26px 20px}
+.md-page .md-card .mh-card-title{font-size:14px;font-weight:500;margin:10px 0 4px;line-height:1.5;min-height:3em}
+.md-page .md-card .mh-card-meta{margin:0;font-size:12px;line-height:1.6}
+.md-rating{position:absolute;right:7px;bottom:7px;display:flex;align-items:center;gap:4px;padding:4px 7px;border-radius:5px;background:rgb(0 0 0 / .8);color:#f3cd8d;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums}
+.md-rating::before{content:'';width:9px;height:9px;background:currentColor;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 94%,50% 72%,21% 94%,32% 57%,2% 35%,39% 35%)}
+.md-feature{position:relative;isolation:isolate;min-height:330px;overflow:hidden;border-radius:16px;margin:4px 0 32px;background:var(--bg-1);display:flex;align-items:end;color:#f1f0ed}
+.md-feature[hidden]{display:none}
+.md-feature-art{position:absolute;inset:0;z-index:-2;width:100%;height:100%;object-fit:cover;object-position:center 35%}
+.md-feature::before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,rgba(8,9,12,.94),rgba(8,9,12,.62) 45%,rgba(8,9,12,.04)),linear-gradient(0deg,rgba(8,9,12,.6),transparent 80%)}
+.md-feature-copy{max-width:650px;padding:38px 40px}
+.md-feature h2{font:600 clamp(28px,3vw,42px)/1.15 Sora,'Segoe UI',sans-serif;letter-spacing:-.03em;margin:0 0 14px;text-wrap:balance}
+.md-feature-facts{font-size:12px;line-height:1.6;color:#d8d9dc;margin:0 0 14px}
+.md-feature-story{font-size:14px;line-height:1.75;margin:0 0 20px;max-width:64ch;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.md-feature .md-feature-open{background:#f1f0ed;color:#151619;border:0;border-radius:8px;font-size:13px;min-height:40px;padding:10px 18px}
+.md-detail.media-title-page .md-page-hero{margin-inline:clamp(20px,3vw,48px);border-radius:18px;overflow:hidden;background:var(--bg-1)}
+.md-detail.media-title-page .md-detail-body{grid-template-columns:158px minmax(0,1fr);gap:30px;padding:32px;align-items:end}
+.md-detail.media-title-page .md-detail-poster{max-width:158px}
+.md-detail.media-title-page .md-detail-copy h1{font:600 clamp(28px,3vw,44px)/1.15 Sora,'Segoe UI',sans-serif;letter-spacing:-.035em;max-width:28ch;margin:0 0 14px}
+.md-detail.media-title-page .md-page-lower>.mtd-review{grid-column:1/-1;margin-top:8px;padding-top:28px;min-width:0}
+@media(max-width:760px){.md-feature{min-height:280px}.md-feature-copy{padding:28px 24px}.md-page .md-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:24px 16px}.md-detail.media-title-page .md-page-hero{margin-inline:16px;border-radius:14px}.md-detail.media-title-page .md-detail-body{grid-template-columns:112px minmax(0,1fr);padding:24px;gap:20px}.md-detail.media-title-page .md-detail-poster{max-width:112px}}
+@media(max-width:520px){.md-page .md-filters{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.md-feature h2{font-size:28px}.md-feature-story{-webkit-line-clamp:2}.md-detail.media-title-page .md-detail-body{grid-template-columns:80px minmax(0,1fr);padding:20px;gap:16px}.md-detail.media-title-page .md-detail-poster{max-width:80px}.md-detail.media-title-page .md-detail-copy h1{font-size:24px}}

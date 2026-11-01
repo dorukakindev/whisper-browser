@@ -7299,3 +7299,165 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
 
 /* Studio actions follow the form instead of covering fields while scrolling. */
 .panel-left > .actions{position:static;box-shadow:none;margin-top:16px}
+
+/* Local player only: a quiet transport plane, with playback as its primary action.
+   Source/navigation and advanced tools keep their existing actions and focus order. */
+.player-layer:not(.workspace-browser) .player-head {
+  background: var(--bg-0);
+  border-bottom-color: var(--border);
+}
+.player-layer:not(.workspace-browser) .player-title {
+  font-family: 'Sora', 'Segoe UI', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+}
+.player-layer:not(.workspace-browser) .player-meta { color: var(--text-muted); }
+.player-layer:not(.workspace-browser) .player-head-button {
+  border-color: transparent;
+  background: transparent;
+  border-radius: 7px;
+}
+.player-layer:not(.workspace-browser) .player-head-button:hover {
+  background: var(--bg-2);
+}
+.player-layer:not(.workspace-browser) .player-controls {
+  padding: 30px 20px 16px;
+  gap: 10px;
+  background: linear-gradient(to top, rgb(8 9 11 / .96), rgb(8 9 11 / .64) 56%, transparent);
+}
+.player-layer:not(.workspace-browser) .player-controls .pc-group {
+  gap: 7px;
+}
+.player-layer:not(.workspace-browser) .player-controls .btn-icon {
+  background: transparent;
+  border-radius: 7px;
+  backdrop-filter: none;
+}
+.player-layer:not(.workspace-browser) .player-controls .btn-icon:hover:not(:disabled) {
+  background: rgb(255 255 255 / .12);
+}
+.player-layer:not(.workspace-browser) .player-controls #playPause {
+  width: 44px;
+  height: 44px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-radius: 8px;
+}
+.player-layer:not(.workspace-browser) .player-controls #playPause:hover {
+  background: var(--accent-hover);
+}
+.player-layer:not(.workspace-browser) .player-controls .player-time {
+  padding: 8px;
+  background: transparent;
+  border-radius: 0;
+  backdrop-filter: none;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.player-layer:not(.workspace-browser) .player-controls .player-speed-menu > summary {
+  background: transparent;
+  border-radius: 7px;
+  border-color: rgb(255 255 255 / .2);
+  backdrop-filter: none;
+}
+.player-layer:not(.workspace-browser) .player-more-menu {
+  min-width: 260px;
+  max-width: calc(100vw - 32px);
+  max-height: min(560px, calc(100dvh - 160px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--pc-pop);
+  border-radius: 9px;
+  padding: 8px;
+}
+.player-layer:not(.workspace-browser) .player-more-menu .pc-menu-item {
+  min-height: 40px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.player-layer:not(.workspace-browser) .player-side:not(.side-rail) {
+  background: var(--bg-0);
+  border-left: 1px solid var(--border);
+}
+.player-layer:not(.workspace-browser) .ph-more-menu {
+  background: var(--bg-1);
+  border-color: var(--border-strong);
+  border-radius: 9px;
+}
+.player-layer:not(.workspace-browser) .settings-drawer {
+  background: var(--bg-0);
+  border-left-color: var(--border);
+}
+.player-layer:not(.workspace-browser) .settings-drawer .drawer-head {
+  background: var(--bg-0);
+  border-bottom-color: var(--border);
+}
+.player-layer:not(.workspace-browser) .settings-drawer .player-panel {
+  background: var(--bg-1);
+  border-color: var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+@media (max-width: 760px) {
+  .player-layer:not(.workspace-browser) .player-controls { padding: 24px 12px 12px; gap: 6px; }
+  .player-layer:not(.workspace-browser) .player-controls .pc-group { gap: 4px; }
+  .player-layer:not(.workspace-browser) .player-controls .player-time { font-size: 11px; padding: 6px; }
+}
+
+.player-layer:not(.workspace-browser) .settings-drawer .drawer-page-tab.active {
+  color: var(--text);
+  background: var(--bg-2);
+  border-color: var(--border);
+  box-shadow: inset 0 -2px var(--accent);
+  font-weight: 600;
+}
+.player-layer:not(.workspace-browser) .settings-drawer .view-modes {
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-1);
+}
+.player-layer:not(.workspace-browser) .settings-drawer .vm {
+  border-radius: 0;
+  background: transparent;
+}
+.player-layer:not(.workspace-browser) .settings-drawer .vm.active {
+  color: var(--text);
+  background: var(--bg-2);
+  box-shadow: inset 0 -2px var(--accent);
+}
+.player-layer:not(.workspace-browser) .settings-drawer .player-panel > select {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 10px;
+  color: var(--text);
+  background: var(--bg-0);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+}
+
+/* The Home destination belongs to the same baseline as the source title. */
+.player-layer:not(.workspace-browser) #playerBack {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  width: auto;
+  height: 42px;
+  min-height: 42px;
+  padding: 0 11px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.player-layer:not(.workspace-browser) #playerBack svg { flex: 0 0 17px; width: 17px; height: 17px; }
+@media (max-width: 760px) {
+  .player-layer:not(.workspace-browser) #playerBack { width: 42px; padding: 0; }
+  .player-layer:not(.workspace-browser) #playerBack > span { display: none; }
+}
