@@ -685,6 +685,7 @@ def parse_args(argv=None):
     p.add_argument('--prosody-plan',type=Path)
     p.add_argument('--pronunciations',type=Path)
     p.add_argument("--video", type=Path, help="Dublajin gomulecegi video (opsiyonel)")
+    p.add_argument('--source-duration', type=float, help='Known source video duration for browser/player synchronization; no video muxing')
     p.add_argument("--steps", type=int, default=15)
     p.add_argument("--cfg", type=float, default=1.65)
     p.add_argument("--temperature", type=float, default=0.8)
@@ -731,6 +732,8 @@ def parse_args(argv=None):
     p.add_argument("--dub-text", type=Path, help="Ayri, gozden gecirilmis dublaj metni JSON")
     p.add_argument("--plan", action="store_true", help="Gruplari goster; GPU/ses uretimi baslatma")
     args = p.parse_args(argv)
+    if args.source_duration is not None and (not math.isfinite(args.source_duration) or not 0 < args.source_duration <= 86400):
+        p.error('Source video duration must be finite and between zero and 86400 seconds.')
     from dub_pronunciation import load
     args.pronunciations = load(args.pronunciations)
     from dub_regeneration import load_keys
@@ -819,9 +822,11 @@ def main(argv=None, runtime=None):
         return 0
     print(f"{len(cues)} altyazi satiri; ilk satir {cues[0][0] / 1000:.1f} sn, "
           f"son satir {cues[-1][1] / 1000:.1f} sn.", flush=True)
-    duration = video_duration(args.video) if args.video else None
-    if args.video and (duration is None or max(e for _, e, _ in cues) / 1000 > duration):
+    duration = video_duration(args.video) if args.video else args.source_duration
+    if (args.video or args.source_duration is not None) and (duration is None or max(e for _, e, _ in cues) / 1000 > duration):
         raise SystemExit("Video suresi okunamadi veya altyazi videodan uzun; ses kesilmedi.")
+    if duration is not None and args.range_end is not None and args.range_end > duration:
+        raise SystemExit('Selected range exceeds source video duration; no speech was generated.')
     args.end_limit_ms = duration * 1000 if duration is not None else (
         args.range_end * 1000 if args.range_end is not None else None)
     # Check windows before loading the GPU model.

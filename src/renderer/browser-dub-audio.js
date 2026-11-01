@@ -200,7 +200,15 @@
         if (this.session === s) void this.fail('Video sesi değiştirilemedi; dublaj durduruldu.');
       });
     }
-    update(media) { this.sample = { ...media, at: this.now() }; this.tick(); }
+    update(media) {
+      const previous=this.sample,s=this.session;
+      // A naturally ended video can lead decoded audio by one telemetry tick.
+      // Only let an already playing, synchronized tail finish; never start or
+      // resume audio because an ended snapshot arrived.
+      if(s?.sync&&media.ended&&!previous?.ended&&previous&&!previous.paused&&s.voiceWanted&&!s.playPending&&!this.audio.paused)
+        s.finishTailUntil=this.now()+500;
+      this.sample = { ...media, at: this.now() }; this.tick();
+    }
     tick() {
       const s = this.session;
       if (!s) return;
@@ -221,6 +229,15 @@
       const videoTime = Math.max(0, Number(m.currentTime) || 0)
         + (playing ? Math.max(0, this.now() - m.at) / 1000 * rate : 0) - this.offset;
       const localTime = videoTime - (s.range?.start || 0);
+      if(s.finishTailUntil){
+        const remaining=Math.min(s.sync?.audioDuration??0,Number.isFinite(a.duration)?a.duration:0)-a.currentTime;
+        if(m.ended&&!a.paused&&a.readyState>=3&&this.now()<s.finishTailUntil
+            &&Math.abs(localTime-s.sync.videoDuration)<.05&&remaining>0
+            &&remaining/Math.max(.0625,Number(a.playbackRate)||1)<=.35){
+          this.rangeMute(s,true);return;
+        }
+        s.finishTailUntil=0;
+      }
       const mapped = SyncMap.at(s.sync, localTime);
       const target = mapped.time;
       if (s.range || s.sync || s.background || Number.isFinite(a.duration) || this.offset) {
