@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-01-0647.md](docs/devir/2026-11-01-0647.md) — Tasarım yöntemi ve resmî skill doğrulaması; ürün değişikliği yok
 Güncel çalışma: [docs/devir/2026-11-01-0632.md](docs/devir/2026-11-01-0632.md) — Ajanlarla görüntülü tasarım denetimi; yalnız rapor, düzeltme yok
 Güncel çalışma: [docs/devir/2026-11-01-0616.md](docs/devir/2026-11-01-0616.md) — Kaynağa özel telaffuz, gerçek video sonu ve GPU A/B kabulü
 Güncel çalışma: [docs/devir/2026-11-01-0506.md](docs/devir/2026-11-01-0506.md) — Ses için çeviri, gerçek GPU karşılaştırması ve doğrulama özeti
