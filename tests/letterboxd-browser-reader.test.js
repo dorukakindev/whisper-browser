@@ -6,7 +6,7 @@ function fixture(response,options={}){
  const windows=[];
  class Window extends EventEmitter{
   constructor(options){super();windows.push(this);this.options=options;this.dead=false;this.webContents=new EventEmitter();Object.assign(this.webContents,{
-   setUserAgent:ua=>{this.ua=ua;},setWindowOpenHandler:handler=>{this.popup=handler;},getURL:()=>this.url,
+   setUserAgent:ua=>{this.ua=ua;},setWindowOpenHandler:handler=>{this.popup=handler;},getURL:()=>{if(options.throwWhenDestroyed&&this.dead)throw Error('Object has been destroyed');return this.url;},
    executeJavaScript:async(script,gesture)=>{this.script=script;assert.equal(gesture,false);return response?response(this):{url:this.url,html:'<section><div class="js-review-body">Public review text</div></section>'};}
   });}
   async loadURL(url){this.url=url.startsWith('https://letterboxd.com/tmdb/')?base:url;if(options.load)return options.load(this,url);}
@@ -146,3 +146,6 @@ test('resolved film remains fixed and five total reads bound window lifetime',as
  for(let n=0;n<4;n++)await reader.readPage(review);
  await assert.rejects(reader.readPage(review),/five-page limit/);reader.close();assert.equal(windows[0].dead,true);
 });
+
+test('Readable DOM is accepted without waiting for unrelated subresources to finish',async()=>{const {reader,windows}=fixture(null,{load:win=>{queueMicrotask(()=>win.webContents.emit('dom-ready'));return new Promise(()=>{});}});try{const result=await reader.readPage(review);assert.equal(result.url,review);assert.equal(windows[0].webContents.listenerCount('dom-ready'),0);}finally{reader.close();}});
+test('Cancellation keeps its reason when closing destroys the web contents',async()=>{const c=new AbortController(),{reader}=fixture(null,{throwWhenDestroyed:true,load:()=>new Promise(()=>{})});const result=reader.readPage(review,{signal:c.signal});c.abort(Error('Stop requested'));await assert.rejects(result,/Stop requested/);reader.close();});

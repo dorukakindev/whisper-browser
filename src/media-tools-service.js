@@ -36,7 +36,7 @@ function tonight(items, history=[], options={}) {
   }
   return rows.sort((a,b)=>b.score-a.score||a.title.localeCompare(b.title)).slice(0,8);
 }
-function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ffprobe,readOpenReviews,resolveDiscovery,collectBrowserReviews,getReviewConfig,fetchImpl=fetch}) {
+function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ffprobe,readOpenReviews,resolveDiscovery,collectBrowserReviews,getReviewConfig,getReviewTaste=()=>({}),fetchImpl=fetch}) {
   const root=()=>app.getPath('userData'), file=()=>path.join(root(),'media-enrichment.json');
   const read=()=>{if(!fs.existsSync(file()))return {version:1,titles:{}};if(fs.statSync(file()).size>16000000)throw Error('Media notes exceed 16 MB.');const value=JSON.parse(fs.readFileSync(file(),'utf8'));if(value.version!==1||!value.titles||typeof value.titles!=='object'||Array.isArray(value.titles))throw Error('Media notes are damaged. Original file was preserved.');return value;};
   const save=value=>{const json=JSON.stringify(value);if(Buffer.byteLength(json)>16000000)throw Error('Media notes exceed 16 MB.');atomicWriteFileSync(file(),json);};
@@ -129,20 +129,20 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
         const snapshot=JSON.stringify([item.kind,item.title,item.year,item.tmdbId,item.imdbId]);
         try{
           const options={count:input.count,sort:input.sort,spoilers:input.spoilers===true,signal:controller.signal};let result;
-          try{result=await require('./letterboxd-auto').fetchReviews(item,{...options,fetchImpl});}
-          catch(error){controller.signal.throwIfAborted();if(!collectBrowserReviews||!/^Letterboxd HTTP 403\./.test(error.message))throw error;result=await collectBrowserReviews(item,options);result={...result,transport:'browser'};}
-          if(collectBrowserReviews&&result.transport!=='browser'&&result.partial&&/^Letterboxd HTTP 403\./.test(result.warning||'')&&result.reviews?.length<(input.count||24)){
+          try{result=await require('./letterboxd-auto').fetchReviews(item,{...options,signal:AbortSignal.any([controller.signal,AbortSignal.timeout(12000)]),fetchImpl});}
+          catch(error){controller.signal.throwIfAborted();if(!collectBrowserReviews||!(error.name==='TimeoutError'||/^Letterboxd HTTP 403\./.test(error.message)))throw error;result=await collectBrowserReviews(item,options);result={...result,transport:'browser'};}
+          if(collectBrowserReviews&&result.transport!=='browser'&&result.partial&&/^Letterboxd HTTP 403\./.test(result.warning||'')&&result.reviews?.length<(input.count||40)){
             try{result={...await collectBrowserReviews(item,options),transport:'browser'};}
             catch(error){controller.signal.throwIfAborted();result={...result,warning:result.warning+' Normal Browser: '+String(error.message).slice(0,300)};}
           }
           controller.signal.throwIfAborted();const current=await reviewItem(event,input);if(JSON.stringify([current.kind,current.title,current.year,current.tmdbId,current.imdbId])!==snapshot)throw Error('The film match changed. Load its reviews again.');if(action==='reviews-analyze'){
             if(result.match?.state!=='matched')throw Error('The review source did not match this film.');
             if(!getReviewConfig)throw Error('Review analysis provider unavailable.');
-            const model=require('./renderer/media-tools-model'),{evidence,sample}=model.decisionEvidence(item,result.reviews||[],{});
+            const model=require('./renderer/media-tools-model'),{evidence,sample}=model.decisionEvidence(item,result.reviews||[],await getReviewTaste());
             if(!sample.reviews.length)throw Error('No usable reviews to analyze.');
             const answer=await require('./assistant-provider').run({question:model.reviewAnalysisPrompt(),responseContract:'review-analysis',context:{kind:'library',title:item.title,reviewAnalysis:JSON.stringify(evidence)},config:getReviewConfig(),locale:input.locale==='en'?'en':'tr',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(240000)]),fetchImpl});
             controller.signal.throwIfAborted();const latest=await reviewItem(event,input);if(JSON.stringify([latest.kind,latest.title,latest.year,latest.tmdbId,latest.imdbId])!==snapshot)throw Error('The film match changed during analysis.');
-            return {ok:true,...result,analysis:model.parseDecisionResponse(answer.text,sample.reviews),analysisReviews:sample.reviews,analyzedCount:sample.reviews.length,loadedCount:result.reviews.length,requestedCount:input.count||40,shortened:sample.truncated,omitted:sample.omitted};
+            return {ok:true,...result,personalEvidence:!!(evidence.profile.preferencesConfigured||evidence.profile.acceptedAnalysis||evidence.profile.questionnaire),evidenceSnapshot:{version:1,context:JSON.stringify(evidence),profile:evidence.profile},analysis:model.parseDecisionResponse(answer.text,sample.reviews),analysisReviews:sample.reviews,analyzedCount:sample.reviews.length,loadedCount:result.reviews.length,requestedCount:input.count||40,shortened:sample.truncated,omitted:sample.omitted};
           }
           return {ok:true,...result};
         }
@@ -159,23 +159,26 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
       }
       if(action==='decision-get'){
         const selected=await reviewItem(event,input),data=read(),own=Object.hasOwn(data.titles,selected.id)?data.titles[selected.id]:{},model=require('./renderer/media-tools-model'),current=model.decisionProviderIdentity(selected);
+        const ownFeedback=own.feedback&&(!own.feedbackIdentity||model.decisionIdentityMatch(selected,own.feedbackIdentity)!=='mismatch')?own.feedback:null,sharedFeedback=[];
         const history=(Array.isArray(own.history)?own.history:[]).map(entry=>({entry,savedFrom:selected.id.startsWith('discovery:')?'discovery':'library'}));
         // A discovery title and its later library entry use different storage keys.
-        // Share saved evidence only through a positive provider match; feedback stays local.
+        // Share evidence and newly identity-bound feedback only through a positive provider match. Legacy feedback stays local.
         for(const [key,value]of Object.entries(data.titles)){
-          if(key===selected.id||!Array.isArray(value?.history))continue;
-          for(const entry of value.history){
+          if(key===selected.id)continue;
+          if(value?.feedback&&value.feedbackIdentity?.kind===selected.kind&&model.decisionIdentityMatch(selected,value.feedbackIdentity)==='matched'){const saved=model.decisionProviderIdentity(value.feedbackIdentity);if(['imdbId','tmdbId'].some(key=>current[key]&&current[key]===saved[key]))sharedFeedback.push({feedback:value.feedback,identity:value.feedbackIdentity,from:key.startsWith('discovery:')?'discovery':'library'});}
+          for(const entry of Array.isArray(value?.history)?value.history:[]){
             if(!entry?.identity||entry.identity.kind!==selected.kind||model.decisionIdentityMatch(selected,entry.identity)!=='matched')continue;
             const saved=model.decisionProviderIdentity(entry.identity);
             if(['imdbId','tmdbId'].some(key=>current[key]&&current[key]===saved[key]))history.push({entry,savedFrom:key.startsWith('discovery:')?'discovery':'library'});
           }
         }
         const seen=new Set(),merged=history.filter(({entry})=>{const key=JSON.stringify(entry);if(seen.has(key))return false;seen.add(key);return true;}).sort((a,b)=>(Number(b.entry?.analysis?.at)||0)-(Number(a.entry?.analysis?.at)||0)).slice(0,8).map(({entry,savedFrom})=>({...entry,savedFrom}));
-        return {ok:true,value:{...own,...(merged.length?{history:merged}:{})}};
+        const linked=sharedFeedback.sort((a,b)=>(Number(b.feedback.at)||0)-(Number(a.feedback.at)||0))[0];
+        return {ok:true,value:{...own,feedback:ownFeedback||linked?.feedback,feedbackIdentity:ownFeedback?own.feedbackIdentity:linked?.identity,...(!ownFeedback&&linked?{feedbackSavedFrom:linked.from}:{}),...(merged.length?{history:merged}:{})}};
       }
       if(['decision-save','feedback-save'].includes(action)){
         const selected=await reviewItem(event,input);if(action==='decision-save'&&input.itemIdentity){for(const key of ['kind','title','year','tmdbId','imdbId'])if(String(input.itemIdentity[key]??'')!==String(selected[key]??''))throw Error('The film identity changed. Review the new title before saving this analysis.');}const data=read(),previous=Object.hasOwn(data.titles,selected.id)?data.titles[selected.id]:{};
-        if(action==='feedback-save'){const feedback={reaction:['like','neutral','dislike'].includes(input.reaction)?input.reaction:'neutral',note:text(input.note),aspects:Array.isArray(input.aspects)?input.aspects.filter(k=>require('./media-taste').ASPECTS.includes(k)):[],at:Date.now()};data.titles[selected.id]={...previous,feedback};}
+        if(action==='feedback-save'){const feedback={reaction:['like','neutral','dislike'].includes(input.reaction)?input.reaction:'neutral',note:text(input.note),aspects:Array.isArray(input.aspects)?input.aspects.filter(k=>require('./media-taste').ASPECTS.includes(k)):[],at:Date.now()};data.titles[selected.id]={...previous,feedback,feedbackIdentity:{kind:selected.kind,title:selected.title,year:selected.year,tmdbId:selected.tmdbId,imdbId:selected.imdbId}};}
         else{const reviews=reviewRows(JSON.stringify(input.reviews)),analysis=verifyDecision(input.analysis,reviews),evidenceSnapshot=require('./renderer/media-tools-model').validateEvidenceSnapshot(input.evidenceSnapshot,reviews,selected);data.titles[selected.id]={...previous,history:[{analysis,reviews,...(evidenceSnapshot?{evidenceSnapshot}:{}),identity:{kind:selected.kind,title:selected.title,year:selected.year,tmdbId:selected.tmdbId,imdbId:selected.imdbId}},...(previous.history||[])].slice(0,8)};}
         save(data);return {ok:true,value:data.titles[selected.id]};
       }

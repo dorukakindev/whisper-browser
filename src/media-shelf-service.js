@@ -37,17 +37,22 @@ function csvPlan(rows, items) {
   }
   return { planned, added, ambiguous };
 }
+function loadShelfFile(file) {
+    if (!fs.existsSync(file)) return { version: 1, music: [], books: [], stations: [], podcasts: [], playlists: [], diary: [] };
+    if (fs.statSync(file).size > 16_000_000) throw Error('Media shelf exceeds 16 MB; export/recover it before editing.');
+    const data = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
+    if (data.version !== 1 || ['music', 'books', 'stations', 'podcasts', 'playlists', 'diary'].some(key => !Array.isArray(data[key]))) throw Error('Media shelf is damaged; original file was preserved.');
+    return data;
+  }
+function readReviewTaste(userData,catalog=[]) {
+  const data=loadShelfFile(path.join(userData,'media-shelf.json'));
+  return require('./media-taste').profile(data.diary,catalog,data.tasteProfile||{},Array.isArray(data.reviews)?data.reviews:[]);
+}
 function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pythonPath, ffprobePath, inspectMedia, grantMedia, grantPdf, nativeImage, catalogStore, fetchImpl = fetch, musicRun = run }) {
   let active = null;
   const imports = new Map();
   const stateFile = () => path.join(userData(), 'media-shelf.json');
-  function load() {
-    if (!fs.existsSync(stateFile())) return { version: 1, music: [], books: [], stations: [], podcasts: [], playlists: [], diary: [] };
-    if (fs.statSync(stateFile()).size > 16_000_000) throw Error('Media shelf exceeds 16 MB; export/recover it before editing.');
-    const data = JSON.parse(fs.readFileSync(stateFile(), 'utf8').replace(/^\uFEFF/, ''));
-    if (data.version !== 1 || ['music', 'books', 'stations', 'podcasts', 'playlists', 'diary'].some(key => !Array.isArray(data[key]))) throw Error('Media shelf is damaged; original file was preserved.');
-    return data;
-  }
+  const load=()=>loadShelfFile(stateFile());
   function save(data) {
     const json = JSON.stringify(data);
     if (Buffer.byteLength(json) > 16_000_000) throw Error('Media shelf exceeds 16 MB; remove unused entries first.');
@@ -307,4 +312,4 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
     } catch (error) { const parts=String(error.message).split(' / ');return { ok: false, error:parts.length>1?(input.locale==='tr'?parts.slice(1).join(' / '):parts[0]):error.message }; }
   });
 }
-module.exports = { registerMediaShelf, csvPlan, urlOf };
+module.exports = { registerMediaShelf, csvPlan, urlOf, readReviewTaste };

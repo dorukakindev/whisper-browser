@@ -40,7 +40,12 @@
    safe.sourceCoverage={scope:'provided_context',status:safe.sourceTruncated||upstreamOmissionsUnknown||prior?.status==='partial'?'partial':'provided_only',wholeSourceVerified:false,upstreamOmissionsUnknown,
     providedCharacters,includedCharacters:included.characters,omittedCharacters,providedUnits,includedUnits:included.units,omittedUnits};
   };
-  const safe={};if(reviewAnalysis)safe.reviewAnalysis=reviewAnalysis;if(['available','empty','timeout','read_failed','source_changed','unavailable'].includes(context.pageReadStatus))safe.pageReadStatus=context.pageReadStatus;
+  const safe={};
+  // Tool arguments need the selected title's public application identity, not
+  // an opaque owner token or a guessed ID. Never forward paths or person IDs.
+  const itemId=context.item_id||context.catalogId||context.id;
+  if(['library-title','discovery-title'].includes(context.type)&&typeof itemId==='string'&&itemId.length<=160&&!itemId.startsWith('person:')&&(itemId.startsWith('discovery:')?/^discovery:(?:film|series):tt\d{7,12}$/.test(itemId):/^[A-Za-z0-9][A-Za-z0-9:_-]{0,159}$/.test(itemId)))safe.item_id=itemId;
+  if(reviewAnalysis)safe.reviewAnalysis=reviewAnalysis;if(['available','empty','timeout','read_failed','source_changed','unavailable'].includes(context.pageReadStatus))safe.pageReadStatus=context.pageReadStatus;
   if(safe.pageReadStatus&&safe.pageReadStatus!=='available')safe.pageReadHint=({empty:'The page returned no readable text. Ask the user to select a passage or open the article, then read the new context.',timeout:'Page extraction exceeded four seconds. Retry reading the current page; do not infer missing content.',read_failed:'The page reader failed. Retry or use an explicitly selected passage; the exact site cause is unknown.',source_changed:'The extracted page no longer matches the current source. Read the current page again.',unavailable:'Page text is unavailable; the exact cause is unknown. Ask for a selected passage or retry reading.'})[safe.pageReadStatus];
   if(context.sourceTruncated===true||context.truncated===true||context.selectedTextTruncated===true)safe.sourceTruncated=true;
   const suppliedPool=context.assistant_tools?.rows;

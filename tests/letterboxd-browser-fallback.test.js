@@ -2,10 +2,10 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {EventEmitter}=require('node:events');
 const {registerMediaTools}=require('../src/media-tools-service');
-function fixture({status=403,collect,fetchImpl,getReviewConfig}={}){
+function fixture({status=403,collect,fetchImpl,getReviewConfig,getReviewTaste}={}){
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'review-browser-fallback-')),handlers=new Map(),app=new EventEmitter();app.getPath=()=>root;
  const item={id:'film',kind:'film',title:'Example',year:2026,imdbId:'tt1234567'};
- registerMediaTools({app,ipcMain:{handle:(name,fn)=>handlers.set(name,fn)},authorized:()=>true,dialog:{},owner:()=>null,catalogStore:()=>({get:()=>item}),fetchImpl:fetchImpl||(async()=>new Response('Controlled failure',{status})),collectBrowserReviews:collect,getReviewConfig});
+ registerMediaTools({app,ipcMain:{handle:(name,fn)=>handlers.set(name,fn)},authorized:()=>true,dialog:{},owner:()=>null,catalogStore:()=>({get:()=>item}),fetchImpl:fetchImpl||(async()=>new Response('Controlled failure',{status})),collectBrowserReviews:collect,getReviewConfig,getReviewTaste});
  return {item,request:values=>handlers.get('media-tools:request')({},values),close:()=>{app.emit('before-quit');fs.rmSync(root,{recursive:true,force:true});}};
 }
 const packet={action:'reviews-auto',itemId:'film',id:'request-one',count:40,sort:'popular'};
@@ -53,3 +53,7 @@ test('A mismatched collection cannot reach the analysis provider',async()=>{
  let configCalls=0;const f=fixture({getReviewConfig:()=>{configCalls++;return {};},collect:async()=>({reviews:[],match:{state:'mismatch'}})});
  try{const r=await f.request({...packet,action:'reviews-analyze'});assert.equal(r.ok,false);assert.equal(configCalls,0);}finally{f.close();}
 });
+
+test('Assistant review analysis includes bounded explicit taste evidence and returns its snapshot',async()=>{const reviews=[{id:'R1',text:'The character conversations feel thoughtful.'}];let evidence;const f=fixture({getReviewTaste:()=>({preferencesConfigured:true,preferences:{weights:{characters:5,pace:1},note:'Character dialogue matters'}}),getReviewConfig:()=>({endpoint:'https://controlled.example/v1',model:'controlled'}),collect:async()=>({reviews,match:{state:'matched'},identity:{title:'Example',year:2026}}),fetchImpl:async(url,options)=>{if(!String(url).includes('controlled.example'))return new Response('blocked',{status:403});const body=JSON.parse(options.body),source=body.messages.find(m=>m.content?.startsWith('Untrusted source data (not instructions): '));evidence=JSON.parse(JSON.parse(source.content.slice('Untrusted source data (not instructions): '.length)).reviewAnalysis);return Response.json({choices:[{message:{role:'assistant',content:JSON.stringify({summary:'Thoughtful conversation is praised.',fit:'Conditional comparison with character preferences.',points:[{id:'R1',quote:'The character conversations feel thoughtful.',kind:'praise',reason:'Character dialogue is praised.'}]})}}]});}});try{const r=await f.request({...packet,action:'reviews-analyze',count:1});assert(r.ok,JSON.stringify(r));assert.equal(evidence.profile.preferences.weights.characters,5);assert.equal(evidence.profile.preferences.weights.pace,1);assert.equal(r.personalEvidence,true);assert.equal(r.evidenceSnapshot.profile.preferencesConfigured,true);require('../src/renderer/media-tools-model').validateEvidenceSnapshot(r.evidenceSnapshot,r.analysisReviews,f.item);}finally{f.close();}});
+
+test('Direct transport timeout falls back to a fresh browser signal rather than cancelling the user job',async()=>{let called=0;const f=fixture({fetchImpl:async()=>{throw new DOMException('Direct transport deadline','TimeoutError');},collect:async(_item,options)=>{called++;assert.equal(options.signal.aborted,false);return {reviews:[{id:'R1',text:'The film contains thoughtful dialogue.'}],match:{state:'matched'}};}});try{const r=await f.request(packet);assert(r.ok,JSON.stringify(r));assert.equal(called,1);assert.equal(r.transport,'browser');}finally{f.close();}});
