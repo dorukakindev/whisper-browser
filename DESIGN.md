@@ -3,12 +3,12 @@ version: alpha
 name: Whisper Browser
 description: Türkçe video, altyazı ve çeviri çalışma istasyonu.
 colors:
-  background: '#0a0c0f'
-  surface: '#101419'
-  raised: '#151b22'
-  border: '#27313b'
-  text: '#edf1f3'
-  muted: '#84929c'
+  background: '#111215'
+  surface: '#191b1f'
+  raised: '#24272d'
+  border: '#383c43'
+  text: '#f1f0ed'
+  muted: '#b0b4bd'
   primary: '#d5a35c'
   danger: '#d06b63'
 typography:
@@ -38,7 +38,7 @@ components:
 
 Ses çalışma istasyonu: video merkezde, yoğun ama ikincil ayarlar kenarda. Ürün yönü ve Türkçe metin gereksinimi AGENTS.md tarafından tanımlanır. Kullanım Windows masaüstü; İngilizce öğrenme, pazarlama sayfası veya yeni bir marka tasarımı değildir. Hedef pazar hakkında dil dışında ayrı kanıt yoktur.
 
-Bu dosya mevcut tasarımı kaydeder; token üretmez. Kanonik çalışma zamanı sahibi `src/renderer/styles.css` içindeki `:root` ve açık tema değişkenleridir. Ön yüz bu değerleri `var(--bg-0)`, `var(--bg-1)`, `var(--bg-2)`, `var(--text)`, `var(--border)` ve `var(--accent)` ile tüketir. Ürün davranışının sahibi AGENTS.md ve aşağıdaki iş akışı sözleşmesidir.
+Bu dosya mevcut tasarımı kaydeder; token üretmez. Kanonik sayfa paleti `src/renderer/theme-palette.css` içindedir. Ana pencere ve ayrı asistan renderer'ı bu dosyayı önce yükler; `styles.css` ve `assistant-overlay.css` mevcut bileşen adlarını bu ortak rollere bağlar. Ön yüz bu değerleri `var(--bg-0)`, `var(--bg-1)`, `var(--bg-2)`, `var(--text)`, `var(--border)` ve `var(--accent)` ile tüketir. Ürün davranışının sahibi AGENTS.md ve aşağıdaki iş akışı sözleşmesidir.
 
 ## Colors
 
@@ -126,3 +126,14 @@ Takvim katalog gezinmesinin dördüncü bölümüdür. Yaklaşan, yayınlanmış
 Araçlar alanında dokuz açılır grup vardır. Yeni konuşma ayırma grubu aynı `.bf-workspace` kaydırıcısındadır; yalnız tıklamayla başlar, 60 saniye sınırı ve model/dil seçimi sunar. CPU üzerinde ayrı ortamda çalışır, sonuç SRT metnidir ve özgün videoya offset uygulanır; mevcut altyazıyı otomatik değiştirmez. ASS hızlı eylemleri ayrı font ve MKV font seçenekleri içerir. Kodlama kurtarma önizlemesi özgün dosyayı koruyarak yeni kopyayı mevcut altyazı seçim sahibine bağlar.
 
 Değişen akışlar ayrı Electron test profillerinde sınanır. ASS, küçük oynatıcı ve ürün entegrasyonu için `tests/electron-browser-*.smoke.js` dosyaları; ses, tercih ve kayıt kararları için ilgili hedefli testler kullanılır. Canlı OpenSubtitles hesabı, tüm siteler ve DRM başarısı kontrollü testlerden çıkarılmaz.
+
+
+### Ortak tema sahipliği — R827
+
+Grafit basamaklar `#111215 → #191b1f → #24272d → #2d3037`; ana metin `#f1f0ed`, ikincil `#c1c4cb`, pasif `#b0b4bd`. Sıcak amber `#d5a35c` korunur. Renk kopyaları medya/browser kapsayıcılarında yeniden tanımlanmaz. Asistan bağımsız WebContentsView olduğu için aynı paleti kendi HTML girişinde yükler; ana sayfadan CSS mirası aldığı varsayılmaz. Açık tema mevcut sıcak değerleri kullanır. Video üstü kontrol ve TV kontrast varyantları ayrı, belgeli istisnadır. `design-system/whisper-local-theme.css` eski taşınabilir v1.1 örneğidir, çalışma zamanı kaynağı değildir.
+
+Günlük ikincil düğmeler8px, arama10px, panel16px ailesini izler; mod seçicisi ve sohbet balonu bağlama özgü şekillerini korur. Genel ikincil hover nötrdür; tüm butonları amberle çerçevelemez. Kapalı asistan balonu nötr yüzeydir; Send/işin ana eylemi vurguyu taşır. Hero'nun okunabilirlik örtüsü sabit eski siyah yerine güncel sayfa zeminiyle karışır. Klavye odağı silinmez; native testin odak halkası seçim stili sanılıp kaldırılmaz.
+
+Hareket sahibi `ui-motion.css` ve `ui-motion.js`: panel160ms/seyahat yok; bölüm180ms/4px; kontrol renk150ms, basış100ms/.985; ince pointer'da kapak2px yükselir. WAAPI bu CSS rollerini doğrulayarak okur; eksik/geçersiz değerler güvenli varsayılana döner. Tekrarlı giriş eski hareketi iptal edip mevcut görünümden devam eder. Reduced-motion ve pagehide etkin animasyonu iptal eder; gezinme animasyonu beklemez. Bu süreler ürün kararıdır, FPS/performans ölçümü iddiası değildir.
+
+Hesapsız tema yöntemi ve gerçek önce/sonra kanıtı [R827](docs/raporlar/BROWSER_BUG_REPORT_827.md) altında saklanır. Statik üretilmiş tasarım panosu çalışan uygulama kanıtı değildir; native görüntüler ayrı tutulur. Yeni dış hesap, CDN, font, paket veya ayar şeması eklenmez.

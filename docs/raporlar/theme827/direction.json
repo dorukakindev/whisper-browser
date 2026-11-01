@@ -1,0 +1,66 @@
+{
+  "selected": "A — Sessiz sinema / warm graphite",
+  "alternatives": [
+    {
+      "name": "B — preserve near-black",
+      "benefit": "smallest aesthetic delta",
+      "risk": "surface hierarchy remains weak"
+    },
+    {
+      "name": "C — editorial light default",
+      "benefit": "readable daylight",
+      "risk": "changes established dark media use; retain as existing optional light theme instead"
+    }
+  ],
+  "approval": "fully-automatic explicit user acceptance",
+  "evidenceMode": "guidelines only; no benchmark lookups",
+  "sources": [
+    "https://fluent2.microsoft.design/color",
+    "https://fluent2.microsoft.design/design-tokens",
+    "https://fluent2.microsoft.design/typography",
+    "https://fluent2.microsoft.design/motion",
+    "https://www.w3.org/WAI/WCAG22/Understanding/reflow.html",
+    "https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html"
+  ],
+  "renderer": "Codex imagegen static board; Themely companion token demonstration",
+  "assetFidelity": "retain real existing cover/media behavior; generated test covers only concept placeholders, no production generated art",
+  "initialVerdict": "meets with corrections",
+  "correctionRound": 2,
+  "corrections": [
+    "Assistant must retain compact current header/source/conversation/composer; remove generated sidebar/new features",
+    "Dubbing retains existing SRT/active-reference/profile/range/advanced/results controls; remove invented feature toggles",
+    "No decorative gradients/shadows/glow in app, no UI feature removals"
+  ],
+  "runtimeProof": "Passed scoped native Windows fixtures for home, film, settings, assistant, browser, dubbing, PDF and dark/light contrast. Motion interruption/reduce/token safety tested in-process; no FPS/video or subjective all-screen perfection claim.",
+  "finalVerdict": "meets: theme direction only; exact labels, controls and runtime governed by source",
+  "staticGate": "accepted automatically under user-selected mode; illustrated proposal is not application proof",
+  "motionContracts": {
+    "panel": {
+      "trigger": "existing panel reveal",
+      "purpose": "orientation",
+      "timing": "160ms",
+      "easing": "cubic-bezier(.2,.8,.2,1)",
+      "property": "opacity .65 to1; no travel",
+      "interrupt": "cancel old, read current style, continue",
+      "reduce": "skip and cancel active",
+      "provenance": "existing app duration; direction refinement"
+    },
+    "section": {
+      "trigger": "existing route content reveal",
+      "purpose": "continuity",
+      "timing": "180ms",
+      "property": "opacity .55 to1,4px to0",
+      "interrupt": "same owner as panel",
+      "reduce": "skip, no navigation delay",
+      "provenance": "existing app implementation, reduced travel"
+    },
+    "control": {
+      "trigger": "pointer hover/press",
+      "purpose": "acknowledge interaction",
+      "timing": "100ms press/150ms color",
+      "property": "scale .985, color/border; art lift2px fine pointer only",
+      "reduce": "no scale/travel/transitions",
+      "provenance": "judgment based on existing patterns; no measured FPS claim"
+    }
+  }
+}

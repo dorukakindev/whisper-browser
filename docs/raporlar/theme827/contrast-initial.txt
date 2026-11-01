@@ -1,0 +1,25 @@
+
+--- tema: dark
+    FAIL (10):
+      span.signal-kicker "01 · START" 4.39:1 [fg rgb(169, 133, 82) / bg rgb(36,39,45)]
+      span.signal-kicker "OPERATIONS DESK" 4.39:1 [fg rgb(169, 133, 82) / bg rgb(36,39,45)]
+      span.signal-kicker "SIGNAL CHAIN" 4.39:1 [fg rgb(169, 133, 82) / bg rgb(36,39,45)]
+      span.signal-kicker "SUBTITLE WORKSPACE" 4.39:1 [fg rgb(169, 133, 82) / bg rgb(36,39,45)]
+      span.field-label "Second subtitle track (comparison)" 4.27:1 [fg rgb(146, 146, 151) / bg rgb(45,48,55)]
+      span.field-label "Subtitle display" 4.27:1 [fg rgb(146, 146, 151) / bg rgb(45,48,55)]
+      span.field-label "Playback policy" 4.27:1 [fg rgb(146, 146, 151) / bg rgb(45,48,55)]
+      span.field-label "Cue repeat count" 4.27:1 [fg rgb(146, 146, 151) / bg rgb(45,48,55)]
+      span.field-label "Color" 4.27:1 [fg rgb(146, 146, 151) / bg rgb(45,48,55)]
+      span.field-label "Font" 4.27:1 [fg rgb(146, 146, 151) / bg rgb(45,48,55)]
+    odak-halkası FAIL (0):
+    uyarı-muted (6):
+      muted span.hint "Secondary delay" 4.27:1 [fg rgb(146, 146, 151) / bg rgb(45,48,55)]
+      muted #sub2OffsetUnit "s" 4.27:1 [fg rgb(146, 146, 151) / bg rgb(45,48,55)]
+      muted div.hint "Applied during viewing without changing " 4.27:1 [fg rgb(146, 146, 151) / bg rgb(45,48,55)]
+      muted #playerAutoSyncHint "Analyzes local-video audio rhythm and cr" 4.27:1 [fg rgb(146, 146, 151) / bg rgb(45,48,55)]
+      muted div.hint "For a subtitle cue, double-click to edit" 4.27:1 [fg rgb(146, 146, 151) / bg rgb(45,48,55)]
+      muted code. ".bak" 4.27:1 [fg rgb(146, 146, 151) / bg rgb(45,48,55)]
+--- tema: light
+    FAIL (0):
+    odak-halkası FAIL (0):
+    uyarı-muted (0):
