@@ -83,8 +83,15 @@ function registerFeeds({app,ipcMain,authorized,userData=()=>app.getPath('userDat
    if(disposed)throw Error('Feed service is closed.');if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Invalid feed request.');let result;
    switch(input.action){
     case 'list':result=store.list();break;
+    case 'preference-save':result={preference:store.preference(input)};break;
+    case 'preference-remove':result=store.preference({...input,remove:true});break;
+    case 'view-save':result={view:store.view(input)};break;
+    case 'view-delete':result=store.view({...input,remove:true});break;
+    case 'visit':result=store.visit(input.entryId);break;
+    case 'recent-settings':result=store.recentSettings(input);break;
+    case 'correction':result={correction:store.correction(input.entryId,input.acknowledge===true)};break;
     case 'entries':if(input.kind&&!['article','video','podcast'].includes(input.kind))throw Error('Unsupported entry kind.');result=store.entries(input);result.rows=result.rows.map(withLinkStates);break;
-    case 'entry':result={entry:withLinkStates(store.entry(input.entryId))};break;
+    case 'entry':result={entry:withLinkStates(store.entry(input.entryId,input.revision))};break;
     case 'preview':result=await job(event,input,signal=>preview(event,input.url,signal));break;
     case 'discover':result=await job(event,input,async signal=>{const response=await requestFeed(input.url,{signal});if(/^\s*<(?:!doctype\s+html|html|head)|text\/html/i.test(response.text.slice(0,200))||/text\/html/i.test(response.headers.get('content-type')||'')){const candidates=P.discoverFeeds(response.text,response.effectiveUrl);return {candidates,direct:false};}const p=await (async()=>{const parsed=P.parseFeed(response.text,response.effectiveUrl),feed={...parsed,url:P.safeUrl(input.url),effectiveUrl:response.effectiveUrl,etag:response.headers.get('etag')||'',lastModified:response.headers.get('last-modified')||''};delete feed.entries;return {token:token(event,'feed',{feed,entries:parsed.entries}),feed,entries:parsed.entries.slice(0,5),count:parsed.entries.length};})();return {candidates:[{url:response.effectiveUrl,title:p.feed.title,type:p.feed.format}],direct:true,preview:p};});break;
     case 'subscribe':{const p=take(event,input.token,'feed');result=store.subscribe({...p.feed,...(input.title!==undefined?{title:input.title}:{}),folder:input.folder},p.entries,input.initial||'latest20');break;}

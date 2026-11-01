@@ -128,7 +128,7 @@ function registerBrowserFeatureServices(deps) {
     return best;
   }
   const mini = createBrowserMiniPlayer({ BrowserWindow, ipcMain, owner, restore: restoreLayout, dialogText: deps.dialogText,
-    hideOffscreen: deps.hideOffscreen,
+    hideOffscreen: deps.hideOffscreen, viewRegistry: deps.viewRegistry,
     command: async (tab, command, value) => {
       try {
         if (tab !== activeTab()) throw new Error('Etkin sekme değişti.');

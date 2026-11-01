@@ -19,7 +19,7 @@
   if(pending||applying)return;retryPacket=null;
   const previous=resume?window.AssistantWorkspace.resume(resume.proposalId,context):null;
   const prefix=previous?.text?(previous.text.length>16000?t('Earlier flow text was shortened.\n','Önceki akış metni kısaltıldı.\n'):'')+previous.text.slice(-16000)+'\n\n':'';
-  const task={id:crypto.randomUUID(),scope,question,history,context,owner:window.AssistantAppActions.snapshot(),text:prefix,prefix,actions:previous?.actions||[],evidence:previous?.evidence||[],trace:previous?.steps||[],citations:previous?.citations||[]};
+  const task={id:crypto.randomUUID(),scope,question,history,context,owner:window.AssistantAppActions.snapshot(),text:prefix,prefix,actions:previous?.actions||[],evidence:previous?.evidence||[],trace:previous?.steps||[],citations:previous?.citations||[],runtimeMessages:previous?.runtimeMessages||[]};
   if(previous)task.job=previous.job;else{aiChatAdd('user',question);task.job={chatQuestion:question,chatContext:context,sourceScope:scope,bubble:aiChatAdd('ai',t('Connecting to your assistant…','Asistana bağlanılıyor…'),'is-loading')};window.AssistantWorkspace?.begin(task.job);}
   pending=task;changed();
   document.getElementById('aiChatText').value='';autoGrowChatBox();
@@ -37,8 +37,9 @@
   task.trace=(task.trace||[]).map(row=>row.state==='running'?{...row,state:'stopped'}:row);window.AssistantWorkspace?.steps?.(task.job,task.trace);
   task.job.bubble.classList.remove('is-loading');if(state!=='complete')task.job.bubble.classList.add('ai-msg-err');
   if(result?.ok&&current)window.AssistantWorkspace?.citations?.(task.job,[...new Map([...task.citations,...(result.bookCitations||[])].map(row=>[row.id,row])).values()]);
+  if(result?.runtime?.pending?.length){task.runtimeMessages=task.runtimeMessages||[];for(const row of result.runtime.pending){const pendingRow={...row,status:'not-delivered'},at=task.runtimeMessages.findIndex(old=>old.id===row.id&&old.runId===row.runId);if(at<0)task.runtimeMessages.push(pendingRow);else task.runtimeMessages[at]=pendingRow;}window.AssistantWorkspace?.runtime?.(task.job,task.runtimeMessages);text+='\n\n'+t('Some queued messages were not delivered before this task ended. They remain in the activity record.','Görev bitmeden bazı sıradaki mesajlar iletilemedi. İşlem kaydında korunuyor.');}
   renderAiText(task.job.bubble,text);window.AssistantWorkspace?.finish(task.job,text,state);
-  if(result?.ok&&current){player.chatHistory=[...history,{role:'user',content:question},{role:'assistant',content:text}].slice(-24);player.chatHistoryScope=scope;document.dispatchEvent(new CustomEvent('assistant-answer',{detail:{text,context}}));}
+  if(result?.ok&&current){player.chatHistory=[...history,{role:'user',content:question},...(task.runtimeMessages||[]).filter(row=>row.status==='delivered').map(row=>({role:'user',content:row.text})),{role:'assistant',content:text}].slice(-24);player.chatHistoryScope=scope;document.dispatchEvent(new CustomEvent('assistant-answer',{detail:{text,context}}));}
   if(!resume&&!result?.ok&&current&&!task.cancelled&&!result?.cancelled)retryPacket={question,context,history,scope,owner:task.owner,options:requestOptions};
   if(pending===task)pending=null;changed();return result;
  }
@@ -53,7 +54,17 @@
   }
   const task=pending;if(!task||packet.requestId!==task.id||task.cancelled)return;
   if(!window.AssistantAppActions.current(task.owner)){void cancel();return;}
-  if(packet.type==='tool-step'){task.trace=task.trace||[];const at=task.trace.findIndex(row=>row.id===packet.step?.id);if(at>=0)task.trace[at]=packet.step;else task.trace.push(packet.step);task.trace=window.AssistantRunSteps.clean(task.trace);window.AssistantWorkspace?.steps?.(task.job,task.trace);
+  if(packet.type==='runtime-message'||packet.type==='runtime-delivered'){
+   const rows=packet.type==='runtime-message'?[packet.receipt]:packet.messages||[];task.runtimeMessages=task.runtimeMessages||[];
+   for(const row of rows){const at=task.runtimeMessages.findIndex(old=>old.id===row.id&&old.runId===row.runId);if(at<0)task.runtimeMessages.push(row);else task.runtimeMessages[at]=row;}
+   const invalid=new Set(packet.invalidatedProposalIds||[]);if(invalid.size){task.actions=task.actions.filter(row=>!invalid.has(row.proposalId));window.AssistantWorkspace?.evidence(task.job,{evidence:task.evidence,actions:task.actions});}
+   window.AssistantWorkspace?.runtime?.(task.job,task.runtimeMessages);
+  }else if(packet.type==='read-progress'){
+   const row=task.trace?.find(row=>row.id===packet.callId);
+   if(!row||row.state!=='running'||row.intentRevision!==packet.intentRevision||!Number.isSafeInteger(packet.sequence)||packet.sequence<1||packet.sequence<=(row.readProgress?.sequence||0))return;
+   if(packet.final)delete row.readProgress;else row.readProgress={...packet.value,sequence:packet.sequence,sourceRevision:packet.sourceRevision};
+   task.trace=window.AssistantRunSteps.clean(task.trace);window.AssistantWorkspace?.steps?.(task.job,task.trace);
+  }else if(packet.type==='tool-step'){task.trace=task.trace||[];const at=task.trace.findIndex(row=>row.id===packet.step?.id);if(at>=0)task.trace[at]=packet.step;else task.trace.push(packet.step);task.trace=window.AssistantRunSteps.clean(task.trace);window.AssistantWorkspace?.steps?.(task.job,task.trace);
   }else if(packet.type==='progress'){task.phase=['tool','reasoning','writing'].includes(packet.phase)?packet.phase:'thinking';task.domain=String(packet.domain||'');
   }else if(packet.type==='replace'){task.text=task.prefix+String(packet.text||'');task.job.bubble.textContent=task.text;window.AssistantWorkspace?.partial(task.job,task.text);
   }else if(packet.type==='delta'){
@@ -70,6 +81,11 @@
   }
   changed();
  });
+ async function message(text,mode='steer'){
+  const task=pending;if(!task||task.cancelled||!window.AssistantAppActions.current(task.owner))throw Error(t('No active task on this source.','Bu kaynakta etkin görev yok.'));
+  if(!['steer','followup'].includes(mode)||typeof text!=='string'||!text.trim()||text.length>4000)throw Error(t('Enter a short task message.','Kısa bir görev mesajı yaz.'));
+  const result=await window.api.assistantAgentMessage({requestId:task.id,owner:task.owner,mode,text});if(!result?.ok)throw Error(result?.error||t('Message could not be queued.','Mesaj sıraya alınamadı.'));return result;
+ }
  async function cancel(){
   const task=pending||applying;if(!task||task.cancelled)return;
   task.cancelled=true;if(task.job)task.job.bubble.textContent=(task.text?task.text+'\n\n':'')+t('Stopping…','Durduruluyor…');changed();
@@ -121,7 +137,7 @@
  }
  const canRetry=()=>!!retryPacket&&window.AssistantAppActions.current(retryPacket.owner);
  async function retry(){if(!canRetry()||pending||applying)return;const row=retryPacket;await send(row.question,row.context,row.history,row.scope,undefined,row.options);}
- window.AssistantAgentUI=Object.freeze({send,status,busy:()=>!!pending||!!applying,cancel,apply,refresh,flowInfo,continueAction,canRetry,retry,bookPreparation});
+ window.AssistantAgentUI=Object.freeze({send,message,status,busy:()=>!!pending||!!applying,cancel,apply,refresh,flowInfo,continueAction,canRetry,retry,bookPreparation});
  document.addEventListener('media-context-changed',()=>{const task=pending||applying;
   if(task===applying&&task&&!task.cancelled&&task.bookHandoff&&window.globalAssistantContext?.()?.id===task.bookHandoff){
    const next=window.AssistantAppActions.snapshot();

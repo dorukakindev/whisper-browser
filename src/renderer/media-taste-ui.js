@@ -15,9 +15,9 @@
     root.querySelector('.mt-profile')?.remove();
     const page=el('section','mt-profile');root.append(page);
     const hero=el('header','mt-hero'),copy=el('div');copy.append(el('p','mt-kicker',t('Your collection, your perspective','Koleksiyonun, senin bakışın')),el('h1','',t('Taste profile','Zevk profilim')),el('p','',t('Ratings show what you liked. Reviews help explain why. Every insight keeps its evidence.','Puanların neyi sevdiğini gösterir. Yorumların nedenini anlamaya yardım eder. Her çıkarımın dayanağı görünür.')));
-    if(importer)copy.append(importer);
-    const quizEntry=button(t('Explore my taste · 6 questions','Zevkimi keşfet · 6 soru'),openQuiz);quizEntry.dataset.tasteQuiz='';copy.append(quizEntry);
-    const metrics=el('div','mt-metrics');for(const [number,label]of[[data.rated,t('Rated','Puanlanan')],[data.reviewCount,t('Reviews','Yorum')],[data.average===null?'—':data.average.toFixed(2),t('Average / 5','Ortalama / 5')]]){const n=el('div');n.append(el('strong','',number),el('span','',label));metrics.append(n);}hero.append(copy,metrics);page.append(hero);
+    const actions=el('div','mt-hero-actions');if(importer)actions.append(importer);
+    const quizEntry=button(t('Explore my taste · 6 questions','Zevkimi keşfet · 6 soru'),openQuiz);quizEntry.dataset.tasteQuiz='';actions.append(quizEntry);copy.append(actions);
+    const metrics=el('div','mt-metrics');for(const [number,label]of[[data.rated,t('Rated','Puanlanan')],[data.reviewCount,t('Reviews','Yorum')],[data.average===null?'—':data.average.toFixed(2),t('Average / 5','Ortalama / 5')]]){const n=el('div');n.append(el('strong','',number),el('span','',label));metrics.append(n);}hero.append(copy,metrics);page.append(hero);window.MediaSourceToolsUI?.mount(page);
     const status=el('p','mt-status');status.setAttribute('role','status');page.append(status);
     quizSummary(page);
     const grid=el('div','mt-grid');page.append(grid);

@@ -17,7 +17,7 @@
   const add=(...parts)=>{const size=parts.reduce((sum,part)=>sum+(typeof part==='string'?part.replace(/\0/g,'').length:0),0);if(size){characters+=size;units++;}};
   for(const key of ['chapterText','selectedText','excerpt','reviewAnalysis','synopsis','note','cumle','mevcut_ceviri','not'])add(value[key]);
   add(value.page?.selectedText);
-  for(const source of Array.isArray(value.feedSources)?value.feedSources:[])add(source?.text);
+  for(const source of value.recallAnalysis?.sources||(Array.isArray(value.feedSources)?value.feedSources:[]))add(source?.text,source?.personalNote);
   for(const row of Array.isArray(value.page?.blocks)?value.page.blocks:[])add(row?.text);
   for(const key of ['onceki','sonraki'])for(const row of Array.isArray(value[key])?value[key]:[])add(row?.metin);
   add(value.hedef?.metin);
@@ -55,7 +55,8 @@
    const limit=key==='chapterText'?16000:key==='excerpt'?8000:4000;
    const value=context[key];if(typeof value==='string'){safe[key]=text(value,limit);if(value.length>limit)safe.sourceTruncated=true;}else if(typeof value==='boolean')safe[key]=value;
   }
-  if(context.type==='feed-sources'&&Array.isArray(context.feedSources)){let remaining=16000;safe.feedSources=context.feedSources.slice(0,3).filter(s=>s&&/^F[a-f0-9]{16}$/.test(s.id)&&typeof s.text==='string').map(s=>{const body=text(s.text,Math.min(6000,remaining));remaining-=body.length;return {id:s.id,title:text(s.title,300),url:text(s.url,2000),scope:s.scope==='feed-full'?'feed-full':'summary',revision:text(s.revision,100),text:body,shortened:s.shortened===true||body.length<s.text.length};});}
+  if(['feed-sources','recall-sources'].includes(context.type)&&!context.recallAnalysis&&Array.isArray(context.feedSources)){let remaining=16000;safe.feedSources=context.feedSources.slice(0,3).filter(s=>s&&/^[FR][a-f0-9]{16}$/.test(s.id)&&typeof s.text==='string').map(s=>{const body=text(s.text,Math.min(6000,remaining));remaining-=body.length;return {id:s.id,title:text(s.title,300),url:text(s.url,2000),nodeId:text(s.nodeId,200),scope:context.type==='recall-sources'?text(s.scope,100):s.scope==='feed-full'?'feed-full':'summary',revision:text(s.revision,100),reactionRevision:text(s.reactionRevision,100),domain:text(s.domain,30),role:['positive-support','counter-evidence','context-only'].includes(s.role)?s.role:'context-only',tasteEligible:s.tasteEligible===true,startOffset:s.startOffset,endOffset:s.endOffset,text:body,shortened:s.shortened===true||body.length<s.text.length};});}
+  if(context.type==='recall-sources'&&context.recallAnalysis){const contract=typeof module==='object'&&module.exports?require('./assistant-recall-contract'):globalThis.AssistantRecallContract;safe.recallAnalysis=contract.normalize(context.recallAnalysis);}
   if(typeof context.chapterText==='string'&&context.chapterText.length>16000)safe.chapterTextComplete=false;
   for(const key of ['onceki','sonraki'])if(Array.isArray(context[key]))safe[key]=context[key].slice(0,8).filter(row=>row&&typeof row==='object').map(row=>({zaman:text(row.zaman,30),metin:text(row.metin,1200)}));
   if(context.hedef)safe.hedef={zaman:text(context.hedef.zaman,30),metin:text(context.hedef.metin,1200),baslangic:Number(context.hedef.baslangic)||0,bitis:Number(context.hedef.bitis)||0};

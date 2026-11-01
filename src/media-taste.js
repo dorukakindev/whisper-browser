@@ -10,6 +10,7 @@ function preferences(raw = {}) {
     note:String(raw.note || '').slice(0,2000) };
 }
 function profile(diary, catalog, saved = {}, reviewEntries = []) {
+  diary=diary.filter(row=>!row.recordState||row.recordState==='active');reviewEntries=reviewEntries.filter(row=>!row.recordState||row.recordState==='active');
   const items = new Map(),ambiguous=new Set();for(const item of catalog.filter(row=>row.kind!=='series'))for(const name of new Set([item.title,item.originalTitle].filter(Boolean))){const id=key({...item,title:name});if(items.has(id)&&items.get(id)!==item){items.delete(id);ambiguous.add(id);}else if(!ambiguous.has(id))items.set(id,item);}
   const effective=row=>{const score=items.get(key(row))?.ratings?.personal;return score!==null&&score!==undefined&&score!==''&&Number.isFinite(Number(score))&&Number(score)>=0&&Number(score)<=10?{...row,rating:Number(score)/2}:row;};
   const filmKey=row=>items.get(key(row))||key(row),distinct=new Map(),latestRated=new Map();

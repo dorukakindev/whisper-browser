@@ -292,3 +292,5 @@ header{padding-inline:16px;gap:12px}
 #form>div{padding-top:6px}
 #form #send,#form #webSearch{min-height:32px;font-size:11px;padding:5px 10px}
 @media(max-width:400px),(max-height:650px){#panel header{padding-block:9px 6px}#threadBar{padding-block:5px}#text{min-height:38px;max-height:96px}.message-more-options{gap:2px;padding:5px}}
+
+#runtimeControls{display:flex;flex-wrap:wrap;gap:6px;padding:6px 0;border-bottom:1px solid var(--line);margin-bottom:5px}#runtimeControls[hidden]{display:none}#runtimeControls button{background:var(--raised);color:var(--text);font-size:11px;min-height:30px;padding:5px 8px;border:1px solid var(--line);border-radius:6px}#runtimeMessageStatus{font-size:10px;color:var(--muted);align-self:center}

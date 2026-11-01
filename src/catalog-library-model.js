@@ -11,7 +11,7 @@ function relations(raw, old, sourceOf) {
   const fieldLocks=[...new Set(list('fieldLocks',FIELD_LOCKS.length).filter(field=>FIELD_LOCKS.includes(field)))];
   const selectedEditionId=clean(raw.selectedEditionId??old?.selectedEditionId);
   if(selectedEditionId&&!editions.some(row=>row.id===selectedEditionId))throw Error('Selected edition no longer exists.');
-  return {editions,extras,fieldLocks,selectedEditionId};
+  return {editions,extras,fieldLocks,selectedEditionId,certifications:require('./media-source-mechanisms').certifications(raw.certifications??old?.certifications)};
 }
 function lockedPatch(item, patch) { const next={...patch};for(const key of item.fieldLocks||[])delete next[key];return next; }
 function playbackSource(item,{editionId,partId,extraId}={}) {

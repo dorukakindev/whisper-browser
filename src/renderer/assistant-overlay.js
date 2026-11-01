@@ -99,6 +99,8 @@
   $('clear').onclick=()=>{$('conversationMenu').open=false;openReview({action:'clear'},snapshot.locale==='tr'?'Mevcut sohbet geçmişi temizlenecek. Sabitlenen notların korunur.':'This clears the current chat history. Pinned notes are kept.',$('conversationMenuLabel'));};
   $('scope').onchange = () => action('scope', $('scope').value);
   function send(mode='send') { const text = $('text').value.trim(); if (!text || busy || pending || snapshot.blocked) return; pending={text,id:'q-'+Date.now()+'-'+(++requestSequence),sourceToken:snapshot.sourceToken};action(mode,text,{requestId:pending.id});$('send').disabled=true;showStatus(snapshot.locale==='tr'?'Soru gönderiliyor…':'Sending question…'); }
+  function runtimeMessage(mode){const text=$('text').value.trim();if(!snapshot.canRuntimeMessage||pending||!text)return;if(text.length>4000){showStatus(snapshot.locale==='tr'?'Görev mesajı en fazla4000karakter olmalı.':'Task messages support up to4000characters.',true);return;}pending={text,id:'m-'+Date.now()+'-'+(++requestSequence),sourceToken:snapshot.sourceToken};action(mode,text,{requestId:pending.id});}
+  $('steer').onclick=()=>runtimeMessage('steer');$('followup').onclick=()=>runtimeMessage('followup');
   $('webSearch').onclick=()=>send('web-search');
   $('form').onsubmit = event => { event.preventDefault(); send(); };
   $('text').onkeydown = event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); send(); } };
@@ -146,6 +148,8 @@
     }
     $('reviewConfirm').disabled = !!value.busy;
     busy = !!value.busy;$('suggestions').hidden=busy||!!value.blocked||!(value.suggestions||[]).length;if($('suggestions').hidden)$('suggestionMenu').open=false;for(const button of $('suggestions').querySelectorAll('button'))button.disabled=busy||!!value.blocked;for(const id of ['threads','newThread','renameThread','deleteThread'])$(id).disabled=busy||!!value.blocked; $('send').disabled = busy || !!value.blocked || !!pending; $('clear').disabled = busy; $('cancel').hidden = !value.canCancel; $('retry').hidden = !value.retry || busy;
+    $('runtimeControls').hidden=!value.canRuntimeMessage;$('steer').textContent=t('Steer now','Yön değiştir');$('followup').textContent=t('After this answer','Bitince ekle');for(const id of ['steer','followup'])$(id).disabled=!!pending;
+    const queued=(value.runtimeMessages||[]).filter(row=>row.status==='queued').length;$('runtimeMessageStatus').textContent=queued?t(`${queued} queued message(s)`,`${queued} mesaj sırada`):'';
     $('scope').value = value.scope || 'watched';
     if(pending && value.receipt?.id===pending.id){
       if(value.receipt.accepted && pending.sourceToken===value.sourceToken && $('text').value.trim()===pending.text){$('text').value='';rememberDraft();}

@@ -33,6 +33,10 @@ test('native assistant accepts only its own frame; provider secrets and arbitrar
   assert.deepEqual(sent[0].value.palette,{accent:'#d5a35c'});
   assert.equal(sent[0].value.activeThread,'one');assert.equal(sent[0].value.pinScope,'media');assert.equal(sent[0].value.messages[0].links[0].id.length,85);
   assert.equal(sent[0].value.messages[0].text, '<img onerror=bad>', 'Rendered as text by the view, never HTML');
+  ipcMain.emit('assistant:update', parent, {busy:true,canRuntimeMessage:true,runtimeMessages:[{id:'queue-1',mode:'steer',status:'queued',apiKey:'private'}]});
+  const runtime=sent.at(-1).value;assert.equal(runtime.canRuntimeMessage,true);assert.deepEqual(runtime.runtimeMessages,[{id:'queue-1',mode:'steer',status:'queued'}]);
+  for(const action of ['steer','followup']){ipcMain.emit('assistant:action',overlay,{action,sourceToken:'same-source',requestId:'receipt-1',text:'next question'});assert.deepEqual(sent.at(-1).value,{action,sourceToken:'same-source',requestId:'receipt-1',text:'next question'});}
+  ipcMain.emit('assistant:update',parent,{busy:false,canRuntimeMessage:true});assert.equal(sent.at(-1).value.canRuntimeMessage,false);
   ipcMain.emit('assistant:action', overlay, { action: 'toggle' });
   assert(view.bounds.width > 300 && view.bounds.width < 680);
   ipcMain.emit('assistant:action', overlay, { action: 'send', text: 'question' });

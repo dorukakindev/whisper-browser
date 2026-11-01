@@ -10,7 +10,7 @@
     data: model.snapshot([], []), request: 0, render: 0, busy: false, loaded: false, error: '', featuredKey: '', searchOpen: false };
   try{const saved=localStorage.getItem('media-home-featured-v1');if(saved&&saved.length<=8192)state.featuredKey=saved;}catch{}
   let virtualDisposers=[];
-  let feedsView=null;
+  let feedsView=null,recallView=null;
   let disposeShell = () => {};
   const english = () => window.UiLocale?.get?.() !== 'tr';
   const t = (en, tr) => english() ? en : tr;
@@ -47,7 +47,7 @@
   };
   function setHome(active) {
     state.active = active;
-    if(!active){feedsView?.dispose();feedsView=null;}
+    if(!active){feedsView?.dispose();feedsView=null;recallView?.dispose();recallView=null;}
     document.body.classList.toggle('media-home-active', active);
     host.classList.toggle('hidden', !active);
     syncLayer();
@@ -308,7 +308,7 @@
   function renderContent() {
     const content = document.getElementById('mhContent'); if (!content) return;
     if (state.page === 'discover') window.MediaDiscoveryUI?.leave();
-    feedsView?.dispose();feedsView=null;
+    feedsView?.dispose();feedsView=null;recallView?.dispose();recallView=null;
     const focusKey = content.contains(document.activeElement) ? document.activeElement?.dataset.homeItem : null;
     virtualDisposers.forEach(dispose=>dispose());virtualDisposers=[];
     state.render++; posterQueue = []; posterObserver.disconnect();
@@ -377,6 +377,15 @@
       if (items.some(item => item.kind !== 'series' && hasArtwork(item))) content.append(section(t('Your films', 'Filmlerin'), items.filter(item => item.kind !== 'series' && hasArtwork(item)), { artworkOnly:true, more: () => page('films') }));
       if (!items.length && !illustrated.length && state.loaded) content.append(emptyState(t('Make room for your next story','Sıradaki hikâyene yer aç'),t('Open a video, add your films or pick a book. Subtitles, translation and your voice stay together.','Video aç, filmlerini ekle veya bir kitap seç. Altyazı, çeviri ve ses araçların bir arada.'),[[t('Open media','Medya aç'),()=>window.MediaHubUI.open()],[t('Open browser','Browserı aç'),openBrowser]]));
       content.append(tools());
+    } else if (state.page === 'recall' && window.RecallNetworkUI) {
+      recallView=window.RecallNetworkUI.render({host:content,api:input=>window.api.recallRequest(input),locale:english()?'en':'tr',onOpen:async source=>{
+        if(source.kind==='catalog')return window.MediaTitleUI.open(source.id);
+        if(source.kind==='feed')return window.MediaHomeUI.openFeedEntry(source.id);
+        if(source.kind==='book')return window.MediaShelfUI.openBook(source.id);
+        if(source.kind==='podcast')return window.MediaShelfUI.openPodcast(source.locator?.podcastId,source.locator?.url);
+        if(source.kind==='shelf-review'){page('taste');return;}
+        throw Error(t('Open this source from its owning workspace.','Bu kaynağı ait olduğu çalışma alanından aç.'));
+      }});
     } else if (state.page === 'feeds' && window.MediaFeedsUI) {
       feedsView=window.MediaFeedsUI.render({host:content,api:input=>window.api.feedsRequest(input),locale:english()?'en':'tr',onOpen:async request=>{
         const result=await window.api.feedsRequest({action:'entry',entryId:request.entryId});
@@ -517,7 +526,7 @@
     const outline=document.createElementNS(gear.namespaceURI,'path');let points=[];for(let i=0;i<32;i++){const angle=i*Math.PI/16-Math.PI/2,r=i%4===1||i%4===2?10:8;points.push((12+Math.cos(angle)*r).toFixed(2)+','+(12+Math.sin(angle)*r).toFixed(2));}outline.setAttribute('d','M'+points.join('L')+'Z');const center=document.createElementNS(gear.namespaceURI,'circle');center.setAttribute('cx','12');center.setAttribute('cy','12');center.setAttribute('r','3.2');gear.append(outline,center);settings.append(gear);actions.append(settings);
     const mainPages = [];
     const nav = el('nav', 'mh-nav'); nav.setAttribute('aria-label', t('Media navigation', 'Medya gezinmesi'));
-    for (const [key, label] of [['home', t('Home', 'Ana sayfa')], ['discover', t('Discover', 'Keşfet')], ['films', t('Films', 'Filmler')], ['series', t('Series', 'Diziler')], ['feeds', t('Feeds', 'Akışlar')], ['radio', t('Radio / podcast', 'Radyo / podcast')], ['taste', t('Taste profile','Zevk profilim')], ['web', 'Web'], ['recent', t('Recent', 'Son oynatılanlar')]]) {
+    for (const [key, label] of [['home', t('Home', 'Ana sayfa')], ['discover', t('Discover', 'Keşfet')], ['films', t('Films', 'Filmler')], ['series', t('Series', 'Diziler')], ['recall', t('Knowledge & taste', 'İçerik ve zevk ağı')], ['feeds', t('Feeds', 'Akışlar')], ['radio', t('Radio / podcast', 'Radyo / podcast')], ['taste', t('Taste profile','Zevk profilim')], ['web', 'Web'], ['recent', t('Recent', 'Son oynatılanlar')]]) {
       const control = button(label, () => page(key)); control.dataset.homePage = key;
       control.setAttribute('aria-current', state.page === key ? 'page' : 'false');
       if (key === 'home') control.id = 'mhHome';
@@ -525,6 +534,7 @@
       if (['home','discover','films','series'].includes(key)) { mainPages.push(control); nav.append(control); }
       else extraNav.append(control);
     }
+    extraNav.append(button(t('Browser scripts','Tarayıcı scriptleri'),()=>window.UserscriptManagerUI.open()),button(t('Browser engine & memory','Tarayıcı motoru ve bellek'),()=>window.BrowserMechanismsUI.open()));
     const searchWrap = el('div', 'mh-search'), search = el('input'); searchWrap.id='mhSearchRegion';search.type = 'search'; search.id = 'mhSearch'; search.maxLength = 200;
     search.placeholder = t('Search your library', 'Kütüphanende ara'); search.setAttribute('aria-label', search.placeholder); search.value = state.query;
     let searchTimer;
@@ -612,5 +622,5 @@
   document.addEventListener('media-library-changed', () => { if (state.active) void refresh(); });
   // Do not switch workspace or touch saved jobs, captions, tabs or dub state on startup.
   renderShell(); setHome(true);
-  window.MediaHomeUI=Object.freeze({openFeedEntry:async id=>{await returnHome();page('feeds');await feedsView?.reload();await feedsView?.openEntry(id);},currentPage:()=>state.page,emptyState,returnHome,resumeWorkspace,openStudio,navigate:async(value)=>{await returnHome();page(value);}});
+  window.MediaHomeUI=Object.freeze({openRecallNode:async id=>{await returnHome();page('recall');await recallView?.reload();await recallView?.openNode(id);},openFeedEntry:async id=>{await returnHome();page('feeds');await feedsView?.reload();await feedsView?.openEntry(id);},currentPage:()=>state.page,emptyState,returnHome,resumeWorkspace,openStudio,navigate:async(value)=>{await returnHome();page(value);}});
 })();
