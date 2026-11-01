@@ -1,5 +1,5 @@
 /* Dubbing uses the shared graphite/amber palette and Sora/Plex typography. */
-#dubGeneratorDialog .dub-natural-card { border-inline-start:3px solid var(--accent); }
+#dubGeneratorDialog .dub-natural-card { border-inline-start:0; }
 #dubGeneratorDialog .dub-natural-heading { display:flex; align-items:flex-start; gap:24px; }
 #dubGeneratorDialog .dub-natural-heading>div { min-width:0; flex:1; }
 #dubGeneratorDialog .dub-natural-heading h3 { margin:0 0 10px; font-size:19px; line-height:1.4; }
@@ -32,9 +32,9 @@
 #dubGeneratorDialog .dub-readiness strong { font-size:12px; }
 #dubGeneratorDialog .dub-studio-scroll { padding:14px 20px; }
 #dubGeneratorDialog .dub-studio-grid { display:block; }
-#dubGeneratorDialog .dub-studio-main { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px; align-items:start; }
+#dubGeneratorDialog .dub-studio-main { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; align-items:start; }
 #dubGeneratorDialog .dub-input-column { display:grid; gap:14px; min-width:0; }
-#dubGeneratorDialog .dub-active-reference { padding:12px 0; border-bottom:1px solid var(--border); }
+#dubGeneratorDialog .dub-active-reference { padding:0 0 12px; border-bottom:1px solid var(--border); }
 #dubGeneratorDialog .dub-active-reference small { display:block; font-size:11px; color:var(--text-dim); margin-bottom:5px; }
 #dubGeneratorDialog .dub-active-reference strong { display:block; overflow-wrap:anywhere; font-size:14px; font-weight:500; }
 #dubGeneratorDialog .dub-active-reference p { font-size:12px; color:var(--text-dim); line-height:1.6; margin:7px 0 0; max-width:48ch; }
@@ -58,7 +58,7 @@
 #dubGeneratorDialog .dub-voice-card #voiceReferencePicker { margin:10px 0; padding-top:10px; }
 #dubGeneratorDialog .dub-voice-card #voiceReferencePicker label { margin:6px 0; font-size:12px; }
 #dubGeneratorDialog .dub-voice-card>.dub-generator-row { margin-top:10px; }
-#dubGeneratorDialog .dub-natural-card { border-inline-start:1px solid var(--border); }
+#dubGeneratorDialog .dub-natural-card { padding:16px 0; border:0; border-top:1px solid var(--border); border-radius:0; background:transparent; }
 #dubGeneratorDialog .dub-natural-heading h3 { font-size:16px; margin-bottom:6px; }
 #dubGeneratorDialog .dub-natural-heading p { font-size:12px; line-height:1.6; }
 #dubGeneratorDialog #dubNaturalState,#dubGeneratorDialog #dubNaturalDelivery { font-size:12px; margin:8px 0; line-height:1.6; }
@@ -100,3 +100,15 @@
 
 #dubGeneratorDialog .dub-readiness>div { padding:0; }
 #dubGeneratorDialog .dub-readiness-action { min-height:48px; padding:7px 14px; }
+
+/* Source and voice form the setup pair; production follows in document order. */
+#dubGeneratorDialog .dub-studio-main>.dub-natural-card { grid-column:1/-1; }
+#dubGeneratorDialog .dub-natural-card #dubNaturalDelivery { max-width:78ch; }
+#dubGeneratorDialog #voiceReferenceRecorder { margin:8px 0 0; padding:0; border:0; border-top:1px solid var(--border); border-radius:0; }
+#dubGeneratorDialog .dub-studio-side>.dub-card { padding:0; border:0; background:transparent; }
+#dubGeneratorDialog .dub-studio-side>.dub-card>details { padding-block:4px; }
+#dubGeneratorDialog .dub-studio-side>.dub-card>details+details { padding-top:8px; }
+#dubGeneratorDialog .dub-studio-main>.dub-card:has(>#dubTextEditor) { padding:0; border:0; border-radius:0; background:transparent; }
+#dubGeneratorDialog .dub-studio-main>.dub-card:has(>#dubTextEditor)>details { margin:0; padding:8px 0; border:0; border-top:1px solid var(--border); border-radius:0; background:transparent; }
+#dubGeneratorDialog .dub-source-card #dubSrtName { min-width:0; overflow-wrap:anywhere; }
+#dubGeneratorDialog .dub-card summary { text-wrap:pretty; }

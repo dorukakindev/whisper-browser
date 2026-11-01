@@ -6,16 +6,24 @@ const dom = new JSDOM(fs.readFileSync(path.join(root,'src/renderer/index.html'),
 const w = dom.window, el = id => w.document.getElementById(id);
 let onEvent, request, cancelOK = true;
 let attached = false, opened, latestQuery, savedDictionary;
+let globalDictionary=[];const sourceDictionaries=new Map();
 w.BrowserDubAudioUI = { context: () => ({ mode:'player', tabId:'player-video', mediaKey:'fixture',
   currentTime:42, backgroundSource:'fixture.mp4', visible:true, hasMedia:true }),
   attachGenerated: async (_file, context) => { attached = context.mode === 'player'; return true; } };
 w.HTMLMediaElement.prototype.pause = w.HTMLMediaElement.prototype.load = () => {};
 w.syncBrowserOcclusion = () => {};
 w.api = {
-  dubConfig: async () => ({ok:true,ready:true,engine:'fixture',storageRoot:'voice-folder',reference:'voice.wav',transcript:'voice.txt'}),
+  dubConfig: async () => ({ok:true,ready:true,engine:'fixture',storageRoot:'voice-folder',reference:'voice.wav',transcript:'voice.txt',pronunciations:globalDictionary}),
   openPath: async value => { opened=value; },
   latestDub: async value => {latestQuery=value;return {ok:true,...(value.id?{output:{id:value.id,name:'fixture.wav',url:'fixture.wav'}}:{})};},
-  saveDubPronunciations: async entries=>{savedDictionary=entries;return {ok:true,pronunciations:entries};}, selectFile: async () => 'test.srt',
+  saveDubPronunciations: async payload=>{
+    if(Array.isArray(payload)){savedDictionary=payload;globalDictionary=payload;return {ok:true,pronunciations:payload};}
+    assert(['get','save'].includes(payload.action));assert(payload.srt,'source dictionary requires selected subtitles');
+    const key=payload.source+'|'+payload.srt;if(payload.action==='save')sourceDictionaries.set(key,payload.entries);
+    const entries=sourceDictionaries.get(key)||[],merged=new Map(globalDictionary.map(row=>[row.from,row]));
+    for(const row of entries)merged.set(row.from,row);
+    return {ok:true,entries,pronunciations:[...merged.values()]};
+  }, selectFile: async () => 'test.srt',
   selectVoiceReferenceSource: async()=>({ok:true,path:'analysis-source.wav'}),
   onDubEvent: callback => {onEvent=callback;},
   startDub: async value => {request=value;return {ok:true};}, cancelDub: async () => ({ok:cancelOK}),
@@ -26,6 +34,8 @@ const tick = () => new Promise(setImmediate);
 (async()=>{
   el('playerDubGenerate').click();await tick();assert.equal(el('dubGeneratorDialog').open,true);
   assert.equal(latestQuery.source,'fixture');
+  assert.equal(el('dubPronunciationSave').disabled,true,'Source dictionary waits for subtitle selection');
+  el('dubPronunciationScope').value='global';el('dubPronunciationScope').dispatchEvent(new w.Event('change'));await tick();
   el('dubPronunciations').value='Newton = Nyutin';el('dubPronunciationSave').click();await tick();
   assert.equal(savedDictionary[0].to,'Nyutin');assert.match(el('dubPronunciationStatus').textContent,/Saved|Kaydedildi/);
   assert.equal(el('dubVerification').value,'detailed');
@@ -50,6 +60,15 @@ const tick = () => new Promise(setImmediate);
   readyAction('dubReadySource').click();await tick();
   assert.equal(el('dubInputNotice').hidden,false);assert.match(el('dubInputNotice').textContent,/kısmi/);
   w.api.selectFile=async()=> 'test.srt';el('dubChooseSrt').click();await tick();assert.equal(el('dubInputNotice').hidden,true);assert.equal(el('dubGeneratorStart').disabled,false);assert.equal(el('dubStartRequirement').hidden,true);
+  el('dubPronunciationScope').value='source';el('dubPronunciationScope').dispatchEvent(new w.Event('change'));await tick();
+  assert.equal(el('dubPronunciations').value,'','Source editor does not copy global entries');
+  el('dubPronunciations').value='Newton = Nyutın';el('dubPronunciationSave').click();await tick();
+  assert.equal(sourceDictionaries.get('fixture|test.srt')[0].to,'Nyutın');assert.equal(globalDictionary[0].to,'Nyutin','Source save preserves global dictionary');
+  assert.match(el('dubPronunciationStatus').textContent,/Saved|Kaydedildi/);
+  el('dubPronunciationScope').value='global';el('dubPronunciationScope').dispatchEvent(new w.Event('change'));await tick();
+  assert.equal(el('dubPronunciations').value,'Newton = Nyutin');
+  el('dubPronunciationScope').value='source';el('dubPronunciationScope').dispatchEvent(new w.Event('change'));await tick();
+  assert.equal(el('dubPronunciations').value,'Newton = Nyutın','Switching scope restores saved source entries');
   const planned = skipped => async value => ({ok:true,grouping:value.grouping,sourceHash:'plan-hash',skipped,
     groups:[{key:'1',text:'Merhaba.',start:0,end:2000,seconds:2}]});
   w.api.planDub = planned(3);el('dubPlanPrepare').click();await tick();
