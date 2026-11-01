@@ -44,3 +44,5 @@ test('Book tools are source-bound and accept only integer ordered page/chapter r
  assert.deepEqual(registry.validate('prepare_book_narration',{from:2,to:5,text:'translation'},{kind:'book'}),{from:2,to:5,text:'translation'});
  assert(!registry.list({kind:'book'}).some(row=>/approve/.test(row.name)));
 });
+
+test('Review count accepts bounded integers and rejects decimals booleans and strings',()=>{for(const name of ['analyze_title_reviews','load_title_reviews']){const base={item_id:'discovery:film:tt0112471',...(name==='load_title_reviews'?{source:'automatic'}:{})};for(const count of [1,10,30,48])assert.doesNotThrow(()=>registry.validate(name,{...base,count},{kind:'library'}));for(const count of [0,49,1.5,NaN,Infinity,true,'30'])assert.throws(()=>registry.validate(name,{...base,count},{kind:'library'}),/count/);}});

@@ -27,6 +27,7 @@ function createBrowserReviewReader({BrowserWindow,parent,partition,userAgent,onD
    return {reason,...(/^[a-z0-9.-]{1,253}$/i.test(u.hostname)?{hostname:u.hostname}:{}),...(path?{path}:{})};
   }catch{return {reason:'route'};}
  }
+ function currentUrl(){try{return window&&!window.isDestroyed()?window.webContents.getURL():'';}catch{return '';}}
  function destroy(){if(window&&!window.isDestroyed())window.destroy();}
  function close(){if(closed)return;closed=true;active?.fail(Error('Letterboxd collection was closed. Retry collection or import reviews.'));destroy();}
  function allowed(value){
@@ -77,11 +78,18 @@ function createBrowserReviewReader({BrowserWindow,parent,partition,userAgent,onD
   try{
    ensureWindow();
    diagnostic('navigation-start',address);
-   try{await race(window.loadURL(address));}
+   try{
+    // Reviews can be ready while advertising subresources keep loadURL pending.
+    // Wait for the document, then validate its URL and content as usual.
+    const contents=window.webContents;let onReady;
+    const documentReady=new Promise(resolve=>{onReady=()=>{if(allowed(currentUrl()))resolve();};contents.on('dom-ready',onReady);});
+    try{await race(Promise.race([window.loadURL(address),documentReady]));}
+    finally{contents.removeListener('dom-ready',onReady);}
+   }
    catch(error){
     // Chromium can report a 403 navigation failure while showing the site's
     // verification document. Keep that normal page visible for the user.
-    const current=window.webContents.getURL();diagnostic('navigation-error',current,error);
+    const current=currentUrl();diagnostic('navigation-error',current,error);
     const statusPage=error?.code==='ERR_HTTP_RESPONSE_CODE_FAILURE'||error?.errno===-379;
     // A normal identifier redirect or site reload can supersede loadURL's
     // navigation. Continue only after it has reached the allowed film route;
@@ -121,7 +129,7 @@ function createBrowserReviewReader({BrowserWindow,parent,partition,userAgent,onD
     }
     await race(new Promise(resolve=>{pauseTimer=setTimeout(resolve,300);}));
    }
-  }catch(error){diagnostic('read-failed',window?.webContents?.getURL(),error);close();throw error;}
+  }catch(error){diagnostic('read-failed',currentUrl(),error);close();throw error;}
   finally{clearTimeout(timer);clearTimeout(pauseTimer);signal?.removeEventListener('abort',abort);if(active===job)active=null;}
  }
  return {readPage,close};
