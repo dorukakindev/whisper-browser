@@ -1,0 +1,156 @@
+{
+  "head": "b74b0e1200f9d6e3c3af14d82fc4fe86ccb983b5",
+  "method": "Selected source and package inspection only; no execution of upstream code, no installation, no product acceptance tests.",
+  "files": [
+    {
+      "path": "package.json",
+      "sha256": "898d0a3a0974d9fb3e739c2d615107683383dca0e032c8dd9df3a1795b4f67ce",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "b20eb0b1d1d5af796d5aa2a38a3c178720477c10fa71e493c292c1cd926fc92e",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "install.bat",
+      "sha256": "14f6ac7d9656de759c9091b2c5fd9c05c6fde1f2bb465e15eb1e025ad52c9ad5",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "start.bat",
+      "sha256": "a8cd4e70901706ce2fc19d1c02cc85c8855d4d1ad317ced0d0f2dc90a4aec740",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/assistant-provider.js",
+      "sha256": "eae148d20791404f8c29c2a4de65a9d5030f9a53f323b5c17a478926b1262927",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/assistant-agent-service.js",
+      "sha256": "81641ec8540fad2929adab970acda4d0c656a64a648c4e06683c07f515f9dad7",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/assistant-jobs.js",
+      "sha256": "eb598ab3233321559f6f4bb8bdb55828106f94db445facdd6626d348fddbdfe6",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/assistant-flow-state.js",
+      "sha256": "827f981c7433693a549cb4b5b01a541c83d3a50dec4cf927261506945683c3a2",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/assistant-thread-store.js",
+      "sha256": "4a070333fb4dd4aad4829c01d87a155cd8e513e1e4e3eb690452f9cda601277f",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/browser-reader.js",
+      "sha256": "68c2ff2e0660e2f4796833c3b16ed861dcbf898f011a6ebbf108a95a07ecde40",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/browser-alignment.js",
+      "sha256": "73e88a2478f316a7abcd50a25dd4ae9d6d7d5f258e52c7d6e5f81bb731ada3fa",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/browser-feature-services.js",
+      "sha256": "4afbd34e15866163f42c35dc569bc14dc39a3800dc041610a9d75f7bcfe9ca67",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/browser-subtitle-review.js",
+      "sha256": "5ca6c713107c1d1dc7ad0cacfd0ebb454303865432c518c3f69f3ff9e0a8caa5",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/subtitle-encoding-preview.js",
+      "sha256": "7031d23e21bacdadcf5e62e95901da3eb14cea9b6e77f2dad4fb60b9c4420bf4",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/subtitle-export-validation.js",
+      "sha256": "d8affed30f76c037b3549409b885a9472dcff6d4d128792edfd3812b1d2d18df",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/scene-timing-tools.js",
+      "sha256": "c61d86ee5073e43df749ba6f53e615a292b51deefd0aa33cb2895aa4777ab7c4",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/media-taste.js",
+      "sha256": "ff400b2184d6d128dc712d84a3b1a122b67ce4641d475091ff5429d9a7c9991b",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/media-catalog-store.js",
+      "sha256": "91b3fcf1dfabece488d2497a9129f38db0484880adf1a565175266d917054681",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/renderer/dub-sync-map.js",
+      "sha256": "d024741d36146d895fe4782cc8a469922e348da91e6bf723a6abc0631a614752",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/dub-service.js",
+      "sha256": "7f73e8c70d8e82ac699d4dfd6e2dcca0597c249c49507db3a4e4203e6cba2a74",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "backend/browser_align.py",
+      "sha256": "6444ece02a7cc88416944f28b3862a70fcb68634c68ec3853a33c2fae5058ece",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "backend/requirements-browser-align.txt",
+      "sha256": "c58aa77ced6e6f22f014be5f0de4d0bc017b81e3dbc89367507b011e98c49944",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "backend/transcribe.py",
+      "sha256": "fcd3947efcfa16d564e36efd8629681e766e3eec2da0d37014a0946f406071ce",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "backend/dub_export.py",
+      "sha256": "50af192c7c1977e770f251a11563179c4cfb5a019ebf53784bb1af078cd78bb2",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "tools/voxcpm2/dub_normalize.py",
+      "sha256": "dda400c7745a08bf5843af6130277226fbc03f24ea87608ded7efb6392771f1a",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/vendor/defuddle/README.md",
+      "sha256": "59ebc3c2703304bc86ebdbf93ec4f3cd3a3849431d80b12743c1ce9b419aa9c9",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "third_party/assistant-ui/LICENSE",
+      "sha256": "05c64f81d1d5ce978570370e9d77d9f81a7da8a761c1cb472f9c3001d5683fe7",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "third_party/remend/LICENSE",
+      "sha256": "545cad3594798236002d64e9394d53fe826edbe110d307bb3343e6216dbcaffa",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "sha256": "58b68fe25227a6929a5c020b518fc8fa4142a728e4ea3db08fdb5ade9ddf132c",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "docs/THIRD_PARTY_MEDIA_ENGINES.md",
+      "sha256": "a67d63b4d24569e3389c79a4bcf5f60dedf46bc3a2003ad61c373b24c7d1c29f",
+      "hashMode": "raw-bytes"
+    }
+  ]
+}

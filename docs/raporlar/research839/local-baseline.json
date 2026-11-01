@@ -1,0 +1,121 @@
+{
+  "head": "b74b0e1200f9d6e3c3af14d82fc4fe86ccb983b5",
+  "files": [
+    {
+      "path": "src/assistant-capabilities.js",
+      "sha256": "39d8d5ea82487548388e59e328fa0ed88955957cb9a7580e82196c9c66580e72",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/assistant-provider.js",
+      "sha256": "eae148d20791404f8c29c2a4de65a9d5030f9a53f323b5c17a478926b1262927",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/assistant-retrieval.js",
+      "sha256": "b9c7e5e8d60b8eb302b857997240f0abdd487995e92e38a2d296101a0c5bbbcd",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/assistant-context-manifest.js",
+      "sha256": "b64b084513eef727692111b8ccddb77704bc0a8baa2eac0af03cae1480f4e95c",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/assistant-source-context.js",
+      "sha256": "267b6c686bae5735bfdeee792f720ceebbe3f1e838cb6e68b9934db5e661e394",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/assistant-run-steps.js",
+      "sha256": "4e7d056c8af8bd9cc643a25003b8249082ebcbbdf43190658e00f20d7917aeb4",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/assistant-browser-research.js",
+      "sha256": "81324e6796acdc163245480cf5464897238008c5a82edddb031262005b21081b",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/assistant-web-research.js",
+      "sha256": "c0512a168ca61b33f6e573241f09d6cb6bc3b092651e8cce6ed9a634d9a2f84d",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/assistant-flow-state.js",
+      "sha256": "827f981c7433693a549cb4b5b01a541c83d3a50dec4cf927261506945683c3a2",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/assistant-thread-store.js",
+      "sha256": "4a070333fb4dd4aad4829c01d87a155cd8e513e1e4e3eb690452f9cda601277f",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/media-discovery-service.js",
+      "sha256": "e814c790efa2cd944a40bcadbe617eb7af7685c067a94ec40df1113224a79bde",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/media-taste.js",
+      "sha256": "ff400b2184d6d128dc712d84a3b1a122b67ce4641d475091ff5429d9a7c9991b",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/taste-quiz.js",
+      "sha256": "14e197ac774fb7fc9f2174675071eda6e23a029015033c4564533aaf9accefd2",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/media-catalog-store.js",
+      "sha256": "91b3fcf1dfabece488d2497a9129f38db0484880adf1a565175266d917054681",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/letterboxd-reviews.js",
+      "sha256": "e6d5403607abb96f599de0a31ad29f7e5685d9672c51f356d1291dc1c0fa6299",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/letterboxd-auto.js",
+      "sha256": "082dd8ed0676aeb374bfa4c0b1c681a6e3e1782f3e4374f5d262d4d439b39c64",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/renderer/assistant-workspace.js",
+      "sha256": "4cee94cfe352695ca4be54fad9324df52e2bc0b14650b5352ecb8bc27c0cfb89",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/renderer/media-discovery-ui.js",
+      "sha256": "e812ef2048d1a6d529280340249f51cdcfb748da8a3e5f43c260129ca12d5339",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/renderer/media-taste-ui.js",
+      "sha256": "1ae38dd63d59305cc988ac19ea2ca2b3cf038cfd178c597ed325ddf9cd96faea",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/renderer/film-page-enhancements.js",
+      "sha256": "e5823ad11bdcb15dfa27015a9c1119a3962cc7b098279f7910b3a2ebdf398613",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "src/renderer/media-tools-model.js",
+      "sha256": "584198365a755a0f5e2ca7b75f0207e5cc9443960aa0d78c54d6e8977fb7a6e2",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "package.json",
+      "sha256": "898d0a3a0974d9fb3e739c2d615107683383dca0e032c8dd9df3a1795b4f67ce",
+      "hashMode": "raw-bytes"
+    },
+    {
+      "path": "tools/install-orchestrator.js",
+      "sha256": "fbd6abcf80c100269cd97cccede572c0d6bf30b23f76515a0ddf121404d2e350",
+      "hashMode": "raw-bytes"
+    }
+  ],
+  "scope": "Read-only selected source inspection; no new bug count, no product change or runtime acceptance."
+}

@@ -1,0 +1,17 @@
+{
+  "name": "pysubs2",
+  "version": "1.8.0",
+  "requiresPython": ">=3.9",
+  "license": "MIT",
+  "source": null,
+  "artifactHashes": [
+    {
+      "filename": "pysubs2-1.8.0-py3-none-any.whl",
+      "sha256": "05716f5039a9ebe32cd4d7673f923cf36204f3a3e99987f823ab83610b7035a0"
+    },
+    {
+      "filename": "pysubs2-1.8.0.tar.gz",
+      "sha256": "3397bb58a4a15b1325ba2ae3fd4d7c214e2c0ddb9f33190d6280d783bb433b20"
+    }
+  ]
+}

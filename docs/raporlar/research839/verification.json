@@ -1,0 +1,103 @@
+{
+  "checkedAt": "2026-11-01T14:20:58.5900876+03:00",
+  "head": "b74b0e1200f9d6e3c3af14d82fc4fe86ccb983b5",
+  "status": "PASS-documents-and-source-records-only",
+  "r838UnchangedSha256": "590cc3916969a7912f9f45ec80f5dc50c10283242376382236a363cdcedb4c78",
+  "r838Proposals": 18,
+  "r839Proposals": [
+    "A01",
+    "A02",
+    "A03",
+    "A04",
+    "A05",
+    "A06",
+    "A07",
+    "A08",
+    "A09",
+    "A10",
+    "F01",
+    "F02",
+    "F03",
+    "F04",
+    "F05",
+    "F06",
+    "F07",
+    "F08",
+    "F09",
+    "F10",
+    "F11",
+    "F12",
+    "D01",
+    "D02",
+    "D03",
+    "D04",
+    "D05",
+    "D06",
+    "D07",
+    "D08"
+  ],
+  "retrievedSourceHashChecks": 150,
+  "localRawHashChecks": 53,
+  "jsonParseChecksExcludingThisFile": 8,
+  "markdownLinkChecks": 116,
+  "visualImages": 11,
+  "newBugs": 0,
+  "productTestsRun": false,
+  "upstreamCodeExecuted": false,
+  "files": [
+    {
+      "path": "docs/raporlar/BROWSER_BUG_REPORT_838.md",
+      "sha256": "590cc3916969a7912f9f45ec80f5dc50c10283242376382236a363cdcedb4c78"
+    },
+    {
+      "path": "docs/raporlar/BROWSER_BUG_REPORT_839.md",
+      "sha256": "3d5af1afc68691934e79329a6edc6fca567078cb360f6a386a61c4638bbf2712"
+    },
+    {
+      "path": "docs/raporlar/research838/local-baseline.json",
+      "sha256": "4c9dbce9a79e1b79cd291ac1d4d19ce517a2c4dc175c5539a346b2ce390d5474"
+    },
+    {
+      "path": "docs/raporlar/research838/pysubs2-1.8.0-metadata.json",
+      "sha256": "35cfaccd5f21504313eac9fa43bc6a21954c1084e9b3750b416c74e29905ebde"
+    },
+    {
+      "path": "docs/raporlar/research838/repositories.json",
+      "sha256": "b42ac67a257f5829962512899eaf7cd79edfd247a742dd13a79ca39bcafeefa9"
+    },
+    {
+      "path": "docs/raporlar/research838/source-review.json",
+      "sha256": "37ded28bfe5b111e0ad51d87d68b28e0c505325501ca8d958caae0a638ef7537"
+    },
+    {
+      "path": "docs/raporlar/research839/local-baseline.json",
+      "sha256": "9bceafc40d1e2ac263294679c2a4db90e3b7d3d106318009eaf2603279fb94fa"
+    },
+    {
+      "path": "docs/raporlar/research839/repositories.json",
+      "sha256": "e88afd66f88db9d576f92ababcd8e9560a72675d37af7bc036ef231d9f8165e9"
+    },
+    {
+      "path": "docs/raporlar/research839/source-review.json",
+      "sha256": "c3693f719550ab4160f32aed07e40ca52ca09dbe027465b4c5ba86b8fe53f3e9"
+    },
+    {
+      "path": "docs/raporlar/research839/visual-review.json",
+      "sha256": "77fec33bd30d3124780395eb1f62059de6e6a31dbf308f5d27812d43e1415288"
+    },
+    {
+      "path": "docs/devir/2026-11-01-1420.md",
+      "sha256": "7306298705c9b43d000f1e29809547d62470c6eeba26c1637b5bb35a87e4d31f"
+    },
+    {
+      "path": "DEVIR-NOTU.md",
+      "sha256": "63525b702120e9821f410db153cd475148b9aaeaa38a79fe6c23eb8bcd8673d6"
+    }
+  ],
+  "limits": [
+    "No live UI/Windows native interaction acceptance",
+    "No install/start.bat/GPU/DRM/account/provider/media quality acceptance",
+    "Pinned default HEAD is not a verified stable release",
+    "Link checks validate local existence and HTTPS syntax, not all live remote destinations"
+  ]
+}

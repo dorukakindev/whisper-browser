@@ -1,0 +1,449 @@
+[
+  {
+    "repo": "rexxars/eventsource-parser",
+    "head": "f46b5575f72682527ed936763983bdda0e1283f5",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/rexxars/eventsource-parser/f46b5575f72682527ed936763983bdda0e1283f5/LICENSE",
+    "sha256": "835eb611a23301b27115ca1be9f754c876e643ceb7fe63049c6b50609a1cafeb",
+    "bytes": 1098,
+    "status": "retrieved"
+  },
+  {
+    "repo": "rexxars/eventsource-parser",
+    "head": "f46b5575f72682527ed936763983bdda0e1283f5",
+    "path": "package.json",
+    "url": "https://raw.githubusercontent.com/rexxars/eventsource-parser/f46b5575f72682527ed936763983bdda0e1283f5/package.json",
+    "sha256": "755cbdc4321377d2638dc396fcfa15e6dc296bd46bec9ee6e8d5e0e613dfa983",
+    "bytes": 2673,
+    "status": "retrieved"
+  },
+  {
+    "repo": "rexxars/eventsource-parser",
+    "head": "f46b5575f72682527ed936763983bdda0e1283f5",
+    "path": "src/parse.ts",
+    "url": "https://raw.githubusercontent.com/rexxars/eventsource-parser/f46b5575f72682527ed936763983bdda0e1283f5/src/parse.ts",
+    "sha256": "4da0391230fca6fb499f8e9bac9091aee449d98608783ec97198bbd1e2f39d56",
+    "bytes": 21154,
+    "status": "retrieved"
+  },
+  {
+    "repo": "ajv-validator/ajv",
+    "head": "f177fe323420ccb23e1a79445fd470cbf80aee7c",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/ajv-validator/ajv/f177fe323420ccb23e1a79445fd470cbf80aee7c/LICENSE",
+    "sha256": "a05350a88e318e4f5f2c2a1ff1e2e88daa4dd38e6e78b71cccae422bdc762cc3",
+    "bytes": 1090,
+    "status": "retrieved"
+  },
+  {
+    "repo": "ajv-validator/ajv",
+    "head": "f177fe323420ccb23e1a79445fd470cbf80aee7c",
+    "path": "package.json",
+    "url": "https://raw.githubusercontent.com/ajv-validator/ajv/f177fe323420ccb23e1a79445fd470cbf80aee7c/package.json",
+    "sha256": "1f9033ee5a6515e7d76938b7072941862d1ed228a6879cc7fe10cdeb75107989",
+    "bytes": 4405,
+    "status": "retrieved"
+  },
+  {
+    "repo": "ajv-validator/ajv",
+    "head": "f177fe323420ccb23e1a79445fd470cbf80aee7c",
+    "path": "lib/standalone/index.ts",
+    "url": "https://raw.githubusercontent.com/ajv-validator/ajv/f177fe323420ccb23e1a79445fd470cbf80aee7c/lib/standalone/index.ts",
+    "sha256": "3509ccea2b4677c04074ccb9f6335ef63d36f183349d4c026dacc95928d096ed",
+    "bytes": 4151,
+    "status": "retrieved"
+  },
+  {
+    "repo": "statelyai/xstate",
+    "head": "060cd63378b46b32e7559d569ed3ad112ee60084",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/statelyai/xstate/060cd63378b46b32e7559d569ed3ad112ee60084/LICENSE",
+    "sha256": "542d926d7bbb099785e322d1d5574c539d51942e52ec8adce2be4629ba81fc7f",
+    "bytes": 1083,
+    "status": "retrieved"
+  },
+  {
+    "repo": "statelyai/xstate",
+    "head": "060cd63378b46b32e7559d569ed3ad112ee60084",
+    "path": "packages/core/package.json",
+    "url": "https://raw.githubusercontent.com/statelyai/xstate/060cd63378b46b32e7559d569ed3ad112ee60084/packages/core/package.json",
+    "sha256": "813ce046d547366b4ed0e4c08b3e311b63cbe68e2cb7a795fc4faf410df393f2",
+    "bytes": 4499,
+    "status": "retrieved"
+  },
+  {
+    "repo": "statelyai/xstate",
+    "head": "060cd63378b46b32e7559d569ed3ad112ee60084",
+    "path": "packages/core/src/createActor.ts",
+    "url": "https://raw.githubusercontent.com/statelyai/xstate/060cd63378b46b32e7559d569ed3ad112ee60084/packages/core/src/createActor.ts",
+    "sha256": "0f6672017899c1b84cee863819269ea503a1b9efc93581ae08b2d169faccbad5",
+    "bytes": 25577,
+    "status": "retrieved"
+  },
+  {
+    "repo": "langchain-ai/langgraph",
+    "head": "e5c961d7fbe7ca6fdd4c94c84d90511372514d55",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/langchain-ai/langgraph/e5c961d7fbe7ca6fdd4c94c84d90511372514d55/LICENSE",
+    "sha256": "d9bb52f2e3540d60ff50d8f0f5b6ba649b7fd346948c4c3d086c8afb120763c7",
+    "bytes": 1072,
+    "status": "retrieved"
+  },
+  {
+    "repo": "langchain-ai/langgraph",
+    "head": "e5c961d7fbe7ca6fdd4c94c84d90511372514d55",
+    "path": "libs/langgraph/langgraph/types.py",
+    "url": "https://raw.githubusercontent.com/langchain-ai/langgraph/e5c961d7fbe7ca6fdd4c94c84d90511372514d55/libs/langgraph/langgraph/types.py",
+    "sha256": "062583a1c0af9833477935a9a78d336408cc9a33c425722a1191e000d032107a",
+    "bytes": 37830,
+    "status": "retrieved"
+  },
+  {
+    "repo": "langchain-ai/langgraph",
+    "head": "e5c961d7fbe7ca6fdd4c94c84d90511372514d55",
+    "path": "libs/checkpoint/langgraph/checkpoint/base/__init__.py",
+    "url": "https://raw.githubusercontent.com/langchain-ai/langgraph/e5c961d7fbe7ca6fdd4c94c84d90511372514d55/libs/checkpoint/langgraph/checkpoint/base/__init__.py",
+    "sha256": "e1b412fb541b47cf9ab0657f5c160c955c71ce929d8ac786f0bcc94d356481e9",
+    "bytes": 32051,
+    "status": "retrieved"
+  },
+  {
+    "repo": "tkarabela/pysubs2",
+    "head": "6371ae8bc2f9fed19aeb51a8e09d920e8bb86ce5",
+    "path": "LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/tkarabela/pysubs2/6371ae8bc2f9fed19aeb51a8e09d920e8bb86ce5/LICENSE.txt",
+    "sha256": "93d82c4caf14f9ac8845377399860ee8e3628481d8017ebe33febb8bf7236211",
+    "bytes": 1063,
+    "status": "retrieved"
+  },
+  {
+    "repo": "tkarabela/pysubs2",
+    "head": "6371ae8bc2f9fed19aeb51a8e09d920e8bb86ce5",
+    "path": "pyproject.toml",
+    "url": "https://raw.githubusercontent.com/tkarabela/pysubs2/6371ae8bc2f9fed19aeb51a8e09d920e8bb86ce5/pyproject.toml",
+    "sha256": "e42c04beb1ae21083b73561671091fdace60f9ea8bdb6ac2e5d8cb386c2be684",
+    "bytes": 2200,
+    "status": "retrieved"
+  },
+  {
+    "repo": "tkarabela/pysubs2",
+    "head": "6371ae8bc2f9fed19aeb51a8e09d920e8bb86ce5",
+    "path": "pysubs2/ssafile.py",
+    "url": "https://raw.githubusercontent.com/tkarabela/pysubs2/6371ae8bc2f9fed19aeb51a8e09d920e8bb86ce5/pysubs2/ssafile.py",
+    "sha256": "143194bb848cebe2e770f2a2b72fb385327d65ca4794ad9323d4849f21316038",
+    "bytes": 39258,
+    "status": "retrieved"
+  },
+  {
+    "repo": "tkarabela/pysubs2",
+    "head": "6371ae8bc2f9fed19aeb51a8e09d920e8bb86ce5",
+    "path": "pysubs2/formats/substation.py",
+    "url": "https://raw.githubusercontent.com/tkarabela/pysubs2/6371ae8bc2f9fed19aeb51a8e09d920e8bb86ce5/pysubs2/formats/substation.py",
+    "sha256": "414bb9032e8fd1cee0a85dde58047c8ceb93a7e1da81b240ae254198d717ae72",
+    "bytes": 19177,
+    "status": "retrieved"
+  },
+  {
+    "repo": "smacke/ffsubsync",
+    "head": "de310ac6944b8260431a48ee741e7063cec49b0f",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/smacke/ffsubsync/de310ac6944b8260431a48ee741e7063cec49b0f/LICENSE",
+    "sha256": "0e88d911334a28c0b187f92f418670c8f16fba833da64965c900ea55d4fd25ae",
+    "bytes": 1053,
+    "status": "retrieved"
+  },
+  {
+    "repo": "smacke/ffsubsync",
+    "head": "de310ac6944b8260431a48ee741e7063cec49b0f",
+    "path": "setup.py",
+    "url": "https://raw.githubusercontent.com/smacke/ffsubsync/de310ac6944b8260431a48ee741e7063cec49b0f/setup.py",
+    "sha256": "f88e6a9ec3d8d24048a65ba5ed9900ac97379d212ad37086969820cb3c507ea4",
+    "bytes": 2153,
+    "status": "retrieved"
+  },
+  {
+    "repo": "smacke/ffsubsync",
+    "head": "de310ac6944b8260431a48ee741e7063cec49b0f",
+    "path": "ffsubsync/ffsubsync.py",
+    "url": "https://raw.githubusercontent.com/smacke/ffsubsync/de310ac6944b8260431a48ee741e7063cec49b0f/ffsubsync/ffsubsync.py",
+    "sha256": "c1cf4471f53d3601f69ae04aa4ff61599aaf5d127c4d6656753d73a515f83ea8",
+    "bytes": 48417,
+    "status": "retrieved"
+  },
+  {
+    "repo": "smacke/ffsubsync",
+    "head": "de310ac6944b8260431a48ee741e7063cec49b0f",
+    "path": "ffsubsync/speech_transformers.py",
+    "url": "https://raw.githubusercontent.com/smacke/ffsubsync/de310ac6944b8260431a48ee741e7063cec49b0f/ffsubsync/speech_transformers.py",
+    "sha256": "e1bdbc12be67f58e49935e85df3183ef0d5983d9531db360080e96f2d8bd11b3",
+    "bytes": 60152,
+    "status": "retrieved"
+  },
+  {
+    "repo": "jianfch/stable-ts",
+    "head": "e312072cc024ae9fceb25b057d7d18524873a02b",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/jianfch/stable-ts/e312072cc024ae9fceb25b057d7d18524873a02b/LICENSE",
+    "sha256": "69ac6d54d38598c96443b5314597568bb8fa21726c46168fcec98764de33dc23",
+    "bytes": 1061,
+    "status": "retrieved"
+  },
+  {
+    "repo": "jianfch/stable-ts",
+    "head": "e312072cc024ae9fceb25b057d7d18524873a02b",
+    "path": "setup.py",
+    "url": "https://raw.githubusercontent.com/jianfch/stable-ts/e312072cc024ae9fceb25b057d7d18524873a02b/setup.py",
+    "sha256": "990f588fb66a713c958c6f44996fc0396b7315d0664cfd65a79aa0e889e05ea9",
+    "bytes": 1296,
+    "status": "retrieved"
+  },
+  {
+    "repo": "jianfch/stable-ts",
+    "head": "e312072cc024ae9fceb25b057d7d18524873a02b",
+    "path": "stable_whisper/non_whisper/alignment.py",
+    "url": "https://raw.githubusercontent.com/jianfch/stable-ts/e312072cc024ae9fceb25b057d7d18524873a02b/stable_whisper/non_whisper/alignment.py",
+    "sha256": "41beef92a83999d9e9e2dba4bdeecbf7451eaf347ee48dd7ba44d9c227ce060d",
+    "bytes": 50598,
+    "status": "retrieved"
+  },
+  {
+    "repo": "jianfch/stable-ts",
+    "head": "e312072cc024ae9fceb25b057d7d18524873a02b",
+    "path": "stable_whisper/result.py",
+    "url": "https://raw.githubusercontent.com/jianfch/stable-ts/e312072cc024ae9fceb25b057d7d18524873a02b/stable_whisper/result.py",
+    "sha256": "4424568cb5f6f8fdccd4ab73c1f529e1c36353501f801c396e94e755933472c3",
+    "bytes": 133604,
+    "status": "retrieved"
+  },
+  {
+    "repo": "AcademySoftwareFoundation/OpenTimelineIO",
+    "head": "80c5ff30938e4adffe9c94f419b1055856cee9f5",
+    "path": "LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/AcademySoftwareFoundation/OpenTimelineIO/80c5ff30938e4adffe9c94f419b1055856cee9f5/LICENSE.txt",
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "bytes": 11357,
+    "status": "retrieved"
+  },
+  {
+    "repo": "AcademySoftwareFoundation/OpenTimelineIO",
+    "head": "80c5ff30938e4adffe9c94f419b1055856cee9f5",
+    "path": "src/opentime/rationalTime.h",
+    "url": "https://raw.githubusercontent.com/AcademySoftwareFoundation/OpenTimelineIO/80c5ff30938e4adffe9c94f419b1055856cee9f5/src/opentime/rationalTime.h",
+    "sha256": "1ee199836bd25acc56ec8c3fabe0a8dc76920d86e3bd76f3258bfec591e2249d",
+    "bytes": 14854,
+    "status": "retrieved"
+  },
+  {
+    "repo": "AcademySoftwareFoundation/OpenTimelineIO",
+    "head": "80c5ff30938e4adffe9c94f419b1055856cee9f5",
+    "path": "setup.py",
+    "url": "https://raw.githubusercontent.com/AcademySoftwareFoundation/OpenTimelineIO/80c5ff30938e4adffe9c94f419b1055856cee9f5/setup.py",
+    "sha256": "219f78a98151e17522449812103721c997e3e0b2b60f831af1813685f0322ebc",
+    "bytes": 13655,
+    "status": "retrieved"
+  },
+  {
+    "repo": "SubtitleEdit/subtitleedit",
+    "path": "LICENSE.txt",
+    "status": "not-retrieved",
+    "reason": "Guessed LICENSE.txt path did not exist; actual LICENSE retrieved separately."
+  },
+  {
+    "repo": "SubtitleEdit/subtitleedit",
+    "head": "0590b6e95d08c21e83b3881893b00012974d7af7",
+    "path": "src/libse/SubtitleFormats/SubRip.cs",
+    "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0590b6e95d08c21e83b3881893b00012974d7af7/src/libse/SubtitleFormats/SubRip.cs",
+    "sha256": "bd62a098568d0e8766ff9992cd43b07971481b1da6f8e955213cf6e738e4fcec",
+    "bytes": 27453,
+    "status": "retrieved"
+  },
+  {
+    "repo": "SubtitleEdit/subtitleedit",
+    "head": "0590b6e95d08c21e83b3881893b00012974d7af7",
+    "path": "src/libse/Common/Utilities.cs",
+    "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0590b6e95d08c21e83b3881893b00012974d7af7/src/libse/Common/Utilities.cs",
+    "sha256": "8db101de8271e43c674a404c5e219c6ba20c134f32e25ba854fc0d31f2406e74",
+    "bytes": 142399,
+    "status": "retrieved"
+  },
+  {
+    "repo": "jellyfin/jellyfin",
+    "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/jellyfin/jellyfin/5b385862fb97201d954a6ac7c9c745d791a738fa/LICENSE",
+    "sha256": "f371b80469fb235bc500ec29e0e85b682d4a6157a158567d828ff0be544d4f1d",
+    "bytes": 18014,
+    "status": "retrieved"
+  },
+  {
+    "repo": "jellyfin/jellyfin",
+    "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+    "path": "MediaBrowser.Model/Entities/IHasProviderIds.cs",
+    "url": "https://raw.githubusercontent.com/jellyfin/jellyfin/5b385862fb97201d954a6ac7c9c745d791a738fa/MediaBrowser.Model/Entities/IHasProviderIds.cs",
+    "sha256": "7cf261cb3851c489a2c4a85f5eb2ecef180e2fb23ffa9e34fe19b0a0d550e86a",
+    "bytes": 490,
+    "status": "retrieved"
+  },
+  {
+    "repo": "jellyfin/jellyfin",
+    "head": "5b385862fb97201d954a6ac7c9c745d791a738fa",
+    "path": "MediaBrowser.Controller/Entities/BaseItem.cs",
+    "url": "https://raw.githubusercontent.com/jellyfin/jellyfin/5b385862fb97201d954a6ac7c9c745d791a738fa/MediaBrowser.Controller/Entities/BaseItem.cs",
+    "sha256": "eecee4c02478af2d11db724ff4835efa17f451bee7fe345fb7b1bd4958969dc2",
+    "bytes": 107049,
+    "status": "retrieved"
+  },
+  {
+    "repo": "mozilla/readability",
+    "head": "ab4027a8b37669745016869a37a504727992b2ba",
+    "path": "LICENSE.md",
+    "url": "https://raw.githubusercontent.com/mozilla/readability/ab4027a8b37669745016869a37a504727992b2ba/LICENSE.md",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "bytes": 11358,
+    "status": "retrieved"
+  },
+  {
+    "repo": "mozilla/readability",
+    "head": "ab4027a8b37669745016869a37a504727992b2ba",
+    "path": "package.json",
+    "url": "https://raw.githubusercontent.com/mozilla/readability/ab4027a8b37669745016869a37a504727992b2ba/package.json",
+    "sha256": "71412d118788bbd90fa8cc1cd6ce1eccb8c2eafb6b4e8f4802812101dc6cd47f",
+    "bytes": 1159,
+    "status": "retrieved"
+  },
+  {
+    "repo": "mozilla/readability",
+    "head": "ab4027a8b37669745016869a37a504727992b2ba",
+    "path": "Readability.js",
+    "url": "https://raw.githubusercontent.com/mozilla/readability/ab4027a8b37669745016869a37a504727992b2ba/Readability.js",
+    "sha256": "e9330028c8a5a4aa7d75147be2605d520f7f213c7b28474947dc0e9c984e9bed",
+    "bytes": 90944,
+    "status": "retrieved"
+  },
+  {
+    "repo": "katspaugh/wavesurfer.js",
+    "head": "09d2c875983e421303b239cd918da34e76aa853e",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/katspaugh/wavesurfer.js/09d2c875983e421303b239cd918da34e76aa853e/LICENSE",
+    "sha256": "0fc992dc27cc34dde78bfeb024b4cadff6320f0dcbee2f1228efaeb533ca1364",
+    "bytes": 1531,
+    "status": "retrieved"
+  },
+  {
+    "repo": "katspaugh/wavesurfer.js",
+    "head": "09d2c875983e421303b239cd918da34e76aa853e",
+    "path": "package.json",
+    "url": "https://raw.githubusercontent.com/katspaugh/wavesurfer.js/09d2c875983e421303b239cd918da34e76aa853e/package.json",
+    "sha256": "21fb397ab19c141814bf93ee28d2fa44a4a7de9226bd16b016f30b754f46f6a2",
+    "bytes": 3243,
+    "status": "retrieved"
+  },
+  {
+    "repo": "katspaugh/wavesurfer.js",
+    "head": "09d2c875983e421303b239cd918da34e76aa853e",
+    "path": "src/plugins/regions.ts",
+    "url": "https://raw.githubusercontent.com/katspaugh/wavesurfer.js/09d2c875983e421303b239cd918da34e76aa853e/src/plugins/regions.ts",
+    "sha256": "dd8651519c40f7e88fa46d01592ca9cfa4c8bcb63ba8a27f67512a2a395a201f",
+    "bytes": 53681,
+    "status": "retrieved"
+  },
+  {
+    "repo": "FFmpeg/FFmpeg",
+    "head": "e2740a3e0daab338b0ec60de407e444f68f9d119",
+    "path": "LICENSE.md",
+    "url": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/e2740a3e0daab338b0ec60de407e444f68f9d119/LICENSE.md",
+    "sha256": "e6dc72d5665a1ebd6dcc841de59278dad4ca77ecc47b03f1064a55c3e9ea8bb8",
+    "bytes": 4352,
+    "status": "retrieved"
+  },
+  {
+    "repo": "FFmpeg/FFmpeg",
+    "head": "e2740a3e0daab338b0ec60de407e444f68f9d119",
+    "path": "libavfilter/af_loudnorm.c",
+    "url": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/e2740a3e0daab338b0ec60de407e444f68f9d119/libavfilter/af_loudnorm.c",
+    "sha256": "b754ec59c513206fa8cc9930150c0ad2b833bf8ccdd03be63bf0860ac298e93a",
+    "bytes": 33908,
+    "status": "retrieved"
+  },
+  {
+    "repo": "FFmpeg/FFmpeg",
+    "head": "e2740a3e0daab338b0ec60de407e444f68f9d119",
+    "path": "libavfilter/vf_tonemap.c",
+    "url": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/e2740a3e0daab338b0ec60de407e444f68f9d119/libavfilter/vf_tonemap.c",
+    "sha256": "a69de9095e49cf6412349c93f463b9972e5acef23881e111c16e4389296cb417",
+    "bytes": 11082,
+    "status": "retrieved"
+  },
+  {
+    "repo": "FFmpeg/FFmpeg",
+    "head": "e2740a3e0daab338b0ec60de407e444f68f9d119",
+    "path": "configure",
+    "url": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/e2740a3e0daab338b0ec60de407e444f68f9d119/configure",
+    "sha256": "963132551fe8268a315f5e6e3c60550383dc6022c519285241340625cd362307",
+    "bytes": 308310,
+    "status": "retrieved"
+  },
+  {
+    "repo": "kepano/defuddle",
+    "head": "3e8bde9f5f855bc968e95837a750c5968a9fe639",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/kepano/defuddle/3e8bde9f5f855bc968e95837a750c5968a9fe639/LICENSE",
+    "sha256": "c63e6774d9c9da3de01428e0809080c4758de3636c8e9e6fe51525c9ab4cd092",
+    "bytes": 1076,
+    "status": "retrieved"
+  },
+  {
+    "repo": "kepano/defuddle",
+    "head": "3e8bde9f5f855bc968e95837a750c5968a9fe639",
+    "path": "package.json",
+    "url": "https://raw.githubusercontent.com/kepano/defuddle/3e8bde9f5f855bc968e95837a750c5968a9fe639/package.json",
+    "sha256": "ce58de4da99bc076c916d8c83663e8f309110b91f3095fb0f9152875df9321fd",
+    "bytes": 2730,
+    "status": "retrieved"
+  },
+  {
+    "repo": "kepano/defuddle",
+    "head": "3e8bde9f5f855bc968e95837a750c5968a9fe639",
+    "path": "src/defuddle.ts",
+    "url": "https://raw.githubusercontent.com/kepano/defuddle/3e8bde9f5f855bc968e95837a750c5968a9fe639/src/defuddle.ts",
+    "sha256": "283c7b63deba6230dd688b919397a67e8f4199d7228d24e1925faf164a39fd77",
+    "bytes": 64775,
+    "status": "retrieved"
+  },
+  {
+    "repo": "SubtitleEdit/subtitleedit",
+    "head": "0590b6e95d08c21e83b3881893b00012974d7af7",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0590b6e95d08c21e83b3881893b00012974d7af7/LICENSE",
+    "sha256": "1bc4dcdb06d5507eacf67399674a5a6fa0f5f5270d15eefd7b4b2040319ceba0",
+    "bytes": 1071,
+    "status": "retrieved"
+  },
+  {
+    "repo": "SubtitleEdit/subtitleedit",
+    "head": "0590b6e95d08c21e83b3881893b00012974d7af7",
+    "path": "src/libse/Forms/FixCommonErrors/FixTurkishAnsiToUnicode.cs",
+    "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0590b6e95d08c21e83b3881893b00012974d7af7/src/libse/Forms/FixCommonErrors/FixTurkishAnsiToUnicode.cs",
+    "sha256": "30db6ae59c780b53ffd1c39cb8bf5678528fbbcc64171cf4201d7bc372f58d75",
+    "bytes": 1384,
+    "status": "retrieved"
+  },
+  {
+    "repo": "SubtitleEdit/subtitleedit",
+    "head": "0590b6e95d08c21e83b3881893b00012974d7af7",
+    "path": "src/seconv/Core/FixCommonErrorsRunner.cs",
+    "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0590b6e95d08c21e83b3881893b00012974d7af7/src/seconv/Core/FixCommonErrorsRunner.cs",
+    "sha256": "521d8470ba16995e127ceeae58532bb42a91f205ef5c50473410700a674a367c",
+    "bytes": 23173,
+    "status": "retrieved"
+  },
+  {
+    "repo": "SubtitleEdit/subtitleedit",
+    "head": "0590b6e95d08c21e83b3881893b00012974d7af7",
+    "path": "src/seconv/SeConv.csproj",
+    "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0590b6e95d08c21e83b3881893b00012974d7af7/src/seconv/SeConv.csproj",
+    "sha256": "22293c8ba58adf8c6e151a61d10b012fc363fa23087fe3eee23af2037e7401f3",
+    "bytes": 2232,
+    "status": "retrieved"
+  }
+]

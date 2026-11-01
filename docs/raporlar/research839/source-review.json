@@ -1,0 +1,810 @@
+[
+  {
+    "repo": "browseros-ai/BrowserOS",
+    "head": "b04405ad9826bde42cd55d2aeab17096a5fb12e3",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/browseros-ai/BrowserOS/b04405ad9826bde42cd55d2aeab17096a5fb12e3/LICENSE",
+    "sha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef",
+    "bytes": 34523
+  },
+  {
+    "repo": "browseros-ai/BrowserOS",
+    "head": "b04405ad9826bde42cd55d2aeab17096a5fb12e3",
+    "path": "README.md",
+    "url": "https://raw.githubusercontent.com/browseros-ai/BrowserOS/b04405ad9826bde42cd55d2aeab17096a5fb12e3/README.md",
+    "sha256": "bfe2979ae0e99985154042090f483e172cca229fe408f8f9b47102662beec983",
+    "bytes": 15531
+  },
+  {
+    "repo": "nanobrowser/nanobrowser",
+    "head": "19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/nanobrowser/nanobrowser/19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458/LICENSE",
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "bytes": 11357
+  },
+  {
+    "repo": "nanobrowser/nanobrowser",
+    "head": "19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458",
+    "path": "README.md",
+    "url": "https://raw.githubusercontent.com/nanobrowser/nanobrowser/19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458/README.md",
+    "sha256": "4d8a0b0d6286c4bab116c155f087948062166e7e169d6bbaf504fedb4f32dc67",
+    "bytes": 12146
+  },
+  {
+    "repo": "nanobrowser/nanobrowser",
+    "head": "19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458",
+    "path": "package.json",
+    "url": "https://raw.githubusercontent.com/nanobrowser/nanobrowser/19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458/package.json",
+    "sha256": "491846b8f028ea48a8c63aa5350c9e60f4511e7ff3ff897dc2edb9c9e587846d",
+    "bytes": 2424
+  },
+  {
+    "repo": "browserbase/stagehand",
+    "head": "b7a4b899079f198a0ee78a6dcb62ad02f545cf49",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/browserbase/stagehand/b7a4b899079f198a0ee78a6dcb62ad02f545cf49/LICENSE",
+    "sha256": "fac7e7cd1cfc504054ee1fc53c38e0f3099d7357917e85a73792f6511fe0ea96",
+    "bytes": 1073
+  },
+  {
+    "repo": "browserbase/stagehand",
+    "head": "b7a4b899079f198a0ee78a6dcb62ad02f545cf49",
+    "path": "README.md",
+    "url": "https://raw.githubusercontent.com/browserbase/stagehand/b7a4b899079f198a0ee78a6dcb62ad02f545cf49/README.md",
+    "sha256": "e95982d4ad892ce0eea0ca80c8f98533424745bef2ddd9fb5094c8e0aba6ca7b",
+    "bytes": 17575
+  },
+  {
+    "repo": "browserbase/stagehand",
+    "head": "b7a4b899079f198a0ee78a6dcb62ad02f545cf49",
+    "path": "package.json",
+    "url": "https://raw.githubusercontent.com/browserbase/stagehand/b7a4b899079f198a0ee78a6dcb62ad02f545cf49/package.json",
+    "sha256": "883621dd9128b4d252439c74e41c93b741552e980bc7cf5bed244d1c54d04133",
+    "bytes": 2268
+  },
+  {
+    "repo": "browser-use/browser-use",
+    "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/browser-use/browser-use/b49a68e4060acb226da8f784194fef301c53a6d7/LICENSE",
+    "sha256": "135c57671b0ee957669b05a0ca00cc06f645496d351e2e732832c6e276da9a5e",
+    "bytes": 1069
+  },
+  {
+    "repo": "browser-use/browser-use",
+    "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+    "path": "README.md",
+    "url": "https://raw.githubusercontent.com/browser-use/browser-use/b49a68e4060acb226da8f784194fef301c53a6d7/README.md",
+    "sha256": "21a31ea5601d3cd6622bff2ea62b26c2d4f40cdb5805810e38a3fb37db241c11",
+    "bytes": 19732
+  },
+  {
+    "repo": "debpalash/Opal",
+    "head": "d56c55e323a83b40ae210bfaca3d5e2da2688ae3",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/debpalash/Opal/d56c55e323a83b40ae210bfaca3d5e2da2688ae3/LICENSE",
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+    "bytes": 35149
+  },
+  {
+    "repo": "debpalash/Opal",
+    "head": "d56c55e323a83b40ae210bfaca3d5e2da2688ae3",
+    "path": "README.md",
+    "url": "https://raw.githubusercontent.com/debpalash/Opal/d56c55e323a83b40ae210bfaca3d5e2da2688ae3/README.md",
+    "sha256": "889045037df9e9ce521a2ca061b79c146f51d8b8aeb9cf1404c7349fa1f3376f",
+    "bytes": 12938
+  },
+  {
+    "repo": "jj-tsao/rag-movie-recommender-app",
+    "head": "e47b0c9ce7e96dd099cf1fbfae16d988e42e50b6",
+    "path": "README.md",
+    "url": "https://raw.githubusercontent.com/jj-tsao/rag-movie-recommender-app/e47b0c9ce7e96dd099cf1fbfae16d988e42e50b6/README.md",
+    "sha256": "2260fd75a52ced3cdea7f9197e9f112d34894203dcfbd92c869f714b1a2f4c39",
+    "bytes": 34267
+  },
+  {
+    "repo": "jj-tsao/rag-movie-recommender-app",
+    "head": "e47b0c9ce7e96dd099cf1fbfae16d988e42e50b6",
+    "path": "package.json",
+    "url": "https://raw.githubusercontent.com/jj-tsao/rag-movie-recommender-app/e47b0c9ce7e96dd099cf1fbfae16d988e42e50b6/package.json",
+    "sha256": "5c59f2fa58a29709ac7ee938e34344d1d9f0ab2a346787a329ae9e9711c71f1e",
+    "bytes": 917
+  },
+  {
+    "repo": "giuseppe99barchetta/SuggestArr",
+    "head": "f0a9fd7cd5bf6b1e2ca7bf207eadd584ffd93b30",
+    "path": "LICENSE.md",
+    "url": "https://raw.githubusercontent.com/giuseppe99barchetta/SuggestArr/f0a9fd7cd5bf6b1e2ca7bf207eadd584ffd93b30/LICENSE.md",
+    "sha256": "ecd6d0738e6076a8f799f00b64ec7d0bae73c57c4b15bc5d67300597276fb10f",
+    "bytes": 1066
+  },
+  {
+    "repo": "giuseppe99barchetta/SuggestArr",
+    "head": "f0a9fd7cd5bf6b1e2ca7bf207eadd584ffd93b30",
+    "path": "README.md",
+    "url": "https://raw.githubusercontent.com/giuseppe99barchetta/SuggestArr/f0a9fd7cd5bf6b1e2ca7bf207eadd584ffd93b30/README.md",
+    "sha256": "5ee7ae7ec629555fec4528a7b107f8165dd422ccd39d6a138d4407409b83ec3c",
+    "bytes": 4705
+  },
+  {
+    "repo": "aleksilassila/reiverr",
+    "head": "dbdd50dfa8366a0c311b21ba513aabbbc0f28c87",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/aleksilassila/reiverr/dbdd50dfa8366a0c311b21ba513aabbbc0f28c87/LICENSE",
+    "sha256": "db52e3daad9260a1cc638efaf3f6b7a6bdead236365586a60078a9a287613037",
+    "bytes": 34273
+  },
+  {
+    "repo": "aleksilassila/reiverr",
+    "head": "dbdd50dfa8366a0c311b21ba513aabbbc0f28c87",
+    "path": "README.md",
+    "url": "https://raw.githubusercontent.com/aleksilassila/reiverr/dbdd50dfa8366a0c311b21ba513aabbbc0f28c87/README.md",
+    "sha256": "702888e36f19cfa7f639d2eb040a581c4a61b3dd6483069abdfe378340bc02c4",
+    "bytes": 10377
+  },
+  {
+    "repo": "aleksilassila/reiverr",
+    "head": "dbdd50dfa8366a0c311b21ba513aabbbc0f28c87",
+    "path": "package.json",
+    "url": "https://raw.githubusercontent.com/aleksilassila/reiverr/dbdd50dfa8366a0c311b21ba513aabbbc0f28c87/package.json",
+    "sha256": "27394bff48211c9cc5713dd2d9a7224c4d9d3866702a98ba2db10d534c407c3a",
+    "bytes": 3216
+  },
+  {
+    "repo": "seerr-team/seerr",
+    "head": "dca1af6af26312ec13ffb4920e5dd948049962ad",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/seerr-team/seerr/dca1af6af26312ec13ffb4920e5dd948049962ad/LICENSE",
+    "sha256": "0fa8ec7a819fb378982b9175b0aa66f91bc5ea72f828d993413d084ad34e6956",
+    "bytes": 1060
+  },
+  {
+    "repo": "seerr-team/seerr",
+    "head": "dca1af6af26312ec13ffb4920e5dd948049962ad",
+    "path": "README.md",
+    "url": "https://raw.githubusercontent.com/seerr-team/seerr/dca1af6af26312ec13ffb4920e5dd948049962ad/README.md",
+    "sha256": "3d53659af8983362cea9bb277f6179b4cbeec2171110992bee130093737f8e50",
+    "bytes": 4181
+  },
+  {
+    "repo": "seerr-team/seerr",
+    "head": "dca1af6af26312ec13ffb4920e5dd948049962ad",
+    "path": "package.json",
+    "url": "https://raw.githubusercontent.com/seerr-team/seerr/dca1af6af26312ec13ffb4920e5dd948049962ad/package.json",
+    "sha256": "678b66d89d70b8f68f3c8c598cf55777993e35199a4d185d999ffdc1175e9f94",
+    "bytes": 7592
+  },
+  {
+    "repo": "ItzCrazyKns/Perplexica",
+    "head": "348feca3e378fb4157b217724ed508dc707f853f",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/ItzCrazyKns/Perplexica/348feca3e378fb4157b217724ed508dc707f853f/LICENSE",
+    "sha256": "d76e1037fdcc8ab04db9e8ffcfe6104effc513cd7530401f8f45e98941822ba6",
+    "bytes": 1068
+  },
+  {
+    "repo": "ItzCrazyKns/Perplexica",
+    "head": "348feca3e378fb4157b217724ed508dc707f853f",
+    "path": "README.md",
+    "url": "https://raw.githubusercontent.com/ItzCrazyKns/Perplexica/348feca3e378fb4157b217724ed508dc707f853f/README.md",
+    "sha256": "5d534fafeb1e3d1355751e82241b74ab6c5e3d89561e98178512a704dba28268",
+    "bytes": 12956
+  },
+  {
+    "repo": "ItzCrazyKns/Perplexica",
+    "head": "348feca3e378fb4157b217724ed508dc707f853f",
+    "path": "package.json",
+    "url": "https://raw.githubusercontent.com/ItzCrazyKns/Perplexica/348feca3e378fb4157b217724ed508dc707f853f/package.json",
+    "sha256": "5428842dddbfc341c969b64f56d4ea8f45ee291f0f178afb0dbd0e61243f728a",
+    "bytes": 2268
+  },
+  {
+    "repo": "aleksilassila/reiverr",
+    "head": "dbdd50dfa8366a0c311b21ba513aabbbc0f28c87",
+    "path": "src/lib/discover.ts",
+    "url": "https://raw.githubusercontent.com/aleksilassila/reiverr/dbdd50dfa8366a0c311b21ba513aabbbc0f28c87/src/lib/discover.ts",
+    "sha256": "30d6de18897d6b65801a11648deddd7fd4f1a9c4d3290ebfaffd21f27e343a69",
+    "bytes": 1781
+  },
+  {
+    "repo": "aleksilassila/reiverr",
+    "head": "dbdd50dfa8366a0c311b21ba513aabbbc0f28c87",
+    "path": "src/lib/components/HeroInfo/HeroInfoDescription.svelte",
+    "url": "https://raw.githubusercontent.com/aleksilassila/reiverr/dbdd50dfa8366a0c311b21ba513aabbbc0f28c87/src/lib/components/HeroInfo/HeroInfoDescription.svelte",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "repo": "aleksilassila/reiverr",
+    "head": "dbdd50dfa8366a0c311b21ba513aabbbc0f28c87",
+    "path": "images/screenshot-1.png",
+    "url": "https://raw.githubusercontent.com/aleksilassila/reiverr/dbdd50dfa8366a0c311b21ba513aabbbc0f28c87/images/screenshot-1.png",
+    "sha256": "a3b49f6c58dde0702ec7ec3b8d6acf60dfbff87136a19f082d1aaeb8bbbcd6e4",
+    "bytes": 2257714
+  },
+  {
+    "repo": "aleksilassila/reiverr",
+    "head": "dbdd50dfa8366a0c311b21ba513aabbbc0f28c87",
+    "path": "images/screenshot-2.png",
+    "url": "https://raw.githubusercontent.com/aleksilassila/reiverr/dbdd50dfa8366a0c311b21ba513aabbbc0f28c87/images/screenshot-2.png",
+    "sha256": "e257bd212459ea3808095f6b23edc21fdcb6aecac87308eb3be20582575b12c8",
+    "bytes": 2730178
+  },
+  {
+    "repo": "browseros-ai/BrowserOS",
+    "head": "b04405ad9826bde42cd55d2aeab17096a5fb12e3",
+    "path": "packages/browseros-agent/apps/app/screens/sidepanel/index/ChatAttachedTabs.tsx",
+    "url": "https://raw.githubusercontent.com/browseros-ai/BrowserOS/b04405ad9826bde42cd55d2aeab17096a5fb12e3/packages/browseros-agent/apps/app/screens/sidepanel/index/ChatAttachedTabs.tsx",
+    "sha256": "05d172b3dd75367f564bc79e19d14b505b51ecce53ad5f162193edbb93c0b2f7",
+    "bytes": 1532
+  },
+  {
+    "repo": "browseros-ai/BrowserOS",
+    "head": "b04405ad9826bde42cd55d2aeab17096a5fb12e3",
+    "path": "packages/browseros-agent/apps/app/screens/sidepanel/index/ChatSelectedText.tsx",
+    "url": "https://raw.githubusercontent.com/browseros-ai/BrowserOS/b04405ad9826bde42cd55d2aeab17096a5fb12e3/packages/browseros-agent/apps/app/screens/sidepanel/index/ChatSelectedText.tsx",
+    "sha256": "f53c2447e8558873803e24e6e24c09c1088bee1baffdd664e78879f2d263f074",
+    "bytes": 1539
+  },
+  {
+    "repo": "browseros-ai/BrowserOS",
+    "head": "b04405ad9826bde42cd55d2aeab17096a5fb12e3",
+    "path": "packages/browseros-agent/apps/server/src/agent/compaction.ts",
+    "url": "https://raw.githubusercontent.com/browseros-ai/BrowserOS/b04405ad9826bde42cd55d2aeab17096a5fb12e3/packages/browseros-agent/apps/server/src/agent/compaction.ts",
+    "sha256": "70f07a50470e1f46d6e74b15bf889b7c7006f320f96734934ae869c5824bfd38",
+    "bytes": 6807
+  },
+  {
+    "repo": "browseros-ai/BrowserOS",
+    "head": "b04405ad9826bde42cd55d2aeab17096a5fb12e3",
+    "path": "packages/browseros-agent/apps/claw-app/screens/replay/replay-events.ts",
+    "url": "https://raw.githubusercontent.com/browseros-ai/BrowserOS/b04405ad9826bde42cd55d2aeab17096a5fb12e3/packages/browseros-agent/apps/claw-app/screens/replay/replay-events.ts",
+    "sha256": "34acea32631ef64109055f3e07564d9431cb1b323f6ddb4bd366093dd5c7594b",
+    "bytes": 3134
+  },
+  {
+    "repo": "browseros-ai/BrowserOS",
+    "head": "b04405ad9826bde42cd55d2aeab17096a5fb12e3",
+    "path": "docs/images/browserclaw--task-detail.png",
+    "url": "https://raw.githubusercontent.com/browseros-ai/BrowserOS/b04405ad9826bde42cd55d2aeab17096a5fb12e3/docs/images/browserclaw--task-detail.png",
+    "sha256": "45f3fbcd99db14d887524e23aee7b0ac4b2ca5d8d17330cd997f7d302786beb2",
+    "bytes": 349207
+  },
+  {
+    "repo": "browseros-ai/BrowserOS",
+    "head": "b04405ad9826bde42cd55d2aeab17096a5fb12e3",
+    "path": "docs/browseros/features/cowork/cowork-research-example.png",
+    "url": "https://raw.githubusercontent.com/browseros-ai/BrowserOS/b04405ad9826bde42cd55d2aeab17096a5fb12e3/docs/browseros/features/cowork/cowork-research-example.png",
+    "sha256": "f68355ab80d1c164d23c7c4c785326f59320f71b6b40f08999dfeef32afe1d29",
+    "bytes": 880007
+  },
+  {
+    "repo": "ItzCrazyKns/Vane",
+    "head": "348feca3e378fb4157b217724ed508dc707f853f",
+    "path": "src/lib/agents/search/researcher/index.ts",
+    "url": "https://raw.githubusercontent.com/ItzCrazyKns/Vane/348feca3e378fb4157b217724ed508dc707f853f/src/lib/agents/search/researcher/index.ts",
+    "sha256": "cde477fc5637c3957aeccbb10ca08ef17f9b6382b78dfb25b99148b4e5f4fa33",
+    "bytes": 6364
+  },
+  {
+    "repo": "ItzCrazyKns/Vane",
+    "head": "348feca3e378fb4157b217724ed508dc707f853f",
+    "path": "src/lib/agents/search/researcher/actions/plan.ts",
+    "url": "https://raw.githubusercontent.com/ItzCrazyKns/Vane/348feca3e378fb4157b217724ed508dc707f853f/src/lib/agents/search/researcher/actions/plan.ts",
+    "sha256": "4b28cd8f0a72240d90a59fd218768543a5d0a548ce88a0ae915d0ce3bddef45e",
+    "bytes": 2037
+  },
+  {
+    "repo": "ItzCrazyKns/Vane",
+    "head": "348feca3e378fb4157b217724ed508dc707f853f",
+    "path": "src/lib/agents/search/types.ts",
+    "url": "https://raw.githubusercontent.com/ItzCrazyKns/Vane/348feca3e378fb4157b217724ed508dc707f853f/src/lib/agents/search/types.ts",
+    "sha256": "478c6e3fbca8954dd1b1509fc113537bd23767cb290656fff8eca78b4c4a963d",
+    "bytes": 2872
+  },
+  {
+    "repo": "ItzCrazyKns/Vane",
+    "head": "348feca3e378fb4157b217724ed508dc707f853f",
+    "path": "src/components/ChatWindow.tsx",
+    "url": "https://raw.githubusercontent.com/ItzCrazyKns/Vane/348feca3e378fb4157b217724ed508dc707f853f/src/components/ChatWindow.tsx",
+    "sha256": "7008c08424dc241a610d9fa7bad01142f1f8ddf65d24c19799cd06125114d763",
+    "bytes": 1743
+  },
+  {
+    "repo": "ItzCrazyKns/Vane",
+    "head": "348feca3e378fb4157b217724ed508dc707f853f",
+    "path": "src/components/MessageBox.tsx",
+    "url": "https://raw.githubusercontent.com/ItzCrazyKns/Vane/348feca3e378fb4157b217724ed508dc707f853f/src/components/MessageBox.tsx",
+    "sha256": "ff87353c761bea5ebd0b9a5e8f5b99bc9eeafa4dd29aaae8d9bbed10e9f42b9b",
+    "bytes": 10427
+  },
+  {
+    "repo": "ItzCrazyKns/Vane",
+    "head": "348feca3e378fb4157b217724ed508dc707f853f",
+    "path": ".assets/vane-screenshot.png",
+    "url": "https://raw.githubusercontent.com/ItzCrazyKns/Vane/348feca3e378fb4157b217724ed508dc707f853f/.assets/vane-screenshot.png",
+    "sha256": "88d37102dfa70d2c363d329e072fcb9176da3f7f1fdb4f9be1d32cd686239bd4",
+    "bytes": 1638741
+  },
+  {
+    "repo": "browser-use/browser-use",
+    "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+    "path": "browser_use/agent/judge.py",
+    "url": "https://raw.githubusercontent.com/browser-use/browser-use/b49a68e4060acb226da8f784194fef301c53a6d7/browser_use/agent/judge.py",
+    "sha256": "f9700ec95c721e5c65d02cfb1e861cd74c86f9aefafe94d460e2098827a90b0e",
+    "bytes": 10184
+  },
+  {
+    "repo": "browser-use/browser-use",
+    "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+    "path": "browser_use/agent/message_manager/service.py",
+    "url": "https://raw.githubusercontent.com/browser-use/browser-use/b49a68e4060acb226da8f784194fef301c53a6d7/browser_use/agent/message_manager/service.py",
+    "sha256": "b9a9ccc6e0c039f18d18ca20477022aa450286576c9c57adbc7ddebf1aa08a56",
+    "bytes": 23692
+  },
+  {
+    "repo": "browser-use/browser-use",
+    "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+    "path": "browser_use/agent/views.py",
+    "url": "https://raw.githubusercontent.com/browser-use/browser-use/b49a68e4060acb226da8f784194fef301c53a6d7/browser_use/agent/views.py",
+    "sha256": "f08c9e96df9e346ba87c0cd3ceb79a7d3a6c1f7764083a367ca8e10bb65c43ce",
+    "bytes": 37378
+  },
+  {
+    "repo": "browser-use/browser-use",
+    "head": "b49a68e4060acb226da8f784194fef301c53a6d7",
+    "path": "pyproject.toml",
+    "url": "https://raw.githubusercontent.com/browser-use/browser-use/b49a68e4060acb226da8f784194fef301c53a6d7/pyproject.toml",
+    "sha256": "750d2f19a0b13f209326397388a9f3ff3c0ab893a6b006dfd06fe41bc4f0edb1",
+    "bytes": 7756
+  },
+  {
+    "repo": "browserbase/stagehand",
+    "head": "b7a4b899079f198a0ee78a6dcb62ad02f545cf49",
+    "path": "packages/extension/services/extractService.ts",
+    "url": "https://raw.githubusercontent.com/browserbase/stagehand/b7a4b899079f198a0ee78a6dcb62ad02f545cf49/packages/extension/services/extractService.ts",
+    "sha256": "deac01797d3e26e0fb5711dbd907a821eae63d250f33d26c1bdb0b6d525a4fea",
+    "bytes": 6796
+  },
+  {
+    "repo": "browserbase/stagehand",
+    "head": "b7a4b899079f198a0ee78a6dcb62ad02f545cf49",
+    "path": "packages/extension/services/observeService.ts",
+    "url": "https://raw.githubusercontent.com/browserbase/stagehand/b7a4b899079f198a0ee78a6dcb62ad02f545cf49/packages/extension/services/observeService.ts",
+    "sha256": "24ec7cfb79a2de0d745e71f253be670e58069943e953a2c467c84251e1f58431",
+    "bytes": 6676
+  },
+  {
+    "repo": "browserbase/stagehand",
+    "head": "b7a4b899079f198a0ee78a6dcb62ad02f545cf49",
+    "path": "packages/extension/services/cacheService.ts",
+    "url": "https://raw.githubusercontent.com/browserbase/stagehand/b7a4b899079f198a0ee78a6dcb62ad02f545cf49/packages/extension/services/cacheService.ts",
+    "sha256": "6765890fdc455894d24886a2585946b84a7969eca0b52e54ff9c34e1860af6d7",
+    "bytes": 12931
+  },
+  {
+    "repo": "browserbase/stagehand",
+    "head": "b7a4b899079f198a0ee78a6dcb62ad02f545cf49",
+    "path": "packages/docs/v4/basics/observe.mdx",
+    "url": "https://raw.githubusercontent.com/browserbase/stagehand/b7a4b899079f198a0ee78a6dcb62ad02f545cf49/packages/docs/v4/basics/observe.mdx",
+    "sha256": "e05b5ae4e0493faa77a349b29170fe252aea3a6e7bffe2b3e0f557f15befe5a7",
+    "bytes": 31105
+  },
+  {
+    "repo": "nanobrowser/nanobrowser",
+    "head": "19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458",
+    "path": "src/agent/compaction.ts",
+    "url": "https://raw.githubusercontent.com/nanobrowser/nanobrowser/19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458/src/agent/compaction.ts",
+    "sha256": "5d0b145e0fdac453816a81ca08e176ee7806868d83b1142ba19bf920365aa50f",
+    "bytes": 23977
+  },
+  {
+    "repo": "nanobrowser/nanobrowser",
+    "head": "19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458",
+    "path": "src/agent/guards.ts",
+    "url": "https://raw.githubusercontent.com/nanobrowser/nanobrowser/19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458/src/agent/guards.ts",
+    "sha256": "85c9065f15bcd122620acd0439d2272b9a3f4593bb1fa66833ce942a2f23b398",
+    "bytes": 3104
+  },
+  {
+    "repo": "nanobrowser/nanobrowser",
+    "head": "19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458",
+    "path": "src/agent/loop.ts",
+    "url": "https://raw.githubusercontent.com/nanobrowser/nanobrowser/19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458/src/agent/loop.ts",
+    "sha256": "cde964677b77a50e156f8f4f4e5e573cc3086c68fc7e7d8598a556232f4b1acd",
+    "bytes": 48941
+  },
+  {
+    "repo": "nanobrowser/nanobrowser",
+    "head": "19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458",
+    "path": "src/browser-control/core/tools/act.ts",
+    "url": "https://raw.githubusercontent.com/nanobrowser/nanobrowser/19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458/src/browser-control/core/tools/act.ts",
+    "sha256": "2312bb3d79cc5d93375bc547bed1a2da969450c9aab9a11026f1c7e49413842b",
+    "bytes": 12113
+  },
+  {
+    "repo": "nanobrowser/nanobrowser",
+    "head": "19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458",
+    "path": "src/browser-control/core/perception/observe.ts",
+    "url": "https://raw.githubusercontent.com/nanobrowser/nanobrowser/19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458/src/browser-control/core/perception/observe.ts",
+    "sha256": "0bbd8f6a72e542a69cb56af960bd7bd406d7c443eb86fba5d2df0d1022381bb9",
+    "bytes": 11013
+  },
+  {
+    "repo": "nanobrowser/nanobrowser",
+    "head": "19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458",
+    "path": "src/side-panel/Activity.tsx",
+    "url": "https://raw.githubusercontent.com/nanobrowser/nanobrowser/19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458/src/side-panel/Activity.tsx",
+    "sha256": "50e6c2a8743e1c8b812bd0e10aecf44692659afcc9a8fba1a325ac93195a526d",
+    "bytes": 6367
+  },
+  {
+    "repo": "nanobrowser/nanobrowser",
+    "head": "19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458",
+    "path": "src/side-panel/Composer.tsx",
+    "url": "https://raw.githubusercontent.com/nanobrowser/nanobrowser/19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458/src/side-panel/Composer.tsx",
+    "sha256": "0ec9c23d9e396d261736d3ad3715a42ffcde3f73ef7d481aae558f2ea1249ec6",
+    "bytes": 26875
+  },
+  {
+    "repo": "nanobrowser/nanobrowser",
+    "head": "19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458",
+    "path": "src/side-panel/Cards.tsx",
+    "url": "https://raw.githubusercontent.com/nanobrowser/nanobrowser/19dc8e8a9be6ed06c0ef9ec7de8d84bf6a88c458/src/side-panel/Cards.tsx",
+    "sha256": "02b9a4a24f42c847f3f18c3cf27475f39e2b89b3ea116c2417ce7505947dd9ab",
+    "bytes": 13371
+  },
+  {
+    "repo": "giuseppe99barchetta/SuggestArr",
+    "head": "f0a9fd7cd5bf6b1e2ca7bf207eadd584ffd93b30",
+    "path": "api_service/services/ai_search/ai_search_service.py",
+    "url": "https://raw.githubusercontent.com/giuseppe99barchetta/SuggestArr/f0a9fd7cd5bf6b1e2ca7bf207eadd584ffd93b30/api_service/services/ai_search/ai_search_service.py",
+    "sha256": "9a598b3a6f4538f980f2175383631ec89231c32328c20daa4758ffa4093bedd1",
+    "bytes": 39665
+  },
+  {
+    "repo": "giuseppe99barchetta/SuggestArr",
+    "head": "f0a9fd7cd5bf6b1e2ca7bf207eadd584ffd93b30",
+    "path": "api_service/services/tmdb/tmdb_discover.py",
+    "url": "https://raw.githubusercontent.com/giuseppe99barchetta/SuggestArr/f0a9fd7cd5bf6b1e2ca7bf207eadd584ffd93b30/api_service/services/tmdb/tmdb_discover.py",
+    "sha256": "4e0214768fe6645d9a437172194aa82cc606b4323bf6674b43bce925e819dbd9",
+    "bytes": 24332
+  },
+  {
+    "repo": "giuseppe99barchetta/SuggestArr",
+    "head": "f0a9fd7cd5bf6b1e2ca7bf207eadd584ffd93b30",
+    "path": "client/src/components/settings/AiSearchPage.vue",
+    "url": "https://raw.githubusercontent.com/giuseppe99barchetta/SuggestArr/f0a9fd7cd5bf6b1e2ca7bf207eadd584ffd93b30/client/src/components/settings/AiSearchPage.vue",
+    "sha256": "07c67e37fda5969bbffe34009918fda99ab8c51d36c282074f1ff08b131b9ad4",
+    "bytes": 35044
+  },
+  {
+    "repo": "seerr-team/seerr",
+    "head": "dca1af6af26312ec13ffb4920e5dd948049962ad",
+    "path": "server/entity/DiscoverSlider.ts",
+    "url": "https://raw.githubusercontent.com/seerr-team/seerr/dca1af6af26312ec13ffb4920e5dd948049962ad/server/entity/DiscoverSlider.ts",
+    "sha256": "da08feae1b6c7fe13f34cc8c8e13e45e8b9507f5063cd14f4fbfc6e724afbed0",
+    "bytes": 1794
+  },
+  {
+    "repo": "seerr-team/seerr",
+    "head": "dca1af6af26312ec13ffb4920e5dd948049962ad",
+    "path": "server/routes/discover.ts",
+    "url": "https://raw.githubusercontent.com/seerr-team/seerr/dca1af6af26312ec13ffb4920e5dd948049962ad/server/routes/discover.ts",
+    "sha256": "8e64187617192371690ec5403640c1f21ab3f54322841ce371a61d012b8978f2",
+    "bytes": 28988
+  },
+  {
+    "repo": "seerr-team/seerr",
+    "head": "dca1af6af26312ec13ffb4920e5dd948049962ad",
+    "path": "src/components/Discover/FilterSlideover/index.tsx",
+    "url": "https://raw.githubusercontent.com/seerr-team/seerr/dca1af6af26312ec13ffb4920e5dd948049962ad/src/components/Discover/FilterSlideover/index.tsx",
+    "sha256": "0159c908bc40ae8b026a3d66721fab06eb5dc18eff4c5cb5a6e6369bedc352ab",
+    "bytes": 12933
+  },
+  {
+    "repo": "seerr-team/seerr",
+    "head": "dca1af6af26312ec13ffb4920e5dd948049962ad",
+    "path": "src/components/Discover/CreateSlider/index.tsx",
+    "url": "https://raw.githubusercontent.com/seerr-team/seerr/dca1af6af26312ec13ffb4920e5dd948049962ad/src/components/Discover/CreateSlider/index.tsx",
+    "sha256": "549a76f5aff2f51e100c92d4a5b82281aa287d8a6be1ad769513b14c98ff9368",
+    "bytes": 19288
+  },
+  {
+    "repo": "seerr-team/seerr",
+    "head": "dca1af6af26312ec13ffb4920e5dd948049962ad",
+    "path": "src/components/TitleCard/index.tsx",
+    "url": "https://raw.githubusercontent.com/seerr-team/seerr/dca1af6af26312ec13ffb4920e5dd948049962ad/src/components/TitleCard/index.tsx",
+    "sha256": "4db009c61197237277ade4cceb8e622eb27cb6b462588393afb10a040a2e34a1",
+    "bytes": 19350
+  },
+  {
+    "repo": "seerr-team/seerr",
+    "head": "dca1af6af26312ec13ffb4920e5dd948049962ad",
+    "path": "public/preview.jpg",
+    "url": "https://raw.githubusercontent.com/seerr-team/seerr/dca1af6af26312ec13ffb4920e5dd948049962ad/public/preview.jpg",
+    "sha256": "63622574230a5b0461dd57e23ffada3ca3a2c663981c90bc8081cfeaa54fde57",
+    "bytes": 197289
+  },
+  {
+    "repo": "jj-tsao/rag-movie-recommender-app",
+    "head": "e47b0c9ce7e96dd099cf1fbfae16d988e42e50b6",
+    "path": "packages/python/reelix_agent/orchestrator/active_spec.py",
+    "url": "https://raw.githubusercontent.com/jj-tsao/rag-movie-recommender-app/e47b0c9ce7e96dd099cf1fbfae16d988e42e50b6/packages/python/reelix_agent/orchestrator/active_spec.py",
+    "sha256": "02e1528324379b514fdf3cf06fae3dc259e754a1e1e3c5f07a20358cdfe8a40d",
+    "bytes": 6894
+  },
+  {
+    "repo": "jj-tsao/rag-movie-recommender-app",
+    "head": "e47b0c9ce7e96dd099cf1fbfae16d988e42e50b6",
+    "path": "packages/python/reelix_agent/orchestrator/session_memory.py",
+    "url": "https://raw.githubusercontent.com/jj-tsao/rag-movie-recommender-app/e47b0c9ce7e96dd099cf1fbfae16d988e42e50b6/packages/python/reelix_agent/orchestrator/session_memory.py",
+    "sha256": "2bb6f8e641a3e2a85580b21cf6ccac576120d733f7b178b624a5819f85f3f67d",
+    "bytes": 8115
+  },
+  {
+    "repo": "jj-tsao/rag-movie-recommender-app",
+    "head": "e47b0c9ce7e96dd099cf1fbfae16d988e42e50b6",
+    "path": "packages/python/reelix_agent/curator/curator_agent.py",
+    "url": "https://raw.githubusercontent.com/jj-tsao/rag-movie-recommender-app/e47b0c9ce7e96dd099cf1fbfae16d988e42e50b6/packages/python/reelix_agent/curator/curator_agent.py",
+    "sha256": "e11b53d5458a5b2f31ba72b4010f410b24af2104f4b429edfa84582a02bd6dc1",
+    "bytes": 1014
+  },
+  {
+    "repo": "jj-tsao/rag-movie-recommender-app",
+    "head": "e47b0c9ce7e96dd099cf1fbfae16d988e42e50b6",
+    "path": "packages/python/reelix_agent/explanation/explanation_agent.py",
+    "url": "https://raw.githubusercontent.com/jj-tsao/rag-movie-recommender-app/e47b0c9ce7e96dd099cf1fbfae16d988e42e50b6/packages/python/reelix_agent/explanation/explanation_agent.py",
+    "sha256": "c4a4f52f6a190976e1f5c9a6b5dde9db6b4f0f1f7ac218a6e4228e295e417259",
+    "bytes": 2294
+  },
+  {
+    "repo": "jj-tsao/rag-movie-recommender-app",
+    "head": "e47b0c9ce7e96dd099cf1fbfae16d988e42e50b6",
+    "path": "apps/web/src/features/discover/explore/components/ExploreSearchForm.tsx",
+    "url": "https://raw.githubusercontent.com/jj-tsao/rag-movie-recommender-app/e47b0c9ce7e96dd099cf1fbfae16d988e42e50b6/apps/web/src/features/discover/explore/components/ExploreSearchForm.tsx",
+    "sha256": "c88845112af29d48ae5a8d90730a3178d0988560969cecfef8f5b74185a3447b",
+    "bytes": 5302
+  },
+  {
+    "repo": "jj-tsao/rag-movie-recommender-app",
+    "head": "e47b0c9ce7e96dd099cf1fbfae16d988e42e50b6",
+    "path": "apps/web/src/features/discover/explore/components/ExploreFilterBar.tsx",
+    "url": "https://raw.githubusercontent.com/jj-tsao/rag-movie-recommender-app/e47b0c9ce7e96dd099cf1fbfae16d988e42e50b6/apps/web/src/features/discover/explore/components/ExploreFilterBar.tsx",
+    "sha256": "ed2d5720960b1860db0531918160f0eb0d812dd1311ffa6a8da957edc6c0db9f",
+    "bytes": 1513
+  },
+  {
+    "repo": "jj-tsao/rag-movie-recommender-app",
+    "head": "e47b0c9ce7e96dd099cf1fbfae16d988e42e50b6",
+    "path": "packages/python/reelix_recommendation/recommend.py",
+    "url": "https://raw.githubusercontent.com/jj-tsao/rag-movie-recommender-app/e47b0c9ce7e96dd099cf1fbfae16d988e42e50b6/packages/python/reelix_recommendation/recommend.py",
+    "sha256": "362e34317a711c55f8df1a6f847b76c8f7bc32512387e665aedc5ebd59e780a4",
+    "bytes": 8729
+  },
+  {
+    "repo": "debpalash/Opal",
+    "head": "d56c55e323a83b40ae210bfaca3d5e2da2688ae3",
+    "path": "src/services/ai_chat.zig",
+    "url": "https://raw.githubusercontent.com/debpalash/Opal/d56c55e323a83b40ae210bfaca3d5e2da2688ae3/src/services/ai_chat.zig",
+    "sha256": "7b103b537f060680a99459b2d3d915783fe1ac75add0e800a5d33ec6a5358796",
+    "bytes": 58109
+  },
+  {
+    "repo": "debpalash/Opal",
+    "head": "d56c55e323a83b40ae210bfaca3d5e2da2688ae3",
+    "path": "src/services/recommendations.zig",
+    "url": "https://raw.githubusercontent.com/debpalash/Opal/d56c55e323a83b40ae210bfaca3d5e2da2688ae3/src/services/recommendations.zig",
+    "sha256": "a054099724208554f99f677a28f61c7613d78c34f45b9ace8b118b0e780f603a",
+    "bytes": 9394
+  },
+  {
+    "repo": "debpalash/Opal",
+    "head": "d56c55e323a83b40ae210bfaca3d5e2da2688ae3",
+    "path": "src/services/agent_tasks_view_pure.zig",
+    "url": "https://raw.githubusercontent.com/debpalash/Opal/d56c55e323a83b40ae210bfaca3d5e2da2688ae3/src/services/agent_tasks_view_pure.zig",
+    "sha256": "b69911f8a5f401b3d87b272e084cead4a7b6fd3fff97ab685376477a84670bb0",
+    "bytes": 16011
+  },
+  {
+    "repo": "debpalash/Opal",
+    "head": "d56c55e323a83b40ae210bfaca3d5e2da2688ae3",
+    "path": "src/services/player_api_pure.zig",
+    "url": "https://raw.githubusercontent.com/debpalash/Opal/d56c55e323a83b40ae210bfaca3d5e2da2688ae3/src/services/player_api_pure.zig",
+    "sha256": "dade5ead88dcf600423fcf180338da437ef0d9a08d0f21b6272d7d5143b11869",
+    "bytes": 10927
+  },
+  {
+    "repo": "debpalash/Opal",
+    "head": "d56c55e323a83b40ae210bfaca3d5e2da2688ae3",
+    "path": "assets/readme/ai.webp",
+    "url": "https://raw.githubusercontent.com/debpalash/Opal/d56c55e323a83b40ae210bfaca3d5e2da2688ae3/assets/readme/ai.webp",
+    "sha256": "5dfa77e3a41342041650a0e7ba48e0ba7d0ef947931a6beb9a83039ca96bc3ee",
+    "bytes": 40960
+  },
+  {
+    "repo": "debpalash/Opal",
+    "head": "d56c55e323a83b40ae210bfaca3d5e2da2688ae3",
+    "path": "assets/readme/browse.webp",
+    "url": "https://raw.githubusercontent.com/debpalash/Opal/d56c55e323a83b40ae210bfaca3d5e2da2688ae3/assets/readme/browse.webp",
+    "sha256": "93220b20b8408daf3ab055fe83a66c92e4eb5b3f126b5177f6ecac5bedb15541",
+    "bytes": 132070
+  },
+  {
+    "repo": "debpalash/Opal",
+    "head": "d56c55e323a83b40ae210bfaca3d5e2da2688ae3",
+    "path": "assets/readme/player.webp",
+    "url": "https://raw.githubusercontent.com/debpalash/Opal/d56c55e323a83b40ae210bfaca3d5e2da2688ae3/assets/readme/player.webp",
+    "sha256": "892c9b1943ad79b0377f0758f24d0115af9d9fb33320c34fc4239a4ecc76c6f3",
+    "bytes": 68172
+  },
+  {
+    "repo": "doctoroyy/open-filmly",
+    "head": "9d3c95487b242c07df8ed725afb09434d2d52c02",
+    "path": "README.md",
+    "url": "https://raw.githubusercontent.com/doctoroyy/open-filmly/9d3c95487b242c07df8ed725afb09434d2d52c02/README.md",
+    "sha256": "c8d2359d27ad5af1cf10fc9aa05d25f8670736b411f82c8625e279b9f63f30ac",
+    "bytes": 9107
+  },
+  {
+    "repo": "victorverma3/Letterboxd-Movie-Recommendations",
+    "head": "13ab7f17c97142facc3acfa993df9a860b78f726",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/victorverma3/Letterboxd-Movie-Recommendations/13ab7f17c97142facc3acfa993df9a860b78f726/LICENSE",
+    "sha256": "62169d8ce8e247b9902c076f6e214ad5e224f3f55059c9e90c6cec7fbefdeb6a",
+    "bytes": 1069
+  },
+  {
+    "repo": "victorverma3/Letterboxd-Movie-Recommendations",
+    "head": "13ab7f17c97142facc3acfa993df9a860b78f726",
+    "path": "README.md",
+    "url": "https://raw.githubusercontent.com/victorverma3/Letterboxd-Movie-Recommendations/13ab7f17c97142facc3acfa993df9a860b78f726/README.md",
+    "sha256": "ba4d3a5a6e7b81f77d85dee12bee8613fab18bcb8c2cdb1f6f8dc205ec83cb7c",
+    "bytes": 14461
+  },
+  {
+    "repo": "thatmanspr/letterboxd-taste-matcher",
+    "head": "19a9860a47130bf0c93972bb34ce07a5be29a171",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/thatmanspr/letterboxd-taste-matcher/19a9860a47130bf0c93972bb34ce07a5be29a171/LICENSE",
+    "sha256": "2b631a7cd3ef2e35ec460e3939ccabf48ff1277cf959db991c04402082dcf104",
+    "bytes": 1074
+  },
+  {
+    "repo": "thatmanspr/letterboxd-taste-matcher",
+    "head": "19a9860a47130bf0c93972bb34ce07a5be29a171",
+    "path": "README.md",
+    "url": "https://raw.githubusercontent.com/thatmanspr/letterboxd-taste-matcher/19a9860a47130bf0c93972bb34ce07a5be29a171/README.md",
+    "sha256": "e86309ff882ef5aa8b5d4ea910462e7aa590edac0d7b90e3c33e6ebf71d3d970",
+    "bytes": 18608
+  },
+  {
+    "repo": "debpalash/Opal",
+    "head": "d56c55e323a83b40ae210bfaca3d5e2da2688ae3",
+    "path": "src/services/ai_tools.zig",
+    "url": "https://raw.githubusercontent.com/debpalash/Opal/d56c55e323a83b40ae210bfaca3d5e2da2688ae3/src/services/ai_tools.zig",
+    "sha256": "82c659c2e62bcb7d938efc1cd8d8995ec4ac2c4e7a9dff015dbcc0e00b60596c",
+    "bytes": 52840
+  },
+  {
+    "repo": "debpalash/Opal",
+    "head": "d56c55e323a83b40ae210bfaca3d5e2da2688ae3",
+    "path": "src/services/ai_context.zig",
+    "url": "https://raw.githubusercontent.com/debpalash/Opal/d56c55e323a83b40ae210bfaca3d5e2da2688ae3/src/services/ai_context.zig",
+    "sha256": "137dced8fe08d7c47bd560847cdcd62d01e8a9be9b423b2c40f276b4cd513b24",
+    "bytes": 79230
+  },
+  {
+    "repo": "doctoroyy/open-filmly",
+    "head": "9d3c95487b242c07df8ed725afb09434d2d52c02",
+    "path": "lib/services/intelligence/semantic_search_service.dart",
+    "url": "https://raw.githubusercontent.com/doctoroyy/open-filmly/9d3c95487b242c07df8ed725afb09434d2d52c02/lib/services/intelligence/semantic_search_service.dart",
+    "sha256": "e7684623958ce9ceeadc8876c73c2bbeb1a26a6b6c7ee530e51e63d7a56c90f3",
+    "bytes": 5912
+  },
+  {
+    "repo": "doctoroyy/open-filmly",
+    "head": "9d3c95487b242c07df8ed725afb09434d2d52c02",
+    "path": "lib/services/intelligence/spoiler_guard_service.dart",
+    "url": "https://raw.githubusercontent.com/doctoroyy/open-filmly/9d3c95487b242c07df8ed725afb09434d2d52c02/lib/services/intelligence/spoiler_guard_service.dart",
+    "sha256": "2c1ca0b1b78657645fd6eddc0656f9b4f93dc23c5568ea1228b3777b65fdb1be",
+    "bytes": 346
+  },
+  {
+    "repo": "doctoroyy/open-filmly",
+    "head": "9d3c95487b242c07df8ed725afb09434d2d52c02",
+    "path": "lib/services/intelligence/personal_memory_service.dart",
+    "url": "https://raw.githubusercontent.com/doctoroyy/open-filmly/9d3c95487b242c07df8ed725afb09434d2d52c02/lib/services/intelligence/personal_memory_service.dart",
+    "sha256": "d41db883cb302772bd1287ec6190e1902ba168dda9ebb1905d1959299304c492",
+    "bytes": 5504
+  },
+  {
+    "repo": "doctoroyy/open-filmly",
+    "head": "9d3c95487b242c07df8ed725afb09434d2d52c02",
+    "path": "lib/services/intelligence/local_rule_agent_planner.dart",
+    "url": "https://raw.githubusercontent.com/doctoroyy/open-filmly/9d3c95487b242c07df8ed725afb09434d2d52c02/lib/services/intelligence/local_rule_agent_planner.dart",
+    "sha256": "4bd3469ccdf9dadc162e21cb51f4fcdd3f0d02c0c9eacaca5a5970b10bc6a694",
+    "bytes": 16170
+  },
+  {
+    "repo": "doctoroyy/open-filmly",
+    "head": "9d3c95487b242c07df8ed725afb09434d2d52c02",
+    "path": "lib/features/intelligence/media_agent_page.dart",
+    "url": "https://raw.githubusercontent.com/doctoroyy/open-filmly/9d3c95487b242c07df8ed725afb09434d2d52c02/lib/features/intelligence/media_agent_page.dart",
+    "sha256": "fb910b51d91561a3f85acb215b599b98936fd2722fc129383b5f89840ed3c78f",
+    "bytes": 70372
+  },
+  {
+    "repo": "doctoroyy/open-filmly",
+    "head": "9d3c95487b242c07df8ed725afb09434d2d52c02",
+    "path": "docs/screenshots/home.png",
+    "url": "https://raw.githubusercontent.com/doctoroyy/open-filmly/9d3c95487b242c07df8ed725afb09434d2d52c02/docs/screenshots/home.png",
+    "sha256": "77a57765eff438894c1bf6ee19a4b924b4620b4f9d139e5474fd86c11eea7f58",
+    "bytes": 837191
+  },
+  {
+    "repo": "doctoroyy/open-filmly",
+    "head": "9d3c95487b242c07df8ed725afb09434d2d52c02",
+    "path": "docs/screenshots/tv-detail.png",
+    "url": "https://raw.githubusercontent.com/doctoroyy/open-filmly/9d3c95487b242c07df8ed725afb09434d2d52c02/docs/screenshots/tv-detail.png",
+    "sha256": "017288b9c99351e40d97a4df94ff63d4df8c302196258be1e29942f142a6676b",
+    "bytes": 948177
+  },
+  {
+    "repo": "victorverma3/Letterboxd-Movie-Recommendations",
+    "head": "13ab7f17c97142facc3acfa993df9a860b78f726",
+    "path": "backend/model/personalized_model.py",
+    "url": "https://raw.githubusercontent.com/victorverma3/Letterboxd-Movie-Recommendations/13ab7f17c97142facc3acfa993df9a860b78f726/backend/model/personalized_model.py",
+    "sha256": "88a639e868d9eb8a387e04d07c7837077d79098e20e5cc342c788c59f8742e9c",
+    "bytes": 3606
+  },
+  {
+    "repo": "victorverma3/Letterboxd-Movie-Recommendations",
+    "head": "13ab7f17c97142facc3acfa993df9a860b78f726",
+    "path": "backend/model/recommender.py",
+    "url": "https://raw.githubusercontent.com/victorverma3/Letterboxd-Movie-Recommendations/13ab7f17c97142facc3acfa993df9a860b78f726/backend/model/recommender.py",
+    "sha256": "8b0cbf048398d81c350ef6fe2d0a93e5f36dcfcc314523bb454d64dd1f36891f",
+    "bytes": 13126
+  },
+  {
+    "repo": "victorverma3/Letterboxd-Movie-Recommendations",
+    "head": "13ab7f17c97142facc3acfa993df9a860b78f726",
+    "path": "frontend/src/components/Recommendation.tsx",
+    "url": "https://raw.githubusercontent.com/victorverma3/Letterboxd-Movie-Recommendations/13ab7f17c97142facc3acfa993df9a860b78f726/frontend/src/components/Recommendation.tsx",
+    "sha256": "5539572eaf04d7eb768dd46842f5c4e74207af646fd739857a95a21dc753009a",
+    "bytes": 29222
+  },
+  {
+    "repo": "thatmanspr/letterboxd-taste-matcher",
+    "head": "19a9860a47130bf0c93972bb34ce07a5be29a171",
+    "path": "server.js",
+    "url": "https://raw.githubusercontent.com/thatmanspr/letterboxd-taste-matcher/19a9860a47130bf0c93972bb34ce07a5be29a171/server.js",
+    "sha256": "b29235257a38f0ee709662e42a5d4eb8eaf35885254fc0a2126801da494fc0d5",
+    "bytes": 58790
+  },
+  {
+    "repo": "thatmanspr/letterboxd-taste-matcher",
+    "head": "19a9860a47130bf0c93972bb34ce07a5be29a171",
+    "path": "main.css",
+    "url": "https://raw.githubusercontent.com/thatmanspr/letterboxd-taste-matcher/19a9860a47130bf0c93972bb34ce07a5be29a171/main.css",
+    "sha256": "d2bc615d96f5cf72c4822f936d60ca7ba9f9d57c0b960d9c897ef58a91e9df6b",
+    "bytes": 37471
+  },
+  {
+    "repo": "thatmanspr/letterboxd-taste-matcher",
+    "head": "19a9860a47130bf0c93972bb34ce07a5be29a171",
+    "path": "index.html",
+    "url": "https://raw.githubusercontent.com/thatmanspr/letterboxd-taste-matcher/19a9860a47130bf0c93972bb34ce07a5be29a171/index.html",
+    "sha256": "861f9c28a6cceb87ac1ff3a42ad10c7d96a3306e0073173849bf5f157aa9eba1",
+    "bytes": 12376
+  },
+  {
+    "repo": "doctoroyy/open-filmly",
+    "head": "9d3c95487b242c07df8ed725afb09434d2d52c02",
+    "path": "lib/services/intelligence/local_embedding_service.dart",
+    "url": "https://raw.githubusercontent.com/doctoroyy/open-filmly/9d3c95487b242c07df8ed725afb09434d2d52c02/lib/services/intelligence/local_embedding_service.dart",
+    "sha256": "46038af40e860266f651f99dfe2574f6c188d4e8db1a07d3c663c561f804b3d4",
+    "bytes": 6231
+  }
+]
