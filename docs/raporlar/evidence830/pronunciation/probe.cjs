@@ -1,0 +1,27 @@
+'use strict';
+const fs=require('fs'),path=require('path'),assert=require('assert/strict'),{EventEmitter}=require('events');
+const root=path.resolve(__dirname,'../../../..'),out=path.resolve(process.env.AUDIT830_OUT||path.join(root,'.uiprev/audit830-pronunciation-'+Date.now()));fs.mkdirSync(out,{recursive:true});
+const app=new EventEmitter();app.getPath=name=>name==='desktop'?path.join(out,'desktop'):out;
+const engine=path.join(out,'desktop','Ses','VoxCPM2');fs.mkdirSync(path.join(engine,'.venv','Scripts'),{recursive:true});
+for(const p of ['kitap_ortak.py','.venv/Scripts/python.exe','anlatici_ham.wav','anlatici_ham.txt'])fs.writeFileSync(path.join(engine,p),'synthetic fixture; not executed');
+const srt=path.join(out,'Türkçe.srt');fs.writeFileSync(srt,'1\n00:00:00,000 --> 00:00:02,000\nMerhaba dünya.\n');
+const handlers=new Map(),events=[];let spawns=0,allowed=true;
+require(path.join(root,'src/dub-service')).registerDubService({app,ipcMain:{handle:(n,fn)=>handlers.set(n,fn)},dialog:{},owner:()=>null,authorized:()=>allowed,authorizeSubtitle:async p=>{assert.equal(p,srt);return p;},spawn:()=>{spawns++;throw Error('No generation expected');},terminate:()=>true,busy:()=>false,grantMedia:()=>true,environment:()=>({}),shorten:async()=>''});
+const sender=new EventEmitter();sender.isDestroyed=()=>false;sender.send=(_c,e)=>events.push(e);
+const call=(n,value)=>handlers.get(n)({sender},value),source='https://www.youtube.com/watch?v=abcdefghijk';
+const global=n=>Array.from({length:n},(_,i)=>({from:'Name'+i,to:'Okunus'+i}));
+(async()=>{
+ const savedSource=await call('dub:pronunciations',{action:'save',srt,source,entries:[{from:'Special',to:'Ozel'}]});assert.equal(savedSource.ok,true);
+ const global99=await call('dub:pronunciations',global(99));assert.equal(global99.ok,true);
+ const within=await call('dub:pronunciations',{action:'get',srt,source});assert.equal(within.ok,true);assert.equal(within.pronunciations.length,100);
+ const before=fs.readFileSync(path.join(out,'dub-source-pronunciations.json'));
+ const global100=await call('dub:pronunciations',global(100));assert.equal(global100.ok,true);assert.equal(global100.pronunciations.length,100);
+ const overflow=await call('dub:pronunciations',{action:'get',srt,source});assert.equal(overflow.ok,false);assert.match(overflow.error,/100/);
+ const other=await call('dub:pronunciations',{action:'get',srt,source:'https://www.youtube.com/watch?v=12345678901'});assert.equal(other.ok,true);assert.equal(other.pronunciations.length,100);
+ const start=await call('dub:start',{id:'dictionary-overflow',srt,source,keepEngine:false});assert.equal(start.ok,false);assert.match(start.error,/100/);assert.equal(spawns,0);
+ assert.deepEqual(fs.readFileSync(path.join(out,'dub-source-pronunciations.json')),before);
+ const back=await call('dub:pronunciations',global(99));assert.equal(back.ok,true);const recovered=await call('dub:pronunciations',{action:'get',srt,source});assert.equal(recovered.ok,true);assert.equal(recovered.pronunciations.length,100);
+ allowed=false;const unauthorized=await call('dub:pronunciations',[]);assert.equal(unauthorized.ok,false);
+ const result={revision:'6d4c2d661257263f0f9414b2bdf8ba53f84513c9',savedSource:savedSource.ok,within100:{ok:within.ok,count:within.pronunciations.length},globalSave100:{ok:global100.ok,count:global100.pronunciations.length},sourceGetAfterSave:overflow,sourceStartAfterSave:start,unboundControl:{ok:other.ok,count:other.pronunciations.length},recoveredAfter99:{ok:recovered.ok,count:recovered.pronunciations.length},sourceFileUnchanged:true,spawns,unauthorizedRejected:true,limits:'Actual service registration/guards/config/dictionary stores/start handler and disk; controlled sender/auth/subtitle grant/environment. Synthetic engine presence fixture; no executable launched, no GPU/TTS/model/native UI.'};
+ fs.writeFileSync(path.join(out,'result.json'),JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));
+})().catch(e=>{console.error(e);process.exitCode=1});

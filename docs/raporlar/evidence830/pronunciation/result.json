@@ -1,0 +1,32 @@
+{
+  "revision": "6d4c2d661257263f0f9414b2bdf8ba53f84513c9",
+  "savedSource": true,
+  "within100": {
+    "ok": true,
+    "count": 100
+  },
+  "globalSave100": {
+    "ok": true,
+    "count": 100
+  },
+  "sourceGetAfterSave": {
+    "ok": false,
+    "error": "Use at most 100 pronunciation entries."
+  },
+  "sourceStartAfterSave": {
+    "ok": false,
+    "error": "Use at most 100 pronunciation entries."
+  },
+  "unboundControl": {
+    "ok": true,
+    "count": 100
+  },
+  "recoveredAfter99": {
+    "ok": true,
+    "count": 100
+  },
+  "sourceFileUnchanged": true,
+  "spawns": 0,
+  "unauthorizedRejected": true,
+  "limits": "Actual service registration/guards/config/dictionary stores/start handler and disk; controlled sender/auth/subtitle grant/environment. Synthetic engine presence fixture; no executable launched, no GPU/TTS/model/native UI."
+}
