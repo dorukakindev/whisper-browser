@@ -1,0 +1,33 @@
+# R840 — SPEC ekseni; salt okunur film/Letterboxd incelemesi
+
+HEAD `f3713c9fe7855f9e9a92bab5fcf65e2d5a69a74d`; üç noktalı taban `d78242ead655c3257b2139d3b5690d7d15c63e26`. İncelenen ürün commitleri ba04414f/5ca05b8d/0096aa6d. Ürün/test/ayar değişmedi; yalnız bu sentetik kanıt dosyaları yazıldı. Komut: `node docs/raporlar/evidence840/spec/probe.cjs` — exit0; dört gerçek servis senaryosu ve iki gerçek DOM çıkarım/parser kontrolü. Sonuç [results.json](results.json), kaynak [probe.cjs](probe.cjs). Ağ adaptörü kontrollü; canlı ağ, API anahtarı, kullanıcı profili veya AI çağrısı yok. Native Windows UI açılmadı; Node Windows üzerinde çalıştı.
+
+Önce AGENTS, YENI-BILGISAYAR, CONTRIBUTING, güncel devir1420, plan829, R829/R832/R836 ve devir1321 okundu. Night1000 F40 N0781–N0800 ve F48 mekanizma/imzaları [registry-reviewed.json](registry-reviewed.json) içine aynen alındı. F40 N0790 kaynak değişimi, N0793 hata ve N0794 timeout eski kapsamdır; N0794 tarihsel NOT_APPLICABLE gerekçesi o zamanki senkron parser'a aittir. R832'nin yeni async continuation→service fallback bileşimi o kanıt değildir. R815 ve R818–R839 ilgili başlıkları/içerikleri ile bütün raporlarda TMDB/review-link/full-text403/stale-fetch kökleri rg ile karşılaştırıldı. R835 spoiler geçmişi/feedback namespace/yazar-ret dedup; R837 alias/rewatch bulguları yeniden sayılmadı.
+
+## S1 · P2 — Tam yorum uç noktasının403'ü otomatik Browser devamına ulaşmıyor
+
+**Sözleşme:** `src/renderer/review-decision-ui.js:178`: “If direct access is blocked, a normal Letterboxd window opens to continue; complete any site verification there.” R832:10 doğrudanHTTP ve normal sandbox BrowserWindow yollarının devamı okuduğunu, :21 HTTP403fallback kabulünü bildirir. Tarihsel native kanıtın403'ü ana liste içindir; aşağıdaki alt isteğin kanıtı değildir.
+
+**Gerçek zincir:** UI Find→reviews-auto→`media-tools-service.js:132–143`→`letterboxd-auto.fetchReviews`→`expandReviewHtml`. Liste200, `/s/full-text/viewing:123/`403. `letterboxd-reviews.js:31` HTTP türünü atıp yalnız incomplete yapar. `letterboxd-auto.js:96` genel warning üretir; bütün yorumlar collapsed ise :105 “No readable non-spoiler reviews found” atar. Servisin :138–140 fallback koşulları yalnız TimeoutError veya `^Letterboxd HTTP 403\.` arar. Sonuçlarda all403:okfalse/browserCalls0; mixed403:oktrue/partialtrue/browserCalls0. Aynı fixture'da liste403 kontrolü browserCalls1/oktrue. Uygulamanın mevcut fallback adaptörü çalıştırılabilir; child penceresinin kendisi bu probda kontrollüdür.
+
+**Etki:** Doğrudan alt uç engelliyken kullanıcı vaat edilen normal doğrulama penceresine götürülmüyor; tam yorumlar düşüyor veya tüm iş başarısız oluyor. Kısa teaser'ın yanlış analize alınması **iddia edilmez**; eksik metni dışlama koruması doğru. Kabul: HTTP erişim engelini eksik metin türünden ayırıp uygun normal Browser devamını sunmak; iptali hata/fallback sanmamak. Yeni R832 entegrasyon boşluğu; genel site403 veya eski More-teaser sorununun tekrarı değildir.
+
+## S2 · P2 — Public fetch, devam yüklenirken değişen yapım kimliğini yeniden doğrulamıyor
+
+**Sözleşme:** `docs/raporlar/BROWSER_BUG_REPORT_832.md:15`: “Film değişimi, iptal ve geç gelen callback kaynak korumaları vardır.” :10 açık Browser ve public fetch yollarını da kapsar. Karşılaştırma olarak yeni `reviews-browser` (:127) ve `reviews-auto` (:143) aynı await sonrası `reviewItem` snapshot doğrulamasını uygular.
+
+**Tekrar:** Gerçek servis `reviews-fetch` başlatılır; `catalogStore.get` başlangıçta Witness/movie123 kopyası verir. Devam fetch'i promise olarak tutulur; katalog Another Film/movie999 yapılır; aynı özgün metin ve full-text başarıyla tamamlanır. Dönen yanıt `ok:true`, `identity.tmdbId:movie123`, `match.state:matched`; güncel item999, getter çağrı sayısı1. `media-tools-service.js:157` eski selected'ı yakalar; :161 await sonrası :163 bunu kullanıp yanıtlar. UI :170–171 sonucu fill'e verir. Panel/current koruması renderer yaşam döngüsünü denetler; main'deki katalog revizyonu değildir.
+
+**Etki/sınır:** Eski kimlik için kaynak doğrulanmış diye kabul edilip taslağa dönebilir; “eşleşme değişti” yanıtı yoktur. `decision-save` itemIdentity/snapshot kapıları ayrı çalışır; diske yanlış analizin kaydedildiği **iddia edilmez**. Native eşzamanlı metadata düzenleme UI'sı bu probda çalıştırılmadı; katalog getter sınırı kontrollü, handler/parser/network devam kodu gerçektir. Önceki R815-B72 save-time IMDb sorunu değildir. Eksik guard tabanda da vardı; R832'nin yeni devam await'inde ve geniş kaynak koruma iddiasında hâlâ açık, yeni eklenen satırın bunu ilk yarattığı iddia edilmez.
+
+## S3 · P2 aday / mevcut kod — Yorum içindeki başka filminTMDB linki kaynak kimliğini değiştirebiliyor
+
+**Sözleşme:** R832:15 “Spoiler/kimlik/author/permalink/tarih/puan ve örneklem sırası korunur.” Üretici `reviewPageScript` yalnız review cards + **film metadata** çıkardığını söyler (:130); tüketici matchFilm provider kimliği uyuşmazlığını reddeder (:112–113). IMDb üreticisinde reviewer linklerini ayıran açık filtre zaten vardır (`filmImdbId`:39–50; özellikle :48).
+
+**Kontrollü karşı örnek:** Kaynak Witness2026; data-tmdb-id yok, gerçek film metadata linki movie123 yorum kartından sonra. Yorumda “I liked this more than another film because of its dialogue.” cümlesindeki another film'e normal TMDB/movie999 bağlantısı eklenir. Gerçek JSDOM→reviewPageScript→parseLetterboxdReviews→matchFilm: link yokken123/matched; aynı sözcüklü review linkliyken999/mismatch. Sonuç identityResults iki kontrolü içerir. :136 script bütün TMDB linklerini kopyalar, review içinde olmasını dışlamaz; parser :103 ilk TMDB linkini global regex ile alır. Gerçek data-tmdb-id varsa öncelikli olduğundan bu varyant tetiklenmez.
+
+**Etki/sınır:** Desteklenen TMDB-link fallback biçimindeki doğru film, başka eseri anan olağan review nedeniyle reddedilir. Canlı Letterboxd'un bugün hangi sayfalarında data-tmdb-id bulunmadığı bu görevde doğrulanmadı; desteklenen parser/çıkarım girdisi üzerinde kanıt var. Diff öncesinde de mevcut; bu yüzden yeni diff-regresyonu diye sunulmamalı. R815-B72 save kimliği, R837 alias ve R835 yazar dedup farklıdır. Ana rapora katılacaksa mevcut-kod bulgusu olarak açıkça ayrılmalı; spekülatif site yaygınlığı eklenmemeli.
+
+## Ayrı öneri ve kapanış sınırı
+
+Bu eksen yeni genel wishlist üretmedi. Yukarıdaki kabul koşulları aynı bugların çözüm ölçütleridir, ayrı geliştirme sayısı değildir. R829 Q24/Q25/Q26 ve R836 okuyucunun olağan akışı kaynakla uyumlu görünüyor; üretken model kalitesi veya tüm film akışının geçtiği iddia edilmez. Karışık geçmiş feedback/alias ve spoiler kapıları bilinen raporlara bırakıldı. Tam npm/CI, start.bat, GPU, native DPI, canlı Letterboxd/Cloudflare ve gerçek sağlayıcı koşulmadı. Düzeltme, commit, push yok.

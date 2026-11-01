@@ -1,0 +1,251 @@
+{
+  "head": "f3713c9fe7855f9e9a92bab5fcf65e2d5a69a74d",
+  "hashMode": "canonical-lf-utf8-no-bom",
+  "scope": "Changed production/tests plus named adjacent sources; inventory is not a line coverage or whole-app acceptance claim",
+  "files": [
+    {
+      "path": "backend/sentence_translation.py",
+      "sha256": "7b2b7e31334428fd58a53bf572d889987e281395013aac5e05ac228d1224505e"
+    },
+    {
+      "path": "backend/speech_relations.py",
+      "sha256": "aa0624aecb09d5ddcc5724d3145493a89c10d2ef54f9e8e6f3066a41f1a4b604"
+    },
+    {
+      "path": "backend/test_dub_continuity801.py",
+      "sha256": "68986badc9abb820f61cdc7d7378a1e9f7fff4048cfa6c78ff48945586de9bd1"
+    },
+    {
+      "path": "backend/test_speech_relations.py",
+      "sha256": "d4ba0c785f7358497fe15476f9c9738268e2bae028e5dd3fb650fb6b1d289247"
+    },
+    {
+      "path": "backend/test_speech_translation.py",
+      "sha256": "a0b7e841b0f9424b24b1a4e10d924d754e602924b75f5a9cfc3e9eb7a654ed43"
+    },
+    {
+      "path": "backend/transcribe.py",
+      "sha256": "ebc986a0c56426721fd71064697e21e1765699686415f1162841af7b560b5a85"
+    },
+    {
+      "path": "src/assistant-agent-service.js",
+      "sha256": "1dbe8143580f465655b6c3d1d21153bfa824dea1956d538fd79377306afbe639"
+    },
+    {
+      "path": "src/assistant-capabilities.js",
+      "sha256": "0c3c447ba542fc939dac2c25b684075d874e40d5756f1467d8993f8f7a509642"
+    },
+    {
+      "path": "src/assistant-collections.js",
+      "sha256": "731772a5fac19f0d906bba1ea9047e17882381a3c7c3ce897d1113a28e51838e"
+    },
+    {
+      "path": "src/assistant-flow-state.js",
+      "sha256": "f03cb5c3e26db63000ef2176f650eee7e5453d971562d81d409484b40e654c86"
+    },
+    {
+      "path": "src/assistant-jobs.js",
+      "sha256": "b4ab39dc3216c5423b8449392abb81198ad39a7e45c21a1843370928ceb2816e"
+    },
+    {
+      "path": "src/assistant-provider.js",
+      "sha256": "0573390da9e8dcd8a6db64c737b3e63b2a6ae01d7894793e1b24abfadea57603"
+    },
+    {
+      "path": "src/assistant-retrieval.js",
+      "sha256": "8109beccea82ba2fd98dee49e5ec1088406a04e129839cd849078fa7c0540eac"
+    },
+    {
+      "path": "src/assistant-setting-proposals.js",
+      "sha256": "0142cafc6a1f95d608eea1cc3f7253bbaa2a782ecbf822d22265846b3c925a59"
+    },
+    {
+      "path": "src/assistant-thread-store.js",
+      "sha256": "9977d85b3ffbfbc93110c7972137c1a3d34657f4b8158f05bbde7586db09f1c8"
+    },
+    {
+      "path": "src/assistant-tool-results.js",
+      "sha256": "fd6822a6f990d09ba767a537e0841db9a5f8c7e06af164c4502b3da6f6019167"
+    },
+    {
+      "path": "src/assistant-workflow-plan.js",
+      "sha256": "a9ee2bcc6766d658f809afa602c386a91698115a6dd34ba4ea0a4f57c3659dd2"
+    },
+    {
+      "path": "src/assistant-workflow-settings.js",
+      "sha256": "3405ae91c5c1a599aa32434e037ce387731d5b582d9fb928fd412b8f8d27310e"
+    },
+    {
+      "path": "src/browser-reader.js",
+      "sha256": "d98be07332f4cedbe9f9a1254c0fcd4d1a95ff7d855e16a6c52c7685b24cc15f"
+    },
+    {
+      "path": "src/browser-reading-list.js",
+      "sha256": "f0d6fa00d02b6591dab3464d7c97e99321ce1ee81ce46905b336401e69b81c95"
+    },
+    {
+      "path": "src/browser-translation-archive.js",
+      "sha256": "18e593d6c7c0883892fbc6bcdf7765ea86cbd3730d285984189e43fcd3da1659"
+    },
+    {
+      "path": "src/letterboxd-auto.js",
+      "sha256": "02f4493fa2cb5fbcbc90cc7ead8a0d2248672ee5f23a9185f68932add393a166"
+    },
+    {
+      "path": "src/letterboxd-browser-reader.js",
+      "sha256": "9dde1722923ad72ecbfe2cc55b0756e0a984d4be2ab4300efc741ca24cccb379"
+    },
+    {
+      "path": "src/letterboxd-reviews.js",
+      "sha256": "8d6574445f152bdae614e55d4509e1446e428bfa6b361ff3d0045c918fa11ebf"
+    },
+    {
+      "path": "src/main.js",
+      "sha256": "5935bea63222e651ffe279dfdb774e6e7f988048bc6577f2a5940763abe44c66"
+    },
+    {
+      "path": "src/media-tools-service.js",
+      "sha256": "6fdb39adb4a5c5c1e2c23b2771d14a0ab551fe7c7a29639057b050d231bd3a28"
+    },
+    {
+      "path": "src/renderer/assistant-jobs-ui.js",
+      "sha256": "9ee412129dfdd14d4de60016d606198eb1ebe6e3ec413d73b85177f29e02a760"
+    },
+    {
+      "path": "src/renderer/assistant-workspace.js",
+      "sha256": "90d5c77923967b8b36a5b70883b9cacee6af1be9ae63f1c6bdd55f4cefcef82b"
+    },
+    {
+      "path": "src/renderer/dub-experience-model.js",
+      "sha256": "8db9a6b8e9a82fea268ce38e74affabf34ca470720a1f21ef8df37b87360478b"
+    },
+    {
+      "path": "src/renderer/dub-experience-ui.js",
+      "sha256": "69743625ef0bacde327c65f6227a4b246f75f9603fcab9794f674e6b76227489"
+    },
+    {
+      "path": "src/renderer/dub-generator-ui.js",
+      "sha256": "df97b7eaec32cbef107a84cb938ea1611b9717f35060fb41e8882fc0ecf6e2a6"
+    },
+    {
+      "path": "src/renderer/dub-workspace-ui.js",
+      "sha256": "f6781550596de5c1071e94a706452d6a021e4880dab95586ad0586c47bcde326"
+    },
+    {
+      "path": "src/renderer/media-catalog.css",
+      "sha256": "4ce591cc4271fdf62b172cdaba872ed44aa325664fead58c8fc25ca7a5ad58a6"
+    },
+    {
+      "path": "src/renderer/media-catalog.js",
+      "sha256": "2684fea2e26e1b99c64324d64085980558ff45bd825f10305333360bf8832bc0"
+    },
+    {
+      "path": "src/renderer/media-title.css",
+      "sha256": "cb8358bab00bc5d72d25c02f09dda0dfd267ade36ab6f610ef71362e620a4bf3"
+    },
+    {
+      "path": "src/renderer/media-tools-model.js",
+      "sha256": "fa9d645d5a17828fd8bbbfedb00ea1c6fe3ada73b3d702f1d2a10d8367fd586a"
+    },
+    {
+      "path": "src/renderer/media-tools.css",
+      "sha256": "84d14cabde64f19b2046f0511fcd311b73321746a005d5636ff47beebd2b0616"
+    },
+    {
+      "path": "src/renderer/renderer-helpers.js",
+      "sha256": "289f624008bcc983cfd9531abfc0de0e5fea7c0ff0f636a9cf2ab2bb24dafa21"
+    },
+    {
+      "path": "src/renderer/renderer.js",
+      "sha256": "17e41d785ffea8a8cca6398f2a4fa46d40853d6d4d0d5ac0460f754ca152e97d"
+    },
+    {
+      "path": "src/renderer/review-decision-ui.js",
+      "sha256": "80c2dfe3e4fd5a6041fd40e62479aa2fbc6e7eb3a1c965e2a87579303970677b"
+    },
+    {
+      "path": "src/settings-security.js",
+      "sha256": "285f36706efc92b386f50c5214e4796085c1a5368ef373a149c2c625638e61f0"
+    },
+    {
+      "path": "tests/assistant-quality829.test.js",
+      "sha256": "9c5eba9fd979962ee2068971cdb2819c6782d19702724b5dde087c38f8e16d30"
+    },
+    {
+      "path": "tests/assistant-workflow654.test.js",
+      "sha256": "2d079eff9119d8a8c2630c1844019571dd4e5ff5e2ec1d48302450224fd72c05"
+    },
+    {
+      "path": "tests/browser-youtube-whisper.test.js",
+      "sha256": "09a8ad6fd721ca0b96e36dc22c7f92a487378dec9b45a8e6df1bafdbc0fb150e"
+    },
+    {
+      "path": "tests/dub-experience801.test.js",
+      "sha256": "e16529659da37ee685d008b026cfd148dd14a9e6142a614ebb4181811dda009d"
+    },
+    {
+      "path": "tests/dub-workspace-ui.test.js",
+      "sha256": "8d702a8bcd7b89d2a8d0c28b5b4fbd1dce48f6558b09f577bfa0eac2760630e9"
+    },
+    {
+      "path": "tests/electron-assistant-quality829.smoke.js",
+      "sha256": "1def4208af474de1b31a75697f8b6bac3734cdac793ce8fa596914f6bebd8484"
+    },
+    {
+      "path": "tests/electron-dub-preflight829.smoke.js",
+      "sha256": "3ff6700074da5b9bb6be6b477a379ec266c44b024f271b915c3edcdc7859dae9"
+    },
+    {
+      "path": "tests/electron-dub-workspace-context.smoke.js",
+      "sha256": "07d53fe3fe14297668b01efb6e107c6c189c1b424488796689d65f8ed617763d"
+    },
+    {
+      "path": "tests/electron-letterboxd-full830.smoke.js",
+      "sha256": "126bf2f8e67dd3293448ebac5e12c32e1b07811a9c5c411e8baf143df037be24"
+    },
+    {
+      "path": "tests/electron-quality829-media.smoke.js",
+      "sha256": "d27bbbd1d7ff81b1276a1b7e9eabba0512138f7d6c5a7c511c5b00519ce07a55"
+    },
+    {
+      "path": "tests/electron-review-reading833.smoke.js",
+      "sha256": "942bc27e41f12397bbab939a256423b0ac2c8d3f308a58788116249f5efa3abb"
+    },
+    {
+      "path": "tests/letterboxd-full-text.test.js",
+      "sha256": "d23d16bd3138cd86de4a52b19a6a9e1c4da59874405836d7b6d26bca626e99b2"
+    },
+    {
+      "path": "tests/letterboxd-sampling-critical.test.js",
+      "sha256": "a867bddbd51470e69c976549cdf3205ddd5e3c9da7a9130db66b963e4fb3f128"
+    },
+    {
+      "path": "tests/media-tools.test.js",
+      "sha256": "c0e06046c5b55007569298c0ae72928eefc994267ce711d0af40921f14308262"
+    },
+    {
+      "path": "tests/review-analysis-context.test.js",
+      "sha256": "97bced7b55b99b2add779352b6751ad3606385d8c4a8688b459aaf75b7a685cd"
+    },
+    {
+      "path": "tests/review-workflow.test.js",
+      "sha256": "a0ec74563911ab92ae83ea225b3c3d8288ba138f0693e032e84239a165198bcc"
+    },
+    {
+      "path": "tests/settings-roundtrip.test.js",
+      "sha256": "3677d96086051fa4c970159f1efa4e42490e0bc1efb4532cb4ced835337592c6"
+    },
+    {
+      "path": "tests/subs-shift-accuracy.test.js",
+      "sha256": "9d82e85ef6f7e5dcd3af92d66cf3f5808094d8be031f412e75deaed6b9f38bfe"
+    },
+    {
+      "path": "tests/test_dub_finish.py",
+      "sha256": "6401a50b377e57137abc3a8384cbbd04461092c92f61d7f6f70f71e761d25cdf"
+    },
+    {
+      "path": "tests/test_dub_quality.py",
+      "sha256": "a03207c22dfcee92137265a8aefedadcd48b72d0290d571aa7981d2fb01efb94"
+    }
+  ]
+}

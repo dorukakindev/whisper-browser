@@ -1,0 +1,482 @@
+[
+  {
+    "id": "N0341",
+    "family": "F18",
+    "mechanism": "normal",
+    "signature": "3eab476e355e868314cc24674e4f988ab2f3e15f24bcb38243e5b5220c53067c",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0342",
+    "family": "F18",
+    "mechanism": "bos",
+    "signature": "7668436a5ab070c89be113b9b21a04e5d786ca03eb55ad0b58c456db5e6707da",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0343",
+    "family": "F18",
+    "mechanism": "sinir",
+    "signature": "d97b06b770a9eea024b058a44c65955141ecd45d111b9c179d5d2c3a034803b4",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0344",
+    "family": "F18",
+    "mechanism": "unicode",
+    "signature": "4c7b756a71f9385f03d0fc7455be1516bf98c02d9defa727a5e338fab3d579a2",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0345",
+    "family": "F18",
+    "mechanism": "yinelenen",
+    "signature": "46d4803e7d187d630ed3b2ec4493bbcbcb6ce6299b4e4f790bc70d51c981f54b",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0346",
+    "family": "F18",
+    "mechanism": "sira",
+    "signature": "3c22673712607ec2b06d3772e53c6dc107d3d789eecae9b272efbdaeb585fb8a",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0347",
+    "family": "F18",
+    "mechanism": "iptal-oncesi",
+    "signature": "3ac853ea4b6d770cf858f1a9b55709ba4adb3c44746fe70a68d2f2094c65023e",
+    "historical_status": "NOT_APPLICABLE",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0348",
+    "family": "F18",
+    "mechanism": "iptal-ortasi",
+    "signature": "a5ad8578f8ba0fb66ad3ca6072f9063232a50c706fa919f2d59da97eb7116702",
+    "historical_status": "NOT_APPLICABLE",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0349",
+    "family": "F18",
+    "mechanism": "gec-sonuc",
+    "signature": "d0e120cc18c325793f23ccd43e3673e96fcfa4ba911a6edb24af57eb44feb58e",
+    "historical_status": "NOT_APPLICABLE",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0350",
+    "family": "F18",
+    "mechanism": "kaynak-degisimi",
+    "signature": "7b8905e826078abd9da2a4c48843462de9ff634ec0b555154a57504932650ac2",
+    "historical_status": "NOT_APPLICABLE",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0351",
+    "family": "F18",
+    "mechanism": "es-zamanli",
+    "signature": "c258a0c7ff7016231bf76104271ffa9b3706ab3eb5d767b430b08aefd31c6da8",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0352",
+    "family": "F18",
+    "mechanism": "kesik",
+    "signature": "3bb991a9c90cc162c134a4bd7239f83b8eb808e6f380a04bd1f814753101daba",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0353",
+    "family": "F18",
+    "mechanism": "hata",
+    "signature": "340db52f30c63fb9b6f6ebe7ed393310569514c982509ea207408a663552f1d3",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0354",
+    "family": "F18",
+    "mechanism": "timeout",
+    "signature": "8c5a276ccf5d0e1b05290ecbea6ec8f143daaea431bd2e1f9e37fa500a608f89",
+    "historical_status": "NOT_APPLICABLE",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0355",
+    "family": "F18",
+    "mechanism": "yeniden-giris",
+    "signature": "77dffef1cf8421d25b4d4aeb24639beb85274948784b4cefa47dc3d9971f79b8",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0356",
+    "family": "F18",
+    "mechanism": "donusum",
+    "signature": "b02561d5471ba162fec2b3c382cab34be6b1dc2bb057aad3cd0a07c19ff52a29",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0357",
+    "family": "F18",
+    "mechanism": "yetki",
+    "signature": "a0bb3f7045ea361eb03683851af80715b7e0b8c5c334d0a8278360eaa7306983",
+    "historical_status": "NOT_APPLICABLE",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0358",
+    "family": "F18",
+    "mechanism": "kaynak-butcesi",
+    "signature": "83f6a0cb0f5b77f067d4244d984f59c28a9222fd4b8e8a133d77234be1660ba4",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0359",
+    "family": "F18",
+    "mechanism": "kullanici-geribildirimi",
+    "signature": "b9bd5a4ef4967c51b721c679432ffdcd09600751b18abe0cf260ab609e23810d",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0360",
+    "family": "F18",
+    "mechanism": "birlesik-akis",
+    "signature": "d3b824e8b4f6dcc02708ee71824bf2b870a66c1ec9716f54c697400a0253168f",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0941",
+    "family": "F48",
+    "mechanism": "normal",
+    "signature": "ff539900e28e974d383e1b79973508898728bece037598c5af8f8d629bf4d31c",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0942",
+    "family": "F48",
+    "mechanism": "bos",
+    "signature": "61fac7cd9b9536e6d70c5e3569517ccb14f0e88eb5ca620bda41efa1ccbea904",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0943",
+    "family": "F48",
+    "mechanism": "sinir",
+    "signature": "4846a5fa54f6276fe4dd5ff4ab2c2cd382707998cdadb20821f7e82ca78ab25d",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0944",
+    "family": "F48",
+    "mechanism": "unicode",
+    "signature": "288d71c27987bf3b21fe1d68b5b457a2a313d89d01a4b956b80cddee69810861",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0945",
+    "family": "F48",
+    "mechanism": "yinelenen",
+    "signature": "d11ba388b6ddcc24dc4c5e432f7c0ec85fc9c38da8cc9f51f02d94e5d4c70320",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0946",
+    "family": "F48",
+    "mechanism": "sira",
+    "signature": "de70dade4c21821dff3f2b51b6b9bf1d41fb8d353545874c000d05ffb7887e5e",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0947",
+    "family": "F48",
+    "mechanism": "iptal-oncesi",
+    "signature": "ce925741a081b369e132ebcd359adfdce5fea24eee3556175e23c447cb940cd6",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0948",
+    "family": "F48",
+    "mechanism": "iptal-ortasi",
+    "signature": "5c3f86abac2fb93b79d1ae5f55ebc97fcb35e606dd0e428e3763ea2a6cdb3224",
+    "historical_status": "NOT_APPLICABLE",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0949",
+    "family": "F48",
+    "mechanism": "gec-sonuc",
+    "signature": "dd3ec9b4c55e90235dc2633af4c5d3b302fdf83f83c26467414d31c817cb9b29",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0950",
+    "family": "F48",
+    "mechanism": "kaynak-degisimi",
+    "signature": "1c52779379538d4794093df9758dd6091f183b09986b63ee0986575193bc968f",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0951",
+    "family": "F48",
+    "mechanism": "es-zamanli",
+    "signature": "33696490f214461f55a9e710115f8caf0ca8802c8d86714268052ec61b24c0fe",
+    "historical_status": "NOT_APPLICABLE",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0952",
+    "family": "F48",
+    "mechanism": "kesik",
+    "signature": "d783b795b1e6c8ca0952e7ed6891873148b16504ad1112d8744b541f4d019d09",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0953",
+    "family": "F48",
+    "mechanism": "hata",
+    "signature": "e5b65f8318b3abfb79c90f117229db9765705bea8fc025a2bd3f2a5587dea9d2",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0954",
+    "family": "F48",
+    "mechanism": "timeout",
+    "signature": "428f23bc90dcf5a8e7dc729629182f97fe10ff7a826086287781e73be310e882",
+    "historical_status": "NOT_APPLICABLE",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0955",
+    "family": "F48",
+    "mechanism": "yeniden-giris",
+    "signature": "0e41696fa7b551104b57edccdf00f52c3584502ad40bb0373c91a2e02a92c0b8",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0956",
+    "family": "F48",
+    "mechanism": "donusum",
+    "signature": "36be1fb586cf63839ca077b2cabc3a284d0860346038e252b9a35813d48dfa01",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0957",
+    "family": "F48",
+    "mechanism": "yetki",
+    "signature": "61c9729dc0d44930800c5730c480629c20db4fec893b986c96c2d84f980aab6d",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0958",
+    "family": "F48",
+    "mechanism": "kaynak-butcesi",
+    "signature": "4e9eb61ee02c747dfd378ff4864d14980fb5d1ddf7b8f33c8822f3f29cddcc77",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0959",
+    "family": "F48",
+    "mechanism": "kullanici-geribildirimi",
+    "signature": "9198baaa112d4f7650295d29b77587f17ba508130e1b690669743db3c7ec8060",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0960",
+    "family": "F48",
+    "mechanism": "birlesik-akis",
+    "signature": "1f1c77553b352ccd115beaad30a7bc835f9fcaeb9130d9ce7a65378d8dfba87a",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0981",
+    "family": "F50",
+    "mechanism": "normal",
+    "signature": "f33e6871dd99251ce3d504f7ec09b4bb692b78ad0610968ceddec27e32fa5708",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0982",
+    "family": "F50",
+    "mechanism": "bos",
+    "signature": "63ad0aec328d4ebe7ce81ea552472f52da0f69130ba9aaaa717e42c944aa967f",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0983",
+    "family": "F50",
+    "mechanism": "sinir",
+    "signature": "c9500445ddc7de82c4622cd3365b60b8007efef7d2e64e1d8b0494d9bf9f2d23",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0984",
+    "family": "F50",
+    "mechanism": "unicode",
+    "signature": "5c0f8b3c5efecd11137703c6861b5c5674842a78d23e184574b9adc06b846b3c",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0985",
+    "family": "F50",
+    "mechanism": "yinelenen",
+    "signature": "b9342a02af10920f87985a0dd59aa4d9f67ecd2579c5446db28fd4cafe982b54",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0986",
+    "family": "F50",
+    "mechanism": "sira",
+    "signature": "008e6730424aef4ddde3a6084a3bbbae5b42ee32c0f55eb44745f13be69f73af",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0987",
+    "family": "F50",
+    "mechanism": "iptal-oncesi",
+    "signature": "c853d0bcb7c5561348b04566ec51351480c8b2bb167f3d620ce58eecfc6a5e3b",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0988",
+    "family": "F50",
+    "mechanism": "iptal-ortasi",
+    "signature": "5bf79cf1486d15c2d896afc0088acf9230ab88d031b70b2e328fb04cc6ff7b35",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0989",
+    "family": "F50",
+    "mechanism": "gec-sonuc",
+    "signature": "e518416ce98cbc677823fb5cacc3c97746b83909e7823bff2b01a7c12866b526",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0990",
+    "family": "F50",
+    "mechanism": "kaynak-degisimi",
+    "signature": "9f0b902233c1a2d593cadb0c3883a4cfcf39869e6e1df1b175e30d84c4e34e8e",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0991",
+    "family": "F50",
+    "mechanism": "es-zamanli",
+    "signature": "0e5c778a8d5786f5097fa8882ec11cd5766506b847d973bf163c8b08031f2847",
+    "historical_status": "NOT_APPLICABLE",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0992",
+    "family": "F50",
+    "mechanism": "kesik",
+    "signature": "67896032894f9e322825e085b3d785e545b47de28a78830205467028f51ac0e9",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0993",
+    "family": "F50",
+    "mechanism": "hata",
+    "signature": "236426c197ba58d91b73e0669c86da5451255fa733c6eb1221abc8696ae3e5f9",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0994",
+    "family": "F50",
+    "mechanism": "timeout",
+    "signature": "bf731b261d782898bfc9862d8aa8d954811eb9b83d57491189ef6ccbad1a2531",
+    "historical_status": "NOT_APPLICABLE",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0995",
+    "family": "F50",
+    "mechanism": "yeniden-giris",
+    "signature": "be4819346950bfbdd38e0c9c15e058d5ebc58600e6432395675195603fdf2e85",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0996",
+    "family": "F50",
+    "mechanism": "donusum",
+    "signature": "f860a6f43408707a2dff1ed965426b6f77cfd458e2d63d60a05d86a6b1567c34",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0997",
+    "family": "F50",
+    "mechanism": "yetki",
+    "signature": "6c3686dcb0990fd41b89a068a8c76e23dcf1565ff75793892500fa1553eeb65a",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0998",
+    "family": "F50",
+    "mechanism": "kaynak-butcesi",
+    "signature": "bf18f1b7957c5223b72346ea4ea2936efa94c819a74c1158c14e202c4994c353",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N0999",
+    "family": "F50",
+    "mechanism": "kullanici-geribildirimi",
+    "signature": "14857e58a4317de71d6662cfb6eb0361f0d51f31b2881c830e40daab8eb2ad8c",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  },
+  {
+    "id": "N1000",
+    "family": "F50",
+    "mechanism": "birlesik-akis",
+    "signature": "20b6b23a261410d45fd47898f692ad0e9a89ce858c1daa440a8f165ce44fc35a",
+    "historical_status": "PASS",
+    "finding_ids": ""
+  }
+]

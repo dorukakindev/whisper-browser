@@ -1,0 +1,19 @@
+# R840 ek mevcut-kod taraması — Browser okuyucu yaşam döngüsü
+
+Bu ek, SPEC ekseninden ayrıdır; son diff'in getirdiği regresyon iddiası değildir. İncelenen HEAD `f3713c9fe7855f9e9a92bab5fcf65e2d5a69a74d`. Salt okunur `browser-reading-list.js`, `browser-reader.js`, çeviri archive eşleme ve main restore/reader handler akışları incelendi. Night1000 README ve F15/F46/F47 kaynak/mekanizma/imzaları önce okundu; [registry-reviewed.json](registry-reviewed.json) 60 tarihsel satırı korur. Bu satırlarda browser-reader.js doğrudan kaynak olarak yer almıyor; genel tema/overlay/main kapsamı bugünkü bütünleşik reader kontrolü değildir.
+
+## B1 · P3 — Okuyucunun kendi düğmeleri ana pencerenin durumunu ve tercihini güncellemiyor
+
+**Üretici/tüketici sözleşmesi:** `browser-reader.js:162–170` kendi A+/A-/Dar/Geniş/Kapat düğmelerinden controller durumunu değiştirir. Ana süreç `main.js:15796–15800` yalnız `browser:reader` IPC yanıtından readerActive/preferences alıp reader-state yayar. `renderer.js:7771–7782` bu active değerinden butonun active/aria-pressed ve “Okuma görünümünü kapat” açıklamasını kurar; `main.js:4375` oturum snapshot'ına yalnız ana süreç tercihini yazar. `renderer-helpers.js:371–379` sonraki toggle'a aynı readerPreferences değerini yollar.
+
+**Tekrar:** Gerçek main reader handler'ı kaynak dilimi değiştirilmeden VM'de çalıştırıldı; kontrollü WebContents gerçek `buildBrowserReaderScript` çıktısını JSDOM'da yürütür. Yeterli sentetik makale ile open IPC→20px. Gerçek shadow-root A+ düğmesi→controller21px, main hâlâ20px, yeni event0. Gerçek Kapat düğmesi→host ve controller yok, main readerActive=true ve20px, event sayısı hâlâ yalnız ilk açılışın1'i. Sonraki gerçek toggle IPC→oktrue/active=true/font20px: arayüzün kapat dediği düğme yeniden açar, seçilmiş21px kaybolur. **Karşı kontrol:** aynı A+ ardından IPC close→activefalse/font21px; main ile olay akışı doğru güncellenir. Dolayısıyla normalizer veya font uygulaması sorunu değil, sayfa içi eylem→main state bildirim eksikliğidir. Font/width değişimi ve close aynı bildirim boşluğunun yüzeyleridir; tek bug sayılır.
+
+**Kanıt:** `node docs/raporlar/evidence840/browser/probe.cjs` exit0; [sonuç](results.json), [kaynak](probe.cjs). `node --check` ve scoped diff-check exit0. Probe kapalı shadow root'u gözlemlemek için attachShadow dönüşünü tutar; ürün scriptini değiştirmez. innerText için textContent getter'ı JSDOM metrik adaptörüdür; gerçek Windows font/piksel ölçümü iddia edilmez. Native Electron/WebContents, gerçek uygulama profili, dış ağ veya model kullanılmadı.
+
+**Dedup:** Bütün BROWSER_BUG_REPORT raporlarında readerActive/readerPreferences/reader-close/okuma-kapat/yazı-boyutu arandı. R42-B131 unload→restore'da stale readerActive konusudur; burada unload/gezinme olmadan doğrudan sağlanan düğmeler tetikler. R815-B01 PDF opened() CSS token kaybı ve G817-02 kitap-bölüm boyutu farklı okuyucu/state yoludur. R831 ilk kayıt/indeks silme yayımı, R815-B09/B18–21 ve R837 hedef-dil/provenans konuları yeniden sayılmadı.
+
+**Kabul:** Sayfa içi reader eylemlerinden sonra browser chrome gerçek active/preference snapshot'ıyla güncellenmeli; kapat/aç ve oturum snapshot'ı son açık tercihi korumalı. Gezinme/sender/generation sahipliği korunmalı. Uygulanmadı.
+
+## Yeni bug sayılmayanlar ve sınırlar
+
+Çeviri restore global/site hedef uyuşmazlığı R837 olarak bırakıldı. Reading-list save/refresh'in source-generation tekrar kontrolü üzerine aday, R815-B18'in aynı kaynak değişimi mekanizmasıyla yakın olduğundan yeni bug sayılmadı; ilk klasör/atomic refresh/delete yayın hataları zaten R831/R815'tir. Archive metadata manualEditIds kaybı G837 önerisi olarak kalır. Mevcut reader'ın Türkçe metinleri veya palet tercihleri bu işlevsel ekin yeni bugları değildir. Ayrı genel öneri sayısı üretilmedi. Ürün/test/ayar değişmedi; yalnız sentetik kanıtlar yazıldı; commit/push yok.

@@ -1,0 +1,86 @@
+{
+  "head": "f3713c9fe7855f9e9a92bab5fcf65e2d5a69a74d",
+  "base": "d78242ead655c3257b2139d3b5690d7d15c63e26",
+  "productCommits": [
+    "ba04414f9289e6e61a51070bcf15e8e693e64b6c",
+    "5ca05b8d",
+    "0096aa6d"
+  ],
+  "diffCommand": "git diff d78242ead655c3257b2139d3b5690d7d15c63e26...f3713c9fe7855f9e9a92bab5fcf65e2d5a69a74d -- src backend tests",
+  "skills": [
+    {
+      "path": "engineering-suite-review/2.0.0/skills/entry-review/SKILL.md",
+      "sha256CanonicalLf": "c8c394a9eb26a1541744cb3374de07e74caf6d85759a3f52fdfd3ba116fc66a3"
+    },
+    {
+      "path": "engineering-suite-review/2.0.0/skills/code-review/SKILL.md",
+      "sha256CanonicalLf": "9799df5771d20d1a458191646532955712ad6fae0231b39304e27e72902a4417"
+    },
+    {
+      "path": "engineering-suite-debug/2.0.0/skills/entry-debug/SKILL.md",
+      "sha256CanonicalLf": "7494d09a9fa9e4d0992bf39fe1781e39dcff23b16a611dfe5484823b8ced7d01"
+    },
+    {
+      "path": "engineering-suite-debug/2.0.0/skills/debugging-and-error-recovery/SKILL.md",
+      "sha256CanonicalLf": "64a2fdd930a1d844263c751000ccd033dac968ff0ca6bad1f78de14b766d241f"
+    },
+    {
+      "path": "engineering-suite-debug/2.0.0/skills/diagnosing-bugs/SKILL.md",
+      "sha256CanonicalLf": "1a7a6e1f011976e5e302b8f5d26bf236bf0f83f3f37e53dea2a23bf9de548265"
+    },
+    {
+      "path": "superpowers/7.0.1/skills/using-superpowers/SKILL.md",
+      "sha256CanonicalLf": "82c5c8866ad7f5dd4440ce66bd7806ba48a2f13771beae5cf112e53f08fe36ba"
+    },
+    {
+      "path": "superpowers/7.0.1/skills/systematic-debugging/SKILL.md",
+      "sha256CanonicalLf": "51c6435d98c83c42c96ba7c35725a0b2c376cd487fb1a4e6bd0ddbe7e33ef202"
+    },
+    {
+      "path": "superpowers/7.0.1/skills/requesting-code-review/SKILL.md",
+      "sha256CanonicalLf": "2180e14a448e9410bec88e6646a2d1f0ce7fdd58de27388c1e052e929679d2bc"
+    },
+    {
+      "path": "superpowers/7.0.1/skills/verification-before-completion/SKILL.md",
+      "sha256CanonicalLf": "2befe7fc55bcadaa3d97dd9e8efeb633d2561c0ebe74c5a8b17c4d9e7e4520b3"
+    },
+    {
+      "path": "engineering-suite-build/2.0.0/skills/git-workflow-and-versioning/SKILL.md",
+      "sha256CanonicalLf": "664d88ccba1664cbf5599f073e1cdd06560268e04cdaa355064a88ca7a4b17f3"
+    }
+  ],
+  "omgskills": {
+    "provider": "omgskills",
+    "id": "pfangueiro/claude-code-agents:.claude/skills/code-review-checklist",
+    "ref": "f343c57ac51bb4a6f4ea6a81dbc83b79ba9bac27",
+    "verified": true,
+    "truncated": false,
+    "path": ".claude/skills/code-review-checklist/SKILL.md",
+    "url": "https://github.com/pfangueiro/claude-code-agents/blob/f343c57ac51bb4a6f4ea6a81dbc83b79ba9bac27/.claude/skills/code-review-checklist/SKILL.md"
+  },
+  "agents": [
+    {
+      "effort": "medium",
+      "model": "gpt-6.1-sol",
+      "scope": "Standards axis, assistant snapshot and separate settings/subtitle IO pass",
+      "fork": "none",
+      "task": "review840_standards"
+    },
+    {
+      "effort": "medium",
+      "model": "gpt-6.1-sol",
+      "scope": "Spec axis film/reviews and separate browser-reader snapshot pass",
+      "fork": "none",
+      "task": "review840_spec"
+    }
+  ],
+  "adaptations": [
+    "User explicitly requested no fixes; debugging implementation phases were not performed.",
+    "User chose full current code and recent changes; review is risk-based, not proof every source line was audited.",
+    "No issue-tracker.md; available written R829/R832/R836 requirements and producer/consumer contracts used. No setup/install needed.",
+    "No full suite or CI wait; focused existing tests and controlled production repros only.",
+    "Report evidence files are not product regression tests.",
+    "Catalog rubric used as review guide, not an automated analyzer; no skill installed."
+  ],
+  "readOnlyProduct": true
+}
