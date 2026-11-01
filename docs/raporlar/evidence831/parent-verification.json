@@ -1,0 +1,79 @@
+{
+  "head": "34b5747b5181db819443cf708185b5eebce754f9",
+  "product_commit": "ba04414f9289e6e61a51070bcf15e8e693e64b6c",
+  "date": "2026-11-01",
+  "agents": {
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "count": 3
+  },
+  "new_bugs": [
+    "F831-01",
+    "F831-02",
+    "F831-03",
+    "F831-04"
+  ],
+  "recounted_prior_bugs": 0,
+  "improvements": [
+    "G831-01",
+    "G831-02",
+    "G831-03",
+    "G831-04",
+    "G831-05",
+    "G831-06"
+  ],
+  "fixes_applied": false,
+  "publication_runs": [
+    {
+      "command": "node docs/raporlar/evidence831/offline/probe.cjs",
+      "exit": 0,
+      "fresh_isolated_output": true
+    },
+    {
+      "command": "node docs/raporlar/evidence831/subscriptions/probe.cjs",
+      "exit": 0,
+      "fresh_isolated_output": true
+    },
+    {
+      "command": "node docs/raporlar/evidence831/textvoice/probe.cjs",
+      "exit": 0,
+      "fresh_isolated_output": true
+    },
+    {
+      "command": "electron.cmd docs/raporlar/evidence831/offline/native-probe.cjs",
+      "exit": 0,
+      "fresh_isolated_output": true
+    }
+  ],
+  "syntax": {
+    "files": 4,
+    "exit": 0
+  },
+  "existing_checks": [
+    {
+      "command": "node --test --test-isolation=none tests/browser-reading-list.test.js tests/subscriptions-io.test.js tests/text-voice-studio.test.js",
+      "exit": 0,
+      "tests": 4,
+      "pass": 4,
+      "fail": 0
+    }
+  ],
+  "known_unrerun_regression": "R830-01 / R815-B98 was FAIL in R830; unchanged source, not rerun or fixed in R831.",
+  "native_warning": "Update check error observed; all assertions and result.json completed; exit0. Not classified as a new product bug.",
+  "limits": [
+    "Native savePage runs on a synthetic data document with controlled https tab metadata and authorization; not full normal start.bat acceptance.",
+    "Subscriptions are actual source blocks in JSDOM with controlled sender/dialog and non-atomic synthetic write adapter.",
+    "Textvoice actual service/history/full UI; synthetic WAV and controlled worker/media methods, not TTS/GPU/audio decoder.",
+    "Index rename EPERM is injected; no actual AV/OS lock reproduced.",
+    "No live site, user account, private profile, paid provider, DRM, install, DPI, long soak or full suite/CI acceptance."
+  ],
+  "peer_review": {
+    "agents": 3,
+    "material_unresolved": 0,
+    "corrections": [
+      "R815-B18 is export save-dialog source change, not wrong-tab refresh.",
+      "Textvoice preservation assertion covers manuscript/transcript/steps, not every control."
+    ],
+    "publication_results_copied_from_fresh_parent_runs": true
+  }
+}

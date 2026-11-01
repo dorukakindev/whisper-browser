@@ -1,0 +1,38 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const {EventEmitter}=require('node:events'),{PassThrough}=require('node:stream');
+const {JSDOM}=require('jsdom');
+const repo=path.resolve(__dirname,'../../../..'),root=path.resolve(process.env.AUDIT831_OUT||path.join(repo,'.uiprev/audit831-textvoice-'+Date.now()));fs.mkdirSync(root,{recursive:true});
+const wav=require(path.join(repo,'tests/helpers/wav-fixture'));
+const engine=path.join(root,'engine'),reference=path.join(root,'ref.wav'),transcript=path.join(root,'ref.txt');
+fs.mkdirSync(path.join(engine,'.venv/Scripts'),{recursive:true});fs.writeFileSync(path.join(engine,'.venv/Scripts/python.exe'),'fixture');fs.writeFileSync(reference,wav(480));fs.writeFileSync(transcript,'Synthetic reference.');
+const app=new EventEmitter();app.getPath=()=>root;
+const handlers={},events=[],children=[],grants=[];const sender=new EventEmitter();sender.isDestroyed=()=>false;sender.send=(_,e)=>events.push(e);
+require(path.join(repo,'src/dub-service')).registerDubService({app,ipcMain:{handle:(n,f)=>handlers[n]=f},dialog:{showOpenDialog:async()=>({canceled:true,filePaths:[]})},owner:()=>null,authorized:e=>e.sender===sender,authorizeSubtitle:async p=>p,busy:()=>false,grantMedia:p=>grants.push(p),environment:()=>({}),spawn:(_p,args)=>{const p=new EventEmitter();p.stdout=new PassThrough();p.stderr=new PassThrough();p.request=JSON.parse(fs.readFileSync(args.at(-1),'utf8'));children.push(p);return p;},terminate:async p=>{p.emit('close',1,null);return true;}});
+fs.writeFileSync(path.join(root,'dub-settings.json'),JSON.stringify({engine,reference,transcript}));
+const call=r=>handlers['dub:textVoice']({sender},r),tick=()=>new Promise(r=>setImmediate(r));
+(async()=>{
+const config=await call({action:'config'});assert(config.ok);
+const produced=[];
+for(const name of ['Birinci Türkçe','İkinci Türkçe']){const r=await call({action:'start',referenceId:config.referenceId,text:name+' sentetik metin.',transcript:'Synthetic reference.',name,settings:{}});assert(r.ok);const child=children.at(-1);fs.writeFileSync(child.request.output,wav(480));child.emit('close',0,null);produced.push({id:r.id,path:child.request.output});}
+const history=await call({action:'history'});assert.deepEqual(history.results.map(r=>r.id),produced.map(p=>p.id).reverse());
+const restarted=require(path.join(repo,'src/text-voice-history')).createTextVoiceHistory(app);assert.equal(restarted.list().length,2);
+let eventReceiver;const dom=new JSDOM('<!doctype html><body></body>',{runScripts:'outside-only',url:'https://audit.invalid'}),w=dom.window;
+w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
+w.HTMLMediaElement.prototype.pause=function(){};w.HTMLMediaElement.prototype.load=function(){};w.HTMLElement.prototype.scrollIntoView=function(){};
+w.UiLocale={get:()=> 'en'};w.api={textVoice:call,listVoiceReferences:async()=>({ok:true,references:[]}),onDubEvent:fn=>eventReceiver=fn};
+w.eval(fs.readFileSync(path.join(repo,'src/renderer/text-voice-studio.js'),'utf8'));await w.TextVoiceStudioUI.open();
+const el=id=>w.document.getElementById('tv-'+id),click=id=>el(id).click();
+el('text').value='Unchanged current manuscript.';el('text').dispatchEvent(new w.Event('input'));const before={text:el('text').value,transcript:el('transcript').value,steps:el('steps').value};
+el('history').value=produced[0].id;el('history').dispatchEvent(new w.Event('change'));click('history-open');await tick();assert.equal(el('audio').src,new URL('file:///'+produced[0].path.replaceAll('\\','/')).href);assert.equal(el('output').hidden,false);assert.deepEqual({text:el('text').value,transcript:el('transcript').value,steps:el('steps').value},before);
+el('history').value=produced[1].id;el('history').dispatchEvent(new w.Event('change'));assert(el('audio').src.includes(produced[0].id),'selection alone does not replace output');
+const firstBytes=fs.readFileSync(produced[0].path);fs.unlinkSync(produced[1].path);click('history-open');await tick();await tick();assert.equal(el('output').hidden,false,'failure for different result retains prior output');assert(el('audio').src.includes(produced[0].id));assert.equal(el('history').options.length,1);
+fs.unlinkSync(produced[0].path);el('history').value=produced[0].id;click('history-open');await tick();await tick();assert.equal(el('output').hidden,true,'failure for displayed result clears audio');assert(!el('audio').hasAttribute('src'));assert.equal(el('history').options.length,0);fs.writeFileSync(produced[0].path,firstBytes);
+assert.equal((await call({action:'open-result',id:produced[0].id})).ok,true,'restored bytes reopen');
+assert.equal((await call({action:'open-result',id:'../../outside'})).ok,false);
+assert.equal(children.length,2,'history operations never invoke generation');
+const registry=JSON.parse(fs.readFileSync(path.join(repo,'docs/audits/deepseek-night1000-20261027/COVERAGE-REGISTRY.json'),'utf8'));
+const reviewed=registry.scenarios.filter(r=>['F29','F31','F48','F50'].includes(r.family));fs.writeFileSync(path.join(root,'registry-reviewed.json'),JSON.stringify({count:reviewed.length,scenarios:reviewed},null,2));
+fs.writeFileSync(path.join(root,'result.json'),JSON.stringify({head:'34b5747b5181db819443cf708185b5eebce754f9',newBugs:0,checks:['real service producer writes two request/source/job records and WAVs','history newest first','new history service restores records','full renderer open-result preserves text/transcript/settings','selection alone does not replace output','missing different result retains previous output','missing current result clears output and history','restored result reopens','invalid ID rejected','history operations do not spawn'],spawnCount:children.length,historyFields:Object.keys(history.results[0]),sourceManuscriptOnDisk:fs.existsSync(children[0].request.source),referencePathInRequest:children[0].request.reference===reference,limits:['synthetic WAV; controlled worker/IPC/audio APIs','no native Electron decode, actual GPU, paid call, start.bat or personal profile']},null,2));
+dom.window.close();console.log('10 focused integration assertions PASS; 0 new strong bug.');
+})().catch(e=>{console.error(e);process.exitCode=1;});

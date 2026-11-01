@@ -1,0 +1,183 @@
+{
+  "head": "34b5747b5181db819443cf708185b5eebce754f9",
+  "runtime": {
+    "node": "v24.22.0",
+    "platform": "win32"
+  },
+  "tests": {
+    "groupRemoval": {
+      "imported": 2,
+      "persisted": [
+        {
+          "authorId": "UC0000000000000000000002",
+          "handle": "",
+          "author": "Ungrouped",
+          "group": ""
+        }
+      ],
+      "visibleRows": 0,
+      "chips": 0,
+      "staleGroup": "Science",
+      "text": "Kanal ekleİçe aktarDışa aktarBu grupta kanal yok.Liste bu cihazda tutulur; YouTube/Invidious hesabına yüklenmez.",
+      "exportedRemaining": 1,
+      "closeReopenRows": 0,
+      "forceRefreshRows": 0,
+      "freshGridRows": 1
+    },
+    "allControl": {
+      "rows": 1,
+      "activeGroup": ""
+    },
+    "groupClear": {
+      "rows": 0,
+      "chips": 0,
+      "saved": [
+        {
+          "authorId": "UC0000000000000000000001",
+          "handle": "",
+          "author": "Grouped",
+          "group": ""
+        },
+        {
+          "authorId": "UC0000000000000000000002",
+          "handle": "",
+          "author": "Ungrouped",
+          "group": ""
+        }
+      ]
+    },
+    "csvIdentity": {
+      "format": "csv",
+      "input": [
+        {
+          "authorId": "UC0000000000000000000001",
+          "author": "Guide to UC0000000000000000000002"
+        },
+        {
+          "authorId": "UC0000000000000000000002",
+          "author": "Second channel"
+        }
+      ],
+      "exported": "Kanal,URL\n\"Guide to UC0000000000000000000002\",\"https://www.youtube.com/channel/UC0000000000000000000001\"\n\"Second channel\",\"https://www.youtube.com/channel/UC0000000000000000000002\"\n",
+      "saved": [
+        {
+          "authorId": "UC0000000000000000000002",
+          "handle": "",
+          "author": "",
+          "group": ""
+        }
+      ],
+      "messages": [
+        "1 kanal içe aktarıldı (csv)."
+      ],
+      "visibleRows": 1
+    },
+    "csvOrdinaryControl": {
+      "format": "csv",
+      "input": [
+        {
+          "authorId": "UC0000000000000000000001",
+          "author": "Ordinary channel"
+        },
+        {
+          "authorId": "UC0000000000000000000002",
+          "author": "Second channel"
+        }
+      ],
+      "exported": "Kanal,URL\n\"Ordinary channel\",\"https://www.youtube.com/channel/UC0000000000000000000001\"\n\"Second channel\",\"https://www.youtube.com/channel/UC0000000000000000000002\"\n",
+      "saved": [
+        {
+          "authorId": "UC0000000000000000000001",
+          "handle": "",
+          "author": "Ordinary channel",
+          "group": ""
+        },
+        {
+          "authorId": "UC0000000000000000000002",
+          "handle": "",
+          "author": "Second channel",
+          "group": ""
+        }
+      ],
+      "messages": [
+        "2 kanal içe aktarıldı (csv)."
+      ],
+      "visibleRows": 2
+    },
+    "csvQuoteControl": {
+      "format": "csv",
+      "input": [
+        {
+          "authorId": "UC0000000000000000000001",
+          "author": "Comma, \"quoted\"\nchannel"
+        },
+        {
+          "authorId": "UC0000000000000000000002",
+          "author": "Second channel"
+        }
+      ],
+      "exported": "Kanal,URL\n\"Comma, \"\"quoted\"\"\nchannel\",\"https://www.youtube.com/channel/UC0000000000000000000001\"\n\"Second channel\",\"https://www.youtube.com/channel/UC0000000000000000000002\"\n",
+      "saved": [
+        {
+          "authorId": "UC0000000000000000000001",
+          "handle": "",
+          "author": "Comma, \"quoted\"\nchannel",
+          "group": ""
+        },
+        {
+          "authorId": "UC0000000000000000000002",
+          "handle": "",
+          "author": "Second channel",
+          "group": ""
+        }
+      ],
+      "messages": [
+        "2 kanal içe aktarıldı (csv)."
+      ],
+      "visibleRows": 2
+    },
+    "jsonIdentityControl": {
+      "format": "json",
+      "input": [
+        {
+          "authorId": "UC0000000000000000000001",
+          "author": "Guide to UC0000000000000000000002"
+        },
+        {
+          "authorId": "UC0000000000000000000002",
+          "author": "Second channel"
+        }
+      ],
+      "exported": "{\n  \"version\": 1,\n  \"groups\": [],\n  \"channels\": [\n    {\n      \"authorId\": \"UC0000000000000000000001\",\n      \"handle\": \"\",\n      \"author\": \"Guide to UC0000000000000000000002\",\n      \"group\": \"\"\n    },\n    {\n      \"authorId\": \"UC0000000000000000000002\",\n      \"handle\": \"\",\n      \"author\": \"Second channel\",\n      \"group\": \"\"\n    }\n  ]\n}\n",
+      "saved": [
+        {
+          "authorId": "UC0000000000000000000001",
+          "handle": "",
+          "author": "Guide to UC0000000000000000000002",
+          "group": ""
+        },
+        {
+          "authorId": "UC0000000000000000000002",
+          "handle": "",
+          "author": "Second channel",
+          "group": ""
+        }
+      ],
+      "messages": [
+        "2 kanal içe aktarıldı (json)."
+      ],
+      "visibleRows": 2
+    }
+  },
+  "sources": {
+    "src/subscriptions-io.js": "ec361976159b4ecfc70d74162887417d5f737770efec810355ddb9902de54146",
+    "src/renderer/renderer.js": "17e41d785ffea8a8cca6398f2a4fa46d40853d6d4d0d5ac0460f754ca152e97d",
+    "src/main.js": "0ebef330460249f2922ff658fe8c5a4140fea47994f7907848908bf6fab9a7a3"
+  },
+  "limits": [
+    "No real YouTube network or personal profile.",
+    "Renderer production block in JSDOM; main handlers executed verbatim with controlled sender/dialog.",
+    "Atomic file-write adapter writes only synthetic fixture files; native dialog and Windows Electron UI not exercised."
+  ],
+  "assertions": "PASS: two current bug mechanisms and positive/negative countercontrols; exit0 confirms defects, not fixes."
+}
