@@ -1,0 +1,13 @@
+{
+  "nativeWindows": true,
+  "controlledMetadata": true,
+  "controlledPosters": true,
+  "controlledReviewAnalysis": true,
+  "shots": [
+    "D:\\Whisper Local\\tmp\\assistant618\\tmp\\quality829\\media-native-1793521335745\\comparison-1440-dark.png",
+    "D:\\Whisper Local\\tmp\\assistant618\\tmp\\quality829\\media-native-1793521335745\\comparison-620-light.png",
+    "D:\\Whisper Local\\tmp\\assistant618\\tmp\\quality829\\media-native-1793521335745\\saved-personal-basis.png",
+    "D:\\Whisper Local\\tmp\\assistant618\\tmp\\quality829\\media-native-1793521335745\\synopsis-preview.png"
+  ],
+  "rematchPreservesPersonal": true
+}

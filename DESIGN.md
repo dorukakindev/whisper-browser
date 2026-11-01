@@ -148,3 +148,8 @@ Asistan markdown paragraf boşluğu tek ritimdir; doğrudan blank-line br fazlad
 Browser'da ray dışı sidebar dört etiketli hedef ve ayrı yardımcı eylem satırı taşır. Araçlar modu ana ayarları saklamaz; tek bf-workspace kaydırma sahibi korunur. Uzun metin form alanları tam kolonu, kısa alanlar eşit kolonları kullanır.
 
 Dublaj DOM ve görsel görev sırası altyazı→referans ses→üretimdir; kaynak/ses genişte yan yana, dar ekranda aynı sırada alt alta. Üretim ileri ayarlarını önce göstererek referans seçimini aşağı itmez. PDF okuma ölçüsü/serif korunur; gereksiz dikey padding içerik aleyhine birikmez. Bu kararların native önce/sonrası [R828](docs/raporlar/BROWSER_BUG_REPORT_828.md) içindedir.
+
+
+### Dublaj ön denetimi ve karar kanıtı — R829
+
+İnceleme ve onarım seçili SRT ile üretimden önce erişilir; isteğe bağlı disclosure olarak günlük akışı genişletmez. Metin uyarıları otomatik düzeltme/kalite puanı değildir. Telaffuz adayları mevcut sözlükte düzenlenebilir taslak oluşturur; scope/önceki taslak ve açık Save yetkisi korunur. Film karşılaştırmasında mevcut ve seçili2:3afiş+kimlik yan yana, dar ekranda sıralıdır; yapım kimliği kurgu sürümü doğrulaması sayılmaz. Kayıtlı zevk açıklaması mevcut profil değil, analiz anının snapshot dayanağıdır. Asistan çok adımlı planı kaynak/başlık/aralıkla sunar; plan ve gerçek iş/karar kartı karıştırılmaz. Yeni tema/animasyon sahibi oluşturulmadı. [R829 görüntüleri](docs/raporlar/BROWSER_BUG_REPORT_829.md).
