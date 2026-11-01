@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "initial": {
+    "early": "73",
+    "safe": {
+      "node": "undefined",
+      "process": "undefined",
+      "trusted": "undefined"
+    },
+    "own": "B",
+    "pageGM": "undefined",
+    "style": "1"
+  },
+  "privilegedBridgeExistsInWorld999": "function",
+  "isolatedWorldCannotAccessTrustedBridge": true,
+  "topFrameOnly": true,
+  "iframeExecution": false,
+  "noframesNotBypassed": true,
+  "independentValues": true,
+  "prototypeKeyPreserved": true,
+  "menuCallback": true,
+  "valueChangeListener": true,
+  "spaDoesNotRerun": true,
+  "managedCleanup": true,
+  "documentStartBeforeInline": true,
+  "limits": "Isolated loopback fixture; no third-party script/site or account. Network GM APIs intentionally blocked; iframe execution is explicitly unsupported without weakening sandbox settings."
+}

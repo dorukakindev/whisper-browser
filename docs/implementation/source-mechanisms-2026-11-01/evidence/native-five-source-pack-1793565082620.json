@@ -1,0 +1,35 @@
+{
+  "ok": true,
+  "checks": [
+    {
+      "width": 1440,
+      "locale": "tr",
+      "theme": "dark",
+      "left": 340,
+      "right": 1100,
+      "top": 176.03125,
+      "bottom": 823.9583740234375,
+      "height": 1000,
+      "scrollWidth": 759,
+      "clientWidth": 759
+    },
+    {
+      "width": 680,
+      "locale": "en",
+      "theme": "light",
+      "left": 17,
+      "right": 663,
+      "top": 176.03125,
+      "bottom": 823.9583740234375,
+      "height": 1000,
+      "scrollWidth": 645,
+      "clientWidth": 645
+    }
+  ],
+  "screens": [
+    "browser-engine-1440-dark.png",
+    "browser-engine-680-light.png"
+  ],
+  "errors": [],
+  "scope": "Loaded browser engine and centered dialog; real isolated Windows application, no API/Actions/personal profile."
+}
