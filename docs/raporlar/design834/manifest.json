@@ -1,0 +1,190 @@
+{
+  "revision": "8892c44b4e647e839b38eeb3ad99114901b036b3",
+  "date": "2026-11-01",
+  "scope": "Visual critique only; 20 design proposals, not 20 confirmed functional bugs",
+  "screenshots": [
+    {
+      "name": "01-home-empty.png",
+      "source": ".uiprev/design834-extra/home-empty.png",
+      "sha256": "aab903d6a732963b42f5b852268fb5398dcbf814e8d5764a6bcce927e95dbf16",
+      "width": 2160,
+      "height": 1425,
+      "inspected": true
+    },
+    {
+      "name": "02-home-library.png",
+      "source": ".uiprev/home-discovery-design-after-1793526915636/home-tr-dark-1440.png",
+      "sha256": "12607fa92b86bc2650e83b305ed713ae19709fa85dbd61f2c84f3c1492d38091",
+      "width": 2160,
+      "height": 1500,
+      "inspected": true
+    },
+    {
+      "name": "03-home-narrow-light.png",
+      "source": ".uiprev/home-discovery-design-after-1793526915636/home-en-light-800.png",
+      "sha256": "e8978039ed905f2542117dbb71db01aca0e1073f100c6b59553a0e666dae3749",
+      "width": 1200,
+      "height": 1500,
+      "inspected": true
+    },
+    {
+      "name": "04-studio.png",
+      "source": ".uiprev/design834-extra/studio-wide.png",
+      "sha256": "b049d17106e50821d438326791b04a459d2e323e69ea5a58997783685d2681ae",
+      "width": 2160,
+      "height": 1425,
+      "inspected": true
+    },
+    {
+      "name": "05-studio-narrow.png",
+      "source": ".uiprev/design834-extra/studio-narrow.png",
+      "sha256": "2705348400fa7f8f210b87bf3432bdebbdec8804c2cb59fdf31b387a3d225733",
+      "width": 1350,
+      "height": 1125,
+      "inspected": true
+    },
+    {
+      "name": "06-dub.png",
+      "source": ".uiprev/design834-extra/dub-wide.png",
+      "sha256": "f8f161c1026ca4aa5a43707697084175858ae299027ff7a8ed40268f3c261f59",
+      "width": 2160,
+      "height": 1425,
+      "inspected": true
+    },
+    {
+      "name": "07-dub-narrow.png",
+      "source": ".uiprev/design834-extra/dub-narrow.png",
+      "sha256": "23ba6eec88910c39ca84dc821d1665377b33e41c3e17e4209748155d94d463ad",
+      "width": 1350,
+      "height": 1125,
+      "inspected": true
+    },
+    {
+      "name": "08-browser-tools.png",
+      "source": ".uiprev/browser-tools-design/tools-dark.png",
+      "sha256": "25eb565fdc7b6f5441af12e6173f08cb29140f5540d5b21c2196df9f8e28db45",
+      "width": 2160,
+      "height": 1440,
+      "inspected": true
+    },
+    {
+      "name": "09-assistant.png",
+      "source": ".uiprev/assistant-design-tour/1793526915531-after/360-tr-dark-conversation.png",
+      "sha256": "f43f31692df6c4d58f3eac46e7f7354383fab6063feea2c1323790e1c37624ff",
+      "width": 360,
+      "height": 600,
+      "inspected": true
+    },
+    {
+      "name": "10-film.png",
+      "source": "tmp/design824-fixes-film/1793527087293/film-top-1440-tr-dark.png",
+      "sha256": "fd688bf2f41d5379cbd23d73751ce5cbfa75af522fc3caaa2605df6cd14adb15",
+      "width": 2160,
+      "height": 1500,
+      "inspected": true
+    },
+    {
+      "name": "11-film-reviews.png",
+      "source": "tmp/design824-fixes-film/1793527087293/film-sample-1440-tr-dark.png",
+      "sha256": "95c556c3d166bfad35fdc69465d67e9bf4fd0ed4e2358e677c00dbcc2f6cbb68",
+      "width": 2160,
+      "height": 1500,
+      "inspected": true
+    },
+    {
+      "name": "12-settings.png",
+      "source": ".uiprev/settings-design-tour/after-1793526920162-6712/1440-tr-ai.png",
+      "sha256": "5ef3519f550893d4c456d6b743854de9296c08c7f89f499615223ce1b86d59c8",
+      "width": 2160,
+      "height": 1500,
+      "inspected": true
+    },
+    {
+      "name": "13-settings-narrow.png",
+      "source": ".uiprev/settings-design-tour/after-1793526920162-6712/520-tr-ai.png",
+      "sha256": "438522149247af3f75042fc35e0c0611c10b9f8d21bd1a89d30d12e7d31e535b",
+      "width": 780,
+      "height": 960,
+      "inspected": true
+    },
+    {
+      "name": "14-reader.png",
+      "source": ".uiprev/pdf-reader678-1793526960422/citation-highlight-reading.png",
+      "sha256": "1e66c9a2f1633d8bcfe92d444c110573d2c497a65d56edc8883d7ff855af9aa4",
+      "width": 2160,
+      "height": 1500,
+      "inspected": true
+    }
+  ],
+  "sources": [
+    {
+      "path": "src/renderer/index.html",
+      "sha256": "446134589985dd959c603a55ecfdae66596952bb75d49cb2d541c617f52cb5ba"
+    },
+    {
+      "path": "src/renderer/styles.css",
+      "sha256": "df09e6198f1651198c0aace1b795c0f05a9f8acf9612acac8558ee471f3c313e"
+    },
+    {
+      "path": "src/renderer/media-home.js",
+      "sha256": "841093459127370c30fa1228525cb86f107daa61cc357bd96c7b3b7ff5dfc397"
+    },
+    {
+      "path": "src/renderer/media-home.css",
+      "sha256": "1e3638ab0ef29e5f491a9287cb9cf2412436623208c4f34a143bdf7653fa31a7"
+    },
+    {
+      "path": "src/renderer/assistant-overlay.css",
+      "sha256": "62685d3971f7c747e96d8afcf0fdb5ab1f15703983ff1d0ad2706cb85821d6eb"
+    },
+    {
+      "path": "src/renderer/app-settings.css",
+      "sha256": "d3433362db3638f405029ca24efd6162f79d9fa94392c3394ab325168ef6b999"
+    },
+    {
+      "path": "src/renderer/dub-natural.css",
+      "sha256": "7c964155679f14bb28ed1dad89cc1bb4cb1865866a7171baca2c0926af17c63f"
+    },
+    {
+      "path": "src/renderer/pdf-reader.css",
+      "sha256": "d8d4a4d0c7781173ae58688fd73c7e7ba0e33cfa3c813a373877f6b73ce0c159"
+    },
+    {
+      "path": "src/renderer/theme-palette.css",
+      "sha256": "92682869ae26b17826ce07ea7c29102dfb2857029115b819b984210012b4f510"
+    },
+    {
+      "path": "tests/electron-home-discovery-design.smoke.js",
+      "sha256": "031d66c33ae9a8c92030d426bc6c8ab4bf849314bcd2ffc4d2629e089fd3df9b"
+    },
+    {
+      "path": "tests/electron-settings-design-tour.smoke.js",
+      "sha256": "1c8c01f7fedf712c06eb9e95b333f3534394fb0d3fbaa8727932199f8c8d95cc"
+    },
+    {
+      "path": "tests/electron-assistant-design-tour.smoke.js",
+      "sha256": "9ce50161b2fae6adca9c1d05ec96f5360b9486e9e5d7d0d56a390a894d28a721"
+    },
+    {
+      "path": "tests/electron-browser-tools-design.smoke.js",
+      "sha256": "b46c48073a2aa02a65f41071892de239ea3f63f3a1033afadfb4c2266c0871ef"
+    },
+    {
+      "path": "tests/electron-film-design824.smoke.js",
+      "sha256": "ad229a8eb91254a18119b7776bd53b564f169aa92c2ec2dcc64f5af5df6badce"
+    },
+    {
+      "path": "tests/electron-pdf-reader-experience.smoke.js",
+      "sha256": "ac7b7b44bcfce4d5526362c8aeb77dbc6410a9f696dae22ac069984f5308c8e1"
+    }
+  ],
+  "limits": [
+    "Windows Electron capturePage; not normal start.bat acceptance",
+    "Native child video is absent from parent capture; blank browser viewport is NOT a defect",
+    "Controlled artwork, source text, reviews, responses, provider configuration and voice names; no claims about live content quality",
+    "Extra capture uses isolated userData plus controlled dub:config/references/latest; original local reference-name captures were rejected for publication",
+    "Initial three GUI commands returned before completion; persisted result files checked, process exit codes not asserted for those runs",
+    "Legacy electron-dub-layout788 assertion fails on voice picker inside details; not fixed or counted as new product bug",
+    "No full suite, live provider, GPU, DRM, assistive technology or complete DPI acceptance"
+  ]
+}

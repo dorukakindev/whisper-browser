@@ -1,0 +1,47 @@
+{
+  "revision": "8892c44b4e647e839b38eeb3ad99114901b036b3",
+  "visualAcceptedImages": 14,
+  "proposals": 20,
+  "productEdits": false,
+  "runs": [
+    {
+      "name": "home",
+      "resultOk": true,
+      "records": 21,
+      "processExitObserved": false
+    },
+    {
+      "name": "settings",
+      "resultOk": true,
+      "records": 30,
+      "processExitObserved": false
+    },
+    {
+      "name": "assistant",
+      "resultOk": true,
+      "records": 32,
+      "processExitObserved": false
+    },
+    {
+      "name": "browser",
+      "processExit": 0
+    },
+    {
+      "name": "reader",
+      "processExit": 0
+    },
+    {
+      "name": "film",
+      "processExit": 0
+    },
+    {
+      "name": "extra",
+      "processExit": 0
+    },
+    {
+      "name": "legacy-dub-layout788",
+      "processExit": 1,
+      "reason": "Outdated assertion expects voice selector outside details; no test or product fix"
+    }
+  ]
+}
