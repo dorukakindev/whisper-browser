@@ -1,0 +1,41 @@
+{
+  "revision": "2cc48e6d49fcc8552bd62fda51fb4bf67cc77b0e",
+  "classification": "Proposal baselines and numerical controls, NOT confirmed bugs",
+  "fit": {
+    "scale": 0.9900000000000001,
+    "offsetSeconds": 0.019999999999999796,
+    "points": [
+      {
+        "sourceTime": 1,
+        "videoTime": 1.01,
+        "cueId": ""
+      },
+      {
+        "sourceTime": 3,
+        "videoTime": 2.99,
+        "cueId": ""
+      }
+    ],
+    "residuals": [
+      2.220446049250313e-16,
+      0
+    ],
+    "confidence": {
+      "rmsError": 1.5700924586837752e-16,
+      "maxError": 2.220446049250313e-16,
+      "outliers": [],
+      "level": "exact",
+      "count": 2
+    }
+  },
+  "projectedErrorAt7200": -71.97999999999865,
+  "largeCorrectionWarningPredicate": false,
+  "tinyOverlapMissingTranslationWarning": false,
+  "zeroOverlapMissingTranslationWarning": true,
+  "frameRateControl": {
+    "ratio": 1.001,
+    "driftAt3600": 3.6,
+    "driftAt7200": 7.2
+  },
+  "network": 0
+}

@@ -1,0 +1,33 @@
+{
+  "head": "2cc48e6d49fcc8552bd62fda51fb4bf67cc77b0e",
+  "cases": [
+    {
+      "id": "S-CITATION",
+      "legacyLiveLinks": 1,
+      "nativeLiveLinks": 0,
+      "persistedPageEvidence": 0,
+      "expected": "Native assistant and saved answer retain a verifiable link to supplied S1 paragraph.",
+      "observed": "Only hidden legacy bubble has a source link; managed message bypasses node-link fallback and native reply has no paragraph link.",
+      "positiveControl": "U1 persisted subtitle evidence produced exactly one native source link"
+    },
+    {
+      "id": "BOOK-CITATION-COLLISION",
+      "first": {
+        "id": "B1-0",
+        "offset": 41,
+        "containsRed": true
+      },
+      "second": {
+        "id": "B1-0",
+        "offset": 1252,
+        "containsBlue": true
+      },
+      "serviceProviderRounds": 3,
+      "serviceProducedCitationCount": 2,
+      "finalCitationCount": 1,
+      "firstEvidenceLost": true,
+      "expected": "Distinct source excerpt identities, or preserve both excerpts for shared page/chunk identity.",
+      "observed": "Real keyword scan returns same citation ID for two different offsets; real agent finalization Map keeps only the second excerpt, so earlier reference opens the later evidence."
+    }
+  ]
+}

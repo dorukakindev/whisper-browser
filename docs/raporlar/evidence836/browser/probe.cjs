@@ -1,0 +1,11 @@
+const fs=require('fs'),path=require('path'),assert=require('assert/strict');
+const root=path.resolve(__dirname,'../../../..');const sync=require(path.join(root,'src/browser-subtitle-sync'));const review=require(path.join(root,'src/browser-subtitle-review'));
+const out=__dirname;fs.mkdirSync(out,{recursive:true});
+const fit=sync.calculateMultiPointTransform([{sourceTime:1,videoTime:1.01},{sourceTime:3,videoTime:2.99}]);
+assert.equal(fit.confidence.level,'exact');assert(Math.abs(fit.scale-.99)<1e-12);
+const projectedError=sync.sourceToVideoTime(7200,fit)-7200;assert(Math.abs(projectedError+71.98)<1e-9);
+const tiny=review.issues([{channel:'primary',role:'source',cues:[{start:0,end:10,text:'Ten second source.'}]},{channel:'secondary',role:'translation',cues:[{start:9.999,end:10,text:'x'}]}]);
+assert(!tiny.some(r=>r.reasons.includes('Çeviri eksik')));
+const absent=review.issues([{channel:'primary',role:'source',cues:[{start:0,end:10,text:'Ten second source.'}]},{channel:'secondary',role:'translation',cues:[]}]);assert(absent.some(r=>r.reasons.includes('Çeviri eksik')));
+const result={revision:'2cc48e6d49fcc8552bd62fda51fb4bf67cc77b0e',classification:'Proposal baselines and numerical controls, NOT confirmed bugs',fit,projectedErrorAt7200:projectedError,largeCorrectionWarningPredicate:Math.abs(fit.scale-1)>.02||Math.abs(fit.offsetSeconds)>30,tinyOverlapMissingTranslationWarning:false,zeroOverlapMissingTranslationWarning:true,frameRateControl:{ratio:1001/1000,driftAt3600:3.6,driftAt7200:7.2},network:0};
+fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));

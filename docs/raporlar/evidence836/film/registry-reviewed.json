@@ -1,0 +1,542 @@
+[
+  {
+    "id": "N0781",
+    "family": "F40",
+    "mechanism": "normal",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "9133f06f3473d1e577b9b05043bc46d5b73284fb520c91251c11f60bc099c876",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg08-N0781.stdout.txt (node probes/p40-letterboxd-review.js --mech normal, exit 0) + logs/Tpkg08-N0781-existing-test.stdout.txt (node tests/letterboxd-reviews.test.js, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0782",
+    "family": "F40",
+    "mechanism": "bos",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "c76221d287fc868fbb5eb793f458394f812245408d8478c38e3fca1ed309c42b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg08-N0782.stdout.txt (node probes/p40-letterboxd-review.js --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0783",
+    "family": "F40",
+    "mechanism": "sinir",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "997a7b6bd07348451083b649997ffe44b6e0814c10ca2ae376782c5c0536c888",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg08-N0783.stdout.txt (node probes/p40-letterboxd-review.js --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0784",
+    "family": "F40",
+    "mechanism": "unicode",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "d2522071b7c587f156e11cf47a8d23d11b0af9e2cd81c6022147aa1f9f54e13a",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg08-N0784.stdout.txt (node probes/p40-letterboxd-review.js --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0785",
+    "family": "F40",
+    "mechanism": "yinelenen",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "bdf43f211b58e79eeba35e471b0f9fe4d45e0f02e37a40ae8d44025e1b2e5009",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg08-N0785.stdout.txt (node probes/p40-letterboxd-review.js --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0786",
+    "family": "F40",
+    "mechanism": "sira",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "82c9b38e273f1121d499488b317aa73f5ecd1c12f8df12d6603259c87cfe3bd8",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg08-N0786.stdout.txt (node probes/p40-letterboxd-review.js --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0787",
+    "family": "F40",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "95ccf32164290fb2b8057e690cff81cbc8c6975d37068e5d852601a1884e9ecd",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg08-N0787.stdout.txt (node probes/p40-letterboxd-review.js --mech iptal-oncesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0788",
+    "family": "F40",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "e2a06de87f0bc1759cd6b787b6a5ecc770201a14945057ff9dd8b9d11fdc12a8",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg08-N0788.stdout.txt (node probes/p40-letterboxd-review.js --mech iptal-ortasi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0789",
+    "family": "F40",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "a5da1128e9765987871e4bae171c8940df5756d8012114664f6cde601bdff4e5",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg08-N0789.stdout.txt (node probes/p40-letterboxd-review.js --mech gec-sonuc, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0790",
+    "family": "F40",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "37b6af2db6b81b9075dd21a527e45b67b7bb13294f41cff4cd5d910e18abe228",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg08-N0790.stdout.txt (node probes/p40-letterboxd-review.js --mech kaynak-degisimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0791",
+    "family": "F40",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "96671a83e0368379e437ee92c9d3528c6a76dffeec4c46aaf80192728489e0ba",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg08-N0791.stdout.txt (node probes/p40-letterboxd-review.js --mech es-zamanli, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0792",
+    "family": "F40",
+    "mechanism": "kesik",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "0e025f04c540dbff57094c7cca72800f825930ae9caaeb47bc5d486507486ec3",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg08-N0792.stdout.txt (node probes/p40-letterboxd-review.js --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0793",
+    "family": "F40",
+    "mechanism": "hata",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "d53d7bc7aab212d5511bf0c51541c0f8007954356f8231fe580d9b1401ef4222",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg08-N0793.stdout.txt (node probes/p40-letterboxd-review.js --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0794",
+    "family": "F40",
+    "mechanism": "timeout",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "2f0e76c8d7bcaca8cc3951fbc43c766b8a546ee5a7228d1959804bc984818829",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Zamanlayıcı yok; 3 MB sayfa ayrıştırma N0798'de ölçüldü."
+  },
+  {
+    "id": "N0795",
+    "family": "F40",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "676b88297eb6abbe4690ebc03853218d2b55d732af2bd320cd6f9cafd5d1c4a9",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg08-N0795.stdout.txt (node probes/p40-letterboxd-review.js --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0796",
+    "family": "F40",
+    "mechanism": "donusum",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "d15ba6aba436c73e1d02db8c0eb05a8d736acd4f9510bbf8469fa1a37a2f6b3c",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg08-N0796.stdout.txt (node probes/p40-letterboxd-review.js --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0797",
+    "family": "F40",
+    "mechanism": "yetki",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "59637246a4c5cfecb911a2092938a4137d5920feddec4aa9c77c33d37f6c9f34",
+    "historical_status": "NOT_APPLICABLE",
+    "evidence": "",
+    "finding_ids": "",
+    "reason": "Tarayıcı sekmesi sahipliği main/webContents katmanında; ayrıştırıcı karar vermez."
+  },
+  {
+    "id": "N0798",
+    "family": "F40",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "90da6da17f9a6794a8246bc214e3dd497c2acd5868b87d6c7f50918e933db7bd",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg08-N0798.stdout.txt (node probes/p40-letterboxd-review.js --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0799",
+    "family": "F40",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "24cc56bb7ce3ba5b55babb844d04f72372386e5639c78aa3f33223bc94cba5b2",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg08-N0799.stdout.txt (node probes/p40-letterboxd-review.js --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0800",
+    "family": "F40",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "src/letterboxd-reviews.js",
+      " src/renderer/review-decision-ui.js"
+    ],
+    "signature": "b6adcec328f5f902dbea3218cab6d3eadd8454d6fb787be51954aeee2344c8d4",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg08-N0800.stdout.txt (node probes/p40-letterboxd-review.js --mech birlesik-akis, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0801",
+    "family": "F41",
+    "mechanism": "normal",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "b73b36a14d739b8936e96e726d613a808601f6ed40025466a520d26c311056b9",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0801.stdout.txt (node probes/p41-media-discovery.js --mech normal, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0802",
+    "family": "F41",
+    "mechanism": "bos",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "6c746f5fcbb7c06bd6131b00a617fc17783a49282539f122bcaf309a23611bf6",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0802.stdout.txt (node probes/p41-media-discovery.js --mech bos, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0803",
+    "family": "F41",
+    "mechanism": "sinir",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "4c275871bc10a5645f37dc0f6b445a2ba35f00de38d67a5540d4b639c78773ec",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0803.stdout.txt (node probes/p41-media-discovery.js --mech sinir, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0804",
+    "family": "F41",
+    "mechanism": "unicode",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "b23c0a5753d9e5757a170f0acc043a7151e68cbd990e69407d17063f9eb39516",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0804.stdout.txt (node probes/p41-media-discovery.js --mech unicode, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0805",
+    "family": "F41",
+    "mechanism": "yinelenen",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "54d74c719281e2800f1b06cf664995f619a78bf784cf421534f5e45f341dc391",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0805.stdout.txt (node probes/p41-media-discovery.js --mech yinelenen, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0806",
+    "family": "F41",
+    "mechanism": "sira",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "268971fb3ab142c7260b2efce9170d95bc4d267eb5621eb6cb80026854f30e4e",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0806.stdout.txt (node probes/p41-media-discovery.js --mech sira, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0807",
+    "family": "F41",
+    "mechanism": "iptal-oncesi",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "358e7501f962da9b4cc1c551eb689a6ae7f4c2b19abd01135234e0c368392556",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0807.stdout.txt (node probes/p41-media-discovery.js --mech iptal-oncesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0808",
+    "family": "F41",
+    "mechanism": "iptal-ortasi",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "992a401910698367b6f87a3abbe4c9d983febcd64c41cc2472d40154254c6b71",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0808.stdout.txt (node probes/p41-media-discovery.js --mech iptal-ortasi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0809",
+    "family": "F41",
+    "mechanism": "gec-sonuc",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "2a598a27377701030c05c8762f5b4f92225544cb1031963c06b42f99855ac508",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0809.stdout.txt (node probes/p41-media-discovery.js --mech gec-sonuc, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0810",
+    "family": "F41",
+    "mechanism": "kaynak-degisimi",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "9508693b4479fd2ae9ec0cc700ee5a04ec4f8a06d4f0174bfde14182aa71232b",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0810.stdout.txt (node probes/p41-media-discovery.js --mech kaynak-degisimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0811",
+    "family": "F41",
+    "mechanism": "es-zamanli",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "f535d0763ad1c1db75e4e5cd7370a8731d0a589c3c70663af577e6d2e5be545c",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0811.stdout.txt (node probes/p41-media-discovery.js --mech es-zamanli, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0812",
+    "family": "F41",
+    "mechanism": "kesik",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "db2fda4c9f50c39697726293c32a78167fda6f252ad96b3ebb9bad199b6363df",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0812.stdout.txt (node probes/p41-media-discovery.js --mech kesik, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0813",
+    "family": "F41",
+    "mechanism": "hata",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "175236e974b2fa222a993df26dd6691bf7ae1717510d8da2ee66e7bb69ef464f",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0813.stdout.txt (node probes/p41-media-discovery.js --mech hata, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0814",
+    "family": "F41",
+    "mechanism": "timeout",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "f90a9fe3fc2b3b7cace8adc02b523e747ff732a523609ad9cad8046f2c2040e1",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0814.stdout.txt (node probes/p41-media-discovery.js --mech timeout, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0815",
+    "family": "F41",
+    "mechanism": "yeniden-giris",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "72a4a9083809f6e900b665a204ae3b2fc9546db8e1a8500ad4330b3161552135",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0815.stdout.txt (node probes/p41-media-discovery.js --mech yeniden-giris, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0816",
+    "family": "F41",
+    "mechanism": "donusum",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "5be4bd0cf155940e58b821cd7ef358919523726bd48f1b69ed9b13b326711bb9",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0816.stdout.txt (node probes/p41-media-discovery.js --mech donusum, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0817",
+    "family": "F41",
+    "mechanism": "yetki",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "7b73f2a8c78c054aa431f3bf4b0ec7f2387f8c7e6b9d21d23df0f9bc2fd9b839",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0817.stdout.txt (node probes/p41-media-discovery.js --mech yetki, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0818",
+    "family": "F41",
+    "mechanism": "kaynak-butcesi",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "0b463d74368c04cbddce1643b07448de73df734161728133a54f3ecdcf17ef77",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0818.stdout.txt (node probes/p41-media-discovery.js --mech kaynak-butcesi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0819",
+    "family": "F41",
+    "mechanism": "kullanici-geribildirimi",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "e9105a349489100cf89f169af7f958bfbd22741d6dfde6f310d94e9ba8e22e0f",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0819.stdout.txt (node probes/p41-media-discovery.js --mech kullanici-geribildirimi, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  },
+  {
+    "id": "N0820",
+    "family": "F41",
+    "mechanism": "birlesik-akis",
+    "sources": [
+      "src/media-discovery-service.js"
+    ],
+    "signature": "247aa615ba6232efd35c1c1f7a7768b8442f98951f9f09c6d6509a5303a9845e",
+    "historical_status": "PASS",
+    "evidence": "logs/Tpkg09-N0820.stdout.txt (electron tests/electron-media-discovery.smoke.js, exit 0)",
+    "finding_ids": "",
+    "reason": ""
+  }
+]

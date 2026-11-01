@@ -1,0 +1,13 @@
+{
+  "purpose": "Independent synthetic arithmetic, not application bug evidence",
+  "contextToolUsed": true,
+  "evaluatorInput": "<|ratio->24/(24000/1001),drift3600->3600(24/(24000/1001)-1),drift7200->7200(24/(24000/1001)-1),endpointError->(7200-1)((-1/10-1/10)/2)+1/10|>",
+  "evaluatorOutput": {
+    "ratio": "1001/1000",
+    "drift3600": "18/5",
+    "drift7200": "36/5",
+    "endpointError": "-3599/5"
+  },
+  "localControlClickError": 0.01,
+  "localControlEndpointError": -71.98
+}

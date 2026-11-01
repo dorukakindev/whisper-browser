@@ -1,0 +1,53 @@
+# R835 film alt denetimi — 1 Kasım 2026
+
+Başlangıç `master`, HEAD `ad4f17932c284b665dbfd567cb932888f7c5c125`. Ürün/test/ayar değişmedi; yalnız bu ignored denetim klasörü yazıldı. `node .tmp/audit835-film/probe.cjs` exit0. Gerçek renderer modülleri/JSDOM, gerçek medya aracı servisi/sentetik disk ve gerçek `fetchReviews`/kontrollü HTML reader kullanıldı. Ağ/ücretli model/kişisel profil yok. Native Windows görsel kabul yapılmadı. Bu üç assertion'ın PASS olması ürün hatalarının düzelmesi değildir.
+
+## F-film-01 · P2 — Ana sayfada saklanan spoiler, yorum yönetimi geçmişinde uyarısız açılıyor
+
+Kaynak: `src/renderer/review-decision-ui.js:55` ana film spoiler gate; `:226–229` geçmiş üreticisi; `:229` ilk tarihçeyi otomatik açıp doğrudan `resultView` tüketicisine verir. Gerçek editör köprüsü `src/renderer/media-tools-ui.js:15–24`.
+
+Tekrar: spoiler:true kaynak yorum ve olay örgüsü anlatan kayıtlı analiz yükle. Film sayfasında Reveal spoiler analysis düğmesine basmadan Manage reviews düğmesine bas; Saved analyses ayrıntısını aç. Include spoiler reviews hâlâ false olduğu halde ilk kayıtlı özet/uygunluk/yorum nedenleri spoiler metnini gösterir. Saved analyses ayrıntısını açmak spoiler onayı değildir; metni açacağına ilişkin spoiler uyarısı yoktur.
+
+Kanıt: probe gerçek mountTitle → gerçek Manage reviews button → gerçek MediaToolsUI.mountReviewEditor → gerçek mount zincirini çalıştırır; ardından gerçek Saved analyses summary click. results.spoiler: filmGate=true, realManageReviewsButton=true, savedAnalysesDisclosureOpened=true, spoilerOption=false, historyOpen=true, historySummaryVisible=true. Ana film metninde önceden SECRET ENDING yoktur (negatif kontrol). Sonuç DOM semantiğiyle doğrulandı; ayrı PNG/ekran okuyucu/gerçek site iddiası yok. Inline geçmişin dış disclosure'u başlangıçta kapalıdır; yalnız editörü açmak tek başına ifşa diye yazılmamalı.
+
+Etki: kullanıcı yükleme/örnek yönetimi amacıyla geçmişe bakarken özellikle sakladığı film sonunu görür. Geçici çözüm spoiler içeren kayıt varken tarihçeyi açmamak. Olası düzeltme her history/result geçişinde aynı açık spoiler onayını uygulamalı; mevcut örnek/spoiler seçimleri korunmalı.
+
+Dedup: R829 spoiler-first copy clean-card dedup'u parser köküdür; bu kayıtlı sentez görüntüleme koludur. R832 More/full-text ile ilgisiz. R830 gerçek save/reuse kontrolü spoiler:false kaynak kullandı. R815-B71/B72 iptal/film identity, B43 rating ölçeği değildir. Tüm raporlarda `spoiler|feedback|same author|repeat author|seenText|aynı yazar` araması yapıldı; R540/R542/R629 kaynak/önizleme spoilerguard'ları bulundu, history geçişi ifşası bulunmadı.
+
+## F-film-02 · P2 — Aynı filmin düzeltilmiş kişisel değerlendirmesi diğer yüzeyde eski kayıt tarafından bastırılıyor
+
+Kaynak: `src/media-tools-service.js:168–183`, özellikle `:182` sharedFeedback en yeniyi seçer ama `:183` `ownFeedback||linked?.feedback` daima yerel eski tepkiyi tercih eder. `:187` her yüzey kendi namespace'ine yeni feedback yazıyor. Tüketici `src/renderer/media-tools-ui.js:47–51` bunu aynı filmin kendi değerlendirmesi formuna doldurur.
+
+Tekrar: kütüphanedeki IMDb/TMDB kimliği doğrulanmış filme like ve eski not kaydet. Aynı IMDb filmini Keşfet'te aç, dislike ve düzeltilmiş not kaydet. Her iki yüzeyi decision-get ile yeniden oku. Kütüphane eski like/eski notu, Keşfet yeni dislike/yeni notu döndürür. Ters yönde de aynı sahiplik önceliği vardır. Bu geç gelen async yanıt yarışı değil, yeniden okuma sonrası kalıcı tutarsızlıktır.
+
+Kanıt: gerçek servis feedback-save(library) → feedback-save(discovery) → decision-get iki taraf; sentetik `profile/media-enrichment.json`. results.feedback discovery timestamp'i library'den kesin daha yenidir; kimlikler aynıdır. No-own-feedback durumu kodda zaten shared fallback ile çalışır; hata iki tarafta önceki kaydın bulunduğu birleşimdir. Geçici çözüm iki yüzeyde ayrı ayrı aynı düzeltmeyi kaydetmek. Düzeltme ortak newest-record politikası veya açık yüzey/versiyon ayrımı gerektirir; legacy kimliksiz feedback'i yaymamak korunmalı.
+
+Dedup: R810 namespace doğrulaması ve R826 ortak geçmiş/feedback paylaşımı mevcut özelliklerdir; bunları yeni öneri diye saymıyoruz. `tests/discovery-review810.test.js:15–16` yalnız tek namespace save/get yapar. R815-B51 zevk tercih taslağının async save ile silinmesi farklıdır. Night1000 F40/F41 eski snapshot'ı bu yeni iki namespace conflict birleşimini kapsamıyor.
+
+## F-film-03 · P2 — Reddedilen aynı-yazar yorumu sonraki bağımsız yazarın geçerli metnini duplicate diye düşürüyor
+
+Kaynak: `src/letterboxd-auto.js:65–74`. `:69` seenText/seenPermalinks değişir; `:70` aynı yazar reddi bundan sonra yapılır. Sonraki sayfa `:68` kontrolünde kabul edilmemiş metin de tekrar sayılır.
+
+Tekrar: sayfa1 author-a'nın metin1/permalink1 ve farklı rewatch permalink2'de metin2 yorumunu içerir. İlk kabul edilir, ikinci author kuralıyla reddedilir. Sayfa2 author-b kendi permalink'inde metin2 yorumuna sahiptir. author-b'nin ilk ve bağımsız yorumu duplicate sayılır. İstenen2 kaynak yerine1 kaynak döner. Kaynak metnin farklı hesaplarda aynı olması tek başına hata değildir; hata yalnız reddedilen kaydın kabul edilmiş örnek dedup'una yan etki yapmasıdır.
+
+Kanıt: gerçek fetchReviews + gerçek parseLetterboxdReviews + readPage fixture. results.sampling withRepeatedAuthor=[author-a], excluded.author=1, excluded.duplicate=1. Reddedilecek author-a/metin2 kartı kaldırılan kontrol aynı kabul edilebilir kayıtlarla [author-a,author-b] döndürür. Uygun katkısı olmayan bir kayıt eklemek bağımsız kaynağı ortadan kaldırıyor. Ağ/sitenin gerçekten bu kartları aynı sırada sunma sıklığı ölçülmedi. Geçici çözüm eksik örneği önizleyip farklı havuz/elle doğrulanmış kaynak seçmek. Düzeltme ancak tüm kabul kapıları geçildikten sonra seen setlerini değiştirmeli; metin/permalink/yazar tekilleştirme korunmalı.
+
+Dedup: R829 spoiler-first temiz kartı bastırma `parseLetterboxdReviews` içindeki [text,spoiler] anahtarıydı. Bu `fetchReviews` içinde yazar reddinin global metin seen setine yan etkisi; farklı producer/consumer ve farklı regresyon fixture'ı. R832 fulltext expansion sorunu değil. Aynı sayfadaki birebir metin dedup'u parser'da bilinçli olduğundan bu probe sonraki sayfayı ve ayrı rewatch permalink'ini kullanır.
+
+## Altı ayrı geliştirme önerisi — bug sayısına katılmaz
+
+1. **Kaynak havuzlarının analize kalan katkısını göster.** Mevcut `letterboxd-auto.js:112–116` coverage/sources/sampling hesaplar; `review-decision-ui.js:107` yalnız havuz adı/toplam/yazar sayısı, `:188–201` satır seçimidir. Eksik davranış: dengeli dört liste seçilse bile son gönderimde her listeden kaç yorum kaldığı görünmüyor. Önizleme seçimleri sonrası popüler/yeni/yüksek/düşük için gönderilen yorum+yazar sayısını yeniden hesapla; hiç kalmayan havuzu belirt. Kabul: bir havuzun tüm yorumları çıkarılınca katkı0 görünür, örnek otomatik değişmez ve temsil garantisi verilmez. Mevcut balanced özelliği veya R815-G27 freshness yeniden önerilmez.
+
+2. **Tam kaynak ile gönderilen kesitin yerini birlikte incelet.** R832 tam metni korur; `review-decision-ui.js:201` included satırında yalnız sent.text, `:28` saved kaynakta yalnız analize kullanılan metin var. Eksik davranış: önizlemede kısaltılan tam metnin gönderilmeyen devamını aynı yorum kartından okumak için loaded-reader'a geri dönülüyor. Included-shortened kartında salt okunur 'tam kaynak / gönderilecek bölüm' disclosure'u ve karakter sınırı göster. Kabul: uzun kaynağın son marker'ı yalnız tam kaynakta bulunur, model payload'ı değişmez, varsayılan spoiler politikası korunur. More/fetch düzeltmesi veya kısaltma sayacı tekrar önerilmez.
+
+3. **Kayıtlı analizi ve dayanaklarını okunabilir taşınabilir dosyaya aktar.** `review-decision-ui.js:15–29,226–229` kaynak linki/profil snapshot'ı/alıntı vardır; yorum alanında insan okunur aktarım eylemi yok. Genel workspace yedeği zaten vardır, yeniden önerilmez. Eksik davranış: kullanıcı sentezi, kaynağı ve seçili örnek sınırlarını uygulama dışında birlikte inceleyemiyor. Açık export eylemiyle Markdown/HTML üret; film kimliği, analiz zamanı, sample/pool sınırlılığı ve özgün alıntı linkleri dahil; kişisel zevk notu varsayılan dışarıda ve ayrı açık dahil etme seçimi olsun. Kabul: sentetik export yeniden açılınca her quote kaynak ID/linkine bağlı; yeni AI/ağ çağrısı yok. R815-G08 yedek envanteri ve G27 sürüm karşılaştırmasından farklı bir paylaşım/inceleme çıktısıdır.
+
+4. **Keşfet konu çevirisinde karşılıklı okuma sun.** `media-discovery-ui.js:48–56` zaten original/Turkish toggle sağlar; bunu tekrar ekleme önerisi değildir. Eksik davranış: uzun açıklamada çeviri doğruluğunu karşılaştırmak için sürekli tek metin arasında gidip geliniyor. İsteğe bağlı karşılıklı/alt alta özgün+Türkçe okuma ve bağımsız etiket sun. Kabul: EN/TR720px ekranda iki metin okunur, dar ekranda alt alta; mevcut çeviri kullanılır ve ikinci ücretli istek çıkmaz. Yeni otomatik çeviri veya R834 hero düzeni değildir.
+
+5. **Kişi filmografisinde rol odaklı inceleme ekle.** `film-context-features.js:24–26` mevcut filtreler film/dizi, tarih, yalnız kütüphane; `:32` role alanını her satırda zaten gösterir. Eksik davranış: aynı kişinin oyuncu/yönetmen/senaryo katkılarını ayırıp karar vermek için bütün liste taranıyor. Normalize edilmiş kredi rolüne göre opt-in filtre, bilinmeyen/çoklu rol ayrı korunarak gösterilsin. Kabul: bilinen oyuncu/yönetmen kayıtları seçime uyar; aynı yapımda çoklu kredi kaybolmaz; eksik rol uydurulmaz. Mevcut 'Same director' yapım önerisi ile aynı özellik değildir.
+
+6. **Kişisel öneri gerekçesini dayanak filmlere aç.** `media-discovery-service.js:116–132` diary genre profili üzerinden count/average; `media-discovery-ui.js:121–122` 'tür · Npuan · ortalama' veya 'X beğeninden dolayı' kısa gerekçesini gösterir. Eksik davranış: N puanı hangi filmlerin oluşturduğu ve eski düşük ilginin neden devam ettiği karttan incelenemiyor. Ayrıntıda salt okunur dayanak başlık/kişisel puan/tür listesi ve mevcut profili aç eylemi sun; tür ilişkisini film için kesin kalite/atmosfer gibi anlatma. Kabul: sentetik2 puan girdisi iki doğru kaynağa bağlı gösterilir, tıklama puan veya watchlist'i değiştirmez. Mevcut because etiketi, öneri üretimi veya R830-G03 anket açıklaması tekrar değildir.
+
+## Kapsam/dedup
+
+AGENTS, YENI-BILGISAYAR başlangıcı, DEVIR1304, Night1000 README ve F40/F41 40 mekanizma satırı okundu (`registry-reviewed.json`). Bu40 satır yeni test/PASS sayısı değildir. R815 ayrıntılı başlık dizini ve film B43–53,B71–76,G27/G29/G30; R818–823 tüm başlıklar; R824–829 ilgili film referansları; R830–834 film/savereuse/tasarım/More kayıtları tarandı. Kaynaklar güncel HEAD'de okundu; tarihsel başarı bugünün garantisi yapılmadı. Üç bulgu alt denetim önerisidir; ana ajan son önem/dedup kararını ve sayısını verir.
