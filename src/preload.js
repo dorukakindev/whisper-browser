@@ -67,6 +67,7 @@ contextBridge.exposeInMainWorld('api', {
   recallRequest: request => ipcRenderer.invoke('recall:request', request),
   userscriptsRequest: request => ipcRenderer.invoke('userscripts:request', request),
   browserMechanisms: request => ipcRenderer.invoke('browser:mechanisms', request),
+  applicationUpdates: request => ipcRenderer.invoke('application:updates', request),
   mediaWorkflows: request => ipcRenderer.invoke('media-workflows:request',request),
   onMediaWorkflow: cb => { const handler=(_event,value)=>cb(value);ipcRenderer.on('media-workflows:event',handler);return ()=>ipcRenderer.removeListener('media-workflows:event',handler); },
   mediaShelf: request => ipcRenderer.invoke('media-shelf:request', request),

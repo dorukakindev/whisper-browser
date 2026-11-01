@@ -1,0 +1,58 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os'),Module=require('node:module');
+const {createFeedStore}=require('../src/feed-store');
+const row=(text='Starts at 18:00.')=>({externalId:'same',url:'https://source.test/article',title:'Article',text,summary:text,kind:'article',contentScope:'summary'});
+const temp=t=>{const dir=fs.mkdtempSync(path.join(os.tmpdir(),'r843-feed-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));return dir;};
+test('R843-08 dedup corrections retain physical identity; stale ack cannot clear unseen revisions or other copies',t=>{
+ const dir=temp(t);let stamp=1000;const s=createFeedStore(path.join(dir,'feeds.json'),{now:()=>stamp++});
+ const a=s.subscribe({url:'https://a.test/rss',title:'Source A'},[row()],'all').feed;
+ const b=s.subscribe({url:'https://b.test/rss',title:'Source B'},[row()],'all').feed;
+ s.setState(s.snapshot().entries.map(e=>e.id),{read:true});s.commit(a.id,{entries:[row('Starts at 19:00.')]});
+ const displayed=s.entries({changed:true}).rows[0];
+ assert.equal(displayed.feedId,b.id);assert.notEqual(displayed.correction.entryId,displayed.id);
+ assert.equal(displayed.correction.afterText,'Starts at 19:00.');assert.equal(displayed.corrections.length,1);
+ const correction=displayed.correction;
+ assert.throws(()=>s.correction(displayed.id,true,correction.toRevision),/correction changed/);
+ s.commit(a.id,{entries:[row('Starts at 20:00.')]});
+ assert.throws(()=>s.correction(correction.entryId,true,correction.toRevision),/correction changed/);
+ assert.throws(()=>s.correction(correction.entryId,true),/correction changed/);
+ s.commit(b.id,{entries:[row('Starts at 21:00.')]});
+ const pending=s.entries({changed:true}).rows[0].corrections;assert.equal(pending.length,2);
+ s.correction(pending[0].entryId,true,pending[0].toRevision);
+ assert.equal(s.entries({changed:true}).rows[0].corrections.length,1);
+ s.correction(pending[1].entryId,true,pending[1].toRevision);
+ assert.equal(s.entries({changed:true}).total,0);
+ assert.equal(createFeedStore(path.join(dir,'feeds.json')).entries({changed:true}).total,0);
+});
+test('R843-09 reverting to the read snapshot clears stale correction, including an empty read baseline',t=>{
+ const dir=temp(t),s=createFeedStore(path.join(dir,'feeds.json'));
+ const f=s.subscribe({url:'https://source.test/rss'},[row()],'all').feed,id=s.entries().rows[0].id;
+ s.setState([id],{read:true});s.commit(f.id,{entries:[row('Starts at 19:00.')]});assert.equal(s.entries({changed:true}).total,1);
+ s.commit(f.id,{entries:[row()]});assert.equal(s.entries({changed:true}).total,0);assert.equal(s.correction(id),null);
+ s.commit(f.id,{entries:[row('')]});s.setState([id],{read:true});
+ s.commit(f.id,{entries:[row('New text.')]});assert.equal(s.correction(id).beforeText,'');
+ s.commit(f.id,{entries:[row('')]});assert.equal(s.entries({changed:true}).total,0);
+ const auto=createFeedStore(path.join(dir,'auto-read.json')),feed=auto.subscribe({url:'https://auto.test/rss'},[row()],'now').feed;
+ auto.commit(feed.id,{entries:[row('Starts at 19:00.')]});auto.commit(feed.id,{entries:[row('Starts at 19:00.')]});
+ assert.equal(auto.entries({changed:true}).total,1,'Repeated refresh retains the original baseline for initially read entries');
+ auto.commit(feed.id,{entries:[row()]});assert.equal(auto.entries({changed:true}).total,0);
+});
+test('R843-07 rolling podcast refresh preserves missing personal episodes and matches returning identities',async t=>{
+ const dir=temp(t),media=path.join(dir,'personal.wav');fs.writeFileSync(media,'fixture');const stat=fs.statSync(media);
+ const old={title:'Saved episode',url:'https://pod.test/old.mp3',guid:'old',position:12,note:'Preserve',transcript:'Keep transcript',localSource:{path:media,bytes:stat.size,mtimeMs:stat.mtimeMs,ownership:'personal'}};
+ fs.writeFileSync(path.join(dir,'media-shelf.json'),JSON.stringify({version:1,music:[],books:[],stations:[],playlists:[],diary:[],podcasts:[{id:'p',title:'Podcast',url:'https://pod.test/rss',episodes:[old]}]}));
+ let parsed={title:'Podcast',episodes:[{title:'New episode',guid:'new',url:'https://pod.test/new.mp3'}]};
+ // Load the real handler with only its Python process boundary replaced; no shared require-cache mutation.
+ const filename=require.resolve('../src/media-shelf-service'),mod=new Module(filename,module);mod.filename=filename;mod.paths=module.paths;
+ const realRequire=mod.require.bind(mod);mod.require=id=>id==='./browser-media-tools'?{run:async()=>JSON.stringify(parsed)}:realRequire(id);
+ mod._compile(fs.readFileSync(filename,'utf8'),filename);
+ let handle;mod.exports.registerMediaShelf({ipcMain:{handle:(_,fn)=>handle=fn},authorized:()=>true,userData:()=>dir,catalogStore:()=>({list:()=>[]}),pythonPath:()=> 'controlled-parser',owner:()=>null,fetchImpl:async()=>new Response('<rss/>')});
+ assert.equal((await handle({},{action:'podcast-add',url:'https://pod.test/rss'})).ok,true);
+ let saved=JSON.parse(fs.readFileSync(path.join(dir,'media-shelf.json'),'utf8')).podcasts[0];assert.equal(saved.episodes.length,2);assert.deepEqual(saved.episodes.find(e=>e.guid==='old'),old);
+ assert.equal((await handle({},{action:'podcast-offline-status'})).copies.length,1);
+ parsed.episodes.push({title:'Returned episode',guid:'old',url:old.url});
+ assert.equal((await handle({},{action:'podcast-add',url:'https://pod.test/rss'})).ok,true);
+ saved=JSON.parse(fs.readFileSync(path.join(dir,'media-shelf.json'),'utf8')).podcasts[0];
+ assert.equal(saved.episodes.filter(e=>e.guid==='old').length,1);assert.equal(saved.episodes.find(e=>e.guid==='old').note,old.note);
+ assert.deepEqual(saved.episodes.find(e=>e.guid==='old').localSource,old.localSource);assert.equal(fs.readFileSync(media,'utf8'),'fixture');
+});

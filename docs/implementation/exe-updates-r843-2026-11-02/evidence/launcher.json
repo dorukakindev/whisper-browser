@@ -1,0 +1,8 @@
+{
+  "exe": "D:\\Whisper Local\\Whisper Browser.exe",
+  "sha256": "08ac293d12fea148ec943e7f66e79f06cb89717161939304a1225e5dcc165760",
+  "kind": "local-installation-launcher",
+  "signedInstaller": false,
+  "personalApplicationStopped": false,
+  "electronNodeHelper": true
+}

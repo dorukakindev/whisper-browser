@@ -12,6 +12,7 @@
     "test:electron": "node tests/run-electron-smokes.js",
     "test:soak": "node tests/run-resource-soak.js",
     "package:win": "node tools/package-windows.js",
+    "build:launcher:win": "node tools/build-windows-launcher.js",
     "smoke:package:win": "node tools/smoke-windows-package.js",
     "audit:licenses": "node tools/audit-production-licenses.js",
     "audit:subtitle-pair": "node tools/audit-subtitle-pair.js",

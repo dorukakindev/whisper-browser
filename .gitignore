@@ -82,3 +82,6 @@ whisper-audit-2026/
 /nul
 tmp/
 !backend/golden-writers/
+
+# Local Windows entry point compiled for this installation
+/Whisper Browser.exe

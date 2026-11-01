@@ -89,7 +89,7 @@ function registerFeeds({app,ipcMain,authorized,userData=()=>app.getPath('userDat
     case 'view-delete':result=store.view({...input,remove:true});break;
     case 'visit':result=store.visit(input.entryId);break;
     case 'recent-settings':result=store.recentSettings(input);break;
-    case 'correction':result={correction:store.correction(input.entryId,input.acknowledge===true)};break;
+    case 'correction':result={correction:store.correction(input.entryId,input.acknowledge===true,input.revision)};break;
     case 'entries':if(input.kind&&!['article','video','podcast'].includes(input.kind))throw Error('Unsupported entry kind.');result=store.entries(input);result.rows=result.rows.map(withLinkStates);break;
     case 'entry':result={entry:withLinkStates(store.entry(input.entryId,input.revision))};break;
     case 'preview':result=await job(event,input,signal=>preview(event,input.url,signal));break;

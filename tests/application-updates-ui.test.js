@@ -1,0 +1,31 @@
+'use strict';
+const test = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), { JSDOM } = require('jsdom');
+const tick = () => new Promise(resolve => setImmediate(resolve));
+test('updates require explicit install, block double actions and ignore closed-dialog replies', async t => {
+  const dom = new JSDOM('<button id="opener">Open</button>', { runScripts: 'outside-only' }), w = dom.window;
+  t.after(() => w.close());
+  w.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  w.HTMLDialogElement.prototype.close = function () { this.open = false; this.dispatchEvent(new w.Event('close')); };
+  const calls = []; let resolveCheck;
+  w.UiLocale = { get: () => 'tr' };
+  w.api = { applicationUpdates: async input => {
+    calls.push(input.action);
+    if (input.action === 'check') return new Promise(resolve => { resolveCheck = resolve; });
+    return { ok: true, current: 'abc123', available: true, latest: 'def456', canInstall: true };
+  } };
+  w.eval(fs.readFileSync(require.resolve('../src/renderer/application-updates-ui.js'), 'utf8'));
+  const button = text => [...w.document.querySelectorAll('button')].find(node => node.textContent === text);
+  w.document.getElementById('opener').focus(); w.ApplicationUpdatesUI.open(); await tick();
+  assert.deepEqual(calls, ['status']);
+  button('Güncellemeleri denetle').click(); assert(button('Güncelle ve yeniden başlat').disabled);
+  button('Güncelle ve yeniden başlat').click(); assert.deepEqual(calls, ['status', 'check']);
+  button('Kapat').click(); w.ApplicationUpdatesUI.open(); await tick();
+  resolveCheck({ ok: false, error: 'old-dialog-failure' }); await tick();
+  assert(!w.document.body.textContent.includes('old-dialog-failure'));
+  assert.equal(w.document.querySelectorAll('dialog').length, 1);
+  assert(!button('Güncelle ve yeniden başlat').disabled);
+  assert(!calls.includes('install'));
+  button('Güncelle ve yeniden başlat').click(); button('Güncelle ve yeniden başlat').click(); await tick();
+  assert.equal(calls.filter(action => action === 'install').length, 1);
+  button('Kapat').click(); assert.equal(w.document.activeElement.id, 'opener');
+});

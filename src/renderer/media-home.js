@@ -526,15 +526,16 @@
     const outline=document.createElementNS(gear.namespaceURI,'path');let points=[];for(let i=0;i<32;i++){const angle=i*Math.PI/16-Math.PI/2,r=i%4===1||i%4===2?10:8;points.push((12+Math.cos(angle)*r).toFixed(2)+','+(12+Math.sin(angle)*r).toFixed(2));}outline.setAttribute('d','M'+points.join('L')+'Z');const center=document.createElementNS(gear.namespaceURI,'circle');center.setAttribute('cx','12');center.setAttribute('cy','12');center.setAttribute('r','3.2');gear.append(outline,center);settings.append(gear);actions.append(settings);
     const mainPages = [];
     const nav = el('nav', 'mh-nav'); nav.setAttribute('aria-label', t('Media navigation', 'Medya gezinmesi'));
-    for (const [key, label] of [['home', t('Home', 'Ana sayfa')], ['discover', t('Discover', 'Keşfet')], ['films', t('Films', 'Filmler')], ['series', t('Series', 'Diziler')], ['recall', t('Knowledge & taste', 'İçerik ve zevk ağı')], ['feeds', t('Feeds', 'Akışlar')], ['radio', t('Radio / podcast', 'Radyo / podcast')], ['taste', t('Taste profile','Zevk profilim')], ['web', 'Web'], ['recent', t('Recent', 'Son oynatılanlar')]]) {
+    for (const [key, label] of [['home', t('Home', 'Ana sayfa')], ['discover', t('Discover', 'Keşfet')], ['films', t('Films', 'Filmler')], ['series', t('Series', 'Diziler')], ['recall', t('Knowledge & taste', 'İçerik ve zevk ağı')], ['feeds', t('Feeds (RSS)', 'Akışlar (RSS)')], ['radio', t('Radio / podcast', 'Radyo / podcast')], ['taste', t('Taste profile','Zevk profilim')], ['web', 'Web'], ['recent', t('Recent', 'Son oynatılanlar')]]) {
       const control = button(label, () => page(key)); control.dataset.homePage = key;
       control.setAttribute('aria-current', state.page === key ? 'page' : 'false');
       if (key === 'home') control.id = 'mhHome';
       control.addEventListener('click', () => setMenu(false));
-      if (['home','discover','films','series'].includes(key)) { mainPages.push(control); nav.append(control); }
+      if (['home','discover','films','series','feeds'].includes(key)) { mainPages.push(control); nav.append(control); }
       else extraNav.append(control);
     }
     extraNav.append(button(t('Browser scripts','Tarayıcı scriptleri'),()=>window.UserscriptManagerUI.open()),button(t('Browser engine & memory','Tarayıcı motoru ve bellek'),()=>window.BrowserMechanismsUI.open()));
+    extraNav.append(button(t('Application updates','Uygulama güncellemeleri'),()=>{setMenu(false);window.ApplicationUpdatesUI.open();}));
     const searchWrap = el('div', 'mh-search'), search = el('input'); searchWrap.id='mhSearchRegion';search.type = 'search'; search.id = 'mhSearch'; search.maxLength = 200;
     search.placeholder = t('Search your library', 'Kütüphanende ara'); search.setAttribute('aria-label', search.placeholder); search.value = state.query;
     let searchTimer;
