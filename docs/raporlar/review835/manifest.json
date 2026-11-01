@@ -1,0 +1,31 @@
+{
+  "start": "8892c44b4e647e839b38eeb3ad99114901b036b3",
+  "productCommit": "0096aa6db86453f055c7622938134755aa1a38c5",
+  "controlledContent": true,
+  "providerCalls": 0,
+  "liveLetterboxd": false,
+  "nativeBefore": "tmp\\design833\\native-before-1793527006234",
+  "nativeAfter": "tmp\\design833\\native-after-1793528044090",
+  "screenshots": {
+    "before-loaded.png": "95b19f8dcc4c6fa126b2cce432a943510ae16c82097224775e93e35f0bcdbc90",
+    "after-loaded.png": "b6e97f00baa2f174640916705ccea4b7ff8bb1900f8a3a9751dbaf1823e50385",
+    "before-preview.png": "1a8378595bb2737ecd877d1fb0238d8c99da5bce54119a4b9065bbf5d9fb04ea",
+    "after-preview.png": "9b4a602797da6601d18612763f254c202a66db696183ba7e3f2c18d638a8971c",
+    "analysis-dark.png": "9ea9493cd8a125344ad8d95d16970c12e06c468d68c903a4d5cb69d9daa38012",
+    "analysis-light.png": "471a92a11f00bfa15cb89675644f173180eb2454e827a331292b313c3459107d",
+    "long-source.png": "a036e04f9e7e4bc1ebd672cb9fa93fac198e8edd2bf42aac72f0559439738613",
+    "validation.png": "be89b255d2c5f9953d77c1f8f53154a7ed1fd799ffbfa0b8ea7b5d4437f7d1b0",
+    "before-workspace.png": "f4b440425d6bdd0ff6ce3011ed3c6abdaa3d20728fc5d4bf0ecf79102fc6492a"
+  },
+  "sourceSha256": {
+    "src/renderer/review-decision-ui.js": "80c2dfe3e4fd5a6041fd40e62479aa2fbc6e7eb3a1c965e2a87579303970677b",
+    "src/renderer/media-tools.css": "84d14cabde64f19b2046f0511fcd311b73321746a005d5636ff47beebd2b0616",
+    "src/renderer/media-title.css": "cb8358bab00bc5d72d25c02f09dda0dfd267ade36ab6f610ef71362e620a4bf3"
+  },
+  "mechanicalLayoutFindings": [],
+  "targetedTests": {
+    "files": 10,
+    "tests": 90,
+    "failed": 0
+  }
+}

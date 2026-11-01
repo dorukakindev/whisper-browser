@@ -1,0 +1,1290 @@
+{
+  "phase": "after",
+  "nativeWindows": true,
+  "controlledReviewReads": true,
+  "providerCalls": 0,
+  "screens": [
+    {
+      "name": "saved-en-1440-1-dark",
+      "taskPrimary": [],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Choose video file"
+      ],
+      "reading": [
+        {
+          "cls": "",
+          "width": 503,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 318,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "source-proof-en-1440-1-dark",
+      "taskPrimary": [],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Choose video file"
+      ],
+      "reading": [
+        {
+          "cls": "",
+          "width": 503,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 318,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "saved-original-long-en-1440-1-dark",
+      "taskPrimary": [],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Choose video file"
+      ],
+      "reading": [
+        {
+          "cls": "",
+          "width": 503,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 318,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "loading-en-1440-1-dark",
+      "taskPrimary": [],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Choose video file"
+      ],
+      "reading": [
+        {
+          "cls": "",
+          "width": 503,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 318,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "loaded-en-1440-1-dark",
+      "taskPrimary": [
+        "Preview & analyze"
+      ],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Choose video file",
+        "Preview & analyze"
+      ],
+      "reading": [
+        {
+          "cls": "",
+          "width": 503,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 318,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "mtx-muted mrv-review-meta",
+          "width": 504,
+          "font": "12px",
+          "line": "20.4px"
+        },
+        {
+          "cls": " mrv-reader-text",
+          "width": 605,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "loaded-long-en-1440-1-dark",
+      "taskPrimary": [
+        "Preview & analyze"
+      ],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Choose video file",
+        "Preview & analyze"
+      ],
+      "reading": [
+        {
+          "cls": "",
+          "width": 503,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 318,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "mtx-muted mrv-review-meta",
+          "width": 504,
+          "font": "12px",
+          "line": "20.4px"
+        },
+        {
+          "cls": "mrv-reader-text",
+          "width": 605,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "preview-en-1440-1-dark",
+      "taskPrimary": [
+        "Send this sample"
+      ],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Choose video file",
+        "Send this sample"
+      ],
+      "reading": [
+        {
+          "cls": "mrv-sent-text mrv-reader-text",
+          "width": 605,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "validation-en-1440-1-dark",
+      "taskPrimary": [
+        "Send this sample"
+      ],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Choose video file",
+        "Send this sample"
+      ],
+      "reading": [
+        {
+          "cls": "mrv-sent-text mrv-reader-text",
+          "width": 605,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "preview-selected-en-1440-1-dark",
+      "taskPrimary": [
+        "Send this sample"
+      ],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Choose video file",
+        "Send this sample"
+      ],
+      "reading": []
+    },
+    {
+      "name": "workspace-en-1440-1-dark",
+      "taskPrimary": [
+        "Preview & analyze"
+      ],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Preview & analyze"
+      ],
+      "reading": [
+        {
+          "cls": "mtx-muted mrv-review-meta",
+          "width": 504,
+          "font": "12px",
+          "line": "20.4px"
+        },
+        {
+          "cls": " mrv-reader-text",
+          "width": 605,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 557,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 355,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "saved-tr-1440-1-dark",
+      "taskPrimary": [],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç"
+      ],
+      "reading": [
+        {
+          "cls": "",
+          "width": 503,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 318,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "source-proof-tr-1440-1-dark",
+      "taskPrimary": [],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç"
+      ],
+      "reading": [
+        {
+          "cls": "",
+          "width": 503,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 318,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "saved-original-long-tr-1440-1-dark",
+      "taskPrimary": [],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç"
+      ],
+      "reading": [
+        {
+          "cls": "",
+          "width": 503,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 318,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "loading-tr-1440-1-dark",
+      "taskPrimary": [],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç"
+      ],
+      "reading": [
+        {
+          "cls": "",
+          "width": 503,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 318,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "loaded-tr-1440-1-dark",
+      "taskPrimary": [
+        "Örneği incele ve analiz et"
+      ],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç",
+        "Örneği incele ve analiz et"
+      ],
+      "reading": [
+        {
+          "cls": "",
+          "width": 503,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 318,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "mtx-muted mrv-review-meta",
+          "width": 504,
+          "font": "12px",
+          "line": "20.4px"
+        },
+        {
+          "cls": " mrv-reader-text",
+          "width": 605,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "loaded-long-tr-1440-1-dark",
+      "taskPrimary": [
+        "Örneği incele ve analiz et"
+      ],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç",
+        "Örneği incele ve analiz et"
+      ],
+      "reading": [
+        {
+          "cls": "",
+          "width": 503,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 318,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "mtx-muted mrv-review-meta",
+          "width": 504,
+          "font": "12px",
+          "line": "20.4px"
+        },
+        {
+          "cls": "mrv-reader-text",
+          "width": 605,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "preview-tr-1440-1-dark",
+      "taskPrimary": [
+        "Bu örneği gönder"
+      ],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç",
+        "Bu örneği gönder"
+      ],
+      "reading": [
+        {
+          "cls": "mrv-sent-text mrv-reader-text",
+          "width": 605,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "validation-tr-1440-1-dark",
+      "taskPrimary": [
+        "Bu örneği gönder"
+      ],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç",
+        "Bu örneği gönder"
+      ],
+      "reading": [
+        {
+          "cls": "mrv-sent-text mrv-reader-text",
+          "width": 605,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "preview-selected-tr-1440-1-dark",
+      "taskPrimary": [
+        "Bu örneği gönder"
+      ],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç",
+        "Bu örneği gönder"
+      ],
+      "reading": []
+    },
+    {
+      "name": "workspace-tr-1440-1-dark",
+      "taskPrimary": [
+        "Örneği incele ve analiz et"
+      ],
+      "width": 1440,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Örneği incele ve analiz et"
+      ],
+      "reading": [
+        {
+          "cls": "mtx-muted mrv-review-meta",
+          "width": 504,
+          "font": "12px",
+          "line": "20.4px"
+        },
+        {
+          "cls": " mrv-reader-text",
+          "width": 605,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 557,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 355,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "saved-tr-900-1.25-dark",
+      "taskPrimary": [],
+      "width": 720,
+      "height": 800,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç"
+      ],
+      "reading": [
+        {
+          "cls": "",
+          "width": 612,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 612,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "source-proof-tr-900-1.25-dark",
+      "taskPrimary": [],
+      "width": 720,
+      "height": 800,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç"
+      ],
+      "reading": [
+        {
+          "cls": "",
+          "width": 612,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 612,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "saved-original-long-tr-900-1.25-dark",
+      "taskPrimary": [],
+      "width": 720,
+      "height": 800,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç"
+      ],
+      "reading": [
+        {
+          "cls": "",
+          "width": 612,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 612,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "loaded-tr-900-1.25-dark",
+      "taskPrimary": [
+        "Örneği incele ve analiz et"
+      ],
+      "width": 720,
+      "height": 800,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç",
+        "Örneği incele ve analiz et"
+      ],
+      "reading": [
+        {
+          "cls": "mtx-muted mrv-review-meta",
+          "width": 504,
+          "font": "12px",
+          "line": "20.4px"
+        },
+        {
+          "cls": " mrv-reader-text",
+          "width": 605,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 612,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 612,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "loaded-long-tr-900-1.25-dark",
+      "taskPrimary": [
+        "Örneği incele ve analiz et"
+      ],
+      "width": 720,
+      "height": 800,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç",
+        "Örneği incele ve analiz et"
+      ],
+      "reading": [
+        {
+          "cls": "mtx-muted mrv-review-meta",
+          "width": 504,
+          "font": "12px",
+          "line": "20.4px"
+        },
+        {
+          "cls": "mrv-reader-text",
+          "width": 605,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 612,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 612,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "preview-tr-900-1.25-dark",
+      "taskPrimary": [
+        "Bu örneği gönder"
+      ],
+      "width": 720,
+      "height": 800,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç",
+        "Bu örneği gönder"
+      ],
+      "reading": [
+        {
+          "cls": "mrv-sent-text mrv-reader-text mrv-reader-collapsed",
+          "width": 605,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "validation-tr-900-1.25-dark",
+      "taskPrimary": [
+        "Bu örneği gönder"
+      ],
+      "width": 720,
+      "height": 800,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç",
+        "Bu örneği gönder"
+      ],
+      "reading": [
+        {
+          "cls": "mrv-sent-text mrv-reader-text mrv-reader-collapsed",
+          "width": 605,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "preview-selected-tr-900-1.25-dark",
+      "taskPrimary": [
+        "Bu örneği gönder"
+      ],
+      "width": 720,
+      "height": 800,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç",
+        "Bu örneği gönder"
+      ],
+      "reading": []
+    },
+    {
+      "name": "workspace-tr-900-1.25-dark",
+      "taskPrimary": [
+        "Örneği incele ve analiz et"
+      ],
+      "width": 720,
+      "height": 800,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Örneği incele ve analiz et"
+      ],
+      "reading": [
+        {
+          "cls": "mtx-muted mrv-review-meta",
+          "width": 504,
+          "font": "12px",
+          "line": "20.4px"
+        },
+        {
+          "cls": " mrv-reader-text",
+          "width": 605,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 612,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 612,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "saved-en-620-1-light",
+      "taskPrimary": [],
+      "width": 620,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Choose video file"
+      ],
+      "reading": [
+        {
+          "cls": "",
+          "width": 566,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 566,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "source-proof-en-620-1-light",
+      "taskPrimary": [],
+      "width": 620,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Choose video file"
+      ],
+      "reading": [
+        {
+          "cls": "",
+          "width": 566,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 566,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "saved-original-long-en-620-1-light",
+      "taskPrimary": [],
+      "width": 620,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Choose video file"
+      ],
+      "reading": [
+        {
+          "cls": "",
+          "width": 566,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 566,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "loaded-en-620-1-light",
+      "taskPrimary": [
+        "Preview & analyze"
+      ],
+      "width": 620,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Choose video file",
+        "Preview & analyze"
+      ],
+      "reading": [
+        {
+          "cls": "mtx-muted mrv-review-meta",
+          "width": 504,
+          "font": "12px",
+          "line": "20.4px"
+        },
+        {
+          "cls": " mrv-reader-text",
+          "width": 566,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 566,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 566,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "loaded-long-en-620-1-light",
+      "taskPrimary": [
+        "Preview & analyze"
+      ],
+      "width": 620,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Choose video file",
+        "Preview & analyze"
+      ],
+      "reading": [
+        {
+          "cls": "mtx-muted mrv-review-meta",
+          "width": 504,
+          "font": "12px",
+          "line": "20.4px"
+        },
+        {
+          "cls": "mrv-reader-text",
+          "width": 566,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 566,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 566,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "preview-en-620-1-light",
+      "taskPrimary": [
+        "Send this sample"
+      ],
+      "width": 620,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Choose video file",
+        "Send this sample"
+      ],
+      "reading": [
+        {
+          "cls": "mrv-sent-text mrv-reader-text mrv-reader-collapsed",
+          "width": 566,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "validation-en-620-1-light",
+      "taskPrimary": [
+        "Send this sample"
+      ],
+      "width": 620,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Choose video file",
+        "Send this sample"
+      ],
+      "reading": [
+        {
+          "cls": "mrv-sent-text mrv-reader-text mrv-reader-collapsed",
+          "width": 566,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "preview-selected-en-620-1-light",
+      "taskPrimary": [
+        "Send this sample"
+      ],
+      "width": 620,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Choose video file",
+        "Send this sample"
+      ],
+      "reading": []
+    },
+    {
+      "name": "workspace-en-620-1-light",
+      "taskPrimary": [
+        "Preview & analyze"
+      ],
+      "width": 620,
+      "height": 1000,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Preview & analyze"
+      ],
+      "reading": [
+        {
+          "cls": "mtx-muted mrv-review-meta",
+          "width": 504,
+          "font": "12px",
+          "line": "20.4px"
+        },
+        {
+          "cls": " mrv-reader-text",
+          "width": 535,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 535,
+          "font": "15px",
+          "line": "27.75px"
+        },
+        {
+          "cls": "",
+          "width": 535,
+          "font": "15px",
+          "line": "27.75px"
+        }
+      ]
+    },
+    {
+      "name": "empty-tr-900",
+      "taskPrimary": [],
+      "width": 720,
+      "height": 800,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç"
+      ],
+      "reading": []
+    },
+    {
+      "name": "empty-loading-tr-900",
+      "taskPrimary": [],
+      "width": 720,
+      "height": 800,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç"
+      ],
+      "reading": []
+    },
+    {
+      "name": "failure-tr-900",
+      "taskPrimary": [
+        "Bu filmi bul ve yorumları getir"
+      ],
+      "width": 720,
+      "height": 800,
+      "rootOverflow": false,
+      "textOverflow": [],
+      "primary": [
+        "Video dosyası seç",
+        "Bu filmi bul ve yorumları getir"
+      ],
+      "reading": []
+    }
+  ],
+  "checks": [
+    {
+      "mode": "en-1440-1-dark",
+      "reader": "saved originals",
+      "selected": "r3",
+      "exclusive": 1,
+      "originalLength": 1346,
+      "collapsedHeight": 138.75,
+      "expandedHeight": 527.25,
+      "navOverlap": false,
+      "toggleOverlap": false
+    },
+    {
+      "mode": "en-1440-1-dark",
+      "reader": "loaded",
+      "selected": "r3",
+      "exclusive": 1,
+      "originalLength": 1346,
+      "collapsedHeight": 138.75,
+      "expandedHeight": 527.25,
+      "navOverlap": false,
+      "toggleOverlap": false
+    },
+    {
+      "mode": "en-1440-1-dark",
+      "validation": {
+        "role": "alert",
+        "text": "Check the title and year before sending.",
+        "visible": true,
+        "sourceHidden": true
+      },
+      "analysisCalls": 0
+    },
+    {
+      "mode": "en-1440-1-dark",
+      "reader": "preview",
+      "selected": "r3",
+      "exclusive": 1,
+      "originalLength": 1346,
+      "collapsedHeight": 138.75,
+      "expandedHeight": 527.25,
+      "navOverlap": false,
+      "toggleOverlap": false
+    },
+    "en-1440-1-dark: matched proof, advanced controls, editor focus/restore, Tab/Escape",
+    {
+      "mode": "tr-1440-1-dark",
+      "reader": "saved originals",
+      "selected": "r3",
+      "exclusive": 1,
+      "originalLength": 1255,
+      "collapsedHeight": 138.75,
+      "expandedHeight": 471.75,
+      "navOverlap": false,
+      "toggleOverlap": false
+    },
+    {
+      "mode": "tr-1440-1-dark",
+      "reader": "loaded",
+      "selected": "r3",
+      "exclusive": 1,
+      "originalLength": 1255,
+      "collapsedHeight": 138.75,
+      "expandedHeight": 471.75,
+      "navOverlap": false,
+      "toggleOverlap": false
+    },
+    {
+      "mode": "tr-1440-1-dark",
+      "validation": {
+        "role": "alert",
+        "text": "Göndermeden önce yapım ve yılı kontrol et.",
+        "visible": true,
+        "sourceHidden": true
+      },
+      "analysisCalls": 0
+    },
+    {
+      "mode": "tr-1440-1-dark",
+      "reader": "preview",
+      "selected": "r3",
+      "exclusive": 1,
+      "originalLength": 1255,
+      "collapsedHeight": 138.75,
+      "expandedHeight": 471.75,
+      "navOverlap": false,
+      "toggleOverlap": false
+    },
+    "tr-1440-1-dark: matched proof, advanced controls, editor focus/restore, Tab/Escape",
+    {
+      "mode": "tr-900-1.25-dark",
+      "reader": "saved originals",
+      "selected": "r3",
+      "exclusive": 1,
+      "originalLength": 1255,
+      "collapsedHeight": 138.75,
+      "expandedHeight": 471.7500305175781,
+      "navOverlap": false,
+      "toggleOverlap": false
+    },
+    {
+      "mode": "tr-900-1.25-dark",
+      "reader": "loaded",
+      "selected": "r3",
+      "exclusive": 1,
+      "originalLength": 1255,
+      "collapsedHeight": 138.75,
+      "expandedHeight": 471.7500305175781,
+      "navOverlap": false,
+      "toggleOverlap": false
+    },
+    {
+      "mode": "tr-900-1.25-dark",
+      "validation": {
+        "role": "alert",
+        "text": "Göndermeden önce yapım ve yılı kontrol et.",
+        "visible": true,
+        "sourceHidden": true
+      },
+      "analysisCalls": 0
+    },
+    {
+      "mode": "tr-900-1.25-dark",
+      "reader": "preview",
+      "selected": "r3",
+      "exclusive": 1,
+      "originalLength": 1255,
+      "collapsedHeight": 138.75,
+      "expandedHeight": 471.7500305175781,
+      "navOverlap": false,
+      "toggleOverlap": false
+    },
+    "tr-900-1.25-dark: matched proof, advanced controls, editor focus/restore, Tab/Escape",
+    {
+      "mode": "en-620-1-light",
+      "reader": "saved originals",
+      "selected": "r3",
+      "exclusive": 1,
+      "originalLength": 1346,
+      "collapsedHeight": 138.75,
+      "expandedHeight": 555,
+      "navOverlap": false,
+      "toggleOverlap": false
+    },
+    {
+      "mode": "en-620-1-light",
+      "reader": "loaded",
+      "selected": "r3",
+      "exclusive": 1,
+      "originalLength": 1346,
+      "collapsedHeight": 138.75,
+      "expandedHeight": 555,
+      "navOverlap": false,
+      "toggleOverlap": false
+    },
+    {
+      "mode": "en-620-1-light",
+      "validation": {
+        "role": "alert",
+        "text": "Check the title and year before sending.",
+        "visible": true,
+        "sourceHidden": true
+      },
+      "analysisCalls": 0
+    },
+    {
+      "mode": "en-620-1-light",
+      "reader": "preview",
+      "selected": "r3",
+      "exclusive": 1,
+      "originalLength": 1346,
+      "collapsedHeight": 138.75,
+      "expandedHeight": 555,
+      "navOverlap": false,
+      "toggleOverlap": false
+    },
+    "en-620-1-light: matched proof, advanced controls, editor focus/restore, Tab/Escape"
+  ],
+  "analysisCalls": 0,
+  "networkAttempts": 52,
+  "limits": "Controlled review prose and reading response, actual saved-decision IPC/native UI. No provider/model/network, no real reviews or personal account; screenshot review is required before design signoff."
+}
