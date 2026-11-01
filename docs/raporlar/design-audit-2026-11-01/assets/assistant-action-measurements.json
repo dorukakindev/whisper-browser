@@ -1,0 +1,356 @@
+[
+  {
+    "width": 480,
+    "height": 720,
+    "stage": "before",
+    "dpr": 1,
+    "review": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0,
+      "top": 0,
+      "right": 0,
+      "bottom": 0,
+      "left": 0
+    },
+    "confirm": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0,
+      "top": 0,
+      "right": 0,
+      "bottom": 0,
+      "left": 0
+    },
+    "workspace": {
+      "x": 5,
+      "y": 81,
+      "width": 470,
+      "height": 479,
+      "top": 81,
+      "right": 475,
+      "bottom": 560,
+      "left": 5
+    },
+    "reviewHidden": true,
+    "active": "text",
+    "workspaceScroll": 0,
+    "form": {
+      "x": 21,
+      "y": 560,
+      "width": 438,
+      "height": 139,
+      "top": 560,
+      "right": 459,
+      "bottom": 699,
+      "left": 21
+    },
+    "apply": {
+      "x": 42,
+      "y": 402.359375,
+      "width": 60.546875,
+      "height": 36.1875,
+      "top": 402.359375,
+      "right": 102.546875,
+      "bottom": 438.546875,
+      "left": 42
+    }
+  },
+  {
+    "width": 480,
+    "height": 720,
+    "stage": "after",
+    "dpr": 1,
+    "review": {
+      "x": 21,
+      "y": 393.25,
+      "width": 438,
+      "height": 146.75,
+      "top": 393.25,
+      "right": 459,
+      "bottom": 540,
+      "left": 21
+    },
+    "confirm": {
+      "x": 34,
+      "y": 493,
+      "width": 74.859375,
+      "height": 34,
+      "top": 493,
+      "right": 108.859375,
+      "bottom": 527,
+      "left": 34
+    },
+    "workspace": {
+      "x": 5,
+      "y": 81,
+      "width": 470,
+      "height": 479,
+      "top": 81,
+      "right": 475,
+      "bottom": 560,
+      "left": 5
+    },
+    "reviewHidden": false,
+    "active": "",
+    "workspaceScroll": 0,
+    "form": {
+      "x": 21,
+      "y": 560,
+      "width": 438,
+      "height": 139,
+      "top": 560,
+      "right": 459,
+      "bottom": 699,
+      "left": 21
+    },
+    "apply": {
+      "x": 42,
+      "y": 402.359375,
+      "width": 60.546875,
+      "height": 36.1875,
+      "top": 402.359375,
+      "right": 102.546875,
+      "bottom": 438.546875,
+      "left": 42
+    }
+  },
+  {
+    "width": 360,
+    "height": 600,
+    "stage": "before",
+    "dpr": 1,
+    "review": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0,
+      "top": 0,
+      "right": 0,
+      "bottom": 0,
+      "left": 0
+    },
+    "confirm": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0,
+      "top": 0,
+      "right": 0,
+      "bottom": 0,
+      "left": 0
+    },
+    "workspace": {
+      "x": 5,
+      "y": 67,
+      "width": 350,
+      "height": 399,
+      "top": 67,
+      "right": 355,
+      "bottom": 466,
+      "left": 5
+    },
+    "reviewHidden": true,
+    "active": "",
+    "workspaceScroll": 0,
+    "form": {
+      "x": 15,
+      "y": 466,
+      "width": 330,
+      "height": 119,
+      "top": 466,
+      "right": 345,
+      "bottom": 585,
+      "left": 15
+    },
+    "apply": {
+      "x": 36,
+      "y": 331.265625,
+      "width": 60.546875,
+      "height": 36.1875,
+      "top": 331.265625,
+      "right": 96.546875,
+      "bottom": 367.453125,
+      "left": 36
+    }
+  },
+  {
+    "width": 360,
+    "height": 600,
+    "stage": "after",
+    "dpr": 1,
+    "review": {
+      "x": 21,
+      "y": 346,
+      "width": 318,
+      "height": 100,
+      "top": 346,
+      "right": 339,
+      "bottom": 446,
+      "left": 21
+    },
+    "confirm": {
+      "x": 34,
+      "y": 464.9375,
+      "width": 74.859375,
+      "height": 34,
+      "top": 464.9375,
+      "right": 108.859375,
+      "bottom": 498.9375,
+      "left": 34
+    },
+    "workspace": {
+      "x": 5,
+      "y": 67,
+      "width": 350,
+      "height": 399,
+      "top": 67,
+      "right": 355,
+      "bottom": 466,
+      "left": 5
+    },
+    "reviewHidden": false,
+    "active": "",
+    "workspaceScroll": 0,
+    "form": {
+      "x": 15,
+      "y": 466,
+      "width": 330,
+      "height": 119,
+      "top": 466,
+      "right": 345,
+      "bottom": 585,
+      "left": 15
+    },
+    "apply": {
+      "x": 36,
+      "y": 331.265625,
+      "width": 60.546875,
+      "height": 36.1875,
+      "top": 331.265625,
+      "right": 96.546875,
+      "bottom": 367.453125,
+      "left": 36
+    }
+  },
+  {
+    "width": 360,
+    "height": 480,
+    "stage": "before",
+    "dpr": 1,
+    "review": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0,
+      "top": 0,
+      "right": 0,
+      "bottom": 0,
+      "left": 0
+    },
+    "confirm": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0,
+      "top": 0,
+      "right": 0,
+      "bottom": 0,
+      "left": 0
+    },
+    "workspace": {
+      "x": 5,
+      "y": 67,
+      "width": 350,
+      "height": 279,
+      "top": 67,
+      "right": 355,
+      "bottom": 346,
+      "left": 5
+    },
+    "reviewHidden": true,
+    "active": "",
+    "workspaceScroll": 0,
+    "form": {
+      "x": 15,
+      "y": 346,
+      "width": 330,
+      "height": 119,
+      "top": 346,
+      "right": 345,
+      "bottom": 465,
+      "left": 15
+    },
+    "apply": {
+      "x": 36,
+      "y": 211.265625,
+      "width": 60.546875,
+      "height": 36.1875,
+      "top": 211.265625,
+      "right": 96.546875,
+      "bottom": 247.453125,
+      "left": 36
+    }
+  },
+  {
+    "width": 360,
+    "height": 480,
+    "stage": "after",
+    "dpr": 1,
+    "review": {
+      "x": 21,
+      "y": 318.140625,
+      "width": 308,
+      "height": 100,
+      "top": 318.140625,
+      "right": 329,
+      "bottom": 418.140625,
+      "left": 21
+    },
+    "confirm": {
+      "x": 34,
+      "y": 437.078125,
+      "width": 74.859375,
+      "height": 34,
+      "top": 437.078125,
+      "right": 108.859375,
+      "bottom": 471.078125,
+      "left": 34
+    },
+    "workspace": {
+      "x": 5,
+      "y": 67,
+      "width": 350,
+      "height": 279,
+      "top": 67,
+      "right": 355,
+      "bottom": 346,
+      "left": 5
+    },
+    "reviewHidden": false,
+    "active": "",
+    "workspaceScroll": 0,
+    "form": {
+      "x": 15,
+      "y": 346,
+      "width": 330,
+      "height": 119,
+      "top": 346,
+      "right": 345,
+      "bottom": 465,
+      "left": 15
+    },
+    "apply": {
+      "x": 36,
+      "y": 314.828125,
+      "width": 60.546875,
+      "height": 36.1875,
+      "top": 314.828125,
+      "right": 96.546875,
+      "bottom": 351.015625,
+      "left": 36
+    }
+  }
+]

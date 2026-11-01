@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-01-0632.md](docs/devir/2026-11-01-0632.md) — Ajanlarla görüntülü tasarım denetimi; yalnız rapor, düzeltme yok
 Güncel çalışma: [docs/devir/2026-11-01-0616.md](docs/devir/2026-11-01-0616.md) — Kaynağa özel telaffuz, gerçek video sonu ve GPU A/B kabulü
 Güncel çalışma: [docs/devir/2026-11-01-0506.md](docs/devir/2026-11-01-0506.md) — Ses için çeviri, gerçek GPU karşılaştırması ve doğrulama özeti
 Güncel çalışma: [docs/devir/2026-11-01-0417.md](docs/devir/2026-11-01-0417.md) — Gerçek Letterboxd/DeepSeek, doğal asistan komutu ve kayıt sürekliliği

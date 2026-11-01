@@ -1,0 +1,412 @@
+[
+  {
+    "name": "1440-tr-dark-empty",
+    "nativeContent": [
+      1440,
+      800
+    ],
+    "view": {
+      "x": 944,
+      "y": 56,
+      "width": 480,
+      "height": 720
+    },
+    "display": {
+      "accelerometerSupport": "unknown",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 2560,
+        "height": 1440
+      },
+      "colorDepth": 24,
+      "colorSpace": "{primaries:BT709, transfer:SRGB, matrix:RGB, range:FULL}",
+      "depthPerComponent": 8,
+      "detected": true,
+      "displayFrequency": 144,
+      "id": 2871042092,
+      "internal": false,
+      "label": "VG27AQ1A",
+      "maximumCursorSize": {
+        "width": 0,
+        "height": 0
+      },
+      "monochrome": false,
+      "nativeOrigin": {
+        "x": 0,
+        "y": 0
+      },
+      "rotation": 0,
+      "scaleFactor": 1,
+      "size": {
+        "width": 2560,
+        "height": 1440
+      },
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 2560,
+        "height": 1380
+      },
+      "workAreaSize": {
+        "width": 2560,
+        "height": 1380
+      },
+      "touchSupport": "unknown"
+    },
+    "renderer": {
+      "width": 480,
+      "height": 720,
+      "dpr": 1,
+      "locale": "tr",
+      "theme": "dark",
+      "workspace": {
+        "client": 479,
+        "scroll": 518
+      },
+      "log": {
+        "client": 210,
+        "scroll": 210
+      },
+      "form": {
+        "x": 21,
+        "y": 560,
+        "width": 438,
+        "height": 139,
+        "top": 560,
+        "right": 459,
+        "bottom": 699,
+        "left": 21
+      },
+      "source": "Medya kütüphanesi\nNo active video is attached. Do not infer contents of a previously opened video.\nYalnız sağlanan metin ve bilgiler kullanılır; eserin tamamı ekli değildir."
+    }
+  },
+  {
+    "name": "1440-tr-dark-source",
+    "nativeContent": [
+      1440,
+      800
+    ],
+    "view": {
+      "x": 944,
+      "y": 56,
+      "width": 480,
+      "height": 720
+    },
+    "display": {
+      "accelerometerSupport": "unknown",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 2560,
+        "height": 1440
+      },
+      "colorDepth": 24,
+      "colorSpace": "{primaries:BT709, transfer:SRGB, matrix:RGB, range:FULL}",
+      "depthPerComponent": 8,
+      "detected": true,
+      "displayFrequency": 144,
+      "id": 2871042092,
+      "internal": false,
+      "label": "VG27AQ1A",
+      "maximumCursorSize": {
+        "width": 0,
+        "height": 0
+      },
+      "monochrome": false,
+      "nativeOrigin": {
+        "x": 0,
+        "y": 0
+      },
+      "rotation": 0,
+      "scaleFactor": 1,
+      "size": {
+        "width": 2560,
+        "height": 1440
+      },
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 2560,
+        "height": 1380
+      },
+      "workAreaSize": {
+        "width": 2560,
+        "height": 1380
+      },
+      "touchSupport": "unknown"
+    },
+    "renderer": {
+      "width": 480,
+      "height": 720,
+      "dpr": 1,
+      "locale": "tr",
+      "theme": "dark",
+      "workspace": {
+        "client": 479,
+        "scroll": 700
+      },
+      "log": {
+        "client": 210,
+        "scroll": 210
+      },
+      "form": {
+        "x": 21,
+        "y": 560,
+        "width": 438,
+        "height": 139,
+        "top": 560,
+        "right": 459,
+        "bottom": 699,
+        "left": 21
+      },
+      "source": "Medya kütüphanesi\nNo active video is attached. Do not infer contents of a previously opened video.\nYalnız sağlanan metin ve bilgiler kullanılır; eserin tamamı ekli değildir."
+    }
+  },
+  {
+    "name": "1440-tr-dark-expanded-empty",
+    "nativeContent": [
+      1440,
+      800
+    ],
+    "view": {
+      "x": 644,
+      "y": 40,
+      "width": 780,
+      "height": 736
+    },
+    "display": {
+      "accelerometerSupport": "unknown",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 2560,
+        "height": 1440
+      },
+      "colorDepth": 24,
+      "colorSpace": "{primaries:BT709, transfer:SRGB, matrix:RGB, range:FULL}",
+      "depthPerComponent": 8,
+      "detected": true,
+      "displayFrequency": 144,
+      "id": 2871042092,
+      "internal": false,
+      "label": "VG27AQ1A",
+      "maximumCursorSize": {
+        "width": 0,
+        "height": 0
+      },
+      "monochrome": false,
+      "nativeOrigin": {
+        "x": 0,
+        "y": 0
+      },
+      "rotation": 0,
+      "scaleFactor": 1,
+      "size": {
+        "width": 2560,
+        "height": 1440
+      },
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 2560,
+        "height": 1380
+      },
+      "workAreaSize": {
+        "width": 2560,
+        "height": 1380
+      },
+      "touchSupport": "unknown"
+    },
+    "renderer": {
+      "width": 780,
+      "height": 736,
+      "dpr": 1,
+      "locale": "tr",
+      "theme": "dark",
+      "workspace": {
+        "client": 495,
+        "scroll": 518
+      },
+      "log": {
+        "client": 210,
+        "scroll": 210
+      },
+      "form": {
+        "x": 21,
+        "y": 576,
+        "width": 738,
+        "height": 139,
+        "top": 576,
+        "right": 759,
+        "bottom": 715,
+        "left": 21
+      },
+      "source": "Medya kütüphanesi\nNo active video is attached. Do not infer contents of a previously opened video.\nYalnız sağlanan metin ve bilgiler kullanılır; eserin tamamı ekli değildir."
+    }
+  },
+  {
+    "name": "800-en-light-expanded-empty",
+    "nativeContent": [
+      800,
+      800
+    ],
+    "view": {
+      "x": 8,
+      "y": 40,
+      "width": 776,
+      "height": 736
+    },
+    "display": {
+      "accelerometerSupport": "unknown",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 2560,
+        "height": 1440
+      },
+      "colorDepth": 24,
+      "colorSpace": "{primaries:BT709, transfer:SRGB, matrix:RGB, range:FULL}",
+      "depthPerComponent": 8,
+      "detected": true,
+      "displayFrequency": 144,
+      "id": 2871042092,
+      "internal": false,
+      "label": "VG27AQ1A",
+      "maximumCursorSize": {
+        "width": 0,
+        "height": 0
+      },
+      "monochrome": false,
+      "nativeOrigin": {
+        "x": 0,
+        "y": 0
+      },
+      "rotation": 0,
+      "scaleFactor": 1,
+      "size": {
+        "width": 2560,
+        "height": 1440
+      },
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 2560,
+        "height": 1380
+      },
+      "workAreaSize": {
+        "width": 2560,
+        "height": 1380
+      },
+      "touchSupport": "unknown"
+    },
+    "renderer": {
+      "width": 776,
+      "height": 736,
+      "dpr": 1,
+      "locale": "en",
+      "theme": "light",
+      "workspace": {
+        "client": 495,
+        "scroll": 518
+      },
+      "log": {
+        "client": 210,
+        "scroll": 210
+      },
+      "form": {
+        "x": 21,
+        "y": 576,
+        "width": 734,
+        "height": 139,
+        "top": 576,
+        "right": 755,
+        "bottom": 715,
+        "left": 21
+      },
+      "source": "Media library\nNo active video is attached. Do not infer contents of a previously opened video.\nOnly supplied text and metadata are available; the full work is not attached."
+    }
+  },
+  {
+    "name": "800-en-light-empty",
+    "nativeContent": [
+      800,
+      800
+    ],
+    "view": {
+      "x": 304,
+      "y": 56,
+      "width": 480,
+      "height": 720
+    },
+    "display": {
+      "accelerometerSupport": "unknown",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 2560,
+        "height": 1440
+      },
+      "colorDepth": 24,
+      "colorSpace": "{primaries:BT709, transfer:SRGB, matrix:RGB, range:FULL}",
+      "depthPerComponent": 8,
+      "detected": true,
+      "displayFrequency": 144,
+      "id": 2871042092,
+      "internal": false,
+      "label": "VG27AQ1A",
+      "maximumCursorSize": {
+        "width": 0,
+        "height": 0
+      },
+      "monochrome": false,
+      "nativeOrigin": {
+        "x": 0,
+        "y": 0
+      },
+      "rotation": 0,
+      "scaleFactor": 1,
+      "size": {
+        "width": 2560,
+        "height": 1440
+      },
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 2560,
+        "height": 1380
+      },
+      "workAreaSize": {
+        "width": 2560,
+        "height": 1380
+      },
+      "touchSupport": "unknown"
+    },
+    "renderer": {
+      "width": 480,
+      "height": 720,
+      "dpr": 1,
+      "locale": "en",
+      "theme": "light",
+      "workspace": {
+        "client": 479,
+        "scroll": 518
+      },
+      "log": {
+        "client": 210,
+        "scroll": 210
+      },
+      "form": {
+        "x": 21,
+        "y": 560,
+        "width": 438,
+        "height": 139,
+        "top": 560,
+        "right": 459,
+        "bottom": 699,
+        "left": 21
+      },
+      "source": "Media library\nNo active video is attached. Do not infer contents of a previously opened video.\nOnly supplied text and metadata are available; the full work is not attached."
+    }
+  }
+]
