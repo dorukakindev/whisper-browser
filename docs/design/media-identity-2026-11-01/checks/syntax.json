@@ -1,0 +1,67 @@
+[
+  {
+    "file": "src/renderer/assistant-overlay.js",
+    "code": 0,
+    "stderr": ""
+  },
+  {
+    "file": "src/renderer/media-discovery-ui.js",
+    "code": 0,
+    "stderr": ""
+  },
+  {
+    "file": "src/renderer/media-home.js",
+    "code": 0,
+    "stderr": ""
+  },
+  {
+    "file": "src/renderer/media-title.js",
+    "code": 0,
+    "stderr": ""
+  },
+  {
+    "file": "src/renderer/review-decision-ui.js",
+    "code": 0,
+    "stderr": ""
+  },
+  {
+    "file": "src/renderer/ui-motion.js",
+    "code": 0,
+    "stderr": ""
+  },
+  {
+    "file": "tests/electron-home-discovery-design.smoke.js",
+    "code": 0,
+    "stderr": ""
+  },
+  {
+    "file": "tests/electron-review-reading833.smoke.js",
+    "code": 0,
+    "stderr": ""
+  },
+  {
+    "file": "tests/review-workflow.test.js",
+    "code": 0,
+    "stderr": ""
+  },
+  {
+    "file": "tests/ui-motion.test.js",
+    "code": 0,
+    "stderr": ""
+  },
+  {
+    "file": "tests/assistant-message-actions.test.js",
+    "code": 0,
+    "stderr": ""
+  },
+  {
+    "file": "tests/electron-assistant-message-actions.smoke.js",
+    "code": 0,
+    "stderr": ""
+  },
+  {
+    "file": "tests/electron-media-identity.smoke.js",
+    "code": 0,
+    "stderr": ""
+  }
+]

@@ -1,0 +1,3341 @@
+{
+  "phase": "after",
+  "baseline": null,
+  "baselineRendererFiles": [],
+  "actualApp": true,
+  "isolatedProfile": true,
+  "art": {
+    "file": "<WORKTREE>\\docs\\media\\demo-poster.png",
+    "source": "included Tears of Steel demo frame; Blender Foundation CC BY3.0 per docs/media/README.md",
+    "crop": "image-only region removes baked demo subtitle bands",
+    "poster": "crop of same supplied film frame, not an official release poster"
+  },
+  "screens": [
+    {
+      "name": "home-wide-dark",
+      "file": "<WORKTREE>\\.uiprev\\media-identity-after-1793536805349\\home-wide-dark.png",
+      "width": 1440,
+      "height": 1000,
+      "background": "#111215",
+      "accent": "#d5a35c",
+      "topMenuVisible": true,
+      "topMenuLabels": "FilmMüzikKitaplar",
+      "overflow": false,
+      "homeWideReady": "true",
+      "homeWideImage": [
+        {
+          "width": 1280,
+          "height": 534
+        }
+      ],
+      "art": [
+        {
+          "complete": true,
+          "width": 1280,
+          "height": 534
+        }
+      ]
+    },
+    {
+      "name": "film-wide-dark",
+      "file": "<WORKTREE>\\.uiprev\\media-identity-after-1793536805349\\film-wide-dark.png",
+      "width": 1440,
+      "height": 1000,
+      "background": "#111215",
+      "accent": "#d5a35c",
+      "topMenuVisible": true,
+      "topMenuLabels": "FilmMüzikKitaplar",
+      "overflow": false,
+      "reviewParent": "mtd-body",
+      "review": {
+        "x": 98.19792175292969,
+        "y": 1325.25,
+        "width": 1233.604248046875,
+        "height": 915.3333740234375,
+        "top": 1325.25,
+        "right": 1331.8021697998047,
+        "bottom": 2240.5833740234375,
+        "left": 98.19792175292969
+      },
+      "body": {
+        "x": 55,
+        "y": 560.59375,
+        "width": 1320,
+        "height": 1711.9896240234375,
+        "top": 560.59375,
+        "right": 1375,
+        "bottom": 2272.5833740234375,
+        "left": 55
+      },
+      "homeWideReady": "true",
+      "homeWideImage": [
+        {
+          "width": 1280,
+          "height": 534
+        }
+      ],
+      "art": [
+        {
+          "complete": true,
+          "width": 1280,
+          "height": 534
+        },
+        {
+          "complete": true,
+          "width": 1280,
+          "height": 534
+        },
+        {
+          "complete": true,
+          "width": 500,
+          "height": 750
+        }
+      ]
+    },
+    {
+      "name": "review-wide-dark",
+      "file": "<WORKTREE>\\.uiprev\\media-identity-after-1793536805349\\review-wide-dark.png",
+      "width": 1440,
+      "height": 1000,
+      "background": "#111215",
+      "accent": "#d5a35c",
+      "topMenuVisible": true,
+      "topMenuLabels": "FilmMüzikKitaplar",
+      "overflow": false,
+      "reviewParent": "mtd-body",
+      "review": {
+        "x": 98.19792175292969,
+        "y": 27.916667938232422,
+        "width": 1233.604248046875,
+        "height": 915.3333740234375,
+        "top": 27.916667938232422,
+        "right": 1331.8021697998047,
+        "bottom": 943.2500419616699,
+        "left": 98.19792175292969
+      },
+      "body": {
+        "x": 55,
+        "y": -736.7396240234375,
+        "width": 1320,
+        "height": 1711.9896240234375,
+        "top": -736.7396240234375,
+        "right": 1375,
+        "bottom": 975.25,
+        "left": 55
+      },
+      "homeWideReady": "true",
+      "homeWideImage": [
+        {
+          "width": 1280,
+          "height": 534
+        }
+      ],
+      "art": [
+        {
+          "complete": true,
+          "width": 1280,
+          "height": 534
+        },
+        {
+          "complete": true,
+          "width": 1280,
+          "height": 534
+        },
+        {
+          "complete": true,
+          "width": 500,
+          "height": 750
+        }
+      ]
+    },
+    {
+      "name": "home-narrow-dark",
+      "file": "<WORKTREE>\\.uiprev\\media-identity-after-1793536805349\\home-narrow-dark.png",
+      "width": 720,
+      "height": 800,
+      "background": "#111215",
+      "accent": "#d5a35c",
+      "topMenuVisible": true,
+      "topMenuLabels": "FilmMüzikKitaplar",
+      "overflow": false,
+      "homeWideReady": "true",
+      "homeWideImage": [
+        {
+          "width": 1280,
+          "height": 534
+        }
+      ],
+      "art": [
+        {
+          "complete": true,
+          "width": 1280,
+          "height": 534
+        }
+      ]
+    },
+    {
+      "name": "film-narrow-dark",
+      "file": "<WORKTREE>\\.uiprev\\media-identity-after-1793536805349\\film-narrow-dark.png",
+      "width": 720,
+      "height": 800,
+      "background": "#111215",
+      "accent": "#d5a35c",
+      "topMenuVisible": true,
+      "topMenuLabels": "FilmMüzikKitaplar",
+      "overflow": false,
+      "reviewParent": "mtd-body",
+      "review": {
+        "x": 22.000001907348633,
+        "y": 1787.353271484375,
+        "width": 668.0000610351562,
+        "height": 1554.2501220703125,
+        "top": 1787.353271484375,
+        "right": 690.0000629425049,
+        "bottom": 3341.6033935546875,
+        "left": 22.000001907348633
+      },
+      "body": {
+        "x": 0,
+        "y": 555.2032470703125,
+        "width": 712.0000610351562,
+        "height": 2794.400146484375,
+        "top": 555.2032470703125,
+        "right": 712.0000610351562,
+        "bottom": 3349.6033935546875,
+        "left": 0
+      },
+      "homeWideReady": "true",
+      "homeWideImage": [
+        {
+          "width": 1280,
+          "height": 534
+        }
+      ],
+      "art": [
+        {
+          "complete": true,
+          "width": 1280,
+          "height": 534
+        },
+        {
+          "complete": true,
+          "width": 1280,
+          "height": 534
+        },
+        {
+          "complete": true,
+          "width": 500,
+          "height": 750
+        }
+      ]
+    },
+    {
+      "name": "review-narrow-dark",
+      "file": "<WORKTREE>\\.uiprev\\media-identity-after-1793536805349\\review-narrow-dark.png",
+      "width": 720,
+      "height": 800,
+      "background": "#111215",
+      "accent": "#d5a35c",
+      "topMenuVisible": true,
+      "topMenuLabels": "FilmMüzikKitaplar",
+      "overflow": false,
+      "reviewParent": "mtd-body",
+      "review": {
+        "x": 22.000001907348633,
+        "y": 27.88333511352539,
+        "width": 668.0000610351562,
+        "height": 1554.2501220703125,
+        "top": 27.88333511352539,
+        "right": 690.0000629425049,
+        "bottom": 1582.133457183838,
+        "left": 22.000001907348633
+      },
+      "body": {
+        "x": 0,
+        "y": -1204.2667236328125,
+        "width": 712.0000610351562,
+        "height": 2794.400146484375,
+        "top": -1204.2667236328125,
+        "right": 712.0000610351562,
+        "bottom": 1590.1334228515625,
+        "left": 0
+      },
+      "homeWideReady": "true",
+      "homeWideImage": [
+        {
+          "width": 1280,
+          "height": 534
+        }
+      ],
+      "art": [
+        {
+          "complete": true,
+          "width": 1280,
+          "height": 534
+        },
+        {
+          "complete": true,
+          "width": 1280,
+          "height": 534
+        },
+        {
+          "complete": true,
+          "width": 500,
+          "height": 750
+        }
+      ]
+    },
+    {
+      "name": "home-narrow-light",
+      "file": "<WORKTREE>\\.uiprev\\media-identity-after-1793536805349\\home-narrow-light.png",
+      "width": 720,
+      "height": 800,
+      "background": "#f1ede5",
+      "accent": "#7f4c15",
+      "topMenuVisible": true,
+      "topMenuLabels": "FilmMüzikKitaplar",
+      "overflow": false,
+      "homeWideReady": "true",
+      "homeWideImage": [
+        {
+          "width": 1280,
+          "height": 534
+        }
+      ],
+      "art": [
+        {
+          "complete": true,
+          "width": 1280,
+          "height": 534
+        }
+      ]
+    },
+    {
+      "name": "film-narrow-light",
+      "file": "<WORKTREE>\\.uiprev\\media-identity-after-1793536805349\\film-narrow-light.png",
+      "width": 720,
+      "height": 800,
+      "background": "#f1ede5",
+      "accent": "#7f4c15",
+      "topMenuVisible": true,
+      "topMenuLabels": "FilmMüzikKitaplar",
+      "overflow": false,
+      "reviewParent": "mtd-body",
+      "review": {
+        "x": 22.000001907348633,
+        "y": 1787.3546142578125,
+        "width": 668.0000610351562,
+        "height": 1554.25,
+        "top": 1787.3546142578125,
+        "right": 690.0000629425049,
+        "bottom": 3341.6046142578125,
+        "left": 22.000001907348633
+      },
+      "body": {
+        "x": 0,
+        "y": 555.2045288085938,
+        "width": 712.0000610351562,
+        "height": 2794.400146484375,
+        "top": 555.2045288085938,
+        "right": 712.0000610351562,
+        "bottom": 3349.6046752929688,
+        "left": 0
+      },
+      "homeWideReady": "true",
+      "homeWideImage": [
+        {
+          "width": 1280,
+          "height": 534
+        }
+      ],
+      "art": [
+        {
+          "complete": true,
+          "width": 1280,
+          "height": 534
+        },
+        {
+          "complete": true,
+          "width": 1280,
+          "height": 534
+        },
+        {
+          "complete": true,
+          "width": 500,
+          "height": 750
+        }
+      ]
+    },
+    {
+      "name": "review-narrow-light",
+      "file": "<WORKTREE>\\.uiprev\\media-identity-after-1793536805349\\review-narrow-light.png",
+      "width": 720,
+      "height": 800,
+      "background": "#f1ede5",
+      "accent": "#7f4c15",
+      "topMenuVisible": true,
+      "topMenuLabels": "FilmMüzikKitaplar",
+      "overflow": false,
+      "reviewParent": "mtd-body",
+      "review": {
+        "x": 22.000001907348633,
+        "y": 27.88333511352539,
+        "width": 668.0000610351562,
+        "height": 1554.2501220703125,
+        "top": 27.88333511352539,
+        "right": 690.0000629425049,
+        "bottom": 1582.133457183838,
+        "left": 22.000001907348633
+      },
+      "body": {
+        "x": 0,
+        "y": -1204.2667236328125,
+        "width": 712.0000610351562,
+        "height": 2794.400146484375,
+        "top": -1204.2667236328125,
+        "right": 712.0000610351562,
+        "bottom": 1590.1334228515625,
+        "left": 0
+      },
+      "homeWideReady": "true",
+      "homeWideImage": [
+        {
+          "width": 1280,
+          "height": 534
+        }
+      ],
+      "art": [
+        {
+          "complete": true,
+          "width": 1280,
+          "height": 534
+        },
+        {
+          "complete": true,
+          "width": 1280,
+          "height": 534
+        },
+        {
+          "complete": true,
+          "width": 500,
+          "height": 750
+        }
+      ]
+    }
+  ],
+  "providerCalls": 0,
+  "header": {
+    "rows": [
+      {
+        "w": 1440,
+        "z": 1,
+        "width": 1440,
+        "header": {
+          "x": 0,
+          "y": 38,
+          "width": 1430,
+          "height": 76,
+          "top": 38,
+          "right": 1430,
+          "bottom": 114,
+          "left": 0
+        },
+        "controls": [
+          {
+            "text": "Uygulama menüsü",
+            "r": {
+              "x": 30,
+              "y": 55.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 70,
+              "bottom": 95.66666793823242,
+              "left": 30
+            }
+          },
+          {
+            "text": "Film",
+            "r": {
+              "x": 91.66667175292969,
+              "y": 55.66666793823242,
+              "width": 52.44791793823242,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 144.1145896911621,
+              "bottom": 95.66666793823242,
+              "left": 91.66667175292969
+            }
+          },
+          {
+            "text": "Müzik",
+            "r": {
+              "x": 147.11459350585938,
+              "y": 55.66666793823242,
+              "width": 61.677085876464844,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 208.79167938232422,
+              "bottom": 95.66666793823242,
+              "left": 147.11459350585938
+            }
+          },
+          {
+            "text": "Kitaplar",
+            "r": {
+              "x": 211.7916717529297,
+              "y": 55.66666793823242,
+              "width": 74.52083587646484,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 286.31250762939453,
+              "bottom": 95.66666793823242,
+              "left": 211.7916717529297
+            }
+          },
+          {
+            "text": "Ana sayfa",
+            "r": {
+              "x": 307.97918701171875,
+              "y": 55.66666793823242,
+              "width": 79.07292175292969,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 387.05210876464844,
+              "bottom": 95.66666793823242,
+              "left": 307.97918701171875
+            }
+          },
+          {
+            "text": "Keşfet",
+            "r": {
+              "x": 393.0520935058594,
+              "y": 55.66666793823242,
+              "width": 57.25,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 450.3020935058594,
+              "bottom": 95.66666793823242,
+              "left": 393.0520935058594
+            }
+          },
+          {
+            "text": "Filmler",
+            "r": {
+              "x": 456.3020935058594,
+              "y": 55.66666793823242,
+              "width": 60.85416793823242,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 517.1562614440918,
+              "bottom": 95.66666793823242,
+              "left": 456.3020935058594
+            }
+          },
+          {
+            "text": "Diziler",
+            "r": {
+              "x": 523.15625,
+              "y": 55.66666793823242,
+              "width": 56.708335876464844,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 579.8645858764648,
+              "bottom": 95.66666793823242,
+              "left": 523.15625
+            }
+          },
+          {
+            "text": "Kütüphanede ara",
+            "r": {
+              "x": 1081.697998046875,
+              "y": 55.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1121.697998046875,
+              "bottom": 95.66666793823242,
+              "left": 1081.697998046875
+            }
+          },
+          {
+            "text": "Browser",
+            "r": {
+              "x": 1129.697998046875,
+              "y": 55.66666793823242,
+              "width": 104,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1233.697998046875,
+              "bottom": 95.66666793823242,
+              "left": 1129.697998046875
+            }
+          },
+          {
+            "text": "Medya aç",
+            "r": {
+              "x": 1241.697998046875,
+              "y": 55.66666793823242,
+              "width": 110.30208587646484,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1352.0000839233398,
+              "bottom": 95.66666793823242,
+              "left": 1241.697998046875
+            }
+          },
+          {
+            "text": "Ayarlar",
+            "r": {
+              "x": 1360,
+              "y": 55.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1400,
+              "bottom": 95.66666793823242,
+              "left": 1360
+            }
+          }
+        ],
+        "nav": [
+          "home",
+          "discover",
+          "films",
+          "series"
+        ],
+        "menuPages": [
+          "radio",
+          "taste",
+          "web",
+          "recent"
+        ],
+        "modesInMenu": false,
+        "selected": "film",
+        "menuOpen": false,
+        "focus": "\n  Radyo / podcastZevk profilimWebS"
+      },
+      {
+        "w": 1280,
+        "z": 1,
+        "width": 1280,
+        "header": {
+          "x": 0,
+          "y": 38,
+          "width": 1270,
+          "height": 76,
+          "top": 38,
+          "right": 1270,
+          "bottom": 114,
+          "left": 0
+        },
+        "controls": [
+          {
+            "text": "Uygulama menüsü",
+            "r": {
+              "x": 30,
+              "y": 55.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 70,
+              "bottom": 95.66666793823242,
+              "left": 30
+            }
+          },
+          {
+            "text": "Film",
+            "r": {
+              "x": 91.66667175292969,
+              "y": 55.66666793823242,
+              "width": 52.44791793823242,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 144.1145896911621,
+              "bottom": 95.66666793823242,
+              "left": 91.66667175292969
+            }
+          },
+          {
+            "text": "Müzik",
+            "r": {
+              "x": 147.11459350585938,
+              "y": 55.66666793823242,
+              "width": 61.677085876464844,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 208.79167938232422,
+              "bottom": 95.66666793823242,
+              "left": 147.11459350585938
+            }
+          },
+          {
+            "text": "Kitaplar",
+            "r": {
+              "x": 211.7916717529297,
+              "y": 55.66666793823242,
+              "width": 74.52083587646484,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 286.31250762939453,
+              "bottom": 95.66666793823242,
+              "left": 211.7916717529297
+            }
+          },
+          {
+            "text": "Ana sayfa",
+            "r": {
+              "x": 307.97918701171875,
+              "y": 55.66666793823242,
+              "width": 79.07292175292969,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 387.05210876464844,
+              "bottom": 95.66666793823242,
+              "left": 307.97918701171875
+            }
+          },
+          {
+            "text": "Keşfet",
+            "r": {
+              "x": 393.0520935058594,
+              "y": 55.66666793823242,
+              "width": 57.25,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 450.3020935058594,
+              "bottom": 95.66666793823242,
+              "left": 393.0520935058594
+            }
+          },
+          {
+            "text": "Filmler",
+            "r": {
+              "x": 456.3020935058594,
+              "y": 55.66666793823242,
+              "width": 60.85416793823242,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 517.1562614440918,
+              "bottom": 95.66666793823242,
+              "left": 456.3020935058594
+            }
+          },
+          {
+            "text": "Diziler",
+            "r": {
+              "x": 523.15625,
+              "y": 55.66666793823242,
+              "width": 56.708335876464844,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 579.8645858764648,
+              "bottom": 95.66666793823242,
+              "left": 523.15625
+            }
+          },
+          {
+            "text": "Kütüphanede ara",
+            "r": {
+              "x": 921.6979370117188,
+              "y": 55.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 961.6979370117188,
+              "bottom": 95.66666793823242,
+              "left": 921.6979370117188
+            }
+          },
+          {
+            "text": "Browser",
+            "r": {
+              "x": 969.6979370117188,
+              "y": 55.66666793823242,
+              "width": 104,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1073.6979370117188,
+              "bottom": 95.66666793823242,
+              "left": 969.6979370117188
+            }
+          },
+          {
+            "text": "Medya aç",
+            "r": {
+              "x": 1081.697998046875,
+              "y": 55.66666793823242,
+              "width": 110.30208587646484,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1192.0000839233398,
+              "bottom": 95.66666793823242,
+              "left": 1081.697998046875
+            }
+          },
+          {
+            "text": "Ayarlar",
+            "r": {
+              "x": 1200,
+              "y": 55.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1240,
+              "bottom": 95.66666793823242,
+              "left": 1200
+            }
+          }
+        ],
+        "nav": [
+          "home",
+          "discover",
+          "films",
+          "series"
+        ],
+        "menuPages": [
+          "radio",
+          "taste",
+          "web",
+          "recent"
+        ],
+        "modesInMenu": false,
+        "selected": "film",
+        "menuOpen": false,
+        "focus": "mhSearchToggle"
+      },
+      {
+        "w": 900,
+        "z": 1.25,
+        "width": 720,
+        "header": {
+          "x": 0,
+          "y": 38.000003814697266,
+          "width": 712.0000610351562,
+          "height": 72,
+          "top": 38.000003814697266,
+          "right": 712.0000610351562,
+          "bottom": 110.00000381469727,
+          "left": 0
+        },
+        "controls": [
+          {
+            "text": "Uygulama menüsü",
+            "r": {
+              "x": 30.000001907348633,
+              "y": 53.73333740234375,
+              "width": 40.000003814697266,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 70.0000057220459,
+              "bottom": 93.73334121704102,
+              "left": 30.000001907348633
+            }
+          },
+          {
+            "text": "Ana sayfa",
+            "r": {
+              "x": 82.00000762939453,
+              "y": 53.73333740234375,
+              "width": 79.0666732788086,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 161.06668090820312,
+              "bottom": 93.73334121704102,
+              "left": 82.00000762939453
+            }
+          },
+          {
+            "text": "Keşfet",
+            "r": {
+              "x": 167.06668090820312,
+              "y": 53.73333740234375,
+              "width": 57.241668701171875,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 224.308349609375,
+              "bottom": 93.73334121704102,
+              "left": 167.06668090820312
+            }
+          },
+          {
+            "text": "Filmler",
+            "r": {
+              "x": 230.308349609375,
+              "y": 53.73333740234375,
+              "width": 60.841670989990234,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 291.15002059936523,
+              "bottom": 93.73334121704102,
+              "left": 230.308349609375
+            }
+          },
+          {
+            "text": "Kütüphanede ara",
+            "r": {
+              "x": 364.25836181640625,
+              "y": 53.73333740234375,
+              "width": 40.000003814697266,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 404.2583656311035,
+              "bottom": 93.73334121704102,
+              "left": 364.25836181640625
+            }
+          },
+          {
+            "text": "Browser",
+            "r": {
+              "x": 412.25836181640625,
+              "y": 53.73333740234375,
+              "width": 103.7166748046875,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 515.9750366210938,
+              "bottom": 93.73334121704102,
+              "left": 412.25836181640625
+            }
+          },
+          {
+            "text": "Medya aç",
+            "r": {
+              "x": 523.9750366210938,
+              "y": 53.73333740234375,
+              "width": 110.02500915527344,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 634.0000457763672,
+              "bottom": 93.73334121704102,
+              "left": 523.9750366210938
+            }
+          },
+          {
+            "text": "Ayarlar",
+            "r": {
+              "x": 642.0000610351562,
+              "y": 53.73333740234375,
+              "width": 40.000003814697266,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 682.0000648498535,
+              "bottom": 93.73334121704102,
+              "left": 642.0000610351562
+            }
+          }
+        ],
+        "nav": [
+          "home",
+          "discover",
+          "films"
+        ],
+        "menuPages": [
+          "series",
+          "radio",
+          "taste",
+          "web",
+          "recent"
+        ],
+        "modesInMenu": true,
+        "selected": "film",
+        "menuOpen": false,
+        "focus": "mhSearchToggle"
+      },
+      {
+        "w": 620,
+        "z": 1,
+        "width": 620,
+        "header": {
+          "x": 0,
+          "y": 38,
+          "width": 610,
+          "height": 62,
+          "top": 38,
+          "right": 610,
+          "bottom": 100,
+          "left": 0
+        },
+        "controls": [
+          {
+            "text": "Uygulama menüsü",
+            "r": {
+              "x": 14,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 54,
+              "bottom": 88.66666793823242,
+              "left": 14
+            }
+          },
+          {
+            "text": "Ana sayfa",
+            "r": {
+              "x": 61,
+              "y": 48.66666793823242,
+              "width": 68.53125,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 129.53125,
+              "bottom": 88.66666793823242,
+              "left": 61
+            }
+          },
+          {
+            "text": "Keşfet",
+            "r": {
+              "x": 131.53125,
+              "y": 48.66666793823242,
+              "width": 48.38541793823242,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 179.91666793823242,
+              "bottom": 88.66666793823242,
+              "left": 131.53125
+            }
+          },
+          {
+            "text": "Filmler",
+            "r": {
+              "x": 181.9166717529297,
+              "y": 48.66666793823242,
+              "width": 51.708335876464844,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 233.62500762939453,
+              "bottom": 88.66666793823242,
+              "left": 181.9166717529297
+            }
+          },
+          {
+            "text": "Diziler",
+            "r": {
+              "x": 235.625,
+              "y": 48.66666793823242,
+              "width": 47.88541793823242,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 283.5104179382324,
+              "bottom": 88.66666793823242,
+              "left": 235.625
+            }
+          },
+          {
+            "text": "Kütüphanede ara",
+            "r": {
+              "x": 430,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 470,
+              "bottom": 88.66666793823242,
+              "left": 430
+            }
+          },
+          {
+            "text": "Browser",
+            "r": {
+              "x": 472,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 512,
+              "bottom": 88.66666793823242,
+              "left": 472
+            }
+          },
+          {
+            "text": "Medya aç",
+            "r": {
+              "x": 514,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 554,
+              "bottom": 88.66666793823242,
+              "left": 514
+            }
+          },
+          {
+            "text": "Ayarlar",
+            "r": {
+              "x": 556,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 596,
+              "bottom": 88.66666793823242,
+              "left": 556
+            }
+          }
+        ],
+        "nav": [
+          "home",
+          "discover",
+          "films",
+          "series"
+        ],
+        "menuPages": [
+          "radio",
+          "taste",
+          "web",
+          "recent"
+        ],
+        "modesInMenu": true,
+        "selected": "film",
+        "menuOpen": false,
+        "focus": "mhSearchToggle"
+      },
+      {
+        "w": 480,
+        "z": 1,
+        "width": 480,
+        "header": {
+          "x": 0,
+          "y": 38,
+          "width": 470,
+          "height": 62,
+          "top": 38,
+          "right": 470,
+          "bottom": 100,
+          "left": 0
+        },
+        "controls": [
+          {
+            "text": "Uygulama menüsü",
+            "r": {
+              "x": 14,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 54,
+              "bottom": 88.66666793823242,
+              "left": 14
+            }
+          },
+          {
+            "text": "Ana sayfa",
+            "r": {
+              "x": 61,
+              "y": 48.66666793823242,
+              "width": 68.53125,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 129.53125,
+              "bottom": 88.66666793823242,
+              "left": 61
+            }
+          },
+          {
+            "text": "Keşfet",
+            "r": {
+              "x": 131.53125,
+              "y": 48.66666793823242,
+              "width": 48.38541793823242,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 179.91666793823242,
+              "bottom": 88.66666793823242,
+              "left": 131.53125
+            }
+          },
+          {
+            "text": "Filmler",
+            "r": {
+              "x": 181.9166717529297,
+              "y": 48.66666793823242,
+              "width": 51.708335876464844,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 233.62500762939453,
+              "bottom": 88.66666793823242,
+              "left": 181.9166717529297
+            }
+          },
+          {
+            "text": "Diziler",
+            "r": {
+              "x": 235.625,
+              "y": 48.66666793823242,
+              "width": 47.88541793823242,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 283.5104179382324,
+              "bottom": 88.66666793823242,
+              "left": 235.625
+            }
+          },
+          {
+            "text": "Kütüphanede ara",
+            "r": {
+              "x": 290,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 330,
+              "bottom": 88.66666793823242,
+              "left": 290
+            }
+          },
+          {
+            "text": "Browser",
+            "r": {
+              "x": 332,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 372,
+              "bottom": 88.66666793823242,
+              "left": 332
+            }
+          },
+          {
+            "text": "Medya aç",
+            "r": {
+              "x": 374,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 414,
+              "bottom": 88.66666793823242,
+              "left": 374
+            }
+          },
+          {
+            "text": "Ayarlar",
+            "r": {
+              "x": 416,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 456,
+              "bottom": 88.66666793823242,
+              "left": 416
+            }
+          }
+        ],
+        "nav": [
+          "home",
+          "discover",
+          "films",
+          "series"
+        ],
+        "menuPages": [
+          "radio",
+          "taste",
+          "web",
+          "recent"
+        ],
+        "modesInMenu": true,
+        "selected": "film",
+        "menuOpen": false,
+        "focus": "mhSearchToggle"
+      }
+    ],
+    "checks": [
+      {
+        "label": "single baseline 1440",
+        "ok": true,
+        "detail": [
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242
+        ]
+      },
+      {
+        "label": "header controls fit 1440",
+        "ok": true,
+        "detail": [
+          {
+            "text": "Uygulama menüsü",
+            "r": {
+              "x": 30,
+              "y": 55.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 70,
+              "bottom": 95.66666793823242,
+              "left": 30
+            }
+          },
+          {
+            "text": "Film",
+            "r": {
+              "x": 91.66667175292969,
+              "y": 55.66666793823242,
+              "width": 52.44791793823242,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 144.1145896911621,
+              "bottom": 95.66666793823242,
+              "left": 91.66667175292969
+            }
+          },
+          {
+            "text": "Müzik",
+            "r": {
+              "x": 147.11459350585938,
+              "y": 55.66666793823242,
+              "width": 61.677085876464844,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 208.79167938232422,
+              "bottom": 95.66666793823242,
+              "left": 147.11459350585938
+            }
+          },
+          {
+            "text": "Kitaplar",
+            "r": {
+              "x": 211.7916717529297,
+              "y": 55.66666793823242,
+              "width": 74.52083587646484,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 286.31250762939453,
+              "bottom": 95.66666793823242,
+              "left": 211.7916717529297
+            }
+          },
+          {
+            "text": "Ana sayfa",
+            "r": {
+              "x": 307.97918701171875,
+              "y": 55.66666793823242,
+              "width": 79.07292175292969,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 387.05210876464844,
+              "bottom": 95.66666793823242,
+              "left": 307.97918701171875
+            }
+          },
+          {
+            "text": "Keşfet",
+            "r": {
+              "x": 393.0520935058594,
+              "y": 55.66666793823242,
+              "width": 57.25,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 450.3020935058594,
+              "bottom": 95.66666793823242,
+              "left": 393.0520935058594
+            }
+          },
+          {
+            "text": "Filmler",
+            "r": {
+              "x": 456.3020935058594,
+              "y": 55.66666793823242,
+              "width": 60.85416793823242,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 517.1562614440918,
+              "bottom": 95.66666793823242,
+              "left": 456.3020935058594
+            }
+          },
+          {
+            "text": "Diziler",
+            "r": {
+              "x": 523.15625,
+              "y": 55.66666793823242,
+              "width": 56.708335876464844,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 579.8645858764648,
+              "bottom": 95.66666793823242,
+              "left": 523.15625
+            }
+          },
+          {
+            "text": "Kütüphanede ara",
+            "r": {
+              "x": 1081.697998046875,
+              "y": 55.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1121.697998046875,
+              "bottom": 95.66666793823242,
+              "left": 1081.697998046875
+            }
+          },
+          {
+            "text": "Browser",
+            "r": {
+              "x": 1129.697998046875,
+              "y": 55.66666793823242,
+              "width": 104,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1233.697998046875,
+              "bottom": 95.66666793823242,
+              "left": 1129.697998046875
+            }
+          },
+          {
+            "text": "Medya aç",
+            "r": {
+              "x": 1241.697998046875,
+              "y": 55.66666793823242,
+              "width": 110.30208587646484,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1352.0000839233398,
+              "bottom": 95.66666793823242,
+              "left": 1241.697998046875
+            }
+          },
+          {
+            "text": "Ayarlar",
+            "r": {
+              "x": 1360,
+              "y": 55.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1400,
+              "bottom": 95.66666793823242,
+              "left": 1360
+            }
+          }
+        ]
+      },
+      {
+        "label": "no control overlap 1440",
+        "ok": true,
+        "detail": [
+          {
+            "text": "Uygulama menüsü",
+            "r": {
+              "x": 30,
+              "y": 55.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 70,
+              "bottom": 95.66666793823242,
+              "left": 30
+            }
+          },
+          {
+            "text": "Film",
+            "r": {
+              "x": 91.66667175292969,
+              "y": 55.66666793823242,
+              "width": 52.44791793823242,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 144.1145896911621,
+              "bottom": 95.66666793823242,
+              "left": 91.66667175292969
+            }
+          },
+          {
+            "text": "Müzik",
+            "r": {
+              "x": 147.11459350585938,
+              "y": 55.66666793823242,
+              "width": 61.677085876464844,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 208.79167938232422,
+              "bottom": 95.66666793823242,
+              "left": 147.11459350585938
+            }
+          },
+          {
+            "text": "Kitaplar",
+            "r": {
+              "x": 211.7916717529297,
+              "y": 55.66666793823242,
+              "width": 74.52083587646484,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 286.31250762939453,
+              "bottom": 95.66666793823242,
+              "left": 211.7916717529297
+            }
+          },
+          {
+            "text": "Ana sayfa",
+            "r": {
+              "x": 307.97918701171875,
+              "y": 55.66666793823242,
+              "width": 79.07292175292969,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 387.05210876464844,
+              "bottom": 95.66666793823242,
+              "left": 307.97918701171875
+            }
+          },
+          {
+            "text": "Keşfet",
+            "r": {
+              "x": 393.0520935058594,
+              "y": 55.66666793823242,
+              "width": 57.25,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 450.3020935058594,
+              "bottom": 95.66666793823242,
+              "left": 393.0520935058594
+            }
+          },
+          {
+            "text": "Filmler",
+            "r": {
+              "x": 456.3020935058594,
+              "y": 55.66666793823242,
+              "width": 60.85416793823242,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 517.1562614440918,
+              "bottom": 95.66666793823242,
+              "left": 456.3020935058594
+            }
+          },
+          {
+            "text": "Diziler",
+            "r": {
+              "x": 523.15625,
+              "y": 55.66666793823242,
+              "width": 56.708335876464844,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 579.8645858764648,
+              "bottom": 95.66666793823242,
+              "left": 523.15625
+            }
+          },
+          {
+            "text": "Kütüphanede ara",
+            "r": {
+              "x": 1081.697998046875,
+              "y": 55.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1121.697998046875,
+              "bottom": 95.66666793823242,
+              "left": 1081.697998046875
+            }
+          },
+          {
+            "text": "Browser",
+            "r": {
+              "x": 1129.697998046875,
+              "y": 55.66666793823242,
+              "width": 104,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1233.697998046875,
+              "bottom": 95.66666793823242,
+              "left": 1129.697998046875
+            }
+          },
+          {
+            "text": "Medya aç",
+            "r": {
+              "x": 1241.697998046875,
+              "y": 55.66666793823242,
+              "width": 110.30208587646484,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1352.0000839233398,
+              "bottom": 95.66666793823242,
+              "left": 1241.697998046875
+            }
+          },
+          {
+            "text": "Ayarlar",
+            "r": {
+              "x": 1360,
+              "y": 55.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1400,
+              "bottom": 95.66666793823242,
+              "left": 1360
+            }
+          }
+        ]
+      },
+      {
+        "label": "mode selection preserved 1440",
+        "ok": true,
+        "detail": "film"
+      },
+      {
+        "label": "same navigation nodes retained 1440",
+        "ok": true
+      },
+      {
+        "label": "responsive modes location 1440",
+        "ok": true,
+        "detail": false
+      },
+      {
+        "label": "hover opens 1440",
+        "ok": true
+      },
+      {
+        "label": "pointer into popup keeps open 1440",
+        "ok": true
+      },
+      {
+        "label": "pointer leave closes 1440",
+        "ok": true
+      },
+      {
+        "label": "ArrowDown enters popup 1440",
+        "ok": true,
+        "detail": {
+          "width": 1440,
+          "header": {
+            "x": 0,
+            "y": 38,
+            "width": 1430,
+            "height": 76,
+            "top": 38,
+            "right": 1430,
+            "bottom": 114,
+            "left": 0
+          },
+          "controls": [
+            {
+              "text": "Uygulama menüsü",
+              "r": {
+                "x": 30,
+                "y": 55.66666793823242,
+                "width": 40,
+                "height": 40,
+                "top": 55.66666793823242,
+                "right": 70,
+                "bottom": 95.66666793823242,
+                "left": 30
+              }
+            },
+            {
+              "text": "Film",
+              "r": {
+                "x": 91.66667175292969,
+                "y": 55.66666793823242,
+                "width": 52.44791793823242,
+                "height": 40,
+                "top": 55.66666793823242,
+                "right": 144.1145896911621,
+                "bottom": 95.66666793823242,
+                "left": 91.66667175292969
+              }
+            },
+            {
+              "text": "Müzik",
+              "r": {
+                "x": 147.11459350585938,
+                "y": 55.66666793823242,
+                "width": 61.677085876464844,
+                "height": 40,
+                "top": 55.66666793823242,
+                "right": 208.79167938232422,
+                "bottom": 95.66666793823242,
+                "left": 147.11459350585938
+              }
+            },
+            {
+              "text": "Kitaplar",
+              "r": {
+                "x": 211.7916717529297,
+                "y": 55.66666793823242,
+                "width": 74.52083587646484,
+                "height": 40,
+                "top": 55.66666793823242,
+                "right": 286.31250762939453,
+                "bottom": 95.66666793823242,
+                "left": 211.7916717529297
+              }
+            },
+            {
+              "text": "Ana sayfa",
+              "r": {
+                "x": 307.97918701171875,
+                "y": 55.66666793823242,
+                "width": 79.07292175292969,
+                "height": 40,
+                "top": 55.66666793823242,
+                "right": 387.05210876464844,
+                "bottom": 95.66666793823242,
+                "left": 307.97918701171875
+              }
+            },
+            {
+              "text": "Keşfet",
+              "r": {
+                "x": 393.0520935058594,
+                "y": 55.66666793823242,
+                "width": 57.25,
+                "height": 40,
+                "top": 55.66666793823242,
+                "right": 450.3020935058594,
+                "bottom": 95.66666793823242,
+                "left": 393.0520935058594
+              }
+            },
+            {
+              "text": "Filmler",
+              "r": {
+                "x": 456.3020935058594,
+                "y": 55.66666793823242,
+                "width": 60.85416793823242,
+                "height": 40,
+                "top": 55.66666793823242,
+                "right": 517.1562614440918,
+                "bottom": 95.66666793823242,
+                "left": 456.3020935058594
+              }
+            },
+            {
+              "text": "Diziler",
+              "r": {
+                "x": 523.15625,
+                "y": 55.66666793823242,
+                "width": 56.708335876464844,
+                "height": 40,
+                "top": 55.66666793823242,
+                "right": 579.8645858764648,
+                "bottom": 95.66666793823242,
+                "left": 523.15625
+              }
+            },
+            {
+              "text": "Kütüphanede ara",
+              "r": {
+                "x": 1081.697998046875,
+                "y": 55.66666793823242,
+                "width": 40,
+                "height": 40,
+                "top": 55.66666793823242,
+                "right": 1121.697998046875,
+                "bottom": 95.66666793823242,
+                "left": 1081.697998046875
+              }
+            },
+            {
+              "text": "Browser",
+              "r": {
+                "x": 1129.697998046875,
+                "y": 55.66666793823242,
+                "width": 104,
+                "height": 40,
+                "top": 55.66666793823242,
+                "right": 1233.697998046875,
+                "bottom": 95.66666793823242,
+                "left": 1129.697998046875
+              }
+            },
+            {
+              "text": "Medya aç",
+              "r": {
+                "x": 1241.697998046875,
+                "y": 55.66666793823242,
+                "width": 110.30208587646484,
+                "height": 40,
+                "top": 55.66666793823242,
+                "right": 1352.0000839233398,
+                "bottom": 95.66666793823242,
+                "left": 1241.697998046875
+              }
+            },
+            {
+              "text": "Ayarlar",
+              "r": {
+                "x": 1360,
+                "y": 55.66666793823242,
+                "width": 40,
+                "height": 40,
+                "top": 55.66666793823242,
+                "right": 1400,
+                "bottom": 95.66666793823242,
+                "left": 1360
+              }
+            }
+          ],
+          "nav": [
+            "home",
+            "discover",
+            "films",
+            "series"
+          ],
+          "menuPages": [
+            "radio",
+            "taste",
+            "web",
+            "recent"
+          ],
+          "modesInMenu": false,
+          "selected": "film",
+          "menuOpen": true,
+          "focus": "radio"
+        }
+      },
+      {
+        "label": "Tab advances popup 1440",
+        "ok": true
+      },
+      {
+        "label": "Escape closes and restores brand focus 1440",
+        "ok": true
+      },
+      {
+        "label": "click opens 1440",
+        "ok": true
+      },
+      {
+        "label": "second click closes 1440",
+        "ok": true
+      },
+      {
+        "label": "outside click closes 1440",
+        "ok": true
+      },
+      {
+        "label": "search popover focused 1440",
+        "ok": true
+      },
+      {
+        "label": "search filters local library 1440",
+        "ok": true
+      },
+      {
+        "label": "search Escape restores focus 1440",
+        "ok": true
+      },
+      {
+        "label": "single baseline 1280",
+        "ok": true,
+        "detail": [
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242,
+          75.66666793823242
+        ]
+      },
+      {
+        "label": "header controls fit 1280",
+        "ok": true,
+        "detail": [
+          {
+            "text": "Uygulama menüsü",
+            "r": {
+              "x": 30,
+              "y": 55.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 70,
+              "bottom": 95.66666793823242,
+              "left": 30
+            }
+          },
+          {
+            "text": "Film",
+            "r": {
+              "x": 91.66667175292969,
+              "y": 55.66666793823242,
+              "width": 52.44791793823242,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 144.1145896911621,
+              "bottom": 95.66666793823242,
+              "left": 91.66667175292969
+            }
+          },
+          {
+            "text": "Müzik",
+            "r": {
+              "x": 147.11459350585938,
+              "y": 55.66666793823242,
+              "width": 61.677085876464844,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 208.79167938232422,
+              "bottom": 95.66666793823242,
+              "left": 147.11459350585938
+            }
+          },
+          {
+            "text": "Kitaplar",
+            "r": {
+              "x": 211.7916717529297,
+              "y": 55.66666793823242,
+              "width": 74.52083587646484,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 286.31250762939453,
+              "bottom": 95.66666793823242,
+              "left": 211.7916717529297
+            }
+          },
+          {
+            "text": "Ana sayfa",
+            "r": {
+              "x": 307.97918701171875,
+              "y": 55.66666793823242,
+              "width": 79.07292175292969,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 387.05210876464844,
+              "bottom": 95.66666793823242,
+              "left": 307.97918701171875
+            }
+          },
+          {
+            "text": "Keşfet",
+            "r": {
+              "x": 393.0520935058594,
+              "y": 55.66666793823242,
+              "width": 57.25,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 450.3020935058594,
+              "bottom": 95.66666793823242,
+              "left": 393.0520935058594
+            }
+          },
+          {
+            "text": "Filmler",
+            "r": {
+              "x": 456.3020935058594,
+              "y": 55.66666793823242,
+              "width": 60.85416793823242,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 517.1562614440918,
+              "bottom": 95.66666793823242,
+              "left": 456.3020935058594
+            }
+          },
+          {
+            "text": "Diziler",
+            "r": {
+              "x": 523.15625,
+              "y": 55.66666793823242,
+              "width": 56.708335876464844,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 579.8645858764648,
+              "bottom": 95.66666793823242,
+              "left": 523.15625
+            }
+          },
+          {
+            "text": "Kütüphanede ara",
+            "r": {
+              "x": 921.6979370117188,
+              "y": 55.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 961.6979370117188,
+              "bottom": 95.66666793823242,
+              "left": 921.6979370117188
+            }
+          },
+          {
+            "text": "Browser",
+            "r": {
+              "x": 969.6979370117188,
+              "y": 55.66666793823242,
+              "width": 104,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1073.6979370117188,
+              "bottom": 95.66666793823242,
+              "left": 969.6979370117188
+            }
+          },
+          {
+            "text": "Medya aç",
+            "r": {
+              "x": 1081.697998046875,
+              "y": 55.66666793823242,
+              "width": 110.30208587646484,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1192.0000839233398,
+              "bottom": 95.66666793823242,
+              "left": 1081.697998046875
+            }
+          },
+          {
+            "text": "Ayarlar",
+            "r": {
+              "x": 1200,
+              "y": 55.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1240,
+              "bottom": 95.66666793823242,
+              "left": 1200
+            }
+          }
+        ]
+      },
+      {
+        "label": "no control overlap 1280",
+        "ok": true,
+        "detail": [
+          {
+            "text": "Uygulama menüsü",
+            "r": {
+              "x": 30,
+              "y": 55.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 70,
+              "bottom": 95.66666793823242,
+              "left": 30
+            }
+          },
+          {
+            "text": "Film",
+            "r": {
+              "x": 91.66667175292969,
+              "y": 55.66666793823242,
+              "width": 52.44791793823242,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 144.1145896911621,
+              "bottom": 95.66666793823242,
+              "left": 91.66667175292969
+            }
+          },
+          {
+            "text": "Müzik",
+            "r": {
+              "x": 147.11459350585938,
+              "y": 55.66666793823242,
+              "width": 61.677085876464844,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 208.79167938232422,
+              "bottom": 95.66666793823242,
+              "left": 147.11459350585938
+            }
+          },
+          {
+            "text": "Kitaplar",
+            "r": {
+              "x": 211.7916717529297,
+              "y": 55.66666793823242,
+              "width": 74.52083587646484,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 286.31250762939453,
+              "bottom": 95.66666793823242,
+              "left": 211.7916717529297
+            }
+          },
+          {
+            "text": "Ana sayfa",
+            "r": {
+              "x": 307.97918701171875,
+              "y": 55.66666793823242,
+              "width": 79.07292175292969,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 387.05210876464844,
+              "bottom": 95.66666793823242,
+              "left": 307.97918701171875
+            }
+          },
+          {
+            "text": "Keşfet",
+            "r": {
+              "x": 393.0520935058594,
+              "y": 55.66666793823242,
+              "width": 57.25,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 450.3020935058594,
+              "bottom": 95.66666793823242,
+              "left": 393.0520935058594
+            }
+          },
+          {
+            "text": "Filmler",
+            "r": {
+              "x": 456.3020935058594,
+              "y": 55.66666793823242,
+              "width": 60.85416793823242,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 517.1562614440918,
+              "bottom": 95.66666793823242,
+              "left": 456.3020935058594
+            }
+          },
+          {
+            "text": "Diziler",
+            "r": {
+              "x": 523.15625,
+              "y": 55.66666793823242,
+              "width": 56.708335876464844,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 579.8645858764648,
+              "bottom": 95.66666793823242,
+              "left": 523.15625
+            }
+          },
+          {
+            "text": "Kütüphanede ara",
+            "r": {
+              "x": 921.6979370117188,
+              "y": 55.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 961.6979370117188,
+              "bottom": 95.66666793823242,
+              "left": 921.6979370117188
+            }
+          },
+          {
+            "text": "Browser",
+            "r": {
+              "x": 969.6979370117188,
+              "y": 55.66666793823242,
+              "width": 104,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1073.6979370117188,
+              "bottom": 95.66666793823242,
+              "left": 969.6979370117188
+            }
+          },
+          {
+            "text": "Medya aç",
+            "r": {
+              "x": 1081.697998046875,
+              "y": 55.66666793823242,
+              "width": 110.30208587646484,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1192.0000839233398,
+              "bottom": 95.66666793823242,
+              "left": 1081.697998046875
+            }
+          },
+          {
+            "text": "Ayarlar",
+            "r": {
+              "x": 1200,
+              "y": 55.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 55.66666793823242,
+              "right": 1240,
+              "bottom": 95.66666793823242,
+              "left": 1200
+            }
+          }
+        ]
+      },
+      {
+        "label": "mode selection preserved 1280",
+        "ok": true,
+        "detail": "film"
+      },
+      {
+        "label": "same navigation nodes retained 1280",
+        "ok": true
+      },
+      {
+        "label": "responsive modes location 1280",
+        "ok": true,
+        "detail": false
+      },
+      {
+        "label": "single baseline 720",
+        "ok": true,
+        "detail": [
+          73.73333930969238,
+          73.73333930969238,
+          73.73333930969238,
+          73.73333930969238,
+          73.73333930969238,
+          73.73333930969238,
+          73.73333930969238,
+          73.73333930969238
+        ]
+      },
+      {
+        "label": "header controls fit 720",
+        "ok": true,
+        "detail": [
+          {
+            "text": "Uygulama menüsü",
+            "r": {
+              "x": 30.000001907348633,
+              "y": 53.73333740234375,
+              "width": 40.000003814697266,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 70.0000057220459,
+              "bottom": 93.73334121704102,
+              "left": 30.000001907348633
+            }
+          },
+          {
+            "text": "Ana sayfa",
+            "r": {
+              "x": 82.00000762939453,
+              "y": 53.73333740234375,
+              "width": 79.0666732788086,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 161.06668090820312,
+              "bottom": 93.73334121704102,
+              "left": 82.00000762939453
+            }
+          },
+          {
+            "text": "Keşfet",
+            "r": {
+              "x": 167.06668090820312,
+              "y": 53.73333740234375,
+              "width": 57.241668701171875,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 224.308349609375,
+              "bottom": 93.73334121704102,
+              "left": 167.06668090820312
+            }
+          },
+          {
+            "text": "Filmler",
+            "r": {
+              "x": 230.308349609375,
+              "y": 53.73333740234375,
+              "width": 60.841670989990234,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 291.15002059936523,
+              "bottom": 93.73334121704102,
+              "left": 230.308349609375
+            }
+          },
+          {
+            "text": "Kütüphanede ara",
+            "r": {
+              "x": 364.25836181640625,
+              "y": 53.73333740234375,
+              "width": 40.000003814697266,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 404.2583656311035,
+              "bottom": 93.73334121704102,
+              "left": 364.25836181640625
+            }
+          },
+          {
+            "text": "Browser",
+            "r": {
+              "x": 412.25836181640625,
+              "y": 53.73333740234375,
+              "width": 103.7166748046875,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 515.9750366210938,
+              "bottom": 93.73334121704102,
+              "left": 412.25836181640625
+            }
+          },
+          {
+            "text": "Medya aç",
+            "r": {
+              "x": 523.9750366210938,
+              "y": 53.73333740234375,
+              "width": 110.02500915527344,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 634.0000457763672,
+              "bottom": 93.73334121704102,
+              "left": 523.9750366210938
+            }
+          },
+          {
+            "text": "Ayarlar",
+            "r": {
+              "x": 642.0000610351562,
+              "y": 53.73333740234375,
+              "width": 40.000003814697266,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 682.0000648498535,
+              "bottom": 93.73334121704102,
+              "left": 642.0000610351562
+            }
+          }
+        ]
+      },
+      {
+        "label": "no control overlap 720",
+        "ok": true,
+        "detail": [
+          {
+            "text": "Uygulama menüsü",
+            "r": {
+              "x": 30.000001907348633,
+              "y": 53.73333740234375,
+              "width": 40.000003814697266,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 70.0000057220459,
+              "bottom": 93.73334121704102,
+              "left": 30.000001907348633
+            }
+          },
+          {
+            "text": "Ana sayfa",
+            "r": {
+              "x": 82.00000762939453,
+              "y": 53.73333740234375,
+              "width": 79.0666732788086,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 161.06668090820312,
+              "bottom": 93.73334121704102,
+              "left": 82.00000762939453
+            }
+          },
+          {
+            "text": "Keşfet",
+            "r": {
+              "x": 167.06668090820312,
+              "y": 53.73333740234375,
+              "width": 57.241668701171875,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 224.308349609375,
+              "bottom": 93.73334121704102,
+              "left": 167.06668090820312
+            }
+          },
+          {
+            "text": "Filmler",
+            "r": {
+              "x": 230.308349609375,
+              "y": 53.73333740234375,
+              "width": 60.841670989990234,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 291.15002059936523,
+              "bottom": 93.73334121704102,
+              "left": 230.308349609375
+            }
+          },
+          {
+            "text": "Kütüphanede ara",
+            "r": {
+              "x": 364.25836181640625,
+              "y": 53.73333740234375,
+              "width": 40.000003814697266,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 404.2583656311035,
+              "bottom": 93.73334121704102,
+              "left": 364.25836181640625
+            }
+          },
+          {
+            "text": "Browser",
+            "r": {
+              "x": 412.25836181640625,
+              "y": 53.73333740234375,
+              "width": 103.7166748046875,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 515.9750366210938,
+              "bottom": 93.73334121704102,
+              "left": 412.25836181640625
+            }
+          },
+          {
+            "text": "Medya aç",
+            "r": {
+              "x": 523.9750366210938,
+              "y": 53.73333740234375,
+              "width": 110.02500915527344,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 634.0000457763672,
+              "bottom": 93.73334121704102,
+              "left": 523.9750366210938
+            }
+          },
+          {
+            "text": "Ayarlar",
+            "r": {
+              "x": 642.0000610351562,
+              "y": 53.73333740234375,
+              "width": 40.000003814697266,
+              "height": 40.000003814697266,
+              "top": 53.73333740234375,
+              "right": 682.0000648498535,
+              "bottom": 93.73334121704102,
+              "left": 642.0000610351562
+            }
+          }
+        ]
+      },
+      {
+        "label": "mode selection preserved 720",
+        "ok": true,
+        "detail": "film"
+      },
+      {
+        "label": "same navigation nodes retained 720",
+        "ok": true
+      },
+      {
+        "label": "responsive modes location 720",
+        "ok": true,
+        "detail": true
+      },
+      {
+        "label": "hover opens 720",
+        "ok": true
+      },
+      {
+        "label": "pointer into popup keeps open 720",
+        "ok": true
+      },
+      {
+        "label": "pointer leave closes 720",
+        "ok": true
+      },
+      {
+        "label": "ArrowDown enters popup 720",
+        "ok": true,
+        "detail": {
+          "width": 720,
+          "header": {
+            "x": 0,
+            "y": 38.000003814697266,
+            "width": 712.0000610351562,
+            "height": 72,
+            "top": 38.000003814697266,
+            "right": 712.0000610351562,
+            "bottom": 110.00000381469727,
+            "left": 0
+          },
+          "controls": [
+            {
+              "text": "Uygulama menüsü",
+              "r": {
+                "x": 30.000001907348633,
+                "y": 53.73333740234375,
+                "width": 40.000003814697266,
+                "height": 40.000003814697266,
+                "top": 53.73333740234375,
+                "right": 70.0000057220459,
+                "bottom": 93.73334121704102,
+                "left": 30.000001907348633
+              }
+            },
+            {
+              "text": "Ana sayfa",
+              "r": {
+                "x": 82.00000762939453,
+                "y": 53.73333740234375,
+                "width": 79.0666732788086,
+                "height": 40.000003814697266,
+                "top": 53.73333740234375,
+                "right": 161.06668090820312,
+                "bottom": 93.73334121704102,
+                "left": 82.00000762939453
+              }
+            },
+            {
+              "text": "Keşfet",
+              "r": {
+                "x": 167.06668090820312,
+                "y": 53.73333740234375,
+                "width": 57.241668701171875,
+                "height": 40.000003814697266,
+                "top": 53.73333740234375,
+                "right": 224.308349609375,
+                "bottom": 93.73334121704102,
+                "left": 167.06668090820312
+              }
+            },
+            {
+              "text": "Filmler",
+              "r": {
+                "x": 230.308349609375,
+                "y": 53.73333740234375,
+                "width": 60.841670989990234,
+                "height": 40.000003814697266,
+                "top": 53.73333740234375,
+                "right": 291.15002059936523,
+                "bottom": 93.73334121704102,
+                "left": 230.308349609375
+              }
+            },
+            {
+              "text": "Kütüphanede ara",
+              "r": {
+                "x": 364.25836181640625,
+                "y": 53.73333740234375,
+                "width": 40.000003814697266,
+                "height": 40.000003814697266,
+                "top": 53.73333740234375,
+                "right": 404.2583656311035,
+                "bottom": 93.73334121704102,
+                "left": 364.25836181640625
+              }
+            },
+            {
+              "text": "Browser",
+              "r": {
+                "x": 412.25836181640625,
+                "y": 53.73333740234375,
+                "width": 103.7166748046875,
+                "height": 40.000003814697266,
+                "top": 53.73333740234375,
+                "right": 515.9750366210938,
+                "bottom": 93.73334121704102,
+                "left": 412.25836181640625
+              }
+            },
+            {
+              "text": "Medya aç",
+              "r": {
+                "x": 523.9750366210938,
+                "y": 53.73333740234375,
+                "width": 110.02500915527344,
+                "height": 40.000003814697266,
+                "top": 53.73333740234375,
+                "right": 634.0000457763672,
+                "bottom": 93.73334121704102,
+                "left": 523.9750366210938
+              }
+            },
+            {
+              "text": "Ayarlar",
+              "r": {
+                "x": 642.0000610351562,
+                "y": 53.73333740234375,
+                "width": 40.000003814697266,
+                "height": 40.000003814697266,
+                "top": 53.73333740234375,
+                "right": 682.0000648498535,
+                "bottom": 93.73334121704102,
+                "left": 642.0000610351562
+              }
+            }
+          ],
+          "nav": [
+            "home",
+            "discover",
+            "films"
+          ],
+          "menuPages": [
+            "series",
+            "radio",
+            "taste",
+            "web",
+            "recent"
+          ],
+          "modesInMenu": true,
+          "selected": "film",
+          "menuOpen": true,
+          "focus": "Film"
+        }
+      },
+      {
+        "label": "Tab advances popup 720",
+        "ok": true
+      },
+      {
+        "label": "Escape closes and restores brand focus 720",
+        "ok": true
+      },
+      {
+        "label": "click opens 720",
+        "ok": true
+      },
+      {
+        "label": "second click closes 720",
+        "ok": true
+      },
+      {
+        "label": "outside click closes 720",
+        "ok": true
+      },
+      {
+        "label": "search popover focused 720",
+        "ok": true
+      },
+      {
+        "label": "search filters local library 720",
+        "ok": true
+      },
+      {
+        "label": "search Escape restores focus 720",
+        "ok": true
+      },
+      {
+        "label": "single baseline 620",
+        "ok": true,
+        "detail": [
+          68.66666793823242,
+          68.66666793823242,
+          68.66666793823242,
+          68.66666793823242,
+          68.66666793823242,
+          68.66666793823242,
+          68.66666793823242,
+          68.66666793823242,
+          68.66666793823242
+        ]
+      },
+      {
+        "label": "header controls fit 620",
+        "ok": true,
+        "detail": [
+          {
+            "text": "Uygulama menüsü",
+            "r": {
+              "x": 14,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 54,
+              "bottom": 88.66666793823242,
+              "left": 14
+            }
+          },
+          {
+            "text": "Ana sayfa",
+            "r": {
+              "x": 61,
+              "y": 48.66666793823242,
+              "width": 68.53125,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 129.53125,
+              "bottom": 88.66666793823242,
+              "left": 61
+            }
+          },
+          {
+            "text": "Keşfet",
+            "r": {
+              "x": 131.53125,
+              "y": 48.66666793823242,
+              "width": 48.38541793823242,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 179.91666793823242,
+              "bottom": 88.66666793823242,
+              "left": 131.53125
+            }
+          },
+          {
+            "text": "Filmler",
+            "r": {
+              "x": 181.9166717529297,
+              "y": 48.66666793823242,
+              "width": 51.708335876464844,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 233.62500762939453,
+              "bottom": 88.66666793823242,
+              "left": 181.9166717529297
+            }
+          },
+          {
+            "text": "Diziler",
+            "r": {
+              "x": 235.625,
+              "y": 48.66666793823242,
+              "width": 47.88541793823242,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 283.5104179382324,
+              "bottom": 88.66666793823242,
+              "left": 235.625
+            }
+          },
+          {
+            "text": "Kütüphanede ara",
+            "r": {
+              "x": 430,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 470,
+              "bottom": 88.66666793823242,
+              "left": 430
+            }
+          },
+          {
+            "text": "Browser",
+            "r": {
+              "x": 472,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 512,
+              "bottom": 88.66666793823242,
+              "left": 472
+            }
+          },
+          {
+            "text": "Medya aç",
+            "r": {
+              "x": 514,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 554,
+              "bottom": 88.66666793823242,
+              "left": 514
+            }
+          },
+          {
+            "text": "Ayarlar",
+            "r": {
+              "x": 556,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 596,
+              "bottom": 88.66666793823242,
+              "left": 556
+            }
+          }
+        ]
+      },
+      {
+        "label": "no control overlap 620",
+        "ok": true,
+        "detail": [
+          {
+            "text": "Uygulama menüsü",
+            "r": {
+              "x": 14,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 54,
+              "bottom": 88.66666793823242,
+              "left": 14
+            }
+          },
+          {
+            "text": "Ana sayfa",
+            "r": {
+              "x": 61,
+              "y": 48.66666793823242,
+              "width": 68.53125,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 129.53125,
+              "bottom": 88.66666793823242,
+              "left": 61
+            }
+          },
+          {
+            "text": "Keşfet",
+            "r": {
+              "x": 131.53125,
+              "y": 48.66666793823242,
+              "width": 48.38541793823242,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 179.91666793823242,
+              "bottom": 88.66666793823242,
+              "left": 131.53125
+            }
+          },
+          {
+            "text": "Filmler",
+            "r": {
+              "x": 181.9166717529297,
+              "y": 48.66666793823242,
+              "width": 51.708335876464844,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 233.62500762939453,
+              "bottom": 88.66666793823242,
+              "left": 181.9166717529297
+            }
+          },
+          {
+            "text": "Diziler",
+            "r": {
+              "x": 235.625,
+              "y": 48.66666793823242,
+              "width": 47.88541793823242,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 283.5104179382324,
+              "bottom": 88.66666793823242,
+              "left": 235.625
+            }
+          },
+          {
+            "text": "Kütüphanede ara",
+            "r": {
+              "x": 430,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 470,
+              "bottom": 88.66666793823242,
+              "left": 430
+            }
+          },
+          {
+            "text": "Browser",
+            "r": {
+              "x": 472,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 512,
+              "bottom": 88.66666793823242,
+              "left": 472
+            }
+          },
+          {
+            "text": "Medya aç",
+            "r": {
+              "x": 514,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 554,
+              "bottom": 88.66666793823242,
+              "left": 514
+            }
+          },
+          {
+            "text": "Ayarlar",
+            "r": {
+              "x": 556,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 596,
+              "bottom": 88.66666793823242,
+              "left": 556
+            }
+          }
+        ]
+      },
+      {
+        "label": "mode selection preserved 620",
+        "ok": true,
+        "detail": "film"
+      },
+      {
+        "label": "same navigation nodes retained 620",
+        "ok": true
+      },
+      {
+        "label": "responsive modes location 620",
+        "ok": true,
+        "detail": true
+      },
+      {
+        "label": "single baseline 480",
+        "ok": true,
+        "detail": [
+          68.66666793823242,
+          68.66666793823242,
+          68.66666793823242,
+          68.66666793823242,
+          68.66666793823242,
+          68.66666793823242,
+          68.66666793823242,
+          68.66666793823242,
+          68.66666793823242
+        ]
+      },
+      {
+        "label": "header controls fit 480",
+        "ok": true,
+        "detail": [
+          {
+            "text": "Uygulama menüsü",
+            "r": {
+              "x": 14,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 54,
+              "bottom": 88.66666793823242,
+              "left": 14
+            }
+          },
+          {
+            "text": "Ana sayfa",
+            "r": {
+              "x": 61,
+              "y": 48.66666793823242,
+              "width": 68.53125,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 129.53125,
+              "bottom": 88.66666793823242,
+              "left": 61
+            }
+          },
+          {
+            "text": "Keşfet",
+            "r": {
+              "x": 131.53125,
+              "y": 48.66666793823242,
+              "width": 48.38541793823242,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 179.91666793823242,
+              "bottom": 88.66666793823242,
+              "left": 131.53125
+            }
+          },
+          {
+            "text": "Filmler",
+            "r": {
+              "x": 181.9166717529297,
+              "y": 48.66666793823242,
+              "width": 51.708335876464844,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 233.62500762939453,
+              "bottom": 88.66666793823242,
+              "left": 181.9166717529297
+            }
+          },
+          {
+            "text": "Diziler",
+            "r": {
+              "x": 235.625,
+              "y": 48.66666793823242,
+              "width": 47.88541793823242,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 283.5104179382324,
+              "bottom": 88.66666793823242,
+              "left": 235.625
+            }
+          },
+          {
+            "text": "Kütüphanede ara",
+            "r": {
+              "x": 290,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 330,
+              "bottom": 88.66666793823242,
+              "left": 290
+            }
+          },
+          {
+            "text": "Browser",
+            "r": {
+              "x": 332,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 372,
+              "bottom": 88.66666793823242,
+              "left": 332
+            }
+          },
+          {
+            "text": "Medya aç",
+            "r": {
+              "x": 374,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 414,
+              "bottom": 88.66666793823242,
+              "left": 374
+            }
+          },
+          {
+            "text": "Ayarlar",
+            "r": {
+              "x": 416,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 456,
+              "bottom": 88.66666793823242,
+              "left": 416
+            }
+          }
+        ]
+      },
+      {
+        "label": "no control overlap 480",
+        "ok": true,
+        "detail": [
+          {
+            "text": "Uygulama menüsü",
+            "r": {
+              "x": 14,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 54,
+              "bottom": 88.66666793823242,
+              "left": 14
+            }
+          },
+          {
+            "text": "Ana sayfa",
+            "r": {
+              "x": 61,
+              "y": 48.66666793823242,
+              "width": 68.53125,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 129.53125,
+              "bottom": 88.66666793823242,
+              "left": 61
+            }
+          },
+          {
+            "text": "Keşfet",
+            "r": {
+              "x": 131.53125,
+              "y": 48.66666793823242,
+              "width": 48.38541793823242,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 179.91666793823242,
+              "bottom": 88.66666793823242,
+              "left": 131.53125
+            }
+          },
+          {
+            "text": "Filmler",
+            "r": {
+              "x": 181.9166717529297,
+              "y": 48.66666793823242,
+              "width": 51.708335876464844,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 233.62500762939453,
+              "bottom": 88.66666793823242,
+              "left": 181.9166717529297
+            }
+          },
+          {
+            "text": "Diziler",
+            "r": {
+              "x": 235.625,
+              "y": 48.66666793823242,
+              "width": 47.88541793823242,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 283.5104179382324,
+              "bottom": 88.66666793823242,
+              "left": 235.625
+            }
+          },
+          {
+            "text": "Kütüphanede ara",
+            "r": {
+              "x": 290,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 330,
+              "bottom": 88.66666793823242,
+              "left": 290
+            }
+          },
+          {
+            "text": "Browser",
+            "r": {
+              "x": 332,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 372,
+              "bottom": 88.66666793823242,
+              "left": 332
+            }
+          },
+          {
+            "text": "Medya aç",
+            "r": {
+              "x": 374,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 414,
+              "bottom": 88.66666793823242,
+              "left": 374
+            }
+          },
+          {
+            "text": "Ayarlar",
+            "r": {
+              "x": 416,
+              "y": 48.66666793823242,
+              "width": 40,
+              "height": 40,
+              "top": 48.66666793823242,
+              "right": 456,
+              "bottom": 88.66666793823242,
+              "left": 416
+            }
+          }
+        ]
+      },
+      {
+        "label": "mode selection preserved 480",
+        "ok": true,
+        "detail": "film"
+      },
+      {
+        "label": "same navigation nodes retained 480",
+        "ok": true
+      },
+      {
+        "label": "responsive modes location 480",
+        "ok": true,
+        "detail": true
+      },
+      {
+        "label": "launcher keeps film",
+        "ok": true
+      },
+      {
+        "label": "settings keeps film",
+        "ok": true
+      },
+      {
+        "label": "navigation destination films",
+        "ok": true
+      }
+    ],
+    "defects": []
+  },
+  "transitionPosterRestored": true,
+  "transition": {
+    "file": "<WORKTREE>\\.uiprev\\media-identity-after-1793536805349\\actual-page-transition.mp4",
+    "frames": 16,
+    "durationMs": 3323,
+    "capturedFlight": true,
+    "noCloneLeftover": true,
+    "frameEvidence": [
+      {
+        "frame": 0,
+        "elapsedMs": 0,
+        "clones": 0,
+        "clonesBefore": 0,
+        "posterComputed": null
+      },
+      {
+        "frame": 1,
+        "elapsedMs": 176,
+        "clones": 0,
+        "clonesBefore": 0,
+        "posterComputed": null
+      },
+      {
+        "frame": 2,
+        "elapsedMs": 356,
+        "clones": 1,
+        "clonesBefore": 1,
+        "posterOpacity": "0",
+        "posterComputed": "0"
+      },
+      {
+        "frame": 3,
+        "elapsedMs": 458,
+        "clones": 1,
+        "clonesBefore": 1,
+        "posterOpacity": "0",
+        "posterComputed": "0"
+      },
+      {
+        "frame": 4,
+        "elapsedMs": 696,
+        "clones": 0,
+        "clonesBefore": 1,
+        "posterOpacity": "0",
+        "posterComputed": "0"
+      },
+      {
+        "frame": 5,
+        "elapsedMs": 935,
+        "clones": 0,
+        "clonesBefore": 0,
+        "posterOpacity": "",
+        "posterComputed": "1"
+      },
+      {
+        "frame": 6,
+        "elapsedMs": 1172,
+        "clones": 0,
+        "clonesBefore": 0,
+        "posterOpacity": "",
+        "posterComputed": "1"
+      },
+      {
+        "frame": 7,
+        "elapsedMs": 1408,
+        "clones": 0,
+        "clonesBefore": 0,
+        "posterOpacity": "",
+        "posterComputed": "1"
+      },
+      {
+        "frame": 8,
+        "elapsedMs": 1644,
+        "clones": 0,
+        "clonesBefore": 0,
+        "posterOpacity": "",
+        "posterComputed": "1"
+      },
+      {
+        "frame": 9,
+        "elapsedMs": 1880,
+        "clones": 0,
+        "clonesBefore": 0,
+        "posterOpacity": "",
+        "posterComputed": "1"
+      },
+      {
+        "frame": 10,
+        "elapsedMs": 2104,
+        "clones": 0,
+        "clonesBefore": 0,
+        "posterOpacity": "",
+        "posterComputed": "1"
+      },
+      {
+        "frame": 11,
+        "elapsedMs": 2341,
+        "clones": 0,
+        "clonesBefore": 0,
+        "posterOpacity": "",
+        "posterComputed": "1"
+      },
+      {
+        "frame": 12,
+        "elapsedMs": 2578,
+        "clones": 0,
+        "clonesBefore": 0,
+        "posterOpacity": "",
+        "posterComputed": "1"
+      },
+      {
+        "frame": 13,
+        "elapsedMs": 2804,
+        "clones": 0,
+        "clonesBefore": 0,
+        "posterComputed": null
+      },
+      {
+        "frame": 14,
+        "elapsedMs": 3039,
+        "clones": 0,
+        "clonesBefore": 0,
+        "posterComputed": null
+      },
+      {
+        "frame": 15,
+        "elapsedMs": 3323,
+        "clones": 0,
+        "clonesBefore": 0,
+        "posterComputed": null
+      }
+    ],
+    "events": [
+      {
+        "frame": 2,
+        "action": "actual MediaTitleUI.open"
+      },
+      {
+        "frame": 13,
+        "action": "actual MediaTitleUI.close"
+      }
+    ],
+    "limits": "capturePage frames and their wall-clock intervals; not desktop video, FPS or rendering-performance measurement"
+  },
+  "assistant": {
+    "file": "<WORKTREE>\\.uiprev\\media-identity-after-1793536805349\\assistant-native-view.png",
+    "actualOwnedWebContentsView": true,
+    "controlledSnapshot": true,
+    "limits": "captured separately because main capturePage excludes native child surface"
+  },
+  "blockedNetwork": 52,
+  "limits": "Real included demo artwork, actual app/preload/catalog/analysis/assistant surfaces; controlled display text, isolated profile, no user session/provider/network. Light captures stress existing optional theme; graphite/amber remains default. No performance/FPS claim."
+}

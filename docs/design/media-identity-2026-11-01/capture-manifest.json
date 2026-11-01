@@ -1,0 +1,87 @@
+[
+  {
+    "file": "home.png",
+    "bytes": 1199993,
+    "source": ".uiprev/media-identity-after-1793536805349/home-wide-dark.png"
+  },
+  {
+    "file": "menu-wide.png",
+    "bytes": 1093312,
+    "source": ".uiprev/media-identity-after-1793536805349/header-1440-open.png"
+  },
+  {
+    "file": "menu-narrow.png",
+    "bytes": 775690,
+    "source": ".uiprev/media-identity-after-1793536805349/header-720-open.png"
+  },
+  {
+    "file": "film.png",
+    "bytes": 894534,
+    "source": ".uiprev/media-identity-after-1793536805349/film-wide-dark.png"
+  },
+  {
+    "file": "review.png",
+    "bytes": 191453,
+    "source": ".uiprev/media-identity-after-1793536805349/review-wide-dark.png"
+  },
+  {
+    "file": "review-narrow.png",
+    "bytes": 148876,
+    "source": ".uiprev/media-identity-after-1793536805349/review-narrow-dark.png"
+  },
+  {
+    "file": "assistant.png",
+    "bytes": 85714,
+    "source": ".uiprev/media-identity-after-1793536805349/assistant-native-view.png"
+  },
+  {
+    "file": "assistant-menu.png",
+    "bytes": 49772,
+    "source": "tmp/visual-identity/assistant-actions/480-en-open.png"
+  },
+  {
+    "file": "discovery.png",
+    "bytes": 1055238,
+    "source": ".uiprev/home-discovery-design-after-1793535658125/discovery-tr-dark-1440.png"
+  },
+  {
+    "file": "discovery-detail.png",
+    "bytes": 739462,
+    "source": ".uiprev/home-discovery-design-after-1793535658125/detail-tr-dark-1440.png"
+  },
+  {
+    "file": "browser.png",
+    "bytes": 73227,
+    "source": "tmp/visual-identity/browser-player-after-1793537193374/browser-wide.png"
+  },
+  {
+    "file": "browser-menu.png",
+    "bytes": 88638,
+    "source": "tmp/visual-identity/browser-player-after-1793537193374/browser-menu-wide.png"
+  },
+  {
+    "file": "browser-settings.png",
+    "bytes": 115610,
+    "source": "tmp/visual-identity/browser-player-after-1793537193374/browser-settings-narrow.png"
+  },
+  {
+    "file": "player.png",
+    "bytes": 1206362,
+    "source": "tmp/visual-identity/browser-player-after-1793537193374/player-wide.png"
+  },
+  {
+    "file": "player-menu.png",
+    "bytes": 732943,
+    "source": "tmp/visual-identity/browser-player-after-1793537193374/player-transport-menu-narrow.png"
+  },
+  {
+    "file": "player-settings.png",
+    "bytes": 98373,
+    "source": "tmp/visual-identity/browser-player-after-1793537193374/player-settings-narrow.png"
+  },
+  {
+    "file": "media-transition.mp4",
+    "bytes": 343803,
+    "source": ".uiprev/media-identity-after-1793536805349/actual-page-transition.mp4"
+  }
+]

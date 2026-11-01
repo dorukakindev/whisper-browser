@@ -3,6 +3,7 @@
   'use strict';
   const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
   const running = new Map();
+  const transfers = new Set();
   function stop(node) {
     const animation = running.get(node);
     running.delete(node);
@@ -42,22 +43,47 @@
     const from = previous ? { opacity: current.opacity, translate: current.translate } : null;
     stop(node);
     if (preference.matches) return;
-    const panel = kind === 'panel';
-    const pixels = offset(token(current, panel ? '--ui-motion-panel-offset' : '--ui-motion-section-offset'), panel ? 0 : 4);
+    const panel = kind === 'panel', page = kind === 'page';
+    const role = page ? '--ui-motion-page' : panel ? '--ui-motion-panel' : '--ui-motion-surface';
+    const pixels = offset(token(current, page ? '--ui-motion-page-offset' : panel ? '--ui-motion-panel-offset' : '--ui-motion-section-offset'), page ? 12 : panel ? 0 : 4);
     const animation = node.animate([
-      from || { opacity: panel ? .65 : .55, translate: pixels === 0 ? 'none' : `0 ${pixels}px` },
+      from || { opacity: page ? .18 : panel ? .65 : .55, translate: pixels === 0 ? 'none' : `0 ${pixels}px` },
       { opacity: 1, translate: 'none' },
-    ], { duration: duration(token(current, panel ? '--ui-motion-panel' : '--ui-motion-surface'), panel ? 160 : 180),
+    ], { duration: duration(token(current, role), page ? 360 : panel ? 160 : 180),
       easing: easing(token(current, '--ui-motion-ease')) });
     running.set(node, animation);
     const release = () => { if (running.get(node) === animation) running.delete(node); };
     animation.finished.then(release, release);
   }
+  function captureMedia(node) {
+    if (preference.matches || !node?.isConnected) return null;
+    const image = node.tagName === 'IMG' ? node : node.querySelector?.('img');
+    if (!image?.complete || !image.naturalWidth) return null;
+    const rect = image.getBoundingClientRect(), src = image.currentSrc || image.src;
+    if (!src || ![rect.x,rect.y,rect.width,rect.height].every(Number.isFinite) || rect.width < 24 || rect.height < 24) return null;
+    return { src, x:rect.x, y:rect.y, width:rect.width, height:rect.height, radius:getComputedStyle(image.parentElement||image).borderRadius };
+  }
+  function mediaTransfer(snapshot,target) {
+    if (preference.matches || !snapshot || !target?.isConnected || typeof document === 'undefined') return;
+    const rect=target.getBoundingClientRect();
+    if (![rect.x,rect.y,rect.width,rect.height].every(Number.isFinite) || rect.width<24 || rect.height<24) return;
+    for (const transfer of [...transfers]) transfer();
+    const image=document.createElement('img');image.src=snapshot.src;image.alt='';image.setAttribute('aria-hidden','true');image.dataset.uiMediaTransfer='';
+    Object.assign(image.style,{position:'fixed',left:snapshot.x+'px',top:snapshot.y+'px',width:snapshot.width+'px',height:snapshot.height+'px',objectFit:'cover',borderRadius:snapshot.radius||'10px',pointerEvents:'none',transformOrigin:'0 0',zIndex:'5000'});
+    document.body.append(image);
+    if(typeof image.animate!=='function'){image.remove();return;}
+    const previousOpacity=target.style.opacity;target.style.opacity='0';
+    const style=getComputedStyle(target),animation=image.animate([{transform:'none',opacity:1},{transform:`translate(${rect.x-snapshot.x}px,${rect.y-snapshot.y}px) scale(${rect.width/snapshot.width},${rect.height/snapshot.height})`,opacity:1}],{duration:duration(token(style,'--ui-motion-media'),420),easing:easing(token(style,'--ui-motion-ease'))});
+    let observer;
+    const clear=()=>{transfers.delete(clear);observer?.disconnect();animation.cancel();image.remove();if(target.style.opacity==='0')target.style.opacity=previousOpacity;};transfers.add(clear);
+    if(typeof MutationObserver==='function'){observer=new MutationObserver(()=>{if(!target.isConnected)clear();});observer.observe(document.body,{childList:true,subtree:true});}
+    animation.finished.then(clear,clear);
+  }
   preference.addEventListener('change', () => {
-    if (preference.matches) for (const node of [...running.keys()]) stop(node);
+    if (preference.matches) { for (const node of [...running.keys()]) stop(node);for(const transfer of [...transfers])transfer(); }
   });
   window.addEventListener('pagehide', () => {
-    for (const node of [...running.keys()]) stop(node);
+    for (const node of [...running.keys()]) stop(node);for(const transfer of [...transfers])transfer();
   });
-  window.UiMotion = Object.freeze({ reveal, stop });
+  window.UiMotion = Object.freeze({ reveal, stop, captureMedia, mediaTransfer });
 })();

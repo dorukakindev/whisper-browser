@@ -29,6 +29,7 @@
   }
   async function details(row) {
     let translationToken = null;
+    const mediaOrigin = document.activeElement?.closest?.('[data-discovery-id]')?.dataset.discoveryId === row.providerId ? window.UiMotion?.captureMedia(document.activeElement.closest('[data-discovery-id]')) : null;
     if(!document.body.classList.contains('media-home-active')||!document.getElementById('playerLayer')?.classList.contains('hidden'))await window.MediaHomeUI.returnHome();
     const dialog = window.MediaTitleUI.createPage('md-detail media-surface'); dialog.dataset.uiUntranslated = ''; dialog.setAttribute('aria-label', row.title);
     const close = btn(t('← Back to Discover','← Keşfete dön'), () => dialog.close(), 'mh-action md-page-back'); close.setAttribute('aria-label', t('Close details', 'Ayrıntıları kapat'));
@@ -101,10 +102,31 @@
     narrative.append(storyHeading,synopsis);
     side.append(credits,options);lower.append(narrative,side);
     body.append(image(item.poster || row.poster, 'md-detail-poster'),content);hero.append(background,body);dialog.append(hero,lower);
-    const reviewSection=el('section','mtd-review');narrative.append(reviewSection);window.MediaReviewDecision?.mountTitle(reviewSection,{...item,id:`discovery:${item.kind}:${item.providerId}`,imdbId:item.providerId,discovery:{kind:item.kind,id:item.providerId}});window.FilmContextFeatures?.mount(narrative,{...item,id:`discovery:${item.kind}:${item.providerId}`,imdbId:item.providerId,discovery:{kind:item.kind,id:item.providerId}},()=>details(row));window.FilmPageEnhancements?.enhance(dialog,item);
+    const reviewSection=el('section','mtd-review');lower.append(reviewSection);window.MediaReviewDecision?.mountTitle(reviewSection,{...item,id:`discovery:${item.kind}:${item.providerId}`,imdbId:item.providerId,discovery:{kind:item.kind,id:item.providerId}});window.FilmContextFeatures?.mount(narrative,{...item,id:`discovery:${item.kind}:${item.providerId}`,imdbId:item.providerId,discovery:{kind:item.kind,id:item.providerId}},()=>details(row));window.FilmPageEnhancements?.enhance(dialog,item);
+    window.UiMotion?.mediaTransfer(mediaOrigin, dialog.querySelector('.md-detail-poster'));
+    window.UiMotion?.reveal(dialog, 'page');
+  }
+  function drawFeature() {
+    const slot = state.root?.querySelector('.md-feature-slot'); if (!slot) return;
+    slot.replaceChildren();
+    if (state.tab !== 'browse' || state.query.trim() || state.busy) return;
+    const row = state.rows.find(item => safeImage(item.backdrop)); if (!row) return;
+    const hero = el('section', 'md-feature'); hero.hidden = true;
+    hero.setAttribute('aria-label', t('Featured title', 'Öne çıkan yapım'));
+    const artwork = el('img', 'md-feature-art'); artwork.alt = ''; artwork.src = safeImage(row.backdrop); artwork.referrerPolicy = 'no-referrer';
+    artwork.addEventListener('load', () => { hero.hidden = artwork.naturalWidth / artwork.naturalHeight < 1.3; }, {once:true});
+    artwork.addEventListener('error', () => { hero.hidden = true; }, {once:true});
+    const copy = el('div', 'md-feature-copy');
+    copy.append(el('h2', '', row.title));
+    const facts = [row.year, row.rating ? 'IMDb '+row.rating+'/10' : '', ...(row.genres || []).slice(0,3)].filter(Boolean).join(' · ');
+    if (facts) copy.append(el('p', 'md-feature-facts', facts));
+    if (row.synopsis) copy.append(el('p', 'md-feature-story', row.synopsis));
+    copy.append(btn(t('Explore this title', 'Yapımı keşfet'), () => details(row), 'mh-action md-feature-open'));
+    hero.append(artwork, copy); slot.append(hero);
   }
   function cards() {
     const grid = state.root?.querySelector('.md-grid'); if (!grid) return;
+    drawFeature();
     grid.setAttribute('aria-busy', String(state.busy));
     grid.replaceChildren();
     if (state.busy && !state.rows.length) {
@@ -116,8 +138,10 @@
     }
     for (const row of state.rows) {
       const card = btn('', () => details(row), 'mh-card md-card'); card.dataset.discoveryId = row.providerId;
-      card.append(image(row.poster, 'mh-art'), el('span', 'mh-card-title', row.title),
-        el('span', 'mh-card-meta', [row.year, row.rating ? `★ ${row.rating}` : '', row.catalogId ? t('In library', 'Kütüphanede') : ''].filter(Boolean).join(' · ')));
+      const poster = image(row.poster, 'mh-art');
+      if (row.rating) { const rating=el('span','md-rating',String(row.rating)); rating.setAttribute('aria-label', t('IMDb rating ','IMDb puanı ')+row.rating+'/10'); poster.append(rating); }
+      card.append(poster, el('span', 'mh-card-title', row.title),
+        el('span', 'mh-card-meta', [row.year, row.catalogId ? t('In library', 'Kütüphanede') : ''].filter(Boolean).join(' · ')));
       if (row.because) card.append(el('span', 'md-reason', t(`Because you liked ${row.because}`, `${row.because} beğeninden dolayı`)));
       if(row.profileBecause){const r=row.profileBecause;card.append(el('span','md-reason',t(`${r.genre} · ${r.count} ratings, ${r.average.toFixed(1)}/5`,`${r.genre} · ${r.count} puan, ${r.average.toFixed(1)}/5`)));}
       if (row.feedback) card.append(el('span','md-reason', row.feedback === 'watched' ? t('Watched','İzlendi') : t('Not interested','İlgilenilmiyor')));
@@ -175,7 +199,7 @@
     root.append(filters);
     const statusNode = el('p', 'md-status'); statusNode.setAttribute('role', 'status'); const grid = el('div', 'md-grid');
     const footer = el('div', 'md-footer'); footer.append(btn(t('Show more', 'Daha fazla göster'), () => load(true), 'mh-action md-more'), btn(t('Retry', 'Yeniden dene'), () => load(false), 'mh-action'), el('p', 'md-provider', t('Catalog: Cinemeta, the official Stremio movie & series catalog. No account or API key required.', 'Katalog: Cinemeta, resmî Stremio film ve dizi kataloğu. Hesap veya API anahtarı gerekmez.')));
-    root.append(statusNode, grid, footer); cards();
+    root.append(statusNode, grid, footer); const featureSlot = el('div', 'md-feature-slot'); const results = root.querySelector('.md-grid'); if (results) results.before(featureSlot); cards();
   }
   let savedScroll = 0, restoringScroll = false;
   const leave = () => { if (state.root?.isConnected) savedScroll = document.getElementById('mediaHome').scrollTop; state.root = null; };

@@ -270,3 +270,25 @@ header{padding-inline:16px;gap:12px}
  .tool-card > button{min-height:36px}
  #form > div{column-gap:8px;row-gap:6px}
 }
+#panel header{padding-block:12px 8px}
+#panel header strong{font-size:16px}
+#panel .assistant-mark{width:32px;height:32px;border-radius:9px;background:transparent}
+#sourceBox>summary{min-height:28px;padding-block:4px}
+#threadBar{padding-block:7px}
+#threads{background:transparent;border-color:var(--line);min-height:30px;padding-block:4px;font-size:11px}
+#newThread{min-height:30px;padding:4px 7px;font-size:11px;border-color:transparent}
+.message-actions{align-items:flex-start;margin-top:7px;gap:3px}
+.message-actions>button{padding-inline:4px;min-height:28px}
+.message-more{min-width:28px;color:var(--muted)}
+.message-more>summary{list-style:none;display:grid;place-items:center;width:28px;height:28px;border:1px solid transparent;border-radius:6px}
+.message-more>summary::-webkit-details-marker{display:none}
+.message-more>summary svg{width:17px;height:17px;fill:currentColor}
+.message-more>summary:hover,.message-more[open]>summary{color:var(--text);background:var(--raised);border-color:var(--line)}
+.message-more[open]{flex:1;min-width:0}
+.message-more-options{display:flex;flex-wrap:wrap;align-items:center;gap:3px;padding:6px;margin-top:4px;border:1px solid var(--line);border-radius:8px;background:var(--raised)}
+.message-more-options button{min-height:30px;font-size:11px;padding:4px 7px;text-align:left;max-width:100%;overflow-wrap:anywhere}
+#form{padding:8px;margin-bottom:10px;border-radius:11px}
+#text{field-sizing:content;height:auto;min-height:42px;max-height:112px;overflow-y:auto;padding-bottom:6px}
+#form>div{padding-top:6px}
+#form #send,#form #webSearch{min-height:32px;font-size:11px;padding:5px 10px}
+@media(max-width:400px),(max-height:650px){#panel header{padding-block:9px 6px}#threadBar{padding-block:5px}#text{min-height:38px;max-height:96px}.message-more-options{gap:2px;padding:5px}}

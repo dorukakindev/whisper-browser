@@ -158,3 +158,16 @@ Dublaj DOM ve görsel görev sırası altyazı→referans ses→üretimdir; kayn
 ### Yorum okuma masası — R836
 
 Kaynakta tek seçili yorum ve native yazar seçicisi/Önceki/Sonraki;65–70ch metin ölçüsü, metin içinde ikinci360px kaydırıcı yok. İlk kaynak hemen görünür; uzun metnin Tamamını oku eylemi sadece görsel daraltmayı kaldırır. KaynakJSON ve AI örnek bütçesi birbirinden ayrıdır. Önizleme ayrı iş adımı, formun en altına eklenen bir kutu değil; Geri taslağı korur. Aktif adımın doğrulama hatası aynı yerde role=alert ile görünür. Özet ve kişisel uygunluk okuma önceliğidir; ayrıntılı örnek denetimi ve kaynaklar isteğe bağlı açılır. Güncel profil satırı sessiz, stale/unknown uyarısı belirgin kalır. Başlık18–22, gövde15/1.85, metadata12–13; tek ana eylem ve ortak grafit/amber/font/hareket ailesi korunur. Kayıtlı film analizi, inline yönetim ve bağımsız yorum görünümü aynı render sahibini kullanır. [Önce/sonra](docs/raporlar/BROWSER_BUG_REPORT_836.md).
+
+
+## 2026-11-01 — sinematik medya omurgası
+
+Kullanıcının kesin yönü: üst medya menüsü, grafit/amber palet ve masaüstü medya oynatıcı/browser ruhu korunur. Luna kalite karşılaştırmasıdır; birebir yerleşim, ikon veya marka kopyası değildir. Soldan genel gezinme, açık kâğıt düzlemi ve web pazarlama sayfası dili reddedilmiştir. Her yeni yüzeyde önce açık bir hiyerarşi, sonra içerikle ilişkili sinematik kompozisyon gelir. Rastgele parıltı, büyük düğme hover'ı ve dekoratif sayaçlar kalite ölçüsü değildir.
+
+- Üst gezinme tek yatay baz çizgisidir. Soldaki uygulama simgesi ikincil hedef/araçları hover ile açar; tıklama ve klavye de çalışır. Menüye geçiş güvenli aralığı vardır. Daraldıkça yazıları kesmek veya ikinci rastgele satır açmak yerine bütün kontroller aynı menüye taşınır. Mod ve sayfa seçimi birbirinden ayrıdır. Arama ikonla açılan mevcut sorguyu koruyan bir yüzeydir.
+- Görsel kimlik: geniş gerçek backdrop, okunur koyu soldan/alt gradyan, tutarlı afiş oranı, başlık → kısa olgular → ana eylem. Kapağı yatay büyütmek yerine uygun geniş görsel tercih edilir; yükleme/bozuk görselde mevcut kapak korunur.
+- Yorum analizi: yorum örneğine ait yorumlama ile kaynak alıntısı açıkça ayrılır. Özet ana okuma alanı, kişisel uygunluk ikinci odaktır. Görüşler kart istifi yerine başlık–gerekçe–gerçek alıntı ilişkisiyle okunur. Yorum sayısı, puan veya fikir birliği uydurulmaz. Kaynağın tamamı ve ileri örnek ayarları erişilebilir kalır.
+- Hareket: mevcut self-hosted WAAPI sahibi kullanılır. Sayfa360ms, medya kimliği geçişi420ms; sıradan kontrol180ms. Yeni sayfaya geçen afiş dekoratif tek uçuş görselidir; hedef çift görüntü üretmez. Kesilme, hedefin ayrılması ve reduced-motion temizlenir. Sürekli dekoratif hareket ve sahte düşünce metni yok.
+- Asistan, tarayıcı ve oynatıcı aynı eylem hiyerarşisini taşır: içerik/yanıt birinci, ana eylem ikinci, kaynak ve ileri araçlar açılır. Kaydırma sahipleri, gerçek video yüzeyi, yetki/üretim durumu ve erişilebilir gelişmiş seçenekler korunur.
+
+Bu bölüm yöndür; her ekranın uygulanmış ve gerçek model/siteyle doğrulanmış olduğunu tek başına kanıtlamaz. Teslim notu hangi ekranların gerçek Windows görüntüsüyle sınandığını belirtir. Kaynak tasarım incelemeleri ve uygulama farkları docs/design altındaki teslim belgesinde sabit commit bağlantılarıyla tutulur.

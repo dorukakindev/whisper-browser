@@ -1,0 +1,44 @@
+✔ Film identity compares TMDB ids first, rejects remakes and retains unknown status without evidence (3.7569ms)
+✔ Loaded browser review extraction excludes forms/scripts and rejects foreign URLs, challenges and stale navigation (75.562ms)
+✔ review count accepts arbitrary 1–48 integers, persists the draft and blocks invalid input before source calls (48.3273ms)
+✔ Review workflow uses an open page, blocks mismatched films and preserves invalid/failed results for retry (37.3462ms)
+✔ A request which never starts remains retryable and does not lose the review sample (17.9625ms)
+✔ Interrupted analysis keeps partial received text and exposes a retry instead of an endless loading state (21.2515ms)
+✔ Leaving a reading panel cancels its request and rejects a late result without replacing the old sample (10.7397ms)
+✔ Editing a previewed sample or spoiler selection requires a fresh preview before any AI request (27.6603ms)
+✔ Evidence assessment counts duplicate opinions once and separates exact quotes from general consensus (2.0676ms)
+✔ A late browser fetch cannot overwrite text edited while reading (17.7761ms)
+✔ Additional loaded review pages deduplicate only verified same-film samples (17.0323ms)
+✔ Browser return preserves append choice and source pages across panel remounts (17.1763ms)
+✔ A mismatched incoming film cannot replace a manual sample or its previous analysis (10.5882ms)
+✔ Preview explains spoiler and bounded exclusions and exposes source metadata without revealing excluded text (45.4463ms)
+✔ Saved result evidence opens only allowed review permalinks and keeps source text in a disclosure (10.7049ms)
+✔ Review checkboxes recompute the budget and only the current selection reaches analysis and save (32.6748ms)
+✔ An empty checkbox selection cannot send; changing spoiler policy requires a fresh preview (16.0933ms)
+✔ Taste changed after preview refuses send and preserves the reviewed sample (14.3092ms)
+✔ AssistantMediaCommands starting during awaited profile recheck cannot send a second task (13.6717ms)
+✔ AssistantPageCommands starting during awaited profile recheck cannot send a second task (20.1747ms)
+✔ Automatic selected sort reaches the service and source metadata survives preview, analysis and save (19.535ms)
+✔ Saved analysis reports current profile context and reuses its sample without a fetch or AI request (26.123ms)
+✔ Saved analysis reports stale profile context and reuses its sample without a fetch or AI request (15.8163ms)
+✔ AI Turkish paraphrase is labelled separately while exact original survives rendered result and save (16.9405ms)
+✔ Manual source actions, editor, append and spoiler controls remain usable inside the disclosure (12.7928ms)
+✔ Advanced review controls retain their disclosure choice and open after automatic source failure (19.029ms)
+✔ Loaded reviews can be read without AI and spoiler text stays hidden until explicitly included (10.0151ms)
+✔ Shared saved history accepts a title alias only with matching film identity and reuses locally (14.2289ms)
+✔ Conflicting saved IMDb identity cannot reuse reviews even when title year and TMDB agree (10.8204ms)
+✔ Failed source loading retries the same source instead of analyzing an empty sample (11.0865ms)
+✔ Replacing an unsaved result with a saved sample removes the obsolete save controls and sample preview (17.7553ms)
+✔ personal comparison discloses the profile saved with analysis, preserving later profile differences (14.8086ms)
+✔ Focused source reader preserves full text, selection and Back without fetching or changing evidence (15.7111ms)
+✔ Analysis narrative precedes optional accounting for every saved result surface (7.3345ms)
+✔ Preview validation stays visible in its active step, and source replacement restores the reading stage (23.4081ms)
+✔ Saved spoiler analysis stays absent from workspace DOM until a separate explicit reveal (8.2901ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1188.2654

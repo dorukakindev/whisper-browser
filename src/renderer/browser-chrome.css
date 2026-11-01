@@ -1920,3 +1920,125 @@ details.browser-translate-split.hidden { display: none !important; }
 
 /* Settings and panel controls remain reachable in the tools destination. */
 .workspace-browser .player-side.tools-mode:not(.side-rail) .side-tab-actions { display: flex; }
+
+/* Cinema chrome: navigation, current source and secondary tools have distinct roles.
+   Keep existing DOM/actions and their native disclosure/keyboard behavior. */
+.player-layer.workspace-browser .browser-toolbar {
+  background: var(--bg-0);
+  border-bottom: 1px solid var(--border);
+  column-gap: 12px;
+  padding: 10px 14px;
+}
+.player-layer.workspace-browser .browser-nav {
+  gap: 2px;
+  padding-right: 10px;
+  border-right: 1px solid var(--border);
+}
+.player-layer.workspace-browser .browser-address-wrap {
+  min-width: 0;
+  background: var(--bg-1);
+  border-radius: 8px;
+  border-color: var(--border);
+}
+.player-layer.workspace-browser .browser-address-wrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: none;
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 1px;
+}
+.player-layer.workspace-browser .browser-toolbar-actions {
+  gap: 5px;
+  padding-left: 5px;
+}
+.player-layer.workspace-browser .browser-tab.active {
+  background: var(--bg-0);
+  border-color: transparent;
+  box-shadow: inset 0 -2px var(--accent);
+  border-radius: 6px 6px 0 0;
+}
+.player-layer.workspace-browser .browser-menu-popover {
+  background: var(--bg-1);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 10px;
+}
+.player-layer.workspace-browser .browser-menu-popover button,
+.player-layer.workspace-browser .browser-more-sub > summary {
+  min-height: 40px;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 400;
+}
+.player-layer.workspace-browser .browser-more-sub > summary {
+  font-weight: 600;
+  padding: 8px 10px;
+}
+.player-layer.workspace-browser .browser-more-sub[open] {
+  background: var(--bg-0);
+  border-radius: 7px;
+}
+.player-layer.workspace-browser .browser-more-sub[open] > summary {
+  color: var(--text);
+  box-shadow: inset 2px 0 var(--accent);
+}
+.player-layer.workspace-browser .browser-more-sub-body {
+  padding: 4px 5px 8px 10px;
+}
+.player-layer.workspace-browser .browser-more-popover {
+  width: min(310px, calc(100vw - 28px));
+  box-sizing: border-box;
+}
+.player-layer.workspace-browser .browser-menu-popover .browser-more-quick > button {
+  min-height: 34px;
+}
+.player-layer.workspace-browser .browser-more-search input {
+  background: var(--bg-0);
+  border-color: var(--border);
+  border-radius: 6px;
+}
+.player-layer.workspace-browser .browser-settings-surface {
+  min-width: 0;
+  overflow-x: hidden;
+}
+.player-layer.workspace-browser .browser-settings-surface-head,
+.player-layer.workspace-browser .browser-settings-surface-tools,
+.player-layer.workspace-browser .browser-settings-body {
+  width: 100%;
+  max-width: 1040px;
+  box-sizing: border-box;
+  margin-inline: auto;
+}
+.player-layer.workspace-browser .browser-settings-surface-head h2 {
+  font-family: 'Sora', 'Segoe UI', sans-serif;
+  font-size: clamp(22px, 2.4vw, 30px);
+  line-height: 1.25;
+}
+.player-layer.workspace-browser .browser-settings-section-head strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.player-layer.workspace-browser .browser-settings-surface-content > [data-browser-settings-kind="persistent"] {
+  background: var(--bg-1);
+  border-color: var(--border);
+  border-radius: 8px;
+}
+.player-layer.workspace-browser .browser-settings-categories button.active {
+  color: var(--text);
+  background: var(--bg-2);
+  border-color: var(--border);
+  box-shadow: inset 0 -2px var(--accent);
+}
+@container browser-workspace (max-width: 650px) {
+  .player-layer.workspace-browser .browser-toolbar { column-gap: 6px; padding: 8px; }
+  .player-layer.workspace-browser .browser-nav { padding-right: 5px; }
+  .player-layer.workspace-browser .browser-toolbar-actions { gap: 2px; padding-left: 0; }
+  .player-layer.workspace-browser .browser-settings-body { min-width: 0; }
+  .player-layer.workspace-browser .browser-settings-categories { gap: 3px; }
+  .player-layer.workspace-browser .browser-settings-categories button { padding: 8px 9px; }
+}
+
+/* The settings title already identifies this surface; keep its utility hierarchy compact. */
+.player-layer.workspace-browser #browserSettingsSurface > .browser-settings-surface-head .browser-section-eyebrow { display: none; }
+.player-layer.workspace-browser #browserSettingsSurface > .browser-settings-surface-head { padding-bottom: 12px; }
+.player-layer.workspace-browser #browserSettingsSurface > .browser-settings-surface-head h2 { margin-top: 0; }
+.player-layer.workspace-browser #browserSettingsSurface > .browser-settings-surface-tools { margin-top: 12px; margin-bottom: 18px; }

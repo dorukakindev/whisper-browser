@@ -1,12 +1,15 @@
 /* Shared interaction layer. Existing palettes and native view bounds are retained. */
 :root {
   --ui-motion-quick: 100ms;
-  --ui-motion-control: 150ms;
-  --ui-motion-surface: 180ms;
-  --ui-motion-panel: 160ms;
+  --ui-motion-page: 360ms;
+  --ui-motion-media: 420ms;
+  --ui-motion-page-offset: 12px;
+  --ui-motion-control: 180ms;
+  --ui-motion-surface: 220ms;
+  --ui-motion-panel: 260ms;
   --ui-motion-section-offset: 4px;
   --ui-motion-panel-offset: 0px;
-  --ui-motion-ease: cubic-bezier(.2, .8, .2, 1);
+  --ui-motion-ease: cubic-bezier(.16, 1, .3, 1);
   --ui-elevation: var(--elev-2, 0 8px 24px rgb(0 0 0 / .22));
 }
 

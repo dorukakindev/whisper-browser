@@ -361,8 +361,8 @@ html[data-theme="light"] .media-title-page .md-detail-poster,html[data-theme="li
 /* Shared review reader and analysis hierarchy own this area in every entry path. */
 .media-title-page .film-review-content .mrv-analysis-overview{margin:24px 0 28px;gap:32px}
 .media-title-page .film-review-content .mrv-analysis-overview>.mrv-summary,.media-title-page .film-review-content .mrv-analysis-overview>.mrv-fit{margin:0;padding:0}
-.media-title-page .film-review-content .mrv-analysis-overview>.mrv-fit{padding-left:28px;border-left:1px solid var(--border)}
-.media-title-page .film-review-content .mrv-analysis-overview h2{font-size:18px;line-height:1.5;font-weight:500;margin:0 0 14px}
+.media-title-page .film-review-content .mrv-analysis-overview>.mrv-fit{padding:22px 24px;border:1px solid var(--border);background:var(--bg-1)}
+.media-title-page .film-review-content .mrv-analysis-overview h2{font-size:20px;line-height:1.5;font-weight:500;margin:0 0 14px}
 .media-title-page .film-review-content .mrv-analysis-overview p{font-size:15px;line-height:1.85;margin:0;max-width:68ch}
 .media-title-page .film-review-content .mrv-fit-basis p{font-size:13px;margin:10px 0}
 .media-title-page .film-review-content .mrv-opinions{gap:24px 32px;margin:24px 0}
@@ -371,7 +371,44 @@ html[data-theme="light"] .media-title-page .md-detail-poster,html[data-theme="li
 .film-review-editor .mrv-sample.mtx-preview{padding:20px 0;margin:0;border:0}.film-review-editor .mrv-reader-nav{padding-top:12px}.film-review-editor .mrv-reader-controls>.mh-action{padding:8px 12px;font-size:12px}
 .film-review-editor .mrv-output.mtx-preview{border:0;padding:20px 0}
 .film-review-content .mrv-analysis-overview .mrv-result-note{font-size:13px;margin-bottom:12px}
-@media(max-width:1000px){.media-title-page .film-review-content .mrv-analysis-overview{grid-template-columns:1fr;gap:24px}.media-title-page .film-review-content .mrv-analysis-overview>.mrv-fit{padding:20px 0 0;border-left:0;border-top:1px solid var(--border)}}
+@media(max-width:1000px){.media-title-page .film-review-content .mrv-analysis-overview{grid-template-columns:1fr;gap:24px}.media-title-page .film-review-content .mrv-analysis-overview>.mrv-fit{padding:20px 24px;border:1px solid var(--border)}}
 .film-review-context{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 20px;margin:8px 0 20px}
 .film-review-content .film-review-context>.film-review-notice,.film-review-content .film-review-context>.mrv-freshness[data-freshness="current"]{font-size:12px;line-height:1.7;margin:0;padding:0}
 .film-review-context>.mrv-freshness:not([data-freshness="current"]){flex-basis:100%;margin:6px 0 0}
+
+/* Analysis controls act as quiet navigation, not competing task buttons. */
+.film-review-content .film-opinion-filters{gap:20px;border-bottom:1px solid var(--border);margin:24px 0;padding:0}
+.film-review-content .film-opinion-filters>.mh-action{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;padding:10px 0;color:var(--text-dim);font-size:13px;min-height:40px}
+.film-review-content .film-opinion-filters>[aria-pressed="true"]{color:var(--text);border-bottom-color:var(--accent)}
+.film-review-content .film-opinion-filters>.mh-action:hover{background:none;color:var(--text)}
+.media-title-page .film-review-content .mrv-analysis-overview>.mrv-fit h2{font-size:16px}
+.media-title-page .film-review-content .mrv-analysis-overview>.mrv-fit>p{font-size:14px;line-height:1.8;color:var(--text-dim)}
+.media-title-page .film-review-content .mrv-opinions>section{padding:20px 0 8px;border:0;border-top:1px solid var(--border);background:transparent;border-radius:0}
+.media-title-page .film-review-content .mrv-opinions .mrv-point>p{font-size:14px;line-height:1.8;color:var(--text-dim)}
+@media(max-width:600px){.film-review-content .film-opinion-filters{gap:16px}.media-title-page .film-review-content .mrv-opinions>section{padding:18px 0}}
+
+/* Film surfaces stay a media player: artwork, native controls and a full-width reading area. */
+.media-title-page .mtd-hero{min-height:300px;margin:0 clamp(20px,3vw,48px);border-radius:18px;overflow:hidden;background:var(--bg-1)}
+.media-title-page .mtd-hero-content{grid-template-columns:158px minmax(0,1fr);gap:30px;align-items:end;max-width:1440px;margin:auto;padding:32px}
+.media-title-page .mtd-poster{width:100%;max-width:158px;border-radius:12px;border:1px solid var(--border);box-shadow:0 12px 28px rgb(0 0 0 / .24)}
+.media-title-page .mtd-backdrop img{object-position:center 35%}
+.media-title-page .mtd-backdrop:not(:empty)::after{background:linear-gradient(90deg,rgb(0 0 0 / .78),rgb(0 0 0 / .22) 70%),linear-gradient(0deg,rgb(0 0 0 / .8),transparent 75%)}
+.media-title-page .mtd-copy h1{font-size:clamp(28px,3vw,44px);line-height:1.15;letter-spacing:-.035em;margin:0 0 12px;max-width:28ch;text-wrap:balance}
+.media-title-page .mtd-facts{font-size:13px;line-height:1.65;margin:8px 0;color:inherit}
+.media-title-page .mtd-genres{gap:8px;margin:10px 0}.media-title-page .mtd-genres span{font-size:12px;padding:4px 9px;border-radius:6px;background:rgb(0 0 0 / .16)}
+.media-title-page .mtd-ratings{gap:24px;margin:16px 0}.media-title-page .mtd-ratings strong{font-size:22px;line-height:1.2;font-variant-numeric:tabular-nums}.media-title-page .mtd-ratings span{font-size:11px}
+.media-title-page .mtd-actions{gap:10px;margin-top:18px}.media-title-page .mtd-actions>.mh-action{min-height:42px;padding:10px 16px;border-radius:10px;font-size:13px}
+.media-title-page .mtd-body>.mtd-review{grid-column:1/-1;min-width:0;margin-top:8px;padding-top:28px}
+.media-title-page .mtd-body>.mtd-review .film-review-heading h2{font-size:24px;line-height:1.35;letter-spacing:-.025em}
+.media-title-page .mtd-cast{gap:8px}.media-title-page .mtd-cast span{border:1px solid var(--border);border-radius:8px;padding:7px 11px;background:var(--bg-1);font-size:13px}
+.media-title-page .film-person-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:22px 18px}
+.media-title-page .film-person-card{border:0;background:transparent;padding:0;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;min-width:0}
+.media-title-page .film-person-card .film-person-photo{width:88px;height:88px;aspect-ratio:1;border-radius:50%;overflow:hidden;background:var(--bg-2);border:1px solid var(--border)}
+.media-title-page .film-person-photo img{width:100%;height:100%;object-fit:cover}.media-title-page .film-person-card strong{font-size:13px;line-height:1.5}.media-title-page .film-person-card>span{font-size:12px;line-height:1.5;color:var(--text-dim)}
+@media(max-width:760px){.media-title-page .mtd-hero{margin-inline:16px;border-radius:14px}.media-title-page .mtd-hero-content{padding:24px;grid-template-columns:112px minmax(0,1fr);gap:20px}.media-title-page .mtd-poster{max-width:112px}.media-title-page .mtd-copy h1{font-size:28px}.media-title-page .mtd-ratings{gap:16px}.media-title-page .mtd-body>.mtd-review .film-review-heading h2{font-size:21px}}
+@media(max-width:520px){.media-title-page .mtd-hero-content{padding:20px;grid-template-columns:80px minmax(0,1fr);gap:16px}.media-title-page .mtd-poster{max-width:80px}.media-title-page .mtd-copy h1{font-size:24px}.media-title-page .mtd-actions>.mh-action{padding:9px 12px;font-size:12px}}
+
+/* The film's argument columns inherit the reader, never nested quotation pills. */
+.media-title-page .film-review-content .mrv-opinion-heading h3{margin:0;line-height:1.45;font-size:16px}
+.media-title-page .film-review-content .mrv-point>.mrv-quote-preview{background:none;border:0;border-radius:0;padding:0;margin:0 0 12px;line-height:1.75;font-size:13px}
+@media(min-width:1150px){.media-title-page .film-review-content .mrv-opinions{grid-template-columns:repeat(3,minmax(0,1fr));gap:28px}.media-title-page .film-review-content .mrv-opinions>section:last-child:nth-child(odd){grid-column:auto}}
