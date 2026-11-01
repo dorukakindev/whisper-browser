@@ -1,0 +1,28 @@
+{
+  "head": "9b3f9e462abaebfd1e3a321fcb72e9594b8c7533",
+  "cases": [
+    {
+      "id": "ARCHIVE-BCP47",
+      "profileAccepted": "zh-hans-cn",
+      "mainConfigPreserved": true,
+      "turkishAndChineseIdsEqual": true,
+      "storedTargetLanguage": "tr",
+      "turkishLookupReturns": "这是中文内容。",
+      "singleSubtagControlIndependent": true,
+      "exportTargetLanguage": "tr",
+      "limits": "Real profile validator, exact main config+persistence functions, real archive fs save/find; source completion and URL adapters controlled. No live translation/native UI."
+    },
+    {
+      "id": "ARCHIVE-PROFILE-RESTORE",
+      "generalLanguage": "tr",
+      "effectiveSiteLanguage": "en",
+      "realRendererPreviewTarget": "en",
+      "savedEnglishArchiveExists": true,
+      "autoRestoreResult": {
+        "ok": false,
+        "missing": true
+      },
+      "limits": "Exact effective-profile and preview functions plus actual main restore early lookup, real archive; synthetic controls, no native navigation/translation."
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "revision": "9b3f9e462abaebfd1e3a321fcb72e9594b8c7533",
+  "newBugs": 4,
+  "proposals": 26,
+  "knownCompatibilityCheckExcluded": true,
+  "probes": [
+    {
+      "area": "assistant",
+      "exitCode": 0
+    },
+    {
+      "area": "film",
+      "exitCode": 0
+    },
+    {
+      "area": "dub",
+      "exitCode": 0
+    },
+    {
+      "area": "browser",
+      "exitCode": 0
+    }
+  ],
+  "existingChecks": [
+    {
+      "file": "tests/browser-translation-archive.test.js",
+      "exitCode": 0
+    },
+    {
+      "file": "tests/browser-site-profiles.test.js",
+      "exitCode": 0,
+      "reported": 15
+    },
+    {
+      "file": "tests/media-taste.test.js",
+      "exitCode": 0,
+      "reported": 1
+    },
+    {
+      "file": "tests/assistant-provider.test.js",
+      "exitCode": 0,
+      "reported": 11
+    }
+  ],
+  "sourceEdits": false,
+  "uiGpuLiveModelAcceptance": false,
+  "notes": "Film/Python exporter use synthetic fixtures; exporter run/probe controlled. Browser functions extracted unchanged into vm; not native. Multiple proposal bodies initially truncated by assembly regex were corrected; all26 bodies now present. No entire suite or CI result claim."
+}

@@ -1,0 +1,112 @@
+{
+  "head": "9b3f9e462abaebfd1e3a321fcb72e9594b8c7533",
+  "results": [
+    {
+      "label": "LF",
+      "chunkSize": 10000,
+      "result": {
+        "ok": true,
+        "text": "Sentetik yanit dogrulandi.",
+        "capabilities": {
+          "tools": "not-observed",
+          "stream": "supported"
+        },
+        "execution": {
+          "cards": 0,
+          "pendingPlans": 0,
+          "attempted": 0,
+          "blockedOrFailed": 0,
+          "appliedActions": 0
+        },
+        "bookCitations": []
+      },
+      "deltaText": "Sentetik yanit dogrulandi."
+    },
+    {
+      "label": "LF",
+      "chunkSize": 1,
+      "result": {
+        "ok": true,
+        "text": "Sentetik yanit dogrulandi.",
+        "capabilities": {
+          "tools": "not-observed",
+          "stream": "supported"
+        },
+        "execution": {
+          "cards": 0,
+          "pendingPlans": 0,
+          "attempted": 0,
+          "blockedOrFailed": 0,
+          "appliedActions": 0
+        },
+        "bookCitations": []
+      },
+      "deltaText": "Sentetik yanit dogrulandi."
+    },
+    {
+      "label": "CRLF",
+      "chunkSize": 10000,
+      "result": {
+        "ok": true,
+        "text": "Sentetik yanit dogrulandi.",
+        "capabilities": {
+          "tools": "not-observed",
+          "stream": "supported"
+        },
+        "execution": {
+          "cards": 0,
+          "pendingPlans": 0,
+          "attempted": 0,
+          "blockedOrFailed": 0,
+          "appliedActions": 0
+        },
+        "bookCitations": []
+      },
+      "deltaText": "Sentetik yanit dogrulandi."
+    },
+    {
+      "label": "CRLF",
+      "chunkSize": 1,
+      "result": {
+        "ok": true,
+        "text": "Sentetik yanit dogrulandi.",
+        "capabilities": {
+          "tools": "not-observed",
+          "stream": "supported"
+        },
+        "execution": {
+          "cards": 0,
+          "pendingPlans": 0,
+          "attempted": 0,
+          "blockedOrFailed": 0,
+          "appliedActions": 0
+        },
+        "bookCitations": []
+      },
+      "deltaText": "Sentetik yanit dogrulandi."
+    },
+    {
+      "label": "CR",
+      "chunkSize": 10000,
+      "result": {
+        "ok": false,
+        "timedOut": false,
+        "cancelled": false,
+        "error": "Unexpected non-whitespace character after JSON at position 89 (line 3 column 1)"
+      },
+      "deltaText": ""
+    },
+    {
+      "label": "CR",
+      "chunkSize": 1,
+      "result": {
+        "ok": false,
+        "timedOut": false,
+        "cancelled": false,
+        "error": "Unexpected non-whitespace character after JSON at position 89 (line 3 column 1)"
+      },
+      "deltaText": ""
+    }
+  ],
+  "checks": 6
+}
