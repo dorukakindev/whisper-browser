@@ -931,7 +931,7 @@ def main(argv=None, runtime=None):
     print('DUB_ACTIVITY '+json.dumps({'stage':'placement'}),flush=True)
     placement_began=time.monotonic()
     from dub_continuity import prepare as prepare_continuity
-    with prepare_continuity(paths,[text for _,_,text in cues],enabled=args.natural_speech,directory=parts_dir) as (render_paths,continuity):
+    with prepare_continuity(paths,[text for _,_,text in cues],enabled=args.natural_speech,directory=parts_dir,groups=groups) as (render_paths,continuity):
         if args.narration:
             from dub_timing import build_narration_timeline
             timeline, timing = build_narration_timeline(timeline_cues, render_paths, sr, parts_dir)

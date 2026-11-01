@@ -11,6 +11,26 @@ import numpy as np
 
 
 class QualityTests(unittest.TestCase):
+    def test_reference_source_channels_expose_clipping_hidden_by_downmix(self):
+        rate=8000
+        stereo=np.column_stack([np.ones(rate*4),np.zeros(rate*4)])
+        result=Q.reference_quality(stereo,rate)
+        self.assertEqual(result['channels'],2)
+        self.assertEqual(result['source_peak'],1)
+        self.assertEqual(result['clipping_fraction'],1)
+        self.assertEqual(result['channel_clipping_fraction'],[1,0])
+        self.assertIn('clipping',result['warnings'])
+        self.assertNotIn('downmix-cancellation',result['warnings'])
+    def test_reference_opposite_polarity_is_not_mistaken_for_only_quiet_source(self):
+        rate=8000;t=np.arange(rate*4)/rate;voice=.2*np.sin(t*2*np.pi*220)
+        result=Q.reference_quality(np.column_stack([voice,-voice]),rate)
+        self.assertGreater(result['source_rms'],.1);self.assertEqual(result['rms'],0)
+        self.assertIn('downmix-cancellation',result['warnings'])
+        self.assertLess(result['downmix_loss_db'],-12)
+        clean=Q.reference_quality(np.column_stack([voice,voice]),rate)
+        self.assertEqual(clean['downmix_loss_db'],0);self.assertEqual(clean['warnings'],[])
+        mono=Q.reference_quality(voice,rate)
+        self.assertEqual(mono['channels'],1);self.assertEqual(mono['warnings'],[])
     def test_compound_partitive_quantity_matches_actual_asr_digit_evidence(self):
         expected = ('Örneğin otuz kişiden yalnızca on ikisi geri döndüğünde, '
                     'geri kalanların neden gelmediğini henüz bilmiyoruz.')

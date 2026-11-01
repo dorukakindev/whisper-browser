@@ -205,7 +205,7 @@ vm.runInContext(section('async function startProgressivePlayerTranscription(', '
   assert.equal(speechJobs.length,2,'v8 speech must not bypass current meaning checks');
   speechJobs.pop();ctx.state.running=false;
   const backendProtocol=fs.readFileSync(require('node:path').join(__dirname,'../backend/transcribe.py'),'utf8').match(/SPEECH_TRANSLATION_PROTOCOL = '([^']+)'/)[1];
-  assert.equal(backendProtocol,'speech-v17-role-readaloud-review');
+  assert.equal(backendProtocol,'speech-v18-pronoun-context-review');
   assert(code.includes("speechProtocol: forSpeech ? '"+backendProtocol+"'"),'new track labels must match backend');
   ctx.player.browserTracks[0].speechProtocol = backendProtocol;
   ctx.useBrowserTrack = async (_translate, id) => { ctx.player.subPath = ctx.player.browserTracks.find(t => t.id === id).path; };

@@ -8,6 +8,15 @@ from dub_finish import spoken_text, finish_audio, active_ranges, join_pause_fram
 from dub_quality import speech_check
 
 class FinishTests(unittest.TestCase):
+    def test_unicode_ellipsis_and_nested_quotes_keep_sentence_pause_and_existing_breath(self):
+        voice=np.full(800,.1,dtype='float32')
+        for text in ('Bitti…','“Bitti…”','«Bitti… »','「Bitti…」','Bitti.','Bitti...'):
+            self.assertEqual(join_pause_frames(voice,voice,8000,text),1760,text)
+        self.assertEqual(join_pause_frames(voice,voice,8000,'“Bitti! ”'),1920)
+        breath=np.concatenate([voice,np.zeros(2400,dtype='float32')])
+        self.assertEqual(join_pause_frames(breath,voice,8000,'“Bitti…”'),0)
+        self.assertEqual(join_pause_frames(voice,voice,8000,'devam,'),960)
+        self.assertEqual(join_pause_frames(voice,voice,8000,'devam'),640)
     def test_auto_delivery_does_not_level_each_phrase_separately(self):
         t=np.arange(8000)/8000
         quiet=.02*np.sin(2*np.pi*150*t)

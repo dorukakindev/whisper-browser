@@ -1133,6 +1133,7 @@
    const beforeEffective=effective(snapshot.values),afterEffective=effective(after);
    for(const key of ['refine','lenient'])if(beforeEffective[key]!==afterEffective[key]||after[key]!==afterEffective[key])changes.push((tr?'Etkin ':'Effective ')+fields[key].label[tr?'tr':'en']+': '+display(key,beforeEffective[key])+' → '+display(key,afterEffective[key]));
   }
+  if(snapshot&&['transcription','translation'].includes(name))changes.push(tr?'Sonraki işler için geçerli; çalışan ve kuyruğa eklenmiş işlerin ayarları korunur. İş başlatılmaz.':'Applies to future jobs; running and already queued jobs keep their settings. No job starts.');
   return changes.join(snapshot?'\n':' · ')+(name==='browser'?(tr?' · Tarayıcı ayarları hemen uygulanır; otomasyon sayfa çevirisi başlatabilir.':' · Browser changes apply immediately; automation may start page translation.'):'');
  }
 

@@ -226,7 +226,7 @@
     lastReferenceQuality = quality;
     lastReferenceIdentity = quality ? current?.voice?.reference || cfg?.reference || null : null;
     const labels = {quiet:'Referans sesi çok kısık',clipping:'Referansta ses patlaması var',silence:'Referansta uzun sessizlik var',short:'Referans çok kısa'};
-    el('dubReferenceQuality').textContent = quality ? (quality.warnings || []).map(w => t(labels[w] || w)).join(' · ') || t('Referansın ses düzeyi uygun; konuşmacı ve müziği dinleyerek kontrol edin.') : '';
+    el('dubReferenceQuality').textContent = quality ? (quality.warnings || []).map(w => w==='downmix-cancellation'?(window.UiLocale?.get?.()==='en'?'Stereo channels cancel when mixed to mono; choose a clearer reference.':'Stereo kanallar mono karışımda birbirini zayıflatıyor; daha net bir referans seçin.'):t(labels[w] || w)).join(' · ') || t('Referansın ses düzeyi uygun; konuşmacı ve müziği dinleyerek kontrol edin.') : '';
   }
   const mediaIdentity = () => { const c = window.BrowserDubAudioUI?.context(); return JSON.stringify([c?.mode, c?.tabId, c?.mediaId || c?.mediaKey]); };
   // Persistent media identity permits intentional reuse after reload; in-flight requests do not.
@@ -511,7 +511,18 @@
     if(!plan||owner!==mediaIdentity()||file!==srt)return null;
     if(!lastReferenceQuality&&window.api.listVoiceReferences){const reference=cfg?.reference;const catalog=await window.api.listVoiceReferences().catch(()=>null);const active=catalog?.references?.find(r=>r.id===catalog.activeId);if(reference===cfg?.reference&&active?.path===reference&&active.quality)referenceInfo(active.quality);}
     if(owner!==mediaIdentity()||file!==srt)return null;
-    return window.DubExperienceModel.preflight(plan.groups,{edits,reference:lastReferenceQuality,timingMode:el('dubTimingMode').value});
+    return window.DubExperienceModel.preflight(plan.groups,{edits,reference:lastReferenceQuality,timingMode:el('dubTimingMode').value,pronunciations:cfg?.pronunciations});
+  }
+  function preparePronunciations(terms,expectedOwner,expectedSrt){
+    if(current||planning||referenceBusy||choosing||workspaceBusy||pronunciationLoading||!srt||expectedOwner!==mediaIdentity()||expectedSrt!==srt)return false;
+    // Preparing a draft never changes dictionary scope or persists a mapping. Keep unsaved edits.
+    const input=el('dubPronunciations'),existing=new Set(input.value.split(/\r?\n/).map(line=>line.split('=')[0].trim()));
+    const additions=(Array.isArray(terms)?terms:[]).filter(term=>typeof term==='string'&&/^[\p{L}]{3,32}$/u.test(term)&&!existing.has(term)).slice(0,20);
+    if(additions.length)input.value=[input.value.trimEnd(),...additions.map(term=>term+' = '+term)].filter(Boolean).join('\n');
+    delete el('dubPronunciationStatus').dataset.saved;
+    el('dubPronunciationStatus').textContent=window.UiLocale?.get?.()==='en'?'Draft only. Replace the right-hand text with the pronunciation you want, then save. Original spellings are not pronunciation corrections.':'Yalnız taslak. Sağ taraftaki metni istediğiniz okunuşla değiştirip kaydedin. Özgün yazımlar telaffuz düzeltmesi değildir.';
+    for(let node=input;node;node=node.parentElement)if(node.tagName==='DETAILS')node.open=true;
+    input.scrollIntoView?.({block:'center'});input.focus({preventScroll:true});return true;
   }
   async function editAtCurrent(time){
     const context=window.BrowserDubAudioUI?.context();
@@ -525,7 +536,7 @@
     selectQuality(target.key);syncQualityPlan(true);
     el('dubPlanText').focus();return true;
   }
-  window.DubGeneratorUI = Object.freeze({ editPlanGroup,inspectProduction,editAtCurrent,experience:()=>({owner:mediaIdentity(),srt,plan,edits:{...edits},groups:[...results.values()],output,source:lastRequest?.source||'',busy:!!current||planning||referenceBusy||choosing||workspaceBusy}),prepareCurrent: open, takeContext:()=>({id:output?.id||'',key:el('dubQualityGroup').value,owner:mediaIdentity(),busy:!!current||referenceBusy||planning||choosing||workspaceBusy,recipeReady:!!lastRequest}), useTake:(key,token)=>start(true,[],{[key]:token}), assistant:Object.freeze({state:voiceState,configure:voiceConfigure,start:voiceStart,group:voiceGroup,use:voiceUse,refreshReference:()=>configure(undefined,true)}) });
+  window.DubGeneratorUI = Object.freeze({ editPlanGroup,inspectProduction,preparePronunciations,editAtCurrent,experience:()=>({owner:mediaIdentity(),srt,plan,edits:{...edits},groups:[...results.values()],output,source:lastRequest?.source||'',busy:!!current||planning||referenceBusy||choosing||workspaceBusy}),prepareCurrent: open, takeContext:()=>({id:output?.id||'',key:el('dubQualityGroup').value,owner:mediaIdentity(),busy:!!current||referenceBusy||planning||choosing||workspaceBusy,recipeReady:!!lastRequest}), useTake:(key,token)=>start(true,[],{[key]:token}), assistant:Object.freeze({state:voiceState,configure:voiceConfigure,start:voiceStart,group:voiceGroup,use:voiceUse,refreshReference:()=>configure(undefined,true)}) });
   el('dubGeneratorClose').addEventListener('click', () => modal.close());
   modal.addEventListener('close', () => { artifactOpenVersion++;el('dubGeneratedPreview').pause(); syncBrowserOcclusion(); });
   async function openArtifact(file,isCurrent=()=>true){

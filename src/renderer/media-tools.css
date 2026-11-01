@@ -55,3 +55,6 @@
 .mrv-saved-analyses>.mtx-history{padding:20px}.mrv-saved-analyses>.mtx-history>summary{min-height:36px;align-content:center;font-weight:500;line-height:1.6}.mrv-saved-analyses .mrv-summary h2,.mrv-saved-analyses .mrv-fit h2{font-size:18px}
 .mrv-personal-feedback{border-top:1px solid var(--border);padding-top:16px}.mrv-personal-feedback>summary{cursor:pointer;min-height:44px;align-content:center;font-size:14px;font-weight:500}.mrv-personal-feedback>.mtx-section{padding:16px 0 0;border:0}.mrv-personal-feedback h2{display:none}
 @media(max-width:600px){.mrv-source>.mtx-actions{gap:8px}.mrv-saved-analyses>.mtx-history{padding:16px}.mrv-loaded-sample{padding:16px 0}.mrv-saved-analyses .mrv-summary p,.mrv-saved-analyses .mrv-fit p{font-size:15px}}
+
+.mrv-fit-basis{margin-top:16px;font-size:13px;line-height:1.7;overflow-wrap:anywhere}.mrv-fit-basis>summary{cursor:pointer;min-height:40px;align-content:center;color:var(--text-dim)}
+.mrv-fit-basis>summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.mrv-fit-basis small{display:block;color:var(--text-dim);font-size:12px;margin-top:6px}.mrv-fit-basis p{font-size:13px;margin:10px 0}

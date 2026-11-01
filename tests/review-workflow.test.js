@@ -48,7 +48,7 @@ test('Editing a previewed sample or spoiler selection requires a fresh preview b
  }finally{u.w.close();}
 });
 test('Evidence assessment counts duplicate opinions once and separates exact quotes from general consensus',()=>{
- const model=require('../src/renderer/media-tools-model');const rows=[{id:'1',text:'Strong acting throughout.'},{id:'2',text:'  Strong   ACTING throughout.  '},{id:'3',text:'The ending felt slow.'}];const assessment=model.reviewAssessment(rows,[{id:'1'},{id:'2'}]);assert.deepEqual(assessment,{total:3,distinct:2,duplicates:1,quoted:1,independentAuthors:0,unknownAuthors:3,limited:true});
+ const model=require('../src/renderer/media-tools-model');const rows=[{id:'1',text:'Strong acting throughout.'},{id:'2',text:'  Strong   ACTING throughout.  '},{id:'3',text:'The ending felt slow.'}];const assessment=model.reviewAssessment(rows,[{id:'1'},{id:'2'}]);assert.deepEqual(assessment,{shortTexts:3,spoilerTexts:0,total:3,distinct:2,duplicates:1,quoted:1,independentAuthors:0,unknownAuthors:3,limited:true});
 });
 
 test('A late browser fetch cannot overwrite text edited while reading',async()=>{
@@ -157,4 +157,11 @@ test('Replacing an unsaved result with a saved sample removes the obsolete save 
  const entry={identity:contextItem,reviews:evidence.reviews,analysis:{summary:'Saved interpretation',fit:'Conditional',points:[{id:'context-review',quote:'Strong acting',reason:'Verified source',kind:'praise'}]}};
  const draft={reviews:JSON.stringify(contextRows),result:{...entry,personalEvidence:false}},u=ui(draft,{item:contextItem,taste:contextTaste,saved:{history:[entry]}});
  try{assert(u.w.document.querySelector('.mrv-output button'));const old=u.w.document.createElement('section');old.className='mrv-sample';u.w.document.querySelector('main').append(old);u.click('Reuse this saved sample');await u.wait();assert.equal(draft.result,undefined);assert.equal(u.w.document.querySelector('.mrv-output').children.length,0);assert.equal(u.w.document.querySelector('.mrv-sample'),null);assert.equal(u.calls.length,0);assert.match(u.w.document.querySelector('.mtx-history').textContent,/Saved interpretation/);}finally{u.w.close();}
+});
+
+test('personal comparison discloses the profile saved with analysis, preserving later profile differences',async()=>{
+ const model=require('../src/renderer/media-tools-model'),evidence=model.decisionEvidence(contextItem,contextRows,{preferencesConfigured:true,preferences:{weights:{characters:5,pace:2},avoid:['sound'],note:'Controlled preference note'}}).evidence;
+ const entry={identity:contextItem,reviews:evidence.reviews,evidenceSnapshot:{version:1,context:JSON.stringify(evidence),profile:evidence.profile},analysis:{at:Date.now(),summary:'A selected sample.',fit:'Conditional acting fit.',points:[{id:contextRows[0].id,quote:'Strong acting',reason:'Explicit performance praise.',kind:'praise'}]}};
+ const u=ui({},{item:contextItem,taste:{preferencesConfigured:true,preferences:{weights:{visuals:5},note:'Later profile note'}},saved:{history:[entry]}});
+ try{await u.wait();const basis=u.w.document.querySelector('.mrv-fit-basis');assert(basis);assert.equal(basis.open,false);assert.match(basis.textContent,/Saved priorities: Characters · Pace/);assert.match(basis.textContent,/Prefer to avoid: Sound/);assert.match(basis.textContent,/Controlled preference note/);assert.doesNotMatch(basis.textContent,/Later profile note/);assert.match(basis.textContent,/inputs saved with this analysis/);basis.querySelector('summary').click();assert(basis.open);}finally{u.w.close();}
 });

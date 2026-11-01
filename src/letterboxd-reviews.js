@@ -44,7 +44,7 @@ function parseLetterboxdReviews(input,{url}={}){
   while(depth&&(next=tokens.exec(html))){depth+=next[0][1]==='/'?-1:1;if(!depth)end=next.index;}
   if(depth)break;
   const body=html.slice(pattern.lastIndex,end);pattern.lastIndex=tokens.lastIndex;
-  const fullText=plain(body);if(fullText.length>4000)limited=true;const text=fullText.slice(0,4000);if(text.length<8){excluded.unreadable++;continue;}if(seen.has(text)){excluded.duplicate++;continue;}
+  const fullText=plain(body);if(fullText.length>4000)limited=true;const text=fullText.slice(0,4000);if(text.length<8){excluded.unreadable++;continue;}
   // Find only the current card's attributes/author, never a global spoiler substring.
   const stack=[];for(const m of html.slice(0,found.index).matchAll(/<\/?(li|article|div)\b[^>]*>/gi)){if(m[0][1]==='/'){const i=stack.findLastIndex(row=>row.tag===m[1].toLowerCase());if(i>=0)stack.splice(i);}else stack.push({tag:m[1].toLowerCase(),index:m.index,open:m[0]});}const ancestorSpoiler=stack.some(row=>/class=["'][^"']*\b(?:contains-spoilers|has-spoilers)\b/i.test(row.open)||/data-(?:contains-)?spoilers?=["']true["']/i.test(row.open));const container=stack.findLast(row=>['li','article'].includes(row.tag))||stack.findLast(row=>/review|film-detail/i.test(row.open))||stack.at(-1);const card=container?html.slice(container.index,found.index):'';
   const authorTag=/<a\b[^>]*class=["'][^"']*\b(?:name|displayname)\b[^"']*["'][^>]*>([\s\S]*?)<\/a>/i.exec(card);
@@ -57,7 +57,8 @@ function parseLetterboxdReviews(input,{url}={}){
   if(source&&review&&new URL(source.url).pathname.split('/')[2].toLowerCase()!==review[2].toLowerCase()){excluded.identity=(excluded.identity||0)+1;continue;}
   const authorId=review&&(!profile||profile[1].toLowerCase()===review[1].toLowerCase())?review[1].toLowerCase():!review&&profile?profile[1].toLowerCase():'';
   if(review&&profile&&profile[1].toLowerCase()!==review[1].toLowerCase())delete metadata.permalink;
-  seen.add(text);
+  // A spoiler-marked copy must not suppress an eligible clean card later on the page.
+  const duplicateKey=JSON.stringify([text,spoiler]);if(seen.has(duplicateKey)){excluded.duplicate++;continue;}seen.add(duplicateKey);
   const row={id:String(rows.length+1),text,author,spoiler,...metadata,...(authorId?{authorId}:{}),...(source?{source:{...source}}:{})};if(JSON.stringify([...rows,row]).length>110000){limited=true;break;}rows.push(row);
  }
  if(rows.length>=50&&found)limited=true;

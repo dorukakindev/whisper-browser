@@ -230,8 +230,8 @@ def join_pause_frames(previous, following, sr, preceding_text):
     human prosody. Existing longer natural pauses are deliberately retained.
     """
     sr = _sample_rate(sr)
-    tail = preceding_text.rstrip().rstrip('"\u201d\u2019\u00bb)]')
-    target = .24 if tail.endswith(('?', '!')) else .22 if tail.endswith('.') else .18 if tail.endswith((';', ':')) else .12 if tail.endswith(',') else .08
+    tail = preceding_text.rstrip(' \t\r\n\"\u201d\u2019\u00bb\u203a\u300d\u300f)]}')
+    target = .24 if tail.endswith(('?', '!')) else .22 if tail.endswith(('.', '\u2026')) else .18 if tail.endswith((';', ':')) else .12 if tail.endswith(',') else .08
     def quiet_edge(wav, end):
         wav = np.asarray(wav, dtype=np.float32)
         if wav.ndim != 1 or not len(wav) or not np.isfinite(wav).all():

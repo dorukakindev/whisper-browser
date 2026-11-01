@@ -7,7 +7,8 @@ w.HTMLMediaElement.prototype.pause=w.HTMLMediaElement.prototype.load=()=>{};w.HT
 const row={key:'1',text:'<img src=x onerror=alert(1)> Gerçek cümle.',sourceStart:300,sourceEnd:302,audioStart:0,audioEnd:3,status:'review',stretch:1.5};
 const output={path:'voice.wav',url:'file:///voice.wav',name:'Voice',quality:{groups:[row]},mix:{voice:.6},background:{path:'background.wav',url:'file:///background.wav'}};
 let seek,save,exported,loaded;
-w.BrowserDubAudioUI={context:()=>({tabId:'fixture',mediaKey:'fixture'}),seekSource:async time=>{seek=time;return true;},setMix(){},stop(){}};
+let mediaContext={tabId:'fixture',mediaKey:'fixture',generation:1};
+w.BrowserDubAudioUI={context:()=>({...mediaContext}),seekSource:async time=>{seek=time;return true;},pauseSource:async()=>true,setMix(){},stop(){}};
 w.api={openDubProject:async()=>({ok:true,output}),saveDubProject:async request=>{save=request;return {ok:true,path:'project.dubproject'};},
  exportDubWorkspace:async request=>{exported=request;return {ok:true,path:'out.wav'};},selectVideo:async()=>['music.wav'],dubWorkspaceAsset:async p=>({ok:true,asset:{path:p,url:'file:///'+p,name:p}})};
 w.addEventListener('dub-workspace:loaded',e=>{loaded=e.detail;});
@@ -30,5 +31,28 @@ const tick=()=>new Promise(setImmediate);
  el('dubGeneratedPreview').play=()=>new Promise(resolve=>{resolvePlay=()=>{paused=0;resolve();};});
  el('dubGeneratedPreview').pause=()=>{paused++;};
  el('dubTimelineListen').click();await tick();el('dubMixStop').click();resolvePlay();await tick();assert.ok(paused>0,'late play completion after stop must be paused');
+ // Neighbour preview uses the same full WAV and mix, with its own bounded owner.
+ const audio=el('dubGeneratedPreview'),contextButton=el('dubTimelineContextListen');let position=0,isPaused=true,ready=1,isSeeking=false,plays=0;
+ Object.defineProperties(audio,{duration:{configurable:true,get:()=>12},readyState:{configurable:true,get:()=>ready},currentTime:{configurable:true,get:()=>position,set:v=>{position=v;}},paused:{configurable:true,get:()=>isPaused},seeking:{configurable:true,get:()=>isSeeking}});
+ audio.pause=()=>{if(!isPaused){isPaused=true;audio.dispatchEvent(new w.Event('pause'));}};
+ audio.play=async()=>{plays++;isPaused=false;audio.dispatchEvent(new w.Event('play'));};
+ const selected={...row,audioStart:4,audioEnd:6},next={...row,key:'2',audioStart:8,audioEnd:9};
+ const contextualOutput={...output,quality:{groups:[selected,next]}};
+ el('dubQualityGroup').replaceChildren();for(const key of ['1','2']){const option=w.document.createElement('option');option.value=key;el('dubQualityGroup').append(option);}
+ el('dubGeneratorDialog').setAttribute('open','');w.DubWorkspaceUI.setOutput(contextualOutput);
+ assert.equal(plays,0,'output/selection must never start playback silently');
+ contextButton.click();await tick();assert.equal(position,2.75);assert.equal(plays,1);assert.equal(audio.volume,.6,'existing voice mix gain is retained');
+ position=7.24;audio.dispatchEvent(new w.Event('seeked'));assert.equal(isPaused,false,'context does not stop at the selected row end');
+ position=7.26;audio.dispatchEvent(new w.Event('seeked'));assert.equal(isPaused,true,'context stops at row end plus1.25s');
+ contextButton.click();await tick();position=10;isSeeking=true;audio.dispatchEvent(new w.Event('seeking'));isSeeking=false;audio.dispatchEvent(new w.Event('seeked'));assert.equal(isPaused,false,'manual seek beyond context releases its old boundary, without forcing play');el('dubMixStop').click();
+ contextButton.click();await tick();el('dubQualityGroup').value='2';el('dubQualityGroup').dispatchEvent(new w.Event('change'));assert.equal(isPaused,true,'changing selected group cancels context');
+ contextButton.click();await tick();assert.equal(position,6.75,'external quality selection uses its exact matching timeline row');
+ mediaContext={...mediaContext,generation:2};audio.dispatchEvent(new w.Event('seeked'));assert.equal(isPaused,true,'source generation change stops preview');assert.equal(contextButton.disabled,false,'availability does not imply source ownership');
+ w.DubWorkspaceUI.setOutput(contextualOutput);ready=0;const beforePending=plays;contextButton.click();await tick();mediaContext={...mediaContext,generation:3};ready=1;audio.dispatchEvent(new w.Event('loadedmetadata'));await tick();assert.equal(plays,beforePending,'late metadata from an old source never starts audio');
+ w.DubWorkspaceUI.setOutput(contextualOutput);contextButton.click();await tick();w.dispatchEvent(new w.CustomEvent('dub-generator:busy',{detail:true}));assert.equal(isPaused,true);assert.equal(contextButton.disabled,true);w.dispatchEvent(new w.CustomEvent('dub-generator:busy',{detail:false}));
+ contextButton.click();await tick();el('dubGeneratorDialog').dispatchEvent(new w.Event('close'));assert.equal(isPaused,true,'closing dialog cancels context');
+ contextButton.click();await tick();w.DubWorkspaceUI.setOutput(contextualOutput);assert.equal(isPaused,true,'rebuilding output cancels context');
+ el('dubMixPreview').click();await tick();position=11;audio.dispatchEvent(new w.Event('seeked'));assert.equal(isPaused,false,'normal full mix preview has no stale context boundary');el('dubMixStop').click();
+ w.UiLocale={get:()=> 'en',t:value=>value};w.document.dispatchEvent(new w.Event('ui-locale-change'));assert.equal(contextButton.textContent,'Listen with context');
  dom.window.close();console.log('dub-workspace-ui: timeline, safe text, layers, projects, exports and job locks passed');
 })().catch(e=>{dom.window.close();console.error(e);process.exitCode=1;});

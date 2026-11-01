@@ -41,10 +41,42 @@ def _measure(path, text=''):
 
 
 @contextmanager
-def prepare(paths, texts, *, enabled=False, directory=None):
+def prepare(paths, texts, *, enabled=False, directory=None, groups=None, scene_gap_ms=8000):
+    """Render conservative level corrections within source scenes.
+
+    Optional group start/end (or packed-preview source_start/source_end) are
+    milliseconds, as in dub_plan. Supplying groups must cover every audio row.
+    """
+    paths, texts = list(paths), list(texts)
+    if len(paths) != len(texts):
+        raise ValueError('Continuity audio/text counts differ.')
+    scenes = [0] * len(paths)
+    if groups is not None:
+        groups = list(groups)
+        if len(groups) != len(paths):
+            raise ValueError('Continuity audio/group counts differ.')
+        if isinstance(scene_gap_ms, bool) or not isinstance(scene_gap_ms, (int, float)) or not math.isfinite(scene_gap_ms) or scene_gap_ms <= 0:
+            raise ValueError('Invalid continuity scene gap.')
+        previous_end, previous_speaker, scene = None, '', 0
+        for i, group in enumerate(groups):
+            if not isinstance(group, dict):
+                raise ValueError('Invalid continuity group.')
+            start, end = group.get('source_start', group.get('start')), group.get('source_end', group.get('end'))
+            if any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in (start, end)) or start < 0 or end <= start:
+                raise ValueError('Invalid continuity group timing.')
+            speaker = str(group.get('speaker') or '').strip()
+            if previous_end is not None and (start - previous_end >= scene_gap_ms or
+                    (speaker and previous_speaker and speaker != previous_speaker)):
+                scene += 1
+            scenes[i] = scene
+            previous_end, previous_speaker = end, speaker
     metrics = [measure(path, text) for path, text in zip(paths, texts)]
-    levels = [m['levelDb'] for m in metrics if m.get('levelDb') is not None]
-    median = float(np.median(levels)) if levels else None
+    scene_levels = {scene: [] for scene in scenes}
+    for i, m in enumerate(metrics):
+        if m.get('levelDb') is not None:
+            scene_levels[scenes[i]].append(m['levelDb'])
+    medians = {scene: float(np.median(levels)) if levels else None
+               for scene, levels in scene_levels.items()}
     with tempfile.TemporaryDirectory(prefix='continuity-', dir=directory) as temporary:
         rendered = list(paths)
         for i, m in enumerate(metrics):
@@ -52,14 +84,15 @@ def prepare(paths, texts, *, enabled=False, directory=None):
                 continue
             if m['leadingPause'] > .8 or m['trailingPause'] > .8:
                 m['warnings'].append('long-edge-pause')
-            previous = metrics[i-1] if i else None
+            median = medians[scenes[i]]
+            previous = metrics[i-1] if i and scenes[i-1] == scenes[i] else None
             if previous and previous.get('levelDb') is not None and m['levelDb'] is not None:
                 if abs(m['levelDb'] - previous['levelDb']) > 6:
                     m['warnings'].append('level-jump')
                 speed = previous.get('wordsPerSecond', 0)
                 if min(speed, m['wordsPerSecond']) > 0 and max(speed, m['wordsPerSecond']) / min(speed, m['wordsPerSecond']) > 1.8:
                     m['warnings'].append('pace-jump')
-            neighbours = [metrics[j].get('levelDb') for j in (i-1,i+1) if 0 <= j < len(metrics)]
+            neighbours = [metrics[j].get('levelDb') for j in (i-1,i+1) if 0 <= j < len(metrics) and scenes[j] == scenes[i]]
             outlier = m['levelDb'] is not None and median is not None and abs(m['levelDb']-median) > 4 and any(v is not None and abs(v-m['levelDb']) > 6 for v in neighbours)
             if not enabled or not outlier:
                 continue

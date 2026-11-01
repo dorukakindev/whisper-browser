@@ -1,10 +1,25 @@
 (function(root,factory){if(typeof module==='object')module.exports=factory();else root.DubExperienceModel=factory();})(typeof window==='object'?window:globalThis,()=>{
  'use strict';
- function preflight(groups,{edits={},reference=null,timingMode='video'}={}){
-  const rows=groups.map(g=>{const text=edits[g.key]||g.text||'',seconds=Number(g.seconds),words=(text.match(/\S+/g)||[]).length;
+ function pronunciationCandidates(rows,saved=[]){
+  const ignored=new Set(('This That These Those When Where Which What There Their They Then With From Have Just Some More Only Also Well After Before Because Would Could Should About Into Your You The And But For Not Bir Biri Bu Bunu Buna Bunun Ben Bana Biz Bize Sen Sana Siz Size Olan Olarak Onun Onlar Onlara Sonra Daha Çok Her Hiç Şimdi Eğer Ama Fakat Ancak Nasıl Neden Çünkü Yani İşte Evet Hayır').split(' ').map(w=>w.toLocaleLowerCase('tr')));
+  const existing=new Set((Array.isArray(saved)?saved:[]).map(r=>r.from)),terms=new Map();
+  for(const row of rows){for(const match of row.text.matchAll(/(?<![\p{L}\p{N}])[A-ZÇĞİÖŞÜ][\p{L}]{2,31}(?![\p{L}\p{N}])/gu)){
+   const word=match[0];if(ignored.has(word.toLocaleLowerCase('tr'))||existing.has(word))continue;
+   const item=terms.get(word)||{term:word,count:0,groups:new Set()};item.count++;item.groups.add(row.key);terms.set(word,item);
+  }}
+  return [...terms.values()].filter(r=>r.count>=2&&r.groups.size>=2).sort((a,b)=>b.count-a.count||a.term.localeCompare(b.term,'tr')).slice(0,20).map(({term,count})=>({term,count}));
+ }
+ function preflight(groups,{edits={},reference=null,timingMode='video',targetLanguage='tr',pronunciations=[]}={}){
+  const rows=groups.map(g=>{const edited=Object.hasOwn(edits,g.key),text=String((edited?edits[g.key]:g.text)??''),seconds=Number(g.seconds),words=(text.match(/\S+/g)||[]).length;
    const estimated=Math.max(words/2.6,text.length/15),load=seconds>0?estimated/seconds:null;
-   return {key:g.key,text,seconds,estimated:Math.round(estimated*10)/10,load,dense:load!==null&&load>1.25,long:text.length>450,edited:Object.hasOwn(edits,g.key)};});
-  return {rows,dense:rows.filter(r=>r.dense).length,long:rows.filter(r=>r.long).length,referenceWarnings:Array.isArray(reference?.warnings)?reference.warnings.filter(w=>['quiet','clipping','silence','short'].includes(w)):[],referenceChecked:Number.isFinite(reference?.seconds)&&reference.seconds>0,timingMode};
+   const issues=[];if(!text.trim())issues.push('empty');
+   if(/[\uFFFD\u0000-\u0008\u000B\u000C\u000E-\u001F]/u.test(text))issues.push('damaged-text');
+   if(/\[(?:untranslated|translation failed|çevirilemedi)\]/iu.test(text))issues.push('translation-marker');
+   // Advisory only: names and short quotations must not be treated as translation failures.
+   const english=text.toLowerCase().match(/\b(?:the|this|that|which|with|would|because|they|their|have|were|will|from)\b/g)||[];
+   if(targetLanguage==='tr'&&words>=10&&english.length>=4&&new Set(english).size>=3&&!/[çğıöşüÇĞİÖŞÜ]/u.test(text))issues.push('possible-source-language');
+   return {key:g.key,text,seconds,estimated:Math.round(estimated*10)/10,load,dense:load!==null&&load>1.25,long:text.length>450,edited,issues};});
+  return {rows,dense:rows.filter(r=>r.dense).length,long:rows.filter(r=>r.long).length,flagged:rows.filter(r=>r.issues.length).length,pronunciations:pronunciationCandidates(rows,pronunciations),referenceWarnings:Array.isArray(reference?.warnings)?reference.warnings.filter(w=>['quiet','clipping','silence','short','downmix-cancellation'].includes(w)):[],referenceChecked:Number.isFinite(reference?.seconds)&&reference.seconds>0,timingMode};
  }
  function locate(rows,time){if(!Number.isFinite(time)||time<0)return null;const hits=rows.filter(r=>Number.isFinite(r.sourceStart)&&Number.isFinite(r.sourceEnd)&&time>=r.sourceStart&&time<r.sourceEnd);return hits.length===1?hits[0]:null;}
  function difference(normal,speech){

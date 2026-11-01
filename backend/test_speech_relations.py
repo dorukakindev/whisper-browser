@@ -12,6 +12,45 @@ def facts(batch):
  return {'facts':[{'id':row['id'],'contrast_role':'owner',**{key:'source role' for key in R._FIELDS}} for row in batch['source_items']]}
 
 class SourceRelationTests(unittest.TestCase):
+ def test_noncontrast_person_roles_receive_independent_source_review(self):
+  for source in ('She gave him her key.', 'I thought it was yours.', 'He said she owned it.'):
+   self.assertTrue(R.is_risky(source,'en-US'),source)
+  for source in ('The room is empty.', 'She waited.', 'It is raining.'):
+   self.assertFalse(R.is_risky(source,'en'),source)
+  self.assertFalse(R.is_risky('She gave him her key.','tr'))
+ def test_request_boundary_antecedents_are_source_only_and_bounded(self):
+  payload={'sentence_groups':[{'ids':[7],'source':'She gave him her key.'}],
+           'context_before':['old context','MARA owns the key.','DENIZ needs a key.'],
+           'context_after':['MARA left.','x'*2000,'unused'],
+           'neighbor_drafts':{'before':[{'translation':'PRIVATE DRAFT'}]},
+           'document_context':'UNRELATED SUMMARY'}
+  batch=R.batches(payload,'en')[0]
+  self.assertEqual([r['source'] for r in batch['context']],
+                   ['MARA owns the key.','DENIZ needs a key.','MARA left.','x'*1200])
+  self.assertEqual([r['position'] for r in batch['context']],['before','before','after','after'])
+  self.assertNotIn('PRIVATE',str(batch));self.assertNotIn('SUMMARY',str(batch))
+ def test_boundary_context_cannot_leak_across_internal_scene_break(self):
+  groups=[{'ids':[0],'source':'An earlier scene.','start':0,'end':2},
+          {'ids':[1],'source':'She gave him her key.','start':30,'end':32},
+          {'ids':[2],'source':'A later scene.','start':60,'end':62}]
+  batch=R.batches({'sentence_groups':groups,'context_before':['Earlier owner.'],
+                   'context_after':['Later owner.']},'en')[0]
+  self.assertNotIn('context',batch)
+ def test_boundary_antecedent_reaches_production_role_request(self):
+  source=[(0,2,'MARA owns the key.'),(3,5,'She gave him her key.')]
+  translated=['Anahtar MARA\'ya ait.','Ona kendi anahtarını verdi.']
+  def answer(payload):
+   if 'source_items' in payload:return facts(payload)
+   parts={str(item['i']):translated[0 if 'MARA' in item.get('t',item.get('src','')) else 1]
+          for item in payload['items']}
+   return {'items':parts,'sentences':{str(g['ids'][0]):' '.join(parts[str(i)] for i in g['ids'])
+                                   for g in payload['sentence_groups']}}
+  _,calls,_,_=F._sentence_translate(source,F._TrArgs(translate_for_speech=True,translate_cache=False),answer)
+  readings=[p for p,_ in calls if 'source_items' in p]
+  self.assertEqual(len(readings),1)
+  self.assertEqual(readings[0]['context'][0]['source'],source[0][2])
+  self.assertEqual(readings[0]['context'][0]['position'],'before')
+  self.assertNotIn('translation',str(readings[0]))
  def test_source_only_bounded_batches_keep_all_risky_groups(self):
   payload={'sentence_groups':[{'ids':[i],'source':SOURCE[i%2][2],'translation':'PRIVATE DRAFT'} for i in range(25)],'neighbor_drafts':['PRIVATE']}
   batches=R.batches(payload,'en')
