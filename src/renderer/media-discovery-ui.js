@@ -42,7 +42,7 @@
     if (!dialog.open) return;
     const item = result.item; dialog.dataset.pageKind='discovery';
     const body = el('div', 'md-detail-body'), content = el('div', 'md-detail-copy');
-    window.MediaExperience?.setContext(dialog, { id: item.providerId, type: 'discovery-title', title: item.title, synopsis: item.synopsis });
+    window.MediaExperience?.setContext(dialog, { id: `discovery:${item.kind}:${item.providerId}`, type: 'discovery-title', title: item.title, synopsis: item.synopsis });
     content.append(el('h1', '', item.title), el('p', 'md-meta', [item.year, item.rating ? `IMDb ${item.rating}/10` : '', item.runtime ? `${item.runtime} ${t('min', 'dk')}` : '', item.kind === 'series' ? t('Series', 'Dizi') : t('Film', 'Film')].filter(Boolean).join(' · ')));
     const genres = el('div', 'md-chips'); item.genres.forEach(genre => genres.append(el('span', '', genre))); content.append(genres);
     const storyHeading=el('div','md-story-heading'),synopsis=el('p','md-synopsis',item.synopsisTr||item.synopsis||t('No synopsis is available for this title.','Bu yapımın açıklaması henüz yok.'));
@@ -87,11 +87,11 @@
     }),el('p', 'md-provider', t('Metadata: Cinemeta / IMDb. Adding a title does not download a video.', 'Yapım bilgileri: Cinemeta / IMDb. Kütüphaneye eklemek video indirmez.')));options.append(credits);
     const reviews=btn(t('Letterboxd reviews & analysis','Letterboxd yorumları ve analiz'),async()=>{
       reviews.disabled=true;
-      try{await window.MediaToolsUI.open('decision',{...item,id:`discovery:${item.kind}:${item.providerId}`,imdbId:item.providerId,discovery:{kind:item.kind,id:item.providerId}},{opener:reviews});}
+      try{dialog.querySelector('.film-review-heading button')?.click();}
       catch(error){if(dialog.open)placeholder.textContent=failure(error);}
       finally{if(dialog.open)reviews.disabled=false;}
     });reviews.dataset.discoveryAction='reviews';actions.append(add,reviews);
-    const reviewNote=el('small','md-provider md-review-note',t('Review a Letterboxd sample without adding this title to your library. Analysis uses only the reviews you approve.','Yapımı kütüphaneye eklemeden Letterboxd örneğini incele. Analiz yalnız onayladığın yorumları kullanır.'));
+    const reviewNote=el('small','md-provider md-review-note',t('Reviews and analysis stay on this film page.','Yorumları ve analizi bu film sayfasında incele.'));
     // Keep the everyday choices next to the title, before a long synopsis.
     content.insertBefore(actions,storyHeading);content.insertBefore(reviewNote,storyHeading);content.append(options);
     placeholder.textContent = '';

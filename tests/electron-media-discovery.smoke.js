@@ -139,6 +139,14 @@ app.whenReady().then(async () => {
   assert.equal(await run('return document.querySelectorAll("dialog.md-detail[open]").length'),0);
   assert(await run('const p=document.querySelector(".md-detail").getBoundingClientRect();return p.width>=innerWidth-40'), 'Discovery uses the whole library page width');
   assert.equal(await run('return globalAssistantContext().title'),title,'Assistant follows explicit discovery selection');
+  assert(await run('return globalAssistantContext().id.startsWith("discovery:film:tt")'),'Assistant uses an actionable discovery film identity');
+  await run('document.querySelector(".film-ask-assistant").click();return true');
+  await until(()=>assist('return [...document.querySelectorAll("#suggestions button")].some(b=>b.textContent==="Zevkime uygun mu?")'),'film-specific assistant suggestions');
+  await assist('const b=[...document.querySelectorAll("#suggestions button")].find(b=>b.textContent==="Zevkime uygun mu?");b.click();return true');
+  await until(()=>assist('return !document.getElementById("review").hidden'),'film assistant request preview');
+  assert(await assist('return document.getElementById("reviewText").textContent.includes("Yeni yorum analizi")'),'Film shortcut states its read-only intent');
+  await assist('document.getElementById("reviewCancel").click();document.getElementById("close").click();return true');await until(()=>assistant.getBounds().width<300,'film assistant returned to bubble');
+
   await run('document.querySelector(".film-plot-toggle").click();return true');assert(await run('return document.querySelector(".md-synopsis").hidden'));await run('document.querySelector(".film-plot-toggle").click();document.querySelector(".film-poster-open").click();return true');await until(()=>run('return !!document.querySelector(".film-poster-dialog[open]")'),'poster enlargement');fs.writeFileSync(path.join(out,'film-poster-expanded.png'),(await win.webContents.capturePage()).toPNG());await run('document.querySelector(".film-poster-dialog button").click();return true');
   await run('await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true'); await wait(300);
   await until(()=>run('return document.querySelector(".film-review-section")?.dataset.reviewState === "empty"'),'empty film review layout');
@@ -153,6 +161,29 @@ app.whenReady().then(async () => {
   fs.writeFileSync(path.join(out,'film-reading-empty-720.png'),(await win.webContents.capturePage()).toPNG());
   await run('applyUiTheme("light");return true');await wait(180);fs.writeFileSync(path.join(out,'film-reading-empty-720-light.png'),(await win.webContents.capturePage()).toPNG());
   await run('applyUiTheme("dark");return true');win.webContents.setZoomFactor(emptyZoom);win.setContentSize(1920,1080);await wait(180);
+  if(!live){
+    const originalTools=ipcMain._invokeHandlers.get('media-tools:request');let reviewCountRequest=0;
+    ipcMain.removeHandler('media-tools:request');ipcMain.handle('media-tools:request',async(e,input)=>{if(input.action!=='reviews-auto')return originalTools(e,input);reviewCountRequest=input.count;await wait(20);return {ok:true,reviews:Array.from({length:input.count},(_,i)=>({id:'R'+(i+1),text:'Controlled review '+i+' praises the acting and thoughtful photography.',author:'Synthetic '+i})),identity:{title:rows[0].name,year:2026},match:{state:'matched'},url:'https://letterboxd.com/film/controlled/reviews/',pages:1};});
+    await run('document.querySelector("[data-discovery-action=reviews]").click();return true');await until(()=>run('return !!document.querySelector(".film-review-editor [data-review-action=auto]")'),'inline review editor');
+    assert.equal(await run('return !!document.getElementById("mediaToolsDialog")'),false,'Film review flow stays on the page');
+    await run('const n=document.querySelector("[name=letterboxd-sample-count]");n.value="10";n.dispatchEvent(new Event("input"));document.querySelector("[data-review-action=auto]").click();return true');
+    await until(()=>run('return document.querySelector(".mrv-job").dataset.state==="ready"'),'inline review sample received');assert.equal(reviewCountRequest,10);
+    await run('document.querySelector("[data-review-action=preview]").click();return true');await until(()=>run('return document.querySelectorAll(".mrv-review-choice").length===10'),'inline evidence selection');
+    const workflowZoom=win.webContents.getZoomFactor();win.webContents.setZoomFactor(1);win.setContentSize(1280,1000);await wait(180);
+    await run('document.querySelector(".film-review-editor").scrollIntoView({block:"start"});return true');await wait(180);fs.writeFileSync(path.join(out,'film-review-workflow-1280.png'),(await win.webContents.capturePage()).toPNG());
+    win.setContentSize(720,1000);await wait(180);assert(await run('return document.getElementById("mediaHome").scrollWidth<=innerWidth+2'),'Inline review editor fits 720px');
+    fs.writeFileSync(path.join(out,'film-review-workflow-720.png'),(await win.webContents.capturePage()).toPNG());
+    await run('applyUiTheme("light");return true');await wait(180);fs.writeFileSync(path.join(out,'film-review-workflow-720-light.png'),(await win.webContents.capturePage()).toPNG());
+    await run(`window.inlineOldSend=aiChatSend;window.inlineOldReady=translationEndpointReady;translationEndpointReady=()=>true;aiChatSend=async()=>{const context=globalAssistantContext();if(!context?.id?.startsWith('decision-'))throw Error('Inline review analysis context is not attached to the film page');document.dispatchEvent(new CustomEvent('assistant-answer',{detail:{context,text:JSON.stringify({summary:'Controlled inline analysis saved on the film page.',fit:'Personal evidence is limited.',points:[{id:'R1',quote:'Controlled review 0 praises the acting',reason:'Specific acting praise.',kind:'praise'}]})}}));};document.querySelector('[name=review-title-confirmed]').checked=true;document.querySelector('.mrv-preview-actions .mh-primary').click();return true`);
+    await until(()=>run('return !![...document.querySelectorAll(".film-editor-body button")].find(b=>b.textContent.includes("Alıntıları doğrula"))'),'inline controlled AI result');
+    await run('[...document.querySelectorAll(".film-editor-body button")].find(b=>b.textContent.includes("Alıntıları doğrula")).click();return true');
+    await until(()=>run('return document.querySelector(".film-review-content")?.textContent.includes("Controlled inline analysis saved")'),'inline verified analysis persisted');
+    await run('aiChatSend=window.inlineOldSend;translationEndpointReady=window.inlineOldReady;delete window.inlineOldSend;delete window.inlineOldReady;return true');
+    await run('applyUiTheme("dark");document.querySelector(".film-editor-controls button").click();document.querySelector(".film-review-heading button").click();return true');
+    await until(()=>run('return document.querySelector("[name=letterboxd-sample-count]")?.value==="10"'),'inline draft count restored');assert(await run('return globalAssistantContext().id.startsWith("discovery:film:")'),'Closing the editor restores the normal film context');assert(await run('return document.querySelector(".mrv-loaded-sample").textContent.includes("10 yorum")'),'Received sample survives editor close');
+    await run('document.querySelector(".film-editor-controls button").click();return true');win.webContents.setZoomFactor(workflowZoom);win.setContentSize(1920,1080);await wait(180);
+    ipcMain.removeHandler('media-tools:request');ipcMain.handle('media-tools:request',originalTools);
+  }
   await run(`const selected=document.querySelector('.md-card').dataset.discoveryId;const detail=(await window.api.mediaDiscovery({action:'detail',kind:'film',id:selected})).item;const reviews=Array.from({length:6},(_,i)=>({id:'sample-'+i,author:'Controlled reader '+i,text:'Strong acting and thoughtful photography. A slow middle section tests patience. Source '+i}));await window.api.mediaTools({action:'decision-save',discovery:{kind:'film',id:selected},reviews,analysis:{summary:'Controlled previous analysis emphasized the slow middle section.',fit:'No personal evidence.',points:[{id:'sample-1',quote:'A slow middle section tests patience.',kind:'criticism',reason:'The earlier saved selection emphasizes pace.'}]}});const r=await window.api.mediaTools({action:'decision-save',discovery:{kind:'film',id:selected},reviews,analysis:{summary:'Controlled sample: the performances and photography are praised, while the middle section divides viewers.',fit:'Controlled sample: no saved personal taste evidence was supplied.',points:[{id:'sample-0',quote:'Strong acting and thoughtful photography.',kind:'praise',reason:'The sample praises performances and the visual composition.'},{id:'sample-1',quote:'A slow middle section tests patience.',kind:'criticism',reason:'Some readers find the central section less engaging.'}]}});if(!r.ok)throw Error(r.error);document.dispatchEvent(new Event('media-review-updated'));return true`);
   await until(()=>run('return !!document.querySelector(".film-review-content .mrv-summary")'),'inline saved analysis');
   if(!live){
@@ -191,22 +222,22 @@ app.whenReady().then(async () => {
 
   if(process.argv.includes('--library810')){
     await run('document.querySelector("[data-discovery-action=translate]").click();return true');await until(()=>run('return document.querySelector(".md-synopsis").textContent.includes("Kontrollü Türkçe")'),'translated story');
-    await run('document.querySelector(".md-close").click();document.querySelector(".md-card").click();return true');await until(()=>run('return document.querySelector(".md-synopsis")?.textContent.includes("Kontrollü Türkçe")'),'reopened translation');
+    await run('document.querySelector(".md-page-back").click();document.querySelector(".md-card").click();return true');await until(()=>run('return document.querySelector(".md-synopsis")?.textContent.includes("Kontrollü Türkçe")'),'reopened translation');
     await run('document.querySelector("[data-discovery-action=reviews]").focus();document.querySelector("[data-discovery-action=reviews]").click();return true');await until(()=>run('return !!document.querySelector("[data-review-action=auto]")'),'discovery review panel');
     assert.equal(await run('return (await window.api.mediaCatalog({action:"list"})).items.length'),initialCount,'Review panel never adds a film');
     await run('document.querySelector("[data-review-action=auto]").click();return true');await until(()=>run('return document.querySelector(".mrv-job").textContent.includes("10 yorum")'),'ten controlled reviews');
     win.setContentSize(1000,950);win.webContents.setZoomFactor(1.25);await wait(250);
-    assert(await run('const d=document.getElementById("mediaToolsDialog");return d.scrollWidth<=d.clientWidth+1'),'reviews narrow overflow');
+    assert(await run('const d=document.getElementById("mediaHome");return d.scrollWidth<=d.clientWidth+1'),'reviews narrow overflow');
     fs.writeFileSync(path.join(out,'discovery-reviews-tr-125.png'),(await win.webContents.capturePage()).toPNG());
     assert.equal(await run('return (await window.api.mediaCatalog({action:"list"})).items.length'),initialCount,'Loading a sample does not add a film');
     if(process.argv.includes('--polish811')){
       win.setMinimumSize(0,0);win.setContentSize(720,900);win.webContents.setZoomFactor(1.5);await wait(250);
-      assert(await run('const d=document.getElementById("mediaToolsDialog");return d.scrollWidth<=d.clientWidth+1'),'Review dialog480pxat150%');
+      assert(await run('const d=document.getElementById("mediaHome");return d.scrollWidth<=d.clientWidth+1'),'Review dialog480pxat150%');
       assert(await run('const actions=document.querySelector(".mrv-source>.mtx-actions"),copy=actions.nextElementSibling;return copy.getBoundingClientRect().top-actions.getBoundingClientRect().bottom>=13'),'Action explanation has breathing room');
       fs.writeFileSync(path.join(out,'reviews-compact-tr-150.png'),(await win.webContents.capturePage()).toPNG());
     }
-    await run('document.getElementById("mediaToolsDialog").close();return true');
-    if(process.argv.includes('--polish811'))await until(()=>run('return document.activeElement?.dataset.discoveryAction==="reviews"'),'Closing reviews restores opener focus');
+    await run('document.querySelector(".film-editor-controls button").click();return true');
+    if(process.argv.includes('--polish811'))await until(()=>run('return document.activeElement===document.querySelector(".film-review-heading button")'),'Closing reviews restores opener focus');
     win.setContentSize(1920,1080);win.webContents.setZoomFactor(1);
   }
   await run('document.querySelector(".md-detail .mh-primary").click();return true');
