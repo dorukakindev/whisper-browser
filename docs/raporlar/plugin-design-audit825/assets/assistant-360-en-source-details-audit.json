@@ -1,0 +1,344 @@
+{
+  "viewport": {
+    "width": 360,
+    "height": 600,
+    "dpr": 1
+  },
+  "reduce": false,
+  "animations": [],
+  "controls": [
+    {
+      "id": "expand",
+      "tag": "BUTTON",
+      "text": "Expand / restore",
+      "rect": {
+        "x": 251,
+        "y": 17,
+        "width": 40,
+        "height": 40,
+        "top": 17,
+        "right": 291,
+        "bottom": 57,
+        "left": 251
+      },
+      "font": "20px",
+      "disabled": false
+    },
+    {
+      "id": "close",
+      "tag": "BUTTON",
+      "text": "Minimize",
+      "rect": {
+        "x": 303,
+        "y": 17,
+        "width": 40,
+        "height": 40,
+        "top": 17,
+        "right": 343,
+        "bottom": 57,
+        "left": 303
+      },
+      "font": "20px",
+      "disabled": false
+    },
+    {
+      "id": "sourceLabel",
+      "tag": "SUMMARY",
+      "text": "Source & model",
+      "rect": {
+        "x": 17,
+        "y": 93.140625,
+        "width": 316,
+        "height": 30,
+        "top": 93.140625,
+        "right": 333,
+        "bottom": 123.140625,
+        "left": 17
+      },
+      "font": "11px",
+      "disabled": false
+    },
+    {
+      "id": "assistantSettings",
+      "tag": "BUTTON",
+      "text": "Assistant & translation settings",
+      "rect": {
+        "x": 30,
+        "y": 187.4375,
+        "width": 191.34375,
+        "height": 40,
+        "top": 187.4375,
+        "right": 221.34375,
+        "bottom": 227.4375,
+        "left": 30
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "threads",
+      "tag": "SELECT",
+      "text": "Conversation",
+      "rect": {
+        "x": 17,
+        "y": 285.640625,
+        "width": 211.765625,
+        "height": 39,
+        "top": 285.640625,
+        "right": 228.765625,
+        "bottom": 324.640625,
+        "left": 17
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "newThread",
+      "tag": "BUTTON",
+      "text": "New",
+      "rect": {
+        "x": 236.765625,
+        "y": 285.140625,
+        "width": 48.234375,
+        "height": 40,
+        "top": 285.140625,
+        "right": 285,
+        "bottom": 325.140625,
+        "left": 236.765625
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "conversationMenuLabel",
+      "tag": "SUMMARY",
+      "text": "Conversation tools",
+      "rect": {
+        "x": 293,
+        "y": 285.140625,
+        "width": 40,
+        "height": 40,
+        "top": 285.140625,
+        "right": 333,
+        "bottom": 325.140625,
+        "left": 293
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "find",
+      "tag": "INPUT",
+      "text": "Search conversation",
+      "rect": {
+        "x": 322,
+        "y": 333.140625,
+        "width": 20,
+        "height": 34,
+        "top": 333.140625,
+        "right": 342,
+        "bottom": 367.140625,
+        "left": 322
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "pinned",
+      "tag": "BUTTON",
+      "text": "Pinned",
+      "rect": {
+        "x": 322,
+        "y": 373.140625,
+        "width": 14,
+        "height": 104,
+        "top": 373.140625,
+        "right": 336,
+        "bottom": 477.140625,
+        "left": 322
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "export",
+      "tag": "BUTTON",
+      "text": "Export",
+      "rect": {
+        "x": 328,
+        "y": 373.140625,
+        "width": 14,
+        "height": 104,
+        "top": 373.140625,
+        "right": 342,
+        "bottom": 477.140625,
+        "left": 328
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "threadSettings",
+      "tag": "BUTTON",
+      "text": "Manage",
+      "rect": {
+        "x": 334,
+        "y": 373.140625,
+        "width": 14,
+        "height": 104,
+        "top": 373.140625,
+        "right": 348,
+        "bottom": 477.140625,
+        "left": 334
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "clear",
+      "tag": "BUTTON",
+      "text": "Clear",
+      "rect": {
+        "x": 340,
+        "y": 373.140625,
+        "width": 14,
+        "height": 104,
+        "top": 373.140625,
+        "right": 354,
+        "bottom": 477.140625,
+        "left": 340
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Summarize the chapter",
+      "rect": {
+        "x": 17,
+        "y": 474.234375,
+        "width": 136.75,
+        "height": 30,
+        "top": 474.234375,
+        "right": 153.75,
+        "bottom": 504.234375,
+        "left": 17
+      },
+      "font": "11px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Explain this passage",
+      "rect": {
+        "x": 159.75,
+        "y": 474.234375,
+        "width": 122.203125,
+        "height": 30,
+        "top": 474.234375,
+        "right": 281.953125,
+        "bottom": 504.234375,
+        "left": 159.75
+      },
+      "font": "11px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Compare the arguments",
+      "rect": {
+        "x": 17,
+        "y": 510.234375,
+        "width": 141,
+        "height": 30,
+        "top": 510.234375,
+        "right": 158,
+        "bottom": 540.234375,
+        "left": 17
+      },
+      "font": "11px",
+      "disabled": false
+    },
+    {
+      "id": "text",
+      "tag": "TEXTAREA",
+      "text": "Question",
+      "rect": {
+        "x": 24,
+        "y": 475,
+        "width": 312,
+        "height": 56,
+        "top": 475,
+        "right": 336,
+        "bottom": 531,
+        "left": 24
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "webSearch",
+      "tag": "BUTTON",
+      "text": "Search web",
+      "rect": {
+        "x": 172.640625,
+        "y": 539.5,
+        "width": 86.703125,
+        "height": 36,
+        "top": 539.5,
+        "right": 259.34375,
+        "bottom": 575.5,
+        "left": 172.640625
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "send",
+      "tag": "BUTTON",
+      "text": "Send",
+      "rect": {
+        "x": 267.34375,
+        "y": 539,
+        "width": 68.65625,
+        "height": 37,
+        "top": 539,
+        "right": 336,
+        "bottom": 576,
+        "left": 267.34375
+      },
+      "font": "13px",
+      "disabled": false
+    }
+  ],
+  "violations": [],
+  "incomplete": [],
+  "passes": [
+    "aria-allowed-attr",
+    "aria-conditional-attr",
+    "aria-deprecated-role",
+    "aria-hidden-body",
+    "aria-hidden-focus",
+    "aria-prohibited-attr",
+    "aria-required-attr",
+    "aria-roles",
+    "aria-valid-attr-value",
+    "aria-valid-attr",
+    "button-name",
+    "color-contrast",
+    "document-title",
+    "duplicate-id-aria",
+    "form-field-multiple-labels",
+    "html-has-lang",
+    "html-lang-valid",
+    "label",
+    "meta-viewport",
+    "nested-interactive",
+    "scrollable-region-focusable",
+    "select-name",
+    "summary-name"
+  ]
+}

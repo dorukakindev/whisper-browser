@@ -1,0 +1,54 @@
+{
+  "base": "fe0e3fe0d040ccd4b6b18d6a32c96cfc686d65d8",
+  "productChanged": false,
+  "providerCalls": 0,
+  "capture": "Native Windows Electron 43.5.0, synthetic isolated profiles, GPU disabled; not IAB/Product Design full runtime",
+  "runs": {
+    "settings": ".uiprev/settings-design-tour/after-1793507406538-34532",
+    "assistant": ".uiprev/assistant-design-tour/1793507596013-after",
+    "film": "tmp/design824-fixes-film/1793507589006",
+    "dub": ".uiprev/dub-natural-1793507588939",
+    "reader": ".uiprev/pdf-reader678-1793507925429",
+    "keyboard": ".uiprev/keyboard825-1793507827981",
+    "modal": ".uiprev/modal825-1793507747105"
+  },
+  "plugins": {
+    "redesign": "2.0.0 diagnosis checklist used; implementation stage intentionally not requested",
+    "designly": "4.4.0 visual-qa and slop taxonomy used",
+    "product-design": "0.1.56 audit framework/preflight read; native Electron adaptation, not full IAB workflow",
+    "motion-design": "2.0.0 inspected; mandatory GSAP/AIDA generation does not fit current audit; not executed",
+    "superdesign": "0.6.0 inspected; canvas generation/CLI session not started",
+    "design-arc": "1.5.5 inspected; no setup/preference/home workflow started",
+    "horizonx": "current local package missing; no MCP tool exposed; not executed",
+    "themely": "1.0.0 metadata only; no skill or invocation tool exposed; not executed",
+    "frontend-design-premium": "previous R824 ownership/verification contract retained; no new strict audit run",
+    "impeccable": "previous R824 craft/consistency context retained; no new static scan run"
+  },
+  "discarded": [
+    "assistant axe scrollable-region-focusable contradicted by native Tab and arrows",
+    "PDF contrast warnings measured mid-theme-transition disappear after stable-frame sampling",
+    "backdrop wheel did not move root under native settings modal"
+  ],
+  "confirmed": [
+    {
+      "id": "D825-01",
+      "severity": "LOW",
+      "type": "semantics",
+      "selector": ".mh-brand",
+      "rule": "aria-prohibited-attr",
+      "source": "src/renderer/media-home.js:404"
+    }
+  ],
+  "improvements": [
+    "U825-01",
+    "U825-02",
+    "U825-03",
+    "U825-04",
+    "U825-05"
+  ],
+  "limits": [
+    "No live provider/Luna screenshots/GPU/DRM/start.bat/full npm test",
+    "No screen reader speech or FPS/drop-frame claims",
+    "No paid generation, new dependencies or product edits"
+  ]
+}

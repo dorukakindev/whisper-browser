@@ -1,0 +1,2525 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 1000,
+    "dpr": 1.5
+  },
+  "reduce": false,
+  "animations": [
+    {
+      "target": "pdfReadingfont",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfReadingfont",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfReadingfont",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfReadingfont",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfReadingwidth",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfReadingwidth",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfReadingwidth",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfReadingwidth",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfReadingspacing",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfReadingspacing",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfReadingspacing",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfReadingspacing",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "mh-action",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "mh-action",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "mh-action",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "mh-action",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "mh-action",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "mh-action",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "mh-action",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "mh-action",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "mh-action",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "mh-action",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "mh-action",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "mh-action",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "mh-action",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "mh-action",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "mh-action",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "mh-action",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "mh-action",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "mh-action",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfTargetLanguage",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfTargetLanguage",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfTargetLanguage",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfTargetLanguage",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfTranslateVisible",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 140,
+        "easing": "ease-out",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfTranslateVisible",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 140,
+        "easing": "ease-out",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfTranslateVisible",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 140,
+        "easing": "ease-out",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfTranslateVisible",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 140,
+        "easing": "ease-out",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfTranslateVisible",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 140,
+        "easing": "ease-out",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfTranslateVisible",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 140,
+        "easing": "ease-out",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfTranslateAll",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 140,
+        "easing": "ease-out",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfTranslateAll",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 140,
+        "easing": "ease-out",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfTranslateAll",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 140,
+        "easing": "ease-out",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfTranslateAll",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 140,
+        "easing": "ease-out",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfTranslateAll",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 140,
+        "easing": "ease-out",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfTranslateAll",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 140,
+        "easing": "ease-out",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfTranslateScope",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 140,
+        "easing": "ease-out",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfTranslateCancel",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 140,
+        "easing": "ease-out",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfExportFormat",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfExportFormat",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfExportFormat",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfExportFormat",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 150,
+        "easing": "ease",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    },
+    {
+      "target": "pdfExport",
+      "state": "running",
+      "timing": {
+        "delay": 0,
+        "direction": "normal",
+        "duration": 140,
+        "easing": "ease-out",
+        "endDelay": 0,
+        "fill": "backwards",
+        "iterationStart": 0,
+        "iterations": 1
+      }
+    }
+  ],
+  "controls": [
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Film",
+      "rect": {
+        "x": 85.66667175292969,
+        "y": 53.66666793823242,
+        "width": 52.44791793823242,
+        "height": 40,
+        "top": 53.66666793823242,
+        "right": 138.1145896911621,
+        "bottom": 93.66666793823242,
+        "left": 85.66667175292969
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Music",
+      "rect": {
+        "x": 141.11459350585938,
+        "y": 53.66666793823242,
+        "width": 61,
+        "height": 40,
+        "top": 53.66666793823242,
+        "right": 202.11459350585938,
+        "bottom": 93.66666793823242,
+        "left": 141.11459350585938
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Books",
+      "rect": {
+        "x": 205.11459350585938,
+        "y": 53.66666793823242,
+        "width": 62.927085876464844,
+        "height": 40,
+        "top": 53.66666793823242,
+        "right": 268.0416793823242,
+        "bottom": 93.66666793823242,
+        "left": 205.11459350585938
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "mhHome",
+      "tag": "BUTTON",
+      "text": "Home",
+      "rect": {
+        "x": 32,
+        "y": 105.33333587646484,
+        "width": 54.19791793823242,
+        "height": 40,
+        "top": 105.33333587646484,
+        "right": 86.19791793823242,
+        "bottom": 145.33333587646484,
+        "left": 32
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Discover",
+      "rect": {
+        "x": 94.19792175292969,
+        "y": 105.33333587646484,
+        "width": 70,
+        "height": 40,
+        "top": 105.33333587646484,
+        "right": 164.1979217529297,
+        "bottom": 145.33333587646484,
+        "left": 94.19792175292969
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Films",
+      "rect": {
+        "x": 172.1979217529297,
+        "y": 105.33333587646484,
+        "width": 50.177085876464844,
+        "height": 40,
+        "top": 105.33333587646484,
+        "right": 222.37500762939453,
+        "bottom": 145.33333587646484,
+        "left": 172.1979217529297
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Series",
+      "rect": {
+        "x": 230.375,
+        "y": 105.33333587646484,
+        "width": 54.96875,
+        "height": 40,
+        "top": 105.33333587646484,
+        "right": 285.34375,
+        "bottom": 145.33333587646484,
+        "left": 230.375
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Radio / podcast",
+      "rect": {
+        "x": 293.34375,
+        "y": 105.33333587646484,
+        "width": 113.95833587646484,
+        "height": 40,
+        "top": 105.33333587646484,
+        "right": 407.30208587646484,
+        "bottom": 145.33333587646484,
+        "left": 293.34375
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Taste profile",
+      "rect": {
+        "x": 415.3020935058594,
+        "y": 105.33333587646484,
+        "width": 93.45833587646484,
+        "height": 40,
+        "top": 105.33333587646484,
+        "right": 508.7604293823242,
+        "bottom": 145.33333587646484,
+        "left": 415.3020935058594
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Web",
+      "rect": {
+        "x": 516.7604370117188,
+        "y": 105.33333587646484,
+        "width": 44.07291793823242,
+        "height": 40,
+        "top": 105.33333587646484,
+        "right": 560.8333549499512,
+        "bottom": 145.33333587646484,
+        "left": 516.7604370117188
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Recent",
+      "rect": {
+        "x": 568.8333740234375,
+        "y": 105.33333587646484,
+        "width": 59.94791793823242,
+        "height": 40,
+        "top": 105.33333587646484,
+        "right": 628.7812919616699,
+        "bottom": 145.33333587646484,
+        "left": 568.8333740234375
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "mhSearch",
+      "tag": "INPUT",
+      "text": "Search your library",
+      "rect": {
+        "x": 1158,
+        "y": 105.33333587646484,
+        "width": 240,
+        "height": 40,
+        "top": 105.33333587646484,
+        "right": 1398,
+        "bottom": 145.33333587646484,
+        "left": 1158
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Search all media sources",
+      "rect": {
+        "x": 1363,
+        "y": 105.33333587646484,
+        "width": 30,
+        "height": 40,
+        "top": 105.33333587646484,
+        "right": 1393,
+        "bottom": 145.33333587646484,
+        "left": 1363
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Browser",
+      "rect": {
+        "x": 1068.0208740234375,
+        "y": 53.66666793823242,
+        "width": 85.6875,
+        "height": 40,
+        "top": 53.66666793823242,
+        "right": 1153.7083740234375,
+        "bottom": 93.66666793823242,
+        "left": 1068.0208740234375
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Open media",
+      "rect": {
+        "x": 1163.7083740234375,
+        "y": 53.66666793823242,
+        "width": 109.3125,
+        "height": 40,
+        "top": 53.66666793823242,
+        "right": 1273.0208740234375,
+        "bottom": 93.66666793823242,
+        "left": 1163.7083740234375
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Tools",
+      "rect": {
+        "x": 1283.0208740234375,
+        "y": 53.66666793823242,
+        "width": 64.97917175292969,
+        "height": 40,
+        "top": 53.66666793823242,
+        "right": 1348.0000457763672,
+        "bottom": 93.66666793823242,
+        "left": 1283.0208740234375
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Production workspace",
+      "rect": {
+        "x": 1156.666748046875,
+        "y": 110.33333587646484,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 110.33333587646484,
+        "right": 1339.3334197998047,
+        "bottom": 150.33333587646484,
+        "left": 1156.666748046875
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Studio",
+      "rect": {
+        "x": 1156.666748046875,
+        "y": 154.33334350585938,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 154.33334350585938,
+        "right": 1339.3334197998047,
+        "bottom": 194.33334350585938,
+        "left": 1156.666748046875
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Subtitle → voice",
+      "rect": {
+        "x": 1156.666748046875,
+        "y": 198.33334350585938,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 198.33334350585938,
+        "right": 1339.3334197998047,
+        "bottom": 238.33334350585938,
+        "left": 1156.666748046875
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Tonight",
+      "rect": {
+        "x": 1156.666748046875,
+        "y": 242.33334350585938,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 242.33334350585938,
+        "right": 1339.3334197998047,
+        "bottom": 282.3333435058594,
+        "left": 1156.666748046875
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Library care",
+      "rect": {
+        "x": 1156.666748046875,
+        "y": 286.3333435058594,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 286.3333435058594,
+        "right": 1339.3334197998047,
+        "bottom": 326.3333435058594,
+        "left": 1156.666748046875
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Activity",
+      "rect": {
+        "x": 1156.666748046875,
+        "y": 330.3333435058594,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 330.3333435058594,
+        "right": 1339.3334197998047,
+        "bottom": 370.3333435058594,
+        "left": 1156.666748046875
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "mhSettings",
+      "tag": "BUTTON",
+      "text": "Settings",
+      "rect": {
+        "x": 1358,
+        "y": 53.66666793823242,
+        "width": 40,
+        "height": 40,
+        "top": 53.66666793823242,
+        "right": 1398,
+        "bottom": 93.66666793823242,
+        "left": 1358
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Open media",
+      "rect": {
+        "x": 136,
+        "y": 359.3958435058594,
+        "width": 109.3125,
+        "height": 40,
+        "top": 359.3958435058594,
+        "right": 245.3125,
+        "bottom": 399.3958435058594,
+        "left": 136
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Open browser",
+      "rect": {
+        "x": 255.3125,
+        "y": 359.3958435058594,
+        "width": 121.63542175292969,
+        "height": 40,
+        "top": 359.3958435058594,
+        "right": 376.9479217529297,
+        "bottom": 399.3958435058594,
+        "left": 255.3125
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Subtitle → voice",
+      "rect": {
+        "x": 72.66667175292969,
+        "y": 591.8958740234375,
+        "width": 133.7291717529297,
+        "height": 40.66666793823242,
+        "top": 591.8958740234375,
+        "right": 206.39584350585938,
+        "bottom": 632.5625419616699,
+        "left": 72.66667175292969
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Open studio",
+      "rect": {
+        "x": 522.6666870117188,
+        "y": 592.5625,
+        "width": 109.35417175292969,
+        "height": 40,
+        "top": 592.5625,
+        "right": 632.0208587646484,
+        "bottom": 632.5625,
+        "left": 522.6666870117188
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Open voice studio",
+      "rect": {
+        "x": 972.6666870117188,
+        "y": 592.5625,
+        "width": 145.42709350585938,
+        "height": 40,
+        "top": 592.5625,
+        "right": 1118.0937805175781,
+        "bottom": 632.5625,
+        "left": 972.6666870117188
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "pdfReaderHome",
+      "tag": "BUTTON",
+      "text": "Back to home",
+      "rect": {
+        "x": 20,
+        "y": 46.9375,
+        "width": 40,
+        "height": 40,
+        "top": 46.9375,
+        "right": 60,
+        "bottom": 86.9375,
+        "left": 20
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "pdfAskAssistant",
+      "tag": "BUTTON",
+      "text": "Ask about this page",
+      "rect": {
+        "x": 1153.09375,
+        "y": 48.9375,
+        "width": 129.21875,
+        "height": 36,
+        "top": 48.9375,
+        "right": 1282.3125,
+        "bottom": 84.9375,
+        "left": 1153.09375
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "pdfVoiceOpen",
+      "tag": "BUTTON",
+      "text": "Read aloud",
+      "rect": {
+        "x": 1290.3125,
+        "y": 48.9375,
+        "width": 81.6875,
+        "height": 36,
+        "top": 48.9375,
+        "right": 1372,
+        "bottom": 84.9375,
+        "left": 1290.3125
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "pdfReaderClose",
+      "tag": "BUTTON",
+      "text": "Close PDF reader",
+      "rect": {
+        "x": 1380,
+        "y": 46.9375,
+        "width": 40,
+        "height": 40,
+        "top": 46.9375,
+        "right": 1420,
+        "bottom": 86.9375,
+        "left": 1380
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Reading",
+      "rect": {
+        "x": 31.666667938232422,
+        "y": 111.54167175292969,
+        "width": 101.35417175292969,
+        "height": 40,
+        "top": 111.54167175292969,
+        "right": 133.0208396911621,
+        "bottom": 151.5416717529297,
+        "left": 31.666667938232422
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Original",
+      "rect": {
+        "x": 136.02084350585938,
+        "y": 111.54167175292969,
+        "width": 101.35417175292969,
+        "height": 40,
+        "top": 111.54167175292969,
+        "right": 237.37501525878906,
+        "bottom": 151.5416717529297,
+        "left": 136.02084350585938
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Side by side",
+      "rect": {
+        "x": 240.375,
+        "y": 111.54167175292969,
+        "width": 101.35417175292969,
+        "height": 40,
+        "top": 111.54167175292969,
+        "right": 341.7291717529297,
+        "bottom": 151.5416717529297,
+        "left": 240.375
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Translation",
+      "rect": {
+        "x": 344.72918701171875,
+        "y": 111.54167175292969,
+        "width": 101.35417175292969,
+        "height": 40,
+        "top": 111.54167175292969,
+        "right": 446.08335876464844,
+        "bottom": 151.5416717529297,
+        "left": 344.72918701171875
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "pdfPrevious",
+      "tag": "BUTTON",
+      "text": "Previous page",
+      "rect": {
+        "x": 469.75,
+        "y": 113.54167175292969,
+        "width": 40,
+        "height": 36,
+        "top": 113.54167175292969,
+        "right": 509.75,
+        "bottom": 149.5416717529297,
+        "left": 469.75
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "pdfReaderPage",
+      "tag": "INPUT",
+      "text": "PDF page number",
+      "rect": {
+        "x": 521.75,
+        "y": 111.54167175292969,
+        "width": 58,
+        "height": 40,
+        "top": 111.54167175292969,
+        "right": 579.75,
+        "bottom": 151.5416717529297,
+        "left": 521.75
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "pdfNext",
+      "tag": "BUTTON",
+      "text": "Next page",
+      "rect": {
+        "x": 602.3854370117188,
+        "y": 113.54167175292969,
+        "width": 40,
+        "height": 36,
+        "top": 113.54167175292969,
+        "right": 642.3854370117188,
+        "bottom": 149.5416717529297,
+        "left": 602.3854370117188
+      },
+      "font": "12px",
+      "disabled": true
+    },
+    {
+      "id": "pdfZoomOut",
+      "tag": "BUTTON",
+      "text": "Zoom out",
+      "rect": {
+        "x": 662.3854370117188,
+        "y": 113.54167175292969,
+        "width": 40,
+        "height": 36,
+        "top": 113.54167175292969,
+        "right": 702.3854370117188,
+        "bottom": 149.5416717529297,
+        "left": 662.3854370117188
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "pdfZoomIn",
+      "tag": "BUTTON",
+      "text": "Zoom in",
+      "rect": {
+        "x": 750.3854370117188,
+        "y": 113.54167175292969,
+        "width": 40,
+        "height": 36,
+        "top": 113.54167175292969,
+        "right": 790.3854370117188,
+        "bottom": 149.5416717529297,
+        "left": 750.3854370117188
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "pdfFindOpen",
+      "tag": "BUTTON",
+      "text": "Find in this PDF (Ctrl+F)",
+      "rect": {
+        "x": 794.3854370117188,
+        "y": 113.54167175292969,
+        "width": 40,
+        "height": 36,
+        "top": 113.54167175292969,
+        "right": 834.3854370117188,
+        "bottom": 149.5416717529297,
+        "left": 794.3854370117188
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Reading settings",
+      "rect": {
+        "x": 997.84375,
+        "y": 111.54167175292969,
+        "width": 131.1666717529297,
+        "height": 40,
+        "top": 111.54167175292969,
+        "right": 1129.0104217529297,
+        "bottom": 151.5416717529297,
+        "left": 997.84375
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "pdfReadingfont",
+      "tag": "SELECT",
+      "text": "18 px21 px24 px28 px",
+      "rect": {
+        "x": 837.6771240234375,
+        "y": 205.5416717529297,
+        "width": 272.66668701171875,
+        "height": 40,
+        "top": 205.5416717529297,
+        "right": 1110.3438110351562,
+        "bottom": 245.5416717529297,
+        "left": 837.6771240234375
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "pdfReadingwidth",
+      "tag": "SELECT",
+      "text": "680 px850 px1000 px",
+      "rect": {
+        "x": 837.6771240234375,
+        "y": 278.875,
+        "width": 272.66668701171875,
+        "height": 40,
+        "top": 278.875,
+        "right": 1110.3438110351562,
+        "bottom": 318.875,
+        "left": 837.6771240234375
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "pdfReadingspacing",
+      "tag": "SELECT",
+      "text": "1.651.852.1",
+      "rect": {
+        "x": 837.6771240234375,
+        "y": 352.2083435058594,
+        "width": 272.66668701171875,
+        "height": 40,
+        "top": 352.2083435058594,
+        "right": 1110.3438110351562,
+        "bottom": 392.2083435058594,
+        "left": 837.6771240234375
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Passage tools",
+      "rect": {
+        "x": 1137.010498046875,
+        "y": 111.54167175292969,
+        "width": 115.96875,
+        "height": 40,
+        "top": 111.54167175292969,
+        "right": 1252.979248046875,
+        "bottom": 151.5416717529297,
+        "left": 1137.010498046875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Seçili pasajı açıkla",
+      "rect": {
+        "x": 961.6458740234375,
+        "y": 207.5416717529297,
+        "width": 272.66668701171875,
+        "height": 38,
+        "top": 207.5416717529297,
+        "right": 1234.3125610351562,
+        "bottom": 245.5416717529297,
+        "left": 961.6458740234375
+      },
+      "font": "13px",
+      "disabled": true
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Summarize page",
+      "rect": {
+        "x": 961.6458740234375,
+        "y": 253.5416717529297,
+        "width": 272.66668701171875,
+        "height": 38,
+        "top": 253.5416717529297,
+        "right": 1234.3125610351562,
+        "bottom": 291.5416717529297,
+        "left": 961.6458740234375
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Asistanı aç",
+      "rect": {
+        "x": 961.6458740234375,
+        "y": 299.54168701171875,
+        "width": 272.66668701171875,
+        "height": 38,
+        "top": 299.54168701171875,
+        "right": 1234.3125610351562,
+        "bottom": 337.54168701171875,
+        "left": 961.6458740234375
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Translation & export",
+      "rect": {
+        "x": 1260.979248046875,
+        "y": 111.54167175292969,
+        "width": 151.02084350585938,
+        "height": 40,
+        "top": 111.54167175292969,
+        "right": 1412.0000915527344,
+        "bottom": 151.5416717529297,
+        "left": 1260.979248046875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "pdfTargetLanguage",
+      "tag": "SELECT",
+      "text": "PDF target language",
+      "rect": {
+        "x": 1120.666748046875,
+        "y": 208.20834350585938,
+        "width": 272.66668701171875,
+        "height": 40,
+        "top": 208.20834350585938,
+        "right": 1393.3334350585938,
+        "bottom": 248.20834350585938,
+        "left": 1120.666748046875
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "pdfTranslateVisible",
+      "tag": "BUTTON",
+      "text": "Translate from this page",
+      "rect": {
+        "x": 1120.666748046875,
+        "y": 256.2083435058594,
+        "width": 272.66668701171875,
+        "height": 36,
+        "top": 256.2083435058594,
+        "right": 1393.3334350585938,
+        "bottom": 292.2083435058594,
+        "left": 1120.666748046875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "pdfTranslateAll",
+      "tag": "BUTTON",
+      "text": "Translate entire book",
+      "rect": {
+        "x": 1120.666748046875,
+        "y": 300.2083435058594,
+        "width": 272.66668701171875,
+        "height": 36,
+        "top": 300.2083435058594,
+        "right": 1393.3334350585938,
+        "bottom": 336.2083435058594,
+        "left": 1120.666748046875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "pdfTranslateScope",
+      "tag": "BUTTON",
+      "text": "Select pages",
+      "rect": {
+        "x": 1120.666748046875,
+        "y": 344.2083435058594,
+        "width": 272.66668701171875,
+        "height": 36,
+        "top": 344.2083435058594,
+        "right": 1393.3334350585938,
+        "bottom": 380.2083435058594,
+        "left": 1120.666748046875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "pdfTranslateCancel",
+      "tag": "BUTTON",
+      "text": "Cancel",
+      "rect": {
+        "x": 1120.666748046875,
+        "y": 388.2083435058594,
+        "width": 272.66668701171875,
+        "height": 36,
+        "top": 388.2083435058594,
+        "right": 1393.3334350585938,
+        "bottom": 424.2083435058594,
+        "left": 1120.666748046875
+      },
+      "font": "12px",
+      "disabled": true
+    },
+    {
+      "id": "pdfExportFormat",
+      "tag": "SELECT",
+      "text": "PDF export format",
+      "rect": {
+        "x": 1120.666748046875,
+        "y": 482.875,
+        "width": 272.66668701171875,
+        "height": 40,
+        "top": 482.875,
+        "right": 1393.3334350585938,
+        "bottom": 522.875,
+        "left": 1120.666748046875
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "pdfExport",
+      "tag": "BUTTON",
+      "text": "Export",
+      "rect": {
+        "x": 1120.666748046875,
+        "y": 530.875,
+        "width": 272.66668701171875,
+        "height": 36,
+        "top": 530.875,
+        "right": 1393.3334350585938,
+        "bottom": 566.875,
+        "left": 1120.666748046875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "pdfVoiceClose",
+      "tag": "BUTTON",
+      "text": "Close narration settings",
+      "rect": {
+        "x": 1378,
+        "y": 185.875,
+        "width": 40,
+        "height": 40,
+        "top": 185.875,
+        "right": 1418,
+        "bottom": 225.875,
+        "left": 1378
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "pdfVoiceFrom",
+      "tag": "INPUT",
+      "text": "",
+      "rect": {
+        "x": 20,
+        "y": 207.20834350585938,
+        "width": 86,
+        "height": 40,
+        "top": 207.20834350585938,
+        "right": 106,
+        "bottom": 247.20834350585938,
+        "left": 20
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "pdfVoiceTo",
+      "tag": "INPUT",
+      "text": "",
+      "rect": {
+        "x": 118,
+        "y": 207.20834350585938,
+        "width": 86,
+        "height": 40,
+        "top": 207.20834350585938,
+        "right": 204,
+        "bottom": 247.20834350585938,
+        "left": 118
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "pdfVoiceText",
+      "tag": "SELECT",
+      "text": "Original textTranslated text",
+      "rect": {
+        "x": 216,
+        "y": 207.20834350585938,
+        "width": 127.33333587646484,
+        "height": 40,
+        "top": 207.20834350585938,
+        "right": 343.33333587646484,
+        "bottom": 247.20834350585938,
+        "left": 216
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "pdfVoicePreviewOpen",
+      "tag": "BUTTON",
+      "text": "Preview text",
+      "rect": {
+        "x": 355.3333435058594,
+        "y": 198.5416717529297,
+        "width": 89.73958587646484,
+        "height": 36,
+        "top": 198.5416717529297,
+        "right": 445.0729293823242,
+        "bottom": 234.5416717529297,
+        "left": 355.3333435058594
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "pdfVoicePrepare",
+      "tag": "BUTTON",
+      "text": "Prepare selected pages for narration",
+      "rect": {
+        "x": 457.07293701171875,
+        "y": 198.5416717529297,
+        "width": 220.1875,
+        "height": 36,
+        "top": 198.5416717529297,
+        "right": 677.2604370117188,
+        "bottom": 234.5416717529297,
+        "left": 457.07293701171875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "pdfVoiceListen",
+      "tag": "BUTTON",
+      "text": "Listen to ready audio on this page",
+      "rect": {
+        "x": 689.2604370117188,
+        "y": 198.5416717529297,
+        "width": 205.0625,
+        "height": 36,
+        "top": 198.5416717529297,
+        "right": 894.3229370117188,
+        "bottom": 234.5416717529297,
+        "left": 689.2604370117188
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "pdfVoiceFollow",
+      "tag": "INPUT",
+      "text": "",
+      "rect": {
+        "x": 906.3229370117188,
+        "y": 196.5416717529297,
+        "width": 13,
+        "height": 40,
+        "top": 196.5416717529297,
+        "right": 919.3229370117188,
+        "bottom": 236.5416717529297,
+        "left": 906.3229370117188
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "sideTabSubs",
+      "tag": "BUTTON",
+      "text": "Subtitles",
+      "rect": {
+        "x": 1042.8021240234375,
+        "y": 17,
+        "width": 82.59375,
+        "height": 27.33333396911621,
+        "top": 17,
+        "right": 1125.3958740234375,
+        "bottom": 44.33333396911621,
+        "left": 1042.8021240234375
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "sideTabAi",
+      "tag": "BUTTON",
+      "text": "Ask AI",
+      "rect": {
+        "x": 1129.3958740234375,
+        "y": 17,
+        "width": 55.71875,
+        "height": 27.33333396911621,
+        "top": 17,
+        "right": 1185.1146240234375,
+        "bottom": 44.33333396911621,
+        "left": 1129.3958740234375
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "sideTabLibrary",
+      "tag": "BUTTON",
+      "text": "Library",
+      "rect": {
+        "x": 1189.1146240234375,
+        "y": 17,
+        "width": 59.29166793823242,
+        "height": 27.33333396911621,
+        "top": 17,
+        "right": 1248.40629196167,
+        "bottom": 44.33333396911621,
+        "left": 1189.1146240234375
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "sideAppSettings",
+      "tag": "BUTTON",
+      "text": "Application settings",
+      "rect": {
+        "x": 1302,
+        "y": 13.666666984558105,
+        "width": 34,
+        "height": 34,
+        "top": 13.666666984558105,
+        "right": 1336,
+        "bottom": 47.666666984558105,
+        "left": 1302
+      },
+      "font": "18px",
+      "disabled": false
+    },
+    {
+      "id": "sideSubtitleExport",
+      "tag": "BUTTON",
+      "text": "Open subtitle file",
+      "rect": {
+        "x": 1341,
+        "y": 13.666666984558105,
+        "width": 34,
+        "height": 34,
+        "top": 13.666666984558105,
+        "right": 1375,
+        "bottom": 47.666666984558105,
+        "left": 1341
+      },
+      "font": "18px",
+      "disabled": false
+    },
+    {
+      "id": "sideSubtitleLayout",
+      "tag": "SUMMARY",
+      "text": "Subtitle layout",
+      "rect": {
+        "x": 1380,
+        "y": 13.666666984558105,
+        "width": 34,
+        "height": 34,
+        "top": 13.666666984558105,
+        "right": 1414,
+        "bottom": 47.666666984558105,
+        "left": 1380
+      },
+      "font": "18px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Translation",
+      "rect": {
+        "x": 1386.666748046875,
+        "y": 75.66667175292969,
+        "width": 202.6666717529297,
+        "height": 30,
+        "top": 75.66667175292969,
+        "right": 1589.3334197998047,
+        "bottom": 105.66667175292969,
+        "left": 1386.666748046875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Original",
+      "rect": {
+        "x": 1386.666748046875,
+        "y": 107.66667175292969,
+        "width": 202.6666717529297,
+        "height": 30,
+        "top": 107.66667175292969,
+        "right": 1589.3334197998047,
+        "bottom": 137.6666717529297,
+        "left": 1386.666748046875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Both",
+      "rect": {
+        "x": 1386.666748046875,
+        "y": 139.6666717529297,
+        "width": 202.6666717529297,
+        "height": 30,
+        "top": 139.6666717529297,
+        "right": 1589.3334197998047,
+        "bottom": 169.6666717529297,
+        "left": 1386.666748046875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Off",
+      "rect": {
+        "x": 1386.666748046875,
+        "y": 171.6666717529297,
+        "width": 202.6666717529297,
+        "height": 30,
+        "top": 171.6666717529297,
+        "right": 1589.3334197998047,
+        "bottom": 201.6666717529297,
+        "left": 1386.666748046875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "sideLayoutAll",
+      "tag": "BUTTON",
+      "text": "All subtitle settings…",
+      "rect": {
+        "x": 1386.666748046875,
+        "y": 243.6666717529297,
+        "width": 202.6666717529297,
+        "height": 30.666667938232422,
+        "top": 243.6666717529297,
+        "right": 1589.3334197998047,
+        "bottom": 274.3333396911621,
+        "left": 1386.666748046875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "playerQuickYtUrl",
+      "tag": "INPUT",
+      "text": "Quick YouTube URL",
+      "rect": {
+        "x": 1042.8021240234375,
+        "y": 85,
+        "width": 184.7604217529297,
+        "height": 36,
+        "top": 85,
+        "right": 1227.5625457763672,
+        "bottom": 121,
+        "left": 1042.8021240234375
+      },
+      "font": "12.5px",
+      "disabled": false
+    },
+    {
+      "id": "playerQuickYtLoad",
+      "tag": "BUTTON",
+      "text": "Load",
+      "rect": {
+        "x": 1234.5625,
+        "y": 85,
+        "width": 179.4375,
+        "height": 36,
+        "top": 85,
+        "right": 1414,
+        "bottom": 121,
+        "left": 1234.5625
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Generate with Whisper",
+      "rect": {
+        "x": 1076.8021240234375,
+        "y": 385,
+        "width": 293.19793701171875,
+        "height": 38,
+        "top": 385,
+        "right": 1370.0000610351562,
+        "bottom": 423,
+        "left": 1076.8021240234375
+      },
+      "font": "12.5px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Choose subtitle file",
+      "rect": {
+        "x": 1076.8021240234375,
+        "y": 431,
+        "width": 293.19793701171875,
+        "height": 35.333335876464844,
+        "top": 431,
+        "right": 1370.0000610351562,
+        "bottom": 466.33333587646484,
+        "left": 1076.8021240234375
+      },
+      "font": "12.5px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Add a translation API key",
+      "rect": {
+        "x": 1153.729248046875,
+        "y": 478.3333435058594,
+        "width": 139.33334350585938,
+        "height": 26.39583396911621,
+        "top": 478.3333435058594,
+        "right": 1293.0625915527344,
+        "bottom": 504.7291774749756,
+        "left": 1153.729248046875
+      },
+      "font": "11.5px",
+      "disabled": false
+    },
+    {
+      "id": "toolsToggle",
+      "tag": "BUTTON",
+      "text": "Tools",
+      "rect": {
+        "x": 1042.8021240234375,
+        "y": 794.8333740234375,
+        "width": 55.03125,
+        "height": 20.666667938232422,
+        "top": 794.8333740234375,
+        "right": 1097.8333740234375,
+        "bottom": 815.5000419616699,
+        "left": 1042.8021240234375
+      },
+      "font": "11px",
+      "disabled": false
+    },
+    {
+      "id": "timelineToggle",
+      "tag": "BUTTON",
+      "text": "Timeline",
+      "rect": {
+        "x": 1353.697998046875,
+        "y": 789.6666870117188,
+        "width": 60.302085876464844,
+        "height": 31,
+        "top": 789.6666870117188,
+        "right": 1414.0000839233398,
+        "bottom": 820.6666870117188,
+        "left": 1353.697998046875
+      },
+      "font": "11px",
+      "disabled": false
+    },
+    {
+      "id": "cuePrevBtn",
+      "tag": "BUTTON",
+      "text": "Previous cue",
+      "rect": {
+        "x": 1043.46875,
+        "y": 829.3333740234375,
+        "width": 123.28125,
+        "height": 32,
+        "top": 829.3333740234375,
+        "right": 1166.75,
+        "bottom": 861.3333740234375,
+        "left": 1043.46875
+      },
+      "font": "11px",
+      "disabled": false
+    },
+    {
+      "id": "cueReplayBtn",
+      "tag": "BUTTON",
+      "text": "Replay this sentence",
+      "rect": {
+        "x": 1166.75,
+        "y": 829.3333740234375,
+        "width": 123.29167175292969,
+        "height": 32,
+        "top": 829.3333740234375,
+        "right": 1290.0416717529297,
+        "bottom": 861.3333740234375,
+        "left": 1166.75
+      },
+      "font": "11px",
+      "disabled": false
+    },
+    {
+      "id": "cueNextBtn",
+      "tag": "BUTTON",
+      "text": "Next cue",
+      "rect": {
+        "x": 1290.041748046875,
+        "y": 829.3333740234375,
+        "width": 123.29167175292969,
+        "height": 32,
+        "top": 829.3333740234375,
+        "right": 1413.3334197998047,
+        "bottom": 861.3333740234375,
+        "left": 1290.041748046875
+      },
+      "font": "11px",
+      "disabled": false
+    },
+    {
+      "id": "autoPauseCue",
+      "tag": "INPUT",
+      "text": "",
+      "rect": {
+        "x": 1052.46875,
+        "y": 876.5,
+        "width": 26,
+        "height": 15,
+        "top": 876.5,
+        "right": 1078.46875,
+        "bottom": 891.5,
+        "left": 1052.46875
+      },
+      "font": "13.3333px",
+      "disabled": false
+    },
+    {
+      "id": "autoFollow",
+      "tag": "INPUT",
+      "text": "",
+      "rect": {
+        "x": 1241.0625,
+        "y": 876.5,
+        "width": 26,
+        "height": 15,
+        "top": 876.5,
+        "right": 1267.0625,
+        "bottom": 891.5,
+        "left": 1241.0625
+      },
+      "font": "13.3333px",
+      "disabled": false
+    },
+    {
+      "id": "showSource",
+      "tag": "INPUT",
+      "text": "",
+      "rect": {
+        "x": 1052.46875,
+        "y": 914.5,
+        "width": 26,
+        "height": 15,
+        "top": 914.5,
+        "right": 1078.46875,
+        "bottom": 929.5,
+        "left": 1052.46875
+      },
+      "font": "13.3333px",
+      "disabled": false
+    },
+    {
+      "id": "showTranslation",
+      "tag": "INPUT",
+      "text": "",
+      "rect": {
+        "x": 1241.0625,
+        "y": 914.5,
+        "width": 26,
+        "height": 15,
+        "top": 914.5,
+        "right": 1267.0625,
+        "bottom": 929.5,
+        "left": 1241.0625
+      },
+      "font": "13.3333px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Subtitle actions",
+      "rect": {
+        "x": 1042.8021240234375,
+        "y": 946,
+        "width": 371.19793701171875,
+        "height": 32,
+        "top": 946,
+        "right": 1414.0000610351562,
+        "bottom": 978,
+        "left": 1042.8021240234375
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "makeSubsBtn",
+      "tag": "BUTTON",
+      "text": "Generate subtitles",
+      "rect": {
+        "x": 1049.46875,
+        "y": 715.3333740234375,
+        "width": 357.8645935058594,
+        "height": 32,
+        "top": 715.3333740234375,
+        "right": 1407.3333435058594,
+        "bottom": 747.3333740234375,
+        "left": 1049.46875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "makeTransBtn",
+      "tag": "BUTTON",
+      "text": "Translate subtitles",
+      "rect": {
+        "x": 1049.46875,
+        "y": 751.3333740234375,
+        "width": 357.8645935058594,
+        "height": 32,
+        "top": 751.3333740234375,
+        "right": 1407.3333435058594,
+        "bottom": 783.3333740234375,
+        "left": 1049.46875
+      },
+      "font": "12px",
+      "disabled": true
+    },
+    {
+      "id": "retranslateAllBtn",
+      "tag": "BUTTON",
+      "text": "Retranslate all with a new model",
+      "rect": {
+        "x": 1049.46875,
+        "y": 787.3333740234375,
+        "width": 357.8645935058594,
+        "height": 32,
+        "top": 787.3333740234375,
+        "right": 1407.3333435058594,
+        "bottom": 819.3333740234375,
+        "left": 1049.46875
+      },
+      "font": "12px",
+      "disabled": true
+    },
+    {
+      "id": "retranslateRangeBtn",
+      "tag": "BUTTON",
+      "text": "Retranslate selected range",
+      "rect": {
+        "x": 1049.46875,
+        "y": 823.3333740234375,
+        "width": 357.8645935058594,
+        "height": 32,
+        "top": 823.3333740234375,
+        "right": 1407.3333435058594,
+        "bottom": 855.3333740234375,
+        "left": 1049.46875
+      },
+      "font": "12px",
+      "disabled": true
+    },
+    {
+      "id": "abCompareBtn",
+      "tag": "BUTTON",
+      "text": "Blind A/B compare",
+      "rect": {
+        "x": 1049.46875,
+        "y": 859.3333740234375,
+        "width": 357.8645935058594,
+        "height": 32,
+        "top": 859.3333740234375,
+        "right": 1407.3333435058594,
+        "bottom": 891.3333740234375,
+        "left": 1049.46875
+      },
+      "font": "12px",
+      "disabled": true
+    },
+    {
+      "id": "subCompareBtn",
+      "tag": "BUTTON",
+      "text": "Compare subtitles",
+      "rect": {
+        "x": 1049.46875,
+        "y": 895.3333740234375,
+        "width": 357.8645935058594,
+        "height": 32,
+        "top": 895.3333740234375,
+        "right": 1407.3333435058594,
+        "bottom": 927.3333740234375,
+        "left": 1049.46875
+      },
+      "font": "12px",
+      "disabled": true
+    },
+    {
+      "id": "exportTranslationBtn",
+      "tag": "BUTTON",
+      "text": "Export translation",
+      "rect": {
+        "x": 1049.46875,
+        "y": 931.3333740234375,
+        "width": 357.8645935058594,
+        "height": 32,
+        "top": 931.3333740234375,
+        "right": 1407.3333435058594,
+        "bottom": 963.3333740234375,
+        "left": 1049.46875
+      },
+      "font": "12px",
+      "disabled": true
+    }
+  ],
+  "violations": [
+    {
+      "id": "scrollable-region-focusable",
+      "impact": "serious",
+      "tags": [
+        "cat.keyboard",
+        "wcag2a",
+        "wcag211",
+        "wcag213",
+        "TTv5",
+        "TT4.a",
+        "EN-301-549",
+        "EN-9.2.1.1",
+        "EN-9.2.1.3",
+        "RGAAv4",
+        "RGAA-7.3.2"
+      ],
+      "description": "Ensure elements that have scrollable content are accessible by keyboard in Safari",
+      "help": "Scrollable region must have keyboard access",
+      "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/scrollable-region-focusable?application=axeAPI",
+      "nodes": [
+        {
+          "any": [
+            {
+              "id": "focusable-content",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element should have focusable content"
+            },
+            {
+              "id": "focusable-element",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element should be focusable"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<div class=\"pdf-reader-pages\" id=\"pdfReaderPages\">",
+          "target": [
+            "#pdfReaderPages"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable"
+        }
+      ]
+    }
+  ],
+  "incomplete": [
+    {
+      "id": "aria-prohibited-attr",
+      "nodes": 2
+    },
+    {
+      "id": "color-contrast",
+      "nodes": 20
+    }
+  ],
+  "passes": [
+    "aria-allowed-attr",
+    "aria-conditional-attr",
+    "aria-deprecated-role",
+    "aria-hidden-body",
+    "aria-hidden-focus",
+    "aria-prohibited-attr",
+    "aria-required-attr",
+    "aria-required-children",
+    "aria-required-parent",
+    "aria-roles",
+    "aria-valid-attr-value",
+    "aria-valid-attr",
+    "autocomplete-valid",
+    "avoid-inline-spacing",
+    "button-name",
+    "bypass",
+    "color-contrast",
+    "document-title",
+    "duplicate-id-aria",
+    "form-field-multiple-labels",
+    "html-has-lang",
+    "html-lang-valid",
+    "label",
+    "nested-interactive",
+    "select-name",
+    "summary-name"
+  ]
+}

@@ -1,0 +1,1481 @@
+{
+  "ok": true,
+  "phase": "after",
+  "states": [
+    {
+      "label": "1440-tr-ai",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "dialog": {
+        "left": 220,
+        "right": 1220,
+        "top": 120,
+        "bottom": 880
+      },
+      "content": {
+        "width": 779,
+        "scrollWidth": 779,
+        "height": 585
+      },
+      "save": {
+        "bottom": 863.3333740234375,
+        "right": 1191.3334197998047
+      },
+      "active": "ai",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "block"
+        },
+        {
+          "id": "manga",
+          "display": "block"
+        },
+        {
+          "id": "metadata",
+          "display": "block"
+        },
+        {
+          "id": "cleanup",
+          "display": "block"
+        },
+        {
+          "id": "general",
+          "display": "block"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "Asistan sağlayıcısı",
+        "Asistan modeli",
+        "DeepInfra API anahtarı",
+        "DeepInfra hizmet katmanı",
+        "Endpoint (rota)",
+        "Model"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "1440-tr-search-tmdb",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "dialog": {
+        "left": 220,
+        "right": 1220,
+        "top": 120,
+        "bottom": 880
+      },
+      "content": {
+        "width": 779,
+        "scrollWidth": 779,
+        "height": 585
+      },
+      "save": {
+        "bottom": 863.3333740234375,
+        "right": 1191.3334197998047
+      },
+      "active": "ai",
+      "visibleSections": [
+        {
+          "id": "metadata",
+          "display": "block"
+        }
+      ],
+      "search": "tmdb",
+      "labels": [
+        "Asistan sağlayıcısı",
+        "Asistan modeli",
+        "DeepInfra API anahtarı",
+        "DeepInfra hizmet katmanı",
+        "Endpoint (rota)",
+        "Model"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "1440-tr-search-opened",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "dialog": {
+        "left": 220,
+        "right": 1220,
+        "top": 120,
+        "bottom": 880
+      },
+      "content": {
+        "width": 779,
+        "scrollWidth": 779,
+        "height": 585
+      },
+      "save": {
+        "bottom": 863.3333740234375,
+        "right": 1191.3334197998047
+      },
+      "active": "metadata",
+      "visibleSections": [
+        {
+          "id": "metadata",
+          "display": "block"
+        }
+      ],
+      "search": "tmdb",
+      "labels": [
+        "TMDB API okuma belirteci / API anahtarı",
+        "Bilgi dili",
+        "Nerede izlenir · ülke"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "1440-tr-search-empty",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "dialog": {
+        "left": 220,
+        "right": 1220,
+        "top": 120,
+        "bottom": 880
+      },
+      "content": {
+        "width": 779,
+        "scrollWidth": 779,
+        "height": 585
+      },
+      "save": {
+        "bottom": 863.3333740234375,
+        "right": 1191.3334197998047
+      },
+      "active": "metadata",
+      "visibleSections": [],
+      "search": "no-such-setting-xyz",
+      "labels": [
+        "TMDB API okuma belirteci / API anahtarı",
+        "Bilgi dili",
+        "Nerede izlenir · ülke"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "1440-tr-advanced",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "dialog": {
+        "left": 220,
+        "right": 1220,
+        "top": 120,
+        "bottom": 880
+      },
+      "content": {
+        "width": 779,
+        "scrollWidth": 779,
+        "height": 585
+      },
+      "save": {
+        "bottom": 863.3333740234375,
+        "right": 1191.3334197998047
+      },
+      "active": "ai",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "block"
+        },
+        {
+          "id": "manga",
+          "display": "block"
+        },
+        {
+          "id": "metadata",
+          "display": "block"
+        },
+        {
+          "id": "cleanup",
+          "display": "block"
+        },
+        {
+          "id": "general",
+          "display": "block"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "Asistan sağlayıcısı",
+        "Asistan modeli",
+        "DeepInfra API anahtarı",
+        "DeepInfra hizmet katmanı",
+        "Endpoint (rota)",
+        "Model"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "1440-tr-advanced-loading",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "dialog": {
+        "left": 220,
+        "right": 1220,
+        "top": 120,
+        "bottom": 880
+      },
+      "content": {
+        "width": 779,
+        "scrollWidth": 779,
+        "height": 585
+      },
+      "save": {
+        "bottom": 863.3333740234375,
+        "right": 1191.3334197998047
+      },
+      "active": "ai",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "block"
+        },
+        {
+          "id": "manga",
+          "display": "block"
+        },
+        {
+          "id": "metadata",
+          "display": "block"
+        },
+        {
+          "id": "cleanup",
+          "display": "block"
+        },
+        {
+          "id": "general",
+          "display": "block"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "Asistan sağlayıcısı",
+        "Asistan modeli",
+        "DeepInfra API anahtarı",
+        "DeepInfra hizmet katmanı",
+        "Endpoint (rota)",
+        "Model"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "1440-tr-advanced-error",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "dialog": {
+        "left": 220,
+        "right": 1220,
+        "top": 120,
+        "bottom": 880
+      },
+      "content": {
+        "width": 779,
+        "scrollWidth": 779,
+        "height": 585
+      },
+      "save": {
+        "bottom": 863.3333740234375,
+        "right": 1191.3334197998047
+      },
+      "active": "ai",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "block"
+        },
+        {
+          "id": "manga",
+          "display": "block"
+        },
+        {
+          "id": "metadata",
+          "display": "block"
+        },
+        {
+          "id": "cleanup",
+          "display": "block"
+        },
+        {
+          "id": "general",
+          "display": "block"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "Asistan sağlayıcısı",
+        "Asistan modeli",
+        "DeepInfra API anahtarı",
+        "DeepInfra hizmet katmanı",
+        "Endpoint (rota)",
+        "Model"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "1440-tr-metadata",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "dialog": {
+        "left": 220,
+        "right": 1220,
+        "top": 120,
+        "bottom": 880
+      },
+      "content": {
+        "width": 779,
+        "scrollWidth": 779,
+        "height": 585
+      },
+      "save": {
+        "bottom": 863.3333740234375,
+        "right": 1191.3334197998047
+      },
+      "active": "metadata",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "block"
+        },
+        {
+          "id": "manga",
+          "display": "block"
+        },
+        {
+          "id": "metadata",
+          "display": "block"
+        },
+        {
+          "id": "cleanup",
+          "display": "block"
+        },
+        {
+          "id": "general",
+          "display": "block"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "TMDB API okuma belirteci / API anahtarı",
+        "Bilgi dili",
+        "Nerede izlenir · ülke"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "1440-tr-cleanup",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "dialog": {
+        "left": 220,
+        "right": 1220,
+        "top": 120,
+        "bottom": 880
+      },
+      "content": {
+        "width": 779,
+        "scrollWidth": 779,
+        "height": 585
+      },
+      "save": {
+        "bottom": 863.3333740234375,
+        "right": 1191.3334197998047
+      },
+      "active": "cleanup",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "block"
+        },
+        {
+          "id": "manga",
+          "display": "block"
+        },
+        {
+          "id": "metadata",
+          "display": "block"
+        },
+        {
+          "id": "cleanup",
+          "display": "block"
+        },
+        {
+          "id": "general",
+          "display": "block"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "Endpoint (base URL)",
+        "Model",
+        "\n                  API Key\n                  platform.deepseek.com\n                ",
+        "Özel endpoint URL"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "1440-tr-general",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "dialog": {
+        "left": 220,
+        "right": 1220,
+        "top": 120,
+        "bottom": 880
+      },
+      "content": {
+        "width": 779,
+        "scrollWidth": 779,
+        "height": 585
+      },
+      "save": {
+        "bottom": 863.3333740234375,
+        "right": 1191.3334197998047
+      },
+      "active": "general",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "block"
+        },
+        {
+          "id": "manga",
+          "display": "block"
+        },
+        {
+          "id": "metadata",
+          "display": "block"
+        },
+        {
+          "id": "cleanup",
+          "display": "block"
+        },
+        {
+          "id": "general",
+          "display": "block"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "Arayüz teması"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "720-en-ai",
+      "viewport": {
+        "width": 720,
+        "height": 680
+      },
+      "dialog": {
+        "left": 10,
+        "right": 710,
+        "top": 32,
+        "bottom": 648
+      },
+      "content": {
+        "width": 689,
+        "scrollWidth": 689,
+        "height": 396
+      },
+      "save": {
+        "bottom": 633.3333740234375,
+        "right": 691.3333587646484
+      },
+      "active": "ai",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "none"
+        },
+        {
+          "id": "manga",
+          "display": "none"
+        },
+        {
+          "id": "metadata",
+          "display": "none"
+        },
+        {
+          "id": "cleanup",
+          "display": "none"
+        },
+        {
+          "id": "general",
+          "display": "none"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "Assistant provider",
+        "Assistant model",
+        "DeepInfra API Key",
+        "DeepInfra service tier",
+        "Endpoint (route)",
+        "Model"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "720-en-search-tmdb",
+      "viewport": {
+        "width": 720,
+        "height": 680
+      },
+      "dialog": {
+        "left": 10,
+        "right": 710,
+        "top": 32,
+        "bottom": 648
+      },
+      "content": {
+        "width": 689,
+        "scrollWidth": 689,
+        "height": 318
+      },
+      "save": {
+        "bottom": 633.3333740234375,
+        "right": 691.3333587646484
+      },
+      "active": "ai",
+      "visibleSections": [
+        {
+          "id": "metadata",
+          "display": "block"
+        }
+      ],
+      "search": "tmdb",
+      "labels": [
+        "Assistant provider",
+        "Assistant model",
+        "DeepInfra API Key",
+        "DeepInfra service tier",
+        "Endpoint (route)",
+        "Model"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "720-en-search-opened",
+      "viewport": {
+        "width": 720,
+        "height": 680
+      },
+      "dialog": {
+        "left": 10,
+        "right": 710,
+        "top": 32,
+        "bottom": 648
+      },
+      "content": {
+        "width": 689,
+        "scrollWidth": 689,
+        "height": 318
+      },
+      "save": {
+        "bottom": 633.3333740234375,
+        "right": 691.3333587646484
+      },
+      "active": "metadata",
+      "visibleSections": [
+        {
+          "id": "metadata",
+          "display": "block"
+        }
+      ],
+      "search": "tmdb",
+      "labels": [
+        "TMDB API Read Access Token / API Key",
+        "Information language",
+        "Where to watch · country"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "720-en-search-empty",
+      "viewport": {
+        "width": 720,
+        "height": 680
+      },
+      "dialog": {
+        "left": 10,
+        "right": 710,
+        "top": 32,
+        "bottom": 648
+      },
+      "content": {
+        "width": 689,
+        "scrollWidth": 689,
+        "height": 368
+      },
+      "save": {
+        "bottom": 633.3333740234375,
+        "right": 691.3333587646484
+      },
+      "active": "metadata",
+      "visibleSections": [],
+      "search": "no-such-setting-xyz",
+      "labels": [
+        "TMDB API Read Access Token / API Key",
+        "Information language",
+        "Where to watch · country"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "720-en-advanced",
+      "viewport": {
+        "width": 720,
+        "height": 680
+      },
+      "dialog": {
+        "left": 10,
+        "right": 710,
+        "top": 32,
+        "bottom": 648
+      },
+      "content": {
+        "width": 689,
+        "scrollWidth": 689,
+        "height": 396
+      },
+      "save": {
+        "bottom": 633.3333740234375,
+        "right": 691.3333587646484
+      },
+      "active": "ai",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "none"
+        },
+        {
+          "id": "manga",
+          "display": "none"
+        },
+        {
+          "id": "metadata",
+          "display": "none"
+        },
+        {
+          "id": "cleanup",
+          "display": "none"
+        },
+        {
+          "id": "general",
+          "display": "none"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "Assistant provider",
+        "Assistant model",
+        "DeepInfra API Key",
+        "DeepInfra service tier",
+        "Endpoint (route)",
+        "Model"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "720-en-advanced-loading",
+      "viewport": {
+        "width": 720,
+        "height": 680
+      },
+      "dialog": {
+        "left": 10,
+        "right": 710,
+        "top": 32,
+        "bottom": 648
+      },
+      "content": {
+        "width": 689,
+        "scrollWidth": 689,
+        "height": 396
+      },
+      "save": {
+        "bottom": 633.3333740234375,
+        "right": 691.3333587646484
+      },
+      "active": "ai",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "none"
+        },
+        {
+          "id": "manga",
+          "display": "none"
+        },
+        {
+          "id": "metadata",
+          "display": "none"
+        },
+        {
+          "id": "cleanup",
+          "display": "none"
+        },
+        {
+          "id": "general",
+          "display": "none"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "Assistant provider",
+        "Assistant model",
+        "DeepInfra API Key",
+        "DeepInfra service tier",
+        "Endpoint (route)",
+        "Model"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "720-en-advanced-error",
+      "viewport": {
+        "width": 720,
+        "height": 680
+      },
+      "dialog": {
+        "left": 10,
+        "right": 710,
+        "top": 32,
+        "bottom": 648
+      },
+      "content": {
+        "width": 689,
+        "scrollWidth": 689,
+        "height": 396
+      },
+      "save": {
+        "bottom": 633.3333740234375,
+        "right": 691.3333587646484
+      },
+      "active": "ai",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "none"
+        },
+        {
+          "id": "manga",
+          "display": "none"
+        },
+        {
+          "id": "metadata",
+          "display": "none"
+        },
+        {
+          "id": "cleanup",
+          "display": "none"
+        },
+        {
+          "id": "general",
+          "display": "none"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "Assistant provider",
+        "Assistant model",
+        "DeepInfra API Key",
+        "DeepInfra service tier",
+        "Endpoint (route)",
+        "Model"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "720-en-metadata",
+      "viewport": {
+        "width": 720,
+        "height": 680
+      },
+      "dialog": {
+        "left": 10,
+        "right": 710,
+        "top": 32,
+        "bottom": 648
+      },
+      "content": {
+        "width": 689,
+        "scrollWidth": 689,
+        "height": 396
+      },
+      "save": {
+        "bottom": 633.3333740234375,
+        "right": 691.3333587646484
+      },
+      "active": "metadata",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "none"
+        },
+        {
+          "id": "manga",
+          "display": "none"
+        },
+        {
+          "id": "metadata",
+          "display": "none"
+        },
+        {
+          "id": "cleanup",
+          "display": "none"
+        },
+        {
+          "id": "general",
+          "display": "none"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "TMDB API Read Access Token / API Key",
+        "Information language",
+        "Where to watch · country"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "720-en-cleanup",
+      "viewport": {
+        "width": 720,
+        "height": 680
+      },
+      "dialog": {
+        "left": 10,
+        "right": 710,
+        "top": 32,
+        "bottom": 648
+      },
+      "content": {
+        "width": 689,
+        "scrollWidth": 689,
+        "height": 396
+      },
+      "save": {
+        "bottom": 633.3333740234375,
+        "right": 691.3333587646484
+      },
+      "active": "cleanup",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "none"
+        },
+        {
+          "id": "manga",
+          "display": "none"
+        },
+        {
+          "id": "metadata",
+          "display": "none"
+        },
+        {
+          "id": "cleanup",
+          "display": "none"
+        },
+        {
+          "id": "general",
+          "display": "none"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "Endpoint (base URL)",
+        "Model",
+        "\n                  API Key\n                  platform.deepseek.com\n                ",
+        "Custom endpoint URL"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "720-en-general",
+      "viewport": {
+        "width": 720,
+        "height": 680
+      },
+      "dialog": {
+        "left": 10,
+        "right": 710,
+        "top": 32,
+        "bottom": 648
+      },
+      "content": {
+        "width": 689,
+        "scrollWidth": 689,
+        "height": 396
+      },
+      "save": {
+        "bottom": 633.3333740234375,
+        "right": 691.3333587646484
+      },
+      "active": "general",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "none"
+        },
+        {
+          "id": "manga",
+          "display": "none"
+        },
+        {
+          "id": "metadata",
+          "display": "none"
+        },
+        {
+          "id": "cleanup",
+          "display": "none"
+        },
+        {
+          "id": "general",
+          "display": "none"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "Interface theme"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "520-tr-ai",
+      "viewport": {
+        "width": 520,
+        "height": 640
+      },
+      "dialog": {
+        "left": 10,
+        "right": 510,
+        "top": 32,
+        "bottom": 608
+      },
+      "content": {
+        "width": 489,
+        "scrollWidth": 489,
+        "height": 356
+      },
+      "save": {
+        "bottom": 593.3333740234375,
+        "right": 491.33335876464844
+      },
+      "active": "ai",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "none"
+        },
+        {
+          "id": "manga",
+          "display": "none"
+        },
+        {
+          "id": "metadata",
+          "display": "none"
+        },
+        {
+          "id": "cleanup",
+          "display": "none"
+        },
+        {
+          "id": "general",
+          "display": "none"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "Asistan sağlayıcısı",
+        "Asistan modeli",
+        "DeepInfra API anahtarı",
+        "DeepInfra hizmet katmanı",
+        "Endpoint (rota)",
+        "Model"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "520-tr-search-tmdb",
+      "viewport": {
+        "width": 520,
+        "height": 640
+      },
+      "dialog": {
+        "left": 10,
+        "right": 510,
+        "top": 32,
+        "bottom": 608
+      },
+      "content": {
+        "width": 489,
+        "scrollWidth": 489,
+        "height": 278
+      },
+      "save": {
+        "bottom": 593.3333740234375,
+        "right": 491.33335876464844
+      },
+      "active": "ai",
+      "visibleSections": [
+        {
+          "id": "metadata",
+          "display": "block"
+        }
+      ],
+      "search": "tmdb",
+      "labels": [
+        "Asistan sağlayıcısı",
+        "Asistan modeli",
+        "DeepInfra API anahtarı",
+        "DeepInfra hizmet katmanı",
+        "Endpoint (rota)",
+        "Model"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "520-tr-search-opened",
+      "viewport": {
+        "width": 520,
+        "height": 640
+      },
+      "dialog": {
+        "left": 10,
+        "right": 510,
+        "top": 32,
+        "bottom": 608
+      },
+      "content": {
+        "width": 489,
+        "scrollWidth": 489,
+        "height": 278
+      },
+      "save": {
+        "bottom": 593.3333740234375,
+        "right": 491.33335876464844
+      },
+      "active": "metadata",
+      "visibleSections": [
+        {
+          "id": "metadata",
+          "display": "block"
+        }
+      ],
+      "search": "tmdb",
+      "labels": [
+        "TMDB API okuma belirteci / API anahtarı",
+        "Bilgi dili",
+        "Nerede izlenir · ülke"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "520-tr-search-empty",
+      "viewport": {
+        "width": 520,
+        "height": 640
+      },
+      "dialog": {
+        "left": 10,
+        "right": 510,
+        "top": 32,
+        "bottom": 608
+      },
+      "content": {
+        "width": 489,
+        "scrollWidth": 489,
+        "height": 328
+      },
+      "save": {
+        "bottom": 593.3333740234375,
+        "right": 491.33335876464844
+      },
+      "active": "metadata",
+      "visibleSections": [],
+      "search": "no-such-setting-xyz",
+      "labels": [
+        "TMDB API okuma belirteci / API anahtarı",
+        "Bilgi dili",
+        "Nerede izlenir · ülke"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "520-tr-advanced",
+      "viewport": {
+        "width": 520,
+        "height": 640
+      },
+      "dialog": {
+        "left": 10,
+        "right": 510,
+        "top": 32,
+        "bottom": 608
+      },
+      "content": {
+        "width": 489,
+        "scrollWidth": 489,
+        "height": 356
+      },
+      "save": {
+        "bottom": 593.3333740234375,
+        "right": 491.33335876464844
+      },
+      "active": "ai",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "none"
+        },
+        {
+          "id": "manga",
+          "display": "none"
+        },
+        {
+          "id": "metadata",
+          "display": "none"
+        },
+        {
+          "id": "cleanup",
+          "display": "none"
+        },
+        {
+          "id": "general",
+          "display": "none"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "Asistan sağlayıcısı",
+        "Asistan modeli",
+        "DeepInfra API anahtarı",
+        "DeepInfra hizmet katmanı",
+        "Endpoint (rota)",
+        "Model"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "520-tr-advanced-loading",
+      "viewport": {
+        "width": 520,
+        "height": 640
+      },
+      "dialog": {
+        "left": 10,
+        "right": 510,
+        "top": 32,
+        "bottom": 608
+      },
+      "content": {
+        "width": 489,
+        "scrollWidth": 489,
+        "height": 356
+      },
+      "save": {
+        "bottom": 593.3333740234375,
+        "right": 491.33335876464844
+      },
+      "active": "ai",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "none"
+        },
+        {
+          "id": "manga",
+          "display": "none"
+        },
+        {
+          "id": "metadata",
+          "display": "none"
+        },
+        {
+          "id": "cleanup",
+          "display": "none"
+        },
+        {
+          "id": "general",
+          "display": "none"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "Asistan sağlayıcısı",
+        "Asistan modeli",
+        "DeepInfra API anahtarı",
+        "DeepInfra hizmet katmanı",
+        "Endpoint (rota)",
+        "Model"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "520-tr-advanced-error",
+      "viewport": {
+        "width": 520,
+        "height": 640
+      },
+      "dialog": {
+        "left": 10,
+        "right": 510,
+        "top": 32,
+        "bottom": 608
+      },
+      "content": {
+        "width": 489,
+        "scrollWidth": 489,
+        "height": 356
+      },
+      "save": {
+        "bottom": 593.3333740234375,
+        "right": 491.33335876464844
+      },
+      "active": "ai",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "none"
+        },
+        {
+          "id": "manga",
+          "display": "none"
+        },
+        {
+          "id": "metadata",
+          "display": "none"
+        },
+        {
+          "id": "cleanup",
+          "display": "none"
+        },
+        {
+          "id": "general",
+          "display": "none"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "Asistan sağlayıcısı",
+        "Asistan modeli",
+        "DeepInfra API anahtarı",
+        "DeepInfra hizmet katmanı",
+        "Endpoint (rota)",
+        "Model"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "520-tr-metadata",
+      "viewport": {
+        "width": 520,
+        "height": 640
+      },
+      "dialog": {
+        "left": 10,
+        "right": 510,
+        "top": 32,
+        "bottom": 608
+      },
+      "content": {
+        "width": 489,
+        "scrollWidth": 489,
+        "height": 356
+      },
+      "save": {
+        "bottom": 593.3333740234375,
+        "right": 491.33335876464844
+      },
+      "active": "metadata",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "none"
+        },
+        {
+          "id": "manga",
+          "display": "none"
+        },
+        {
+          "id": "metadata",
+          "display": "none"
+        },
+        {
+          "id": "cleanup",
+          "display": "none"
+        },
+        {
+          "id": "general",
+          "display": "none"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "TMDB API okuma belirteci / API anahtarı",
+        "Bilgi dili",
+        "Nerede izlenir · ülke"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "520-tr-cleanup",
+      "viewport": {
+        "width": 520,
+        "height": 640
+      },
+      "dialog": {
+        "left": 10,
+        "right": 510,
+        "top": 32,
+        "bottom": 608
+      },
+      "content": {
+        "width": 489,
+        "scrollWidth": 489,
+        "height": 356
+      },
+      "save": {
+        "bottom": 593.3333740234375,
+        "right": 491.33335876464844
+      },
+      "active": "cleanup",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "none"
+        },
+        {
+          "id": "manga",
+          "display": "none"
+        },
+        {
+          "id": "metadata",
+          "display": "none"
+        },
+        {
+          "id": "cleanup",
+          "display": "none"
+        },
+        {
+          "id": "general",
+          "display": "none"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "Endpoint (base URL)",
+        "Model",
+        "\n                  API Key\n                  platform.deepseek.com\n                ",
+        "Özel endpoint URL"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    },
+    {
+      "label": "520-tr-general",
+      "viewport": {
+        "width": 520,
+        "height": 640
+      },
+      "dialog": {
+        "left": 10,
+        "right": 510,
+        "top": 32,
+        "bottom": 608
+      },
+      "content": {
+        "width": 489,
+        "scrollWidth": 489,
+        "height": 356
+      },
+      "save": {
+        "bottom": 593.3333740234375,
+        "right": 491.33335876464844
+      },
+      "active": "general",
+      "visibleSections": [
+        {
+          "id": "ai",
+          "display": "none"
+        },
+        {
+          "id": "manga",
+          "display": "none"
+        },
+        {
+          "id": "metadata",
+          "display": "none"
+        },
+        {
+          "id": "cleanup",
+          "display": "none"
+        },
+        {
+          "id": "general",
+          "display": "none"
+        }
+      ],
+      "search": "",
+      "labels": [
+        "Arayüz teması"
+      ],
+      "model": "fixture-model-not-a-provider",
+      "keyType": "password"
+    }
+  ],
+  "fixtureRequests": 3,
+  "network": "no external provider requests; model list is a controlled failure fixture"
+}

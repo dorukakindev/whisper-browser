@@ -1,0 +1,970 @@
+{
+  "viewport": {
+    "width": 640,
+    "height": 950,
+    "dpr": 1.5
+  },
+  "reduce": false,
+  "animations": [],
+  "controls": [
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Film",
+      "rect": {
+        "x": 61.66666793823242,
+        "y": 53.66666793823242,
+        "width": 52.44791793823242,
+        "height": 40,
+        "top": 53.66666793823242,
+        "right": 114.11458587646484,
+        "bottom": 93.66666793823242,
+        "left": 61.66666793823242
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Music",
+      "rect": {
+        "x": 117.11458587646484,
+        "y": 53.66666793823242,
+        "width": 61,
+        "height": 40,
+        "top": 53.66666793823242,
+        "right": 178.11458587646484,
+        "bottom": 93.66666793823242,
+        "left": 117.11458587646484
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Books",
+      "rect": {
+        "x": 181.11459350585938,
+        "y": 53.66666793823242,
+        "width": 62.927085876464844,
+        "height": 40,
+        "top": 53.66666793823242,
+        "right": 244.04167938232422,
+        "bottom": 93.66666793823242,
+        "left": 181.11459350585938
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "mhHome",
+      "tag": "BUTTON",
+      "text": "Home",
+      "rect": {
+        "x": 16,
+        "y": 107.33333587646484,
+        "width": 47.46875,
+        "height": 40,
+        "top": 107.33333587646484,
+        "right": 63.46875,
+        "bottom": 147.33333587646484,
+        "left": 16
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Discover",
+      "rect": {
+        "x": 69.46875,
+        "y": 107.33333587646484,
+        "width": 62.145835876464844,
+        "height": 40,
+        "top": 107.33333587646484,
+        "right": 131.61458587646484,
+        "bottom": 147.33333587646484,
+        "left": 69.46875
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Films",
+      "rect": {
+        "x": 137.61459350585938,
+        "y": 107.33333587646484,
+        "width": 43.739585876464844,
+        "height": 40,
+        "top": 107.33333587646484,
+        "right": 181.35417938232422,
+        "bottom": 147.33333587646484,
+        "left": 137.61459350585938
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Series",
+      "rect": {
+        "x": 187.3541717529297,
+        "y": 107.33333587646484,
+        "width": 48.1875,
+        "height": 40,
+        "top": 107.33333587646484,
+        "right": 235.5416717529297,
+        "bottom": 147.33333587646484,
+        "left": 187.3541717529297
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Radio / podcast",
+      "rect": {
+        "x": 241.5416717529297,
+        "y": 107.33333587646484,
+        "width": 102.96875,
+        "height": 40,
+        "top": 107.33333587646484,
+        "right": 344.5104217529297,
+        "bottom": 147.33333587646484,
+        "left": 241.5416717529297
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Taste profile",
+      "rect": {
+        "x": 350.51043701171875,
+        "y": 107.33333587646484,
+        "width": 83.91667175292969,
+        "height": 40,
+        "top": 107.33333587646484,
+        "right": 434.42710876464844,
+        "bottom": 147.33333587646484,
+        "left": 350.51043701171875
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Web",
+      "rect": {
+        "x": 440.4270935058594,
+        "y": 107.33333587646484,
+        "width": 38.07291793823242,
+        "height": 40,
+        "top": 107.33333587646484,
+        "right": 478.5000114440918,
+        "bottom": 147.33333587646484,
+        "left": 440.4270935058594
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Recent",
+      "rect": {
+        "x": 484.5,
+        "y": 107.33333587646484,
+        "width": 52.8125,
+        "height": 40,
+        "top": 107.33333587646484,
+        "right": 537.3125,
+        "bottom": 147.33333587646484,
+        "left": 484.5
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Browser",
+      "rect": {
+        "x": 290.79168701171875,
+        "y": 53.66666793823242,
+        "width": 70.20833587646484,
+        "height": 40,
+        "top": 53.66666793823242,
+        "right": 361.0000228881836,
+        "bottom": 93.66666793823242,
+        "left": 290.79168701171875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Open media",
+      "rect": {
+        "x": 368,
+        "y": 53.66666793823242,
+        "width": 90.45833587646484,
+        "height": 40,
+        "top": 53.66666793823242,
+        "right": 458.45833587646484,
+        "bottom": 93.66666793823242,
+        "left": 368
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "mhSearchToggle",
+      "tag": "BUTTON",
+      "text": "Search library",
+      "rect": {
+        "x": 465.4583435058594,
+        "y": 53.66666793823242,
+        "width": 40,
+        "height": 40,
+        "top": 53.66666793823242,
+        "right": 505.4583435058594,
+        "bottom": 93.66666793823242,
+        "left": 465.4583435058594
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Tools",
+      "rect": {
+        "x": 512.4583740234375,
+        "y": 53.66666793823242,
+        "width": 54.54166793823242,
+        "height": 40,
+        "top": 53.66666793823242,
+        "right": 567.0000419616699,
+        "bottom": 93.66666793823242,
+        "left": 512.4583740234375
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Production workspace",
+      "rect": {
+        "x": 375.66668701171875,
+        "y": 110.33333587646484,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 110.33333587646484,
+        "right": 558.3333587646484,
+        "bottom": 150.33333587646484,
+        "left": 375.66668701171875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Studio",
+      "rect": {
+        "x": 375.66668701171875,
+        "y": 154.33334350585938,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 154.33334350585938,
+        "right": 558.3333587646484,
+        "bottom": 194.33334350585938,
+        "left": 375.66668701171875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Subtitle → voice",
+      "rect": {
+        "x": 375.66668701171875,
+        "y": 198.33334350585938,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 198.33334350585938,
+        "right": 558.3333587646484,
+        "bottom": 238.33334350585938,
+        "left": 375.66668701171875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Tonight",
+      "rect": {
+        "x": 375.66668701171875,
+        "y": 242.33334350585938,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 242.33334350585938,
+        "right": 558.3333587646484,
+        "bottom": 282.3333435058594,
+        "left": 375.66668701171875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Library care",
+      "rect": {
+        "x": 375.66668701171875,
+        "y": 286.3333435058594,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 286.3333435058594,
+        "right": 558.3333587646484,
+        "bottom": 326.3333435058594,
+        "left": 375.66668701171875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Activity",
+      "rect": {
+        "x": 375.66668701171875,
+        "y": 330.3333435058594,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 330.3333435058594,
+        "right": 558.3333587646484,
+        "bottom": 370.3333435058594,
+        "left": 375.66668701171875
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "mhSettings",
+      "tag": "BUTTON",
+      "text": "Settings",
+      "rect": {
+        "x": 574,
+        "y": 53.66666793823242,
+        "width": 40,
+        "height": 40,
+        "top": 53.66666793823242,
+        "right": 614,
+        "bottom": 93.66666793823242,
+        "left": 574
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Open media",
+      "rect": {
+        "x": 80,
+        "y": 335.9895935058594,
+        "width": 98.45833587646484,
+        "height": 40,
+        "top": 335.9895935058594,
+        "right": 178.45833587646484,
+        "bottom": 375.9895935058594,
+        "left": 80
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Open browser",
+      "rect": {
+        "x": 188.45834350585938,
+        "y": 335.9895935058594,
+        "width": 109.02083587646484,
+        "height": 40,
+        "top": 335.9895935058594,
+        "right": 297.4791793823242,
+        "bottom": 375.9895935058594,
+        "left": 188.45834350585938
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Subtitle → voice",
+      "rect": {
+        "x": 36.66666793823242,
+        "y": 538.4896240234375,
+        "width": 133.7291717529297,
+        "height": 40.66666793823242,
+        "top": 538.4896240234375,
+        "right": 170.3958396911621,
+        "bottom": 579.1562919616699,
+        "left": 36.66666793823242
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Open studio",
+      "rect": {
+        "x": 36.66666793823242,
+        "y": 726.3229370117188,
+        "width": 109.35417175292969,
+        "height": 40,
+        "top": 726.3229370117188,
+        "right": 146.0208396911621,
+        "bottom": 766.3229370117188,
+        "left": 36.66666793823242
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Open voice studio",
+      "rect": {
+        "x": 36.66666793823242,
+        "y": 890.7396240234375,
+        "width": 145.42709350585938,
+        "height": 40,
+        "top": 890.7396240234375,
+        "right": 182.0937614440918,
+        "bottom": 930.7396240234375,
+        "left": 36.66666793823242
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "dubTextStudio",
+      "tag": "BUTTON",
+      "text": "Open text / TXT studio",
+      "rect": {
+        "x": 440.85418701171875,
+        "y": 48.16666793823242,
+        "width": 131.4791717529297,
+        "height": 34,
+        "top": 48.16666793823242,
+        "right": 572.3333587646484,
+        "bottom": 82.16666793823242,
+        "left": 440.85418701171875
+      },
+      "font": "11px",
+      "disabled": false
+    },
+    {
+      "id": "dubGeneratorClose",
+      "tag": "BUTTON",
+      "text": "Close",
+      "rect": {
+        "x": 580.3333740234375,
+        "y": 47.16666793823242,
+        "width": 28,
+        "height": 36,
+        "top": 47.16666793823242,
+        "right": 608.3333740234375,
+        "bottom": 83.16666793823242,
+        "left": 580.3333740234375
+      },
+      "font": "18px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "SubtitlesSynthetic scene.srt",
+      "rect": {
+        "x": 17.666667938232422,
+        "y": 101.83333587646484,
+        "width": 226,
+        "height": 50.66666793823242,
+        "top": 101.83333587646484,
+        "right": 243.66666793823242,
+        "bottom": 152.50000381469727,
+        "left": 17.666667938232422
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Active voiceSynthetic voice.wav",
+      "rect": {
+        "x": 244.6666717529297,
+        "y": 101.83333587646484,
+        "width": 188.33334350585938,
+        "height": 50.66666793823242,
+        "top": 101.83333587646484,
+        "right": 433.00001525878906,
+        "bottom": 152.50000381469727,
+        "left": 244.6666717529297
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Speech rangeEntire subtitle track",
+      "rect": {
+        "x": 434,
+        "y": 101.83333587646484,
+        "width": 188.33334350585938,
+        "height": 50.66666793823242,
+        "top": 101.83333587646484,
+        "right": 622.3333435058594,
+        "bottom": 152.50000381469727,
+        "left": 434
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "dubChooseSrt",
+      "tag": "BUTTON",
+      "text": "Choose SRT",
+      "rect": {
+        "x": 44.333335876464844,
+        "y": 215.83334350585938,
+        "width": 118.0625,
+        "height": 46,
+        "top": 215.83334350585938,
+        "right": 162.39583587646484,
+        "bottom": 261.8333435058594,
+        "left": 44.333335876464844
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Short sample or selected range",
+      "rect": {
+        "x": 44.333335876464844,
+        "y": 275.8333435058594,
+        "width": 541.3333740234375,
+        "height": 40,
+        "top": 275.8333435058594,
+        "right": 585.6667098999023,
+        "bottom": 315.8333435058594,
+        "left": 44.333335876464844
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "dubRangeEnabled",
+      "tag": "INPUT",
+      "text": "",
+      "rect": {
+        "x": 44.333335876464844,
+        "y": 330.8333435058594,
+        "width": 16,
+        "height": 16,
+        "top": 330.8333435058594,
+        "right": 60.333335876464844,
+        "bottom": 346.8333435058594,
+        "left": 44.333335876464844
+      },
+      "font": "13.3333px",
+      "disabled": false
+    },
+    {
+      "id": "dubRangeStart",
+      "tag": "INPUT",
+      "text": "",
+      "rect": {
+        "x": 142.34375,
+        "y": 359.3333435058594,
+        "width": 169.625,
+        "height": 36,
+        "top": 359.3333435058594,
+        "right": 311.96875,
+        "bottom": 395.3333435058594,
+        "left": 142.34375
+      },
+      "font": "13px",
+      "disabled": true
+    },
+    {
+      "id": "dubRangeEnd",
+      "tag": "INPUT",
+      "text": "",
+      "rect": {
+        "x": 416.04168701171875,
+        "y": 359.3333435058594,
+        "width": 169.625,
+        "height": 36,
+        "top": 359.3333435058594,
+        "right": 585.6666870117188,
+        "bottom": 395.3333435058594,
+        "left": 416.04168701171875
+      },
+      "font": "13px",
+      "disabled": true
+    },
+    {
+      "id": "dubRangeNow",
+      "tag": "BUTTON",
+      "text": "Use current video time",
+      "rect": {
+        "x": 44.333335876464844,
+        "y": 405.3333435058594,
+        "width": 186.6041717529297,
+        "height": 44.66666793823242,
+        "top": 405.3333435058594,
+        "right": 230.93750762939453,
+        "bottom": 450.0000114440918,
+        "left": 44.333335876464844
+      },
+      "font": "14px",
+      "disabled": true
+    },
+    {
+      "id": "dubSampleOnly",
+      "tag": "INPUT",
+      "text": "",
+      "rect": {
+        "x": 44.333335876464844,
+        "y": 524.5833740234375,
+        "width": 16,
+        "height": 16,
+        "top": 524.5833740234375,
+        "right": 60.333335876464844,
+        "bottom": 540.5833740234375,
+        "left": 44.333335876464844
+      },
+      "font": "13.3333px",
+      "disabled": false
+    },
+    {
+      "id": "voiceReferenceSearch",
+      "tag": "INPUT",
+      "text": "Search by name",
+      "rect": {
+        "x": 44.333335876464844,
+        "y": 465.91668701171875,
+        "width": 541.3333740234375,
+        "height": 40,
+        "top": 465.91668701171875,
+        "right": 585.6667098999023,
+        "bottom": 505.91668701171875,
+        "left": 44.333335876464844
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "voiceReferenceSelect",
+      "tag": "SELECT",
+      "text": "Voice references",
+      "rect": {
+        "x": 44.333335876464844,
+        "y": 564.84375,
+        "width": 541.3333740234375,
+        "height": 34,
+        "top": 564.84375,
+        "right": 585.6667098999023,
+        "bottom": 598.84375,
+        "left": 44.333335876464844
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "voiceReferenceUse",
+      "tag": "BUTTON",
+      "text": "Use this voice",
+      "rect": {
+        "x": 44.333335876464844,
+        "y": 616.84375,
+        "width": 98.48958587646484,
+        "height": 34,
+        "top": 616.84375,
+        "right": 142.8229217529297,
+        "bottom": 650.84375,
+        "left": 44.333335876464844
+      },
+      "font": "12px",
+      "disabled": true
+    },
+    {
+      "id": "voiceReferenceFolder",
+      "tag": "BUTTON",
+      "text": "Open voice references folder",
+      "rect": {
+        "x": 150.8229217529297,
+        "y": 616.84375,
+        "width": 181.46875,
+        "height": 34,
+        "top": 616.84375,
+        "right": 332.2916717529297,
+        "bottom": 650.84375,
+        "left": 150.8229217529297
+      },
+      "font": "12px",
+      "disabled": true
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Voice and engine settings",
+      "rect": {
+        "x": 44.333335876464844,
+        "y": 693.6354370117188,
+        "width": 541.3333740234375,
+        "height": 40,
+        "top": 693.6354370117188,
+        "right": 585.6667098999023,
+        "bottom": 733.6354370117188,
+        "left": 44.333335876464844
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "dubPronunciationScope",
+      "tag": "SELECT",
+      "text": "This video / subtitleGlobal dictionary",
+      "rect": {
+        "x": 104.5,
+        "y": 792.96875,
+        "width": 481.16668701171875,
+        "height": 34,
+        "top": 792.96875,
+        "right": 585.6666870117188,
+        "bottom": 826.96875,
+        "left": 104.5
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "dubPronunciations",
+      "tag": "TEXTAREA",
+      "text": "Newton = Nyutın",
+      "rect": {
+        "x": 44.333335876464844,
+        "y": 887.3646240234375,
+        "width": 541.3333740234375,
+        "height": 100,
+        "top": 887.3646240234375,
+        "right": 585.6667098999023,
+        "bottom": 987.3646240234375,
+        "left": 44.333335876464844
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "voiceReferenceLocal",
+      "tag": "BUTTON",
+      "text": "Add local voice reference",
+      "rect": {
+        "x": 44.333335876464844,
+        "y": 743.6354370117188,
+        "width": 204.7604217529297,
+        "height": 46,
+        "top": 743.6354370117188,
+        "right": 249.09375762939453,
+        "bottom": 789.6354370117188,
+        "left": 44.333335876464844
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "voiceReferenceVideo",
+      "tag": "BUTTON",
+      "text": "Use the open video",
+      "rect": {
+        "x": 261.09375,
+        "y": 744.3021240234375,
+        "width": 163.25,
+        "height": 44.66666793823242,
+        "top": 744.3021240234375,
+        "right": 424.34375,
+        "bottom": 788.9687919616699,
+        "left": 261.09375
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Delivery & expression",
+      "rect": {
+        "x": 44.333335876464844,
+        "y": 802.3021240234375,
+        "width": 541.3333740234375,
+        "height": 40,
+        "top": 802.3021240234375,
+        "right": 585.6667098999023,
+        "bottom": 842.3021240234375,
+        "left": 44.333335876464844
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "dubFollowDelivery",
+      "tag": "INPUT",
+      "text": "",
+      "rect": {
+        "x": 44.333335876464844,
+        "y": 857.3021240234375,
+        "width": 16,
+        "height": 16,
+        "top": 857.3021240234375,
+        "right": 60.333335876464844,
+        "bottom": 873.3021240234375,
+        "left": 44.333335876464844
+      },
+      "font": "13.3333px",
+      "disabled": false
+    },
+    {
+      "id": "dubDeliveryStrength",
+      "tag": "SELECT",
+      "text": "GentleBalancedStrong",
+      "rect": {
+        "x": 44.333335876464844,
+        "y": 904.46875,
+        "width": 541.3333740234375,
+        "height": 34,
+        "top": 904.46875,
+        "right": 585.6667098999023,
+        "bottom": 938.46875,
+        "left": 44.333335876464844
+      },
+      "font": "14px",
+      "disabled": true
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Create a voice reference from video or local audio",
+      "rect": {
+        "x": 57,
+        "y": 866.96875,
+        "width": 516,
+        "height": 40,
+        "top": 866.96875,
+        "right": 573,
+        "bottom": 906.96875,
+        "left": 57
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Production details",
+      "rect": {
+        "x": 508.4270935058594,
+        "y": 836.8333740234375,
+        "width": 99.90625,
+        "height": 32,
+        "top": 836.8333740234375,
+        "right": 608.3333435058594,
+        "bottom": 868.8333740234375,
+        "left": 508.4270935058594
+      },
+      "font": "11px",
+      "disabled": false
+    },
+    {
+      "id": "dubGeneratorStart",
+      "tag": "BUTTON",
+      "text": "Start dubbing",
+      "rect": {
+        "x": 31.666667938232422,
+        "y": 874.8333740234375,
+        "width": 170,
+        "height": 36,
+        "top": 874.8333740234375,
+        "right": 201.66666793823242,
+        "bottom": 910.8333740234375,
+        "left": 31.666667938232422
+      },
+      "font": "12px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Files & log",
+      "rect": {
+        "x": 526.84375,
+        "y": 874.8333740234375,
+        "width": 81.48958587646484,
+        "height": 36,
+        "top": 874.8333740234375,
+        "right": 608.3333358764648,
+        "bottom": 910.8333740234375,
+        "left": 526.84375
+      },
+      "font": "12px",
+      "disabled": false
+    }
+  ],
+  "violations": [],
+  "incomplete": [],
+  "passes": [
+    "aria-allowed-attr",
+    "aria-conditional-attr",
+    "aria-deprecated-role",
+    "aria-hidden-body",
+    "aria-hidden-focus",
+    "aria-prohibited-attr",
+    "aria-required-attr",
+    "aria-roles",
+    "aria-valid-attr-value",
+    "aria-valid-attr",
+    "autocomplete-valid",
+    "button-name",
+    "color-contrast",
+    "duplicate-id-aria",
+    "form-field-multiple-labels",
+    "label",
+    "nested-interactive",
+    "scrollable-region-focusable",
+    "select-name",
+    "summary-name"
+  ]
+}

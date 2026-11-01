@@ -1,0 +1,31 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path');
+const root=process.cwd(),dir=path.join(root,'tmp/audit825');
+fs.mkdirSync(dir,{recursive:true});
+fs.writeFileSync(path.join(dir,'inspect-renderer.cjs'),`'use strict';
+const fs=require('node:fs'),path=require('node:path');
+const axe=fs.readFileSync(require.resolve('axe-core'),'utf8');
+module.exports=async function inspect(win,out,label){
+ await win.webContents.executeJavaScript(axe);
+ const data=await win.webContents.executeJavaScript(\`(async()=>{
+  const result=await axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21a','wcag21aa']}});
+  const animations=document.getAnimations().map(a=>({target:a.effect?.target?.id||a.effect?.target?.className?.baseVal||String(a.effect?.target?.className||''),state:a.playState,timing:a.effect?.getTiming()}));
+  const visible=n=>{const r=n.getBoundingClientRect(),s=getComputedStyle(n);return r.width>0&&r.height>0&&r.bottom>0&&r.top<innerHeight&&r.right>0&&r.left<innerWidth&&s.visibility!=='hidden'&&s.display!=='none'};
+  const controls=[...document.querySelectorAll('button,summary,input,select,textarea,a[href]')].filter(visible).map(n=>{const r=n.getBoundingClientRect();return {id:n.id,tag:n.tagName,text:(n.getAttribute('aria-label')||n.textContent||n.getAttribute('placeholder')||'').trim().slice(0,90),rect:r.toJSON(),font:getComputedStyle(n).fontSize,disabled:!!n.disabled}});
+  return {viewport:{width:innerWidth,height:innerHeight,dpr:devicePixelRatio},reduce:matchMedia('(prefers-reduced-motion:reduce)').matches,animations,controls,violations:result.violations,incomplete:result.incomplete.map(v=>({id:v.id,nodes:v.nodes.length})),passes:result.passes.map(v=>v.id)};
+ })()\`);
+ fs.writeFileSync(path.join(out,label+'-audit.json'),JSON.stringify(data,null,2));
+};
+`);
+const inspection=`await require(path.join(root,'tmp/audit825/inspect-renderer.cjs'))(win,out,label);`;
+let s=fs.readFileSync('tests/electron-settings-design-tour.smoke.js','utf8');
+s=s.replace("path.resolve(__dirname,'..')","process.cwd()").replace("require('../src/main')","require(path.join(root,'src/main'))");
+s=s.replace("const states=[];async function capture(label){", "const states=[];async function capture(label){");
+s=s.replace("states.push({label,...measure});",`states.push({label,...measure});if(['1440-tr-ai','1440-tr-general','1440-tr-metadata','520-tr-ai','520-tr-advanced-error'].includes(label)){${inspection}}`);
+fs.writeFileSync(path.join(dir,'settings.cjs'),s);
+s=fs.readFileSync('tests/electron-assistant-design-tour.smoke.js','utf8');
+s=s.replace("path.resolve(__dirname,'..')","process.cwd()");
+s=s.replace("measurements.push({name,width,height,locale,theme,...measured});",`measurements.push({name,width,height,locale,theme,...measured});if((width===360&&locale==='en'&&['source-details','conversation-menu','streaming'].includes(name))||(width===480&&locale==='tr'&&name==='long-code')){const label=width+'-'+locale+'-'+name;${inspection}}`);
+s=s.replace("win.webContents.debugger.detach();",`await require(path.join(root,'tmp/audit825/inspect-renderer.cjs'))(win,out,'reduced-motion');win.webContents.debugger.detach();`);
+fs.writeFileSync(path.join(dir,'assistant.cjs'),s);
+console.log(JSON.stringify({created:['settings.cjs','assistant.cjs','inspect-renderer.cjs'],productEdits:0}));
