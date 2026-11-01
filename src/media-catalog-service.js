@@ -30,7 +30,9 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
   function visible(item, history = watchItems()) {
     if (!item) return null;
     const { posterPath, ...row } = item;
-    return { ...row, synopsisTr:row.synopsisTrSource===require('./catalog-synopsis').synopsisHash(row.synopsis)?row.synopsisTr:'', hasPoster: !!posterPath && fs.existsSync(posterPath), progress: progress(row.source, history),
+    return { ...row, synopsisTr:row.synopsisTrSource===require('./catalog-synopsis').synopsisHash(row.synopsis)?row.synopsisTr:'', hasPoster: !!posterPath && fs.existsSync(posterPath), progress: progress(require('./catalog-library-model').playbackSource(row).source, history),
+      editions: (row.editions||[]).map(edition=>({...edition,progress:progress(edition.source,history),parts:edition.parts.map(part=>({...part,progress:progress(part.source,history)}))})),
+      extras: (row.extras||[]).map(extra=>({...extra,progress:progress(extra.source,history)})),
       episodes: (row.episodes || []).map(ep => ({ ...ep, progress: progress(ep.source, history) })) };
   }
   function found(id) {
@@ -81,6 +83,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
     if (!item.episodes.some(ep => ep.id === episodeId)) throw new Error('Bölüm bulunamadı.');
     return store().upsert({ id, episodes: item.episodes.map(ep => ep.id === episodeId ? { ...ep, source } : ep) });
   }
+  const library = require('./catalog-library-service').createCatalogLibrary({store,dialog,owner,inspectMedia,sourceKey,visible,pythonPath,dialogText});
   const extension = require('./catalog-extensions').createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore, removeOwnedPoster, dialogText, metadataSettings });
   const metadataSync = require('./catalog-metadata-sync').createMetadataSync({store,settings:metadataSettings,userData,
     complete:(id,signal)=>extension({sender:{id:-1}},{action:'metadata-complete-missing',id},{automatic:true,signal})});
@@ -103,6 +106,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
         const data=image.resize({width:1280}).toDataURL();backgrounds.set(item.backdrop,data);while(backgrounds.size>8)backgrounds.delete(backgrounds.keys().next().value);
         return {ok:true,image:data};
       }
+      const libraryResult = await library(event,input); if(libraryResult)return libraryResult;
       const extra = await extension(event, input); if (extra) return extra;
       switch (input.action) {
         case 'list': {
@@ -169,7 +173,13 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           const item = found(input.id);
           const episode = input.episodeId ? item.episodes.find(ep => ep.id === input.episodeId) : null;
           if (input.episodeId && !episode) throw new Error('Bölüm bulunamadı.');
-          let source = episode ? episode.source : item.source;
+          let choice = episode ? null : require('./catalog-library-model').playbackSource(item,input);
+          if(choice?.editionId&&!choice.extraId&&!Object.hasOwn(input,'partId')){
+            const edition=item.editions.find(row=>row.id===choice.editionId),sequence=[{id:'',source:edition.source},...edition.parts],playbackHistory=historyIndex(watchItems());
+            const resume=sequence.find(row=>{const p=progress(row.source,playbackHistory);return p?.position>0&&!p.completed;})||sequence.find(row=>!progress(row.source,playbackHistory)?.completed)||sequence[0];
+            if(resume.id)choice=require('./catalog-library-model').playbackSource(item,{editionId:edition.id,partId:resume.id});
+          }
+          let source = episode ? episode.source : choice.source;
           if (!source) throw new Error('Önce video dosyası veya browser bağlantısı ekleyin.');
           let value = source.value;
           if (source.type === 'local') {
@@ -179,12 +189,13 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
               const picked = await choose('İçe aktarılan kayıt için video dosyasını doğrulayın', ['mp4', 'mkv', 'webm', 'avi', 'mov', 'm4v', 'ts']);
               if (!picked) return { ok: false, canceled: true };
               value = inspectMedia(picked);
-              const patched = patchSource(input.id, input.episodeId || null,
-                { type: 'local', value, watchKey: sourceKey({ type: 'local', value }) });
-              const refreshed = input.episodeId
-                ? patched.episodes.find(ep => ep.id === input.episodeId)?.source
-                : patched.source;
-              source = refreshed || source;
+              if(JSON.stringify(found(item.id))!==JSON.stringify(item))throw Error('Library source changed; choose it again.');
+              const replacement={type:'local',value,watchKey:sourceKey({type:'local',value})};
+              let patched;
+              if(choice?.extraId)patched=store().upsert({id:item.id,extras:item.extras.map(row=>row.id===choice.extraId?{...row,source:replacement}:row)});
+              else if(choice?.editionId)patched=store().upsert({id:item.id,editions:item.editions.map(row=>row.id!==choice.editionId?row:choice.partId?{...row,parts:row.parts.map(part=>part.id===choice.partId?{...part,source:replacement}:part)}:{...row,source:replacement})});
+              else patched=patchSource(input.id,input.episodeId||null,replacement);
+              source=input.episodeId?patched.episodes.find(ep=>ep.id===input.episodeId)?.source:require('./catalog-library-model').playbackSource(patched,choice).source;
             }
             value = inspectMedia(value);
             if (!grantMedia(value)) throw new Error('Video dosyası açılamadı.');
@@ -196,7 +207,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           const key = sourceKey({ ...source, value });
           const existing = watchItems().find(row => canonicalWatchKey(row.key) === key);
           return { ok: true, watchItem: { ...(existing || {}), key, type: source.type,
-            title: episode ? `${item.title} · S${episode.season} B${episode.number}` : item.title,
+            title: episode ? `${item.title} · S${episode.season} B${episode.number}` : item.title + (choice?.label?' · '+choice.label:''),
             sourceRef: value, localPath: source.type === 'local' ? value : '', position: existing?.completed ? 0 : Number(existing?.position) || 0 } };
         }
         case 'import-preview': {

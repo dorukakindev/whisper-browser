@@ -10,9 +10,16 @@ function preferences(raw = {}) {
     note:String(raw.note || '').slice(0,2000) };
 }
 function profile(diary, catalog, saved = {}, reviewEntries = []) {
-  const items = new Map(),ambiguous=new Set();for(const item of catalog){const id=key(item);if(items.has(id)){items.delete(id);ambiguous.add(id);}else if(!ambiguous.has(id))items.set(id,item);}
+  const items = new Map(),ambiguous=new Set();for(const item of catalog.filter(row=>row.kind!=='series'))for(const name of new Set([item.title,item.originalTitle].filter(Boolean))){const id=key({...item,title:name});if(items.has(id)&&items.get(id)!==item){items.delete(id);ambiguous.add(id);}else if(!ambiguous.has(id))items.set(id,item);}
   const effective=row=>{const score=items.get(key(row))?.ratings?.personal;return score!==null&&score!==undefined&&score!==''&&Number.isFinite(Number(score))&&Number(score)>=0&&Number(score)<=10?{...row,rating:Number(score)/2}:row;};
-  const rated = diary.map(effective).filter(row=>Number.isFinite(row.rating)&&row.rating>=0&&row.rating<=5);
+  const filmKey=row=>items.get(key(row))||key(row),distinct=new Map(),latestRated=new Map();
+  for(const row of diary){
+    const id=filmKey(row);distinct.set(id,row);const rated=effective(row);if(!Number.isFinite(rated.rating)||rated.rating<0||rated.rating>5)continue;
+    const previous=latestRated.get(id);
+    // Personal catalog score is current; otherwise latest dated rating wins, with export order breaking ties.
+    if(!previous||String(rated.watchedDate||'')>=String(previous.watchedDate||''))latestRated.set(id,rated);
+  }
+  const rated = [...latestRated.values()];
   const average = rated.length ? rated.reduce((sum,row)=>sum+row.rating,0)/rated.length : null;
   const distribution=Array.from({length:11},(_,i)=>({rating:i/2,count:rated.filter(row=>row.rating===i/2).length}));
   function ranking(field) {
@@ -36,10 +43,10 @@ function profile(diary, catalog, saved = {}, reviewEntries = []) {
   const mentions=ASPECTS.map(aspect=>({aspect,count:reviews.filter(row=>fold(row.text).match(lexicon[aspect])).length,
     evidence:reviews.filter(row=>fold(row.text).match(lexicon[aspect])).slice(0,6).map(row=>({id:row.id,title:row.title,text:row.text.slice(0,600)}))}));
   const supplied=Object.keys(saved.weights || {}).length>0;
-  const result={titles:diary.length,rated:rated.length,average,distribution,genres:ranking('genres'),directors:ranking('directors'),
+  const result={titles:distinct.size,watchEvents:diary.length,ratingPolicy:'current-personal-otherwise-latest-dated',rated:rated.length,average,distribution,genres:ranking('genres'),directors:ranking('directors'),
     decades:[...years].sort((a,b)=>b[1]-a[1]),months:[...months].sort((a,b)=>a[0].localeCompare(b[0])).slice(-24),
     favorites:[...rated].sort((a,b)=>b.rating-a.rating).slice(0,12).map(row=>({title:row.title,year:row.year,rating:row.rating})),
-    metadataMatched:diary.filter(row=>{const item=items.get(key(row));return item&&((item.genres||[]).length||(item.directors||[]).length);}).length,reviews:reviews.slice(-10000).reverse(),reviewCount:reviews.length,mentions,
+    metadataMatched:[...distinct.values()].filter(row=>{const item=items.get(key(row));return item&&((item.genres||[]).length||(item.directors||[]).length);}).length,reviews:reviews.slice(-10000).reverse(),reviewCount:reviews.length,mentions,
     preferencesConfigured:supplied,preferences:preferences(supplied?saved:{weights:Object.fromEntries(ASPECTS.map(name=>[name,3]))}),analysis:saved.analysis || null };
   const quiz=require('./taste-quiz');result.quiz=quiz.restore(saved.quiz);result.quizPicks=result.quiz?quiz.recommend(result.quiz,catalog,result):[];return result;
 }

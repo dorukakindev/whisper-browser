@@ -1,0 +1,56 @@
+'use strict';
+const fs=require('node:fs'),{createHash,randomUUID}=require('node:crypto');
+const {atomicWriteFileSync}=require('./fsync-utils');
+const {safeUrl,plain}=require('./feed-parser');
+const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0,40);
+const clean=(value,max=200)=>String(value??'').replace(/\0/g,'').trim().slice(0,max);
+const stateFields=['read','saved','later','spoilerAllowed'];
+function validate(data){
+ if(!data||data.version!==1||!Array.isArray(data.feeds)||!Array.isArray(data.entries)||data.feeds.length>200||data.entries.length>4000||typeof data.settings?.paused!=='boolean')throw Error('Feed store is damaged. Original file preserved.');
+ const feedIds=new Set(),entryIds=new Set();for(const f of data.feeds){if(typeof f.id!=='string'||feedIds.has(f.id)||!safeUrl(f.url)||!safeUrl(f.effectiveUrl||f.url)||typeof f.enabled!=='boolean'||!Number.isFinite(f.intervalMinutes)||f.intervalMinutes<15||f.intervalMinutes>10080)throw Error('Invalid stored feed.');feedIds.add(f.id);}
+ for(const e of data.entries){if(typeof e.id!=='string'||entryIds.has(e.id)||typeof e.feedId!=='string'||!['article','video','podcast'].includes(e.kind)||!['summary','feed-full'].includes(e.contentScope)||typeof e.text!=='string'||e.text.length>50000||e.url&&!safeUrl(e.url)||stateFields.some(k=>typeof e[k]!=='boolean')||!Array.isArray(e.links)||!Array.isArray(e.enclosures)||e.enclosures.some(a=>!safeUrl(a.url)))throw Error('Invalid stored feed entry.');entryIds.add(e.id);}
+ if(Buffer.byteLength(JSON.stringify(data))>16000000)throw Error('Feeds exceed the 16 MB storage limit.');return data;
+}
+function createFeedStore(file,{now=()=>Date.now()}={}){
+ let data={version:1,feeds:[],entries:[],settings:{paused:false}},undos=new Map();
+ if(fs.existsSync(file)){if(fs.statSync(file).size>16000000)throw Error('Feed store exceeds 16 MB.');data=validate(JSON.parse(fs.readFileSync(file,'utf8').replace(/^\uFEFF/,'')));}
+ function transaction(change){const next=structuredClone(data),result=change(next);validate(next);atomicWriteFileSync(file,JSON.stringify(next));data=next;return structuredClone(result);}
+ const feedById=(d,id)=>{const f=d.feeds.find(f=>f.id===id);if(!f)throw Error('Choose a subscribed feed.');return f;};
+ const entryById=(d,id)=>{const e=d.entries.find(e=>e.id===id);if(!e)throw Error('Choose a saved feed entry.');return e;};
+ function commitInto(d,feedId,snapshot,initial){
+  const feed=feedById(d,feedId),stamp=now();initial=initial||(!feed.lastSuccess?feed.initial:'all');let inserted=0,updated=0;const rows=(snapshot.entries||[]).slice(0,200);
+  for(const [index,row]of rows.entries()){
+   if(!row||!['article','video','podcast'].includes(row.kind)||!['summary','feed-full'].includes(row.contentScope))throw Error('Invalid parsed feed entry.');
+   const url=safeUrl(row.url),externalId=clean(row.externalId,2000);if(!url&&!externalId)continue;
+   // Include source URL in native identity: reused GUID + different URL never silently overwrites old content.
+   const id=hash([feedId,externalId?'native':'url',externalId||url,url]),canonicalId=hash(url?['source',url]:['native-source',feedId,externalId]),old=d.entries.find(e=>e.id===id);
+   const content={id,feedId,externalId,canonicalId,url,title:plain(row.title,500)||'Untitled',summary:plain(row.summary||row.text,2000),text:plain(row.text),textTruncated:row.textTruncated===true,sourceLength:Math.max(Number(row.sourceLength)||0,String(row.text||'').length),contentScope:row.contentScope,kind:row.kind,author:plain(row.author,200),language:clean(row.language||feed.language,40),publishedAt:Number(row.publishedAt)||0,updatedAt:Number(row.updatedAt)||0,receivedAt:old?.receivedAt||stamp,imageUrl:safeUrl(row.imageUrl),enclosures:(row.enclosures||[]).slice(0,8).map(e=>({url:safeUrl(e.url),type:clean(e.type,100),...(e.length?{length:Number(e.length)}:{})})).filter(e=>e.url),categories:(row.categories||[]).slice(0,20).map(v=>plain(v,100)),spoiler:row.spoiler==='marked'?'marked':'unknown',sourceFeed:{title:feed.title,url:feed.url},revision:hash([row.title,row.text,row.summary,row.contentScope]),read:old?.read??(initial==='now'||initial==='latest20'&&index>=20),saved:old?.saved||false,later:old?.later||false,spoilerAllowed:old?.spoilerAllowed||false,links:old?.links||[]};
+   if(old){Object.assign(old,content);updated++;}else{d.entries.push(content);inserted++;}
+  }
+  if(d.entries.length>4000){const keep=new Set(d.entries.filter(e=>e.saved||e.later||e.links.length).map(e=>e.id));const rest=d.entries.filter(e=>!keep.has(e.id)).sort((a,b)=>b.receivedAt-a.receivedAt).slice(0,Math.max(0,4000-keep.size));d.entries=d.entries.filter(e=>keep.has(e.id)||rest.some(r=>r.id===e.id));}
+  Object.assign(feed,{title:feed.title||snapshot.title,language:clean(snapshot.language||feed.language,40),format:clean(snapshot.format||feed.format,20),effectiveUrl:safeUrl(snapshot.effectiveUrl)||feed.effectiveUrl||feed.url,etag:clean(snapshot.etag,500),lastModified:clean(snapshot.lastModified,200),lastAttempt:stamp,lastSuccess:stamp,lastNew:inserted?stamp:feed.lastNew||0,state:inserted||updated?'updated':'unchanged',error:'',errorKind:'',lastInserted:inserted,nextAttempt:stamp+feed.intervalMinutes*60000});
+  return {feed,inserted,updated};
+ }
+ function aggregate(entry){const copies=data.entries.filter(e=>e.canonicalId===entry.canonicalId),provenance=[];for(const e of copies){if(!provenance.some(p=>p.feedId===e.feedId)){const f=data.feeds.find(f=>f.id===e.feedId);provenance.push({feedId:e.feedId,title:f?.title||e.sourceFeed.title,url:f?.url||e.sourceFeed.url});}}return {...structuredClone(entry),entryIds:copies.map(e=>e.id),provenance,read:copies.every(e=>e.read),saved:copies.some(e=>e.saved),later:copies.some(e=>e.later),links:[...new Map(copies.flatMap(e=>e.links).map(l=>[l.catalogId,l])).values()]};}
+ function entries(options={}){
+  let rows=data.entries.filter(e=>!options.feedId||e.feedId===options.feedId).sort((a,b)=>(b.publishedAt||b.receivedAt)-(a.publishedAt||a.receivedAt));const seen=new Set();rows=rows.filter(e=>{if(seen.has(e.canonicalId))return false;seen.add(e.canonicalId);return true;}).map(aggregate);
+  rows=rows.filter(e=>(!options.kind||e.kind===options.kind)&&(!options.unread||!e.read)&&(!options.saved||e.saved)&&(!options.later||e.later)&&(!options.catalogId||e.links.some(l=>l.catalogId===options.catalogId))&&(!options.query||(e.title+' '+e.summary+' '+e.author).toLocaleLowerCase().includes(clean(options.query,200).toLocaleLowerCase())));const total=rows.length,offset=Math.max(0,Math.min(4000,Number(options.offset)||0)),limit=Math.max(1,Math.min(200,Number(options.limit)||100));return {rows:rows.slice(offset,offset+limit),total};
+ }
+ const api={
+  snapshot:()=>structuredClone(data),
+  list:()=>({feeds:structuredClone(data.feeds),settings:structuredClone(data.settings),counts:{entries:entries({limit:200}).total,unread:entries({unread:true}).total,saved:entries({saved:true}).total,later:entries({later:true}).total},desktopOnly:true}),entries,
+  entry:id=>aggregate(entryById(data,id)),
+  subscribe:(feed,rows=[],initial='latest20')=>transaction(d=>{const url=safeUrl(feed.url);if(!url)throw Error('Unsafe feed URL.');if(d.feeds.some(f=>f.url===url))throw Error('This feed is already subscribed.');if(!['now','latest20','all'].includes(initial))throw Error('Choose an initial import range.');const f={id:randomUUID(),url,effectiveUrl:safeUrl(feed.effectiveUrl)||url,title:plain(feed.title,200)||new URL(url).hostname,folder:clean(feed.folder,120),enabled:true,intervalMinutes:60,language:clean(feed.language,40),format:clean(feed.format,20),createdAt:now(),initial,state:'pending',lastAttempt:0,lastSuccess:0,lastNew:0,etag:'',lastModified:''};d.feeds.push(f);return rows.length||feed.format?commitInto(d,f.id,{...feed,entries:rows},initial):{feed:f,inserted:0};}),
+  commit:(feedId,snapshot)=>transaction(d=>commitInto(d,feedId,snapshot)),
+  checked:feedId=>transaction(d=>{const f=feedById(d,feedId);Object.assign(f,{state:'unchanged',lastAttempt:now(),lastSuccess:now(),error:'',errorKind:'',nextAttempt:now()+f.intervalMinutes*60000});return f;}),
+  failure:(feedId,error)=>transaction(d=>{const f=feedById(d,feedId);Object.assign(f,{state:'failed',lastAttempt:now(),error:clean(error.error,300),errorKind:clean(error.errorKind,40),nextAttempt:now()+Math.max(f.intervalMinutes*60000,Math.min(86400000,Number(error.retryAfter)||0))});return f;}),
+  updateFeed:(id,patch)=>transaction(d=>{const f=feedById(d,id);if(patch.enabled!==undefined){if(typeof patch.enabled!=='boolean')throw Error('Invalid enabled state.');f.enabled=patch.enabled;}if(patch.title!==undefined)f.title=plain(patch.title,200)||f.title;if(patch.folder!==undefined)f.folder=clean(patch.folder,120);if(patch.intervalMinutes!==undefined){if(!Number.isInteger(patch.intervalMinutes)||patch.intervalMinutes<15||patch.intervalMinutes>10080)throw Error('Refresh interval must be 15–10080 minutes.');f.intervalMinutes=patch.intervalMinutes;}return f;}),
+  settings:paused=>transaction(d=>{if(typeof paused!=='boolean')throw Error('Invalid pause state.');d.settings.paused=paused;return d.settings;}),
+  unsubscribe:id=>transaction(d=>{feedById(d,id);d.feeds=d.feeds.filter(f=>f.id!==id);d.entries=d.entries.filter(e=>e.feedId!==id||e.saved||e.later||e.links.length);return {removed:true};}),
+  setState:(ids,patch)=>{if(!Array.isArray(ids)||!ids.length||ids.length>200||stateFields.some(k=>patch[k]!==undefined&&typeof patch[k]!=='boolean')||!stateFields.some(k=>patch[k]!==undefined))throw Error('Choose up to 200 entries and valid state.');const before=[],after=[];transaction(d=>{for(const id of new Set(ids)){const e=entryById(d,id);before.push({id,...Object.fromEntries(stateFields.map(k=>[k,e[k]]))});for(const key of stateFields)if(patch[key]!==undefined)e[key]=patch[key];after.push({id,...Object.fromEntries(stateFields.map(k=>[k,e[k]]))});}return {};});const token=randomUUID();undos.set(token,{before,after,expires:now()+600000});while(undos.size>20)undos.delete(undos.keys().next().value);return {token,updated:before.length};},
+  undo:token=>{const operation=undos.get(token);if(!operation||operation.expires<now())throw Error('Undo expired.');const result=transaction(d=>{for(const previous of operation.before){const e=entryById(d,previous.id),expected=operation.after.find(r=>r.id===e.id);if(stateFields.some(k=>e[k]!==expected[k]))throw Error('The entry state changed after this operation.');for(const key of stateFields)e[key]=previous[key];}return {updated:operation.before.length};});undos.delete(token);return result;},
+  link:(entryId,catalog)=>transaction(d=>{const e=entryById(d,entryId);if(!e.links.some(l=>l.catalogId===catalog.id))e.links.push({catalogId:catalog.id,title:plain(catalog.title,200),year:catalog.year||null,kind:catalog.kind,imdbId:catalog.imdbId||'',tmdbId:catalog.tmdbId||'',confirmedAt:now()});return e;}),
+  unlink:(entryId,catalogId)=>transaction(d=>{const e=entryById(d,entryId);e.links=e.links.filter(l=>l.catalogId!==catalogId);return e;})
+ };return api;
+}
+module.exports={createFeedStore,validate};

@@ -410,7 +410,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       return {ok:true,...pronunciationStore().save(key,entries.entries,c.pronunciations)};
     }
     if (job || textUI || releasingEngine || busy()) throw new Error('Finish the active voice job before saving pronunciations.');
-    const c=config(); c.pronunciations=normalizePronunciations(entries);
+    const c=config(); c.pronunciations=pronunciationStore().validateGlobal(entries);
     atomicWriteFileSync(configPath(), JSON.stringify(c,null,2), {encoding:'utf8'});
     return {ok:true,pronunciations:c.pronunciations};
   }));

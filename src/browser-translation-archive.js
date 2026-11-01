@@ -60,7 +60,7 @@ function safeName(value, fallback) {
 
 function languageCode(value, fallback = 'tr') {
   const normalized = String(value || '').trim().toLowerCase();
-  return /^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/i.test(normalized) ? normalized : fallback;
+  try { return new Intl.Locale(normalized).toString().toLowerCase(); } catch (_) { return fallback; }
 }
 
 function translationFor(translations, id) {

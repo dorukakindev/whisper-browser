@@ -63,6 +63,7 @@ contextBridge.exposeInMainWorld('api', {
   clearHistory: () => ipcRenderer.invoke('history:clear'),
   listWatchLibrary: () => ipcRenderer.invoke('library:list'),
   mediaCatalog: (request) => ipcRenderer.invoke('media-catalog:request', request),
+  feedsRequest: request => ipcRenderer.invoke('feeds:request', request),
   mediaWorkflows: request => ipcRenderer.invoke('media-workflows:request',request),
   onMediaWorkflow: cb => { const handler=(_event,value)=>cb(value);ipcRenderer.on('media-workflows:event',handler);return ()=>ipcRenderer.removeListener('media-workflows:event',handler); },
   mediaShelf: request => ipcRenderer.invoke('media-shelf:request', request),

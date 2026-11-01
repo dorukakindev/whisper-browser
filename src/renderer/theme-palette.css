@@ -2,6 +2,19 @@
    Component styles alias these roles; video overlays and TV keep their explicit
    contrast exceptions. Load before styles.css / assistant-overlay.css. */
 :root {
+  /* Artwork and video retain a dark contrast plane in both UI themes. */
+  --media-scrim-rgb: 0 0 0;
+  --media-highlight-rgb: 255 255 255;
+  --media-feature-ink-rgb: 8 9 12;
+  --media-transport-ink-rgb: 8 9 11;
+  --media-on-art: #f1f0ed;
+  --media-on-art-white: #fff;
+  --media-on-art-muted: #d8d9dc;
+  --media-on-art-meta: #d8d8dd;
+  --media-rating: #f3cd8d;
+  --media-action-ink: #151619;
+  --media-poster-surface: #18181b;
+  --media-poster-muted: #a5a5af;
   --theme-bg-0: #111215;
   --theme-bg-1: #191b1f;
   --theme-bg-2: #24272d;

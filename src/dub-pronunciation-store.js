@@ -26,6 +26,11 @@ function createStore(file){
   const json=JSON.stringify(data);if(Buffer.byteLength(json)>1000000)throw Error('Pronunciation collection exceeds 1 MB.');
   atomicWriteFileSync(file,json,{encoding:'utf8'});return resolve(key,globalEntries);
  }
- return {resolve,save};
+ function validateGlobal(entries){
+  const global=normalize(entries),data=read();
+  for(const rows of Object.values(data.sources)){const merged=new Map(global.map(row=>[row.from,row]));for(const row of rows)merged.set(row.from,row);normalize([...merged.values()]);}
+  return global;
+ }
+ return {resolve,save,validateGlobal};
 }
 module.exports={createStore};

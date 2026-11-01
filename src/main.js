@@ -255,6 +255,7 @@ const {
   browserPathKey,
   normalizeBrowserSiteProfiles,
   normalizeBrowserPathProfiles,
+  resolveEffectiveBrowserSettings,
   withBrowserSiteProfileField,
   withBrowserPathProfileField,
   withoutBrowserPathProfile,
@@ -7070,7 +7071,15 @@ async function restoreArchivedBrowserPageTranslation(tab, expectedSeq = Number(t
   const generation = tab.generation;
   const url = browserPageUrl(tab);
   const ui = loadSettings().ui || {};
-  const targetLanguage = String(ui.browserPageTarget || ui.translateTo || 'tr').toLowerCase();
+  const places = readBrowserPlaces();
+  const origin = browserSiteOrigin(url);
+  const effective = resolveEffectiveBrowserSettings({
+    defaults: { pageTargetLanguage: 'tr' },
+    general: { pageTargetLanguage: ui.browserPageTarget || ui.translateTo || 'tr' },
+    profile: places.siteProfiles?.[origin], pathProfile: places.pathProfiles?.[browserPathKey(url)],
+    tab: tab.siteOverrideOrigin === origin ? tab.siteOverrides : {},
+  });
+  const targetLanguage = effective.values.pageTargetLanguage || 'tr';
   const archive = browserTranslationArchive();
   if (!archive.hasPage(url, targetLanguage)) return { ok: false, missing: true };
   const safety = await prepareBrowserPageInstrumentation(tab);
@@ -8511,17 +8520,18 @@ function fatalMangaBatchError(error) {
 }
 
 function mangaTerminologySeed(tab, config = {}) {
-  // Bölüm geneli terim tutarlılığı: sekme ömrü boyunca tek harita; her site
-  // kapsamı (origin|dil) için kalıcı eşleşmelerle bir kez tohumlanır.
-  if (!tab.mangaTerminologyMap) {
-    tab.mangaTerminologyMap = createTerminologyMap({ maxTerms: 60, maxChars: 2400 });
-    tab.mangaTerminologySeededScopes = new Set();
-  }
+  // Keep chapter continuity independently for every origin and target language.
   const scope = siteTerminologyScope(browserPageUrl(tab), config.targetLanguage);
-  if (scope && !tab.mangaTerminologySeededScopes.has(scope)) {
-    tab.mangaTerminologySeededScopes.add(scope);
-    seedSiteTerminology(tab.mangaTerminologyMap, readBrowserPlaces().siteTerminology?.[scope] || []);
+  if (!(tab.mangaTerminologyMaps instanceof Map)) tab.mangaTerminologyMaps = new Map();
+  if (!tab.mangaTerminologyMaps.has(scope)) {
+    const map = createTerminologyMap({ maxTerms: 60, maxChars: 2400 });
+    if (scope) seedSiteTerminology(map, readBrowserPlaces().siteTerminology?.[scope] || []);
+    // Bound retained language/site scopes for a long-lived browser tab.
+    if (tab.mangaTerminologyMaps.size >= 20) tab.mangaTerminologyMaps.delete(tab.mangaTerminologyMaps.keys().next().value);
+    tab.mangaTerminologyMaps.set(scope, map);
   }
+  tab.mangaTerminologyScope = scope;
+  tab.mangaTerminologyMap = tab.mangaTerminologyMaps.get(scope);
   return tab.mangaTerminologyMap;
 }
 
@@ -8536,7 +8546,8 @@ function mangaLearnRegions(job, regions, cueId) {
 
 function persistMangaSiteTerminology(tab, config = {}) {
   const scope = siteTerminologyScope(browserPageUrl(tab), config.targetLanguage);
-  const rows = terminologySuggestions(tab?.mangaTerminologyMap || null, []);
+  const map = tab?.mangaTerminologyMaps?.get(scope);
+  const rows = terminologySuggestions(map || null, []);
   if (!scope || !rows.length) return false;
   const places = readBrowserPlaces();
   places.siteTerminology = { ...(places.siteTerminology || {}), [scope]: rows };
@@ -15424,6 +15435,20 @@ async function authorizeSubtitleFile(filePath) {
   return target;
 }
 
+function acceptBrowserReaderState(tab, payload) {
+  if (!tab?.view || tab.view.webContents.isDestroyed() || tab.compatibilityMode
+      || !payload || typeof payload.active !== 'boolean'
+      || payload.bridgeToken !== tab.bridgeToken || payload.generation !== tab.generation
+      || payload.pageUrl !== browserPageUrl(tab)) return false;
+  tab.readerActive = payload.active;
+  tab.readerPreferences = normalizeReaderPreferences(payload.preferences || tab.readerPreferences);
+  sendBrowserEvent(tab, { type: 'reader-state', active: tab.readerActive,
+    preferences: tab.readerPreferences, title: String(payload.title || '').slice(0, 300),
+    headings: Math.max(0, Math.min(80, Number(payload.headings) || 0)) });
+  scheduleBrowserSessionSave();
+  return true;
+}
+
 ipcMain.on('browser:trusted-bridge', (event, message) => {
   if (event.senderFrame !== event.sender.mainFrame) return;
   if (!message || typeof message !== 'object') return;
@@ -15431,7 +15456,8 @@ ipcMain.on('browser:trusted-bridge', (event, message) => {
     candidate.view && !candidate.view.webContents.isDestroyed()
       && candidate.view.webContents === event.sender);
   if (!tab || (message.type !== 'page-blocks' && message.type !== 'page-action' && tab.id !== browserActiveTabId)) return;
-  if (message.type === 'manga-edit') applyMangaEditFromPage(tab, message.payload);
+  if (message.type === 'reader-state') acceptBrowserReaderState(tab, message.payload);
+  else if (message.type === 'manga-edit') applyMangaEditFromPage(tab, message.payload);
   else if (message.type === 'manga-retranslate') void retranslateMangaRegionFromSource(tab, message.payload);
   else if (message.type === 'overlay-style') applyBrowserOverlayStyleFromPage(tab, message.payload);
   else if (message.type === 'subtitle-control' && ['subtitle-earlier', 'subtitle-later', 'subtitle-larger', 'subtitle-smaller', 'subtitle-source', 'subtitle-translation', 'subtitle-both', 'subtitle-toggle', 'subtitle-save'].includes(message.payload?.action)) {
@@ -15781,6 +15807,7 @@ ipcMain.handle('browser:reader', async (event, request = {}) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(request.tabId);
   if (!tab?.view || tab.view.webContents.isDestroyed()) return { ok: false, error: 'Okunacak etkin sayfa bulunamadı.' };
+  const readerContext = { bridgeToken: tab.bridgeToken, generation: tab.generation, pageUrl: browserPageUrl(tab) };
   const action = ['toggle', 'open', 'close', 'preferences'].includes(request.action) ? request.action : 'toggle';
   if (tab.compatibilityMode) return { ok: false, error: 'Uyumluluk modunda sayfa okuma görünümü kullanılamaz.' };
   const gate = await prepareBrowserPageInstrumentation(tab);
@@ -15791,12 +15818,13 @@ ipcMain.handle('browser:reader', async (event, request = {}) => {
   }
   const preferences = normalizeReaderPreferences(request.preferences || tab.readerPreferences);
   if (action === 'open' || action === 'toggle') await executeBrowserTrustedMain(tab.view, buildDefuddleBootstrapScript()).catch(() => []);
-  const [result] = await executeBrowserTrustedMain(tab.view, buildBrowserReaderScript(action, preferences)).catch(() => []);
+  if (tab.id !== browserActiveTabId || tab.generation !== readerContext.generation
+      || tab.bridgeToken !== readerContext.bridgeToken || browserPageUrl(tab) !== readerContext.pageUrl)
+    return { ok: false, stale: true, error: 'Sayfa değişti. Okuma görünümünü yeniden açın.' };
+  const [result] = await executeBrowserTrustedMain(tab.view, buildBrowserReaderScript(action, preferences, readerContext)).catch(() => []);
   if (!result?.ok) return { ok: false, error: result?.error || 'Okuma görünümü oluşturulamadı.' };
-  tab.readerActive = !!result.active;
-  tab.readerPreferences = normalizeReaderPreferences(result.preferences || preferences);
-  sendBrowserEvent(tab, { type: 'reader-state', active: tab.readerActive,
-    preferences: tab.readerPreferences, title: result.title || '', headings: Number(result.headings) || 0 });
+  if (tab.id !== browserActiveTabId || !acceptBrowserReaderState(tab, { ...result, ...readerContext }))
+    return { ok: false, stale: true, error: 'Sayfa değişti. Okuma görünümünü yeniden açın.' };
   return { ok: true, active: tab.readerActive, preferences: tab.readerPreferences,
     title: result.title || '', headings: Number(result.headings) || 0, textLength: Number(result.textLength) || 0 };
 });
@@ -22096,6 +22124,7 @@ const mediaCatalogService = require('./media-catalog-service').registerMediaCata
   inspectMedia: validateLocalMediaPath, grantMedia: file => mediaFileAccess.grant(file), watchItems: loadWatchLibraryAll,
   dialogText: dt,
 });
+require('./feed-service').registerFeeds({app,ipcMain,authorized:authorizedBrowserSender,userData:()=>app.getPath('userData'),catalogStore:mediaCatalogService.store});
 mediaWorkflows = require('./media-workflows').registerMediaWorkflows({voiceRunning:()=>dubService.running(),resolveShelfBook:id=>{const f=path.join(app.getPath('userData'),'media-shelf.json');if(!fs.existsSync(f)||fs.statSync(f).size>16000000)return null;const d=JSON.parse(fs.readFileSync(f,'utf8'));return d.books?.find(b=>b.id===id)||null;},linkShelfBook:(id,projectId)=>{const f=path.join(app.getPath('userData'),'media-shelf.json');const d=JSON.parse(fs.readFileSync(f,'utf8')),row=d.books?.find(b=>b.id===id);if(!row)throw Error('Book missing.');row.productionProjectId=projectId;atomicWriteFileSync(f,JSON.stringify(d),{encoding:'utf8'});},resolvePdf:hash=>{const d=pdfDocumentByHash(hash);return d&&inspectPdfDocument(d.filePath).pdfHash===hash?d:null;},grantPdf:file=>pdfFileAccess.grant(file),app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,
   python:resolvePython,ffmpeg:()=>resolveFfTool('ffmpeg'),ffprobe:()=>resolveFfTool('ffprobe'),
   grantSubtitle:file=>subtitleFileAccess.grant(file),grantMedia:file=>mediaFileAccess.grant(file),inspectMedia:validateLocalMediaPath,

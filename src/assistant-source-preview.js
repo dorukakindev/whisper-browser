@@ -4,6 +4,7 @@
  function clock(value){const n=Number.isFinite(value)?Math.max(0,Math.floor(value)):0;return (n>=3600?Math.floor(n/3600)+':'+String(Math.floor(n/60)%60).padStart(2,'0'):Math.floor(n/60))+':'+String(n%60).padStart(2,'0');}
  function hasAttachedSource(source){return !!source&&!(['media-library','subtitle-studio'].includes(source.workspace)&&!source.type&&!source.id&&!source.selectedText&&!source.excerpt&&!source.synopsis);}
  function build(input={}){
+  if(input.selection?.type==='feed-sources'){const tr=input.locale==='tr';return {attached:true,summary:input.selection.title,detail:input.selection.excerpt+'\n'+input.selection.note};}
   const tr=input.locale==='tr',t=(en,turkish)=>tr?turkish:en,source=input.selection;
   if(source&&!hasAttachedSource(source))return {attached:false,summary:t('No source selected','Henüz kaynak seçilmedi'),detail:t('Open a video, book or title to ask about its content. You can still ask for application help or search your library.','İçeriğini sormak için bir video, kitap veya yapım aç. Uygulama hakkında yardım isteyebilir veya kütüphanende arama yapabilirsin.')};
   if(source){

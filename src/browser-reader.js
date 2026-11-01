@@ -37,13 +37,15 @@ function chooseReaderCandidate(candidates = [], minimumGain = 1.15) {
   return { selected, candidates: rows };
 }
 
-function buildBrowserReaderScript(action = 'toggle', rawPreferences = {}) {
+function buildBrowserReaderScript(action = 'toggle', rawPreferences = {}, documentContext = {}) {
   const safeAction = READER_ACTIONS.has(action) ? action : 'toggle';
   const preferences = normalizeReaderPreferences(rawPreferences);
   return `(() => {
     const KEY = '__whisperReaderController';
     const action = ${JSON.stringify(safeAction)};
     const requested = ${JSON.stringify(preferences)};
+    const documentContext = ${JSON.stringify({bridgeToken:documentContext.bridgeToken,generation:documentContext.generation,pageUrl:documentContext.pageUrl})};
+    const notify = (result) => { globalThis.__whisperTrustedBridgeSend?.('reader-state', { ...result, ...documentContext }); return result; };
     const current = globalThis[KEY];
     if (current && action === 'close') return current.close();
     if (current && action === 'toggle') return current.close();
@@ -159,8 +161,8 @@ function buildBrowserReaderScript(action = 'toggle', rawPreferences = {}) {
       preferences: { ...state } });
     const controller = {
       snapshot,
-      preferences(next) { state.fontSize = Math.max(16, Math.min(32, Number(next.fontSize) || state.fontSize)); state.lineHeight = Math.max(1.35, Math.min(2.1, Number(next.lineHeight) || state.lineHeight)); state.width = Math.max(520, Math.min(1100, Number(next.width) || state.width)); apply(); return snapshot(); },
-      close() { const result = { ok: true, active: false, preferences: { ...state } }; host.remove(); document.documentElement.style.overflow = previousOverflow.root; if (document.body) document.body.style.overflow = previousOverflow.body; delete globalThis[KEY]; return result; },
+      preferences(next) { state.fontSize = Math.max(16, Math.min(32, Number(next.fontSize) || state.fontSize)); state.lineHeight = Math.max(1.35, Math.min(2.1, Number(next.lineHeight) || state.lineHeight)); state.width = Math.max(520, Math.min(1100, Number(next.width) || state.width)); apply(); return notify(snapshot()); },
+      close() { const result = { ok: true, active: false, preferences: { ...state } }; host.remove(); document.documentElement.style.overflow = previousOverflow.root; if (document.body) document.body.style.overflow = previousOverflow.body; delete globalThis[KEY]; return notify(result); },
     };
     globalThis[KEY] = controller; apply();
     smaller.addEventListener('click', () => controller.preferences({ ...state, fontSize: state.fontSize - 1 }));

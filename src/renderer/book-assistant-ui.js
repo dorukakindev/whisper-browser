@@ -224,7 +224,7 @@
         canPrepare: !!row.onPrepare,
       };
     },
-    async search(args,stale){const row=active();if(!row||stale())throw Error('Book source changed.');if(!row.onSearch)return {status:'blocked',note:'This reader exposes only its active excerpt; full-book search is unavailable here.'};const source=row.getSource('summary'),result=await row.onSearch(args,()=>!stale()&&row.current());if(stale())throw Error('Book source changed.');return {...result,matches:(result.matches||[]).map(hit=>({...hit,sourceId:source.id,kind:source.type==='book-page'?'page':'chapter',navigable:!!row.onNavigate}))};},
+    async search(args,stale){const row=active();if(!row||stale())throw Error('Book source changed.');if(!row.onSearch)return {status:'blocked',note:'This reader exposes only its active excerpt; full-book search is unavailable here.'};const source=row.getSource('summary'),result=await row.onSearch(args,()=>!stale()&&row.current());if(stale())throw Error('Book source changed.');return {...result,parentContexts:(result.parentContexts||[]).map(context=>({...context,sourceId:source.id})),groups:(result.groups||[]).map(group=>({...group,sourceId:source.id})),matches:(result.matches||[]).map(hit=>({...hit,sourceId:source.id,kind:source.type==='book-page'?'page':'chapter',navigable:!!row.onNavigate}))};},
     async navigate(citation){
       const row=[...readers].reverse().find(r=>r.current()&&r.getSource('summary')?.id===citation.sourceId&&r.onNavigate);
       if(!row||!Number.isInteger(citation.page)||citation.page<1)throw Error('Open the original document to follow this citation / Alıntı için özgün belgeyi aç.');

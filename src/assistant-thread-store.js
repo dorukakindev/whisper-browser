@@ -27,6 +27,8 @@ function evidenceOf(raw){
     id:text(row.id,40),start:Number(row.start??row.baslangic),end:Math.max(Number(row.start??row.baslangic),Number.isFinite(Number(row.end??row.bitis))?Number(row.end??row.bitis):0),
     text:text(row.text??row.metin,1200),translation:text(row.translation,1200)}));
 }
+function feedEvidenceOf(raw){return !Array.isArray(raw)?[]:raw.slice(0,3).filter(s=>s&&/^F[a-f0-9]{16}$/.test(s.id)&&typeof s.revision==='string').flatMap(s=>{try{const url=new URL(s.url);if(!['http:','https:'].includes(url.protocol)||url.username||url.password)return [];return [{id:s.id,entryId:text(s.entryId,100),title:text(s.title,300),url:url.href.slice(0,2000),scope:s.scope==='feed-full'?'feed-full':'summary',revision:text(s.revision,100),text:text(s.text,1200),shortened:s.shortened===true}];}catch{return [];}});}
+function pageEvidenceOf(raw){return !Array.isArray(raw)?[]:raw.slice(0,80).filter(row=>row&&/^S[0-9]{1,5}$/.test(row.id)&&typeof row.text==='string').map(row=>({id:row.id,text:text(row.text,2000),source:{tabId:text(row.source?.tabId,100),generation:Number.isSafeInteger(row.source?.generation)&&row.source.generation>=0?row.source.generation:null,pageUrl:text(row.source?.pageUrl,1000)}}));}
 function citationsOf(raw){return !Array.isArray(raw)?[]:raw.slice(0,40).filter(c=>c&&/^B[0-9]+-[0-9]+$/.test(c.id)&&typeof c.sourceId==='string'&&c.sourceId.length>0&&c.sourceId.length<=500&&!c.sourceId.includes('\0')&&Number.isInteger(c.page)&&c.page>0&&c.page<=100000).map(c=>({id:c.id,sourceId:c.sourceId,page:c.page,kind:c.kind==='page'?'page':'chapter',text:text(c.text,600)}));}
 function actionsOf(raw){
   if(!Array.isArray(raw))return [];
@@ -46,7 +48,7 @@ function cleanThread(raw){
   if(!raw||!id(raw.id)||typeof raw.sourceKey!=='string'||!raw.sourceKey||raw.sourceKey.length>6000||!Array.isArray(raw.messages)||raw.messages.length>200)throw Error('Invalid assistant conversation.');
   const messages=parentsFirst(raw.messages.map(row=>{
     if(!row||!id(row.id)||row.parentId!==null&&!id(row.parentId)||!['user','assistant'].includes(row.role)||typeof row.text!=='string'||row.text.length>32000)throw Error('Invalid assistant message.');
-    return {id:row.id,parentId:row.parentId,role:row.role,text:row.text,status:['complete','streaming','stopped','failed'].includes(row.status)?row.status:'complete',evidence:evidenceOf(row.evidence),actions:actionsOf(row.actions),steps:require('./assistant-run-steps').clean(row.steps),citations:citationsOf(row.citations)};
+    return {id:row.id,parentId:row.parentId,role:row.role,text:row.text,status:['complete','streaming','stopped','failed'].includes(row.status)?row.status:'complete',evidence:evidenceOf(row.evidence),pageEvidence:pageEvidenceOf(row.pageEvidence),feedEvidence:feedEvidenceOf(row.feedEvidence),actions:actionsOf(row.actions),steps:require('./assistant-run-steps').clean(row.steps),citations:citationsOf(row.citations)};
   }));
   const seen=new Set();for(const row of messages){if(seen.has(row.id)||row.parentId!==null&&!seen.has(row.parentId))throw Error('Conversation contains a cycle, duplicate or missing parent.');seen.add(row.id);}
   if(raw.headId!==null&&!seen.has(raw.headId))throw Error('Conversation head is missing.');

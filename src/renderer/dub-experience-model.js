@@ -47,8 +47,12 @@
  }
  function comparisonRows(data){
   const indexes=Object.fromEntries(['source','normal','speech'].map(key=>[key,cueIndex(data[key])])),base=indexes.speech.rows.length?indexes.speech:indexes.normal.rows.length?indexes.normal:indexes.source;
-  const rows=base.rows.map(cue=>{const a=indexedOverlap(indexes.normal,cue.start,cue.end),b=indexedOverlap(indexes.speech,cue.start,cue.end),limited=a.limited||b.limited;
-   const diff=!limited&&a.text&&b.text?difference(a.text,b.text):null;return {cue,changed:diff?.changed===true,missingNumbers:diff?.removedNumbers||[],limited};});
+  const union=base.rows.slice();
+  for(const key of ['normal','source'])for(const cue of indexes[key].rows)if(!indexedOverlap(base,cue.start,cue.end).text&&!union.some(row=>row.start===cue.start&&row.end===cue.end))union.push(cue);
+  union.sort((a,b)=>a.start-b.start||a.end-b.end);
+  const rows=union.map(cue=>{const a=indexedOverlap(indexes.normal,cue.start,cue.end),b=indexedOverlap(indexes.speech,cue.start,cue.end),limited=a.limited||b.limited;
+   const unmatchedSpeech=!!a.text&&!b.text&&indexes.speech.rows.length>0;
+   const diff=!limited&&a.text&&(b.text||unmatchedSpeech)?difference(a.text,b.text):null;return {cue,unmatchedSpeech,changed:diff?.changed===true,missingNumbers:diff?.removedNumbers||[],limited};});
   return {rows,indexes,limited:Object.values(indexes).some(index=>index.limited)};
  }
  function continuity(raw){

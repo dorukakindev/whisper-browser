@@ -54,7 +54,7 @@ async function fetchReviews(item,{count=40,sort='popular',spoilers=false,signal,
       if(!r.ok){await r.body?.cancel();throw Error('Letterboxd HTTP '+r.status+'. Open the film page in Browser and use its loaded reviews, or paste/import a sample.');}
       const raw=(await readLimitedBytes(r,3000000,'Letterboxd')).toString('utf8');combined.throwIfAborted();
       const expanded=!expectedBase?{html:raw}:await expandReviewHtml(raw,{signal:combined,load:async address=>{const result=await fetchImpl(address,{redirect:'manual',credentials:'omit',signal:combined,headers:{Accept:'text/html'}});if(!result.ok){await result.body?.cancel();throw Error('Letterboxd full review HTTP '+result.status);}return (await readLimitedBytes(result,200000,'Letterboxd full review')).toString('utf8');}});
-      return {url,html:expanded.html};
+      return {url,html:expanded.html,blocked:expanded.blocked||0};
     }
     throw Error('Too many Letterboxd redirects.');
   }
@@ -66,10 +66,10 @@ async function fetchReviews(item,{count=40,sort='popular',spoilers=false,signal,
   function accept(row){
     if(!spoilers&&row.spoiler){excluded.spoiler++;return false;}
     const key=textKey(row);if(seenText.has(key)||row.permalink&&seenPermalinks.has(row.permalink)){excluded.duplicate++;return false;}
-    seenText.add(key);if(row.permalink)seenPermalinks.add(row.permalink);
     if(row.authorId&&authors.has(row.authorId)){excluded.author=(excluded.author||0)+1;return false;}
-    if(row.authorId)authors.add(row.authorId);
     if(reviews.length===count){excluded.requested++;return false;}
+    seenText.add(key);if(row.permalink)seenPermalinks.add(row.permalink);
+    if(row.authorId)authors.add(row.authorId);
     reviews.push({...row,id:String(reviews.length+1)});return true;
   }
   // Each explicit pool gets a turn before another page can dominate the sample.
@@ -82,6 +82,7 @@ async function fetchReviews(item,{count=40,sort='popular',spoilers=false,signal,
       const got=await page(url,base),final=trusted(got.url);if(!final||!final.startsWith(base))throw Error('The review page belongs to a different film.');
       const observed=reviewPageSource(got.url);if(!observed||observed.sort!==requested.sort||observed.page!==requested.page)throw Error('The requested review order changed. Review text was not accepted as that sample.');
       parsed=parseLetterboxdReviews(got.html,{url:got.url});
+      if(got.blocked){partial=true;warning='Letterboxd HTTP 403. Full review continuations require Browser access.';}
       const assessment=matchFilm(item,parsed.identity);
       if(assessment.state==='mismatch')throw Error('Film identity mismatch. Review text was not accepted for this film.');
       if(identity&&matchFilm({...item,tmdbId:identity.tmdbId||item.tmdbId,imdbId:identity.imdbId||item.imdbId,title:identity.title,year:identity.year},parsed.identity).state==='mismatch')throw Error('Film identity changed between review pages.');
@@ -93,7 +94,7 @@ async function fetchReviews(item,{count=40,sort='popular',spoilers=false,signal,
     }
     pages++;sources.push(source);identity=parsed.identity;pageTitle=parsed.pageTitle;limited=limited||parsed.limited;
     excluded.duplicate+=parsed.excluded?.duplicate||0;excluded.unreadable+=parsed.excluded?.unreadable||0;if(parsed.excluded?.identity)excluded.identity=(excluded.identity||0)+parsed.excluded.identity;
-    if(parsed.excluded?.incomplete){excluded.incomplete=(excluded.incomplete||0)+parsed.excluded.incomplete;partial=true;warning='Some full review continuations could not be loaded. Incomplete excerpts were excluded; retry or import the complete text.';}
+    if(parsed.excluded?.incomplete){excluded.incomplete=(excluded.incomplete||0)+parsed.excluded.incomplete;partial=true;if(!warning)warning='Some full review continuations could not be loaded. Incomplete excerpts were excluded; retry or import the complete text.';}
     if(sort==='balanced')pools.push({rows:[...parsed.reviews]});
     // A page containing only repeats or excluded spoilers is not the end of the list.
     // Continue within the same four-page budget so later eligible authors can still be found.
@@ -102,7 +103,7 @@ async function fetchReviews(item,{count=40,sort='popular',spoilers=false,signal,
   if(sort==='balanced'){
     while(pools.some(pool=>pool.rows.length))for(const pool of pools){while(pool.rows.length){if(accept(pool.rows.shift()))break;}}
   }
-  if(!reviews.length)throw Error('No readable non-spoiler reviews found. Try the Browser or import a sample.');
+  if(!reviews.length)throw Error(warning.startsWith('Letterboxd HTTP 403.')?warning:'No readable non-spoiler reviews found. Try the Browser or import a sample.');
   // The existing editor has a 120k JSON bound; preserve complete rows within it.
   while(JSON.stringify(reviews).length>120000){reviews.pop();excluded.size++;limited=true;}
   const coverage=Object.fromEntries((sort==='balanced'?Object.keys(sortPaths):[sort]).map(order=>[order,reviews.filter(row=>row.source?.sort===order).length]));

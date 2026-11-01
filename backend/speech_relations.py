@@ -42,7 +42,9 @@ def batches(payload, source_language):
     result, current, size = [], [], 0
     scene, previous_end, scene_by_id = 0, None, {}
     for row in groups:
-        if previous_end is not None and float(row.get('start', previous_end)) - previous_end >= 8:
+        if isinstance(row.get('scene'), int) and not isinstance(row['scene'], bool) and row['scene'] >= 0:
+            scene = row['scene']
+        elif previous_end is not None and float(row.get('start', previous_end)) - previous_end >= 8:
             scene += 1
         previous_end = float(row['end']) if 'end' in row else previous_end
         scene_by_id[row['ids'][0]] = scene

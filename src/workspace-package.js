@@ -167,10 +167,7 @@ function sanitizeImportedCatalog(value) {
   // İçe aktarılan katalog kayıtlarındaki yerel dosya yolları bu makinede dosya
   // seçiciyle doğrulanmadı; 'play' sırasında bir kez yeniden seçim istenir.
   for (const item of (value && Array.isArray(value.items) ? value.items : [])) {
-    if (item?.source?.type === 'local') item.source.imported = true;
-    for (const episode of (Array.isArray(item?.episodes) ? item.episodes : [])) {
-      if (episode?.source?.type === 'local') episode.source.imported = true;
-    }
+    for(const source of require('./catalog-library-model').allSources(item))if(source.type==='local')source.imported=true;
   }
   return value;
 }
@@ -191,7 +188,10 @@ function validate(data) {
     if (!allowed(file.name) || names.has(file.name.toLowerCase()) || typeof file.data !== 'string' || file.data.length > 24e6 || !/^[A-Za-z0-9+/]*={0,2}$/.test(file.data)) throw new Error('Paket içeriği geçersiz.');
     names.add(file.name.toLowerCase());
     if (file.name.endsWith('.json')) {
-      const value = JSON.parse(Buffer.from(file.data, 'base64').toString('utf8'));
+      let value = JSON.parse(Buffer.from(file.data, 'base64').toString('utf8'));
+      // Validate portable source aliases against an inert absolute preview root.
+      // Runtime catalog readers still reject aliases; restore resolves them before publication.
+      if(file.name==='media-catalog.json')value=rewrite(value,[['{{ROOT}}',path.resolve('__portable_root__')],['{{VIDEO}}',path.resolve('__portable_video__')]]);
       require('./user-data-schema').validateStoreShape(file.name, value);
       if (file.name === 'media-catalog.json') {
         if (value.version !== 1 || !Array.isArray(value.items) || value.items.length > 10000) throw new Error('Paket kataloğu geçersiz.');
@@ -353,10 +353,7 @@ function missingLocalMedia(data, exists = fs.existsSync) {
   for (const item of watch?.items || []) add(item?.localPath);
   const catalog = json('media-catalog.json');
   for (const item of catalog?.items || []) {
-    if (item?.source?.type === 'local') add(item.source.value);
-    for (const ep of item?.episodes || []) {
-      if (ep?.source?.type === 'local') add(ep.source.value);
-    }
+    for(const source of require('./catalog-library-model').allSources(item))if(source.type==='local')add(source.value);
   }
   return [...groups.values()].sort((a, b) => b.count - a.count || a.root.localeCompare(b.root)).slice(0, 20);
 }

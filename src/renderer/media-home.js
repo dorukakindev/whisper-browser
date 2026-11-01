@@ -10,6 +10,7 @@
     data: model.snapshot([], []), request: 0, render: 0, busy: false, loaded: false, error: '', featuredKey: '', searchOpen: false };
   try{const saved=localStorage.getItem('media-home-featured-v1');if(saved&&saved.length<=8192)state.featuredKey=saved;}catch{}
   let virtualDisposers=[];
+  let feedsView=null;
   let disposeShell = () => {};
   const english = () => window.UiLocale?.get?.() !== 'tr';
   const t = (en, tr) => english() ? en : tr;
@@ -46,6 +47,7 @@
   };
   function setHome(active) {
     state.active = active;
+    if(!active){feedsView?.dispose();feedsView=null;}
     document.body.classList.toggle('media-home-active', active);
     host.classList.toggle('hidden', !active);
     syncLayer();
@@ -306,6 +308,7 @@
   function renderContent() {
     const content = document.getElementById('mhContent'); if (!content) return;
     if (state.page === 'discover') window.MediaDiscoveryUI?.leave();
+    feedsView?.dispose();feedsView=null;
     const focusKey = content.contains(document.activeElement) ? document.activeElement?.dataset.homeItem : null;
     virtualDisposers.forEach(dispose=>dispose());virtualDisposers=[];
     state.render++; posterQueue = []; posterObserver.disconnect();
@@ -374,6 +377,25 @@
       if (items.some(item => item.kind !== 'series' && hasArtwork(item))) content.append(section(t('Your films', 'Filmlerin'), items.filter(item => item.kind !== 'series' && hasArtwork(item)), { artworkOnly:true, more: () => page('films') }));
       if (!items.length && !illustrated.length && state.loaded) content.append(emptyState(t('Make room for your next story','Sıradaki hikâyene yer aç'),t('Open a video, add your films or pick a book. Subtitles, translation and your voice stay together.','Video aç, filmlerini ekle veya bir kitap seç. Altyazı, çeviri ve ses araçların bir arada.'),[[t('Open media','Medya aç'),()=>window.MediaHubUI.open()],[t('Open browser','Browserı aç'),openBrowser]]));
       content.append(tools());
+    } else if (state.page === 'feeds' && window.MediaFeedsUI) {
+      feedsView=window.MediaFeedsUI.render({host:content,api:input=>window.api.feedsRequest(input),locale:english()?'en':'tr',onOpen:async request=>{
+        const result=await window.api.feedsRequest({action:'entry',entryId:request.entryId});
+        if(!result?.ok||!result.entry)throw Error(result?.error||t('Source is unavailable.','Kaynak kullanılamıyor.'));
+        const entry=result.entry;
+        if(request.mode==='play'&&entry.enclosures?.length){
+          const source=entry.enclosures[request.enclosureIndex||0];if(!source?.url)throw Error(t('Media is unavailable.','Medya kullanılamıyor.'));
+          const stream=await window.api.mediaHub({action:'network',url:source.url});
+          if(!stream?.ok)throw Error(stream?.error||t('Media could not be opened.','Medya açılamadı.'));
+          await flushWatchState(false,false);
+          const history=await window.api.listWatchLibrary(),previous=history?.find(row=>row.key===stream.key);
+          stream.title=entry.title;await window.MediaHubUI.playStream(stream,previous?.completed?0:Number(previous?.position)||0);
+        }else{
+          await flushWatchState(false,false);
+          document.getElementById('playerLayer').classList.remove('hidden');setWorkspaceMode('browser',false);
+          document.getElementById('browserAddress').value=entry.url;
+          const opened=await navigateBrowserFromAddress();if(opened?.ok===false)throw Error(opened.error||t('Source could not be opened.','Kaynak açılamadı.'));
+        }
+      }});
     } else if (state.page === 'discover' && window.MediaDiscoveryUI) {
       const discovery = el('section', 'md-page'); content.append(discovery); window.MediaDiscoveryUI.mount(discovery);
     } else if (['books', 'music', 'radio', 'taste'].includes(state.page) && window.MediaShelfUI) {
@@ -495,7 +517,7 @@
     const outline=document.createElementNS(gear.namespaceURI,'path');let points=[];for(let i=0;i<32;i++){const angle=i*Math.PI/16-Math.PI/2,r=i%4===1||i%4===2?10:8;points.push((12+Math.cos(angle)*r).toFixed(2)+','+(12+Math.sin(angle)*r).toFixed(2));}outline.setAttribute('d','M'+points.join('L')+'Z');const center=document.createElementNS(gear.namespaceURI,'circle');center.setAttribute('cx','12');center.setAttribute('cy','12');center.setAttribute('r','3.2');gear.append(outline,center);settings.append(gear);actions.append(settings);
     const mainPages = [];
     const nav = el('nav', 'mh-nav'); nav.setAttribute('aria-label', t('Media navigation', 'Medya gezinmesi'));
-    for (const [key, label] of [['home', t('Home', 'Ana sayfa')], ['discover', t('Discover', 'Keşfet')], ['films', t('Films', 'Filmler')], ['series', t('Series', 'Diziler')], ['radio', t('Radio / podcast', 'Radyo / podcast')], ['taste', t('Taste profile','Zevk profilim')], ['web', 'Web'], ['recent', t('Recent', 'Son oynatılanlar')]]) {
+    for (const [key, label] of [['home', t('Home', 'Ana sayfa')], ['discover', t('Discover', 'Keşfet')], ['films', t('Films', 'Filmler')], ['series', t('Series', 'Diziler')], ['feeds', t('Feeds', 'Akışlar')], ['radio', t('Radio / podcast', 'Radyo / podcast')], ['taste', t('Taste profile','Zevk profilim')], ['web', 'Web'], ['recent', t('Recent', 'Son oynatılanlar')]]) {
       const control = button(label, () => page(key)); control.dataset.homePage = key;
       control.setAttribute('aria-current', state.page === key ? 'page' : 'false');
       if (key === 'home') control.id = 'mhHome';
@@ -590,5 +612,5 @@
   document.addEventListener('media-library-changed', () => { if (state.active) void refresh(); });
   // Do not switch workspace or touch saved jobs, captions, tabs or dub state on startup.
   renderShell(); setHome(true);
-  window.MediaHomeUI=Object.freeze({currentPage:()=>state.page,emptyState,returnHome,resumeWorkspace,openStudio,navigate:async(value)=>{await returnHome();page(value);}});
+  window.MediaHomeUI=Object.freeze({openFeedEntry:async id=>{await returnHome();page('feeds');await feedsView?.reload();await feedsView?.openEntry(id);},currentPage:()=>state.page,emptyState,returnHome,resumeWorkspace,openStudio,navigate:async(value)=>{await returnHome();page(value);}});
 })();

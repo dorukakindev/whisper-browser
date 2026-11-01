@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "method": "Real Electron computed styles, merged literal styles versus shared roles; 19 selectors, 3 pseudo states, 6 color properties, 2 themes, 2 widths. No personal profile/API.",
+  "checks": [
+    {
+      "theme": "dark",
+      "width": 1440,
+      "matchedComputedProperties": 342
+    },
+    {
+      "theme": "dark",
+      "width": 680,
+      "matchedComputedProperties": 342
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "matchedComputedProperties": 342
+    },
+    {
+      "theme": "light",
+      "width": 680,
+      "matchedComputedProperties": 342
+    }
+  ]
+}

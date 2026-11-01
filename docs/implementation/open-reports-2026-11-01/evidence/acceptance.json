@@ -1,0 +1,36 @@
+{
+  "ok": true,
+  "screens": [
+    {
+      "file": "feeds-1440-tr-dark.png",
+      "width": 1440,
+      "locale": "tr",
+      "theme": "dark",
+      "pageWidth": 1334,
+      "overflow": false,
+      "entryCount": 3,
+      "apiReady": true
+    },
+    {
+      "file": "feeds-680-tr-dark.png",
+      "width": 680,
+      "locale": "tr",
+      "theme": "dark",
+      "pageWidth": 638,
+      "overflow": false,
+      "entryCount": 3,
+      "apiReady": true
+    },
+    {
+      "file": "feeds-680-en-light.png",
+      "width": 680,
+      "locale": "en",
+      "theme": "light",
+      "pageWidth": 638,
+      "overflow": false,
+      "entryCount": 3,
+      "apiReady": true
+    }
+  ],
+  "scope": "Actual application, isolated Windows profile, real main/preload/feed service/store/parser. Controlled feed transport; no live model or private profile."
+}

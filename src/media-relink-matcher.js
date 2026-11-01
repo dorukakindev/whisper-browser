@@ -262,6 +262,8 @@ function collectMissingSources(items, root, exists) {
         sources.push([`${String(item?.title || '')}${tag}`.trim(), ep.source.value]);
       }
     }
+    for(const edition of item.editions||[]){if(edition.source?.type==='local')sources.push([`${item.title} · ${edition.label}`,edition.source.value]);for(const part of edition.parts||[])if(part.source?.type==='local')sources.push([`${item.title} · ${edition.label} · ${part.label}`,part.source.value]);}
+    for(const extra of item.extras||[])if(extra.source?.type==='local')sources.push([`${item.title} · ${extra.title}`,extra.source.value]);
     for (const [label, value] of sources) {
       if (typeof value !== 'string' || !value) continue;
       const valueNorm = normalizeFsPath(value).toLowerCase();

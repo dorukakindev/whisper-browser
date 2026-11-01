@@ -4,6 +4,9 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Yeni oturumda önce oku — kalıcı kullanıcı tercihleri
 
+- Kullanıcının 2026-11-01 son teslim tercihi: GitHub Actions kredisi bitti; yeni Actions çalışması başlatma. Push/PR/merge teslimlerini `[skip ci]` ile yap; uzun CI veya gereksiz test tekrarlarıyla bekletme. Değişen akışın kısa anlamlı yerel ve gerekirse native kontrolü korunur; görülmeyen sonuç başarılı sayılmaz.
+
+
 - Kullanıcının son somut gezinme tercihi: Üst medya araçları tek planlı yatay çizgide olacak; ikincil hedefler ve araçlar en soldaki uygulama simgesinden hover ile açılan, menüden ayrılınca kapanan bir yüzeyde bulunacak. Tıklama/klavye erişimi korunur; ekran daraldığında yazıları ezmek veya ikinci rastgele satır açmak yerine tam kontroller bu menüye taşınır. Tüm yüzeylerde önce hiyerarşi, sinematik medya kimliği ve estetik bütünlük; yalnız süs ekleyerek başarı iddiası yok.
 
 - Kullanıcının 2026-11-01 kesin tasarım yönü: Program genelinde güçlü, özgün, modern ve özenli bir medya player/browser deneyimi istiyor; yalnız temizlik veya ufak cila yeterli değil. ÜST MEDYA MENÜSÜ, önceki grafit/siyaha yakın palet, sıcak amber ve medya oynatıcı ruhu korunacak. Soldan gezinmeli/paper-plane/landing-page yönü kullanıcı tarafından reddedildi; bunu üretime taşıma. Luna kalite referansı, piksel kopyası değil; bizim zengin kaynak/altyazı/dublaj/asistan akışlarımız kendi kimliğimizi taşımalı. Hareketler güçlü ve bağlama bağlı olabilir; parlayan düğme, rastgele büyük hover, retro gösteriş ve pazarlama sayfası efektleri istenmiyor. İleri ayarlar ve mevcut yetenekler korunur. Hesap istemeyen uygun araçlarla gerçek Windows görüntüsü ve hareketli önizleme üzerinde doğrula. Mevcut bug raporları kullanıcı ayrıca söyleyene kadar yeni iş değildir; aktif görev tasarımdır.

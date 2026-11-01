@@ -1,0 +1,342 @@
+[
+  {
+    "file": "src/assistant-agent-service.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/assistant-capabilities.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/assistant-context-manifest.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/assistant-provider.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/assistant-retrieval.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/assistant-source-preview.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/assistant-thread-store.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/browser-preload.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/browser-reader.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/browser-reading-list.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/browser-translation-archive.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/catalog-extensions.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/dub-pronunciation-store.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/dub-service.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/letterboxd-auto.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/letterboxd-reviews.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/main.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/media-catalog-service.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/media-catalog-store.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/media-relink-matcher.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/media-taste.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/media-tools-service.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/preload.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/assistant-app-actions.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/assistant-book-search.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/assistant-library-actions.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/assistant-workspace.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/book-assistant-ui.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/dub-experience-model.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/dub-experience-ui.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/dub-generator-ui.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/dub-workspace-model.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/dub-workspace-ui.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/global-assistant.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/media-catalog.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/media-home.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/media-taste-ui.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/media-title.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/renderer.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/review-decision-ui.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/subscriptions-io.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/user-data-schema.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/workspace-package.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/workspace-video-package.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/browser-translation-archive.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/catalog-folder-diff.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/catalog-library-model.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/catalog-library-service.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/feed-parser.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/feed-service.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/feed-store.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/assistant-feed-sources.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/media-feeds-ui.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/electron-open-package-library.smoke.cjs",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/feed-parser.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/feed-service.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/feed-store.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/open-package-assistant-citations.cjs",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/open-package-assistant-feeds.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/open-package-assistant-retrieval.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/open-package-continuity.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/open-package-library-bugs.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/open-package-library-features.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/open-package-main-continuity.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/open-package-research-note.cjs",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "backend/transcribe.py",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "backend/speech_relations.py",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "backend/catalog_nfo.py",
+    "exit": 0,
+    "error": ""
+  }
+]

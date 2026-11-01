@@ -155,11 +155,13 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
       }
       if(action==='reviews-fetch'){
         const selected=await reviewItem(event,input);const allowedUrl=require('./letterboxd-reviews').publicFilmUrl(input.url);if(!allowedUrl)throw Error('Use a public Letterboxd reviews URL.');const url=new URL(allowedUrl);
+        const snapshot=JSON.stringify([selected.kind,selected.title,selected.year,selected.tmdbId,selected.imdbId]);
         if(jobs.size)throw Error('A review request is already running.');const id=text(input.id,80);if(!id)throw Error('Request ID required.');if(stoppedReviews.has(id))throw Error('Cancelled.');const controller=new AbortController();jobs.set(id,controller);
         try{const signal=AbortSignal.any([controller.signal,AbortSignal.timeout(20000)]);const response=await fetchImpl(url.href,{signal,redirect:'error',credentials:'omit'});if(!response.ok)throw Error(response.status===403?'Letterboxd returned HTTP 403. Automatic access is unavailable; open the page normally, then paste or import reviews.':'Review site returned HTTP '+response.status+'. Paste or import reviews instead.');let html='',bytes=0;const decoder=new TextDecoder();for await(const chunk of response.body){bytes+=chunk.byteLength;if(bytes>3000000)throw Error('Review page too large.');html+=decoder.decode(chunk,{stream:true});if(html.length>3000000)throw Error('Review page too large.');}
           html+=decoder.decode();controller.signal.throwIfAborted();
           const reviewsModule=require('./letterboxd-reviews');const expanded=await reviewsModule.expandReviewHtml(html,{signal,load:async address=>{const r=await fetchImpl(address,{signal,redirect:'error',credentials:'omit'});if(!r.ok){await r.body?.cancel();throw Error('Full review HTTP '+r.status);}return (await require('./catalog-discovery').readLimitedBytes(r,200000,'Full review')).toString('utf8');}});
           const parsed=reviewsModule.parseLetterboxdReviews(expanded.html,{url:url.href});
+          controller.signal.throwIfAborted();const current=await reviewItem(event,input);if(JSON.stringify([current.kind,current.title,current.year,current.tmdbId,current.imdbId])!==snapshot)throw Error('The film match changed. Load its reviews again.');
           if(!parsed.reviews.length)throw Error('No readable reviews found. The site may require access or its format changed; paste or import reviews.');return {ok:true,...parsed,partial:!!parsed.excluded?.incomplete,warning:parsed.excluded?.incomplete?'Some full review continuations could not be loaded; incomplete excerpts were excluded.':'',url:url.href,match:require('./letterboxd-reviews').matchFilm(selected,parsed.identity)};
         }finally{jobs.delete(id);}
       }
@@ -180,7 +182,9 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
         }
         const seen=new Set(),merged=history.filter(({entry})=>{const key=JSON.stringify(entry);if(seen.has(key))return false;seen.add(key);return true;}).sort((a,b)=>(Number(b.entry?.analysis?.at)||0)-(Number(a.entry?.analysis?.at)||0)).slice(0,8).map(({entry,savedFrom})=>({...entry,savedFrom}));
         const linked=sharedFeedback.sort((a,b)=>(Number(b.feedback.at)||0)-(Number(a.feedback.at)||0))[0];
-        return {ok:true,value:{...own,feedback:ownFeedback||linked?.feedback,feedbackIdentity:ownFeedback?own.feedbackIdentity:linked?.identity,...(!ownFeedback&&linked?{feedbackSavedFrom:linked.from}:{}),...(merged.length?{history:merged}:{})}};
+        // Unbound legacy notes stay local. Verified records use latest timestamp; ties prefer this surface.
+        const useLinked=linked&&(!ownFeedback||own.feedbackIdentity&&Number(linked.feedback.at)>Number(ownFeedback.at||0));
+        return {ok:true,value:{...own,feedback:useLinked?linked.feedback:ownFeedback,feedbackIdentity:useLinked?linked.identity:own.feedbackIdentity,...(useLinked?{feedbackSavedFrom:linked.from}:{}),...(merged.length?{history:merged}:{})}};
       }
       if(['decision-save','feedback-save'].includes(action)){
         const selected=await reviewItem(event,input);if(action==='decision-save'&&input.itemIdentity){for(const key of ['kind','title','year','tmdbId','imdbId'])if(String(input.itemIdentity[key]??'')!==String(selected[key]??''))throw Error('The film identity changed. Review the new title before saving this analysis.');}const data=read(),previous=Object.hasOwn(data.titles,selected.id)?data.titles[selected.id]:{};
