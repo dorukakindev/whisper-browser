@@ -1,0 +1,35 @@
+[
+  {
+    "repo": "chatboxai/chatbox",
+    "url": "https://github.com/chatboxai/chatbox",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "GPL-3.0",
+    "pushedAt": "2026-10-29T03:41:00Z",
+    "head": "d17455c5ca8fd3ff44385c6d4d2118599e4c970f",
+    "headDate": "2026-10-29T03:33:27Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "open-webui/open-webui",
+    "url": "https://github.com/open-webui/open-webui",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "NOASSERTION",
+    "pushedAt": "2026-11-01T11:55:10Z",
+    "head": "f7ac7ee10962ddec0017f5c29b6740d9b9c5faca",
+    "headDate": "2026-10-29T09:05:24Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "ChatGPTNextWeb/NextChat",
+    "url": "https://github.com/ChatGPTNextWeb/NextChat",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-10-20T10:19:31Z",
+    "head": "1d3dc331512929a4b1d3e82354e72acce33b5c7a",
+    "headDate": "2026-10-20T10:19:31Z",
+    "treeTruncated": false
+  }
+]

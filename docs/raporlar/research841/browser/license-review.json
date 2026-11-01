@@ -1,0 +1,59 @@
+[
+  {
+    "repo": "minbrowser/min",
+    "head": "c92079cde045c38ab844e53501e9c5178d503a45",
+    "path": "LICENSE.txt",
+    "url": "https://github.com/minbrowser/min/blob/c92079cde045c38ab844e53501e9c5178d503a45/LICENSE.txt",
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "licenseApi": "Apache-2.0"
+  },
+  {
+    "repo": "karakeep-app/karakeep",
+    "head": "17a04dc839ea0267a47d305ba431e90545343746",
+    "path": "LICENSE",
+    "url": "https://github.com/karakeep-app/karakeep/blob/17a04dc839ea0267a47d305ba431e90545343746/LICENSE",
+    "sha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef",
+    "licenseApi": "AGPL-3.0"
+  },
+  {
+    "repo": "linkwarden/linkwarden",
+    "head": "eff7c6b735f6b20a4766745dc86c6bdc52bd9840",
+    "path": "LICENSE.md",
+    "url": "https://github.com/linkwarden/linkwarden/blob/eff7c6b735f6b20a4766745dc86c6bdc52bd9840/LICENSE.md",
+    "sha256": "db52e3daad9260a1cc638efaf3f6b7a6bdead236365586a60078a9a287613037",
+    "licenseApi": "AGPL-3.0"
+  },
+  {
+    "repo": "gildas-lormeau/SingleFile",
+    "head": "b98ad61e8bc09ceed8edb7a5efca17980afe040d",
+    "path": "LICENSE",
+    "url": "https://github.com/gildas-lormeau/SingleFile/blob/b98ad61e8bc09ceed8edb7a5efca17980afe040d/LICENSE",
+    "sha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef",
+    "licenseApi": "AGPL-3.0"
+  },
+  {
+    "repo": "unclecode/crawl4ai",
+    "head": "888299fb5f0b82181897dc0e61bfb4b036f0aea5",
+    "path": "LICENSE",
+    "url": "https://github.com/unclecode/crawl4ai/blob/888299fb5f0b82181897dc0e61bfb4b036f0aea5/LICENSE",
+    "sha256": "193fe32704bee15cd74f5153e569cdf830e26445e19798a55daee32da40758aa",
+    "licenseApi": "Apache-2.0"
+  },
+  {
+    "repo": "firecrawl/firecrawl",
+    "head": "7e6bd701febaacc3bb95c0fb7eee2c509a4813c5",
+    "path": "LICENSE",
+    "url": "https://github.com/firecrawl/firecrawl/blob/7e6bd701febaacc3bb95c0fb7eee2c509a4813c5/LICENSE",
+    "sha256": "9b4649365c4f29d8f41301f4cda1e5bd9da51cf1bbb19ab9d568ff57d56e3b33",
+    "licenseApi": "AGPL-3.0"
+  },
+  {
+    "repo": "n4ze3m/page-assist",
+    "head": "1ecdac5ca3b4a13be657740add2e29ea1669097f",
+    "path": "README.md",
+    "url": "https://github.com/n4ze3m/page-assist/blob/1ecdac5ca3b4a13be657740add2e29ea1669097f/README.md",
+    "sha256": "38dd84061ac0317735e7c498518d88f1de4bf47010473a04a4c8cf7b56f5a280",
+    "licenseApi": "MIT",
+    "evidence": "README License section says MIT; recursive default HEAD tree has no standalone LICENSE/COPYING file; selected source notice should be verified before copying."
+  }
+]

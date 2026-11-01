@@ -1,0 +1,102 @@
+[
+  {
+    "repo": "streamyfin/streamyfin",
+    "head": "284d5527f3aa0f099a7124b6e9d7fb8321ccd51c",
+    "date": "2026-10-29T10:14:20Z",
+    "licenseApi": "MPL-2.0",
+    "archived": false,
+    "stars": 5326,
+    "treeTruncated": false,
+    "paths": 2001
+  },
+  {
+    "repo": "leepeuker/movary",
+    "head": "0271a92eb145a2f3525963424efa7b77754546b7",
+    "date": "2026-11-01T11:02:30Z",
+    "licenseApi": "MIT",
+    "archived": false,
+    "stars": 787,
+    "treeTruncated": false,
+    "paths": 1383
+  },
+  {
+    "repo": "IgnisDa/ryot",
+    "head": "822cc6701b46aedbc436abbf02e7efb94afd5f05",
+    "date": "2026-11-01T05:19:34Z",
+    "licenseApi": "GPL-3.0",
+    "archived": false,
+    "stars": 3652,
+    "treeTruncated": false,
+    "paths": 1268
+  },
+  {
+    "repo": "Stremio/stremio-web",
+    "head": "c34935cc36e28c00ec15f066c38bbc6f6f59f716",
+    "date": "2026-10-28T10:07:46Z",
+    "licenseApi": "GPL-2.0",
+    "archived": false,
+    "stars": 14951,
+    "treeTruncated": false,
+    "paths": 967
+  },
+  {
+    "repo": "gorse-io/gorse",
+    "head": "2145bd0567f03b59f83f43ea2575a17a9bdaa016",
+    "date": "2026-10-30T00:48:29Z",
+    "licenseApi": "Apache-2.0",
+    "archived": false,
+    "stars": 9898,
+    "treeTruncated": false,
+    "paths": 339
+  },
+  {
+    "repo": "lyst/lightfm",
+    "head": "0c9c31e027b976beab2385e268b58010fff46096",
+    "date": "2023-04-30T18:36:20Z",
+    "licenseApi": "Apache-2.0",
+    "archived": false,
+    "stars": 5119,
+    "treeTruncated": false,
+    "paths": 92
+  },
+  {
+    "repo": "RUCAIBox/RecBole",
+    "head": "7b02be5ec80a88310f2d04a27a82adfcbb5dc211",
+    "date": "2025-02-24T07:16:40Z",
+    "licenseApi": "MIT",
+    "archived": false,
+    "stars": 4606,
+    "treeTruncated": false,
+    "paths": 821
+  },
+  {
+    "repo": "jxxghp/MoviePilot",
+    "head": "7f227857d8588df9d350cd108c8a1bc9549c9638",
+    "date": "2026-11-01T09:49:20Z",
+    "licenseApi": "GPL-3.0",
+    "archived": false,
+    "stars": 11998,
+    "treeTruncated": false,
+    "paths": 2921
+  },
+  {
+    "repo": "microsoft/recommenders",
+    "head": "b6b7d2b87a1185747f70a742a68dcae1dddebbfd",
+    "date": "2026-10-26T14:22:47Z",
+    "licenseApi": "MIT",
+    "archived": false,
+    "stars": 21972,
+    "treeTruncated": false,
+    "paths": 563
+  },
+  {
+    "repo": "DevMatze/VidSelector",
+    "head": "cf3b5c7635917f1dee8106d2e8350bb0cf64b104",
+    "date": "2026-07-18T16:18:44Z",
+    "licenseApi": "NOASSERTION",
+    "archived": false,
+    "stars": 0,
+    "treeTruncated": false,
+    "paths": 217
+  }
+]

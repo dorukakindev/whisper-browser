@@ -1,0 +1,26 @@
+{
+  "result": "PASS_WITH_SCOPES",
+  "cardsReviewed": 25,
+  "dedupChanges": [
+    {
+      "id": "A841-04",
+      "before": "NEW",
+      "after": "OLD-DEEPENING:R839-F12",
+      "reason": "Explicit editable/deletable accepted preference memory overlaps previous F12; general assistant scope is an extension."
+    }
+  ],
+  "new": 17,
+  "oldDeepening": 8,
+  "particularLimits": [
+    "A841-01 upstream prompt version UI is not verified publish/rollback backend",
+    "A841-06 per-turn memory toggle is proposed extension",
+    "A841-07 only deferred prompt contract inspected, not meta-tool handler",
+    "A841-10 budget math inspected; UI proposed",
+    "A841-13 local model discovery is not a quality router",
+    "A841-17 delivery projection inspected; retry delivery endpoint not inspected",
+    "A841-18 generic task resume is not verified Whisper stage checkpoint",
+    "A841-20 artifact selector is not verified durable version backend",
+    "A841-22 missing-file detection is proposed extension",
+    "A841-23 scorer runner is not feedback capture UI"
+  ]
+}

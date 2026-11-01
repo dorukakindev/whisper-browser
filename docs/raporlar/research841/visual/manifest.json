@@ -1,0 +1,52 @@
+[
+  {
+    "file": "chatbox-02-markdown.jpg",
+    "url": "https://web.chatboxai.app/",
+    "capturedLocalTime": "2026-11-01T14:58:23+03:00",
+    "sha256": "8ce2dac83d0185091b4d120d5fc64cbef3c0c346ea5806a6d5a5084267ba4a97",
+    "scope": "Seed Markdown conversation; no model call",
+    "source": "CUA IAB actual hosted UI",
+    "upstreamBuildCommit": "unknown",
+    "privateUserData": false
+  },
+  {
+    "file": "chatbox-04-session-settings.jpg",
+    "url": "https://web.chatboxai.app/session/chatbox-chat-demo-artifact-1-en",
+    "capturedLocalTime": "2026-11-01T15:00:50+03:00",
+    "sha256": "e59922e1f38d3503c50abecf902012a684262f47991d0fdcb6def977d7ca56c9",
+    "scope": "Conversation settings inspected; cancelled without save; hosted version unknown",
+    "source": "CUA IAB actual hosted UI",
+    "upstreamBuildCommit": "unknown",
+    "privateUserData": false
+  },
+  {
+    "file": "karakeep-01-grid.jpg",
+    "url": "https://try.karakeep.app/dashboard/bookmarks",
+    "capturedLocalTime": "2026-11-01T15:00:51+03:00",
+    "sha256": "5d89cff34d0d3d1d5b97e3b571b5a30eb8db241d83f4e079f294fb92d4445da0",
+    "scope": "Official read-only demo grid; footer v0.34.1",
+    "source": "CUA IAB actual hosted UI",
+    "upstreamBuildCommit": "unknown",
+    "privateUserData": false
+  },
+  {
+    "file": "karakeep-03-view-selector.jpg",
+    "url": "https://try.karakeep.app/dashboard/preview/qknrokiya4c4huqb51rp8n6w",
+    "capturedLocalTime": "2026-11-01T15:08:46+03:00",
+    "sha256": "5cbf1f2abe89c602bdab2361f3e5a630f79023ca34ccedff73772dcc3c0b0e1e",
+    "scope": "Reader selector; Archived PDF/Page/Video disabled for this item",
+    "source": "CUA IAB actual hosted UI",
+    "upstreamBuildCommit": "unknown",
+    "privateUserData": false
+  },
+  {
+    "file": "karakeep-05-highlights.jpg",
+    "url": "https://try.karakeep.app/dashboard/highlights",
+    "capturedLocalTime": "2026-11-01T15:09:32+03:00",
+    "sha256": "7c10c479edc64e09a162d6d67f9f550b25e32e11dc55e5221944c0d8014f6669",
+    "scope": "Existing public demo highlights only; no modifications",
+    "source": "CUA IAB actual hosted UI",
+    "upstreamBuildCommit": "unknown",
+    "privateUserData": false
+  }
+]

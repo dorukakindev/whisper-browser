@@ -1,0 +1,57 @@
+[
+  {
+    "path": "src/media-discovery-service.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "sha256CanonicalLF": "aa850b63c8b9e2928b3c79d2483fb21f5d4d5b809d9a7daba420aa2127de2783"
+  },
+  {
+    "path": "src/media-taste.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "sha256CanonicalLF": "d202299826f8e9eafbf86a461f1153cbce98d784d4b0780e677568e442db8505"
+  },
+  {
+    "path": "src/taste-quiz.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "sha256CanonicalLF": "80f85ace12f9b956c870766e0b754daf83ff5f24c884a14c66388cf80391d522"
+  },
+  {
+    "path": "src/media-catalog-store.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "sha256CanonicalLF": "7939917fc8e1e72bdc7d3ab2865d69a62c0b09d1e8bb1febe41b6b49549019af"
+  },
+  {
+    "path": "src/media-shelf-service.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "sha256CanonicalLF": "a9a50568b7861ac692cb8b71ab7a98f3f9f8804932b105784286a89c1ae6fc8b"
+  },
+  {
+    "path": "src/catalog-discovery.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "sha256CanonicalLF": "d54654ba0dfc94779cfe36524dc7784f5e60255c44b70667444b539764bff729"
+  },
+  {
+    "path": "src/catalog-extensions.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "sha256CanonicalLF": "0921144a6ec1002a562ac7190e14849708fdf8d214559b38bdc5f77688a7a88f"
+  },
+  {
+    "path": "src/letterboxd-reviews.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "sha256CanonicalLF": "8d6574445f152bdae614e55d4509e1446e428bfa6b361ff3d0045c918fa11ebf"
+  },
+  {
+    "path": "src/letterboxd-auto.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "sha256CanonicalLF": "02f4493fa2cb5fbcbc90cc7ead8a0d2248672ee5f23a9185f68932add393a166"
+  },
+  {
+    "path": "src/renderer/media-discovery-ui.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "sha256CanonicalLF": "efef69508ce4ec3ebcb7398efad81d428c43148a7e048e19095ba6ff7cf3f354"
+  },
+  {
+    "path": "src/renderer/film-context-features.js",
+    "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+    "sha256CanonicalLF": "6e007360799468d2804bf9232760233bc8a55785ed5e98cef57bb3cb24fdb97e"
+  }
+]

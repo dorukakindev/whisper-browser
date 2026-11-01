@@ -1,0 +1,101 @@
+[
+  {
+    "repo": "LibreChat-AI/LibreChat",
+    "url": "https://github.com/LibreChat-AI/LibreChat",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-11-01T00:27:59Z",
+    "head": "f4154b649efa37e1345ccc517a4d8d1ed2178c82",
+    "headDate": "2026-10-31T19:17:05Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "Mintplex-Labs/anything-llm",
+    "url": "https://github.com/Mintplex-Labs/anything-llm",
+    "defaultBranch": "master",
+    "archived": false,
+    "licenseApi": "MIT",
+    "pushedAt": "2026-10-30T23:50:45Z",
+    "head": "9caf2b4c29d9782f1cba4142be2525ebfa0ecd43",
+    "headDate": "2026-10-30T20:49:57Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "lobehub/lobehub",
+    "url": "https://github.com/lobehub/lobehub",
+    "defaultBranch": "canary",
+    "archived": false,
+    "licenseApi": "NOASSERTION",
+    "pushedAt": "2026-11-01T11:50:39Z",
+    "head": "4441d89c9ea0aebecdcb0a0d3d2327cc422ddf98",
+    "headDate": "2026-11-01T11:50:36Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "khoj-ai/khoj",
+    "url": "https://github.com/khoj-ai/khoj",
+    "defaultBranch": "master",
+    "archived": false,
+    "licenseApi": "AGPL-3.0",
+    "pushedAt": "2026-08-02T01:55:40Z",
+    "head": "ae229ca894c0b80ad84664afcfdde523b5e87057",
+    "headDate": "2026-08-02T01:55:40Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "CherryHQ/cherry-studio",
+    "url": "https://github.com/CherryHQ/cherry-studio",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "AGPL-3.0",
+    "pushedAt": "2026-11-01T11:53:10Z",
+    "head": "db125b265ecb6658d3bc99f2a65004605c237cab",
+    "headDate": "2026-11-01T08:13:36Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "iOfficeAI/AionUi",
+    "url": "https://github.com/iOfficeAI/AionUi",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "Apache-2.0",
+    "pushedAt": "2026-10-23T14:21:51Z",
+    "head": "11cd2a9a20d1e033157636efc570b41384c66d85",
+    "headDate": "2026-10-23T14:21:49Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "mastra-ai/mastra",
+    "url": "https://github.com/mastra-ai/mastra",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "NOASSERTION",
+    "pushedAt": "2026-11-01T06:27:17Z",
+    "head": "e219e6d94d3ec7ddb1d8b4d5af311ee6f6075e58",
+    "headDate": "2026-11-01T06:20:38Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "letta-ai/letta",
+    "url": "https://github.com/letta-ai/letta",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "Apache-2.0",
+    "pushedAt": "2026-10-18T22:28:04Z",
+    "head": "8816d3a8516893bfdc0fa14bfb1235226012e295",
+    "headDate": "2026-10-18T22:28:01Z",
+    "treeTruncated": false
+  },
+  {
+    "repo": "letta-ai/letta-code",
+    "url": "https://github.com/letta-ai/letta-code",
+    "defaultBranch": "main",
+    "archived": false,
+    "licenseApi": "Apache-2.0",
+    "pushedAt": "2026-11-01T07:29:59Z",
+    "head": "ebd590b11bef049884b923da5ed3f5d087af81e0",
+    "headDate": "2026-11-01T04:06:12Z",
+    "treeTruncated": false
+  }
+]

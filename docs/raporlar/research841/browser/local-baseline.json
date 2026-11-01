@@ -1,0 +1,70 @@
+{
+  "head": "e66228403b6d0ce11c26a3e7c3d61c77c650d375",
+  "hashMode": "UTF-8 decoded BOM stripped CRLF to LF",
+  "files": [
+    {
+      "path": "src/assistant-browser-research.js",
+      "canonicalLfSha256": "f0665a230607abb82b25ce452c141cacfd52a2f19622270df8623f14285bffc0"
+    },
+    {
+      "path": "src/browser-library-tools.js",
+      "canonicalLfSha256": "b83a49d8a8b7776847e2534f9cb9a997092277ce68f3c73553ae407ac8ca4924"
+    },
+    {
+      "path": "src/watch-index.js",
+      "canonicalLfSha256": "e295c487f44d231bd55e0581a2573640f021de46e0e07aea6f1883fd54e08025"
+    },
+    {
+      "path": "src/browser-reading-list.js",
+      "canonicalLfSha256": "f0d6fa00d02b6591dab3464d7c97e99321ce1ee81ce46905b336401e69b81c95"
+    },
+    {
+      "path": "src/browser-session-store.js",
+      "canonicalLfSha256": "28fda14461cdae284722c4cba2b739f704d9f86f5c7f43c96ccadbf13318bb65"
+    },
+    {
+      "path": "src/browser-session-package.js",
+      "canonicalLfSha256": "3877834f65d9be5458d953b2794dfe88fb0c28f8dc7a5d92f7f0eb394c19fcfb"
+    },
+    {
+      "path": "src/browser-tab-resources.js",
+      "canonicalLfSha256": "eed13f038a08f3fbad25592ede23997273a9cc9d1dab6e2d1081a1339f5f1f1d"
+    },
+    {
+      "path": "src/browser-site-permissions.js",
+      "canonicalLfSha256": "409a4a82d3c1e93807ea64beb99ec890b3c7d302cbacf7afd11ad2c73d8ec1c3"
+    },
+    {
+      "path": "src/browser-research-notebook.js",
+      "canonicalLfSha256": "2bc1f784e478564f0e8459564c1d6467592fbdd133d2dbb48cdc358e0b988088"
+    },
+    {
+      "path": "src/browser-note-store.js",
+      "canonicalLfSha256": "3534acc9fd81da65b8fb7aea6d5f20d8a906df9e34dfb2f7bf32565992690c0e"
+    },
+    {
+      "path": "src/browser-omnibox.js",
+      "canonicalLfSha256": "17e615ca49233a2249160e239e8bf0e88d4f482787bb92b006937f6f700e8591"
+    },
+    {
+      "path": "src/browser-command-palette.js",
+      "canonicalLfSha256": "45a6d44e587621f7012fb8c560678931b3687beda0d16b2f3dbef96a44e85fcb"
+    },
+    {
+      "path": "src/browser-address-model.js",
+      "canonicalLfSha256": "730f059ad494d8d5bffba492328beda8eb1faead530ff69a502943653cbf622e"
+    },
+    {
+      "path": "src/browser-automation-rules.js",
+      "canonicalLfSha256": "571319b9334ccd2f41e16ae1204e98ed67773d09333ea03ceef7b4d6eada7965"
+    },
+    {
+      "path": "src/browser-site-profiles.js",
+      "canonicalLfSha256": "8584f3152282e1e98c0a613a5be305f5d0e07d513bdd09eb850c96102c1337d9"
+    },
+    {
+      "path": "src/browser-page-index.js",
+      "canonicalLfSha256": "d2e897be7e9ecdd7ef11d38ce95de78850db24f59c604d615859774a220d4561"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "cards": 24,
+  "new": 17,
+  "oldDeepening": 7,
+  "cardWordRange": [
+    89,
+    110
+  ],
+  "pinnedSourceLinks": 25,
+  "missingSourceRecords": [],
+  "sourceFiles": 43,
+  "sourceByteHashesVerified": 25,
+  "licenseEvidenceFilesVerified": 7,
+  "localBaselineFiles": 16,
+  "scope": "Document structure and selected downloaded source-byte SHA256 checks only; no product or upstream runtime tests."
+}
