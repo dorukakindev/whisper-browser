@@ -1,0 +1,248 @@
+[
+  {
+    "platform": "local Windows",
+    "revision": "before",
+    "file": "audit-2026-09-22-browser-translate",
+    "exit": 1,
+    "hints": [
+      "  FAIL  CSS: geri dönüşsüz her var(--x) başvurusu tanımlı bir token'a gider",
+      "AssertionError [ERR_ASSERTION]: tanımsız token: --theme-bg-0, --theme-bg-1, --theme-bg-2, --theme-bg-3, --theme-border, --theme-border-strong, --theme-text, --theme-text-dim, --theme-text-muted, --the",
+      "  FAIL  CSS: açık tema kontrast düzeltmeleri yerinde"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-before-audit-2026-09-22-browser-translate.log"
+  },
+  {
+    "platform": "local Windows",
+    "revision": "after",
+    "file": "audit-2026-09-22-browser-translate",
+    "exit": 1,
+    "hints": [
+      "  FAIL  CSS: geri dönüşsüz her var(--x) başvurusu tanımlı bir token'a gider",
+      "AssertionError [ERR_ASSERTION]: tanımsız token: --theme-bg-0, --theme-bg-1, --theme-bg-2, --theme-bg-3, --theme-border, --theme-border-strong, --theme-text, --theme-text-dim, --theme-text-muted, --the",
+      "  FAIL  CSS: açık tema kontrast düzeltmeleri yerinde"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-after-audit-2026-09-22-browser-translate.log"
+  },
+  {
+    "platform": "local Windows",
+    "revision": "before",
+    "file": "ci-determinism-ratchet",
+    "exit": 1,
+    "hints": [
+      "AssertionError [ERR_ASSERTION]: uyku-bekleme sayısı 27 > baseline 21 — koşul yoklaması kullanın"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-before-ci-determinism-ratchet.log"
+  },
+  {
+    "platform": "local Windows",
+    "revision": "after",
+    "file": "ci-determinism-ratchet",
+    "exit": 1,
+    "hints": [
+      "AssertionError [ERR_ASSERTION]: uyku-bekleme sayısı 27 > baseline 21 — koşul yoklaması kullanın"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-after-ci-determinism-ratchet.log"
+  },
+  {
+    "platform": "local Windows",
+    "revision": "before",
+    "file": "css-hardcoded-colors",
+    "exit": 1,
+    "hints": [
+      "AssertionError [ERR_ASSERTION]: styles.css sabit renk sayısı 431 > sınır 419. Yeni kuralda var(--text), var(--text-dim), var(--border)… kullanın."
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-before-css-hardcoded-colors.log"
+  },
+  {
+    "platform": "local Windows",
+    "revision": "after",
+    "file": "css-hardcoded-colors",
+    "exit": 1,
+    "hints": [
+      "AssertionError [ERR_ASSERTION]: styles.css sabit renk sayısı 452 > sınır 419. Yeni kuralda var(--text), var(--text-dim), var(--border)… kullanın."
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-after-css-hardcoded-colors.log"
+  },
+  {
+    "platform": "local Windows",
+    "revision": "before",
+    "file": "pdf-progress754",
+    "exit": 1,
+    "hints": [
+      "  ReferenceError: window is not defined",
+      "  ReferenceError: window is not defined"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-before-pdf-progress754.log"
+  },
+  {
+    "platform": "local Windows",
+    "revision": "after",
+    "file": "pdf-progress754",
+    "exit": 1,
+    "hints": [
+      "  ReferenceError: window is not defined",
+      "  ReferenceError: window is not defined"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-after-pdf-progress754.log"
+  },
+  {
+    "platform": "local Windows",
+    "revision": "before",
+    "file": "player-ui",
+    "exit": 1,
+    "hints": [
+      "  FAIL  geciken tarayıcı görünümü oynatıcı modunun üzerine geri açılamıyor — geciken görünüm oynatıcı modunda ana süreçten tekrar gizlenmiyor"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-before-player-ui.log"
+  },
+  {
+    "platform": "local Windows",
+    "revision": "after",
+    "file": "player-ui",
+    "exit": 1,
+    "hints": [
+      "  FAIL  geciken tarayıcı görünümü oynatıcı modunun üzerine geri açılamıyor — geciken görünüm oynatıcı modunda ana süreçten tekrar gizlenmiyor"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-after-player-ui.log"
+  },
+  {
+    "platform": "local Windows",
+    "revision": "before",
+    "file": "report629-regressions",
+    "exit": 1,
+    "hints": [
+      "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "  AssertionError [ERR_ASSERTION]: The \"file\" argument must be of type string. Received null"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-before-report629-regressions.log"
+  },
+  {
+    "platform": "local Windows",
+    "revision": "after",
+    "file": "report629-regressions",
+    "exit": 1,
+    "hints": [
+      "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "  AssertionError [ERR_ASSERTION]: The \"file\" argument must be of type string. Received null"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-after-report629-regressions.log"
+  },
+  {
+    "platform": "local Windows",
+    "revision": "before",
+    "file": "report64-contrast",
+    "exit": 1,
+    "hints": [
+      "AssertionError [ERR_ASSERTION]: Light --text-muted ve --bg-3 bulunmalı"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-before-report64-contrast.log"
+  },
+  {
+    "platform": "local Windows",
+    "revision": "after",
+    "file": "report64-contrast",
+    "exit": 1,
+    "hints": [
+      "AssertionError [ERR_ASSERTION]: Light --text-muted ve --bg-3 bulunmalı"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-after-report64-contrast.log"
+  },
+  {
+    "revision": "before",
+    "file": "report815-assistant-regressions",
+    "exit": 1,
+    "hints": [
+      "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-before-report815-assistant-regressions.log"
+  },
+  {
+    "revision": "after",
+    "file": "report815-assistant-regressions",
+    "exit": 1,
+    "hints": [
+      "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-after-report815-assistant-regressions.log"
+  },
+  {
+    "platform": "local Windows",
+    "revision": "before",
+    "file": "settings-ui-persist-roundtrip",
+    "exit": 1,
+    "hints": [
+      "  FAIL  index.html form kontrollerinin tamamı sınıflandırılmış (persist/diğer-depo/geçici): AssertionError [ERR_ASSERTION]: sınıflandırılmamış kontroller: voiceReferenceLibrary, dubPronunciationScope"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-before-settings-ui-persist-roundtrip.log"
+  },
+  {
+    "platform": "local Windows",
+    "revision": "after",
+    "file": "settings-ui-persist-roundtrip",
+    "exit": 1,
+    "hints": [
+      "  FAIL  index.html form kontrollerinin tamamı sınıflandırılmış (persist/diğer-depo/geçici): AssertionError [ERR_ASSERTION]: sınıflandırılmamış kontroller: voiceReferenceLibrary, dubPronunciationScope"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-after-settings-ui-persist-roundtrip.log"
+  },
+  {
+    "revision": "before",
+    "file": "signal-desk-ui",
+    "exit": 1,
+    "hints": [
+      "  FAIL  global scrollbar, AA muted token ve azaltılmış hareket sözleşmesi var — AA muted token runtimea geçmemiş"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-before-signal-desk-ui.log"
+  },
+  {
+    "revision": "after",
+    "file": "signal-desk-ui",
+    "exit": 1,
+    "hints": [
+      "  FAIL  global scrollbar, AA muted token ve azaltılmış hareket sözleşmesi var — AA muted token runtimea geçmemiş"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-after-signal-desk-ui.log"
+  },
+  {
+    "platform": "local Windows",
+    "revision": "before",
+    "file": "ui-locale",
+    "exit": 1,
+    "hints": [
+      "  throw new AssertionError(obj);",
+      "AssertionError [ERR_ASSERTION]: Static UI copy must have a translation or a documented neutral exception"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-before-ui-locale.log"
+  },
+  {
+    "platform": "local Windows",
+    "revision": "after",
+    "file": "ui-locale",
+    "exit": 1,
+    "hints": [
+      "  throw new AssertionError(obj);",
+      "AssertionError [ERR_ASSERTION]: Static UI copy must have a translation or a documented neutral exception"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-after-ui-locale.log"
+  },
+  {
+    "platform": "local Windows",
+    "revision": "before",
+    "file": "renderer-state-a11y-responsive",
+    "exit": 1,
+    "hints": [
+      "TypeError: Cannot read properties of null (reading '1')"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-before-renderer-state-a11y-responsive.log"
+  },
+  {
+    "platform": "local Windows",
+    "revision": "after",
+    "file": "renderer-state-a11y-responsive",
+    "exit": 1,
+    "hints": [
+      "TypeError: Cannot read properties of null (reading '1')"
+    ],
+    "log": "tmp\\visual-identity\\ci-compare-after-renderer-state-a11y-responsive.log"
+  }
+]

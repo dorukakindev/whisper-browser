@@ -1,0 +1,41 @@
+✔ RSS, Atom and JSON Feed normalize safe text, native identity and enclosure types (6.5672ms)
+✔ malformed XML, DOCTYPE, deep trees and oversized bodies are rejected (1.7701ms)
+✔ autodiscovery and OPML are bounded previews, never scripts or private/signed URLs (1.9954ms)
+✔ preview never subscribes; explicit subscribe,304,parse failure and offline retain content and validators (60.1761ms)
+✔ catalog relationship requires preview and matching identity confirmation; context is bounded summary evidence (23.4986ms)
+✔ public transport refuses literal and DNS private addresses before making requests (0.7632ms)
+✔ redirects revalidate and pin DNS, drop cross-origin validators and decode within byte limits (4.8277ms)
+✔ private redirect and compression bombs fail without consuming an unbounded body (12.6753ms)
+✔ cancel aborts preview promptly; paused scheduler makes no requests and disposal cleans jobs (12.0294ms)
+✔ GUID collisions, canonical provenance, state and offline content survive atomic reload (70.0349ms)
+✔ mark-read applies only explicit snapshot IDs and undo does not swallow newly arrived entries (39.1117ms)
+✔ initial cursors also apply to pending OPML feeds and empty valid snapshots count as successful checks (31.9238ms)
+✔ RSS user event attaches explicit revisions and summary coverage as draft, without a model call (94.5222ms)
+✔ search_sources is unavailable without explicit selected feed scope; web expansion is unavailable inside it (4.1428ms)
+✔ Feed evidence is bounded, persists through thread cleaner and rejects unsafe or fabricated citation rows (3.8485ms)
+✔ Actual renderer only links verified F IDs and opens the supplied safe source URL (33.2219ms)
+✔ Actual agent service invokes selected-source tool and keeps supplied F evidence in its provider context (19.9014ms)
+✔ R831 first prepare creates folder and index publish failure restores accessible archive (335.1401ms)
+✔ R831 CSV name cannot replace canonical URL identity and preserves its name (3.3449ms)
+✔ R830 proposed global dictionary is validated against every saved source before writing (19.1509ms)
+✔ R835 missing middle speech passage remains comparable and saved edit failure survives projection (3.9535ms)
+✔ R833 rollback rejects intervening writes and records successful rollback stat for retry (5.7027ms)
+✔ R833 playlist cancellation preserves queue; enqueue and shuffle refresh visible rail (3.0083ms)
+✔ R833 real queue clicks preserve jobs and rejected source can be corrected and retried (835.6685ms)
+✔ R837 multi-subtag archive language remains independent of Turkish (73.8588ms)
+✔ R830 context listening keeps the selected ready group when quality filter hides it (259.5539ms)
+✔ R833 filtered populated playlist page retains next control (11.0236ms)
+✔ R833 rejected queue start releases output ownership without waiting for nonexistent exit (164.0867ms)
+✔ R833 partial analysis replaces old waveform with empty data (10.5399ms)
+✔ R831 deleting final group member reveals remaining ungrouped subscriptions (10.8536ms)
+✔ R833 manga origin+target maps remain independent and persist only requested scope (4.0739ms)
+✔ R837 archive restore resolves site, path and tab target before lookup (1.9153ms)
+✔ R840 trusted internal reader font and close publish current preferences; stale/spoofed callbacks rejected (22.9341ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 33
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2799.352
