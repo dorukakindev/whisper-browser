@@ -1,0 +1,41 @@
+/* Theme 827: canonical page palette shared by the main renderer and assistant.
+   Component styles alias these roles; video overlays and TV keep their explicit
+   contrast exceptions. Load before styles.css / assistant-overlay.css. */
+:root {
+  --theme-bg-0: #111215;
+  --theme-bg-1: #191b1f;
+  --theme-bg-2: #24272d;
+  --theme-bg-3: #2d3037;
+  --theme-border: #383c43;
+  --theme-border-strong: #636a75;
+  --theme-text: #f1f0ed;
+  --theme-text-dim: #c1c4cb;
+  --theme-text-muted: #b0b4bd;
+  --theme-accent: #d5a35c;
+  --theme-accent-hover: #e0b574;
+  --theme-accent-contrast: #18130d;
+  --theme-scrollbar-track: var(--theme-bg-1);
+  --theme-scrollbar-thumb: var(--theme-border-strong);
+  --theme-scrollbar-thumb-hover: var(--theme-text-muted);
+  --theme-scrollbar-thumb-active: var(--theme-text-dim);
+}
+
+/* Preserve the existing qualified warm light palette and scrollbar contrast. */
+html[data-theme="light"] {
+  --theme-bg-0: #f1ede5;
+  --theme-bg-1: #f7f4ed;
+  --theme-bg-2: #fffdf8;
+  --theme-bg-3: #e9e3d9;
+  --theme-border: #d1c8ba;
+  --theme-border-strong: #a99f91;
+  --theme-text: #28231f;
+  --theme-text-dim: #514a43;
+  --theme-text-muted: #625b54;
+  --theme-accent: #7f4c15;
+  --theme-accent-hover: #6a3e0f;
+  --theme-accent-contrast: #fffaf0;
+  --theme-scrollbar-track: #e9e3d9;
+  --theme-scrollbar-thumb: #b9afa1;
+  --theme-scrollbar-thumb-hover: #978c7f;
+  --theme-scrollbar-thumb-active: #756b61;
+}

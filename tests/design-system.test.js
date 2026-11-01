@@ -5,6 +5,8 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const css = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'styles.css'), 'utf8')
   + fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'browser-chrome.css'), 'utf8');
+const palette = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'theme-palette.css'), 'utf8');
+const assistantHtml = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'assistant-overlay.html'), 'utf8');
 const html = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'index.html'), 'utf8');
 const renderer = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'renderer.js'), 'utf8');
 const security = fs.readFileSync(path.join(ROOT, 'src', 'settings-security.js'), 'utf8');
@@ -122,12 +124,19 @@ ok('amber dolgu üzerindeki metin her zaman --accent-contrast kullanır', () => 
   assert.deepEqual(offenders, [], 'amber dolgu üzerinde tema dışı metin rengi: ' + offenders.join(' | '));
 });
 
-ok('kanonik amber hex yalnız --accent token tanımında kalır', () => {
-  const declaration = /--accent\s*:\s*#d5a35c\s*;/i;
-  assert.match(css, declaration, 'kanonik koyu tema --accent tanımı kayıp');
-  const remaining = css.replace(declaration, '').match(/#d5a35c/gi) || [];
-  assert.equal(remaining.length, 0,
-    `${remaining.length} ham #d5a35c bulundu; kullanım amacına uygun semantik token kullan`);
+ok('kanonik palet iki renderer girisinden once yuklenir ve amber tek yerde tanimlanir', () => {
+  const declaration = /--theme-accent\s*:\s*#d5a35c\s*;/i;
+  assert.match(palette, declaration);
+  assert.equal((palette.replace(declaration, '').match(/#d5a35c/gi) || []).length, 0);
+  assert.doesNotMatch(css, /#d5a35c/i);
+  assert.match(css, /--accent:\s*var\(--theme-accent\)/);
+  for (const [markup, component] of [[html, 'styles.css'], [assistantHtml, 'assistant-overlay.css']]) {
+    assert(markup.indexOf('theme-palette.css') >= 0);
+    assert(markup.indexOf('theme-palette.css') < markup.indexOf(component));
+  }
+  for (const role of ['bg-0', 'bg-1', 'bg-2', 'bg-3', 'text', 'text-dim', 'text-muted', 'border', 'border-strong']) {
+    assert.match(palette, new RegExp(`--theme-${role}:`));
+  }
 });
 
 ok('rapordaki kontrast düzeltmeleri kaynakta sabit', () => {

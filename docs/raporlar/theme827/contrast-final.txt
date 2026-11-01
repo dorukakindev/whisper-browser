@@ -1,0 +1,10 @@
+
+--- tema: dark
+    FAIL (0):
+    odak-halkası FAIL (0):
+    uyarı-muted (0):
+--- tema: light
+    FAIL (0):
+    odak-halkası FAIL (0):
+    uyarı-muted (0):
+electron-ui-theme-contrast: GEÇTİ — iki temada da okunabilirlik yeterli

@@ -63,12 +63,11 @@
   src: url('./fonts/media/sora-latin-ext-600-normal.woff2') format('woff2');
   unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
 }
-/* Scoped media shell: player, browser and studio styles remain independent. */
+/* Media shell consumes the shared page palette; component geometry stays scoped. */
 body.media-home-active { height: 100vh; overflow: hidden; }
 body.media-home-active > .app > .app-header,
 body.media-home-active > .app > .app-main { display: none; }
 body.media-home-active > .app { min-height: 0; height: 0; }
-html:not([data-theme="light"]) .media-home, html:not([data-theme="light"]) .media-surface { --bg-0: #080809; --bg-1: #111113; --bg-2: #18181b; --bg-3: #252529; --border: #28282d; --border-strong: #44444b; --text: #f3f3f5; --text-dim: #a5a5af; --text-muted: #90909b; --accent: #d5a35c; --accent-hover: #e0b574; --accent-contrast: #18100b; }
 .media-home { color: var(--text); background: var(--bg-0); height: 100vh; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-gutter: stable; font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif; }
 .mh-titlebar { height: var(--window-controls-safe-height, 38px); -webkit-app-region: drag; border-bottom: 1px solid var(--border); }
 .mh-header { display: flex; align-items: center; gap: 12px; padding: 16px 32px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
@@ -79,8 +78,8 @@ html:not([data-theme="light"]) .media-home, html:not([data-theme="light"]) .medi
 .media-home button { cursor: pointer; }
 .media-home button:disabled { opacity: .55; cursor: wait; }
 .media-home :focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
-.mh-action { border: 1px solid var(--border-strong); border-radius: 999px; padding: 10px 16px; background: var(--bg-2); color: var(--text); font-size: 13px; font-weight: 600; }
-.mh-action:hover:not(:disabled) { border-color: var(--accent); background: var(--bg-3); }
+.mh-action { border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; background: var(--bg-2); color: var(--text); font-size: 13px; font-weight: 600; }
+.mh-action:hover:not(:disabled) { border-color: var(--border-strong); background: var(--bg-3); }
 .mh-action.mh-primary { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); }
 .mh-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-left: auto; }
 .mh-locale { padding: 9px; border-radius: 999px; color: var(--text); background: var(--bg-1); border: 1px solid var(--border); }
@@ -89,7 +88,7 @@ html:not([data-theme="light"]) .media-home, html:not([data-theme="light"]) .medi
 .mh-nav button[aria-current="page"] { color: var(--accent); background: transparent; font-weight: 600; }
 .mh-nav button:hover { color: var(--text); }
 .mh-search { display: flex; align-items: center; margin-left: auto; min-width: 140px; max-width: 180px; }
-.mh-search input { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 999px; color: var(--text); background: var(--bg-1); }
+.mh-search input { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; color: var(--text); background: var(--bg-1); }
 .mh-content { max-width: 2048px; margin: auto; padding: 18px 48px 55px; }
 .mh-status { margin: 0 0 14px; color: var(--text-dim); font-size: 13px; }
 .mh-status:empty { display: none; }
@@ -101,7 +100,7 @@ html:not([data-theme="light"]) .media-home, html:not([data-theme="light"]) .medi
 .mh-hero-art { position: absolute; right: 0; top: 0; height: 100%; width: 100%; z-index: -1; display: grid; place-items: center; overflow: hidden; color: var(--border-strong); }
 .mh-hero-art svg { width: 100%; height: 65%; }
 .mh-hero-art img { height: 100%; width: 100%; object-fit: cover; object-position: center 35%; }
-.mh-hero-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(8,8,9,.96), rgba(8,8,9,.76) 34%, rgba(8,8,9,.08) 85%); }
+.mh-hero-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--bg-0) 96%, transparent), color-mix(in srgb, var(--bg-0) 80%, transparent) 34%, color-mix(in srgb, var(--bg-0) 8%, transparent) 85%); }
 .mh-hero-meta { display: block; color: var(--accent); font-size: 13px; margin-bottom: 15px; }
 .mh-hero-copy > .mh-progress { margin-top: 20px; max-width: 480px; }
 .mh-hero-navigation { position: absolute; right: 24px; bottom: 22px; display: flex; align-items: center; gap: 12px; z-index: 2; }

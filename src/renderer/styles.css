@@ -1830,14 +1830,15 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
    The player is intentionally quieter than the workbench: warm amber marks the
    playhead, cyan marks the translation, and the transcript carries the focus. */
 .player-layer {
+  /* Ordinary workspace colors follow the shared page palette. */
   --player-ink: var(--bg-0);
   --player-panel: var(--bg-1);
-  --player-panel-2: #151e28;
-  --player-line: #26313d;
-  --player-muted: #758293;
-  --player-text: #edf2f5;
-  --player-amber: #e4a85d;
-  --player-cyan: #9bc7d8;
+  --player-panel-2: var(--bg-2);
+  --player-line: var(--border);
+  --player-muted: var(--text-muted);
+  --player-text: var(--text);
+  --player-amber: var(--accent);
+  --player-cyan: var(--info);
   --side-w: clamp(430px, 37vw, 620px);
   background: var(--player-ink);
 }
@@ -2413,14 +2414,15 @@ to { opacity: 1; transform: translateY(0); }
    yüzeydir. Sağ panel bir ayar sütunu gibi değil; sürekli açık, okunabilir bir
    altyazı akışı ve gerektiğinde üstüne gelen çekmeceler olarak davranır. */
 .player-layer {
+  /* Ordinary workspace colors follow the shared page palette. */
   --player-ink: var(--bg-0);
   --player-panel: var(--bg-1);
   --player-panel-2: var(--bg-2);
   --player-line: var(--border);
-  --player-muted: #8b8b8f;
-  --player-text: #f0f0f2;
-  --player-amber: #f3bd4f;
-  --player-cyan: #9bd7d0;
+  --player-muted: var(--text-muted);
+  --player-text: var(--text);
+  --player-amber: var(--accent);
+  --player-cyan: var(--info);
   --side-w: clamp(360px, 28vw, 520px);
   color: var(--player-text);
   background: var(--player-ink);
@@ -2882,7 +2884,7 @@ to { opacity: 1; transform: translateY(0); }
 .player-audio-lock small { color: var(--text-muted); font-size: 10px; line-height: 1.4; }
 .settings-drawer .player-panel { margin-top: 13px; }
 .settings-drawer .tabs { background: var(--bg-2); border-color: var(--border); }
-.settings-drawer .field-label, .settings-drawer .hint { color: #929297; }
+.settings-drawer .field-label, .settings-drawer .hint { color: var(--text-dim); }
 .player-body { position: relative; }
 /* Sinema modunda sağ panel normalde kapalıdır. Ayarlar açıldığında paneli
    body'nin üstünde bağımsız bir çekmeceye dönüştür; böylece üstteki dişli her
@@ -3042,27 +3044,28 @@ to { opacity: 1; transform: translateY(0); }
    rengi. Dekor değil, yoğun ayar ekranında yön bulmayı kolaylaştıran katmanlar. */
 :root {
   color-scheme: dark;
+  /* Page roles alias theme-palette.css; do not fork local hex palettes. */
   /* Video üstü hap/rozet zemini (sub-hidden-hint, learning-badge, osd). */
   --osd-pill-bg: rgba(0, 0, 0, .78);
   --font-ui: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --bg-0: #080809;
-  --bg-1: #111113;
-  --bg-2: #18181b;
-  --bg-3: #252529;
-  --border: #28282d;
-  --border-strong: #44444b;
-  --text: #f3f3f5;
-  --text-dim: #a5a5af;
-  --text-muted: #90909b;
-  --accent: #d5a35c;
-  --accent-hover: #e0b574;
+  --bg-0: var(--theme-bg-0);
+  --bg-1: var(--theme-bg-1);
+  --bg-2: var(--theme-bg-2);
+  --bg-3: var(--theme-bg-3);
+  --border: var(--theme-border);
+  --border-strong: var(--theme-border-strong);
+  --text: var(--theme-text);
+  --text-dim: var(--theme-text-dim);
+  --text-muted: var(--theme-text-muted);
+  --accent: var(--theme-accent);
+  --accent-hover: var(--theme-accent-hover);
   --group-amber: var(--accent);
   --group-cyan: #64bdcc;
   --group-green: #72b888;
   --group-gray: #7c858e;
   --accent-soft: rgba(213,163,92,.14);
   --accent-dim: #a98552;
-  --accent-contrast: #1b160f;
+  --accent-contrast: var(--theme-accent-contrast);
   --success: #69b58b;
   --danger: #d06b63;
   --warning: #d2a064;
@@ -3090,10 +3093,10 @@ to { opacity: 1; transform: translateY(0); }
   --ink-primary: var(--text);
   --ink-secondary: var(--text-dim);
   --ink-muted: var(--text-muted);
-  --scrollbar-track: #111113;
-  --scrollbar-thumb: #44444b;
-  --scrollbar-thumb-hover: #60606b;
-  --scrollbar-thumb-active: #777783;
+  --scrollbar-track: var(--theme-scrollbar-track);
+  --scrollbar-thumb: var(--theme-scrollbar-thumb);
+  --scrollbar-thumb-hover: var(--theme-scrollbar-thumb-hover);
+  --scrollbar-thumb-active: var(--theme-scrollbar-thumb-active);
   /* Eski bileşenlerin kullandığı ama hiç tanımlanmamış token adları. Geri dönüş
      değeri olmadığı için 88 başvuru geçersiz kalıyor, SmartTube yüzeyi/sekme
      önizlemesi saydam çiziliyor, sol vurgu kenarları kayboluyordu. Kanonik
@@ -3156,31 +3159,31 @@ html[data-theme="light"] .player-body { background: #15181d; }
 html[data-theme="light"] .player-layer.workspace-browser .player-body { background: var(--bg-0); }
 html[data-theme="light"] {
   color-scheme: light;
-  --bg-0: #f1ede5;
-  --bg-1: #f7f4ed;
-  --bg-2: #fffdf8;
-  --bg-3: #e9e3d9;
-  --border: #d1c8ba;
-  --border-strong: #a99f91;
-  --text: #28231f;
-  --text-dim: #514a43;
-  --text-muted: #625b54;
-  --accent: #7f4c15;
+  --bg-0: var(--theme-bg-0);
+  --bg-1: var(--theme-bg-1);
+  --bg-2: var(--theme-bg-2);
+  --bg-3: var(--theme-bg-3);
+  --border: var(--theme-border);
+  --border-strong: var(--theme-border-strong);
+  --text: var(--theme-text);
+  --text-dim: var(--theme-text-dim);
+  --text-muted: var(--theme-text-muted);
+  --accent: var(--theme-accent);
   /* Hover tonu vurgudan AYRI olmalı; eşit olduğunda açık temada 21 hover kuralı
      hiçbir görsel değişiklik üretmiyordu. */
-  --accent-hover: #6a3e0f;
+  --accent-hover: var(--theme-accent-hover);
   --accent-soft: rgba(169,104,32,.13);
   --accent-dim: #6f5638;
-  --accent-contrast: #fffaf0;
+  --accent-contrast: var(--theme-accent-contrast);
   --success: #2f7652;
   --danger: #a23f3b;
   --warning: #87591f;
   /* #356d7d, .cue-card-tr opaklığıyla 4.09:1'e düşüp AA altında kalıyordu. */
   --info: #2b5d6b;
-  --scrollbar-track: #e9e3d9;
-  --scrollbar-thumb: #b9afa1;
-  --scrollbar-thumb-hover: #978c7f;
-  --scrollbar-thumb-active: #756b61;
+  --scrollbar-track: var(--theme-scrollbar-track);
+  --scrollbar-thumb: var(--theme-scrollbar-thumb);
+  --scrollbar-thumb-hover: var(--theme-scrollbar-thumb-hover);
+  --scrollbar-thumb-active: var(--theme-scrollbar-thumb-active);
 }
 a {
   color: var(--accent-hover);
@@ -5916,7 +5919,7 @@ html, body, * { scrollbar-color: auto; }
 .panel-left > .actions { position: sticky; bottom: 0; z-index: 2; flex-shrink: 0; padding: 12px; background: var(--bg-1); border: 1px solid var(--border-strong); border-radius: var(--radius); box-shadow: 0 -8px 24px color-mix(in srgb, var(--bg-0) 80%, transparent); }
 .panel .field, .panel .field select, .panel .field input { min-width: 0; }
 .panel .field select { padding-right: 32px; }
-.signal-kicker { color: var(--accent-dim); line-height: 1.35; }
+.signal-kicker { color: var(--accent); line-height: 1.35; }
 .signal-desk { border-color: var(--border-strong); box-shadow: inset 3px 0 0 var(--accent-dim); }
 .signal-desk-head h2, .jobs-center-head h2 { color: var(--text); }
 .preset-diff-trigger, .preset-diff-intro { color: var(--text-dim); }

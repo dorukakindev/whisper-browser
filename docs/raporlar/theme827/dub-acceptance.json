@@ -1,0 +1,319 @@
+[
+  {
+    "name": "tr-1440-input-flow",
+    "width": 1440,
+    "children": [
+      "dub-card dub-source-card",
+      "dub-card dub-natural-card"
+    ],
+    "height": 373.32293701171875,
+    "source": 169.33334350585938,
+    "production": 189.98959350585938
+  },
+  {
+    "name": "tr-1440-ready",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi",
+    "deliveryLines": [
+      {
+        "left": 217.33334350585938,
+        "right": 590.6354370117188,
+        "limit": 692.0000152587891,
+        "outside": false
+      }
+    ]
+  },
+  {
+    "name": "tr-1440-saved-voices",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi",
+    "deliveryLines": [
+      {
+        "left": 217.33334350585938,
+        "right": 590.6354370117188,
+        "limit": 692.0000152587891,
+        "outside": false
+      }
+    ]
+  },
+  {
+    "name": "tr-1440-focus",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi",
+    "deliveryLines": [
+      {
+        "left": 217.33334350585938,
+        "right": 590.6354370117188,
+        "limit": 692.0000152587891,
+        "outside": false
+      }
+    ]
+  },
+  {
+    "name": "tr-1440-active",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi",
+    "deliveryLines": [
+      {
+        "left": 217.33334350585938,
+        "right": 590.6354370117188,
+        "limit": 692.0000152587891,
+        "outside": false
+      }
+    ]
+  },
+  {
+    "name": "tr-1440-review",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "1 hazır0 inceleme0 üretilemedi",
+    "deliveryLines": [
+      {
+        "left": 217.33334350585938,
+        "right": 590.6354370117188,
+        "limit": 692.0000152587891,
+        "outside": false
+      }
+    ]
+  },
+  {
+    "name": "tr-820-input-flow",
+    "width": 820,
+    "children": [
+      "dub-card dub-source-card",
+      "dub-card dub-natural-card"
+    ],
+    "height": 419.32293701171875,
+    "source": 165.33334350585938,
+    "production": 239.98959350585938
+  },
+  {
+    "name": "tr-820-ready",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi",
+    "deliveryLines": [
+      {
+        "left": 44.333335876464844,
+        "right": 507.33333587646484,
+        "limit": 766.3333549499512,
+        "outside": false
+      }
+    ]
+  },
+  {
+    "name": "tr-820-focus",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi",
+    "deliveryLines": [
+      {
+        "left": 44.333335876464844,
+        "right": 417.6354293823242,
+        "limit": 766.3333549499512,
+        "outside": false
+      }
+    ]
+  },
+  {
+    "name": "tr-820-active",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 hazır0 inceleme0 üretilemedi",
+    "deliveryLines": [
+      {
+        "left": 44.333335876464844,
+        "right": 417.6354293823242,
+        "limit": 766.3333549499512,
+        "outside": false
+      }
+    ]
+  },
+  {
+    "name": "tr-820-review",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "1 hazır0 inceleme0 üretilemedi",
+    "deliveryLines": [
+      {
+        "left": 44.333335876464844,
+        "right": 417.6354293823242,
+        "limit": 766.3333549499512,
+        "outside": false
+      }
+    ]
+  },
+  {
+    "name": "en-640-input-flow",
+    "width": 640,
+    "children": [
+      "dub-card dub-source-card",
+      "dub-card dub-natural-card"
+    ],
+    "height": 438.5208435058594,
+    "source": 165.33334350585938,
+    "production": 259.1875
+  },
+  {
+    "name": "en-640-ready",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready0 to review0 failed",
+    "deliveryLines": [
+      {
+        "left": 44.333335876464844,
+        "right": 554.5312423706055,
+        "limit": 586.3333549499512,
+        "outside": false
+      },
+      {
+        "left": 554.53125,
+        "right": 557.3646240234375,
+        "limit": 586.3333549499512,
+        "outside": false
+      },
+      {
+        "left": 44.333335876464844,
+        "right": 107.90625,
+        "limit": 586.3333549499512,
+        "outside": false
+      }
+    ]
+  },
+  {
+    "name": "en-640-focus",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready0 to review0 failed",
+    "deliveryLines": [
+      {
+        "left": 44.333335876464844,
+        "right": 559.3333969116211,
+        "limit": 586.3333549499512,
+        "outside": false
+      },
+      {
+        "left": 559.3333740234375,
+        "right": 562.1666870117188,
+        "limit": 586.3333549499512,
+        "outside": false
+      },
+      {
+        "left": 44.333335876464844,
+        "right": 144.39584350585938,
+        "limit": 586.3333549499512,
+        "outside": false
+      }
+    ]
+  },
+  {
+    "name": "en-640-active",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready0 to review0 failed",
+    "deliveryLines": [
+      {
+        "left": 44.333335876464844,
+        "right": 559.3333969116211,
+        "limit": 586.3333549499512,
+        "outside": false
+      },
+      {
+        "left": 559.3333740234375,
+        "right": 562.1666870117188,
+        "limit": 586.3333549499512,
+        "outside": false
+      },
+      {
+        "left": 44.333335876464844,
+        "right": 144.39584350585938,
+        "limit": 586.3333549499512,
+        "outside": false
+      }
+    ]
+  },
+  {
+    "name": "en-640-review",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready1 to review0 failed",
+    "deliveryLines": [
+      {
+        "left": 44.333335876464844,
+        "right": 559.3333969116211,
+        "limit": 586.3333549499512,
+        "outside": false
+      },
+      {
+        "left": 559.3333740234375,
+        "right": 562.1666870117188,
+        "limit": 586.3333549499512,
+        "outside": false
+      },
+      {
+        "left": 44.333335876464844,
+        "right": 144.39584350585938,
+        "limit": 586.3333549499512,
+        "outside": false
+      }
+    ]
+  },
+  {
+    "name": "en-640-pronunciation",
+    "overflow": false,
+    "footerVisible": true,
+    "scrollAboveFooter": true,
+    "activity": "",
+    "summary": "0 ready1 to review0 failed",
+    "deliveryLines": [
+      {
+        "left": 44.333335876464844,
+        "right": 559.3333969116211,
+        "limit": 586.3333549499512,
+        "outside": false
+      },
+      {
+        "left": 559.3333740234375,
+        "right": 562.1666870117188,
+        "limit": 586.3333549499512,
+        "outside": false
+      },
+      {
+        "left": 44.333335876464844,
+        "right": 144.39584350585938,
+        "limit": 586.3333549499512,
+        "outside": false
+      }
+    ]
+  }
+]
