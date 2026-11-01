@@ -44,7 +44,7 @@
   let reviewTrigger=null;
   function closeReview(restore=true){
     reviewing=null;$('review').hidden=true;
-    if(restore){let target=reviewTrigger;if(!target?.isConnected&&target?.dataset.toolControl){const card=[...$('log').querySelectorAll('.tool-card')].find(n=>n.dataset.proposalId===target._reviewProposal);target=card?.querySelector('[data-tool-control="'+target.dataset.toolControl+'"]');}if(!target?.isConnected||target.disabled||target.closest('[hidden]'))target=$('text');if(target.closest('#conversationMenu')&&!$('conversationMenu').open)target=$('conversationMenuLabel');target.focus();}
+    if(restore){let target=reviewTrigger;if(!target?.isConnected&&target?.dataset.toolControl){const card=[...$('log').querySelectorAll('.tool-card')].find(n=>n.dataset.proposalId===target._reviewProposal);target=card?.querySelector('[data-tool-control="'+target.dataset.toolControl+'"]');}if(!target?.isConnected||target.disabled||target.closest('[hidden]'))target=$('text');if(target.closest('#suggestionMenu')&&!$('suggestionMenu').open)target=$('suggestionMenuLabel');if(target.closest('#conversationMenu')&&!$('conversationMenu').open)target=$('conversationMenuLabel');target.focus();}
     reviewTrigger=null;
   }
   function openReview(request,text,trigger=document.activeElement){
@@ -91,7 +91,7 @@
   $('webSearch').onclick=()=>send('web-search');
   $('form').onsubmit = event => { event.preventDefault(); send(); };
   $('text').onkeydown = event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); send(); } };
-  document.addEventListener('keydown', event => { if (event.key === 'Escape' && opened) { event.preventDefault(); if(!$('review').hidden){$('reviewCancel').click();}else if($('conversationMenu').open){$('conversationMenu').open=false;$('conversationMenuLabel').focus();}else toggle(); } });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && opened) { event.preventDefault(); if(!$('review').hidden){$('reviewCancel').click();}else if($('suggestionMenu').open){$('suggestionMenu').open=false;$('suggestionMenuLabel').focus();}else if($('conversationMenu').open){$('conversationMenu').open=false;$('conversationMenuLabel').focus();}else toggle(); } });
   window.assistant.subscribe(value => {
     if(typeof value.opened==='boolean' && value.opened!==opened){opened=value.opened;$('panel').hidden=!opened;$('bubble').hidden=opened;if(opened){$('text').focus();window.UiMotion?.reveal($('panel'),'panel');}}
     const nextConversation=value.conversation||value.sourceToken||'';
@@ -106,7 +106,7 @@
     const threadKey=JSON.stringify([value.locale,value.activeThread,value.threads]);if($('threads').dataset.key!==threadKey){$('threads').dataset.key=threadKey;$('threads').replaceChildren();for(const thread of value.threads||[]){const option=document.createElement('option');option.value=thread.id;option.textContent=thread.title;$('threads').append(option);}if(!$('threads').options.length){const option=document.createElement('option');option.textContent=value.locale==='tr'?'İlk sohbet':'First conversation';$('threads').append(option);}$('threads').value=value.activeThread||$('threads').options[0]?.value;$('threadName').value=value.threads?.find(r=>r.id===value.activeThread)?.title||'';}
     $('workspaceError').textContent=value.workspaceError||'';
     renderProgress(value);
-    $('sourcePreview').textContent=value.sourcePreview?.summary||'';$('sourcePreview').hidden=!value.sourcePreview?.summary;$('sourcePreviewDetail').textContent=value.sourcePreview?.detail||'';
+    $('sourcePreview').textContent=value.sourcePreview?.summary||'';$('sourcePreviewFull').textContent=value.sourcePreview?.summary||'';$('sourceSummary').title=value.sourcePreview?.summary||'';$('sourcePreview').hidden=!value.sourcePreview?.summary;$('sourcePreviewDetail').textContent=value.sourcePreview?.detail||'';
     $('webSearch').textContent=value.locale==='tr'?"Web’de araştır":'Search web';$('webSearch').title=value.locale==='tr'?'Sağlayıcının web_search aracını kullanır; ek ücret olabilir.':'Uses provider web_search; additional charges may apply.';$('webSearch').disabled=!!value.busy;
     const tr = value.locale === 'tr'; const t = (en, turkish) => tr ? turkish : en;
     document.documentElement.lang = tr ? 'tr' : 'en'; document.documentElement.dataset.theme = value.theme;
@@ -123,17 +123,18 @@
     [...$('scope').options].forEach((option, i) => { option.textContent = t(['Nearby','Watched','Full transcript'][i], ['Yakın satırlar','İzlenen bölüm','Tüm altyazı'][i]); });
     $('hint').textContent = t('Enter to send · Shift + Enter for a new line','Enter: gönder · Shift + Enter: yeni satır');
     $('reviewConfirm').textContent = t('Continue', 'Devam et'); $('reviewCancel').textContent = t('Cancel','Vazgeç');
+    $('suggestionMenuLabel').textContent=t('More suggestions','Diğer öneriler');
     const nextSuggestions = JSON.stringify(value.suggestions || []);
     if (nextSuggestions !== suggestionKey) {
-      suggestionKey = nextSuggestions; $('suggestions').replaceChildren(); closeReview(false);
-      for (const row of value.suggestions || []) {
-        const button = document.createElement('button'); button.type = 'button'; button.textContent = row.label;
-        button.onclick = () => { if(row.direct){if(!busy&&!snapshot.blocked)action('suggestion',row.id);return;} openReview({action:'suggestion',id:row.id},row.review,button); };
-        $('suggestions').append(button);
+      suggestionKey = nextSuggestions; $('primarySuggestion').replaceChildren();$('suggestionOptions').replaceChildren();$('suggestionMenu').open=false;$('suggestionMenu').hidden=(value.suggestions||[]).length<2; closeReview(false);
+      for (const [index,row] of (value.suggestions || []).entries()) {
+        const button = document.createElement('button'); button.type = 'button'; button.textContent = row.label;button.title=row.label;
+        button.onclick = () => { $('suggestionMenu').open=false;if(index)$('suggestionMenuLabel').focus();if(row.direct){if(!busy&&!snapshot.blocked)action('suggestion',row.id);return;} openReview({action:'suggestion',id:row.id},row.review,button); };
+        (index?$('suggestionOptions'):$('primarySuggestion')).append(button);
       }
     }
     $('reviewConfirm').disabled = !!value.busy;
-    busy = !!value.busy;for(const button of $('suggestions').querySelectorAll('button'))button.disabled=busy||!!value.blocked;for(const id of ['threads','newThread','renameThread','deleteThread'])$(id).disabled=busy||!!value.blocked; $('send').disabled = busy || !!value.blocked || !!pending; $('clear').disabled = busy; $('cancel').hidden = !value.canCancel; $('retry').hidden = !value.retry || busy;
+    busy = !!value.busy;$('suggestions').hidden=busy||!!value.blocked||!(value.suggestions||[]).length;if($('suggestions').hidden)$('suggestionMenu').open=false;for(const button of $('suggestions').querySelectorAll('button'))button.disabled=busy||!!value.blocked;for(const id of ['threads','newThread','renameThread','deleteThread'])$(id).disabled=busy||!!value.blocked; $('send').disabled = busy || !!value.blocked || !!pending; $('clear').disabled = busy; $('cancel').hidden = !value.canCancel; $('retry').hidden = !value.retry || busy;
     $('scope').value = value.scope || 'watched';
     if(pending && value.receipt?.id===pending.id){
       if(value.receipt.accepted && pending.sourceToken===value.sourceToken && $('text').value.trim()===pending.text){$('text').value='';rememberDraft();}

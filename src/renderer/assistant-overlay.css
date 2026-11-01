@@ -210,3 +210,32 @@ header{padding-inline:16px;gap:12px}
 #assistantWorkspace,#log,.source-detail-content{scrollbar-color:var(--strong) transparent}
 @media(max-width:400px),(max-height:650px){header,#threadBar,#log{padding-inline:12px}#sourcePreview,#sourceBox{margin-inline:12px}#panel:has(.empty) #suggestions{padding-inline:12px}}
 @media(max-height:620px){#review{max-height:none;gap:8px;padding:10px;margin-bottom:8px}#reviewText{max-height:72px}}
+
+/* Keep source evidence in one disclosure and spend short-panel space on answers. */
+#sourceBox>summary{display:flex;align-items:center;gap:7px}
+#sourcePreview{margin:0;padding:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:inherit;line-height:inherit;color:var(--text)}
+#sourceLabel{flex-shrink:0}
+#sourceLabel:has(+ #sourcePreview:not([hidden]))::after{content:' ·'}
+#sourcePreviewFull{margin:0 0 8px;font-size:12px;line-height:1.7;color:var(--text);overflow-wrap:anywhere}
+#sourcePreviewFull:empty{display:none}
+#suggestions,#panel:has(.empty) #suggestions{display:flex;flex-wrap:nowrap;align-items:center;gap:8px;position:relative;max-height:none;overflow:visible;padding:0 16px 10px}
+#primarySuggestion{flex:1;min-width:0}
+#primarySuggestion>button,#panel:has(.empty) #primarySuggestion>button{display:block;width:100%;min-height:34px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border-radius:8px;padding:6px 10px;font-size:12px}
+#suggestionMenu{flex:none;min-width:0}
+#suggestionMenu>summary{list-style:none;min-height:34px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;font-size:11px;color:var(--muted)}
+#suggestionMenu>summary::-webkit-details-marker{display:none}
+#suggestionMenu>summary::after{content:'⌄';margin-left:6px}
+#suggestionOptions{position:absolute;bottom:calc(100% + 4px);left:16px;right:16px;z-index:4;display:grid;gap:6px;max-height:160px;overflow:auto;overscroll-behavior:contain;padding:8px;background:var(--raised);border:1px solid var(--strong);border-radius:10px;box-shadow:0 4px 12px #0003;scrollbar-width:thin;scrollbar-color:var(--strong) transparent}
+#suggestionOptions>button,#panel:has(.empty) #suggestionOptions>button{width:100%;min-height:36px;text-align:left;white-space:normal;overflow-wrap:anywhere;line-height:1.5;border-radius:8px;padding:7px 10px;font-size:12px}
+@media(max-width:400px),(max-height:650px){
+ #sourceLabel:has(+ #sourcePreview:not([hidden])){display:none}
+ #suggestions,#panel:has(.empty) #suggestions{padding-inline:12px;gap:6px}
+ #primarySuggestion>button,#panel:has(.empty) #primarySuggestion>button{font-size:11px}
+ #suggestionOptions{left:12px;right:12px}
+}
+@media(max-height:620px){
+ header{padding-block:9px 6px}
+ #threadBar{padding-block:6px}
+ #assistantWorkspace{padding-bottom:6px}
+ #text{field-sizing:content;height:auto;min-height:48px;max-height:96px;overflow-y:auto}
+}

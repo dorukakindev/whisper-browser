@@ -32,7 +32,7 @@
     const grid=el('div','settings-grid');parent.append(grid);const moved=new Set();
     for(const id of ids){const control=document.getElementById(id),node=control?.closest('.field')||control?.closest('label');if(!node||moved.has(node))continue;moved.add(node);localizeField(node);const marker=document.createComment('settings-home:'+id);node.before(marker);borrowed.push({node,marker});grid.append(node);}
   }
-  function section(parent,title,copy,ids){const box=el('section','aps-section');box.append(el('h2','',title),el('p','aps-copy',copy));if(ids)fields(box,ids);parent.append(box);return box;}
+  function section(parent,title,copy,ids){const box=el('section','aps-section');box.append(el('h2','',title));if(copy)box.append(el('p','aps-copy',copy));if(ids)fields(box,ids);parent.append(box);return box;}
   function advanced(parent,key,title,copy,open=false){
     const detail=el('details','aps-advanced');detail.dataset.settingsDetail=key;
     detail.open=detailState.has(key)?detailState.get(key):open;
@@ -53,7 +53,7 @@
     let endpoint=config.preset==='custom'?config.url:config.preset,url;try{url=new URL(endpoint);}catch{}
     const inherited=config.preset==='inherit';
     const name=$(config.prefix+'EndpointPreset')?.selectedOptions[0]?.textContent||t('Provider','Sağlayıcı');
-    const line=el('div');line.append(el('strong','',active==='ai'?t('Subtitle provider · ','Altyazı sağlayıcısı · ')+name:name),el('small','',inherited?t('Uses the shared subtitle provider','Ortak altyazı sağlayıcısını kullanır'):[config.model||t('No model selected','Model seçilmedi'),url?.hostname||t('URL required','URL gerekli')].join(' · ')));node.append(line);
+    const line=el('div');line.append(el('strong','',active==='ai'?t('Subtitle provider · ','Altyazı sağlayıcısı · ')+(config.preset==='custom'&&url?url.hostname:name):name));if(active!=='ai')line.append(el('small','',inherited?t('Uses the shared subtitle provider','Ortak altyazı sağlayıcısını kullanır'):[config.model||t('No model selected','Model seçilmedi'),url?.hostname||t('URL required','URL gerekli')].join(' · ')));node.append(line);
     const local=url&&['localhost','127.0.0.1','[::1]'].includes(url.hostname);const ready=inherited||!!(url&&!url.username&&!url.password&&!url.search&&!url.hash&&(url.protocol==='https:'||url.protocol==='http:'&&local)&&config.model&&(config.key||local));
     node.append(el('span','aps-setup-state',inherited?t('Shared settings · not tested here','Ortak ayar · burada test edilmedi'):ready?t('Configured · test separately','Yapılandırılmış · ayrıca test et'):t('Setup incomplete','Kurulum eksik')));
     const hint=$('appEndpointHint');if(hint){hint.replaceChildren();if(config.preset==='custom'&&url){
@@ -86,7 +86,7 @@
   }
   function changed(event){
     if(!dialog?.contains(event.target)||event.target.closest('.aps-model-browser,.aps-nav,.aps-key-review')||!event.target.id)return;
-    if(event.target.id==='assistantEndpointPreset'&&event.target.value!=='inherit'){const detail=dialog.querySelector('[data-settings-detail=assistant]');if(detail)detail.open=true;}
+    if(event.target.id==='assistantEndpointPreset'){const detail=dialog.querySelector('[data-settings-detail=assistant]');if(detail){detail.hidden=event.target.value==='inherit';if(!detail.hidden)detail.open=true;}}
     editGeneration++;const status=$('appSettingsStatus');if(status){status.textContent=t('Settings changed. Use Save to confirm the storage result.','Ayarlar değişti. Kayıt sonucunu doğrulamak için Kaydet’i kullan.');status.classList.remove('aps-error');}
     updateSummary();const remove=$('appRemoveKey');if(remove){remove.disabled=!providerSnapshot().key;remove.title=remove.disabled?t('There is no saved key for this provider.','Bu sağlayıcı için kayıtlı anahtar yok.'):'';const hint=$('appRemoveKeyHint');if(hint){hint.hidden=!remove.disabled;hint.textContent=remove.title;}}
     if(/(?:EndpointPreset|BaseUrl|ApiKey)$/.test(event.target.id)){modelsGeneration++;for(const id of ['appModelFilter','appRemoteModels'])if($(id))$(id).disabled=true;if($('appRemoteModels')){$('appRemoteModels').replaceChildren(el('option','',t('Fetch again for this provider','Bu sağlayıcı için yeniden getir')));}const status=$('appModelListStatus');if(status)status.textContent=t('Provider details changed. Fetch the model list again.','Sağlayıcı bilgileri değişti. Model listesini yeniden getir.');}
@@ -120,14 +120,18 @@
       $('assistantFlex').closest('.field').querySelector('.field-label').textContent=t('DeepInfra service tier','DeepInfra hizmet katmanı');$('assistantFlexLabel').textContent=t('Flex — lower cost, potentially longer wait','Flex — daha düşük maliyet, daha uzun bekleyebilir');
       for(const [id,en,tr]of [['assistantEndpointPreset','Assistant provider','Asistan sağlayıcısı'],['assistantModel','Assistant model','Asistan modeli']])$(id).closest('.field').querySelector('.field-label').textContent=t(en,tr);
       $('assistantEndpointPreset').options[0].textContent=t('Use subtitle provider','Altyazı sağlayıcısını kullan');
-      const assistant=section(main,t('Assistant provider','Asistan sağlayıcısı'),t('Share the subtitle provider, or choose a separate assistant provider.','Altyazı sağlayıcısını paylaş veya asistan için ayrı bir sağlayıcı seç.'),['assistantEndpointPreset']);
-      const separate=advanced(assistant,'assistant',t('Separate assistant settings','Ayrı asistan ayarları'),t('Model, API key and service tier','Model, API anahtarı ve hizmet katmanı'),$('assistantEndpointPreset').value!=='inherit');
-      separate.body.append(el('p','aps-copy',t('These controls apply to a separate assistant provider. Flex can lower cost with a longer wait; turn it off for standard requests.','Bu ayarlar ayrı asistan sağlayıcısına uygulanır. Flex daha düşük maliyetle daha uzun bekletebilir; standart istek için kapat.')));fields(separate.body,['assistantModel','assistantApiKey','assistantFlex']);
-      section(main,t('Subtitle translation','Altyazı çevirisi'),t('Choose the provider, model and language for subtitles. The assistant shares this only when selected above.','Altyazılar için sağlayıcı, model ve dili seç. Asistan yalnız yukarıda paylaşım seçiliyse bunları kullanır.'),['translateEndpointPreset','translateModel','translateApiKey','translateBaseUrl','translateTo']);
+      const translation=section(main,t('Subtitle translation','Altyazı çevirisi'),'', ['translateEndpointPreset','translateModel','translateApiKey','translateBaseUrl','translateTo']);
+      translation.classList.add('aps-primary-setup');
+      for(const [id,en,tr]of [['translateEndpointPreset','Provider','Sağlayıcı'],['translateApiKey','API key','API anahtarı']])$(id).closest('.field').querySelector('.field-label').textContent=t(en,tr);
       summary(main);
+      const assistant=section(main,t('Assistant','Asistan'),'', ['assistantEndpointPreset']);
+      assistant.classList.add('aps-assistant-setup');
+      const separate=advanced(assistant,'assistant',t('Separate assistant settings','Ayrı asistan ayarları'),t('Model, API key and service tier','Model, API anahtarı ve hizmet katmanı'),$('assistantEndpointPreset').value!=='inherit');
+      separate.detail.hidden=$('assistantEndpointPreset').value==='inherit';
+      fields(separate.body,['assistantModel','assistantApiKey','assistantFlex']);
       const tools=advanced(main,'translation-tools',t('Advanced provider tools','Gelişmiş sağlayıcı araçları'),t('Available models, connection test and key management','Model listesi, bağlantı testi ve anahtar yönetimi'));
       modelBrowser(tools.body);fields(tools.body,['translateSavedModel','translateProbeBtn']);keyTools(tools.body);
-      if(searchQuery)for(const detail of main.querySelectorAll('[data-settings-detail]'))if(searchFold(detail.textContent).includes(searchFold(searchQuery).trim()))detail.open=true;
+      if(searchQuery)for(const detail of main.querySelectorAll('[data-settings-detail]'))if(searchFold(detail.textContent).includes(searchFold(searchQuery).trim())){detail.hidden=false;detail.open=true;}
     }
     if(active==='manga')section(main,t('Image & manga translation','Görsel ve manga çevirisi'),t('Use the shared provider or choose a separate image-capable model.','Ortak sağlayıcıyı kullanabilir veya görsel destekleyen ayrı bir model seçebilirsin.'),['mangaEndpointPreset','mangaModel','mangaApiKey','mangaBaseUrl']);
     if(active==='cleanup')section(main,t('Transcription text cleanup','Transkripsiyon metin düzeltme'),t('Optional cleanup uses its own provider. This does not replace the assistant provider above.','İsteğe bağlı metin düzeltme ayrı sağlayıcı kullanır. Asistanın yukarıdaki sağlayıcısını değiştirmez.'),['llmPostprocess','llmEndpointPreset','llmModel','llmApiKey','llmBaseUrl']);

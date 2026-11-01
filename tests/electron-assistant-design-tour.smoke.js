@@ -21,13 +21,34 @@ app.whenReady().then(async()=>{
    await run(`document.getElementById('sourceBox').open=${!!values.openSource};document.getElementById('conversationMenu').open=${!!values.openMenu};document.getElementById('assistantWorkspace').scrollTop=0;document.getElementById('log').scrollTop=0;await document.fonts.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true`);await wait(250);
    if(name==='long-code')assert(await run("const log=document.getElementById('log'),code=log.querySelector('pre');log.scrollTop+=code.getBoundingClientRect().top-log.getBoundingClientRect().top-12;return code.scrollWidth>code.clientWidth&&code.clientWidth<=log.clientWidth"),'Long code scrolls inside the code block');
    if(name==='source-details')assert(await run("const content=document.querySelector('.source-detail-content');return !content||content.scrollHeight>content.clientHeight"),'Expanded source remains readable inside a bounded detail surface');
-   const measured=await run("const box=id=>{const n=document.getElementById(id),r=n.getBoundingClientRect();return {top:r.top,bottom:r.bottom,height:r.height,scroll:n.scrollHeight,client:n.clientHeight,width:n.clientWidth,scrollWidth:n.scrollWidth}};return {width:innerWidth,height:innerHeight,documentWidth:document.documentElement.scrollWidth,workspace:box('assistantWorkspace'),log:box('log'),source:box('sourceBox'),form:box('form'),send:box('send'),menu:box('conversationMenu'),empty:document.querySelector('.empty')?{height:document.querySelector('.empty').getBoundingClientRect().height,headingBottom:document.querySelector('.empty h2').getBoundingClientRect().bottom}:null}");
+   const measured=await run("const box=id=>{const n=document.getElementById(id),r=n.getBoundingClientRect();return {top:r.top,bottom:r.bottom,height:r.height,scroll:n.scrollHeight,client:n.clientHeight,width:n.clientWidth,scrollWidth:n.scrollWidth}};return {width:innerWidth,height:innerHeight,documentWidth:document.documentElement.scrollWidth,workspace:box('assistantWorkspace'),log:box('log'),source:box('sourceBox'),suggestions:box('suggestions'),form:box('form'),send:box('send'),menu:box('conversationMenu'),empty:document.querySelector('.empty')?{height:document.querySelector('.empty').getBoundingClientRect().height,headingBottom:document.querySelector('.empty h2').getBoundingClientRect().bottom}:null}");
    measurements.push({name,width,height,locale,theme,...measured});
    assert(measured.documentWidth<=width+1,'No horizontal page overflow');assert(measured.form.bottom<=height+1,'Composer stays visible');assert(measured.log.height>=80,'Conversation remains usable');assert(measured.workspace.bottom<=measured.form.top+1,'Scrollable workspace stays above composer');if(values.messages?.length)assert(measured.log.bottom<=measured.form.top+1,'Conversation does not overlap composer');
    assert(await run("const n=document.getElementById('send'),r=n.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===n"),'Send is not covered by scrolling content');
    if(phase==='after'&&!values.messages?.length)assert(await run("const log=document.getElementById('log'),suggestions=document.getElementById('suggestions');return log.scrollHeight<=log.clientHeight+1&&suggestions.scrollHeight<=suggestions.clientHeight+1&&document.getElementById('latest').hidden"),'An empty greeting and starter actions use one workspace scroll area, without a false latest reply');
    fs.writeFileSync(path.join(out,`${width}-${locale}-${theme}-${name}.png`),(await win.webContents.capturePage()).toPNG());
+   if(phase==='after'&&height===600&&name==='conversation'){
+    // Native disclosure keyboard access reaches every suggestion without a clipped row.
+    await run("document.getElementById('suggestionMenuLabel').focus();return true");
+    const key=async keyCode=>{win.webContents.sendInputEvent({type:'keyDown',keyCode});win.webContents.sendInputEvent({type:'keyUp',keyCode});await wait(40);};
+    await key('Space');
+    assert(await run("return document.getElementById('suggestionMenu').open"),'More suggestions opens with native Space');
+    await key('Tab');await key('Tab');
+    assert(await run("const n=document.activeElement,r=n.getBoundingClientRect(),menu=document.getElementById('suggestionOptions').getBoundingClientRect();return n.textContent==='Compare the arguments'&&r.top>=menu.top&&r.bottom<=menu.bottom"),'Third suggestion is focusable and fully visible in the disclosure');
+    fs.writeFileSync(path.join(out,`${width}-${locale}-${theme}-more-suggestions.png`),(await win.webContents.capturePage()).toPNG());
+    await key('Space');
+    assert(commands.some(row=>row.action==='suggestion'&&row.text==='compare'&&row.sourceToken===base.sourceToken),'Suggestion keeps its command and source identity');
+    assert(await run("return !document.getElementById('suggestionMenu').open&&document.activeElement.id==='suggestionMenuLabel'"),'Activating a suggestion closes the disclosure and restores focus');
+   }
    if(name==='streaming'){
+    if(phase==='after'&&height===600){
+     assert(measured.log.height>=210,'Short busy panel gives the answer at least 210px');
+     assert(await run("return document.getElementById('suggestions').hidden&&document.getElementById('suggestions').getBoundingClientRect().height===0&&document.getElementById('sourceBox').getBoundingClientRect().height<=32"),'Busy suggestions use no space; source receipt is one line');
+     await run("const text=document.getElementById('text');text.value=('A preserved draft line.\\n').repeat(40);text.dispatchEvent(new Event('input',{bubbles:true}));return true");await wait(50);
+     assert(await run("const n=document.getElementById('text'),r=n.getBoundingClientRect(),cancel=document.getElementById('cancel'),c=cancel.getBoundingClientRect();return r.height<=96&&r.height>48&&n.scrollHeight>n.clientHeight&&n.value.includes('preserved draft')&&c.bottom<innerHeight&&document.elementFromPoint(c.x+c.width/2,c.y+c.height/2)===cancel&&document.getElementById('log').clientHeight>=150"),'Long draft grows within its bound, scrolls, and leaves answer/cancel visible');
+     fs.writeFileSync(path.join(out,`${width}-${locale}-${theme}-streaming-long-draft.png`),(await win.webContents.capturePage()).toPNG());
+     await run("const n=document.getElementById('text');n.value='';n.dispatchEvent(new Event('input',{bubbles:true}));return true");
+    }
     const continued={...base,locale,theme,...values,messages:[{...values.messages[0],text:values.messages[0].text+'\n\n'+('Later controlled text. ').repeat(30)}]};
     await run("document.getElementById('log').scrollTop=0;return true");win.webContents.send('assistant:snapshot',continued);await wait(100);
     assert(await run("return document.getElementById('log').scrollTop<2"),'Reading earlier text is preserved during a controlled stream');
@@ -43,5 +64,5 @@ app.whenReady().then(async()=>{
  fs.writeFileSync(path.join(out,'motion-ten-percent.png'),(await win.webContents.capturePage()).toPNG());
  await win.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
  assert(await run("return getComputedStyle(document.querySelector('.orbit-arc')).animationName==='none'"));win.webContents.debugger.detach();
- fs.writeFileSync(path.join(out,'measurements.json'),JSON.stringify(measurements,null,2));fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({ok:true,phase,states:measurements.length,settingsCommand:true,escapeMenu:true,motionTenPercent:true,reducedMotion:true,streamScrollPreserved:true,providerCalls:0},null,2));console.log(JSON.stringify({ok:true,phase,out,states:measurements.length,providerCalls:0}));app.exit(0);
+ fs.writeFileSync(path.join(out,'measurements.json'),JSON.stringify(measurements,null,2));fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({ok:true,phase,states:measurements.length,settingsCommand:true,escapeMenu:true,motionTenPercent:true,reducedMotion:true,streamScrollPreserved:true,shortPanelBudget:phase==='after',nativeSuggestionKeyboard:phase==='after',boundedDraft:phase==='after',providerCalls:0},null,2));console.log(JSON.stringify({ok:true,phase,out,states:measurements.length,providerCalls:0}));app.exit(0);
 }).catch(error=>{fs.writeFileSync(path.join(out,'error.txt'),error.stack);console.error(error);app.exit(1);});

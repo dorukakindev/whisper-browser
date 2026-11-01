@@ -218,7 +218,7 @@
       },
       onSearch:(args,current)=>window.AssistantBookSearch.scan({total:owner.pdf.numPages,start:args.start||1,query:args.query,current,title:context()?.title||'',getText:async page=>{const loaded=await owner.pdf.getPage(page);const content=await loaded.getTextContent();return content.items.map(item=>item.str||'').join(' ');}}),
       onPrepare:async(args,stale,actionOwner)=>{if(player.pdfReader!==owner||stale())throw Error("Document changed.");$("pdfVoiceFrom").value=String(args.from);$("pdfVoiceTo").value=String(args.to);$("pdfVoiceText").value=args.text==='translation'?'translation':'source';return prepareVoice(stale,false,actionOwner);},
-      onNarrate:()=>{if(player.pdfReader!==owner)return false;$("pdfVoicePanel").classList.remove("hidden");$("pdfVoiceOpen").setAttribute("aria-expanded","true");for(const id of ["pdfVoiceFrom","pdfVoiceTo"])$(id).value=String(owner.currentPage||1);$("pdfVoiceFrom").focus();return true;},
+      onNarrate:()=>{if(player.pdfReader!==owner)return false;$("pdfVoicePanel").classList.remove("hidden");$("pdfVoiceOpen").setAttribute("aria-expanded","true");for(const id of ["pdfVoiceFrom","pdfVoiceTo"])$(id).value=String(owner.currentPage||1);$("pdfNarrationSetup").open=true;$("pdfVoiceFrom").focus();return true;},
       isCurrent: () =>
         player.pdfReader === owner &&
         !$("pdfReader").classList.contains("hidden"),
@@ -264,6 +264,7 @@
     if (!r) return;
     voice = null;
     voiceRangeEdited=false;
+    $('pdfNarrationSetup').open=true;
     $("pdfVoiceListen").disabled = true;
     stopVoice();
     $("pdfPageTotal").textContent = `/ ${r.pdf.numPages}`;
@@ -371,6 +372,14 @@
     changed(true);
     window.api.showAssistant?.();
   };
+  // Preparation is optional while reading; keep the real controls in one disclosure.
+  const narrationSetup=document.createElement('details'),narrationSummary=document.createElement('summary'),narrationControls=document.createElement('div');
+  narrationSetup.id='pdfNarrationSetup';narrationSetup.className='pdf-narration-setup';narrationSetup.open=true;
+  narrationControls.className='pdf-narration-controls';narrationSetup.append(narrationSummary,narrationControls);
+  $('pdfVoicePanel').insertBefore(narrationSetup,$('pdfVoiceFrom').closest('label'));
+  for(const id of ['pdfVoiceFrom','pdfVoiceTo','pdfVoiceText','pdfVoicePreviewOpen','pdfVoicePrepare'])narrationControls.append($(id).closest('label')||$(id));
+  const localizeNarrationSetup=()=>{narrationSummary.textContent=t('Seslendirme hazırlığı','Narration setup');};
+  localizeNarrationSetup();document.addEventListener('ui-locale-change',localizeNarrationSetup);
   let voiceRangeEdited=false;
   const voiceRangeSummary=document.createElement('p');voiceRangeSummary.id='pdfVoiceRangeSummary';voiceRangeSummary.className='pdf-voice-range-summary';voiceRangeSummary.setAttribute('role','status');
   $('pdfVoicePanel').insertBefore(voiceRangeSummary,$('pdfVoicePreview'));
@@ -385,6 +394,7 @@
     if (!panel.classList.contains("hidden")) {
       if(!voiceRangeEdited)for (const id of ["pdfVoiceFrom", "pdfVoiceTo"]) $(id).value = String(r.currentPage);
       updateVoiceRangeSummary();
+      narrationSetup.open=true;
       $("pdfVoiceFrom").focus();
     }
   };
@@ -608,6 +618,8 @@
       }
       const audio = $("pdfVoiceAudio");
       audio.src = pathToFileUrl(result.path);
+      if(narrationSetup.contains(document.activeElement))$("pdfVoiceListen").focus({preventScroll:true});
+      narrationSetup.open=false;
       audio.classList.remove("hidden");
       playback=pdfPlayback=window.ReaderAudioControl.create(audio,{position:result.position||0,isCurrent:current,onError:error=>{if(current())status.textContent=error.message;},errors:{timeout:t('Ses bilgisi zaman aşımına uğradı. Yeniden dinlemeyi dene.','Audio metadata timed out. Try listening again.'),unavailable:t('Ses dosyası yüklenemedi.','Audio could not be loaded.'),range:t('Bu pasajın ses aralığı dosyada bulunamadı.','This passage is outside the audio file.')}});
       const pageEntry = r.pages.get(page),

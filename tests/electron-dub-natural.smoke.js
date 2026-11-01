@@ -10,8 +10,9 @@ async function capture(name){win.show();win.focus();await run('await document.fo
  assert(!data.overflow&&data.footerVisible&&data.scrollAboveFooter,name+' layout');rows.push({name,...data});fs.writeFileSync(path.join(out,name+'.png'),(await win.webContents.capturePage()).toPNG());}
 app.whenReady().then(async()=>{
  await until(()=>{win=BrowserWindow.getAllWindows().find(w=>!w.isDestroyed()&&w.webContents.getURL().includes('index.html')&&!w.webContents.isLoading());return win;});win.showInactive();win.setMinimumSize(600,480);await run('await initialSettingsReady');
- for(const channel of ['dub:groupTakes','dub:config','dub:latest','dub:start','dub:plan','dub:pronunciations','dialog:openFile'])ipcMain.removeHandler(channel);
+ for(const channel of ['dub:groupTakes','dub:config','dub:latest','dub:start','dub:plan','dub:pronunciations','dub:references','dialog:openFile'])ipcMain.removeHandler(channel);
  ipcMain.handle('dub:config',()=>({ok:true,ready:true,resultMode:configMode,...(legacyFast?{profile:'fast',verification:'fast',naturalSpeech:false,autoFit:false,timingMode:'clip'}:{}),keepEngine:true,pronunciations:globalPronunciations,engine:'fixture',reference:'Synthetic voice.wav',transcript:'Synthetic reference.txt'}));
+ let savedVoiceRows=[];ipcMain.handle('dub:references',()=>({ok:true,references:savedVoiceRows,folder:'controlled-references',activeId:'saved-voice'}));
  let takeUrls=[];ipcMain.handle('dub:groupTakes',()=>({ok:true,choices:[{token:'current',current:true,recordedAt:Date.now(),status:'ready',text:'Current group take.',url:takeUrls[0]},{token:'previous',current:false,recordedAt:Date.now()-60000,status:'ready',text:'Previous group take.',url:takeUrls[1]},{token:'changed',current:false,compareOnly:true,recordedAt:Date.now()-120000,status:'ready',text:'Different text: comparison only.',url:takeUrls[1]}]}));
  const wav=Buffer.alloc(44+24000*4*2);wav.write('RIFF');wav.writeUInt32LE(wav.length-8,4);wav.write('WAVEfmt ',8);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);wav.writeUInt32LE(24000,24);wav.writeUInt32LE(48000,28);wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(wav.length-44,40);
  for(let i=44;i<wav.length;i+=2)wav.writeInt16LE(Math.round(Math.sin(i/2*2*Math.PI*220/24000)*800),i);
@@ -38,7 +39,17 @@ app.whenReady().then(async()=>{
   }
 
   assert(await run(`return !document.getElementById('dubManualSettings').open&&!document.getElementById('dubScopeSettings').open`));
-  await run(`document.getElementById('dubQualityResults').open=false;document.querySelector('.dub-studio-scroll').scrollTop=0;return true`);assert(await run(`return document.querySelector('.dub-experience').hidden`));await capture(locale+'-'+width+'-ready');
+  await run(`document.getElementById('dubQualityResults').open=false;document.querySelector('.dub-studio-scroll').scrollTop=0;return true`);assert(await run(`return document.querySelector('.dub-experience').hidden`));assert(await run(`return document.getElementById('dubCurrentVoiceName').textContent==='Synthetic voice.wav'&&document.getElementById('voiceReferenceLibrary').hidden&&document.getElementById('voiceReferenceSelect').getBoundingClientRect().height===0&&!document.getElementById('voiceReferenceFolder').closest('#voiceReferenceLibrary')&&!!document.querySelector('#dubManualSettings #dubEngineSettings')`),'Empty library keeps active voice clear and folder/production settings reachable');
+  const column=await run(`const input=document.querySelector('.dub-input-column');return {width:innerWidth,children:[...input.children].map(n=>n.className),height:input.getBoundingClientRect().height,source:document.querySelector('.dub-source-card').getBoundingClientRect().height,production:document.querySelector('.dub-natural-card').getBoundingClientRect().height};`);rows.push({name:locale+'-'+width+'-input-flow',...column});
+  await capture(locale+'-'+width+'-ready');
+  if(width===1440){
+   savedVoiceRows=[{id:'saved-voice',name:'Saved narrator',path:'Synthetic voice.wav',url:takeUrls[0],text:'Synthetic reference transcript.'}];
+   await run(`await VoiceReferenceUI.refresh();return true`);assert(await run(`return !document.getElementById('voiceReferenceLibrary').hidden&&!document.getElementById('voiceReferenceLibrary').open`),'Saved references appear without preparing another recording');
+   await run(`document.getElementById('voiceReferenceLibrary').open=true;return true`);await capture(locale+'-'+width+'-saved-voices');
+   assert(await run(`return document.getElementById('voiceReferenceUse').getBoundingClientRect().height>0&&document.getElementById('dubCurrentVoiceName').textContent==='Synthetic voice.wav'`),'Changing the disclosure does not change the active voice');
+   savedVoiceRows=[];await run(`await VoiceReferenceUI.refresh();return true`);
+  }
+
   // Legacy fast/off settings restore as custom; explicit recommendation upgrades quality only.
   await run(`document.getElementById('dubProfile').value='fast';document.getElementById('dubVerification').value='fast';document.getElementById('dubNaturalSpeech').checked=false;document.getElementById('dubAutoFit').checked=false;document.getElementById('dubTimingMode').value='clip';document.getElementById('dubConcurrency').value='8';document.getElementById('dubGrouping').value='anlatim';document.getElementById('dubProfile').dispatchEvent(new Event('change'));return true`);
   assert(await run(`return !document.getElementById('dubNaturalRecommend').hidden`));
@@ -76,4 +87,4 @@ app.whenReady().then(async()=>{
   await run(`document.getElementById('dubGeneratorDialog').close();return true`);
  }
  fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify(rows,null,2));console.log(JSON.stringify({ok:true,out,screens:rows.length}));app.exit(0);
-}).catch(e=>{console.error(e.stack);app.exit(1);});setTimeout(()=>app.exit(2),90000).unref();
+}).catch(e=>{fs.writeFileSync(path.join(out,'failure.json'),JSON.stringify({error:e.stack,rows},null,2));console.error(e.stack);app.exit(1);});setTimeout(()=>app.exit(2),90000).unref();

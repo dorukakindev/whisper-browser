@@ -20,6 +20,21 @@
 .mrv-auto-controls{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(150px,1fr);gap:16px;align-items:end;max-width:640px;margin:18px 0}
 .mrv-auto-controls .mtx-field{margin:0;min-width:0}
 .mrv-auto-controls .mtx-field:first-child{order:2}
+.film-review-editor .mrv-sample-options { margin-block:12px; border-top:1px solid var(--border); }
+.film-review-editor .mrv-sample-options>summary { min-height:40px; display:flex; align-items:center; gap:9px; list-style:none; cursor:pointer; font-size:13px; color:var(--text-dim); }
+.film-review-editor .mrv-sample-options>summary::-webkit-details-marker { display:none; }
+.film-review-editor .mrv-sample-options>summary::before { content:'›'; font-size:20px; }
+.film-review-editor .mrv-sample-options[open]>summary::before { transform:rotate(90deg); }
+.film-review-editor .mrv-sample-options[hidden] { display:none; }
+.film-review-editor .mrv-source[data-sample-ready=true]>.mrv-job[data-state=ready] { display:none; }
+.film-review-editor .mrv-source[data-sample-ready=true]>.mtx-muted:first-of-type { display:none; }
+.film-review-editor .mrv-source[data-sample-ready=true]>.mrv-loaded-sample { margin-block:0 12px; padding:0 0 12px; border-top:0; }
+.film-review-editor .mrv-loaded-sample .mrv-sample-overview strong { font-size:15px; }
+.film-review-editor .mrv-loaded-sample .mrv-sample-overview p { font-size:12px; margin-top:6px; }
+.film-review-editor .mrv-loaded-sample .mrv-sample-overview small { font-size:12px; }
+.film-review-editor .mrv-loaded-reader { margin-top:8px; }
+.film-review-editor .mrv-sampling .mtx-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.film-review-editor .mrv-sampling .mtx-actions>.mh-action:not(.mh-primary) { background:transparent; border-color:transparent; text-decoration:underline; text-underline-offset:3px; padding-inline:6px; }
 .mrv-pool-summary{font-variant-numeric:tabular-nums;font-weight:500;color:var(--text)}
 .mrv-freshness{padding:12px 16px;border:1px solid var(--border);border-radius:10px;background:var(--bg-2);font-size:13px;line-height:1.65;color:var(--text-dim);text-wrap:pretty}
 .mrv-freshness[data-freshness=stale]{border-left:3px solid var(--accent);color:var(--text)}

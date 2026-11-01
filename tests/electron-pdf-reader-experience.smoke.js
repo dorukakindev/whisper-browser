@@ -412,7 +412,7 @@ app
       }),
     );
     await run(
-      'await aiChatSend("Bu sayfayı seslendir");if(document.getElementById("pdfVoiceFrom").value!=="2"||document.getElementById("pdfVoiceTo").value!=="2")throw Error("Wrong assistant page range");document.getElementById("pdfVoiceFrom").value="2";document.getElementById("pdfVoiceTo").value="3";return true',
+      'await aiChatSend("Bu sayfayı seslendir");if(document.getElementById("pdfVoiceFrom").value!=="2"||document.getElementById("pdfVoiceTo").value!=="2")throw Error("Wrong assistant page range");document.getElementById("pdfVoiceFrom").value="2";document.getElementById("pdfVoiceTo").value="3";document.getElementById("pdfVoiceFrom").dispatchEvent(new Event("input"));return true',
     );
     if(process.argv.includes('--reader806')){
       await run("document.getElementById('pdfVoiceFrom').dispatchEvent(new Event('input'));document.getElementById('pdfVoiceOpen').click();document.getElementById('pdfVoiceOpen').click();return true");
@@ -420,7 +420,7 @@ app
       await run("window.originalExtract806=extractPdfReaderPage;extractPdfReaderPage=async page=>page===2?[]:originalExtract806(page);document.getElementById('pdfVoiceText').value='source';document.getElementById('pdfVoicePreviewOpen').click();return true");
       await until(()=>run("return !document.getElementById('pdfVoicePreviewOpen').disabled&&document.getElementById('pdfVoiceStatus').textContent.includes('okunabilir metin yok')"),'blank source diagnosis');
       assert(await run("return !document.getElementById('pdfVoiceStatus').textContent.includes('çeviriyi tamamla')&&document.getElementById('pdfVoicePreview').hidden"));
-      await run("extractPdfReaderPage=async page=>page===2?[{source:'Chapter title only'}]:originalExtract806(page);document.getElementById('pdfVoicePreviewOpen').click();return true");
+      await run("window.originalBlocks806=player.pdfReader.pages.get(2).blocks;player.pdfReader.pages.get(2).blocks=[{source:'Chapter title only'}];extractPdfReaderPage=async page=>page===2?player.pdfReader.pages.get(2).blocks:originalExtract806(page);document.getElementById('pdfVoicePreviewOpen').click();return true");
       await until(()=>run("return !document.getElementById('pdfVoicePreviewOpen').disabled&&!document.getElementById('pdfVoicePreview').hidden"),'heading page retained');
       assert(await run("return document.getElementById('pdfVoicePreviewText').value==='Chapter title only'&&document.getElementById('pdfVoicePreviewHint').textContent.includes('sayfalar korundu: 2')"));
       await capture('reader806-short-page-kept.png');
@@ -430,7 +430,7 @@ app
       await run("document.getElementById('pdfVoiceTo').value='2';document.getElementById('pdfVoiceTo').dispatchEvent(new Event('input'));releasePage806();return true");
       await until(()=>run("return !document.getElementById('pdfVoicePrepare').disabled&&document.getElementById('pdfVoiceStatus').textContent.includes('yeniden hazırla')"),'range change rejects stale preparation');
       assert.equal(await run("return (await window.api.mediaWorkflows({action:'book-list'})).projects.length"),beforeStale,'Changed range cannot silently create the captured old project');
-      await run("extractPdfReaderPage=originalExtract806;delete window.originalExtract806;delete window.releasePage806;document.getElementById('pdfVoiceTo').value='3';document.getElementById('pdfVoiceTo').dispatchEvent(new Event('input'));document.getElementById('pdfVoicePreviewOpen').click();return true");
+      await run("player.pdfReader.pages.get(2).blocks=originalBlocks806;delete window.originalBlocks806;extractPdfReaderPage=originalExtract806;delete window.originalExtract806;delete window.releasePage806;document.getElementById('pdfVoiceTo').value='3';document.getElementById('pdfVoiceTo').dispatchEvent(new Event('input'));document.getElementById('pdfVoicePreviewOpen').click();return true");
 
       await until(()=>run("return !document.getElementById('pdfVoicePreviewOpen').disabled&&!document.getElementById('pdfVoicePreview').hidden"),'restore actual PDF preview');
     }
@@ -586,6 +586,7 @@ app
     win.setContentSize(1441, 1000);
     await wait(100);
     win.setContentSize(1440, 1000);
+    assert(await run('return !document.getElementById("pdfNarrationSetup").open'),"Valid ready narration collapses preparation, keeping playback outside");
     await capture("inline-listening.png");
     await run('const a=document.getElementById("pdfVoiceAudio");a.currentTime=1.25;document.getElementById("pdfNext").click();return true');
     await until(async()=>{const r=await run('return window.api.mediaWorkflows({action:"book-open",id:'+JSON.stringify(project.id)+'})');return r.project?.chapters[0].position>=1.2;},'position saved during page navigation');
@@ -625,6 +626,12 @@ app
     win.setContentSize(1440, 1000);
     await run('UiLocale.set("en",false);applyUiTheme("light");return true');
     await capture("reading-en-light.png");
+    await run('document.getElementById("pdfVoiceClose").click();return true');
+    assert(await run('return document.activeElement===document.getElementById("pdfVoiceOpen")&&document.getElementById("pdfVoicePanel").classList.contains("hidden")'),"Close narration returns focus to Read aloud");
+    await capture('reading-en-light-calm.png');
+    await run('document.getElementById("pdfVoiceOpen").click();return true');
+    assert(await run('return document.getElementById("pdfNarrationSetup").open&&document.activeElement===document.getElementById("pdfVoiceFrom")&&document.getElementById("pdfVoiceFrom").value==="2"&&document.getElementById("pdfVoiceTo").value==="3"'),"Reopening exposes retained inclusive range");
+    await run('document.getElementById("pdfNarrationSetup").open=false;return true');
     await run(
       'document.getElementById("pdfTranslateTools").open=true;return true',
     );
@@ -639,7 +646,7 @@ app
     await capture("player-after-close.png");
     const txt=path.join(out,'Chapter source.txt');fs.writeFileSync(txt,'An actual local chapter for the narration settings command.');dialog.showOpenDialog=async()=>({canceled:false,filePaths:[txt]});
     const imported=await run('return window.api.mediaShelf({action:"book-import"})');assert(imported.ok,imported.error);
-    await run('await MediaShelfUI.openBook('+JSON.stringify(imported.id)+');return true');await capture('text-reader-command.png');win.setMinimumSize(640,600);win.setContentSize(800,900);await capture('text-reader-narrow.png');const textBounds=await run('const n=document.querySelector(".ms-prose"),p=n.querySelector("p");return {client:n.clientWidth,scroll:n.scrollWidth,width:n.getBoundingClientRect().width,paragraph:p.getBoundingClientRect().width,whiteSpace:getComputedStyle(p).whiteSpace}');fs.writeFileSync(path.join(out,'text-bounds.json'),JSON.stringify(textBounds));assert(textBounds.scroll<=textBounds.client+1,JSON.stringify(textBounds));assert(await run('const r=document.querySelector(".ms-reader");return r.scrollWidth<=r.clientWidth+1'));await run('document.querySelector(".ms-reader-tools").open=true;return true');await capture('text-reader-tools.png');await run('document.querySelector(".ms-reader-tools").open=false;return true');win.setContentSize(1440,1000);
+    await run('await MediaShelfUI.openBook('+JSON.stringify(imported.id)+');return true');assert(await run('return document.activeElement===document.querySelector(".ms-reader-controls>select")'),"Book opens on chapter navigation with Close last in tab order");await capture('text-reader-command.png');win.setMinimumSize(640,600);win.setContentSize(800,900);await capture('text-reader-narrow.png');assert(await run('return document.querySelector(".ms-reader-title").hidden&&!!document.querySelector(".ms-reader-controls>select")'),"Duplicate book/chapter title is shown once, preserving native chapter select");const textBounds=await run('const n=document.querySelector(".ms-prose"),p=n.querySelector("p");return {client:n.clientWidth,scroll:n.scrollWidth,width:n.getBoundingClientRect().width,paragraph:p.getBoundingClientRect().width,whiteSpace:getComputedStyle(p).whiteSpace}');fs.writeFileSync(path.join(out,'text-bounds.json'),JSON.stringify(textBounds));assert(textBounds.scroll<=textBounds.client+1,JSON.stringify(textBounds));assert(await run('const r=document.querySelector(".ms-reader");return r.scrollWidth<=r.clientWidth+1'));await run('document.querySelector(".ms-reader-tools").open=true;return true');await capture('text-reader-tools.png');await run('document.querySelector(".ms-reader-tools").open=false;return true');win.setMinimumSize(0,0);win.setContentSize(520,640);await capture('text-reader-520.png');assert(await run('const r=document.querySelector(".ms-reader"),c=r.querySelector(".ms-reader-controls");return r.scrollWidth<=r.clientWidth+1&&c.scrollWidth<=c.clientWidth+1'),"Compact book controls stay within dialog");win.setContentSize(1440,1000);
     await run('await aiChatSend("Bu bölümü seslendir");return true');await until(()=>run('return !!document.querySelector("#mediaWorkflowsDialog[open]")'),'chapter command opens production');assert(!await run('return !!document.querySelector(".ms-reader[open]")'));await run('document.getElementById("mediaWorkflowsDialog").close();return true');
 
     await run("closePlayer();return true");

@@ -1,0 +1,439 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 1000,
+    "dpr": 1.5
+  },
+  "reduce": false,
+  "animations": [],
+  "controls": [
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Altyazı → ses",
+      "rect": {
+        "x": 1156.666748046875,
+        "y": -31.666667938232422,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": -31.666667938232422,
+        "right": 1339.3334197998047,
+        "bottom": 8.333332061767578,
+        "left": 1156.666748046875
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Bu akşam",
+      "rect": {
+        "x": 1156.666748046875,
+        "y": 12.333333969116211,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 12.333333969116211,
+        "right": 1339.3334197998047,
+        "bottom": 52.33333396911621,
+        "left": 1156.666748046875
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Arşiv bakımı",
+      "rect": {
+        "x": 1156.666748046875,
+        "y": 56.333335876464844,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 56.333335876464844,
+        "right": 1339.3334197998047,
+        "bottom": 96.33333587646484,
+        "left": 1156.666748046875
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "İşlemler",
+      "rect": {
+        "x": 1156.666748046875,
+        "y": 100.33333587646484,
+        "width": 182.6666717529297,
+        "height": 40,
+        "top": 100.33333587646484,
+        "right": 1339.3334197998047,
+        "bottom": 140.33333587646484,
+        "left": 1156.666748046875
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "The Last Evening in the Quiet City · Afişi büyüt",
+      "rect": {
+        "x": 108.19792175292969,
+        "y": 252.92709350585938,
+        "width": 160,
+        "height": 36,
+        "top": 252.92709350585938,
+        "right": 268.1979217529297,
+        "bottom": 288.9270935058594,
+        "left": 108.19792175292969
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "İzleneceklere ekle",
+      "rect": {
+        "x": 310.19793701171875,
+        "y": 199.2291717529297,
+        "width": 152.6979217529297,
+        "height": 40.927085876464844,
+        "top": 199.2291717529297,
+        "right": 462.89585876464844,
+        "bottom": 240.15625762939453,
+        "left": 310.19793701171875
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Letterboxd yorumları ve analiz",
+      "rect": {
+        "x": 472.8958435058594,
+        "y": 199.2291717529297,
+        "width": 226.28125,
+        "height": 40.927085876464844,
+        "top": 199.2291717529297,
+        "right": 699.1770935058594,
+        "bottom": 240.15625762939453,
+        "left": 472.8958435058594
+      },
+      "font": "14px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Konu",
+      "rect": {
+        "x": 112.59375,
+        "y": 336.9270935058594,
+        "width": 33.96875,
+        "height": 36,
+        "top": 336.9270935058594,
+        "right": 146.5625,
+        "bottom": 372.9270935058594,
+        "left": 112.59375
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Yorumlar ve analiz",
+      "rect": {
+        "x": 164.5625,
+        "y": 336.9270935058594,
+        "width": 110.75,
+        "height": 36,
+        "top": 336.9270935058594,
+        "right": 275.3125,
+        "bottom": 372.9270935058594,
+        "left": 164.5625
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Oyuncular ve bilgiler",
+      "rect": {
+        "x": 293.3125,
+        "y": 336.9270935058594,
+        "width": 123.08333587646484,
+        "height": 36,
+        "top": 336.9270935058594,
+        "right": 416.39583587646484,
+        "bottom": 372.9270935058594,
+        "left": 293.3125
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Filmi keşfet",
+      "rect": {
+        "x": 434.3958435058594,
+        "y": 336.9270935058594,
+        "width": 71.6875,
+        "height": 36,
+        "top": 336.9270935058594,
+        "right": 506.0833435058594,
+        "bottom": 372.9270935058594,
+        "left": 434.3958435058594
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Konuyu gizle",
+      "rect": {
+        "x": 934.1875,
+        "y": 336.9270935058594,
+        "width": 77.72917175292969,
+        "height": 36,
+        "top": 336.9270935058594,
+        "right": 1011.9166717529297,
+        "bottom": 372.9270935058594,
+        "left": 934.1875
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Film bağlantısını kopyala",
+      "rect": {
+        "x": 1029.916748046875,
+        "y": 336.9270935058594,
+        "width": 147.92709350585938,
+        "height": 36,
+        "top": 336.9270935058594,
+        "right": 1177.8438415527344,
+        "bottom": 372.9270935058594,
+        "left": 1029.916748046875
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Bu filmi asistana sor",
+      "rect": {
+        "x": 1195.84375,
+        "y": 336.9270935058594,
+        "width": 121.5625,
+        "height": 36,
+        "top": 336.9270935058594,
+        "right": 1317.40625,
+        "bottom": 372.9270935058594,
+        "left": 1195.84375
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Türkçeye çevir",
+      "rect": {
+        "x": 885.2291870117188,
+        "y": 415.59375,
+        "width": 108.97917175292969,
+        "height": 36,
+        "top": 415.59375,
+        "right": 994.2083587646484,
+        "bottom": 451.59375,
+        "left": 885.2291870117188
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Yorumları getir",
+      "rect": {
+        "x": 846.28125,
+        "y": 579.4479370117188,
+        "width": 123.26042175292969,
+        "height": 39.53125,
+        "top": 579.4479370117188,
+        "right": 969.5416717529297,
+        "bottom": 618.9791870117188,
+        "left": 846.28125
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Zevk tercihlerin",
+      "rect": {
+        "x": 122.86458587646484,
+        "y": 741.0416870117188,
+        "width": 846.6771240234375,
+        "height": 42,
+        "top": 741.0416870117188,
+        "right": 969.5417098999023,
+        "bottom": 783.0416870117188,
+        "left": 122.86458587646484
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Zevk profilimi aç",
+      "rect": {
+        "x": 122.86458587646484,
+        "y": 832.2396240234375,
+        "width": 132.9166717529297,
+        "height": 39.53125,
+        "top": 832.2396240234375,
+        "right": 255.78125762939453,
+        "bottom": 871.7708740234375,
+        "left": 122.86458587646484
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Film eklerini getir",
+      "rect": {
+        "x": 855.5104370117188,
+        "y": 878.3021240234375,
+        "width": 138.6979217529297,
+        "height": 39.53125,
+        "top": 878.3021240234375,
+        "right": 994.2083587646484,
+        "bottom": 917.8333740234375,
+        "left": 855.5104370117188
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "IMDb sayfası",
+      "rect": {
+        "x": 1072.46875,
+        "y": 537.7604370117188,
+        "width": 100.89583587646484,
+        "height": 38,
+        "top": 537.7604370117188,
+        "right": 1173.3645858764648,
+        "bottom": 575.7604370117188,
+        "left": 1072.46875
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "SUMMARY",
+      "text": "Diğer işlemler ve izleme tercihleri",
+      "rect": {
+        "x": 1052.46875,
+        "y": 672.6771240234375,
+        "width": 278.66668701171875,
+        "height": 44.79166793823242,
+        "top": 672.6771240234375,
+        "right": 1331.1354370117188,
+        "bottom": 717.4687919616699,
+        "left": 1052.46875
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "İzledim",
+      "rect": {
+        "x": 1068.46875,
+        "y": 831.34375,
+        "width": 69.38542175292969,
+        "height": 38,
+        "top": 831.34375,
+        "right": 1137.8541717529297,
+        "bottom": 869.34375,
+        "left": 1068.46875
+      },
+      "font": "13px",
+      "disabled": false
+    },
+    {
+      "id": "",
+      "tag": "BUTTON",
+      "text": "İlgilenmiyorum",
+      "rect": {
+        "x": 1145.854248046875,
+        "y": 831.34375,
+        "width": 114.05208587646484,
+        "height": 38,
+        "top": 831.34375,
+        "right": 1259.9063339233398,
+        "bottom": 869.34375,
+        "left": 1145.854248046875
+      },
+      "font": "13px",
+      "disabled": false
+    }
+  ],
+  "violations": [],
+  "incomplete": [
+    {
+      "id": "aria-prohibited-attr",
+      "nodes": 1
+    },
+    {
+      "id": "color-contrast",
+      "nodes": 7
+    }
+  ],
+  "passes": [
+    "aria-allowed-attr",
+    "aria-conditional-attr",
+    "aria-deprecated-role",
+    "aria-hidden-body",
+    "aria-hidden-focus",
+    "aria-prohibited-attr",
+    "aria-required-attr",
+    "aria-roles",
+    "aria-valid-attr-value",
+    "aria-valid-attr",
+    "button-name",
+    "bypass",
+    "color-contrast",
+    "document-title",
+    "duplicate-id-aria",
+    "form-field-multiple-labels",
+    "html-has-lang",
+    "html-lang-valid",
+    "image-alt",
+    "label",
+    "nested-interactive",
+    "role-img-alt",
+    "scrollable-region-focusable",
+    "summary-name"
+  ]
+}

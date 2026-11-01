@@ -19,6 +19,14 @@ html[data-theme=light] .aps-dialog{color-scheme:light}
 .aps-nav{gap:7px;padding:20px 14px;background:var(--bg-0)}
 .aps-nav .mh-action{min-height:42px;font-size:13px;padding:11px 12px}
 .aps-content{padding:28px 32px}
+.aps-content:has(.aps-primary-setup)>.aps-provider-summary{padding:0 0 12px;margin-bottom:18px;border:0;border-bottom:1px solid var(--border);border-radius:0;background:transparent;align-items:baseline;gap:12px}
+.aps-content:has(.aps-primary-setup)>.aps-provider-summary strong{font-size:12px;font-weight:500;line-height:1.5;overflow-wrap:anywhere}
+.aps-content:has(.aps-primary-setup)>.aps-provider-summary .aps-setup-state{font-size:11px;line-height:1.5;max-width:140px}
+.aps-dialog .aps-primary-setup>.settings-grid{gap:14px 18px}
+.aps-dialog .aps-primary-setup .field{gap:6px}
+.aps-assistant-setup{padding-top:20px;border-top:1px solid var(--border)}
+.aps-assistant-setup>.aps-advanced[hidden]{display:none}
+.aps-assistant-setup>.aps-advanced{margin-top:14px}
 .aps-section h2{font:600 19px/1.45 'IBM Plex Sans','Segoe UI',sans-serif;margin-bottom:10px}
 .aps-section>.aps-copy{max-width:72ch;margin-bottom:28px}
 .aps-dialog .settings-grid{gap:24px 20px}

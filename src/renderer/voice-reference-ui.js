@@ -3,6 +3,11 @@
   const el = id => document.getElementById(id), api = window.api;
   if (!api.prepareVoiceReference) return;
   const panel = el('voiceReferenceRecorder');
+  const libraryNotice=document.createElement('p'),libraryRetry=document.createElement('button');
+  libraryNotice.className='voice-reference-count';libraryNotice.setAttribute('role','status');libraryNotice.hidden=true;
+  libraryRetry.type='button';libraryRetry.className='btn btn-ghost btn-sm';libraryRetry.hidden=true;
+  el('voiceReferenceLibrary')?.after(libraryNotice,libraryRetry);
+  libraryRetry.onclick=async()=>{libraryRetry.disabled=true;try{await refresh();}finally{libraryRetry.disabled=false;}};
   let activeReferenceId='',appliedReferenceText='';const selectionStatus=document.createElement('p');selectionStatus.className='voice-selection-status';selectionStatus.id='voiceReferenceSelectionStatus';selectionStatus.setAttribute('role','status');el('voiceReferenceUse').parentElement.after(selectionStatus);
 
   const comparison = window.VoiceReferenceCompare?.mount(el('voiceReferenceAB'), {
@@ -70,6 +75,8 @@
     el('voiceReferenceRename').disabled = !!active || applying || generating || !selected() || !el('voiceReferenceName').value.trim();
     el('voiceReferenceFolder').disabled = !folder;
     comparison?.update(references, { busy: !!active || applying || generating || selectingSource, selectedId: selected()?.id });
+    const library=el('voiceReferenceLibrary');
+    if(library){library.hidden=!references.length;const label=el('voiceReferenceLibraryLabel');label.textContent=en?`Change saved voice · ${references.length}`:`Kayıtlı sesi değiştir · ${references.length}`;selectionStatus.hidden=!chosen;}
     transcriptComparison();
     referenceDetails();
   }
@@ -119,12 +126,14 @@
   el('voiceReferenceSearch').addEventListener('input', () => { rememberDraft();renderReferences();controls();revealPicker(); });
   document.addEventListener('ui-locale-change', () => {renderReferences();controls();});
   async function refresh(preferred, beforeApply) {
+    rememberDraft();
     const sequence = ++refreshSequence;
     const result = await api.listVoiceReferences().catch(() => null);
     if (sequence !== refreshSequence) return false;
     if (beforeApply && !await beforeApply(result)) return false;
     if (sequence !== refreshSequence) return false;
-    if (!result?.ok) { if (preferred) { el('voiceReferenceSelect').value = ''; show(); } status('Referans sesler okunamadı.'); return false; }
+    if (!result?.ok) { if (preferred) { el('voiceReferenceSelect').value = ''; show(); } const en=window.UiLocale?.get?.()==='en';libraryNotice.textContent=en?'Saved voices could not be loaded. Your active voice is unchanged.':'Kayıtlı sesler okunamadı. Etkin sesiniz değişmedi.';libraryRetry.textContent=en?'Retry loading voices':'Ses listesini yeniden yükle';libraryNotice.hidden=libraryRetry.hidden=false;status('Referans sesler okunamadı.'); return false; }
+    libraryNotice.hidden=libraryRetry.hidden=true;
     activeReferenceId=result.activeId||'';appliedReferenceText=String(result.references?.find(item=>item.id===activeReferenceId)?.text||'');
     const prior = preferred || el('voiceReferenceSelect').value || result.activeId;
     folder = result.folder; references = result.references;
@@ -256,6 +265,7 @@
   el('dubGeneratorDialog').addEventListener('close', () => { el('voiceReferencePreview').pause(); comparison?.stop(); });
   panel.addEventListener('toggle', () => { if (!panel.open) comparison?.stop(); });
   window.VoiceReferenceUI=Object.freeze({
+    refresh:()=>active||applying||selectingSource?Promise.resolve(false):refresh(),
     chooseLocal,
     use:async(id,isCancelled=()=>false,beforeApply,expectedSelection)=>{if(active||applying||selectingSource||isCancelled())return {ok:false};if(!await refresh(id,beforeApply)||isCancelled())return {ok:false};return useSelected(expectedSelection);},
     prepare:async(args,isCancelled=()=>false)=>{

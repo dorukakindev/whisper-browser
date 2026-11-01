@@ -33,6 +33,21 @@
 #dubGeneratorDialog .dub-studio-scroll { padding:14px 20px; }
 #dubGeneratorDialog .dub-studio-grid { display:block; }
 #dubGeneratorDialog .dub-studio-main { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px; align-items:start; }
+#dubGeneratorDialog .dub-input-column { display:grid; gap:14px; min-width:0; }
+#dubGeneratorDialog .dub-active-reference { padding:12px 0; border-bottom:1px solid var(--border); }
+#dubGeneratorDialog .dub-active-reference small { display:block; font-size:11px; color:var(--text-dim); margin-bottom:5px; }
+#dubGeneratorDialog .dub-active-reference strong { display:block; overflow-wrap:anywhere; font-size:14px; font-weight:500; }
+#dubGeneratorDialog .dub-active-reference p { font-size:12px; color:var(--text-dim); line-height:1.6; margin:7px 0 0; max-width:48ch; }
+#dubGeneratorDialog .dub-reference-library { margin-block:12px; }
+#dubGeneratorDialog .dub-reference-library[hidden] { display:none; }
+#dubGeneratorDialog .dub-reference-library>summary { list-style:none; min-height:40px; display:flex; align-items:center; gap:9px; font-size:13px; cursor:pointer; }
+#dubGeneratorDialog .dub-reference-library>summary::-webkit-details-marker { display:none; }
+#dubGeneratorDialog .dub-reference-library>summary::before { content:'›'; color:var(--text-dim); font-size:20px; }
+#dubGeneratorDialog .dub-reference-library[open]>summary::before { transform:rotate(90deg); }
+#dubGeneratorDialog .dub-reference-library #voiceReferencePicker { margin:0; border-top:0; padding-top:0; }
+#dubGeneratorDialog .dub-voice-card>.dub-generator-row { gap:8px; }
+#dubGeneratorDialog .dub-voice-card #voiceReferenceFolder { font-size:12px; }
+#dubGeneratorDialog #dubEngineSettings { border-top:1px solid var(--border); margin-block:12px; padding-top:6px; }
 #dubGeneratorDialog .dub-studio-main>section:not(.dub-source-card):not(.dub-voice-card) { grid-column:1/-1; }
 #dubGeneratorDialog .dub-studio-side { margin-top:14px; }
 #dubGeneratorDialog .dub-card { padding:16px; border-radius:12px; }

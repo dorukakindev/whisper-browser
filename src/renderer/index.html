@@ -3789,27 +3789,15 @@
 <label class="dub-generator-row"><input id="dubSampleOnly" type="checkbox" />Önce temsil edici kısa örnek üret</label>
     <p>Kısa, uzun ve yoğun konuşmalı bölümlerden örnek seçilir. Önizleme videoya bağlanmaz.</p></details>
     </section>
-    <section class="dub-card dub-voice-card"><div class="dub-card-heading"><span class="dub-step" aria-hidden="true" data-ui-untranslated data-step="2"></span><h3>Referans ses</h3></div><p>Etkin ses yukarıda görünür. Yeni ses ekleyebilir veya kayıtlı bir referansı kullanabilirsiniz.</p>
+    <section class="dub-card dub-voice-card"><div class="dub-card-heading"><span class="dub-step" aria-hidden="true" data-ui-untranslated data-step="2"></span><h3>Referans ses</h3></div><div class="dub-active-reference" role="status"><small data-ui-untranslated data-tr="Etkin referans" data-en="Active reference">Etkin referans</small><strong id="dubCurrentVoiceName" data-ui-untranslated>—</strong><p id="dubCurrentVoiceHint" data-ui-untranslated></p></div><details id="voiceReferenceLibrary" class="dub-reference-library"><summary id="voiceReferenceLibraryLabel" data-ui-untranslated>Kayıtlı sesleri değiştir</summary>
     <div id="voiceReferencePicker" class="voice-reference-picker"><label for="voiceReferenceSearch">Referans seslerde ara</label>
     <input id="voiceReferenceSearch" type="search" maxlength="160" placeholder="Ad ile ara" aria-describedby="voiceReferenceCount" autocomplete="off" />
     <p id="voiceReferenceCount" class="voice-reference-count" role="status" aria-live="polite" data-ui-untranslated></p>
     <label for="voiceReferenceSelect">Referans sesler</label>
     <select id="voiceReferenceSelect" aria-label="Referans sesler"></select><audio id="voiceReferencePreview" controls preload="metadata" class="hidden"></audio><div class="dub-generator-row"><button id="voiceReferenceUse" type="button" class="btn btn-primary" disabled>Bu sesi kullan</button><button id="voiceReferenceFolder" type="button" class="btn btn-ghost">Referans sesler klasörünü aç</button></div></div>
-<details id="dubEngineSettings"><summary>Ses ve motor ayarları</summary>
-    <section class="dub-pronunciations" data-ui-untranslated>
-      <h4 id="dubPronunciationTitle">Telaffuz sözlüğü</h4>
-      <label class="dub-generator-row"><span id="dubPronunciationScopeLabel" data-ui-untranslated>Kullanım alanı</span><select id="dubPronunciationScope"><option value="source">Bu video / altyazı</option><option value="global">Genel sözlük</option></select></label>
-      <p id="dubPronunciationHelp" data-ui-untranslated>Her satıra bir eşleşme: Newton = Nyutın. Büyük/küçük harf duyarlıdır. Yalnız üretilen sese uygulanır; altyazı değişmez.</p>
-      <textarea id="dubPronunciations" data-ui-untranslated rows="4" aria-labelledby="dubPronunciationTitle" placeholder="Newton = Nyutın"></textarea>
-      <button class="btn btn-ghost" id="dubPronunciationSave" type="button">Telaffuzları kaydet</button>
-      <p id="dubPronunciationStatus" role="status"></p>
-    </section>
-    <div class="dub-generator-row"><button class="btn btn-ghost" id="dubChooseEngine" type="button">Motor klasörü</button><span id="dubEngineName" data-ui-untranslated></span></div>
-    <div class="dub-generator-row"><button class="btn btn-ghost" id="dubChooseVoice" type="button">Ses referansı</button><span id="dubVoiceName" data-ui-untranslated></span></div>
-    <div class="dub-generator-row"><button class="btn btn-ghost" id="dubChooseTranscript" type="button">Referans dökümü</button><span id="dubTranscriptName" data-ui-untranslated></span></div>
-  </details>
+</details>
     <div class="dub-generator-row"><button id="voiceReferenceLocal" type="button" class="btn btn-secondary">Yerelden referans ses ekle</button><button id="voiceReferenceVideo" type="button" class="btn btn-ghost">Açık videoyu kullan</button><span id="voiceReferenceSourceName" data-ui-untranslated></span></div>
-    <details id="dubDeliverySettings"><summary>Anlatım ve duygu seçenekleri</summary>
+<details id="dubDeliverySettings"><summary>Anlatım ve duygu seçenekleri</summary>
     <label class="dub-generator-row"><input id="dubFollowDelivery" type="checkbox" />Videodaki anlatımı takip et · deneysel</label>
     <label for="dubDeliveryStrength">Aktarım gücü</label><select id="dubDeliveryStrength" disabled><option value="gentle">Hafif</option><option value="balanced" selected>Dengeli</option><option value="strong">Belirgin</option></select>
     <div class="dub-generator-row"><button id="dubChooseDeliverySource" type="button" class="btn btn-ghost" disabled>Analiz için yerel ses seç</button><button id="dubResetDeliverySource" type="button" class="btn btn-ghost" disabled>Analizde açık videoyu kullan</button><span id="dubDeliverySourceName" data-ui-untranslated></span></div>
@@ -3849,6 +3837,19 @@
       <p id="dubNaturalState" role="status" data-ui-untranslated></p><button id="dubNaturalRecommend" class="btn btn-secondary" type="button" data-ui-untranslated data-tr="Doğal dublajı kullan" data-en="Use natural dubbing" hidden>Doğal dublajı kullan</button>
       <p id="dubNaturalDelivery" data-ui-untranslated></p>
       <details id="dubManualSettings"><summary data-ui-untranslated data-tr="Gelişmiş üretim ayarları" data-en="Advanced production settings">Gelişmiş üretim ayarları</summary><p id="dubReadySettings" class="dub-production-summary" role="status" aria-live="polite" data-ui-untranslated></p>
+<details id="dubEngineSettings"><summary>Ses ve motor ayarları</summary>
+    <section class="dub-pronunciations" data-ui-untranslated>
+      <h4 id="dubPronunciationTitle">Telaffuz sözlüğü</h4>
+      <label class="dub-generator-row"><span id="dubPronunciationScopeLabel" data-ui-untranslated>Kullanım alanı</span><select id="dubPronunciationScope"><option value="source">Bu video / altyazı</option><option value="global">Genel sözlük</option></select></label>
+      <p id="dubPronunciationHelp" data-ui-untranslated>Her satıra bir eşleşme: Newton = Nyutın. Büyük/küçük harf duyarlıdır. Yalnız üretilen sese uygulanır; altyazı değişmez.</p>
+      <textarea id="dubPronunciations" data-ui-untranslated rows="4" aria-labelledby="dubPronunciationTitle" placeholder="Newton = Nyutın"></textarea>
+      <button class="btn btn-ghost" id="dubPronunciationSave" type="button">Telaffuzları kaydet</button>
+      <p id="dubPronunciationStatus" role="status"></p>
+    </section>
+    <div class="dub-generator-row"><button class="btn btn-ghost" id="dubChooseEngine" type="button">Motor klasörü</button><span id="dubEngineName" data-ui-untranslated></span></div>
+    <div class="dub-generator-row"><button class="btn btn-ghost" id="dubChooseVoice" type="button">Ses referansı</button><span id="dubVoiceName" data-ui-untranslated></span></div>
+    <div class="dub-generator-row"><button class="btn btn-ghost" id="dubChooseTranscript" type="button">Referans dökümü</button><span id="dubTranscriptName" data-ui-untranslated></span></div>
+  </details>
       <div class="dub-presets" role="group" aria-label="Ses üretim profilleri"><button type="button" class="dub-preset" id="dubPresetBalanced" aria-pressed="false"><strong>Dengeli</strong><small>Önerilen · 15 adım</small></button><button type="button" class="dub-preset" id="dubPresetFast" aria-pressed="false"><strong>Hızlı deneme</strong><small>10 adım · kısa bekleme</small></button><button type="button" class="dub-preset" id="dubPresetCareful" aria-pressed="false"><strong>Ayrıntılı kontrol</strong><small>15 adım · metin doğrulama</small></button></div>
       <p id="dubPresetSummary" role="status"></p>
 <label for="dubTimingMode">Konuşma süreye sığmazsa</label>
