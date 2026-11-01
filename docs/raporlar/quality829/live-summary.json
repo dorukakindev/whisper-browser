@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "kind": "actual-offline-GPU-grouping-AB",
+  "sameText": true,
+  "reference": "synthetic-reference",
+  "standardSettings": {
+    "steps": 15,
+    "cfg": 1.65,
+    "temperature": 0.8,
+    "timing": "video",
+    "maxSpeed": 1
+  },
+  "naturalnessWinner": null,
+  "samples": [
+    {
+      "sample": "A",
+      "grouping": "satir",
+      "productionSeconds": 36.921,
+      "groups": 2,
+      "statuses": [
+        "ready",
+        "ready"
+      ],
+      "integrityPassed": true,
+      "finalSimilarity": 0.8571,
+      "finalStatus": "passed",
+      "frames": 672000,
+      "rate": 48000,
+      "peak": 0.58660888671875,
+      "clipping": 0.0,
+      "sha256": "bdd6045f76cd002bcd3da82effc07e9a4c006c59d089c24149e63841dbe4cac3"
+    },
+    {
+      "sample": "B",
+      "grouping": "akici",
+      "productionSeconds": 9.672,
+      "groups": 1,
+      "statuses": [
+        "ready"
+      ],
+      "integrityPassed": true,
+      "finalSimilarity": 1.0,
+      "finalStatus": "passed",
+      "frames": 672000,
+      "rate": 48000,
+      "peak": 0.557220458984375,
+      "clipping": 0.0,
+      "sha256": "17c75917a7dd1e16016a0c6a633a6eef8746213e6c70cfa46d01fc6797b702ed"
+    }
+  ],
+  "paidPipeline": "parent-trusted-direct-launch-completed",
+  "paidCalls": 3,
+  "limits": "A cold / B warm session; ASR integrity is not naturalness or a human preference rating",
+  "approvalBlockerResolved": true,
+  "subagentRejectedAttempts": 2,
+  "pipeline": {
+    "ok": true,
+    "workflowAccepted": true,
+    "allGroupsReady": true,
+    "qualityCounts": {
+      "ready": 1,
+      "review": 0,
+      "failed": 0
+    },
+    "liveProvider": true,
+    "standardTier": true,
+    "requests": 3,
+    "whisperModel": "tiny",
+    "whisperDevice": "cpu",
+    "selectedRange": [
+      2,
+      15
+    ],
+    "preparedRange": {
+      "start": 2,
+      "end": 15
+    },
+    "translation": {
+      "requested": true,
+      "total": 1,
+      "completed": 1,
+      "failed": 0,
+      "lastError": "",
+      "skipped": "",
+      "stopProgressive": false
+    },
+    "gpuGenerationHere": true,
+    "voiceElapsedSeconds": 65.7049086,
+    "timing": {
+      "accelerated": 0,
+      "clipped": 0,
+      "overflow": 0
+    },
+    "sync": {
+      "version": 1,
+      "videoDuration": 13,
+      "audioDuration": 13,
+      "segments": [
+        {
+          "v0": 0,
+          "v1": 13,
+          "a0": 0,
+          "a1": 13
+        }
+      ],
+      "smooth": true
+    },
+    "attachedToOriginalVideo": true,
+    "rangeAndPause": true,
+    "outsideRangeChecked": true,
+    "groupVerification": [
+      {
+        "status": "ready",
+        "verificationStatus": "passed",
+        "similarity": 1,
+        "sourceStart": 2,
+        "sourceEnd": 13.8,
+        "audioStart": 0,
+        "audioEnd": 8.560041666666667,
+        "stretch": 1
+      }
+    ],
+    "waveform": {
+      "frames": 624000,
+      "sampleRate": 48000,
+      "seconds": 13.0,
+      "finite": true,
+      "peak": 0.7008056640625,
+      "clippedFraction": 0.0,
+      "sha256": "552f382c892acb8226904e844862ce0a6907c690ffc8d1c15288e28b6704d323"
+    },
+    "wavePath": ".uiprev\\video-live-pipeline\\1793522086358-12364\\Sesler\\Çıktı\\098d6ec3-04c4-4ff5-be33-d827db6164d1.wav",
+    "evidenceDirectory": ".uiprev/video-live-pipeline/1793522086358-12364",
+    "limits": "Actual public clip plus synthetic reference; group ASR is not human naturalness; selected-range inside/outside/pause checks, no Home-return assertion in this harness."
+  }
+}

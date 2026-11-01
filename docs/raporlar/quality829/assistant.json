@@ -1,0 +1,34 @@
+{
+  "ok": true,
+  "states": 3,
+  "providerCalls": 0,
+  "measurements": [
+    {
+      "width": 480,
+      "height": 720,
+      "overflow": false,
+      "buttonVisible": true,
+      "hit": true,
+      "focused": true,
+      "summary": "Review dubbing settingsParallel groups: 4 → 8\nTransfer strength: Gentle → Strong\nEnd (seconds): 10 → 40\nDelivery: Calm → Warm\nFollow original delivery (experimental): Off → On\nGrouping: Sentences → Sentence flow\nMusic and ambience: Off → On\nQuality: Quality → Fast\nShort sample: Off → On\nStart (seconds): 0 → 10\nTiming: Fixed video → Preserve speech\nVerification: Fast → Detailed\nChanges speed and resource use for the next generation; not a quality guarantee.\nChanges how sentences form speech groups in the next generation.\nChanges preservation of music and ambience in the next output.\nDelivery transfer is experimental; listen to a sample to check it.\nVideo may slow to preserve speech.\nGeneration does not start.Apply"
+    },
+    {
+      "width": 480,
+      "height": 720,
+      "overflow": false,
+      "buttonVisible": true,
+      "hit": true,
+      "focused": true,
+      "summary": "Dublaj ayarlarını inceleParalel grup: 4 → 8\nAktarım gücü: Hafif → Belirgin\nBitiş (saniye): 10 → 40\nAnlatım: Sakin → Sıcak\nÖzgün anlatımı izle (deneysel): Kapalı → Açık\nGruplama: Cümleler → Cümle akışı\nMüzik ve ortam: Kapalı → Açık\nKalite: Kaliteli → Hızlı\nKısa örnek: Kapalı → Açık\nBaşlangıç (saniye): 0 → 10\nZamanlama: Sabit video → Konuşmayı koru\nKontrol: Hızlı → Ayrıntılı\nSonraki üretimin hızını ve kaynak kullanımını değiştirir; kalite garantisi değildir.\nSonraki üretimde cümlelerin ses gruplarına ayrılmasını değiştirir.\nSonraki çıktıda müzik ve ortam sesinin korunmasını değiştirir.\nAnlatım aktarımı deneyseldir; örnek sesi dinleyerek kontrol et.\nKonuşmayı korumak için video yavaşlatılabilir.\nÜretim başlamaz.Uygula"
+    },
+    {
+      "width": 680,
+      "height": 800,
+      "overflow": false,
+      "buttonVisible": true,
+      "hit": true,
+      "focused": true,
+      "summary": "Review dubbing settingsParallel groups: 4 → 8\nTransfer strength: Gentle → Strong\nEnd (seconds): 10 → 40\nDelivery: Calm → Warm\nFollow original delivery (experimental): Off → On\nGrouping: Sentences → Sentence flow\nMusic and ambience: Off → On\nQuality: Quality → Fast\nShort sample: Off → On\nStart (seconds): 0 → 10\nTiming: Fixed video → Preserve speech\nVerification: Fast → Detailed\nChanges speed and resource use for the next generation; not a quality guarantee.\nChanges how sentences form speech groups in the next generation.\nChanges preservation of music and ambience in the next output.\nDelivery transfer is experimental; listen to a sample to check it.\nVideo may slow to preserve speech.\nGeneration does not start.Apply"
+    }
+  ]
+}

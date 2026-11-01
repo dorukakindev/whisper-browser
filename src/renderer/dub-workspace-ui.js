@@ -8,26 +8,34 @@
   const controls={voice:'dubMixVoice',background:'dubMixBackground',music:'dubMixMusic',ambience:'dubMixAmbience',duckAmount:'dubMixDuckAmount'};
   let generationBusy=false;
   let rows=[],mixPlaying=false,previewTimer=null,playIntent=0,wantsPreview=false;
+  let neighbour=null,cancelMetadata=null;
+  const listenContext=document.createElement('button');listenContext.id='dubTimelineContextListen';listenContext.type='button';listenContext.className=el('dubTimelineListen').className;listenContext.dataset.uiUntranslated='';el('dubTimelineListen').after(listenContext);
+  function contextLabel(){const en=window.UiLocale?.get?.()==='en';listenContext.textContent=en?'Listen with context':'Komşularıyla dinle';listenContext.title=en?'Selected group with up to 1.25 seconds before and after, from the full output.':'Seçili grubu tam çıktıdan önce ve sonra en fazla 1,25 saniyeyle dinle.';}
+  contextLabel();
   const layerPending = new Map();
   let operationSerial = 0;
   const note=text=>{el('dubWorkspaceStatus').textContent=t(text);};
-  function stop(){++playIntent;layerPending.clear();wantsPreview=false;mixPlaying=false;limit=null;clearInterval(previewTimer);previewTimer=null;voice.pause();for(const a of Object.values(layerAudio))a.pause();}
+  function stop(){++playIntent;neighbour=null;cancelMetadata?.();cancelMetadata=null;layerPending.clear();wantsPreview=false;mixPlaying=false;limit=null;clearInterval(previewTimer);previewTimer=null;voice.pause();for(const a of Object.values(layerAudio))a.pause();}
+  function samePreviewSource(expected){const current=window.BrowserDubAudioUI?.context();return !!expected&&!!current&&['mode','tabId','mediaKey','generation'].every(key=>current[key]===expected[key])&&(current.mediaId||'')===(expected.mediaId||'')&&!(expected.visible===true&&current.visible===false);}
+  function neighbourCurrent(row){return neighbour===row&&output===row.output&&selected?.key===row.key&&voice.getAttribute('src')===row.src&&el('dubGeneratorDialog').open&&!busy&&!generationBusy&&samePreviewSource(row.context);}
   function readMix(){for(const [key,id] of Object.entries(controls))mix[key]=Number(el(id).value);mix.duck=el('dubMixDuck').checked;mix=Model.mix(mix);return mix;}
   function showMix(){for(const [key,id] of Object.entries(controls))el(id).value=String(mix[key]);el('dubMixDuck').checked=mix.duck;}
   function buttons(){
     for(const id of ['dubProjectOpen','dubProjectVideoOpen','dubProjectVideo','dubMusicChoose','dubAmbienceChoose','dubLayersReset','dubExportKind'])el(id).disabled=busy||generationBusy;
     for(const id of ['dubProjectSave','dubWorkspaceExport','dubMixPreview'])el(id).disabled=busy||generationBusy||!output;
     el('dubTimelineListen').disabled=busy||!selected;el('dubTimelineVideo').disabled=busy||!selected;
+    listenContext.disabled=busy||generationBusy||!output?.url||!selected||selected.audioEnd<=selected.audioStart;
     el('dubWorkspaceCancel').disabled=!busy;
     el('dubWorkspaceProgress').classList.toggle('hidden',!busy);
     window.dispatchEvent(new CustomEvent('dub-workspace:busy',{detail:busy}));
   }
   function label(row){return t(row.status==='failed'?'Üretilemedi; bu bölüm sessiz':row.status==='review'?'Dinleyerek kontrol edin':'Hazır');}
-  function choose(row,seek=false){
+  function choose(row,seek=false,fromQuality=false){
+    if(neighbour)stop();
     selected=row;
     for(const button of el('dubTimeline').children)button.setAttribute('aria-pressed',String(button.dataset.key===row.key));
     el('dubTimelineInfo').textContent=`${row.sourceStart.toFixed(2)}–${row.sourceEnd.toFixed(2)} s · ${label(row)} · ${row.stretch.toFixed(2)}×\n${t('Altyazı')}: ${row.displayText}\n${t('Okunan metin')}: ${row.text}`;
-    const select=el('dubQualityGroup');if([...select.options].some(o=>o.value===row.key)){select.value=row.key;select.dispatchEvent(new Event('change'));}
+    const select=el('dubQualityGroup');if(!fromQuality&&[...select.options].some(o=>o.value===row.key)){select.value=row.key;select.dispatchEvent(new Event('change'));}
     if(seek)void window.BrowserDubAudioUI?.seekSource(row.sourceStart,context).then(ok=>{if(!ok)note('Video değişti; önce doğru videoyu açın.');});
     buttons();
   }
@@ -71,6 +79,29 @@
   el('dubTimelineFilter').addEventListener('change',timeline);
   el('dubTimelineVideo').addEventListener('click',async()=>{if(selected && await window.BrowserDubAudioUI?.seekSource(selected.sourceStart,context))el('dubGeneratorDialog').close();else note('Video değişti; önce doğru videoyu açın.');});
   el('dubTimelineListen').addEventListener('click',()=>{if(!selected)return;stop();voice.currentTime=selected.audioStart;limit=selected.audioEnd;playPreview();});
+  el('dubQualityGroup').addEventListener('change',()=>{if(neighbour)stop();const row=rows.find(row=>row.key===el('dubQualityGroup').value);if(row&&selected?.key!==row.key)choose(row,false,true);});
+  listenContext.addEventListener('click',async()=>{
+    if(busy||generationBusy||!output?.url||!selected||selected.audioEnd<=selected.audioStart)return;
+    stop();
+    // The generator owns another exact-row boundary on this same audio element.
+    // Its existing selection-change handler clears that boundary before a new owner starts.
+    el('dubQualityGroup').dispatchEvent(new Event('change'));
+    const row={output,key:selected.key,context,src:voice.getAttribute('src'),started:false,start:Math.max(0,selected.audioStart-1.25),end:selected.audioEnd+1.25};
+    if(!samePreviewSource(context)){note('Video değişti; önce doğru videoyu açın.');return;}if(!el('dubGeneratorDialog').open)return;
+    neighbour=row;previewTimer=setInterval(()=>{if(!neighbourCurrent(row))stop();else syncPreview();},80);
+    if(voice.readyState<1){
+      const ready=await new Promise(resolve=>{
+        let timer;const finish=value=>{clearTimeout(timer);voice.removeEventListener('loadedmetadata',loaded);voice.removeEventListener('error',failed);if(cancelMetadata===cancel)cancelMetadata=null;resolve(value);};
+        const loaded=()=>finish(true),failed=()=>finish(false),cancel=()=>finish(false);cancelMetadata=cancel;
+        voice.addEventListener('loadedmetadata',loaded,{once:true});voice.addEventListener('error',failed,{once:true});timer=setTimeout(failed,10000);
+      });
+      if(!ready){if(neighbour===row)stop();return;}
+    }
+    if(!neighbourCurrent(row))return;
+    if(!Number.isFinite(voice.duration)||voice.duration<=row.start){stop();return;}
+    row.end=Math.min(row.end,voice.duration);limit=row.end;mixPlaying=true;
+    try{voice.currentTime=row.start;playPreview();}catch{stop();}
+  });
   async function chooseLayer(kind){
     if(busy||generationBusy)return;busy=true;buttons();
     const expected=output;
@@ -90,12 +121,13 @@
   }
   function playPreview(){
     wantsPreview=true;const intent=++playIntent;
-    void Promise.resolve().then(()=>{if(intent===playIntent && wantsPreview)return voice.play();}).then(()=>{if(!wantsPreview)voice.pause();})
+    void Promise.resolve().then(()=>{if(neighbour&&!neighbourCurrent(neighbour)){stop();return;}if(intent===playIntent && wantsPreview)return voice.play();}).then(()=>{if(!wantsPreview||neighbour&&!neighbourCurrent(neighbour))voice.pause();})
       .catch(()=>{if(intent===playIntent){stop();note('Ses başlatılamadı.');}});
   }
   function syncPreview(){
+    if(neighbour&&!neighbourCurrent(neighbour)){stop();return;}
     const value=readMix();voice.volume=value.voice;
-    if(limit!==null && voice.currentTime>=limit){stop();return;}
+    if(limit!==null && (!neighbour||!voice.seeking) && voice.currentTime>=limit){stop();return;}
     if(!mixPlaying || voice.paused)return;
     const source=sourceAt(voice.currentTime),duck=value.duck?1-(1-value.duckAmount)*Model.duckAt(rows,voice.currentTime):1;
     for(const [key,a] of Object.entries(layerAudio)){
@@ -114,15 +146,16 @@
   for(const id of [...Object.values(controls),'dubMixDuck'])el(id).addEventListener('input',()=>{syncPreview();window.BrowserDubAudioUI?.setMix(readMix(),layers,output?.url);});
   el('dubMixPreview').addEventListener('click',()=>{if(!output)return;stop();window.BrowserDubAudioUI?.stop();voice.currentTime=selected?.audioStart||0;mixPlaying=true;playPreview();});
   el('dubMixStop').addEventListener('click',stop);
-  voice.addEventListener('play',()=>{void window.BrowserDubAudioUI?.pauseSource?.(context);window.BrowserDubAudioUI?.stop();clearInterval(previewTimer);previewTimer=setInterval(syncPreview,80);syncPreview();});
-  voice.addEventListener('pause',()=>{clearInterval(previewTimer);previewTimer=null;for(const a of Object.values(layerAudio))a.pause();});
-  voice.addEventListener('seeking',syncPreview);voice.addEventListener('ended',stop);
+  voice.addEventListener('play',()=>{if(neighbour&&!voice.paused)neighbour.started=true;void window.BrowserDubAudioUI?.pauseSource?.(context);window.BrowserDubAudioUI?.stop();clearInterval(previewTimer);previewTimer=setInterval(syncPreview,80);syncPreview();});
+  voice.addEventListener('pause',()=>{if(neighbour){if(neighbour.started)stop();return;}clearInterval(previewTimer);previewTimer=null;for(const a of Object.values(layerAudio))a.pause();});
+  voice.addEventListener('seeking',()=>{if(neighbour&&(voice.currentTime<neighbour.start-.05||voice.currentTime>neighbour.end+.05)){neighbour=null;limit=null;}syncPreview();});voice.addEventListener('ended',stop);
+  voice.addEventListener('seeked',()=>{if(neighbour)syncPreview();});
   for (const a of [voice, ...Object.values(layerAudio)]) a.addEventListener('error',()=>{stop();note(a===voice?'Ses başlatılamadı.':'Arka plan sesi başlatılamadı.');});
   el('dubGeneratorDialog').addEventListener('close',stop);
   window.addEventListener('beforeunload',stop);
-  document.addEventListener('ui-locale-change',()=>{timeline();if(selected)choose(selected);});
+  document.addEventListener('ui-locale-change',()=>{contextLabel();timeline();if(selected)choose(selected);});
   window.addEventListener('dub-audio:attached',event=>{if(output?.url===event.detail?.url)context=event.detail.context;});
   window.addEventListener('dub-mix:changed',event=>{if(output?.url===event.detail?.url){mix=Model.mix(event.detail.mix);showMix();}});
-  window.addEventListener('dub-generator:busy',event=>{if(generationBusy===!!event.detail)return;generationBusy=!!event.detail;buttons();});
+  window.addEventListener('dub-generator:busy',event=>{if(generationBusy===!!event.detail)return;generationBusy=!!event.detail;if(neighbour&&generationBusy)stop();buttons();});
   window.DubWorkspaceUI={setOutput,attachment};buttons();
 })();

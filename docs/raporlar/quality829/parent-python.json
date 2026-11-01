@@ -1,0 +1,81 @@
+[
+  {
+    "command": [
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "backend",
+      "-p",
+      "test_dub_flowing_groups.py"
+    ],
+    "exit": 0,
+    "tail": "......\n----------------------------------------------------------------------\nRan 6 tests in 0.040s\n\nOK\n"
+  },
+  {
+    "command": [
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "backend",
+      "-p",
+      "test_dub_continuity801.py"
+    ],
+    "exit": 0,
+    "tail": ".....\n----------------------------------------------------------------------\nRan 5 tests in 0.152s\n\nOK\n"
+  },
+  {
+    "command": [
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "backend",
+      "-p",
+      "test_speech_relations.py"
+    ],
+    "exit": 0,
+    "tail": "..............\n----------------------------------------------------------------------\nRan 14 tests in 0.110s\n\nOK\n"
+  },
+  {
+    "command": [
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "backend",
+      "-p",
+      "test_speech_translation.py"
+    ],
+    "exit": 0,
+    "tail": ".................................\n----------------------------------------------------------------------\nRan 33 tests in 0.375s\n\nOK\n"
+  },
+  {
+    "command": [
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "backend",
+      "-p",
+      "test_translation_range749.py"
+    ],
+    "exit": 0,
+    "tail": "...\n----------------------------------------------------------------------\nRan 3 tests in 0.045s\n\nOK\n"
+  },
+  {
+    "command": [
+      "tests/test_dub_finish.py"
+    ],
+    "exit": 0,
+    "tail": "........................\n----------------------------------------------------------------------\nRan 24 tests in 0.020s\n\nOK\n"
+  },
+  {
+    "command": [
+      "tests/test_dub_quality.py"
+    ],
+    "exit": 0,
+    "tail": ".................\n----------------------------------------------------------------------\nRan 17 tests in 0.129s\n\nOK\n"
+  }
+]

@@ -3383,7 +3383,7 @@ def resolve_translate_routes(base_url):
     return [raw]
 
 
-SPEECH_TRANSLATION_PROTOCOL = 'speech-v17-role-readaloud-review'
+SPEECH_TRANSLATION_PROTOCOL = 'speech-v18-pronoun-context-review'
 
 
 def translation_cue_interval(args):

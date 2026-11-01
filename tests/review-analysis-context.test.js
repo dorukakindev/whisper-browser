@@ -60,3 +60,14 @@ test('Large forty-review evidence saves and reopens with exact quotes, validates
   const old=await api.handle({},{action:'decision-save',itemId:item.id,reviews:legacy.reviews,analysis:{points:[{id:'R1',quote:'The acting remains convincing.',reason:'Exact legacy source.'}]},evidenceSnapshot:{version:1,context:JSON.stringify(legacy),profile:legacy.profile}});assert.equal(old.ok,true,old.error);
  }finally{close.forEach(fn=>fn());fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+test('supplied synopsis survives strict review transport, is bounded, and changes saved-context freshness',()=>{
+ const film={...item,synopsis:'A witness must choose whether to reveal a secret.'},evidence=model.decisionEvidence(film,rows(2),taste).evidence,encoded=JSON.stringify(evidence);
+ assert.deepEqual(evidence.story,{kind:'title_metadata',synopsis:film.synopsis});assert.equal(model.normalizeReviewAnalysis(encoded),encoded);
+ assert.equal(manifest.sourceText({reviewAnalysis:encoded}).reviewAnalysis,encoded);
+ const snapshot={version:1,context:encoded,profile:evidence.profile};assert.equal(model.decisionFreshness(snapshot,film,evidence.reviews,taste),'current');assert.equal(model.decisionFreshness(snapshot,{...film,synopsis:'A different supplied story.'},evidence.reviews,taste),'stale');
+ assert(model.validateEvidenceSnapshot(snapshot,evidence.reviews,film));assert.throws(()=>model.validateEvidenceSnapshot(snapshot,evidence.reviews,{...film,synopsis:'Different'}),/story context/);
+ assert.equal(model.decisionEvidence({...film,synopsis:'x'.repeat(2000)},rows(2)).evidence.story.synopsis.length,1600);
+ for(const story of [{kind:'review',synopsis:'Not review evidence'},{kind:'title_metadata',synopsis:'x'.repeat(1601)}])assert.equal(model.normalizeReviewAnalysis(JSON.stringify({...evidence,story})),null);
+ assert.equal(model.decisionEvidence(item,rows(2)).evidence.story,undefined);
+});

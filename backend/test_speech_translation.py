@@ -11,6 +11,15 @@ import sentence_translation as S
 T = F.T
 
 
+def speech_reply(payload):
+    """Controlled source-role transport for the now role-sensitive fixture."""
+    if 'source_items' in payload:
+        return {'facts': [{'id': row['id'], 'contrast_role': 'unknown',
+                           **{field: '' for field in ('actor', 'action', 'object', 'owner', 'recipient', 'contrast')}}
+                          for row in payload['source_items']]}
+    return F._sentence_reply(payload)
+
+
 class SpeechTranslationTests(unittest.TestCase):
     def test_readaloud_rules_apply_to_both_speech_passes_without_changing_normal_prompts(self):
         rules = T.SPEECH_READALOUD_RULES
@@ -129,22 +138,23 @@ class SpeechTranslationTests(unittest.TestCase):
 
     def test_translation_then_source_anchored_review_and_exact_source_timings(self):
         args = F._TrArgs(translate_for_speech=True, translate_refine=True, translate_cache=False)
-        result, seen, events, warnings = F._sentence_translate(F._SENTENCE_SOURCE, args)
-        self.assertEqual(len(seen), 2, warnings)
+        result, seen, events, warnings = F._sentence_translate(F._SENTENCE_SOURCE, args, speech_reply)
+        self.assertEqual(len(seen), 3, warnings)
         self.assertIn('SESLENDIRMEYE UYGUN', seen[0][1]['messages'][0]['content'])
         self.assertIn('sentence_groups.duration', seen[0][1]['messages'][0]['content'])
         self.assertEqual([(s, e) for s, e, _ in result], [(s, e) for s, e, _ in F._SENTENCE_SOURCE])
         self.assertEqual([text for _, _, text in result], F._SENTENCE_PARTS)
         self.assertTrue(all('max' not in item for item in seen[0][0]['items']))
-        review, request = seen[1]
-        self.assertTrue(all('src' in i and 'tr' in i and 'max' not in i for i in review['items']))
-        self.assertIn('SESLENDIRME EDITORU',request['messages'][0]['content'])
+        self.assertIn('source_items', seen[1][0])
+        review, request = seen[2]
+        self.assertTrue(all('src' in i and 'tr' not in i and 'max' not in i for i in review['items']))
+        self.assertIn('Translate the supplied source dialogue',request['messages'][0]['content'])
         self.assertNotIn('sure butcesini asmamali',request['messages'][0]['content'])
         self.assertNotIn('karakter/saniye, satir basina',request['messages'][0]['content'])
-        self.assertEqual(review['sentence_groups'][0]['translation'],' '.join(F._SENTENCE_PARTS))
+        self.assertEqual(review['sentence_groups'][0]['review_mode'],'source_retranslation')
         metrics=[v for kind,v in events if kind=='translation_quality']
         self.assertEqual(len(metrics),1)
-        self.assertEqual(metrics[0]['requests'],2)
+        self.assertEqual(metrics[0]['requests'],3)
         self.assertEqual(metrics[0]['refine_requests'],1)
 
     def test_worse_review_keeps_the_draft(self):
@@ -184,17 +194,20 @@ class SpeechTranslationTests(unittest.TestCase):
 
     def test_retry_reviews_cached_draft_without_paying_for_translation_again(self):
         def unavailable(payload):
+            if 'source_items' in payload:
+                return speech_reply(payload)
             if 'src' in payload['items'][0]:
                 raise RuntimeError('review unavailable')
             return F._sentence_reply(payload)
         with tempfile.TemporaryDirectory() as directory:
             args=F._TrArgs(translate_for_speech=True,translate_cache=True,cache_dir=directory)
             first,calls,_,_=F._sentence_translate(F._SENTENCE_SOURCE,args,unavailable)
-            self.assertEqual(len(calls),2)
-            second,retry,_,_=F._sentence_translate(F._SENTENCE_SOURCE,args)
-            self.assertEqual(len(retry),1)
-            self.assertTrue(all('src' in i for i in retry[0][0]['items']))
-            third,done,_,_=F._sentence_translate(F._SENTENCE_SOURCE,args)
+            self.assertEqual(len(calls),3)
+            second,retry,_,_=F._sentence_translate(F._SENTENCE_SOURCE,args,speech_reply)
+            self.assertEqual(len(retry),2)
+            self.assertIn('source_items',retry[0][0])
+            self.assertTrue(all('src' in i for i in retry[1][0]['items']))
+            third,done,_,_=F._sentence_translate(F._SENTENCE_SOURCE,args,speech_reply)
             self.assertEqual(done,[])
             self.assertEqual(first,second)
             self.assertEqual(second,third)
@@ -279,12 +292,12 @@ class SpeechTranslationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             args = F._TrArgs(translate_for_speech=True, translate_refine=True,
                               translate_cache=True, cache_dir=directory)
-            result, first, _, _ = F._sentence_translate(F._SENTENCE_SOURCE, args)
-            again, second, _, _ = F._sentence_translate(F._SENTENCE_SOURCE, args)
+            result, first, _, _ = F._sentence_translate(F._SENTENCE_SOURCE, args, speech_reply)
+            again, second, _, _ = F._sentence_translate(F._SENTENCE_SOURCE, args, speech_reply)
             normal, ordinary, _, _ = F._sentence_translate(F._SENTENCE_SOURCE,
                 F._TrArgs(translate_cache=True, cache_dir=directory))
             self.assertEqual(result, again)
-            self.assertEqual(len(first), 2)
+            self.assertEqual(len(first), 3)
             self.assertEqual(len(second), 0)
             self.assertEqual(len(ordinary), 1, 'speech cache leaked into normal translation/memory')
             key = T.translate_cache_key('Hello.', F._TrArgs(), 'tr', 'en')

@@ -425,6 +425,12 @@ def reference_quality(audio, sr):
             or not isinstance(sr, (int, float)) or not math.isfinite(sr) or sr <= 0
             or not np.isfinite(wav).all()):
         raise ValueError('Invalid reference audio.')
+    channels = wav.shape[1] if wav.ndim == 2 else 1
+    source = wav.reshape(-1, channels)
+    channel_rms = np.sqrt(np.mean(source ** 2, axis=0))
+    channel_clipping = np.mean(np.abs(source) >= .995, axis=0)
+    source_rms = float(np.sqrt(np.mean(source ** 2)))
+    source_peak = float(np.max(np.abs(source)))
     if wav.ndim == 2:
         wav = wav.mean(axis=1)
     if not np.isfinite(wav).all():
@@ -433,18 +439,27 @@ def reference_quality(audio, sr):
     levels = np.array([np.sqrt(np.mean(wav[i:i + step] ** 2)) for i in range(0, len(wav), step)])
     rms = float(np.sqrt(np.mean(wav ** 2)))
     silence = float(np.mean(levels < max(.003, float(levels.max()) * .04)))
-    clipping = float(np.mean(np.abs(wav) >= .995))
+    # Downmixing can hide a clipped channel or cancel opposite-polarity audio.
+    # Clipping is a source-channel diagnostic, not a property of the average.
+    clipping = float(channel_clipping.max())
+    downmix_loss = 20 * math.log10(max(rms, 1e-12) / max(source_rms, 1e-12))
     warnings = []
     if rms < .01: warnings.append('quiet')
     if clipping > .005: warnings.append('clipping')
     if silence > .45: warnings.append('silence')
     if len(wav) / sr < 3: warnings.append('short')
+    if channels > 1 and source_rms >= .01 and downmix_loss < -12:
+        warnings.append('downmix-cancellation')
     # Suggest a dense 3–15 second window; do not alter the reference automatically.
     width = min(len(levels), 150)
     active = (levels >= max(.003, float(levels.max()) * .04)).astype(float)
     counts = np.convolve(active, np.ones(width), 'valid')
     begin = int(np.argmax(counts)) * .1
     return {'seconds': round(len(wav) / sr, 2), 'rms': round(rms, 5),
+            'channels': channels, 'source_peak': round(source_peak, 5), 'source_rms': round(source_rms, 5),
+            'channel_rms': [round(float(v), 5) for v in channel_rms],
+            'channel_clipping_fraction': [round(float(v), 4) for v in channel_clipping],
+            'downmix_loss_db': round(downmix_loss, 2),
             'silence_fraction': round(silence, 3), 'clipping_fraction': round(clipping, 4),
             'warnings': warnings, 'suggested_start': round(begin, 2),
             'suggested_end': round(min(len(wav) / sr, begin + width * .1), 2)}

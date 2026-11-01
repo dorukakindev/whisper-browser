@@ -1,0 +1,56 @@
+{
+  "nativeWindows": true,
+  "controlledIPC": true,
+  "noProduction": true,
+  "screens": [
+    {
+      "file": "D:\\Whisper Local\\tmp\\assistant618\\tmp\\quality829\\preflight-native-1793522397868\\en-1440-inspect.png",
+      "width": 1440,
+      "height": 960,
+      "zoom": 1.5,
+      "overflow": false,
+      "scrollOverflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true
+    },
+    {
+      "file": "D:\\Whisper Local\\tmp\\assistant618\\tmp\\quality829\\preflight-native-1793522397868\\en-1440-draft.png",
+      "width": 1440,
+      "height": 960,
+      "zoom": 1.5,
+      "overflow": false,
+      "scrollOverflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true
+    },
+    {
+      "file": "D:\\Whisper Local\\tmp\\assistant618\\tmp\\quality829\\preflight-native-1793522397868\\tr-820-inspect.png",
+      "width": 656,
+      "height": 768,
+      "zoom": 1.875,
+      "overflow": false,
+      "scrollOverflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true
+    },
+    {
+      "file": "D:\\Whisper Local\\tmp\\assistant618\\tmp\\quality829\\preflight-native-1793522397868\\tr-820-draft.png",
+      "width": 656,
+      "height": 768,
+      "zoom": 1.875,
+      "overflow": false,
+      "scrollOverflow": false,
+      "footerVisible": true,
+      "scrollAboveFooter": true
+    }
+  ],
+  "cases": [
+    "en: inspect before generation, advisory text checks, repeated candidates, existing draft preserved, no implicit save, Tab, stale owner/SRT refusal",
+    "tr: inspect before generation, advisory text checks, repeated candidates, existing draft preserved, no implicit save, Tab, stale owner/SRT refusal",
+    "delayed native plan discarded after actual owner A→B change; stale draft refuses new owner",
+    "one explicit Save IPC only; no dub:start IPC at any point"
+  ],
+  "planCalls": 3,
+  "startCalls": 0,
+  "saveCalls": 1
+}

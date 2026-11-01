@@ -7,7 +7,8 @@
  const host=el('details','dub-experience'),head=el('div','dub-experience-head'),title=el('summary'),tools=el('div','dub-experience-tools'),status=el('p','dub-experience-status');status.setAttribute('role','status');
  const inspect=button('',()=>void preflight()),compare=button('',()=>void comparison()),repair=button('',()=>void repairNow());
  const details=el('details','dub-preflight'),summary=el('summary'),list=el('div','dub-preflight-list');details.hidden=true;details.append(summary,list);tools.append(inspect,compare,repair);head.append(tools);host.append(title,head,status,details);
- function reviewVisibility(){const snapshot=ui().experience();host.hidden=snapshot.busy?!snapshot.groups.length:!snapshot.groups.length&&!snapshot.output?.url;}
+ let inspectedSource='';
+ function reviewVisibility(){const snapshot=ui().experience(),identity=JSON.stringify([snapshot.owner,snapshot.srt]);if(inspectedSource&&inspectedSource!==identity){serial++;status.textContent='';details.hidden=true;list.replaceChildren();inspectedSource='';}host.hidden=!snapshot.srt&&!snapshot.groups.length&&!snapshot.output?.url;inspect.disabled=snapshot.busy;repair.disabled=snapshot.busy||!snapshot.groups.length;}
  host.hidden=true;
  window.addEventListener('dub-takes:context',reviewVisibility);
  window.addEventListener('dub-generator:busy',reviewVisibility);
@@ -24,11 +25,22 @@
  function labels(){fileLabel.textContent=t('Files & log','Dosyalar ve kayıt');title.textContent=t('Review & repair','İnceleme ve onarım');inspect.textContent=t('Inspect script','Metni denetle');compare.textContent=t('Compare translations','Çevirileri karşılaştır');repair.textContent=t('Repair current moment · Ctrl+Alt+R','İzlediğim anı düzelt · Ctrl+Alt+R');}
  async function preflight(){const request=++serial,identity=JSON.stringify([ui().experience().owner,ui().experience().srt]);inspect.disabled=true;
   try{const report=await ui().inspectProduction();if(request!==serial||identity!==JSON.stringify([ui().experience().owner,ui().experience().srt]))return;if(!report){status.textContent=t('Select a subtitle first.','Önce altyazı seç.');return;}
-   summary.textContent=t(`${report.rows.length} groups · ${report.dense} dense · ${report.long} long`,`${report.rows.length} grup · ${report.dense} yoğun · ${report.long} uzun`);
-   status.textContent=t('Duration is an estimate, not a naturalness score. ','Süre tahminidir; doğallık puanı değildir. ')+(report.referenceChecked?(report.referenceWarnings.length?t('Reference needs review: ','Referansı kontrol et: ')+report.referenceWarnings.map(w=>({quiet:t('low level','kısık ses'),clipping:t('clipping','ses patlaması'),silence:t('long silence','uzun sessizlik'),short:t('too short','çok kısa')}[w]||w)).join(', '):t('Reference level was checked.','Referans seviyesi kontrol edildi.')):t('Reference audio has not been measured in this session.','Referans sesi bu oturumda henüz ölçülmedi.'));
-   list.replaceChildren();for(const row of report.rows.filter(r=>r.dense||r.long).slice(0,20)){const text=t(`${Number.isFinite(row.seconds)?row.seconds.toFixed(1):"—"} s available · ~${row.estimated} s estimated`,`${Number.isFinite(row.seconds)?row.seconds.toFixed(1):"—"} sn aralık · ~${row.estimated} sn tahmin`);const b=button(text+' · '+row.text.slice(0,110),()=>void ui().editPlanGroup(row.key));list.append(b);}
-   if(!list.childElementCount)list.append(el('p','',t('No dense or long groups flagged. Listen to a sample before deciding.','Yoğun veya uzun grup işaretlenmedi. Karar vermeden önce kısa örneği dinle.')));
-   details.hidden=false;details.open=report.dense>0||report.long>0;if(details.open)host.open=true;
+   inspectedSource=identity;
+   summary.textContent=t(`${report.rows.length} groups · ${report.flagged} text checks · ${report.dense} dense`,`${report.rows.length} grup · ${report.flagged} metin uyarısı · ${report.dense} yoğun`);
+   status.textContent=t('Advisory checks, not a completeness or naturalness guarantee. Nothing is changed automatically. ','Bunlar inceleme ipuçlarıdır; eksiksizlik veya doğallık garantisi değildir. Hiçbir şey otomatik değiştirilmez. ')+(report.referenceChecked?(report.referenceWarnings.length?t('Reference needs review: ','Referansı kontrol et: ')+report.referenceWarnings.map(w=>({quiet:t('low level','kısık ses'),clipping:t('clipping','ses patlaması'),silence:t('long silence','uzun sessizlik'),short:t('too short','çok kısa'),'downmix-cancellation':t('stereo cancellation in mono','mono karışımda stereo zayıflaması')}[w]||w)).join(', '):t('Reference level was checked.','Referans seviyesi kontrol edildi.')):t('Reference audio has not been measured in this session.','Referans sesi bu oturumda henüz ölçülmedi.'));
+   const issueLabels={'empty':t('Empty text','Boş metin'),'damaged-text':t('Damaged characters','Bozuk karakterler'),'translation-marker':t('Translation failure marker','Çeviri hata işareti'),'possible-source-language':t('May still be in the source language; review','Kaynak dilde kalmış olabilir; kontrol et')};
+   list.replaceChildren();for(const row of report.rows.filter(r=>r.issues.length||r.dense||r.long).slice(0,20)){
+    const reasons=[...row.issues.map(i=>issueLabels[i]),...(row.long?[t('Long group','Uzun grup')]:[]),...(row.dense?[t('Dense timing','Yoğun zamanlama')]:[])];
+    const text=t(`${Number.isFinite(row.seconds)?row.seconds.toFixed(1):'—'} s available · ~${row.estimated} s estimated`,`${Number.isFinite(row.seconds)?row.seconds.toFixed(1):'—'} sn aralık · ~${row.estimated} sn tahmin`);
+    const b=button(reasons.join(' · ')+' — '+text+' · '+row.text.slice(0,110),()=>void ui().editPlanGroup(row.key));list.append(b);
+   }
+   if(!list.childElementCount)list.append(el('p','',t('No groups flagged by these checks. Listen to a sample before deciding.','Bu kontrollerde grup işaretlenmedi. Karar vermeden önce kısa örneği dinle.')));
+   if(report.rows.filter(r=>r.issues.length||r.dense||r.long).length>20)list.append(el('p','',t('First 20 flagged groups shown. All groups remain in the text editor.','İlk 20 işaretli grup gösteriliyor. Tüm gruplar metin düzenleyicisinde bulunur.')));
+   if(report.pronunciations.length){
+    list.append(el('p','',t('Repeated name / term candidates (not phonetic guesses): ','Tekrarlanan ad / terim adayları (okunuş tahmini değildir): ')+report.pronunciations.map(r=>r.term+' ×'+r.count).join(', ')));
+    const snapshot=ui().experience(),draft=button(t('Prepare editable pronunciation draft','Düzenlenebilir telaffuz taslağı hazırla'),()=>{if(!ui().preparePronunciations(report.pronunciations.map(r=>r.term),snapshot.owner,snapshot.srt))status.textContent=t('Source changed or production is busy. Inspect again before editing.','Kaynak değişti veya üretim sürüyor. Düzenlemeden önce yeniden denetle.');});list.append(draft);
+   }
+   details.hidden=false;details.open=report.flagged>0||report.dense>0||report.long>0||report.pronunciations.length>0;if(details.open)host.open=true;
   }catch(error){if(request===serial)status.textContent=error.message;}finally{if(request===serial)inspect.disabled=false;}
  }
  async function repairNow(){const ok=await ui().editAtCurrent();if(!ok)status.textContent=t('No matching completed dub group at the current video time.','Güncel video anında eşleşen tamamlanmış dublaj grubu yok.');else status.textContent=t('Group opened. Edit and apply the text, then regenerate only this group.','Grup açıldı. Metni düzenleyip uygula; sonra yalnız bu grubu yeniden üret.');}

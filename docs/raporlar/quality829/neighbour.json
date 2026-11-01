@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "decodedDuration": 12,
+  "contextEnd": 6.313625,
+  "normalBoundaryCleared": true,
+  "keyboardTabSpaceEscape": true,
+  "sourceGenerationStop": true,
+  "captures": [
+    {
+      "width": 1440,
+      "height": 1000,
+      "locale": "en",
+      "text": "Listen with context",
+      "inside": true,
+      "overflow": false,
+      "hit": true
+    },
+    {
+      "width": 680,
+      "height": 720,
+      "locale": "tr",
+      "text": "Komşularıyla dinle",
+      "inside": true,
+      "overflow": false,
+      "hit": true
+    }
+  ],
+  "providerCalls": 0
+}

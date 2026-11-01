@@ -2,6 +2,7 @@
 const {randomUUID}=require('node:crypto');
 const registry=require('./assistant-capabilities'),manifest=require('./assistant-context-manifest'),provider=require('./assistant-provider');
 const settingProposals=require('./assistant-setting-proposals');
+const workflowPlan=require('./assistant-workflow-plan');
 const fold=value=>String(value||'').normalize('NFKD').replace(/\p{M}/gu,'').replace(/ı/g,'i').toLowerCase();
 const identifier=value=>typeof value==='string'&&/^[\w-]{1,100}$/.test(value);
 const workflowSnapshot=(name,state)=>JSON.stringify(name==='undo_workflow_settings'?{values:state.values,canUndo:state.canUndo,undoChanges:state.undoChanges}:state.values);
@@ -13,7 +14,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
  function sameJobSource(binding,owner){return !!binding&&manifest.same({...binding.owner,thread:owner.thread},owner);}
  function jobResult(id,owner){
   const job=getJobs().jobs.find(row=>row.id===id);if(!job)throw Error('Unknown exact job / İlgili iş bulunamadı.');
-  const binding=jobBindings.get(id);return {job:{...job,startedByAssistant:!!binding,sourceMatches:binding?sameJobSource(binding,owner):null},note:'Progress is stage-specific. Artifacts are completion metadata, not listened audio or verified text quality.'};
+  const binding=jobBindings.get(id);return {job:{...job,startedByAssistant:!!binding,sourceMatches:binding?sameJobSource(binding,owner):null,...(binding?{startedSource:{kind:binding.owner.kind,title:binding.owner.title,range:binding.owner.range}}:{})},note:'Progress is stage-specific. Artifacts are completion metadata, not listened audio or verified text quality.'};
  }
  function subtitleBinding(args,owner){
   const {job}=jobResult(args.job_id,owner),binding=jobBindings.get(args.job_id);
@@ -110,14 +111,19 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
     if(name==='app_help')return {capabilities:registry.help(owner,args.domain||'all'),limits:'Only listed assistant tools are connected. Book, dubbing, library and normal settings tools are source/domain dependent. Do not claim unlisted controls or access to secrets, files, arbitrary browser automation or the full book.'};
     if(name==='research_web'){
      const result=await researchWeb(args.query,controller.signal);controller.signal.throwIfAborted();requireOwner(owner);
-     const sources=(Array.isArray(result.sources)?result.sources:[]).filter(row=>row&&require('./assistant-web-research').safeSource(row.url)).slice(0,10);
+     const safeSource=require('./assistant-web-research').safeSource;
+     const sources=(Array.isArray(result.sources)?result.sources:[]).filter(row=>row&&safeSource(row.url)).slice(0,10).map(row=>({url:safeSource(row.url),title:String(row.title||'').slice(0,200)}));
+     const readable=(Array.isArray(result.passages)?result.passages:[]).filter(row=>row&&typeof row.text==='string'&&row.text.trim()&&sources.some(source=>source.url===safeSource(row.url))).slice(0,10);
+     const providerText=typeof result.text==='string'?result.text.trim().slice(0,16000):'';
+     if(result.ok===false||result.status&&result.status!=='completed'||!sources.length||!readable.length&&!providerText)throw Error('No sourced web evidence received / Kaynaklı web kanıtı alınamadı.');
      session.webSources=[...new Map([...(session.webSources||[]),...sources].map(row=>[row.url,row])).values()].slice(0,10);
-     const passages=(result.passages||[]).flatMap(row=>{const at=session.webSources.findIndex(source=>source.url===row.url);return at<0?[]:[{...row,id:'W'+(at+1)}];});
-     return {status:'completed',method:result.method||'provider',scope:result.scope,text:passages.map(row=>'['+row.id+'] '+row.title+'\n'+row.url+'\n'+row.text).join('\n\n'),sources:session.webSources,passages,blocked:result.blocked||[]};
+     const passages=readable.flatMap(row=>{const url=safeSource(row.url),at=session.webSources.findIndex(source=>source.url===url);return at<0?[]:[{id:'W'+(at+1),url,title:String(row.title||'').slice(0,200),text:row.text.slice(0,6000),truncated:row.truncated===true||row.text.length>6000}];});
+     return {status:'completed',method:result.method||'provider',sourceKind:passages.length?'web_page_excerpts':'provider_synthesis',scope:result.scope||'External research, separate from the attached open page. Provider synthesis is not a verbatim source excerpt.',text:passages.length?passages.map(row=>'['+row.id+'] '+row.title+'\n'+row.url+'\n'+row.text).join('\n\n'):providerText,sources:session.webSources,passages,blocked:result.blocked||[]};
     }
     if(name==='get_job_status'){const state=getJobs(),ordered=[...state.jobs.filter(job=>['running','cancelling'].includes(job.state)),...state.jobs.filter(job=>!['running','cancelling'].includes(job.state))],offset=args.offset||0;return {revision:state.revision,jobs:args.job_id?[jobResult(args.job_id,owner).job]:ordered.slice(offset,offset+5).map(job=>jobResult(job.id,owner).job),total:state.jobs.length,nextOffset:!args.job_id&&offset+5<ordered.length?offset+5:null};}
     if(name==='get_job_result')return jobResult(args.job_id,owner);
-    if(name==='get_source_context')return {source:manifest.publicContext(owner),data:manifest.sourceText(input.context,10000)};
+    if(name==='get_workflow_plan')return workflowPlan.build(owner,args.goal);
+    if(name==='get_source_context')return {source:manifest.publicContext(owner),data:manifest.sourceText(input.context,10000),translationChoices:workflowPlan.translationChoices(owner)};
     if(name==='list_subtitle_tracks')return {tracks:owner.tracks};
     if(name==='search_subtitles'||name==='get_current_subtitle'){
      const result=await requestRenderer(event.sender,owner,name,args,controller.signal);
@@ -132,6 +138,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
     }
     if(entry.policy==='proposal'){
      attempted++;
+     if(['translate_page','translate_captions','translate_video_captions','start_whisper'].includes(name)&&workflowPlan.ambiguousTranslation(input.question,owner))return {status:'blocked',note:'The current request does not select a translation source. Ask whether the human means this web page, existing captions, YouTube captions or Whisper audio. No card was created and no job started.',translationChoices:workflowPlan.translationChoices(owner)};
      if(!flows.retryAllowed(flow,name,args))return {status:'blocked',note:'The previous exact job failed. Only retry its same stage and arguments with a new approval card. Completed earlier stages and dependent stages are blocked.'};
      const signature=name+':'+JSON.stringify(Object.fromEntries(Object.keys(args).sort().map(key=>[key,args[key]])));
      if(offered.has(signature))return {...offered.get(signature),note:'This exact review card already exists. It has not run.'};

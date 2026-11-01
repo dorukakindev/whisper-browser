@@ -31,6 +31,11 @@ function summary(name,args,identity,locale){
  const rows=Object.keys(before).filter(key=>before[key]!==args[key]).map(key=>labels[key][tr?1:0]+': '+display(key,before[key])+' → '+display(key,args[key]));
  if(!rows.length)return tr?'İstenen ayarlar zaten etkin; değişiklik yok.':'Requested settings are already active; no changes.';
  if(name==='configure_voice_generation'){
+  const changed=key=>Object.hasOwn(before,key)&&before[key]!==args[key];
+  if(changed('profile')||changed('concurrency'))rows.push(tr?'Sonraki üretimin hızını ve kaynak kullanımını değiştirir; kalite garantisi değildir.':'Changes speed and resource use for the next generation; not a quality guarantee.');
+  if(changed('grouping'))rows.push(tr?'Sonraki üretimde cümlelerin ses gruplarına ayrılmasını değiştirir.':'Changes how sentences form speech groups in the next generation.');
+  if(changed('keepBackground'))rows.push(tr?'Sonraki çıktıda müzik ve ortam sesinin korunmasını değiştirir.':'Changes preservation of music and ambience in the next output.');
+  if(['expression','followDelivery','deliveryStrength'].some(changed))rows.push(tr?'Anlatım aktarımı deneyseldir; örnek sesi dinleyerek kontrol et.':'Delivery transfer is experimental; listen to a sample to check it.');
   if(args.timingMode==='clip')rows.push(tr?'Sabit video; konuşma kesilebilir.':'Fixed video; speech may be trimmed.');
   if(args.timingMode==='video')rows.push(tr?'Konuşmayı korumak için video yavaşlatılabilir.':'Video may slow to preserve speech.');
   rows.push(tr?'Üretim başlamaz.':'Generation does not start.');

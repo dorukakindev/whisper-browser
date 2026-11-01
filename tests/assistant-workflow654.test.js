@@ -26,7 +26,7 @@ test('speech settings report effective quality overrides and stale sources canno
 test('approval summary uses actual before/after values, choice labels and bounded honest fallbacks',()=>{
  const snapshot={values:{model:'large-v3',beamSize:5},options:{model:{choices:[{value:'large-v3',label:'Large model'},{value:'tiny',label:'Tiny model'}]}}};
  const result=model.summary('transcription','{"model":"tiny","beamSize":3}','en',snapshot);
- assert.equal(result,'Whisper model: Large model → Tiny model\nBeam size: 5 → 3');
+ assert.equal(result,'Whisper model: Large model → Tiny model\nBeam size: 5 → 3\nApplies to future jobs; running and already queued jobs keep their settings. No job starts.');
  assert.equal(model.summary('assistant','{"flex":false}','tr',{values:{flex:true}}),'DeepInfra Flex: Açık → Kapalı');
  assert.match(model.summary('transcription','{"beamSize":5}','en',snapshot),/already active; no changes/);
  assert.throws(()=>model.summary('transcription','{"beamSize":3}','en',{values:{}}),/current value/);
@@ -52,6 +52,6 @@ test('matching settings do not save, dispatch changes or replace a meaningful un
 });
 
 test('mixed setting summaries omit unchanged fields but still validate their snapshots',()=>{
- assert.equal(model.summary('transcription','{"model":"large-v3","beamSize":3}','en',{values:{model:'large-v3',beamSize:5}}),'Beam size: 5 → 3');
+ assert.equal(model.summary('transcription','{"model":"large-v3","beamSize":3}','en',{values:{model:'large-v3',beamSize:5}}),'Beam size: 5 → 3\nApplies to future jobs; running and already queued jobs keep their settings. No job starts.');
  assert.match(model.summary('assistant','{"flex":false}','tr',{values:{flex:false}}),/değişiklik yok/);
 });

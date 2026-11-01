@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "realApp": true,
+  "realScheduler": true,
+  "provider": "controlled deferred fixture",
+  "cases": [
+    "browser settings preserves native paused playhead, manually imported subtitles and attached decoded dub",
+    "Home and application settings preserve playhead, subtitles and attached dub",
+    "first result progresses while Home",
+    "return preserves source and partial progress while next request pending",
+    "completion while Home stays on Home",
+    "same source and completed results on explicit return",
+    "explicit Play resumes original attached WAV at retained video position; return itself does not autoplay",
+    "new page generation discards old attachment and releases owned source mute"
+  ],
+  "providerCalls": 3,
+  "aborted": 0,
+  "limits": "Real native app, local video, IPC and scheduler with controlled provider replies; no live model quality, remote site, transcription backend, account or GPU test."
+}

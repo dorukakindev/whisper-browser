@@ -40,3 +40,11 @@ test('cancellation after one balanced page rejects rather than disguising it as 
 test('unsupported sort is refused before any network request',async()=>{
  let calls=0;await assert.rejects(fetchReviews(item,{sort:'guessed-path',fetchImpl:async()=>{calls++;throw Error('Must not run');}}),/supported/);assert.equal(calls,0);
 });
+
+// Spoiler policy must be applied before cross-card deduplication discards an eligible source.
+test('spoiler-first same-text card cannot suppress the later clean source',async()=>{
+ const text='A short but explicit praise of the acting.',page=html([{author:'spoiled',text},{author:'clean',text},{author:'another',text:'A distinct opinion about pacing.'}]).replace('<article>','<article class="contains-spoilers">');
+ const parsed=parseLetterboxdReviews(page,{url:'https://letterboxd.com/film/witness/reviews/'});assert.equal(parsed.reviews.length,3);assert(parsed.reviews[0].spoiler);assert(!parsed.reviews[1].spoiler);
+ const r=await fetchReviews(item,{count:2,fetchImpl:async url=>url.includes('/tmdb/')?new Response(null,{status:302,headers:{location:'/film/witness/'}}):new Response(page)});
+ assert.equal(r.reviews.length,2);assert.equal(r.reviews[0].authorId,'clean');assert(r.reviews.every(row=>!row.spoiler));assert.equal(r.excluded.spoiler,1);
+});
