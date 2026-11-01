@@ -1,0 +1,52 @@
+{
+  "result": "PASS",
+  "sourceHead": "c0786bfab10cbdc49dc023c3ef0a95838c75163b",
+  "createdAt": "2026-11-01T19:59:18+03:00",
+  "reportMarkdownFiles": 1087,
+  "localOnlyReportFiles": 98,
+  "statusCounts": {
+    "TARIHSEL_DURUM_TEYITSIZ": 1060,
+    "KARMA_ACIK_SINIR_VAR": 1,
+    "SONRADAN_UYGULAMA_KAYDI_VAR": 15,
+    "SON_KAYITTA_ACIK": 6,
+    "YENI_TASARIMLA_TEKRAR_ESLESTIR": 1,
+    "ARASTIRMA_KART_BAZLI_KALAN": 4
+  },
+  "archives": [
+    {
+      "file": "01_ODAKLI_ACIK_RAPORLAR.zip",
+      "path": "D:\\Whisper Local\\exports\\ANA_SOHBET_RAPORLARI_2026-11-01-1953\\01_ODAKLI_ACIK_RAPORLAR.zip",
+      "reportMarkdownFiles": 88,
+      "sourceFiles": 480,
+      "totalEntries": 484,
+      "bytes": 4694776,
+      "sha256": "722ca1c0b15f8e3b65e69ccbe55746e36736750b45d0fe9f1aef7422fae3191f",
+      "crcAndEntryHashes": "PASS",
+      "redactedMatches": 0
+    },
+    {
+      "file": "02_TUM_TARIHSEL_RAPORLAR.zip",
+      "path": "D:\\Whisper Local\\exports\\ANA_SOHBET_RAPORLARI_2026-11-01-1953\\02_TUM_TARIHSEL_RAPORLAR.zip",
+      "reportMarkdownFiles": 1087,
+      "sourceFiles": 3266,
+      "totalEntries": 3270,
+      "bytes": 13239917,
+      "sha256": "cc3126c64d8055efa08cb551f59bc2ebdea3034731d3b2ec2024f4ca96beeac9",
+      "crcAndEntryHashes": "PASS",
+      "redactedMatches": 7
+    }
+  ],
+  "notRun": [
+    "product tests",
+    "bug reproduction",
+    "new implementation verification"
+  ],
+  "excluded": [
+    "raw personal profiles/settings/keys",
+    "media files",
+    "all historical screenshots",
+    "logs",
+    "existing ZIP archives",
+    "git/venv/node_modules"
+  ]
+}
