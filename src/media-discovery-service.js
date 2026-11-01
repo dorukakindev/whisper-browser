@@ -33,6 +33,10 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
       const item = {...previews.get(patch.id), ...patch}; previews.set(patch.id, item); return item;
     }}), translate: translateSynopsis,
   });
+  const personalState=require('./personal-media-state');
+  const personalTitles=()=>userData?personalState.readFeedback(userData()).titles:{};
+  const personalRow=(row,library=catalogStore().list(),titles=personalTitles())=>{const item=library.find(i=>personalState.providerMatch(i,{...row,imdbId:row.providerId})),target=item||{...row,id:'discovery:'+row.kind+':'+row.providerId,imdbId:row.providerId,watchStatus:'unspecified'};return {...row,watchStatus:target.watchStatus,personalMedia:personalState.personal(target,titles)};};
+  const projectRows=rows=>{const library=catalogStore().list(),titles=personalTitles();return rows.map(row=>personalRow(row,library,titles));};
   const feedbackFile = () => path.join(userData(), 'media-discovery-feedback.json');
   function feedback() {
     if (!userData || !fs.existsSync(feedbackFile())) return {};
@@ -109,10 +113,10 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
         const result = await list(input);
         const preferences = feedback();
         const owned = new Map(catalogStore().list().filter(row => row.imdbId).map(row => [row.imdbId, row.id]));
-        return { ok: true, ...result, rows: result.rows.filter(row => !preferences[`${row.kind}:${row.providerId}`]).map(row => ({ ...row, catalogId: owned.get(row.providerId) || null })), genres: GENRES };
+        return { ok: true, ...result, rows: projectRows(result.rows.filter(row => !preferences[`${row.kind}:${row.providerId}`])).filter(row=>row.watchStatus!=='completed').map(row => ({ ...row, catalogId: owned.get(row.providerId) || null })), genres: GENRES };
       }
       if (input.action === 'personal') {
-        const library = catalogStore().list(), seeds = recommendationSeeds(library), owned = new Set(library.map(item => item.imdbId).filter(Boolean));
+        const library = catalogStore().list(),titles=personalTitles(), seeds = library.filter(item=>personalState.personal(item,titles).reaction==='like').slice(0,20), owned = new Set(library.map(item => item.imdbId).filter(Boolean));
         const aliases = { 'Bilim-Kurgu': 'Sci-Fi', 'Bilim Kurgu': 'Sci-Fi', 'Dram': 'Drama', 'Komedi': 'Comedy', 'Aksiyon': 'Action', 'Gerilim': 'Thriller', 'Korku': 'Horror', 'Belgesel': 'Documentary', 'Animasyon': 'Animation', 'Macera': 'Adventure', 'Romantik': 'Romance', 'Suç':'Crime', 'Aile':'Family', 'Fantastik':'Fantasy', 'Tarih':'History', 'Gizem':'Mystery', 'Savaş':'War', 'Vahşi Batı':'Western', 'Biyografi':'Biography', 'Spor':'Sport' };
         const selected = new Map();
         let genreProfile=[];
@@ -124,7 +128,7 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
         const seen = new Set(), rows = [], preferences = feedback();
         for (const result of results) if (result.status === 'fulfilled') for (const row of result.value.rows) {
           const key = `${row.kind}:${row.providerId}`;
-          if (!owned.has(row.providerId) && !seen.has(key) && !preferences[key]) { seen.add(key); rows.push({ ...row, ...(typeof result.value.seed==='string'?{because:result.value.seed}:{profileBecause:result.value.seed}) }); }
+          if (!owned.has(row.providerId) && !seen.has(key) && !preferences[key]) { seen.add(key); rows.push({ ...personalRow(row,library,titles), ...(typeof result.value.seed==='string'?{because:result.value.seed}:{profileBecause:result.value.seed}) }); }
         }
         if (results.every(row => row.status === 'rejected')) throw Error('Personal recommendations are temporarily unavailable.');
         return { ok: true, rows: rows.slice(0, 60), needsRatings: false };
@@ -152,7 +156,7 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
         if (input.action === 'detail') {
           const cached=existing?.synopsis===row.synopsis?existing:previews.get(previewId);
           const valid=cached?.synopsis===row.synopsis&&cached.synopsisTr&&cached.synopsisTrSource===require('./catalog-synopsis').synopsisHash(row.synopsis);
-          return {ok:true,item:{...row,...(valid?{synopsisTr:cached.synopsisTr}: {})},catalogId:existing?.id||null};
+          return {ok:true,item:{...personalRow(row),...(valid?{synopsisTr:cached.synopsisTr}: {})},catalogId:existing?.id||null};
         }
         if (existing) return { ok: true, item: existing, existing: true };
         let posterBytes = null;

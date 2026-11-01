@@ -3,7 +3,7 @@
   const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
   const el=(tag,cls,text)=>{const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined)node.textContent=String(text);return node;};
   const safe=value=>typeof value==='string'&&value.length<8e6&&/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(value);
-  let dialog,selected,opener,generation=0,item,storyJob;
+  let dialog,selected,opener,generation=0,item,storyJob,personalView;
   const originalStories=new Set();
   let activePage=null;
   function createPage(className){
@@ -44,14 +44,15 @@
     if(!result.watchItem)throw Error(t('Add a video file or link first.','Önce video dosyası veya bağlantısı ekle.'));
     close();await window.openMediaCatalogPlayback(result.watchItem);if(voice)await window.MediaExperience?.openVoice();
   }
-  async function reload(){const id=selected,version=++generation;const result=await window.api.mediaCatalog({action:'list'});if(version!==generation||!dialog?.open)return;
+  async function reload({refreshPersonalStatus=false}={}){const id=selected,version=++generation;const result=await window.api.mediaCatalog({action:'list'});if(version!==generation||!dialog?.open)return;
     if(result?.canceled)return result;if(!result?.ok)throw Error(result?.error||t('Could not load the title.','Yapım yüklenemedi.'));
-    const current=result.items.find(row=>row.id===id);if(!current){close();return;}item=current;draw(version);
+    const current=result.items.find(row=>row.id===id);if(!current){close();return;}item=current;draw(version,refreshPersonalStatus);
   }
   function image(action,target,version,options={}){void request(action,options).then(result=>{if(version!==generation||!target.isConnected||!safe(result.image))return;const img=el('img');img.src=result.image;img.alt='';target.replaceChildren(img);}).catch(()=>{});}
-  function draw(version){
+  function draw(version,refreshPersonalStatus=false){
     const scroll=document.getElementById('mediaHome').scrollTop;const focused=dialog.contains(document.activeElement)?document.activeElement?.dataset.titleAction:null;
-    const form=dialog.querySelector('.mtd-personal');const draft=form?.dataset.titleId===item.id?{status:form.querySelector('select').value,rating:form.querySelector('input').value}:null;
+    const form=dialog.querySelector('.mtd-personal');const draft=form?.dataset.titleId===item.id?{status:refreshPersonalStatus?undefined:form.querySelector('select').value,rating:form.querySelector('input').value}:null;
+    personalView?.dispose();personalView=null;
     dialog.replaceChildren();const header=el('header','mtd-header');const back=button(document.querySelector('.mhs-dialog[open]')?t('← Back to results','← Sonuçlara dön'):t('← Back to library','← Kütüphaneye dön'),close);back.dataset.titleAction='back';
     const edit=button(t('Manage title','Yapımı yönet'),()=>management());header.append(back,edit);dialog.append(header);
     const hero=el('section','mtd-hero'),backdrop=el('div','mtd-backdrop');backdrop.setAttribute('aria-hidden','true');hero.append(backdrop);
@@ -69,7 +70,7 @@
     else actions.append(button(t('Choose video file','Video dosyası seç'),async()=>{const r=await request('source-file',{});if(!r.canceled)await reload();},true));
     const favorite=button(item.favorite?t('Saved to favorites','Favorilere eklendi'):t('Add to favorites','Favorilere ekle'),async()=>{await request('save',{item:{id:selected,favorite:!item.favorite}});await reload();document.dispatchEvent(new Event('media-library-changed'));});favorite.setAttribute('aria-pressed',String(item.favorite));favorite.dataset.titleAction='favorite';actions.append(favorite);
     window.TitleGalleryUI?.mount(actions,item);
-    copy.append(actions);content.append(copy);hero.append(content);dialog.append(hero);
+    copy.append(actions);personalView=window.PersonalMediaUI?.mount(copy,{item,identity:{catalogId:item.id}});content.append(copy);hero.append(content);dialog.append(hero);
     const status=el('p','mtd-status');status.setAttribute('role','status');dialog.append(status);
     const body=el('div','mtd-body'),main=el('main','mtd-main'),aside=el('aside','mtd-aside');
     story(main);
@@ -103,11 +104,12 @@
     if(dialog?.open&&selected===id){dialog.focus();return;}if(dialog)close();selected=id;item=null;opener=document.activeElement;const mediaCard=opener?.closest?.('[data-home-item]'),mediaOrigin=mediaCard?.dataset.homeItem===id?window.UiMotion?.captureMedia(mediaCard):null;
     if(!document.body.classList.contains('media-home-active')||!document.getElementById('playerLayer')?.classList.contains('hidden'))await window.MediaHomeUI.returnHome();
     const current=createPage('mtd-dialog media-surface');current.id='mediaTitleDialog';current.dataset.uiUntranslated='';current.setAttribute('aria-labelledby','mediaTitleHeading');dialog=current;
-    const origin=opener;current.addEventListener('close',()=>{cancelStory(current);current.remove();if(dialog===current){generation++;dialog=null;if(origin?.isConnected)origin.focus({preventScroll:true});}void syncBrowserOcclusion();document.dispatchEvent(new Event('media-library-changed'));});
+    const origin=opener;current.addEventListener('close',()=>{cancelStory(current);current.remove();if(dialog===current){personalView?.dispose();personalView=null;generation++;dialog=null;if(origin?.isConnected)origin.focus({preventScroll:true});}void syncBrowserOcclusion();document.dispatchEvent(new Event('media-library-changed'));});
     void syncBrowserOcclusion();current.append(el('h1','',t('Loading title…','Yapım yükleniyor…')));
     try{await reload();if(dialog===current&&current.open){window.UiMotion?.mediaTransfer(mediaOrigin,current.querySelector('.mtd-poster'));window.UiMotion?.reveal(current,'page');}current.querySelector('header button')?.focus({preventScroll:true});}catch(error){current.replaceChildren(el('p','',error.message),button(t('Close','Kapat'),close));}
   }
   document.addEventListener('ui-locale-change',()=>{if(dialog?.open&&item)draw(++generation);});
   document.addEventListener('media-metadata-updated',()=>{if(dialog?.open)void reload().catch(()=>{});});
+  document.addEventListener('media-personal-changed',()=>{if(dialog?.open)void reload({refreshPersonalStatus:true}).catch(()=>{});});
   window.MediaTitleUI=Object.freeze({open,close,createPage});
 })();

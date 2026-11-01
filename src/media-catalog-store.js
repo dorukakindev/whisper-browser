@@ -109,6 +109,7 @@ function itemOf(raw, old = null) {
     posterPath: posterPath(raw.posterPath ?? old?.posterPath),
     ratings: ratingsOf(raw.ratings, old?.ratings),
     source: incomingSource, episodes,
+    manualResume:require('./personal-media-state').manualResume(raw.manualResume===undefined?old?.manualResume:raw.manualResume,episodes),
     ...require('./catalog-library-model').relations(raw, old, sourceOf),
     importRef: text(raw.importRef ?? old?.importRef, 120),
   };

@@ -3444,6 +3444,7 @@ const WATCH_LIBRARY_LIMIT = 1000;
 const subtitleSearchCache = new Map();
 const SUBTITLE_SEARCH_CACHE_LIMIT = 32;
 let watchLibraryStoreInstance = null;
+let personalMediaService = null;
 let watchIndexInstance = null;
 let watchIndexUnavailable = false;
 let watchIndexLegacyMigrated = false;
@@ -3670,6 +3671,7 @@ function upsertWatchItem(patch) {
     } catch (_) {}
   }
   const merged = watchLibraryStore().upsert(patch);
+  try { personalMediaService?.syncPlayback(merged); } catch (_) { /* Playback remains saved if optional catalog synchronization fails. */ }
   if (!merged) return null;
   try {
     watchIndex()?.upsertMedia({
@@ -16645,9 +16647,16 @@ ipcMain.handle('browser:jobs:list', (event) => {
   return { ok: true, jobs: browserUnifiedJobsSnapshot(), online: browserNetworkOnline };
 });
 
+function personalMediaNativeSource() {
+  const tab=activeBrowserTab();if(!browserVisible||!tab?.view||tab.view.webContents.isDestroyed())return null;
+  const wc=tab.view.webContents,url=wc.getURL();if(!/^https?:/i.test(url))return null;
+  return {sourceToken:tab.id+':'+tab.generation+':'+require('./assistant-source-context').pageKey(url),tabId:tab.id,generation:tab.generation,url,
+    title:String(wc.getTitle()||tab.restoredTitle||'').slice(0,300),hasMedia:!!tab.mediaId||Number(tab.duration)>0,
+    positionSeconds:Math.max(0,Number(tab.position)||0),duration:Math.max(0,Number(tab.duration)||0)};
+}
 ipcMain.handle('browser:getState', (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  return { ok: true, visible: browserVisible, activeTabId: browserActiveTabId, tabs: browserTabsSnapshot(), split: browserSplitSnapshot(), ...browserEventContext(activeBrowserTab()),
+  return { ok: true, personalMediaSource:personalMediaNativeSource(), visible: browserVisible, activeTabId: browserActiveTabId, tabs: browserTabsSnapshot(), split: browserSplitSnapshot(), ...browserEventContext(activeBrowserTab()),
     captureEnabled: browserCaptureEnabled, restoreEnabled: browserSessionRestoreEnabled, diagnostics: browserDiagnostics,
     playbackDiagnostics: browserPlaybackSnapshot(activeBrowserTab()),
     gpuDiagnostics: browserGpuDiagnostics,
@@ -22224,7 +22233,17 @@ const mediaCatalogService = require('./media-catalog-service').registerMediaCata
   dialogText: dt,
 });
 const mediaFeedsService = require('./feed-service').registerFeeds({app,ipcMain,authorized:authorizedBrowserSender,userData:()=>app.getPath('userData'),catalogStore:mediaCatalogService.store});
-require('./recall-service').registerRecall({app,ipcMain,authorized:authorizedBrowserSender,userData:()=>app.getPath('userData'),catalogStore:mediaCatalogService.store,feedStore:()=>mediaFeedsService.store});
+let recallPersonalService;
+personalMediaService=require('./personal-media-service').registerPersonalMedia({ipcMain,authorized:authorizedBrowserSender,catalogStore:mediaCatalogService.store,userData:()=>app.getPath('userData'),history:loadWatchLibraryAll,
+  sourceContext:()=>personalMediaNativeSource(),resolveDiscovery:(event,identity)=>mediaCatalogService.discovery.handle(event,{action:'detail',kind:identity.kind,id:identity.imdbId}),
+  onSaved:(_event,item)=>{
+    const ref=item.catalogId?{kind:'catalog',id:item.catalogId}:personalMediaService.listWebSources().find(ref=>ref.id===item.identity?.contentId);
+    if(!ref)throw Error('Saved preference has no current network source.');
+    const result=recallPersonalService.store.add([ref]);return {ok:true,...result};
+  },
+});
+recallPersonalService=require('./recall-service').registerRecall({app,ipcMain,authorized:authorizedBrowserSender,userData:()=>app.getPath('userData'),catalogStore:mediaCatalogService.store,feedStore:()=>mediaFeedsService.store,
+  listExternalSources:personalMediaService.listWebSources,resolveSource:personalMediaService.resolveWebSource,updateSourceReaction:personalMediaService.setWebReaction,updateSourceConsumption:personalMediaService.setWebConsumption});
 mediaWorkflows = require('./media-workflows').registerMediaWorkflows({voiceRunning:()=>dubService.running(),resolveShelfBook:id=>{const f=path.join(app.getPath('userData'),'media-shelf.json');if(!fs.existsSync(f)||fs.statSync(f).size>16000000)return null;const d=JSON.parse(fs.readFileSync(f,'utf8'));return d.books?.find(b=>b.id===id)||null;},linkShelfBook:(id,projectId)=>{const f=path.join(app.getPath('userData'),'media-shelf.json');const d=JSON.parse(fs.readFileSync(f,'utf8')),row=d.books?.find(b=>b.id===id);if(!row)throw Error('Book missing.');row.productionProjectId=projectId;atomicWriteFileSync(f,JSON.stringify(d),{encoding:'utf8'});},resolvePdf:hash=>{const d=pdfDocumentByHash(hash);return d&&inspectPdfDocument(d.filePath).pdfHash===hash?d:null;},grantPdf:file=>pdfFileAccess.grant(file),app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,
   python:resolvePython,ffmpeg:()=>resolveFfTool('ffmpeg'),ffprobe:()=>resolveFfTool('ffprobe'),
   grantSubtitle:file=>subtitleFileAccess.grant(file),grantMedia:file=>mediaFileAccess.grant(file),inspectMedia:validateLocalMediaPath,
