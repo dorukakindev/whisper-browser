@@ -1,0 +1,92 @@
+{
+  "ok": true,
+  "nativeWindows": true,
+  "controlledPublicDocuments": true,
+  "noProvider": true,
+  "nodeReads": [
+    "https://letterboxd.com/imdb/tt14173636/"
+  ],
+  "browserReads": [
+    "https://letterboxd.com/imdb/tt14173636/",
+    "https://letterboxd.com/film/controlled-full830/",
+    "https://letterboxd.com/film/controlled-full830/reviews/by/activity/",
+    "https://letterboxd.com/s/full-text/viewing:123/",
+    "https://letterboxd.com/s/full-text/viewing:124/",
+    "https://letterboxd.com/s/full-text/viewing:125/",
+    "https://letterboxd.com/s/full-text/viewing:126/",
+    "https://letterboxd.com/s/full-text/viewing:127/",
+    "https://letterboxd.com/s/full-text/viewing:128/",
+    "https://letterboxd.com/s/full-text/viewing:129/"
+  ],
+  "windows": [
+    {
+      "id": 2,
+      "sandbox": true,
+      "contextIsolation": true,
+      "nodeIntegration": false,
+      "closed": true
+    }
+  ],
+  "screens": [
+    {
+      "file": "D:\\Whisper Local\\tmp\\assistant618\\tmp\\letterboxd830\\native-1793528067185\\en-720-full-source-tail.png",
+      "width": 720,
+      "height": 960,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    },
+    {
+      "file": "D:\\Whisper Local\\tmp\\assistant618\\tmp\\letterboxd830\\native-1793528067185\\en-720-shortened-preview.png",
+      "width": 720,
+      "height": 960,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    },
+    {
+      "file": "D:\\Whisper Local\\tmp\\assistant618\\tmp\\letterboxd830\\native-1793528067185\\tr-820-full-source-tail.png",
+      "width": 820,
+      "height": 960,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    },
+    {
+      "file": "D:\\Whisper Local\\tmp\\assistant618\\tmp\\letterboxd830\\native-1793528067185\\tr-820-shortened-preview.png",
+      "width": 820,
+      "height": 960,
+      "dialogOverflow": false,
+      "sourceOverflow": false
+    }
+  ],
+  "loadedLengths": [
+    14051,
+    14051,
+    14051,
+    14051,
+    14051,
+    14051,
+    14051
+  ],
+  "loadedJsonLength": 100520,
+  "metadataAndSpoilerPreserved": true,
+  "enPreview": {
+    "text": "Controlled Full Review Film · 2026 — 7/7 reviews included · 0 omitted · 7 shortened",
+    "choices": 7,
+    "shortened": "Included with shortened text · 8262/14051 characters to send",
+    "sampleCount": 7,
+    "truncated": 7,
+    "contextLength": 60519,
+    "firstLength": 8262,
+    "tailInOriginal": true
+  },
+  "trPreview": {
+    "text": "Controlled Full Review Film · 2026 — 7/7 yorum dahil · 0 dışarıda · 7 kısaltıldı",
+    "choices": 7,
+    "shortened": "Metin kısaltılarak dahil · 8262/14051 karakter gönderilecek",
+    "sampleCount": 7,
+    "truncated": 7,
+    "contextLength": 60519,
+    "firstLength": 8262,
+    "tailInOriginal": true
+  },
+  "limits": "Controlled same-origin HTTPS fragments only. Real sandbox BrowserWindow, fullTextFetchScript, expansion, parser, native IPC and existing renderer/source preview exercised. No real Letterboxd session, provider, API keys, review analysis or representativeness claim."
+}
