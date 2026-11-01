@@ -1,4 +1,4 @@
-- [Rapor831](BROWSER_BUG_REPORT_831.md) — Letterboxd More devamları, tam kaynak/analiz sınırı ayrımı; gerçek site ve native uzun yorum kabulü
+- [Rapor832](BROWSER_BUG_REPORT_832.md) — Letterboxd More devamları, tam kaynak/analiz sınırı ayrımı; gerçek site ve native uzun yorum kabulü
 - [Rapor830](BROWSER_BUG_REPORT_830.md) — Bağımsız salt-okunur işlevsel denetim; iki yeni bug, atıf regresyonu ve altı öneri
 - [Rapor829](BROWSER_BUG_REPORT_829.md) —30hedef: dublaj/metin denetimi, kaynak bağlı asistan ve film kanıtı; gerçek GPU/DeepSeek ve native Windows kabulü
 - [Rapor828](BROWSER_BUG_REPORT_828.md) — Film, asistan, browser, dublaj ve okuyucuda yerleşim/alan düzeni; görüntülü Windows kabulü
