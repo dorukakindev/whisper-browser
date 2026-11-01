@@ -386,7 +386,9 @@
           const source=entry.enclosures[request.enclosureIndex||0];if(!source?.url)throw Error(t('Media is unavailable.','Medya kullanılamıyor.'));
           const stream=await window.api.mediaHub({action:'network',url:source.url});
           if(!stream?.ok)throw Error(stream?.error||t('Media could not be opened.','Medya açılamadı.'));
-          await window.MediaHubUI.playStream(stream);
+          await flushWatchState(false,false);
+          const history=await window.api.listWatchLibrary(),previous=history?.find(row=>row.key===stream.key);
+          stream.title=entry.title;await window.MediaHubUI.playStream(stream,previous?.completed?0:Number(previous?.position)||0);
         }else{
           await flushWatchState(false,false);
           document.getElementById('playerLayer').classList.remove('hidden');setWorkspaceMode('browser',false);
