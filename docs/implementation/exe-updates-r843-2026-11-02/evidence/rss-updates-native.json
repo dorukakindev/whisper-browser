@@ -1,0 +1,41 @@
+{
+  "ok": true,
+  "checks": [
+    {
+      "width": 1440,
+      "locale": "tr",
+      "theme": "dark",
+      "exists": true,
+      "label": "Akışlar (RSS)",
+      "visible": true,
+      "overflow": false
+    },
+    {
+      "kind": "update-dialog",
+      "width": 1440,
+      "loaded": true
+    },
+    {
+      "width": 680,
+      "locale": "en",
+      "theme": "light",
+      "exists": true,
+      "label": "Feeds (RSS)",
+      "visible": false,
+      "overflow": false
+    },
+    {
+      "kind": "update-dialog",
+      "width": 680,
+      "loaded": true
+    }
+  ],
+  "screens": [
+    "rss-1440-dark.png",
+    "updates-1440-dark.png",
+    "rss-680-light.png",
+    "updates-680-light.png"
+  ],
+  "errors": [],
+  "scope": "RSS visible navigation and actual update IPC status, isolated Windows app; no install/update requested; real isolated Windows application, no API/Actions/personal profile."
+}

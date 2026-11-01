@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-02-0013.md](docs/devir/2026-11-02-0013.md) — RSS görünür giriş, Windows EXE, açık onaylı uygulama güncellemeleri ve R843 düzeltmeleri
 Güncel çalışma: [docs/devir/2026-11-01-2335.md](docs/devir/2026-11-01-2335.md) — Beş araştırma klasöründen uygulanabilir kaynak/zevk ağı, asistan, RSS ve browser araçları; Actions yok
 Güncel çalışma: [docs/devir/2026-11-01-2206.md](docs/devir/2026-11-01-2206.md) — Açık34kayıt, Akışlar/RSS, asistan kaynakları ve kütüphane sürümleri; Actions çalıştırılmaz
 Güncel çalışma: [docs/devir/2026-11-01-1959.md](docs/devir/2026-11-01-1959.md) — Ana sohbete aktarım: odak ve tam tarihsel rapor ZIP'leri, yollar ve belge durum indeksi; ürün değişikliği yok

@@ -1,0 +1,43 @@
+{
+  "ok": true,
+  "checks": [
+    {
+      "kind": "recall",
+      "width": 1440,
+      "locale": "tr",
+      "theme": "dark",
+      "overflow": false,
+      "nodes": 6
+    },
+    {
+      "kind": "recall",
+      "width": 680,
+      "locale": "en",
+      "theme": "light",
+      "overflow": false,
+      "nodes": 6
+    },
+    {
+      "kind": "userscript-native-actual-tab",
+      "marker": "yes",
+      "sameSession": true
+    },
+    {
+      "kind": "actual-native-history",
+      "restored": true,
+      "back": "A"
+    }
+  ],
+  "screens": [
+    "recall-1440-dark.png",
+    "userscripts-1440-dark.png",
+    "browser-engine-1440-dark.png",
+    "source-tools-1440-dark.png",
+    "recall-680-light.png",
+    "userscripts-680-light.png",
+    "browser-engine-680-light.png",
+    "source-tools-680-light.png"
+  ],
+  "errors": [],
+  "scope": "Real application with isolated profile; synthetic catalog/graph and local HTTP pages; no personal profile/API/Actions. Actual installed userscript and native history restore verified."
+}

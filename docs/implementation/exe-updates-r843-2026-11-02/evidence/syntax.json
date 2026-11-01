@@ -1,0 +1,62 @@
+[
+  {
+    "file": "src/browser-memory-control.js",
+    "exit": 0
+  },
+  {
+    "file": "src/browser-navigation-state.js",
+    "exit": 0
+  },
+  {
+    "file": "src/feed-service.js",
+    "exit": 0
+  },
+  {
+    "file": "src/feed-store.js",
+    "exit": 0
+  },
+  {
+    "file": "src/main.js",
+    "exit": 0
+  },
+  {
+    "file": "src/media-shelf-service.js",
+    "exit": 0
+  },
+  {
+    "file": "src/recall-network.js",
+    "exit": 0
+  },
+  {
+    "file": "src/recall-service.js",
+    "exit": 0
+  },
+  {
+    "file": "src/renderer/media-feeds-ui.js",
+    "exit": 0
+  },
+  {
+    "file": "src/renderer/recall-network-ui.js",
+    "exit": 0
+  },
+  {
+    "file": "tests/four-browser-mechanisms.test.js",
+    "exit": 0
+  },
+  {
+    "file": "tests/four-media-sources.test.js",
+    "exit": 0
+  },
+  {
+    "file": "tests/r843-browser.test.js",
+    "exit": 0
+  },
+  {
+    "file": "tests/r843-feed-podcast.test.js",
+    "exit": 0
+  },
+  {
+    "file": "tests/r843-recall.test.js",
+    "exit": 0
+  }
+]
