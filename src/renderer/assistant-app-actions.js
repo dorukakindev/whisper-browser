@@ -11,7 +11,7 @@
    pageKey:tab?window.AssistantSourceContext.pageKey(url):'',title:selection?.title||player.browserPageTitle||document.getElementById('playerTitle')?.textContent||'',
    time:player.workspaceMode==='browser'?Number(player.browserTime)||0:subtitleSourceTime(document.getElementById('playerVideo')?.currentTime||0,false),
    hasMedia:!selection&&!!window.BrowserDubAudioUI?.context()?.hasMedia&&!!window.BrowserDubAudioUI?.context()?.visible,voiceStudio:!!document.getElementById('dubGeneratorDialog')?.open,
-   hasFeedSources:selection?.type==='feed-sources',subtitleKey:subtitleIdentity(),hasSubtitles:!selection&&!!(player.cues?.length||player.cues2?.length),
+   hasFeedSources:['feed-sources','recall-sources'].includes(selection?.type),subtitleKey:subtitleIdentity(),hasSubtitles:!selection&&!!(player.cues?.length||player.cues2?.length),
    range:kind==='video'?currentBrowserWhisperRange():null,
    tracks:kind==='video'?(player.browserTracks||[]).map(row=>({id:row.id,role:row.role,language:row.language,partial:row.captureComplete===false})):[]});
  }

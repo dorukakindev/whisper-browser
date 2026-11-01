@@ -20,7 +20,7 @@ function browserTabProtectionReasons(tab = {}, { activeTabId = '' } = {}) {
   if (tab.fullscreen || tab.pictureInPicture) reasons.push('fullscreen_or_pip');
   if (tab.loading || tab.restoringPage) reasons.push('navigation');
   // İndirmeler session kapsamındadır ve kaynak sekme boşaltılsa da sürer.
-  if (tab.mangaJob || tab.pageTranslateJob || translationSchedulerBusy(tab.translationScheduler)) reasons.push('active_job');
+  if (tab.hostWorkBusy || tab.dubPlaying || tab.liveAsr || tab.mangaJob || tab.pageTranslateJob || translationSchedulerBusy(tab.translationScheduler)) reasons.push('active_job');
   if (tab.dirtyDraft) reasons.push('unsaved_draft');
   if (tab.formOrLogin) reasons.push('form_or_login');
   if (tab.stateKnown === false) reasons.push('unknown_state');

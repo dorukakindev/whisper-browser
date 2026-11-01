@@ -14,6 +14,11 @@
   <link rel="stylesheet" href="media-catalog.css" />
   <link rel="stylesheet" href="media-home.css" />
   <link rel="stylesheet" href="media-feeds-ui.css" />
+  <link rel="stylesheet" href="media-source-tools-ui.css" />
+  <link rel="stylesheet" href="recall-network-ui.css" />
+  <link rel="stylesheet" href="browser-mechanisms.css" />
+  <link rel="stylesheet" href="userscript-manager-ui.css" />
+  <link rel="stylesheet" href="assistant-runtime-controls.css" />
   <link rel="stylesheet" href="media-title.css" />
   <link rel="stylesheet" href="app-settings.css" />
   <link rel="stylesheet" href="media-shelf.css" />
@@ -1571,6 +1576,8 @@
                   </div>
                   <div class="browser-menu-separator"></div>
                   <details class="browser-more-sub"><summary><span class="browser-menu-label">Sayfa</span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></summary><div class="browser-more-sub-body">
+                  <button type="button" id="browserUserScriptsOpen" data-ui-untranslated>Scripts</button>
+                  <button type="button" id="browserMechanismsOpen" data-ui-untranslated>Browser engine &amp; memory</button>
                   <button type="button" id="browserAdblockMenuToggle" aria-pressed="true" data-browser-proxy="browserAdblockQuick">
                     <span class="browser-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 20 6v5c0 5-3 8-8 10-5-2-8-5-8-10V6l8-3Zm-1 12 6-6-1.4-1.4-4.6 4.6-2.6-2.6L7 11l4 4Z"/></svg></span>
                     <span class="browser-menu-label" id="browserAdblockMenuLabel" data-ui-untranslated>Reklam engelleyici: Açık</span>
@@ -3957,6 +3964,7 @@
 <script src="../assistant-source-context.js"></script>
 <script src="../assistant-capabilities.js"></script>
 <script src="../assistant-workflow-settings.js"></script>
+<script src="../assistant-recall-contract.js"></script>
 <script src="../assistant-context-manifest.js"></script>
 <script src="../scene-timing-tools.js"></script>
 <script src="ui-motion.js"></script>
@@ -3992,6 +4000,7 @@
 <script src="media-search-ui.js"></script>
 <script src="spotify-import-ui.js"></script>
 <script src="music-queue.js"></script>
+<script src="media-source-tools-ui.js"></script>
 <script src="media-shelf-ui.js"></script>
 <script src="music-online-ui.js"></script>
 <script src="music-analysis-ui.js"></script>
@@ -4021,6 +4030,9 @@
 <script src="media-workflows-ui.js"></script>
 <script src="media-virtual-grid.js"></script>
 <script src="media-feeds-ui.js"></script>
+<script src="recall-network-ui.js"></script>
+<script src="browser-mechanisms-ui.js"></script>
+<script src="userscript-manager-ui.js"></script>
 <script src="media-home.js"></script>
 <script src="assistant-workspace.js"></script>
 <script src="assistant-caption-actions.js"></script>
@@ -4044,6 +4056,8 @@
 <script src="pdf-reader-search.js"></script>
 <script src="../assistant-source-preview.js"></script>
 <script src="assistant-feed-sources.js"></script>
+<script src="assistant-recall-sources.js"></script>
+<script src="assistant-runtime-controls.js"></script>
 <script src="global-assistant.js"></script>
 <script src="media-experience.js"></script>
 <script src="native-player-ui.js"></script>

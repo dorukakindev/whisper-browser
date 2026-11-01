@@ -1,0 +1,24 @@
+(() => {
+ 'use strict';
+ let dialog=null,pending=false;
+ const en=()=>window.UiLocale?.get?.()==='en',t=(english,turkish)=>en()?english:turkish;
+ const node=(tag,text,className)=>{const element=document.createElement(tag);if(text!==undefined)element.textContent=text;if(className)element.className=className;return element;};
+ async function open(){
+  if(dialog?.open){dialog.focus();return;}
+  dialog=node('dialog',undefined,'browser-mechanisms-dialog');dialog.dataset.uiUntranslated='';dialog.setAttribute('aria-label',t('Browser engine & memory','Tarayıcı motoru ve bellek'));
+  const header=node('header'),title=node('h2',t('Browser engine & memory','Tarayıcı motoru ve bellek')),close=node('button',t('Close','Kapat'));close.type='button';close.onclick=()=>dialog.close();header.append(title,close);dialog.append(header);
+  const content=node('div',t('Reading browser state…','Tarayıcı durumu okunuyor…'),'browser-mechanisms-content');dialog.append(content);document.body.append(dialog);dialog.addEventListener('close',()=>{dialog.remove();dialog=null;},{once:true});dialog.showModal();
+  const current=dialog;
+  try{const state=await window.api.browserMechanisms({action:'status'});if(dialog!==current||!current.open)return;if(!state?.ok)throw Error('unavailable');content.replaceChildren();
+   const section=(heading,description)=>{const part=node('section');part.append(node('h3',heading),node('p',description));content.append(part);return part;};
+   section(t('Current runtime','Geçerli çalışma ortamı'),`Electron ${state.runtime.electron} · Chromium ${state.runtime.chromium}`);
+   section(t('Navigation restore','Gezinmeyi geri yükleme'),t('Up to 40 clean page addresses and titles are restored with Back/Forward. Form bodies, login callbacks and opaque page state are excluded.','En fazla 40 temiz sayfa adresi ve başlığı Geri/İleri sırasıyla geri yüklenir. Form gövdeleri, giriş dönüşleri ve kapalı sayfa durumu saklanmaz.'));
+   const memory=section(t('Free idle background tabs','Boştaki arka plan sekmelerini boşalt'),t('Checks up to two tabs idle for five minutes. Audio, video, mini-player, forms, subtitles, dub and active jobs remain protected. Runtime checks may keep a tab in memory.','Beş dakikadır boşta olan en fazla iki sekme denetlenir. Ses, video, küçük oynatıcı, formlar, altyazı, dublaj ve etkin işler korunur. Çalışma durumu denetimi sekmeyi bellekte tutabilir.'));
+   const reclaim=node('button',t('Check & free idle tabs','Boştaki sekmeleri denetle ve boşalt')),status=node('p','');status.setAttribute('role','status');reclaim.type='button';memory.append(reclaim,status);reclaim.onclick=async()=>{if(pending)return;pending=true;reclaim.disabled=true;try{const result=await window.api.browserMechanisms({action:'reclaim'});if(dialog!==current)return;status.textContent=result?.ok?t(`${result.unloaded} tab(s) freed; ${result.considered} idle candidate(s).`,`${result.unloaded} sekme boşaltıldı; ${result.considered} boşta aday.`):t('The memory action was unavailable.','Bellek işlemi kullanılamadı.');}catch(_){if(dialog===current)status.textContent=t('The memory action failed; existing tabs are preserved.','Bellek işlemi başarısız; mevcut sekmeler korundu.');}finally{pending=false;if(reclaim.isConnected)reclaim.disabled=false;}};
+   const extensions=section(t('Extension compatibility','Eklenti uyumluluğu'),t('Electron supports selected native extension APIs. General Chrome Web Store compatibility is not provided. This app has no tabs/windows/permissions shim that silently reports success. Each extension needs behavior checks, including worker wake-up and permission removal.','Electron seçili yerel eklenti API’lerini destekler. Genel Chrome Web Store uyumluluğu sunulmaz. Bu uygulamada sessiz başarı döndüren tabs/windows/permissions taklidi yoktur. Her eklentide işçi uyanması ve izin kaldırma dahil davranış denetimi gerekir.'));
+   extensions.append(node('p',state.loadedExtensionsKnown===false?t('The loaded extension count is unavailable.','Yüklü eklenti sayısı ölçülemedi.'):t(`${state.loadedExtensions.length} unpacked extension(s) currently loaded in the browser session.`,`${state.loadedExtensions.length} paketlenmemiş eklenti tarayıcı oturumunda yüklü.`)));for(const row of state.loadedExtensions)extensions.append(node('p',`${row.name} · ${row.version}`));
+   section(t('Account context','Hesap bağlamı'),t('The existing shared browser profile is preserved. Private browsing and automatic per-site containers are not enabled. Login popups keep their opener and browser session.','Mevcut ortak tarayıcı profili korunur. Gizli tarama ve otomatik site başına kapsayıcı etkin değildir. Giriş pencereleri açan sayfayı ve tarayıcı oturumunu korur.'));
+  }catch(_){if(dialog===current)content.textContent=t('Browser state is unavailable.','Tarayıcı durumu kullanılamıyor.');}
+ }
+ window.BrowserMechanismsUI=Object.freeze({open});
+})();

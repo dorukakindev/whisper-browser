@@ -1,0 +1,322 @@
+[
+  {
+    "file": "src/assistant-agent-service.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/assistant-browser-research.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/assistant-context-manifest.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/assistant-overlay.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/assistant-provider.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/assistant-run-steps.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/assistant-source-preview.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/assistant-thread-store.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/browser-feature-services.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/browser-mini-player.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/browser-session-store.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/browser-tab-history.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/browser-tab-resources.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/catalog-library-model.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/feed-service.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/feed-store.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/main.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/media-catalog-service.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/media-shelf-service.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/media-taste.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/preload.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/assistant-agent-ui.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/assistant-app-actions.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/assistant-feed-sources.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/assistant-overlay.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/assistant-run-card.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/assistant-workspace.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/global-assistant.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/media-feeds-ui.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/media-home.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/media-shelf-ui.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/media-taste-ui.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/renderer.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/assistant-overlay.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/assistant-recall-contract.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/assistant-runtime.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/browser-memory-control.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/browser-navigation-state.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/browser-view-registry.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/media-source-mechanisms.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/recall-network.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/recall-service.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/assistant-recall-sources.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/assistant-runtime-controls.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/browser-mechanisms-ui.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/media-source-tools-ui.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/recall-network-ui.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/userscript-manager-ui.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/userscript-model.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/userscript-preload.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/userscript-service.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/userscript-store.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/electron-four-userscript-runtime.smoke.cjs",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/four-assistant-mechanisms.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/four-browser-mechanisms.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/four-media-sources.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/four-recall-assistant.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/four-userscript-manager-ui.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/four-userscript-model.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/four-userscript-runtime.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/recall-network.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "backend/transcribe.py",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "backend/speech_relations.py",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "backend/catalog_nfo.py",
+    "exit": 0,
+    "error": ""
+  }
+]

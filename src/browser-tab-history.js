@@ -39,6 +39,7 @@ function normalizeClosedBrowserTab(snapshot) {
     pinned: !!snapshot.pinned,
     group: require('./browser-tab-layout').normalizeTabGroup(snapshot.group),
     readerPreferences: require('./browser-reader').normalizeReaderPreferences(snapshot.readerPreferences),
+    navigationHistory: require('./browser-navigation-state').normalizeNavigationHistory(snapshot.navigationHistory),
     keepAwake: snapshot.keepAwake === true,
     compatibilityMode: snapshot.compatibilityMode === true,
     mangaPosition: snapshot.mangaPosition ? require('./browser-library-tools').normalizeMangaPosition(snapshot.mangaPosition) : null,

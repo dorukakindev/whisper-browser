@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "checks": [
+    {
+      "width": 1440,
+      "locale": "tr",
+      "theme": "dark",
+      "overflow": false,
+      "gap": 10,
+      "toolsInsideProfile": true
+    },
+    {
+      "width": 680,
+      "locale": "en",
+      "theme": "light",
+      "overflow": false,
+      "gap": 10,
+      "toolsInsideProfile": true
+    }
+  ],
+  "screens": [
+    "source-tools-1440-dark.png",
+    "source-tools-680-light.png"
+  ],
+  "errors": [],
+  "scope": "Final taste hierarchy/spacing correction; real isolated Windows application, no API/Actions/personal profile."
+}

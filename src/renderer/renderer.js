@@ -20005,23 +20005,24 @@ function renderAiText(el, text) {
   const raw = String(text || '');
   const sourceTabId = String(el.dataset?.pageSourceTabId || '');
   const transcriptEvidence = Array.isArray(el._transcriptEvidence) ? el._transcriptEvidence : [];
-  const re = /(^|[^\d])((?:\d{1,2}:)?[0-5]?\d:[0-5]\d)(?!\d)|\[((?:S|T|U)\d{1,5}|F[a-f0-9]{16})\]/g;
+  const re = /(^|[^\d])((?:\d{1,2}:)?[0-5]?\d:[0-5]\d)(?!\d)|\[((?:S|T|U)\d{1,5}|[FR][a-f0-9]{16})\]/g;
   let last = 0, match;
   while ((match = re.exec(raw))) {
     const tokenStart = match[3] ? match.index : match.index + match[1].length;
     el.appendChild(document.createTextNode(raw.slice(last, tokenStart)));
     if (match[3]) {
       const sourceId = match[3];
-      const verified=sourceId.startsWith('F')?el._feedEvidence?.find(row=>row.id===sourceId):sourceId.startsWith('U')?el._chatContext?.assistant_tool_evidence?.find(row=>row.id===sourceId):sourceId.startsWith('T')?window.BrowserAiContext.citation(el._chatContext,sourceId)
+      const verified=/^[FR]/.test(sourceId)?el._feedEvidence?.find(row=>row.id===sourceId):sourceId.startsWith('U')?el._chatContext?.assistant_tool_evidence?.find(row=>row.id===sourceId):sourceId.startsWith('T')?window.BrowserAiContext.citation(el._chatContext,sourceId)
         :el._chatContext?.page?.blocks?.find(row=>row.id===sourceId);
       if(!verified){el.appendChild(document.createTextNode(`[${sourceId}]`));last=re.lastIndex;continue;}
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = !/^[SF]/.test(sourceId) ? 'ai-source-link ai-transcript-link' : 'ai-source-link';
+      button.className = !/^[SFR]/.test(sourceId) ? 'ai-source-link ai-transcript-link' : 'ai-source-link';
       button.textContent = `[${sourceId}]`;
-      button.title = sourceId.startsWith('F') ? (window.UiLocale?.get?.()==='tr'?'Akıştaki özgün kaynağı aç':'Open the original feed source') : !sourceId.startsWith('S') ? 'Transkriptteki kaynak repliğe git' : 'Sayfadaki kaynak paragrafa git';
+      button.title = sourceId.startsWith('R') ? (window.UiLocale?.get?.()==='tr'?'İçerik Ağı kaynağını aç':'Open the Content Network source') : sourceId.startsWith('F') ? (window.UiLocale?.get?.()==='tr'?'Akıştaki özgün kaynağı aç':'Open the original feed source') : !sourceId.startsWith('S') ? 'Transkriptteki kaynak repliğe git' : 'Sayfadaki kaynak paragrafa git';
       button.addEventListener('click', async () => {
         if(el._sourceScope!==aiSourceScope()){setBrowserSignal('Bu yanıt başka bir video veya sekmeye ait.',false);return;}
+        if(sourceId.startsWith('R')){await window.AssistantRecallSources.reveal(verified.nodeId);return;}
         if(sourceId.startsWith('F')){await window.api.openExternal(verified.url);return;}
         if (!sourceId.startsWith('S')) {
           const evidence = transcriptEvidence.find((item) => item.id === sourceId);

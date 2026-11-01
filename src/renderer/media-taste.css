@@ -9,3 +9,5 @@
 .mt-quiz-options label { display:flex; align-items:center; gap:12px; padding:17px; border:1px solid var(--border); border-radius:10px; cursor:pointer; line-height:1.5; }
 .mt-quiz-options label:has(:checked) { border-color:var(--accent); background:var(--accent-soft); }.mt-quiz-options input { accent-color:var(--accent); }
 .mt-hero [data-taste-quiz] { margin:12px 8px 0 0; }.mt-quiz-summary { margin-bottom:20px; }.mt-quiz-summary .mt-rank { flex-wrap:wrap; gap:10px; }
+
+.mt-hero-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:16px}.mt-hero .mt-hero-actions [data-taste-quiz]{margin:0}

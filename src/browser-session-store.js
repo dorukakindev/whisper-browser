@@ -230,6 +230,7 @@ function normalizeSessionTab(raw, options = {}) {
     pinned: !!raw.pinned,
     group: normalizeTabGroup(raw.group),
     readerPreferences: normalizeReaderPreferences(raw.readerPreferences),
+    navigationHistory: require('./browser-navigation-state').normalizeNavigationHistory(raw.navigationHistory),
     keepAwake: !!raw.keepAwake,
     lifecycle: raw.lifecycle === 'unloaded' ? 'unloaded' : 'background',
     unloadedAt: finiteNumber(raw.unloadedAt, 0, 0),

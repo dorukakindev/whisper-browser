@@ -41,6 +41,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
       sourcePreview:{attached:typeof value.sourcePreview?.attached==='boolean'?value.sourcePreview.attached:null,summary:typeof value.sourcePreview?.summary==='string'?value.sourcePreview.summary.slice(0,300):'',detail:typeof value.sourcePreview?.detail==='string'?value.sourcePreview.detail.slice(0,900):''},
       model:String(value.model||'').slice(0,200),sourceDescription:String(value.sourceDescription||'').slice(0,1400),
       pageContext:!!value.pageContext,videoContext:!!value.videoContext,transcriptScope:!!value.transcriptScope,blocked:!!value.blocked,canCancel:!!value.canCancel,
+      canRuntimeMessage:value.canRuntimeMessage===true&&value.busy===true,runtimeMessages:Array.isArray(value.runtimeMessages)?value.runtimeMessages.slice(-8).map(row=>({id:String(row.id||'').slice(0,100),mode:['steer','followup'].includes(row.mode)?row.mode:'followup',status:String(row.status||'').slice(0,30)})):[],
       receipt:value.receipt&&typeof value.receipt==='object'?{id:String(value.receipt.id||'').slice(0,80),accepted:!!value.receipt.accepted,message:String(value.receipt.message||'').slice(0,1200)}:null,
       conversation: String(value.conversation || '').slice(0,8000),
       pinScope:String(value.pinScope||value.conversation||'').slice(0,8000),activeThread:String(value.activeThread||'').slice(0,100),
@@ -68,7 +69,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
     if (modalBlocked) return;
     if (action === 'toggle') { expanded = !expanded; window.webContents.send('assistant:visibility',{expanded}); layout(); if (!expanded) window.webContents.focus(); return; }
     if (action === 'expand') { large = !large; layout(); return; }
-    if (!['send', 'web-search', 'cancel', 'retry', 'clear', 'scope', 'citation', 'suggestion', 'copy', 'export','new-thread','select-thread','rename-thread','delete-thread','branch','apply-tool','refresh-tool','continue-tool','cancel-job','settings'].includes(action)) return;
+    if (!['steer','followup','send', 'web-search', 'cancel', 'retry', 'clear', 'scope', 'citation', 'suggestion', 'copy', 'export','new-thread','select-thread','rename-thread','delete-thread','branch','apply-tool','refresh-tool','continue-tool','cancel-job','settings'].includes(action)) return;
     window.webContents.send('assistant:command', { action, sourceToken:String(packet.sourceToken||'').slice(0,8000),requestId:String(packet.requestId||'').slice(0,80),text: String(packet.text || '').slice(0, action==='export'?8000000:action==='copy'?32000:16000) });
   }
   const show = event => { if(event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame||modalBlocked)return; expanded=true; snapshot.opened=true; view.webContents.send('assistant:snapshot',snapshot); window.webContents.send('assistant:visibility',{expanded}); layout(); };

@@ -183,7 +183,9 @@ def rss(data):
 
 
 def letterboxd(data, source_name=""):
-    source_name = posixpath.basename(source_name.replace('\\', '/')).lower()
+    source_path = source_name.replace('\\', '/')[:1000]
+    record_state = 'deleted' if 'deleted' in source_path.lower().split('/') else 'orphaned' if 'orphaned' in source_path.lower().split('/') else 'active'
+    source_name = posixpath.basename(source_path).lower()
     if len(data) > 5_000_000:
         raise ValueError('Letterboxd CSV exceeds 5 MB.')
     reader = csv.DictReader(io.StringIO(decode(data)))
@@ -228,6 +230,12 @@ def letterboxd(data, source_name=""):
             raise ValueError('Letterboxd CSV exceeds 10,000 titles.')
     if not rows:
         raise ValueError('No Name/Title column or no titles in CSV.')
+    for row in rows:
+        row['sourcePath'] = source_path
+        row['recordState'] = record_state
+        row['tagScope'] = 'diary' if source_name == 'diary.csv' else 'review' if source_name == 'reviews.csv' else 'film'
+        row['recordId'] = hashlib.sha256(json.dumps([source_path, row['uri'], row['title'], row['year'], row['watchedDate'], row['review']], ensure_ascii=False).encode()).hexdigest()[:24]
+        row['ratingSources'] = [dict(sourcePath=source_path, rating=row['rating'], watchedDate=row['watchedDate'], addedDate=row['addedDate'])] if row['rating'] is not None else []
     if source_name == 'diary.csv':
         seen = {}
         for row in rows:
@@ -240,7 +248,7 @@ def letterboxd(data, source_name=""):
 
 def letterboxd_archive(file):
     """Read selected CSV entries in memory; never extract archive paths."""
-    merged = {}; reviews = {}; diary = {}
+    merged = {}; reviews = {}; diary = {}; source_history = {}
     with zipfile.ZipFile(file) as archive:
         selected = [entry for entry in archive.infolist() if posixpath.basename(entry.filename).lower() in ('ratings.csv','diary.csv','reviews.csv','watched.csv')]
         if not selected or len(selected) > 12 or sum(entry.file_size for entry in selected) > 20_000_000:
@@ -251,7 +259,10 @@ def letterboxd_archive(file):
             if entry.file_size > 5_000_000 or entry.flag_bits & 1:
                 raise ValueError('Oversized or encrypted Letterboxd CSV.')
             source_name = posixpath.basename(entry.filename).lower()
-            for row in letterboxd(archive.read(entry), source_name)['rows']:
+            for row in letterboxd(archive.read(entry), entry.filename)['rows']:
+                if row['recordState'] != 'active':
+                    source_history[row['recordId']] = row
+                    continue
                 if source_name == 'diary.csv':
                     identity = (row['title'].casefold(), row['year'], row['watchedDate'] or row['addedDate'])
                     count = row.get('rewatchIndex', 0)
@@ -261,8 +272,9 @@ def letterboxd_archive(file):
                 if row['review']:
                     review_key = (row['title'].casefold(), row['year'], row['watchedDate'], row['review'])
                     reviews[review_key] = row.copy()
-                key = (row['title'].casefold(), row['year'])
+                key = (row['uri'] or row['title'].casefold(), row['year'])
                 old = merged.get(key, {})
+                row['ratingSources'] = [*old.get('ratingSources', []), *row['ratingSources']]
                 row['review'] = row['review'] or old.get('review', '')
                 row['rating'] = row['rating'] if row['rating'] is not None else old.get('rating')
                 row['watchedDate'] = max(row['watchedDate'], old.get('watchedDate', ''))
@@ -272,7 +284,7 @@ def letterboxd_archive(file):
                 merged[key] = {**old, **row}
                 if len(merged) > 10000:
                     raise ValueError('Letterboxd ZIP exceeds 10,000 titles.')
-    return dict(rows=list(merged.values()), reviews=list(reviews.values())[:10000], diary=list(diary.values()) if diary else list(merged.values()))
+    return dict(rows=list(merged.values()), reviews=list(reviews.values())[:10000], diary=list(diary.values()) if diary else list(merged.values()), sourceHistory=list(source_history.values())[:10000])
 
 
 if __name__ == '__main__':

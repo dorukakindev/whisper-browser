@@ -4079,6 +4079,11 @@ function startBrowserAdblock() {
 // executeJavaScriptInIsolatedWorld aynı güvenilir dünyada buluşur; uzak sayfanın
 // ana dünyası bu globali göremez.
 const BROWSER_ISOLATED_WORLD_ID = 999;
+const browserViewRegistry = require('./browser-view-registry').createBrowserViewRegistry();
+const browserNavigationStateStore = require('./browser-navigation-state');
+const userscriptsService = require('./userscript-service').registerUserscriptService({app,ipcMain,dialog,
+  authorized:authorizedBrowserSender,owner:()=>mainWindow,getTabForContents:browserTabForWebContents,activeTab:activeBrowserTab,
+});
 const BROWSER_PLACES_FILE = 'browser-places.json';
 const BROWSER_DOWNLOADS_FILE = 'browser-downloads.json';
 // Yer imi/gecmis deposu diskten YALNIZ BIR KEZ okunur; her cagrida dosyaya
@@ -4112,6 +4117,8 @@ function createBrowserTabRecord(initial = {}) {
     view: null,
     generation: 0,
     navigationRequestSeq: 0,
+    navigationHistory: restored.navigationHistory || null,
+    lastActivatedAt: Date.now(),
     compatibilityActionSeq: 0,
     bridgeToken: randomUUID(),
     captureEnabled: restored.captureEnabled !== false,
@@ -4368,6 +4375,7 @@ function browserTabSnapshot(tab) {
     loading: wc ? wc.isLoading() : false,
     canGoBack,
     canGoForward,
+    navigationHistory: browserNavigationStateStore.captureNavigationHistory(wc,tab?.navigationHistory),
     captureEnabled: tab ? tab.captureEnabled !== false : true,
     compatibilityMode: !!tab?.compatibilityMode,
     pinned: !!tab?.pinned,
@@ -5514,13 +5522,27 @@ function openExternalFromWebContent(contents, rawUrl) {
 }
 
 function browserWindowOpenHandler(sourceContents, tab = null) {
-  return ({ url }) => {
+  return (details = {}) => {
+    const { url } = details;
     const decision = decideUrlPolicy(url, 'browser-window-open', safeWebContentsUrl(sourceContents));
     if (decision.action === 'external') {
       void openExternalFromWebContent(sourceContents, decision.url);
       return { action: 'deny' };
     }
     if (decision.action !== 'allow') return { action: 'deny' };
+    const nested = !tab || sourceContents !== tab.view?.webContents;
+    if(browserNavigationStateStore.classifyWindowOpen(details,nested)==='tab'){
+      const generation=tab.generation,sourceView=tab.view;
+      void queueBrowserTabTransition(async()=>{
+        if(tab.closing||browserTabById(tab.id)!==tab||tab.generation!==generation||tab.view!==sourceView||sourceContents.isDestroyed())return;
+        if(browserTabs.size>=MAX_SESSION_TABS){sendBrowserEvent(tab,{type:'notice',success:false,message:dt('Sekme sınırına ulaşıldı.','The tab limit was reached.')});return;}
+        const next=createBrowserTabRecord();next.restoredUrl=decision.url;
+        if(details.disposition==='background-tab'){ensureBrowserView(next);resumeRestoredBrowserPage(next);}
+        else await activateBrowserTab(next.id);
+        sendBrowserEvent({type:'tabs-changed',tabs:browserTabsSnapshot(),activeTabId:browserActiveTabId});scheduleBrowserSessionSave();
+      }).catch(()=>{});
+      return {action:'deny'};
+    }
     if (!browserPopupWindows.canAdd()) {
       if (tab) sendBrowserEvent(tab, { type: 'notice', success: false,
         message: `En fazla ${MAX_BROWSER_POPUPS} açılır pencere kullanılabilir. Önce birini kapatın.` });
@@ -13489,6 +13511,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   if (!browserConfiguredSessions.has(browserSession)) {
     if (browserUserAgent) browserSession.setUserAgent(browserUserAgent);
     browserSession.registerPreloadScript({ type: 'frame', filePath: path.join(__dirname, 'youtube-ad-preload.js') });
+    userscriptsService.bindSession(browserSession);
     browserConfiguredSessions.add(browserSession);
   } else {
     browserUserAgent = sanitizeBrowserUserAgent(browserSession.getUserAgent());
@@ -13565,13 +13588,18 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   // metinle çizilip okunamıyordu. Chrome/Edge/Firefox ile aynı: beyaz.
   view.setBackgroundColor('#ffffff');
   view.setVisible(false);
-  mainWindow.contentView.addChildView(view);
+  try{browserViewRegistry.attach(tab.id,view,mainWindow);}catch(_){
+    tab.view=null;if(browserView===view)browserView=null;
+    try{view.webContents.close({waitForBeforeUnload:false});}catch(__){}
+    return null;
+  }
   assistantOverlay?.raise();
   // Yeni view bounds'suz tam pencere kaplıyor; setVisible(false) Windows'ta
   // HWND'i işaretçi testinden düşürmediği için boş-sekme yüzeyi ölüyordu.
   // Layout gösterene dek ekran dışına taşı.
   hideBrowserViewOffscreen(view);
   const wc = view.webContents;
+  userscriptsService.bindTab(tab,wc);
   installBrowserContextMenu(tab, wc);
   // WebContentsView odaktayken klavye olayları uygulama renderer'ına ulaşmaz.
   // Yalnızca açıkça desteklenen kısayolları köprüle; sitenin geri kalan
@@ -13922,7 +13950,8 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     }
     detachBrowserDebugger(view);
     try { view.setVisible(false); } catch (_) {}
-    try { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.contentView.removeChildView(view); } catch (_) {}
+    userscriptsService.disposeTab(tab);
+    browserViewRegistry.release(view);
     tab.view = null;
     if (tab.id === browserActiveTabId) {
       browserView = null;
@@ -14176,7 +14205,9 @@ function resumeRestoredBrowserPage(tab) {
       await waitForProtectedPlayback(url);
       if (!requestIsCurrent()) return;
       suspendBrowserInstrumentationForNavigation(tab, view);
-      await view.webContents.loadURL(url);
+      const history = browserNavigationStateStore.normalizeNavigationHistory(tab.navigationHistory);
+      const matches = history?.entries[history.index]?.url === browserNavigationStateStore.historyUrl(url);
+      if (!matches || !await browserNavigationStateStore.restoreNavigationHistory(view.webContents,history)) await view.webContents.loadURL(url);
     } catch (error) {
       if (browserTabById(tab.id) === tab && !isAbortedBrowserNavigation(error)) {
         // Sonraki sekme etkinleştirmesi 'restore_failed' kuşağını yeniden
@@ -14200,6 +14231,7 @@ function resumeRestoredBrowserPage(tab) {
 async function activateBrowserTab(rawId) {
   const next = browserTabById(rawId);
   if (!next) return null;
+  next.lastActivatedAt = Date.now();
   if (next.id !== browserActiveTabId) browserExtras?.mini.close();
   if (next.id === browserActiveTabId && next.view && !next.view.webContents.isDestroyed()) {
     browserView = ensureBrowserView(next);
@@ -14297,6 +14329,7 @@ function queueBrowserTabTransition(work) {
 function destroyBrowserTab(tab) {
   if (!tab) return;
   tab.closing = true;
+  userscriptsService.disposeTab(tab);
   browserExtras?.cancel(tab);
   if (browserExtras?.mini.owns(tab)) browserExtras.mini.close();
   if (tab.loadRetryTimer) clearTimeout(tab.loadRetryTimer);
@@ -14321,7 +14354,7 @@ function destroyBrowserTab(tab) {
   tab.translationScheduler = null;
   if (browserLiveAsr?.tab === tab) stopBrowserLiveAsr('Sekme kapatıldığı için canlı Whisper durduruldu.');
   detachBrowserDebugger(tab.view);
-  try { if (mainWindow && !mainWindow.isDestroyed() && tab.view) mainWindow.contentView.removeChildView(tab.view); } catch (_) {}
+  browserViewRegistry.release(tab.view);
   try {
     if (tab.view && !tab.view.webContents.isDestroyed()) tab.view.webContents.close({ waitForBeforeUnload: false });
   } catch (_) {}
@@ -16187,9 +16220,30 @@ async function browserTabRuntimeState(tab) {
   } catch (_) { return { stateKnown: false }; }
 }
 
+async function browserHostWorkState() {
+  if(activeJob||jobStarting||dubService?.running()||browserLiveAsr
+      ||assistantJobs.snapshot().jobs.some(job=>['running','cancelling'].includes(job.state)))return {known:true,busy:true};
+  if(!mainWindow||mainWindow.isDestroyed())return {known:false,busy:false};
+  try{
+    const busy=await withTimeout(mainWindow.webContents.executeJavaScript(`(() => {
+      return [...document.querySelectorAll('audio,video')].some(media=>!media.paused&&!media.ended)
+        || !!(typeof state==='object'&&(state.running||state.queueRunning))
+        || !!(typeof player==='object'&&player.job?.running);
+    })()`,true),700,'Application media state unavailable.');
+    return {known:typeof busy==='boolean',busy:busy===true};
+  }catch(_){return {known:false,busy:false};}
+}
+async function refreshBrowserUnloadProtection(tab){
+  const host=await browserHostWorkState();tab.hostWorkBusy=host.busy;
+  if(!host.known)tab.stateKnown=false;
+  try{tab.audible=!!tab.view?.webContents?.isCurrentlyAudible?.();}catch(_){tab.stateKnown=false;}
+  return host;
+}
 async function unloadBrowserTab(rawId) {
   const tab = browserTabById(rawId);
   if (!tab) return { ok: false, error: 'Tarayıcı sekmesi bulunamadı.' };
+  if(browserExtras?.mini.owns(tab))return {ok:false,protected:true,reason:'mini',error:dt('Küçük oynatıcıdaki sekme korunuyor.','The mini-player tab is protected.')};
+  await refreshBrowserUnloadProtection(tab);
   if (tab.id === browserSplitSecondaryTabId) {
     return { ok: false, protected: true, reason: 'split', error: 'İkiye bölünmüş görünümdeki ikincil sekme önce bölmeden çıkarılmalı.' };
   }
@@ -16213,8 +16267,10 @@ async function unloadBrowserTab(rawId) {
   }
   tab.restoredUrl = safeBrowserPlaceUrl(wc.getURL()) || tab.restoredUrl || '';
   tab.restoredTitle = wc.getTitle() || tab.restoredTitle || '';
+  tab.navigationHistory = browserNavigationStateStore.captureNavigationHistory(wc,tab.navigationHistory);
   tab.lifecycle = 'unloading'; sendBrowserEvent({ type: 'tabs-changed', tabs: browserTabsSnapshot(), activeTabId: browserActiveTabId });
   Object.assign(tab, await browserTabRuntimeState(tab));
+  await refreshBrowserUnloadProtection(tab);
   const finalCheck = browserTabUnloadDecision(tab, { activeTabId: browserActiveTabId });
   if (browserTabById(tab.id) !== tab || tab.resourceActionSeq !== action || !finalCheck.allowed) {
     // Yakalama pending ölçümü sırasında duraklatıldı — iptal edilen boşaltma
@@ -16252,7 +16308,8 @@ async function unloadBrowserTab(rawId) {
   tab.translationScheduler = null;
   tab.translationResults = new Map(); tab.translationSourceCues = [];
   tab.mangaPages?.clear?.();
-  try { mainWindow.contentView.removeChildView(view); } catch (_) {}
+  userscriptsService.disposeTab(tab);
+  browserViewRegistry.release(view);
   tab.view = null; try { wc.close({ waitForBeforeUnload: false }); } catch (_) {}
   // Bayat hata durumu dirilen sekmeyi boş bırakırdı: resumeRestoredBrowserPage
   // loadError taşıyan sekmede URL'yi yeniden yüklemez. Yeni görünüm temiz
@@ -16686,6 +16743,20 @@ ipcMain.handle('browser:session:updateTab', (event, raw) => {
   catch (_) { return { ok: false, error: 'Video altyazı tercihi diske kaydedilemedi.' }; }
   scheduleBrowserSessionSave();
   return { ok: true, tab: browserTabSnapshot(tab) };
+});
+
+const browserMemoryControl = require('./browser-memory-control').createBrowserMemoryReclaimer({
+  tabs:()=>[...browserTabs.values()],activeId:()=>browserActiveTabId,
+  unload:id=>queueBrowserTabTransition(()=>unloadBrowserTab(id)),
+});
+ipcMain.handle('browser:mechanisms',async(event,request={})=>{
+  if(!authorizedBrowserSender(event))return {ok:false,error:'Unauthorized request.'};
+  if(request.action==='reclaim')return browserMemoryControl.reclaim();
+  if(request.action&&request.action!=='status')return {ok:false,error:'Unknown browser action.'};
+  let extensions=[],loadedExtensionsKnown=false;
+  try{extensions=session.fromPartition(BROWSER_PARTITION).extensions.getAllExtensions().map(row=>({id:row.id,name:String(row.name||'').slice(0,200),version:String(row.version||'').slice(0,100)}));loadedExtensionsKnown=true;}catch(_){}
+  return {ok:true,...require('./browser-memory-control').browserCompatibilityStatus(),loadedExtensions:extensions,loadedExtensionsKnown,
+    views:{registered:browserViewRegistry.size()},runtime:{electron:process.versions.electron||'',chromium:process.versions.chrome||''}};
 });
 
 ipcMain.handle('browser:resources:snapshot', async (event) => {
@@ -20432,7 +20503,7 @@ const assistantBrowserResearch=require('./assistant-browser-research').createRes
   try{await Promise.race([wc.loadURL(url),new Promise((_,reject)=>{timer=setTimeout(()=>{wc.stop();reject(Error('Research page timeout.'));},12000);})]);signal?.throwIfAborted();if(!require('./assistant-web-research').safeSource(wc.getURL()))throw Error('Unsafe research redirect.');}finally{clearTimeout(timer);}},
   read:async kind=>{if(closed||wc.isDestroyed())throw Error('Research tab closed.');return wc.executeJavaScript(kind==='results'?`({links:[...document.querySelectorAll('a:has(h3),h2 a,a.result__a,a[data-testid=result-title-a]')].slice(0,20).map(a=>({url:a.href,title:a.innerText}))})`:`(()=>{const node=document.querySelector('article')||document.querySelector('main')||document.body;const text=node?.innerText||'';return {url:location.href,title:document.title,text:text.slice(0,6000),truncated:text.length>6000,challenge:/^(?:Just a moment|Verify you are human|Access denied)/i.test(document.title)||!!document.querySelector('#challenge-running,#challenge-stage')};})()`);}};
 }});
-const assistantResearch=(query,signal)=>assistantBrowserResearch(query,{signal});
+const assistantResearch=(query,signal,onPartial)=>assistantBrowserResearch(query,{signal,onPartial});
 // Opt-in developer integration. No listener or model runtime is started by default.
 if(process.env.WHISPER_MCP_TOKEN&&process.env.WHISPER_MCP_PORT){
  try {const bridge=require('./assistant-mcp-bridge').createBridge({token:process.env.WHISPER_MCP_TOKEN,port:Number(process.env.WHISPER_MCP_PORT),
@@ -22098,6 +22169,7 @@ browserExtras = require('./browser-feature-services').registerBrowserFeatureServ
   rankCandidates: rankBrowserMediaCandidates, commandScript: buildBrowserMediaCommandScript,
   captureFrame: captureBrowserVideoFrame, restoreLayout: applyBrowserViewsLayout,
   hideOffscreen: hideBrowserViewOffscreen,
+  viewRegistry: browserViewRegistry,
   grantSubtitle: file => { subtitleFileAccess.grant(file); trackBrowserSubtitleFile(file); },
   authorizeMedia: file => authorizeLocalMediaPath(file),
   pythonPath: resolvePython, ffmpegPath: () => resolveFfTool('ffmpeg'), ffprobePath: () => resolveFfTool('ffprobe'),
@@ -22124,7 +22196,8 @@ const mediaCatalogService = require('./media-catalog-service').registerMediaCata
   inspectMedia: validateLocalMediaPath, grantMedia: file => mediaFileAccess.grant(file), watchItems: loadWatchLibraryAll,
   dialogText: dt,
 });
-require('./feed-service').registerFeeds({app,ipcMain,authorized:authorizedBrowserSender,userData:()=>app.getPath('userData'),catalogStore:mediaCatalogService.store});
+const mediaFeedsService = require('./feed-service').registerFeeds({app,ipcMain,authorized:authorizedBrowserSender,userData:()=>app.getPath('userData'),catalogStore:mediaCatalogService.store});
+require('./recall-service').registerRecall({app,ipcMain,authorized:authorizedBrowserSender,userData:()=>app.getPath('userData'),catalogStore:mediaCatalogService.store,feedStore:()=>mediaFeedsService.store});
 mediaWorkflows = require('./media-workflows').registerMediaWorkflows({voiceRunning:()=>dubService.running(),resolveShelfBook:id=>{const f=path.join(app.getPath('userData'),'media-shelf.json');if(!fs.existsSync(f)||fs.statSync(f).size>16000000)return null;const d=JSON.parse(fs.readFileSync(f,'utf8'));return d.books?.find(b=>b.id===id)||null;},linkShelfBook:(id,projectId)=>{const f=path.join(app.getPath('userData'),'media-shelf.json');const d=JSON.parse(fs.readFileSync(f,'utf8')),row=d.books?.find(b=>b.id===id);if(!row)throw Error('Book missing.');row.productionProjectId=projectId;atomicWriteFileSync(f,JSON.stringify(d),{encoding:'utf8'});},resolvePdf:hash=>{const d=pdfDocumentByHash(hash);return d&&inspectPdfDocument(d.filePath).pdfHash===hash?d:null;},grantPdf:file=>pdfFileAccess.grant(file),app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,
   python:resolvePython,ffmpeg:()=>resolveFfTool('ffmpeg'),ffprobe:()=>resolveFfTool('ffprobe'),
   grantSubtitle:file=>subtitleFileAccess.grant(file),grantMedia:file=>mediaFileAccess.grant(file),inspectMedia:validateLocalMediaPath,
