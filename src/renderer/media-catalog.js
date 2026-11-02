@@ -535,6 +535,7 @@
       const scope = state.packageData.scope;
       if (scope) {
         const parts = [];
+        for(const [key,en,tr]of [['dailyJournalEntries','dated journal entries','tarihli günlük kaydı'],['watchlistSections','watchlist positions','izleme listesi konumu'],['filmCollections','collection descriptions/orders','koleksiyon açıklaması/sırası'],['linkedMediaAssets','linked file records','bağlı dosya kaydı'],['filmAlternatives','alternative sources (may need relinking)','alternatif kaynak (yeniden bağlama gerekebilir)'],['titleRelationAliases','verified relationship aliases','doğrulanmış ilişki bağı']])if(scope[key])parts.push(`${scope[key]} ${english()?en:tr}`);
         if(scope.shelfRecords)parts.push(`${scope.shelfRecords} ${english()?'media shelf records':'medya rafı kaydı'}`);
         if(scope.assistantConversations)parts.push(`${scope.assistantConversations} ${english()?'assistant conversations (includes messages)':'asistan sohbeti (mesajlar dahil)'}`);
         if(scope.titleDecisions)parts.push(`${scope.titleDecisions} ${english()?'title reviews':'yapım yorumu'}`);
@@ -556,12 +557,12 @@
       state.packageMappings ||= new Map();
       if (Array.isArray(state.packageData.missingMedia) && state.packageData.missingMedia.length) {
         const missing = $('div', 'mc-package-missing');
-        missing.append($('h4', '', english() ? 'Media folders not found on this machine' : 'Bu bilgisayarda bulunamayan ortam klasörleri'));
+        const unverified=state.packageData.missingMedia.some(group=>group.requiresConfirmation);missing.append($('h4', '', unverified?(english()?'Media folders needing attention':'Kontrol edilmesi gereken medya klasörleri'):(english()?'Media folders not found on this machine':'Bu bilgisayarda bulunamayan ortam klasörleri')));
         for (const group of state.packageData.missingMedia) {
           const row = $('div', 'mc-import-row');
           row.append($('span', '', `${group.root} · ${group.count} ${english() ? 'file(s)' : 'dosya'}`));
           const mapped = state.packageMappings.get(group.root);
-          row.append($('small', 'mc-muted', mapped ? `→ ${mapped}` : (english() ? 'unmapped — records will keep the missing path' : 'eşleme yok — kayıtlar eksik yolu gösterecek')));
+          row.append($('small', 'mc-muted', mapped ? `→ ${mapped}` : (group.requiresConfirmation?(english()?'unverified — choose files again before using them':'doğrulanmadı — kullanmadan önce dosyaları yeniden seç'):(english()?'unmapped — records will keep the missing path':'eşleme yok — kayıtlar eksik yolu gösterecek'))));
           row.append(button(mapped ? t('Değiştir') : (english() ? 'Pick new folder' : 'Yeni kök seç'), async () => {
             const result = await api('choose-directory');
             if (result?.path) { state.packageMappings.set(group.root, result.path); render(); }

@@ -5,6 +5,7 @@ const { gzipSync, gunzipSync } = require('node:zlib');
 const { randomUUID, createHash } = require('node:crypto');
 const { renameSyncResilient } = require('./fsync-utils');
 const { canonicalWatchKey } = require('./watch-library-store');
+const personalMedia=require('./workspace-personal-media');
 function remapFileWatchKey(value, mappings) {
   if (typeof value !== 'string' || !value.startsWith('file:')) return value;
   const key = canonicalWatchKey(value);
@@ -16,7 +17,7 @@ function remapFileWatchKey(value, mappings) {
   return value;
 }
 const ROOTS = new Set(['media-catalog.json', 'watch-library.json', 'watch-library-tombstones.json', 'browser-notes.json', 'browser-session.json', 'history.json',
-  'assistant-conversations.json', 'media-shelf.json', 'media-enrichment.json', 'media-folder-watches.json', 'torrent-library.json', 'browser-subtitle-preferences.json', 'browser-series-context.json', 'browser-skip-segments.json']);
+  'assistant-conversations.json', 'media-shelf.json', 'media-enrichment.json', 'media-folder-watches.json', 'torrent-library.json', 'browser-subtitle-preferences.json', 'browser-series-context.json', 'browser-skip-segments.json',...personalMedia.NAMES]);
 const DIRS = new Set(['catalog-posters', 'browser-subtitles', 'workspace-assets', 'subtitle-edits', 'OkumaListesi']);
 const LIMIT = 256 * 1024 * 1024;
 // Meşru paket JSON'ları ~10 seviye içindedir; özyinelemeli gezginlerin yığın
@@ -77,7 +78,7 @@ function rewrite(value, mappings) {
   return visit(value);
 }
 function exportPackage(root, output, rendererValues = {}, externalAliases = null) {
-  const files = [], mappings = [], seen = new Set(); let total = 0;
+  const files = [], mappings = [], seen = new Set(),originalJson=new Map(); let total = 0;
   function add(file, name) {
     if (seen.has(name)) return;
     const stat = fs.lstatSync(file); if (!stat.isFile() || stat.isSymbolicLink()) return;
@@ -87,7 +88,7 @@ function exportPackage(root, output, rendererValues = {}, externalAliases = null
       // Gömülü mutlak yollar taşınabilir {{ROOT}}/... formuna çevrilir — paket
       // paylaşıldığında kaynak makinenin kullanıcı adı/klasör düzeni ve
       // mappings/sourceRoot içindeki mutlak yollar ifşa olmaz (R83-33).
-      const visit = (value, depth = 0) => {
+      const visit = (value, depth = 0, allowFiles = true) => {
         if (typeof value === 'string' && value.startsWith('file:')) {
           return remapFileWatchKey(value, [...(externalAliases || []), [root, '{{ROOT}}']]);
         }
@@ -98,7 +99,7 @@ function exportPackage(root, output, rendererValues = {}, externalAliases = null
           if (externalAliases && externalAliases.has(value)) return externalAliases.get(value);
           const relative = path.relative(root, value).replace(/\\/g, '/');
           const underRoot = !!relative && !relative.startsWith('..') && !path.isAbsolute(relative);
-          if (/\.(srt|vtt|ass|ssa|png|jpe?g|webp)$/i.test(value) && fs.existsSync(value)) {
+          if (allowFiles && /\.(srt|vtt|ass|ssa|png|jpe?g|webp)$/i.test(value) && fs.existsSync(value)) {
             if (underRoot && allowed(relative)) { add(value, relative); return `{{ROOT}}/${relative}`; }
             const target = 'workspace-assets/' + createHash('sha256').update(value).digest('hex') + path.extname(value).toLowerCase();
             add(value, target); return `{{ROOT}}/${target}`;
@@ -116,7 +117,8 @@ function exportPackage(root, output, rendererValues = {}, externalAliases = null
         }
         return value;
       };
-      buffer = Buffer.from(JSON.stringify(visit(JSON.parse(buffer.toString('utf8')))));
+      const parsed=JSON.parse(buffer.toString('utf8'));originalJson.set(name,parsed);personalMedia.validate(name,parsed);
+      buffer = Buffer.from(JSON.stringify(personalMedia.NAMES.has(name)?personalMedia.mapPaths(name,parsed,(value,imported)=>visit(value,0,!imported)):visit(parsed)));
       seen.add(name); files.push({ name, data: buffer.toString('base64') });
       return;
     }
@@ -134,6 +136,8 @@ function exportPackage(root, output, rendererValues = {}, externalAliases = null
   for (const dir of DIRS) walk(path.join(root, dir), dir);
   // sourceRoot/mappings taşınabilir tutulur: {{ROOT}} işareti içe aktarımda
   // hedef köke eşlenir, pakette mutlak kaynak yolu kalmaz.
+  const portable=new Map(files.filter(f=>ROOTS.has(f.name)).map(f=>[f.name,JSON.parse(Buffer.from(f.data,'base64').toString('utf8'))]));personalMedia.reconcileChoices(originalJson,portable);
+  const personalWatch=files.find(f=>f.name==='film-watch.json');if(personalWatch)personalWatch.data=Buffer.from(JSON.stringify(portable.get('film-watch.json'))).toString('base64');
   const bundle = { format: 'whisper-workspace', version: 1, created: new Date().toISOString(), sourceRoot: '{{ROOT}}', mappings, files, rendererValues: storageValues(rendererValues) };
   validate(bundle);
   const bytes = gzipSync(Buffer.from(JSON.stringify(bundle)));
@@ -193,6 +197,7 @@ function validate(data) {
       // Runtime catalog readers still reject aliases; restore resolves them before publication.
       if(file.name==='media-catalog.json')value=rewrite(value,[['{{ROOT}}',path.resolve('__portable_root__')],['{{VIDEO}}',path.resolve('__portable_video__')]]);
       require('./user-data-schema').validateStoreShape(file.name, value);
+      personalMedia.validate(file.name,value);personalMedia.validateReferences(file.name,value,data);
       if (file.name === 'media-catalog.json') {
         if (value.version !== 1 || !Array.isArray(value.items) || value.items.length > 10000) throw new Error('Paket kataloğu geçersiz.');
         for (const item of value.items) require('./media-catalog-store').itemOf(item);
@@ -210,9 +215,10 @@ function restorePackage(root, data, videoMappings = []) {
     let parent = path.dirname(destination);
     while (parent !== path.resolve(root)) { if (fs.existsSync(parent) && fs.lstatSync(parent).isSymbolicLink()) throw new Error('Yedek hedefi bağlantı içeriyor.'); parent = path.dirname(parent); }
     if (fs.existsSync(destination) && fs.lstatSync(destination).isSymbolicLink()) throw new Error('Yedek hedefi bağlantı içeriyor.');
-    let bytes = Buffer.from(file.data, 'base64');
+    let bytes = Buffer.from(file.data, 'base64'),parsedValue;
     if (file.name.endsWith('.json')) {
-      let parsed = rewrite(JSON.parse(bytes.toString('utf8')), mappings);
+      const original=JSON.parse(bytes.toString('utf8'));let parsed = personalMedia.NAMES.has(file.name)?personalMedia.mapPaths(file.name,original,value=>rewrite(value,mappings)):rewrite(original,mappings);
+      if(personalMedia.NAMES.has(file.name)){parsed=personalMedia.sanitize(file.name,original,parsed,data);personalMedia.validate(file.name,parsed);}
       if (file.name === 'watch-library.json') {
         const original = JSON.parse(bytes.toString('utf8'));
         const rows = Array.isArray(original) ? original : [
@@ -241,10 +247,12 @@ function restorePackage(root, data, videoMappings = []) {
         for(const row of Object.values(parsed.titles)) {if(!row||typeof row!=='object'||row.history&&(!Array.isArray(row.history)||row.history.length>8))throw Error('Invalid title notes.');for(const entry of row.history||[]){if(!Array.isArray(entry.reviews)||entry.reviews.length>100)throw Error('Invalid saved reviews.');require('./media-tools-service').verifyDecision(entry.analysis,entry.reviews);}}
       }
       if(file.name==='torrent-library.json'){if(!Array.isArray(parsed)||parsed.length>1000||parsed.some(r=>!r||!(/^[a-f0-9]{40}$/i.test(r.hash))||!Number.isSafeInteger(r.index)||r.index<0))throw Error('Invalid torrent index.');parsed=parsed.map(r=>({...r,paused:true}));}
-      bytes = Buffer.from(JSON.stringify(parsed));
+      bytes = Buffer.from(JSON.stringify(parsed));parsedValue=parsed;
     }
-    return { destination, bytes, previous: fs.existsSync(destination) ? fs.readFileSync(destination) : null };
+    return { name:file.name,parsed:parsedValue,destination, bytes, previous: fs.existsSync(destination) ? fs.readFileSync(destination) : null };
   });
+  const before=new Map(data.files.filter(f=>ROOTS.has(f.name)).map(f=>[f.name,JSON.parse(Buffer.from(f.data,'base64').toString('utf8'))])),after=new Map(changes.filter(c=>ROOTS.has(c.name)).map(c=>[c.name,c.parsed]));personalMedia.reconcileChoices(before,after);
+  const personalWatch=changes.find(c=>c.name==='film-watch.json');if(personalWatch)personalWatch.bytes=Buffer.from(JSON.stringify(personalWatch.parsed));
   // A durable pre-restore copy lets the user reverse an intentional replacement.
   exportPackage(root, path.join(root, 'before-restore-' + Date.now() + '.wbp'));
   const applied = [];
@@ -311,6 +319,9 @@ function describePackage(data, root = null) {
   if (sections['subtitle-edits/']) summary.subtitleEdits = sections['subtitle-edits/'].files;
   const shelf = json('media-shelf.json');
   if(shelf) summary.shelfRecords=['music','books','stations','podcasts','playlists','diary','reviews'].reduce((n,k)=>n+(Array.isArray(shelf[k])?shelf[k].length:0),0);
+  const daily=json('media-daily.json');if(daily){summary.dailyJournalEntries=daily.journal?.length||0;summary.watchlistSections=Object.keys(daily.queue||{}).length;summary.linkedMediaAssets=daily.assets?.length||0;}
+  const film=json('film-watch.json');if(film){summary.filmCollections=Object.keys(film.collections||{}).length;summary.filmAlternatives=film.alternatives?.length||0;}
+  const relations=json('media-title-relations.json');if(relations)summary.titleRelationAliases=Object.keys(relations.bindings||{}).length;
   const enriched=json('media-enrichment.json');if(enriched?.titles)summary.titleDecisions=Object.keys(enriched.titles).length;
   const chats=json('assistant-conversations.json');if(Array.isArray(chats?.threads))summary.assistantConversations=chats.threads.length;
   const folders=json('media-folder-watches.json');if(Array.isArray(folders))summary.watchedFolders=folders.length;
@@ -338,15 +349,15 @@ function missingLocalMedia(data, exists = fs.existsSync) {
     try { return JSON.parse(Buffer.from(file.data, 'base64').toString('utf8')); }
     catch (_) { return null; }
   };
-  const add = (value) => {
+  const add = (value, unverified = false) => {
     if (!looksLikeLocalMediaPath(value)) return;
-    let missing = false;
-    try { missing = !existsFn(value); } catch (_) { missing = true; }
+    let missing = unverified;
+    if(!unverified)try { missing = !existsFn(value); } catch (_) { missing = true; }
     if (!missing) return;
     const parser = /^[a-zA-Z]:[\\/]/.test(value) ? path.win32 : path.posix;
     const key = parser.dirname(value);
     const row = groups.get(key) || { root: key, count: 0 };
-    row.count += 1;
+    row.count += 1;if(unverified)row.requiresConfirmation=true;
     groups.set(key, row);
   };
   const watch = json('watch-library.json');
@@ -355,6 +366,8 @@ function missingLocalMedia(data, exists = fs.existsSync) {
   for (const item of catalog?.items || []) {
     for(const source of require('./catalog-library-model').allSources(item))if(source.type==='local')add(source.value);
   }
+  for(const asset of json('media-daily.json')?.assets||[])add(asset.path,true);
+  for(const alternative of json('film-watch.json')?.alternatives||[])add(alternative.source?.value,true);
   return [...groups.values()].sort((a, b) => b.count - a.count || a.root.localeCompare(b.root)).slice(0, 20);
 }
 
