@@ -1,0 +1,74 @@
+{
+  "phase": "after",
+  "baseline": null,
+  "baselineRendererFiles": [],
+  "actualApp": true,
+  "isolatedProfile": true,
+  "screens": [
+    {
+      "name": "comparison-wide",
+      "width": 1440,
+      "dialog": {
+        "x": 160,
+        "y": 77.84375,
+        "width": 1120,
+        "height": 844.3021240234375,
+        "top": 77.84375,
+        "right": 1280,
+        "bottom": 922.1458740234375,
+        "left": 160
+      },
+      "scroll": 1119,
+      "client": 1119,
+      "body": 1440,
+      "text": "İki film, yan yanaKapatYapım bilgileri, kaynak yorumlar ve kayıtlı önceliklerin.FilmlerTears of Steel · DemoBig Buck BunnyYıl · süre2012 · 12 dk2008 · 10 dkTürlerBilim kurgu, Kısa filmAnimation, ComedyKonuBlender Foundation kısa filminden yerel video ve altyazı örneği. Şehrin gündelik hayatıyla geleceğe ait bir karşılaşma aynı sahnede buluşuyor. Bu kitaplık kaydı ve yorumlar görsel denetim için oluşturuldu.A rabbit and three mischievous rodents meet in a bright woodland. This is a controlled metadata fixture.Yorum kanıtı3 spoilersız kaynak yorumÖrnekteki yorumlar, gündelik şehir atmosferiyle bilim kurgu ayrıntılarının kurduğu karşıtlığı öne çıkarıyor. Oyunculukların küçük duraksamaları ve beden dili, görsel dünyanın içinde ilişkinin gerilimini okunur kılıyor.\n\nÇekince, kısa biçimin ve açıklayıcı diyalogların etkisi üzerine. Bir yorum yoğunlaşmayı değerli bulurken diğeri bazı cümlelerin görsel fikri yinelediğini düşünüyor. Bu üç kontrollü yorumdan genel izleyici kanaati çıkarılamaz.Kaynak 1 · Kontrollü sahne notlarıKaynak 2 · Kontrollü görüntü defteriKaynak 3 · Kontrollü ikinci izleyiş0 spoilersız kaynak yorumDoğrulanmış analiz yok. Tempo ve kişisel uygunluk yalnız yapım bilgisinden çıkarılamaz.Kayıtlı önceliklerin: Karakterler · Hikâye · Görsellik"
+    },
+    {
+      "name": "comparison-720",
+      "width": 720,
+      "dialog": {
+        "x": 20.000001907348633,
+        "y": 24.000001907348633,
+        "width": 680.0000610351562,
+        "height": 752.0000610351562,
+        "top": 24.000001907348633,
+        "right": 700.0000629425049,
+        "bottom": 776.0000629425049,
+        "left": 20.000001907348633
+      },
+      "scroll": 671,
+      "client": 671,
+      "body": 720,
+      "text": "İki film, yan yanaKapatYapım bilgileri, kaynak yorumlar ve kayıtlı önceliklerin.FilmlerTears of Steel · DemoBig Buck BunnyYıl · süre2012 · 12 dk2008 · 10 dkTürlerBilim kurgu, Kısa filmAnimation, ComedyKonuBlender Foundation kısa filminden yerel video ve altyazı örneği. Şehrin gündelik hayatıyla geleceğe ait bir karşılaşma aynı sahnede buluşuyor. Bu kitaplık kaydı ve yorumlar görsel denetim için oluşturuldu.A rabbit and three mischievous rodents meet in a bright woodland. This is a controlled metadata fixture.Yorum kanıtı3 spoilersız kaynak yorumÖrnekteki yorumlar, gündelik şehir atmosferiyle bilim kurgu ayrıntılarının kurduğu karşıtlığı öne çıkarıyor. Oyunculukların küçük duraksamaları ve beden dili, görsel dünyanın içinde ilişkinin gerilimini okunur kılıyor.\n\nÇekince, kısa biçimin ve açıklayıcı diyalogların etkisi üzerine. Bir yorum yoğunlaşmayı değerli bulurken diğeri bazı cümlelerin görsel fikri yinelediğini düşünüyor. Bu üç kontrollü yorumdan genel izleyici kanaati çıkarılamaz.Kaynak 1 · Kontrollü sahne notlarıKaynak 2 · Kontrollü görüntü defteriKaynak 3 · Kontrollü ikinci izleyiş0 spoilersız kaynak yorumDoğrulanmış analiz yok. Tempo ve kişisel uygunluk yalnız yapım bilgisinden çıkarılamaz.Kayıtlı önceliklerin: Karakterler · Hikâye · Görsellik"
+    },
+    {
+      "name": "comparison-480",
+      "width": 480,
+      "dialog": {
+        "x": 17,
+        "y": 10,
+        "width": 446,
+        "height": 980,
+        "top": 10,
+        "right": 463,
+        "bottom": 990,
+        "left": 17
+      },
+      "scroll": 435,
+      "client": 435,
+      "body": 480,
+      "text": "İki film, yan yanaKapatYapım bilgileri, kaynak yorumlar ve kayıtlı önceliklerin.FilmlerTears of Steel · DemoBig Buck BunnyYıl · süre2012 · 12 dk2008 · 10 dkTürlerBilim kurgu, Kısa filmAnimation, ComedyKonuBlender Foundation kısa filminden yerel video ve altyazı örneği. Şehrin gündelik hayatıyla geleceğe ait bir karşılaşma aynı sahnede buluşuyor. Bu kitaplık kaydı ve yorumlar görsel denetim için oluşturuldu.A rabbit and three mischievous rodents meet in a bright woodland. This is a controlled metadata fixture.Yorum kanıtı3 spoilersız kaynak yorumÖrnekteki yorumlar, gündelik şehir atmosferiyle bilim kurgu ayrıntılarının kurduğu karşıtlığı öne çıkarıyor. Oyunculukların küçük duraksamaları ve beden dili, görsel dünyanın içinde ilişkinin gerilimini okunur kılıyor.\n\nÇekince, kısa biçimin ve açıklayıcı diyalogların etkisi üzerine. Bir yorum yoğunlaşmayı değerli bulurken diğeri bazı cümlelerin görsel fikri yinelediğini düşünüyor. Bu üç kontrollü yorumdan genel izleyici kanaati çıkarılamaz.Kaynak 1 · Kontrollü sahne notlarıKaynak 2 · Kontrollü görüntü defteriKaynak 3 · Kontrollü ikinci izleyiş0 spoilersız kaynak yorumDoğrulanmış analiz yok. Tempo ve kişisel uygunluk yalnız yapım bilgisinden çıkarılamaz.Kayıtlı önceliklerin: Karakterler · Hikâye · Görsellik"
+    }
+  ],
+  "providerCalls": 0,
+  "filmContext": {
+    "exact": true,
+    "sourceCount": 3,
+    "citations": 4,
+    "profileConfigured": true
+  },
+  "sourceQuoteVerified": true,
+  "pickerOpenedComparison": true,
+  "aspectPersistedAndReloaded": true,
+  "overallReactionAndWatchUnchanged": true
+}
