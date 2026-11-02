@@ -5,7 +5,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { atomicWriteFileSync } = require('./fsync-utils');
 const { classify: discoveryErrorCode } = require('./renderer/media-discovery-errors');
-const GENRES = ['Action', 'Adventure', 'Animation', 'Biography', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Family', 'Fantasy', 'History', 'Horror', 'Mystery', 'Romance', 'Sci-Fi', 'Sport', 'Thriller', 'War', 'Western'];
+const GENRES = require('./media-discovery-genres').list;
 const text = (value, limit = 500) => typeof value === 'string' ? value.trim().slice(0, limit) : '';
 function imageUrl(value) {
   try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password && ['images.metahub.space', 'image.tmdb.org'].includes(url.hostname) ? url.href : ''; }
@@ -117,7 +117,7 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
       }
       if (input.action === 'personal') {
         const library = catalogStore().list(),titles=personalTitles(), seeds = library.filter(item=>personalState.personal(item,titles).reaction==='like').slice(0,20), owned = new Set(library.map(item => item.imdbId).filter(Boolean));
-        const aliases = { 'Bilim-Kurgu': 'Sci-Fi', 'Bilim Kurgu': 'Sci-Fi', 'Dram': 'Drama', 'Komedi': 'Comedy', 'Aksiyon': 'Action', 'Gerilim': 'Thriller', 'Korku': 'Horror', 'Belgesel': 'Documentary', 'Animasyon': 'Animation', 'Macera': 'Adventure', 'Romantik': 'Romance', 'Suç':'Crime', 'Aile':'Family', 'Fantastik':'Fantasy', 'Tarih':'History', 'Gizem':'Mystery', 'Savaş':'War', 'Vahşi Batı':'Western', 'Biyografi':'Biography', 'Spor':'Sport' };
+        const aliases = require('./media-discovery-genres').aliases;
         const selected = new Map();
         let genreProfile=[];
         try{const file=path.join(userData(),'media-shelf.json');if(fs.existsSync(file)&&fs.statSync(file).size<=16_000_000){const shelf=JSON.parse(fs.readFileSync(file,'utf8'));genreProfile=require('./media-taste').profile(shelf.diary||[],library,shelf.tasteProfile||{}).genres;}}catch{/* Existing favorites remain a fallback when the optional profile is unavailable. */}

@@ -4,7 +4,7 @@
  const states=new WeakMap();let sequence=0;
  const node=(tag,cls,text)=>{const n=document.createElement(tag);n.className=cls;if(text)n.textContent=text;return n;};
  function enhance(page,item){
-  states.get(page)?.();const disposers=[];
+  states.get(page)?.();const disposers=[];const filmItemId=item.discovery?'discovery:'+item.discovery.kind+':'+item.discovery.id:item.providerId?'discovery:'+item.kind+':'+item.providerId:'catalog:'+item.id;page.dataset.filmItemId=filmItemId;
   const nav=node('nav','film-page-navigation');nav.setAttribute('aria-label',t('On this film page','Film sayfasında gezinme'));
   for(const [selector,en,tr]of [['.mtd-story,.md-page-story','Story','Konu'],['.film-review-section','Reviews & insights','Yorumlar ve analiz'],['.mtd-cast,.md-page-aside > .md-option-group','Cast & credits','Oyuncular ve bilgiler'],['.mtd-episodes','Episodes','Bölümler'],['.film-extra-section','Explore film','Filmi keşfet']]){
    const section=page.querySelector(selector);if(!section)continue;
@@ -17,6 +17,7 @@
   const imdb=item.imdbId||item.providerId;const tmdb=/^(movie|tv):([1-9]\d*)$/.exec(item.tmdbId||'');const link=/^tt\d{7,12}$/.test(imdb||'')?'https://www.imdb.com/title/'+imdb+'/':tmdb?'https://www.themoviedb.org/'+tmdb[1]+'/'+tmdb[2]:'';
   if(link){const copy=node('button','film-section-link',t('Copy film link','Film bağlantısını kopyala'));copy.type='button';copy.onclick=async()=>{copy.disabled=true;try{const result=await window.api.copyText(link);if(result?.ok===false)throw Error(result.error||t('Could not copy','Kopyalanamadı'));copy.textContent=t('Link copied','Bağlantı kopyalandı');}catch{copy.textContent=t('Could not copy · retry','Kopyalanamadı · yeniden dene');}finally{copy.disabled=false;}};nav.append(copy);}
   if(window.api.showAssistant){const ask=node('button','film-section-link film-ask-assistant',t('Ask about this film','Bu filmi asistana sor'));ask.type='button';ask.onclick=()=>window.api.showAssistant();nav.append(ask);}
+  if(window.AssistantFilmActions){const compare=node('button','film-section-link',t('Compare films','Filmleri karşılaştır'));compare.type='button';compare.onclick=()=>window.AssistantFilmActions.openPicker(filmItemId);nav.append(compare);}
   const hero=page.querySelector('.mtd-hero,.md-page-hero');hero?.after(nav);
   const poster=page.querySelector('.mtd-poster,.md-detail-poster');if(poster){
    let posterDialog=null;disposers.push(()=>posterDialog?.close());

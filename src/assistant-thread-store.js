@@ -33,7 +33,11 @@ function feedEvidenceOf(raw){return !Array.isArray(raw)?[]:raw.slice(0,3).filter
  return [{id:s.id,entryId:text(s.entryId,200),nodeId:text(s.nodeId,200),title:text(s.title,300),url,scope:s.id.startsWith('R')?text(s.scope,100):s.scope==='feed-full'?'feed-full':'summary',revision:text(s.revision,100),reactionRevision:text(s.reactionRevision,100),text:text(s.text,1200),shortened:s.shortened===true}];}catch{return [];}});}
 
 function pageEvidenceOf(raw){return !Array.isArray(raw)?[]:raw.slice(0,80).filter(row=>row&&/^S[0-9]{1,5}$/.test(row.id)&&typeof row.text==='string').map(row=>({id:row.id,text:text(row.text,2000),source:{tabId:text(row.source?.tabId,100),generation:Number.isSafeInteger(row.source?.generation)&&row.source.generation>=0?row.source.generation:null,pageUrl:text(row.source?.pageUrl,1000)}}));}
-function citationsOf(raw){return !Array.isArray(raw)?[]:raw.slice(0,40).filter(c=>c&&/^B[0-9]+-[0-9]+$/.test(c.id)&&typeof c.sourceId==='string'&&c.sourceId.length>0&&c.sourceId.length<=500&&!c.sourceId.includes('\0')&&Number.isInteger(c.page)&&c.page>0&&c.page<=100000).map(c=>({id:c.id,sourceId:c.sourceId,page:c.page,kind:c.kind==='page'?'page':'chapter',text:text(c.text,600)}));}
+function citationsOf(raw){return !Array.isArray(raw)?[]:raw.slice(0,40).flatMap(c=>{
+ if(c?.kind==='film-review')return /^F[a-f0-9]{20}$/.test(c.id||'')&&/^(catalog:[\w-]{1,120}|discovery:(film|series):tt\d{7,12})$/.test(c.itemId||'')&&typeof c.reviewId==='string'&&c.reviewId.length>0&&c.reviewId.length<=200&&!c.reviewId.includes('\0')&&/^[a-f0-9]{64}$/.test(c.revision||'')&&typeof c.text==='string'&&c.text.length>0&&c.text.length<=2000&&!c.text.includes('\0')?[{id:c.id,kind:'film-review',itemId:c.itemId,reviewId:c.reviewId,revision:c.revision,text:c.text,title:text(c.title,300),author:text(c.author,200)}]:[];
+ return c&&/^B[0-9]+-[0-9]+$/.test(c.id)&&typeof c.sourceId==='string'&&c.sourceId.length>0&&c.sourceId.length<=500&&!c.sourceId.includes('\0')&&Number.isInteger(c.page)&&c.page>0&&c.page<=100000?[{id:c.id,sourceId:c.sourceId,page:c.page,kind:c.kind==='page'?'page':'chapter',text:text(c.text,600)}]:[];
+ });}
+
 function actionsOf(raw){
   if(!Array.isArray(raw))return [];
   return raw.slice(0,8).flatMap(row=>{
@@ -84,4 +88,4 @@ function registerAssistantThreads({app,ipcMain,authorized}){
   };
   ipcMain.handle('assistant-threads:request',handle);return {handle};
 }
-module.exports={registerAssistantThreads,cleanThread,validateEnvelope,evidenceOf,actionsOf,parentsFirst};
+module.exports={registerAssistantThreads,cleanThread,validateEnvelope,evidenceOf,actionsOf,parentsFirst,citationsOf};
