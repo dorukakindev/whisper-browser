@@ -208,10 +208,12 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
             if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('Video bağlantısı geçersiz.');
           }
           const key = sourceKey({ ...source, value });
-          const existing = watchItems().find(row => canonicalWatchKey(row.key) === key);
+          const history = watchItems(), existing = history.find(row => canonicalWatchKey(row.key) === key);
+          const resume = episode ? require('./personal-media-state').personal(item, {}, history).effectiveResume : null;
+          const exactManual = resume?.origin === 'manual' && resume.episodeId === episode?.id;
           return { ok: true, watchItem: { ...(existing || {}), key, type: source.type,
             title: episode ? `${item.title} · S${episode.season} B${episode.number}` : item.title + (choice?.label?' · '+choice.label:''),
-            sourceRef: value, localPath: source.type === 'local' ? value : '', position: existing?.completed ? 0 : Number(existing?.position) || 0 } };
+            sourceRef: value, localPath: source.type === 'local' ? value : '', position: exactManual ? resume.positionSeconds : existing?.completed ? 0 : Number(existing?.position) || 0 } };
         }
         case 'import-preview': {
           const dbPath = await choose('nMDB arşiv veritabanını seç', ['db', 'sqlite', 'sqlite3']);

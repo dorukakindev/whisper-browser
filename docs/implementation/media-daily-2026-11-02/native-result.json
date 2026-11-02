@@ -1,0 +1,17 @@
+{
+  "ok": true,
+  "actualWindowsElectron": true,
+  "isolatedProfile": true,
+  "tonight": true,
+  "queuePersistedOnReopen": true,
+  "exactSeriesResume": true,
+  "journalSaved": true,
+  "preferencePreviewReadOnly": true,
+  "preferenceConfirmed": true,
+  "directTwoTitleComparison": true,
+  "widths": [
+    1440,
+    480
+  ],
+  "liveProvider": false
+}

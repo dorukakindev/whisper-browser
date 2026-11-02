@@ -1,0 +1,43 @@
+media-catalog-service: authorization, source validation, preview/apply and conflict passed
+✔ Selection batch saves the chosen exact titles and its receipt can undo them (163.3246ms)
+✔ Collection review is read-only until explicit confirmation; ensures neutral records before existing atomic membership plan (46.3583ms)
+✔ Series resume changes only the specified episode; source-based explanation never invents fit (33.8932ms)
+✔ Ask assistant opens the exact selected film first; existing watch state produces a badge (5.9348ms)
+✔ Film page links focus actual sections with reduced-motion scrolling and can hide the plot (11.8241ms)
+✔ Copy uses canonical title link and poster opens with keyboard focus restoration (17.7856ms)
+✔ Repeated enhancement keeps one navigation and close cleans it up (9.352ms)
+✔ Closing the film page also closes its owned poster preview (8.7856ms)
+✔ tests\media-catalog-service.test.js (0.1072ms)
+✔ Watchlist bucket and order are durable, optimistic revision refuses lost updates (55.3904ms)
+✔ Tonight uses actual watchlist and duration; mood is recorded genre evidence, not invented content (39.0358ms)
+✔ Series continuation honors exact saved episode and position, never creates a missing next episode (51.6745ms)
+✔ Journal appends dated personal history without changing current rating/watch flags; invalid dates and stale saves fail (43.5415ms)
+✔ Global preferences require actual metadata, explicit sender-bound confirmation and real identity; removal is separate (50.8202ms)
+✔ Source overview unifies linked history subtitles and source locators without leaking raw paths (54.9113ms)
+✔ Real catalog playback uses exact manual episode position, while newer playback history wins (53.9317ms)
+✔ discovery translation is cancelable, cached and never silently adds a watchlist record (3.7047ms)
+✔ discovery normalizes trusted image origins, identities and bounded metadata (0.1543ms)
+✔ fixed provider routes, caching, personal exclusions and idempotent watchlist saves (43.7058ms)
+✔ provider HTTP errors and excessive response size do not alter the library (0.936ms)
+✔ imported ratings seed explained recommendations only with matched genre evidence (28.3127ms)
+✔ official Cinemeta redirect is followed; external redirect is rejected before fetching it (0.5408ms)
+✔ exact identity preview is read-only; owner and stale revision guards protect one-shot apply (55.9949ms)
+✔ manual exact episode resume persists without source, touches no earlier episode or real playback history (42.9041ms)
+✔ native browser binding requires actual token+generation and exact episode; query hints never auto-match (40.5698ms)
+✔ verified discovery like creates one unspecified catalog owner; shared native feedback and Recall reactions stay current (98.595ms)
+✔ identity-shared feedback does not cross remakes/domains; note-only keeps an existing explicit positive rating (59.7115ms)
+✔ discovery excludes completed library titles and uses persisted like seeds without marking them watched (57.4557ms)
+✔ onSaved runs only after persisted apply; network failure cannot turn a successful personal save into failure (59.1312ms)
+✔ Aspect feedback persists independently, merges partial edits and retains whole-film/watch state (80.4743ms)
+✔ Personal undo restores only its own unchanged title and rejects later edits, wrong owners and reuse (73.571ms)
+✔ Undo episode resume and aspect reaction preserve unrelated episodes and explicit old feedback (83.3291ms)
+✔ Discovery viewing filters use complete saved library state, while all includes watched catalog results (50.9842ms)
+✔ Personal recommendations expose an actual like seed and collection record creation does not infer watchlist (70.9362ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2072.6061
