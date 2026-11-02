@@ -246,6 +246,11 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
       if (typeof value?.version === 'number' && value.version > 1) fail('Katalog dosyası geçersiz; veri korunuyor.');
     }
     const next = { version: 1, items, folderSnapshots };
+    // A failed ownership snapshot aborts this catalog edit before its bytes or
+    // backup change. A later catalog-write failure leaves only valid old-owner
+    // aliases; no diary, asset, queue or source record is migrated or removed.
+    try{require('./media-title-relations').captureLegacyOwners(path.dirname(filePath),read().items,items,io);}
+    catch(error){throw new Error('Personal relationship ownership could not be preserved. Catalog unchanged; retry after fixing the data or file access.',{cause:error});}
     io.mkdirSync(path.dirname(filePath), { recursive: true });
     const temp = `${filePath}.${randomUUID()}.tmp`;
     try {
