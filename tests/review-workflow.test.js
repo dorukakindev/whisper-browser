@@ -194,3 +194,11 @@ test('Saved spoiler analysis stays absent from workspace DOM until a separate ex
  const entry={identity:{title:'The Matrix',year:1999},analysis:{at:Date.now(),summary:'SECRET PLOT IN SAVED SUMMARY',fit:'Conditional fit.',points:[]},reviews:[{id:'a',text:'A spoiler review describing the SECRET ENDING.',spoiler:true}]},u=ui({},{saved:{history:[entry]}});
  try{const history=u.w.document.querySelector('.mrv-saved-analyses');assert.equal(u.w.document.querySelector('[name=review-spoilers]').checked,false);assert.doesNotMatch(history.textContent,/SECRET PLOT|SECRET ENDING/);assert(history.querySelector('[data-review-spoiler-gate]'));u.click('Reveal this spoiler analysis');await u.wait();assert.match(history.querySelector('.mrv-summary').textContent,/SECRET PLOT/);assert.equal(u.w.document.querySelector('[name=review-spoilers]').checked,false);assert.equal(u.calls.length,0);}finally{u.w.close();}
 });
+
+
+test('A readable source with zero eligible reviews has an empty state and cannot start an AI preview',async()=>{
+ const u=ui();try{
+  u.w.api.mediaTools=async()=>({ok:true,reviews:[],identity:{title:'The Matrix',year:1999},match:{state:'matched'},url:'https://letterboxd.com/film/the-matrix/reviews/'});
+  u.click('Use reviews from open Browser page');await u.wait();assert.equal(u.draft.attempt.state,'empty');assert.match(u.w.document.querySelector('.mrv-job').textContent,/No eligible reviews found/);assert.equal(u.w.document.querySelector('[data-review-action=preview]').hidden,true);
+ }finally{u.w.close();}
+});

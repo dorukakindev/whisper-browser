@@ -24,3 +24,24 @@ test('Film visual rail follows delayed existing artwork and keeps the source rea
   await new Promise(r=>setTimeout(r,0));assert.equal(art.hidden,false);assert.equal(art.querySelector('img').src,image.src);assert.equal(h.w.document.querySelector('.film-review-originals').open,true);assert.equal(h.w.document.querySelector('.film-review-rail .mrv-fit h2').textContent,'Through your lens');
  }finally{h.dom.window.close();}
 });
+
+
+test('Analysis opens the exact source quotation, returns to its point, and retains reader/filter selection on refresh',async()=>{
+ const rows=[...reviews,{id:'r2',author:'Second',text:'Other view of the same scene.'}],value={...analysis,points:[...analysis.points,{id:'r2',quote:'Other view',kind:'criticism',reason:'A different reading.'}]};
+ const h=await setup([{identity:item,analysis:value,reviews:rows}]);try{
+  h.w.HTMLElement.prototype.scrollIntoView=function(){};
+  const jump=h.w.document.querySelector('[data-review-id="r2"].mrv-source-jump');jump.click();await new Promise(r=>setTimeout(r,0));
+  const mark=h.w.document.querySelector('mark');assert.equal(mark.textContent,'Other view');assert.equal(mark.closest('article').dataset.reviewId,'r2');assert.equal(mark.closest('article').textContent.includes('of the same scene.'),true);assert.equal(h.w.document.querySelector('.film-review-originals').open,true);
+  h.w.document.querySelector('.mrv-back-to-point').click();await new Promise(r=>setTimeout(r,0));assert.equal(h.w.document.activeElement,jump);
+  [...h.w.document.querySelector('.film-opinion-filters').children].find(n=>n.textContent==='Criticism').click();await new Promise(r=>setTimeout(r,0));
+  h.w.document.dispatchEvent(new h.w.Event('media-review-updated'));await new Promise(r=>setTimeout(r,0));await new Promise(r=>setTimeout(r,0));
+  assert.equal(h.w.document.querySelector('.film-review-originals .mrv-reader-picker select').value,'r2');assert.equal(h.w.document.querySelector('.film-opinion-filters [aria-pressed=true]').textContent,'Criticism');assert.equal(h.w.document.querySelector('[data-opinion-kind=praise]').hidden,true);
+ }finally{h.dom.window.close();}
+});
+
+test('Personal fit shows only saved explicit priorities and labels a missing profile as conditional',async()=>{
+ const profile={preferencesConfigured:true,preferences:{weights:{story:1,characters:5,pace:0,visuals:4},note:'Character first'}};
+ const h=await setup([{identity:item,analysis,reviews,evidenceSnapshot:{profile}}]),none=await setup([{identity:item,analysis,reviews,evidenceSnapshot:{profile:{}}}]);try{
+  assert.deepEqual([...h.w.document.querySelectorAll('.mrv-preference-chips span')].map(n=>n.textContent),['Characters','Visuals','Story']);assert.match(none.text(),/No saved taste evidence/);assert.equal(none.w.document.querySelector('.mrv-preference-chips'),null);
+ }finally{h.dom.window.close();none.dom.window.close();}
+});
