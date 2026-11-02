@@ -115,8 +115,9 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
         if(['watched','watchlist'].includes(view)){
           const skip=Number(input.skip||0),limit=input.limit===undefined?100:Number(input.limit);if(!Number.isSafeInteger(skip)||skip<0||skip>2000||!Number.isSafeInteger(limit)||limit<1||limit>100)throw Error('Invalid discovery page.');
           const fold=require('./text-fold').search,q=fold(text(input.query,200));
-          let rows=library.filter(i=>/^tt\d{7,12}$/.test(i.imdbId||'')&&i.kind===(input.kind==='series'?'series':'film')&&i.watchStatus===(view==='watched'?'completed':'planned')).filter(i=>!q||fold([i.title,i.originalTitle].join(' ')).includes(q)).filter(i=>!input.genre||(i.genres||[]).some(g=>require('./media-discovery-genres').normalize(g)===input.genre));
+          let rows=library.filter(i=>/^tt\d{7,12}$/.test(i.imdbId||'')&&i.kind===(input.kind==='series'?'series':'film')&&i.watchStatus===(view==='watched'?'completed':'planned')).filter(i=>!q||fold([i.title,i.originalTitle].join(' ')).includes(q)).filter(i=>input.mode==='year'||!input.genre||(i.genres||[]).some(g=>require('./media-discovery-genres').normalize(g)===input.genre));
           if(input.mode==='year')rows=rows.filter(i=>i.year===Number(input.year));
+          if(input.mode==='imdbRating')rows.sort((a,b)=>(Number(b.ratings?.imdb)||0)-(Number(a.ratings?.imdb)||0));
           const mapped=rows.slice(skip,skip+limit).map(i=>personalRow({providerId:i.imdbId,kind:i.kind,title:i.title,year:i.year,genres:i.genres,poster:i.poster||'',rating:Number(i.ratings?.imdb)||null,catalogId:i.id},library,titles));
           return {ok:true,rows:mapped,nextSkip:skip+limit<rows.length?skip+limit:null,genres:GENRES,scope:'saved-library-viewing',total:rows.length};
         }
@@ -124,7 +125,7 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
         return {ok:true,...result,rows:projectRows(result.rows.filter(row=>preferences[row.kind+':'+row.providerId]?.feedback!=='hidden'&&(view==='all'||preferences[row.kind+':'+row.providerId]?.feedback!=='watched'))).filter(row=>view==='all'||row.watchStatus!=='completed').map(row=>({...row,catalogId:owned.get(row.kind+':'+row.providerId)||null})),genres:GENRES};
       }
       if (input.action === 'personal') {
-        const library = catalogStore().list(),titles=personalTitles(), seeds = library.filter(item=>personalState.personal(item,titles).reaction==='like').slice(0,20), owned = new Set(library.map(item => item.imdbId).filter(Boolean));
+        const library = catalogStore().list(),titles=personalTitles(), seeds = library.filter(item=>personalState.personal(item,titles).reaction==='like').slice(0,20), owned = new Set(library.filter(item=>item.imdbId).map(item => item.kind+':'+item.imdbId));
         const selected = new Map();
         let genreProfile=[];
         try{const file=path.join(userData(),'media-shelf.json');if(fs.existsSync(file)&&fs.statSync(file).size<=16_000_000){const shelf=JSON.parse(fs.readFileSync(file,'utf8'));genreProfile=require('./media-taste').profile(shelf.diary||[],library,shelf.tasteProfile||{}).genres;}}catch{/* Existing favorites remain a fallback when the optional profile is unavailable. */}
@@ -135,7 +136,8 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
         const seen = new Set(), rows = [], preferences = feedback();
         for (const result of results) if (result.status === 'fulfilled') for (const row of result.value.rows) {
           const key = `${row.kind}:${row.providerId}`;
-          if (!owned.has(row.providerId) && !seen.has(key) && !preferences[key]) { seen.add(key); rows.push({ ...personalRow(row,library,titles), ...(typeof result.value.seed==='string'?{because:result.value.seed}:(result.value.seed.seedTitle?{because:result.value.seed.seedTitle,recommendationEvidence:result.value.seed}:(result.value.seed.director?{directorBecause:result.value.seed.director}:{profileBecause:result.value.seed}))) }); }
+          const projected=personalRow(row,library,titles);
+          if (!owned.has(key) && !seen.has(key) && !preferences[key] && projected.personalMedia.reaction!=='dislike') { seen.add(key); rows.push({ ...projected, ...(typeof result.value.seed==='string'?{because:result.value.seed}:(result.value.seed.seedTitle?{because:result.value.seed.seedTitle,recommendationEvidence:result.value.seed}:(result.value.seed.director?{directorBecause:result.value.seed.director}:{profileBecause:result.value.seed}))) }); }
         }
         if (results.every(row => row.status === 'rejected')) throw Error('Personal recommendations are temporarily unavailable.');
         return { ok: true, rows: require('./media-daily-service').recommendations(rows,explicit).slice(0,60), needsRatings: false };
@@ -152,6 +154,7 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
         const kind = input.kind === 'series' ? 'series' : 'movie';
         const data = await request(`meta/${kind}/${input.id}.json`), row = normalizeMeta(data.meta, kind);
         if (!row) throw Error('Title metadata is unavailable.');
+        if (row.providerId !== input.id) throw Error('Title identity mismatch.');
         const catalog = catalogStore();
         const existing = catalog.list().find(item => item.imdbId === row.providerId && item.kind === row.kind);
         if (input.action === 'synopsis-translate') {

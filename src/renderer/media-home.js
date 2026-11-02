@@ -10,7 +10,9 @@
     data: model.snapshot([], []), request: 0, render: 0, busy: false, loaded: false, error: '', featuredKey: '', searchOpen: false };
   try{const saved=localStorage.getItem('media-home-featured-v1');if(saved&&saved.length<=8192)state.featuredKey=saved;}catch{}
   let virtualDisposers=[];
-  let feedsView=null,recallView=null;
+  let feedsView=null,recallView=null,feedSnapshot=null;const pagePositions=new Map();
+  function retainFeeds(){if(feedsView?.snapshot)feedSnapshot=feedsView.snapshot();}
+  function retainPage(){if(state.active)pagePositions.set(state.page,host.scrollTop);retainFeeds();}
   let disposeShell = () => {};
   const english = () => window.UiLocale?.get?.() !== 'tr';
   const t = (en, tr) => english() ? en : tr;
@@ -46,6 +48,7 @@
     control.click();
   };
   function setHome(active) {
+    if(!active)retainPage();
     state.active = active;
     if(!active){feedsView?.dispose();feedsView=null;recallView?.dispose();recallView=null;}
     document.body.classList.toggle('media-home-active', active);
@@ -84,7 +87,7 @@
           voice};
         layer.classList.add('hidden');
       }
-      if(state.page==='discover')window.MediaDiscoveryUI?.leave();
+      retainPage();if(state.page==='discover')window.MediaDiscoveryUI?.leave();
       state.page='home';state.query='';renderShell();setHome(true);
     }finally{returningHome=false;}
   }
@@ -295,6 +298,7 @@
     return node;
   }
   function page(value) {
+    retainPage();
     const changed = state.page !== value;
     if (state.page === 'discover') window.MediaDiscoveryUI?.leave();
     state.page = value; state.limit = 48; state.filter = 'all';
@@ -308,7 +312,7 @@
   function renderContent() {
     const content = document.getElementById('mhContent'); if (!content) return;
     if (state.page === 'discover') window.MediaDiscoveryUI?.leave();
-    feedsView?.dispose();feedsView=null;recallView?.dispose();recallView=null;
+    retainFeeds();feedsView?.dispose();feedsView=null;recallView?.dispose();recallView=null;
     const focusKey = content.contains(document.activeElement) ? document.activeElement?.dataset.homeItem : null;
     virtualDisposers.forEach(dispose=>dispose());virtualDisposers=[];
     state.render++; posterQueue = []; posterObserver.disconnect();
@@ -317,6 +321,9 @@
     const status = el('p', 'mh-status'); status.id = 'mhStatus'; status.setAttribute('role', 'status'); content.append(status);
     if (state.error) report(state.error, true);
     else if (!state.loaded) report(t('Loading your library…', 'Kütüphanen yükleniyor…'));
+    if(state.page==='home'&&feedSnapshot?.entryId){
+      const resume=el('div','mh-reading-return');resume.append(el('span','',t('Your reading place is saved.','Kaldığın okuma yeri kayıtlı.')),button(t('Return to Feeds','Akışlarda okumaya dön'),()=>page('feeds'),'mh-text-button'));content.append(resume);
+    }
     if(parked && state.page === 'home'){
       const session=el('section','mh-session');session.id='mhOpenSession';
       const text=el('div');text.append(el('small','',t('Open session · paused','Açık oturum · duraklatıldı')),el('strong','',parked.title),el('p','',[
@@ -387,9 +394,11 @@
         throw Error(t('Open this source from its owning workspace.','Bu kaynağı ait olduğu çalışma alanından aç.'));
       }});
     } else if (state.page === 'feeds' && window.MediaFeedsUI) {
-      feedsView=window.MediaFeedsUI.render({host:content,api:input=>window.api.feedsRequest(input),locale:english()?'en':'tr',onOpen:async request=>{
+      feedsView=window.MediaFeedsUI.render({host:content,restore:feedSnapshot,api:input=>window.api.feedsRequest(input),locale:english()?'en':'tr',onOpen:async request=>{
+        const originRender=state.render,intent=++player.openIntent;
         const result=await window.api.feedsRequest({action:'entry',entryId:request.entryId});
         if(!result?.ok||!result.entry)throw Error(result?.error||t('Source is unavailable.','Kaynak kullanılamıyor.'));
+        if(player.openIntent!==intent||state.page!=='feeds'||state.render!==originRender||!content.isConnected)return;
         const entry=result.entry;
         if(request.mode==='play'&&entry.enclosures?.length){
           const source=entry.enclosures[request.enclosureIndex||0];if(!source?.url)throw Error(t('Media is unavailable.','Medya kullanılamıyor.'));
@@ -397,14 +406,22 @@
           if(!stream?.ok)throw Error(stream?.error||t('Media could not be opened.','Medya açılamadı.'));
           await flushWatchState(false,false);
           const history=await window.api.listWatchLibrary(),previous=history?.find(row=>row.key===stream.key);
+          if(player.openIntent!==intent||state.page!=='feeds'||state.render!==originRender)return;
           stream.title=entry.title;await window.MediaHubUI.playStream(stream,previous?.completed?0:Number(previous?.position)||0);
         }else{
           await flushWatchState(false,false);
+          if(player.openIntent!==intent||state.page!=='feeds'||state.render!==originRender)return;
           document.getElementById('playerLayer').classList.remove('hidden');setWorkspaceMode('browser',false);
+          // Wait for the real browser tab before its initial snapshot can replace
+          // the address. Navigating a null tab races the browser's first show.
+          await new Promise(resolve=>requestAnimationFrame(resolve));await showBrowserWorkspace();
+          if(player.openIntent!==intent||player.workspaceMode!=='browser'||document.getElementById('playerLayer').classList.contains('hidden'))return;
+          if(!player.browserActiveTabId)throw Error(t('Browser is not ready. Reopen the source to retry.','Browser hazır değil. Yeniden denemek için kaynağı aç.'));
           document.getElementById('browserAddress').value=entry.url;
           const opened=await navigateBrowserFromAddress();if(opened?.ok===false)throw Error(opened.error||t('Source could not be opened.','Kaynak açılamadı.'));
         }
       }});
+      const currentView=feedsView,currentRender=state.render;void currentView.ready.then(()=>{if(feedsView===currentView&&state.page==='feeds'&&state.render===currentRender&&state.active)host.scrollTop=pagePositions.get('feeds')||0;});
     } else if (state.page === 'discover' && window.MediaDiscoveryUI) {
       const discovery = el('section', 'md-page'); content.append(discovery); window.MediaDiscoveryUI.mount(discovery);
     } else if (['books', 'music', 'radio', 'taste'].includes(state.page) && window.MediaShelfUI) {
@@ -438,7 +455,7 @@
     if (focusKey) [...content.querySelectorAll('[data-home-item]')].find(node => node.dataset.homeItem === focusKey)?.focus({ preventScroll: true });
   }
   function renderShell() {
-    disposeShell();
+    retainPage();disposeShell();
     const lifetime = new AbortController();
     let openTimer, closeTimer, resizeFrame;
     const focused = document.activeElement?.id;

@@ -9,6 +9,27 @@ function overlay(){
   const snapshot=(values={})=>receive({locale:'en',theme:'dark',sourceToken:'A:1',conversation:'A',context:'Film A',messages:[],suggestions:[],...values});
   return {dom,w,commands,snapshot,$:id=>w.document.getElementById(id)};
 }
+
+test('Closing an excerpt stays closed when a streaming snapshot arrives before its toggle event',()=>{
+ const ui=overlay();try{
+  const messages=text=>[{id:'answer',role:'ai',text,links:[{id:'F1',label:'Source one',excerpt:'Exact source excerpt'}]}];
+  ui.snapshot({messages:messages('First')});ui.w.document.querySelector('.source-card').open=true;
+  ui.snapshot({messages:messages('Second')});assert.equal(ui.w.document.querySelector('.source-card').open,true);
+  ui.w.document.querySelector('.source-card').open=false;
+  ui.snapshot({messages:messages('Third')});assert.equal(ui.w.document.querySelector('.source-card').open,false);
+ }finally{ui.w.close();}
+});
+
+test('Repeated citations restore keyboard focus to the same message source control',()=>{
+ for(const excerpt of [undefined,'Exact source excerpt']){
+  const ui=overlay();try{
+   const messages=[{id:'earlier',role:'ai',text:'Earlier answer',links:[{id:'F1',label:'Shared source',excerpt}]},{id:'later',role:'ai',text:'Later answer',links:[{id:'F1',label:'Shared source',excerpt}]}];
+   ui.snapshot({messages});for(const card of ui.w.document.querySelectorAll('.source-card'))card.open=true;
+   ui.w.document.querySelectorAll('[data-citation-id]')[1].focus();ui.snapshot({messages,busy:true});
+   const focused=ui.w.document.activeElement;assert.equal(focused.dataset.citationId,'F1');assert.equal(focused.closest('.message').querySelector('.message-actions').dataset.messageKey,'later');
+  }finally{ui.w.close();}
+ }
+});
 test('Assistant drafts are source-specific and only matching accepted receipts clear the sent draft',()=>{
  const ui=overlay();try{
   ui.snapshot();ui.$('text').value='Question for A';ui.$('text').dispatchEvent(new ui.w.Event('input'));ui.$('form').dispatchEvent(new ui.w.Event('submit',{cancelable:true}));
@@ -140,3 +161,6 @@ test('empty greeting updates as an attached source becomes available without rep
   ui.snapshot({opened:true});ui.$('conversationMenu').open=true;ui.$('threadSettings').click();ui.$('deleteThread').click();ui.w.document.dispatchEvent(new ui.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));assert(ui.$('review').hidden,'Escape cancels the active decision before closing its underlying menu');assert.equal(ui.w.document.activeElement,ui.$('deleteThread'));
  }finally{ui.dom.window.close()}
 });
+
+
+test('Evidence disclosure keeps answers compact and survives streaming updates without losing the source action',()=>{const ui=overlay();try{const messages=[{id:'reply',role:'ai',text:'Answer',links:[{id:'F1',label:'Cinema journal',excerpt:'Actual source excerpt.',translation:'Kaynak çevirisi.'}]}];ui.snapshot({messages});const card=ui.w.document.querySelector('details.source-card');assert(card);assert.equal(card.open,false);assert.equal(card.querySelector('summary').textContent,'Cinema journalRead excerpt');card.open=true;card.querySelector('summary').focus();ui.snapshot({messages:[{...messages[0],text:'Answer continued'}]});const restored=ui.w.document.querySelector('details.source-card');assert.equal(restored.open,true);assert.equal(ui.w.document.activeElement,restored.querySelector('summary'));restored.querySelector('button').click();assert.equal(ui.commands.at(-1).action,'citation');assert.equal(ui.commands.at(-1).text,'F1');ui.snapshot({conversation:'B',messages});assert.equal(ui.w.document.querySelector('details.source-card').open,false);}finally{ui.w.close();}});
