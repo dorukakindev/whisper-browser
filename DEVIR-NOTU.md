@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-03-0000.md](docs/devir/2026-11-03-0000.md) — R846 kaynak, kişisel veri ve taşıma onarımları
 Güncel çalışma: [docs/devir/2026-11-02-2337.md](docs/devir/2026-11-02-2337.md) — R844 onarımları ve araştırma kartları
 Güncel çalışma: [docs/devir/2026-11-02-2317.md](docs/devir/2026-11-02-2317.md) — RSS, Keşfet ve kaynak bağlı asistan
 Güncel çalışma: [docs/devir/2026-11-02-1215.md](docs/devir/2026-11-02-1215.md) — Türkçe izleme akışı, üretim öncesi kaynak denetimi ve uzun asistan işi
