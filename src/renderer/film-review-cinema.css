@@ -54,3 +54,37 @@
 
 .media-title-page .film-review-originals .mrv-reader-picker { flex: none; width:100%; align-self:start; }
 .media-title-page .film-review-originals .mrv-reader-picker select { height:42px; min-height:42px; }
+
+/* Review workflow: compact control desk and directly traceable source evidence. */
+.media-title-page .film-review-editor { margin:24px 0; }
+.media-title-page .film-review-editor .mrv-control-room { background:var(--bg-1);border:1px solid var(--border);border-radius:12px;padding:24px;margin:0; }
+.media-title-page .mrv-control-room > h2 { font-size:20px;letter-spacing:-.02em;margin:0 0 18px; }
+.media-title-page .mrv-control-room .mrv-sampling { display:flex;align-items:end;flex-wrap:wrap;gap:16px 24px; }
+.media-title-page .mrv-control-room .mrv-auto-controls { display:grid;grid-template-columns:100px minmax(150px,220px);gap:16px;margin:0;max-width:none; }
+.media-title-page .mrv-control-room .mtx-field { margin:0; }
+.media-title-page .mrv-control-room .mrv-auto-controls :is(input,select) { height:40px;min-height:40px;font-size:13px; }
+.media-title-page .mrv-control-room .mtx-actions { margin:0;gap:10px; }
+.media-title-page .mrv-control-room .mrv-job { display:flex;align-items:center;justify-content:space-between;gap:16px;margin:20px 0 0;padding:14px 0 0;border:0;border-top:1px solid var(--border);background:none; }
+.media-title-page .mrv-control-room .mrv-job strong { font-size:13px;font-weight:500; }
+.media-title-page .mrv-control-room .mrv-job p { font-size:13px;line-height:1.75;margin:6px 0 0;color:var(--text-dim); }
+.media-title-page .mrv-control-room .mrv-job[aria-busy=true] strong::before { content:'';display:inline-block;width:10px;height:10px;margin-right:8px;border:1.5px solid var(--border-strong);border-top-color:var(--accent);border-radius:50%;animation:mrv-working 900ms linear infinite; }
+.media-title-page .mrv-control-room .mrv-job[data-state=failed] { border-top-color:var(--danger,var(--border-strong)); }
+.media-title-page .mrv-control-room .mrv-manual { margin-top:20px;border-top:1px solid var(--border);padding-top:16px; }
+.media-title-page .mrv-control-room .mrv-manual > summary { color:var(--text-dim);font-size:13px; }
+.media-title-page .mrv-control-room .mrv-manual > .mtx-field { margin-top:16px; }
+.media-title-page .mrv-preference-chips { display:flex;gap:7px;flex-wrap:wrap;margin:0 0 14px; }
+.media-title-page .mrv-preference-chips > span { color:var(--text);font-size:12px;line-height:1.5;padding:4px 8px;border:1px solid var(--border);border-radius:5px; }
+.media-title-page .mrv-fit-limited { font-size:12px;line-height:1.7;color:var(--text-dim);border-left:2px solid var(--border-strong);padding-left:12px;margin:0 0 16px; }
+.media-title-page .film-review-content .mrv-source-jump { grid-column:1;justify-self:start;background:transparent;border:0;padding:6px 0;color:var(--accent);font-size:12px;text-align:left; }
+.media-title-page .film-review-content .mrv-point > .mrv-source-jump { grid-row:3; }
+.media-title-page .mrv-source-highlight { color:inherit;background:color-mix(in srgb,var(--accent) 24%,transparent);border-bottom:1px solid var(--accent);padding:2px 0;scroll-margin-block:120px; }
+.media-title-page .mrv-back-to-point { font-size:12px;margin-top:12px;background:transparent;border:0;color:var(--accent);padding:6px 0; }
+.media-title-page .film-review-section[data-review-state=error] > .film-review-status { padding:12px 16px;border-left:2px solid var(--danger,var(--border-strong));background:var(--bg-1);color:var(--text); }
+.media-title-page .film-review-section[data-review-state=loading] > .film-review-status { color:var(--text-dim); }
+@keyframes mrv-working { to { transform:rotate(360deg); } }
+@media(max-width:1000px){.media-title-page .film-review-content .mrv-point > p { grid-row:4; }}
+@media(max-width:600px){.media-title-page .film-review-editor .mrv-control-room { padding:18px; }.media-title-page .mrv-control-room .mrv-sampling { align-items:stretch; }.media-title-page .mrv-control-room .mrv-auto-controls { width:100%;grid-template-columns:90px minmax(0,1fr); }.media-title-page .mrv-control-room .mrv-job { flex-wrap:wrap; }}
+@media(prefers-reduced-motion:reduce){.media-title-page .mrv-control-room .mrv-job[aria-busy=true] strong::before { animation:none; }}
+
+.media-title-page .mrv-control-room .mrv-auto-controls .mtx-field:first-child { order:0; }
+.media-title-page .mrv-control-room .mtx-field > span { font-size:12px;font-weight:400;line-height:1.5; }

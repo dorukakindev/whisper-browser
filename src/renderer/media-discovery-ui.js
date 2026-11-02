@@ -31,7 +31,7 @@
     let translationToken = null, personalView = null;
     const mediaOrigin = document.activeElement?.closest?.('[data-discovery-id]')?.dataset.discoveryId === row.providerId ? window.UiMotion?.captureMedia(document.activeElement.closest('[data-discovery-id]')) : null;
     if(!document.body.classList.contains('media-home-active')||!document.getElementById('playerLayer')?.classList.contains('hidden'))await window.MediaHomeUI.returnHome();
-    const dialog = window.MediaTitleUI.createPage('md-detail media-surface'); dialog.dataset.uiUntranslated = ''; dialog.setAttribute('aria-label', row.title);
+    const dialog = window.MediaTitleUI.createPage('md-detail media-surface',{key:JSON.stringify(['discovery',row.kind,row.providerId,row.year])}); dialog.dataset.uiUntranslated = ''; dialog.setAttribute('aria-label', row.title);
     const close = btn(t('← Back to Discover','← Keşfete dön'), () => dialog.close(), 'mh-action md-page-back'); close.setAttribute('aria-label', t('Close details', 'Ayrıntıları kapat'));
     const placeholder = el('p', 'md-status', t('Loading details…', 'Ayrıntılar yükleniyor…')); placeholder.setAttribute('role', 'status'); dialog.append(close, placeholder);
     if(row.feedback)dialog.append(btn(t('Undo preference', 'Tercihi geri al'),async()=>{await api('feedback',{id:row.providerId,kind:row.kind,title:row.title,state:'none'});if(!dialog.open)return;state.rows=state.rows.filter(item=>item.providerId!==row.providerId||item.kind!==row.kind);dialog.close();cards();}));
@@ -104,7 +104,7 @@
     side.append(credits,options);lower.append(narrative,side);
     body.append(image(item.poster || row.poster, 'md-detail-poster'),content);hero.append(background,body);dialog.append(hero,lower);
     const reviewSection=el('section','mtd-review');lower.append(reviewSection);window.MediaReviewDecision?.mountTitle(reviewSection,{...item,id:`discovery:${item.kind}:${item.providerId}`,imdbId:item.providerId,discovery:{kind:item.kind,id:item.providerId}});window.FilmContextFeatures?.mount(narrative,{...item,id:`discovery:${item.kind}:${item.providerId}`,imdbId:item.providerId,discovery:{kind:item.kind,id:item.providerId}},()=>details(row));window.FilmPageEnhancements?.enhance(dialog,item);
-    window.UiMotion?.mediaTransfer(mediaOrigin, dialog.querySelector('.md-detail-poster'));
+    dialog.restorePosition?.();window.UiMotion?.mediaTransfer(mediaOrigin, dialog.querySelector('.md-detail-poster'));
     window.UiMotion?.reveal(dialog, 'page');
   }
   function drawFeature() {
