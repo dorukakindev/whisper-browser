@@ -1,0 +1,17 @@
+'use strict';
+// Isolated Windows app startup and actual renderer/catalog IPC acceptance. No personal profile or provider calls.
+const {app,BrowserWindow}=require('electron'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..'),out=path.join(root,'tmp','assistant-command-native-'+Date.now()),profile=path.join(out,'profile');fs.mkdirSync(profile,{recursive:true});app.setAppPath(root);process.env.WHISPER_RESOURCE_SOAK_USER_DATA=profile;
+for(const flag of ['disable-gpu','disable-backgrounding-occluded-windows','disable-renderer-backgrounding'])app.commandLine.appendSwitch(flag);
+const store=require('../src/media-catalog-store').createMediaCatalogStore({filePath:path.join(profile,'media-catalog.json')});
+const a=store.upsert({kind:'film',title:'Controlled short film',year:2020,runtime:90,watchStatus:'planned'}),b=store.upsert({kind:'film',title:'Controlled second film',year:2021,runtime:80,watchStatus:'planned'});store.upsert({kind:'film',title:'Controlled watched film',year:2020,runtime:95,watchStatus:'completed'});
+global.fetch=async()=>{throw Error('External network disabled in this acceptance');};require('../src/main');
+const pause=ms=>new Promise(r=>setTimeout(r,ms));async function until(fn){for(let i=0;i<250;i++){const r=await fn();if(r)return r;await pause(80);}throw Error('Application startup timeout');}
+app.whenReady().then(async()=>{
+ const win=await until(()=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('index.html')&&!w.webContents.isLoading()));const run=c=>win.webContents.executeJavaScript('(async()=>{'+c+'})()',true);
+ await run('await initialSettingsReady; await MediaHomeUI.navigate("home");return true');
+ const observed=await run('const owner=AssistantAppActions.snapshot();const args={filters:{and:[{field:"kind",op:"eq",value:"film"},{field:"watch_status",op:"eq",value:"planned"},{field:"runtime_minutes",op:"lte",value:100}]},limit:1};const first=await AssistantAppActions.execute("query_media_library",args,owner);const second=await AssistantAppActions.execute("query_media_library",first.next,owner);return {owner,first,second,loaded:typeof AssistantPlaybackMath.calculate==="function",available:AssistantCapabilities.list(owner).some(t=>t.name==="get_action_options")}');
+ assert.equal(observed.loaded,true);assert.equal(observed.available,true);assert.equal(observed.first.status,'completed');assert.equal(observed.first.total,2);assert.equal(observed.second.total,2);assert.equal(observed.first.snapshotRevision,observed.second.snapshotRevision);assert.deepEqual([observed.first.items[0].item_id,observed.second.items[0].item_id].sort(),['catalog:'+a.id,'catalog:'+b.id].sort());
+ const inventory=require('../src/assistant-action-options').getActionOptions(observed.owner,{domain:'library'});assert(inventory.tools.some(t=>t.name==='query_media_library'));assert(inventory.tools.every(t=>t.readiness.verified===false));
+ fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({ok:true,actualWindowsElectron:true,isolatedProfile:true,actualCatalogIpc:true,actualRendererQuery:true,revisionPaging:true,playbackHelperLoaded:true,workspaceInventory:true,liveProvider:false,personalProfileUsed:false},null,2));console.log(JSON.stringify({ok:true,out,actualWindowsElectron:true,liveProvider:false}));app.exit(0);
+}).catch(e=>{console.error(e.stack);app.exit(1)});setTimeout(()=>app.exit(2),35000).unref();

@@ -106,3 +106,10 @@ test('Standard tier omits Flex through compatibility retries and reasoning signa
  await run({question:'Hello',owner,config:{...config,endpoint:'https://api.deepinfra.com/v1/openai',serviceTier:'standard'},onProgress:p=>phases.push(p),onDelta:t=>text.push(t),execute:async()=>{},fetchImpl:async(_,r)=>{requests.push(JSON.parse(r.body));return ++count===1?new Response('{"error":"tools unsupported"}',{status:400}):sse(event({reasoning_content:'private provider metadata'})+event({content:'Done'}));}});
  assert(requests.every(r=>!Object.hasOwn(r,'service_tier')));assert.deepEqual(phases,['reasoning','writing']);assert.deepEqual(text,['Done']);
 });
+
+
+test('Unsupported current-source duration receives one evidence correction without repeating the tool',async()=>{
+ const requests=[],calls=[];let turn=0;
+ const result=await run({question:'How long is left?',owner:{...owner,hasMedia:true},config,execute:async name=>{calls.push(name);return {status:'unsupported',reason:'Current media has no finite duration.'};},fetchImpl:async(_,request)=>{requests.push(JSON.parse(request.body));if(++turn===1)return json({role:'assistant',tool_calls:[{id:'time',function:{name:'calculate_playback_time',arguments:'{}'}}]});if(turn===2)return json({role:'assistant',content:'There are 30 minutes left.'});return json({role:'assistant',content:'A finite duration is unavailable, so I cannot calculate the remaining time.'});}});
+ assert.deepEqual(calls,['calculate_playback_time']);assert.equal(requests.length,3);assert.match(requests[2].messages.at(-1).content,/Final evidence check.*unsupported/);assert(!result.text.includes('30 minutes'));assert.match(result.text,/cannot calculate/);
+});
