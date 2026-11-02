@@ -110,30 +110,37 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
         return { ok:true };
       }
       if (input.action === 'list') {
-        const result = await list(input);
-        const preferences = feedback();
-        const owned = new Map(catalogStore().list().filter(row => row.imdbId).map(row => [row.imdbId, row.id]));
-        return { ok: true, ...result, rows: projectRows(result.rows.filter(row => !preferences[`${row.kind}:${row.providerId}`])).filter(row=>row.watchStatus!=='completed').map(row => ({ ...row, catalogId: owned.get(row.providerId) || null })), genres: GENRES };
+        const view=input.view||'unwatched';if(!['all','unwatched','watched','watchlist'].includes(view))throw Error('Invalid viewing filter.');
+        const library=catalogStore().list(),titles=personalTitles(),preferences=feedback();
+        if(['watched','watchlist'].includes(view)){
+          const skip=Number(input.skip||0),limit=input.limit===undefined?100:Number(input.limit);if(!Number.isSafeInteger(skip)||skip<0||skip>2000||!Number.isSafeInteger(limit)||limit<1||limit>100)throw Error('Invalid discovery page.');
+          const fold=require('./text-fold').search,q=fold(text(input.query,200));
+          let rows=library.filter(i=>/^tt\d{7,12}$/.test(i.imdbId||'')&&i.kind===(input.kind==='series'?'series':'film')&&i.watchStatus===(view==='watched'?'completed':'planned')).filter(i=>!q||fold([i.title,i.originalTitle].join(' ')).includes(q)).filter(i=>!input.genre||(i.genres||[]).some(g=>require('./media-discovery-genres').normalize(g)===input.genre));
+          if(input.mode==='year')rows=rows.filter(i=>i.year===Number(input.year));
+          const mapped=rows.slice(skip,skip+limit).map(i=>personalRow({providerId:i.imdbId,kind:i.kind,title:i.title,year:i.year,genres:i.genres,poster:i.poster||'',rating:Number(i.ratings?.imdb)||null,catalogId:i.id},library,titles));
+          return {ok:true,rows:mapped,nextSkip:skip+limit<rows.length?skip+limit:null,genres:GENRES,scope:'saved-library-viewing',total:rows.length};
+        }
+        const result=await list(input),owned=new Map(library.filter(row=>row.imdbId).map(row=>[row.kind+':'+row.imdbId,row.id]));
+        return {ok:true,...result,rows:projectRows(result.rows.filter(row=>preferences[row.kind+':'+row.providerId]?.feedback!=='hidden'&&(view==='all'||preferences[row.kind+':'+row.providerId]?.feedback!=='watched'))).filter(row=>view==='all'||row.watchStatus!=='completed').map(row=>({...row,catalogId:owned.get(row.kind+':'+row.providerId)||null})),genres:GENRES};
       }
       if (input.action === 'personal') {
         const library = catalogStore().list(),titles=personalTitles(), seeds = library.filter(item=>personalState.personal(item,titles).reaction==='like').slice(0,20), owned = new Set(library.map(item => item.imdbId).filter(Boolean));
-        const aliases = require('./media-discovery-genres').aliases;
         const selected = new Map();
         let genreProfile=[];
         try{const file=path.join(userData(),'media-shelf.json');if(fs.existsSync(file)&&fs.statSync(file).size<=16_000_000){const shelf=JSON.parse(fs.readFileSync(file,'utf8'));genreProfile=require('./media-taste').profile(shelf.diary||[],library,shelf.tasteProfile||{}).genres;}}catch{/* Existing favorites remain a fallback when the optional profile is unavailable. */}
-        for(const row of genreProfile.filter(row=>row.average>=3.5&&row.count>=2).sort((a,b)=>b.count*(b.average-2.5)-a.count*(a.average-2.5))){const genre=aliases[row.name]||row.name;if(GENRES.includes(genre))selected.set(genre,{genre:row.name,count:row.count,average:row.average});}
-        for (const seed of seeds) for (const name of seed.genres || []) { const genre = aliases[name] || name; if (GENRES.includes(genre) && !selected.has(genre)) selected.set(genre, seed.title); }
+        for(const row of genreProfile.filter(row=>row.average>=3.5&&row.count>=2).sort((a,b)=>b.count*(b.average-2.5)-a.count*(a.average-2.5))){const genre=require('./media-discovery-genres').normalize(row.name);if(GENRES.includes(genre))selected.set(genre,{genre:row.name,count:row.count,average:row.average});}
+        for (const seed of seeds) for (const name of seed.genres || []) { const genre = require('./media-discovery-genres').normalize(name); if (GENRES.includes(genre) && !selected.has(genre)) selected.set(genre,{genre,seedTitle:seed.title,seedId:seed.id,seedImdbId:seed.imdbId,reaction:'like'}); }
         if (!selected.size) return { ok: true, rows: [], needsRatings: true };
         const results = await Promise.allSettled([...selected].slice(0, 3).map(async ([genre, seed]) => ({ seed, rows: (await list({ kind: input.kind, genre })).rows })));
         const seen = new Set(), rows = [], preferences = feedback();
         for (const result of results) if (result.status === 'fulfilled') for (const row of result.value.rows) {
           const key = `${row.kind}:${row.providerId}`;
-          if (!owned.has(row.providerId) && !seen.has(key) && !preferences[key]) { seen.add(key); rows.push({ ...personalRow(row,library,titles), ...(typeof result.value.seed==='string'?{because:result.value.seed}:{profileBecause:result.value.seed}) }); }
+          if (!owned.has(row.providerId) && !seen.has(key) && !preferences[key]) { seen.add(key); rows.push({ ...personalRow(row,library,titles), ...(typeof result.value.seed==='string'?{because:result.value.seed}:(result.value.seed.seedTitle?{because:result.value.seed.seedTitle,recommendationEvidence:result.value.seed}:{profileBecause:result.value.seed})) }); }
         }
         if (results.every(row => row.status === 'rejected')) throw Error('Personal recommendations are temporarily unavailable.');
         return { ok: true, rows: rows.slice(0, 60), needsRatings: false };
       }
-      if (input.action === 'detail' || input.action === 'add' || input.action === 'synopsis-translate' || input.action === 'synopsis-stop') {
+      if (input.action === 'detail' || input.action === 'add' || input.action === 'ensure-record' || input.action === 'synopsis-translate' || input.action === 'synopsis-stop') {
         if (!/^tt\d{7,12}$/.test(input.id || '') || !['film', 'series'].includes(input.kind)) throw Error('Invalid title identity.');
         const previewId = `${input.kind}:${input.id}`;
         const requestKey = `${previewId}:${input.token}`;
@@ -171,7 +178,7 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
         let saved;
         const translatedPreview=previews.get(previewId),translation=translatedPreview?.synopsis===row.synopsis&&translatedPreview.synopsisTr
           ? {synopsisTr:translatedPreview.synopsisTr,synopsisTrSource:translatedPreview.synopsisTrSource}:{};
-        try { saved = catalog.upsert({ kind: row.kind, title: row.title, year: row.year, synopsis: row.synopsis, ...translation, imdbId: row.providerId, genres: row.genres, cast: row.cast, directors:row.directors,runtime: row.runtime, ratings: { imdb: row.rating === null ? null : String(row.rating) }, watchStatus: 'planned', ...(posterPath ? { posterPath } : {}) }); }
+        try { saved = catalog.upsert({ kind: row.kind, title: row.title, year: row.year, synopsis: row.synopsis, ...translation, imdbId: row.providerId, genres: row.genres, cast: row.cast, directors:row.directors,runtime: row.runtime, ratings: { imdb: row.rating === null ? null : String(row.rating) }, watchStatus: input.action==='ensure-record'?'unspecified':'planned', ...(posterPath ? { posterPath } : {}) }); }
         catch (error) { if (posterPath) { try { fs.unlinkSync(posterPath); } catch {} } throw error; }
         return { ok: true, item: saved, existing: false };
       }

@@ -3,7 +3,7 @@
   const t = (en, tr) => window.UiLocale?.get?.() === 'tr' ? tr : en;
   const failure = error => window.MediaDiscoveryErrors?.message(error,window.UiLocale?.get?.()) || error?.message || String(error);
   const el = (tag, cls, text) => { const node = document.createElement(tag); if (cls) node.className = cls; if (text !== undefined) node.textContent = String(text); return node; };
-  const state = { root: null, tab: 'browse', kind: 'film', mode: 'top', genre: '', year: new Date().getFullYear(), query: '', rows: [], skip: 0, next: null, request: 0, busy: false, loadError: false };
+  const state = { root: null, tab: 'browse', kind: 'film', mode: 'top', genre: '', year: new Date().getFullYear(), query: '', view:'unwatched', rows: [], skip: 0, next: null, request: 0, busy: false, loadError: false };
   const btn = (label, callback, cls = 'mh-action') => {
     const node = el('button', cls, label); node.type = 'button';
     node.addEventListener('click', () => Promise.resolve().then(callback).catch(error => { const local=node.closest('.media-title-page')?.querySelector('.md-status');if(local){local.textContent=failure(error);local.classList.add('mh-error');}else status(failure(error), true); })); return node;
@@ -126,26 +126,16 @@
     hero.append(artwork, copy); slot.append(hero);
   }
   let closeCardMenu=null;
-  const quickPending=new Set();
-  async function setCardWatchState(row,watchStatus){
-    const key=row.kind+':'+row.providerId;if(quickPending.has(key))return;quickPending.add(key);
-    const root=state.root,identity={kind:row.kind,imdbId:row.providerId},owner={sourceToken:'discovery-card:'+crypto.randomUUID(),thread:'discovery-card'};
-    const personal=async input=>{const r=await window.api.personalMedia(input);if(!r?.ok)throw Error(r?.error||t('Could not save viewing status.','İzlenme durumu kaydedilemedi.'));return r;};
-    status(t('Saving viewing status…','İzlenme durumu kaydediliyor…'));
-    try{const preview=await personal({action:'preview',identity,owner,changes:{watchStatus}});if(!preview.token)throw Error(t('Viewing preview unavailable.','İzlenme önizlemesi oluşturulamadı.'));const result=await personal({action:'apply',token:preview.token,owner});
-      document.dispatchEvent(new Event('media-library-changed'));
-      if(state.root===root&&root?.isConnected){row.personalMedia=result.item;row.catalogId=result.item.catalogId;if(watchStatus==='completed'&&state.tab!=='preferences')state.rows=state.rows.filter(r=>r.kind!==row.kind||r.providerId!==row.providerId);cards();status(result.networkSync?.ok===false?t('Viewing status saved; taste network could not be synchronized.','İzlenme durumu kaydedildi; zevk ağı eşitlenemedi.'):watchStatus==='completed'?t('Marked as watched.','İzlendi olarak kaydedildi.'):t('Added to your watchlist.','İzleme listene eklendi.'));}
-      document.dispatchEvent(new CustomEvent('media-personal-changed',{detail:{catalogId:result.item.catalogId,identity:result.item.identity,personalMedia:result.item}}));
-    }catch(error){if(state.root===root)status(failure(error),true);}finally{quickPending.delete(key);}
-  }
+  let personalActions=null,personalRoot=null;
+  async function setCardWatchState(row,watchStatus){return personalActions?.update(row,{watchStatus});}
   function cardMenu(event,card,row){
     event.preventDefault();event.stopPropagation();closeCardMenu?.();
     const root=state.root,menu=el('div','md-card-menu media-surface'),abort=new AbortController();menu.setAttribute('role','menu');menu.setAttribute('aria-label',row.title+' · '+t('Viewing status','İzlenme durumu'));menu.append(el('span','md-card-menu-heading',t('My viewing','İzleme durumum')));
     const close=(focus=false)=>{abort.abort();observer.disconnect();menu.remove();card.setAttribute('aria-expanded','false');if(closeCardMenu===close)closeCardMenu=null;if(focus&&card.isConnected)card.focus({preventScroll:true});};closeCardMenu=close;
-    for(const [value,label]of [['completed',t('Watched','İzledim')],['planned',t('Want to watch','İzleyeceğim')]]){const b=el('button','',label);b.type='button';b.setAttribute('role','menuitem');b.disabled=quickPending.has(row.kind+':'+row.providerId);b.onclick=()=>{close(true);void setCardWatchState(row,value);};menu.append(b);}
+    let buttons=[];const position=()=>{const r=card.getBoundingClientRect(),box=menu.getBoundingClientRect(),keyboard=event.type==='keydown',x=keyboard?r.left:event.clientX,y=keyboard?r.top+Math.min(r.height,40):event.clientY;menu.style.left=Math.max(8,Math.min(x,innerWidth-box.width-8))+'px';menu.style.top=Math.max(8,Math.min(y,innerHeight-box.height-8))+'px';};
+    const show=(more=false)=>{menu.querySelectorAll('button').forEach(n=>n.remove());const entries=personalActions?personalActions.menu(row,more):[{label:t('Watched','İzledim'),run:()=>setCardWatchState(row,'completed')},{label:t('Want to watch','İzleyeceğim'),run:()=>setCardWatchState(row,'planned')}];for(const entry of entries){const b=el('button','',entry.label);b.type='button';b.setAttribute('role',entry.checked===undefined?'menuitem':'menuitemcheckbox');if(entry.checked!==undefined)b.setAttribute('aria-checked',String(entry.checked));if(entry.more||entry.back)b.setAttribute('aria-haspopup','menu');b.disabled=!!personalActions?.isBusy();b.onclick=()=>{if(entry.more||entry.back){show(!!entry.more);return;}close(true);Promise.resolve().then(entry.run).catch(error=>status(failure(error),true));};menu.append(b);}buttons=[...menu.querySelectorAll('button')];position();buttons.find(b=>!b.disabled)?.focus({preventScroll:true});};
     document.body.append(menu);card.setAttribute('aria-expanded','true');
-    const r=card.getBoundingClientRect(),box=menu.getBoundingClientRect(),keyboard=event.type==='keydown',x=keyboard?r.left:event.clientX,y=keyboard?r.top+Math.min(r.height,40):event.clientY;menu.style.left=Math.max(8,Math.min(x,innerWidth-box.width-8))+'px';menu.style.top=Math.max(8,Math.min(y,innerHeight-box.height-8))+'px';
-    const buttons=[...menu.querySelectorAll('button')];buttons[0]?.focus({preventScroll:true});
+    show();
     document.addEventListener('pointerdown',e=>{if(!menu.contains(e.target))close();},{capture:true,signal:abort.signal});
     document.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close(true);}else if(e.key==='Tab')close();else if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();const i=buttons.indexOf(document.activeElement),next=e.key==='Home'?0:e.key==='End'?buttons.length-1:(i+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;buttons[next].focus();}},{capture:true,signal:abort.signal});
     window.addEventListener('resize',()=>close(),{signal:abort.signal});document.addEventListener('scroll',e=>{if(!menu.contains(e.target))close();},{capture:true,signal:abort.signal});
@@ -163,16 +153,17 @@
         grid.append(tile);
       }
     }
+    personalActions?.toolbar(state.root.querySelector('.md-personal-slot'));
     for (const row of state.rows) {
-      const card = btn('', () => details(row), 'mh-card md-card'); card.dataset.discoveryId = row.providerId;card.setAttribute('aria-haspopup','menu');card.addEventListener('contextmenu',event=>cardMenu(event,card,row));card.addEventListener('keydown',event=>{if(event.key==='ContextMenu'||event.shiftKey&&event.key==='F10')cardMenu(event,card,row);});
-      const poster = image(row.poster, 'mh-art');
+      const card = btn('', () => personalActions?.isSelecting()?personalActions.toggleRow(row):details(row), 'mh-card md-card'); card.dataset.discoveryId = row.providerId;card.setAttribute('aria-haspopup','menu');card.addEventListener('contextmenu',event=>cardMenu(event,card,row));card.addEventListener('keydown',event=>{if(event.key==='ContextMenu'||event.shiftKey&&event.key==='F10')cardMenu(event,card,row);});
+      const poster = image(row.poster, 'mh-art');if(personalActions?.isSelecting()){card.setAttribute('aria-pressed',String(personalActions.isSelected(row)));card.classList.toggle('md-card-selected',personalActions.isSelected(row));poster.append(el('span','md-card-selector',personalActions.isSelected(row)?'✓':''));}const badge=personalActions?.badge(row);if(badge)poster.append(badge);if(row.catalogId&&!poster.querySelector('img')&&window.api.mediaCatalog)void window.api.mediaCatalog({action:'poster',id:row.catalogId}).then(r=>{if(poster.isConnected&&r?.ok&&/^data:image\/png;base64,/.test(r.image||'')){const img=el('img');img.src=r.image;img.alt='';poster.prepend(img);poster.classList.remove('md-art-empty');}}).catch(()=>{});
       if (row.rating) { const rating=el('span','md-rating',String(row.rating)); rating.setAttribute('aria-label', t('IMDb rating ','IMDb puanı ')+row.rating+'/10'); poster.append(rating); }
       card.append(poster, el('span', 'mh-card-title', row.title),
         el('span', 'mh-card-meta', [row.year, row.catalogId ? t('In library', 'Kütüphanede') : ''].filter(Boolean).join(' · ')));
       if (row.because) card.append(el('span', 'md-reason', t(`Because you liked ${row.because}`, `${row.because} beğeninden dolayı`)));
       if(row.profileBecause){const r=row.profileBecause;card.append(el('span','md-reason',t(`${r.genre} · ${r.count} ratings, ${r.average.toFixed(1)}/5`,`${r.genre} · ${r.count} puan, ${r.average.toFixed(1)}/5`)));}
       if (row.feedback) card.append(el('span','md-reason', row.feedback === 'watched' ? t('Watched','İzlendi') : t('Not interested','İlgilenilmiyor')));
-      if(row.personalMedia)card.append(el('span','pm-card-summary',window.PersonalMediaUI?.summary(row.personalMedia)||''));
+      if(row.personalMedia&&(row.personalMedia.reaction||row.personalMedia.manualResume||row.personalMedia.effectiveResume||row.personalMedia.note))card.append(el('span','pm-card-summary',window.PersonalMediaUI?.summary(row.personalMedia)||''));
       grid.append(card);
     }
     if (!state.rows.length && !state.busy && !state.loadError) grid.append(el('p', 'mh-empty', state.tab === 'preferences' ? t('No hidden or watched preferences. You can undo preferences here.', 'Gizlenen veya izlenen tercihi yok. Tercihlerini buradan geri alabilirsin.') : state.tab === 'personal'
@@ -186,7 +177,7 @@
     if (!root?.isConnected) return;
     state.loadError = false; state.busy = true; status(t('Loading titles…', 'Yapımlar yükleniyor…')); cards();
     try {
-      const result = await api(state.tab === 'preferences' ? 'feedback-list' : state.tab === 'personal' ? 'personal' : 'list', { kind: state.kind, mode: state.mode, genre: state.genre, year: state.year, query: state.query, skip: append ? state.next : 0 });
+      const result = await api(state.tab === 'preferences' ? 'feedback-list' : state.tab === 'personal' ? 'personal' : 'list', { kind: state.kind, mode: state.mode, genre: state.genre, year: state.year, query: state.query, view:state.view, skip: append ? state.next : 0 });
       if (request !== state.request || root !== state.root || !root.isConnected) return;
       const unique = new Map((append ? state.rows : []).map(row => [`${row.kind}:${row.providerId}`, row]));
       result.rows.forEach(row => unique.set(`${row.kind}:${row.providerId}`, row)); state.rows = [...unique.values()].slice(0, 300); state.next = result.nextSkip ?? null;
@@ -201,13 +192,13 @@
     } finally { if (request === state.request && root === state.root && root.isConnected) { state.busy = false; cards(); } }
   }
   function draw() {
-    const root = state.root; root.replaceChildren();
+    const root = state.root; root.replaceChildren();if(window.DiscoveryPersonalUI&&personalRoot!==root){personalActions?.dispose();personalRoot=root;personalActions=window.DiscoveryPersonalUI.create({root,render:cards,reload:()=>load(),openDetails:details});}
     root.setAttribute('aria-label', t('Discover', 'Keşfet'));
     const tabs = el('div', 'md-tabs'); tabs.setAttribute('aria-label', t('Discovery section', 'Keşfet bölümü'));
     for (const [value, label] of [['browse', t('New & popular', 'Yeni ve popüler')], ['personal', t('For you', 'Sana özel')], ['preferences', t('Preferences', 'Tercihler')]]) {
       const node = btn(label, () => { state.tab = value; state.rows = []; state.next = null; draw(); void load(); }, 'md-tab'); node.setAttribute('aria-pressed', String(value === state.tab)); tabs.append(node);
     }
-    root.append(tabs);
+    root.append(tabs);if(state.tab==='browse'){const views=el('div','md-view-filters');views.setAttribute('aria-label',t('Viewing filter','İzlenme filtresi'));for(const [value,en,tr]of [['unwatched','Unwatched','İzlemediklerim'],['all','Include watched','Tümü'],['watched','Watched','İzlediklerim'],['watchlist','Watchlist','İzleme listem']]){const b=btn(t(en,tr),()=>{state.view=value;state.rows=[];draw();void load();},'md-view-filter');b.setAttribute('aria-pressed',String(state.view===value));views.append(b);}root.append(views);}
     const filters = el('form', 'md-filters');
     function select(label, value, options, update) {
       const wrap = el('label', 'md-field'), input = el('select'); wrap.append(el('span', '', label)); input.dataset.discoveryControl = '1';
@@ -224,14 +215,14 @@
       filters.addEventListener('submit', event => { event.preventDefault(); state.query = search.value.trim(); state.mode = 'top'; state.rows = []; draw(); void load(); });
       const submit = el('button', 'mh-action mh-primary', t('Search', 'Ara')); submit.type = 'submit'; submit.dataset.discoveryControl = '1'; filters.append(submit);
     } else filters.addEventListener('submit', event => event.preventDefault());
-    root.append(filters);
+    root.append(filters);const personalSlot=el('div','md-personal-slot');root.append(personalSlot);
     const statusNode = el('p', 'md-status'); statusNode.setAttribute('role', 'status'); const grid = el('div', 'md-grid');
     const footer = el('div', 'md-footer'); footer.append(btn(t('Show more', 'Daha fazla göster'), () => load(true), 'mh-action md-more'), btn(t('Retry', 'Yeniden dene'), () => load(false), 'mh-action'), el('p', 'md-provider', t('Catalog: Cinemeta, the official Stremio movie & series catalog. No account or API key required.', 'Katalog: Cinemeta, resmî Stremio film ve dizi kataloğu. Hesap veya API anahtarı gerekmez.')));
     root.append(statusNode, grid, footer); const featureSlot = el('div', 'md-feature-slot'); const results = root.querySelector('.md-grid'); if (results) results.before(featureSlot); cards();
   }
   let savedScroll = 0, restoringScroll = false;
-  document.addEventListener('media-personal-changed',()=>{if(state.root?.isConnected)void load();});
-  const leave = () => { closeCardMenu?.(); if (state.root?.isConnected) savedScroll = document.getElementById('mediaHome').scrollTop; state.root = null; };
+  document.addEventListener('media-personal-changed',event=>{if(event.detail?.origin!=='discovery-personal'&&state.root?.isConnected)void load();});
+  const leave = () => { closeCardMenu?.();personalActions?.dispose();personalActions=null;personalRoot=null; if (state.root?.isConnected) savedScroll = document.getElementById('mediaHome').scrollTop; state.root = null; };
   document.getElementById('mediaHome')?.addEventListener('scroll', () => { if (!restoringScroll && state.root?.isConnected) savedScroll = document.getElementById('mediaHome').scrollTop; }, { passive:true });
   window.MediaDiscoveryUI = Object.freeze({ leave, openDetail:details, mount(root) {
     const targetScroll = savedScroll; restoringScroll = true;

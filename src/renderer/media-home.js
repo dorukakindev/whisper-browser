@@ -571,7 +571,7 @@
     const metadata=el('div','mh-metadata');metadata.id='mhMetadataStatus';host.append(header,metadata, content);fitHeader();drawMetadata(metadata);renderContent();
     if (focused && host.querySelector(`#${focused}`)) document.getElementById(focused).focus();
   }
-  async function refresh({metadata=true}={}) {
+  async function refresh({metadata=true,preserveDiscovery=false}={}) {
     const scroll=host.scrollTop;
     const request = ++state.request;
     const results = await Promise.allSettled([
@@ -584,7 +584,7 @@
     state.error = catalogResult?.ok && history ? '' : t('Some library data could not be loaded. Open the library to retry.', 'Bazı kütüphane verileri yüklenemedi. Yeniden denemek için kütüphaneyi açın.');
     state.data = model.snapshot(catalogResult?.ok ? catalogResult.items : state.data.items, history || state.data.watch);
     state.loaded = true;
-    if (state.active) {renderContent();host.scrollTop=scroll;}
+    if (state.active&&!(preserveDiscovery&&state.page==='discover')) {renderContent();host.scrollTop=scroll;}
     if(metadata)void initialSettingsReady.then(()=>syncMetadata('start'));
   }
   let metadataState={},metadataTimer,metadataBusy=false,metadataPending='',metadataVersion=0;
@@ -620,7 +620,7 @@
   document.addEventListener('pointerdown',event=>{for(const menu of host.querySelectorAll('.mh-more[open]'))if(!menu.contains(event.target))menu.open=false;});
   document.addEventListener('keydown',event=>{if(event.key==='Escape')for(const menu of host.querySelectorAll('.mh-more[open]'))menu.open=false;});
   document.addEventListener('ui-locale-change', renderShell);
-  document.addEventListener('media-library-changed', () => { if (state.active) void refresh(); });
+  document.addEventListener('media-library-changed', event => { if (state.active) void refresh(event.detail?.origin==='discovery-personal'?{metadata:false,preserveDiscovery:true}:{}); });
   // Do not switch workspace or touch saved jobs, captions, tabs or dub state on startup.
   renderShell(); setHome(true);
   window.MediaHomeUI=Object.freeze({openRecallNode:async id=>{await returnHome();page('recall');await recallView?.reload();await recallView?.openNode(id);},openFeedEntry:async id=>{await returnHome();page('feeds');await feedsView?.reload();await feedsView?.openEntry(id);},currentPage:()=>state.page,emptyState,returnHome,resumeWorkspace,openStudio,navigate:async(value)=>{await returnHome();page(value);}});
