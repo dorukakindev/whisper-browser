@@ -1,0 +1,44 @@
+✔ Collection plan changes nothing; apply atomically preserves sources and persists memberships (60.7267ms)
+✔ Changed identities and expired plans cannot partially update a collection (35.9584ms)
+✔ Membership removal is planned separately and never deletes a catalog record (45.8461ms)
+✔ tool contract keeps explicit changes and exact episode pairs, with no model-controlled apply token (0.677ms)
+✔ renderer previews only requested S2E4 12:30, exposes real candidate IDs and saved reaction independently from watching (54.8243ms)
+✔ AppActions reads native returned source token and rejects a changed active tab/document (0.8788ms)
+✔ main prepares an immutable review card before writing, revalidates personal revision and only injects token after approval (33.2497ms)
+✔ web content extension uses native content IDs with review and never treats a video/article as a film or episode (18.414ms)
+✔ Assistant aspect feedback previews the exact per-film opinions without inventing a whole-title like or watch change (4.9479ms)
+✔ Right-click exposes both actions; choosing planned uses exact identity and changes only watch status (95.0104ms)
+✔ Keyboard menu supports Escape/focus restore, arrow selection and watched persistence (62.5518ms)
+✔ Failed preview cannot apply; leaving closes the menu and outside interaction dismisses it (64.5213ms)
+✔ Selection batch saves the chosen exact titles and its receipt can undo them (44.291ms)
+✔ Collection review is read-only until explicit confirmation; ensures neutral records before existing atomic membership plan (46.8505ms)
+✔ Series resume changes only the specified episode; source-based explanation never invents fit (31.3365ms)
+✔ Ask assistant opens the exact selected film first; existing watch state produces a badge (5.9391ms)
+✔ discovery translation is cancelable, cached and never silently adds a watchlist record (3.3764ms)
+✔ discovery normalizes trusted image origins, identities and bounded metadata (0.1853ms)
+✔ fixed provider routes, caching, personal exclusions and idempotent watchlist saves (35.5409ms)
+✔ provider HTTP errors and excessive response size do not alter the library (0.6388ms)
+✔ imported ratings seed explained recommendations only with matched genre evidence (21.854ms)
+✔ official Cinemeta redirect is followed; external redirect is rejected before fetching it (0.4143ms)
+✔ exact identity preview is read-only; owner and stale revision guards protect one-shot apply (50.5944ms)
+✔ manual exact episode resume persists without source, touches no earlier episode or real playback history (38.4616ms)
+✔ native browser binding requires actual token+generation and exact episode; query hints never auto-match (36.0084ms)
+✔ verified discovery like creates one unspecified catalog owner; shared native feedback and Recall reactions stay current (84.7241ms)
+✔ identity-shared feedback does not cross remakes/domains; note-only keeps an existing explicit positive rating (54.6723ms)
+✔ discovery excludes completed library titles and uses persisted like seeds without marking them watched (50.0676ms)
+✔ onSaved runs only after persisted apply; network failure cannot turn a successful personal save into failure (55.1695ms)
+✔ Aspect feedback persists independently, merges partial edits and retains whole-film/watch state (71.8978ms)
+✔ Personal undo restores only its own unchanged title and rejects later edits, wrong owners and reuse (77.1778ms)
+✔ Undo episode resume and aspect reaction preserve unrelated episodes and explicit old feedback (84.9108ms)
+✔ Discovery viewing filters use complete saved library state, while all includes watched catalog results (49.391ms)
+✔ Personal recommendations expose an actual like seed and collection record creation does not infer watchlist (60.3397ms)
+✔ shared viewing panel shows saved episode/note, previews explicit changes, invalidates edited drafts and ignores closed views (32.4767ms)
+✔ title personal refresh replaces stale sidebar status while preserving an unsaved rating (12.0595ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1918.3207

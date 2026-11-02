@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-02-0900.md](docs/devir/2026-11-02-0900.md) — Keşfet geri alma, toplu seçim, dizi devamı ve öneri dayanağı
 Güncel çalışma: [docs/devir/2026-11-02-0810.md](docs/devir/2026-11-02-0810.md) — Keşfet kartında sağ tık İzledim / İzleyeceğim
 Güncel çalışma: [docs/devir/2026-11-02-0715.md](docs/devir/2026-11-02-0715.md) — Film asistanı, gerçek kaynak alıntısı, karşılaştırma ve bağımsız ayrıntılı görüş
 Güncel çalışma: [docs/devir/2026-11-02-0500.md](docs/devir/2026-11-02-0500.md) — Film yorum kontrolü, kaynak vurgusu, kişisel dayanak ve akış sürekliliği
