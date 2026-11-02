@@ -150,18 +150,23 @@ header{gap:14px;padding:20px 20px 16px}
 #assistantWorkspace .message :is(p,h3,pre){max-width:100%}
 @media(max-height:620px){#assistantWorkspace>#log{flex-basis:100px;min-height:100px}}
 /* One quiet disclosure per answer. No fixed overlay, no repeated entry motion. */
-.assistant-run-card{margin:10px 0 16px;border:1px solid var(--line);border-radius:12px;background:var(--raised);min-width:0;overflow:hidden}
-.assistant-run-card>summary{display:flex;align-items:center;gap:10px;padding:10px 12px;color:var(--muted);font-size:12px;line-height:1.5;list-style:none;min-height:40px}
-.assistant-run-card>summary::before{content:'›';color:var(--accent);font-size:18px;transform:rotate(0);transition:transform .15s ease-out}
-.assistant-run-card[open]>summary::before{transform:rotate(90deg)}
-.run-count{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--muted)}
-.assistant-run-card ol{list-style:none;margin:0;padding:0 12px 10px;max-height:230px;overflow:auto;overscroll-behavior:contain}
-.assistant-run-card li{display:grid;grid-template-columns:8px minmax(0,1fr);align-items:center;gap:4px 9px;padding:9px 0;border-top:1px solid var(--line);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
-.assistant-run-card li small{grid-column:2;color:var(--muted);font-variant-numeric:tabular-nums}
-.run-dot{width:5px;height:5px;border-radius:50%;background:var(--muted)}
-.assistant-run-card li[data-state=running] .run-dot,.assistant-run-card li[data-state=proposed] .run-dot{background:var(--accent)}
-.assistant-run-card li[data-state=failed] .run-dot{background:var(--error)}
-@media(prefers-reduced-motion:reduce){.assistant-run-card>summary::before{transition:none}}
+/* Shared source-bound assistant activity: compact by default, real step states only. */
+.assistant-run-card{margin:8px 0 22px;border:1px solid var(--line);border-radius:16px;background:var(--raised);min-width:0;overflow:clip;isolation:isolate}
+.assistant-run-card[data-state=running],.assistant-run-card[data-state=proposed]{border-color:color-mix(in srgb,var(--accent) 27%,var(--line));background:linear-gradient(125deg,color-mix(in srgb,var(--accent) 7%,var(--raised)),var(--raised) 72%)}
+.assistant-run-card>summary{display:grid;grid-template-columns:32px minmax(0,1fr) 20px;align-items:center;gap:0 12px;padding:15px 16px;list-style:none;cursor:pointer;min-height:72px;outline-offset:-4px}
+.assistant-run-card>summary::-webkit-details-marker{display:none}
+.run-copy{display:grid;gap:5px;min-width:0}.run-title{color:var(--text);font-size:13px;line-height:1.45;font-weight:600;text-wrap:pretty}.run-subtitle{color:var(--muted);font-size:11px;line-height:1.5;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.run-orbit{width:30px;height:30px;position:relative;display:grid;place-items:center;flex-shrink:0;color:var(--accent)}.run-orbit::before{content:'';position:absolute;inset:0;border:1.5px solid color-mix(in srgb,var(--accent) 35%,var(--line));border-radius:50%}.run-mark{font-size:16px;font-weight:500;line-height:1}.assistant-run-card[data-state=running] .run-orbit::before{border-top-color:var(--accent);border-right-color:var(--accent);animation:assistant-orbit 1.4s linear infinite}.assistant-run-card[data-state=failed] .run-orbit{color:var(--error)}
+.run-chevron{color:var(--muted);display:grid;place-items:center;font-size:19px;transition:transform .2s cubic-bezier(.2,0,0,1)}.assistant-run-card[open] .run-chevron{transform:rotate(180deg)}
+.run-rail{grid-column:1/-1;height:3px;display:flex;gap:5px;margin-top:14px}.run-rail i{flex:1;min-width:0;border-radius:3px;background:var(--line);transition:background-color .24s ease-out}.run-rail i[data-state=completed]{background:color-mix(in srgb,var(--accent) 55%,var(--line))}.run-rail i[data-state=running],.run-rail i[data-state=proposed],.run-rail i[data-state=accepted]{background:var(--accent)}.run-rail i[data-state=failed],.run-rail i[data-state=blocked]{background:var(--error)}
+.assistant-run-card .run-timeline{list-style:none;margin:0;padding:0 16px 6px;max-height:275px;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+.assistant-run-card .run-timeline li{position:relative;display:grid;grid-template-columns:22px minmax(0,1fr);gap:4px 12px;padding:10px 0 16px;font-size:12px;line-height:1.5;overflow-wrap:anywhere}.run-timeline li::before{content:'';position:absolute;left:10px;top:31px;bottom:-7px;width:1px;background:var(--line)}.run-timeline li:last-child::before{display:none}.run-step-name{font-weight:500;color:var(--text);font-size:12px}.assistant-run-card .run-timeline .run-step-detail{grid-column:2;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}.run-previews{grid-column:2;min-width:0}.run-previews:empty{display:none}.assistant-run-card .run-previews p{font-size:11px;color:var(--muted);margin:5px 0;line-height:1.65}
+.run-dot{position:relative;width:22px;height:22px;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center;color:color-mix(in srgb,var(--accent) 70%,var(--text));font-size:11px;z-index:1;background:var(--raised)}.run-timeline li[data-state=running] .run-dot::after{content:'';position:absolute;inset:3px;border:1.5px solid transparent;border-top-color:var(--accent);border-right-color:var(--accent);border-radius:50%;animation:assistant-orbit 1.4s linear infinite}.run-timeline li[data-state=running] .run-step-name{color:var(--accent)}.run-timeline li[data-state=failed] .run-dot,.run-timeline li[data-state=blocked] .run-dot{color:var(--error);border-color:var(--error)}
+.assistant-run-card::details-content{interpolate-size:allow-keywords;height:0;overflow:clip;transition:height .24s cubic-bezier(.2,0,0,1),content-visibility .24s;transition-behavior:allow-discrete}.assistant-run-card[open]::details-content{height:auto}
+@keyframes assistant-orbit{to{transform:rotate(360deg)}}
+@media(max-width:380px){.assistant-run-card>summary{padding:12px;gap:0 9px;grid-template-columns:28px minmax(0,1fr) 16px}.run-title{font-size:12px}.assistant-run-card .run-timeline{padding-inline:12px}}
+@media(prefers-reduced-motion:reduce){.run-orbit::before,.run-timeline .run-dot::after{animation:none!important}.run-chevron,.run-rail i,.assistant-run-card::details-content{transition:none}}
+
 
 /* A quiet source receipt stays visible while its explanation shares the existing disclosure. */
 #sourcePreview{flex:none;margin:0 18px;padding:10px 0 2px;font-size:12px;line-height:1.65;color:var(--text);overflow-wrap:anywhere}

@@ -641,5 +641,5 @@
   document.addEventListener('media-library-changed', event => { if (state.active) void refresh(event.detail?.origin==='discovery-personal'?{metadata:false,preserveDiscovery:true}:{}); });
   // Do not switch workspace or touch saved jobs, captions, tabs or dub state on startup.
   renderShell(); setHome(true);
-  window.MediaHomeUI=Object.freeze({openRecallNode:async id=>{await returnHome();page('recall');await recallView?.reload();await recallView?.openNode(id);},openFeedEntry:async id=>{await returnHome();page('feeds');await feedsView?.reload();await feedsView?.openEntry(id);},currentPage:()=>state.page,emptyState,returnHome,resumeWorkspace,openStudio,navigate:async(value)=>{await returnHome();page(value);}});
+  window.MediaHomeUI=Object.freeze({openRecallNode:async id=>{await returnHome();page('recall');await recallView?.reload();await recallView?.openNode(id);},openFeedEntry:async id=>{await returnHome();page('feeds');await feedsView?.reload();return await feedsView?.openEntry(id);},currentPage:()=>state.page,emptyState,returnHome,resumeWorkspace,openStudio,navigate:async(value)=>{await returnHome();page(value);}});
 })();
