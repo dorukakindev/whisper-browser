@@ -12,6 +12,65 @@ function fixture(fetchImpl,extras={}){
 }
 const reply=message=>new Response(JSON.stringify({choices:[{message,finish_reason:'stop'}]}),{headers:{'content-type':'application/json'}});
 
+test('R844-01 translation ambiguity uses the latest delivered human intent, never concatenated history or source text',async()=>{
+ const explicit='Mevcut English altyazı izini Türkçeye çevir; sayfayı çevirme.';
+ for(const mode of ['steer','followup'])for(const initialAmbiguous of [true,false]){
+  let turn=0,rendererCalls=0;const initial=initialAmbiguous?'bunu çevir':explicit,latest=initialAmbiguous?explicit:'bunu çevir';
+  const h=fixture(async()=>{
+   if(++turn===1){assert.equal(h.call('agentMessage',{requestId:'intent',owner:h.owner,mode,text:latest}).ok,true);return reply({role:'assistant',content:'Current answer.'});}
+   if(turn===2)return reply({role:'assistant',tool_calls:[{id:'translate',function:{name:'translate_captions',arguments:'{"track_id":"english","target_language":"tr"}'}}]});
+   return reply({role:'assistant',content:'Observed result.'});
+  });h.owner.tracks=[{id:'english',role:'source',language:'en'}];
+  const send=h.sender.send;h.sender.send=(channel,packet)=>{send(channel,packet);if(packet.type==='action')rendererCalls++;};
+  try{const result=await h.call('agentRun',{requestId:'intent',question:initial,owner:h.owner});assert.equal(result.ok,true,result.error);
+   const cards=h.events.filter(e=>e.value.type==='proposal');assert.equal(cards.length,initialAmbiguous?1:0,mode+' latest human request determines ambiguity');assert.equal(rendererCalls,0,'Creating a card never starts translation');assert.equal(result.runtime.intentRevision,1);
+  }finally{h.app.emit('will-quit');}
+ }
+ let turn=0;const h=fixture(async()=>++turn===1?reply({role:'assistant',tool_calls:[{id:'translate',function:{name:'translate_captions',arguments:'{"track_id":"english","target_language":"tr"}'}}]}):reply({role:'assistant',content:'Source remains ambiguous.'}));h.owner.tracks=[{id:'english',role:'source',language:'en'}];
+ try{const result=await h.call('agentRun',{requestId:'source-not-intent',question:'bunu çevir',owner:h.owner,context:{note:explicit}});assert.equal(result.ok,true);assert.equal(h.events.filter(e=>e.value.type==='proposal').length,0,'Source text cannot clarify or authorize human intent');}finally{h.app.emit('will-quit');}
+});
+
+test('R844-02 original audio restore needs approval but not translated subtitles; generation keeps that prerequisite',async()=>{
+ for(const tool of ['restore_original_audio','start_voice_generation']){
+  let turn=0,writes=0;const h=fixture(async()=>++turn===1?reply({role:'assistant',tool_calls:[{id:'voice',function:{name:tool,arguments:'{}'}}]}):reply({role:'assistant',content:'Observed result.'}),{getJobs:()=>({jobs:[{id:'translated-job',state:'completed',finishedAt:Date.now(),result:{artifacts:[{role:'translation',partial:false}]}}]})});
+  const flow=h.service.flows.start(h.sender.id,h.owner,'Translate the captions, then restore original audio.');
+  const receipt=h.service.flows.record(flow,'translate_captions',{track_id:'english',target_language:'tr'},{status:'accepted'},'translated-job');
+  const send=h.sender.send;h.sender.send=(channel,packet)=>{send(channel,packet);if(packet.type==='action')queueMicrotask(()=>{assert.equal(packet.name,'restore_original_audio');writes++;h.call('agentResult',{callId:packet.callId,result:{status:'completed'}});});};
+  try{const result=await h.call('agentRun',{requestId:'restore',question:'Asıl sesi geri getir.',owner:h.owner,continuationId:receipt.continuationId});assert.equal(result.ok,true,result.error);const cards=h.events.filter(e=>e.value.type==='proposal');assert.equal(cards.length,tool==='restore_original_audio'?1:0);assert.equal(writes,0,'Restore must still wait for human Apply');
+   if(cards.length){const applied=await h.call('agentApply',{proposalId:cards[0].value.action.proposalId,owner:h.owner});assert.equal(applied.ok,true,applied.error);assert.equal(writes,1);}
+  }finally{h.app.emit('will-quit');}
+ }
+});
+
+test('R844-02 an unapplied translation card cannot block an independent original-audio restore card',async()=>{
+ let turn=0;const h=fixture(async()=>++turn===1?reply({role:'assistant',tool_calls:[{id:'translate',function:{name:'translate_captions',arguments:'{"track_id":"english","target_language":"tr"}'}},{id:'restore',function:{name:'restore_original_audio',arguments:'{}'}}]}):reply({role:'assistant',content:'Review the separate actions.'}));h.owner.tracks=[{id:'english',role:'source',language:'en'}];
+ try{assert.equal((await h.call('agentRun',{requestId:'pending-and-restore',question:'Translate the English captions and restore original audio.',owner:h.owner})).ok,true);assert.deepEqual(h.events.filter(e=>e.value.type==='proposal').map(e=>e.value.action.tool),['translate_captions','restore_original_audio']);assert.equal(h.events.filter(e=>e.value.type==='action').length,0);}finally{h.app.emit('will-quit');}
+});
+
+test('R844-02 failed translation continuation permits reviewed audio recovery while production remains retry-bound',async()=>{
+ for(const nextTool of ['restore_original_audio','start_voice_generation']){
+  const jobs=require('../src/assistant-jobs').createJobs();let jobId,phase='translation',turn=0,restores=0;
+  const h=fixture(async()=>{
+   if(++turn!==1)return reply({role:'assistant',content:'Observed result.'});
+   return reply({role:'assistant',tool_calls:[{id:'step',function:{name:phase==='translation'?'translate_captions':nextTool,arguments:phase==='translation'?'{"track_id":"english","target_language":"tr"}':'{}'}}]});
+  },{getJobs:jobs.snapshot,resolveJobId:external=>external==='translation-backend'?jobId:null});h.owner.tracks=[{id:'english',role:'source',language:'en'}];
+  const send=h.sender.send;h.sender.send=(channel,packet)=>{send(channel,packet);if(packet.type==='action')queueMicrotask(()=>{
+   let result;if(packet.name==='translate_captions'){jobId=jobs.start({kind:'captions'});result={status:'accepted',jobId:'translation-backend'};}else{assert.equal(packet.name,'restore_original_audio');restores++;result={status:'completed'};}
+   h.call('agentResult',{callId:packet.callId,result});
+  });};
+  try{
+   assert.equal((await h.call('agentRun',{requestId:'translate-then-fail',question:'Translate the English captions, then restore original audio.',owner:h.owner})).ok,true);
+   const original=h.events.find(e=>e.value.type==='proposal').value.action;
+   const accepted=await h.call('agentApply',{proposalId:original.proposalId,owner:h.owner});assert.equal(accepted.ok,true,accepted.error);assert(accepted.result.continuationId);
+   jobs.update(jobId,{type:'error',error:'Controlled translation failure'});assert.equal(jobs.snapshot().jobs[0].state,'failed');
+   phase='recovery';turn=0;h.events.length=0;
+   const resumed=await h.call('agentRun',{requestId:'recover-after-failure',question:'Restore original audio.',owner:h.owner,continuationId:accepted.result.continuationId});assert.equal(resumed.ok,true,resumed.error);
+   const cards=h.events.filter(e=>e.value.type==='proposal');assert.equal(cards.length,nextTool==='restore_original_audio'?1:0);assert.equal(restores,0,'Recovery is still only an unapplied proposal');
+   if(cards.length){const id=cards[0].value.action.proposalId;assert.equal((await h.call('agentApply',{proposalId:id,owner:{...h.owner,thread:'foreign-thread'}})).ok,false);assert.equal(restores,0);const applied=await h.call('agentApply',{proposalId:id,owner:h.owner});assert.equal(applied.ok,true,applied.error);assert.equal(restores,1);assert.equal((await h.call('agentApply',{proposalId:id,owner:h.owner})).ok,false);}
+  }finally{h.app.emit('will-quit');}
+ }
+});
+
 test('Whisper → exact translated track → failed voice retry → attachment retains completed stages and requires each approval',async()=>{
  const jobs=require('../src/assistant-jobs').createJobs();let textId,voiceId,turn=0,phase="start",phaseTurn=0,subtitleLoaded=false,voiceStarts=0,attached=false;
  const tool=(name,args={})=>reply({role:'assistant',tool_calls:[{id:'step-'+turn,function:{name,arguments:JSON.stringify(args)}}]});

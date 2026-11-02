@@ -113,6 +113,9 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    resumed=input.continuationId?flows.resume(input.continuationId,event.sender.id,owner,{deferCommit:true}):null;
    if(resumed?.waiting)return {ok:true,waiting:true,text:resumed.text};
    const flow=resumed?.flow||flows.start(event.sender.id,owner,input.question);
+   // Keep the latest delivered human request separate from the accumulated
+   // provider history. Old explicit wording must not resolve a later ambiguity.
+   flow.humanIntent??={question:flow.question,revision:0};
    const sourcePool=manifest.pool(reviewMode?[]:input.pool);owner.hasSubtitles=sourcePool.length>0;
    const config=getConfig();
    controller=new AbortController();session={id:input.requestId,controller,owner,flow,reviewMode,runtime:runtimeTools.createRuntime(input.requestId)};sessions.set(event.sender.id,session);
@@ -161,15 +164,19 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
     }
     if(entry.policy==='proposal'){
      attempted++;
-     if(['translate_page','translate_captions','translate_video_captions','start_whisper'].includes(name)&&workflowPlan.ambiguousTranslation(input.question,owner))return {status:'blocked',note:'The current request does not select a translation source. Ask whether the human means this web page, existing captions, YouTube captions or Whisper audio. No card was created and no job started.',translationChoices:workflowPlan.translationChoices(owner)};
-     if(!flows.retryAllowed(flow,name,args))return {status:'blocked',note:'The previous exact job failed. Only retry its same stage and arguments with a new approval card. Completed earlier stages and dependent stages are blocked.'};
+     if(['translate_page','translate_captions','translate_video_captions','start_whisper'].includes(name)&&workflowPlan.ambiguousTranslation(flow.humanIntent.question,owner))return {status:'blocked',note:'The current request does not select a translation source. Ask whether the human means this web page, existing captions, YouTube captions or Whisper audio. No card was created and no job started.',translationChoices:workflowPlan.translationChoices(owner)};
+     // Recovery removes replacement playback; it neither retries the failed
+     // production step nor consumes its output. It still needs its own card.
+     if(name!=='restore_original_audio'&&!flows.retryAllowed(flow,name,args))return {status:'blocked',note:'The previous exact job failed. Only retry its same stage and arguments with a new approval card. Completed earlier stages and dependent stages are blocked.'};
      const signature=name+':'+JSON.stringify(Object.fromEntries(Object.keys(args).sort().map(key=>[key,args[key]])));
      if(offered.has(signature))return {...offered.get(signature),note:'This exact review card already exists. It has not run.'};
      const previous=[...offered.values()].map(row=>row.tool);
-     const prerequisite=previous.find(prior=>(['start_whisper','translate_video_captions','translate_captions'].includes(prior)&&entry.domain==='voice')||(['configure_voice_generation','prepare_voice_reference','set_voice_reference'].includes(prior)&&['start_voice_generation','use_generated_voice'].includes(name))||(['prepare_book_narration','select_book_chapters','start_book_narration'].includes(prior)&&['start_book_narration','export_book_audio'].includes(name)));
+     // Restoring original playback consumes no translated subtitle output.
+     const needsSubtitlePreparation=entry.domain==='voice'&&name!=='restore_original_audio';
+     const prerequisite=previous.find(prior=>(['start_whisper','translate_video_captions','translate_captions'].includes(prior)&&needsSubtitlePreparation)||(['configure_voice_generation','prepare_voice_reference','set_voice_reference'].includes(prior)&&['start_voice_generation','use_generated_voice'].includes(name))||(['prepare_book_narration','select_book_chapters','start_book_narration'].includes(prior)&&['start_book_narration','export_book_audio'].includes(name)));
      if(prerequisite){return {status:'blocked',note:'Apply the prerequisite card '+prerequisite+' first, then Continue with result after exact job completion. No dependent card or job was created.'};}
 
-     if(entry.domain==='voice'){
+     if(needsSubtitlePreparation){
       const subtitleIndex=flow.steps.findLastIndex(step=>['start_whisper','translate_video_captions','translate_captions'].includes(step.tool));
       const subtitle=flow.steps[subtitleIndex];
       if(subtitle?.jobId){
@@ -245,7 +252,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    };
    const result=await provider.run({question:flow.question,responseContract:input.responseContract,continuation:reviewMode?[]:flows.evidence(flow),history:reviewMode?[]:input.history,context:reviewMode?(recallMode?{type:'recall-sources',recallAnalysis:recallEvidence}:{...input.context,reviewAnalysis:reviewContext}):input.context,owner,pool:sourcePool,locale:input.locale,config,signal:controller.signal,fetchImpl,
     takeMessages:mode=>{requireOwner(owner);return session.runtime.take(mode);},
-    onHumanMessages:rows=>{const invalidatedProposalIds=[];if(rows.some(row=>row.mode==='steer')){offered.clear();planned.clear();for(const [id,row]of proposals)if(row.sender===event.sender&&row.runId===session.id){proposals.delete(id);invalidatedProposalIds.push(id);}}flow.question=(flow.question+'\n\n'+rows.map(row=>'Latest human '+row.mode+': '+row.text).join('\n')).slice(-16000);emit(event.sender,{type:'runtime-delivered',requestId:session.id,messages:rows,intentRevision:session.runtime.revision,invalidatedProposalIds});},
+    onHumanMessages:rows=>{const invalidatedProposalIds=[];if(rows.some(row=>row.mode==='steer')){offered.clear();planned.clear();for(const [id,row]of proposals)if(row.sender===event.sender&&row.runId===session.id){proposals.delete(id);invalidatedProposalIds.push(id);}}const latest=rows.at(-1);if(latest)flow.humanIntent={question:latest.text,revision:flow.humanIntent.revision+1};flow.question=(flow.question+'\n\n'+rows.map(row=>'Latest human '+row.mode+': '+row.text).join('\n')).slice(-16000);emit(event.sender,{type:'runtime-delivered',requestId:session.id,messages:rows,intentRevision:session.runtime.revision,invalidatedProposalIds});},
     onProgress:phase=>{if(!controller.signal.aborted&&validateOwner(owner))emit(event.sender,{type:'progress',requestId:session.id,phase});},
     onDelta:text=>emit(event.sender,{type:'delta',requestId:session.id,text}),
     onReplace:text=>emit(event.sender,{type:'replace',requestId:session.id,text}),
