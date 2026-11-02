@@ -9,6 +9,7 @@ function preferences(raw = {}) {
     avoid:Array.isArray(raw.avoid)?[...new Set(raw.avoid.filter(name=>ASPECTS.includes(name)))]:[],
     note:String(raw.note || '').slice(0,2000) };
 }
+function effectivePreferences(raw={}){return preferences(Object.keys(raw.weights||{}).length?raw:{...raw,weights:Object.fromEntries(ASPECTS.map(name=>[name,3]))});}
 function profile(diary, catalog, saved = {}, reviewEntries = []) {
   diary=diary.filter(row=>!row.recordState||row.recordState==='active');reviewEntries=reviewEntries.filter(row=>!row.recordState||row.recordState==='active');
   const items = new Map(),ambiguous=new Set();for(const item of catalog.filter(row=>row.kind!=='series'))for(const name of new Set([item.title,item.originalTitle].filter(Boolean))){const id=key({...item,title:name});if(items.has(id)&&items.get(id)!==item){items.delete(id);ambiguous.add(id);}else if(!ambiguous.has(id))items.set(id,item);}
@@ -48,7 +49,7 @@ function profile(diary, catalog, saved = {}, reviewEntries = []) {
     decades:[...years].sort((a,b)=>b[1]-a[1]),months:[...months].sort((a,b)=>a[0].localeCompare(b[0])).slice(-24),
     favorites:[...rated].sort((a,b)=>b.rating-a.rating).slice(0,12).map(row=>({title:row.title,year:row.year,rating:row.rating})),
     metadataMatched:[...distinct.values()].filter(row=>{const item=items.get(key(row));return item&&((item.genres||[]).length||(item.directors||[]).length);}).length,reviews:reviews.slice(-10000).reverse(),reviewCount:reviews.length,mentions,
-    preferencesConfigured:supplied,preferences:preferences(supplied?saved:{weights:Object.fromEntries(ASPECTS.map(name=>[name,3]))}),analysis:saved.analysis || null };
+    preferencesConfigured:supplied,preferences:effectivePreferences(saved),analysis:saved.analysis || null };
   const quiz=require('./taste-quiz');result.quiz=quiz.restore(saved.quiz);result.quizPicks=result.quiz?quiz.recommend(result.quiz,catalog,result):[];return result;
 }
 function validateAnalysis(raw, diary) {
@@ -61,4 +62,4 @@ function validateAnalysis(raw, diary) {
   });
   return {version:1,summary:String(raw.summary||'').slice(0,4000),insights,createdAt:new Date().toISOString()};
 }
-module.exports={ASPECTS,profile,preferences,validateAnalysis,reviewId};
+module.exports={effectivePreferences,ASPECTS,profile,preferences,validateAnalysis,reviewId};

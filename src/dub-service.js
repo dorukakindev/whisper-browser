@@ -23,6 +23,30 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   require('./dub-playback-assets').registerDubPlaybackAssets({ app, ipcMain, dialog, owner, authorized, grantMedia });
   let textUI = null;
   const plans = new Map();
+  const referenceRecipes = new Map();
+  const staleReferenceRecipe=()=>Error('The saved voice recipe reference changed or expired. Restore its original unchanged reference or start a new full generation. / Kayıtlı ses tarifinin referansı değişti veya süresi doldu. Özgün değişmemiş referansı geri seçin ya da yeni tam üretim başlatın.');
+  function referenceFingerprint(c) {
+    const hash = require('node:crypto').createHash('sha256');
+    hash.update(JSON.stringify([c.engine, fs.realpathSync(c.reference), fs.realpathSync(c.transcript)]));
+    for (const file of [c.reference, c.transcript]) {
+      const fd = fs.openSync(file, 'r');
+      try {
+        const before = fs.fstatSync(fd), bytes = Buffer.allocUnsafe(65536);
+        if (!before.isFile()) throw staleReferenceRecipe();
+        const digest = require('node:crypto').createHash('sha256');
+        let position = 0;
+        while (position < before.size) {
+          const count = fs.readSync(fd, bytes, 0, Math.min(bytes.length, before.size - position), position);
+          if (!count) throw staleReferenceRecipe();
+          digest.update(bytes.subarray(0, count)); position += count;
+        }
+        const after = fs.fstatSync(fd);
+        if (before.size !== after.size || before.mtimeMs !== after.mtimeMs || before.ctimeMs !== after.ctimeMs) throw staleReferenceRecipe();
+        hash.update(digest.digest());
+      } finally { fs.closeSync(fd); }
+    }
+    return hash.digest('hex');
+  }
   const planning = new Map();
   const planSenders = new WeakSet();
   function rangeOption(raw) {
@@ -508,6 +532,14 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       for (const file of [python, script, path.join(c.engine,'kitap_ortak.py'), c.reference, c.transcript]) {
         if (!fs.existsSync(file)) throw new Error('VoxCPM2 motoru veya ses referansı bulunamadı.');
       }
+      // A retry cannot silently inherit a different active voice or changed same-path content.
+      let referenceRecipe;
+      try{referenceRecipe=referenceFingerprint(c);}catch(error){if(request.recipeId!==undefined)throw staleReferenceRecipe();throw error;}
+      if(request.recipeId!==undefined){
+        if(typeof request.recipeId!=='string'||!/^[a-zA-Z0-9-]{1,80}$/.test(request.recipeId))throw staleReferenceRecipe();
+        const previous=referenceRecipes.get(e.sender.id+':'+request.recipeId);
+        if(!previous||previous!==referenceRecipe)throw staleReferenceRecipe();
+      }
       emit(s, 'voice', {reference:c.reference,transcript:c.transcript,engine:c.engine});
       const srt = await authorizeSubtitle(request.srt);
       if (path.extname(srt).toLowerCase() !== '.srt') throw new Error('Bir SRT altyazı dosyası seçin.');
@@ -699,10 +731,12 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const startControl = { isCancelled: () => s.cancelled };
       s.startPhase = new Promise(resolve => { s.startPhaseDone = resolve; });
       try {
+        if (referenceFingerprint(c) !== referenceRecipe) throw staleReferenceRecipe();
         if (c.keepEngine) s.proc = await warmEngine.start(python,args,{cwd:c.engine,env,windowsHide:true},startControl);
         else {
           await warmEngine.release();
           if (s.cancelled) throw Object.assign(new Error('İptal edildi.'), { code:'DUB_START_CANCELLED' });
+          if (referenceFingerprint(c) !== referenceRecipe) throw staleReferenceRecipe();
           s.proc = spawn(python,args,{cwd:c.engine,env,windowsHide:true});
         }
       } finally { s.startPhaseDone(); }
@@ -868,6 +902,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       });
       // start() döndükten sonra gelen iptal: çalışan run'ı durdur (kapanış yukarıdaki close işleyicisinden 'cancelled' olur).
       // cancel() waits for startPhase and then terminates the assigned run.
+      referenceRecipes.set(e.sender.id+':'+s.id,referenceRecipe);
+      while(referenceRecipes.size>128)referenceRecipes.delete(referenceRecipes.keys().next().value);
       return { ok: true, id: s.id };
     } catch (error) {
       if (job === s) job = null;

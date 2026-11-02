@@ -33,7 +33,7 @@
   let plan = null, edits = {}, planning = false;
   let backgroundSource = '', choosing = false, configSequence = 0;
   let deliverySource = '', resultMode = 'natural';
-  let lastRequest = null, lastReferenceQuality = null, lastReferenceIdentity = null, referenceQualityPendingReset = false;
+  let completedRequest = null, lastRequest = null, lastReferenceQuality = null, lastReferenceIdentity = null, referenceQualityPendingReset = false;
   const results = new Map();
   const resultOptions = new Map();
   let qualityFilter='all';
@@ -407,7 +407,7 @@
     if (mediaContextKey !== null && mediaContextKey !== mediaKey) {
       srt = ''; backgroundSource = ''; fileName('dubSrtName','—'); el('dubBackgroundName').textContent = '';
       deliverySource='';el('dubDeliverySourceName').textContent='';
-      lastRequest = null;qualityFilter='all'; results.clear(); showResults();
+      lastRequest = null; completedRequest = null;qualityFilter='all'; results.clear(); showResults();
       resetComparison(); output=null; window.DubWorkspaceUI?.setOutput(null); preview(null);
       el('dubGeneratorOutput').classList.add('hidden'); el('dubGeneratorUse').classList.add('hidden');
     }
@@ -454,7 +454,7 @@
   }
   function adoptCurrentSubtitle(candidate) {
     if (!candidate || srt || current || planning || choosing || workspaceBusy) return;
-    srt = candidate; lastRequest = null;qualityFilter='all'; results.clear(); showResults(); invalidatePlan();
+    srt = candidate; lastRequest = null; completedRequest = null;qualityFilter='all'; results.clear(); showResults(); invalidatePlan();
     void loadPronunciations();
     fileName('dubSrtName',basename(candidate)); refreshOverview(); status('Hazır');
   }
@@ -575,7 +575,7 @@
         }
       } else if (kind === 'subtitle') {
         if (typeof result === 'string' && /\.srt$/i.test(result)) {
-          srt = result; lastRequest = null;qualityFilter='all'; results.clear(); showResults(); invalidatePlan();void loadPronunciations(); fileName('dubSrtName',basename(result)); status('Hazır');
+          srt = result; lastRequest = null; completedRequest = null;qualityFilter='all'; results.clear(); showResults(); invalidatePlan();void loadPronunciations(); fileName('dubSrtName',basename(result)); status('Hazır');
         } else if (result) status('Bir SRT altyazı dosyası seçin.');
       } else if (Array.isArray(result) && typeof result[0] === 'string') {
         backgroundSource = result[0]; el('dubBackgroundName').textContent = basename(backgroundSource);
@@ -606,7 +606,7 @@
   }
   el('dubPlanPrepare').addEventListener('click',()=>void preparePlan());
   function invalidatePlan() {
-    plan = null; edits = {}; lastRequest = null; el('dubPlanGroup').replaceChildren(); showGroup(); controls();
+    plan = null; edits = {}; lastRequest = null; completedRequest = null; el('dubPlanGroup').replaceChildren(); showGroup(); controls();
   }
   for (const [name, settings] of Object.entries(presetSpecs)) el(`dubPreset${name}`).addEventListener('click', () => {
     if (current || planning || choosing || referenceBusy || workspaceBusy) return;
@@ -713,6 +713,8 @@
   }
   async function start(retry = false, forceGroups = [], takeChoices = null, job = {}) {
     if (current || referenceBusy || planning || choosing || workspaceBusy || !srt || !cfg?.ready) return;
+    const recipe=retry?(completedRequest||lastRequest):null;
+    if(retry&&!recipe)return {ok:false};
     artifactOpenVersion++;
     // A one-job override never writes retained controls. Reject an obsolete
     // preflight rather than borrowing options edited while its plan was loading.
@@ -729,7 +731,7 @@
     if(obsolete()||current||referenceBusy||planning||choosing||workspaceBusy)return {ok:false};
     let range;
     try { range = selectedRange(); } catch (error) { status(error.message); return; }
-    current = { id: crypto.randomUUID(), qualityKey:retry?el('dubQualityGroup').value:'', voice:{reference:cfg.reference,transcript:cfg.transcript,engine:cfg.engine}, context: window.BrowserDubAudioUI?.context(), sample: retry ? lastRequest?.sample : job.sample ?? el('dubSampleOnly').checked };
+    current = { id: crypto.randomUUID(), qualityKey:retry?el('dubQualityGroup').value:'', voice:{reference:cfg.reference,transcript:cfg.transcript,engine:cfg.engine}, context: window.BrowserDubAudioUI?.context(), sample: retry ? recipe?.sample : job.sample ?? el('dubSampleOnly').checked };
     const pending = current;
     pending.fallback=output?.url?{output,rows:[...results.values()],media:mediaIdentity(),srt,sample:el('dubGeneratorUse').classList.contains('hidden')}:null;
     const started = performance.now();
@@ -745,8 +747,12 @@
     el('dubGeneratorProgress').removeAttribute('value');
     runtimePhases={};runtimeError='';runtimeMetrics=null;runInfo();el('dubPhaseSummary').textContent='';
     status('Motor yükleniyor…'); controls();
-    const payload = retry ? {...lastRequest, id:pending.id, forceGroups,
-      dubText: plan ? {sourceHash:plan.sourceHash, edits:{...edits}} : lastRequest.dubText} : { id: pending.id, srt, resultMode, sample: pending.sample,
+    // Narrow retries start from applied text, then add only the requested group's draft.
+    const retryText=recipe?.dubText||(plan?{sourceHash:plan.sourceHash,edits:{}}:null);
+    const retryEdits={...(retryText?.edits||{})};
+    for(const key of forceGroups){if(Object.hasOwn(edits,key))retryEdits[key]=edits[key];else delete retryEdits[key];}
+    const payload = retry ? {...recipe, id:pending.id, recipeId:recipe.id, forceGroups,
+      dubText: retryText ? {...retryText,edits:retryEdits} : retryText} : { id: pending.id, srt, resultMode, sample: pending.sample,
       keepEngine:el('dubKeepEngine').checked, profile: el('dubProfile').value, concurrency: Number(el('dubConcurrency').value), grouping: el('dubGrouping').value,
       expression: el('dubExpression').value,
       followDelivery:el('dubFollowDelivery').checked, deliveryStrength:el('dubDeliveryStrength').value,
@@ -756,11 +762,12 @@
       backgroundTab: pending.context ? {tabId:pending.context.tabId,generation:pending.context.generation,mediaId:pending.context.mediaId || ''} : null,
       timingMode: el('dubTimingMode').value, range, dubText: plan ? { sourceHash: plan.sourceHash, edits:{...edits} } : null };
     if(retry){
-      payload.groupTakes={...(lastRequest.groupTakes||{}),...(takeChoices||{})};
+      payload.groupTakes={...(recipe.groupTakes||{}),...(takeChoices||{})};
       for(const key of forceGroups)delete payload.groupTakes[key];
     }
     payload.source = pending.context?.source || pending.context?.mediaKey || '';
     if(Number.isFinite(pending.context?.duration)&&pending.context.duration>0&&pending.context.duration<=86400)payload.sourceDuration=pending.context.duration;
+    pending.request=JSON.parse(JSON.stringify(payload));
     pending.settings={...payload};refreshOverview();
     window.MediaExperience?.trackVoice?.(pending.id,pending.context);
     lastRequest = payload;
@@ -931,6 +938,7 @@
       if (event.logError) el('dubGeneratorDetails').textContent = event.logError;
       current = null; controls();
       if (event.type === 'done') {
+        completedRequest=job.request||lastRequest;
         output = event; window.DubWorkspaceUI?.setOutput(output, job.context, job.qualityKey); preview(output); el('dubGeneratorProgress').value = 100;
         if (event.quality?.groups) { results.clear(); for (const row of event.quality.groups) results.set(row.key, row); showResults(); }
         const needsReview = event.qualityUnavailable === true || [...results.values()].some(row => row.status !== 'ready');
@@ -967,7 +975,7 @@
     el('dubGeneratorOutput').classList.remove('hidden');
     el('dubGeneratorUse').classList.toggle('hidden',output.sample===true || output.syncInvalid===true);
     // A project carries rendered media, not an executable engine request.
-    srt=output.subtitle || ''; lastRequest=null; plan=null; edits={};void loadPronunciations();
+    srt=output.subtitle || ''; lastRequest=null;completedRequest=null; plan=null; edits={};void loadPronunciations();
     el('dubRangeEnabled').checked=!!output.range;
     if(output.range){el('dubRangeStart').value=String(output.range.start);el('dubRangeEnd').value=String(output.range.end);}
     fileName('dubSrtName',basename(srt)); controls();
