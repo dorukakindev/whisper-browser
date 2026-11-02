@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-03-0052.md](docs/devir/2026-11-03-0052.md) — R850 paket ve RSS kapsam onarımları
 Güncel çalışma: [docs/devir/2026-11-03-0028.md](docs/devir/2026-11-03-0028.md) — R848 kesin kimlik ve kişisel ilişki onarımları
 Güncel çalışma: [docs/devir/2026-11-03-0000.md](docs/devir/2026-11-03-0000.md) — R846 kaynak, kişisel veri ve taşıma onarımları
 Güncel çalışma: [docs/devir/2026-11-02-2337.md](docs/devir/2026-11-02-2337.md) — R844 onarımları ve araştırma kartları
