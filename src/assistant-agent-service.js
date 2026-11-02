@@ -85,7 +85,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
   const call=pending.get(input.callId);if(!call||call.sender!==event.sender)return {ok:false};
   try{requireOwner(call.owner);}catch(error){call.cancel(error);return {ok:false};}
   let result=input.result;
-  try{if(!result||typeof result!=='object'||Array.isArray(result)||!['completed','accepted','failed'].includes(result.status)||!withinResultBudget(JSON.stringify(result)))throw Error('Invalid result');}
+  try{if(!result||typeof result!=='object'||Array.isArray(result)||!['completed','accepted','failed','unsupported'].includes(result.status)||!withinResultBudget(JSON.stringify(result)))throw Error('Invalid result');}
   catch(_){result={status:'failed',error:'Invalid application result.'};}
   call.finish(result);return {ok:true};
  });
@@ -132,6 +132,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
      captionProbes.set(event.sender.id,{owner,languages,expires:Date.now()+300000});return {languages,truncated:available.length>languages.length,note:'Choose a listed caption ID. No captions means Whisper must be explicitly requested; it was not started.'};
     }
     if(name==='search_app_guide')return require('./assistant-guide').lookup(args.query);
+    if(name==='get_action_options')return require('./assistant-action-options').getActionOptions(owner,args);
     if(name==='app_help')return {capabilities:registry.help(owner,args.domain||'all'),limits:'Only listed assistant tools are connected. Book, dubbing, library and normal settings tools are source/domain dependent. Do not claim unlisted controls or access to secrets, files, arbitrary browser automation or the full book.'};
     if(name==='research_web'){
      const result=await researchWeb(args.query,controller.signal,onPartial);controller.signal.throwIfAborted();requireOwner(owner);
@@ -247,7 +248,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
     const traceId=randomUUID(),traceStarted=Date.now(),intentRevision=session.runtime.revision,sourceRevision=runtimeTools.sourceKey(owner);let sequence=0,finished=false;
     const publishRead=(value,final=false)=>{if(finished||controller.signal.aborted||!validateOwner(owner)||session.runtime.revision!==intentRevision)return;emit(event.sender,{type:'read-progress',requestId:session.id,callId:traceId,providerCallId:metadata.providerCallId,name,intentRevision,sourceRevision,sequence:++sequence,final,value:runtimeTools.partial(value)});};
     emit(event.sender,{type:'tool-step',requestId:session.id,step:{id:traceId,name,state:'running',intentRevision,started:traceStarted}});emit(event.sender,{type:'progress',requestId:session.id,phase:'tool',domain:name==='research_web'?'web':registry.get(name)?.domain||''});
-    try{const result=await executeUnchecked(name,args,name==='research_web'?value=>publishRead(value):undefined);if(['failed','blocked'].includes(result?.status))failed++;if(sequence)publishRead({},true);finished=true;emit(event.sender,{type:'tool-step',requestId:session.id,step:{id:traceId,name,intentRevision,state:['proposed','failed','blocked','accepted'].includes(result?.status)?result.status:'completed',elapsedMs:Date.now()-traceStarted}});return result;}
+    try{const result=await executeUnchecked(name,args,name==='research_web'?value=>publishRead(value):undefined);if(['failed','blocked','unsupported'].includes(result?.status))failed++;if(sequence)publishRead({},true);finished=true;emit(event.sender,{type:'tool-step',requestId:session.id,step:{id:traceId,name,intentRevision,state:result?.status==='unsupported'?'failed':['proposed','failed','blocked','accepted'].includes(result?.status)?result.status:'completed',elapsedMs:Date.now()-traceStarted}});return result;}
     catch(error){finished=true;if(!controller.signal.aborted)failed++;emit(event.sender,{type:'tool-step',requestId:session.id,step:{id:traceId,name,intentRevision,state:controller.signal.aborted?'stopped':'failed',elapsedMs:Date.now()-traceStarted}});throw error;}
     finally{finished=true;if(!controller.signal.aborted)emit(event.sender,{type:'progress',requestId:session.id,phase:'thinking'});}
    };

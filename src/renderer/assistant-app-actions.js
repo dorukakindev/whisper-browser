@@ -39,6 +39,15 @@
   if(['get_workflow_settings','configure_workflow','undo_workflow_settings'].includes(name))return window.AssistantWorkflowActions.execute(name,args,owner,{deadline,isCancelled,expectedSettings});
   if(['read_feed_entry_state','set_feed_entry_state'].includes(name))return window.AssistantFeedSources.execute(name,args,owner,{expectedSettings,isCancelled:stale});
   if(name==='search_sources')return window.AssistantFeedSources.search(args.query,owner,()=>!stale());
+  if(name==='calculate_playback_time'){
+   const math=window.AssistantPlaybackMath;math.options(args);
+   const context=window.BrowserDubAudioUI?.context(),source=math.identity(context);
+   const bound=context?.mode==='browser'?context.tabId===owner.tabId&&context.generation===owner.generation&&typeof context.mediaId==='string'&&!!context.mediaId&&!player.browserAdPlaying:context?.mediaKey===player.mediaKey&&context?.generation===player.generation;
+   if(!owner.hasMedia||!source||!bound||context.mode!==player.workspaceMode)return {status:'unsupported',reason:'No current visible media source is available.'};
+   const result=await window.AssistantLibraryActions.execute('get_playback_state',{},owner,{deadline,isCancelled});
+   if(stale()||source.key!==math.identity(window.BrowserDubAudioUI?.context())?.key)throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));
+   return math.calculate(result.playback,args,source);
+  }
   if(registry.get(name)?.domain==='library'||['get_app_preferences','set_app_preferences','undo_app_preferences','navigate_workspace','get_playback_state','playback_control'].includes(name))return window.AssistantLibraryActions.execute(name,args,owner,{deadline,isCancelled,expectedSettings,personalSource:()=>personalSource(owner,()=>{if(stale())throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));})});
   if(registry.get(name)?.domain==='book')return window.AssistantBookActions.execute(name,args,owner,{deadline,isCancelled});
   if(registry.get(name)?.domain==='voice'&&name!=='open_voice_preparation')return window.AssistantVoiceActions.execute(name,args,owner,{deadline,isCancelled,expectedSettings});
