@@ -22,6 +22,7 @@ const sender = { id: 7, isDestroyed:()=>false, send:(_channel,e)=>events.push(e)
 const service = registerDubService({ observeJob:(session,event,cancel)=>observedJobs.push({id:session.id,type:event.type,cancel}), app, ipcMain:{handle:(name,fn)=>handlers[name]=fn},
   dialog:{}, owner:()=>null, authorized:()=>allowed, authorizeSubtitle:async p=>{ assert.equal(p,srt); return p; },
   busy:()=>false, grantMedia:p=>assert.ok(fs.existsSync(p)), environment:()=>({PATH:'fixture'}),
+  translateGroup: async (text,seconds,context)=>{assert.equal(text,'Untranslated source');assert.equal(seconds,2);assert.equal(context.before,'');return 'Türkçe çeviri önerisi.';},
   shorten: async (text, seconds, context) => { editContext=context; assert.equal(text, 'Uzun metin.'); assert.equal(seconds, 2); return 'Kısa metin.'; },
   resolveSourceContext: async ({subtitleBytes,preparedGroups}) => {
     assert.equal(preparedGroups[0].key,'1','Automatic start must construct a real plan without opening manual text editing');
@@ -138,7 +139,12 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     child.emit('close',0);await restoredPlan;
     assert.equal((await call('dub:shorten','1')).text, 'Kısa metin.');
     assert.equal((await call('dub:shorten','999')).ok,false);
+    assert.equal((await call('dub:shorten',{operation:'translate',key:'1',sourceHash:fixtureHash,text:'Untranslated source'})).text,'Türkçe çeviri önerisi.');
+    assert.equal((await call('dub:shorten',{operation:'arbitrary',key:'1',sourceHash:fixtureHash,text:'Untranslated source'})).ok,false);
+    const compared=call('dub:plan',{srt,grouping:'anlatim',compare:true});await new Promise(setImmediate);child.stdout.emit('data',JSON.stringify({sourceHash:fixtureHash,groups:[{key:'1,2',text:'Comparison only.',seconds:4}]}));child.emit('close',0);await compared;
+    assert.equal((await call('dub:shorten',{operation:'translate',key:'1',sourceHash:fixtureHash,text:'Untranslated source'})).ok,true,'comparison must not replace authoritative plan');
     fs.writeFileSync(srt,'changed after plan');
+    assert.equal((await call('dub:shorten',{operation:'translate',key:'1',sourceHash:fixtureHash,text:'Untranslated source'})).ok,false,'changed on-disk text must refuse translation');
     const stale = await call('dub:start',{id:'stale-preview',srt});
     assert.equal(stale.ok,false); assert.match(stale.error,/SRT değişti/);
     fs.writeFileSync(srt,'x'.repeat(4000001));

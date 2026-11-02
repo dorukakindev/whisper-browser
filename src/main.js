@@ -18557,6 +18557,12 @@ const dubService = require('./dub-service').registerDubService({
     const c = browserTranslationConfig();
     return require('node:crypto').createHash('sha256').update(JSON.stringify([c.endpoint,c.model,'speech-editor-v5-source-reviewed'])).digest('hex');
   },
+  translateGroup: async (text, _seconds, context = {}) => {
+    const config={...browserTranslationConfig(),targetLanguage:'tr'};
+    const problem=browserTranslationConfigProblem(config);if(problem)throw Error(problem);
+    const result=await requestBrowserSentenceTranslation({text,contextBefore:context.before,contextAfter:context.after},config,AbortSignal.timeout(45000));
+    return result.text;
+  },
   shorten: async (text, seconds, context = {}) => {
     const config = browserTranslationConfig();
     const problem = browserTranslationConfigProblem(config);

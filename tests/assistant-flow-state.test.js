@@ -22,3 +22,6 @@ test('Only the exact completed job makes a continuation ready; running never res
 });
 
 test('Only a failed exact job offers stage retry; stopped and missing jobs stay closed',()=>{const row={jobId:'exact',waiting:true,expires:1000};for(const state of ['failed','stopped','running','cancelling','completed'])assert.equal(describe(row,[{id:'exact',state}],0).retryable===true,state==='failed');assert.equal(describe(row,[{id:'other',state:'failed'}],0).retryable===true,false);});
+
+
+test('Running receipt and terminal grace use ledger identity and never extend an idle or missing job',()=>{const row={jobId:'v',waiting:true,expires:600000,maxExpires:86400000};assert.equal(describe(row,[{id:'v',state:'running'}],3600000).waiting,true);assert.equal(describe(row,[{id:'v',state:'completed',finishedAt:3600000}],3600001).ready,true);assert.equal(describe(row,[{id:'v',state:'completed',finishedAt:3600000}],4200000).state,'expired');assert.equal(describe(row,[],3600000).state,'expired');assert.equal(describe(row,[{id:'v',state:'running'}],86400000).state,'expired');});

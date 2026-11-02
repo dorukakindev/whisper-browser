@@ -13,7 +13,7 @@ const {normalize: normalizePronunciations} = require('./dub-pronunciation');
 const {identity: sourceIdentity} = require('./dub-source-identity');
 
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
-  spawn, terminate, busy, grantMedia, environment, shorten, resolveSourceContext, editorIdentity = () => '', setRate, prepareBackground, prepareProsody, prepareReference, onOutput = output => output, observeJob = () => {} }) {
+  spawn, terminate, busy, grantMedia, environment, shorten, translateGroup, resolveSourceContext, editorIdentity = () => '', setRate, prepareBackground, prepareProsody, prepareReference, onOutput = output => output, observeJob = () => {} }) {
   let job = null, releasingEngine=false;
   const referenceSelectionSecret=randomBytes(32);
   const groupTakes=require('./dub-group-takes').createGroupTakes({app,grantMedia});
@@ -276,7 +276,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     planning.get(senderId)?.cancel?.();
     const attempt = {};
     planning.set(senderId, attempt);
-    plans.delete(senderId);
+    if(request.compare!==true)plans.delete(senderId);
     if (!planSenders.has(e.sender) && typeof e.sender.once === 'function') {
       planSenders.add(e.sender);
       e.sender.once('destroyed', () => {
@@ -330,16 +330,22 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       });
     });
     if (planning.get(senderId) !== attempt || e.sender.isDestroyed()) throw new Error('Dublaj planı artık kullanılmıyor.');
-    plans.set(senderId, { srt, range, grouping, ...result });
+    if(request.compare!==true)plans.set(senderId, { srt, range, grouping, ...result });
     return { ok: true, grouping, ...result };
     } finally { if (planning.get(senderId) === attempt) planning.delete(senderId); }
   }));
   ipcMain.handle('dub:shorten', guard(async (e, request) => {
     const plan=plans.get(e.sender.id);
-    if(typeof shorten!=='function')throw Error('Voice editor is unavailable / Ses editörü kullanılamıyor.');
+    if(request?.operation!==undefined&&request.operation!=='translate')throw Error('Unknown text operation / Geçersiz metin işlemi.');
     const {text:source,seconds}=require('./dub-editor-request').shorteningInput(plan,request);
-    const text=await shorten(source,seconds);
-    if(plans.get(e.sender.id)!==plan||e.sender.isDestroyed())throw Error('Dub plan changed / Dublaj planı değişti.');
+    const translating=request?.operation==='translate',edit=translating?translateGroup:shorten;
+    if(typeof edit!=='function')throw Error('Voice editor is unavailable / Ses editörü kullanılamıyor.');
+    const sourceHash=()=>{const fd=fs.openSync(plan.srt,'r');try{const buffer=Buffer.alloc(4000001);let length=0,count;while(length<buffer.length&&(count=fs.readSync(fd,buffer,length,buffer.length-length,null))>0)length+=count;if(length>4000000)throw Error('SRT changed / SRT değişti.');return require('node:crypto').createHash('sha256').update(buffer.subarray(0,length)).digest('hex');}finally{fs.closeSync(fd);}};
+    if(translating&&sourceHash()!==plan.sourceHash)throw Error('Dub plan changed / Dublaj planı değişti.');
+    const identity=editorIdentity(),index=plan.groups.findIndex(g=>g.key===request?.key);
+    const text=await edit(source,seconds,{before:plan.groups[index-1]?.text||'',after:plan.groups[index+1]?.text||''});
+    if(plans.get(e.sender.id)!==plan||e.sender.isDestroyed()||translating&&(sourceHash()!==plan.sourceHash||identity!==editorIdentity()))throw Error('Dub plan changed / Dublaj planı değişti.');
+    if(typeof text!=='string'||!text.trim()||text.length>8000)throw Error('Invalid text response / Geçersiz metin yanıtı.');
     return {ok:true,text};
   }));
   require('./text-voice-studio').registerTextVoiceStudio({app,ipcMain,dialog,owner,guard,config,referenceEntry,

@@ -294,6 +294,7 @@
     el('dubExpression').disabled = locked || el('dubFollowDelivery').checked;
     el('dubRetryFailed').disabled = locked || !lastRequest || !cfg?.ready;
     el('dubRegenerateGroup').disabled = locked || !lastRequest || !results.size || !cfg?.ready;
+    if(el('dubTranslateGroup'))el('dubTranslateGroup').disabled=locked||!plan;
     if(el('dubSaveRegenerate'))el('dubSaveRegenerate').disabled=locked||!lastRequest||!plan||!cfg?.ready;
     el('dubQualityGroup').disabled = locked || !el('dubQualityGroup').value;
     el('dubGeneratorStart').disabled = locked || !srt || !cfg?.ready;
@@ -512,7 +513,19 @@
     if(!plan||owner!==mediaIdentity()||file!==srt)return null;
     if(!lastReferenceQuality&&window.api.listVoiceReferences){const reference=cfg?.reference;const catalog=await window.api.listVoiceReferences().catch(()=>null);const active=catalog?.references?.find(r=>r.id===catalog.activeId);if(reference===cfg?.reference&&active?.path===reference&&active.quality)referenceInfo(active.quality);}
     if(owner!==mediaIdentity()||file!==srt)return null;
-    return window.DubExperienceModel.preflight(plan.groups,{edits,reference:lastReferenceQuality,timingMode:el('dubTimingMode').value,pronunciations:cfg?.pronunciations});
+    const report=window.DubExperienceModel.preflight(plan.groups,{edits,reference:lastReferenceQuality,timingMode:el('dubTimingMode').value,pronunciations:cfg?.pronunciations});
+    const context=window.BrowserDubAudioUI?.context(),source=typeof player==='object'?player.subPath:'';
+    report.coverage={checked:false,issues:[],missing:[]};
+    if(source&&source!==srt&&typeof parseSubtitles==='function'&&window.api.readSubtitle&&(context?.mode!=='browser'||(player.browserTracks||[]).some(t=>t.path===source))){
+      try{const raw=await window.api.readSubtitle(source);if(owner!==mediaIdentity()||file!==srt)return null;if(raw?.ok)report.coverage=window.DubExperienceModel.coverage(parseSubtitles(raw.text),plan.groups,edits,selectedRange());}catch{/* Unavailable source is not proof of a complete translation. */}
+    }
+    for(const issue of report.coverage.issues){const row=report.rows.find(r=>r.key===issue.key);if(row&&!row.issues.includes(issue.issue))row.issues.push(issue.issue);}report.flagged=report.rows.filter(r=>r.issues.length).length;
+    return report;
+  }
+  async function compareGrouping(){
+    if(current||planning||referenceBusy||choosing||workspaceBusy||!srt)return null;const owner=mediaIdentity(),selection=planSelection(),file=srt,currentMode=el('dubGrouping').value;
+    if(!plan)await preparePlan();if(!plan||selection!==planSelection()||owner!==mediaIdentity())return null;
+    planning=true;controls();try{const mode=currentMode==='anlatim'?'akici':'anlatim',r=await window.api.planDub({srt:file,range:selectedRange(),grouping:mode,compare:true});if(owner!==mediaIdentity()||selection!==planSelection()||!r?.ok||r.sourceHash!==plan.sourceHash)return null;return {mode,currentMode,current:plan.groups,alternative:r.groups};}finally{planning=false;controls();}
   }
   function preparePronunciations(terms,expectedOwner,expectedSrt){
     if(current||planning||referenceBusy||choosing||workspaceBusy||pronunciationLoading||!srt||expectedOwner!==mediaIdentity()||expectedSrt!==srt)return false;
@@ -528,16 +541,19 @@
   async function editAtCurrent(time){
     const context=window.BrowserDubAudioUI?.context();
     if(mediaContextKey!==null&&mediaContextKey!==mediaIdentity())return false;
-    if(!output||output.sample||!context?.visible||!context.hasMedia||lastRequest?.source!==(context.source||context.mediaKey||''))return false;
-    const target=window.DubExperienceModel.locate([...results.values()],time??context.currentTime);
+    if(!context?.visible||!context.hasMedia||current)return false;
+    if(output&&(output.sample||lastRequest?.source!==(context.source||context.mediaKey||'')))return false;
+    if(!output){if(!currentSubtitle()||currentSubtitle()!==srt)return false;if(!plan)await preparePlan();}
+    const rows=output?[...results.values()]:(plan?.groups||[]).map(g=>({...g,sourceStart:g.start/1000,sourceEnd:g.end/1000}));
+    const target=window.DubExperienceModel.locate(rows,time??context.currentTime);
     if(!target||current)return false;
     if(!modal.open)await open();
     if(!plan)await preparePlan();
     if(!plan?.groups.some(g=>g.key===target.key))return false;
-    selectQuality(target.key);syncQualityPlan(true);
+    if(output){selectQuality(target.key);syncQualityPlan(true);}else await editPlanGroup(target.key);
     el('dubPlanText').focus();return true;
   }
-  window.DubGeneratorUI = Object.freeze({ selectQuality,editPlanGroup,inspectProduction,preparePronunciations,editAtCurrent,experience:()=>({owner:mediaIdentity(),srt,plan,edits:{...edits},groups:[...results.values()],output,source:lastRequest?.source||'',busy:!!current||planning||referenceBusy||choosing||workspaceBusy}),prepareCurrent: open, takeContext:()=>({id:output?.id||'',key:el('dubQualityGroup').value,owner:mediaIdentity(),busy:!!current||referenceBusy||planning||choosing||workspaceBusy,recipeReady:!!lastRequest}), useTake:(key,token)=>start(true,[],{[key]:token}), assistant:Object.freeze({state:voiceState,configure:voiceConfigure,start:voiceStart,group:voiceGroup,use:voiceUse,refreshReference:()=>configure(undefined,true)}) });
+  window.DubGeneratorUI = Object.freeze({ selectQuality,editPlanGroup,inspectProduction,compareGrouping,preparePronunciations,editAtCurrent,experience:()=>({owner:mediaIdentity(),srt,plan,edits:{...edits},groups:[...results.values()],output,source:lastRequest?.source||'',busy:!!current||planning||referenceBusy||choosing||workspaceBusy}),prepareCurrent: open, takeContext:()=>({id:output?.id||'',key:el('dubQualityGroup').value,owner:mediaIdentity(),busy:!!current||referenceBusy||planning||choosing||workspaceBusy,recipeReady:!!lastRequest}), useTake:(key,token)=>start(true,[],{[key]:token}), assistant:Object.freeze({state:voiceState,configure:voiceConfigure,start:voiceStart,group:voiceGroup,use:voiceUse,refreshReference:()=>configure(undefined,true)}) });
   el('dubGeneratorClose').addEventListener('click', () => modal.close());
   modal.addEventListener('close', () => { artifactOpenVersion++;el('dubGeneratedPreview').pause(); syncBrowserOcclusion(); });
   async function openArtifact(file,isCurrent=()=>true){
@@ -652,6 +668,14 @@
   repairSave.onclick=async()=>{if(current||planning||referenceBusy||choosing||workspaceBusy||!lastRequest)return;const g=group(),text=el('dubPlanText').value.trim();if(!g||!text)return;if(text===g.text)delete edits[g.key];else edits[g.key]=text;showGroup();repairSave.disabled=true;try{await start(true,[g.key]);}finally{repairSave.disabled=false;}};
   repairAB.onclick=()=>{const g=group();if(!g)return;selectQuality(g.key);window.dispatchEvent(new Event('dub-takes:open'));};
   el('dubPlanReset').addEventListener('click', () => { if(current||planning||referenceBusy||choosing||workspaceBusy)return;const g = group(); if (g) delete edits[g.key]; showGroup(); });
+  const translateGroupButton=document.createElement('button');translateGroupButton.id='dubTranslateGroup';translateGroupButton.type='button';translateGroupButton.className='btn btn-secondary';const translationLabels=()=>{translateGroupButton.textContent=window.UiLocale?.get?.()==='tr'?'Yalnız bu metni Türkçeye çevir':'Translate only this text to Turkish';};translationLabels();document.addEventListener('ui-locale-change',translationLabels);repairActions.prepend(translateGroupButton);
+  translateGroupButton.onclick=async()=>{
+    if(planning||current||referenceBusy||choosing||workspaceBusy)return;const g=group(),requestedPlan=plan,draft=el('dubPlanText').value,media=requestIdentity();if(!g||!draft.trim())return;
+    planning=true;translateGroupButton.disabled=true;controls();status(window.UiLocale?.get?.()==='tr'?'Yalnız seçili metin çevriliyor…':'Translating only the selected text…');
+    try{const r=await window.api.shortenDub({operation:'translate',key:g.key,sourceHash:requestedPlan.sourceHash,text:draft});if(media!==requestIdentity()||plan!==requestedPlan||el('dubPlanText').value!==draft)return;if(!r?.ok)throw Error(r?.error||'Translation failed / Çeviri alınamadı.');el('dubPlanText').value=r.text;status(window.UiLocale?.get?.()==='tr'?'Öneri hazır. Kaydetmeden önce anlamı kontrol et; diğer gruplar değişmedi.':'Suggestion ready. Check its meaning before saving; other groups are unchanged.');}
+    catch(error){if(media===requestIdentity()&&plan===requestedPlan)el('dubGeneratorDetails').textContent=error.message;}
+    finally{planning=false;translateGroupButton.disabled=false;controls();}
+  };
   el('dubPlanShorten').addEventListener('click', async () => {
     if (planning || current || referenceBusy || choosing) return;
     const g = group(); if (!g) return;
@@ -678,6 +702,15 @@
   function startSelection() {
     return JSON.stringify([planSelection(),voiceSettings(),el('dubKeepEngine').checked,el('dubNaturalSpeech').checked,el('dubAutoFit').checked,backgroundSource,deliverySource,cfg,edits]);
   }
+  let acceptedPreflight='';
+  const generationGate=document.createElement('section');generationGate.id='dubGenerationGate';generationGate.className='dub-generation-gate';generationGate.hidden=true;generationGate.setAttribute('aria-label','Translation review / Çeviri denetimi');el('dubGeneratorDialog').querySelector('.dub-studio-scroll').prepend(generationGate);
+  function reviewGeneration(report,selection,owner,job){
+    generationGate.replaceChildren();generationGate.hidden=false;const title=document.createElement('h3'),copy=document.createElement('p'),review=document.createElement('button'),proceed=document.createElement('button');
+    const en=window.UiLocale?.get?.()==='en';title.textContent=en?'Review before generating speech':'Ses üretmeden önce kontrol et';copy.textContent=en?`${report.flagged} text warnings · ${report.coverage?.missing.length||0} unmatched source passages. A partial file may still contain untranslated text. Checks do not prove semantic accuracy.`:`${report.flagged} metin uyarısı · ${report.coverage?.missing.length||0} eşleşmeyen kaynak metni. Kısmi dosyada çevrilmemiş satırlar olabilir. Bu kontrol anlam doğruluğunu kanıtlamaz.`;
+    review.type=proceed.type='button';review.className=proceed.className='btn btn-secondary';review.textContent=en?'Inspect flagged groups':'İşaretli grupları incele';proceed.textContent=en?'I reviewed it · generate as selected':'Kontrol ettim · seçili metinle üret';
+    proceed.disabled=report.rows.some(r=>r.issues.includes('empty'));
+    review.onclick=()=>{window.dispatchEvent(new Event('dub-preflight-ready'));};proceed.onclick=()=>{if(selection!==startSelection()||owner!==requestIdentity()||job.isCancelled?.()||current||planning)return;acceptedPreflight=selection;generationGate.hidden=true;void start(false,[],null,job);};generationGate.append(title,copy,review,proceed);generationGate.scrollIntoView?.({block:'center'});
+  }
   async function start(retry = false, forceGroups = [], takeChoices = null, job = {}) {
     if (current || referenceBusy || planning || choosing || workspaceBusy || !srt || !cfg?.ready) return;
     artifactOpenVersion++;
@@ -687,6 +720,11 @@
     const obsolete=()=>sourceBefore!==requestIdentity()||selectionBefore!==startSelection()||job.isCancelled?.();
     if(!retry&&!plan){await preparePlan();if(!plan||obsolete()||current)return {ok:false};}
     if(obsolete())return {ok:false};
+    if(!retry&&acceptedPreflight!==selectionBefore&&window.DubExperienceModel){
+      const report=await inspectProduction();if(obsolete()||!report||current||planning||referenceBusy||choosing||workspaceBusy)return {ok:false};
+      if(report.flagged||report.coverage?.missing.length||/\.partial\.srt$/i.test(srt)){reviewGeneration(report,selectionBefore,sourceBefore,job);window.dispatchEvent(new Event('dub-preflight-ready'));return {ok:false,reviewRequired:true};}
+    }
+    generationGate.hidden=true;
     window.dispatchEvent(new Event('dub-preflight-ready'));
     if(obsolete()||current||referenceBusy||planning||choosing||workspaceBusy)return {ok:false};
     let range;

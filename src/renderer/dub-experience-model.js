@@ -21,6 +21,18 @@
    return {key:g.key,text,seconds,estimated:Math.round(estimated*10)/10,load,dense:load!==null&&load>1.25,long:text.length>450,edited,issues};});
   return {rows,dense:rows.filter(r=>r.dense).length,long:rows.filter(r=>r.long).length,flagged:rows.filter(r=>r.issues.length).length,pronunciations:pronunciationCandidates(rows,pronunciations),referenceWarnings:Array.isArray(reference?.warnings)?reference.warnings.filter(w=>['quiet','clipping','silence','short','downmix-cancellation'].includes(w)):[],referenceChecked:Number.isFinite(reference?.seconds)&&reference.seconds>0,timingMode};
  }
+ function coverage(source,groups,edits={},range=null){
+  const target=cueIndex(groups.map(g=>({start:g.start/1000,end:g.end/1000,text:String(Object.hasOwn(edits,g.key)?edits[g.key]:g.text),key:g.key}))),original=cueIndex(source),issues=[],missing=[];
+  if(!target.rows.length||!original.rows.length)return {checked:false,issues,missing,limited:false};
+  const begin=range?.start??0,end=range?.end??Infinity;
+  for(const cue of original.rows){if(cue.end<=begin||cue.start>=end)continue;const hits=indexedOverlap(target,cue.start,cue.end);if(!hits.text&&!hits.limited)missing.push({start:cue.start,end:cue.end,text:cue.text});}
+  const normalize=t=>String(t).normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
+  for(const g of groups){const match=indexedOverlap(original,g.start/1000,g.end/1000);if(match.limited||!match.text)continue;const text=String(Object.hasOwn(edits,g.key)?edits[g.key]:g.text),english=match.text.match(/\b(?:the|which|would|because|their|they|have|from)\b/gi)||[];
+   if(text.length>=18&&english.length>=2&&normalize(text)===normalize(match.text))issues.push({key:g.key,issue:'source-copy'});
+   const numbers=difference(match.text,text).removedNumbers;if(numbers.length)issues.push({key:g.key,issue:'number-check',numbers});
+  }
+  return {checked:true,issues,missing:missing.slice(0,100),limited:original.limited||target.limited||missing.length>100};
+ }
  function locate(rows,time){if(!Number.isFinite(time)||time<0)return null;const hits=rows.filter(r=>Number.isFinite(r.sourceStart)&&Number.isFinite(r.sourceEnd)&&time>=r.sourceStart&&time<r.sourceEnd);return hits.length===1?hits[0]:null;}
  function difference(normal,speech){
   const a=String(normal||'').split(/(\s+)/),b=String(speech||'').split(/(\s+)/);let prefix=0,suffix=0;
@@ -64,5 +76,5 @@
   const longest=sentences.reduce((n,part)=>Math.max(n,(part.match(/\S+/gu)||[]).length),0);
   return {words:words.length,longestSentence:longest,long:longest>35,fragment:words.length>0&&words.length<=4&&/(?:…|\.\.\.)$/.test(text)};
  }
- return Object.freeze({readability,preflight,locate,difference,overlap,cueIndex,indexedOverlap,comparisonRows,continuity});
+ return Object.freeze({readability,preflight,coverage,locate,difference,overlap,cueIndex,indexedOverlap,comparisonRows,continuity});
 });

@@ -41,3 +41,6 @@ test('Failed exact stage retains completed steps and permits only the identical 
  flows.resume(r.continuationId,7,owner,{deferCommit:true}).settle(true);
  assert.throws(()=>flows.resume(r.continuationId,7,owner),/expired/);
 });
+
+
+test('Long verified jobs preserve continuation until ten minutes after terminal evidence, with a hard session bound',()=>{let clock=0,jobs=[{id:'voice',state:'running'}];const flows=createFlows({now:()=>clock,getJobs:()=>({jobs})}),flow=flows.start(7,owner,'Translate and dub'),r=flows.record(flow,'start_voice_generation',{}, {status:'accepted'},'voice');clock=3600000;assert.equal(flows.resume(r.continuationId,7,owner).waiting,true);jobs=[{id:'voice',state:'completed',finishedAt:clock}];clock+=599999;assert.equal(flows.resume(r.continuationId,7,owner,{deferCommit:true}).flow.steps[0].status,'completed');const long=flows.start(7,owner,'Long job');jobs=[{id:'voice2',state:'running'}];const next=flows.record(long,'start_voice_generation',{}, {status:'accepted'},'voice2');clock+=86400001;assert.throws(()=>flows.resume(next.continuationId,7,owner),/expired/);});
