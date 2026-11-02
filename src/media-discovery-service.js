@@ -130,15 +130,15 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
         try{const file=path.join(userData(),'media-shelf.json');if(fs.existsSync(file)&&fs.statSync(file).size<=16_000_000){const shelf=JSON.parse(fs.readFileSync(file,'utf8'));genreProfile=require('./media-taste').profile(shelf.diary||[],library,shelf.tasteProfile||{}).genres;}}catch{/* Existing favorites remain a fallback when the optional profile is unavailable. */}
         for(const row of genreProfile.filter(row=>row.average>=3.5&&row.count>=2).sort((a,b)=>b.count*(b.average-2.5)-a.count*(a.average-2.5))){const genre=require('./media-discovery-genres').normalize(row.name);if(GENRES.includes(genre))selected.set(genre,{genre:row.name,count:row.count,average:row.average});}
         for (const seed of seeds) for (const name of seed.genres || []) { const genre = require('./media-discovery-genres').normalize(name); if (GENRES.includes(genre) && !selected.has(genre)) selected.set(genre,{genre,seedTitle:seed.title,seedId:seed.id,seedImdbId:seed.imdbId,reaction:'like'}); }
-        if (!selected.size) return { ok: true, rows: [], needsRatings: true };
-        const results = await Promise.allSettled([...selected].slice(0, 3).map(async ([genre, seed]) => ({ seed, rows: (await list({ kind: input.kind, genre })).rows })));
+        const explicit=require('./media-daily-service').read(userData()).preferences;for(const p of explicit.filter(p=>p.kind==='genre-less'))selected.delete(p.value);const directorSeeds=explicit.filter(p=>p.kind==='director-more');if (!selected.size&&!directorSeeds.length) return { ok: true, rows: [], needsRatings: true };
+        const results = await Promise.allSettled([...([...selected].slice(0,3).map(async ([genre,seed])=>({seed,rows:(await list({kind:input.kind,genre})).rows}))),...directorSeeds.slice(0,2).map(async p=>({seed:{director:p.value},rows:(await list({kind:input.kind,query:p.value})).rows.filter(r=>(r.directors||[]).includes(p.value))}))]);
         const seen = new Set(), rows = [], preferences = feedback();
         for (const result of results) if (result.status === 'fulfilled') for (const row of result.value.rows) {
           const key = `${row.kind}:${row.providerId}`;
-          if (!owned.has(row.providerId) && !seen.has(key) && !preferences[key]) { seen.add(key); rows.push({ ...personalRow(row,library,titles), ...(typeof result.value.seed==='string'?{because:result.value.seed}:(result.value.seed.seedTitle?{because:result.value.seed.seedTitle,recommendationEvidence:result.value.seed}:{profileBecause:result.value.seed})) }); }
+          if (!owned.has(row.providerId) && !seen.has(key) && !preferences[key]) { seen.add(key); rows.push({ ...personalRow(row,library,titles), ...(typeof result.value.seed==='string'?{because:result.value.seed}:(result.value.seed.seedTitle?{because:result.value.seed.seedTitle,recommendationEvidence:result.value.seed}:(result.value.seed.director?{directorBecause:result.value.seed.director}:{profileBecause:result.value.seed}))) }); }
         }
         if (results.every(row => row.status === 'rejected')) throw Error('Personal recommendations are temporarily unavailable.');
-        return { ok: true, rows: rows.slice(0, 60), needsRatings: false };
+        return { ok: true, rows: require('./media-daily-service').recommendations(rows,explicit).slice(0,60), needsRatings: false };
       }
       if (input.action === 'detail' || input.action === 'add' || input.action === 'ensure-record' || input.action === 'synopsis-translate' || input.action === 'synopsis-stop') {
         if (!/^tt\d{7,12}$/.test(input.id || '') || !['film', 'series'].includes(input.kind)) throw Error('Invalid title identity.');

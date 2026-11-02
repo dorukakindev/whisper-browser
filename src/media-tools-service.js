@@ -66,6 +66,7 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
     if(input.itemId!==undefined&&input.itemId!==id)throw Error('Discovery review identity mismatch.');
     return {...result.item,id,imdbId:result.item.providerId};
   }
+  const daily=require('./media-daily-service').create({root,catalog:catalogStore,reviewItem,dialog,owner});
   async function health(job) {
     const rows=[], hashes=new Map(), items=catalogStore().list();
     job.phase='inspect';job.hashed=0;job.hashTotal=0;
@@ -107,7 +108,7 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
     if(!authorized(event))return {ok:false,error:'Unauthorized request.'};
     try {
       if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Invalid request.');
-      const action=input.action;
+      const action=input.action;if(typeof action==='string'&&action.startsWith('daily-'))return await daily.handle(event,input);
       if(action==='assistant-export'){if(typeof input.text!=='string'||input.text.length>8000000)throw Error('Conversation export exceeds 8 MB.');const content=input.text;if(!content)throw Error('No conversation to export.');const selected=await dialog.showSaveDialog(owner(),{defaultPath:'Whisper-conversation.md',filters:[{name:'Markdown / text',extensions:['md','txt']}]});if(selected.canceled)return {ok:true,canceled:true};atomicWriteFileSync(selected.filePath,'\uFEFF'+content);return {ok:true};}
       if(action==='backup-status')return {ok:true,value:{...schedule}};
       if(action==='backup-schedule'){

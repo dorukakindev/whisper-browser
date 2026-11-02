@@ -371,7 +371,7 @@
         }, {once:true});
         hero.replaceChildren(copy, artwork, controls);
       }
-      drawFeatured(); content.append(hero);
+      drawFeatured(); content.append(hero);window.MediaDailyUI?.entry(content);
       if (illustrated.length) content.append(section(t('Continue watching & listening', 'İzlemeye ve dinlemeye devam et'), illustrated, { wide: true, artworkOnly: true, more: () => page('recent') }));
       if (items.some(item => item.kind === 'series' && hasArtwork(item))) content.append(section(t('Your series', 'Dizilerin'), items.filter(item => item.kind === 'series' && hasArtwork(item)), { artworkOnly:true, more: () => page('series') }));
       if (items.some(item => item.kind !== 'series' && hasArtwork(item))) content.append(section(t('Your films', 'Filmlerin'), items.filter(item => item.kind !== 'series' && hasArtwork(item)), { artworkOnly:true, more: () => page('films') }));
@@ -517,7 +517,7 @@
       [t('Production workspace','Üretim çalışma alanı'),()=>window.MediaWorkflowsUI.open()],
       [t('Studio','Stüdyo'),openStudio],
       [t('Subtitle → voice','Altyazı → ses'),()=>click('dubMainOpen')],
-      [t('Tonight','Bu akşam'),()=>window.MediaToolsUI?.open('tonight')],
+      [t('Tonight','Bu akşam'),()=>window.MediaDailyUI?window.MediaDailyUI.open('tonight'):window.MediaToolsUI?.open('tonight')],
       [t('Library care','Arşiv bakımı'),()=>window.MediaToolsUI?.open('health')],
       [t('Activity','İşlemler'),()=>window.MediaExperience?.openTasks()]
     ]) toolsGroup.append(button(label, () => { setMenu(false); return run(); }));
