@@ -166,7 +166,7 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
         if (input.action === 'detail') {
           const cached=existing?.synopsis===row.synopsis?existing:previews.get(previewId);
           const valid=cached?.synopsis===row.synopsis&&cached.synopsisTr&&cached.synopsisTrSource===require('./catalog-synopsis').synopsisHash(row.synopsis);
-          return {ok:true,item:{...personalRow(row),...(valid?{synopsisTr:cached.synopsisTr}: {})},catalogId:existing?.id||null};
+          return {ok:true,item:{...personalRow(row),...(valid?{synopsisTr:cached.synopsisTr}: {})},catalogId:existing?.id||null,catalogTarget:existing?{id:existing.id,title:existing.title,signature:JSON.stringify([existing.id,existing.kind,existing.imdbId,existing.title,existing.year])}:null};
         }
         if (existing) return { ok: true, item: existing, existing: true };
         let posterBytes = null;

@@ -132,3 +132,13 @@ test('saved viewing highly rated mode orders saved titles by their IMDb score',a
   assert.deepEqual(result.rows.map(r=>r.title),['Higher','Lower','Unrated']);
   assert.equal(items[0].title,'Lower','sorting must not mutate the store order');
 });
+
+
+test('discovery exposes the stable local collection target separately from provider presentation',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'discovery-local-target-'));try{
+  const catalog=createMediaCatalogStore({filePath:path.join(dir,'catalog.json')}),local=catalog.upsert({kind:'film',imdbId:'tt1234567',title:'Yerel Türkçe ad',year:2001}),handlers=new Map();
+  registerMediaDiscovery({ipcMain:{handle:(name,fn)=>handlers.set(name,fn)},authorized:()=>true,catalogStore:()=>catalog,fetchImpl:async()=>new Response(JSON.stringify({meta:{id:'tt1234567',name:'Provider Original Title',releaseInfo:'2001'}}))});
+  const r=await handlers.get('media-discovery:request')({}, {action:'detail',kind:'film',id:'tt1234567'});
+  assert.equal(r.ok,true);assert.equal(r.item.title,'Provider Original Title');assert.equal(r.catalogTarget.id,local.id);assert.equal(r.catalogTarget.title,'Yerel Türkçe ad');assert.equal(r.catalogTarget.signature,JSON.stringify([local.id,'film','tt1234567','Yerel Türkçe ad',2001]));assert.equal(catalog.list()[0].title,'Yerel Türkçe ad');
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});

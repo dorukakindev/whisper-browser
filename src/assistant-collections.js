@@ -7,6 +7,7 @@ function register({ipcMain,authorized,store,now=Date.now}){
   if(input.action==='plan'){
    if(typeof input.name!=='string'||!input.name.trim()||input.name.trim().length>80||typeof input.ids!=='string')throw Error('Invalid collection plan.');
    const ids=[...new Set(input.ids.split(',').map(v=>v.trim()).filter(Boolean))];if(!ids.length||ids.length>20)throw Error('Choose 1–20 exact library IDs.');const catalog=store(),items=ids.map(id=>{const row=catalog.get(id);if(!row)throw Error('Unknown library title.');return row;});
+   if(input.expectedTargets!==undefined){const expected=input.expectedTargets;if(!Array.isArray(expected)||expected.length!==items.length||expected.some((entry,index)=>!entry||entry.id!==items[index].id||typeof entry.signature!=='string'||entry.signature!==JSON.stringify([items[index].id,items[index].kind,items[index].imdbId,items[index].title,items[index].year])))throw Error('A reviewed collection target changed. Review again.');}
    if(plans.size>=50)throw Error('Too many collection plans.');const id=randomUUID(),plan={id,sender:event.sender.id,name:input.name.trim(),member:input.member!==false,items:items.map(row=>({id:row.id,title:row.title,identity:identity(row)})),expires:now()+600000};plans.set(id,plan);return {ok:true,plan:{id,name:plan.name,member:plan.member,items:plan.items.map(({id,title})=>({id:'catalog:'+id,title}))}};
   }
   const plan=plans.get(input.id);if(!plan||plan.sender!==event.sender.id)throw Error('Collection plan expired. Plan again.');

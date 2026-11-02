@@ -36,6 +36,14 @@ const children=(node,name)=>node?.children?.filter(n=>n.name===name)||[];
 const child=(node,...names)=>node?.children?.find(n=>names.includes(n.name));
 const text=node=>node?node.parts.map(part=>typeof part==='string'?part:text(part)).join(''):'';
 const value=(node,...names)=>text(child(node,...names));
+// Preserve XHTML block structure until the existing inert plain-text sanitizer sees it.
+function atomContent(node){
+ if(!node||node.attrs.type!=='xhtml')return text(node);
+ const encode=value=>String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+ const serialize=part=>{if(typeof part==='string')return encode(part);const name=part.name.split(':').at(-1);return '<'+name+'>'+part.parts.map(serialize).join('')+(name==='br'?'':'</'+name+'>');};
+ return node.parts.map(serialize).join('');
+}
+
 const date=value=>{const n=Date.parse(String(value||''));return Number.isFinite(n)?n:0;};
 function normalizedEntry(row,base,language=''){
  const enclosures=(Array.isArray(row.enclosures)?row.enclosures:[]).slice(0,8).flatMap(raw=>{const url=safeUrl(raw.url,base),mime=clean(raw.type,100).toLowerCase();return url?[{url,type:mime,...(Number.isFinite(Number(raw.length))&&Number(raw.length)>0?{length:Number(raw.length)}:{})}]:[];});
@@ -51,7 +59,7 @@ function parseFeed(input,base){
  }else{
   const tree=xmlTree(input);let feed,entries;if(tree.name==='feed'){format='atom';feed=tree;entries=children(tree,'entry');}else if(tree.name==='rss'){format='rss';feed=child(tree,'channel');entries=children(feed,'item');}else if(tree.name==='rdf:rdf'){format='rss';feed=child(tree,'channel');entries=children(tree,'item');}else throw Error('This response is not RSS, Atom or JSON Feed.');if(!feed)throw Error('Missing feed metadata.');
   title=plain(value(feed,'title'),200);language=clean(value(feed,'language')||feed.attrs['xml:lang'],40);siteUrl=safeUrl(format==='atom'?children(feed,'link').find(n=>!n.attrs.rel||n.attrs.rel==='alternate')?.attrs.href:value(feed,'link'),source);
-  rows=entries.slice(0,MAX_ENTRIES).map(n=>{const links=children(n,'link'),body=child(n,'content:encoded',...(format==='atom'?['content']:[]));return {externalId:value(n,'guid','id')||n.attrs['rdf:about'],url:format==='atom'?links.find(l=>!l.attrs.rel||l.attrs.rel==='alternate')?.attrs.href:value(n,'link'),title:value(n,'title'),summary:value(n,'description','summary'),content:body&&text(body),author:value(child(n,'author'),'name')||value(n,'dc:creator','author'),publishedAt:value(n,'pubdate','published','dc:date','updated'),updatedAt:value(n,'updated'),categories:children(n,'category').map(c=>c.attrs.term||text(c)),imageUrl:child(n,'media:thumbnail','itunes:image')?.attrs.url||child(n,'itunes:image')?.attrs.href,enclosures:[...children(n,'enclosure').map(e=>({url:e.attrs.url,type:e.attrs.type,length:e.attrs.length})),...links.filter(l=>l.attrs.rel==='enclosure').map(e=>({url:e.attrs.href,type:e.attrs.type,length:e.attrs.length})),...children(n,'media:content').map(e=>({url:e.attrs.url,type:e.attrs.type}))]};});
+  rows=entries.slice(0,MAX_ENTRIES).map(n=>{const links=children(n,'link'),body=child(n,'content:encoded',...(format==='atom'?['content']:[]));return {externalId:value(n,'guid','id')||n.attrs['rdf:about'],url:format==='atom'?links.find(l=>!l.attrs.rel||l.attrs.rel==='alternate')?.attrs.href:value(n,'link'),title:value(n,'title'),summary:format==='atom'?atomContent(child(n,'summary')):value(n,'description','summary'),content:body&&(format==='atom'?atomContent(body):text(body)),author:value(child(n,'author'),'name')||value(n,'dc:creator','author'),publishedAt:value(n,'pubdate','published','dc:date','updated'),updatedAt:value(n,'updated'),categories:children(n,'category').map(c=>c.attrs.term||text(c)),imageUrl:child(n,'media:thumbnail','itunes:image')?.attrs.url||child(n,'itunes:image')?.attrs.href,enclosures:[...children(n,'enclosure').map(e=>({url:e.attrs.url,type:e.attrs.type,length:e.attrs.length})),...links.filter(l=>l.attrs.rel==='enclosure').map(e=>({url:e.attrs.href,type:e.attrs.type,length:e.attrs.length})),...children(n,'media:content').map(e=>({url:e.attrs.url,type:e.attrs.type}))]};});
  }
  const entries=rows.map(r=>normalizedEntry(r,source,language)).filter(Boolean);return {title:title||new URL(source).hostname,url:source,siteUrl,language,format,entries,limited:rows.length===MAX_ENTRIES,excluded:{invalid:rows.length-entries.length}};
 }

@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-02-2337.md](docs/devir/2026-11-02-2337.md) — R844 onarımları ve araştırma kartları
 Güncel çalışma: [docs/devir/2026-11-02-2317.md](docs/devir/2026-11-02-2317.md) — RSS, Keşfet ve kaynak bağlı asistan
 Güncel çalışma: [docs/devir/2026-11-02-1215.md](docs/devir/2026-11-02-1215.md) — Türkçe izleme akışı, üretim öncesi kaynak denetimi ve uzun asistan işi
 Güncel çalışma: [docs/devir/2026-11-02-1104.md](docs/devir/2026-11-02-1104.md) — Film izleme hazırlığı, kaynak devamı, karşıt yorumlar ve koleksiyon sayfası
