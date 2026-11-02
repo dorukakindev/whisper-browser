@@ -2,8 +2,8 @@
 const {randomUUID}=require('node:crypto'),manifest=require('./assistant-context-manifest');
 const signature=(name,args)=>name+':'+JSON.stringify(Object.fromEntries(Object.keys(args).sort().map(k=>[k,args[k]])));
 function createFlows({now=Date.now,getJobs=()=>({jobs:[]})}={}){
- const tokens=new Map();
- const clean=()=>{for(const [id,row] of tokens)if(row.expires<=now())tokens.delete(id);};
+ const tokens=new Map(),{expiry}=require('./assistant-flow-state');
+ const clean=()=>{for(const [id,row] of tokens)if(expiry({...row,jobId:row.flow.steps.at(-1)?.jobId},getJobs().jobs,now())<=now())tokens.delete(id);};
  function start(sender,owner,question){return {sender,owner:manifest.clean(owner),question,steps:[],count:0};}
  function resume(id,sender,owner,{deferCommit=false}={}){clean();const row=tokens.get(id);if(!row||row.flow.sender!==sender)throw Error('This continuation expired / Devam isteği eskidi.');const flow=row.flow;if(!manifest.same(flow.owner,owner))throw Error('The source or conversation changed / Kaynak veya sohbet değişti.');if(row.active)throw Error('This continuation is already running / Bu devam isteği zaten çalışıyor.');const last=flow.steps.at(-1);
   if(last.status==='accepted'){
@@ -23,7 +23,7 @@ function createFlows({now=Date.now,getJobs=()=>({jobs:[]})}={}){
   flow.steps.push({tool:name,args:{...args},status:result.status,jobId,result:data});
   if(result.status==='accepted'&&!jobId)return {continuationState:'unverified'};
   if(flow.steps.length>=8)return {continuationState:'limit'};
-  clean();if(tokens.size>=50)tokens.delete(tokens.keys().next().value);const id=randomUUID();tokens.set(id,{flow,expires:now()+600000});return {continuationId:id,continuationState:result.status==='accepted'?'waiting':'ready',continuationJobId:jobId};
+  clean();if(tokens.size>=50)tokens.delete(tokens.keys().next().value);const id=randomUUID();tokens.set(id,{flow,expires:now()+600000,maxExpires:now()+86400000});return {continuationId:id,continuationState:result.status==='accepted'?'waiting':'ready',continuationJobId:jobId};
  }
  function repeated(flow,name,args){return flow.steps.some(step=>step.status!=='failed'&&signature(step.tool,step.args)===signature(name,args));}
  function retryAllowed(flow,name,args){const last=flow.steps.at(-1);return last?.status!=='failed'||signature(last.tool,last.args)===signature(name,args);}

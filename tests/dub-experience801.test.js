@@ -30,3 +30,6 @@ test('pronunciation candidates require repeated separate groups and exclude save
  assert.deepEqual(M.preflight(groups,{pronunciations:[{from:'Newton',to:'Nyutın'}]}).pronunciations,[{term:'Thomas',count:2}]);
  assert.deepEqual(M.preflight([{key:'a',text:'Newton Newton.',seconds:2}]).pronunciations,[]);
 });
+
+
+test('Source-bound preflight exposes untranslated text, omitted beginning and ending, but respects selected scope',()=>{const source=[{start:0,end:2,text:'Opening.'},{start:2,end:5,text:'This is the story which they have told.'},{start:5,end:8,text:'12 people.'},{start:8,end:10,text:'Ending.'}],groups=[{key:'a',start:2000,end:5000,text:source[1].text},{key:'b',start:5000,end:8000,text:'Toplam 2 kişi.'}];const report=M.coverage(source,groups);assert.equal(report.checked,true);assert.deepEqual(report.missing.map(r=>r.start),[0,8]);assert(report.issues.some(r=>r.key==='a'&&r.issue==='source-copy'));assert(report.issues.some(r=>r.key==='b'&&r.issue==='number-check'));assert.equal(M.coverage(source,groups,{}, {start:2,end:8}).missing.length,0);assert(!M.coverage(source,groups,{a:'Bu, onların anlattığı hikâye.'},{start:2,end:8}).issues.some(r=>r.key==='a'));assert.equal(M.coverage([],groups).checked,false);});

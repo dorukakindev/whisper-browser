@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-02-1215.md](docs/devir/2026-11-02-1215.md) — Türkçe izleme akışı, üretim öncesi kaynak denetimi ve uzun asistan işi
 Güncel çalışma: [docs/devir/2026-11-02-1104.md](docs/devir/2026-11-02-1104.md) — Film izleme hazırlığı, kaynak devamı, karşıt yorumlar ve koleksiyon sayfası
 Güncel çalışma: [docs/devir/2026-11-02-1010.md](docs/devir/2026-11-02-1010.md) — Günlük medya merkezi, izleme listesi, bölüm devamı ve film günlüğü
 Güncel çalışma: [docs/devir/2026-11-02-0900.md](docs/devir/2026-11-02-0900.md) — Keşfet geri alma, toplu seçim, dizi devamı ve öneri dayanağı
