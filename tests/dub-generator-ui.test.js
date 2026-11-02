@@ -174,8 +174,8 @@ const tick = () => new Promise(setImmediate);
   readyState=1;audio.dispatchEvent(new w.Event('loadedmetadata'));await tick();assert.equal(played,1,'closing cancels a pending metadata play');
   el('dubGeneratorDialog').open=true;
 
-  el('dubRegenerateGroup').click();await tick();
-  assert.deepEqual(Array.from(request.forceGroups),['1,2']);
+  el('dubPlanText').value='Merhaba yeniden.';el('dubSaveRegenerate').click();await tick();
+  assert.deepEqual(Array.from(request.forceGroups),['1,2']);assert.equal(request.dubText.edits['1,2'],'Merhaba yeniden.','Save and repair submits only this edited group');
   onEvent({id:request.id,type:'done',name:'review.wav',url:'review.wav',quality:{groups:[{group:1,key:'1,2',status:'review',text:'Beklenen cümle.',verification:{status:'review',recognizedText:'<img src=x onerror=alert(1)> Duyulan cümle.',similarity:.75}}]}});await tick();
   assert.match(el('dubGeneratorStatus').textContent,/işaretli parçaları/);
   assert.equal(el('dubQualityRecognized').hidden,false);assert.equal(el('dubQualityRecognizedText').querySelector('img'),null);

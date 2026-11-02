@@ -19711,8 +19711,10 @@ async function openWatchLibraryItem(item, seconds) {
 window.openMediaCatalogPlayback = async (item) => {
   await flushWatchState(false, false);
   const history = await window.api.listWatchLibrary();
+  if(Array.isArray(history))watchLibraryCache=history;
   const latest = history?.find(row => row.key === item.key);
-  const position = latest ? (latest.completed ? 0 : latest.position || 0) : item.position || 0;
+  const manualIsCurrent=Number(item.manualResumeUpdatedAt)>0&&Number(item.manualResumeUpdatedAt)>=Number(latest?.lastWatched||0);
+  const position = manualIsCurrent ? item.position || 0 : latest ? (latest.completed ? 0 : latest.position || 0) : item.position || 0;
   if (item.type === 'local') {
     setWorkspaceMode('player');
     await openLocalMedia(item.localPath || item.sourceRef, position);

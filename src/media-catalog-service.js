@@ -30,7 +30,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
   function visible(item, history = watchItems(), titles = require('./personal-media-state').readFeedback(userData()).titles) {
     if (!item) return null;
     const { posterPath, ...row } = item;
-    const personalMedia=require('./personal-media-state').personal(item,titles,history instanceof Map?[...history.values()]:history);
+    const personalMedia=require('./personal-media-state').personal(item,titles,history instanceof Map?[...history.values()]:history,require('./film-watch-service').additionalSources(userData(),item));
     return { ...row,personalMedia, synopsisTr:row.synopsisTrSource===require('./catalog-synopsis').synopsisHash(row.synopsis)?row.synopsisTr:'', hasPoster: !!posterPath && fs.existsSync(posterPath), progress: progress(require('./catalog-library-model').playbackSource(row).source, history),
       editions: (row.editions||[]).map(edition=>({...edition,progress:progress(edition.source,history),parts:edition.parts.map(part=>({...part,progress:progress(part.source,history)}))})),
       extras: (row.extras||[]).map(extra=>({...extra,progress:progress(extra.source,history)})),
@@ -209,9 +209,10 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           }
           const key = sourceKey({ ...source, value });
           const history = watchItems(), existing = history.find(row => canonicalWatchKey(row.key) === key);
-          const resume = episode ? require('./personal-media-state').personal(item, {}, history).effectiveResume : null;
+          const resume = episode ? require('./personal-media-state').personal(item, {}, history,require('./film-watch-service').additionalSources(userData(),item)).effectiveResume : null;
           const exactManual = resume?.origin === 'manual' && resume.episodeId === episode?.id;
           return { ok: true, watchItem: { ...(existing || {}), key, type: source.type,
+            ...(exactManual?{manualResumeUpdatedAt:resume.updatedAt}:{}),
             title: episode ? `${item.title} · S${episode.season} B${episode.number}` : item.title + (choice?.label?' · '+choice.label:''),
             sourceRef: value, localPath: source.type === 'local' ? value : '', position: exactManual ? resume.positionSeconds : existing?.completed ? 0 : Number(existing?.position) || 0 } };
         }

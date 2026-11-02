@@ -19,6 +19,7 @@
   if(window.api.showAssistant){const ask=node('button','film-section-link film-ask-assistant',t('Ask about this film','Bu filmi asistana sor'));ask.type='button';ask.onclick=()=>window.api.showAssistant();nav.append(ask);}
   if(window.AssistantFilmActions){const compare=node('button','film-section-link',t('Compare films','Filmleri karşılaştır'));compare.type='button';compare.onclick=()=>window.AssistantFilmActions.openPicker(filmItemId);nav.append(compare);}
   const daily=window.MediaDailyUI?.mountTitle(page,item);if(daily)disposers.push(()=>{daily.dispatchEvent(new Event('daily-dispose'));daily.remove();});
+  const watching=window.FilmWatchUI?.mount(page,item);if(watching)disposers.push(()=>{watching.dispatchEvent(new Event('fw-dispose'));watching.remove();});
   const hero=page.querySelector('.mtd-hero,.md-page-hero');hero?.after(nav);
   const poster=page.querySelector('.mtd-poster,.md-detail-poster');if(poster){
    let posterDialog=null;disposers.push(()=>posterDialog?.close());

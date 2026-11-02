@@ -43,6 +43,8 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
   return settingProposals.snapshot(name,args,state);
  }
  async function captureSettings(sender,owner,row,signal){
+  if(row.name==='set_watchlist_section'){const state=await requestRenderer(sender,owner,'read_daily_library',{},signal);if(state.status!=='completed'||typeof state.revision!=='string')throw Error('Watchlist revision unavailable.');row.expectedSettings={kind:'daily-queue',revision:state.revision};}
+
   if(['set_app_preferences','undo_app_preferences','configure_voice_generation'].includes(row.name)){
    const state=await requestRenderer(sender,owner,row.name!=='configure_voice_generation'?'get_app_preferences':'get_voice_status',{},signal);
    row.settingsIdentity=settingsSnapshot(row.name,row.args,state,owner);
