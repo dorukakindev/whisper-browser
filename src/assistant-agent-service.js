@@ -4,6 +4,7 @@ const registry=require('./assistant-capabilities'),manifest=require('./assistant
 const settingProposals=require('./assistant-setting-proposals');
 const workflowPlan=require('./assistant-workflow-plan');
 const runtimeTools=require('./assistant-runtime');
+const {withinResultBudget}=require('./assistant-tool-results');
 const fold=value=>String(value||'').normalize('NFKD').replace(/\p{M}/gu,'').replace(/ı/g,'i').toLowerCase();
 const identifier=value=>typeof value==='string'&&/^[\w-]{1,100}$/.test(value);
 const workflowSnapshot=(name,state)=>JSON.stringify(name==='undo_workflow_settings'?{values:state.values,canUndo:state.canUndo,undoChanges:state.undoChanges}:state.values);
@@ -84,7 +85,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
   const call=pending.get(input.callId);if(!call||call.sender!==event.sender)return {ok:false};
   try{requireOwner(call.owner);}catch(error){call.cancel(error);return {ok:false};}
   let result=input.result;
-  try{if(!result||typeof result!=='object'||Array.isArray(result)||!['completed','accepted','failed'].includes(result.status)||JSON.stringify(result).length>16000)throw Error('Invalid result');}
+  try{if(!result||typeof result!=='object'||Array.isArray(result)||!['completed','accepted','failed'].includes(result.status)||!withinResultBudget(JSON.stringify(result)))throw Error('Invalid result');}
   catch(_){result={status:'failed',error:'Invalid application result.'};}
   call.finish(result);return {ok:true};
  });

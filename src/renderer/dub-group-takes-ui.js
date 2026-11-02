@@ -56,8 +56,13 @@
  panel.addEventListener('toggle',()=>{if(!panel.open)pause();else if(!rows.length)void refresh();});
  el('dubTakeRefresh').addEventListener('click',()=>void refresh());el('dubTakeChoice').addEventListener('change',show);
  el('dubTakeApply').addEventListener('click',()=>{const c=read(),row=selected();if(!row||row.current||row.compareOnly||busy||c.busy||!c.recipeReady||signature(c)!==identity)return;pause();void window.DubGeneratorUI.useTake(c.key,row.token);});
- el('dubTakePreview').addEventListener('play',()=>{el('dubTakeCurrent').pause();el('dubGeneratedPreview').pause();el('dubPreviousPreview').pause();});
- el('dubTakeCurrent').addEventListener('play',()=>{el('dubTakePreview').pause();el('dubGeneratedPreview').pause();el('dubPreviousPreview').pause();});
+ function isolateRawPreview(other){
+  el(other).pause();el('dubGeneratedPreview').pause();el('dubPreviousPreview').pause();
+  const playback=window.BrowserDubAudioUI,context=playback?.context?.();
+  void playback?.pauseSource?.(context);playback?.stop();
+ }
+ el('dubTakePreview').addEventListener('play',()=>isolateRawPreview('dubTakeCurrent'));
+ el('dubTakeCurrent').addEventListener('play',()=>isolateRawPreview('dubTakePreview'));
  for(const [button,target,other]of [['dubTakePlayA','dubTakeCurrent','dubTakePreview'],['dubTakePlayB','dubTakePreview','dubTakeCurrent']])el(button).onclick=async()=>{if(read().busy||busy)return;const a=el(target),b=el(other),expected=identity,source=a.getAttribute('src'),move=++switchSequence;if(!source)return;const time=b.currentTime||0;b.pause();try{if(a.readyState<1)await new Promise((resolve,reject)=>{const done=()=>{a.removeEventListener('loadedmetadata',ok);a.removeEventListener('error',bad);clearTimeout(timer);};const ok=()=>{done();resolve();},bad=()=>{done();reject(Error('Audio unavailable'));},timer=setTimeout(bad,5000);a.addEventListener('loadedmetadata',ok,{once:true});a.addEventListener('error',bad,{once:true});a.load();});if(move!==switchSequence||!dialog.open||read().busy||signature(read())!==expected||a.getAttribute('src')!==source)return;a.currentTime=Math.min(time,Math.max(0,(a.duration||0)-.01));await a.play();}catch{if(move!==switchSequence||identity!==expected)return;el('dubTakeStatus').textContent=copy('Ses açılamadı; kaydı yenileyin.','Audio unavailable; refresh recordings.');}};
  for(const id of ['dubGeneratedPreview','dubPreviousPreview'])el(id).addEventListener('play',pause);
  dialog.addEventListener('close',()=>{++sequence;busy=false;pause();});

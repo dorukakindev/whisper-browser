@@ -38,3 +38,22 @@ test('R846-05 first partial global priority preserves effective defaults and exp
  let saved=JSON.parse(fs.readFileSync(path.join(h.root,'media-shelf.json'))).tasteProfile;assert.deepEqual(saved.weights,{...before,story:5});
  const zero=await h.run({action:'film-watch-taste-preview',weights:{sound:0}});await h.run({action:'film-watch-taste-apply',token:zero.token});saved=JSON.parse(fs.readFileSync(path.join(h.root,'media-shelf.json'))).tasteProfile;assert.deepEqual(saved.weights,{...before,story:5,sound:0});
 });
+
+test('R848-01 exact second catalog record keeps its physical source when provider metadata is duplicated',async t=>{
+ const h=fixture(t),secondFile=path.join(h.root,'second-cut.mp4');fs.writeFileSync(secondFile,'second physical cut');
+ const b=h.store.upsert({id:h.other.id,imdbId:h.item.imdbId,year:h.item.year,source:{type:'local',value:secondFile}}),overview=await h.run({action:'film-watch-overview',itemId:b.id});
+ assert.equal(overview.catalogId,b.id);assert.equal(overview.title,b.title);assert.equal(overview.sources.length,1);
+ const prepared=await h.run({action:'film-watch-prepare-source',itemId:b.id,sourceId:overview.sources[0].id});assert.equal(prepared.value,secondFile);
+ const daily=require('../src/media-daily-service').create({root:()=>h.root,catalog:()=>h.store,reviewItem:async(_e,input)=>h.store.get(input.itemId)});const title=await daily.handle(h.event,{action:'daily-title',itemId:b.id});assert.equal(title.title.id,b.id);assert.equal(title.sources.playback[0].name,'second-cut.mp4');
+});
+
+test('R848-02 exact catalog year correction retains diary, queue, assets, alternatives and viewing selection across restart',async t=>{
+ const h=fixture(t),D=require('../src/media-daily-service'),file=path.join(h.root,'saved.srt'),alt=path.join(h.root,'alternate.mp4');fs.writeFileSync(file,'subtitle');fs.writeFileSync(alt,'alternate');
+ const daily=()=>D.create({root:()=>h.root,catalog:()=>h.store,reviewItem:async(_e,input)=>h.store.get(input.itemId),dialog:{showOpenDialog:async()=>({filePaths:[file]})},owner:()=>null,now:()=>2000}),call=(svc,action,extra={})=>svc.handle(h.event,{action,itemId:h.item.id,...extra});
+ let d=daily(),title=await call(d,'daily-title');await call(d,'daily-journal-save',{revision:title.revision,date:'2026-11-03',rating:8,note:'Exact local note'});let listing=await call(d,'daily-list');await call(d,'daily-queue',{id:h.item.id,revision:listing.revision,bucket:'together'});await call(d,'daily-asset-add',{role:'subtitle'});
+ const film=F.create({root:()=>h.root,catalog:()=>h.store,reviewItem:async(_e,input)=>h.store.get(input.itemId),dialog:{showOpenDialog:async()=>({filePaths:[alt]})},owner:()=>null,grantSubtitle:()=>true,grantMedia:()=>true});
+ const added=await call(film,'film-watch-link-local-copy'),before=await call(film,'film-watch-overview'),source=before.sources[0],asset=before.assets.find(a=>a.name==='saved.srt');await call(film,'film-watch-selection-save',{sourceId:source.id,subtitleId:asset.id});
+ h.store.upsert({id:h.item.id,year:2013,title:'Renamed same film'});d=daily();title=await call(d,'daily-title');assert.equal(title.journal.length,1);assert.equal(title.journal[0].note,'Exact local note');assert.equal(title.sources.assets.length,1);listing=await call(d,'daily-list');assert.equal(listing.watchlist.find(i=>i.id===h.item.id).bucket,'together');const after=await call(film,'film-watch-overview');assert.equal(after.assets.length,1);assert.equal(after.assets[0].id,asset.id);assert(after.sources.some(s=>s.id===added.id));assert.equal(after.selection.subtitleId,asset.id);assert.equal(F.additionalSources(h.root,h.store.get(h.item.id))[0].alternativeId,added.id);
+ const different=h.store.upsert({kind:'film',title:'Different physical cut',imdbId:h.item.imdbId,year:2013,source:{type:'local',value:path.join(h.root,'different.mp4')}});const other=await film.handle(h.event,{action:'film-watch-overview',itemId:different.id});assert.equal(other.assets.length,0);assert.equal(other.selection,null);assert.equal(other.sources.length,1);assert.equal(F.additionalSources(h.root,different).length,0);
+ h.store.upsert({id:h.item.id,imdbId:'tt9999999'});const changed=await call(d,'daily-title');assert.equal(changed.journal.length,0);assert.equal(changed.sources.assets.length,0);assert.equal((await call(film,'film-watch-overview')).assets.length,0);assert.equal(fs.readFileSync(file,'utf8'),'subtitle');
+});

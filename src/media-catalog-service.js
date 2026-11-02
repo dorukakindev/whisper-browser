@@ -27,10 +27,10 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
       assets: { subtitles: (found.subtitlePaths || []).length, translation: !!(found.prefs?.secondSubPath || found.prefs?.selectedSubRole === 'translation'),
         dub: !!found.prefs?.dubPlayback, speed: Number(found.prefs?.speed) || 1 } } : null;
   };
-  function visible(item, history = watchItems(), titles = require('./personal-media-state').readFeedback(userData()).titles) {
+  function visible(item, history = watchItems(), titles = require('./personal-media-state').readFeedback(userData()).titles,alternates=require('./film-watch-service').additionalSourceReader(userData(),store().list())) {
     if (!item) return null;
     const { posterPath, ...row } = item;
-    const personalMedia=require('./personal-media-state').personal(item,titles,history instanceof Map?[...history.values()]:history,require('./film-watch-service').additionalSources(userData(),item));
+    const personalMedia=require('./personal-media-state').personal(item,titles,history instanceof Map?[...history.values()]:history,alternates(item));
     return { ...row,personalMedia, synopsisTr:row.synopsisTrSource===require('./catalog-synopsis').synopsisHash(row.synopsis)?row.synopsisTr:'', hasPoster: !!posterPath && fs.existsSync(posterPath), progress: progress(require('./catalog-library-model').playbackSource(row).source, history),
       editions: (row.editions||[]).map(edition=>({...edition,progress:progress(edition.source,history),parts:edition.parts.map(part=>({...part,progress:progress(part.source,history)}))})),
       extras: (row.extras||[]).map(extra=>({...extra,progress:progress(extra.source,history)})),
@@ -115,7 +115,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
         case 'list': {
           const history = watchItems();
           const index = historyIndex(history);
-          const titles=require('./personal-media-state').readFeedback(userData()).titles;return { ok: true, items: store().list().map(item => visible(item, index,titles)) };
+          const titles=require('./personal-media-state').readFeedback(userData()).titles,items=store().list(),alternates=require('./film-watch-service').additionalSourceReader(userData(),items);return { ok: true, items: items.map(item => visible(item, index,titles,alternates)) };
         }
         case 'save': {
           const raw = input.item || input.patch || {};
@@ -209,7 +209,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           }
           const key = sourceKey({ ...source, value });
           const history = watchItems(), existing = history.find(row => canonicalWatchKey(row.key) === key);
-          const resume = episode ? require('./personal-media-state').personal(item, {}, history,require('./film-watch-service').additionalSources(userData(),item)).effectiveResume : null;
+          const resume = episode ? require('./personal-media-state').personal(item, {}, history,require('./film-watch-service').additionalSourceReader(userData(),store().list())(item)).effectiveResume : null;
           const exactManual = resume?.origin === 'manual' && resume.episodeId === episode?.id;
           return { ok: true, watchItem: { ...(existing || {}), key, type: source.type,
             ...(exactManual?{manualResumeUpdatedAt:resume.updatedAt}:{}),
@@ -225,8 +225,8 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           for (const [id, preview] of previews) if (Date.now() - preview.created > 15 * 60 * 1000) previews.delete(id);
           if (previews.size >= 3) previews.delete(previews.keys().next().value);
           previews.set(token, { created: Date.now(), sender: event.sender.id, items: parsed.items });
-          const history = watchItems();
-          return { ok: true, token, items: parsed.items.map(item => visible(item, history)), conflicts: plan.conflicts || [],
+          const history = watchItems(),titles=require('./personal-media-state').readFeedback(userData()).titles,alternates=require('./film-watch-service').additionalSourceReader(userData(),store().list());
+          return { ok: true, token, items: parsed.items.map(item=>visible(item,history,titles,alternates)), conflicts: plan.conflicts || [],
             warnings: parsed.warnings || [], summary: plan };
         }
         case 'import-apply': {

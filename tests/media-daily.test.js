@@ -16,3 +16,8 @@ test('Real catalog playback uses exact manual episode position, while newer play
  history=[{key:r.watchItem.key,position:900,lastWatched:3000,completed:false}];r=await invoke(h.event,{action:'play',id:series.id,episodeId:'s2e4'});assert.equal(r.watchItem.position,900,'newer real playback is authoritative');
  history=[{...history[0],position:1200,lastWatched:4000,completed:true}];r=await invoke(h.event,{action:'play',id:series.id,episodeId:'s2e4'});assert.equal(r.watchItem.position,0,'completed newer playback does not resurrect the old manual marker');
 });
+
+
+test('R848 relation lookup preserves a new queue bucket when the same action also reorders it',async t=>{
+ const h=fixture(t);let r=await h.run({action:'daily-list'});r=await h.run({action:'daily-queue',id:h.b.id,bucket:'later',revision:r.revision});r=await h.run({action:'daily-queue',id:h.b.id,bucket:'together',beforeId:h.a.id,revision:r.revision});assert.equal(r.watchlist[0].id,h.b.id);assert.equal(r.watchlist[0].bucket,'together');assert.equal(D.read(h.root).queue[D.titleKey(h.b)].bucket,'together');
+});
