@@ -2,6 +2,16 @@
 const capabilities=require('./assistant-capabilities');
 const manifest=require('./assistant-context-manifest');
 const runtimeTools=require('./assistant-runtime');
+const MAX_RESPONSE_BYTES=2*1024*1024,MAX_SSE_FRAME_CHARS=160000;
+// The largest advertised string is a 12k analysis. JSON escaping can use six
+// characters per code unit, plus the other bounded arguments and object keys.
+const MAX_TOOL_ARGUMENT_CHARS=80000,MAX_TOOL_METADATA_CHARS=16000;
+function checkToolCall(call){
+ const args=call?.function?.arguments;
+ if(!call||typeof call!=='object'||Array.isArray(call)||args!==undefined&&typeof args!=='string')throw Error('Invalid assistant tool call.');
+ const metadata={...call,function:{...call.function,arguments:''}};
+ if(String(call.id||'').length>200||String(call.function?.name||'').length>100||(args?.length||0)>MAX_TOOL_ARGUMENT_CHARS||JSON.stringify(metadata).length>MAX_TOOL_METADATA_CHARS)throw Error('Assistant tool call exceeded the size limit.');
+}
 
 function endpoint(raw){
  const url=new URL(raw),local=['localhost','127.0.0.1','[::1]'].includes(url.hostname);
@@ -9,7 +19,7 @@ function endpoint(raw){
  url.pathname=/\/chat\/completions\/?$/i.test(url.pathname)?url.pathname.replace(/\/$/,''):url.pathname.replace(/\/$/,'')+'/chat/completions';url.search='';url.hash='';return url.href;
 }
 function part(previous,value){const next=typeof value==='string'?value:'';return !next||next===previous?previous:next.startsWith(previous)?next:previous+next;}
-async function boundedText(response,max=2*1024*1024){
+async function boundedText(response,max=MAX_RESPONSE_BYTES){
  const reader=response.body?.getReader();if(!reader)return '';
  const decoder=new TextDecoder();let result='',bytes=0;
  try{for(;;){const row=await reader.read();if(row.done)break;bytes+=row.value.byteLength;if(bytes>max)throw Error('Assistant response exceeded the size limit.');result+=decoder.decode(row.value,{stream:true});}return result+decoder.decode();}
@@ -22,11 +32,12 @@ async function completion(response,{onDelta,onProgress=()=>{},signal,streamed}){
   if(text){onProgress('writing');onDelta(text);}
   if(['length','content_filter'].includes(choice.finish_reason))throw Error('Provider stopped an incomplete answer / Sağlayıcı yanıtı tamamlamadı.');
   const calls=Array.isArray(choice.message.tool_calls)?choice.message.tool_calls:[];
-  if(calls.length>8||calls.some(call=>JSON.stringify(call).length>16000))throw Error('Assistant tool calls exceeded the size limit.');
+  if(calls.length>8)throw Error('Assistant tool calls exceeded the size limit.');
+  for(const call of calls)checkToolCall(call);
   return {...choice.message,content:text,tool_calls:calls};
  }
  const reader=response.body.getReader(),decoder=new TextDecoder(),calls=new Map();
- let buffer='',text='',bytes=0,finished=false,reasoning='',eventLines=[];
+ let buffer='',text='',bytes=0,finished=false,reasoning='',eventLines=[],eventSize=0;
  const accept=raw=>{
   if(!raw||raw==='[DONE]'){if(raw==='[DONE]')finished=true;return;}
   const row=JSON.parse(raw),choice=row.choices?.[0];if(!choice)return;
@@ -40,19 +51,25 @@ async function completion(response,{onDelta,onProgress=()=>{},signal,streamed}){
    for(const [key,value] of Object.entries(item))if(!['id','type','index','function'].includes(key)&&value!=null)call[key]=value;
    call.id=part(call.id,item.id);call.function.name=part(call.function.name,item.function?.name);call.function.arguments+=item.function?.arguments||'';
    for(const [key,value] of Object.entries(item.function||{}))if(!['name','arguments'].includes(key)&&value!=null)call.function[key]=value;
-   if(call.id.length>200||call.function.name.length>100||call.function.arguments.length>6000||JSON.stringify(call).length>16000)throw Error('Assistant tool call exceeded the size limit.');
+   checkToolCall(call);
    calls.set(index,call);
   }
   if(['length','content_filter'].includes(choice.finish_reason))throw Error('Provider stopped an incomplete answer / Sağlayıcı yanıtı tamamlamadı.');
   if(choice.finish_reason)finished=true;
  };
- const line=value=>{if(value===''){if(eventLines.length)accept(eventLines.join('\n'));eventLines=[];}else if(value.startsWith('data:'))eventLines.push(value.slice(5).trimStart());};
+ const line=value=>{
+  eventSize+=value.length+1;if(eventSize>MAX_SSE_FRAME_CHARS)throw Error('Assistant SSE frame exceeded the size limit.');
+  if(value===''){if(eventLines.length)accept(eventLines.join('\n'));eventLines=[];eventSize=0;}
+  else if(value.startsWith('data:'))eventLines.push(value.slice(5).trimStart());
+ };
  try{
   for(;;){
-   signal?.throwIfAborted();const row=await reader.read();if(row.done)break;bytes+=row.value.byteLength;if(bytes>2*1024*1024)throw Error('Assistant stream exceeded the size limit.');
+   signal?.throwIfAborted();const row=await reader.read();if(row.done)break;bytes+=row.value.byteLength;if(bytes>MAX_RESPONSE_BYTES)throw Error('Assistant stream exceeded the size limit.');
    buffer+=decoder.decode(row.value,{stream:true});
-   if(buffer.length>160000)throw Error('Assistant SSE frame exceeded the size limit.');
    let end;while((end=buffer.indexOf('\n'))>=0){const value=buffer.slice(0,end).replace(/\r$/,'');buffer=buffer.slice(end+1);line(value);if(finished)break;}
+   // A network read may contain many complete events. Bound only the actual
+   // current event plus its unfinished line after consuming complete lines.
+   if(!finished&&eventSize+buffer.length>MAX_SSE_FRAME_CHARS)throw Error('Assistant SSE frame exceeded the size limit.');
    if(finished)break;
   }
   if(!finished){buffer+=decoder.decode();if(buffer.trim())line(buffer.replace(/\r$/,''));line('');}

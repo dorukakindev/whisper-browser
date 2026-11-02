@@ -7,6 +7,39 @@ const sse=(body)=>new Response(body+'data: [DONE]\n\n',{headers:{'content-type':
 const json=message=>new Response(JSON.stringify({choices:[{message,finish_reason:'stop'}]}),{headers:{'content-type':'application/json'}});
 const config={endpoint:'https://provider.fixture/v1',model:'fixture',apiKey:'fixture-only'};
 
+function chunkedSse(body,chunkSize=4096,splitUtf8=false){
+ const bytes=new TextEncoder().encode(body+'data: [DONE]\n\n'),chunks=[];let offset=0;
+ if(splitUtf8){const split=bytes.findIndex(byte=>byte>=128)+1;assert(split>0);chunks.push(bytes.slice(0,split));offset=split;}
+ for(;offset<bytes.length;offset+=chunkSize)chunks.push(bytes.slice(offset,offset+chunkSize));
+ return new Response(new ReadableStream({start(controller){for(const chunk of chunks)controller.enqueue(chunk);controller.close();}}),{headers:{'content-type':'text/event-stream'}});
+}
+
+test('R846-08 schema-valid review analysis at its declared limit reaches the same tool through JSON and fragmented SSE',async()=>{
+ const review={summary:'Source summary.',fit:'Qualified fit.',points:[{id:'review-a',quote:'An exact source quotation.',reason:'A quoted "observation" \\ context. '.repeat(130),kind:'praise'},{id:'review-b',quote:'A second exact quotation.',reason:'Another quoted "observation" \\ context. '.repeat(130),kind:'debate'}]};
+ const base=JSON.stringify(review);assert(base.length<12000);review.summary+='s'.repeat(12000-base.length);const analysis=JSON.stringify(review);assert.equal(analysis.length,12000);
+ const args={item_id:'catalog:fixture-film',analysis},library={...owner,kind:'library'};require('../src/assistant-capabilities').validate('preview_title_review_analysis',args,library);
+ assert.equal(require('../src/renderer/media-tools-model').parseDecisionResponse(analysis,[{id:'review-a',text:'An exact source quotation.'},{id:'review-b',text:'A second exact quotation.'}]).points.length,2);
+ const call={id:'review',type:'function',function:{name:'preview_title_review_analysis',arguments:JSON.stringify(args)}};assert(call.function.arguments.length>12000);
+ for(const transport of ['json','sse']){let turn=0;const calls=[];const result=await run({question:'Preview this matched review analysis.',owner:library,config,execute:async(name,received)=>{calls.push({name,args:received});return {status:'proposed',proposalId:'unapplied-card'};},fetchImpl:async()=>{if(++turn>1)return json({role:'assistant',content:'Review the unapplied card.'});if(transport==='json')return json({role:'assistant',tool_calls:[call]});const raw=call.function.arguments;let body='';for(let i=0;i<raw.length;i+=137)body+=event({tool_calls:[{index:0,...(i===0?{id:call.id}:{}),function:{...(i===0?{name:call.function.name}:{}),arguments:raw.slice(i,i+137)}}]});return chunkedSse(body,173);}});assert.equal(result.text,'Review the unapplied card.');assert.deepEqual(calls,[{name:'preview_title_review_analysis',args}]);}
+});
+
+test('K846-01 many bounded SSE events are independent of network chunks, including split UTF-8',async()=>{
+ const body=event({content:'ğ'}).repeat(3000);assert(new TextEncoder().encode(body).length>160000);
+ for(const response of [sse(body),chunkedSse(body),chunkedSse(body,4095,true)]){const result=await run({question:'Read the answer.',owner,config,execute:async()=>{throw Error('No tool expected');},fetchImpl:async()=>response});assert.equal(result.text,'ğ'.repeat(3000));}
+});
+
+test('SSE bounds still reject one giant completed, unfinished or multiline event rather than many small events',async()=>{
+ const {completion}=require('../src/assistant-provider'),options={streamed:true,onDelta:()=>{}};
+ const frames=['data: '+JSON.stringify({padding:'x'.repeat(160001)})+'\n\n','data: '+'x'.repeat(160001),'data: {"padding":[\ndata: "'+'x'.repeat(90000)+'",\ndata: "'+'x'.repeat(90000)+'"]}\n\n'];
+ for(const frame of frames)await assert.rejects(completion(chunkedSse(frame,8192),options),/SSE frame exceeded/);
+});
+
+test('JSON and SSE retain shared argument, metadata and total-response budgets',async()=>{
+ const {completion}=require('../src/assistant-provider'),options={streamed:true,onDelta:()=>{}},base={id:'tool',type:'function',function:{name:'app_help',arguments:'{}'}};
+ for(const call of [{...base,function:{...base.function,arguments:'x'.repeat(80001)}},{...base,extra_content:{signature:'x'.repeat(16001)}}])for(const response of [json({role:'assistant',tool_calls:[call]}),sse(event({tool_calls:[{index:0,...call}]}))])await assert.rejects(completion(response,options),/tool call.*size limit/);
+ for(const response of [new Response(' '.repeat(2*1024*1024+1),{headers:{'content-type':'application/json'}}),new Response(':comment\n\n'.repeat(240000),{headers:{'content-type':'text/event-stream'}})])await assert.rejects(completion(response,options),/(response|stream) exceeded the size limit/);
+});
+
 test('A fictional prepared card gets one bounded correction turn and only a real tool result counts',async()=>{
  const requests=[],calls=[],replaced=[];
  const responses=[json({role:'assistant',content:'Sıradaki kartı önerdim.'}),json({role:'assistant',tool_calls:[{id:'real',function:{name:'start_voice_generation',arguments:'{}'}}]}),json({role:'assistant',content:'Gerçek ses üretim kartını kontrol edebilirsin.'})];

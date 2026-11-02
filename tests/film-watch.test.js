@@ -19,3 +19,22 @@ test('A native-picked local copy stays bound to the exact episode, carries its p
 
 
 test('Viewing selection persists only exact current source assets and remains separate from watching and taste',async t=>{const h=fixture(t),sources=F.sources(h.item),sub=path.join(h.root,'source.srt');fs.writeFileSync(sub,'subtitle');h.saveHistory([{key:sources[0].key,position:8,subtitlePaths:[sub]},{key:sources[1].key,position:4,subtitlePaths:[sub]}]);const before=h.history(),overview=await h.run({action:'film-watch-overview'});assert.equal(overview.assets.filter(a=>a.role==='subtitle').length,2);const asset=overview.assets.find(a=>a.sourceId===sources[0].id);await h.run({action:'film-watch-selection-save',sourceId:sources[0].id,subtitleId:asset.id});const again=await h.run({action:'film-watch-overview'});assert.equal(again.selection.sourceId,sources[0].id);assert.equal(again.selection.subtitleId,asset.id);assert.deepEqual(h.history(),before);await assert.rejects(h.run({action:'film-watch-selection-save',sourceId:'other',subtitleId:asset.id}));await assert.rejects(h.run({action:'film-watch-selection-save',sourceId:sources[0].id,voiceId:asset.id}));assert.equal(h.store.get(h.item.id).watchStatus,'planned');});
+
+test('R846-04 first aspect-only feedback keeps effective favorite/rating reaction and Recall eligibility, without overriding explicit reactions',async t=>{
+ const h=fixture(t),recall=require('../src/recall-service').registerRecall({app:{getPath:()=>h.root},ipcMain:{handle(){}},authorized:()=>true,catalogStore:h.store});
+ for(const setup of [{favorite:true},{favorite:false,ratings:{personal:'9'}}]){
+  const item=h.store.upsert({id:h.item.id,...setup}),data={version:1,titles:{}};P.saveFeedback(h.root,data);
+  assert.equal(P.personal(item,data.titles).reaction,'like');const state=await h.run({action:'film-watch-reflection-state'});
+  await h.run({action:'film-watch-reflection-save',revision:state.revision,aspects:{pace:'dislike'}});
+  assert.equal(P.personal(item,P.readFeedback(h.root).titles).reaction,'like');
+  await recall.handle({}, {action:'add',refs:[{kind:'catalog',id:item.id}]});assert.equal(recall.store.source('catalog:'+item.id).tasteEligible,true);
+  for(const reaction of ['dislike','neutral',null]){const d=P.readFeedback(h.root);P.setFeedback(d,item,{reaction});P.saveFeedback(h.root,d);const next=await h.run({action:'film-watch-reflection-state'});await h.run({action:'film-watch-reflection-save',revision:next.revision,aspects:{sound:'like'}});assert.equal(P.personal(item,P.readFeedback(h.root).titles).reaction,reaction);assert.equal(recall.store.source('catalog:'+item.id).tasteEligible,false);}
+ }
+});
+
+test('R846-05 first partial global priority preserves effective defaults and explicit zero remains supported',async t=>{
+ const h=fixture(t),taste=require('../src/media-taste'),before=taste.profile([],[]).preferences.weights;
+ const p=await h.run({action:'film-watch-taste-preview',weights:{story:5}});assert.equal(p.preview.otherPreferencesPreserved,true);await h.run({action:'film-watch-taste-apply',token:p.token});
+ let saved=JSON.parse(fs.readFileSync(path.join(h.root,'media-shelf.json'))).tasteProfile;assert.deepEqual(saved.weights,{...before,story:5});
+ const zero=await h.run({action:'film-watch-taste-preview',weights:{sound:0}});await h.run({action:'film-watch-taste-apply',token:zero.token});saved=JSON.parse(fs.readFileSync(path.join(h.root,'media-shelf.json'))).tasteProfile;assert.deepEqual(saved.weights,{...before,story:5,sound:0});
+});

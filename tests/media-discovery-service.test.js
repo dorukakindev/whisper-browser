@@ -142,3 +142,12 @@ test('discovery exposes the stable local collection target separately from provi
   assert.equal(r.ok,true);assert.equal(r.item.title,'Provider Original Title');assert.equal(r.catalogTarget.id,local.id);assert.equal(r.catalogTarget.title,'Yerel Türkçe ad');assert.equal(r.catalogTarget.signature,JSON.stringify([local.id,'film','tt1234567','Yerel Türkçe ad',2001]));assert.equal(catalog.list()[0].title,'Yerel Türkçe ad');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+test('R846-06 discovery projects current playback over older manual resume for the exact saved series',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'discovery-progress-'));
+ try{const catalog=createMediaCatalogStore({filePath:path.join(dir,'media-catalog.json')}),series=catalog.upsert({kind:'series',title:'Current series',imdbId:'tt4444444',episodes:[{id:'old',season:1,number:1},{id:'live',season:2,number:4,source:{type:'browser',value:'https://example.test/live'}}],manualResume:{episodeId:'old',positionSeconds:120,updatedAt:1000}});
+ fs.writeFileSync(path.join(dir,'watch-library.json'),JSON.stringify([{key:series.episodes.find(e=>e.id==='live').source.watchKey,position:900,lastWatched:4000,completed:false}]));
+ let handler;registerMediaDiscovery({ipcMain:{handle:(_n,fn)=>handler=fn},authorized:()=>true,userData:()=>dir,catalogStore:()=>catalog,fetchImpl:async()=>new Response(JSON.stringify({meta:{id:series.imdbId,name:series.title}}))});
+ const result=await handler({}, {action:'detail',kind:'series',id:series.imdbId});assert.equal(result.ok,true,result.error);assert.equal(result.item.personalMedia.effectiveResume.episodeId,'live');assert.equal(result.item.personalMedia.effectiveResume.positionSeconds,900);
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
