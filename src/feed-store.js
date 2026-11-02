@@ -23,6 +23,7 @@ function createFeedStore(file,{now=()=>Date.now()}={}){
  const entryById=(d,id)=>{const e=d.entries.find(e=>e.id===id);if(!e)throw Error('Choose a saved feed entry.');return e;};
  function commitInto(d,feedId,snapshot,initial){
   const feed=feedById(d,feedId),stamp=now();initial=initial||(!feed.lastSuccess?feed.initial:'all');let inserted=0,updated=0;const rows=(snapshot.entries||[]).slice(0,200);
+  if(initial==='latest20')rows.sort((a,b)=>(Number(b?.publishedAt)||Number(b?.updatedAt)||0)-(Number(a?.publishedAt)||Number(a?.updatedAt)||0));
   for(const [index,row]of rows.entries()){
    if(!row||!['article','video','podcast'].includes(row.kind)||!['summary','feed-full'].includes(row.contentScope))throw Error('Invalid parsed feed entry.');
    const url=safeUrl(row.url),externalId=clean(row.externalId,2000);if(!url&&!externalId)continue;

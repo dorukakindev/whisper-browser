@@ -43,6 +43,13 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
   return settingProposals.snapshot(name,args,state);
  }
  async function captureSettings(sender,owner,row,signal){
+  if(row.name==='set_feed_entry_state'){
+   const state=await requestRenderer(sender,owner,row.name,row.args,signal);
+   if(state.status!=='completed'||state.operation!=='preview'||!state.token||!state.entry?.entry_id||!state.entry.revision||!state.sourceRevision)throw Error(state.error||'Selected feed preview unavailable.');
+   row.expectedSettings={kind:'feed-state',token:state.token,entryId:state.entry.entry_id,revision:state.entry.revision,sourceRevision:state.sourceRevision,args:JSON.stringify(row.args)};
+   const tr=row.locale==='tr',labels={saved:tr?'Kaydedilen':'Saved',read:tr?'Okundu':'Read',later:tr?'Daha sonra':'Later'};
+   row.summary=state.entry.title+' · '+Object.entries(state.changes).map(([key,value])=>labels[key]+': '+(value?(tr?'Evet':'Yes'):(tr?'Hayır':'No'))).join(' · ')+(state.entry.copyCount>1?' · '+state.entry.copyCount+(tr?' eş kaynak kopyası':' matching source copies'):'')+(tr?' · Yalnız bu RSS durumları değişir; makale indirilmez, film kaydı değişmez.':' · Only these RSS flags change; no article download or film record update.');
+  }
   if(row.name==='set_watchlist_section'){const state=await requestRenderer(sender,owner,'read_daily_library',{},signal);if(state.status!=='completed'||typeof state.revision!=='string')throw Error('Watchlist revision unavailable.');row.expectedSettings={kind:'daily-queue',revision:state.revision};}
 
   if(['set_app_preferences','undo_app_preferences','configure_voice_generation'].includes(row.name)){

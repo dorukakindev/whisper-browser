@@ -85,3 +85,50 @@ test('official Cinemeta redirect is followed; external redirect is rejected befo
   count = 0; setup(async () => { count++; return new Response(null, { status: 307, headers: { location: 'http://127.0.0.1/private' } }); });
   assert.equal((await handler({}, { action: 'list' })).ok, false); assert.equal(count, 1);
 });
+
+test('detail rejects provider identity drift before saving or translating a different title', async () => {
+  let handler, writes=0, translations=0;
+  registerMediaDiscovery({ipcMain:{handle:(_n,fn)=>handler=fn},authorized:()=>true,
+    catalogStore:()=>({list:()=>[],upsert:()=>{writes++;}}),translateSynopsis:async()=>{translations++;return 'Translated';},
+    fetchImpl:async()=>new Response(JSON.stringify({meta:{id:'tt7654321',name:'Wrong title',description:'Different work'}}))});
+  for(const action of ['detail','add','ensure-record','synopsis-translate']) {
+    const result=await handler({}, {action,kind:'film',id:'tt1234567',token:'request-identity'});
+    assert.equal(result.ok,false,action+' must reject a different returned IMDb identity');
+  }
+  assert.equal(writes,0);assert.equal(translations,0);
+});
+
+test('saved viewing year filter ignores the hidden genre and never needs the provider', async () => {
+  let handler;
+  const items=[{id:'saved',kind:'film',imdbId:'tt1234567',title:'Comedy',year:2025,genres:['Comedy'],watchStatus:'planned'}];
+  registerMediaDiscovery({ipcMain:{handle:(_n,fn)=>handler=fn},authorized:()=>true,catalogStore:()=>({list:()=>items}),fetchImpl:async()=>{throw Error('saved view must stay local');}});
+  const result=await handler({}, {action:'list',view:'watchlist',mode:'year',year:2025,genre:'Drama'});
+  assert.equal(result.ok,true);assert.equal(result.rows.length,1);
+});
+
+test('personal exclusion uses kind plus provider identity and honors standalone dislikes', async () => {
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'discovery-exclusion-'));
+  try {
+    const personal=require('../src/personal-media-state'),data={version:1,titles:{}};
+    personal.setFeedback(data,{id:'discovery:film:tt2222222',kind:'film',title:'Disliked',imdbId:'tt2222222'},{reaction:'dislike'});
+    personal.saveFeedback(dir,data);
+    let handler;
+    const items=[{id:'seed',kind:'film',imdbId:'tt1111111',title:'Liked',favorite:true,genres:['Drama']},
+      {id:'series',kind:'series',imdbId:'tt3333333',title:'Series identity',watchStatus:'completed'}];
+    registerMediaDiscovery({ipcMain:{handle:(_n,fn)=>handler=fn},authorized:()=>true,userData:()=>dir,catalogStore:()=>({list:()=>items}),
+      fetchImpl:async()=>new Response(JSON.stringify({metas:[{id:'tt2222222',name:'Disliked'},{id:'tt3333333',name:'Film identity'}]}))});
+    const result=await handler({}, {action:'personal',kind:'film'});
+    assert.equal(result.ok,true);assert.deepEqual(result.rows.map(r=>r.providerId),['tt3333333']);
+  } finally {fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('saved viewing highly rated mode orders saved titles by their IMDb score',async()=>{
+  let handler;
+  const items=[{id:'lower',kind:'film',imdbId:'tt1111111',title:'Lower',watchStatus:'completed',ratings:{imdb:'6.1'}},
+    {id:'missing',kind:'film',imdbId:'tt2222222',title:'Unrated',watchStatus:'completed'},
+    {id:'higher',kind:'film',imdbId:'tt3333333',title:'Higher',watchStatus:'completed',ratings:{imdb:'8.7'}}];
+  registerMediaDiscovery({ipcMain:{handle:(_n,fn)=>handler=fn},authorized:()=>true,catalogStore:()=>({list:()=>items})});
+  const result=await handler({}, {action:'list',view:'watched',mode:'imdbRating'});
+  assert.deepEqual(result.rows.map(r=>r.title),['Higher','Lower','Unrated']);
+  assert.equal(items[0].title,'Lower','sorting must not mutate the store order');
+});

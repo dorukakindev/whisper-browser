@@ -76,7 +76,15 @@ function registerFeeds({app,ipcMain,authorized,userData=()=>app.getPath('userDat
   try{const due=store.snapshot().feeds.filter(f=>f.enabled&&Math.max(f.nextAttempt||0,f.lastAttempt?f.lastAttempt+f.intervalMinutes*60000:0)<=now()).slice(0,4);for(const feed of due){if(disposed||controller.signal.aborted||store.snapshot().settings.paused)break;const host=new URL(feed.effectiveUrl||feed.url).host;if(hostChecks.has(host)&&now()-hostChecks.get(host)<60000)continue;hostChecks.set(host,now());results.push(await refreshOne(feed,controller.signal));}return results;}finally{jobs.delete('scheduler');refreshing=false;}
  }
  const catalogSnapshot=item=>JSON.stringify([item.id,item.kind,item.title,item.year||null,item.imdbId||'',item.tmdbId||'']);
- const withLinkStates=entry=>({...entry,links:entry.links.map(link=>{const current=catalogStore?.().get(link.catalogId);return {...link,state:!current?'missing':catalogSnapshot({...link,id:link.catalogId})===catalogSnapshot(current)?'confirmed':'stale'};})});
+ const stateKeys=['saved','read','later'];
+ function selectedState(entryId,revision){
+  const snapshot=store.snapshot(),entry=snapshot.entries.find(e=>e.id===entryId);
+  if(!entry||!revision||entry.revision!==revision||entry.spoiler==='marked'&&!entry.spoilerAllowed)throw Error('The selected feed revision or permission changed. Attach the source again.');
+  const copies=snapshot.entries.filter(e=>e.canonicalId===entry.canonicalId).sort((a,b)=>a.id.localeCompare(b.id));
+  return {entry:{entry_id:entry.id,title:entry.title,url:entry.url,revision:entry.revision,copyCount:copies.length,saved:copies.some(e=>e.saved),read:copies.every(e=>e.read),later:copies.some(e=>e.later)},
+   snapshot:JSON.stringify(copies.map(e=>[e.id,e.revision,e.url,e.saved,e.read,e.later,e.spoiler,e.spoilerAllowed])),ids:copies.map(e=>e.id)};
+ }
+ const withLinkStates=entry=>({...entry,links:entry.links.map(link=>{const current=catalogStore?.().get(link.catalogId);return {...link,watchStatus:current?.watchStatus||'unspecified',state:!current?'missing':catalogSnapshot({...link,id:link.catalogId})===catalogSnapshot(current)?'confirmed':'stale'};})});
  const handle=async(event,input={})=>{
   if(!authorized(event))return {ok:false,error:'Unauthorized feed request.',errorKind:'unauthorized'};
   try{
@@ -95,12 +103,33 @@ function registerFeeds({app,ipcMain,authorized,userData=()=>app.getPath('userDat
     case 'preview':result=await job(event,input,signal=>preview(event,input.url,signal));break;
     case 'discover':result=await job(event,input,async signal=>{const response=await requestFeed(input.url,{signal});if(/^\s*<(?:!doctype\s+html|html|head)|text\/html/i.test(response.text.slice(0,200))||/text\/html/i.test(response.headers.get('content-type')||'')){const candidates=P.discoverFeeds(response.text,response.effectiveUrl);return {candidates,direct:false};}const p=await (async()=>{const parsed=P.parseFeed(response.text,response.effectiveUrl),feed={...parsed,url:P.safeUrl(input.url),effectiveUrl:response.effectiveUrl,etag:response.headers.get('etag')||'',lastModified:response.headers.get('last-modified')||''};delete feed.entries;return {token:token(event,'feed',{feed,entries:parsed.entries}),feed,entries:parsed.entries.slice(0,5),count:parsed.entries.length};})();return {candidates:[{url:response.effectiveUrl,title:p.feed.title,type:p.feed.format}],direct:true,preview:p};});break;
     case 'subscribe':{const p=take(event,input.token,'feed');result=store.subscribe({...p.feed,...(input.title!==undefined?{title:input.title}:{}),folder:input.folder},p.entries,input.initial||'latest20');break;}
-    case 'refresh':result=await job(event,input,async signal=>{const feeds=input.feedId?[store.snapshot().feeds.find(f=>f.id===input.feedId)]:store.snapshot().feeds.filter(f=>f.enabled).slice(0,8);if(feeds.some(f=>!f))throw Error('Choose a subscribed feed.');const results=[];for(const f of feeds){signal.throwIfAborted();results.push(await refreshOne(f,signal));}return {results,...store.list()};});break;
+    case 'refresh':result=await job(event,input,async signal=>{
+     const snapshot=store.snapshot().feeds;
+     if(input.feedIds!==undefined&&(!Array.isArray(input.feedIds)||input.feedIds.length>200||input.feedIds.some(id=>typeof id!=='string')))throw Error('Choose up to 200 subscribed feeds.');
+     const requested=input.feedId?[input.feedId]:input.feedIds;
+     const eligible=requested?[...new Set(requested)].map(id=>snapshot.find(f=>f.id===id)):snapshot.filter(f=>f.enabled);
+     if(eligible.some(f=>!f))throw Error('Choose a subscribed feed.');
+     const feeds=eligible.slice(0,8),remainingFeedIds=eligible.slice(8).map(f=>f.id),results=[];
+     for(const f of feeds){signal.throwIfAborted();results.push(await refreshOne(f,signal));}
+     return {results,remainingFeedIds,...store.list()};
+    });break;
     case 'cancel':jobs.get(owner(event)+':'+clean(input.requestId,80))?.abort();result={cancelled:true};break;
     case 'settings':result={settings:store.settings(input.paused)};if(input.paused)jobs.get('scheduler')?.abort();break;
     case 'feed-update':result={feed:store.updateFeed(input.feedId,input)};break;
     case 'unsubscribe':result=store.unsubscribe(input.feedId);break;
     case 'state':result=store.setState(input.entryIds,input);break;
+    case 'state-read':result={entry:selectedState(input.entryId,input.revision).entry};break;
+    case 'state-preview':{
+     const changes=input.changes;
+     if(!changes||typeof changes!=='object'||Array.isArray(changes)||!Object.keys(changes).length||Object.keys(changes).some(key=>!stateKeys.includes(key)||typeof changes[key]!=='boolean'))throw Error('Choose saved, read or later boolean changes only.');
+     const selected=selectedState(input.entryId,input.revision),value={entryId:input.entryId,revision:input.revision,snapshot:selected.snapshot,changes:{...changes}};
+     result={token:token(event,'entry-state',value),entry:selected.entry,changes:value.changes};break;
+    }
+    case 'state-apply':{
+     const preview=take(event,input.token,'entry-state'),selected=selectedState(preview.entryId,preview.revision);
+     if(selected.snapshot!==preview.snapshot)throw Error('Feed state changed. Review the source again.');
+     const applied=store.setState(selected.ids,preview.changes);result={updated:applied.updated,entry:selectedState(preview.entryId,preview.revision).entry};break;
+    }
     case 'undo':result=store.undo(input.token);break;
     case 'opml-preview':{const parsed=P.parseOpml(input.text);result={token:token(event,'opml',parsed.rows),rows:parsed.rows.map(r=>({...r,existing:store.snapshot().feeds.some(f=>f.url===r.url)})),rejected:parsed.rejected};break;}
     case 'opml-import':{const rows=take(event,input.token,'opml');if(!Array.isArray(input.selectedUrls)||input.selectedUrls.length>200||input.selectedUrls.some(url=>!rows.some(r=>r.url===url)))throw Error('Choose only previewed feeds.');const selected=rows.filter(r=>input.selectedUrls.includes(r.url)&&!store.snapshot().feeds.some(f=>f.url===r.url));if(store.snapshot().feeds.length+selected.length>200)throw Error('Feed subscription limit is 200.');for(const row of selected)store.subscribe(row,[],input.initial||'latest20');result={imported:selected.length,...store.list()};break;}
