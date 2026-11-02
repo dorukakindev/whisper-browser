@@ -39,6 +39,13 @@
   if(['get_workflow_settings','configure_workflow','undo_workflow_settings'].includes(name))return window.AssistantWorkflowActions.execute(name,args,owner,{deadline,isCancelled,expectedSettings});
   if(['read_feed_entry_state','set_feed_entry_state'].includes(name))return window.AssistantFeedSources.execute(name,args,owner,{expectedSettings,isCancelled:stale});
   if(name==='search_sources')return window.AssistantFeedSources.search(args.query,owner,()=>!stale());
+  if(name==='open_feed_entry'){
+   const source=await window.api.feedsRequest({action:'entry',entryId:args.entry_id,revision:args.revision});
+   if(stale()||!source?.ok||source.entry?.id!==args.entry_id||source.entry?.revision!==args.revision)throw Error(t('The feed entry changed. Review it again.','Akış girdisi değişti. Yeniden incele.'));
+   const opened=await window.MediaHomeUI.openFeedEntry(args.entry_id);
+   if(!opened||opened.id!==args.entry_id||opened.revision!==args.revision)throw Error(t('Opening this exact feed entry was not confirmed.','İlgili akış girdisinin açıldığı doğrulanamadı.'));
+   return {status:'completed',entry_id:opened.id,title:String(opened.title||'').slice(0,300),note:t('The exact reader entry opened. Read, saved and film viewing states did not change.','İlgili girdi okuyucuda açıldı. Okunma, kaydetme ve film izleme durumu değişmedi.')};
+  }
   if(name==='calculate_playback_time'){
    const math=window.AssistantPlaybackMath;math.options(args);
    const context=window.BrowserDubAudioUI?.context(),source=math.identity(context);

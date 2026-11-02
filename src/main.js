@@ -20539,6 +20539,8 @@ require('./assistant-jobs').register({ipcMain,authorized:authorizedBrowserSender
 require('./assistant-agent-service').register({app,ipcMain,authorized:authorizedBrowserSender,
   getJobs:()=>assistantJobs.snapshot(),resolveJobId:resolveAssistantJobId,cancelJob:id=>assistantJobs.cancel(id),
   researchWeb:assistantResearch,
+  feedDigest:args=>require('./assistant-feed-digest').getFeedDigest(mediaFeedsService.store,args),
+  feedEntry:async(args,event)=>{const entry=mediaFeedsService.store.entry(args.entry_id,args.revision);const result=await mediaFeedsService.handle(event,{action:'context',entryIds:[entry.id]});if(!result.ok||!result.sources?.some(s=>s.entryId===entry.id&&s.revision===entry.revision))throw Error('Feed source is unavailable or hidden by spoiler preferences.');return {entry_id:entry.id,revision:entry.revision,title:entry.title};},
   probeVideo:async(owner,signal)=>{
     const tab=browserTabById(owner.tabId),url=tab?.url||tab?.view?.webContents.getURL()||'';
     const parsed=new URL(url);if(parsed.protocol!=='https:'||!['youtube.com','www.youtube.com','m.youtube.com','youtu.be'].includes(parsed.hostname))throw Error('Open a YouTube video.');

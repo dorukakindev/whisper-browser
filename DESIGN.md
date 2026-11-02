@@ -171,3 +171,7 @@ Kullanıcının kesin yönü: üst medya menüsü, grafit/amber palet ve masaüs
 - Asistan, tarayıcı ve oynatıcı aynı eylem hiyerarşisini taşır: içerik/yanıt birinci, ana eylem ikinci, kaynak ve ileri araçlar açılır. Kaydırma sahipleri, gerçek video yüzeyi, yetki/üretim durumu ve erişilebilir gelişmiş seçenekler korunur.
 
 Bu bölüm yöndür; her ekranın uygulanmış ve gerçek model/siteyle doğrulanmış olduğunu tek başına kanıtlamaz. Teslim notu hangi ekranların gerçek Windows görüntüsüyle sınandığını belirtir. Kaynak tasarım incelemeleri ve uygulama farkları docs/design altındaki teslim belgesinde sabit commit bağlantılarıyla tutulur.
+
+
+### Asistan işlem izi — 2026-11-03
+Ortak sahip assistant-run-card.js/assistant-overlay.css; mevcut paletteki raised/line/accent/text/muted tokenları kullanılır. Kompakt gerçek etkin adım başlığı ve segmentler varsayılan; ayrıntılar isteğe bağlı dikey işlem izidir. Yalnız running halkası döner, accepted/proposed/completed farklı statik durum taşır. Yeni mesaj parçası animasyonu baştan başlatmaz; DOM/odak/açık ayrıntı korunur. prefers-reduced-motion hareketi kaldırır. Bu alan yeni bir genel gezinme veya yan stüdyo değildir. Görsel ve hareket kanıtı docs/implementation/assistant-end-to-end-2026-11-03/ içindedir.

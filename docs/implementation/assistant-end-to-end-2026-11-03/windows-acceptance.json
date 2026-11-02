@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "actualWindowsApplication": true,
+  "actualNativeOverlay": true,
+  "controlledProviderCalls": 6,
+  "selection": true,
+  "digest": true,
+  "reviewedExactFeedReader": true,
+  "rssStateUnchanged": true,
+  "stableAnimatedNode": true,
+  "focusRetained": true,
+  "reducedMotion": true,
+  "widths": [
+    500,
+    360
+  ],
+  "liveProvider": false
+}

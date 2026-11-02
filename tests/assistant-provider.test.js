@@ -113,3 +113,8 @@ test('Unsupported current-source duration receives one evidence correction witho
  const result=await run({question:'How long is left?',owner:{...owner,hasMedia:true},config,execute:async name=>{calls.push(name);return {status:'unsupported',reason:'Current media has no finite duration.'};},fetchImpl:async(_,request)=>{requests.push(JSON.parse(request.body));if(++turn===1)return json({role:'assistant',tool_calls:[{id:'time',function:{name:'calculate_playback_time',arguments:'{}'}}]});if(turn===2)return json({role:'assistant',content:'There are 30 minutes left.'});return json({role:'assistant',content:'A finite duration is unavailable, so I cannot calculate the remaining time.'});}});
  assert.deepEqual(calls,['calculate_playback_time']);assert.equal(requests.length,3);assert.match(requests[2].messages.at(-1).content,/Final evidence check.*unsupported/);assert(!result.text.includes('30 minutes'));assert.match(result.text,/cannot calculate/);
 });
+
+
+test('Application workflow instructions stay in valid system content, never in a message role',async()=>{
+ let captured;await run({question:'Prepare a media selection',owner:{...owner,kind:'library'},config,execute:async()=>{},fetchImpl:async(_,r)=>{captured=JSON.parse(r.body);return json({role:'assistant',content:'No action requested.'});}});assert(captured.messages.every(m=>['system','user','assistant','tool'].includes(m.role)));assert(captured.messages.some(m=>m.role==='system'&&m.content.includes('For a find/compare/collection request')));assert(captured.messages.some(m=>m.role==='system'&&m.content.startsWith('Untrusted source data')));
+});

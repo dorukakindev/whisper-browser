@@ -96,3 +96,7 @@ kullanır.
 | Gizli anahtarlar | `AGENTS.md` Gizli anahtarlar | Anahtar değerleri özet, log ve dialogda gösterilmez |
 | Görsel tokenlar | `UI-DESIGN-SYSTEM.md` | Grafit/amber/camgöbeği, tek primary eylem ve Signal Desk |
 | Oynatıcı düzenleri | `UI-DESIGN-SYSTEM.md` + mevcut renderer | Sinema / Okuma / Çalışma adları ve aynı davranış |
+
+
+## Asistan işlem makbuzu — 2026-11-03
+RunSteps ortak sahibi source-bound araç sonuçlarını gösterir; segment sayısı bilinen gerçek adımlardır, tüm iş yüzdesi değildir. Öneri proposalId ile adıma bağlanır; gerçek Apply sonucu yalnız o adımı completed/accepted/failed/stopped yapar. Accepted medya işi tamamlanmış sayılmaz; eski bağsız öneri tarihsel hazırlanmış kart diye gösterilir. Yanıt güncellemesinde RunCard DOM, disclosure ve klavye odağı korunur; log/composer kaydırma sahipleri ayrıdır. RSS okuyucuya açma okunma/kaydetme/izlenme durumunu değiştirmez; exact entry/revision/spoiler önizlemede ve Apply sırasında doğrulanır. Kontroller: assistant-run-steps, assistant-end-to-end-service ve electron-assistant-end-to-end.smoke.

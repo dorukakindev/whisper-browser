@@ -104,6 +104,7 @@
   for(const value of cache.values())for(const thread of value.threads)for(const message of thread.messages){
    const action=message.actions?.find(row=>row.proposalId===proposalId);if(!action)continue;
    action.resultStatus=['accepted','completed','failed','stopped'].includes(result?.status)?result.status:'failed';
+    message.steps=window.AssistantRunSteps.settle(message.steps,proposalId,{status:action.resultStatus});
    action.refreshable=action.resultStatus==='failed'&&result?.refreshable===true;
    action.resultText=String(result?.note||result?.error||'').slice(0,500);void persist(thread);changed();return;
   }
@@ -112,7 +113,7 @@
   const thread=current(),message=thread?.messages.find(row=>row.actions?.some(item=>item.proposalId===proposalId));
   if(!message||action?.kind!=='app_action'||typeof action.proposalId!=='string'||!action.proposalId||action.proposalId===proposalId)throw Error(t('The conversation or proposal changed.','Sohbet veya öneri değişti.'));
   const index=message.actions.findIndex(row=>row.proposalId===proposalId);
-  message.actions[index]=structuredClone(action);void persist(thread);changed();
+  message.actions[index]=structuredClone(action);message.steps=window.AssistantRunSteps.clean(message.steps).map(row=>row.proposalId===proposalId?{...row,proposalId:action.proposalId,state:'proposed',applied:false}:row);void persist(thread);changed();
  }
  function clear(){const thread=current();if(thread){cancelFlush(thread);thread.messages=[];thread.headId=null;void persist(thread);changed();}}
  // Shared unsampled source: U IDs always refer to the original row index.
