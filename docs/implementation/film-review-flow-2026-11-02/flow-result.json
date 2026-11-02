@@ -1,0 +1,15 @@
+{
+  "flow": {
+    "exactQuote": true,
+    "returnFocus": true,
+    "libraryPosition": [
+      700,
+      700
+    ],
+    "readerSelection": true,
+    "discoveryReturn": true,
+    "discoveryReopen": true
+  },
+  "actualApp": true,
+  "scope": "Isolated real Windows application, controlled metadata and review sample; no personal profile/provider/Actions."
+}
