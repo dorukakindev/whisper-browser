@@ -1,0 +1,19 @@
+✔ Right-click exposes both actions; choosing planned uses exact identity and changes only watch status (143.9719ms)
+✔ Keyboard menu supports Escape/focus restore, arrow selection and watched persistence (67.7471ms)
+✔ Failed preview cannot apply; leaving closes the menu and outside interaction dismisses it (73.0684ms)
+✔ exact identity preview is read-only; owner and stale revision guards protect one-shot apply (67.1213ms)
+✔ manual exact episode resume persists without source, touches no earlier episode or real playback history (44.3479ms)
+✔ native browser binding requires actual token+generation and exact episode; query hints never auto-match (41.58ms)
+✔ verified discovery like creates one unspecified catalog owner; shared native feedback and Recall reactions stay current (97.7383ms)
+✔ identity-shared feedback does not cross remakes/domains; note-only keeps an existing explicit positive rating (61.1235ms)
+✔ discovery excludes completed library titles and uses persisted like seeds without marking them watched (64.9811ms)
+✔ onSaved runs only after persisted apply; network failure cannot turn a successful personal save into failure (62.6119ms)
+✔ Aspect feedback persists independently, merges partial edits and retains whole-film/watch state (77.8213ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1321.913

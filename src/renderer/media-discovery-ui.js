@@ -125,6 +125,32 @@
     copy.append(btn(t('Explore this title', 'Yapımı keşfet'), () => details(row), 'mh-action md-feature-open'));
     hero.append(artwork, copy); slot.append(hero);
   }
+  let closeCardMenu=null;
+  const quickPending=new Set();
+  async function setCardWatchState(row,watchStatus){
+    const key=row.kind+':'+row.providerId;if(quickPending.has(key))return;quickPending.add(key);
+    const root=state.root,identity={kind:row.kind,imdbId:row.providerId},owner={sourceToken:'discovery-card:'+crypto.randomUUID(),thread:'discovery-card'};
+    const personal=async input=>{const r=await window.api.personalMedia(input);if(!r?.ok)throw Error(r?.error||t('Could not save viewing status.','İzlenme durumu kaydedilemedi.'));return r;};
+    status(t('Saving viewing status…','İzlenme durumu kaydediliyor…'));
+    try{const preview=await personal({action:'preview',identity,owner,changes:{watchStatus}});if(!preview.token)throw Error(t('Viewing preview unavailable.','İzlenme önizlemesi oluşturulamadı.'));const result=await personal({action:'apply',token:preview.token,owner});
+      document.dispatchEvent(new Event('media-library-changed'));
+      if(state.root===root&&root?.isConnected){row.personalMedia=result.item;row.catalogId=result.item.catalogId;if(watchStatus==='completed'&&state.tab!=='preferences')state.rows=state.rows.filter(r=>r.kind!==row.kind||r.providerId!==row.providerId);cards();status(result.networkSync?.ok===false?t('Viewing status saved; taste network could not be synchronized.','İzlenme durumu kaydedildi; zevk ağı eşitlenemedi.'):watchStatus==='completed'?t('Marked as watched.','İzlendi olarak kaydedildi.'):t('Added to your watchlist.','İzleme listene eklendi.'));}
+      document.dispatchEvent(new CustomEvent('media-personal-changed',{detail:{catalogId:result.item.catalogId,identity:result.item.identity,personalMedia:result.item}}));
+    }catch(error){if(state.root===root)status(failure(error),true);}finally{quickPending.delete(key);}
+  }
+  function cardMenu(event,card,row){
+    event.preventDefault();event.stopPropagation();closeCardMenu?.();
+    const root=state.root,menu=el('div','md-card-menu media-surface'),abort=new AbortController();menu.setAttribute('role','menu');menu.setAttribute('aria-label',row.title+' · '+t('Viewing status','İzlenme durumu'));menu.append(el('span','md-card-menu-heading',t('My viewing','İzleme durumum')));
+    const close=(focus=false)=>{abort.abort();observer.disconnect();menu.remove();card.setAttribute('aria-expanded','false');if(closeCardMenu===close)closeCardMenu=null;if(focus&&card.isConnected)card.focus({preventScroll:true});};closeCardMenu=close;
+    for(const [value,label]of [['completed',t('Watched','İzledim')],['planned',t('Want to watch','İzleyeceğim')]]){const b=el('button','',label);b.type='button';b.setAttribute('role','menuitem');b.disabled=quickPending.has(row.kind+':'+row.providerId);b.onclick=()=>{close(true);void setCardWatchState(row,value);};menu.append(b);}
+    document.body.append(menu);card.setAttribute('aria-expanded','true');
+    const r=card.getBoundingClientRect(),box=menu.getBoundingClientRect(),keyboard=event.type==='keydown',x=keyboard?r.left:event.clientX,y=keyboard?r.top+Math.min(r.height,40):event.clientY;menu.style.left=Math.max(8,Math.min(x,innerWidth-box.width-8))+'px';menu.style.top=Math.max(8,Math.min(y,innerHeight-box.height-8))+'px';
+    const buttons=[...menu.querySelectorAll('button')];buttons[0]?.focus({preventScroll:true});
+    document.addEventListener('pointerdown',e=>{if(!menu.contains(e.target))close();},{capture:true,signal:abort.signal});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close(true);}else if(e.key==='Tab')close();else if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();const i=buttons.indexOf(document.activeElement),next=e.key==='Home'?0:e.key==='End'?buttons.length-1:(i+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;buttons[next].focus();}},{capture:true,signal:abort.signal});
+    window.addEventListener('resize',()=>close(),{signal:abort.signal});document.addEventListener('scroll',e=>{if(!menu.contains(e.target))close();},{capture:true,signal:abort.signal});
+    const observer=new MutationObserver(()=>{if(!card.isConnected||state.root!==root)close();});observer.observe(state.root?.parentElement||document.body,{childList:true,subtree:true});
+  }
   function cards() {
     const grid = state.root?.querySelector('.md-grid'); if (!grid) return;
     drawFeature();
@@ -138,7 +164,7 @@
       }
     }
     for (const row of state.rows) {
-      const card = btn('', () => details(row), 'mh-card md-card'); card.dataset.discoveryId = row.providerId;
+      const card = btn('', () => details(row), 'mh-card md-card'); card.dataset.discoveryId = row.providerId;card.setAttribute('aria-haspopup','menu');card.addEventListener('contextmenu',event=>cardMenu(event,card,row));card.addEventListener('keydown',event=>{if(event.key==='ContextMenu'||event.shiftKey&&event.key==='F10')cardMenu(event,card,row);});
       const poster = image(row.poster, 'mh-art');
       if (row.rating) { const rating=el('span','md-rating',String(row.rating)); rating.setAttribute('aria-label', t('IMDb rating ','IMDb puanı ')+row.rating+'/10'); poster.append(rating); }
       card.append(poster, el('span', 'mh-card-title', row.title),
@@ -205,7 +231,7 @@
   }
   let savedScroll = 0, restoringScroll = false;
   document.addEventListener('media-personal-changed',()=>{if(state.root?.isConnected)void load();});
-  const leave = () => { if (state.root?.isConnected) savedScroll = document.getElementById('mediaHome').scrollTop; state.root = null; };
+  const leave = () => { closeCardMenu?.(); if (state.root?.isConnected) savedScroll = document.getElementById('mediaHome').scrollTop; state.root = null; };
   document.getElementById('mediaHome')?.addEventListener('scroll', () => { if (!restoringScroll && state.root?.isConnected) savedScroll = document.getElementById('mediaHome').scrollTop; }, { passive:true });
   window.MediaDiscoveryUI = Object.freeze({ leave, openDetail:details, mount(root) {
     const targetScroll = savedScroll; restoringScroll = true;
