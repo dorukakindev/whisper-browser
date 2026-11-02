@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "actualWindowsElectron": true,
+  "isolatedProfile": true,
+  "preparationVisible": true,
+  "reflectionSeparate": true,
+  "globalPriorityPreviewThenConfirmed": true,
+  "shelfSchemaValid": true,
+  "sourcePreviewPosition": true,
+  "pairedVerifiedReviewNavigation": true,
+  "collectionOrderAndDescription": true,
+  "actualLocalSubtitleOpen": true,
+  "widths": [
+    1440,
+    480
+  ],
+  "liveProvider": false
+}
