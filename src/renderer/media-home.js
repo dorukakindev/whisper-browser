@@ -430,6 +430,7 @@
         for(const name of [...new Set(items.flatMap(item=>item.collections||[]))].sort()){const option=el('option','',name);option.value='collection:'+name;option.dataset.uiUntranslated='';select.append(option);}
         select.value = state.filter; select.addEventListener('change', () => { state.filter = select.value; state.limit = 48; renderContent(); }); controls.append(select);
       }
+      if(state.filter.startsWith('collection:')&&window.FilmWatchUI)controls.append(button(t('Open collection page','Koleksiyon sayfasını aç'),()=>window.FilmWatchUI.openCollection(state.filter.slice(11))));
       controls.append(button(t('Open a file', 'Dosya aç'), () => click('playerPickVideo')), button(t('Manage library', 'Kütüphaneyi yönet'), () => catalog()));
       content.append(controls, section(titles[state.page], filter(rows), { grid: true,web:state.page==='web' }));
       if (state.page === 'music') content.append(el('p', 'mh-empty', t('Local audio you play appears here. Playback uses your existing player and queue.', 'Oynattığın yerel sesler burada görünür. Mevcut oynatıcın ve kuyruğun kullanılır.')));

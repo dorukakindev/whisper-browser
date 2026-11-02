@@ -36,7 +36,7 @@ function tonight(items, history=[], options={}) {
   }
   return rows.sort((a,b)=>b.score-a.score||a.title.localeCompare(b.title)).slice(0,8);
 }
-function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ffprobe,readOpenReviews,resolveDiscovery,collectBrowserReviews,getReviewConfig,getReviewTaste=()=>({}),fetchImpl=fetch}) {
+function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ffprobe,readOpenReviews,resolveDiscovery,collectBrowserReviews,getReviewConfig,getReviewTaste=()=>({}),fetchImpl=fetch,grantSubtitle,grantMedia,saveWatch}) {
   const root=()=>app.getPath('userData'), file=()=>path.join(root(),'media-enrichment.json');
   const read=()=>{if(!fs.existsSync(file()))return {version:1,titles:{}};if(fs.statSync(file()).size>16000000)throw Error('Media notes exceed 16 MB.');const value=JSON.parse(fs.readFileSync(file(),'utf8'));if(value.version!==1||!value.titles||typeof value.titles!=='object'||Array.isArray(value.titles))throw Error('Media notes are damaged. Original file was preserved.');return value;};
   const save=value=>{const json=JSON.stringify(value);if(Buffer.byteLength(json)>16000000)throw Error('Media notes exceed 16 MB.');atomicWriteFileSync(file(),json);};
@@ -67,6 +67,7 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
     return {...result.item,id,imdbId:result.item.providerId};
   }
   const daily=require('./media-daily-service').create({root,catalog:catalogStore,reviewItem,dialog,owner});
+  const filmWatch=require('./film-watch-service').create({root,catalog:catalogStore,reviewItem,grantSubtitle,grantMedia,saveWatch,app,dialog,owner});
   async function health(job) {
     const rows=[], hashes=new Map(), items=catalogStore().list();
     job.phase='inspect';job.hashed=0;job.hashTotal=0;
@@ -108,7 +109,7 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
     if(!authorized(event))return {ok:false,error:'Unauthorized request.'};
     try {
       if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Invalid request.');
-      const action=input.action;if(typeof action==='string'&&action.startsWith('daily-'))return await daily.handle(event,input);
+      const action=input.action;if(typeof action==='string'&&action.startsWith('film-watch-'))return await filmWatch.handle(event,input);if(typeof action==='string'&&action.startsWith('daily-'))return await daily.handle(event,input);
       if(action==='assistant-export'){if(typeof input.text!=='string'||input.text.length>8000000)throw Error('Conversation export exceeds 8 MB.');const content=input.text;if(!content)throw Error('No conversation to export.');const selected=await dialog.showSaveDialog(owner(),{defaultPath:'Whisper-conversation.md',filters:[{name:'Markdown / text',extensions:['md','txt']}]});if(selected.canceled)return {ok:true,canceled:true};atomicWriteFileSync(selected.filePath,'\uFEFF'+content);return {ok:true};}
       if(action==='backup-status')return {ok:true,value:{...schedule}};
       if(action==='backup-schedule'){
@@ -168,7 +169,7 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
       }
       if(action==='decision-get'){
         const selected=await reviewItem(event,input),data=read(),own=Object.hasOwn(data.titles,selected.id)?data.titles[selected.id]:{},model=require('./renderer/media-tools-model'),current=model.decisionProviderIdentity(selected);
-        const ownFeedback=own.feedback&&(!own.feedbackIdentity||model.decisionIdentityMatch(selected,own.feedbackIdentity)!=='mismatch')?own.feedback:null,sharedFeedback=[];
+        const ownFeedback=own.feedback&&(!own.feedbackIdentity||model.decisionIdentityMatch(selected,own.feedbackIdentity)!=='mismatch')?own.feedback:undefined,sharedFeedback=[];
         const history=(Array.isArray(own.history)?own.history:[]).map(entry=>({entry,savedFrom:selected.id.startsWith('discovery:')?'discovery':'library'}));
         // A discovery title and its later library entry use different storage keys.
         // Share evidence and newly identity-bound feedback only through a positive provider match. Legacy feedback stays local.

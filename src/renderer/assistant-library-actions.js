@@ -61,6 +61,7 @@
  }
  async function execute(name,args,owner,{deadline=Infinity,isCancelled=()=>false,expectedSettings,personalSource}={}){
   const stale=()=>isCancelled()||Date.now()>=deadline||!window.AssistantAppActions.current(owner),guard=()=>{if(stale())throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));};guard();
+  if(window.AssistantDailyActions?.handles(name))return window.AssistantDailyActions.execute(name,args,{guard,expectedSettings});
   if(window.AssistantFilmActions?.handles(name))return window.AssistantFilmActions.execute(name,args,{guard,title,safeTitle,identity});
   if(['get_current_media_match','read_personal_media','propose_personal_media_update'].includes(name)){
    const source=personalSource?await personalSource():null;guard();

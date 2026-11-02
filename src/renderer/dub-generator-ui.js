@@ -294,6 +294,7 @@
     el('dubExpression').disabled = locked || el('dubFollowDelivery').checked;
     el('dubRetryFailed').disabled = locked || !lastRequest || !cfg?.ready;
     el('dubRegenerateGroup').disabled = locked || !lastRequest || !results.size || !cfg?.ready;
+    if(el('dubSaveRegenerate'))el('dubSaveRegenerate').disabled=locked||!lastRequest||!plan||!cfg?.ready;
     el('dubQualityGroup').disabled = locked || !el('dubQualityGroup').value;
     el('dubGeneratorStart').disabled = locked || !srt || !cfg?.ready;
     const requirement=el('dubStartRequirement'),en=window.UiLocale?.get?.()==='en';
@@ -647,6 +648,9 @@
     if (text === g.text) delete edits[g.key]; else edits[g.key] = text;
     showGroup(); status('Dublaj metni uygulandı.');
   });
+  const repairActions=document.createElement('div');repairActions.className='fw-repair-actions';const repairSave=document.createElement('button'),repairAB=document.createElement('button');repairSave.id='dubSaveRegenerate';repairSave.type=repairAB.type='button';repairSave.className='btn btn-secondary';repairAB.className='btn btn-ghost';const repairLabels=()=>{repairSave.textContent=window.UiLocale?.get?.()==='tr'?'Metni kaydet · yalnız bu grubu üret':'Save text · regenerate only this group';repairAB.textContent=window.UiLocale?.get?.()==='tr'?'Önceki ve yeni kaydı karşılaştır':'Compare previous and current takes';};repairLabels();document.addEventListener('ui-locale-change',repairLabels);repairActions.append(repairSave,repairAB);el('dubPlanApply').after(repairActions);controls();
+  repairSave.onclick=async()=>{if(current||planning||referenceBusy||choosing||workspaceBusy||!lastRequest)return;const g=group(),text=el('dubPlanText').value.trim();if(!g||!text)return;if(text===g.text)delete edits[g.key];else edits[g.key]=text;showGroup();repairSave.disabled=true;try{await start(true,[g.key]);}finally{repairSave.disabled=false;}};
+  repairAB.onclick=()=>{const g=group();if(!g)return;selectQuality(g.key);window.dispatchEvent(new Event('dub-takes:open'));};
   el('dubPlanReset').addEventListener('click', () => { if(current||planning||referenceBusy||choosing||workspaceBusy)return;const g = group(); if (g) delete edits[g.key]; showGroup(); });
   el('dubPlanShorten').addEventListener('click', async () => {
     if (planning || current || referenceBusy || choosing) return;
