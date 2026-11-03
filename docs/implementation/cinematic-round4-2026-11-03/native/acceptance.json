@@ -1,0 +1,97 @@
+{
+  "actualWindows": true,
+  "isolated": true,
+  "controlledMetadata": true,
+  "liveProvider": false,
+  "shots": [
+    "home-1440",
+    "discover-1440",
+    "film-top-1440",
+    "film-middle-1440",
+    "film-bottom-1440",
+    "film-tools-1440",
+    "taste-film-1440",
+    "taste-global-1440",
+    "preparation-1440",
+    "home-1920",
+    "discover-1920",
+    "film-top-1920",
+    "film-middle-1920",
+    "film-bottom-1920",
+    "film-tools-1920",
+    "taste-film-1920",
+    "taste-global-1920",
+    "preparation-1920",
+    "film-controlled-analysis-1440",
+    "film-media-1440",
+    "film-controlled-analysis-1920",
+    "film-media-1920",
+    "film-no-source-1920",
+    "film-narrow-480",
+    "discover-narrow-480",
+    "frame-hero-0",
+    "frame-hero-200",
+    "frame-hero-600",
+    "frame-hero-900",
+    "frame-hover-0",
+    "frame-hover-200",
+    "frame-hover-600",
+    "frame-hover-900",
+    "frame-page-0",
+    "frame-page-200",
+    "frame-page-600",
+    "frame-page-900",
+    "frame-accordion-0",
+    "frame-accordion-200",
+    "frame-accordion-600",
+    "frame-accordion-900"
+  ],
+  "checks": [
+    {
+      "width": 1440,
+      "overflow": false,
+      "primary": "Kütüphanede aç",
+      "credits": [
+        "Yönetmen",
+        "Senaryo",
+        "Görüntü yönetmeni",
+        "Müzik",
+        "Yapım şirketi",
+        "Ülke",
+        "Dil",
+        "Bütçe"
+      ],
+      "roles": [
+        "12px",
+        "12px",
+        "12px",
+        "12px",
+        "12px"
+      ],
+      "error": ""
+    },
+    {
+      "width": 1920,
+      "overflow": false,
+      "primary": "Kütüphanede aç",
+      "credits": [
+        "Yönetmen",
+        "Senaryo",
+        "Görüntü yönetmeni",
+        "Müzik",
+        "Yapım şirketi",
+        "Ülke",
+        "Dil",
+        "Bütçe"
+      ],
+      "roles": [
+        "12px",
+        "12px",
+        "12px",
+        "12px",
+        "12px"
+      ],
+      "error": ""
+    }
+  ]
+}

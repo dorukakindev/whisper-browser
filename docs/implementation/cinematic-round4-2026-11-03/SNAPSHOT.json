@@ -1,0 +1,23 @@
+{
+  "base": "df27249166e64e8dbf39d0d1917673a63a398d3b",
+  "product": "b08f58c68ac1602fe20c5c980ea8f3826c47895d",
+  "native": "D:\\Whisper Local\\tmp\\assistant618\\tmp\\cinema-round4-1793698736219",
+  "noToken": "D:\\Whisper Local\\tmp\\assistant618\\tmp\\cinema-round4-1793699608731",
+  "controlled": true,
+  "liveProvider": false,
+  "files": {
+    "src/renderer/cinema-film-round4.css": "ecff07b37be8698714555da6d57b1e36c742280884cac12b7bf554812568a5cd",
+    "src/renderer/cinema-film-round4.js": "3634c2251bcdfefe0c06a7226469f1aeec2dc09de204eb70f117e783992087ed",
+    "src/renderer/cinema-film-tools.js": "96884044194dc7793dd475d91f543990c68df7ee31356f81dc50150834af16d4",
+    "src/renderer/cinema-home-round3.css": "cf6ddde0b25a06a35362b96fa1a17d0b0d2e67accc9a0c5f13acba6ff8cd5c16",
+    "src/renderer/cinema-motion.js": "5f0ad3cffd912f5bb9be4df8c7d035ede0475306a7ee0d0aa30398cae570ce3c",
+    "src/renderer/cinema-round4-adapter.css": "7639f305adfb79be4a0545fac873f1d182b9ac515c0d6dd770e09bda444ee5f5",
+    "src/renderer/cinema-ui.js": "765a9f3f88a5c9436b57f2166fc39629dd9745584070b06c454ae2bb4e1021d2",
+    "src/renderer/film-watch-ui.js": "37b2eb9a8548406899cdbe88111f098b305a34000654623db5028aa66f8c6dda",
+    "src/renderer/index.html": "4ab809519a89a226e88f35b3625dc392d19d28e36f01a029e8001f898680d38f",
+    "src/renderer/media-daily-ui.js": "64deae1dfd6764e6e18863a8d8ad296768bc28a85bb38142ea68d0a834f581ce",
+    "tests/cinema-motion.test.js": "0c2a30b45642d6e4a46dbacb1407c5725a1e057e1335567698be9d9e9a6877ac",
+    "tests/cinema-round4.test.js": "cf2e75a3651ef8e879c1a22151ce1bcc9ebaa246e8d91da03b48066fd567f391",
+    "tests/electron-cinema-round4.smoke.js": "ecd311848fac2ed0ab57a911cd84d36f7eb36ea42e792b81a21f3a42b2c029c4"
+  }
+}
