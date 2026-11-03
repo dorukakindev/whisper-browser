@@ -2,7 +2,7 @@
 
 ![Whisper Browser](docs/media/hero-banner.png)
 
-**Local GPU-accelerated subtitles, a subtitle-aware video browser, and context-sensitive translation — all in one desktop workstation.**
+**A personal media library and player/browser with discovery, feeds, an assistant, subtitles, translation and dubbing.**
 
 [![CI](https://github.com/dorukakindev/whisper-browser/actions/workflows/ci.yml/badge.svg)](https://github.com/dorukakindev/whisper-browser/actions/workflows/ci.yml)
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -16,9 +16,24 @@
 
 ---
 
-Whisper Browser is a desktop application for turning media into working subtitles — entirely on your machine. Transcribe local files and YouTube with faster-whisper, watch video with source and translation tracks side by side, capture accessible subtitle tracks from websites in the embedded browser, and translate with timing preserved. The interface opens in English with an EN/TR switch; some older diagnostic messages are still Turkish while localization continues.
+Whisper Browser is a desktop media library, player and embedded browser, with discovery, reading feeds and a context-aware assistant. Its local transcription and dubbing workflows connect media to subtitles and translated speech; optional online features use configured services. Transcribe local files and YouTube with faster-whisper, watch video with source and translation tracks side by side, capture accessible subtitle tracks from websites in the embedded browser, and translate with timing preserved. The interface supports English and Turkish; some older diagnostic messages are still Turkish while localization continues.
 
 > **Beta** — back up important subtitle files and review generated text before publishing.
+
+## Proje bilgisi ve kaldığın yer
+
+Proje bilgisi sohbetle sınırlı tutulmaz. Yeni çalışmaya aşağıdaki kök dosyalardan başla:
+
+| Dosya | Ne için? |
+| --- | --- |
+| [AGENTS.md](https://github.com/dorukakindev/whisper-browser/blob/master/AGENTS.md) | Kısa çalışma, tasarım, doğrulama ve teslim kuralları. |
+| [BACKLOG.md](BACKLOG.md) | Açık/yarım işler; dal, PR, kanıt, kabul koşulu ve sonraki adım. |
+| [CHANGELOG.md](CHANGELOG.md) | Tamamlanan değişiklikler; tarihsel kayıt korunur. |
+| [DEVIR-NOTU.md](https://github.com/dorukakindev/whisper-browser/blob/master/DEVIR-NOTU.md) | Ayrıntılı, tarihli teslim ve devir notlarının indeksi. |
+| [DESIGN.md](https://github.com/dorukakindev/whisper-browser/blob/master/DESIGN.md) | Onaylı görsel kimlik ve ekran kararları. |
+| [YENI-BILGISAYAR.md](https://github.com/dorukakindev/whisper-browser/blob/master/YENI-BILGISAYAR.md) | Ortamı yeniden kurma ve özel verileri koruma bilgisi. |
+
+Ayrıntılı teknik kurallar [çalışma rehberinde](docs/WORKING_GUIDE.md), mimari [ARCHITECTURE.md](docs/ARCHITECTURE.md) içindedir. Arşivdeki bir rapor, tek başına o işin hâlâ açık olduğunu göstermez. Yarım iş BACKLOG'a yazılır; yalnız doğrulanmış tamamlanmış değişiklik CHANGELOG'a geçirilir.
 
 ## Feature tour
 
