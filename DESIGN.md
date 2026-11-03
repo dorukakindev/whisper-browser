@@ -179,3 +179,12 @@ Ortak sahip assistant-run-card.js/assistant-overlay.css; mevcut paletteki raised
 
 ### Film dossier — 2026-11-03
 Alt sayfa tek ortak hiyerarşidir: konu+künye → oyuncular → kaynaklı yorum analizi → ek keşif → isteğe bağlı izleme/kaynak araçları. Yerel ve Keşfet aynı alan/typography sahibini kullanır; hero ve üst menü ayrı, korunmuş sahiplerdir. Anlatım alanı yaklaşık 64ch; künye gerçek alanlar ve aynı baz çizgisinde dt/dd çiftleri. Özet ile kişisel uygunluk ayrıdır; özgün alıntı ve AI açıklaması karıştırılmaz. Mevcut form DOM'u taşınır, taslak/olay/izin sahibi yeniden yazılmaz. Kişiler gerçek metadata akışından gelir, görsel yoksa harf; uydurma yüz/istatistik yok. 200 ms bağlamsal giriş ve global reduced-motion kuralı. Görsel kompozisyon ve gerçek Windows önce/sonra kanıtı docs/implementation/film-page-lower-2026-11-03/ altındadır.
+
+
+## Ana sayfa / Keşfet ortak görsel temeli — 2026-11-03
+
+Kullanıcının ekran brief'i önceliklidir: ilk paket ortak bileşenler + Ana sayfa + Keşfet; sonraki sayfaların içeriği bu turda yeniden tasarlanmaz. Görsel yön ve native önce/sonra kanıtı: [uygulama kaydı](docs/implementation/home-discover-design-2026-11-03/README.md).
+
+`media-visual.css` palet değerlerini çoğaltmadan runtime renklerine bağlı sıcak yüzey, 4/8 boşluk, köşe, tek sans yazı ölçeği ve 160ms hareket rollerini tanımlar. `media-visual.js` mevcut düğmeleri/handler'ları koruyan kart, bölüm başlığı, boş durum, dört düğme varyantı, açılır işlem/filtre ve raf gezinmesini sağlar. Ekran özelindeki yerleşim `media-scenes.css` içindedir. Bu iki ekranda IBM Plex Sans tek aile; kapak/hero gerçek kaynak fotoğrafıdır. Eksik kapak sıcak başlık gradyanı ve baş harflerdir, ham dosya adı veya sahte görsel değildir.
+
+Üst medya menüsü yatay kalır; bir ana eylem Medya aç; arama açılır ve ikincil komutlar tam düğmeleriyle menüye taşınır. Aktif ana sekme alt çizgi kullanır. Metadata sonucu küçük kapatılabilir toast'tır; kapatmak iş iptali değildir. Asistanın native paneli korunur, Home/Keşfet'te kapalı baloncuk yerine üst simge vardır. Bir ekranın taşmaması estetik başarı sayılmaz; native görüntü kompozisyonla karşılaştırılır ve zayıflık düzeltilir. Film/RSS/reader/browser içerik tasarımları bu kapsamın dışındadır.

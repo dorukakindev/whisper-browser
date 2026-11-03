@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "before": true,
+  "screen": "home",
+  "empty": false,
+  "actualWindows": true,
+  "isolatedProfile": true,
+  "controlledNetwork": true,
+  "liveProvider": false,
+  "shots": [
+    "home-1440"
+  ]
+}
