@@ -61,6 +61,14 @@
     b.dataset.homeItem = item.key || item.id || "";
     const a = art(item, "cn-poster-art");
     fallback(a, item.title);
+    const web = /^(?:browser|youtube):/.test(item.key || '') || ['browser', 'youtube'].includes(item.type) || ['url', 'web', 'youtube', 'browser'].includes(item.source?.type);
+    const youtube = item.type === 'youtube' || /^youtube:/.test(item.key || '') || !!window.MediaHomeModel?.thumbnail(item) || /(?:youtube\.com|youtu\.be)/i.test(item.source?.value || '');
+    const source = youtube ? 'YouTube' : web ? 'Web' : t('Local', 'Yerel');
+    const sourceMark = n('span', 'cn-source-mark');
+    sourceMark.title = source;
+    sourceMark.setAttribute('aria-label', source);
+    sourceMark.append(icon(web || youtube ? 'media' : 'folder'));
+    a.append(sourceMark);
     const rating = Number(item.rating || item.tmdbRating || item.ratings?.imdb);
     if (rating > 0) {
       const r = n("span", "cn-rating", rating.toFixed(1));
@@ -80,6 +88,7 @@
     const grid = n("div", "cn-poster-row");
     rows.slice(0, 12).forEach((item) => grid.append(poster(item, { ...options, run: () => options.open(item), wide: options.wide })));
     const rail = window.MediaVisual.rail(grid, title);
+    tools.append(...rail.element.querySelectorAll(':scope > button'));
     section.append(heading, rail.element);
     return { element: section, dispose: rail.dispose };
   }
@@ -93,7 +102,10 @@
     inner.append(copy);
     hero.append(inner, controls);
     host.append(hero);
+    let carousel = null;
+    dispose.push(() => carousel?.dispose());
     function draw() {
+      carousel?.dispose(); carousel = null;
       if (!candidates.length) {
         hero.hidden = true;
         return;
@@ -103,6 +115,9 @@
       opts.onFeature(item.key || item.id);
       copy.replaceChildren(n("span", "cn-eyebrow", t("Continue your story", "Kald\u0131\u011F\u0131n yerden")), n("h1", "", clean(item.title)));
       const meta = n("div", "cn-meta");
+      const youtube = item.type === 'youtube' || /^youtube:/.test(item.key || '') || !!window.MediaHomeModel?.thumbnail(item) || /(?:youtube\.com|youtu\.be)/i.test(item.source?.value || '');
+      const web = /^(?:browser|youtube):/.test(item.key || '') || ['browser', 'youtube'].includes(item.type) || ['url', 'web', 'youtube', 'browser'].includes(item.source?.type);
+      meta.append(n('span', 'cn-source', youtube ? 'YouTube' : web ? 'Web' : t('Local', 'Yerel')));
       if (item.year) meta.append(n("span", "", item.year));
       if (p.duration) meta.append(n("span", "", opts.minutes(p.duration)));
       copy.append(meta, n("p", "cn-hero-description", item.synopsis || t("Your film, subtitles and voice tools, together.", "Filmin, altyaz\u0131lar\u0131n ve ses ara\xE7lar\u0131n bir arada.")));
@@ -114,9 +129,11 @@
         track.append(meter(p.percent), n("small", "", t(opts.minutes(Math.max(0, p.duration - p.position)) + " remaining", opts.minutes(Math.max(0, p.duration - p.position)) + " kald\u0131")));
         copy.append(track);
       }
-      hero.querySelectorAll(":scope > .cn-hero-art").forEach((x) => x.remove());
+      const oldArt = hero.querySelector(':scope > .cn-hero-art:not(.cn-art-outgoing)');
+      if (!window.CinemaMotion) hero.querySelectorAll(":scope > .cn-hero-art").forEach((x) => x.remove());
       const a = art(item, "cn-hero-art", true);
-      hero.prepend(a);
+      hero.append(a);
+      window.CinemaMotion?.swapArtwork(hero, oldArt, a);
       hero.hidden = false;
       a.addEventListener("home-art-error", () => {
         if (!a.isConnected) return;
@@ -131,6 +148,9 @@
         draw();
       }, "icon", "right"));
       controls.hidden = candidates.length < 2;
+      if (window.CinemaMotion && candidates.length > 1) {
+        carousel = window.CinemaMotion.carousel(hero, { count: candidates.length, getIndex: () => at, goTo: index => { at = index; draw(); } });
+      }
     }
     draw();
     const body = n("div", "cn-container cn-home-shelves");
@@ -177,6 +197,7 @@
       (count++ < 4 ? dl : extraFields).append(row);
     }
     card.hidden = !dl.children.length;
+    card.dataset.creditCount = String(count);
     if (!card.hidden) {
       card.append(n("h2", "", t("Film credits", "Film k\xFCnyesi")), dl);
       if (extraFields.children.length) {
@@ -184,6 +205,24 @@
         card.append(more);
       }
     }
+    if (card.isConnected) arrangeCredits(card.closest('.cn-film-page'));
+  }
+  function arrangeCredits(page) {
+    if (!page) return;
+    const card=page.querySelector('[data-cinema-credits]'),grid=page.querySelector('.cn-story-grid'),meta=page.querySelector('.cn-film-copy .cn-meta');
+    if (!card||!meta) return;
+    page.querySelector('.cn-credit-chips')?.remove();
+    const sparse=Number(card.dataset.creditCount)<3;
+    grid?.classList.toggle('cn-sparse-credits',sparse);card.hidden=sparse;
+    if(sparse&&Number(card.dataset.creditCount)){
+      const chips=n('div','cn-credit-chips');
+      for(const row of card.querySelectorAll('dl>div'))chips.append(n('span','',row.querySelector('dt').textContent+' · '+row.querySelector('dd').textContent));
+      meta.after(chips);
+    }
+  }
+  function accordionRow(details,symbol,hint){
+    if(!details)return;const summary=details.querySelector(':scope>summary');if(!summary||summary.dataset.cinemaHeading)return;
+    summary.dataset.cinemaHeading='true';const label=n('span','cn-accordion-title');label.append(...summary.childNodes);const tail=n('span','cn-accordion-hint',hint);summary.replaceChildren(icon(symbol),label,tail,icon('down'));
   }
   const filmOwners = /* @__PURE__ */ new WeakMap();
   const filmViews = /* @__PURE__ */ new WeakMap();
@@ -280,7 +319,7 @@
       const pill = action(summary, () => {
         advanced.open = true;
         personal.scrollIntoView({ block: "center", behavior: "auto" });
-        personal.querySelector("select")?.focus();
+        (personal.querySelector('.cn-status-segments button[aria-pressed=true]')||personal.querySelector("select"))?.focus();
       }, "ghost", "down");
       pill.classList.add("cn-watch-pill");
       copy.append(pill);
@@ -309,6 +348,12 @@
       story.querySelectorAll("button").forEach((b) => rebutton(b, "ghost"));
       const p = story.querySelector("p");
       if (p) p.className = "cn-story-text";
+      const same=p&&p.textContent.trim()===String(description||'').trim();
+      if(same&&p.textContent.trim().length<=95){
+        p.className='cn-hero-description';copy.querySelector('.cn-hero-description')?.replaceWith(p);
+        const storyActions=n('div','cn-inline-story-actions');for(const b of story.querySelectorAll('button'))storyActions.append(b);
+        if(storyActions.children.length)copy.append(storyActions);story.hidden=true;
+      }
       overview.append(story);
     }
     overview.append(credits);
@@ -338,7 +383,7 @@
     body.append(advanced);
     const nav = n("nav", "cn-film-nav"), navInner = n("div", "cn-container");
     nav.setAttribute("aria-label", t("On this film page", "Film sayfas\u0131nda gezinme"));
-    for (const [section, en, tr] of [[story, "Story", "Konu"], [cast, "Cast", "Oyuncular"], [review, "Reviews & analysis", "Yorumlar ve analiz"], [advanced, "Details", "Ayr\u0131nt\u0131lar"]]) if (section) {
+    for (const [section, en, tr] of [[story, "Story", "Konu"], [cast, "Cast", "Oyuncular"], [review, "Reviews & analysis", "Yorumlar ve analiz"], [advanced, "Details", "Ayr\u0131nt\u0131lar"]]) if (section&&!section.hidden) {
       const b = action(t(en, tr), () => section.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }), "ghost");
       navInner.append(b);
     }
@@ -352,6 +397,18 @@
       page.append(status);
     }
     page.append(body);
+    arrangeCredits(page);
+    accordionRow(advanced,'folder',t('Sources, viewing and your film journal','Kaynaklar, izleme ve film günlüğün'));
+    accordionRow(profile,'heart',t('What stays with you; what to discover next','Sende kalanlar ve sıradaki keşiflerin'));
+    const toolOwner=window.CinemaFilmTools?.mount(page,advancedBody,personal,actions);
+    if(toolOwner)disposers.push(()=>toolOwner.dispose());
+    let shownProfile=profile;
+    const syncProfile=()=>{
+      const next=review?.querySelector('.film-decision-profile');
+      if(next&&next!==shownProfile){shownProfile?.remove();shownProfile=next;next.classList.add('cn-accordion');advanced.before(next);}
+      if(shownProfile)accordionRow(shownProfile,'heart',t('Genres and personal priorities','Türler ve kişisel önceliklerin'));
+    };
+    if(review){const watcher=new MutationObserver(syncProfile);watcher.observe(review,{childList:true,subtree:true});disposers.push(()=>watcher.disconnect());syncProfile();}
     page.dispatchEvent(new CustomEvent("cinema-film-ready", { detail: { item } }));
     const loader = cast?.querySelector("button");
     if (loader) queueMicrotask(() => {

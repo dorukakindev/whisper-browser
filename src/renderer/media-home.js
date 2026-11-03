@@ -183,8 +183,12 @@
       // YouTube sometimes returns its tiny generic missing-image tile with HTTP 200.
       if (!image.naturalWidth || youtube && image.naturalWidth <= 120) return unavailable();
       if(youtube)image.classList.toggle('mh-letterboxed-thumbnail',Math.abs(image.naturalWidth/image.naturalHeight-4/3)<.04);
+      if (node.classList.contains('cn-hero-art')) {
+        const bounds = node.getBoundingClientRect();
+        node.dataset.artLowResolution = String(image.naturalWidth < bounds.width || image.naturalHeight < bounds.height);
+      }
       if (upgrade) { node.dataset.artWideReady = 'true'; image.style.opacity = ''; }
-      const meters=[...node.children].filter(child=>child.matches('.mh-progress,.cn-progress,.cn-rating'));node.replaceChildren(image,...meters); node.dispatchEvent(new Event('home-art-ready', { bubbles:true }));
+      const meters=[...node.children].filter(child=>child.matches('.mh-progress,.cn-progress,.cn-rating,.cn-source-mark'));node.replaceChildren(image,...meters); node.dispatchEvent(new Event('home-art-ready', { bubbles:true }));
     };
     image.onerror = unavailable;
     if (upgrade) image.style.opacity = '0';

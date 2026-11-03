@@ -44,8 +44,10 @@
     let hash = 0;
     for (const c of clean) hash = hash * 31 + c.codePointAt(0) >>> 0;
     host.dataset.mvTone = String(hash % 4);
+    host.style.setProperty("--mv-art-hue", String(24 + hash % 25));
     if (!host.querySelector(".mv-art-fallback")) {
-      const fallback = node("span", "mv-art-fallback", clean.split(/\s+/).slice(0, 2).map((s) => Array.from(s)[0]).join("").toLocaleUpperCase());
+      const words = clean.match(/[\p{L}\p{N}][\p{L}\p{N}\p{M}]*/gu) || [];
+      const fallback = node("span", "mv-art-fallback", words.slice(0, 2).map((s) => Array.from(s)[0]).join("").toLocaleUpperCase());
       fallback.setAttribute("aria-hidden", "true");
       host.append(fallback);
     }

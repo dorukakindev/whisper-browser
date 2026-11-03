@@ -1,6 +1,16 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{JSDOM}=require('jsdom');
 const extras={people:[{id:7,name:'Actor',role:'Role'}],videos:[{name:'Trailer',official:true,url:'https://www.youtube.com/watch?v=abcdefghijk'}],recommendations:[{id:43,kind:'film',tmdbId:'movie:43',title:'Other',sharedGenres:['Drama']}],sameDirector:[{id:43,kind:'film',tmdbId:'movie:43',title:'Other'}],director:'Director'};
 const wait=()=>new Promise(r=>setTimeout(r,0));
+
+test('Missing TMDB credential renders a compact connection action without raw setup error',async()=>{
+ const dom=new JSDOM('<section class="media-title-page"><main></main></section>',{runScripts:'outside-only'}),w=dom.window;let opened='';
+ try{w.UiLocale={get:()=> 'tr'};w.AppSettingsUI={open:section=>opened=section};w.api={mediaCatalog:async p=>p.action==='list'?{ok:true,items:[]}:{ok:false,error:'TMDB API okuma erişim belirtecini girin. Ayarlar → Film bilgileri ve afişler bölümünden kaydedebilirsiniz.'}};
+ for(const file of ['media-visual','cinema-ui','film-context-features'])w.eval(fs.readFileSync('src/renderer/'+file+'.js','utf8'));
+ w.FilmContextFeatures.mount(w.document.querySelector('main'),{id:'no-token'},()=>{});w.document.querySelector('.film-extra-heading>button').click();await wait();
+ assert.equal(w.document.querySelector('.film-extra-section').dataset.metadataState,'missing');assert.equal(w.document.querySelector('.film-extra-status').textContent,'');assert.equal(w.document.querySelectorAll('.cn-tmdb-connect button').length,1);w.document.querySelector('.cn-tmdb-connect button').click();assert.equal(opened,'metadata');assert.doesNotMatch(w.document.querySelector('.cn-tmdb-connect').textContent,/belirtecini/);
+ w.document.dispatchEvent(new w.Event('metadata-settings-saved'));assert.equal(w.document.querySelector('.cn-tmdb-connect'),null);assert.equal(w.document.querySelector('.film-extra-heading').hidden,false);
+ }finally{w.close();}
+});
 test('Detached metadata owner binds to the completed title and moves credits without another request',async()=>{
  const dom=new JSDOM('<section class="media-title-page"></section>',{runScripts:'outside-only'}),w=dom.window,calls=[];
  try{

@@ -1,0 +1,68 @@
+.cn-film-page .cn-film-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 28px 32px;
+  padding: 26px 0 10px;
+}
+.cn-film-tools > * { min-width: 0; margin: 0; }
+.cn-film-tools :is(.daily-title,.fw-workspace) { display: contents; }
+.cn-film-tools :is(.daily-status,.fw-status):empty { display: none; }
+.cn-film-tools :is(.daily-status,.fw-status):not(:empty) { grid-column: 1/-1; }
+.cn-film-tools :is(h3,.pm-heading h3) { font: 500 17px/1.4 var(--cn-font); margin: 0 0 12px; color: var(--cn-text); }
+.cn-film-tools :is(.pm-panel,.fw-preparation,.fw-reflection,.daily-journal,.daily-sources,.daily-preferences,.md-option-group) {
+  border: 0;
+  border-top: 1px solid var(--cn-line);
+  border-radius: 0;
+  background: transparent;
+  padding: 20px 0 0;
+  margin: 0;
+  min-width: 0;
+}
+.cn-film-tools :is(.pm-summary,.pm-muted,.daily-meta,.fw-muted) { color: var(--cn-dim); font-size: 12px; line-height: 1.6; }
+.cn-film-tools :is(.pm-note,.daily-journal-entry p) { font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.cn-film-tools :is(.pm-actions,.daily-row-actions,.fw-source-controls) { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.cn-film-tools .pm-watch[hidden],.cn-film-tools button[hidden],.cn-film-tools label[hidden] { display: none; }
+.cn-film-tools .cn-status-segments { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 1px solid var(--cn-line); border-radius: 9px; width: fit-content; margin-block: 0 14px; }
+.cn-film-tools .cn-status-segments button { appearance: none; padding: 7px 10px; border: 0; border-radius: 5px; color: var(--cn-dim); background: transparent; font: 500 12px/1.4 var(--cn-font); cursor: pointer; }
+.cn-film-tools .cn-status-segments button[aria-pressed=true] { background: var(--cn-raised); color: var(--cn-gold); }
+.cn-film-tools :is(button,input,select,textarea):focus-visible { outline: 2px solid var(--cn-gold); outline-offset: 3px; }
+.cn-film-tools :is(button,input,select,textarea):disabled { opacity: .5; cursor: default; }
+.cn-film-page .cn-film-tools .mh-action {
+  width: auto;
+  min-height: 34px;
+  padding: 7px 12px;
+  background: transparent;
+  border: 1px solid var(--cn-line);
+  border-radius: 7px;
+  color: var(--cn-dim);
+  font: 500 12px/1.4 var(--cn-font);
+  box-shadow: none;
+}
+.cn-film-page .cn-film-tools .mh-action:hover { color: var(--cn-text); border-color: var(--cn-gold); }
+.cn-film-tools :is(.daily-row-actions,.pm-aspect-summary) > * { border-radius: 20px; }
+.cn-film-tools :is(.pm-preview,.daily-confirm) { border: 1px solid var(--cn-line); padding: 14px; border-radius: 8px; margin-top: 14px; background: var(--cn-surface); }
+.cn-film-page .cn-film-tools :is(.pm-confirm,.daily-journal-form > button) { background: var(--cn-gold); color: var(--accent-contrast); border-color: transparent; width: fit-content; }
+.cn-film-tools .daily-journal-form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin-top: 14px; }
+.cn-film-tools .daily-journal-form > :is(textarea,button) { grid-column: 1/-1; }
+.cn-film-tools :is(.daily-field,.pm-field,.pm-aspects-grid > label) { display: grid; align-content: start; gap: 6px; color: var(--cn-dim); font-size: 12px; }
+.cn-film-tools :is(input,select,textarea) { box-sizing: border-box; max-width: 100%; min-width: 0; width: 100%; color: var(--cn-text); background: var(--cn-surface); border: 1px solid var(--cn-line); border-radius: 6px; padding: 9px 10px; font: 400 13px/1.5 var(--cn-font); }
+.cn-film-tools textarea { resize: vertical; }
+.cn-film-tools .daily-journal-form textarea { min-height: 82px; }
+.cn-film-tools :is(.pm-resume,.pm-aspects-grid) { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.cn-film-tools .pm-aspects { border: 0; padding: 0; }
+.cn-film-tools :is(.pm-details,.daily-preferences,.daily-add-entry) > summary { cursor: pointer; padding: 10px 0; color: var(--cn-text); font: 500 13px/1.5 var(--cn-font); }
+.cn-film-tools .daily-preferences > summary { font-size: 17px; padding-top: 0; }
+.cn-film-tools .daily-journal-entry { padding: 10px 0; border-bottom: 1px solid var(--cn-line); }
+.cn-film-tools .fw-view-route { background: transparent; border: 0; padding: 14px 0; }
+/* Put the daily controls together; source preparation must not strand the journal
+   beneath a long neighbouring column. Existing event-owning nodes stay intact. */
+.cn-film-tools :is(.pm-panel,.mtd-personal) { grid-column: 1; grid-row: 1; }
+.cn-film-tools .daily-journal { grid-column: 2; grid-row: 1; }
+.cn-film-tools .fw-preparation { grid-column: 1/-1; }
+.cn-film-tools .fw-source-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.cn-film-tools .fw-source-controls > :is(h3,p) { flex-basis: 100%; }
+@media (max-width: 850px) {
+  .cn-film-page .cn-film-tools { grid-template-columns: minmax(0,1fr); gap: 24px; }
+  .cn-film-tools :is(.pm-panel,.mtd-personal,.daily-journal) { grid-column: 1; grid-row: auto; }
+}

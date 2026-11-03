@@ -37,7 +37,6 @@
   <link rel="stylesheet" href="film-review-cinema.css" />
   <link rel="stylesheet" href="film-page-lower.css" />
   <link rel="stylesheet" href="media-visual.css" />
-  <link rel="stylesheet" href="cinema-ui.css" />
   <link rel="stylesheet" href="media-scenes.css" />
 <link rel="stylesheet" href="media-workflows.css">
 <link rel="stylesheet" href="pdf-reader.css">
@@ -45,6 +44,11 @@
 <link rel="stylesheet" href="text-voice-studio.css">
 <link rel="stylesheet" href="voice-reference-compare.css">
 <link rel="stylesheet" href="cinema-ui.css" />
+<link rel="stylesheet" href="cinema-home-round3.css" />
+<link rel="stylesheet" href="cinema-discover-round3.css" />
+<link rel="stylesheet" href="cinema-film-tools.css" />
+<link rel="stylesheet" href="cinema-film-round3.css" />
+<link rel="stylesheet" href="cinema-motion.css" />
 </head>
 <body>
   <section id="mediaHome" class="media-home hidden" data-ui-untranslated aria-label="Media home"></section>
@@ -3153,6 +3157,10 @@
               </select>
             </label>
             <label class="field player-theme-field">
+              <span class="field-label">Hareket</span>
+              <select id="uiMotion" aria-label="Hareket"><option value="auto">Otomatik · sistem ve pil</option><option value="full">Tam</option><option value="reduced">Azalt</option><option value="off">Kapalı</option></select>
+            </label>
+            <label class="field player-theme-field">
               <span class="field-label">Arama motoru</span>
               <select id="browserSearchEngine" aria-label="Arama motoru">
                 <option value="google">Google</option>
@@ -4023,6 +4031,8 @@
 <script src="discovery-personal-ui.js"></script>
 <script src="media-visual.js"></script>
 <script src="cinema-ui.js"></script>
+<script src="cinema-film-tools.js"></script>
+<script src="cinema-motion.js"></script>
 <script src="media-discovery-ui.js"></script>
 <script src="app-settings-ui.js"></script>
 <script src="title-discovery.js"></script>

@@ -330,6 +330,7 @@ contextBridge.exposeInMainWorld('api', {
   showInFolder: (p) => ipcRenderer.invoke('shell:showInFolder', p),
   getPaths: () => ipcRenderer.invoke('app:getPaths'),
   getEnvInfo: () => ipcRenderer.invoke('app:getEnvInfo'),
+  systemPowerStatus: () => ipcRenderer.invoke('app:systemPowerStatus'),
   getModelStatus: () => ipcRenderer.invoke('models:status'),
   deleteModel: (model) => ipcRenderer.invoke('models:delete', { model }),
   benchmarkModel: (options) => ipcRenderer.invoke('models:benchmark', options),
