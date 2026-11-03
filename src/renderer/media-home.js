@@ -184,7 +184,7 @@
       if (!image.naturalWidth || youtube && image.naturalWidth <= 120) return unavailable();
       if(youtube)image.classList.toggle('mh-letterboxed-thumbnail',Math.abs(image.naturalWidth/image.naturalHeight-4/3)<.04);
       if (upgrade) { node.dataset.artWideReady = 'true'; image.style.opacity = ''; }
-      const meters=[...node.children].filter(child=>child.classList.contains('mh-progress'));node.replaceChildren(image,...meters); node.dispatchEvent(new Event('home-art-ready', { bubbles:true }));
+      const meters=[...node.children].filter(child=>child.matches('.mh-progress,.cn-progress,.cn-rating'));node.replaceChildren(image,...meters); node.dispatchEvent(new Event('home-art-ready', { bubbles:true }));
     };
     image.onerror = unavailable;
     if (upgrade) image.style.opacity = '0';
@@ -217,7 +217,7 @@
   function art(item, cls, required = false) {
     const node = el('div', cls); node.append(icon());
     if (required) node.dataset.artRequired = 'true';
-    if (cls === 'mh-hero-art' && item?.id && item.backdrop) {
+    if ((cls === 'mh-hero-art' || cls === 'cn-hero-art') && item?.id && item.backdrop) {
       const generation=state.render;
       node.addEventListener('home-art-ready',()=>{
         if(!node.isConnected || generation!==state.render)return;
@@ -318,7 +318,7 @@
     const focusKey = content.contains(document.activeElement) ? document.activeElement?.dataset.homeItem : null;
     virtualDisposers.forEach(dispose=>dispose());virtualDisposers=[];
     state.render++; posterQueue = []; posterObserver.disconnect();
-    content.replaceChildren();
+    content.classList.remove('cn-home-content');content.replaceChildren();
     if(parked&&(parked.key!==player.mediaKey||(parked.mode==='browser'&&parked.tabId!==player.browserActiveTabId)))parked=null;
     const status = el('p', 'mh-status'); status.id = 'mhStatus'; status.setAttribute('role', 'status'); content.append(status);
     if (state.error) report(state.error, true);
@@ -336,57 +336,9 @@
     const { items, watch, continuing } = state.data;
     const filter = rows => rows.filter(item => model.matches(item, state.query));
     if (state.page === 'home' && !state.query) {
-      const illustrated = continuing.filter(hasArtwork);
-      const candidates = illustrated.length ? [...illustrated] : items.filter(item => item.source && hasArtwork(item));
-      const keyOf = item => item?.key || item?.id || '';
-      let featuredIndex = candidates.findIndex(item => keyOf(item) === state.featuredKey);
-      if (featuredIndex < 0) featuredIndex = Math.max(0, candidates.findIndex(item => model.medium(item) === 'video'));
-      const hero = el('section', 'mh-hero'), copy = el('div', 'mh-hero-copy');
-      const controls = el('div', 'mh-hero-navigation');
-      controls.setAttribute('role', 'group');
-      controls.setAttribute('aria-label', t('Continue watching carousel', 'Kaldığın yerden gezinme'));
-      const count = el('output', 'mh-hero-count'); count.setAttribute('aria-live', 'polite');
-      function arrow(label, direction) {
-        const node = button('', () => { featuredIndex = (featuredIndex + direction + candidates.length) % candidates.length; drawFeatured();try{localStorage.setItem('media-home-featured-v1',state.featuredKey);}catch{} node.focus({preventScroll:true}); }, 'mh-hero-arrow');
-        node.setAttribute('aria-label', label); node.title = label;
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('viewBox','0 0 24 24'); svg.setAttribute('aria-hidden','true');
-        const path = document.createElementNS(svg.namespaceURI,'path');
-        path.setAttribute('d', direction < 0 ? 'M14 6l-6 6 6 6' : 'M10 6l6 6-6 6'); svg.append(path); node.append(svg); return node;
-      }
-      controls.append(arrow(t('Previous title', 'Önceki içerik'), -1), count, arrow(t('Next title', 'Sonraki içerik'), 1));
-      controls.hidden = candidates.length < 2;
-      function drawFeatured() {
-        if (!candidates.length) { hero.hidden = true; return; }
-        featuredIndex %= candidates.length;
-        const featured = candidates[featuredIndex]; state.featuredKey = keyOf(featured);
-        hero.hidden = true;
-        window.UiMotion?.reveal(copy, 'section'); copy.replaceChildren(); hero.querySelectorAll('[data-home-poster]').forEach(node => posterObserver.unobserve(node));
-        hero.classList.toggle('mh-empty-hero', !featured);
-        copy.append(el('span', 'mh-hero-meta', featured ? t('Ready when you are', 'Kaldığın yerden') : t('Your media, your voice', 'Videoların, senin sesin')),
-          el('h1', '', window.MediaVisual?.title(featured?.title)||featured?.title||t('Your media library starts here.', 'Medya kütüphaneni oluştur.')),
-          el('p', '', featured ? (featured.synopsis || (model.progress(featured).position ? t(`Continue from ${minutes(model.progress(featured).position)}. Subtitles and voice tools are ready in the player.`, `${minutes(model.progress(featured).position)} konumundan devam et. Altyazı ve ses araçların oynatıcıda hazır.`) : t('Open this title from your library.', 'Kütüphanendeki bu yapımı aç.'))) : t('Your films, series and listening, together. Add your media or open a video in the browser.', 'Filmlerin, dizilerin ve dinlediklerin bir arada. Medyanı ekle veya browserda bir video aç.')));
-        const actions = el('div', 'mh-actions');
-        actions.append(button(featured ? (model.progress(featured).resume ? t('Continue watching', 'İzlemeye devam et') : t('Open', 'Aç')) : t('Open a file', 'Dosya aç'), () => featured ? play(featured) : click('playerPickVideo'), 'mh-action mh-primary'),
-          button(featured?.id ? t('Details', 'Ayrıntılar') : t('Add media folder', 'Medya klasörü ekle'), () => featured?.id ? window.MediaTitleUI.open(featured.id) : catalog({mode:'folder'})));
-        window.MediaVisual?.button(actions.firstElementChild,'primary');window.MediaVisual?.button(actions.lastElementChild,'ghost',featured?.id?undefined:'folder');
-        copy.append(actions); if (featured && model.progress(featured).duration){const p=model.progress(featured);copy.append(progress(featured),el('small','mh-remaining',t(`${minutes(Math.max(0,p.duration-p.position))} remaining`,`${minutes(Math.max(0,p.duration-p.position))} kaldı`)));}
-        count.textContent = `${featuredIndex + 1} / ${candidates.length}`;
-        const artwork = art(featured, 'mh-hero-art', true);
-        artwork.addEventListener('home-art-ready', () => { hero.hidden=false; }, {once:true});
-        artwork.addEventListener('home-art-error', () => {
-          if (!artwork.isConnected) return;
-          const failed = candidates.indexOf(featured); if (failed >= 0) candidates.splice(failed,1);
-          controls.hidden=candidates.length<2; drawFeatured();
-        }, {once:true});
-        hero.replaceChildren(copy, artwork, controls);
-      }
-      drawFeatured(); content.append(hero);window.MediaDailyUI?.entry(content);
-      if (continuing.length) content.append(section(t('Continue watching & listening', 'İzlemeye ve dinlemeye devam et'), continuing, { wide: true, more: () => page('recent') }));
-      if (items.some(item => item.kind === 'series')) content.append(section(t('Your series', 'Dizilerin'), items.filter(item => item.kind === 'series'), { more: () => page('series') }));
-      if (items.some(item => item.kind !== 'series')) content.append(section(t('Your films', 'Filmlerin'), items.filter(item => item.kind !== 'series'), { more: () => page('films') }));
-      if (!items.length && !continuing.length && state.loaded) content.insertBefore(emptyState(t('Make room for your next story','Sıradaki hikâyene yer aç'),t('Open a video, add your films or pick a book. Subtitles, translation and your voice stay together.','Video aç, filmlerini ekle veya bir kitap seç. Altyazı, çeviri ve ses araçların bir arada.'),[[t('Open media','Medya aç'),()=>window.MediaHubUI.open()],[t('Open browser','Browserı aç'),openBrowser]]),hero);
-      const toolbox=el('details','mv-home-tools');toolbox.append(el('summary','',t('Subtitle & voice tools','Altyazı ve ses araçları')),tools());content.append(toolbox);
+      const view=window.CinemaUI.home(content,{items,continuing,progress:model.progress,art,hasArtwork,play,details:id=>window.MediaTitleUI.open(id),page,addFolder:()=>catalog({mode:'folder'}),minutes,featuredKey:state.featuredKey,onFeature:key=>{state.featuredKey=key;try{localStorage.setItem('media-home-featured-v1',key);}catch{}}});
+      virtualDisposers.push(view.dispose);
+      const toolbox=el('details','cn-accordion');toolbox.append(el('summary','',t('Subtitle & voice tools','Altyazı ve ses araçları')),tools());view.body.append(toolbox);
     } else if (state.page === 'recall' && window.RecallNetworkUI) {
       recallView=window.RecallNetworkUI.render({host:content,api:input=>window.api.recallRequest(input),locale:english()?'en':'tr',onOpen:async source=>{
         if(source.kind==='catalog')return window.MediaTitleUI.open(source.id);

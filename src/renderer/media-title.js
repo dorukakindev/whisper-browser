@@ -98,7 +98,7 @@
       }).catch(()=>{});
     }
     dialog.append(body,el('p','mtd-attribution','This product uses the TMDB API but is not endorsed or certified by TMDB.'));window.MediaReviewDecision?.mountTitle(review,item);
-    window.MediaExperience?.setContext(dialog,{id:item.id,type:'library-title',title:item.title,synopsis:item.synopsis});document.getElementById('mediaHome').scrollTop=scroll;window.FilmPageEnhancements?.enhance(dialog,item);
+    window.MediaExperience?.setContext(dialog,{id:item.id,type:'library-title',title:item.title,synopsis:item.synopsis});document.getElementById('mediaHome').scrollTop=scroll;window.FilmPageEnhancements?.enhance(dialog,item);window.CinemaUI?.film(dialog,item);
     if(focused)dialog.querySelector('[data-title-action="'+focused+'"]')?.focus({preventScroll:true});
   }
   async function open(id){
@@ -107,7 +107,7 @@
     const current=createPage('mtd-dialog media-surface',{key:'library:'+id});current.id='mediaTitleDialog';current.dataset.uiUntranslated='';current.setAttribute('aria-labelledby','mediaTitleHeading');dialog=current;
     const origin=opener;current.addEventListener('close',()=>{cancelStory(current);current.remove();if(dialog===current){personalView?.dispose();personalView=null;generation++;dialog=null;if(origin?.isConnected)origin.focus({preventScroll:true});}void syncBrowserOcclusion();document.dispatchEvent(new Event('media-library-changed'));});
     void syncBrowserOcclusion();current.append(el('h1','',t('Loading title…','Yapım yükleniyor…')));
-    try{await reload();if(dialog===current&&current.open){window.UiMotion?.mediaTransfer(mediaOrigin,current.querySelector('.mtd-poster'));window.UiMotion?.reveal(current,'page');}current.querySelector('header button')?.focus({preventScroll:true});current.restorePosition();}catch(error){current.replaceChildren(el('p','',error.message),button(t('Close','Kapat'),close));}
+    try{await reload();if(dialog===current&&current.open){window.UiMotion?.mediaTransfer(mediaOrigin,current.querySelector('.cn-film-poster'));window.UiMotion?.reveal(current,'page');}current.querySelector('.cn-back')?.focus({preventScroll:true});current.restorePosition();}catch(error){current.replaceChildren(el('p','',error.message),button(t('Close','Kapat'),close));}
   }
   document.addEventListener('ui-locale-change',()=>{if(dialog?.open&&item)draw(++generation);});
   document.addEventListener('media-metadata-updated',()=>{if(dialog?.open)void reload().catch(()=>{});});
