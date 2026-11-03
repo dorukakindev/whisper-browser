@@ -3,12 +3,15 @@
   'use strict';
   const media = matchMedia('(prefers-reduced-motion: reduce)'), roots = new Map(), heroes = new Map(), reveals = new Map(), animations = new Set(), carousels = new Set(), swaps = new Map(), tintCache = new Map();
   const abort = new AbortController(), signal = abort.signal, accordions = new WeakMap(), transitions = new Set();
-  let rootTransitionUsers = 0, originalRootTransitionName = '';
-  const pendingTints = new Map();let tintTask = 0;
+  let busyTimer=0, monitorFrame=0, monitorUntil=0, monitorLast=0, monitorStart=0, recoveryToast=null, recoveryTimer=0, cooldownUntil=0, automaticReduced=false;
+  const frameWindow=[];
+  const pendingTints = new Map(), segmentSelection = new WeakMap();let tintTask = 0, tintBusy = false;
   let preference = 'auto', mode = 'full', battery = null, nativePower = null, powerTimer = 0, frame = 0, scanning = false, stopped = false, origin = null;
   const full = () => mode === 'full', active = () => !document.hidden && document.hasFocus?.() !== false;
-  const activeHero = hero => { const modal = document.querySelector('.cn-film-page[open]'); return active() && (!modal || modal.contains(hero)); };
+  const activeHero = hero => { const modal = [...document.querySelectorAll('.cn-film-page')].find(page=>page.open); return active() && (!modal || modal.contains(hero)); };
   const scope = '.cn-home-content,.cn-discover-page,.cn-film-page';
+  const segmentObserved=new Set();
+  const segmentResize=typeof ResizeObserver==='function'?new ResizeObserver(entries=>{const layouts=entries.filter(e=>e.target.isConnected).map(e=>{segmentSelection.delete(e.target);return measureSegment(e.target);}).filter(Boolean);layouts.forEach(applySegment);}):null;
   function animate(node, frames, options = {}) {
     if (!node?.isConnected || mode === 'off' || typeof node.animate !== 'function') return null;
     const motion = node.animate(mode === 'reduced' ? frames.map(frame => ({ opacity: frame.opacity })) : frames, { duration: 600, easing: 'cubic-bezier(.16,1,.3,1)', ...options, ...(mode === 'reduced' ? { duration: 200, delay: 0 } : {}) });
@@ -20,12 +23,38 @@
   function resolveMode() {
     const saving = nativePower?.saverEnabled === true || battery && !battery.charging && battery.level <= .2 || nativePower?.onBattery && nativePower?.batteryPercent !== null && nativePower?.batteryPercent <= 20;
     mode = preference === 'auto' ? media.matches || saving ? 'reduced' : 'full' : preference;
+    if(automaticReduced && mode==='full')mode='reduced';
     document.documentElement.dataset.cinemaMotion = mode;
     if (!full()) for (const animation of [...animations]) animation.cancel();
     for (const [hero, state] of heroes) hero.dataset.motionActive = String(full() && state.visible && activeHero(hero));
     for (const controller of carousels) controller.sync();
+    if(full())watchMotion();
   }
-  function setPreference(value) { preference = ['auto', 'full', 'reduced', 'off'].includes(value) ? value : 'auto'; resolveMode(); void checkPower(); }
+  function setPreference(value) { const recovering=automaticReduced;automaticReduced=false;recoveryToast?.remove();recoveryToast=null;cooldownUntil=recovering?performance.now()+10000:0; preference = ['auto', 'full', 'reduced', 'off'].includes(value) ? value : 'auto'; resolveMode(); void checkPower(); }
+  function showRecovery() {
+    recoveryToast?.remove();const toast=document.createElement('section');toast.className='cn-motion-toast';toast.setAttribute('role','status');
+    const tr=window.UiLocale?.get?.()==='tr',text=document.createElement('span'),restore=document.createElement('button'),dismiss=document.createElement('button');
+    text.textContent=tr?'Akıcılık için hareketler hafifletildi.':'Motion reduced to keep playback smooth.';
+    restore.type=dismiss.type='button';restore.textContent=tr?'Tam harekete dön':'Restore full motion';dismiss.textContent='×';dismiss.setAttribute('aria-label',tr?'Kapat':'Dismiss');
+    restore.onclick=()=>{automaticReduced=false;cooldownUntil=performance.now()+10000;frameWindow.length=0;toast.remove();recoveryToast=null;resolveMode();};dismiss.onclick=()=>{toast.remove();recoveryToast=null;};
+    toast.append(text,restore,dismiss);document.body.append(toast);recoveryToast=toast;clearTimeout(recoveryTimer);recoveryTimer=setTimeout(()=>{if(!toast.contains(document.activeElement))toast.remove();},15000);
+  }
+  function monitor(now) {
+    monitorFrame=0;
+    if(stopped||!full()||!active()){monitorLast=0;frameWindow.length=0;return;}
+    if(monitorLast){const delta=now-monitorLast;frameWindow.push({at:now,delta});}
+    monitorLast=now;while(frameWindow.length&&frameWindow[0].at<now-2000)frameWindow.shift();
+    if(now-monitorStart>=1950&&now>cooldownUntil&&frameWindow.length>=20&&frameWindow.filter(f=>f.delta>25).length/frameWindow.length>.1){automaticReduced=true;resolveMode();showRecovery();frameWindow.length=0;monitorLast=0;return;}
+    if(now<monitorUntil||[...heroes].some(([hero,state])=>state.visible&&activeHero(hero)))monitorFrame=requestAnimationFrame(monitor);else{monitorLast=0;frameWindow.length=0;}
+  }
+  function watchMotion() {
+    if(stopped||!full()||!active())return;const now=performance.now();monitorUntil=now+2100;
+    if(!monitorFrame){monitorStart=now;monitorLast=0;frameWindow.length=0;monitorFrame=requestAnimationFrame(monitor);}
+  }
+  function expensivePhase(duration=220) {
+    document.documentElement.dataset.cinemaBusy='true';clearTimeout(busyTimer);busyTimer=setTimeout(()=>{delete document.documentElement.dataset.cinemaBusy;},duration);watchMotion();
+  }
+  document.addEventListener('pointerover',event=>{if(event.target.closest('.cn-poster,.md-card'))watchMotion();},{passive:true,signal});
   function bindSetting() {
     const control = document.getElementById('uiMotion');
     if (control && !control.dataset.cinemaMotionBound) {
@@ -54,20 +83,45 @@
     pendingTints.set(host,img);while(pendingTints.size>128)pendingTints.delete(pendingTints.keys().next().value);
     scheduleTint();
   }
+  async function tintSource(img,host) {
+    const small=image=>image?.naturalWidth&&(image.naturalWidth*(image.naturalHeight||image.naturalWidth))<=400000;
+    if(small(img))return img;
+    const poster=host.closest('.cn-film-page')?.querySelector('.cn-film-poster img');if(small(poster))return poster;
+    // Reuse image loading, not a renderer fetch/API bridge. Sample a genuinely
+    // small public thumbnail; never synchronously copy a full-size JPEG.
+    const u=new URL(img.currentSrc||img.src,location.href);if(u.protocol!=='https:'||u.username||u.password)throw Error('No small artwork source');
+    if(u.hostname==='i.ytimg.com'&&/^\/vi(?:_webp)?\/[\w-]+\//.test(u.pathname)){u.pathname=u.pathname.replace(/\/[^/]+$/,'/default.jpg');}
+    else if(u.hostname==='image.tmdb.org'&&/^\/t\/p\/(?:original|w\d+)\//.test(u.pathname)){u.pathname=u.pathname.replace(/\/t\/p\/[^/]+\//,'/t/p/w92/');}
+    else if(u.hostname==='images.metahub.space'&&/^\/background\/[^/]+\/tt\d+\//.test(u.pathname)){u.pathname=u.pathname.replace(/^\/background\/[^/]+\//,'/poster/small/');}
+    else throw Error('No small artwork source');
+    const thumbnail=new Image();thumbnail.decoding='async';thumbnail.referrerPolicy='no-referrer';thumbnail.src=u.href;await thumbnail.decode();if(!small(thumbnail))throw Error('Thumbnail exceeds sampling bound');return thumbnail;
+  }
   function scheduleTint(){
-    if(tintTask||stopped||!pendingTints.size)return;
+    if(tintTask||tintBusy||stopped||!pendingTints.size)return;
     const work=deadline=>{tintTask=0;if(stopped)return;if(deadline&&!deadline.didTimeout&&deadline.timeRemaining()<5){scheduleTint();return;}
-      const [host,img]=pendingTints.entries().next().value||[];if(host){pendingTints.delete(host);if(host.isConnected&&img.isConnected)sampleTint(img,host);}scheduleTint();};
+      const [host,img]=pendingTints.entries().next().value||[];if(!host)return;pendingTints.delete(host);
+      if(!host.isConnected||!img.isConnected){scheduleTint();return;}
+      // Drawing a full JPEG to a tiny canvas can defer its expensive decode until
+      // after the idle callback. Resize an ImageBitmap asynchronously first.
+      if(typeof createImageBitmap==='function'){
+        let expired=false,rejectDeadline;const deadline=new Promise((_,reject)=>{rejectDeadline=reject;});
+        const cancel=()=>{expired=true;rejectDeadline(Error('Artwork preparation canceled'));};signal.addEventListener('abort',cancel,{once:true});const timeout=setTimeout(cancel,4000);
+        const decoded=tintSource(img,host);
+        const preparation=decoded.then(source=>{if(expired||stopped)throw Error('Artwork preparation canceled');return createImageBitmap(source,{resizeWidth:16,resizeHeight:16,resizeQuality:'low'});}).then(bitmap=>{if(expired||stopped){bitmap.close();throw Error('Artwork preparation canceled');}return bitmap;});
+        tintBusy=true;Promise.race([preparation,deadline]).then(bitmap=>{
+          try{if(!stopped&&host.isConnected&&img.isConnected)sampleTint(img,host,bitmap);}finally{bitmap.close();}
+        }).catch(()=>{if(!stopped&&host.isConnected)host.dataset.cinemaTint='warm-fallback';}).finally(()=>{clearTimeout(timeout);signal.removeEventListener('abort',cancel);tintBusy=false;scheduleTint();});
+      }else{host.style.setProperty('--cn-ambient-rgb','126,97,63');scheduleTint();}};
     tintTask=typeof requestIdleCallback==='function'?requestIdleCallback(work,{timeout:1800}):setTimeout(()=>work(null),50);
   }
-  function sampleTint(img, host) {
+  function sampleTint(img, host, bitmap) {
     if (!img?.naturalWidth || !host) return;
     const src = img.currentSrc || img.src, key = `${src.length}:${src.slice(0, 128)}:${src.slice(-128)}`;
     if (tintCache.has(key)) { host.style.setProperty('--cn-ambient-rgb', tintCache.get(key)); return; }
     let rgb = '126,97,63', sampled = false;
     try {
       const canvas = document.createElement('canvas'); canvas.width = canvas.height = 16;
-      const context = canvas.getContext('2d', { willReadFrequently: true }); context.drawImage(img, 0, 0, 16, 16);
+      const context = canvas.getContext('2d', { willReadFrequently: true }); context.drawImage(bitmap, 0, 0, 16, 16);
       const pixels = context.getImageData(0, 0, 16, 16).data; let r = 0, g = 0, b = 0, weight = 0;
       for (let i = 0; i < pixels.length; i += 4) {
         const max = Math.max(pixels[i], pixels[i + 1], pixels[i + 2]), min = Math.min(pixels[i], pixels[i + 1], pixels[i + 2]);
@@ -91,7 +145,7 @@
   const visibility = new IntersectionObserver(entries => {
     for (const entry of entries) {
       const state = heroes.get(entry.target); if (!state) continue;
-      state.visible = entry.isIntersecting; entry.target.dataset.motionVisible = String(state.visible);
+      state.visible = entry.isIntersecting;if(state.visible)watchMotion(); entry.target.dataset.motionVisible = String(state.visible);
       entry.target.dataset.motionActive = String(full() && state.visible && activeHero(entry.target));
       for (const controller of carousels) if (controller.hero === entry.target) controller.sync();
     }
@@ -106,15 +160,24 @@
     const state = { visible: false }; heroes.set(hero, state); visibility.observe(hero);
     hero.querySelectorAll('.cn-eyebrow,h1,.cn-meta,.cn-hero-description,.cn-hero-actions,.cn-hero-progress').forEach((node, index) => animate(node, [{ opacity: 0, transform: 'translateY(15px)' }, { opacity: 1, transform: 'translateY(0)' }], { delay: full() ? index * 50 : 0 }));
   }
-  function imageReady(img) { img.dataset.cinemaImageReady = 'true'; tint(img, img.closest('.cn-hero,.cn-poster,.md-card')); }
+  function imageReady(img) {
+    img.dataset.cinemaImageReady='true';if(img.classList.contains('cn-scroll-softening'))return;
+    const art=img.closest('.cn-hero-art');if(art&&!art.querySelector('.cn-scroll-softening')){const soft=img.cloneNode();soft.classList.add('cn-scroll-softening');soft.setAttribute('aria-hidden','true');soft.alt='';soft.dataset.cinemaImageReady='true';art.append(soft);}
+    tint(img,img.closest('.cn-hero,.cn-poster,.md-card'));
+  }
   function scan() {
     scanning = false; if (stopped) return;
     bindSetting();
+    for (const group of segmentObserved)if(!group.isConnected){segmentResize.unobserve(group);segmentObserved.delete(group);}
     for (const [root] of roots) if (!root.isConnected) roots.delete(root);
     for (const [hero] of heroes) if (!hero.isConnected) { visibility.unobserve(hero); heroes.delete(hero); swaps.get(hero)?.(); swaps.delete(hero); }
     for (const [node] of reveals) if (!node.isConnected) { revealObserver.unobserve(node); reveals.delete(node); }
     for (const controller of [...carousels]) if (!controller.hero.isConnected) controller.dispose();
-    for (const root of document.querySelectorAll(scope)) {
+    const modal = [...document.querySelectorAll('.cn-film-page')].find(page=>page.open);
+    const visibleRoots = modal ? [modal] : document.querySelectorAll(scope);
+    // Read all indicator geometry before decorating cards or writing styles.
+    const segments = [...visibleRoots].flatMap(root => [...root.querySelectorAll('.cn-status-segments,.cn-watch-views')]).map(group => measureSegment(group)).filter(Boolean);
+    for (const root of visibleRoots) {
       if (!roots.has(root)) roots.set(root, true);
       for (const hero of root.querySelectorAll('.cn-hero')) if (!heroes.has(hero)) enter(hero);
       for (const img of root.querySelectorAll('img:not([data-cinema-image-ready])')) if (img.complete && img.naturalWidth) imageReady(img);
@@ -123,37 +186,45 @@
         const index = section.matches('.film-person-card') ? [...section.parentElement.children].indexOf(section) % 8 : 0;
         reveals.set(section, index); revealObserver.observe(section);
       }
-      for (const button of root.querySelectorAll('.cn-button[data-kind=icon]')) if (button.title) button.dataset.cinemaTooltip = button.title;
-      for (const group of root.querySelectorAll('.cn-status-segments,.cn-watch-views')) segment(group);
+      for (const button of root.querySelectorAll('.cn-button[data-kind=icon]')) if (button.title && button.dataset.cinemaTooltip !== button.title) button.dataset.cinemaTooltip = button.title;
+
       for (const card of root.querySelectorAll('.cn-poster,.md-card')) {
         const art = card.querySelector('.cn-poster-art,.md-card-art');
         if (art && !art.querySelector('.cn-quick-action')) { const label = document.createElement('span'); label.className = 'cn-quick-action'; label.textContent = card.dataset.homeItem?.startsWith('youtube:') ? 'İzlemeye devam et' : 'Filmi keşfet'; label.setAttribute('aria-hidden', 'true'); art.append(label); }
       }
     }
+    segments.forEach(applySegment);
     for (const [hero, state] of heroes) hero.dataset.motionActive = String(full() && state.visible && activeHero(hero));
     for (const controller of carousels) controller.sync();
   }
-  function segment(group) {
-    const selected = group.querySelector('button[aria-pressed=true],button[aria-current=page],button.current'); if (!selected) return;
+  function measureSegment(group) {
+    const selected = group.querySelector('button[aria-pressed=true],button[aria-current=page],button.current');
+    if (!selected || segmentSelection.get(group) === selected) return null;
+    return { group, selected, width: selected.offsetWidth, left: selected.offsetLeft };
+  }
+  function applySegment({group,selected,width,left}) {
+    segmentSelection.set(group,selected);if(segmentResize&&!segmentObserved.has(group)){segmentObserved.add(group);segmentResize.observe(group);}
     let indicator = group.querySelector('.cn-sliding-indicator');
     if (!indicator) { indicator = document.createElement('span'); indicator.className = 'cn-sliding-indicator'; indicator.setAttribute('aria-hidden', 'true'); group.append(indicator); }
-    indicator.style.width = selected.offsetWidth + 'px'; indicator.style.translate = selected.offsetLeft + 'px 0';
+    indicator.style.width = width + 'px'; indicator.style.translate = left + 'px 0';
   }
-  function scheduleScan() { if (!scanning && !stopped) { scanning = true; queueMicrotask(scan); } }
-  const observer = new MutationObserver(scheduleScan); observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['open'] });
+  function segment(group) { const geometry=measureSegment(group); if(geometry)applySegment(geometry); }
+  window.addEventListener('resize',()=>{const rows=[...document.querySelectorAll('.cn-status-segments,.cn-watch-views')];rows.forEach(g=>segmentSelection.delete(g));rows.map(measureSegment).filter(Boolean).forEach(applySegment);},{signal});
+  function scheduleScan() { if (!scanning && !stopped) { scanning = true; requestAnimationFrame(scan); } }
+  const observer = new MutationObserver(scheduleScan); observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['open','aria-pressed'] });
   document.addEventListener('load', event => { if (event.target.tagName === 'IMG' && event.target.closest(scope)) imageReady(event.target); }, { capture: true, signal });
   function scroll() {
     if (frame || !full() || !active()) return;
+    expensivePhase();
     frame = requestAnimationFrame(() => {
       frame = 0;
       for (const controls of document.querySelectorAll('.cn-discover-controls')) controls.classList.toggle('cn-stuck', (controls.closest('#mediaHome')?.scrollTop || 0) > 2);
       for (const [hero, state] of heroes) if (state.visible) {
         const scroller = hero.closest('#mediaHome'), y = scroller ? scroller.scrollTop : Math.max(0, -hero.getBoundingClientRect().top);
         hero.style.setProperty('--cn-parallax', Math.min(y * .15, 100) + 'px');
-        // Quarter-pixel blur steps retain the subtle scroll treatment without
-        // invalidating a large filtered surface for every tiny scroll delta.
-        const blur = Math.min(Math.round(y / 220 * 4) / 4, 2), filter = blur ? `blur(${blur}px)` : 'none';
-        if (hero.style.getPropertyValue('--cn-scroll-filter') !== filter) { hero.style.setProperty('--cn-scroll-filter', filter); hero.style.setProperty('--cn-scroll-blur', blur + 'px'); }
+        // Crossfade a fixed blurred layer. No changing filter/shadow radii.
+        const soften=String(Math.min(.7,Math.round(y/440*100)/100));
+        if(hero.style.getPropertyValue('--cn-scroll-soften')!==soften)hero.style.setProperty('--cn-scroll-soften',soften);
         const opacity = String(Math.max(.45, Math.round((1 - y / 1600) * 100) / 100));
         if (hero.style.getPropertyValue('--cn-scroll-opacity') !== opacity) hero.style.setProperty('--cn-scroll-opacity', opacity);
         document.getElementById('mediaHome')?.classList.toggle('cn-scrolled', y > 80);
@@ -188,7 +259,7 @@
       const nextStart=Math.max(0,Math.min(count-7,getIndex()-3));if(nextStart!==start){start=nextStart;renderWindow();}
       buttons.forEach(button => { const index=Number(button.dataset.slideIndex);button.style.setProperty('--cn-dot-width',index===getIndex()?'28px':Math.abs(index-getIndex())>2?'7px':'12px');button.setAttribute('aria-current', String(index === getIndex())); if (index === getIndex() && full() && typeof button.firstChild.animate === 'function') { animation = button.firstChild.animate([{ scale: '0 1' }, { scale: '1 1' }], { duration, fill: 'forwards', easing: 'linear' }); animation.finished?.catch(() => {}); animation.pause(); } });
     }
-    function jump(index) { stop(); goTo((index + count) % count); if (!disposed) { mark(); sync(); } }
+    function jump(index) { watchMotion(); stop(); goTo((index + count) % count); if (!disposed) { mark(); sync(); } }
     const controller = { hero, sync, jump, dispose() { if (disposed) return; disposed = true; stop(); animation?.cancel(); lifetime.abort(); carousels.delete(controller); } };
     ['pointerenter', 'pointerleave', 'focusin'].forEach(name => hero.addEventListener(name, sync, { signal: lifetime.signal }));
     hero.addEventListener('focusout', () => queueMicrotask(sync), { signal: lifetime.signal });
@@ -214,6 +285,7 @@
   // Opacity/transform only: native details remain in normal document flow.
   document.addEventListener('click', event => {
     const summary = event.target.closest('summary'), details = summary?.parentElement;
+    if(details?.closest(scope))watchMotion();
     if (!details?.closest(scope) || !details.matches('details.cn-accordion,.pm-details,.daily-preferences,.daily-add-entry') || mode === 'off') return;
     const content = [...details.children].filter(node => node !== summary); if (!content.length) return;
     event.preventDefault();
@@ -233,17 +305,23 @@
   const baseMotion = window.UiMotion;
   function transfer(snapshot, target) {
     if (!snapshot || !target?.isConnected || mode === 'off') return;
-    if (!full() || !document.startViewTransition) { if (full()) baseMotion?.mediaTransfer(snapshot, target); else animate(target, [{ opacity: 0 }, { opacity: 1 }], { duration: 200 }); return; }
-    const image = document.createElement('img'); image.src = snapshot.src; image.alt = ''; image.setAttribute('aria-hidden', 'true');
-    Object.assign(image.style, { position: 'fixed', left: snapshot.x + 'px', top: snapshot.y + 'px', width: snapshot.width + 'px', height: snapshot.height + 'px', objectFit: 'cover', borderRadius: snapshot.radius || '9px', zIndex: '5000', pointerEvents: 'none', viewTransitionName: 'cinema-selected-poster' });
-    const previousOpacity = target.style.opacity; target.style.opacity = '0'; document.body.append(image);
-    // Page entry already has its own 320 ms animation. Capture the shared poster
-    // alone rather than taking a second full-window snapshot of the same page.
-    if (!rootTransitionUsers++) { originalRootTransitionName = document.documentElement.style.viewTransitionName; document.documentElement.style.viewTransitionName = 'none'; }
-    let transition, cleaned = false;
-    const cleanup = () => { if (cleaned) return; cleaned = true; image.remove(); target.style.opacity = previousOpacity; target.style.viewTransitionName = ''; if (!--rootTransitionUsers) document.documentElement.style.viewTransitionName = originalRootTransitionName; };
-    try { transition = document.startViewTransition(() => { image.remove(); target.style.opacity = previousOpacity; target.style.viewTransitionName = 'cinema-selected-poster'; }); transitions.add(transition); transition.finished.finally(() => { transitions.delete(transition); cleanup(); }).catch(() => {}); } catch { cleanup(); baseMotion?.mediaTransfer(snapshot, target); }
+    watchMotion();
+    if (!full()) { if (full()) baseMotion?.mediaTransfer(snapshot, target); else animate(target, [{ opacity: 0 }, { opacity: 1 }], { duration: 200 }); return; }
+    // Keep the loaded card poster on screen while the new page commits. The
+    // destination read occurs after that commit, not in the route's write task.
+    const image=document.createElement('img');image.src=snapshot.src;image.alt='';image.setAttribute('aria-hidden','true');image.dataset.cinemaTransfer='';
+    Object.assign(image.style,{position:'fixed',left:snapshot.x+'px',top:snapshot.y+'px',width:snapshot.width+'px',height:snapshot.height+'px',objectFit:'cover',borderRadius:snapshot.radius||'9px',zIndex:'5000',pointerEvents:'none',transformOrigin:'0 0'});
+    const previousOpacity=target.style.opacity;document.body.append(image);target.style.opacity='0';
+    let cleaned=false,movement,firstFrame=0,secondFrame=0;
+    const cleanup=()=>{if(cleaned)return;cleaned=true;if(firstFrame)cancelAnimationFrame(firstFrame);if(secondFrame)cancelAnimationFrame(secondFrame);image.remove();target.style.opacity=previousOpacity;transitions.delete(handle);};
+    const handle={skipTransition(){movement?.cancel();cleanup();}};transitions.add(handle);
+    firstFrame=requestAnimationFrame(()=>{firstFrame=0;secondFrame=requestAnimationFrame(()=>{secondFrame=0;
+      if(cleaned||!target.isConnected||!full()){cleanup();return;}const rect=target.getBoundingClientRect();if(!rect.width||!rect.height){cleanup();return;}
+      movement=animate(image,[{transform:'none',opacity:1},{transform:'translate('+(rect.x-snapshot.x)+'px,'+(rect.y-snapshot.y)+'px) scale('+(rect.width/snapshot.width)+','+(rect.height/snapshot.height)+')',opacity:1}],{duration:600,easing:'cubic-bezier(.16,1,.3,1)'});
+      if(movement?.finished)movement.finished.then(cleanup,cleanup);else cleanup();
+    });});
   }
+
   if (baseMotion) window.UiMotion = Object.freeze({ ...baseMotion,
     captureMedia(node) {
       let snapshot = mode === 'off' ? null : baseMotion.captureMedia(node);
@@ -259,16 +337,18 @@
   });
   let backSnapshot = null;
   document.addEventListener('click', event => { if (event.target.closest('.cn-back')) backSnapshot = baseMotion?.captureMedia(event.target.closest('.cn-film-page')?.querySelector('.cn-film-poster')); }, { capture: true, signal });
-  document.addEventListener('keydown', event => { if (event.key === 'Escape') backSnapshot = baseMotion?.captureMedia(document.querySelector('.cn-film-page[open] .cn-film-poster')); }, { capture: true, signal });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') backSnapshot = baseMotion?.captureMedia([...document.querySelectorAll('.cn-film-page')].find(p=>p.open)?.querySelector('.cn-film-poster')); }, { capture: true, signal });
   document.addEventListener('close', event => { if (!event.target.matches('.cn-film-page')) return; const target = origin?.node?.querySelector?.('img') || origin?.node; if (backSnapshot && target?.isConnected) transfer(backSnapshot, target); backSnapshot = null; origin = null; }, { capture: true, signal });
   function dispose() {
     if(tintTask){if(typeof cancelIdleCallback==='function')cancelIdleCallback(tintTask);else clearTimeout(tintTask);tintTask=0;}pendingTints.clear();
+    clearTimeout(busyTimer);clearTimeout(recoveryTimer);if(monitorFrame)cancelAnimationFrame(monitorFrame);recoveryToast?.remove();delete document.documentElement.dataset.cinemaBusy;
+    segmentResize?.disconnect();segmentObserved.clear();
     stopped = true; observer.disconnect(); visibility.disconnect(); revealObserver.disconnect(); abort.abort(); if (frame) cancelAnimationFrame(frame); clearTimeout(powerTimer);
     for (const transition of transitions) transition.skipTransition?.(); transitions.clear();
     for (const controller of [...carousels]) controller.dispose(); for (const clear of [...swaps.values()]) clear(); for (const animation of animations) animation.cancel(); animations.clear(); roots.clear(); heroes.clear(); reveals.clear(); tintCache.clear();
     if (baseMotion) window.UiMotion = baseMotion;
   }
   window.addEventListener('pagehide', dispose, { once: true });
-  window.CinemaMotion = Object.freeze({ carousel, swapArtwork, setPreference, get mode() { return mode; }, dispose, diagnostics: () => ({ roots: roots.size, heroes: heroes.size, pendingReveals: reveals.size, carousels: carousels.size, animations: animations.size, tints: tintCache.size }) });
+  window.CinemaMotion = Object.freeze({ carousel, swapArtwork, setPreference, get mode() { return mode; }, dispose, diagnostics: () => ({ roots: roots.size, heroes: heroes.size, pendingReveals: reveals.size, carousels: carousels.size, animations: animations.size, tints: tintCache.size, automaticReduced, requestedMotion:preference }) });
   resolveMode(); scan();
 })();

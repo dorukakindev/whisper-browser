@@ -1,0 +1,9 @@
+{
+  "status": "IN_PROGRESS_TARGET_NOT_MET",
+  "base": "922f5474c517e15d9fb060633605dd0267d62f86",
+  "product": "d53ffb5a65e724afce52696bafa08657ab97a5dd",
+  "beforeDir": "tmp/cinema-native-1793705188294",
+  "afterDir": "tmp/cinema-native-1793707872987",
+  "visual": "tmp/cinema-round5-1793707335906",
+  "actionsRun": false
+}
