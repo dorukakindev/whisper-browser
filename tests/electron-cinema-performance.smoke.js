@@ -2,29 +2,37 @@
 /* Native instrumentation. Reuses the design smoke's controlled profile/network bootstrap,
    but keeps GPU acceleration enabled. RAF intervals are scheduling evidence, not GPU render time. */
 const fs0=require('node:fs'),path0=require('node:path'),Module=require('node:module');
-const fixture=path0.join(__dirname,'electron-cinema-design.smoke.js'),source=fs0.readFileSync(fixture,'utf8');
+const fixture=path0.join(__dirname,'electron-cinema-design.smoke.js');let source=fs0.readFileSync(fixture,'utf8');
+source=source.replace('items.slice(0,7).map','Array.from({length:78},(_,i)=>items[i%items.length]).map');
 const boundary=source.indexOf('app.whenReady().then(async()=>{');
 if(boundary<0)throw Error('Design fixture bootstrap boundary changed');
 const protocolStart=source.indexOf(' session.defaultSession.protocol.handle('),protocolEnd=source.indexOf('\n let win;',protocolStart);
 if(protocolStart<0||protocolEnd<0)throw Error('Design fixture image interception boundary changed');
-const bootstrap=source.slice(0,boundary).replace("['disable-gpu','disable-backgrounding-occluded-windows','disable-renderer-backgrounding']","['disable-backgrounding-occluded-windows','disable-renderer-backgrounding']");
+const protocolCode=source.slice(protocolStart,protocolEnd);
+const baselinePatch="if(process.argv.includes('--baseline-runtime')){const original=BrowserWindow.prototype.loadFile;BrowserWindow.prototype.loadFile=function(file,options){return original.call(this,path.basename(file)==='index.html'?path.join(root,'tmp/round5-baseline-runtime/index.html'):file,options);};}\n";
+source=source.replace("require('../src/main');",baselinePatch+"require('../src/main');");
+const bootstrap=source.slice(0,source.indexOf('app.whenReady().then(async()=>{')).replace("['disable-gpu','disable-backgrounding-occluded-windows','disable-renderer-backgrounding']","['disable-backgrounding-occluded-windows','disable-renderer-backgrounding']");
 async function performanceRun(){
-  const {screen}=require('electron'),{spawn}=require('node:child_process'),os=require('node:os');const idleSeconds=Math.max(5,Math.min(60,Number(process.argv.find(v=>v.startsWith('--idle-seconds='))?.split('=')[1])||60));
+  const {screen,contentTracing}=require('electron'),{spawn}=require('node:child_process'),os=require('node:os');const idleSeconds=Math.max(5,Math.min(60,Number(process.argv.find(v=>v.startsWith('--idle-seconds='))?.split('=')[1])||60));
   IMAGE_INTERCEPT
+  const tracing=process.argv.includes('--trace');
   let win;await until(()=>{win=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('index.html')&&!w.webContents.isLoading());return win;},'window');
   win.restore();win.show();win.setAlwaysOnTop(true,'floating');win.focus();win.setMinimumSize(360,480);
   const run=c=>win.webContents.executeJavaScript('(async()=>{'+c+'})()',true);
-  const report={started:new Date().toISOString(),platform:process.platform,hardware:{cpus:os.cpus().length,cpu:os.cpus()[0]?.model,memoryGiB:os.totalmem()/2**30,displays:screen.getAllDisplays().map(d=>({size:d.size,scaleFactor:d.scaleFactor,displayFrequency:d.displayFrequency}))},controlledMetadata:true,sources:Object.fromEntries(['cinema-motion.js','cinema-motion.css','cinema-ui.js','media-discovery-ui.js'].map(file=>[file,require('node:crypto').createHash('sha256').update(fs.readFileSync(path.join(root,'src/renderer',file))).digest('hex')])),hardwareAccelerationRequested:app.isHardwareAccelerationEnabled(),gpuFeatures:app.getGPUFeatureStatus(),measurement:'requestAnimationFrame callback intervals; not GPU render duration. CPU uses cumulative process CPU-second deltas normalized by elapsed time and logical CPU count; raw Electron percentCPUUsage retained separately. GPU engine utilization scoped to Electron GPU process IDs.',widths:[]};
+  const report={started:new Date().toISOString(),platform:process.platform,hardware:{cpus:os.cpus().length,cpu:os.cpus()[0]?.model,memoryGiB:os.totalmem()/2**30,displays:screen.getAllDisplays().map(d=>({size:d.size,scaleFactor:d.scaleFactor,displayFrequency:d.displayFrequency}))},controlledMetadata:true,controlledWatchEntries:78,baselineRuntime:process.argv.includes('--baseline-runtime'),sources:Object.fromEntries(['cinema-motion.js','cinema-motion.css','cinema-ui.js','media-discovery-ui.js'].map(file=>[file,require('node:crypto').createHash('sha256').update(fs.readFileSync(process.argv.includes('--baseline-runtime')&&['cinema-motion.js','cinema-motion.css'].includes(file)?path.join(root,'tmp/round5-baseline-runtime',file):path.join(root,'src/renderer',file))).digest('hex')])),hardwareAccelerationRequested:app.isHardwareAccelerationEnabled(),gpuFeatures:app.getGPUFeatureStatus(),measurement:'requestAnimationFrame callback intervals; not GPU render duration. CPU uses cumulative process CPU-second deltas normalized by elapsed time and logical CPU count; raw Electron percentCPUUsage retained separately. GPU engine utilization scoped to Electron GPU process IDs.',widths:[]};
   try{report.hardware.gpu=await app.getGPUInfo('basic');}catch(e){report.hardware.gpuError=e.message;}
   await run('await initialSettingsReady;UiLocale.set("tr",false);applyUiTheme("dark");if(!window.CinemaMotion)throw Error("CinemaMotion runtime missing");CinemaMotion.setPreference("full");return true');
   async function home(){await run('document.querySelector(".cn-film-page")?.close();MediaTitleUI.close();await MediaHomeUI.navigate("home");document.getElementById("mediaHome").scrollTop=0;return true');await until(()=>run('return !!document.querySelector(".cn-home-hero img")?.naturalWidth'),'home art');await pause(200);await run('document.getElementById("mediaHome").scrollTop=0;return true');win.focus();await until(()=>run('const h=document.querySelector(".cn-home-hero");return h.getBoundingClientRect().bottom>0&&h.dataset.motionActive==="true"&&document.hasFocus()'),'visible active Home hero');}
   async function sample(label,action,mouse){
     if(win.isMinimized())win.restore();if(!win.isVisible())win.show();if(!win.isFocused()){win.moveTop();win.focus();}win.webContents.focus();
-    await run('window.__perfRun=(window.__perfRun||0)+1;const token=window.__perfRun;window.__perfFrames=[];window.__perfSampling=true;window.__perfLast=null;window.__perfStart=performance.now();window.__perfAnimationCount=document.getAnimations().filter(a=>a.playState==="running").length;function frame(now){if(!window.__perfSampling||token!==window.__perfRun)return;if(window.__perfLast!==null)window.__perfFrames.push(now-window.__perfLast);window.__perfLast=now;requestAnimationFrame(frame)}requestAnimationFrame(frame);await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return true');
+    if(tracing)await contentTracing.startRecording({included_categories:['devtools.timeline','blink.user_timing','v8.execute','disabled-by-default-devtools.timeline','cc','gpu']});
+    await run('window.__perfRun=(window.__perfRun||0)+1;const token=window.__perfRun;window.__perfFrames=[];window.__perfSampling=true;window.__perfLast=null;window.__perfStart=performance.now();window.__perfAnimationCount=document.getAnimations().filter(a=>a.playState==="running").length;function frame(now){if(!window.__perfSampling||token!==window.__perfRun)return;if(window.__perfLast!==null){const delta=now-window.__perfLast;window.__perfFrames.push(delta);if(delta>20)performance.measure("cinema-frame-gap",{start:window.__perfLast,end:now});}window.__perfLast=now;requestAnimationFrame(frame)}requestAnimationFrame(frame);await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return true');
     if(mouse)win.webContents.sendInputEvent({type:'mouseMove',x:Math.round(mouse.x),y:Math.round(mouse.y)});
+    await run('performance.mark('+JSON.stringify(label+'-start')+');return true');
     if(action)await run(action);
     await pause(1200);
     const result=await run('window.__perfSampling=false;const f=window.__perfFrames.slice().sort((a,b)=>a-b);return {samples:f.length,averageMs:f.reduce((a,b)=>a+b,0)/f.length,p95Ms:f[Math.max(0,Math.ceil(f.length*.95)-1)],maxMs:f.at(-1),framesOver20ms:f.filter(v=>v>20).length,animationsAtStart:window.__perfAnimationCount,animationsAtEnd:document.getAnimations().filter(a=>a.playState==="running").length,focused:document.hasFocus(),hidden:document.hidden,motion:CinemaMotion.mode,heroes:[...document.querySelectorAll(".cn-hero")].map(h=>({className:h.className,motionActive:h.dataset.motionActive,visible:h.getBoundingClientRect().bottom>0}))}');
+    if(tracing)await contentTracing.stopRecording(path.join(out,'trace-'+win.getContentSize()[0]+'-'+label+'.json'));
     result.label=label;if(!result.samples)throw Error('No frame intervals '+label);console.log('PERF '+JSON.stringify(result));return result;
   }
   function gpuSampler(pids){
@@ -47,7 +55,11 @@ async function performanceRun(){
     record.frames.push(await sample('shared-poster-transition','const card=document.querySelector("[data-discovery-id]");card.focus({preventScroll:true});card.click();return true'));
     await until(()=>run('return !!document.querySelector(".cn-film-page details summary")'),'film accordion');
     await run('document.querySelector(".cn-film-page details summary").scrollIntoView({block:"center"});return true');await pause(120);
-    record.frames.push(await sample('accordion-open','const d=document.querySelector(".cn-film-page details");if(d.open)d.open=false;d.querySelector("summary").click();return true'));
+    record.frames.push(await sample('taste-accordion-open','const d=document.querySelector(".cn-film-page details");if(d.open)d.open=false;d.querySelector("summary").click();return true'));
+    await run('const d=document.querySelector(".cn-film-tools").closest("details");d.scrollIntoView({block:"start",behavior:"instant"});return true');await pause(250);
+    record.frames.push(await sample('viewing-accordion-open','document.querySelector(".cn-film-tools").closest("details").querySelector("summary").click();return true'));
+    await run('document.getElementById("mediaHome").scrollTop=0;return true');await pause(300);
+    record.frames.push(await sample('detail-back','document.querySelector(".cn-back").click();return true'));
     }fs.writeFileSync(path.join(out,'performance.json'),JSON.stringify(report,null,2));record.gpuInfo=await app.getGPUInfo('complete');if(process.argv.includes('--frames-only'))continue;
     await home();win.webContents.sendInputEvent({type:'mouseMove',x:5,y:5});await pause(500);
     // Baseline metrics call primes percentCPUUsage; 60 subsequent one-second samples.
@@ -59,5 +71,5 @@ async function performanceRun(){
   }
   for(const w of report.widths){const samples=w.idle?.gpu.samples;if(Array.isArray(samples)){const busiest=samples.map(s=>Math.max(0,...(Array.isArray(s.engines)?s.engines:s.engines?[s.engines]:[]).map(e=>Number(e.UtilizationPercentage)||0)));w.idle.gpu.busiestEngineAveragePercent=busiest.reduce((a,b)=>a+b,0)/busiest.length;w.idle.gpu.busiestEngineMaxPercent=Math.max(...busiest);w.idle.gpu.summaryMethod='Maximum utilization among own GPU process engines per sample; no system-wide or other-process attribution';}}report.finished=new Date().toISOString();fs.writeFileSync(path.join(out,'performance.json'),JSON.stringify(report,null,2));console.log(JSON.stringify({ok:true,out}));app.exit(0);
 }
-const body=performanceRun.toString().replace('IMAGE_INTERCEPT',source.slice(protocolStart,protocolEnd));
+const body=performanceRun.toString().replace('IMAGE_INTERCEPT',protocolCode);
 const compiled=new Module(__filename,module);compiled.filename=__filename;compiled.paths=module.paths;compiled._compile(bootstrap+'\napp.whenReady().then('+body+').catch(e=>{console.error(e.stack);app.exit(1)});setTimeout(()=>app.exit(2),180000).unref();',__filename);

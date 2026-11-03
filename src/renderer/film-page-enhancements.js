@@ -19,8 +19,8 @@
   if(window.api.showAssistant){const ask=node('button','film-section-link film-ask-assistant',t('Ask about this film','Bu filmi asistana sor'));ask.type='button';ask.onclick=()=>window.api.showAssistant();nav.append(ask);}
   if(window.AssistantFilmActions){const compare=node('button','film-section-link',t('Compare films','Filmleri karşılaştır'));compare.type='button';compare.onclick=()=>window.AssistantFilmActions.openPicker(filmItemId);nav.append(compare);}
   const contextItem=!item.discovery&&!item.id&&['film','series'].includes(item.kind)&&/^tt\d{7,12}$/.test(item.providerId||'')?{...item,id:'discovery:'+item.kind+':'+item.providerId,imdbId:item.providerId,discovery:{kind:item.kind,id:item.providerId}}:item;
-  const daily=window.MediaDailyUI?.mountTitle(page,contextItem);if(daily)disposers.push(()=>{daily.dispatchEvent(new Event('daily-dispose'));daily.remove();});
-  const watching=window.FilmWatchUI?.mount(page,contextItem);if(watching)disposers.push(()=>{watching.dispatchEvent(new Event('fw-dispose'));watching.remove();});
+  const daily=window.MediaDailyUI?.mountTitle(page,contextItem,{deferUntilOpen:!!window.CinemaUI});if(daily)disposers.push(()=>{daily.dispatchEvent(new Event('daily-dispose'));daily.remove();});
+  const watching=window.FilmWatchUI?.mount(page,contextItem,{deferUntilOpen:!!window.CinemaUI});if(watching)disposers.push(()=>{watching.dispatchEvent(new Event('fw-dispose'));watching.remove();});
   const hero=page.querySelector('.mtd-hero,.md-page-hero');hero?.after(nav);
   const lower=window.FilmPageLower?.mount(page,item);if(lower)disposers.push(lower.dispose);
   const poster=page.querySelector('.mtd-poster,.md-detail-poster');if(poster){
