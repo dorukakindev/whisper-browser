@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Akışlar okuma alanı — 2026-11-04
+
+- Onaylı iki panelli sinematik kompozisyonu uyguladı; aynı 680px kenarlı okuyucu, özel filtre/sıralama menüleri, seçim modu, klavye kısayolları ve tasarlanmış yükleme/hata/görselsiz durumları eklendi. Kaynak/OPML, tercih, asistan, ilişki onayı ve geri alma işlevleri korundu.
+- Film çevirisinin sağlayıcı yolunu paylaşan, özgün kaydı değiştirmeyen makale Türkçe çevirisi; revizyon/iptal ve sınırlı oturum önbelleği eklendi.
+- Native1440/1920/720 görüntüleri ve kısa ölçümler kaydedildi. Bazı maksimum kare aralıkları20ms hedefini geçti; başarılı kabul gibi sunulmadı ve yeni kullanıcı kararıyla teslimi bloke etmedi. [Kanıt](docs/implementation/cinematic-feeds-2026-11-04/README.md).
+
+
 ### Project documentation — 2026-11-04
 
 - Added root BACKLOG.md with the unfinished PR805 performance work, its exact acceptance gaps and the dependent design screens.

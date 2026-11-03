@@ -1,0 +1,304 @@
+{
+  "checks": [
+    {
+      "width": 1440,
+      "overflow": false,
+      "rows": 100,
+      "heroLeft": 621.8125,
+      "textLeft": 621.8125,
+      "brokenImageFallback": true,
+      "motion": "full"
+    },
+    {
+      "width": 1920,
+      "overflow": false,
+      "rows": 100,
+      "heroLeft": 850,
+      "textLeft": 850,
+      "brokenImageFallback": true,
+      "motion": "full"
+    },
+    {
+      "width": 720,
+      "overflow": false,
+      "rows": 100,
+      "heroLeft": 20,
+      "textLeft": 20,
+      "brokenImageFallback": true,
+      "motion": "full"
+    }
+  ],
+  "frames": [
+    {
+      "name": "scroll-1440",
+      "average": 6.944827586206896,
+      "p95": 7,
+      "max": 7.099999999999909,
+      "samples": 145,
+      "visible": true,
+      "focused": true
+    },
+    {
+      "name": "switch-1440",
+      "average": 6.944444444444445,
+      "p95": 7.099999999999454,
+      "max": 7.100000000000364,
+      "samples": 144,
+      "visible": true,
+      "focused": true
+    },
+    {
+      "name": "filter-1440",
+      "average": 7.176333333333332,
+      "p95": 7.100000000000364,
+      "max": 27.800000000000182,
+      "samples": 138,
+      "visible": true,
+      "focused": true
+    },
+    {
+      "name": "refresh-1440",
+      "average": 7.299270072992701,
+      "p95": 7.099999999999454,
+      "max": 34.80000000000018,
+      "samples": 137,
+      "visible": true,
+      "focused": true
+    },
+    {
+      "name": "scroll-1920",
+      "average": 7.192142857142855,
+      "p95": 7.099999999998545,
+      "max": 34.70000000000073,
+      "samples": 140,
+      "visible": true,
+      "focused": true
+    },
+    {
+      "name": "switch-1920",
+      "average": 6.944444444444445,
+      "p95": 7,
+      "max": 7.100000000000364,
+      "samples": 144,
+      "visible": true,
+      "focused": true
+    },
+    {
+      "name": "filter-1920",
+      "average": 7.073814285714278,
+      "p95": 7.099999999998545,
+      "max": 18.03399999999965,
+      "samples": 140,
+      "visible": true,
+      "focused": true
+    },
+    {
+      "name": "refresh-1920",
+      "average": 7.143571428571418,
+      "p95": 7,
+      "max": 27.799999999999272,
+      "samples": 140,
+      "visible": true,
+      "focused": true
+    }
+  ],
+  "idleSamples": [
+    [
+      {
+        "type": "Browser",
+        "pid": 16964,
+        "percentCPUUsage": 0.742704427979712
+      },
+      {
+        "type": "GPU",
+        "pid": 16444,
+        "percentCPUUsage": 0.8797050400931385
+      },
+      {
+        "type": "Utility",
+        "pid": 2004,
+        "percentCPUUsage": 0.08260227970415379
+      },
+      {
+        "type": "Tab",
+        "pid": 17656,
+        "percentCPUUsage": 1.4177804295555656
+      },
+      {
+        "type": "Tab",
+        "pid": 4128,
+        "percentCPUUsage": 0.0067354841272372
+      },
+      {
+        "type": "Utility",
+        "pid": 19400,
+        "percentCPUUsage": 0
+      }
+    ],
+    [
+      {
+        "type": "Browser",
+        "pid": 16964,
+        "percentCPUUsage": 0.004167552583533226
+      },
+      {
+        "type": "GPU",
+        "pid": 16444,
+        "percentCPUUsage": 0.021103911768512798
+      },
+      {
+        "type": "Utility",
+        "pid": 2004,
+        "percentCPUUsage": 0
+      },
+      {
+        "type": "Tab",
+        "pid": 17656,
+        "percentCPUUsage": 0.03245015021399963
+      },
+      {
+        "type": "Tab",
+        "pid": 4128,
+        "percentCPUUsage": 0
+      },
+      {
+        "type": "Utility",
+        "pid": 19400,
+        "percentCPUUsage": 0
+      }
+    ],
+    [
+      {
+        "type": "Browser",
+        "pid": 16964,
+        "percentCPUUsage": 0.003833886168225343
+      },
+      {
+        "type": "GPU",
+        "pid": 16444,
+        "percentCPUUsage": 0.015836315059424354
+      },
+      {
+        "type": "Utility",
+        "pid": 2004,
+        "percentCPUUsage": 0
+      },
+      {
+        "type": "Tab",
+        "pid": 17656,
+        "percentCPUUsage": 0.05580052948520666
+      },
+      {
+        "type": "Tab",
+        "pid": 4128,
+        "percentCPUUsage": 0
+      },
+      {
+        "type": "Utility",
+        "pid": 19400,
+        "percentCPUUsage": 0
+      }
+    ],
+    [
+      {
+        "type": "Browser",
+        "pid": 16964,
+        "percentCPUUsage": 0.0034016856430944785
+      },
+      {
+        "type": "GPU",
+        "pid": 16444,
+        "percentCPUUsage": 0.011358379181692252
+      },
+      {
+        "type": "Utility",
+        "pid": 2004,
+        "percentCPUUsage": 0
+      },
+      {
+        "type": "Tab",
+        "pid": 17656,
+        "percentCPUUsage": 0.028292434586397793
+      },
+      {
+        "type": "Tab",
+        "pid": 4128,
+        "percentCPUUsage": 0.0007052366392503849
+      },
+      {
+        "type": "Utility",
+        "pid": 19400,
+        "percentCPUUsage": 0
+      }
+    ],
+    [
+      {
+        "type": "Browser",
+        "pid": 16964,
+        "percentCPUUsage": 0.002978391359308197
+      },
+      {
+        "type": "GPU",
+        "pid": 16444,
+        "percentCPUUsage": 0.0052738554335026895
+      },
+      {
+        "type": "Utility",
+        "pid": 2004,
+        "percentCPUUsage": 0
+      },
+      {
+        "type": "Tab",
+        "pid": 17656,
+        "percentCPUUsage": 0.02246103873665296
+      },
+      {
+        "type": "Tab",
+        "pid": 4128,
+        "percentCPUUsage": 0.00040314565504422426
+      },
+      {
+        "type": "Utility",
+        "pid": 19400,
+        "percentCPUUsage": 0.00015632163027334565
+      }
+    ],
+    [
+      {
+        "type": "Browser",
+        "pid": 16964,
+        "percentCPUUsage": 0.00768353418623889
+      },
+      {
+        "type": "GPU",
+        "pid": 16444,
+        "percentCPUUsage": 0.01256471535223612
+      },
+      {
+        "type": "Utility",
+        "pid": 2004,
+        "percentCPUUsage": 0
+      },
+      {
+        "type": "Tab",
+        "pid": 17656,
+        "percentCPUUsage": 0.03096687841226062
+      },
+      {
+        "type": "Tab",
+        "pid": 4128,
+        "percentCPUUsage": 0
+      },
+      {
+        "type": "Utility",
+        "pid": 19400,
+        "percentCPUUsage": 0.0001995715199466745
+      }
+    ]
+  ],
+  "idleSeconds": 6,
+  "actualWindows": true,
+  "gpuEnabled": true,
+  "data": "Controlled local feed store (121 real service records); no personal profile, live site or AI provider.",
+  "states": "Loading/error/empty use controlled request failures in the production renderer."
+}
