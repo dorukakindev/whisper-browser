@@ -30,6 +30,6 @@
    }catch(error){if(alive(ticket))status.textContent=error.message;}}
   void draw();return host;
  }
- function entry(host){const n=el('section','daily-home-entry'),copy=el('div');copy.append(el('h2','',t('Your next story','Sıradaki hikâyen')),el('p','',t('A watchlist with a little more direction.','İzleme listenden bu akşama, kaldığın bölümden sıradaki hikâyeye.')));const actions=el('div','daily-row-actions');for(const [tab,en,tr]of [['tonight','Tonight','Bu akşam'],['watchlist','Arrange watchlist','Listemi düzenle'],['series','Continue series','Dizilere devam']])actions.append(button(t(en,tr),()=>open(tab)));n.append(copy,actions);host.append(n);}
+ function entry(host){const n=el('section','daily-home-entry'),copy=el('div');copy.append(el('h2','',t('Your next story','Sıradaki hikâyen')),el('p','',t('A watchlist with a little more direction.','İzleme listenden bu akşama, kaldığın bölümden sıradaki hikâyeye.')));const actions=el('div','daily-row-actions');for(const [tab,en,tr]of [['tonight','Tonight','Bu akşam'],['watchlist','Arrange watchlist','Listemi düzenle'],['series','Continue series','Dizilere devam']])actions.append(button(t(en,tr),()=>open(tab)));if(window.MediaVisual){const choices=[...actions.children];window.MediaVisual.button(choices[0],'secondary');for(const b of choices.slice(1))window.MediaVisual.button(b,'ghost');actions.replaceChildren(choices[0],window.MediaVisual.overflow(choices.slice(1)));}n.append(copy,actions);host.append(n);}
  window.MediaDailyUI=Object.freeze({open,mountTitle,entry});
 })();
