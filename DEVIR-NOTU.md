@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-04-0200.md](docs/devir/2026-11-04-0200.md) — Akışlar hareketli bağımsız maketi; uygulama öncesi kullanıcı onayı bekliyor
 Güncel çalışma: [docs/devir/2026-11-04-0126.md](docs/devir/2026-11-04-0126.md) — Kısa AGENTS, kök BACKLOG ve proje belge haritası; ürün kodu değişmedi
 Güncel çalışma: [docs/devir/2026-11-03-1256.md](docs/devir/2026-11-03-1256.md) — Onaylı Round4 film kontrolleri, 78 kayıtlı hero ve native ölçüm
 Güncel çalışma: [docs/devir/2026-11-03-1058.md](docs/devir/2026-11-03-1058.md) — Onaylı sinematik hareket, film araçları, gerçek Windows CPU/frame ölçümü ve açık 20ms sınırı
