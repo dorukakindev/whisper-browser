@@ -4,6 +4,7 @@
   const media = matchMedia('(prefers-reduced-motion: reduce)'), roots = new Map(), heroes = new Map(), reveals = new Map(), animations = new Set(), carousels = new Set(), swaps = new Map(), tintCache = new Map();
   const abort = new AbortController(), signal = abort.signal, accordions = new WeakMap(), transitions = new Set();
   let rootTransitionUsers = 0, originalRootTransitionName = '';
+  const pendingTints = new Map();let tintTask = 0;
   let preference = 'auto', mode = 'full', battery = null, nativePower = null, powerTimer = 0, frame = 0, scanning = false, stopped = false, origin = null;
   const full = () => mode === 'full', active = () => !document.hidden && document.hasFocus?.() !== false;
   const activeHero = hero => { const modal = document.querySelector('.cn-film-page[open]'); return active() && (!modal || modal.contains(hero)); };
@@ -47,6 +48,19 @@
   function pollPower() { if (stopped) return; void checkPower(); powerTimer = setTimeout(pollPower, 30000); }
   if (typeof window.api?.systemPowerStatus === 'function') pollPower();
   function tint(img, host) {
+    if (!img?.naturalWidth || !host || stopped) return;
+    const src=img.currentSrc||img.src,key=`${src.length}:${src.slice(0,128)}:${src.slice(-128)}`;
+    if(tintCache.has(key)){host.style.setProperty('--cn-ambient-rgb',tintCache.get(key));return;}
+    pendingTints.set(host,img);while(pendingTints.size>128)pendingTints.delete(pendingTints.keys().next().value);
+    scheduleTint();
+  }
+  function scheduleTint(){
+    if(tintTask||stopped||!pendingTints.size)return;
+    const work=deadline=>{tintTask=0;if(stopped)return;if(deadline&&!deadline.didTimeout&&deadline.timeRemaining()<5){scheduleTint();return;}
+      const [host,img]=pendingTints.entries().next().value||[];if(host){pendingTints.delete(host);if(host.isConnected&&img.isConnected)sampleTint(img,host);}scheduleTint();};
+    tintTask=typeof requestIdleCallback==='function'?requestIdleCallback(work,{timeout:1800}):setTimeout(()=>work(null),50);
+  }
+  function sampleTint(img, host) {
     if (!img?.naturalWidth || !host) return;
     const src = img.currentSrc || img.src, key = `${src.length}:${src.slice(0, 128)}:${src.slice(-128)}`;
     if (tintCache.has(key)) { host.style.setProperty('--cn-ambient-rgb', tintCache.get(key)); return; }
@@ -153,21 +167,26 @@
     const lifetime = new AbortController(); let timer = 0, animation = null, remaining = duration, started = 0, disposed = false;
     const dots = indicators || hero.querySelector('.cn-carousel-dots') || document.createElement('div'); dots.classList.add('cn-carousel-dots'); dots.replaceChildren();
     if (!dots.isConnected) (hero.querySelector('.cn-hero-switch') || hero).prepend(dots);
-    const buttons = Array.from({ length: count }, (_, index) => {
+    let start = Math.max(0, Math.min(count - 7, getIndex() - 3)), buttons = [];
+    function renderWindow() { dots.replaceChildren();buttons = Array.from({ length: Math.min(7, count) }, (_, offset) => {
+      const index = start + offset;
       const button = document.createElement('button'), fill = document.createElement('i'); button.type = 'button'; button.setAttribute('aria-label', `${index + 1}. içeriği göster`); button.append(fill); dots.append(button);
+      button.dataset.slideIndex = String(index);
+      button.style.setProperty('--cn-dot-width', index === getIndex() ? '28px' : Math.abs(index - getIndex()) > 2 ? '7px' : '12px');
       button.addEventListener('click', () => jump(index), { signal: lifetime.signal }); return button;
-    });
+    }); } renderWindow();
     function stop() { if (timer) { clearTimeout(timer); timer = 0; remaining = Math.max(0, remaining - (performance.now() - started)); } animation?.pause(); }
     function sync() {
       if (disposed) return;
       const visible = heroes.get(hero)?.visible ?? hero.dataset.motionVisible !== 'false';
       if (!full() || !activeHero(hero) || !visible || hero.matches(':hover,:focus-within') || count < 2) { stop(); if (!full()) { animation?.cancel(); animation = null; } return; }
-      if (!animation && typeof buttons[getIndex()]?.firstChild.animate === 'function') mark();
+      if (!animation && typeof buttons.find(b => Number(b.dataset.slideIndex) === getIndex())?.firstChild.animate === 'function') mark();
       if (!timer) { started = performance.now(); animation?.play(); timer = setTimeout(() => { timer = 0; remaining = duration; jump((getIndex() + 1) % count); }, remaining); }
     }
     function mark() {
       animation?.cancel(); animation = null; remaining = duration;
-      buttons.forEach((button, index) => { button.setAttribute('aria-current', String(index === getIndex())); if (index === getIndex() && full() && typeof button.firstChild.animate === 'function') { animation = button.firstChild.animate([{ scale: '0 1' }, { scale: '1 1' }], { duration, fill: 'forwards', easing: 'linear' }); animation.finished?.catch(() => {}); animation.pause(); } });
+      const nextStart=Math.max(0,Math.min(count-7,getIndex()-3));if(nextStart!==start){start=nextStart;renderWindow();}
+      buttons.forEach(button => { const index=Number(button.dataset.slideIndex);button.style.setProperty('--cn-dot-width',index===getIndex()?'28px':Math.abs(index-getIndex())>2?'7px':'12px');button.setAttribute('aria-current', String(index === getIndex())); if (index === getIndex() && full() && typeof button.firstChild.animate === 'function') { animation = button.firstChild.animate([{ scale: '0 1' }, { scale: '1 1' }], { duration, fill: 'forwards', easing: 'linear' }); animation.finished?.catch(() => {}); animation.pause(); } });
     }
     function jump(index) { stop(); goTo((index + count) % count); if (!disposed) { mark(); sync(); } }
     const controller = { hero, sync, jump, dispose() { if (disposed) return; disposed = true; stop(); animation?.cancel(); lifetime.abort(); carousels.delete(controller); } };
@@ -204,7 +223,8 @@
     // Let existing summary click handlers record their next expanded state first.
     queueMicrotask(() => {
       if (!details.isConnected || accordions.get(details) !== state) return;
-      if (opening) details.open = true;
+        const nativeHeight = typeof CSS !== 'undefined' && CSS.supports?.('interpolate-size', 'allow-keywords');
+        if (opening || nativeHeight) details.open = opening;
       state.animations = content.map(node => animate(node, opening ? [{ opacity: 0, transform: 'translateY(-7px)' }, { opacity: 1, transform: 'none' }] : [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-5px)' }], { duration: opening ? 320 : 200 }));
       Promise.all(state.animations.map(animation => animation?.finished?.catch(() => {}))).then(() => { if (accordions.get(details) !== state) return; if (!opening) details.open = false; accordions.delete(details); });
     });
@@ -242,6 +262,7 @@
   document.addEventListener('keydown', event => { if (event.key === 'Escape') backSnapshot = baseMotion?.captureMedia(document.querySelector('.cn-film-page[open] .cn-film-poster')); }, { capture: true, signal });
   document.addEventListener('close', event => { if (!event.target.matches('.cn-film-page')) return; const target = origin?.node?.querySelector?.('img') || origin?.node; if (backSnapshot && target?.isConnected) transfer(backSnapshot, target); backSnapshot = null; origin = null; }, { capture: true, signal });
   function dispose() {
+    if(tintTask){if(typeof cancelIdleCallback==='function')cancelIdleCallback(tintTask);else clearTimeout(tintTask);tintTask=0;}pendingTints.clear();
     stopped = true; observer.disconnect(); visibility.disconnect(); revealObserver.disconnect(); abort.abort(); if (frame) cancelAnimationFrame(frame); clearTimeout(powerTimer);
     for (const transition of transitions) transition.skipTransition?.(); transitions.clear();
     for (const controller of [...carousels]) controller.dispose(); for (const clear of [...swaps.values()]) clear(); for (const animation of animations) animation.cancel(); animations.clear(); roots.clear(); heroes.clear(); reveals.clear(); tintCache.clear();

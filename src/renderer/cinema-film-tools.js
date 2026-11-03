@@ -36,8 +36,9 @@
         }
       }
       for (const button of group.querySelectorAll(':scope > button')) {
-        button.disabled = select.disabled;
-        button.setAttribute('aria-pressed', String(button.dataset.statusValue === select.value));
+        if (button.disabled !== select.disabled) button.disabled = select.disabled;
+        const pressed = String(button.dataset.statusValue === select.value);
+        if (button.getAttribute('aria-pressed') !== pressed) button.setAttribute('aria-pressed', pressed);
       }
     }
     function reactions(root) {

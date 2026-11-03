@@ -402,6 +402,8 @@
     accordionRow(profile,'heart',t('What stays with you; what to discover next','Sende kalanlar ve sıradaki keşiflerin'));
     const toolOwner=window.CinemaFilmTools?.mount(page,advancedBody,personal,actions);
     if(toolOwner)disposers.push(()=>toolOwner.dispose());
+    const round4Owner=window.CinemaFilmRound4?.mount(page,advancedBody);
+    if(round4Owner)disposers.push(()=>round4Owner.dispose());
     let shownProfile=profile;
     const syncProfile=()=>{
       const next=review?.querySelector('.film-decision-profile');

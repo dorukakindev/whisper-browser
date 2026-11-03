@@ -44,6 +44,7 @@ test('Artwork waits for decoded replacement and releases outgoing node after 800
 });
 test('Accordion preserves original click state handling, normal-flow form, and finite closing animation', async () => {
   const h = setup(); try {
+    h.w.CSS = { supports: () => false }; // Exercise the non-interpolating Electron fallback.
     const details = h.d.querySelector('details'), summary = details.querySelector('summary'), original = details.querySelector('.contents'); let expected;
     summary.addEventListener('click', () => { expected = !details.open; });
     summary.click(); await Promise.resolve(); assert.equal(expected, true); assert.equal(details.open, true); assert.equal(details.querySelector('.contents'), original);
@@ -63,6 +64,12 @@ test('Native shared poster transition is scoped, restores styles and leaves orig
     finish(); await Promise.resolve(); await Promise.resolve(); assert.equal(target.style.viewTransitionName, ''); assert.equal(h.d.documentElement.style.viewTransitionName, '');
     h.api.dispose(); assert.equal(h.w.UiMotion, h.base); assert.deepEqual(JSON.parse(JSON.stringify(h.api.diagnostics())), { roots: 0, heroes: 0, pendingReveals: 0, carousels: 0, animations: 0, tints: 0 });
   } finally { h.dom.window.close(); }
+});
+test('78-item carousel renders a moving window of seven indicators, including the last item',()=>{
+ const h=setup();try{let index=0;const hero=h.d.querySelector('.cn-home-hero'),c=h.w.CinemaMotion.carousel(hero,{count:78,getIndex:()=>index,goTo:v=>index=v});assert.equal(hero.querySelectorAll('.cn-carousel-dots button').length,7);c.jump(77);assert.equal(hero.querySelector('[aria-current=true]').dataset.slideIndex,'77');assert.equal(hero.querySelectorAll('.cn-carousel-dots button').length,7);c.jump(40);assert.equal(hero.querySelector('[aria-current=true]').dataset.slideIndex,'40');assert.equal(hero.querySelector('.cn-carousel-dots button').dataset.slideIndex,'37');c.dispose();}finally{h.close();}
+});
+test('Artwork tint sampling is deferred off the image-load path and is canceled on disposal',()=>{
+ const h=setup();try{let task,canceled=0;h.w.requestIdleCallback=callback=>{task=callback;return 9;};h.w.cancelIdleCallback=()=>canceled++;const img=h.d.querySelector('[data-home-item] img'),host=img.parentElement;host.classList.add('cn-poster');Object.defineProperty(img,'naturalWidth',{value:16});img.dispatchEvent(new h.w.Event('load'));assert.equal(host.dataset.cinemaTint,undefined);assert.equal(typeof task,'function');task({didTimeout:false,timeRemaining:()=>8});assert.equal(host.dataset.cinemaTint,'sampled');img.src='data:image/png;base64,BBB';img.dispatchEvent(new h.w.Event('load'));h.api.dispose();assert.equal(canceled,1);}finally{h.close();}
 });
 test('Scroll keeps continuous parallax but quantizes blur and returns to an unfiltered idle surface', () => {
   const h = setup(); try {
