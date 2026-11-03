@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Project documentation — 2026-11-04
+
+- Added root BACKLOG.md with the unfinished PR805 performance work, its exact acceptance gaps and the dependent design screens.
+- Shortened AGENTS.md and preserved the previous detailed guidance in docs/WORKING_GUIDE.md. Added a document map to README.md and an explicit rule for updating unfinished and completed work.
+- Documentation only: no product code or performance acceptance change.
+
+
 - Improved the floating assistant with explicit source/model details, source-scoped commands and visible messages, per-source in-memory question drafts, and send receipts that preserve rejected questions or edits made during sending.
 - Added safe heading/list/code rendering, clearer busy/error states, a latest-reply shortcut, source-specific clear confirmation and explain/translation-review actions. Preserved the existing AI provider, subtitle scope and job safety boundaries.
 
