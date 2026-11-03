@@ -1,0 +1,47 @@
+[
+  {
+    "file": "src/renderer/film-page-lower.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/film-page-enhancements.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/film-context-features.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "src/renderer/review-decision-ui.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/film-page-lower.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/film-page-enhancements.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/film-context-features.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/film-review-inline.test.js",
+    "exit": 0,
+    "error": ""
+  },
+  {
+    "file": "tests/electron-film-lower.smoke.js",
+    "exit": 0,
+    "error": ""
+  }
+]

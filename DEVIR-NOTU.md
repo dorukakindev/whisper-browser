@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-03-0302.md](docs/devir/2026-11-03-0302.md) — Film alt sayfası, künye ve kaynaklı yorum analizi
 Güncel çalışma: [docs/devir/2026-11-03-0208.md](docs/devir/2026-11-03-0208.md) — Asistan uçtan uca medya akışları ve hareketli işlem izi
 Güncel çalışma: [docs/devir/2026-11-03-0115.md](docs/devir/2026-11-03-0115.md) — Asistan koşullu sorgu, süre hesabı ve işlem envanteri
 Güncel çalışma: [docs/devir/2026-11-03-0052.md](docs/devir/2026-11-03-0052.md) — R850 paket ve RSS kapsam onarımları

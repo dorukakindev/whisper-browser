@@ -1,6 +1,24 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{JSDOM}=require('jsdom');
 const extras={people:[{id:7,name:'Actor',role:'Role'}],videos:[{name:'Trailer',official:true,url:'https://www.youtube.com/watch?v=abcdefghijk'}],recommendations:[{id:43,kind:'film',tmdbId:'movie:43',title:'Other',sharedGenres:['Drama']}],sameDirector:[{id:43,kind:'film',tmdbId:'movie:43',title:'Other'}],director:'Director'};
 const wait=()=>new Promise(r=>setTimeout(r,0));
+test('Detached metadata owner binds to the completed title and moves credits without another request',async()=>{
+ const dom=new JSDOM('<section class="media-title-page"></section>',{runScripts:'outside-only'}),w=dom.window,calls=[];
+ try{
+  w.UiLocale={get:()=> 'en'};
+  w.api={mediaCatalog:async p=>{calls.push(p.action);return p.action==='list'?{ok:true,items:[]}:{ok:true,...extras};}};
+  w.eval(fs.readFileSync('src/renderer/film-context-features.js','utf8'));
+  const main=w.document.createElement('main'),page=w.document.querySelector('.media-title-page');
+  w.FilmContextFeatures.mount(main,{id:'detached-film'},()=>{});
+  assert.equal(calls.length,0);page.append(main);
+  const slot=w.document.createElement('section');page.append(slot);
+  const credits=w.FilmContextFeatures.bindCredits(page,slot);assert(credits);
+  assert.equal(await credits.load(),true);
+  assert.equal(slot.querySelectorAll('.film-person-card').length,1);
+  assert.equal(main.querySelectorAll('.film-person-card').length,0);
+  assert.deepEqual(calls,['metadata-film-extras','list']);
+  assert.equal(main.querySelectorAll('.film-trailers button').length,1);
+ }finally{w.close();}
+});
 test('Film extras load only on demand, keep source groups explicit and never auto-play or add',async()=>{const dom=new JSDOM('<section class="media-title-page"><main></main></section>',{runScripts:'outside-only'}),w=dom.window,calls=[];try{w.UiLocale={get:()=> 'en'};w.api={mediaCatalog:async p=>{calls.push(p);return p.action==='list'?{ok:true,items:[{id:'own',kind:'film',tmdbId:'movie:43'}]}:{ok:true,...extras};},openExternal:async()=>{throw Error('Must not auto-open');}};w.eval(fs.readFileSync('src/renderer/film-context-features.js','utf8'));w.FilmContextFeatures.mount(w.document.querySelector('main'),{id:'film'},()=>{});assert.equal(calls.length,0);w.document.querySelector('.film-extra-heading > button').click();await wait();assert.equal(w.document.querySelectorAll('.film-person-card').length,1);assert.match(w.document.querySelector('.film-group-tabs').textContent,/In my library · 1/);assert.equal(calls.some(p=>p.action==='metadata-add-recommendation'),false);[...w.document.querySelectorAll('.film-group-tabs button')].find(b=>b.textContent.startsWith('In my library')).click();await wait();assert.match(w.document.querySelector('.film-related-groups').textContent,/Open in library/);}finally{w.close();}});
 test('Detached film page ignores a late extras response',async()=>{const dom=new JSDOM('<main></main>',{runScripts:'outside-only'}),w=dom.window;let release;try{w.UiLocale={get:()=> 'en'};w.api={mediaCatalog:p=>p.action==='list'?Promise.resolve({ok:true,items:[]}):new Promise(r=>release=r)};w.eval(fs.readFileSync('src/renderer/film-context-features.js','utf8'));w.FilmContextFeatures.mount(w.document.querySelector('main'),{id:'film'},()=>{});w.document.querySelector('button').click();const section=w.document.querySelector('.film-extra-section');section.remove();release({ok:true,...extras});await wait();assert.equal(section.querySelectorAll('.film-person-card').length,0);}finally{w.close();}});
 test('Returning to a film restores loaded extras and the selected group without repeating the metadata read',async()=>{const dom=new JSDOM('<div id="mediaHome"><section class="media-title-page"><main></main></section></div>',{runScripts:'outside-only'}),w=dom.window;let metadataReads=0;try{w.UiLocale={get:()=> 'en'};w.api={mediaCatalog:async p=>p.action==='list'?{ok:true,items:[]}:(metadataReads++,{ok:true,...extras})};w.eval(fs.readFileSync('src/renderer/film-context-features.js','utf8'));const item={id:'film'};w.FilmContextFeatures.mount(w.document.querySelector('main'),item,()=>{});w.document.querySelector('.film-extra-heading > button').click();await wait();w.document.querySelectorAll('.film-group-tabs button')[2].click();await wait();const page=w.document.querySelector('.media-title-page');page.dispatchEvent(new w.Event('close'));page.querySelector('main').replaceChildren();w.FilmContextFeatures.mount(page.querySelector('main'),item,()=>{});await wait();assert.equal(metadataReads,1);assert.match(page.querySelector('.film-group-tabs [aria-pressed=true]').textContent,/Directed by/);}finally{w.close();}});

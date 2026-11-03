@@ -1,0 +1,36 @@
+✔ Detached metadata owner binds to the completed title and moves credits without another request (76.421ms)
+✔ Film extras load only on demand, keep source groups explicit and never auto-play or add (31.7397ms)
+✔ Detached film page ignores a late extras response (14.1311ms)
+✔ Returning to a film restores loaded extras and the selected group without repeating the metadata read (18.7997ms)
+✔ Trailer uses an owned application tab and provides an explicit film return without external autoplay (29.101ms)
+✔ Returning before trailer navigation fails prevents a late failure from reopening the old film (17.7008ms)
+✔ Film page links focus actual sections with reduced-motion scrolling and can hide the plot (13.0731ms)
+✔ Copy uses canonical title link and poster opens with keyboard focus restoration (16.9097ms)
+✔ Repeated enhancement keeps one navigation and close cleans it up (9.2269ms)
+✔ Closing the film page also closes its owned poster preview (9.0731ms)
+✔ Discovery daily and viewing sections receive the exact provider identity, while local identity stays intact (9.6535ms)
+✔ Shared dossier preserves actual owners, forms, IDs and credit action false (20.3014ms)
+✔ Shared dossier preserves actual owners, forms, IDs and credit action true (15.0503ms)
+✔ No invented people are inserted into an empty source (11.4344ms)
+✔ Closing an inline workspace before a late response never mounts it (20.3048ms)
+✔ Closing the owning film disposes its review reader exactly once (15.8019ms)
+✔ Replacing an inline workspace invalidates the previous loading response (31.9427ms)
+✔ Film page displays saved verified analysis and original sources without any model call (28.1338ms)
+✔ Conflicting film identity is never shown on this page (8.0043ms)
+✔ Spoiler sources hide the entire synthesis until explicit reveal (16.3214ms)
+✔ Saved-analysis comparison cannot reveal prior spoilers without explicit consent (10.6491ms)
+✔ Film review entry point changes from load to manage without another analysis call (26.2018ms)
+✔ Film reading page checks saved context against the current taste profile: current (11.9415ms)
+✔ Film reading page checks saved context against the current taste profile: stale (17.6231ms)
+✔ Film reading page checks saved context against the current taste profile: unknown (10.6542ms)
+✔ Film visual rail follows delayed existing artwork and keeps the source reader available (10.8359ms)
+✔ Analysis opens the exact source quotation, returns to its point, and retains reader/filter selection on refresh (49.1211ms)
+✔ Personal fit shows only saved explicit priorities and labels a missing profile as conditional (22.4568ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1066.4158
