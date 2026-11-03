@@ -96,7 +96,7 @@
    const steps=el('div','cf4-steps'),sourceCard=el('article','cf4-source-step'),sourceHead=el('div','cf4-step-title');sourceHead.append(el('span','cf4-step-number','1'),el('h3','',t('Source','Kaynak')));
    const source=root.querySelector('.fw-source-controls>select'),available=!!source?.options.length;sourceHead.append(el('span','cf4-pill '+(available?'ready':'missing'),available?t('Ready','Hazır'):t('Not linked','Bağlı değil')));sourceCard.append(sourceHead);
    const controls=root.querySelector('.fw-source-controls');if(controls)sourceCard.append(controls);picker(source);
-   const missing=[...root.querySelectorAll(':scope>p')].find(p=>/No video|Video kaynağı/i.test(p.textContent));if(missing)sourceCard.prepend(missing);
+   const missing=[...root.querySelectorAll(':scope>p')].find(p=>/No video|Video kaynağı/i.test(p.textContent));if(missing)sourceHead.after(missing);
    steps.append(sourceCard);
    [...root.querySelectorAll('.fw-assets>.fw-step')].forEach((step,index)=>{step.classList.add('cf4-asset-step');const head=step.querySelector('h3'),title=el('div','cf4-step-title');title.append(el('span','cf4-step-number',String(index+2)));if(head)title.append(head);const ready=[...step.querySelectorAll('select option')].some(o=>!o.disabled&&!o.hidden);title.append(el('span','cf4-pill '+(ready?'ready':'missing'),ready?t('Ready','Hazır'):t('Missing','Eksik')));step.prepend(title);steps.append(step);});
    root.append(steps);root.querySelector('.fw-assets')?.remove();
