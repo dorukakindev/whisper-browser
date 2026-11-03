@@ -8,24 +8,17 @@ Her kayıt: **durum + kapsam + dal/PR + kanıt + kalan kabul koşulu + kesin son
 
 ## P001 — Sinematik hareket performansı
 
-- **Durum:** sürüyor; kabul geçmedi. Ana sürüme alınmadı.
+- **Durum:** ölçülen performans açıkları kayıtlı; kullanıcı 2026-11-04 kararıyla yeni ekranlar için bloklayıcı değil. PR805 ana sürüme alınmadı. Home/Keşfet/film tasarımı kullanıcı tarafından kabul edildi.
 - **Dal/PR:** codex/cinema-performance-round5 · [draft PR805](https://github.com/dorukakindev/whisper-browser/pull/805).
 - **Son ürün:** d53ffb5a65e724afce52696bafa08657ab97a5dd; teslim commit'i 5aa8e5637786093f3864ca31ec88b49b856b5630. Başlangıç ürün/master:922f5474c517e15d9fb060633605dd0267d62f86. Bu belgenin merge'i ürün kodunu değiştirmez.
 - **Kanıt:** [ölçümler ve trace dosyaları](https://github.com/dorukakindev/whisper-browser/blob/codex/cinema-performance-round5/docs/implementation/cinematic-performance-round5-2026-11-03/PERFORMANCE.md), [ayrıntılı devir](https://github.com/dorukakindev/whisper-browser/blob/codex/cinema-performance-round5/docs/devir/2026-11-03-1519.md).
 - **Gerçek kalan sorun:** son kaynak-güvenli sürümde1440 detay69,5ms, scroll55,5ms;1920 detay20,8ms maksimum. Önceki27,8ms farklı denemeydi; son sürümün başarısı değildir.41 hedefli kontrol ve son9 hareket kontrolü, performans kabulü yerine geçmez.
-- **Kabul:** onaylı hareket/görünüm korunarak her etkileşim maksimum<20ms, p95<16,7ms;1440/1920'de son revizyon için60s görünür/odaklı aktif hero CPU<%3 ve GPU kaydı. Son CPU ölçümleri son görsel katman değişiminden önce; yeniden doğrulanmalı. Son revizyona ait native1440/1920 karşılaştırması ve0/100/200/400/900ms kareler gerekli.
-- **Sonraki adım:** bu dalı tekrar aç; işaretli1440 detail/scroll rAF aralıklarını renderer/compositor/raster thread'leriyle aynı zaman ekseninde eşleştir. Sabit blur yüzeyinin ilk raster'ını, rota microtask'ini ve ilk style/layout/commit fazlarını tek değişkenle incele. Renderer fetch'i geri ekleme; büyük JPEG'i renk örneklemek için ana thread'de kopyalama. Eşik geçmeden merge/tamamlandı iddiası yok.
-
-## P002 — Akışlar (RSS) tasarım turu
-
-- **Durum:** planlandı; P001'in kullanıcı tarafından kabulünü bekliyor. Yeni tasarım uygulaması başlamadı; mevcut RSS özelliği var.
-- **Kaynak:** kullanıcının onaylı ekran sırası ve P001 devir notu.
-- **Kapsam/kabul:** aynı token/bileşenlerle önce hareketli standalone kompozisyon ve kullanıcı onayı; sonra uygulama. Abonelikler, okundu/kaydetme, kaynak kimliği, reader/oynatıcı ve ileri ayarlar korunur. Gerçek geniş/dar görüntü ve performans ölçümü gerekir.
-- **Sonraki adım:** P001 kabulünden sonra mevcut RSS ekranını inceleyip kompozisyonu hazırla.
+- **Önceki sayısal hedef (artık bloklayıcı değil):** onaylı hareket/görünüm korunarak her etkileşim maksimum<20ms, p95<16,7ms;1440/1920'de son revizyon için60s görünür/odaklı aktif hero CPU<%3 ve GPU kaydı. Son CPU ölçümleri son görsel katman değişiminden önce; yeniden doğrulanmalı. Son revizyona ait native1440/1920 karşılaştırması ve0/100/200/400/900ms kareler gerekli.
+- **Sonraki adım:** bu dalı tekrar aç; işaretli1440 detail/scroll rAF aralıklarını renderer/compositor/raster thread'leriyle aynı zaman ekseninde eşleştir. Sabit blur yüzeyinin ilk raster'ını, rota microtask'ini ve ilk style/layout/commit fazlarını tek değişkenle incele. Renderer fetch'i geri ekleme; büyük JPEG'i renk örneklemek için ana thread'de kopyalama. Sayısal hedef tutmadığında gerçek ölçümü bildir; sonraki ekranı durdurma. PR805 için son revizyonun görünüm/akış incelemesi ayrı kalır; bu tur merge edilmedi.
 
 ## P003 — Afişsiz yerel film detay tasarımı
 
-- **Durum:** planlandı; P001 kabulünü ve P002 ekranının tamamlanmasını bekliyor.
+- **Durum:** planlandı; Akışlar uygulamasının kullanıcı incelemesini bekliyor. P001 ölçüm eşiği bloklayıcı değil.
 - **Kapsam/kabul:** mevcut yerel film işlemleri korunarak tasarlanmış afiş/backdrop yedeği, temiz başlık ve Keşfet detaylarıyla aynı görsel dil. Önce standalone kompozisyon/onay; sonra native geniş/dar ve hareket kontrolü. Sahte veri üretime girmez.
 - **Sonraki adım:** ilgili ekran sırası geldiğinde mevcut poster/metadata davranışını doğrula ve taslağı göster.
 

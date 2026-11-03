@@ -1,0 +1,38 @@
+{
+  "checks": [
+    {
+      "width": 1440,
+      "overflow": false,
+      "rows": 100,
+      "heroLeft": 621.8125,
+      "textLeft": 621.8125,
+      "brokenImageFallback": true,
+      "motion": "full"
+    },
+    {
+      "width": 1920,
+      "overflow": false,
+      "rows": 100,
+      "heroLeft": 850,
+      "textLeft": 850,
+      "brokenImageFallback": true,
+      "motion": "full"
+    },
+    {
+      "width": 720,
+      "overflow": false,
+      "rows": 100,
+      "heroLeft": 0,
+      "textLeft": 0,
+      "brokenImageFallback": true,
+      "motion": "full"
+    }
+  ],
+  "frames": [],
+  "idleSamples": [],
+  "idleSeconds": 6,
+  "actualWindows": true,
+  "gpuEnabled": true,
+  "data": "Controlled local feed store (121 real service records); no personal profile, live site or AI provider.",
+  "states": "Loading/error/empty use controlled request failures in the production renderer."
+}

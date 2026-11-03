@@ -52,6 +52,10 @@ Medya kabuğu ve asistanın mevcut self-hosted ailesi başlıklarda Sora, gövde
 
 ## Layout
 
+### Onaylı Akışlar okuma alanı (2026-11-04)
+
+Üst uygulama kabuğu/logo korunur.1352px içerik ızgarasında kaynak akordeonu, kayan tür segmenti ve iki özel menü vardır. Masaüstünde liste ve okuyucu ayrı kayar; okuyucu görseli/metni/eylemleri aynı680px sütundadır. Dar ekranda liste ile okuyucu açık geri dönüşle yer değiştirir. Meta/enclosure etiketi en az12px; sıcak görsel yedeği/baş harf ve kaynak favicon’u kullanılır. Seçim modunun toplu işlemleri ve ileri tercihler korunur. Geçişler transform/opacity; tam/azalt/kapalı ve OS tercihi gözetilir. [Native karşılaştırma ve işlev haritası](docs/implementation/cinematic-feeds-2026-11-04/README.md).
+
 ### Onaylı sinematik medya kompozisyonu (2026-11-03)
 
 Home, Keşfet ve film sayfasının onaylı görsel ailesi `cinema-ui.css/js` içindedir. `--cn-*` renkleri kanonik `--mv-*` / tema rollerine alias'tır;1352px içerik ızgarası,44px geniş ekran kenarı,23px bölüm başlığı, tek yerel IBM Plex Sans ailesi,180ms kesilebilir hareket kullanılır. Tam genişlikte hero görseli tek yumuşak gradyanla zemine karışır; metin kutu içine alınmaz. Afişler2:3, gerçek video geçmişi16:9; puan yalnız veri varsa üst sağ rozet, eksik görselde temiz baş harfli sıcak gradyan. Dar görünüm açık grid satırlarına kırılır; negatif boşlukla afiş/düğme bindirilmez.
