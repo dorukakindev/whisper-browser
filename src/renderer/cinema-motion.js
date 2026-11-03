@@ -83,6 +83,19 @@
     pendingTints.set(host,img);while(pendingTints.size>128)pendingTints.delete(pendingTints.keys().next().value);
     scheduleTint();
   }
+  async function tintSource(img,host) {
+    const small=image=>image?.naturalWidth&&(image.naturalWidth*(image.naturalHeight||image.naturalWidth))<=400000;
+    if(small(img))return img;
+    const poster=host.closest('.cn-film-page')?.querySelector('.cn-film-poster img');if(small(poster))return poster;
+    // Reuse image loading, not a renderer fetch/API bridge. Sample a genuinely
+    // small public thumbnail; never synchronously copy a full-size JPEG.
+    const u=new URL(img.currentSrc||img.src,location.href);if(u.protocol!=='https:'||u.username||u.password)throw Error('No small artwork source');
+    if(u.hostname==='i.ytimg.com'&&/^\/vi(?:_webp)?\/[\w-]+\//.test(u.pathname)){u.pathname=u.pathname.replace(/\/[^/]+$/,'/default.jpg');}
+    else if(u.hostname==='image.tmdb.org'&&/^\/t\/p\/(?:original|w\d+)\//.test(u.pathname)){u.pathname=u.pathname.replace(/\/t\/p\/[^/]+\//,'/t/p/w92/');}
+    else if(u.hostname==='images.metahub.space'&&/^\/background\/[^/]+\/tt\d+\//.test(u.pathname)){u.pathname=u.pathname.replace(/^\/background\/[^/]+\//,'/poster/small/');}
+    else throw Error('No small artwork source');
+    const thumbnail=new Image();thumbnail.decoding='async';thumbnail.referrerPolicy='no-referrer';thumbnail.src=u.href;await thumbnail.decode();if(!small(thumbnail))throw Error('Thumbnail exceeds sampling bound');return thumbnail;
+  }
   function scheduleTint(){
     if(tintTask||tintBusy||stopped||!pendingTints.size)return;
     const work=deadline=>{tintTask=0;if(stopped)return;if(deadline&&!deadline.didTimeout&&deadline.timeRemaining()<5){scheduleTint();return;}
@@ -91,8 +104,11 @@
       // Drawing a full JPEG to a tiny canvas can defer its expensive decode until
       // after the idle callback. Resize an ImageBitmap asynchronously first.
       if(typeof createImageBitmap==='function'){
-        const deadline=new AbortController(),cancel=()=>deadline.abort();signal.addEventListener('abort',cancel,{once:true});const timeout=setTimeout(cancel,4000);
-        tintBusy=true;fetch(img.currentSrc||img.src,{credentials:'omit',referrerPolicy:'no-referrer',signal:deadline.signal}).then(response=>{if(!response.ok)throw Error('Artwork unavailable');return response.blob();}).then(blob=>createImageBitmap(blob,{resizeWidth:16,resizeHeight:16,resizeQuality:'low'})).then(bitmap=>{
+        let expired=false,rejectDeadline;const deadline=new Promise((_,reject)=>{rejectDeadline=reject;});
+        const cancel=()=>{expired=true;rejectDeadline(Error('Artwork preparation canceled'));};signal.addEventListener('abort',cancel,{once:true});const timeout=setTimeout(cancel,4000);
+        const decoded=tintSource(img,host);
+        const preparation=decoded.then(source=>{if(expired||stopped)throw Error('Artwork preparation canceled');return createImageBitmap(source,{resizeWidth:16,resizeHeight:16,resizeQuality:'low'});}).then(bitmap=>{if(expired||stopped){bitmap.close();throw Error('Artwork preparation canceled');}return bitmap;});
+        tintBusy=true;Promise.race([preparation,deadline]).then(bitmap=>{
           try{if(!stopped&&host.isConnected&&img.isConnected)sampleTint(img,host,bitmap);}finally{bitmap.close();}
         }).catch(()=>{if(!stopped&&host.isConnected)host.dataset.cinemaTint='warm-fallback';}).finally(()=>{clearTimeout(timeout);signal.removeEventListener('abort',cancel);tintBusy=false;scheduleTint();});
       }else{host.style.setProperty('--cn-ambient-rgb','126,97,63');scheduleTint();}};
