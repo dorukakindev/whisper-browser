@@ -22,7 +22,8 @@ if(before)app.on('ready',()=>{const names=['index.html','media-home.js','media-d
 require('../src/main');const pause=ms=>new Promise(r=>setTimeout(r,ms));async function until(fn,label){for(let i=0;i<180;i++){if(await fn())return;await pause(70);}throw Error('Timeout '+label);}
 app.whenReady().then(async()=>{
  session.defaultSession.protocol.handle('https',r=>['i.ytimg.com','images.metahub.space','image.tmdb.org'].includes(new URL(r.url).hostname)?new Response(png,{headers:{'content-type':'image/png'}}):new Response('',{status:404}));
- const win=await untilWindow();win.setMinimumSize(360,480);win.restore();win.showInactive();win.setContentSize(1440,1050);const run=c=>win.webContents.executeJavaScript('(async()=>{'+c+'})()',true),shots=[];
+ const win=await untilWindow();win.setMinimumSize(360,480);win.restore();win.showInactive();win.setContentSize(1440,1050);const selectors={'.mh-hero .mh-remaining':'.cn-hero-progress small','.mh-wide .mh-progress':'.cn-wide .cn-progress','.mh-hero-arrow':'.cn-hero-switch .cn-button','.mh-hero':'.cn-home-hero','.mh-card-title':'.cn-poster-title','.md-feature':'.cn-discover-hero','.md-view-filter':'.cn-watch-choice','.md-grid':'.cn-catalog-grid','.md-controls':'.cn-discover-controls','.md-search':'.cn-filter-search','.md-filters':'.cn-discover-filters','.md-skeleton-art':'.cn-discover-skeleton-art'};
+ const run=c=>{if(!before)for(const [old,next]of Object.entries(selectors))c=c.split(old).join(next);return win.webContents.executeJavaScript('(async()=>{'+c+'})()',true);},shots=[];
  async function shot(name){await run('await document.fonts.ready;return true');await pause(200);fs.writeFileSync(path.join(out,name+'.png'),(await win.webContents.capturePage()).toPNG());shots.push(name);}
  await run('await initialSettingsReady;UiLocale.set("tr",false);applyUiTheme("dark");await MediaHomeUI.navigate("'+screen+'");return true');
  if(screen==='home'){
