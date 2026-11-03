@@ -1,0 +1,5446 @@
+{
+  "started": "2026-11-03T06:25:57.033Z",
+  "platform": "win32",
+  "hardware": {
+    "cpus": 12,
+    "cpu": "AMD Ryzen 5 7500F 6-Core Processor             ",
+    "memoryGiB": 31.585853576660156,
+    "displays": [
+      {
+        "size": {
+          "width": 2560,
+          "height": 1440
+        },
+        "scaleFactor": 1,
+        "displayFrequency": 144
+      },
+      {
+        "size": {
+          "width": 1920,
+          "height": 1080
+        },
+        "scaleFactor": 1,
+        "displayFrequency": 144
+      }
+    ],
+    "gpu": {
+      "auxAttributes": {
+        "amdSwitchable": false,
+        "canSupportThreadedTextureMailbox": false,
+        "directMLFeatureLevel": "Not supported",
+        "dx12FeatureLevel": "Not supported",
+        "glImplementationParts": "(gl=none,angle=none)",
+        "glResetNotificationStrategy": 0,
+        "inProcessGpu": true,
+        "initializationTime": 0,
+        "isAsan": false,
+        "isClangCoverage": false,
+        "jpegDecodeAcceleratorSupported": false,
+        "optimus": false,
+        "overlayInfo": {
+          "bgra8OverlaySupport": "NONE",
+          "directComposition": false,
+          "nv12OverlaySupport": "NONE",
+          "p010OverlaySupport": "NONE",
+          "rgb10a2OverlaySupport": "NONE",
+          "supportsOverlays": false,
+          "yuy2OverlaySupport": "NONE"
+        },
+        "passthroughCmdDecoder": false,
+        "sandboxed": false,
+        "skiaBackendType": "None",
+        "subpixelFontRendering": true,
+        "supportsD3dSharedImages": false,
+        "supportsDirectML": false,
+        "supportsDx12": false,
+        "supportsVulkan": false,
+        "targetCpuBits": 64,
+        "visibilityCallbackCallCount": 0,
+        "vulkanVersion": "Not supported"
+      },
+      "gpuDevice": [
+        {
+          "active": false,
+          "deviceId": 10115,
+          "deviceString": "NVIDIA GeForce RTX 4070 SUPER",
+          "driverVersion": "32.0.16.2101",
+          "gpuPreference": 0,
+          "revision": 161,
+          "subSysId": 1094390872,
+          "vendorId": 4318
+        },
+        {
+          "active": false,
+          "deviceId": 140,
+          "deviceString": "Microsoft Basic Render Driver",
+          "driverVersion": "10.0.19041.5794",
+          "gpuPreference": 0,
+          "revision": 0,
+          "subSysId": 0,
+          "vendorId": 5140
+        },
+        {
+          "active": false,
+          "deviceId": 140,
+          "deviceString": "Microsoft Basic Render Driver",
+          "driverVersion": "10.0.19041.5794",
+          "gpuPreference": 0,
+          "revision": 0,
+          "subSysId": 0,
+          "vendorId": 5140
+        }
+      ]
+    }
+  },
+  "controlledMetadata": true,
+  "sources": {
+    "cinema-motion.js": "019d58a7ff8f08e6746ee18c2bd8112a30a9cb2087dfe9960f4ef458b56aae45",
+    "cinema-motion.css": "38c6af5ef1efd6ed2e02903f95912ff442864f9fabb5da502a3c5ce2e0f998f8",
+    "cinema-ui.js": "e80e53e1f6a4463e1bf1569761e57e4be1f0f810147df470943b025029e49fc5",
+    "media-discovery-ui.js": "48e05616f5f985f7bcf9bfb9cc6185bb3c48e3aab5be2a7b9a3be3bb3eb9a998"
+  },
+  "hardwareAccelerationRequested": true,
+  "gpuFeatures": {
+    "2d_canvas": "enabled",
+    "direct_rendering_display_compositor": "disabled_off_ok",
+    "gpu_compositing": "enabled",
+    "multiple_raster_threads": "enabled_on",
+    "opengl": "enabled_on",
+    "rasterization": "enabled",
+    "raw_draw": "disabled_off_ok",
+    "skia_graphite": "disabled_off",
+    "trees_in_viz": "disabled_off",
+    "video_decode": "enabled",
+    "video_encode": "enabled",
+    "webgl": "enabled",
+    "webgpu": "enabled",
+    "webnn": "disabled_off"
+  },
+  "measurement": "requestAnimationFrame callback intervals; not GPU render duration. CPU uses cumulative process CPU-second deltas normalized by elapsed time and logical CPU count; raw Electron percentCPUUsage retained separately. GPU engine utilization scoped to Electron GPU process IDs.",
+  "widths": [
+    {
+      "width": 1920,
+      "height": 1080,
+      "gpuFeatures": {
+        "2d_canvas": "enabled",
+        "direct_rendering_display_compositor": "disabled_off_ok",
+        "gpu_compositing": "enabled",
+        "multiple_raster_threads": "enabled_on",
+        "opengl": "enabled_on",
+        "rasterization": "enabled",
+        "raw_draw": "disabled_off_ok",
+        "skia_graphite": "disabled_off",
+        "trees_in_viz": "disabled_off",
+        "video_decode": "enabled",
+        "video_encode": "enabled",
+        "webgl": "enabled",
+        "webgpu": "enabled",
+        "webnn": "disabled_off"
+      },
+      "actualContentSize": [
+        1920,
+        1080
+      ],
+      "renderer": {
+        "innerWidth": 1920,
+        "innerHeight": 1080,
+        "devicePixelRatio": 1,
+        "motion": "full",
+        "diagnostics": {
+          "roots": 1,
+          "heroes": 1,
+          "pendingReveals": 1,
+          "carousels": 1,
+          "animations": 26,
+          "tints": 7
+        }
+      },
+      "frames": [],
+      "gpuInfo": {
+        "auxAttributes": {
+          "amdSwitchable": false,
+          "canSupportThreadedTextureMailbox": false,
+          "directMLFeatureLevel": "2.0",
+          "displayType": "ANGLE_D3D11",
+          "dx12FeatureLevel": "D3D 12.1",
+          "glExtensions": "GL_AMD_performance_monitor GL_ANGLE_base_vertex_base_instance_shader_builtin GL_ANGLE_blob_cache GL_ANGLE_client_arrays GL_ANGLE_clip_cull_distance GL_ANGLE_copy_texture_3d GL_ANGLE_depth_texture GL_ANGLE_framebuffer_blit GL_ANGLE_framebuffer_multisample GL_ANGLE_get_serialized_context_string GL_ANGLE_get_tex_level_parameter GL_ANGLE_instanced_arrays GL_ANGLE_lossy_etc_decode GL_ANGLE_memory_size GL_ANGLE_multiview_multisample GL_ANGLE_pack_reverse_row_order GL_ANGLE_polygon_mode GL_ANGLE_program_binary_readiness_query GL_ANGLE_program_cache_control GL_ANGLE_provoking_vertex GL_ANGLE_renderability_validation GL_ANGLE_request_extension GL_ANGLE_robust_client_memory GL_ANGLE_shader_pixel_local_storage GL_ANGLE_shader_pixel_local_storage_coherent GL_ANGLE_stencil_texturing GL_ANGLE_texture_compression_dxt3 GL_ANGLE_texture_compression_dxt5 GL_ANGLE_texture_multisample GL_ANGLE_texture_usage GL_ANGLE_translated_shader_source GL_APPLE_clip_distance GL_ARM_rgba8 GL_CHROMIUM_bind_generates_resource GL_CHROMIUM_bind_uniform_location GL_CHROMIUM_copy_compressed_texture GL_CHROMIUM_copy_texture GL_CHROMIUM_lose_context GL_EXT_EGL_image_external_wrap_modes GL_EXT_base_instance GL_EXT_blend_func_extended GL_EXT_blend_minmax GL_EXT_clip_control GL_EXT_clip_cull_distance GL_EXT_color_buffer_float GL_EXT_color_buffer_half_float GL_EXT_conservative_depth GL_EXT_debug_label GL_EXT_debug_marker GL_EXT_depth_clamp GL_EXT_discard_framebuffer GL_EXT_disjoint_timer_query GL_EXT_draw_buffers GL_EXT_draw_buffers_indexed GL_EXT_draw_elements_base_vertex GL_EXT_float_blend GL_EXT_frag_depth GL_EXT_instanced_arrays GL_EXT_map_buffer_range GL_EXT_occlusion_query_boolean GL_EXT_polygon_offset_clamp GL_EXT_read_format_bgra GL_EXT_render_snorm GL_EXT_robustness GL_EXT_sRGB GL_EXT_shader_texture_lod GL_EXT_texture_border_clamp GL_EXT_texture_compression_bptc GL_EXT_texture_compression_dxt1 GL_EXT_texture_compression_rgtc GL_EXT_texture_compression_s3tc_srgb GL_EXT_texture_filter_anisotropic GL_EXT_texture_format_BGRA8888 GL_EXT_texture_mirror_clamp_to_edge GL_EXT_texture_norm16 GL_EXT_texture_rg GL_EXT_texture_storage GL_EXT_texture_type_2_10_10_10_REV GL_EXT_unpack_subimage GL_KHR_debug GL_KHR_parallel_shader_compile GL_KHR_robustness GL_NV_EGL_stream_consumer_external GL_NV_fence GL_NV_framebuffer_blit GL_NV_pack_subimage GL_NV_pixel_buffer_object GL_NV_shader_noperspective_interpolation GL_OES_EGL_image GL_OES_EGL_image_external GL_OES_EGL_image_external_essl3 GL_OES_compressed_EAC_R11_signed_texture GL_OES_compressed_EAC_R11_unsigned_texture GL_OES_compressed_EAC_RG11_signed_texture GL_OES_compressed_EAC_RG11_unsigned_texture GL_OES_compressed_ETC2_RGB8_texture GL_OES_compressed_ETC2_RGBA8_texture GL_OES_compressed_ETC2_punchthroughA_RGBA8_texture GL_OES_compressed_ETC2_punchthroughA_sRGB8_alpha_texture GL_OES_compressed_ETC2_sRGB8_alpha8_texture GL_OES_compressed_ETC2_sRGB8_texture GL_OES_depth24 GL_OES_depth32 GL_OES_draw_buffers_indexed GL_OES_draw_elements_base_vertex GL_OES_element_index_uint GL_OES_fbo_render_mipmap GL_OES_get_program_binary GL_OES_mapbuffer GL_OES_packed_depth_stencil GL_OES_required_internalformat GL_OES_rgb8_rgba8 GL_OES_sample_variables GL_OES_shader_multisample_interpolation GL_OES_standard_derivatives GL_OES_surfaceless_context GL_OES_texture_border_clamp GL_OES_texture_float GL_OES_texture_float_linear GL_OES_texture_half_float GL_OES_texture_half_float_linear GL_OES_texture_npot GL_OES_texture_stencil8 GL_OES_texture_storage_multisample_2d_array GL_OES_vertex_array_object GL_OVR_multiview GL_OVR_multiview2 GL_WEBGL_video_texture ",
+          "glImplementationParts": "(gl=egl-angle,angle=d3d11)",
+          "glRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 SUPER (0x00002783) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.16.2101)",
+          "glResetNotificationStrategy": 33362,
+          "glVendor": "Google Inc. (NVIDIA)",
+          "glVersion": "OpenGL ES 3.0 (ANGLE 2.1.27997 git hash: 682a5cddd665)",
+          "glWsExtensions": "EGL_EXT_create_context_robustness EGL_ANGLE_d3d_share_handle_client_buffer EGL_ANGLE_d3d_texture_client_buffer EGL_ANGLE_surface_d3d_texture_2d_share_handle EGL_ANGLE_query_surface_pointer EGL_ANGLE_window_fixed_size EGL_ANGLE_keyed_mutex EGL_ANGLE_surface_orientation EGL_ANGLE_direct_composition EGL_NV_post_sub_buffer EGL_KHR_create_context EGL_KHR_image EGL_KHR_image_base EGL_KHR_gl_texture_2D_image EGL_KHR_gl_texture_cubemap_image EGL_KHR_gl_renderbuffer_image EGL_KHR_get_all_proc_addresses EGL_KHR_stream EGL_KHR_stream_consumer_gltexture EGL_NV_stream_consumer_gltexture_yuv EGL_ANGLE_stream_producer_d3d_texture EGL_ANGLE_create_context_webgl_compatibility EGL_CHROMIUM_create_context_bind_generates_resource EGL_CHROMIUM_sync_control EGL_EXT_pixel_format_float EGL_KHR_surfaceless_context EGL_ANGLE_display_texture_share_group EGL_ANGLE_display_semaphore_share_group EGL_ANGLE_create_context_client_arrays EGL_ANGLE_program_cache_control EGL_ANGLE_robust_resource_initialization EGL_ANGLE_create_context_extensions_enabled EGL_ANDROID_blob_cache EGL_ANDROID_recordable EGL_ANGLE_image_d3d11_texture EGL_ANGLE_create_context_backwards_compatible EGL_KHR_no_config_context EGL_KHR_create_context_no_error EGL_KHR_reusable_sync EGL_ANGLE_memory_usage_report ",
+          "glWsVendor": "Google Inc. (NVIDIA)",
+          "glWsVersion": "1.5 (ANGLE 2.1.27997 git hash: 682a5cddd665)",
+          "inProcessGpu": false,
+          "initializationTime": 186.094,
+          "isAsan": false,
+          "isClangCoverage": false,
+          "jpegDecodeAcceleratorSupported": false,
+          "maxMsaaSamples": "8",
+          "optimus": false,
+          "overlayInfo": {
+            "bgra8OverlaySupport": "SOFTWARE",
+            "directComposition": true,
+            "nv12OverlaySupport": "DIRECT",
+            "p010OverlaySupport": "SOFTWARE",
+            "rgb10a2OverlaySupport": "SOFTWARE",
+            "supportsOverlays": true,
+            "yuy2OverlaySupport": "DIRECT"
+          },
+          "passthroughCmdDecoder": true,
+          "pixelShaderVersion": "5.0",
+          "sandboxed": true,
+          "skiaBackendType": "GaneshGL",
+          "subpixelFontRendering": true,
+          "supportsD3dSharedImages": true,
+          "supportsDirectML": true,
+          "supportsDx12": true,
+          "supportsVulkan": true,
+          "targetCpuBits": 64,
+          "vertexShaderVersion": "5.0",
+          "videoDecodeAcceleratorSupportedProfile": {
+            "encrypted_only": false,
+            "maxResolutionHeight": 8192,
+            "maxResolutionWidth": 8192,
+            "minResolutionHeight": 144,
+            "minResolutionWidth": 144,
+            "profile": 29
+          },
+          "videoEncodeAcceleratorSupportedProfile": {
+            "maxFramerateDenominator": 1,
+            "maxFramerateNumerator": 30,
+            "maxResolutionHeight": 3840,
+            "maxResolutionWidth": 2160,
+            "minResolutionHeight": 34,
+            "minResolutionWidth": 130,
+            "profile": 16
+          },
+          "visibilityCallbackCallCount": 0,
+          "vulkanVersion": "Vulkan API 1.4.0"
+        },
+        "gpuDevice": [
+          {
+            "active": true,
+            "deviceId": 10115,
+            "deviceString": "NVIDIA GeForce RTX 4070 SUPER",
+            "driverVendor": "NVIDIA",
+            "driverVersion": "32.0.16.2101",
+            "gpuPreference": 0,
+            "revision": 161,
+            "subSysId": 1094390872,
+            "vendorId": 4318
+          },
+          {
+            "active": false,
+            "deviceId": 140,
+            "deviceString": "Microsoft Basic Render Driver",
+            "driverVersion": "10.0.19041.5794",
+            "gpuPreference": 0,
+            "revision": 0,
+            "subSysId": 0,
+            "vendorId": 5140
+          },
+          {
+            "active": false,
+            "deviceId": 140,
+            "deviceString": "Microsoft Basic Render Driver",
+            "driverVersion": "10.0.19041.5794",
+            "gpuPreference": 0,
+            "revision": 0,
+            "subSysId": 0,
+            "vendorId": 5140
+          }
+        ]
+      },
+      "idleStartEvidence": {
+        "heroVisible": true,
+        "motionActive": "true",
+        "focused": true,
+        "animations": [
+          "cn-breathe",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "idle": {
+        "gpuInfoAfter": {
+          "auxAttributes": {
+            "amdSwitchable": false,
+            "canSupportThreadedTextureMailbox": false,
+            "directMLFeatureLevel": "2.0",
+            "displayType": "ANGLE_D3D11",
+            "dx12FeatureLevel": "D3D 12.1",
+            "glExtensions": "GL_AMD_performance_monitor GL_ANGLE_base_vertex_base_instance_shader_builtin GL_ANGLE_blob_cache GL_ANGLE_client_arrays GL_ANGLE_clip_cull_distance GL_ANGLE_copy_texture_3d GL_ANGLE_depth_texture GL_ANGLE_framebuffer_blit GL_ANGLE_framebuffer_multisample GL_ANGLE_get_serialized_context_string GL_ANGLE_get_tex_level_parameter GL_ANGLE_instanced_arrays GL_ANGLE_lossy_etc_decode GL_ANGLE_memory_size GL_ANGLE_multiview_multisample GL_ANGLE_pack_reverse_row_order GL_ANGLE_polygon_mode GL_ANGLE_program_binary_readiness_query GL_ANGLE_program_cache_control GL_ANGLE_provoking_vertex GL_ANGLE_renderability_validation GL_ANGLE_request_extension GL_ANGLE_robust_client_memory GL_ANGLE_shader_pixel_local_storage GL_ANGLE_shader_pixel_local_storage_coherent GL_ANGLE_stencil_texturing GL_ANGLE_texture_compression_dxt3 GL_ANGLE_texture_compression_dxt5 GL_ANGLE_texture_multisample GL_ANGLE_texture_usage GL_ANGLE_translated_shader_source GL_APPLE_clip_distance GL_ARM_rgba8 GL_CHROMIUM_bind_generates_resource GL_CHROMIUM_bind_uniform_location GL_CHROMIUM_copy_compressed_texture GL_CHROMIUM_copy_texture GL_CHROMIUM_lose_context GL_EXT_EGL_image_external_wrap_modes GL_EXT_base_instance GL_EXT_blend_func_extended GL_EXT_blend_minmax GL_EXT_clip_control GL_EXT_clip_cull_distance GL_EXT_color_buffer_float GL_EXT_color_buffer_half_float GL_EXT_conservative_depth GL_EXT_debug_label GL_EXT_debug_marker GL_EXT_depth_clamp GL_EXT_discard_framebuffer GL_EXT_disjoint_timer_query GL_EXT_draw_buffers GL_EXT_draw_buffers_indexed GL_EXT_draw_elements_base_vertex GL_EXT_float_blend GL_EXT_frag_depth GL_EXT_instanced_arrays GL_EXT_map_buffer_range GL_EXT_occlusion_query_boolean GL_EXT_polygon_offset_clamp GL_EXT_read_format_bgra GL_EXT_render_snorm GL_EXT_robustness GL_EXT_sRGB GL_EXT_shader_texture_lod GL_EXT_texture_border_clamp GL_EXT_texture_compression_bptc GL_EXT_texture_compression_dxt1 GL_EXT_texture_compression_rgtc GL_EXT_texture_compression_s3tc_srgb GL_EXT_texture_filter_anisotropic GL_EXT_texture_format_BGRA8888 GL_EXT_texture_mirror_clamp_to_edge GL_EXT_texture_norm16 GL_EXT_texture_rg GL_EXT_texture_storage GL_EXT_texture_type_2_10_10_10_REV GL_EXT_unpack_subimage GL_KHR_debug GL_KHR_parallel_shader_compile GL_KHR_robustness GL_NV_EGL_stream_consumer_external GL_NV_fence GL_NV_framebuffer_blit GL_NV_pack_subimage GL_NV_pixel_buffer_object GL_NV_shader_noperspective_interpolation GL_OES_EGL_image GL_OES_EGL_image_external GL_OES_EGL_image_external_essl3 GL_OES_compressed_EAC_R11_signed_texture GL_OES_compressed_EAC_R11_unsigned_texture GL_OES_compressed_EAC_RG11_signed_texture GL_OES_compressed_EAC_RG11_unsigned_texture GL_OES_compressed_ETC2_RGB8_texture GL_OES_compressed_ETC2_RGBA8_texture GL_OES_compressed_ETC2_punchthroughA_RGBA8_texture GL_OES_compressed_ETC2_punchthroughA_sRGB8_alpha_texture GL_OES_compressed_ETC2_sRGB8_alpha8_texture GL_OES_compressed_ETC2_sRGB8_texture GL_OES_depth24 GL_OES_depth32 GL_OES_draw_buffers_indexed GL_OES_draw_elements_base_vertex GL_OES_element_index_uint GL_OES_fbo_render_mipmap GL_OES_get_program_binary GL_OES_mapbuffer GL_OES_packed_depth_stencil GL_OES_required_internalformat GL_OES_rgb8_rgba8 GL_OES_sample_variables GL_OES_shader_multisample_interpolation GL_OES_standard_derivatives GL_OES_surfaceless_context GL_OES_texture_border_clamp GL_OES_texture_float GL_OES_texture_float_linear GL_OES_texture_half_float GL_OES_texture_half_float_linear GL_OES_texture_npot GL_OES_texture_stencil8 GL_OES_texture_storage_multisample_2d_array GL_OES_vertex_array_object GL_OVR_multiview GL_OVR_multiview2 GL_WEBGL_video_texture ",
+            "glImplementationParts": "(gl=egl-angle,angle=d3d11)",
+            "glRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 SUPER (0x00002783) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.16.2101)",
+            "glResetNotificationStrategy": 33362,
+            "glVendor": "Google Inc. (NVIDIA)",
+            "glVersion": "OpenGL ES 3.0 (ANGLE 2.1.27997 git hash: 682a5cddd665)",
+            "glWsExtensions": "EGL_EXT_create_context_robustness EGL_ANGLE_d3d_share_handle_client_buffer EGL_ANGLE_d3d_texture_client_buffer EGL_ANGLE_surface_d3d_texture_2d_share_handle EGL_ANGLE_query_surface_pointer EGL_ANGLE_window_fixed_size EGL_ANGLE_keyed_mutex EGL_ANGLE_surface_orientation EGL_ANGLE_direct_composition EGL_NV_post_sub_buffer EGL_KHR_create_context EGL_KHR_image EGL_KHR_image_base EGL_KHR_gl_texture_2D_image EGL_KHR_gl_texture_cubemap_image EGL_KHR_gl_renderbuffer_image EGL_KHR_get_all_proc_addresses EGL_KHR_stream EGL_KHR_stream_consumer_gltexture EGL_NV_stream_consumer_gltexture_yuv EGL_ANGLE_stream_producer_d3d_texture EGL_ANGLE_create_context_webgl_compatibility EGL_CHROMIUM_create_context_bind_generates_resource EGL_CHROMIUM_sync_control EGL_EXT_pixel_format_float EGL_KHR_surfaceless_context EGL_ANGLE_display_texture_share_group EGL_ANGLE_display_semaphore_share_group EGL_ANGLE_create_context_client_arrays EGL_ANGLE_program_cache_control EGL_ANGLE_robust_resource_initialization EGL_ANGLE_create_context_extensions_enabled EGL_ANDROID_blob_cache EGL_ANDROID_recordable EGL_ANGLE_image_d3d11_texture EGL_ANGLE_create_context_backwards_compatible EGL_KHR_no_config_context EGL_KHR_create_context_no_error EGL_KHR_reusable_sync EGL_ANGLE_memory_usage_report ",
+            "glWsVendor": "Google Inc. (NVIDIA)",
+            "glWsVersion": "1.5 (ANGLE 2.1.27997 git hash: 682a5cddd665)",
+            "inProcessGpu": false,
+            "initializationTime": 186.094,
+            "isAsan": false,
+            "isClangCoverage": false,
+            "jpegDecodeAcceleratorSupported": false,
+            "maxMsaaSamples": "8",
+            "optimus": false,
+            "overlayInfo": {
+              "bgra8OverlaySupport": "SOFTWARE",
+              "directComposition": true,
+              "nv12OverlaySupport": "DIRECT",
+              "p010OverlaySupport": "SOFTWARE",
+              "rgb10a2OverlaySupport": "SOFTWARE",
+              "supportsOverlays": true,
+              "yuy2OverlaySupport": "DIRECT"
+            },
+            "passthroughCmdDecoder": true,
+            "pixelShaderVersion": "5.0",
+            "sandboxed": true,
+            "skiaBackendType": "GaneshGL",
+            "subpixelFontRendering": true,
+            "supportsD3dSharedImages": true,
+            "supportsDirectML": true,
+            "supportsDx12": true,
+            "supportsVulkan": true,
+            "targetCpuBits": 64,
+            "vertexShaderVersion": "5.0",
+            "videoDecodeAcceleratorSupportedProfile": {
+              "encrypted_only": false,
+              "maxResolutionHeight": 8192,
+              "maxResolutionWidth": 8192,
+              "minResolutionHeight": 144,
+              "minResolutionWidth": 144,
+              "profile": 29
+            },
+            "videoEncodeAcceleratorSupportedProfile": {
+              "maxFramerateDenominator": 1,
+              "maxFramerateNumerator": 30,
+              "maxResolutionHeight": 3840,
+              "maxResolutionWidth": 2160,
+              "minResolutionHeight": 34,
+              "minResolutionWidth": 130,
+              "profile": 16
+            },
+            "visibilityCallbackCallCount": 0,
+            "vulkanVersion": "Vulkan API 1.4.0"
+          },
+          "gpuDevice": [
+            {
+              "active": true,
+              "deviceId": 10115,
+              "deviceString": "NVIDIA GeForce RTX 4070 SUPER",
+              "driverVendor": "NVIDIA",
+              "driverVersion": "32.0.16.2101",
+              "gpuPreference": 0,
+              "revision": 161,
+              "subSysId": 1094390872,
+              "vendorId": 4318
+            },
+            {
+              "active": false,
+              "deviceId": 140,
+              "deviceString": "Microsoft Basic Render Driver",
+              "driverVersion": "10.0.19041.5794",
+              "gpuPreference": 0,
+              "revision": 0,
+              "subSysId": 0,
+              "vendorId": 5140
+            },
+            {
+              "active": false,
+              "deviceId": 140,
+              "deviceString": "Microsoft Basic Render Driver",
+              "driverVersion": "10.0.19041.5794",
+              "gpuPreference": 0,
+              "revision": 0,
+              "subSysId": 0,
+              "vendorId": 5140
+            }
+          ]
+        },
+        "gpuFeaturesAfter": {
+          "2d_canvas": "enabled",
+          "direct_rendering_display_compositor": "disabled_off_ok",
+          "gpu_compositing": "enabled",
+          "multiple_raster_threads": "enabled_on",
+          "opengl": "enabled_on",
+          "rasterization": "enabled",
+          "raw_draw": "disabled_off_ok",
+          "skia_graphite": "disabled_off",
+          "trees_in_viz": "disabled_off",
+          "video_decode": "enabled",
+          "video_encode": "enabled",
+          "webgl": "enabled",
+          "webgpu": "enabled",
+          "webnn": "disabled_off"
+        },
+        "requestedSeconds": 60,
+        "continuousKenBurnsVerified": true,
+        "durationMs": 60647,
+        "cpuSamples": [
+          {
+            "at": 1016,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 1.5747047244094436,
+            "rawElectronCpuPercent": 1.5528867953557683,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.05235626655899378,
+                "cumulativeCPUUsage": 2.981445
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.9360922057131617,
+                "cumulativeCPUUsage": 2.01468
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.309803
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.5644383230836129,
+                "cumulativeCPUUsage": 1.550323
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.064269
+              }
+            ]
+          },
+          {
+            "at": 2032,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9692093175853052,
+            "rawElectronCpuPercent": 0.9696786491714064,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.012990188837792504,
+                "cumulativeCPUUsage": 2.983028
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7422393521272111,
+                "cumulativeCPUUsage": 2.10513
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.309803
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.2138746841895706,
+                "cumulativeCPUUsage": 1.576386
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0.0005744240168322649,
+                "cumulativeCPUUsage": 0.064339
+              }
+            ]
+          },
+          {
+            "at": 3048,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9393290682414701,
+            "rawElectronCpuPercent": 0.9391986367096531,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.012162038039377777,
+                "cumulativeCPUUsage": 2.984511
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7208816370447643,
+                "cumulativeCPUUsage": 2.193032
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0.0003444400487333463,
+                "cumulativeCPUUsage": 0.309845
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.20536767226462102,
+                "cumulativeCPUUsage": 1.601428
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0.0004428493121566073,
+                "cumulativeCPUUsage": 0.064393
+              }
+            ]
+          },
+          {
+            "at": 4064,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9669209317585272,
+            "rawElectronCpuPercent": 0.9664296100214216,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.008599609713804333,
+                "cumulativeCPUUsage": 2.98556
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7526510433984773,
+                "cumulativeCPUUsage": 2.284842
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.309845
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.20398205233391473,
+                "cumulativeCPUUsage": 1.62631
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0.0011969045752251246,
+                "cumulativeCPUUsage": 0.064539
+              }
+            ]
+          },
+          {
+            "at": 5066,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9751247504990053,
+            "rawElectronCpuPercent": 0.9754430770183871,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006713761163811779,
+                "cumulativeCPUUsage": 2.986367
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7510767818772527,
+                "cumulativeCPUUsage": 2.375122
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.309845
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.21765253397732262,
+                "cumulativeCPUUsage": 1.652472
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.064539
+              }
+            ]
+          },
+          {
+            "at": 6081,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 1.135509031198685,
+            "rawElectronCpuPercent": 1.13588506058897,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006225389998508534,
+                "cumulativeCPUUsage": 2.987125
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.8304883849891853,
+                "cumulativeCPUUsage": 2.476242
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0.061128610062050094,
+                "cumulativeCPUUsage": 0.317288
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.23804267553922612,
+                "cumulativeCPUUsage": 1.681456
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.064539
+              }
+            ]
+          },
+          {
+            "at": 7092,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.931841411144082,
+            "rawElectronCpuPercent": 0.9309814603460203,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006168069264206159,
+                "cumulativeCPUUsage": 2.987874
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7221327894238057,
+                "cumulativeCPUUsage": 2.563932
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.317288
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.20268060165800836,
+                "cumulativeCPUUsage": 1.706068
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.064539
+              }
+            ]
+          },
+          {
+            "at": 8105,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 1.0283645936163206,
+            "rawElectronCpuPercent": 1.0291761582686516,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.05147417695656212,
+                "cumulativeCPUUsage": 2.994126
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7450013518983057,
+                "cumulativeCPUUsage": 2.654419
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0.019241124136125397,
+                "cumulativeCPUUsage": 0.319625
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.2128174481661843,
+                "cumulativeCPUUsage": 1.731922
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0.0006420571114739557,
+                "cumulativeCPUUsage": 0.064617
+              }
+            ]
+          },
+          {
+            "at": 9117,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 2,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art cn-art-outgoing",
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                },
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 12,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 2.531044137022397,
+            "rawElectronCpuPercent": 2.5295524874001396,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.01269719325374999,
+                "cumulativeCPUUsage": 2.995669
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 1.4676781002638524,
+                "cumulativeCPUUsage": 2.832775
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.319625
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 1.0485763500673602,
+                "cumulativeCPUUsage": 1.85932
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0.0006008438151771502,
+                "cumulativeCPUUsage": 0.06469
+              }
+            ]
+          },
+          {
+            "at": 10132,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 1.2115353037766832,
+            "rawElectronCpuPercent": 1.2113286791218187,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.010113268608414239,
+                "cumulativeCPUUsage": 2.996901
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.8470896229079079,
+                "cumulativeCPUUsage": 2.935968
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0.0001395494228235872,
+                "cumulativeCPUUsage": 0.319642
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.35398623818267305,
+                "cumulativeCPUUsage": 1.902443
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.06469
+              }
+            ]
+          },
+          {
+            "at": 11147,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9482430213464738,
+            "rawElectronCpuPercent": 0.9483820308829617,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006281704130257418,
+                "cumulativeCPUUsage": 2.997666
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7341389688404175,
+                "cumulativeCPUUsage": 3.025373
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.319642
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.20796135791228673,
+                "cumulativeCPUUsage": 1.927769
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.06469
+              }
+            ]
+          },
+          {
+            "at": 12151,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9363379814077014,
+            "rawElectronCpuPercent": 0.9369895231372499,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006586604126320602,
+                "cumulativeCPUUsage": 2.998459
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7251645651039252,
+                "cumulativeCPUUsage": 3.11268
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.319642
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.20523835390700404,
+                "cumulativeCPUUsage": 1.952479
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.06469
+              }
+            ]
+          },
+          {
+            "at": 13162,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9476508407517318,
+            "rawElectronCpuPercent": 0.9475019087253868,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.0073183202279360066,
+                "cumulativeCPUUsage": 2.999347
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7327145720426705,
+                "cumulativeCPUUsage": 3.201587
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.319642
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.20746901645478025,
+                "cumulativeCPUUsage": 1.977653
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.06469
+              }
+            ]
+          },
+          {
+            "at": 14164,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9745093147039258,
+            "rawElectronCpuPercent": 0.9743132434982691,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006444136899743199,
+                "cumulativeCPUUsage": 3.000122
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7633698230195339,
+                "cumulativeCPUUsage": 3.293393
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.319642
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.20449928357899191,
+                "cumulativeCPUUsage": 2.002247
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.06469
+              }
+            ]
+          },
+          {
+            "at": 15177,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 1.4451135241855833,
+            "rawElectronCpuPercent": 1.444791600946485,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.03326835928183112,
+                "cumulativeCPUUsage": 3.004167
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.8138847464585922,
+                "cumulativeCPUUsage": 3.392351
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.319642
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.5976384952060617,
+                "cumulativeCPUUsage": 2.074912
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.06469
+              }
+            ]
+          },
+          {
+            "at": 16181,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9993442895086339,
+            "rawElectronCpuPercent": 0.9999967717717996,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006727798265723114,
+                "cumulativeCPUUsage": 3.004977
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7848247611738733,
+                "cumulativeCPUUsage": 3.486845
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.319642
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.20844421233220312,
+                "cumulativeCPUUsage": 2.100009
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.06469
+              }
+            ]
+          },
+          {
+            "at": 17190,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9828625702015164,
+            "rawElectronCpuPercent": 0.9826996118686786,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006828753361943086,
+                "cumulativeCPUUsage": 3.005804
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7709576313930202,
+                "cumulativeCPUUsage": 3.580208
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.319642
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.20491322711371526,
+                "cumulativeCPUUsage": 2.124824
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.06469
+              }
+            ]
+          },
+          {
+            "at": 18204,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 2,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art cn-art-outgoing",
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                },
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 8,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 2.81588593030901,
+            "rawElectronCpuPercent": 2.81441878983739,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.014752315522130117,
+                "cumulativeCPUUsage": 3.0076
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 1.6378125547257234,
+                "cumulativeCPUUsage": 3.779601
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.319642
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 1.1618539195895365,
+                "cumulativeCPUUsage": 2.266272
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.06469
+              }
+            ]
+          },
+          {
+            "at": 19206,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 1.171640053226878,
+            "rawElectronCpuPercent": 1.1721099889892654,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.007388164161014055,
+                "cumulativeCPUUsage": 3.008488
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.8708242187409,
+                "cumulativeCPUUsage": 3.884267
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.319642
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.29389760608735127,
+                "cumulativeCPUUsage": 2.301596
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.06469
+              }
+            ]
+          },
+          {
+            "at": 20208,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 1.2791666666666668,
+            "rawElectronCpuPercent": 1.278828718366725,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.0067015479744363384,
+                "cumulativeCPUUsage": 3.009294
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.9797328645275741,
+                "cumulativeCPUUsage": 4.002101
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.319642
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.29239430586471454,
+                "cumulativeCPUUsage": 2.336763
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.06469
+              }
+            ]
+          },
+          {
+            "at": 21223,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 1.0021674876847324,
+            "rawElectronCpuPercent": 1.0019217557030982,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006804557034007682,
+                "cumulativeCPUUsage": 3.010123
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7812607732085693,
+                "cumulativeCPUUsage": 4.097282
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.319642
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.213856425460521,
+                "cumulativeCPUUsage": 2.362817
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.06469
+              }
+            ]
+          },
+          {
+            "at": 22237,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9753780407626563,
+            "rawElectronCpuPercent": 0.9755372211499356,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006683219348684516,
+                "cumulativeCPUUsage": 3.010936
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7593220573033798,
+                "cumulativeCPUUsage": 4.189661
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.319642
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.2095319444978713,
+                "cumulativeCPUUsage": 2.388309
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.06469
+              }
+            ]
+          },
+          {
+            "at": 23252,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9823316912972067,
+            "rawElectronCpuPercent": 0.9824678545140061,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.0062481936890780585,
+                "cumulativeCPUUsage": 3.011697
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7706556201621043,
+                "cumulativeCPUUsage": 4.283514
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.319642
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.20556404066282374,
+                "cumulativeCPUUsage": 2.413343
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.06469
+              }
+            ]
+          },
+          {
+            "at": 24264,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 1.1520174571804975,
+            "rawElectronCpuPercent": 1.151615050374638,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006856996474203205,
+                "cumulativeCPUUsage": 3.01253
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.8948048095213165,
+                "cumulativeCPUUsage": 4.392217
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.319642
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.24995324437911828,
+                "cumulativeCPUUsage": 2.443708
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.06469
+              }
+            ]
+          },
+          {
+            "at": 25265,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9991341991342039,
+            "rawElectronCpuPercent": 0.9992386376953757,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.007085197881001312,
+                "cumulativeCPUUsage": 3.013381
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7823890812716847,
+                "cumulativeCPUUsage": 4.486188
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.319642
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.2097643585426897,
+                "cumulativeCPUUsage": 2.468902
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.06469
+              }
+            ]
+          },
+          {
+            "at": 26278,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.962372490950973,
+            "rawElectronCpuPercent": 0.9623143361987194,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006358673263234925,
+                "cumulativeCPUUsage": 3.014154
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7521601221382084,
+                "cumulativeCPUUsage": 4.577626
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.319642
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.20379554079727613,
+                "cumulativeCPUUsage": 2.493677
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.06469
+              }
+            ]
+          },
+          {
+            "at": 27293,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 3.232520525451555,
+            "rawElectronCpuPercent": 3.2348994603085384,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.2306470738254681,
+                "cumulativeCPUUsage": 3.042226
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 1.7811859751107713,
+                "cumulativeCPUUsage": 4.794415
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0.0029989200601295792,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 1.2200674913121696,
+                "cumulativeCPUUsage": 2.642172
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.06469
+              }
+            ]
+          },
+          {
+            "at": 28306,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 1.8528134254689084,
+            "rawElectronCpuPercent": 1.8521047901459813,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.1588806042808048,
+                "cumulativeCPUUsage": 3.061547
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.8064876891266836,
+                "cumulativeCPUUsage": 4.892489
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.7825482441078836,
+                "cumulativeCPUUsage": 2.737335
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0.10418825263060948,
+                "cumulativeCPUUsage": 0.07736
+              }
+            ]
+          },
+          {
+            "at": 29319,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 1.019636393550505,
+            "rawElectronCpuPercent": 1.0197415487878145,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006927345474123321,
+                "cumulativeCPUUsage": 3.062389
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7851743910529807,
+                "cumulativeCPUUsage": 4.987925
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.2276398122607104,
+                "cumulativeCPUUsage": 2.765004
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.07736
+              }
+            ]
+          },
+          {
+            "at": 30332,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9384748272458054,
+            "rawElectronCpuPercent": 0.9385357774924293,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006704944909210932,
+                "cumulativeCPUUsage": 3.063204
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7310693490395228,
+                "cumulativeCPUUsage": 5.076788
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.20076148354369563,
+                "cumulativeCPUUsage": 2.789407
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.07736
+              }
+            ]
+          },
+          {
+            "at": 31348,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9908546587926494,
+            "rawElectronCpuPercent": 0.9905895048500961,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006855066189107989,
+                "cumulativeCPUUsage": 3.06404
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7672315083315868,
+                "cumulativeCPUUsage": 5.170354
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.2165029303294013,
+                "cumulativeCPUUsage": 2.81581
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.07736
+              }
+            ]
+          },
+          {
+            "at": 32364,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 1.8559465223097118,
+            "rawElectronCpuPercent": 1.8557187587240218,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006569112475999366,
+                "cumulativeCPUUsage": 3.064841
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 1.6272292226801717,
+                "cumulativeCPUUsage": 5.36877
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.22192042356785058,
+                "cumulativeCPUUsage": 2.84287
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.07736
+              }
+            ]
+          },
+          {
+            "at": 33376,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 1.9898633069828742,
+            "rawElectronCpuPercent": 1.9903479425817168,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006679818743818491,
+                "cumulativeCPUUsage": 3.065652
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 1.7772600849613642,
+                "cumulativeCPUUsage": 5.584548
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.20640803887653406,
+                "cumulativeCPUUsage": 2.86793
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.07736
+              }
+            ]
+          },
+          {
+            "at": 34392,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 2.086679790026252,
+            "rawElectronCpuPercent": 2.085882582162702,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.0063460079674375995,
+                "cumulativeCPUUsage": 3.066426
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 1.8638387439967152,
+                "cumulativeCPUUsage": 5.811874
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.21569783019854893,
+                "cumulativeCPUUsage": 2.894238
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.07736
+              }
+            ]
+          },
+          {
+            "at": 35407,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 2.1313300492610834,
+            "rawElectronCpuPercent": 2.131689899100618,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006782778639995401,
+                "cumulativeCPUUsage": 3.067252
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 1.9222342877826675,
+                "cumulativeCPUUsage": 6.045962
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.20213909258540308,
+                "cumulativeCPUUsage": 2.918855
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0.0005337400925521744,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 36419,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 3.086536561264823,
+            "rawElectronCpuPercent": 3.086225975429478,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.01771868913317406,
+                "cumulativeCPUUsage": 3.069404
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 1.8179440919369425,
+                "cumulativeCPUUsage": 6.266758
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 1.2505631943593614,
+                "cumulativeCPUUsage": 3.070736
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 37421,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9508732534930086,
+            "rawElectronCpuPercent": 0.9515328262152338,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.0068244274555039,
+                "cumulativeCPUUsage": 3.070224
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7329851210836525,
+                "cumulativeCPUUsage": 6.354831
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.21172327767607738,
+                "cumulativeCPUUsage": 3.096176
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 38435,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9475016436554949,
+            "rawElectronCpuPercent": 0.9469739904951056,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006193130389214425,
+                "cumulativeCPUUsage": 3.070978
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7299598021483756,
+                "cumulativeCPUUsage": 6.443702
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.21082105795751546,
+                "cumulativeCPUUsage": 3.121843
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 39448,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9158604804211838,
+            "rawElectronCpuPercent": 0.9163381916264929,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006189471577156372,
+                "cumulativeCPUUsage": 3.07173
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7063329879736474,
+                "cumulativeCPUUsage": 6.529519
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.20381573207568912,
+                "cumulativeCPUUsage": 3.146606
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 40462,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.934270216962527,
+            "rawElectronCpuPercent": 0.9338759982539708,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006169298024247395,
+                "cumulativeCPUUsage": 3.072481
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7231236589349027,
+                "cumulativeCPUUsage": 6.617546
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.20458304129482072,
+                "cumulativeCPUUsage": 3.17151
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 41477,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9702791461412166,
+            "rawElectronCpuPercent": 0.9706375310650875,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.007170122616488621,
+                "cumulativeCPUUsage": 3.073354
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7494312348568847,
+                "cumulativeCPUUsage": 6.708793
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.21403617359171426,
+                "cumulativeCPUUsage": 3.19757
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 42491,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9255013149243948,
+            "rawElectronCpuPercent": 0.925547685903891,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006632503111605549,
+                "cumulativeCPUUsage": 3.074161
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7162589045405636,
+                "cumulativeCPUUsage": 6.795943
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.2026562782517218,
+                "cumulativeCPUUsage": 3.222228
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 43502,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 2.606750741839758,
+            "rawElectronCpuPercent": 2.605233910777972,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.010346850142022052,
+                "cumulativeCPUUsage": 3.075417
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 2.3862493541482137,
+                "cumulativeCPUUsage": 7.08561
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.2086377064877364,
+                "cumulativeCPUUsage": 3.247556
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 44505,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 2,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art cn-art-outgoing",
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                },
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 16,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 8.828747092057167,
+            "rawElectronCpuPercent": 8.832682009346914,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.011088468690785997,
+                "cumulativeCPUUsage": 3.076751
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 8.285222394229082,
+                "cumulativeCPUUsage": 8.082366
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.5363711464270458,
+                "cumulativeCPUUsage": 3.312094
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 45517,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 3.378656126482206,
+            "rawElectronCpuPercent": 3.377687446375754,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.012298142535965893,
+                "cumulativeCPUUsage": 3.078245
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 2.540207097337988,
+                "cumulativeCPUUsage": 8.390953
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.8251822065017999,
+                "cumulativeCPUUsage": 3.412317
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 46529,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 2.242391304347826,
+            "rawElectronCpuPercent": 2.242243387166174,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.0062413707697009935,
+                "cumulativeCPUUsage": 3.079003
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 2.0214261388750008,
+                "cumulativeCPUUsage": 8.636451
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.21457587752147242,
+                "cumulativeCPUUsage": 3.438377
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 47540,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9185624793933472,
+            "rawElectronCpuPercent": 0.9191581736671255,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.0071262786473927225,
+                "cumulativeCPUUsage": 3.079867
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7137248497625399,
+                "cumulativeCPUUsage": 8.722984
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.19830704525719292,
+                "cumulativeCPUUsage": 3.46242
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 48553,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 0.9256005264889754,
+            "rawElectronCpuPercent": 0.9250128629707112,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.0062069786499665235,
+                "cumulativeCPUUsage": 3.080622
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 0.7162360092234881,
+                "cumulativeCPUUsage": 8.810105
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.20256987509725655,
+                "cumulativeCPUUsage": 3.48706
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 49567,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 2.5826265614727117,
+            "rawElectronCpuPercent": 2.5839495106301658,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006298430490323768,
+                "cumulativeCPUUsage": 3.081388
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 2.380475476764406,
+                "cumulativeCPUUsage": 9.099613
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.19717560337543583,
+                "cumulativeCPUUsage": 3.51104
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 50567,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 8.692875000000004,
+            "rawElectronCpuPercent": 8.689111268812773,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006130654237431576,
+                "cumulativeCPUUsage": 3.082124
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 8.494197012693503,
+                "cumulativeCPUUsage": 10.119358
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.18878360188183865,
+                "cumulativeCPUUsage": 3.533704
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 51580,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 8.707411977624217,
+            "rawElectronCpuPercent": 8.707783558747916,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006079566470146121,
+                "cumulativeCPUUsage": 3.082863
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 8.482714468629961,
+                "cumulativeCPUUsage": 11.150473
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.2189895236478082,
+                "cumulativeCPUUsage": 3.560323
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 52583,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 8.747158524426718,
+            "rawElectronCpuPercent": 8.747986387424458,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.006888329624104933,
+                "cumulativeCPUUsage": 3.083692
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 8.561345956662562,
+                "cumulativeCPUUsage": 12.180819
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.17975210113779017,
+                "cumulativeCPUUsage": 3.581956
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 53593,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 2,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art cn-art-outgoing",
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                },
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 16,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 8.868688118811878,
+            "rawElectronCpuPercent": 8.871104328934486,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.008707801827268246,
+                "cumulativeCPUUsage": 3.084747
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 8.276758523360321,
+                "cumulativeCPUUsage": 13.183689
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.5856380037468948,
+                "cumulativeCPUUsage": 3.652916
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 54594,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 5.151390276390288,
+            "rawElectronCpuPercent": 5.14836488629018,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.012520607005683108,
+                "cumulativeCPUUsage": 3.086252
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 4.354726361205073,
+                "cumulativeCPUUsage": 13.707086
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.7811179180794232,
+                "cumulativeCPUUsage": 3.746799
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 55607,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 8.69452122408687,
+            "rawElectronCpuPercent": 8.689862014678008,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.020505625645220116,
+                "cumulativeCPUUsage": 3.088746
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 8.472013520886632,
+                "cumulativeCPUUsage": 14.737496
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.19734286814615443,
+                "cumulativeCPUUsage": 3.770801
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 56609,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 8.504574184963404,
+            "rawElectronCpuPercent": 8.507309390091448,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.00789510902571526,
+                "cumulativeCPUUsage": 3.089695
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 8.28304272098086,
+                "cumulativeCPUUsage": 15.733129
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.320007
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.21637156008487143,
+                "cumulativeCPUUsage": 3.796809
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0,
+                "cumulativeCPUUsage": 0.077425
+              }
+            ]
+          },
+          {
+            "at": 57618,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 4.090708622398424,
+            "rawElectronCpuPercent": 4.090185019971283,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.03345290828073027,
+                "cumulativeCPUUsage": 3.093746
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 3.82301635040383,
+                "cumulativeCPUUsage": 16.196079
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0.026276759849243075,
+                "cumulativeCPUUsage": 0.323189
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.20637372844517202,
+                "cumulativeCPUUsage": 3.8218
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0.0010652729923072426,
+                "cumulativeCPUUsage": 0.077554
+              }
+            ]
+          },
+          {
+            "at": 58634,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 3.435966207349078,
+            "rawElectronCpuPercent": 3.436623149982746,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.01311764931724235,
+                "cumulativeCPUUsage": 3.095345
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 3.169084451164888,
+                "cumulativeCPUUsage": 16.58238
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0.0013207928563646791,
+                "cumulativeCPUUsage": 0.32335
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.2524275540303254,
+                "cumulativeCPUUsage": 3.85257
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0.0006727026139254692,
+                "cumulativeCPUUsage": 0.077636
+              }
+            ]
+          },
+          {
+            "at": 59645,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 3.3959858226178627,
+            "rawElectronCpuPercent": 3.396318836648477,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.015522487079981944,
+                "cumulativeCPUUsage": 3.097228
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 3.175113092182123,
+                "cumulativeCPUUsage": 16.967547
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0.00014013914993240347,
+                "cumulativeCPUUsage": 0.323367
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.2048918833632242,
+                "cumulativeCPUUsage": 3.877425
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0.0006512348732152866,
+                "cumulativeCPUUsage": 0.077715
+              }
+            ]
+          },
+          {
+            "at": 60646,
+            "nativeWindow": {
+              "visible": true,
+              "minimized": false,
+              "focused": true
+            },
+            "activity": {
+              "focused": true,
+              "hidden": false,
+              "heroVisible": true,
+              "motionActive": "true",
+              "kenBurnsRunning": true,
+              "art": 1,
+              "heroClasses": "cn-hero cn-home-hero",
+              "artClasses": [
+                "cn-hero-art"
+              ],
+              "imageStyles": [
+                {
+                  "complete": true,
+                  "width": 3840,
+                  "animationName": "cn-breathe",
+                  "animationPlayState": "running",
+                  "visibility": "visible"
+                }
+              ],
+              "diagnostics": {
+                "roots": 1,
+                "heroes": 1,
+                "pendingReveals": 1,
+                "carousels": 1,
+                "animations": 0,
+                "tints": 7
+              }
+            },
+            "normalizedMachinePercent": 3.671661671661682,
+            "rawElectronCpuPercent": 3.6724202546604854,
+            "processes": [
+              {
+                "pid": 21896,
+                "type": "Browser",
+                "cpuPercent": 0.01665364351743603,
+                "cumulativeCPUUsage": 3.099228
+              },
+              {
+                "pid": 28340,
+                "type": "GPU",
+                "cpuPercent": 3.4493063667178596,
+                "cumulativeCPUUsage": 17.381792
+              },
+              {
+                "pid": 5136,
+                "type": "Utility",
+                "cpuPercent": 0.0003663746660578186,
+                "cumulativeCPUUsage": 0.323411
+              },
+              {
+                "pid": 12764,
+                "type": "Tab",
+                "cpuPercent": 0.20576080287930232,
+                "cumulativeCPUUsage": 3.902136
+              },
+              {
+                "pid": 25604,
+                "type": "Tab",
+                "cpuPercent": 0.0003330668798294698,
+                "cumulativeCPUUsage": 0.077755
+              }
+            ]
+          }
+        ],
+        "averageMachineCpuPercent": 2.4851826234489125,
+        "maxMachineCpuPercent": 8.868688118811878,
+        "gpu": {
+          "samples": [
+            {
+              "at": "2026-11-03T06:25:59.0946767Z",
+              "engines": [
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_0_engtype_3D",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_10_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_11_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_12_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_13_engtype_Security_1",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_1_engtype_LegacyOverlay",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_2_engtype_VideoDecode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_3_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_4_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_5_engtype_Security",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_6_engtype_VideoEncode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_7_engtype_OFA_0",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_8_engtype_VR",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_9_engtype_Copy",
+                  "UtilizationPercentage": 0
+                }
+              ]
+            },
+            {
+              "at": "2026-11-03T06:26:03.8337338Z",
+              "engines": [
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_0_engtype_3D",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_10_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_11_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_12_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_13_engtype_Security_1",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_1_engtype_LegacyOverlay",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_2_engtype_VideoDecode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_3_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_4_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_5_engtype_Security",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_6_engtype_VideoEncode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_7_engtype_OFA_0",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_8_engtype_VR",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_9_engtype_Copy",
+                  "UtilizationPercentage": 0
+                }
+              ]
+            },
+            {
+              "at": "2026-11-03T06:26:08.8262185Z",
+              "engines": [
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_0_engtype_3D",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_10_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_11_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_12_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_13_engtype_Security_1",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_1_engtype_LegacyOverlay",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_2_engtype_VideoDecode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_3_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_4_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_5_engtype_Security",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_6_engtype_VideoEncode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_7_engtype_OFA_0",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_8_engtype_VR",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_9_engtype_Copy",
+                  "UtilizationPercentage": 0
+                }
+              ]
+            },
+            {
+              "at": "2026-11-03T06:26:13.8227351Z",
+              "engines": [
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_0_engtype_3D",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_10_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_11_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_12_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_13_engtype_Security_1",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_1_engtype_LegacyOverlay",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_2_engtype_VideoDecode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_3_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_4_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_5_engtype_Security",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_6_engtype_VideoEncode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_7_engtype_OFA_0",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_8_engtype_VR",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_9_engtype_Copy",
+                  "UtilizationPercentage": 0
+                }
+              ]
+            },
+            {
+              "at": "2026-11-03T06:26:18.8249554Z",
+              "engines": [
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_0_engtype_3D",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_10_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_11_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_12_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_13_engtype_Security_1",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_1_engtype_LegacyOverlay",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_2_engtype_VideoDecode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_3_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_4_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_5_engtype_Security",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_6_engtype_VideoEncode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_7_engtype_OFA_0",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_8_engtype_VR",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_9_engtype_Copy",
+                  "UtilizationPercentage": 0
+                }
+              ]
+            },
+            {
+              "at": "2026-11-03T06:26:23.8292084Z",
+              "engines": [
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_0_engtype_3D",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_10_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_11_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_12_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_13_engtype_Security_1",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_1_engtype_LegacyOverlay",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_2_engtype_VideoDecode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_3_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_4_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_5_engtype_Security",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_6_engtype_VideoEncode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_7_engtype_OFA_0",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_8_engtype_VR",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_9_engtype_Copy",
+                  "UtilizationPercentage": 0
+                }
+              ]
+            },
+            {
+              "at": "2026-11-03T06:26:28.8179503Z",
+              "engines": [
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_0_engtype_3D",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_10_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_11_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_12_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_13_engtype_Security_1",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_1_engtype_LegacyOverlay",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_2_engtype_VideoDecode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_3_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_4_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_5_engtype_Security",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_6_engtype_VideoEncode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_7_engtype_OFA_0",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_8_engtype_VR",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_9_engtype_Copy",
+                  "UtilizationPercentage": 0
+                }
+              ]
+            },
+            {
+              "at": "2026-11-03T06:26:33.8320080Z",
+              "engines": [
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_0_engtype_3D",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_10_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_11_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_12_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_13_engtype_Security_1",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_1_engtype_LegacyOverlay",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_2_engtype_VideoDecode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_3_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_4_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_5_engtype_Security",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_6_engtype_VideoEncode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_7_engtype_OFA_0",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_8_engtype_VR",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_9_engtype_Copy",
+                  "UtilizationPercentage": 0
+                }
+              ]
+            },
+            {
+              "at": "2026-11-03T06:26:38.8210174Z",
+              "engines": [
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_0_engtype_3D",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_10_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_11_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_12_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_13_engtype_Security_1",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_1_engtype_LegacyOverlay",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_2_engtype_VideoDecode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_3_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_4_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_5_engtype_Security",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_6_engtype_VideoEncode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_7_engtype_OFA_0",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_8_engtype_VR",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_9_engtype_Copy",
+                  "UtilizationPercentage": 0
+                }
+              ]
+            },
+            {
+              "at": "2026-11-03T06:26:43.8310626Z",
+              "engines": [
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_0_engtype_3D",
+                  "UtilizationPercentage": 1
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_10_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_11_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_12_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_13_engtype_Security_1",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_1_engtype_LegacyOverlay",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_2_engtype_VideoDecode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_3_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_4_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_5_engtype_Security",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_6_engtype_VideoEncode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_7_engtype_OFA_0",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_8_engtype_VR",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_9_engtype_Copy",
+                  "UtilizationPercentage": 0
+                }
+              ]
+            },
+            {
+              "at": "2026-11-03T06:26:48.8310633Z",
+              "engines": [
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_0_engtype_3D",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_10_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_11_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_12_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_13_engtype_Security_1",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_1_engtype_LegacyOverlay",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_2_engtype_VideoDecode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_3_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_4_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_5_engtype_Security",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_6_engtype_VideoEncode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_7_engtype_OFA_0",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_8_engtype_VR",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_9_engtype_Copy",
+                  "UtilizationPercentage": 0
+                }
+              ]
+            },
+            {
+              "at": "2026-11-03T06:26:53.8277688Z",
+              "engines": [
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_0_engtype_3D",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_10_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_11_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_12_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_13_engtype_Security_1",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_1_engtype_LegacyOverlay",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_2_engtype_VideoDecode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_3_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_4_engtype_Copy",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_5_engtype_Security",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_6_engtype_VideoEncode",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_7_engtype_OFA_0",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_8_engtype_VR",
+                  "UtilizationPercentage": 0
+                },
+                {
+                  "Name": "pid_28340_luid_0x00000000_0x0001039C_phys_0_eng_9_engtype_Copy",
+                  "UtilizationPercentage": 0
+                }
+              ]
+            }
+          ],
+          "processIds": [
+            28340
+          ],
+          "exitCode": 0,
+          "stderr": "#< CLIXML\r\n<Objs Version=\"1.1.0.1\" xmlns=\"http://schemas.microsoft.com/powershell/2004/04\"><Obj S=\"progress\" RefId=\"0\"><TN RefId=\"0\"><T>System.Management.Automation.PSCustomObject</T><T>System.Object</T></TN><MS><I64 N=\"SourceId\">1</I64><PR N=\"Record\"><AV>Preparing modules for first use.</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj><Obj S=\"progress\" RefId=\"1\"><TNRef RefId=\"0\" /><MS><I64 N=\"SourceId\">2</I64><PR N=\"Record\"><AV>Preparing modules for first use.</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj></Objs>",
+          "busiestEngineAveragePercent": 0.08333333333333333,
+          "busiestEngineMaxPercent": 1,
+          "summaryMethod": "Maximum utilization among own GPU process engines per sample; no system-wide or other-process attribution"
+        },
+        "kenBurnsEvidence": {
+          "motion": "full",
+          "heroVisible": true,
+          "animations": [
+            {
+              "name": "cn-breathe",
+              "target": "mh-remote-thumbnail"
+            },
+            {
+              "target": ""
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "finished": "2026-11-03T06:26:59.026Z"
+}
