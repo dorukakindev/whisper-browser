@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-03-1256.md](docs/devir/2026-11-03-1256.md) — Onaylı Round4 film kontrolleri, 78 kayıtlı hero ve native ölçüm
 Güncel çalışma: [docs/devir/2026-11-03-1058.md](docs/devir/2026-11-03-1058.md) — Onaylı sinematik hareket, film araçları, gerçek Windows CPU/frame ölçümü ve açık 20ms sınırı
 Güncel çalışma: [docs/devir/2026-11-03-0745.md](docs/devir/2026-11-03-0745.md) — Onaylı sinematik Home, Keşfet ve film sayfaları; 1440/1920 native karşılaştırma
 Güncel çalışma: [docs/devir/2026-11-03-0420.md](docs/devir/2026-11-03-0420.md) — Ana sayfa + Keşfet ortak tasarım paketi

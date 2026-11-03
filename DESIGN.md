@@ -198,3 +198,7 @@ Kullanıcının ekran brief'i önceliklidir: ilk paket ortak bileşenler + Ana s
 ## 2026-11-03 — Onaylı sinematik hareket sözleşmesi
 
 Home, Keşfet ve film üst/alt yüzeyleri için onaylı motion v3 kompozisyonu uygulanır. Grafit/amber marka korunur; ambient görsel rengi ikincil atmosferdir. Ortak süreler 120/200/320/600/900ms, stagger 50ms. Hareket tercihi Otomatik/Tam/Azalt/Kapalı; görünmeyen/odaksız hero durur. Teknik araçlar orijinal olay/form/onay sahiplerini korur. Yeni RSS/browser/kitap yüzeyi bu teslimin otomatik onayı değildir; önce standalone görsel gerekir. Ölçüm ve tasarım farkları docs/implementation/cinematic-motion-round3-2026-11-03/README.md içinde; maksimum20ms hedefi karşılanmış sayılmaz.
+
+## 2026-11-03 — Round 4 film araçları
+
+Onaylı iki kapsamlı tercih paneli: film görüşleri ayrı, genel öncelikler ayrı; okunaklı metinli radio adımları ve kayan altın seçim. Aynı API değerleri korunur, film görüşü sayısal önceliğe dönüştürülmez. Atmosfer normal kart; kalan alan seçim özeti. İzleme/günlük eşit kartlar, üç adımlı hazırlık, tek kaynak popover'ı, ortak alt akordeonlar. Home göstergesi en fazla yedi öğe; sayaç tek satır, başlık üç satır. Cam çubukta arkadaki metin okunamaz. Kapalı ayrıntılar ilk geçişte kurulmaz; renk örneklemesi idle kuyruğunda. Ölçülen maksimum20ms sınırı açık kaldı; estetik veya tam performans başarısı test sayısından çıkarılmaz.
