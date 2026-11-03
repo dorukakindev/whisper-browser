@@ -1,0 +1,29 @@
+/* Approved motion composition: film real-data and missing-data states. */
+.cn-film-page .cn-hero-description{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-width:54ch}
+.cn-story-grid{grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr);align-items:start;gap:40px}
+.cn-story-grid.cn-sparse-credits{grid-template-columns:minmax(0,1fr)}
+.cn-story-grid.cn-sparse-credits .cn-story-text{max-width:85ch}
+.cn-credit-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.cn-credit-chips span{font-size:12px;line-height:1.5;color:var(--cn-dim);padding:5px 9px;border:1px solid var(--cn-line);border-radius:6px;background:color-mix(in srgb,var(--cn-bg) 75%,transparent)}
+.cn-story-heading .cn-button{font-size:13px;min-height:36px;color:var(--cn-text)}
+.cn-film-page .cn-media-row{display:grid;grid-template-columns:1.5fr 1fr;grid-template-rows:1fr 1fr;gap:20px;align-items:stretch}
+.cn-film-page .cn-media-row>.cn-media-card:first-child{grid-row:1/3;display:flex;flex-direction:column}
+.cn-film-page .cn-media-row>.cn-media-card:first-child .cn-media-image{flex:1;min-height:220px;aspect-ratio:auto}
+.cn-film-page .cn-media-row>.cn-media-card:not(:first-child){display:grid;grid-template-columns:minmax(110px,44%) minmax(0,1fr);gap:8px 16px;align-content:center}
+.cn-film-page .cn-media-row>.cn-media-card:not(:first-child) .cn-media-image{grid-row:1/3;aspect-ratio:16/9}
+.cn-film-page .cn-media-row>.cn-media-card:not(:first-child) h3,.cn-film-page .cn-media-row>.cn-media-card:not(:first-child) p{margin:0;align-self:end}
+.cn-media-row>.cn-media-card:only-child{grid-column:1/-1;max-width:800px}.cn-media-card .cn-media-image img{object-fit:cover;width:100%;height:100%}
+.cn-media-image{position:relative}.cn-media-badge{position:absolute;left:12px;top:12px;padding:4px 8px;background:#111215e8;border:1px solid #ffffff24;border-radius:5px;color:#f1f0ed;font:500 12px/1.4 var(--cn-font)}
+.cn-accordion>summary{display:flex;align-items:center;gap:12px;min-height:64px}.cn-accordion>summary>svg{flex:none;width:18px;height:18px;color:var(--cn-gold)}.cn-accordion-title{font-size:14px;color:var(--cn-text)}.cn-accordion-hint{margin-left:auto;color:var(--cn-dim);font-size:12px;line-height:1.5}.cn-accordion>summary>svg:last-child{width:15px;height:15px;color:var(--cn-dim)}
+.cn-tmdb-connect{display:flex;align-items:center;gap:20px;padding:22px 24px;border:1px solid var(--cn-line);border-radius:12px;background:linear-gradient(110deg,var(--cn-surface),var(--cn-bg));margin-block:28px}.cn-tmdb-connect>svg{width:24px;height:24px;color:var(--cn-gold);flex:none}.cn-tmdb-connect p{font-size:14px;line-height:1.6;color:var(--cn-dim);flex:1;margin:0}.cn-tmdb-connect button{flex:none}.cn-cast .cn-tmdb-inline{min-height:36px;font:500 12px var(--cn-font);background:transparent;color:var(--cn-gold);border:0;cursor:pointer}.cn-extras[data-metadata-state=missing] .film-extra-status{display:none}
+.cn-film-tools h3{font-size:17px}.cn-film-tools .fw-preparation>h3,.cn-film-tools .fw-workspace>h3{font-size:17px}
+.cn-story-grid:has(.cn-story[hidden]):has(.cn-credits[hidden]){display:none}.cn-story[hidden]{display:none}.cn-inline-story-actions{display:flex;gap:8px;margin-top:12px}
+:is(.cn-home-content,.cn-discover-page,.cn-film-page) :is(small,.cn-poster-meta,.cn-analysis-count,.cn-source-tag,.cn-feature-facts,.cn-meta,.cn-hero-progress small,.film-extra-muted,.cn-review-card footer,.cn-review-card header strong){font-size:12px;line-height:1.5}
+.cn-film-page .cn-media-row{height:clamp(340px,32vw,520px);grid-template-rows:minmax(0,1fr) minmax(0,1fr)}
+.cn-film-page .cn-media-row>.cn-media-card{min-height:0;min-width:0}
+.cn-film-page .cn-media-row>.cn-media-card:not(:first-child){display:flex;flex-direction:column;gap:0;align-content:normal}
+.cn-film-page .cn-media-row>.cn-media-card .cn-media-image{position:relative;flex:1;min-height:0;aspect-ratio:auto;width:100%;overflow:hidden}
+.cn-film-page .cn-media-row>.cn-media-card .cn-media-image img{position:absolute;inset:0}
+.cn-film-page .cn-media-row>.cn-media-card:not(:first-child) h3,.cn-film-page .cn-media-row>.cn-media-card:not(:first-child) p{align-self:start;margin-top:7px}
+.cn-film-page .cn-accordion>summary[data-cinema-heading=true]::after{display:none}
+@media(max-width:800px){.cn-film-page .cn-media-row{height:auto}.cn-film-page .cn-media-row>.cn-media-card .cn-media-image{flex:none;aspect-ratio:16/9}}
+@media(max-width:800px){.cn-story-grid{grid-template-columns:1fr}.cn-accordion-hint{max-width:42%;text-align:right}.cn-tmdb-connect{flex-wrap:wrap}.cn-tmdb-connect button{margin-left:44px}.cn-media-row{grid-template-columns:1fr!important;grid-template-rows:auto!important}.cn-film-page .cn-media-row>.cn-media-card:first-child{grid-row:auto}.cn-film-page .cn-media-row>.cn-media-card:first-child .cn-media-image{aspect-ratio:16/9;min-height:0}}

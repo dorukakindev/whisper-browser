@@ -19490,6 +19490,9 @@ ipcMain.handle('shell:showInFolder', async (_event, p) => {
   } catch (_) { return false; }
 });
 
+const systemPowerStatus = require('./system-power-status').createSystemPowerStatus({ getOnBattery: () => require('electron').powerMonitor.isOnBatteryPower() });
+ipcMain.handle('app:systemPowerStatus', event => authorizedBrowserSender(event) ? systemPowerStatus.read() : { ok: false, error: 'Yetkisiz istek.' });
+
 ipcMain.handle('app:getPaths', (event) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   let translationArchive = browserTranslationArchivePath();

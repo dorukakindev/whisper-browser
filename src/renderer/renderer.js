@@ -3354,7 +3354,7 @@ const PERSIST_VALUE_CONTROLS = [
   'browserOverlayScale', 'browserOverlayOpacity', 'browserOverlayBottom', 'browserOverlayGap', 'browserOverlayWidth', 'browserOverlayMaxLines',
   'browserVideoBrightness', 'browserVideoContrast', 'browserSilenceSpeedRate', 'browserSilenceThresholdDb', 'browserAudioProfile',
   'browserPageTarget', 'browserPageMode',
-  'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme', 'uiLocale',
+  'browserSubtitleAutomation', 'browserPreferredSubtitleMode', 'browserSponsorMode', 'uiTheme', 'uiMotion', 'uiLocale',
   'browserSearchEngine',
   'stCardScale', 'stCardFontScale',
   'browserSponsorCategories', 'timelineZoom', 'aiTranscriptScope', 'browserPageScope',

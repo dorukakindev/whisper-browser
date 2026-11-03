@@ -111,25 +111,52 @@
   function drawFeature() {
     const slot = state.root?.querySelector('.cn-feature-slot'); if (!slot) return;
     if (state.tab !== 'browse' || state.query.trim()) { slot.replaceChildren(); return; }
-    const row = state.rows.find(item => safeImage(item.backdrop)); if (!row) { slot.replaceChildren(); return; }
-    const featureKey=JSON.stringify([row.kind,row.providerId,row.backdrop,row.title]);
+    const featured = state.rows.filter(item => safeImage(item.backdrop)).slice(0, 5);
+    if (!featured.length) { slot.replaceChildren(); return; }
+    const featureKey=JSON.stringify(featured.map(row=>[row.kind,row.providerId,row.backdrop,row.title,row.rating,row.synopsis]));
     if(slot.firstElementChild?.dataset.featureKey===featureKey)return;
+    const previousId=slot.firstElementChild?.dataset.featureId;
     slot.replaceChildren();
     const hero = el('section', 'cn-hero cn-discover-hero'); hero.hidden = true;
     hero.dataset.featureKey=featureKey;
-    hero.setAttribute('aria-label', t('Featured title', 'Öne çıkan yapım'));
-    const artwork = el('img'); artwork.alt = ''; artwork.src = safeImage(row.backdrop); artwork.referrerPolicy = 'no-referrer';
-    artwork.addEventListener('load', () => { hero.hidden = artwork.naturalWidth / artwork.naturalHeight < 1.3; }, {once:true});
-    artwork.addEventListener('error', () => { hero.hidden = true; }, {once:true});
-    const wrap=el('div','cn-hero-art');wrap.append(artwork);const content=el('div','cn-container cn-hero-content');const copy = el('div', 'cn-hero-copy');
-    copy.append(el('span','cn-eyebrow',t('Featured title','Öne çıkan yapım')));if(row.rating)copy.append(el('span','mv-feature-rating','IMDb '+row.rating+'/10'));copy.append(el('h1', '', window.MediaVisual?.title(row.title)||row.title));
-    const facts = [row.year, ...(row.genres || []).slice(0,3)].filter(Boolean).join(' · ');
-    if (facts) copy.append(el('p', 'cn-feature-facts', facts));
-    if (row.synopsis) copy.append(el('p', 'cn-hero-description', row.synopsis));
-    const open=btn(t('Explore this title', 'Yapımı keşfet'), () => details(row), 'mh-action cn-feature-open');
-    window.CinemaUI.rebutton(open,'primary');const actions=el('div','cn-hero-actions');actions.append(open);copy.append(actions);
-    content.append(copy);hero.append(wrap,content);slot.append(hero);
+    hero.setAttribute('aria-label', t('Featured titles', 'Öne çıkan yapımlar'));
+    hero.setAttribute('aria-roledescription',t('carousel','karusel'));
+    let wrap=el('div','cn-hero-art');const content=el('div','cn-container cn-hero-content');
+    const controls=el('div','cn-discover-carousel'),dots=el('div','cn-discover-dots');
+    let active=Math.max(0,featured.findIndex(row=>row.providerId===previousId)),generation=0;
+    const drawSlide=index=>{
+      active=(index+featured.length)%featured.length;
+      const row=featured[active],current=++generation;
+      hero.dataset.featureId=row.providerId;
+      const artwork=el('img');artwork.alt='';artwork.src=safeImage(row.backdrop);artwork.referrerPolicy='no-referrer';
+      artwork.addEventListener('load',()=>{if(current===generation)hero.hidden=artwork.naturalWidth/artwork.naturalHeight<1.3;},{once:true});
+      artwork.addEventListener('error',()=>{if(current===generation)hero.hidden=true;},{once:true});
+      const previous=wrap;wrap=el('div','cn-hero-art');wrap.append(artwork);previous.before(wrap);artwork.addEventListener('load',()=>wrap.dispatchEvent(new Event('home-art-ready')),{once:true});window.CinemaMotion?.swapArtwork(hero,previous,wrap);if(!window.CinemaMotion)previous.remove();
+      const copy=el('div','cn-hero-copy'),headline=el('div','cn-discover-feature-heading');
+      headline.append(el('span','cn-eyebrow',t('Featured title','Öne çıkan yapım')));
+      if(row.rating)headline.append(el('span','mv-feature-rating','IMDb '+row.rating+'/10'));
+      copy.append(headline,el('h1','',window.MediaVisual?.title(row.title)||row.title));
+      const facts=[row.year,...(row.genres||[]).slice(0,3)].filter(Boolean).join(' · ');
+      if(facts)copy.append(el('p','cn-feature-facts',facts));
+      if(row.synopsis)copy.append(el('p','cn-hero-description',row.synopsis));
+      const open=btn(t('Explore this title','Yapımı keşfet'),()=>details(row),'mh-action cn-feature-open');
+      window.CinemaUI?.rebutton(open,'primary');
+      const actions=el('div','cn-hero-actions');actions.append(open);copy.append(actions);content.replaceChildren(copy);
+      [...dots.children].forEach((dot,i)=>dot.setAttribute('aria-pressed',String(i===active)));
+    };
+    featured.forEach((row,index)=>{
+      const label=t('Show featured title: ','Öne çıkan yapımı göster: ')+row.title;
+      const dot=btn('',()=>drawSlide(index),'cn-discover-dot');dot.setAttribute('aria-label',label);dot.title=label;dots.append(dot);
+    });
+    const arrow=(step,label)=>{
+      const button=btn('',()=>hero._cinemaCarousel?hero._cinemaCarousel.jump(active+step):drawSlide(active+step),'cn-discover-arrow');button.setAttribute('aria-label',label);button.title=label;
+      const icon=el('span','',step<0?'‹':'›');icon.setAttribute('aria-hidden','true');button.append(icon);return button;
+    };
+    controls.append(dots,arrow(-1,t('Previous featured title','Önceki öne çıkan yapım')),arrow(1,t('Next featured title','Sonraki öne çıkan yapım')));
+    controls.hidden=featured.length<2;
+    hero.append(wrap,content,controls);slot.append(hero);drawSlide(active);hero._cinemaCarousel=window.CinemaMotion?.carousel(hero,{count:featured.length,getIndex:()=>active,goTo:drawSlide,indicators:dots});
   }
+
   let closeCardMenu=null;
   let personalActions=null,personalRoot=null;
   async function setCardWatchState(row,watchStatus){return personalActions?.update(row,{watchStatus});}
@@ -255,7 +282,7 @@
     savedScroll=Math.max(0,Number(saved.scrollTop)||0);state.busy=false;state.loadError=false;state.retryAppend=false;state.request++;
   }
   document.addEventListener('media-personal-changed',event=>{if(event.detail?.origin!=='discovery-personal'&&state.root?.isConnected)void load();});
-  const leave = () => { closeCardMenu?.();personalActions?.dispose();personalActions=null;personalRoot=null; if (state.root?.isConnected) savedScroll = document.getElementById('mediaHome').scrollTop; state.root = null; };
+  const leave = () => { state.root?.querySelector(".cn-discover-hero")?._cinemaCarousel?.dispose();closeCardMenu?.();personalActions?.dispose();personalActions=null;personalRoot=null; if (state.root?.isConnected) savedScroll = document.getElementById('mediaHome').scrollTop; state.root = null; };
   document.getElementById('mediaHome')?.addEventListener('scroll', () => { if (!restoringScroll && state.root?.isConnected) savedScroll = document.getElementById('mediaHome').scrollTop; }, { passive:true });
   window.MediaDiscoveryUI = Object.freeze({ leave, openDetail:details, snapshot, restore, mount(root,saved) {
     if(saved)restore(saved);
