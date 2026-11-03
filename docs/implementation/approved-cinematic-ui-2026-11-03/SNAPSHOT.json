@@ -1,0 +1,21 @@
+{
+  "base": "5bd8d6c2659df873fa5ea1ee3e4dad1c2afbb7e7",
+  "nativeEvidence": "tmp/cinema-native-1793681028731",
+  "scope": [
+    "Home",
+    "Discover",
+    "Film detail (local + discovery)"
+  ],
+  "approvedBeforeProduction": true,
+  "personalProfile": false,
+  "liveLetterboxd": false,
+  "liveModel": false,
+  "actions": false,
+  "controlledReviewFixture": true,
+  "productionPlaceholders": false,
+  "finalTargetedChecks": {
+    "passed": 11,
+    "failed": 0,
+    "includesStoryToggleAndDisclosureRetention": true
+  }
+}

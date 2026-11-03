@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-03-0745.md](docs/devir/2026-11-03-0745.md) — Onaylı sinematik Home, Keşfet ve film sayfaları; 1440/1920 native karşılaştırma
 Güncel çalışma: [docs/devir/2026-11-03-0420.md](docs/devir/2026-11-03-0420.md) — Ana sayfa + Keşfet ortak tasarım paketi
 Güncel çalışma: [docs/devir/2026-11-03-0302.md](docs/devir/2026-11-03-0302.md) — Film alt sayfası, künye ve kaynaklı yorum analizi
 Güncel çalışma: [docs/devir/2026-11-03-0208.md](docs/devir/2026-11-03-0208.md) — Asistan uçtan uca medya akışları ve hareketli işlem izi

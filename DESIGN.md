@@ -52,6 +52,12 @@ Medya kabuğu ve asistanın mevcut self-hosted ailesi başlıklarda Sora, gövde
 
 ## Layout
 
+### Onaylı sinematik medya kompozisyonu (2026-11-03)
+
+Home, Keşfet ve film sayfasının onaylı görsel ailesi `cinema-ui.css/js` içindedir. `--cn-*` renkleri kanonik `--mv-*` / tema rollerine alias'tır;1352px içerik ızgarası,44px geniş ekran kenarı,23px bölüm başlığı, tek yerel IBM Plex Sans ailesi,180ms kesilebilir hareket kullanılır. Tam genişlikte hero görseli tek yumuşak gradyanla zemine karışır; metin kutu içine alınmaz. Afişler2:3, gerçek video geçmişi16:9; puan yalnız veri varsa üst sağ rozet, eksik görselde temiz baş harfli sıcak gradyan. Dar görünüm açık grid satırlarına kırılır; negatif boşlukla afiş/düğme bindirilmez.
+
+Film üstünün butonu mevcut gerçek kaynak durumunu ve özgün eylemini yansıtır. Hero'daki yıl/süre/puan/özgün başlık künyede tekrar edilmez. Gerçek kredilerin boş alanları gizlenir, ek yapım bilgileri isteğe bağlı açılır. Analiz kısa kaynaklı özet + alıntı kartlarıdır; bütün açıklama ve kaynaklar erişilir. Dağılım çubuğu uydurma sabit oran veya tüm izleyici kanaati değildir. Benzer afişler ve fragmanlar varsayılan görünür; teknik tercihler aşağıda açılır. [Onay / gerçek Windows karşılaştırması ve sınırlar](docs/implementation/approved-cinematic-ui-2026-11-03/README.md).
+
 Video alanı ile yan panel ayrı kaydırma sahipleridir. Video araçları açılabilir panelde gruplanır; kapalı panel izlemeyi daraltmaz. Formlar dar genişlikte kırılır, sonuç listeleri sınırlı yükseklikte kayar. Native video WebContentsView, küçük oynatıcıya aynı örnek olarak taşınır. Pencere yakalaması çocuk video yüzeyini içermediğinden ayrıca video yakalanarak doğrulanır.
 
 ## Elevation & Depth
