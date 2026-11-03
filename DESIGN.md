@@ -175,3 +175,7 @@ Bu bölüm yöndür; her ekranın uygulanmış ve gerçek model/siteyle doğrula
 
 ### Asistan işlem izi — 2026-11-03
 Ortak sahip assistant-run-card.js/assistant-overlay.css; mevcut paletteki raised/line/accent/text/muted tokenları kullanılır. Kompakt gerçek etkin adım başlığı ve segmentler varsayılan; ayrıntılar isteğe bağlı dikey işlem izidir. Yalnız running halkası döner, accepted/proposed/completed farklı statik durum taşır. Yeni mesaj parçası animasyonu baştan başlatmaz; DOM/odak/açık ayrıntı korunur. prefers-reduced-motion hareketi kaldırır. Bu alan yeni bir genel gezinme veya yan stüdyo değildir. Görsel ve hareket kanıtı docs/implementation/assistant-end-to-end-2026-11-03/ içindedir.
+
+
+### Film dossier — 2026-11-03
+Alt sayfa tek ortak hiyerarşidir: konu+künye → oyuncular → kaynaklı yorum analizi → ek keşif → isteğe bağlı izleme/kaynak araçları. Yerel ve Keşfet aynı alan/typography sahibini kullanır; hero ve üst menü ayrı, korunmuş sahiplerdir. Anlatım alanı yaklaşık 64ch; künye gerçek alanlar ve aynı baz çizgisinde dt/dd çiftleri. Özet ile kişisel uygunluk ayrıdır; özgün alıntı ve AI açıklaması karıştırılmaz. Mevcut form DOM'u taşınır, taslak/olay/izin sahibi yeniden yazılmaz. Kişiler gerçek metadata akışından gelir, görsel yoksa harf; uydurma yüz/istatistik yok. 200 ms bağlamsal giriş ve global reduced-motion kuralı. Görsel kompozisyon ve gerçek Windows önce/sonra kanıtı docs/implementation/film-page-lower-2026-11-03/ altındadır.

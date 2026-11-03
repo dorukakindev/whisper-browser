@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "before": false,
+  "actualWindows": true,
+  "isolatedProfile": true,
+  "shots": [
+    "local-overview-1440",
+    "local-analysis-1440",
+    "local-credits-1440",
+    "local-overview-480-tr",
+    "local-analysis-480-tr",
+    "local-overview-940-en",
+    "local-analysis-940-en",
+    "discovery-overview-1440",
+    "discovery-analysis-1440",
+    "discovery-empty-1440"
+  ],
+  "explicitCredits": true,
+  "preservedDraft": true,
+  "sourceQuoteNavigation": true,
+  "localAndDiscovery": true,
+  "controlledMetadata": true,
+  "liveProvider": false
+}
