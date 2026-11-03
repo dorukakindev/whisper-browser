@@ -18,9 +18,11 @@
   if(link){const copy=node('button','film-section-link',t('Copy film link','Film bağlantısını kopyala'));copy.type='button';copy.onclick=async()=>{copy.disabled=true;try{const result=await window.api.copyText(link);if(result?.ok===false)throw Error(result.error||t('Could not copy','Kopyalanamadı'));copy.textContent=t('Link copied','Bağlantı kopyalandı');}catch{copy.textContent=t('Could not copy · retry','Kopyalanamadı · yeniden dene');}finally{copy.disabled=false;}};nav.append(copy);}
   if(window.api.showAssistant){const ask=node('button','film-section-link film-ask-assistant',t('Ask about this film','Bu filmi asistana sor'));ask.type='button';ask.onclick=()=>window.api.showAssistant();nav.append(ask);}
   if(window.AssistantFilmActions){const compare=node('button','film-section-link',t('Compare films','Filmleri karşılaştır'));compare.type='button';compare.onclick=()=>window.AssistantFilmActions.openPicker(filmItemId);nav.append(compare);}
-  const daily=window.MediaDailyUI?.mountTitle(page,item);if(daily)disposers.push(()=>{daily.dispatchEvent(new Event('daily-dispose'));daily.remove();});
-  const watching=window.FilmWatchUI?.mount(page,item);if(watching)disposers.push(()=>{watching.dispatchEvent(new Event('fw-dispose'));watching.remove();});
+  const contextItem=!item.discovery&&!item.id&&['film','series'].includes(item.kind)&&/^tt\d{7,12}$/.test(item.providerId||'')?{...item,id:'discovery:'+item.kind+':'+item.providerId,imdbId:item.providerId,discovery:{kind:item.kind,id:item.providerId}}:item;
+  const daily=window.MediaDailyUI?.mountTitle(page,contextItem);if(daily)disposers.push(()=>{daily.dispatchEvent(new Event('daily-dispose'));daily.remove();});
+  const watching=window.FilmWatchUI?.mount(page,contextItem);if(watching)disposers.push(()=>{watching.dispatchEvent(new Event('fw-dispose'));watching.remove();});
   const hero=page.querySelector('.mtd-hero,.md-page-hero');hero?.after(nav);
+  const lower=window.FilmPageLower?.mount(page,item);if(lower)disposers.push(lower.dispose);
   const poster=page.querySelector('.mtd-poster,.md-detail-poster');if(poster){
    let posterDialog=null;disposers.push(()=>posterDialog?.close());
    const enlarge=node('button','film-poster-open',t('Enlarge poster','Afişi büyüt'));enlarge.type='button';enlarge.disabled=!poster.querySelector('img');enlarge.setAttribute('aria-label',item.title+' · '+t('Enlarge poster','Afişi büyüt'));poster.append(enlarge);
