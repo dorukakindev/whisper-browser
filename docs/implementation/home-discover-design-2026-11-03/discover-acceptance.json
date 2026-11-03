@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "before": false,
+  "screen": "discover",
+  "empty": false,
+  "actualWindows": true,
+  "isolatedProfile": true,
+  "controlledNetwork": true,
+  "liveProvider": false,
+  "shots": [
+    "discover-1440",
+    "discover-filter-open",
+    "discover-sticky",
+    "discover-480",
+    "discover-1920",
+    "discover-loading",
+    "discover-empty"
+  ]
+}

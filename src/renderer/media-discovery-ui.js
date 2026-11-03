@@ -122,11 +122,12 @@
     artwork.addEventListener('load', () => { hero.hidden = artwork.naturalWidth / artwork.naturalHeight < 1.3; }, {once:true});
     artwork.addEventListener('error', () => { hero.hidden = true; }, {once:true});
     const copy = el('div', 'md-feature-copy');
-    copy.append(el('h2', '', row.title));
-    const facts = [row.year, row.rating ? 'IMDb '+row.rating+'/10' : '', ...(row.genres || []).slice(0,3)].filter(Boolean).join(' · ');
+    copy.append(el('span','mv-feature-kicker',t('Featured title','Öne çıkan yapım')));if(row.rating)copy.append(el('span','mv-feature-rating','IMDb '+row.rating+'/10'));copy.append(el('h2', '', window.MediaVisual?.title(row.title)||row.title));
+    const facts = [row.year, ...(row.genres || []).slice(0,3)].filter(Boolean).join(' · ');
     if (facts) copy.append(el('p', 'md-feature-facts', facts));
     if (row.synopsis) copy.append(el('p', 'md-feature-story', row.synopsis));
-    copy.append(btn(t('Explore this title', 'Yapımı keşfet'), () => details(row), 'mh-action md-feature-open'));
+    const open=btn(t('Explore this title', 'Yapımı keşfet'), () => details(row), 'mh-action md-feature-open');
+    window.MediaVisual?.button(open,'primary');copy.append(open);
     hero.append(artwork, copy); slot.append(hero);
   }
   let closeCardMenu=null;
@@ -167,15 +168,20 @@
       if (row.rating) { const rating=el('span','md-rating',String(row.rating)); rating.setAttribute('aria-label', t('IMDb rating ','IMDb puanı ')+row.rating+'/10'); poster.append(rating); }
       card.append(poster, el('span', 'mh-card-title', row.title),
         el('span', 'mh-card-meta', [row.year, row.catalogId ? t('In library', 'Kütüphanede') : ''].filter(Boolean).join(' · ')));
+      window.MediaVisual?.card(card,{title:row.title});
       if (row.because) card.append(el('span', 'md-reason', t(`Because you liked ${row.because}`, `${row.because} beğeninden dolayı`)));
       if(row.profileBecause){const r=row.profileBecause;card.append(el('span','md-reason',t(`${r.genre} · ${r.count} ratings, ${r.average.toFixed(1)}/5`,`${r.genre} · ${r.count} puan, ${r.average.toFixed(1)}/5`)));}
       if (row.feedback) card.append(el('span','md-reason', row.feedback === 'watched' ? t('Watched','İzlendi') : t('Not interested','İlgilenilmiyor')));
       if(row.personalMedia&&(row.personalMedia.reaction||row.personalMedia.manualResume||row.personalMedia.effectiveResume||row.personalMedia.note))card.append(el('span','pm-card-summary',window.PersonalMediaUI?.summary(row.personalMedia)||''));
       nodes.push(card);
     }
-    if (!state.rows.length && !state.busy && !state.loadError) nodes.push(el('p', 'mh-empty', state.tab === 'preferences' ? t('No hidden or watched preferences. You can undo preferences here.', 'Gizlenen veya izlenen tercihi yok. Tercihlerini buradan geri alabilirsin.') : state.tab === 'personal'
+    if (!state.rows.length && !state.busy && !state.loadError){
+      const text=state.tab === 'preferences' ? t('No hidden or watched preferences. You can undo preferences here.', 'Gizlenen veya izlenen tercihi yok. Tercihlerini buradan geri alabilirsin.') : state.tab === 'personal'
       ? state.needsRatings?t('Like titles with genre metadata in your library to get explained recommendations.', 'Gerekçeli öneriler için kütüphanende tür bilgisi olan yapımları beğen.'):t('No new recommendations match your saved preferences right now.', 'Şu anda kayıtlı tercihlerinle eşleşen yeni öneri yok.')
-      : state.next!==null?t('No visible titles on this page. Show more to check the next catalog page.', 'Bu sayfada gösterilecek yapım yok. Sonraki katalog sayfası için Daha fazla göster’i kullan.'):t('No titles matched these filters.', 'Bu filtrelerle eşleşen yapım yok.')));
+      : state.next!==null?t('No visible titles on this page. Show more to check the next catalog page.', 'Bu sayfada gösterilecek yapım yok. Sonraki katalog sayfası için Daha fazla göster’i kullan.'):t('No titles matched these filters.', 'Bu filtrelerle eşleşen yapım yok.');
+      if(window.MediaVisual){const action=btn(state.next!==null?t('Show more','Daha fazla göster'):state.tab==='browse'?t('Change search','Aramayı değiştir'):t('Explore titles','Yapımları keşfet'),()=>{if(state.next!==null)return load(true);if(state.tab==='browse')return state.root.querySelector('.md-search input')?.focus();state.root.querySelector('.md-tab')?.click();});nodes.push(window.MediaVisual.empty({title:t('Find your next story','Sıradaki hikâyeni bul'),text,actions:[action]}));}
+      else nodes.push(el('p','mh-empty',text));
+    }
     nodes.forEach((node,index)=>{if(grid.children[index]!==node)grid.insertBefore(node,grid.children[index]||null);});
     while(grid.children.length>nodes.length)grid.lastElementChild.remove();
     const context=state.root.querySelector('.md-results-context');if(context)context.textContent=state.busy&&!state.rows.length?'':(state.scope==='saved-library-viewing'?t('Saved library','Kayıtlı kütüphane'):state.tab==='personal'?t('Based on your preferences','Tercihlerine göre'):state.tab==='preferences'?t('Discovery exclusions','Keşiften gizlenenler'):t('Cinemeta catalog','Cinemeta kataloğu'))+' · '+state.rows.length+' '+t('titles shown','yapım gösteriliyor');
@@ -212,13 +218,13 @@
     for (const [value, label] of [['browse', t('New & popular', 'Yeni ve popüler')], ['personal', t('For you', 'Sana özel')], ['preferences', t('Preferences', 'Tercihler')]]) {
       const node = btn(label, () => { state.tab = value; state.rows = []; state.next = null; draw(); void load(); }, 'md-tab'); node.setAttribute('aria-pressed', String(value === state.tab)); tabs.append(node);
     }
-    root.append(tabs);if(state.tab==='browse'){const views=el('div','md-view-filters');views.setAttribute('aria-label',t('Viewing filter','İzlenme filtresi'));for(const [value,en,tr]of [['unwatched','Unwatched','İzlemediklerim'],['all','Include watched','Tümü'],['watched','Watched','İzlediklerim'],['watchlist','Watchlist','İzleme listem']]){const b=btn(t(en,tr),()=>{state.view=value;state.rows=[];draw();void load();},'md-view-filter');b.setAttribute('aria-pressed',String(state.view===value));views.append(b);}root.append(views);}
+    const dock=el('section','md-controls'),viewRow=el('div','md-view-row');dock.setAttribute('aria-label',t('Discovery controls','Keşfet kontrolleri'));dock.append(tabs);root.append(dock);if(state.tab==='browse'){const views=el('div','md-view-filters');views.setAttribute('aria-label',t('Viewing filter','İzlenme filtresi'));for(const [value,en,tr]of [['unwatched','Unwatched','İzlemediklerim'],['all','Include watched','Tümü'],['watched','Watched','İzlediklerim'],['watchlist','Watchlist','İzleme listem']]){const b=btn(t(en,tr),()=>{state.view=value;state.rows=[];draw();void load();},'md-view-filter');b.setAttribute('aria-pressed',String(state.view===value));views.append(b);}viewRow.append(views);}
     const filters = el('form', 'md-filters');
     function select(label, value, options, update) {
       const wrap = el('label', 'md-field'), input = el('select'); wrap.append(el('span', '', label)); input.dataset.discoveryControl = '1';
       input.dataset.discoveryFocus=label;
       for (const [key, title] of options) { const option = el('option', '', title); option.value = key; input.append(option); } input.value = value;
-      input.addEventListener('change', () => { update(input.value); state.rows = []; draw(); void load(); }); wrap.append(input); return wrap;
+      input.addEventListener('change', () => { update(input.value); state.rows = []; draw(); void load(); }); wrap.append(input); return window.MediaVisual?.filter(wrap)||wrap;
     }
     filters.append(select(t('Type', 'Yapım'), state.kind, [['film', t('Films', 'Filmler')], ['series', t('Series', 'Diziler')]], value => { state.kind = value; }));
     if (state.tab === 'browse') {
@@ -228,9 +234,9 @@
       else filters.append(select(t('Year', 'Yıl'), String(state.year), Array.from({ length: 70 }, (_, index) => { const year = new Date().getFullYear() - index; return [String(year), String(year)]; }), value => { state.year = +value; }));
       const searchLabel = el('label', 'md-field md-search'); searchLabel.append(el('span', '', t('Search', 'Ara'))); const search = el('input'); search.type = 'search'; search.maxLength = 200; search.placeholder = t('Film or series title…', 'Film veya dizi adı…'); search.value = state.query; search.name = 'discoverySearch'; search.autocomplete = 'off';search.addEventListener('input',()=>{state.query=search.value;}); searchLabel.append(search); filters.append(searchLabel);
       filters.addEventListener('submit', event => { event.preventDefault(); state.query = search.value.trim(); state.mode = 'top'; state.rows = []; draw(); void load(); });
-      const submit = el('button', 'mh-action mh-primary', t('Search', 'Ara')); submit.type = 'submit'; submit.dataset.discoveryControl = '1'; filters.append(submit);
+      const submit = el('button', 'mh-action', '');submit.setAttribute('aria-label',t('Search','Ara'));submit.title=submit.getAttribute('aria-label');submit.append(window.MediaVisual?.icon('search')||document.createTextNode(t('Search','Ara'))); submit.type = 'submit'; submit.dataset.discoveryControl = '1';submit.classList.add('mv-search-submit');const searchGroup=el('div','mv-search-group');filters.insertBefore(searchGroup,searchLabel);searchGroup.append(searchLabel,submit);
     } else filters.addEventListener('submit', event => event.preventDefault());
-    root.append(filters);const personalSlot=el('div','md-personal-slot');root.append(personalSlot);
+    dock.append(filters,viewRow);const personalSlot=el('div','md-personal-slot');viewRow.append(personalSlot);
     const statusNode = el('p', 'md-status'); statusNode.setAttribute('role', 'status'); const grid = el('div', 'md-grid');
     const footer = el('div', 'md-footer'); footer.append(btn(t('Show more', 'Daha fazla göster'), () => load(true), 'mh-action md-more'), btn(t('Retry', 'Yeniden dene'), () => load(state.retryAppend), 'mh-action md-retry'), el('p', 'md-provider', t('Catalog: Cinemeta, the official Stremio movie & series catalog. No account or API key required.', 'Katalog: Cinemeta, resmî Stremio film ve dizi kataloğu. Hesap veya API anahtarı gerekmez.')));
     const featureSlot=el('div','md-feature-slot');root.append(statusNode,featureSlot,el('p','md-results-context'),grid,footer);cards();

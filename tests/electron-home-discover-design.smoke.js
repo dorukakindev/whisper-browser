@@ -1,0 +1,59 @@
+// Isolated real Windows renderer/main acceptance; all metadata/media is synthetic.
+'use strict';
+const {app,BrowserWindow,ipcMain,session,nativeImage,net}=require('electron');
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),{execFileSync}=require('node:child_process'),{fileURLToPath}=require('node:url');
+const root=path.resolve(__dirname,'..'),before=process.argv.includes('--before'),screen=process.argv.includes('--discover')?'discover':'home',empty=process.argv.includes('--empty');
+const out=path.join(root,'tmp','home-discover-design-'+screen+'-'+(before?'before-':'after-')+Date.now()),profile=path.join(out,'profile');fs.mkdirSync(path.join(profile,'catalog-posters'),{recursive:true});app.setAppPath(root);process.env.WHISPER_RESOURCE_SOAK_USER_DATA=profile;
+for(const flag of ['disable-gpu','disable-backgrounding-occluded-windows','disable-renderer-backgrounding'])app.commandLine.appendSwitch(flag);
+const still=nativeImage.createFromPath(path.join(root,'docs/media/demo-poster.png')).crop({x:0,y:92,width:1280,height:534}),png=still.toPNG();
+const catalog=require('../src/media-catalog-store').createMediaCatalogStore({filePath:path.join(profile,'media-catalog.json')});
+const names=['Kontrollü: Şehrin Hatırası','Kontrollü: Yolun Ötesinde','Kontrollu_Kayip.Hatira.mkv','Kontrollü: Son Sahne','Kontrollü: Uzak Bir Zaman','Kontrollü: Sessiz Şehir','Kontrollü: Bir Başka Dünya','Kontrollü: Geriye Kalan'];
+const history=[],items=[];if(!empty)for(let i=0;i<8;i++){
+ const poster=path.join(profile,'catalog-posters',i+'.png');if(i!==2)fs.writeFileSync(poster,still.crop({x:(i*127)%800,y:0,width:356,height:534}).toPNG());
+ const id='abcde'+String(i).padStart(6,'0'),url='https://www.youtube.com/watch?v='+id;
+ items.push(catalog.upsert({title:names[i],kind:i===6?'series':'film',year:2012+i,runtime:59,imdbId:'tt'+(9900000+i),genres:['Drama'],synopsis:'Bu kontrollü yapım yalnız arayüz doğrulaması içindir. Gerçek bir film özeti değildir.',...(i!==2?{posterPath:poster}:{}),source:{type:'web',value:url,watchKey:'youtube:'+id}}));
+ history.push({key:'youtube:'+id,type:'youtube',sourceRef:url,title:names[i]+' - YouTube',position:600+i*75,duration:3540,lastWatched:Date.now()-i*1000});
+}
+fs.writeFileSync(path.join(profile,'watch-library.json'),JSON.stringify(history));
+const rows=names.map((name,i)=>({id:'tt'+(9900000+i),name,releaseInfo:String(2012+i),runtime:'110 min',poster:i===2?'':'https://images.metahub.space/poster/small/tt'+(9900000+i)+'/img',background:'https://images.metahub.space/background/small/tt'+(9900000+i)+'/img',genres:['Drama'],imdbRating:String(7+i/10),description:'Kontrollü keşif kaydı. Bu metin gerçek yayıncı açıklaması değildir.',cast:[],director:[]}));
+let holdNext=false,releaseRequest=null,failNext=false;const requests=[];
+global.fetch=async url=>{const u=String(url);if(u.startsWith('https://v3-cinemeta.strem.io/')){requests.push(u);if(holdNext){holdNext=false;await new Promise(r=>releaseRequest=r);}if(failNext){failNext=false;return new Response('controlled failure',{status:503});}return Response.json(u.includes('/meta/')?{meta:rows.find(r=>u.includes(r.id))}:{metas:u.includes('search=__empty__')?[]:rows});}if(u.includes('controlled-backdrop'))return new Response(png,{headers:{'content-type':'image/png'}});throw Error('Controlled network disabled');};
+if(before)app.on('ready',()=>{const names=['index.html','media-home.js','media-discovery-ui.js','media-daily-ui.js','global-assistant.js'],files=new Map(names.map(f=>[path.resolve(root,'src/renderer',f).toLowerCase(),execFileSync('git',['show','1d143ae5239add6ce3b30c69e39b968e2ce7314b:src/renderer/'+f],{cwd:root,maxBuffer:4000000})]));session.defaultSession.protocol.handle('file',r=>{const f=fileURLToPath(r.url),body=files.get(path.resolve(f).toLowerCase());return body?new Response(body,{headers:{'content-type':f.endsWith('.html')?'text/html':'application/javascript'}}):net.fetch(r.url,{bypassCustomProtocolHandlers:true});});});
+require('../src/main');const pause=ms=>new Promise(r=>setTimeout(r,ms));async function until(fn,label){for(let i=0;i<180;i++){if(await fn())return;await pause(70);}throw Error('Timeout '+label);}
+app.whenReady().then(async()=>{
+ session.defaultSession.protocol.handle('https',r=>['i.ytimg.com','images.metahub.space','image.tmdb.org'].includes(new URL(r.url).hostname)?new Response(png,{headers:{'content-type':'image/png'}}):new Response('',{status:404}));
+ const win=await untilWindow();win.setMinimumSize(360,480);win.restore();win.showInactive();win.setContentSize(1440,1050);const run=c=>win.webContents.executeJavaScript('(async()=>{'+c+'})()',true),shots=[];
+ async function shot(name){await run('await document.fonts.ready;return true');await pause(200);fs.writeFileSync(path.join(out,name+'.png'),(await win.webContents.capturePage()).toPNG());shots.push(name);}
+ await run('await initialSettingsReady;UiLocale.set("tr",false);applyUiTheme("dark");await MediaHomeUI.navigate("'+screen+'");return true');
+ if(screen==='home'){
+  await until(()=>run(empty?'return !!document.querySelector(".mv-empty,.mh-empty-state")':'return document.querySelector(".mh-hero")&&!document.querySelector(".mh-hero").hidden'),'Home content');await shot(empty?'home-empty-1440':'home-1440');
+  if(!before){assert.equal(await run('return document.querySelectorAll(".mh-header>.mh-actions>.mh-primary").length'),1);assert(await run('return [...document.querySelectorAll(".mh-card-title")].every(n=>!n.textContent.endsWith(".mkv")&&!n.textContent.endsWith("YouTube"))'),'presentation titles cleaned');if(!empty){assert(await run('return !!document.querySelector(".mh-hero .mh-remaining")'));assert(await run('return [...document.querySelectorAll(".mh-wide .mh-progress")].length>0'));const name=await run('return document.querySelector(".mh-hero h1").textContent');await run('document.querySelectorAll(".mh-hero-arrow")[1].click();return true');assert.notEqual(await run('return document.querySelector(".mh-hero h1").textContent'),name);await run('document.querySelector(".daily-home-entry details").open=true;return true');assert.equal(await run('return document.querySelectorAll(".daily-home-entry details button").length'),2);await run('document.querySelector(".daily-home-entry details").open=false;return true');}
+  const previous=ipcMain._invokeHandlers.get('media-catalog:request');ipcMain.removeHandler('media-catalog:request');ipcMain.handle('media-catalog:request',(e,p)=>p.action==='metadata-sync'?{ok:true,configured:true,total:12,updated:12,done:12,version:0,running:false}:previous(e,p));await run('await MetadataArtworkUI.start();return true');await shot('home-notification');assert(await run('return getComputedStyle(document.getElementById("mhMetadataStatus")).position==="fixed"'));await run('document.querySelector(".mv-toast-close").click();return true');assert(await run('return document.getElementById("mhMetadataStatus").hidden'));
+  }
+ }else{
+  await until(()=>run('return document.querySelectorAll("[data-discovery-id]").length===8'),'Discovery cards');await until(()=>run('return !document.querySelector(".md-feature")?.hidden'),'real backdrop');await shot('discover-1440');
+  if(!before){assert.equal(await run('return document.querySelectorAll(".mv-filter").length'),3);assert.equal(await run('return document.querySelectorAll(".md-view-filter").length'),4);assert(await run('return !!document.querySelector(".md-grid .mv-art-fallback")'));await run('document.querySelector(".mv-filter").open=true;return true');await shot('discover-filter-open');assert(await run('const p=document.querySelector(".mv-filter-panel").getBoundingClientRect();return p.left>=0&&p.right<=innerWidth'), 'filter popover stays inside window');await run('document.querySelector(".mv-filter").open=false;const s=document.querySelector(".md-search input");s.value="kontrol";s.dispatchEvent(new Event("input",{bubbles:true}));document.querySelector(".md-filters").requestSubmit();return true');await until(()=>requests.some(u=>u.includes('search=kontrol')),'unchanged search request');await until(()=>run('return document.querySelector(".md-grid").getAttribute("aria-busy")==="false"'),'search complete');await run('document.querySelector(".md-view-filter:nth-child(2)").click();return true');await until(()=>run('return document.querySelector(".md-view-filter:nth-child(2)").getAttribute("aria-pressed")==="true"'),'same watched filter');
+  await run('document.getElementById("mediaHome").scrollTop=420;return true');await pause(80);
+  assert(await run('const bar=document.querySelector(".md-controls").getBoundingClientRect(),header=document.querySelector(".mh-header").getBoundingClientRect();return Math.abs(bar.top-header.bottom)<=2'),'filter dock aligns with the actual sticky header');
+  await shot('discover-sticky');await run('document.getElementById("mediaHome").scrollTop=0;return true');
+  const bulk=await run('const b=document.querySelector(".md-personal-toolbar button");b.click();return document.querySelectorAll(".md-card-selector").length');
+  assert(bulk>0,'existing selection mode remains accessible');
+  await run('document.querySelector(".md-personal-toolbar button").click();return true');
+}
+ }
+ if(!before)for(const width of [480,1920]){win.setContentSize(width,1000);await pause(160);await run('document.getElementById("mediaHome").scrollTop=0;return true');assert(await run('const h=document.getElementById("mediaHome");return h.scrollWidth<=h.clientWidth+1'),'no horizontal page overflow '+width);await shot(screen+'-'+width);}
+ if(screen==='discover'&&!before){
+  win.setContentSize(1440,1050);await pause(100);holdNext=true;
+  await run('const s=document.querySelector(".md-search input");s.value="__empty__";document.querySelector(".md-filters").requestSubmit();return true');
+  await until(()=>!!releaseRequest,'held discovery request');
+  assert(await run('return document.querySelectorAll(".md-skeleton-art").length>0'),'real loading skeletons');await shot('discover-loading');releaseRequest();releaseRequest=null;
+  await until(()=>run('return document.querySelector(".md-grid").getAttribute("aria-busy")==="false"'),'empty response');
+  assert(await run('return !!document.querySelector(".md-grid .mv-empty")'),'designed empty state');await shot('discover-empty');
+  failNext=true;await run('const s=document.querySelector(".md-search input");s.value="__retry__";document.querySelector(".md-filters").requestSubmit();return true');
+  await until(()=>run('return !!document.querySelector(".md-status.mh-error")'),'controlled provider failure');
+  await run('document.querySelector(".md-retry").click();return true');
+  await until(()=>run('return document.querySelectorAll("[data-discovery-id]").length===8'),'same retry owner');
+ }
+ fs.writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({ok:true,before,screen,empty,actualWindows:process.platform==='win32',isolatedProfile:true,controlledNetwork:true,liveProvider:false,shots},null,2));console.log(JSON.stringify({ok:true,out,screen,before,shots:shots.length}));app.exit(0);
+ async function untilWindow(){let win;await until(()=>{win=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('index.html')&&!w.webContents.isLoading());return win;},'app');return win;}
+}).catch(async e=>{console.error(e.stack);const w=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('index.html'));if(w){fs.writeFileSync(path.join(out,'failure.png'),(await w.webContents.capturePage()).toPNG());console.error(await w.webContents.executeJavaScript('JSON.stringify({home:document.querySelector(".mh-content")?.innerText.slice(0,1500)})'));}app.exit(1);});setTimeout(()=>app.exit(2),45000).unref();

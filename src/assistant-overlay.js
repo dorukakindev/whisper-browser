@@ -25,7 +25,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
     const bottom = 24 + Math.min(Math.max(0, Number(snapshot.bottomInset) || 0), h / 2);
     const height = expanded ? Math.min(large ? 850 : 720, Math.max(150, h - bottom - 40)) : 64;
     view.setBounds({ x: Math.max(0, w - width - 16), y: Math.max(38, h - height - bottom), width, height });
-    view.setVisible(!modalBlocked && !window.isFullScreen());
+    view.setVisible(!modalBlocked && !window.isFullScreen() && (expanded || !snapshot.toolbarDocked));
     // Browser tabs may have just been added above us. Move this view to the top.
     window.contentView.addChildView(view);
   }
@@ -50,6 +50,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
       threads:Array.isArray(value.threads)?value.threads.slice(0,20).map(row=>({id:String(row.id||'').slice(0,100),title:String(row.title||'').slice(0,200)})):[],
       context: String(value.context || '').slice(0, 600), busy: !!value.busy, retry: !!value.retry, activity:typeof value.activity==='string'?value.activity.slice(0,160):'',phase:['waiting','thinking','reasoning','tool','applying','writing'].includes(value.phase)?value.phase:'waiting',
       scope: ['nearby', 'watched', 'full'].includes(value.scope) ? value.scope : 'watched',
+      toolbarDocked:value.toolbarDocked===true,
       bottomInset: Math.min(400, Math.max(0, Number(value.bottomInset) || 0)),
       suggestions: Array.isArray(value.suggestions) ? value.suggestions.slice(0, 5).map(row => ({ id:String(row.id || '').slice(0, 100), direct:!!row.direct, label:String(row.label || '').slice(0, 120), review:String(row.review || '').slice(0, 1800) })) : [],
       messages: Array.isArray(value.messages) ? value.messages.slice(-200).map(row => ({
