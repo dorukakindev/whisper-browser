@@ -2,7 +2,7 @@
  'use strict';
  const contract=window.AssistantContextManifest,registry=window.AssistantCapabilities;
  const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
- function subtitleIdentity(){let hash=2166136261;for(const value of [player.subPath,player.subPath2,JSON.stringify(player.cues||[]),JSON.stringify(player.cues2||[])])for(const char of String(value||'')){hash=Math.imul(hash^char.charCodeAt(0),16777619);}return String(hash>>>0);}
+ function subtitleIdentity(){let hash=2166136261;for(const value of [player.subPath,player.sub2Path,JSON.stringify(player.cues||[]),JSON.stringify(player.cues2||[])])for(const char of String(value||'')){hash=Math.imul(hash^char.charCodeAt(0),16777619);}return String(hash>>>0);}
  function snapshot(){
   const selection=globalAssistantContext(),tab=player.workspaceMode==='browser'?browserTabState():null;
   const url=player.browserPageUrl||'';

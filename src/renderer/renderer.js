@@ -25511,19 +25511,22 @@ async function translateVisiblePdfPagesNow(reader, all, explicitPages = null) {
 }
 
 async function openPdfReader(filePath = '') {
+  const request=(player.pdfOpenGeneration||0)+1;player.pdfOpenGeneration=request;
+  const current=()=>player.pdfOpenGeneration===request;
+  const disposePending=async()=>{try{await loadingTask?.destroy?.();}catch(_){} };
+  let pdf,loadingTask;
   const opened = await window.api.openPdf?.(filePath).catch((error) => ({ ok: false, error: error.message }));
+  if(!current())return;
   if (!opened?.ok) { if (!opened?.canceled) setBrowserSignal(opened?.error || 'PDF açılamadı.', false); return; }
-  let pdf;
-  let loadingTask;
   try {
-    const pdfjs = await getPdfJs();
-    const response = await fetch(opened.fileUrl, { cache: 'no-store' });
+    const pdfjs = await getPdfJs();if(!current())return;
+    const response = await fetch(opened.fileUrl, { cache: 'no-store' });if(!current())return;
     if (!response.ok) throw new Error(`PDF verisi alınamadı (HTTP ${response.status}).`);
     const declaredSize = Number(response.headers.get('content-length'));
     if (Number.isFinite(declaredSize) && declaredSize !== Number(opened.size)) {
       throw new Error('PDF dosyası açılırken boyutu değişti; dosyayı yeniden seçin.');
     }
-    const buffer = await response.arrayBuffer();
+    const buffer = await response.arrayBuffer();if(!current())return;
     if (buffer.byteLength !== Number(opened.size)) throw new Error('PDF verisi eksik alındı.');
     // PDF.js Uint8Array sahipliğini worker'a aktarır; farklı sürücüdeki file://
     // kısıtına girmeden ayrıştırma yapılır ve renderer'da ikinci kopya tutulmaz.
@@ -25540,9 +25543,10 @@ async function openPdfReader(filePath = '') {
       wasmUrl: new URL('./vendor/wasm/', location.href).href,
       iccUrl: new URL('./vendor/iccs/', location.href).href,
     });
-    pdf = await loadingTask.promise;
+    pdf = await loadingTask.promise;if(!current()){await disposePending();return;}
   } catch (error) {
     try { await loadingTask?.destroy?.(); } catch (_) {}
+    if(!current())return;
     setBrowserSignal(`PDF okunamadı: ${error.message}`, false);
     return;
   }
@@ -25550,9 +25554,11 @@ async function openPdfReader(filePath = '') {
   try { viewMode = localStorage.getItem('whisper-local.pdf-view') || 'reading'; } catch (_) {}
   // İkinci PDF birincinin üstüne açılınca eski belge/gözlemci/çeviri serbest
   // bırakılmıyordu; eski çevirinin durumu yeni okuyucuya yazılıyordu.
-  if (player.pdfReader) $('pdfReaderClose')?.click();
+  if(!current()){await disposePending();return;}
+  if (player.pdfReader) closePdfReader(player.pdfReader,true);
   updatePdfReaderZoomLabel(1);
   player.pdfReader = { pdf, loadingTask, pdfHash: opened.pdfHash, state: opened.state, scale: 1, currentPage: 1, viewMode, renderGeneration: 0, rendered: new Map(), rendering: new Set(), pages: new Map() };
+  const reader=player.pdfReader;
   updatePdfReaderProgress();
   const pageInput = $('pdfReaderPage');
   if (pageInput) { pageInput.max = String(pdf.numPages); pageInput.value = '1'; }
@@ -25562,8 +25568,11 @@ async function openPdfReader(filePath = '') {
   setPdfReaderView(viewMode);
   for (const pageNumber of [1, 2, 3].filter((number) => number <= pdf.numPages)) {
     await renderPdfReaderPage(pageNumber);
+    if(player.pdfReader!==reader)return;
   }
+  if(player.pdfReader!==reader)return;
   const root = $('pdfReaderPages'); root.onscroll = () => {
+    if(player.pdfReader!==reader)return;
     if(player.pdfReader?.zooming||player.pdfReader?.navigatingPage||player.pdfReader?.switchingView)return;
     const visible = readerPagesForVisibility().filter(p=>p.visible>0);
     // Keep the selected page while it remains fully visible: two short pages
@@ -25581,6 +25590,7 @@ async function openPdfReader(filePath = '') {
   if (!player.pdfReader.observer && 'IntersectionObserver' in window) {
     player.pdfReader.observer = new IntersectionObserver((entries) => entries.filter((entry) => entry.isIntersecting)
       .forEach((entry) => {
+        if(player.pdfReader!==reader)return;
         // Görünen sayfanın iki yanı da doldurulur: sayfa atlama ve yakınlaştırma
         // sonrasında önceki sayfalar da kaydırdıkça geri gelir.
         const number = Number(entry.target.dataset.page);
@@ -25592,6 +25602,7 @@ async function openPdfReader(filePath = '') {
   for (const article of $('pdfReaderPages').querySelectorAll('.pdf-page')) player.pdfReader.observer?.observe(article);
   window.PdfReaderExperience?.opened();
   syncBrowserOcclusion();
+  return reader;
 }
 
 function readerPagesForVisibility() {
@@ -25613,7 +25624,9 @@ $('pdfReaderPage')?.addEventListener('change', (event) => {
     document.querySelector(`.pdf-page[data-page="${page}"]`)?.scrollIntoView({ behavior: 'instant', block: 'start' });
   }).finally(()=>{if(reader.navigationSequence===navigation)reader.navigatingPage=false;});
 });
-$('pdfReaderClose')?.addEventListener('click', () => {
+function closePdfReader(expectedReader=null,preserveOpen=false) {
+  if(expectedReader&&player.pdfReader!==expectedReader)return;
+  if(!preserveOpen)player.pdfOpenGeneration=(player.pdfOpenGeneration||0)+1;
   const reader = player.pdfReader;
   reader?.observer?.disconnect();
   if (reader) reader.renderGeneration = (reader.renderGeneration || 0) + 1;
@@ -25630,7 +25643,9 @@ $('pdfReaderClose')?.addEventListener('click', () => {
   $('browserWorkspace')?.classList.toggle('hidden', player.workspaceMode !== 'browser');
   if (player.workspaceMode === 'browser' && typeof scheduleBrowserBounds === 'function') scheduleBrowserBounds();
   syncBrowserOcclusion();
-});
+}
+$('pdfReaderClose')?.addEventListener('click', () => closePdfReader());
+
 $('pdfTranslateVisible')?.addEventListener('click', () => translateVisiblePdfPages(false));
 $$('[data-pdf-view]').forEach((button) => {
   button.addEventListener('click', () => setPdfReaderView(button.dataset.pdfView));
@@ -33530,18 +33545,18 @@ function podcastQueueOwnerCurrent(binding){
 // Podcast uses the existing frozen-options queue and terminal handlers.
 window.queuePodcastSource=async function(binding){
  if(!binding?.path||!binding.entryId||!binding.sourceVersion||!podcastQueueOwnerCurrent(binding))throw Error('Podcast source changed / Podcast kaynağı değişti.');
- if(!addToQueue('file',binding.path))throw Error('Could not add podcast to existing queue / Podcast mevcut kuyruğa eklenemedi.');
- const item=state.queue[state.queue.length-1];item.podcastBinding={...binding};item.opts.outputNameSuffix='podcast-'+binding.sourceVersion.slice(0,12);renderQueue();
+ if(!addToQueue('file',binding.path,{optionsOverride:{outputNameSuffix:'-whisper-podcast-'+binding.sourceVersion.slice(0,12)}}))throw Error('Could not add podcast to existing queue / Podcast mevcut kuyruğa eklenemedi.');
+ const item=state.queue[state.queue.length-1];item.podcastBinding={...binding};renderQueue();
  if(!state.queueRunning&&!state.running)startQueue();return {queued:true,id:item.id};
 };
 window.translatePodcastSource=async function(binding){
  if(!binding?.materializedPath||!binding.entryId||!binding.sourceVersion||!podcastQueueOwnerCurrent(binding)||binding.track?.timed!==true)throw Error('Podcast transcript source changed / Podcast döküm kaynağı değişti.');
  const snapshot=window.MediaShelfUI?.readSnapshot?.(),track=binding.track;
  if(binding.playbackOwner!=='media-shelf'||snapshot?.sourceTrack?.id!==track.id||snapshot?.sourceTrack?.revision!==track.revision)throw Error('Podcast transcript changed / Podcast dökümü değişti.');
- const override={translateOnly:true,translate:true,input:binding.materializedPath};
+ const override={translateOnly:true,translate:true,input:binding.materializedPath,outputNameSuffix:'-whisper-podcast-'+binding.sourceVersion.slice(0,12)};
  if(track.language)override.language=track.language;
  if(!addToQueue('file',binding.materializedPath,{optionsOverride:override}))throw Error('Could not add podcast translation to existing queue / Podcast çevirisi kuyruğa eklenemedi.');
- const item=state.queue[state.queue.length-1];item.podcastBinding={...binding,outputRole:'translation',track:{id:track.id,revision:track.revision}};item.opts.outputNameSuffix='podcast-'+binding.sourceVersion.slice(0,12);renderQueue();
+ const item=state.queue[state.queue.length-1];item.podcastBinding={...binding,outputRole:'translation',track:{id:track.id,revision:track.revision}};renderQueue();
  if(!state.queueRunning&&!state.running)startQueue();return {queued:true,id:item.id};
 };
 async function persistPodcastJobOutputs(event,binding){

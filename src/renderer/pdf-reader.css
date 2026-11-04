@@ -80,7 +80,7 @@
   width: 310px; max-width: calc(100vw - 40px); max-height: min(65vh, 540px);
   overflow: auto; overscroll-behavior: contain; padding: 18px; display: grid; gap: 10px;
   background: var(--bg-1); border: 1px solid var(--border-strong); border-radius: 14px;
-  box-shadow: 0 16px 48px #0005;
+  box-shadow: 0 16px 48px rgb(var(--media-scrim-rgb) / calc(85 / 255));
 }
 .pdf-reader-tools-content .btn, .pdf-reader-tools-content select { width: 100%; }
 .pdf-tool-group{display:grid;gap:8px;min-width:0;}

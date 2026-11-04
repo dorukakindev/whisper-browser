@@ -263,6 +263,7 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
         }
         case 'book-progress': {
           const data = load(), row = found(data, 'books', input.id);
+          if(input.expectedSource){const stat=fs.statSync(row.path);if(input.expectedSource.sourceSize!==stat.size||input.expectedSource.sourceMtime!==stat.mtimeMs)throw Error('Source book changed; reopen it / Kaynak kitap değişti; yeniden açın.');}
           if (!Number.isInteger(input.chapter) || input.chapter < 0 || input.chapter > 1000 || !Number.isFinite(input.scroll) || input.scroll < 0 || input.scroll > 1) throw Error('Invalid reading position.');
           row.chapter = input.chapter; row.scroll = input.scroll;
           if (input.bookmark) {

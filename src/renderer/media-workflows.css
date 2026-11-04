@@ -180,11 +180,11 @@
 dialog.mw-dialog {
   margin: auto;
   inset: 0;
-  box-shadow: 0 24px 80px #0006;
+  box-shadow: 0 24px 80px rgb(var(--media-scrim-rgb) / calc(102 / 255));
   overflow: auto;
 }
 dialog.mw-dialog::backdrop {
-  background: #0009;
+  background: rgb(var(--media-scrim-rgb) / calc(153 / 255));
 }
 .mw-dialog > header {
   position: sticky;
@@ -568,7 +568,7 @@ dialog.mw-dialog::backdrop {
   color: var(--text);
 }
 .mw-confirm::backdrop {
-  background: #0008;
+  background: rgb(var(--media-scrim-rgb) / calc(136 / 255));
 }
 .mw-confirm h2 {
   font-size: 22px;
@@ -703,7 +703,7 @@ dialog.mw-dialog::backdrop {
 .mw-reader-tools { position:relative;flex:0 0 auto; }
 .mw-reader-tools>summary { cursor:pointer;list-style:none; }
 .mw-reader-tools>summary::-webkit-details-marker { display:none; }
-.mw-reader-tools-panel { position:absolute;z-index:8;right:0;top:calc(100% + 10px);width:min(390px,calc(100vw - 80px));max-height:55vh;overflow:auto;overscroll-behavior:contain;padding:18px;background:var(--bg-1);border:1px solid var(--border-strong);border-radius:12px;box-shadow:0 12px 36px #0004; }
+.mw-reader-tools-panel { position:absolute;z-index:8;right:0;top:calc(100% + 10px);width:min(390px,calc(100vw - 80px));max-height:55vh;overflow:auto;overscroll-behavior:contain;padding:18px;background:var(--bg-1);border:1px solid var(--border-strong);border-radius:12px;box-shadow:0 12px 36px rgb(var(--media-scrim-rgb) / calc(68 / 255)); }
 .mw-reader-tools-panel .mw-bookmarks { margin:12px 0 0;padding:12px 0 0;border-bottom:0; }
 .mw-reader-tools-panel .mw-actions { display:grid;gap:8px; }
 .mw-reader-tools-panel .mw-bookmarks select { min-width:0;width:100%; }

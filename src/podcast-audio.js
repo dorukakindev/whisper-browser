@@ -4,6 +4,15 @@ const {pipeline}=require('node:stream/promises'),{Transform}=require('node:strea
 const {createHash}=require('node:crypto');
 const {isPrivateHost}=require('./podcast-transcript');
 const safeAudio=url=>{try{const u=new URL(url);return ['http:','https:'].includes(u.protocol)&&!u.username&&!u.password&&!isPrivateHost(u.hostname);}catch{return false;}};
+// Keep managed artifacts inside the existing media grant contract. A generic
+// response needs a known enclosure suffix; never authorize an arbitrary suffix.
+function managedAudioExtension(mime,url){
+ const types={'audio/mpeg':'mp3','audio/mp3':'mp3','audio/mp4':'m4a','audio/x-m4a':'m4a','audio/aac':'aac','audio/aacp':'aac','audio/wav':'wav','audio/x-wav':'wav','audio/vnd.wave':'wav','audio/flac':'flac','audio/x-flac':'flac','audio/ogg':'ogg','application/ogg':'ogg','audio/opus':'opus','audio/x-ms-wma':'wma','audio/webm':'webm','video/webm':'webm','video/mp4':'mp4','audio/3gpp':'3gp','video/3gpp':'3gp'};
+ if(types[mime])return '.'+types[mime];
+ let ext;try{ext=/\.([a-z0-9]+)$/i.exec(new URL(url).pathname)?.[1].toLowerCase();}catch{}
+ if(['mp3','wav','m4a','m4b','aac','flac','ogg','opus','wma','mp4','webm','3gp'].includes(ext))return '.'+ext;
+ throw Error('Podcast audio format is unsupported.');
+}
 // Same pinned DNS transport policy as feed/transcript requests; audio streams to disk.
 async function acquireAudio(url,file,{signal,publicPin,transport,maxBytes=512*1024*1024}={}){
  let created=false;
@@ -24,4 +33,4 @@ async function acquireAudio(url,file,{signal,publicPin,transport,maxBytes=512*10
   let handle;try{handle=await fs.promises.open(file,'wx');created=true;}catch(error){response.destroy();throw error;}await pipeline(response,limit,handle.createWriteStream(),{signal:combined});if(!size)throw Error('Empty podcast audio.');if(expected!==null&&expected!==size)throw Error('Podcast audio length mismatch.');const rawEtag=response.headers.etag,etag=typeof rawEtag==='string'&&rawEtag.length<=500&&!/[\r\n\0]/.test(rawEtag)?rawEtag:'unknown';return {bytes:size,mime,etag,sha256:digest.digest('hex'),probe:'unknown'};
  }throw Error('Podcast audio redirect limit.');}catch(error){if(created)await fs.promises.rm(file,{force:true}).catch(()=>{});throw error;}
 }
-module.exports={acquireAudio};
+module.exports={acquireAudio,managedAudioExtension};
