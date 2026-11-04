@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Completed a live Spotify metadata → RSS → CUDA Whisper → separate Turkish translation sample. Fixed saved-source translation, a false Turkish lexical-negation rejection, and stale-source/reopened-stream timing guards. [Live evidence and limits](docs/devir/2026-11-04-2302.md).
+
 - Kept discovery pagination tied to the submitted query, prevented stopped assistant replies from publishing late success, and routed public player commands through the existing ownership/range validator. [Targeted checks](docs/devir/2026-11-04-1830.md).
 
 - Kept selected subtitle tracks and film editions visible through refresh, added cancellable RSS article translation, and refined podcast reading with source status, search and separate timestamps over the existing playback owner. [Verification](docs/devir/2026-11-04-1826.md).

@@ -9,6 +9,7 @@ test('Saved RSS output uses timed loading only for exact complete source and oth
  await context.load();assert.equal(audio.transcriptState,'untimed');assert.equal(audio.transcriptText,'Stored result');assert.match(audio.transcriptTimingNotice,/Read-only/);assert.equal(loads.length,0);assert.equal(audio.sourceVersion,'remote-unknown');assert.equal(modes[0],true);
  audio.sourceVersion='download-sha';await context.load();assert.equal(audio.transcriptState,'timed');assert.equal(loads.length,1);assert.equal(requests.at(-1).action,'podcast-materialize');assert.equal(audio.transcriptTimingNotice,undefined);
  saved.workspace.transcript.status='partial';await context.load();assert.equal(audio.transcriptState,'untimed');assert.equal(loads.length,1);
+ saved.workspace.transcript.status='complete';saved.workspace.transcript.provenance='asr';await context.load();assert.equal(audio.transcriptState,'untimed','a cached download hash does not verify a newly opened RSS stream');assert.equal(loads.length,1);
 });
 test('Spotify confirmation exposes explicit RSS open without playback until the open action',async()=>{
  class Element{constructor(tag){this.tag=tag;this.children=[];this.dataset={};this.listeners={};this.isConnected=true;this.textContent='';}append(...nodes){this.children.push(...nodes);}replaceChildren(...nodes){this.children=nodes;}setAttribute(){}addEventListener(event,fn){this.listeners[event]=fn;}showModal(){this.open=true;}close(){this.open=false;this.listeners.close?.();}remove(){this.isConnected=false;}}
@@ -24,4 +25,13 @@ test('A late saved-result response cannot replace the next episode',async()=>{
  let complete;const first={entryId:'A',mediaKey:'A',generation:1,sourceVersion:'a'},player={workspaceAudio:first,mediaKey:'A',generation:1};const context={player,t:(_tr,en)=>en,api:()=>new Promise(resolve=>{complete=resolve;}),window:{PlayerWorkspaceIntegration:{refresh(){throw Error('stale refresh');}}}};
  const start=source.indexOf('  async function loadSavedPodcastResult('),end=source.indexOf('  function podcastTools(',start);vm.runInNewContext(source.slice(start,end)+';globalThis.load=loadSavedPodcastResult;',context);const pending=context.load();player.workspaceAudio={entryId:'B',mediaKey:'B',generation:2,sourceVersion:'b'};player.mediaKey='B';player.generation=2;complete({sourceVersion:'a',workspace:{transcript:{state:'untimed',text:'stale result'}}});await pending;assert.equal(first.transcriptText,undefined);assert.equal(player.workspaceAudio.transcriptText,undefined);
  const integration=fs.readFileSync(require.resolve('../src/renderer/player-workspace-integration.js'),'utf8');assert.match(integration,/rows = player\.workspaceAudio\?\.transcriptState==='untimed'\?\[\]/);assert.match(integration,/timed:!\['untimed','needs-review'\]\.includes/);
+});
+
+test('A read-only RSS stream can translate its complete saved download transcript without loading or seeking the stream',async()=>{
+ const audio={entryId:'A',mediaKey:'rss:A',generation:2,sourceVersion:'stream-unknown',transcriptState:'untimed'},player={workspaceAudio:audio,mediaKey:'rss:A',generation:2},calls=[];
+ const saved={sourceVersion:'download-sha',workspace:{transcript:{state:'timed',status:'complete',text:'saved source'}}};
+ const context={player,t:(_tr,en)=>en,api:async input=>input.action==='podcast-materialize'?{path:'owned-hash.srt'}:saved,window:{translatePodcastSource:async binding=>{calls.push(binding);return {queued:true};}}};
+ const start=source.indexOf('  async function translatePodcastTranscript('),end=source.indexOf('  async function loadSavedPodcastResult(',start);vm.runInNewContext(source.slice(start,end)+';globalThis.translate=translatePodcastTranscript;',context);
+ await context.translate();assert.equal(calls.length,1);assert.equal(calls[0].sourceVersion,'download-sha');assert.equal(calls[0].playbackSourceVersion,'stream-unknown');assert.equal(calls[0].sourceTranscriptText,'saved source');assert.equal(calls[0].materializedPath,'owned-hash.srt');assert.equal(audio.sourceVersion,'stream-unknown');assert.equal(audio.transcriptState,'untimed');
+ saved.workspace.transcript.status='partial';await assert.rejects(context.translate(),/complete/);assert.equal(calls.length,1);
 });

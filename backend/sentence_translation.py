@@ -1778,6 +1778,7 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
     negative_target = translated
     if lang == 'tr':
         for source_pattern, target_pattern in (
+            (r'\bundecided\b', r'\bkararsız\w*\b'),
             (r'\bunpredictab(?:le|ility)\b', r'\böngörülemez(?:lik)?(?:liği|liğiyle|lik)?\b'),
             (r'\bruthless(?:ly|ness)?\b', r'\bacımasız(?:ca|lık)?\b'),
             (r'\bhopeless\b', r'\bumutsuz\w*\b'),

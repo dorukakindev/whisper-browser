@@ -33535,7 +33535,7 @@ async function aiWebResearch(question){
 // Downloaded byte identity does not prove an already playing remote stream is identical.
 function podcastJobMatchesCurrent(job){
  const audio=player.workspaceAudio,binding=job?.podcastBinding;
- return !!audio&&!!binding&&job.mediaKey===player.mediaKey&&job.generation===player.generation&&audio.entryId===binding.entryId&&audio.sourceVersion===binding.sourceVersion;
+ return !!audio&&!!binding&&job.mediaKey===player.mediaKey&&job.generation===player.generation&&audio.entryId===binding.entryId&&audio.sourceVersion===binding.sourceVersion&&binding.outputRole==='translation'&&binding.transcriptProvenance==='publisher';
 }
 function podcastQueueOwnerCurrent(binding){
  if(binding?.playbackOwner==='media-shelf'){
@@ -33554,7 +33554,12 @@ window.queuePodcastSource=async function(binding){
 window.translatePodcastSource=async function(binding){
  if(!binding?.materializedPath||!binding.entryId||!binding.sourceVersion||!podcastQueueOwnerCurrent(binding)||binding.track?.timed!==true)throw Error('Podcast transcript source changed / Podcast döküm kaynağı değişti.');
  const snapshot=window.MediaShelfUI?.readSnapshot?.(),track=binding.track;
- if(binding.playbackOwner!=='media-shelf'||snapshot?.sourceTrack?.id!==track.id||snapshot?.sourceTrack?.revision!==track.revision)throw Error('Podcast transcript changed / Podcast dökümü değişti.');
+ if(binding.playbackOwner==='media-shelf'){
+  if(snapshot?.sourceTrack?.id!==track.id||snapshot?.sourceTrack?.revision!==track.revision)throw Error('Podcast transcript changed / Podcast dökümü değişti.');
+ }else{
+  const saved=await window.api.feedsRequest({action:'podcast-workspace',entryId:binding.entryId,sourceVersion:binding.sourceVersion});
+  if(!saved?.ok||saved.sourceVersion!==binding.sourceVersion||saved.workspace?.transcript?.state!=='timed'||saved.workspace.transcript.status==='partial'||!binding.sourceTranscriptText||saved.workspace.transcript.text!==binding.sourceTranscriptText||!podcastQueueOwnerCurrent(binding))throw Error('Podcast transcript changed / Podcast dökümü değişti.');
+ }
  const override={translateOnly:true,translate:true,input:binding.materializedPath,outputNameSuffix:'-whisper-podcast-'+binding.sourceVersion.slice(0,12)};
  if(track.language)override.language=track.language;
  if(!addToQueue('file',binding.materializedPath,{optionsOverride:override}))throw Error('Could not add podcast translation to existing queue / Podcast çevirisi kuyruğa eklenemedi.');
@@ -33563,9 +33568,11 @@ window.translatePodcastSource=async function(binding){
 };
 async function persistPodcastJobOutputs(event,binding){
  const outputs=completedSubtitleOutputs(event,binding.outputRole||'source');
- try{for(const [kind,item]of [['source',outputs.source],['translation',outputs.translation]]){
+ try{
+ if(binding.outputRole==='translation'&&binding.sourceTranscriptText){const saved=await window.api.feedsRequest({action:'podcast-workspace',entryId:binding.entryId,sourceVersion:binding.sourceVersion});if(!saved?.ok||saved.sourceVersion!==binding.sourceVersion||saved.workspace?.transcript?.text!==binding.sourceTranscriptText)throw Error('Podcast transcript changed / Podcast dökümü değişti.');}
+ for(const [kind,item]of [['source',outputs.source],['translation',outputs.translation]]){
   if(!item?.path)continue;const result=await window.api.readSubtitle(item.path);if(!result?.ok)throw Error(result?.error||'Podcast output unavailable.');
-  const response=await window.api.feedsRequest({action:'podcast-save-transcript',entryId:binding.entryId,sourceVersion:binding.sourceVersion,text:result.text,format:/\.vtt$/i.test(item.path)?'vtt':'srt',timed:true,provenance:'asr',role:kind,status:item.status==='partial'?'partial':'complete'});
+  const response=await window.api.feedsRequest({action:'podcast-save-transcript',entryId:binding.entryId,sourceVersion:binding.sourceVersion,text:result.text,format:/\.vtt$/i.test(item.path)?'vtt':'srt',timed:true,provenance:'asr',role:kind,...(kind==='translation'&&binding.sourceTranscriptText?{expectedTranscriptText:binding.sourceTranscriptText}:{}),status:item.status==='partial'?'partial':'complete'});
   if(!response?.ok)throw Error(response?.error||'Podcast result could not be saved.');
   if(binding.playbackOwner==='media-shelf'){
    const snapshot=window.MediaShelfUI?.readSnapshot?.();

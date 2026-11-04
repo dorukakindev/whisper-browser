@@ -52,3 +52,14 @@ test('podcast backup preview handles feeds and does not call present media missi
  assert.deepEqual(pack.missingLocalMedia(data,()=>true),[]);
  assert.equal(pack.missingLocalMedia(data,()=>false)[0].count,1);
 });
+
+test('A late translation cannot overwrite a changed saved source and materialized source files remain immutable',async t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'podcast-source-cas-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const service=registerFeeds({app:new EventEmitter(),ipcMain:{handle(){}},authorized:()=>true,userData:()=>dir,autoStart:false,grantSubtitle:()=>true});t.after(()=>service.dispose());
+ const parsed=require('../src/feed-parser').parseFeed(xml,'https://feed.example/rss');service.store.subscribe({...parsed,url:'https://feed.example/rss'},parsed.entries);const entry=service.store.entries().rows[0],version=sourceVersion(entry),event={sender:{id:7}};
+ const api=(action,rest={})=>service.handle(event,{action,entryId:entry.id,sourceVersion:version,...rest});
+ await api('podcast-save-transcript',{text,format:'vtt',timed:true});const first=await api('podcast-materialize');
+ const replacement=text.replace('Hello','Changed');await api('podcast-save-transcript',{text:replacement,format:'vtt',timed:true});const second=await api('podcast-materialize');assert.notEqual(first.path,second.path);assert.equal(fs.readFileSync(first.path,'utf8'),text);
+ const late=await api('podcast-save-transcript',{role:'translation',text:text.replace('Hello','Merhaba'),format:'vtt',timed:true,expectedTranscriptText:text});assert.equal(late.ok,false);assert.equal(service.store.entry(entry.id).podcastWorkspace.translation,undefined);
+ const current=await api('podcast-save-transcript',{role:'translation',text:text.replace('Hello','Değişti'),format:'vtt',timed:true,expectedTranscriptText:replacement});assert.equal(current.ok,true);
+});
