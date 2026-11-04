@@ -79,4 +79,8 @@ Tamamlandı: PR810 master'a `486e25e6a4192dbfd3ed5276bda12a28fe9add4b` ile birle
 
 ## G1 — Podcast planı yeniden tamamlandı — 18:00
 
-Önceki genel tamamlandı ifadesi geri çekildi. Ürün `ac62d3dc650d5732be56d78f36d45c433d0a7e46` P1–P6 eksik shelf, kaynak sürümü, asistan, Whisper/çeviri ve okunabilir saved-result akışlarını bağlar. [Sıralı hedefler](docs/implementation/podcast-completion-ordered-goals.md), [devir](docs/devir/2026-11-04-1800.md). G1 kod/hedefli kontroller tamam; master/ana kopya entegrasyonu sırada. G2–G5 BEKLİYOR; eski ZIP'lere ait dört dosya ayrı tutulur. Yeniden ağır test veya onay sorusu yok.
+Önceki genel tamamlandı ifadesi geri çekildi. Ürün `ac62d3dc650d5732be56d78f36d45c433d0a7e46` P1–P6 eksik shelf, kaynak sürümü, asistan, Whisper/çeviri ve okunabilir saved-result akışlarını bağlar. [Sıralı hedefler](docs/implementation/podcast-completion-ordered-goals.md), [devir](docs/devir/2026-11-04-1800.md). G1 PR812 ile `3d0e80b49a939425b69581b74b9d21586cafa7ce` master/ana kopyaya alındı. G2 aşağıda; G3–G5 BEKLİYOR; eski ZIP'lere ait dört dosya ayrı tutulur. Yeniden ağır test veya onay sorusu yok.
+
+## G2 — Güncel denetim düzeltmeleri — 18:17
+
+Kod tamam; ürün `0d028677727d5b4ca2043c0ab37fb8551f34e9c8`, dal `codex/podcast-plan-completion-20261104`. [Kapsam/sonuçlar](docs/implementation/audit-current-code-2026-11-04.md), [devir](docs/devir/2026-11-04-1817.md). Podcast medya grant/çıktı eki, PDF/kitap sahipliği, ikinci altyazı onayı ve hareket kalıcılığı düzeltildi. Renk eşiği değişmeden test geçti. Sonraki adım: G2 PR/master/ana kopya doğrulaması; ardından G3. Gerçek model/GPU/sağlayıcı/UNC/safeStorage kabulü doğrulanmadı; ağır test yapılmayacak.
