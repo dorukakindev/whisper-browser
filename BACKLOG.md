@@ -72,3 +72,7 @@ DEVIR-NOTU.md'nin ilgili son kaydını ve aktif dalı kontrol et. Yeni yarım i�
 - Podcast, browser menüsü ve seçilen eski tasarım düzeltmeleri ürün `65d95f2bb4691583a80f0bdd540a8faaace66810`; dublaj düzeltmesi ayrı `3f68edeb`. Kısa hedefli testler geçti. [Devir](docs/devir/2026-11-04-1730.md).
 - Canlı Spotify/RSS sağlayıcı, model/GPU/CUDA kabulü bu turda yapılmadı; Spotify ses/timeline hakkı varsayılmaz. Bunlar uygulanmış kodun mock/yerel kontrolleriyle karıştırılmayacak.
 - Son adım: yeni PR'ı `[skip ci]` ile birleştirip ana kopyayı kişisel değişiklikleri koruyarak güncelle; kullanıcı sürekli merge yetkisini açıkça verdi, yeniden sorma. Eski tasarım ve research dosyaları tarihsel öneri olarak kalır; güncel uygulama sahibi bu devirdeki koddur.
+
+### P007 sonuç
+
+Tamamlandı: PR810 master'a `486e25e6a4192dbfd3ed5276bda12a28fe9add4b` ile birleştirildi; uzak master, çalışma dalı ve `D:/Whisper Local` ana kopyası aynı kimlikle doğrulandı. Kişisel üç tracked değişiklik aynen korundu. Ürün açık işi kalmadı; canlı sağlayıcı/GPU ve kaynak byte fingerprint sınırları devirde açıkça belirtiliyor. Tekrar ağır kabul testi/izin penceresi/Computer Use yapılmayacak. PR809 da öncesinde birleştirilmiştir.
