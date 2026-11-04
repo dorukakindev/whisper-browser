@@ -1,8 +1,28 @@
 'use strict';
 const Model = require('./podcast-transcript');
 const { plain } = require('./feed-parser');
+const {createHash}=require('node:crypto');
 
-async function fetchPodcastTranscript(descriptor, { signal, publicPin, pinnedRequest, lookup, transport } = {}) {
+function retryAfterSeconds(raw,now=Date.now()){
+ if(typeof raw!=='string'||!raw.trim())return null;
+ const value=/^\d+$/.test(raw.trim())?Number(raw)*1000:Date.parse(raw)-now;
+ return Number.isFinite(value)&&value>=0?Math.min(Math.ceil(value/1000),Number.MAX_SAFE_INTEGER/1000):null;
+}
+// Main-only request gate: explicit clicks also respect the publisher's cooldown.
+// Keys are hashes, never credential-bearing URL strings; no background retries.
+function createTranscriptRequester(fetcher,{now=()=>Date.now()}={}){
+ const cooldowns=new Map();
+ return async function(descriptor,options={}){
+  const key=createHash('sha256').update(require('./podcast-session').resourceIdentity(descriptor.url)+'|'+descriptor.mime).digest('hex'),stamp=now();
+  for(const [id,row]of cooldowns)if(row.until<=stamp)cooldowns.delete(id);
+  const waiting=cooldowns.get(key);if(waiting)return {ok:false,code:waiting.code,retryAfterSeconds:Math.ceil((waiting.until-stamp)/1000)};
+  const result=await fetcher(descriptor,{...options,now});
+  if(['rate-limited','unavailable'].includes(result.code)&&Number.isFinite(result.retryAfterSeconds)&&result.retryAfterSeconds>0){cooldowns.set(key,{code:result.code,until:now()+result.retryAfterSeconds*1000});while(cooldowns.size>200)cooldowns.delete(cooldowns.keys().next().value);}
+  return result;
+ };
+}
+
+async function fetchPodcastTranscript(descriptor, { signal, publicPin, pinnedRequest, lookup, transport,now=()=>Date.now() } = {}) {
   if (!Model.isSafeTranscriptUrl(descriptor?.url)) throw Object.assign(Error('Unsafe podcast transcript URL.'), { code:'EUNSAFE' });
   const combined = signal ? AbortSignal.any([signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000);
   let url = descriptor.url;
@@ -19,7 +39,7 @@ async function fetchPodcastTranscript(descriptor, { signal, publicPin, pinnedReq
     }
     const classification = Model.classifyTranscriptResponse({ descriptor, status:response.status,
       contentType:response.headers.get('content-type'), byteLength:response.buffer.length,
-      retryAfterSeconds:Number(response.headers.get('retry-after')) || null });
+      retryAfterSeconds:retryAfterSeconds(response.headers.get('retry-after'),now()) });
     const expectedTimedFormat = descriptor.mime === 'text/vtt' ? 'vtt'
       : ['application/x-subrip','text/srt','application/srt'].includes(descriptor.mime) ? 'srt' : null;
     const genericTimedResponse = classification.code === 'mime-mismatch' && expectedTimedFormat &&
@@ -35,4 +55,4 @@ async function fetchPodcastTranscript(descriptor, { signal, publicPin, pinnedReq
   }
   throw Error('Transcript redirect limit.');
 }
-module.exports = { fetchPodcastTranscript };
+module.exports = { fetchPodcastTranscript,retryAfterSeconds,createTranscriptRequester };

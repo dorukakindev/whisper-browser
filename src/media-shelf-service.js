@@ -39,18 +39,37 @@ function csvPlan(rows, items) {
   }
   return { planned, added, ambiguous };
 }
+function bindPodcastEpisode(podcast, episode, feedEntry) {
+  const session=require('./podcast-session');
+  const entry={id:episode.episodeRecordId||createHash('sha256').update(JSON.stringify([podcast.id,episode.guid||episode.url])).digest('hex'),feedId:feedEntry?.feedId||episode.sourceFeedId||podcast.id,externalId:episode.guid||'',enclosures:[{url:episode.url,type:episode.enclosureType||'audio/unknown',length:Number(episode.enclosureLength)||undefined}],podcastSourceRevision:episode.podcastSourceRevision||0,podcastAudioEvidence:episode.podcastAudioEvidence};
+  if(feedEntry){entry.id=feedEntry.id;entry.podcastSourceRevision=feedEntry.podcastSourceRevision||0;entry.podcastAudioEvidence=feedEntry.podcastAudioEvidence;}
+  const version=session.sourceVersion(entry);
+  return {...episode,...(episode.sourceVersion&&episode.sourceVersion!==version?{positionState:'needs-review'}:{}),episodeRecordId:entry.id,...(feedEntry?{feedEntryId:feedEntry.id,sourceFeedId:feedEntry.feedId}:{}),episodeIdentity:session.episodeIdentity(entry),sourceBinding:session.sourceBinding(entry),sourceVersion:version};
+}
+function podcastTrack(episode) {
+  const workspace = episode.podcastWorkspace;
+  if (!workspace || workspace.sourceVersion !== episode.sourceVersion || !workspace.transcript) return null;
+  const transcript = workspace.transcript;
+  const cues = transcript.state === 'timed' ? require('./browser-subtitles').parseSubtitlePayload(transcript.text, '', 'publisher.'+transcript.format).cues.map((cue,index)=>({...cue,id:String(index)})) : [];
+  return {id:'publisher:'+episode.episodeIdentity, revision:createHash('sha256').update(transcript.text).digest('hex'), role:'source', offsetSeconds:0, timed:transcript.state==='timed', cues, text:transcript.text, provenance:transcript.provenance};
+}
 function loadShelfFile(file) {
     if (!fs.existsSync(file)) return { version: 1, music: [], books: [], stations: [], podcasts: [], playlists: [], diary: [] };
     if (fs.statSync(file).size > 16_000_000) throw Error('Media shelf exceeds 16 MB; export/recover it before editing.');
     const data = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
     if (data.version !== 1 || ['music', 'books', 'stations', 'podcasts', 'playlists', 'diary'].some(key => !Array.isArray(data[key]))) throw Error('Media shelf is damaged; original file was preserved.');
+    // Link an already subscribed feed entry by feed URL + GUID/enclosure, never by title.
+    const feedFile=path.join(path.dirname(file),'feeds.json');let feedEntries=[];
+    if(fs.existsSync(feedFile)){const stat=fs.statSync(feedFile);if(stat.size<=16_000_000){try{const feeds=JSON.parse(fs.readFileSync(feedFile,'utf8'));feedEntries=Array.isArray(feeds.entries)?feeds.entries:[];}catch{/* A damaged independent feed store must not prevent shelf recovery. */}}}
+    data.podcasts = data.podcasts.map(p=>({...p,episodes:p.episodes.map(e=>bindPodcastEpisode(p,e,feedEntries.find(f=>f.kind==='podcast'&&f.sourceFeed?.url===p.url&&(e.guid?f.externalId===e.guid:f.enclosures?.some(a=>a.url===e.url))))) }));
     return data;
   }
 function readReviewTaste(userData,catalog=[]) {
   const data=loadShelfFile(path.join(userData,'media-shelf.json'));
   return require('./media-taste').profile(data.diary,catalog,data.tasteProfile||{},Array.isArray(data.reviews)?data.reviews:[]);
 }
-function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pythonPath, ffprobePath, inspectMedia, grantMedia, grantPdf, nativeImage, catalogStore, fetchImpl = fetch, musicRun = run }) {
+function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pythonPath, ffprobePath, inspectMedia, grantMedia, grantPdf, nativeImage, catalogStore, fetchImpl = fetch, musicRun = run, podcastRegistryBinding, transcriptFetcher = (descriptor, options) => require('./podcast-transcript-service').fetchPodcastTranscript(descriptor, {...options, ...require('./feed-service')}) }) {
+  const requestTranscript=require('./podcast-transcript-service').createTranscriptRequester(transcriptFetcher);
   let active = null;
   const imports = new Map();
   const stateFile = () => path.join(userData(), 'media-shelf.json');
@@ -213,7 +232,9 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           let row = found(data, input.kind, input.id);
           if (input.kind === 'podcasts') { row = row.episodes.find(row => row.url === input.url); if (!row) throw Error('Episode not found.'); }
           if (!Number.isFinite(input.position) || input.position < 0 || input.position > 31_536_000 || !Number.isFinite(input.duration) || input.duration < 0 || input.duration > 31_536_000) throw Error('Invalid listening position.');
-          row.position = input.position; if (input.duration) row.duration = input.duration;
+          if(input.kind==='podcasts'&&input.sourceVersion&&input.sourceVersion!==row.sourceVersion)throw Error('Podcast source changed.');
+          row.position = input.position; if(input.kind==='podcasts')row.positionState='observed'; if (input.duration) row.duration = input.duration;
+          if(input.kind==='podcasts'){const rate=Number.isFinite(input.rate)&&input.rate>=.25&&input.rate<=4?input.rate:1;row.podcastWorkspace={...(row.podcastWorkspace?.sourceVersion===row.sourceVersion?row.podcastWorkspace:{}),sourceVersion:row.sourceVersion,position:input.position,rate};}
           save(data); return { ok: true };
         }
         case 'book-import': {
@@ -264,6 +285,36 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
         case 'podcast-relink-confirm':{const p=imports.get(input.token);imports.delete(input.token);if(!p?.podcastRelink||p.expires<Date.now())throw Error('Episode relink expired.');const d=load(),podcast=found(d,'podcasts',p.podcastRelink.id),from=podcast.episodes.find(e=>e.url===p.podcastRelink.fromUrl),to=podcast.episodes.find(e=>e.url===p.podcastRelink.toUrl);if(!from||!to||M.hash([from,to])!==p.podcastRelink.snapshot)throw Error('Episode identity changed. Preview again.');const source=from.localSource;delete from.localSource;to.localSource=source;to.localTranscriptState='needs-review';const undoToken=randomUUID();imports.set(undoToken,{podcastUndo:{id:podcast.id,fromUrl:from.url,toUrl:to.url,source},expires:Date.now()+600000});save(d);return {ok:true,undoToken};}
         case 'podcast-relink-undo':{const p=imports.get(input.token);imports.delete(input.token);if(!p?.podcastUndo||p.expires<Date.now())throw Error('Relink undo expired.');const d=load(),podcast=found(d,'podcasts',p.podcastUndo.id),from=podcast.episodes.find(e=>e.url===p.podcastUndo.fromUrl),to=podcast.episodes.find(e=>e.url===p.podcastUndo.toUrl);if(!from||!to||from.localSource||M.hash(to.localSource)!==M.hash(p.podcastUndo.source))throw Error('Local source binding changed.');from.localSource=to.localSource;delete to.localSource;save(d);return {ok:true};}
         case 'podcast-offline-status':{const d=load(),copies=d.podcasts.flatMap(p=>p.episodes.filter(e=>e.localSource).map(e=>({podcastId:p.id,url:e.url,title:e.title,ownership:e.localSource.ownership,bytes:e.localSource.bytes,available:fs.existsSync(e.localSource.path),evictable:false})));return {ok:true,copies,bytes:copies.reduce((sum,c)=>sum+c.bytes,0),managedDownloads:false};}
+        case 'podcast-processing-binding': {
+          const data=load(),podcast=found(data,'podcasts',input.id),episode=podcast.episodes.find(e=>e.url===input.url);
+          const sameDeclaration=episode&&input.sourceBinding&&['resource','mime','declaredLength'].every(key=>input.sourceBinding[key]===episode.sourceBinding[key]);
+          if(!episode||episode.sourceVersion!==input.sourceVersion&&!sameDeclaration)throw Error('Podcast source changed.');
+          if(typeof podcastRegistryBinding!=='function')throw Error('Existing podcast registry is unavailable.');
+          const binding=await podcastRegistryBinding({podcast:{id:podcast.id,url:podcast.url,title:podcast.title,language:podcast.language,publisher:podcast.publisher},episode:{guid:episode.guid,url:episode.url,title:episode.title,description:episode.description,date:episode.date,duration:episode.duration,enclosureType:episode.enclosureType,enclosureLength:episode.enclosureLength,transcriptDescriptors:episode.transcriptDescriptors||[]}});
+          const fresh=load(),target=found(fresh,'podcasts',input.id).episodes.find(e=>e.url===input.url);
+          if(!target||target.episodeIdentity!==episode.episodeIdentity&&target.feedEntryId!==binding.entryId)throw Error('Podcast source changed.');
+          return {ok:true,...binding,track:binding.workspace?.transcript?podcastTrack({...target,sourceVersion:binding.sourceVersion,podcastWorkspace:binding.workspace}):null};
+        }
+        case 'podcast-workspace': {
+          const podcast=found(load(),'podcasts',input.id), episode=podcast.episodes.find(e=>e.url===input.url);
+          if(!episode)throw Error('Podcast episode changed.');
+          return {ok:true, episodeIdentity:episode.episodeIdentity, sourceVersion:episode.sourceVersion, track:podcastTrack(episode), descriptors:episode.transcriptDescriptors||[]};
+        }
+        case 'podcast-transcript': {
+          const data=load(), podcast=found(data,'podcasts',input.id), episode=podcast.episodes.find(e=>e.url===input.url);
+          if(!episode||episode.sourceVersion!==input.sourceVersion)throw Error('Podcast source changed.');
+          const descriptor=episode.transcriptDescriptors?.[Number(input.descriptorIndex)||0];
+          if(!descriptor)throw Error('Choose a publisher transcript.');
+          if(episode.podcastWorkspace?.sourceVersion===episode.sourceVersion&&episode.podcastWorkspace.transcript?.descriptorUrl===descriptor.url)return {ok:true,cached:true,track:podcastTrack(episode)};
+          const result=await requestTranscript(descriptor,{signal:AbortSignal.timeout(20000)});
+          if(!result.ok)return result;
+          if(result.text.length>500000)throw Error('Publisher transcript exceeds workspace limit.');
+          const fresh=load(), target=found(fresh,'podcasts',input.id).episodes.find(e=>e.episodeIdentity===episode.episodeIdentity);
+          if(!target||target.sourceVersion!==input.sourceVersion)throw Error('Podcast source changed.');
+          const workspace={sourceVersion:target.sourceVersion,position:target.position||0,rate:target.podcastWorkspace?.rate||1,transcript:{state:result.timed==='yes'?'timed':'untimed',format:result.format,text:result.text,provenance:'publisher',descriptorUrl:descriptor.url}};
+          require('./podcast-session').validateWorkspace(workspace);target.podcastWorkspace=workspace;save(fresh);
+          return {ok:true,track:podcastTrack(target)};
+        }
         case 'podcast-add': {
           const url = urlOf(input.url);
           const response = await fetchImpl(url, { signal: AbortSignal.timeout(15000), credentials: 'omit' });
@@ -280,7 +331,7 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           if (!episodes.length) throw Error('No public audio enclosure URLs could be saved.');
           // A rolling feed is not a deletion request. Keep older episode identities and their personal state.
           episodes.push(...(previous?.episodes || []).filter(episode => !refreshed.has(episode)));
-          const row = { id: previous?.id || randomUUID(), url, title: parsed.title, episodes, updated: Date.now() };
+          const row = { id: previous?.id || randomUUID(), url, title: parsed.title, publisher:parsed.publisher, image:parsed.image, language:parsed.language, episodes, updated: Date.now() }; row.episodes=row.episodes.map(e=>{const next=bindPodcastEpisode(row,e);if(e.sourceVersion&&next.sourceVersion!==e.sourceVersion)next.positionState='needs-review';return next;});
           data.podcasts = [...data.podcasts.filter(row => row.url !== url), row]; save(data); return { ok: true };
         }
         case 'remove': {

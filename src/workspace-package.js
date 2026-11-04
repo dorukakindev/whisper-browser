@@ -240,7 +240,15 @@ function restorePackage(root, data, videoMappings = []) {
       if (file.name === 'media-catalog.json') parsed = sanitizeImportedCatalog(parsed);
       if (file.name === 'history.json') parsed = sanitizeImportedHistory(parsed);
       if (file.name === 'media-folder-watches.json') { if(!Array.isArray(parsed)||parsed.length>30||parsed.some(r=>!r||typeof r.id!=='string'||typeof r.path!=='string'||r.path.length>4000))throw Error('Invalid folder list.');parsed=parsed.map(row=>({...row,enabled:false})); }
-      if (file.name === 'media-shelf.json') { if(parsed.version!==1||['music','books','stations','podcasts','playlists','diary'].some(k=>!Array.isArray(parsed[k])||parsed[k].length>20000||parsed[k].some(r=>!r||typeof r!=='object'||Array.isArray(r))))throw Error('Invalid media shelf.'); }
+      if (file.name === 'media-shelf.json') {
+        if(parsed.version!==1||['music','books','stations','podcasts','playlists','diary'].some(k=>!Array.isArray(parsed[k])||parsed[k].length>20000||parsed[k].some(r=>!r||typeof r!=='object'||Array.isArray(r))))throw Error('Invalid media shelf.');
+        let episodes=0;
+        for(const podcast of parsed.podcasts){
+          if(!Array.isArray(podcast.episodes)||podcast.episodes.some(episode=>!episode||typeof episode!=='object'||Array.isArray(episode)))throw Error('Invalid podcast episodes.');
+          episodes+=podcast.episodes.length;if(episodes>50000)throw Error('Too many podcast episodes.');
+          for(const episode of podcast.episodes)if(episode.podcastWorkspace)require('./podcast-session').validateWorkspace(episode.podcastWorkspace);
+        }
+      }
       if(file.name==='assistant-artifacts.json')parsed=require('./assistant-artifact-service').validateEnvelope(parsed);
       if(file.name==='assistant-conversations.json')parsed=require('./assistant-thread-store').validateEnvelope(parsed);
       if (file.name === 'media-enrichment.json') {

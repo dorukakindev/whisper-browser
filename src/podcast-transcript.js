@@ -83,7 +83,7 @@
     if (status === 429) return { ok: false, code: 'rate-limited', retryAfterSeconds: Number.isFinite(retryAfterSeconds) ? retryAfterSeconds : null };
     if (status === 403) return { ok: false, code: 'forbidden' };
     if (status === 404 || status === 410) return { ok: false, code: 'not-found' };
-    if (status === 503 || status === 502 || status === 504) return { ok: false, code: 'unavailable' };
+    if (status === 503 || status === 502 || status === 504) return { ok: false, code: 'unavailable', ...(Number.isFinite(retryAfterSeconds)&&retryAfterSeconds>=0?{retryAfterSeconds}:{}) };
     if (!(status >= 200 && status < 300)) return { ok: false, code: 'http-error', status };
     if (byteLength > FETCH_LIMITS.maxBytes) return { ok: false, code: 'too-large' };
     const got = mimeOf(contentType);

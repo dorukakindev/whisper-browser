@@ -76,3 +76,7 @@ DEVIR-NOTU.md'nin ilgili son kaydını ve aktif dalı kontrol et. Yeni yarım i�
 ### P007 sonuç
 
 Tamamlandı: PR810 master'a `486e25e6a4192dbfd3ed5276bda12a28fe9add4b` ile birleştirildi; uzak master, çalışma dalı ve `D:/Whisper Local` ana kopyası aynı kimlikle doğrulandı. Kişisel üç tracked değişiklik aynen korundu. Ürün açık işi kalmadı; canlı sağlayıcı/GPU ve kaynak byte fingerprint sınırları devirde açıkça belirtiliyor. Tekrar ağır kabul testi/izin penceresi/Computer Use yapılmayacak. PR809 da öncesinde birleştirilmiştir.
+
+## G1 — Podcast planı yeniden tamamlandı — 18:00
+
+Önceki genel tamamlandı ifadesi geri çekildi. Ürün `ac62d3dc650d5732be56d78f36d45c433d0a7e46` P1–P6 eksik shelf, kaynak sürümü, asistan, Whisper/çeviri ve okunabilir saved-result akışlarını bağlar. [Sıralı hedefler](docs/implementation/podcast-completion-ordered-goals.md), [devir](docs/devir/2026-11-04-1800.md). G1 kod/hedefli kontroller tamam; master/ana kopya entegrasyonu sırada. G2–G5 BEKLİYOR; eski ZIP'lere ait dört dosya ayrı tutulur. Yeniden ağır test veya onay sorusu yok.

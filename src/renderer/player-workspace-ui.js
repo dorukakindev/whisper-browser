@@ -114,7 +114,10 @@
     if(rows.length && !vm.hasMoreRows) list.append(h('p',{class:'pw-transcript-end',text:L==='tr'?'Yüklü dökümün sonu':'End of loaded transcript'}));
     let programmatic = false;
     const pause = () => { if (vm.follow !== false) handlers.onFollow && handlers.onFollow(false); };
-    ['wheel', 'touchstart', 'keydown'].forEach((ev) => list.addEventListener(ev, pause, { passive: true }));
+    ['wheel', 'touchstart'].forEach((ev) => list.addEventListener(ev, pause, { passive: true }));
+    list.addEventListener('keydown', (event) => {
+      if (!event.defaultPrevented && event.target === list && ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) pause();
+    });
     list.addEventListener('pointerdown', (e) => { if (e.target === list) pause(); });
     list.addEventListener('scroll', () => { if (programmatic) { programmatic = false; } }, { passive: true });
     const sel = () => { const s = globalThis.getSelection && globalThis.getSelection(); const text = s ? String(s).trim() : ''; if (!text || !s.anchorNode) return; const node = (s.anchorNode.nodeType === 3 ? s.anchorNode.parentElement : s.anchorNode); const cue = node && node.closest && node.closest('.pw-cue'); if (cue && list.contains(cue)) handlers.onSelection && handlers.onSelection({ text, cueId: cue.dataset.cueId, rowKey: cue.dataset.key }); };

@@ -22261,7 +22261,7 @@ async function translateMediaTextToTurkish(text,signal,kind='synopsis'){
 const mediaCatalogService = require('./media-catalog-service').registerMediaCatalogService({
   metadataSettings:()=>loadSettings().tmdb||{},
   translateSynopsis:translateMediaTextToTurkish,
-  mediaShelf: { ffprobePath: () => resolveFfTool('ffprobe'), grantPdf: file => pdfFileAccess.grant(file) },
+  mediaShelf: { ffprobePath: () => resolveFfTool('ffprobe'), grantPdf: file => pdfFileAccess.grant(file), podcastRegistryBinding:persisted=>mediaFeedsService.bindShelfPodcast(persisted) },
   restart: () => { app.relaunch(); app.exit(0); },
   canRestore: () => !activeJob && !burninJob && !burninStartPending && !modelBenchmarkJob && !updateJob
     && !browserHlsCeaFullCaptureJob && !browserExtras?.hasJobs() && !dubService.running(),
