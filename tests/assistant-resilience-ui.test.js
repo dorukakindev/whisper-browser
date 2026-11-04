@@ -40,3 +40,10 @@ test('Pipeline activity names the exact load, dubbing and attachment stages in b
  for(const locale of ['en','tr']){const card=h.w.AssistantRunCard.create(steps,'pipeline-'+locale,locale);assert.equal(card.querySelectorAll('li').length,4);assert.equal(card.querySelectorAll('[data-state="failed"]').length,1);assert(!card.textContent.includes(locale==='tr'?'Uygulama kontrolü':'Application check'));assert.match(card.textContent,locale==='tr'?/Dublaj üret/:/Generate dubbing/);}
  }finally{h.close();}
 });
+
+test('An explicit stop wins a racing successful final reply and never publishes it as a completed answer',async()=>{
+ const h=fixture();try{let state;let answers=0;h.w.AssistantWorkspace.finish=(_job,_text,value)=>{state=value;};h.w.document.addEventListener('assistant-answer',()=>answers++);
+ const pending=h.ui.send('Explain',{},[],'scope');await new Promise(setImmediate);h.event({type:'delta',requestId:h.ui.status().id,text:'Received before stop'});await h.ui.cancel();h.settle({ok:true,text:'Late final success'});const result=await pending;
+ assert.equal(state,'stopped');assert.equal(result.ok,false);assert.equal(result.cancelled,true);assert.equal(answers,0);assert.equal(h.w.player.chatHistory,undefined);assert(h.w.document.body.textContent.includes('Received before stop'));assert(!h.w.document.body.textContent.includes('Late final success'));assert.equal(h.ui.busy(),false);assert.equal(h.ui.canRetry(),false);
+ }finally{h.close();}
+});

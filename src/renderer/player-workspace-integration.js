@@ -367,6 +367,7 @@
     if(window.innerWidth<1100)openPanel();
     return result;
   }
-  window.PlayerWorkspaceIntegration = Object.freeze({ setPodcastMode:value=>{if(podcastMode!==!!value)podcastEntry.click();},isPodcastMode:()=>podcastMode&&!layer.classList.contains('hidden')&&!window.MediaShelfUI?.isPodcastMode?.(),getTranscriptTracks:()=>tracks().map(track=>({...track,timed:!['untimed','needs-review'].includes(player.workspaceAudio?.transcriptState)})),executeExisting:execute,subscribe(listener){subscribers.add(listener);return ()=>subscribers.delete(listener);},refresh, snapshot, sourceRole, freezeWatchQuestion, watchQuestionIsCurrent, acceptEvidence, serializeEvidence, seekEvidence, get bridge() { return bridge; }, evidence: () => evidence?.envelope || null });
+  // Public adapters enter the same owner/track/range gate as workspace controls.
+  window.PlayerWorkspaceIntegration = Object.freeze({ setPodcastMode:value=>{if(podcastMode!==!!value)podcastEntry.click();},isPodcastMode:()=>podcastMode&&!layer.classList.contains('hidden')&&!window.MediaShelfUI?.isPodcastMode?.(),getTranscriptTracks:()=>tracks().map(track=>({...track,timed:!['untimed','needs-review'].includes(player.workspaceAudio?.transcriptState)})),executeExisting:command=>bridge?bridge.dispatch(command):Promise.resolve({ok:false,code:'stale-source',message:text('Etkin oynatıcı kaynağı yok.','No active player source.')}),subscribe(listener){subscribers.add(listener);return ()=>subscribers.delete(listener);},refresh, snapshot, sourceRole, freezeWatchQuestion, watchQuestionIsCurrent, acceptEvidence, serializeEvidence, seekEvidence, get bridge() { return bridge; }, evidence: () => evidence?.envelope || null });
   refresh();
 })();

@@ -30,6 +30,7 @@
    result=await window.api.assistantAgentRun({requestId:task.id,question,responseContract:requestOptions.responseContract,continuationId:resume?.token,owner:task.owner,context:window.AssistantContextManifest.sourceText(context),
     pool:window.AssistantContextManifest.pool(context.assistant_tools?.rows),history,locale:window.UiLocale?.get?.()||'en'});
   }catch(error){result={ok:false,cancelled:!!task.cancelled,error:String(error.message)};}
+  if(result?.ok&&(task.cancelled||result.cancelled))result={...result,ok:false,cancelled:true};
   const current=window.AssistantAppActions.current(task.owner),state=result?.ok&&current?'complete':task.cancelled||result?.cancelled||!current?'stopped':'failed';
   let text=result?.ok?(result.text?prefix+String(result.text):task.text):[task.text,task.cancelled?t('Stopped. Received text was kept.','Durduruldu. Alınan metin korundu.'):errorText(result?.error)||t('Assistant request failed.','Asistan isteği başarısız oldu.')].filter(Boolean).join('\n\n');
   if(result?.ok&&result.capabilities?.tools==='unsupported')text+='\n\n'+t('This provider rejected application tools. The reply is text only; no application action was performed.','Bu sağlayıcı uygulama araçlarını reddetti. Yanıt yalnız metindir; uygulama işlemi yapılmadı.');

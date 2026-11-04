@@ -5,7 +5,7 @@
   const genre = value => window.MediaVisual?.genre?.(value) ?? value;
   const failure = error => window.MediaDiscoveryErrors?.message(error,window.UiLocale?.get?.()) || error?.message || String(error);
   const el = (tag, cls, text) => { const node = document.createElement(tag); if (cls) node.className = cls; if (text !== undefined) node.textContent = String(text); return node; };
-  const state = { root: null, tab: 'browse', kind: 'film', mode: 'top', genre: '', year: new Date().getFullYear(), query: '', view:'unwatched', rows: [], skip: 0, next: null, request: 0, busy: false, loadError: false, retryAppend: false, needsRatings: false, scope: '' };
+  const state = { root: null, tab: 'browse', kind: 'film', mode: 'top', genre: '', year: new Date().getFullYear(), query: '', loadedQuery: '', view:'unwatched', rows: [], skip: 0, next: null, request: 0, busy: false, loadError: false, retryAppend: false, needsRatings: false, scope: '' };
   let restoreControl = '';
   const btn = (label, callback, cls = 'mh-action') => {
     const node = el('button', cls, label); node.type = 'button';
@@ -220,15 +220,15 @@
     if(!state.busy&&restoreControl){const control=[...state.root.querySelectorAll('[data-discovery-focus]')].find(n=>n.dataset.discoveryFocus===restoreControl);restoreControl='';control?.focus({preventScroll:true});}
   }
   async function load(append = false) {
-    const root = state.root, request = ++state.request;
+    const root = state.root, request = ++state.request, query = append ? state.loadedQuery : state.query;
     if (!root?.isConnected) return;
     restoreControl=document.activeElement?.dataset.discoveryFocus||restoreControl;
     state.loadError = false; state.busy = true; status(t('Loading titles…', 'Yapımlar yükleniyor…')); cards();
     try {
-      const result = await api(state.tab === 'preferences' ? 'feedback-list' : state.tab === 'personal' ? 'personal' : 'list', { kind: state.kind, mode: state.mode, genre: state.genre, year: state.year, query: state.query, view:state.view, skip: append ? state.next : 0 });
+      const result = await api(state.tab === 'preferences' ? 'feedback-list' : state.tab === 'personal' ? 'personal' : 'list', { kind: state.kind, mode: state.mode, genre: state.genre, year: state.year, query, view:state.view, skip: append ? state.next : 0 });
       if (request !== state.request || root !== state.root || !root.isConnected) return;
       const unique = new Map((append ? state.rows : []).map(row => [`${row.kind}:${row.providerId}`, row]));
-      result.rows.forEach(row => unique.set(`${row.kind}:${row.providerId}`, row)); state.rows = [...unique.values()].slice(0, 300); state.next = result.nextSkip ?? null;state.needsRatings=!!result.needsRatings;state.scope=result.scope||'';state.retryAppend=false;
+      result.rows.forEach(row => unique.set(`${row.kind}:${row.providerId}`, row)); state.rows = [...unique.values()].slice(0, 300); state.next = result.nextSkip ?? null;state.needsRatings=!!result.needsRatings;state.scope=result.scope||'';state.loadedQuery=query;state.retryAppend=false;
       status(result.needsRatings ? t('Add favorites and genre metadata in the library first.', 'Önce kütüphanede favori ve tür bilgisi ekle.') : '');
     } catch (error) {
       if (request !== state.request || root !== state.root || !root.isConnected) return;
@@ -272,12 +272,13 @@
     const featureSlot=el('div','cn-feature-slot');root.append(statusNode,featureSlot,viewRow,el('p','cn-discover-results'),grid,footer);cards();
   }
   let savedScroll = 0, restoringScroll = false;
-  function snapshot(){return {tab:state.tab,kind:state.kind,mode:state.mode,genre:state.genre,year:state.year,query:state.query,view:state.view,rows:state.rows.slice(),next:state.next,needsRatings:state.needsRatings,scope:state.scope,scrollTop:state.root?.isConnected?document.getElementById('mediaHome').scrollTop:savedScroll};}
+  function snapshot(){return {tab:state.tab,kind:state.kind,mode:state.mode,genre:state.genre,year:state.year,query:state.query,loadedQuery:state.loadedQuery,view:state.view,rows:state.rows.slice(),next:state.next,needsRatings:state.needsRatings,scope:state.scope,scrollTop:state.root?.isConnected?document.getElementById('mediaHome').scrollTop:savedScroll};}
   function restore(saved){
     if(!saved||typeof saved!=='object')return;
     for(const [name,values]of Object.entries({tab:['browse','personal','preferences'],kind:['film','series'],mode:['top','year','imdbRating'],view:['unwatched','all','watched','watchlist']}))if(values.includes(saved[name]))state[name]=saved[name];
     if(typeof saved.genre==='string')state.genre=saved.genre.slice(0,80);
     if(typeof saved.query==='string')state.query=saved.query.slice(0,200);
+    state.loadedQuery=typeof saved.loadedQuery==='string'?saved.loadedQuery.slice(0,200):state.query;
     if(Number.isInteger(saved.year)&&saved.year>=1920&&saved.year<=new Date().getFullYear()+1)state.year=saved.year;
     if(Array.isArray(saved.rows))state.rows=saved.rows.slice(0,300);
     state.next=Number.isSafeInteger(saved.next)&&saved.next>=0&&saved.next<=2000?saved.next:null;
