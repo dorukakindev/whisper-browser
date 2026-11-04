@@ -1,3 +1,4 @@
+Güncel çalışma: [V3 özellik boşluklarının uygulanması ve Windows kabulü](docs/devir/2026-11-04-1203.md)
 Güncel çalışma: [Yedi başlıkta tamamlanma denetimi](docs/devir/2026-11-04-1131.md)
 Güncel çalışma: [Dolu not defteri ve iptal kabulü](docs/devir/2026-11-04-1127.md)
 Güncel çalışma: [YouTube RSS ve canlı sağlayıcı kabulü](docs/devir/2026-11-04-1116.md)

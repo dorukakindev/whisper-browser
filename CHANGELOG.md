@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Added editable comparison cells and persistent spoiler controls for saved assistant outputs, with CSV/JSON/Markdown/HTML redaction, independent original-language/country/director conditions, source-backed RSS relationship and opinion review, and measured local/publisher duration and language filters. [Targeted tests and Windows validation](docs/devir/2026-11-04-1203.md).
+
 - Preserved complete watch history when relinking media, including repeated relinks after undo and rollback after a write failure. [Populated notebook and cancellation validation](docs/devir/2026-11-04-1127.md).
 
 - Fixed canonical YouTube RSS channel identity and the skipped-input count, with a bounded retry of the official uploads feed on HTTP 404. [Live RSS and assistant acceptance](docs/devir/2026-11-04-1116.md).
