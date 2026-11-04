@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Browser subtitle panel — 2026-11-04
+
+- Implemented the approved browser toolbar, subtitle panel, sentence-flow controls and five-group tool library with search, pinned task cards and configurable panel-scoped shortcuts.
+- Added the approved subtitle action list, sync form using the existing offset/control handlers, and selectable subtitle search results with one Apply action and a stale-context guard.
+- Preserved existing controls, advanced features and local-player return behavior. [Validation and limits](docs/implementation/browser-panel-2026-11-04/README.md).
+
 ### Akışlar okuma alanı — 2026-11-04
 
 - Onaylı iki panelli sinematik kompozisyonu uyguladı; aynı 680px kenarlı okuyucu, özel filtre/sıralama menüleri, seçim modu, klavye kısayolları ve tasarlanmış yükleme/hata/görselsiz durumları eklendi. Kaynak/OPML, tercih, asistan, ilişki onayı ve geri alma işlevleri korundu.
