@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Added saved, explicitly cited assistant passages and timelines with reply-owned references, protected user corrections, revision restore and workspace backup support. [Windows validation](docs/devir/2026-11-04-1105.md).
+
 - Persisted catalog comparisons with revision conflicts, bounded version history, restore controls and workspace backup roundtrip. [Windows validation](docs/devir/2026-11-04-1053.md).
 
 - Added revision-checked undo for itineraries and catalog relinks, and support for publisher SRT/VTT files served with a generic MIME type after verifying their format. [Validation](docs/devir/2026-11-04-1042.md).

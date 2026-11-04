@@ -1,3 +1,4 @@
+Güncel çalışma: [Kaynaklı asistan çıktıları](docs/devir/2026-11-04-1105.md)
 Güncel çalışma: [Kalıcı karşılaştırma arşivi](docs/devir/2026-11-04-1053.md)
 Güncel çalışma: [Canlı podcast keşfi ve V3 geri alma](docs/devir/2026-11-04-1042.md)
 Güncel çalışma: [Canlı medya ve HDR tanısı](docs/devir/2026-11-04-1035.md)
