@@ -42,3 +42,11 @@ Her kayıt: **durum + kapsam + dal/PR + kanıt + kalan kabul koşulu + kesin son
 ## Başka bir oturumdan iş devralırken
 
 DEVIR-NOTU.md'nin ilgili son kaydını ve aktif dalı kontrol et. Yeni yarım işler buraya ayrı ID ile eklenir; eski rapor arşivi veya plan dosyası otomatik olarak yüzlerce açık işe dönüştürülmez. Kullanıcı kararıyla ertelenen/kapsam dışı işin durumunu açık yaz. Ana programda hangi kodun bulunduğunu git HEAD ile yeniden doğrula.
+
+## P005 — Oynatıcı/V3 entegrasyonu
+
+- **Durum:** oynatıcı ve katalog/podcast maketleri kullanıcı tarafından onaylandı ve bağlandı. İzlerken asistan bağlamı bağlandı. Beş V3 yüzeyinin maketi incelemeye hazır.
+- **Dal:** `codex/player-v3-integration-20261104`. Taban `459bf2e0bbbf0bfb19566ed16080806bb6e76126` PR808'i içerir. Ürün commit'leri `d6497696`, `60646c66`, `dacee817`.
+- **Kanıt:** [devir](docs/devir/2026-11-04-1022.md). Katalog 1440/940 px izole Windows yakalamaları, kaynak dönüşü, podcast taşıma sınırları ve yedekten geri yükleme doğrulandı. Asistan bağlamı 15 saniyede donduruldu ve oynatma 23 saniyeye ilerlerken gelecekteki replikleri almadı.
+- **Açık kabul:** canlı YouTube ve podcast akışları, sağlayıcı çağrısı, start.bat/CUDA/mpv, dublaj ses kalitesi ve DRM.
+- **Kesin sonraki adım:** yerel `artifacts/player-v3-review-2026-11-04/v3-review.html` maketlerini değerlendirdikten sonra bülteni kayıtlı feed verisine, rotayı mevcut günlük/koleksiyon işlemlerine, karşılaştırma ve dışa aktarmayı asistan sahibine, bakımı MediaHub önizleme/uygula/geri al yoluna, sağlığı mevcut oynatma tanılarına bağla. Kontrollü yazma ve izin sınırlarını test et. Yeni görsel yüzeyler için Windows görüntüleri al. GitHub Actions kapısını çalıştırma ve commit başlıklarında `[skip ci]` kullan.

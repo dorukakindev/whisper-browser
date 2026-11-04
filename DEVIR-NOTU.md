@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-04-1022.md](docs/devir/2026-11-04-1022.md) — Oynatıcı, katalog/podcast ve asistan bağlamı entegrasyon kontrol noktası
 Güncel çalışma: [docs/devir/2026-11-04-0936.md](docs/devir/2026-11-04-0936.md) — PR808 güvenli master birleştirme doğrulaması, kişisel dosya koruması ve açık canlı kabul sınırları
 Güncel çalışma: [docs/devir/2026-11-04-0331.md](docs/devir/2026-11-04-0331.md) — Üç durumlu kütüphane film detay maketi; kullanıcı onayı bekleniyor, ürün kodu değişmedi
 Güncel çalışma: [docs/devir/2026-11-04-0254.md](docs/devir/2026-11-04-0254.md) — Onaylı Akışlar okuma alanı, makale çevirisi, native ekranlar ve hedefli doğrulama
