@@ -3,7 +3,7 @@
   const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
   const el=(tag,cls,text)=>{const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined)node.textContent=String(text);return node;};
   const safe=value=>typeof value==='string'&&value.length<8e6&&/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(value);
-  let dialog,selected,opener,generation=0,item,storyJob,personalView;
+  let dialog,selected,opener,generation=0,item,storyJob,personalView,copyChoice;
   const originalStories=new Set();
   let activePage=null;const pagePositions=new Map();
   function createPage(className,{key}={}){
@@ -64,9 +64,10 @@
     if(item.originalTitle&&item.originalTitle!==item.title)copy.append(el('p','mtd-original',item.originalTitle));
     copy.append(el('p','mtd-facts',[item.kind==='series'?t('Series','Dizi'):t('Film','Film'),item.year,item.runtime?item.runtime+' '+t('min','dk'):''].filter(Boolean).join(' · ')));
     const genres=el('div','mtd-genres');for(const name of item.genres||[])genres.append(el('span','',name));copy.append(genres);
-    const ratings=el('div','mtd-ratings');for(const [label,value,scale]of [['TMDB',item.tmdbRating&&Number(item.tmdbRating).toFixed(1),'/10'],['IMDb',item.ratings?.imdb,'/10'],['Letterboxd',item.ratings?.letterboxd,'/5'],[t('Your rating','Puanın'),item.ratings?.personal,'']])if(value){const rate=el('div');rate.append(el('strong','',value+scale),el('span','',label));ratings.append(rate);}copy.append(ratings);
+    const sourceRating=window.MediaVisual?.ratingOf?.(item),score=value=>window.MediaVisual?.score?.(value)??value;
+    const ratings=el('div','mtd-ratings');for(const [label,value,scale]of [['TMDB',score(item.tmdbRating),'/10'],['IMDb',score(item.ratings?.imdb||(sourceRating?.source==='IMDb'?sourceRating.value:'')),'/10'],['Letterboxd',score(item.ratings?.letterboxd),'/5'],[t('Your rating','Puanın'),item.ratings?.personal,'']])if(value){const rate=el('div');rate.append(el('strong','',value+scale),el('span','',label));ratings.append(rate);}copy.append(ratings);
     if(item.tagline)copy.append(el('p','mtd-tagline',item.tagline));
-    let editionId=item.selectedEditionId || '';
+    let editionId=copyChoice?.owner===item.id?copyChoice.id:(item.selectedEditionId||'');
     const actions=el('div','mtd-actions');const episodes=item.episodes||[];const next=[...episodes].sort((a,b)=>a.season-b.season||a.number-b.number).find(ep=>ep.source&&!ep.progress?.completed&&ep.watchStatus!=='completed');
     if(item.source||item.editions?.length||next){const first=button(next?t('Play next episode','Sıradaki bölümü oynat'):item.progress?.position&&!item.progress.completed?t('Continue watching','İzlemeye devam et'):t('Play film','Filmi oynat'),()=>play(next?.id,false,editionId),true);first.dataset.titleAction='play';actions.append(first,button(t('Watch in Turkish','Türkçe izleme hazırlığı'),()=>play(next?.id,true,editionId)));}
     else actions.append(button(t('Choose video file','Video dosyası seç'),async()=>{const r=await request('source-file',{});if(!r.canceled)await reload();},true));
@@ -77,7 +78,7 @@
     const body=el('div','mtd-body'),main=el('main','mtd-main'),aside=el('aside','mtd-aside');
     story(main);
     if(item.cast?.length){main.append(el('h2','',t('Cast','Oyuncular')));const cast=el('div','mtd-cast');for(const name of item.cast)cast.append(el('span','',name));main.append(cast);}
-    if(item.kind==='film'){
+    if(item.kind==='film'&&window.MediaVisual?.button&&window.MediaVisual?.overflow&&window.CinemaUI?.icon){
       const strip=el('section','cn-library-source');
       const label=el('div','cn-library-source-label');
       const metadata=el('div','cn-library-source-meta');
@@ -103,7 +104,7 @@
         }
         const caption=row=>row.label||item.title;
         if(copies.length>1){
-          const menu=window.MediaVisual.overflow(copies.map(row=>button(caption(row),()=>{editionId=row.id;renderSource();})),t('Choose video copy','Video kopyasını seç'));
+          const menu=window.MediaVisual.overflow(copies.map(row=>button(caption(row),()=>{editionId=row.id;copyChoice={owner:item.id,id:row.id};renderSource();})),t('Choose video copy','Video kopyasını seç'));
           menu.querySelector('summary').prepend(el('span','',caption(current)));
           label.append(menu);
         }else label.append(el('strong','',caption(current)));
@@ -221,7 +222,7 @@
     if(focused)dialog.querySelector('[data-title-action="'+focused+'"]')?.focus({preventScroll:true});
   }
   async function open(id){
-    if(dialog?.open&&selected===id){dialog.focus();return;}if(dialog)close();selected=id;item=null;opener=document.activeElement;const mediaCard=opener?.closest?.('[data-home-item]'),mediaOrigin=mediaCard?.dataset.homeItem===id?window.UiMotion?.captureMedia(mediaCard):null;
+    if(dialog?.open&&selected===id){dialog.focus();return;}if(dialog)close();copyChoice=null;selected=id;item=null;opener=document.activeElement;const mediaCard=opener?.closest?.('[data-home-item]'),mediaOrigin=mediaCard?.dataset.homeItem===id?window.UiMotion?.captureMedia(mediaCard):null;
     if(!document.body.classList.contains('media-home-active')||!document.getElementById('playerLayer')?.classList.contains('hidden'))await window.MediaHomeUI.returnHome();
     const current=createPage('mtd-dialog media-surface',{key:'library:'+id});current.id='mediaTitleDialog';current.dataset.uiUntranslated='';current.setAttribute('aria-labelledby','mediaTitleHeading');dialog=current;
     const origin=opener;current.addEventListener('close',()=>{cancelStory(current);current.remove();if(dialog===current){personalView?.dispose();personalView=null;generation++;dialog=null;if(origin?.isConnected)origin.focus({preventScroll:true});}void syncBrowserOcclusion();document.dispatchEvent(new Event('media-library-changed'));});
