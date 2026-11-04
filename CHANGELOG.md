@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Kept selected subtitle tracks and film editions visible through refresh, added cancellable RSS article translation, and refined podcast reading with source status, search and separate timestamps over the existing playback owner. [Verification](docs/devir/2026-11-04-1826.md).
+
 - Fixed managed podcast media authorization, processing output names, stale PDF/book ownership, second-subtitle assistant approvals and persisted motion preferences. Consolidated identical media color roles without changing their rendered values. [Targeted verification](docs/devir/2026-11-04-1817.md).
 
 - Completed source-bound podcast transcripts, existing Whisper/translation queue integration, Spotify-to-RSS candidate confirmation, position/rate reopening and managed audio cleanup. Fixed browser menus waiting on capture, finished dubbing cleanup after late cancellation and evidence-based grouped-number verification. [Implementation and targeted checks](docs/devir/2026-11-04-1730.md).
