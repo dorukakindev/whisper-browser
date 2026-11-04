@@ -11,6 +11,15 @@ function versionKey(name){
  return path.join(dir,title||stem).toLowerCase();
 }
 function registerMediaHub({app,ipcMain,authorized,dialog,owner,inspectMedia,authorizeMedia,grantMedia,catalogStore,ffmpeg,relinkHistory}){
+ const relinkUndos=new Map();
+ let relinkBusy=false;
+ const sourceAt=(item,episodeId)=>episodeId?item?.episodes?.find(ep=>ep.id===episodeId)?.source:item?.source;
+ function replaceSource(store,id,episodeId,source){
+  const item=store.get(id);
+  if(!item||(episodeId&&!item.episodes?.some(ep=>ep.id===episodeId)))throw Error('The reviewed catalog title or episode no longer exists.');
+  const patch=episodeId?{id,episodes:item.episodes.map(ep=>ep.id===episodeId?{...ep,source}:ep)}:{id,source};
+  store.upsertMany([patch]);
+ }
  const index=()=>path.join(app.getPath('userData'),'media-folder-watches.json');let folders=[],error='';const watchers=new Map(),timers=new Map(),files=new Map(),plans=new Map();
  try{if(fs.existsSync(index())){if(fs.statSync(index()).size>200000)throw Error('Folder watch index too large.');folders=JSON.parse(fs.readFileSync(index(),'utf8'));if(!Array.isArray(folders)||folders.length>30)throw Error('Invalid folder watch index.');}}catch(e){folders=[];error=e.message;}
  const persist=()=>atomicWriteFileSync(index(),JSON.stringify(folders));
@@ -69,7 +78,11 @@ function registerMediaHub({app,ipcMain,authorized,dialog,owner,inspectMedia,auth
   if(input.action==='folder-remove'){if(!folder)throw Error('Folder not found.');watchers.get(folder.id)?.close();watchers.delete(folder.id);clearTimeout(timers.get(folder.id));files.delete(folder.id);folders=folders.filter(r=>r!==folder);persist();return {ok:true};}
   if(input.action==='folder-play'){if(!folder)throw Error('Folder not found.');const row=files.get(folder.id)?.find(r=>r.id===input.id);if(!row)throw Error('Rescan the folder before opening this item.');const real=await fsp.realpath(row.path),root=await fsp.realpath(folder.path);if(!beneath(real,root))throw Error('File left the selected folder.');const file=inspectMedia(real);grantMedia(file);return {ok:true,path:file};}
   if(input.action==='relink-preview'){if(!folder)throw Error('Choose a folder first.');await scan(folder);const rows=files.get(folder.id)||[],patches=[];for(const item of catalogStore().list()){const all=[{source:item.source,id:item.id},...(item.episodes||[]).map(ep=>({source:ep.source,id:item.id,episodeId:ep.id}))];for(const row of all)if(row.source?.type==='local'&&row.source.imported!==true&&!fs.existsSync(row.source.value)){const hits=rows.filter(file=>path.basename(file.path).toLowerCase()===path.basename(row.source.value).toLowerCase());if(hits.length===1)patches.push({...row,old:row.source.value,next:hits[0].path,title:item.title});}}const token=randomUUID();plans.clear();plans.set(token,{patches,folderPath:folder.path,sender:event.sender.id,at:Date.now()});return {ok:true,token,patches};}
-  if(input.action==='relink-apply'){
+  if(input.action==='relink-apply'||input.action==='relink-undo'){
+   if(relinkBusy)throw Error('A relink operation is already running.');
+   relinkBusy=true;
+   try{
+   if(input.action==='relink-apply'){
    const plan=plans.get(input.token);if(!plan||plan.sender!==event.sender.id||Date.now()-plan.at>600000)throw Error('Relink preview expired.');
    // Check every source before writing. Each record remains usable if a later record fails.
    const verified=plan.patches.map(row=>{const item=catalogStore().get(row.id),old=row.episodeId?item?.episodes.find(ep=>ep.id===row.episodeId)?.source:item?.source;if(old?.value!==row.old||old.imported===true||fs.existsSync(row.old))throw Error('The source changed after preview; scan again.');
@@ -77,18 +90,53 @@ function registerMediaHub({app,ipcMain,authorized,dialog,owner,inspectMedia,auth
     if(!beneath(next,root))throw Error('The replacement left the reviewed folder.');
     return {...row,file:inspectMedia(next)};});
    plans.delete(input.token);
-   let applied=0;
-   try{for(const row of verified){
-    const store=catalogStore(),item=store.get(row.id),old=row.episodeId?item.episodes.find(ep=>ep.id===row.episodeId).source:item.source;
+   const completed=[];
+   let warning='';
+   for(const row of verified){
+    const store=catalogStore(),old=sourceAt(store.get(row.id),row.episodeId);
+    if(!old||old.value!==row.old){warning='The source changed after preview.';break;}
     const source={...old,value:row.file,watchKey:canonicalWatchKey('file:'+row.file)};
-    const patch=row.episodeId?{id:item.id,episodes:item.episodes.map(ep=>ep.id===row.episodeId?{...ep,source}:ep)}:{id:item.id,source};
-    const rollback=row.episodeId?{id:item.id,episodes:item.episodes}:{id:item.id,source:old};
-    store.upsertMany([patch]);
-    try{if(relinkHistory)await relinkHistory(canonicalWatchKey('file:'+row.old),row.file);grantMedia(row.file);}
-    catch(e){store.upsertMany([rollback]);throw e;}
-    applied++;
-   }}catch(e){throw Error(`${applied} sources updated; remaining links were preserved. ${e.message}`);}
-   return {ok:true,count:applied};
+    try{
+     replaceSource(store,row.id,row.episodeId,source);
+     let historyUndo;
+     try{historyUndo=await relinkHistory?.(canonicalWatchKey('file:'+row.old),row.file);}
+     catch(error){replaceSource(store,row.id,row.episodeId,old);throw error;}
+     completed.push({id:row.id,episodeId:row.episodeId,old,expected:sourceAt(store.get(row.id),row.episodeId),historyUndo});
+     grantMedia(row.file);
+    }catch(error){warning=error.message;break;}
+   }
+   if(!completed.length&&warning)throw Error(warning);
+   const undoToken=randomUUID();
+   relinkUndos.set(undoToken,{rows:completed,sender:event.sender.id,at:Date.now()});
+   while(relinkUndos.size>20)relinkUndos.delete(relinkUndos.keys().next().value);
+   return {ok:true,count:completed.length,warning,undoToken};
+  }
+  {
+   const undo=relinkUndos.get(input.token);
+   if(!undo||undo.sender!==event.sender.id||Date.now()-undo.at>600000)throw Error('Relink undo expired.');
+   const store=catalogStore();
+   for(const row of undo.rows){
+    if(JSON.stringify(sourceAt(store.get(row.id),row.episodeId))!==JSON.stringify(row.expected))
+      throw Error('The source changed after relinking.');
+    row.historyUndo?.check();
+   }
+   let count=0;
+   while(undo.rows.length){
+    const row=undo.rows.at(-1);
+    if(JSON.stringify(sourceAt(store.get(row.id),row.episodeId))!==JSON.stringify(row.expected))
+     return {ok:false,error:count+' links restored before a reviewed source changed.'};
+    replaceSource(store,row.id,row.episodeId,row.old);
+    try{await row.historyUndo?.apply();}
+    catch(error){
+     replaceSource(store,row.id,row.episodeId,row.expected);
+     return {ok:false,error:count+' links restored before the operation stopped. '+error.message};
+    }
+    undo.rows.pop();count++;
+   }
+   relinkUndos.delete(input.token);
+   return {ok:true,count};
+  }
+   }finally{relinkBusy=false;}
   }
   if(input.action==='network'){const url=new URL(String(input.url||'').trim());if(!['https:','http:','rtsp:'].includes(url.protocol)||url.username||url.password||url.href.length>8192)throw Error('Use an HTTP/HTTPS/RTSP media URL without embedded credentials.');return {ok:true,url:url.href,key:'stream:'+createHash('sha256').update(url.href).digest('hex'),title:url.pathname.split('/').pop()||url.hostname};}
   if(input.action==='scenes'){const file=await authorizeMedia(input.path);const duration=Number(input.duration);if(!Number.isFinite(duration)||duration<=0||duration>604800)throw Error('Invalid video duration.');const out=path.join(app.getPath('temp'),'whisper-scenes-'+randomUUID());await fsp.mkdir(out,{recursive:true});const rows=[];try{for(let i=0;i<12;i++){const at=Math.max(0,Math.min(duration-.05,duration*(i+.5)/12)),target=path.join(out,`${i}.jpg`);await run(ffmpeg(),['-hide_banner','-loglevel','error','-ss',String(at),'-i',file,'-frames:v','1','-vf','scale=240:-2','-q:v','5',target],undefined,undefined,15000);const bytes=await fsp.readFile(target);if(bytes.length>500000)throw Error('Preview image too large.');rows.push({at,image:'data:image/jpeg;base64,'+bytes.toString('base64')});}return {ok:true,rows};}finally{for(const name of await fsp.readdir(out).catch(()=>[]))await fsp.unlink(path.join(out,name)).catch(()=>{});await fsp.rmdir(out).catch(()=>{});}}

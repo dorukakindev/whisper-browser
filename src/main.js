@@ -18945,12 +18945,13 @@ ipcMain.handle('library:remove', async (_event, key) => {
 // library:relink-bulk (toplu kök eşleme) aynı yolu kullanır: hedef inspect+grant,
 // anahtar çakışması yoksa kayıt taşıma + iz/not satırlarını renameMediaId ile
 // yeni kimliğe aktarma, başarısızlıkta liste geri yazımı.
-async function relinkLibraryItem(oldKey, newPath) {
+async function relinkLibraryItem(oldKey, newPath, restore = null, withUndo = false) {
   const item = loadWatchLibraryAll().find((entry) => entry?.key === oldKey);
   if (!item) throw new Error('Kütüphane kaydı bulunamadı.');
-  const target = mediaFileAccess.inspect(newPath);
-  if (!mediaFileAccess.grant(target)) throw new Error('Medya dosyasına erişim izni verilemedi.');
-  const newKey = `file:${target.replace(/\\/g, '/').toLowerCase()}`;
+  // The restore argument is internal and comes only from a completed relink receipt.
+  const target = restore ? restore.item.localPath || newPath : mediaFileAccess.inspect(newPath);
+  if (!restore && !mediaFileAccess.grant(target)) throw new Error('Medya dosyasına erişim izni verilemedi.');
+  const newKey = restore ? restore.item.key : `file:${target.replace(/\\/g, '/').toLowerCase()}`;
   const collision = loadWatchLibraryAll().find((entry) => entry?.key === newKey);
   if (collision) throw new Error('Seçilen dosya zaten başka bir kütüphane kaydına bağlı.');
   let previous, written = false, notes, previousNotes = [], notesWritten = false;
@@ -18960,16 +18961,27 @@ async function relinkLibraryItem(oldKey, newPath) {
     notes = ensureBrowserNotesReady();
     previousNotes = notes.list(oldKey);
     const run = () => {
-      const saved = watchLibraryStore().upsert({ ...item, key: newKey, localPath: target, sourceRef: target });
+      const saved = restore ? watchLibraryStore().restore(restore.item) : watchLibraryStore().upsert({ ...item, key: newKey, localPath: target, sourceRef: target });
       if (!saved) throw new Error('Yeni kütüphane kaydı yazılamadı.');
       written = true;
       if (!watchLibraryStore().remove(oldKey)) throw new Error('Eski kütüphane kaydı kaldırılamadı.');
       index?.renameMediaId(oldKey, newKey);
       notesWritten = previousNotes.length > 0;
-      if (notesWritten) notes.updateBatch(previousNotes.map(note => ({ ...note, mediaId: newKey, mediaUrl: target })));
+      if (notesWritten) notes.updateBatch(restore ? restore.notes : previousNotes.map(note => ({ ...note, mediaId: newKey, mediaUrl: target })));
     };
     if (index) index.transaction(run); else run();
-    return { key: newKey, path: target };
+    if (restore || !withUndo) return { key: newKey, path: target };
+    const original = {item:structuredClone(item),notes:structuredClone(previousNotes)};
+    const expected = () => JSON.stringify([loadWatchLibraryAll().find(entry=>entry.key===newKey),notes.list(newKey),notes.list(oldKey)]);
+    const revision = expected();
+    const check = () => {
+      if (expected() !== revision || loadWatchLibraryAll().some(entry=>entry.key===oldKey))
+        throw Error('Viewing history or notes changed after relinking.');
+    };
+    return { key: newKey, path: target, undo: {check, apply: () => {
+      check();
+      return relinkLibraryItem(newKey, newPath, original);
+    }} };
   } catch (error) {
     if (notesWritten) {
       try { notes.updateBatch(previousNotes); }
@@ -22280,4 +22292,4 @@ require('./media-tools-service').registerMediaTools({app,ipcMain,grantSubtitle:f
   }
 });
 require('./media-hub-service').registerMediaHub({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,inspectMedia:validateLocalMediaPath,authorizeMedia:authorizeMediaFile,grantMedia:file=>mediaFileAccess.grant(file),catalogStore:mediaCatalogService.store,ffmpeg:()=>resolveFfTool('ffmpeg'),
-  relinkHistory:async(oldKey,file)=>{if(loadWatchLibraryAll().some(row=>row.key===oldKey))await relinkLibraryItem(oldKey,file);}});
+  relinkHistory:async(oldKey,file)=>{if(loadWatchLibraryAll().some(row=>row.key===oldKey))return (await relinkLibraryItem(oldKey,file,null,true)).undo;return null;}});

@@ -72,23 +72,17 @@
               const name=h('input',{maxlength:80,'aria-label':t('Koleksiyon adı','Collection name')});
               const preview=h('section',{class:'v3-runtime-controls'},h('ol',null,route.items.map(i=>h('li',{text:i.title}))),name);
               preview.append(button(t('Üyeliği önizle','Review membership'),async()=>{
-                const ids=route.items.map(i=>i.itemId);
-                const target=await call(window.api.mediaTools,{action:'film-watch-collection',name:name.value.trim()});
-                if(target.items.some(i=>!ids.includes(i.id)))throw Error(t('Bu koleksiyonda rota dışı öğeler var. Başka bir ad seçin.','This collection contains titles outside the itinerary. Choose a different name.'));
-                const result=await call(window.api.assistantCollections,{action:'plan',name:target.name,ids:ids.join(',')});
+                const result=await call(window.api.mediaTools,{action:'film-watch-route-preview',name:name.value,ids:route.items.map(i=>i.itemId)});
                 if(!current()||!preview.isConnected)return;
-                preview.replaceChildren(h('strong',{text:result.plan.name}),h('ol',null,result.plan.items.map(i=>h('li',{text:i.title}))),
+                preview.replaceChildren(h('strong',{text:result.name}),h('ol',null,result.items.map(i=>h('li',{text:i.title}))),
                   button(t('Koleksiyona ekle','Add to collection'),async()=>{
-                    const latest=await call(window.api.mediaTools,{action:'film-watch-collection',name:target.name});
-                    if(latest.revision!==target.revision||!current())throw Error(t('Koleksiyon değişti. Yeniden önizleyin.','The collection changed. Review it again.'));
-                    await call(window.api.assistantCollections,{action:'apply',id:result.plan.id});
-                    const collection=await call(window.api.mediaTools,{action:'film-watch-collection',name:result.plan.name});
-                    if(collection.items.length!==ids.length||!collection.items.every(i=>ids.includes(i.id)))
-                      throw Error(t('Üyelik kaydedildi. Koleksiyon değiştiği için sıra yazılmadı.','Membership was saved. The order was skipped because the collection changed.'));
-                    try{
-                      await call(window.api.mediaTools,{action:'film-watch-collection-save',name:collection.name,revision:collection.revision,description:collection.description,order:ids});
-                    }catch(error){throw Error(t('Üyelik kaydedildi ancak sıra yazılamadı. ','Membership was saved but the order failed. ')+error.message);}
-                    preview.remove();setStatus(t('Koleksiyon güncellendi.','Collection updated.'));
+                    const saved=await call(window.api.mediaTools,{action:'film-watch-route-apply',token:result.token});
+                    if(!current())return;
+                    preview.replaceChildren(button(t('Rotayı geri al','Undo itinerary'),async()=>{
+                      await call(window.api.mediaTools,{action:'film-watch-route-undo',token:saved.undoToken});
+                      preview.remove();setStatus(t('Rota geri alındı.','Itinerary undone.'));
+                    }));
+                    setStatus(t('Koleksiyon ve sıra kaydedildi.','Collection and order saved.'));
                   }));
               }));
               surface.querySelector('.v3-runtime-controls')?.remove();surface.append(preview);
@@ -125,7 +119,13 @@
             surface.append(button(t('Yeniden bağlamayı incele','Review relinking')+' · '+folder.path.split(/[\\/]/).at(-1),async()=>{
               const review=await hub({action:'relink-preview',folderId:folder.id});if(!current())return;
               const box=h('section',{class:'v3-runtime-controls'},h('ul',null,review.patches.map(p=>h('li',{text:p.title+' · '+p.old+' → '+p.next}))));
-              if(review.patches.length)box.append(button(t('Bu bağlantıları uygula','Apply these links'),async()=>{await hub({action:'relink-apply',token:review.token});if(current())await draw();}));
+              if(review.patches.length)box.append(button(t('Bu bağlantıları uygula','Apply these links'),async()=>{const applied=await hub({action:'relink-apply',token:review.token});
+                if(!current())return;
+                box.replaceChildren(button(t('Bağlantıları geri al','Undo relinking'),async()=>{
+                  await hub({action:'relink-undo',token:applied.undoToken});
+                  if(current())await draw();
+                }));
+                setStatus(t('Güncellenen bağlantı: ','Updated links: ')+applied.count+(applied.warning?' · '+applied.warning:''));}));
               else box.append(h('p',{text:t('Tekil eşleşme bulunamadı.','No unique match found.')}));
               surface.querySelector('.v3-runtime-controls')?.remove();surface.append(box);
             }));
