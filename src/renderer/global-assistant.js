@@ -72,6 +72,11 @@
         if(node._sourceScope!==scope||node._assistantMessageId||threadId&&node._assistantThreadId!==threadId)continue;
         messages.push({role:node.classList.contains('ai-msg-user')?'user':'ai',text:node.textContent,loading:node.classList.contains('is-loading'),error:node.classList.contains('ai-msg-err'),links:[...node.querySelectorAll('.ai-time-link,.ai-source-link')].slice(0,40).map(button=>{if(!linkIds.has(button))linkIds.set(button,String(++nextLink));const id=linkIds.get(button);links.set(id,button);return {id,label:button.textContent};})});
       }
+      const browserPanelDocked = player.workspaceMode === 'browser'
+        && !document.getElementById('playerLayer')?.classList.contains('hidden')
+        && sidebarIsVisible()
+        && (!player.narrowViewport || responsivePanelTakeoverActive())
+        && !document.getElementById('playerSide')?.classList.contains('side-rail');
       window.api.updateAssistant({ locale: tr ? 'tr' : 'en', theme: document.documentElement.dataset.theme,
         palette:Object.fromEntries(Object.entries({surface:'--bg-1',raised:'--bg-2',hover:'--bg-3',line:'--border',strong:'--border-strong',text:'--text',muted:'--text-muted',accent:'--accent'}).map(([key,token])=>[key,getComputedStyle(document.body).getPropertyValue(token).trim()])),
         sourcePreview:window.AssistantSourcePreview.build({locale:tr?'tr':'en',selection:selectionContext,page:pageContext,video:videoContext,transcript:!!transcriptScope,scope:$('aiTranscriptScope')?.value,position:player.workspaceMode==='browser'?Number(player.browserTime)||0:subtitleSourceTime(document.getElementById('playerVideo')?.currentTime||0,false),sourceLanguage:selectionContext?'':subtitleContextLanguage('source'),targetLanguage:selectionContext?'':subtitleContextLanguage('translation'),range:videoContext?currentBrowserWhisperRange():null}),
@@ -82,7 +87,7 @@
         sourceDescription:selectionContext&&!attachedSelection ? (tr?'Henüz video, kitap veya yapım seçilmedi. İçeriği hakkında soru sormak için bir kaynak aç; uygulama yardımı ve kütüphane araması kullanılabilir.':'No video, book or title is selected. Open a source to ask about its content; application help and library search are available.') : selectionContext ? [({'book-page':tr?'Açık PDF sayfası':'Current PDF page','book-chapter':tr?'Seçili kitap bölümü':'Selected book chapter','library-title':tr?'Seçili yapım bilgisi':'Selected title metadata','taste-profile':tr?'Zevk profili ve yorum örneği':'Taste profile and review sample','feed-sources':tr?'Seçili akış kaynakları':'Selected feed sources','media-tool':tr?'Açık medya aracı':'Current media tool'})[selectionContext.type]||(selectionContext.workspace==='media-library'?(tr?'Medya kütüphanesi':'Media library'):(tr?'Altyazı stüdyosu':'Subtitle studio')),selectionContext.chapter||'',(selectionContext.selectedText?((tr?'Seçili pasaj: ':'Selected passage: ')+selectionContext.selectedText):selectionContext.excerpt||selectionContext.synopsis||selectionContext.note||''),tr?'Yalnız sağlanan metin ve bilgiler kullanılır; eserin tamamı ekli değildir.':'Only supplied text and metadata are available; the full work is not attached.'].filter(Boolean).join('\n').slice(0,1400) : (pageContext&&!transcriptScope?(tr?'Açık web sayfasının okunabilen metni kullanılır. Sayfa çevirisi mevcut sayfa aracını çalıştırır. Giriş veya koruma ekranı makale içeriği sayılmaz.':'Uses readable text from the open web page. Page translation runs the existing page tool. Login or challenge screens are not article content.'):(tr?'Altyazı bağlamı kullanılır. Bu panel görüntüden video analizi yapmaz.':'Uses subtitle context. This panel does not analyze video pixels.')),
         scope: $('aiTranscriptScope')?.value,
         bottomInset: document.querySelector('.ms-dock:not(.hidden)')?.getBoundingClientRect().height || 0,
-        toolbarDocked:document.body.classList.contains('media-home-active')&&['home','discover'].includes(document.getElementById('mediaHome')?.dataset.page)&&!!document.querySelector('.mh-header .mv-assistant'),
+        toolbarDocked:browserPanelDocked||(document.body.classList.contains('media-home-active')&&['home','discover'].includes(document.getElementById('mediaHome')?.dataset.page)&&!!document.querySelector('.mh-header .mv-assistant')),
         // Pins are read-only notes; unlike live job scopes they survive source generations.
         conversation:pinScope+(threadId?'|thread:'+threadId:''), context, busy: !!window.AssistantAgentUI?.status() || !!aiChatPreparing || !!(player.job?.kind === 'chat' && (player.job.running || player.job.awaitingExit)),
         activity: window.AssistantAgentUI?.status()?.activity || '',
@@ -166,6 +171,7 @@
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   const dock = document.querySelector('.ms-dock');
   if (dock) { observer.observe(dock, { attributes: true, attributeFilter: ['class'] }); new ResizeObserver(publish).observe(dock); }
+  window.addEventListener('browser-panel-layout',publish);
   document.addEventListener('ui-locale-change', publish);
   document.addEventListener('media-context-changed', publish);
   document.addEventListener('assistant-workspace-changed',publish);

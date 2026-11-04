@@ -90,6 +90,7 @@ function itemOf(raw, old = null) {
   if (positions.size !== episodes.length) fail('Aynı sezon ve bölüm birden çok kez girilmiş.');
   const incomingSource = Object.prototype.hasOwnProperty.call(raw, 'source') ? sourceOf(raw.source) : old?.source || null;
   return { id: text(raw.id ?? old?.id, 120) || randomUUID(), kind, title, year,
+    originalLanguage: /^[a-z]{2}$/.test(raw.originalLanguage ?? old?.originalLanguage ?? '') ? (raw.originalLanguage ?? old.originalLanguage) : '',
     originalTitle: text(raw.originalTitle ?? old?.originalTitle, 300),
     genres: (Array.isArray(raw.genres ?? old?.genres) ? raw.genres ?? old.genres : []).slice(0, 30).map(v => text(v, 80)),
     cast: (Array.isArray(raw.cast ?? old?.cast) ? raw.cast ?? old.cast : []).slice(0, 20).map(v => text(v, 120)),

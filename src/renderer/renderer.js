@@ -981,7 +981,7 @@ async function applyBrowserOcclusion(occluded) {
   const slot = $('browserViewSlot');
   // Dar ekranda panel sayfayı tamamen örter. Donmuş kare görünmeyeceği için
   // capturePage'i beklemek native görünümün panel üstünde kalmasına yol açar.
-  const fullyCovered = $('playerLayer')?.classList.contains('narrow-panel-takeover');
+  const fullyCovered = $('playerLayer')?.classList.contains('narrow-panel-takeover') && !$('playerSide')?.classList.contains('bp-panel');
   if (occluded && !fullyCovered && !browserOcclusionApplied && slot && window.api.snapshotBrowserPage
       && typeof player !== 'undefined' && player.workspaceMode === 'browser') {
     const shot = await window.api.snapshotBrowserPage().catch(() => null);
@@ -9879,6 +9879,7 @@ function updateBrowserSignalQuiet() {
   if (!player.cues.length && player.browserEmptyStateKey !== emptyKey) {
     player.browserEmptyStateKey = emptyKey;
     renderCueList($('cueSearch') ? $('cueSearch').value : '');
+    renderBrowserPanelTracks();
   }
   if (workspace.classList.contains('signal-quiet') === quiet) return;
   workspace.classList.toggle('signal-quiet', quiet);
@@ -9897,6 +9898,7 @@ function updateBrowserSideRail() {
   layer.classList.toggle('side-rail-mode', rail);
   side.classList.toggle('side-rail', rail);
   $('sideRailCollapse')?.setAttribute('aria-pressed', rail ? 'true' : 'false');
+  $('browserPanelMain')?.setAttribute('aria-expanded', String(!rail && !layer.classList.contains('sidebar-collapsed')));
 }
 
 function renderBrowserSubtitleHealth() {
@@ -10292,6 +10294,89 @@ async function toggleBrowserCeaFullCapture() {
   }
 }
 
+let browserPanelShowAllTracks = false;
+function renderBrowserPanelTracks() {
+  const host = $('browserPanelTracks');
+  const list = $('browserPanelTrackScroll');
+  const quick = $('browserPanelQuickTracks');
+  const select = $('browserTrackSelect');
+  if (!host || !list || !quick || !select) return;
+  const tracks = player.browserTracks;
+  $('browserPanelTrackCount').textContent = tracks.length ? String(tracks.length) : '';
+  host.classList.toggle('hidden', player.workspaceMode !== 'browser' || !tracks.length || player.cues.length > 0);
+  list.replaceChildren();
+  quick.replaceChildren();
+  $('browserPanelTrackExpand')?.remove();
+  const english = globalThis.UiLocale?.get?.() === 'en';
+  const choose = track => {
+    select.value = track.id;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    document.querySelectorAll('[data-track-id]').forEach(button => {
+      const chosen = button.dataset.trackId === select.value;
+      button.setAttribute('aria-checked', String(chosen));
+      button.setAttribute('aria-pressed', String(chosen));
+    });
+    window.BrowserPanel?.refresh();
+  };
+  const row = (track, inMenu) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'bp-track';
+    button.dataset.trackId = track.id;
+    button.disabled = !!track.sourceMismatch;
+    button.setAttribute('role', inMenu ? 'menuitemradio' : 'radio');
+    const radio = document.createElement('span');
+    radio.className = 'bp-radio';
+    radio.setAttribute('aria-hidden', 'true');
+    const label = document.createElement('span');
+    label.className = 'bp-track-name';
+    label.textContent = track.label || track.language || (english ? 'Subtitle' : 'Altyazı');
+    button.title = label.textContent;
+    const tag = document.createElement('span');
+    tag.className = 'bp-chip';
+    tag.textContent = track.role === 'translation' ? (english ? 'Translation' : 'Çeviri') : track.role === 'source' ? (english ? 'Original' : 'Özgün') : (english ? 'Subtitle' : 'Altyazı');
+    button.append(radio, label, tag);
+    button.setAttribute('aria-checked', String(String(track.id) === select.value));
+    button.onclick = () => {
+      choose(track);
+      if (inMenu) $('browserTrackLoad')?.click();
+    };
+    return button;
+  };
+  for (const track of tracks) quick.append(row(track, true));
+  for (const [index, track] of tracks.entries()) {
+    const button = row(track, false);
+    button.hidden = index >= 5 && !browserPanelShowAllTracks;
+    list.append(button);
+  }
+  list.setAttribute('role', 'radiogroup');
+  list.setAttribute('aria-label', english ? 'Subtitle tracks' : 'Altyazı izleri');
+  if (tracks.length > 5) {
+    const expand = document.createElement('button');
+    expand.id = 'browserPanelTrackExpand';
+    expand.type = 'button';
+    expand.className = 'bp-expand';
+    expand.setAttribute('aria-controls', list.id);
+    const label = document.createElement('span');
+    const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    chevron.setAttribute('viewBox', '0 0 24 24');
+    chevron.setAttribute('aria-hidden', 'true');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'm6 9 6 6 6-6');
+    chevron.append(path);
+    expand.append(label, chevron);
+    const update = () => {
+      label.textContent = browserPanelShowAllTracks ? (english ? 'Show less' : 'Daha az göster') : (english ? 'Show all' : 'Tümünü göster') + ' (' + tracks.length + ')';
+      expand.setAttribute('aria-expanded', String(browserPanelShowAllTracks));
+      [...list.children].forEach((button, index) => { button.hidden = index >= 5 && !browserPanelShowAllTracks; });
+    };
+    expand.onclick = () => { browserPanelShowAllTracks = !browserPanelShowAllTracks; if (window.BrowserPanel) window.BrowserPanel.reflow(update); else update(); };
+    update();
+    list.after(expand);
+  }
+  window.BrowserPanel?.refresh();
+}
+
 function renderBrowserTracks(selectedId) {
   const select = $('browserTrackSelect');
   const select2 = $('browserTrackSelect2');
@@ -10356,6 +10441,7 @@ function renderBrowserTracks(selectedId) {
   if (player.browserTracks.some((track) => track.id === previous)) select.value = previous;
   if (player.browserTracks.some((track) => track.id === previous2)) select2.value = previous2;
   actions.classList.toggle('hidden', player.browserTracks.length === 0);
+  renderBrowserPanelTracks();
   if (player.browserTracks.length) {
     const chosen = player.browserTracks.find((track) => track.id === select.value) || player.browserTracks[0];
     announceBrowserTrack(chosen);
@@ -15409,9 +15495,9 @@ function updateCueMeta() {
   const fill = $('cueProgressFill');
   if (position) {
     // Sıfır dolgusuz ("2 / 4"); genişlik tabular-nums ile sabit kalır.
-    position.textContent = total && player.activeIdx >= 0
-      ? `${player.activeIdx + 1} / ${total}`
-      : (total ? `– / ${total}` : '— / —');
+    position.textContent = player.workspaceMode === 'browser'
+      ? `${total} ${globalThis.UiLocale?.get?.() === 'en' ? 'sentences' : 'cümle'}`
+      : total && player.activeIdx >= 0 ? `${player.activeIdx + 1} / ${total}` : (total ? `– / ${total}` : '— / —');
   }
   if (fill) {
     const pct = total > 1 && player.activeIdx >= 0
@@ -16607,6 +16693,8 @@ function cueHasLowConfidence(cue) {
 }
 
 function renderCueList(filter = '') {
+  $('browserPanelTracks')?.classList.toggle('hidden', player.workspaceMode !== 'browser' || !player.browserTracks.length || player.cues.length > 0);
+  window.BrowserPanel?.refresh();
   const box = $('cueList');
   if (!box) return;
   const q = foldQuery(filter.trim());
@@ -16642,6 +16730,7 @@ function renderCueList(filter = '') {
               + '<button type="button" data-empty-action="pick">' + escapeHtml(lt('Altyazı dosyası seç')) + '</button>'
               + '</div>'
               + '<button type="button" class="cue-empty-hint" data-empty-action="setup">' + escapeHtml(lt('Çeviri için API anahtarı ekle')) + '</button>'))
+      + (browserMode && !trackCount ? '<div class="bp-empty-how"><strong>' + escapeHtml(lt('Nasıl çalışır?')) + '</strong><span>' + escapeHtml(lt('Videoyu aç · altyazıyı seç veya oluştur · cümleleri takip et')) + '</span></div>' : '')
       + '</div>';
     box.querySelector('[data-empty-action="tracks"]')?.addEventListener('click', () => $('browserSubtitleSettingsMenu')?.click());
     const make = box.querySelector('[data-empty-action="make"]');
@@ -16837,8 +16926,8 @@ function highlightCueRow() {
   const delta = (rb.top + rb.height / 2) - (bb.top + bb.height / 2);
   if (Math.abs(delta) > 2) {
     const top = Math.max(0, box.scrollTop + delta);
-    box.scrollTop = top;
-    player.expectedScroll = box.scrollTop;   // tarayicinin kirptigi degeri al
+    if (player.workspaceMode === 'browser' && window.BrowserPanel) window.BrowserPanel.scrollToActive(box, top);
+    else { box.scrollTop = top; player.expectedScroll = box.scrollTop; }
   }
   const btn = $('backToActive');
   if (btn) btn.classList.add('hidden');
@@ -16854,6 +16943,7 @@ function bindTranscriptScroll() {
   // gozlenen konum bizim yazdigimizdan farkliysa kaydiran kullanicidir.
   window.__markAutoScroll = () => { player.expectedScroll = undefined; };
   const userIntent = () => {
+    window.BrowserPanel?.cancelFollow();
     player.userScrolled = true;
     player.expectedScroll = undefined;
   };
@@ -20267,6 +20357,7 @@ function setSideTab(tab, { focusContent = false } = {}) {
   tab = player.sideTab;
   $('playerSide').classList.toggle('tools-mode', tools);
   if (tools && $('browserFeatures')) $('browserFeatures').open = true;
+  window.BrowserPanel?.refresh();
   $('playerSide').classList.toggle('ai-mode', ai);
   $('playerSide').classList.toggle('library-mode', library);
   $('aiChat').classList.toggle('hidden', !ai);
@@ -23274,7 +23365,7 @@ function snapGridColumns() {
 
 function responsivePanelTakeoverActive() {
   const layer = $('playerLayer');
-  if (!layer || !window.matchMedia('(max-width: 1020px)').matches) return false;
+  if (!layer || !window.matchMedia(player.workspaceMode === 'browser' ? '(max-width: 1099px)' : '(max-width: 1020px)').matches) return false;
   if (browserSettingsSurfaceVisible()) return false;
   return !!player.narrowPanelTakeover && (drawerIsOpen() || sidebarIsVisible());
 }
@@ -23282,7 +23373,7 @@ function responsivePanelTakeoverActive() {
 function syncResponsivePlayerLayout() {
   const layer = $('playerLayer');
   if (!layer) return;
-  const narrow = window.matchMedia('(max-width: 1020px)').matches;
+  const narrow = window.matchMedia(player.workspaceMode === 'browser' ? '(max-width: 1099px)' : '(max-width: 1020px)').matches;
   if (narrow !== player.narrowViewport) {
     if (narrow) {
       const side = $('playerSide');
@@ -23616,7 +23707,7 @@ function setSettingsDrawer(open) {
   // Eskiden 'sidebar-collapsed' kaldiriliyordu ve dislye basinca arkada
   // istenmeden transkript paneli de aciliyordu.
   d.classList.toggle('hidden', !open);
-  if (window.matchMedia('(max-width: 1020px)').matches) {
+  if (window.matchMedia(player.workspaceMode === 'browser' ? '(max-width: 1099px)' : '(max-width: 1020px)').matches) {
     player.narrowPanelTakeover = !!open;
   }
   if (layer) layer.classList.toggle('settings-open', open);
@@ -25592,7 +25683,7 @@ function setPlayerSidebarCollapsed(collapsed) {
   const button = $('playerSidebarToggle');
   if (!layer) return;
   const next = !!collapsed;
-  if (window.matchMedia('(max-width: 1020px)').matches) {
+  if (window.matchMedia(player.workspaceMode === 'browser' ? '(max-width: 1099px)' : '(max-width: 1020px)').matches) {
     // Bu yardımcı panelin açık/kapalı durumunu temsil eder. Dar ekranda paneli
     // programlı olarak açan yollar da tıpkı başlık düğmesi gibi çalışma
     // alanını devralmalı; aksi halde panel CSS'te açık olsa da erişilemez kalır.
@@ -25614,9 +25705,57 @@ function setPlayerSidebarCollapsed(collapsed) {
   else syncResponsivePlayerLayout();
   setTimeout(highlightCueRow, 80);
 }
+function toggleBrowserPanelRail() {
+  if (player.workspaceMode !== 'browser') return;
+  const layer = $('playerLayer');
+  const opening = $('playerSide')?.classList.contains('side-rail') || layer?.classList.contains('sidebar-collapsed');
+  if (player.narrowViewport) {
+    $('playerSidebarToggle')?.click();
+    $('browserPanelMain')?.setAttribute('aria-expanded', String(responsivePanelTakeoverActive()));
+    return;
+  }
+  if (opening) layer?.classList.remove('sidebar-collapsed');
+  setBrowserSideRailPref(opening ? 'panel' : 'rail');
+  snapGridColumns();
+  scheduleBrowserBounds();
+  $('browserPanelMain')?.setAttribute('aria-expanded', String(opening));
+  if (opening && typeof $('playerSide')?.animate === 'function' &&
+      globalThis.CinemaMotion?.mode !== 'off' && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const reduced = globalThis.CinemaMotion?.mode === 'reduced';
+    $('playerSide').animate(reduced ? [{opacity:.6},{opacity:1}] :
+      [{transform:'translateX(14px)',opacity:.65},{transform:'translateX(0)',opacity:1}],
+      {duration:200,easing:'ease-out'});
+  }
+}
+$('browserPanelMain')?.addEventListener('click', toggleBrowserPanelRail);
+$('browserPanelApply')?.addEventListener('click', () => {
+  if (player.browserTracks.length) $('browserTrackLoad')?.click();
+  else $('browserSubtitleSettingsMenu')?.click();
+});
+$('browserQuickYoutubeMenu')?.addEventListener('click', () => {
+  setSideTab('subs');
+  const input = $('playerQuickYtUrl');
+  const disclosure = input?.closest('details');
+  if (disclosure) disclosure.open = true;
+  input?.scrollIntoView({block:'nearest'});
+  input?.focus({preventScroll:true});
+});
+$('cueSearch')?.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || !event.currentTarget.value) return;
+  event.preventDefault();
+  event.stopPropagation();
+  $('clearCueSearch')?.click();
+});
+document.addEventListener('keydown', event => {
+  if (player.workspaceMode !== 'browser' || $('playerLayer')?.classList.contains('hidden')) return;
+  if (event.altKey && event.shiftKey && event.code === 'KeyS') {
+    event.preventDefault();
+    toggleBrowserPanelRail();
+  }
+});
 $('browserSidebarToggle')?.addEventListener('click', () => $('playerSidebarToggle')?.click()); if ($('playerSidebarToggle')) {
   $('playerSidebarToggle').addEventListener('click', () => {
-    if (window.matchMedia('(max-width: 1020px)').matches) {
+    if (window.matchMedia(player.workspaceMode === 'browser' ? '(max-width: 1099px)' : '(max-width: 1020px)').matches) {
       if (responsivePanelTakeoverActive()) {
         player.narrowPanelTakeover = false;
         if (drawerIsOpen()) setSettingsDrawer(false);
@@ -26755,13 +26894,16 @@ $$('.tab[data-tab]').forEach((b) => b.addEventListener('keydown', (event) => {
 $$('.side-tab').forEach((b) => b.addEventListener('click', () => {
   const tablist = b.closest('[role="tablist"]');
   if ($('playerSide')?.classList.contains('side-rail')) setBrowserSideRailPref('panel');
-  if (window.matchMedia('(max-width: 1020px)').matches) {
+  if (window.matchMedia(player.workspaceMode === 'browser' ? '(max-width: 1099px)' : '(max-width: 1020px)').matches) {
     player.narrowPanelTakeover = true;
     syncResponsivePlayerLayout();
   }
   setSideTab(b.dataset.stab, { focusContent: tablist?.dataset.rovingActivation !== 'true' });
 }));
-$('sideRailCollapse')?.addEventListener('click', () => setBrowserSideRailPref('rail'));
+$('sideRailCollapse')?.addEventListener('click', () => {
+  if (player.narrowViewport) { player.narrowPanelTakeover = false; syncResponsivePlayerLayout(); }
+  else setBrowserSideRailPref('rail');
+});
 $('aiChatCancel')?.addEventListener('click',()=>void cancelAiChat());
 $('aiChatRetry')?.addEventListener('click',()=>{if(window.AssistantAgentUI?.canRetry()){void window.AssistantAgentUI.retry();return;}if(aiChatRetryPacket?.scope===aiSourceScope())void aiChatSend(aiChatRetryPacket.question,aiChatRetryPacket.translationTarget);});
 if ($('aiChatSend')) $('aiChatSend').addEventListener('click', () => aiChatSend($('aiChatText').value));
@@ -27441,6 +27583,7 @@ document.addEventListener('keydown', (e) => {
     });
     if (shortcut && runBrowserShortcut(shortcut, e.shiftKey)) { e.preventDefault(); return; }
   }
+  if (player.workspaceMode === 'browser' && window.BrowserPanelTools?.shortcut(e)) return;
   if (tag === 'input' || tag === 'select' || tag === 'textarea' || tag === 'button'
       || tag === 'a' || tag === 'summary' || e.target.isContentEditable
       || e.target.closest?.('[contenteditable="true"]')) return;
@@ -27452,9 +27595,11 @@ document.addEventListener('keydown', (e) => {
   // ok/ses/hız ve cue adım tuşları tekrarlanabilir kalmalı.
   if (e.repeat && /^( |f|b|m|v|n|o|k|\?)$/i.test(e.key)) return;
   if (e.key === 'e' || e.key === 'E') { e.preventDefault(); openCueEditor(); return; }
-  if (e.key === 'a' || e.key === 'A') { e.preventDefault(); stepCue(-1); return; }
-  if (e.key === 'd' || e.key === 'D') { e.preventDefault(); stepCue(1); return; }
-  if (e.key === 'r' || e.key === 'R') { e.preventDefault(); replayCue(); return; }
+  if (player.workspaceMode !== 'browser') {
+    if (e.key === 'a' || e.key === 'A') { e.preventDefault(); stepCue(-1); return; }
+    if (e.key === 'd' || e.key === 'D') { e.preventDefault(); stepCue(1); return; }
+    if (e.key === 'r' || e.key === 'R') { e.preventDefault(); replayCue(); return; }
+  }
   if (e.key === 'c' || e.key === 'C') { e.preventDefault(); copyCue(); return; }
   if (e.key === 'k' || e.key === 'K') { e.preventDefault(); toggleCueSaved(); return; }
   if ((e.key === 'w' || e.key === 'W') && player.selectedWord) { e.preventDefault(); toggleWordSaved(); return; }

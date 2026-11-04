@@ -1733,3 +1733,156 @@
     transform: none;
   }
 }
+
+/* Library film detail shares the cinema frame and controls. */
+.cn-library-hero {
+  background: radial-gradient(ellipse at 76% 48%, hsl(var(--cn-library-hue) 46% 29% / .48), transparent 58%), var(--cn-base, #121314);
+}
+.cn-library-reel {
+  position: absolute;
+  pointer-events: none;
+  inset-inline-end: 12%;
+  top: 13%;
+  width: min(34vw, 420px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 5px solid hsl(var(--cn-library-hue) 42% 61% / .2);
+  background: repeating-conic-gradient(from 15deg, transparent 0 58deg, hsl(var(--cn-library-hue) 42% 61% / .16) 59deg 60deg);
+  animation: cn-library-reel-turn 150s linear infinite paused;
+}
+.cn-library-reel.cn-reel-visible:not(.cn-reel-hidden) { animation-play-state: running; }
+.cn-library-hero:has(.cn-hero-art img) .cn-library-reel { display: none; }
+@keyframes cn-library-reel-turn { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .cn-library-reel { animation: none; } }
+.cn-library-manage {
+  position: absolute;
+  inset-block-start: 20px;
+  inset-inline-end: max(24px, calc((100% - 1352px)/2));
+  z-index: 4;
+}
+.cn-library-manage > summary {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #161616b8;
+  border: 1px solid #ffffff26;
+}
+.cn-library-poster-year {
+  position: absolute;
+  bottom: 14px;
+  font-size: 12px;
+  letter-spacing: .12em;
+}
+.cn-library-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 28px;
+  margin-block: 24px 32px;
+  padding: 18px 22px;
+  border: 1px solid #ffffff14;
+  border-radius: 12px;
+  background: var(--cn-raised);
+  font-size: 13px;
+}
+.cn-library-source-label { display: grid; gap: 5px; }
+.cn-library-source-label small { font-size: 12px; color: var(--cn-gold, #d5ad70); }
+.cn-library-source-meta { flex: 1; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.cn-library-source-meta dl { display: flex; flex-wrap: wrap; gap: 12px 26px; margin: 0; }
+.cn-library-source-meta dt { font-size: 12px; opacity: .85; }
+.cn-library-source-meta dd { margin: 4px 0 0; font-size: 13px; }
+.cn-library-source [hidden] { display: none !important; }
+.cn-library-resume { display: block; width: min(100%, 320px); height: 3px; margin-block: 12px; accent-color: var(--cn-gold, #d5ad70); }
+.cn-library-hero ~ .cn-film-body .cn-story-heading { justify-content: flex-start; gap: 16px; }
+[data-cinema-motion="off"] .cn-library-reel, [data-cinema-motion="reduced"] .cn-library-reel { animation: none; }
+.cn-library-watch { width: fit-content; margin-top: 12px; }
+.cn-library-watch > summary { display: flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 24px; background: #ffffff0a; }
+.cn-library-watch > summary[data-completed=true] { background: #a6ccb01c; color: #b1d5ba; }
+.cn-library-watch > summary svg { width: 16px; height: 16px; }
+.cn-library-watch .mv-overflow-panel { top: auto; bottom: calc(100% + 8px); right: auto; left: 0; }
+.cn-library-hero .mv-art-fallback { background: radial-gradient(circle at 40% 32%, hsl(var(--cn-library-hue) 34% 36%), #211d1b 75%); }
+.cn-library-hero .mv-art-fallback::before { content: ""; position: absolute; inset: 10px; border: 1px solid #d5ad7040; pointer-events: none; }
+.cn-library-hero .cn-film-copy h1 { max-inline-size: 14ch; text-wrap: balance; }
+.cn-library-hero .cn-film-poster { width: 190px; }
+@media(max-width:760px){.cn-library-hero .cn-film-poster{width:110px}.cn-library-reel{opacity:.45}}
+.cn-library-watch.mv-overflow > summary {
+  width: auto;
+  min-height: 34px;
+  height: auto;
+  padding-inline: 12px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.cn-library-hero .cn-film-copy h1 { max-inline-size: min(100%, 470px); }
+.cn-library-source > .mv-button { border: 1px solid var(--cn-line); }
+
+.cn-library-hero .cn-back { min-height: 36px; padding: 5px 8px; border: 0; background: transparent; }
+.cn-library-hero .cn-back:focus:not(:focus-visible) { outline: none; }
+.cn-library-hero .cn-back:focus-visible { outline: 1px solid var(--cn-gold); outline-offset: 2px; }
+.cn-library-reel {
+  inset-inline-end: 4%;
+  width: min(30vw, 420px);
+  mask-image: linear-gradient(90deg, transparent, #000 38%);
+}
+@media(max-width:1100px){.cn-library-reel{inset-inline-end:0;opacity:.45}}
+.cn-library-source { background: color-mix(in srgb, var(--cn-raised) 38%, var(--cn-bg)); }
+.cn-library-source > svg { color: var(--cn-gold); width: 23px; height: 23px; }
+.cn-library-source > button { margin-inline-start: auto; }
+.cn-audience[data-review-state=empty] .film-review-invitation {
+  min-height: 0;
+  padding: 12px 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.cn-cast-note:not(:empty) { display: flex; align-items: center; gap: 12px; }
+.cn-cast-note button { padding: 4px 10px; }
+.cn-year-notice { display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-block:8px;font-size:13px;color:var(--cn-gold); }
+
+.cn-film-page .cn-review-single-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  padding: 12px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.cn-review-single-row .film-review-title-block { flex: 1 1 230px; }
+.cn-review-single-row .film-review-title-block h2 { margin: 0; }
+.cn-review-single-row .film-review-subtitle { margin-block: 4px 0; }
+.cn-audience .film-review-heading:empty { display: none; }
+.cn-library-watch > summary[data-state=completed] { background: #a6ccb01c; color: #b1d5ba; }
+.cn-library-watch > summary[data-state=planned],
+.cn-library-watch > summary[data-state=watching] { background: #d5ad701a; color: var(--cn-gold); }
+.cn-library-watch > summary[data-state=unspecified] { border-color: var(--cn-line); }
+.cn-library-hero .cn-film-copy { min-inline-size: 0; }
+.cn-library-hero .cn-hero-actions { flex-wrap: wrap; overflow: visible; }
+.cn-library-hero .cn-hero-actions > [data-kind=icon] { flex-shrink: 0; }
+
+.cn-film-page .cn-tmdb-connect > .cn-button[data-kind=ghost],
+.cn-film-page .cn-review-single-row > button {
+  border: 1px solid var(--cn-line);
+  border-radius: 8px;
+  padding: 9px 15px;
+  color: var(--cn-text);
+  background: transparent;
+}
+.cn-film-page .cn-tmdb-connect > .cn-button[data-kind=ghost]:hover,
+.cn-film-page .cn-review-single-row > button:hover { background: var(--cn-raised); }
+.cn-film-page .cn-extras:has(.cn-tmdb-connect) { gap: 0; padding-block: 20px; }
+.cn-film-page .cn-extras:has(.cn-tmdb-connect) .film-extra-body { padding: 0; margin: 0; }
+.cn-film-page .cn-extras .cn-tmdb-connect { margin-block: 0; }
+.cn-library-hero .cn-hero-art img { object-position: center 68%; }
+@media(min-width:1600px) {
+  .cn-library-hero .cn-hero-art img { filter: blur(1.5px); animation: none; }
+}
+@media(max-width:1100px) {
+  .cn-library-hero:has(.cn-hero-art img)::after {
+    background-image: linear-gradient(90deg,#121314 0%,#121314ed 48%,#12131488 78%,#12131438 100%),linear-gradient(0deg,#121314 2%,transparent 66%),var(--cn-grain);
+  }
+}

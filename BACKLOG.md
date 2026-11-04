@@ -16,17 +16,21 @@ Her kayıt: **durum + kapsam + dal/PR + kanıt + kalan kabul koşulu + kesin son
 - **Önceki sayısal hedef (artık bloklayıcı değil):** onaylı hareket/görünüm korunarak her etkileşim maksimum<20ms, p95<16,7ms;1440/1920'de son revizyon için60s görünür/odaklı aktif hero CPU<%3 ve GPU kaydı. Son CPU ölçümleri son görsel katman değişiminden önce; yeniden doğrulanmalı. Son revizyona ait native1440/1920 karşılaştırması ve0/100/200/400/900ms kareler gerekli.
 - **Sonraki adım:** bu dalı tekrar aç; işaretli1440 detail/scroll rAF aralıklarını renderer/compositor/raster thread'leriyle aynı zaman ekseninde eşleştir. Sabit blur yüzeyinin ilk raster'ını, rota microtask'ini ve ilk style/layout/commit fazlarını tek değişkenle incele. Renderer fetch'i geri ekleme; büyük JPEG'i renk örneklemek için ana thread'de kopyalama. Sayısal hedef tutmadığında gerçek ölçümü bildir; sonraki ekranı durdurma. PR805 için son revizyonun görünüm/akış incelemesi ayrı kalır; bu tur merge edilmedi.
 
-## P003 — Afişsiz yerel film detay tasarımı
+## P003 — Kütüphane film detayının canlı kabul sınırları
 
-- **Durum:** planlandı; Akışlar uygulamasının kullanıcı incelemesini bekliyor. P001 ölçüm eşiği bloklayıcı değil.
-- **Kapsam/kabul:** mevcut yerel film işlemleri korunarak tasarlanmış afiş/backdrop yedeği, temiz başlık ve Keşfet detaylarıyla aynı görsel dil. Önce standalone kompozisyon/onay; sonra native geniş/dar ve hareket kontrolü. Sahte veri üretime girmez.
-- **Sonraki adım:** ilgili ekran sırası geldiğinde mevcut poster/metadata davranışını doğrula ve taslağı göster.
+- **Durum:** onaylı tasarım PR808 içinde uygulandı; kullanıcı 2026-11-04 tarihinde master birleştirmesini istedi. Canlı kabulün kalan kısmı açık.
+- **Dal/PR:** codex/library-film-motion-preview · [PR808](https://github.com/dorukakindev/whisper-browser/pull/808); ürün HEAD `942bd7b5cc17141d3100691aacd40b79167108f3`.
+- **Kanıt:** önceki izole Windows 1440/1920/940 incelemesi; bu teslimde temiz worktree üzerinde katalog/film/panel hedefli kontrolleri 18/18. [Birleştirme teslimi](docs/devir/2026-11-04-0936.md).
+- **Kalan kabul:** canlı TMDB, büyük kişisel kütüphane ve tüm yönetim yolları; kaydedilmiş film açılış/kaydırma performans açıkları kapanmış sayılmaz. P001 ayrı kalır.
+- **Kesin sonraki adım:** kullanıcı gerçek kullanım doğrulaması istediğinde ilgili kişisel katalog akışını açık seçimlerle doğrula; yeni tasarım veya performans turunu kendiliğinden başlatma.
 
-## P004 — Browser ve altyazı yan paneli tasarımı
+## P004 — Browser panelinin canlı kabul sınırları
 
-- **Durum:** planlandı; önceki ekranların kabulünü bekliyor.
-- **Kapsam/kabul:** araç çubuğu ve sağ panelin onaylı sinematik dilde kompozisyonu; altyazı/çeviri/dublaj/asistan, iş sürekliliği, kaynak ve ayar/onay davranışları korunur. Önce taslak/onay, sonra1440/1920/dar native görüntü ve performans kontrolü.
-- **Sonraki adım:** ekran sırası geldiğinde mevcut kontrolleri envanterleyip hareketli kompozisyonu hazırla.
+- **Durum:** onaylı panel ve üç iç tasarım uygulandı; kullanıcı 2026-11-04 tarihinde PR808'in master'a birleştirilmesini istedi. Canlı kabulün kalan kısmı açık.
+- **Dal/PR:** codex/library-film-motion-preview · [PR808](https://github.com/dorukakindev/whisper-browser/pull/808); ürün HEAD `942bd7b5cc17141d3100691aacd40b79167108f3`.
+- **Kanıt:** [uygulama, native kontroller ve sınırlar](docs/implementation/browser-panel-2026-11-04/README.md); bu teslimde temiz worktree üzerinde hedefli testler ve değişen JS sözdizimleri geçti.
+- **Kalan kabul:** gerçek sağlayıcı indirmesi/açma, yüklü canlı izde nonzero senkron, gerçek uzun iş iptali, site profili yeniden açma, fullscreen/Shadow DOM yalıtımı ve etkileşim trace ayrımı. Fixture sonucu bunları kapatmaz.
+- **Kesin sonraki adım:** kullanıcı gerçek kullanımda istediğinde bu akışları ayrı kısa turda doğrula; mevcut uygulama/ileri ayarları koru. CI bekleme işi başlatma.
 
 ## D001 — Mevcut rapor indeksinin eksikleri
 

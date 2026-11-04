@@ -15,6 +15,7 @@
     <p>Yüklü ana altyazı için doğru zamanlı başka bir altyazı seçin veya referans videonun ses ritmiyle senkronlayın. Sonuç önce karşılaştırma olarak gösterilir.</p>
     <div id="baAlignment" class="ba-results"></div><button id="baApply" type="button" disabled>Senkronu zamanlama taslağına uygula</button></div>`;
   const $ = id => document.getElementById(id);
+  let taskId=null;
   let currentKey = '', ref = null, busy = false, activeAction = '', sequence = 0, preview = null, thumbSequence = 0, thumbTimer = null, dragging = false;
   function context() {
     const tab = browserTabState();
@@ -30,7 +31,7 @@
   function reset() {
     const key = signature();
     if (key === currentKey) return;
-    currentKey = key; sequence++; thumbSequence++; clearTimeout(thumbTimer); ref = null; preview = null;
+    currentKey = key; sequence++;window.BrowserPanelTools?.finish(taskId,{silent:true});taskId=null; thumbSequence++; clearTimeout(thumbTimer); ref = null; preview = null;
     setBusy(false); $('baApply').disabled = true; $('baAlignment').replaceChildren(); $('baThumb').classList.add('hidden');
     $('baReferenceName').textContent = 'Dosya seçilmedi'; message('');
     if (player.workspaceMode === 'browser') { player.timeline.waveform = []; player.timeline.waveformDuration = 0; }
@@ -43,25 +44,28 @@
     if (busy) { message('Çalışan işlemin bitmesini bekleyin veya durdurun.'); return null; }
     const seq = ++sequence;
     activeAction = action;
+    const labels={'reference-open':'Referans video seçiliyor','reference-waveform':'Ses dalgası hazırlanıyor','alignment-audio-preview':'Ses senkronu inceleniyor','alignment-subtitle-preview':'Altyazı senkronu inceleniyor','ocr-range':'Seçilen aralıktaki yazılar okunuyor','intro-detect':'Jenerik aralığı inceleniyor'};
+    const localTask=window.BrowserPanelTools?.start({label:labels[action]||'Video analizi',cancel:()=>$('baCancel').click(),open:()=>{setSideTab('tools');mount.closest('.bt-group')?.setAttribute('open','');mount.open=true;mount.scrollIntoView({block:'nearest'});}});
+    taskId=localTask;
     setBusy(true); message(action === 'ocr-range' ? 'Seçilen aralıktaki yazılar okunuyor…' : 'İşleniyor…');
     try {
       const output = await window.api.browserExtras({ ...payload, action, ...ctx });
-      if (seq !== sequence || key !== signature()) return null;
-      if (!output?.ok) { message(output?.error || 'İşlem tamamlanamadı.', true); return null; }
+      if (seq !== sequence || key !== signature()) {window.BrowserPanelTools?.finish(localTask,{silent:true});return null;}
+      if (!output?.ok) { window.BrowserPanelTools?.finish(localTask,{error:output?.error||'İşlem tamamlanamadı.'});message(output?.error || 'İşlem tamamlanamadı.', true); return null; }
       if (action === 'reference-open') {
         ref = { name: output.name, duration: output.duration }; $('baReferenceName').textContent = ref.name;
         preview = null; $('baApply').disabled = true; $('baAlignment').replaceChildren(); hidePreview();
         player.timeline.waveform = []; player.timeline.waveformDuration = 0;
         document.dispatchEvent(new CustomEvent('browser-analysis-contextchange', { detail: context() }));
       }
-      message('Hazır.'); return output;
-    } catch (error) { if (seq === sequence && key === signature()) message(error.message || 'İşlem tamamlanamadı.', true); return null; }
+      window.BrowserPanelTools?.finish(localTask,{silent:output.canceled===true});message('Hazır.'); return output;
+    } catch (error) { window.BrowserPanelTools?.finish(localTask,{error:error.message});if (seq === sequence && key === signature()) message(error.message || 'İşlem tamamlanamadı.', true); return null; }
     finally { if (seq === sequence && key === signature()) { activeAction = ''; setBusy(false); } }
   }
   window.BrowserAnalysisTools = { request, context, signature, getReference: () => ref };
   $('baReference').addEventListener('click', () => request('reference-open'));
   $('baCancel').addEventListener('click', () => {
-    const ctx = context(); sequence++; setBusy(false); message('İşlem durduruldu.');
+    const ctx = context(); sequence++; window.BrowserPanelTools?.finish(taskId,{silent:true});taskId=null;setBusy(false); message('İşlem durduruldu.');
     if (ctx) void window.api.browserExtras({ action: 'cancel', targetAction: activeAction, ...ctx }).catch(() => {});
     activeAction = '';
   });

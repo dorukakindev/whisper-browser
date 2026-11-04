@@ -9,6 +9,16 @@
   };
   const paths = { play: "M9 5l11 7-11 7Z", plus: "M12 5v14M5 12h14", heart: "M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z", dislike: "M10 15v5H7L3 10V3h12v12Zm5-12h5v10h-5", star: "m12 3 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z", down: "m6 9 6 6 6-6", quote: "M4 7h6v6H6c0 3 1 4 3 5M14 7h6v6h-4c0 3 1 4 3 5", link: "M10 14l4-4M8 16l-2 2a4 4 0 0 1-6-6l4-4m12 0 2-2a4 4 0 0 1 6 6l-4 4" };
   function icon(name) {
+    if (["check", "like", "clock", "neutral"].includes(name)) {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      const path = document.createElementNS(svg.namespaceURI, "path");
+      svg.setAttribute("viewBox", "0 0 24 24");
+      svg.setAttribute("aria-hidden", "true");
+      svg.classList.add("mv-icon");
+      path.setAttribute("d", {check:"M5 12l4 4L19 6",like:"M7 10v11H3V10h4Zm0 10h12l2-9h-6V5l-2-2-5 7",clock:"M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 4v5l3 2",neutral:"M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14Z"}[name]);
+      svg.append(path);
+      return svg;
+    }
     if (!paths[name]) return window.MediaVisual.icon(name);
     const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"), p = document.createElementNS(s.namespaceURI, "path");
     s.setAttribute("viewBox", "0 0 24 24");
@@ -176,7 +186,12 @@
   }
   function facts(card, item, extra = {}) {
     card.replaceChildren();
+    const languageCode = extra.originalLanguage || item.originalLanguage;
+    const originalLanguage = /^[a-z]{2}$/.test(languageCode || '')
+      ? new Intl.DisplayNames([t("en", "tr")], { type: "language", fallback: "none" }).of(languageCode)
+      : "";
     const pairs = [
+      [t("Original language", "Özgün dil"), originalLanguage],
       [t("Director", "Y\xF6netmen"), item.directors],
       [t("Writer", "Senaryo"), extra.writers || item.writers],
       [t("Cinematography", "G\xF6r\xFCnt\xFC y\xF6netmeni"), extra.cinematographers || item.cinematographers],
@@ -212,7 +227,8 @@
     const card=page.querySelector('[data-cinema-credits]'),grid=page.querySelector('.cn-story-grid'),meta=page.querySelector('.cn-film-copy .cn-meta');
     if (!card||!meta) return;
     page.querySelector('.cn-credit-chips')?.remove();
-    const sparse=Number(card.dataset.creditCount)<3;
+    const count = Number(card.dataset.creditCount);
+    const sparse = count === 0 || (!page.querySelector('.cn-library-hero') && count < 3);
     grid?.classList.toggle('cn-sparse-credits',sparse);card.hidden=sparse;
     if(sparse&&Number(card.dataset.creditCount)){
       const chips=n('div','cn-credit-chips');
@@ -242,6 +258,18 @@
     if (!oldHero) return;
     const isDiscovery = page.dataset.pageKind === "discovery", oldCopy = page.querySelector(".mtd-copy,.md-detail-copy"), oldActions = page.querySelector(".mtd-actions,.md-primary-actions");
     const primary = oldActions?.firstElementChild, poster2 = page.querySelector(".mtd-poster,.md-detail-poster"), backdrop = page.querySelector(".mtd-backdrop,.md-page-backdrop"), back = page.querySelector(".mtd-header button,.md-page-back"), manage = page.querySelector(".mtd-header button:nth-child(2)"), story = page.querySelector(".mtd-story,.md-page-story"), review = page.querySelector(".film-review-section"), cast = page.querySelector(".film-cast-scene"), extras = page.querySelector(".film-extra-section"), episodes = page.querySelector(".mtd-episodes"), status = page.querySelector(".mtd-status,.md-status");
+    const navKey = isDiscovery ? "discover" : item.kind === "series" ? "series" : "films";
+    const tabs = [...document.querySelectorAll("#mediaHome [data-home-page]")];
+    const priorTabs = tabs.map(tab => tab.getAttribute("aria-current"));
+    const tabValues = tabs.map(tab => tab.dataset.homePage === navKey ? "page" : "false");
+    if (tabValues.includes("page")) {
+      tabs.forEach((tab, i) => tab.setAttribute("aria-current", tabValues[i]));
+      disposers.push(() => {
+        if (tabs.every((tab, i) => tab.getAttribute("aria-current") === tabValues[i])) {
+          tabs.forEach((tab, i) => priorTabs[i] === null ? tab.removeAttribute("aria-current") : tab.setAttribute("aria-current", priorTabs[i]));
+        }
+      });
+    }
     const personal = oldCopy?.querySelector(".pm-panel"), advanced = n("details", "cn-accordion"), advancedBody = n("div", "cn-advanced-body");
     advanced.append(n("summary", "", t("Viewing & sources", "\u0130zleme ve kaynaklar")), advancedBody);
     advanced.open = !!viewState.advanced;
@@ -256,6 +284,22 @@
     for (const section of page.querySelectorAll(".fw-workspace,.daily-title,.mtd-related,.mtd-feed-sources")) advancedBody.append(section);
     if (personal) advancedBody.prepend(personal);
     const hero = n("section", "cn-hero cn-film-hero"), inner = n("div", "cn-container cn-film-hero-content"), copy = n("div", "cn-film-copy");
+    if (!isDiscovery) {
+      hero.classList.add("cn-library-hero");
+      const hue = Array.from(item.title || "").reduce((hash, char) => (Math.imul(hash, 31) + char.codePointAt(0)) >>> 0, 0) % 24 + 24;
+      hero.style.setProperty("--cn-library-hue", hue);
+      const reel = n("div", "cn-library-reel");
+      reel.setAttribute("aria-hidden", "true");
+      hero.prepend(reel);
+      const observer = window.IntersectionObserver && new window.IntersectionObserver(([entry]) => {
+        reel.classList.toggle("cn-reel-visible", entry.isIntersecting);
+      });
+      observer?.observe(hero);
+      const visibility = () => reel.classList.toggle("cn-reel-hidden", document.hidden);
+      document.addEventListener("visibilitychange", visibility);
+      visibility();
+      disposers.push(() => { observer?.disconnect(); document.removeEventListener("visibilitychange", visibility); });
+    }
     if (back) {
       rebutton(back, "ghost", "left");
       back.classList.add("cn-back");
@@ -268,8 +312,17 @@
     if (poster2) {
       poster2.className = "cn-film-poster";
       fallback(poster2, item.title);
+      if (!isDiscovery) {
+        const mark = poster2.querySelector(".mv-art-fallback");
+        if (mark) {
+          const words = clean(item.title).split(/\s+/).filter(word => !/^(the|a|an)$/i.test(word));
+          if (words.length) mark.textContent = words.slice(0, 2).map(word => Array.from(word)[0]).join("").toLocaleUpperCase();
+          if (item.year) mark.append(n("small", "cn-library-poster-year", item.year));
+        }
+      }
       inner.append(poster2);
     }
+    if (!isDiscovery) copy.append(n("span", "cn-eyebrow", t("In your library", "Kütüphanende")));
     if (item.originalTitle && item.originalTitle !== item.title) copy.append(n("p", "cn-original", item.originalTitle));
     const title = n("h1", "", clean(item.title));
     title.id = "mediaTitleHeading";
@@ -297,13 +350,18 @@
       actions.append(rebutton(reviewAction, "icon", "quote"));
       rest.splice(rest.indexOf(reviewAction), 1);
     }
-    if (isDiscovery && personal) for (const [index, en, tr, symbol] of [[0, "Liked it", "Be\u011Fendim", "heart"], [1, "Not for me", "Bana g\xF6re de\u011Fil", "dislike"]]) actions.append(action(t(en, tr), () => {
+    if (isDiscovery && personal) for (const [index, en, tr, symbol] of [[0, "Liked it", "Be\u011Fendim", "like"], [1, "Not for me", "Bana g\xF6re de\u011Fil", "dislike"]]) actions.append(action(t(en, tr), () => {
       advanced.open = true;
       personal.querySelectorAll(".pm-actions>button")[index]?.click();
       personal.scrollIntoView({ block: "center" });
     }, "icon", symbol));
     actions.append(action(t("Ask about this film", "Bu filmi asistana sor"), () => window.api.showAssistant(), "icon", "chat"));
     if (manage) rest.push(manage);
+    if (!isDiscovery) {
+      rest.push(...page.querySelectorAll(".mtd-aside > button"));
+      const ratingForm = page.querySelector(".mtd-personal");
+      if (ratingForm) advancedBody.append(ratingForm);
+    }
     const plotToggle = page.querySelector(".film-plot-toggle");
     if (plotToggle) rest.push(plotToggle);
     if (window.AssistantFilmActions) rest.push(action(t("Compare films", "Filmleri kar\u015F\u0131la\u015Ft\u0131r"), () => window.AssistantFilmActions.openPicker(page.dataset.filmItemId), "ghost"));
@@ -311,9 +369,18 @@
       rest.forEach((b) => rebutton(b, "ghost"));
       const more = window.MediaVisual.overflow(rest);
       more.classList.add("cn-more");
-      actions.append(more);
+      if (isDiscovery) actions.append(more);
+      else {
+        more.classList.add("cn-library-manage");
+        const summary = more.querySelector("summary");
+        summary.title = t("Manage title", "Yapımı yönet");
+        summary.setAttribute("aria-label", summary.title);
+        hero.append(more);
+      }
     }
     copy.append(actions);
+    const resume = page.querySelector(".cn-library-resume");
+    if (resume) copy.append(resume);
     if (personal) {
       const summary = personal.querySelector(".pm-summary")?.textContent || t("My viewing", "\u0130zleme durumum");
       const pill = action(summary, () => {
@@ -322,13 +389,47 @@
         (personal.querySelector('.cn-status-segments button[aria-pressed=true]')||personal.querySelector("select"))?.focus();
       }, "ghost", "down");
       pill.classList.add("cn-watch-pill");
-      copy.append(pill);
+      let libraryStatus;
+      const updateStatusIcon = (trigger, value) => {
+        const symbol = {completed:"check", planned:"clock", watching:"play"}[value] || "neutral";
+        if (trigger.dataset.state === value) return;
+        trigger.dataset.state = value;
+        trigger.querySelector(".cn-status-check")?.remove();
+        const mark = icon(symbol);
+        mark.classList.add("cn-status-check");
+        trigger.prepend(mark);
+      };
+      const select = personal.querySelector(".pm-watch select");
+      if (!isDiscovery && select) {
+        const choices = [...select.options].map(option => action(option.textContent, () => {
+          const current = personal.querySelector(".pm-watch select");
+          if (!current) return;
+          current.value = option.value;
+          current.dispatchEvent(new Event("change", { bubbles: true }));
+          advanced.open = true;
+          personal.scrollIntoView({ block: "center" });
+        }, "ghost"));
+        const menu = window.MediaVisual.overflow(choices, summary);
+        menu.classList.add("cn-library-watch");
+        const trigger = menu.querySelector("summary");
+        const label = n("span", "", summary);
+        trigger.replaceChildren(label, icon("down"));
+        libraryStatus = { trigger, label };
+        updateStatusIcon(trigger, select.value);
+        copy.append(menu);
+      } else copy.append(pill);
       const obs = new MutationObserver(() => {
         const text = personal.querySelector(".pm-summary")?.textContent;
         if (text) {
           pill.querySelector("span").textContent = text;
           pill.setAttribute("aria-label", text);
           pill.title = text;
+          if (libraryStatus) {
+            libraryStatus.label.textContent = text;
+            libraryStatus.trigger.setAttribute("aria-label", text);
+            libraryStatus.trigger.title = text;
+            updateStatusIcon(libraryStatus.trigger, personal.querySelector(".pm-watch select")?.value || "unspecified");
+          }
         }
       });
       obs.observe(personal, { subtree: true, childList: true, characterData: true });
@@ -339,6 +440,9 @@
     const body = n("div", "cn-container cn-film-body"), overview = n("section", "cn-story-grid"), credits = n("aside", "cn-credits");
     credits.dataset.cinemaCredits = "";
     facts(credits, item);
+    const updateCredits = event => facts(credits, item, { originalLanguage: event.detail });
+    page.addEventListener("cinema-library-language", updateCredits);
+    disposers.push(() => page.removeEventListener("cinema-library-language", updateCredits));
     if (story) {
       story.className = "cn-story";
       const h = story.querySelector("h2,h3");
@@ -349,7 +453,7 @@
       const p = story.querySelector("p");
       if (p) p.className = "cn-story-text";
       const same=p&&p.textContent.trim()===String(description||'').trim();
-      if(same&&p.textContent.trim().length<=95){
+      if(isDiscovery&&same&&p.textContent.trim().length<=95){
         p.className='cn-hero-description';copy.querySelector('.cn-hero-description')?.replaceWith(p);
         const storyActions=n('div','cn-inline-story-actions');for(const b of story.querySelectorAll('button'))storyActions.append(b);
         if(storyActions.children.length)copy.append(storyActions);story.hidden=true;
@@ -357,6 +461,8 @@
       overview.append(story);
     }
     overview.append(credits);
+    const source = page.querySelector(".cn-library-source");
+    if (source) body.append(source);
     body.append(overview);
     if (cast) {
       cast.className = "cn-cast";
@@ -391,12 +497,14 @@
     if (copyLink && /copy|kopyala/i.test(copyLink.textContent)) navInner.append(rebutton(copyLink, "ghost", "link"));
     nav.append(navInner);
     page.className = "media-title-page cn-film-page";
+    const attribution = page.querySelector(".mtd-attribution");
     page.replaceChildren(hero, nav);
     if (status) {
       status.className = isDiscovery ? "md-status cn-status" : "cn-status";
       page.append(status);
     }
     page.append(body);
+    if (attribution) body.append(attribution);
     arrangeCredits(page);
     accordionRow(advanced,'folder',t('Sources, viewing and your film journal','Kaynaklar, izleme ve film günlüğün'));
     accordionRow(profile,'heart',t('What stays with you; what to discover next','Sende kalanlar ve sıradaki keşiflerin'));

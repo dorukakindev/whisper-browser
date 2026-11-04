@@ -97,6 +97,45 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
       if(input.action==='synopsis-stop')return synopsisTranslation.stop(input.id,input.token);
       if(input.action==='synopsis-translate'){const result=await synopsisTranslation.start(input.id,input.token);return result.item?{...result,item:visible(result.item)}:result;}
       if(input.action==='metadata-sync')return {ok:true,...(input.mode==='cancel'?metadataSync.cancel():input.mode==='status'?metadataSync.snapshot():metadataSync.start({retry:input.retry===true}))};
+      if (input.action === 'detail-artwork') {
+        const item = found(input.id);
+        const match = /^(movie|tv):(\d+)$/.exec(item.tmdbId || '');
+        const credential = metadataSettings().apiKey;
+        const folder = path.join(userData(), 'catalog-detail-art');
+        let metadata = {};
+        if (match) {
+          const cached = path.join(folder, match[1] + '-' + match[2] + '.json');
+          try { metadata = JSON.parse(fs.readFileSync(cached, 'utf8')); }
+          catch { /* Cache is optional. */ }
+          if (!Object.hasOwn(metadata, 'year') && credential) try {
+              const client = require('./catalog-discovery').createMetadataClient();
+              const data = await client.detail(item, Number(match[2]), credential, AbortSignal.timeout(15000));
+              metadata = { poster: data.poster, backdrop: data.patch.backdrop, language: data.patch.originalLanguage, year: data.patch.year };
+              fs.mkdirSync(folder, { recursive: true });
+              atomicWriteFileSync(cached, JSON.stringify(metadata));
+          } catch { /* Existing artwork can still be shown. */ }
+        }
+        async function artwork(remote, width) {
+          if (!/^\/[a-zA-Z0-9._-]+$/.test(remote || '')) return '';
+          const target = path.join(folder, width + '-' + remote.slice(1) + '.png');
+          const saved = imageFor(target, width);
+          if (saved) return saved;
+          const response = await fetch('https://image.tmdb.org/t/p/w' + width + remote, { signal: AbortSignal.timeout(15000), redirect: 'error' });
+          if (!response.ok) return '';
+          const buffer = await require('./catalog-discovery').readLimitedBytes(response, 8e6, 'Görsel');
+          const image = nativeImage.createFromBuffer(buffer);
+          if (image.isEmpty()) return '';
+          fs.mkdirSync(folder, { recursive: true });
+          atomicWriteFileSync(target, image.resize({ width }).toPNG());
+          return imageFor(target, width);
+        }
+        const [poster, backdrop] = await Promise.allSettled([
+          imageFor(item.posterPath, 500) || artwork(metadata.poster, 500),
+          artwork(item.backdrop || metadata.backdrop, 1280)
+        ]);
+        return { ok: true, poster: poster.value || '', backdrop: backdrop.value || '',
+          originalLanguage: item.originalLanguage || metadata.language || '', providerYear: metadata.year || null };
+      }
       if(input.action==='backdrop'){
         const item=found(input.id);if(!item.backdrop)return {ok:true,image:''};
         if(backgrounds.has(item.backdrop))return {ok:true,image:backgrounds.get(item.backdrop)};
@@ -170,6 +209,31 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
             return { ok: true, item: { ...visible(saved), posterImage: image } };
           }
           catch (error) { fs.unlinkSync(target); throw error; }
+        }
+        case 'inspect-playback-source': {
+          const item = found(input.id);
+          const { source } = require('./catalog-library-model').playbackSource(item, { editionId: input.editionId });
+          if (source?.type !== 'local' || source.imported || !mediaShelf?.ffprobePath) {
+            throw new Error('Yerel video dosyasını doğrulayıp yeniden deneyin.');
+          }
+          const file = inspectMedia(source.value);
+          const raw = await require('./browser-reference-media').processOutput(mediaShelf.ffprobePath(), [
+            '-v', 'error', '-show_entries',
+            'format=duration,size:stream=codec_type,codec_name,width,height,bits_per_raw_sample,channels:stream_tags=language:stream_disposition=attached_pic',
+            '-of', 'json', file
+          ], { timeout: 15000 });
+          const data = JSON.parse(raw.toString('utf8'));
+          const streams = Array.isArray(data.streams) ? data.streams : [];
+          const video = streams.find(row => row.codec_type === 'video' && !row.disposition?.attached_pic);
+          if (!video) throw new Error('Video izi okunamadı.');
+          const tracks = kind => streams.filter(row => row.codec_type === kind)
+            .map(row => ({ language: row.tags?.language, channels: row.channels }));
+          return { ok: true, info: {
+            name: path.basename(file), bytes: Number(data.format?.size) || 0,
+            duration: Number(data.format?.duration) || 0, width: video.width, height: video.height,
+            codec: video.codec_name, bits: Number(video.bits_per_raw_sample) || 0,
+            audio: tracks('audio'), subtitles: tracks('subtitle')
+          } };
         }
         case 'poster': return { ok: true, image: imageFor(found(input.id).posterPath,input.large===true?500:240) };
         case 'play': {

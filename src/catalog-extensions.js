@@ -28,7 +28,7 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         const providerId=await client.resolve(current,credential,{automatic:context.automatic===true,signal});
         if(JSON.stringify(item())!==JSON.stringify(current))throw new Error('Yapım bilgileri değişti; yeniden başlatın.');
         const preview=await handle(event,{action:'metadata-preview',id:current.id,providerId,credential},context);
-        const fields=['synopsis','genres','cast','runtime','originalTitle','year','imdbId','directors','tagline','backdrop','tmdbRating','tmdbVotes'].filter(key=>Array.isArray(current[key])?!current[key].length:!current[key]);if(!hasPoster)fields.push('poster');
+        const fields=['synopsis','genres','cast','runtime','originalTitle','originalLanguage','year','imdbId','directors','tagline','backdrop','tmdbRating','tmdbVotes'].filter(key=>Array.isArray(current[key])?!current[key].length:!current[key]);if(!hasPoster)fields.push('poster');
         return handle(event,{action:'metadata-apply',token:preview.token,fields},context);
       }
       case 'folder-preview': {
@@ -82,9 +82,9 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         const replacing=!!current.tmdbId&&current.tmdbId!==data.patch.tmdbId;
         if(replacing&&locks.size)throw new Error(dialogText ? dl('Yapım kimliğini değiştirmeden korunan metadata alanlarının kilidini açın.','Unlock protected metadata fields before changing the work identity.') : 'Unlock protected metadata fields before changing the work identity.');
         if(replacing&&input.replaceIdentity!==true)throw new Error('Farklı yapım eşleşmesini yeniden önizleyip onaylayın.');
-        if(replacing){for(const key of ['originalTitle','year','synopsis','imdbId','genres','cast','runtime','directors','tagline','backdrop','tmdbRating','tmdbVotes'])patch[key]=Array.isArray(current[key])?[]:'';patch.ratings={...current.ratings,imdb:null,letterboxd:null};patch.posterPath='';patch.synopsisTr='';patch.synopsisTrSource='';}
+        if(replacing){for(const key of ['originalTitle','originalLanguage','year','synopsis','imdbId','genres','cast','runtime','directors','tagline','backdrop','tmdbRating','tmdbVotes'])patch[key]=Array.isArray(current[key])?[]:'';patch.ratings={...current.ratings,imdb:null,letterboxd:null};patch.posterPath='';patch.synopsisTr='';patch.synopsisTrSource='';}
 
-        for (const key of ['title', 'originalTitle', 'year', 'synopsis', 'imdbId', 'genres', 'cast', 'runtime', 'directors', 'tagline', 'backdrop', 'tmdbRating', 'tmdbVotes']) if (fields.includes(key) && !locks.has(key)) patch[key] = data.patch[key];
+        for (const key of ['title', 'originalTitle', 'originalLanguage', 'year', 'synopsis', 'imdbId', 'genres', 'cast', 'runtime', 'directors', 'tagline', 'backdrop', 'tmdbRating', 'tmdbVotes']) if (fields.includes(key) && !locks.has(key)) patch[key] = data.patch[key];
         for(const key of locks)delete patch[key];
         if (fields.includes('poster') && data.poster && !locks.has('posterPath')) {
           const response = await fetch('https://image.tmdb.org/t/p/w500' + data.poster, { signal: signal ? AbortSignal.any([signal,AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000), redirect: 'error' });

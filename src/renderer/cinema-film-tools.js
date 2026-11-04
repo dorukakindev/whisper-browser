@@ -53,7 +53,7 @@
             body.closest('details').open = true;
             root.querySelectorAll(':scope > .pm-actions > button')[index]?.click();
             root.scrollIntoView({ block: 'center' });
-          }, 'icon', index ? 'dislike' : 'heart');
+          }, 'icon', index ? 'dislike' : 'like');
           heroActions.append(proxy); createdHero.push(proxy);
         }
         if (proxy) { proxy.disabled = button.disabled; proxy.setAttribute('aria-pressed', button.getAttribute('aria-pressed') || 'false'); }
