@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Connected the cinema bulletin, watch itinerary, catalog comparison export, library maintenance and playback health surfaces to existing services. [Windows validation](docs/devir/2026-11-04-1028.md).
+
 - Added the approved player workspace over existing playback, source catalog with publisher podcast transcripts, and a question-time transcript boundary for the player assistant. [Validation](docs/devir/2026-11-04-1022.md).
 
 ### PR808 teslim doğrulaması — 2026-11-04
