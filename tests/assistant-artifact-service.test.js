@@ -54,4 +54,11 @@ test('catalog comparison revisions persist, serialize, and round-trip in workspa
   const restored = await handle('owner', { action: 'restore', id, expectedRevision: 2, revision: 1 });
   assert.equal(restored.doc.revision, 3);
   assert.ok(restored.doc.modelBody.cells.some(cell => cell.value === '2000'));
+  rows.pop();
+  assert.equal((await handle('owner', { ...input, id, expectedRevision: 3 })).code, 'source-missing');
+  assert.equal((await handle('owner', { action: 'get', id })).doc.revision, 3);
+  fs.writeFileSync(file, 'corrupt archive');
+  assert.equal((await handle('owner', input)).code, 'archive-unavailable');
+  assert.equal(fs.readFileSync(file, 'utf8'), 'corrupt archive');
+
 });

@@ -155,6 +155,7 @@
           controls.append(picker,button(t('Kaydı aç','Open saved'),async()=>{if(picker.value)await show(picker.value);}));
           if(saved.artifacts.length)await show(saved.artifacts[0].artifactId);
           else setStatus(items.length<2?t('Karşılaştırmak için arşive iki yapım ekleyin.','Add two titles to the library to compare them.'):t('Karşılaştırmak için iki yapım seçin.','Select two titles to compare.'));
+          return;
         }
         if(tab==='maintenance'){
           const result=await hub({action:'v3-maintenance'});if(!current())return;
