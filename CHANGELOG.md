@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Added evidence-backed taste signals and catalog recommendations, profile coverage/staleness, reviewed assistant preference changes with revision checks, and a draft-preserving three-section taste interface. [Implementation and verification](docs/devir/2026-11-04-2341.md).
+
 - Completed a live Spotify metadata → RSS → CUDA Whisper → separate Turkish translation sample. Fixed saved-source translation, a false Turkish lexical-negation rejection, and stale-source/reopened-stream timing guards. [Live evidence and limits](docs/devir/2026-11-04-2302.md).
 
 - Kept discovery pagination tied to the submitted query, prevented stopped assistant replies from publishing late success, and routed public player commands through the existing ownership/range validator. [Targeted checks](docs/devir/2026-11-04-1830.md).

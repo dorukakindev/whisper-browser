@@ -96,3 +96,7 @@ Mevcut ayrı test sınırlaması: assistant-resilience Pipeline eski selector sa
 ## P008 — Kısa canlı podcast kabulü — 2026-11-04
 
 Kod ve canlı örnek kabulü tamam: 4c248d2fb5a6d0d3c157560b2c6b4866b4590060; dal `codex/podcast-live-acceptance-20261104`. [Devir](docs/devir/2026-11-04-2302.md). Gerçek Spotify metadata/onay→NPR RSS→30–42sn CUDA Whisper small→ayrı DeepInfra çeviri→tam4+4 cue kaydı ve yeniden okuma geçti; izin penceresi çağrısı0. Eski genel canlı doğrulanmadı kaydının yalnız bu örnek kapsamı kapanmıştır; tüm bölümler/uzun işler/DRM/genel kalite açık iddia değildir. Sonraki adım PR/master/ana kopya kimliği doğrulaması; yeni geniş test turu yok.
+
+## P009 — Asistan ve zevk profilinin geliştirilmesi — 2026-11-04
+
+Uygulama ve kısa kabul tamam: `f3d5d41069a81cba0e56ccc999ed4cf23ee4038d`, dal `codex/assistant-taste-depth-20261104`. [Devir](docs/devir/2026-11-04-2341.md), [plan](docs/implementation/assistant-taste-depth-2026-11-04.md). Kanıt/güncellik/kapsam, gerçek kütüphane önerileri, onaylı genel tercih aracı ve taslak koruyan profil UI bağlandı. Sonraki adım PR/master/ana kopya eşitliğinin son teslimde okunması; yeni ağır test turu yok. Canlı model kontrolü izole test profiliyle geçti; kişisel profile canlı yazı/tüm model yanıt kalitesi/hover-hareket kabulü iddia edilmez. Ayrı iki eski yorum fixture hatası devirde açık; yeniden ürün bug’ı sayılmadı.
