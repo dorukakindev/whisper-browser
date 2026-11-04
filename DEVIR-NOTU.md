@@ -1,3 +1,4 @@
+Güncel çalışma: [Dolu not defteri ve iptal kabulü](docs/devir/2026-11-04-1127.md)
 Güncel çalışma: [YouTube RSS ve canlı sağlayıcı kabulü](docs/devir/2026-11-04-1116.md)
 Güncel çalışma: [Kaynaklı asistan çıktıları](docs/devir/2026-11-04-1105.md)
 Güncel çalışma: [Kalıcı karşılaştırma arşivi](docs/devir/2026-11-04-1053.md)
