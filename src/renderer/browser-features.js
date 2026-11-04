@@ -6,6 +6,8 @@
   let sequence = 0;
   let busy = false;
   let activeAction = '';
+  let taskId = null;
+  let assActive = false;
   let frameImage = null;
   let skipRecords = [];
   let skipKeys = { mediaKey: '', seriesKey: '' };
@@ -38,7 +40,7 @@
     busy = value;
     root.classList.toggle('bf-busy', value);
     for (const button of root.querySelectorAll('button[data-bf-action]')) {
-      if (button.dataset.bfAction !== 'cancel') button.disabled = value;
+      if (button.dataset.bfAction !== 'cancel') button.disabled = value || (button.dataset.bfAction === 'ass-clear' && !assActive);
     }
     root.querySelector('[data-bf-action="cancel"]').disabled = !value;
   }
@@ -48,22 +50,34 @@
     if (typeof window.api.browserExtras !== 'function') { status('Bu araç henüz kullanılamıyor.', true); return null; }
     const seq = ++sequence;
     activeAction = action;
+    const labels = {'scenes':'Sahne şeridi','subtitle-search':'Altyazı aranıyor','semantic-search':'Replik aranıyor','ocr-frame':'Video karesi hazırlanıyor','ocr-all':'Karedeki yazı okunuyor','encoding-preview':'Karakterler inceleniyor','mini-open':'Küçük oynatıcı açılıyor'};
+    const label = labels[action] || root.querySelector('[data-bf-action="'+action+'"]')?.textContent || action;
+    const resultTarget = action === 'scenes' ? 'bfScenes' : action === 'subtitle-search' ? 'bfSubtitleResults' : action === 'semantic-search' ? 'bfSemanticResults' : 'bfStatus';
+    const localTask = action==='skip-list' ? null : window.BrowserPanelTools?.start({label,cancel:()=>root.querySelector('[data-bf-action="cancel"]').click(),openLabel:action==='scenes'?'Sahne şeridini aç':'Sonucu aç',open:()=>{
+      setSideTab('tools');const target=$(resultTarget);let group=target?.closest('details');while(group){group.open=true;group=group.parentElement?.closest('details');}target?.scrollIntoView({block:'nearest'});
+    }});
+    taskId = localTask;
     setBusy(true);
     status(action === 'semantic-search' ? 'Anlamsal model ilk kullanımda indirilebilir; arama birkaç dakika sürebilir.' : 'İşleniyor…');
     try {
       const result = await window.api.browserExtras({ action, ...ctx, ...payload });
-      if (!current(ctx, seq)) return null;
+      if (!current(ctx, seq)) {window.BrowserPanelTools?.finish(localTask,{silent:true});return null;}
       if (!result || result.ok === false) {
+        window.BrowserPanelTools?.finish(localTask,{error:result?.error||'İşlem tamamlanamadı.'});
         status(result?.error || (result?.stale ? 'Video değişti; sonucu yeniden isteyin.' : 'İşlem tamamlanamadı.'), true);
         return null;
       }
+      if(action.startsWith('ass-load'))assActive=true;
+      if(action==='ass-clear')assActive=false;
+      window.BrowserPanelTools?.finish(localTask,{silent:result.canceled===true});
       status('Hazır.');
       return result;
     } catch (error) {
+      window.BrowserPanelTools?.finish(localTask,{error:error?.message||'İşlem tamamlanamadı.'});
       if (current(ctx, seq)) status(error?.message || 'İşlem tamamlanamadı.', true);
       return null;
     } finally {
-      if (current(ctx, seq)) { activeAction = ''; setBusy(false); }
+      if (current(ctx, seq)) { activeAction = ''; taskId=null; setBusy(false); }
     }
   }
   function seek(time) {
@@ -114,20 +128,34 @@
       totalCount: result.totalCount,
       hashMatch: hashed,
     }), 'bf-note'));
-    for (const row of rows) {
-      const item = node('div', '', 'bf-result');
-      item.append(node('strong', `${row.title || row.fileName || 'Altyazı'} · ${row.language || '—'}`));
-      item.append(node('span', `${row.release || 'Sürüm bilgisi yok'} · eşleşme ${Number(row.matchScore) || 0} puan${row.hashMatch ? ' · dosya parmak izi ✓' : ''}${row.provider === 'stremio' ? ' · Stremio/OS' : ''}`, 'bf-meta'));
-      const button = node('button', 'İndir ve aç'); button.type = 'button';
-      button.addEventListener('click', async () => {
-        const downloaded = await call('subtitle-download', { fileId: row.fileId, url: row.url, provider: row.provider, language: row.language, config: credentials() });
-        if (!downloaded) return;
-        if (!downloaded.filePath) { status('İndirme dosya yolu döndürmedi.', true); return; }
-        if (!await openSubtitleCopy(downloaded.filePath)) return;
-        status('Altyazı açıldı. Senkronu videoda kontrol edin.');
-      });
-      item.append(button); list.append(item);
+    let selected=rows[0];
+    const resultContext=signature(context());
+    const choices=node('div','','bt-subtitle-choices');
+    for (const [index,row] of rows.entries()) {
+      const item = node('label', '', 'bf-result bt-subtitle-choice');
+      const radio=document.createElement('input');radio.type='radio';radio.name='browser-subtitle-result';radio.checked=index===0;
+      radio.addEventListener('change',()=>{if(radio.checked)selected=row;});
+      const copy=node('span','','bt-result-copy');
+      copy.append(node('strong', `${row.title || row.fileName || 'Altyazı'} · ${row.language || '—'}`));
+      const meta=[row.release,Number.isFinite(row.matchScore)?`${row.matchScore} puan`:null,row.hashMatch?'Dosya parmak izi ✓':null,row.provider==='stremio'?'Stremio/OS':null].filter(Boolean);
+      if(meta.length)copy.append(node('span',meta.join(' · '),'bf-meta'));
+      item.append(radio,copy);choices.append(item);
     }
+    const apply=node('button',window.UiLocale?.get?.()==='en'?'Apply selected subtitles':'Seçili altyazıyı uygula','bt-subtitle-apply');apply.type='button';
+    apply.addEventListener('click',async()=>{
+      if(apply.disabled)return;
+      if(resultContext!==signature(context())){status('Video değişti; altyazıyı yeniden arayın.',true);clear(list);return;}
+      const row=selected;apply.disabled=true;
+      try {
+        const downloaded=await call('subtitle-download',{fileId:row.fileId,url:row.url,provider:row.provider,language:row.language,config:credentials()});
+        if(!downloaded)return;
+        if(!downloaded.filePath){status('İndirme dosya yolu döndürmedi.',true);return;}
+        if(resultContext!==signature(context()))return;
+        if(!await openSubtitleCopy(downloaded.filePath))return;
+        status('Altyazı açıldı. Senkronu videoda kontrol edin.');
+      } finally {if(apply.isConnected)apply.disabled=false;}
+    });
+    list.append(choices,apply);
   }
 
   async function semanticSearch() {
@@ -281,7 +309,7 @@
   function tick() {
     const ctx = context(); const key = signature(ctx);
     if (key !== contextKey) {
-      contextKey = key; sequence++; setBusy(false); frameImage = null; skipRecords = []; skipState = {}; candidateKey = '';
+      contextKey = key; sequence++; window.BrowserPanelTools?.finish(taskId,{silent:true});taskId=null;assActive=false;setBusy(false); frameImage = null; skipRecords = []; skipState = {}; candidateKey = '';
       skipKeys = { mediaKey: '', seriesKey: '' };
       player.browserSeriesKey = '';
       if (typeof updateSeriesChip === 'function') updateSeriesChip();
@@ -310,7 +338,7 @@
     const action = event.target.closest('button[data-bf-action]')?.dataset.bfAction;
     if (!action) return;
     if (action === 'cancel') {
-      sequence++; setBusy(false); status('İşlem durduruluyor…');
+      sequence++; window.BrowserPanelTools?.finish(taskId,{silent:true});taskId=null;setBusy(false); status('İşlem durduruluyor…');
       const ctx = context(); if (ctx) window.api.browserExtras({ action: 'cancel', targetAction: activeAction, ...ctx }).catch(() => {});
       activeAction = '';
       return;
