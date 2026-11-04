@@ -20240,6 +20240,7 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null, 
   if (requestOptions.responseContract===undefined && expectedScope===null && !translationTarget && await window.AssistantMediaCommands?.handle(q)) return;
   if (requestOptions.responseContract===undefined && expectedScope===null && !translationTarget && await window.AssistantPageCommands?.handle(q)) return;
   if(expectedScope!==null&&expectedScope!==aiSourceScope())return;
+  if(requestOptions.playerEvidence && !window.PlayerWorkspaceIntegration?.acceptEvidence(requestOptions.playerEvidence)){aiChatAdd('ai',window.UiLocale?.get?.()==='tr'?'Seçili ifadenin kaynağı değişti; yeniden seçin.':'The selected source changed; select it again.','ai-msg-err');return;}
   const opts = buildOptsFromUI();
   opts.translate = true;                      // anahtar dogrulamasi icin
   // KOPYA gonderilir: asagida ayni diziye yeni soru ekleniyor; referans
@@ -20249,7 +20250,7 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null, 
   const assistantTools=window.AssistantWorkspace?.toolContext();if(assistantTools)chatContext.assistant_tools=assistantTools;
   const sourceScope=aiSourceScope();
   if(player.chatHistoryScope&&player.chatHistoryScope!==sourceScope)player.chatHistory=[];
-  const transcriptEvidence = aiTranscriptEvidence(q);
+  const transcriptEvidence = requestOptions.playerEvidence ? window.PlayerWorkspaceIntegration.serializeEvidence(requestOptions.playerEvidence) : aiTranscriptEvidence(q);
   if (transcriptEvidence?.evidence?.length) chatContext.transcript_evidence = transcriptEvidence;
   const history=(player.chatHistory||[]).slice(-8).map(row=>({...row}));
   const preparing={scope:sourceScope,cancelled:false};
@@ -20768,7 +20769,7 @@ function toggleAbLoop() {
     osd(`A: ${pSecToTime(player.abA)}`);
   } else if (player.abB === null) {
     const b = currentTime;
-    if (b <= player.abA + 0.2) { osd('B, A’dan sonra olmalı'); return; }
+    if (!window.PlayerLoopPolicy?.validateAbRange(player.abA, b, v.duration)) { osd('B, A’dan sonra olmalı'); return; }
     player.abB = b;
     osd(`A-B döngüsü: ${pSecToTime(player.abA)} → ${pSecToTime(player.abB)}`, 1400);
   } else {
