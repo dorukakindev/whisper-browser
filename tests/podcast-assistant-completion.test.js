@@ -21,7 +21,7 @@ test('A completed download cannot paint an unknown playing stream merely because
  const vm=require('node:vm'),source=fs.readFileSync(require.resolve('../src/renderer/renderer.js'),'utf8');
  const start=source.indexOf('function podcastJobMatchesCurrent(job)'),end=source.indexOf('// Podcast uses the existing frozen-options queue',start);
  const player={mediaKey:'p',generation:1,workspaceAudio:{entryId:'one',sourceVersion:'unknown-stream'}};const context={player};vm.runInNewContext(source.slice(start,end)+';globalThis.matches=podcastJobMatchesCurrent;',context);
- const job={mediaKey:'p',generation:1,podcastBinding:{entryId:'one',sourceVersion:'download-sha'}};assert.equal(context.matches(job),false);player.workspaceAudio.sourceVersion='download-sha';assert.equal(context.matches(job),true);
+ const job={mediaKey:'p',generation:1,podcastBinding:{entryId:'one',sourceVersion:'download-sha'}};assert.equal(context.matches(job),false);player.workspaceAudio.sourceVersion='download-sha';assert.equal(context.matches(job),false,'ASR output is not a publisher transcript even when versions match');Object.assign(job.podcastBinding,{outputRole:'translation',transcriptProvenance:'publisher'});assert.equal(context.matches(job),true);
 });
 
 test('Observed player/browser snapshots report explicit unknown byte identity and honest capabilities',()=>{
@@ -38,4 +38,10 @@ test('Observed player/browser snapshots report explicit unknown byte identity an
 });
 test('A selection scope requires explicit captured selection and never expands to the whole transcript',()=>{
  const packet=context.freezePodcast(snap,[track],'selection');assert.equal(packet.transcript_evidence.evidence.length,0);assert(packet.transcript_evidence.limitations.includes('explicit-selection-required'));
+});
+
+test('Bounded podcast context declares partial coverage instead of claiming a complete summary',()=>{
+ const cues=Array.from({length:45},(_,i)=>({id:String(i),start:i,end:i+1,text:'Line '+i}));
+ const packet=context.freezePodcast({...snap,time:50},[{...track,cues}],'watched');
+ assert.equal(packet.transcript_evidence.eligibleCues,45);assert.equal(packet.transcript_evidence.includedCues,40);assert.equal(packet.transcript_evidence.coverage,'partial');assert(packet.transcript_evidence.limitations.includes('do-not-claim-complete-summary'));
 });

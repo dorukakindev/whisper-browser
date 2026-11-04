@@ -42,16 +42,23 @@ function csvPlan(rows, items) {
 function bindPodcastEpisode(podcast, episode, feedEntry) {
   const session=require('./podcast-session');
   const entry={id:episode.episodeRecordId||createHash('sha256').update(JSON.stringify([podcast.id,episode.guid||episode.url])).digest('hex'),feedId:feedEntry?.feedId||episode.sourceFeedId||podcast.id,externalId:episode.guid||'',enclosures:[{url:episode.url,type:episode.enclosureType||'audio/unknown',length:Number(episode.enclosureLength)||undefined}],podcastSourceRevision:episode.podcastSourceRevision||0,podcastAudioEvidence:episode.podcastAudioEvidence};
-  if(feedEntry){entry.id=feedEntry.id;entry.podcastSourceRevision=feedEntry.podcastSourceRevision||0;entry.podcastAudioEvidence=feedEntry.podcastAudioEvidence;}
+  delete entry.podcastAudioEvidence;entry.podcastSourceRevision=0;
+  // A downloaded copy proves its own bytes, never the currently open RSS stream.
+  if(feedEntry)entry.id=feedEntry.id;
   const version=session.sourceVersion(entry);
-  return {...episode,...(episode.sourceVersion&&episode.sourceVersion!==version?{positionState:'needs-review'}:{}),episodeRecordId:entry.id,...(feedEntry?{feedEntryId:feedEntry.id,sourceFeedId:feedEntry.feedId}:{}),episodeIdentity:session.episodeIdentity(entry),sourceBinding:session.sourceBinding(entry),sourceVersion:version};
+  const workspace=episode.podcastWorkspace?.sourceVersion===version?episode.podcastWorkspace:feedEntry?.podcastWorkspace?.sourceVersion===version?feedEntry.podcastWorkspace:null;
+  return {...episode,...(episode.sourceVersion&&episode.sourceVersion!==version?{positionState:'needs-review'}:{}),...(workspace?{position:workspace.position,podcastWorkspace:workspace}:{}),episodeRecordId:entry.id,...(feedEntry?{feedEntryId:feedEntry.id,sourceFeedId:feedEntry.feedId,registryWorkspace:feedEntry.podcastWorkspace}:{}),episodeIdentity:session.episodeIdentity(entry),sourceBinding:session.sourceBinding(entry),sourceVersion:version};
 }
-function podcastTrack(episode) {
-  const workspace = episode.podcastWorkspace;
-  if (!workspace || workspace.sourceVersion !== episode.sourceVersion || !workspace.transcript) return null;
-  const transcript = workspace.transcript;
-  const cues = transcript.state === 'timed' ? require('./browser-subtitles').parseSubtitlePayload(transcript.text, '', 'publisher.'+transcript.format).cues.map((cue,index)=>({...cue,id:String(index)})) : [];
-  return {id:'publisher:'+episode.episodeIdentity, revision:createHash('sha256').update(transcript.text).digest('hex'), role:'source', offsetSeconds:0, timed:transcript.state==='timed', cues, text:transcript.text, provenance:transcript.provenance};
+function podcastTrack(episode,role='source') {
+  const local=episode.podcastWorkspace?.sourceVersion===episode.sourceVersion?episode.podcastWorkspace:null,registry=episode.registryWorkspace;
+  // An explicitly selected publisher source must not be silently replaced by older processing output.
+  const publisher=local?.transcript?.provenance==='publisher';
+  const workspace = publisher?{...local,translation:local.translation||(registry?.sourceVersion===local.sourceVersion&&registry.transcript?.text===local.transcript.text?registry.translation:undefined)}:registry?.transcript?registry:local;
+  const transcript = workspace?.[role==='translation'?'translation':'transcript'];
+  if(!transcript||transcript.status==='partial')return null;
+  const timed=workspace.sourceVersion===episode.sourceVersion&&transcript.state==='timed';
+  const cues = timed ? require('./browser-subtitles').parseSubtitlePayload(transcript.text, '', 'publisher.'+transcript.format).cues.map((cue,index)=>({...cue,id:String(index)})) : [];
+  return {id:(role==='translation'?'translation:':'publisher:')+episode.episodeIdentity, revision:createHash('sha256').update(transcript.text).digest('hex'), role, offsetSeconds:0, timed, ...(workspace.sourceVersion!==episode.sourceVersion?{timingState:'needs-review'}:{}),cues, text:transcript.text, provenance:transcript.provenance};
 }
 function loadShelfFile(file) {
     if (!fs.existsSync(file)) return { version: 1, music: [], books: [], stations: [], podcasts: [], playlists: [], diary: [] };
@@ -75,7 +82,7 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
   const stateFile = () => path.join(userData(), 'media-shelf.json');
   const load=()=>loadShelfFile(stateFile());
   function save(data) {
-    const json = JSON.stringify(data);
+    const json = JSON.stringify(data,(key,value)=>key==='registryWorkspace'?undefined:value);
     if (Buffer.byteLength(json) > 16_000_000) throw Error('Media shelf exceeds 16 MB; remove unused entries first.');
     atomicWriteFileSync(stateFile(), json);
   }
@@ -310,12 +317,14 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           const binding=await podcastRegistryBinding({podcast:{id:podcast.id,url:podcast.url,title:podcast.title,language:podcast.language,publisher:podcast.publisher},episode:{guid:episode.guid,url:episode.url,title:episode.title,description:episode.description,date:episode.date,duration:episode.duration,enclosureType:episode.enclosureType,enclosureLength:episode.enclosureLength,transcriptDescriptors:episode.transcriptDescriptors||[]}});
           const fresh=load(),target=found(fresh,'podcasts',input.id).episodes.find(e=>e.url===input.url);
           if(!target||target.episodeIdentity!==episode.episodeIdentity&&target.feedEntryId!==binding.entryId)throw Error('Podcast source changed.');
-          return {ok:true,...binding,track:binding.workspace?.transcript?podcastTrack({...target,sourceVersion:binding.sourceVersion,podcastWorkspace:binding.workspace}):null};
+          const output={...target,podcastWorkspace:undefined,registryWorkspace:binding.workspace};
+          return {ok:true,...binding,track:podcastTrack(output),translation:podcastTrack(output,'translation')};
         }
         case 'podcast-workspace': {
           const podcast=found(load(),'podcasts',input.id), episode=podcast.episodes.find(e=>e.url===input.url);
           if(!episode)throw Error('Podcast episode changed.');
-          return {ok:true, episodeIdentity:episode.episodeIdentity, sourceVersion:episode.sourceVersion, track:podcastTrack(episode), descriptors:episode.transcriptDescriptors||[]};
+          const workspace=episode.podcastWorkspace?.sourceVersion===episode.sourceVersion?episode.podcastWorkspace:null;
+          return {ok:true, episodeIdentity:episode.episodeIdentity, sourceVersion:episode.sourceVersion, track:podcastTrack(episode),translation:podcastTrack(episode,'translation'),position:workspace?.position||0,rate:workspace?.rate||1, descriptors:episode.transcriptDescriptors||[]};
         }
         case 'podcast-transcript': {
           const data=load(), podcast=found(data,'podcasts',input.id), episode=podcast.episodes.find(e=>e.url===input.url);

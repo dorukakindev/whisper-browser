@@ -70,6 +70,7 @@
     }
     return {ok:true};
   }
+  function isPodcastMode(){return podcastMode&&document.getElementById('playerLayer')?.classList.contains('hidden')!==false;}
   function closePodcastMode(){podcastMode=false;++podcastRequest;podcastPanel?.remove();podcastPanel=null;podcastRows=[];podcastActive=null;notifyPodcast();}
   function podcastCommand(type,args={}){const snap=readPodcastSnapshot();return executePodcast({type,mediaKey:snap?.mediaKey,generation:snap?.generation,...args});}
   function updatePodcastFollow(){const button=podcastPanel?.querySelector('.ms-podcast-follow');if(button){button.textContent=podcastFollow?t('Following speech','Konuşma izleniyor'):t('Return to speech','Konuşmaya dön');button.setAttribute('aria-pressed',String(podcastFollow));}}
@@ -88,7 +89,7 @@
   function renderPodcastRows(){
     const body=podcastPanel?.querySelector('.ms-podcast-transcript');if(!body)return;body.replaceChildren();podcastRows=[];
     if(!podcastTrack){body.append(el('p','ms-status',t('Choose a publisher transcript. Opening this view does not start transcription.','Yayıncı transkriptini seçin. Bu görünümü açmak transkripsiyon başlatmaz.')));return;}
-    if(!podcastTrack.timed){body.append(el('p','ms-status',podcastTrack.timingState==='needs-review'?t('Saved result belongs to verified downloaded audio. Current stream timing needs review; line seeking is disabled.','Kaydedilmiş sonuç doğrulanmış indirme sesine aittir. Mevcut yayının zaman eşleşmesi incelenmeli; satıra gitme kapalı.'):t('Untimed text — synchronization and line seeking unavailable.','Zamansız metin — eşzamanlama ve satıra gitme kullanılamıyor.')),el('div','ms-podcast-plain',podcastTrack.text));return;}
+    if(!podcastTrack.timed){body.append(el('p','ms-status',podcastTrack.timingState==='needs-review'?t('Saved result belongs to verified downloaded audio. Current stream timing needs review; line seeking is disabled.','Kaydedilmiş sonuç doğrulanmış indirme sesine aittir. Mevcut yayının zaman eşleşmesi incelenmeli; satıra gitme kapalı.'):t('Untimed text — synchronization and line seeking unavailable.','Zamansız metin — eşzamanlama ve satıra gitme kullanılamıyor.')),el('div','ms-podcast-plain ms-podcast-original',podcastDisplay==='translation'?'':podcastTrack.text));if(podcastTranslation&&podcastDisplay!=='source')body.append(el('div','ms-podcast-plain ms-podcast-translation',podcastTranslation.text));return;}
     const query=podcastQuery.trim().toLocaleLowerCase(),cues=podcastTrack.cues;
     const matches=cues.map((cue,index)=>({cue,index})).filter(({cue})=>!query||(cue.text+' '+(podcastTranslation?.cues?.find(c=>c.start===cue.start&&c.end===cue.end)?.text||'')).toLocaleLowerCase().includes(query));
     const start=podcastPage*100;
@@ -106,11 +107,13 @@
   }
 
   function applyPodcastOutput({binding,role,text,status}){
-    const snap=readPodcastSnapshot();if(!snap||snap.mediaKey!==binding.mediaKey||snap.generation!==binding.generation||snap.sourceVersion!==binding.sourceVersion||status==='partial')return false;
+    const snap=readPodcastSnapshot(),readonly=role==='translation'&&binding.sourceTranscriptText&&binding.sourceVersion!==binding.playbackSourceVersion;
+    if(!snap||snap.mediaKey!==binding.mediaKey||snap.generation!==binding.generation||snap.sourceVersion!==(readonly?binding.playbackSourceVersion:binding.sourceVersion)||status==='partial')return false;
+    if(role==='translation'&&binding.sourceTranscriptText&&(podcastTrack?.text!==binding.sourceTranscriptText||podcastTrack?.id!==binding.track?.id||podcastTrack?.revision!==binding.track?.revision))return false;
     const cues=typeof parseSubtitles==='function'?parseSubtitles(text).map((cue,index)=>({...cue,id:String(index)})):[];
     if(!cues.length||cues.some(c=>!Number.isFinite(c.start)||!Number.isFinite(c.end)||c.end<=c.start))return false;
     const track={id:role==='translation'?'shelf-translation:'+snap.episodeIdentity:'shelf-asr:'+snap.episodeIdentity,revision:String(++podcastOutputRevision),role:role==='translation'?'translation':'source',offsetSeconds:0,timed:true,cues,text,provenance:'asr'};
-    if(role==='translation')podcastTranslation=track;else {podcastTrack=track;podcastTranslation=null;podcastDisplay='source';}
+    if(role==='translation'){podcastTranslation=readonly?{...track,timed:false,cues:[],timingState:'needs-review'}:track;podcastDisplay='both';}else {podcastTrack=track;podcastTranslation=null;podcastDisplay='source';}
     if(podcastMode)renderPodcastMode();notifyPodcast();return true;
   }
   async function podcastProcessingBinding(){
@@ -118,6 +121,24 @@
     const result=await api('podcast-processing-binding',{id:current.id,url:current.url,sourceVersion:snap.sourceVersion,sourceBinding:snap.sourceBinding});
     const now=readPodcastSnapshot();if(now?.mediaKey!==snap.mediaKey||now?.generation!==snap.generation)throw Error(t('Podcast source changed.','Podcast kaynağı değişti.'));
     return {...result,playbackSourceVersion:snap.sourceVersion,mediaKey:snap.mediaKey,generation:snap.generation,playbackOwner:'media-shelf',shelfId:current.id,shelfUrl:current.url};
+  }
+  async function translateShelfPodcast(){
+    const track=podcastTrack,snap=readPodcastSnapshot();
+    const valid=()=>snap&&readPodcastSnapshot()?.mediaKey===snap.mediaKey&&playGeneration===snap.generation&&readPodcastSnapshot()?.sourceVersion===snap.sourceVersion&&podcastTrack===track;
+    if(!track?.text||!valid())throw Error(t('Load a complete source transcript first.','Önce tam bir kaynak dökümü yükleyin.'));
+    const binding=await podcastProcessingBinding();if(!valid())throw Error(t('Podcast source changed.','Podcast kaynağı değişti.'));
+    let saved=await window.api.feedsRequest({action:'podcast-workspace',entryId:binding.entryId,sourceVersion:binding.sourceVersion});
+    if(!valid())throw Error(t('Podcast source changed.','Podcast kaynağı değişti.'));
+    if(track.timed&&saved?.workspace?.transcript?.text!==track.text){
+      const result=await window.api.feedsRequest({action:'podcast-save-transcript',entryId:binding.entryId,sourceVersion:binding.sourceVersion,text:track.text,format:track.text.trimStart().startsWith('WEBVTT')?'vtt':'srt',timed:true,provenance:track.provenance||'user'});
+      if(!result?.ok||!valid())throw Error(result?.error||'Transcript binding changed.');
+      saved=await window.api.feedsRequest({action:'podcast-workspace',entryId:binding.entryId,sourceVersion:binding.sourceVersion});
+    }
+    const original=saved?.workspace?.transcript;
+    if(!valid()||!saved?.ok||saved.sourceVersion!==binding.sourceVersion||original?.state!=='timed'||original.status==='partial'||original.text!==track.text)throw Error(t('Podcast transcript changed.','Podcast dökümü değişti.'));
+    const materialized=await window.api.feedsRequest({action:'podcast-materialize',entryId:binding.entryId,sourceVersion:binding.sourceVersion});
+    if(!materialized?.ok||!valid())throw Error(materialized?.error||'Transcript unavailable.');
+    return window.translatePodcastSource({...binding,track:{...track,timed:true},sourceTranscriptText:track.text,materializedPath:materialized.path});
   }
   async function generateShelfPodcast(){
     if(podcastAcquisition)throw Error(t('Podcast audio is being prepared.','Podcast sesi hazırlanıyor.'));
@@ -133,7 +154,7 @@
     const initials=el('div','ms-podcast-art',(current.publisher||current.title||'').split(/\s+/).filter(Boolean).slice(0,2).map(v=>v[0]).join('').toLocaleUpperCase());initials.setAttribute('aria-hidden','true');identity.append(initials,head);
     const metadata=[current.publisher,current.date,current.duration?timeLabel(current.duration):'',current.episodeNumber?t('Episode ','Bölüm ')+current.episodeNumber:''].filter(Boolean);if(metadata.length)identity.append(el('p','ms-podcast-meta',metadata.join(' · ')));
     const states=el('dl','ms-podcast-states');for(const [label,value]of [[t('Source','Kaynak'),t('Publisher RSS','Yayıncı RSS')],[t('Transcript','Metin'),podcastTrack?(podcastTrack.timed?t('Timed transcript','Zamanlı döküm'):t('Untimed / review needed','Zamansız / inceleme gerekli')):t('Not loaded','Yüklenmedi')],[t('Translation','Çeviri'),podcastTranslation?t('Saved translation','Kayıtlı çeviri'):t('Not loaded','Yüklenmedi')]]){const row=el('div');row.append(el('dt','',label),el('dd','',value));states.append(row);}identity.append(states);podcastPanel.append(identity,reading);
-    const actions=el('div','mh-actions');actions.append(btn(t('Generate with Whisper','Whisper kuyruğuna ekle'),generateShelfPodcast,'mh-action'),btn(t('Translate source transcript','Kaynak dökümü çevir'),async()=>{if(!podcastTrack?.timed)throw Error(t('Load a timed source transcript first.','Önce zamanlı kaynak dökümü yükleyin.'));const binding=await podcastProcessingBinding(),track=podcastTrack;const saved=await window.api.feedsRequest({action:'podcast-save-transcript',entryId:binding.entryId,sourceVersion:binding.sourceVersion,text:track.text,format:track.text.trimStart().startsWith('WEBVTT')?'vtt':'srt',timed:true,provenance:track.provenance||'user'});if(!saved?.ok)throw Error(saved?.error||'Transcript binding failed.');const materialized=await window.api.feedsRequest({action:'podcast-materialize',entryId:binding.entryId,sourceVersion:binding.sourceVersion});if(!materialized?.ok)throw Error(materialized?.error||'Transcript unavailable.');await window.translatePodcastSource({...binding,track,materializedPath:materialized.path});},'mh-action'),btn(t('Load saved processing result','Kaydedilmiş işlem sonucunu yükle'),async()=>{const binding=await podcastProcessingBinding();if(!binding.track)throw Error(t('No saved processing transcript yet.','Henüz kaydedilmiş işlem dökümü yok.'));podcastTrack=binding.sourceVersion===binding.playbackSourceVersion?binding.track:{...binding.track,timed:false,cues:[],timingState:'needs-review'};podcastPage=0;podcastActive=null;renderPodcastMode();notifyPodcast();},'mh-action'),btn(t('Cancel acquisition','İndirmeyi iptal et'),async()=>{if(podcastAcquisition)await window.api.feedsRequest({action:'cancel',requestId:podcastAcquisition});},'mh-text-button'));
+    const actions=el('div','mh-actions');actions.append(btn(t('Generate with Whisper','Whisper kuyruğuna ekle'),generateShelfPodcast,'mh-action'),btn(t('Translate source transcript','Kaynak dökümü çevir'),translateShelfPodcast,'mh-action'),btn(t('Load saved processing result','Kaydedilmiş işlem sonucunu yükle'),async()=>{const binding=await podcastProcessingBinding();if(!binding.track)throw Error(t('No saved processing transcript yet.','Henüz kaydedilmiş işlem dökümü yok.'));podcastTrack=binding.sourceVersion===binding.playbackSourceVersion?binding.track:{...binding.track,timed:false,cues:[],timingState:'needs-review'};podcastTranslation=binding.translation||null;podcastDisplay=podcastTranslation?'both':'source';podcastPage=0;podcastActive=null;renderPodcastMode();notifyPodcast();},'mh-action'),btn(t('Cancel acquisition','İndirmeyi iptal et'),async()=>{if(podcastAcquisition)await window.api.feedsRequest({action:'cancel',requestId:podcastAcquisition});},'mh-text-button'));
     const choiceLabel=t('Publisher transcript language and timing','Yayıncı transkripti dili ve zaman bilgisi');
     const options=podcastDescriptors.map((d,index)=>({value:String(index),label:[window.PlayerUiKit?.languageName?.(d.language,english()?'en':'tr')||d.language||t('Unknown language','Bilinmeyen dil'),d.timed==='yes'?t('timed','zamanlı'):t('timing unverified / untimed','zaman doğrulanmadı / zamansız')].join(' · ')}));
     const choice=window.PlayerUiKit?.select?window.PlayerUiKit.select({label:choiceLabel,value:'0',options}):el('select');
@@ -153,7 +174,7 @@
     if(!podcastKey())throw Error(t('Play a podcast episode first.','Önce bir podcast bölümü oynatın.'));
     const snap=readPodcastSnapshot(),request=++podcastRequest;const result=await api('podcast-workspace',{id:current.id,url:current.url});
     if(request!==podcastRequest||snap.mediaKey!==readPodcastSnapshot()?.mediaKey||snap.generation!==playGeneration)return;
-    podcastTrack=result.track;podcastDescriptors=result.descriptors;podcastQuery='';podcastDisplay=podcastTranslation?'both':'source';podcastMode=true;podcastFollow=true;podcastPage=0;podcastActive=null;
+    podcastTrack=result.track;podcastTranslation=result.translation||null;podcastDescriptors=result.descriptors;podcastQuery='';podcastDisplay=podcastTranslation?'both':'source';podcastMode=true;podcastFollow=true;podcastPage=0;podcastActive=null;
     if(!podcastPanel){podcastPanel=el('section','ms-podcast-workspace media-surface');podcastPanel.dataset.uiUntranslated='';document.body.append(podcastPanel);}
     renderPodcastMode();notifyPodcast();
   }
@@ -273,7 +294,7 @@
   document.addEventListener('play', event => { if (event.target !== audio) audio.pause(); }, true);
   new MutationObserver(() => {
     const open = !document.getElementById('playerLayer').classList.contains('hidden');
-    document.body.classList.toggle('media-shelf-player-open', open); if (open) audio.pause();
+    document.body.classList.toggle('media-shelf-player-open', open); if (open) {audio.pause();if(podcastMode)closePodcastMode();}
   }).observe(document.getElementById('playerLayer'), { attributes: true, attributeFilter: ['class'] });
   function music(root) {
     const controls = el('div', 'mh-filterbar');
@@ -523,7 +544,7 @@
     const first = sleep.options[0]; if (first) first.textContent = t('Sleep timer off', 'Uyku zamanlayıcısı kapalı');
     speed.setAttribute('aria-label', t('Playback speed', 'Oynatma hızı')); sleep.setAttribute('aria-label', t('Sleep timer', 'Uyku zamanlayıcısı'));shuffleButton.textContent=t('Shuffle','Karıştır');seek.setAttribute('aria-label',t('Playback position','Oynatma konumu'));volume.setAttribute('aria-label',t('Volume','Ses düzeyi'));previousButton.setAttribute('aria-label',t('Previous track','Önceki parça'));nextButton.setAttribute('aria-label',t('Next track','Sonraki parça'));closeButton.setAttribute('aria-label',t('Close audio player','Ses oynatıcıyı kapat'));optionsLabel.setAttribute('aria-label',t('Playback settings','Oynatma ayarları'));updateTransport();syncQueue();
   });
-  window.MediaShelfUI = Object.freeze({readSnapshot:readPodcastSnapshot,getSourceRole:podcastSourceRole,getTranscriptTracks:()=>[podcastTrack,podcastTranslation].filter(Boolean),applyPodcastOutput,isPodcastMode:()=>podcastMode,openPodcastMode,executeExisting:executePodcast,subscribe:listener=>{podcastSubscribers.add(listener);return()=>podcastSubscribers.delete(listener);},openPodcast:async(id,url)=>{const data=await api('list'),podcast=data.podcasts?.find(p=>p.id===id),index=podcast?.episodes?.findIndex(e=>e.url===url);if(!podcast||index<0)throw Error(t('Podcast episode changed.','Podcast bölümü değişti.'));await listen(podcast.episodes.map(e=>({...e,id:podcast.id,kind:'podcasts'})),index);}, executeMusic:async args=>{const op=args.operation;if(op==='open_spotify_import')window.SpotifyImportUI.open({saved:reload});else if(op==='open_queue')openQueue();else {if(!order.current())throw Error('No active music queue / Etkin müzik kuyruğu yok.');if(op==='queue_next')await advance(false);else if(op==='queue_previous'){order.previous();await playQueue(order.snapshot().index);}else if(op==='set_queue_shuffle'){if(typeof args.selected!=='boolean')throw Error('Invalid shuffle');order.shuffle(args.selected);syncQueue();}else if(op==='set_queue_repeat'){order.setRepeat(args.repeat_mode);syncQueue();}else throw Error('Unknown music player action');}return window.MediaShelfUI.musicContext();},musicContext:()=>({playing:!!current&&!audio.paused,current:current?{id:current.id,title:current.title,artist:current.artist,kind:current.kind}:null,queue:order.snapshot().rows.slice(0,50).map(r=>({id:r.id,title:r.title,artist:r.artist,kind:r.kind})),queueCount:order.snapshot().rows.length,index:order.snapshot().index,repeat:order.snapshot().repeat,shuffle:order.snapshot().shuffled}), openBook:(id,focus)=>openBook({id},focus), openPdfPage, mount(root, page, query = '') {
+  window.MediaShelfUI = Object.freeze({readSnapshot:readPodcastSnapshot,getSourceRole:podcastSourceRole,getTranscriptTracks:()=>[podcastTrack,podcastTranslation].filter(Boolean),applyPodcastOutput,isPodcastMode,openPodcastMode,executeExisting:executePodcast,subscribe:listener=>{podcastSubscribers.add(listener);return()=>podcastSubscribers.delete(listener);},openPodcast:async(id,url)=>{const data=await api('list'),podcast=data.podcasts?.find(p=>p.id===id),index=podcast?.episodes?.findIndex(e=>e.url===url);if(!podcast||index<0)throw Error(t('Podcast episode changed.','Podcast bölümü değişti.'));await listen(podcast.episodes.map(e=>({...e,id:podcast.id,kind:'podcasts'})),index);}, executeMusic:async args=>{const op=args.operation;if(op==='open_spotify_import')window.SpotifyImportUI.open({saved:reload});else if(op==='open_queue')openQueue();else {if(!order.current())throw Error('No active music queue / Etkin müzik kuyruğu yok.');if(op==='queue_next')await advance(false);else if(op==='queue_previous'){order.previous();await playQueue(order.snapshot().index);}else if(op==='set_queue_shuffle'){if(typeof args.selected!=='boolean')throw Error('Invalid shuffle');order.shuffle(args.selected);syncQueue();}else if(op==='set_queue_repeat'){order.setRepeat(args.repeat_mode);syncQueue();}else throw Error('Unknown music player action');}return window.MediaShelfUI.musicContext();},musicContext:()=>({playing:!!current&&!audio.paused,current:current?{id:current.id,title:current.title,artist:current.artist,kind:current.kind}:null,queue:order.snapshot().rows.slice(0,50).map(r=>({id:r.id,title:r.title,artist:r.artist,kind:r.kind})),queueCount:order.snapshot().rows.length,index:order.snapshot().index,repeat:order.snapshot().repeat,shuffle:order.snapshot().shuffled}), openBook:(id,focus)=>openBook({id},focus), openPdfPage, mount(root, page, query = '') {
     view = { root, page, query, busy: false }; ++generation;
     const loading = el('p', 'ms-status'); loading.setAttribute('role', 'status'); root.replaceChildren(loading);
     void reload().catch(error => status(error.message, true));

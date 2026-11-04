@@ -30,7 +30,7 @@
   let podcastMode=false;const subscribers=new Set();
   const podcastEntry=document.createElement('button');podcastEntry.type='button';podcastEntry.className='mh-action';
   const podcastLabel=()=>{podcastEntry.textContent=text(podcastMode?'Podcast görünümünden çık':'Podcast görünümü',podcastMode?'Exit podcast view':'Podcast view');podcastEntry.setAttribute('aria-pressed',String(podcastMode));};
-  podcastEntry.onclick=()=>{podcastMode=!podcastMode;layer.classList.toggle('podcast-presentation',podcastMode);podcastLabel();refresh(true);};
+  podcastEntry.onclick=()=>{if(player.workspaceMode==='browser'){window.BrowserPodcastUI?.setMode(!window.BrowserPodcastUI?.isActive());return;}podcastMode=!podcastMode;layer.classList.toggle('podcast-presentation',podcastMode);podcastLabel();refresh(true);};
   document.querySelector('#playerHeadMore .ph-more-body, #playerHeadMore [role=menu]')?.append(podcastEntry);
   const trackIds = new WeakMap(), trackCache = new WeakMap(); let trackSeq = 0;
   const locale = () => window.UiLocale?.get?.() === 'tr' ? 'tr' : 'en';
@@ -104,6 +104,7 @@
     return { id, revision, role, offsetSeconds, cues: mapped };
   }
   function tracks() {
+    if(player.workspaceMode==='browser'&&window.BrowserPodcastUI?.isActive())return window.BrowserPodcastUI.getTranscriptTracks();
     const roles = browserSubtitleRoleCues();
     const sourceSecondary = roles.source === player.cues2 || roles.primaryTranslation;
     const primary = track(player.cues, false, sourceSecondary ? 'translation' : 'source');
@@ -111,6 +112,7 @@
     return sourceSecondary ? [secondary, primary] : [primary, secondary];
   }
   function snapshot() {
+    if(player.workspaceMode==='browser'&&window.BrowserPodcastUI?.isActive())return window.BrowserPodcastUI.snapshot();
     const [source, secondary] = tracks();
     const audio=player.workspaceAudio?.mediaKey===player.mediaKey&&player.workspaceAudio?.generation===player.generation?player.workspaceAudio:null;
     const browser=player.workspaceMode==='browser',native=!!window.NativePlayerUI?.active();
@@ -368,6 +370,6 @@
     return result;
   }
   // Public adapters enter the same owner/track/range gate as workspace controls.
-  window.PlayerWorkspaceIntegration = Object.freeze({ setPodcastMode:value=>{if(podcastMode!==!!value)podcastEntry.click();},isPodcastMode:()=>podcastMode&&!layer.classList.contains('hidden')&&!window.MediaShelfUI?.isPodcastMode?.(),getTranscriptTracks:()=>tracks().map(track=>({...track,timed:!['untimed','needs-review'].includes(player.workspaceAudio?.transcriptState)})),executeExisting:command=>bridge?bridge.dispatch(command):Promise.resolve({ok:false,code:'stale-source',message:text('Etkin oynatıcı kaynağı yok.','No active player source.')}),subscribe(listener){subscribers.add(listener);return ()=>subscribers.delete(listener);},refresh, snapshot, sourceRole, freezeWatchQuestion, watchQuestionIsCurrent, acceptEvidence, serializeEvidence, seekEvidence, get bridge() { return bridge; }, evidence: () => evidence?.envelope || null });
+  window.PlayerWorkspaceIntegration = Object.freeze({ setPodcastMode:value=>{if(player.workspaceMode==='browser'){window.BrowserPodcastUI?.setMode(value);return;}if(podcastMode!==!!value)podcastEntry.click();},isPodcastMode:()=>player.workspaceMode==='browser'?!!window.BrowserPodcastUI?.isActive():podcastMode&&!layer.classList.contains('hidden')&&!window.MediaShelfUI?.isPodcastMode?.(),getTranscriptTracks:()=>tracks().map(track=>({...track,timed:player.workspaceMode==='browser'?track.timed:!['untimed','needs-review'].includes(player.workspaceAudio?.transcriptState)})),executeExisting:command=>player.workspaceMode==='browser'&&window.BrowserPodcastUI?.isActive()?window.BrowserPodcastUI.execute(command):bridge?bridge.dispatch(command):Promise.resolve({ok:false,code:'stale-source',message:text('Etkin oynatıcı kaynağı yok.','No active player source.')}),subscribe(listener){subscribers.add(listener);const off=window.BrowserPodcastUI?.subscribe(value=>{if(player.workspaceMode==='browser')listener(value);});return ()=>{subscribers.delete(listener);off?.();};},refresh, snapshot, sourceRole, freezeWatchQuestion, watchQuestionIsCurrent, acceptEvidence, serializeEvidence, seekEvidence, get bridge() { return bridge; }, evidence: () => evidence?.envelope || null });
   refresh();
 })();
