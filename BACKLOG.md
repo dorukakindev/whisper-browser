@@ -92,3 +92,7 @@ Kullanıcının önceki görev bitmeden yenisine geçmeme kararıyla G1–G5 sı
 Doğrulanmayan canlı sınırlar: gerçek Spotify/RSS sağlayıcılarının uçtan uca model/GPU/CUDA sonucu, gerçek 60/61 takılması ve referans ses kalitesi, Windows UNC/reparse/OS safeStorage, kişisel start.bat ve tam native mpv/site davranışı. Bunlar yeni teyitli bug sayılmadı. Kesin sonraki adım yalnız gerçek kullanımda belirtilen bir arıza için ilgili log/kaynak sahibi üzerinden kısa yeniden üretimdir; ağır matris/CPU/Computer Use/erişim penceresi testleri başlatılmaz.
 
 Mevcut ayrı test sınırlaması: assistant-resilience Pipeline eski selector sayımı değişmemiş tabanda da2/1; güncel hedefli iptal testleri geçti. Yeni ürün regresyonu gibi sunulmadı, eşik/assertion gevşetilmedi. Kişisel indeks/offline manifest/start.sh farkları ve korunan envelope dosyaları bu teslimin dışında kaldı.
+
+## P008 — Kısa canlı podcast kabulü — 2026-11-04
+
+Kod ve canlı örnek kabulü tamam: 4c248d2fb5a6d0d3c157560b2c6b4866b4590060; dal `codex/podcast-live-acceptance-20261104`. [Devir](docs/devir/2026-11-04-2302.md). Gerçek Spotify metadata/onay→NPR RSS→30–42sn CUDA Whisper small→ayrı DeepInfra çeviri→tam4+4 cue kaydı ve yeniden okuma geçti; izin penceresi çağrısı0. Eski genel canlı doğrulanmadı kaydının yalnız bu örnek kapsamı kapanmıştır; tüm bölümler/uzun işler/DRM/genel kalite açık iddia değildir. Sonraki adım PR/master/ana kopya kimliği doğrulaması; yeni geniş test turu yok.
