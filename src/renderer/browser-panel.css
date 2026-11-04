@@ -136,3 +136,18 @@
 .bp-panel .cue-empty-cta [data-empty-action=source]{display:none}
 
 .bp-panel .quick-pop-label{font-size:12px}
+
+/* Web video study reuses the existing browser surface and caption panel. */
+.browser-study-entry { min-height:36px; flex:0 0 auto; white-space:nowrap; font-weight:600; }
+.browser-study-entry[aria-pressed=true] { color:var(--accent); border-color:var(--accent); background:color-mix(in srgb,var(--accent) 10%,var(--bg-0)); }
+.browser-study { display:flex; flex-direction:column; gap:12px; padding:0 0 18px; border-bottom:1px solid var(--border); }
+.browser-study[hidden] { display:none; }
+.browser-study-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.browser-study-title { font-size:16px; font-weight:600; line-height:1.4; margin:0; color:var(--text); text-wrap:balance; }
+.browser-study .browser-study-exit { min-height:32px; flex-shrink:0; }
+.browser-study-status { font-size:13px; line-height:1.65; color:var(--text-dim); margin:0; overflow-wrap:anywhere; }
+.browser-study-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.browser-study-actions .bp-button { min-height:36px; white-space:normal; line-height:1.4; text-align:left; justify-content:flex-start; border:1px solid var(--border); border-radius:8px; padding:8px 10px; }
+.browser-study-actions .browser-study-primary { color:var(--on-accent,var(--bg-0)); background:var(--accent); border-color:var(--accent); font-weight:600; }
+.browser-study-actions button:disabled { opacity:1; color:var(--text-muted); background:var(--bg-1); cursor:not-allowed; }
+.browser-study-actions button:focus-visible,.browser-study-entry:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }

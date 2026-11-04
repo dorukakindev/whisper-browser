@@ -490,7 +490,7 @@
     actionIcon(browser, 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3c4 5 4 13 0 18-4-5-4-13 0-18Z', 'Browser');
     actionIcon(openMedia, 'M3 6h6l2 2h10v12H3V6Z', t('Open media', 'Medya aç'));
     actions.append(openMedia);
-    if(window.MediaVisual){const assistant=button('',()=>window.api.showAssistant?.(),'mh-action mv-assistant');assistant.title=t('Assistant','Asistan');assistant.setAttribute('aria-label',assistant.title);assistant.append(window.MediaVisual.icon('chat'));const overflow=window.MediaVisual.overflow([browser]);overflow.classList.add('mh-quick-actions');actions.insertBefore(assistant,openMedia);actions.insertBefore(overflow,openMedia);}
+    if(window.MediaVisual){const assistant=button('',()=>window.api.showAssistant?.(),'mh-action mv-assistant');assistant.title=t('Assistant','Asistan');assistant.setAttribute('aria-label',assistant.title);assistant.append(window.MediaVisual.icon('chat'));actions.insertBefore(assistant,openMedia);actions.insertBefore(browser,openMedia);}
     for (const [label, run] of [
       [t('Production workspace','Üretim çalışma alanı'),()=>window.MediaWorkflowsUI.open()],
       [t('Studio','Stüdyo'),openStudio],
