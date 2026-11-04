@@ -27,9 +27,16 @@
   let mounted = false, tab = 'transcript', query = '', follow = true, scope = 'watched';
   let selection = null, evidence = null, owner = '', rows = [], indexedRows = [], rowStamp = '', structural = '';
   let page = 0, lastActive = '', bridge = null, lastRefresh = 0, panelOpen=false,panelReturnFocus=null,idleTimer=null,ambient=null;
+  let podcastMode=false;const subscribers=new Set();
+  const podcastEntry=document.createElement('button');podcastEntry.type='button';podcastEntry.className='mh-action';
+  const podcastLabel=()=>{podcastEntry.textContent=text(podcastMode?'Podcast görünümünden çık':'Podcast görünümü',podcastMode?'Exit podcast view':'Podcast view');podcastEntry.setAttribute('aria-pressed',String(podcastMode));};
+  podcastEntry.onclick=()=>{podcastMode=!podcastMode;layer.classList.toggle('podcast-presentation',podcastMode);podcastLabel();refresh(true);};
+  document.querySelector('#playerHeadMore .ph-more-body, #playerHeadMore [role=menu]')?.append(podcastEntry);
   const trackIds = new WeakMap(), trackCache = new WeakMap(); let trackSeq = 0;
   const locale = () => window.UiLocale?.get?.() === 'tr' ? 'tr' : 'en';
   const text = (tr, en) => locale() === 'tr' ? tr : en;
+  podcastLabel();
+  document.addEventListener('ui-locale-change',podcastLabel);
   function openAdvanced(){advanced.hidden=false;advanced.setAttribute('data-pw-occludes-native','true');PlayerUiKit.enhanceControls?.(advanced);if(!advanced.open)advanced.showModal?.();summary.focus();}
   function updatePanel() {
     const panel=view.querySelector('.pw-panel'),narrow=window.innerWidth<1100;
@@ -105,17 +112,37 @@
   }
   function snapshot() {
     const [source, secondary] = tracks();
-    return { mediaKey: player.mediaKey, generation: player.generation, title: document.getElementById('playerTitle')?.textContent || '',
-      time: Number(video.currentTime) || 0, duration: Number.isFinite(video.duration) ? video.duration : null,
-      paused: video.paused, rate: video.playbackRate, sourceTrack: { id: source.id, revision: source.revision },
+    const audio=player.workspaceAudio?.mediaKey===player.mediaKey&&player.workspaceAudio?.generation===player.generation?player.workspaceAudio:null;
+    const browser=player.workspaceMode==='browser',native=!!window.NativePlayerUI?.active();
+    const duration=browser?Number(player.browserDuration)||null:Number.isFinite(video.duration)?video.duration:null;
+    const hasMedia=!!player.mediaKey&&(browser?!!player.browserMediaSeen:!!video.getAttribute('src')||native);
+    const spotifyOnly=browser&&/^https?:\/\/(?:open\.)?spotify\.com(?:[/:]|$)/i.test(player.browserPageUrl||'');
+    const existingAsr=!!player.localPath||!!audio?.entryId||/^youtube:/.test(player.mediaKey||'');
+    const capability=(support,reason)=>({support,reason});
+    const transport=capability(hasMedia?'yes':'unknown',hasMedia?'existing-playback-owner':'media-not-observed');
+    const sourceBinding=audio?.sourceBinding||{episodeIdentity:player.mediaKey,revision:player.generation,fingerprintStatus:'unknown',etag:'unknown',length:'unknown',sha256:'unknown',probe:{status:'observed',duration:duration??'unknown',videoWidth:!browser&&video.videoWidth||'unknown',videoHeight:!browser&&video.videoHeight||'unknown',reason:'playback-observation-is-not-byte-verification'}};
+    return { episodeIdentity:audio?.episodeIdentity||player.mediaKey,sourceVersion:audio?.sourceVersion||('observed:'+player.mediaKey+':'+player.generation),sourceBinding,sourceVersionStatus:sourceBinding.fingerprintStatus||'unknown',sourceKind:audio?'rss':browser?'browser':player.localPath?'local':'unknown',playbackOwner:browser?'browser':native?'native':'player', mediaKey: player.mediaKey, generation: player.generation, title: document.getElementById('playerTitle')?.textContent || '',
+      time: player.workspaceMode==='browser'?Number(player.browserTime)||0:Number(video.currentTime)||0, duration: player.workspaceMode==='browser'?Number(player.browserDuration)||null:Number.isFinite(video.duration)?video.duration:null,
+      paused: player.workspaceMode==='browser'?player.browserPaused:video.paused, rate: player.workspaceMode==='browser'?player.browserRate:video.playbackRate, sourceTrack: { id: source.id, revision: source.revision },
       secondaryTrack: secondary.cues.length ? { id: secondary.id, revision: secondary.revision } : null,
-      capabilities: { seek: { support: player.isLive ? 'no' : 'yes' } } };
+      capabilities: {play:transport,pause:transport,seek:player.isLive?capability('no','live-source'):capability(hasMedia&&duration?'yes':'unknown',hasMedia&&duration?'existing-seek-owner':'seek-range-unverified'),rate:transport,
+        readTranscript:capability(source.cues.length||audio?.transcriptState==='untimed'?'yes':'no',source.cues.length||audio?.transcriptState==='untimed'?'existing-transcript-owner':'no-transcript'),
+        asr:capability(spotifyOnly?'no':existingAsr?'yes':'unknown',spotifyOnly?'no-authorized-audio-source':existingAsr?'existing-whisper-queue':'audio-acquisition-unverified'),
+        ASR:capability(spotifyOnly?'no':existingAsr?'yes':'unknown',spotifyOnly?'no-authorized-audio-source':existingAsr?'existing-whisper-queue':'audio-acquisition-unverified'),
+        download:capability(spotifyOnly?'no':player.localPath?'no':'unknown',spotifyOnly?'no-authorized-download-source':player.localPath?'already-local':'download-not-verified')} };
   }
   function sourceRole() {
     const [source] = tracks();
     return { trackId: source.id, trackRevision: source.revision, cues: source.cues, offsetSeconds: source.offsetSeconds };
   }
   async function execute(command) {
+    const current=snapshot();if(command.mediaKey&&command.mediaKey!==current.mediaKey||command.generation!==undefined&&command.generation!==current.generation)return {ok:false,code:'source-changed'};
+    if(player.workspaceMode==='browser'){
+      const commands={seek:'seek',togglePlay:player.browserPaused?'play':'pause',setRate:'speed',setVolume:'volume-set'};
+      if(command.type==='seekCue'){const source=sourceRole(),cue=source.cues.find(c=>c.id===command.cueId);return cue?browserCommand('seek',cue.start+source.offsetSeconds):{ok:false,code:'unknown-cue'};}
+      if(!commands[command.type])return {ok:false,code:'unsupported'};
+      return browserCommand(commands[command.type],command.time??command.rate??command.volume);
+    }
     switch (command.type) {
       case 'seekCue': {
         const [source] = tracks(); const index = source.cues.findIndex(c => c.id === command.cueId);
@@ -141,7 +168,9 @@
   function restoreAssistant() { if (assistant && assistant.parentNode !== assistantHome.parentNode) assistantHome.after(assistant); }
   function capture() {
     if (!selection) { evidence = null; return; }
-    evidence = PlayerContextEvidence.captureSelectionEvidence({ snapshot: snapshot(), selection: { text: selection.text, cueIds: [selection.cueId] }, scope, tracks: tracks() });
+    const snap=snapshot();
+    evidence = PlayerContextEvidence.captureSelectionEvidence({ snapshot: snap, selection: { text: selection.text, cueIds: [selection.cueId] }, scope, tracks: tracks() });
+    if(evidence?.ok)evidence={...evidence,envelope:{...evidence.envelope,episodeIdentity:snap.episodeIdentity,sourceVersion:snap.sourceVersion,playbackTime:snap.time,selectedCueIds:[selection.cueId]}};
   }
   function step(delta, expected) {
     if(expected&&(expected.mediaKey!==player.mediaKey||expected.generation!==player.generation))return;
@@ -213,8 +242,15 @@
     if(audio){const cover=document.createElement('div');cover.className='pw-podcast-cover';cover.append(PlayerUiKit.cover(audio.title,audio.entryId),PlayerUiKit.h('strong',{text:audio.title}));stage.append(cover);}
     if(audio?.transcriptState==='untimed'&&tab==='transcript'){
       const list=view.querySelector('.pw-transcript'),body=document.createElement('p'),more=document.createElement('button');body.className='pw-runtime-untimed';more.type='button';let loaded=0;
+      if(audio.transcriptTimingNotice){const notice=document.createElement('p');notice.className='pw-runtime-untimed';notice.setAttribute('role','status');notice.textContent=audio.transcriptTimingNotice;list.append(notice);}
       const transcriptText=String(audio.transcriptText||'');
       const append=()=>{const chunk=transcriptText.slice(loaded,loaded+50000);loaded+=chunk.length;body.append(document.createTextNode(chunk));more.textContent=text('Daha fazla metin','More text');more.hidden=loaded>=transcriptText.length;};more.onclick=append;list.append(body,more);append();
+    }
+    if(audio?.transcriptState==='choice-required'&&tab==='transcript'){
+      const list=view.querySelector('.pw-transcript'),notice=document.createElement('p'),choose=document.createElement('button');notice.className='pw-runtime-untimed';
+      notice.textContent=text('Birden çok yayıncı dökümü var. Dil ve zaman bilgisini inceleyerek kullanacağınız dökümü seçin.','Multiple publisher transcripts are available. Choose a transcript by language and timing.');
+      choose.type='button';choose.className='pw-btn';choose.textContent=text('Yayıncı dökümünü seç','Choose publisher transcript');choose.onclick=()=>window.PlayerSourceCatalogIntegration?.podcastTools();
+      list.querySelector('.pw-empty')?.remove();list.append(notice,choose);
     }
     if(audio?.transcriptState==='needs-review'&&tab==='transcript'){
       const list=view.querySelector('.pw-transcript'),notice=document.createElement('p');notice.className='pw-runtime-untimed';notice.setAttribute('role','status');
@@ -267,8 +303,8 @@
     if (!mounted) mount();
     const nextOwner = `${player.mediaKey}:${player.generation}`;
     if (nextOwner !== owner) { ambient?.dispose();ambient=null;owner = nextOwner; query = ''; selection = null; evidence = null; page = 0; tab = 'transcript'; follow = true;panelOpen=false; }
-    const [source, secondary] = tracks(); const stamp = `${owner}:${source.id}:${source.revision}:${source.offsetSeconds}:${secondary.id}:${secondary.revision}:${secondary.offsetSeconds}`;
-    if (rowStamp !== stamp) { rowStamp = stamp; rows = PlayerTranscriptModel.buildTranscriptRows({ sourceTrack: source, secondaryTrack: secondary, mediaKey: player.mediaKey, generation: player.generation }); indexedRows=rows.map(row=>({start:row.videoStart,end:row.videoEnd,text:row.sourceText+'\n'+row.secondaryText})); if (selection) { selection = null; evidence = null; } }
+    const [source, secondary] = tracks(); const stamp = `${player.workspaceAudio?.transcriptState||''}:${owner}:${source.id}:${source.revision}:${source.offsetSeconds}:${secondary.id}:${secondary.revision}:${secondary.offsetSeconds}`;
+    if (rowStamp !== stamp) { rowStamp = stamp; rows = player.workspaceAudio?.transcriptState==='untimed'?[]:PlayerTranscriptModel.buildTranscriptRows({ sourceTrack: source, secondaryTrack: secondary, mediaKey: player.mediaKey, generation: player.generation }); indexedRows=rows.map(row=>({start:row.videoStart,end:row.videoEnd,text:row.sourceText+'\n'+row.secondaryText})); if (selection) { selection = null; evidence = null; } }
     const key = `${stamp}:${locale()}:${video.paused}:${video.duration}:${video.playbackRate}:${currentSubtitleMode()}:${player.abA}:${player.abB}:${player.savedCues.join('|')}:${player.subLang}:${player.sub2Lang}:${video.videoWidth}:${video.videoHeight}:${window.NativePlayerUI?.active()}:${document.getElementById('playerTitle')?.textContent}`;
     if (force || structural !== key) { structural = key; draw(); }
     ambient?.sync();if(video.paused)revealControls();
@@ -286,7 +322,7 @@
   }
   for (const event of ['timeupdate','play','pause','loadedmetadata','ratechange','volumechange','emptied']) video.addEventListener(event, () => refresh());
   new MutationObserver(() => refresh()).observe(layer, { attributes:true, attributeFilter:['class'] });
-  const pulse = setInterval(() => { if (document.hidden) return; const now = performance.now(); if (now - lastRefresh >= 240) { lastRefresh = now; refresh(); } }, 250);
+  const pulse = setInterval(() => { if (document.hidden) return; const now = performance.now(); if (now - lastRefresh >= 240) { lastRefresh = now; refresh();if(podcastMode)for(const listener of subscribers)listener(snapshot()); } }, 250);
   window.addEventListener('resize', () => { if (mounted) {updatePanel();draw();} });
   window.addEventListener('pagehide', () => { clearInterval(pulse); unmount(); }, {once:true});
   function freezeWatchQuestion(question) {
@@ -306,13 +342,13 @@
   function acceptEvidence(envelope) {
     if(!mounted||!envelope||envelope.schema!=='player-evidence-v1')return false;
     const snap=snapshot(),[source,secondary]=tracks();
-    return envelope.mediaKey===snap.mediaKey&&envelope.generation===snap.generation&&envelope.sourceTrackId===source.id&&envelope.sourceRevision===source.revision&&(!envelope.secondaryTrackId||(envelope.secondaryTrackId===secondary.id&&envelope.secondaryRevision===secondary.revision));
+    return (!envelope.sourceVersion||(envelope.sourceVersion===snap.sourceVersion&&envelope.episodeIdentity===snap.episodeIdentity))&&envelope.mediaKey===snap.mediaKey&&envelope.generation===snap.generation&&envelope.sourceTrackId===source.id&&envelope.sourceRevision===source.revision&&(!envelope.secondaryTrackId||(envelope.secondaryTrackId===secondary.id&&envelope.secondaryRevision===secondary.revision));
   }
   function serializeEvidence(envelope) {
     if(!acceptEvidence(envelope))return null;
     return {scope:envelope.scope==='whole'?'full':envelope.scope,position:envelope.scopeEnd,totalCues:rows.length,eligibleCues:envelope.evidence.length,coverage:'selection',limitations:envelope.limitations,
       evidence:envelope.evidence.map((entry,index)=>({id:'T'+(index+1),zaman:PlayerUiKit.formatClock(entry.videoStart),baslangic:entry.videoStart,bitis:entry.videoEnd,metin:entry.source,ceviri:entry.secondary||''})),
-      playerAnchor:{mediaKey:envelope.mediaKey,generation:envelope.generation,sourceTrackId:envelope.sourceTrackId,sourceRevision:envelope.sourceRevision}};
+      playerAnchor:{episodeIdentity:envelope.episodeIdentity,sourceVersion:envelope.sourceVersion,playbackTime:envelope.playbackTime,selectedCueIds:envelope.selectedCueIds,mediaKey:envelope.mediaKey,generation:envelope.generation,sourceTrackId:envelope.sourceTrackId,sourceRevision:envelope.sourceRevision}};
   }
   async function seekEvidence(entry, anchor) {
     const snap=snapshot(),source=sourceRole();
@@ -331,6 +367,6 @@
     if(window.innerWidth<1100)openPanel();
     return result;
   }
-  window.PlayerWorkspaceIntegration = Object.freeze({ refresh, snapshot, sourceRole, freezeWatchQuestion, watchQuestionIsCurrent, acceptEvidence, serializeEvidence, seekEvidence, get bridge() { return bridge; }, evidence: () => evidence?.envelope || null });
+  window.PlayerWorkspaceIntegration = Object.freeze({ setPodcastMode:value=>{if(podcastMode!==!!value)podcastEntry.click();},isPodcastMode:()=>podcastMode&&!layer.classList.contains('hidden')&&!window.MediaShelfUI?.isPodcastMode?.(),getTranscriptTracks:()=>tracks().map(track=>({...track,timed:!['untimed','needs-review'].includes(player.workspaceAudio?.transcriptState)})),executeExisting:execute,subscribe(listener){subscribers.add(listener);return ()=>subscribers.delete(listener);},refresh, snapshot, sourceRole, freezeWatchQuestion, watchQuestionIsCurrent, acceptEvidence, serializeEvidence, seekEvidence, get bridge() { return bridge; }, evidence: () => evidence?.envelope || null });
   refresh();
 })();

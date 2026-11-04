@@ -42,7 +42,7 @@
   /** Arama kutusu bir kez oluşturulur ve yeniden çizimlerde TAŞINIR: IME bileşimi, odak ve imleç korunur. */
   function searchBox(vm, handlers, previous) {
     const L = vm.locale; let input = previous || null; let timer = null; let composing = false;
-    const fire = () => handlers.onQuery && handlers.onQuery({ text: input.value, cursor: null });
+    const fire = () => input.__onCatalogQuery?.({ text: input.value, cursor: null });
     if (!input) {
       input = h('input', { type: 'search', class: 'pw-search__input', autocomplete: 'off', spellcheck: 'false', 'aria-label': t(L, 'search'), placeholder: t(L, 'search') });
       input.addEventListener('compositionstart', () => { composing = true; });
@@ -50,6 +50,8 @@
       input.addEventListener('input', () => { if (composing) return; clearTimeout(timer); timer = setTimeout(fire, 250); });
       input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { clearTimeout(timer); fire(); } if (e.key === 'Escape') { input.blur(); } });
     }
+    // The input survives redraws to preserve IME state; its command owner must stay current too.
+    input.__onCatalogQuery = handlers.onQuery;
     input.setAttribute('aria-label', t(L, 'search')); input.setAttribute('placeholder', t(L, 'search'));
     if (document.activeElement !== input && input.value !== vm.query.text) input.value = vm.query.text;
     return h('div', { class: 'pw-search' }, icon('search', 'pw-icon--sm'), input,
@@ -214,7 +216,7 @@
     const sel = hadFocus ? [prevInput.selectionStart, prevInput.selectionEnd] : null;
     const L = vm.locale;
     const items = vm.result.items;
-    const isGrid = vm.kind === 'podcast' && !vm.selectedSourceId && !vm.query.text && vm.sources.some((s) => s.kind === 'podcast');
+    const isGrid = vm.kind === 'podcast' && !vm.selectedSourceId && !vm.query.text && !Catalog.activeFilterChips(vm.query).length && vm.sources.some((s) => s.kind === 'podcast');
     let body;
     if (vm.loading) body = h('div', { class: 'pw-ghost', style: 'width:100%;opacity:.35', 'aria-busy': 'true' }, h('i'), h('i'), h('i'), h('i'));
     else if (isGrid) body = h('div', { class: 'pw-programs' }, vm.sources.filter((s) => s.kind === 'podcast').map((s) => h('button', { class: 'pw-program', type: 'button', on: { click: () => handlers.onSelectSource && handlers.onSelectSource(s.sourceId) } }, cover(s.title, s.sourceId), h('span', null, h('strong', { text: s.title }), h('small', { text: s.publisher || (Number.isInteger(s.itemCount) ? t(L, 'items', s.itemCount) : '') })))));

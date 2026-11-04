@@ -505,7 +505,7 @@ const QUEUE_UI_LIMIT = 500;
 // doğrulama/sınır hatasını birbirine karıştırmasın diye.
 let _queueRejectReason = '';
 
-function addToQueue(type, input, { watchSource = false } = {}) {
+function addToQueue(type, input, { watchSource = false, optionsOverride = null } = {}) {
   _queueRejectReason = '';
   if (!input) { _queueRejectReason = 'invalid'; return false; }
   const inputKey = queueInputKey(type, input);
@@ -526,7 +526,7 @@ function addToQueue(type, input, { watchSource = false } = {}) {
     _queueRejectReason = 'duplicate';
     return false;
   }
-  const opts = buildOptsFromUI();
+  const opts = { ...buildOptsFromUI(), ...(optionsOverride || {}) };
   // Oynaticinin ses kilidi yalnizca bu tek ise aittir; ana ekrandaki sonraki
   // YouTube isi yanlislikla ayni dublaji devralmasin.
   state.nextYoutubeAudioLang = '';
@@ -813,7 +813,7 @@ async function processNextQueueItem() {
     translateKeepSource: !!opts.translateKeepSource,
     selectedSubPath: player.subPath || '',
     secondSubPath: player.sub2Path || '',
-    kind: 'queue',
+    kind: opts.translateOnly ? 'translate' : 'queue',
     startedAt: Date.now(),
     percent: 0,
   };
@@ -4736,7 +4736,7 @@ function playerJobEvent(event) {
     return event.type !== 'log';
   }
 
-  if(job.podcastBinding&&(job.mediaKey!==player.mediaKey||job.generation!==player.generation)&&!['done','exit','error','log'].includes(event.type))return true;
+  if(job.podcastBinding&&!podcastJobMatchesCurrent(job)&&!['done','exit','error','log'].includes(event.type))return true;
   if (job.kind === 'progressive' && ['done', 'exit', 'error'].includes(event.type)) {
     handleProgressiveTerminal(event, job);
     return true;
@@ -4968,7 +4968,7 @@ function playerJobEvent(event) {
     // Oynatıcıdaki çeviri işi ana transkripsiyon akışından ayrı ilerler;
     // kaynak dosya listesini silmeden yeni çeviri çıktısını ekle.
     state.outputFiles = [...new Set([...(state.outputFiles || []), ...files])];
-    if (job.mediaKey !== player.mediaKey || job.podcastBinding&&job.generation!==player.generation) {
+    if (job.mediaKey !== player.mediaKey || job.podcastBinding&&!podcastJobMatchesCurrent(job)) {
       finish('Altyazı hazır ama başka videoya geçildi — yüklenmedi.', 'warn');
       refreshHistory();
       return true;
@@ -5157,10 +5157,11 @@ function registerCompletedBrowserOutputs(outputs, job) {
 }
 
 async function attachCompletedJobSubtitles(event, job = state.activeOutputJob, options = {}) {
+  if(job?.podcastBinding?.playbackOwner==='media-shelf')return {loaded:false,reason:'Podcast output remains bound to its shelf source.'};
   if (!job || !player.mediaKey) return { loaded: false, reason: 'Oynatıcı açık değil.' };
   const outputs = completedSubtitleOutputs(event, job.kind === 'translate' ? 'translation' : 'source');
   if (!outputs.items.length) return { loaded: false, reason: 'Altyazı çıktısı bulunamadı.' };
-  if (player.mediaKey !== job.mediaKey || job.podcastBinding && player.generation !== job.generation) {
+  if (player.mediaKey !== job.mediaKey || job.podcastBinding && !podcastJobMatchesCurrent(job)) {
     return { loaded: false, reason: 'Çıktı başka videoya ait olduğu için yüklenmedi.' };
   }
   if (job.browserTabId && (job.browserTabId !== player.browserActiveTabId || player.workspaceMode !== 'browser')) {
@@ -19953,7 +19954,19 @@ function subtitleContextLanguage(role) {
     || langFromPath(channel.path) || '').toUpperCase();
 }
 
+function activePodcastContext(scopeName = $('aiTranscriptScope')?.value || 'watched') {
+  const shelf=window.MediaShelfUI;
+  if(shelf?.isPodcastMode?.())return window.AssistantSourceContext.freezePodcast(shelf.readSnapshot(),shelf.getTranscriptTracks(),scopeName);
+  if(window.PlayerWorkspaceIntegration?.isPodcastMode?.())return window.AssistantSourceContext.freezePodcast(window.PlayerWorkspaceIntegration.snapshot(),window.PlayerWorkspaceIntegration.getTranscriptTracks(),scopeName);
+  return null;
+}
+function podcastContextCurrent(context){
+  const shelf=window.MediaShelfUI;
+  const snapshot=shelf?.isPodcastMode?.()?shelf.readSnapshot():window.PlayerWorkspaceIntegration?.isPodcastMode?.()?window.PlayerWorkspaceIntegration.snapshot():null;
+  return window.AssistantSourceContext.podcastStillValid(context,snapshot);
+}
 function globalAssistantContext() {
+  const podcast=activePodcastContext();if(podcast)return podcast;
   const selection = window.MediaExperience?.context();
   if (selection && selection.type !== 'taste-profile') return window.BookAssistantUI?.context(selection) || selection;
   const pdfContext = window.PdfReaderExperience?.context();
@@ -20239,6 +20252,7 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null, 
   if(expectedScope!==null&&expectedScope!==aiSourceScope())return;
   const q = String(soru || '').trim();
   if (!q) return;
+  const podcastPacket = activePodcastContext();
   const integration = window.PlayerWorkspaceIntegration;
   const watchPacket = !translationTarget && !requestOptions.playerEvidence && !globalAssistantContext() &&
     $('aiTranscriptScope')?.value === 'watched' ? integration?.freezeWatchQuestion(q) : null;
@@ -20265,11 +20279,12 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null, 
   // gecilseydi soru modele hem 'gecmis'in son turu hem de 'soru' olarak
   // IKI KEZ giderdi.
   if (watchPacket && !integration.watchQuestionIsCurrent(watchPacket)) return;
-  const bounded = requestOptions.playerEvidence || watchPacket?.ok;
-  const chatContext = bounded
+  if(podcastPacket&&!podcastContextCurrent(podcastPacket))return;
+  const bounded = podcastPacket || requestOptions.playerEvidence || watchPacket?.ok;
+  const chatContext = podcastPacket || (bounded
     ? { video: $('playerTitle')?.textContent || '', zaman: pSecToTime(
         requestOptions.playerEvidence ? (requestOptions.playerEvidence.scopeEnd ?? requestOptions.playerEvidence.range.end) : watchPacket.horizon) }
-    : aiChatContext();
+    : aiChatContext());
   const assistantTools=window.AssistantWorkspace?.toolContext();if(assistantTools)chatContext.assistant_tools=assistantTools;
   const sourceScope=aiSourceScope();
   if(player.chatHistoryScope&&player.chatHistoryScope!==sourceScope)player.chatHistory=[];
@@ -20312,6 +20327,7 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null, 
   if(aiChatPreparing===preparing)aiChatPreparing=null;
   updateAiChatActions();
   if(preparing.cancelled||sourceScope!==aiSourceScope()||!independentAgent&&(state.running||state.queueRunning||player.job?.awaitingExit))return;
+  if(podcastPacket&&!podcastContextCurrent(podcastPacket))return;
   if(watchPacket&&!integration.watchQuestionIsCurrent(watchPacket))return;
   if(translationTarget&&!translationTargetCurrent(translationTarget))return;
   if(!translationTarget){const a=assistantProviderSelection();opts.translateApiKey=a.apiKey;opts.translateBaseUrl=a.endpoint;opts.translateModel=a.model;}
@@ -33499,11 +33515,33 @@ async function aiWebResearch(question){
  finally{job.bubble.classList.remove('is-loading');if(status!=='complete')job.bubble.classList.add('ai-msg-err');renderAiText(job.bubble,text);window.AssistantWorkspace?.finish(job,text,status);if(aiChatPreparing===loading)aiChatPreparing=null;updateAiChatActions();}
 }
 
+// Downloaded byte identity does not prove an already playing remote stream is identical.
+function podcastJobMatchesCurrent(job){
+ const audio=player.workspaceAudio,binding=job?.podcastBinding;
+ return !!audio&&!!binding&&job.mediaKey===player.mediaKey&&job.generation===player.generation&&audio.entryId===binding.entryId&&audio.sourceVersion===binding.sourceVersion;
+}
+function podcastQueueOwnerCurrent(binding){
+ if(binding?.playbackOwner==='media-shelf'){
+  const snapshot=window.MediaShelfUI?.readSnapshot?.();
+  return !!snapshot&&snapshot.mediaKey===binding.mediaKey&&snapshot.generation===binding.generation&&snapshot.sourceVersion===(binding.playbackSourceVersion||binding.sourceVersion);
+ }
+ return binding?.mediaKey===player.mediaKey&&binding?.generation===player.generation;
+}
 // Podcast uses the existing frozen-options queue and terminal handlers.
 window.queuePodcastSource=async function(binding){
- if(!binding?.path||!binding.entryId||!binding.sourceVersion||binding.mediaKey!==player.mediaKey||binding.generation!==player.generation)throw Error('Podcast source changed / Podcast kaynağı değişti.');
+ if(!binding?.path||!binding.entryId||!binding.sourceVersion||!podcastQueueOwnerCurrent(binding))throw Error('Podcast source changed / Podcast kaynağı değişti.');
  if(!addToQueue('file',binding.path))throw Error('Could not add podcast to existing queue / Podcast mevcut kuyruğa eklenemedi.');
  const item=state.queue[state.queue.length-1];item.podcastBinding={...binding};item.opts.outputNameSuffix='podcast-'+binding.sourceVersion.slice(0,12);renderQueue();
+ if(!state.queueRunning&&!state.running)startQueue();return {queued:true,id:item.id};
+};
+window.translatePodcastSource=async function(binding){
+ if(!binding?.materializedPath||!binding.entryId||!binding.sourceVersion||!podcastQueueOwnerCurrent(binding)||binding.track?.timed!==true)throw Error('Podcast transcript source changed / Podcast döküm kaynağı değişti.');
+ const snapshot=window.MediaShelfUI?.readSnapshot?.(),track=binding.track;
+ if(binding.playbackOwner!=='media-shelf'||snapshot?.sourceTrack?.id!==track.id||snapshot?.sourceTrack?.revision!==track.revision)throw Error('Podcast transcript changed / Podcast dökümü değişti.');
+ const override={translateOnly:true,translate:true,input:binding.materializedPath};
+ if(track.language)override.language=track.language;
+ if(!addToQueue('file',binding.materializedPath,{optionsOverride:override}))throw Error('Could not add podcast translation to existing queue / Podcast çevirisi kuyruğa eklenemedi.');
+ const item=state.queue[state.queue.length-1];item.podcastBinding={...binding,outputRole:'translation',track:{id:track.id,revision:track.revision}};item.opts.outputNameSuffix='podcast-'+binding.sourceVersion.slice(0,12);renderQueue();
  if(!state.queueRunning&&!state.running)startQueue();return {queued:true,id:item.id};
 };
 async function persistPodcastJobOutputs(event,binding){
@@ -33512,6 +33550,10 @@ async function persistPodcastJobOutputs(event,binding){
   if(!item?.path)continue;const result=await window.api.readSubtitle(item.path);if(!result?.ok)throw Error(result?.error||'Podcast output unavailable.');
   const response=await window.api.feedsRequest({action:'podcast-save-transcript',entryId:binding.entryId,sourceVersion:binding.sourceVersion,text:result.text,format:/\.vtt$/i.test(item.path)?'vtt':'srt',timed:true,provenance:'asr',role:kind,status:item.status==='partial'?'partial':'complete'});
   if(!response?.ok)throw Error(response?.error||'Podcast result could not be saved.');
+  if(binding.playbackOwner==='media-shelf'){
+   const snapshot=window.MediaShelfUI?.readSnapshot?.();
+   if(snapshot?.mediaKey===binding.mediaKey&&snapshot?.generation===binding.generation&&snapshot?.sourceVersion===binding.sourceVersion)await window.MediaShelfUI?.applyPodcastOutput?.({binding,role:kind,text:result.text,timed:true,format:/\.vtt$/i.test(item.path)?'vtt':'srt',status:item.status==='partial'?'partial':'complete'});
+  }
  }}finally{if(binding.downloadToken)await releasePodcastQueueItem({podcastBinding:binding});}
 }
 

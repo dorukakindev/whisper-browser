@@ -185,13 +185,14 @@ def rss(data):
         for node in item:
             if local(node.tag) == 'transcript' and node.tag.startswith('{https://podcastindex.org/namespace/1.0}'):
                 descriptors.append(dict(url=urljoin(bases[id(node)], node.attrib.get('url', '')), type=node.attrib.get('type', '')[:100], language=node.attrib.get('language', '')[:40], rel=node.attrib.get('rel', '')[:30]))
-        image = first(item, 'image')
-        entries.append(dict(title=text(first(item, 'title'))[:500], url=url, guid=text(first(item, 'guid'))[:1000] or text(first(item, 'id'))[:1000], description=text(first(item, 'description'))[:3000], date=text(first(item, 'pubDate'))[:100], duration=duration, publisher=text(first(channel, 'author'))[:500], image=image.attrib.get('href', '')[:4096] if image is not None else '', episodeNumber=text(first(item, 'episode'))[:30], seasonNumber=text(first(item, 'season'))[:30], transcriptDescriptors=descriptors[:8]))
+        image = next((n for n in item if local(n.tag) == 'image'), None)
+        entries.append(dict(title=text(first(item, 'title'))[:500], url=url, guid=text(first(item, 'guid'))[:1000] or text(first(item, 'id'))[:1000], description=text(first(item, 'description'))[:3000], date=text(first(item, 'pubDate'))[:100], duration=duration, enclosureLength=enclosure.attrib.get('length', '')[:30], enclosureType=enclosure.attrib.get('type', '')[:100], publisher=text(first(channel, 'author'))[:500], image=image.attrib.get('href', '')[:4096] if image is not None else '', episodeNumber=text(first(item, 'episode'))[:30], seasonNumber=text(first(item, 'season'))[:30], transcriptDescriptors=descriptors[:8]))
         if len(entries) >= 200:
             break
     if not entries:
         raise ValueError('No audio/video enclosures found in RSS/Atom feed.')
-    return dict(title=text(first(channel, 'title'))[:500], episodes=entries)
+    image = next((n for n in channel if local(n.tag) == 'image'), None)
+    return dict(title=text(first(channel, 'title'))[:500], publisher=text(first(channel, 'author'))[:500], language=text(first(channel, 'language'))[:40], image=(image.attrib.get('href') or text(first(image, 'url')))[:4096] if image is not None else '', episodes=entries)
 
 
 def letterboxd(data, source_name=""):
