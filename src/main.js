@@ -20146,6 +20146,7 @@ ipcMain.handle('subs:rssFeed', async (event, payload) => {
   const { parseYouTubeFeed, mergeFeedVideos } = require('./subscription-feed');
   const perFeed = [];
   let errors = 0;
+  const acceptedCount = channels.length;
   const pool = Math.min(4, channels.length);
   const worker = async () => {
     for (;;) {
@@ -20156,22 +20157,30 @@ ipcMain.handle('subs:rssFeed', async (event, payload) => {
       try {
         // 'follow' zincir hedefini doğrulamaz; besleme yalnız youtube.com
         // ailesinden kabul edilir — her hop elle izlenir.
-        let feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${next.authorId}`;
+        const feedUrls = [
+          `https://www.youtube.com/feeds/videos.xml?channel_id=${next.authorId}`,
+          'https://www.youtube.com/feeds/videos.xml?playlist_id=UU' + next.authorId.slice(2),
+        ];
         let res;
-        for (let hops = 0; hops <= 2; hops++) {
-          res = await fetch(feedUrl, { signal: controller.signal, redirect: 'manual',
-            headers: { Accept: 'application/atom+xml, text/xml, */*' } });
-          if (![301, 302, 303, 307, 308].includes(res.status)) break;
-          const location = res.headers.get('location');
-          if (!location || hops === 2) { res = null; break; }
-          let nextUrl;
-          try { nextUrl = new URL(location, feedUrl); } catch (_) { res = null; break; }
-          if (!/^https:$/.test(nextUrl.protocol)
-              || !(nextUrl.hostname === 'youtube.com' || nextUrl.hostname.endsWith('.youtube.com'))) {
-            res = null; break;
+        for (const candidate of feedUrls) {
+          let feedUrl = candidate;
+          for (let hops = 0; hops <= 2; hops++) {
+            res = await fetch(feedUrl, { signal: controller.signal, redirect: 'manual',
+              headers: { Accept: 'application/atom+xml, text/xml, */*' } });
+            if (![301, 302, 303, 307, 308].includes(res.status)) break;
+            const location = res.headers.get('location');
+            if (!location || hops === 2) { res = null; break; }
+            let nextUrl;
+            try { nextUrl = new URL(location, feedUrl); } catch (_) { res = null; break; }
+            if (!/^https:$/.test(nextUrl.protocol)
+                || !(nextUrl.hostname === 'youtube.com' || nextUrl.hostname.endsWith('.youtube.com'))) {
+              res = null; break;
+            }
+            nextUrl.hash = '';
+            feedUrl = nextUrl.href;
           }
-          nextUrl.hash = '';
-          feedUrl = nextUrl.href;
+          if (res?.status !== 404) break;
+          await res.body?.cancel().catch(() => {});
         }
         if (!res) { errors += 1; continue; }
         const len = Number(res.headers.get('content-length')) || 0;
@@ -20181,7 +20190,8 @@ ipcMain.handle('subs:rssFeed', async (event, payload) => {
         const text = (await readResponseBufferLimited(res, 256 * 1024, 'Abonelik beslemesi'))
           .toString('utf8');
         const parsed = parseYouTubeFeed(text);
-        if (!parsed.ok) { errors += 1; continue; }
+        if (!parsed.ok || parsed.channel.authorId && parsed.channel.authorId !== next.authorId ||
+            parsed.videos.some(video => video.authorId && video.authorId !== next.authorId)) { errors += 1; continue; }
         for (const v of parsed.videos) {
           if (!v.authorId) v.authorId = next.authorId;
           if (!v.author) v.author = parsed.channel.author;
@@ -20194,7 +20204,7 @@ ipcMain.handle('subs:rssFeed', async (event, payload) => {
   await Promise.all(Array.from({ length: pool }, worker));
   const videos = mergeFeedVideos(perFeed, 60);
   if (!perFeed.length && errors) return { ok: false, videos: [], errors, error: 'Abonelik akışları alınamadı; yeniden deneyin.' };
-  return { ok: true, videos, errors, skipped: raw.length - channels.length };
+  return { ok: true, videos, errors, skipped: raw.length - acceptedCount };
 });
 
 ipcMain.handle('settings:export', async (event, payload = {}) => {
