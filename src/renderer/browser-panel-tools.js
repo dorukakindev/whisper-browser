@@ -181,6 +181,17 @@
     const actionList=actionMenu?.querySelector('.subtitle-actions-pop');
     if(actionList){
       actionList.classList.add('bt-action-list');
+      take(actionList,groups[4].querySelector('.bt-group-body'));
+      actionMenu.classList.add('bt-action-container');
+      const navigateActions=event=>{
+        if(!['ArrowDown','ArrowUp','Home','End'].includes(event.key))return;
+        const buttons=[...actionList.querySelectorAll('button:not(:disabled)')];if(!buttons.length)return;
+        const current=buttons.indexOf(event.target);
+        const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:(current+(event.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;
+        event.preventDefault();buttons[next].focus();
+      };
+      actionList.addEventListener('keydown',navigateActions);
+      restored.push(()=>{actionMenu.classList.remove('bt-action-container');actionList.removeEventListener('keydown',navigateActions);});
       take(byId('abCompareBtn'),actionList);take(byId('exportTranslationBtn'),actionList);
       const actionIcons={makeSubsBtn:'film',makeTransBtn:'text',retranslateAllBtn:'sync',retranslateRangeBtn:'frame',abCompareBtn:'play',subCompareBtn:'display',exportTranslationBtn:'file'};
       for(const control of actionList.querySelectorAll('button')){

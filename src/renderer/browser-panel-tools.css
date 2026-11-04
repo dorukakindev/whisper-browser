@@ -74,3 +74,6 @@
 .bp-panel .bt-detail-form,.bp-panel .bt-subtitle-apply,.bp-panel .bt-action-list button{font-family:var(--cn-font,'IBM Plex Sans','Segoe UI',sans-serif)}
 .bp-panel .bt-detail-form button{font-family:inherit}.bp-panel .bt-subtitle-apply{text-align:center!important;font-weight:500}
 .bp-panel .bt-inline-status #baCancel:disabled{display:none}
+
+.bp-panel #subtitleActionsMenu.bt-action-container{display:none!important}
+.bp-panel .bt-action-list{position:static!important;display:flex;flex-direction:column;box-shadow:none!important;border:0!important;width:100%;min-width:0;max-width:100%;margin:0!important}
