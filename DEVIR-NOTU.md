@@ -1,3 +1,4 @@
+Güncel çalışma: [Web videolarında çift dilli çalışma girişi](docs/devir/2026-11-05-0155.md)
 Güncel çalışma: [Asistan, kanıtlı zevk profili ve açıklamalı öneriler](docs/devir/2026-11-04-2341.md)
 Güncel çalışma: [Canlı Spotify/RSS, CUDA Whisper ve ayrı çeviri kabulü](docs/devir/2026-11-04-2302.md)
 Güncel çalışma: [G5 sıralı hedeflerin son teslimi — G1–G4 birleştirildi](docs/devir/2026-11-04-1833.md)

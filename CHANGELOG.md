@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Browser videolarında görünür çift dilli çalışma, hazır ikinci dil seçimi ve mevcut çeviri/Whisper işlemlerine doğrudan erişim; ana sayfada Browser girişi görünür.
+
 - Added evidence-backed taste signals and catalog recommendations, profile coverage/staleness, reviewed assistant preference changes with revision checks, and a draft-preserving three-section taste interface. [Implementation and verification](docs/devir/2026-11-04-2341.md).
 
 - Completed a live Spotify metadata → RSS → CUDA Whisper → separate Turkish translation sample. Fixed saved-source translation, a false Turkish lexical-negation rejection, and stale-source/reopened-stream timing guards. [Live evidence and limits](docs/devir/2026-11-04-2302.md).
