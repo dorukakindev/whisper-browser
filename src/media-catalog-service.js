@@ -61,8 +61,18 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
       const key = `${real}|${stat.mtimeMs}|${stat.size}|${width}`;
       if (posterCache.has(key)) return posterCache.get(key);
       const img = nativeImage.createFromPath(real);
-      if (img.isEmpty()) return '';
-      const image = img.resize({ width, quality: 'good' }).toDataURL();
+      let image;
+      if (img.isEmpty()) {
+        // Chromium can display WebP/AVIF that the platform NativeImage decoder
+        // cannot resize. Sniff actual bytes (cached downloads may end in .jpg),
+        // and keep the same bounded data-URL boundary; never return file paths.
+        if (stat.size > 1400 * 1024) return '';
+        const bytes = fs.readFileSync(real), head = bytes.subarray(0, 64);
+        const webp = head.toString('ascii', 0, 4) === 'RIFF' && head.toString('ascii', 8, 12) === 'WEBP';
+        const avif = head.toString('ascii', 4, 8) === 'ftyp' && /(?:avif|avis)/.test(head.toString('ascii', 8));
+        if (!webp && !avif) return '';
+        image = `data:image/${webp ? 'webp' : 'avif'};base64,${bytes.toString('base64')}`;
+      } else image = img.resize({ width, quality: 'good' }).toDataURL();
       if (image.length > 2 * 1024 * 1024) return '';
       posterCache.set(key, image);
       if (posterCache.size > 100) posterCache.delete(posterCache.keys().next().value);
@@ -149,7 +159,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
       const libraryResult = await library(event,input); if(libraryResult)return libraryResult;
       const extra = await extension(event, input); if (extra) return extra;
       switch (input.action) {
-        case 'facets': {const M=require('./media-source-mechanisms'),rows=M.filterCatalog(store().list(),input.filter||{});if(input.filter?.certification?.unknown==='separate')rows.sort((a,b)=>(M.certification(a,input.filter.certification).state==='unknown')-(M.certification(b,input.filter.certification).state==='unknown'));return {ok:true,...M.facets(rows,['genres','directors','collections']),items:rows.slice(0,100).map(row=>({...row,certificationResult:M.certification(row,input.filter?.certification||{})})),certification:input.filter?.certification||null};}
+        case 'facets': {const M=require('./media-source-mechanisms'),conditionResult=M.catalogConditions(store().list(),input.filter||{}),rows=conditionResult.items;if(input.filter?.certification?.unknown==='separate')rows.sort((a,b)=>(M.certification(a,input.filter.certification).state==='unknown')-(M.certification(b,input.filter.certification).state==='unknown'));return {ok:true,conditions:{...conditionResult,items:undefined},...M.facets(rows,['genres','directors','collections']),items:rows.slice(0,100).map(row=>({...row,certificationResult:M.certification(row,input.filter?.certification||{})})),certification:input.filter?.certification||null};}
         case 'time-plan': {const M=require('./media-source-mechanisms');if(!Array.isArray(input.itemIds)||input.itemIds.length>200)throw Error('Choose up to 200 catalog titles.');const rows=input.itemIds.map(id=>found(id));return {ok:true,...M.timePlan(rows,input)};}
         case 'list': {
           const history = watchItems();
@@ -160,7 +170,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           const raw = input.item || input.patch || {};
           const previous = raw.id ? found(raw.id) : null;
           // Native seçici veya kayıtlı içe aktarım dışında renderer dosya yolu veremez.
-          const patch = Object.fromEntries(['id', 'kind', 'title', 'year', 'synopsis', 'imdbId', 'tmdbId', 'watchStatus', 'favorite','genres','directors','certifications']
+          const patch = Object.fromEntries(['id', 'kind', 'title', 'year', 'synopsis', 'imdbId', 'tmdbId', 'watchStatus', 'favorite','genres','directors','certifications','originalLanguage','productionCountries','directorIds','directorPeople','directorsTruncated']
             .filter(key => Object.hasOwn(raw, key)).map(key => [key, raw[key]]));
           if (raw.ratings && typeof raw.ratings === 'object') patch.ratings = { ...(previous?.ratings || {}), personal: raw.ratings.personal };
           if (Array.isArray(raw.episodes)) {

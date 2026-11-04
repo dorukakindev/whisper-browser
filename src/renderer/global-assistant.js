@@ -122,7 +122,7 @@
   }
   window.api.onAssistantCommand(packet => {
     if (!packet || typeof packet !== 'object') return;
-    const scoped=['steer','followup','send','web-search','cancel','retry','clear','citation','suggestion','scope','new-thread','select-thread','rename-thread','delete-thread','branch','apply-tool','refresh-tool','continue-tool','settings'].includes(packet.action);
+    const scoped=['steer','followup','send','web-search','cancel','retry','clear','citation','suggestion','scope','new-thread','select-thread','rename-thread','delete-thread','branch','save-dossier','save-timeline','open-artifact','apply-tool','refresh-tool','continue-tool','settings'].includes(packet.action);
     if(scoped&&(!packet.sourceToken||packet.sourceToken!==commandToken())){if(['steer','followup','send','web-search'].includes(packet.action))receipt={id:packet.requestId,accepted:false,message:window.UiLocale?.get?.()==='tr'?'Kaynak değişti. Sorun gönderilmedi; metnin taslakta korundu.':'The source changed. Your question was not sent; the draft was kept.'};publish();return;}
     if (packet.action === 'copy') void window.api.copyText(String(packet.text || ''));
     else if(packet.action==='settings')void Promise.resolve().then(()=>{
@@ -132,6 +132,10 @@
     }).catch(error=>{toolNotice=error.message;publish();});
     else if (packet.action === 'export') void window.api.mediaTools({action:'assistant-export',text:packet.text}).then(r=>{if(!r?.ok)osd(r?.error||'Export failed.');else if(!r.canceled)osd(trMessage());function trMessage(){return window.UiLocale?.get?.()==='tr'?'Konuşma kaydedildi.':'Conversation saved.';}});
     else if(['new-thread','select-thread','rename-thread','delete-thread','branch'].includes(packet.action)){void window.AssistantWorkspace?.command(packet.action,packet.text).then(()=>{toolNotice='';publish();}).catch(error=>{toolNotice=error.message;publish();});}
+    else if(['save-dossier','save-timeline','open-artifact'].includes(packet.action)){
+      const task=packet.action==='open-artifact'?window.AssistantWorkspace.openArtifact(packet.text):window.AssistantWorkspace.artifact(packet.text,packet.action==='save-dossier'?'dossier':'timeline');
+      void task.then(()=>{toolNotice='';publish();}).catch(error=>{toolNotice=error.message;publish();});
+    }
     else if(packet.action==='continue-tool'){const proposal=proposedActions.get(packet.text);if(proposal)void window.AssistantAgentUI.continueAction(proposal).catch(error=>{toolNotice=error.message;publish();});}
     else if(packet.action==='refresh-tool'){const proposal=proposedActions.get(packet.text);if(proposal)void window.AssistantAgentUI.refresh(proposal).then(()=>{toolNotice='';publish();}).catch(error=>{toolNotice=error.message;publish();});}
     else if(packet.action==='apply-tool'){const proposal=proposedActions.get(packet.text);if(proposal)void applyProposal(proposal).catch(error=>{toolNotice=error.message;publish();});}

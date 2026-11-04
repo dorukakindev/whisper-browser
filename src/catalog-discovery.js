@@ -160,6 +160,10 @@ function createMetadataClient(fetchImpl = fetch,{language=()=> 'tr-TR'}={}) {
       if(!data.overview && language()!=='en-US'){const fallback=await request(`${kind}/${id}`,token,{language:'en-US'},signal);data.overview=fallback.overview||'';}
       const patch = { title: data.title || data.name, originalTitle: data.original_title || data.original_name,
         originalLanguage: /^[a-z]{2}$/.test(data.original_language || '') ? data.original_language : '',
+        productionCountries: Array.isArray(data.production_countries) ? [...new Set(data.production_countries.map(row=>row.iso_3166_1).filter(code=>/^[A-Z]{2}$/.test(code)))].slice(0,30) : null,
+        directorIds: Array.isArray(data.credits?.crew) ? [...new Set(data.credits.crew.filter(row=>row.job==='Director'&&Number.isSafeInteger(row.id)&&row.id>0).map(row=>'tmdb:person:'+row.id))].slice(0,30) : null,
+        directorPeople: (data.credits?.crew||[]).filter(row=>row.job==='Director'&&Number.isSafeInteger(row.id)&&row.id>0&&typeof row.name==='string').slice(0,30).map(row=>({id:'tmdb:person:'+row.id,name:row.name.slice(0,120)})),
+        directorsTruncated: (data.credits?.crew||[]).filter(row=>row.job==='Director').length>30,
         year: Number(String(data.release_date || data.first_air_date || '').slice(0, 4)) || null,
         synopsis: data.overview || '', tmdbId: `${kind}:${id}`, imdbId: data.imdb_id || data.external_ids?.imdb_id || '',
         genres: (data.genres || []).map(g => g.name), cast: (data.credits?.cast || []).slice(0, 12).map(p => p.name),

@@ -51,6 +51,27 @@
   const thread={id:uid(),sourceKey,title:title||t('New conversation','Yeni sohbet'),parentThreadId:parent,headId:messages.at(-1)?.id||null,messages:structuredClone(messages),revision:0,createdAt:Date.now(),updatedAt:Date.now()};
   await persist(thread);value.threads.unshift(thread);value.active=thread.id;restoreLog();changed();return thread;
  }
+ async function artifact(messageId,kind) {
+  const thread=current(),sourceKey=key();
+  const message=thread?.messages.find(row=>row.id===messageId);
+  if(!message||message.role!=='assistant'||message.status!=='complete')throw Error(t('A completed reply is required.','Tamamlanmış bir yanıt gerekli.'));
+  await persist(thread);
+  if(current()!==thread||key()!==sourceKey)throw Error(t('The source changed.','Kaynak değişti.'));
+  const result=await window.api.assistantArtifacts({action:'from-message',sourceKey,threadId:thread.id,messageId,kind});
+  if(!result?.ok)throw Error(result?.code==='no-cited-content'?t('No explicit source citations are available for this output.','Bu çıktı için açık kaynak işareti bulunamadı.'):t('The output could not be saved.','Çıktı kaydedilemedi.'));
+  if(removedThreads.has(thread))return;
+  const ref=window.AssistantArtifactStore.makeThreadRef(result.doc);
+  message.artifacts=[...(message.artifacts||[]).filter(row=>row.artifactId!==ref.artifactId),ref].slice(-8);
+  await persist(thread);
+  if(current()===thread&&key()===sourceKey)await window.AssistantArtifactsUI.open(ref.artifactId);
+ }
+ async function openArtifact(id) {
+  const thread=current();
+  const listed=thread?.messages.some(row=>row.artifacts?.some(ref=>ref.artifactId===id));
+  const saved=await window.api.assistantArtifacts({action:'list',threadId:thread?.id});
+  if(!thread||current()!==thread||(!listed&&!saved?.artifacts?.some(ref=>ref.artifactId===id)))throw Error(t('Output is unavailable in this conversation.','Bu sohbette çıktı bulunamadı.'));
+  await window.AssistantArtifactsUI.open(id);
+ }
  function history(thread){const pairs=[];for(let i=0;i<thread.messages.length-1;i++){const user=thread.messages[i],reply=thread.messages[i+1];if(user.role==='user'&&reply.role==='assistant'&&reply.status==='complete'){pairs.push({role:'user',content:user.text},...(reply.runtimeMessages||[]).filter(row=>row.status==='delivered').map(row=>({role:'user',content:row.text})),{role:'assistant',content:reply.text});i++;}}return pairs.slice(-24);}
  async function prepare(){
   const sourceKey=key(),scope=aiSourceScope();failedLoads.delete(sourceKey);await load(sourceKey);if(sourceKey!==key()||scope!==aiSourceScope())throw Error(t('The source changed.','Kaynak değişti.'));
@@ -143,7 +164,7 @@
   const step=Math.max(1,Math.ceil(eligible.length/3000));const pool=eligible.filter((row,index)=>index%step===0||row.start<=now&&row.end>=now).slice(0,3100).map(row=>({id:row.id,start:row.start,end:row.end,text:String(row.text||'').slice(0,500),translation:String(row.translation||'').slice(0,500)}));
   return {enabled:pool.length>0,time:now,scope,truncated:step>1,rows:pool};
  }
- window.AssistantWorkspace=Object.freeze({key,snapshot,prepare,begin,resume,canResume:proposalId=>!!current()?.messages.at(-1)?.actions?.some(action=>action.proposalId===proposalId),partial,evidence,runtime,steps,citations,finish,command,clear,toolContext,searchSubtitleContext,subtitleById,actionResult,replaceProposal,activeId:()=>current()?.id||''});
+ window.AssistantWorkspace=Object.freeze({key,snapshot,artifact,openArtifact,prepare,begin,resume,canResume:proposalId=>!!current()?.messages.at(-1)?.actions?.some(action=>action.proposalId===proposalId),partial,evidence,runtime,steps,citations,finish,command,clear,toolContext,searchSubtitleContext,subtitleById,actionResult,replaceProposal,activeId:()=>current()?.id||''});
  document.addEventListener('media-context-changed',()=>{if(workspaceState())restoreLog();});
  window.addEventListener('pagehide',()=>{const pending=new Set(flushTimers.keys());for(const thread of pending)cancelFlush(thread);for(const state of cache.values())for(const thread of state.threads)if(pending.has(thread)||thread.messages.some(row=>row.status==='streaming'))void persist(thread);});
 })();

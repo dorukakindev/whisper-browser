@@ -7,6 +7,7 @@ function validateStoreShape(name, value) {
   const rows = (v) => Array.isArray(v) && v.every(object);
   let valid = true;
   switch (name) {
+    case 'feeds.json': require('./feed-store').validate(value); break;
     case 'media-catalog.json':
       valid = object(value) && value.version === 1 && rows(value.items) && value.items.length <= 10000;
       if (valid) {for (const item of value.items) require('./media-catalog-store').itemOf(item);require('./catalog-folder-diff').normalizeSnapshots(value.folderSnapshots);}
@@ -28,6 +29,7 @@ function validateStoreShape(name, value) {
       valid = object(value) && Number(value.version) === 1 && rows(value.annotations)
         && value.annotations.every((row) => typeof row.id === 'string' && !!row.id.trim()
           && typeof (row.mediaId ?? row.media_id) === 'string' && !!(row.mediaId ?? row.media_id).trim()); break;
+    case 'assistant-artifacts.json': require('./assistant-artifact-service').validateEnvelope(value); break;
     case 'assistant-conversations.json': require('./assistant-thread-store').validateEnvelope(value); break;
   }
   if (!valid) throw new Error(`Invalid store schema: ${name}`);

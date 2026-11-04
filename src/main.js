@@ -18945,12 +18945,13 @@ ipcMain.handle('library:remove', async (_event, key) => {
 // library:relink-bulk (toplu kök eşleme) aynı yolu kullanır: hedef inspect+grant,
 // anahtar çakışması yoksa kayıt taşıma + iz/not satırlarını renameMediaId ile
 // yeni kimliğe aktarma, başarısızlıkta liste geri yazımı.
-async function relinkLibraryItem(oldKey, newPath) {
+async function relinkLibraryItem(oldKey, newPath, restore = null, withUndo = false) {
   const item = loadWatchLibraryAll().find((entry) => entry?.key === oldKey);
   if (!item) throw new Error('Kütüphane kaydı bulunamadı.');
-  const target = mediaFileAccess.inspect(newPath);
-  if (!mediaFileAccess.grant(target)) throw new Error('Medya dosyasına erişim izni verilemedi.');
-  const newKey = `file:${target.replace(/\\/g, '/').toLowerCase()}`;
+  // The restore argument is internal and comes only from a completed relink receipt.
+  const target = restore ? restore.item.localPath || newPath : mediaFileAccess.inspect(newPath);
+  if (!restore && !mediaFileAccess.grant(target)) throw new Error('Medya dosyasına erişim izni verilemedi.');
+  const newKey = restore ? restore.item.key : `file:${target.replace(/\\/g, '/').toLowerCase()}`;
   const collision = loadWatchLibraryAll().find((entry) => entry?.key === newKey);
   if (collision) throw new Error('Seçilen dosya zaten başka bir kütüphane kaydına bağlı.');
   let previous, written = false, notes, previousNotes = [], notesWritten = false;
@@ -18960,16 +18961,30 @@ async function relinkLibraryItem(oldKey, newPath) {
     notes = ensureBrowserNotesReady();
     previousNotes = notes.list(oldKey);
     const run = () => {
-      const saved = watchLibraryStore().upsert({ ...item, key: newKey, localPath: target, sourceRef: target });
-      if (!saved) throw new Error('Yeni kütüphane kaydı yazılamadı.');
+      const moved = restore ? restore.item : { ...item, key: newKey, localPath: target, sourceRef: target };
+      // Relinking moves a reviewed row without recording a new watch session or
+      // merging stale metadata from an earlier destination tombstone.
       written = true;
+      const saved = watchLibraryStore().replaceItems([...previous, moved], { restoreRemoved: true });
+      if (!saved.some(entry => entry.key === newKey)) throw new Error('Yeni kütüphane kaydı yazılamadı.');
       if (!watchLibraryStore().remove(oldKey)) throw new Error('Eski kütüphane kaydı kaldırılamadı.');
       index?.renameMediaId(oldKey, newKey);
       notesWritten = previousNotes.length > 0;
-      if (notesWritten) notes.updateBatch(previousNotes.map(note => ({ ...note, mediaId: newKey, mediaUrl: target })));
+      if (notesWritten) notes.updateBatch(restore ? restore.notes : previousNotes.map(note => ({ ...note, mediaId: newKey, mediaUrl: target })));
     };
     if (index) index.transaction(run); else run();
-    return { key: newKey, path: target };
+    if (restore || !withUndo) return { key: newKey, path: target };
+    const original = {item:structuredClone(item),notes:structuredClone(previousNotes)};
+    const expected = () => JSON.stringify([loadWatchLibraryAll().find(entry=>entry.key===newKey),notes.list(newKey),notes.list(oldKey)]);
+    const revision = expected();
+    const check = () => {
+      if (expected() !== revision || loadWatchLibraryAll().some(entry=>entry.key===oldKey))
+        throw Error('Viewing history or notes changed after relinking.');
+    };
+    return { key: newKey, path: target, undo: {check, apply: () => {
+      check();
+      return relinkLibraryItem(newKey, newPath, original);
+    }} };
   } catch (error) {
     if (notesWritten) {
       try { notes.updateBatch(previousNotes); }
@@ -20134,6 +20149,7 @@ ipcMain.handle('subs:rssFeed', async (event, payload) => {
   const { parseYouTubeFeed, mergeFeedVideos } = require('./subscription-feed');
   const perFeed = [];
   let errors = 0;
+  const acceptedCount = channels.length;
   const pool = Math.min(4, channels.length);
   const worker = async () => {
     for (;;) {
@@ -20144,22 +20160,30 @@ ipcMain.handle('subs:rssFeed', async (event, payload) => {
       try {
         // 'follow' zincir hedefini doğrulamaz; besleme yalnız youtube.com
         // ailesinden kabul edilir — her hop elle izlenir.
-        let feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${next.authorId}`;
+        const feedUrls = [
+          `https://www.youtube.com/feeds/videos.xml?channel_id=${next.authorId}`,
+          'https://www.youtube.com/feeds/videos.xml?playlist_id=UU' + next.authorId.slice(2),
+        ];
         let res;
-        for (let hops = 0; hops <= 2; hops++) {
-          res = await fetch(feedUrl, { signal: controller.signal, redirect: 'manual',
-            headers: { Accept: 'application/atom+xml, text/xml, */*' } });
-          if (![301, 302, 303, 307, 308].includes(res.status)) break;
-          const location = res.headers.get('location');
-          if (!location || hops === 2) { res = null; break; }
-          let nextUrl;
-          try { nextUrl = new URL(location, feedUrl); } catch (_) { res = null; break; }
-          if (!/^https:$/.test(nextUrl.protocol)
-              || !(nextUrl.hostname === 'youtube.com' || nextUrl.hostname.endsWith('.youtube.com'))) {
-            res = null; break;
+        for (const candidate of feedUrls) {
+          let feedUrl = candidate;
+          for (let hops = 0; hops <= 2; hops++) {
+            res = await fetch(feedUrl, { signal: controller.signal, redirect: 'manual',
+              headers: { Accept: 'application/atom+xml, text/xml, */*' } });
+            if (![301, 302, 303, 307, 308].includes(res.status)) break;
+            const location = res.headers.get('location');
+            if (!location || hops === 2) { res = null; break; }
+            let nextUrl;
+            try { nextUrl = new URL(location, feedUrl); } catch (_) { res = null; break; }
+            if (!/^https:$/.test(nextUrl.protocol)
+                || !(nextUrl.hostname === 'youtube.com' || nextUrl.hostname.endsWith('.youtube.com'))) {
+              res = null; break;
+            }
+            nextUrl.hash = '';
+            feedUrl = nextUrl.href;
           }
-          nextUrl.hash = '';
-          feedUrl = nextUrl.href;
+          if (res?.status !== 404) break;
+          await res.body?.cancel().catch(() => {});
         }
         if (!res) { errors += 1; continue; }
         const len = Number(res.headers.get('content-length')) || 0;
@@ -20169,7 +20193,8 @@ ipcMain.handle('subs:rssFeed', async (event, payload) => {
         const text = (await readResponseBufferLimited(res, 256 * 1024, 'Abonelik beslemesi'))
           .toString('utf8');
         const parsed = parseYouTubeFeed(text);
-        if (!parsed.ok) { errors += 1; continue; }
+        if (!parsed.ok || parsed.channel.authorId && parsed.channel.authorId !== next.authorId ||
+            parsed.videos.some(video => video.authorId && video.authorId !== next.authorId)) { errors += 1; continue; }
         for (const v of parsed.videos) {
           if (!v.authorId) v.authorId = next.authorId;
           if (!v.author) v.author = parsed.channel.author;
@@ -20182,7 +20207,7 @@ ipcMain.handle('subs:rssFeed', async (event, payload) => {
   await Promise.all(Array.from({ length: pool }, worker));
   const videos = mergeFeedVideos(perFeed, 60);
   if (!perFeed.length && errors) return { ok: false, videos: [], errors, error: 'Abonelik akışları alınamadı; yeniden deneyin.' };
-  return { ok: true, videos, errors, skipped: raw.length - channels.length };
+  return { ok: true, videos, errors, skipped: raw.length - acceptedCount };
 });
 
 ipcMain.handle('settings:export', async (event, payload = {}) => {
@@ -22262,6 +22287,7 @@ mediaWorkflows = require('./media-workflows').registerMediaWorkflows({voiceRunni
   grantSubtitle:file=>subtitleFileAccess.grant(file),grantMedia:file=>mediaFileAccess.grant(file),inspectMedia:validateLocalMediaPath,
   resources:()=>({sampledAt:new Date().toISOString(),main:process.memoryUsage(),processes:app.getAppMetrics().map(m=>({pid:m.pid,type:m.type,workingSetBytes:(m.memory?.workingSetSize||0)*1024})),
     caches:{seekSprites:seekPreviewCache.size},voiceBusy:dubService.running()})});
+require('./assistant-artifact-service').registerAssistantArtifacts({app,ipcMain,authorized:authorizedBrowserSender,catalogStore:mediaCatalogService.store});
 require('./assistant-thread-store').registerAssistantThreads({app,ipcMain,authorized:authorizedBrowserSender});
 require('./music-analysis-service').register({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,userData:()=>app.getPath('userData'),modelDir:()=>path.join(appResourceRoot(),'backend','models','music-clap'),musicPython:()=>{const exe=path.join(appResourceRoot(),'backend','music-venv',process.platform==='win32'?'Scripts/python.exe':'bin/python');return fs.existsSync(exe)?exe:resolvePython();},python:resolvePython,ffmpeg:()=>resolveFfTool('ffmpeg'),ffprobe:()=>resolveFfTool('ffprobe'),grantMedia:file=>mediaFileAccess.grant(file)});
 require('./assistant-collections').register({ipcMain,authorized:authorizedBrowserSender,store:mediaCatalogService.store});
@@ -22279,5 +22305,5 @@ require('./media-tools-service').registerMediaTools({app,ipcMain,grantSubtitle:f
     finally{reader.close();reviewSession.removeListener('will-download',denyDownload);}
   }
 });
-require('./media-hub-service').registerMediaHub({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,inspectMedia:validateLocalMediaPath,authorizeMedia:authorizeMediaFile,grantMedia:file=>mediaFileAccess.grant(file),catalogStore:mediaCatalogService.store,ffmpeg:()=>resolveFfTool('ffmpeg'),
-  relinkHistory:async(oldKey,file)=>{if(loadWatchLibraryAll().some(row=>row.key===oldKey))await relinkLibraryItem(oldKey,file);}});
+require('./media-hub-service').registerMediaHub({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,inspectMedia:validateLocalMediaPath,authorizeMedia:authorizeMediaFile,grantMedia:file=>mediaFileAccess.grant(file),catalogStore:mediaCatalogService.store,ffmpeg:()=>resolveFfTool('ffmpeg'),ffprobe:()=>resolveFfTool('ffprobe'),
+  relinkHistory:async(oldKey,file)=>{if(loadWatchLibraryAll().some(row=>row.key===oldKey))return (await relinkLibraryItem(oldKey,file,null,true)).undo;return null;}});

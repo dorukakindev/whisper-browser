@@ -41,7 +41,7 @@ async function fetchPublic(raw,{headers={},signal,lookup,transport}={}){
  }throw Error('Feed redirect limit.');
 }
 function errorKind(error){if(error?.code==='EUNSAFE')return 'unsafe';if(error?.code==='ELIMIT'||/exceeds|complexity|oversized/i.test(error?.message))return 'limit';if(error?.name==='AbortError')return 'cancelled';if(error?.name==='TimeoutError'||error?.code==='ETIMEDOUT')return 'timeout';if(error?.status===429)return 'rate-limit';if(error?.status)return 'http';if(/XML|JSON|RSS|Atom|feed body|response is not/i.test(error?.message))return 'parse';return 'network';}
-function registerFeeds({app,ipcMain,authorized,userData=()=>app.getPath('userData'),catalogStore,translateText,fetchValidated=fetchPublic,autoStart=true,now=()=>Date.now()}={}){
+function registerFeeds({app,ipcMain,authorized,userData=()=>app.getPath('userData'),catalogStore,translateText,transcriptFetcher=(descriptor,options)=>require('./podcast-transcript-service').fetchPodcastTranscript(descriptor,{...options,publicPin,pinnedRequest}),fetchValidated=fetchPublic,autoStart=true,now=()=>Date.now()}={}){
  const store=createFeedStore(path.join(userData(),'feeds.json'),{now}),jobs=new Map(),tokens=new Map(),hostChecks=new Map(),activeFeeds=new Set();let disposed=false,refreshing=false;
  const translateEntry=require('./feed-translation').createFeedTranslation({store,translate:translateText});
  const owner=event=>String(event?.sender?.id||'main');
@@ -85,13 +85,14 @@ function registerFeeds({app,ipcMain,authorized,userData=()=>app.getPath('userDat
   return {entry:{entry_id:entry.id,title:entry.title,url:entry.url,revision:entry.revision,copyCount:copies.length,saved:copies.some(e=>e.saved),read:copies.every(e=>e.read),later:copies.some(e=>e.later)},
    snapshot:JSON.stringify(copies.map(e=>[e.id,e.revision,e.url,e.saved,e.read,e.later,e.spoiler,e.spoilerAllowed])),ids:copies.map(e=>e.id)};
  }
- const withLinkStates=entry=>({...entry,links:entry.links.map(link=>{const current=catalogStore?.().get(link.catalogId);return {...link,watchStatus:current?.watchStatus||'unspecified',state:!current?'missing':catalogSnapshot({...link,id:link.catalogId})===catalogSnapshot(current)?'confirmed':'stale'};})});
+ const withLinkStates=entry=>({...entry,...require('./feed-editorial').view(entry),links:entry.links.map(link=>{const current=catalogStore?.().get(link.catalogId);return {...link,watchStatus:current?.watchStatus||'unspecified',state:!current?'missing':link.sourceRevision!==entry.revision?'stale':catalogSnapshot({...link,id:link.catalogId})===catalogSnapshot(current)?'confirmed':'stale'};})});
  const handle=async(event,input={})=>{
   if(!authorized(event))return {ok:false,error:'Unauthorized feed request.',errorKind:'unauthorized'};
   try{
    if(disposed)throw Error('Feed service is closed.');if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Invalid feed request.');let result;
    switch(input.action){
     case 'list':result=store.list();break;
+    case 'source-pins':result={pins:store.sourcePins(input.pins)};break;
     case 'preference-save':result={preference:store.preference(input)};break;
     case 'preference-remove':result=store.preference({...input,remove:true});break;
     case 'view-save':result={view:store.view(input)};break;
@@ -101,6 +102,7 @@ function registerFeeds({app,ipcMain,authorized,userData=()=>app.getPath('userDat
     case 'correction':result={correction:store.correction(input.entryId,input.acknowledge===true,input.revision)};break;
     case 'entries':if(input.kind&&!['article','video','podcast'].includes(input.kind))throw Error('Unsupported entry kind.');result=store.entries(input);result.rows=result.rows.map(withLinkStates);break;
     case 'entry':result={entry:withLinkStates(store.entry(input.entryId,input.revision))};break;
+    case 'podcast-transcript':result=await job(event,input,async signal=>{const entry=store.entry(input.entryId);if(input.revision&&input.revision!==entry.revision)throw Error('Podcast entry changed.');const descriptor=entry.transcriptDescriptors?.[Number(input.descriptorIndex)||0];if(!descriptor)throw Error('Choose a publisher transcript.');const result=await transcriptFetcher(descriptor,{signal});const current=store.entry(input.entryId);if(current.revision!==entry.revision)throw Error('Podcast entry changed.');return {...result,entryId:entry.id,revision:entry.revision};},20000);break;
     case 'translate':result=await job(event,input,signal=>translateEntry(input,signal),180000);break;
     case 'preview':result=await job(event,input,signal=>preview(event,input.url,signal));break;
     case 'discover':result=await job(event,input,async signal=>{const response=await requestFeed(input.url,{signal});if(/^\s*<(?:!doctype\s+html|html|head)|text\/html/i.test(response.text.slice(0,200))||/text\/html/i.test(response.headers.get('content-type')||'')){const candidates=P.discoverFeeds(response.text,response.effectiveUrl);return {candidates,direct:false};}const p=await (async()=>{const parsed=P.parseFeed(response.text,response.effectiveUrl),feed={...parsed,url:P.safeUrl(input.url),effectiveUrl:response.effectiveUrl,etag:response.headers.get('etag')||'',lastModified:response.headers.get('last-modified')||''};delete feed.entries;return {token:token(event,'feed',{feed,entries:parsed.entries}),feed,entries:parsed.entries.slice(0,5),count:parsed.entries.length};})();return {candidates:[{url:response.effectiveUrl,title:p.feed.title,type:p.feed.format}],direct:true,preview:p};});break;
@@ -136,6 +138,8 @@ function registerFeeds({app,ipcMain,authorized,userData=()=>app.getPath('userDat
     case 'opml-preview':{const parsed=P.parseOpml(input.text);result={token:token(event,'opml',parsed.rows),rows:parsed.rows.map(r=>({...r,existing:store.snapshot().feeds.some(f=>f.url===r.url)})),rejected:parsed.rejected};break;}
     case 'opml-import':{const rows=take(event,input.token,'opml');if(!Array.isArray(input.selectedUrls)||input.selectedUrls.length>200||input.selectedUrls.some(url=>!rows.some(r=>r.url===url)))throw Error('Choose only previewed feeds.');const selected=rows.filter(r=>input.selectedUrls.includes(r.url)&&!store.snapshot().feeds.some(f=>f.url===r.url));if(store.snapshot().feeds.length+selected.length>200)throw Error('Feed subscription limit is 200.');for(const row of selected)store.subscribe(row,[],input.initial||'latest20');result={imported:selected.length,...store.list()};break;}
     case 'opml-export':result={text:P.exportOpml(store.snapshot().feeds)};break;
+    case 'editorial-preview':{const entry=store.entry(input.entryId),record=require('./feed-editorial').proposal(entry,input);result={token:token(event,'editorial',{entryId:entry.id,record,expectedRevision:entry.revision,expectedVersion:entry.editorial?.metadataVersion||0,catalogState:JSON.stringify(entry.links.map(link=>catalogStore?.().get(link.catalogId)||null))}),source:{title:entry.title,quote:record.quote},record};break;}
+    case 'editorial-confirm':{const p=take(event,input.token,'editorial'),entry=store.entry(p.entryId);if(JSON.stringify(entry.links.map(link=>catalogStore?.().get(link.catalogId)||null))!==p.catalogState)throw Error('Linked film changed. Preview again.');result={entry:withLinkStates(store.editorial(p.entryId,p.record,p.expectedRevision,p.expectedVersion))};break;}
     case 'link-preview':{const entry=store.entry(input.entryId),catalog=catalogStore?.().get(input.catalogId);if(!catalog)throw Error('Choose a current library title.');const value={entryId:entry.id,catalogId:catalog.id,snapshot:catalogSnapshot(catalog),revision:entry.revision};result={token:token(event,'link',value),entryId:entry.id,catalog:{id:catalog.id,title:catalog.title,year:catalog.year,kind:catalog.kind,imdbId:catalog.imdbId,tmdbId:catalog.tmdbId},source:{title:entry.title,url:entry.url},automatic:false};break;}
     case 'link-confirm':{const p=take(event,input.token,'link'),catalog=catalogStore?.().get(p.catalogId),entry=store.entry(p.entryId);if(!catalog||catalogSnapshot(catalog)!==p.snapshot||entry.revision!==p.revision)throw Error('The source or film identity changed. Preview the relationship again.');result={entry:store.link(p.entryId,catalog)};break;}
     case 'unlink':result={entry:store.unlink(input.entryId,input.catalogId)};break;

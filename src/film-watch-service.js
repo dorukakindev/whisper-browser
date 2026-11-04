@@ -12,12 +12,66 @@ function create({root,catalog,reviewItem,grantSubtitle=()=>false,grantMedia=()=>
  const remember=(event,type,values)=>{const token=randomUUID();plans.set(token,{...values,type,sender:event.sender.id,until:now()+600000});while(plans.size>100)plans.delete(plans.keys().next().value);return token;};
  const plan=(event,input,type)=>{const p=plans.get(input.token);if(!p||p.sender!==event.sender.id||p.type!==type||p.until<now())throw Error('Preview expired; review again.');return p;};
  function collection(name,d){if(typeof name!=='string'||!name.trim()||name.length>80)throw Error('Choose a collection.');const rows=catalog().list().filter(i=>(i.collections||[]).includes(name)),meta=Object.hasOwn(d.collections,name)?d.collections[name]:{},order=meta.order||[];rows.sort((a,b)=>{const x=order.indexOf(a.id),y=order.indexOf(b.id);return (x<0?100000:x)-(y<0?100000:y)||a.title.localeCompare(b.title);});return {name,description:meta.description||'',revision:hash([meta,rows]),items:rows.map(i=>({id:i.id,title:i.title,year:i.year,kind:i.kind,watchStatus:i.watchStatus})),completed:rows.filter(i=>i.watchStatus==='completed').length};}
+ function routeState(name, ids, data) {
+  const current = collection(name, data);
+  const rows = ids.map(id => {
+   const row = catalog().get(id);
+   if (!row) throw Error('A reviewed title no longer exists.');
+   return row;
+  });
+  return {current, rows, revision:hash([current.revision, rows])};
+ }
+ function writeRoute(name, data, metadata, patches) {
+  const before = structuredClone(data);
+  if (metadata === null) delete data.collections[name];
+  else Object.defineProperty(data.collections, name, {
+   value:metadata, enumerable:true, writable:true, configurable:true
+  });
+  save(data);
+  try {
+   catalog().upsertMany(patches);
+  } catch (error) {
+   try { save(before); }
+   catch { throw Error('Collection membership failed and its order could not be restored.'); }
+   throw error;
+  }
+ }
  async function handle(event,input,context){
   let ownership;const matches=context?.matches||((stored,item)=>(ownership||(ownership=require('./media-title-relations').createMatcher(root(),catalog().list())))(stored,item));
   const action=input.action;
   if(action==='film-watch-collections')return {ok:true,names:[...new Set(catalog().list().flatMap(i=>i.collections||[]))].sort()};
   if(action==='film-watch-collection'){return {ok:true,...collection(input.name,load())};}
   if(action==='film-watch-collection-save'){const d=load(),c=collection(input.name,d);if(c.revision!==input.revision)throw Error('Collection changed; reload.');if(typeof input.description!=='string'||input.description.length>2000||!Array.isArray(input.order)||input.order.length!==c.items.length||new Set(input.order).size!==input.order.length||input.order.some(id=>!c.items.some(i=>i.id===id)))throw Error('Collection order must contain its exact current members.');Object.defineProperty(d.collections,input.name,{value:{description:input.description,order:input.order},enumerable:true,writable:true,configurable:true});save(d);return {ok:true,...collection(input.name,d)};}
+  if(action==='film-watch-route-preview'){
+   const name=typeof input.name==='string'?input.name.trim():'';
+   const ids=input.ids;
+   if(!Array.isArray(ids)||!ids.length||ids.length>12||new Set(ids).size!==ids.length||ids.some(id=>typeof id!=='string'))throw Error('Choose 1–12 exact itinerary titles.');
+   const data=load(), state=routeState(name,ids,data);
+   if(state.current.items.some(item=>!ids.includes(item.id)))throw Error('The collection contains titles outside this itinerary.');
+   const token=remember(event,'route-preview',{name,ids:[...ids],revision:state.revision});
+   return {ok:true,token,name,items:state.rows.map(({id,title})=>({id,title}))};
+  }
+  if(action==='film-watch-route-apply'){
+   const pending=plan(event,input,'route-preview'),{name,ids}=pending;
+   const data=load(), state=routeState(name,ids,data);
+   if(state.revision!==pending.revision)throw Error('The collection or a reviewed title changed. Review it again.');
+   const before=Object.hasOwn(data.collections,name)?structuredClone(data.collections[name]):null;
+   const previous=state.rows.map(row=>({id:row.id,collections:[...(row.collections||[])]}));
+   const patches=previous.map(row=>({id:row.id,collections:[...new Set([...row.collections,name])]}));
+   if(patches.some(row=>row.collections.length>40))throw Error('Collection membership limit reached.');
+   writeRoute(name,data,{description:state.current.description,order:ids},patches);
+   plans.delete(input.token);
+   const undoToken=remember(event,'route-undo',{name,ids,before,previous,revision:routeState(name,ids,data).revision});
+   return {ok:true,undoToken,...collection(name,data)};
+  }
+  if(action==='film-watch-route-undo'){
+   const pending=plan(event,input,'route-undo');
+   const data=load(), state=routeState(pending.name,pending.ids,data);
+   if(state.revision!==pending.revision)throw Error('The collection or a title changed after the itinerary was saved.');
+   writeRoute(pending.name,data,pending.before,pending.previous);
+   plans.delete(input.token);
+   return {ok:true,...collection(pending.name,data)};
+  }
   if(action==='film-watch-overview'){const item=await resolve(event,input),rows=sourcesFor(item,matches),h=history(),assets=require('./media-daily-service').read(root()).assets||[];const files=[];for(const r of rows){const old=h.find(x=>canonicalWatchKey(x.key)===r.key);for(const f of old?.subtitlePaths||[])if(typeof f==='string')files.push({path:f,role:'subtitle',sourceId:r.id});}for(const a of assets.filter(a=>matches(a.titleKey,item)))files.push({...a,sourceId:null});const unique=files.filter((r,i)=>files.findIndex(v=>v.path===r.path&&v.sourceId===r.sourceId)===i&&(r.imported===true||fs.existsSync(r.path)));return {ok:true,title:item.title,catalogId:item.id.startsWith('discovery:')?null:item.id,revision:hash(item),sources:rows.map(r=>{const old=h.find(x=>canonicalWatchKey(x.key)===r.key);return {id:r.id,label:r.label,type:r.type,locator:r.locator,needsRelink:r.source.imported===true,position:Number(old?.position)||0,duration:Number(old?.duration)||0,dubReady:!!old?.prefs?.dubPlayback};}),assets:unique.map(a=>({id:hash([key(item),a.path,a.role]).slice(0,24),name:path.basename(a.path),role:a.role,sourceId:a.sourceId,needsRelink:a.imported===true})),selection:(()=>{const choice=(load().viewingChoices||[]).find(c=>matches(c.titleKey,item));if(!choice)return null;const id=old=>{const file=unique.find(a=>[choice.titleKey,key(item)].some(k=>hash([k,a.path,a.role]).slice(0,24)===old));return file?hash([key(item),file.path,file.role]).slice(0,24):old;};return {...choice,subtitleId:id(choice.subtitleId),voiceId:id(choice.voiceId)};})(),note:'Assets are stored associations, not proof of language or completed full dubbing.'};}
   if(action==='film-watch-selection-save'){
    const item=await resolve(event,input),overview=await handle(event,{...input,action:'film-watch-overview'},{matches}),source=overview.sources.find(s=>s.id===input.sourceId);

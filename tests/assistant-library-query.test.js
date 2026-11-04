@@ -29,13 +29,13 @@ test('typed query rejects unsupported nesting, operators, unsafe values and over
 });
 
 test('renderer query uses one existing catalog API snapshot, returns typed safe IDs and rejects invalid filters before IPC',async t=>{
- const fs=require('node:fs'),{JSDOM}=require('jsdom'),dom=new JSDOM('',{runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());const calls=[];w.UiLocale={get:()=> 'en'};w.AssistantAppActions={current:()=>true};w.api={mediaCatalog:async input=>{calls.push(input);return {ok:true,items:rows()};}};w.eval(fs.readFileSync(require.resolve('../src/assistant-library-query'),'utf8'));w.eval(fs.readFileSync(require.resolve('../src/renderer/assistant-library-actions'),'utf8'));
+ const fs=require('node:fs'),{JSDOM}=require('jsdom'),dom=new JSDOM('',{runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());const calls=[];w.UiLocale={get:()=> 'en'};w.AssistantAppActions={current:()=>true};w.api={mediaCatalog:async input=>{calls.push(input);return {ok:true,items:rows()};}};w.eval(fs.readFileSync(require.resolve('../src/catalog-conditions'),'utf8'));w.eval(fs.readFileSync(require.resolve('../src/assistant-library-query'),'utf8'));w.eval(fs.readFileSync(require.resolve('../src/renderer/assistant-library-actions'),'utf8'));
  const args=and(term('kind','eq','film'),term('runtime_minutes','lte',100)),result=await w.AssistantLibraryActions.execute('query_media_library',args,{});assert.equal(result.status,'completed');assert.equal(result.total,2);assert.deepEqual(JSON.parse(JSON.stringify(calls)),[{action:'list'}]);assert.deepEqual(JSON.parse(JSON.stringify(w.AssistantLibraryQuery.query(rows(),args))),Q.query(rows(),args));
  await assert.rejects(w.AssistantLibraryActions.execute('query_media_library',and(term('source','eq','secret')),{}),/Unsupported|Invalid/);assert.equal(calls.length,1);
 });
 
 test('renderer refuses a query result when source ownership changes while catalog read is pending',async t=>{
- const fs=require('node:fs'),{JSDOM}=require('jsdom'),dom=new JSDOM('',{runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());let current=true,resolve;w.AssistantAppActions={current:()=>current};w.api={mediaCatalog:()=>new Promise(r=>resolve=r)};w.eval(fs.readFileSync(require.resolve('../src/assistant-library-query'),'utf8'));w.eval(fs.readFileSync(require.resolve('../src/renderer/assistant-library-actions'),'utf8'));
+ const fs=require('node:fs'),{JSDOM}=require('jsdom'),dom=new JSDOM('',{runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());let current=true,resolve;w.AssistantAppActions={current:()=>current};w.api={mediaCatalog:()=>new Promise(r=>resolve=r)};w.eval(fs.readFileSync(require.resolve('../src/catalog-conditions'),'utf8'));w.eval(fs.readFileSync(require.resolve('../src/assistant-library-query'),'utf8'));w.eval(fs.readFileSync(require.resolve('../src/renderer/assistant-library-actions'),'utf8'));
  const pending=w.AssistantLibraryActions.execute('query_media_library',{},{});await new Promise(setImmediate);assert(resolve);current=false;resolve({ok:true,items:rows()});await assert.rejects(pending,/source or conversation changed/);
 });
 

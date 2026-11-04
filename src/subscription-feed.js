@@ -24,6 +24,11 @@ function entryField(entry, pattern) {
   return m ? decodeXmlEntities(m[1] || '').trim().slice(0, FIELD_MAX) : '';
 }
 
+function canonicalChannelId(value) {
+  if (/^[\w-]{22}$/.test(value)) return 'UC' + value;
+  return /^UC[\w-]{15,30}$/.test(value) ? value : '';
+}
+
 function parseYouTubeFeed(xml) {
   const text = String(xml || '');
   if (!/<feed[\s>]|<rss[\s>]|<entry[\s>]/i.test(text)) {
@@ -31,9 +36,10 @@ function parseYouTubeFeed(xml) {
   }
   const channelName = entryField(text.slice(0, 4000),
     /<title[^>]*>([\s\S]*?)<\/title>/i);
-  const channelId = entryField(text.slice(0, 4000),
+  const rawChannelId = entryField(text.slice(0, 4000),
     /<yt:channelId[^>]*>([\s\S]*?)<\/yt:channelId>/i)
     || entryField(text.slice(0, 4000), /<channelId[^>]*>([\s\S]*?)<\/channelId>/i);
+  const channelId = canonicalChannelId(rawChannelId);
   const videos = [];
   const entries = text.match(/<entry\b[\s\S]*?<\/entry>/gi) || [];
   for (const entry of entries.slice(0, FEED_ENTRY_MAX)) {
@@ -52,7 +58,7 @@ function parseYouTubeFeed(xml) {
       videoId,
       title,
       author,
-      authorId: channelId,
+      authorId: canonicalChannelId(entryField(entry, /<(?:yt:)?channelId[^>]*>([\s\S]*?)<\/(?:yt:)?channelId>/i)) || channelId,
       published: Number.isFinite(parsedDate) ? parsedDate / 1000 : 0,
       viewCount: Number(views) || 0,
       lengthSeconds: 0,

@@ -1,5 +1,5 @@
 'use strict';
-const FIELD_LOCKS = ['title','originalTitle','year','synopsis','imdbId','tmdbId','genres','cast','runtime','directors','tagline','backdrop','tmdbRating','tmdbVotes','posterPath'];
+const FIELD_LOCKS = ['title','originalTitle','originalLanguage','productionCountries','directorIds','directorPeople','directorsTruncated','year','synopsis','imdbId','tmdbId','genres','cast','runtime','directors','tagline','backdrop','tmdbRating','tmdbVotes','posterPath'];
 const EXTRA_KINDS = ['trailer','behind-scenes','deleted-scene','interview','commentary','other'];
 const clean = (value,max=120) => typeof value==='string'?value.trim().slice(0,max):'';
 function relations(raw, old, sourceOf) {

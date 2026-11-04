@@ -1,0 +1,137 @@
+/* Oynatıcı transkript görünüm modeli — parser değil, saf eşleme.
+   UYGULAMA_PLANI §8.1/§8.2: kaynak rolü çözümü ve 1:N çeviri eşlemesi.
+   Zaman birimi saniye. Pozitif offset altyazıyı geciktirir: medya zamanı = cue zamanı + offset.
+   Mevcut translationsForCues tek en iyi metni seçer; bu model ona dokunmaz (legacy overlay korunur). */
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  else root.PlayerTranscriptModel = api;
+})(globalThis, () => {
+  'use strict';
+
+  const OVERLAP_CAP_SECONDS = 0.4;
+  const OVERLAP_FRACTION = 0.25;
+  const num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+  const cuesOf = (track) => (track && Array.isArray(track.cues) ? track.cues : []);
+  const offsetOf = (track) => num(track && track.offsetSeconds, 0);
+
+  /** Çakışmasız satır anahtarı: JSON dizisi, ayraç çakışması olamaz. */
+  function rowKey(mediaKey, trackId, revision, cueId) {
+    return JSON.stringify([String(mediaKey), String(trackId), String(revision), String(cueId)]);
+  }
+
+  function activeCueIdAt(track, mediaTime) {
+    const off = offsetOf(track);
+    let hit = null;
+    for (const cue of cuesOf(track)) {
+      const s = cue.start + off; const e = cue.end + off;
+      if (s <= mediaTime && mediaTime < e && (!hit || s >= hit.s)) hit = { s, id: cue.id };
+    }
+    return hit ? hit.id : null;
+  }
+
+  /** Neden çözülemediğini de söyler: 'ok' | 'none' | 'ambiguous'. */
+  function explainSourceRole({ primary, secondary, mediaTime }) {
+    const p = primary && primary.role === 'source' ? primary : null;
+    const s = secondary && secondary.role === 'source' ? secondary : null;
+    if (p && s) return { reason: 'ambiguous', resolution: null };
+    const track = p || s;
+    if (!track) return { reason: 'none', resolution: null };
+    return {
+      reason: 'ok',
+      resolution: {
+        trackId: track.id, trackRevision: track.revision, channel: p ? 0 : 1,
+        offsetSeconds: offsetOf(track), cues: cuesOf(track), activeCueId: activeCueIdAt(track, num(mediaTime)),
+      },
+    };
+  }
+  /** Yalnız role='source' izi döndürür; çeviri metni kaynak sanılmaz; iki kaynak varsa null. */
+  function resolveSourceRole(input) { return explainSourceRole(input || {}).resolution; }
+
+  function mediaSpan(cue, off) { return { start: cue.start + off, end: cue.end + off }; }
+  const overlapOf = (a, b) => Math.max(0, Math.min(a.end, b.end) - Math.max(a.start, b.start));
+  const acceptedOverlap = (ov, aDur, bDur) => ov > Math.min(OVERLAP_CAP_SECONDS, Math.min(aDur, bDur) * OVERLAP_FRACTION);
+
+  function originLinked(secondaryTrack, sourceTrack, sourceCueId) {
+    const links = Array.isArray(secondaryTrack && secondaryTrack.sourceLinks) ? secondaryTrack.sourceLinks : [];
+    const ids = new Set();
+    for (const link of links) {
+      if (link && link.sourceTrackId === sourceTrack.id && link.sourceRevision === sourceTrack.revision
+        && Array.isArray(link.sourceCueIds) && link.sourceCueIds.includes(sourceCueId)) ids.add(link.cueId);
+    }
+    return ids;
+  }
+
+  /**
+   * buildTranscriptRows → TranscriptRow[]; kaynak satır başına bir satır.
+   * origin-linked → time-overlap → uncertain (aday listesi) → missing.
+   */
+  function buildTranscriptRows({ sourceTrack, secondaryTrack, mediaKey, generation }) {
+    const src = cuesOf(sourceTrack);
+    if (!sourceTrack || !src.length) return [];
+    const srcOff = offsetOf(sourceTrack);
+    const secOff = offsetOf(secondaryTrack);
+    const sec = cuesOf(secondaryTrack).map((cue, order) => ({ cue, order, span: mediaSpan(cue, secOff) }))
+      .sort((a, b) => a.span.start - b.span.start || a.span.end - b.span.end || a.order - b.order);
+    const secById = new Map(sec.map((x) => [x.cue.id, x]));
+    let lo = 0;
+
+    return src.map((cue) => {
+      const span = mediaSpan(cue, srcOff);
+      const linkedIds = secondaryTrack ? originLinked(secondaryTrack, sourceTrack, cue.id) : new Set();
+      let matches = []; let pairing = 'missing';
+
+      if (linkedIds.size) {
+        matches = Array.from(linkedIds).map((id) => secById.get(id)).filter(Boolean);
+        if (matches.length) pairing = 'origin-linked';
+      }
+      if (!matches.length && sec.length) {
+        while (lo < sec.length && sec[lo].span.end <= span.start) lo++;
+        for (let i = lo; i < sec.length; i++) {
+          const cand = sec[i];
+          if (cand.span.start >= span.end) break;
+          const ov = overlapOf(span, cand.span);
+          if (ov > 0 && acceptedOverlap(ov, span.end - span.start, cand.span.end - cand.span.start)) matches.push(cand);
+        }
+        if (matches.length) {
+          const overlapping = matches.some((a, i) => matches.some((b, j) => j > i && overlapOf(a.span, b.span) > 0));
+          pairing = overlapping ? 'uncertain' : 'time-overlap';
+        }
+      }
+      const candidates = matches.map((m) => ({ cueId: m.cue.id, text: m.cue.text, videoStart: m.span.start, videoEnd: m.span.end }));
+      const certain = pairing === 'origin-linked' || pairing === 'time-overlap';
+      return {
+        mediaKey: String(mediaKey), generation,
+        key: rowKey(mediaKey, sourceTrack.id, sourceTrack.revision, cue.id),
+        cueId: cue.id, trackId: sourceTrack.id, trackRevision: sourceTrack.revision,
+        start: cue.start, end: cue.end, videoStart: span.start, videoEnd: span.end,
+        sourceText: cue.text,
+        secondaryCueIds: certain ? matches.map((m) => m.cue.id) : [],
+        secondaryText: certain ? matches.map((m) => m.cue.text).join('\n') : '',
+        secondaryCandidates: candidates,
+        pairing,
+        wordTiming: Array.isArray(cue.words) && cue.words.length > 0,
+      };
+    });
+  }
+
+  /** Medya zamanındaki etkin satırın indeksi (-1 yok). Son başlayan kazanır. */
+  function activeRowIndex(rows, mediaTime) {
+    let at = -1;
+    rows.forEach((row, i) => { if (row.videoStart <= mediaTime && mediaTime < row.videoEnd && (at < 0 || row.videoStart >= rows[at].videoStart)) at = i; });
+    return at;
+  }
+  /** Seçili cue kimliklerinden en yakın satır (arama/aktif satıra dön için). */
+  function rowIndexByCueId(rows, cueId) { return rows.findIndex((r) => r.cueId === cueId); }
+  /** Filtre dışı aktif satırda filtre silinmez; yalnız "aktif satıra dön" eylemi bilgisi. */
+  function activeRowVisibility(rows, visibleKeys, mediaTime) {
+    const at = activeRowIndex(rows, mediaTime);
+    if (at < 0) return { index: -1, visible: false };
+    return { index: at, visible: visibleKeys instanceof Set ? visibleKeys.has(rows[at].key) : true };
+  }
+
+  return Object.freeze({
+    rowKey, resolveSourceRole, explainSourceRole, buildTranscriptRows, activeRowIndex, rowIndexByCueId, activeRowVisibility,
+    activeCueIdAt, OVERLAP_CAP_SECONDS, OVERLAP_FRACTION,
+  });
+});

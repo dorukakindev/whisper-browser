@@ -3,6 +3,30 @@ const fs=require('node:fs'),path=require('node:path'),net=require('node:net');
 const {spawn}=require('node:child_process');const {randomUUID}=require('node:crypto');
 const {withoutSecretEnv}=require('./settings-security');
 const {terminateProcessTreeAndWait}=require('./process-lifecycle');
+const NATIVE_SUBTITLE_FONTS=Object.freeze({system:'Segoe UI',serif:'Georgia',mono:'Consolas',rounded:'Segoe UI Variable'});
+function normalizeNativeText(value){
+ const literal=(text,limit)=>String(text||'').slice(0,limit).replace(/\r\n?/g,'\n').replace(/\t/g,'    ').replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g,'');
+ if(value==null||typeof value==='string')return{primary:literal(value,1500),secondary:'',legacy:true};
+ const keys=new Set(['primary','secondary','primaryRole','secondaryRole','fontSize','font','weight','outline']);
+ if(typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(key=>!keys.has(key)))throw Error('Invalid native subtitle projection.');
+ for(const key of ['primary','secondary'])if(value[key]!==undefined&&typeof value[key]!=='string')throw Error('Invalid native subtitle text.');
+ for(const key of ['primaryRole','secondaryRole'])if(value[key]!==undefined&&!['source','translation'].includes(value[key]))throw Error('Invalid native subtitle role.');
+ if(value.font!==undefined&&!Object.hasOwn(NATIVE_SUBTITLE_FONTS,value.font))throw Error('Invalid native subtitle font.');
+ const number=(key,fallback,min,max)=>{if(value[key]===undefined)return fallback;if(typeof value[key]!=='number'||!Number.isFinite(value[key]))throw Error('Invalid native subtitle style.');return Math.max(min,Math.min(max,value[key]));};
+ return{primary:literal(value.primary,750),secondary:literal(value.secondary,750),primaryRole:value.primaryRole||'source',secondaryRole:value.secondaryRole||'translation',fontSize:number('fontSize',28,18,80),font:value.font||'system',weight:Math.round(number('weight',600,100,900)/100)*100,outline:number('outline',70,0,100),legacy:false};
+}
+function buildNativeText(text,codes,height){
+ if(text.legacy)return text.primary;
+ if(!text.primary&&!text.secondary)return '';
+ // mpv documents its opaque ASS gates and literal escaping here:
+ // https://mpv.io/manual/stable/#command-interface-osd-ass-cc
+ // User text never enters a trusted style region. C1 filtering above also
+ // removes mpv's U+0092 gate and U+0091 symbol escape from subtitle input.
+ const scale=720/Math.max(120,Math.min(16384,Number(height)||720));
+ const font=(text.fontSize*scale).toFixed(2),border=(text.outline*.03*scale).toFixed(2),shadow=(text.outline*.015*scale).toFixed(2);
+ const line=(content,role)=>codes.start+`{\\r\\an2\\fn${NATIVE_SUBTITLE_FONTS[text.font]}\\fs${font}\\b${text.weight}\\bord${border}\\shad${shadow}\\3c&H000000&\\4c&H000000&\\1c&H${role==='translation'?'8DCCED':'FFFFFF'}&}`+codes.stop+content;
+ return[[text.primary,text.primaryRole],[text.secondary,text.secondaryRole]].filter(([content])=>content).sort((a,b)=>(a[1]==='source'?0:1)-(b[1]==='source'?0:1)).map(([content,role])=>line(content,role)).join('\n');
+}
 function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,authorizeMedia,torrents,dialog}){
  let session=null,stopping=null,sequence=0,startEpoch=0;
  const configFile=()=>path.join(app.getPath('userData'),'native-player-engine.json');let configured='';
@@ -68,12 +92,39 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
     layout(s,input.bounds||{});host.showInactive();s.pulse=setInterval(()=>send(s),200);send(s,'ready');return {ok:true};
    }
    const s=session;if(!s||s.key!==input.key||s.generation!==input.generation)return {ok:false,error:'Native playback source changed.'};
+   if(input.action==='diagnostics'){
+    if(s.diagnosticsPending)return {ok:false,error:'Diagnostics are already in progress.'};
+    s.diagnosticsPending=true;
+    try{
+     const properties=require('./native-player-diagnostics').PROPERTIES;
+     const rows=await Promise.allSettled(properties.map(name=>command(s,['get_property',name])));
+     if(session!==s)return {ok:false,error:'Native playback source changed.'};
+     const props={};
+     rows.forEach((result,i)=>{const value=result.value;if(result.status==='fulfilled'&&(typeof value==='boolean'||Number.isFinite(value)||(typeof value==='string'&&/^[A-Za-z0-9._+-]{1,24}$/.test(value))))props[properties[i]]=value;});
+     return {ok:true,props};
+    }finally{s.diagnosticsPending=false;}
+   }
    if(input.action==='snapshot'){const file=path.join(app.getPath('temp'),'whisper-mpv-'+randomUUID()+'.png');try{await command(s,['screenshot-to-file',file,'video']);const bytes=await fs.promises.readFile(file);if(bytes.length>16000000)throw Error('Native frame too large.');return {ok:true,image:'data:image/png;base64,'+bytes.toString('base64')};}finally{await fs.promises.unlink(file).catch(()=>{});}}
    if(input.action==='layout'){layout(s,input.bounds||{});if(input.hidden)s.host.hide();else s.host.showInactive();return {ok:true};}
    if(input.action==='command'){
     const filters={off:'',night:'lavfi=[acompressor=threshold=0.025:ratio=6:attack=6:release=350]',dialogue:'lavfi=[acompressor=threshold=0.04:ratio=3:attack=8:release=280]',guard:'lavfi=[acompressor=threshold=0.2:ratio=12:attack=2:release=200]'};
     if(input.command==='profile'){if(!Object.hasOwn(filters,input.value))throw Error('Invalid listening profile.');await command(s,['set_property','af',filters[input.value]]);return {ok:true};}
-    const allowed={play:()=>['set_property','pause',false],pause:()=>['set_property','pause',true],seek:()=>['seek',Math.max(0,Math.min(s.state.duration||604800,Number(input.value)||0)),'absolute'],speed:()=>['set_property','speed',Math.max(.25,Math.min(4,Number(input.value)||1))],volume:()=>['set_property','volume',Math.max(0,Math.min(100,Number(input.value)*100))],mute:()=>['set_property','mute',!!input.value],audio:()=>['set_property','aid',Number(input.value)],text:()=>['show-text',String(input.value||'').slice(0,1500).replace(/[{}]/g,''),700]};if(!allowed[input.command])throw Error('Unsupported native command.');await command(s,allowed[input.command]());return {ok:true};
+    if(input.command==='text'){
+     const text=normalizeNativeText(input.value),revision=s.textRevision=(s.textRevision||0)+1;
+     let codes;
+     if(!text.legacy&&(text.primary||text.secondary)){
+      s.assCodesPromise??=Promise.all([command(s,['get_property','osd-ass-cc/0']),command(s,['get_property','osd-ass-cc/1'])]).then(([start,stop])=>{
+       if(typeof start!=='string'||typeof stop!=='string'||!start||!stop||start.length>32||stop.length>32)throw Error('Native subtitle formatting is unavailable.');return{start,stop};
+      });
+      codes=await s.assCodesPromise;
+     }
+     if(session!==s)throw Error('Native playback source changed.');
+     if(revision!==s.textRevision)return{ok:true,skipped:true};
+     // Explicit raw prefix prevents property expansion even if command defaults
+     // change; subtitle content such as ${path} is always shown literally.
+     await command(s,['raw','show-text',buildNativeText(text,codes,s.bounds?.height),700]);return{ok:true};
+    }
+    const allowed={play:()=>['set_property','pause',false],pause:()=>['set_property','pause',true],seek:()=>['seek',Math.max(0,Math.min(s.state.duration||604800,Number(input.value)||0)),'absolute'],speed:()=>['set_property','speed',Math.max(.25,Math.min(4,Number(input.value)||1))],volume:()=>['set_property','volume',Math.max(0,Math.min(100,Number(input.value)*100))],mute:()=>['set_property','mute',!!input.value],audio:()=>['set_property','aid',Number(input.value)]};if(!allowed[input.command])throw Error('Unsupported native command.');await command(s,allowed[input.command]());return {ok:true};
    }
    throw Error('Unsupported native player operation.');
   }catch(error){if(opened&&session===opened){try{await stop();}catch(stopError){return {ok:false,error:stopError.message};}}return {ok:false,error:error.message};}
@@ -88,4 +139,4 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
  });
  return {stop:requestStop,handler};
 }
-module.exports={registerNativePlayer};
+module.exports={registerNativePlayer,normalizeNativeText,buildNativeText};

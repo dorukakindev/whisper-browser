@@ -1,0 +1,32 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict');
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+const {createMediaCatalogStore}=require('../src/media-catalog-store');
+const {create}=require('../src/film-watch-service');
+
+test('Itinerary apply and undo preserve exact order, earlier membership and viewing status',async t=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'whisper-route-'));
+ t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ const catalog=createMediaCatalogStore({filePath:path.join(root,'media-catalog.json')});
+ catalog.upsert({id:'one',kind:'film',title:'First',watchStatus:'planned',collections:['Existing','Evening']});
+ catalog.upsert({id:'two',kind:'film',title:'Second',watchStatus:'planned',collections:['Existing']});
+ const service=create({root:()=>root,catalog:()=>catalog});
+ const call=(action,input,sender=1)=>service.handle({sender:{id:sender}},{action:'film-watch-'+action,...input});
+ const plan=await call('route-preview',{name:'Evening',ids:['two','one']});
+ assert.deepEqual(catalog.get('two').collections,['Existing']);
+ await assert.rejects(call('route-apply',{token:plan.token},2),/expired/);
+ const saved=await call('route-apply',{token:plan.token});
+ assert.deepEqual(saved.items.map(i=>i.id),['two','one']);
+ assert.equal(catalog.get('two').watchStatus,'planned');
+ await call('route-undo',{token:saved.undoToken});
+ assert.deepEqual(catalog.get('one').collections,['Existing','Evening']);
+ assert.deepEqual(catalog.get('two').collections,['Existing']);
+ const stale=await call('route-preview',{name:'Evening',ids:['two','one']});
+ catalog.upsert({id:'two',title:'Changed'});
+ await assert.rejects(call('route-apply',{token:stale.token}),/changed/);
+ const fresh=await call('route-preview',{name:'Evening',ids:['two','one']});
+ const changed=await call('route-apply',{token:fresh.token});
+ catalog.upsert({id:'two',collections:['Existing','Evening','New']});
+ await assert.rejects(call('route-undo',{token:changed.undoToken}),/changed/);
+ assert.deepEqual(catalog.get('two').collections,['Existing','Evening','New']);
+});

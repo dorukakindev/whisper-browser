@@ -246,6 +246,7 @@
       const node = btn(label, () => { state.tab = value; state.rows = []; state.next = null; draw(); void load(); }, 'cn-discover-tab'); node.setAttribute('aria-pressed', String(value === state.tab)); tabs.append(node);
     }
     root.classList.add('cn-discover-page');const dock=el('section','cn-discover-controls'),viewRow=el('div','cn-discover-view-row');dock.setAttribute('aria-label',t('Discovery controls','Keşfet kontrolleri'));dock.append(tabs);root.append(dock);if(state.tab==='browse'){const views=el('div','cn-watch-views');views.setAttribute('aria-label',t('Viewing filter','İzlenme filtresi'));for(const [value,en,tr]of [['unwatched','Unwatched','İzlemediklerim'],['all','Include watched','Tümü'],['watched','Watched','İzlediklerim'],['watchlist','Watchlist','İzleme listem']]){const b=btn(t(en,tr),()=>{state.view=value;state.rows=[];draw();void load();},'cn-watch-choice');b.setAttribute('aria-pressed',String(state.view===value));views.append(b);}viewRow.append(views);}
+    viewRow.append(btn(t('Conditional library selection','Koşullu kütüphane seçkisi'),()=>window.MediaCatalogUI.open({conditions:true}), 'cn-watch-choice'));
     const filters = el('form', 'cn-discover-filters');
     function select(label, value, options, update) {
       const wrap = el('label', 'cn-filter-field'), input = el('select'); wrap.append(el('span', '', label)); input.dataset.discoveryControl = '1';

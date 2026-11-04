@@ -31,7 +31,7 @@ test('malformed and oversized saved evidence cannot leak private fields or infla
 });
 
 function renderer(t,{catalog=async()=>({ok:true,items:[film('a'),film('b')]}),shelf=async()=>({ok:true,taste:{preferencesConfigured:false}})}={}){
- const {JSDOM}=require('jsdom'),dom=new JSDOM('',{runScripts:'outside-only'}),w=dom.window,calls=[];t.after(()=>w.close());w.api={mediaCatalog:async args=>{calls.push(['catalog',args]);return catalog(args);},mediaShelf:async args=>{calls.push(['taste',args]);return shelf(args);}};w.eval(fs.readFileSync(require.resolve('../src/assistant-library-query'),'utf8'));w.eval(fs.readFileSync(require.resolve('../src/assistant-media-selection'),'utf8'));w.eval(fs.readFileSync(require.resolve('../src/renderer/assistant-selection-actions'),'utf8'));return {w,calls};
+ const {JSDOM}=require('jsdom'),dom=new JSDOM('',{runScripts:'outside-only'}),w=dom.window,calls=[];t.after(()=>w.close());w.api={mediaCatalog:async args=>{calls.push(['catalog',args]);return catalog(args);},mediaShelf:async args=>{calls.push(['taste',args]);return shelf(args);}};w.eval(fs.readFileSync(require.resolve('../src/catalog-conditions'),'utf8'));w.eval(fs.readFileSync(require.resolve('../src/assistant-library-query'),'utf8'));w.eval(fs.readFileSync(require.resolve('../src/assistant-media-selection'),'utf8'));w.eval(fs.readFileSync(require.resolve('../src/renderer/assistant-selection-actions'),'utf8'));return {w,calls};
 }
 
 test('renderer uses only existing catalog/taste read owners and validates before IPC',async t=>{

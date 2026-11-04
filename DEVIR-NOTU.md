@@ -1,3 +1,13 @@
+Güncel çalışma: [V3 özellik boşluklarının uygulanması ve Windows kabulü](docs/devir/2026-11-04-1203.md)
+Güncel çalışma: [Yedi başlıkta tamamlanma denetimi](docs/devir/2026-11-04-1131.md)
+Güncel çalışma: [Dolu not defteri ve iptal kabulü](docs/devir/2026-11-04-1127.md)
+Güncel çalışma: [YouTube RSS ve canlı sağlayıcı kabulü](docs/devir/2026-11-04-1116.md)
+Güncel çalışma: [Kaynaklı asistan çıktıları](docs/devir/2026-11-04-1105.md)
+Güncel çalışma: [Kalıcı karşılaştırma arşivi](docs/devir/2026-11-04-1053.md)
+Güncel çalışma: [Canlı podcast keşfi ve V3 geri alma](docs/devir/2026-11-04-1042.md)
+Güncel çalışma: [Canlı medya ve HDR tanısı](docs/devir/2026-11-04-1035.md)
+Güncel çalışma: [V3 yüzeyleri ve Windows doğrulaması](docs/devir/2026-11-04-1028.md)
+Güncel çalışma: [docs/devir/2026-11-04-1022.md](docs/devir/2026-11-04-1022.md) — Oynatıcı, katalog/podcast ve asistan bağlamı entegrasyon kontrol noktası
 Güncel çalışma: [docs/devir/2026-11-04-0936.md](docs/devir/2026-11-04-0936.md) — PR808 güvenli master birleştirme doğrulaması, kişisel dosya koruması ve açık canlı kabul sınırları
 Güncel çalışma: [docs/devir/2026-11-04-0331.md](docs/devir/2026-11-04-0331.md) — Üç durumlu kütüphane film detay maketi; kullanıcı onayı bekleniyor, ürün kodu değişmedi
 Güncel çalışma: [docs/devir/2026-11-04-0254.md](docs/devir/2026-11-04-0254.md) — Onaylı Akışlar okuma alanı, makale çevirisi, native ekranlar ve hedefli doğrulama

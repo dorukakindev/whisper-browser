@@ -21,3 +21,8 @@ test('Real catalog playback uses exact manual episode position, while newer play
 test('R848 relation lookup preserves a new queue bucket when the same action also reorders it',async t=>{
  const h=fixture(t);let r=await h.run({action:'daily-list'});r=await h.run({action:'daily-queue',id:h.b.id,bucket:'later',revision:r.revision});r=await h.run({action:'daily-queue',id:h.b.id,bucket:'together',beforeId:h.a.id,revision:r.revision});assert.equal(r.watchlist[0].id,h.b.id);assert.equal(r.watchlist[0].bucket,'together');assert.equal(D.read(h.root).queue[D.titleKey(h.b)].bucket,'together');
 });
+
+test('source-less planned route candidates remain readable beside series with no resume or episodes',async t=>{
+ const h=fixture(t);const empty=h.store.upsert({kind:'series',title:'No recorded episodes',watchStatus:'watching',source:null,episodes:[],manualResume:null});const planned=h.store.upsert({kind:'series',title:'Planned no episodes',watchStatus:'planned',source:null,episodes:[],manualResume:null});
+ const r=await h.run({action:'daily-list'});assert.equal(r.ok,true);assert.ok(r.watchlist.some(i=>i.id===h.a.id&&i.hasSource===false));assert.ok(r.watchlist.some(i=>i.id===planned.id&&i.hasSource===false));const continuation=r.continuations.find(i=>i.id===empty.id);assert.equal(continuation.episode,null);assert.equal(continuation.positionSeconds,0);assert.equal(continuation.lastUpdated,0);assert.equal(h.store.get(empty.id).episodes.length,0);assert.equal(h.store.get(empty.id).manualResume,null);
+});

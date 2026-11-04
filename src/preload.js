@@ -75,6 +75,7 @@ contextBridge.exposeInMainWorld('api', {
   musicAnalysis: request => ipcRenderer.invoke('music-analysis:request', request),
   mediaDiscovery: request => ipcRenderer.invoke('media-discovery:request', request),
   mediaTorrents: request => ipcRenderer.invoke('media-torrents:request',request),
+  assistantArtifacts: request => ipcRenderer.invoke('assistant-artifacts:request', request),
   assistantThreads: request => ipcRenderer.invoke('assistant-threads:request',request),
   assistantCollections: request => ipcRenderer.invoke('assistant:collections',request),
   mediaTools: request => ipcRenderer.invoke('media-tools:request', request),

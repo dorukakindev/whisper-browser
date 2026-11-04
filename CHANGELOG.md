@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Added editable comparison cells and persistent spoiler controls for saved assistant outputs, with CSV/JSON/Markdown/HTML redaction, independent original-language/country/director conditions, source-backed RSS relationship and opinion review, and measured local/publisher duration and language filters. [Targeted tests and Windows validation](docs/devir/2026-11-04-1203.md).
+
+- Preserved complete watch history when relinking media, including repeated relinks after undo and rollback after a write failure. [Populated notebook and cancellation validation](docs/devir/2026-11-04-1127.md).
+
+- Fixed canonical YouTube RSS channel identity and the skipped-input count, with a bounded retry of the official uploads feed on HTTP 404. [Live RSS and assistant acceptance](docs/devir/2026-11-04-1116.md).
+
+- Added saved, explicitly cited assistant passages and timelines with reply-owned references, protected user corrections, revision restore and workspace backup support. [Windows validation](docs/devir/2026-11-04-1105.md).
+
+- Persisted catalog comparisons with revision conflicts, bounded version history, restore controls and workspace backup roundtrip. [Windows validation](docs/devir/2026-11-04-1053.md).
+
+- Added revision-checked undo for itineraries and catalog relinks, and support for publisher SRT/VTT files served with a generic MIME type after verifying their format. [Validation](docs/devir/2026-11-04-1042.md).
+
+- Playback diagnostics distinguish the decoded HDR transfer from the actual mpv video target. [Validation](docs/devir/2026-11-04-1035.md).
+
+- Connected the cinema bulletin, watch itinerary, catalog comparison export, library maintenance and playback health surfaces to existing services. [Windows validation](docs/devir/2026-11-04-1028.md).
+
+- Added the approved player workspace over existing playback, source catalog with publisher podcast transcripts, and a question-time transcript boundary for the player assistant. [Validation](docs/devir/2026-11-04-1022.md).
+
 ### PR808 teslim doğrulaması — 2026-11-04
 
 - Onaylı kütüphane ve browser paneli teslimi temiz çalışma alanında 18 hedefli test ve değişen JavaScript sözdizimi kontrolleriyle doğrulandı; ürün kodu değiştirilmedi. [Devir ve açık canlı kabul sınırları](docs/devir/2026-11-04-0936.md).
