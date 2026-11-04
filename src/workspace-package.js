@@ -16,7 +16,7 @@ function remapFileWatchKey(value, mappings) {
   }
   return value;
 }
-const ROOTS = new Set(['media-catalog.json', 'watch-library.json', 'watch-library-tombstones.json', 'browser-notes.json', 'browser-session.json', 'history.json',
+const ROOTS = new Set(['feeds.json', 'media-catalog.json', 'watch-library.json', 'watch-library-tombstones.json', 'browser-notes.json', 'browser-session.json', 'history.json',
   'assistant-conversations.json', 'media-shelf.json', 'media-enrichment.json', 'media-folder-watches.json', 'torrent-library.json', 'browser-subtitle-preferences.json', 'browser-series-context.json', 'browser-skip-segments.json',...personalMedia.NAMES]);
 const DIRS = new Set(['catalog-posters', 'browser-subtitles', 'workspace-assets', 'subtitle-edits', 'OkumaListesi']);
 const LIMIT = 256 * 1024 * 1024;
@@ -300,6 +300,8 @@ function describePackage(data, root = null) {
     try { return JSON.parse(Buffer.from(file.data, 'base64').toString('utf8')); }
     catch (_) { return null; }
   };
+  const feeds = json('feeds.json');
+  if(feeds){summary.feedSubscriptions=feeds.feeds.length;summary.feedEntries=feeds.entries.length;summary.playerSourcePins=feeds.sourcePins?.length||0;}
   const catalog = json('media-catalog.json');
   if (Array.isArray(catalog?.items)) {
     summary.mediaItems = catalog.items.length;
@@ -362,6 +364,8 @@ function missingLocalMedia(data, exists = fs.existsSync) {
   };
   const watch = json('watch-library.json');
   for (const item of watch?.items || []) add(item?.localPath);
+  const feeds = json('feeds.json');
+  if(feeds){summary.feedSubscriptions=feeds.feeds.length;summary.feedEntries=feeds.entries.length;summary.playerSourcePins=feeds.sourcePins?.length||0;}
   const catalog = json('media-catalog.json');
   for (const item of catalog?.items || []) {
     for(const source of require('./catalog-library-model').allSources(item))if(source.type==='local')add(source.value);

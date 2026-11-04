@@ -41,7 +41,7 @@ async function fetchPublic(raw,{headers={},signal,lookup,transport}={}){
  }throw Error('Feed redirect limit.');
 }
 function errorKind(error){if(error?.code==='EUNSAFE')return 'unsafe';if(error?.code==='ELIMIT'||/exceeds|complexity|oversized/i.test(error?.message))return 'limit';if(error?.name==='AbortError')return 'cancelled';if(error?.name==='TimeoutError'||error?.code==='ETIMEDOUT')return 'timeout';if(error?.status===429)return 'rate-limit';if(error?.status)return 'http';if(/XML|JSON|RSS|Atom|feed body|response is not/i.test(error?.message))return 'parse';return 'network';}
-function registerFeeds({app,ipcMain,authorized,userData=()=>app.getPath('userData'),catalogStore,translateText,fetchValidated=fetchPublic,autoStart=true,now=()=>Date.now()}={}){
+function registerFeeds({app,ipcMain,authorized,userData=()=>app.getPath('userData'),catalogStore,translateText,transcriptFetcher=(descriptor,options)=>require('./podcast-transcript-service').fetchPodcastTranscript(descriptor,{...options,publicPin,pinnedRequest}),fetchValidated=fetchPublic,autoStart=true,now=()=>Date.now()}={}){
  const store=createFeedStore(path.join(userData(),'feeds.json'),{now}),jobs=new Map(),tokens=new Map(),hostChecks=new Map(),activeFeeds=new Set();let disposed=false,refreshing=false;
  const translateEntry=require('./feed-translation').createFeedTranslation({store,translate:translateText});
  const owner=event=>String(event?.sender?.id||'main');
@@ -92,6 +92,7 @@ function registerFeeds({app,ipcMain,authorized,userData=()=>app.getPath('userDat
    if(disposed)throw Error('Feed service is closed.');if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Invalid feed request.');let result;
    switch(input.action){
     case 'list':result=store.list();break;
+    case 'source-pins':result={pins:store.sourcePins(input.pins)};break;
     case 'preference-save':result={preference:store.preference(input)};break;
     case 'preference-remove':result=store.preference({...input,remove:true});break;
     case 'view-save':result={view:store.view(input)};break;
@@ -101,6 +102,7 @@ function registerFeeds({app,ipcMain,authorized,userData=()=>app.getPath('userDat
     case 'correction':result={correction:store.correction(input.entryId,input.acknowledge===true,input.revision)};break;
     case 'entries':if(input.kind&&!['article','video','podcast'].includes(input.kind))throw Error('Unsupported entry kind.');result=store.entries(input);result.rows=result.rows.map(withLinkStates);break;
     case 'entry':result={entry:withLinkStates(store.entry(input.entryId,input.revision))};break;
+    case 'podcast-transcript':result=await job(event,input,async signal=>{const entry=store.entry(input.entryId);if(input.revision&&input.revision!==entry.revision)throw Error('Podcast entry changed.');const descriptor=entry.transcriptDescriptors?.[Number(input.descriptorIndex)||0];if(!descriptor)throw Error('Choose a publisher transcript.');const result=await transcriptFetcher(descriptor,{signal});const current=store.entry(input.entryId);if(current.revision!==entry.revision)throw Error('Podcast entry changed.');return {...result,entryId:entry.id,revision:entry.revision};},20000);break;
     case 'translate':result=await job(event,input,signal=>translateEntry(input,signal),180000);break;
     case 'preview':result=await job(event,input,signal=>preview(event,input.url,signal));break;
     case 'discover':result=await job(event,input,async signal=>{const response=await requestFeed(input.url,{signal});if(/^\s*<(?:!doctype\s+html|html|head)|text\/html/i.test(response.text.slice(0,200))||/text\/html/i.test(response.headers.get('content-type')||'')){const candidates=P.discoverFeeds(response.text,response.effectiveUrl);return {candidates,direct:false};}const p=await (async()=>{const parsed=P.parseFeed(response.text,response.effectiveUrl),feed={...parsed,url:P.safeUrl(input.url),effectiveUrl:response.effectiveUrl,etag:response.headers.get('etag')||'',lastModified:response.headers.get('last-modified')||''};delete feed.entries;return {token:token(event,'feed',{feed,entries:parsed.entries}),feed,entries:parsed.entries.slice(0,5),count:parsed.entries.length};})();return {candidates:[{url:response.effectiveUrl,title:p.feed.title,type:p.feed.format}],direct:true,preview:p};});break;

@@ -7,6 +7,7 @@ function validateStoreShape(name, value) {
   const rows = (v) => Array.isArray(v) && v.every(object);
   let valid = true;
   switch (name) {
+    case 'feeds.json': require('./feed-store').validate(value); break;
     case 'media-catalog.json':
       valid = object(value) && value.version === 1 && rows(value.items) && value.items.length <= 10000;
       if (valid) {for (const item of value.items) require('./media-catalog-store').itemOf(item);require('./catalog-folder-diff').normalizeSnapshots(value.folderSnapshots);}

@@ -101,13 +101,14 @@
     if (!mounted) return;
     restoreAssistant();
     const snap = snapshot(); const [source, secondary] = tracks();
+    const audio=player.workspaceAudio?.mediaKey===snap.mediaKey&&player.workspaceAudio?.generation===snap.generation?player.workspaceAudio:null;
     const at = PlayerTranscriptModel.activeRowIndex(rows, snap.time);
     const send = (type, args = {}, bound = false) => bridge.dispatch({type,mediaKey:snap.mediaKey,generation:snap.generation,...(bound?{trackId:source.id,trackRevision:source.revision}:{}),...args});
     const visible = query ? [...cueTextSearchIndex(indexedRows, []).query(foldQuery(query))].sort((a,b)=>a-b).map(i=>rows[i]) : rows;
     if (!query && follow && at >= 0) page = Math.floor(at / 500);
     const shown = visible.slice(page * 500, (page + 1) * 500);
-    const result = PlayerWorkspaceUI.renderPlayerWorkspace(view, { locale: locale(), media: { title: snap.title, subtitle: text('Oynatma çalışma alanı', 'Playback workspace'), kind: 'video' },
-      snapshot: { ...snap, duration: snap.duration || 0 }, rows: shown, activeKey: at >= 0 ? rows[at].key : null,
+    const result = PlayerWorkspaceUI.renderPlayerWorkspace(view, { locale: locale(), media: { title: snap.title, subtitle: text('Oynatma çalışma alanı', 'Playback workspace'), kind: audio?'audio':'video' },
+      transcriptState:audio?.transcriptState||'timed',snapshot: { ...snap, duration: snap.duration || 0 }, rows: shown, activeKey: at >= 0 ? rows[at].key : null,
       tab, query, follow, scope, selection, evidence, hasSecondary: secondary.cues.length > 0, stageMode: 'slot',
       subtitleMode: currentSubtitleMode() === 'translation' ? 'secondary' : currentSubtitleMode(),
       ab: player.abA !== null && player.abB !== null ? { a: player.abA, b: player.abB } : null,
@@ -132,6 +133,12 @@
       onOpenQueued: item => { const delta = Number(item.itemId) - player.playlistIndex; void playPlaylistDelta(delta); }
     });
     if (stage.parentNode !== result.stageSlot) result.stageSlot.append(stage);
+    stage.querySelector('.pw-podcast-cover')?.remove();
+    if(audio){const cover=document.createElement('div');cover.className='pw-podcast-cover';cover.append(PlayerUiKit.cover(audio.title,audio.entryId),PlayerUiKit.h('strong',{text:audio.title}));stage.append(cover);}
+    if(audio?.transcriptState==='untimed'&&tab==='transcript'){
+      const list=view.querySelector('.pw-transcript'),body=document.createElement('p'),more=document.createElement('button');body.className='pw-runtime-untimed';more.type='button';let loaded=0;
+      const append=()=>{const chunk=audio.transcriptText.slice(loaded,loaded+50000);loaded+=chunk.length;body.append(document.createTextNode(chunk));more.textContent=text('Daha fazla metin','More text');more.hidden=loaded>=audio.transcriptText.length;};more.onclick=append;list.append(body,more);append();
+    }
     if (tab === 'assistant' && assistant) {
       const destination = view.querySelector('.pw-assistant');
       destination.replaceChildren(assistant); setSideTab('ai'); assistant.classList.remove('hidden');
