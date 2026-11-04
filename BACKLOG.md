@@ -18,9 +18,11 @@ Her kayıt: **durum + kapsam + dal/PR + kanıt + kalan kabul koşulu + kesin son
 
 ## P003 — Afişsiz yerel film detay tasarımı
 
-- **Durum:** planlandı; Akışlar uygulamasının kullanıcı incelemesini bekliyor. P001 ölçüm eşiği bloklayıcı değil.
+- **Durum:** bağımsız hareketli kompozisyon hazır; kullanıcı tasarım onayı bekleniyor. Akışlar kabul edildi. P001 ölçüm eşiği bloklayıcı değil.
 - **Kapsam/kabul:** mevcut yerel film işlemleri korunarak tasarlanmış afiş/backdrop yedeği, temiz başlık ve Keşfet detaylarıyla aynı görsel dil. Önce standalone kompozisyon/onay; sonra native geniş/dar ve hareket kontrolü. Sahte veri üretime girmez.
-- **Sonraki adım:** ilgili ekran sırası geldiğinde mevcut poster/metadata davranışını doğrula ve taslağı göster.
+- **Kanıt:** D:\Whisper Local\artifacts\library-film-composition-2026-11-04\gallery.html; üç senaryo ×1440/1920, 720 taşma ve menü/kopya/akordeon kontrolü. [Devir](docs/devir/2026-11-04-0331.md).
+- **Dal:** codex/library-film-motion-preview; başlangıç master8b6534fb0a3cb0d11dd5a906108f6c58bb27cbe2. Ürün kodu değiştirilmedi.
+- **Sonraki adım:** kullanıcı maketi onayladıktan sonra mevcut handler/kimlikleri ortak Keşfet detay yapısına bağla. Yerel afiş → TMDB token/cache → tasarlanmış yedek sırasını uygula; üretimde örnek dosya bilgisi kullanma. Native aç/geri/akordeon/scroll ölçümü uygulama sonrası;20ms aşımı raporlanır, bloklayıcı değildir.
 
 ## P004 — Browser ve altyazı yan paneli tasarımı
 

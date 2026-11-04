@@ -1,3 +1,4 @@
+Güncel çalışma: [docs/devir/2026-11-04-0331.md](docs/devir/2026-11-04-0331.md) — Üç durumlu kütüphane film detay maketi; kullanıcı onayı bekleniyor, ürün kodu değişmedi
 Güncel çalışma: [docs/devir/2026-11-04-0254.md](docs/devir/2026-11-04-0254.md) — Onaylı Akışlar okuma alanı, makale çevirisi, native ekranlar ve hedefli doğrulama
 Güncel çalışma: [docs/devir/2026-11-04-0200.md](docs/devir/2026-11-04-0200.md) — Akışlar hareketli bağımsız maketi; uygulama öncesi kullanıcı onayı bekliyor
 Güncel çalışma: [docs/devir/2026-11-04-0126.md](docs/devir/2026-11-04-0126.md) — Kısa AGENTS, kök BACKLOG ve proje belge haritası; ürün kodu değişmedi
