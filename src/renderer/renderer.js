@@ -20224,6 +20224,9 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null, 
   if(expectedScope!==null&&expectedScope!==aiSourceScope())return;
   const q = String(soru || '').trim();
   if (!q) return;
+  const integration = window.PlayerWorkspaceIntegration;
+  const watchPacket = !translationTarget && !requestOptions.playerEvidence && !globalAssistantContext() &&
+    $('aiTranscriptScope')?.value === 'watched' ? integration?.freezeWatchQuestion(q) : null;
   const independentAgent=!translationTarget&&expectedScope===null&&!!window.AssistantAgentUI?.send;
   if(requestOptions.responseContract!==undefined&&(requestOptions.responseContract!=='review-analysis'||!independentAgent))throw Error('Structured review analysis requires the native assistant.');
   if (window.AssistantAgentUI?.busy()||aiChatPreparing||(!independentAgent&&(window.BookAssistantUI?.busy()||window.AssistantVideoCommands?.busy()||window.AssistantMediaCommands?.busy()||window.AssistantPageCommands?.busy()||state.running||state.queueRunning||player.job?.awaitingExit))) {
@@ -20246,13 +20249,28 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null, 
   // KOPYA gonderilir: asagida ayni diziye yeni soru ekleniyor; referans
   // gecilseydi soru modele hem 'gecmis'in son turu hem de 'soru' olarak
   // IKI KEZ giderdi.
-  const chatContext = aiChatContext();
+  if (watchPacket && !integration.watchQuestionIsCurrent(watchPacket)) return;
+  const bounded = requestOptions.playerEvidence || watchPacket?.ok;
+  const chatContext = bounded
+    ? { video: $('playerTitle')?.textContent || '', zaman: pSecToTime(
+        requestOptions.playerEvidence ? (requestOptions.playerEvidence.scopeEnd ?? requestOptions.playerEvidence.range.end) : watchPacket.horizon) }
+    : aiChatContext();
   const assistantTools=window.AssistantWorkspace?.toolContext();if(assistantTools)chatContext.assistant_tools=assistantTools;
   const sourceScope=aiSourceScope();
   if(player.chatHistoryScope&&player.chatHistoryScope!==sourceScope)player.chatHistory=[];
-  const transcriptEvidence = requestOptions.playerEvidence ? window.PlayerWorkspaceIntegration.serializeEvidence(requestOptions.playerEvidence) : aiTranscriptEvidence(q);
+  let transcriptEvidence;
+  if (requestOptions.playerEvidence) transcriptEvidence = integration.serializeEvidence(requestOptions.playerEvidence);
+  else if (watchPacket?.ok) {
+    transcriptEvidence = {
+      scope: 'watched', position: watchPacket.horizon, limitations: watchPacket.limitations,
+      evidence: watchPacket.cues.map((cue, index) => ({
+        id: 'T' + (index + 1), zaman: pSecToTime(cue.videoStart), baslangic: cue.videoStart,
+        bitis: cue.videoEnd, metin: cue.text, ceviri: ''
+      }))
+    };
+  } else transcriptEvidence = aiTranscriptEvidence(q);
   if (transcriptEvidence?.evidence?.length) chatContext.transcript_evidence = transcriptEvidence;
-  const history=(player.chatHistory||[]).slice(-8).map(row=>({...row}));
+  const history=bounded ? [] : (player.chatHistory||[]).slice(-8).map(row=>({...row}));
   const preparing={scope:sourceScope,cancelled:false};
   aiChatPreparing=preparing;updateAiChatActions();
   let chatSourceTabId = '';
@@ -20279,6 +20297,7 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null, 
   if(aiChatPreparing===preparing)aiChatPreparing=null;
   updateAiChatActions();
   if(preparing.cancelled||sourceScope!==aiSourceScope()||!independentAgent&&(state.running||state.queueRunning||player.job?.awaitingExit))return;
+  if(watchPacket&&!integration.watchQuestionIsCurrent(watchPacket))return;
   if(translationTarget&&!translationTargetCurrent(translationTarget))return;
   if(!translationTarget){const a=assistantProviderSelection();opts.translateApiKey=a.apiKey;opts.translateBaseUrl=a.endpoint;opts.translateModel=a.model;}
   opts.chat = { question: q, history, context: chatContext, serviceTier: assistantProviderSelection().serviceTier };

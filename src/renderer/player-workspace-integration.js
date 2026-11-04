@@ -26,11 +26,12 @@
   function track(cues, secondary, role) {
     if (!trackIds.has(cues)) trackIds.set(cues, ++trackSeq);
     const id = (secondary ? 'secondary:' : 'primary:') + (secondary ? player.sub2Path : player.subPath || 'live');
-    const revision = `${trackIds.get(cues)}:${cues._cueIndexVersion || 0}:${cues.length}`;
+    const offsetSeconds = Number(secondary ? player.offset2 : player.offset) || 0;
+    const revision = `${trackIds.get(cues)}:${cues._cueIndexVersion || 0}:${cues.length}:${offsetSeconds}`;
     const cached = trackCache.get(cues);
     const mapped = cached?.revision === revision ? cached.cues : cues.map((cue, i) => ({ ...cue, id: String(cue.id ?? i) }));
     trackCache.set(cues, { revision, cues: mapped });
-    return { id, revision, role, offsetSeconds: Number(secondary ? player.offset2 : player.offset) || 0, cues: mapped };
+    return { id, revision, role, offsetSeconds, cues: mapped };
   }
   function tracks() {
     const roles = browserSubtitleRoleCues();
@@ -202,6 +203,20 @@
   const pulse = setInterval(() => { if (document.hidden) return; const now = performance.now(); if (now - lastRefresh >= 240) { lastRefresh = now; refresh(); } }, 250);
   window.addEventListener('resize', () => { if (mounted) draw(); });
   window.addEventListener('pagehide', () => { clearInterval(pulse); unmount(); }, {once:true});
+  function freezeWatchQuestion(question) {
+    if (!mounted || player.workspaceMode !== 'player') return null;
+    const snap = snapshot();
+    const [track] = tracks();
+    const active = rows[PlayerTranscriptModel.activeRowIndex(rows, snap.time)];
+    const anchor = AssistantWatchContext.freezeWatchAnchor({
+      snapshot: { ...snap, activeCueId: active?.cueId }, question
+    });
+    return AssistantWatchContext.buildWatchContext({ anchor, track });
+  }
+  function watchQuestionIsCurrent(packet) {
+    return mounted && player.workspaceMode === 'player' &&
+      AssistantWatchContext.anchorStillValid(packet?.anchor, snapshot());
+  }
   function acceptEvidence(envelope) {
     if(!mounted||!envelope||envelope.schema!=='player-evidence-v1')return false;
     const snap=snapshot(),[source,secondary]=tracks();
@@ -213,6 +228,6 @@
       evidence:envelope.evidence.map((entry,index)=>({id:'T'+(index+1),zaman:PlayerUiKit.formatClock(entry.videoStart),baslangic:entry.videoStart,bitis:entry.videoEnd,metin:entry.source,ceviri:entry.secondary||''})),
       playerAnchor:{mediaKey:envelope.mediaKey,generation:envelope.generation,sourceTrackId:envelope.sourceTrackId,sourceRevision:envelope.sourceRevision}};
   }
-  window.PlayerWorkspaceIntegration = Object.freeze({ refresh, snapshot, sourceRole, acceptEvidence, serializeEvidence, get bridge() { return bridge; }, evidence: () => evidence?.envelope || null });
+  window.PlayerWorkspaceIntegration = Object.freeze({ refresh, snapshot, sourceRole, freezeWatchQuestion, watchQuestionIsCurrent, acceptEvidence, serializeEvidence, get bridge() { return bridge; }, evidence: () => evidence?.envelope || null });
   refresh();
 })();
