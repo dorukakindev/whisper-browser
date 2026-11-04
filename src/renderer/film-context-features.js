@@ -40,11 +40,11 @@
    const card=window.CinemaUI.poster(row,{run:open,art:()=>{const host=el('div','cn-poster-art');if(safePhoto(row.poster)){const img=el('img');img.src=row.poster;img.alt='';img.loading='lazy';img.referrerPolicy='no-referrer';img.onerror=()=>img.remove();host.append(img);}return host;}});const actionLabel=own?t('Open in library','Kütüphanede aç'):t('Add to watchlist & open','İzleneceklere ekle ve aç');card.append(el('span','cn-similar-action',actionLabel));card.title=actionLabel;card.setAttribute('aria-label',row.title+' · '+actionLabel);grid.append(card);
   }if(!rows.length){parent.append(el('p','film-extra-muted',t('No related titles available.','İlgili yapım bulunamadı.')));return;}parent.append(grid);
  }
- function mount(parent,item,returnTo){
+ function mount(parent,item,returnTo,matchTitle){
   const memo=remembered(item),host=document.getElementById('mediaHome');let page=parent.closest('.media-title-page');const capture=()=>{memo.scroll=host?.scrollTop||0;};page?.addEventListener('close',capture,{once:true});
   const section=el('section','film-extra-section'),heading=el('div','film-extra-heading'),intro=el('div','film-extra-intro');intro.append(el('h2','',t('Explore this film','Filmi keşfet')),el('p','film-extra-muted',t('Trailers, cast and related films from TMDB.','TMDB’den fragmanlar, oyuncular ve ilgili filmler.')));heading.append(intro);section.append(heading);
   const status=el('p','film-extra-status'),body=el('div','film-extra-body');status.setAttribute('role','status');section.append(status,body);
-  let creditsTarget=null,peopleNode=null;let loadVersion=0;const loadExtras=async(force=false)=>{const ticket=++loadVersion;load.disabled=true;status.textContent=t('Loading film information…','Film bilgileri yükleniyor…');try{
+  let creditsTarget=null,peopleNode=null;let loadVersion=0;const loadExtras=async(force=false)=>{if(matchTitle&&!item.tmdbId&&!item.imdbId)return false;const ticket=++loadVersion;load.disabled=true;status.textContent=t('Loading film information…','Film bilgileri yükleniyor…');try{
    const [data,library]=await Promise.all([!force&&memo.data&&Date.now()-memo.at<600000?Promise.resolve(memo.data):api('metadata-film-extras',item),window.api.mediaCatalog({action:'list'})]);if(!section.isConnected||ticket!==loadVersion)return false;if(!library?.ok)throw Error(library?.error||t('Library unavailable','Kütüphane alınamadı'));if(data!==memo.data)memo.at=Date.now();memo.data=data;body.replaceChildren();
    const media=el('section','cn-visual-media'),mediaHeading=el('div','cn-section-heading'),mediaRow=el('div','cn-media-row');mediaHeading.append(el('h2','',t('Images & trailers','Görseller ve fragmanlar')));media.append(mediaHeading,mediaRow);
    const trailerRows=[...data.videos].sort((a,b)=>Number(b.official)-Number(a.official));
@@ -64,6 +64,16 @@
    }else status.textContent=e.message;}return false;}finally{if(section.isConnected&&ticket===loadVersion)load.disabled=false;}};
   creditControllers.set(section,{load:()=>loadExtras(true),bind:host=>{page=host.closest('.media-title-page');page?.addEventListener('close',capture,{once:true});creditsTarget=host;if(peopleNode?.isConnected)host.replaceChildren(peopleNode);}});
   const load=button(t('Load film extras','Film eklerini getir'),()=>loadExtras(true));heading.append(load);parent.append(section);
+  if(matchTitle&&!item.tmdbId&&!item.imdbId){
+    heading.hidden=true;
+    const card=el('div','cn-tmdb-connect');
+    const copy=el('div');
+    copy.append(el('strong','',t('Match this film first','Önce eşleştir')),el('p','',t('Link a title to see trailers and related films.','Fragmanları ve benzer yapımları görmek için filmi eşleştir.')));
+    const match=button(t('Match title','Filmi eşleştir'),matchTitle);
+    window.CinemaUI.rebutton(match,'ghost');
+    card.append(window.CinemaUI.icon('link'),copy,match);
+    body.append(card);
+  }
   if(memo.data&&Date.now()-memo.at<600000)void loadExtras(false).then(restored=>{if(restored&&section.isConnected&&Number.isFinite(memo.scroll)&&host)host.scrollTop=memo.scroll;});
  }
  window.FilmContextFeatures=Object.freeze({mount,bindCredits:(page,host)=>{const controller=creditControllers.get(page.querySelector('.film-extra-section'));if(!controller)return null;controller.bind(host);return {load:controller.load};}});

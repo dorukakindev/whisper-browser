@@ -159,6 +159,7 @@ function createMetadataClient(fetchImpl = fetch,{language=()=> 'tr-TR'}={}) {
       const data = await request(`${kind}/${id}`, token, { append_to_response: 'credits,external_ids' }, signal);
       if(!data.overview && language()!=='en-US'){const fallback=await request(`${kind}/${id}`,token,{language:'en-US'},signal);data.overview=fallback.overview||'';}
       const patch = { title: data.title || data.name, originalTitle: data.original_title || data.original_name,
+        originalLanguage: /^[a-z]{2}$/.test(data.original_language || '') ? data.original_language : '',
         year: Number(String(data.release_date || data.first_air_date || '').slice(0, 4)) || null,
         synopsis: data.overview || '', tmdbId: `${kind}:${id}`, imdbId: data.imdb_id || data.external_ids?.imdb_id || '',
         genres: (data.genres || []).map(g => g.name), cast: (data.credits?.cast || []).slice(0, 12).map(p => p.name),

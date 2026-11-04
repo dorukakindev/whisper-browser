@@ -75,8 +75,18 @@
     const [r,taste]=await Promise.all([api('decision-get',{itemId:item.id,...(item.discovery?{discovery:item.discovery}:{})}),Promise.resolve().then(()=>window.api.mediaShelf?.({action:'list'})).catch(()=>null)]);if(!current(ticket))return;
     const draft=window.MediaToolsUI.reviewSnapshot?.(item.id),saved=(r.value?.history||[]).find(entry=>entry.identity&&window.MediaToolsModel.decisionIdentityMatch(item,entry.identity)==='matched');
     const draftMatches=draft?.result&&window.LetterboxdReviews?.matchFilm(item,draft.identity).state==='matched';
-    const entry=(draftMatches?draft.result:null)||saved;content.replaceChildren();parent.dataset.reviewState=entry?'ready':'empty';reviewAction.textContent=entry?t('Manage reviews','Yorumları yönet'):t('Load reviews','Yorumları getir');
-    if(!entry){status.textContent=draft?.count?t(`${draft.count} reviews loaded · ready for analysis`,`${draft.count} yorum yüklendi · analize hazır`):t('No saved analysis yet.','Henüz kayıtlı analiz yok.');const intro=el('div','cn-audience-empty'),copy=el('div');intro.append(window.CinemaUI.icon('quote'));copy.append(el('h3','',t('The audience has a voice','İzleyenin de bir hikâyesi var')),el('p','',t('Load a review sample to read original voices and your personal analysis together.','Yorum örneğini getir; özgün görüşleri ve kişisel analizini birlikte incele.')));intro.append(copy);content.append(intro);return;}
+    const entry=(draftMatches?draft.result:null)||saved;heading.prepend(titleBlock);heading.append(reviewAction);content.replaceChildren();parent.dataset.reviewState=entry?'ready':'empty';reviewAction.textContent=entry?t('Manage reviews','Yorumları yönet'):t('Load reviews','Yorumları getir');
+    if(!entry){
+      status.textContent=draft?.count?t(`${draft.count} reviews loaded · ready for analysis`,`${draft.count} yorum yüklendi · analize hazır`):'';
+      const intro=el('div','cn-audience-empty cn-review-single-row');
+      intro.append(window.CinemaUI.icon('quote'),titleBlock,reviewAction);
+      titleBlock.querySelector('p').textContent=t('Read original reviews and analyze them together.','Kaynak yorumlarını oku ve birlikte incele.');
+      content.append(intro);
+      return;
+    }
+    heading.prepend(titleBlock);
+    if(!editorController?.active())heading.append(reviewAction);
+    titleBlock.querySelector('p').textContent=t('Different voices. A clearer view of the film.','Farklı görüşlerle filme daha yakından bak.');
     const reviews=entry.reviews||[],analysis=window.MediaToolsModel.verifyDecision(entry.analysis,reviews);
     status.textContent=(draftMatches?t('Unsaved analysis','Kaydedilmemiş analiz'):t('Saved analysis','Kayıtlı analiz'))+' · '+reviews.length+' '+t('source reviews','kaynak yorum')+(Number.isFinite(entry.analysis?.at)?' · '+new Date(entry.analysis.at).toLocaleDateString(t('en-US','tr-TR')):'');
     if(reviews.some(row=>row.spoiler)&&!revealed){content.append(el('p','film-review-empty',t('This analysis uses spoiler reviews. Reveal it only if you want plot details.','Bu analiz spoiler içeren yorumlar kullanıyor. Olay örgüsü ayrıntılarını görmek istiyorsan aç.')),action(t('Reveal spoiler analysis','Spoiler içeren analizi göster'),()=>{revealed=true;void refresh();}));return;}
