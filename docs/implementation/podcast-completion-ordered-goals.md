@@ -11,8 +11,8 @@ PR809 native tasarım ve PR810 podcast ilk bağlantıları/browser menüsü/dubl
 | G1 | PODCAST_TEKNIK_PLAN_2026-11-04 P1–P6 tamamlaması | KAPANDI — PR812 / 3d0e80b4 | Aşağıdaki kod bağlantıları tamam, kısa hedefli kontroller geçer, kalan canlı sınırlar açık yazılır; ürün commit/merge/ana kopya doğrulanır. |
 | G2 | Önceki denetimin açık işlerini karşılaştırıp giderme | KAPANDI — PR813 / fd91f015 | B–K kapsamındaki aktarılmış iddialar güncel kodda incelenir; zaten düzelmiş/teyitli açık/doğrulanamayan ayrılır. Teyitli açıklar düzeltilir; eksik dış patch varmış gibi uygulanmaz. |
 | G3 | Eski tasarım/düzeltme ZIP'lerinden yararlı parçalar | KAPANDI — PR814 / e85359bd | Her öneri güncel uygulamayla karşılaştırılır; uyumlu faydalı düzeltme alınır, yeni tasarım/eski özellik kaybı yaratılmaz. Başlamış yerel farklar korunup ayrı tutulur. |
-| G4 | Uçtan uca kısa bug ve tasarım iyileştirme turu | KOD TAMAM — entegrasyon | Browser, asistan, ana sayfa, Keşfet, podcast dinleme/okuma ve oynatıcıda anlamlı bozukluklar/akışlar giderilir; grafit/amber ve mevcut kontroller korunur. |
-| G5 | Son bütünlük ve teslim | BEKLİYOR | Her hedefin durumu dürüst, ürün/belge commitleri ayrı, PR/master/ana kopya aynı sürümde, kişisel dosyalar korunmuş; hiçbir yarım iş tamamlandı diye sunulmaz. |
+| G4 | Uçtan uca kısa bug ve tasarım iyileştirme turu | KAPANDI — PR815 / a9b7842e | Browser, asistan, ana sayfa, Keşfet, podcast dinleme/okuma ve oynatıcıda anlamlı bozukluklar/akışlar giderilir; grafit/amber ve mevcut kontroller korunur. |
+| G5 | Son bütünlük ve teslim | KAPANDI — ürün eşitliği a9b7842e; son kayıt yalnız belge | Her hedefin durumu dürüst, ürün/belge commitleri ayrı, PR/master/ana kopya aynı sürümde, kişisel dosyalar korunmuş; hiçbir yarım iş tamamlandı diye sunulmaz. |
 
 ## G1 açık kontrol listesi
 
@@ -28,3 +28,7 @@ PR809 native tasarım ve PR810 podcast ilk bağlantıları/browser menüsü/dubl
 ## Değişmez çalışma sınırları
 
 Computer Use yok; erişim onay penceresi açan test yok; CPU/frame ölçümü, genişlik matrisi, yüzlerce çekim veya bütün suite yok. Yalnız değişen davranışa kısa anlamlı kontroller. Yeni hesap/ücretli bağımlılık yok. Korunan envelope dosyalarına ve kişisel değişikliklere dokunma. GitHub Actions başlatma, `[skip ci]` kullan. Kullanıcı sürekli merge yetkisi verdi; tekrar onay sorma.
+
+## Son durum — 18:33
+
+G1→G2→G3→G4 sıralı ürün teslimleri birleştirildi. G5, uzak master/çalışma ağacı/ana kopya ürün eşitliğini ve kişisel dosyaların korunmasını doğrular. Son kayıt yalnız belgedir; son merge kimliği teslimde yeniden okunur. Aktif ürün işi yok. Gerçek model/GPU/sağlayıcı, OS safeStorage/UNC ve start.bat kişisel kullanım kabulleri yapılmış sayılmaz; kapsam sınırları tarihli devirde.
