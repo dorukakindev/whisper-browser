@@ -108,3 +108,7 @@ Uygulama ve kısa kabul tamam: `e66b489b6009e98e9fff5a230631f58721b7df91`, dal `
 ## P011 — Podcast kabul açıkları — 2026-11-05
 
 Kod ve kısa kabul tamam: `9491f99a9fce839b29f23374a09158f5c3f43a65`, dal `codex/podcast-acceptance-gaps-20261105`. [Devir](docs/devir/2026-11-05-0221.md), [10 koşul ve kanıt](docs/implementation/podcast-acceptance-gaps-2026-11-05.md). Web/YouTube podcast geçişi, kaynak/çeviri/konum/hızla RSS yeniden açma, readonly kaynak çevirisi, publisher önceliği ve gizli asistan sahipliği kapandı.20 hedefli test+3 mevcut runtime kontrolü ve iki izole native akış geçti; canlı YouTube gözlendi, yeni model/GPU yok, önceki NPR zinciri ayrı kanıt. Yeni bilinen uygulanmamış ürün açığı yok; her site/uzun iş/kişisel start.bat genellemesi yapılmaz. Sonraki adım yalnız PR/master/ana kopya kimlik doğrulaması; ağır test tekrarına gerek yok.
+
+## P012 — Tarayıcı yan panel düğmesi — 2026-11-05
+
+Düzeltme ve kısa kabul tamam: `becde623c62b7cc01f7e2bc7e4e6a8739f1caad5`, dal `codex/browser-sidebar-toggle-20261105`. [Devir](docs/devir/2026-11-05-0225.md). Görünür düğmenin yerel toggle vekilliği ve rail/açık ayrımı giderildi; gerçek geniş/dar ilk tık açma-kapama-geri açma geçti, izin0. Sonraki adım PR/master/ana kopya kimlik eşitliği; ağır test gerekmez.

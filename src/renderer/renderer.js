@@ -25743,7 +25743,8 @@ $$('.drawer-page-tab[data-settings-page]').forEach((button) => {
 function sidebarIsVisible() {
   const layer = $('playerLayer');
   if (!layer) return false;
-  return player.viewMode !== 'cinema' && !layer.classList.contains('sidebar-collapsed');
+  return player.viewMode !== 'cinema' && !layer.classList.contains('sidebar-collapsed')
+    && !(player.workspaceMode === 'browser' && $('playerSide')?.classList.contains('side-rail'));
 }
 
 function setPlayerSidebarCollapsed(collapsed) {
@@ -25776,17 +25777,19 @@ function setPlayerSidebarCollapsed(collapsed) {
 function toggleBrowserPanelRail() {
   if (player.workspaceMode !== 'browser') return;
   const layer = $('playerLayer');
-  const opening = $('playerSide')?.classList.contains('side-rail') || layer?.classList.contains('sidebar-collapsed');
-  if (player.narrowViewport) {
-    $('playerSidebarToggle')?.click();
-    $('browserPanelMain')?.setAttribute('aria-expanded', String(responsivePanelTakeoverActive()));
-    return;
-  }
-  if (opening) layer?.classList.remove('sidebar-collapsed');
-  setBrowserSideRailPref(opening ? 'panel' : 'rail');
+  // The browser rail is a closed panel, not an expanded local-player sidebar.
+  // Settle a pending resize before deciding whether the overlay is actually open.
+  syncResponsivePlayerLayout();
+  const narrow = window.matchMedia('(max-width: 1099px)').matches;
+  const opening = !(sidebarIsVisible() && (!narrow || responsivePanelTakeoverActive()));
+  if (opening && player.viewMode === 'cinema') setViewMode(player.lastSideMode || 'reading');
+  setBrowserSideRailPref(narrow || opening ? 'panel' : 'rail');
+  setPlayerSidebarCollapsed(narrow ? !opening : false);
   snapGridColumns();
   scheduleBrowserBounds();
-  $('browserPanelMain')?.setAttribute('aria-expanded', String(opening));
+  const shown = narrow ? responsivePanelTakeoverActive() : sidebarIsVisible();
+  $('browserPanelMain')?.setAttribute('aria-expanded', String(shown));
+  $('browserSidebarToggle')?.setAttribute('aria-expanded', String(shown));
   if (opening && typeof $('playerSide')?.animate === 'function' &&
       globalThis.CinemaMotion?.mode !== 'off' && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
     const reduced = globalThis.CinemaMotion?.mode === 'reduced';
@@ -25821,7 +25824,7 @@ document.addEventListener('keydown', event => {
     toggleBrowserPanelRail();
   }
 });
-$('browserSidebarToggle')?.addEventListener('click', () => $('playerSidebarToggle')?.click()); if ($('playerSidebarToggle')) {
+$('browserSidebarToggle')?.addEventListener('click', toggleBrowserPanelRail); if ($('playerSidebarToggle')) {
   $('playerSidebarToggle').addEventListener('click', () => {
     if (window.matchMedia(player.workspaceMode === 'browser' ? '(max-width: 1099px)' : '(max-width: 1020px)').matches) {
       if (responsivePanelTakeoverActive()) {
