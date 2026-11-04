@@ -18961,9 +18961,12 @@ async function relinkLibraryItem(oldKey, newPath, restore = null, withUndo = fal
     notes = ensureBrowserNotesReady();
     previousNotes = notes.list(oldKey);
     const run = () => {
-      const saved = restore ? watchLibraryStore().restore(restore.item) : watchLibraryStore().upsert({ ...item, key: newKey, localPath: target, sourceRef: target });
-      if (!saved) throw new Error('Yeni kütüphane kaydı yazılamadı.');
+      const moved = restore ? restore.item : { ...item, key: newKey, localPath: target, sourceRef: target };
+      // Relinking moves a reviewed row without recording a new watch session or
+      // merging stale metadata from an earlier destination tombstone.
       written = true;
+      const saved = watchLibraryStore().replaceItems([...previous, moved], { restoreRemoved: true });
+      if (!saved.some(entry => entry.key === newKey)) throw new Error('Yeni kütüphane kaydı yazılamadı.');
       if (!watchLibraryStore().remove(oldKey)) throw new Error('Eski kütüphane kaydı kaldırılamadı.');
       index?.renameMediaId(oldKey, newKey);
       notesWritten = previousNotes.length > 0;
