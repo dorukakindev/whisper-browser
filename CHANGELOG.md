@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Completed source-bound podcast transcripts, existing Whisper/translation queue integration, Spotify-to-RSS candidate confirmation, position/rate reopening and managed audio cleanup. Fixed browser menus waiting on capture, finished dubbing cleanup after late cancellation and evidence-based grouped-number verification. [Implementation and targeted checks](docs/devir/2026-11-04-1730.md).
+
 - Added editable comparison cells and persistent spoiler controls for saved assistant outputs, with CSV/JSON/Markdown/HTML redaction, independent original-language/country/director conditions, source-backed RSS relationship and opinion review, and measured local/publisher duration and language filters. [Targeted tests and Windows validation](docs/devir/2026-11-04-1203.md).
 
 - Preserved complete watch history when relinking media, including repeated relinks after undo and rollback after a write failure. [Populated notebook and cancellation validation](docs/devir/2026-11-04-1127.md).
