@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Added revision-checked undo for itineraries and catalog relinks, and support for publisher SRT/VTT files served with a generic MIME type after verifying their format. [Validation](docs/devir/2026-11-04-1042.md).
+
 - Playback diagnostics distinguish the decoded HDR transfer from the actual mpv video target. [Validation](docs/devir/2026-11-04-1035.md).
 
 - Connected the cinema bulletin, watch itinerary, catalog comparison export, library maintenance and playback health surfaces to existing services. [Windows validation](docs/devir/2026-11-04-1028.md).

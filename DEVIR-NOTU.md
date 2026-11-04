@@ -1,3 +1,4 @@
+Güncel çalışma: [Canlı podcast keşfi ve V3 geri alma](docs/devir/2026-11-04-1042.md)
 Güncel çalışma: [Canlı medya ve HDR tanısı](docs/devir/2026-11-04-1035.md)
 Güncel çalışma: [V3 yüzeyleri ve Windows doğrulaması](docs/devir/2026-11-04-1028.md)
 Güncel çalışma: [docs/devir/2026-11-04-1022.md](docs/devir/2026-11-04-1022.md) — Oynatıcı, katalog/podcast ve asistan bağlamı entegrasyon kontrol noktası
