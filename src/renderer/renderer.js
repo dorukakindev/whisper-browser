@@ -7950,7 +7950,7 @@ async function closeBrowserTab(tabId) {
     }
     let result = await window.api.closeBrowserTab(tabId, false).catch(() => null);
     if (result?.requiresConfirmation) {
-      const reasons = [result.pinned ? interfaceChoice('Sekme sabitlenmiş.', 'The tab is pinned.') : '', result.activeWork ? interfaceChoice('Sekmede devam eden çeviri veya manga işi var.', 'The tab has a translation or manga job in progress.') : '']
+      const reasons = [result.pinned ? interfaceChoice('Sekme sabitlenmiş.', 'The tab is pinned.') : '', result.activeWork ? interfaceChoice('Sekmede devam eden çeviri veya manga işi var.', 'The tab has a translation or manga job in progress.') : '', !result.pinned && !result.activeWork ? String(result.error || '').slice(0,1000) : '']
         .filter(Boolean).join(' ');
       const confirmed = await openAppDialog({
         title: interfaceChoice('Sekme korumalı', 'Protected tab'),
@@ -20402,7 +20402,14 @@ function autoGrowChatBox() {
 function setSideTab(tab, { focusContent = false } = {}) {
   // İkon rayındayken (veya kod yoluyla) bir sekme istemek içeriği görmek
   // demektir: panel moduna dönmezse sekme içeriği 48px rayın içinde gizli kalır.
-  if ($('playerSide')?.classList.contains('side-rail')) setBrowserSideRailPref('panel');
+  const revealBrowserPanel = player.workspaceMode === 'browser' && (
+    $('playerSide')?.classList.contains('side-rail') || $('playerLayer')?.classList.contains('sidebar-collapsed')
+    || player.viewMode === 'cinema' || (window.matchMedia('(max-width: 1099px)').matches && !responsivePanelTakeoverActive()));
+  if (revealBrowserPanel || $('playerSide')?.classList.contains('side-rail')) setBrowserSideRailPref('panel');
+  if (revealBrowserPanel) {
+    if (player.viewMode === 'cinema') setViewMode(player.lastSideMode || 'reading');
+    setPlayerSidebarCollapsed(false);
+  }
   const ai = tab === 'ai';
   const library = tab === 'library';
   const tools = tab === 'tools' && player.workspaceMode === 'browser';
@@ -25804,8 +25811,10 @@ $('browserPanelApply')?.addEventListener('click', () => {
   else $('browserSubtitleSettingsMenu')?.click();
 });
 $('browserQuickYoutubeMenu')?.addEventListener('click', () => {
+  closeBrowserToolbarMenus();
   setSideTab('subs');
   const input = $('playerQuickYtUrl');
+  input?.closest('.side-source-quick')?.classList.remove('hidden');
   const disclosure = input?.closest('details');
   if (disclosure) disclosure.open = true;
   input?.scrollIntoView({block:'nearest'});

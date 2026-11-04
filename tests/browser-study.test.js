@@ -16,7 +16,10 @@ const context = vm.createContext({window,document,player,MutationObserver:window
 for (const id of ['browserTrackTranslate','browserTrackLoadPair','browserWhisperTranslate','browserLiveAsr']) document.getElementById(id).onclick=()=>calls.push(id);
 vm.runInContext(fs.readFileSync(require.resolve('../src/renderer/browser-study'),'utf8'),context);
 const study=window.BrowserStudy, button=id=>document.querySelector(`[data-study-action="${id}"]`);
+window.BrowserPodcastUI={setMode:value=>calls.push(['podcast',value])};
 study.open();
+assert(calls.some(call=>Array.isArray(call)&&call[0]==='podcast'&&call[1]===false),'explicit bilingual view clears podcast intent, including a previously closed panel');
+assert(calls.findIndex(call=>call[0]==='rail')<calls.findIndex(call=>call[0]==='collapse'),'choose panel before responsive layout calculates takeover');
 assert.equal(study.isActive(),true);assert.equal(player.viewMode,'study');
 assert.equal(document.getElementById('webVideo'),video);assert.equal(document.querySelectorAll('video').length,1);assert.equal(document.getElementById('cueList'),cues);
 assert.equal(calls.some(call=>typeof call==='string'&&/browser/.test(call)),false,'opening cannot start ASR, translate, acquisition or consent');

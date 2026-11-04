@@ -16193,6 +16193,11 @@ function fetchYouTubeDislikes(videoId) {
 
 async function browserTabRuntimeState(tab) {
   const wc = tab?.view?.webContents;
+  // A new, never-navigated NTP has no remote document to probe. Keep restored,
+  // loading, crashed and previously navigated tabs on the conservative path.
+  if (tab?.generation === 0 && tab.navigationRequestSeq === 0 && !tab.navigationHistory
+      && !tab.restoredUrl && !tab.loading && !tab.restoringPage && wc && !wc.isDestroyed()
+      && !wc.isCrashed() && !wc.isLoading() && wc.getURL() === '') return { stateKnown: true };
   if (!browserScriptExecutionReady(wc)) return { stateKnown: false };
   try {
     const states = await Promise.all(browserFrames(tab.view).map((frame) => withTimeout(frame.executeJavaScript(`(() => {

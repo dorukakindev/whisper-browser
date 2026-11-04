@@ -10,13 +10,14 @@
   let box, status, controls, secondPickerHost;
   const key = () => player.workspaceMode === 'browser' ? player.browserActiveTabId : null;
   const active = () => !!key() && sessions.has(key());
-  function open() {
+  function open({ preservePodcast = false } = {}) {
     if (!key()) return;
+    if (!preservePodcast) window.BrowserPodcastUI?.setMode(false);
     closeBrowserToolbarMenus();
     if (!sessions.has(key())) sessions.set(key(), { view: player.viewMode });
     setViewMode('study');
-    setPlayerSidebarCollapsed(false);
     setBrowserSideRailPref('panel');
+    setPlayerSidebarCollapsed(false);
     setSideTab('subs');
     setSubtitleMode('both', false);
     window.BrowserPanel?.refresh();
@@ -27,6 +28,7 @@
     });
   }
   function close() {
+    window.BrowserPodcastUI?.setMode(false);
     const previous = sessions.get(key());
     sessions.delete(key());
     if (previous && player.viewMode === 'study') setViewMode(previous.view);

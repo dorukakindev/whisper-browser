@@ -1,0 +1,7 @@
+
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const source=fs.readFileSync(require.resolve('../src/main'),'utf8'),start=source.indexOf('async function browserTabRuntimeState('),end=source.indexOf('async function browserHostWorkState(',start);
+const context=vm.createContext({browserScriptExecutionReady:()=>false});vm.runInContext(source.slice(start,end),context);
+const fresh=()=>({generation:0,navigationRequestSeq:0,navigationHistory:null,restoredUrl:'',view:{webContents:{getURL:()=>'',isDestroyed:()=>false,isCrashed:()=>false,isLoading:()=>false}}});
+(async()=>{assert.equal((await context.browserTabRuntimeState(fresh())).stateKnown,true,'a genuinely new tab has no unknown remote form');for(const patch of [{restoredUrl:'https://example.test/'},{generation:1},{navigationRequestSeq:1},{navigationHistory:{entries:[]}},{loading:true},{restoringPage:true}])assert.equal((await context.browserTabRuntimeState({...fresh(),...patch})).stateKnown,false,'unknown nonfresh state must remain protected');const pinned=fresh();pinned.pinned=true;const state=await context.browserTabRuntimeState(pinned);assert(require('../src/browser-tab-resources').browserTabProtectionReasons({...pinned,...state}).includes('pinned'));console.log('browser-empty-tab-close: fresh NTP is known empty; restored/navigating/history/pinned protection retained');})().catch(e=>{console.error(e);process.exitCode=1;});
