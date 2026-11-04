@@ -20,8 +20,8 @@ const fail = () => { throw Error('Invalid assistant artifact archive.'); };
 function validateMatrix(body) {
   if (body?.type !== 'matrix' || !shortText(body.title) ||
       !Array.isArray(body.columns) || body.columns.length !== 2 ||
-      !Array.isArray(body.rows) || body.rows.length !== 3 ||
-      !Array.isArray(body.cells) || body.cells.length !== 6) fail();
+      !Array.isArray(body.rows) || ![3, 6].includes(body.rows.length) ||
+      !Array.isArray(body.cells) || body.cells.length !== body.rows.length * 2) fail();
   const axis = entries => {
     if (!entries.every(entry => sourceId(entry?.id) && shortText(entry.label))) fail();
     const ids = new Set(entries.map(entry => entry.id));
@@ -36,7 +36,7 @@ function validateMatrix(body) {
         !cell.claims.every(claim => claim?.sourceId === cell.colId && shortText(claim.quote))) fail();
     keys.add(JSON.stringify([cell.rowId, cell.colId]));
   }
-  if (keys.size !== 6) fail();
+  if (keys.size !== body.rows.length * 2) fail();
 }
 
 function validateEnvelope(data) {
@@ -106,6 +106,10 @@ function registerAssistantArtifacts({ app, ipcMain, authorized, catalogStore }) 
         if (input?.action === 'edit' && id(input.id)) {
           const doc = lookup(input.id);
           if (!doc || !editKeys(doc.modelBody).includes(input.key) || !shortText(input.value)) return { ok: false, code: 'invalid-edit' };
+          const cell = doc.kind === 'matrix' && doc.modelBody.cells.find(row => input.key === `cell:${row.rowId}:${row.colId}`);
+          if (cell && ['year', 'runtime'].includes(cell.rowId) && input.value !== '' &&
+              (!/^\d+$/.test(input.value) || !Number.isSafeInteger(Number(input.value)) ||
+               (cell.rowId === 'year' ? Number(input.value) < 1888 || Number(input.value) > 2100 : Number(input.value) < 1 || Number(input.value) > 10000))) return { ok: false, code: 'invalid-number' };
           return await store.userEdit(input);
         }
         if (input?.action === 'from-message') {
@@ -136,19 +140,28 @@ function registerAssistantArtifacts({ app, ipcMain, authorized, catalogStore }) 
           }
           if (!existing && data.documents.length >= MAX_DOCUMENTS) return { ok: false, code: 'archive-full' };
           const tr = input.locale === 'tr';
-          const fields = [['year', tr ? 'Yıl' : 'Year'], ['runtime', tr ? 'Süre (dk)' : 'Runtime (min)'], ['kind', tr ? 'Tür' : 'Type']];
+          const fields = [['year', tr ? 'Yıl' : 'Year'], ['runtime', tr ? 'Süre (dk)' : 'Runtime (min)'], ['kind', tr ? 'Tür' : 'Type'], ['directors', tr ? 'Yönetmen' : 'Director'], ['productionCountries', tr ? 'Ülke' : 'Country'], ['originalLanguage', tr ? 'Dil' : 'Language']];
+          const valueOf = (row, key) => Array.isArray(row[key]) ? row[key].join(', ') : row[key];
           const { body } = buildComparisonMatrix({
             title: tr ? 'Karşılaştırma' : 'Comparison',
             columns: selected.map(row => ({ id: row.id, label: row.title })),
             rows: fields.map(([key, label]) => ({ id: key, label })),
             knownSourceIds: new Set(ids),
-            cells: selected.flatMap(row => fields.filter(([key]) => row[key]).map(([key]) => ({
-              rowId: key, colId: row.id, value: key === 'kind' ? (row.kind === 'series' ? (tr ? 'Dizi' : 'Series') : 'Film') : String(row[key]),
-              claims: [{ sourceId: row.id, quote: String(row[key]) }],
+            cells: selected.flatMap(row => fields.filter(([key]) => valueOf(row, key)).map(([key]) => ({
+              rowId: key, colId: row.id, value: key === 'kind' ? (row.kind === 'series' ? (tr ? 'Dizi' : 'Series') : 'Film') : String(valueOf(row, key)),
+              claims: [{ sourceId: row.id, quote: String(valueOf(row, key)) }],
             }))),
           });
+          if (existing && input.refreshKeys !== undefined) {
+            const allowed = new Set(editKeys(body));
+            if (!Array.isArray(input.refreshKeys) || input.refreshKeys.length < 1 || input.refreshKeys.length > 12 || new Set(input.refreshKeys).size !== input.refreshKeys.length || input.refreshKeys.some(key => !allowed.has(key))) return { ok: false, code: 'invalid-refresh' };
+            const chosen = new Set(input.refreshKeys);
+            body.cells = body.cells.map(cell => chosen.has(`cell:${cell.rowId}:${cell.colId}`) ? cell : existing.modelBody.cells.find(old => old.rowId === cell.rowId && old.colId === cell.colId) || { ...cell, value: '', claims: [], status: 'unknown' });
+            const missing = body.cells.filter(cell => cell.status === 'unknown').length;
+            body.coverage = { expected: body.cells.length, missing, partial: missing > 0 };
+          }
           return existing
-            ? await store.updateModel({ id: existing.id, expectedRevision: input.expectedRevision, body, by: 'catalog' })
+            ? await store.updateModel({ id: existing.id, expectedRevision: input.expectedRevision, body, by: 'catalog', acceptedEditKeys: input.refreshKeys || [] })
             : await store.create({ body, by: 'catalog' });
         }
         return { ok: false, code: 'unsupported-action' };

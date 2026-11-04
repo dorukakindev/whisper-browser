@@ -7,7 +7,7 @@ const { JSDOM } = require('jsdom');
 const CinemaBulletinModel = require('../src/cinema-bulletin-model');
 
 test('bulletin retry renders the latest persisted failure instead of an older successful response', async t => {
-  const dom = new JSDOM('<body></body>', { runScripts: 'outside-only' });
+  const dom = new JSDOM('<body></body>', { runScripts: 'outside-only', pretendToBeVisual: true });
   const w = dom.window;
   t.after(() => w.close());
   w.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
@@ -23,7 +23,7 @@ test('bulletin retry renders the latest persisted failure instead of an older su
   const firstRender = new Promise(resolve => { resolveFirst = resolve; });
   const renders = [];
   w.V3SurfacesUI = { renderBulletin(_root, model, options) {
-    renders.push({ model, handlers: options.handlers }); resolveFirst();
+    renders.push({ model, handlers: options.handlers, caption: options.caption }); resolveFirst();
   } };
   w.api = {
     mediaCatalog: async () => ({ ok: true, items: [] }),
@@ -53,5 +53,6 @@ test('bulletin retry renders the latest persisted failure instead of an older su
   assert.equal(coverage.rows[0].newItems, 0);
   assert.equal(coverage.checkedFeeds, 0); assert.equal(coverage.remainingFeeds, 1);
   assert.equal(coverage.complete, false);
-  assert.equal(w.document.querySelector('.mtx-status').textContent, 'No saved entries to display.');
+  assert.equal(renders[1].caption, 'From the latest 100 entries.');
+  assert.equal(w.document.querySelector('.mtx-status').textContent, '');
 });

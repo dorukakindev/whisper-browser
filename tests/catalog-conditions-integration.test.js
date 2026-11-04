@@ -45,13 +45,20 @@ test('catalog and assistant canonicalize ISO language aliases while undetermined
 test('catalog UI offers canonical language options once and keeps undetermined metadata explicit',async t=>{
  const {JSDOM}=require('jsdom'),dom=new JSDOM('<button id="mediaCatalogOpen"></button><dialog id="mediaCatalogDialog"><div id="mediaCatalogRoot"></div></dialog>',{runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());
  const rows=[['turkish','tur'],['english','eng'],['english2','en'],['french','fra'],['unknown','und']].map(([id,originalLanguage])=>({id,title:id,kind:'film',originalLanguage}));
+ rows[0].posterImage='data:image/avif;base64,AAAA';rows[1].posterImage='data:image/svg+xml;base64,AAAA';
  w.IntersectionObserver=class{observe(){}unobserve(){}disconnect(){}};w.WhisperTextFold={search:value=>String(value).toLowerCase()};w.UiLocale={get:()=> 'en'};
  const dialog=w.document.getElementById('mediaCatalogDialog');dialog.showModal=()=>{dialog.open=true;};
  w.api={mediaCatalog:async()=>({ok:true,items:rows})};
- w.eval(fs.readFileSync(require.resolve('../src/catalog-conditions'),'utf8'));w.eval(fs.readFileSync(require.resolve('../src/renderer/media-catalog'),'utf8'));
+ w.eval(fs.readFileSync(require.resolve('../src/renderer/player-ui-kit'),'utf8'));w.eval(fs.readFileSync(require.resolve('../src/catalog-conditions'),'utf8'));w.eval(fs.readFileSync(require.resolve('../src/renderer/media-catalog'),'utf8'));
  await w.MediaCatalogUI.open();
+ assert.equal(w.document.activeElement,dialog,'initial focus belongs to the dialog rather than Close');
+ assert.equal(w.document.querySelector('.mc-card-poster img')?.getAttribute('src'),'data:image/avif;base64,AAAA','bounded AVIF raster data from the main service is accepted');assert.equal(w.document.querySelectorAll('.mc-card-poster img').length,1,'SVG remains outside the raster allowlist');
  const select=w.document.querySelector('.mc-condition-grid select');assert.deepEqual([...select.options].map(option=>option.value),['','en','fr','tr']);
  select.value='en';select.dispatchEvent(new w.Event('change'));assert.equal(w.document.querySelectorAll('.mc-card').length,2);
  const policy=w.document.querySelectorAll('.mc-condition-grid select')[3];policy.value='include';policy.dispatchEvent(new w.Event('change'));
  assert.equal(w.document.querySelectorAll('.mc-card').length,3);assert.equal(w.document.querySelectorAll('.mc-condition-unknown').length,1);
+ assert.equal(w.document.querySelector('.mc-filter-summary').getAttribute('aria-expanded'),'false');
+ assert.equal(select.hidden,true,'native value adapter stays hidden behind the custom picker');
+ w.document.querySelector('.mc-filter-summary').click();assert.equal(w.document.querySelector('.mc-filter-summary').getAttribute('aria-expanded'),'true');
+ assert.equal(w.document.querySelectorAll('.mc-condition-grid .mk-picker').length,5,'all filter selection owners have custom controls');
 });

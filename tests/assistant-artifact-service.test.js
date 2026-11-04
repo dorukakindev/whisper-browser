@@ -62,3 +62,29 @@ test('catalog comparison revisions persist, serialize, and round-trip in workspa
   assert.equal(fs.readFileSync(file, 'utf8'), 'corrupt archive');
 
 });
+
+test('matrix rejects invalid numeric edits and refreshes only explicitly chosen fields', async t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'assistant-matrix-fields-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const rows = [{ id: 'one', title: 'First', kind: 'film', year: 2000, runtime: 90 }, { id: 'two', title: 'Second', kind: 'film', year: 2020, runtime: 100 }];
+  const handle = registerAssistantArtifacts({ app: { getPath: () => root }, ipcMain: { handle() {} }, authorized: () => true, catalogStore: () => ({ list: () => rows }) }).handle;
+  const created = await handle(null, { action: 'save', ids: ['one', 'two'] });
+  const id = created.doc.id;
+  for (const value of ['hello', '2000.5', '2e3', '1887', '2101']) {
+    assert.equal((await handle(null, { action: 'edit', id, expectedRevision: 1, key: 'cell:year:one', value })).code, 'invalid-number');
+  }
+  await handle(null, { action: 'edit', id, expectedRevision: 1, key: 'cell:year:one', value: '1999' });
+  await handle(null, { action: 'edit', id, expectedRevision: 2, key: 'cell:runtime:two', value: '123' });
+  rows[0].year = 2001; rows[0].runtime = 95; rows[1].runtime = 105;
+  const refreshed = await handle(null, { action: 'save', id, ids: ['one', 'two'], expectedRevision: 3, refreshKeys: ['cell:year:one'] });
+  assert.equal(refreshed.ok, true);
+  const current = await handle(null, { action: 'get', id });
+  assert.equal(current.body.cells.find(c => c.rowId === 'year' && c.colId === 'one').value, '2001');
+  assert.equal(current.body.cells.find(c => c.rowId === 'runtime' && c.colId === 'one').value, '90');
+  assert.equal(current.body.cells.find(c => c.rowId === 'runtime' && c.colId === 'two').value, '123');
+  assert.equal(current.doc.userEdits['cell:year:one'], undefined);
+  assert.equal(current.doc.userEdits['cell:runtime:two'], '123');
+  assert.equal((await handle(null, { action: 'save', id, ids: ['one', 'two'], expectedRevision: 4, refreshKeys: ['cell:year:foreign'] })).code, 'invalid-refresh');
+  const restored = await handle(null, { action: 'restore', id, expectedRevision: 4, revision: 3 });
+  assert.equal(restored.doc.userEdits['cell:year:one'], '1999');
+});

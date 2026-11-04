@@ -61,8 +61,18 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
       const key = `${real}|${stat.mtimeMs}|${stat.size}|${width}`;
       if (posterCache.has(key)) return posterCache.get(key);
       const img = nativeImage.createFromPath(real);
-      if (img.isEmpty()) return '';
-      const image = img.resize({ width, quality: 'good' }).toDataURL();
+      let image;
+      if (img.isEmpty()) {
+        // Chromium can display WebP/AVIF that the platform NativeImage decoder
+        // cannot resize. Sniff actual bytes (cached downloads may end in .jpg),
+        // and keep the same bounded data-URL boundary; never return file paths.
+        if (stat.size > 1400 * 1024) return '';
+        const bytes = fs.readFileSync(real), head = bytes.subarray(0, 64);
+        const webp = head.toString('ascii', 0, 4) === 'RIFF' && head.toString('ascii', 8, 12) === 'WEBP';
+        const avif = head.toString('ascii', 4, 8) === 'ftyp' && /(?:avif|avis)/.test(head.toString('ascii', 8));
+        if (!webp && !avif) return '';
+        image = `data:image/${webp ? 'webp' : 'avif'};base64,${bytes.toString('base64')}`;
+      } else image = img.resize({ width, quality: 'good' }).toDataURL();
       if (image.length > 2 * 1024 * 1024) return '';
       posterCache.set(key, image);
       if (posterCache.size > 100) posterCache.delete(posterCache.keys().next().value);

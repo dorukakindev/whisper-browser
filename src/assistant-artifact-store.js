@@ -55,12 +55,15 @@
       doc.versions.push({ revision: doc.revision, at: now(), by, modelBody: clone(doc.modelBody), userEdits: clone(doc.userEdits), userSpoilers: clone(doc.userSpoilers || {}) });
       while (doc.versions.length > maxVersions) doc.versions.shift();
     };
-    async function updateModel({ id, expectedRevision, body, by = 'model' }) {
+    async function updateModel({ id, expectedRevision, body, by = 'model', acceptedEditKeys = [] }) {
       const doc = await load(id); if (!doc) return fail('not-found');
       if (doc.revision !== expectedRevision) return fail('revision-conflict', { currentRevision: doc.revision });
       if (body && body.type !== doc.kind) return fail('kind-mismatch');
       const bad = checkBody(body); if (bad) return bad;
+      if (!Array.isArray(acceptedEditKeys) || acceptedEditKeys.some(key => typeof key !== 'string' || !body.cells?.some(cell => key === `cell:${cell.rowId}:${cell.colId}`))) return fail('invalid-refresh');
       pushVersion(doc, by);
+      // Only an explicit field choice may discard its manual override. Other edits survive.
+      for (const key of acceptedEditKeys) delete doc.userEdits[key];
       doc.modelBody = clone(body); doc.revision += 1;
       doc.history.push({ revision: doc.revision, at: now(), by, bodyHash: hash(JSON.stringify(body)) });
       await storage.set(id, doc);

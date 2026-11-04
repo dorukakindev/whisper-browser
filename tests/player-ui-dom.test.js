@@ -3,6 +3,7 @@ const assert = require('node:assert');
 const { JSDOM } = require('jsdom');
 const dom = new JSDOM('<!doctype html><body><div id="r"></div></body>', { pretendToBeVisual: true });
 globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.Node = dom.window.Node;
+window.matchMedia=()=>({matches:true});window.HTMLElement.prototype.showPopover=function(){this.hidden=false;};window.HTMLElement.prototype.hidePopover=function(){this.hidden=true;};
 Object.defineProperty(globalThis, 'getSelection', { value: () => dom.window.getSelection(), configurable: true });
 const Catalog = require('../src/player-source-catalog.js');
 const CUI = require('../src/renderer/player-source-catalog-ui.js');
@@ -41,8 +42,10 @@ const vmFor = (items, over = {}) => {
   const r = root(); const seen = []; const vm = vmFor([item('a'), item('b')], { remote: 'tok' });
   CUI.renderCatalog(r, vm, { onQuery: (p) => seen.push(p) }); const first = r.querySelector('.pw-search__input');
   CUI.renderCatalog(r, { ...vm, shown: 2 }, { onQuery: (p) => seen.push(p) }); assert.strictEqual(r.querySelector('.pw-search__input'), first);
-  assert.strictEqual(r.querySelector('.pw-count').textContent, '2 yüklendi', 'toplam doğrulanmamış → "yüklendi"');
-  const sel = r.querySelector('.pw-select'); sel.value = 'title'; sel.dispatchEvent(new dom.window.Event('change')); assert.deepStrictEqual(seen[0], { sort: 'title', cursor: null });
+  assert.strictEqual(r.querySelector('.pw-count').textContent, '2 video', 'YouTube toolbar labels shown rows without asserting an unknown total');
+  const picker=r.querySelector('.pw-toolbar .mk-picker');picker.querySelector('.mk-picker-trigger').click();
+  const titleOption=[...picker.querySelectorAll('[role=option]')].find(node=>node.textContent.includes('Başlık'));assert.ok(titleOption,'custom sort offers title choice');titleOption.click();assert.deepStrictEqual(seen[0],{sort:'title',cursor:null});
+  assert.equal(r.querySelectorAll('select').length,0,'source sort uses custom menu');
   assert.ok([...r.querySelectorAll('button')].some((b) => b.textContent === 'Kaynaktan daha fazla yükle'), 'uzak imleç varsa kaynaktan yükle');
 }
 // 4) Boş durumlar: kaynak yok / yüklü içerikte eşleşme yok (uzak imleç) / filtre sonucu yok
@@ -54,10 +57,22 @@ const vmFor = (items, over = {}) => {
 }
 // 5) Çip + sabitleme erişilebilirliği
 {
-  const r = root(); const vm = vmFor([item('a')], { query: { durations: ['under10'] }, vm: { pinned: ['s1'] } });
+  const r = root(); const vm = vmFor([item('a')], { query: { durations: ['under10'] }, vm: { pinned: ['s1'],drawerOpen:true } });
   CUI.renderCatalog(r, vm, {}); assert.strictEqual(r.querySelectorAll('.pw-chip').length, 1); assert.strictEqual(r.querySelector('.pw-source__pin').getAttribute('aria-pressed'), 'true');
   assert.ok(r.querySelector('.pw-source__pin').getAttribute('aria-label').startsWith('Sabitlemeyi kaldır'));
   assert.ok([...r.querySelectorAll('button')].some((b) => b.textContent === 'Filtreler (1)'));
+}
+// 5b) Known language names, removable chips and unknown-only filter groups.
+{
+ const r=root(),seen=[];const vm=vmFor([item('a')],{query:{speechLanguages:['tr']},vm:{filtersOpen:true,speechLanguagesAvailable:['en','tr'],subtitleLanguagesAvailable:['en'],durationsAvailable:true}});
+ CUI.renderCatalog(r,vm,{onQuery:patch=>seen.push(patch),onRemoveChip:chip=>seen.push(chip)});
+ assert.ok(r.textContent.includes('Türkçe'),'languages are full localized names');
+ assert.equal(r.querySelectorAll('input[type=checkbox],input[type=radio]').length,0,'filters use accessible pressed segments');
+ const en=r.querySelector('[data-filter="speechLanguages:en"]');en.click();assert.deepEqual(seen[0].speechLanguages,['tr','en']);
+ r.querySelector('.pw-chip button').click();assert.deepEqual(seen[1],{field:'speechLanguages',value:'tr'});
+ const unknown=root();CUI.renderCatalog(unknown,vmFor([item('u',{durationSeconds:null,subtitleLanguages:null})],{vm:{filtersOpen:true,speechLanguagesAvailable:['und'],subtitleLanguagesAvailable:['und'],durationsAvailable:false}}),{});
+ assert.ok(!unknown.querySelector('[data-filter^="speechLanguages:"]'));assert.ok(!unknown.querySelector('[data-filter^="durations:"]'));assert.equal(unknown.querySelectorAll('.pw-row__badges .pw-badge').length,0,'unknown subtitle claims do not become badges');
+ const missing=root();let located=false;CUI.renderCatalog(missing,vmFor([item('m',{kind:'local',fileMissing:true})],{vm:{kind:'local'}}),{onLocate:()=>{located=true;}});missing.querySelector('.pw-row__actions button').click();assert.equal(located,true,'missing-file action reaches integration owner');
 }
 // 6) Transkript: etkin satır, zaman düğmesi seek, Türkçe katlamalı vurgu, belirsiz eşleşme, çeviri yok
 {

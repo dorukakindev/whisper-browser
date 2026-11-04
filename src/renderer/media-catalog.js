@@ -5,7 +5,7 @@
   const openButtons = document.querySelectorAll('[data-media-catalog-open], #mediaCatalogOpen');
   if (!dialog || !root || !openButtons.length) return;
 
-  const state = { items: [], watchItems: [], section: 'movie', search: '', status: 'all', favorite: false, conditions: {originalLanguages:[],productionCountries:[],directorIds:[]}, conditionUnknown:'exclude',
+  const state = { items: [], watchItems: [], section: 'movie', search: '', status: 'all', favorite: false, sort:'recommended', conditions: {originalLanguages:[],productionCountries:[],directorIds:[]}, conditionUnknown:'exclude', filtersOpen:false,
     selected: null, mode: 'list', draft: null, busy: false, message: '', error: false, importData: null, importIds: new Set(), removeId: null, visibleCount: 40, session: 0, opener: null };
   const posterCache = new Map();
   // Afiş gövdeleri data: URL'si olarak bellekte durur (onlarca/yüzlerce KB
@@ -26,7 +26,7 @@
       if (!target.isConnected) return;
       const image = safePoster(result?.image);
       if (!image) return;
-      target.replaceChildren(); const img = $('img'); img.src = image; img.alt = ''; img.loading = 'lazy'; target.append(img);
+      const metadata=target.querySelector('.mc-poster-meta');target.replaceChildren();if(metadata)target.append(metadata); const img = $('img'); img.src = image; img.alt = ''; img.loading = 'lazy'; target.append(img);
     });
   }
   const posterObserver = new IntersectionObserver(entries => {
@@ -52,7 +52,7 @@
     const node = $('button', className, text); node.type = 'button'; node.disabled = state.busy;
     node.addEventListener('click', callback); return node;
   };
-  const safePoster = value => typeof value === 'string' && /^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(value) && value.length < 8_000_000 ? value : '';
+  const safePoster = value => typeof value === 'string' && /^data:image\/(?:png|jpeg|webp|avif);base64,[a-z0-9+/=]+$/i.test(value) && value.length < 8_000_000 ? value : '';
   const catalogType = item => item.kind === 'series' || item.type === 'series' ? 'series' : 'movie';
   const itemId = item => String(item?.id || '');
   const find = id => state.items.find(item => itemId(item) === String(id));
@@ -133,7 +133,7 @@
   }
   function filtered() {
     const query = WhisperTextFold.search(state.search).trim();
-    return state.items.filter(item => {
+    const rows = state.items.filter(item => {
       if (state.section === 'watchlist'
         ? !(['planned', 'watching'].includes(item.watchStatus) || (item.episodes || []).some(episode => ['planned', 'watching'].includes(episode.watchStatus)))
         : catalogType(item) !== state.section) return false;
@@ -144,12 +144,17 @@
       const result=window.CatalogConditions.matchConditions(window.CatalogConditions.normalizeCatalogFacts(item),state.conditions);
       return state.conditionUnknown==='only'?result==='unknown':result==='yes'||(state.conditionUnknown==='include'&&result==='unknown');
     });
+    // The persisted catalog order is the existing default. New entries are appended by the store.
+    if(state.sort==='newest')rows.reverse();
+    else if(state.sort==='year')rows.sort((a,b)=>(Number(b.year)||0)-(Number(a.year)||0));
+    else if(state.sort==='title')rows.sort((a,b)=>String(a.title||'').localeCompare(String(b.title||''),english()?'en':'tr'));
+    return rows;
   }
   function poster(item, className) {
     const shell = $('div', className); const image = safePoster(item?.posterImage);
     if (image) { const img = $('img'); img.src = image; img.alt = ''; img.loading = 'lazy'; shell.append(img); }
     else {
-      shell.append($('span', 'mc-poster-empty', catalogType(item) === 'series' ? 'DİZİ' : 'FİLM'));
+      shell.append($('span', 'mc-poster-empty', window.PlayerUiKit.initials(item.title || '')), $('span','mc-poster-fallback',english()?'Artwork unavailable':'Afiş henüz yok'));
       if (item?.hasPoster && itemId(item)) { shell.dataset.posterId = itemId(item); queueMicrotask(() => {
         if (!shell.isConnected) return;
         if (className === 'mc-detail-poster') loadPoster(shell, itemId(item));
@@ -160,9 +165,23 @@
   }
   function renderHeader() {
     const header = $('header', 'mc-header');
-    const brand = $('div', 'mc-brand'); brand.append($('span', 'mc-eyebrow', 'YEREL ARŞİV'), $('h2', '', 'Film ve dizi kataloğu'));
-    header.append(brand, button('Kapat', close, 'mc-close'));
-    return header;
+    const brand = $('div', 'mc-brand'); brand.append($('span', 'mc-eyebrow', english()?'FILMS AND SERIES':'FİLMLER VE DİZİLER'), $('h2', '', english()?'Film and series catalog':'Film ve dizi kataloğu'));
+    const closeButton=button('',close,'mc-close');closeButton.setAttribute('aria-label',english()?'Close':'Kapat');closeButton.title=english()?'Close':'Kapat';closeButton.append(window.PlayerUiKit.icon('close'));header.append(brand,closeButton);return header;
+  }
+  function renderActions(){
+    const actions=$('div','mc-header-actions');
+    if(state.mode==='list'){
+      const add=button(english()?'Add film':'Film ekle',()=>edit(null,'movie'),'mc-primary');add.prepend(window.PlayerUiKit.icon('plus'));actions.append(add,button(english()?'Add series':'Dizi ekle',()=>edit(null,'series'),'mc-ghost'));
+      actions.append(window.PlayerUiKit.menuButton({label:english()?'Library tools':'Kütüphane araçları',icon:'more',items:[
+        {label:english()?'Import old library':'Eski arşivi içe aktar',onSelect:()=>previewImport()},
+        {label:english()?'Scan folder':'Klasör tara',onSelect:()=>previewImport('folder-preview')},
+        {label:english()?'Compare folder changes':'Klasör değişikliklerini karşılaştır',onSelect:()=>previewLibraryFolder()},
+        {label:english()?'Workspace package':'Çalışma paketi',onSelect:()=>{state.mode='package';render();}},
+        {label:english()?'Merge duplicates':'Kopyaları birleştir',onSelect:()=>{state.dupes=null;state.dupeError='';state.mode='dupes';render();}},
+        {label:english()?'Relink paths':'Yolları yeniden bağla',onSelect:()=>{state.relink||={oldPrefix:'',newPrefix:'',rows:null,applyResult:null};state.mode='relink';render();}}
+      ]}));
+    }
+    return actions;
   }
   function renderNav() {
     const nav = $('nav', 'mc-nav'); nav.setAttribute('aria-label', 'Katalog bölümleri');
@@ -171,72 +190,68 @@
         if (key === 'resume') { state.mode = 'resume'; state.resumeWatch = undefined; state.resumeQueue = undefined; } else { state.section = key; state.mode = 'list'; }
         render();
       });
+      if(key==='watchlist')control.append($('span','mc-nav-count',state.items.filter(item=>['planned','watching'].includes(item.watchStatus)||(item.episodes||[]).some(ep=>['planned','watching'].includes(ep.watchStatus))).length));
       control.setAttribute('aria-current', key === 'resume' ? (state.mode === 'resume' ? 'page' : 'false') : (state.mode === 'list' && state.section === key ? 'page' : 'false')); nav.append(control);
     }
     return nav;
   }
   function conditionControls() {
-    const details=$('details','mc-library-panel mc-condition-panel');
-    details.open=Object.values(state.conditions).some(values=>values.length>0);
-    details.append($('summary','',english()?'Original language, production country & director':'Özgün dil, yapım ülkesi ve yönetmen'));
+    const panel=$('section','mc-condition-panel');panel.setAttribute('aria-label',english()?'Catalog filters':'Katalog filtreleri');
     const fields=$('div','mc-condition-grid');
     const names=type=>{try{return new Intl.DisplayNames([english()?'en':'tr'],{type});}catch{return null;}};
     const languageNames=names('language'),countryNames=names('region');
     const languages=[...new Set(state.items.map(row=>window.CatalogConditions.normalizeCatalogFacts(row).originalLanguage).filter(Boolean))].sort();
     const countries=[...new Set(state.items.flatMap(row=>row.productionCountries||[]))].sort();
     const directors=new Map();
-    for(const item of state.items){for(const person of item.directorPeople||[])directors.set(person.id,person.name);for(const id of item.directorIds||[])if(!directors.has(id))directors.set(id,id);}
+    for(const item of state.items){for(const person of item.directorPeople||[])directors.set(person.id,person.name);for(const id of item.directorIds||[])if(!directors.has(id))directors.set(id,(item.directors||[])[(item.directorIds||[]).indexOf(id)]||id);}
     const controls=[
-      ['originalLanguages',english()?'Original language':'Özgün dil',languages.map(value=>[value,languageNames?.of(value)||value])],
-      ['productionCountries',english()?'Production country':'Yapım ülkesi',countries.map(value=>[value,countryNames?.of(value)||value])],
-      ['directorIds',english()?'Director identity':'Yönetmen kimliği',[...directors].sort((a,b)=>a[1].localeCompare(b[1])).map(([id,name])=>[id,name+' · TMDB '+id.split(':').at(-1)])],
+      ['originalLanguages',english()?'Language':'Dil',languages.map(value=>[value,languageNames?.of(value)||value])],
+      ['productionCountries',english()?'Country':'Ülke',countries.map(value=>[value,countryNames?.of(value)||value])],
+      ['directorIds',english()?'Director':'Yönetmen',[...directors].sort((a,b)=>a[1].localeCompare(b[1])).map(([id,name])=>[id,name])]
     ];
-    for(const [key,label,values] of controls)fields.append(selectField(label,state.conditions[key][0]||'',[['',english()?'Any':'Tümü'],...values],value=>{state.conditions[key]=value?[value]:[];renderCards();}));
-    fields.append(selectField(english()?'Missing required metadata':'Gerekli metadata eksikse',state.conditionUnknown,[['exclude',english()?'Exclude unknowns':'Bilinmeyeni dışla'],['include',english()?'Include and label unknowns':'Bilinmeyeni işaretleyerek göster'],['only',english()?'Only unknowns':'Yalnız bilinmeyenler']],value=>{state.conditionUnknown=value;renderCards();}));
-    details.append(fields,$('p','mc-muted',english()?'Conditions combine with AND. Dubbing language and director-name similarity are not used as original-language or identity evidence.':'Koşullar VE ile birleşir. Dublaj dili özgün dil sayılmaz; yönetmen adı benzerliği kimlik eşleşmesi sayılmaz.'));
-    details.append(button(english()?'Clear conditions':'Koşulları temizle',()=>{state.conditions={originalLanguages:[],productionCountries:[],directorIds:[]};state.conditionUnknown='exclude';render();}));
-    return details;
+    const selectedLabels=controls.flatMap(([key,,values])=>values.filter(([v])=>state.conditions[key].includes(v)).map(([,label])=>label));
+    const summary=button('',()=>{state.filtersOpen=!state.filtersOpen;render();},'mc-filter-summary');summary.setAttribute('aria-expanded',String(state.filtersOpen));summary.setAttribute('aria-controls','mcFilterFields');
+    summary.append($('strong','',english()?'Filters':'Filtreler'),$('span','mc-filter-applied',selectedLabels.join(' · ')||(english()?'All languages · All countries · All directors':'Tüm diller · Tüm ülkeler · Tüm yönetmenler')),$('span','',state.filtersOpen?(english()?'Close ⌃':'Kapat ⌃'):(english()?'Edit ⌄':'Düzenle ⌄')));panel.append(summary);
+    const content=$('div','mc-filter-body');content.id='mcFilterFields';content.hidden=!state.filtersOpen;
+    for(const [key,label,values]of controls){
+      const choices=[['',english()?'Any':'Tümü'],...values];const field=selectField(label,state.conditions[key][0]||'',choices,value=>{state.conditions[key]=value?[value]:[];render();});
+      const original=field.querySelector('select');original.hidden=true;original.tabIndex=-1;original.dataset.mkProxy='';
+      field.append(window.PlayerUiKit.select({label,value:original.value,options:choices.map(([value,label])=>({value,label,description:key==='directorIds'&&value?'TMDB '+value.split(':').at(-1):undefined})),searchable:true,onChange:value=>{original.value=value;original.dispatchEvent(new Event('change',{bubbles:true}));}}));fields.append(field);
+    }
+    fields.append(selectField(english()?'Missing metadata':'Metadata eksikse',state.conditionUnknown,[['exclude',english()?'Exclude unknowns':'Bilinmeyeni dışla'],['include',english()?'Include and label unknowns':'Bilinmeyeni işaretleyerek göster'],['only',english()?'Only unknowns':'Yalnız bilinmeyenler']],value=>{state.conditionUnknown=value;render();}));
+    fields.append(selectField(english()?'Watch status':'İzleme durumu',state.status,[['all',english()?'All statuses':'Tüm durumlar'],...Object.entries(statusLabels)],value=>{state.status=value;render();}));
+    const favorite=button(english()?'Favorites only':'Yalnız favoriler',()=>{state.favorite=!state.favorite;render();},'mc-favorite-filter');favorite.setAttribute('aria-pressed',String(state.favorite));fields.append(favorite);
+    const footer=$('div','mc-filter-footer');footer.append($('span','mc-muted',english()?'Conditions combine with AND; exact director identities are preserved.':'Koşullar VE ile birleşir; tam yönetmen kimlikleri korunur.'),button(english()?'Clear':'Temizle',()=>{state.conditions={originalLanguages:[],productionCountries:[],directorIds:[]};state.conditionUnknown='exclude';state.status='all';state.favorite=false;render();}),button(english()?'Show titles':'Yapımları göster',()=>{state.filtersOpen=false;render();},'mc-primary'));
+    content.append(fields,footer);panel.append(content);
+    return panel;
   }
   function renderList() {
-    if (state.section === 'calendar') return renderCalendar();
-    const body = $('div', 'mc-content');
-    const controls = $('div', 'mc-toolbar');
-    const search = $('input'); search.type = 'search'; search.placeholder = 'Başlık, yıl veya konu ara'; search.setAttribute('aria-label', 'Katalogda ara'); search.value = state.search;
-    let searchTimer = null;
-    search.addEventListener('input', () => {
-      state.search = search.value;
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(renderCards, 120);
-    });
-    const status = $('select'); status.setAttribute('aria-label', 'İzleme durumuna göre filtrele');
-    for (const [key, label] of [['all', 'Tüm durumlar'], ...Object.entries(statusLabels)]) { const option = $('option', '', label); option.value = key; status.append(option); }
-    status.value = state.status; status.addEventListener('change', () => { state.status = status.value; renderCards(); });
-    const favorite = $('label', 'mc-favorite-filter'); const check = $('input'); check.type = 'checkbox'; check.checked = state.favorite;
-    check.addEventListener('change', () => { state.favorite = check.checked; renderCards(); }); favorite.append(check, $('span', '', 'Yalnız favoriler'));
-    controls.append(search, status, favorite); body.append(controls,conditionControls());
-    const actions = $('div', 'mc-list-actions');
-    actions.append(button('Film ekle', () => edit(null, 'movie'), 'mc-primary'), button('Dizi ekle', () => edit(null, 'series')),
-      button('Eski arşivi içe aktar', () => previewImport()), button('Klasör tara', () => previewImport('folder-preview')),
-      button(english()?'Compare folder changes':'Klasör değişikliklerini karşılaştır', () => previewLibraryFolder()),
-      button('Çalışma paketi', () => { state.mode = 'package'; render(); }),
-      button('Kopyaları birleştir', () => { state.dupes = null; state.dupeError = ''; state.mode = 'dupes'; render(); }),
-      button('Yolları yeniden bağla', () => { state.relink ||= { oldPrefix: '', newPrefix: '', rows: null, applyResult: null }; state.mode = 'relink'; render(); })); body.append(actions);
-    const grid = $('div', 'mc-grid'); grid.id = 'mcGrid'; body.append(grid); renderCards(grid);
-    return body;
+    if(state.section==='calendar')return renderCalendar();
+    const body=$('div','mc-content');
+    const controls=$('div','mc-toolbar');const search=$('input');search.type='search';search.placeholder=english()?'Search title, year or synopsis':'Başlık, yıl veya konu ara';search.setAttribute('aria-label',english()?'Search catalog':'Katalogda ara');search.value=state.search;
+    let searchTimer=null;search.addEventListener('input',()=>{state.search=search.value;clearTimeout(searchTimer);searchTimer=setTimeout(renderCards,120);});
+    const quick=$('div','mc-quick-filters');
+    quick.append(window.PlayerUiKit.select({label:english()?'Watch status':'İzleme durumu',value:state.status,options:[['all',english()?'All':'Tümü'],...Object.entries(statusLabels)].map(([value,label])=>({value,label:t(label)})),onChange:value=>{state.status=value;render();}}),window.PlayerUiKit.select({label:english()?'Favorites':'Favoriler',value:state.favorite?'only':'all',options:[{value:'all',label:english()?'All':'Tümü'},{value:'only',label:english()?'Favorites only':'Yalnız favoriler'}],onChange:value=>{state.favorite=value==='only';render();}}),window.PlayerUiKit.select({label:english()?'Unknowns':'Bilinmeyenler',value:state.conditionUnknown,options:[['include',english()?'Include':'Dahil et'],['exclude',english()?'Exclude':'Dışla'],['only',english()?'Only unknowns':'Yalnız bilinmeyenler']].map(([value,label])=>({value,label})),onChange:value=>{state.conditionUnknown=value;render();}}));
+    for(const picker of quick.children){const trigger=picker.querySelector('.mk-picker-trigger'),value=trigger.querySelector('.mk-picker-label');trigger.title=trigger.getAttribute('aria-label')+': '+value.textContent;value.textContent=trigger.getAttribute('aria-label');}
+    const searchShell=$('div','mc-search');searchShell.append(window.PlayerUiKit.icon('search'),search);controls.append(searchShell,quick);body.append(controls,conditionControls());
+    const heading=$('div','mc-result-heading'),view=$('div','mc-result-tools'),sort=$('div','mc-sort');
+    sort.append($('span','mc-muted',english()?'View':'Görünüm'),window.PlayerUiKit.select({label:english()?'View':'Görünüm',value:state.sort,options:[['recommended',english()?'Recommended':'Önerilen'],['newest',english()?'Recently added':'Son eklenen'],['year',english()?'By year':'Yıla göre'],['title',english()?'By title':'Ada göre']].map(([value,label])=>({value,label})),onChange:value=>{state.sort=value;renderCards();}}));
+    view.append($('span','mc-result-count'),sort);heading.append($('h3','',state.section==='watchlist'?(english()?'Saved for later.':'Sana ayrılmış bir raf.'):(english()?'For a slow evening.':'Yavaş bir akşam için.')),view);body.append(heading);
+    const grid=$('div','mc-grid');grid.id='mcGrid';body.append(grid);renderCards(grid);return body;
   }
   function renderCards(existing) {
     const grid = existing || document.getElementById('mcGrid'); if (!grid) return; grid.replaceChildren();
     const rows = filtered();
-    const previousStatus=root.querySelector('.mc-condition-status');previousStatus?.remove();
-    const counts=$('p','mc-muted mc-condition-status',english()?rows.length+' titles shown; unknown metadata follows the selected policy.':rows.length+' yapım gösteriliyor; bilinmeyen metadata seçili kurala göre ele alınır.');
-    grid.before(counts);
+    const counts=root.querySelector('.mc-result-count')||grid.parentNode?.querySelector('.mc-result-count');if(counts){counts.textContent=rows.length+' '+(state.section==='movie'?(english()?'films':'film'):state.section==='series'?(english()?'series':'dizi'):(english()?'titles':'yapım'));counts.setAttribute('aria-live','polite');}
     if (!rows.length) { grid.append($('p', 'mc-empty', state.items.length ? 'Bu filtreye uyan yapım yok.' : 'Kataloğunuz boş. İlk filmi veya diziyi ekleyin.')); return; }
     for (const item of rows.slice(0, state.visibleCount)) {
-      const card = button('', () => show(item.id), 'mc-card');
+      const card = $('article','mc-card');card.addEventListener('click',event=>{if(!event.target.closest('button'))show(item.id);});
       if(window.CatalogConditions.matchConditions(window.CatalogConditions.normalizeCatalogFacts(item),state.conditions)==='unknown')card.append($('span','mc-condition-unknown',english()?'Required metadata unknown':'Gerekli metadata bilinmiyor')); card.setAttribute('aria-label', `${item.title || t('Adsız yapım')} ${english() ? 'details' : 'ayrıntılarını aç'}`);
-      card.append(poster(item, 'mc-card-poster'));
-      const info = $('div', 'mc-card-info'); info.append($('strong', '', item.title || t('Adsız yapım')));
-      info.append($('span', '', `${item.year || t('Yıl yok')} · ${t(typeLabels[catalogType(item)])} · ${t(statusLabels[item.watchStatus] || statusLabels.unspecified)}`));
+      const artwork=poster(item,'mc-card-poster');const meta=$('span','mc-poster-meta',[item.year,item.runtime?(item.runtime+' '+(english()?'min':'dk')):'',item.ratings?.imdb?('IMDb '+item.ratings.imdb):''].filter(Boolean).join(' · '));if(meta.textContent)artwork.append(meta);const open=button('',()=>show(item.id),'mc-card-open');open.setAttribute('aria-label',`${item.title||t('Adsız yapım')} ${english()?'details':'ayrıntılarını aç'}`);open.append(artwork);card.append(open);
+      const info = $('div', 'mc-card-info'),titleRow=$('div','mc-card-title-row'),title=button(item.title||t('Adsız yapım'),()=>show(item.id),'mc-card-title');
+      const alreadyTracked=['planned','watching','completed'].includes(item.watchStatus)||(item.episodes||[]).some(ep=>['planned','watching','completed'].includes(ep.watchStatus));
+      const save=button('',async()=>{if(alreadyTracked)return;const result=await api('save',{item:{id:item.id,watchStatus:'planned'}});if(result)await reload();},'mc-card-save');save.disabled=state.busy||alreadyTracked;save.setAttribute('aria-label',alreadyTracked?(english()?'Watch state already set':'İzleme durumu zaten kayıtlı'):(english()?'Add to watchlist':'İzlenecekler listesine ekle'));save.title=save.getAttribute('aria-label');save.append(window.PlayerUiKit.icon(alreadyTracked?'check':'plus'));titleRow.append(title,save);info.append(titleRow);
+      info.append($('span','mc-card-director',(item.directors||[]).join(', ')||(english()?'Director not added':'Yönetmen eklenmedi')));info.append($('span','mc-card-state',t(statusLabels[item.watchStatus]||statusLabels.unspecified)));
       if (item.favorite) info.append($('span', 'mc-fav-mark', '★ Favori'));
       const ratings = item.ratings || {};
       if (ratings.imdb || ratings.letterboxd || ratings.personal) info.append($('span', 'mc-ratings', [
@@ -339,6 +354,11 @@
       void api('remove', { id: item.id }).then(result => { if (result) { state.items = state.items.filter(row => itemId(row) !== itemId(item)); state.removeId = null; state.mode = 'list'; feedback('Yapım silindi.'); } });
     }, 'mc-danger'));
     if (state.removeId === item.id) actions.append(button('Vazgeç', () => { state.removeId = null; render(); }));
+    if(state.removeId!==item.id){
+      const secondary=[...actions.children].filter(node=>!node.classList.contains('mc-primary')&&node!==actions.firstChild);
+      if(secondary.length){const preserved=$('div','mc-detail-original-actions');preserved.hidden=true;
+        const menu=window.PlayerUiKit.menuButton({label:english()?'Manage title':'Yapım işlemleri',icon:'more',items:secondary.map(node=>({label:node.textContent,onSelect:()=>node.click(),disabled:node.disabled}))});secondary.forEach(node=>preserved.append(node));actions.append(menu,preserved);}
+    }
     text.append(actions); hero.append(text); body.append(hero);
     if (state.removeId === item.id) body.append($('p', 'mc-danger-note', 'Bu yapımı silmek üzeresiniz. Silme işlemini onaylayın veya vazgeçin.'));
     const assets = $('section', 'mx-assets'); assets.append($('h4', '', english() ? 'Watch in Turkish' : 'Türkçe izleme hazırlığı'));
@@ -356,7 +376,7 @@
       } else if (await play(item)) window.MediaExperience?.openVoice();
     }, 'mc-primary'));
     workflow.append(button(english()?'Activity':'İşlem merkezi', () => window.MediaExperience?.openTasks())); assets.append(workflow); body.append(assets);
-    body.append(sourceControls(item), renderLibrarySources(item), renderLibraryLocks(item));
+    body.append(window.PlayerUiKit.accordion({title:english()?'Sources, editions & extras':'Kaynaklar, sürümler ve ek içerik',children:[sourceControls(item),renderLibrarySources(item)],open:false}),renderLibraryLocks(item));
     if (catalogType(item) === 'series') {
       const heading = $('div', 'mc-section-heading'); heading.append($('h4', '', 'Bölümler'), button('Bölüm ekle', () => editEpisode(item)));
       body.append(heading); const list = $('div', 'mc-episodes');
@@ -808,32 +828,33 @@
     // konumdaki elemana geri ver (modal içinde odak BODY'ye düşüyordu).
     const FOCUSABLES = 'button, input, select, textarea, a[href], [tabindex]';
     const focusIdx = [...root.querySelectorAll(FOCUSABLES)].indexOf(document.activeElement);
-    root.replaceChildren(renderHeader(), renderNav());
+    root.replaceChildren(renderHeader(), renderActions(), renderNav());
     if (state.message) { const message = $('p', state.error ? 'mc-feedback mc-error' : 'mc-feedback', state.message); message.setAttribute('role', state.error ? 'alert' : 'status'); root.append(message); }
     root.append(state.mode === 'library-preview' ? renderLibraryPreview() : state.mode === 'metadata' ? renderMetadata() : state.mode === 'package' ? renderPackage() : state.mode === 'detail' ? renderDetail() : state.mode === 'form' ? renderForm() : state.mode === 'episode' ? renderEpisodeForm() : state.mode === 'import' ? renderImport() : state.mode === 'resume' ? renderResume() : state.mode === 'dupes' ? renderDupes() : state.mode === 'relink' ? renderRelink() : renderList());
+    window.PlayerUiKit?.enhanceControls(root);
     if (focusIdx >= 0) {
       const next = root.querySelectorAll(FOCUSABLES)[focusIdx] || root.querySelector('.mc-close');
       next?.focus();
-    } else if (!root.contains(document.activeElement)) {
+    } else if (!root.contains(document.activeElement)&&document.activeElement!==dialog) {
       // Modal açıkken odak diyalog dışına kaçtıysa (BODY vb.) ilk odaklanabilir
       // elemana geri al — klavye kullanıcısı modal içinde kalmalı.
-      root.querySelector('.mc-close')?.focus();
+      dialog.focus({preventScroll:true});
     }
     root.setAttribute('aria-busy', state.busy ? 'true' : 'false');
     if (changedView) dialog.scrollTop = state.mode === 'list' ? state.listScroll.get(viewKey) || 0 : 0;
   }
   async function open(options = {}) {
-    if (dialog.open) { if(options.conditions){state.mode='list';render();const panel=root.querySelector('.mc-condition-panel');if(panel){panel.open=true;panel.scrollIntoView({block:'nearest'});panel.querySelector('select')?.focus();}}else if(options.mode==='package'){cancelPreviewTokens();state.mode='package';render();}else if(options.id&&find(options.id))show(options.id);return; }
+    if (dialog.open) { if(options.conditions){state.mode='list';state.filtersOpen=true;render();const panel=root.querySelector('.mc-condition-panel');if(panel){panel.scrollIntoView({block:'nearest'});panel.querySelector('button')?.focus();}}else if(options.mode==='package'){cancelPreviewTokens();state.mode='package';render();}else if(options.id&&find(options.id))show(options.id);return; }
     state.session++; state.busy = false; state.opener = options.opener || document.activeElement;
     const sessionId = state.session;
     if (['movie', 'series', 'watchlist'].includes(options.section)) state.section = options.section;
-    dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion();
-    state.mode = 'list'; state.message = ''; render(); root.querySelector('.mc-close')?.focus();
+    dialog.showModal();dialog.classList.add('mk-dialog');dialog.tabIndex=-1;dialog.focus({preventScroll:true});if(typeof requestAnimationFrame==='function')window.PlayerUiKit.bindDialog(dialog); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion();
+    state.mode = 'list'; state.message = ''; render();dialog.focus({preventScroll:true});
     if (!await reload() || sessionId !== state.session || !dialog.open) return;
     if (options.id && find(options.id)) show(options.id);
     else if (options.mode === 'package') { state.mode='package';render(); }
     else if (options.mode === 'folder') await previewImport('folder-preview');
-    if(options.conditions){const panel=root.querySelector('.mc-condition-panel');if(panel){panel.open=true;panel.scrollIntoView({block:'nearest'});panel.querySelector('select')?.focus();}}
+    if(options.conditions){state.filtersOpen=true;render();const panel=root.querySelector('.mc-condition-panel');if(panel){panel.scrollIntoView({block:'nearest'});panel.querySelector('button')?.focus();}}
   }
   async function openMetadata(id){await open({id});if(!dialog.open||state.selected!==id)return;const item=find(id);if(!item)return;state.metadataQuery=item.title;state.metadataResults=[];state.metadata=null;state.seasonData=null;state.mode='metadata';render();}
   window.MediaCatalogUI = Object.freeze({ open, close, openMetadata });

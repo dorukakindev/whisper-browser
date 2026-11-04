@@ -74,7 +74,7 @@ function registerMediaHub({app,ipcMain,authorized,dialog,owner,inspectMedia,auth
     try{await fsp.stat(row.path);exists[row.path]=true;}catch(error){if(error.code==='ENOENT')exists[row.path]=false;}
    }
    const preview=require('./catalog-maintenance-model').buildMaintenancePreview({catalog,roots,exists});
-   return {ok:true,preview,titles,partial:library.length>catalog.length||sources.length>1000};
+   return {ok:true,preview,titles,rootChecks:roots,untrackedSources:catalog.flatMap(item=>item.sources.filter(source=>!source.rootId).map(source=>({workId:item.workId,path:source.path}))),partial:library.length>catalog.length||sources.length>1000};
   }
   if(input.action==='folders'){for(const folder of folders)if(folder.enabled){watch(folder);if(!files.has(folder.id))await scan(folder).catch(e=>{folder.error=e.message;});}return {ok:true,folders:folders.map(publicFolder)};}
   if(input.action==='folder-add'){const picked=await dialog.showOpenDialog(owner(),{properties:['openDirectory']});if(picked.canceled)return {ok:true,canceled:true};const real=await fsp.realpath(picked.filePaths[0]);let folder=folders.find(r=>r.path.toLowerCase()===real.toLowerCase());if(!folder){if(folders.length>=30)throw Error('Folder watch limit reached.');folder={id:randomUUID(),path:real,enabled:true};folders.push(folder);persist();}folder.enabled=true;persist();await scan(folder);watch(folder);return {ok:true,folder:publicFolder(folder)};}
@@ -127,8 +127,11 @@ function registerMediaHub({app,ipcMain,authorized,dialog,owner,inspectMedia,auth
    try{
    if(input.action==='relink-apply'){
    const plan=plans.get(input.token);if(!plan||plan.sender!==event.sender.id||Date.now()-plan.at>600000)throw Error('Relink preview expired.');
+   const selected=input.selectedIndices;
+   if(selected!==undefined&&(!Array.isArray(selected)||!selected.length||selected.length>plan.patches.length||new Set(selected).size!==selected.length||selected.some(index=>!Number.isSafeInteger(index)||index<0||index>=plan.patches.length)))throw Error('Choose valid, unique relink candidates from this preview.');
+   const patches=selected===undefined?plan.patches:selected.map(index=>plan.patches[index]);
    // Check every source before writing. Each record remains usable if a later record fails.
-   const verified=plan.patches.map(row=>{const item=catalogStore().get(row.id),old=row.episodeId?item?.episodes.find(ep=>ep.id===row.episodeId)?.source:item?.source;if(old?.value!==row.old||old.imported===true||fs.existsSync(row.old))throw Error('The source changed after preview; scan again.');
+   const verified=patches.map(row=>{const item=catalogStore().get(row.id),old=row.episodeId?item?.episodes.find(ep=>ep.id===row.episodeId)?.source:item?.source;if(old?.value!==row.old||old.imported===true||fs.existsSync(row.old))throw Error('The source changed after preview; scan again.');
     const root=fs.realpathSync(plan.folderPath),next=fs.realpathSync(row.next);
     if(!beneath(next,root))throw Error('The replacement left the reviewed folder.');
     return {...row,file:inspectMedia(next)};});

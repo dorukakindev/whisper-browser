@@ -1,0 +1,70 @@
+/* Approved V3 cinema controls. Scoped to media surfaces; no browser chrome reset. */
+:root { --mk-bg:#121314; --mk-surface:#1b1c1e; --mk-text:#eee9e1; --mk-muted:#bab4ab; --mk-line:rgba(238,233,225,.18); --mk-gold:#d5a35c; --mk-ease:cubic-bezier(.16,1,.3,1); --mk-fast:120ms; --mk-state:200ms; --mk-panel:320ms; --mk-hero:600ms; --mk-ambient:900ms; }
+:is(#whisperV3Dialog,#mediaCatalogDialog,#playerSourceCatalogV3,#playerWorkspaceV3,#assistantArtifactDialog) { --bg-0:var(--mk-bg);--bg-1:var(--mk-surface);--bg-2:var(--mk-surface);--bg-3:var(--mk-surface);--text:var(--mk-text);--text-dim:var(--mk-muted);--text-muted:var(--mk-muted);--border:var(--mk-line);--accent:var(--mk-gold);--pw-bg:var(--mk-bg);--pw-surface:var(--mk-surface);--pw-fast:var(--mk-fast);--pw-ease:var(--mk-ease);--mv-fast:var(--mk-fast); }
+:is(#whisperV3Dialog,#mediaCatalogDialog,#playerSourceCatalogV3,#playerWorkspaceV3,#assistantArtifactDialog) * { transition-property:transform,opacity; }
+.mk-dialog,.mk-popup { color:var(--mk-text);font-family:'IBM Plex Sans',sans-serif; font-variant-numeric:tabular-nums; }
+.mk-dialog { background:var(--mk-bg);border:1px solid var(--mk-line);border-radius:10px;box-shadow:0 30px 100px #0009;padding:0; }
+.mk-dialog::backdrop,#mediaCatalogDialog::backdrop { background:rgba(8,9,10,.72);backdrop-filter:blur(8px); }
+.mk-dialog:focus { outline:none; }
+.mk-dialog :where(button,input,textarea):focus { outline:none; }
+.mk-dialog :where(button,input,textarea):focus-visible,.mk-popup :focus-visible,.mk-picker-trigger:focus-visible { outline:2px solid var(--mk-gold);outline-offset:3px;border-radius:8px; }
+.mk-dialog :where(button,input,textarea),.mk-picker-trigger,.mk-menu-item { font:inherit;font-size:13px; }
+.mk-dialog .pw-btn,.mk-picker-trigger { min-height:36px;min-width:32px;display:inline-flex;gap:8px;align-items:center;justify-content:center;padding:8px 13px;color:var(--mk-text);background:transparent;border:1px solid var(--mk-line);border-radius:8px;cursor:pointer;transition:opacity var(--mk-fast),transform var(--mk-fast); }
+.mk-dialog .pw-btn:hover,.mk-picker-trigger:hover { background:#ffffff09; }
+.mk-dialog .pw-btn:active,.mk-picker-trigger:active { transform:scale(.96); }
+.mk-dialog .pw-btn:disabled,.mk-dialog button:disabled,.mk-popup button:disabled { opacity:1;color:#bdb6ac;background:#242526;cursor:not-allowed; }
+.mk-dialog .pw-btn-primary,.mk-dialog .pw-btn.is-primary { color:#17130d;background:var(--mk-gold);border-color:var(--mk-gold);font-weight:600; }
+.mk-icon-button { width:36px;padding:7px!important;flex:none; }
+.mk-dialog .pw-icon,.mk-popup .pw-icon,.mk-picker .pw-icon { width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round; }
+.mk-chip { display:inline-flex;align-items:center;gap:6px;min-height:26px;border:1px solid var(--mk-line);border-radius:20px;padding:3px 9px;font-size:12px;line-height:1.4;color:var(--mk-muted); }
+.mk-chip-gold { color:var(--mk-gold);border-color:#d5a35c50;background:#d5a35c0c; }
+.mk-picker { display:inline-flex;position:relative;min-width:0;max-width:100%;vertical-align:middle; }
+.mk-picker-trigger { width:100%;justify-content:space-between;text-align:left; }
+.mk-picker-label { overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0; }
+.mk-popup { position:fixed;inset:auto;margin:0;max-height:min(380px,calc(100vh - 32px));padding:6px;background:var(--mk-surface);border:1px solid #ffffff2b;border-radius:12px;box-shadow:0 16px 50px #000a;overflow:auto; }
+.mk-popup-list { display:grid;gap:2px; }
+.mk-menu-item { min-height:36px;width:100%;display:flex;gap:10px;align-items:center;text-align:left;border:0;border-radius:7px;color:var(--mk-text);background:transparent;padding:9px 10px;cursor:pointer; }
+.mk-menu-item:hover,.mk-menu-item[aria-selected=true] { background:#ffffff0c; }
+.mk-menu-item[aria-selected=true]>.pw-icon { color:var(--mk-gold); }
+.mk-menu-copy { min-width:0;flex:1;display:grid;gap:4px; }
+.mk-menu-copy small { color:var(--mk-muted);font-size:12px;overflow-wrap:anywhere; }
+.mk-menu-avatar { width:30px;height:30px;border-radius:50%;object-fit:cover; }
+.mk-menu-search { box-sizing:border-box;width:100%;min-height:38px;margin:0 0 6px;padding:8px 10px;background:var(--mk-bg);border:1px solid var(--mk-line);border-radius:7px;color:var(--mk-text); }
+.mk-menu-empty { padding:12px;font-size:13px;color:var(--mk-muted); }
+.mk-accordion { border-top:1px solid var(--mk-line);min-width:0; }
+.mk-accordion-toggle { width:100%;min-height:44px;padding:10px 0;display:flex;gap:10px;align-items:center;text-align:left;background:transparent;color:var(--mk-text);border:0;font:inherit;cursor:pointer; }
+.mk-accordion-toggle>span { flex:1; }.mk-accordion-toggle>small { color:var(--mk-muted);font-size:12px; }
+.mk-accordion-toggle>.pw-icon:last-child { transition:transform var(--mk-state) var(--mk-ease); }
+.mk-accordion-toggle[aria-expanded=true]>.pw-icon:last-child { transform:rotate(180deg); }
+.mk-accordion-content { padding:8px 0 18px;min-width:0; }
+.mk-toggle { width:32px;height:32px;border:1px solid var(--mk-line);border-radius:8px;background:transparent;color:transparent;cursor:pointer;display:inline-grid;place-items:center;vertical-align:middle;margin-right:7px; }
+.mk-toggle[aria-pressed=true] { color:var(--mk-gold);border-color:#d5a35c70;background:#d5a35c0c; }
+.mk-dialog [hidden],.mk-popup [hidden] { display:none!important; }
+.mk-dialog label { display:grid;gap:8px;min-width:0; }
+.mk-dialog input:not([type=range]),.mk-dialog textarea { background:#1b1c1e;border:1px solid var(--mk-line);border-radius:8px;padding:10px 12px;color:var(--mk-text);min-width:0;box-sizing:border-box; }
+@media(prefers-reduced-motion:reduce) { .mk-dialog *,.mk-popup * { animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important; } }
+html[data-cinema-motion=off] .mk-dialog *,html[data-cinema-motion=reduced] .mk-dialog * { animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important; }
+html[data-media-window-inactive=true] :is(.mk-dialog,.mk-popup,#whisperV3Dialog,#playerWorkspaceV3,#playerSourceCatalogV3,#mediaCatalogRoot) * { animation-play-state:paused!important; }
+/* Native fidelity fixes: approved composition and indicator are preserved. */
+.pw-page-label{display:none}.player-workspace-v3 .pw-page-label,.source-catalog-open .pw-page-label{display:inline;font-weight:600}.player-workspace-v3 #playerTitle,.player-workspace-v3 #playerMeta,.source-catalog-open #playerTitle,.source-catalog-open #playerMeta{display:none!important}
+:is(#whisperV3Dialog,#mediaCatalogDialog,#playerWorkspaceV3,#playerSourceCatalogV3,#assistantArtifactDialog),:is(#whisperV3Dialog,#mediaCatalogDialog,#playerWorkspaceV3,#playerSourceCatalogV3,#assistantArtifactDialog) *,.mk-popup{scrollbar-width:auto;scrollbar-color:auto}
+:is(#whisperV3Dialog,#mediaCatalogDialog,#playerWorkspaceV3,#playerSourceCatalogV3,#assistantArtifactDialog) ::-webkit-scrollbar,.mk-popup::-webkit-scrollbar{width:8px;height:8px}
+:is(#whisperV3Dialog,#mediaCatalogDialog,#playerWorkspaceV3,#playerSourceCatalogV3,#assistantArtifactDialog) ::-webkit-scrollbar-thumb,.mk-popup::-webkit-scrollbar-thumb{border-radius:8px;background:rgba(255,255,255,.14)}
+:is(#whisperV3Dialog,#mediaCatalogDialog,#playerWorkspaceV3,#playerSourceCatalogV3,#assistantArtifactDialog) ::-webkit-scrollbar-thumb:hover,.mk-popup::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.28)}
+:is(#whisperV3Dialog,#mediaCatalogDialog,#playerWorkspaceV3,#playerSourceCatalogV3,#assistantArtifactDialog) ::-webkit-scrollbar-button,.mk-popup::-webkit-scrollbar-button{display:none;width:0;height:0}
+:is(#whisperV3Dialog,#mediaCatalogDialog) [role=tab],#playerWorkspaceV3 .pw-tab,#playerSourceCatalogV3 .pw-kind{font-weight:600}
+:is(#playerWorkspaceV3,#playerSourceCatalogV3) .pw-btn--ghost{border:1px solid var(--mk-line)}
+/* Chromium's standard scrollbar-color takes precedence over pseudo-element styling. */
+:is(#whisperV3Dialog,#mediaCatalogDialog,#playerWorkspaceV3,#playerSourceCatalogV3,#assistantArtifactDialog),:is(#whisperV3Dialog,#mediaCatalogDialog,#playerWorkspaceV3,#playerSourceCatalogV3,#assistantArtifactDialog) *,.mk-popup{scrollbar-width:auto;scrollbar-color:auto}
+:is(#whisperV3Dialog,#mediaCatalogDialog,#playerWorkspaceV3,#playerSourceCatalogV3,#assistantArtifactDialog,.mk-popup)::-webkit-scrollbar{width:8px;height:8px}
+:is(#whisperV3Dialog,#mediaCatalogDialog,#playerWorkspaceV3,#playerSourceCatalogV3,#assistantArtifactDialog,.mk-popup)::-webkit-scrollbar-thumb{border-radius:8px;background:rgba(255,255,255,.14)}
+:is(#whisperV3Dialog,#mediaCatalogDialog,#playerWorkspaceV3,#playerSourceCatalogV3,#assistantArtifactDialog,.mk-popup)::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.28)}
+:is(#whisperV3Dialog,#mediaCatalogDialog,#playerWorkspaceV3,#playerSourceCatalogV3,#assistantArtifactDialog,.mk-popup)::-webkit-scrollbar-button{display:none;width:0;height:0}
+
+:is(#whisperV3Dialog,#mediaCatalogDialog,#playerWorkspaceV3,#playerSourceCatalogV3,#assistantArtifactDialog){scrollbar-gutter:stable}
+#whisperV3Dialog .button.ghost{border-color:var(--mk-line)}
+#whisperV3Dialog>.mtx-tabs button,#mediaCatalogRoot .mc-nav button{font-weight:600}
+#mediaCatalogRoot .mc-eyebrow{color:var(--mk-gold)}
+#playerSourceCatalogV3 .pw-main{scrollbar-width:auto;scrollbar-color:auto}
+.player-workspace-v3 .player-body,.source-catalog-open .player-body{transition:none}
+html[data-media-window-inactive=true] #assistantArtifactDialog *{animation-play-state:paused!important}
