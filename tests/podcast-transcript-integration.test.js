@@ -47,3 +47,15 @@ test('Workspace export, review and restore retain feed descriptors and source pi
  assert.deepEqual(restored.sourcePins(),['yt:channel']);
  assert.equal(restored.entries().rows[0].transcriptDescriptors[0].mime,'text/vtt');
 });
+
+test('Generic MIME is accepted for a declared timed transcript only when bytes match its format',async()=>{
+ const descriptor={url:'https://example.org/episode.srt',mime:'application/srt'};
+ const get=body=>fetchPodcastTranscript(descriptor,{
+  publicPin:async()=>({address:'8.8.8.8',family:4}),
+  pinnedRequest:async()=>({status:200,headers:new Headers({'content-type':'application/octet-stream'}),buffer:Buffer.from(body)})
+ });
+ const srt=await get('1\n00:00:00,000 --> 00:00:02,000\nExample\n');
+ assert.equal(srt.format,'srt');assert.equal(srt.timed,'yes');
+ assert.equal((await get('<html>Not a transcript</html>')).code,'mime-mismatch');
+ assert.equal((await get('WEBVTT\n\n00:00.000 --> 00:02.000\nExample')).code,'mime-mismatch');
+});

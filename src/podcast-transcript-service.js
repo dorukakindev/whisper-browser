@@ -20,9 +20,14 @@ async function fetchPodcastTranscript(descriptor, { signal, publicPin, pinnedReq
     const classification = Model.classifyTranscriptResponse({ descriptor, status:response.status,
       contentType:response.headers.get('content-type'), byteLength:response.buffer.length,
       retryAfterSeconds:Number(response.headers.get('retry-after')) || null });
-    if (!classification.ok) return classification;
+    const expectedTimedFormat = descriptor.mime === 'text/vtt' ? 'vtt'
+      : ['application/x-subrip','text/srt','application/srt'].includes(descriptor.mime) ? 'srt' : null;
+    const genericTimedResponse = classification.code === 'mime-mismatch' && expectedTimedFormat &&
+      ['application/octet-stream','text/plain'].includes(classification.got);
+    if (!classification.ok && !genericTimedResponse) return classification;
     const content = new TextDecoder('utf-8',{fatal:true}).decode(response.buffer);
     const format = Model.sniffTranscriptFormat(content);
+    if (genericTimedResponse && format.format !== expectedTimedFormat) return classification;
     // Markup and arbitrary JSON remain untimed text. Neither can supply renderer HTML.
     const untimed = format.format === 'markup' || /json/i.test(descriptor.mime || '');
     return { ok:true, format:untimed?'plain':format.format, timed:untimed?'no':format.timed,
