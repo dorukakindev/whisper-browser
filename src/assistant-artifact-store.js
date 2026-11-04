@@ -25,6 +25,11 @@
     if (body.type === 'matrix') body.cells.forEach((c) => { const k = `cell:${c.rowId}:${c.colId}`; if (k in e) { c.value = e[k]; c.status = e[k] ? 'user' : 'unknown'; c.userEdited = true; } });
     if (body.type === 'timeline') body.nodes.forEach((n) => { const k = `node:${n.id}`; if (k in e) { n.label = e[k]; n.userEdited = true; } });
     if (body.type === 'dossier') body.sections.forEach((s) => s.passages.forEach((p) => { const k = `passage:${p.id}`; if (k in e) { p.text = e[k]; p.userEdited = true; } }));
+    const spoilers = doc.userSpoilers || {};
+    const apply = (entry, key) => { if (Object.hasOwn(spoilers, key)) entry.spoiler = spoilers[key]; };
+    if (body.type === 'matrix') body.cells.forEach(c => apply(c, `cell:${c.rowId}:${c.colId}`));
+    if (body.type === 'timeline') body.nodes.forEach(n => apply(n, `node:${n.id}`));
+    if (body.type === 'dossier') body.sections.forEach(s => s.passages.forEach(p => apply(p, `passage:${p.id}`)));
     return body;
   }
 
@@ -42,12 +47,12 @@
     }
     async function create({ threadId, title, body, by = 'model' }) {
       const bad = checkBody(body); if (bad) return bad;
-      const doc = { id: idFor(), threadId: String(threadId || ''), kind: body.type, title: String(title || body.title || '').slice(0, 200), revision: 1, modelBody: clone(body), userEdits: {}, versions: [], history: [{ revision: 1, at: now(), by, bodyHash: hash(JSON.stringify(body)) }] };
+      const doc = { id: idFor(), threadId: String(threadId || ''), kind: body.type, title: String(title || body.title || '').slice(0, 200), revision: 1, modelBody: clone(body), userEdits: {}, userSpoilers: {}, versions: [], history: [{ revision: 1, at: now(), by, bodyHash: hash(JSON.stringify(body)) }] };
       await storage.set(doc.id, doc); return { ok: true, doc };
     }
     async function load(id) { const d = await storage.get(id); return d ? clone(d) : null; }
     const pushVersion = (doc, by) => {
-      doc.versions.push({ revision: doc.revision, at: now(), by, modelBody: clone(doc.modelBody), userEdits: clone(doc.userEdits) });
+      doc.versions.push({ revision: doc.revision, at: now(), by, modelBody: clone(doc.modelBody), userEdits: clone(doc.userEdits), userSpoilers: clone(doc.userSpoilers || {}) });
       while (doc.versions.length > maxVersions) doc.versions.shift();
     };
     async function updateModel({ id, expectedRevision, body, by = 'model' }) {
@@ -72,16 +77,26 @@
       doc.history.push({ revision: doc.revision, at: now(), by: 'user', bodyHash: hash(JSON.stringify(doc.userEdits)) });
       await storage.set(id, doc); return { ok: true, doc };
     }
+    async function setSpoiler({ id, expectedRevision, key, value }) {
+      const doc = await load(id); if (!doc) return fail('not-found');
+      if (doc.revision !== expectedRevision) return fail('revision-conflict', { currentRevision: doc.revision });
+      if (typeof key !== 'string' || !/^(cell|node|passage):/.test(key) || !['open', 'closed'].includes(value)) return fail('invalid-key');
+      pushVersion(doc, 'user');
+      doc.userSpoilers = { ...(doc.userSpoilers || {}), [key]: value };
+      doc.revision += 1;
+      doc.history.push({ revision: doc.revision, at: now(), by: 'user', bodyHash: hash(JSON.stringify(doc.userSpoilers)) });
+      await storage.set(id, doc); return { ok: true, doc };
+    }
     async function get(id) { const d = await load(id); return d ? { ok: true, doc: d, body: effectiveBody(d) } : fail('not-found'); }
     async function restoreVersion({ id, expectedRevision, revision }) {
       const doc = await load(id); if (!doc) return fail('not-found');
       if (doc.revision !== expectedRevision) return fail('revision-conflict', { currentRevision: doc.revision });
       const v = doc.versions.find((x) => x.revision === revision); if (!v) return fail('version-unavailable');
-      pushVersion(doc, 'user'); doc.modelBody = clone(v.modelBody); doc.userEdits = clone(v.userEdits); doc.revision += 1;
+      pushVersion(doc, 'user'); doc.modelBody = clone(v.modelBody); doc.userEdits = clone(v.userEdits); doc.userSpoilers = clone(v.userSpoilers || {}); doc.revision += 1;
       doc.history.push({ revision: doc.revision, at: now(), by: 'user', bodyHash: hash(JSON.stringify(doc.modelBody)) });
       await storage.set(id, doc); return { ok: true, doc };
     }
-    return Object.freeze({ create, updateModel, userEdit, get, restoreVersion });
+    return Object.freeze({ create, updateModel, userEdit, setSpoiler, get, restoreVersion });
   }
 
   /** Thread'e yalnız küçük referans yazılır; gövde thread ayarlarına sıkıştırılmaz. */

@@ -18,6 +18,7 @@ const B = require('../src/cinema-bulletin-model.js');
     { guid: '4', publisherId: 'p4', url: 'https://p4.example/pan', title: 'Parasite is overrated', summary: 'A dissent.', workId: 'w1', stance: 'negative' },
     { guid: '5', publisherId: 'p1', url: 'https://p1.example/a', title: 'Parasite wins at Cannes (duplicate url)', summary: '' },
   ];
+  for (const entry of entries) { entry.contentScope='feed-full'; entry.text=entry.summary; }
   const topics = S.groupStories(entries);
   assert.strictEqual(topics.length, 1, 'aynı workId → tek konu grubu');
   const t = topics[0];

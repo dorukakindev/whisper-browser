@@ -39,5 +39,9 @@
 
 #assistantArtifactDialog .v3-section { margin-bottom:16px; }
 #assistantArtifactDialog .v3-section p { white-space:pre-wrap; overflow-wrap:anywhere; }
-#assistantArtifactDialog textarea { width:100%; box-sizing:border-box; padding:12px; resize:vertical; color:var(--text); background:var(--bg-2); border:1px solid var(--border); border-radius:8px; font:inherit; }
+:is(#assistantArtifactDialog, #whisperV3Dialog) textarea { width:100%; box-sizing:border-box; padding:12px; resize:vertical; color:var(--text); background:var(--bg-2); border:1px solid var(--border); border-radius:8px; font:inherit; }
 #assistantArtifactDialog blockquote { margin:12px 0; padding-left:16px; border-left:2px solid var(--border); }
+
+
+#whisperV3Dialog .v3-editorial label { display:flex; flex-direction:column; gap:6px; min-width:0; }
+#whisperV3Dialog .v3-editorial .v3-runtime-controls > label { flex:1 1 220px; }

@@ -10,8 +10,9 @@ function versionKey(name){
  const title=stem.replace(/[ ._-]+(?:2160p|1080p|1080i|720p|480p|4k|bluray|blu-ray|web-dl|webrip|bdrip|x264|x265|hevc)(?:[ ._-].*)?$/i,'').replace(/[._]+/g,' ').trim();
  return path.join(dir,title||stem).toLowerCase();
 }
-function registerMediaHub({app,ipcMain,authorized,dialog,owner,inspectMedia,authorizeMedia,grantMedia,catalogStore,ffmpeg,relinkHistory}){
+function registerMediaHub({app,ipcMain,authorized,dialog,owner,inspectMedia,authorizeMedia,grantMedia,catalogStore,ffmpeg,ffprobe,relinkHistory}){
  const relinkUndos=new Map();
+ let metadataBusy=false;
  let relinkBusy=false;
  const sourceAt=(item,episodeId)=>episodeId?item?.episodes?.find(ep=>ep.id===episodeId)?.source:item?.source;
  function replaceSource(store,id,episodeId,source){
@@ -25,13 +26,16 @@ function registerMediaHub({app,ipcMain,authorized,dialog,owner,inspectMedia,auth
  const persist=()=>atomicWriteFileSync(index(),JSON.stringify(folders));
  const beneath=(file,root)=>{const relative=path.relative(root,file);return relative!==''&&!relative.startsWith('..')&&!path.isAbsolute(relative);};
  async function scan(folder){
-  const rows=[];const root=await fsp.realpath(folder.path);
+  const rows=[];const previousMetadata=new Map((files.get(folder.id)||[]).map(row=>[row.id,row.metadata]));const root=await fsp.realpath(folder.path);
   const skipped=[];
-  async function walk(dir,depth){if(depth>12||rows.length>=10000)return;let entries;try{entries=await fsp.readdir(dir,{withFileTypes:true});}catch(e){if(dir===root)throw e;skipped.push({name:path.relative(root,dir),code:e.code||'read'});return;}for(const entry of entries){if(rows.length>=10000)break;if(entry.isSymbolicLink()||entry.name.startsWith('.'))continue;const file=path.join(dir,entry.name);if(entry.isDirectory())await walk(file,depth+1);else if(entry.isFile()&&video.test(file)){let stat;try{stat=await fsp.stat(file);}catch(e){skipped.push({name:path.relative(root,file),code:e.code||'stat'});continue;}const id=createHash('sha256').update(file).digest('hex').slice(0,24);rows.push({id,path:file,name:path.relative(root,file),size:stat.size,mtime:stat.mtimeMs});}}}
+  async function walk(dir,depth){if(depth>12||rows.length>=10000)return;let entries;try{entries=await fsp.readdir(dir,{withFileTypes:true});}catch(e){if(dir===root)throw e;skipped.push({name:path.relative(root,dir),code:e.code||'read'});return;}for(const entry of entries){if(rows.length>=10000)break;if(entry.isSymbolicLink()||entry.name.startsWith('.'))continue;const file=path.join(dir,entry.name);if(entry.isDirectory())await walk(file,depth+1);else if(entry.isFile()&&video.test(file)){let stat;try{stat=await fsp.stat(file);}catch(e){skipped.push({name:path.relative(root,file),code:e.code||'stat'});continue;}const id=createHash('sha256').update(file).digest('hex').slice(0,24);rows.push({id,path:file,name:path.relative(root,file),size:stat.size,mtime:stat.mtimeMs,...(previousMetadata.get(id)?.stamp===stat.size+':'+stat.mtimeMs?{metadata:previousMetadata.get(id)}:{})});}}}
   await walk(root,0);files.set(folder.id,rows);folder.count=rows.length;folder.scannedAt=Date.now();folder.skipped=skipped.slice(0,100);folder.error=skipped.length?skipped.length+' unreadable entries skipped / okunamayan girdi atlandı':'';return rows;
  }
  function watch(folder){if(watchers.has(folder.id))return;try{const watcher=fs.watch(folder.path,{recursive:true},()=>{clearTimeout(timers.get(folder.id));timers.set(folder.id,setTimeout(()=>scan(folder).catch(e=>{folder.error=e.message;}),1500));});watcher.on('error',e=>{folder.error=e.message;watcher.close();watchers.delete(folder.id);});watchers.set(folder.id,watcher);}catch(e){folder.error=e.message;}}
- const publicFolder=folder=>({...folder,files:(files.get(folder.id)||[]).slice(0,10000).map(row=>({...row,versionGroup:versionKey(row.name)}))});
+ const publicFolder=folder=>({...folder,files:(files.get(folder.id)||[]).slice(0,10000).map(row=>{
+  const {metadata,...file}=row;
+  return {...file,...(metadata?.stamp===row.size+':'+row.mtime?metadata:{}),versionGroup:versionKey(row.name)};
+ })});
  const handle=async(event,input={})=>{if(!authorized(event))return {ok:false,error:'Unauthorized request.'};try{
   if(error)throw Error(error+' Original folder index was preserved.');
   if(input.action==='v3-export'){
@@ -76,7 +80,45 @@ function registerMediaHub({app,ipcMain,authorized,dialog,owner,inspectMedia,auth
   if(input.action==='folder-add'){const picked=await dialog.showOpenDialog(owner(),{properties:['openDirectory']});if(picked.canceled)return {ok:true,canceled:true};const real=await fsp.realpath(picked.filePaths[0]);let folder=folders.find(r=>r.path.toLowerCase()===real.toLowerCase());if(!folder){if(folders.length>=30)throw Error('Folder watch limit reached.');folder={id:randomUUID(),path:real,enabled:true};folders.push(folder);persist();}folder.enabled=true;persist();await scan(folder);watch(folder);return {ok:true,folder:publicFolder(folder)};}
   const folder=folders.find(r=>r.id===input.folderId);
   if(input.action==='folder-scan'){if(!folder)throw Error('Folder not found.');folder.enabled=true;persist();await scan(folder);watch(folder);return {ok:true,folder:publicFolder(folder)};}
+  if(input.action==='folder-enabled'){
+   if(!folder||typeof input.enabled!=='boolean')throw Error('Choose a folder and an enabled state.');
+   folder.enabled=input.enabled;persist();
+   if(folder.enabled){watch(folder);if(!files.has(folder.id))await scan(folder);}
+   else{watchers.get(folder.id)?.close();watchers.delete(folder.id);clearTimeout(timers.get(folder.id));timers.delete(folder.id);}
+   return {ok:true,folder:publicFolder(folder)};
+  }
   if(input.action==='folder-remove'){if(!folder)throw Error('Folder not found.');watchers.get(folder.id)?.close();watchers.delete(folder.id);clearTimeout(timers.get(folder.id));files.delete(folder.id);folders=folders.filter(r=>r!==folder);persist();return {ok:true};}
+  if(input.action==='folder-metadata'){
+   if(!folder||!ffprobe||!Array.isArray(input.ids)||input.ids.length>20||input.ids.some(id=>typeof id!=='string'))throw Error('Choose up to 20 scanned files.');
+   if(metadataBusy)throw Error('Metadata reading is already running.');
+   metadataBusy=true;
+   try{
+    const selected=[...new Set(input.ids)].map(id=>(files.get(folder.id)||[]).find(row=>row.id===id));
+    if(selected.some(row=>!row))throw Error('Rescan the folder before reading metadata.');
+    const root=await fsp.realpath(folder.path),results=[];
+    for(const row of selected){
+     try{
+      const real=await fsp.realpath(row.path);
+      if(!beneath(real,root))throw Error('File left the selected folder.');
+      const before=await fsp.stat(real),stamp=before.size+':'+before.mtimeMs;
+      if(row.metadata?.stamp===stamp&&!input.retry){results.push({id:row.id,ok:!row.metadata.metadataError,error:row.metadata.metadataError});continue;}
+      const probe=JSON.parse(await run(ffprobe(),['-v','error','-show_entries','format=duration:stream=codec_type:stream_tags=language','-of','json',inspectMedia(real)],null,null,10000));
+      const after=await fsp.stat(real);
+      if(after.size+':'+after.mtimeMs!==stamp)throw Error('Media changed while reading metadata.');
+      const duration=Number(probe.format?.duration);
+      const languages=[...new Set((probe.streams||[]).filter(stream=>stream.codec_type==='audio').map(stream=>String(stream.tags?.language||'').toLowerCase()).filter(code=>/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/.test(code)&&code!=='und'))].slice(0,32);
+      row.size=after.size;row.mtime=after.mtimeMs;
+      row.metadata={stamp,metadataRead:true,durationSeconds:Number.isFinite(duration)&&duration>0?duration:null,language:languages.length===1?languages[0]:null,spokenLanguages:languages};
+      results.push({id:row.id,ok:true});
+     }catch(error){
+      const message=String(error.message).slice(0,300);
+      row.metadata={stamp:row.size+':'+row.mtime,metadataRead:true,metadataError:message,durationSeconds:null,language:null,spokenLanguages:[]};
+      results.push({id:row.id,ok:false,error:message});
+     }
+    }
+    return {ok:true,results,folder:publicFolder(folder)};
+   }finally{metadataBusy=false;}
+  }
   if(input.action==='folder-play'){if(!folder)throw Error('Folder not found.');const row=files.get(folder.id)?.find(r=>r.id===input.id);if(!row)throw Error('Rescan the folder before opening this item.');const real=await fsp.realpath(row.path),root=await fsp.realpath(folder.path);if(!beneath(real,root))throw Error('File left the selected folder.');const file=inspectMedia(real);grantMedia(file);return {ok:true,path:file};}
   if(input.action==='relink-preview'){if(!folder)throw Error('Choose a folder first.');await scan(folder);const rows=files.get(folder.id)||[],patches=[];for(const item of catalogStore().list()){const all=[{source:item.source,id:item.id},...(item.episodes||[]).map(ep=>({source:ep.source,id:item.id,episodeId:ep.id}))];for(const row of all)if(row.source?.type==='local'&&row.source.imported!==true&&!fs.existsSync(row.source.value)){const hits=rows.filter(file=>path.basename(file.path).toLowerCase()===path.basename(row.source.value).toLowerCase());if(hits.length===1)patches.push({...row,old:row.source.value,next:hits[0].path,title:item.title});}}const token=randomUUID();plans.clear();plans.set(token,{patches,folderPath:folder.path,sender:event.sender.id,at:Date.now()});return {ok:true,token,patches};}
   if(input.action==='relink-apply'||input.action==='relink-undo'){

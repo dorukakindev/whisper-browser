@@ -23,11 +23,22 @@
   /** BCP47 benzeri etiketi normalize eder; geçersizse ''. UI dilinden türetilmez. */
   function normalizeLang(tag) {
     const t = String(tag == null ? '' : tag).trim().replace(/_/g, '-').toLowerCase();
-    return /^[a-z]{2,3}(-[a-z0-9]{2,8})*$/.test(t) ? t : '';
+    if(!/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/.test(t))return '';
+    try{return Intl.getCanonicalLocales(t)[0].toLowerCase();}catch{return '';}
+  }
+  // Publisher plain text and conditional formats do not prove subtitle availability.
+  // A timed transcript with an unknown language stays unknown in the language-based contract.
+  function podcastSubtitleLanguages(descriptors) {
+    const timed = (Array.isArray(descriptors) ? descriptors : []).filter(row => row?.timed === 'yes');
+    if (!timed.length) return null;
+    const languages = timed.map(row => normalizeLang(row.language));
+    if (languages.some(language => !language || language === 'und')) return null;
+    return [...new Set(languages)];
   }
   /** 'en' → en ve en-* ; 'en-us' → yalnız en-us. */
   function langMatches(selected, actual) {
     const s = normalizeLang(selected); const a = normalizeLang(actual);
+    if(s==='und')return !a||a==='und';
     if (!s || !a) return false;
     if (s.includes('-')) return a === s;
     return a === s || a.startsWith(s + '-');
@@ -108,9 +119,9 @@
     if (n.kind !== 'all' && item.kind !== n.kind) return false;
     if (n.sourceIds.length && !n.sourceIds.includes(String(item.sourceId))) return false;
     if (!matchesText(item, n)) return false;
-    if (n.speechLanguages.length && !n.speechLanguages.some((l) => langMatches(l, item.language))) return false;
+    if (n.speechLanguages.length && !n.speechLanguages.some((l) => (Array.isArray(item.spokenLanguages)&&item.spokenLanguages.length?item.spokenLanguages:[item.language]).some(actual=>langMatches(l,actual)))) return false;
     const subs = Array.isArray(item.subtitleLanguages) ? item.subtitleLanguages : null;
-    if (n.subtitleLanguages.length && !(subs && subs.some((a) => n.subtitleLanguages.some((l) => langMatches(l, a))))) return false;
+    if (n.subtitleLanguages.length && !(subs===null?[null]:subs).some((a) => n.subtitleLanguages.some((l) => langMatches(l, a)))) return false;
     const origins = Array.isArray(item.subtitleOrigins) ? item.subtitleOrigins : null;
     if (n.subtitleOrigins.length && !(origins && origins.some((o) => n.subtitleOrigins.includes(o)))) return false;
     if (n.subtitleAvailability === 'present' && !(subs && subs.length > 0)) return false;
@@ -250,7 +261,7 @@
   }
 
   return Object.freeze({
-    PAGE_SIZE, normalizeLang, langMatches, durationBucket, normalizeQuery, queryKey,
+    PAGE_SIZE, normalizeLang, podcastSubtitleLanguages, langMatches, durationBucket, normalizeQuery, queryKey,
     queryPlayerItems, resultCountLabel, activeFilterChips, clearFilters, clearSearch,
     orderSources, movePin, togglePin, encodeCursor, decodeCursor,
   });

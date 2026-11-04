@@ -30,11 +30,11 @@
   function storyIdentity(entry) {
     const e = entry || {};
     const canon = canonicalizeUrl(e.canonicalUrl || e.url || e.link);
-    const body = fold(e.summary || e.content || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+    const body = fold(e.content || e.text || '').replace(/\s+/g, ' ').trim();
     const titleKey = fold(e.title).replace(/[^a-z0-9]+/g, ' ').trim();
     return {
       entryId: String(e.entryId || e.guid || canon || titleKey),
-      publisherId: String(e.publisherId || ''), exactKeys: [canon && 'u:' + canon, e.guid && e.publisherId && 'g:' + e.publisherId + ':' + e.guid, body.length > 80 && 'c:' + hash(titleKey + '|' + body)].filter(Boolean),
+      publisherId: String(e.publisherId || ''), exactKeys: [canon && 'u:' + canon, e.guid && e.publisherId && 'g:' + e.publisherId + ':' + e.guid, body.length > 80 && e.contentScope === 'feed-full' && !e.textTruncated && 'c:' + hash(titleKey + '|' + body)].filter(Boolean),
       topicTokens: tokens((e.title || '') + ' ' + (e.summary || '')),
     };
   }
@@ -57,7 +57,7 @@
         storyId: 's1-' + hash(members.map((m) => m.id.entryId).sort().join('|')), title: String(first.e.title || ''), workId: first.e.workId || null,
         copies: members.length, entryIds: members.map((m) => m.id.entryId),
         publishers: Array.from(new Set(members.map((m) => m.id.publisherId).filter(Boolean))), tokens: Array.from(new Set(members.flatMap((m) => m.id.topicTokens))),
-        stance: first.e.stance || null,
+        stance: first.e.stance || 'unknown', contentKind:first.e.contentKind||'unknown',
       };
     });
     // Konu grupları
@@ -65,17 +65,17 @@
     const tf = (i) => (tp[i] === i ? i : (tp[i] = tf(tp[i])));
     for (let i = 0; i < stories.length; i++) for (let j = i + 1; j < stories.length; j++) {
       const sameWork = stories[i].workId && stories[i].workId === stories[j].workId;
-      if (sameWork || jaccard(stories[i].tokens, stories[j].tokens) >= topicThreshold) tp[tf(j)] = tf(i);
+      if ((stories[i].contentKind===stories[j].contentKind) && (sameWork || jaccard(stories[i].tokens, stories[j].tokens) >= topicThreshold)) tp[tf(j)] = tf(i);
     }
     const topics = new Map();
     stories.forEach((s, i) => { const r = tf(i); (topics.get(r) || topics.set(r, []).get(r)).push(s); });
     return Array.from(topics.values()).map((group) => {
       const publishers = Array.from(new Set(group.flatMap((s) => s.publishers)));
-      const stances = Array.from(new Set(group.map((s) => s.stance).filter(Boolean)));
+      const stances = Array.from(new Set(group.map((s) => s.stance).filter(value=>value&&value!=='unknown')));
       return {
         topicId: 't1-' + hash(group.map((s) => s.storyId).sort().join('|')), stories: group,
-        independentPublishers: publishers.length, totalCopies: group.reduce((n, s) => n + s.copies, 0),
-        opposingStances: stances.length > 1, stances, // yalnız veri varsa; metinden çıkarım yok
+        independentPublishers: publishers.length, independentStories:group.length, totalCopies: group.reduce((n, s) => n + s.copies, 0),
+        opposingStances: stances.includes('positive') && stances.includes('negative'), stances, // yalnız veri varsa; metinden çıkarım yok
       };
     });
   }

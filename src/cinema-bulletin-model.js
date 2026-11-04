@@ -18,11 +18,11 @@
     const rows = (Array.isArray(allFeedIds) ? allFeedIds : Array.from(byId.keys())).map((id) => {
       const r = byId.get(String(id));
       const status = r && FEED_STATUS.includes(r.status) ? r.status : 'not-attempted';
-      return { feedId: String(id), status, newItems: status === 'ok' ? Math.max(0, Number(r.newItems) || 0) : 0, retryAfterSeconds: Number.isFinite(r && r.retryAfterSeconds) ? r.retryAfterSeconds : null };
+      return { feedId: String(id), title:String(r?.title||id),lastAttempt:Number(r?.lastAttempt)||0,status, newItems: status === 'ok' ? Math.max(0, Number(r.newItems) || 0) : 0, retryAfterSeconds: Number.isFinite(r && r.retryAfterSeconds) ? r.retryAfterSeconds : null };
     });
     const checked = rows.filter((r) => r.status === 'ok' || r.status === 'not-modified');
     const remaining = rows.filter((r) => !(r.status === 'ok' || r.status === 'not-modified'));
-    return { rows, checkedFeeds: checked.length, remainingFeeds: remaining.length, remaining: remaining.map((r) => ({ feedId: r.feedId, status: r.status })), complete: remaining.length === 0, anyNewItems: rows.some((r) => r.newItems > 0) };
+    return { rows, checkedFeeds: checked.length, remainingFeeds: remaining.length, remaining: remaining.map((r) => ({ feedId: r.feedId, title:r.title,lastAttempt:r.lastAttempt,status: r.status })), complete: remaining.length === 0, anyNewItems: rows.some((r) => r.newItems > 0) };
   }
 
   /** Yazıyı kütüphane yapımına bağlar: onaylı bağlantı > başlık/takma ad adayı. Aday 'candidate' kalır. */

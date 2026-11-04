@@ -30,13 +30,16 @@
   function renderBulletin(rootEl, b, o) {
     const L = o.locale; const c = b.coverage; const hd = o.handlers || {};
     const statusKind = (s) => (s === 'ok' || s === 'not-modified' ? '' : 'warn');
+    const kindLabels=L==='tr'?{news:'Haber','festival-selection':'Festival seçkisi',award:'Ödül haberi',interview:'Söyleşi',criticism:'Eleştiri',unknown:'Tür bilinmiyor'}:{news:'News','festival-selection':'Festival selection',award:'Award news',interview:'Interview',criticism:'Criticism',unknown:'Unknown type'};
+    const stanceLabels=L==='tr'?{positive:'Olumlu',negative:'Olumsuz',mixed:'Karma',neutral:'Tarafsız'}:{positive:'Positive',negative:'Negative',mixed:'Mixed',neutral:'Neutral'};
     const topic = (t) => h('article', { class: 'v3-topic' },
-      t.stories.map((s) => h('div', { class: 'v3-story' }, h('strong', { text: s.title }), s.copies > 1 && badge(tr(L, 'copies', s.copies)))),
-      h('div', { class: 'pw-row__badges' }, badge(tr(L, 'indep', t.independentPublishers)), t.opposingStances && badge(tr(L, 'opposing'), 'warn'),
+      t.stories.map((s) => h('div', { class: 'v3-story' }, h('strong', { text: s.title }), badge(kindLabels[s.contentKind]||kindLabels.unknown),s.stance&&s.stance!=='unknown'&&badge((L==='tr'?'Kullanıcı görüşü · ':'User opinion · ')+(stanceLabels[s.stance]||s.stance)), s.copies > 1 && badge(tr(L, 'copies', s.copies)))),
+      h('div', { class: 'pw-row__badges' }, badge((t.independentStories??t.stories.length)+(L==='tr'?' ayrı yazı':' distinct articles')), t.opposingStances && badge(tr(L, 'opposing'), 'warn'),
         h('button', { class: 'pw-btn pw-btn--ghost', type: 'button', 'aria-pressed': t.read ? 'true' : 'false', on: { click: () => hd.onToggleRead && hd.onToggleRead(t.topicId) } }, icon('check', 'pw-icon--sm'), tr(L, t.read ? 'read' : 'markRead'))));
     mount(rootEl, [
       head('rss', tr(L, 'bulletin'), badge(tr(L, 'checked', c.checkedFeeds, c.checkedFeeds + c.remainingFeeds), c.complete ? 'accent' : 'warn')),
-      !c.complete && h('div', { class: 'v3-alert', role: 'status' }, icon('alert'), h('div', null, h('p', { text: tr(L, 'incomplete') }), h('div', { class: 'pw-row__badges' }, c.remaining.map((r) => badge(`${r.feedId}: ${tr(L, 'st_' + r.status.replace(/-/g, '_'))}`, statusKind(r.status)))), h('button', { class: 'pw-btn', type: 'button', on: { click: () => hd.onRetry && hd.onRetry() }, text: tr(L, 'retry') }))),
+      !c.complete && h('div', { class: 'v3-alert', role: 'status' }, icon('alert'), h('div', null, h('p', { text: tr(L, 'incomplete') }), h('div', { class: 'pw-row__badges' }, c.remaining.map((r) => badge(`${r.title||r.feedId}: ${tr(L, 'st_' + r.status.replace(/-/g, '_'))}`, statusKind(r.status)))), h('button', { class: 'pw-btn', type: 'button', on: { click: () => hd.onRetry && hd.onRetry() }, text: tr(L, 'retry') }))),
+      h('details',null,h('summary',{text:L==='tr'?'Kaynak kapsamı':'Source coverage'}),c.rows.map(row=>h('p',{text:(row.title||row.feedId)+' · '+tr(L,'st_'+row.status.replace(/-/g,'_'))+(row.lastAttempt?' · '+new Date(row.lastAttempt).toLocaleString(L):'')}))),
       b.sections.map((s) => h('section', { class: 'v3-section' }, h('div', { class: 'v3-work' }, cover(s.title, s.workId, 'v3-cover'), h('div', null, h('h3', { text: s.title }), badge(tr(L, s.linkConfidence === 'confirmed' ? 'confirmed' : 'candidate'), s.linkConfidence === 'confirmed' ? 'accent' : 'warn'))), s.topics.map(topic))),
       b.unlinked.length > 0 && h('section', { class: 'v3-section' }, h('h3', { text: tr(L, 'unlinked') }), b.unlinked.map(topic)),
     ]);
@@ -57,9 +60,22 @@
   function renderMatrix(rootEl, doc, body, o) {
     const L = o.locale; const hd = o.handlers || {}; const revealed = o.revealed || new Set();
     const cells = new Map(body.cells.map((c) => [c.rowId + '\u0000' + c.colId, c]));
-    const cell = (r, c) => { const x = cells.get(r.id + '\u0000' + c.id); if (!x || x.status === 'unknown') return h('td', { class: 'v3-unknown', text: '—', title: tr(L, 'unknown') });
-      if (x.spoiler === 'closed' && !revealed.has(r.id + c.id)) return h('td', null, h('button', { class: 'pw-btn pw-btn--ghost v3-hidden', type: 'button', on: { click: () => hd.onReveal && hd.onReveal(r.id, c.id) } }, icon('shield', 'pw-icon--sm'), tr(L, 'hidden') + ' · ' + tr(L, 'reveal')));
-      return h('td', null, h('span', { text: x.value }), h('div', { class: 'pw-row__badges' }, x.claims.length > 0 && badge(tr(L, 'sources', x.claims.length)), x.userEdited && badge(tr(L, 'edited'), 'accent'))); };
+    const label = (trText, enText) => L === 'tr' ? trText : enText;
+    const cell = (r, c) => {
+      const x = cells.get(r.id + '\u0000' + c.id);
+      if (!x) return h('td', { class: 'v3-unknown', text: '—', title: tr(L, 'unknown') });
+      const toggle = () => hd.onSpoiler && hd.onSpoiler(r.id, c.id, x.spoiler === 'closed' ? 'open' : 'closed');
+      if (x.spoiler === 'closed' && !revealed.has(r.id + c.id)) return h('td', null,
+        h('button', { class: 'pw-btn pw-btn--ghost v3-hidden', type: 'button', on: { click: toggle } }, icon('shield', 'pw-icon--sm'), tr(L, 'hidden') + ' · ' + tr(L, 'reveal')));
+      return h('td', null,
+        h('span', { text: x.status === 'unknown' ? '—' : x.value }),
+        h('div', { class: 'pw-row__badges' }, x.claims.length > 0 && badge(tr(L, 'sources', x.claims.length)), x.userEdited && badge(tr(L, 'edited'), 'accent')),
+        x.claims.length > 0 && h('details', null, h('summary', { text: label('Kaynaklar', 'Sources') }),
+          x.claims.map(claim => h('p', { text: claim.sourceId + ' · ' + (claim.quote || '') }))),
+        h('div', { class: 'v3-foot' },
+          h('button', { class: 'pw-btn pw-btn--ghost', type: 'button', text: label('Düzelt', 'Edit'), on: { click: () => hd.onEdit && hd.onEdit(r.id, c.id) } }),
+          h('button', { class: 'pw-btn pw-btn--ghost', type: 'button', text: label('Spoileri gizle', 'Hide spoiler'), on: { click: toggle } })));
+    };
     mount(rootEl, [
       head('list', body.title || tr(L, 'matrix'), h('span', { class: 'v3-meta' }, badge(tr(L, 'rev', doc.revision)), body.coverage && body.coverage.partial && badge(tr(L, 'partial'), 'warn'))),
       h('div', { class: 'v3-tablewrap' }, h('table', { class: 'v3-table' }, h('thead', null, h('tr', null, h('th'), body.columns.map((c) => h('th', { scope: 'col', text: c.label })))), h('tbody', null, body.rows.map((r) => h('tr', null, h('th', { scope: 'row', text: r.label }), body.columns.map((c) => cell(r, c))))))),

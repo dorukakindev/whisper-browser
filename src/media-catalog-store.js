@@ -71,6 +71,21 @@ function episodeOf(raw) {
     watchStatus: STATUSES.has(raw.watchStatus) ? raw.watchStatus : 'unspecified', source: sourceOf(raw.source),
     airDate: /^\d{4}-\d{2}-\d{2}$/.test(raw.airDate || '') ? raw.airDate : '' };
 }
+function countryCodes(raw) {
+  if (raw === null || raw === undefined) return null;
+  if (!Array.isArray(raw) || raw.length > 30 || raw.some(value => typeof value !== 'string' || !/^[A-Z]{2}$/.test(value))) fail('Production countries need ISO country codes.');
+  return [...new Set(raw)];
+}
+function directorIdsOf(raw) {
+  if (raw === null || raw === undefined) return null;
+  if (!Array.isArray(raw) || raw.length > 30 || raw.some(value => typeof value !== 'string' || !/^tmdb:person:[1-9]\d{0,9}$/.test(value))) fail('Directors need exact TMDB person IDs.');
+  return [...new Set(raw)];
+}
+function directorPeopleOf(raw) {
+  if (raw === null || raw === undefined) return [];
+  if (!Array.isArray(raw) || raw.length > 30 || raw.some(row => !row || !/^tmdb:person:[1-9]\d{0,9}$/.test(row.id) || typeof row.name !== 'string' || !row.name.trim())) fail('Invalid director identity.');
+  return [...new Map(raw.map(row => [row.id, {id:row.id,name:text(row.name,120)}])).values()];
+}
 function itemOf(raw, old = null) {
   if (!raw || typeof raw !== 'object') fail('Katalog kaydı geçersiz.');
   const kind = raw.kind ?? old?.kind;
@@ -89,9 +104,16 @@ function itemOf(raw, old = null) {
   const positions = new Set(episodes.map((episode) => `${episode.season}:${episode.number}`));
   if (positions.size !== episodes.length) fail('Aynı sezon ve bölüm birden çok kez girilmiş.');
   const incomingSource = Object.prototype.hasOwnProperty.call(raw, 'source') ? sourceOf(raw.source) : old?.source || null;
+  const directorIds = directorIdsOf(raw.directorIds === undefined ? old?.directorIds : raw.directorIds);
+  const directorPeople = directorPeopleOf(raw.directorPeople === undefined ? old?.directorPeople : raw.directorPeople)
+    .filter(person => directorIds?.includes(person.id));
   return { id: text(raw.id ?? old?.id, 120) || randomUUID(), kind, title, year,
-    originalLanguage: /^[a-z]{2}$/.test(raw.originalLanguage ?? old?.originalLanguage ?? '') ? (raw.originalLanguage ?? old.originalLanguage) : '',
+    originalLanguage: /^[a-z]{2,3}$/.test(raw.originalLanguage ?? old?.originalLanguage ?? '') ? (raw.originalLanguage ?? old.originalLanguage) : '',
     originalTitle: text(raw.originalTitle ?? old?.originalTitle, 300),
+    productionCountries: countryCodes(raw.productionCountries === undefined ? old?.productionCountries : raw.productionCountries),
+    directorIds,
+    directorPeople,
+    directorsTruncated: raw.directorsTruncated === undefined ? old?.directorsTruncated === true : raw.directorsTruncated === true,
     genres: (Array.isArray(raw.genres ?? old?.genres) ? raw.genres ?? old.genres : []).slice(0, 30).map(v => text(v, 80)),
     cast: (Array.isArray(raw.cast ?? old?.cast) ? raw.cast ?? old.cast : []).slice(0, 20).map(v => text(v, 120)),
     directors: (Array.isArray(raw.directors ?? old?.directors) ? raw.directors ?? old.directors : []).slice(0,10).map(v=>text(v,120)),

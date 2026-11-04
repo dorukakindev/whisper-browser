@@ -13,7 +13,7 @@
     if(existing)existing.close();
     const origin=document.activeElement, dialog=h('dialog',{id:'whisperV3Dialog',class:'mtx-dialog media-surface', 'aria-label':names()[initial],data:{uiUntranslated:''}});
     const status=h('p',{role:'status',class:'mtx-status'}), body=h('main',{class:'mtx-body'});
-    let tab=initial, epoch=0, sampleTimer=0, refreshResults=[];
+    let tab=initial, epoch=0, sampleTimer=0;
     const report=error=>{if(dialog.open)status.textContent=error.message;};
     const button=(label,action)=>h('button',{type:'button',class:'pw-btn',text:label,on:{click:async event=>{const node=event.currentTarget;node.disabled=true;try{await action();}catch(error){report(error);}finally{if(node.isConnected)node.disabled=false;}}}});
     const nav=h('nav',{class:'mtx-tabs','aria-label':t('Medya araçları','Media tools')});
@@ -34,8 +34,9 @@
           const [list,entries,items]=await Promise.all([feed({action:'list'}),feed({action:'entries',limit:100}),catalog()]);
           if(!current())return;
           const enabled=list.feeds.filter(f=>f.enabled);
-          const rows=entries.rows.filter(e=>e.spoiler!=='marked'||e.spoilerAllowed).map(e=>({...e,entryId:e.id,publisherId:e.feedId,workId:e.links?.[0]?.catalogId}));
-          const bulletin=CinemaBulletinModel.buildBulletin({entries:rows,library:items.map(i=>({workId:i.id,title:i.title})),feedResults:refreshResults,allFeedIds:enabled.map(f=>f.id),readState:Object.fromEntries(rows.map(e=>[e.id,e.read]))});
+          const rows=entries.rows.filter(e=>e.spoiler!=='marked'||e.spoilerAllowed).map(e=>({...e,entryId:e.id,publisherId:e.feedId,workId:e.links?.find(link=>link.state==='confirmed')?.catalogId}));
+          const coverage=enabled.map(f=>({feedId:f.id,title:f.title,lastAttempt:f.lastAttempt,status:!f.lastAttempt?'not-attempted':f.state==='updated'?'ok':f.state==='unchanged'?'not-modified':f.errorKind==='rate-limit'?'rate-limited':f.state==='failed'?'error':'unavailable'}));
+          const bulletin=CinemaBulletinModel.buildBulletin({entries:rows,library:items.map(i=>({workId:i.id,title:i.title})),feedResults:coverage,allFeedIds:enabled.map(f=>f.id),readState:Object.fromEntries(rows.map(e=>[e.id,e.read]))});
           const topics=[...bulletin.sections.flatMap(s=>s.topics),...bulletin.unlinked];
           options.handlers.onToggleRead=async id=>{try{
             const topic=topics.find(r=>r.topicId===id);if(!topic||!current())return;
@@ -43,18 +44,34 @@
             await feed({action:'state',entryIds:ids,read:true});if(current())await draw();
           }catch(error){report(error);}};
           options.handlers.onRetry=async()=>{try{
-            const checked=new Set(refreshResults.filter(r=>['ok','not-modified'].includes(r.status)).map(r=>r.feedId));
-            const result=await feed({action:'refresh',feedIds:enabled.map(f=>f.id).filter(id=>!checked.has(id))});
-            if(current()){
-              const byId=new Map(refreshResults.map(r=>[r.feedId,r]));
-              for(const row of result.results||[]){
-                const status=row.state==='updated'?'ok':row.state==='unchanged'?'not-modified':row.errorKind==='rate-limit'?'rate-limited':'error';
-                byId.set(row.feedId,{feedId:row.feedId,status,newItems:row.inserted});
-              }
-              refreshResults=[...byId.values()];await draw();
-            }
+            const checked=new Set(coverage.filter(r=>['ok','not-modified'].includes(r.status)).map(r=>r.feedId));
+            await feed({action:'refresh',feedIds:enabled.map(f=>f.id).filter(id=>!checked.has(id))});
+            if(current())await draw();
           }catch(error){report(error);}};
           V3SurfacesUI.renderBulletin(surface,bulletin,options);
+          const review=h('details',{class:'v3-section v3-editorial'},h('summary',{text:t('Yazı ilişkisi, türü ve görüşü','Article relationship, type and opinion')}));
+          const choose=h('select',{'aria-label':t('Kaynak yazı','Source article')},rows.map(row=>h('option',{value:row.id,text:row.title})));
+          const film=h('select',{'aria-label':t('İlişkili yapım','Related title')},items.map(row=>h('option',{value:row.id,text:row.title})));
+          const kindLabels={unknown:t('Tür bilinmiyor','Unknown type'),news:t('Haber','News'),'festival-selection':t('Festival seçkisi','Festival selection'),award:t('Ödül haberi','Award news'),interview:t('Söyleşi','Interview'),criticism:t('Eleştiri','Criticism')};
+          const stanceLabels={unknown:t('Görüş bilinmiyor','Unknown opinion'),positive:t('Olumlu','Positive'),negative:t('Olumsuz','Negative'),mixed:t('Karma','Mixed'),neutral:t('Tarafsız','Neutral')};
+          const kind=h('select',{'aria-label':t('Yazı türü','Article type')},Object.entries(kindLabels).map(([value,text])=>h('option',{value,text})));
+          const stance=h('select',{'aria-label':t('Yazının görüşü','Article opinion')},Object.entries(stanceLabels).map(([value,text])=>h('option',{value,text})));
+          const source=h('textarea',{rows:5,readonly:true,'aria-label':t('Kayıtlı kaynak metni','Saved source text')});
+          const quote=h('textarea',{rows:2,maxlength:500,'aria-label':t('Kaynak metninden aynen alıntı','Exact quote from source')});
+          const state=h('p',{role:'status'}),relationships=h('div',{class:'v3-runtime-controls'}),confirmation=h('div',{class:'v3-runtime-controls'});
+          const selected=()=>rows.find(row=>row.id===choose.value);
+          const reset=()=>{const row=selected();if(!row)return;source.value=row.title+'\n'+row.text;kind.value=row.contentKind||'unknown';stance.value=row.stance||'unknown';quote.value=row.editorial?.quote||'';relationships.replaceChildren(...row.links.map(link=>button(t('İlişkiyi kaldır','Remove relationship')+' · '+link.title,async()=>{await feed({action:'unlink',entryId:row.id,catalogId:link.catalogId});if(current())await draw();})));state.textContent=t('Sınıflandırma durumu','Classification status')+' · '+(row.editorialState==='current'?t('Güncel kullanıcı işareti','Current user classification'):row.editorialState==='stale'?t('Kaynak değişti, yeniden inceleyin','Source changed, review again'):t('Kullanıcı işareti yok','No user classification'));confirmation.replaceChildren();};
+          choose.addEventListener('change',reset);
+          review.append(h('div',{class:'v3-runtime-controls'},h('label',null,t('Kaynak yazı','Source article'),choose),h('label',null,t('İlişkili yapım','Related title'),film),button(t('Film ilişkisini önizle','Preview film relationship'),async()=>{
+            const row=selected();if(!row||!film.value)return;
+            const result=await feed({action:'link-preview',entryId:row.id,catalogId:film.value});if(!current())return;
+            confirmation.replaceChildren(h('p',{text:result.source.title+' → '+result.catalog.title}),button(t('İlişkiyi onayla','Confirm relationship'),async()=>{await feed({action:'link-confirm',token:result.token});if(current())await draw();}));
+          })),relationships,h('label',null,t('Kayıtlı kaynak metni','Saved source text'),source),h('p',{text:t('Tür ve görüş kaynak metninden bir alıntıyla kullanıcı tarafından işaretlenir. Ödül haberi kazanma kanıtı sayılmaz.','Type and opinion are user classifications supported by a source quote. Award news does not establish a win.')}),h('div',{class:'v3-runtime-controls'},h('label',null,t('Yazı türü','Article type'),kind),h('label',null,t('Yazının görüşü','Article opinion'),stance)),h('label',null,t('Kaynak metninden aynen alıntı','Exact quote from source'),quote),state,button(t('Sınıflandırmayı önizle','Preview classification'),async()=>{
+            const row=selected();if(!row)return;
+            const result=await feed({action:'editorial-preview',entryId:row.id,contentKind:kind.value,stance:stance.value,quote:quote.value});if(!current())return;
+            confirmation.replaceChildren(h('p',{text:kindLabels[result.record.contentKind]+' · '+stanceLabels[result.record.stance]}),h('blockquote',{text:result.source.quote}),button(t('Sınıflandırmayı onayla','Confirm classification'),async()=>{await feed({action:'editorial-confirm',token:result.token});if(current())await draw();}));
+          }),confirmation);
+          if(rows.length)surface.append(review);reset();
           if(!rows.length)setStatus(t('Gösterilecek kayıtlı yazı yok.','No saved entries to display.'));
           else setStatus(t('Son 100 kayıt içinden.','From the latest 100 entries.'));
           return;
@@ -121,21 +138,44 @@
             picker.value=id;
             setStatus('');
             options.handlers.onExport=async format=>{try{
+              if(editing)return;
               const out=AssistantArtifactExport.exportArtifact({doc,format,expectedRevision:doc.revision,locale:locale()});
               if(out.ok&&current())await hub({action:'v3-export',format,content:(out.bom?'\uFEFF':'')+out.content});
             }catch(error){report(error);}};
+            let editing=false,writing=false;
+            const mutate=async input=>{
+              if(editing||writing)return;
+              writing=true;
+              try{await artifacts(input);}finally{writing=false;}
+              if(current()&&request===view)await show(id);
+            };
+            options.handlers.onSpoiler=async(rowId,colId,value)=>{try{
+              await mutate({action:'spoiler',id,expectedRevision:doc.revision,key:'cell:'+rowId+':'+colId,value});
+            }catch(error){report(error);}};
+            options.handlers.onEdit=(rowId,colId)=>{
+              if(editing||writing||!current())return;
+              const cell=body.cells.find(row=>row.rowId===rowId&&row.colId===colId);
+              if(!cell||cell.spoiler==='closed')return;
+              editing=true;controls.inert=true;revisions.inert=true;
+              const input=h('textarea',{maxlength:2000,rows:3,value:cell.value,'aria-label':t('Hücre düzeltmesi','Cell correction')});
+              const editor=h('section',{class:'v3-runtime-controls'},input);
+              const finish=()=>{editing=false;controls.inert=false;revisions.inert=false;surface.querySelectorAll('[inert]').forEach(node=>node.removeAttribute('inert'));editor.remove();};
+              editor.append(button(t('Düzeltmeyi kaydet','Save correction'),async()=>{
+                await artifacts({action:'edit',id,expectedRevision:doc.revision,key:'cell:'+rowId+':'+colId,value:input.value});
+                finish();if(current()&&request===view)await show(id);
+              }),button(t('Düzenlemeyi iptal et','Cancel editing'),finish));
+              surface.querySelector('.v3-foot')?.setAttribute('inert','');surface.append(editor);input.focus();
+            };
             V3SurfacesUI.renderMatrix(surface,doc,body,options);
             const update=button(t('Arşivden güncelle','Update from library'),async()=>{
-              await artifacts({action:'save',id,expectedRevision:doc.revision,ids:body.columns.map(col=>col.id),locale:locale()});
-              if(current()&&request===view)await show(id);
+              await mutate({action:'save',id,expectedRevision:doc.revision,ids:body.columns.map(col=>col.id),locale:locale()});
             });
             revisions.replaceChildren(update);
             if(doc.versions.length){
               const version=h('select',{'aria-label':t('Önceki sürüm','Previous revision')},doc.versions.slice().reverse().map(row=>
                 h('option',{value:row.revision,text:t('Sürüm','Revision')+' '+row.revision})));
               revisions.append(version,button(t('Sürümü geri yükle','Restore revision'),async()=>{
-                await artifacts({action:'restore',id,expectedRevision:doc.revision,revision:Number(version.value)});
-                if(current()&&request===view)await show(id);
+                await mutate({action:'restore',id,expectedRevision:doc.revision,revision:Number(version.value)});
               }));
             }
           };

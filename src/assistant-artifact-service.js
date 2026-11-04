@@ -31,7 +31,7 @@ function validateMatrix(body) {
   const columns = axis(body.columns), rows = axis(body.rows), keys = new Set();
   for (const cell of body.cells) {
     if (!rows.has(cell?.rowId) || !columns.has(cell.colId) || !shortText(cell.value) ||
-        !['known', 'unknown'].includes(cell.status) || cell.spoiler !== 'open' ||
+        !['known', 'unknown'].includes(cell.status) || !['open', 'closed'].includes(cell.spoiler) ||
         !Array.isArray(cell.claims) || cell.claims.length !== (cell.value ? 1 : 0) ||
         !cell.claims.every(claim => claim?.sourceId === cell.colId && shortText(claim.quote))) fail();
     keys.add(JSON.stringify([cell.rowId, cell.colId]));
@@ -58,6 +58,9 @@ function validateEnvelope(data) {
         validateSourcedBody(version.modelBody);
         if (version.modelBody.type !== doc.kind || version.modelBody.origin.threadId !== doc.threadId) fail();
       }
+      const spoilers = version.userSpoilers === undefined ? {} : version.userSpoilers;
+      if (!spoilers || typeof spoilers !== 'object' || Array.isArray(spoilers) || Object.keys(spoilers).length > 200 ||
+          Object.entries(spoilers).some(([key,value]) => !/^(cell:[^\0]{1,250}|node:[\w-]{1,100}|passage:p\d+)$/.test(key) || !['open','closed'].includes(value))) fail();
       const edits = Object.entries(version.userEdits);
       if (edits.length > 200 || edits.some(([key, value]) => !/^(cell:[^\0]{1,250}|node:[\w-]{1,100}|passage:p\d+)$/.test(key) || !shortText(value))) fail();
     }
@@ -95,6 +98,11 @@ function registerAssistantArtifacts({ app, ipcMain, authorized, catalogStore }) 
         }
         if (input?.action === 'get' && id(input.id)) return store.get(input.id);
         if (input?.action === 'restore' && id(input.id)) return await store.restoreVersion(input);
+        if (input?.action === 'spoiler' && id(input.id)) {
+          const doc = lookup(input.id);
+          if (!doc || !editKeys(doc.modelBody).includes(input.key)) return { ok: false, code: 'invalid-edit' };
+          return await store.setSpoiler(input);
+        }
         if (input?.action === 'edit' && id(input.id)) {
           const doc = lookup(input.id);
           if (!doc || !editKeys(doc.modelBody).includes(input.key) || !shortText(input.value)) return { ok: false, code: 'invalid-edit' };

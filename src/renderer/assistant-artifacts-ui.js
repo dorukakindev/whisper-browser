@@ -45,6 +45,13 @@
       for(const entry of entries){
         const key=(current.type==='timeline'?'node:':'passage:')+entry.id;
         const text=current.type==='timeline'?entry.label:entry.text;
+        if(entry.spoiler==='closed'){
+          const hidden=h('section',{class:'v3-section'},h('p',{text:t('Gizli — spoiler kapalı','Hidden — spoiler closed')}));
+          hidden.append(button(t('Spoileri göster','Reveal spoiler'),async()=>{
+            if(dirty)return;
+            await request({action:'spoiler',id,expectedRevision:doc.revision,key,value:'open'});await redraw();
+          }));body.append(hidden);continue;
+        }
         const content=h('p',{text});
         const card=h('section',{class:'v3-section'},current.type==='timeline'?h('strong',{text:Math.floor(entry.time/60)+':'+String(Math.floor(entry.time%60)).padStart(2,'0')}):null,content);
         const user=Object.hasOwn(doc.userEdits,key);
@@ -64,6 +71,10 @@
           }),button(t('Düzenlemeyi iptal et','Cancel editing'),async()=>{dirty=false;edit.remove();}));
           card.append(edit);input.focus();
         }));
+        card.append(button(t('Spoileri gizle','Hide spoiler'),async()=>{
+          if(dirty)return;
+          await request({action:'spoiler',id,expectedRevision:doc.revision,key,value:'closed'});await redraw();
+        }));
         body.append(card);
       }
       controls.append(button(t('Yanıttan yenile','Refresh from reply'),async()=>{
@@ -79,11 +90,11 @@
           await request({action:'restore',id,expectedRevision:doc.revision,revision:Number(versions.value)});await redraw();
         }));
       }
-      for(const format of ['json','markdown','html'])controls.append(button(t('Dışa aktar','Export')+' '+format.toUpperCase(),async()=>{
+      for(const format of ['csv','json','markdown','html'])controls.append(button(t('Dışa aktar','Export')+' '+format.toUpperCase(),async()=>{
         if(dirty)return;
         const exported=AssistantArtifactExport.exportArtifact({doc,format,expectedRevision:doc.revision,locale:window.UiLocale?.get?.()});
         if(!exported.ok)throw Error(t('Dışa aktarılamadı.','Export failed.'));
-        const saved=await window.api.mediaHub({action:'v3-export',kind:doc.kind,format,content:exported.content});
+        const saved=await window.api.mediaHub({action:'v3-export',kind:doc.kind,format,content:(exported.bom?'\uFEFF':'')+exported.content});
         if(!saved?.ok)throw Error(t('Dışa aktarılamadı.','Export failed.'));
       }));
       body.append(controls);

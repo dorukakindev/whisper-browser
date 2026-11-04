@@ -92,7 +92,7 @@ function validateSourcedBody(body) {
   for (const row of entries) {
     const text = body.type === 'dossier' ? row?.text : row?.label;
     if (typeof row?.id !== 'string' || !/^[\w-]{1,100}$/.test(row.id) || ids.has(row.id) ||
-        typeof text !== 'string' || text.length > 2000 || !Array.isArray(row.claims) ||
+        typeof text !== 'string' || text.length > 2000 || row.spoiler !== undefined && !['open','closed'].includes(row.spoiler) || !Array.isArray(row.claims) ||
         !row.claims.length || row.claims.length > 200 ||
         body.type === 'timeline' && (!Number.isFinite(row.time) || row.time < 0)) throw Error('Invalid artifact entry.');
     ids.add(row.id);

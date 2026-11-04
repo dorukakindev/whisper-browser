@@ -22305,5 +22305,5 @@ require('./media-tools-service').registerMediaTools({app,ipcMain,grantSubtitle:f
     finally{reader.close();reviewSession.removeListener('will-download',denyDownload);}
   }
 });
-require('./media-hub-service').registerMediaHub({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,inspectMedia:validateLocalMediaPath,authorizeMedia:authorizeMediaFile,grantMedia:file=>mediaFileAccess.grant(file),catalogStore:mediaCatalogService.store,ffmpeg:()=>resolveFfTool('ffmpeg'),
+require('./media-hub-service').registerMediaHub({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,inspectMedia:validateLocalMediaPath,authorizeMedia:authorizeMediaFile,grantMedia:file=>mediaFileAccess.grant(file),catalogStore:mediaCatalogService.store,ffmpeg:()=>resolveFfTool('ffmpeg'),ffprobe:()=>resolveFfTool('ffprobe'),
   relinkHistory:async(oldKey,file)=>{if(loadWatchLibraryAll().some(row=>row.key===oldKey))return (await relinkLibraryItem(oldKey,file,null,true)).undo;return null;}});

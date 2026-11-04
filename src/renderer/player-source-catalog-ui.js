@@ -73,6 +73,8 @@
     const group = (legend, field, options) => h('fieldset', null, h('legend', { text: legend }), options.map(([value, label]) => h('label', { class: 'pw-check' }, h('input', { type: 'checkbox', checked: q[field].includes(value), on: { change: toggle(field, value) } }), h('span', { text: label }))));
     return h('div', { class: 'pw-filters', role: 'group', 'aria-label': t(L, 'filters') },
       group(t(L, 'duration'), 'durations', ['under10', '10to30', '30to60', '60plus', 'unknown'].map((v) => [v, t(L, 'dur_' + v)])),
+      group(t(L,'speech'),'speechLanguages',[...new Set([...(vm.speechLanguagesAvailable||[]),...q.speechLanguages,'und'])].map(code=>[code,code==='und'?(L==='tr'?'Bilinmiyor':'Unknown'):code.toUpperCase()])),
+      group(t(L,'subtitleLang'),'subtitleLanguages',[...new Set([...(vm.subtitleLanguagesAvailable||[]),...q.subtitleLanguages,'und'])].map(code=>[code,code==='und'?(L==='tr'?'Bilinmiyor':'Unknown'):code.toUpperCase()])),
       group(t(L, 'personal'), 'personalStates', ['unwatched', 'watched', 'saved', 'later', 'liked'].map((v) => [v, t(L, 'p_' + v)])),
       h('fieldset', null, h('legend', { text: t(L, 'availability') }), ['all', 'present', 'absent', 'unknown'].map((v) => h('label', { class: 'pw-check' }, h('input', { type: 'radio', name: 'pw-av', checked: q.subtitleAvailability === v, on: { change: () => handlers.onQuery && handlers.onQuery({ subtitleAvailability: v, cursor: null }) } }), h('span', { text: t(L, 'av_' + v) })))),
       h('fieldset', null, h('legend', { text: t(L, 'filters') }),
@@ -196,7 +198,7 @@
       vm.result.nextCursor && h('button', { class: 'pw-btn pw-more', type: 'button', on: { click: () => handlers.onLoadMore && handlers.onLoadMore(vm.result.nextCursor) }, text: t(L, 'loadMore') }),
       !vm.result.nextCursor && vm.result.remoteNextCursor && h('button', { class: 'pw-btn pw-more', type: 'button', on: { click: () => handlers.onLoadRemote && handlers.onLoadRemote(vm.result.remoteNextCursor) }, text: t(L, 'loadSource') }));
     const noSources = !vm.sources.some((s) => s.kind === vm.kind);
-    const main = h('div', { class: 'pw-main', 'aria-hidden': vm.drawerOpen ? 'true' : null }, kindTabs(vm, handlers), noSources ? null : toolbar(vm, handlers, prevInput), hero(vm, handlers), body);
+    const main = h('div', { class: 'pw-main', 'aria-hidden': vm.drawerOpen ? 'true' : null }, kindTabs(vm, handlers), noSources ? null : toolbar(vm, handlers, prevInput), hero(vm, handlers), vm.kind==='local'&&vm.selectedSourceId&&h('button',{class:'pw-btn',type:'button',disabled:vm.loading,on:{click:()=>handlers.onReadMetadata&&handlers.onReadMetadata()},text:L==='tr'?'Sonraki 20 dosyanın süre/dil bilgisini oku':'Read duration/language for next 20 files'}), vm.kind==='local'&&vm.selectedSourceId&&vm.metadataFailures>0&&h('button',{class:'pw-btn',type:'button',disabled:vm.loading,on:{click:()=>handlers.onReadMetadata&&handlers.onReadMetadata(true)},text:L==='tr'?'Hatalı dosya bilgilerini yeniden oku':'Retry failed file metadata'}), body);
     const layout = h('div', { class: 'pw-catalog' }, rail(vm, handlers), main);
     const nodes = [layout];
     if (vm.drawerOpen) nodes.push(h('div', { class: 'pw-scrim', on: { click: () => handlers.onCloseDrawer && handlers.onCloseDrawer() } }));
