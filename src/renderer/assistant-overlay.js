@@ -175,6 +175,11 @@
       const actionGroup=messageActions(row.id||'message-'+index,()=>action('copy',row.text)),actions=actionGroup.box,addAction=actionGroup.add;
       const pin=addAction(isPinned(row)?t('Unpin','Sabitlemeyi kaldır'):t('Pin','Sabitle'),()=>{if(isPinned(row))pins=pins.filter(p=>p.scope!==(value.pinScope||value.conversation)||p.text!==row.text);else pins=[...pins,{scope:value.pinScope||value.conversation,text:row.text}].slice(-100);try{localStorage.setItem('assistant-pins-v1',JSON.stringify(pins));}catch{}node.dataset.pinned=String(isPinned(row));pin.textContent=isPinned(row)?t('Unpin','Sabitlemeyi kaldır'):t('Pin','Sabitle');filter();});
       if(row.id&&!row.loading)addAction(t('Branch from here','Buradan dallandır'),()=>action('branch',row.id));
+      if(row.role==='ai'&&row.id&&!row.loading&&row.status==='complete'){
+        addAction(t('Save cited passages','Kaynaklı pasajları kaydet'),()=>action('save-dossier',row.id));
+        addAction(t('Save cited timeline','Kaynaklı zaman çizelgesini kaydet'),()=>action('save-timeline',row.id));
+        for(const ref of row.artifacts||[])addAction(t('Open saved output','Kayıtlı çıktıyı aç')+' · '+ref.title,()=>action('open-artifact',ref.artifactId));
+      }
       if(row.status==='stopped'||row.status==='failed'){const status=document.createElement('small');status.className='answer-status';status.textContent=row.status==='stopped'?t('Stopped','Durduruldu'):t('Failed — see details above','Başarısız — ayrıntılar yukarıda');node.append(status);}
       if(row.role==='user')addAction(t('Edit as new question','Yeni soru olarak düzenle'),()=>{$('text').value=row.text;rememberDraft();$('text').focus();});
       const code=[...row.text.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map(m=>m[1]).join('\n\n');if(code)addAction(t('Copy code','Kodu kopyala'),()=>action('copy',code));

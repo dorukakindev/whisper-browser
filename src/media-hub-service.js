@@ -38,7 +38,8 @@ function registerMediaHub({app,ipcMain,authorized,dialog,owner,inspectMedia,auth
    const extensions={csv:'csv',json:'json',markdown:'md',html:'html'};
    if(!Object.hasOwn(extensions,input.format)||typeof input.content!=='string'||Buffer.byteLength(input.content)>1024*1024)throw Error('Invalid comparison export.');
    const extension=extensions[input.format];
-   const picked=await dialog.showSaveDialog(owner(),{defaultPath:'whisper-comparison.'+extension,filters:[{name:'Whisper comparison',extensions:[extension]}]});
+   const outputName=['dossier','timeline'].includes(input.kind)?'whisper-'+input.kind:'whisper-comparison';
+   const picked=await dialog.showSaveDialog(owner(),{defaultPath:outputName+'.'+extension,filters:[{name:'Whisper output',extensions:[extension]}]});
    if(picked.canceled||!picked.filePath)return {ok:true,canceled:true};
    if(path.extname(picked.filePath).toLowerCase()!=='.'+extension)throw Error('Choose the matching comparison extension.');
    atomicWriteFileSync(picked.filePath,input.content);

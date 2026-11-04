@@ -7,6 +7,8 @@ const { atomicWriteFileSync } = require('./fsync-utils');
 const { createArtifactStore, makeThreadRef } = require('./assistant-artifact-store');
 const { buildComparisonMatrix } = require('./assistant-artifact-builders');
 
+const { fromMessage, editKeys, validateSourcedBody } = require('./assistant-message-artifact');
+
 const FILE = 'assistant-artifacts.json';
 const LIMIT = 16 * 1024 * 1024;
 const MAX_DOCUMENTS = 200;
@@ -42,16 +44,22 @@ function validateEnvelope(data) {
       data.documents.length > MAX_DOCUMENTS || Buffer.byteLength(JSON.stringify(data)) > LIMIT) fail();
   const ids = new Set();
   for (const doc of data.documents) {
-    if (!id(doc?.id) || doc.id.length > 80 || ids.has(doc.id) || doc.kind !== 'matrix' ||
-        doc.threadId !== '' || !shortText(doc.title) || !Number.isSafeInteger(doc.revision) ||
+    if (!id(doc?.id) || doc.id.length > 80 || ids.has(doc.id) || !['matrix', 'dossier', 'timeline'].includes(doc.kind) ||
+        typeof doc.threadId !== 'string' || doc.threadId.length > 100 || !shortText(doc.title) || !Number.isSafeInteger(doc.revision) ||
         doc.revision < 1 || !Array.isArray(doc.versions) || doc.versions.length > 20 ||
         !Array.isArray(doc.history) || doc.history.length > 21) fail();
     ids.add(doc.id);
     for (const version of [doc, ...doc.versions]) {
       if (!Number.isSafeInteger(version?.revision) || version.revision < 1 ||
           version.revision > doc.revision || !version.userEdits ||
-          Object.keys(version.userEdits).length !== 0) fail();
-      validateMatrix(version.modelBody);
+          typeof version.userEdits !== 'object' || Array.isArray(version.userEdits)) fail();
+      if (doc.kind === 'matrix') validateMatrix(version.modelBody);
+      else {
+        validateSourcedBody(version.modelBody);
+        if (version.modelBody.type !== doc.kind || version.modelBody.origin.threadId !== doc.threadId) fail();
+      }
+      const edits = Object.entries(version.userEdits);
+      if (edits.length > 200 || edits.some(([key, value]) => !/^(cell:[^\0]{1,250}|node:[\w-]{1,100}|passage:p\d+)$/.test(key) || !shortText(value))) fail();
     }
   }
   return data;
@@ -81,12 +89,33 @@ function registerAssistantArtifacts({ app, ipcMain, authorized, catalogStore }) 
           },
         });
         if (input?.action === 'list') {
-          return { ok: true, artifacts: data.documents.slice().reverse().map(doc => ({
+          return { ok: true, artifacts: data.documents.filter(doc => input.threadId ? doc.threadId === input.threadId : doc.kind === 'matrix').slice().reverse().map(doc => ({
             ...makeThreadRef(doc), columns: doc.modelBody.columns,
           })) };
         }
         if (input?.action === 'get' && id(input.id)) return store.get(input.id);
         if (input?.action === 'restore' && id(input.id)) return await store.restoreVersion(input);
+        if (input?.action === 'edit' && id(input.id)) {
+          const doc = lookup(input.id);
+          if (!doc || !editKeys(doc.modelBody).includes(input.key) || !shortText(input.value)) return { ok: false, code: 'invalid-edit' };
+          return await store.userEdit(input);
+        }
+        if (input?.action === 'from-message') {
+          const threadsFile = path.join(app.getPath('userData'), 'assistant-conversations.json');
+          if (!fs.existsSync(threadsFile) || fs.statSync(threadsFile).size > 32000000) return { ok: false, code: 'reply-unavailable' };
+          const threads = require('./assistant-thread-store').validateEnvelope(JSON.parse(fs.readFileSync(threadsFile, 'utf8'))).threads;
+          const thread = threads.find(row => row.id === input.threadId && row.sourceKey === input.sourceKey);
+          const message = thread?.messages.find(row => row.id === input.messageId);
+          if (!message) return { ok: false, code: 'reply-unavailable' };
+          const generated = fromMessage(thread, message, input.kind);
+          if (!generated.ok) return generated;
+          const existing = data.documents.find(doc => doc.kind === input.kind && doc.threadId === thread.id &&
+            doc.modelBody.origin?.messageId === message.id && doc.modelBody.origin.sourceKey === thread.sourceKey);
+          if (existing && input.expectedRevision == null) return { ok: true, doc: existing };
+          if (existing) return await store.updateModel({ id: existing.id, expectedRevision: input.expectedRevision, body: generated.body });
+          if (data.documents.length >= MAX_DOCUMENTS) return { ok: false, code: 'archive-full' };
+          return await store.create({ threadId: thread.id, body: generated.body });
+        }
         if (input?.action === 'save') {
           const ids = input.ids;
           if (!Array.isArray(ids) || ids.length !== 2 || ids[0] === ids[1] || !ids.every(sourceId)) fail();
@@ -94,7 +123,7 @@ function registerAssistantArtifacts({ app, ipcMain, authorized, catalogStore }) 
           const selected = ids.map(key => catalog.get(key));
           if (selected.some(row => !row)) return { ok: false, code: 'source-missing' };
           const existing = input.id == null ? null : lookup(input.id);
-          if (input.id != null && (!existing || existing.modelBody.columns.some((col, i) => col.id !== ids[i]))) {
+          if (input.id != null && (!existing || existing.kind !== 'matrix' || existing.modelBody.columns.some((col, i) => col.id !== ids[i]))) {
             return { ok: false, code: 'source-mismatch' };
           }
           if (!existing && data.documents.length >= MAX_DOCUMENTS) return { ok: false, code: 'archive-full' };

@@ -51,12 +51,18 @@ function actionsOf(raw){
     return result.kind==='open_voice_preparation'||result.source?[result]:[];
   });
 }
+function artifactRefs(raw) {
+  if (raw === undefined) return [];
+  if (!Array.isArray(raw) || raw.length > 8 || raw.some(ref => !require('./assistant-artifact-store').validateThreadRef(ref)) ||
+      new Set(raw.map(ref => ref.artifactId)).size !== raw.length) throw Error('Invalid assistant artifact references.');
+  return raw.map(ref => ({ ...ref }));
+}
 function cleanThread(raw){
   if(Array.isArray(raw?.messages)&&raw.messages.length>200)throw Error('Message limit reached (200). Export this conversation and start a new one. / Mesaj sınırına ulaşıldı (200). Sohbeti dışa aktarıp yeni sohbet başlat.');
   if(!raw||!id(raw.id)||typeof raw.sourceKey!=='string'||!raw.sourceKey||raw.sourceKey.length>6000||!Array.isArray(raw.messages)||raw.messages.length>200)throw Error('Invalid assistant conversation.');
   const messages=parentsFirst(raw.messages.map(row=>{
     if(!row||!id(row.id)||row.parentId!==null&&!id(row.parentId)||!['user','assistant'].includes(row.role)||typeof row.text!=='string'||row.text.length>32000)throw Error('Invalid assistant message.');
-    return {id:row.id,parentId:row.parentId,role:row.role,text:row.text,runtimeMessages:runtimeMessagesOf(row.runtimeMessages),status:['complete','streaming','stopped','failed'].includes(row.status)?row.status:'complete',evidence:evidenceOf(row.evidence),pageEvidence:pageEvidenceOf(row.pageEvidence),feedEvidence:feedEvidenceOf(row.feedEvidence),actions:actionsOf(row.actions),steps:require('./assistant-run-steps').clean(row.steps),citations:citationsOf(row.citations)};
+    return {id:row.id,parentId:row.parentId,role:row.role,text:row.text,artifacts:artifactRefs(row.artifacts),runtimeMessages:runtimeMessagesOf(row.runtimeMessages),status:['complete','streaming','stopped','failed'].includes(row.status)?row.status:'complete',evidence:evidenceOf(row.evidence),pageEvidence:pageEvidenceOf(row.pageEvidence),feedEvidence:feedEvidenceOf(row.feedEvidence),actions:actionsOf(row.actions),steps:require('./assistant-run-steps').clean(row.steps),citations:citationsOf(row.citations)};
   }));
   const seen=new Set();for(const row of messages){if(seen.has(row.id)||row.parentId!==null&&!seen.has(row.parentId))throw Error('Conversation contains a cycle, duplicate or missing parent.');seen.add(row.id);}
   if(raw.headId!==null&&!seen.has(raw.headId))throw Error('Conversation head is missing.');
@@ -64,6 +70,21 @@ function cleanThread(raw){
     headId:raw.headId,messages,createdAt:Number.isFinite(raw.createdAt)&&raw.createdAt>0?raw.createdAt:Date.now(),updatedAt:Number.isFinite(raw.updatedAt)&&raw.updatedAt>0?raw.updatedAt:Date.now(),revision:Number.isSafeInteger(raw.revision)&&raw.revision>=0?raw.revision:0};
 }
 function validateEnvelope(raw){if(!raw||raw.version!==1||!Array.isArray(raw.threads)||raw.threads.length>200)throw Error('Invalid assistant archive.');const seen=new Set();return {version:1,threads:raw.threads.map(row=>{const cleaned=cleanThread(row);if(seen.has(cleaned.id))throw Error('Duplicate conversation ID.');seen.add(cleaned.id);return cleaned;})};}
+function copiedArtifact(thread, message, doc, threads) {
+  const visited = new Set();
+  let parentId = thread.parentThreadId;
+  while (parentId && !visited.has(parentId)) {
+    visited.add(parentId);
+    const parent = threads.find(row => row.id === parentId && row.sourceKey === thread.sourceKey);
+    if (!parent) return false;
+    if (parent.id === doc?.threadId) {
+      return parent.messages.some(row => row.id === message.id && row.text === message.text &&
+        row.artifacts.some(ref => ref.artifactId === doc.id));
+    }
+    parentId = parent.parentThreadId;
+  }
+  return false;
+}
 function registerAssistantThreads({app,ipcMain,authorized}){
   const file=()=>path.join(app.getPath('userData'),'assistant-conversations.json');
   function read(){if(!fs.existsSync(file()))return {version:1,threads:[]};if(fs.statSync(file()).size>32000000)throw Error('Conversation archive exceeds 32 MB. Original file was preserved.');return validateEnvelope(JSON.parse(fs.readFileSync(file(),'utf8')));}
@@ -78,6 +99,22 @@ function registerAssistantThreads({app,ipcMain,authorized}){
         const thread=cleanThread(input.thread);if(thread.sourceKey!==input.sourceKey)throw Error('Conversation source changed.');
         const index=data.threads.findIndex(row=>row.id===thread.id),old=data.threads[index];
         if(old&&(old.sourceKey!==input.sourceKey||old.revision!==thread.revision))throw Error('Conversation changed elsewhere. Reopen it before saving.');
+        const addedRefs = thread.messages.flatMap(message => {
+          const previousRefs = old?.messages.find(row => row.id === message.id)?.artifacts || [];
+          return message.artifacts.filter(ref => !previousRefs.some(previous =>
+            JSON.stringify(previous) === JSON.stringify(ref))).map(ref => ({message,ref}));
+        });
+        if(addedRefs.length){
+          const artifactsFile=path.join(app.getPath('userData'),'assistant-artifacts.json');
+          if(!fs.existsSync(artifactsFile)||fs.statSync(artifactsFile).size>16*1024*1024)throw Error('Saved output is unavailable.');
+          const artifacts=require('./assistant-artifact-service').validateEnvelope(JSON.parse(fs.readFileSync(artifactsFile,'utf8'))).documents;
+          for(const {message,ref} of addedRefs){
+            const doc=artifacts.find(row=>row.id===ref.artifactId);
+            const copied = copiedArtifact(thread, message, doc, data.threads);
+            if(!doc||doc.threadId!==thread.id&&!copied||doc.modelBody.origin?.messageId!==message.id||doc.modelBody.origin.sourceKey!==thread.sourceKey||
+              ref.kind!==doc.kind||ref.revision>doc.revision||ref.title!==doc.title.slice(0,120))throw Error('Saved output belongs to a different reply.');
+          }
+        }
         if(index<0&&data.threads.length>=200)throw Error('Conversation limit reached (200). Export/remove an old conversation.');
         if(index<0&&data.threads.filter(row=>row.sourceKey===input.sourceKey).length>=20)throw Error('Conversation limit reached for this source (20).');
         thread.updatedAt=Date.now();thread.revision=(old?.revision||0)+1;if(index>=0)data.threads[index]=thread;else data.threads.push(thread);save(data);return {ok:true,thread};
