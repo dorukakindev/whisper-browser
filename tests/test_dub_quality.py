@@ -11,6 +11,20 @@ import numpy as np
 
 
 class QualityTests(unittest.TestCase):
+    def test_ambiguous_thousands_requires_exact_transcript_evidence(self):
+        from dub_finish import spoken_text
+        self.assertEqual(spoken_text('1.500'), '1.500')
+        self.assertEqual(spoken_text('1.250'), '1.250')
+        for expected, actual in [('1.500', 'bin beş yüz'),
+                                 ('Değer 1.250 olarak kaydedildi.', 'Değer bin iki yüz elli olarak kaydedildi.')]:
+            checked = Q.speech_check(expected, actual)
+            self.assertFalse(checked['review'], checked)
+            self.assertEqual(checked['recognizedText'], actual)
+        for actual in ('bin beş', 'bin altı yüz', 'on bin beş yüz', 'bin beş yüz bin', 'bir nokta beş yüz', 'bin beş yüz bin beş yüz'):
+            self.assertTrue(Q.speech_check('1.500', actual)['review'], actual)
+        for expected in ('0.500', '1.50', '12.05.2026', '192.168.1.1', 'v1.500', 'Sürüm 1.500'):
+            self.assertTrue(Q.speech_check(expected, 'bin beş yüz')['review'], expected)
+
     def test_reference_source_channels_expose_clipping_hidden_by_downmix(self):
         rate=8000
         stereo=np.column_stack([np.ones(rate*4),np.zeros(rate*4)])
