@@ -39,3 +39,23 @@ test('Discovery saves report the requested provider target and actual saved cata
   existing=true;result=await h.run('add_discovery_title',{item_id:'discovery:film:tt14173636'});assert.equal(result.existing,true);assert.equal(calls.filter(c=>c.action==='add').length,2);
  }finally{h.dom.window.close();}
 });
+
+
+test('Taste reads preserve explicit versus observed evidence and stale analysis without private fields',async()=>{
+ const h=setup();try{h.w.api.mediaShelf=async()=>({ok:true,taste:{rated:2,preferencesConfigured:false,preferences:{weights:{story:3},note:'A saved note'},preferencesRevision:'prefs-1',evidenceRevision:'evidence-1',coverage:{ratedTitles:2,missingMetadata:1,limitations:['Small sample'],privatePath:'private'},signals:{genres:[{name:'Drama',direction:'positive',count:2,confidence:'limited',evidence:[{title:'Film',rating:4,itemId:'real-1',path:'private'}]}]},analysisState:'stale',analysis:{summary:'Past interpretation'},reviews:[{id:'r1',title:'Film',text:'x'.repeat(2000)}]}});
+ const r=await h.run('get_taste_profile');assert.equal(r.profile.preferencesConfigured,false);assert.equal(r.profile.signals.genres[0].evidence[0].item_id,'catalog:real-1');assert.equal(r.profile.coverage.missingMetadata,1);assert.equal(r.profile.acceptedAnalysis.historical,true);assert.equal(r.profile.reviews[0].text.length,800);assert(!JSON.stringify(r).includes('private'));
+ }finally{h.dom.window.close();}
+});
+test('Taste recommendations forward explicit constraints and return bounded real catalog evidence without writes',async()=>{
+ const h=setup();try{const calls=[];h.w.api.mediaShelf=async p=>{calls.push(p);return {ok:true,evidenceRevision:'e1',preferencesRevision:'p1',coverage:{missingMetadata:2},recommendations:Array.from({length:8},(_,i)=>({itemId:'real-'+i,title:'Film '+i,reasons:['Rated genre'],confidence:'limited',evidence:[{title:'Known film',rating:4}],limitations:['Small sample']}))};};
+ const r=await h.run('recommend_from_taste',{kind:'film',max_duration_minutes:90,exploration:true,limit:2});assert.equal(calls.length,1);assert.equal(calls[0].action,'taste-recommendations');assert.equal(calls[0].maxDuration,90);assert.equal(calls[0].exploration,true);assert.equal(r.recommendations.length,2);assert.equal(r.recommendations[0].item_id,'catalog:real-0');assert.equal(r.coverage.missingMetadata,2);h.stale();await assert.rejects(h.run('recommend_from_taste'),/changed/);
+ }finally{h.dom.window.close();}
+});
+test('General taste writes require the exact reviewed proposal and revision, and preserve explicit patch scope',async()=>{
+ const h=setup();try{const calls=[],args={story:5,avoid:['pace'],note:'Explicit global request'};let revision='p1';const profile=()=>({preferencesRevision:revision,preferences:{weights:{story:5}},preferencesConfigured:true});h.w.api.mediaShelf=async p=>{calls.push(p);if(p.action==='list')return {ok:true,taste:profile()};return {ok:true,taste:profile()};};
+ await assert.rejects(h.run('update_taste_preferences',args),/reviewed/);assert.equal(calls.length,0);
+ const expectedSettings={kind:'taste-preferences',revision:'p1',args:JSON.stringify(args)};
+ let r=await h.w.AssistantLibraryActions.execute('update_taste_preferences',args,{}, {expectedSettings});assert.equal(r.status,'completed');const write=calls.find(p=>p.action==='taste-preferences');assert.equal(write.expectedPreferencesRevision,'p1');assert.deepEqual(JSON.parse(JSON.stringify(write.patch)),{weights:{story:5},avoid:['pace'],note:'Explicit global request'});
+ calls.length=0;revision='p2';r=await h.w.AssistantLibraryActions.execute('update_taste_preferences',args,{}, {expectedSettings});assert.equal(r.stale,true);assert.equal(calls.length,1);await assert.rejects(h.w.AssistantLibraryActions.execute('update_taste_preferences',{story:4},{},{expectedSettings}),/reviewed/);
+ }finally{h.dom.window.close();}
+});

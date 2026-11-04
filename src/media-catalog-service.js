@@ -13,7 +13,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
   const store = () => catalog ||= require('./media-catalog-store').createMediaCatalogStore({ filePath: path.join(userData(), 'media-catalog.json') });
   if (mediaShelf) require('./media-shelf-service').registerMediaShelf({
     ipcMain, dialog, owner, authorized, userData, pythonPath, inspectMedia, grantMedia, nativeImage,
-    catalogStore: store, ...mediaShelf,
+    catalogStore: store, catalogView:tasteCatalogView, ...mediaShelf,
   });
   const discovery = mediaShelf && require('./media-discovery-service').registerMediaDiscovery({ ipcMain, authorized, userData, nativeImage, catalogStore: store, translateSynopsis });
   const sourceKey = source => source ? canonicalWatchKey(source.type === 'local'
@@ -40,6 +40,10 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
     const item = store().get(id);
     if (!item) throw new Error('Katalog kaydı bulunamadı.');
     return item;
+  }
+  function tasteCatalogView(){
+    const items=store().list(),history=historyIndex(watchItems?.()||[]),titles=require('./personal-media-state').readFeedback(userData()).titles,alternates=require('./film-watch-service').additionalSourceReader(userData(),items);
+    return items.map(item=>visible(item,history,titles,alternates));
   }
   // Yerel dosya seçici başlıkları arayüz dilini izler (EN'de TR kalıyordu).
   const chooseTitles = new Map([

@@ -68,7 +68,7 @@ function readReviewTaste(userData,catalog=[]) {
   const data=loadShelfFile(path.join(userData,'media-shelf.json'));
   return require('./media-taste').profile(data.diary,catalog,data.tasteProfile||{},Array.isArray(data.reviews)?data.reviews:[]);
 }
-function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pythonPath, ffprobePath, inspectMedia, grantMedia, grantPdf, nativeImage, catalogStore, fetchImpl = fetch, musicRun = run, podcastRegistryBinding, transcriptFetcher = (descriptor, options) => require('./podcast-transcript-service').fetchPodcastTranscript(descriptor, {...options, ...require('./feed-service')}) }) {
+function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pythonPath, ffprobePath, inspectMedia, grantMedia, grantPdf, nativeImage, catalogStore, catalogView, fetchImpl = fetch, musicRun = run, podcastRegistryBinding, transcriptFetcher = (descriptor, options) => require('./podcast-transcript-service').fetchPodcastTranscript(descriptor, {...options, ...require('./feed-service')}) }) {
   const requestTranscript=require('./podcast-transcript-service').createTranscriptRequester(transcriptFetcher);
   let active = null;
   const imports = new Map();
@@ -91,7 +91,23 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
   };
   function publicState(data) {
     const { diary, reviews:privateReviews, ...rest } = data;
-    return { ...rest, taste: require('./media-taste').profile(diary,catalogStore().list(),data.tasteProfile || {},Array.isArray(data.reviews)?data.reviews:[]) };
+    return { ...rest, taste: tasteOf(data) };
+  }
+  const tasteCatalog=()=>catalogView?catalogView():catalogStore?.().list()||[];
+  const tasteOf=data=>require('./media-taste').profile(data.diary,tasteCatalog(),data.tasteProfile||{},Array.isArray(data.reviews)?data.reviews:[]);
+  function updateTastePreferences(data,input){
+    const taste=require('./media-taste'),saved=data.tasteProfile||{};
+    if(input.expectedPreferencesRevision!==undefined&&input.expectedPreferencesRevision!==taste.preferencesRevision(saved))throw Object.assign(Error('Taste preferences changed; review the current profile / Zevk tercihleri değişti; güncel profili inceleyin.'),{stale:true});
+    const patch=input.patch??input.preferences;
+    if(!patch||typeof patch!=='object'||Array.isArray(patch)||Object.keys(patch).some(key=>!['weights','avoid','note'].includes(key))||!Object.keys(patch).length)throw Error('Invalid taste preferences / Geçersiz zevk tercihleri.');
+    const next=taste.effectivePreferences(saved);
+    if(patch.weights!==undefined){if(!patch.weights||typeof patch.weights!=='object'||Array.isArray(patch.weights)||Object.entries(patch.weights).some(([key,value])=>!taste.ASPECTS.includes(key)||!Number.isFinite(value)||value<0||value>5))throw Error('Invalid preference weights / Geçersiz tercih ağırlıkları.');next.weights={...next.weights,...patch.weights};}
+    if(patch.avoid!==undefined){if(!Array.isArray(patch.avoid)||patch.avoid.length>taste.ASPECTS.length||patch.avoid.some(value=>!taste.ASPECTS.includes(value)))throw Error('Invalid avoidance preferences / Geçersiz kaçınma tercihleri.');next.avoid=[...new Set(patch.avoid)];}
+    if(patch.note!==undefined){if(typeof patch.note!=='string'||patch.note.length>2000)throw Error('Invalid preference note / Geçersiz tercih notu.');next.note=patch.note;}
+    data.tasteProfile={...saved,...taste.preferences(next)};
+    // A note/avoid-only edit does not turn displayed default priorities into
+    // priorities the person explicitly chose.
+    if(patch.weights===undefined&&!Object.keys(saved.weights||{}).length){if(Object.prototype.hasOwnProperty.call(saved,'weights'))data.tasteProfile.weights=saved.weights;else delete data.tasteProfile.weights;}
   }
   async function importMusic(input) {
     if (active) throw Error('An import is already running.');
@@ -379,11 +395,17 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
         case 'tag-query':{const rows=M.scopedTags(load(),catalogStore().list(),input.scope,input.name);return {ok:true,rows:rows.slice(0,500),total:rows.length,incomplete:rows.length>500};}
         case 'tag-save':{const d=load(),rows=M.scopedTags(d,catalogStore().list(),input.scope),row=rows.find(r=>r.id===input.recordId);if(!row&&input.scope!=='list')throw Error('Tagged record no longer exists.');if(!Array.isArray(input.tags)||input.tags.length>30)throw Error('Choose up to 30 tags.');const tags=[...new Set(input.tags.filter(v=>typeof v==='string').map(v=>text(v,100)).filter(Boolean))];if(input.scope==='film')catalogStore().upsert({id:row.id,collections:tags});else if(input.scope==='list'){if(!text(input.title,200))throw Error('Name the list.');d.listTags=[...(d.listTags||[]).filter(r=>r.id!==input.recordId),{id:input.recordId||randomUUID(),title:text(input.title,200),tags}].slice(-100);}else{const key=input.scope==='diary'?'diary':'reviews';const index=d[key].findIndex(r=>(r.recordId||M.hash([input.scope,r.title,r.year,r.watchedDate,r.review]))===row.id);d[key][index].tags=tags;}save(d);return {ok:true};}
         case 'taste-quiz': {const data=load(),quiz=input.quiz===null?null:require('./taste-quiz').validate(input.quiz);data.tasteProfile={...data.tasteProfile,quiz};save(data);return {ok:true,taste:publicState(data).taste};}
-        case 'taste-preferences': { const data=load(); data.tasteProfile={...data.tasteProfile,...require('./media-taste').preferences(input.preferences)};save(data);return {ok:true}; }
-        case 'taste-analysis': { const data=load(); const analysis=require('./media-taste').validateAnalysis(input.analysis,[...data.diary,...(Array.isArray(data.reviews)?data.reviews:[])]);data.tasteProfile={...data.tasteProfile,analysis};save(data);return {ok:true,analysis}; }
+        case 'taste-profile':return {ok:true,taste:tasteOf(load())};
+        case 'taste-recommendations':{
+          if(input.kind!==undefined&&!['film','series'].includes(input.kind)||input.maxDuration!==undefined&&(!Number.isFinite(input.maxDuration)||input.maxDuration<=0||input.maxDuration>1440)||input.limit!==undefined&&(!Number.isInteger(input.limit)||input.limit<1||input.limit>12)||input.exploration!==undefined&&typeof input.exploration!=='boolean')throw Error('Invalid recommendation conditions / Geçersiz öneri koşulları.');
+          const data=load(),items=tasteCatalog(),taste=require('./media-taste').profile(data.diary,items,data.tasteProfile||{},Array.isArray(data.reviews)?data.reviews:[]),recommendations=require('./media-taste').recommend(items,taste,{kind:input.kind,maxDuration:input.maxDuration,limit:input.limit??6,exploration:input.exploration});
+          return {ok:true,recommendations,evidenceRevision:taste.evidenceRevision,preferencesRevision:taste.preferencesRevision,coverage:taste.coverage,preferencesConfigured:taste.preferencesConfigured};
+        }
+        case 'taste-preferences': { const data=load();updateTastePreferences(data,input);save(data);return {ok:true,taste:tasteOf(data)}; }
+        case 'taste-analysis': { const data=load();if(input.expectedEvidenceRevision!==undefined&&input.expectedEvidenceRevision!==tasteOf(data).evidenceRevision)throw Object.assign(Error('Review evidence changed; prepare a new sample / Yorum kanıtları değişti; yeni bir örnek hazırlayın.'),{stale:true});const analysis=require('./media-taste').validateAnalysis(input.analysis,[...data.diary,...(Array.isArray(data.reviews)?data.reviews:[])]);data.tasteProfile={...data.tasteProfile,analysis};save(data);return {ok:true,analysis,taste:tasteOf(data)}; }
         default: throw Error('Unsupported media shelf action.');
       }
-    } catch (error) { const parts=String(error.message).split(' / ');return { ok: false, error:parts.length>1?(input.locale==='tr'?parts.slice(1).join(' / '):parts[0]):error.message }; }
+    } catch (error) { const parts=String(error.message).split(' / ');return { ok: false,...(error.stale?{stale:true}:{}), error:parts.length>1?(input.locale==='tr'?parts.slice(1).join(' / '):parts[0]):error.message }; }
   });
 }
 module.exports = { registerMediaShelf, csvPlan, urlOf, readReviewTaste };

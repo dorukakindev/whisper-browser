@@ -44,6 +44,13 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
   return settingProposals.snapshot(name,args,state);
  }
  async function captureSettings(sender,owner,row,signal){
+  if(row.name==='update_taste_preferences'){
+   const state=await requestRenderer(sender,owner,'get_taste_profile',{},signal),revision=state.profile?.preferencesRevision;
+   if(state.status!=='completed'||typeof revision!=='string'||!revision)throw Error('Taste preference revision unavailable.');
+   row.expectedSettings={kind:'taste-preferences',revision,args:JSON.stringify(row.args)};
+   const tr=row.locale==='tr',labels={story:tr?'Hikâye':'Story',characters:tr?'Karakterler':'Characters',pace:tr?'Tempo':'Pace',visuals:tr?'Görsellik':'Visuals',sound:tr?'Ses':'Sound',emotion:tr?'Duygu':'Emotion',avoid:tr?'Kaçınılanlar':'Avoid',note:tr?'Genel not':'Global note'};
+   row.summary=Object.entries(row.args).map(([key,value])=>labels[key]+': '+(Array.isArray(value)?value.map(v=>labels[v]).join(', '):value)).join(' · ')+(tr?' · Yalnız bu genel tercihler onaydan sonra kaydedilir.':' · Only these general preferences save after approval.');
+  }
   if(row.name==='set_feed_entry_state'){
    const state=await requestRenderer(sender,owner,row.name,row.args,signal);
    if(state.status!=='completed'||state.operation!=='preview'||!state.token||!state.entry?.entry_id||!state.entry.revision||!state.sourceRevision)throw Error(state.error||'Selected feed preview unavailable.');

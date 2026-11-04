@@ -46,3 +46,13 @@ test('Book tools are source-bound and accept only integer ordered page/chapter r
 });
 
 test('Review count accepts bounded integers and rejects decimals booleans and strings',()=>{for(const name of ['analyze_title_reviews','load_title_reviews']){const base={item_id:'discovery:film:tt0112471',...(name==='load_title_reviews'?{source:'automatic'}:{})};for(const count of [1,10,30,48])assert.doesNotThrow(()=>registry.validate(name,{...base,count},{kind:'library'}));for(const count of [0,49,1.5,NaN,Infinity,true,'30'])assert.throws(()=>registry.validate(name,{...base,count},{kind:'library'}),/count/);}});
+
+
+test('Taste tools separate read-only constraints from explicit reviewed global changes',()=>{
+ const owner={kind:'video'};
+ assert.equal(registry.get('recommend_from_taste').policy,'read');assert.equal(registry.get('update_taste_preferences').policy,'proposal');
+ assert.deepEqual(registry.validate('recommend_from_taste',{kind:'film',max_duration_minutes:90,exploration:true,limit:2},owner),{kind:'film',max_duration_minutes:90,exploration:true,limit:2});
+ for(const args of [{exploration:.5},{limit:13},{kind:'unknown'},{max_duration_minutes:0}])assert.throws(()=>registry.validate('recommend_from_taste',args,owner));
+ for(const args of [{},{story:6},{avoid:['mood']},{avoid:['pace','pace']},{atmosphere:3},{note:'x'.repeat(2001)}])assert.throws(()=>registry.validate('update_taste_preferences',args,owner));
+ assert.deepEqual(registry.validate('update_taste_preferences',{story:0,avoid:[],note:''},owner),{story:0,avoid:[],note:''});
+});
