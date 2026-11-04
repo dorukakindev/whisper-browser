@@ -1,0 +1,37 @@
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const { JSDOM } = require('jsdom');
+const dom = new JSDOM(`<!doctype html><div id="playerLayer" class="workspace-browser"><button id="browserStudyOpen"></button><div id="browserWorkspace"><video id="webVideo"></video></div><aside id="playerSide"><div class="bp-title"><h2>Video araçları</h2></div><div class="bp-subtitles"><div id="cueList"></div></div></aside></div><select id="browserTrackSelect"><option value="source">English</option></select><select id="browserTrackSelect2"><option value="">None</option><option value="tr">Türkçe</option></select><button id="browserTrackTranslate"></button><button id="browserTrackLoadPair"></button><button id="browserWhisperTranslate" disabled title="YouTube gerekli"></button><button id="browserLiveAsr"></button>`);
+const { window } = dom, { document } = window;
+const video = document.getElementById('webVideo'), cues = document.getElementById('cueList');
+const calls = [], frames = [], player = { workspaceMode:'browser', browserActiveTabId:'tab-a', mediaKey:'browser:a', generation:1, viewMode:'reading', browserMediaSeen:true, browserTracks:[], cues:[], cues2:[] };
+window.UiLocale = { get:()=>'tr' };
+let roles = { source:[], translation:[] }, chooseSecond;
+window.PlayerUiKit={select:config=>{chooseSecond=config.onChange;const wrap=document.createElement('div');wrap.trigger=document.createElement('button');wrap.append(wrap.trigger);return wrap;}};
+const context = vm.createContext({window,document,player,MutationObserver:window.MutationObserver,requestAnimationFrame:fn=>frames.push(fn),
+ closeBrowserToolbarMenus:()=>calls.push('close-menu'),setViewMode:value=>{player.viewMode=value;},setPlayerSidebarCollapsed:value=>calls.push(['collapse',value]),
+ setBrowserSideRailPref:value=>calls.push(['rail',value]),setSideTab:value=>calls.push(['tab',value]),setSubtitleMode:(value)=>calls.push(['display',value]),browserSubtitleRoleCues:()=>roles});
+for (const id of ['browserTrackTranslate','browserTrackLoadPair','browserWhisperTranslate','browserLiveAsr']) document.getElementById(id).onclick=()=>calls.push(id);
+vm.runInContext(fs.readFileSync(require.resolve('../src/renderer/browser-study'),'utf8'),context);
+const study=window.BrowserStudy, button=id=>document.querySelector(`[data-study-action="${id}"]`);
+study.open();
+assert.equal(study.isActive(),true);assert.equal(player.viewMode,'study');
+assert.equal(document.getElementById('webVideo'),video);assert.equal(document.querySelectorAll('video').length,1);assert.equal(document.getElementById('cueList'),cues);
+assert.equal(calls.some(call=>typeof call==='string'&&/browser/.test(call)),false,'opening cannot start ASR, translate, acquisition or consent');
+assert.equal(button('browserWhisperTranslate').disabled,true);assert.equal(button('browserTrackTranslate').disabled,true);assert.equal(button('both').disabled,true);
+assert.match(document.querySelector('.browser-study-status').textContent,/Erişilebilir altyazı henüz/);
+player.browserTracks=[{id:'source',language:'en'},{id:'tr',language:'tr'}];roles={source:[{text:'Source'}],translation:[{text:'Çeviri'}]};player.cues=roles.source;
+study.refresh();assert.equal(button('both').disabled,false);assert.match(document.querySelector('.browser-study-status').textContent,/Kaynak ve çeviri hazır/);
+button('browserTrackLoadPair').click();assert.equal(typeof chooseSecond,'function','missing second track opens shared language picker');chooseSecond('tr');assert.equal(calls.at(-1),'browserTrackLoadPair');assert.equal(document.getElementById('browserTrackSelect2').value,'tr');
+button('browserTrackTranslate').click();assert.equal(calls.at(-1),'browserTrackTranslate');
+document.getElementById('browserTrackTranslate').disabled=true;study.refresh();assert.equal(button('browserTrackTranslate').disabled,true);
+const before=calls.length;player.browserActiveTabId='tab-b';player.mediaKey='browser:b';player.generation++;
+button('browserTrackLoadPair').click();assert.equal(calls.length,before,'old visible control cannot act in a different tab');study.refresh();assert.equal(study.isActive(),false);assert.equal(document.querySelector('.browser-study').hidden,true);
+study.open();study.close();assert.equal(study.isActive(),false);
+player.browserActiveTabId='tab-a';study.refresh();assert.equal(study.isActive(),true,'view choice follows its tab');
+player.workspaceMode='player';study.refresh();assert.equal(layerHas('browser-study-mode'),false);assert.equal(study.isActive(),false);
+function layerHas(name){return document.getElementById('playerLayer').classList.contains(name);}
+assert.equal(document.querySelectorAll('video').length,1);assert.equal(player.generation,2);assert.equal(document.querySelector('.browser-study').hidden,true);
+dom.window.close();console.log('browser-study: same video/cues, explicit actions, capability states, busy control and tab isolation OK');

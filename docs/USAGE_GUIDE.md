@@ -118,3 +118,9 @@ Before considering a job complete:
 5. Export the translation and reopen it once before deleting any source file.
 
 For failures, see [Troubleshooting](TROUBLESHOOTING.md). When opening an issue, use a synthetic example and remove keys, cookies, signed URLs, personal paths, and copyrighted subtitle text.
+
+### Web videosunda çift dilli çalışma / Bilingual study on web video
+
+Ana sayfadaki **Browser** düğmesiyle YouTube veya başka bir video sayfası açın. Üstte **Çift dilli çalış** seçin. Erişilebilir altyazıyı seçip **Yükle ve çevir** kullanın veya iki hazır dil için **İki hazır izi yükle** üzerinden ikinci dili seçin. YouTube’da **Whisper + çeviri**, diğer desteklenen seslerde kendi onayıyla **Canlı Whisper** erişilir. Görünümü açmak tek başına iş başlatmaz; her sitenin altyazı/ses erişimi desteklenmeyebilir. Video aynı sayfada kalır; cümleye tıklamak gerçek video zamanına atlar. Dar pencerede aynı düğme paneli overlay olarak açar.
+
+Open a video page using **Browser** on the home screen, then choose **Bilingual study**. Select accessible captions and **Load and translate**, or choose the second language through **Load two existing tracks**. YouTube exposes **Whisper + translation**; **Live Whisper** retains its own consent flow. Opening study starts no processing. Site caption/audio availability varies. Video stays on its page and sentence clicks seek the same video. On narrow windows, the same entry opens the panel as an overlay.
