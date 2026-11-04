@@ -112,3 +112,7 @@ Kod ve kısa kabul tamam: `9491f99a9fce839b29f23374a09158f5c3f43a65`, dal `codex
 ## P012 — Tarayıcı yan panel düğmesi — 2026-11-05
 
 Düzeltme ve kısa kabul tamam: `becde623c62b7cc01f7e2bc7e4e6a8739f1caad5`, dal `codex/browser-sidebar-toggle-20261105`. [Devir](docs/devir/2026-11-05-0225.md). Görünür düğmenin yerel toggle vekilliği ve rail/açık ayrımı giderildi; gerçek geniş/dar ilk tık açma-kapama-geri açma geçti, izin0. Sonraki adım PR/master/ana kopya kimlik eşitliği; ağır test gerekmez.
+
+## P013 — Kısa tarayıcı menü turu — 2026-11-05
+
+Düzeltme ve kısa kabul tamam: `c86f7bbebb2c81f55334388d9c723b645cb9ed1c`, dal `codex/browser-controls-pass-20261105`. [Devir](docs/devir/2026-11-05-0251.md). Podcast/bilingual/çıkış ve dar rail geçişleri, gizli YouTube adres paneli, boş NTP kapanışı giderildi; güvenlik onayları korunur. Son native kısa tur geçti, izin0. Yeni sağlayıcı/medya/model kabulü iddia edilmez. Sonraki adım PR/master/ana kopya kimlik eşitliği; ağır test gerekmez.

@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Tarayıcı podcast/çift dilli dönüşleri, dar panel ve YouTube adres girişi düzeltildi; yeni boş sekme gereksiz koruma onayına takılmadan kapanır, gerçek korumalar saklanır.
+
 - Tarayıcı üst çubuğundaki yan panel düğmesi dar şeritten ilk tıkla gerçek paneli açar; geniş/dar kapatma ve yeniden açma düzeltilir.
 
 - Web/YouTube podcast görünümü aynı oynatıcıyla açılır; RSS konum/hız ve kayıtlı özgün/çeviri birlikte döner. Salt okunur kayıt çevirisi ve kaynak/asistan sahipliği korumaları tamamlandı.

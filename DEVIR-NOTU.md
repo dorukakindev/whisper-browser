@@ -1,3 +1,4 @@
+Güncel çalışma: [Kısa tarayıcı menü ve geçiş düzeltmeleri](docs/devir/2026-11-05-0251.md)
 Güncel çalışma: [Tarayıcı yan panel düğmesinin düzeltilmesi](docs/devir/2026-11-05-0225.md)
 Güncel çalışma: [Podcast kabul açıklarının kapatılması](docs/devir/2026-11-05-0221.md)
 Güncel çalışma: [Web videolarında çift dilli çalışma girişi](docs/devir/2026-11-05-0155.md)
