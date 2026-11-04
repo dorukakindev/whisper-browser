@@ -7,6 +7,12 @@
   --media-highlight-rgb: 255 255 255;
   --media-feature-ink-rgb: 8 9 12;
   --media-transport-ink-rgb: 8 9 11;
+  /* Fixed media-plane accents are independent of the surrounding UI theme.
+     Keep the two established amber hues distinct; translucent effects reuse
+     these channels with their original opacity, rather than changing hue. */
+  --media-player-accent-rgb: 243 189 79;
+  --media-art-accent-rgb: 213 163 92;
+  --media-status-success-rgb: 105 181 139;
   --media-on-art: #f1f0ed;
   --media-on-art-white: #fff;
   --media-on-art-muted: #d8d9dc;

@@ -8,8 +8,8 @@ PR809 native tasarım ve PR810 podcast ilk bağlantıları/browser menüsü/dubl
 
 | Sıra | Hedef | Durum | Bitiş şartı |
 |---|---|---|---|
-| G1 | PODCAST_TEKNIK_PLAN_2026-11-04 P1–P6 tamamlaması | KOD VE KISA KONTROL TAMAM; ENTEGRASYON SÜRÜYOR | Aşağıdaki kod bağlantıları tamam, kısa hedefli kontroller geçer, kalan canlı sınırlar açık yazılır; ürün commit/merge/ana kopya doğrulanır. |
-| G2 | Önceki denetimin açık işlerini karşılaştırıp giderme | BEKLİYOR | B–K kapsamındaki aktarılmış iddialar güncel kodda incelenir; zaten düzelmiş/teyitli açık/doğrulanamayan ayrılır. Teyitli açıklar düzeltilir; eksik dış patch varmış gibi uygulanmaz. |
+| G1 | PODCAST_TEKNIK_PLAN_2026-11-04 P1–P6 tamamlaması | KAPANDI — PR812 / 3d0e80b4 | Aşağıdaki kod bağlantıları tamam, kısa hedefli kontroller geçer, kalan canlı sınırlar açık yazılır; ürün commit/merge/ana kopya doğrulanır. |
+| G2 | Önceki denetimin açık işlerini karşılaştırıp giderme | KOD TAMAM — entegrasyon | B–K kapsamındaki aktarılmış iddialar güncel kodda incelenir; zaten düzelmiş/teyitli açık/doğrulanamayan ayrılır. Teyitli açıklar düzeltilir; eksik dış patch varmış gibi uygulanmaz. |
 | G3 | Eski tasarım/düzeltme ZIP'lerinden yararlı parçalar | BEKLİYOR | Her öneri güncel uygulamayla karşılaştırılır; uyumlu faydalı düzeltme alınır, yeni tasarım/eski özellik kaybı yaratılmaz. Başlamış yerel farklar korunup ayrı tutulur. |
 | G4 | Uçtan uca kısa bug ve tasarım iyileştirme turu | BEKLİYOR | Browser, asistan, ana sayfa, Keşfet, podcast dinleme/okuma ve oynatıcıda anlamlı bozukluklar/akışlar giderilir; grafit/amber ve mevcut kontroller korunur. |
 | G5 | Son bütünlük ve teslim | BEKLİYOR | Her hedefin durumu dürüst, ürün/belge commitleri ayrı, PR/master/ana kopya aynı sürümde, kişisel dosyalar korunmuş; hiçbir yarım iş tamamlandı diye sunulmaz. |
@@ -23,7 +23,7 @@ PR809 native tasarım ve PR810 podcast ilk bağlantıları/browser menüsü/dubl
 - [x] P5: asistan soru anında episode/sourceVersion/generation/track/time bağını dondurur; bu ana kadar kapsamına gelecekteki veya zamansız metin sızmaz.
 - [x] P6: takip/elle okuma/dönüş; bölüm değişimi ve canlı epoch cleanup; disk kalıcılığı/yeniden açma/export/restore.
 - [x] Podcast araçları ve dinleme/okuma görünümü gerçek sahiplere bağlı, mevcut tasarım bileşenleriyle kullanılabilir.
-- [ ] Kısa kod kontrolleri ve açık canlı sınırlar kaydedildi; merge ve ana kopya kimliği doğrulandı.
+- [x] Kısa kod kontrolleri ve açık canlı sınırlar kaydedildi; merge ve ana kopya kimliği doğrulandı.
 
 ## Değişmez çalışma sınırları
 

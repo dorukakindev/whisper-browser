@@ -338,12 +338,12 @@
   }
   async function openPdfPage(file, pageNumber = 1) {
     document.getElementById('playerLayer').classList.remove('hidden'); setWorkspaceMode('player');
-    const previous = player.pdfReader;
-    await openPdfReader(file);
-    if (!player.pdfReader || player.pdfReader === previous || !Number.isInteger(pageNumber) || pageNumber < 1 || pageNumber > player.pdfReader.pdf.numPages) throw Error(t('The source page could not be opened.', 'Kaynak sayfa açılamadı.'));
+    const opened = await openPdfReader(file);
+    if(!opened||player.pdfReader!==opened)return;
+    if (!player.pdfReader || !Number.isInteger(pageNumber) || pageNumber < 1 || pageNumber > player.pdfReader.pdf.numPages) throw Error(t('The source page could not be opened.', 'Kaynak sayfa açılamadı.'));
     const input = document.getElementById('pdfReaderPage'); input.value = String(pageNumber); input.dispatchEvent(new Event('change'));
   }
-  let bookOpenGeneration=0;
+  let bookOpenGeneration=0,bookReaderOwner=null;
   async function openBook(row, focus = null) {
     const ticket=++bookOpenGeneration;
     const book = await api('book-open', { id: row.id, ...(focus ? { expectedSource: focus } : {}) });
@@ -358,41 +358,46 @@
     const dialog = el('dialog', 'ms-reader media-surface'); dialog.dataset.uiUntranslated = ''; dialog.setAttribute('aria-label', book.title);
     const header = el('header'), bookTitle=el('strong','ms-reader-title',book.title), controls=el('div','ms-reader-controls'), chapters = el('select'); chapters.setAttribute('aria-label', t('Chapter', 'Bölüm'));
     book.chapters.forEach((chapter, index) => { const opt = el('option', '', chapter.title || `${t('Chapter', 'Bölüm')} ${index + 1}`); opt.value = index; chapters.append(opt); });
-    let index = focusIndex ?? Math.min(book.chapter || 0, book.chapters.length - 1), timer = null;
+    let index = focusIndex ?? Math.min(book.chapter || 0, book.chapters.length - 1), timer = null, chapterNavigation=0, chapterRevision=0;
+    const owner={};
+    const isReaderCurrent=()=>bookReaderOwner===owner&&dialog.open&&dialog.isConnected;
+    const expectedSource={sourceSize:book.sourceSize,sourceMtime:book.sourceMtime};
     const prose = el('article', 'ms-prose'); prose.tabIndex = 0;
     window.MediaExperience?.bindPassage(prose, ({ text, offset, selectedText }) => {
-      if (!dialog.open) return;
+      if (!isReaderCurrent()) return;
       window.MediaExperience.setContext(dialog, { id: book.id+':'+index, type: 'book-chapter', title: book.title, chapter: book.chapters[index].title || String(index + 1), excerpt: text.slice(Math.max(0, offset - 1500), Math.max(0, offset - 1500) + 8000), selectedText });
     });
     const position = () => ({ chapter: index, scroll: prose.scrollHeight > prose.clientHeight ? prose.scrollTop / (prose.scrollHeight - prose.clientHeight) : 0 });
-    const save = () => api('book-progress', { id: book.id, ...position() }).catch(error => { readerStatus.textContent = error.message; return false; });
+    const save = () => api('book-progress', { id: book.id, expectedSource, ...position() }).catch(error => { readerStatus.textContent = error.message; return false; });
     const readerStatus = el('p', 'ms-status'); readerStatus.setAttribute('role', 'status');
     function show(next, scroll = 0) {
+      if(!isReaderCurrent())return;const revision=++chapterRevision;
       index = Math.max(0, Math.min(book.chapters.length - 1, next)); chapters.value = index; bookTitle.hidden=chapters.selectedOptions[0]?.textContent.trim()===book.title.trim(); prose.replaceChildren();
       book.chapters[index].text.split(/\n\s*\n/).forEach(paragraph => prose.append(el('p', '', paragraph)));
       window.MediaExperience?.setContext(dialog, { id: book.id+':'+index, type: 'book-chapter', title: book.title, chapter: book.chapters[index].title || String(index + 1), excerpt: book.chapters[index].text.slice(0, 8000) });
-      requestAnimationFrame(() => { prose.scrollTop = scroll * Math.max(0, prose.scrollHeight - prose.clientHeight); });
+      requestAnimationFrame(() => { if(!isReaderCurrent()||revision!==chapterRevision)return;prose.scrollTop = scroll * Math.max(0, prose.scrollHeight - prose.clientHeight); });
     }
-    chapters.addEventListener('change', async () => { await save(); show(+chapters.value); });
+    chapters.addEventListener('change', async () => { const next=+chapters.value,request=++chapterNavigation;if(await save()===false||!isReaderCurrent()||request!==chapterNavigation)return;show(next); });
     const font = el('input'); font.type = 'range'; font.min = '15'; font.max = '28'; font.value = '20'; font.setAttribute('aria-label', t('Font size', 'Yazı boyutu')); font.addEventListener('input', () => { prose.style.fontSize = `${font.value}px`; });
     const marks = el('select'); marks.setAttribute('aria-label', t('Saved bookmarks and quotes', 'Kaydedilmiş yer imleri ve alıntılar'));
     const noMark = el('option', '', t('Bookmarks & quotes', 'Yer imleri ve alıntılar')); noMark.value = ''; marks.append(noMark);
     (book.bookmarks || []).forEach((mark, at) => { const opt = el('option', '', mark.quote || `${t('Chapter', 'Bölüm')} ${mark.chapter + 1}`); opt.value = at; marks.append(opt); });
-    marks.addEventListener('change', async () => { if (marks.value === '') return; const mark = book.bookmarks[+marks.value]; await save(); show(mark.chapter, mark.scroll); });
+    marks.addEventListener('change', async () => { if (marks.value === '') return; const mark = book.bookmarks[+marks.value],request=++chapterNavigation;if(await save()===false||!isReaderCurrent()||request!==chapterNavigation)return;show(mark.chapter, mark.scroll); });
     const narrateChapter=async(args=null,stale=()=>false)=>{
       if(args&&(args.from!==index+1||args.to!==index+1||args.text==='translation'))throw Error(t('Prepare the current original chapter first; select other chapters in production.','Önce güncel özgün bölümü hazırla; diğer bölümleri üretim ekranında seç.'));
       const sourceIndex=index;
       if(await save()===false)return false;
-      if(!dialog.open||index!==sourceIndex||stale())throw Error(t('The chapter changed; ask again from the current chapter.','Bölüm değişti; güncel bölümden yeniden iste.'));
+      if(!isReaderCurrent()||index!==sourceIndex||stale())throw Error(t('The chapter changed; ask again from the current chapter.','Bölüm değişti; güncel bölümden yeniden iste.'));
       const c=book.chapters[sourceIndex];
       const result=await window.api.mediaWorkflows({action:'book-from-shelf',locale:window.UiLocale?.get?.(),shelfId:book.id,sourceChapter:{index:sourceIndex,sourceId:c.sourceId,sourceSpineIndex:c.sourceSpineIndex,text:c.text,sourceSize:book.sourceSize,sourceMtime:book.sourceMtime}});
       if(!result?.ok)throw Error(result?.error||t('Voice production could not be opened.','Sesli üretim açılamadı.'));
-      if(!dialog.open||index!==sourceIndex||stale())throw Error(t('The chapter changed; the project was kept without opening another source.','Bölüm değişti; proje korundu, başka kaynak açılmadı.'));
+      if(!isReaderCurrent()||index!==sourceIndex||stale())throw Error(t('The chapter changed; the project was kept without opening another source.','Bölüm değişti; proje korundu, başka kaynak açılmadı.'));
       await window.MediaWorkflowsUI.openProject(result.project.id,{chapter:result.focusChapter,selectChapter:true});dialog.close();return true;
     };
     header.append(bookTitle, chapters, font, marks, btn(t('Bookmark / quote', 'Yer imi / alıntı'), async () => {
       const selection = window.getSelection(), quote = selection && prose.contains(selection.anchorNode) ? selection.toString().slice(0, 2000) : '';
-      const mark = { ...position(), quote }; await api('book-progress', { id: book.id, ...mark, bookmark: true });
+      const mark = { ...position(), quote },revision=chapterRevision; await api('book-progress', { id: book.id, expectedSource, ...mark, bookmark: true });
+      if(!isReaderCurrent()||revision!==chapterRevision)return;
       book.bookmarks.push(mark); const opt = el('option', '', quote || `${t('Chapter', 'Bölüm')} ${index + 1}`); opt.value = book.bookmarks.length - 1; marks.append(opt); readerStatus.textContent = t('Saved.', 'Kaydedildi.');
     }), btn(t('Copy chapter', 'Bölümü kopyala'), () => window.api.copyText(book.chapters[index].text)), btn(t('Open chapter in voice production', 'Bölümü sesli üretimde aç'), narrateChapter), btn(t('Voice studio', 'Ses stüdyosu'), () => window.api.openTextVoiceUI()), btn('×', async () => { if (await save() !== false) dialog.close(); }));
     header.lastChild.setAttribute('aria-label', t('Close reader', 'Okuyucuyu kapat'));
@@ -407,10 +412,10 @@
     dialog.addEventListener('toggle', event=>{const opened=event.target;if(opened.tagName==='DETAILS'&&opened.open)for(const menu of header.querySelectorAll('details[open]'))if(menu!==opened)menu.open=false;},true);
     dialog.addEventListener('pointerdown',event=>{for(const menu of header.querySelectorAll('details[open]'))if(!menu.contains(event.target))menu.open=false;});
     dialog.addEventListener('keydown',event=>{if(event.key!=='Escape')return;const menu=header.querySelector('details[open]');if(menu){menu.open=false;menu.querySelector('summary')?.focus();event.preventDefault();event.stopPropagation();}},true);
-    dialog.append(header);const disposeAssistant=window.BookAssistantUI?.mount(header,{t,compact:true,onSearch:(args,current)=>window.AssistantBookSearch.scan({total:book.chapters.length,start:args.start||1,query:args.query,current,title:book.title,getText:async page=>book.chapters[page-1].text}),onNarrate:()=>narrateChapter(),onPrepare:async(args,stale)=>({ok:await narrateChapter(args,stale)}),isCurrent:()=>dialog.open&&dialog.isConnected,getSource:()=>{const base=window.MediaExperience.context(),id=book.id+':'+index;return {id,type:'book-chapter',chapterNumber:index+1,totalChapters:book.chapters.length,title:book.title,chapter:book.chapters[index].title||String(index+1),text:book.chapters[index].text,selectedText:base?.id===id?base.selectedText:'',selectedTextTruncated:base?.id===id&&base.selectedTextTruncated===true,excerpt:base?.id===id?base.excerpt:''};}});for(const node of [...header.children])if(node!==bookTitle&&!node.classList.contains('ms-reader-close'))controls.append(node);header.insertBefore(controls,header.querySelector('.ms-reader-close'));dialog.append(readerStatus, prose); document.body.append(dialog); dialog.showModal(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); show(index, book.scroll || 0);
+    dialog.append(header);const disposeAssistant=window.BookAssistantUI?.mount(header,{t,compact:true,onSearch:(args,current)=>window.AssistantBookSearch.scan({total:book.chapters.length,start:args.start||1,query:args.query,current,title:book.title,getText:async page=>book.chapters[page-1].text}),onNarrate:()=>narrateChapter(),onPrepare:async(args,stale)=>({ok:await narrateChapter(args,stale)}),isCurrent:isReaderCurrent,getSource:()=>{const base=window.MediaExperience.context(),id=book.id+':'+index;return {id,type:'book-chapter',chapterNumber:index+1,totalChapters:book.chapters.length,title:book.title,chapter:book.chapters[index].title||String(index+1),text:book.chapters[index].text,selectedText:base?.id===id?base.selectedText:'',selectedTextTruncated:base?.id===id&&base.selectedTextTruncated===true,excerpt:base?.id===id?base.excerpt:''};}});for(const node of [...header.children])if(node!==bookTitle&&!node.classList.contains('ms-reader-close'))controls.append(node);header.insertBefore(controls,header.querySelector('.ms-reader-close'));dialog.append(readerStatus, prose); document.body.append(dialog); dialog.showModal();bookReaderOwner=owner; if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); show(index, book.scroll || 0);
     prose.addEventListener('scroll', () => { clearTimeout(timer); timer = setTimeout(save, 900); });
     dialog.addEventListener('cancel', event => { event.preventDefault(); void save().then(result => { if (result !== false) dialog.close(); }); });
-    dialog.addEventListener('close', () => { disposeAssistant?.();clearTimeout(timer); dialog.remove(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); void reload(); });
+    dialog.addEventListener('close', () => { if(bookReaderOwner===owner)bookReaderOwner=null;++chapterNavigation;++chapterRevision;disposeAssistant?.();clearTimeout(timer); dialog.remove(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); void reload(); });
   }
   function books(root) {
     root.append(btn(t('Add EPUB / PDF / TXT', 'EPUB / PDF / TXT ekle'), () => task('book-import')));

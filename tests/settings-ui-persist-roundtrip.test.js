@@ -78,6 +78,8 @@ const OTHER_STORE = new Set([
 // Kasıtlı geçici: arama/süzgeç kutuları, diyalog alanları, menü <details> öğeleri,
 // oturum-içi oynatıcı durumu, araç çalışma argümanları, ölü taşıyıcılar.
 const TRANSIENT = new Set([
+  // Library disclosure and per-operation pronunciation target are not preferences.
+  'voiceReferenceLibrary','dubPronunciationScope',
   // Reader disclosures, search and current-page narration preview are per reader.
   'pdfAssistantTools','pdfTranslateTools','pdfFindText','pdfVoicePreview','pdfVoicePreviewPage','pdfVoicePreviewText',
   // Timeline analysis arguments and scene note draft: explicit Save writes interval notes.

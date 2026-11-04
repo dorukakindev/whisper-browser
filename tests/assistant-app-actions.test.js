@@ -48,3 +48,12 @@ test('using a job subtitle requires exact registered backend ID, role, source an
  await assert.rejects(h.actions.execute('use_job_subtitles',{job_id:'external-A',role:'translation'},owner),/partial/);assert.equal(loaded,0);
  assert.equal((await h.actions.execute('use_job_subtitles',{job_id:'external-A',role:'translation',allow_partial:true},owner)).track.partial,true);assert.equal(loaded,1);
 });
+
+test('A secondary subtitle replacement invalidates an approved subtitle action even when cue contents are identical',async()=>{
+ const h=setup();h.player.cues2=[{start:1,end:2,text:'Same text'}];h.player.sub2Path='original-secondary.srt';let reads=0,seeks=0;
+ h.sandbox.window.AssistantWorkspace.searchSubtitleContext=()=>{reads++;return {status:'completed'};};
+ h.sandbox.window.AssistantWorkspace.subtitleById=()=>({start:1,end:2,text:'Same text'});h.sandbox.browserCommand=async()=>{seeks++;return {ok:true};};
+ const owner=h.actions.snapshot();h.player.sub2Path='replacement-secondary.srt';
+ await assert.rejects(h.actions.execute('get_current_subtitle',{},owner),/subtitle track changed/i);
+ await assert.rejects(h.actions.execute('seek_to_time',{source_id:'U1'},owner),/subtitle track changed/i);assert.equal(reads,0);assert.equal(seeks,0);
+});

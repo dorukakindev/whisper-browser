@@ -1,3 +1,4 @@
+Güncel çalışma: [G2 güncel denetim ve kaynak sahipliği](docs/devir/2026-11-04-1817.md)
 Güncel çalışma: [G1 podcast plan tamamlaması; sonraki hedefler sırada](docs/devir/2026-11-04-1800.md)
 Güncel çalışma: [Podcast tamamlaması, browser menüsü ve native kabul](docs/devir/2026-11-04-1730.md)
 Güncel çalışma: [Onaylı maketle native eşleme — 20 PNG, 180 boyut ve açık Windows kabulü](docs/devir/2026-11-04-1700.md)
