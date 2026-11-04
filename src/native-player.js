@@ -68,6 +68,18 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
     layout(s,input.bounds||{});host.showInactive();s.pulse=setInterval(()=>send(s),200);send(s,'ready');return {ok:true};
    }
    const s=session;if(!s||s.key!==input.key||s.generation!==input.generation)return {ok:false,error:'Native playback source changed.'};
+   if(input.action==='diagnostics'){
+    if(s.diagnosticsPending)return {ok:false,error:'Diagnostics are already in progress.'};
+    s.diagnosticsPending=true;
+    try{
+     const properties=require('./native-player-diagnostics').PROPERTIES;
+     const rows=await Promise.allSettled(properties.map(name=>command(s,['get_property',name])));
+     if(session!==s)return {ok:false,error:'Native playback source changed.'};
+     const props={};
+     rows.forEach((result,i)=>{const value=result.value;if(result.status==='fulfilled'&&(typeof value==='boolean'||Number.isFinite(value)||(typeof value==='string'&&/^[A-Za-z0-9._+-]{1,24}$/.test(value))))props[properties[i]]=value;});
+     return {ok:true,props};
+    }finally{s.diagnosticsPending=false;}
+   }
    if(input.action==='snapshot'){const file=path.join(app.getPath('temp'),'whisper-mpv-'+randomUUID()+'.png');try{await command(s,['screenshot-to-file',file,'video']);const bytes=await fs.promises.readFile(file);if(bytes.length>16000000)throw Error('Native frame too large.');return {ok:true,image:'data:image/png;base64,'+bytes.toString('base64')};}finally{await fs.promises.unlink(file).catch(()=>{});}}
    if(input.action==='layout'){layout(s,input.bounds||{});if(input.hidden)s.host.hide();else s.host.showInactive();return {ok:true};}
    if(input.action==='command'){

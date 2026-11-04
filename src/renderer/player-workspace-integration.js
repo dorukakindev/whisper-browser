@@ -156,6 +156,11 @@
     const volumeLabel=document.createElement('label'); volumeLabel.textContent=text('Ses düzeyi','Volume');
     const volume=document.createElement('input');volume.type='range';volume.min='0';volume.max='1';volume.step='.01';volume.value=String(video.volume);volume.className='pw-runtime-volume';volume.setAttribute('aria-label',volumeLabel.textContent);volume.addEventListener('input',()=>void send('setVolume',{volume:Number(volume.value)}));volumeLabel.append(volume);toolsMenu.append(volumeLabel);
     for(const [id,tr,en] of [['playerMediaCenter','Oynatma, sahneler ve kaynaklar','Playback, scenes and sources'],['playerMore','Diğer oynatma işlemleri','More playback actions']]){const button=document.createElement('button');button.type='button';button.className='pw-btn';button.textContent=text(tr,en);button.onclick=()=>{if(id==='playerMore'){advanced.open=true;document.getElementById('playerMediaCenter')?.click()}else document.getElementById(id)?.click()};toolsMenu.append(button);}
+    const healthButton=document.createElement('button');
+    healthButton.type='button';healthButton.className='pw-btn';
+    healthButton.textContent=text('Oynatma sağlığı','Playback health');
+    healthButton.onclick=()=>window.WhisperV3.open('health');
+    toolsMenu.append(healthButton);
     const controls = view.querySelector('.pw-controls');
     if (controls && view.clientWidth < 1280) [...controls.children].filter(x => x.matches('button') && /A–B|A.B loop|Satırı tekrarla|Replay line/.test(x.getAttribute('aria-label') || '')).forEach(button => {
       const label = document.createElement('span'); label.textContent = button.getAttribute('aria-label'); button.append(label); button.classList.add('pw-runtime-tool'); view.querySelector('.pw-tools__menu').append(button);

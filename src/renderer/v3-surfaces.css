@@ -1,0 +1,38 @@
+/* V3 yüzeyleri — yalnız yerleşim; player-workspace.css ile aynı .pw-root token'larını kullanır. */
+.v3-page { max-width: 980px; margin: 0 auto; padding: var(--pw-pad, 24px); display: grid; gap: 20px; }
+.v3-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.v3-title { margin: 0; font: 600 clamp(20px, 2.2cqw, 26px)/1.2 var(--pw-display); flex: 1; min-width: 0; }
+.v3-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+.v3-alert { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: var(--pw-r2); border: 1px solid color-mix(in srgb, var(--pw-warn) 40%, transparent); background: color-mix(in srgb, var(--pw-warn) 8%, var(--pw-surface)); }
+.v3-alert[role="note"] { border-color: var(--pw-line); background: var(--pw-surface); }
+.v3-alert p { margin: 0 0 8px; max-width: 70ch; } .v3-alert .pw-icon { margin-top: 2px; color: var(--pw-warn); } .v3-alert[role="note"] .pw-icon { color: var(--pw-accent); }
+.v3-section { display: grid; gap: 12px; padding: 18px; border: 1px solid var(--pw-line); border-radius: var(--pw-r3); background: var(--pw-surface); }
+.v3-section h3 { margin: 0; font: 600 16px/1.3 var(--pw-font); }
+.v3-work { display: flex; align-items: center; gap: 14px; } .v3-work h3 { margin-bottom: 6px; }
+.v3-cover { width: 48px; height: 48px; border-radius: 8px; font-size: 16px; flex: none; }
+.v3-topic { display: grid; gap: 8px; padding: 12px 0; border-top: 1px solid var(--pw-line); }
+.v3-story { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.v3-route { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; position: relative; }
+.v3-stop { display: grid; grid-template-columns: 92px 48px minmax(0, 1fr); gap: 14px; align-items: center; padding: 12px; border-radius: var(--pw-r2); background: var(--pw-surface); border: 1px solid var(--pw-line); }
+.v3-time { color: var(--pw-accent); font-size: 13px; text-align: right; }
+.v3-foot { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.v3-tablewrap { overflow-x: auto; border: 1px solid var(--pw-line); border-radius: var(--pw-r2); }
+.v3-table { width: 100%; border-collapse: collapse; min-width: 560px; }
+.v3-table th, .v3-table td { padding: 12px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--pw-line); }
+.v3-table thead th { color: var(--pw-muted); font-weight: 500; font-size: 13px; background: var(--pw-surface); }
+.v3-table tbody th { color: var(--pw-dim); font-weight: 500; width: 140px; }
+.v3-table tr:last-child > * { border-bottom: 0; }
+.v3-unknown { color: var(--pw-muted); } .v3-hidden { min-height: 32px; }
+.v3-issues { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.v3-issues li { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 10px 12px; border-radius: var(--pw-r1); background: var(--pw-surface); border: 1px solid var(--pw-line); }
+.v3-issues code, .v3-proposal code { font: 12px/1.4 ui-monospace, Consolas, monospace; color: var(--pw-dim); overflow-wrap: anywhere; }
+.v3-proposal { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--pw-line); } .v3-proposal > span { display: grid; gap: 4px; }
+.v3-proposal input { margin-top: 4px; accent-color: var(--pw-accent); width: 16px; height: 16px; }
+.v3-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+.v3-card { padding: 16px; border-radius: var(--pw-r3); border: 1px solid var(--pw-line); background: var(--pw-surface); }
+.v3-card h3 { margin: 0 0 12px; font: 600 14px/1.2 var(--pw-font); color: var(--pw-muted); }
+.v3-card dl { margin: 0; display: grid; gap: 10px; } .v3-card dt { color: var(--pw-dim); font-size: 13px; } .v3-card dd { margin: 2px 0 0; }
+
+#whisperV3Dialog .v3-runtime-controls { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:12px; }
+#whisperV3Dialog .v3-runtime-controls :is(input,select) { max-width:100%; padding:8px; background:var(--bg-2); color:var(--text); border:1px solid var(--border); border-radius:8px; }
+#whisperV3Dialog .v3-runtime-controls li { overflow-wrap:anywhere; }
