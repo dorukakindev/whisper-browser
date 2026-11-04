@@ -22274,6 +22274,7 @@ mediaWorkflows = require('./media-workflows').registerMediaWorkflows({voiceRunni
   grantSubtitle:file=>subtitleFileAccess.grant(file),grantMedia:file=>mediaFileAccess.grant(file),inspectMedia:validateLocalMediaPath,
   resources:()=>({sampledAt:new Date().toISOString(),main:process.memoryUsage(),processes:app.getAppMetrics().map(m=>({pid:m.pid,type:m.type,workingSetBytes:(m.memory?.workingSetSize||0)*1024})),
     caches:{seekSprites:seekPreviewCache.size},voiceBusy:dubService.running()})});
+require('./assistant-artifact-service').registerAssistantArtifacts({app,ipcMain,authorized:authorizedBrowserSender,catalogStore:mediaCatalogService.store});
 require('./assistant-thread-store').registerAssistantThreads({app,ipcMain,authorized:authorizedBrowserSender});
 require('./music-analysis-service').register({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,userData:()=>app.getPath('userData'),modelDir:()=>path.join(appResourceRoot(),'backend','models','music-clap'),musicPython:()=>{const exe=path.join(appResourceRoot(),'backend','music-venv',process.platform==='win32'?'Scripts/python.exe':'bin/python');return fs.existsSync(exe)?exe:resolvePython();},python:resolvePython,ffmpeg:()=>resolveFfTool('ffmpeg'),ffprobe:()=>resolveFfTool('ffprobe'),grantMedia:file=>mediaFileAccess.grant(file)});
 require('./assistant-collections').register({ipcMain,authorized:authorizedBrowserSender,store:mediaCatalogService.store});

@@ -92,23 +92,69 @@
           budget.addEventListener('change',()=>{if(budget.reportValidity())render();});render();
         }
         if(tab==='matrix'){
-          const items=await catalog();if(!current())return;
-          if(items.length<2){setStatus(t('Karşılaştırmak için arşive iki yapım ekleyin.','Add two titles to the library to compare them.'));return;}
-          const select=()=>h('select',{'aria-label':names().matrix},items.map(i=>h('option',{value:i.id,text:i.title})));
-          const left=select(),right=select();right.selectedIndex=items.length>1?1:0;
-          const render=()=>{
-            const selected=[...new Set([left.value,right.value])].map(id=>items.find(i=>i.id===id)).filter(Boolean);
-            const fields=[['year',t('Yıl','Year')],['runtime',t('Süre (dk)','Runtime (min)')],['kind',t('Tür','Type')]];
-            const body=AssistantArtifactBuilders.buildComparisonMatrix({title:names().matrix,columns:selected.map(i=>({id:i.id,label:i.title})),rows:fields.map(([id,label])=>({id,label})),knownSourceIds:new Set(selected.map(i=>i.id)),cells:selected.flatMap(i=>fields.filter(([key])=>i[key]).map(([key])=>({rowId:key,colId:i.id,value:key==='kind'?(i.kind==='series'?t('Dizi','Series'):t('Film','Film')):String(i[key]),claims:[{sourceId:i.id,quote:String(i[key])}]})))}).body;
-            const doc={revision:1,kind:'matrix',title:names().matrix,modelBody:body};
+          const artifacts=async input=>{
+            const result=await window.api.assistantArtifacts(input);
+            if(result?.ok)return result;
+            if(result?.code==='revision-conflict')throw Error(t('Karşılaştırma değişti. Kayıtlı sürümü yeniden açın.','The comparison changed. Reopen the saved version.'));
+            if(result?.code==='source-missing')throw Error(t('Yapımlardan biri artık arşivde yok.','One of the titles is no longer in the library.'));
+            if(result?.code==='archive-full')throw Error(t('Kayıtlı karşılaştırma sınırına ulaşıldı.','The saved comparison limit was reached.'));
+            throw Error(t('Karşılaştırma arşivi işlemi tamamlanamadı.','The comparison archive operation could not be completed.'));
+          };
+          const [items,saved]=await Promise.all([catalog(),artifacts({action:'list'})]);
+          if(!current())return;
+          const picker=h('select',{'aria-label':t('Kayıtlı karşılaştırmalar','Saved comparisons')});
+          const populate=(entries,value='')=>{
+            picker.replaceChildren(h('option',{value:'',text:t('Kayıtlı karşılaştırmalar','Saved comparisons')}),
+              ...entries.map(entry=>h('option',{value:entry.artifactId,text:entry.columns.map(col=>col.label).join(' · ')})));
+            picker.value=value;
+          };
+          populate(saved.artifacts);
+          const controls=h('div',{class:'v3-runtime-controls'});
+          const revisions=h('div',{class:'v3-runtime-controls'});
+          surface.before(controls);
+          surface.after(revisions);
+          let view=0;
+          const show=async id=>{
+            const request=++view;
+            const {doc,body}=await artifacts({action:'get',id});
+            if(!current()||request!==view)return;
+            picker.value=id;
+            setStatus('');
             options.handlers.onExport=async format=>{try{
-              const out=AssistantArtifactExport.exportArtifact({doc,format,expectedRevision:1,locale:locale()});
-              if(!out.ok||!current())return;
-              await hub({action:'v3-export',format,content:(out.bom?'\uFEFF':'')+out.content});
+              const out=AssistantArtifactExport.exportArtifact({doc,format,expectedRevision:doc.revision,locale:locale()});
+              if(out.ok&&current())await hub({action:'v3-export',format,content:(out.bom?'\uFEFF':'')+out.content});
             }catch(error){report(error);}};
             V3SurfacesUI.renderMatrix(surface,doc,body,options);
+            const update=button(t('Arşivden güncelle','Update from library'),async()=>{
+              await artifacts({action:'save',id,expectedRevision:doc.revision,ids:body.columns.map(col=>col.id),locale:locale()});
+              if(current()&&request===view)await show(id);
+            });
+            revisions.replaceChildren(update);
+            if(doc.versions.length){
+              const version=h('select',{'aria-label':t('Önceki sürüm','Previous revision')},doc.versions.slice().reverse().map(row=>
+                h('option',{value:row.revision,text:t('Sürüm','Revision')+' '+row.revision})));
+              revisions.append(version,button(t('Sürümü geri yükle','Restore revision'),async()=>{
+                await artifacts({action:'restore',id,expectedRevision:doc.revision,revision:Number(version.value)});
+                if(current()&&request===view)await show(id);
+              }));
+            }
           };
-          surface.before(h('div',{class:'v3-runtime-controls'},left,right,button(t('Karşılaştır','Compare'),render)));render();
+          if(items.length>=2){
+            const select=label=>h('select',{'aria-label':label},items.map(i=>h('option',{value:i.id,text:i.title})));
+            const left=select(t('Birinci yapım','First title')),right=select(t('İkinci yapım','Second title'));
+            right.selectedIndex=1;
+            controls.append(left,right,button(t('Karşılaştır ve kaydet','Compare and save'),async()=>{
+              if(left.value===right.value){setStatus(t('İki farklı yapım seçin.','Select two different titles.'));return;}
+              const {doc}=await artifacts({action:'save',ids:[left.value,right.value],locale:locale()});
+              const updated=await artifacts({action:'list'});
+              if(!current())return;
+              populate(updated.artifacts,doc.id);
+              await show(doc.id);
+            }));
+          }
+          controls.append(picker,button(t('Kaydı aç','Open saved'),async()=>{if(picker.value)await show(picker.value);}));
+          if(saved.artifacts.length)await show(saved.artifacts[0].artifactId);
+          else setStatus(items.length<2?t('Karşılaştırmak için arşive iki yapım ekleyin.','Add two titles to the library to compare them.'):t('Karşılaştırmak için iki yapım seçin.','Select two titles to compare.'));
         }
         if(tab==='maintenance'){
           const result=await hub({action:'v3-maintenance'});if(!current())return;

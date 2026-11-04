@@ -17,7 +17,7 @@ function remapFileWatchKey(value, mappings) {
   return value;
 }
 const ROOTS = new Set(['feeds.json', 'media-catalog.json', 'watch-library.json', 'watch-library-tombstones.json', 'browser-notes.json', 'browser-session.json', 'history.json',
-  'assistant-conversations.json', 'media-shelf.json', 'media-enrichment.json', 'media-folder-watches.json', 'torrent-library.json', 'browser-subtitle-preferences.json', 'browser-series-context.json', 'browser-skip-segments.json',...personalMedia.NAMES]);
+  'assistant-artifacts.json', 'assistant-conversations.json', 'media-shelf.json', 'media-enrichment.json', 'media-folder-watches.json', 'torrent-library.json', 'browser-subtitle-preferences.json', 'browser-series-context.json', 'browser-skip-segments.json',...personalMedia.NAMES]);
 const DIRS = new Set(['catalog-posters', 'browser-subtitles', 'workspace-assets', 'subtitle-edits', 'OkumaListesi']);
 const LIMIT = 256 * 1024 * 1024;
 // Meşru paket JSON'ları ~10 seviye içindedir; özyinelemeli gezginlerin yığın
@@ -217,7 +217,7 @@ function restorePackage(root, data, videoMappings = []) {
     if (fs.existsSync(destination) && fs.lstatSync(destination).isSymbolicLink()) throw new Error('Yedek hedefi bağlantı içeriyor.');
     let bytes = Buffer.from(file.data, 'base64'),parsedValue;
     if (file.name.endsWith('.json')) {
-      const original=JSON.parse(bytes.toString('utf8'));let parsed = personalMedia.NAMES.has(file.name)?personalMedia.mapPaths(file.name,original,value=>rewrite(value,mappings)):rewrite(original,mappings);
+      const original=JSON.parse(bytes.toString('utf8'));let parsed = file.name==='assistant-artifacts.json'?original:personalMedia.NAMES.has(file.name)?personalMedia.mapPaths(file.name,original,value=>rewrite(value,mappings)):rewrite(original,mappings);
       if(personalMedia.NAMES.has(file.name)){parsed=personalMedia.sanitize(file.name,original,parsed,data);personalMedia.validate(file.name,parsed);}
       if (file.name === 'watch-library.json') {
         const original = JSON.parse(bytes.toString('utf8'));
@@ -241,6 +241,7 @@ function restorePackage(root, data, videoMappings = []) {
       if (file.name === 'history.json') parsed = sanitizeImportedHistory(parsed);
       if (file.name === 'media-folder-watches.json') { if(!Array.isArray(parsed)||parsed.length>30||parsed.some(r=>!r||typeof r.id!=='string'||typeof r.path!=='string'||r.path.length>4000))throw Error('Invalid folder list.');parsed=parsed.map(row=>({...row,enabled:false})); }
       if (file.name === 'media-shelf.json') { if(parsed.version!==1||['music','books','stations','podcasts','playlists','diary'].some(k=>!Array.isArray(parsed[k])||parsed[k].length>20000||parsed[k].some(r=>!r||typeof r!=='object'||Array.isArray(r))))throw Error('Invalid media shelf.'); }
+      if(file.name==='assistant-artifacts.json')parsed=require('./assistant-artifact-service').validateEnvelope(parsed);
       if(file.name==='assistant-conversations.json')parsed=require('./assistant-thread-store').validateEnvelope(parsed);
       if (file.name === 'media-enrichment.json') {
         if(parsed.version!==1||!parsed.titles||typeof parsed.titles!=='object'||Array.isArray(parsed.titles)||Object.keys(parsed.titles).length>10000) throw Error('Invalid media notes.');
@@ -325,6 +326,7 @@ function describePackage(data, root = null) {
   const film=json('film-watch.json');if(film){summary.filmCollections=Object.keys(film.collections||{}).length;summary.filmAlternatives=film.alternatives?.length||0;}
   const relations=json('media-title-relations.json');if(relations)summary.titleRelationAliases=Object.keys(relations.bindings||{}).length;
   const enriched=json('media-enrichment.json');if(enriched?.titles)summary.titleDecisions=Object.keys(enriched.titles).length;
+  const artifacts=json('assistant-artifacts.json');if(Array.isArray(artifacts?.documents))summary.assistantArtifacts=artifacts.documents.length;
   const chats=json('assistant-conversations.json');if(Array.isArray(chats?.threads))summary.assistantConversations=chats.threads.length;
   const folders=json('media-folder-watches.json');if(Array.isArray(folders))summary.watchedFolders=folders.length;
   const torrents=json('torrent-library.json');if(Array.isArray(torrents))summary.torrents=torrents.length;

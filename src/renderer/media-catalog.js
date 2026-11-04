@@ -537,6 +537,7 @@
         const parts = [];
         for(const [key,en,tr]of [['feedSubscriptions','feed subscriptions','akış aboneliği'],['feedEntries','feed entries','akış kaydı'],['playerSourcePins','pinned sources','sabitlenmiş kaynak'],['dailyJournalEntries','dated journal entries','tarihli günlük kaydı'],['watchlistSections','watchlist positions','izleme listesi konumu'],['filmCollections','collection descriptions/orders','koleksiyon açıklaması/sırası'],['linkedMediaAssets','linked file records','bağlı dosya kaydı'],['filmAlternatives','alternative sources (may need relinking)','alternatif kaynak (yeniden bağlama gerekebilir)'],['titleRelationAliases','verified relationship aliases','doğrulanmış ilişki bağı']])if(scope[key])parts.push(`${scope[key]} ${english()?en:tr}`);
         if(scope.shelfRecords)parts.push(`${scope.shelfRecords} ${english()?'media shelf records':'medya rafı kaydı'}`);
+        if(scope.assistantArtifacts)parts.push(scope.assistantArtifacts+' '+(english()?'saved comparisons (includes revisions)':'kayıtlı karşılaştırma (sürümler dahil)'));
         if(scope.assistantConversations)parts.push(`${scope.assistantConversations} ${english()?'assistant conversations (includes messages)':'asistan sohbeti (mesajlar dahil)'}`);
         if(scope.titleDecisions)parts.push(`${scope.titleDecisions} ${english()?'title reviews':'yapım yorumu'}`);
         if(scope.watchedFolders)parts.push(`${scope.watchedFolders} ${english()?'folders (restored paused)':'klasör (takip kapalı yüklenir)'}`);
