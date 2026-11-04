@@ -17,10 +17,15 @@ const base = { 'hwdec-current': 'd3d11va', 'video-params/gamma': 'pq', 'audio-pa
 }
 // 2) HDR dosyası HDR çıkışı değil; çıkış bilinmiyorsa unknown
 {
-  const r = D.buildPlayerHealthReceipt({ samples: [S(9000, { ...base, 'video-out-params/gamma': 'bt.1886' })], now: 9500 });
+  const r = D.buildPlayerHealthReceipt({ samples: [S(9000, { ...base, 'video-target-params/gamma': 'bt.1886' })], now: 9500 });
   assert.deepStrictEqual([r.hdr.fileIsHdr, r.hdr.outputIsHdr], [true, false]);
-  assert.strictEqual(D.buildPlayerHealthReceipt({ samples: [S(9000, base)], now: 9500 }).hdr.outputIsHdr, 'unknown');
-  assert.strictEqual(D.buildPlayerHealthReceipt({ samples: [S(9000, { ...base, 'video-out-params/gamma': 'hlg' })], now: 9500 }).hdr.outputIsHdr, true);
+  assert.strictEqual(D.buildPlayerHealthReceipt({ samples: [S(9000, { ...base, 'video-out-params/gamma': 'pq' })], now: 9500 }).hdr.outputIsHdr, 'unknown');
+  const converted = D.buildPlayerHealthReceipt({ samples: [S(9000, {
+    ...base, 'video-dec-params/gamma': 'pq', 'video-params/gamma': 'bt.1886',
+    'video-out-params/gamma': 'pq', 'video-target-params/gamma': 'gamma2.2'
+  })], now: 9500 });
+  assert.deepStrictEqual([converted.hdr.fileIsHdr, converted.hdr.outputIsHdr], [true, false]);
+  assert.strictEqual(D.buildPlayerHealthReceipt({ samples: [S(9000, { ...base, 'video-target-params/gamma': 'hlg' })], now: 9500 }).hdr.outputIsHdr, true);
 }
 // 3) 5.1 dosya 5.1 çıkış değil
 {

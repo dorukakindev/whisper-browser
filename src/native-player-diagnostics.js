@@ -10,7 +10,7 @@
   'use strict';
 
   const PROPERTIES = Object.freeze([
-    'hwdec-current', 'video-params/gamma', 'video-params/primaries', 'video-out-params/gamma',
+    'hwdec-current', 'video-dec-params/gamma', 'video-params/gamma', 'video-params/primaries', 'video-out-params/gamma', 'video-target-params/gamma',
     'audio-params/channel-count', 'audio-out-params/channel-count', 'audio-params/format', 'audio-out-params/format',
     'frame-drop-count', 'decoder-frame-drop-count', 'vo-delayed-frame-count', 'avsync', 'paused-for-cache', 'display-fps', 'estimated-vf-fps',
   ]);
@@ -41,7 +41,8 @@
     const cur = p['hwdec-current'];
     const decoder = cur === undefined || cur === null ? { state: 'unknown' } : (cur === 'no' || cur === '' ? { state: 'software' } : { state: 'hardware', api: tag(cur) });
     const requested = tag(requestedHwdec) || null;
-    const fileGamma = tag(p['video-params/gamma']); const outGamma = tag(p['video-out-params/gamma']);
+    const fileGamma = tag(p['video-dec-params/gamma']) || tag(p['video-params/gamma']);
+    const outGamma = tag(p['video-target-params/gamma']);
     const fileCh = num(p['audio-params/channel-count']); const outCh = num(p['audio-out-params/channel-count']);
     const avs = col('avsync').filter((x) => x !== null).map(Math.abs);
     return {
