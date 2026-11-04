@@ -1886,3 +1886,28 @@
     background-image: linear-gradient(90deg,#121314 0%,#121314ed 48%,#12131488 78%,#12131438 100%),linear-gradient(0deg,#121314 2%,transparent 66%),var(--cn-grain);
   }
 }
+
+
+/* Kütüphane film detayı: uzun yapım adı ve uzun kopya adı kendi kapsayıcısında okunur kalır. */
+.cn-library-hero .cn-film-copy h1 { -webkit-line-clamp: 3; overflow-wrap: anywhere; }
+.cn-library-hero .cn-film-copy h1.cn-title-long { font-size: clamp(30px, 3.4vw, 52px); -webkit-line-clamp: 4; }
+.cn-library-source-label { min-width: 0; max-width: min(100%, 52ch); }
+.cn-library-source-label > strong { overflow-wrap: anywhere; font-weight: 500; }
+.cn-library-source-label > .mv-overflow { max-width: 100%; }
+.cn-library-source-label > .mv-overflow > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  min-height: 34px;
+  padding: 5px 10px 5px 12px;
+  font-size: 13px;
+  white-space: nowrap;
+  color: inherit;
+}
+.cn-library-source-label > .mv-overflow > summary > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cn-library-source-label > .mv-overflow > summary > svg { flex: none; width: 16px; height: 16px; }
+.cn-library-source-label .mv-overflow-panel { right: auto; left: 0; max-width: min(46ch, calc(100vw - 48px)); }
+.cn-library-source-label .mv-overflow-panel > button { overflow-wrap: anywhere; }

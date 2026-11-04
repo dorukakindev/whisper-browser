@@ -10324,6 +10324,9 @@ function renderBrowserPanelTracks() {
   quick.replaceChildren();
   $('browserPanelTrackExpand')?.remove();
   const english = globalThis.UiLocale?.get?.() === 'en';
+  const applyTrackVisibility = () => {
+    [...list.children].forEach((button,index) => { button.hidden=index>=5&&!browserPanelShowAllTracks&&button.getAttribute('aria-checked')!=='true'; });
+  };
   const choose = track => {
     select.value = track.id;
     select.dispatchEvent(new Event('change', { bubbles: true }));
@@ -10332,6 +10335,7 @@ function renderBrowserPanelTracks() {
       button.setAttribute('aria-checked', String(chosen));
       button.setAttribute('aria-pressed', String(chosen));
     });
+    applyTrackVisibility();
     window.BrowserPanel?.refresh();
   };
   const row = (track, inMenu) => {
@@ -10360,11 +10364,9 @@ function renderBrowserPanelTracks() {
     return button;
   };
   for (const track of tracks) quick.append(row(track, true));
-  for (const [index, track] of tracks.entries()) {
-    const button = row(track, false);
-    button.hidden = index >= 5 && !browserPanelShowAllTracks;
-    list.append(button);
-  }
+  if(tracks.length<=5)browserPanelShowAllTracks=false;
+  for(const track of tracks)list.append(row(track,false));
+  applyTrackVisibility();
   list.setAttribute('role', 'radiogroup');
   list.setAttribute('aria-label', english ? 'Subtitle tracks' : 'Altyazı izleri');
   if (tracks.length > 5) {
@@ -10384,7 +10386,7 @@ function renderBrowserPanelTracks() {
     const update = () => {
       label.textContent = browserPanelShowAllTracks ? (english ? 'Show less' : 'Daha az göster') : (english ? 'Show all' : 'Tümünü göster') + ' (' + tracks.length + ')';
       expand.setAttribute('aria-expanded', String(browserPanelShowAllTracks));
-      [...list.children].forEach((button, index) => { button.hidden = index >= 5 && !browserPanelShowAllTracks; });
+      applyTrackVisibility();
     };
     expand.onclick = () => { browserPanelShowAllTracks = !browserPanelShowAllTracks; if (window.BrowserPanel) window.BrowserPanel.reflow(update); else update(); };
     update();

@@ -325,6 +325,10 @@
     if (!isDiscovery) copy.append(n("span", "cn-eyebrow", t("In your library", "Kütüphanende")));
     if (item.originalTitle && item.originalTitle !== item.title) copy.append(n("p", "cn-original", item.originalTitle));
     const title = n("h1", "", clean(item.title));
+    if (!isDiscovery) {
+      title.title = clean(item.title);
+      if (Array.from(clean(item.title)).length > 36) title.classList.add("cn-title-long");
+    }
     title.id = "mediaTitleHeading";
     copy.append(title);
     const meta = n("div", "cn-meta"), rating = window.MediaVisual.ratingOf(item);

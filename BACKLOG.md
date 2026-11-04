@@ -84,3 +84,7 @@ Tamamlandı: PR810 master'a `486e25e6a4192dbfd3ed5276bda12a28fe9add4b` ile birle
 ## G2 — Güncel denetim düzeltmeleri — 18:17
 
 Kod tamam; ürün `0d028677727d5b4ca2043c0ab37fb8551f34e9c8`, dal `codex/podcast-plan-completion-20261104`. [Kapsam/sonuçlar](docs/implementation/audit-current-code-2026-11-04.md), [devir](docs/devir/2026-11-04-1817.md). Podcast medya grant/çıktı eki, PDF/kitap sahipliği, ikinci altyazı onayı ve hareket kalıcılığı düzeltildi. Renk eşiği değişmeden test geçti. Sonraki adım: G2 PR/master/ana kopya doğrulaması; ardından G3. Gerçek model/GPU/sağlayıcı/UNC/safeStorage kabulü doğrulanmadı; ağır test yapılmayacak.
+
+## G3 — Eski paketlerin uyumlu parçaları — 18:26
+
+G2 PR813 ile `fd91f0154d446131061653f2dc6a5e0d47ebfb59` master/ana kopyada doğrulandı. G3 ürün `82cbe5ab3270ffbbceb50a403b5960e6e4a751d5`, kod/kısa kontroller tamam, entegrasyon sırada. [Devir](docs/devir/2026-11-04-1826.md). Sonraki adım G3 PR/master/ana kopya, ardından G4 kısa genel bug/tasarım turu. G4/G5 bekler; gerçek sağlayıcı/GPU kabulü yapılmadı.
