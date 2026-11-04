@@ -174,7 +174,19 @@ def rss(data):
         url = urljoin(bases[id(enclosure)], enclosure.attrib.get('url') or enclosure.attrib.get('href') or '')
         if urlsplit(url).scheme not in ('http', 'https'):
             continue
-        entries.append(dict(title=text(first(item, 'title'))[:500], url=url, guid=text(first(item, 'guid'))[:1000] or text(first(item, 'id'))[:1000], description=text(first(item, 'description'))[:3000], date=text(first(item, 'pubDate'))[:100]))
+        raw_duration = text(first(item, 'duration')).strip()
+        try:
+            duration = sum(float(part) * 60 ** i for i, part in enumerate(reversed(raw_duration.split(':')))) if raw_duration else 0
+            if not 0 <= duration <= 31536000:
+                duration = 0
+        except ValueError:
+            duration = 0
+        descriptors = []
+        for node in item:
+            if local(node.tag) == 'transcript' and node.tag.startswith('{https://podcastindex.org/namespace/1.0}'):
+                descriptors.append(dict(url=urljoin(bases[id(node)], node.attrib.get('url', '')), type=node.attrib.get('type', '')[:100], language=node.attrib.get('language', '')[:40], rel=node.attrib.get('rel', '')[:30]))
+        image = first(item, 'image')
+        entries.append(dict(title=text(first(item, 'title'))[:500], url=url, guid=text(first(item, 'guid'))[:1000] or text(first(item, 'id'))[:1000], description=text(first(item, 'description'))[:3000], date=text(first(item, 'pubDate'))[:100], duration=duration, publisher=text(first(channel, 'author'))[:500], image=image.attrib.get('href', '')[:4096] if image is not None else '', episodeNumber=text(first(item, 'episode'))[:30], seasonNumber=text(first(item, 'season'))[:30], transcriptDescriptors=descriptors[:8]))
         if len(entries) >= 200:
             break
     if not entries:

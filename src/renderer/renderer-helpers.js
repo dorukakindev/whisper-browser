@@ -1361,6 +1361,7 @@ function removeFromQueue(id) {
   // Çalışan item silinemez
   const item = state.queue.find(x => x.id === id);
   if (!item || item.status === 'running') return;
+  void releasePodcastQueueItem(item);
   const buttons = [...document.querySelectorAll('.queue-remove[data-id]')];
   const removedIndex = buttons.findIndex((button) => Number(button.dataset.id) === id);
   state.queue = state.queue.filter(x => x.id !== id);

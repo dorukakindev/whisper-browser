@@ -30,9 +30,9 @@ test('P1 menü açılırken sayfa donmuş kareyle kalır', () => {
   assert.match(main, /image\.toJPEG\(72\)/);
   assert.match(read('src/preload.js'), /snapshotBrowserPage: \(\) => ipcRenderer\.invoke\('browser:snapshotActive'\)/);
   assert.match(renderer, /if \(window\.api\.setBrowserOccluded\) return applyBrowserOcclusion\(occluded\);/);
-  // Görüntü, gizlemeden ÖNCE boyanır; açılınca temizlenir.
+  // Capture is optional: hiding cannot wait for it; close still clears the frame.
   const body = renderer.slice(renderer.indexOf('async function applyBrowserOcclusion'));
-  assert.ok(body.indexOf("classList.add('browser-frozen')") < body.indexOf('window.api.setBrowserOccluded(occluded)'));
+  assert.doesNotMatch(body.slice(0, body.indexOf('window.api.setBrowserOccluded(occluded)')), /await window\.api\.snapshotBrowserPage/);
   assert.match(body, /if \(!occluded && seq === browserOcclusionSeq\) clearBrowserFreezeFrame\(\);/);
   assert.match(css, /\.browser-view-slot\.browser-frozen \{[^}]*background-image: var\(--browser-freeze-image\)/);
 });

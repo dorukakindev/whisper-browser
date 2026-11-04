@@ -22270,7 +22270,7 @@ const mediaCatalogService = require('./media-catalog-service').registerMediaCata
   inspectMedia: validateLocalMediaPath, grantMedia: file => mediaFileAccess.grant(file), watchItems: loadWatchLibraryAll,
   dialogText: dt,
 });
-const mediaFeedsService = require('./feed-service').registerFeeds({app,ipcMain,authorized:authorizedBrowserSender,userData:()=>app.getPath('userData'),catalogStore:mediaCatalogService.store,translateText:(text,signal)=>translateMediaTextToTurkish(text,signal,'article')});
+const mediaFeedsService = require('./feed-service').registerFeeds({app,ipcMain,authorized:authorizedBrowserSender,userData:()=>app.getPath('userData'),catalogStore:mediaCatalogService.store,grantMedia:file=>mediaFileAccess.grant(file),grantSubtitle:file=>subtitleFileAccess.grant(file),translateText:(text,signal)=>translateMediaTextToTurkish(text,signal,'article')});
 let recallPersonalService;
 personalMediaService=require('./personal-media-service').registerPersonalMedia({ipcMain,authorized:authorizedBrowserSender,catalogStore:mediaCatalogService.store,userData:()=>app.getPath('userData'),history:loadWatchLibraryAll,
   sourceContext:()=>personalMediaNativeSource(),resolveDiscovery:(event,identity)=>mediaCatalogService.discovery.handle(event,{action:'detail',kind:identity.kind,id:identity.imdbId}),

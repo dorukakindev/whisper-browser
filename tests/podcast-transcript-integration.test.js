@@ -7,7 +7,7 @@ const {fetchPodcastTranscript}=require('../src/podcast-transcript-service');
 const xml='<rss xmlns:podcast="https://podcastindex.org/namespace/1.0"><channel><title>Show</title><language>tr</language><item><guid>ep1</guid><title>Episode</title><enclosure url="https://audio.example/ep.mp3" type="audio/mpeg"/><podcast:transcript url="https://text.example/ep.vtt" type="text/vtt" language="tr"/><podcast:transcript url="https://localhost/secret" type="text/plain"/></item></channel></rss>';
 test('RSS descriptors survive actual feed-store reload and feed IPC selects only a stored revision-bound descriptor',async()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'podcast-integration-'));const app=new EventEmitter();app.getPath=()=>dir;
- let calls=0;const event={sender:{id:1}},service=registerFeeds({app,ipcMain:{handle(){}},authorized:e=>e===event,autoStart:false,transcriptFetcher:async descriptor=>{calls++;assert.equal(descriptor.url,'https://text.example/ep.vtt');return {ok:true,timed:'yes',format:'vtt',text:'WEBVTT\n'};}});
+ let calls=0;const event={sender:{id:1}},service=registerFeeds({app,ipcMain:{handle(){}},authorized:e=>e===event,autoStart:false,transcriptFetcher:async descriptor=>{calls++;assert.equal(descriptor.url,'https://text.example/ep.vtt');return {ok:true,timed:'yes',format:'vtt',text:'WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHello'};}});
  try{
   const parsed=parseFeed(xml,'https://feed.example/rss');assert.equal(parsed.entries[0].transcriptDescriptors.length,1);
   service.store.subscribe({...parsed,url:'https://feed.example/rss'},parsed.entries);
