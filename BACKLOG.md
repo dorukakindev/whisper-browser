@@ -88,3 +88,7 @@ Kod tamam; ürün `0d028677727d5b4ca2043c0ab37fb8551f34e9c8`, dal `codex/podcast
 ## G3 — Eski paketlerin uyumlu parçaları — 18:26
 
 G2 PR813 ile `fd91f0154d446131061653f2dc6a5e0d47ebfb59` master/ana kopyada doğrulandı. G3 ürün `82cbe5ab3270ffbbceb50a403b5960e6e4a751d5`, kod/kısa kontroller tamam, entegrasyon sırada. [Devir](docs/devir/2026-11-04-1826.md). Sonraki adım G3 PR/master/ana kopya, ardından G4 kısa genel bug/tasarım turu. G4/G5 bekler; gerçek sağlayıcı/GPU kabulü yapılmadı.
+
+## G4 — Son kısa tur — 18:30
+
+G3 PR814 `e85359bdb0b283d78c0adffb8f8ce27571cc7d3a` master/ana kopyada doğrulandı. G4 ürün `b1be2e078d24d15088c48935e93deef2c0022d11`, kısa kontroller tamam. [Devir](docs/devir/2026-11-04-1830.md). Sonraki adım G4 entegrasyon ve G5 son kayıt/kimlik kontrolü; yeni özellik turu yok. Canlı model/GPU/sağlayıcı ve eski Pipeline test selector uyumsuzluğu açık sınırdır.

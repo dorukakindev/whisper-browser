@@ -35,6 +35,10 @@ document.querySelector('.pw-panel-close').click();assert.equal(document.querySel
 integration.refresh(true);assert.equal(document.getElementById('playerStage'),stage);assert.equal(document.querySelectorAll('#aiChat').length,1);
 const anchor=integration.snapshot();
 (async()=>{
+ const directOwner=integration.snapshot(),beforeDirect=video.currentTime;
+ assert.equal((await integration.executeExisting({type:'seek',mediaKey:directOwner.mediaKey,generation:directOwner.generation,time:-1})).code,'invalid-range','public podcast adapter must keep the shared command validation');
+ assert.equal(video.currentTime,beforeDirect,'rejected public command must not move playback');
+ assert.equal((await integration.executeExisting({type:'seekCue',mediaKey:directOwner.mediaKey,generation:directOwner.generation,trackId:'replaced-track',trackRevision:'old',cueId:'a'})).code,'stale-track');
  assert.equal((await integration.seekEvidence({sourceKey:'wrong',time:1,text:cues[0].text},anchor)).code,'source-changed');
  assert.equal((await integration.seekEvidence({sourceKey:'stable-source',time:1,text:'An old transcript'},anchor)).code,'source-changed');
  assert.equal((await integration.seekEvidence({sourceKey:'stable-source',time:2,text:cues[0].text},anchor)).ok,true);assert.equal(video.currentTime,2);
