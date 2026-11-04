@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### PR808 teslim doğrulaması — 2026-11-04
+
+- Onaylı kütüphane ve browser paneli teslimi temiz çalışma alanında 18 hedefli test ve değişen JavaScript sözdizimi kontrolleriyle doğrulandı; ürün kodu değiştirilmedi. [Devir ve açık canlı kabul sınırları](docs/devir/2026-11-04-0936.md).
+
 ### Browser subtitle panel — 2026-11-04
 
 - Implemented the approved browser toolbar, subtitle panel, sentence-flow controls and five-group tool library with search, pinned task cards and configurable panel-scoped shortcuts.
