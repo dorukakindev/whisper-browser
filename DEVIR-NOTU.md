@@ -1,3 +1,4 @@
+Güncel çalışma: [G5 sıralı hedeflerin son teslimi — G1–G4 birleştirildi](docs/devir/2026-11-04-1833.md)
 Güncel çalışma: [G4 kısa genel bug turu](docs/devir/2026-11-04-1830.md)
 Güncel çalışma: [G3 eski paketler ve podcast okuma düzeni](docs/devir/2026-11-04-1826.md)
 Güncel çalışma: [G2 güncel denetim ve kaynak sahipliği](docs/devir/2026-11-04-1817.md)

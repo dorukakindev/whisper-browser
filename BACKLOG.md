@@ -77,18 +77,18 @@ DEVIR-NOTU.md'nin ilgili son kaydını ve aktif dalı kontrol et. Yeni yarım i�
 
 Tamamlandı: PR810 master'a `486e25e6a4192dbfd3ed5276bda12a28fe9add4b` ile birleştirildi; uzak master, çalışma dalı ve `D:/Whisper Local` ana kopyası aynı kimlikle doğrulandı. Kişisel üç tracked değişiklik aynen korundu. Ürün açık işi kalmadı; canlı sağlayıcı/GPU ve kaynak byte fingerprint sınırları devirde açıkça belirtiliyor. Tekrar ağır kabul testi/izin penceresi/Computer Use yapılmayacak. PR809 da öncesinde birleştirilmiştir.
 
-## G1 — Podcast planı yeniden tamamlandı — 18:00
+## Sıralı hedefler — uygulama tamamlandı, 18:33
 
-Önceki genel tamamlandı ifadesi geri çekildi. Ürün `ac62d3dc650d5732be56d78f36d45c433d0a7e46` P1–P6 eksik shelf, kaynak sürümü, asistan, Whisper/çeviri ve okunabilir saved-result akışlarını bağlar. [Sıralı hedefler](docs/implementation/podcast-completion-ordered-goals.md), [devir](docs/devir/2026-11-04-1800.md). G1 PR812 ile `3d0e80b49a939425b69581b74b9d21586cafa7ce` master/ana kopyaya alındı. G2 aşağıda; G3–G5 BEKLİYOR; eski ZIP'lere ait dört dosya ayrı tutulur. Yeniden ağır test veya onay sorusu yok.
+Kullanıcının önceki görev bitmeden yenisine geçmeme kararıyla G1–G5 sıralı kapandı. [Plan](docs/implementation/podcast-completion-ordered-goals.md), [son devir](docs/devir/2026-11-04-1833.md). Bu kayıtta yeni açık ürün görevi yok; eski raporlar topluca yeniden açılmadı.
 
-## G2 — Güncel denetim düzeltmeleri — 18:17
+| Hedef | Birleşen teslim |
+|---|---|
+| G1 Podcast P1–P6 | PR812 · 3d0e80b4 |
+| G2 Güncel denetim açıkları | PR813 · fd91f015 |
+| G3 Eski paketlerin uyumlu parçaları | PR814 · e85359bd |
+| G4 Kısa genel bug turu | PR815 · a9b7842e |
+| G5 Bütünlük/kayıt | Ürün master/çalışma/ana kopya `a9b7842e24f8a697f9c210f3ae360ac9d3f83e6d`; son kayıt yalnız belge |
 
-Kod tamam; ürün `0d028677727d5b4ca2043c0ab37fb8551f34e9c8`, dal `codex/podcast-plan-completion-20261104`. [Kapsam/sonuçlar](docs/implementation/audit-current-code-2026-11-04.md), [devir](docs/devir/2026-11-04-1817.md). Podcast medya grant/çıktı eki, PDF/kitap sahipliği, ikinci altyazı onayı ve hareket kalıcılığı düzeltildi. Renk eşiği değişmeden test geçti. Sonraki adım: G2 PR/master/ana kopya doğrulaması; ardından G3. Gerçek model/GPU/sağlayıcı/UNC/safeStorage kabulü doğrulanmadı; ağır test yapılmayacak.
+Doğrulanmayan canlı sınırlar: gerçek Spotify/RSS sağlayıcılarının uçtan uca model/GPU/CUDA sonucu, gerçek 60/61 takılması ve referans ses kalitesi, Windows UNC/reparse/OS safeStorage, kişisel start.bat ve tam native mpv/site davranışı. Bunlar yeni teyitli bug sayılmadı. Kesin sonraki adım yalnız gerçek kullanımda belirtilen bir arıza için ilgili log/kaynak sahibi üzerinden kısa yeniden üretimdir; ağır matris/CPU/Computer Use/erişim penceresi testleri başlatılmaz.
 
-## G3 — Eski paketlerin uyumlu parçaları — 18:26
-
-G2 PR813 ile `fd91f0154d446131061653f2dc6a5e0d47ebfb59` master/ana kopyada doğrulandı. G3 ürün `82cbe5ab3270ffbbceb50a403b5960e6e4a751d5`, kod/kısa kontroller tamam, entegrasyon sırada. [Devir](docs/devir/2026-11-04-1826.md). Sonraki adım G3 PR/master/ana kopya, ardından G4 kısa genel bug/tasarım turu. G4/G5 bekler; gerçek sağlayıcı/GPU kabulü yapılmadı.
-
-## G4 — Son kısa tur — 18:30
-
-G3 PR814 `e85359bdb0b283d78c0adffb8f8ce27571cc7d3a` master/ana kopyada doğrulandı. G4 ürün `b1be2e078d24d15088c48935e93deef2c0022d11`, kısa kontroller tamam. [Devir](docs/devir/2026-11-04-1830.md). Sonraki adım G4 entegrasyon ve G5 son kayıt/kimlik kontrolü; yeni özellik turu yok. Canlı model/GPU/sağlayıcı ve eski Pipeline test selector uyumsuzluğu açık sınırdır.
+Mevcut ayrı test sınırlaması: assistant-resilience Pipeline eski selector sayımı değişmemiş tabanda da2/1; güncel hedefli iptal testleri geçti. Yeni ürün regresyonu gibi sunulmadı, eşik/assertion gevşetilmedi. Kişisel indeks/offline manifest/start.sh farkları ve korunan envelope dosyaları bu teslimin dışında kaldı.
