@@ -33556,10 +33556,12 @@ window.translatePodcastSource=async function(binding){
  const snapshot=window.MediaShelfUI?.readSnapshot?.(),track=binding.track;
  if(binding.playbackOwner==='media-shelf'){
   if(snapshot?.sourceTrack?.id!==track.id||snapshot?.sourceTrack?.revision!==track.revision)throw Error('Podcast transcript changed / Podcast dökümü değişti.');
- }else{
+ }
+ if(binding.playbackOwner!=='media-shelf'||binding.sourceTranscriptText){
   const saved=await window.api.feedsRequest({action:'podcast-workspace',entryId:binding.entryId,sourceVersion:binding.sourceVersion});
   if(!saved?.ok||saved.sourceVersion!==binding.sourceVersion||saved.workspace?.transcript?.state!=='timed'||saved.workspace.transcript.status==='partial'||!binding.sourceTranscriptText||saved.workspace.transcript.text!==binding.sourceTranscriptText||!podcastQueueOwnerCurrent(binding))throw Error('Podcast transcript changed / Podcast dökümü değişti.');
  }
+ if(binding.playbackOwner==='media-shelf'){const current=window.MediaShelfUI?.readSnapshot?.();if(!podcastQueueOwnerCurrent(binding)||current?.sourceTrack?.id!==track.id||current?.sourceTrack?.revision!==track.revision)throw Error('Podcast transcript changed / Podcast dökümü değişti.');}
  const override={translateOnly:true,translate:true,input:binding.materializedPath,outputNameSuffix:'-whisper-podcast-'+binding.sourceVersion.slice(0,12)};
  if(track.language)override.language=track.language;
  if(!addToQueue('file',binding.materializedPath,{optionsOverride:override}))throw Error('Could not add podcast translation to existing queue / Podcast çevirisi kuyruğa eklenemedi.');
@@ -33576,7 +33578,7 @@ async function persistPodcastJobOutputs(event,binding){
   if(!response?.ok)throw Error(response?.error||'Podcast result could not be saved.');
   if(binding.playbackOwner==='media-shelf'){
    const snapshot=window.MediaShelfUI?.readSnapshot?.();
-   if(snapshot?.mediaKey===binding.mediaKey&&snapshot?.generation===binding.generation&&snapshot?.sourceVersion===binding.sourceVersion)await window.MediaShelfUI?.applyPodcastOutput?.({binding,role:kind,text:result.text,timed:true,format:/\.vtt$/i.test(item.path)?'vtt':'srt',status:item.status==='partial'?'partial':'complete'});
+   if(snapshot?.mediaKey===binding.mediaKey&&snapshot?.generation===binding.generation&&(snapshot?.sourceVersion===binding.sourceVersion||kind==='translation'&&binding.sourceTranscriptText&&snapshot?.sourceVersion===binding.playbackSourceVersion))await window.MediaShelfUI?.applyPodcastOutput?.({binding,role:kind,text:result.text,timed:true,format:/\.vtt$/i.test(item.path)?'vtt':'srt',status:item.status==='partial'?'partial':'complete'});
   }
  }}finally{if(binding.downloadToken)await releasePodcastQueueItem({podcastBinding:binding});}
 }

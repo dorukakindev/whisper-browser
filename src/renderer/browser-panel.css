@@ -151,3 +151,17 @@
 .browser-study-actions .browser-study-primary { color:var(--on-accent,var(--bg-0)); background:var(--accent); border-color:var(--accent); font-weight:600; }
 .browser-study-actions button:disabled { opacity:1; color:var(--text-muted); background:var(--bg-1); cursor:not-allowed; }
 .browser-study-actions button:focus-visible,.browser-study-entry:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+
+/* Podcast mode keeps the actual web stage and its independent clock. */
+.browser-podcast-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.browser-podcast-controls .bp-button { min-height:36px; border:1px solid var(--border); border-radius:8px; padding:8px 10px; color:var(--text); background:var(--bg-1); }
+.browser-podcast-transport { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; grid-column:1/-1; grid-row:2; }
+.browser-podcast-transport[hidden],.browser-podcast-tools[hidden],.browser-study-actions[hidden],.browser-study-second[hidden] { display:none; }
+.browser-podcast-transport .browser-podcast-speed { grid-column:1/-1; }
+.browser-podcast-presentation .bp-panel .cue-card-src { font-size:16px; line-height:1.8; }
+.browser-podcast-presentation .bp-panel .cue-card-tr { font-size:15px; line-height:1.7; }
+.browser-podcast-presentation .bp-panel .cue-card { padding-block:16px; }
+.browser-podcast-presentation .browser-study-actions { margin-top:4px; }
+
+.browser-podcast-toggle { grid-column:1; grid-row:1; }
+.browser-podcast-tools { grid-column:2; grid-row:1; }

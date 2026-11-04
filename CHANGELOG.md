@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Web/YouTube podcast görünümü aynı oynatıcıyla açılır; RSS konum/hız ve kayıtlı özgün/çeviri birlikte döner. Salt okunur kayıt çevirisi ve kaynak/asistan sahipliği korumaları tamamlandı.
+
 - Browser videolarında görünür çift dilli çalışma, hazır ikinci dil seçimi ve mevcut çeviri/Whisper işlemlerine doğrudan erişim; ana sayfada Browser girişi görünür.
 
 - Added evidence-backed taste signals and catalog recommendations, profile coverage/staleness, reviewed assistant preference changes with revision checks, and a draft-preserving three-section taste interface. [Implementation and verification](docs/devir/2026-11-04-2341.md).
