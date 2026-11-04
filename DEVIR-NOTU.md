@@ -1,3 +1,7 @@
+Güncel çalışma: [Podcast tamamlaması, browser menüsü ve native kabul](docs/devir/2026-11-04-1730.md)
+Güncel çalışma: [Onaylı maketle native eşleme — 20 PNG, 180 boyut ve açık Windows kabulü](docs/devir/2026-11-04-1700.md)
+Güncel çalışma: [Onaylı maketin native aktarımı — Windows kontrolü kullanıcı tarafından durduruldu](docs/devir/2026-11-04-1539.md)
+Güncel çalışma: [V3 görsel reddi sonrası bağımsız maket — onay bekliyor](docs/devir/2026-11-04-1354.md)
 Güncel çalışma: [V3 özellik boşluklarının uygulanması ve Windows kabulü](docs/devir/2026-11-04-1203.md)
 Güncel çalışma: [Yedi başlıkta tamamlanma denetimi](docs/devir/2026-11-04-1131.md)
 Güncel çalışma: [Dolu not defteri ve iptal kabulü](docs/devir/2026-11-04-1127.md)

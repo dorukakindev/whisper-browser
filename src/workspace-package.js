@@ -302,7 +302,7 @@ function describePackage(data, root = null) {
     catch (_) { return null; }
   };
   const feeds = json('feeds.json');
-  if(feeds){summary.feedSubscriptions=feeds.feeds.length;summary.feedEntries=feeds.entries.length;summary.playerSourcePins=feeds.sourcePins?.length||0;}
+  if(feeds){summary.feedSubscriptions=feeds.feeds.length;summary.feedEntries=feeds.entries.length;summary.playerSourcePins=feeds.sourcePins?.length||0;summary.podcastBindings=feeds.entries.filter(e=>e.podcastWorkspace).length;summary.podcastTranscripts=feeds.entries.reduce((n,e)=>n+(e.podcastWorkspace?.transcript?1:0)+(e.podcastWorkspace?.translation?1:0),0);}
   const catalog = json('media-catalog.json');
   if (Array.isArray(catalog?.items)) {
     summary.mediaItems = catalog.items.length;
@@ -356,7 +356,7 @@ function missingLocalMedia(data, exists = fs.existsSync) {
   const add = (value, unverified = false) => {
     if (!looksLikeLocalMediaPath(value)) return;
     let missing = unverified;
-    if(!unverified)try { missing = !existsFn(value); } catch (_) { missing = true; }
+    if(!unverified)try { missing = !exists(value); } catch (_) { missing = true; }
     if (!missing) return;
     const parser = /^[a-zA-Z]:[\\/]/.test(value) ? path.win32 : path.posix;
     const key = parser.dirname(value);
@@ -366,8 +366,6 @@ function missingLocalMedia(data, exists = fs.existsSync) {
   };
   const watch = json('watch-library.json');
   for (const item of watch?.items || []) add(item?.localPath);
-  const feeds = json('feeds.json');
-  if(feeds){summary.feedSubscriptions=feeds.feeds.length;summary.feedEntries=feeds.entries.length;summary.playerSourcePins=feeds.sourcePins?.length||0;}
   const catalog = json('media-catalog.json');
   for (const item of catalog?.items || []) {
     for(const source of require('./catalog-library-model').allSources(item))if(source.type==='local')add(source.value);

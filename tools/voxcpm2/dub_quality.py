@@ -74,11 +74,33 @@ def speech_check(expected, actual, numeric_reference=None):
         return [COMPOUND_PARTITIVE_DIGITS.get(token, token)
                 if i and tokens[i-1] in CARDINAL_PREFIXES else token
                 for i, token in enumerate(tokens)]
+    # Ambiguous dotted literals keep their production pronunciation. Only the
+    # actual transcript's complete cardinal phrase can establish a thousands
+    # reading for verification; a numeric ASR spelling alone proves nothing.
+    number_words=set('sıfır bir iki üç dört beş altı yedi sekiz dokuz on yirmi otuz kırk elli altmış yetmiş seksen doksan yüz bin milyon milyar virgül'.split())
+    transcript_words = words(actual)
+    def proven_grouped_reference(text):
+        def replace(match):
+            digits = match[0].replace('.', '')
+            if digits.startswith('0') or len(digits) > 9:
+                return match[0]
+            if re.search(r'\b(?:sürüm|versiyon|version|build|kod|numara|id|ip|port)\s*:?\s*$', text[max(0,match.start()-48):match.start()], re.I):
+                return match[0]
+            phrase = words(integer_words(digits))
+            if any(transcript_words[i:i+len(phrase)] == phrase
+                   and (i == 0 or transcript_words[i-1] not in number_words)
+                   and (i+len(phrase) == len(transcript_words) or transcript_words[i+len(phrase)] not in number_words)
+                   for i in range(len(transcript_words)-len(phrase)+1)):
+                return integer_words(digits)
+            return match[0]
+        return re.sub(r"(?<![\w.,:/+\-−'’])\d{1,3}(?:\.\d{3})+(?![\w.,:/+\-−]|['’]\w)", replace, text)
+    expected = proven_grouped_reference(expected)
+    if numeric_reference is not None:
+        numeric_reference = proven_grouped_reference(numeric_reference)
     target = words(expected)
     # ASR may print the spoken "elli bin" as "50.000". Only interpret a
     # dotted thousands spelling when that exact whole quantity is present in
     # the expected spoken text. Do not reinterpret arbitrary dates/decimals.
-    number_words=set('sıfır bir iki üç dört beş altı yedi sekiz dokuz on yirmi otuz kırk elli altmış yetmiş seksen doksan yüz bin milyon milyar virgül'.split())
     def expected_quantity(digits):
         phrase = words(digits + ' kişi')[:-1]
         return any(target[i:i+len(phrase)] == phrase

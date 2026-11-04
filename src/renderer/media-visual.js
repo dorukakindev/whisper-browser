@@ -176,5 +176,22 @@
     d.append(s, panel);
     return d;
   }
-  window.MediaVisual = Object.freeze({ icon, title, button, art, card, empty, overflow, sectionHeading, rail, filter });
+  // Shared display formatting: Home, Discover and the film page show a rating the same way.
+  function score(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number) || number <= 0) return "";
+    const text = number.toFixed(1);
+    return tr(text, text.replace(".", ","));
+  }
+  // A rating together with the source it came from, so a label can never describe another number.
+  function ratingOf(item) {
+    const imdb = Number(item?.rating), tmdb = Number(item?.tmdbRating), listed = Number(item?.ratings?.imdb);
+    if (Number.isFinite(imdb) && imdb > 0) return { source: "IMDb", value: imdb };
+    if (Number.isFinite(tmdb) && tmdb > 0) return { source: "TMDB", value: tmdb };
+    if (Number.isFinite(listed) && listed > 0) return { source: "IMDb", value: listed };
+    return null;
+  }
+  const genreNames = { Action: "Aksiyon", Adventure: "Macera", Animation: "Animasyon", Biography: "Biyografi", Comedy: "Komedi", Crime: "Suç", Documentary: "Belgesel", Drama: "Dram", Family: "Aile", Fantasy: "Fantastik", History: "Tarih", Horror: "Korku", Music: "Müzik", Musical: "Müzikal", Mystery: "Gizem", Romance: "Romantik", "Sci-Fi": "Bilim kurgu", Short: "Kısa film", Sport: "Spor", Thriller: "Gerilim", War: "Savaş", Western: "Vahşi Batı" };
+  const genre = (value) => tr(value, genreNames[value] || value);
+  window.MediaVisual = Object.freeze({ icon, title, button, art, card, empty, overflow, sectionHeading, rail, filter, score, ratingOf, genre });
 })();

@@ -81,7 +81,7 @@
     a.append(sourceMark);
     const rating = Number(item.rating || item.tmdbRating || item.ratings?.imdb);
     if (rating > 0) {
-      const r = n("span", "cn-rating", rating.toFixed(1));
+      const r = n("span", "cn-rating", window.MediaVisual.score(rating));
       r.prepend(icon("star"));
       a.append(r);
     }
@@ -327,13 +327,13 @@
     const title = n("h1", "", clean(item.title));
     title.id = "mediaTitleHeading";
     copy.append(title);
-    const meta = n("div", "cn-meta"), rating = item.rating || item.tmdbRating || item.ratings?.imdb;
+    const meta = n("div", "cn-meta"), rating = window.MediaVisual.ratingOf(item);
     if (rating) {
-      const r = n("span", "cn-score", `${item.tmdbRating ? "TMDB" : "IMDb"} ${Number(rating).toFixed(1)}`);
+      const r = n("span", "cn-score", `${rating.source} ${window.MediaVisual.score(rating.value)}`);
       r.prepend(icon("star"));
       meta.append(r);
     }
-    for (const value of [item.year, item.runtime ? `${Math.floor(item.runtime / 60)} ${t("h", "sa")} ${item.runtime % 60} ${t("min", "dk")}` : "", (item.genres || []).slice(0, 3).join(" / ")]) if (value) meta.append(n("span", "", value));
+    for (const value of [item.year, item.runtime ? `${Math.floor(item.runtime / 60)} ${t("h", "sa")} ${item.runtime % 60} ${t("min", "dk")}` : "", (item.genres || []).slice(0, 3).map(window.MediaVisual.genre).join(" / ")]) if (value) meta.append(n("span", "", value));
     copy.append(meta);
     const description = item.tagline || item.synopsisTr || item.synopsis;
     if (description) copy.append(n("p", "cn-hero-description", description));

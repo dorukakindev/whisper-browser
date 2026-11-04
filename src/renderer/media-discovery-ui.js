@@ -1,6 +1,8 @@
 (() => {
   'use strict';
   const t = (en, tr) => window.UiLocale?.get?.() === 'tr' ? tr : en;
+  const score = value => window.MediaVisual?.score?.(value) || String(value);
+  const genre = value => window.MediaVisual?.genre?.(value) ?? value;
   const failure = error => window.MediaDiscoveryErrors?.message(error,window.UiLocale?.get?.()) || error?.message || String(error);
   const el = (tag, cls, text) => { const node = document.createElement(tag); if (cls) node.className = cls; if (text !== undefined) node.textContent = String(text); return node; };
   const state = { root: null, tab: 'browse', kind: 'film', mode: 'top', genre: '', year: new Date().getFullYear(), query: '', view:'unwatched', rows: [], skip: 0, next: null, request: 0, busy: false, loadError: false, retryAppend: false, needsRatings: false, scope: '' };
@@ -45,8 +47,8 @@
     const item = result.item; dialog.dataset.pageKind='discovery';
     const body = el('div', 'md-detail-body'), content = el('div', 'md-detail-copy');
     window.MediaExperience?.setContext(dialog, { id: `discovery:${item.kind}:${item.providerId}`, type: 'discovery-title', title: item.title, synopsis: item.synopsis });
-    content.append(el('h1', '', item.title), el('p', 'md-meta', [item.year, item.rating ? `IMDb ${item.rating}/10` : '', item.runtime ? `${item.runtime} ${t('min', 'dk')}` : '', item.kind === 'series' ? t('Series', 'Dizi') : t('Film', 'Film')].filter(Boolean).join(' · ')));
-    const genres = el('div', 'md-chips'); item.genres.forEach(genre => genres.append(el('span', '', genre))); content.append(genres);
+    content.append(el('h1', '', item.title), el('p', 'md-meta', [item.year, item.rating ? `IMDb ${score(item.rating)}/10` : '', item.runtime ? `${item.runtime} ${t('min', 'dk')}` : '', item.kind === 'series' ? t('Series', 'Dizi') : t('Film', 'Film')].filter(Boolean).join(' · ')));
+    const genres = el('div', 'md-chips'); item.genres.forEach(value => genres.append(el('span', '', genre(value)))); content.append(genres);
     const storyHeading=el('div','md-story-heading'),synopsis=el('p','md-synopsis',item.synopsisTr||item.synopsis||t('No synopsis is available for this title.','Bu yapımın açıklaması henüz yok.'));
     storyHeading.append(el('h3','',t('Story','Konu')));
     if(item.synopsis){let translated=item.synopsisTr||'',showOriginal=false;const translate=btn(translated?t('Show original','Özgününü göster'):t('Translate to Turkish','Türkçeye çevir'),async()=>{
@@ -134,9 +136,9 @@
       const previous=wrap;wrap=el('div','cn-hero-art');wrap.append(artwork);previous.before(wrap);artwork.addEventListener('load',()=>wrap.dispatchEvent(new Event('home-art-ready')),{once:true});window.CinemaMotion?.swapArtwork(hero,previous,wrap);if(!window.CinemaMotion)previous.remove();
       const copy=el('div','cn-hero-copy'),headline=el('div','cn-discover-feature-heading');
       headline.append(el('span','cn-eyebrow',t('Featured title','Öne çıkan yapım')));
-      if(row.rating)headline.append(el('span','mv-feature-rating','IMDb '+row.rating+'/10'));
+      if(row.rating)headline.append(el('span','mv-feature-rating','IMDb '+score(row.rating)+'/10'));
       copy.append(headline,el('h1','',window.MediaVisual?.title(row.title)||row.title));
-      const facts=[row.year,...(row.genres||[]).slice(0,3)].filter(Boolean).join(' · ');
+      const facts=[row.year,...(row.genres||[]).slice(0,3).map(genre)].filter(Boolean).join(' · ');
       if(facts)copy.append(el('p','cn-feature-facts',facts));
       if(row.synopsis)copy.append(el('p','cn-hero-description',row.synopsis));
       const open=btn(t('Explore this title','Yapımı keşfet'),()=>details(row),'mh-action cn-feature-open');
@@ -192,7 +194,7 @@
       const card = btn('', () => personalActions?.isSelecting()?personalActions.toggleRow(row):details(row), 'cn-poster'); card.dataset.discoveryId = row.providerId;card.setAttribute('aria-haspopup','menu');card.addEventListener('contextmenu',event=>cardMenu(event,card,row));card.addEventListener('keydown',event=>{if(event.key==='ContextMenu'||event.shiftKey&&event.key==='F10')cardMenu(event,card,row);});
       card.dataset.discoveryKey=key;card._discoverySignature=signature;
       const poster = image(row.poster, 'cn-poster-art');if(personalActions?.isSelecting()){card.setAttribute('aria-pressed',String(personalActions.isSelected(row)));card.classList.toggle('md-card-selected',personalActions.isSelected(row));poster.append(el('span','md-card-selector',personalActions.isSelected(row)?'✓':''));}const badge=personalActions?.badge(row);if(badge)poster.append(badge);if(row.catalogId&&!poster.querySelector('img')&&window.api.mediaCatalog)void window.api.mediaCatalog({action:'poster',id:row.catalogId}).then(r=>{if(poster.isConnected&&r?.ok&&/^data:image\/png;base64,/.test(r.image||'')){const img=el('img');img.src=r.image;img.alt='';poster.prepend(img);poster.classList.remove('md-art-empty');}}).catch(()=>{});
-      if (row.rating) { const rating=el('span','cn-rating',String(row.rating)); rating.setAttribute('aria-label', t('IMDb rating ','IMDb puanı ')+row.rating+'/10'); poster.append(rating); }
+      if (row.rating) { const rating=el('span','cn-rating',score(row.rating)); rating.setAttribute('aria-label', t('IMDb rating ','IMDb puanı ')+score(row.rating)+'/10'); poster.append(rating); }
       card.append(poster, el('span', 'cn-poster-title', window.MediaVisual.title(row.title)),
         el('span', 'cn-poster-meta', [row.year, row.catalogId ? t('In library', 'Kütüphanede') : ''].filter(Boolean).join(' · ')));
       window.MediaVisual?.art(poster,row.title);

@@ -842,7 +842,20 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         s.exitSignal = signal;
         if (pending) line(pending);
         if (job === s) job = null;
-        if (s.cancelled) { finish(s, 'cancelled'); return; }
+        if (s.cancelled) {
+          // Publication precedes engine shutdown. A late stop must preserve
+          // completed media while retaining the cancelled terminal contract.
+          const recovered = s.completedMarker === true && validVoiceOutput(output);
+          if (recovered) {
+            for (const file of [output, output.replace(/\.wav$/i, '.sync.json'), output.replace(/\.wav$/i, '.quality.json')]) {
+              s.ownedArtifacts?.delete(file);
+            }
+            grantMedia(output);
+          }
+          finish(s, 'cancelled', recovered ? { recoverablePath: output,
+            recoverableUrl: pathToFileURL(output).href, name: path.basename(output) } : {});
+          return;
+        }
         // Recover completed media after a non-zero exit, but keep the error
         // diagnosis and prevent automatic attachment / successful latest reuse.
         const finishedBeforeExitFailure = code !== 0 && s.completedMarker === true;

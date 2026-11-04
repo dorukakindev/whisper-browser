@@ -497,6 +497,26 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.equal(fs.existsSync(prosodyOptions.output.replace(/\.json$/,'.partial.json')),false);
     // B4: finished, verified audio survives a non-zero exit during engine shutdown...
     prosodyMode='ok';
+    // A stop arriving after publication must not delete the completed WAV or
+    // its companion evidence. It still reports cancelled, never auto-attaches.
+    assert.equal((await call('dub:start',{id:'cancel-after-done',srt,timingMode:'clip',followDelivery:false})).ok,true);
+    const cancelledFinishedWav=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];
+    fs.writeFileSync(cancelledFinishedWav,wav);
+    const cancelledQuality=cancelledFinishedWav.replace(/\.wav$/,'.quality.json');
+    fs.writeFileSync(cancelledQuality,'{}');
+    child.stdout.emit('data','Tamamlandi: '+cancelledFinishedWav+'\n');
+    assert.equal((await call('dub:cancel')).ok,true);
+    child.emit('close',1,null);
+    assert.equal(events.at(-1).type,'cancelled');
+    assert.equal(events.at(-1).recoverablePath,cancelledFinishedWav);
+    assert.ok(fs.existsSync(cancelledFinishedWav));
+    assert.ok(fs.existsSync(cancelledQuality));
+    assert.equal((await call('dub:start',{id:'cancel-before-done',srt,timingMode:'clip',followDelivery:false})).ok,true);
+    const cancelledPartialWav=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];
+    fs.writeFileSync(cancelledPartialWav,wav);
+    assert.equal((await call('dub:cancel')).ok,true);child.emit('close',1,null);
+    assert.equal(events.at(-1).type,'cancelled');
+    assert.equal(fs.existsSync(cancelledPartialWav),false);
     assert.equal((await call('dub:start',{id:'exit-after-done',srt,timingMode:'clip',followDelivery:false})).ok,true);
     const finishedWav=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];
     fs.writeFileSync(finishedWav,wav);

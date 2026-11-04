@@ -21,6 +21,7 @@
 - Önce tam görsel kompozisyon; gerekiyorsa kullanıcı onayı, ardından uygulama. Üst medya menüsü, grafit/amber ve sinematik player kimliği korunur; soldan genel gezinme/landing/paper tasarımına dönme. Luna kalite referansıdır; kopya değildir.
 - İkincil gezinme soldaki simgenin hover/tıklama/klavye menüsünde; dar ekranda kontrolleri ezme. İleri ayarlar erişilebilir kalsın. Gerçek Windows geniş/dar görüntüsünü onaylı tasarımla karşılaştır; test geçmesini estetik başarı sayma.
 - Değişen davranışa kısa, anlamlı test ve sözdizimi kontrolü yap. Belge değişiminde bağlantı/diff kontrolü yeterlidir; gereksiz tam paket/uzun test bekleme. Mock, canlı site/GPU/sağlayıcı başarısı değildir; sınırları açık yaz.
+- Kullanıcının güncel tercihi: kısa hedefli kontrollerle ilerle; kendiliğinden genişlik matrisi, yüzlerce ekran çekimi, CPU/frame ölçümü veya kapsamlı kabul raporu üretme. Computer Use kullanma ve dosya erişim onay penceresi açan testleri tetikleme. Küçük görsel ayrıntılar için işi durdurup tekrar onay isteme; mevcut onaylı tasarım dilini uygula.
 - Windows ana ortamdır: D:\Whisper Local. Normal açılış start.bat; npm start/native fixture, start.bat/CUDA/kişisel kullanım doğrulaması yerine geçmez.
 - **GitHub Actions başlatma: kredi yok.** Commit/PR/merge başlıklarında [skip ci] kullan. Başarısız kabul hedefini gizleme, eşiği gevşetme veya tamamlandı deme.
 

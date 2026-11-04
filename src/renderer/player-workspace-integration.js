@@ -213,7 +213,13 @@
     if(audio){const cover=document.createElement('div');cover.className='pw-podcast-cover';cover.append(PlayerUiKit.cover(audio.title,audio.entryId),PlayerUiKit.h('strong',{text:audio.title}));stage.append(cover);}
     if(audio?.transcriptState==='untimed'&&tab==='transcript'){
       const list=view.querySelector('.pw-transcript'),body=document.createElement('p'),more=document.createElement('button');body.className='pw-runtime-untimed';more.type='button';let loaded=0;
-      const append=()=>{const chunk=audio.transcriptText.slice(loaded,loaded+50000);loaded+=chunk.length;body.append(document.createTextNode(chunk));more.textContent=text('Daha fazla metin','More text');more.hidden=loaded>=audio.transcriptText.length;};more.onclick=append;list.append(body,more);append();
+      const transcriptText=String(audio.transcriptText||'');
+      const append=()=>{const chunk=transcriptText.slice(loaded,loaded+50000);loaded+=chunk.length;body.append(document.createTextNode(chunk));more.textContent=text('Daha fazla metin','More text');more.hidden=loaded>=transcriptText.length;};more.onclick=append;list.append(body,more);append();
+    }
+    if(audio?.transcriptState==='needs-review'&&tab==='transcript'){
+      const list=view.querySelector('.pw-transcript'),notice=document.createElement('p');notice.className='pw-runtime-untimed';notice.setAttribute('role','status');
+      notice.textContent=text('Ses kaynağı değişti. Eski döküm ve zaman konumu uygulanmadı; yeni kaynak için yayıncı dökümünü yeniden yükleyin veya Whisper çalıştırın.','The audio source changed. The old transcript and position were not applied; reload the publisher transcript or run Whisper for the new source.');
+      list.querySelector('.pw-empty')?.remove();list.append(notice);
     }
     if (tab === 'assistant' && assistant) {
       const destination = view.querySelector('.pw-assistant');

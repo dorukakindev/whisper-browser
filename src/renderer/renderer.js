@@ -580,6 +580,7 @@ function reportWatchQueueResult(item, status) {
 
 function clearQueue() {
   // Çalışanlar kalsın
+  for(const item of state.queue)if(item.status!=='running')void releasePodcastQueueItem(item);
   state.queue = state.queue.filter(x => x.status === 'running');
   if (_queueNextTimer) { clearTimeout(_queueNextTimer); _queueNextTimer = null; }
   state.queueRunning = false;
@@ -750,6 +751,12 @@ async function processNextQueueItem() {
     return;
   }
 
+  if(next.podcastBinding?.released){
+    state.running=true;state.cancelled=false;$('cancelBtn').classList.remove('hidden');
+    const binding=next.podcastBinding;binding.acquireRequestId='podcast-retry-'+next.id;
+    try{const r=await window.api.feedsRequest({action:'podcast-audio',entryId:binding.entryId,sourceVersion:binding.sourceVersion,requestId:binding.acquireRequestId});if(!r?.ok)throw Error(r?.error||'Podcast acquisition failed.');Object.assign(binding,r,{released:false});next.input=r.path;if(!state.queueRunning||state.cancelled||next.status!=='running'){await releasePodcastQueueItem(next);next.status='pending';finalizeQueue();renderQueue();return;}}
+    catch(error){next.status='error';next.error=error.message;finalizeQueue();renderQueue();return;}finally{delete binding.acquireRequestId;}
+  }
   // Tek-iş arayüzünü güncelle: kuyruk item'i mevcut iş gibi göster
   resetStages();
   clearPreview();
@@ -799,8 +806,9 @@ async function processNextQueueItem() {
   state.lastJobInput = opts.youtube || opts.input || '';
   state.activeOutputJob = {
     input: state.lastJobInput,
-    mediaKey: opts.youtube ? mediaKeyFor('youtube', opts.youtube) : mediaKeyFor('local', opts.input),
-    generation: currentGeneration(),
+    mediaKey: next.podcastBinding?.mediaKey || (opts.youtube ? mediaKeyFor('youtube', opts.youtube) : mediaKeyFor('local', opts.input)),
+    generation: next.podcastBinding?.generation ?? currentGeneration(),
+    podcastBinding: next.podcastBinding,
     translateRequested: !!opts.translate,
     translateKeepSource: !!opts.translateKeepSource,
     selectedSubPath: player.subPath || '',
@@ -814,6 +822,7 @@ async function processNextQueueItem() {
 
   const r = await startTranscribeSafe(opts);
   if (!r.ok) {
+    void releasePodcastQueueItem(next);
     state.activeOutputJob = null;
     if (r.cancelled) {
       // Kullanıcı başlatma IPC'si yoldayken İptal'e bastı; ana süreç spawn'a
@@ -966,8 +975,8 @@ document.addEventListener('close', event => {
   if (event.target?.tagName === 'DIALOG') void syncBrowserOcclusion();
 }, true);
 
-// R120-P1: Gizlemeden önce sayfanın donmuş karesini yuvaya boya; menü açıkken
-// sayfa siyaha dönmesin. Sıra numarası hızlı aç/kapa yarışlarını eler.
+// The optional freeze frame must never delay hiding the native page above a menu.
+// The sequence rejects frames from an earlier open/close cycle.
 let browserOcclusionApplied = false;
 let browserOcclusionSeq = 0;
 function clearBrowserFreezeFrame() {
@@ -984,14 +993,13 @@ async function applyBrowserOcclusion(occluded) {
   const fullyCovered = $('playerLayer')?.classList.contains('narrow-panel-takeover') && !$('playerSide')?.classList.contains('bp-panel');
   if (occluded && !fullyCovered && !browserOcclusionApplied && slot && window.api.snapshotBrowserPage
       && typeof player !== 'undefined' && player.workspaceMode === 'browser') {
-    const shot = await window.api.snapshotBrowserPage().catch(() => null);
-    if (seq !== browserOcclusionSeq) return null;
-    if (shot?.ok && shot.dataUrl) {
+    // Start capture while the page is visible, but do not await capture or paint
+    // before issuing the native hide. A slow capture used to block menu clicks.
+    void window.api.snapshotBrowserPage().then((shot) => {
+      if (seq !== browserOcclusionSeq || !browserOcclusionApplied || !shot?.ok || !shot.dataUrl) return;
       slot.style.setProperty('--browser-freeze-image', `url("${shot.dataUrl}")`);
       slot.classList.add('browser-frozen');
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      if (seq !== browserOcclusionSeq) return null;
-    }
+    }).catch(() => null);
   }
   browserOcclusionApplied = occluded;
   const result = await window.api.setBrowserOccluded(occluded).catch(() => null);
@@ -4728,6 +4736,7 @@ function playerJobEvent(event) {
     return event.type !== 'log';
   }
 
+  if(job.podcastBinding&&(job.mediaKey!==player.mediaKey||job.generation!==player.generation)&&!['done','exit','error','log'].includes(event.type))return true;
   if (job.kind === 'progressive' && ['done', 'exit', 'error'].includes(event.type)) {
     handleProgressiveTerminal(event, job);
     return true;
@@ -4952,13 +4961,14 @@ function playerJobEvent(event) {
   } else if (event.type === 'done') {
     if (job.doneHandled) return true;
     job.doneHandled = true;
+    if(job.podcastBinding)void persistPodcastJobOutputs(event,job.podcastBinding).catch(error=>logLine(error.message,'warn'));
     fill.style.width = '100%';
     job.awaitingExit = true;
     const files = (event.files || []).filter((f) => /\.(srt|vtt|ass|ssa)$/i.test(f));
     // Oynatıcıdaki çeviri işi ana transkripsiyon akışından ayrı ilerler;
     // kaynak dosya listesini silmeden yeni çeviri çıktısını ekle.
     state.outputFiles = [...new Set([...(state.outputFiles || []), ...files])];
-    if (job.mediaKey !== player.mediaKey) {
+    if (job.mediaKey !== player.mediaKey || job.podcastBinding&&job.generation!==player.generation) {
       finish('Altyazı hazır ama başka videoya geçildi — yüklenmedi.', 'warn');
       refreshHistory();
       return true;
@@ -5150,7 +5160,7 @@ async function attachCompletedJobSubtitles(event, job = state.activeOutputJob, o
   if (!job || !player.mediaKey) return { loaded: false, reason: 'Oynatıcı açık değil.' };
   const outputs = completedSubtitleOutputs(event, job.kind === 'translate' ? 'translation' : 'source');
   if (!outputs.items.length) return { loaded: false, reason: 'Altyazı çıktısı bulunamadı.' };
-  if (player.mediaKey !== job.mediaKey) {
+  if (player.mediaKey !== job.mediaKey || job.podcastBinding && player.generation !== job.generation) {
     return { loaded: false, reason: 'Çıktı başka videoya ait olduğu için yüklenmedi.' };
   }
   if (job.browserTabId && (job.browserTabId !== player.browserActiveTabId || player.workspaceMode !== 'browser')) {
@@ -5619,11 +5629,14 @@ window.api.onEvent((event) => {
       });
       state.outputFiles = event.files || [];
       const completedOutputJob = state.activeOutputJob;
+      const podcastBinding = completedOutputJob?.podcastBinding;
+      if(podcastBinding)void persistPodcastJobOutputs(event,podcastBinding).catch(error=>logLine(error.message,'warn'));
       if (completedOutputJob) {
         completedOutputJob.stage = 'Oynatıcıya yükleniyor';
         completedOutputJob.loading = true;
         void attachCompletedJobSubtitles(event, completedOutputJob).then((result) => {
           completedOutputJob.loading = false;
+          if(result.loaded&&completedOutputJob.podcastBinding&&player.workspaceAudio?.entryId===completedOutputJob.podcastBinding.entryId&&player.mediaKey===completedOutputJob.mediaKey&&player.generation===completedOutputJob.generation){player.workspaceAudio.transcriptState='timed';window.PlayerWorkspaceIntegration?.refresh(true);}
           completedOutputJob.stage = result.loaded ? 'Oynatıcıya yüklendi' : result.reason;
           if (state.activeOutputJob === completedOutputJob) state.activeOutputJob = null;
           updatePlayerTaskCenter();
@@ -5698,6 +5711,7 @@ window.api.onEvent((event) => {
         const cancelledId = Number(event.queueItemId || state.currentQueueId);
         const cancelledItem = state.queue.find((item) => item.id === cancelledId);
         if (cancelledItem?.status === 'running') cancelledItem.status = 'pending';
+        if(cancelledItem)void releasePodcastQueueItem(cancelledItem);
         state.currentQueueId = null;
         state.awaitingExit = false;
         $('startBtn').classList.remove('hidden');
@@ -5709,6 +5723,7 @@ window.api.onEvent((event) => {
       }
       if (state.queueRunning && state.currentQueueId !== null) {
         const item = state.queue.find(x => x.id === state.currentQueueId);
+        if(item&&event.code!==0)void releasePodcastQueueItem(item);
         if (event.code !== 0 && item && item.status === 'running') {
           item.status = 'error';
           item.error = String(event.message || (event.stderr || ('İşlem çıkış kodu ' + event.code))).trim().slice(0, 500);
@@ -26321,7 +26336,8 @@ async function startPlayerSubtitleTranslation(config = {}) {
     // UI'dan koparıyor ve kullanıcıyı yanlışlıkla yeniden transkripsiyona
     // itiyordu. Çeviri çıktısı done olayında ayrıca listeye eklenir.
     const previousOutputs = state.outputFiles.slice();
-    player.job = { running: true, mediaKey: player.mediaKey, kind: 'translate',
+    player.job = { running: true, mediaKey: player.mediaKey, generation:player.generation, kind: 'translate',
+      podcastBinding: player.workspaceAudio?.mediaKey===player.mediaKey && player.workspaceAudio?.generation===player.generation ? {...player.workspaceAudio,outputRole:'translation'} : null,
       translateForSpeech: opts.translateForSpeech,
       translateModel: opts.translateModel, translateBaseUrl: opts.translateBaseUrl,
       clipRange: config.range?{...config.range}:browserTrack?.clipRange ? { ...browserTrack.clipRange } : null,
@@ -33482,3 +33498,27 @@ async function aiWebResearch(question){
  catch(error){status='failed';text=error.message;}
  finally{job.bubble.classList.remove('is-loading');if(status!=='complete')job.bubble.classList.add('ai-msg-err');renderAiText(job.bubble,text);window.AssistantWorkspace?.finish(job,text,status);if(aiChatPreparing===loading)aiChatPreparing=null;updateAiChatActions();}
 }
+
+// Podcast uses the existing frozen-options queue and terminal handlers.
+window.queuePodcastSource=async function(binding){
+ if(!binding?.path||!binding.entryId||!binding.sourceVersion||binding.mediaKey!==player.mediaKey||binding.generation!==player.generation)throw Error('Podcast source changed / Podcast kaynağı değişti.');
+ if(!addToQueue('file',binding.path))throw Error('Could not add podcast to existing queue / Podcast mevcut kuyruğa eklenemedi.');
+ const item=state.queue[state.queue.length-1];item.podcastBinding={...binding};item.opts.outputNameSuffix='podcast-'+binding.sourceVersion.slice(0,12);renderQueue();
+ if(!state.queueRunning&&!state.running)startQueue();return {queued:true,id:item.id};
+};
+async function persistPodcastJobOutputs(event,binding){
+ const outputs=completedSubtitleOutputs(event,binding.outputRole||'source');
+ try{for(const [kind,item]of [['source',outputs.source],['translation',outputs.translation]]){
+  if(!item?.path)continue;const result=await window.api.readSubtitle(item.path);if(!result?.ok)throw Error(result?.error||'Podcast output unavailable.');
+  const response=await window.api.feedsRequest({action:'podcast-save-transcript',entryId:binding.entryId,sourceVersion:binding.sourceVersion,text:result.text,format:/\.vtt$/i.test(item.path)?'vtt':'srt',timed:true,provenance:'asr',role:kind,status:item.status==='partial'?'partial':'complete'});
+  if(!response?.ok)throw Error(response?.error||'Podcast result could not be saved.');
+ }}finally{if(binding.downloadToken)await releasePodcastQueueItem({podcastBinding:binding});}
+}
+
+async function releasePodcastQueueItem(item){
+ const binding=item?.podcastBinding;if(!binding)return;
+ if(binding.acquireRequestId)await window.api.feedsRequest({action:'cancel',requestId:binding.acquireRequestId});
+ if(!binding.downloadToken)return;const token=binding.downloadToken;delete binding.downloadToken;binding.released=true;
+ await window.api.feedsRequest({action:'podcast-audio-release',downloadToken:token});
+}
+$('cancelBtn')?.addEventListener('click',()=>{const item=state.queue.find(row=>row.id===state.currentQueueId);if(item?.podcastBinding?.acquireRequestId)void window.api.feedsRequest({action:'cancel',requestId:item.podcastBinding.acquireRequestId});});

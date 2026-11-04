@@ -30,7 +30,9 @@ test('retranslate-review kapanış yolları occlusion resync yapar', () => {
 });
 
 test('katalog diyaloğu showModal sonrası resync eder', () => {
-  assert.match(catalog, /dialog\.showModal\(\);\s*if \(typeof syncBrowserOcclusion === 'function'\) syncBrowserOcclusion\(\)/);
+  // Shared dialog focus/motion setup may sit between opening and the same-line
+  // native occlusion update; still require that update after showModal.
+  assert.match(catalog, /dialog\.showModal\(\);[^\r\n]*if \(typeof syncBrowserOcclusion === 'function'\) syncBrowserOcclusion\(\)/);
   assert.match(catalog, /dialog\.addEventListener\('close',/);
 });
 
