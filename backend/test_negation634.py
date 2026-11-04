@@ -2,6 +2,15 @@ import unittest
 import sentence_translation as S
 
 class TurkishNegationContextTests(unittest.TestCase):
+    def test_undecided_is_lexical_without_hiding_independent_negation(self):
+        source = 'A few undecided races will determine how badly Republicans lost.'
+        target = 'Birkaç kararsız yarış, Cumhuriyetçilerin ne kadar kötü kaybettiğini belirleyecek.'
+        self.assertNotIn('negation_added', S.translation_blocking_issues(source, target, 'tr', 'en'))
+        self.assertIn('negation_added', S.translation_blocking_issues(
+            source, 'Birkaç kararsız yarış sonucu belirlemeyecek.', 'tr', 'en'))
+        self.assertIn('negation_missing', S.translation_blocking_issues(
+            'Undecided races will not determine the result.', 'Kararsız yarışlar sonucu belirleyecek.', 'tr', 'en'))
+
     def test_nominal_locatives_do_not_invent_negation(self):
         for source, target in [
             ('Link in the description.', 'Bağlantı açıklamada.'),
