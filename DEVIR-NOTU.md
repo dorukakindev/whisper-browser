@@ -1,3 +1,4 @@
+Güncel çalışma: [Yeni Spotify girişinden canlı Whisper/çeviri ve görünüm koruması](docs/devir/2026-11-05-0323.md)
 Güncel çalışma: [Görünür podcast/çift dilli girişler ve doğrudan Spotify → RSS](docs/devir/2026-11-05-0317.md)
 Güncel çalışma: [Kısa tarayıcı menü ve geçiş düzeltmeleri](docs/devir/2026-11-05-0251.md)
 Güncel çalışma: [Tarayıcı yan panel düğmesinin düzeltilmesi](docs/devir/2026-11-05-0225.md)
