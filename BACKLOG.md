@@ -1,6 +1,6 @@
 # Bekleyen işler
 
-Son durum kontrolü: **2026-11-05**. Sahne entegrasyon tabanı `9ca44189a367176b90edb0aef2c70ef4065dd5b3`, tamamlanan ürün `683b7bc6fc8caaa91ac26677d5623cbce2692480`. Son merge/ana kopya kimliği teslimde doğrulanır.
+Son durum kontrolü: **2026-11-05**. Podcast kütüphanesi/yerel Sahne tabanı `b18776e812847ca5fea075aa929313456240dd7d`, tamamlanan ürün `b71d6fae432588cce013dc557aa31dde9b27674f`. Son merge/ana kopya kimliği teslimde doğrulanır.
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
@@ -47,6 +47,7 @@ Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı deği
 
 | Kapsam | Main teslimi / kanıt |
 |---|---|
+| P017: Gerçek podcast kütüphanesi ve yerel sinema Sahnesi | [Teslim](docs/devir/2026-11-05-0628.md), ürün `b71d6fae`. Abonelik/arama/kuyruk/çift dilli açılış, mevcut video üzerinden bölüm ve sözcük işlemleri; 26 kısa test ve izole Windows geniş/dar kontrolü. |
 | P016: Sahne v2 podcast/çift dilli entegrasyonu ve uyumlu medya cilası | [Sahne teslimi](docs/devir/2026-11-05-0600.md), ürün `683b7bc6`. 13 kısa kontrol; Windows HTML5 yerel/web geçişleri, seek ve klasik dönüş. Main/yerel SHA son teslimde doğrulanır. |
 | P005–P007: V3, native tasarım, katalog, podcast temeli, browser menüsü | PR809/810 ve [17:30 teslimi](docs/devir/2026-11-04-1730.md); native kabul verilmiş, eski onay/merge bekleme kayıtları geçersiz. |
 | G1–G5: podcast planı, güncel denetim düzeltmeleri, uyumlu eski paketler, kısa bug turu | PR812–815 ve [sıralı son teslim](docs/devir/2026-11-04-1833.md). |

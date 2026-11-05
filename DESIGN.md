@@ -60,6 +60,12 @@ Medya kabuğu ve asistanın mevcut self-hosted ailesi başlıklarda Sora, gövde
 
 ## Layout
 
+### Podcast kütüphanesi ve yerel sinema Sahnesi — 2026-11-05
+
+P017 ile pakette maket kalan iki yüzey mevcut işlemlere bağlandı. Radyo ve podcast: abonelik şeridi, gerçek devam kaydı veya ilk bölüm hero'su, bölüm listesi ve mevcut dinleme kuyruğu. Yerel Sahne: aynı video/stage, gerçek bölüm işaretleri, sıradaki dosya, okunur çift dil kartı ve mevcut sözcük koleksiyonuna bağlı bağlam kartı. Sözlük tanımı üretilmez; mevcut tercih edilen dış sözlüğe yalnız kullanıcı eylemiyle gidilir. Kaynak/revizyon değişince kart kapanır.
+
+Başka oynatma motoru, uydurma ilerleme veya ikinci kuyruk eklenmedi. Eski radyo ve ileri araçlar erişilebilir; RSS yazısında HTML etiketleri gösterilmez, tarih arayüz dilinde biçimlenir. Dar kütüphane şeridi açılır; yerel altyazı transport'un üzerinde kalır. Native yüzeyde kontroller için ayrıca alan ayrılır; bu turdaki gerçek yerel görüntü doğrulaması HTML video yoludur. [Kısa kabul ve sınırlar](docs/devir/2026-11-05-0628.md).
+
 ### Podcast ve çift dilli Sahne — 2026-11-05
 
 `files (5).zip` kompozisyonu `sahne.css/js` ve mevcut sahipleri kullanan `cinema-sahne.js` ile bütünleştirildi. Yerel/RSS görünümü mevcut PlayerWorkspaceIntegration, browser görünümü kimlik kontrollü mevcut browser komutları üzerinden çalışır; aynı video/stage korunur, kapanışta klasik yuvasına döner. Podcast kapak/kimlik/transport + büyük okunur transkript; çift dilli video/okuma kartı/dock + transkript kompozisyonudur. Dar çift dilli transkript erişilebilir düğmeyle overlay açılır. Kaynak/iz revizyonları, bağımsız kaymalar, çoklu/belirsiz eşleşme, zamansız salt okunur metin ve mevcut ileri araçlar korunur.
