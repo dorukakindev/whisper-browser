@@ -33557,24 +33557,50 @@ function podcastQueueOwnerCurrent(binding){
  }
  return binding?.mediaKey===player.mediaKey&&binding?.generation===player.generation;
 }
+// Observe only the exact podcast's existing queue item; never borrow player-job UI.
+window.podcastQueueTaskState=function(expected){
+ const matches=item=>{const binding=item?.podcastBinding;return !!expected&&!!binding&&binding.mediaKey===expected.mediaKey&&binding.generation===expected.generation&&(binding.playbackSourceVersion||binding.sourceVersion)===expected.sourceVersion;};
+ const rows=state.queue.filter(matches),item=rows.find(row=>row.id===state.currentQueueId&&row.status==='running')||rows.find(row=>row.status==='pending')||rows[rows.length-1];
+ if(!item)return {state:'idle',id:null,text:'',progress:null,cancellable:false};
+ const active=item.id===state.currentQueueId&&item.status==='running'&&matches({podcastBinding:state.activeOutputJob?.podcastBinding})?state.activeOutputJob:null;
+ const progress=Number(active?.percent);
+ return {id:item.id,state:item.status==='running'?'running':item.status==='pending'?'queued':item.status==='done'?'complete':item.status==='error'?'failed':'idle',text:String(active?.stage||item.error||'').slice(0,300),progress:active&&Number.isFinite(progress)&&progress>0?Math.min(1,progress/100):null,cancellable:!!active&&!!state.running};
+};
+window.cancelPodcastQueueTask=function(expected,id){
+ const job=window.podcastQueueTaskState(expected),button=document.getElementById('cancelBtn');
+ const item=state.queue.find(row=>row.id===id),binding=item?.podcastBinding;
+ const source=binding?.playbackOwner==='media-shelf'?window.MediaShelfUI?.readSnapshot?.():player.workspaceAudio;
+ if(binding?.playbackOwner!=='media-shelf'&&(player.workspaceMode!=='player'||player.mediaKey!==expected?.mediaKey||player.generation!==expected?.generation))return false;
+ if(!source||source.mediaKey!==expected?.mediaKey||source.generation!==expected?.generation||source.sourceVersion!==expected?.sourceVersion||!job.cancellable||job.id!==id||!button||button.disabled)return false;
+ button.click();return true;
+};
 // Podcast uses the existing frozen-options queue and terminal handlers.
-window.queuePodcastSource=async function(binding){
- if(!binding?.path||!binding.entryId||!binding.sourceVersion||!podcastQueueOwnerCurrent(binding))throw Error('Podcast source changed / Podcast kaynağı değişti.');
- if(!addToQueue('file',binding.path,{optionsOverride:{outputNameSuffix:'-whisper-podcast-'+binding.sourceVersion.slice(0,12)}}))throw Error('Could not add podcast to existing queue / Podcast mevcut kuyruğa eklenemedi.');
+window.queuePodcastSource=async function(binding,config={}){
+ if(config.isCancelled?.()||!binding?.path||!binding.entryId||!binding.sourceVersion||!podcastQueueOwnerCurrent(binding))throw Error('Podcast source changed / Podcast kaynağı değişti.');
+ const override={outputNameSuffix:'-whisper-podcast-'+binding.sourceVersion.slice(0,12)};
+ if(config.operation){
+  if(!['transcribe','transcribe-translate'].includes(config.operation))throw Error('Invalid podcast transcription operation.');
+  const translating=config.operation==='transcribe-translate';
+  Object.assign(override,{task:'transcribe',translateOnly:false,translate:translating,clipStart:'',clipEnd:''});
+  if(config.range)throw Error('Podcast transcription ranges are unavailable here / Podcast dökümünde aralık burada kullanılamıyor.');
+  if(translating&&config.targetLanguage)override.translateTo=config.targetLanguage;
+  if(!translating||config.forSpeech!==undefined)override.translateForSpeech=translating&&!!config.forSpeech;
+ }
+ if(!addToQueue('file',binding.path,{optionsOverride:override}))throw Error('Could not add podcast to existing queue / Podcast mevcut kuyruğa eklenemedi.');
  const item=state.queue[state.queue.length-1];item.podcastBinding={...binding};renderQueue();
  if(!state.queueRunning&&!state.running)startQueue();return {queued:true,id:item.id};
 };
-window.translatePodcastSource=async function(binding){
- if(!binding?.materializedPath||!binding.entryId||!binding.sourceVersion||!podcastQueueOwnerCurrent(binding)||binding.track?.timed!==true)throw Error('Podcast transcript source changed / Podcast döküm kaynağı değişti.');
+window.translatePodcastSource=async function(binding,{isCancelled=()=>false}={}){
+ if(isCancelled()||!binding?.materializedPath||!binding.entryId||!binding.sourceVersion||!podcastQueueOwnerCurrent(binding)||binding.track?.timed!==true)throw Error('Podcast transcript source changed / Podcast döküm kaynağı değişti.');
  const snapshot=window.MediaShelfUI?.readSnapshot?.(),track=binding.track;
  if(binding.playbackOwner==='media-shelf'){
   if(snapshot?.sourceTrack?.id!==track.id||snapshot?.sourceTrack?.revision!==track.revision)throw Error('Podcast transcript changed / Podcast dökümü değişti.');
  }
  if(binding.playbackOwner!=='media-shelf'||binding.sourceTranscriptText){
   const saved=await window.api.feedsRequest({action:'podcast-workspace',entryId:binding.entryId,sourceVersion:binding.sourceVersion});
-  if(!saved?.ok||saved.sourceVersion!==binding.sourceVersion||saved.workspace?.transcript?.state!=='timed'||saved.workspace.transcript.status==='partial'||!binding.sourceTranscriptText||saved.workspace.transcript.text!==binding.sourceTranscriptText||!podcastQueueOwnerCurrent(binding))throw Error('Podcast transcript changed / Podcast dökümü değişti.');
+  if(isCancelled()||!saved?.ok||saved.sourceVersion!==binding.sourceVersion||saved.workspace?.transcript?.state!=='timed'||saved.workspace.transcript.status==='partial'||!binding.sourceTranscriptText||saved.workspace.transcript.text!==binding.sourceTranscriptText||!podcastQueueOwnerCurrent(binding))throw Error('Podcast transcript changed / Podcast dökümü değişti.');
  }
- if(binding.playbackOwner==='media-shelf'){const current=window.MediaShelfUI?.readSnapshot?.();if(!podcastQueueOwnerCurrent(binding)||current?.sourceTrack?.id!==track.id||current?.sourceTrack?.revision!==track.revision)throw Error('Podcast transcript changed / Podcast dökümü değişti.');}
+ if(binding.playbackOwner==='media-shelf'){const current=window.MediaShelfUI?.readSnapshot?.();if(isCancelled()||!podcastQueueOwnerCurrent(binding)||current?.sourceTrack?.id!==track.id||current?.sourceTrack?.revision!==track.revision)throw Error('Podcast transcript changed / Podcast dökümü değişti.');}
  const override={translateOnly:true,translate:true,input:binding.materializedPath,outputNameSuffix:'-whisper-podcast-'+binding.sourceVersion.slice(0,12)};
  if(track.language)override.language=track.language;
  if(!addToQueue('file',binding.materializedPath,{optionsOverride:override}))throw Error('Could not add podcast translation to existing queue / Podcast çevirisi kuyruğa eklenemedi.');

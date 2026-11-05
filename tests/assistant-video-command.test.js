@@ -97,3 +97,57 @@ test('A confirmed translation stop clears its running identity and keeps finishe
    const h=harness();try{assert.equal(await h.w.AssistantVideoCommands.handle(q),false);assert.equal(h.calls.length,0);assert.equal(h.w.document.getElementById('translateTo').value,'tr');}finally{h.dom.window.close();}
   }
  });
+
+test('Current shelf RSS commands select its source instead of the hidden YouTube tab',async()=>{
+ for(const [question,operation] of [['bu podcasti transcribe et','transcribe'],['bu podcasti transcribe et çevir','transcribe-translate']]){
+  const h=harness();try{
+   const layer=h.w.document.createElement('div');layer.id='playerLayer';layer.className='hidden';h.w.document.body.append(layer);
+   const snapshot={mediaKey:'shelf:episode-A',generation:8,sourceVersion:'stream-A',sourceKind:'rss',playbackOwner:'media-shelf'};
+   h.w.MediaShelfUI={readSnapshot:()=>snapshot,runPodcastTask:async config=>{h.calls.push(['podcast',config]);assert.equal(config.expected.mediaKey,snapshot.mediaKey);assert.equal(config.isCancelled(),false);return {queued:true,id:'rss-job-A'};}};
+   h.w.globalAssistantContext=()=>({type:'podcast',mediaKey:snapshot.mediaKey});
+   assert.equal(await h.w.AssistantVideoCommands.handle(question),true);
+   assert.equal(h.calls[0]?.[0],'podcast');assert.equal(h.calls[0][1].operation,operation);assert.equal(h.calls.length,1);
+   assert.equal(h.done[0].status,'complete');assert.match(h.done[0].text,/kuyru|queue/i);assert.doesNotMatch(h.done[0].text,/YouTube/);
+  }finally{h.dom.window.close();}
+ }
+});
+
+test('Canonical RSS routes to its exact player owner and rejects an unconfirmed queue receipt',async()=>{
+ const h=harness();try{
+  const layer=h.w.document.createElement('div');layer.id='playerLayer';h.w.document.body.append(layer);
+  Object.assign(h.w.player,{workspaceMode:'player',mediaKey:'rss-A',generation:12,workspaceAudio:{entryId:'A',mediaKey:'rss-A',generation:12,sourceVersion:'stream-A'}});
+  h.w.PlayerSourceCatalogIntegration={runPodcastTask:async config=>{h.calls.push(config);return {queued:false};}};
+  await h.w.AssistantVideoCommands.handle('transcribe et çevir');assert.equal(h.calls[0]?.expected.sourceVersion,'stream-A');assert.equal(h.done[0].status,'failed');
+ }finally{h.dom.window.close();}
+});
+
+test('Podcast pending request cancellation and episode switches are source-bound',async()=>{
+ for(const change of ['cancel','source','thread']){
+  const h=harness();try{
+   const layer=h.w.document.createElement('div');layer.id='playerLayer';layer.className='hidden';h.w.document.body.append(layer);
+   let snapshot={mediaKey:'shelf-A',generation:1,sourceVersion:'A'},release,config;
+   h.w.MediaShelfUI={readSnapshot:()=>snapshot,runPodcastTask:async input=>{config=input;await new Promise(resolve=>release=resolve);return config.isCancelled()?{queued:false}:{queued:true,id:'A'};}};
+   const run=h.w.AssistantVideoCommands.handle('bu podcasti transcribe et');
+   if(change==='cancel')await h.w.AssistantVideoCommands.cancel();else if(change==='source')snapshot={...snapshot,generation:2};else h.w.AssistantWorkspace.activeId=()=> 'other-thread';
+   assert.equal(config.isCancelled(),true);release();await run;
+   assert.equal(h.done[0].status,change==='cancel'?'stopped':'failed');assert.equal(h.w.AssistantVideoCommands.busy(),false);
+  }finally{h.dom.window.close();}
+ }
+});
+
+test('Visible YouTube browser is not captured by a stale hidden shelf podcast',async()=>{
+ const h=harness();try{
+  const layer=h.w.document.createElement('div');layer.id='playerLayer';h.w.document.body.append(layer);
+  h.w.MediaShelfUI={readSnapshot:()=>({mediaKey:'stale-shelf',generation:1}),runPodcastTask:()=>{throw Error('Hidden shelf selected');}};
+  await h.w.AssistantVideoCommands.handle('transcribe et');assert.equal(h.calls[0][0],'whisper');
+ }finally{h.dom.window.close();}
+});
+
+test('A selected book or library source cannot start a background shelf podcast',async()=>{
+ const h=harness();try{
+  const layer=h.w.document.createElement('div');layer.id='playerLayer';layer.className='hidden';h.w.document.body.append(layer);
+  h.w.MediaShelfUI={readSnapshot:()=>({mediaKey:'shelf-A',generation:1,sourceVersion:'A'}),runPodcastTask:()=>{throw Error('Unrelated source acquisition');}};
+  h.w.globalAssistantContext=()=>({workspace:'media-library',type:'library-title'});
+  await h.w.AssistantVideoCommands.handle('transcribe et');assert.equal(h.calls.length,0);assert.equal(h.done[0].status,'failed');
+ }finally{h.dom.window.close();}
+});

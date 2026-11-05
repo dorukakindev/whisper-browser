@@ -18,3 +18,22 @@ test('RSS saved-source translation uses the existing queue and rejects source te
 });
 
 test('readonly shelf translation validates immutable registry source and paints only captured playback binding',async()=>{const r=setup();let text='saved source';r.context.window.api.feedsRequest=async req=>{r.requests.push(req);return {ok:true,sourceVersion:'download-A',workspace:{transcript:{state:'timed',status:'complete',text}}};};const b={...binding,sourceTranscriptText:text,materializedPath:'immutable.srt',track:{id:'publisher-A',revision:'r1',timed:true}};await r.context.window.translatePodcastSource(b);assert.equal(r.state.queue.length,1);await r.context.persist({},r.state.queue[0].podcastBinding);assert.equal(r.paint.length,1);text='changed source';await assert.rejects(r.context.window.translatePodcastSource(b),/changed/);await assert.rejects(r.context.persist({},r.state.queue[0].podcastBinding),/changed/);assert.equal(r.paint.length,1);assert.equal(r.state.queue.length,1);});
+
+test('Podcast queue progress and stop are scoped to playback identity and exact running item',async()=>{
+ const r=setup(),expected={mediaKey:binding.mediaKey,generation:binding.generation,sourceVersion:'remote-A'};
+ assert.equal(r.context.window.podcastQueueTaskState(expected).state,'idle');
+ await r.context.window.queuePodcastSource(binding);const item=r.state.queue[0];item.status='running';r.state.currentQueueId=item.id;r.state.activeOutputJob={podcastBinding:item.podcastBinding,stage:'Whisper source A',percent:42};
+ const status=r.context.window.podcastQueueTaskState(expected);assert.equal(status.state,'running');assert.equal(status.text,'Whisper source A');assert.equal(status.progress,.42);assert.equal(status.cancellable,true);
+ assert.equal(r.context.window.podcastQueueTaskState({...expected,sourceVersion:'other-stream'}).state,'idle');
+ let cancelled=0;r.context.document={getElementById:()=>({click(){cancelled++;},disabled:false})};
+ assert.equal(r.context.window.cancelPodcastQueueTask(expected,item.id),true);assert.equal(cancelled,1);
+ r.state.currentQueueId='another-job';assert.equal(r.context.window.cancelPodcastQueueTask(expected,item.id),false);assert.equal(cancelled,1);
+ r.state.currentQueueId=item.id;r.state.activeOutputJob.podcastBinding={...binding,mediaKey:'unrelated'};assert.equal(r.context.window.cancelPodcastQueueTask(expected,item.id),false);assert.equal(cancelled,1);
+});
+
+test('Translation cancellation during final registry validation cannot enqueue late work',async()=>{
+ const r=setup();Object.assign(r.context.player,{mediaKey:'rss:A',generation:2});let resolve,cancelled=false;
+ r.context.window.api.feedsRequest=()=>new Promise(done=>resolve=done);
+ const b={entryId:'A',sourceVersion:'download-A',playbackOwner:'player',mediaKey:'rss:A',generation:2,materializedPath:'owned.srt',sourceTranscriptText:'source',track:{id:'saved',revision:'download-A',timed:true}};
+ const request=r.context.window.translatePodcastSource(b,{isCancelled:()=>cancelled});cancelled=true;resolve({ok:true,sourceVersion:'download-A',workspace:{transcript:{state:'timed',status:'complete',text:'source'}}});await assert.rejects(request,/changed/);assert.equal(r.state.queue.length,0);
+});
