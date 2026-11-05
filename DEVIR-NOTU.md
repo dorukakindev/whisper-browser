@@ -1,3 +1,4 @@
+Güncel çalışma: [Proje dosyaları ve Claude tasarım devam kaydı](docs/devir/2026-11-05-0740.md)
 Güncel çalışma: [Görsel öncelik ve tasarım serbestliği](docs/devir/2026-11-05-0724.md)
 Güncel çalışma: [Podcast kaynakları ve RSS olmadan Spotify girişi](docs/devir/2026-11-05-0717.md)
 Güncel çalışma: [Podcast kütüphanesi ve yerel sinema Sahnesi](docs/devir/2026-11-05-0628.md)

@@ -1,17 +1,27 @@
 # Bekleyen işler
 
-Son durum kontrolü: **2026-11-05**. Spotify/kaynak düzeltmesi tabanı `77a7104427988b931483479108ae2647d1043f96`, ürün `12aaf3de93b3e5534df02ea1c770b6e81dace2a6`. Merge/ana kopya SHA teslimde doğrulanır.
+Son durum kontrolü: **2026-11-05**. Doğrulanmış master/ana kopya `a9d39892427250f63e703cfa96adbfb41b77c5b7`; son ürün değişikliği PR829 (`12aaf3de`), görsel öncelik PR830 ile main’de. Güncel tasarım devamı P019’dur.
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
 ## Uygulama sırası
 
-1. **D001 — Rapor indeksini tamamla:** doğrulanmış tek somut belge eksiği. Kişisel indeks farkını koruyarak 12 eksik bağlantıyı birleştir; yalnız bağlantı/diff kontrolü yap.
-2. **P004 — Browser canlı kullanımındaki kalan kontroller:** aşağıdaki sırayla kısa ve izin penceresiz ilerle; yalnız yeniden üretilen hataya kod düzeltmesi yap. Mevcut podcast canlı testini tekrar etme.
-3. **P003 — Kütüphane doğrulaması:** büyük kişisel arşivle ilgili somut ihtiyaç veya arıza geldiğinde ilgili işlemi incele. Şimdilik aktif geliştirme işi değil.
-4. **P001 — Performans:** ertelendi. Ağır benchmark/CPU/matris veya eski dalı otomatik birleştirme yok.
+1. **P019 — Claude tasarım devamı:** güncellenmiş paket bekleniyor; geldiğinde aşağıdaki kapsamla karşılaştır. İlk prototip üretime aktarılmış değil.
+2. **D001 — Rapor indeksini tamamla:** kişisel indeks farkını koruyarak takipli eksik bağlantıları birleştir; yalnız bağlantı/diff kontrolü.
+3. **P018 / P004 — Kaynak erişimi ve kalan canlı sınırlar:** yalnız erişim sağlandığında veya somut ihtiyaçta kısa kontrol; önceki başarılı testleri topluca tekrarlama.
+4. **P003 — Kütüphane:** gerçek kullanım ihtiyacında; şu an genel doğrulama kampanyası yok.
+5. **P001 — Performans:** ertelendi; benchmark/CPU/matris veya eski dalı otomatik merge etme.
+
 
 Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı değildir. Her seferinde tek kapsam kapatılır; yeni somut arıza önceliği değiştirebilir.
+
+## P019 — Claude prototipinin tamamlanması ve yeni sayfalar
+
+- **Durum:** ilk beş alanlı paket incelendi; hedefli düzeltmeler ve podcast kütüphanesi/Ana sayfa/Keşfet/film detayı/Akışlar genişletme brief’i hazır. Yeni teslim henüz alınmadı; native entegrasyon veya tasarım kabulü verilmiş sayılmaz.
+- **Kapsam ve kanıt:** [kalıcı tasarım devam kaydı](docs/design/claude-redesign-handoff-2026-11-05.md); yerel inceleme `artifacts/claude-prototype-review-2026-11-05/INCELEME.md`. Gönderilecek gerçek ZIP `artifacts/claude-design-next-2026-11-05/claude-tasarim-genisletme-paketi.zip`; varlıklar Git dışıdır, görülmüş varsayılmaz.
+- **Kalan kabul:** ağdaki toast ile biten sonuç/ekleme/görünüm/dışa aktarma akışları; ağ etiketleri, analiz/profil kompozisyonu, web rozeti çakışması; yeni beş sayfanın çalışan prototipi ve mevcut işlevlerin eşlemesi. Görünüm birinci öncelik; bu turdaki eski yerleşimler değiştirilebilir.
+- **Dal/PR:** henüz ürün entegrasyon dalı/PR’si yok. Bu kaydı ekleyen dal `codex/project-continuation-records-20261105` yalnız belgedir.
+- **Tam sonraki adım:** güncellenmiş Claude paketini önce bu brief ve güncel master ile karşılaştır; kapsam/eksikleri bildir. Uygulama talimatı geldiğinde mevcut sahiplerle entegre et. Dosyaları eski master’dan üzerine yazma; uzun matris/CPU/Computer Use/izin penceresi testi yok.
 
 ## P018 — Kullanıcı podcast listesi: dış kaynakta kalan erişimler
 
