@@ -42,6 +42,7 @@
     buildStudy() {
       this.root = this.el(root.BrowserStudyView.markup({ mode: this.o.mode, caps: this.caps, display: this.s.disp, T, esc, icon: ic }));
       this.host.append(this.root);
+      if(this.a.processing)this.buildScope();
       const slot = this.q('[data-r=slot]'), media = this.a.slot?.(this.o.mode);
       if (slot && media) slot.append(media);
       this.root.append(this.el(`<aside class="sh-word-card" hidden role="dialog" aria-label="${T('Sözcük ve bağlam','Word and context')}"></aside>`));
@@ -154,8 +155,27 @@
       r.addEventListener('pointermove',this.reveal);r.addEventListener('pointerdown',this.reveal);r.addEventListener('focusin',this.reveal);
       const volume=this.q('.sh-local-volume');if(volume)volume.oninput=()=>{this.run('volume',Number(volume.value));const output=volume.parentElement.querySelector('output');if(output)output.textContent=Math.round(Number(volume.value)*100)+'%';};
     }
+    buildScope(){
+      const bar=this.q('[data-r=workbar]');if(!bar||!root.PodcastTaskScope)return;
+      this.scopeMode='full';this.scopeBox=this.el(`<section class="sh-scope"><div class="sh-scope-head"><span>${T('Whisper kapsamı','Whisper scope')}</span><div class="sh-seg" role="group" aria-label="${T('İşleme kapsamı','Processing scope')}"><button type="button" data-scope="full" aria-pressed="true" aria-selected="true">${T('Bölümün tamamı','Whole episode')}</button><button type="button" data-scope="range" aria-pressed="false" aria-selected="false">${T('Seçili aralık','Selected interval')}</button></div></div><div class="sh-scope-fields" hidden><label>${T('Başlangıç','Start')}<input data-scope-time="start" inputmode="decimal" placeholder="0:30" aria-label="${T('Aralık başlangıcı','Interval start')}"></label><label>${T('Bitiş','End')}<input data-scope-time="end" inputmode="decimal" placeholder="0:42" aria-label="${T('Aralık bitişi','Interval end')}"></label><button type="button" class="sh-btn" data-scope-apply>${T('Aralığı uygula','Apply interval')}</button></div><p class="sh-scope-summary" aria-live="polite"></p></section>`);
+      bar.before(this.scopeBox);
+      const now=Math.max(0,Math.floor(this.a.state()?.time||0)),duration=Number(this.a.processing()?.duration);
+      this.scopeBox.querySelector('[data-scope-time=start]').value=root.PodcastTaskScope.stamp(now);
+      this.scopeBox.querySelector('[data-scope-time=end]').value=root.PodcastTaskScope.stamp(duration>now?Math.min(duration,now+60):now+60);
+      for(const button of this.scopeBox.querySelectorAll('[data-scope]'))button.onclick=()=>{this.scopeMode=button.dataset.scope;this.scopeBox.querySelector('.sh-scope-fields').hidden=this.scopeMode!=='range';this.scopeBox.querySelector('.sh-seg').style.setProperty('--i',this.scopeMode==='range'?1:0);for(const b of this.scopeBox.querySelectorAll('[data-scope]')){b.setAttribute('aria-pressed',String(b===button));b.setAttribute('aria-selected',String(b===button));}this.updateScope();};
+      this.scopeBox.querySelector('[data-scope-apply]').onclick=()=>{try{this.scopeRange();this.scopeBox.querySelector('.sh-scope-fields').hidden=true;}catch{this.updateScope();}};
+      this.scopeBox.onkeydown=event=>{if(event.key==='Escape'&&!this.scopeBox.querySelector('.sh-scope-fields').hidden){event.preventDefault();event.stopPropagation();this.scopeBox.querySelector('.sh-scope-fields').hidden=true;this.scopeBox.querySelector('[data-scope=range]').focus();}};
+      this.root.addEventListener('pointerdown',event=>{if(!this.scopeBox.contains(event.target))this.scopeBox.querySelector('.sh-scope-fields').hidden=true;});
+      for(const input of this.scopeBox.querySelectorAll('input'))input.oninput=()=>this.updateScope();this.updateScope();
+    }
+    scopeRange(){return !this.scopeBox||this.scopeMode!=='range'?null:root.PodcastTaskScope.normalize({start:this.scopeBox.querySelector('[data-scope-time=start]').value,end:this.scopeBox.querySelector('[data-scope-time=end]').value},this.a.processing()?.duration);}
+    updateScope(){
+      if(!this.scopeBox)return;const text=this.scopeBox.querySelector('.sh-scope-summary');
+      try{const range=this.scopeRange(),duration=Number(this.a.processing()?.duration);text.textContent=range?`${root.PodcastTaskScope.stamp(range.start)} – ${root.PodcastTaskScope.stamp(range.end)} · ${T('İşlenecek süre','Processing duration')}: ${root.PodcastTaskScope.stamp(range.end-range.start)}`:duration>0?`${T('İşlenecek süre','Processing duration')}: ${root.PodcastTaskScope.stamp(duration)}`:T('Bölümün tamamı · süre bilinmiyor','Whole episode · duration unknown');text.dataset.invalid='false';}
+      catch{ text.textContent=T('Geçerli başlangıç ve bitiş girin. Bölümün tamamı başlatılmayacak.','Enter valid start and end times. The whole episode will not start.');text.dataset.invalid='true';}
+    }
     taskButtons() {
-      return (this.a.actions?.() || []).map(action => `<button class="sh-btn${action.primary ? ' sh-primary' : ''}" type="button" data-task="${esc(action.id)}" ${action.disabled || this.taskPending ? 'disabled' : ''} title="${esc(action.hint || action.label)}">${ic(action.id === 'translate' ? 'swap' : 'mic')}<span>${esc(action.label)}</span></button>`).join('');
+      return (this.a.actions?.() || []).map(action => `<button class="sh-btn${action.primary ? ' sh-primary' : ''}" type="button" data-task="${esc(action.id)}" ${action.disabled || this.taskPending ? 'disabled' : ''} title="${esc(action.hint || action.label)}">${ic(action.id === 'retry-translation'?'replay':action.id === 'translate' ? 'swap' : 'mic')}<span>${esc(action.label)}</span></button>`).join('');
     }
     drawTasks() {
       const bar = this.q('[data-r=workbar]'), html = this.taskButtons();
@@ -166,7 +186,7 @@
       const action = (this.a.actions?.() || []).find(item => item.id === id);
       if (!action || action.disabled) return;
       this.taskPending = true; this.drawTasks();
-      try { const result = await action.run(); if (!this.dead && result?.queued) this.toast(T('İşlem kuyruğa eklendi. İlerlemeyi İşlemler’den izleyebilirsiniz.', 'Task queued. Follow progress in Tasks.')); }
+      try { const range=['transcribe','transcribe-translate'].includes(id)?this.scopeRange():null;if(this.scopeBox)this.scopeBox.querySelector('.sh-scope-fields').hidden=true;const result = await action.run({range}); if (!this.dead && result?.queued) this.toast(T('İşlem kuyruğa eklendi. İlerlemeyi İşlemler’den izleyebilirsiniz.', 'Task queued. Follow progress in Tasks.')); }
       catch (error) { if (!this.dead) this.toast(error?.message || T('İşlem başlatılamadı.', 'Could not start task.')); }
       finally { this.taskPending = false; if (!this.dead) this.drawTasks(); }
     }
@@ -252,7 +272,7 @@
       w.setAttribute('aria-valuenow', Math.round(time)); w.setAttribute('aria-valuemax', Math.round(dur)); w.setAttribute('aria-valuetext', `${fmt(time)} / ${dur ? fmt(dur) : '--:--'}`);
       const chNow = (info.chapters || []).filter((c) => c.t <= time).at(-1); this.root.querySelectorAll('.sh-chap').forEach((b) => b.classList.toggle('on', !!chNow && +b.dataset.t === chNow.t));
       let idx = -1; this.rows.forEach((c, i) => { if (c.timed && c.start <= time && time < c.end && (idx < 0 || c.start >= this.rows[idx].start)) idx = i; });
-      this.time = time; this.cur = idx;this.root.classList.toggle('sh-audio',!!info.audio);
+      this.updateScope();this.time = time; this.cur = idx;this.root.classList.toggle('sh-audio',!!info.audio);
       if (idx !== s.idx) { const prev = s.idx; s.idx = idx; this.lines.forEach((l, i) => { const d = idx < 0 ? 9 : Math.abs(i - idx); l.style.setProperty('--d', Math.min(d, 9)); l.classList.toggle('on', i === idx); if(i===idx)l.setAttribute('aria-current','true');else l.removeAttribute('aria-current'); }); this.onActive(idx, prev); }
       if(this.o.mode==='cinema')this.drawCinema(info,st);this.wordsTick(); this.drawTasks(); const volume=this.q('.sh-local-volume');if(volume&&Number.isFinite(st.volume)&&document.activeElement!==volume){volume.value=st.volume;const output=volume.parentElement.querySelector('output');if(output)output.textContent=Math.round(st.volume*100)+'%';} const subs=this.q('[data-r=subs]');if(subs)subs.hidden=!!info.audio&&idx<0; this.drawJob(); this.drawPanel(false); this.paint();
     }

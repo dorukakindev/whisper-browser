@@ -9194,6 +9194,7 @@ def translate_existing_subtitle(args):
                 log("Mevcut çeviri metadata'sı kaynak/dil ile eşleşmiyor; kullanılmayacak.", "warn")
         except Exception as error:
             log(f"Çeviri metadata'sı okunamadı; doğrulama ile yeniden denenecek: {error}", "warn")
+    timeline_matches = False
     if existing_path and existing_path.exists() and existing_path.resolve() != src_path.resolve():
         try:
             old_text, _old_enc, _old_repaired = read_subtitle_text(existing_path)
@@ -9238,6 +9239,26 @@ def translate_existing_subtitle(args):
                 log(f"Mevcut çeviri bulundu: {len(existing_by_key)} blok korunacak.", "info")
         except Exception as error:
             log(f"Mevcut çeviri okunamadı; tüm bloklar yeniden denenecek: {error}", "warn")
+    if getattr(args, 'translate_retry_only', False):
+        # Strict recovery must never turn a stale/missing sidecar or a cue
+        # cleanup into an implicit full translation request.
+        records = existing_meta.get('cues') if existing_meta else None
+        keys = [cue_fingerprint(entry, index) for index, entry in enumerate(entries)]
+        if (not existing_meta or not existing_path or existing_path.resolve() == src_path.resolve()
+                or not timeline_matches
+                or existing_meta.get('version') != 1 or existing_meta.get('role') != 'translation'
+                or existing_meta.get('sourceId') != source_id
+                or existing_meta.get('subtitleHash') != existing_snapshot
+                or existing_meta.get('total') != len(entries)
+                or not isinstance(records, list) or len(records) != len(entries)
+                or any(not isinstance(row, dict) or row.get('key') != keys[index]
+                       or row.get('status') not in {'completed', 'failed'}
+                       for index, row in enumerate(records))
+                or any(row['status'] == 'completed'
+                       and (round(float(entries[index][0]), 3), round(float(entries[index][1]), 3), index)
+                       not in existing_by_key for index, row in enumerate(records))):
+            raise RuntimeError('Translation retry source/metadata changed; no new request was sent. '
+                               '/ Yeniden deneme kaynağı veya metadata değişti; yeni istek gönderilmedi.')
     def existing_for(entry, index):
         return existing_by_key.get((round(float(entry[0]), 3), round(float(entry[1]), 3), index))
 
@@ -9255,6 +9276,12 @@ def translate_existing_subtitle(args):
     if not same_language and target == "tr" and source_is_auto \
             and translation_source_entries and all(file_looks_turkish([entry]) for entry in translation_source_entries):
         same_language = True
+    if (getattr(args, 'translate_retry_only', False) and same_language
+            and any(row.get('status') == 'failed' for row in existing_meta['cues'])):
+        raise RuntimeError('Missing-cue retry cannot use the same-language shortcut. '
+                           'Select the actual source language or Auto; no request was sent. '
+                           '/ Eksik satır yeniden denemesi aynı dil kısayolunu kullanamaz. '
+                           'Gerçek kaynak dilini veya Otomatik seçin; istek gönderilmedi.')
 
     # 'Eksikleri tamamla': modele dosyanın TAMAMI gider; önceden çevrilmiş
     # konumlar yalnızca bağlam olur ve asla ezilmez. Eskiden modele yalnız
@@ -9285,10 +9312,11 @@ def translate_existing_subtitle(args):
                 continue
             if index not in precompleted:
                 precompleted[index] = existing_for(entry, index) or entry[2]
-        precompleted = {
-            index: text for index, text in precompleted.items()
-            if index not in _range_mask
-        }
+        if not getattr(args, 'translate_retry_only', False):
+            precompleted = {
+                index: text for index, text in precompleted.items()
+                if index not in _range_mask
+            }
         log(f"Aralik kisitli yeniden ceviri: {len(_range_mask)} blok "
             f"({_range_lo:.1f}-{_range_hi:.1f} sn) yeniden cevrilecek; "
             "aralik disi mevcut ceviri/kaynakla korunuyor.", "info")
@@ -10656,6 +10684,8 @@ def main():
                         help="--input bir altyazi dosyasi: Whisper calistirmadan yalnizca cevir")
     parser.add_argument("--translate-existing", default="",
                         help="Kismi ceviriyi okuyup tamamlanan bloklari koru; yalniz eksikleri cevir")
+    parser.add_argument("--translate-retry-only", action="store_true",
+                        help="Dogrulanmis mevcut metadata zorunlu; kaynak degisirse tam ceviriye geri donme")
     parser.add_argument("--scene-context-file", default="", help="Job-local bounded scene notes JSON")
     parser.add_argument("--translate-cue-range", default="",
                         help="'BASLANGIC:BITIS' saniye araligiyla kesisen bloklari yeniden cevir; aralik disi mevcut ceviri/kaynakla korunur")

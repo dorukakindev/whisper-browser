@@ -40,3 +40,9 @@ test('Podcast transcription phrasing uses the existing Whisper workflow without 
  for(const [text,kind] of [['Bu podcasti yazıya dök ve Türkçeye çevir','whisper-translate'],['Bu podcasti yazıya dök','whisper-only'],['Transcribe this podcast and translate','whisper-translate']])assert.equal(match(text)?.kind,kind,text);
  for(const text of ['Bu podcasti yazıya dökme','Bu podcasti yazıya dökmeden çevir','Bu podcasti çevir'])assert.equal(match(text),null,text);
 });
+
+
+test('podcast source intervals accept explicit mixed units without guessing an unresolved duration',()=>{
+ const M=require('../src/assistant-video-intent');for(const q of ['bu podcasti 30. saniyeden 2. dakikaya kadar yazıya dök ve çevir','transcribe this podcast from 30 seconds to 2 minutes'])assert.deepEqual(M.match(q).range,{start:30,end:120});
+ assert.equal(M.match('bu podcasti 30 saniye yazıya dök').rangeUnresolved,true);assert.equal(M.match('bu podcasti 30. saniyeden 2. dakikaya kadar yazıya dökme'),null);
+});

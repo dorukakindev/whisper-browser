@@ -33,3 +33,19 @@ test('remount and changed evidence invalidate pending analysis before persistenc
 test('recommendations use actual catalog identities and the assistant receives explicit profile context',async()=>{
  const f=fixture((input,p)=>({ok:true,taste:p,recommendations:[]}));try{const {w,p,calls}=f;let opened;w.MediaTitleUI={open:id=>{opened=id;}};w.MediaTasteUI.mount(w.document.getElementById('root'),{...p,recommendations:[{itemId:'real-catalog-id',title:'A library title',year:2024,runtime:88,confidence:'single',reasonDetails:[{kind:'genre',name:'Drama',count:1,average:4}],limitations:['incomplete-candidate-metadata'],evidence:[]}]});byText(w,'A library title').click();await tick();assert.equal(opened,'real-catalog-id');assert.match(w.document.querySelector('.mt-recommendations').textContent,/Single title/);assert.match(w.document.querySelector('.mt-recommendations').textContent,/information is missing/);byText(w,'Explore mixed evidence').click();await tick();assert.equal(calls.at(-1).action,'taste-recommendations');assert.equal(calls.at(-1).exploration,true);byText(w,'Recommend with my profile').click();await tick();assert.equal(w.lastContext.type,'taste-profile');assert.equal(JSON.parse(w.lastContext.excerpt).preferencesRevision,p.preferencesRevision);assert.match(w.lastPrompt,/Do not change my preferences/);}finally{f.close();}
 });
+
+test('rating provenance correction opens only the real title and keeps an unsaved preference draft',async()=>{
+ const f=fixture();try{const {w}=f;const catalog=[{id:'rated-id',title:'Rated',year:2020,kind:'film',genres:['Drama'],directors:[],ratings:{personal:10}},{id:'candidate-id',title:'Candidate',year:2024,kind:'film',genres:['Drama'],directors:[],ratings:{}}];
+ w.MediaTasteUI.mount(w.document.getElementById('root'),profile([],catalog,{}));const note=w.document.querySelector('[name=taste-note]');note.value='Still my draft';note.dispatchEvent(new w.Event('input'));let opened;w.MediaTitleUI={open:id=>{opened=id;}};
+ const row=w.document.querySelector('.mt-evidence-row');assert.match(row.textContent,/Current library rating/);byText(w,'Review title & rating',row).click();await tick();assert.equal(opened,'rated-id');assert.equal(note.value,'Still my draft');assert.equal(f.calls.length,0);
+ byText(w,'Correct my priorities',w.document.querySelector('.mt-recommendations')).click();await tick();assert.equal(w.document.activeElement,w.document.querySelector('[data-taste-chapter=priorities]'));assert.equal(note.value,'Still my draft');
+ byText(w,'Recommend with my profile').click();await tick();assert.equal(JSON.parse(w.lastContext.excerpt).preferencesConfigured,false);
+ }finally{f.close();}
+});
+
+test('model insight correction shows its original review and existing priority control without saving',async()=>{
+ const f=fixture();try{const {w,p}=f,review=p.reviews[0];w.MediaTasteUI.mount(w.document.getElementById('root'),{...p,analysis:{summary:'Interpretation',insights:[{aspect:'story',direction:'likes',reason:'A model reading',evidence:[{id:review.id,quote:'story is wonderfully moving'}]}]},analysisState:'current'});
+ const note=w.document.querySelector('[name=taste-note]');note.value='Keep me';const insight=w.document.querySelector('.mt-insight');byText(w,'Read original review',insight).click();await tick();assert.equal(w.document.querySelector('.mt-review-search').value,review.title);assert.equal(w.document.activeElement,w.document.querySelector('.mt-review-search'));
+ byText(w,'Correct this priority',insight).click();await tick();assert.equal(w.document.activeElement.closest('.mt-preference-field').querySelector('input[type=range]').name,'taste-story');assert.equal(note.value,'Keep me');assert.equal(f.calls.length,0);
+ }finally{f.close();}
+});
