@@ -1,11 +1,11 @@
 "use strict";
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const {JSDOM}=require('jsdom');
-function mount(t,{untimed=false,cinema=false,audio=false,empty=false,study=false,actions=[]}={}){
+function mount(t,{untimed=false,cinema=false,audio=false,empty=false,study=false,actions=[],timingNotice=''}={}){
  const dom=new JSDOM('<div id="host"></div>',{url:'https://test.invalid',pretendToBeVisual:true,runScripts:'outside-only'}),w=dom.window;
  w.UiLocale={get:()=> 'tr'};w.matchMedia=()=>({matches:true});w.Element.prototype.scrollTo=function(value){this.scrollTop=value.top;};
  let time=2,revision="r1";const commands=[];const rows=untimed?[{id:'text',start:0,end:0,timed:false,src:'Yayıncı metni',trs:[],unc:[],words:null}]:[{id:'a',start:0,end:10,timed:true,src:'A source sentence',trs:['Birinci çeviri','İkinci çeviri'],unc:[],words:null},{id:'b',start:10,end:20,timed:true,src:'The next sentence',trs:[],unc:[],words:null}];
- const adapter={caps:{loop:true,cinema,study:true},identity:()=> 'same-source',actions:()=>actions,info:()=>({audio,title:'Bölüm',langs:{src:'en',tr:'tr'},chapters:[{t:0,label:'Giriş'},{t:10,label:'İkinci bölüm'}],queue:[{index:1,title:'Sıradaki gerçek kayıt'}]}),state:()=>({time,duration:30,paused:true,rate:1,volume:.42,rows:empty?[]:rows,rev:revision,untimed,canSeek:true}),cmd:(...args)=>{commands.push(args);return Promise.resolve(args[0]==='wordInfo'?{ok:true,word:args[1].word,source:rows[args[1].row].src,translations:rows[args[1].row].trs,canSave:true,saved:false}:{ok:args[0]!=='loop',code:'busy'});},panel:()=>({sections:[],job:{state:'idle'}})};
+ const adapter={caps:{loop:true,cinema,study:true},identity:()=> 'same-source',actions:()=>actions,info:()=>({audio,title:'Bölüm',langs:{src:'en',tr:'tr'},chapters:[{t:0,label:'Giriş'},{t:10,label:'İkinci bölüm'}],queue:[{index:1,title:'Sıradaki gerçek kayıt'}]}),state:()=>({time,duration:30,paused:true,rate:1,volume:.42,rows:empty?[]:rows,rev:revision,untimed,timingNotice,canSeek:true}),cmd:(...args)=>{commands.push(args);return Promise.resolve(args[0]==='wordInfo'?{ok:true,word:args[1].word,source:rows[args[1].row].src,translations:rows[args[1].row].trs,canSave:true,saved:false}:{ok:args[0]!=='loop',code:'busy'});},panel:()=>({sections:[],job:{state:'idle'}})};
  w.eval(fs.readFileSync(require.resolve('../src/renderer/browser-study-view.js'),'utf8'));
  w.eval(fs.readFileSync(require.resolve('../src/renderer/sahne.js'),'utf8'));
  const sh=new w.Sahne(w.document.getElementById('host'),adapter,{mode:cinema?'cinema':study?'study':'podcast',intro:false});
@@ -72,4 +72,9 @@ test('shared transcript keeps search and stopped follow through transcript updat
  f.setRevision('r2');f.sh.tick();assert.equal(f.sh.lines[0].hidden,true);assert.equal(f.sh.lines[1].hidden,false);
  f.sh.q('[data-a=follow]').click();assert.equal(search.value,'');assert(f.sh.lines.every(row=>!row.hidden));assert.equal(f.commands.length,0);
  f.sh.q('[data-a=follow]').click();assert.equal(f.sh.s.follow,false);assert.equal(f.sh.q('[data-a=follow]').getAttribute('aria-pressed'),'false');
+});
+
+
+test('untimed audio keeps its transcript readable without an empty subtitle trough',t=>{
+ const f=mount(t,{audio:true,untimed:true,study:true,timingNotice:'Open audio timing is unverified'});assert(f.sh.q('[data-r=subs]').hidden);assert.equal(f.sh.q('.sh-note').textContent,'Open audio timing is unverified');assert.match(f.sh.q('[data-r=scroll]').textContent,/Yayıncı metni/);assert.equal(f.sh.cur,-1);
 });

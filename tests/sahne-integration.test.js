@@ -131,3 +131,10 @@ test('shared surface rejects retained commands after source version changes with
  f.window.MediaShelfUI={readSnapshot:()=>({mediaKey:'shelf:one',generation:1,sourceVersion:version,title:'Episode',duration:30,capabilities:{seek:{support:'yes'}}}),isPodcastMode:()=>true,openPodcastMode:async()=>{},getTranscriptTracks:()=>[],executeExisting:async()=>{commands++;return{ok:true};}};
  await f.window.CinemaSahne.openShelf();const a=f.window.CinemaSahne.current.a,identity=a.identity();version='two';assert.notEqual(a.identity(),identity);assert.equal((await a.cmd('seek',5)).ok,false);assert.equal(commands,0);
 });
+
+
+test('RSS cover and publisher belong only to the current audio source, never a later local video',t=>{
+ const f=fixture(t);f.player.workspaceAudio={mediaKey:f.player.mediaKey,generation:1,title:'Publisher episode',transcriptTimingNotice:'Source timing needs review',publisher:'Actual publisher',image:'https://images.example/cover.jpg'};
+ const info=f.open().info();assert.equal(info.title,'Publisher episode');assert.equal(info.cover,'https://images.example/cover.jpg');assert.match(info.sub,/Actual publisher/);assert.match(info.eyebrow,/Podcast/);assert.equal(f.window.CinemaSahne.current.a.state().timingNotice,'Source timing needs review');
+ f.player.generation=2;const changed=f.window.CinemaSahne.current.a.info();assert.equal(changed.cover,'');assert.doesNotMatch(changed.sub,/Actual publisher/);
+});
