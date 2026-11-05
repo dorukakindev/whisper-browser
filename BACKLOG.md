@@ -6,6 +6,13 @@ Son durum kontrolü: **2026-11-05**. Son ürün `c638d491f08d021aaf166a3bf00be68
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
+## İstenen iki canlı kabul — 2026-11-05 13:58
+
+- **Dal/kanıt:** codex/live-assistant-subtitles-20261105; [devir](docs/devir/2026-11-05-1358.md). Ürün HEAD 74ea1ebe704561b284e43df10032a41d4aafb0a7; ürün kodu değişmedi.
+- **Asistan:** gerçek yapılandırılmış model test kataloğundan gerekçeli/karşı kanıtlı öneri üretti; modelin detay açma ve planned kartları mevcut inceleme/onay arayüzünden test betiğiyle uygulandı. Gerçek depoda planned ve değişmeyen null tepki okundu; kişisel zevk verisi kullanılmadı.
+- **Browser kısmi kabul:** gerçek Stremio/OS araması/indirmesiyle EN/TR 26+26 satır birlikte yüklendi. Birincil +1,5 sn, ikincil -0,75 sn; ikincil değişince birincil sabit kaldı. LG native, izin denemesi 0.
+- **Kalan ve tam sonraki adım:** fragman ve tam-film altyazısı sürüm eşleşmesi kanıtlanmadı; oynayan eşleşen video üzerinde çift dilin görünmesi ve kaymanın görüntüye etkisi açık. Erişilebilir aynı-sürüm Sintel videosuyla tek replikte kısa kontrol yap; bu kısmi kanıtı sahne/dudak senkronu kabulü sayma. P004'ün diğer eski koşullarını bu tur kapatma.
+
 ## Uygulama sırası
 
 1. **P018 / P004 — Kaynak erişimi ve kalan canlı sınırlar:** yalnız erişim sağlandığında veya somut ihtiyaçta kısa kontrol; önceki başarılı testleri topluca tekrarlama.
