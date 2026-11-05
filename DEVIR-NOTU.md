@@ -1,3 +1,4 @@
+Güncel teslim: [Gerçek PeerTube fullscreen/çift dil ve Video.js altyazı yalıtımı düzeltmesi](docs/devir/2026-11-05-1428.md)
 Güncel kabul: [P004 site profili yeniden açma ve fullscreen/Shadow DOM kısa kabulü](docs/devir/2026-11-05-1417.md)
 Güncel kabul: [Browser gerçek tam video, çift dil ve bağımsız sahne kayması doğrulandı](docs/devir/2026-11-05-1408.md)
 Güncel kontrol: [Gerçek model önerisi/onay kartları ve gerçek EN/TR sağlayıcı altyazıları; sahne kabul sınırı](docs/devir/2026-11-05-1358.md)

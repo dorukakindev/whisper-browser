@@ -1,6 +1,6 @@
 # Bekleyen işler
 
-Son durum kontrolü: **2026-11-05**. Son ürün `c638d491f08d021aaf166a3bf00be68aa533e152`: asistanın gerçek zevk kanıtları ve doğrulanmış yapım açma sonucu. [Güncel teslim](docs/devir/2026-11-05-1337.md). Onaylı ortak Sahne tasarımı korunur.
+Son durum kontrolü: **2026-11-05**. Son ürün abd41999d6ea01e7b313c526f69419af58a587e9: gerçek PeerTube/Video.js sayfasında uygulama altyazısı açıkken site altyazısı gizlenir, kapatılınca geri gelir. [Güncel teslim](docs/devir/2026-11-05-1428.md). Onaylı ortak Sahne tasarımı korunur.
 
 **Yeni sohbet başlangıcı:** P025 [PR #842](https://github.com/dorukakindev/whisper-browser/pull/842) ile master'a alındı; doğrulanmış ürün başlangıcı `7bf15f3c2876a5465b0c7f59fff3a037b41aeb69`. Sonraki belge commitleri ürün değişikliği değildir; çalışmadan önce gerçek HEAD/remote ve kişisel farkları yeniden kontrol et. Mevcut görevlerden yarım bırakılmış yeni ürün işi yok; aşağıdaki koşullu/ertelenmiş işler korunur.
 
@@ -94,12 +94,13 @@ Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı deği
 
 ## P004 — Browser paneli kısa canlı kabulü tamamlandı
 
-- **Durum:** üç kısa kabul adımı kapandı; yeni ürün düzeltmesi gerekmedi. Önceki panel/menü özellikleri main'de.
+- **Durum:** üç kısa kabul adımı kapandı. Son gerçek site turunda Video.js altyazı yalıtımı düzeltildi; önceki panel/menü özellikleri main'de.
 - **Gerçek altyazı/sahne:** [EN/TR indirme, çift dil ve bağımsız kayma](docs/devir/2026-11-05-1408.md).
 - **Yeniden açma:** [güncel devir](docs/devir/2026-11-05-1417.md). Aynı izole test profili iki ayrı Electron sürecinde açıldı; gerçek Blender origin'inde site ölçeği1.12/satır aralığı11 ve localStorage işareti geri geldi. Başka origin'de ölçek1, site ayarı taşınmadı. Otomatik site başına çerez kapsayıcısı iddiası yok.
 - **Fullscreen/Shadow DOM:** gerçek uzak Sintel videosu kontrollü açık shadow içine alındı; gerçek sağlayıcı EN/TR katmanı normal/tam ekran/çıkış/kapalı/yeniden açık durumlarda doğrulandı. Sayfa CSS'i katmanı bozmadı, tek overlay kaldı; sayfa ana dünyası ayrıcalıklı API/izole controller globalini görmedi. LG görüntüleri ve gerçek decode kareleri, birkaç saniye oynatma; son iki süreçte dosya izin denemesi0. Fullscreen izni yalnız test profilinde mevcut site izin kaydıyla verildi.
-- **Sınır/sonraki adım:** kontrollü açık Shadow DOM düzenidir; bütün canlı siteler, kapalı shadow root, DRM, hesap/CUDA veya kişisel profil için genel kabul değildir. Bu dar P004 kapsamında açık iş yok; yeni somut arızada yalnız ilgili akışa dön. Uzun iş iptali ancak gerçek takılma/ihtiyaçta incelenir.
-- **Dal:** codex/browser-profile-fullscreen-20261105; ürün başlangıç/bitiş81b83025610e38fff54aac855c907e08966bff77; yalnız belge PR'ı. Computer Use, dosya izin penceresi ve geniş kampanya yok.
+- **Gerçek site kabulü ve düzeltme:** [PeerTube Sprite Fright](docs/devir/2026-11-05-1428.md) normal, değiştirilmemiş site oynatıcısında gerçek EN/ES çift dil ve fullscreen doğrulandı. hideSiteCaptions için eksik Video.js seçicisi düzeltildi; Alman site altyazısı uygulama katmanı açıkken gizlenip kapatınca geri geldi.23 hedefli kontrol, bağımsız review, son native izin denemesi0. Ürün abd41999d6ea01e7b313c526f69419af58a587e9; dal codex/browser-real-site-captions-20261105.
+- **Sınır/sonraki adım:** önceki shadow kabulü kontrollü açık Shadow DOM düzenidir; bütün canlı siteler, kapalı shadow root, DRM, hesap/CUDA veya kişisel profil için genel kabul değildir. Bu dar P004 kapsamında açık iş yok; yeni somut arızada yalnız ilgili akışa dön. Uzun iş iptali ancak gerçek takılma/ihtiyaçta incelenir.
+- **Önceki kontrollü kabul dalı:** codex/browser-profile-fullscreen-20261105; ürün başlangıç/bitiş81b83025610e38fff54aac855c907e08966bff77; yalnız belge PR'ı. Computer Use, dosya izin penceresi ve geniş kampanya yok.
 
 ## P003 — Film kütüphanesinin kullanım sınırları
 
