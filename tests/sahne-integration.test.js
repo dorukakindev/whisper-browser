@@ -48,7 +48,7 @@ function fixture(t) {
   });
   vm.runInContext(fs.readFileSync(require.resolve('../src/renderer/cinema-sahne'), 'utf8'), context);
   t.after(() => { window.CinemaSahne?.close(); bridge.dispose(); dom.window.close(); });
-  return { window, document, player, source, secondary, commands, open(mode = 'podcast') { window.CinemaSahne.open({ mode }); return window.CinemaSahne.current.a; } };
+  return { window, document, player, source, secondary, commands, setParser(parser) { context.parseSubtitles=parser; }, open(mode = 'podcast') { window.CinemaSahne.open({ mode }); return window.CinemaSahne.current.a; } };
 }
 
 test('Sahne forwards local/native transport to the existing identity-bound bridge', async t => {
@@ -115,6 +115,15 @@ test('closing shelf playback removes the scene instead of remounting an ownerles
  await f.window.CinemaSahne.openShelf();const scene=f.window.CinemaSahne.current;assert(scene);live=false;scene.o.onSource('none',{});assert.equal(f.window.CinemaSahne.current,null);assert.equal(f.document.querySelector('.sh-shelf-host'),null);
 });
 
+
+for(const [format,text] of [['srt','1\n00:00:30,000 --> 00:00:32,000\nActual source words\n'],['vtt','WEBVTT\n\n00:30.000 --> 00:32.000\nActual source words\n'],['plain','Plain source prose with 30 seconds mentioned.']])test(`read-only shelf ${format} displays prose without granting timestamp seeking`,async t=>{
+ const f=fixture(t);f.document.getElementById('playerLayer').classList.add('hidden');let commands=0,parses=0;
+ const track={id:'readonly-source',revision:'v1',role:'source',timed:false,cues:[],text},translation={id:'readonly-translation',revision:'t1',role:'translation',timed:false,cues:[],text:format==='plain'?'Plain translation.':text.replace('Actual source words','Actual translation')};
+ f.setParser(value=>{parses++;return [{start:30,end:32,text:value.includes('Actual translation')?'Actual translation':'Actual source words'}];});
+ f.window.MediaShelfUI={readSnapshot:()=>({mediaKey:'shelf:one',generation:1,sourceVersion:'v1',title:'Episode',duration:60,capabilities:{seek:{support:'yes'}}}),isPodcastMode:()=>true,openPodcastMode:async()=>{},getTranscriptTracks:()=>[track,translation],executeExisting:async()=>{commands++;return {ok:true};}};
+ await f.window.CinemaSahne.openShelf();const adapter=f.window.CinemaSahne.current.a,state=adapter.state();
+ assert.equal(state.rows[0].src,format==='plain'?text:'Actual source words');assert.deepEqual(Array.from(state.rows[0].trs),[format==='plain'?'Plain translation.':'Actual translation']);assert.equal(state.rows[0].timed,false);assert.equal((await adapter.cmd('seekCue',0)).ok,false);assert.equal(commands,0);assert.equal(track.text,text);assert.equal(track.timed,false);assert.equal(track.id,'readonly-source');assert.equal(track.revision,'v1');assert.equal(parses,format==='plain'?0:2);
+});
 
 test('Sahne podcast actions bind the exact episode and task status to the existing shelf service',async t=>{
  const f=fixture(t);f.document.getElementById('playerLayer').classList.add('hidden');let generation=1;const calls=[];

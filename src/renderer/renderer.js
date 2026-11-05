@@ -33690,7 +33690,7 @@ window.translatePodcastSource=async function(binding,{isCancelled=()=>false}={})
  const override={translateOnly:true,translate:true,input:binding.materializedPath,outputNameSuffix:'-whisper-podcast-'+binding.sourceVersion.slice(0,12)};
  if(track.language)override.language=track.language;
  if(!addToQueue('file',binding.materializedPath,{optionsOverride:override}))throw Error('Could not add podcast translation to existing queue / Podcast çevirisi kuyruğa eklenemedi.');
- const item=state.queue[state.queue.length-1];item.podcastBinding={...binding,outputRole:'translation',track:{id:track.id,revision:track.revision}};renderQueue();
+ const item=state.queue[state.queue.length-1];item.podcastBinding={...binding,outputRole:'translation',targetLanguage:item.opts?.translateTo,expectedTranslation:true,track:{id:track.id,revision:track.revision}};renderQueue();
  if(!state.queueRunning&&!state.running)startQueue();return {queued:true,id:item.id};
 };
 async function persistPodcastJobOutputs(event,binding){

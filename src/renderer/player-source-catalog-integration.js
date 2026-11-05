@@ -173,7 +173,30 @@
     const config={...options,operation,isCancelled:()=>!valid()};
     if(operation==='translate'||operation==='retry-translation'){if(config.range)throw Error(t('Metin çevirisi yüklü dökümü kullanır; önce seçili aralığı yazıya dökün.','Transcript translation uses the loaded transcript; transcribe the interval first.'));return translatePodcastTranscript({...config,retryOnly:operation==='retry-translation'});}return generatePodcast(config);
   }
-  async function loadPublisherTranscript(descriptorIndex){const audio=player.workspaceAudio;if(!audio||audio.mediaKey!==player.mediaKey||audio.generation!==player.generation)throw Error(t('Önce podcast açın.','Open a podcast first.'));const response=await api({action:'podcast-transcript',entryId:audio.entryId,revision:audio.revision,descriptorIndex,requestId:'publisher-'+Date.now()});if(player.workspaceAudio!==audio||audio.mediaKey!==player.mediaKey||audio.generation!==player.generation)return;if(response.timed==='yes'){const m=await api({action:'podcast-materialize',entryId:audio.entryId,sourceVersion:audio.sourceVersion});if(player.workspaceAudio!==audio||audio.mediaKey!==player.mediaKey||audio.generation!==player.generation)return;await loadSubtitle(m.path,false,{silent:true,role:'source'});if(player.workspaceAudio!==audio||audio.mediaKey!==player.mediaKey||audio.generation!==player.generation)return;audio.transcriptState='timed';}else{audio.transcriptState='untimed';audio.transcriptText=response.text;}window.PlayerWorkspaceIntegration?.refresh(true);}
+  async function loadPublisherTranscript(descriptorIndex){
+    const audio=player.workspaceAudio;
+    const valid=()=>!!audio&&player.workspaceAudio===audio&&audio.mediaKey===player.mediaKey&&audio.generation===player.generation;
+    if(!valid())throw Error(t('Önce podcast açın.','Open a podcast first.'));
+    const response=await api({action:'podcast-transcript',entryId:audio.entryId,revision:audio.revision,descriptorIndex,requestId:'publisher-'+Date.now()});if(!valid())return;
+    const saved=await api({action:'podcast-workspace',entryId:audio.entryId,sourceVersion:audio.sourceVersion});if(!valid())return;
+    const timed=response.timed==='yes',source=saved.workspace?.transcript;
+    if(saved.sourceVersion!==audio.sourceVersion||source?.text!==response.text||source.state!==(timed?'timed':'untimed'))throw Error(t('Podcast dökümü değişti.','Podcast transcript changed.'));
+    // Only the current registry can establish that a translation still belongs to this text.
+    const translation=saved.workspace.translation,matchingTranslation=translation?.status!=='partial'&&translation?.state===source.state;
+    let sourcePath,translationPath;
+    if(timed){
+      sourcePath=(await api({action:'podcast-materialize',entryId:audio.entryId,sourceVersion:audio.sourceVersion})).path;if(!valid())return;
+      if(matchingTranslation){translationPath=(await api({action:'podcast-materialize',entryId:audio.entryId,sourceVersion:audio.sourceVersion,role:'translation'})).path;if(!valid())return;}
+      await loadSubtitle(sourcePath,false,{silent:true,role:'source'});if(!valid())return;
+      if(player.subPath!==sourcePath)throw Error(t('Yayıncı dökümü yüklenemedi.','Publisher transcript could not be loaded.'));
+    }
+    await loadSubtitle('',true,{silent:true});if(!valid())return;
+    delete audio.transcriptText;delete audio.translationText;delete audio.transcriptCoverage;delete audio.transcriptTimingNotice;
+    audio.translationRetry=saved.translationRetry||null;audio.transcriptState=timed?'timed':'untimed';
+    if(!timed){audio.transcriptText=response.text;if(matchingTranslation)audio.translationText=translation.text;}
+    else if(translationPath){await loadSubtitle(translationPath,true,{silent:true,role:'translation'});if(!valid())return;}
+    window.PlayerWorkspaceIntegration?.refresh(true);
+  }
   async function translatePodcastTranscript({isCancelled=()=>false,targetLanguage,retryOnly=false}={}){
     const audio=player.workspaceAudio;
     const valid=()=>!isCancelled()&&!!audio&&player.workspaceAudio===audio&&audio.mediaKey===player.mediaKey&&audio.generation===player.generation;

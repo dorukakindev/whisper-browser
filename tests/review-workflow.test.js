@@ -13,7 +13,7 @@ test('Loaded browser review extraction excludes forms/scripts and rejects foreig
 function ui(draft={},options={}){const dom=new JSDOM('<dialog open><main></main></dialog>',{runScripts:'outside-only',url:'https://fixture.test/'}),w=dom.window,calls=[];let context={};const evidence=[{id:'1',text:'Strong acting and a memorable atmosphere.',author:'Fixture',spoiler:false}];
  w.LetterboxdReviews=reviews;Object.assign(w,{UiLocale:{get:()=> 'en'},player:{job:null},state:{running:false,queueRunning:false},aiChatPreparing:null,buildOptsFromUI:()=>({}),translationEndpointReady:()=>true,globalAssistantContext:()=>context,MediaExperience:{setContext:(_,c)=>context=c},api:{mediaTools:async packet=>{calls.push(packet);if(packet.action==='decision-save')return {ok:true};if(packet.action==='reviews-browser')return {ok:true,reviews:evidence,identity:{title:'The Matrix',year:1999},match:{state:'matched'},url:'https://letterboxd.com/film/the-matrix/reviews/'};return {ok:false,error:'Controlled failure'};},mediaShelf:async()=>({ok:true,taste:options.taste||{preferencesConfigured:false}}),openExternal:async()=>{}},aiChatSend:async()=>{}});
  w.HTMLElement.prototype.scrollIntoView=function(){};w.eval(fs.readFileSync(require.resolve('../src/renderer/media-tools-model'),'utf8'));w.eval(fs.readFileSync(require.resolve('../src/renderer/review-decision-ui'),'utf8'));
- w.MediaReviewDecision.mount(w.document.querySelector('main'),options.item||{id:'film',title:'The Matrix',year:1999},options.saved||{},draft,{current:()=>true,redraw:()=>calls.push('redraw'),status:()=>{}});const click=text=>[...w.document.querySelectorAll('button')].find(n=>n.textContent===text).click(),wait=()=>new Promise(setImmediate);return {w,draft,calls,click,wait,context:()=>context};}
+ w.MediaReviewDecision.mount(w.document.querySelector('main'),options.item||{id:'film',title:'The Matrix',year:1999},options.saved||{},draft,{current:options.current||(()=>true),redraw:()=>calls.push('redraw'),status:()=>{}});const click=text=>[...w.document.querySelectorAll('button')].find(n=>n.textContent===text).click(),wait=()=>new Promise(setImmediate);return {w,draft,calls,click,wait,context:()=>context};}
 
 test('review count accepts arbitrary 1–48 integers, persists the draft and blocks invalid input before source calls',async()=>{
  const u=ui({},{item:{id:'film',kind:'film',tmdbId:'movie:603',title:'The Matrix',year:1999}});
@@ -200,5 +200,39 @@ test('A readable source with zero eligible reviews has an empty state and cannot
  const u=ui();try{
   u.w.api.mediaTools=async()=>({ok:true,reviews:[],identity:{title:'The Matrix',year:1999},match:{state:'matched'},url:'https://letterboxd.com/film/the-matrix/reviews/'});
   u.click('Use reviews from open Browser page');await u.wait();assert.equal(u.draft.attempt.state,'empty');assert.match(u.w.document.querySelector('.mrv-job').textContent,/No eligible reviews found/);assert.equal(u.w.document.querySelector('[data-review-action=preview]').hidden,true);
+ }finally{u.w.close();}
+});
+
+test('Rejected analysis startup releases the title job and allows another analysis',async()=>{
+ const u=ui();try{
+  u.click('Use reviews from open Browser page');await u.wait();u.click('Preview & analyze');await u.wait();
+  u.w.aiChatSend=async()=>{throw Error('Controlled startup rejection');};u.click('Send this sample');await u.wait();
+  assert.equal(u.draft.attempt.state,'failed');assert.match(u.draft.attempt.error,/Controlled startup rejection/);assert.equal(u.w.MediaReviewDecision.hasActive('film'),false);assert.equal(u.w.document.querySelector('[data-review-action=preview]').disabled,false);
+  u.click('Review sample & retry');await u.wait();u.w.aiChatSend=async()=>{u.w.document.dispatchEvent(new u.w.CustomEvent('assistant-answer',{detail:{context:u.context(),text:JSON.stringify({summary:'Retried analysis',fit:'Conditional fit',points:[{id:'1',quote:'Strong acting',kind:'praise',reason:'Supported'}]})}}));};u.click('Send this sample');await u.wait();assert.equal(u.draft.result.analysis.summary,'Retried analysis');
+ }finally{u.w.close();}
+});
+
+test('A late startup rejection cannot release or fail a newer title job',async()=>{
+ const u=ui();try{
+  u.click('Use reviews from open Browser page');await u.wait();u.click('Preview & analyze');await u.wait();let rejectOld;u.w.aiChatSend=()=>new Promise((_,reject)=>rejectOld=reject);u.click('Send this sample');await u.wait();
+  u.w.document.dispatchEvent(new u.w.CustomEvent('assistant-answer',{detail:{context:u.context(),text:JSON.stringify({summary:'First result',fit:'Conditional fit',points:[{id:'1',quote:'Strong acting',kind:'praise',reason:'Supported'}]})}}));u.click('Discard analysis');u.click('Preview & analyze');await u.wait();let finishNew;u.w.aiChatSend=()=>new Promise(resolve=>finishNew=resolve);u.click('Send this sample');await u.wait();const attempt=u.draft.attempt;
+  rejectOld(Error('Old startup failed'));await u.wait();assert.equal(u.w.MediaReviewDecision.hasActive('film'),true);assert.equal(u.draft.attempt,attempt);assert.equal(attempt.state,'analyzing');finishNew();await u.wait();
+ }finally{u.w.close();}
+});
+
+test('A rejected pending startup updates the reopened title review panel',async()=>{
+ let current=true;const u=ui({},{current:()=>current});try{
+  u.click('Use reviews from open Browser page');await u.wait();u.click('Preview & analyze');await u.wait();let rejectStartup;u.w.aiChatSend=()=>new Promise((_,reject)=>rejectStartup=reject);u.click('Send this sample');await u.wait();
+  current=false;u.w.MediaReviewDecision.leave();const body=u.w.document.querySelector('main');body.replaceChildren();u.w.MediaReviewDecision.mount(body,{id:'film',title:'The Matrix',year:1999},{},u.draft,{current:()=>true,redraw(){},status(){}});assert.equal(body.querySelector('.mrv-job').dataset.state,'analyzing');
+  rejectStartup(Error('Reopened startup failed'));await u.wait();assert.equal(u.w.MediaReviewDecision.hasActive('film'),false);assert.equal(body.querySelector('.mrv-job').dataset.state,'failed');assert.match(body.querySelector('.mrv-job').textContent,/Reopened startup failed/);assert.equal(body.querySelector('[data-review-action=preview]').disabled,false);
+ }finally{u.w.close();}
+});
+
+for(const changed of ['replacement','disposed'])for(const outcome of ['resolved','rejected'])test('A '+outcome+' pending save cannot mutate a '+changed+' review view',async()=>{
+ let current=true;const u=ui({},{current:()=>current});try{
+  u.click('Use reviews from open Browser page');await u.wait();let sequence=0;u.w.aiChatSend=async()=>{u.w.document.dispatchEvent(new u.w.CustomEvent('assistant-answer',{detail:{context:u.context(),text:JSON.stringify({summary:'Result '+(++sequence),fit:'Conditional fit',points:[{id:'1',quote:'Strong acting',kind:'praise',reason:'Supported'}]})}}));};
+  u.click('Preview & analyze');await u.wait();u.click('Send this sample');await u.wait();let release;u.w.api.mediaTools=async()=>new Promise((resolve,reject)=>release=()=>outcome==='resolved'?resolve({ok:true}):reject(Error('Old save failed')));u.click('Verify quotes & save');await u.wait();
+  if(changed==='replacement'){u.click('Discard analysis');u.click('Preview & analyze');await u.wait();u.click('Send this sample');await u.wait();}else current=false;
+  const result=u.draft.result,attempt=u.draft.attempt;release();await u.wait();assert.equal(u.draft.result,result);assert.equal(u.draft.attempt,attempt);assert.equal(u.calls.includes('redraw'),false);
  }finally{u.w.close();}
 });
