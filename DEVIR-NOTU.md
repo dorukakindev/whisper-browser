@@ -1,3 +1,4 @@
+Güncel çalışma: [Podcast kaynakları ve RSS olmadan Spotify girişi](docs/devir/2026-11-05-0717.md)
 Güncel çalışma: [Podcast kütüphanesi ve yerel sinema Sahnesi](docs/devir/2026-11-05-0628.md)
 Güncel çalışma: [Podcast/çift dilli Sahne entegrasyonu ve uyumlu medya cilası](docs/devir/2026-11-05-0600.md)
 Güncel çalışma: [Sahne v2 referansı ve kompozisyon-önce tasarım rehberi](docs/devir/2026-11-05-0528.md)

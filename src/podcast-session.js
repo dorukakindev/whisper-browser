@@ -13,7 +13,7 @@ function sourceBinding(entry){const declaration=declaredSource(entry),known=entr
 // Unknown means there is no byte-identity claim, even when this key is stable.
 function sourceVersion(entry){return hash(sourceBinding(entry));}
 function audioEvidence(entry,result){const previous=entry.podcastAudioEvidence;const next={revision:Math.max(entry.podcastSourceRevision||0,previous?.revision||1),declaration:hash(declaredSource(entry)),etag:result.etag||'unknown',length:result.bytes,sha256:result.sha256,probe:'unknown'};if(previous&&['declaration','etag','length','sha256'].some(k=>previous[k]!==next[k]))next.revision++;return validateAudioEvidence(next);}
-function spotifyEpisode(value){let u;try{u=new URL(value);}catch{throw Error('Choose a Spotify episode URL.');}if(u.protocol!=='https:'||u.hostname!=='open.spotify.com'||!/^\/episode\/[A-Za-z0-9]{22}$/.test(u.pathname)||u.username||u.password)throw Error('Choose a Spotify episode URL.');return 'https://open.spotify.com'+u.pathname;}
+function spotifyEpisode(value){const source=require('./podcast-link-source').spotify(value);if(source?.kind!=='episode')throw Error('Choose a Spotify episode URL.');return source.url;}
 function validateTimedText(text){
  if(typeof text!=='string'||text.length>500000)throw Error('Podcast transcript exceeds storage limit.');
  const time=v=>{const parts=v.replace(',','.').split(':').map(Number);if(parts.length<2||parts.length>3||parts.some(n=>!Number.isFinite(n)||n<0)||parts.at(-1)>=60||parts.at(-2)>=60)return NaN;return parts.reduce((n,p)=>n*60+p,0);};

@@ -11,7 +11,7 @@ function modelStatus(directory){
 function loadTracks(userData){
   const file=path.join(userData,'media-shelf.json');
   if(!fs.existsSync(file))return [];
-  if(fs.statSync(file).size>16_000_000)throw Error('Library too large / Kitaplık çok büyük.');
+  if(fs.statSync(file).size>require('./media-shelf-limits').MAX_BYTES)throw Error('Library too large / Kitaplık çok büyük.');
   const data=JSON.parse(fs.readFileSync(file,'utf8'));
   if(!Array.isArray(data.music)||data.music.length>5000)throw Error('Invalid music library / Müzik kitaplığı geçersiz.');
   return data.music;

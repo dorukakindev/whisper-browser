@@ -197,7 +197,7 @@ function register(options) {
       }
       if (request.action === 'library') {
         const file = path.join(options.userData(),'media-shelf.json');
-        if (fs.statSync(file).size > 16_000_000) throw Error('Library too large');
+        if (fs.statSync(file).size > require('./media-shelf-limits').MAX_BYTES) throw Error('Library too large');
         const row = JSON.parse(await fs.promises.readFile(file,'utf8')).music?.find(row=>row.id===request.id);
         if (!row) throw Error('Track missing / Parça bulunamadı.');
         options.grantMedia(row.path);

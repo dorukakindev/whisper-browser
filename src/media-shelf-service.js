@@ -62,7 +62,7 @@ function podcastTrack(episode,role='source') {
 }
 function loadShelfFile(file) {
     if (!fs.existsSync(file)) return { version: 1, music: [], books: [], stations: [], podcasts: [], playlists: [], diary: [] };
-    if (fs.statSync(file).size > 16_000_000) throw Error('Media shelf exceeds 16 MB; export/recover it before editing.');
+    if (fs.statSync(file).size > require('./media-shelf-limits').MAX_BYTES) throw Error('Media shelf exceeds 32 MB; export/recover it before editing.');
     const data = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
     if (data.version !== 1 || ['music', 'books', 'stations', 'podcasts', 'playlists', 'diary'].some(key => !Array.isArray(data[key]))) throw Error('Media shelf is damaged; original file was preserved.');
     // Link an already subscribed feed entry by feed URL + GUID/enclosure, never by title.
@@ -83,7 +83,7 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
   const load=()=>loadShelfFile(stateFile());
   function save(data) {
     const json = JSON.stringify(data,(key,value)=>key==='registryWorkspace'?undefined:value);
-    if (Buffer.byteLength(json) > 16_000_000) throw Error('Media shelf exceeds 16 MB; remove unused entries first.');
+    if (Buffer.byteLength(json) > require('./media-shelf-limits').MAX_BYTES) throw Error('Media shelf exceeds 32 MB; remove unused entries first.');
     atomicWriteFileSync(stateFile(), json);
   }
   const parser = async (request, signal) => JSON.parse(await run(pythonPath(), [path.join(__dirname, '../backend/media_shelf.py')], JSON.stringify(request), signal, 30000));
@@ -341,23 +341,36 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           require('./podcast-session').validateWorkspace(workspace);target.podcastWorkspace=workspace;save(fresh);
           return {ok:true,track:podcastTrack(target)};
         }
+        case 'podcast-spotify-add': {
+          const source=require('./podcast-link-source').spotify(input.url);if(!source)throw Error('Use a Spotify show or episode link.');
+          const response=await fetchImpl('https://open.spotify.com/oembed?url='+encodeURIComponent(source.url),{signal:AbortSignal.timeout(15000),credentials:'omit',redirect:'error'});
+          if(!response.ok)throw Error('Spotify HTTP '+response.status);
+          const metadata=JSON.parse((await readLimitedBytes(response,200000,'Spotify')).toString('utf8'));
+          const title=text(metadata.title);if(!title)throw Error('Spotify title unavailable.');
+          const data=load(),previous=data.podcasts.find(row=>row.url===source.url);
+          if(!previous&&data.podcasts.length>=100)throw Error('Podcast limit reached.');
+          const image=/^https:\/\/[^/]*\.scdn\.co\//i.test(metadata.thumbnail_url||'')?metadata.thumbnail_url:'';
+          const row={...previous,id:previous?.id||randomUUID(),url:source.url,title,image,sourceKind:'spotify',spotifyKind:source.kind,episodes:previous?.episodes||[],updated:Date.now()};
+          data.podcasts=[...data.podcasts.filter(p=>p.url!==source.url),row];save(data);return {ok:true,id:row.id,title:row.title};
+        }
         case 'podcast-add': {
           const url = urlOf(input.url);
-          const response = await fetchImpl(url, { signal: AbortSignal.timeout(15000), credentials: 'omit' });
-          if (!response.ok) throw Error(`Feed HTTP ${response.status}`);
-          const bytes = await readLimitedBytes(response, 2_000_000, 'Podcast');
+          const response = fetchImpl===fetch?await require('./feed-service').fetchPublic(url,{maxBytes:6*1024*1024}):await fetchImpl(url, { signal: AbortSignal.timeout(15000), credentials: 'omit' });
+          if (response.status!==200) throw Error(`Feed HTTP ${response.status}`);
+          const bytes = response.buffer||await readLimitedBytes(response, 6*1024*1024, 'Podcast');
           const parsed = await parser({ action: 'rss', data: bytes.toString('base64') });
           const data = load();
           if (data.podcasts.length >= 100 && !data.podcasts.some(row => row.url === url)) throw Error('Podcast limit reached.');
           const previous = data.podcasts.find(row => row.url === url);
           const refreshed = new Set();
-          const episodes = parsed.episodes.flatMap(ep => {
-            try { const url = urlOf(ep.url), old = previous?.episodes.find(row => ep.guid && row.guid === ep.guid) || previous?.episodes.find(row => row.url === url); if (old) refreshed.add(old); return [{ ...old,...ep, url, transcriptDescriptors:require('./podcast-transcript').normalizePodcastTranscripts(ep.transcriptDescriptors||[]), position: old?.position || 0, duration: ep.duration || old?.duration || 0 }]; } catch { return []; }
+          const episodeLimit=previous?.episodeLimit||(Number.isInteger(input.initialEpisodeLimit)&&input.initialEpisodeLimit>=10&&input.initialEpisodeLimit<=200?input.initialEpisodeLimit:200);
+          const episodes = parsed.episodes.slice(0,episodeLimit).flatMap(ep => {
+            try { const url = require('./feed-parser').safeUrl(ep.url);if(!url)throw Error('Unsafe audio URL.');const old = previous?.episodes.find(row => ep.guid && row.guid === ep.guid) || previous?.episodes.find(row => row.url === url); if (old) refreshed.add(old); return [{ ...old,...ep, url, transcriptDescriptors:require('./podcast-transcript').normalizePodcastTranscripts(ep.transcriptDescriptors||[]), position: old?.position || 0, duration: ep.duration || old?.duration || 0 }]; } catch { return []; }
           });
           if (!episodes.length) throw Error('No public audio enclosure URLs could be saved.');
           // A rolling feed is not a deletion request. Keep older episode identities and their personal state.
           episodes.push(...(previous?.episodes || []).filter(episode => !refreshed.has(episode)));
-          const row = { id: previous?.id || randomUUID(), url, title: parsed.title, publisher:parsed.publisher, image:parsed.image, language:parsed.language, episodes, updated: Date.now() }; row.episodes=row.episodes.map(e=>{const next=bindPodcastEpisode(row,e);if(e.sourceVersion&&next.sourceVersion!==e.sourceVersion)next.positionState='needs-review';return next;});
+          const row = { id: previous?.id || randomUUID(), url, title: parsed.title, publisher:parsed.publisher, image:parsed.image, language:parsed.language, episodes,...(episodeLimit<200?{episodeLimit}:{}), updated: Date.now() }; row.episodes=row.episodes.map(e=>{const next=bindPodcastEpisode(row,e);if(e.sourceVersion&&next.sourceVersion!==e.sourceVersion)next.positionState='needs-review';return next;});
           data.podcasts = [...data.podcasts.filter(row => row.url !== url), row]; save(data); return { ok: true };
         }
         case 'remove': {
@@ -394,7 +407,7 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           const reviews=new Map((Array.isArray(data.reviews)?data.reviews:[]).map(row=>[require('./media-taste').reviewId(row),row]));
           for(const row of prepared.reviews || [])reviews.set(require('./media-taste').reviewId(row),row);
           data.reviews=[...reviews.values()].slice(-10000);
-          if(Buffer.byteLength(JSON.stringify(data))>16_000_000)throw Error('Media shelf exceeds 16 MB; import a smaller review export.');
+          if(Buffer.byteLength(JSON.stringify(data))>require('./media-shelf-limits').MAX_BYTES)throw Error('Media shelf exceeds 32 MB; import a smaller review export.');
           catalog.upsertMany(catalogPatches);save(data);
           return { ok: true, matched: plan.planned.length, added: plan.added.length, skipped: plan.ambiguous.length };
         }

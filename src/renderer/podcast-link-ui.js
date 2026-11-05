@@ -5,10 +5,26 @@
   const kit=()=>window.PlayerUiKit;
   const h=(tag,props,...children)=>kit().h(tag,props,...children);
   let current=null, sequence=0;
-  function isSpotify(raw){try{const u=new URL(raw);return u.protocol==='https:'&&u.hostname==='open.spotify.com'&&/^\/episode\/[A-Za-z0-9]{22}$/.test(u.pathname);}catch{return false;}}
+  const spotifySource=raw=>window.PodcastLinkSource?.spotify(raw);
+  const isSpotify=raw=>!!spotifySource(raw);
+  async function openSpotifyBrowser(raw,{onNavigating}={}){
+    const source=spotifySource(raw);if(!source)throw Error(text('Geçerli bir Spotify program veya bölüm linki gir.','Enter a valid Spotify show or episode link.'));
+    const intent=(Number(player.openIntent)||0)+1;player.openIntent=intent;
+    await flushWatchState(false,false);if(player.openIntent!==intent)return {ok:false,cancelled:true};
+    document.getElementById('playerLayer').classList.remove('hidden');setWorkspaceMode('browser',false);
+    await showBrowserWorkspace();if(player.openIntent!==intent)return {ok:false,cancelled:true};if(player.workspaceMode!=='browser'||!player.browserActiveTabId)throw Error(text('Browser hazır değil. Yeniden dene.','Browser is not ready. Try again.'));
+    document.getElementById('mediaShelfAudio')?.pause();window.MediaShelfUI?.closePodcastMode?.();
+    window.BrowserStudy?.close?.();
+    document.getElementById('browserAddress').value=source.url;
+    onNavigating?.();
+    const opened=await navigateBrowserFromAddress();if(opened?.ok===false)throw Error(opened.error);
+    setBrowserSignal(text('Spotify’da bölümü oynat. Metin için Canlı Whisper’ı aç; sistem sesi yalnız onayınla işlenir.','Play the episode in Spotify. Open Live Whisper for text; system audio is processed only after your consent.'),true);
+    return {ok:true,url:source.url};
+  }
+
   async function enter(view='podcast') {
     const url=typeof player!=='undefined'?player.browserPageUrl:'';
-    if(isSpotify(url)&&player.workspaceMode==='browser')return open({url,view});
+    if(isSpotify(url)&&player.workspaceMode==='browser'&&!player.browserMediaSeen)return open({url,view});
     const layer=document.getElementById('playerLayer');
     if(layer?.classList.contains('hidden')&&player.mediaKey)await window.MediaHomeUI?.resumeWorkspace?.();
     if(!layer?.classList.contains('hidden')){
@@ -27,12 +43,14 @@
     const modes=h('div',{class:'pdl-modes',role:'group','aria-label':text('Açılacak görünüm','View to open')});
     for(const [value,tr,en]of [['bilingual','Çift dilli çalış','Bilingual study'],['podcast','Podcast','Podcast']])modes.append(h('button',{type:'button',class:'pdl-mode','data-view':value,on:{click:()=>{mode=value;sync();}}},text(tr,en)));
     const input=h('input',{type:'url',id:'podcastLinkUrl',value:url,autocomplete:'off',maxlength:'4096',placeholder:'https://open.spotify.com/episode/…','aria-describedby':'podcastLinkHint'});
-    const label=h('label',{class:'pdl-field',for:'podcastLinkUrl'},h('span',{text:text('Spotify bölümü veya RSS adresi','Spotify episode or RSS URL')}),input);
-    const status=h('p',{class:'pdl-status',role:'status','aria-live':'polite',id:'podcastLinkHint',text:text('Spotify sesi alınmaz; uygun bölüm yayıncının RSS kaynağından açılır.','Spotify audio is not acquired; a matching episode opens from its publisher RSS source.')});
+    const label=h('label',{class:'pdl-field',for:'podcastLinkUrl'},h('span',{text:text('Spotify programı, bölümü veya RSS adresi','Spotify show, episode or RSS URL')}),input);
+    const status=h('p',{class:'pdl-status',role:'status','aria-live':'polite',id:'podcastLinkHint',text:text('RSS varsa mevcut oynatıcıda açılır. RSS olmasa da Spotify’da dinleyebilir, onayınla Canlı Whisper kullanabilirsin.','Use the existing player with RSS, or listen in Spotify and use Live Whisper after your consent.')});
     const results=h('div',{class:'pdl-results'}),source=h('div',{class:'pdl-source'});
     const lookup=h('button',{type:'submit',class:'pdl-button pdl-primary',text:text('Bağlantıyı incele','Review link')});
     const apply=h('button',{type:'button',class:'pdl-button pdl-primary',hidden:true,text:text('Onayla ve aç','Confirm and open')});
-    const actions=h('div',{class:'pdl-actions'},lookup,apply);
+    const direct=h('button',{type:'button',class:'pdl-button',hidden:true,text:text('Spotify’da dinle','Listen in Spotify'),on:{click:()=>void task(async mine=>{await openSpotifyBrowser(input.value,{onNavigating:()=>{if(alive(mine))dialog.close();}});})}});
+    const saveSpotify=h('button',{type:'button',class:'pdl-button',hidden:true,text:text('Spotify kaynağını kütüphaneme ekle','Save Spotify source to my library'),on:{click:()=>void task(async mine=>{const saved=await window.api.mediaShelf({action:'podcast-spotify-add',url:input.value});if(!saved?.ok)throw Error(saved?.error||text('Kaynak kaydedilemedi.','Source could not be saved.'));if(alive(mine))status.textContent=text('Spotify kaynağı podcast kütüphanene eklendi.','Spotify source added to your podcast library.');})}});
+    const actions=h('div',{class:'pdl-actions'},lookup,apply,direct,saveSpotify);
     const form=h('form',{class:'pdl-form'},modes,lead,label,actions,status,source,results);
     const other=h('button',{type:'button',class:'pdl-button',text:text('Diğer medya kaynakları','Other media sources'),on:{click:()=>{dialog.close();window.MediaHubUI?.open();}}});
     const footer=h('footer',{class:'pdl-footer'},h('span',{text:text('Aynı oynatıcı · ayrı kaynak kimliği','Same player · separate source identity')}),other);
@@ -43,7 +61,7 @@
       heading.textContent=mode==='podcast'?text('Podcast dinle. Metni takip et.','Listen to podcasts. Follow the transcript.'):text('İki dille aynı bölüme bak.','Study the same episode in two languages.');
       modes.style.setProperty('--pdl-mode',mode==='podcast'?'1':'0');
       for(const button of modes.children){button.setAttribute('aria-pressed',String(button.dataset.view===mode));button.disabled=busy;}
-      lookup.disabled=busy;apply.disabled=busy||!selected;input.disabled=busy;
+      lookup.disabled=busy;apply.disabled=busy||!selected;input.disabled=busy;direct.hidden=saveSpotify.hidden=!isSpotify(input.value);direct.disabled=saveSpotify.disabled=busy;
       const feedAction=results.querySelector('[data-pdl-feed-use]');
       lookup.classList.toggle('pdl-primary',!selected&&!feedAction);lookup.classList.toggle('pdl-secondary',!!selected||!!feedAction);
       feedAction?.classList.toggle('pdl-primary',!selected);
@@ -84,13 +102,13 @@
     async function spotifyPreview(mine,rssUrl){
       requestId='podcast-link-'+(++sequence);
       const data=await request('podcast-spotify-preview',{url:input.value.trim(),discover:!rssUrl,rssUrl,requestId});
-      if(!alive(mine))return;preview=data;selected=null;results.replaceChildren();source.replaceChildren(h('span',{class:'pdl-eyebrow',text:text('SPOTIFY BÖLÜMÜ','SPOTIFY EPISODE')}),h('h3',{text:data.title}),h('p',{class:'pdl-status',text:text('Spotify’dan bölüm adı alındı. RSS eşleşmesini yayıncı ve tarihle kontrol et.','The episode title came from Spotify. Check the RSS match against publisher and date.')}));
+      if(!alive(mine))return;preview=data;selected=null;results.replaceChildren();source.replaceChildren(h('span',{class:'pdl-eyebrow',text:text('SPOTIFY KAYNAĞI','SPOTIFY SOURCE')}),h('h3',{text:data.title}),h('p',{class:'pdl-status',text:text('RSS eşleşmesini inceleyebilir veya Spotify’da doğrudan dinleyebilirsin.','Review an RSS match or listen directly in Spotify.')}));
       showCandidates(data.candidates||[]);
       if(data.feedPreview){
         const review=data.feedPreview;
         const card=h('section',{class:'pdl-feed-review'},h('h3',{text:review.feed.title}),h('p',{text:hostname(review.feed.url)+' · '+text(review.count+' kayıt',review.count+' entries')}),h('p',{text:text('Yeni RSS kaynağı Akışlar’a eklenir; mevcut kaynak korunur. Sonra bölüm adayını onaylayabilirsin.','New RSS sources are added to Feeds; existing sources are reused. You can then confirm the episode candidate.')}));
         for(const episode of (data.suggestedEpisodes||[]).slice(0,3))card.append(h('p',{class:'pdl-preview-title',text:episode.title}));
-        card.append(h('button',{type:'button',class:'pdl-button','data-pdl-feed-use':'',text:text('Bu RSS kaynağını kullan','Use this RSS source'),on:{click:()=>void task(async next=>{await useFeed(review,next);if(alive(next))await spotifyPreview(next);})}}));results.prepend(card);
+        card.append(h('button',{type:'button',class:'pdl-button','data-pdl-feed-use':'',text:text('Bu RSS kaynağını kullan','Use this RSS source'),on:{click:()=>void task(async next=>{const feed=await useFeed(review,next);if(!alive(next)||!feed)return;if(data.kind==='show'){const entries=await request('entries',{feedId:feed.id,kind:'podcast',limit:200});if(!alive(next))return;preview={kind:'show'};results.replaceChildren();showCandidates(entries.rows.filter(row=>row.feedId===feed.id).map(row=>({...row,entryId:row.id,publisher:row.author||row.sourceFeed?.title,feedUrl:row.sourceFeed?.url,audioAvailable:row.enclosures?.some(e=>/^audio\//.test(e.type))})));status.textContent=text('Seçtiğin yayıncı kaynağından açılacak bölümü seç.','Choose an episode from the publisher source you selected.');}else await spotifyPreview(next);})}}));results.prepend(card);
       }
       for(const feed of data.suggestedFeeds||[])results.append(h('button',{type:'button',class:'pdl-feed pdl-button',on:{click:()=>void task(next=>spotifyPreview(next,feed.url))}},h('strong',{text:feed.title}),h('small',{text:[feed.publisher,hostname(feed.url)].filter(Boolean).join(' · ')}),h('span',{text:text('RSS adayını incele','Review RSS candidate')})));
       status.textContent=(data.candidates||[]).length?text('Bölüm, yayıncı ve tarihi karşılaştır; açmadan önce bir adayı seç.','Compare episode, publisher and date; select a candidate before opening.'):data.discovery?.state==='unavailable'?text('RSS dizinine ulaşılamadı. Yayıncının RSS adresiyle devam edebilirsin.','The RSS directory is unavailable. Continue with the publisher RSS URL.'):text('RSS önerileri eşleşme kanıtı değildir. Bir kaynağı incele veya RSS adresini kendin gir.','RSS suggestions are not match evidence. Review a source or enter its RSS URL.');
@@ -106,7 +124,7 @@
       let parsed;try{parsed=new URL(input.value.trim());}catch{throw Error(text('Geçerli bir Spotify bölüm veya RSS adresi gir.','Enter a valid Spotify episode or RSS URL.'));}
       if(!['https:','http:'].includes(parsed.protocol)||parsed.username||parsed.password)throw Error(text('Yalnız güvenli web bağlantıları kullanılabilir.','Only safe web links can be used.'));
       spotify=isSpotify(input.value.trim());
-      if(parsed.hostname==='open.spotify.com'&&!spotify)throw Error(text('Spotify programı yerine bölümün paylaşım bağlantısını yapıştır.','Paste an episode share link rather than a Spotify show link.'));
+      if(parsed.hostname==='open.spotify.com'&&!spotify)throw Error(text('Geçerli bir Spotify program veya bölüm paylaşım bağlantısı gir.','Enter a valid Spotify show or episode share link.'));
       if(spotify){await spotifyPreview(mine);return;}
       requestId='podcast-link-'+(++sequence);const review=await request('preview',{url:input.value.trim(),requestId});if(!alive(mine))return;
       source.replaceChildren(h('h3',{text:review.feed.title}));
@@ -117,7 +135,7 @@
     });});
     apply.addEventListener('click',()=>void task(async mine=>{
       const row=selected,chosen=mode;if(!row||!preview)return;
-      if(spotify)await request('podcast-spotify-confirm',{token:preview.token,entryId:row.entryId});if(!alive(mine))return;
+      if(spotify&&preview.kind!=='show')await request('podcast-spotify-confirm',{token:preview.token,entryId:row.entryId});if(!alive(mine))return;
       status.textContent=text('Bölüm açılıyor…','Opening episode…');
       await window.PlayerSourceCatalogIntegration.openPodcastEntry(row.entryId,{view:chosen,isCancelled:()=>!alive(mine)});
       if(alive(mine))dialog.close();
@@ -133,5 +151,5 @@
   const labelBrowser=()=>{const label=text('Bölüm bağlantısı aç','Open episode link');linkEntry.title=label;linkEntry.setAttribute('aria-label',label);if(browserEntry){browserEntry.textContent=text('Podcast','Podcast');browserEntry.title=text('Podcast görünümüne geç veya bölüm linki yapıştır','Open podcast view or paste an episode link');}};
   browserEntry?.addEventListener('click',()=>void enter('podcast'));
   document.addEventListener('ui-locale-change',labelBrowser);labelBrowser();
-  window.PodcastLinkUI=Object.freeze({open,enter,isSpotify});
+  window.PodcastLinkUI=Object.freeze({open,enter,isSpotify,openSpotify:openSpotifyBrowser});
 })();

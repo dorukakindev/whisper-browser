@@ -82,7 +82,7 @@ function exportPackage(root, output, rendererValues = {}, externalAliases = null
   function add(file, name) {
     if (seen.has(name)) return;
     const stat = fs.lstatSync(file); if (!stat.isFile() || stat.isSymbolicLink()) return;
-    if (stat.size > 16e6 || (total += stat.size) > LIMIT / 1.5) throw new Error('Çalışma paketi çok büyük (en fazla 170 MB veri).');
+    if (stat.size > (name==='media-shelf.json'?require('./media-shelf-limits').MAX_BYTES:16e6) || (total += stat.size) > LIMIT / 1.5) throw new Error('Çalışma paketi çok büyük (en fazla 170 MB veri).');
     let buffer = fs.readFileSync(file);
     if (ROOTS.has(name)) {
       // Gömülü mutlak yollar taşınabilir {{ROOT}}/... formuna çevrilir — paket
@@ -338,7 +338,7 @@ function describePackage(data, root = null) {
   const chats=json('assistant-conversations.json');if(Array.isArray(chats?.threads))summary.assistantConversations=chats.threads.length;
   const folders=json('media-folder-watches.json');if(Array.isArray(folders))summary.watchedFolders=folders.length;
   const torrents=json('torrent-library.json');if(Array.isArray(torrents))summary.torrents=torrents.length;
-  if(root){summary.changes={added:0,changed:0,unchanged:0};for(const file of files){const target=path.join(root,file.name);let same=false;if(fs.existsSync(target)&&!fs.lstatSync(target).isSymbolicLink()&&fs.statSync(target).size<16e6)same=fs.readFileSync(target).equals(Buffer.from(file.data,'base64'));summary.changes[!fs.existsSync(target)?'added':same?'unchanged':'changed']++;}}
+  if(root){summary.changes={added:0,changed:0,unchanged:0};for(const file of files){const target=path.join(root,file.name);let same=false;if(fs.existsSync(target)&&!fs.lstatSync(target).isSymbolicLink()&&fs.statSync(target).size<(file.name==='media-shelf.json'?require('./media-shelf-limits').MAX_BYTES:16e6))same=fs.readFileSync(target).equals(Buffer.from(file.data,'base64'));summary.changes[!fs.existsSync(target)?'added':same?'unchanged':'changed']++;}}
   return summary;
 }
 

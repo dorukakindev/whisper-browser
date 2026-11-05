@@ -509,8 +509,8 @@
   }
   function radio(root) {
     if(!window.PodcastLibraryUI)return classicRadio(root);
-    const target=view,legacy=snapshot;let renderGeneration=0;
-    const render=async()=>{const request=++renderGeneration;
+    const target=view;let legacy=snapshot;let renderGeneration=0;
+    const render=async()=>{const request=++renderGeneration;legacy=await api('list');if(target!==view||request!==renderGeneration||!root.isConnected)return;
       let podcasts=legacy.podcasts||[],feedError='';
       if(window.api.feedsRequest){try{
         const results=await Promise.all([window.api.feedsRequest({action:'list'}),window.api.feedsRequest({action:'entries',kind:'podcast',limit:200,offset:0})]);
@@ -526,7 +526,7 @@
       root.replaceChildren();const statusNode=el('p','ms-status',feedError);statusNode.setAttribute('role','status');root.append(statusNode);
       target.libraryDispose?.();target.libraryDispose=window.PodcastLibraryUI.mount(root,{...legacy,podcasts},{
         addRss:()=>{const dialog=window.PodcastLinkUI?.open({view:'podcast'});if(!dialog)throw Error(t('RSS preview is unavailable.','RSS önizlemesi kullanılamıyor.'));dialog.addEventListener('close',()=>void render(),{once:true});},
-        openLocal:()=>document.getElementById('playerPickVideo')?.click(),
+        openLocal:()=>document.getElementById('playerPickVideo')?.click(),openSpotify:url=>window.PodcastLinkUI.openSpotify(url),
         play:async(p,row,scene)=>{if(row.canonicalFeed)return window.PlayerSourceCatalogIntegration.openPodcastEntry(row.entryId,{view:scene==='bilingual'?'bilingual':'podcast'});await listen(p.episodes.filter(e=>!e.canonicalFeed).map(e=>({...e,id:p.id,publisher:p.publisher||p.title,image:e.image||p.image,kind:'podcasts'})),p.episodes.filter(e=>!e.canonicalFeed).findIndex(e=>e.url===row.url));if(scene){if(window.CinemaSahne?.openShelf)await window.CinemaSahne.openShelf({mode:scene==='bilingual'?'study':'podcast'});else await openPodcastMode();}},
         enqueue:async(p,row)=>{if(row.canonicalFeed){let data=await api('list'),show=data.podcasts.find(s=>s.url===p.url);if(!show){await api('podcast-add',{url:p.url});data=await api('list');show=data.podcasts.find(s=>s.url===p.url);}const episode=show?.episodes.find(e=>e.url===row.url||row.externalId&&e.guid===row.externalId);if(!episode)throw Error(t('Episode not found in the publisher feed.','Bölüm yayıncı akışında bulunamadı.'));appendQueue({...episode,id:show.id,publisher:show.publisher||show.title,image:episode.image||show.image,kind:'podcasts'});status(t('Source saved to your listening library and episode queued.','Kaynak dinleme kütüphanene kaydedildi ve bölüm kuyruğa eklendi.'));}else appendQueue({...row,id:p.id,publisher:p.publisher||p.title,image:row.image||p.image,kind:'podcasts'});},queue:()=>order.snapshot(),playQueued:key=>{const index=order.snapshot().rows.findIndex(row=>row.queueKey===key);if(index<0)throw Error(t('Queue item changed.','Kuyruk öğesi değişti.'));return playQueue(index);},subscribeQueue:listener=>{queueSubscribers.add(listener);return()=>queueSubscribers.delete(listener);},openQueue,classic:classicRadio
       });
