@@ -46,3 +46,10 @@ test('podcast source intervals accept explicit mixed units without guessing an u
  const M=require('../src/assistant-video-intent');for(const q of ['bu podcasti 30. saniyeden 2. dakikaya kadar yazıya dök ve çevir','transcribe this podcast from 30 seconds to 2 minutes'])assert.deepEqual(M.match(q).range,{start:30,end:120});
  assert.equal(M.match('bu podcasti 30 saniye yazıya dök').rangeUnresolved,true);assert.equal(M.match('bu podcasti 30. saniyeden 2. dakikaya kadar yazıya dökme'),null);
 });
+
+
+test('active podcast commands recognize episode prose and missing-only retry without inferring unrelated work',()=>{
+ for(const q of ['Bu bölümü yazıya dök','Bu bölümü yazıya dök ve çevir'])assert.equal(match(q,{podcast:true})?.kind,q.includes('çevir')?'whisper-translate':'whisper-only');
+ for(const q of ['eksik çeviriyi tamamla','Bu podcastin eksik çevirisini tamamla','retry failed translations']){assert.equal(match(q,{podcast:true})?.kind,'retry-translation');assert.equal(match(q),null);}
+ for(const q of ['eksik çeviriyi tamamlama','neden eksik çeviriyi tamamla','"eksik çeviriyi tamamla" yazıyor','Bu bölümü yazıya dökme'])assert.equal(match(q,{podcast:true}),null,q);
+});

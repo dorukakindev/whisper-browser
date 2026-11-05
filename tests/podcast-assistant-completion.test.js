@@ -19,7 +19,7 @@ test('Presentation toggle does not call source loading, play, acquisition or ASR
 
 test('A completed download cannot paint an unknown playing stream merely because episode and generation match',()=>{
  const vm=require('node:vm'),source=fs.readFileSync(require.resolve('../src/renderer/renderer.js'),'utf8');
- const start=source.indexOf('function podcastJobMatchesCurrent(job)'),end=source.indexOf('// Podcast uses the existing frozen-options queue',start);
+ const start=source.indexOf('function podcastJobMatchesCurrent(job)'),end=source.indexOf('function podcastQueueOwnerCurrent(',start);
  const player={mediaKey:'p',generation:1,workspaceAudio:{entryId:'one',sourceVersion:'unknown-stream'}};const context={player};vm.runInNewContext(source.slice(start,end)+';globalThis.matches=podcastJobMatchesCurrent;',context);
  const job={mediaKey:'p',generation:1,podcastBinding:{entryId:'one',sourceVersion:'download-sha'}};assert.equal(context.matches(job),false);player.workspaceAudio.sourceVersion='download-sha';assert.equal(context.matches(job),false,'ASR output is not a publisher transcript even when versions match');Object.assign(job.podcastBinding,{outputRole:'translation',transcriptProvenance:'publisher'});assert.equal(context.matches(job),true);
 });
@@ -44,4 +44,22 @@ test('Bounded podcast context declares partial coverage instead of claiming a co
  const cues=Array.from({length:45},(_,i)=>({id:String(i),start:i,end:i+1,text:'Line '+i}));
  const packet=context.freezePodcast({...snap,time:50},[{...track,cues}],'watched');
  assert.equal(packet.transcript_evidence.eligibleCues,45);assert.equal(packet.transcript_evidence.includedCues,40);assert.equal(packet.transcript_evidence.coverage,'partial');assert(packet.transcript_evidence.limitations.includes('do-not-claim-complete-summary'));
+});
+
+
+test('explicit so-far podcast question narrows a full UI scope and freezes its original clock',()=>{
+ const vm=require('node:vm'),text=fs.readFileSync(require.resolve('../src/renderer/renderer.js'),'utf8'),start=text.indexOf('function activePodcastContext('),end=text.indexOf('function podcastContextCurrent(',start),snapshot={mediaKey:'episode',generation:1,time:10,sourceVersion:'v1',sourceTrack:{id:'s',revision:'r'}};
+ const tracks=[{id:'s',revision:'r',role:'source',timed:true,cues:[{id:'past',start:0,end:5,text:'Heard evidence'},{id:'future',start:15,end:20,text:'Unheard future'}]}];
+ const env={window:{AssistantSourceContext:context,MediaShelfUI:{isPodcastMode:()=>true,readSnapshot:()=>snapshot,getTranscriptTracks:()=>tracks}},$:()=>({value:'full'})};vm.runInNewContext(text.slice(start,end),env);
+ assert.equal(env.activePodcastContext().transcript_evidence.evidence.length,2);
+ for(const question of ['Bu ana kadar özetle','Summarize so far']){snapshot.time=10;const packet=env.activePodcastContext(undefined,question);snapshot.time=50;assert.deepEqual(packet.transcript_evidence.evidence.map(row=>row.metin),['Heard evidence']);assert.equal(packet.podcastAnchor.time,10);}
+ assert.match(text,/const podcastPacket = activePodcastContext\(undefined, q\)/);
+});
+
+
+test('bilingual presentation retains frozen podcast evidence and source validation',()=>{
+ const vm=require('node:vm'),text=fs.readFileSync(require.resolve('../src/renderer/renderer.js'),'utf8'),start=text.indexOf('function activePodcastContext('),end=text.indexOf('function globalAssistantContext(',start);
+ const snapshot={mediaKey:'rss:study',episodeIdentity:'episode',generation:1,sourceVersion:'source',time:10,sourceTrack:{id:'s',revision:'r'}},tracks=[{id:'s',revision:'r',role:'source',timed:true,cues:[{id:'a',start:0,end:5,text:'Past'},{id:'b',start:20,end:25,text:'Future'}]}];
+ const env={window:{AssistantSourceContext:context,CinemaSahne:{current:{o:{mode:'study'}}},PlayerWorkspaceIntegration:{isPodcastMode:()=>false,snapshot:()=>snapshot,getTranscriptTracks:()=>tracks}},$:()=>({value:'full'})};vm.runInNewContext(text.slice(start,end),env);
+ const packet=env.activePodcastContext(undefined,'Bu ana kadar özetle');assert.deepEqual(packet.transcript_evidence.evidence.map(c=>c.metin),['Past']);assert(env.podcastContextCurrent(packet));snapshot.time=50;assert.equal(packet.podcastAnchor.time,10);assert(env.podcastContextCurrent(packet));snapshot.sourceVersion='changed';assert.equal(env.podcastContextCurrent(packet),false);
 });

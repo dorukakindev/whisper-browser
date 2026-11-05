@@ -7,7 +7,7 @@
   if(parts.at(-1)>=60||parts.length===3&&parts[1]>=60)return NaN;
   return parts.length===2?parts[0]*60+parts[1]:parts[0]*3600+parts[1]*60+parts[2];
  };
- function match(value){
+ function match(value,{podcast=false}={}){
   const text=foldCommand(value).trim();
   if(!text||text.length>500||/["“”`]/u.test(text))return null;
   if(/(?:^|\s)(?:nasıl|neden|niye|how|why|what is|ne demek|yapabilir miyiz|mümkün mü)(?:\s|[?!.]|$)/u.test(text))return null;
@@ -18,15 +18,17 @@
   // Configuration requests belong to the typed agent; never infer a production start.
   if(/(?:model(?:ini|i)?|motor(?:unu|u)?|engine|beam|ayar|settings?|precision|compute|device|font|boyut|opacity)/u.test(text))return null;
   const noWhisper=/(?:whisper.{0,15}kullanma|without whisper)/u.test(text);
-  const podcastTranscription=/\bpodcast/u.test(text)&&/yazıya\s+dök(?:er misin|ebilir misin)?(?:\s|[,;.!?]|$)/u.test(text)&&!/yazıya\s+dök(?:me|mey|ülmesin)/u.test(text);
+  const podcastTranscription=(/\bpodcast/u.test(text)||podcast&&/(?:bu|şu)\s+bölümü|this\s+episode/u.test(text))&&/yazıya\s+dök(?:er misin|ebilir misin)?(?:\s|[,;.!?]|$)/u.test(text)&&!/yazıya\s+dök(?:me|mey|ülmesin)/u.test(text);
   const whisper=!noWhisper&&(/(?:\bwhisper\b|\btranscrib(?:e|ing|tion)\b)/u.test(text)||podcastTranscription);
-  const subtitle=/(?:altyaz|subtitle|caption)/u.test(text);
+  const subtitle=/(?:altyaz|subtitle|caption)/u.test(text)||podcast&&/(?:transkript|döküm|transcript)/u.test(text);
+  const retryTranslation=podcast&&(/^(?:(?:bu|şu)\s+(?:podcastin|bölümün)\s+)?(?:(?:yalnızca|yalnız|sadece)\s+)?(?:eksik|başarısız)\s+çeviri(?:yi|leri|lerini|sini)?\s+(?:tamamla|yeniden dene|tekrar dene)[.!?]*$/u.test(text)||/^(?:please\s+)?(?:complete (?:the )?missing translations?|retry (?:the )?failed translations?)[.!?]*$/u.test(text));
   const translate=/(?:çevir|translate|translation)/u.test(text);
   const action=/(?:çevir(?:ebilir misin|ir misin|sene|iniz|in)?|çıkar|oluştur|başlat|yap|hazırla)(?:\s|[,;.!?]|$)|\b(?:transcribe|translate|generate|create|start)\b/u.test(text)
     ||/^(?:(?:yalnız|sadece|only) whisper|whisper only|whisper\s*(?:\+|ve|and)\s*(?:çeviri|translation))[.!?]*$/u.test(text);
-  if(!(action||podcastTranscription)||!(subtitle||whisper))return null;
+  if(!(action||podcastTranscription||retryTranslation)||!(subtitle||whisper||retryTranslation))return null;
   let kind;
-  if(whisper)kind=translate&&!noTranslation?'whisper-translate':'whisper-only';
+  if(retryTranslation)kind='retry-translation';
+  else if(whisper)kind=translate&&!noTranslation?'whisper-translate':'whisper-only';
   else if(subtitle&&translate&&!noTranslation)kind='translate-track';
   else return null;
   // A time interval is accepted only when both ends and an explicit range connector exist.
