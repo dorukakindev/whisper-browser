@@ -4,7 +4,21 @@
  let pending=null;
  const changed=()=>{if(typeof updateAiChatActions==='function')updateAiChatActions();document.dispatchEvent(new Event('assistant-video-task-changed'));};
  const status=()=>pending&&pending.scope===aiSourceScope()?pending:null;
- const owner=task=>player.workspaceMode==='browser'&&player.browserActiveTabId===task.tabId
+ function podcastSource(){
+  const selection=typeof globalAssistantContext==='function'?globalAssistantContext():null;
+  if(selection&&selection.workspace!=='podcast'&&selection.type!=='podcast'&&!selection.podcastAnchor)return null;
+  const layer=document.getElementById('playerLayer');
+  if(layer?.classList.contains('hidden')){
+   const snapshot=window.MediaShelfUI?.readSnapshot?.();
+   if(snapshot)return {surface:window.MediaShelfUI,snapshot,owner:'media-shelf'};
+  }else if(player.workspaceMode==='player'){
+   const audio=player.workspaceAudio;
+   if(audio&&audio.mediaKey===player.mediaKey&&audio.generation===player.generation)return {surface:window.PlayerSourceCatalogIntegration,snapshot:audio,owner:'player'};
+  }
+  return null;
+ }
+ const samePodcast=(left,right)=>!!left&&!!right&&left.owner===right.owner&&['mediaKey','generation','sourceVersion'].every(key=>left.snapshot[key]===right.snapshot[key]);
+ const owner=task=>task.podcast?samePodcast(task.podcast,podcastSource())&&task.scope===aiSourceScope()&&window.AssistantWorkspace?.activeId()===task.thread:player.workspaceMode==='browser'&&player.browserActiveTabId===task.tabId
    &&currentBrowserYoutubeUrl()===task.url&&browserTabState(task.tabId)?.generation===task.generation
    &&task.scope===aiSourceScope()&&window.AssistantWorkspace?.activeId()===task.thread;
  const describeRange=range=>range?` · ${Math.floor(range.start/60)}:${String(range.start%60).padStart(2,'0')}–${Math.floor(range.end/60)}:${String(range.end%60).padStart(2,'0')}`:'';
@@ -80,20 +94,35 @@
   const intent=window.AssistantVideoIntent?.match(question);
   if(!intent)return false;
   if(/deepseek|shuai|deepinfra|\bsol\b|gpt|gemini|claude|sağlayıcı|provider/i.test(question))return false;
-  if(intent.kind==='translate-track'){
+  const podcast=podcastSource();
+  if(!podcast&&intent.kind==='translate-track'){
    const target=effectiveBrowserProfile().values.targetLanguage||'tr';
    if(intent.range||intent.forSpeech||intent.targetLanguage&&intent.targetLanguage!==target||!player.browserTracks.some(row=>row.role==='source'&&row.path))return false;
   }
   if(pending&&!owner(pending))finish(pending,t('The source or conversation changed; check the original video job.','Kaynak veya sohbet değişti; önceki video işini kontrol et.'),'failed');
   if(pending)return true;
   const tab=browserTabState(),url=typeof globalAssistantContext==='function'&&globalAssistantContext()?'':currentBrowserYoutubeUrl();
-  const task={intent,scope:aiSourceScope(),tabId:tab?.id||'',generation:tab?.generation,url,thread:window.AssistantWorkspace?.activeId(),cancelled:false};
+  const task={intent,podcast:podcast?{...podcast,snapshot:{...podcast.snapshot}}:null,scope:aiSourceScope(),tabId:tab?.id||'',generation:tab?.generation,url,thread:window.AssistantWorkspace?.activeId(),cancelled:false};
   aiChatAdd('user',question);
   task.job={chatQuestion:question,chatContext:{},bubble:aiChatAdd('ai',t('Checking the video and source…','Video ve kaynak kontrol ediliyor…'),'is-loading')};
   window.AssistantWorkspace?.begin(task.job);
   pending=task;changed();
   const input=document.getElementById('aiChatText');if(input)input.value='';
   try{
+   if(task.podcast){
+    if(intent.rangeInvalid||intent.rangeUnresolved)throw Error(t('Specify a valid interval, for example 05:00–10:00.','Geçerli bir aralık belirt; örneğin 05:00–10:00.'));
+    if(!owner(task))throw Error(t('Podcast source changed.','Podcast kaynağı değişti.'));
+    const operation=intent.kind==='whisper-only'?'transcribe':intent.kind==='whisper-translate'?'transcribe-translate':'translate';
+    if(operation==='translate'&&(intent.range||intent.forSpeech||intent.targetLanguage&&intent.targetLanguage!==(document.getElementById('translateTo')?.value||'tr')))
+     throw Error(t('Use the podcast transcript translation controls for this translation option.','Bu çeviri seçeneği için podcast dökümü çeviri kontrollerini kullan.'));
+    if(typeof task.podcast.surface?.runPodcastTask!=='function')throw Error(t('Podcast processing is unavailable.','Podcast işlemi kullanılamıyor.'));
+    const receipt=await task.podcast.surface.runPodcastTask({operation,expected:task.podcast.snapshot,targetLanguage:intent.targetLanguage||undefined,forSpeech:intent.forSpeech||undefined,range:intent.range||null,isCancelled:()=>task.cancelled||!owner(task)});
+    if(task.cancelled){finish(task,t('The podcast request was stopped before queue acceptance.','Podcast isteği kuyruğa kabul edilmeden durduruldu.'),'stopped');return true;}
+    if(!owner(task))throw Error(t('Podcast source or conversation changed. Check the original queue for any accepted job.','Podcast kaynağı veya sohbet değişti. Kabul edilmiş iş için önceki kuyruğu kontrol et.'));
+    if(!receipt?.queued||!receipt.id)throw Error(t('Podcast queue acceptance was not confirmed.','Podcast işinin kuyruğa kabulü doğrulanamadı.'));
+    finish(task,(operation==='transcribe-translate'?t('Podcast transcription + translation was added to the existing queue.','Podcast dökümü + çeviri mevcut kuyruğa eklendi.'):operation==='transcribe'?t('Podcast transcription was added to the existing queue.','Podcast dökümü mevcut kuyruğa eklendi.'):t('Podcast transcript translation was added to the existing queue.','Podcast dökümü çevirisi mevcut kuyruğa eklendi.'))+' '+t('Follow progress and stop controls in the queue.','İlerlemeyi ve durdurmayı kuyruktan yönet.'),'complete');
+    return true;
+   }
    if(!url||!task.tabId)throw Error(t('Open a YouTube video in the browser first.','Önce browser içinde bir YouTube videosu aç.'));
    if(intent.rangeInvalid||intent.rangeUnresolved)throw Error(t('Specify a valid interval, for example 05:00–10:00. The whole video was not started.','Geçerli bir aralık belirt; örneğin 05:00–10:00. Videonun tamamı başlatılmadı.'));
    const configuredTarget=intent.kind==='translate-track'?effectiveBrowserProfile().values.targetLanguage||'tr':document.getElementById('translateTo')?.value||'tr';

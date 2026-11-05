@@ -1,13 +1,13 @@
 "use strict";
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const {JSDOM}=require('jsdom');
-function mount(t,{untimed=false,cinema=false}={}){
+function mount(t,{untimed=false,cinema=false,audio=false,empty=false,study=false,actions=[]}={}){
  const dom=new JSDOM('<div id="host"></div>',{url:'https://test.invalid',pretendToBeVisual:true,runScripts:'outside-only'}),w=dom.window;
  w.UiLocale={get:()=> 'tr'};w.matchMedia=()=>({matches:true});w.Element.prototype.scrollTo=function(value){this.scrollTop=value.top;};
  let time=2,revision="r1";const commands=[];const rows=untimed?[{id:'text',start:0,end:0,timed:false,src:'Yayıncı metni',trs:[],unc:[],words:null}]:[{id:'a',start:0,end:10,timed:true,src:'A source sentence',trs:['Birinci çeviri','İkinci çeviri'],unc:[],words:null},{id:'b',start:10,end:20,timed:true,src:'The next sentence',trs:[],unc:[],words:null}];
- const adapter={caps:{loop:true,cinema,study:true},identity:()=> 'same-source',info:()=>({title:'Bölüm',langs:{src:'en',tr:'tr'},chapters:[{t:0,label:'Giriş'},{t:10,label:'İkinci bölüm'}],queue:[{index:1,title:'Sıradaki gerçek kayıt'}]}),state:()=>({time,duration:30,paused:true,rate:1,rows,rev:revision,untimed,canSeek:true}),cmd:(...args)=>{commands.push(args);return Promise.resolve(args[0]==='wordInfo'?{ok:true,word:args[1].word,source:rows[args[1].row].src,translations:rows[args[1].row].trs,canSave:true,saved:false}:{ok:args[0]!=='loop',code:'busy'});},panel:()=>({sections:[],job:{state:'idle'}})};
+ const adapter={caps:{loop:true,cinema,study:true},identity:()=> 'same-source',actions:()=>actions,info:()=>({audio,title:'Bölüm',langs:{src:'en',tr:'tr'},chapters:[{t:0,label:'Giriş'},{t:10,label:'İkinci bölüm'}],queue:[{index:1,title:'Sıradaki gerçek kayıt'}]}),state:()=>({time,duration:30,paused:true,rate:1,volume:.42,rows:empty?[]:rows,rev:revision,untimed,canSeek:true}),cmd:(...args)=>{commands.push(args);return Promise.resolve(args[0]==='wordInfo'?{ok:true,word:args[1].word,source:rows[args[1].row].src,translations:rows[args[1].row].trs,canSave:true,saved:false}:{ok:args[0]!=='loop',code:'busy'});},panel:()=>({sections:[],job:{state:'idle'}})};
  w.eval(fs.readFileSync(require.resolve('../src/renderer/sahne.js'),'utf8'));
- const sh=new w.Sahne(w.document.getElementById('host'),adapter,{mode:cinema?'cinema':'podcast',intro:false});
+ const sh=new w.Sahne(w.document.getElementById('host'),adapter,{mode:cinema?'cinema':study?'study':'podcast',intro:false});
  t.after(()=>{sh.destroy();w.close();});return {w,sh,commands,setTime:value=>time=value,setRevision:value=>revision=value};
 }
 test('manual transcript browsing remains stopped; return follows without seeking',t=>{
@@ -35,4 +35,16 @@ test('word card contains actual subtitle context and marks itself as no definiti
 
 test('an open word card is invalidated when its transcript revision changes',async t=>{
  const f=mount(t,{cinema:true});await f.sh.openWord(0,'source');assert.equal(f.sh.q('.sh-word-card').hidden,false);f.setRevision('r2');f.sh.tick();assert.equal(f.sh.q('.sh-word-card').hidden,true);assert.equal(f.sh.s.word,null);
+});
+
+test('audio study retains identity and exposes volume without an empty caption box',t=>{
+ const f=mount(t,{audio:true,empty:true,study:true});
+ assert.equal(f.sh.q('.sh-audio-summary h1').textContent,'Bölüm');assert(f.sh.root.classList.contains('sh-audio'));
+ assert.equal(f.sh.q('[data-r=subs]').hidden,true);const volume=f.sh.q('.sh-volume input');assert.equal(volume.value,'0.42');
+ volume.value='.7';volume.dispatchEvent(new f.w.Event('input'));assert.deepEqual(f.commands.at(-1).slice(0,2),['volume',.7]);assert.equal(f.sh.q('.sh-volume output').textContent,'70%');
+});
+test('visible podcast task buttons invoke the existing task service only once while pending',async t=>{
+ let accept,calls=0;const f=mount(t,{audio:true,empty:true,actions:[{id:'transcribe-translate',label:'Yazıya dök ve çevir',primary:true,run:()=>{calls++;return new Promise(resolve=>accept=resolve);}}]});
+ const button=f.sh.q('[data-task="transcribe-translate"]');assert.equal(button.disabled,false);button.click();button.click();assert.equal(calls,1);
+ assert.equal(f.sh.q('[data-task="transcribe-translate"]').disabled,true);accept({queued:true,id:'existing-job'});await new Promise(resolve=>setImmediate(resolve));assert(f.sh.q('[data-r=toast]').textContent.includes('kuyruğa'));
 });

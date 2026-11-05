@@ -159,6 +159,13 @@
     const stale = { ok: false, code: 'stale-source' };
 
     function job() {
+      const snap = F.snap(), service = kind === 'shelf' ? window.MediaShelfUI : snap?.sourceKind === 'rss' ? window.PlayerSourceCatalogIntegration : null;
+      if (service) {
+        const status = service.podcastTaskState?.() || {}, task = status.job || {state:'idle'};
+        return { ...task, state: status.preparing || task.state === 'queued' ? 'running' : task.state,
+          text: status.preparing ? T('Podcast sesi hazırlanıyor…', 'Preparing podcast audio…') : task.text,
+          cancel: current() && task.cancellable ? () => window.cancelPodcastQueueTask?.(snap, task.id) : null };
+      }
       const bar = $('playerJobBar'), vis = !!bar && !bar.classList.contains('hidden'), text = $('playerJobText')?.textContent?.trim() || '';
       const failed = !!(player.job && player.job.failed), pct = parseFloat($('playerJobFill')?.style.width);
       const cancel = $('playerJobCancel') || $('cancelBtn');
@@ -166,10 +173,27 @@
     }
     const mirror = (resolver, label) => { const b = resolver(); if (!b) return null; const lbl = (label || b.textContent || '').trim().replace(/\s+/g, ' '); return { type: 'button', label: lbl || b.title, hint: b.disabled ? (b.title || '') : '', disabled: !!b.disabled, pressed: b.getAttribute('aria-pressed') === 'true' ? true : undefined, run: () => { if (!current()) return; const target = resolver(); if (target && !target.disabled) { lastAction = resolver; target.click(); } } }; };
     const trackLabel = (t) => (t.label || window.PlayerUiKit?.languageName?.(t.language, window.UiLocale?.get?.()) || T('Altyazı izi', 'Caption track')) + (t.role === 'translation' ? ' · ' + T('çeviri', 'translation') : '');
+    function actions() {
+      const snapshot = F.snap();
+      const service = kind === 'shelf' ? window.MediaShelfUI : snapshot?.sourceKind === 'rss' ? window.PlayerSourceCatalogIntegration : null;
+      if (!service?.runPodcastTask) return [];
+      const expected = { mediaKey: snapshot.mediaKey, generation: snapshot.generation, sourceVersion: snapshot.sourceVersion };
+      const status = service.podcastTaskState?.() || {};
+      return [
+        ['transcribe', T('Whisper ile yazıya dök', 'Transcribe with Whisper')],
+        ['transcribe-translate', T('Yazıya dök ve çevir', 'Transcribe and translate')],
+        ...(status.hasSourceTranscript ? [['translate', T('Transkripti çevir', 'Translate transcript')]] : [])
+      ].map(([id, label], index) => ({ id, type: 'button', label, primary: index === 0,
+        disabled: !current() || !!status.preparing,
+        hint: status.preparing ? T('Kaynak hazırlanıyor…', 'Preparing source…') : '',
+        run: () => { if (!current()) throw new Error(T('Kaynak değişti; işlem başlatılmadı.', 'Source changed; task not started.'));
+          return service.runPodcastTask({ operation: id, expected, isCancelled: () => !current() }); }
+      }));
+    }
     function panel() {
       const sections = [], a11y = [];
       if(kind==='shelf'){
-        sections.push({title:T('Podcast işlemleri','Podcast tasks'),items:[{type:'button',label:T('Döküm, Whisper ve çeviri araçları','Transcript, Whisper and translation tools'),run:()=>{if(current()){window.CinemaSahne.close();window.MediaShelfUI.openPodcastMode();}}}]});
+        sections.push({title:T('Podcast işlemleri','Podcast tasks'),items:[...actions(),{type:'button',label:T('Döküm, Whisper ve çeviri araçları','Transcript, Whisper and translation tools'),run:()=>{if(current()){window.CinemaSahne.close();window.MediaShelfUI.openPodcastMode();}}}]});
       } else if (kind === 'browser') {
         const tracks = (player.browserTracks || []).filter((t) => !t.sourceMismatch), s1 = $('browserTrackSelect'), s2 = $('browserTrackSelect2'), items = [];
         if (tracks.length) {
@@ -185,7 +209,7 @@
         const wh = ['browserWhisperTranslate', 'browserLiveAsr'].map((id) => mirror(() => doc.querySelector(`.browser-study-actions [data-study-action="${id}"]`))).filter(Boolean);
         sections.push({ title: T('Whisper ve çeviri', 'Whisper and translation'), items: wh.length ? wh : [{ type: 'note', text: T('Bu kaynak için Whisper işlemi sunulmuyor.', 'No Whisper action is offered for this source.') }] });
       } else {
-        const sourceActions=F.snap()?.sourceKind==='rss'?[{type:'button',label:T('Podcast / Whisper ve çeviri araçları','Podcast / Whisper and translation tools'),run:()=>{if(current())window.PlayerSourceCatalogIntegration?.podcastTools?.();}}]:[mirror(()=>$('makeSubsBtn'),T('Whisper ile altyazı oluştur','Create subtitles with Whisper')),mirror(()=>$('makeTransBtn'),T('Yüklü altyazıyı çevir','Translate loaded subtitles'))];
+        const sourceActions=F.snap()?.sourceKind==='rss'?[...actions(),{type:'button',label:T('Podcast / Whisper ve çeviri araçları','Podcast / Whisper and translation tools'),run:()=>{if(current())window.PlayerSourceCatalogIntegration?.podcastTools?.();}}]:[mirror(()=>$('makeSubsBtn'),T('Whisper ile altyazı oluştur','Create subtitles with Whisper')),mirror(()=>$('makeTransBtn'),T('Yüklü altyazıyı çevir','Translate loaded subtitles'))];
         const loc = [...sourceActions, mirror(() => $('playerPickSub'), T('Altyazı dosyası seç', 'Choose a subtitle file')), {type:'button',label:T('Tüm oynatıcı ayarları','All player settings'),run:()=>{if(current())PW().openAdvanced?.();}}].filter(Boolean);
         sections.push({ title: T('Altyazı ve Whisper', 'Subtitles and Whisper'), items: loc.length ? loc : [{ type: 'note', text: T('Bu kaynak için altyazı işlemi sunulmuyor.', 'No subtitle task is offered for this source.') }] });
       }
@@ -195,11 +219,11 @@
     }
     return {
       caps: { loop: kind!=='shelf', save: false, cinema:kind==='local', study:true },
-      identity, panel,
+      identity, panel, actions,
       info: () => { const s = F.snap(), l = F.langs(); return { title: F.mediaTitle() || s?.title || '', sub: F.sub(), eyebrow: kind === 'browser' ? T('Şimdi çalıyor', 'Now playing') : kind === 'shelf' ? T('Podcast', 'Podcast') : T('Yerel oynatıcı', 'Local player'), cover: F.cover(), tint: null,
         chapters:kind==='shelf'?[]:(player.chapters||[]).filter(c=>Number.isFinite(c.start)&&c.start>=0&&(!s?.duration||c.start<s.duration)).map(c=>({t:c.start,label:String(c.title||T('Bölüm','Chapter'))})),
         queue:kind==='local'?(player.playlist||[]).map((file,index)=>({index,title:window.PlayerUiKit?.displayTitle(String(file).split(/[\\/]/).pop())||String(file)})).slice(Math.max(0,player.playlistIndex+1),Math.max(0,player.playlistIndex+1)+2):[],native:kind==='local'&&!!window.NativePlayerUI?.active(),audio:kind==='shelf'||s?.sourceKind==='rss'||kind==='local'&&num($('playerVideo')?.readyState)>=2&&!num($('playerVideo')?.videoWidth),langs:l }; },
-      state: () => { const s = F.snap(); if (!s) return { time: 0, duration: 0, paused: true, rate: 1, rows: [], rev: 'none', canSeek: false }; const r = rowsFor(s); return { time: num(s.time), duration: num(s.duration), paused: !!s.paused, rate: num(s.rate) || 1, rows: r.rows, rev: cache.rev, untimed: r.untimed, canSeek: s.capabilities?.seek?.support === 'yes' }; },
+      state: () => { const s = F.snap(); if (!s) return { time: 0, duration: 0, paused: true, rate: 1, rows: [], rev: 'none', canSeek: false }; const r = rowsFor(s); return { time: num(s.time), duration: num(s.duration), paused: !!s.paused, rate: num(s.rate) || 1, volume: kind === 'shelf' ? num($('mediaShelfAudio')?.volume ?? 1) : kind === 'browser' ? num(player.browserVolume ?? 1) : num($('playerVideo')?.volume ?? 1), rows: r.rows, rev: cache.rev, untimed: r.untimed, canSeek: s.capabilities?.seek?.support === 'yes' }; },
       slot: (m) => { const el = F.slot(m); if (el) { el.classList.add('sh-slot-fill'); bounds(); } return el; },
       releaseSlot: () => { clearOwnedLoop(); disposed = true; F.unslot(); restore(); F.dispose(); },
       cmd(t, v, expectedRevision) {
@@ -234,7 +258,7 @@
   function unmount() { if (inst) { inst.destroy(); inst = null; } restore(); host?.remove(); host = null; layer.classList.remove('cp-sahne-on');doc.body.classList.remove('shelf-sahne-on');const old=doc.querySelector('.ms-podcast-workspace');if(old)old.inert=false; key = ''; }
   function mount(kind, mode, intro, prefs) {
     const k = `${kind}:${mode}`; if (inst && key === k) return; const had = !!inst; unmount();
-    host = doc.createElement('div'); host.className = 'sh-host'; host.dataset.uiUntranslated=''; host.style.top = kind==='shelf'?'0px':headH() + 'px'; if(kind==='shelf'){host.classList.add('sh-shelf-host');doc.body.append(host);doc.body.classList.add('shelf-sahne-on');const old=doc.querySelector('.ms-podcast-workspace');if(old)old.inert=true;}else{layer.append(host);layer.classList.add('cp-sahne-on');}
+    host = doc.createElement('div'); host.className = 'sh-host'; host.dataset.uiUntranslated=''; host.style.top = kind==='shelf'?'var(--window-controls-safe-height,38px)':headH() + 'px'; if(kind==='shelf'){host.classList.add('sh-shelf-host');doc.body.append(host);doc.body.classList.add('shelf-sahne-on');const old=doc.querySelector('.ms-podcast-workspace');if(old)old.inert=true;}else{layer.append(host);layer.classList.add('cp-sahne-on');}
     inst = new Sahne(host, makeAdapter(kind, mode), {
       mode, intro: intro && !had, prefs,
       onMode: (m, p) => { sticky = p; if(kind==='shelf'){mount('shelf',m==='study'?'study':'podcast',false,p);return;} if (kind === 'browser') window.BrowserPodcastUI?.setMode(m === 'podcast'); else {localView=m==='cinema'?'cinema':'study';PW().setPodcastMode(m==='podcast');} evaluate(); },

@@ -12,7 +12,7 @@
     loop: 'M17 2l4 4-4 4|M3 11V9a3 3 0 0 1 3-3h15|M7 22l-4-4 4-4|M21 13v2a3 3 0 0 1-3 3H3', moon: 'M20 14.5A8.5 8.5 0 1 1 9.5 4a6.6 6.6 0 0 0 10.5 10.5Z',
     focus: 'M4 9V5h4|M20 9V5h-4|M4 15v4h4|M20 15v4h-4', close: 'M6 6l12 12|M18 6 6 18', copy: 'M9 9h10v10H9z|M5 15V5h10', star: 'M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 17l-5.2 2.7 1-5.9L3.5 9.7l5.9-.8Z',
     classic: 'M4 5h16v14H4z|M15 5v14', search: 'M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Z|m15.5 15.5 4 4', swap: 'M7 7h13l-3-3|M17 17H4l3 3', chev: 'm15 5-7 7 7 7',
-    mic: 'M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 6 0Z|M6 11a6 6 0 0 0 12 0|M12 17v4', tools: 'M4 7h10|M18 7h2|M4 17h2|M10 17h10|M14 4v6|M6 14v6', down: 'M12 5v14|m6 13 6 6 6-6'
+    volume: 'M11 5 6 9H3v6h3l5 4V5Z|M15 8a6 6 0 0 1 0 8|M18 5a10 10 0 0 1 0 14', mic: 'M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 6 0Z|M6 11a6 6 0 0 0 12 0|M12 17v4', tools: 'M4 7h10|M18 7h2|M4 17h2|M10 17h10|M14 4v6|M6 14v6', down: 'M12 5v14|m6 13 6 6 6-6'
   };
   const FILLED = new Set(['play', 'pause']);
   const ic = (n) => `<svg class="i${FILLED.has(n) ? ' f' : ''}" viewBox="0 0 24 24" aria-hidden="true">${P[n].split('|').map((d) => `<path d="${d}"/>`).join('')}</svg>`;
@@ -49,7 +49,7 @@
           <div class="sh-top-r"><button class="sh-btn" data-a="panel" type="button" aria-pressed="false" aria-haspopup="dialog">${ic('tools')}<span>${T('İşlemler', 'Tasks')}</span></button><button class="sh-btn" data-a="sleep" type="button" aria-pressed="false">${ic('moon')}<span data-r="sleeplbl">${T('Uyku', 'Sleep')}</span></button><button class="sh-btn" data-a="classic" type="button" title="${T('Klasik panele dön', 'Back to classic panel')}">${ic('classic')}<span>${T('Klasik panel', 'Classic panel')}</span></button></div>
         </header>
         <div class="sh-job" data-r="job" role="status" hidden><span class="sh-job-t" data-r="jobt"></span><span class="sh-job-bar" data-r="jobbar"><i></i></span><button class="sh-chip" data-a="jobcancel" type="button" hidden>${T('İptal', 'Cancel')}</button><button class="sh-chip" data-a="jobretry" type="button" hidden>${T('Yeniden dene', 'Retry')}</button></div>
-        <div class="sh-main"></div>
+        <div class="sh-workbar" data-r="workbar" hidden></div><div class="sh-main"></div>
         <aside class="sh-panel" data-r="panel" role="dialog" aria-label="${T('İşlemler', 'Tasks')}" hidden></aside>
         <div class="sh-toast" data-r="toast" role="status" aria-live="polite"></div>
         <div class="sh-kbd" aria-hidden="true"><span><kbd>${T('Boşluk', 'Space')}</kbd>${T('oynat', 'play')}</span><span><kbd>J</kbd><kbd>K</kbd>${T('cümle', 'sentence')}</span>${this.caps.loop ? `<span><kbd>L</kbd>${T('döngü', 'loop')}</span>` : ''}<span><kbd>F</kbd>${T('odak', 'focus')}</span></div>
@@ -61,7 +61,7 @@
       const transport = `<div class="sh-transport"><button class="sh-tbtn" data-a="prev" type="button" aria-label="${T('Önceki cümle', 'Previous sentence')}">${ic('prev')}</button><button class="sh-tbtn" data-a="back" type="button" aria-label="${T('10 sn geri', 'Back 10 s')}">${ic('back')}<small>10</small></button><button class="sh-tbtn play" data-a="toggle" type="button" aria-label="${T('Oynat', 'Play')}">${ic('play')}</button><button class="sh-tbtn" data-a="fwd" type="button" aria-label="${T('10 sn ileri', 'Forward 10 s')}">${ic('fwd')}<small>10</small></button><button class="sh-tbtn" data-a="next" type="button" aria-label="${T('Sonraki cümle', 'Next sentence')}">${ic('next')}</button></div>`;
       const follow = `<button class="sh-follow" data-a="follow" type="button" hidden>${ic('down')}${T('Konuşmaya dön', 'Back to speech')}</button>`;
       if (study) {
-        main.append(this.el(`<div class="sh-theater"><div class="sh-screenwrap"><div class="sh-ambi" aria-hidden="true"></div><div class="sh-screen"><div class="slot" data-r="slot"></div><div class="frame"></div></div></div>
+        main.append(this.el(`<div class="sh-theater"><div class="sh-audio-summary"><div class="sh-cover"><div class="sh-cover-art" data-r="cover"></div></div><div class="sh-meta"><span class="sh-eyebrow" data-r="eyebrow"></span><h1 class="sh-title" data-r="title"></h1><p class="sh-sub" data-r="sub"></p><div data-r="chaps" class="sh-chaps"></div></div></div><div class="sh-screenwrap"><div class="sh-ambi" aria-hidden="true"></div><div class="sh-screen"><div class="slot" data-r="slot"></div><div class="frame"></div></div></div>
           <div class="sh-subs" data-r="subs" role="status" aria-live="off"><span class="lang l" data-r="ls"></span><span class="lang r" data-r="lt"></span><div class="s" data-r="s"></div><div class="t" data-r="t"></div></div>
           <div class="sh-dock"><div class="group"><button class="sh-tbtn" data-a="prev" type="button" aria-label="${T('Önceki cümle', 'Previous sentence')}">${ic('prev')}</button><button class="sh-tbtn play" data-a="toggle" type="button" aria-label="${T('Oynat', 'Play')}">${ic('play')}</button><button class="sh-tbtn" data-a="next" type="button" aria-label="${T('Sonraki cümle', 'Next sentence')}">${ic('next')}</button><button class="sh-tbtn" data-a="replay" type="button" aria-label="${T('Cümleyi tekrar dinle', 'Replay sentence')}">${ic('replay')}</button></div>${wave()}<div class="group"><button class="sh-chip" data-a="rate" type="button">1×</button>${loopChip}</div></div></div>`));
         main.append(this.el(`<aside class="sh-cardsbox"><div class="sh-cards-h"><span class="sh-lang" data-r="lsb"></span>${ic('swap')}<span class="sh-lang" data-r="ltb"></span><label class="sh-search">${ic('search')}<input data-r="q" placeholder="${T('Cümlelerde ara', 'Search sentences')}" aria-label="${T('Cümlelerde ara', 'Search sentences')}"></label>${seg()}</div><div class="sh-cards-wrap"><div class="sh-cards" data-r="scroll"></div>${follow}</div></aside>`));
@@ -84,6 +84,10 @@
         this.q('.sh-dock').prepend(this.el('<div class="sh-cinema-chapters"></div>'));
         this.q('.sh-top-r').append(this.el(`<button class="sh-btn" type="button" data-a="fullscreen" title="${T('Tam ekran','Fullscreen')}">${ic('focus')}</button>`));
       }
+      if (!cinema) {
+        const volume = this.el(`<label class="sh-volume">${ic('volume')}<span>${T('Ses', 'Volume')}</span><input class="sh-local-volume" type="range" min="0" max="1" step=".01" value="1" aria-label="${T('Ses düzeyi', 'Volume')}"><output>100%</output></label>`);
+        this.q(study ? '.sh-theater' : '.sh-deck').append(volume);
+      }
       this.root.append(this.el(`<aside class="sh-word-card" hidden role="dialog" aria-label="${T('Sözcük ve bağlam','Word and context')}"></aside>`));
       this.applyDisp(); this.bind();
     }
@@ -96,7 +100,8 @@
     bind() {
       const r = this.root, a = this.a;
       r.addEventListener('click', (e) => {
-        const b = e.target.closest('[data-a],[data-mode],[data-d],.sh-chap,[data-i],[data-act]'); if (!b || !r.contains(b)) return;
+        const b = e.target.closest('[data-a],[data-mode],[data-d],.sh-chap,[data-i],[data-act],[data-task]'); if (!b || !r.contains(b)) return;
+        if (b.dataset.task) { this.startTask(b.dataset.task); return; }
         if (b.dataset.act) { e.stopPropagation(); this.act(b.dataset.act, +b.closest('[data-i]').dataset.i); return; }
         if (b.dataset.i !== undefined && !b.dataset.a) { const row = this.rows[+b.dataset.i]; if (row && row.timed) this.run('seekCue', +b.dataset.i); return; }
         if (b.classList.contains('sh-chap')) { this.run('seek', +b.dataset.t); return; }
@@ -139,7 +144,23 @@
       r.addEventListener('dblclick',e=>{if(!this.caps.cinema||!e.target.closest('.src,[data-r=s]'))return;const word=String(root.getSelection?.()||'').trim();const row=e.target.closest('[data-i]');if(word)this.openWord(row?Number(row.dataset.i):this.cur,word);});
       this.reveal=()=>{r.classList.remove('controls-idle');clearTimeout(this.idleTimer);if(this.o.mode==='cinema'&&!this.st?.paused&&!this.a.info().native)this.idleTimer=setTimeout(()=>{if(!this.dead&&!this.s.panel&&!this.s.transcript&&!this.s.word&&!r.contains(document.activeElement))r.classList.add('controls-idle');},2400);};
       r.addEventListener('pointermove',this.reveal);r.addEventListener('pointerdown',this.reveal);r.addEventListener('focusin',this.reveal);
-      const volume=this.q('.sh-local-volume');if(volume)volume.oninput=()=>this.run('volume',Number(volume.value));
+      const volume=this.q('.sh-local-volume');if(volume)volume.oninput=()=>{this.run('volume',Number(volume.value));const output=volume.parentElement.querySelector('output');if(output)output.textContent=Math.round(Number(volume.value)*100)+'%';};
+    }
+    taskButtons() {
+      return (this.a.actions?.() || []).map(action => `<button class="sh-btn${action.primary ? ' sh-primary' : ''}" type="button" data-task="${esc(action.id)}" ${action.disabled || this.taskPending ? 'disabled' : ''} title="${esc(action.hint || action.label)}">${ic(action.id === 'translate' ? 'swap' : 'mic')}<span>${esc(action.label)}</span></button>`).join('');
+    }
+    drawTasks() {
+      const bar = this.q('[data-r=workbar]'), html = this.taskButtons();
+      if (html !== this.taskHTML) { this.taskHTML = html; bar.innerHTML = html; bar.hidden = !html; }
+    }
+    async startTask(id) {
+      if (this.taskPending) return;
+      const action = (this.a.actions?.() || []).find(item => item.id === id);
+      if (!action || action.disabled) return;
+      this.taskPending = true; this.drawTasks();
+      try { const result = await action.run(); if (!this.dead && result?.queued) this.toast(T('İşlem kuyruğa eklendi. İlerlemeyi İşlemler’den izleyebilirsiniz.', 'Task queued. Follow progress in Tasks.')); }
+      catch (error) { if (!this.dead) this.toast(error?.message || T('İşlem başlatılamadı.', 'Could not start task.')); }
+      finally { this.taskPending = false; if (!this.dead) this.drawTasks(); }
     }
     toggleLoop() {
       if (!this.caps.loop) return; const on = !this.s.loop, idx = this.s.idx >= 0 ? this.s.idx : this.cur;
@@ -179,7 +200,7 @@
     rebuild(st, info) {
       this.rows = st.rows; const scroll = this.q('[data-r=scroll]'), study = this.o.mode !== 'podcast'; scroll.textContent = ''; this.lines = [];
       const frag = document.createDocumentFragment();
-      if(!st.rows.length){const empty=this.el(`<div class="sh-empty">${ic('mic')}<h2>${T('Konuşma burada metne dönüşür.','The conversation becomes text here.')}</h2><p>${T('İşlemler’den mevcut altyazıyı yükleyin veya Whisper ve çeviri araçlarını açın.','Load available captions or open Whisper and translation tools from Tasks.')}</p><button class="sh-btn" type="button" data-a="panel">${T('İşlemleri aç','Open tasks')}</button></div>`);frag.append(empty);}
+      if(!st.rows.length){const empty=this.el(`<div class="sh-empty">${ic('mic')}<h2>${T('Konuşma burada metne dönüşür.','The conversation becomes text here.')}</h2><p>${T('Whisper ile bu bölümü yazıya dökün; çeviriyi aynı zaman çizelgesinde okuyun. Mevcut transkript ve ileri seçenekler İşlemler’de.','Transcribe this episode with Whisper and read its translation on the same timeline. Existing transcripts and advanced options are in Tasks.')}</p><button class="sh-btn" type="button" data-a="panel">${T('İşlemleri aç','Open tasks')}</button></div>`);frag.append(empty);}
       if (st.untimed) { const n = document.createElement('p'); n.className = 'sh-note'; n.textContent = T('Bu transkript zamansız: satırlar yalnızca okunur; atlama ve etkin satır yoktur.', 'This transcript has no timing: lines are read-only; no seeking or active line.'); frag.append(n); }
       st.rows.forEach((c, i) => {
         const row = document.createElement('div'); row.className = (study ? 'sh-card' : 'sh-line') + (c.timed ? '' : ' is-untimed'); row.dataset.i = i;
@@ -217,7 +238,7 @@
       let idx = -1; this.rows.forEach((c, i) => { if (c.timed && c.start <= time && time < c.end && (idx < 0 || c.start >= this.rows[idx].start)) idx = i; });
       this.time = time; this.cur = idx;this.root.classList.toggle('sh-audio',!!info.audio);
       if (idx !== s.idx) { const prev = s.idx; s.idx = idx; this.lines.forEach((l, i) => { const d = idx < 0 ? 9 : Math.abs(i - idx); l.style.setProperty('--d', Math.min(d, 9)); l.classList.toggle('on', i === idx); }); this.onActive(idx, prev); }
-      if(this.o.mode==='cinema')this.drawCinema(info,st);this.wordsTick(); this.drawJob(); this.drawPanel(false); this.paint();
+      if(this.o.mode==='cinema')this.drawCinema(info,st);this.wordsTick(); this.drawTasks(); const volume=this.q('.sh-local-volume');if(volume&&Number.isFinite(st.volume)&&document.activeElement!==volume){volume.value=st.volume;const output=volume.parentElement.querySelector('output');if(output)output.textContent=Math.round(st.volume*100)+'%';} const subs=this.q('[data-r=subs]');if(subs)subs.hidden=!!info.audio&&!st.rows.length; this.drawJob(); this.drawPanel(false); this.paint();
     }
     wordsTick() {
       const idx = this.cur; if (idx < 0) return; const row = this.rows[idx], ws = this.words && this.words[idx]; const c = row; const time = this.time;

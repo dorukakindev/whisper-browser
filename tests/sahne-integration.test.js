@@ -114,3 +114,13 @@ test('closing shelf playback removes the scene instead of remounting an ownerles
  f.window.MediaShelfUI={readSnapshot:()=>live?{mediaKey:'shelf:one',generation:1,title:'Episode',time:0,duration:30,paused:true,rate:1,capabilities:{seek:{support:'yes'}}}:null,isPodcastMode:()=>true,openPodcastMode:async()=>{},getTranscriptTracks:()=>[],executeExisting:async()=>({ok:true})};
  await f.window.CinemaSahne.openShelf();const scene=f.window.CinemaSahne.current;assert(scene);live=false;scene.o.onSource('none',{});assert.equal(f.window.CinemaSahne.current,null);assert.equal(f.document.querySelector('.sh-shelf-host'),null);
 });
+
+
+test('Sahne podcast actions bind the exact episode and task status to the existing shelf service',async t=>{
+ const f=fixture(t);f.document.getElementById('playerLayer').classList.add('hidden');let generation=1;const calls=[];
+ const snapshot=()=>({mediaKey:'shelf:one',generation,sourceVersion:'v1',title:'Episode',duration:30,capabilities:{seek:{support:'yes'}}});
+ f.window.MediaShelfUI={readSnapshot:snapshot,isPodcastMode:()=>true,openPodcastMode:async()=>{},getTranscriptTracks:()=>[],executeExisting:async()=>({ok:true}),podcastTaskState:()=>({hasSourceTranscript:true,job:{id:'same-job',state:'queued',text:'Waiting'}}),runPodcastTask:async args=>{calls.push(args);return {queued:true,id:'same-job'};}};
+ await f.window.CinemaSahne.openShelf();const a=f.window.CinemaSahne.current.a,actions=a.actions();assert.equal(actions.length,3);
+ await actions[1].run();assert.equal(calls[0].operation,'transcribe-translate');assert.equal(calls[0].expected.sourceVersion,'v1');assert.equal(a.panel().job.state,'running');assert.equal(a.panel().job.text,'Waiting');
+ generation++;assert.throws(()=>actions[0].run(),/Source changed/);assert.equal(calls.length,1);assert.equal(calls[0].isCancelled(),true);
+});
