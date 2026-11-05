@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Kayıtlı podcast dökümü veya çevirisini yüklemek seçilmiş çift dilli/Podcast görünümünü artık değiştirmez; yeni Spotify → RSS → Whisper → ayrı Türkçe çeviri canlı zinciri doğrulandı.
+
 - Ana sayfa, browser ve oynatıcıda görünür Podcast/Çift dilli çalış girişleri; Spotify bölüm linkinden incelemeli RSS önerisi ve açık onayla aynı oynatıcıda seçilen görünümü açma.
 
 - Tarayıcı podcast/çift dilli dönüşleri, dar panel ve YouTube adres girişi düzeltildi; yeni boş sekme gereksiz koruma onayına takılmadan kapanır, gerçek korumalar saklanır.

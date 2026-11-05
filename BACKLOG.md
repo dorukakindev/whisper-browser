@@ -120,3 +120,7 @@ Düzeltme ve kısa kabul tamam: `c86f7bbebb2c81f55334388d9c723b645cb9ed1c`, dal 
 ## P014 — Görünür girişler ve doğrudan Spotify → RSS — 2026-11-05
 
 Uygulama ve kısa kabul tamam: ürün `a2fafa78a3e1630a2e1d6a22510d057aa1ed0928`, dal `codex/podcast-direct-links-20261105`. [Devir](docs/devir/2026-11-05-0317.md). 14 hedefli test; gerçek Spotify → Apple kaynak önerisi → NPR RSS incele/onayla → mevcut oynatıcıda Podcast → aynı kaynakla çift dilli geçiş geçti. Geniş/dar son görünümde taşma yok, izin çağrısı0. Bu tur Whisper/çeviri yeniden çalıştırılmadı; tüm Spotify içerikleri ve duyulabilir ses kabulü iddia edilmez. Bilinen uygulanmamış kapsam yok; sonraki adım yalnız PR/master/ana kopya SHA eşitliğinin son teslimde doğrulanması, ağır test yok.
+
+## P015 — Yeni Spotify girişinden canlı Whisper ve çeviri — 2026-11-05
+
+Tamam: ürün `68b37e238e32e477af987637bcbad4f14496d066`, dal `codex/podcast-full-live-20261105`. [Devir](docs/devir/2026-11-05-0323.md). Yeni görünür giriş→gerçek Spotify→RSS onay/aç→small CUDA12sn Whisper→DeepInfra ayrı çeviri4+4 tam cue ve zaman eşitliği geçti. İlk yeniden yükleme seçili görünümü değiştiriyordu; düzeltildi, aynı gerçek kayıtla yeniden açma/iki görünümün korunması/yeni kuyruk işi olmaması geçti.11 kısa regresyon, izin0, kişisel ayarlar aynı. Ses duyulabilirliği, tüm Spotify/RSS kaynakları, uzun işler/genel model kalitesi iddiası yok. Yeni bilinen yarım iş yok; sonraki adım PR/master/ana kopya kimliğinin teslimde doğrulanması, geniş test turu yok.
