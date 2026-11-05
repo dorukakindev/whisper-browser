@@ -24,7 +24,7 @@
     refresh();
     const openedKey = key();
     requestAnimationFrame(() => {
-      if (openedKey === key() && box?.isConnected && !box.hidden) (controls.querySelector('button:not(:disabled)') || box).focus({ preventScroll: true });
+      if (!layer.classList.contains('cp-sahne-on') && openedKey === key() && box?.isConnected && !box.hidden) (controls.querySelector('button:not(:disabled)') || box).focus({ preventScroll: true });
     });
   }
   function close() {

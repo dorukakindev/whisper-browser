@@ -958,7 +958,7 @@ function syncBrowserOcclusion() {
     || !!(addressResults && !addressResults.classList.contains('hidden'))
     || !!(permissionPrompt && !permissionPrompt.classList.contains('hidden'))
     || !!(commandPalette && !commandPalette.classList.contains('hidden'))
-    || settingsOverlay || !!document.querySelector('dialog[open]')
+    || settingsOverlay || !!document.querySelector('dialog[open], .sh[data-pw-occludes-native="true"]')
     || !!playerLayer?.classList.contains('narrow-panel-takeover')
     || (typeof player !== 'undefined' && (!!player.pdfReader || player.browserSurface === 'settings'));
   window.api.setAssistantModalBlocked?.(!!_activeModal || !!document.querySelector('dialog[open]'));
@@ -23424,6 +23424,7 @@ function snapGridColumns() {
 }
 
 function responsivePanelTakeoverActive() {
+  if ($('playerLayer')?.classList.contains('cp-sahne-on')) return false;
   const layer = $('playerLayer');
   if (!layer || !window.matchMedia(player.workspaceMode === 'browser' ? '(max-width: 1099px)' : '(max-width: 1020px)').matches) return false;
   if (browserSettingsSurfaceVisible()) return false;
