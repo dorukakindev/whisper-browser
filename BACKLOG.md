@@ -1,6 +1,6 @@
 # Bekleyen işler
 
-Son durum kontrolü: **2026-11-05**. Son ürün `f9a3b2f2c0904618d422fe4067c8c0e492b0fe90`: üç agentla Browser, yorum ve podcast akış denetimi; yedi somut hata düzeltildi. [Güncel teslim](docs/devir/2026-11-05-1237.md). Onaylı ortak Sahne tasarımı korunur.
+Son durum kontrolü: **2026-11-05**. Son ürün `fac20e3aea47adb8853925c630e3760b22cc71f0`: podcast günlük kullanım zinciri ve çift dilli asistan bağlamı. [Güncel teslim](docs/devir/2026-11-05-1310.md). Onaylı ortak Sahne tasarımı korunur.
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
@@ -12,6 +12,13 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 
 
 Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı değildir. Her seferinde tek kapsam kapatılır; yeni somut arıza önceliği değiştirebilir.
+
+## P024 — Podcast günlük kullanım zinciri tamamlandı
+
+- **Kod/dal:** `fac20e3aea47adb8853925c630e3760b22cc71f0`, `codex/podcast-daily-workflow-20261105`; [devir](docs/devir/2026-11-05-1310.md).
+- **Düzeltme:** aktif RSS/shelf podcastte “bu bölümü yazıya dök” ve “eksik çeviriyi tamamla” mevcut doğru üretim/strict retry kuyruğuna bağlanır. Kapsam/source/sohbet ve bitiş-kayıt takibi korunur. Çift dilli görünüm podcast asistan bağlamını kaybetmez; “bu ana kadar özetle” tam-transkript UI seçiliyken de watched sınırıyla, soru anında dondurulur. Gelecekteki veya zamansız konuşma bu özete kanıt olmaz.
+- **Kanıt:**38hedefli kontrol/~1,5sn; JS/diff. LG1440×900 izole native7akış: kayıtlı gerçek RSS metin+çevirisini35sn/1.5×/study olarak yeniden açma; görünüm değişiminde tek owner; zamansız notun gerçek kaydı; kontrollü web VTT'de arama/takibe dön/önceki-sonraki cümle/hız/döngü; full UI'ye rağmen watched soru paketi. Yeni model/API işi ve izin denemesi0.
+- **Sınır/sonraki adım:** önceki12sn Whisper/çeviri çıktıları yeniden kullanıldı; gereksiz yeni canlı sağlayıcı çağrısı yapılmadı. Yeni doğal retry komutu doğru yüzeye kontrollü regresyonda bağlandı; bu tur yeniden canlı sağlayıcı retry'ı veya gerçek AI özet kalitesi denenmedi. Spotify/DRM/GPU kabulü iddia edilmez. Bu günlük kullanım kapsamında açık ürün düzeltmesi yok; somut yeni kullanım hatasında ilgili akışa dön.
 
 ## P023 — Agentlarla medya akış denetimi tamamlandı
 
