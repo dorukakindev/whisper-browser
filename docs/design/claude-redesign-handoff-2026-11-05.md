@@ -2,11 +2,19 @@
 
 ## Durum
 
-Kullanıcı ilk prototipin incelenmesini ve ardından daha kapsamlı bir tasarım turu için brief hazırlanmasını istedi. İlk paket incelendi; tam kabul veya üretim entegrasyonu yapılmadı. Genişletilmiş brief ve gerçek referans ZIP’i hazırlandı. Güncellenmiş Claude teslimi henüz bu projede incelenmedi veya uygulanmadı.
+Kullanıcı ilk prototipin incelenmesini ve ardından daha kapsamlı bir tasarım turu için brief hazırlanmasını istedi. İlk paket incelendi; tam kabul veya üretim entegrasyonu yapılmadı. Genişletilmiş brief ve gerçek referans ZIP’i hazırlandı. Güncellenmiş tam v2 teslimi 08:29’da incelendi; ürüne uygulanmadı. Aşağıdaki ilk prototip ve brief kayıtları tarihseldir; son durum bu bölümdeki v2 kaydıdır.
 
 İlk prototip: `whisper-tasarim-prototipi (1).zip` (yerel Downloads); başlangıç kodu `77a7104427988b931483479108ae2647d1043f96`. Güncel ürüne dosyaları körlemesine kopyalama.
 
 Yerel inceleme: `artifacts/claude-prototype-review-2026-11-05/INCELEME.md` ve `runtime-check.json`. Gönderilecek paket: `artifacts/claude-design-next-2026-11-05/claude-tasarim-genisletme-paketi.zip`; içinde ayrıntılı `CLAUDE-BRIFI.txt`, önceki özgün prototip ZIP’i ve beş mevcut ekran PNG’si var. Bu varlıklar Git dışındadır; yalnız GitHub reposuna erişen asistanın onları gördüğü varsayılmaz. Bu belge tek başına kapsamı açıklar; görsel paket gerekiyorsa gerçekten kullanıcıya ZIP olarak verilir.
+
+## Tam v2 alındı — 08:29
+
+Kaynak `files (6).zip`: tam `whisper-tasarim-prototipi-v2.zip` esas alınır; `v2-ara2.zip` ara sürümünde film/feeds boş taslak. [Yeni kısa devir](../devir/2026-11-05-0829.md). Git dışı çıkarım ve kanıt `artifacts/claude-prototype-v2-review-2026-11-05/`.
+
+Tam sürüm önceki beş alanı geliştirir, Ana sayfa/Keşfet/film detayı/podcast kütüphanesi/Akışlar ekler. Ağda kapsamı gösterilen istek → simüle sonuç ve indirilebilir JSON var; kayıtlı görünüm kamera/derinlik/kapsamı yalnız prototip belleğinde tutar. Bunlar artık ilk prototipteki eksikle aynı sayılmaz. 10 varsayılan alan ve iki etkileşim kısa headless Chromium kontrolünde geçti; gerçek ürün/sağlayıcı değildir.
+
+Kalan önemli kapsam: aktif ortak Podcast/Çift dilli oynatıcı ve tam asistan. Sahne/Çift dilli/asistan girişleri yalnız `WB.sim()`; podcast okuma sheet'i/mini dock tam çalışma ekranı değildir. Yeni ekranlar ayrı kaynak tasarımları olarak kurulmaz; son ortak browser bileşeni kararı geçerlidir. V2’nin `a9d3989` tabanı, ortak görünüm `94c85ff6` ve son podcast işlemlerinden eskidir. Demo verileri/fotoğraflar/simülasyonlar ürüne taşınmaz. Yeni tasarım onayı veya entegrasyon yapılmadı.
 
 ## İlk prototipte yapılanlar ve açık noktalar
 
