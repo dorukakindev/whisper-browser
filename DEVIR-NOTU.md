@@ -1,3 +1,4 @@
+Güncel kontrol: [Gerçek model önerisi/onay kartları ve gerçek EN/TR sağlayıcı altyazıları; sahne kabul sınırı](docs/devir/2026-11-05-1358.md)
 Güncel devir: [Yeni sohbet için proje ve mimari özeti; yalnız belgeler](docs/devir/2026-11-05-1341.md)
 Güncel çalışma: [Asistan zevk kanıtları ve doğrulanmış öneri eylemleri](docs/devir/2026-11-05-1337.md)
 Güncel çalışma: [Podcast günlük kullanım zinciri ve sınırlı asistan bağlamı](docs/devir/2026-11-05-1310.md)
