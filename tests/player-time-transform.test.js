@@ -58,3 +58,20 @@ test('tarayıcı modu: eşitleme sarmalıcısına delege eder, hata verirse ham 
   assert.equal(ctx.subtitleSourceTime(7), 7, 'hata yutulup ham değer dönmeli');
   assert.equal(ctx.subtitleVideoTime(9), 9, 'hata yutulup ham değer dönmeli');
 });
+
+test('browser projection may reuse one current transform without repeating source identity work', () => {
+  const ctx = makeContext({ sync: require('../src/browser-subtitle-sync') });
+  ctx.player.workspaceMode = 'browser';
+  let reads = 0;
+  ctx.browserTransformForChannel = () => { reads++; return { scale: 2, offsetSeconds: 5 }; };
+  const transform = { scale: .5, offsetSeconds: 7 };
+  assert.equal(ctx.subtitleVideoTime(10, true, transform), 12);
+  assert.equal(reads, 0);
+  assert.equal(ctx.subtitleVideoTime(10, true), 25);
+  assert.equal(reads, 1);
+  assert.equal(ctx.subtitleVideoTime(10, true, { scale: -1 }), 10, 'invalid transform retains raw-time fallback');
+  ctx.browserTransformForChannel = () => { reads++; throw new Error('lookup failed'); };
+  const fallback = ctx.subtitleVideoTransform(true);
+  assert.equal(reads, 2); assert.equal(ctx.subtitleVideoTime(10, true, fallback), 10);
+  assert.equal(ctx.subtitleVideoTime(12, true, fallback), 12); assert.equal(reads, 2, 'failed lookup is not repeated for endpoints');
+});

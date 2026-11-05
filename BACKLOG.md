@@ -1,6 +1,6 @@
 # Bekleyen işler
 
-Son durum kontrolü: **2026-11-05**. Son ürün abd41999d6ea01e7b313c526f69419af58a587e9: gerçek PeerTube/Video.js sayfasında uygulama altyazısı açıkken site altyazısı gizlenir, kapatılınca geri gelir. [Güncel teslim](docs/devir/2026-11-05-1428.md). Onaylı ortak Sahne tasarımı korunur.
+Son durum kontrolü: **2026-11-05**. Son ürün b3389928fa533fb9e6d6722b02d448a88d6943a4: gerçek sayfa podcast/çift dil geçişinde gereksiz kaynak-zaman hesapları ve mode sekmesi odağı düzeltildi. [Güncel teslim](docs/devir/2026-11-05-1450.md). Onaylı tasarım korunur.
 
 **Yeni sohbet başlangıcı:** P025 [PR #842](https://github.com/dorukakindev/whisper-browser/pull/842) ile master'a alındı; doğrulanmış ürün başlangıcı `7bf15f3c2876a5465b0c7f59fff3a037b41aeb69`. Sonraki belge commitleri ürün değişikliği değildir; çalışmadan önce gerçek HEAD/remote ve kişisel farkları yeniden kontrol et. Mevcut görevlerden yarım bırakılmış yeni ürün işi yok; aşağıdaki koşullu/ertelenmiş işler korunur.
 
@@ -80,13 +80,12 @@ Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı deği
 - **Kanıt:** 35 hedefli test + iki browser betiği; izole Windows RSS/yerel/kontrollü browser ve geniş/dar kontrol; son koşularda konsol hatası/izin denemesi 0. Gerçek model/Spotify/mpv bu tur yeniden sınanmadı.
 - **Devam:** P019 tasarım geliştirmeleri aynı ortak bileşen üzerinde yapılacak; ayrı kaynak tasarımı yeniden kurulmayacak. Önceki paketin aktif ekran PNG'leri bu son birleşik düzenin birebir referansı sayılmaz. Zamansız metin çevirisi P020 ile tamamlandı; kalan klasik okuma sınırlarının tümü bu sunum işiyle kapanmış sayılmaz.
 
-## P018 — Kullanıcı podcast listesi: dış kaynakta kalan erişimler
+## P018 — Kalan podcast kaynakları ve arşiv erişimi
 
-- **Durum:** bağlantı/Spotify kod düzeltmesi tamamlandı; kullanıcı listesindeki 60 öneriden 54 RSS ve 1 Spotify kaynağı kişisel kütüphaneye eklendi. Beş öneride kullanılabilir kaynak/kimlik doğrulanamadı; bunlar ürün bug'ı diye sunulmaz.
-- **Dal/PR:** `codex/podcast-sources-spotify-20261105`; ürün `12aaf3de93b3e5534df02ea1c770b6e81dace2a6`. [Devir](docs/devir/2026-11-05-0717.md).
-- **Kanıt:** 42 Node ve 8 Python hedefli kontrol; Windows mevcut browser'a doğrudan Spotify geçişi ve 55 kaynaklı kütüphane geniş/dar görünümü. Dosya izin denemesi 0. Spotify'da medya oynarken podcast girişi RSS aramasına dönmez; gerçek Spotify sesiyle Canlı Whisper/çeviri bu turda doğrulanmadı.
-- **Kalan kabul:** beş yayının doğru, erişilebilir resmî kaynağı; ayrıca içe aktarılan bir yayındaki istenen eski bölüm ilk 200 kaydın dışında. Kişisel ayrıntılar yalnız `artifacts/podcast-import-2026-11-05/EKLEME-NOTU.md` içindedir, Git'e girmez.
-- **Tam sonraki adım:** erişilebilir doğru yayıncı/RSS bilgisi elde edilirse yalnız kalan kaynakları tekrar çöz; benzer isimli programı otomatik ikame etme. Spotify canlı ASR ancak gerçekten oynayan ve mevcut browser tarafından gözlenen medyada, açık sistem sesi onayıyla doğrulanır; hesap/DRM sınırını aşma veya tam bölüm indirme başarısı iddia etme. Geniş test kampanyası başlatma.
+- **Son durum:** [güncel teslim](docs/devir/2026-11-05-1450.md). İki kesin resmî abonelik ve18bölüm metadata kaydı eklendi; kişisel kaynak sayısı55→57. İlk200dışındaki istenen eski bölüm mevcut yayına yalnız bir kez eklendi; genel200sınırı değiştirilmedi.
+- **Doğrulama:** gerçek shelf servisi/parser, kopyada dry-run, aynı uygulama/profil single-instance lock altında yedekli canlı işlem, baseline/son hash ve dedup; ilgisiz kişisel alanlar ve eski bölümler korundu. Pencere/model/ASR yok. Küçük ses byte probe erişim/type kanıtıdır, tam oynatma değildir.
+- **Kalan kabul:** üç kaynağın exact erişilebilir resmî kimliği/sesi; ayrıca eklenen bir yayının bütün arşivi. Bu yayın şimdilik yalnız3doğrulanmış bölümle eklendi. Başka programa ait200RSS reddedildi; iki kaynak grubunda resmî ses403. Bunlar kod hatası veya tamamlanmış arşiv değildir.
+- **Özel kanıt ve sonraki adım:** artifacts/podcast-source-followup-2026-11-05/RESULT.md yalnız yerel, Git dışı. Oradaki exact kimlik/resmî bağlantı sağlanınca yalnız kalan kaynağı çöz; benzer programı ikame etme veya200+probe kampanyası başlatma. Eski bölüm işi tamamlandı, yeniden açma. Önceki temel ürün [deviri](docs/devir/2026-11-05-0717.md) tarihsel olarak korunur.
 
 ## D001 — Rapor indeksindeki 12 eksik bağlantı tamamlandı
 
@@ -99,6 +98,7 @@ Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı deği
 - **Yeniden açma:** [güncel devir](docs/devir/2026-11-05-1417.md). Aynı izole test profili iki ayrı Electron sürecinde açıldı; gerçek Blender origin'inde site ölçeği1.12/satır aralığı11 ve localStorage işareti geri geldi. Başka origin'de ölçek1, site ayarı taşınmadı. Otomatik site başına çerez kapsayıcısı iddiası yok.
 - **Fullscreen/Shadow DOM:** gerçek uzak Sintel videosu kontrollü açık shadow içine alındı; gerçek sağlayıcı EN/TR katmanı normal/tam ekran/çıkış/kapalı/yeniden açık durumlarda doğrulandı. Sayfa CSS'i katmanı bozmadı, tek overlay kaldı; sayfa ana dünyası ayrıcalıklı API/izole controller globalini görmedi. LG görüntüleri ve gerçek decode kareleri, birkaç saniye oynatma; son iki süreçte dosya izin denemesi0. Fullscreen izni yalnız test profilinde mevcut site izin kaydıyla verildi.
 - **Gerçek site kabulü ve düzeltme:** [PeerTube Sprite Fright](docs/devir/2026-11-05-1428.md) normal, değiştirilmemiş site oynatıcısında gerçek EN/ES çift dil ve fullscreen doğrulandı. hideSiteCaptions için eksik Video.js seçicisi düzeltildi; Alman site altyazısı uygulama katmanı açıkken gizlenip kapatınca geri geldi.23 hedefli kontrol, bağımsız review, son native izin denemesi0. Ürün abd41999d6ea01e7b313c526f69419af58a587e9; dal codex/browser-real-site-captions-20261105.
+- **Panel/görünüm takip turu:** [2026-11-05-1450 teslimi](docs/devir/2026-11-05-1450.md) gerçek sayfada aynı video/WebContents/kaynakla panel, odak, podcast↔çift dil ve iki fullscreen yolunu doğruladı. Projection maliyeti ve remount odağı düzeltildi;23bağımsız hedefli kontrol,10+4native aynı-sahip checkpoint, izin denemesi0.
 - **Sınır/sonraki adım:** önceki shadow kabulü kontrollü açık Shadow DOM düzenidir; bütün canlı siteler, kapalı shadow root, DRM, hesap/CUDA veya kişisel profil için genel kabul değildir. Bu dar P004 kapsamında açık iş yok; yeni somut arızada yalnız ilgili akışa dön. Uzun iş iptali ancak gerçek takılma/ihtiyaçta incelenir.
 - **Önceki kontrollü kabul dalı:** codex/browser-profile-fullscreen-20261105; ürün başlangıç/bitiş81b83025610e38fff54aac855c907e08966bff77; yalnız belge PR'ı. Computer Use, dosya izin penceresi ve geniş kampanya yok.
 

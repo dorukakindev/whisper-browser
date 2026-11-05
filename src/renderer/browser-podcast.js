@@ -15,7 +15,8 @@
     return ['source','translation'].map(role => {
       const cues = roles[role] || [], secondary = cues === player.cues2;
       const loaded = (player.browserTracks || []).find(track => track.id === (secondary ? player.browserLoadedTrackId2 : player.browserLoadedTrackId));
-      const mapped = cues.map((cue,index) => ({ ...cue, id:String(cue.id ?? index), start:subtitleVideoTime(cue.start,secondary), end:subtitleVideoTime(cue.end,secondary) }));
+      const transform = subtitleVideoTransform(secondary);
+      const mapped = cues.map((cue,index) => ({ ...cue, id:String(cue.id ?? index), start:subtitleVideoTime(cue.start,secondary,transform), end:subtitleVideoTime(cue.end,secondary,transform) }));
       const content = JSON.stringify(mapped.map(cue => [cue.id,cue.start,cue.end,cue.text]));
       // Bind evidence to the actual mapped times and text, including independent drift/offset edits.
       const revision = browserSubtitleSync.hashText(content);

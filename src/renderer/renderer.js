@@ -12122,11 +12122,16 @@ function subtitleSourceTime(videoTime, secondary = false) {
   catch (_) { return value; }
 }
 
-function subtitleVideoTime(sourceTime, secondary = false) {
+function subtitleVideoTransform(secondary = false) {
+  try { return browserTransformForChannel(secondary); }
+  catch (_) { return { scale: 1, offsetSeconds: 0 }; }
+}
+
+function subtitleVideoTime(sourceTime, secondary = false, transform = null) {
   const value = Number(sourceTime);
   if (!Number.isFinite(value)) return NaN;
   if (player.workspaceMode !== 'browser') return value + player.offset;
-  try { return browserSubtitleSync.sourceToVideoTime(value, browserTransformForChannel(secondary)); }
+  try { return browserSubtitleSync.sourceToVideoTime(value, transform || browserTransformForChannel(secondary)); }
   catch (_) { return value; }
 }
 
