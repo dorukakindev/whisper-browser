@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Spotify program/bölüm bağlantıları RSS olmadan mevcut browserda açılıp kaynak olarak kaydedilebilir; oynayan Spotify medyasında Podcast/Çift dilli girişleri yeniden RSS aramasına dönmez. Büyük podcast RSS desteği ve tüm kütüphane okuyucularında ortak 32 MB sınırı; kaynak URL’lerinin zararsız takip parametreleri korunurken özel erişim anahtarları reddedilir.
+
 - Podcast kütüphanesi gerçek RSS abonelikleri, bölüm araması, kayıtlı çeviri/yerel kaynak filtreleri, dinleme kuyruğu ve Sahne/çift dilli açılışlara bağlandı. Yerel sinema Sahnesi mevcut video motorunda gerçek bölümler, sıradaki dosyalar ve altyazı bağlamından mevcut sözcük koleksiyonuna kayıt sunar; geç kaynak/iz sonuçları korunur.
 
 - Podcast ve çift dilli Sahne: mevcut yerel/RSS/browser oynatıcısı üzerinde tam sayfa görünüm, kalıcı transkript takibi, çoklu çeviri, mevcut araçlara erişim ve klasik görünüme dönüş; onaylı medya sayfalarında uyumlu afiş/metin cila katmanı.
