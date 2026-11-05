@@ -24,6 +24,7 @@
 - İkincil gezinme soldaki simgenin hover/tıklama/klavye menüsünde; dar ekranda kontrolleri ezme. İleri ayarlar erişilebilir kalsın. Gerçek Windows geniş/dar görüntüsünü onaylı tasarımla karşılaştır; test geçmesini estetik başarı sayma.
 - Değişen davranışa kısa, anlamlı test ve sözdizimi kontrolü yap. Belge değişiminde bağlantı/diff kontrolü yeterlidir; gereksiz tam paket/uzun test bekleme. Mock, canlı site/GPU/sağlayıcı başarısı değildir; sınırları açık yaz.
 - Kullanıcının güncel tercihi: kısa hedefli kontrollerle ilerle; kendiliğinden genişlik matrisi, yüzlerce ekran çekimi, CPU/frame ölçümü veya kapsamlı kabul raporu üretme. Computer Use kullanma ve dosya erişim onay penceresi açan testleri tetikleme. Küçük görsel ayrıntılar için işi durdurup tekrar onay isteme; mevcut onaylı tasarım dilini uygula.
+- Uygulama açılacaksa LG monitörü kullan; ilk monitöre açma. Canlı podcast transkripsiyon/çeviri denemesi en fazla 3–4 dakika olsun. Gereksiz yeni test dosyası üretme; uygun mevcut testleri güncelle. Agent gerekirse varsayılan `gpt-6.1-sol` medium; işlem gerektiriyorsa high.
 - Windows ana ortamdır: D:\Whisper Local. Normal açılış start.bat; npm start/native fixture, start.bat/CUDA/kişisel kullanım doğrulaması yerine geçmez.
 - **GitHub Actions başlatma: kredi yok.** Commit/PR/merge başlıklarında [skip ci] kullan. Başarısız kabul hedefini gizleme, eşiği gevşetme veya tamamlandı deme.
 
