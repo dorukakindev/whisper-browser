@@ -1,18 +1,25 @@
 # Bekleyen işler
 
-Son durum kontrolü: **2026-11-05**. Son ürün `0d3c9b9a964be756848701010147d7b54fefa5f9` kısa medya kalite/performance düzeltmesidir. [Güncel teslim](docs/devir/2026-11-05-0950.md). Claude v2 ve ortak Podcast/Çift dilli tasarım korunur; uzak/yerel master kimliği teslimde doğrulanır.
+Son durum kontrolü: **2026-11-05**. Son ürün `53d1c9c83c79810a20bdfeda20ba7936e727fc90`: zamansız podcast çevirisi, asistan iş takibi, kaynak bağlı cümle/sözcük/not kaydı. [Güncel teslim](docs/devir/2026-11-05-1040.md). Mevcut ortak Sahne tasarımı korunur.
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
 ## Uygulama sırası
 
-1. **D001 — Rapor indeksini tamamla:** kişisel indeks farkını koruyarak takipli eksik bağlantıları birleştir; yalnız bağlantı/diff kontrolü.
-2. **P018 / P004 — Kaynak erişimi ve kalan canlı sınırlar:** yalnız erişim sağlandığında veya somut ihtiyaçta kısa kontrol; önceki başarılı testleri topluca tekrarlama.
-3. **P003 — Kütüphane:** gerçek kullanım ihtiyacında; şu an genel doğrulama kampanyası yok.
-4. **P001 — Performans:** ertelendi; benchmark/CPU/matris veya eski dalı otomatik merge etme.
+1. **P018 / P004 — Kaynak erişimi ve kalan canlı sınırlar:** yalnız erişim sağlandığında veya somut ihtiyaçta kısa kontrol; önceki başarılı testleri topluca tekrarlama.
+2. **P003 — Kütüphane:** gerçek kullanım ihtiyacında; şu an genel doğrulama kampanyası yok.
+3. **P001 — Performans:** ertelendi; benchmark/CPU/matris veya eski dalı otomatik merge etme.
 
 
 Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı değildir. Her seferinde tek kapsam kapatılır; yeni somut arıza önceliği değiştirebilir.
+
+## P020 — Podcast okuma, asistan ve kaynak bağlı notlar tamamlandı
+
+- **Kod/dal:** `53d1c9c83c79810a20bdfeda20ba7936e727fc90`, `codex/podcast-reading-workflow-20261105`; [devir](docs/devir/2026-11-05-1040.md).
+- **Uygulama:** zamansız tam metin mevcut çeviri sağlayıcısıyla ayrı, salt okunur çeviri olarak kaydedilir; kaynak/çeviri yeniden açılır. Asistan gerçek iş kimliğini ve kalıcı sonucu bekler; Türkçe “yazıya dök” komutu, durdurma ve geç sonuç sınırları korunur. Seçili cümle/sözcük ve not mevcut araştırma defterine, kaynak kimliğiyle kaydedilir; zamansız nota sahte zaman verilmez.
+- **Kanıt:** son hedefli grup77test/~3sn; ilgili feed/shelf regresyonları, JS/diff. LG1440×900 ve1000×800, gerçek sağlayıcıyla196karakter metin çevirisi; son güvenli30–42sn CUDA small + çeviri4+4cue, asistanın bitişi beklemesi ve yeniden açmada yeni iş olmaması. İzin denemesi0. Son12sn aralığı test main IPC korumasıyla sabitlendi; ürünün podcast aralık desteği iddiası değildir.
+- **Sınır:** ilk canlı testte UI aralığı tam-bölüm işlemi tarafından temizlendi,15dk bölüm işlendi ve çeviri kısmi kaldı; kullanıcının3–4dk test sınırı aşıldı. Hata gizlenmedi, uzun deneme tekrarlanmadı; son kontrol12sn ile sınırlandı. Spotify hesabı/DRM ve tüm sağlayıcılar yeniden doğrulanmadı. Ayrıntı devirde.
+- **Devam:** bu kapsamda yarım ürün işi yok; yeni toplu test/performans kampanyası başlatma.
 
 ## P019 — Tam v2 entegrasyonu tamamlandı
 
@@ -26,7 +33,7 @@ Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı deği
 
 - **Tamamlanan ürün:** `152389cdcc1725e0afd989a046e2e49157dee93e`, dal `codex/unified-browser-study-20261105`; [devir](docs/devir/2026-11-05-0820.md). Browser, ana sayfa, RSS/shelf ve yerel girişler tek browser temelli kompozisyonu kullanır; oynatma/işlem sahipleri korunur. Ayrı podcast deck'i kaldırıldı, ileri araç düğümleri korunur; 1.75 hız sonraki bölüme taşınır.
 - **Kanıt:** 35 hedefli test + iki browser betiği; izole Windows RSS/yerel/kontrollü browser ve geniş/dar kontrol; son koşularda konsol hatası/izin denemesi 0. Gerçek model/Spotify/mpv bu tur yeniden sınanmadı.
-- **Devam:** P019 tasarım geliştirmeleri aynı ortak bileşen üzerinde yapılacak; ayrı kaynak tasarımı yeniden kurulmayacak. Önceki paketin aktif ekran PNG'leri bu son birleşik düzenin birebir referansı sayılmaz. Kalan düz metin çevirisi/klasik okuma sınırları bu sunum işiyle kapanmış sayılmaz.
+- **Devam:** P019 tasarım geliştirmeleri aynı ortak bileşen üzerinde yapılacak; ayrı kaynak tasarımı yeniden kurulmayacak. Önceki paketin aktif ekran PNG'leri bu son birleşik düzenin birebir referansı sayılmaz. Zamansız metin çevirisi P020 ile tamamlandı; kalan klasik okuma sınırlarının tümü bu sunum işiyle kapanmış sayılmaz.
 
 ## P018 — Kullanıcı podcast listesi: dış kaynakta kalan erişimler
 
@@ -36,13 +43,9 @@ Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı deği
 - **Kalan kabul:** beş yayının doğru, erişilebilir resmî kaynağı; ayrıca içe aktarılan bir yayındaki istenen eski bölüm ilk 200 kaydın dışında. Kişisel ayrıntılar yalnız `artifacts/podcast-import-2026-11-05/EKLEME-NOTU.md` içindedir, Git'e girmez.
 - **Tam sonraki adım:** erişilebilir doğru yayıncı/RSS bilgisi elde edilirse yalnız kalan kaynakları tekrar çöz; benzer isimli programı otomatik ikame etme. Spotify canlı ASR ancak gerçekten oynayan ve mevcut browser tarafından gözlenen medyada, açık sistem sesi onayıyla doğrulanır; hesap/DRM sınırını aşma veya tam bölüm indirme başarısı iddia etme. Geniş test kampanyası başlatma.
 
-## D001 — Rapor indeksindeki 12 eksik bağlantı
+## D001 — Rapor indeksindeki 12 eksik bağlantı tamamlandı
 
-- **Durum:** planlandı; somut belge eksiği, ürün hatası değil.
-- **Kanıt:** güncel master'ın takipli rapor dosyaları ile takipli `docs/raporlar/INDEX.md` karşılaştırıldı. R835, R837, R838, R839, R840, R841, R842, R845, R847, R849, R851 ve R852 indekste yok. Eski raporların bulgularının hâlâ açık olduğu iddia edilmez.
-- **Dal/PR:** henüz uygulama dalı yok; bu kayıt `codex/backlog-current-main-20261105` belge dalında yenilendi.
-- **Koruma:** ana kopyadaki kişisel `docs/raporlar/INDEX.md` farkı üzerine yazılmayacak; untracked raporlar otomatik yayımlanmayacak.
-- **Kabul / sonraki adım:** kişisel ve takipli indeks farklarını karşılaştır, yalnız mevcut takipli raporların eksik bağlantılarını ekle. Belge bağlantı/diff kontrolü yeterli; ürün suite'i yok.
+- Mevcut takipli R835, R837–842, R845, R847, R849, R851–852 bağlantıları eklendi; kişisel/untracked rapor yayımlanmadı. Eski raporlar yeni açık bug sayılmaz. [Teslim](docs/devir/2026-11-05-1040.md). Ana kopyanın R516 kişisel indeks farkı güncellemede korunur.
 
 ## P004 — Browser panelinin kalan canlı doğrulaması
 
@@ -70,7 +73,7 @@ Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı deği
 
 - **Doğrulanmış ürün:** `c99bbe77b4b82345aaaa32be003a0619e99f95c1`, dal `codex/podcast-scene-actions-20261105`; görünür yazıya dök/çevir ve ses kontrolü, sesli çift dilli kompozisyon, native üst alan, RSS asistan yönlendirmesi. [Devir](docs/devir/2026-11-05-0754.md).
 - **Kanıt:** 47 kısa test, izole Windows gerçek RSS oynatma sahibi ve geniş/dar görünüm; izin denemesi 0. Gerçek Whisper/çeviri üretimi bu turda yeniden çalıştırılmadı; bu tek başına yeni bug görevi değildir.
-- **Kalan:** P019 uygulandı; aktif Podcast/Çift dilli görünüm mevcut ortak browser bileşenidir. Yeni maket beklemek bir uygulama şartı değildir. Zamansız yazının çevirisi gibi önceki rapor sınırları bu kalite turunda kapanmış sayılmaz; yeni somut kapsamda kendi sahibinde ele alınır.
+- **Kalan:** P019 uygulandı; aktif Podcast/Çift dilli görünüm mevcut ortak browser bileşenidir. Yeni maket beklemek bir uygulama şartı değildir. Zamansız yazı çevirisi P020 ile tamamlandı; diğer tarihsel sınırlar somut ihtiyaç olmadan yeniden açılmaz.
 
 ## Kısa kalite/performance turu — tamamlandı
 

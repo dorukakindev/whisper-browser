@@ -1,3 +1,15 @@
+- [Rapor852](BROWSER_BUG_REPORT_852.md) — R852 — R850 onarım sonuçları
+- [Rapor851](BROWSER_BUG_REPORT_851.md) — R851 — R848 onarım sonuçları
+- [Rapor849](BROWSER_BUG_REPORT_849.md) — R849 — R846 onarım teslimi
+- [Rapor847](BROWSER_BUG_REPORT_847.md) — R847 — R844 onarım sonuçları
+- [Rapor845](BROWSER_BUG_REPORT_845.md) — Doğrulanıp düzeltilen RSS/Keşfet/asistan hataları
+- [Rapor842](BROWSER_BUG_REPORT_842.md) — R842 — Medya kütüphanesini geliştirecek yeni kaynaklar ve RSS sayfası tasarımı
+- [Rapor841](BROWSER_BUG_REPORT_841.md) — R841 — Asistan, Browser ve Keşfet için geniş GitHub kaynak araştırması
+- [Rapor840](BROWSER_BUG_REPORT_840.md) — R840 — Review, Debug, Superpowers ve omgskills ile kod incelemesi
+- [Rapor839](BROWSER_BUG_REPORT_839.md) — R839 — AI browser ve medya uygulamalarından asistan, Keşfet ve Letterboxd için ne alabiliriz?
+- [Rapor838](BROWSER_BUG_REPORT_838.md) — R838 — Mevcut özellikleri geliştirmek için açık kaynak araştırması
+- [Rapor837](BROWSER_BUG_REPORT_837.md) — R837 — Ana iş akışlarında farklı 30 önemli bug ve geliştirme önerisi
+- [Rapor835](BROWSER_BUG_REPORT_835.md) — R835 — Asistan, Keşfet/Letterboxd, browser, dublaj ve altyazı denetimi
 - [Rapor836](BROWSER_BUG_REPORT_836.md) — Yorum okuma/önizleme/analiz aşamaları; native önce/sonra ve tam kaynak kabulü
 - [Rapor834](BROWSER_BUG_REPORT_834.md) — Sekiz yüzeyde görsel tasarım eleştirisi;20öneri, yalnız rapor
 - [Rapor833](BROWSER_BUG_REPORT_833.md) — Bağımsız işlevsel denetim;11bug ve15ayrı öneri, yalnız rapor
