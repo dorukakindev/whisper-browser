@@ -34,6 +34,14 @@ components:
 
 # Whisper Browser tasarım kaydı
 
+## Güncel UI çalışma yöntemi — 2026-11-05
+
+Her UI işinde önce [Sahne referansından çalışma rehberini](docs/design/sahne-design-guidance-2026-11-05.md) ve ilgili onaylı ekran kararını oku. Önce bütün kompozisyon: baskın medya/okuma alanı, tipografi oranları, ortak hizalar ve kontrollü boşluk; sonra araçlar, en son ince cila. Özellikleri form olarak dizip koyu tema/amber/animasyon eklemek tasarım sayılmaz.
+
+Beğenilmiş tasarımın medya ölçeği, hiyerarşisi ve atmosferi gerçek entegrasyonda korunur; teknik kısıt gerekçesiyle sessizce sıradanlaştırılmaz. Mevcut font/palet/hareket sahipleri kullanılır; referans paketin bağımsız tokenları veya maketleri bütün ürüne otomatik aktarılmaz. Onaylı Home/Keşfet/film tasarımları korunur. Büyük kompozisyon sorunlarını küçük ikon/kenarlık ayrıntılarından önce çöz.
+
+Kısa gerçek görsel öz-eleştiri ve gerekli geniş/dar kontrol yeterlidir; test başarısı estetik kabul değildir. Tekrar onay döngüsü, geniş matris, yüzlerce çekim, CPU benchmark, Computer Use ve dosya erişim penceresi tetikleyen test yok. Ürün sahipleri, ileri ayarlar, kaynak/zaman/güvenlik sınırları korunur. Rehberin kaynağı `files (5).zip` Sahne v2 paketidir; bu belge güncellemesi paketin kodunu uygulamaz veya Windows/mpv başarısını doğrulamaz.
+
 ## Overview
 
 Ses çalışma istasyonu: video merkezde, yoğun ama ikincil ayarlar kenarda. Ürün yönü ve Türkçe metin gereksinimi AGENTS.md tarafından tanımlanır. Kullanım Windows masaüstü; İngilizce öğrenme, pazarlama sayfası veya yeni bir marka tasarımı değildir. Hedef pazar hakkında dil dışında ayrı kanıt yoktur.
