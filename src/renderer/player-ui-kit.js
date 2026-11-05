@@ -9,6 +9,7 @@
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const ICONS = {
+    link: 'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2',
     refresh: 'M20 7A9 9 0 1 0 21 16M20 2v6h-6',
     history: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM12 6v6l4 2',
     upload: 'M12 3v12m-4-8 4-4 4 4M4 14v6h16v-6',
