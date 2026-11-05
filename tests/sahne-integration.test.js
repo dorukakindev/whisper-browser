@@ -124,3 +124,10 @@ test('Sahne podcast actions bind the exact episode and task status to the existi
  await actions[1].run();assert.equal(calls[0].operation,'transcribe-translate');assert.equal(calls[0].expected.sourceVersion,'v1');assert.equal(a.panel().job.state,'running');assert.equal(a.panel().job.text,'Waiting');
  generation++;assert.throws(()=>actions[0].run(),/Source changed/);assert.equal(calls.length,1);assert.equal(calls[0].isCancelled(),true);
 });
+
+
+test('shared surface rejects retained commands after source version changes within a generation',async t=>{
+ const f=fixture(t);f.document.getElementById('playerLayer').classList.add('hidden');let version='one';let commands=0;
+ f.window.MediaShelfUI={readSnapshot:()=>({mediaKey:'shelf:one',generation:1,sourceVersion:version,title:'Episode',duration:30,capabilities:{seek:{support:'yes'}}}),isPodcastMode:()=>true,openPodcastMode:async()=>{},getTranscriptTracks:()=>[],executeExisting:async()=>{commands++;return{ok:true};}};
+ await f.window.CinemaSahne.openShelf();const a=f.window.CinemaSahne.current.a,identity=a.identity();version='two';assert.notEqual(a.identity(),identity);assert.equal((await a.cmd('seek',5)).ok,false);assert.equal(commands,0);
+});
