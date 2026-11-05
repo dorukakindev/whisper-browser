@@ -1,28 +1,26 @@
 # Bekleyen işler
 
-Son durum kontrolü: **2026-11-05**. Başlangıç master `a49a4cdee8e8b32ee6937082fb217d406212870e`; son ürün `152389cdcc1725e0afd989a046e2e49157dee93e` browser temelli ortak Podcast/Çift dilli görünümdür. Nihai merge SHA teslimde ve Git geçmişinde doğrulanır. Güncel tasarım devamı P019’dur.
+Son durum kontrolü: **2026-11-05**. Son ürün `e174602e05bea8df96bc12ebb3a616e1461f5920` Claude tam v2 kompozisyon entegrasyonudur; browser temelli ortak Podcast/Çift dilli sahipleri korunur. [Güncel teslim](docs/devir/2026-11-05-0904.md). Merge SHA teslimde ve Git geçmişinde doğrulanır.
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
 ## Uygulama sırası
 
-1. **P019 — Claude tasarım devamı:** tam v2 paketi alındı ve incelendi; aktif ortak Podcast/Çift dilli ve asistan ekranları eksik. Henüz ürün entegrasyonu/tasarım kabulü yok.
-2. **D001 — Rapor indeksini tamamla:** kişisel indeks farkını koruyarak takipli eksik bağlantıları birleştir; yalnız bağlantı/diff kontrolü.
-3. **P018 / P004 — Kaynak erişimi ve kalan canlı sınırlar:** yalnız erişim sağlandığında veya somut ihtiyaçta kısa kontrol; önceki başarılı testleri topluca tekrarlama.
-4. **P003 — Kütüphane:** gerçek kullanım ihtiyacında; şu an genel doğrulama kampanyası yok.
-5. **P001 — Performans:** ertelendi; benchmark/CPU/matris veya eski dalı otomatik merge etme.
+1. **D001 — Rapor indeksini tamamla:** kişisel indeks farkını koruyarak takipli eksik bağlantıları birleştir; yalnız bağlantı/diff kontrolü.
+2. **P018 / P004 — Kaynak erişimi ve kalan canlı sınırlar:** yalnız erişim sağlandığında veya somut ihtiyaçta kısa kontrol; önceki başarılı testleri topluca tekrarlama.
+3. **P003 — Kütüphane:** gerçek kullanım ihtiyacında; şu an genel doğrulama kampanyası yok.
+4. **P001 — Performans:** ertelendi; benchmark/CPU/matris veya eski dalı otomatik merge etme.
 
 
 Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı değildir. Her seferinde tek kapsam kapatılır; yeni somut arıza önceliği değiştirebilir.
 
-## P019 — Claude prototipinin tamamlanması ve yeni sayfalar
+## P019 — Tam v2 entegrasyonu tamamlandı
 
-- **Durum:** `files (6).zip` içindeki tam `whisper-tasarim-prototipi-v2.zip` alındı ve incelendi; önceki beş alan ve yeni beş sayfa var. `v2-ara2.zip` eksik ara sürümdür. Aktif ortak Podcast/Çift dilli oynatıcı ve tam asistan tasarımı yok; ürün entegrasyonu/tasarım kabulü verilmedi.
-- **Yeni inceleme:** [v2 teslim kontrolü](docs/devir/2026-11-05-0829.md); Git dışı `artifacts/claude-prototype-v2-review-2026-11-05/INCELEME.md`. Kısa Chromium kontrolü: 10 varsayılan alan, kapsam → simüle ağ sonucu ve gerçek JSON indirme geçti. Windows/native/model başarısı değildir.
-- **Kapsam ve kanıt:** [kalıcı tasarım devam kaydı](docs/design/claude-redesign-handoff-2026-11-05.md); yerel inceleme `artifacts/claude-prototype-review-2026-11-05/INCELEME.md`. Gönderilecek gerçek ZIP `artifacts/claude-design-next-2026-11-05/claude-tasarim-genisletme-aktif-sahne.zip`; varlıklar Git dışıdır, görülmüş varsayılmaz.
-- **Kalan kabul:** ortak browser temelli aktif Podcast/Çift dilli oynatıcı ve tam asistan durumları; varsa tek adım yazıya dök+çevir. Kütüphane girişleri bu ekranların tasarlandığı anlamına gelmez. Ağın istek/sonuç ve JSON prototip açığı v2’de karşılandı; kalıcı ürün entegrasyonu ayrıca gerekir. Podcast bölüm listesini ilk ekrana daha yakın getirme önerisi engelleyici kabul şartı değildir.
-- **Dal/PR:** henüz ürün entegrasyon dalı/PR’si yok. Bu kaydı ekleyen dal `codex/project-continuation-records-20261105` yalnız belgedir.
-- **Tam sonraki adım:** tam v2’yi tasarım referansı olarak tut; eksik aktif ortak ekran/asistan kapsamını tamamlat veya açık uygulama talimatında mevcut ortak bileşene uyarla. Native’e aktarım henüz başlamadı; eski ara ZIP’i kullanma. Uygulama talimatı geldiğinde mevcut sahiplerle entegre et. Dosyaları eski master’dan üzerine yazma; uzun matris/CPU/Computer Use/izin penceresi testi yok.
+- **Durum:** kullanıcının doğrudan uygulama talimatıyla tam `files (6).zip` v2 kompozisyonları mevcut sahipler üzerinden entegre edildi; ara ZIP ve örnek veriler alınmadı. Ortak aktif Podcast/Çift dilli görünüm ve asistanın mevcut davranışı korunur; bunları yeniden tasarlamak bu teslimin şartı değildir.
+- **Dal / kod:** `codex/claude-v2-native-integration-20261105`, ürün `e174602e05bea8df96bc12ebb3a616e1461f5920`. [Devir](docs/devir/2026-11-05-0904.md).
+- **Kanıt:** değişen davranışlara kısa Node/DOM regresyonları; LG ikinci monitörde izole Windows sayfaları, canlı Cinemeta detay/listesi, kayıtlı yayıncı RSS'i. Son yerleşim düzeltmeleri monitör kullanılmadan Electron offscreen render ve RSS → mevcut kuyruk → ortak çift dilli görünüm ile doğrulandı. İzin denemesi ve konsol hatası 0.
+- **Görsel sınır:** LG son kontrolde sistemden ayrıldı; son cila aynı fiziksel monitörde tekrar sınanmadı. İlk monitöre düşülmedi. Dolu yorum/analiz ve dolu ağın native görseli alınmadı; hedefli DOM ve kalıcılık testleri native estetik kanıtı sayılmaz.
+- **Tam sonraki adım:** ürün için yeni toplu test veya yeniden tasarım işi yok. LG erişilebilir olduğunda somut bir görünüm sorunu bildirilirse yalnız ilgili sayfayı kısaca kontrol et. Model/GPU/Spotify canlı ASR bu tasarım tesliminde yeniden sınanmadı; önceki canlı başarı veya sınırlar değişmiş sayılmaz.
 
 ## Birleşik Podcast/Çift dilli görünüm — 08:20
 

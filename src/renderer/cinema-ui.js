@@ -8,6 +8,7 @@
     return x;
   };
   const paths = { play: "M9 5l11 7-11 7Z", plus: "M12 5v14M5 12h14", heart: "M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z", dislike: "M10 15v5H7L3 10V3h12v12Zm5-12h5v10h-5", star: "m12 3 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z", down: "m6 9 6 6 6-6", quote: "M4 7h6v6H6c0 3 1 4 3 5M14 7h6v6h-4c0 3 1 4 3 5", link: "M10 14l4-4M8 16l-2 2a4 4 0 0 1-6-6l4-4m12 0 2-2a4 4 0 0 1 6 6l-4 4" };
+  Object.assign(paths, {audio:'M4 13V9a8 8 0 0 1 16 0v4M4 11H2v8h4v-8H4Zm16 0h2v8h-4v-8h2Z',book:'M4 3h14a2 2 0 0 1 2 2v16H6a2 2 0 0 1-2-2V3Zm0 13h16M8 3v13',rss:'M4 4a16 16 0 0 1 16 16M4 11a9 9 0 0 1 9 9M5 19h.01'});
   function icon(name) {
     if (["check", "like", "clock", "neutral"].includes(name)) {
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -103,86 +104,80 @@
     return { element: section, dispose: rail.dispose };
   }
   function home(host, opts) {
-    const { items, continuing, progress, art, hasArtwork, play, details, page, addFolder } = opts, dispose = [];
-    host.classList.add("cn-home-content");
-    let candidates = continuing.filter(hasArtwork);
-    if (!candidates.length) candidates = items.filter((i) => i.source && hasArtwork(i));
-    let at = Math.max(0, candidates.findIndex((i) => (i.key || i.id) === opts.featuredKey));
-    const hero = n("section", "cn-hero cn-home-hero"), inner = n("div", "cn-container cn-hero-content"), copy = n("div", "cn-hero-copy"), controls = n("div", "cn-hero-switch");
-    inner.append(copy);
-    hero.append(inner, controls);
-    host.append(hero);
-    let carousel = null;
-    dispose.push(() => carousel?.dispose());
+    const { items, continuing, progress, art, hasArtwork, play, details, page, addFolder } = opts;
+    const dispose = [], watch = opts.watch || continuing;
+    host.classList.add("cn-home-content", "cv2-home");
+    const key = item => item.key || item.id;
+    const kind = item => window.MediaHomeModel?.medium(item) === 'web' ? 'web' : item.kind === 'series' ? 'series' : window.MediaHomeModel?.medium(item) === 'music' ? 'audio' : 'film';
+    const kindLabel = item => ({web:t('Web video','Web videosu'),series:t('Series','Dizi'),audio:t('Audio','Ses'),film:t('Film','Film')})[kind(item)];
+    const seen = new Set();
+    const candidates = [...continuing, ...items.filter(item => item.source || hasArtwork(item))].filter(item => {
+      if (seen.has(key(item))) return false;
+      seen.add(key(item)); return true;
+    });
+    let at = Math.max(0, candidates.findIndex(item => key(item) === opts.featuredKey)), carousel;
+    const hero = n('section','cn-hero cn-home-hero cv2-home-hero');
+    const inner = n('div','cn-container cv2-home-inner'), copy = n('div','cn-hero-copy'), stage = n('div','cv2-home-stage');
+    const picks = n('div','cn-container cv2-home-picks');
+    picks.setAttribute('aria-label',t('Choose a story to continue','Devam edeceğin içeriği seç'));
+    inner.append(copy,stage);hero.append(inner,picks);host.append(hero);
     function draw() {
-      carousel?.dispose(); carousel = null;
+      carousel?.dispose();carousel=null;
+      copy.replaceChildren();stage.replaceChildren();picks.replaceChildren();
       if (!candidates.length) {
-        hero.hidden = true;
-        return;
+        hero.classList.add('cv2-first-use');
+        copy.append(n('span','cn-eyebrow',t('Your own cinema','Senin sineman')), n('h1','',t('Every story.\nOne place.','Her hikâye.\nTek bir yer.')), n('p','cn-hero-description',t('Films, web videos, listening and reading. Start with a source; keep its place, words and discoveries together.','Filmler, web videoları, dinlediklerin ve okudukların. Bir kaynakla başla; kaldığın yer, konuşmalar ve keşiflerin bir arada kalsın.')));
+        const actions=n('div','cn-hero-actions');actions.append(action(t('Add media folder','Medya klasörü ekle'),addFolder,'primary','folder'), action(t('Explore titles','Yapımları keşfet'),()=>page('discover'),'ghost'));
+        copy.append(actions);
+        const sculpture=n('div','cv2-first-composition');sculpture.setAttribute('aria-hidden','true');
+        for(const [index,label]of [t('Watch','İzle'),t('Listen','Dinle'),t('Discover','Keşfet')].entries()){const frame=n('div','cv2-first-frame',label);frame.style.setProperty('--frame',index);sculpture.append(frame);}
+        stage.append(sculpture);return;
       }
-      at = (at + candidates.length) % candidates.length;
-      const item = candidates[at], p = progress(item);
-      opts.onFeature(item.key || item.id);
-      copy.replaceChildren(n("span", "cn-eyebrow", t("Continue your story", "Kald\u0131\u011F\u0131n yerden")), n("h1", "", clean(item.title)));
-      const meta = n("div", "cn-meta");
-      const youtube = item.type === 'youtube' || /^youtube:/.test(item.key || '') || !!window.MediaHomeModel?.thumbnail(item) || /(?:youtube\.com|youtu\.be)/i.test(item.source?.value || '');
-      const web = /^(?:browser|youtube):/.test(item.key || '') || ['browser', 'youtube'].includes(item.type) || ['url', 'web', 'youtube', 'browser'].includes(item.source?.type);
-      meta.append(n('span', 'cn-source', youtube ? 'YouTube' : web ? 'Web' : t('Local', 'Yerel')));
-      if (item.year) meta.append(n("span", "", item.year));
-      if (p.duration) meta.append(n("span", "", opts.minutes(p.duration)));
-      copy.append(meta, n("p", "cn-hero-description", item.synopsis || t("Your film, subtitles and voice tools, together.", "Filmin, altyaz\u0131lar\u0131n ve ses ara\xE7lar\u0131n bir arada.")));
-      const buttons = n("div", "cn-hero-actions");
-      buttons.append(action(p.resume ? t("Continue watching", "\u0130zlemeye devam et") : t("Open", "A\xE7"), () => play(item), "primary", "play"), action(item.id ? t("Details", "Ayr\u0131nt\u0131lar") : t("Add media folder", "Medya klas\xF6r\xFC ekle"), () => item.id ? details(item.id) : addFolder(), "ghost", item.id ? void 0 : "folder"));
-      copy.append(buttons);
-      if (p.duration) {
-        const track = n("div", "cn-hero-progress");
-        track.append(meter(p.percent), n("small", "", t(opts.minutes(Math.max(0, p.duration - p.position)) + " remaining", opts.minutes(Math.max(0, p.duration - p.position)) + " kald\u0131")));
-        copy.append(track);
+      at=(at+candidates.length)%candidates.length;
+      const item=candidates[at], p=progress(item);opts.onFeature?.(key(item));
+      hero.dataset.medium=kind(item);
+      const eyebrow=n('span','cn-eyebrow', (p.resume?t('Continue your story','Kaldığın yerden'):t('From your library','Kütüphanenden'))+' · '+kindLabel(item));
+      const heading=n('h1','',clean(item.title));if(clean(item.title).length>55)heading.classList.add('cv2-title-long');
+      const meta=n('div','cn-meta');
+      const source=kind(item)==='web'?(window.MediaHomeModel?.thumbnail(item)?'YouTube':'Web'):item.key||item.source?t('Local file','Yerel dosya'):t('In your library','Kütüphanende');
+      for(const value of [source,item.year,p.duration?opts.minutes(p.duration):'',...(item.genres||[]).slice(0,2).map(window.MediaVisual.genre)])if(value)meta.append(n('span','',value));
+      copy.append(eyebrow,heading,meta);
+      if(item.synopsis)copy.append(n('p','cn-hero-description',item.synopsisTr||item.synopsis));
+      if(p.duration){const track=n('div','cn-hero-progress');track.append(meter(p.percent),n('small','',opts.minutes(Math.max(0,p.duration-p.position))+' '+t('remaining','kaldı')));copy.append(track);}
+      const actions=n('div','cn-hero-actions');
+      actions.append(action(p.resume?t('Continue','Devam et'):!item.key&&!item.source?t('Open details','Ayrıntıları aç'):t('Play','Oynat'),()=>!item.key&&!item.source?details(item.id):play(item),'primary',!item.key&&!item.source?'media':'play'));
+      if(item.id&&(item.key||item.source))actions.append(action(t('Details','Ayrıntılar'),()=>details(item.id),'ghost'));
+      actions.append(action(t('Add media folder','Medya klasörü ekle'),addFolder,'ghost','folder'));copy.append(actions);
+      if(kind(item)==='web'){const bar=n('div','cv2-browser-chrome');bar.append(n('i'),n('i'),n('i'),n('span','',source));stage.append(bar);}
+      const image=art(item,'cn-hero-art cv2-home-art');fallback(image,item.title);stage.append(image);
+      // Reuse the real artwork owner and its error/fallback rules. No prototype media enters the product.
+      for(const candidate of candidates.slice(0,8)){
+        const picker=action(clean(candidate.title),()=>{at=candidates.indexOf(candidate);draw();},'card');picker.replaceChildren();picker.className='cv2-home-pick';picker.setAttribute('aria-pressed',String(candidate===item));picker.title=clean(candidate.title);
+        picker.append(art(candidate,'cv2-pick-art'),n('span','',kindLabel(candidate)));
+        const value=progress(candidate);if(value.duration)picker.append(meter(value.percent));picks.append(picker);
       }
-      const oldArt = hero.querySelector(':scope > .cn-hero-art:not(.cn-art-outgoing)');
-      if (!window.CinemaMotion) hero.querySelectorAll(":scope > .cn-hero-art").forEach((x) => x.remove());
-      const a = art(item, "cn-hero-art", true);
-      hero.append(a);
-      window.CinemaMotion?.swapArtwork(hero, oldArt, a);
-      hero.hidden = false;
-      a.addEventListener("home-art-error", () => {
-        if (!a.isConnected) return;
-        candidates = candidates.filter((i) => i !== item);
-        draw();
-      }, { once: true });
-      controls.replaceChildren(action(t("Previous title", "\xD6nceki i\xE7erik"), () => {
-        at--;
-        draw();
-      }, "icon", "left"), n("span", "", `${at + 1} / ${candidates.length}`), action(t("Next title", "Sonraki i\xE7erik"), () => {
-        at++;
-        draw();
-      }, "icon", "right"));
-      controls.hidden = candidates.length < 2;
-      if (window.CinemaMotion && candidates.length > 1) {
-        carousel = window.CinemaMotion.carousel(hero, { count: candidates.length, getIndex: () => at, goTo: index => { at = index; draw(); } });
-      }
+      if(window.CinemaMotion&&candidates.length>1)carousel=window.CinemaMotion.carousel(hero,{count:candidates.length,getIndex:()=>at,goTo:index=>{at=index;draw();}});
     }
-    draw();
-    const body = n("div", "cn-container cn-home-shelves");
-    host.append(body);
-    function add(title, rows, more, wide = false) {
-      if (!rows.length) return;
-      const r = shelf(title, rows, { art, progress, open: (i) => i.key ? play(i) : details(i.id), more, wide });
-      body.append(r.element);
-      dispose.push(r.dispose);
+    draw();dispose.push(()=>carousel?.dispose());
+    const body=n('div','cn-container cn-home-shelves');host.append(body);
+    const doors=n('nav','cv2-home-doors');doors.setAttribute('aria-label',t('Your media library','Medya kütüphanen'));
+    for(const [route,en,tr,symbol,count]of [
+      ['films','Films','Filmler','media',items.filter(i=>i.kind!=='series').length],['series','Series','Diziler','folder',items.filter(i=>i.kind==='series').length],
+      ['web','Web videos','Web videoları','play',watch.filter(i=>kind(i)==='web').length],['radio','Podcast','Podcast','audio',null],['music','Music','Müzik','audio',null],['books','Books','Kitaplar','book',null],['feeds','Feeds (RSS)','Akışlar (RSS)','rss',null]
+    ]){const door=action(t(en,tr),()=>page(route),'card');door.replaceChildren();door.className='cv2-home-door';door.append(icon(symbol),n('strong','',t(en,tr)),n('small','',count===null?t('Open your library','Kütüphaneni aç'):count+' '+t('items','kayıt')));doors.append(door);}
+    const add=action(t('Add media','Medya ekle'),addFolder,'card','plus');add.replaceChildren(icon('plus'));add.className='cv2-home-door cv2-door-add';add.append(n('strong','',t('Add','Ekle')),n('small','',t('file · folder · source','dosya · klasör · kaynak')));doors.append(add);body.append(doors);
+    function addShelf(title, rows, more, wide = false) {
+      if(!rows.length)return;
+      const view=shelf(title,rows,{art,progress,open:item=>item.key?play(item):details(item.id),more,wide});body.append(view.element);dispose.push(view.dispose);
     }
-    if (!candidates.length && !items.length && !continuing.length) {
-      const empty = window.MediaVisual.empty({ title: t("Make room for your next story", "S\u0131radaki hik\xE2yene yer a\xE7"), text: t("Choose your media. Your films, progress and tools belong together.", "Medyan\u0131 se\xE7. Filmlerin, ilerlemen ve ara\xE7lar\u0131n bir araya gelsin."), actions: [action(t("Add media folder", "Medya klas\xF6r\xFC ekle"), addFolder, "primary", "folder")] });
-      empty.classList.add("cn-empty");
-      body.append(empty);
-    }
-    add(t("Continue watching & listening", "\u0130zlemeye ve dinlemeye devam et"), continuing, () => page("recent"), true);
-    const daily = n("div", "cn-daily");
-    window.MediaDailyUI?.entry(daily);
-    body.append(daily);
-    add(t("Your films", "Filmlerin"), items.filter((i) => i.kind !== "series"), () => page("films"));
-    add(t("Your series", "Dizilerin"), items.filter((i) => i.kind === "series"), () => page("series"));
-    return { dispose: () => dispose.forEach((fn) => fn()), body };
+    addShelf(t('Continue watching & listening','İzlemeye ve dinlemeye devam et'),continuing,()=>page('recent'),true);
+    const daily=n('div','cn-daily');window.MediaDailyUI?.entry(daily);body.append(daily);
+    addShelf(t('Your films','Filmlerin'),items.filter(i=>i.kind!=='series'),()=>page('films'));
+    addShelf(t('Your series','Dizilerin'),items.filter(i=>i.kind==='series'),()=>page('series'));
+    addShelf(t('Your web notebook','Web defterin'),watch.filter(i=>kind(i)==='web').slice(0,12),()=>page('web'),true);
+    const studio=n('section','cv2-home-studio'),text=n('div');text.append(n('span','cn-eyebrow',t('Studio','Stüdyo')),n('h2','',t('A closer look at every story.','Her hikâyeye daha yakından.')),n('p','',t('Read its words, listen in your language, keep your sources.','Konuşmaları oku, kendi dilinde dinle, kaynaklarını sakla.')));
+    const tools=n('div','cv2-studio-actions');tools.append(action(t('Bilingual study','Çift dilli çalış'),()=>window.PodcastLinkUI.enter('bilingual'),'ghost','media'),action(t('Podcast view','Podcast görünümü'),()=>window.PodcastLinkUI.enter('podcast'),'ghost','audio'),action(t('Content network','İçerik Ağı'),()=>page('recall'),'ghost','link'));studio.append(text,tools);body.append(studio);
+    return {dispose:()=>dispose.forEach(fn=>fn()),body};
   }
   function facts(card, item, extra = {}) {
     card.replaceChildren();
@@ -466,7 +461,7 @@
     }
     overview.append(credits);
     const source = page.querySelector(".cn-library-source");
-    if (source) body.append(source);
+
     body.append(overview);
     if (cast) {
       cast.className = "cn-cast";
@@ -490,17 +485,22 @@
       profile.classList.add("cn-accordion");
       body.append(profile);
     }
-    body.append(advanced);
+    const sources = n('section','cv2-film-sources');
+    sources.append(n('div','cn-section-heading',t('Sources & your viewing','Kaynak ve izleme durumun')));
+    if (source) sources.append(source);
+    sources.append(advanced);body.append(sources);
     const nav = n("nav", "cn-film-nav"), navInner = n("div", "cn-container");
     nav.setAttribute("aria-label", t("On this film page", "Film sayfas\u0131nda gezinme"));
-    for (const [section, en, tr] of [[story, "Story", "Konu"], [cast, "Cast", "Oyuncular"], [review, "Reviews & analysis", "Yorumlar ve analiz"], [advanced, "Details", "Ayr\u0131nt\u0131lar"]]) if (section&&!section.hidden) {
+    for (const [section, en, tr] of [[story, "Story", "Konu"], [cast, "Cast", "Oyuncular"], [review, "Reviews & analysis", "Yorumlar ve analiz"], [sources, "Sources & status", "Kaynak ve durum"], [extras || advanced, "Details", "Ayr\u0131nt\u0131lar"]]) if (section&&!section.hidden) {
       const b = action(t(en, tr), () => section.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }), "ghost");
+      b.dataset.filmSection = '';
+      b.addEventListener('click',()=>{navInner.querySelectorAll('[data-film-section]').forEach(node=>node.setAttribute('aria-current',String(node===b)));});
       navInner.append(b);
     }
     const copyLink = page.querySelector(".film-page-navigation button:nth-last-child(3)");
     if (copyLink && /copy|kopyala/i.test(copyLink.textContent)) navInner.append(rebutton(copyLink, "ghost", "link"));
     nav.append(navInner);
-    page.className = "media-title-page cn-film-page";
+    page.className = "media-title-page cn-film-page cv2-film";
     const attribution = page.querySelector(".mtd-attribution");
     page.replaceChildren(hero, nav);
     if (status) {

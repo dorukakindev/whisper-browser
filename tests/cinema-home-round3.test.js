@@ -46,3 +46,34 @@ test('Home shows source with duration and moves functional row arrows outside ca
     page.dispose();
   } finally { h.dom.window.close(); }
 });
+
+
+test('v2 home doors and studio invoke existing routes without inventing library counts or a second player', async () => {
+  const h=setup();try{
+    const routes=[],modes=[],opens=[];h.w.PodcastLinkUI={enter:mode=>modes.push(mode)};
+    const view=h.w.CinemaUI.home(h.d.querySelector('main'),{
+      items:[],watch:[],continuing:[],progress:h.w.MediaHomeModel.progress,
+      art:(_,cls)=>{const node=h.d.createElement('div');node.className=cls;return node;},
+      hasArtwork:()=>false,play:()=>opens.push('play'),details:()=>{},page:route=>routes.push(route),addFolder:()=>opens.push('folder'),minutes:()=>'',onFeature:()=>{}
+    });
+    assert(h.d.querySelector('.cv2-first-use'));
+    assert.equal(h.d.querySelectorAll('.cv2-home-door').length,8);
+    assert([...h.d.querySelectorAll('.cv2-home-door')].every(door=>door.querySelectorAll('strong').length===1&&!door.querySelector(':scope > span')));
+    h.d.querySelectorAll('.cv2-home-door')[3].click();
+    h.d.querySelector('.cv2-studio-actions button').click();await Promise.resolve();
+    assert.deepEqual(routes,['radio']);assert.deepEqual(modes,['bilingual']);assert.equal(opens.length,0);
+    assert.equal(h.d.querySelectorAll('audio,video').length,0);
+    view.dispose();
+  }finally{h.dom.window.close();}
+});
+
+test('v2 home opens catalog details when no playable source exists and keeps stored title intact',async()=>{
+  const h=setup();try{
+    const item={id:'catalog-a',title:'Original_source.mp4',hasPoster:true},opened=[];
+    const view=h.w.CinemaUI.home(h.d.querySelector('main'),{items:[item],continuing:[],progress:h.w.MediaHomeModel.progress,
+      art:(_,cls)=>{const node=h.d.createElement('div');node.className=cls;return node;},hasArtwork:()=>true,
+      play:()=>assert.fail('No playable source'),details:id=>opened.push(id),page:()=>{},addFolder:()=>{},minutes:()=>'',onFeature:()=>{}});
+    h.d.querySelector('.cn-hero-actions button').click();await Promise.resolve();
+    assert.deepEqual(opened,['catalog-a']);assert.equal(item.title,'Original_source.mp4');view.dispose();
+  }finally{h.dom.window.close();}
+});

@@ -1,9 +1,9 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{JSDOM}=require('jsdom');
 const tick=()=>new Promise(resolve=>setTimeout(resolve,15));
-function fixture(t,respond){
+function fixture(t,respond,personal=()=>({ok:true,rows:[]})){
   const dom=new JSDOM('<div id="mediaHome"><div id="root" class="md-page"></div></div>',{runScripts:'outside-only',pretendToBeVisual:true});t.after(()=>dom.window.close());
-  const w=dom.window,calls=[];w.UiLocale={get:()=> 'en'};w.api={mediaDiscovery:async input=>{calls.push(input);return respond(input,calls.length);}};
+  const w=dom.window,calls=[];w.UiLocale={get:()=> 'en'};w.api={mediaDiscovery:async input=>{if(input.action==='personal')return personal(input);calls.push(input);return respond(input,calls.length);}};
   w.eval(fs.readFileSync(require.resolve('../src/renderer/media-visual.js'),'utf8'));
   w.eval(fs.readFileSync(require.resolve('../src/renderer/media-discovery-ui.js'),'utf8'));
   w.MediaDiscoveryUI.mount(w.document.getElementById('root'));
@@ -54,4 +54,13 @@ test('unsubmitted search draft cannot change the query used by the current pagin
  const saved=h.w.MediaDiscoveryUI.snapshot();h.w.MediaDiscoveryUI.leave();h.root.remove();const root=h.w.document.createElement('div');h.w.document.getElementById('mediaHome').append(root);h.w.MediaDiscoveryUI.mount(root,saved);await tick();
  root.querySelector('.md-more').click();await tick();assert.deepEqual(h.calls.map(c=>[c.query,c.skip]),[['',0],['',100]]);assert.equal(root.querySelectorAll('[data-discovery-id]').length,2);assert.equal(root.querySelector('input[type=search]').value,'New draft');
  root.querySelector('form').dispatchEvent(new h.w.Event('submit',{bubbles:true,cancelable:true}));await tick();assert.equal(h.calls.at(-1).query,'New draft');assert.equal(h.calls.at(-1).skip,0);assert.equal(root.querySelectorAll('[data-discovery-id]').length,1);assert.equal(root.querySelector('[data-discovery-id]').dataset.discoveryId,'tt3333333');
+});
+
+
+test('v2 personal preview survives the parallel catalog request and opens the real recommendation view',async t=>{
+ const h=fixture(t,()=>({ok:true,rows:[row('tt1111111')],nextSkip:null}),()=>({ok:true,rows:[{...row('tt2222222'),because:'Rated source'}]}));
+ await tick();assert(h.root.querySelector('.cv2-discover-personal'));assert.match(h.root.querySelector('.cv2-discover-personal').textContent,/Rated source/);
+ assert.equal(h.root.querySelectorAll('[data-discovery-id]').length,1);
+ h.root.querySelector('.cv2-discover-personal header button').click();await tick();
+ assert.equal(h.w.MediaDiscoveryUI.snapshot().tab,'personal');assert.equal(h.root.querySelector('.cn-discover-tab[aria-pressed=true]').textContent,'For you');
 });

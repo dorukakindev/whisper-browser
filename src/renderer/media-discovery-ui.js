@@ -6,7 +6,7 @@
   const failure = error => window.MediaDiscoveryErrors?.message(error,window.UiLocale?.get?.()) || error?.message || String(error);
   const el = (tag, cls, text) => { const node = document.createElement(tag); if (cls) node.className = cls; if (text !== undefined) node.textContent = String(text); return node; };
   const state = { root: null, tab: 'browse', kind: 'film', mode: 'top', genre: '', year: new Date().getFullYear(), query: '', loadedQuery: '', view:'unwatched', rows: [], skip: 0, next: null, request: 0, busy: false, loadError: false, retryAppend: false, needsRatings: false, scope: '' };
-  let restoreControl = '';
+  let restoreControl = '', drawGeneration = 0;
   const btn = (label, callback, cls = 'mh-action') => {
     const node = el('button', cls, label); node.type = 'button';
     node.addEventListener('click', () => Promise.resolve().then(callback).catch(error => { const local=node.closest('.media-title-page')?.querySelector('.md-status');if(local){local.textContent=failure(error);local.classList.add('mh-error');}else status(failure(error), true); })); return node;
@@ -91,7 +91,7 @@
     }),el('p', 'md-provider', t('Metadata: Cinemeta / IMDb. Adding a title does not download a video.', 'Yapım bilgileri: Cinemeta / IMDb. Kütüphaneye eklemek video indirmez.')));options.append(credits);
     const reviews=btn(t('Letterboxd reviews & analysis','Letterboxd yorumları ve analiz'),async()=>{
       reviews.disabled=true;
-      try{dialog.querySelector('.film-review-heading button')?.click();}
+      try{dialog.querySelector('[data-review-action=load]')?.click();}
       catch(error){if(dialog.open)placeholder.textContent=failure(error);}
       finally{if(dialog.open)reviews.disabled=false;}
     });reviews.dataset.discoveryAction='reviews';actions.append(add,reviews);
@@ -148,7 +148,7 @@
     };
     featured.forEach((row,index)=>{
       const label=t('Show featured title: ','Öne çıkan yapımı göster: ')+row.title;
-      const dot=btn('',()=>drawSlide(index),'cn-discover-dot');dot.setAttribute('aria-label',label);dot.title=label;dots.append(dot);
+      const dot=btn('',()=>drawSlide(index),'cn-discover-dot');dot.setAttribute('aria-label',label);dot.title=label;dot.append(image(row.poster,'cv2-feature-thumb'));dots.append(dot);
     });
     const arrow=(step,label)=>{
       const button=btn('',()=>hero._cinemaCarousel?hero._cinemaCarousel.jump(active+step):drawSlide(active+step),'cn-discover-arrow');button.setAttribute('aria-label',label);button.title=label;
@@ -156,7 +156,7 @@
     };
     controls.append(dots,arrow(-1,t('Previous featured title','Önceki öne çıkan yapım')),arrow(1,t('Next featured title','Sonraki öne çıkan yapım')));
     controls.hidden=featured.length<2;
-    hero.append(wrap,content,controls);slot.append(hero);drawSlide(active);hero._cinemaCarousel=window.CinemaMotion?.carousel(hero,{count:featured.length,getIndex:()=>active,goTo:drawSlide,indicators:dots});
+    hero.append(wrap,content,controls);slot.append(hero);drawSlide(active);hero._cinemaCarousel=window.CinemaMotion?.carousel(hero,{count:featured.length,getIndex:()=>active,goTo:drawSlide,indicators:dots,decorateIndicator:(button,index)=>{button.classList.add('cn-discover-dot');button.title=featured[index].title;button.setAttribute('aria-label',t('Show featured title: ','Öne çıkan yapımı göster: ')+featured[index].title);button.append(image(featured[index].poster,'cv2-feature-thumb'));}});
   }
 
   let closeCardMenu=null;
@@ -241,13 +241,14 @@
   }
   function draw() {
     restoreControl=document.activeElement?.dataset.discoveryFocus||restoreControl;
+    ++drawGeneration;
     const root = state.root; root.replaceChildren();if(window.DiscoveryPersonalUI&&personalRoot!==root){personalActions?.dispose();personalRoot=root;personalActions=window.DiscoveryPersonalUI.create({root,render:cards,reload:()=>load(),openDetails:details});}
     root.setAttribute('aria-label', t('Discover', 'Keşfet'));
     const tabs = el('div', 'cn-discover-tabs'); tabs.setAttribute('aria-label', t('Discovery section', 'Keşfet bölümü'));
     for (const [value, label] of [['browse', t('New & popular', 'Yeni ve popüler')], ['personal', t('For you', 'Sana özel')], ['preferences', t('Preferences', 'Tercihler')]]) {
       const node = btn(label, () => { state.tab = value; state.rows = []; state.next = null; draw(); void load(); }, 'cn-discover-tab'); node.setAttribute('aria-pressed', String(value === state.tab)); tabs.append(node);
     }
-    root.classList.add('cn-discover-page');const dock=el('section','cn-discover-controls'),viewRow=el('div','cn-discover-view-row');dock.setAttribute('aria-label',t('Discovery controls','Keşfet kontrolleri'));dock.append(tabs);root.append(dock);if(state.tab==='browse'){const views=el('div','cn-watch-views');views.setAttribute('aria-label',t('Viewing filter','İzlenme filtresi'));for(const [value,en,tr]of [['unwatched','Unwatched','İzlemediklerim'],['all','Include watched','Tümü'],['watched','Watched','İzlediklerim'],['watchlist','Watchlist','İzleme listem']]){const b=btn(t(en,tr),()=>{state.view=value;state.rows=[];draw();void load();},'cn-watch-choice');b.setAttribute('aria-pressed',String(state.view===value));views.append(b);}viewRow.append(views);}
+    root.classList.add('cn-discover-page','cv2-discover');const dock=el('section','cn-discover-controls'),viewRow=el('div','cn-discover-view-row');dock.setAttribute('aria-label',t('Discovery controls','Keşfet kontrolleri'));dock.append(tabs);root.append(dock);if(state.tab==='browse'){const views=el('div','cn-watch-views');views.setAttribute('aria-label',t('Viewing filter','İzlenme filtresi'));for(const [value,en,tr]of [['unwatched','Unwatched','İzlemediklerim'],['all','Include watched','Tümü'],['watched','Watched','İzlediklerim'],['watchlist','Watchlist','İzleme listem']]){const b=btn(t(en,tr),()=>{state.view=value;state.rows=[];draw();void load();},'cn-watch-choice');b.setAttribute('aria-pressed',String(state.view===value));views.append(b);}viewRow.append(views);}
     viewRow.append(btn(t('Conditional library selection','Koşullu kütüphane seçkisi'),()=>window.MediaCatalogUI.open({conditions:true}), 'cn-watch-choice'));
     const filters = el('form', 'cn-discover-filters');
     function select(label, value, options, update) {
@@ -269,7 +270,28 @@
     dock.append(filters);const personalSlot=el('div','md-personal-slot');viewRow.append(personalSlot);
     const statusNode = el('p', 'md-status'); statusNode.setAttribute('role', 'status'); const grid = el('div', 'cn-catalog-grid');
     const footer = el('div', 'cn-discover-footer'); footer.append(btn(t('Show more', 'Daha fazla göster'), () => load(true), 'mh-action md-more'), btn(t('Retry', 'Yeniden dene'), () => load(state.retryAppend), 'mh-action md-retry'), el('p', 'md-provider', t('Catalog: Cinemeta, the official Stremio movie & series catalog. No account or API key required.', 'Katalog: Cinemeta, resmî Stremio film ve dizi kataloğu. Hesap veya API anahtarı gerekmez.')));
-    const featureSlot=el('div','cn-feature-slot');root.append(statusNode,featureSlot,viewRow,el('p','cn-discover-results'),grid,footer);cards();
+    const featureSlot=el('div','cn-feature-slot');
+    const sectionTitle=el('div','cv2-discover-section-heading');sectionTitle.append(el('h2','',state.tab==='personal'?t('Chosen for you','Sana özel'):state.tab==='preferences'?t('Your discovery preferences','Keşif tercihlerin'):t('Find your next story','Sıradaki hikâyeni bul')));
+    root.append(statusNode,featureSlot,sectionTitle,viewRow,el('p','cn-discover-results'),grid,footer);cards();
+    if(state.tab==='browse'&&!state.query.trim())void personalShelf(root);
+
+  }
+  async function personalShelf(root) {
+    const kind=state.kind, owner=drawGeneration;
+    try {
+      const result=await api('personal',{kind,view:'unwatched'});
+      if(root!==state.root||!root.isConnected||state.tab!=='browse'||kind!==state.kind||owner!==drawGeneration)return;
+      const rows=(result.rows||[]).slice(0,8);
+      if(!rows.length)return;
+      const section=el('section','cv2-discover-personal'),heading=el('header');
+      const text=el('div');text.append(el('h2','',t('For you','Sana özel')),el('p','',t('Real recommendations from your saved preferences. Open a title to inspect its basis.','Kayıtlı tercihlerinle ilişkili öneriler. Dayanağını görmek için yapımı aç.')));
+      heading.append(text,btn(t('See all','Tümünü gör'),()=>{state.tab='personal';state.rows=[];state.next=null;draw();void load();},'cn-button'));
+      const rail=el('div','cv2-personal-rail');
+      for(const row of rows){const card=btn('',()=>details(row),'cv2-personal-card');card.append(image(row.poster,'cv2-personal-art'),el('strong','',window.MediaVisual.title(row.title)));
+        const reason=row.because?t('Because you liked '+row.because,row.because+' beğeninden dolayı'):row.profileBecause?t('From your ratings','Puanlarındaki eğilimden'):t('Saved preferences','Kayıtlı tercihlerinden');
+        card.append(el('small','',reason));rail.append(card);}
+      section.append(heading,rail);root.querySelector('.cv2-discover-section-heading')?.before(section);
+    } catch { /* Main discovery remains usable; an unavailable preview is never invented. */ }
   }
   let savedScroll = 0, restoringScroll = false;
   function snapshot(){return {tab:state.tab,kind:state.kind,mode:state.mode,genre:state.genre,year:state.year,query:state.query,loadedQuery:state.loadedQuery,view:state.view,rows:state.rows.slice(),next:state.next,needsRatings:state.needsRatings,scope:state.scope,scrollTop:state.root?.isConnected?document.getElementById('mediaHome').scrollTop:savedScroll};}

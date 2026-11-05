@@ -2,13 +2,13 @@
 
 ## Durum
 
-Kullanıcı ilk prototipin incelenmesini ve ardından daha kapsamlı bir tasarım turu için brief hazırlanmasını istedi. İlk paket incelendi; tam kabul veya üretim entegrasyonu yapılmadı. Genişletilmiş brief ve gerçek referans ZIP’i hazırlandı. Güncellenmiş tam v2 teslimi 08:29’da incelendi; ürüne uygulanmadı. Aşağıdaki ilk prototip ve brief kayıtları tarihseldir; son durum bu bölümdeki v2 kaydıdır.
+Kullanıcı tam v2 paketinin doğrudan uygulanmasını istedi; eksik aktif oynatıcı/asistan maketini bekleme şartını kaldırdı. V2 ürün entegrasyonu `e174602e05bea8df96bc12ebb3a616e1461f5920` ile tamamlandı. [Güncel teslim](../devir/2026-11-05-0904.md). Yeni sayfalar mevcut kaynak/oynatma/işlem sahiplerini kullanır; ayrı oynatıcı veya demo motoru kurulmadı. Aşağıdaki paket incelemeleri tarihseldir; “ürüne uygulanmadı” ifadeleri kendi inceleme anını anlatır.
 
 İlk prototip: `whisper-tasarim-prototipi (1).zip` (yerel Downloads); başlangıç kodu `77a7104427988b931483479108ae2647d1043f96`. Güncel ürüne dosyaları körlemesine kopyalama.
 
 Yerel inceleme: `artifacts/claude-prototype-review-2026-11-05/INCELEME.md` ve `runtime-check.json`. Gönderilecek paket: `artifacts/claude-design-next-2026-11-05/claude-tasarim-genisletme-paketi.zip`; içinde ayrıntılı `CLAUDE-BRIFI.txt`, önceki özgün prototip ZIP’i ve beş mevcut ekran PNG’si var. Bu varlıklar Git dışındadır; yalnız GitHub reposuna erişen asistanın onları gördüğü varsayılmaz. Bu belge tek başına kapsamı açıklar; görsel paket gerekiyorsa gerçekten kullanıcıya ZIP olarak verilir.
 
-## Tam v2 alındı — 08:29
+## Tam v2 alındı — 08:29 tarihli inceleme
 
 Kaynak `files (6).zip`: tam `whisper-tasarim-prototipi-v2.zip` esas alınır; `v2-ara2.zip` ara sürümünde film/feeds boş taslak. [Yeni kısa devir](../devir/2026-11-05-0829.md). Git dışı çıkarım ve kanıt `artifacts/claude-prototype-v2-review-2026-11-05/`.
 
