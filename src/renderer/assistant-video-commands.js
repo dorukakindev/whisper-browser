@@ -107,10 +107,10 @@
   }).catch(()=>{});
  }
  async function handle(question){
-  const intent=window.AssistantVideoIntent?.match(question);
+  const podcast=podcastSource();
+  const intent=window.AssistantVideoIntent?.match(question,{podcast:!!podcast});
   if(!intent)return false;
   if(/deepseek|shuai|deepinfra|\bsol\b|gpt|gemini|claude|sağlayıcı|provider/i.test(question))return false;
-  const podcast=podcastSource();
   if(!podcast&&intent.kind==='translate-track'){
    const target=effectiveBrowserProfile().values.targetLanguage||'tr';
    if(intent.range||intent.forSpeech||intent.targetLanguage&&intent.targetLanguage!==target||!player.browserTracks.some(row=>row.role==='source'&&row.path))return false;
@@ -128,8 +128,8 @@
    if(task.podcast){
     if(intent.rangeInvalid||intent.rangeUnresolved)throw Error(t('Specify a valid interval, for example 05:00–10:00.','Geçerli bir aralık belirt; örneğin 05:00–10:00.'));
     if(!owner(task))throw Error(t('Podcast source changed.','Podcast kaynağı değişti.'));
-    const operation=intent.kind==='whisper-only'?'transcribe':intent.kind==='whisper-translate'?'transcribe-translate':'translate';
-    if(operation==='translate'&&(intent.range||intent.forSpeech||intent.targetLanguage&&intent.targetLanguage!==(document.getElementById('translateTo')?.value||'tr')))
+    const operation=intent.kind==='whisper-only'?'transcribe':intent.kind==='whisper-translate'?'transcribe-translate':intent.kind==='retry-translation'?'retry-translation':'translate';
+    if(['translate','retry-translation'].includes(operation)&&(intent.range||intent.forSpeech||intent.targetLanguage&&intent.targetLanguage!==(document.getElementById('translateTo')?.value||'tr')))
      throw Error(t('Use the podcast transcript translation controls for this translation option.','Bu çeviri seçeneği için podcast dökümü çeviri kontrollerini kullan.'));
     if(typeof task.podcast.surface?.runPodcastTask!=='function')throw Error(t('Podcast processing is unavailable.','Podcast işlemi kullanılamıyor.'));
     const receipt=await task.podcast.surface.runPodcastTask({operation,expected:task.podcast.snapshot,targetLanguage:intent.targetLanguage||undefined,forSpeech:intent.forSpeech||undefined,range:intent.range||null,isCancelled:()=>task.cancelled||!owner(task)});

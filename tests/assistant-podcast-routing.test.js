@@ -6,13 +6,14 @@ const shelf=read('media-shelf-ui.js'),catalog=read('player-source-catalog-integr
 function harness(owner='media-shelf'){
  const dom=new JSDOM('<div id="playerLayer"></div><div id="messages"></div><select id="translateTo"><option value="tr">tr</option></select>',{runScripts:'outside-only'}),w=dom.window;
  const snapshot={mediaKey:owner+':A',generation:8,sourceVersion:'stream-A',entryId:'feed-A',sourceKind:'rss',playbackOwner:owner};
+ const polls=[];w.setInterval=fn=>{polls.push(fn);return polls.length;};w.clearInterval=()=>{};
  const requests=[],done=[],enqueues=[],ui={task:'translate',translate:true,translateOnly:true,translateTo:'tr',clipStart:'40',clipEnd:'50',model:'small',translateModel:'existing-provider'};
- Object.assign(w,{AssistantVideoIntent:require('../src/assistant-video-intent'),UiLocale:{get:()=> 'tr'},currentSnapshot:snapshot,current:{id:'show-A',url:'https://audio.example/A'},playGeneration:8,
+ Object.assign(w,{AssistantVideoIntent:require('../src/assistant-video-intent'),PodcastTaskScope:require('../src/renderer/podcast-task-scope'),UiLocale:{get:()=> 'tr'},currentSnapshot:snapshot,current:{id:'show-A',url:'https://audio.example/A'},playGeneration:8,
   player:{workspaceMode:owner==='player'?'player':'browser',mediaKey:snapshot.mediaKey,generation:8,workspaceAudio:owner==='player'?snapshot:null,browserTracks:[]},state:{queue:[],queueRunning:true,running:true},
   aiSourceScope:()=> 'scope-A',browserTabState:()=>({id:'hidden-youtube',generation:99}),currentBrowserYoutubeUrl:()=> 'https://www.youtube.com/watch?v=abcdefghijk',globalAssistantContext:()=>({type:'podcast'}),
   aiChatAdd:(_,text)=>{const node=w.document.createElement('div');node.textContent=text;return node;},AssistantWorkspace:{activeId:()=> 'thread-A',begin(){},partial(){},finish:(_job,text,status)=>done.push({text,status})},
   startBrowserYoutubeWhisper:()=>{throw Error('YouTube source contamination');},readPodcastSnapshot:()=>w.currentSnapshot,
-  addToQueue:(type,input,{optionsOverride})=>{enqueues.push({type,input,opts:{...ui,...optionsOverride}});w.state.queue.push({id:'queue-A',...enqueues.at(-1)});return true;},renderQueue(){},startQueue(){throw Error('Existing running queue must be retained');},
+  addToQueue:(type,input,{optionsOverride})=>{enqueues.push({type,input,opts:{...ui,...optionsOverride}});w.state.queue.push({id:'queue-A',status:'pending',...enqueues.at(-1)});return true;},renderQueue(){},startQueue(){throw Error('Existing running queue must be retained');},
   serviceRequest:async input=>{const request=typeof input==='string'?{action:input}:input;requests.push(request);if(request.action==='podcast-processing-binding')return {entryId:'feed-A',sourceVersion:'stream-A'};if(request.action==='podcast-audio')return {ok:true,path:'managed-A',sourceVersion:'download-A',downloadToken:'grant-A'};return {ok:true};}
  });
  w.window.api={feedsRequest:input=>w.serviceRequest(input)};
@@ -24,7 +25,7 @@ function harness(owner='media-shelf'){
   w.eval('const t=(tr,en)=>tr,api=request=>window.serviceRequest(request);'+catalog.slice(catalog.indexOf('  let podcastRequest=null;'),catalog.indexOf('  async function loadPublisherTranscript('))+';window.PlayerSourceCatalogIntegration={runPodcastTask};');
  }
  w.eval(read('assistant-video-commands.js'));
- return {w,dom,requests,done,enqueues,ui,snapshot};
+ return {w,dom,requests,done,enqueues,ui,snapshot,poll:()=>polls.at(-1)?.()};
 }
 
 test('Actual assistant selection → exact RSS acquisition → existing frozen queue works for both podcast owners',async()=>{
@@ -33,7 +34,7 @@ test('Actual assistant selection → exact RSS acquisition → existing frozen q
    assert.equal(await h.w.AssistantVideoCommands.handle(question),true);
    const acquisition=h.requests.find(row=>row.action==='podcast-audio');assert.equal(acquisition.entryId,'feed-A');assert.equal(acquisition.sourceVersion,'stream-A');
    assert.equal(h.enqueues.length,1);const item=h.w.state.queue[0];assert.equal(item.input,'managed-A');assert.equal(item.opts.translate,translate);assert.equal(item.opts.translateOnly,false);assert.equal(item.opts.task,'transcribe');assert.equal(item.opts.clipStart,'');assert.equal(item.opts.clipEnd,'');assert.equal(item.opts.model,'small');assert.equal(item.opts.translateModel,'existing-provider');assert.equal(item.podcastBinding.playbackOwner,owner);assert.equal(item.podcastBinding.sourceVersion,'download-A');
-   h.ui.translateTo='de';assert.equal(item.opts.translateTo,'tr');assert.equal(h.done[0].status,'complete');assert.match(h.done[0].text,/kuyru/);assert.doesNotMatch(h.done[0].text,/hazır|tamamlandı|YouTube/);
+   h.ui.translateTo='de';assert.equal(item.opts.translateTo,'tr');assert.equal(h.done.length,0,'queue acceptance is not completed work');assert.match(h.w.AssistantVideoCommands.status().job.bubble.textContent,/kuyru/);item.status='done';item.podcastBinding.persistence='saved';h.poll();assert.equal(h.done[0].status,'complete');assert.match(h.done[0].text,/hazır/);
   }finally{h.dom.window.close();}
  }
 });
@@ -53,10 +54,10 @@ test('Cancelled or replaced RSS acquisition releases its exact grant and never q
  }
 });
 
-test('Unsupported podcast ranges and acquisition failures never start the full episode or another source',async()=>{
+test('Invalid podcast ranges and acquisition failures never start the full episode or another source',async()=>{
  for(const owner of ['media-shelf','player']){
   const h=harness(owner);try{
-   await h.w.AssistantVideoCommands.handle('Whisper 05:00–10:00 altyazı çıkar');assert.equal(h.requests.length,0);assert.equal(h.enqueues.length,0);assert.match(h.done[0].text,/aralık/);
+   await h.w.AssistantVideoCommands.handle('Whisper 10:00–05:00 altyazı çıkar');assert.equal(h.requests.length,0);assert.equal(h.enqueues.length,0);assert.match(h.done[0].text,/aralık/);
    h.w.serviceRequest=async()=>{throw Error('Audio denied by existing owner');};
    await h.w.AssistantVideoCommands.handle('transcribe et');assert.equal(h.enqueues.length,0);assert.match(h.done.at(-1).text,/denied/);
   }finally{h.dom.window.close();}
@@ -69,6 +70,15 @@ test('Existing queue validation or duplicate rejection releases acquired grant a
    h.w.addToQueue=()=>false;
    await h.w.AssistantVideoCommands.handle('transcribe et çevir');
    assert.equal(h.enqueues.length,0);assert.equal(h.done[0].status,'failed');assert.match(h.done[0].text,/kuyru/);assert.equal(h.requests.at(-1).action,'podcast-audio-release');assert.equal(h.requests.at(-1).downloadToken,'grant-A');
+  }finally{h.dom.window.close();}
+ }
+});
+
+
+test('active episode wording and missing-only retry reach the exact existing podcast owner',async()=>{
+ for(const owner of ['player','media-shelf'])for(const [question,operation]of [['Bu bölümü yazıya dök','transcribe'],['eksik çeviriyi tamamla','retry-translation']]){
+  const h=harness(owner);try{const surface=owner==='player'?h.w.PlayerSourceCatalogIntegration:h.w.MediaShelfUI,calls=[];surface.runPodcastTask=async args=>{calls.push(args);return {queued:true,id:'existing-task'};};h.w.podcastQueueTaskState=()=>({state:'complete',id:'existing-task'});
+   assert.equal(await h.w.AssistantVideoCommands.handle(question),true);assert.equal(calls.length,1);assert.equal(calls[0].operation,operation);assert.equal(calls[0].expected.mediaKey,h.snapshot.mediaKey);assert.equal(h.requests.length,0);assert.equal(h.done.at(-1).status,'complete');
   }finally{h.dom.window.close();}
  }
 });

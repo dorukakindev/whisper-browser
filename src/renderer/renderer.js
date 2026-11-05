@@ -19964,15 +19964,16 @@ function subtitleContextLanguage(role) {
     || langFromPath(channel.path) || '').toUpperCase();
 }
 
-function activePodcastContext(scopeName = $('aiTranscriptScope')?.value || 'watched') {
+function activePodcastContext(scopeName = $('aiTranscriptScope')?.value || 'watched', question = '') {
+  if(/(?:bu ana kadar|şu ana kadar|şimdiye kadar|buraya kadar|so far|up to (?:now|this point)|until now)/iu.test(String(question)))scopeName='watched';
   const shelf=window.MediaShelfUI;
   if(shelf?.isPodcastMode?.())return window.AssistantSourceContext.freezePodcast(shelf.readSnapshot(),shelf.getTranscriptTracks(),scopeName);
-  if(window.PlayerWorkspaceIntegration?.isPodcastMode?.())return window.AssistantSourceContext.freezePodcast(window.PlayerWorkspaceIntegration.snapshot(),window.PlayerWorkspaceIntegration.getTranscriptTracks(),scopeName);
+  if(window.PlayerWorkspaceIntegration?.isPodcastMode?.()||window.CinemaSahne?.current?.o.mode==='study')return window.AssistantSourceContext.freezePodcast(window.PlayerWorkspaceIntegration.snapshot(),window.PlayerWorkspaceIntegration.getTranscriptTracks(),scopeName);
   return null;
 }
 function podcastContextCurrent(context){
   const shelf=window.MediaShelfUI;
-  const snapshot=shelf?.isPodcastMode?.()?shelf.readSnapshot():window.PlayerWorkspaceIntegration?.isPodcastMode?.()?window.PlayerWorkspaceIntegration.snapshot():null;
+  const snapshot=shelf?.isPodcastMode?.()?shelf.readSnapshot():(window.PlayerWorkspaceIntegration?.isPodcastMode?.()||window.CinemaSahne?.current?.o.mode==='study')?window.PlayerWorkspaceIntegration?.snapshot():null;
   return window.AssistantSourceContext.podcastStillValid(context,snapshot);
 }
 function globalAssistantContext() {
@@ -20262,7 +20263,7 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null, 
   if(expectedScope!==null&&expectedScope!==aiSourceScope())return;
   const q = String(soru || '').trim();
   if (!q) return;
-  const podcastPacket = activePodcastContext();
+  const podcastPacket = activePodcastContext(undefined, q);
   const integration = window.PlayerWorkspaceIntegration;
   const watchPacket = !translationTarget && !requestOptions.playerEvidence && !globalAssistantContext() &&
     $('aiTranscriptScope')?.value === 'watched' ? integration?.freezeWatchQuestion(q) : null;

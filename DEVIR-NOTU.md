@@ -1,3 +1,4 @@
+Güncel çalışma: [Podcast günlük kullanım zinciri ve sınırlı asistan bağlamı](docs/devir/2026-11-05-1310.md)
 Güncel çalışma: [Üç agentla medya akış denetimi ve yedi hata düzeltmesi](docs/devir/2026-11-05-1237.md)
 Güncel çalışma: [Kısa medya düğme turu; kapsam ve hata bildirimi](docs/devir/2026-11-05-1201.md)
 Güncel çalışma: [Podcast aralığı, güvenli eksik çeviri ve not/zevk kanıtı erişimi](docs/devir/2026-11-05-1140.md)
