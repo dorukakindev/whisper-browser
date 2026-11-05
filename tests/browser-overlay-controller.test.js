@@ -157,4 +157,33 @@ test('R51-73: dikey VTT writingMode cue kutusuna uygulanır, karışık içerikt
   assert.equal(cues[0].line, '90%');
 });
 
+
+test('Video.js site captions hide only while the app overlay requests isolation', () => {
+  const { JSDOM } = require('jsdom');
+  const dom = new JSDOM('<!doctype html><html><head></head><body><div class="video-js"><video></video><div class="vjs-text-track-display"><div>Native site caption</div></div></div><h1>Site title</h1></body></html>', { runScripts: 'outside-only', pretendToBeVisual: true });
+  const w = dom.window;
+  w.ResizeObserver = class { observe() {} disconnect() {} };
+  const video = w.document.querySelector('video');
+  video.currentTime = 1;
+  video.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1280, height: 720, right: 1280, bottom: 720 });
+  const payload = { mode: 'source', source: [{ start: 0, end: 5, text: 'App caption' }], translation: [], style: { hideSiteCaptions: true } };
+  try {
+    w.eval(buildBrowserOverlayScript(payload, '(cues, t) => cues.filter(c => c.start <= t && t < c.end)'));
+    const native = w.document.querySelector('.vjs-text-track-display');
+    assert.equal(w.getComputedStyle(native).visibility, 'hidden');
+    const app = w.document.querySelector('[data-kind="source"]');
+    assert.equal(app.textContent, 'App caption');
+    assert.notEqual(w.getComputedStyle(app).visibility, 'hidden');
+    w.__whisperBrowserOverlayController.update({ ...payload, style: { hideSiteCaptions: false } });
+    assert.equal(w.getComputedStyle(native).visibility, 'visible');
+    w.__whisperBrowserOverlayController.update(payload);
+    assert.equal(w.getComputedStyle(native).visibility, 'hidden');
+    w.__whisperBrowserOverlayController.update({ ...payload, mode: 'off' });
+    assert.equal(w.getComputedStyle(native).visibility, 'visible');
+    assert.equal(native.textContent, 'Native site caption');
+    assert.equal(w.document.querySelector('h1').textContent, 'Site title');
+    assert.equal(w.document.querySelectorAll('[data-whisper-browser-overlay]').length, 1);
+  } finally { w.close(); }
+});
+
 console.log(`browser-overlay-controller: ${passed} test`);

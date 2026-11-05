@@ -302,7 +302,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
         if (!sheet) {
           sheet = document.createElement('style');
           sheet.id = id;
-          sheet.textContent = 'video::cue { opacity: 0 !important; color: transparent !important; background: transparent !important; } .ytp-caption-window-container, .player-timedtext { visibility: hidden !important; }';
+          sheet.textContent = 'video::cue { opacity: 0 !important; color: transparent !important; background: transparent !important; } .ytp-caption-window-container, .player-timedtext, .video-js .vjs-text-track-display { visibility: hidden !important; }';
           (document.head || document.documentElement).appendChild(sheet);
         }
       } else if (sheet) sheet.remove();
