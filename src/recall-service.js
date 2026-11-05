@@ -3,7 +3,7 @@ const fs=require('node:fs'),path=require('node:path'),{randomUUID}=require('node
 function registerRecall({app,ipcMain,authorized,userData=()=>app.getPath('userData'),catalogStore,feedStore,resolveSource,listExternalSources,updateSourceReaction,updateSourceConsumption,now=()=>Date.now()}={}){
  let ownerCache=null;
  const root=()=>userData(),catalog=()=>typeof catalogStore==='function'?catalogStore():catalogStore;
- function ownerFile(name){if(ownerCache?.has(name))return ownerCache.get(name);const file=path.join(root(),name);if(!fs.existsSync(file))return {};if(fs.statSync(file).size>16000000)throw Error('Source owner exceeds the bounded read size.');const value=JSON.parse(fs.readFileSync(file,'utf8').replace(/^\uFEFF/,''));ownerCache?.set(name,value);return value;}
+ function ownerFile(name){if(ownerCache?.has(name))return ownerCache.get(name);const file=path.join(root(),name);if(!fs.existsSync(file))return {};if(fs.statSync(file).size>(name==='media-shelf.json'?require('./media-shelf-limits').MAX_BYTES:16000000))throw Error('Source owner exceeds the bounded read size.');const value=JSON.parse(fs.readFileSync(file,'utf8').replace(/^\uFEFF/,''));ownerCache?.set(name,value);return value;}
  const youtube=url=>{try{return ['youtube.com','www.youtube.com','m.youtube.com','youtu.be'].includes(new URL(url).hostname);}catch{return false;}};
  function feeds(){if(ownerCache?.has('@feeds'))return ownerCache.get('@feeds');const store=typeof feedStore==='function'?feedStore():feedStore;const value=store?.snapshot?.()||ownerFile('feeds.json');ownerCache?.set('@feeds',value);return value;}
  function resolve(ref){

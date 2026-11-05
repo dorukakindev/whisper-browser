@@ -9,7 +9,7 @@ function create(options){
   // Resolve it before the cache lookup; the selected video is part of identity.
   let spotifyRow=null;
   if(request.kind==='spotify'){
-   const shelf=path.join(options.userData(),'media-shelf.json');if(fs.statSync(shelf).size>16000000)throw Error('Library too large');
+   const shelf=path.join(options.userData(),'media-shelf.json');if(fs.statSync(shelf).size>require('./media-shelf-limits').MAX_BYTES)throw Error('Library too large');
    spotifyRow=JSON.parse(fs.readFileSync(shelf,'utf8')).linkedPlaylists?.find(p=>p.id===request.playlistId)?.tracks?.find(t=>t.id===request.id);
    if(!spotifyRow)throw Error('Imported track missing / Aktarılan parça bulunamadı.');
   }

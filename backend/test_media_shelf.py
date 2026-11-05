@@ -7,6 +7,16 @@ from media_shelf import read_book, letterboxd, letterboxd_archive, rss
 
 
 class ShelfParsingTests(unittest.TestCase):
+
+    def test_large_podcast_feed_remains_bounded_and_rejects_deep_xml(self):
+        body = b'<rss><channel><title>Publisher</title><description>' + b'x' * 2_100_000 + b'</description><item><title>Episode</title><enclosure url="https://cdn.example/audio.mp3" type="audio/mpeg"/></item></channel></rss>'
+        self.assertEqual(rss(body)['episodes'][0]['title'], 'Episode')
+        with self.assertRaisesRegex(ValueError, 'too large'):
+            rss(b'x' * (6 * 1024 * 1024 + 1))
+        with self.assertRaisesRegex(ValueError, 'complexity'):
+            rss(b'<rss>' + b'<a>' * 45 + b'</a>' * 45 + b'</rss>')
+
+
     def epub(self, folder, escape=False):
         file = Path(folder) / 'Öykü.epub'
         with zipfile.ZipFile(file, 'w') as archive:

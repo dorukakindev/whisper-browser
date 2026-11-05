@@ -153,9 +153,17 @@ def read_book(file):
 
 
 def rss(data):
-    if len(data) > 2_000_000:
+    if len(data) > 6 * 1024 * 1024:
         raise ValueError('Feed is too large.')
     root = xml(data)
+    pending = [(root, 0)]
+    nodes = 0
+    while pending:
+        node, depth = pending.pop()
+        nodes += 1
+        if nodes > 150_000 or depth > 40:
+            raise ValueError('Feed XML complexity limit.')
+        pending.extend((child, depth + 1) for child in node)
     channel = next((n for n in root if local(n.tag) == 'channel'), root)
     bases = {}
     def inherit_base(node, parent=''):

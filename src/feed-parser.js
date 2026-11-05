@@ -4,7 +4,7 @@ const {SaxesParser}=require('saxes');
 const {normalizePodcastTranscripts}=require('./podcast-transcript');
 const {isIP}=require('node:net');
 const {isPublicMangaIpAddress}=require('./browser-manga');
-const {safePlaceUrl}=require('./browser-place-url');
+const {redactUrlSensitiveParams}=require('./browser-place-url');
 const {decode}=require('./letterboxd-reviews');
 const MAX_BYTES=2000000,MAX_ENTRIES=200;
 const clean=(value,max=500)=>String(value??'').replace(/\0/g,'').trim().slice(0,max);
@@ -27,7 +27,7 @@ function plain(value,max=50000){const chunks=[];scanHtml(String(value??''),text=
 // Adapters retain input format; normalized output is inert plain text, never HTML.
 const typedText=(value,format,max=50000)=>format==='html'?plain(value,max):clean(value,max);
 function safeUrl(value,base){
- try{if(typeof value!=='string'||!value.trim()||value.length>4096)return '';const u=new URL(value.trim(),base);if(!['https:','http:'].includes(u.protocol)||u.username||u.password||u.port&&!['80','443'].includes(u.port))return '';u.hash='';const host=u.hostname.toLowerCase().replace(/^\[|\]$/g,'').replace(/\.$/,'');if(host==='localhost'||host.endsWith('.localhost')||!host.includes('.')&&!isIP(host)||isIP(host)&&!isPublicMangaIpAddress(host))return '';if(safePlaceUrl(u.href)!==u.href)return '';return u.href;}catch{return '';}
+ try{if(typeof value!=='string'||!value.trim()||value.length>4096)return '';const u=new URL(value.trim(),base);if(!['https:','http:'].includes(u.protocol)||u.username||u.password||u.port&&!['80','443'].includes(u.port))return '';u.hash='';const host=u.hostname.toLowerCase().replace(/^\[|\]$/g,'').replace(/\.$/,'');if(host==='localhost'||host.endsWith('.localhost')||!host.includes('.')&&!isIP(host)||isIP(host)&&!isPublicMangaIpAddress(host))return '';if(redactUrlSensitiveParams(u.href)!==u.href)return '';return u.href;}catch{return '';}
 }
 function xmlTree(input){
  if(typeof input!=='string'||Buffer.byteLength(input)>MAX_BYTES||/<!DOCTYPE|<!ENTITY/i.test(input))throw Error('Unsafe or oversized XML.');

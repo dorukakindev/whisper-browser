@@ -38,7 +38,7 @@
       capabilities:{play:cap(observed?'yes':'unknown','existing-web-player'),pause:cap(observed?'yes':'unknown','existing-web-player'),
         seek:cap(observed&&duration&&!player.isLive?'yes':'no','existing-web-seek-range'),rate:cap(observed?'yes':'unknown','existing-web-rate'),
         readTranscript:cap(source.cues.length?'yes':'no','existing-source-captions'),asr:cap(spotify?'no':youtube?'yes':'unknown',spotify?'no-authorized-audio-source':youtube?'existing-youtube-queue':'audio-access-unverified'),ASR:cap(spotify?'no':youtube?'yes':'unknown',spotify?'no-authorized-audio-source':youtube?'existing-youtube-queue':'audio-access-unverified'),
-        download:cap(spotify?'no':'unknown',spotify?'no-authorized-download-source':'download-not-verified')} };
+        liveAsr:cap(observed?'unknown':'no','system-audio-requires-explicit-consent'),download:cap(spotify?'no':'unknown',spotify?'no-authorized-download-source':'download-not-verified')} };
   }
   function sourceRole() { const source=getTranscriptTracks()[0]; return source?{trackId:source.id,trackRevision:source.revision,cues:source.cues,offsetSeconds:0}:null; }
   async function executeExisting(command) {
