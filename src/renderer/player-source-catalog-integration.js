@@ -178,7 +178,8 @@
       audio.transcriptText=cues.length?cues.map(cue=>String(cue.text||'')).join('\n\n'):String(result.text);
       audio.transcriptState='untimed';audio.transcriptTimingNotice=t('Salt okunur sonuç: açık ses ile kaynak sürümü/zaman eşleşmesi doğrulanmadı veya çıktı kısmi. Metin konum atlamak ve bu ana kadar kapsamı için kullanılamaz.','Read-only result: the open audio source version/timing is unverified or the result is partial. Text cannot be used for seeking or evidence of what has been heard.');
     }
-    window.PlayerWorkspaceIntegration?.setPodcastMode?.(true);window.PlayerWorkspaceIntegration?.refresh(true);
+    // Loading a track must not replace the presentation explicitly chosen by the user.
+    window.PlayerWorkspaceIntegration?.refresh(true);
   }
   function podcastTools(initialMessage=''){
     const dialogOwner={mediaKey:player.mediaKey,generation:player.generation,workspaceMode:player.workspaceMode};
