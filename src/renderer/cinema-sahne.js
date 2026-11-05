@@ -91,7 +91,7 @@
     const empty=role=>({id:'shelf-empty:'+role,revision:'none',role,timed:false,offsetSeconds:0,cues:[]});
     return {kind:'shelf',tab:()=>'',snap:()=>shelf()?.readSnapshot(),tracks:()=>['source','translation'].map(role=>{
       const all=shelf()?.getTranscriptTracks?.()||[],track=all.find(t=>(t.role||'source')===role)||empty(role);
-      if(track.timed===false && !track.cues?.length && track.text)return {...track,cues:[{id:'plain',text:track.text,start:0,end:0}]};
+      if(track.timed===false && !track.cues?.length && track.text)return {...track,cues:[{id:'plain',text:track.readingText||track.text,start:0,end:0}]};
       return {...empty(role),...track,cues:track.cues||[]};
     }),dispatch:c=>shelf().executeExisting(c),dispose(){},words:()=>null,langs:()=>({}),mediaTitle:()=>shelf()?.readSnapshot()?.title||'',sub:()=>T('Yayıncı RSS','Publisher RSS'),cover:()=>shelf()?.podcastInfo?.()?.image||'',slot:()=>null,unslot(){} };
   }
@@ -132,8 +132,11 @@
     function rowsFor(s) {
       const audio = kind === 'local' && player.workspaceAudio?.mediaKey === s.mediaKey && player.workspaceAudio?.generation === s.generation ? player.workspaceAudio : null;
       if (audio && ['untimed','needs-review'].includes(audio.transcriptState)) {
-        const text = String(audio.transcriptText || '');
-        cache = { rev: `readonly:${s.mediaKey}:${s.generation}:${text}`, meta: [], untimed: true, rows: text.split(/\n\s*\n/).filter(x=>x.trim()).map((text,i)=>({id:'readonly:'+i,start:0,end:0,timed:false,src:text,trs:[],unc:[],words:null})) };
+        const text = String(audio.transcriptText || ''), translation = String(audio.translationText || '');
+        const paragraphs=text.split(/\n\s*\n/).filter(x=>x.trim());
+        // Paragraph counts do not establish alignment; preserve both complete texts.
+        const rows=translation ? [{id:'readonly:all',start:0,end:0,timed:false,src:text,trs:[translation],unc:[],words:null}] : paragraphs.map((text,i)=>({id:'readonly:'+i,start:0,end:0,timed:false,src:text,trs:[],unc:[],words:null}));
+        cache = { rev: `readonly:${s.mediaKey}:${s.generation}:${JSON.stringify([text,translation])}`, meta: [], untimed: true, rows };
         return cache;
       }
       const [src, sec] = F.tracks(); const rev = `${src.id}|${src.revision}|${src.offsetSeconds}|${sec.id}|${sec.revision}|${sec.offsetSeconds}|${s.mediaKey}|${s.generation}`;
@@ -252,7 +255,7 @@
       return { job: job(), sections };
     }
     return {
-      caps: { loop: kind!=='shelf', save: false, cinema:kind==='local', study:true, word:kind!=='shelf' },
+      caps: { loop: kind!=='shelf', save: typeof window.api.upsertResearchAnnotation==='function', cinema:kind==='local', study:true, word:kind!=='shelf' },
       identity, panel, actions,
       info: () => { const s = F.snap(), l = F.langs(); return { title: F.mediaTitle() || s?.title || '', sub: F.sub(), eyebrow: F.eyebrow?.() || (kind === 'browser' ? T('Şimdi çalıyor', 'Now playing') : kind === 'shelf' ? T('Podcast', 'Podcast') : T('Yerel oynatıcı', 'Local player')), cover: F.cover(), tint: null,
         chapters:kind==='shelf'?[]:(player.chapters||[]).filter(c=>Number.isFinite(c.start)&&c.start>=0&&(!s?.duration||c.start<s.duration)).map(c=>({t:c.start,label:String(c.title||T('Bölüm','Chapter'))})),
@@ -264,8 +267,22 @@
         if (t === 'loop' && !(v && v.on)) { clearOwnedLoop(); return Promise.resolve({ ok: true }); }   // kendi A–B döngümüzü her durumda kapat
         const s = F.snap(); if (!current()) return Promise.resolve(stale);
         rowsFor(s);
-        if(expectedRevision && expectedRevision!==cache.rev && ['seekCue','loop','replay','prevCue','nextCue','wordInfo','wordSave','wordLookup','openQueued'].includes(t))return Promise.resolve({ok:false,code:'stale-track',message:T('Altyazı değişti; satırı yeniden seçin.','The transcript changed; select the line again.')});
+        if(expectedRevision && expectedRevision!==cache.rev && ['seekCue','loop','replay','prevCue','nextCue','wordInfo','wordSave','wordLookup','openQueued','save'].includes(t))return Promise.resolve({ok:false,code:'stale-track',message:T('Altyazı değişti; satırı yeniden seçin.','The transcript changed; select the line again.')});
         switch (t) {
+          case 'save': {
+            const index=typeof v==='number'?v:v?.row,row=cache.rows[index];
+            if(!row||!Number.isInteger(index)||typeof window.api.upsertResearchAnnotation!=='function')return Promise.resolve({ok:false,code:'unsupported'});
+            const excerpt=v?.excerpt===undefined?'':String(v.excerpt).trim();
+            if(v?.excerpt!==undefined&&(!excerpt||!row.src.includes(excerpt)))return Promise.resolve({ok:false,code:'invalid-excerpt',message:T('Kaynak metinden bir bölüm seçin.','Select a passage from the source text.')});
+            const source=excerpt||row.src,translation=excerpt?'':row.trs.join('\n\n');
+            if(source.length>4000||translation.length>4000)return Promise.resolve({ok:false,code:'passage-too-long',message:T('Metin kayıt sınırını aşıyor. Kaynak metinden daha kısa bir bölüm seçin (en fazla 4000 karakter).','The text exceeds the save limit. Select a shorter passage from the source text (up to 4000 characters).')});
+            const podcast=kind==='shelf'||s.sourceKind==='rss',audio=kind==='local'&&player.workspaceAudio?.mediaKey===s.mediaKey&&player.workspaceAudio?.generation===s.generation?player.workspaceAudio:null;
+            const payload={type:excerpt&&excerpt.length<=120&&!/\s/u.test(excerpt)?'word':'quote',mediaId:s.mediaKey,mediaType:podcast?'podcast':kind==='browser'?'browser':'local',mediaTitle:F.mediaTitle(),mediaUrl:kind==='browser'?window.BrowserPlaceUrl?.redactUrlSensitiveParams?.(player.browserPageUrl)||'':'',
+              source,translation,...(String(v?.note||'').trim()?{note:String(v.note)}:{}),timed:row.timed,start:row.timed?row.start:null,end:row.timed?row.end:null,
+              trackId:cache.meta[index]?.trackId||'readonly',cueId:row.id,sourceVersion:s.sourceVersion,sourceBinding:s.sourceBinding,episodeIdentity:s.episodeIdentity,playbackOwner:s.playbackOwner,
+              sourceEntryId:audio?.entryId||s.entryId||''};
+            return Promise.resolve(window.api.upsertResearchAnnotation(payload)).then(result=>result?.ok?{ok:true,annotation:result.annotation}: {ok:false,code:'save-failed',message:T('Not kaydedilemedi.','Could not save the note.')}).catch(()=>({ok:false,code:'save-failed',message:T('Not kaydedilemedi.','Could not save the note.')}));
+          }
           case 'advanced':openAdvanced();return Promise.resolve({ok:true});
           case 'assistant':window.api.showAssistant?.();return Promise.resolve({ok:true});
           case 'fullscreen':return Promise.resolve(doc.fullscreenElement?doc.exitFullscreen?.():host?.requestFullscreen?.()).then(()=>({ok:true}));

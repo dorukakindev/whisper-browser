@@ -359,4 +359,6 @@ html[data-sahne-hidden=true] .sh *{animation-play-state:paused!important}
  .sh-audio.sh-podcast .sh-deck>.sh-scrub,.sh-audio.sh-podcast .sh-deck>.sh-transport,.sh-audio.sh-podcast .sh-deck>.sh-chips,.sh-audio.sh-podcast .sh-deck>.sh-volume{grid-column:1/-1}
  .sh-audio.sh-podcast .sh-chips{gap:8px}.sh-audio.sh-podcast .sh-chips .sh-chip{font-size:12px}
 }
-.sh-line.is-untimed .src{font-size:clamp(18px,1.5vw,22px);line-height:1.7;font-weight:400;white-space:pre-wrap}
+.sh-line.is-untimed .src,.sh-card.is-untimed .src{font-size:clamp(18px,1.5vw,22px);line-height:1.7;font-weight:400;white-space:pre-wrap}
+
+.sh-note-card{max-height:calc(100% - 48px);overflow:auto;bottom:24px}.sh-note-card h2{font-size:20px}.sh-note-card label{display:grid;gap:8px;color:var(--sh-dim);font-size:13px}.sh-note-card textarea{width:100%;box-sizing:border-box;resize:vertical;min-height:72px;padding:10px;background:var(--theme-bg-2);color:var(--sh-ink);border:1px solid var(--theme-border-strong);border-radius:8px;font:inherit}

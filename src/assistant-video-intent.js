@@ -18,12 +18,13 @@
   // Configuration requests belong to the typed agent; never infer a production start.
   if(/(?:model(?:ini|i)?|motor(?:unu|u)?|engine|beam|ayar|settings?|precision|compute|device|font|boyut|opacity)/u.test(text))return null;
   const noWhisper=/(?:whisper.{0,15}kullanma|without whisper)/u.test(text);
-  const whisper=!noWhisper&&/(?:\bwhisper\b|\btranscrib(?:e|ing|tion)\b)/u.test(text);
+  const podcastTranscription=/\bpodcast/u.test(text)&&/yazıya\s+dök(?:er misin|ebilir misin)?(?:\s|[,;.!?]|$)/u.test(text)&&!/yazıya\s+dök(?:me|mey|ülmesin)/u.test(text);
+  const whisper=!noWhisper&&(/(?:\bwhisper\b|\btranscrib(?:e|ing|tion)\b)/u.test(text)||podcastTranscription);
   const subtitle=/(?:altyaz|subtitle|caption)/u.test(text);
   const translate=/(?:çevir|translate|translation)/u.test(text);
   const action=/(?:çevir(?:ebilir misin|ir misin|sene|iniz|in)?|çıkar|oluştur|başlat|yap|hazırla)(?:\s|[,;.!?]|$)|\b(?:transcribe|translate|generate|create|start)\b/u.test(text)
     ||/^(?:(?:yalnız|sadece|only) whisper|whisper only|whisper\s*(?:\+|ve|and)\s*(?:çeviri|translation))[.!?]*$/u.test(text);
-  if(!action||!(subtitle||whisper))return null;
+  if(!(action||podcastTranscription)||!(subtitle||whisper))return null;
   let kind;
   if(whisper)kind=translate&&!noTranslation?'whisper-translate':'whisper-only';
   else if(subtitle&&translate&&!noTranslation)kind='translate-track';

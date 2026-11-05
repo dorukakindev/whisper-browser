@@ -68,6 +68,22 @@
   };
   task.timer=setInterval(inspect,650);inspect();
  }
+ function followPodcast(task,id){
+  task.queueId=id;
+  const inspect=()=>{
+   if(pending!==task)return;
+   if(!owner(task)){finish(task,t('The podcast source or conversation changed. Check the original queue for its result.','Podcast kaynağı veya sohbet değişti. Sonuç için önceki kuyruğu kontrol et.'),'failed');return;}
+   const job=window.podcastQueueTaskState?.(task.podcast.snapshot,id);
+   if(!job||job.id!==id||job.state==='idle'){finish(task,t('The accepted podcast job is no longer available. Check the original queue.','Kabul edilen podcast işi artık kullanılamıyor. Önceki kuyruğu kontrol et.'),'failed');return;}
+   if(job.state==='stopped'){finish(task,t('Podcast processing was stopped. Finished results were kept.','Podcast işlemi durduruldu. Hazır sonuçlar korundu.'),'stopped');return;}
+   if(job.state==='failed'){finish(task,job.text||t('Podcast processing failed. Check the queue log.','Podcast işlemi başarısız oldu. Kuyruk kaydını kontrol et.'),'failed');return;}
+   if(job.state==='complete'){finish(task,t('Podcast processing finished. Results are available in the current source workspace.','Podcast işlemi bitti. Sonuçlar bu kaynağın çalışma alanında hazır.'),'complete');return;}
+   const percent=Number(job.progress),step=Number.isFinite(percent)&&percent>0?` · %${Math.min(99,Math.round(percent*100))}`:'';
+   const message=(task.cancelled?t('Stopping podcast processing…','Podcast işlemi durduruluyor…'):job.state==='queued'?t('Podcast processing is queued.','Podcast işlemi kuyrukta.'):t('Podcast processing is running','Podcast işlemi sürüyor'))+step+(job.text?` · ${String(job.text).slice(0,300)}`:'');
+   if(message!==task.job.bubble.textContent)update(task,message);
+  };
+  task.timer=setInterval(inspect,650);inspect();
+ }
  function followTranslation(task,trackId){
   task.trackId=trackId;
   task.onTranslation=event=>{
@@ -117,10 +133,11 @@
      throw Error(t('Use the podcast transcript translation controls for this translation option.','Bu çeviri seçeneği için podcast dökümü çeviri kontrollerini kullan.'));
     if(typeof task.podcast.surface?.runPodcastTask!=='function')throw Error(t('Podcast processing is unavailable.','Podcast işlemi kullanılamıyor.'));
     const receipt=await task.podcast.surface.runPodcastTask({operation,expected:task.podcast.snapshot,targetLanguage:intent.targetLanguage||undefined,forSpeech:intent.forSpeech||undefined,range:intent.range||null,isCancelled:()=>task.cancelled||!owner(task)});
-    if(task.cancelled){finish(task,t('The podcast request was stopped before queue acceptance.','Podcast isteği kuyruğa kabul edilmeden durduruldu.'),'stopped');return true;}
+    if(task.cancelled&&(!receipt?.queued||!receipt.id)){finish(task,t('The podcast request was stopped before queue acceptance.','Podcast isteği kuyruğa kabul edilmeden durduruldu.'),'stopped');return true;}
     if(!owner(task))throw Error(t('Podcast source or conversation changed. Check the original queue for any accepted job.','Podcast kaynağı veya sohbet değişti. Kabul edilmiş iş için önceki kuyruğu kontrol et.'));
     if(!receipt?.queued||!receipt.id)throw Error(t('Podcast queue acceptance was not confirmed.','Podcast işinin kuyruğa kabulü doğrulanamadı.'));
-    finish(task,(operation==='transcribe-translate'?t('Podcast transcription + translation was added to the existing queue.','Podcast dökümü + çeviri mevcut kuyruğa eklendi.'):operation==='transcribe'?t('Podcast transcription was added to the existing queue.','Podcast dökümü mevcut kuyruğa eklendi.'):t('Podcast transcript translation was added to the existing queue.','Podcast dökümü çevirisi mevcut kuyruğa eklendi.'))+' '+t('Follow progress and stop controls in the queue.','İlerlemeyi ve durdurmayı kuyruktan yönet.'),'complete');
+    followPodcast(task,receipt.id);
+    if(task.cancelled&&pending===task){task.cancelled=false;await cancel();}
     return true;
    }
    if(!url||!task.tabId)throw Error(t('Open a YouTube video in the browser first.','Önce browser içinde bir YouTube videosu aç.'));
@@ -174,7 +191,10 @@
   const task=status();if(!task||task.cancelled)return;
   task.cancelled=true;
   update(task,t('Stopping the video job…','Video işi durduruluyor…'));
-  if(task.engineJob){
+  if(task.queueId){
+   const stopped=owner(task)&&await window.cancelPodcastQueueTask?.(task.podcast.snapshot,task.queueId);
+   if(!stopped){task.cancelled=false;update(task,t('Stopping could not be confirmed. Check the podcast queue controls.','Durdurma doğrulanamadı. Podcast kuyruğu kontrollerini kontrol et.'));}
+  }else if(task.engineJob){
    if(player.job!==task.engineJob){finish(task,t('The original job is no longer active.','Önceki iş artık etkin değil.'),'stopped');return;}
    document.getElementById('playerJobCancel')?.click();
   }else if(task.trackId){

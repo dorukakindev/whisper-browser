@@ -1,11 +1,11 @@
 "use strict";
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const {JSDOM}=require('jsdom');
-function mount(t,{untimed=false,cinema=false,audio=false,empty=false,study=false,actions=[],timingNotice=''}={}){
+function mount(t,{untimed=false,cinema=false,audio=false,empty=false,study=false,actions=[],timingNotice='',save=false}={}){
  const dom=new JSDOM('<div id="host"></div>',{url:'https://test.invalid',pretendToBeVisual:true,runScripts:'outside-only'}),w=dom.window;
  w.UiLocale={get:()=> 'tr'};w.matchMedia=()=>({matches:true});w.Element.prototype.scrollTo=function(value){this.scrollTop=value.top;};
  let time=2,revision="r1";const commands=[];const rows=untimed?[{id:'text',start:0,end:0,timed:false,src:'Yayıncı metni',trs:[],unc:[],words:null}]:[{id:'a',start:0,end:10,timed:true,src:'A source sentence',trs:['Birinci çeviri','İkinci çeviri'],unc:[],words:null},{id:'b',start:10,end:20,timed:true,src:'The next sentence',trs:[],unc:[],words:null}];
- const adapter={caps:{loop:true,cinema,study:true},identity:()=> 'same-source',actions:()=>actions,info:()=>({audio,title:'Bölüm',langs:{src:'en',tr:'tr'},chapters:[{t:0,label:'Giriş'},{t:10,label:'İkinci bölüm'}],queue:[{index:1,title:'Sıradaki gerçek kayıt'}]}),state:()=>({time,duration:30,paused:true,rate:1,volume:.42,rows:empty?[]:rows,rev:revision,untimed,timingNotice,canSeek:true}),cmd:(...args)=>{commands.push(args);return Promise.resolve(args[0]==='wordInfo'?{ok:true,word:args[1].word,source:rows[args[1].row].src,translations:rows[args[1].row].trs,canSave:true,saved:false}:{ok:args[0]!=='loop',code:'busy'});},panel:()=>({sections:[],job:{state:'idle'}})};
+ const adapter={caps:{loop:true,cinema,study:true,save},identity:()=> 'same-source',actions:()=>actions,info:()=>({audio,title:'Bölüm',langs:{src:'en',tr:'tr'},chapters:[{t:0,label:'Giriş'},{t:10,label:'İkinci bölüm'}],queue:[{index:1,title:'Sıradaki gerçek kayıt'}]}),state:()=>({time,duration:30,paused:true,rate:1,volume:.42,rows:empty?[]:rows,rev:revision,untimed,timingNotice,canSeek:true}),cmd:(...args)=>{commands.push(args);return Promise.resolve(args[0]==='wordInfo'?{ok:true,word:args[1].word,source:rows[args[1].row].src,translations:rows[args[1].row].trs,canSave:true,saved:false}:{ok:args[0]!=='loop',code:'busy'});},panel:()=>({sections:[],job:{state:'idle'}})};
  w.eval(fs.readFileSync(require.resolve('../src/renderer/browser-study-view.js'),'utf8'));
  w.eval(fs.readFileSync(require.resolve('../src/renderer/sahne.js'),'utf8'));
  const sh=new w.Sahne(w.document.getElementById('host'),adapter,{mode:cinema?'cinema':study?'study':'podcast',intro:false});
@@ -77,4 +77,25 @@ test('shared transcript keeps search and stopped follow through transcript updat
 
 test('untimed audio keeps its transcript readable without an empty subtitle trough',t=>{
  const f=mount(t,{audio:true,untimed:true,study:true,timingNotice:'Open audio timing is unverified'});assert(f.sh.q('[data-r=subs]').hidden);assert.equal(f.sh.q('.sh-note').textContent,'Open audio timing is unverified');assert.match(f.sh.q('[data-r=scroll]').textContent,/Yayıncı metni/);assert.equal(f.sh.cur,-1);
+});
+
+
+test('sentence note editor saves entered note and return uses a real timed cue',async t=>{
+ const f=mount(t,{save:true});f.sh.q('[data-i="0"] [data-act=save]').click();const box=f.sh.q('.sh-note-card');assert.equal(box.hidden,false);
+ box.querySelector('[data-a=noteSeek]').click();assert.deepEqual(f.commands.at(-1).slice(0,2),['seekCue',0]);
+ box.querySelector('textarea').value='Remember this';box.querySelector('[data-a=noteSave]').click();await Promise.resolve();await Promise.resolve();
+ const save=f.commands.find(c=>c[0]==='save');assert.equal(save[1].row,0);assert.equal(save[1].note,'Remember this');assert.equal(save[2],'r1');
+});
+
+test('untimed note editor has no return-time action and closes on transcript revision',t=>{
+ const f=mount(t,{save:true,untimed:true});f.sh.q('[data-act=save]').click();const box=f.sh.q('.sh-note-card');assert.equal(box.hidden,false);assert.equal(box.querySelector('[data-a=noteSeek]'),null);assert.match(box.textContent,/Zamansız/);
+ assert.equal(f.commands.length,0);f.setRevision('new');f.sh.tick();assert.equal(box.hidden,true);assert.equal(f.sh.s.note,null);
+});
+
+
+test('note editor captures only a source-row text selection and omits unrelated translation',async t=>{
+ const f=mount(t,{save:true}),source=f.sh.q('[data-i="0"] .src'),range=f.w.document.createRange();range.setStart(source.firstChild,2);range.setEnd(source.firstChild,8);const selection=f.w.getSelection();selection.removeAllRanges();selection.addRange(range);
+ f.sh.openNote(0);assert.equal(f.sh.s.note.excerpt,'source');assert.equal(f.sh.q('.sh-note-card .sh-word-context').textContent,'source');assert.equal(f.sh.q('.sh-note-card .sh-word-translation'),null);
+ await f.sh.saveNote();const saved=f.commands.find(c=>c[0]==='save');assert.equal(saved[1].excerpt,'source');assert.equal(saved[2],'r1');
+ const translation=f.sh.q('[data-i="0"] .tr');range.selectNodeContents(translation);selection.removeAllRanges();selection.addRange(range);f.sh.openNote(0);assert.equal(f.sh.s.note.excerpt,undefined);assert.equal(f.sh.q('.sh-note-card .sh-word-context').textContent,'A source sentence');
 });

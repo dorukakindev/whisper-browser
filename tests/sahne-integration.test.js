@@ -138,3 +138,37 @@ test('RSS cover and publisher belong only to the current audio source, never a l
  const info=f.open().info();assert.equal(info.title,'Publisher episode');assert.equal(info.cover,'https://images.example/cover.jpg');assert.match(info.sub,/Actual publisher/);assert.match(info.eyebrow,/Podcast/);assert.equal(f.window.CinemaSahne.current.a.state().timingNotice,'Source timing needs review');
  f.player.generation=2;const changed=f.window.CinemaSahne.current.a.info();assert.equal(changed.cover,'');assert.doesNotMatch(changed.sub,/Actual publisher/);
 });
+
+
+test('shared sentence save preserves bound source, real offsets, translation and user note',async t=>{
+ const f=fixture(t),saved=[];f.window.api.upsertResearchAnnotation=async payload=>{saved.push(payload);return {ok:true,annotation:payload};};
+ const a=f.open(),state=a.state();assert.equal(a.caps.save,true);
+ const result=await a.cmd('save',{row:0,note:'My note'},state.rev);assert.equal(result.ok,true);
+ assert.equal(saved[0].mediaId,'local:episode');assert.equal(saved[0].start,2);assert.equal(saved[0].end,10);assert.equal(saved[0].timed,true);assert.equal(saved[0].source,'Source sentence');assert.equal(saved[0].translation,'Birinci\n\nİkinci');assert.equal(saved[0].note,'My note');
+ f.source.revision='s2';assert.equal((await a.cmd('save',{row:0},state.rev)).code,'stale-track');assert.equal(saved.length,1);
+ f.player.generation++;assert.equal((await a.cmd('save',{row:0})).code,'stale-source');assert.equal(saved.length,1);
+});
+
+test('plain translation renders and saves untimed without invented alignment or seek',async t=>{
+ const f=fixture(t),saved=[];f.window.api.upsertResearchAnnotation=async payload=>{saved.push(payload);return {ok:true,annotation:payload};};
+ f.player.workspaceAudio={mediaKey:f.player.mediaKey,generation:1,entryId:'feed-entry',transcriptState:'untimed',transcriptText:'First paragraph\n\nSecond paragraph',translationText:'Complete translation'};
+ const a=f.open(),state=a.state();assert.equal(state.rows.length,1);assert.equal(state.rows[0].trs[0],'Complete translation');
+ assert.equal((await a.cmd('save',{row:0,note:'Untimed note'},state.rev)).ok,true);assert.equal(saved[0].timed,false);assert.equal(saved[0].start,null);assert.equal(saved[0].end,null);assert.equal(saved[0].sourceEntryId,'feed-entry');assert.equal(f.commands.length,0);
+ f.player.workspaceAudio.translationText='Updated translation';assert.notEqual(a.state().rev,state.rev);assert.equal((await a.cmd('save',{row:0},state.rev)).code,'stale-track');
+});
+
+
+test('long plain transcript requires a real selected passage without truncation or unaligned translation',async t=>{
+ const f=fixture(t),saved=[];f.window.api.upsertResearchAnnotation=async payload=>{saved.push(payload);return {ok:true,annotation:payload};};
+ f.player.workspaceAudio={mediaKey:f.player.mediaKey,generation:1,transcriptState:'untimed',transcriptText:'Source passage. '+ 'Long text '.repeat(500),translationText:'Whole translation'};
+ const a=f.open(),rev=a.state().rev;const rejected=await a.cmd('save',{row:0},rev);assert.equal(rejected.code,'passage-too-long');assert.match(rejected.message,/4000/);assert.equal(saved.length,0);
+ assert.equal((await a.cmd('save',{row:0,excerpt:'invented passage'},rev)).code,'invalid-excerpt');assert.equal((await a.cmd('save',{row:0,excerpt:''},rev)).code,'invalid-excerpt');
+ assert.equal((await a.cmd('save',{row:0,excerpt:'Source passage.'},rev)).ok,true);assert.equal(saved.length,1);assert.equal(saved[0].source,'Source passage.');assert.equal(saved[0].translation,'');assert.equal(saved[0].start,null);assert.equal(f.commands.length,0);
+ f.player.workspaceAudio.transcriptText='Changed';assert.equal((await a.cmd('save',{row:0,excerpt:'Source passage.'},rev)).code,'stale-track');
+});
+
+
+test('single selected podcast word uses the existing word research record and source binding',async t=>{
+ const f=fixture(t),saved=[];f.window.api.upsertResearchAnnotation=async payload=>{saved.push(payload);return {ok:true,annotation:payload};};f.player.workspaceAudio={mediaKey:f.player.mediaKey,generation:1,entryId:'podcast',transcriptState:'untimed',transcriptText:'Original source sentence'};
+ const a=f.open(),state=a.state();assert.equal((await a.cmd('save',{row:0,excerpt:'source'},state.rev)).ok,true);assert.equal(saved[0].type,'word');assert.equal(saved[0].source,'source');assert.equal(saved[0].sourceEntryId,'podcast');assert.equal(saved[0].timed,false);assert.equal(saved[0].start,null);
+});

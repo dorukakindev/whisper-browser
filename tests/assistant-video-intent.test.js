@@ -35,3 +35,8 @@ test('Descriptions, negations, quoted page content and page translation are not 
 test('Whisper and subtitle configuration is never a transcription start',()=>{
  for(const text of ['Whisper modelini tiny yap','Whisper motorunu değiştir','Set Whisper model to tiny','Whisper ile tiny model kullan ve altyazı çıkar','Altyazı boyutunu 34 yap'])assert.equal(match(text),null,text);
 });
+
+test('Podcast transcription phrasing uses the existing Whisper workflow without treating translation-only as transcription',()=>{
+ for(const [text,kind] of [['Bu podcasti yazıya dök ve Türkçeye çevir','whisper-translate'],['Bu podcasti yazıya dök','whisper-only'],['Transcribe this podcast and translate','whisper-translate']])assert.equal(match(text)?.kind,kind,text);
+ for(const text of ['Bu podcasti yazıya dökme','Bu podcasti yazıya dökmeden çevir','Bu podcasti çevir'])assert.equal(match(text),null,text);
+});

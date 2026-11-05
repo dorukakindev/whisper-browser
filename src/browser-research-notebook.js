@@ -97,7 +97,7 @@ function researchAnnotationsToMarkdown(rows, title = 'Whisper Local arastirma de
   const lines = [`# ${markdownEscape(title)}`, '', `Disa aktarim: ${new Date().toISOString()}`, ''];
   for (const row of Array.isArray(rows) ? rows : []) {
     lines.push(`## ${markdownEscape(row.mediaTitle || row.source || 'Adsiz not')}`, '');
-    const meta = [row.type, row.status, Number.isFinite(Number(row.start)) ? `${Number(row.start).toFixed(3)} sn` : ''].filter(Boolean).join(' · ');
+    const meta = [row.type, row.status, row.timed !== false && row.start != null && Number.isFinite(Number(row.start)) ? `${Number(row.start).toFixed(3)} sn` : ''].filter(Boolean).join(' · ');
     if (meta) lines.push(markdownEscape(meta), '');
     const sourceUrl=redactUrlSensitiveParams(row.mediaUrl || '');
     if (sourceUrl) lines.push(`[Kaynak](${sourceUrl.replace(/\)/g, '%29')})`, '');
