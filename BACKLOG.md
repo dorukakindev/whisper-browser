@@ -2,6 +2,8 @@
 
 Son durum kontrolü: **2026-11-05**. Son ürün `c638d491f08d021aaf166a3bf00be68aa533e152`: asistanın gerçek zevk kanıtları ve doğrulanmış yapım açma sonucu. [Güncel teslim](docs/devir/2026-11-05-1337.md). Onaylı ortak Sahne tasarımı korunur.
 
+**Yeni sohbet başlangıcı:** P025 [PR #842](https://github.com/dorukakindev/whisper-browser/pull/842) ile master'a alındı; doğrulanmış ürün başlangıcı `7bf15f3c2876a5465b0c7f59fff3a037b41aeb69`. Sonraki belge commitleri ürün değişikliği değildir; çalışmadan önce gerçek HEAD/remote ve kişisel farkları yeniden kontrol et. Mevcut görevlerden yarım bırakılmış yeni ürün işi yok; aşağıdaki koşullu/ertelenmiş işler korunur.
+
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
 ## Uygulama sırası

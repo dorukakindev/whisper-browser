@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Yeni sohbet için README ürün/mimari özeti, kısa çalışma tercihleri ve tamamlanan/açık iş ayrımı güncellendi. Yalnız belge değişikliği; ürün kodu değişmedi. [Devir](docs/devir/2026-11-05-1341.md).
+
 - Asistan önerileri puan kaynağını, gerekçe başına gerçek kanıtı ve karşıt sinyalleri korur; yorum analizi açık tercihten ayrılır. Yapım açma başarı sonucu gerçek sayfayla doğrulanır; mevcut izleme listesi onayı korunur ve önizleme durumları çevrilir. [Teslim](docs/devir/2026-11-05-1337.md).
 
 - Aktif podcast için bölüm yazıya dökme ve yalnız eksik çeviriyi tamamlama komutları mevcut kuyruğa bağlandı. Çift dilli asistan bağlamı ve tam transkript seçiliyken bile “bu ana kadar” zaman sınırı korundu. [Günlük kullanım doğrulaması](docs/devir/2026-11-05-1310.md).
