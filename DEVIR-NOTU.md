@@ -1,3 +1,4 @@
+Güncel teslim: [Gerçek sayfa panel/görünüm geçişi ve kalan podcast kaynakları](docs/devir/2026-11-05-1450.md)
 Güncel teslim: [Gerçek PeerTube fullscreen/çift dil ve Video.js altyazı yalıtımı düzeltmesi](docs/devir/2026-11-05-1428.md)
 Güncel kabul: [P004 site profili yeniden açma ve fullscreen/Shadow DOM kısa kabulü](docs/devir/2026-11-05-1417.md)
 Güncel kabul: [Browser gerçek tam video, çift dil ve bağımsız sahne kayması doğrulandı](docs/devir/2026-11-05-1408.md)
