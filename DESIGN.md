@@ -240,3 +240,7 @@ Home, Keşfet ve film üst/alt yüzeyleri için onaylı motion v3 kompozisyonu u
 ## 2026-11-03 — Round 4 film araçları
 
 Onaylı iki kapsamlı tercih paneli: film görüşleri ayrı, genel öncelikler ayrı; okunaklı metinli radio adımları ve kayan altın seçim. Aynı API değerleri korunur, film görüşü sayısal önceliğe dönüştürülmez. Atmosfer normal kart; kalan alan seçim özeti. İzleme/günlük eşit kartlar, üç adımlı hazırlık, tek kaynak popover'ı, ortak alt akordeonlar. Home göstergesi en fazla yedi öğe; sayaç tek satır, başlık üç satır. Cam çubukta arkadaki metin okunamaz. Kapalı ayrıntılar ilk geçişte kurulmaz; renk örneklemesi idle kuyruğunda. Ölçülen maksimum20ms sınırı açık kaldı; estetik veya tam performans başarısı test sayısından çıkarılmaz.
+
+## Claude tam v2 ürün kompozisyonu — 2026-11-05
+
+`files (6).zip` tam v2 referansı mevcut controller/IPC sahipleri üzerinden uygulanmıştır. Ana sayfa türüne göre görsel sahne ve medya kapıları; podcast yatay abonelik şeridi, kapak/plak ve gerçek kuyruk; yorumlarda kaynak okuma masası; zevk profilinde açık tercihler/puan eğilimi/model çıkarımı ayrı bölümler; web geçmişinde devam hero’su; İçerik Ağı’nda harita/okuyucu ve incelenebilir kapsam. Demo fotoğrafı, örnek veri veya simülasyon ürün davranışı değildir. Aktif Podcast/Çift dilli görünüm mevcut ortak browser temelli bileşendir; bu paket ayrı bir oynatıcı gerekçesi oluşturmaz. [Uygulama kaydı](docs/design/claude-redesign-handoff-2026-11-05.md).

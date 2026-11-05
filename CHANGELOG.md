@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Claude tam v2 kompozisyonları mevcut Ana sayfa, Keşfet, film detayı, podcast kütüphanesi, Akışlar, yorum/analiz, zevk profili, web geçmişi ve İçerik Ağı işlemlerine bağlandı. Kaynak okuma düzeni, abonelik şeridi, gerçek kuyruk/çift dilli girişleri, gerekçeli öneri rafı ve kalıcı ağ görünümü güncellendi. [Teslim](docs/devir/2026-11-05-0904.md).
+
 - Browser, ana sayfa, RSS ve yerel kaynaklar tek browser temelli Podcast/Çift dilli çalışma görünümünde birleşti; mevcut oynatma sahipleri, transkript/çeviri ve ileri işlemler korunur. İleri araçlarda canlı düğüm kimliği ve podcast hızının sonraki bölüme taşınması düzeltildi. [Teslim](docs/devir/2026-11-05-0820.md).
 
 - Aktif RSS podcast Sahnesinde görünür Whisper/yazıya dök ve çevir işlemleri ile ses sürgüsü; sesli çift dilli bölüm kimliği ve dar ekran/native üst alan düzeltmeleri. Asistan aktif RSS kaynağını mevcut üretim kuyruğuna yönlendirir; kaynak/sohbet/iptal ve kuyruk seçenekleri korunur. [Kısa doğrulama ve canlı sınırlar](docs/devir/2026-11-05-0754.md).
