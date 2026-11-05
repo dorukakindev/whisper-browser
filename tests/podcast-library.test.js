@@ -17,14 +17,14 @@ test('feed registry merges into the library and explicit enqueue resolves a real
   try{
     w.t=(en)=>en;w.view={};w.snapshot={podcasts:[]};w.classicRadio=()=>{};w.status=()=>{};w.openQueue=()=>{};w.order={snapshot:()=>({rows:queued,index:0})};w.appendQueue=row=>queued.push(row);w.listen=()=>{};
     w.el=(tag,cls,text)=>{const n=w.document.createElement(tag);n.className=cls||'';n.textContent=text||'';return n;};
-    const feed={id:'feed',url:'https://publisher.test/rss',title:'Feed show'},entry={id:'entry',feedId:'feed',kind:'podcast',title:'Real entry',durationSeconds:100,enclosures:[{type:'audio/mpeg',url:'https://publisher.test/audio.mp3'}]};
+    const feed={id:'feed',url:'https://publisher.test/rss',title:'Feed show'},entry={id:'entry',feedId:'feed',kind:'podcast',title:'Real entry',sourceVersion:'v1',durationSeconds:100,enclosures:[{type:'audio/mpeg',url:'https://publisher.test/audio.mp3'}]};
     w.api=async(action)=>{calls.push(action);return action==='list'?{podcasts:calls.includes('podcast-add')?[{id:'actual-shelf-id',url:feed.url,title:feed.title,episodes:[{title:entry.title,url:entry.enclosures[0].url,sourceVersion:'v1'}]}]:[]}:{};};
     w.api.feedsRequest=async req=>{calls.push(req.action);return req.action==='list'?{ok:true,feeds:[feed]}:{ok:true,rows:[entry],total:1};};
     w.PodcastLibraryUI={mount:(root,data,actions)=>{mounted.push({data,actions});return()=>{};}};w.PlayerSourceCatalogIntegration={openPodcastEntry:async(id,opts)=>calls.push({id,opts})};
     const dialog=w.document.createElement('dialog');w.PodcastLinkUI={open:()=>dialog};
     const shelf=fs.readFileSync(require.resolve('../src/renderer/media-shelf-ui'),'utf8'),start=shelf.indexOf('  function radio(root)'),end=shelf.indexOf('  function classicRadio(root)',start);
     w.eval('function status(){};'+shelf.slice(start,end)+';window.openLibrary=radio;');w.openLibrary(w.document.getElementById('root'));await tick();
-    assert.equal(mounted.length,1);const {data,actions}=mounted[0],program=data.podcasts[0],row=program.episodes[0];assert.equal(row.entryId,'entry');assert.equal(row.canonicalFeed,true);assert.equal(row.positionState,'needs-review');
+    assert.equal(mounted.length,1);const {data,actions}=mounted[0],program=data.podcasts[0],row=program.episodes[0];assert.equal(row.entryId,'entry');assert.equal(row.canonicalFeed,true);assert.equal(row.positionState,undefined,'A fresh episode without a saved timeline needs no review');
     await actions.play(program,row,true);assert.equal(calls.find(c=>c?.id)?.id,'entry');await actions.play(program,row,'bilingual');assert.equal(calls.at(-1).opts.view,'bilingual');await actions.enqueue(program,row);await actions.enqueue(program,row);assert.equal(calls.filter(c=>c==='podcast-add').length,1);assert.equal(queued.length,2);assert.equal(queued[0].id,'actual-shelf-id');assert.equal(queued[0].kind,'podcasts');assert.equal(queued[0].sourceVersion,'v1');
     actions.addRss();dialog.dispatchEvent(new w.Event('close'));await tick();assert.equal(mounted.length,2);
   }finally{dom.window.close();}
@@ -35,3 +35,19 @@ test('publisher HTML is displayed as safe prose and dates use the UI locale',()=
 test('saved Spotify source stays a source card and never invents local audio or timed episodes',async()=>{const h=fixture();try{const host=h.w.document.createElement('div'),opened=[];h.w.PodcastLibraryUI.mount(host,{podcasts:[{id:'spotify',sourceKind:'spotify',image:'http://legacy.publisher.test/cover.jpg',title:'Actual Spotify show',url:'https://open.spotify.com/show/7cUmwyJH18B7VGMVQCjokx',episodes:[]}]},{queue:()=>({rows:[]}),openSpotify:url=>opened.push(url)});assert.equal(host.querySelectorAll('audio,video,progress,.pl-hero,img').length,0);assert.match(host.textContent,/Actual Spotify show/);[...host.querySelectorAll('button')].find(b=>b.textContent==='Listen in Spotify').click();await tick();assert.equal(opened.length,1);}finally{h.dom.window.close();}});
 
 test('episode sort handles numeric RSS timestamps and strip selection keeps keyboard focus',async()=>{const h=fixture();try{h.data.podcasts[0].episodes[0].date=1000;h.data.podcasts[0].episodes[1].date=5000;const search=h.root.querySelector('.pl-search');search.dispatchEvent(new h.w.Event('input'));assert.match(h.root.querySelector('.pl-episodes .pl-episode').textContent,/Unverified episode/);const sort=h.root.querySelector('.pl-sort');sort.value='oldest';sort.dispatchEvent(new h.w.Event('change'));assert.match(h.root.querySelectorAll('.pl-episodes .pl-episode')[1].textContent,/Resume episode/);const program=h.root.querySelector('[data-program=p]');program.focus();program.click();await tick();assert.equal(h.w.document.activeElement.dataset.program,'p');}finally{h.dom.window.close();}});
+
+
+test('search keeps unchanged subscription and hero DOM and reuses parsed dates',()=>{
+ const h=fixture();try{const hero=h.root.querySelector('.pl-hero'),program=h.root.querySelector('[data-program=p]'),search=h.root.querySelector('.pl-search'),NativeDate=h.w.Date;let parses=0;
+ h.w.Date=new Proxy(NativeDate,{construct(Target,args){parses++;return new Target(...args);}});
+ for(const query of ['Resume','Res','Resume']){search.value=query;search.dispatchEvent(new h.w.Event('input'));}
+ assert.equal(h.root.querySelector('.pl-hero'),hero);assert.equal(h.root.querySelector('[data-program=p]'),program);assert.equal(parses,0);assert.equal(h.root.querySelectorAll('.pl-episode').length,1);
+ }finally{h.dom.window.close();}
+});
+
+test('late episode open cannot launch tools after the library is disposed',async()=>{
+ const h=fixture();try{let resolve,tools=0,unsubscribed=0;const host=h.w.document.createElement('div');h.w.document.body.append(host);
+ const dispose=h.w.PodcastLibraryUI.mount(host,{podcasts:[{id:'show',title:'Show',episodes:[{title:'Episode',url:'one'}]}]},{play:()=>new Promise(r=>resolve=r),transcriptTools:()=>tools++,queue:()=>({rows:[]}),subscribeQueue:()=>()=>unsubscribed++});
+ host.querySelector('.pl-transcript-open').click();dispose();resolve();await tick();assert.equal(tools,0);assert.equal(unsubscribed,1);
+ }finally{h.dom.window.close();}
+});

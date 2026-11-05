@@ -68,6 +68,7 @@
 
   /* ── Yerel cephe: yerel oynatıcının mevcut snapshot/iz/komut yüzeyi (mpv/native dahil, tek yol) ── */
   function localFacade() {
+    const podcast=()=>{const snap=PW()?.snapshot(),audio=player.workspaceAudio;return snap&&audio?.mediaKey===snap.mediaKey&&audio?.generation===snap.generation?audio:null;};
     const words = (cue, track) => (cue && Array.isArray(cue.wordRanges) && cue.wordRanges.length) ? cue.wordRanges.map((r) => ({ s: r.start, e: r.end, t0: num(r.timeStart) + num(track.offsetSeconds), t1: num(r.timeEnd) + num(track.offsetSeconds) })) : null;
     const langs = () => { const roles = browserSubtitleRoleCues(); const srcSecondary = roles.source === player.cues2 || roles.primaryTranslation; return { src: roles.source?.length ? langCode(srcSecondary ? player.sub2Lang : player.subLang) : null, tr: roles.translation?.length ? langCode(srcSecondary ? player.subLang : player.sub2Lang) : null }; };
     // Move the original stage once; the workspace explicitly yields its presentation slot.
@@ -82,7 +83,7 @@
       const home=doc.querySelector('#playerWorkspaceV3 .pw-stage')||layer.querySelector('.player-body');
       if(home)home.append(st);PW()?.refresh?.(true);bounds();
     }
-    return { kind: 'local', tab: () => '', snap: () => PW().snapshot(), tracks: () => PW().getTranscriptTracks(), dispatch: (c) => PW().executeExisting(c), dispose() {}, words, langs, mediaTitle: () => window.PlayerUiKit?.displayTitle($('playerTitle')?.textContent || '') || '', sub: () => $('playerMeta')?.textContent || '', cover: () => '', slot, unslot };
+    return { kind: 'local', tab: () => '', snap: () => PW().snapshot(), tracks: () => PW().getTranscriptTracks(), dispatch: (c) => PW().executeExisting(c), dispose() {}, words, langs, mediaTitle: () => podcast()?.title || window.PlayerUiKit?.displayTitle($('playerTitle')?.textContent || '') || '', sub: () => podcast() ? [podcast().publisher,T('Yayıncı RSS','Publisher RSS')].filter(Boolean).join(' · ') : $('playerMeta')?.textContent || '', cover: () => podcast()?.image || '', timingNotice: () => podcast()?.transcriptTimingNotice || '', eyebrow: () => podcast() ? T('Podcast · RSS','Podcast · RSS') : T('Yerel oynatıcı','Local player'), slot, unslot };
   }
 
   function shelfFacade(){
@@ -253,10 +254,10 @@
     return {
       caps: { loop: kind!=='shelf', save: false, cinema:kind==='local', study:true, word:kind!=='shelf' },
       identity, panel, actions,
-      info: () => { const s = F.snap(), l = F.langs(); return { title: F.mediaTitle() || s?.title || '', sub: F.sub(), eyebrow: kind === 'browser' ? T('Şimdi çalıyor', 'Now playing') : kind === 'shelf' ? T('Podcast', 'Podcast') : T('Yerel oynatıcı', 'Local player'), cover: F.cover(), tint: null,
+      info: () => { const s = F.snap(), l = F.langs(); return { title: F.mediaTitle() || s?.title || '', sub: F.sub(), eyebrow: F.eyebrow?.() || (kind === 'browser' ? T('Şimdi çalıyor', 'Now playing') : kind === 'shelf' ? T('Podcast', 'Podcast') : T('Yerel oynatıcı', 'Local player')), cover: F.cover(), tint: null,
         chapters:kind==='shelf'?[]:(player.chapters||[]).filter(c=>Number.isFinite(c.start)&&c.start>=0&&(!s?.duration||c.start<s.duration)).map(c=>({t:c.start,label:String(c.title||T('Bölüm','Chapter'))})),
         queue:kind==='local'?(player.playlist||[]).map((file,index)=>({index,title:window.PlayerUiKit?.displayTitle(String(file).split(/[\\/]/).pop())||String(file)})).slice(Math.max(0,player.playlistIndex+1),Math.max(0,player.playlistIndex+1)+2):[],native:kind==='local'&&!!window.NativePlayerUI?.active(),audio:kind==='shelf'||s?.sourceKind==='rss'||kind==='local'&&num($('playerVideo')?.readyState)>=2&&!num($('playerVideo')?.videoWidth),langs:l }; },
-      state: () => { const s = F.snap(); if (!s) return { time: 0, duration: 0, paused: true, rate: 1, rows: [], rev: 'none', canSeek: false }; const r = rowsFor(s); return { time: num(s.time), duration: num(s.duration), paused: !!s.paused, rate: num(s.rate) || 1, volume: kind === 'shelf' ? num($('mediaShelfAudio')?.volume ?? 1) : kind === 'browser' ? num(player.browserVolume ?? 1) : num($('playerVideo')?.volume ?? 1), rows: r.rows, rev: cache.rev, untimed: r.untimed, canSeek: s.capabilities?.seek?.support === 'yes' }; },
+      state: () => { const s = F.snap(); if (!s) return { time: 0, duration: 0, paused: true, rate: 1, rows: [], rev: 'none', canSeek: false }; const r = rowsFor(s); return { time: num(s.time), duration: num(s.duration), paused: !!s.paused, rate: num(s.rate) || 1, volume: kind === 'shelf' ? num($('mediaShelfAudio')?.volume ?? 1) : kind === 'browser' ? num(player.browserVolume ?? 1) : num($('playerVideo')?.volume ?? 1), rows: r.rows, rev: cache.rev, untimed: r.untimed, timingNotice:F.timingNotice?.()||'', canSeek: s.capabilities?.seek?.support === 'yes' }; },
       slot: (m) => { const el = F.slot(m); if (el) { el.classList.add('sh-slot-fill'); bounds(); } return el; },
       releaseSlot: () => { clearOwnedLoop(); disposed = true; F.unslot(); restore(); F.dispose(); },
       cmd(t, v, expectedRevision) {

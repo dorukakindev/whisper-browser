@@ -528,17 +528,19 @@
   function radio(root) {
     if(!window.PodcastLibraryUI)return classicRadio(root);
     const target=view;let legacy=snapshot;let renderGeneration=0;
-    const render=async()=>{const request=++renderGeneration;legacy=await api('list');if(target!==view||request!==renderGeneration||!root.isConnected)return;
+    const render=async(reuse=false)=>{const request=++renderGeneration;legacy=reuse&&Array.isArray(snapshot?.podcasts)?snapshot:await api('list');if(target!==view||request!==renderGeneration||!root.isConnected)return;
       let podcasts=legacy.podcasts||[],feedError='';
       if(window.api.feedsRequest){try{
-        const results=await Promise.all([window.api.feedsRequest({action:'list'}),window.api.feedsRequest({action:'entries',kind:'podcast',limit:200,offset:0})]);
+        const results=await Promise.all([window.api.feedsRequest({action:'list'}),window.api.feedsRequest({action:'entries',kind:'podcast',podcastLibrary:true,limit:200,offset:0})]);
         if(results.some(r=>!r?.ok))throw Error(t('Feed library could not be read.','Akış kütüphanesi okunamadı.'));
         const feeds=results[0].feeds||[],rows=[...(results[1].rows||[])];let total=results[1].total||rows.length;
-        while(rows.length<total){const page=await window.api.feedsRequest({action:'entries',kind:'podcast',limit:200,offset:rows.length});if(!page?.ok||!page.rows?.length)throw Error(t('Some feed episodes could not be read.','Bazı akış bölümleri okunamadı.'));rows.push(...page.rows);total=page.total||total;}
-        await Promise.all(rows.filter(r=>r.podcastWorkspace).map(async row=>{const saved=await window.api.feedsRequest({action:'podcast-workspace',entryId:row.id});if(saved?.ok){row.sourceVersion=saved.sourceVersion;row.podcastWorkspace=saved.workspace;row.positionState=saved.state==='needs-review'?'needs-review':undefined;}}));
+        while(rows.length<total){if(target!==view||request!==renderGeneration||!root.isConnected)return;const page=await window.api.feedsRequest({action:'entries',kind:'podcast',podcastLibrary:true,limit:200,offset:rows.length});if(!page?.ok||!page.rows?.length)throw Error(t('Some feed episodes could not be read.','Bazı akış bölümleri okunamadı.'));rows.push(...page.rows);total=page.total||total;}
         podcasts=podcasts.map(p=>({...p,episodes:[...p.episodes]}));
-        for(const f of feeds){const episodes=rows.filter(r=>r.feedId===f.id&&r.kind==='podcast').map(r=>{const enclosure=r.enclosures?.find(e=>/^audio\//.test(e.type));return {...r,id:r.id,entryId:r.id,url:enclosure?.url,title:r.title,image:r.imageUrl,description:r.summary,date:r.publishedAt||null,duration:r.durationSeconds,position:r.podcastWorkspace?.position||0,sourceVersion:r.sourceVersion,positionState:r.sourceVersion&&r.sourceVersion===r.podcastWorkspace?.sourceVersion?r.positionState:'needs-review',podcastWorkspace:r.podcastWorkspace,canonicalFeed:true,audioAvailable:!!enclosure?.url};});if(!episodes.length)continue;
-          const existing=podcasts.find(p=>p.url===f.url);if(existing){const urls=new Set(existing.episodes.map(e=>e.url));existing.episodes.push(...episodes.filter(e=>!urls.has(e.url)));existing.feedHealth=f.state||f.health||f.status;existing.sourceKind='rss';}else podcasts.push({id:'feed:'+f.id,url:f.url,title:f.title,publisher:f.title,image:f.imageUrl,feedHealth:f.state||f.health||f.status,sourceKind:'rss',episodes});}
+        for(const f of feeds){const episodes=rows.filter(r=>r.feedId===f.id&&r.kind==='podcast').map(r=>{const enclosure=r.enclosures?.find(e=>/^audio\//.test(e.type));return {...r,id:r.id,entryId:r.id,url:enclosure?.url,title:r.title,image:r.imageUrl,description:r.summary,date:r.publishedAt||null,duration:r.durationSeconds,position:r.podcastWorkspace?.position||0,sourceVersion:r.sourceVersion,positionState:r.positionState,podcastWorkspace:r.podcastWorkspace,canonicalFeed:true,audioAvailable:!!enclosure?.url};});if(!episodes.length)continue;
+          const existing=podcasts.find(p=>p.url===f.url);if(existing){
+            const byUrl=new Map(episodes.map(e=>[e.url,e])),used=new Set();
+            existing.episodes=existing.episodes.map(episode=>{const canonical=byUrl.get(episode.url);if(!canonical)return episode;used.add(canonical.id);return {...episode,...canonical,localSource:episode.localSource};});
+            existing.episodes.push(...episodes.filter(e=>!used.has(e.id)));existing.feedHealth=f.state||f.health||f.status;existing.sourceKind='rss';}else podcasts.push({id:'feed:'+f.id,url:f.url,title:f.title,publisher:f.title,image:f.imageUrl,feedHealth:f.state||f.health||f.status,sourceKind:'rss',episodes});}
       }catch(error){feedError=error.message;}}
       if(target!==view||request!==renderGeneration||!root.isConnected)return;
       root.replaceChildren();const statusNode=el('p','ms-status',feedError);statusNode.setAttribute('role','status');root.append(statusNode);
@@ -552,10 +554,10 @@
           const episode=owner?.episodes?.find(e=>e.url===row.url||row.guid&&e.guid===row.guid);
           if(owner&&episode)return window.MediaSourceToolsUI?.podcastTools(host,owner,episode,render,openLocalMedia);
         },
-        play:async(p,row,scene)=>{if(row.canonicalFeed)return window.PlayerSourceCatalogIntegration.openPodcastEntry(row.entryId,{view:scene==='bilingual'?'bilingual':'podcast'});await listen(p.episodes.filter(e=>!e.canonicalFeed).map(e=>({...e,id:p.id,publisher:p.publisher||p.title,image:e.image||p.image,kind:'podcasts'})),p.episodes.filter(e=>!e.canonicalFeed).findIndex(e=>e.url===row.url));if(scene){if(window.CinemaSahne?.openShelf)await window.CinemaSahne.openShelf({mode:scene==='bilingual'?'study':'podcast'});else await openPodcastMode();}},
+        play:async(p,row,scene)=>{if(row.canonicalFeed)return window.PlayerSourceCatalogIntegration.openPodcastEntry(row.entryId,{view:scene==='bilingual'?'bilingual':'podcast',presentation:{image:row.image||p.image,publisher:p.publisher||p.title}});await listen(p.episodes.filter(e=>!e.canonicalFeed).map(e=>({...e,id:p.id,publisher:p.publisher||p.title,image:e.image||p.image,kind:'podcasts'})),p.episodes.filter(e=>!e.canonicalFeed).findIndex(e=>e.url===row.url));if(scene){if(window.CinemaSahne?.openShelf)await window.CinemaSahne.openShelf({mode:scene==='bilingual'?'study':'podcast'});else await openPodcastMode();}},
         enqueue:async(p,row)=>{if(row.canonicalFeed){let data=await api('list'),show=data.podcasts.find(s=>s.url===p.url);if(!show){await api('podcast-add',{url:p.url});data=await api('list');show=data.podcasts.find(s=>s.url===p.url);}const episode=show?.episodes.find(e=>e.url===row.url||row.externalId&&e.guid===row.externalId);if(!episode)throw Error(t('Episode not found in the publisher feed.','Bölüm yayıncı akışında bulunamadı.'));appendQueue({...episode,id:show.id,publisher:show.publisher||show.title,image:episode.image||show.image,kind:'podcasts'});status(t('Source saved to your listening library and episode queued.','Kaynak dinleme kütüphanene kaydedildi ve bölüm kuyruğa eklendi.'));}else appendQueue({...row,id:p.id,publisher:p.publisher||p.title,image:row.image||p.image,kind:'podcasts'});},queue:()=>order.snapshot(),playQueued:key=>{const index=order.snapshot().rows.findIndex(row=>row.queueKey===key);if(index<0)throw Error(t('Queue item changed.','Kuyruk öğesi değişti.'));return playQueue(index);},subscribeQueue:listener=>{queueSubscribers.add(listener);return()=>queueSubscribers.delete(listener);},openQueue,classic:classicRadio
       });
-    };void render();
+    };void render(true).catch(error=>{if(target===view&&root.isConnected)status(error.message,true);});
   }
   function classicRadio(root) {
     const controls = el('div', 'mh-filterbar');

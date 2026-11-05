@@ -212,7 +212,7 @@
       this.rows = st.rows; const scroll = this.q('[data-r=scroll]'), study = this.o.mode !== 'podcast'; scroll.textContent = ''; this.lines = [];
       const frag = document.createDocumentFragment();
       if(!st.rows.length){const empty=this.el(`<div class="sh-empty">${ic('mic')}<h2>${T('Konuşma burada metne dönüşür.','The conversation becomes text here.')}</h2><p>${T('Whisper ile bu bölümü yazıya dökün; çeviriyi aynı zaman çizelgesinde okuyun. Mevcut transkript ve ileri seçenekler İşlemler’de.','Transcribe this episode with Whisper and read its translation on the same timeline. Existing transcripts and advanced options are in Tasks.')}</p><button class="sh-btn" type="button" data-a="panel">${T('İşlemleri aç','Open tasks')}</button></div>`);frag.append(empty);}
-      if (st.untimed) { const n = document.createElement('p'); n.className = 'sh-note'; n.textContent = T('Bu transkript zamansız: satırlar yalnızca okunur; atlama ve etkin satır yoktur.', 'This transcript has no timing: lines are read-only; no seeking or active line.'); frag.append(n); }
+      if (st.untimed) { const n = document.createElement('p'); n.className = 'sh-note'; n.textContent = st.timingNotice || T('Bu transkript zamansız: satırlar yalnızca okunur; atlama ve etkin satır yoktur.', 'This transcript has no timing: lines are read-only; no seeking or active line.'); frag.append(n); }
       st.rows.forEach((c, i) => {
         const row = document.createElement('div'); row.className = (this.o.mode !== 'cinema' ? 'sh-card cue-card' : 'sh-card') + (c.timed ? '' : ' is-untimed'); row.dataset.i = i;
         if (c.timed) { row.tabIndex = 0; row.setAttribute('role', 'button'); row.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target === row) this.run('seekCue', i); }); }
@@ -235,7 +235,7 @@
       const id = a.identity ? a.identity() : ''; if (this.id0 === undefined) this.id0 = id; else if (id !== this.id0) { if (!this.gone) { this.gone = true; this.o.onSource?.(id, this.prefs()); } return; }
       const st = this.st = a.state(), info = a.info();if(this.s.word&&this.s.word.rev!==st.rev)this.closeWord();
       this.canSeek = st.canSeek !== false && Number(st.duration) > 0;
-      const key = `${st.rev}:${st.rows.length}:${Math.round(st.duration || 0)}:${info.title}:${(info.langs || {}).src}:${(info.langs || {}).tr}:${JSON.stringify(info.chapters||[])}`;
+      const key = `${st.rev}:${st.timingNotice||''}:${st.rows.length}:${Math.round(st.duration || 0)}:${info.title}:${info.cover||''}:${info.sub||''}:${info.eyebrow||''}:${(info.langs || {}).src}:${(info.langs || {}).tr}:${JSON.stringify(info.chapters||[])}`;
       if (key !== s.key) {
         s.key = key; this.rebuild(st, info); this.setTint(info.tint);
         const t = this.q('[data-r=title]'); if (t) { t.textContent = info.title || T('Başlıksız bölüm', 'Untitled episode'); this.q('[data-r=eyebrow]').textContent = info.eyebrow || T('Şimdi çalıyor', 'Now playing'); this.q('[data-r=sub]').textContent = info.sub || ''; const c = this.q('[data-r=cover]'); c.innerHTML = info.cover ? `<img src="${esc(info.cover)}" alt="">` : `<span class="sh-initials">${esc(String(info.title||'').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toLocaleUpperCase())}</span>`; const ch = this.q('[data-r=chaps]'); ch.innerHTML = (info.chapters || []).map((x) => `<button class="sh-chap" type="button" data-t="${x.t}">${esc(x.label)}</button>`).join(''); }
@@ -249,7 +249,7 @@
       let idx = -1; this.rows.forEach((c, i) => { if (c.timed && c.start <= time && time < c.end && (idx < 0 || c.start >= this.rows[idx].start)) idx = i; });
       this.time = time; this.cur = idx;this.root.classList.toggle('sh-audio',!!info.audio);
       if (idx !== s.idx) { const prev = s.idx; s.idx = idx; this.lines.forEach((l, i) => { const d = idx < 0 ? 9 : Math.abs(i - idx); l.style.setProperty('--d', Math.min(d, 9)); l.classList.toggle('on', i === idx); if(i===idx)l.setAttribute('aria-current','true');else l.removeAttribute('aria-current'); }); this.onActive(idx, prev); }
-      if(this.o.mode==='cinema')this.drawCinema(info,st);this.wordsTick(); this.drawTasks(); const volume=this.q('.sh-local-volume');if(volume&&Number.isFinite(st.volume)&&document.activeElement!==volume){volume.value=st.volume;const output=volume.parentElement.querySelector('output');if(output)output.textContent=Math.round(st.volume*100)+'%';} const subs=this.q('[data-r=subs]');if(subs)subs.hidden=!!info.audio&&!st.rows.length; this.drawJob(); this.drawPanel(false); this.paint();
+      if(this.o.mode==='cinema')this.drawCinema(info,st);this.wordsTick(); this.drawTasks(); const volume=this.q('.sh-local-volume');if(volume&&Number.isFinite(st.volume)&&document.activeElement!==volume){volume.value=st.volume;const output=volume.parentElement.querySelector('output');if(output)output.textContent=Math.round(st.volume*100)+'%';} const subs=this.q('[data-r=subs]');if(subs)subs.hidden=!!info.audio&&idx<0; this.drawJob(); this.drawPanel(false); this.paint();
     }
     wordsTick() {
       const idx = this.cur; if (idx < 0) return; const row = this.rows[idx], ws = this.words && this.words[idx]; const c = row; const time = this.time;

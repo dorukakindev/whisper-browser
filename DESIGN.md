@@ -46,7 +46,7 @@ Kullanıcı browser tarafındaki deneyimi tercih etti. Ana sayfa/RSS/shelf/yerel
 
 ## Güncel yeniden tasarım kapsamı — P019
 
-Kullanıcı podcast kütüphanesi, Ana sayfa, Keşfet, film detayı ve Akışlar/RSS’in önceki yerleşimlerden bağımsız, modern ve güçlü biçimde yeniden tasarlanmasını istedi. Önceki beş alanlı Claude prototipi de tamamlanacak. Önceki Ana sayfa/Keşfet/film üstü yerleşimini aynen koruma şartı bu çalışma için kaldırılmıştır; mevcut işlevler/veri sahipleri ve ürün kimliği korunur. Tam v2 paketi incelendi; ilk beş alan ve yeni beş sayfa var, aktif ortak Podcast/Çift dilli/asistan ekranları eksik. Ürüne uygulanmadı. Ayrıntı [tasarım devam kaydında](docs/design/claude-redesign-handoff-2026-11-05.md).
+Kullanıcı podcast kütüphanesi, Ana sayfa, Keşfet, film detayı ve Akışlar/RSS’in önceki yerleşimlerden bağımsız, modern ve güçlü biçimde yeniden tasarlanmasını istedi. Önceki beş alanlı Claude prototipi de tamamlanacak. Önceki Ana sayfa/Keşfet/film üstü yerleşimini aynen koruma şartı bu çalışma için kaldırılmıştır; mevcut işlevler/veri sahipleri ve ürün kimliği korunur. Tam v2 paketinin ilk beş alanı ve yeni beş sayfası mevcut işlemlere entegre edildi. Kullanıcı eksik aktif ekran maketini beklememeyi seçti; Podcast/Çift dilli ve asistanın mevcut ortak bileşenleri korunur. Ayrıntı [tasarım devam kaydında](docs/design/claude-redesign-handoff-2026-11-05.md).
 
 ## Güncel UI çalışma yöntemi — 2026-11-05
 
@@ -244,3 +244,7 @@ Onaylı iki kapsamlı tercih paneli: film görüşleri ayrı, genel öncelikler 
 ## Claude tam v2 ürün kompozisyonu — 2026-11-05
 
 `files (6).zip` tam v2 referansı mevcut controller/IPC sahipleri üzerinden uygulanmıştır. Ana sayfa türüne göre görsel sahne ve medya kapıları; podcast yatay abonelik şeridi, kapak/plak ve gerçek kuyruk; yorumlarda kaynak okuma masası; zevk profilinde açık tercihler/puan eğilimi/model çıkarımı ayrı bölümler; web geçmişinde devam hero’su; İçerik Ağı’nda harita/okuyucu ve incelenebilir kapsam. Demo fotoğrafı, örnek veri veya simülasyon ürün davranışı değildir. Aktif Podcast/Çift dilli görünüm mevcut ortak browser temelli bileşendir; bu paket ayrı bir oynatıcı gerekçesi oluşturmaz. [Uygulama kaydı](docs/design/claude-redesign-handoff-2026-11-05.md).
+
+## Kısa kalite/performance cilası — 2026-11-05
+
+Podcast aramasında değişmeyen abonelik ve kapak/araç düğümleri korunur; filtreleme yazı yazarken kapağı yeniden yüklemez. Ana medya kaydırıcıları ortak tema rollerini kullanır. RSS sesi, mevcut yerel/native oynatma sahibinde çalışsa da Podcast/RSS diye etiketlenir; mevcut yayıncı ve bilinen kapak kaynak kimliği/generation doğrulanarak taşınır, sonraki yerel videoya sızmaz. Etkin zamanlı satırı bulunmayan seste boş altyazı kutusu gösterilmez; transkript sağda okunur. Kaynak/zaman doğrulaması eksik kayıt, gerçekten zamansız yayıncı metninden açıklamasıyla ayrılır; seek izni artırılmaz. [Teslim](docs/devir/2026-11-05-0950.md).

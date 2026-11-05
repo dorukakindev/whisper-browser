@@ -28,4 +28,11 @@ function validateWorkspace(w){
  for(const t of [w.transcript,w.translation].filter(Boolean)){if(!['timed','untimed'].includes(t.state)||typeof t.text!=='string'||t.text.length>500000||!['vtt','srt','plain'].includes(t.format)||!['publisher','asr','user'].includes(t.provenance))throw Error('Invalid saved podcast transcript.');if(t.state==='timed'){if(t.format==='plain')throw Error('Plain podcast transcript has no timing.');validateTimedText(t.text);}}
  return w;
 }
-module.exports={sourceVersion,sourceBinding,episodeIdentity,resourceIdentity,audioEvidence,validateAudioEvidence,spotifyEpisode,validateWorkspace,validateTimedText};
+// Read-only list projection: never copy full transcript/history bodies through library IPC.
+function libraryState(entry){
+ const version=sourceVersion(entry),saved=entry.podcastWorkspace,current=saved?.sourceVersion===version;
+ const summary=track=>track?{state:track.state,status:track.status||'complete',hasText:!!track.text?.trim()}:undefined;
+ return {sourceVersion:version,positionState:saved&&(!current||saved.previous&&!saved.transcript)?'needs-review':undefined,
+  podcastWorkspace:current?{sourceVersion:version,position:saved.position,rate:saved.rate,transcript:summary(saved.transcript),translation:summary(saved.translation)}:undefined};
+}
+module.exports={libraryState,sourceVersion,sourceBinding,episodeIdentity,resourceIdentity,audioEvidence,validateAudioEvidence,spotifyEpisode,validateWorkspace,validateTimedText};

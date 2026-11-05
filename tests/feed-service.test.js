@@ -54,3 +54,20 @@ test('manual refresh exposes continuation for every enabled source beyond a boun
  const calls=[];const f=fixture(async url=>{calls.push(url);return new Response(rss());});try{for(let i=0;i<11;i++)f.store.subscribe({url:'https://feed'+i+'.example/rss'});const first=await f.request({action:'refresh'});assert(first.ok);assert.equal(first.results.length,8);assert.equal(first.remainingFeedIds.length,3);const rest=await f.request({action:'refresh',feedIds:first.remainingFeedIds});assert(rest.ok);assert.equal(rest.results.length,3);assert.deepEqual(rest.remainingFeedIds,[]);assert.equal(new Set(calls).size,11);assert.equal((await f.request({action:'refresh',feedIds:['missing']})).ok,false);}finally{f.close();}
 });
 test('linked article receives current viewing status for its spoiler decision',async()=>{const f=fixture(async()=>new Response(rss()));try{const p=await f.request({action:'preview',url:'https://feed.example/rss'});await f.request({action:'subscribe',token:p.token});const entry=f.store.entries().rows[0];const link=await f.request({action:'link-preview',entryId:entry.id,catalogId:'film'});await f.request({action:'link-confirm',token:link.token});f.catalog.watchStatus='completed';assert.equal((await f.request({action:'entry',entryId:entry.id})).entry.links[0].watchStatus,'completed');f.catalog.watchStatus='planned';assert.equal((await f.request({action:'entries'})).rows[0].links[0].watchStatus,'planned');}finally{f.close();}});
+
+
+test('podcast library pages carry current compact transcript state without copying transcript bodies',async()=>{
+ const xml='<rss version="2.0"><channel><title>Publisher</title><item><guid>episode</guid><title>Episode</title><link>https://news.example/episode</link><description>Publisher summary</description><enclosure url="https://audio.example/episode.mp3" type="audio/mpeg" length="1000"/></item></channel></rss>';
+ const f=fixture(async()=>new Response(xml));try{
+  const preview=await f.request({action:'preview',url:'https://feed.example/rss'});await f.request({action:'subscribe',token:preview.token,initial:'all'});
+  const entry=f.store.entries({kind:'podcast'}).rows[0],session=require('../src/podcast-session'),version=session.sourceVersion(entry);
+  const text='1\n00:00:00,000 --> 00:00:02,000\n'+'Original words '.repeat(2000);
+  assert((await f.request({action:'podcast-save-transcript',entryId:entry.id,sourceVersion:version,text,format:'srt',timed:true})).ok);
+  await f.request({action:'podcast-workspace',entryId:entry.id,position:37,rate:1.5});
+  const normal=await f.request({action:'entries',kind:'podcast'}),compact=await f.request({action:'entries',kind:'podcast',podcastLibrary:true});
+  const row=compact.rows[0];assert.equal(row.sourceVersion,version);assert.equal(row.podcastWorkspace.position,37);assert.equal(row.podcastWorkspace.transcript.hasText,true);assert.equal(row.podcastWorkspace.transcript.text,undefined);
+  assert(JSON.stringify(compact).length<JSON.stringify(normal).length/3);assert.equal((await f.request({action:'entry',entryId:entry.id})).entry.podcastWorkspace.transcript.text,text);
+  f.store.podcastAudioEvidence(entry.id,version,{etag:'changed',bytes:1000,sha256:'a'.repeat(64)});
+  const changed=(await f.request({action:'entries',kind:'podcast',podcastLibrary:true})).rows[0];assert.notEqual(changed.sourceVersion,version);assert.equal(changed.positionState,'needs-review');assert.equal(changed.podcastWorkspace.position,0);assert.equal(changed.podcastWorkspace.transcript,undefined);
+ }finally{f.close();}
+});
