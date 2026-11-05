@@ -1,6 +1,6 @@
 # Bekleyen işler
 
-Son durum kontrolü: **2026-11-05**. Doğrulanmış master/ana kopya `a9d39892427250f63e703cfa96adbfb41b77c5b7`; son ürün değişikliği PR829 (`12aaf3de`), görsel öncelik PR830 ile main’de. Güncel tasarım devamı P019’dur.
+Son durum kontrolü: **2026-11-05**. Başlangıç master/ana kopya `66cf5c3fc1f53a523fbf85ce671d43bc2ced0de5`; son ürün `c99bbe77b4b82345aaaa32be003a0619e99f95c1` aktif podcast işlemleri/asistan düzeltmesidir. Nihai merge SHA teslimde ve Git geçmişinde doğrulanır. Güncel tasarım devamı P019’dur.
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
@@ -18,8 +18,8 @@ Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı deği
 ## P019 — Claude prototipinin tamamlanması ve yeni sayfalar
 
 - **Durum:** ilk beş alanlı paket incelendi; hedefli düzeltmeler ve podcast kütüphanesi/Ana sayfa/Keşfet/film detayı/Akışlar genişletme brief’i hazır. Yeni teslim henüz alınmadı; native entegrasyon veya tasarım kabulü verilmiş sayılmaz.
-- **Kapsam ve kanıt:** [kalıcı tasarım devam kaydı](docs/design/claude-redesign-handoff-2026-11-05.md); yerel inceleme `artifacts/claude-prototype-review-2026-11-05/INCELEME.md`. Gönderilecek gerçek ZIP `artifacts/claude-design-next-2026-11-05/claude-tasarim-genisletme-paketi.zip`; varlıklar Git dışıdır, görülmüş varsayılmaz.
-- **Kalan kabul:** ağdaki toast ile biten sonuç/ekleme/görünüm/dışa aktarma akışları; ağ etiketleri, analiz/profil kompozisyonu, web rozeti çakışması; yeni beş sayfanın çalışan prototipi ve mevcut işlevlerin eşlemesi. Görünüm birinci öncelik; bu turdaki eski yerleşimler değiştirilebilir.
+- **Kapsam ve kanıt:** [kalıcı tasarım devam kaydı](docs/design/claude-redesign-handoff-2026-11-05.md); yerel inceleme `artifacts/claude-prototype-review-2026-11-05/INCELEME.md`. Gönderilecek gerçek ZIP `artifacts/claude-design-next-2026-11-05/claude-tasarim-genisletme-aktif-sahne.zip`; varlıklar Git dışıdır, görülmüş varsayılmaz.
+- **Kalan kabul:** ağdaki toast ile biten sonuç/ekleme/görünüm/dışa aktarma akışları; ağ etiketleri, analiz/profil kompozisyonu, web rozeti çakışması; yeni beş sayfa ve aktif Podcast/Çift dilli Sahne/asistan ekranlarının çalışan prototipi ve mevcut işlevlerin eşlemesi. Görünüm birinci öncelik; bu turdaki eski yerleşimler değiştirilebilir.
 - **Dal/PR:** henüz ürün entegrasyon dalı/PR’si yok. Bu kaydı ekleyen dal `codex/project-continuation-records-20261105` yalnız belgedir.
 - **Tam sonraki adım:** güncellenmiş Claude paketini önce bu brief ve güncel master ile karşılaştır; kapsam/eksikleri bildir. Uygulama talimatı geldiğinde mevcut sahiplerle entegre et. Dosyaları eski master’dan üzerine yazma; uzun matris/CPU/Computer Use/izin penceresi testi yok.
 
@@ -60,6 +60,12 @@ Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı deği
 - **Dal/PR:** `codex/cinema-performance-round5` / [draft PR805](https://github.com/dorukakindev/whisper-browser/pull/805), 2026-11-05 kontrolünde hâlâ açık ve birleşmemiş. Bu dalın teslimi `5aa8e5637786093f3864ca31ec88b49b856b5630`; güncel master'dan eski.
 - **Kanıt:** [eski performans kaydı](https://github.com/dorukakindev/whisper-browser/blob/codex/cinema-performance-round5/docs/implementation/cinematic-performance-round5-2026-11-03/PERFORMANCE.md). O revizyonda 1440 detay/scroll maksimumları 69,5/55,5 ms, 1920 detay 20,8 ms idi; güncel main ölçümü değildir.
 - **Sonraki adım:** yalnız görünür bir takılma bildirildiğinde güncel main'de kısa yeniden üretim ve hedefli düzeltme. Yeni CPU/frame hedefi, uzun benchmark veya boyut matrisi başlatılmaz. Eski hedefler karşılandı diye gösterilmez.
+
+## Aktif podcast düzeltmesi — 07:54
+
+- **Doğrulanmış ürün:** `c99bbe77b4b82345aaaa32be003a0619e99f95c1`, dal `codex/podcast-scene-actions-20261105`; görünür yazıya dök/çevir ve ses kontrolü, sesli çift dilli kompozisyon, native üst alan, RSS asistan yönlendirmesi. [Devir](docs/devir/2026-11-05-0754.md).
+- **Kanıt:** 47 kısa test, izole Windows gerçek RSS oynatma sahibi ve geniş/dar görünüm; izin denemesi 0. Gerçek Whisper/çeviri üretimi bu turda yeniden çalıştırılmadı; bu tek başına yeni bug görevi değildir.
+- **Kalan:** yeni görsel tasarım P019 kapsamında; mevcut Claude paketi bu üç aktif ekranı içermiyordu. Sonraki somut adım genişletilmiş gerçek ZIP'i Claude'a gönderip yeni teslimi güncel main ile karşılaştırmak. Başka sohbetin yalnız rapor bulguları bu tura otomatik uygulama kapsamı yapılmaz.
 
 ## Main'de tamamlananlar — tekrar yapılmayacak
 

@@ -26,6 +26,14 @@ Kalan hedefler:
 - **Film detayı:** afiş/sahne/kimlik/eylemler ve tam alt sayfa birlikte; yeni yorum/analiz deneyimiyle bütünleşme, konu/çeviri, oyuncular, künye, izleme/puan/not/kaynak ve ileri işlemler.
 - **Akışlar/RSS:** kaynak yönetimi/OPML, arama/filtre/sıralama, seçim/toplu işlemler, kayıtlı görünümler, okuma/özgün kaynak/çeviri/asistan ve film ilişkilendirme. Özet/tam yazı ayrımı, özgün metin, çeviri iptal/hata ve okundu ile beğeni/izleme ayrımı korunur.
 
+## Aktif Sahne ve asistan ek kapsamı — 07:54
+
+İlk prototip aktif podcast Sahnesini, ses için çift dilli Sahneyi veya aktif podcast asistanını içermiyor. Önceki genişleme brief'indeki podcast kütüphanesi maddesi bu üç ekranın tasarlandığı anlamına gelmez. Yeni brief bu üç ekranı ayrıca ister: doğrudan Whisper/yazıya dök ve çevir/mevcut transkripti çevir, ses düzeyi, video olmayan içerikte anlamlı kompozisyon, pencere kontrollerine taşmayan üst menü ve üretim/iptal/hata/asistan durumları. Yerleşim ve görsel çözüm tasarımcıya bırakılır; mevcut tek oynatma ve işlem sahipleri korunur.
+
+Güncel gönderilebilir ZIP: `artifacts/claude-design-next-2026-11-05/claude-tasarim-genisletme-aktif-sahne.zip`. Önceki paketin içeriğine ek olarak genişletilmiş brief, üç kullanıcı PNG'si ve dört güncel Windows Sahne PNG'si içerir. `AKTIF-SAHNE-EKI.txt` tek başına da okunur. Görseller ve ZIP Git dışıdır; gerçekten gönderilmeden görülmüş sayılmaz.
+
+Mevcut uygulamadaki somut işlev/yerleşim düzeltmeleri [ayrı teslimde](../devir/2026-11-05-0754.md). Bu kısa düzeltme, Claude'un henüz teslim etmediği yeni aktif Sahne tasarımı veya bütün podcast özelliklerinin canlı kabulü olarak sunulmaz.
+
 ## Geçerli kararlar
 
 Görünüm en önemli önceliktir. Güçlü ve modern tasarım, belirgin hover/ışık/efekt ve sürekli dekoratif animasyon kullanılabilir. Zorunlu sakinlik/minimalizm veya düşük hareket kuralı yok. Tasarımcının görsel çözümüne karışılmaz; sabit kolon/ölçü/koreografi dayatılmaz. Grafit/amber medya kimliği, okunabilirlik, hareket tercihi, erişilebilirlik ve mevcut işlev/veri/güvenlik sahipleri korunur.
