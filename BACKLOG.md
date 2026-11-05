@@ -10,8 +10,8 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 
 - **Dal/kanıt:** codex/live-assistant-subtitles-20261105; [devir](docs/devir/2026-11-05-1358.md). Ürün HEAD 74ea1ebe704561b284e43df10032a41d4aafb0a7; ürün kodu değişmedi.
 - **Asistan:** gerçek yapılandırılmış model test kataloğundan gerekçeli/karşı kanıtlı öneri üretti; modelin detay açma ve planned kartları mevcut inceleme/onay arayüzünden test betiğiyle uygulandı. Gerçek depoda planned ve değişmeyen null tepki okundu; kişisel zevk verisi kullanılmadı.
-- **Browser kısmi kabul:** gerçek Stremio/OS araması/indirmesiyle EN/TR 26+26 satır birlikte yüklendi. Birincil +1,5 sn, ikincil -0,75 sn; ikincil değişince birincil sabit kaldı. LG native, izin denemesi 0.
-- **Kalan ve tam sonraki adım:** fragman ve tam-film altyazısı sürüm eşleşmesi kanıtlanmadı; oynayan eşleşen video üzerinde çift dilin görünmesi ve kaymanın görüntüye etkisi açık. Erişilebilir aynı-sürüm Sintel videosuyla tek replikte kısa kontrol yap; bu kısmi kanıtı sahne/dudak senkronu kabulü sayma. P004'ün diğer eski koşullarını bu tur kapatma.
+- **Browser kabulü tamamlandı:** [Gerçek sahne deviri](docs/devir/2026-11-05-1408.md). Resmî Blender tam Sintel videosunda İngilizce 26/Türkçe 29 satırdan eşleşen ilk iki replik, gerçek LG Browser video overlay'inde kontrol edildi. İki dil birlikte göründü; primary +2 sn ile İngilizce gecikti ve Türkçe sabit kaldı; secondary -2 sn ile Türkçe sonraki repliğe geçerken İngilizce ilk replikte kaldı. Yaklaşık 11 sn oynatma, gerçek decode kareleri ve üç görüntü, izin denemesi 0. İlk Türkçe aday 30 sn farklı sürümdü; eşleşen üçüncü aday seçildi. Ürün kodu değişmedi.
+- **Sonraki adım:** bu dar kabul kapalıdır; tüm film/sağlayıcı/işletim koşulları için genel senkron garantisi değildir. P004'ün diğer koşullarını bu tur kapatma.
 
 ## Uygulama sırası
 
@@ -96,7 +96,8 @@ Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı deği
 
 - **Durum:** özellik ve menü düzeltmeleri main'de; aşağıdakiler doğrulanmamış sınırlar, teyitli yeni bug değil.
 - **Main kanıtı:** PR808 paneli, sonraki web çift dilli/podcast geçişleri ve menü düzeltmeleri birleşti. [Web çift dilli kabulü](docs/devir/2026-11-05-0155.md), [podcast kaynak/yeniden açma](docs/devir/2026-11-05-0221.md), [yan panel](docs/devir/2026-11-05-0225.md), [menü turu](docs/devir/2026-11-05-0251.md).
-- **Kalan kısa kontrol sırası:** (1) izin penceresi gerektirmeyen gerçek sağlayıcı altyazısı indirme/açma ve yüklü gerçek izde sıfırdan farklı senkron kayması, (2) izole site profilini yeniden açma, (3) erişilebilir bir sayfada fullscreen/Shadow DOM altyazı yalıtımı. Uzun iş iptali ancak gerçek takılma veya ihtiyaç olduğunda ilgili iş üzerinde incelenir.
+- **Tamamlanan kısa kabul:** gerçek sağlayıcı EN/TR indirme, tam Sintel videosunda çift dil gösterimi ve bağımsız sıfırdan farklı kaymanın sahneye etkisi [doğrulandı](docs/devir/2026-11-05-1408.md).
+- **Kalan kısa kontrol sırası:** (2) izole site profilini yeniden açma, (3) erişilebilir bir sayfada fullscreen/Shadow DOM altyazı yalıtımı. Uzun iş iptali ancak gerçek takılma veya ihtiyaç olduğunda ilgili iş üzerinde incelenir.
 - **Kabul:** seçilen akış aynı sekme/kaynakta doğru çalışmalı; sorun varsa yalnız ilgili sahipte düzeltme ve kısa regresyon. Test verisi ile canlı sağlayıcı sonucu ayrı belirtilir.
 - **Dal/PR / sonraki adım:** yeni düzeltme dalı yok. İlk adım, dosya erişim penceresi açmadan kullanılabilen sağlayıcı/iz yolunu seçmek; bu koşul sağlanmıyorsa o adımı zorlamadan kayda geçirmek. Computer Use, etkileşim trace kampanyası ve geniş kabul turu yok.
 
