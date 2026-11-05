@@ -248,3 +248,8 @@ Onaylı iki kapsamlı tercih paneli: film görüşleri ayrı, genel öncelikler 
 ## Kısa kalite/performance cilası — 2026-11-05
 
 Podcast aramasında değişmeyen abonelik ve kapak/araç düğümleri korunur; filtreleme yazı yazarken kapağı yeniden yüklemez. Ana medya kaydırıcıları ortak tema rollerini kullanır. RSS sesi, mevcut yerel/native oynatma sahibinde çalışsa da Podcast/RSS diye etiketlenir; mevcut yayıncı ve bilinen kapak kaynak kimliği/generation doğrulanarak taşınır, sonraki yerel videoya sızmaz. Etkin zamanlı satırı bulunmayan seste boş altyazı kutusu gösterilmez; transkript sağda okunur. Kaynak/zaman doğrulaması eksik kayıt, gerçekten zamansız yayıncı metninden açıklamasıyla ayrılır; seek izni artırılmaz. [Teslim](docs/devir/2026-11-05-0950.md).
+
+
+### Podcast metni ve araştırma notu — 5 Kasım 2026
+
+Ortak Sahne kompozisyonu korunur. Zamansız kaynak/çeviri tam metin olarak sunulur; paragraf sayısı eşleşme kanıtı değildir. Takip kontrolü bu durumda “Salt okunur” gösterir. Satırdaki mevcut kaydet simgesi, kaynak metin seçiliyse yalnız seçimi alır; küçük mevcut bağlam kartında isteğe bağlı not ve görünür kaydet bulunur. Kaynak/sürüm değişince açık seçim geçersizleşir. Zamansız kartta cümleye dönme yoktur; zamanlı kart gerçek satır konumunu kullanır. Uzun metin sessizce kırpılmaz; daha kısa kaynak seçimi istenir. Yeni motor, ayrı podcast sayfası veya tasarım dünyası kurulmaz.

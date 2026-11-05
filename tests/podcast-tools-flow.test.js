@@ -36,3 +36,12 @@ test('A read-only RSS stream can translate its complete saved download transcrip
  await context.translate();assert.equal(calls.length,1);assert.equal(calls[0].sourceVersion,'download-sha');assert.equal(calls[0].playbackSourceVersion,'stream-unknown');assert.equal(calls[0].sourceTranscriptText,'saved source');assert.equal(calls[0].materializedPath,'owned-hash.srt');assert.equal(audio.sourceVersion,'stream-unknown');assert.equal(audio.transcriptState,'untimed');
  saved.workspace.transcript.status='partial';await assert.rejects(context.translate(),/complete/);assert.equal(calls.length,1);
 });
+
+test('publisher prose translation and reopening keep source and translation separate without materialization',async()=>{
+ const audio={entryId:'A',mediaKey:'rss:A',generation:2,sourceVersion:'stream',transcriptState:'untimed',transcriptText:'Publisher prose'},player={workspaceAudio:audio,mediaKey:'rss:A',generation:2},calls=[];
+ const saved={sourceVersion:'stream',workspace:{transcript:{state:'untimed',status:'complete',text:'Publisher prose'},translation:{state:'untimed',text:'Yayıncı metni'}}};
+ const context={player,t:(_tr,en)=>en,api:async input=>{assert.notEqual(input.action,'podcast-materialize');return saved;},window:{translatePodcastTextSource:async binding=>{calls.push(binding);return {queued:true,id:'prose'};},PlayerWorkspaceIntegration:{refresh(){}}}};
+ const start=source.indexOf('  async function translatePodcastTranscript('),end=source.indexOf('  function podcastTools(',start);vm.runInNewContext(source.slice(start,end)+';globalThis.translate=translatePodcastTranscript;globalThis.load=loadSavedPodcastResult;',context);
+ await context.translate();assert.equal(calls.length,1);assert.equal(calls[0].sourceTranscriptText,'Publisher prose');assert.equal(calls[0].track.timed,false);
+ await context.load('translation');assert.equal(audio.transcriptText,'Publisher prose');assert.equal(audio.translationText,'Yayıncı metni');await context.load('source');assert.equal(audio.transcriptText,'Publisher prose');assert.equal(audio.translationText,'Yayıncı metni');assert.equal(audio.transcriptState,'untimed');
+});

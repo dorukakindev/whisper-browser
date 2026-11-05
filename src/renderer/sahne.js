@@ -45,6 +45,7 @@
       const slot = this.q('[data-r=slot]'), media = this.a.slot?.(this.o.mode);
       if (slot && media) slot.append(media);
       this.root.append(this.el(`<aside class="sh-word-card" hidden role="dialog" aria-label="${T('Sözcük ve bağlam','Word and context')}"></aside>`));
+      this.root.append(this.el(`<aside class="sh-word-card sh-note-card" hidden role="dialog" aria-label="${T('Cümle ve not','Sentence and note')}"></aside>`));
       this.applyDisp(); this.bind();
     }
     build() {
@@ -86,6 +87,7 @@
         this.q('.sh-top-r').append(this.el(`<button class="sh-btn" type="button" data-a="fullscreen" title="${T('Tam ekran','Fullscreen')}">${ic('focus')}</button>`));
       }
       this.root.append(this.el(`<aside class="sh-word-card" hidden role="dialog" aria-label="${T('Sözcük ve bağlam','Word and context')}"></aside>`));
+      this.root.append(this.el(`<aside class="sh-word-card sh-note-card" hidden role="dialog" aria-label="${T('Cümle ve not','Sentence and note')}"></aside>`));
       this.applyDisp(); this.bind();
     }
     toast(msg) { const t = this.q('[data-r=toast]'); t.textContent = msg; t.classList.add('on'); clearTimeout(this.toastT); this.toastT = setTimeout(() => t.classList.remove('on'), 3200); }
@@ -108,6 +110,9 @@
           case 'close': this.o.onClose?.(); break; case 'classic': this.o.onClassic?.(); break;
           case 'fullscreen':this.run('fullscreen');break;
           case 'assistant':this.run('assistant');break;
+          case 'noteClose':this.closeNote();break;
+          case 'noteSave':void this.saveNote();break;
+          case 'noteSeek':if(this.s.note)this.run('seekCue',this.s.note.row,this.s.note.rev);break;
           case 'advanced':this.run('advanced');break;
           case 'display':{const modes=['both','src','tr'];this.s.disp=modes[(modes.indexOf(this.s.disp)+1)%3];this.applyDisp();break;}
           case 'queue':this.run('openQueued',Number(b.dataset.index));break;
@@ -142,7 +147,7 @@
       sc.addEventListener('keydown', (e) => { if (['PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown'].includes(e.key)) manual(); });
       const cover = this.q('.sh-cover'); if (cover) { cover.addEventListener('pointermove', (e) => { const b = cover.getBoundingClientRect(), x = (e.clientX - b.left) / b.width - .5, y = (e.clientY - b.top) / b.height - .5; cover.style.setProperty('--ry', (x * 14) + 'deg'); cover.style.setProperty('--rx', (-y * 14) + 'deg'); }); cover.addEventListener('pointerleave', () => { cover.style.setProperty('--ry', '0deg'); cover.style.setProperty('--rx', '0deg'); }); }
       const q = this.q('[data-r=q]'); if (q) q.addEventListener('input', () => { this.s.follow = false; this.filterRows(); this.paint(); });
-      this.keys = (e) => { if (e.defaultPrevented || document.querySelector('dialog[open]') || !this.root.isConnected || e.target.closest?.('[contenteditable=true]') || e.key!=='Escape'&&e.target.closest?.('button') || e.ctrlKey || e.metaKey || e.altKey || /input|textarea|select/i.test(e.target.tagName)) return; const k = e.key.toLowerCase(); let h = true; if (k === ' ') this.run('toggle'); else if (k === 'j') this.run('prevCue'); else if (k === 'k') this.run('nextCue'); else if (k === 'l' && this.caps.loop) this.toggleLoop(); else if (k === 'f') { this.s.focus = !this.s.focus; this.paint(); } else if (k === 'escape') { if(this.s.word){this.closeWord();}else if (this.s.panel) { this.s.panel = false; this.drawPanel(true); } else if(this.s.transcript){this.s.transcript=false;this.paint();}else this.o.onClose?.(); } else h = false; if (h) { e.preventDefault(); e.stopImmediatePropagation(); } };
+      this.keys = (e) => { if (e.defaultPrevented || document.querySelector('dialog[open]') || !this.root.isConnected || e.target.closest?.('[contenteditable=true]') || e.key!=='Escape'&&e.target.closest?.('button') || e.ctrlKey || e.metaKey || e.altKey || /input|textarea|select/i.test(e.target.tagName)) return; const k = e.key.toLowerCase(); let h = true; if (k === ' ') this.run('toggle'); else if (k === 'j') this.run('prevCue'); else if (k === 'k') this.run('nextCue'); else if (k === 'l' && this.caps.loop) this.toggleLoop(); else if (k === 'f') { this.s.focus = !this.s.focus; this.paint(); } else if (k === 'escape') { if(this.s.note){this.closeNote();}else if(this.s.word){this.closeWord();}else if (this.s.panel) { this.s.panel = false; this.drawPanel(true); } else if(this.s.transcript){this.s.transcript=false;this.paint();}else this.o.onClose?.(); } else h = false; if (h) { e.preventDefault(); e.stopImmediatePropagation(); } };
       document.addEventListener('keydown', this.keys, true);
       r.addEventListener('dblclick',e=>{if(!(this.caps.cinema||this.caps.word)||!e.target.closest('.src,[data-r=s]'))return;const word=String(root.getSelection?.()||'').trim();const row=e.target.closest('[data-i]');if(word)this.openWord(row?Number(row.dataset.i):this.cur,word);});
       this.reveal=()=>{r.classList.remove('controls-idle');clearTimeout(this.idleTimer);if(this.o.mode==='cinema'&&!this.st?.paused&&!this.a.info().native)this.idleTimer=setTimeout(()=>{if(!this.dead&&!this.s.panel&&!this.s.transcript&&!this.s.word&&!r.contains(document.activeElement))r.classList.add('controls-idle');},2400);};
@@ -174,7 +179,7 @@
       const c = this.rows[i]; if (!c) return;
       if (kind === 'loop') { if (!c.timed || !this.caps.loop) return; this.run('loop', { on: true, row: i }).then(res=>{if(!this.dead&&res?.ok){this.s.loop=true;this.s.loopRow=i;this.run('seekCue',i);this.paint();}}); }
       else if (kind === 'copy') { const text = [c.src, ...c.trs].filter(Boolean).join('\n'); try { navigator.clipboard?.writeText(text); } catch (_) { /* pano yok */ } this.run('copy', text); }
-      else if (kind === 'save') this.run('save', i);
+      else if (kind === 'save') this.openNote(i);
     }
     filterRows() {
       const query = this.q('[data-r=q]')?.value.trim().toLocaleLowerCase() || '';
@@ -190,11 +195,11 @@
       for (const b of r.querySelectorAll('[data-a=rate]')) b.textContent = (Number(st.rate) || 1) + '×';
       for (const b of r.querySelectorAll('[data-a=toggle]')) { const want = st.paused ? 'play' : 'pause'; if (b.dataset.ic !== want) { b.dataset.ic = want; b.innerHTML = ic(want); b.setAttribute('aria-label', st.paused ? T('Oynat', 'Play') : T('Duraklat', 'Pause')); } }
       r.classList.toggle('transcript-open',!!s.transcript);r.querySelectorAll('[data-a=transcript]').forEach(button=>button.setAttribute('aria-expanded',String(!!s.transcript)));
-      const overlay = !!s.panel || !!s.word || (!!s.transcript && window.innerWidth < 1100);
+      const overlay = !!s.panel || !!s.word || !!s.note || (!!s.transcript && window.innerWidth < 1100);
       if(r.hasAttribute('data-pw-occludes-native')!==overlay){if(overlay)r.setAttribute('data-pw-occludes-native','true');else r.removeAttribute('data-pw-occludes-native');root.syncBrowserOcclusion?.();}
       const f = r.querySelector('[data-a=follow]'); if (f) {
         if (this.o.mode === 'cinema') f.hidden = s.follow || this.cur < 0 || !this.rows[this.cur]?.timed;
-        else { f.hidden = false; f.disabled = !this.rows.some(row => row.timed); f.setAttribute('aria-pressed', String(s.follow)); f.querySelector('span').textContent = s.follow ? T('Takip açık', 'Follow on') : T('Konuşmaya dön', 'Back to speech'); }
+        else { const timed=this.rows.some(row=>row.timed);f.hidden=false;f.disabled=!timed;f.setAttribute('aria-pressed',String(timed&&s.follow));f.title=timed?'':T('Zamansız metinde otomatik takip yoktur.','Automatic follow is unavailable for untimed text.');f.querySelector('span').textContent=!timed?T('Salt okunur','Read-only'):s.follow?T('Takip açık','Follow on'):T('Konuşmaya dön','Back to speech'); }
       }
       r.querySelectorAll('[data-a=panel]').forEach(button=>button.setAttribute('aria-pressed', String(s.panel)));
     }
@@ -205,7 +210,7 @@
       const shared = this.o.mode !== 'cinema';
       const trs = c.trs.map((t) => `<span class="tr${shared ? ' cue-card-tr' : ''}">${esc(t)}</span>`).join('');
       const unc = c.unc && c.unc.length ? `<span class="tr unc"><em>${T('Eşleşme belirsiz', 'Match uncertain')}</em>${c.unc.map((t) => `<span>${esc(t)}</span>`).join('')}</span>` : '';
-      const acts = study && !shared ? '' : `<span class="acts">${this.caps.loop && c.timed ? `<button type="button" class="act" data-act="loop" title="${T('Bu cümleyi döngüye al', 'Loop this sentence')}" aria-label="${T('Döngü', 'Loop')}">${ic('loop')}</button>` : ''}<button type="button" class="act" data-act="copy" title="${T('Kopyala', 'Copy')}" aria-label="${T('Kopyala', 'Copy')}">${ic('copy')}</button>${this.caps.save ? `<button type="button" class="act" data-act="save" title="${T('Kaydet', 'Save')}" aria-label="${T('Kaydet', 'Save')}">${ic('star')}</button>` : ''}</span>`;
+      const acts = study && !shared ? '' : `<span class="acts">${this.caps.loop && c.timed ? `<button type="button" class="act" data-act="loop" title="${T('Bu cümleyi döngüye al', 'Loop this sentence')}" aria-label="${T('Döngü', 'Loop')}">${ic('loop')}</button>` : ''}<button type="button" class="act" data-act="copy" title="${T('Kopyala', 'Copy')}" aria-label="${T('Kopyala', 'Copy')}">${ic('copy')}</button>${this.caps.save ? `<button type="button" class="act" data-act="save" title="${T('Cümleyi veya seçili metni kaydet', 'Save sentence or selected text')}" aria-label="${T('Cümleyi veya seçili metni kaydet', 'Save sentence or selected text')}">${ic('star')}</button>` : ''}</span>`;
       return `${c.timed ? `<span class="at${shared ? ' cue-card-time' : ''}">${fmt(c.start)}</span>` : ''}<span class="src${shared ? ' cue-card-src' : ''}" dir="auto">${src}</span>${trs}${unc}${acts}`;
     }
     rebuild(st, info) {
@@ -233,7 +238,7 @@
     tick() {
       if(this.dead)return; if(document.hidden){if(this.s.sleep&&Date.now()>=this.s.sleepAt){this.s.sleep=0;this.run('pause');}return;} const a = this.a, s = this.s;
       const id = a.identity ? a.identity() : ''; if (this.id0 === undefined) this.id0 = id; else if (id !== this.id0) { if (!this.gone) { this.gone = true; this.o.onSource?.(id, this.prefs()); } return; }
-      const st = this.st = a.state(), info = a.info();if(this.s.word&&this.s.word.rev!==st.rev)this.closeWord();
+      const st = this.st = a.state(), info = a.info();if(this.s.word&&this.s.word.rev!==st.rev)this.closeWord();if(this.s.note&&this.s.note.rev!==st.rev)this.closeNote();
       this.canSeek = st.canSeek !== false && Number(st.duration) > 0;
       const key = `${st.rev}:${st.timingNotice||''}:${st.rows.length}:${Math.round(st.duration || 0)}:${info.title}:${info.cover||''}:${info.sub||''}:${info.eyebrow||''}:${(info.langs || {}).src}:${(info.langs || {}).tr}:${JSON.stringify(info.chapters||[])}`;
       if (key !== s.key) {
@@ -306,7 +311,25 @@
       const chapters=info.chapters||[],sig=JSON.stringify(chapters)+':'+st.duration;if(sig!==this.chapterSig){this.chapterSig=sig;const strip=this.q('.sh-cinema-chapters');strip.textContent='';strip.hidden=!chapters.length;chapters.forEach((c,i)=>{const end=chapters[i+1]?.t||st.duration,button=this.el(`<button class="sh-chap" type="button" data-t="${c.t}" title="${esc(c.label)} · ${fmt(c.t)}" aria-label="${esc(c.label)} · ${fmt(c.t)}"><span>${esc(c.label)}</span></button>`);button.style.flex=String(Math.max(.01,end-c.t));strip.append(button);});}
       const paused=!!st.paused;if(this.lastPause!==paused){this.lastPause=paused;this.reveal?.();}
     }
+    openNote(row){
+      const cue=this.rows[row];if(!cue||!this.caps.save)return;
+      const selection=root.getSelection?.(),source=this.lines[row]?.querySelector('.src');
+      const excerpt=selection?.rangeCount&&source?.contains(selection.anchorNode)&&source.contains(selection.focusNode)?String(selection).trim():'';
+      this.closeWord();this.s.note={row,rev:this.st?.rev,...(excerpt&&cue.src.includes(excerpt)?{excerpt}:{})};const box=this.q('.sh-note-card');box.hidden=false;
+      box.innerHTML=`<header><h2>${T('Cümle ve not','Sentence and note')}</h2><button class="sh-btn" type="button" data-a="noteClose" aria-label="${T('Kapat','Close')}">${ic('close')}</button></header><p class="sh-word-context" dir="auto">${esc(this.s.note.excerpt||cue.src)}</p>${(this.s.note.excerpt?[]:cue.trs).map(x=>`<p class="sh-word-translation" dir="auto">${esc(x)}</p>`).join('')}<label>${T('Notunuz (isteğe bağlı)','Your note (optional)')}<textarea rows="3" maxlength="8000" data-note-text></textarea></label><footer><button class="sh-btn" type="button" data-a="noteSave">${T('Araştırma defterine kaydet','Save to research notebook')}</button>${cue.timed?`<button class="sh-btn" type="button" data-a="noteSeek">${T('Cümleye dön','Return to sentence')} · ${fmt(cue.start)}</button>`:`<small>${T('Zamansız metin · atlama yok','Untimed text · no seeking')}</small>`}</footer>`;
+      this.paint();box.querySelector('textarea').focus();
+    }
+    closeNote(){this.s.note=null;const box=this.q('.sh-note-card');if(box){box.hidden=true;box.textContent='';}this.paint();}
+    async saveNote(){
+      const note=this.s.note;if(!note||note.pending)return;note.pending=true;
+      const box=this.q('.sh-note-card'),button=box.querySelector('[data-a=noteSave]');button.disabled=true;
+      const result=await this.run('save',{row:note.row,note:box.querySelector('textarea').value,...(note.excerpt?{excerpt:note.excerpt}:{})},note.rev);
+      if(this.dead||this.s.note!==note)return;
+      note.pending=false;button.disabled=false;
+      if(result?.ok){this.closeNote();this.toast(T('Araştırma defterine kaydedildi.','Saved to research notebook.'));}
+    }
     async openWord(row,word){
+      this.closeNote();
       const revision=this.st?.rev,seq=this.wordSeq=(this.wordSeq||0)+1,result=await this.a.cmd('wordInfo',{row,word},revision);
       if(this.dead||seq!==this.wordSeq||revision!==this.st?.rev||!result?.ok)return;
       this.s.word={...result,row,rev:revision,cueId:this.rows[row]?.id};this.drawWord();this.paint();

@@ -129,7 +129,11 @@ function unifiedLibrarySearch(input = {}) {
         snippet: boundedText([note.source, note.translation, note.note].filter(Boolean).join(' · '), 800),
         mediaId: boundedText(note.mediaId ?? note.media_id, 240), mediaType: boundedText(note.mediaType || note.service, 40),
         url: boundedText(note.mediaUrl || note.url, 2000), annotationId: id,
-        seconds: Math.max(0, Number(note.start) || 0), updatedAt: Number(note.updatedAt || note.updated_at) || 0,
+        timed: note.timed !== false, seconds: note.timed === false ? null : Math.max(0, Number(note.start) || 0),
+        sourceVersion: boundedText(note.sourceVersion,500), episodeIdentity: boundedText(note.episodeIdentity,500),
+        sourceEntryId: boundedText(note.sourceEntryId,240), playbackOwner: boundedText(note.playbackOwner,40),
+        sourceBinding: note.sourceBinding && typeof note.sourceBinding === 'object' ? note.sourceBinding : null,
+        updatedAt: Number(note.updatedAt || note.updated_at) || 0,
         anchor: note.anchor && typeof note.anchor === 'object' ? note.anchor : null,
         action: note.anchor ? 'open-anchor' : 'open-note',
       });

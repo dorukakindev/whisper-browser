@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Zamansız podcast metni mevcut sağlayıcıyla çevrilip özgün metinle ayrı saklanır; asistan kabul edilen işi kaydedilmiş sonuca kadar izler. Ortak Sahne’den cümle/sözcük ve notlar kaynak bağlı araştırma defterine kaydedilir; güvenli geri açma ve zamanlıysa konuma dönme korunur. [Teslim](docs/devir/2026-11-05-1040.md).
+
 - Podcast kütüphanesinde gereksiz workspace IPC/tam transkript aktarımı ve aramada kapak/abonelik yeniden kurulumu kaldırıldı; aynı RSS/legacy bölümünün kayıtlı transkript durumu korunur. Ortak RSS oynatıcısında yayıncı/kapak ve zaman doğrulama açıklaması düzeltilir, boş altyazı alanı gizlenir. [Kısa kalite/performance teslimi](docs/devir/2026-11-05-0950.md).
 
 - Claude tam v2 kompozisyonları mevcut Ana sayfa, Keşfet, film detayı, podcast kütüphanesi, Akışlar, yorum/analiz, zevk profili, web geçmişi ve İçerik Ağı işlemlerine bağlandı. Kaynak okuma düzeni, abonelik şeridi, gerçek kuyruk/çift dilli girişleri, gerekçeli öneri rafı ve kalıcı ağ görünümü güncellendi. [Teslim](docs/devir/2026-11-05-0904.md).

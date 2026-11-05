@@ -105,9 +105,10 @@ test('Current shelf RSS commands select its source instead of the hidden YouTube
    const snapshot={mediaKey:'shelf:episode-A',generation:8,sourceVersion:'stream-A',sourceKind:'rss',playbackOwner:'media-shelf'};
    h.w.MediaShelfUI={readSnapshot:()=>snapshot,runPodcastTask:async config=>{h.calls.push(['podcast',config]);assert.equal(config.expected.mediaKey,snapshot.mediaKey);assert.equal(config.isCancelled(),false);return {queued:true,id:'rss-job-A'};}};
    h.w.globalAssistantContext=()=>({type:'podcast',mediaKey:snapshot.mediaKey});
+   h.w.podcastQueueTaskState=()=>({id:'rss-job-A',state:'complete'});
    assert.equal(await h.w.AssistantVideoCommands.handle(question),true);
    assert.equal(h.calls[0]?.[0],'podcast');assert.equal(h.calls[0][1].operation,operation);assert.equal(h.calls.length,1);
-   assert.equal(h.done[0].status,'complete');assert.match(h.done[0].text,/kuyru|queue/i);assert.doesNotMatch(h.done[0].text,/YouTube/);
+   assert.equal(h.done[0].status,'complete');assert.match(h.done[0].text,/Sonuç|Results/i);assert.doesNotMatch(h.done[0].text,/YouTube/);
   }finally{h.dom.window.close();}
  }
 });
@@ -150,4 +151,60 @@ test('A selected book or library source cannot start a background shelf podcast'
   h.w.globalAssistantContext=()=>({workspace:'media-library',type:'library-title'});
   await h.w.AssistantVideoCommands.handle('transcribe et');assert.equal(h.calls.length,0);assert.equal(h.done[0].status,'failed');
  }finally{h.dom.window.close();}
+});
+
+test('Podcast queue acceptance stays pending and exact receipt progress finishes only on its terminal state',async()=>{
+ const h=harness();try{
+  const layer=h.w.document.createElement('div');layer.id='playerLayer';layer.className='hidden';h.w.document.body.append(layer);
+  const snapshot={mediaKey:'shelf-A',generation:1,sourceVersion:'A'};let inspect,job={id:'own-job',state:'queued',text:'',cancellable:false};
+  h.w.setInterval=fn=>{inspect=fn;return 1;};h.w.clearInterval=()=>{};
+  h.w.MediaShelfUI={readSnapshot:()=>snapshot,runPodcastTask:async()=>({queued:true,id:'own-job'})};
+  h.w.podcastQueueTaskState=(expected,id)=>{assert.equal(expected.mediaKey,snapshot.mediaKey);assert.equal(id,'own-job');return job;};
+  await h.w.AssistantVideoCommands.handle('transcribe this podcast and translate');
+  assert.equal(h.done.length,0);assert.equal(h.w.AssistantVideoCommands.busy(),true);
+  job={...job,state:'running',text:'Recognizing episode',progress:.42,cancellable:true};inspect();
+  assert.match(h.w.AssistantVideoCommands.status().job.bubble.textContent,/42/);
+  job={...job,state:'complete',text:''};inspect();assert.equal(h.done[0].status,'complete');assert.equal(h.w.AssistantVideoCommands.busy(),false);
+ }finally{h.dom.window.close();}
+});
+
+test('Podcast assistant cancellation uses exact existing queue controls and waits for stop confirmation',async()=>{
+ const h=harness();try{
+  const layer=h.w.document.createElement('div');layer.id='playerLayer';layer.className='hidden';h.w.document.body.append(layer);
+  const snapshot={mediaKey:'shelf-A',generation:1,sourceVersion:'A'};let inspect,job={id:'own-job',state:'running',text:'',cancellable:true},stops=0;
+  h.w.setInterval=fn=>{inspect=fn;return 1;};h.w.clearInterval=()=>{};
+  h.w.MediaShelfUI={readSnapshot:()=>snapshot,runPodcastTask:async()=>({queued:true,id:'own-job'})};
+  h.w.podcastQueueTaskState=()=>job;
+  h.w.cancelPodcastQueueTask=(expected,id)=>{assert.equal(expected.mediaKey,snapshot.mediaKey);assert.equal(id,'own-job');stops++;return true;};
+  await h.w.AssistantVideoCommands.handle('transcribe this podcast');await h.w.AssistantVideoCommands.cancel();
+  assert.equal(stops,1);assert.equal(h.done.length,0);
+  job={...job,state:'stopped',cancellable:false};inspect();assert.equal(h.done[0].status,'stopped');
+ }finally{h.dom.window.close();}
+});
+
+test('Cancellation racing accepted podcast receipt stops its accepted job instead of claiming no enqueue',async()=>{
+ const h=harness();try{
+  const layer=h.w.document.createElement('div');layer.id='playerLayer';layer.className='hidden';h.w.document.body.append(layer);
+  const snapshot={mediaKey:'shelf-A',generation:1,sourceVersion:'A'};let release,stops=0;
+  h.w.setInterval=()=>1;h.w.clearInterval=()=>{};
+  h.w.MediaShelfUI={readSnapshot:()=>snapshot,runPodcastTask:()=>new Promise(resolve=>release=resolve)};
+  h.w.podcastQueueTaskState=()=>({id:'own-job',state:'running',cancellable:true});
+  h.w.cancelPodcastQueueTask=()=>{stops++;return true;};
+  const run=h.w.AssistantVideoCommands.handle('transcribe this podcast');await h.w.AssistantVideoCommands.cancel();release({queued:true,id:'own-job'});await run;
+  assert.equal(stops,1);assert.equal(h.done.length,0);assert.equal(h.w.AssistantVideoCommands.status().queueId,'own-job');
+ }finally{h.dom.window.close();}
+});
+
+test('Accepted podcast tracking rejects a changed source and never reports a different receipt as its result',async()=>{
+ for(const change of ['source','receipt','failed']){
+  const h=harness();try{
+   const layer=h.w.document.createElement('div');layer.id='playerLayer';layer.className='hidden';h.w.document.body.append(layer);
+   let snapshot={mediaKey:'shelf-A',generation:1,sourceVersion:'A'},inspect,job={id:'own-job',state:'running',cancellable:true};
+   h.w.setInterval=fn=>{inspect=fn;return 1;};h.w.clearInterval=()=>{};
+   h.w.MediaShelfUI={readSnapshot:()=>snapshot,runPodcastTask:async()=>({queued:true,id:'own-job'})};h.w.podcastQueueTaskState=()=>job;
+   await h.w.AssistantVideoCommands.handle('transcribe this podcast');
+   if(change==='source')snapshot={...snapshot,generation:2};else if(change==='receipt')job={id:'other-job',state:'complete'};else job={...job,state:'failed',text:'Saving failed'};
+   inspect();assert.equal(h.done[0].status,'failed',change);assert.equal(h.w.AssistantVideoCommands.busy(),false);
+  }finally{h.dom.window.close();}
+ }
 });

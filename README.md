@@ -37,6 +37,8 @@ Ayrıntılı teknik kurallar [çalışma rehberinde](docs/WORKING_GUIDE.md), mim
 
 Claude tam v2 tasarımının ürün entegrasyonu tamamlandı; kapsam ve doğrulama sınırları [tasarım devam kaydında](docs/design/claude-redesign-handoff-2026-11-05.md), açık işler [BACKLOG.md](BACKLOG.md) içindedir. Maket görüntüsü ile çalışan ürün kanıtı ayrı tutulur.
 
+Podcast/Çift dilli görünümünde **Transkripti çevir** zaman bilgisi olmayan metni de mevcut sağlayıcıyla çevirir; sahte eşzamanlama eklemez. Metindeki kaydet eylemi cümleyi veya seçili sözcük/pasajı isteğe bağlı notla mevcut araştırma defterine ekler. Kayıtlar bölüm ve kaynak sürümüne bağlıdır; zamansız kayıt zaman atlatmaz. Asistan “bu podcasti yazıya dök ve çevir” komutunda mevcut kuyruğu kullanır ve sonuç kaydını bekler.
+
 ## Feature tour
 
 | | |
