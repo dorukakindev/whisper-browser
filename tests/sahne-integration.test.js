@@ -36,7 +36,9 @@ function fixture(t) {
   window.UiLocale = { get: () => 'en' };
   window.api = { copyText() {}, showAssistant() {} };
   class SahneShell {
-    constructor(host, adapter, opts) { this.a = adapter; this.o = opts; this.s = { loop: false }; this.root = document.createElement('section'); host.append(this.root); }
+    constructor(host, adapter, opts) { this.a = adapter; this.o = opts; this.s = { loop: false }; this.root = document.createElement('section');
+      for (const mode of ['cinema', 'podcast', 'study']) { const tab = document.createElement('button'); tab.setAttribute('role', 'tab'); tab.dataset.mode = mode; tab.setAttribute('aria-selected', String(opts.mode === mode)); this.root.append(tab); }
+      host.append(this.root); }
     prefs() { return {}; }
     destroy() { this.a.cmd('loop', { on: false }); this.a.releaseSlot?.(); this.root.remove(); }
   }
@@ -48,8 +50,47 @@ function fixture(t) {
   });
   vm.runInContext(fs.readFileSync(require.resolve('../src/renderer/cinema-sahne'), 'utf8'), context);
   t.after(() => { window.CinemaSahne?.close(); bridge.dispose(); dom.window.close(); });
-  return { window, document, player, source, secondary, commands, setParser(parser) { context.parseSubtitles=parser; }, open(mode = 'podcast') { window.CinemaSahne.open({ mode }); return window.CinemaSahne.current.a; } };
+  return { window, document, player, source, secondary, commands, context, setParser(parser) { context.parseSubtitles=parser; }, open(mode = 'podcast') { window.CinemaSahne.open({ mode }); return window.CinemaSahne.current.a; } };
 }
+
+test('browser transcript projection resolves timing per channel and refreshes edited transforms', t => {
+  const f = fixture(t), sync = require('../src/browser-subtitle-sync');
+  f.player.workspaceMode = 'browser'; f.player.browserActiveTabId = 'tab-one'; f.player.browserTracks = [];
+  f.player.browserDuration = 1000; f.player.browserMediaSeen = true;
+  f.player.cues = Array.from({ length: 80 }, (_, i) => ({ id: String(i), start: i * 4, end: i * 4 + 2, text: 'Source ' + i, wordRanges: [{start:0,end:6,timeStart:i*4,timeEnd:i*4+1}] }));
+  f.player.cues2 = f.player.cues.map(c => ({ ...c, text: 'Translation ' + c.id }));
+  const layer = f.document.getElementById('playerLayer'); layer.classList.add('workspace-browser');
+  f.window.BrowserStudy = { open() { layer.classList.add('browser-study-mode'); } };
+  f.window.BrowserPodcastUI = { setMode() {} };
+  let reads = 0, offset = 5;
+  f.context.browserTransformForChannel = secondary => { reads++; return { scale: secondary ? .5 : 2, offsetSeconds: secondary ? 7 : offset }; };
+  f.context.subtitleVideoTransform = secondary => { try { return f.context.browserTransformForChannel(secondary); } catch (_) { return { scale: 1, offsetSeconds: 0 }; } };
+  f.context.subtitleVideoTime = (time, secondary, frozen) => sync.sourceToVideoTime(time, frozen || f.context.browserTransformForChannel(secondary));
+  const a = f.open('study'); reads = 0;
+  const first = a.state();
+  assert(reads <= 4, 'source identity work must scale with channels, not cue endpoints or words: ' + reads);
+  assert.equal(first.rows[0].start, 5); assert.equal(first.rows[0].words[0].t0, 5);
+  offset = 9; reads = 0;
+  const next = a.state();
+  assert.equal(next.rows[0].start, 9); assert.equal(next.rows[0].words[0].t0, 9);
+  assert.notEqual(next.rev, first.rev); assert(reads <= 4);
+  assert.equal(f.player.cues[0].start, 0); assert.equal(f.player.cues2[0].start, 0);
+  f.context.browserTransformForChannel = () => { reads++; throw new Error('unavailable timing lookup'); }; reads = 0;
+  const fallback = a.state(); assert.equal(fallback.rows[0].start, 0); assert.equal(fallback.rows[0].words[0].t0, 0); assert(reads <= 4);
+});
+
+test('changing scene mode retains keyboard focus on its replacement tab without stealing external focus', t => {
+  const f = fixture(t); f.open('podcast');
+  const original = f.window.CinemaSahne.current, button = original.root.querySelector('[data-mode="study"]');
+  const owner = { mediaKey: f.player.mediaKey, generation: f.player.generation };
+  button.focus(); original.o.onMode('study', {});
+  const scene = f.window.CinemaSahne.current, selected = scene.root.querySelector('[role="tab"][aria-selected="true"]');
+  assert.equal(selected.dataset.mode, 'study'); assert.equal(f.document.activeElement, selected);
+  assert.equal(button.isConnected, false); assert.deepEqual({ mediaKey: f.player.mediaKey, generation: f.player.generation }, owner);
+  const input = f.document.createElement('input'); f.document.body.append(input); input.focus();
+  scene.o.onMode('podcast', {}); assert.equal(f.document.activeElement, input);
+  assert.equal(f.commands.length, 0);
+});
 
 test('Sahne forwards local/native transport to the existing identity-bound bridge', async t => {
   const f = fixture(t), a = f.open();
