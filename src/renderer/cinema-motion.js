@@ -163,7 +163,7 @@
   document.addEventListener('scroll', scroll, { capture: true, passive: true, signal });
   const syncVisibility = () => { document.documentElement.dataset.cinemaPaused = String(!active()); resolveMode(); if (active()) void checkPower(); };
   document.addEventListener('visibilitychange', syncVisibility, { signal }); window.addEventListener('blur', syncVisibility, { signal }); window.addEventListener('focus', syncVisibility, { signal });
-  function carousel(hero, { count, getIndex, goTo, indicators, duration = 9000 }) {
+  function carousel(hero, { count, getIndex, goTo, indicators, decorateIndicator, duration = 9000 }) {
     const lifetime = new AbortController(); let timer = 0, animation = null, remaining = duration, started = 0, disposed = false;
     const dots = indicators || hero.querySelector('.cn-carousel-dots') || document.createElement('div'); dots.classList.add('cn-carousel-dots'); dots.replaceChildren();
     if (!dots.isConnected) (hero.querySelector('.cn-hero-switch') || hero).prepend(dots);
@@ -172,6 +172,7 @@
       const index = start + offset;
       const button = document.createElement('button'), fill = document.createElement('i'); button.type = 'button'; button.setAttribute('aria-label', `${index + 1}. içeriği göster`); button.append(fill); dots.append(button);
       button.dataset.slideIndex = String(index);
+      decorateIndicator?.(button, index);
       button.style.setProperty('--cn-dot-width', index === getIndex() ? '28px' : Math.abs(index - getIndex()) > 2 ? '7px' : '12px');
       button.addEventListener('click', () => jump(index), { signal: lifetime.signal }); return button;
     }); } renderWindow();

@@ -129,13 +129,13 @@
     if (!window.MediaCatalogUI?.open) throw new Error(t('Library is unavailable.', 'Kütüphane kullanılamıyor.'));
     await window.MediaCatalogUI.open({ ...options, opener: document.activeElement });
   }
-  async function playWatch(item) {
+  async function playWatch(item, options = {}) {
     if (state.busy) return;
     state.busy = true;
     try {
       if (typeof openWatchLibraryItem !== 'function') throw new Error(t('Player is unavailable.', 'Oynatıcı kullanılamıyor.'));
       if (typeof flushWatchState === 'function') await flushWatchState(false, false);
-      await openWatchLibraryItem(item, item.completed ? 0 : model.progress(item).position);
+      await openWatchLibraryItem(item, options.fromStart || item.completed ? 0 : model.progress(item).position);
       if (layer.classList.contains('hidden')) throw new Error(t('The file could not be opened. Open the library to re-link it.', 'Dosya açılamadı. Yeniden bağlamak için kütüphaneyi açın.'));
     } finally { state.busy = false; }
   }
@@ -221,7 +221,7 @@
   function art(item, cls, required = false) {
     const node = el('div', cls); node.append(icon());
     if (required) node.dataset.artRequired = 'true';
-    if ((cls === 'mh-hero-art' || cls === 'cn-hero-art') && item?.id && item.backdrop) {
+    if ((node.classList.contains('mh-hero-art') || node.classList.contains('cn-hero-art')) && item?.id && item.backdrop) {
       const generation=state.render;
       node.addEventListener('home-art-ready',()=>{
         if(!node.isConnected || generation!==state.render)return;
@@ -322,7 +322,7 @@
     const focusKey = content.contains(document.activeElement) ? document.activeElement?.dataset.homeItem : null;
     virtualDisposers.forEach(dispose=>dispose());virtualDisposers=[];
     state.render++; posterQueue = []; posterObserver.disconnect();
-    content.classList.remove('cn-home-content');content.replaceChildren();
+    content.classList.remove('cn-home-content', 'cv2-home');content.replaceChildren();
     if(parked&&(parked.key!==player.mediaKey||(parked.mode==='browser'&&parked.tabId!==player.browserActiveTabId)))parked=null;
     const status = el('p', 'mh-status'); status.id = 'mhStatus'; status.setAttribute('role', 'status'); content.append(status);
     if (state.error) report(state.error, true);
@@ -340,7 +340,7 @@
     const { items, watch, continuing } = state.data;
     const filter = rows => rows.filter(item => model.matches(item, state.query));
     if (state.page === 'home' && !state.query) {
-      const view=window.CinemaUI.home(content,{items,continuing,progress:model.progress,art,hasArtwork,play,details:id=>window.MediaTitleUI.open(id),page,addFolder:()=>catalog({mode:'folder'}),minutes,featuredKey:state.featuredKey,onFeature:key=>{state.featuredKey=key;try{localStorage.setItem('media-home-featured-v1',key);}catch{}}});
+      const view=window.CinemaUI.home(content,{items,watch,continuing,progress:model.progress,art,hasArtwork,play,details:id=>window.MediaTitleUI.open(id),page,addFolder:()=>catalog({mode:'folder'}),minutes,featuredKey:state.featuredKey,onFeature:key=>{state.featuredKey=key;try{localStorage.setItem('media-home-featured-v1',key);}catch{}}});
       virtualDisposers.push(view.dispose);
       const toolbox=el('details','cn-accordion');toolbox.append(el('summary','',t('Subtitle & voice tools','Altyazı ve ses araçları')),tools());view.body.append(toolbox);
     } else if (state.page === 'recall' && window.RecallNetworkUI) {
@@ -383,9 +383,16 @@
       const currentView=feedsView,currentRender=state.render;void currentView.ready.then(()=>{if(feedsView===currentView&&state.page==='feeds'&&state.render===currentRender&&state.active)host.scrollTop=pagePositions.get('feeds')||0;});
     } else if (state.page === 'discover' && window.MediaDiscoveryUI) {
       const discovery = el('section', 'md-page'); content.append(discovery); window.MediaDiscoveryUI.mount(discovery);
+    } else if (state.page === 'web' && window.WebHistoryV2) {
+      const web = window.WebHistoryV2.mount(content, watch.filter(item => model.medium(item) === 'web'), {
+        query: state.query, playWatch, artwork: item => art(item, 'whv-owned-art'), disposeArtwork: node => posterObserver.unobserve(node),
+        removeWatchItem: async item => { const result=await window.api.removeWatchItem(item.key); if(result?.ok===false)throw Error(result.error||t('Record could not be removed.','Kayıt kaldırılamadı.')); await refresh(); },
+        openFile: () => click('playerPickVideo'), manageLibrary: () => catalog(), openBrowser
+      });
+      virtualDisposers.push(() => web.dispose());
     } else if (['books', 'music', 'radio', 'taste'].includes(state.page) && window.MediaShelfUI) {
       const titles = { books: t('Books', 'Kitaplar'), music: t('Music', 'Müzik'), radio: t('Radio & podcasts', 'Radyo ve podcast'), taste: 'Letterboxd' };
-      if(state.page!=='taste')content.append(el('h1', 'mh-page-title', titles[state.page]));
+      if(state.page!=='taste'&&state.page!=='radio')content.append(el('h1', 'mh-page-title', titles[state.page]));
       const shelf = el('section', 'ms-shelf'); content.append(shelf); window.MediaShelfUI.mount(shelf, state.page, state.query);
     } else {
       const titles = { home: t('Search results', 'Arama sonuçları'), recent: t('Recently played', 'Son oynatılanlar'), films: t('Films', 'Filmler'), series: t('Series', 'Diziler'), music: t('Music & audio', 'Müzik ve ses'), web: t('Web videos', 'Web videoları'), books: t('Search results', 'Arama sonuçları') };

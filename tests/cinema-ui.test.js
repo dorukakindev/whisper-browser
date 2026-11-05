@@ -11,6 +11,6 @@ test('Film rebuild retains the story toggle listener and expanded viewing tools 
   const page=h.w.document.createElement('dialog');h.w.document.body.append(page);
   const rebuild=()=>{page.innerHTML='<section class="mtd-hero"><div class="mtd-copy"><div class="mtd-actions"><button>Video dosyası seç</button></div></div></section><nav class="film-page-navigation"></nav>';const toggle=h.w.document.createElement('button');toggle.className='film-plot-toggle';toggle.textContent='Konuyu gizle';toggle.onclick=()=>{page.dataset.plotHidden=String(page.dataset.plotHidden!=='true');};page.querySelector('nav').append(toggle);h.api.film(page,{id:'same-source',title:'Film'});return toggle;};
   const toggle=rebuild();assert(page.contains(toggle));toggle.click();assert.equal(page.dataset.plotHidden,'true');
-  const details=page.querySelector('.cn-film-body>details');details.open=true;details.dispatchEvent(new h.w.Event('toggle'));rebuild();assert.equal(page.querySelector('.cn-film-body>details').open,true);
+  const details=page.querySelector('.cv2-film-sources>details');details.open=true;details.dispatchEvent(new h.w.Event('toggle'));rebuild();assert.equal(page.querySelector('.cv2-film-sources>details').open,true);
  }finally{h.dom.window.close();}
 });
