@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Browser Spotify→çift dilli geçişi, duraklatılmış podcast konum/hız kaydı, yorum başlangıç/kaydetme yarışları, timed çevirinin hedef dil kaydı, publisher metni/çeviri eşleşmesi ve readonly SRT/VTT sunumu düzeltildi. [Agentlı akış denetimi](docs/devir/2026-11-05-1237.md).
+
 - Ortak Podcast/Çift dilli İşlemler panelinde Whisper artık seçili aralık ve aynı başlangıç kilidini kullanır; panel ve oynatma komutu hataları görünür bildirilir. [Kısa düğme turu](docs/devir/2026-11-05-1201.md).
 
 - Podcast Sahnesinde seçili aralık ve süre önizlemesi; doğal asistan aralık komutları, doğrulanmış kısmi çevirinin yalnız eksik satırlarını tamamlama, kütüphaneden kaynak bağlı notlara erişim ve zevk kanıtının kaynağına/düzeltmesine ulaşma. Mevcut oynatma/kuyruk sahipleri korunur. [Teslim](docs/devir/2026-11-05-1140.md).

@@ -1,6 +1,6 @@
 # Bekleyen işler
 
-Son durum kontrolü: **2026-11-05**. Son ürün `fdf88ceb526d4a50919bf14dc9b5033afe48b328`: kısa Browser/Keşfet/yorum/podcast düğme turu; ortak İşlemler panelinde kapsam ve hata bildirimi düzeltildi. [Güncel teslim](docs/devir/2026-11-05-1201.md). Onaylı ortak Sahne tasarımı korunur.
+Son durum kontrolü: **2026-11-05**. Son ürün `f9a3b2f2c0904618d422fe4067c8c0e492b0fe90`: üç agentla Browser, yorum ve podcast akış denetimi; yedi somut hata düzeltildi. [Güncel teslim](docs/devir/2026-11-05-1237.md). Onaylı ortak Sahne tasarımı korunur.
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
@@ -12,6 +12,13 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 
 
 Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı değildir. Her seferinde tek kapsam kapatılır; yeni somut arıza önceliği değiştirebilir.
+
+## P023 — Agentlarla medya akış denetimi tamamlandı
+
+- **Kod/dal:** `f9a3b2f2c0904618d422fe4067c8c0e492b0fe90`, `codex/media-deep-bug-tour-20261105`; [devir](docs/devir/2026-11-05-1237.md).
+- **Düzeltmeler:** oynayan Spotify medya gözlemlendiyse çift dilli toolbar yeniden kaynak diyaloğu açmaz; shelf paused seek/hız hemen kaydedilir; yorum başlangıç reddi/remount iş kilidi ve gecikmiş save'in yeni analizi silmesi önlenir; timed Transkripti çevir hedef dili dondurulmuş kuyruktan kayda taşır; publisher metni değişince eski çeviri/kapsam/notice/retry taşınmaz, güncel aynı-kaynak çevirisi korunur; readonly SRT/VTT Sahne'de ham kod yerine metin gösterir, seek yasağı sürer.
+- **Kanıt:**3agent bağımsız inceleme ve çapraz review; yeni repro'lar eski kodda düştü, fixlerle geçti. Son değişen davranış grubu99test/~1,9sn, JS/diff. LG1440×900 izole native: gerçek shelf30sn/1.75× paused konum-hız store'a yazıldı; kontrollü gözlenmiş Spotify URL'si aynı web sahibinde study; kontrollü yorum başlangıç reddi retry'ı açtı ve gecikmiş save yeni sonucu silmedi. Readonly SRT sunumu son native tekrarında temizdi. İzin denemesi0; Computer Use/model/ücretli çeviri/CPU kampanyası/Actions yok.
+- **Sınırlar / sonraki adım:** Spotify hesabı/DRM gerçek yayını denenmedi; native Spotify koşulu kontrollü web sahibinde test edildi. Native yorumlar kontrollü cevap/reddir, canlı AI/Letterboxd başarı iddiası değildir. Publisher descriptor değişimi ve timed translation persistence gerçek validator/DOM regresyonlarıyla; yeni live Whisper/çeviri tekrarlanmadı.6mevcut ürün+8mevcut test dosyası, yeni modül/test dosyası yok. Bu kapsamda kalan doğrulanmış ürün hatası yok; yeni somut kullanıcı arızasında ilgili yolu aç, tüm uygulamayı hatasız ilan etme.
 
 ## P022 — Kısa medya düğme turu tamamlandı
 
