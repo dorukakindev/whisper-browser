@@ -23,6 +23,8 @@
   }
 
   async function enter(view='podcast') {
+    const shelf=window.MediaShelfUI?.readSnapshot?.();
+    if(document.getElementById('playerLayer')?.classList.contains('hidden')&&shelf) return window.CinemaSahne.openShelf({mode:view==='podcast'?'podcast':'study'});
     const url=typeof player!=='undefined'?player.browserPageUrl:'';
     if(isSpotify(url)&&player.workspaceMode==='browser'&&!player.browserMediaSeen)return open({url,view});
     const layer=document.getElementById('playerLayer');

@@ -39,7 +39,16 @@
     el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
     q(sel) { return this.root.querySelector(sel); }
     prefs() { return { focus: this.s.focus, disp: this.s.disp }; }
+    buildStudy() {
+      this.root = this.el(root.BrowserStudyView.markup({ mode: this.o.mode, caps: this.caps, display: this.s.disp, T, esc, icon: ic }));
+      this.host.append(this.root);
+      const slot = this.q('[data-r=slot]'), media = this.a.slot?.(this.o.mode);
+      if (slot && media) slot.append(media);
+      this.root.append(this.el(`<aside class="sh-word-card" hidden role="dialog" aria-label="${T('Sözcük ve bağlam','Word and context')}"></aside>`));
+      this.applyDisp(); this.bind();
+    }
     build() {
+      if (this.o.mode !== 'cinema') { this.buildStudy(); return; }
       const m = this.o.mode, study = m !== 'podcast', cinema=m==='cinema';
       const root = this.root = this.el(`<section class="sh sh-${study ? 'study' : 'podcast'} ${cinema?'sh-local':''} ${this.o.intro ? 'sh-enter' : ''}" aria-label="${cinema?T('Yerel sinema oynatıcısı','Local cinema player'):study ? T('Çift dilli çalışma sahnesi', 'Bilingual study stage') : T('Podcast sahnesi', 'Podcast stage')}" data-mode="${m}">
         <div class="sh-bg" aria-hidden="true"><div class="sh-aurora"></div><div class="sh-aurora b"></div><div class="sh-grain"></div><div class="sh-vignette"></div></div>
@@ -58,20 +67,12 @@
       const seg = () => `<div class="sh-seg" data-r="disp" style="--n:3;--i:${['src', 'both', 'tr'].indexOf(this.s.disp)}" role="group" aria-label="${T('Gösterilen metin', 'Shown text')}"><button type="button" data-d="src" aria-selected="${this.s.disp === 'src'}">${T('Kaynak', 'Source')}</button><button type="button" data-d="both" aria-selected="${this.s.disp === 'both'}">${T('İkisi', 'Both')}</button><button type="button" data-d="tr" aria-selected="${this.s.disp === 'tr'}">${T('Çeviri', 'Translation')}</button></div>`;
       const wave = () => `<div class="sh-wave" data-r="wave" role="slider" tabindex="0" aria-label="${T('Bölüm konumu', 'Episode position')}" title="${T('Çubuklar ses dalgası değil; transkriptteki konuşma yoğunluğudur.', 'Bars are not an audio waveform; they show speech density from the transcript.')}"><div class="bars" data-r="bars"></div><div class="bars fill" data-r="fill"></div><div class="head"></div><span class="tip" data-r="tip"></span></div>`;
       const loopChip = this.caps.loop ? `<button class="sh-chip" data-a="loop" type="button" aria-pressed="false">${ic('loop')}${T('Cümle döngüsü', 'Loop sentence')}</button>` : '';
-      const transport = `<div class="sh-transport"><button class="sh-tbtn" data-a="prev" type="button" aria-label="${T('Önceki cümle', 'Previous sentence')}">${ic('prev')}</button><button class="sh-tbtn" data-a="back" type="button" aria-label="${T('10 sn geri', 'Back 10 s')}">${ic('back')}<small>10</small></button><button class="sh-tbtn play" data-a="toggle" type="button" aria-label="${T('Oynat', 'Play')}">${ic('play')}</button><button class="sh-tbtn" data-a="fwd" type="button" aria-label="${T('10 sn ileri', 'Forward 10 s')}">${ic('fwd')}<small>10</small></button><button class="sh-tbtn" data-a="next" type="button" aria-label="${T('Sonraki cümle', 'Next sentence')}">${ic('next')}</button></div>`;
       const follow = `<button class="sh-follow" data-a="follow" type="button" hidden>${ic('down')}${T('Konuşmaya dön', 'Back to speech')}</button>`;
       if (study) {
         main.append(this.el(`<div class="sh-theater"><div class="sh-audio-summary"><div class="sh-cover"><div class="sh-cover-art" data-r="cover"></div></div><div class="sh-meta"><span class="sh-eyebrow" data-r="eyebrow"></span><h1 class="sh-title" data-r="title"></h1><p class="sh-sub" data-r="sub"></p><div data-r="chaps" class="sh-chaps"></div></div></div><div class="sh-screenwrap"><div class="sh-ambi" aria-hidden="true"></div><div class="sh-screen"><div class="slot" data-r="slot"></div><div class="frame"></div></div></div>
           <div class="sh-subs" data-r="subs" role="status" aria-live="off"><span class="lang l" data-r="ls"></span><span class="lang r" data-r="lt"></span><div class="s" data-r="s"></div><div class="t" data-r="t"></div></div>
           <div class="sh-dock"><div class="group"><button class="sh-tbtn" data-a="prev" type="button" aria-label="${T('Önceki cümle', 'Previous sentence')}">${ic('prev')}</button><button class="sh-tbtn play" data-a="toggle" type="button" aria-label="${T('Oynat', 'Play')}">${ic('play')}</button><button class="sh-tbtn" data-a="next" type="button" aria-label="${T('Sonraki cümle', 'Next sentence')}">${ic('next')}</button><button class="sh-tbtn" data-a="replay" type="button" aria-label="${T('Cümleyi tekrar dinle', 'Replay sentence')}">${ic('replay')}</button></div>${wave()}<div class="group"><button class="sh-chip" data-a="rate" type="button">1×</button>${loopChip}</div></div></div>`));
         main.append(this.el(`<aside class="sh-cardsbox"><div class="sh-cards-h"><span class="sh-lang" data-r="lsb"></span>${ic('swap')}<span class="sh-lang" data-r="ltb"></span><label class="sh-search">${ic('search')}<input data-r="q" placeholder="${T('Cümlelerde ara', 'Search sentences')}" aria-label="${T('Cümlelerde ara', 'Search sentences')}"></label>${seg()}</div><div class="sh-cards-wrap"><div class="sh-cards" data-r="scroll"></div>${follow}</div></aside>`));
-      } else {
-        main.append(this.el(`<aside class="sh-deck"><div class="sh-cover"><div class="sh-cover-art" data-r="cover"></div><div class="sh-eq" aria-hidden="true"><i></i><i></i><i></i><i></i></div></div>
-          <div class="sh-meta"><span class="sh-eyebrow" data-r="eyebrow"></span><h1 class="sh-title" data-r="title"></h1><p class="sh-sub" data-r="sub"></p><div class="sh-chaps" data-r="chaps"></div></div>
-          <div class="sh-scrub">${wave()}<div class="sh-times"><span data-r="t0">0:00</span><span class="sh-legend" data-r="legend"></span><span data-r="t1">--:--</span></div></div>${transport}
-          <div class="sh-chips"><button class="sh-chip" data-a="rate" type="button" aria-label="${T('Oynatma hızı', 'Playback speed')}">1×</button>${loopChip}<button class="sh-chip" data-a="focus" type="button" aria-pressed="false">${ic('focus')}${T('Odak okuma', 'Focus reading')}</button>${seg()}</div>
-          <div class="sh-mini" data-r="mini" hidden><div class="slot" data-r="slot"></div><span>${T('Video küçük pencerede çalar', 'Video plays in a small window')}</span></div></aside>`));
-        main.append(this.el(`<section class="sh-lyrics" aria-label="${T('Transkript', 'Transcript')}"><div class="sh-scroll" data-r="scroll" tabindex="0"></div>${follow}</section>`));
       }
       this.host.append(root);
       if(study){const toggle=this.el(`<button class="sh-btn sh-transcript-toggle" type="button" data-a="transcript" aria-expanded="false">${ic('classic')}${T('Transkript','Transcript')}</button>`);this.q('.sh-top-r').prepend(toggle);}
@@ -83,10 +84,6 @@
         this.q('.sh-dock').append(this.el(`<div class="sh-local-extra"><span class="sh-local-clock"></span><button class="sh-chip" type="button" data-a="display">${T('İki dil','Both languages')}</button><label>${T('Ses','Volume')}<input class="sh-local-volume" type="range" min="0" max="1" step=".01" value="1" aria-label="${T('Ses düzeyi','Volume')}"></label></div>`));
         this.q('.sh-dock').prepend(this.el('<div class="sh-cinema-chapters"></div>'));
         this.q('.sh-top-r').append(this.el(`<button class="sh-btn" type="button" data-a="fullscreen" title="${T('Tam ekran','Fullscreen')}">${ic('focus')}</button>`));
-      }
-      if (!cinema) {
-        const volume = this.el(`<label class="sh-volume">${ic('volume')}<span>${T('Ses', 'Volume')}</span><input class="sh-local-volume" type="range" min="0" max="1" step=".01" value="1" aria-label="${T('Ses düzeyi', 'Volume')}"><output>100%</output></label>`);
-        this.q(study ? '.sh-theater' : '.sh-deck').append(volume);
       }
       this.root.append(this.el(`<aside class="sh-word-card" hidden role="dialog" aria-label="${T('Sözcük ve bağlam','Word and context')}"></aside>`));
       this.applyDisp(); this.bind();
@@ -110,6 +107,8 @@
         switch (b.dataset.a) {
           case 'close': this.o.onClose?.(); break; case 'classic': this.o.onClassic?.(); break;
           case 'fullscreen':this.run('fullscreen');break;
+          case 'assistant':this.run('assistant');break;
+          case 'advanced':this.run('advanced');break;
           case 'display':{const modes=['both','src','tr'];this.s.disp=modes[(modes.indexOf(this.s.disp)+1)%3];this.applyDisp();break;}
           case 'queue':this.run('openQueued',Number(b.dataset.index));break;
           case 'wordClose':this.closeWord();break;
@@ -120,7 +119,11 @@
           case 'loop': this.toggleLoop(); break;
           case 'focus': this.s.focus = !this.s.focus; this.paint(); break;
           case 'sleep': { const i = SLEEP.indexOf(this.s.sleep); this.s.sleep = SLEEP[(i + 1) % SLEEP.length]; this.s.sleepAt = this.s.sleep ? Date.now() + this.s.sleep * 60000 : 0; this.paint(); break; }
-          case 'follow': this.s.follow = true; this.scrollToActive(true); this.paint(); break;
+          case 'follow': {
+            if (this.o.mode !== 'cinema' && this.s.follow) { this.s.follow = false; this.paint(); break; }
+            const query = this.q('[data-r=q]'); if (query) query.value = '';
+            this.filterRows(); this.s.follow = true; this.scrollToActive(true); this.paint(); break;
+          }
           case 'transcript': this.s.transcript=!this.s.transcript;this.paint();break;
           case 'panel': this.s.panel = !this.s.panel; this.drawPanel(true); break;
           case 'jobcancel': this.a.panel?.().job?.cancel?.(); break; case 'jobretry': this.a.panel?.().job?.retry?.(); break;
@@ -138,10 +141,10 @@
       sc.addEventListener('pointerdown', (e) => { if (e.target === sc) manual(); });
       sc.addEventListener('keydown', (e) => { if (['PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown'].includes(e.key)) manual(); });
       const cover = this.q('.sh-cover'); if (cover) { cover.addEventListener('pointermove', (e) => { const b = cover.getBoundingClientRect(), x = (e.clientX - b.left) / b.width - .5, y = (e.clientY - b.top) / b.height - .5; cover.style.setProperty('--ry', (x * 14) + 'deg'); cover.style.setProperty('--rx', (-y * 14) + 'deg'); }); cover.addEventListener('pointerleave', () => { cover.style.setProperty('--ry', '0deg'); cover.style.setProperty('--rx', '0deg'); }); }
-      const q = this.q('[data-r=q]'); if (q) q.addEventListener('input', () => { const v = q.value.trim().toLowerCase(); this.lines.forEach((l, i) => { const c = this.rows[i]; l.hidden = !!v && !((c.src + ' ' + c.trs.join(' ')).toLowerCase().includes(v)); }); });
+      const q = this.q('[data-r=q]'); if (q) q.addEventListener('input', () => { this.s.follow = false; this.filterRows(); this.paint(); });
       this.keys = (e) => { if (e.defaultPrevented || document.querySelector('dialog[open]') || !this.root.isConnected || e.target.closest?.('[contenteditable=true]') || e.key!=='Escape'&&e.target.closest?.('button') || e.ctrlKey || e.metaKey || e.altKey || /input|textarea|select/i.test(e.target.tagName)) return; const k = e.key.toLowerCase(); let h = true; if (k === ' ') this.run('toggle'); else if (k === 'j') this.run('prevCue'); else if (k === 'k') this.run('nextCue'); else if (k === 'l' && this.caps.loop) this.toggleLoop(); else if (k === 'f') { this.s.focus = !this.s.focus; this.paint(); } else if (k === 'escape') { if(this.s.word){this.closeWord();}else if (this.s.panel) { this.s.panel = false; this.drawPanel(true); } else if(this.s.transcript){this.s.transcript=false;this.paint();}else this.o.onClose?.(); } else h = false; if (h) { e.preventDefault(); e.stopImmediatePropagation(); } };
       document.addEventListener('keydown', this.keys, true);
-      r.addEventListener('dblclick',e=>{if(!this.caps.cinema||!e.target.closest('.src,[data-r=s]'))return;const word=String(root.getSelection?.()||'').trim();const row=e.target.closest('[data-i]');if(word)this.openWord(row?Number(row.dataset.i):this.cur,word);});
+      r.addEventListener('dblclick',e=>{if(!(this.caps.cinema||this.caps.word)||!e.target.closest('.src,[data-r=s]'))return;const word=String(root.getSelection?.()||'').trim();const row=e.target.closest('[data-i]');if(word)this.openWord(row?Number(row.dataset.i):this.cur,word);});
       this.reveal=()=>{r.classList.remove('controls-idle');clearTimeout(this.idleTimer);if(this.o.mode==='cinema'&&!this.st?.paused&&!this.a.info().native)this.idleTimer=setTimeout(()=>{if(!this.dead&&!this.s.panel&&!this.s.transcript&&!this.s.word&&!r.contains(document.activeElement))r.classList.add('controls-idle');},2400);};
       r.addEventListener('pointermove',this.reveal);r.addEventListener('pointerdown',this.reveal);r.addEventListener('focusin',this.reveal);
       const volume=this.q('.sh-local-volume');if(volume)volume.oninput=()=>{this.run('volume',Number(volume.value));const output=volume.parentElement.querySelector('output');if(output)output.textContent=Math.round(Number(volume.value)*100)+'%';};
@@ -173,7 +176,11 @@
       else if (kind === 'copy') { const text = [c.src, ...c.trs].filter(Boolean).join('\n'); try { navigator.clipboard?.writeText(text); } catch (_) { /* pano yok */ } this.run('copy', text); }
       else if (kind === 'save') this.run('save', i);
     }
-    applyDisp() { const d = this.s.disp, seg = this.q('[data-r=disp]'); if (!seg) return; seg.style.setProperty('--i', ['src', 'both', 'tr'].indexOf(d)); seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.d === d))); this.root.classList.toggle('hide-src', d === 'tr'); this.root.classList.toggle('hide-tr', d === 'src'); }
+    filterRows() {
+      const query = this.q('[data-r=q]')?.value.trim().toLocaleLowerCase() || '';
+      this.lines.forEach((line, index) => { const row = this.rows[index]; line.hidden = !!query && ![row.src, ...row.trs, ...(row.unc || [])].join(' ').toLocaleLowerCase().includes(query); });
+    }
+    applyDisp() { const d = this.s.disp, seg = this.q('[data-r=disp]'); if (!seg) return; seg.style.setProperty('--i', ['src', 'both', 'tr'].indexOf(d)); seg.querySelectorAll('button').forEach((b) => { b.setAttribute('aria-selected', String(b.dataset.d === d)); if (this.o.mode !== 'cinema') b.setAttribute('aria-pressed', String(b.dataset.d === d)); }); this.root.classList.toggle('hide-src', d === 'tr'); this.root.classList.toggle('hide-tr', d === 'src'); }
     paint() {
       const r = this.root, s = this.s, st = this.st || this.a.state();
       r.classList.toggle('sh-focus', s.focus); r.classList.toggle('sh-playing', !st.paused);if(st.paused)r.classList.remove('controls-idle');
@@ -182,20 +189,24 @@
       const sl = r.querySelector('[data-a=sleep]'); if (sl) { sl.setAttribute('aria-pressed', String(!!s.sleep)); r.querySelector('[data-r=sleeplbl]').textContent = s.sleep ? `${Math.max(0, Math.ceil((s.sleepAt - Date.now()) / 60000))} ${T('dk', 'min')}` : T('Uyku', 'Sleep'); }
       for (const b of r.querySelectorAll('[data-a=rate]')) b.textContent = (Number(st.rate) || 1) + '×';
       for (const b of r.querySelectorAll('[data-a=toggle]')) { const want = st.paused ? 'play' : 'pause'; if (b.dataset.ic !== want) { b.dataset.ic = want; b.innerHTML = ic(want); b.setAttribute('aria-label', st.paused ? T('Oynat', 'Play') : T('Duraklat', 'Pause')); } }
-      r.classList.toggle('transcript-open',!!s.transcript);r.querySelector('[data-a=transcript]')?.setAttribute('aria-expanded',String(!!s.transcript));
+      r.classList.toggle('transcript-open',!!s.transcript);r.querySelectorAll('[data-a=transcript]').forEach(button=>button.setAttribute('aria-expanded',String(!!s.transcript)));
       const overlay = !!s.panel || !!s.word || (!!s.transcript && window.innerWidth < 1100);
       if(r.hasAttribute('data-pw-occludes-native')!==overlay){if(overlay)r.setAttribute('data-pw-occludes-native','true');else r.removeAttribute('data-pw-occludes-native');root.syncBrowserOcclusion?.();}
-      const f = r.querySelector('[data-a=follow]'); if (f) f.hidden = s.follow || this.cur < 0 || !this.rows[this.cur]?.timed;
-      r.querySelector('[data-a=panel]')?.setAttribute('aria-pressed', String(s.panel));
+      const f = r.querySelector('[data-a=follow]'); if (f) {
+        if (this.o.mode === 'cinema') f.hidden = s.follow || this.cur < 0 || !this.rows[this.cur]?.timed;
+        else { f.hidden = false; f.disabled = !this.rows.some(row => row.timed); f.setAttribute('aria-pressed', String(s.follow)); f.querySelector('span').textContent = s.follow ? T('Takip açık', 'Follow on') : T('Konuşmaya dön', 'Back to speech'); }
+      }
+      r.querySelectorAll('[data-a=panel]').forEach(button=>button.setAttribute('aria-pressed', String(s.panel)));
     }
     setTint(rgb) { const c = rgb || [213, 163, 92]; const [h] = rgb2hsl(c); this.root.style.setProperty('--sh-tint', `rgb(${c.map(Math.round).join(' ')})`); this.root.style.setProperty('--sh-tint2', `hsl(${(h + 150) % 360} 55% 58%)`); }
     rowHTML(c, i, study) {
       let src = esc(c.src);
       if (c.words && c.words.length) { let out = '', at = 0; const text = String(c.src); c.words.forEach((w, k) => { out += esc(text.slice(at, w.s)) + `<span class="w" data-k="${k}">${esc(text.slice(w.s, w.e))}</span>`; at = w.e; }); out += esc(text.slice(at)); src = out; }
-      const trs = c.trs.map((t) => `<span class="tr">${esc(t)}</span>`).join('');
+      const shared = this.o.mode !== 'cinema';
+      const trs = c.trs.map((t) => `<span class="tr${shared ? ' cue-card-tr' : ''}">${esc(t)}</span>`).join('');
       const unc = c.unc && c.unc.length ? `<span class="tr unc"><em>${T('Eşleşme belirsiz', 'Match uncertain')}</em>${c.unc.map((t) => `<span>${esc(t)}</span>`).join('')}</span>` : '';
-      const acts = study ? '' : `<span class="acts">${this.caps.loop && c.timed ? `<button type="button" class="act" data-act="loop" title="${T('Bu cümleyi döngüye al', 'Loop this sentence')}" aria-label="${T('Döngü', 'Loop')}">${ic('loop')}</button>` : ''}<button type="button" class="act" data-act="copy" title="${T('Kopyala', 'Copy')}" aria-label="${T('Kopyala', 'Copy')}">${ic('copy')}</button>${this.caps.save ? `<button type="button" class="act" data-act="save" title="${T('Kaydet', 'Save')}" aria-label="${T('Kaydet', 'Save')}">${ic('star')}</button>` : ''}</span>`;
-      return `${c.timed ? `<span class="at">${fmt(c.start)}</span>` : ''}<span class="src">${src}</span>${trs}${unc}${acts}`;
+      const acts = study && !shared ? '' : `<span class="acts">${this.caps.loop && c.timed ? `<button type="button" class="act" data-act="loop" title="${T('Bu cümleyi döngüye al', 'Loop this sentence')}" aria-label="${T('Döngü', 'Loop')}">${ic('loop')}</button>` : ''}<button type="button" class="act" data-act="copy" title="${T('Kopyala', 'Copy')}" aria-label="${T('Kopyala', 'Copy')}">${ic('copy')}</button>${this.caps.save ? `<button type="button" class="act" data-act="save" title="${T('Kaydet', 'Save')}" aria-label="${T('Kaydet', 'Save')}">${ic('star')}</button>` : ''}</span>`;
+      return `${c.timed ? `<span class="at${shared ? ' cue-card-time' : ''}">${fmt(c.start)}</span>` : ''}<span class="src${shared ? ' cue-card-src' : ''}" dir="auto">${src}</span>${trs}${unc}${acts}`;
     }
     rebuild(st, info) {
       this.rows = st.rows; const scroll = this.q('[data-r=scroll]'), study = this.o.mode !== 'podcast'; scroll.textContent = ''; this.lines = [];
@@ -203,11 +214,11 @@
       if(!st.rows.length){const empty=this.el(`<div class="sh-empty">${ic('mic')}<h2>${T('Konuşma burada metne dönüşür.','The conversation becomes text here.')}</h2><p>${T('Whisper ile bu bölümü yazıya dökün; çeviriyi aynı zaman çizelgesinde okuyun. Mevcut transkript ve ileri seçenekler İşlemler’de.','Transcribe this episode with Whisper and read its translation on the same timeline. Existing transcripts and advanced options are in Tasks.')}</p><button class="sh-btn" type="button" data-a="panel">${T('İşlemleri aç','Open tasks')}</button></div>`);frag.append(empty);}
       if (st.untimed) { const n = document.createElement('p'); n.className = 'sh-note'; n.textContent = T('Bu transkript zamansız: satırlar yalnızca okunur; atlama ve etkin satır yoktur.', 'This transcript has no timing: lines are read-only; no seeking or active line.'); frag.append(n); }
       st.rows.forEach((c, i) => {
-        const row = document.createElement('div'); row.className = (study ? 'sh-card' : 'sh-line') + (c.timed ? '' : ' is-untimed'); row.dataset.i = i;
+        const row = document.createElement('div'); row.className = (this.o.mode !== 'cinema' ? 'sh-card cue-card' : 'sh-card') + (c.timed ? '' : ' is-untimed'); row.dataset.i = i;
         if (c.timed) { row.tabIndex = 0; row.setAttribute('role', 'button'); row.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target === row) this.run('seekCue', i); }); }
         row.innerHTML = this.rowHTML(c, i, study); frag.append(row); this.lines.push(row);
       });
-      scroll.append(frag); this.s.idx = -2; this.drawWave(st, info); this.words = this.lines.map((l, i) => this.rows[i].words ? [...l.querySelectorAll('.w')] : null);
+      scroll.append(frag); this.filterRows(); this.s.idx = -2; this.drawWave(st, info); this.words = this.lines.map((l, i) => this.rows[i].words ? [...l.querySelectorAll('.w')] : null);
       const li = info.langs || {}; for (const [k, v, label] of [['ls', li.src], ['lt', li.tr], ['lsb', li.src, T('Kaynak', 'Source')], ['ltb', li.tr, T('Çeviri', 'Translation')]]) { const n = this.q(`[data-r=${k}]`); if (!n) continue; if (label) n.innerHTML = `${lang(v)}${label}`; else n.textContent = v ? String(v).slice(0, 3).toUpperCase() : ''; }
     }
     drawWave(st, info) {
@@ -237,7 +248,7 @@
       const chNow = (info.chapters || []).filter((c) => c.t <= time).at(-1); this.root.querySelectorAll('.sh-chap').forEach((b) => b.classList.toggle('on', !!chNow && +b.dataset.t === chNow.t));
       let idx = -1; this.rows.forEach((c, i) => { if (c.timed && c.start <= time && time < c.end && (idx < 0 || c.start >= this.rows[idx].start)) idx = i; });
       this.time = time; this.cur = idx;this.root.classList.toggle('sh-audio',!!info.audio);
-      if (idx !== s.idx) { const prev = s.idx; s.idx = idx; this.lines.forEach((l, i) => { const d = idx < 0 ? 9 : Math.abs(i - idx); l.style.setProperty('--d', Math.min(d, 9)); l.classList.toggle('on', i === idx); }); this.onActive(idx, prev); }
+      if (idx !== s.idx) { const prev = s.idx; s.idx = idx; this.lines.forEach((l, i) => { const d = idx < 0 ? 9 : Math.abs(i - idx); l.style.setProperty('--d', Math.min(d, 9)); l.classList.toggle('on', i === idx); if(i===idx)l.setAttribute('aria-current','true');else l.removeAttribute('aria-current'); }); this.onActive(idx, prev); }
       if(this.o.mode==='cinema')this.drawCinema(info,st);this.wordsTick(); this.drawTasks(); const volume=this.q('.sh-local-volume');if(volume&&Number.isFinite(st.volume)&&document.activeElement!==volume){volume.value=st.volume;const output=volume.parentElement.querySelector('output');if(output)output.textContent=Math.round(st.volume*100)+'%';} const subs=this.q('[data-r=subs]');if(subs)subs.hidden=!!info.audio&&!st.rows.length; this.drawJob(); this.drawPanel(false); this.paint();
     }
     wordsTick() {
@@ -252,7 +263,7 @@
     }
     onActive(idx, prev) {
       const c = this.rows[idx];
-      if (this.o.mode !== 'podcast') {
+      if (this.q('[data-r=subs]')) {
         const sb = this.q('[data-r=subs]'); sb.classList.add('swap'); clearTimeout(this.swapT);
         this.swapT = setTimeout(() => { const sEl = this.q('[data-r=s]'), tEl = this.q('[data-r=t]'); sEl.textContent = c ? c.src : ''; tEl.textContent = c ? c.trs.join('  ') : ''; const n = (c ? c.src.length + c.trs.join('').length : 0); sb.classList.toggle('long', n > 150); sb.classList.toggle('xlong', n > 260); sb.scrollTop = 0; sb.classList.remove('swap'); }, c ? 140 : 0);
       }

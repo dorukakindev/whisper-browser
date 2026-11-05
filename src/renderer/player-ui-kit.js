@@ -257,11 +257,18 @@
         if (source.type === 'radio') container.querySelectorAll('input[type=radio][data-mk-proxy]').forEach(node => node.dispatchEvent(new document.defaultView.Event('change')));
       });
     }
-    for (const source of container.querySelectorAll('details')) {
+    for (const source of container.querySelectorAll('details:not([data-mk-details])')) {
       const summary = source.querySelector(':scope > summary');if (!summary) continue;
-      const content = [...source.childNodes].filter(node => node !== summary);
-      const proxy = accordion({ title: summary.textContent, children: content, open: source.open });
-      proxy.classList.add(...source.classList);if (source.id) proxy.id = source.id;source.replaceWith(proxy);
+      // Existing modules retain these exact nodes, IDs and handlers across views.
+      // Enhance the live details instead of replacing it with a lookalike section.
+      source.dataset.mkDetails = ''; source.classList.add('mk-accordion');
+      summary.classList.add('mk-accordion-trigger');
+      const title = h('span', { class: 'mk-accordion-title' });title.append(...summary.childNodes);
+      summary.append(title, icon('chevron-down'));
+      const body = h('div', { class: 'mk-accordion-body' });
+      body.append(...[...source.childNodes].filter(node => node !== summary));source.append(body);
+      const sync = () => summary.setAttribute('aria-expanded', String(source.open));
+      source.addEventListener('toggle', sync);sync();
     }
   }
   function bindDialog(dialog) {

@@ -81,7 +81,7 @@
     const on=isActive();
     if(layer.classList.contains('browser-podcast-presentation')!==on)layer.classList.toggle('browser-podcast-presentation',on);
     write(menu,copy(on?'Podcast görünümünden çık':'Podcast görünümü',on?'Exit podcast view':'Podcast view'));
-    const box=document.querySelector('.browser-study'); if(!box)return;
+    const box=document.querySelector('#playerSide .browser-study'); if(!box)return;
     if(!ui){
       ui=document.createElement('section');ui.className='browser-podcast-controls';ui.dataset.uiUntranslated='';
       const mode=document.createElement('button');mode.type='button';mode.className='bp-button browser-podcast-toggle';mode.onclick=()=>setMode(!isActive());ui.append(mode);

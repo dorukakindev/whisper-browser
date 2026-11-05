@@ -490,7 +490,7 @@
     actionIcon(browser, 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3c4 5 4 13 0 18-4-5-4-13 0-18Z', 'Browser');
     actionIcon(openMedia, 'M3 6h6l2 2h10v12H3V6Z', t('Open media', 'Medya aç'));
     for(const [mode,tr,en,path] of [['bilingual','Çift dilli çalış','Bilingual study','M4 5h16v14H4zM8 10h3m2 0h3M8 14h8'],['podcast','Podcast','Podcast','M5 13v-2a7 7 0 0 1 14 0v2M5 12H3v7h4v-7Zm14 0h2v7h-4v-7Z']]){
-      const entry=button('',()=>window.PodcastLinkUI?.open({view:mode}),'mh-action mh-study-entry');entry.dataset.studyView=mode;actionIcon(entry,path,t(en,tr));actions.append(entry);
+      const entry=button('',()=>window.PodcastLinkUI?.enter(mode),'mh-action mh-study-entry');entry.dataset.studyView=mode;actionIcon(entry,path,t(en,tr));actions.append(entry);
     }
     actions.append(openMedia);
     if(window.MediaVisual){const assistant=button('',()=>window.api.showAssistant?.(),'mh-action mv-assistant');assistant.title=t('Assistant','Asistan');assistant.setAttribute('aria-label',assistant.title);assistant.append(window.MediaVisual.icon('chat'));actions.insertBefore(assistant,openMedia);actions.insertBefore(browser,openMedia);}

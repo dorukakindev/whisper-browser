@@ -40,6 +40,10 @@ Kullanıcı için görünüm ve tasarım kalitesi en önemli önceliktir. Hedef 
 
 Okunabilirlik, erişilebilirlik, kullanıcının hareket tercihi ve mevcut işlev/veri/güvenlik sınırları korunur. Onaylı tasarımın görsel etkisi entegrasyonda korunur. Aşağıdaki tarihli uygulama notları mevcut/geçmiş sürümleri anlatır; yeni tasarımlara düşük hareket veya sadelik zorunluluğu getirmez. Eski belgelerdeki aksi yöndeki estetik kısıtlar bu güncel kararla geçersizdir.
 
+## Podcast / Çift dilli — ortak browser temeli, 2026-11-05 08:20
+
+Kullanıcı browser tarafındaki deneyimi tercih etti. Ana sayfa/RSS/shelf/yerel girişler için ayrı bir Podcast veya Çift dilli tasarımı geliştirme; tek `browser-study-view` kompozisyonu ve ortak mevcut runtime kullanılır. Kaynağa özgü video/kapak ve yetenekler değişebilir, aynı işlevlerin konumu/dili/etkileşimi değişmez. Sunum paylaşılır; browser/player/shelf medya, zaman, kaynak ve iş sahipleri zorla birleştirilmez. Normal yerel sinema kapsam dışıdır. Yeni Claude tasarımında da bu karar korunur; önceki Sahne deck'i bu iki mod için görsel referans değildir. [Teslim](docs/devir/2026-11-05-0820.md).
+
 ## Güncel yeniden tasarım kapsamı — P019
 
 Kullanıcı podcast kütüphanesi, Ana sayfa, Keşfet, film detayı ve Akışlar/RSS’in önceki yerleşimlerden bağımsız, modern ve güçlü biçimde yeniden tasarlanmasını istedi. Önceki beş alanlı Claude prototipi de tamamlanacak. Önceki Ana sayfa/Keşfet/film üstü yerleşimini aynen koruma şartı bu çalışma için kaldırılmıştır; mevcut işlevler/veri sahipleri ve ürün kimliği korunur. Güncellenmiş paket henüz incelenmedi veya uygulanmadı. Ayrıntı [tasarım devam kaydında](docs/design/claude-redesign-handoff-2026-11-05.md).

@@ -14,7 +14,7 @@
     node.addEventListener('click', () => Promise.resolve().then(callback).catch(error => status(error.message, true))); return node;
   };
   const speed = el('select'); speed.setAttribute('aria-label', t('Playback speed', 'Oynatma hızı'));
-  for (const rate of [.75, 1, 1.15, 1.25, 1.5, 2]) { const opt = el('option', '', `${rate}×`); opt.value = rate; speed.append(opt); } speed.value = '1';
+  for (const rate of [.75, 1, 1.15, 1.25, 1.5, 1.75, 2]) { const opt = el('option', '', `${rate}×`); opt.value = rate; speed.append(opt); } speed.value = '1';
   speed.addEventListener('change', () => { audio.playbackRate = Number(speed.value); });
   const sleep = el('select'); sleep.setAttribute('aria-label', t('Sleep timer', 'Uyku zamanlayıcısı'));
   let sleepTimer;
@@ -64,7 +64,7 @@
       case 'play':await audio.play();break;
       case 'pause':audio.pause();break;
       case 'seek':if(snap.capabilities.seek.support!=='yes'||!Number.isFinite(command.time)||command.time<0||command.time>snap.duration)return {ok:false,code:'invalid-range'};audio.currentTime=command.time;break;
-      case 'setRate':if(!Number.isFinite(command.rate)||command.rate<.25||command.rate>4)return {ok:false,code:'invalid-range'};audio.playbackRate=command.rate;speed.value=String(command.rate);break;
+      case 'setRate':if(!Number.isFinite(command.rate)||command.rate<.25||command.rate>4)return {ok:false,code:'invalid-range'};audio.playbackRate=command.rate;if(speed.options&&!Array.from(speed.options).some(option=>Number(option.value)===command.rate)){const option=el('option','',command.rate+'×');option.value=command.rate;speed.append(option);}speed.value=String(command.rate);break;
       case 'setVolume':if(!Number.isFinite(command.volume)||command.volume<0||command.volume>1)return {ok:false,code:'invalid-range'};audio.volume=command.volume;audio.muted=false;volume.value=String(command.volume);break;
       case 'seekCue':{const role=podcastSourceRole();if(!role||command.trackId!==role.trackId||command.trackRevision!==role.trackRevision)return {ok:false,code:'stale-track'};const cue=role.cues.find(c=>c.id===command.cueId);if(!cue)return {ok:false,code:'unknown-cue'};audio.currentTime=Math.max(0,cue.start+role.offsetSeconds);break;}
       default:return {ok:false,code:'unsupported'};
@@ -197,7 +197,7 @@
     if(!podcastPanel){podcastPanel=el('section','ms-podcast-workspace media-surface');podcastPanel.dataset.uiUntranslated='';document.body.append(podcastPanel);}
     renderPodcastMode();notifyPodcast();
   }
-  const podcastModeButton=btn(t('Podcast transcript','Podcast transkripti'),openPodcastMode,'mh-action ms-podcast-open');podcastModeButton.hidden=true;panel.append(podcastModeButton);
+  const podcastModeButton=btn(t('Podcast transcript','Podcast transkripti'),()=>window.CinemaSahne?.openShelf?window.CinemaSahne.openShelf({mode:'podcast'}):openPodcastMode(),'mh-action ms-podcast-open');podcastModeButton.hidden=true;panel.append(podcastModeButton);
   for(const name of ['timeupdate','play','pause','ratechange','durationchange','loadedmetadata','waiting','ended','seeking'])audio.addEventListener(name,()=>{if(['pause','ratechange','waiting','ended','seeking'].includes(name))podcastEpoch++;notifyPodcast();});
 
   function syncQueue(){const save=queueDialog?.querySelector('.ms-save-queue');if(save)save.disabled=!order.snapshot().rows.length||order.snapshot().rows.some(r=>!queueIdentity(r));const state=order.snapshot();queue=state.rows;queueIndex=state.index;shuffleButton.setAttribute('aria-pressed',String(state.shuffled));repeatButton.textContent=state.repeat==='one'?t('Repeat one','Tek parça tekrar'):state.repeat==='all'?t('Repeat all','Liste tekrarı'):t('Repeat off','Tekrar kapalı');repeatButton.dataset.mode=state.repeat;queueButton.textContent=t('Queue','Kuyruk')+' · '+queue.length;paintQueue();paintPlaying();for(const listener of queueSubscribers)listener();}
@@ -300,7 +300,7 @@
     dock.classList.remove('hidden'); document.body.classList.add('media-shelf-playing');
     if (/\.m3u8(?:\?|$)/i.test(source) && window.Hls?.isSupported()) { hls = new window.Hls(); hls.loadSource(source); hls.attachMedia(audio); }
     else audio.src = source;
-    audio.playbackRate = row.kind==='podcasts'&&row.podcastWorkspace?.sourceVersion===row.sourceVersion?row.podcastWorkspace.rate:+speed.value; speed.value=String(audio.playbackRate);
+    audio.playbackRate = row.kind==='podcasts'&&row.podcastWorkspace?.sourceVersion===row.sourceVersion?(Number(row.podcastWorkspace.rate)||Number(audio.playbackRate)||1):(Number(speed.value)||Number(audio.playbackRate)||1); speed.value=String(audio.playbackRate);
     audio.addEventListener('loadedmetadata', () => { if (mine === playGeneration && row.positionState!=='needs-review' && row.position > 0 && row.position < audio.duration - 2) audio.currentTime = row.position; }, { once: true });
     await audio.play();if(mine!==playGeneration)return;
     if(['music','spotify'].includes(row.kind)){try{const played=await api('music-played',{kind:row.kind,id:row.id,playlistId:row.playlistId});Object.assign(row,played);const local=snapshot?.music?.find(r=>r.id===row.id);if(local)Object.assign(local,played);}catch(error){dockStatus.textContent=error.message;}}
