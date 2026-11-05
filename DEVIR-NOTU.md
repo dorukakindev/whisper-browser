@@ -1,3 +1,4 @@
+Güncel çalışma: [Podcast/çift dilli Sahne entegrasyonu ve uyumlu medya cilası](docs/devir/2026-11-05-0600.md)
 Güncel çalışma: [Sahne v2 referansı ve kompozisyon-önce tasarım rehberi](docs/devir/2026-11-05-0528.md)
 Güncel çalışma: [Main ile eşleştirilmiş kısa backlog ve iş sırası](docs/devir/2026-11-05-0413.md)
 Güncel çalışma: [Yeni Spotify girişinden canlı Whisper/çeviri ve görünüm koruması](docs/devir/2026-11-05-0323.md)

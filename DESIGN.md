@@ -60,6 +60,12 @@ Medya kabuğu ve asistanın mevcut self-hosted ailesi başlıklarda Sora, gövde
 
 ## Layout
 
+### Podcast ve çift dilli Sahne — 2026-11-05
+
+`files (5).zip` kompozisyonu `sahne.css/js` ve mevcut sahipleri kullanan `cinema-sahne.js` ile bütünleştirildi. Yerel/RSS görünümü mevcut PlayerWorkspaceIntegration, browser görünümü kimlik kontrollü mevcut browser komutları üzerinden çalışır; aynı video/stage korunur, kapanışta klasik yuvasına döner. Podcast kapak/kimlik/transport + büyük okunur transkript; çift dilli video/okuma kartı/dock + transkript kompozisyonudur. Dar çift dilli transkript erişilebilir düğmeyle overlay açılır. Kaynak/iz revizyonları, bağımsız kaymalar, çoklu/belirsiz eşleşme, zamansız salt okunur metin ve mevcut ileri araçlar korunur.
+
+Tema/font mevcut sahiplerden gelir; ayrı mavi marka, uydurma şehir kapağı, sürekli aurora/kapak hareketi ve ikinci medya motoru alınmadı. Eksik kapak sıcak baş harfli yüzeydir. Home/Keşfet/film/browser ve podcast kütüphanesinde uyumlu afiş/metin/düğme cilası `cinema-package-refinements.css` ile sınırlı; yeni alternatif Home/film yerleşimi, sahte kütüphane kuyruğu veya sözlük özelliği eklenmedi. [Teslim ve doğrulama sınırları](docs/devir/2026-11-05-0600.md).
+
 ### Onaylı Akışlar okuma alanı (2026-11-04)
 
 Üst uygulama kabuğu/logo korunur.1352px içerik ızgarasında kaynak akordeonu, kayan tür segmenti ve iki özel menü vardır. Masaüstünde liste ve okuyucu ayrı kayar; okuyucu görseli/metni/eylemleri aynı680px sütundadır. Dar ekranda liste ile okuyucu açık geri dönüşle yer değiştirir. Meta/enclosure etiketi en az12px; sıcak görsel yedeği/baş harf ve kaynak favicon’u kullanılır. Seçim modunun toplu işlemleri ve ileri tercihler korunur. Geçişler transform/opacity; tam/azalt/kapalı ve OS tercihi gözetilir. [Native karşılaştırma ve işlev haritası](docs/implementation/cinematic-feeds-2026-11-04/README.md).

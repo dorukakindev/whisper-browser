@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Podcast ve çift dilli Sahne: mevcut yerel/RSS/browser oynatıcısı üzerinde tam sayfa görünüm, kalıcı transkript takibi, çoklu çeviri, mevcut araçlara erişim ve klasik görünüme dönüş; onaylı medya sayfalarında uyumlu afiş/metin cila katmanı.
+
 - Kayıtlı podcast dökümü veya çevirisini yüklemek seçilmiş çift dilli/Podcast görünümünü artık değiştirmez; yeni Spotify → RSS → Whisper → ayrı Türkçe çeviri canlı zinciri doğrulandı.
 
 - Ana sayfa, browser ve oynatıcıda görünür Podcast/Çift dilli çalış girişleri; Spotify bölüm linkinden incelemeli RSS önerisi ve açık onayla aynı oynatıcıda seçilen görünümü açma.
