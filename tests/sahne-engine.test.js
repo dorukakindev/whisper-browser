@@ -110,3 +110,19 @@ test('podcast interval control previews duration, freezes scope and never falls 
  f.sh.scopeBox.querySelector('[data-scope-time=end]').value='0:99';await f.sh.startTask('transcribe-translate');assert.equal(calls.length,1);
  f.sh.scopeBox.querySelector('[data-scope=full]').click();await f.sh.startTask('transcribe-translate');assert.equal(calls[1].range,null);
 });
+
+
+test('Tasks panel uses the same scoped task path and prevents duplicate range jobs',async t=>{
+ let resolve;const calls=[],action={id:'transcribe-translate',label:'Scoped Whisper',run:config=>{calls.push(config);return new Promise(r=>resolve=r);}};
+ const f=mount(t,{processing:true,actions:[action]});f.sh.a.panel=()=>({sections:[{title:'Tasks',items:[action]}]});
+ f.sh.scopeMode='range';f.sh.scopeBox.querySelector('[data-scope-time=start]').value='0:05';f.sh.scopeBox.querySelector('[data-scope-time=end]').value='0:12';f.sh.s.panel=true;f.sh.drawPanel(true);
+ f.sh.q('.sh-pbtn').click();f.sh.q('[data-task="transcribe-translate"]').click();f.sh.tick();f.sh.q('.sh-pbtn').click();
+ assert.equal(calls.length,1);assert.deepEqual(JSON.parse(JSON.stringify(calls[0].range)),{start:5,end:12});assert.equal(f.sh.q('.sh-pbtn').disabled,true);
+ resolve({queued:true});await new Promise(setImmediate);f.sh.tick();assert.equal(f.sh.q('.sh-pbtn').disabled,false);
+});
+
+test('transport and panel failures stay visible and never leave rejected click promises',async t=>{
+ const f=mount(t);f.sh.a.cmd=()=>Promise.reject(Error('Media unavailable'));const r=await f.sh.run('toggle');assert.equal(r.ok,false);assert.match(f.sh.q('[data-r=toast]').textContent,/Media unavailable/);
+ f.sh.a.cmd=()=>{throw Error('Source changed now');};assert.equal((await f.sh.run('seek',3)).ok,false);assert.match(f.sh.q('[data-r=toast]').textContent,/Source changed now/);
+ f.sh.a.panel=()=>({sections:[{title:'Tools',items:[{type:'button',label:'Failed tool',run:()=>Promise.reject(Error('Tool unavailable'))}]}]});f.sh.s.panel=true;f.sh.drawPanel(true);f.sh.q('.sh-pbtn').click();await new Promise(setImmediate);assert.match(f.sh.q('[data-r=toast]').textContent,/Tool unavailable/);assert.equal(f.sh.q('.sh-pbtn').disabled,false);
+});
