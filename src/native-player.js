@@ -79,12 +79,17 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
     let buffer='';s.socket.on('error',()=>{});s.socket.on('close',()=>{if(session===s){send(s,'error',{error:'Native player connection closed.'});void stop().catch(()=>{});}});
     s.socket.on('data',chunk=>{buffer+=chunk.toString();if(buffer.length>2_000_000){void stop().catch(()=>{});return;}let line;while((line=buffer.indexOf('\n'))>=0){const text=buffer.slice(0,line);buffer=buffer.slice(line+1);let row;try{row=JSON.parse(text);}catch{continue;}const pending=s.pending.get(row.request_id);if(pending){s.pending.delete(row.request_id);clearTimeout(pending.timer);row.error==='success'?pending.resolve(row.data):pending.reject(Error(pending.name+': '+row.error));}
       if(row.event==='file-loaded')s.loaded=true;
+      // keep-open pauses on EOF without unloading the file; end-file need not fire.
+      if(row.event==='property-change'&&row.name==='eof-reached'){
+        if(row.data===false)s.endNotified=false;
+        else if(row.data===true&&!s.endNotified){s.endNotified=true;send(s,'ended');}
+      }
       if(row.event==='property-change'){const map={'time-pos':'time','duration':'duration','pause':'paused','speed':'speed','volume':'volume','mute':'muted','paused-for-cache':'buffering','track-list':'tracks'};const key=map[row.name];if(key)s.state[key]=row.name==='volume'?Number(row.data)/100:row.data;}
       if(row.event==='client-message'&&row.args?.[0]?.startsWith('whisper-'))send(s,'input',{input:row.args[0]});
-      if(row.event==='end-file'&&row.reason==='eof')send(s,'ended');
+      if(row.event==='end-file'&&row.reason==='eof'&&!s.endNotified){s.endNotified=true;send(s,'ended');}
     }});
     await command(s,['set_property','http-header-fields',headers]);
-    for(const [i,name]of ['time-pos','duration','pause','speed','volume','mute','paused-for-cache','track-list'].entries())await command(s,['observe_property',i+1,name]);
+    for(const [i,name]of ['time-pos','duration','pause','speed','volume','mute','paused-for-cache','track-list','eof-reached'].entries())await command(s,['observe_property',i+1,name]);
     await command(s,['loadfile',source]);await command(s,['set_property','pause',true]);
     const readyDeadline=Date.now()+12000;while(!s.loaded&&Date.now()<readyDeadline&&session===s)await new Promise(r=>setTimeout(r,50));
     if(session!==s||!s.loaded)throw Error('Native media did not become ready.');

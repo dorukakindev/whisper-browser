@@ -194,6 +194,20 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           return {ok:true,...await spotify.stream(row.youtubeUrl)};
         }
         case 'list': return { ok: true, ...publicState(load()) };
+        case 'listening-queue-save': {
+          const q=input.queue;
+          if(!q||!Array.isArray(q.rows)||q.rows.length>5000||!Number.isInteger(q.index)||q.index < -1||q.index>=q.rows.length||!['off','all','one'].includes(q.repeat))throw Error('Invalid listening queue');
+          const rows=q.rows.map(row=>{
+            if(!row||!['music','spotify','stations','podcasts'].includes(row.kind)||typeof row.id!=='string'||!row.id||row.id.length>300)throw Error('Invalid listening identity');
+            const out={kind:row.kind,id:row.id,title:text(row.title,500)};
+            for(const key of ['entryId','episodeIdentity','playlistId'])if(row[key]!==undefined){if(typeof row[key]!=='string'||row[key].length>500)throw Error('Invalid listening identity');out[key]=row[key];}
+            if(row.kind==='podcasts')out.scene=row.scene==='bilingual'?'bilingual':'podcast';
+            return out;
+          });
+          const indices=q.unshuffled;
+          if(indices!=null&&(!Array.isArray(indices)||indices.length!==rows.length||new Set(indices).size!==rows.length||indices.some(i=>!Number.isInteger(i)||i<0||i>=rows.length)))throw Error('Invalid unshuffled queue order');
+          const data=load();data.listeningQueue={rows,index:q.index,repeat:q.repeat,shuffled:q.shuffled===true,unshuffled:indices||null};save(data);return {ok:true};
+        }
         case 'cancel': active?.abort(); return { ok: true };
         case 'music-import': return await importMusic(input);
         case 'music-play': {

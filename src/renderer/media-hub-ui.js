@@ -52,10 +52,11 @@
   const limits=el('section','mhx-network'),down=input(t('Download limit (MB/s, 0 = unlimited)','İndirme sınırı (MB/sn, 0 = sınırsız)'),'0','number'),up=input(t('Upload limit (MB/s, 0 = unlimited)','Yükleme sınırı (MB/sn, 0 = sınırsız)'),'0','number');down.n.min=up.n.min='0';down.n.max=up.n.max='1000';limits.append(down.wrap,up.wrap,button(t('Apply limits','Sınırları uygula'),async()=>{const job=engine.jobs[0];if(!job)throw Error(t('Add a torrent first.','Önce torrent ekle.'));await torrent('limits',{hash:job.hash,download:Math.round(Number(down.n.value||0)*1000000),upload:Math.round(Number(up.n.value||0)*1000000)});note(t('Transfer limits updated.','Aktarım sınırları güncellendi.'));}));body.append(limits);
  }
  async function previewTorrent(body,request){note(t('Reading torrent metadata…','Torrent bilgileri alınıyor…'));const result=await torrent('preview',request);if(result.canceled||!body.isConnected)return;token=result.token;const old=body.querySelector('.mhx-preview');old?.remove();const review=el('section','mhx-preview');review.append(el('h2','',result.name),el('p','mhx-muted',t('Only the file you choose is selected for download. Seeking prioritizes the required pieces.','Yalnız seçtiğin dosya indirme için işaretlenir. İleri sarınca gereken parçalar önceliklenir.')));for(const file of result.files.filter(r=>r.video)){const row=el('div','mhx-file');row.append(el('span','',file.name),el('small','',bytes(file.size)),button(t('Download & play','İndir ve oynat'),async()=>{const r=await torrent('play',{token,index:file.index});modal.close();await playStream(r);}));review.append(row);}body.append(review);note('');}
- async function playStream(result,seconds=0){
-  const intent=++player.openIntent;await flushWatchState(false,false);if(intent!==player.openIntent)return;document.getElementById('playerLayer').classList.remove('hidden');setWorkspaceMode('player',false);player.pendingAutoOpen=null;
+ async function playStream(result,seconds=0,{isCancelled=()=>false}={}){
+  if(isCancelled())return;
+  const intent=++player.openIntent;await flushWatchState(false,false);if(intent!==player.openIntent||isCancelled())return;document.getElementById('playerLayer').classList.remove('hidden');setWorkspaceMode('player',false);player.pendingAutoOpen=null;
   let localPath='';if(result.hash){const completed=await window.api.mediaTorrents({action:'local',hash:result.hash,index:result.index});if(completed?.ok)localPath=completed.path;}
-  if(intent!==player.openIntent)return;
+  if(intent!==player.openIntent||isCancelled())return;
   const usesHls=/^https:\/\/.+\.m3u8(?:[?#]|$)/i.test(result.url);
   if(usesHls){player.localPath='';setPlayerHls(result.url,result.title,result.key,{localPath:''});}
   else setPlayerSource(result.url,result.title,result.key,{localPath});player.originalUrl=result.url.startsWith('whisper-media:')?result.key:result.url;
