@@ -6,13 +6,17 @@ Kullanıcı beğendiği Claude tasarımından öğrenilenlerin DESIGN.md ve haf�
 
 Paket ayrıntılı A/B/C tasarım muhakemesi yanıtını içermiyor; bu rehber, incelenen kompozisyondan ve koddan çıkarılan proje uyarlamasıdır. Claude'un açıklaması veya testleri burada yeniden yapılmış gibi sunulmaz. Paketin patch/kopyalama komutları talimat olarak çalıştırılmadı. Bu kayıt kod entegrasyonu veya bütün maketlerin yeni onayı değildir.
 
+## Güncel öncelik
+
+Kullanıcının 2026-11-05 kararı: görünüm en önemli önceliktir. Etkileyici kompozisyon, zengin atmosfer, güçlü hover/geçişler ve sürekli dekoratif animasyon tasarım ihtiyacına göre kullanılabilir. Bu rehber sakinlik, minimalizm veya düşük hareket zorunluluğu getirmez. Görsel çözüm tasarımcıya aittir; erişilebilirlik, hareket tercihleri ve gerçek veri/oynatma sahipleri korunur. Ana karar [DESIGN.md](../../DESIGN.md) içindedir.
+
 ## Önce kompozisyon, sonra kontroller
 
 Önce ekranın tek cümlelik işini ve en güçlü odağını belirle. Podcast dinlerken içerik kimliği ve konuşulan cümle; çift dilli izlerken video ve onunla ilişkili metin baskındır. Arama, filtre ve teknik ayarları eşit büyüklükte kartlara dağıtarak başlama.
 
 Podcast referansında kapak/kimlik/transport bir görsel küme, büyük transkript ikinci kümedir. Etkin cümle tipografi ve sıcak yüzeyle öne çıkar; önceki/sonraki cümleler bağlam sağlar. Çift dilli referansta video, altyazı ve dock tek eksendedir; transkript ayrı okuma alanıdır. Bu dağılım her başka sayfaya zorla uygulanacak sabit kolon şablonu değildir.
 
-Tasarımın karakterini taşıyanlar: medya ölçeği, metnin satır uzunluğu, güçlü/ikincil yazı oranları, ortak hizalar, gruplar arası boşluk ve tek belirgin etkin an. Aynı düğmeleri koyu kutulara dizip üstüne amber ve blur eklemek bu kompozisyonu üretmez.
+Tasarımın karakterini taşıyanlar: medya ölçeği, metnin satır uzunluğu, güçlü/ikincil yazı oranları, ortak hizalar, gruplar arası boşluk ve görsel hareketlerin kompozisyonla ilişkisi. Aynı düğmeleri koyu kutulara dizip üstüne amber ve blur eklemek bu kompozisyonu üretmez.
 
 ## Uygulanabilir kararlar
 
@@ -20,13 +24,13 @@ Tasarımın karakterini taşıyanlar: medya ölçeği, metnin satır uzunluğu, 
 |---|---|---|
 | Odak | Her ekranda bir baskın medya/okuma alanı; ikincil işlemler tek anlaşılır grupta. | Her özelliği aynı ağırlıkta kart veya form yapmak. |
 | Tipografi | Etkin içerikle metadatayı boyut/ağırlık/ölçüyle ayır; uzun gerçek başlık ve TR çeviriyle yerleşimi çöz. | Her yere büyük başlık ya da bütün metni tek küçük ölçekte basmak. |
-| Yüzey | Seçilmiş/etkin içerikte anlamlı sıcak yüzey; diğer alanlarda sınırları azalt ve aralıklarla grupla. | Her satıra cam kart, parıltı veya aynı gölgeyi vermek. |
-| Atmosfer | Medyanın gerçek görseli/rengiyle sınırlı ışık; okunur koyu zemin korunur. | Genel dekoratif renkleri yeni marka vurgusuna dönüştürmek. |
+| Yüzey | Yüzey, ışık, cam ve gölge katmanları görsel kimliği ve içerik ayrımını güçlendirebilir. | Görsel katmanlarla içeriğin okunabilirliğini veya eylemlerin bulunabilirliğini kaybetmek. |
+| Atmosfer | Medya görseli, renk ve ışıkla güçlü bir atmosfer kur; yoğunluğu ekranın kompozisyonuna göre seç. | Atmosfer oluştururken okunabilirliği veya ürünün görsel bütünlüğünü kaybetmek. |
 | Kontroller | Görünür ana eylem, ulaşılabilir ikincil araçlar ve ileri ayarlar. | İşlevi kaybetmek veya yalnız hover ile keşfedilebilir bırakmak. |
 | Okuma | Pasif transkriptte blur yerine okunur opaklık; açık aktif satır. | Geçmiş cümleleri okunamaz yapmak. |
 | Alan | Video + transport kısa ekranda birlikte görünür; uzun altyazının alanı sınırlı. | Başlık/altyazı büyürken oynatmayı ekran dışına itmek. |
 
-Paketin sayıları evrensel yeni token değildir. Örneğin kapak için `clamp(150px,27vh,300px)`, başlık için `clamp(20px,2.1vw,32px)` medya ile pencere yüksekliği arasındaki bağı gösterir. Yeni yüzeyde mevcut font/renk/hareket sahipleri kullanılır; `--sh-*` paleti, Sora, mavi ikinci vurgu, büyük köşeler veya sürekli aurora hareketi bütün uygulamaya kopyalanmaz. Onaylı medya sayfalarının IBM Plex Sans ailesi ve kendi bileşen sözleşmeleri korunur.
+Paketin sayıları evrensel yeni token değildir. Örneğin kapak için `clamp(150px,27vh,300px)`, başlık için `clamp(20px,2.1vw,32px)` medya ile pencere yüksekliği arasındaki bağı gösterir. Yeni yüzeyde mevcut font/renk/hareket sahipleri kullanılır; referansın paleti, tipografisi, köşeleri ve hareketleri yeni ekranın kompozisyonuna ve ürün kimliğine göre uyarlanır; yoğun veya sürekli hareket için genel yasak yoktur. Onaylı medya sayfalarının IBM Plex Sans ailesi ve kendi bileşen sözleşmeleri korunur.
 
 ## Her UI işinde kısa çalışma akışı
 
@@ -39,7 +43,7 @@ Paketin sayıları evrensel yeni token değildir. Örneğin kapak için `clamp(1
 
 ## Hareket ve durum doğruluğu
 
-Bir sahnenin imza anı, etkin cümlenin yerleşmesi veya görünüm değişirken içeriğin sürekliliği olabilir. Her öğeye ayrı dekoratif hareket ekleme. Ortak 120/200/320/600/900 ms ailesini ve mevcut kesilebilir motion sahibini izle; azalt/kapalı/OS tercihinde ve görünmeyen pencerede gereksiz animasyonu durdur. Mevcut onaylı ekranların kendi sürelerini sebepsiz değiştirme.
+Bir sahnenin imza anı, etkin cümlenin yerleşmesi veya görünüm değişirken içeriğin sürekliliği olabilir. Hareketin çeşitliliği, yoğunluğu ve sürekliliği tasarımın görsel amacına göre belirlenir; dekoratif hareket de kullanılabilir. Mevcut kesilebilir motion sahibi ve süre ailesi başlangıç noktasıdır, estetik üst sınır değildir. Azalt/kapalı/OS tercihlerini uygula ve görünmeyen penceredeki animasyonu durdur. Onaylı tasarımların görsel etkisini koru.
 
 Kelime dolması yalnız gerçek kelime zamanıyla; diğer durumda açık cümle ilerlemesi. Metin yoğunluğu ses dalgası diye sunulmaz. Dil rozeti gerçek iz verisinden gelir. Elle kaydırınca takip kullanıcı Konuşmaya dön diyene kadar kapalı kalır. Çoklu/belirsiz çeviri, bağımsız kaymalar, zamansız metin, kaynak değişimi ve gecikmiş sonuç korumaları görünüm uğruna gevşetilmez. Tek mevcut oynatma/ASR/çeviri motoru korunur.
 

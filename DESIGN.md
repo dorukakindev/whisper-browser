@@ -34,6 +34,12 @@ components:
 
 # Whisper Browser tasarım kaydı
 
+## Görsel öncelik — güncel kullanıcı kararı, 2026-11-05
+
+Kullanıcı için görünüm ve tasarım kalitesi en önemli önceliktir. Hedef güçlü, özgün, etkileyici ve özenli bir medya deneyimidir. Kompozisyon, tipografi, atmosfer, ışık, hover ve geçişlerin yoğunluğu ekranın tasarımına göre belirlenir. Belirgin efektler, zengin katmanlar ve sürekli atmosfer/dekoratif animasyon kullanılabilir; bunlar için genel bir yasak veya zorunlu sakinlik/minimalizm kuralı yoktur. Tasarımcının yaratıcılığı gereksiz stil kısıtlarıyla daraltılmaz.
+
+Okunabilirlik, erişilebilirlik, kullanıcının hareket tercihi ve mevcut işlev/veri/güvenlik sınırları korunur. Onaylı tasarımın görsel etkisi entegrasyonda korunur. Aşağıdaki tarihli uygulama notları mevcut/geçmiş sürümleri anlatır; yeni tasarımlara düşük hareket veya sadelik zorunluluğu getirmez. Eski belgelerdeki aksi yöndeki estetik kısıtlar bu güncel kararla geçersizdir.
+
 ## Güncel UI çalışma yöntemi — 2026-11-05
 
 Her UI işinde önce [Sahne referansından çalışma rehberini](docs/design/sahne-design-guidance-2026-11-05.md) ve ilgili onaylı ekran kararını oku. Önce bütün kompozisyon: baskın medya/okuma alanı, tipografi oranları, ortak hizalar ve kontrollü boşluk; sonra araçlar, en son ince cila. Özellikleri form olarak dizip koyu tema/amber/animasyon eklemek tasarım sayılmaz.
@@ -50,7 +56,7 @@ Bu dosya mevcut tasarımı kaydeder; token üretmez. Kanonik sayfa paleti `src/r
 
 ## Colors
 
-Mürekkep/grafit katmanlar, sıcak amber etkileşim vurgusu. Hata, seçim ve pasif metin ayrı semantik token kullanır. Yeni panel açık temada da çalışma zamanı değişkenlerini izler. Dekoratif parıltı ve eski sabit mavi kullanılmaz.
+Mürekkep/grafit katmanlar, sıcak amber etkileşim vurgusu. Hata, seçim ve pasif metin ayrı semantik token kullanır. Yeni panel açık temada da çalışma zamanı değişkenlerini izler. Işık, parıltı ve renk atmosferi görsel kompozisyonu güçlendirecek şekilde tasarlanabilir; uygulama mevcut tema tokenları üzerinden bütünlüğünü korur.
 
 ## Typography
 
@@ -70,7 +76,7 @@ Başka oynatma motoru, uydurma ilerleme veya ikinci kuyruk eklenmedi. Eski radyo
 
 `files (5).zip` kompozisyonu `sahne.css/js` ve mevcut sahipleri kullanan `cinema-sahne.js` ile bütünleştirildi. Yerel/RSS görünümü mevcut PlayerWorkspaceIntegration, browser görünümü kimlik kontrollü mevcut browser komutları üzerinden çalışır; aynı video/stage korunur, kapanışta klasik yuvasına döner. Podcast kapak/kimlik/transport + büyük okunur transkript; çift dilli video/okuma kartı/dock + transkript kompozisyonudur. Dar çift dilli transkript erişilebilir düğmeyle overlay açılır. Kaynak/iz revizyonları, bağımsız kaymalar, çoklu/belirsiz eşleşme, zamansız salt okunur metin ve mevcut ileri araçlar korunur.
 
-Tema/font mevcut sahiplerden gelir; ayrı mavi marka, uydurma şehir kapağı, sürekli aurora/kapak hareketi ve ikinci medya motoru alınmadı. Eksik kapak sıcak baş harfli yüzeydir. Home/Keşfet/film/browser ve podcast kütüphanesinde uyumlu afiş/metin/düğme cilası `cinema-package-refinements.css` ile sınırlı; yeni alternatif Home/film yerleşimi, sahte kütüphane kuyruğu veya sözlük özelliği eklenmedi. [Teslim ve doğrulama sınırları](docs/devir/2026-11-05-0600.md).
+Tema/font mevcut sahiplerden gelir; ayrı mavi marka, uydurma şehir kapağı ve ikinci medya motoru alınmadı. Eksik kapak sıcak baş harfli yüzeydir. Home/Keşfet/film/browser ve podcast kütüphanesinde uyumlu afiş/metin/düğme cilası `cinema-package-refinements.css` ile sınırlı; yeni alternatif Home/film yerleşimi, sahte kütüphane kuyruğu veya sözlük özelliği eklenmedi. [Teslim ve doğrulama sınırları](docs/devir/2026-11-05-0600.md).
 
 ### Onaylı Akışlar okuma alanı (2026-11-04)
 
@@ -104,7 +110,7 @@ Native select ve Electron dosya seçicisi bu mevcut Windows uygulamasının kabu
 
 ### Medya iş akışlarında görsel hiyerarşi
 
-Aktif görev alanında bir dolu amber ana eylem kullanılır; ikinciller sessiz yüzey/hayalet veya metin biçimindedir. Mod/seçili durum ana eylem değildir; medya modları nötr yüzey, aynı düzeydeki sayfa gezinmesi ince alt çizgi kullanır. Klavye odağı seçimden ayrıdır ve korunur. Yoğun küçük kabukta kütüphane araması ikonla açılır; Escape sorguyu silmeden kapatır, açık temizleme eylemi sorguyu temizler. Geniş pencerede doğrudan arama kalır.
+Aktif görev alanında bir dolu amber ana eylem kullanılır; ikincil eylemler görünür ve rollerine uygun biçimde ayrışır. Mod/seçili durum ana eylem değildir; medya modları nötr yüzey, aynı düzeydeki sayfa gezinmesi ince alt çizgi kullanır. Klavye odağı seçimden ayrıdır ve korunur. Yoğun küçük kabukta kütüphane araması ikonla açılır; Escape sorguyu silmeden kapatır, açık temizleme eylemi sorguyu temizler. Geniş pencerede doğrudan arama kalır.
 
 Alan bütçesinde medya, okuma ve konuşma içeriği önceliklidir. İkincil araçlar mevcut açılır alanlarda kalır; gelişmiş kontroller kaldırılmaz veya kullanıcının özel ayarları sıfırlanmaz. Normal panel aralığı16px, ilişkili kontroller8–12px başlangıç ritmidir; yoğun toolbar ve metin okuma kendi belgeli varyantını kullanır. Görev kontrollerini gizlemek veya okunamayacak küçültmek alan kazanımı sayılmaz.
 
@@ -164,7 +170,7 @@ Grafit basamaklar `#111215 → #191b1f → #24272d → #2d3037`; ana metin `#f1f
 
 Günlük ikincil düğmeler8px, arama10px, panel16px ailesini izler; mod seçicisi ve sohbet balonu bağlama özgü şekillerini korur. Genel ikincil hover nötrdür; tüm butonları amberle çerçevelemez. Kapalı asistan balonu nötr yüzeydir; Send/işin ana eylemi vurguyu taşır. Hero'nun okunabilirlik örtüsü sabit eski siyah yerine güncel sayfa zeminiyle karışır. Klavye odağı silinmez; native testin odak halkası seçim stili sanılıp kaldırılmaz.
 
-Hareket sahibi `ui-motion.css` ve `ui-motion.js`: panel160ms/seyahat yok; bölüm180ms/4px; kontrol renk150ms, basış100ms/.985; ince pointer'da kapak2px yükselir. WAAPI bu CSS rollerini doğrulayarak okur; eksik/geçersiz değerler güvenli varsayılana döner. Tekrarlı giriş eski hareketi iptal edip mevcut görünümden devam eder. Reduced-motion ve pagehide etkin animasyonu iptal eder; gezinme animasyonu beklemez. Bu süreler ürün kararıdır, FPS/performans ölçümü iddiası değildir.
+Hareket sahibi `ui-motion.css` ve `ui-motion.js`: panel160ms/seyahat yok; bölüm180ms/4px; kontrol renk150ms, basış100ms/.985; ince pointer'da kapak2px yükselir. WAAPI bu CSS rollerini doğrulayarak okur; eksik/geçersiz değerler güvenli varsayılana döner. Tekrarlı giriş eski hareketi iptal edip mevcut görünümden devam eder. Reduced-motion ve pagehide etkin animasyonu iptal eder; gezinme animasyonu beklemez. Bunlar mevcut sürümün uygulama değerleridir; yeni tasarımların hareket yoğunluğu veya süresi için üst sınır değildir ve FPS/performans ölçümü iddiası taşımaz.
 
 Hesapsız tema yöntemi ve gerçek önce/sonra kanıtı [R827](docs/raporlar/BROWSER_BUG_REPORT_827.md) altında saklanır. Statik üretilmiş tasarım panosu çalışan uygulama kanıtı değildir; native görüntüler ayrı tutulur. Yeni dış hesap, CDN, font, paket veya ayar şeması eklenmez.
 
@@ -187,24 +193,24 @@ Dublaj DOM ve görsel görev sırası altyazı→referans ses→üretimdir; kayn
 
 ### Yorum okuma masası — R836
 
-Kaynakta tek seçili yorum ve native yazar seçicisi/Önceki/Sonraki;65–70ch metin ölçüsü, metin içinde ikinci360px kaydırıcı yok. İlk kaynak hemen görünür; uzun metnin Tamamını oku eylemi sadece görsel daraltmayı kaldırır. KaynakJSON ve AI örnek bütçesi birbirinden ayrıdır. Önizleme ayrı iş adımı, formun en altına eklenen bir kutu değil; Geri taslağı korur. Aktif adımın doğrulama hatası aynı yerde role=alert ile görünür. Özet ve kişisel uygunluk okuma önceliğidir; ayrıntılı örnek denetimi ve kaynaklar isteğe bağlı açılır. Güncel profil satırı sessiz, stale/unknown uyarısı belirgin kalır. Başlık18–22, gövde15/1.85, metadata12–13; tek ana eylem ve ortak grafit/amber/font/hareket ailesi korunur. Kayıtlı film analizi, inline yönetim ve bağımsız yorum görünümü aynı render sahibini kullanır. [Önce/sonra](docs/raporlar/BROWSER_BUG_REPORT_836.md).
+Kaynakta tek seçili yorum ve native yazar seçicisi/Önceki/Sonraki;65–70ch metin ölçüsü, metin içinde ikinci360px kaydırıcı yok. İlk kaynak hemen görünür; uzun metnin Tamamını oku eylemi sadece görsel daraltmayı kaldırır. KaynakJSON ve AI örnek bütçesi birbirinden ayrıdır. Önizleme ayrı iş adımı, formun en altına eklenen bir kutu değil; Geri taslağı korur. Aktif adımın doğrulama hatası aynı yerde role=alert ile görünür. Özet ve kişisel uygunluk okuma önceliğidir; ayrıntılı örnek denetimi ve kaynaklar isteğe bağlı açılır. Güncel profil bilgisi ile stale/unknown uyarıları anlaşılır biçimde ayrışır. Başlık18–22, gövde15/1.85, metadata12–13; tek ana eylem ve ortak grafit/amber/font/hareket ailesi korunur. Kayıtlı film analizi, inline yönetim ve bağımsız yorum görünümü aynı render sahibini kullanır. [Önce/sonra](docs/raporlar/BROWSER_BUG_REPORT_836.md).
 
 
 ## 2026-11-01 — sinematik medya omurgası
 
-Kullanıcının kesin yönü: üst medya menüsü, grafit/amber palet ve masaüstü medya oynatıcı/browser ruhu korunur. Luna kalite karşılaştırmasıdır; birebir yerleşim, ikon veya marka kopyası değildir. Soldan genel gezinme, açık kâğıt düzlemi ve web pazarlama sayfası dili reddedilmiştir. Her yeni yüzeyde önce açık bir hiyerarşi, sonra içerikle ilişkili sinematik kompozisyon gelir. Rastgele parıltı, büyük düğme hover'ı ve dekoratif sayaçlar kalite ölçüsü değildir.
+Kullanıcının kesin yönü: üst medya menüsü, grafit/amber palet ve masaüstü medya oynatıcı/browser ruhu korunur. Luna kalite karşılaştırmasıdır; birebir yerleşim, ikon veya marka kopyası değildir. Soldan genel gezinme, açık kâğıt düzlemi ve web pazarlama sayfası dili reddedilmiştir. Her yeni yüzeyde önce açık bir hiyerarşi, sonra içerikle ilişkili sinematik kompozisyon gelir. Görsel etki, atmosfer ve hareket tasarımın temel parçalarıdır; efektlerin biçimi ve yoğunluğu kompozisyonun ihtiyacına göre seçilir.
 
 - Üst gezinme tek yatay baz çizgisidir. Soldaki uygulama simgesi ikincil hedef/araçları hover ile açar; tıklama ve klavye de çalışır. Menüye geçiş güvenli aralığı vardır. Daraldıkça yazıları kesmek veya ikinci rastgele satır açmak yerine bütün kontroller aynı menüye taşınır. Mod ve sayfa seçimi birbirinden ayrıdır. Arama ikonla açılan mevcut sorguyu koruyan bir yüzeydir.
 - Görsel kimlik: geniş gerçek backdrop, okunur koyu soldan/alt gradyan, tutarlı afiş oranı, başlık → kısa olgular → ana eylem. Kapağı yatay büyütmek yerine uygun geniş görsel tercih edilir; yükleme/bozuk görselde mevcut kapak korunur.
 - Yorum analizi: yorum örneğine ait yorumlama ile kaynak alıntısı açıkça ayrılır. Özet ana okuma alanı, kişisel uygunluk ikinci odaktır. Görüşler kart istifi yerine başlık–gerekçe–gerçek alıntı ilişkisiyle okunur. Yorum sayısı, puan veya fikir birliği uydurulmaz. Kaynağın tamamı ve ileri örnek ayarları erişilebilir kalır.
-- Hareket: mevcut self-hosted WAAPI sahibi kullanılır. Sayfa360ms, medya kimliği geçişi420ms; sıradan kontrol180ms. Yeni sayfaya geçen afiş dekoratif tek uçuş görselidir; hedef çift görüntü üretmez. Kesilme, hedefin ayrılması ve reduced-motion temizlenir. Sürekli dekoratif hareket ve sahte düşünce metni yok.
+- Hareket: mevcut self-hosted WAAPI sahibi kullanılır. Sayfa360ms, medya kimliği geçişi420ms; sıradan kontrol180ms. Yeni sayfaya geçen afiş dekoratif tek uçuş görselidir; hedef çift görüntü üretmez. Kesilme, hedefin ayrılması ve reduced-motion temizlenir. Gerçek iş durumu ile üretilmiş içerik ayrılır; sahte düşünce metni gösterilmez.
 - Asistan, tarayıcı ve oynatıcı aynı eylem hiyerarşisini taşır: içerik/yanıt birinci, ana eylem ikinci, kaynak ve ileri araçlar açılır. Kaydırma sahipleri, gerçek video yüzeyi, yetki/üretim durumu ve erişilebilir gelişmiş seçenekler korunur.
 
 Bu bölüm yöndür; her ekranın uygulanmış ve gerçek model/siteyle doğrulanmış olduğunu tek başına kanıtlamaz. Teslim notu hangi ekranların gerçek Windows görüntüsüyle sınandığını belirtir. Kaynak tasarım incelemeleri ve uygulama farkları docs/design altındaki teslim belgesinde sabit commit bağlantılarıyla tutulur.
 
 
 ### Asistan işlem izi — 2026-11-03
-Ortak sahip assistant-run-card.js/assistant-overlay.css; mevcut paletteki raised/line/accent/text/muted tokenları kullanılır. Kompakt gerçek etkin adım başlığı ve segmentler varsayılan; ayrıntılar isteğe bağlı dikey işlem izidir. Yalnız running halkası döner, accepted/proposed/completed farklı statik durum taşır. Yeni mesaj parçası animasyonu baştan başlatmaz; DOM/odak/açık ayrıntı korunur. prefers-reduced-motion hareketi kaldırır. Bu alan yeni bir genel gezinme veya yan stüdyo değildir. Görsel ve hareket kanıtı docs/implementation/assistant-end-to-end-2026-11-03/ içindedir.
+Ortak sahip assistant-run-card.js/assistant-overlay.css; mevcut paletteki raised/line/accent/text/muted tokenları kullanılır. Kompakt gerçek etkin adım başlığı ve segmentler varsayılan; ayrıntılar isteğe bağlı dikey işlem izidir. Bu sürümde running halkası döner, accepted/proposed/completed farklı durumlarla gösterilir; yeni tasarımlarda durum hareketleri görsel kompozisyona göre geliştirilebilir. Yeni mesaj parçası animasyonu baştan başlatmaz; DOM/odak/açık ayrıntı korunur. prefers-reduced-motion hareketi kaldırır. Bu alan yeni bir genel gezinme veya yan stüdyo değildir. Görsel ve hareket kanıtı docs/implementation/assistant-end-to-end-2026-11-03/ içindedir.
 
 
 ### Film dossier — 2026-11-03
