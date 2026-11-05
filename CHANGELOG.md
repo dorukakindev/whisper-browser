@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Asistan önerileri puan kaynağını, gerekçe başına gerçek kanıtı ve karşıt sinyalleri korur; yorum analizi açık tercihten ayrılır. Yapım açma başarı sonucu gerçek sayfayla doğrulanır; mevcut izleme listesi onayı korunur ve önizleme durumları çevrilir. [Teslim](docs/devir/2026-11-05-1337.md).
+
 - Aktif podcast için bölüm yazıya dökme ve yalnız eksik çeviriyi tamamlama komutları mevcut kuyruğa bağlandı. Çift dilli asistan bağlamı ve tam transkript seçiliyken bile “bu ana kadar” zaman sınırı korundu. [Günlük kullanım doğrulaması](docs/devir/2026-11-05-1310.md).
 
 - Browser Spotify→çift dilli geçişi, duraklatılmış podcast konum/hız kaydı, yorum başlangıç/kaydetme yarışları, timed çevirinin hedef dil kaydı, publisher metni/çeviri eşleşmesi ve readonly SRT/VTT sunumu düzeltildi. [Agentlı akış denetimi](docs/devir/2026-11-05-1237.md).

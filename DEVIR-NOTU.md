@@ -1,3 +1,4 @@
+Güncel çalışma: [Asistan zevk kanıtları ve doğrulanmış öneri eylemleri](docs/devir/2026-11-05-1337.md)
 Güncel çalışma: [Podcast günlük kullanım zinciri ve sınırlı asistan bağlamı](docs/devir/2026-11-05-1310.md)
 Güncel çalışma: [Üç agentla medya akış denetimi ve yedi hata düzeltmesi](docs/devir/2026-11-05-1237.md)
 Güncel çalışma: [Kısa medya düğme turu; kapsam ve hata bildirimi](docs/devir/2026-11-05-1201.md)

@@ -56,3 +56,8 @@ test('Taste tools separate read-only constraints from explicit reviewed global c
  for(const args of [{},{story:6},{avoid:['mood']},{avoid:['pace','pace']},{atmosphere:3},{note:'x'.repeat(2001)}])assert.throws(()=>registry.validate('update_taste_preferences',args,owner));
  assert.deepEqual(registry.validate('update_taste_preferences',{story:0,avoid:[],note:''},owner),{story:0,avoid:[],note:''});
 });
+
+
+test('recommended title opening is a reviewed action outside the library too',()=>{
+ for(const kind of ['video','page','book']){assert(registry.list({kind}).some(tool=>tool.name==='open_library_title'));assert.equal(registry.get('open_library_title').policy,'proposal');}
+});

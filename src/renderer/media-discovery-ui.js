@@ -109,6 +109,7 @@
     const reviewSection=el('section','mtd-review');lower.append(reviewSection);window.MediaReviewDecision?.mountTitle(reviewSection,{...item,id:`discovery:${item.kind}:${item.providerId}`,imdbId:item.providerId,discovery:{kind:item.kind,id:item.providerId}});window.FilmContextFeatures?.mount(narrative,{...item,id:`discovery:${item.kind}:${item.providerId}`,imdbId:item.providerId,discovery:{kind:item.kind,id:item.providerId}},()=>details(row));window.FilmPageEnhancements?.enhance(dialog,item);window.CinemaUI?.film(dialog,item);
     dialog.restorePosition?.();window.UiMotion?.mediaTransfer(mediaOrigin, dialog.querySelector('.cn-film-poster'));
     window.UiMotion?.reveal(dialog, 'page');
+    return dialog.open?{ok:true,itemId:'discovery:'+row.kind+':'+row.providerId}:{ok:false};
   }
   function drawFeature() {
     const slot = state.root?.querySelector('.cn-feature-slot'); if (!slot) return;

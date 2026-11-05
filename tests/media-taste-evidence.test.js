@@ -71,3 +71,10 @@ test('rating evidence keeps the real current-library or latest-diary origin for 
  assert.equal(evidence.find(row=>row.title==='Library only').ratingSource,'catalog');
  assert(p.recommendations.every(row=>row.evidence.every(item=>['catalog','diary'].includes(item.ratingSource))));
 });
+
+
+test('each recommendation reason preserves exact rating provenance and contrary evidence',()=>{
+ const catalog=[film('liked','Loved',10,['Drama'],{directors:['Loved director']}),film('disliked','Avoided',0,['Horror'],{directors:['Other']}),film('pick','Candidate',null,['Drama','Horror'],{directors:['Loved director']})];
+ const p=taste.profile([],catalog),r=p.recommendations.find(r=>r.itemId==='pick'),reason=r.reasonDetails.find(r=>r.name==='Drama');
+ assert.equal(reason.source,'saved-personal-ratings');assert.equal(reason.evidence[0].itemId,'liked');assert.equal(reason.evidence[0].ratingSource,'catalog');assert.equal(reason.evidenceCount,1);assert.equal(r.counterEvidence[0].name,'Horror');assert.equal(r.counterEvidence[0].evidence[0].itemId,'disliked');assert.equal(r.counterEvidence[0].evidence[0].rating,0);
+});

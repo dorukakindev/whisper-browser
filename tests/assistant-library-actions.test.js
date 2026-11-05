@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{JSDOM}=require('jsdom');
-function setup(){const dom=new JSDOM('<select id="uiTheme"><option>system</option><option>dark</option><option>light</option></select><select id="uiLocale"><option>en</option><option>tr</option></select><select id="browserSponsorMode"><option>off</option><option>ask</option><option>auto</option></select>',{runScripts:'outside-only'}),w=dom.window;let state=true,payloads=[];w.AssistantAppActions={current:()=>state};w.UiLocale={get:()=> 'en'};w.saveAppSettings=async()=>true;w.api={mediaCatalog:async()=>({ok:true,items:Array.from({length:20},(_,i)=>({id:'real-'+i,title:'Film '+i,kind:'film',synopsis:'s'.repeat(4000),source:{value:'C:\\private'},collections:[]}))}),assistantCollections:async input=>(payloads.push(input),{ok:true,plan:{id:'plan'}})};w.eval(fs.readFileSync(path.join(__dirname,'../src/text-fold.js'),'utf8'));w.eval(fs.readFileSync(path.join(__dirname,'../src/renderer/assistant-library-actions.js'),'utf8'));return {dom,w,run:(name,args={})=>w.AssistantLibraryActions.execute(name,args,{}),stale:()=>state=false,payloads};}
+function setup(){const dom=new JSDOM('<select id="uiTheme"><option>system</option><option>dark</option><option>light</option></select><select id="uiLocale"><option>en</option><option>tr</option></select><select id="browserSponsorMode"><option>off</option><option>ask</option><option>auto</option></select>',{runScripts:'outside-only'}),w=dom.window;let state=true,payloads=[];w.AssistantAppActions={current:()=>state};w.UiLocale={get:()=> 'en'};w.saveAppSettings=async()=>true;w.api={mediaCatalog:async()=>({ok:true,items:Array.from({length:20},(_,i)=>({id:'real-'+i,title:'Film '+i,kind:'film',synopsis:'s'.repeat(4000),source:{value:'C:\\private'},collections:[]}))}),assistantCollections:async input=>(payloads.push(input),{ok:true,plan:{id:'plan'}})};w.eval(fs.readFileSync(path.join(__dirname,'../src/text-fold.js'),'utf8'));let retainedReview;w.AssistantFilmActions={handles:()=>false,rememberReviewEvidence:(_item,result)=>{retainedReview=result;},reviewEvidenceResult:async()=>({film:{analysis:retainedReview?.analysis,sourceCount:retainedReview?.reviews?.length||0}})};w.eval(fs.readFileSync(path.join(__dirname,'../src/renderer/assistant-library-actions.js'),'utf8'));return {dom,w,run:(name,args={})=>w.AssistantLibraryActions.execute(name,args,{}),stale:()=>state=false,payloads};}
 test('Library evidence is bounded and strips filesystem paths',async()=>{const h=setup();try{const r=await h.run('search_library');assert.equal(r.count,20);assert.equal(r.items.length,8);assert(JSON.stringify(r).length<16000);assert(!JSON.stringify(r).includes('private'));assert.equal((await h.run('get_title_details',{item_id:'catalog:real-1'})).item.title,'Film 1');await assert.rejects(h.run('get_title_details',{item_id:'catalog:invented'}));await assert.rejects(h.run('plan_library_collection',{name:'Plan',ids:'discovery:film:tt1234567'}));assert.equal(h.payloads.length,0);h.stale();await assert.rejects(h.run('search_library'),/changed/);}finally{h.dom.window.close();}});
 test('Only normal preferences are read; undo refuses later manual edits',async()=>{const h=setup();try{const before=await h.run('get_app_preferences');assert.deepEqual(Object.keys(before.preferences),['theme','language','sponsorMode']);await h.run('set_app_preferences',{theme:'dark'});assert.equal((await h.run('get_app_preferences')).canUndo,true);await h.run('undo_app_preferences');assert.equal(h.w.document.getElementById('uiTheme').value,'system');await h.run('set_app_preferences',{theme:'dark'});h.w.document.getElementById('uiLocale').value='tr';await assert.rejects(h.run('undo_app_preferences'),/changed/);}finally{h.dom.window.close();}});
 
@@ -14,7 +14,7 @@ test('Discovery review loading uses a verified discovery key, returns ten bounde
  h.w.api.mediaTools=async r=>{requests.push(r);return {ok:true,match:{state:'matched'},reviews:Array.from({length:12},(_,i)=>({id:String(i),author:'Reader',text:'Review '.repeat(160)}))};};
  h.w.MediaToolsUI={keepReviewSample:(i,r)=>{draft={i,r};}};
  const result=await h.run('load_title_reviews',{item_id:'discovery:film:tt14173636',source:'automatic'});
- assert.equal(result.status,'completed');assert.equal(result.reviews.length,10);assert.equal(result.reviews[0].truncated,true);assert.equal(requests[0].discovery.id,item.providerId);assert.equal(requests[0].itemId,undefined);assert.equal(requests[0].count,40);assert.equal(requests[0].sort,'popular');assert.equal(result.loadedCount,12);assert.equal(draft.i.id,'discovery:film:tt14173636');assert.equal(draft.i.discovery.id,item.providerId);assert.equal(draft.r.reviews.length,12);assert(JSON.stringify(result).length<16000);
+ assert.equal(result.status,'completed');assert.equal(result.film.sourceCount,12);assert.equal(requests[0].discovery.id,item.providerId);assert.equal(requests[0].itemId,undefined);assert.equal(requests[0].count,40);assert.equal(requests[0].sort,'popular');assert.equal(result.loadedCount,12);assert.equal(draft.i.id,'discovery:film:tt14173636');assert.equal(draft.i.discovery.id,item.providerId);assert.equal(draft.r.reviews.length,12);assert(JSON.stringify(result).length<16000);
  h.w.api.mediaTools=async()=>({ok:true,match:{state:'mismatch'},reviews:[]});await assert.rejects(h.run('load_title_reviews',{item_id:'discovery:film:tt14173636',source:'automatic'}),/did not match/);
  }finally{h.dom.window.close();}
 });
@@ -57,5 +57,43 @@ test('General taste writes require the exact reviewed proposal and revision, and
  const expectedSettings={kind:'taste-preferences',revision:'p1',args:JSON.stringify(args)};
  let r=await h.w.AssistantLibraryActions.execute('update_taste_preferences',args,{}, {expectedSettings});assert.equal(r.status,'completed');const write=calls.find(p=>p.action==='taste-preferences');assert.equal(write.expectedPreferencesRevision,'p1');assert.deepEqual(JSON.parse(JSON.stringify(write.patch)),{weights:{story:5},avoid:['pace'],note:'Explicit global request'});
  calls.length=0;revision='p2';r=await h.w.AssistantLibraryActions.execute('update_taste_preferences',args,{}, {expectedSettings});assert.equal(r.stale,true);assert.equal(calls.length,1);await assert.rejects(h.w.AssistantLibraryActions.execute('update_taste_preferences',{story:4},{},{expectedSettings}),/reviewed/);
+ }finally{h.dom.window.close();}
+});
+
+
+test('assistant recommendation reasons retain bounded source evidence and counterevidence without private fields',async()=>{
+ const h=setup();try{const e={title:'Rated film',year:2000,rating:4,itemId:'real-1',ratingSource:'diary',ratingDate:'2026-11-01',path:'PRIVATE_PATH'};
+ h.w.api.mediaShelf=async()=>({ok:true,recommendations:[{itemId:'real-2',title:'Candidate',reasonDetails:[{kind:'genre',name:'Drama',evidence:[e],evidenceCount:8}],counterEvidence:[{kind:'genre',name:'Horror',direction:'dislikes',evidence:[{...e,rating:1}],evidenceCount:1}],evidence:[e]}]});
+ const r=await h.run('recommend_from_taste'),pick=r.recommendations[0];assert.equal(pick.reasonDetails[0].source,'saved-personal-ratings');assert.equal(pick.reasonDetails[0].evidence[0].ratingSource,'diary');assert.equal(pick.reasonDetails[0].evidence[0].ratingDate,'2026-11-01');assert.equal(pick.reasonDetails[0].evidenceTruncated,true);assert.equal(pick.counterEvidence[0].evidence[0].rating,1);assert(!JSON.stringify(r).includes('PRIVATE_PATH'));
+ }finally{h.dom.window.close();}
+});
+
+test('opening a recommended title reports completion only for a matching successful UI receipt',async()=>{
+ const h=setup();try{h.w.MediaTitleUI={open:async()=>({ok:false,error:'Could not load title'})};const failed=await h.run('open_library_title',{item_id:'catalog:real-1'});assert.equal(failed.status,'failed');
+ h.w.MediaTitleUI.open=async()=>({ok:true,itemId:'different'});assert.equal((await h.run('open_library_title',{item_id:'catalog:real-1'})).status,'failed');
+ h.w.MediaTitleUI.open=async()=>({ok:true,itemId:'real-1'});const ok=await h.run('open_library_title',{item_id:'catalog:real-1'});assert.equal(ok.status,'completed');assert.equal(ok.playbackStarted,false);assert.equal(h.payloads.length,0);
+ }finally{h.dom.window.close();}
+});
+
+
+test('accepted review analysis retains source quotes separately from explicit preferences',async()=>{
+ const h=setup();try{h.w.api.mediaShelf=async()=>({ok:true,taste:{preferencesConfigured:false,analysisState:'stale',analysis:{summary:'Historical interpretation',insights:[{aspect:'pace',direction:'dislikes',reason:'A saved model interpretation',evidence:[{id:'review-1',quote:'An actual accepted source quote',path:'PRIVATE_PATH'}]}]}}});
+ const r=await h.run('get_taste_profile');assert.equal(r.profile.preferencesSource,'defaults-not-explicit');assert.equal(r.profile.acceptedAnalysis.source,'accepted-review-analysis');assert.equal(r.profile.acceptedAnalysis.historical,true);assert.equal(r.profile.acceptedAnalysis.insights[0].evidence[0].review_id,'review-1');assert.equal(r.profile.acceptedAnalysis.insights[0].evidence[0].quote,'An actual accepted source quote');assert(!JSON.stringify(r).includes('PRIVATE_PATH'));
+ }finally{h.dom.window.close();}
+});
+
+
+test('actual title UI receipt stays failed after render failure and retries instead of claiming cached success',async()=>{
+ const vm=require('node:vm'),source=fs.readFileSync(require.resolve('../src/renderer/media-title.js'),'utf8'),start=source.indexOf('  async function open(id)'),end=source.indexOf("  document.addEventListener('ui-locale-change'",start),dom=new JSDOM('<body class="media-home-active"><div id="playerLayer" class="hidden"></div></body>');
+ try{const document=dom.window.document;let reads=0;const env={document,Event:dom.window.Event,dialog:null,item:null,selected:null,opener:null,copyChoice:null,window:{},syncBrowserOcclusion(){},cancelStory(){},t:(en)=>en,el:(tag,cls,text)=>{const n=document.createElement(tag);n.textContent=text||'';return n;},button:()=>document.createElement('button'),createPage:()=>{const n=document.createElement('section');n.open=true;n.restorePosition=()=>{};document.body.append(n);return n;},close:()=>{env.dialog?.remove();env.dialog=null;},reload:async()=>{reads++;env.item={id:'id'};if(reads===1)throw Error('Controlled render failure');}};
+ vm.runInNewContext(source.slice(start,end)+';globalThis.show=open;',env);assert.equal((await env.show('id')).ok,false);assert.equal((await env.show('id')).ok,true);assert.equal(reads,2);assert.equal((await env.show('id')).ok,true);assert.equal(reads,2);
+ }finally{dom.window.close();}
+});
+
+
+test('personal watchlist preview displays translated state without applying it',async()=>{
+ const h=setup();try{const calls=[];h.w.api.personalMedia=async p=>{calls.push(p);return {ok:true,token:'review',item:{revision:'r1'},preview:{title:'Film 1'}};};h.w.UiLocale={get:()=> 'tr'};
+ const r=await h.w.AssistantLibraryActions.execute('propose_personal_media_update',{item_id:'catalog:real-1',watch_status:'planned',reaction:'like'},{owner:'source',thread:'thread'});
+ assert.equal(r.operation,'preview');assert.match(r.summary,/İzlenme: İzlenecek/);assert.match(r.summary,/Tepki: Beğendim/);assert(!r.summary.includes('planned'));assert.deepEqual(calls.map(p=>p.action),['preview']);
  }finally{h.dom.window.close();}
 });

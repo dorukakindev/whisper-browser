@@ -222,12 +222,12 @@
     if(focused)dialog.querySelector('[data-title-action="'+focused+'"]')?.focus({preventScroll:true});
   }
   async function open(id){
-    if(dialog?.open&&selected===id){dialog.focus();return;}if(dialog)close();copyChoice=null;selected=id;item=null;opener=document.activeElement;const mediaCard=opener?.closest?.('[data-home-item]'),mediaOrigin=mediaCard?.dataset.homeItem===id?window.UiMotion?.captureMedia(mediaCard):null;
+    if(dialog?.open&&selected===id&&item?.id===id&&dialog.dataset.titleReady==='true'){dialog.focus();return {ok:true,itemId:id};}if(dialog)close();copyChoice=null;selected=id;item=null;opener=document.activeElement;const mediaCard=opener?.closest?.('[data-home-item]'),mediaOrigin=mediaCard?.dataset.homeItem===id?window.UiMotion?.captureMedia(mediaCard):null;
     if(!document.body.classList.contains('media-home-active')||!document.getElementById('playerLayer')?.classList.contains('hidden'))await window.MediaHomeUI.returnHome();
     const current=createPage('mtd-dialog media-surface',{key:'library:'+id});current.id='mediaTitleDialog';current.dataset.uiUntranslated='';current.setAttribute('aria-labelledby','mediaTitleHeading');dialog=current;
     const origin=opener;current.addEventListener('close',()=>{cancelStory(current);current.remove();if(dialog===current){personalView?.dispose();personalView=null;generation++;dialog=null;if(origin?.isConnected)origin.focus({preventScroll:true});}void syncBrowserOcclusion();document.dispatchEvent(new Event('media-library-changed'));});
     void syncBrowserOcclusion();current.append(el('h1','',t('Loading title…','Yapım yükleniyor…')));
-    try{await reload();if(dialog===current&&current.open){window.UiMotion?.mediaTransfer(mediaOrigin,current.querySelector('.cn-film-poster'));window.UiMotion?.reveal(current,'page');}current.focus({preventScroll:true});current.restorePosition();}catch(error){current.replaceChildren(el('p','',error.message),button(t('Close','Kapat'),close));}
+    try{await reload();if(dialog!==current||!current.open||selected!==id||item?.id!==id)return {ok:false};window.UiMotion?.mediaTransfer(mediaOrigin,current.querySelector('.cn-film-poster'));window.UiMotion?.reveal(current,'page');current.focus({preventScroll:true});current.restorePosition();current.dataset.titleReady='true';return {ok:true,itemId:id};}catch(error){if(dialog===current&&current.open)current.replaceChildren(el('p','',error.message),button(t('Close','Kapat'),close));return {ok:false};}
   }
   document.addEventListener('ui-locale-change',()=>{if(dialog?.open&&item)draw(++generation);});
   document.addEventListener('media-metadata-updated',()=>{if(dialog?.open)void reload().catch(()=>{});});

@@ -41,6 +41,8 @@ Podcast/Çift dilli görünümünde **Transkripti çevir** zaman bilgisi olmayan
 
 Whisper kapsamından bölümün tamamını veya başlangıç/bitiş aralığını seçebilirsin; işlenecek süre başlamadan görünür. Örneğin “bu podcasti 30. saniyeden 2. dakikaya kadar yazıya dök ve çevir” aynı kuyruğu kullanır. Doğrulanmış kısmi SRT çevirisindeki **Yalnız eksikleri tamamla**, başarılı satırları korur; eski/uyumsuz sonuçta sessiz tam çeviriye dönmez. Kütüphanede bölümün **Kayıtlı pasajlar ve notlar** alanı mevcut araştırma defterindeki kayıtlarını açar. Zevk profilindeki kanıtlar kaynaklarını gösterir ve ilgili puan/yorum/öncelik düzeltmesine götürür.
 
+Asistanın kütüphane önerileri gerçek kayıtlı puanlara dayanır; gerekçelerde puanın günlük/kütüphane kaynağı ve ters yöndeki kanıt da aktarılır. Kabul edilmiş yorum analizi açık tercihlerden ayrı tutulur. Önerilen yapımı açma ve izleme listesine ekleme mevcut incelenmiş eylemler üzerinden yürür; önizleme kayıt değildir. [Son doğrulama](docs/devir/2026-11-05-1337.md).
+
 Aktif podcastte “bu bölümü yazıya dök” veya “eksik çeviriyi tamamla” diyebilirsin; asistan aynı bölümün mevcut kuyruğunu kullanır. “Bu ana kadar özetle” isteği, tam transkript seçili olsa bile soru anından sonraki konuşmaları kullanmaz. Podcast ve Çift dilli görünümlerinde aynı kaynak bağlamı korunur.
 
 ## Feature tour
