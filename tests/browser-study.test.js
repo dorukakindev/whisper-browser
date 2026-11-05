@@ -37,4 +37,21 @@ player.browserActiveTabId='tab-a';study.refresh();assert.equal(study.isActive(),
 player.workspaceMode='player';study.refresh();assert.equal(layerHas('browser-study-mode'),false);assert.equal(study.isActive(),false);
 function layerHas(name){return document.getElementById('playerLayer').classList.contains(name);}
 assert.equal(document.querySelectorAll('video').length,1);assert.equal(player.generation,2);assert.equal(document.querySelector('.browser-study').hidden,true);
+// Once media is observed, Spotify uses the same browser presentation owner.
+player.workspaceMode='browser';player.browserActiveTabId='spotify-tab';
+player.browserPageUrl='https://open.spotify.com/episode/37MZdvTl0mYnTwznQQpqcH';
+player.mediaKey='browser:spotify';player.generation++;player.viewMode='reading';
+const reviews=[];
+window.PodcastLinkUI={isSpotify:url=>url===player.browserPageUrl,open:options=>reviews.push(options)};
+const entry=document.getElementById('browserStudyOpen');
+player.browserMediaSeen=false;entry.click();
+assert.equal(reviews.length,1,'unobserved Spotify media retains explicit source review');
+assert.equal(reviews[0].view,'bilingual');assert.equal(study.isActive(),false);
+const owner={tab:player.browserActiveTabId,mediaKey:player.mediaKey,generation:player.generation};
+player.browserMediaSeen=true;entry.click();
+assert.equal(reviews.length,1,'observed Spotify media must not reopen source review');
+assert.equal(study.isActive(),true);assert.equal(player.viewMode,'study');
+assert.deepEqual({tab:player.browserActiveTabId,mediaKey:player.mediaKey,generation:player.generation},owner);
+assert.equal(document.getElementById('webVideo'),video);assert.equal(document.querySelectorAll('video').length,1);
+
 dom.window.close();console.log('browser-study: same video/cues, explicit actions, capability states, busy control and tab isolation OK');

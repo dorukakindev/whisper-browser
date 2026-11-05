@@ -74,3 +74,13 @@ test('missing-only podcast retry passes immutable existing translation paths and
  const receipt=await r.context.window.retryPodcastTranslation(captured);assert.equal(receipt.failed,1);const q=r.state.queue[0];assert.equal(q.opts.translateRetryOnly,true);assert.equal(q.opts.translateCueRange,'30:42');assert.equal(q.opts.translateExisting,'managed-partial.srt');assert.equal(q.opts.input,'managed-source.srt');assert.equal(q.opts.mergeContinuation,false);assert.equal(q.podcastBinding.coverage.start,30);assert.equal(q.podcastBinding.outputRole,'translation');assert.equal(r.requests[0].expectedTranscriptText,'source');assert(Object.isFrozen(q.opts));
  let resolve;r.context.window.api.feedsRequest=()=>new Promise(done=>resolve=done);const late=r.context.window.retryPodcastTranslation(captured);r.setSnapshot({mediaKey:'next',generation:99,sourceVersion:'different'});resolve({ok:true});await assert.rejects(late,/changed/);assert.equal(r.state.queue.length,1);
 });
+
+
+test('timed transcript-only translation persists recovery with the queued target language',async()=>{
+ const r=setup(),sourceText='1\n00:00:01,000 --> 00:00:02,000\nHello\n',translated='1\n00:00:01,000 --> 00:00:02,000\nHallo\n';
+ const recovery={version:1,targetLanguage:'de',forSpeech:false,sourceCues:[{startMs:1000,endMs:2000,text:'Hello'}],completed:[true],translationTextHash:require('node:crypto').createHash('sha256').update(translated).digest('hex')};let stored;
+ r.ui.translateTo='de';r.context.window.api.readSubtitle=async()=>({ok:true,text:translated,translationRecovery:recovery});
+ r.context.window.api.feedsRequest=async req=>{if(req.action==='podcast-save-transcript'){stored=req;require('../src/podcast-translation-recovery').validate(req.recovery,sourceText,req.text,req.targetLanguage);}return {ok:true,sourceVersion:binding.sourceVersion,workspace:{transcript:{state:'timed',status:'complete',text:sourceText}}};};
+ await r.context.window.translatePodcastSource({...binding,sourceTranscriptText:sourceText,materializedPath:'source.srt',track:{id:'publisher-A',revision:'r1',timed:true}});r.ui.translateTo='fr';
+ await r.context.persist({},r.state.queue[0].podcastBinding);assert.equal(stored.targetLanguage,'de');assert.equal(r.state.queue[0].podcastBinding.persistence,'saved');
+});

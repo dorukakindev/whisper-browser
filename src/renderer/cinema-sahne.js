@@ -88,10 +88,20 @@
 
   function shelfFacade(){
     const shelf=()=>window.MediaShelfUI;
+    const reading=new Map();
     const empty=role=>({id:'shelf-empty:'+role,revision:'none',role,timed:false,offsetSeconds:0,cues:[]});
     return {kind:'shelf',tab:()=>'',snap:()=>shelf()?.readSnapshot(),tracks:()=>['source','translation'].map(role=>{
       const all=shelf()?.getTranscriptTracks?.()||[],track=all.find(t=>(t.role||'source')===role)||empty(role);
-      if(track.timed===false && !track.cues?.length && track.text)return {...track,cues:[{id:'plain',text:track.readingText||track.text,start:0,end:0}]};
+      if(track.timed===false && !track.cues?.length && track.text){
+        let text=track.readingText||track.text;
+        const cached=reading.get(role);
+        if(!track.readingText&&cached?.source===track.text)text=cached.prose;
+        else if(!track.readingText&&typeof parseSubtitles==='function'&&(/^(?:\uFEFF)?WEBVTT(?:\s|$)/.test(text)||/(?:^|\n)\s*\d+\s*\r?\n\s*\d{1,3}:\d{2}:\d{2}[,.]\d{3}\s*-->\s*\d{1,3}:\d{2}:\d{2}[,.]\d{3}/.test(text))){
+          try{const prose=parseSubtitles(text).map(cue=>String(cue.text||'')).filter(value=>value.trim()).join('\n\n');if(prose)text=prose;}catch(_){/* Unrecognized content stays readable without acquiring timing. */}
+          reading.set(role,{source:track.text,prose:text});
+        }
+        return {...track,cues:[{id:'plain',text,start:0,end:0}]};
+      }
       return {...empty(role),...track,cues:track.cues||[]};
     }),dispatch:c=>shelf().executeExisting(c),dispose(){},words:()=>null,langs:()=>({}),mediaTitle:()=>shelf()?.readSnapshot()?.title||'',sub:()=>T('Yayıncı RSS','Publisher RSS'),cover:()=>shelf()?.podcastInfo?.()?.image||'',slot:()=>null,unslot(){} };
   }

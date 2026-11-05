@@ -6,7 +6,7 @@ test('discovery review decisions are verified, namespaced and never create a lib
   const svc=require('../src/media-tools-service').registerMediaTools({app:{getPath:()=>root,on:(_,fn)=>close.push(fn)},ipcMain:{handle(){}},authorized:()=>true,owner:()=>null,dialog:{},catalogStore:()=>({get(){throw Error('Must not consult library');}}),resolveDiscovery:async(_e,d)=>({ok:true,item:{kind:d.kind,providerId:d.id,title,year:2026}}),readOpenReviews:async()=>({reviews:[{id:'R1',text:'Strong acting throughout.'}],identity:{title:'Verified film',year:2026}})});
   const request={itemId:'discovery:film:tt14173636',discovery:{kind:'film',id:'tt14173636'}};
   const call=(action,extra={})=>svc.handle({}, {action,...request,...extra});
-  assert.deepEqual((await call('decision-get')).value,{});
+  assert.deepEqual((await call('decision-get')).value,{feedback:undefined,feedbackIdentity:undefined});
   assert.equal((await call('reviews-browser')).match.state,'matched');
   const analysis={points:[{id:'R1',quote:'Strong acting',reason:'Supported'}]},reviews=[{id:'R1',text:'Strong acting throughout.'}];
   assert.equal((await call('decision-save',{analysis,reviews,itemIdentity:{kind:'film',title,year:2026}})).ok,false,'Missing IMDb provenance cannot save an unbound analysis');

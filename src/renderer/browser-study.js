@@ -143,7 +143,7 @@
     primary.classList.toggle('browser-study-primary', !primary.disabled && !paired);
   }
   entry.addEventListener('click', event => {
-    if(window.PodcastLinkUI?.isSpotify(player.browserPageUrl))window.PodcastLinkUI.open({url:player.browserPageUrl,view:'bilingual'});
+    if(window.PodcastLinkUI?.isSpotify(player.browserPageUrl)&&!player.browserMediaSeen)window.PodcastLinkUI.open({url:player.browserPageUrl,view:'bilingual'});
     else open(event);
   });
   new MutationObserver(refresh).observe(layer, { attributes: true, attributeFilter: ['class'] });

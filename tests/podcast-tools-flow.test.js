@@ -1,6 +1,31 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const source=fs.readFileSync(require.resolve('../src/renderer/player-source-catalog-integration.js'),'utf8');
+function publisherFixture({timed=false,translation=null}={}){
+ const audio={entryId:'A',revision:'one',mediaKey:'rss:A',generation:2,sourceVersion:'v1',transcriptState:'untimed',transcriptText:'Old source',translationText:'Old translation',transcriptTimingNotice:'Old range notice',transcriptCoverage:{start:30,end:42},translationRetry:{canRetry:true}};
+ const player={workspaceAudio:audio,mediaKey:audio.mediaKey,generation:2,subPath:'old.srt',cues2:[{text:'Old timed translation'}]},loads=[];
+ const transcript={state:timed?'timed':'untimed',text:'New publisher source',format:timed?'srt':'plain',provenance:'publisher'},saved={sourceVersion:'v1',workspace:{transcript,...(translation?{translation}:{})},translationRetry:null};
+ const context={player,t:(_tr,en)=>en,api:async request=>request.action==='podcast-transcript'?{timed:timed?'yes':'no',text:transcript.text}:request.action==='podcast-materialize'?{path:request.role==='translation'?'current-translation.srt':'current-source.srt'}:saved,loadSubtitle:async(path,secondary)=>{loads.push({path,secondary});if(secondary)player.cues2=path?[{text:'Current timed translation'}]:[];else player.subPath=path;},window:{PlayerWorkspaceIntegration:{refresh(){}}}};
+ const start=source.indexOf('  async function loadPublisherTranscript('),end=source.indexOf('  async function translatePodcastTranscript(',start);vm.runInNewContext(source.slice(start,end)+';globalThis.load=loadPublisherTranscript;',context);
+ return {audio,player,loads,context,saved,transcript};
+}
+for(const timed of [false,true])test(`new ${timed?'timed':'untimed'} publisher transcript retires old translation and range evidence`,async()=>{
+ const f=publisherFixture({timed});await f.context.load(1);
+ assert.equal(f.audio.translationText,undefined);assert.equal(f.audio.transcriptCoverage,undefined);assert.equal(f.audio.transcriptTimingNotice,undefined);assert.equal(f.audio.translationRetry,null);assert.equal(f.player.cues2.length,0);
+ assert.equal(f.audio.transcriptState,timed?'timed':'untimed');if(!timed)assert.equal(f.audio.transcriptText,'New publisher source');
+});
+test('reloading the same publisher source restores its current registry translation',async()=>{
+ const f=publisherFixture({translation:{state:'untimed',text:'Matching translation',status:'complete'}});f.audio.transcriptText=f.transcript.text;f.audio.translationText='Matching translation';await f.context.load(0);assert.equal(f.audio.translationText,'Matching translation');
+ const timed=publisherFixture({timed:true,translation:{state:'timed',text:'Current timed translation',status:'complete'}});await timed.context.load(0);assert(timed.loads.some(load=>load.path==='current-translation.srt'&&load.secondary));assert.equal(timed.player.cues2[0].text,'Current timed translation');
+});
+test('failed or stale publisher loading leaves the accepted transcript and translation intact',async()=>{
+ for(const failure of ['request','workspace','source-load','stale']){
+  const f=publisherFixture({timed:failure==='source-load'}),before=JSON.stringify(f.audio),api=f.context.api;
+  f.context.api=async request=>{if(failure==='request')throw Error('Publisher failed');if(failure==='workspace'&&request.action==='podcast-workspace')throw Error('Registry failed');const result=await api(request);if(failure==='stale')f.player.generation++;return result;};
+  if(failure==='source-load')f.context.loadSubtitle=async()=>{};
+  if(failure==='stale')await f.context.load(1);else await assert.rejects(f.context.load(1));assert.equal(JSON.stringify(f.audio),before,failure);assert.equal(f.player.cues2[0].text,'Old timed translation');
+ }
+});
 test('Saved RSS output uses timed loading only for exact complete source and otherwise becomes read-only',async()=>{
  const audio={entryId:'A',mediaKey:'rss:A',generation:2,sourceVersion:'remote-unknown'},requests=[],loads=[],modes=[];const player={workspaceAudio:audio,mediaKey:'rss:A',generation:2};
  let saved={sourceVersion:'download-sha',workspace:{transcript:{state:'timed',text:'srt',status:'complete'}}};

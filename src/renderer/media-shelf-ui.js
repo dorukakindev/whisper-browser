@@ -312,6 +312,7 @@
   }
   function listen(rows, index = 0) {order.set(rows,index);syncQueue();return playQueue(index); }
   audio.addEventListener('pause', () => {paintPlaying();void flushPosition();});audio.addEventListener('play',paintPlaying);
+  for(const event of ['seeked','ratechange'])audio.addEventListener(event,()=>void flushPosition());
   audio.addEventListener('timeupdate', () => { if (Date.now() - lastSaved > 10000) { lastSaved = Date.now(); void flushPosition(); } });
   audio.addEventListener('ended', () => { void flushPosition().then(() => { return advance(true); }).catch(error=>{dockStatus.textContent=error.message;}); });
   audio.addEventListener('error', () => { dockStatus.textContent = t('Audio could not be played. Check the file or stream address.', 'Ses oynatılamadı. Dosyayı veya yayın adresini kontrol edin.'); });
