@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Podcast kütüphanesi gerçek RSS abonelikleri, bölüm araması, kayıtlı çeviri/yerel kaynak filtreleri, dinleme kuyruğu ve Sahne/çift dilli açılışlara bağlandı. Yerel sinema Sahnesi mevcut video motorunda gerçek bölümler, sıradaki dosyalar ve altyazı bağlamından mevcut sözcük koleksiyonuna kayıt sunar; geç kaynak/iz sonuçları korunur.
+
 - Podcast ve çift dilli Sahne: mevcut yerel/RSS/browser oynatıcısı üzerinde tam sayfa görünüm, kalıcı transkript takibi, çoklu çeviri, mevcut araçlara erişim ve klasik görünüme dönüş; onaylı medya sayfalarında uyumlu afiş/metin cila katmanı.
 
 - Kayıtlı podcast dökümü veya çevirisini yüklemek seçilmiş çift dilli/Podcast görünümünü artık değiştirmez; yeni Spotify → RSS → Whisper → ayrı Türkçe çeviri canlı zinciri doğrulandı.

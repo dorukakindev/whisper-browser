@@ -14,7 +14,7 @@
   const SS = { get(k) { try { return sessionStorage.getItem(k); } catch (_) { return null; } }, set(k, v) { try { sessionStorage.setItem(k, v); } catch (_) { /* depolama yok */ } } };
   const langCode = (v) => { const m = /^[a-z]{2,3}/i.exec(String(v || '').trim()); return m ? m[0].toLowerCase() : null; };
   const num = (v) => Number.isFinite(Number(v)) ? Number(v) : 0;
-  let host = null, inst = null, key = '', parked = [], lastAction = null;
+  let host = null, inst = null, key = '', parked = [], lastAction = null, localView = 'cinema';
 
   const headH = () => {
     const origin=layer.getBoundingClientRect().top;
@@ -73,7 +73,7 @@
     // Move the original stage once; the workspace explicitly yields its presentation slot.
     function slot(mode) {
       const st=$('playerStage');
-      if(!st || mode!=='study' && !window.NativePlayerUI?.active() && !num($('playerVideo')?.videoWidth))return null;
+      if(!st || !['study','cinema'].includes(mode) && !window.NativePlayerUI?.active() && !num($('playerVideo')?.videoWidth))return null;
       st.dataset.sahneOwned='true';return st;
     }
     function unslot(){
@@ -85,9 +85,19 @@
     return { kind: 'local', tab: () => '', snap: () => PW().snapshot(), tracks: () => PW().getTranscriptTracks(), dispatch: (c) => PW().executeExisting(c), dispose() {}, words, langs, mediaTitle: () => window.PlayerUiKit?.displayTitle($('playerTitle')?.textContent || '') || '', sub: () => $('playerMeta')?.textContent || '', cover: () => '', slot, unslot };
   }
 
+  function shelfFacade(){
+    const shelf=()=>window.MediaShelfUI;
+    const empty=role=>({id:'shelf-empty:'+role,revision:'none',role,timed:false,offsetSeconds:0,cues:[]});
+    return {kind:'shelf',tab:()=>'',snap:()=>shelf()?.readSnapshot(),tracks:()=>['source','translation'].map(role=>{
+      const all=shelf()?.getTranscriptTracks?.()||[],track=all.find(t=>(t.role||'source')===role)||empty(role);
+      if(track.timed===false && !track.cues?.length && track.text)return {...track,cues:[{id:'plain',text:track.text,start:0,end:0}]};
+      return {...empty(role),...track,cues:track.cues||[]};
+    }),dispatch:c=>shelf().executeExisting(c),dispose(){},words:()=>null,langs:()=>({}),mediaTitle:()=>shelf()?.readSnapshot()?.title||'',sub:()=>T('Yayıncı RSS','Publisher RSS'),cover:()=>shelf()?.podcastInfo?.()?.image||'',slot:()=>null,unslot(){} };
+  }
+
   /* ── Ortak adaptör: cepheden Sahne sözleşmesine ── */
   function makeAdapter(kind, mode) {
-    const F = kind === 'browser' ? browserFacade() : localFacade();
+    const F = kind === 'browser' ? browserFacade() : kind === 'shelf' ? shelfFacade() : localFacade();
     const first = F.snap(); const bound = first ? { mediaKey: first.mediaKey, generation: first.generation } : { mediaKey: '', generation: -1 };
     const identity = () => { const s = F.snap(); return `${kind}|${F.tab()}|${s ? s.mediaKey : ''}|${s ? s.generation : ''}`; };
     let cache = { rev: '', rows: [], meta: [], untimed: false }, ownLoop = null, disposed = false;
@@ -99,6 +109,9 @@
     }
     function build(src, sec, s) {
       const meta = [], secById = new Map(sec.cues.map((c) => [c.id, c]));
+      if(src.timed===false && src.cues.length){
+        return {rows:[{id:'plain-source',start:0,end:0,timed:false,src:src.cues.map(c=>c.text).join('\n\n'),trs:sec.cues.length?[sec.cues.map(c=>c.text).join('\n\n')]:[],unc:[],words:null}],meta:[],untimed:true};
+      }
       if (src.cues.length) {
         const trows = TM().buildTranscriptRows({ sourceTrack: src, secondaryTrack: sec.cues.length ? sec : null, mediaKey: s.mediaKey, generation: s.generation });
         const byId = new Map(src.cues.map((c) => [c.id, c])), trackTimed = src.timed !== false;
@@ -130,6 +143,19 @@
     const seekRow = i => cache.meta[i]?.trackId===F.snap()?.sourceTrack?.id ? dispatch('seekCue',{cueId:cache.rows[i].id},i) : dispatch('seek',{time:cache.rows[i].start});
     const idxAt = (t) => { let at = -1; cache.rows.forEach((r, i) => { if (r.timed && r.start <= t && t < r.end && (at < 0 || r.start >= cache.rows[at].start)) at = i; }); return at; };
     const neighbor = (t, dir) => { const timed = cache.rows.map((r, i) => r.timed ? i : -1).filter((i) => i >= 0); if (!timed.length) return -1; const cur = idxAt(t); if (dir < 0) { if (cur >= 0 && t - cache.rows[cur].start > 1.5) return cur; const before = timed.filter((i) => cache.rows[i].start < (cur >= 0 ? cache.rows[cur].start : t) - .01); return before.length ? before[before.length - 1] : timed[0]; } const after = timed.filter((i) => cache.rows[i].start > (cur >= 0 ? cache.rows[cur].start : t) + .01); return after.length ? after[0] : -1; };
+    function wordAction(type,value){
+      const row=cache.rows[value?.row],word=String(value?.word||'').trim();
+      if(kind!=='local'||!row||value?.cueId&&row.id!==value.cueId||!word||word.length>120||!row.src.includes(word))return Promise.resolve({ok:false,code:'invalid-word'});
+      const index=(player.cues||[]).findIndex((cue,i)=>String(cue.id??i)===row.id && String(cue.text||'')===row.src);
+      const primary=cache.meta[value.row]?.trackId?.startsWith('primary:');const canSave=primary&&index>=0;
+      if(type==='wordSave'&&!canSave)return Promise.resolve({ok:false,code:'unsupported'});
+      if(type==='wordLookup'||type==='wordSave'){
+        const previous=player.selectedWord;player.selectedWord={word,cueIndex:index,source:'source'};
+        if(type==='wordSave')toggleWordSaved();else lookupSelectedWord();
+        if(!canSave)player.selectedWord=previous;
+      }
+      return Promise.resolve({ok:true,word,source:row.src,translations:row.trs,canSave,saved:canSave&&typeof isWordSaved==='function'?isWordSaved(word,index,'source'):false});
+    }
     const stale = { ok: false, code: 'stale-source' };
 
     function job() {
@@ -142,7 +168,9 @@
     const trackLabel = (t) => (t.label || window.PlayerUiKit?.languageName?.(t.language, window.UiLocale?.get?.()) || T('Altyazı izi', 'Caption track')) + (t.role === 'translation' ? ' · ' + T('çeviri', 'translation') : '');
     function panel() {
       const sections = [], a11y = [];
-      if (kind === 'browser') {
+      if(kind==='shelf'){
+        sections.push({title:T('Podcast işlemleri','Podcast tasks'),items:[{type:'button',label:T('Döküm, Whisper ve çeviri araçları','Transcript, Whisper and translation tools'),run:()=>{if(current()){window.CinemaSahne.close();window.MediaShelfUI.openPodcastMode();}}}]});
+      } else if (kind === 'browser') {
         const tracks = (player.browserTracks || []).filter((t) => !t.sourceMismatch), s1 = $('browserTrackSelect'), s2 = $('browserTrackSelect2'), items = [];
         if (tracks.length) {
           const opts = [{ value: '', label: '—' }].concat(tracks.map((t) => ({ value: t.id, label: trackLabel(t) })));
@@ -162,13 +190,15 @@
         sections.push({ title: T('Altyazı ve Whisper', 'Subtitles and Whisper'), items: loc.length ? loc : [{ type: 'note', text: T('Bu kaynak için altyazı işlemi sunulmuyor.', 'No subtitle task is offered for this source.') }] });
       }
       sections.push({ title: T('Asistan', 'Assistant'), items: [{ type: 'button', label: T('Asistana sor', 'Ask assistant'), hint: T('Mevcut asistan penceresi, bu medyanın bağlamıyla açılır.', 'Opens the existing assistant window with this media as context.'), run: () => { if (current()) window.api.showAssistant?.(); } }] });
-      sections.push({title:T('Oynatma ve görünüm','Playback and view'),items:[{type:'range',label:T('Ses düzeyi','Volume'),value:kind==='browser'?num(player.browserVolume??1):num($('playerVideo')?.volume??1),onChange:value=>{if(current())dispatch('setVolume',{volume:Number(value)});}}, {type:'button',label:T('Sahneyi tam ekran aç','Open stage fullscreen'),run:()=>{if(!current())return;if(doc.fullscreenElement)doc.exitFullscreen?.();else host?.requestFullscreen?.();}}]});
+      sections.push({title:T('Oynatma ve görünüm','Playback and view'),items:[{type:'range',label:T('Ses düzeyi','Volume'),value:kind==='shelf'?num($('mediaShelfAudio')?.volume??1):kind==='browser'?num(player.browserVolume??1):num($('playerVideo')?.volume??1),onChange:value=>{if(current())dispatch('setVolume',{volume:Number(value)});}}, {type:'button',label:T('Sahneyi tam ekran aç','Open stage fullscreen'),run:()=>{if(!current())return;if(doc.fullscreenElement)doc.exitFullscreen?.();else host?.requestFullscreen?.();}}]});
       return { job: job(), sections };
     }
     return {
-      caps: { loop: true, save: false },
+      caps: { loop: kind!=='shelf', save: false, cinema:kind==='local', study:true },
       identity, panel,
-      info: () => { const s = F.snap(), l = F.langs(); return { title: F.mediaTitle() || s?.title || '', sub: F.sub(), eyebrow: kind === 'browser' ? T('Şimdi çalıyor', 'Now playing') : T('Yerel oynatıcı', 'Local player'), cover: F.cover(), tint: null, chapters: [], langs: l }; },
+      info: () => { const s = F.snap(), l = F.langs(); return { title: F.mediaTitle() || s?.title || '', sub: F.sub(), eyebrow: kind === 'browser' ? T('Şimdi çalıyor', 'Now playing') : kind === 'shelf' ? T('Podcast', 'Podcast') : T('Yerel oynatıcı', 'Local player'), cover: F.cover(), tint: null,
+        chapters:kind==='shelf'?[]:(player.chapters||[]).filter(c=>Number.isFinite(c.start)&&c.start>=0&&(!s?.duration||c.start<s.duration)).map(c=>({t:c.start,label:String(c.title||T('Bölüm','Chapter'))})),
+        queue:kind==='local'?(player.playlist||[]).map((file,index)=>({index,title:window.PlayerUiKit?.displayTitle(String(file).split(/[\\/]/).pop())||String(file)})).slice(Math.max(0,player.playlistIndex+1),Math.max(0,player.playlistIndex+1)+2):[],native:kind==='local'&&!!window.NativePlayerUI?.active(),audio:kind==='shelf'||s?.sourceKind==='rss'||kind==='local'&&num($('playerVideo')?.readyState)>=2&&!num($('playerVideo')?.videoWidth),langs:l }; },
       state: () => { const s = F.snap(); if (!s) return { time: 0, duration: 0, paused: true, rate: 1, rows: [], rev: 'none', canSeek: false }; const r = rowsFor(s); return { time: num(s.time), duration: num(s.duration), paused: !!s.paused, rate: num(s.rate) || 1, rows: r.rows, rev: cache.rev, untimed: r.untimed, canSeek: s.capabilities?.seek?.support === 'yes' }; },
       slot: (m) => { const el = F.slot(m); if (el) { el.classList.add('sh-slot-fill'); bounds(); } return el; },
       releaseSlot: () => { clearOwnedLoop(); disposed = true; F.unslot(); restore(); F.dispose(); },
@@ -176,8 +206,11 @@
         if (t === 'loop' && !(v && v.on)) { clearOwnedLoop(); return Promise.resolve({ ok: true }); }   // kendi A–B döngümüzü her durumda kapat
         const s = F.snap(); if (!current()) return Promise.resolve(stale);
         rowsFor(s);
-        if(expectedRevision && expectedRevision!==cache.rev && ['seekCue','loop','replay','prevCue','nextCue'].includes(t))return Promise.resolve({ok:false,code:'stale-track',message:T('Altyazı değişti; satırı yeniden seçin.','The transcript changed; select the line again.')});
+        if(expectedRevision && expectedRevision!==cache.rev && ['seekCue','loop','replay','prevCue','nextCue','wordInfo','wordSave','wordLookup','openQueued'].includes(t))return Promise.resolve({ok:false,code:'stale-track',message:T('Altyazı değişti; satırı yeniden seçin.','The transcript changed; select the line again.')});
         switch (t) {
+          case 'fullscreen':return Promise.resolve(doc.fullscreenElement?doc.exitFullscreen?.():host?.requestFullscreen?.()).then(()=>({ok:true}));
+          case 'wordInfo':case 'wordSave':case 'wordLookup':return wordAction(t,v);
+          case 'openQueued': if(kind!=='local'||!Number.isInteger(v)||v<=player.playlistIndex||v>=player.playlist.length)return Promise.resolve({ok:false,code:'invalid-range'});return Promise.resolve(playPlaylistDelta(v-player.playlistIndex)).then(()=>({ok:true}));
           case 'toggle': return dispatch('togglePlay');
           case 'pause': return s.paused ? Promise.resolve({ ok: true }) : dispatch('togglePlay');
           case 'seek': return dispatch('seek', { time: Math.max(0, Math.min(num(s.duration) || Infinity, v)) });
@@ -198,25 +231,25 @@
     };
   }
 
-  function unmount() { if (inst) { inst.destroy(); inst = null; } restore(); host?.remove(); host = null; layer.classList.remove('cp-sahne-on'); key = ''; }
+  function unmount() { if (inst) { inst.destroy(); inst = null; } restore(); host?.remove(); host = null; layer.classList.remove('cp-sahne-on');doc.body.classList.remove('shelf-sahne-on');const old=doc.querySelector('.ms-podcast-workspace');if(old)old.inert=false; key = ''; }
   function mount(kind, mode, intro, prefs) {
     const k = `${kind}:${mode}`; if (inst && key === k) return; const had = !!inst; unmount();
-    host = doc.createElement('div'); host.className = 'sh-host'; host.dataset.uiUntranslated=''; host.style.top = headH() + 'px'; layer.append(host); layer.classList.add('cp-sahne-on');
+    host = doc.createElement('div'); host.className = 'sh-host'; host.dataset.uiUntranslated=''; host.style.top = kind==='shelf'?'0px':headH() + 'px'; if(kind==='shelf'){host.classList.add('sh-shelf-host');doc.body.append(host);doc.body.classList.add('shelf-sahne-on');const old=doc.querySelector('.ms-podcast-workspace');if(old)old.inert=true;}else{layer.append(host);layer.classList.add('cp-sahne-on');}
     inst = new Sahne(host, makeAdapter(kind, mode), {
       mode, intro: intro && !had, prefs,
-      onMode: (m, p) => { sticky = p; if (kind === 'browser') window.BrowserPodcastUI?.setMode(m === 'podcast'); else PW().setPodcastMode(m === 'podcast'); evaluate(); },
-      onClose: () => { if (kind === 'browser') window.BrowserStudy?.close?.(); else SS.set('cp-sahne-off','1'); evaluate(); },
-      onClassic: () => { SS.set('cp-sahne-off', '1'); evaluate(); },
-      onSource: (id, p) => { sticky = p; const [a, b] = key.split(':'); unmount(); mount(a, b, false, p); }   // kaynak değişti: döngü/uyku bu örnekle birlikte biter, yenisi temiz açılır
+      onMode: (m, p) => { sticky = p; if(kind==='shelf'){mount('shelf',m==='study'?'study':'podcast',false,p);return;} if (kind === 'browser') window.BrowserPodcastUI?.setMode(m === 'podcast'); else {localView=m==='cinema'?'cinema':'study';PW().setPodcastMode(m==='podcast');} evaluate(); },
+      onClose: () => { if(kind==='shelf'){window.MediaShelfUI?.closePodcastMode?.();unmount();return;} if (kind === 'browser') window.BrowserStudy?.close?.(); else SS.set('cp-sahne-off','1'); evaluate(); },
+      onClassic: () => {if(kind==='shelf'){unmount();return;} SS.set('cp-sahne-off', '1'); evaluate(); },
+      onSource: (id, p) => { sticky = p; const [a, b] = key.split(':'); unmount(); if(a==='shelf'){if(window.MediaShelfUI?.readSnapshot())void window.CinemaSahne.openShelf({mode:b}).catch(error=>console.warn('shelf-sahne',error));return;}mount(a,b,false,p); }   // kaynak değişti: döngü/uyku bu örnekle birlikte biter, yenisi temiz açılır
     });
     key = k;
   }
   let sticky;
   const evaluate = safe(() => {
-    if (!ready()) return; let want = null;
+    if (!ready()) return; if(key.startsWith('shelf:')&&layer.classList.contains('hidden')){if(window.MediaShelfUI?.readSnapshot())return;unmount();} let want = null;
     if (!layer.classList.contains('hidden') && SS.get('cp-sahne-off') !== '1') {
       if (layer.classList.contains('workspace-browser')) { if (layer.classList.contains('browser-podcast-presentation')) want = ['browser', 'podcast']; else if (layer.classList.contains('browser-study-mode')) want = ['browser', 'study']; }
-      else if (PW().bridge && !document.getElementById('playerWorkspaceV3')?.hidden && !layer.classList.contains('source-catalog-open')) want = ['local', PW().isPodcastMode() ? 'podcast' : 'study'];
+      else if (PW().bridge && !document.getElementById('playerWorkspaceV3')?.hidden && !layer.classList.contains('source-catalog-open')) want = ['local', PW().isPodcastMode() ? 'podcast' : localView];
     }
     if (!want) { if (inst) unmount(); entries(); return; }
     mount(want[0], want[1], true, sticky); entries();
@@ -233,8 +266,8 @@
   doc.addEventListener('ui-locale-change', () => { if (inst) { const k = key, p = inst.prefs(); unmount(); const [a, b] = k.split(':'); mount(a, b, false, p); } });
   const off = PW()?.subscribe?.(() => { if(!document.hidden)evaluate(); });
   doc.addEventListener('visibilitychange',()=>{doc.documentElement.dataset.sahneHidden=String(document.hidden);if(!document.hidden)evaluate();});
-  window.addEventListener('resize',()=>{if(host)host.style.top=headH()+'px';});
+  window.addEventListener('resize',()=>{if(host&&!key.startsWith('shelf:'))host.style.top=headH()+'px';});
   doc.addEventListener('click',e=>{if(e.target.closest?.('[data-podcast-view]')){SS.set('cp-sahne-off','0');queueMicrotask(evaluate);}},true);
-  window.CinemaSahne = Object.freeze({open({mode='study'}={}){SS.set('cp-sahne-off','0');if(player.workspaceMode==='browser'){window.BrowserStudy?.open?.({preservePodcast:true});window.BrowserPodcastUI?.setMode(mode==='podcast');}else PW()?.setPodcastMode(mode==='podcast');evaluate();},close(){SS.set('cp-sahne-off','1');unmount();},evaluate,get current(){return inst;}});
+  window.CinemaSahne = Object.freeze({async openShelf({mode='podcast'}={}){const owner=window.MediaShelfUI?.readSnapshot();if(!owner)return {ok:false,code:'no-source'};if(!window.MediaShelfUI.isPodcastMode?.())await window.MediaShelfUI.openPodcastMode();const now=window.MediaShelfUI.readSnapshot();if(now?.mediaKey!==owner.mediaKey||now?.generation!==owner.generation)return {ok:false,code:'stale-source'};mount('shelf',mode==='study'?'study':'podcast',false);return {ok:true};},open({mode='cinema'}={}){SS.set('cp-sahne-off','0');if(player.workspaceMode==='browser'){window.BrowserStudy?.open?.({preservePodcast:true});window.BrowserPodcastUI?.setMode(mode==='podcast');}else{localView=mode==='cinema'?'cinema':'study';PW()?.setPodcastMode(mode==='podcast');}evaluate();},close(){SS.set('cp-sahne-off','1');unmount();},evaluate,get current(){return inst;}});
   evaluate();
 })();

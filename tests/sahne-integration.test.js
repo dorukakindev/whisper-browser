@@ -108,3 +108,9 @@ test('closing during loop activation clears only its own current-source A/B loop
   f.window.CinemaSahne.close();
   assert.equal(f.player.abA, 20); assert.equal(f.player.abB, 30);
 });
+
+test('closing shelf playback removes the scene instead of remounting an ownerless overlay',async t=>{
+ const f=fixture(t);f.document.getElementById('playerLayer').classList.add('hidden');let live=true;
+ f.window.MediaShelfUI={readSnapshot:()=>live?{mediaKey:'shelf:one',generation:1,title:'Episode',time:0,duration:30,paused:true,rate:1,capabilities:{seek:{support:'yes'}}}:null,isPodcastMode:()=>true,openPodcastMode:async()=>{},getTranscriptTracks:()=>[],executeExisting:async()=>({ok:true})};
+ await f.window.CinemaSahne.openShelf();const scene=f.window.CinemaSahne.current;assert(scene);live=false;scene.o.onSource('none',{});assert.equal(f.window.CinemaSahne.current,null);assert.equal(f.document.querySelector('.sh-shelf-host'),null);
+});
