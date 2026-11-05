@@ -39,6 +39,8 @@ Claude tam v2 tasarımının ürün entegrasyonu tamamlandı; kapsam ve doğrula
 
 Podcast/Çift dilli görünümünde **Transkripti çevir** zaman bilgisi olmayan metni de mevcut sağlayıcıyla çevirir; sahte eşzamanlama eklemez. Metindeki kaydet eylemi cümleyi veya seçili sözcük/pasajı isteğe bağlı notla mevcut araştırma defterine ekler. Kayıtlar bölüm ve kaynak sürümüne bağlıdır; zamansız kayıt zaman atlatmaz. Asistan “bu podcasti yazıya dök ve çevir” komutunda mevcut kuyruğu kullanır ve sonuç kaydını bekler.
 
+Whisper kapsamından bölümün tamamını veya başlangıç/bitiş aralığını seçebilirsin; işlenecek süre başlamadan görünür. Örneğin “bu podcasti 30. saniyeden 2. dakikaya kadar yazıya dök ve çevir” aynı kuyruğu kullanır. Doğrulanmış kısmi SRT çevirisindeki **Yalnız eksikleri tamamla**, başarılı satırları korur; eski/uyumsuz sonuçta sessiz tam çeviriye dönmez. Kütüphanede bölümün **Kayıtlı pasajlar ve notlar** alanı mevcut araştırma defterindeki kayıtlarını açar. Zevk profilindeki kanıtlar kaynaklarını gösterir ve ilgili puan/yorum/öncelik düzeltmesine götürür.
+
 ## Feature tour
 
 | | |

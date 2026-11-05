@@ -1,3 +1,4 @@
+Güncel çalışma: [Podcast aralığı, güvenli eksik çeviri ve not/zevk kanıtı erişimi](docs/devir/2026-11-05-1140.md)
 Güncel çalışma: [Podcast metin çevirisi, asistan iş takibi ve kaynak bağlı notlar](docs/devir/2026-11-05-1040.md)
 Güncel çalışma: [Kısa medya kalite/performance düzeltmeleri](docs/devir/2026-11-05-0950.md)
 Güncel çalışma: [Claude tam v2 kompozisyonlarının mevcut işlemlere entegrasyonu](docs/devir/2026-11-05-0904.md)
