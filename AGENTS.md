@@ -18,6 +18,8 @@
 
 ## Tasarım ve doğrulama
 
+- **Görünüm en önemli önceliktir.** Güçlü, özgün ve etkileyici tasarım hedefle. Hareket, parıltı, hover ve sürekli dekoratif animasyonun yoğunluğu tasarım ihtiyacına göre belirlenir; zorunlu sakinlik/minimalizm veya düşük hareket kuralı koyma. Tasarımcının yaratıcılığını koru; okunabilirlik, erişilebilirlik, kullanıcının hareket tercihi ve mevcut işlev/veri sınırları geçerlidir. Ayrıntı DESIGN.md’nin güncel görsel öncelik kararındadır.
+
 - Önce tam görsel kompozisyon; gerekiyorsa kullanıcı onayı, ardından uygulama. Üst medya menüsü, grafit/amber ve sinematik player kimliği korunur; soldan genel gezinme/landing/paper tasarımına dönme. Luna kalite referansıdır; kopya değildir.
 - İkincil gezinme soldaki simgenin hover/tıklama/klavye menüsünde; dar ekranda kontrolleri ezme. İleri ayarlar erişilebilir kalsın. Gerçek Windows geniş/dar görüntüsünü onaylı tasarımla karşılaştır; test geçmesini estetik başarı sayma.
 - Değişen davranışa kısa, anlamlı test ve sözdizimi kontrolü yap. Belge değişiminde bağlantı/diff kontrolü yeterlidir; gereksiz tam paket/uzun test bekleme. Mock, canlı site/GPU/sağlayıcı başarısı değildir; sınırları açık yaz.
