@@ -207,6 +207,7 @@
     if(player.workspaceAudio?.entryId!==entryId||player.workspaceAudio.mediaKey!==player.mediaKey||player.workspaceAudio.generation!==player.generation)throw Error(t('Bölüm açılırken kaynak değişti. Yeniden deneyin.','Source changed while opening the episode. Try again.'));
     window.PlayerWorkspaceIntegration.setPodcastMode(view==='podcast');
     window.PlayerWorkspaceIntegration.refresh(true);
+    window.CinemaSahne?.open({mode:view==='podcast'?'podcast':'study'});
   }
   const podcastButton=document.createElement('button');podcastButton.type='button';podcastButton.className='mh-action';podcastButton.textContent=t('Podcast araçları','Podcast tools');podcastButton.onclick=podcastTools;header.append(podcastButton);
   const podcastMenuButton=podcastButton.cloneNode(true);podcastMenuButton.onclick=podcastTools;document.querySelector('#playerHeadMore .ph-more-body, #playerHeadMore [role=menu]')?.append(podcastMenuButton);

@@ -13,7 +13,7 @@
     if(layer?.classList.contains('hidden')&&player.mediaKey)await window.MediaHomeUI?.resumeWorkspace?.();
     if(!layer?.classList.contains('hidden')){
       if(player.workspaceMode==='browser'&&player.browserMediaSeen){if(view==='podcast')window.BrowserPodcastUI.setMode(true);else window.BrowserStudy.open();return;}
-      if(player.workspaceMode==='player'&&player.mediaKey&&document.getElementById('playerVideo')?.getAttribute('src')){window.PlayerWorkspaceIntegration.setPodcastMode(view==='podcast');return;}
+      if(player.workspaceMode==='player'&&player.mediaKey&&document.getElementById('playerVideo')?.getAttribute('src')){if(window.CinemaSahne)window.CinemaSahne.open({mode:view==='podcast'?'podcast':'study'});else window.PlayerWorkspaceIntegration.setPodcastMode(view==='podcast');return;}
     }
     return open({view});
   }
