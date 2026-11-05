@@ -1,6 +1,6 @@
 # Bekleyen işler
 
-Son durum kontrolü: **2026-11-05**. Son ürün `64f273eebcf3d2ae55fffade263ca65c3288d2a5`: seçili podcast aralığı, güvenli eksik çeviri, kütüphaneden notlar ve zevk kanıtının kaynağı. [Güncel teslim](docs/devir/2026-11-05-1140.md). Mevcut ortak Sahne tasarımı korunur.
+Son durum kontrolü: **2026-11-05**. Son ürün `fdf88ceb526d4a50919bf14dc9b5033afe48b328`: kısa Browser/Keşfet/yorum/podcast düğme turu; ortak İşlemler panelinde kapsam ve hata bildirimi düzeltildi. [Güncel teslim](docs/devir/2026-11-05-1201.md). Onaylı ortak Sahne tasarımı korunur.
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
@@ -12,6 +12,13 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 
 
 Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı değildir. Her seferinde tek kapsam kapatılır; yeni somut arıza önceliği değiştirebilir.
+
+## P022 — Kısa medya düğme turu tamamlandı
+
+- **Kod/dal:** `fdf88ceb526d4a50919bf14dc9b5033afe48b328`, `codex/media-button-fixes-20261105`; [devir](docs/devir/2026-11-05-1201.md).
+- **Düzeltme:** İşlemler panelindeki Whisper düğmeleri seçili aralığı ve ortak başlangıç kilidini atlıyordu; aynı `startTask` yoluna bağlandı. Panel/oynatma komutlarının senkron ve asenkron hataları görünür bildirilir; reddedilmiş tıklama promise'i sessiz kalmaz. Keşfet menü testinin eksik gerçek MediaVisual bağımlılığı düzeltildi; bu ürün hatası değildir.
+- **Kanıt:** kısa başlangıç grubunda67geçiş ve yalnız eksik test bağımlılığından3hata; etkilenen20test ve ilgili15entegrasyon/occlusion testi sonradan geçti. Native LG1440×900 üzerinde11kontrol geçti: Browser menü/arama/indirme/kayıtlılar/panel, aynı kontrollü web medyasında çift dil↔podcast, RSS kütüphanesi/arama/Sahne/işlemler, canlı Keşfet detay ve yorum alanı girişi. Konsol hatası0, izin denemesi0.
+- **Sınır/sonraki adım:** yeni ASR/ücretli çeviri veya AI yorum analizi çalıştırılmadı. Browser medya/iz testi kontrollü yerel HTML5/WebVTT, RSS kayıtlı gerçek yayıncı, Keşfet listesi/detayı canlı Cinemeta; bunlar tüm YouTube/Spotify/sitelerin garantisi değildir. Native ana pencere PNG'si alt WebContentsView video yüzeyini içermez; boş dikdörtgen video arızası kanıtı sayılmaz. Bu kapsamda yarım ürün işi yok; yeni somut hata halinde yalnız o akışa dön.
 
 ## P021 — Podcast kapsamı, eksik çeviri ve kanıt erişimi tamamlandı
 
