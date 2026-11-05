@@ -93,10 +93,14 @@
     }
     toast(msg) { const t = this.q('[data-r=toast]'); t.textContent = msg; t.classList.add('on'); clearTimeout(this.toastT); this.toastT = setTimeout(() => t.classList.remove('on'), 3200); }
     run(type, v, revision=this.st?.rev) {
-      const r = this.a.cmd(type, v, revision);
-      Promise.resolve(r).then((res) => { if (res && res.ok === false && !this.dead) this.toast(res.code === 'stale-source' || res.code === 'source-changed' ? T('Kaynak değişti; komut uygulanmadı.', 'The source changed; command not applied.') : res.code === 'unsupported' ? T('Bu kaynakta bu komut desteklenmiyor.', 'This source does not support that command.') : (res.message || T('Komut uygulanamadı.', 'Command could not be applied.'))); }).catch(() => {});
-      return Promise.resolve(r);
+      const failed = error => { const result = { ok:false, code:'command-failed', message:error?.message || T('Komut uygulanamadı.', 'Command could not be applied.') }; if (!this.dead) this.toast(result.message); return result; };
+      let r; try { r = this.a.cmd(type, v, revision); } catch (error) { return Promise.resolve(failed(error)); }
+      return Promise.resolve(r).then(res => {
+        if (res && res.ok === false && !this.dead) this.toast(res.code === 'stale-source' || res.code === 'source-changed' ? T('Kaynak değişti; komut uygulanmadı.', 'The source changed; command not applied.') : res.code === 'unsupported' ? T('Bu kaynakta bu komut desteklenmiyor.', 'This source does not support that command.') : (res.message || T('Komut uygulanamadı.', 'Command could not be applied.')));
+        return res;
+      }).catch(failed);
     }
+
     bind() {
       const r = this.root, a = this.a;
       r.addEventListener('click', (e) => {
@@ -304,7 +308,7 @@
     drawPanel(force) {
       const box = this.q('[data-r=panel]'); if (!box) return; box.hidden = !this.s.panel; this.root.classList.toggle('panel-open', this.s.panel); this.paint(); if (!this.s.panel) return;
       const p = this.a.panel?.(); if (!p) { box.textContent = ''; return; }
-      const sig = JSON.stringify(p.sections.map((s) => [s.title, s.items.map((i) => [i.type, i.label, i.value, i.disabled, i.pressed, i.hint, (i.options || []).map((o) => o.value + o.label).join('|'), i.text])]));
+      const sig = JSON.stringify([this.taskPending,p.sections.map((s) => [s.title, s.items.map((i) => [i.type, i.label, i.value, i.disabled, i.pressed, i.hint, (i.options || []).map((o) => o.value + o.label).join('|'), i.text])])]);
       if (!force && sig === this.s.psig) return; this.s.psig = sig;
       const focused = box.contains(document.activeElement) ? document.activeElement.dataset.pid : null; box.textContent = '';
       box.append(this.el(`<div class="sh-panel-h"><b>${T('İşlemler', 'Tasks')}</b><button class="sh-btn icon" type="button" data-pclose aria-label="${T('Kapat', 'Close')}">${ic('close')}</button></div>`));
@@ -315,8 +319,14 @@
           if (it.type === 'note') { s.append(this.el(`<p class="sh-pnote">${esc(it.text)}</p>`)); return; }
           if(it.type==='range'){const L=this.el(`<label class="sh-psel"><span>${esc(it.label)}</span><input type="range" min="0" max="1" step="0.01" aria-label="${esc(it.label)}"></label>`);const input=L.querySelector('input');input.value=String(it.value);input.oninput=()=>it.onChange(Number(input.value));s.append(L);return;}
           if (it.type === 'select') { const L = this.el(`<div class="sh-psel"><span>${esc(it.label)}</span></div>`);const select=root.PlayerUiKit.select({label:it.label,value:it.value,options:it.options,searchable:true,onChange:it.onChange});select.trigger.dataset.pid=`${sec.title}:${n}`;L.append(select);s.append(L); return; }
-          const b = this.el(`<button type="button" class="sh-pbtn${it.primary ? ' pri' : ''}" data-pid="${sec.title}:${n}" ${it.disabled ? 'disabled' : ''} ${it.pressed !== undefined ? `aria-pressed="${!!it.pressed}"` : ''}><span>${esc(it.label)}</span>${it.hint ? `<small>${esc(it.hint)}</small>` : ''}</button>`);
-          b.onclick = () => { it.run?.(); this.tick(); }; s.append(b);
+          const b = this.el(`<button type="button" class="sh-pbtn${it.primary ? ' pri' : ''}" data-pid="${sec.title}:${n}" ${it.disabled || it.id && this.taskPending ? 'disabled' : ''} ${it.pressed !== undefined ? `aria-pressed="${!!it.pressed}"` : ''}><span>${esc(it.label)}</span>${it.hint ? `<small>${esc(it.hint)}</small>` : ''}</button>`);
+          b.onclick = async () => {
+            if (it.id && (this.a.actions?.() || []).some(action => action.id === it.id)) { const pending=this.startTask(it.id); this.tick(); await pending; if(!this.dead)this.drawPanel(false); return; }
+            b.disabled=true;
+            try { const result=await it.run?.(); if(!this.dead&&result?.ok===false)this.toast(result.message||T('İşlem uygulanamadı.','Task could not be applied.')); }
+            catch(error){if(!this.dead)this.toast(error?.message||T('İşlem uygulanamadı.','Task could not be applied.'));}
+            finally{if(!this.dead){b.disabled=!!it.disabled;this.tick();}}
+          }; s.append(b);
         });
         box.append(s);
       });
