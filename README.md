@@ -35,7 +35,7 @@ Proje bilgisi sohbetle sınırlı tutulmaz. Yeni çalışmaya aşağıdaki kök 
 
 Ayrıntılı teknik kurallar [çalışma rehberinde](docs/WORKING_GUIDE.md), mimari [ARCHITECTURE.md](docs/ARCHITECTURE.md) içindedir. Arşivdeki bir rapor, tek başına o işin hâlâ açık olduğunu göstermez. Yarım iş BACKLOG'a yazılır; yalnız doğrulanmış tamamlanmış değişiklik CHANGELOG'a geçirilir.
 
-Güncel tasarım devamı BACKLOG’daki **P019** ve [Claude tasarım devam kaydında](docs/design/claude-redesign-handoff-2026-11-05.md) tutulur. İlk prototip ve yerel görsellerin varlığı, yeni tasarımın ürüne uygulandığı anlamına gelmez.
+Claude tam v2 tasarımının ürün entegrasyonu tamamlandı; kapsam ve doğrulama sınırları [tasarım devam kaydında](docs/design/claude-redesign-handoff-2026-11-05.md), açık işler [BACKLOG.md](BACKLOG.md) içindedir. Maket görüntüsü ile çalışan ürün kanıtı ayrı tutulur.
 
 ## Feature tour
 

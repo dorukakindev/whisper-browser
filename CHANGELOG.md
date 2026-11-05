@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Podcast kütüphanesinde gereksiz workspace IPC/tam transkript aktarımı ve aramada kapak/abonelik yeniden kurulumu kaldırıldı; aynı RSS/legacy bölümünün kayıtlı transkript durumu korunur. Ortak RSS oynatıcısında yayıncı/kapak ve zaman doğrulama açıklaması düzeltilir, boş altyazı alanı gizlenir. [Kısa kalite/performance teslimi](docs/devir/2026-11-05-0950.md).
+
 - Claude tam v2 kompozisyonları mevcut Ana sayfa, Keşfet, film detayı, podcast kütüphanesi, Akışlar, yorum/analiz, zevk profili, web geçmişi ve İçerik Ağı işlemlerine bağlandı. Kaynak okuma düzeni, abonelik şeridi, gerçek kuyruk/çift dilli girişleri, gerekçeli öneri rafı ve kalıcı ağ görünümü güncellendi. [Teslim](docs/devir/2026-11-05-0904.md).
 
 - Browser, ana sayfa, RSS ve yerel kaynaklar tek browser temelli Podcast/Çift dilli çalışma görünümünde birleşti; mevcut oynatma sahipleri, transkript/çeviri ve ileri işlemler korunur. İleri araçlarda canlı düğüm kimliği ve podcast hızının sonraki bölüme taşınması düzeltildi. [Teslim](docs/devir/2026-11-05-0820.md).

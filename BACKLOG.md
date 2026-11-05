@@ -1,6 +1,6 @@
 # Bekleyen işler
 
-Son durum kontrolü: **2026-11-05**. Son ürün `e174602e05bea8df96bc12ebb3a616e1461f5920` Claude tam v2 kompozisyon entegrasyonudur; browser temelli ortak Podcast/Çift dilli sahipleri korunur. [Güncel teslim](docs/devir/2026-11-05-0904.md). Merge SHA teslimde ve Git geçmişinde doğrulanır.
+Son durum kontrolü: **2026-11-05**. Son ürün `0d3c9b9a964be756848701010147d7b54fefa5f9` kısa medya kalite/performance düzeltmesidir. [Güncel teslim](docs/devir/2026-11-05-0950.md). Claude v2 ve ortak Podcast/Çift dilli tasarım korunur; uzak/yerel master kimliği teslimde doğrulanır.
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
@@ -19,7 +19,7 @@ Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı deği
 - **Durum:** kullanıcının doğrudan uygulama talimatıyla tam `files (6).zip` v2 kompozisyonları mevcut sahipler üzerinden entegre edildi; ara ZIP ve örnek veriler alınmadı. Ortak aktif Podcast/Çift dilli görünüm ve asistanın mevcut davranışı korunur; bunları yeniden tasarlamak bu teslimin şartı değildir.
 - **Dal / kod:** `codex/claude-v2-native-integration-20261105`, ürün `e174602e05bea8df96bc12ebb3a616e1461f5920`. [Devir](docs/devir/2026-11-05-0904.md).
 - **Kanıt:** değişen davranışlara kısa Node/DOM regresyonları; LG ikinci monitörde izole Windows sayfaları, canlı Cinemeta detay/listesi, kayıtlı yayıncı RSS'i. Son yerleşim düzeltmeleri monitör kullanılmadan Electron offscreen render ve RSS → mevcut kuyruk → ortak çift dilli görünüm ile doğrulandı. İzin denemesi ve konsol hatası 0.
-- **Görsel sınır:** LG son kontrolde sistemden ayrıldı; son cila aynı fiziksel monitörde tekrar sınanmadı. İlk monitöre düşülmedi. Dolu yorum/analiz ve dolu ağın native görseli alınmadı; hedefli DOM ve kalıcılık testleri native estetik kanıtı sayılmaz.
+- **Görsel sınır:** ilk v2 turunun sonunda LG ayrılmıştı. [2026-11-05-0950 kalite turunda](docs/devir/2026-11-05-0950.md) podcast geniş/dar ve RSS ortak çift dilli görünüm yeniden ikinci LG üzerinde doğrulandı. Dolu yorum/analiz ve dolu ağın native görseli bu kısa turda alınmadı; DOM/kalıcılık testleri native estetik kanıtı sayılmaz.
 - **Tam sonraki adım:** ürün için yeni toplu test veya yeniden tasarım işi yok. LG erişilebilir olduğunda somut bir görünüm sorunu bildirilirse yalnız ilgili sayfayı kısaca kontrol et. Model/GPU/Spotify canlı ASR bu tasarım tesliminde yeniden sınanmadı; önceki canlı başarı veya sınırlar değişmiş sayılmaz.
 
 ## Birleşik Podcast/Çift dilli görünüm — 08:20
@@ -70,7 +70,14 @@ Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı deği
 
 - **Doğrulanmış ürün:** `c99bbe77b4b82345aaaa32be003a0619e99f95c1`, dal `codex/podcast-scene-actions-20261105`; görünür yazıya dök/çevir ve ses kontrolü, sesli çift dilli kompozisyon, native üst alan, RSS asistan yönlendirmesi. [Devir](docs/devir/2026-11-05-0754.md).
 - **Kanıt:** 47 kısa test, izole Windows gerçek RSS oynatma sahibi ve geniş/dar görünüm; izin denemesi 0. Gerçek Whisper/çeviri üretimi bu turda yeniden çalıştırılmadı; bu tek başına yeni bug görevi değildir.
-- **Kalan:** yeni görsel tasarım P019 kapsamında; mevcut Claude paketi bu üç aktif ekranı içermiyordu. Sonraki somut adım genişletilmiş gerçek ZIP'i Claude'a gönderip yeni teslimi güncel main ile karşılaştırmak. Başka sohbetin yalnız rapor bulguları bu tura otomatik uygulama kapsamı yapılmaz.
+- **Kalan:** P019 uygulandı; aktif Podcast/Çift dilli görünüm mevcut ortak browser bileşenidir. Yeni maket beklemek bir uygulama şartı değildir. Zamansız yazının çevirisi gibi önceki rapor sınırları bu kalite turunda kapanmış sayılmaz; yeni somut kapsamda kendi sahibinde ele alınır.
+
+## Kısa kalite/performance turu — tamamlandı
+
+- **Dal / kod:** `codex/media-quality-performance-20261105`, `0d3c9b9a964be756848701010147d7b54fefa5f9`. [Devir](docs/devir/2026-11-05-0950.md).
+- **Düzeltmeler:** bölüm başına transkript IPC'si ve tam metin aktarımı kaldırıldı; RSS/legacy eş kayıtta canonical durum kaybolmaz. RSS grupları bir kez indekslenir. Arama değişmeyen kapak/abonelik DOM'unu korur; geç bölüm açılışı ayrılmış kütüphanede araç çalıştırmaz. RSS kapağı/yayıncısı/etiketi ve salt okunur zaman açıklaması doğru; boş altyazı kutusu gizli.
+- **Kanıt:** 45 hedefli regresyon ve son etkilenen iki kontrol, sözdizimi/diff; izole LG1440×900 ve1000×800. Kütüphane208ms, bir arama2,5ms, açılışta bölüm başına workspace IPC0. Tek kontrollü800kayıt sayfa okuması29,13→12,66ms; genel uygulama/CPU/kararlılık benchmarkı değildir.
+- **Kalan / sonraki adım:** bu değişikliklerde yarım iş yok. Eski PR805 otomatik alınmadı; sırf doğrulanmamış genel sınırlar için yeni test kampanyası başlatılmaz. Yeni somut sorun olursa ilgili sayfa/iş sahibi üzerinde kısa yeniden üretim yapılır.
 
 ## Main'de tamamlananlar — tekrar yapılmayacak
 
