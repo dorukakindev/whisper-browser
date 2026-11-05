@@ -1,12 +1,13 @@
 "use strict";
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const {JSDOM}=require('jsdom');
-function mount(t,{untimed=false,cinema=false,audio=false,empty=false,study=false,actions=[],timingNotice='',save=false}={}){
+function mount(t,{untimed=false,cinema=false,audio=false,empty=false,study=false,actions=[],timingNotice='',save=false,processing=false}={}){
  const dom=new JSDOM('<div id="host"></div>',{url:'https://test.invalid',pretendToBeVisual:true,runScripts:'outside-only'}),w=dom.window;
  w.UiLocale={get:()=> 'tr'};w.matchMedia=()=>({matches:true});w.Element.prototype.scrollTo=function(value){this.scrollTop=value.top;};
  let time=2,revision="r1";const commands=[];const rows=untimed?[{id:'text',start:0,end:0,timed:false,src:'Yayıncı metni',trs:[],unc:[],words:null}]:[{id:'a',start:0,end:10,timed:true,src:'A source sentence',trs:['Birinci çeviri','İkinci çeviri'],unc:[],words:null},{id:'b',start:10,end:20,timed:true,src:'The next sentence',trs:[],unc:[],words:null}];
- const adapter={caps:{loop:true,cinema,study:true,save},identity:()=> 'same-source',actions:()=>actions,info:()=>({audio,title:'Bölüm',langs:{src:'en',tr:'tr'},chapters:[{t:0,label:'Giriş'},{t:10,label:'İkinci bölüm'}],queue:[{index:1,title:'Sıradaki gerçek kayıt'}]}),state:()=>({time,duration:30,paused:true,rate:1,volume:.42,rows:empty?[]:rows,rev:revision,untimed,timingNotice,canSeek:true}),cmd:(...args)=>{commands.push(args);return Promise.resolve(args[0]==='wordInfo'?{ok:true,word:args[1].word,source:rows[args[1].row].src,translations:rows[args[1].row].trs,canSave:true,saved:false}:{ok:args[0]!=='loop',code:'busy'});},panel:()=>({sections:[],job:{state:'idle'}})};
+ const adapter={processing:processing?()=>({duration:30}):null,caps:{loop:true,cinema,study:true,save},identity:()=> 'same-source',actions:()=>actions,info:()=>({audio,title:'Bölüm',langs:{src:'en',tr:'tr'},chapters:[{t:0,label:'Giriş'},{t:10,label:'İkinci bölüm'}],queue:[{index:1,title:'Sıradaki gerçek kayıt'}]}),state:()=>({time,duration:30,paused:true,rate:1,volume:.42,rows:empty?[]:rows,rev:revision,untimed,timingNotice,canSeek:true}),cmd:(...args)=>{commands.push(args);return Promise.resolve(args[0]==='wordInfo'?{ok:true,word:args[1].word,source:rows[args[1].row].src,translations:rows[args[1].row].trs,canSave:true,saved:false}:{ok:args[0]!=='loop',code:'busy'});},panel:()=>({sections:[],job:{state:'idle'}})};
  w.eval(fs.readFileSync(require.resolve('../src/renderer/browser-study-view.js'),'utf8'));
+ w.eval(fs.readFileSync(require.resolve('../src/renderer/podcast-task-scope.js'),'utf8'));
  w.eval(fs.readFileSync(require.resolve('../src/renderer/sahne.js'),'utf8'));
  const sh=new w.Sahne(w.document.getElementById('host'),adapter,{mode:cinema?'cinema':study?'study':'podcast',intro:false});
  t.after(()=>{sh.destroy();w.close();});return {w,sh,commands,setTime:value=>time=value,setRevision:value=>revision=value};
@@ -98,4 +99,14 @@ test('note editor captures only a source-row text selection and omits unrelated 
  f.sh.openNote(0);assert.equal(f.sh.s.note.excerpt,'source');assert.equal(f.sh.q('.sh-note-card .sh-word-context').textContent,'source');assert.equal(f.sh.q('.sh-note-card .sh-word-translation'),null);
  await f.sh.saveNote();const saved=f.commands.find(c=>c[0]==='save');assert.equal(saved[1].excerpt,'source');assert.equal(saved[2],'r1');
  const translation=f.sh.q('[data-i="0"] .tr');range.selectNodeContents(translation);selection.removeAllRanges();selection.addRange(range);f.sh.openNote(0);assert.equal(f.sh.s.note.excerpt,undefined);assert.equal(f.sh.q('.sh-note-card .sh-word-context').textContent,'A source sentence');
+});
+
+
+test('podcast interval control previews duration, freezes scope and never falls back on invalid input',async t=>{
+ const calls=[],f=mount(t,{study:true,processing:true,actions:[{id:'transcribe-translate',label:'Yazıya dök ve çevir',run:async config=>{calls.push(config);return {queued:true};}}]});
+ assert.equal(f.sh.scopeBox.querySelector('.sh-seg').children.length,2);assert.match(f.sh.scopeBox.textContent,/Bölümün tamamı/);assert.match(f.sh.scopeBox.querySelector('.sh-scope-summary').textContent,/0:30/);
+ f.sh.scopeBox.querySelector('[data-scope=range]').click();assert.equal(f.sh.scopeBox.querySelector('[data-scope=range]').getAttribute('aria-selected'),'true');f.sh.scopeBox.querySelector('[data-scope-time=start]').value='0:05';f.sh.scopeBox.querySelector('[data-scope-time=end]').value='0:17';f.sh.updateScope();assert.match(f.sh.scopeBox.querySelector('.sh-scope-summary').textContent,/0:12/);
+ await f.sh.startTask('transcribe-translate');assert.equal(calls.length,1);assert.deepEqual(JSON.parse(JSON.stringify(calls[0].range)),{start:5,end:17});assert(Object.isFrozen(calls[0].range));
+ f.sh.scopeBox.querySelector('[data-scope-time=end]').value='0:99';await f.sh.startTask('transcribe-translate');assert.equal(calls.length,1);
+ f.sh.scopeBox.querySelector('[data-scope=full]').click();await f.sh.startTask('transcribe-translate');assert.equal(calls[1].range,null);
 });

@@ -25,13 +25,13 @@ function validateWorkspace(w){
  if(!w||typeof w.sourceVersion!=='string'||!/^[a-f0-9]{64}$/.test(w.sourceVersion)||!Number.isFinite(w.position)||w.position<0||w.position>31536000||!Number.isFinite(w.rate)||w.rate<.25||w.rate>4)throw Error('Invalid podcast workspace.');
  if(w.previous){if(w.previous.previous)throw Error('Nested podcast history is not supported.');validateWorkspace(w.previous);}
  if(w.spotifyUrl&&spotifyEpisode(w.spotifyUrl)!==w.spotifyUrl)throw Error('Invalid Spotify binding.');
- for(const t of [w.transcript,w.translation].filter(Boolean)){if(!['timed','untimed'].includes(t.state)||typeof t.text!=='string'||t.text.length>500000||!['vtt','srt','plain'].includes(t.format)||!['publisher','asr','user'].includes(t.provenance))throw Error('Invalid saved podcast transcript.');if(t.state==='timed'){if(t.format==='plain')throw Error('Plain podcast transcript has no timing.');validateTimedText(t.text);}}
+ for(const t of [w.transcript,w.translation].filter(Boolean)){if(!['timed','untimed'].includes(t.state)||typeof t.text!=='string'||t.text.length>500000||!['vtt','srt','plain'].includes(t.format)||!['publisher','asr','user'].includes(t.provenance))throw Error('Invalid saved podcast transcript.');if(t.coverage!=null&&(!Number.isFinite(t.coverage.start)||!Number.isFinite(t.coverage.end)||t.coverage.start<0||t.coverage.end<=t.coverage.start||t.coverage.end>31536000))throw Error('Invalid podcast coverage.');if(t.state==='timed'){if(t.format==='plain')throw Error('Plain podcast transcript has no timing.');validateTimedText(t.text);}}
  return w;
 }
 // Read-only list projection: never copy full transcript/history bodies through library IPC.
 function libraryState(entry){
  const version=sourceVersion(entry),saved=entry.podcastWorkspace,current=saved?.sourceVersion===version;
- const summary=track=>track?{state:track.state,status:track.status||'complete',hasText:!!track.text?.trim()}:undefined;
+ const summary=track=>track?{state:track.state,status:track.status||'complete',hasText:!!track.text?.trim(),...(track.coverage?{coverage:{...track.coverage}}:{}),...(track.recovery?{recoveryAvailable:true,total:track.recovery.completed.length,completed:track.recovery.completed.filter(Boolean).length}:{})}:undefined;
  return {sourceVersion:version,positionState:saved&&(!current||saved.previous&&!saved.transcript)?'needs-review':undefined,
   podcastWorkspace:current?{sourceVersion:version,position:saved.position,rate:saved.rate,transcript:summary(saved.transcript),translation:summary(saved.translation)}:undefined};
 }

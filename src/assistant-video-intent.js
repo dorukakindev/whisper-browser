@@ -10,7 +10,7 @@
  function match(value){
   const text=foldCommand(value).trim();
   if(!text||text.length>500||/["“”`]/u.test(text))return null;
-  if(/(?:nasıl|neden|niye|how|why|what is|ne demek|yapabilir miyiz|mümkün mü)/u.test(text))return null;
+  if(/(?:^|\s)(?:nasıl|neden|niye|how|why|what is|ne demek|yapabilir miyiz|mümkün mü)(?:\s|[?!.]|$)/u.test(text))return null;
   if(/(?:kötü|berbat|çalışmıyor|bozuk|terrible|broken|doesn't|isn't|do not|don't|istemiyorum)/u.test(text))return null;
   const noTranslation=/(?:çevirme|çevirmey|çevirilmesin|çevirisiz|çeviri olmadan|çeviri yapmadan|without translat|do not translat|don't translat)/u.test(text);
   if(/(?:çıkarma|çıkarılmasın|başlatma|without transcrib|do not transcrib|don't transcrib)/u.test(text))return null;
@@ -33,8 +33,10 @@
   const timed=text.match(/\b(\d{1,3}:\d{2}(?::\d{2})?)\s*(?:-|–|—|ile|to|until|arasında|arasi)\s*(\d{1,3}:\d{2}(?::\d{2})?)\b/u);
   const minutes=text.match(/\b(\d{1,3})\s*(?:ile|-|–|—|to)\s*(\d{1,3})\s*(?:dakika|dakikalar|minute|min)\b/u);
   const ordinal=text.match(/\b(\d{1,3})\.?\s*dakika(?:dan|sından)?\s*(?:ile|to|-|–)?\s*(\d{1,3})\.?\s*dakika(?:ya|sına)?/u);
+  const units=text.match(/\b(\d{1,5})\.?\s*(saniye|dakika)(?:den|dan)\s+(\d{1,5})\.?\s*(saniye|dakika)(?:ye|ya)\s+kadar\b/u)||text.match(/\bfrom\s+(\d{1,5})\s*(seconds?|minutes?)\s+to\s+(\d{1,5})\s*(seconds?|minutes?)\b/u);
+  const unitSeconds=(n,u)=>Number(n)*(/dakika|minute/u.test(u)?60:1);
   const mins=minutes||ordinal;
-  const range=timed?{start:clock(timed[1]),end:clock(timed[2])}:mins?{start:Number(mins[1])*60,end:Number(mins[2])*60}:null;
+  const range=timed?{start:clock(timed[1]),end:clock(timed[2])}:units?{start:unitSeconds(units[1],units[2]),end:unitSeconds(units[3],units[4])}:mins?{start:Number(mins[1])*60,end:Number(mins[2])*60}:null;
   const rangeInvalid=!!range&&(!Number.isFinite(range.start)||!Number.isFinite(range.end)||range.end<=range.start);
   const rangeUnresolved=!range&&/\d/u.test(text)&&/(?:dakika|saniye|minute|second|\d:|aralı|between)/u.test(text);
   const wholeVideo=/(?:videonun\s+(?:tamamını|tümünü)|(?:tüm|bütün)\s+videoyu|(?:whole|entire|full)\s+video)/u.test(text);

@@ -33,6 +33,9 @@
 .mt-profile .mk-accordion-content{padding:4px 0 8px}
 .mt-evidence-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:7px 0}
 .mt-evidence-row>span{white-space:nowrap;font-variant-numeric:tabular-nums}
+.mt-evidence-copy{min-width:0;flex:1 1 160px}
+.mt-evidence-copy>small{display:block}
+.mt-evidence-correction{flex:0 1 auto;text-align:left}
 .mt-rec-filters{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0}
 .mt-rec-filters .mk-picker-trigger{min-height:36px;font-size:12px}
 .mt-rec-filters [aria-pressed=true]{border-color:var(--accent);color:var(--text);background:var(--accent-soft)}

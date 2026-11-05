@@ -196,12 +196,13 @@
       return [
         ['transcribe', T('Whisper ile yazıya dök', 'Transcribe with Whisper')],
         ['transcribe-translate', T('Yazıya dök ve çevir', 'Transcribe and translate')],
-        ...(status.hasSourceTranscript ? [['translate', T('Transkripti çevir', 'Translate transcript')]] : [])
+        ...(status.hasSourceTranscript ? [['translate', T('Transkripti çevir', 'Translate transcript')]] : []),
+        ...((status.translationRetry?.failed>0||status.translationRetry?.partial)?[['retry-translation',T('Yalnız eksikleri tamamla','Complete missing only')+(status.translationRetry.failed>0?' · '+status.translationRetry.failed:'')]]:[])
       ].map(([id, label], index) => ({ id, type: 'button', label, primary: index === 0,
-        disabled: !current() || !!status.preparing,
-        hint: status.preparing ? T('Kaynak hazırlanıyor…', 'Preparing source…') : '',
-        run: () => { if (!current()) throw new Error(T('Kaynak değişti; işlem başlatılmadı.', 'Source changed; task not started.'));
-          return service.runPodcastTask({ operation: id, expected, isCancelled: () => !current() }); }
+        disabled: !current() || !!status.preparing || ['queued','running'].includes(status.job?.state) || id==='retry-translation'&&!status.translationRetry?.canRetry,
+        hint: id==='retry-translation'?(status.translationRetry?.canRetry?`${status.translationRetry.completed}/${status.translationRetry.total} `+T('hazır; başarılı satırlar korunur.','ready; successful lines are kept.'):T('Bu sonuç için güvenli kurtarma bilgisi yok veya çeviri modu uyuşmuyor.','Safe recovery metadata is unavailable or the translation mode differs.')):status.preparing ? T('Kaynak hazırlanıyor…', 'Preparing source…') : '',
+        run: (config={}) => { if (!current()) throw new Error(T('Kaynak değişti; işlem başlatılmadı.', 'Source changed; task not started.'));
+          return service.runPodcastTask({ operation: id, expected,range:config.range||null, isCancelled: () => !current() }); }
       }));
     }
     function openAdvanced() {
@@ -256,7 +257,7 @@
     }
     return {
       caps: { loop: kind!=='shelf', save: typeof window.api.upsertResearchAnnotation==='function', cinema:kind==='local', study:true, word:kind!=='shelf' },
-      identity, panel, actions,
+      identity, panel, actions,processing:kind==='shelf'||F.snap()?.sourceKind==='rss'?()=>({duration:F.snap()?.duration}):null,
       info: () => { const s = F.snap(), l = F.langs(); return { title: F.mediaTitle() || s?.title || '', sub: F.sub(), eyebrow: F.eyebrow?.() || (kind === 'browser' ? T('Şimdi çalıyor', 'Now playing') : kind === 'shelf' ? T('Podcast', 'Podcast') : T('Yerel oynatıcı', 'Local player')), cover: F.cover(), tint: null,
         chapters:kind==='shelf'?[]:(player.chapters||[]).filter(c=>Number.isFinite(c.start)&&c.start>=0&&(!s?.duration||c.start<s.duration)).map(c=>({t:c.start,label:String(c.title||T('Bölüm','Chapter'))})),
         queue:kind==='local'?(player.playlist||[]).map((file,index)=>({index,title:window.PlayerUiKit?.displayTitle(String(file).split(/[\\/]/).pop())||String(file)})).slice(Math.max(0,player.playlistIndex+1),Math.max(0,player.playlistIndex+1)+2):[],native:kind==='local'&&!!window.NativePlayerUI?.active(),audio:kind==='shelf'||s?.sourceKind==='rss'||kind==='local'&&num($('playerVideo')?.readyState)>=2&&!num($('playerVideo')?.videoWidth),langs:l }; },

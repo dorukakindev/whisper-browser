@@ -74,6 +74,7 @@ function filterResearchAnnotations(rows, filters = {}, now = Date.now()) {
   const status = String(filters.status || 'all');
   const dueOnly = filters.dueOnly === true;
   return (Array.isArray(rows) ? rows : []).filter((row) => {
+    if(filters.podcastSource){const id=String(filters.podcastSource.sourceEntryId||''),identity=String(filters.podcastSource.episodeIdentity||'');if(row.mediaType!=='podcast'||!((id&&row.sourceEntryId===id)||(identity&&(row.episodeIdentity||row.sourceBinding?.episodeIdentity)===identity)))return false;}
     if (type !== 'all' && row.type !== type) return false;
     if (status !== 'all' && row.status !== status) return false;
     const tags = normalizeResearchTags(row.tags);

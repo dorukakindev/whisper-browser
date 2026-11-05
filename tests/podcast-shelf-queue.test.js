@@ -58,3 +58,19 @@ test('Translation cancellation during final registry validation cannot enqueue l
  const b={entryId:'A',sourceVersion:'download-A',playbackOwner:'player',mediaKey:'rss:A',generation:2,materializedPath:'owned.srt',sourceTranscriptText:'source',track:{id:'saved',revision:'download-A',timed:true}};
  const request=r.context.window.translatePodcastSource(b,{isCancelled:()=>cancelled});cancelled=true;resolve({ok:true,sourceVersion:'download-A',workspace:{transcript:{state:'timed',status:'complete',text:'source'}}});await assert.rejects(request,/changed/);assert.equal(r.state.queue.length,0);
 });
+
+
+test('podcast queue retains explicit interval in frozen options and clears old UI intervals for whole episode',async()=>{
+ const r=setup();r.context.window.PodcastTaskScope=require('../src/renderer/podcast-task-scope');r.ui.clipStart='10';r.ui.clipEnd='20';
+ await r.context.window.queuePodcastSource(binding,{operation:'transcribe-translate',range:{start:'0:30',end:'0:42'}});const q=r.state.queue[0];assert.equal(q.opts.clipStart,'30');assert.equal(q.opts.clipEnd,'42');assert.equal(q.opts.translate,true);assert(Object.isFrozen(q.opts));assert.equal(q.podcastBinding.coverage.start,30);
+ await r.context.window.queuePodcastSource(binding,{operation:'transcribe'});assert.equal(r.state.queue[1].opts.clipStart,'');assert.equal(r.state.queue[1].opts.clipEnd,'');assert.equal(r.state.queue[1].podcastBinding.coverage,null);
+ await assert.rejects(r.context.window.queuePodcastSource(binding,{operation:'transcribe',range:{start:42,end:30}}));assert.equal(r.state.queue.length,2);
+});
+
+
+test('missing-only podcast retry passes immutable existing translation paths and strict backend flag',async()=>{
+ const r=setup();r.context.document={getElementById:id=>({value:'tr',checked:false})};const captured={...binding,sourceTranscriptText:'source'};
+ r.context.window.api.feedsRequest=async req=>{r.requests.push(req);return {ok:true,sourcePath:'managed-source.srt',translationPath:'managed-partial.srt',targetLanguage:'tr',forSpeech:false,coverage:{start:30,end:42},total:4,completed:3,failed:1};};
+ const receipt=await r.context.window.retryPodcastTranslation(captured);assert.equal(receipt.failed,1);const q=r.state.queue[0];assert.equal(q.opts.translateRetryOnly,true);assert.equal(q.opts.translateCueRange,'30:42');assert.equal(q.opts.translateExisting,'managed-partial.srt');assert.equal(q.opts.input,'managed-source.srt');assert.equal(q.opts.mergeContinuation,false);assert.equal(q.podcastBinding.coverage.start,30);assert.equal(q.podcastBinding.outputRole,'translation');assert.equal(r.requests[0].expectedTranscriptText,'source');assert(Object.isFrozen(q.opts));
+ let resolve;r.context.window.api.feedsRequest=()=>new Promise(done=>resolve=done);const late=r.context.window.retryPodcastTranslation(captured);r.setSnapshot({mediaKey:'next',generation:99,sourceVersion:'different'});resolve({ok:true});await assert.rejects(late,/changed/);assert.equal(r.state.queue.length,1);
+});

@@ -61,3 +61,13 @@ test('recommendations respect projected personal dislikes, watch state and resum
  const p=taste.profile([],catalog,{weights:{story:5},avoid:['pace']});assert.equal(p.rated,1);assert.deepEqual(p.recommendations.map(row=>row.itemId),['f']);assert.ok(p.recommendations[0].limitations.includes('aspect-priorities-not-scored'));
  const onlyLike=taste.profile([],catalog.filter(row=>row.id==='f'));assert.equal(onlyLike.rated,0);assert.deepEqual(onlyLike.signals.genres,[]);
 });
+
+test('rating evidence keeps the real current-library or latest-diary origin for correction',()=>{
+ const diary=[{title:'Current',year:2020,rating:1,watchedDate:'2020-01-01'},{title:'Imported',year:2020,rating:2,watchedDate:'2020-01-01'},{title:'Imported',year:2020,rating:5,watchedDate:'2024-02-03'}];
+ const p=taste.profile(diary,[film('current','Current',10),film('imported','Imported',null),film('library','Library only',8)]);
+ const evidence=p.signals.genres.find(row=>row.name==='Drama').evidence;
+ assert.equal(evidence.find(row=>row.title==='Current').ratingSource,'catalog');assert.equal(evidence.find(row=>row.title==='Current').rating,5);
+ assert.equal(evidence.find(row=>row.title==='Imported').ratingSource,'diary');assert.equal(evidence.find(row=>row.title==='Imported').ratingDate,'2024-02-03');
+ assert.equal(evidence.find(row=>row.title==='Library only').ratingSource,'catalog');
+ assert(p.recommendations.every(row=>row.evidence.every(item=>['catalog','diary'].includes(item.ratingSource))));
+});

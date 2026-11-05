@@ -318,13 +318,13 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           const fresh=load(),target=found(fresh,'podcasts',input.id).episodes.find(e=>e.url===input.url);
           if(!target||target.episodeIdentity!==episode.episodeIdentity&&target.feedEntryId!==binding.entryId)throw Error('Podcast source changed.');
           const output={...target,podcastWorkspace:undefined,registryWorkspace:binding.workspace};
-          return {ok:true,...binding,track:podcastTrack(output),translation:podcastTrack(output,'translation')};
+          return {ok:true,...binding,track:podcastTrack(output),translation:podcastTrack(output,'translation'),translationRetry:require('./podcast-translation-recovery').recoveryInfo(binding.workspace?.transcript,binding.workspace?.translation)};
         }
         case 'podcast-workspace': {
           const podcast=found(load(),'podcasts',input.id), episode=podcast.episodes.find(e=>e.url===input.url);
           if(!episode)throw Error('Podcast episode changed.');
           const workspace=episode.podcastWorkspace?.sourceVersion===episode.sourceVersion?episode.podcastWorkspace:null;
-          return {ok:true, episodeIdentity:episode.episodeIdentity, sourceVersion:episode.sourceVersion, track:podcastTrack(episode),translation:podcastTrack(episode,'translation'),position:workspace?.position||0,rate:workspace?.rate||1, descriptors:episode.transcriptDescriptors||[]};
+          return {ok:true, episodeIdentity:episode.episodeIdentity, sourceVersion:episode.sourceVersion, track:podcastTrack(episode),translation:podcastTrack(episode,'translation'),translationRetry:require('./podcast-translation-recovery').recoveryInfo((episode.registryWorkspace||episode.podcastWorkspace)?.transcript,(episode.registryWorkspace||episode.podcastWorkspace)?.translation),position:workspace?.position||0,rate:workspace?.rate||1, descriptors:episode.transcriptDescriptors||[]};
         }
         case 'podcast-transcript': {
           const data=load(), podcast=found(data,'podcasts',input.id), episode=podcast.episodes.find(e=>e.url===input.url);

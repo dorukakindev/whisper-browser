@@ -2565,7 +2565,8 @@ ipcMain.handle('media:readSubtitle', async (_e, filePath) => {
     }
     // mtime/size renderer'ın kör yazmasını önlemek için döner (lost-update koruması).
     const stat = fs.statSync(filePath);
-    return { ok: true, text, note, wordSegments, playbackContext, mtimeMs: stat.mtimeMs, size: stat.size };
+    const translationRecovery=require('./podcast-translation-recovery').readOutputRecovery(filePath,bytes);
+    return { ok: true, text, note, wordSegments, playbackContext,translationRecovery, mtimeMs: stat.mtimeMs, size: stat.size };
   } catch (err) {
     return { ok: false, error: err.message };
   }
@@ -21676,6 +21677,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
 
 
   if (!options.chat && options.translateExisting) pushBoundOption(args, '--translate-existing', options.translateExisting);
+  if (!options.chat && options.translateRetryOnly === true) args.push('--translate-retry-only');
   if (!options.chat && options.translateOnly && options.translateCueRange) {
     // 'BASLANGIC:BITIS' saniye — backend yalnız aralıkla kesişen cue'ları yeniden çevirir.
     const cueRange = String(options.translateCueRange).trim();
