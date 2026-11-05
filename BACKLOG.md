@@ -1,6 +1,6 @@
 # Bekleyen işler
 
-Son durum kontrolü: **2026-11-05**. Başlangıç master/ana kopya `66cf5c3fc1f53a523fbf85ce671d43bc2ced0de5`; son ürün `c99bbe77b4b82345aaaa32be003a0619e99f95c1` aktif podcast işlemleri/asistan düzeltmesidir. Nihai merge SHA teslimde ve Git geçmişinde doğrulanır. Güncel tasarım devamı P019’dur.
+Son durum kontrolü: **2026-11-05**. Başlangıç master `a49a4cdee8e8b32ee6937082fb217d406212870e`; son ürün `152389cdcc1725e0afd989a046e2e49157dee93e` browser temelli ortak Podcast/Çift dilli görünümdür. Nihai merge SHA teslimde ve Git geçmişinde doğrulanır. Güncel tasarım devamı P019’dur.
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
@@ -22,6 +22,12 @@ Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı deği
 - **Kalan kabul:** ağdaki toast ile biten sonuç/ekleme/görünüm/dışa aktarma akışları; ağ etiketleri, analiz/profil kompozisyonu, web rozeti çakışması; yeni beş sayfa ve aktif Podcast/Çift dilli Sahne/asistan ekranlarının çalışan prototipi ve mevcut işlevlerin eşlemesi. Görünüm birinci öncelik; bu turdaki eski yerleşimler değiştirilebilir.
 - **Dal/PR:** henüz ürün entegrasyon dalı/PR’si yok. Bu kaydı ekleyen dal `codex/project-continuation-records-20261105` yalnız belgedir.
 - **Tam sonraki adım:** güncellenmiş Claude paketini önce bu brief ve güncel master ile karşılaştır; kapsam/eksikleri bildir. Uygulama talimatı geldiğinde mevcut sahiplerle entegre et. Dosyaları eski master’dan üzerine yazma; uzun matris/CPU/Computer Use/izin penceresi testi yok.
+
+## Birleşik Podcast/Çift dilli görünüm — 08:20
+
+- **Tamamlanan ürün:** `152389cdcc1725e0afd989a046e2e49157dee93e`, dal `codex/unified-browser-study-20261105`; [devir](docs/devir/2026-11-05-0820.md). Browser, ana sayfa, RSS/shelf ve yerel girişler tek browser temelli kompozisyonu kullanır; oynatma/işlem sahipleri korunur. Ayrı podcast deck'i kaldırıldı, ileri araç düğümleri korunur; 1.75 hız sonraki bölüme taşınır.
+- **Kanıt:** 35 hedefli test + iki browser betiği; izole Windows RSS/yerel/kontrollü browser ve geniş/dar kontrol; son koşularda konsol hatası/izin denemesi 0. Gerçek model/Spotify/mpv bu tur yeniden sınanmadı.
+- **Devam:** P019 tasarım geliştirmeleri aynı ortak bileşen üzerinde yapılacak; ayrı kaynak tasarımı yeniden kurulmayacak. Önceki paketin aktif ekran PNG'leri bu son birleşik düzenin birebir referansı sayılmaz. Kalan düz metin çevirisi/klasik okuma sınırları bu sunum işiyle kapanmış sayılmaz.
 
 ## P018 — Kullanıcı podcast listesi: dış kaynakta kalan erişimler
 

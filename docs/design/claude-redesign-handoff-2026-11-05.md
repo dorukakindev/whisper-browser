@@ -34,6 +34,10 @@ Güncel gönderilebilir ZIP: `artifacts/claude-design-next-2026-11-05/claude-tas
 
 Mevcut uygulamadaki somut işlev/yerleşim düzeltmeleri [ayrı teslimde](../devir/2026-11-05-0754.md). Bu kısa düzeltme, Claude'un henüz teslim etmediği yeni aktif Sahne tasarımı veya bütün podcast özelliklerinin canlı kabulü olarak sunulmaz.
 
+## Sonraki kullanıcı kararı — ortak browser görünümü, 08:20
+
+Kullanıcı browser tarafını daha iyi buldu ve ana sayfa/RSS/yerel Podcast ile Çift dilli girişlerin aynı şeyi kullanmasını istedi. [Ortak sunum entegrasyonu](../devir/2026-11-05-0820.md) bu kararı uygular. Sonraki Claude teslimi bu modlar için yeni paralel ekranlar değil, aynı browser temelli ortak bileşenin geliştirilmesini hedeflemeli. Kaynak başına kapak/video ve gerçek yetenekler uyarlanır; temel yerleşim, kontroller ve davranışlar ortaktır. Önceki ZIP'in aktif Sahne görselleri son birleşik düzen değildir; güncel GitHub kodu ve bu karar önceliklidir. Diğer P019 sayfalarının yaratıcı yeniden tasarım kapsamı korunur.
+
 ## Geçerli kararlar
 
 Görünüm en önemli önceliktir. Güçlü ve modern tasarım, belirgin hover/ışık/efekt ve sürekli dekoratif animasyon kullanılabilir. Zorunlu sakinlik/minimalizm veya düşük hareket kuralı yok. Tasarımcının görsel çözümüne karışılmaz; sabit kolon/ölçü/koreografi dayatılmaz. Grafit/amber medya kimliği, okunabilirlik, hareket tercihi, erişilebilirlik ve mevcut işlev/veri/güvenlik sahipleri korunur.

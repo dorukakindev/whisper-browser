@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Browser, ana sayfa, RSS ve yerel kaynaklar tek browser temelli Podcast/Çift dilli çalışma görünümünde birleşti; mevcut oynatma sahipleri, transkript/çeviri ve ileri işlemler korunur. İleri araçlarda canlı düğüm kimliği ve podcast hızının sonraki bölüme taşınması düzeltildi. [Teslim](docs/devir/2026-11-05-0820.md).
+
 - Aktif RSS podcast Sahnesinde görünür Whisper/yazıya dök ve çevir işlemleri ile ses sürgüsü; sesli çift dilli bölüm kimliği ve dar ekran/native üst alan düzeltmeleri. Asistan aktif RSS kaynağını mevcut üretim kuyruğuna yönlendirir; kaynak/sohbet/iptal ve kuyruk seçenekleri korunur. [Kısa doğrulama ve canlı sınırlar](docs/devir/2026-11-05-0754.md).
 
 - Spotify program/bölüm bağlantıları RSS olmadan mevcut browserda açılıp kaynak olarak kaydedilebilir; oynayan Spotify medyasında Podcast/Çift dilli girişleri yeniden RSS aramasına dönmez. Büyük podcast RSS desteği ve tüm kütüphane okuyucularında ortak 32 MB sınırı; kaynak URL’lerinin zararsız takip parametreleri korunurken özel erişim anahtarları reddedilir.
