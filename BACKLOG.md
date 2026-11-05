@@ -1,6 +1,6 @@
 # Bekleyen işler
 
-Son durum kontrolü: **2026-11-05**. Son ürün `fac20e3aea47adb8853925c630e3760b22cc71f0`: podcast günlük kullanım zinciri ve çift dilli asistan bağlamı. [Güncel teslim](docs/devir/2026-11-05-1310.md). Onaylı ortak Sahne tasarımı korunur.
+Son durum kontrolü: **2026-11-05**. Son ürün `c638d491f08d021aaf166a3bf00be68aa533e152`: asistanın gerçek zevk kanıtları ve doğrulanmış yapım açma sonucu. [Güncel teslim](docs/devir/2026-11-05-1337.md). Onaylı ortak Sahne tasarımı korunur.
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
@@ -12,6 +12,13 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 
 
 Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı değildir. Her seferinde tek kapsam kapatılır; yeni somut arıza önceliği değiştirebilir.
+
+## P025 — Asistan zevk dayanakları ve öneriden işlem tamamlandı
+
+- **Kod/dal:** `c638d491f08d021aaf166a3bf00be68aa533e152`, `codex/assistant-taste-actions-20261105`; [devir](docs/devir/2026-11-05-1337.md).
+- **Uygulama:** her öneri gerekçesinde gerçek puan kaynağı ve karşıt kanıt korunur. Kabul edilmiş yorum analizi alıntıları ayrı aktarılır; eski analiz tarihsel, varsayılan öncelikler açık tercih sayılmaz. Önerilen yapım diğer bağlamlardan mevcut incelenmiş eylemle açılır; gerçek sayfa sonucu doğrulanmadan başarı bildirilmez. İzleme listesi mevcut önizleme/uygula kapısını korur; ham durum/tepki değerleri EN/TR gösterilir.
+- **Kanıt:** 43 hedefli kontrol/~1,14sn, JS sözdizimi/diff; LG1440×900 izole native gerçek katalog→öneri→detay açma, kişisel kayıt önizlemesinin yazmaması ve incelenmiş yürütücünün yalnız planlanan durumu kaydetmesi. Beğeni değişmedi; izin denemesi0. Yeni modül/test dosyası yok.
+- **Sınır/sonraki adım:** native kayıtlar test profiline özel kontrollü puan/metadatadır; kişisel veriler kullanılmadı. Gerçek main/preload/renderer servisleri çalıştı; yeni canlı LLM yanıtı veya AI'nin öneri kartını seçmesi/insanın karttaki Uygula tıklaması sınanmadı. Ücretli API, Spotify/DRM/GPU, ASR, matris/CPU kampanyası yapılmadı. Bu dar kapsamda yarım ürün işi yok; somut kullanım hatasında ilgili akışa dön.
 
 ## P024 — Podcast günlük kullanım zinciri tamamlandı
 
