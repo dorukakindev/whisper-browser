@@ -11,11 +11,11 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 - **Dal/kanıt:** codex/live-assistant-subtitles-20261105; [devir](docs/devir/2026-11-05-1358.md). Ürün HEAD 74ea1ebe704561b284e43df10032a41d4aafb0a7; ürün kodu değişmedi.
 - **Asistan:** gerçek yapılandırılmış model test kataloğundan gerekçeli/karşı kanıtlı öneri üretti; modelin detay açma ve planned kartları mevcut inceleme/onay arayüzünden test betiğiyle uygulandı. Gerçek depoda planned ve değişmeyen null tepki okundu; kişisel zevk verisi kullanılmadı.
 - **Browser kabulü tamamlandı:** [Gerçek sahne deviri](docs/devir/2026-11-05-1408.md). Resmî Blender tam Sintel videosunda İngilizce 26/Türkçe 29 satırdan eşleşen ilk iki replik, gerçek LG Browser video overlay'inde kontrol edildi. İki dil birlikte göründü; primary +2 sn ile İngilizce gecikti ve Türkçe sabit kaldı; secondary -2 sn ile Türkçe sonraki repliğe geçerken İngilizce ilk replikte kaldı. Yaklaşık 11 sn oynatma, gerçek decode kareleri ve üç görüntü, izin denemesi 0. İlk Türkçe aday 30 sn farklı sürümdü; eşleşen üçüncü aday seçildi. Ürün kodu değişmedi.
-- **Sonraki adım:** bu dar kabul kapalıdır; tüm film/sağlayıcı/işletim koşulları için genel senkron garantisi değildir. P004'ün diğer koşullarını bu tur kapatma.
+- **Sonraki adım:** bu dar kabul kapalıdır; tüm film/sağlayıcı/işletim koşulları için genel senkron garantisi değildir. P004 kalanları [site profili/fullscreen teslimiyle](docs/devir/2026-11-05-1417.md) kapandı.
 
 ## Uygulama sırası
 
-1. **P018 / P004 — Kaynak erişimi ve kalan canlı sınırlar:** yalnız erişim sağlandığında veya somut ihtiyaçta kısa kontrol; önceki başarılı testleri topluca tekrarlama.
+1. **P018 — Kaynak erişimi ve kalan canlı sınırlar:** yalnız erişim sağlandığında veya somut ihtiyaçta kısa kontrol; önceki başarılı testleri topluca tekrarlama.
 2. **P003 — Kütüphane:** gerçek kullanım ihtiyacında; şu an genel doğrulama kampanyası yok.
 3. **P001 — Performans:** ertelendi; benchmark/CPU/matris veya eski dalı otomatik merge etme.
 
@@ -92,14 +92,14 @@ Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı deği
 
 - Mevcut takipli R835, R837–842, R845, R847, R849, R851–852 bağlantıları eklendi; kişisel/untracked rapor yayımlanmadı. Eski raporlar yeni açık bug sayılmaz. [Teslim](docs/devir/2026-11-05-1040.md). Ana kopyanın R516 kişisel indeks farkı güncellemede korunur.
 
-## P004 — Browser panelinin kalan canlı doğrulaması
+## P004 — Browser paneli kısa canlı kabulü tamamlandı
 
-- **Durum:** özellik ve menü düzeltmeleri main'de; aşağıdakiler doğrulanmamış sınırlar, teyitli yeni bug değil.
-- **Main kanıtı:** PR808 paneli, sonraki web çift dilli/podcast geçişleri ve menü düzeltmeleri birleşti. [Web çift dilli kabulü](docs/devir/2026-11-05-0155.md), [podcast kaynak/yeniden açma](docs/devir/2026-11-05-0221.md), [yan panel](docs/devir/2026-11-05-0225.md), [menü turu](docs/devir/2026-11-05-0251.md).
-- **Tamamlanan kısa kabul:** gerçek sağlayıcı EN/TR indirme, tam Sintel videosunda çift dil gösterimi ve bağımsız sıfırdan farklı kaymanın sahneye etkisi [doğrulandı](docs/devir/2026-11-05-1408.md).
-- **Kalan kısa kontrol sırası:** (2) izole site profilini yeniden açma, (3) erişilebilir bir sayfada fullscreen/Shadow DOM altyazı yalıtımı. Uzun iş iptali ancak gerçek takılma veya ihtiyaç olduğunda ilgili iş üzerinde incelenir.
-- **Kabul:** seçilen akış aynı sekme/kaynakta doğru çalışmalı; sorun varsa yalnız ilgili sahipte düzeltme ve kısa regresyon. Test verisi ile canlı sağlayıcı sonucu ayrı belirtilir.
-- **Dal/PR / sonraki adım:** yeni düzeltme dalı yok. İlk adım, dosya erişim penceresi açmadan kullanılabilen sağlayıcı/iz yolunu seçmek; bu koşul sağlanmıyorsa o adımı zorlamadan kayda geçirmek. Computer Use, etkileşim trace kampanyası ve geniş kabul turu yok.
+- **Durum:** üç kısa kabul adımı kapandı; yeni ürün düzeltmesi gerekmedi. Önceki panel/menü özellikleri main'de.
+- **Gerçek altyazı/sahne:** [EN/TR indirme, çift dil ve bağımsız kayma](docs/devir/2026-11-05-1408.md).
+- **Yeniden açma:** [güncel devir](docs/devir/2026-11-05-1417.md). Aynı izole test profili iki ayrı Electron sürecinde açıldı; gerçek Blender origin'inde site ölçeği1.12/satır aralığı11 ve localStorage işareti geri geldi. Başka origin'de ölçek1, site ayarı taşınmadı. Otomatik site başına çerez kapsayıcısı iddiası yok.
+- **Fullscreen/Shadow DOM:** gerçek uzak Sintel videosu kontrollü açık shadow içine alındı; gerçek sağlayıcı EN/TR katmanı normal/tam ekran/çıkış/kapalı/yeniden açık durumlarda doğrulandı. Sayfa CSS'i katmanı bozmadı, tek overlay kaldı; sayfa ana dünyası ayrıcalıklı API/izole controller globalini görmedi. LG görüntüleri ve gerçek decode kareleri, birkaç saniye oynatma; son iki süreçte dosya izin denemesi0. Fullscreen izni yalnız test profilinde mevcut site izin kaydıyla verildi.
+- **Sınır/sonraki adım:** kontrollü açık Shadow DOM düzenidir; bütün canlı siteler, kapalı shadow root, DRM, hesap/CUDA veya kişisel profil için genel kabul değildir. Bu dar P004 kapsamında açık iş yok; yeni somut arızada yalnız ilgili akışa dön. Uzun iş iptali ancak gerçek takılma/ihtiyaçta incelenir.
+- **Dal:** codex/browser-profile-fullscreen-20261105; ürün başlangıç/bitiş81b83025610e38fff54aac855c907e08966bff77; yalnız belge PR'ı. Computer Use, dosya izin penceresi ve geniş kampanya yok.
 
 ## P003 — Film kütüphanesinin kullanım sınırları
 
