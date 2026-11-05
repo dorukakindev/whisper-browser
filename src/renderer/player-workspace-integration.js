@@ -238,6 +238,10 @@
       onDictionary: value => { selection = value; player.selectedWord={word:value.text,cueIndex:source.cues.findIndex(c=>c.id===value.cueId),source:'source'};lookupSelectedWord(); },
       onOpenQueued: item => { const delta = Number(item.itemId) - player.playlistIndex; void playPlaylistDelta(delta); }
     });
+    const presentation=document.createElement('div');presentation.className='pw-presentation';presentation.setAttribute('role','group');presentation.setAttribute('aria-label',text('Oynatıcı görünümü','Player view'));
+    for(const [value,tr,en]of [[false,'Çift dilli çalış','Bilingual study'],[true,'Podcast','Podcast']]){const button=document.createElement('button');button.type='button';button.className='pw-btn';button.textContent=text(tr,en);button.setAttribute('aria-pressed',String(podcastMode===value));button.onclick=()=>{if(player.mediaKey===snap.mediaKey&&player.generation===snap.generation&&podcastMode!==value)podcastEntry.click();};presentation.append(button);}
+    const linkButton=PlayerUiKit.iconButton({icon:'link',label:text('Bölüm bağlantısı aç','Open episode link'),onClick:()=>window.PodcastLinkUI?.open({view:podcastMode?'podcast':'bilingual'})});presentation.append(linkButton);
+    view.querySelector('.pw-player-heading-actions')?.prepend(presentation);
     if (stage.parentNode !== result.stageSlot) result.stageSlot.append(stage);
     updatePanel();if(!ambient)ambient=createAmbient();ambient.sync();revealControls();
     stage.querySelector('.pw-podcast-cover')?.remove();

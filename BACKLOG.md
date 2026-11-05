@@ -116,3 +116,7 @@ Düzeltme ve kısa kabul tamam: `becde623c62b7cc01f7e2bc7e4e6a8739f1caad5`, dal 
 ## P013 — Kısa tarayıcı menü turu — 2026-11-05
 
 Düzeltme ve kısa kabul tamam: `c86f7bbebb2c81f55334388d9c723b645cb9ed1c`, dal `codex/browser-controls-pass-20261105`. [Devir](docs/devir/2026-11-05-0251.md). Podcast/bilingual/çıkış ve dar rail geçişleri, gizli YouTube adres paneli, boş NTP kapanışı giderildi; güvenlik onayları korunur. Son native kısa tur geçti, izin0. Yeni sağlayıcı/medya/model kabulü iddia edilmez. Sonraki adım PR/master/ana kopya kimlik eşitliği; ağır test gerekmez.
+
+## P014 — Görünür girişler ve doğrudan Spotify → RSS — 2026-11-05
+
+Uygulama ve kısa kabul tamam: ürün `a2fafa78a3e1630a2e1d6a22510d057aa1ed0928`, dal `codex/podcast-direct-links-20261105`. [Devir](docs/devir/2026-11-05-0317.md). 14 hedefli test; gerçek Spotify → Apple kaynak önerisi → NPR RSS incele/onayla → mevcut oynatıcıda Podcast → aynı kaynakla çift dilli geçiş geçti. Geniş/dar son görünümde taşma yok, izin çağrısı0. Bu tur Whisper/çeviri yeniden çalıştırılmadı; tüm Spotify içerikleri ve duyulabilir ses kabulü iddia edilmez. Bilinen uygulanmamış kapsam yok; sonraki adım yalnız PR/master/ana kopya SHA eşitliğinin son teslimde doğrulanması, ağır test yok.

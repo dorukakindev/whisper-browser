@@ -142,7 +142,10 @@
     const primary = controls.querySelector('[data-study-action="browserTrackTranslate"]');
     primary.classList.toggle('browser-study-primary', !primary.disabled && !paired);
   }
-  entry.addEventListener('click', open);
+  entry.addEventListener('click', event => {
+    if(window.PodcastLinkUI?.isSpotify(player.browserPageUrl))window.PodcastLinkUI.open({url:player.browserPageUrl,view:'bilingual'});
+    else open(event);
+  });
   new MutationObserver(refresh).observe(layer, { attributes: true, attributeFilter: ['class'] });
   window.addEventListener('browser-panel-layout', refresh);
   document.addEventListener('ui-locale-change', refresh);
