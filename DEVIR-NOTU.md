@@ -1,3 +1,4 @@
+Güncel inceleme: [Claude v2 paketi; kapsam tamamlananları ve aktif ekran eksikleri](docs/devir/2026-11-05-0829.md)
 Güncel çalışma: [Browser temelli ortak Podcast ve Çift dilli görünüm](docs/devir/2026-11-05-0820.md)
 Güncel çalışma: [Aktif podcast Sahnesi ve asistan RSS işlemleri](docs/devir/2026-11-05-0754.md)
 Güncel çalışma: [Proje dosyaları ve Claude tasarım devam kaydı](docs/devir/2026-11-05-0740.md)

@@ -6,7 +6,7 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 
 ## Uygulama sırası
 
-1. **P019 — Claude tasarım devamı:** güncellenmiş paket bekleniyor; geldiğinde aşağıdaki kapsamla karşılaştır. İlk prototip üretime aktarılmış değil.
+1. **P019 — Claude tasarım devamı:** tam v2 paketi alındı ve incelendi; aktif ortak Podcast/Çift dilli ve asistan ekranları eksik. Henüz ürün entegrasyonu/tasarım kabulü yok.
 2. **D001 — Rapor indeksini tamamla:** kişisel indeks farkını koruyarak takipli eksik bağlantıları birleştir; yalnız bağlantı/diff kontrolü.
 3. **P018 / P004 — Kaynak erişimi ve kalan canlı sınırlar:** yalnız erişim sağlandığında veya somut ihtiyaçta kısa kontrol; önceki başarılı testleri topluca tekrarlama.
 4. **P003 — Kütüphane:** gerçek kullanım ihtiyacında; şu an genel doğrulama kampanyası yok.
@@ -17,11 +17,12 @@ Bu sıra bir tam denetim veya bütün eski raporları yeniden açma planı deği
 
 ## P019 — Claude prototipinin tamamlanması ve yeni sayfalar
 
-- **Durum:** ilk beş alanlı paket incelendi; hedefli düzeltmeler ve podcast kütüphanesi/Ana sayfa/Keşfet/film detayı/Akışlar genişletme brief’i hazır. Yeni teslim henüz alınmadı; native entegrasyon veya tasarım kabulü verilmiş sayılmaz.
+- **Durum:** `files (6).zip` içindeki tam `whisper-tasarim-prototipi-v2.zip` alındı ve incelendi; önceki beş alan ve yeni beş sayfa var. `v2-ara2.zip` eksik ara sürümdür. Aktif ortak Podcast/Çift dilli oynatıcı ve tam asistan tasarımı yok; ürün entegrasyonu/tasarım kabulü verilmedi.
+- **Yeni inceleme:** [v2 teslim kontrolü](docs/devir/2026-11-05-0829.md); Git dışı `artifacts/claude-prototype-v2-review-2026-11-05/INCELEME.md`. Kısa Chromium kontrolü: 10 varsayılan alan, kapsam → simüle ağ sonucu ve gerçek JSON indirme geçti. Windows/native/model başarısı değildir.
 - **Kapsam ve kanıt:** [kalıcı tasarım devam kaydı](docs/design/claude-redesign-handoff-2026-11-05.md); yerel inceleme `artifacts/claude-prototype-review-2026-11-05/INCELEME.md`. Gönderilecek gerçek ZIP `artifacts/claude-design-next-2026-11-05/claude-tasarim-genisletme-aktif-sahne.zip`; varlıklar Git dışıdır, görülmüş varsayılmaz.
-- **Kalan kabul:** ağdaki toast ile biten sonuç/ekleme/görünüm/dışa aktarma akışları; ağ etiketleri, analiz/profil kompozisyonu, web rozeti çakışması; yeni beş sayfa ve aktif Podcast/Çift dilli Sahne/asistan ekranlarının çalışan prototipi ve mevcut işlevlerin eşlemesi. Görünüm birinci öncelik; bu turdaki eski yerleşimler değiştirilebilir.
+- **Kalan kabul:** ortak browser temelli aktif Podcast/Çift dilli oynatıcı ve tam asistan durumları; varsa tek adım yazıya dök+çevir. Kütüphane girişleri bu ekranların tasarlandığı anlamına gelmez. Ağın istek/sonuç ve JSON prototip açığı v2’de karşılandı; kalıcı ürün entegrasyonu ayrıca gerekir. Podcast bölüm listesini ilk ekrana daha yakın getirme önerisi engelleyici kabul şartı değildir.
 - **Dal/PR:** henüz ürün entegrasyon dalı/PR’si yok. Bu kaydı ekleyen dal `codex/project-continuation-records-20261105` yalnız belgedir.
-- **Tam sonraki adım:** güncellenmiş Claude paketini önce bu brief ve güncel master ile karşılaştır; kapsam/eksikleri bildir. Uygulama talimatı geldiğinde mevcut sahiplerle entegre et. Dosyaları eski master’dan üzerine yazma; uzun matris/CPU/Computer Use/izin penceresi testi yok.
+- **Tam sonraki adım:** tam v2’yi tasarım referansı olarak tut; eksik aktif ortak ekran/asistan kapsamını tamamlat veya açık uygulama talimatında mevcut ortak bileşene uyarla. Native’e aktarım henüz başlamadı; eski ara ZIP’i kullanma. Uygulama talimatı geldiğinde mevcut sahiplerle entegre et. Dosyaları eski master’dan üzerine yazma; uzun matris/CPU/Computer Use/izin penceresi testi yok.
 
 ## Birleşik Podcast/Çift dilli görünüm — 08:20
 
