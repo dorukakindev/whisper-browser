@@ -298,7 +298,7 @@
       const text=el('div');text.append(el('h2','',t('For you','Sana özel')),el('p','',t('Real recommendations from your saved preferences. Open a title to inspect its basis.','Kayıtlı tercihlerinle ilişkili öneriler. Dayanağını görmek için yapımı aç.')));
       heading.append(text,btn(t('See all','Tümünü gör'),()=>{state.tab='personal';state.rows=[];state.next=null;draw();void load();},'cn-button'));
       const rail=el('div','cv2-personal-rail');
-      for(const row of rows){const card=btn('',()=>details(row),'cv2-personal-card');card.append(image(row.poster,'cv2-personal-art'),el('strong','',window.MediaVisual.title(row.title)));
+      for(const row of rows){const card=btn('',()=>details(row),'cv2-personal-card'),art=image(row.poster,'cv2-personal-art');window.MediaVisual?.art(art,row.title);card.append(art,el('strong','',window.MediaVisual.title(row.title)));
         const basis=recommendationReason(row),reason=basis.label+' · '+basis.text;
         card.append(el('small','',reason));rail.append(card);}
       section.append(heading,rail);root.querySelector('.cv2-discover-section-heading')?.before(section);
