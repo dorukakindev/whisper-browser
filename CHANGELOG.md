@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Podcast ve Çift dilli Sahne hazır transkripte öncelik verir. İşlem araçları açılır bölümde, Asistan eylemi transkriptin altında erişilebilir. Browser Podcast’te “bu ana kadar” soruları yalnız bitmiş zamanlı satırları kullanır. [Devir](docs/devir/2026-11-06-0753.md).
+
 - Podcast kütüphanesindeki oynatıcı açılışı düzeltildi ve zamanlı cümle döngüsü eklendi. Çift dilli Sahne, döngüye alınan satırın zaman aralığı değişince döngüyü kapatır. Asistan, sohbet değişirse bekleyen podcast pasajı atlamasını sürdürmez. [Devir](docs/devir/2026-11-06-0728.md).
 
 - Asistan durdurma eylemi etkin kaynağa bağlı. Podcast ve Çift dilli Sahne’de eski iş kontrolleri kaynak değişince geçersizleşir, gecikmiş cümle atlaması kullanıcının duraklatmasını bozmaz. [Devir](docs/devir/2026-11-06-0716.md).
