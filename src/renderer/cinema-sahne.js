@@ -427,7 +427,7 @@
           else{localView='cinema';PW().setPodcastMode(false);SS.set('cp-sahne-off','1');}
           evaluate();
         }
-        const fallback=kind==='browser'?doc.querySelector('[data-podcast-view]'):$('cpSahneBtn');
+        const fallback=kind==='browser'?$('browserStudyOpen'):$('cpSahneBtn');
         (opener?.isConnected&&!opener.disabled?opener:fallback)?.focus({preventScroll:true});
       },
       onClassic: () => { if(mode!=='cinema'){void inst?.run('advanced');return;} SS.set('cp-sahne-off', '1'); evaluate(); },
