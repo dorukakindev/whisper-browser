@@ -116,7 +116,7 @@ test('personal exclusion uses kind plus provider identity and honors standalone 
     const items=[{id:'seed',kind:'film',imdbId:'tt1111111',title:'Liked',favorite:true,genres:['Drama']},
       {id:'series',kind:'series',imdbId:'tt3333333',title:'Series identity',watchStatus:'completed'}];
     registerMediaDiscovery({ipcMain:{handle:(_n,fn)=>handler=fn},authorized:()=>true,userData:()=>dir,catalogStore:()=>({list:()=>items}),
-      fetchImpl:async()=>new Response(JSON.stringify({metas:[{id:'tt2222222',name:'Disliked'},{id:'tt3333333',name:'Film identity'}]}))});
+      fetchImpl:async()=>new Response(JSON.stringify({metas:[{id:'tt2222222',name:'Disliked',genres:['Drama']},{id:'tt3333333',name:'Film identity',genres:['Drama']},{id:'tt4444444',name:'Wrong genre',genres:['Comedy']}]}))});
     const result=await handler({}, {action:'personal',kind:'film'});
     assert.equal(result.ok,true);assert.deepEqual(result.rows.map(r=>r.providerId),['tt3333333']);
   } finally {fs.rmSync(dir,{recursive:true,force:true});}

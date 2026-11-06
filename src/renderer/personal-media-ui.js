@@ -77,7 +77,7 @@
     async function reload(){const ticket=++epoch;preview=null;try{const result=await api('get',{identity});if(!alive()||ticket!==epoch)return;value=result.item;draw();}catch(error){if(alive()&&ticket===epoch)notice(error.message);}finally{if(alive()&&ticket===epoch){pending=false;controls();}}}
     function dispose(){disposed=true;epoch++;abort.abort();root.remove();mounted.delete(host);}
     draw();void reload();
-    document.addEventListener('media-personal-changed',event=>{const detail=event.detail;if(detail?.catalogId&&detail.catalogId!==value?.catalogId)return;if(alive()&&!pending&&!root.querySelector('details[open]')&&!preview)void reload();},{signal:abort.signal});
+    document.addEventListener('media-personal-changed',event=>{const detail=event.detail,wanted=identity.imdbId?identity:value?.identity,sameProvider=wanted?.imdbId&&detail?.identity?.kind===wanted.kind&&detail.identity.imdbId===wanted.imdbId;if(detail?.catalogId&&detail.catalogId!==value?.catalogId&&!sameProvider)return;if(alive()&&!pending&&!root.querySelector('details[open]')&&!preview)void reload();},{signal:abort.signal});
     const controller={dispose,reload};mounted.set(host,controller);return controller;
   }
   window.PersonalMediaUI=Object.freeze({mount,summary});

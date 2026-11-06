@@ -6,7 +6,8 @@
   const failure = error => window.MediaDiscoveryErrors?.message(error,window.UiLocale?.get?.()) || error?.message || String(error);
   const el = (tag, cls, text) => { const node = document.createElement(tag); if (cls) node.className = cls; if (text !== undefined) node.textContent = String(text); return node; };
   const state = { root: null, tab: 'browse', kind: 'film', mode: 'top', genre: '', year: new Date().getFullYear(), query: '', loadedQuery: '', view:'unwatched', rows: [], skip: 0, next: null, request: 0, busy: false, loadError: false, retryAppend: false, needsRatings: false, scope: '' };
-  let restoreControl = '', drawGeneration = 0;
+  let restoreControl = '', drawGeneration = 0, shelfRequest = 0;
+  const recommendationReason = row => window.DiscoveryPersonalUI?.reason(row) || {kind:'catalog',label:t('Catalog selection','Katalog seçkisi'),text:t('No verified personal recommendation evidence.','Doğrulanmış kişisel öneri dayanağı yok.')};
   const btn = (label, callback, cls = 'mh-action') => {
     const node = el('button', cls, label); node.type = 'button';
     node.addEventListener('click', () => Promise.resolve().then(callback).catch(error => { const local=node.closest('.media-title-page')?.querySelector('.md-status');if(local){local.textContent=failure(error);local.classList.add('mh-error');}else status(failure(error), true); })); return node;
@@ -42,12 +43,13 @@
     dialog.addEventListener('close', () => { personalView?.dispose();if(translationToken)void window.api.mediaDiscovery({action:'synopsis-stop',kind:row.kind,id:row.providerId,token:translationToken}).catch(()=>{});dialog.remove(); opener?.isConnected && opener.focus(); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion(); }, { once: true });
     let result;
     try { result = await api('detail', { kind: row.kind, id: row.providerId }); }
-    catch (error) { if (dialog.open) placeholder.textContent = `${t('Could not load details: ', 'Ayrıntılar alınamadı: ')}${failure(error)}`; return; }
+    catch (error) { if (dialog.open) {placeholder.textContent = `${t('Could not load details: ', 'Ayrıntılar alınamadı: ')}${failure(error)}`;dialog.append(btn(t('Retry details','Ayrıntıları yeniden dene'),()=>{dialog.close();return details(row);},'mh-action md-detail-retry'));} return; }
     if (!dialog.open) return;
-    const item = result.item; dialog.dataset.pageKind='discovery';
+    const item = result.item; if(!item||item.kind!==row.kind||item.providerId!==row.providerId){placeholder.textContent=t('Title identity changed. Reopen the selected title.','Yapım kimliği değişti. Seçtiğin yapımı yeniden aç.');return {ok:false};} dialog.dataset.pageKind='discovery';
     const body = el('div', 'md-detail-body'), content = el('div', 'md-detail-copy');
     window.MediaExperience?.setContext(dialog, { id: `discovery:${item.kind}:${item.providerId}`, type: 'discovery-title', title: item.title, synopsis: item.synopsis });
     content.append(el('h1', '', item.title), el('p', 'md-meta', [item.year, item.rating ? `IMDb ${score(item.rating)}/10` : '', item.runtime ? `${item.runtime} ${t('min', 'dk')}` : '', item.kind === 'series' ? t('Series', 'Dizi') : t('Film', 'Film')].filter(Boolean).join(' · ')));
+    const basis=recommendationReason(row),explanation=el('details','md-recommendation-basis');explanation.dataset.reasonKind=basis.kind;explanation.append(el('summary','',t('Why this title? · ','Bu yapım neden burada? · ')+basis.label),el('p','md-provider',basis.text),el('small','md-provider',t('Catalog relationships do not guarantee fit. Reading details or reviews does not mark a title watched or liked.','Katalog ilişkisi beğeni garantisi değildir. Ayrıntı veya yorum okumak yapımı izlendi ya da beğenildi işaretlemez.')));content.append(explanation);
     const genres = el('div', 'md-chips'); item.genres.forEach(value => genres.append(el('span', '', genre(value)))); content.append(genres);
     const storyHeading=el('div','md-story-heading'),synopsis=el('p','md-synopsis',item.synopsisTr||item.synopsis||t('No synopsis is available for this title.','Bu yapımın açıklaması henüz yok.'));
     storyHeading.append(el('h3','',t('Story','Konu')));
@@ -74,14 +76,22 @@
     const add = btn(result.catalogId ? t('Open in library', 'Kütüphanede aç') : t('Add to watchlist', 'İzleneceklere ekle'), async () => {
       add.disabled = true;
       try {
-        const catalogId = result.catalogId || (await api('add', { kind: item.kind, id: item.providerId })).item.id;
+        const saved=result.catalogId?null:await api('add', { kind: item.kind, id: item.providerId });
+        if(saved&&(!saved.item?.id||saved.item.kind!==item.kind||saved.item.imdbId!==item.providerId))throw Error(t('Saved title identity could not be verified. Retry.','Kaydedilen yapımın kimliği doğrulanamadı. Yeniden dene.'));
+        const catalogId = result.catalogId || saved.item.id;
         result.catalogId = catalogId;
+        refreshMembership();
         document.dispatchEvent(new CustomEvent('media-library-changed'));
         if(!dialog.open)return;
         dialog.close();
         await window.MediaTitleUI.open(catalogId);
       } catch (error) { placeholder.textContent = failure(error); add.disabled = false; }
     }, 'mh-action mh-primary');
+    const membership=el('p','md-provider md-membership');membership.setAttribute('role','status');content.append(membership);
+    function refreshMembership(){add.textContent=result.catalogId?t('Open in library','Kütüphanede aç'):t('Add to watchlist','İzleneceklere ekle');membership.textContent=result.catalogId?t('In your library','Kütüphanende'):t('Not in your library','Kütüphanende yok');}
+    refreshMembership();let membershipRequest=0;const membershipAbort=new AbortController();dialog.addEventListener('close',()=>membershipAbort.abort(),{once:true});
+    async function refreshTitleMembership(event){const identity=event.detail?.identity;if(identity&&(identity.kind!==item.kind||identity.imdbId!==item.providerId))return;const ticket=++membershipRequest;try{const fresh=await api('detail',{kind:item.kind,id:item.providerId});if(!dialog.open||ticket!==membershipRequest)return;result.catalogId=fresh.catalogId;refreshMembership();}catch(error){if(dialog.open&&ticket===membershipRequest)placeholder.textContent=failure(error);}}
+    for(const event of ['media-personal-changed','media-library-changed'])document.addEventListener(event,refreshTitleMembership,{signal:membershipAbort.signal});
     const credits=el('section','md-option-group');credits.append(el('h3','',t('Credits & source','Oyuncular ve kaynak')));
     if (item.cast.length) credits.append(el('p', 'md-cast', `${t('Cast', 'Oyuncular')}: ${item.cast.join(', ')}`));
     credits.append(btn(t('IMDb page', 'IMDb sayfası'), async () => {
@@ -98,7 +108,7 @@
     const reviewNote=el('small','md-provider md-review-note',t('Reviews and analysis stay on this film page.','Yorumları ve analizi bu film sayfasında incele.'));
     // Keep the everyday choices next to the title, before a long synopsis.
     content.insertBefore(actions,storyHeading);content.insertBefore(reviewNote,storyHeading);content.append(options);
-    const personal=el('div');content.insertBefore(personal,storyHeading);personalView=window.PersonalMediaUI?.mount(personal,{item,identity:{kind:item.kind,imdbId:item.imdbId||item.providerId}});
+    const personal=el('div','md-personal-host');content.insertBefore(personal,storyHeading);personalView=window.PersonalMediaUI?.mount(personal,{item,identity:{kind:item.kind,imdbId:item.imdbId||item.providerId}});
     placeholder.textContent = '';
     const hero=el('section','md-page-hero'),background=el('div','md-page-backdrop');background.setAttribute('aria-hidden','true');
     const backdrop=safeImage(item.backdrop);if(backdrop){const art=el('img');art.src=backdrop;art.alt='';art.referrerPolicy='no-referrer';art.addEventListener('load',()=>hero.classList.add('has-art'),{once:true});art.addEventListener('error',()=>background.remove(),{once:true});background.append(art);}
@@ -199,8 +209,7 @@
       card.append(poster, el('span', 'cn-poster-title', window.MediaVisual.title(row.title)),
         el('span', 'cn-poster-meta', [row.year, row.catalogId ? t('In library', 'Kütüphanede') : ''].filter(Boolean).join(' · ')));
       window.MediaVisual?.art(poster,row.title);
-      if (row.because) card.append(el('span', 'md-reason', t(`Because you liked ${row.because}`, `${row.because} beğeninden dolayı`)));
-      if(row.profileBecause){const r=row.profileBecause;card.append(el('span','md-reason',t(`${r.genre} · ${r.count} ratings, ${r.average.toFixed(1)}/5`,`${r.genre} · ${r.count} puan, ${r.average.toFixed(1)}/5`)));}
+      if(row.because||row.profileBecause||row.directorBecause){const basis=recommendationReason(row);card.append(el('span','md-reason',basis.label+' · '+basis.text));}
       if (row.feedback) card.append(el('span','md-reason', row.feedback === 'watched' ? t('Watched','İzlendi') : t('Not interested','İlgilenilmiyor')));
       if(row.personalMedia&&(row.personalMedia.reaction||row.personalMedia.manualResume||row.personalMedia.effectiveResume||row.personalMedia.note))card.append(el('span','pm-card-summary',window.PersonalMediaUI?.summary(row.personalMedia)||''));
       nodes.push(card);
@@ -229,7 +238,7 @@
       const result = await api(state.tab === 'preferences' ? 'feedback-list' : state.tab === 'personal' ? 'personal' : 'list', { kind: state.kind, mode: state.mode, genre: state.genre, year: state.year, query, view:state.view, skip: append ? state.next : 0 });
       if (request !== state.request || root !== state.root || !root.isConnected) return;
       const unique = new Map((append ? state.rows : []).map(row => [`${row.kind}:${row.providerId}`, row]));
-      result.rows.forEach(row => unique.set(`${row.kind}:${row.providerId}`, row)); state.rows = [...unique.values()].slice(0, 300); state.next = result.nextSkip ?? null;state.needsRatings=!!result.needsRatings;state.scope=result.scope||'';state.loadedQuery=query;state.retryAppend=false;
+      result.rows.forEach(row => unique.set(`${row.kind}:${row.providerId}`, state.tab==='browse'&&!query&&state.mode==='top'?{...row,discoveryBasis:'catalog-ranking'}:row)); state.rows = [...unique.values()].slice(0, 300); state.next = result.nextSkip ?? null;state.needsRatings=!!result.needsRatings;state.scope=result.scope||'';state.loadedQuery=query;state.retryAppend=false;
       status(result.needsRatings ? t('Add favorites and genre metadata in the library first.', 'Önce kütüphanede favori ve tür bilgisi ekle.') : '');
     } catch (error) {
       if (request !== state.request || root !== state.root || !root.isConnected) return;
@@ -278,10 +287,11 @@
 
   }
   async function personalShelf(root) {
-    const kind=state.kind, owner=drawGeneration;
+    const kind=state.kind, owner=drawGeneration,ticket=++shelfRequest;
     try {
       const result=await api('personal',{kind,view:'unwatched'});
-      if(root!==state.root||!root.isConnected||state.tab!=='browse'||kind!==state.kind||owner!==drawGeneration)return;
+      if(root!==state.root||!root.isConnected||state.tab!=='browse'||state.query.trim()||kind!==state.kind||owner!==drawGeneration||ticket!==shelfRequest)return;
+      root.querySelector('.cv2-discover-personal')?.remove();
       const rows=(result.rows||[]).slice(0,8);
       if(!rows.length)return;
       const section=el('section','cv2-discover-personal'),heading=el('header');
@@ -289,7 +299,7 @@
       heading.append(text,btn(t('See all','Tümünü gör'),()=>{state.tab='personal';state.rows=[];state.next=null;draw();void load();},'cn-button'));
       const rail=el('div','cv2-personal-rail');
       for(const row of rows){const card=btn('',()=>details(row),'cv2-personal-card');card.append(image(row.poster,'cv2-personal-art'),el('strong','',window.MediaVisual.title(row.title)));
-        const reason=row.because?t('Because you liked '+row.because,row.because+' beğeninden dolayı'):row.profileBecause?t('From your ratings','Puanlarındaki eğilimden'):t('Saved preferences','Kayıtlı tercihlerinden');
+        const basis=recommendationReason(row),reason=basis.label+' · '+basis.text;
         card.append(el('small','',reason));rail.append(card);}
       section.append(heading,rail);root.querySelector('.cv2-discover-section-heading')?.before(section);
     } catch { /* Main discovery remains usable; an unavailable preview is never invented. */ }
@@ -308,7 +318,9 @@
     state.needsRatings=!!saved.needsRatings;state.scope=typeof saved.scope==='string'?saved.scope:'';
     savedScroll=Math.max(0,Number(saved.scrollTop)||0);state.busy=false;state.loadError=false;state.retryAppend=false;state.request++;
   }
-  document.addEventListener('media-personal-changed',event=>{if(event.detail?.origin!=='discovery-personal'&&state.root?.isConnected)void load();});
+  function refreshSurfaces(event){if(!state.root?.isConnected)return;if(event.detail?.origin!=='discovery-personal')void load();if(state.tab==='browse'&&!state.query.trim())void personalShelf(state.root);}
+  document.addEventListener('media-personal-changed',refreshSurfaces);
+  document.addEventListener('media-library-changed',refreshSurfaces);
   const leave = () => { state.root?.querySelector(".cn-discover-hero")?._cinemaCarousel?.dispose();closeCardMenu?.();personalActions?.dispose();personalActions=null;personalRoot=null; if (state.root?.isConnected) savedScroll = document.getElementById('mediaHome').scrollTop; state.root = null; };
   document.getElementById('mediaHome')?.addEventListener('scroll', () => { if (!restoringScroll && state.root?.isConnected) savedScroll = document.getElementById('mediaHome').scrollTop; }, { passive:true });
   window.MediaDiscoveryUI = Object.freeze({ leave, openDetail:details, snapshot, restore, mount(root,saved) {
