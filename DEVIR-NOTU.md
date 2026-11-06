@@ -1,3 +1,4 @@
+Güncel teslim: [Dar Sahne transkript düzeni](docs/devir/2026-11-06-1158.md)
 Güncel teslim: [Podcast ve Çift dilli oynatma kontrolleri](docs/devir/2026-11-06-1143.md)
 Güncel teslim: [Keşfet dar pencere araç çubuğu](docs/devir/2026-11-06-1133.md)
 Güncel teslim: [Keşfet boş sonuç düzeni](docs/devir/2026-11-06-1125.md)

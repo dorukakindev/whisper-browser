@@ -97,7 +97,7 @@
 @media(max-width:1099px){
  .sh-browser-study .sh-top{padding-inline:16px}.sh-browser-study .browser-study-media{padding:16px}
  .sh-browser-study .sh-main.browser-study-layout{grid-template-columns:minmax(0,1fr)}
- .sh-browser-study:not(.sh-audio) .sh-cardsbox.bp-panel{position:absolute;right:12px;top:74px;bottom:12px;z-index:40;width:min(420px,calc(100% - 24px));border:1px solid var(--border);border-radius:12px;display:none;box-shadow:0 20px 60px #0008}
+ .sh-browser-study:not(.sh-audio) .sh-cardsbox.bp-panel{position:absolute;right:12px;top:12px;bottom:12px;z-index:40;width:min(420px,calc(100% - 24px));border:1px solid var(--border);border-radius:12px;display:none;box-shadow:0 20px 60px #0008}
  .sh-browser-study:not(.sh-audio).transcript-open .sh-cardsbox.bp-panel{display:flex}
  .sh-browser-study.sh-audio .sh-main.browser-study-layout{grid-template-columns:minmax(0,1fr) minmax(340px,.9fr)}
  .sh-browser-study.sh-audio .sh-transcript-toggle{display:none}
@@ -252,4 +252,19 @@ details[data-mk-details]>summary{list-style:none}details[data-mk-details]>summar
 .sh-browser-study .cue-card .act:disabled {
   opacity: .45;
   cursor: default;
+}
+
+@media (min-width: 701px) and (max-width: 1099px) {
+  .sh-browser-study .sh-top-r .sh-transcript-toggle span { display: inline; }
+}
+@media (max-width: 700px) {
+  .sh-browser-study:not(.sh-audio) .sh-cardsbox.bp-panel {
+    inset: 8px;
+    width: auto;
+  }
+  .sh-browser-study.sh-audio .sh-cardsbox.bp-panel {
+    height: max(380px, 62vh);
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
 }

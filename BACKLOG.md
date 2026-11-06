@@ -8,6 +8,8 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 
 ## Sahne adres satırı — görsel kabul
 
+- Dar transkript açma, etkin satır ve kapatınca video katmanının dönüşü gerçek izole LG turunda kontrol edilecek. [Devir](docs/devir/2026-11-06-1158.md).
+
 - Oynatma kontrolleri için native LG turunda zamansız metin, sessiz aralık ve Home/End kontrolü kalıyor. 55 hedefli kontrol ve kontrollü çizimler tamamlandı. [Devir](docs/devir/2026-11-06-1143.md).
 
 - 10:46: ana sayfa uzun başlık ve Keşfet ortak hiza/afiş yedeği kontrollü gerçek bileşen çiziminde incelendi; 10 mevcut kontrol geçti. Native LG turunda gerçek uzun başlık ve Keşfet dönüşü ayrıca kontrol edilebilir. [Devir](docs/devir/2026-11-06-1046.md).
