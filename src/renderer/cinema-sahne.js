@@ -65,8 +65,8 @@
     }
     const bridge = MODEL().createPlayerWorkspaceBridge({ readSnapshot: snap, resolveSourceRole: role, executeExisting: exec });
     const wordsOf = (cue, track) => (cue && Array.isArray(cue.wordRanges) && cue.wordRanges.length) ? cue.wordRanges.map((r) => ({ s: r.start, e: r.end, t0: subtitleVideoTime(r.timeStart, track.secondary, track.timeTransform), t1: subtitleVideoTime(r.timeEnd, track.secondary, track.timeTransform) })) : null;
-    const loadedLangs = () => { const roles = browserSubtitleRoleCues(), byId = (id) => (player.browserTracks || []).find((t) => t.id === id), t1 = byId(player.browserLoadedTrackId), t2 = byId(player.browserLoadedTrackId2); const of = (cues) => cues && cues.length ? (cues === player.cues2 ? t2 : t1) : null; const s = of(roles.source), r = of(roles.translation); return { src: langCode(s?.language || s?.lang), tr: langCode(r?.language || r?.lang) }; };
-    return { kind: 'browser', tab: tabId, sourceVersion, snap, tracks, dispatch: (c) => bridge.dispatch(c), dispose: () => bridge.dispose(), words: wordsOf, langs: loadedLangs, mediaTitle: () => player.browserPageTitle || $('playerTitle')?.textContent || '', sub: () => { try { return new URL(player.browserPageUrl).hostname.replace(/^www\./, ''); } catch (_) { return ''; } }, cover: () => { try { const u = typeof currentBrowserYoutubeUrl === 'function' ? currentBrowserYoutubeUrl() : ''; return u ? (window.MediaHomeModel?.thumbnail?.({ url: u }) || '') : ''; } catch (_) { return ''; } }, slot: () => adopt($('browserViewSlot')), unslot: () => $('browserViewSlot')?.classList.remove('sh-slot-fill') };
+    const loadedLangs = () => { const roles = browserSubtitleRoleCues(), byId = (id) => (player.browserTracks || []).find((t) => t.id === id), t1 = byId(player.browserLoadedTrackId), t2 = byId(player.browserLoadedTrackId2); const of = (cues) => cues && cues.length ? (cues === player.cues2 ? t2 : t1) : null; const s = of(roles.source), r = of(roles.translation); return { src: roles.source.length ? langCode(s?.language || s?.lang || (roles.source === player.cues2 ? player.sub2Lang : player.subLang)) : null, tr: roles.translation.length ? langCode(r?.language || r?.lang || (roles.translation === player.cues2 ? player.sub2Lang : player.subLang)) : null }; };
+    return { kind: 'browser', tab: tabId, sourceVersion, snap, tracks, dispatch: (c) => bridge.dispatch(c), dispose: () => bridge.dispose(), words: wordsOf, langs: loadedLangs, mediaTitle: () => player.browserPageTitle || $('playerTitle')?.textContent || '', sub: () => { try { return browserTabState()?.mediaPublisher || new URL(player.browserPageUrl).hostname.replace(/^www\./, ''); } catch (_) { return ''; } }, cover: () => { try { const u = typeof currentBrowserYoutubeUrl === 'function' ? currentBrowserYoutubeUrl() : ''; return u ? (window.MediaHomeModel?.thumbnail?.({ url: u }) || '') : ''; } catch (_) { return ''; } }, slot: () => adopt($('browserViewSlot')), unslot: () => $('browserViewSlot')?.classList.remove('sh-slot-fill') };
   }
 
   /* ── Yerel cephe: yerel oynatıcının mevcut snapshot/iz/komut yüzeyi (mpv/native dahil, tek yol) ── */
@@ -140,7 +140,9 @@
         const rows = trows.map((r) => {
           const timed = trackTimed && Number.isFinite(r.videoStart) && Number.isFinite(r.videoEnd) && r.videoEnd > r.videoStart;
           meta.push({ cueId: r.cueId, trackId: r.trackId, trackRevision: r.trackRevision });
-          return { id: r.cueId, start: timed ? r.videoStart : 0, end: timed ? r.videoEnd : 0, timed, src: String(r.sourceText || ''), trs: (r.secondaryCueIds || []).map((id) => secById.get(id)?.text).filter((t) => t && String(t).trim()), unc: r.pairing === 'uncertain' ? (r.secondaryCandidates || []).map((c) => c.text) : [], words: timed ? F.words(byId.get(r.cueId), src) : null };
+          const matched = (r.secondaryCueIds || []).map(id => secById.get(id)).filter(Boolean);
+          const copied = matched.some(c => String(c.text).trim() === String(r.sourceText).trim() && String(c.text).trim().length > 10);
+          return { id: r.cueId, start: timed ? r.videoStart : 0, end: timed ? r.videoEnd : 0, timed, src: String(r.sourceText || ''), trs: matched.map(c=>c.text).filter(t=>t&&String(t).trim()), translationReview:copied||matched.some(c=>c.qualityWarning), unc: r.pairing === 'uncertain' ? (r.secondaryCandidates || []).map((c) => c.text) : [], words: timed ? F.words(byId.get(r.cueId), src) : null };
         });
         return { rows, meta, untimed: !trackTimed };
       }
@@ -349,9 +351,11 @@
         const duration=s?.duration,published=audio?.publisherDuration;
         const chapterTiming=podcast&&audio.publisherTiming&&Number.isFinite(duration)&&Number.isFinite(published)
           &&Math.abs(duration-published)<=Math.min(3,Math.max(1,published*.01));
-        return { title: F.mediaTitle() || s?.title || '', sub: F.sub(), eyebrow: F.eyebrow?.() || (kind === 'browser' ? T('Şimdi çalıyor', 'Now playing') : kind === 'shelf' ? T('Podcast', 'Podcast') : T('Yerel oynatıcı', 'Local player')), cover: F.cover(), tint: null,
+        const rawTitle=F.mediaTitle()||s?.title||'';
+        const title=kind==='browser'?rawTitle.replace(/\s*[-–|]\s*YouTube\s*$/i,''):rawTitle;
+        return { title, sub: F.sub(), eyebrow: F.eyebrow?.() || (kind === 'browser' ? (mode==='podcast'?T('Podcast','Podcast'):T('Web videosu','Web video')) : kind === 'shelf' ? T('Podcast', 'Podcast') : T('Yerel oynatıcı', 'Local player')), cover: F.cover(), tint: null, webSource:kind==='browser', webVideo:kind==='browser'&&mode==='study',
         chapters:podcast?(audio.publisherChapters||[]).map(chapter=>({...chapter,t:chapterTiming&&chapter.t!==null&&chapter.t<duration?chapter.t:null})):kind!=='local'?[]:(player.chapters||[]).filter(c=>Number.isFinite(c.start)&&c.start>=0&&(!s?.duration||c.start<s.duration)).map(c=>({t:c.start,label:String(c.title||T('Bölüm','Chapter'))})),
-        queue:kind==='local'?(player.playlist||[]).map((file,index)=>({index,title:window.PlayerUiKit?.displayTitle(String(file).split(/[\\/]/).pop())||String(file)})).slice(Math.max(0,player.playlistIndex+1),Math.max(0,player.playlistIndex+1)+2):[],native:kind==='local'&&!!window.NativePlayerUI?.active(),audio:kind==='shelf'||s?.sourceKind==='rss'||kind==='local'&&num($('playerVideo')?.readyState)>=2&&!num($('playerVideo')?.videoWidth),langs:l }; },
+        queue:kind==='local'?(player.playlist||[]).map((file,index)=>({index,title:window.PlayerUiKit?.displayTitle(String(file).split(/[\\/]/).pop())||String(file)})).slice(Math.max(0,player.playlistIndex+1),Math.max(0,player.playlistIndex+1)+2):[],native:kind==='local'&&!!window.NativePlayerUI?.active(),audio:mode==='podcast'||kind==='shelf'||s?.sourceKind==='rss'||kind==='local'&&num($('playerVideo')?.readyState)>=2&&!num($('playerVideo')?.videoWidth),langs:l }; },
       state: () => {
         const s = F.snap();
         if (!s) return { time: 0, duration: 0, paused: true, rate: 1, rows: [], rev: 'none', canSeek: false };
@@ -390,6 +394,9 @@
           }
           case 'advanced':openAdvanced();return Promise.resolve({ok:true});
           case 'assistant':window.api.showAssistant?.();return Promise.resolve({ok:true});
+          case 'display':
+            if(kind==='browser'&&typeof setSubtitleMode==='function')setSubtitleMode({src:'source',tr:'translation',both:'both'}[v]||'both',false);
+            return Promise.resolve({ok:true});
           case 'dub': {
             if (!window.DubGeneratorUI?.prepareCurrent) return Promise.resolve({ok:false,code:'unsupported'});
             return Promise.resolve(window.DubGeneratorUI.prepareCurrent()).then(() => ({ok:true}));

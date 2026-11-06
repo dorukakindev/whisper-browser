@@ -13229,6 +13229,7 @@ async function probeActiveBrowserMedia(requestedTab = null) {
       adRemaining: Number.isFinite(adRemaining) ? Math.max(0, adRemaining) : null,
     };
     tab.position = safeMedia.currentTime;
+    safeMedia.publisher = String(media.publisher || '').trim().slice(0,300);
     tab.duration = safeMedia.duration;
     tab.contentDuration = retainCeaExpectedDuration(tab.contentDuration, safeMedia);
     tab.rate = safeMedia.playbackRate;
@@ -13237,7 +13238,7 @@ async function probeActiveBrowserMedia(requestedTab = null) {
     tab.translationScheduler?.updatePlayhead(tab.position);
     const playbackDiagnostics = tab.playbackDiagnostics.observeMediaSample(safeMedia);
     for (const diagnostic of playbackDiagnostics) publishBrowserPlaybackDiagnostics(tab, diagnostic);
-    const mediaSignature = [safeMedia.docToken || '', Math.round(tab.position * 4), Math.round(tab.duration * 2), tab.rate,
+    const mediaSignature = [safeMedia.docToken || '', safeMedia.publisher, Math.round(tab.position * 4), Math.round(tab.duration * 2), tab.rate,
       Math.round(tab.volume * 100), tab.muted, !!safeMedia.paused, !!safeMedia.adPlaying,
       !!safeMedia.adSkippable, safeMedia.adRemaining ?? ''].join('|');
     if (mediaSignature !== tab.lastMediaEventSignature) {

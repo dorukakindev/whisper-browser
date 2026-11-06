@@ -6,6 +6,12 @@ Son durum kontrolü **2026-11-06**. Son ürün `2c1935b5eacf1fc22163eea2c5975741
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
+## Sahne görünüm düzeltmeleri — 2026-11-06
+
+- Doğrulanan ürün: `ef6a5f3d`, dal `codex/stage-composition-fixes-20261106`. Podcast/Çift dilli/Browser dönüşü, video alanı, dil seçimi, etkin satır konumu ve dar pencere kısa izole LG turunda kontrol edildi. [Devir](docs/devir/2026-11-06-0942.md).
+- Sınır: gerçek YouTube videosu oynadı; EN/TR altyazılar kontrollü izlerdi. Sayfa altyazı uçları bazı isteklerde HTTP 403 döndü. Canlı sağlayıcıdan yeni iz çekildiği veya çeviri üretildiği iddia edilmez. Normal sağlayıcı kabulü için aynı video sürümüne ait erişilebilir iki izi mevcut yükleme yolundan açıp görüntü ve bağımsız kaymaları karşılaştır. Yeni hizmet/model gerekmez.
+- 80 satırda gerçek video konum komutu sonrası etkin 20. satır görünür kaldı. İleri konuma geçişte sağlayıcı yeniden tamponladı; o sahnenin yeni decode karesine ulaştığı ayrıca doğrulanmadı. Kesin sonraki adım: erişilebilir aynı kaynakta hazır kare ve ilerleyen saatle bu atlamayı kısa olarak tekrarla. Kişisel bölümün kaynak eşleştirmesi ve kayıtlı ses kopyası kabulü önceki devir sınırını korur.
+
 ## Podcast ve yorum akışları — kalan kabul
 
 - Uzun Browser transkripti: 1.256 kontrollü satırda Sahne etkin satır ve Browser dönüşü doğrulandı. İlk tur video içi katman metnini yakalayamadı. Sonraki adım izole LG profilinde erişilebilir uzun izi normal yükleme düğmesinden açmak ve video saati etkin satırın içindeyken native katman metnini okumak. [Devir](docs/devir/2026-11-06-0818.md).

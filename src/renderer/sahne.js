@@ -43,6 +43,8 @@
     buildStudy() {
       this.root = this.el(root.BrowserStudyView.markup({ mode: this.o.mode, caps: this.caps, display: this.s.disp, T, esc, icon: ic }));
       this.root.classList.toggle('sh-audio', !!this.a.info().audio);
+      this.root.classList.toggle('sh-web-video', !!this.a.info().webVideo);
+      this.root.classList.toggle('sh-web-source', !!this.a.info().webSource);
       this.host.append(this.root);
       const job = this.q('[data-r=job]'), statusRow = this.el('<div class="sh-status-row"></div>');
       job.before(statusRow);
@@ -116,7 +118,12 @@
         if (b.dataset.i !== undefined && !b.dataset.a) { const row = this.rows[+b.dataset.i]; if (row && row.timed) this.run('seekCue', +b.dataset.i); return; }
         if (b.classList.contains('sh-chap')) { if(this.canSeek&&b.dataset.t!==undefined)this.run('seek', Number(b.dataset.t)); return; }
         if (b.dataset.mode) { if (b.dataset.mode !== this.o.mode) this.o.onMode?.(b.dataset.mode, this.prefs()); return; }
-        if (b.dataset.d) { this.s.disp = b.dataset.d; this.applyDisp(); this.filterRows(); return; }
+        if (b.dataset.d) {
+          this.s.disp = b.dataset.d; this.applyDisp(); this.filterRows();
+          this.run('display', this.displayMode());
+          if(this.s.follow)this.scrollToActive(true);
+          return;
+        }
         switch (b.dataset.a) {
           case 'close': this.o.onClose?.(); break; case 'classic': this.o.onClassic?.(); break;
           case 'fullscreen':this.run('fullscreen');break;
@@ -279,7 +286,7 @@
       for (const b of r.querySelectorAll('[data-a=rate]')) b.textContent = (Number(st.rate) || 1) + '×';
       for (const b of r.querySelectorAll('[data-a=toggle]')) { const want = st.paused ? 'play' : 'pause'; if (b.dataset.ic !== want) { b.dataset.ic = want; b.innerHTML = ic(want); b.setAttribute('aria-label', st.paused ? T('Oynat', 'Play') : T('Duraklat', 'Pause')); } }
       r.classList.toggle('transcript-open',!!s.transcript);r.querySelectorAll('[data-a=transcript]').forEach(button=>button.setAttribute('aria-expanded',String(!!s.transcript)));
-      const overlay = !!s.panel || !!s.word || !!s.note || (!!s.transcript && window.innerWidth < 1100);
+      const overlay = this.o.mode==='podcast' || !!s.panel || !!s.word || !!s.note || (!r.classList.contains('sh-audio') && !!s.transcript && window.innerWidth < 1100);
       if(r.hasAttribute('data-pw-occludes-native')!==overlay){if(overlay)r.setAttribute('data-pw-occludes-native','true');else r.removeAttribute('data-pw-occludes-native');root.syncBrowserOcclusion?.();}
       const f = r.querySelector('[data-a=follow]'); if (f) {
         if (this.o.mode === 'cinema') f.hidden = s.follow || this.cur < 0 || !this.rows[this.cur]?.timed;
@@ -295,7 +302,8 @@
       const trs = c.trs.map((t) => `<span class="tr${shared ? ' cue-card-tr' : ''}">${esc(t)}</span>`).join('');
       const unc = c.unc && c.unc.length ? `<span class="tr unc"><em>${T('Eşleşme belirsiz', 'Match uncertain')}</em>${c.unc.map((t) => `<span>${esc(t)}</span>`).join('')}</span>` : '';
       const acts = study && !shared ? '' : `<span class="acts">${this.caps.loop && c.timed ? `<button type="button" class="act" data-act="loop" title="${T('Bu cümleyi döngüye al', 'Loop this sentence')}" aria-label="${T('Döngü', 'Loop')}">${ic('loop')}</button>` : ''}<button type="button" class="act" data-act="copy" title="${T('Kopyala', 'Copy')}" aria-label="${T('Kopyala', 'Copy')}">${ic('copy')}</button>${this.caps.save ? `<button type="button" class="act" data-act="save" title="${T('Cümleyi veya seçili metni kaydet', 'Save sentence or selected text')}" aria-label="${T('Cümleyi veya seçili metni kaydet', 'Save sentence or selected text')}">${ic('star')}</button>` : ''}</span>`;
-      return `${c.timed ? `<span class="at${shared ? ' cue-card-time' : ''}">${fmt(c.start)}</span>` : ''}<span class="src${shared ? ' cue-card-src' : ''}" dir="auto">${src}</span>${trs}${unc}${acts}`;
+      const review=c.translationReview?`<small class="sh-translation-review">${T('Çeviriyi kontrol edin · kaynakla aynı metin veya kalite uyarısı','Review translation · matches source or has a quality warning')}</small>`:'';
+      return `${c.timed ? `<span class="at${shared ? ' cue-card-time' : ''}">${fmt(c.start)}</span>` : ''}<span class="src${shared ? ' cue-card-src' : ''}" dir="auto">${src}</span>${trs}${unc}${review}${acts}`;
     }
     rebuild(st, info) {
       const scroll=this.q('[data-r=scroll]'),study=this.o.mode!=='podcast';
@@ -322,7 +330,7 @@
         const action=focusedAction&&line?.querySelector('[data-act="'+focusedAction+'"]');
         ((!line?.hidden&&(action||line?.matches('[tabindex]')&&line))||this.q('[data-r=q]'))?.focus({preventScroll:true});
       } this.s.idx = -2; this.drawWave(st, info); this.words = this.lines.map((l, i) => this.rows[i].words ? [...l.querySelectorAll('.w')] : null);
-      const li = info.langs || {}; for (const [k, v, label] of [['ls', li.src], ['lt', li.tr], ['lsb', li.src, T('Kaynak', 'Source')], ['ltb', li.tr, T('Çeviri', 'Translation')]]) { const n = this.q(`[data-r=${k}]`); if (!n) continue; if (label) n.innerHTML = `${lang(v)}${label}`; else n.textContent = v ? String(v).slice(0, 3).toUpperCase() : ''; }
+      const li = info.langs || {}; for (const [k, v, label] of [['ls', li.src], ['lt', li.tr], ['lsb', li.src, T('Kaynak', 'Source')], ['ltb', li.tr, T('Çeviri', 'Translation')]]) { const n = this.q(`[data-r=${k}]`); if (!n) continue; if (label) n.innerHTML = `${v?lang(v):lang('?', '')}${label}`; else n.textContent = v ? String(v).slice(0, 3).toUpperCase() : ''; n.title = v ? String(v).toUpperCase() : T('Dil bilinmiyor','Language unknown'); }
     }
     drawWave(st, info) {
       const dur = Number(st.duration) || 0, d = new Array(BARS).fill(0); let any = false;
@@ -373,6 +381,8 @@
       if(this.dead)return; if(document.hidden){if(this.s.sleep&&Date.now()>=this.s.sleepAt){this.s.sleep=0;this.run('pause');}return;} const a = this.a, s = this.s;
       const id = a.identity ? a.identity() : ''; if (this.id0 === undefined) this.id0 = id; else if (id !== this.id0) { if (!this.gone) { this.gone = true; this.o.onSource?.(id, this.prefs()); } return; }
       const st = this.st = a.state(), info = a.info();if(this.s.word&&this.s.word.rev!==st.rev)this.closeWord();if(this.s.note&&this.s.note.rev!==st.rev)this.closeNote();
+      this.root.classList.toggle('sh-web-video', !!info.webVideo);
+      this.root.classList.toggle('sh-web-source', !!info.webSource);
       const flow = this.q('.bp-flow');
       if (flow) flow.hidden = !st.rows.length;
       if (Number.isInteger(st.loopRow)) { s.loop = st.loopRow >= 0; s.loopRow = st.loopRow; }
@@ -412,7 +422,8 @@
         this.activeLine?.setAttribute('aria-current', 'true');
         this.onActive(idx, prev);
       }
-      if(this.o.mode==='cinema')this.drawCinema(info,st);this.wordsTick(); this.drawTasks(); const volume=this.q('.sh-local-volume');if(volume&&Number.isFinite(st.volume)&&document.activeElement!==volume){volume.value=st.volume;const output=volume.parentElement.querySelector('output');if(output)output.textContent=Math.round(st.volume*100)+'%';} const subs=this.q('[data-r=subs]');if(subs)subs.hidden=idx<0; this.drawJob(); this.drawPanel(false); this.paint();
+      if(info.webVideo && this.lastDisplay!==this.displayMode()){this.lastDisplay=this.displayMode();this.run('display',this.lastDisplay);}
+      if(this.o.mode==='cinema')this.drawCinema(info,st);this.wordsTick(); this.drawTasks(); const volume=this.q('.sh-local-volume');if(volume&&Number.isFinite(st.volume)&&document.activeElement!==volume){volume.value=st.volume;const output=volume.parentElement.querySelector('output');if(output)output.textContent=Math.round(st.volume*100)+'%';} const subs=this.q('[data-r=subs]');if(subs)subs.hidden=idx<0||info.webVideo||this.o.mode==='podcast'; this.drawJob(); this.drawPanel(false); this.paint();
     }
     wordsTick() {
       const idx = this.cur; if (idx < 0) return; const row = this.rows[idx], ws = this.words && this.words[idx]; const c = row; const time = this.time;
@@ -422,7 +433,7 @@
     motionAllowed(){return !document.hidden && !root.matchMedia?.('(prefers-reduced-motion: reduce)').matches && !['off','reduced'].includes(document.documentElement.dataset.cinemaMotion) && (root.PlayerUiKit?.motionAllowed?.()??true);}
     scrollToActive(force) {
       const sc = this.q('[data-r=scroll]'), l = this.lines[this.cur]; if (!l || l.hidden) return;
-      const top = l.offsetTop - (sc.clientHeight - l.offsetHeight) / (this.o.mode !== 'podcast' ? 3 : 2); sc.scrollTo({ top: Math.max(0, top), behavior: force || !this.motionAllowed() || this.s.idx === -2 ? 'auto' : 'smooth' });
+      const top = l.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - (sc.clientHeight - l.offsetHeight) / (this.o.mode !== 'podcast' ? 3 : 2); sc.scrollTo({ top: Math.max(0, top), behavior: force || !this.motionAllowed() || this.s.idx === -2 ? 'auto' : 'smooth' });
     }
     onActive(idx, prev) {
       const c = this.rows[idx];

@@ -53,7 +53,7 @@ test('saved passage focus identifies a real timed line without changing playback
  const plain=mount(t,{untimed:true});plain.sh.focusPassage(0);assert(!plain.sh.root.querySelector('.sh-search-match'));assert.equal(plain.sh.cur,-1);assert.equal(plain.commands.length,0);
 });
 test('rejected loop never appears enabled; task drawer marks native occlusion immediately',async t=>{
- const f=mount(t);f.sh.toggleLoop();await Promise.resolve();await Promise.resolve();assert.equal(f.sh.s.loop,false);
+ const f=mount(t,{study:true});f.sh.toggleLoop();await Promise.resolve();await Promise.resolve();assert.equal(f.sh.s.loop,false);
  f.sh.q('[data-a=panel]').click();assert.equal(f.sh.root.getAttribute('data-pw-occludes-native'),'true');f.sh.q('[data-pclose]').click();assert.equal(f.sh.root.hasAttribute('data-pw-occludes-native'),false);
 });
 
@@ -61,6 +61,16 @@ test('local cinema uses real chapters/queue and the same transport commands',t=>
  const f=mount(t,{cinema:true});assert(f.sh.root.classList.contains('sh-local'));assert.equal(f.sh.q('.sh-cinema-meta h1').textContent,'Bölüm');
  const chapters=f.sh.root.querySelectorAll('.sh-cinema-chapters .sh-chap');assert.equal(chapters.length,2);chapters[1].click();assert.equal(f.commands.at(-1)[0],'seek');assert.equal(f.commands.at(-1)[1],10);
  f.sh.q('.sh-next-item').click();assert.equal(f.commands.at(-1)[0],'openQueued');assert.equal(f.commands.at(-1)[1],1);
+});
+
+test('podcast keeps the native page hidden and language selection reaches the caption owner',t=>{
+ const f=mount(t);
+ assert.equal(f.sh.root.getAttribute('data-pw-occludes-native'),'true');
+ f.sh.q('[data-d=tr]').click();
+ assert.deepEqual(f.commands.at(-1).slice(0,2),['display','tr']);
+ assert.equal(f.sh.q('[data-r=subs]').hidden,true);
+ f.sh.q('[data-a=panel]').click();f.sh.q('[data-pclose]').click();
+ assert.equal(f.sh.root.getAttribute('data-pw-occludes-native'),'true');
 });
 test('word card contains actual subtitle context and marks itself as no definition',async t=>{
  const f=mount(t,{cinema:true});await f.sh.openWord(0,'source');const card=f.sh.q('.sh-word-card');assert.equal(card.hidden,false);assert(card.textContent.includes('A source sentence'));assert(card.textContent.includes('sözlük tanımı değildir'));assert.equal(f.sh.root.getAttribute('data-pw-occludes-native'),'true');f.sh.closeWord();assert.equal(card.hidden,true);
@@ -179,4 +189,12 @@ test('chapter highlights and jumps use timed buttons only',t=>{
  active.click();assert.equal(f.commands.at(-1)[1],10);
  f.sh.drawChapters([{label:'Only prose',t:null}]);
  assert.equal(f.sh.q('button.sh-chap'),null);assert.match(f.sh.q('.sh-chaps').textContent,/salt okunur/);
+});
+
+
+test('follow positions an active row relative to its scrolling pane without moving focus',t=>{
+ const f=mount(t,{study:true}),scroll=f.sh.q('[data-r=scroll]'),line=f.sh.lines[0],search=f.sh.q('[data-r=q]');
+ scroll.scrollTop=200;scroll.getBoundingClientRect=()=>({top:400});line.getBoundingClientRect=()=>({top:600});
+ Object.defineProperty(scroll,'clientHeight',{value:300});Object.defineProperty(line,'offsetHeight',{value:90});
+ search.focus();f.sh.scrollToActive(true);assert.equal(scroll.scrollTop,330);assert.equal(f.w.document.activeElement,search);
 });
