@@ -1,3 +1,4 @@
+Güncel teslim: [Doğrulanmış podcast sesine dönüş ve asistan kaynakları](docs/devir/2026-11-06-0531.md)
 Güncel teslim: [Podcast arama deneyimi ve zevk dayanağı görünürlüğü](docs/devir/2026-11-06-0515.md)
 Güncel teslim: [Kaynaklı podcast araması ve zevk dayanaklarını düzeltme](docs/devir/2026-11-06-0457.md)
 Güncel teslim: [Podcast dinleme kuyruğu ve Keşfet izleme kararı](docs/devir/2026-11-06-0432.md)

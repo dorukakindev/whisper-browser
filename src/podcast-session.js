@@ -21,6 +21,12 @@ function validateTimedText(text){
  for(const line of lines){const m=/^\s*((?:\d{1,3}:)?\d{2}:\d{2}[.,]\d{3})\s*-->\s*((?:\d{1,3}:)?\d{2}:\d{2}[.,]\d{3})(?:\s.*)?$/.exec(line);if(!m||!Number.isFinite(time(m[1]))||!Number.isFinite(time(m[2]))||time(m[2])<=time(m[1]))throw Error('Invalid podcast cue timing.');}
  return true;
 }
+function matchesTranscriptTimeline(proof,version,binding){
+ return !!proof&&proof.clock==='absolute-media-seconds'&&proof.sourceVersion===version
+  &&proof.episodeIdentity===binding.episodeIdentity&&/^[a-f0-9]{64}$/.test(proof.sha256)
+  &&proof.sha256===binding.sha256&&typeof proof.file==='string'&&proof.file.startsWith(proof.sha256+'.')
+  &&Number.isFinite(proof.extractionStart)&&proof.extractionStart>=0;
+}
 function validateWorkspace(w){
  if(!w||typeof w.sourceVersion!=='string'||!/^[a-f0-9]{64}$/.test(w.sourceVersion)||!Number.isFinite(w.position)||w.position<0||w.position>31536000||!Number.isFinite(w.rate)||w.rate<.25||w.rate>4)throw Error('Invalid podcast workspace.');
  if(w.previous){if(w.previous.previous)throw Error('Nested podcast history is not supported.');validateWorkspace(w.previous);}
@@ -35,4 +41,4 @@ function libraryState(entry){
  return {sourceVersion:version,positionState:saved&&(!current||saved.previous&&!saved.transcript)?'needs-review':undefined,
   podcastWorkspace:current?{sourceVersion:version,position:saved.position,rate:saved.rate,transcript:summary(saved.transcript),translation:summary(saved.translation)}:undefined};
 }
-module.exports={libraryState,sourceVersion,sourceBinding,episodeIdentity,resourceIdentity,audioEvidence,validateAudioEvidence,spotifyEpisode,validateWorkspace,validateTimedText};
+module.exports={matchesTranscriptTimeline,libraryState,sourceVersion,sourceBinding,episodeIdentity,resourceIdentity,audioEvidence,validateAudioEvidence,spotifyEpisode,validateWorkspace,validateTimedText};

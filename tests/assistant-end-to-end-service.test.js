@@ -21,6 +21,7 @@ function fixture(provider){
  }};
  const service=register({app,ipcMain,authorized,validateOwner:()=>true,getConfig:()=>({endpoint:'https://fixture.example/v1',model:'fixture'}),
   fetchImpl:async(_url,options)=>provider(JSON.parse(options.body)),getJobs:jobs.snapshot,resolveJobId:id=>jobs.has(id)?id:null,
+  podcastSearch:input=>require('../src/media-shelf-service').readPodcastSearch(dir,input,6),
   feedDigest:args=>{digestReads++;return getFeedDigest(feeds.store,args);},
   feedEntry:async args=>{entryReads++;const current=feeds.store.entry(args.entry_id);if(current.revision!==args.revision)throw Error('Feed source revision changed.');
    const context=await feeds.handle(event,{action:'context',entryIds:[current.id]});if(!context.sources?.some(row=>row.entryId===current.id&&row.revision===current.revision))throw Error('Source is unavailable.');return {entry_id:current.id,revision:current.revision,title:current.title};}});
@@ -72,5 +73,43 @@ test('registered main service inspects the exact accepted job binding, real part
   assert.equal(observed.sourceMatches,false);assert.equal(observed.nextSteps.length,0);assert.equal(h.renderer.length,1);
   const failed=h.jobs.start({kind:'voice'});h.jobs.update(failed,{type:'error',message:'HTTP 401 invalid API key private-secret'});jobId=failed;turn=0;
   assert.equal((await h.call('agentRun',{requestId:'inspect-failed',question:'Inspect the failed job.',owner:h.owner})).ok,true);assert.equal(observed.failure.code,'authorization');assert.equal(observed.retrySupported,false);assert.equal(observed.nextSteps.length,0);assert(!JSON.stringify(observed).includes('private-secret'));
+ }finally{h.close();}
+});
+
+test('saved podcast results cite real text, retain ownership and use the reviewed action',async()=>{
+ let turn=0,passage,phase='search';
+ const h=fixture(body=>{
+  if(++turn===1)return phase==='search'?tool('search_saved_podcasts',{query:'lighthouse',show:'Coastal'}):tool('open_saved_podcast_passage',{passage_id:passage.id});
+  const result=JSON.parse(body.messages.at(-1).content);
+  if(phase==='search'){assert.equal(result.matches.length,1);passage=result.matches[0];}
+  return reply({role:'assistant',content:'Podcast evidence.'});
+ });
+ try{
+  h.feeds.store.subscribe({url:'https://podcast.example/rss',title:'Coastal show',format:'rss'},[{kind:'podcast',contentScope:'summary',externalId:'one',title:'Episode A',enclosures:[{url:'https://podcast.example/a.wav',type:'audio/wav'}]}]);
+  const entry=h.feeds.store.entries({kind:'podcast'}).rows[0],version=require('../src/podcast-session').sourceVersion(entry);
+  h.feeds.store.podcastWorkspace(entry.id,version,{transcript:{state:'untimed',format:'plain',text:'The lighthouse is on the shore.',provenance:'publisher'}});
+  const searched=await h.call('agentRun',{requestId:'podcast-search',question:'Find lighthouse in saved podcasts',owner:h.owner});
+  assert(searched.ok,searched.error);assert.match(searched.text,/\[P[\da-f-]+\].*Coastal show.*Episode A.*The lighthouse/);assert.equal(passage.seconds,null);
+  assert(!JSON.stringify(passage).includes('podcast.example'));
+  turn=0;phase='open';
+  await h.call('agentRun',{requestId:'foreign-passage',question:'Open this quote',owner:{...h.owner,thread:'foreign'}});
+  assert(!h.events.some(row=>row.packet.type==='proposal'));
+  turn=0;
+  const proposed=await h.call('agentRun',{requestId:'open-passage',question:'Open this quote',owner:h.owner});
+  assert(proposed.ok,proposed.error);
+  const action=h.events.find(row=>row.packet.type==='proposal').packet.action;
+  assert.equal(action.tool,'open_saved_podcast_passage');assert.equal(h.renderer.length,0);
+  h.expectRenderer(packet=>{assert.equal(packet.expectedSettings.locator.episode,entry.id);return {status:'completed',mode:'read-only'};});
+  assert.equal((await h.call('agentApply',{proposalId:action.proposalId,owner:h.owner})).result.mode,'read-only');
+  assert.equal(h.feeds.store.entry(entry.id).read,false);
+  turn=0;
+  await h.call('agentRun',{requestId:'stale-card',question:'Open this quote again',owner:h.owner});
+  const stale=h.events.filter(row=>row.packet.type==='proposal').at(-1).packet.action;
+  h.feeds.store.podcastWorkspace(entry.id,version,{transcript:{state:'untimed',format:'plain',text:'This saved text changed.',provenance:'publisher'}});
+  assert.equal((await h.call('agentApply',{proposalId:stale.proposalId,owner:h.owner})).ok,false);
+  assert.equal(h.renderer.length,1);
+  turn=0;phase='search';
+  const watched=await h.call('agentRun',{requestId:'watched-podcast',question:'Where did lighthouse occur so far?',owner:h.owner});
+  assert(!watched.text?.includes('The lighthouse is on the shore.'));
  }finally{h.close();}
 });

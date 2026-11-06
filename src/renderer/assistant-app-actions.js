@@ -39,6 +39,21 @@
   if(['get_workflow_settings','configure_workflow','undo_workflow_settings'].includes(name))return window.AssistantWorkflowActions.execute(name,args,owner,{deadline,isCancelled,expectedSettings});
   if(['read_feed_entry_state','set_feed_entry_state'].includes(name))return window.AssistantFeedSources.execute(name,args,owner,{expectedSettings,isCancelled:stale});
   if(name==='search_sources')return window.AssistantFeedSources.search(args.query,owner,()=>!stale());
+  if(name==='open_saved_podcast_passage'){
+   const locator=expectedSettings?.kind==='podcast-passage'?expectedSettings.locator:null;
+   if(!locator)throw Error(t('Review this podcast passage again.','Podcast pasajını yeniden inceleyin.'));
+   const resolve=async()=>{
+    const result=await window.api.mediaShelf({...locator,locale:window.UiLocale?.get?.()});
+    if(!result?.ok||result.row?.token!==locator.token)throw Error(result?.error||t('The saved passage changed.','Kayıtlı pasaj değişti.'));
+    return result.row;
+   };
+   const row=await resolve();
+   if(stale())throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));
+   const receipt={};
+   const opened=await openPodcastResearchResult(row,{beforeSeek:resolve,receipt,isCancelled:()=>isCancelled()||Date.now()>=deadline});
+   if(!opened||!receipt.mode)throw Error(t('The passage could not be opened. Search again.','Pasaj açılamadı. Yeniden arayın.'));
+   return {status:'completed',mode:receipt.mode,title:row.episodeTitle,show:row.showTitle};
+  }
   if(name==='open_feed_entry'){
    const source=await window.api.feedsRequest({action:'entry',entryId:args.entry_id,revision:args.revision});
    if(stale()||!source?.ok||source.entry?.id!==args.entry_id||source.entry?.revision!==args.revision)throw Error(t('The feed entry changed. Review it again.','Akış girdisi değişti. Yeniden incele.'));

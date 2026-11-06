@@ -21,7 +21,7 @@ test('podcast source-scoped reopen, publisher cache, separate translation, confi
  for(const bad of ['WEBVTT\n','00:00:02.000 --> 00:00:01.000\nBad','00:00:NaN --> 00:00:01.000\nBad'])assert.throws(()=>validateTimedText(bad));
 });
 test('podcast helper uses one frozen-options existing queue and rejects changed episode',async()=>{
- const source=fs.readFileSync(path.join(__dirname,'../src/renderer/renderer.js'),'utf8'),start=source.indexOf('window.queuePodcastSource=async function(binding)'),end=source.indexOf('\nasync function persistPodcastJobOutputs',start);const state={queue:[],queueRunning:false,running:false},player={mediaKey:'rss:1',generation:2};let starts=0,adds=0;const context={window:{},state,player,Error,renderQueue(){},startQueue(){starts++;state.queueRunning=true;},addToQueue(type,input){adds++;state.queue.push({opts:{language:'tr'},type,input});return true;}};const owner=source.slice(source.indexOf('function podcastQueueOwnerCurrent(binding)'),source.indexOf('// Podcast uses the existing frozen-options queue'));vm.runInNewContext(owner+source.slice(start,end),context);
+ const source=fs.readFileSync(path.join(__dirname,'../src/renderer/renderer.js'),'utf8'),start=source.indexOf('window.queuePodcastSource=async function(binding,config={})'),end=source.indexOf('// Untimed prose',start);const state={queue:[],queueRunning:false,running:false},player={mediaKey:'rss:1',generation:2,workspaceAudio:{entryId:'one',sourceVersion:'a'.repeat(64)}};let starts=0,adds=0;const context={window:{},state,player,Error,renderQueue(){},startQueue(){starts++;state.queueRunning=true;},addToQueue(type,input){adds++;state.queue.push({opts:{language:'tr'},type,input});return true;}};const owner=source.slice(source.indexOf('function podcastQueueOwnerCurrent(binding)'),source.indexOf('// Podcast uses the existing frozen-options queue'));vm.runInNewContext(owner+source.slice(start,end),context);
  const b={path:'managed.audio',entryId:'one',sourceVersion:'a'.repeat(64),mediaKey:'rss:1',generation:2};await context.window.queuePodcastSource(b);assert.equal(adds,1);assert.equal(starts,1);assert.equal(state.queue[0].podcastBinding.entryId,'one');assert.equal(state.queue[0].opts.language,'tr');player.generation=3;await assert.rejects(context.window.queuePodcastSource(b),/changed/);assert.equal(adds,1);
 });
 test('bounded pinned audio download rejects HTML and excessive body, removes only managed target',async t=>{
@@ -42,7 +42,7 @@ test('queue removal/clear/cancel cleanup releases one owned token and marks retr
 test('actual player translation terminal persists original episode while stale generation cannot paint live cues',async()=>{
  const source=fs.readFileSync(path.join(__dirname,'../src/renderer/renderer.js'),'utf8'),start=source.indexOf('function playerJobEvent(event)'),end=source.indexOf('\nfunction completedSubtitleOutputs',start),saved=[];
  const job={kind:'translate',running:true,mediaKey:'A',generation:1,podcastBinding:{entryId:'A',sourceVersion:'a'.repeat(64),outputRole:'translation'}},node={classList:{add(){},remove(){}},style:{}},noop=()=>{};
- const context={player:{job,mediaKey:'A',generation:2,workspaceMode:'player',cues2:[]},state:{running:true,outputFiles:[]},$:()=>node,persistPodcastJobOutputs:async(e,b)=>{saved.push([e,b]);},updateBrowserWhisperActions:noop,updateMakeTransState:noop,updatePlayerAutoSyncState:noop,setTimeout:noop,logLine:noop,refreshHistory:noop};const helper=source.slice(source.indexOf('function podcastJobMatchesCurrent(job)'),source.indexOf('// Podcast uses the existing frozen-options queue'));vm.runInNewContext(helper+source.slice(start,end)+';globalThis.handle=playerJobEvent;',context);
+ const context={window:{},player:{job,mediaKey:'A',generation:2,workspaceMode:'player',cues2:[]},state:{running:true,outputFiles:[]},$:()=>node,persistPodcastJobOutputs:async(e,b)=>{saved.push([e,b]);},updateBrowserWhisperActions:noop,updateMakeTransState:noop,updatePlayerAutoSyncState:noop,setTimeout:noop,logLine:noop,refreshHistory:noop};const helper=source.slice(source.indexOf('function podcastJobMatchesCurrent(job)'),source.indexOf('// Podcast uses the existing frozen-options queue'));vm.runInNewContext(helper+source.slice(start,end)+';globalThis.handle=playerJobEvent;',context);
  assert.equal(context.handle({type:'translation_chunk',segments:[{start:0,end:1,text:'stale'}]}),true);assert.equal(context.player.cues2.length,0);
  assert.equal(context.handle({type:'done',files:['translated.srt']}),true);await Promise.resolve();assert.equal(saved.length,1);assert.equal(saved[0][1].entryId,'A');assert.equal(saved[0][1].outputRole,'translation');assert.equal(job.doneHandled,true);
 });
@@ -62,4 +62,34 @@ test('A late translation cannot overwrite a changed saved source and materialize
  const replacement=text.replace('Hello','Changed');await api('podcast-save-transcript',{text:replacement,format:'vtt',timed:true});const second=await api('podcast-materialize');assert.notEqual(first.path,second.path);assert.equal(fs.readFileSync(first.path,'utf8'),text);
  const late=await api('podcast-save-transcript',{role:'translation',text:text.replace('Hello','Merhaba'),format:'vtt',timed:true,expectedTranscriptText:text});assert.equal(late.ok,false);assert.equal(service.store.entry(entry.id).podcastWorkspace.translation,undefined);
  const current=await api('podcast-save-transcript',{role:'translation',text:text.replace('Hello','Değişti'),format:'vtt',timed:true,expectedTranscriptText:replacement});assert.equal(current.ok,true);
+});
+
+test('completed ASR keeps only its owned audio bytes, survives release, and detects replacement',async t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'podcast-exact-'));
+ t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const app=new EventEmitter(),body=Buffer.from('ID3 proof audio'),sha256=require('node:crypto').createHash('sha256').update(body).digest('hex');
+ app.getPath=()=>dir;
+ const service=registerFeeds({app,ipcMain:{handle(){}},authorized:()=>true,autoStart:false,grantMedia:()=>true,
+  audioFetcher:async(_url,file)=>{fs.writeFileSync(file,body);return {bytes:body.length,sha256,mime:'audio/mpeg'};}});
+ t.after(()=>service.dispose());
+ const parsed=require('../src/feed-parser').parseFeed(xml,'https://feed.example/rss');
+ service.store.subscribe({...parsed,url:'https://feed.example/rss'},parsed.entries);
+ const entry=service.store.entries().rows[0];
+ const call=(action,rest={},id=1)=>service.handle({sender:{id}},{action,entryId:entry.id,...rest});
+ const audio=await call('podcast-audio',{sourceVersion:sourceVersion(entry),requestId:'audio-test'});
+ assert(audio.ok,audio.error);
+ const params={sourceVersion:audio.sourceVersion,downloadToken:audio.downloadToken,text,format:'vtt',timed:true,provenance:'asr',coverage:{start:0,end:2}};
+ assert.equal((await call('podcast-save-transcript',params,2)).workspace.transcript.timeline,undefined);
+ assert.equal((await call('podcast-exact-audio')).available,false);
+ const saved=await call('podcast-save-transcript',params);
+ assert.equal(saved.workspace.transcript.timeline.sha256,sha256);
+ const hits=require('../src/media-shelf-service').searchPodcastTranscripts({},service.store.snapshot(),'Hello');
+ assert.equal(hits[0].sourceBinding.fingerprintStatus,'cached-playback');
+ await call('podcast-audio-release',{downloadToken:audio.downloadToken});
+ assert.equal(fs.existsSync(audio.path),false);
+ const exact=await call('podcast-exact-audio');
+ assert.equal(exact.available,true);
+ assert.deepEqual(fs.readFileSync(exact.path),body);
+ fs.writeFileSync(exact.path,Buffer.alloc(body.length,9));
+ assert.equal((await call('podcast-exact-audio')).available,false);
 });

@@ -20487,10 +20487,31 @@ function explainCacheKey(kind, index, word) {
   return `${player.subPath}|${kind}|${index}|${word || ''}|${(hash >>> 0).toString(36)}`;
 }
 
-async function openPodcastResearchResult(result, { beforeSeek } = {}) {
+async function openPodcastResearchResult(result, { beforeSeek, isCancelled = () => false, receipt } = {}) {
   const message = (tr, en) => window.UiLocale?.get?.() === 'tr' ? tr : en;
   const unavailable = () => { logLine(message('Podcast bölümü artık bulunamıyor; kayıtlı not korunuyor.', 'Podcast episode is unavailable; the saved note is preserved.'), 'warn'); return false; };
+  const readOnly = () => {
+    if(isCancelled())return false;
+    const quote=result.quote||result.excerpt||result.source||result.text;
+    if(!quote)return false;
+    const d=document.createElement('dialog');
+    d.className='mx-dialog media-surface';
+    d.dataset.uiUntranslated='';
+    const heading=document.createElement('h2'),body=document.createElement('blockquote'),reason=document.createElement('p'),close=document.createElement('button');
+    heading.textContent=result.episodeTitle||result.mediaTitle||message('Kayıtlı podcast pasajı','Saved podcast passage');
+    body.textContent=quote;
+    reason.textContent=message('Bu pasaj salt okunur. Ses kopyası veya zaman bağı doğrulanamadı.','This passage is read-only. The audio copy or timestamp could not be verified.');
+    close.className='mh-action';close.textContent=message('Kapat','Close');close.onclick=()=>d.close();
+    d.append(heading,reason,body,close);
+    d.addEventListener('close',()=>{d.remove();void syncBrowserOcclusion();},{once:true});
+    document.body.append(d);d.showModal();void syncBrowserOcclusion();
+    if(receipt)receipt.mode='read-only';
+    return true;
+  };
+  const exact=result.sourceBinding?.fingerprintStatus==='cached-playback';
   try {
+    if(isCancelled())return false;
+    if(result.timed===false&&receipt)return readOnly();
     let snapshot, service;
     if (result.playbackOwner === 'media-shelf') {
       const library = await window.api.mediaShelf({ action: 'list' });
@@ -20499,13 +20520,18 @@ async function openPodcastResearchResult(result, { beforeSeek } = {}) {
         const episode = show.episodes?.find(row => row.episodeIdentity === result.episodeIdentity);
         if (episode) { found = { show, episode }; break; }
       }
+      if(isCancelled())return false;
       if (!library?.ok || !found || !window.MediaShelfUI?.openPodcast) return unavailable();
       await window.MediaShelfUI.openPodcast(found.show.id, found.episode.url);
       await window.CinemaSahne?.openShelf?.({ mode: 'podcast' });
       snapshot = window.MediaShelfUI.readSnapshot?.(); service = window.MediaShelfUI;
     } else {
       if (!result.sourceEntryId || !window.PlayerSourceCatalogIntegration?.openPodcastEntry) return unavailable();
-      await window.PlayerSourceCatalogIntegration.openPodcastEntry(result.sourceEntryId, { view: 'podcast' });
+      const opened=await window.PlayerSourceCatalogIntegration.openPodcastEntry(result.sourceEntryId, {
+        view:'podcast',...(exact?{exactVersion:result.sourceVersion}:{}),isCancelled
+      });
+      if(isCancelled())return false;
+      if(opened?.readOnly)return readOnly();
       const audio = player.workspaceAudio;
       snapshot = player.workspaceMode === 'player' && audio?.mediaKey === player.mediaKey && audio?.generation === player.generation ? audio : null;
       service = window.PlayerWorkspaceIntegration;
@@ -20515,15 +20541,38 @@ async function openPodcastResearchResult(result, { beforeSeek } = {}) {
     const same = result.sourceVersion && snapshot?.sourceVersion === result.sourceVersion && result.episodeIdentity && snapshot?.episodeIdentity === result.episodeIdentity
       && binding && current && binding.episodeIdentity === result.episodeIdentity && Object.keys(binding).every(key => binding[key] === current[key]);
     if (!same || result.seconds === null || result.seconds === undefined || !Number.isFinite(Number(result.seconds)) || Number(result.seconds) < 0) {
-      osd(message('Podcast açıldı; ses kaynağı veya zaman çıpası eşleşmediği için zamana gidilmedi.', 'Podcast opened; its audio binding or time anchor did not match, so no timestamp was sought.')); return !beforeSeek;
+      osd(message('Podcast açıldı; ses kaynağı veya zaman çıpası eşleşmediği için zamana gidilmedi.', 'Podcast opened; its audio binding or time anchor did not match, so no timestamp was sought.')); return exact?readOnly():!beforeSeek;
+    }
+    if(exact){
+      const media=document.getElementById('playerVideo');
+      if(media.readyState<1){
+        await new Promise(resolve=>{
+          const done=()=>{clearTimeout(timer);media.removeEventListener('loadedmetadata',done);media.removeEventListener('error',done);resolve();};
+          const timer=setTimeout(done,5000);
+          media.addEventListener('loadedmetadata',done,{once:true});media.addEventListener('error',done,{once:true});
+        });
+      }
+      if(isCancelled()||player.workspaceAudio!==snapshot||player.mediaKey!==snapshot.mediaKey||player.generation!==snapshot.generation)return false;
+      if(media.readyState<1||!Number.isFinite(media.duration))return readOnly();
     }
     if (beforeSeek) {
       await beforeSeek();
       const latest = result.playbackOwner === 'media-shelf' ? window.MediaShelfUI.readSnapshot?.() : player.workspaceMode === 'player' && player.workspaceAudio?.mediaKey === player.mediaKey && player.workspaceAudio?.generation === player.generation ? player.workspaceAudio : null;
-      if (!latest || latest.mediaKey !== snapshot.mediaKey || latest.generation !== snapshot.generation || latest.episodeIdentity !== snapshot.episodeIdentity || latest.sourceVersion !== snapshot.sourceVersion) return false;
+      if (isCancelled() || !latest || latest.mediaKey !== snapshot.mediaKey || latest.generation !== snapshot.generation || latest.episodeIdentity !== snapshot.episodeIdentity || latest.sourceVersion !== snapshot.sourceVersion) return false;
     }
-    const sought = await service?.executeExisting?.({ type: 'seek', mediaKey: snapshot.mediaKey, generation: snapshot.generation, time: Number(result.seconds) });
+    const track=result.role&&result.playbackOwner==='player'?service?.getTranscriptTracks?.().find(row=>row.role===result.role):null;
+    const time=Math.max(0,Number(result.seconds)+(track?.offsetSeconds||0));
+    if(isCancelled())return false;
+    if(exact&&time>=document.getElementById('playerVideo').duration)return readOnly();
+    const sought = await service?.executeExisting?.({ type: 'seek', mediaKey: snapshot.mediaKey, generation: snapshot.generation, time });
     if (!sought?.ok) osd(message('Podcast açıldı; bu zaman konumuna gitme doğrulanamadı.', 'Podcast opened; seeking to this timestamp could not be confirmed.'));
+    if(sought?.ok){
+      const latest=result.playbackOwner==='media-shelf'?window.MediaShelfUI?.readSnapshot?.():player.workspaceAudio;
+      if(isCancelled()||!latest||latest.mediaKey!==snapshot.mediaKey||latest.generation!==snapshot.generation
+        ||result.playbackOwner!=='media-shelf'&&(player.mediaKey!==snapshot.mediaKey||player.generation!==snapshot.generation))return false;
+      if(receipt)receipt.mode='seek';
+      if(result.role||result.cueId||exact)window.CinemaSahne?.current?.focusPassage?.(time);
+    }
     return beforeSeek ? !!sought?.ok : true;
   } catch (error) { logLine(String(error?.message || error), 'warn'); return false; }
 }
@@ -33720,7 +33769,7 @@ async function persistPodcastJobOutputs(event,binding){
  if(binding.outputRole==='translation'&&binding.sourceTranscriptText){const saved=await window.api.feedsRequest({action:'podcast-workspace',entryId:binding.entryId,sourceVersion:binding.sourceVersion});if(!saved?.ok||saved.sourceVersion!==binding.sourceVersion||saved.workspace?.transcript?.text!==binding.sourceTranscriptText)throw Error('Podcast transcript changed / Podcast dökümü değişti.');}
  for(const [kind,item]of [['source',outputs.source],['translation',outputs.translation]]){
   if(!item?.path)continue;const result=await window.api.readSubtitle(item.path);if(!result?.ok)throw Error(result?.error||'Podcast output unavailable.');
-  const response=await window.api.feedsRequest({action:'podcast-save-transcript',entryId:binding.entryId,sourceVersion:binding.sourceVersion,text:result.text,format:/\.vtt$/i.test(item.path)?'vtt':'srt',timed:true,provenance:'asr',role:kind,...(kind==='translation'&&binding.sourceTranscriptText?{expectedTranscriptText:binding.sourceTranscriptText}:{}),status:item.status==='partial'?'partial':'complete',coverage:binding.coverage||null,targetLanguage:kind==='translation'?binding.targetLanguage:undefined,recovery:kind==='translation'?result.translationRecovery:undefined});
+  const response=await window.api.feedsRequest({action:'podcast-save-transcript',entryId:binding.entryId,sourceVersion:binding.sourceVersion,downloadToken:binding.downloadToken,text:result.text,format:/\.vtt$/i.test(item.path)?'vtt':'srt',timed:true,provenance:'asr',role:kind,...(kind==='translation'&&binding.sourceTranscriptText?{expectedTranscriptText:binding.sourceTranscriptText}:{}),status:item.status==='partial'?'partial':'complete',coverage:binding.coverage||null,targetLanguage:kind==='translation'?binding.targetLanguage:undefined,recovery:kind==='translation'?result.translationRecovery:undefined});
   if(!response?.ok)throw Error(response?.error||'Podcast result could not be saved.');
   if(binding.playbackOwner==='media-shelf')window.MediaShelfUI?.setPodcastRecovery?.(binding,response.translationRetry||null);
   if(binding.playbackOwner==='player'&&podcastQueueOwnerCurrent(binding)&&player.workspaceAudio?.entryId===binding.entryId)await window.PlayerSourceCatalogIntegration?.loadSavedPodcastResult?.(kind==='source'?'source':'translation');

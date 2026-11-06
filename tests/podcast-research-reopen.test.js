@@ -22,3 +22,14 @@ test('Research library renders untimed notes without a fake zero timestamp',()=>
  const start=source.indexOf('function renderResearchLibrary('),end=source.indexOf('async function loadResearchLibrary(',start);vm.runInNewContext(source.slice(start,end)+';renderResearchLibrary();',context);assert.match(context.document.querySelector('.research-card-head').textContent,/Untimed text/);
  }finally{dom.window.close();}
 });
+
+test('saved passage applies the selected track offset and keeps the same playback owner',async()=>{
+ const h=setup(),receipt={};
+ h.context.window.PlayerWorkspaceIntegration.getTranscriptTracks=()=>[{role:'source',offsetSeconds:2},{role:'translation',offsetSeconds:-1.25}];
+ let focused;
+ h.context.window.CinemaSahne.current={focusPassage:time=>focused=time};
+ assert.equal(await h.context.openPodcastResearchResult({...h.result,role:'translation',seconds:12},{beforeSeek:async()=>{},receipt}),true);
+ assert.equal(h.calls[1][1].time,10.75);
+ assert.equal(focused,10.75);
+ assert.equal(receipt.mode,'seek');
+});
