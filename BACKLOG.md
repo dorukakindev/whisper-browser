@@ -1,6 +1,6 @@
 # Bekleyen işler
 
-Son durum kontrolü **2026-11-06**. Son ürün `cecadb7f4e22869ccde5d8744168ad3cf6db09b3`. [Güncel teslim](docs/devir/2026-11-06-0539.md).
+Son durum kontrolü **2026-11-06**. Son ürün `9b09e37e5341386b3bf64a97dac5aea58cb93f5d`. [Güncel teslim](docs/devir/2026-11-06-0552.md).
 
 **Yeni sohbet başlangıcı:** P025 [PR #842](https://github.com/dorukakindev/whisper-browser/pull/842) ile master'a alındı; doğrulanmış ürün başlangıcı `7bf15f3c2876a5465b0c7f59fff3a037b41aeb69`. Sonraki belge commitleri ürün değişikliği değildir; çalışmadan önce gerçek HEAD/remote ve kişisel farkları yeniden kontrol et. Mevcut görevlerden yarım bırakılmış yeni ürün işi yok; aşağıdaki koşullu/ertelenmiş işler korunur.
 
@@ -13,12 +13,18 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 - **Browser kabulü tamamlandı:** [Gerçek sahne deviri](docs/devir/2026-11-05-1408.md). Resmî Blender tam Sintel videosunda İngilizce 26/Türkçe 29 satırdan eşleşen ilk iki replik, gerçek LG Browser video overlay'inde kontrol edildi. İki dil birlikte göründü; primary +2 sn ile İngilizce gecikti ve Türkçe sabit kaldı; secondary -2 sn ile Türkçe sonraki repliğe geçerken İngilizce ilk replikte kaldı. Yaklaşık 11 sn oynatma, gerçek decode kareleri ve üç görüntü, izin denemesi 0. İlk Türkçe aday 30 sn farklı sürümdü; eşleşen üçüncü aday seçildi. Ürün kodu değişmedi.
 - **Sonraki adım:** bu dar kabul kapalıdır; tüm film/sağlayıcı/işletim koşulları için genel senkron garantisi değildir. P004 kalanları [site profili/fullscreen teslimiyle](docs/devir/2026-11-05-1417.md) kapandı.
 
+## P030 — Canlı podcast alıntıları, yayıncı başlıkları, RSS ve Sahne klavyesi
+
+- P029 canlı model kabulü tamamlandı. İzole LG profilinde sentetik kayıtlarla kaynaklı arama, iki ayrı açma kartı, salt okunur pasaj, 12 saniyeye seek ve eşleşmesiz sorgu doğrulandı.
+- Yayıncının RSS üzerinden sunduğu Podcasting 2.0 JSON başlıkları mevcut oynatıcı ve Sahne’ye bağlandı. Zamanı belirsiz başlıklar salt okunur. RSS kaynak yenileme ve klavye odak akışları güncellendi.
+- 79 hedefli test ve kontrollü LG turu geçti. Yeni Whisper işi açılmadı. Alternatif bölüm formatları, gerçek yayıncı ağ kabulü ve dar pencere bu kapsamda doğrulanmadı. [Devir](docs/devir/2026-11-06-0552.md).
+
 ## P029 — Doğrulanmış podcast sesine dönüş ve asistan kaynakları
 
 - Ürün `51e53f2a669c3e020c1386dd89d2c1784302aa7d`, dal `codex/podcast-exact-return-assistant-20261106`. [Devir](docs/devir/2026-11-06-0531.md).
 - Tamamlanan Whisper çıktısı işin sahipli indirmesi ve mutlak medya zamanıyla bağlanır. Doğrulanmış yerel kopya mevcut oynatıcıda açılır. Eski, silinmiş, değiştirilmiş veya saklanamamış kopyanın pasajı salt okunur kalır.
 - Asistan mevcut aramada en çok altı alıntı döndürür. Açma kartı kaynak ve sohbet sahibine bağlıdır. “Bu ana kadar” sorularında arşiv eşleşmeleri kullanılmaz.
-- 96 hedefli test ve transkript betiği geçti. LG izole Electron ile 12. saniyeye dönüş ve Sahne vurgusu görüldü. Kontrollü sağlayıcıyla gerçek asistan kartı uygulandı. Canlı model kabulü için sonraki adım izole profilde yetkili sağlayıcıyı yapılandırıp sentetik pasajla aramayı ve kartı bir kez denemek.
+- 96 hedefli test ve transkript betiği geçti. LG izole Electron ile 12. saniyeye dönüş ve Sahne vurgusu görüldü. Kontrollü sağlayıcıyla gerçek asistan kartı uygulandı. Canlı model kabulü P030’da tamamlandı.
 
 ## P028 — Podcast arama deneyimi ve zevk dayanağı görünürlüğü tamamlandı
 

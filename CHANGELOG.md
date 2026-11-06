@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Yayıncı bölüm başlıkları Sahne’de görünür. RSS kaynakları güncellendi, değişiklik yok ve erişilemedi durumlarını ayrı gösterir. Sahne sekmeleri klavyeyle değişir ve açılır yüzeyler kapanınca odak geri döner. [Teslim](docs/devir/2026-11-06-0552.md).
+
 - Podcast araması seçili bölümün eksik çevirisini açıklar ve sonraki sayfa yüklenince odağı yeni pasaja taşır. Zevk dayanağında özgün yoruma geçiş öne çıkar. [Teslim](docs/devir/2026-11-06-0539.md).
 
 - Kayıtlı Whisper podcast pasajları doğrulanan ses kopyasında mevcut oynatıcı ve Sahne ile doğru konuma döner. Asistan kayıtlı metinleri kaynaklı arar ve geçerli pasaj için inceleme kartı sunar. [Teslim](docs/devir/2026-11-06-0531.md).
