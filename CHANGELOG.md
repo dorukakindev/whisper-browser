@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Sahne’de üst işlem hiyerarşisi, transkript okuma genişliği, sessiz satır eylemleri ve arama odağı iyileştirildi. Etkin satır ilk yerleşim ve yeniden boyutlandırma sonrasında metni kesilmeden takip edilir; elle gezinme ve klavye odağı korunur. [Devir](docs/devir/2026-11-06-1012.md).
+
 - Podcast kapağı kısa pencerede küçülmez; boş transkript açıklaması kısaltıldı ve mevcut işlem eylemi belirginleştirildi. Geniş Sahne’de ses/oynatma kontrolleri aynı sırayı paylaşır, dar görünümde sarılır. [Devir](docs/devir/2026-11-06-0959.md).
 
 - Podcast ve Çift dilli Sahne’de URL araç çubuğu gizlenir; Browser’a dönüşte normal adres çubuğu geri gelir. [Devir](docs/devir/2026-11-06-0954.md).
