@@ -55,7 +55,7 @@
  async function playStream(result,seconds=0,{isCancelled=()=>false}={}){
   if(isCancelled())return;
   const intent=++player.openIntent;await flushWatchState(false,false);if(intent!==player.openIntent||isCancelled())return;document.getElementById('playerLayer').classList.remove('hidden');setWorkspaceMode('player',false);player.pendingAutoOpen=null;
-  let localPath='';if(result.hash){const completed=await window.api.mediaTorrents({action:'local',hash:result.hash,index:result.index});if(completed?.ok)localPath=completed.path;}
+  let localPath=result.localPath||'';if(result.hash){const completed=await window.api.mediaTorrents({action:'local',hash:result.hash,index:result.index});if(completed?.ok)localPath=completed.path;}
   if(intent!==player.openIntent||isCancelled())return;
   const usesHls=/^https:\/\/.+\.m3u8(?:[?#]|$)/i.test(result.url);
   if(usesHls){player.localPath='';setPlayerHls(result.url,result.title,result.key,{localPath:''});}

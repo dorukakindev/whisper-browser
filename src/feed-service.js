@@ -44,6 +44,44 @@ function errorKind(error){if(error?.code==='EUNSAFE')return 'unsafe';if(error?.c
 function registerFeeds({app,ipcMain,authorized,userData=()=>app.getPath('userData'),catalogStore,translateText,createTextTranslator,grantMedia,grantSubtitle,audioFetcher=require('./podcast-audio').acquireAudio,transcriptFetcher=(descriptor,options)=>require('./podcast-transcript-service').fetchPodcastTranscript(descriptor,{...options,publicPin,pinnedRequest}),fetchValidated=fetchPublic,autoStart=true,now=()=>Date.now()}={}){
  const store=createFeedStore(path.join(userData(),'feeds.json'),{now}),jobs=new Map(),tokens=new Map(),hostChecks=new Map(),activeFeeds=new Set();let disposed=false,refreshing=false;
  const managedAudio=new Map();
+ const verifiedCopies=new Map();
+ const cacheDirectory=()=>path.join(userData(),'podcast-audio','transcript-cache');
+ const cacheName=/^[a-f0-9]{64}\.(mp3|wav|m4a|m4b|aac|flac|ogg|opus|wma|mp4|webm|3gp)$/;
+ function retainTranscriptAudio(download,binding){
+  const fs=require('node:fs'),dir=cacheDirectory(),file=binding.sha256+path.extname(download.file);
+  if(!cacheName.test(file))return null;
+  fs.mkdirSync(dir,{recursive:true});
+  const existing=fs.readdirSync(dir,{withFileTypes:true}).filter(item=>item.isFile()&&cacheName.test(item.name));
+  if(!existing.some(item=>item.name===file)){
+   const used=existing.reduce((total,item)=>total+fs.statSync(path.join(dir,item.name)).size,0);
+   if(used+binding.length>1024**3||existing.length>=32)return null;
+   fs.linkSync(download.file,path.join(dir,file));
+  }
+  return {file,sha256:binding.sha256,episodeIdentity:binding.episodeIdentity,sourceVersion:download.sourceVersion,clock:'absolute-media-seconds'};
+ }
+ async function exactTranscriptAudio(entry){
+  const fs=require('node:fs'),session=require('./podcast-session'),binding=session.sourceBinding(entry);
+  const version=session.sourceVersion(entry),proof=entry.podcastWorkspace?.transcript?.timeline;
+  if(!session.matchesTranscriptTimeline(proof,version,binding)||!cacheName.test(proof.file))return {available:false};
+  const file=path.join(cacheDirectory(),proof.file);
+  const stamp=stat=>[stat.dev,stat.ino,stat.size,stat.mtimeMs,stat.ctimeMs].join(':');
+  try{
+   const stat=await fs.promises.lstat(file);
+   if(!stat.isFile()||stat.size!==binding.length)return {available:false};
+   const signature=stamp(stat);
+   if(verifiedCopies.get(file)!==signature){
+    const digest=createHash('sha256');
+    for await(const chunk of fs.createReadStream(file))digest.update(chunk);
+    if(digest.digest('hex')!==binding.sha256||stamp(await fs.promises.lstat(file))!==signature)return {available:false};
+    verifiedCopies.set(file,signature);
+   }
+   const current=store.entry(entry.id);
+   if(session.sourceVersion(current)!==version||JSON.stringify(current.podcastWorkspace?.transcript?.timeline)!==JSON.stringify(proof))return {available:false};
+   if(!grantMedia?.(file))return {available:false};
+   return {available:true,path:file,sourceVersion:version,sourceBinding:{...binding,fingerprintStatus:'cached-playback'}};
+  }catch{return {available:false};}
+ }
+
  const requestTranscript=require('./podcast-transcript-service').createTranscriptRequester(transcriptFetcher,{now});
  const translateEntry=require('./feed-translation').createFeedTranslation({store,translate:translateText});
  const translatePodcastText=require('./podcast-text-translation').createPodcastTextTranslation({store,translate:translateText,createTranslator:createTextTranslator});
@@ -105,7 +143,8 @@ function registerFeeds({app,ipcMain,authorized,userData=()=>app.getPath('userDat
     case 'correction':result={correction:store.correction(input.entryId,input.acknowledge===true,input.revision)};break;
     case 'entries':if(input.kind&&!['article','video','podcast'].includes(input.kind))throw Error('Unsupported entry kind.');result=store.entries(input);result.rows=result.rows.map(withLinkStates);break;
     case 'entry':result={entry:withLinkStates(store.entry(input.entryId,input.revision))};break;
-    case 'podcast-audio':result=await job(event,input,async signal=>{const entry=store.entry(input.entryId),version=require('./podcast-session').sourceVersion(entry);if(input.sourceVersion!==version||entry.kind!=='podcast')throw Error('Podcast audio source changed.');if(managedAudio.size>=4)throw Error('Finish or remove an existing podcast download first.');const enclosure=entry.enclosures.find(e=>/^audio\//.test(e.type));if(!enclosure)throw Error('No public podcast audio.');const fs=require('node:fs'),dir=path.join(userData(),'podcast-audio');await fs.promises.mkdir(dir,{recursive:true});const tokenId=randomUUID(),temporary=path.join(dir,tokenId+'.partial');let file=temporary;managedAudio.set(tokenId,{file,owner:owner(event)});try{const evidence=await audioFetcher(enclosure.url,temporary,{signal,publicPin});signal.throwIfAborted();if(require('./podcast-session').sourceVersion(store.entry(entry.id))!==version)throw Error('Podcast audio source changed.');const target=path.join(dir,tokenId+require('./podcast-audio').managedAudioExtension(evidence.mime,enclosure.url));await fs.promises.link(temporary,target);file=target;managedAudio.get(tokenId).file=file;await fs.promises.rm(temporary);signal.throwIfAborted();if(typeof grantMedia!=='function'||!grantMedia(file))throw Error('Podcast audio could not be authorized.');const binding=store.podcastAudioEvidence(entry.id,version,evidence);return {path:file,downloadToken:tokenId,sourceVersion:binding.sourceVersion,sourceBinding:binding.sourceBinding};}catch(error){managedAudio.delete(tokenId);await fs.promises.rm(file,{force:true}).catch(()=>{});if(file!==temporary)await fs.promises.rm(temporary,{force:true}).catch(()=>{});throw error;}},20*60*1000);break;
+    case 'podcast-audio':result=await job(event,input,async signal=>{const entry=store.entry(input.entryId),version=require('./podcast-session').sourceVersion(entry);if(input.sourceVersion!==version||entry.kind!=='podcast')throw Error('Podcast audio source changed.');if(managedAudio.size>=4)throw Error('Finish or remove an existing podcast download first.');const enclosure=entry.enclosures.find(e=>/^audio\//.test(e.type));if(!enclosure)throw Error('No public podcast audio.');const fs=require('node:fs'),dir=path.join(userData(),'podcast-audio');await fs.promises.mkdir(dir,{recursive:true});const tokenId=randomUUID(),temporary=path.join(dir,tokenId+'.partial');let file=temporary;managedAudio.set(tokenId,{file,owner:owner(event)});try{const evidence=await audioFetcher(enclosure.url,temporary,{signal,publicPin});signal.throwIfAborted();if(require('./podcast-session').sourceVersion(store.entry(entry.id))!==version)throw Error('Podcast audio source changed.');const target=path.join(dir,tokenId+require('./podcast-audio').managedAudioExtension(evidence.mime,enclosure.url));await fs.promises.link(temporary,target);file=target;managedAudio.get(tokenId).file=file;await fs.promises.rm(temporary);signal.throwIfAborted();if(typeof grantMedia!=='function'||!grantMedia(file))throw Error('Podcast audio could not be authorized.');const binding=store.podcastAudioEvidence(entry.id,version,evidence);Object.assign(managedAudio.get(tokenId),{entryId:entry.id,sourceVersion:binding.sourceVersion});return {path:file,downloadToken:tokenId,sourceVersion:binding.sourceVersion,sourceBinding:binding.sourceBinding};}catch(error){managedAudio.delete(tokenId);await fs.promises.rm(file,{force:true}).catch(()=>{});if(file!==temporary)await fs.promises.rm(temporary,{force:true}).catch(()=>{});throw error;}},20*60*1000);break;
+    case 'podcast-exact-audio':result=await exactTranscriptAudio(store.entry(input.entryId));break;
     case 'podcast-audio-release':{const row=managedAudio.get(input.downloadToken);if(row&&row.owner===owner(event)){await require('node:fs').promises.rm(row.file,{force:true});managedAudio.delete(input.downloadToken);}result={released:true};break;}
     case 'podcast-translate-text':result=await job(event,input,signal=>translatePodcastText(input,signal),5*60*1000);break;
     case 'podcast-materialize':{const entry=store.entry(input.entryId),version=require('./podcast-session').sourceVersion(entry),transcript=entry.podcastWorkspace?.sourceVersion===version?entry.podcastWorkspace[input.role==='translation'?'translation':'transcript']:null;if(input.sourceVersion!==version||transcript?.state!=='timed')throw Error('No current timed podcast transcript.');const fs=require('node:fs'),dir=path.join(userData(),'podcast-transcripts');await fs.promises.mkdir(dir,{recursive:true});const file=path.join(dir,version+(input.role==='translation'?'-translation':'')+'-'+createHash('sha256').update(transcript.text).digest('hex').slice(0,16)+'.'+transcript.format);require('./fsync-utils').atomicWriteFileSync(file,transcript.text);grantSubtitle?.(file);result={path:file};break;}
@@ -114,6 +153,13 @@ function registerFeeds({app,ipcMain,authorized,userData=()=>app.getPath('userDat
      const entry=store.entry(input.entryId),recovery=require('./podcast-translation-recovery'),role=input.role==='translation'?'translation':'transcript';
      if(role==='translation'&&input.expectedTranscriptText!==undefined&&entry.podcastWorkspace?.transcript?.text!==input.expectedTranscriptText)throw Error('Podcast source transcript changed.');
      const track={state:input.timed===true?'timed':'untimed',text:input.text,format:input.format,provenance:input.provenance==='asr'?'asr':'user',status:input.status==='partial'?'partial':'complete',coverage:recovery.coverage(input.coverage)};
+     const session=require('./podcast-session'),binding=session.sourceBinding(entry);
+     const download=managedAudio.get(input.downloadToken);
+     if(track.provenance==='asr'&&track.state==='timed'&&track.status==='complete'&&download?.owner===owner(event)&&download.entryId===entry.id&&download.sourceVersion===input.sourceVersion&&session.sourceVersion(entry)===input.sourceVersion){
+      try{const timeline=retainTranscriptAudio(download,binding);if(timeline)track.timeline={...timeline,extractionStart:track.coverage?.start||0};}catch{/* A cache failure preserves the transcript as read-only. */}
+     }
+     const source=entry.podcastWorkspace?.transcript;
+     if(role==='translation'&&track.status==='complete'&&track.state==='timed'&&input.expectedTranscriptText===source?.text&&source?.timeline)track.timeline=source.timeline;
      if(role==='translation'&&input.targetLanguage!==undefined){if(typeof input.targetLanguage!=='string'||!/^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/i.test(input.targetLanguage))throw Error('Invalid translation target language.');track.targetLanguage=input.targetLanguage.toLowerCase();}
      if(role==='translation'&&input.recovery!=null){if(track.state!=='timed'||entry.podcastWorkspace?.transcript?.state!=='timed')throw Error('Recovery requires timed source and translation.');track.recovery=recovery.validate(input.recovery,entry.podcastWorkspace.transcript.text,track.text,track.targetLanguage);}
      const workspace=store.podcastWorkspace(entry.id,input.sourceVersion,{[role]:track});result={workspace,translationRetry:recovery.recoveryInfo(workspace.transcript,workspace.translation)};break;

@@ -98,7 +98,7 @@
             results.append(group);
           }
           const card=node('article','pl-search-hit');
-          const time=row.timed?row.seconds.toFixed(1)+'–'+row.end.toFixed(1)+' s':t('Read only','Salt okunur');
+          const time=row.timed?row.seconds.toFixed(1)+'–'+row.end.toFixed(1)+' s':row.timingUnverified?t('Read only · audio timing unverified','Salt okunur · ses zamanı doğrulanmadı'):t('Read only','Salt okunur');
           card.append(node('p','pl-meta',(row.role==='translation'?t('Translation','Çeviri'):t('Original','Özgün'))+' · '+time),node('blockquote','',row.quote));
           card.append(button(row.timed?t('Go to passage','Pasaja git'):t('Read saved passage','Kayıtlı pasajı oku'),async()=>{
             try{

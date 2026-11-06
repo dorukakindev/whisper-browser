@@ -58,7 +58,7 @@ function podcastTrack(episode,role='source') {
   if(!transcript||transcript.status==='partial')return null;
   const timed=workspace.sourceVersion===episode.sourceVersion&&transcript.state==='timed';
   const cues = timed ? require('./browser-subtitles').parseSubtitlePayload(transcript.text, '', 'publisher.'+transcript.format).cues.map((cue,index)=>({...cue,id:String(index)})) : [];
-  return {id:(role==='translation'?'translation:':'publisher:')+episode.episodeIdentity, revision:createHash('sha256').update(transcript.text).digest('hex'), role, offsetSeconds:0, timed, ...(workspace.sourceVersion!==episode.sourceVersion?{timingState:'needs-review'}:{}),cues, text:transcript.text, provenance:transcript.provenance};
+  return {id:(role==='translation'?'translation:':'publisher:')+episode.episodeIdentity, revision:createHash('sha256').update(transcript.text).digest('hex'), role, offsetSeconds:0, timed, ...(workspace.sourceVersion!==episode.sourceVersion?{timingState:'needs-review'}:{}),cues, text:transcript.text, provenance:transcript.provenance,timeline:transcript.timeline};
 }
 
 // Read existing records only; result tokens bind the exact text, source and location.
@@ -69,6 +69,7 @@ function* podcastTranscriptMatches(data, feeds, query, scope) {
   const session=require('./podcast-session'),seen=new Set();
   function* matches(episode,show,owner,entryId) {
     if(scope.show && scope.show!==(show.url||show.id))return;
+    if(scope.showName&&!fold(show.title).includes(fold(scope.showName)))return;
     if(scope.episode && scope.episode!==(entryId||episode.episodeIdentity))return;
     for(const role of ['source','translation']){
       if(scope.role && scope.role!==role)continue;
@@ -93,13 +94,16 @@ function* podcastTranscriptMatches(data, feeds, query, scope) {
         }
         const start=Math.max(0,excerptOffset-120);
         const quote=part.quote.slice(start,start+4000);
+        const exact=owner==='player'&&session.matchesTranscriptTimeline(track.timeline,episode.sourceVersion,episode.sourceBinding)
+          &&track.timeline.file===episode.podcastWorkspace?.transcript?.timeline?.file;
         const timed=track.timed===true&&Number.isFinite(part.start)&&Number.isFinite(part.end)
-          &&episode.positionState!=='needs-review'&&!(owner==='player'&&track.provenance==='asr');
+          &&episode.positionState!=='needs-review'&&(track.provenance!=='asr'||exact);
         const row={
           mediaType:'podcast',episodeTitle:episode.title||'',showTitle:show.title||'',
-          episodeIdentity:episode.episodeIdentity,sourceVersion:episode.sourceVersion,sourceBinding:episode.sourceBinding,
+          episodeIdentity:episode.episodeIdentity,sourceVersion:episode.sourceVersion,sourceBinding:exact?{...episode.sourceBinding,fingerprintStatus:'cached-playback'}:episode.sourceBinding,
           sourceEntryId:entryId||'',playbackOwner:owner,role,quote,timed,
-          seconds:timed?part.start:null,end:timed?part.end:null
+          seconds:timed?part.start:null,end:timed?part.end:null,
+          ...(track.timed&&!timed?{timingUnverified:true}:{})
         };
         row.token=createHash('sha256').update(JSON.stringify([row,track.revision,index])).digest('hex');
         yield row;
@@ -110,7 +114,13 @@ function* podcastTranscriptMatches(data, feeds, query, scope) {
   for(const entry of feeds.entries||[]){
     const show=shows.get(entry.feedId);
     if(entry.kind!=='podcast'||!show)continue;
-    yield* matches({...entry,episodeIdentity:session.episodeIdentity(entry),sourceVersion:session.sourceVersion(entry),sourceBinding:session.sourceBinding(entry)},show,'player',entry.id);
+    const version=session.sourceVersion(entry),saved=entry.podcastWorkspace;
+    const current={...entry,episodeIdentity:session.episodeIdentity(entry),sourceVersion:version,sourceBinding:session.sourceBinding(entry)};
+    yield* matches(current,show,'player',entry.id);
+    const historical=saved?.sourceVersion!==version?saved:saved?.previous;
+    if(historical?.transcript&&(!saved.transcript?.text||saved.sourceVersion!==version)){
+      yield* matches({...current,sourceVersion:historical.sourceVersion,podcastWorkspace:historical,positionState:'needs-review'},show,'player',entry.id);
+    }
   }
   for(const show of data.podcasts||[])for(const episode of show.episodes||[])yield* matches(episode,show,'media-shelf');
 }
@@ -137,6 +147,24 @@ function loadShelfFile(file) {
     data.podcasts = data.podcasts.map(p=>({...p,episodes:p.episodes.map(e=>bindPodcastEpisode(p,e,feedEntries.find(f=>f.kind==='podcast'&&f.sourceFeed?.url===p.url&&(e.guid?f.externalId===e.guid:f.enclosures?.some(a=>a.url===e.url))))) }));
     return data;
   }
+function readPodcastSearch(directory,input,limit=100){
+  if(typeof input.query!=='string'||input.query.length>200)throw Error('Enter up to 200 characters. / En fazla 200 karakter yazın.');
+  const feedFile=path.join(directory,'feeds.json'),feeds=fs.existsSync(feedFile)?require('./feed-store').createFeedStore(feedFile).snapshot():{entries:[],feeds:[]};
+  const scope={show:text(input.show,4096),episode:text(input.episode,256),role:input.role,showName:text(input.showName,160)};
+  if(scope.role && !['source','translation'].includes(scope.role))throw Error('Invalid transcript filter. / Geçersiz transkript filtresi.');
+  const data=loadShelfFile(path.join(directory,'media-shelf.json'));
+  if(input.action==='podcast-search-resolve'){
+    if(typeof input.token!=='string'||!/^[a-f0-9]{64}$/.test(input.token))throw Error('Invalid search result. / Geçersiz arama sonucu.');
+    for(const row of podcastTranscriptMatches(data,feeds,input.query,scope)){
+      if(row.token===input.token)return {ok:true,row};
+    }
+    throw Error('Saved source changed or was removed. Search again. / Kayıtlı kaynak değişti veya silindi. Yeniden arayın.');
+  }
+  const offset=input.offset??0;
+  if(!Number.isSafeInteger(offset)||offset<0||offset>Number.MAX_SAFE_INTEGER-limit)throw Error('Invalid search page. / Geçersiz arama sayfası.');
+  const rows=searchPodcastTranscripts(data,feeds,input.query,{...scope,offset,limit:limit+1});
+  return {ok:true,rows:rows.slice(0,limit),nextOffset:rows.length>limit?offset+limit:null,limit,mode:'literal'};
+}
 function readReviewTaste(userData,catalog=[]) {
   const data=loadShelfFile(path.join(userData,'media-shelf.json'));
   return require('./media-taste').profile(data.diary,catalog,data.tasteProfile||{},Array.isArray(data.reviews)?data.reviews:[]);
@@ -261,22 +289,7 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
         }
         case 'podcast-search':
         case 'podcast-search-resolve': {
-          if(typeof input.query!=='string'||input.query.length>200)throw Error('Enter up to 200 characters. / En fazla 200 karakter yazın.');
-          const feedFile=path.join(userData(),'feeds.json'),feeds=fs.existsSync(feedFile)?require('./feed-store').createFeedStore(feedFile).snapshot():{entries:[],feeds:[]};
-          const scope={show:text(input.show,4096),episode:text(input.episode,256),role:input.role};
-          if(scope.role && !['source','translation'].includes(scope.role))throw Error('Invalid transcript filter. / Geçersiz transkript filtresi.');
-          const data=load();
-          if(input.action==='podcast-search-resolve'){
-            if(typeof input.token!=='string'||!/^[a-f0-9]{64}$/.test(input.token))throw Error('Invalid search result. / Geçersiz arama sonucu.');
-            for(const row of podcastTranscriptMatches(data,feeds,input.query,scope)){
-              if(row.token===input.token)return {ok:true,row};
-            }
-            throw Error('Saved source changed or was removed. Search again. / Kayıtlı kaynak değişti veya silindi. Yeniden arayın.');
-          }
-          const offset=input.offset??0;
-          if(!Number.isSafeInteger(offset)||offset<0||offset>Number.MAX_SAFE_INTEGER-100)throw Error('Invalid search page. / Geçersiz arama sayfası.');
-          const rows=searchPodcastTranscripts(data,feeds,input.query,{...scope,offset,limit:101});
-          return {ok:true,rows:rows.slice(0,100),nextOffset:rows.length>100?offset+100:null,limit:100,mode:'literal'};
+          return readPodcastSearch(userData(),input);
         }
         case 'list': return { ok: true, ...publicState(load()) };
         case 'listening-queue-save': {
@@ -547,4 +560,4 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
     } catch (error) { const parts=String(error.message).split(' / ');return { ok: false,...(error.stale?{stale:true}:{}), error:parts.length>1?(input.locale==='tr'?parts.slice(1).join(' / '):parts[0]):error.message }; }
   });
 }
-module.exports = { registerMediaShelf, csvPlan, urlOf, readReviewTaste, searchPodcastTranscripts };
+module.exports = { registerMediaShelf, csvPlan, urlOf, readReviewTaste, readPodcastSearch, searchPodcastTranscripts };
