@@ -119,11 +119,16 @@ test('transcript scope, next page and selected passage survive a library remount
   show.value='s';show.dispatchEvent(new w.Event('change'));episode.value='ep';role.value='translation';
   area.querySelector('input').value='phrase';area.querySelector('form').dispatchEvent(new w.Event('submit',{cancelable:true}));
   await tick();assert.deepEqual(calls[0],{query:'phrase',show:'s',episode:'ep',role:'translation',offset:0});
-  [...area.querySelectorAll('button')].find(b=>b.textContent==='Load more passages').click();
+  const more=[...area.querySelectorAll('button')].find(b=>b.textContent==='Load more passages');more.focus();more.click();
   await tick();assert.equal(calls[1].offset,100);assert.equal(area.querySelectorAll('.pl-search-group').length,1);
   assert.equal(area.querySelectorAll('.pl-search-hit').length,2);
+  assert.equal(w.document.activeElement.closest('[data-passage]').dataset.passage,'second');
   state.anchor='second';dispose();root.replaceChildren();w.PodcastLibraryUI.mount(root,data,actions);
   assert.equal(root.querySelector('.pl-transcript-search input').value,'phrase');
   assert.equal(root.querySelectorAll('.pl-search-hit').length,2);assert.equal(calls.length,2);
+  actions.searchTranscripts=async()=>({rows:[],nextOffset:null});
+  root.querySelector('.pl-transcript-search form').dispatchEvent(new w.Event('submit',{cancelable:true}));
+  await tick();
+  assert.match(root.querySelector('.pl-transcript-search [role=status]').textContent,/no complete translation/);
  }finally{w.close();}
 });

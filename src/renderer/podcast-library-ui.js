@@ -75,12 +75,14 @@
       submit.type='submit';
       fields.append(input,submit);
       form.append(fields,scopes);
-      const more=button(t('Load more passages','Daha fazla pasaj yükle'),()=>runSearch(true));
+      const more=node('button','mh-action',t('Load more passages','Daha fazla pasaj yükle'));
+      more.type='button';
+      more.onclick=()=>void runSearch(true);
       more.hidden=true;
       area.append(summary,form,node('p','pl-meta',t('Local word and phrase matching. Searches saved original text and complete translations.','Yerel sözcük ve ifade eşleşmesi. Kayıtlı özgün metin ve tamamlanmış çeviriler taranır.')),status,results,more);
       main.append(area);
 
-      let ticket=0;
+      let ticket=0,loadingPage=false;
       function criteria(){return {query:input.value.trim(),show:show.value,episode:episode.value,role:role.value};}
       function render(){
         results.replaceChildren();
@@ -132,20 +134,28 @@
           groups.get(key).append(card);
         }
         more.hidden=savedSearch.nextOffset==null;
+        const selected=scope.episode&&shows.flatMap(p=>p.episodes).find(row=>(row.entryId||row.episodeIdentity)===scope.episode);
+        const missingTranslation=selected&&scope.role!=='source'&&!ready(selected)&&!rows.some(row=>row.role==='translation');
         status.textContent=rows.length
           ? rows.length+' '+(more.hidden?t('passages shown','pasaj gösteriliyor'):t('passages shown · more available','pasaj gösteriliyor · devamı var'))
           : savedSearch.searched?t('No passages match these filters. Try a different phrase or text filter.','Bu filtrelerle eşleşen pasaj yok. İfadeyi veya metin filtresini değiştirin.'):'';
+        if(savedSearch.searched&&missingTranslation){
+          const note=t('This episode has no complete translation in its current record.','Bu bölümün güncel kaydında tamamlanmış çeviri yok.');
+          status.textContent=scope.role==='translation'&&!rows.length?note+' '+t('Try the original text.','Özgün metinde aramayı deneyin.'):status.textContent+' '+note;
+        }
       }
       function invalidate(){
         ticket++;
+        loadingPage=false;
         Object.assign(savedSearch,criteria(),{rows:[],nextOffset:null,searched:false,anchor:null});
         render();
       }
       async function runSearch(append=false){
         const {query,...scope}=criteria();
         const offset=append?savedSearch.nextOffset:0;
-        if(append&&offset==null)return;
+        if(append&&(offset==null||loadingPage))return;
         if(!append)invalidate();
+        loadingPage=append;
         const mine=++ticket;
         if(!query){
           status.textContent=t('Enter a word or phrase to search.','Aramak için sözcük veya ifade yazın.');
@@ -157,13 +167,19 @@
           if(disposed||mine!==ticket)return;
           const rows=append?savedSearch.rows:[];
           const seen=new Set(rows.map(row=>row.token));
-          savedSearch.rows=[...rows,...response.rows.filter(row=>!seen.has(row.token))];
+          const added=response.rows.filter(row=>!seen.has(row.token));
+          savedSearch.rows=[...rows,...added];
           savedSearch.nextOffset=response.nextOffset??null;
           savedSearch.searched=true;
+          const moveFocus=append&&document.activeElement===more;
           render();
+          if(moveFocus){
+            const first=[...results.querySelectorAll('[data-passage]')].find(card=>card.dataset.passage===added[0]?.token);
+            (first?.querySelector('button')||(more.hidden?submit:more)).focus();
+          }
         }catch(error){
           if(!disposed&&mine===ticket)status.textContent=t('Could not read saved text. Try again.','Kayıtlı metin okunamadı. Yeniden deneyin.')+' '+error.message;
-        }
+        }finally{if(mine===ticket)loadingPage=false;}
       }
       form.onsubmit=event=>{event.preventDefault();void runSearch();};
       input.oninput=invalidate;
