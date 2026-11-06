@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Browser Sahne adres alanını tam genişlikte hizalar. Dar ve kısa pencerede durumlar ile medya başlığı daha az yer kaplar. Tek dilde gereksiz seçimler gizlenir, transkript kartları sıklaşır. [Devir](docs/devir/2026-11-06-0821.md).
+
 - Sahne, transkript yenilendiğinde aynı sıradaki etkin altyazıyı hemen günceller. Sessiz aralık eski altyazıyı temizler. Browser Sahne programatik kapanışta oturumunu da kapatır. [Devir](docs/devir/2026-11-06-0818.md).
 
 - Browser Sahne tek yüklü altyazının dilini otomatik gösterir ve boş transkript satırlarını saklar. YouTube oynatıcısı Çift dilli video alanını doldurur. Browser’a dönüş Sahne oturumunu kapatır ve donmuş kareyi hemen temizler. [Devir](docs/devir/2026-11-06-0812.md).
