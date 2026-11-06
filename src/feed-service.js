@@ -28,9 +28,9 @@ async function pinnedRequest(url,pin,{headers,signal,maxBytes=P.MAX_BYTES,transp
   const stop=()=>request.destroy(signal?.reason||Error('Cancelled.'));request.setTimeout(12000,()=>request.destroy(Object.assign(Error('Feed request timed out.'),{code:'ETIMEDOUT'})));request.on('error',error=>finish(error));if(signal?.aborted)stop();else signal?.addEventListener('abort',stop,{once:true});request.end();
  });
 }
-async function fetchPublic(raw,{headers={},signal,lookup,transport,maxBytes=P.MAX_BYTES}={}){
+async function fetchPublic(raw,{headers={},signal,lookup,transport,maxBytes=P.MAX_BYTES,accept}={}){
  let url=P.safeUrl(raw);if(!url)throw Object.assign(Error('Unsafe public feed URL.'),{code:'EUNSAFE'});
- const combined=signal?AbortSignal.any([signal,AbortSignal.timeout(15000)]):AbortSignal.timeout(15000);let requestHeaders={Accept:'application/rss+xml, application/atom+xml, application/feed+json, text/html;q=0.6','Accept-Encoding':'gzip, deflate, br','User-Agent':'Whisper-Browser-Feeds/1'};
+ const combined=signal?AbortSignal.any([signal,AbortSignal.timeout(15000)]):AbortSignal.timeout(15000);let requestHeaders={Accept:accept||'application/rss+xml, application/atom+xml, application/feed+json, text/html;q=0.6','Accept-Encoding':'gzip, deflate, br','User-Agent':'Whisper-Browser-Feeds/1'};
  // This is a public feed transport, never an authenticated browser request.
  for(const key of ['If-None-Match','If-Modified-Since'])if(typeof headers[key]==='string'&&headers[key].length<=500&&!/[\r\n]/.test(headers[key]))requestHeaders[key]=headers[key];
  for(let hop=0;hop<=4;hop++){
@@ -94,7 +94,7 @@ function registerFeeds({app,ipcMain,authorized,userData=()=>app.getPath('userDat
   const headers=response.headers instanceof Headers?response.headers:new Headers(response.headers||{}),status=Number(response.status)||0;
   if(status===304)return {status,headers,effectiveUrl,text:''};
   if(status!==200)throw Object.assign(Error('Feed HTTP '+status+'.'),{status,retryAfter:headers.get('retry-after')});
-  const bytes=response.buffer?Buffer.from(response.buffer):await abortable(readLimitedBytes(response,P.MAX_BYTES,'Feed'),options.signal);if(bytes.length>P.MAX_BYTES)throw Object.assign(Error('Feed body exceeds 2 MB.'),{code:'ELIMIT'});
+  const bytes=response.buffer?Buffer.from(response.buffer):await abortable(readLimitedBytes(response,options.maxBytes||P.MAX_BYTES,'Feed'),options.signal);if(bytes.length>(options.maxBytes||P.MAX_BYTES))throw Object.assign(Error('Feed body exceeds 2 MB.'),{code:'ELIMIT'});
   const type=headers.get('content-type')||'',charset=/charset\s*=\s*["']?([^;\s"']+)/i.exec(type)?.[1]||'utf-8';let text;try{text=new TextDecoder(charset).decode(bytes).replace(/^\uFEFF/,'');}catch{throw Error('Unsupported feed text encoding.');}return {status,headers,effectiveUrl,text};
  }
  async function job(event,input,run,timeout=30000){
@@ -110,7 +110,7 @@ function registerFeeds({app,ipcMain,authorized,userData=()=>app.getPath('userDat
   if(activeFeeds.has(feed.id))return {feedId:feed.id,state:'busy',inserted:0};activeFeeds.add(feed.id);
   const headers={};if(feed.etag&&!/[\r\n]/.test(feed.etag))headers['If-None-Match']=feed.etag;if(feed.lastModified&&!/[\r\n]/.test(feed.lastModified))headers['If-Modified-Since']=feed.lastModified;
   try{const response=await requestFeed(feed.effectiveUrl||feed.url,{headers,signal});signal?.throwIfAborted();if(response.status===304){store.checked(feed.id);return {feedId:feed.id,state:'unchanged',inserted:0};}
-   const parsed=P.parseFeed(response.text,response.effectiveUrl);signal?.throwIfAborted();const result=store.commit(feed.id,{...parsed,effectiveUrl:response.effectiveUrl,etag:response.headers.get('etag')||'',lastModified:response.headers.get('last-modified')||''});return {feedId:feed.id,state:'updated',inserted:result.inserted,updated:result.updated};
+   const parsed=P.parseFeed(response.text,response.effectiveUrl);signal?.throwIfAborted();const result=store.commit(feed.id,{...parsed,effectiveUrl:response.effectiveUrl,etag:response.headers.get('etag')||'',lastModified:response.headers.get('last-modified')||''});return {feedId:feed.id,state:result.feed.state,inserted:result.inserted,updated:result.updated};
   }catch(error){const kind=signal?.aborted?'cancelled':errorKind(error),retryRaw=error.retryAfter,retryAfter=/^\d+$/.test(retryRaw||'')?Number(retryRaw)*1000:Math.max(0,Date.parse(retryRaw||'')-now())||0;if(kind!=='cancelled')try{store.failure(feed.id,{error:clean(error.message,300),errorKind:kind,retryAfter});}catch{}return {feedId:feed.id,state:kind==='cancelled'?'cancelled':'failed',inserted:0,error:clean(error.message,300),errorKind:kind};}finally{activeFeeds.delete(feed.id);}
  }
  async function refreshDue(){
@@ -144,6 +144,23 @@ function registerFeeds({app,ipcMain,authorized,userData=()=>app.getPath('userDat
     case 'entries':if(input.kind&&!['article','video','podcast'].includes(input.kind))throw Error('Unsupported entry kind.');result=store.entries(input);result.rows=result.rows.map(withLinkStates);break;
     case 'entry':result={entry:withLinkStates(store.entry(input.entryId,input.revision))};break;
     case 'podcast-audio':result=await job(event,input,async signal=>{const entry=store.entry(input.entryId),version=require('./podcast-session').sourceVersion(entry);if(input.sourceVersion!==version||entry.kind!=='podcast')throw Error('Podcast audio source changed.');if(managedAudio.size>=4)throw Error('Finish or remove an existing podcast download first.');const enclosure=entry.enclosures.find(e=>/^audio\//.test(e.type));if(!enclosure)throw Error('No public podcast audio.');const fs=require('node:fs'),dir=path.join(userData(),'podcast-audio');await fs.promises.mkdir(dir,{recursive:true});const tokenId=randomUUID(),temporary=path.join(dir,tokenId+'.partial');let file=temporary;managedAudio.set(tokenId,{file,owner:owner(event)});try{const evidence=await audioFetcher(enclosure.url,temporary,{signal,publicPin});signal.throwIfAborted();if(require('./podcast-session').sourceVersion(store.entry(entry.id))!==version)throw Error('Podcast audio source changed.');const target=path.join(dir,tokenId+require('./podcast-audio').managedAudioExtension(evidence.mime,enclosure.url));await fs.promises.link(temporary,target);file=target;managedAudio.get(tokenId).file=file;await fs.promises.rm(temporary);signal.throwIfAborted();if(typeof grantMedia!=='function'||!grantMedia(file))throw Error('Podcast audio could not be authorized.');const binding=store.podcastAudioEvidence(entry.id,version,evidence);Object.assign(managedAudio.get(tokenId),{entryId:entry.id,sourceVersion:binding.sourceVersion});return {path:file,downloadToken:tokenId,sourceVersion:binding.sourceVersion,sourceBinding:binding.sourceBinding};}catch(error){managedAudio.delete(tokenId);await fs.promises.rm(file,{force:true}).catch(()=>{});if(file!==temporary)await fs.promises.rm(temporary,{force:true}).catch(()=>{});throw error;}},20*60*1000);break;
+    case 'podcast-chapters':result=await job(event,input,async signal=>{
+     const session=require('./podcast-session'),entry=store.entry(input.entryId);
+     if(entry.kind!=='podcast'||session.sourceVersion(entry)!==input.sourceVersion||!entry.chapterUrl)return {chapters:[]};
+     const response=await requestFeed(entry.chapterUrl,{signal,maxBytes:256*1024,accept:'application/json+chapters, application/json'});
+     signal.throwIfAborted();
+     const current=store.entry(entry.id);
+     if(current.chapterUrl!==entry.chapterUrl||session.sourceVersion(current)!==input.sourceVersion)return {chapters:[]};
+     const doc=JSON.parse(response.text);
+     if(typeof doc?.version!=='string'||!Array.isArray(doc.chapters))throw Error('Invalid publisher chapters.');
+     const chapters=doc.chapters.slice(0,200).flatMap(chapter=>{
+      const title=typeof chapter?.title==='string'?clean(chapter.title,160):'';
+      if(!title||chapter.toc===false)return [];
+      const at=chapter.startTime;
+      return [{label:title,t:Number.isFinite(at)&&at>=0&&at<=604800?at:null}];
+     });
+     return {chapters};
+    },16000);break;
     case 'podcast-exact-audio':result=await exactTranscriptAudio(store.entry(input.entryId));break;
     case 'podcast-audio-release':{const row=managedAudio.get(input.downloadToken);if(row&&row.owner===owner(event)){await require('node:fs').promises.rm(row.file,{force:true});managedAudio.delete(input.downloadToken);}result={released:true};break;}
     case 'podcast-translate-text':result=await job(event,input,signal=>translatePodcastText(input,signal),5*60*1000);break;

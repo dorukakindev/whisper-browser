@@ -37,7 +37,7 @@
   const text = (tr, en) => locale() === 'tr' ? tr : en;
   podcastLabel();
   document.addEventListener('ui-locale-change',podcastLabel);
-  function openAdvanced(){advanced.hidden=false;advanced.setAttribute('data-pw-occludes-native','true');PlayerUiKit.enhanceControls?.(advanced);if(!advanced.open)advanced.showModal?.();summary.focus();}
+  function openAdvanced(){const opener=document.activeElement;if(!advanced.open)advanced.addEventListener('close',()=>{if(opener?.isConnected)opener.focus({preventScroll:true});},{once:true});advanced.hidden=false;advanced.setAttribute('data-pw-occludes-native','true');PlayerUiKit.enhanceControls?.(advanced);if(!advanced.open)advanced.showModal?.();summary.focus();}
   function updatePanel() {
     const panel=view.querySelector('.pw-panel'),narrow=window.innerWidth<1100;
     host.classList.toggle('pw-panel-is-open',panelOpen&&narrow);scrim.hidden=!(panelOpen&&narrow);

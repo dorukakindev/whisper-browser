@@ -1,3 +1,4 @@
+Güncel teslim: [Canlı podcast alıntıları, Sahne başlıkları ve RSS durumu](docs/devir/2026-11-06-0552.md)
 Güncel teslim: [Podcast arama durumları ve zevk dayanağı eylemi](docs/devir/2026-11-06-0539.md)
 Güncel teslim: [Doğrulanmış podcast sesine dönüş ve asistan kaynakları](docs/devir/2026-11-06-0531.md)
 Güncel teslim: [Podcast arama deneyimi ve zevk dayanağı görünürlüğü](docs/devir/2026-11-06-0515.md)
