@@ -519,7 +519,7 @@
         sec.items.forEach((it, n) => {
           if (it.type === 'note') { s.append(this.el(`<p class="sh-pnote">${esc(it.text)}</p>`)); return; }
           if (it.type === 'offset') {
-            const row = this.el(`<div class="sh-offset"><div><strong>${esc(it.label)}</strong><output>${esc(it.text)}</output></div></div>`);
+            const row = this.el(`<div class="sh-offset" role="group" aria-label="${esc(it.label)}"><div><strong>${esc(it.label)}</strong><output>${esc(it.text)}</output></div></div>`);
             const actions = this.el('<div class="sh-offset-actions"></div>');
             for (const [label, delta] of [[T('−0,1 sn', '−0.1 s'), -.1], [T('+0,1 sn', '+0.1 s'), .1], [T('Sıfırla', 'Reset'), null]]) {
               const b = this.el(`<button type="button" class="sh-btn">${label}</button>`);
@@ -530,7 +530,7 @@
             }
             row.append(actions); s.append(row); return;
           }
-          if(it.type==='range'){const L=this.el(`<label class="sh-psel"><span>${esc(it.label)}</span><input type="range" min="0" max="1" step="0.01" aria-label="${esc(it.label)}"></label>`);const input=L.querySelector('input');input.value=String(it.value);input.dataset.pid=sec.title+':'+n;input.oninput=()=>it.onChange(Number(input.value));s.append(L);return;}
+          if(it.type==='range'){const L=this.el(`<label class="sh-psel sh-prange"><span>${esc(it.label)}</span><output></output><input type="range" min="0" max="1" step="0.01" aria-label="${esc(it.label)}"></label>`);const input=L.querySelector('input');input.value=String(it.value);input.dataset.pid=sec.title+':'+n;const output=L.querySelector('output'),show=()=>{output.textContent=Math.round(Number(input.value)*100)+'%';};show();input.oninput=()=>{show();it.onChange(Number(input.value));};s.append(L);return;}
           if (it.type === 'select') { const L = this.el(`<div class="sh-psel"><span>${esc(it.label)}</span></div>`);const select=root.PlayerUiKit.select({label:it.label,value:it.value,options:it.options,searchable:true,onChange:it.onChange});select.trigger.dataset.pid=`${sec.title}:${n}`;L.append(select);s.append(L); return; }
           const b = this.el(`<button type="button" class="sh-pbtn${it.primary ? ' pri' : ''}" data-pid="${sec.title}:${n}" ${it.disabled || it.id && this.taskPending ? 'disabled' : ''} ${it.pressed !== undefined ? `aria-pressed="${!!it.pressed}"` : ''}><span>${esc(it.label)}</span>${it.hint ? `<small>${esc(it.hint)}</small>` : ''}</button>`);
           b.onclick = async () => {
