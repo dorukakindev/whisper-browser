@@ -1,3 +1,4 @@
+Güncel teslim: [Sahne işlem ve not yüzeyleri](docs/devir/2026-11-06-1028.md)
 Güncel teslim: [Sahne arama durumları ve temizleme](docs/devir/2026-11-06-1020.md)
 Güncel teslim: [Sahne okuma hiyerarşisi ve yerleşim sonrası takip](docs/devir/2026-11-06-1012.md)
 Güncel teslim: [Sahne kapak ve kontrol dengesi](docs/devir/2026-11-06-0959.md)
