@@ -163,6 +163,14 @@ test('YouTube study entry and Podcast tab keep the browser owner, tracks and com
   const stale = stage.current.a;
   stale.state();
   delaySeek = true;
+  f.player.browserPaused = false;
+  const pausedDuringReplay = stale.cmd('replay');
+  assert.equal(typeof settleReplaySeek, 'function');
+  f.player.browserPaused = true;
+  settleReplaySeek({ ok: true });
+  assert.equal((await pausedDuringReplay).ok, true);
+  assert.deepEqual(calls.slice(3), [{ type: 'seek', value: 11.01, tab: 'youtube-A' }]);
+  settleReplaySeek = null;
   const pendingReplay = stale.cmd('replay');
   assert.equal(typeof settleReplaySeek, 'function');
   Object.assign(f.player, { browserActiveTabId: 'youtube-B', mediaKey: 'browser:youtube-B', generation: 2 });
@@ -172,7 +180,7 @@ test('YouTube study entry and Podcast tab keep the browser owner, tracks and com
   f.window.dispatchEvent(new f.window.Event('browser-panel-layout'));
   await Promise.resolve();
   assert.equal(stage.current, null);
-  assert.deepEqual(calls.slice(3), [{ type: 'seek', value: 11.01, tab: 'youtube-A' }]);
+  assert.deepEqual(calls.slice(4), [{ type: 'seek', value: 11.01, tab: 'youtube-A' }]);
   Object.assign(f.player, { browserActiveTabId: 'youtube-A', mediaKey: 'browser:youtube-A', generation: 1 });
   f.window.dispatchEvent(new f.window.Event('browser-panel-layout'));
   await Promise.resolve();
@@ -224,6 +232,33 @@ test('retained commands and Tasks callbacks cannot act on another source generat
   action.run();
   assert.equal(clicks, 0);
   assert.equal(f.commands.length, 0);
+});
+
+test('Sahne does not carry a failed job or its retry into the replacement source', t => {
+  const f = fixture(t);
+  f.document.getElementById('playerLayer').insertAdjacentHTML('beforeend',
+    '<button id="makeSubsBtn"></button><button id="playerJobCancel"></button><div id="playerJobBar"></div>');
+  let starts = 0, stops = 0;
+  f.document.getElementById('makeSubsBtn').onclick = () => {
+    starts++;
+    f.player.job = { mediaKey: f.player.mediaKey, generation: f.player.generation, failed: true };
+  };
+  f.document.getElementById('playerJobCancel').onclick = () => { stops++; };
+  const first = f.open();
+  first.actions().find(action => action.id === 'whisper').run();
+  const failed = first.panel().job;
+  assert.equal(failed.state, 'failed');
+  assert.equal(typeof failed.retry, 'function');
+  f.player.mediaKey = 'local:replacement';
+  f.player.generation++;
+  f.window.CinemaSahne.close();
+  const next = f.open('study');
+  assert.equal(next.panel().job.state, 'idle');
+  assert.equal(next.panel().job.retry, undefined);
+  failed.retry();
+  failed.cancel();
+  assert.equal(starts, 1);
+  assert.equal(stops, 0);
 });
 
 test('closing during loop activation clears only its own current-source A/B loop', async t => {

@@ -189,6 +189,10 @@
  }
  async function cancel(){
   const task=status();if(!task||task.cancelled)return;
+  if(!owner(task)){
+   finish(task,t('The source or conversation changed. Use the original job controls.','Kaynak veya sohbet değişti. Önceki işin kontrollerini kullan.'),'failed');
+   return;
+  }
   task.cancelled=true;
   update(task,t('Stopping the video job…','Video işi durduruluyor…'));
   if(task.queueId){
