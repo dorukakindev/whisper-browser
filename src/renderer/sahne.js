@@ -125,6 +125,9 @@
           return;
         }
         switch (b.dataset.a) {
+          case 'clearSearch': {
+            const query=this.q('[data-r=q]');if(query){query.value='';this.filterRows();query.focus({preventScroll:true});}break;
+          }
           case 'close': this.o.onClose?.(); break; case 'classic': this.o.onClassic?.(); break;
           case 'fullscreen':this.run('fullscreen');break;
           case 'assistant':this.run('assistant');break;
@@ -266,11 +269,17 @@
     filterRows() {
       const query = this.q('[data-r=q]')?.value.trim().toLocaleLowerCase() || '';
       const display = this.displayMode();
+      let visible=0;
       this.lines.forEach((line, index) => {
         const row = this.rows[index], translations = [...row.trs, ...(row.unc || [])];
         const shown = display === 'src' ? row.src : display === 'tr' ? translations.join(' ') : [row.src, ...translations].join(' ');
         line.hidden = !shown.trim() || (!!query && !shown.toLocaleLowerCase().includes(query));
+        if(!line.hidden)visible++;
       });
+      const count=this.q('[data-r=searchCount]'),empty=this.q('[data-r=searchEmpty]'),clear=this.q('[data-r=clearSearch]');
+      if(clear)clear.hidden=!query;
+      if(count){const text=T(`${visible} satır gösteriliyor · seçili dilde`,`${visible} rows shown · selected language`);count.hidden=!query||!this.rows.length;if(count.textContent!==text)count.textContent=text;}
+      if(empty){empty.hidden=!this.rows.length||visible>0;empty.textContent=query?T('Seçili dilde eşleşme yok. Farklı bir sözcük deneyin veya aramayı temizleyin.','No matches in the selected language. Try another word or clear the search.'):T('Bu görünümde gösterilecek metin yok. Kaynak veya İkisi görünümünü deneyin.','No text in this view. Try Source or Both.');}
     }
     displayMode() {
       if (this.root.classList.contains('sh-translation-only')) return 'tr';

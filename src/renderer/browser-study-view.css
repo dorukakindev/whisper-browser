@@ -193,3 +193,10 @@ details[data-mk-details]>summary{list-style:none}details[data-mk-details]>summar
 .sh-browser-study .sh-card .src{font-weight:400}
 .sh-browser-study .sh-card.on .src{font-weight:550}
 @media(prefers-reduced-motion:reduce){.sh-browser-study .sh-card .acts{transition:none}}
+
+.sh-browser-study .bp-search [data-a=clearSearch]{flex:none;color:var(--accent);font-size:12px;min-height:30px;padding:0 6px;border-radius:5px}
+.sh-browser-study .bp-search [data-a=clearSearch][hidden]{display:none}
+.sh-browser-study .bp-search input::-webkit-search-cancel-button{-webkit-appearance:none}
+.sh-browser-study .sh-search-count{grid-column:1/-1;margin:0;color:var(--text-muted);font-size:11px;line-height:1.4}
+.sh-browser-study .sh-search-empty{margin:16px 22px;color:var(--text-dim);font-size:14px;line-height:1.7;max-width:34ch}
+.sh-browser-study :is(.sh-search-count,.sh-search-empty)[hidden]{display:none}
