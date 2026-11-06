@@ -40,9 +40,12 @@
   const draft=window.MediaToolsUI?.reviewSnapshot?.(item.id),matched=draft?.match?.state==='matched'&&window.LetterboxdReviews?.matchFilm(item,draft.identity)?.state==='matched';
   const saved=(result.value?.history||[]).find(e=>e.identity&&window.MediaToolsModel.decisionIdentityMatch(item,e.identity)==='matched');
   const recent=retained(item),entry=recent||(matched?(draft.result||{reviews:draft.reviews}):saved);
-  const raw=Array.isArray(entry?.reviews)?entry.reviews:[],all=raw.slice(0,100),reviews=all.filter(r=>!r.spoiler&&typeof r.id==='string'&&typeof r.text==='string'),hasSpoilers=raw.some(r=>r.spoiler);
+  const raw=entry===draft?.result&&matched&&Array.isArray(draft.reviews)?draft.reviews:
+    Array.isArray(entry?.reviews)?entry.reviews:[];
+  const all=raw.slice(0,100),reviews=all.filter(r=>!r.spoiler&&typeof r.id==='string'&&typeof r.text==='string'),hasSpoilers=raw.some(r=>r.spoiler);
   let analysis=null;
-  if(entry?.analysis&&!hasSpoilers){const a=window.MediaToolsModel.verifyDecision(entry.analysis,all);analysis={summary:String(a.summary||'').slice(0,1000),fit:String(a.fit||'').slice(0,500),points:a.points.slice(0,4).map(p=>({id:p.id,quote:p.quote.slice(0,240),reason:String(p.reason||'').slice(0,200),kind:p.kind})),historical:!recent&&!matched};}
+  if(entry?.analysis&&!hasSpoilers&&!entry.reviews?.some(r=>r.spoiler)){
+    const a=window.MediaToolsModel.verifyDecision(entry.analysis,all);analysis={summary:String(a.summary||'').slice(0,1000),fit:String(a.fit||'').slice(0,500),points:a.points.slice(0,4).map(p=>({id:p.id,quote:p.quote.slice(0,240),reason:String(p.reason||'').slice(0,200),kind:p.kind})),historical:!recent&&!matched};}
   const page=[...document.querySelectorAll('.media-title-page')].find(p=>p.dataset.filmItemId===id),selectedId=page?.querySelector('.film-review-section')?.dataset.currentReviewId,selected=reviews.find(r=>r.id===selectedId);
   const claims=[...(selected?[{id:selected.id,quote:selected.text.slice(0,240)}]:[]),...(analysis?.points?.length?analysis.points:reviews.slice(0,6).map(r=>({id:r.id,quote:r.text.slice(0,240)})))].slice(0,4),citations=[];
   for(const p of claims){const r=reviews.find(r=>r.id===p.id);if(!r||!p.quote||p.quote.length>2000||!r.text.includes(p.quote))continue;const revision=await digest([id,identity(row),r.id,r.text,r.author||'',r.spoiler===true]),hash=await digest([revision,p.quote]);guard();citations.push({id:'F'+hash.slice(0,20),kind:'film-review',itemId:id,reviewId:r.id,revision,text:p.quote,title:String(row.title||'').slice(0,120),author:String(r.author||'').slice(0,80)});}
@@ -97,7 +100,7 @@
   if(!row)throw Error(t('This film is no longer available.','Bu film artık bulunamıyor.'));
   const stable=r=>JSON.stringify([r.kind,r.title,r.year,r.imdbId||r.providerId,r.tmdbId]);
   const r=check(await window.api.mediaTools({action:'decision-get',...key})),item=key.itemId?row:{...row,id:c.itemId,imdbId:row.providerId},draft=window.MediaToolsUI?.reviewSnapshot?.(item.id),entries=(r.value?.history||[]).filter(e=>e.identity&&window.MediaToolsModel.decisionIdentityMatch(item,e.identity)==='matched');
-  if(draft?.match?.state==='matched'&&window.LetterboxdReviews?.matchFilm(item,draft.identity)?.state==='matched')entries.unshift(draft.result||{reviews:draft.reviews});
+  if(draft?.match?.state==='matched'&&window.LetterboxdReviews?.matchFilm(item,draft.identity)?.state==='matched')entries.unshift({reviews:Array.isArray(draft.reviews)?draft.reviews:draft.result?.reviews});
   const recent=retained(item);if(recent)entries.unshift(recent);
   let selected;
   for(const entry of entries)for(const review of entry.reviews||[]){if(review.id!==c.reviewId||review.spoiler||typeof review.text!=='string'||!review.text.includes(c.text))continue;const revision=await digest([c.itemId,stable(row),review.id,review.text,review.author||'',false]);if(revision===c.revision&&'F'+(await digest([revision,c.text])).slice(0,20)===c.id)selected=review;}

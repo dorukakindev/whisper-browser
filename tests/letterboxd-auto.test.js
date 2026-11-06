@@ -83,7 +83,7 @@ test('an identity change on a later page rejects the whole automatic sample',asy
 });
 test('large fetched reviews fit the existing editor without splitting review records',async()=>{
   const fetchImpl=async url=>url.includes('/tmdb/')?new Response(null,{status:302,headers:{location:'/film/witness/'}}):new Response(html(Array.from({length:48},(_,i)=>'Review '+i+' '+('a'.repeat(3900)))));
-  const result=await fetchReviews(item,{count:48,fetchImpl});assert(result.limited);assert(JSON.stringify(result.reviews).length<=120000);assert(result.reviews.length>0&&result.reviews.length<48);
+  const result=await fetchReviews(item,{count:48,fetchImpl});assert(result.limited);assert(result.partial);assert.match(result.warning,/requested reviews/);assert(JSON.stringify(result.reviews).length<=120000);assert(result.reviews.length>0&&result.reviews.length<48);
 });
 
 test('Automatic exclusions count only rows actually loaded, with spoiler and duplicate reasons',async()=>{

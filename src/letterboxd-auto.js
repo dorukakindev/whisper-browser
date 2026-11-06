@@ -106,6 +106,10 @@ async function fetchReviews(item,{count=40,sort='popular',spoilers=false,signal,
   if(!reviews.length)throw Error(warning.startsWith('Letterboxd HTTP 403.')?warning:'No readable non-spoiler reviews found. Try the Browser or import a sample.');
   // The existing editor has a 120k JSON bound; preserve complete rows within it.
   while(JSON.stringify(reviews).length>120000){reviews.pop();excluded.size++;limited=true;}
+  if(reviews.length<count){
+    partial=true;
+    if(!warning)warning='Only '+reviews.length+' of '+count+' requested reviews were eligible in the pages checked.';
+  }
   const coverage=Object.fromEntries((sort==='balanced'?Object.keys(sortPaths):[sort]).map(order=>[order,reviews.filter(row=>row.source?.sort===order).length]));
   for(const source of sources)source.accepted=reviews.filter(row=>row.source?.url===source.url).length;
   const sampling={mode:sort,requested:count,returned:reviews.length,independentAuthors:new Set(reviews.map(row=>row.authorId).filter(Boolean)).size,unknownAuthors:reviews.filter(row=>!row.authorId).length,coverage,representative:false};
