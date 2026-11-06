@@ -41,11 +41,12 @@
           <header class="bp-head"><div class="bp-title"><span class="bp-eyebrow">${mode === 'podcast' ? T('DİNLEME ALANI', 'LISTENING SPACE') : T('ÇİFT DİLLİ SAHNE', 'BILINGUAL STAGE')}</span><h2>${T('Transkript', 'Transcript')}</h2></div><button class="sh-btn bp-button browser-study-transcript-close" type="button" data-a="transcript" aria-label="${T('Transkripti kapat', 'Close transcript')}">${icon('close')}</button></header>
           <details class="browser-study sh-processing" data-r="processing" hidden><summary>${T('Transkripsiyon ve çeviri', 'Transcription and translation')}</summary><div class="sh-processing-body"><div class="sh-workbar browser-study-actions" data-r="workbar" hidden></div></div></details>
           <div class="bp-flow"><div class="bp-flow-head"><h3 class="bp-section-title">${T('CÜMLE AKIŞI', 'SENTENCE FLOW')}</h3><div class="browser-study-track-labels"><span class="sh-lang" data-r="lsb"></span><span class="sh-lang" data-r="ltb"></span></div></div>
-            <label class="bp-search sh-search">${icon('search')}<input type="search" data-r="q" placeholder="${T('Cümlelerde ara', 'Search sentences')}" aria-label="${T('Cümlelerde ara', 'Search sentences')}"></label>
+            <div class="bp-search sh-search" role="search">${icon('search')}<input type="search" data-r="q" placeholder="${T('Cümlelerde ara', 'Search sentences')}" aria-label="${T('Cümlelerde ara', 'Search sentences')}"><button type="button" data-a="clearSearch" data-r="clearSearch" aria-label="${T('Aramayı temizle','Clear search')}" hidden>${T('Temizle','Clear')}</button></div>
             <div class="sh-seg browser-study-display" data-r="disp" style="--n:3;--i:${['src', 'both', 'tr'].indexOf(display)}" role="group" aria-label="${T('Gösterilen altyazı ve transkript dili', 'Subtitle and transcript language')}">${[['src', T('Kaynak', 'Source')], ['both', T('İkisi', 'Both')], ['tr', T('Çeviri', 'Translation')]].map(([value, label]) => `<button type="button" data-d="${value}" aria-pressed="${display === value}">${esc(label)}</button>`).join('')}</div>
             <button class="sh-follow bp-follow" data-a="follow" type="button" aria-pressed="true">${icon('down')}<span>${T('Takip açık', 'Follow on')}</span></button>
+            <p class="sh-search-count" data-r="searchCount" role="status" aria-live="polite" hidden></p>
           </div>
-          <div class="sh-cards-wrap"><div class="sh-cards bp-cue-list" data-r="scroll" tabindex="0" aria-label="${T('Bölüm transkripti', 'Episode transcript')}"></div></div>
+          <div class="sh-cards-wrap"><p class="sh-search-empty" data-r="searchEmpty" hidden></p><div class="sh-cards bp-cue-list" data-r="scroll" tabindex="0" aria-label="${T('Bölüm transkripti', 'Episode transcript')}"></div></div>
           <footer class="bp-footer">
             ${button('assistant', 'chat', T('Asistana sor', 'Ask Assistant'))}
           </footer>

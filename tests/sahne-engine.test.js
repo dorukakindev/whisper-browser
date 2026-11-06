@@ -209,3 +209,14 @@ test('layout follow respects manual browsing and focused transcript controls',t=
  f.sh.lines[0].blur();f.sh.followAfterLayout();callback();assert.equal(calls,1);
  f.sh.destroy();callback();assert.equal(calls,1);
 });
+
+
+test('transcript search explains language-specific no matches and clears without playback or follow',t=>{
+ const f=mount(t,{study:true}),q=f.sh.q('[data-r=q]'),clear=f.sh.q('[data-r=clearSearch]');
+ assert.equal(clear.hidden,true);assert.equal(f.sh.q('[data-r=searchCount]').hidden,true);
+ q.value='next';q.dispatchEvent(new f.w.Event('input'));
+ assert.match(f.sh.q('[data-r=searchCount]').textContent,/1 satır/);assert.equal(clear.hidden,false);
+ f.sh.q('[data-d=tr]').click();assert.equal(f.sh.q('[data-r=searchEmpty]').hidden,false);assert.match(f.sh.q('[data-r=searchCount]').textContent,/0 satır/);
+ f.rows[1].trs=['next translation'];f.setRevision('translation-added');f.sh.tick();assert.equal(f.sh.q('[data-r=searchEmpty]').hidden,true);
+ const before=f.commands.length;clear.click();assert.equal(q.value,'');assert.equal(f.w.document.activeElement,q);assert.equal(f.sh.s.follow,false);assert.equal(f.commands.length,before);assert.equal(clear.hidden,true);
+});
