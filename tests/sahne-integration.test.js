@@ -332,6 +332,36 @@ test('closing shelf playback removes the scene instead of remounting an ownerles
  await f.window.CinemaSahne.openShelf();const scene=f.window.CinemaSahne.current;assert(scene);live=false;scene.o.onSource('none',{});assert.equal(f.window.CinemaSahne.current,null);assert.equal(f.document.querySelector('.sh-shelf-host'),null);
 });
 
+test('A timestamped shelf transcript explains its audio mismatch and offers the existing verified audio route', async t => {
+ const f=fixture(t);
+ f.document.getElementById('playerLayer').classList.add('hidden');
+ const exact={entryId:'entry-A',sourceVersion:'copy-v1'};
+ let available=false, opened=0;
+ f.window.api.feedsRequest=async()=>({available,sourceVersion:'copy-v1'});
+ f.window.PlayerSourceCatalogIntegration={openPodcastEntry:async(id,options)=>{
+  assert.equal(id,'entry-A');assert.equal(options.exactVersion,'copy-v1');
+  assert.equal(options.isCancelled(),false);
+  f.player.mediaKey='podcast-copy:entry-A:copy-v1';
+  assert.equal(options.isCancelled(),false,'opening the intended copy must not cancel itself');
+  opened++;
+ }};
+ f.window.MediaShelfUI={
+  readSnapshot:()=>({mediaKey:'shelf:A',generation:1,title:'Episode',duration:30}),
+  isPodcastMode:()=>true,openPodcastMode:async()=>{},
+  getTranscriptTracks:()=>[{id:'source',role:'source',revision:'r',timed:false,timestamped:true,timingState:'needs-review',exactSource:exact,text:'Saved transcript',cues:[]}],
+  executeExisting:async()=>({ok:true})
+ };
+ await f.window.CinemaSahne.openShelf();
+ const a=f.window.CinemaSahne.current.a;
+ assert.match(a.state().timingNotice,/saved timestamps/);
+ const action=a.panel().sections.find(section=>section.title==='Timed transcript').items[0];
+ await assert.rejects(action.run(),/no longer available/);
+ assert.equal(opened,0);
+ available=true;
+ await action.run();
+ assert.equal(opened,1);
+});
+
 
 for(const [format,text] of [['srt','1\n00:00:30,000 --> 00:00:32,000\nActual source words\n'],['vtt','WEBVTT\n\n00:30.000 --> 00:32.000\nActual source words\n'],['plain','Plain source prose with 30 seconds mentioned.']])test(`read-only shelf ${format} displays prose without granting timestamp seeking`,async t=>{
  const f=fixture(t);f.document.getElementById('playerLayer').classList.add('hidden');let commands=0,parses=0;

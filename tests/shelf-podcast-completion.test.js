@@ -30,6 +30,13 @@ test('shelf reopen reuses registry source and translation without borrowing down
  const reopened=(await api('list')).podcasts[0].episodes[0];assert.equal(reopened.position,12);assert.equal(reopened.podcastWorkspace.rate,1.5);await api('listen-progress',{kind:'podcasts',sourceVersion:version,position:14,rate:1.25,duration:20});assert.doesNotMatch(fs.readFileSync(path.join(dir,'media-shelf.json'),'utf8'),/registryWorkspace/);
  const raw=JSON.parse(fs.readFileSync(path.join(dir,'feeds.json'),'utf8')),saved=raw.entries.find(e=>e.id===entry.id);saved.podcastAudioEvidence=session.audioEvidence(saved,{bytes:100,sha256:'a'.repeat(64)});saved.podcastWorkspace.sourceVersion=session.sourceVersion(saved);fs.writeFileSync(path.join(dir,'feeds.json'),JSON.stringify(raw));
  result=await api('podcast-workspace');assert.equal(result.track.timed,false);assert.equal(result.translation.timed,false);assert.equal(result.track.timingState,'needs-review');assert.equal(result.position,14);assert.equal(result.rate,1.25);assert.equal((await api('list')).podcasts[0].episodes[0].sourceBinding.fingerprintStatus,'unknown');
+ assert.equal(result.track.timestamped,true);
+ assert.equal(result.track.exactSource,undefined,'legacy results without saved audio proof cannot offer a timed reopen');
+ saved.podcastWorkspace.transcript.timeline={clock:'absolute-media-seconds',sha256:'a'.repeat(64)};
+ fs.writeFileSync(path.join(dir,'feeds.json'),JSON.stringify(raw));
+ result=await api('podcast-workspace');
+ assert.equal(result.track.timed,false,'the network stream still cannot borrow downloaded timestamps');
+ assert.deepEqual(result.track.exactSource,{entryId:entry.id,sourceVersion:saved.podcastWorkspace.sourceVersion});
 });
 test('shelf mode opens on same owner clock without play; commands reject stale sessions and return-to-speech does not seek',async()=>{
  const source=fs.readFileSync(require.resolve('../src/renderer/media-shelf-ui'),'utf8');const start=source.indexOf('  // Podcast presentation'),end=source.indexOf('  const podcastModeButton=',start);

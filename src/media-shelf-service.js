@@ -58,7 +58,10 @@ function podcastTrack(episode,role='source') {
   if(!transcript||transcript.status==='partial')return null;
   const timed=workspace.sourceVersion===episode.sourceVersion&&transcript.state==='timed';
   const cues = timed ? require('./browser-subtitles').parseSubtitlePayload(transcript.text, '', 'publisher.'+transcript.format).cues.map((cue,index)=>({...cue,id:String(index)})) : [];
-  return {id:(role==='translation'?'translation:':'publisher:')+episode.episodeIdentity, revision:createHash('sha256').update(transcript.text).digest('hex'), role, offsetSeconds:0, timed, ...(workspace.sourceVersion!==episode.sourceVersion?{timingState:'needs-review'}:{}),cues, text:transcript.text, provenance:transcript.provenance,timeline:transcript.timeline};
+  const timingState = workspace.sourceVersion!==episode.sourceVersion ? 'needs-review' : undefined;
+  const exactSource = timingState && transcript.state === 'timed' && transcript.provenance === 'asr' && transcript.timeline && episode.feedEntryId
+    ? { entryId:episode.feedEntryId, sourceVersion:workspace.sourceVersion } : undefined;
+  return {id:(role==='translation'?'translation:':'publisher:')+episode.episodeIdentity, revision:createHash('sha256').update(transcript.text).digest('hex'), role, offsetSeconds:0, timed, timestamped:transcript.state==='timed', ...(timingState?{timingState}:{}),...(exactSource?{exactSource}:{}),cues, text:transcript.text, provenance:transcript.provenance,timeline:transcript.timeline};
 }
 
 // Read existing records only; result tokens bind the exact text, source and location.
