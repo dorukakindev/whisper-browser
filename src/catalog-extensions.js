@@ -184,7 +184,10 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
           const backups = fs.readdirSync(userData()).filter(name => /^before-restore-complete-\d+\.wbp$/.test(name)).sort().reverse();
           for (const name of backups.slice(3)) { try { fs.unlinkSync(path.join(userData(), name)); } catch {} }
           const restored = packages.remapRendererValues(userData(), data, videoMappings);
-          await setStorage(restored);
+          // The package can omit keys. Only explicit incoming values replace
+          // live preferences or locally saved source edits.
+          const incoming = Object.fromEntries(Object.entries(restored).filter(([,value])=>value!==null));
+          await setStorage(incoming);
           storageChanged = true;
           if (!canRestore()) throw new Error('Yeni medya işlemi başladı; geri yükleme iptal edildi.');
           require('./workspace-package').restorePackage(userData(), data, videoMappings, review);
