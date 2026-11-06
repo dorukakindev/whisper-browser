@@ -109,6 +109,8 @@ test('YouTube study entry and Podcast tab keep the browser owner, tracks and com
     cues2: [{ id: 'translation', start: 9, end: 13, text: 'Çeviri satırı' }]
   });
   const calls = [];
+  let settleReplaySeek;
+  let delaySeek = false;
   Object.assign(f.context, {
     browserTabState: () => ({ mediaId: f.player.mediaKey }),
     currentBrowserYoutubeUrl: () => url,
@@ -117,7 +119,11 @@ test('YouTube study entry and Podcast tab keep the browser owner, tracks and com
     subtitleVideoTransform: secondary => ({ offsetSeconds: secondary ? 4 : 1 }),
     subtitleVideoTime: (time, _secondary, transform) => time + transform.offsetSeconds,
     browserSubtitleSync: require('../src/browser-subtitle-sync'),
-    browserCommand: async (type, value, tab) => { calls.push({ type, value, tab }); return { ok: true }; }
+    browserCommand: async (type, value, tab) => {
+      calls.push({ type, value, tab });
+      if (type === 'seek' && delaySeek) return new Promise(resolve => { settleReplaySeek = resolve; });
+      return { ok: true };
+    }
   });
   f.window.PlayerUiKit = { select() {
     const wrapper = f.document.createElement('span');
@@ -155,12 +161,18 @@ test('YouTube study entry and Podcast tab keep the browser owner, tracks and com
   assert.equal(stage.current.o.mode, 'study');
   assert.equal(f.document.getElementById('browserViewSlot'), slot);
   const stale = stage.current.a;
+  stale.state();
+  delaySeek = true;
+  const pendingReplay = stale.cmd('replay');
+  assert.equal(typeof settleReplaySeek, 'function');
   Object.assign(f.player, { browserActiveTabId: 'youtube-B', mediaKey: 'browser:youtube-B', generation: 2 });
+  settleReplaySeek({ ok: true });
+  assert.equal((await pendingReplay).ok, false);
   assert.equal((await stale.cmd('toggle')).ok, false);
   f.window.dispatchEvent(new f.window.Event('browser-panel-layout'));
   await Promise.resolve();
   assert.equal(stage.current, null);
-  assert.equal(calls.length, 3);
+  assert.deepEqual(calls.slice(3), [{ type: 'seek', value: 11.01, tab: 'youtube-A' }]);
   Object.assign(f.player, { browserActiveTabId: 'youtube-A', mediaKey: 'browser:youtube-A', generation: 1 });
   f.window.dispatchEvent(new f.window.Event('browser-panel-layout'));
   await Promise.resolve();

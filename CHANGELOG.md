@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Browser Podcast, cümleye atlama başarısız olduğunda oynatmayı başlatmaz. [Devir](docs/devir/2026-11-06-0713.md).
+
 - Letterboxd eksik örnekleri kısmi gösterir. Asistan alıntıları özgün yüklenen yorum örneğine döner. [Devir](docs/devir/2026-11-06-0702.md).
 
 - Genel aramaya podcast pasajları, RSS ve açık PDF eklendi. Kuyruk sözlüğü açık dil çifti ve medya kapsamına göre dondurulur. [Devir](docs/devir/2026-11-06-0657.md).

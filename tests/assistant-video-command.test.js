@@ -55,6 +55,28 @@ test('Late YouTube caption completion cannot finish a request for a replaced vid
  }
 });
 
+test('A second YouTube caption request ignores the first generation even when the track ID is reused', async () => {
+ const h = harness();
+ try {
+  const translate = () => h.w.AssistantVideoCommands.handle('Videonun altyazısını Türkçeye çevir');
+  const finish = generation => h.w.document.dispatchEvent(new h.w.CustomEvent('assistant-video-translation-state', {
+   detail: { tabId: 'tab-A', generation, trackId: 'track-A', progress: { total: 1, completed: 1 } }
+  }));
+  await translate();
+  h.tab.generation = 5;
+  h.w.currentBrowserYoutubeUrl = () => 'https://www.youtube.com/watch?v=abcdefghijk';
+  finish(4);
+  assert.equal(h.done[0]?.status, 'failed');
+  await translate();
+  assert.equal(h.calls.length, 2);
+  finish(4);
+  assert.equal(h.done.length, 1);
+  assert.equal(h.w.AssistantVideoCommands.busy(), true);
+  finish(5);
+  assert.equal(h.done[1]?.status, 'complete');
+ } finally { h.dom.window.close(); }
+});
+
 test('Whisper only passes the selected range and never requests translation',async()=>{
  const h=harness();try{
   await h.w.AssistantVideoCommands.handle('Whisper 05:00–10:00 altyazı çıkar');
