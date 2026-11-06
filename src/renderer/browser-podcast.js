@@ -58,7 +58,7 @@
       else if (command.type==='nextCue') index=Math.min(cues.length-1,index+1);
       if (index<0 || !cues[index]) return {ok:false,code:'unknown-cue'};
       const result=await browserCommand('seek',Math.max(0,cues[index].start+.01),tab);
-      if (command.type==='replay' && key()===tab && player.mediaKey===snap.mediaKey && player.generation===snap.generation) return browserCommand('play',undefined,tab);
+      if (command.type==='replay' && result?.ok && key()===tab && player.mediaKey===snap.mediaKey && player.generation===snap.generation) return browserCommand('play',undefined,tab);
       return result;
     }
     const action={play:'play',pause:'pause',togglePlay:snap.paused?'play':'pause',seek:'seek',setRate:'speed',setVolume:'volume-set'}[command.type];

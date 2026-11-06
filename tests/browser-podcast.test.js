@@ -3,6 +3,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 const {JSDOM}=require('jsdom');
 const dom=new JSDOM('<div id="playerLayer" class="workspace-browser"><details id="appModeMenu"><div role="menu"></div></details><div id="playerSide"><div class="bp-title"><h2></h2></div><section class="browser-study"><h3 class="browser-study-title"></h3><p class="browser-study-status"></p><div class="browser-study-actions"></div><div class="browser-study-second"></div></section></div><section class="sh-browser-study"><section class="browser-study"></section></section><video id="web"></video></div>');
 const {window}=dom,{document}=window;const commands=[];let speedChange,opened=true,modeOptions,menuCloses=0;
+let commandResult = () => ({ok:true});
 const player={workspaceMode:'browser',browserActiveTabId:'a',mediaKey:'browser:one',generation:1,browserTime:14,browserDuration:100,browserRate:1.25,browserPaused:true,browserMediaSeen:true,cues:[{id:'a',start:0,end:4,text:'Past'},{id:'b',start:10,end:14,text:'Future'}],cues2:[{id:'x',start:1,end:5,text:'Geçmiş'}],browserTracks:[{id:'en'},{id:'tr'}],browserLoadedTrackId:'en',browserLoadedTrackId2:'tr'};
 window.UiLocale={get:()=> 'tr'};window.BrowserStudy={open:options=>{opened=true;modeOptions=options;},isActive:()=>opened};
 window.PlayerWorkspaceModel=require('../src/renderer/player-workspace-model');window.PlayerUiKit={select:config=>{speedChange=config.onChange;const wrap=document.createElement('span');wrap.trigger=document.createElement('button');wrap.append(wrap.trigger);return wrap;}};
@@ -11,7 +12,7 @@ const transformFor=secondary=>{transformReads++;return {scale:2,offsetSeconds:se
 const context=vm.createContext({window,document,player,queueMicrotask,MutationObserver:window.MutationObserver,subtitleVideoTransform:transformFor,browserTabState:()=>({mediaId:player.mediaKey}),
  closeBrowserToolbarMenus:()=>menuCloses++,browserSubtitleRoleCues:()=>({source:player.cues,translation:player.cues2}),subtitleVideoTime:(time,secondary,frozen)=>require('../src/browser-subtitle-sync').sourceToVideoTime(time,frozen||transformFor(secondary)),
  browserSubtitleSync:{hashText:text=>require('node:crypto').createHash('sha256').update(text).digest('hex')},currentBrowserYoutubeUrl:()=>'',
- browserCommand:async(type,value,tab)=>{commands.push({type,value,tab});return {ok:true};}});
+ browserCommand:async(type,value,tab)=>{commands.push({type,value,tab});return commandResult(type);}});
 vm.runInContext(fs.readFileSync(require.resolve('../src/renderer/browser-podcast'),'utf8'),context);
 const ui=window.BrowserPodcastUI,video=document.getElementById('web');
 ui.setMode(true);assert.equal(document.querySelector('.sh-browser-study .browser-podcast-controls'),null,'legacy controls never attach to the common surface');assert.equal(modeOptions?.preservePodcast,true,'podcast entry preserves its explicit view intent');assert.equal(ui.isActive(),true);assert.equal(commands.length,0,'view switch starts no video/audio/processing');assert.equal(player.browserTime,14);assert.equal(player.browserRate,1.25);assert.equal(document.getElementById('web'),video);assert.equal(document.querySelectorAll('video').length,1);
@@ -20,6 +21,23 @@ const evidence=require('../src/assistant-source-context').freezePodcast(snap,tra
 (async()=>{
  const command={type:'seekCue',mediaKey:snap.mediaKey,generation:snap.generation,trackId:snap.sourceTrack.id,trackRevision:snap.sourceTrack.revision,cueId:'b'};
  assert.equal((await ui.execute(command)).ok,true);assert.equal(commands.at(-1).value,25.01);
+ const replay = { ...command, type: 'replay' };
+ player.browserTime = 6;
+ let replayStart = commands.length;
+ commandResult = () => ({ok:false,code:'seek-denied'});
+ assert.equal((await ui.execute(replay)).code, 'seek-denied');
+ assert.deepEqual(commands.slice(replayStart).map(row => row.type), ['seek'], 'failed seek never starts playback');
+ replayStart = commands.length;
+ let finishSeek;
+ commandResult = () => new Promise(resolve => { finishSeek = resolve; });
+ const pendingReplay = ui.execute(replay);
+ assert.equal(typeof finishSeek, 'function');
+ player.browserActiveTabId = 'b';
+ finishSeek({ok:true});
+ await pendingReplay;
+ assert.deepEqual(commands.slice(replayStart).map(row => row.type), ['seek'], 'late seek never plays the replacement tab');
+ player.browserActiveTabId = 'a';
+ commandResult = () => ({ok:true});
  const oldRevision=snap.sourceTrack.revision;player.cues[0].text='Edited';assert.notEqual(ui.snapshot().sourceTrack.revision,oldRevision);assert.equal((await ui.execute(command)).code,'stale-track');
  const speed=document.querySelector('.browser-podcast-speed');speed.trigger.click();player.generation++;const before=commands.length;speedChange('1.5');assert.equal(commands.length,before,'old speed menu cannot change another generation');
  player.mediaKey='browser:replacement';assert.equal(ui.isActive(),false);player.mediaKey='browser:one';assert.equal(ui.isActive(),true);
