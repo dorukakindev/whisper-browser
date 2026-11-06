@@ -49,7 +49,15 @@
     const body = el('div', 'md-detail-body'), content = el('div', 'md-detail-copy');
     window.MediaExperience?.setContext(dialog, { id: `discovery:${item.kind}:${item.providerId}`, type: 'discovery-title', title: item.title, synopsis: item.synopsis });
     content.append(el('h1', '', item.title), el('p', 'md-meta', [item.year, item.rating ? `IMDb ${score(item.rating)}/10` : '', item.runtime ? `${item.runtime} ${t('min', 'dk')}` : '', item.kind === 'series' ? t('Series', 'Dizi') : t('Film', 'Film')].filter(Boolean).join(' · ')));
-    const basis=recommendationReason(row),explanation=el('details','md-recommendation-basis');explanation.dataset.reasonKind=basis.kind;explanation.append(el('summary','',t('Why this title? · ','Bu yapım neden burada? · ')+basis.label),el('p','md-provider',basis.text),el('small','md-provider',t('Catalog relationships do not guarantee fit. Reading details or reviews does not mark a title watched or liked.','Katalog ilişkisi beğeni garantisi değildir. Ayrıntı veya yorum okumak yapımı izlendi ya da beğenildi işaretlemez.')));content.append(explanation);
+    const basis = recommendationReason(row);
+    const explanation = el('details', 'md-recommendation-basis');
+    explanation.dataset.reasonKind = basis.kind;
+    const summary = el('summary');
+    summary.append(el('span', '', t('Why this title?', 'Bu yapım neden burada?')),
+      el('span', 'md-basis-label', basis.label));
+    explanation.append(summary, el('p', 'md-basis-text', basis.text));
+    explanation.open = basis.kind === 'personal';
+    content.append(explanation);
     const genres = el('div', 'md-chips'); item.genres.forEach(value => genres.append(el('span', '', genre(value)))); content.append(genres);
     const storyHeading=el('div','md-story-heading'),synopsis=el('p','md-synopsis',item.synopsisTr||item.synopsis||t('No synopsis is available for this title.','Bu yapımın açıklaması henüz yok.'));
     storyHeading.append(el('h3','',t('Story','Konu')));
@@ -294,13 +302,19 @@
       root.querySelector('.cv2-discover-personal')?.remove();
       const rows=(result.rows||[]).slice(0,8);
       if(!rows.length)return;
+      const entries = rows.map(row => ({ row, basis: recommendationReason(row) }));
+      const personalOnly = entries.every(({ basis }) => basis.kind === 'personal');
       const section=el('section','cv2-discover-personal'),heading=el('header');
-      const text=el('div');text.append(el('h2','',t('For you','Sana özel')),el('p','',t('Real recommendations from your saved preferences. Open a title to inspect its basis.','Kayıtlı tercihlerinle ilişkili öneriler. Dayanağını görmek için yapımı aç.')));
+      const text = el('div');
+      text.append(el('h2', '', personalOnly ? t('For you', 'Sana özel') : t('More to explore', 'Keşfedilecek diğer yapımlar')),
+        el('p', '', t('Open a title to see why it appears here.', 'Dayanağını görmek için yapımı aç.')));
       heading.append(text,btn(t('See all','Tümünü gör'),()=>{state.tab='personal';state.rows=[];state.next=null;draw();void load();},'cn-button'));
       const rail=el('div','cv2-personal-rail');
-      for(const row of rows){const card=btn('',()=>details(row),'cv2-personal-card'),art=image(row.poster,'cv2-personal-art');window.MediaVisual?.art(art,row.title);card.append(art,el('strong','',window.MediaVisual.title(row.title)));
-        const basis=recommendationReason(row),reason=basis.label+' · '+basis.text;
-        card.append(el('small','',reason));rail.append(card);}
+      for(const {row, basis} of entries){const card=btn('',()=>details(row),'cv2-personal-card'),art=image(row.poster,'cv2-personal-art');window.MediaVisual?.art(art,row.title);card.append(art,el('strong','',window.MediaVisual.title(row.title)));
+        const label = el('small', 'md-basis-label', basis.label);
+        label.dataset.reasonKind = basis.kind;
+        card.append(label);
+        rail.append(card);}
       section.append(heading,rail);root.querySelector('.cv2-discover-section-heading')?.before(section);
     } catch { /* Main discovery remains usable; an unavailable preview is never invented. */ }
   }
