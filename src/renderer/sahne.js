@@ -203,6 +203,7 @@
         tabs[next]?.click();
       });
       document.addEventListener('keydown', this.keys, true);
+      this.followResize=()=>this.followAfterLayout();root.addEventListener('resize',this.followResize);
       r.addEventListener('dblclick',e=>{if(!(this.caps.cinema||this.caps.word)||!e.target.closest('.src,[data-r=s]'))return;const word=String(root.getSelection?.()||'').trim();const row=e.target.closest('[data-i]');if(word)this.openWord(row?Number(row.dataset.i):this.cur,word);});
       this.reveal=()=>{r.classList.remove('controls-idle');clearTimeout(this.idleTimer);if(this.o.mode==='cinema'&&!this.st?.paused&&!this.a.info().native)this.idleTimer=setTimeout(()=>{if(!this.dead&&!this.s.panel&&!this.s.transcript&&!this.s.word&&!r.contains(document.activeElement))r.classList.add('controls-idle');},2400);};
       r.addEventListener('pointermove',this.reveal);r.addEventListener('pointerdown',this.reveal);r.addEventListener('focusin',this.reveal);
@@ -435,6 +436,12 @@
       const sc = this.q('[data-r=scroll]'), l = this.lines[this.cur]; if (!l || l.hidden) return;
       const top = l.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - (sc.clientHeight - l.offsetHeight) / (this.o.mode !== 'podcast' ? 3 : 2); sc.scrollTo({ top: Math.max(0, top), behavior: force || !this.motionAllowed() || this.s.idx === -2 ? 'auto' : 'smooth' });
     }
+    followAfterLayout() {
+      cancelAnimationFrame(this.followRaf);
+      this.followRaf=requestAnimationFrame(()=>{
+        if(!this.dead&&this.s.follow&&!this.q('[data-r=scroll]').contains(document.activeElement))this.scrollToActive(true);
+      });
+    }
     onActive(idx, prev) {
       const c = this.rows[idx];
       const sb = this.q('[data-r=subs]');
@@ -446,7 +453,10 @@
         sb.classList.toggle('xlong', source.length + translation.length > 260);
         sb.scrollTop = 0;
       }
-      if (this.s.follow && !this.q('[data-r=scroll]').contains(document.activeElement)) this.scrollToActive(prev === -2);
+      if (this.s.follow && !this.q('[data-r=scroll]').contains(document.activeElement)) {
+        this.scrollToActive(prev === -2);
+        this.followAfterLayout();
+      }
     }
     recoveryMarkup() {
       return this.el('<div class="sh-job sh-recovery" data-r="recovery" hidden><span role="status"></span><button class="sh-chip" data-a="playbackRetry" type="button"></button></div>');
@@ -565,7 +575,7 @@
       box.innerHTML=`<header><h2>${esc(word.word)}</h2><button class="sh-btn" data-a="wordClose" type="button" aria-label="${T('Kapat','Close')}">${ic('close')}</button></header><p class="sh-word-context">${esc(word.source)}</p>${word.translations.map(x=>`<p class="sh-word-translation">${esc(x)}</p>`).join('')}<small>${T('Altyazı bağlamı · sözlük tanımı değildir.','Subtitle context · not a dictionary definition.')}</small><footer><button class="sh-btn" data-a="wordLookup" type="button" title="${T('Seçili sözcüğü mevcut sözlük tercihinizle uygulama dışında açar.','Opens the word outside the app with your existing dictionary preference.')}">${T('Sözlükte aç ↗','Open dictionary ↗')}</button><button class="sh-btn" data-a="wordSave" type="button" ${word.canSave?'':`disabled title="${T('Bu iz mevcut sözcük koleksiyonuna kaydedilemiyor.','This track cannot be saved to the existing word collection.')}"`}>${word.saved?T('Kayıtlı · Kaldır','Saved · Remove'):T('Sözcüğü kaydet','Save word')}</button></footer>`;
     }
     frame() { const f = () => { if (this.dead) return; if (this.cur >= 0 && this.st && !this.st.paused) this.wordsTick(); this.raf = requestAnimationFrame(f); }; this.raf = requestAnimationFrame(f); }
-    destroy() { this.dead = true; clearInterval(this.timer); cancelAnimationFrame(this.raf); clearTimeout(this.toastT);clearTimeout(this.idleTimer); document.removeEventListener('keydown', this.keys, true); if (this.s.loop) { try { this.a.cmd('loop', { on: false }); } catch (_) { /* kaynak gitmiş olabilir */ } } this.a.releaseSlot?.(); this.root.remove(); root.syncBrowserOcclusion?.(); }
+    destroy() { this.dead = true; cancelAnimationFrame(this.followRaf);root.removeEventListener('resize',this.followResize); clearInterval(this.timer); cancelAnimationFrame(this.raf); clearTimeout(this.toastT);clearTimeout(this.idleTimer); document.removeEventListener('keydown', this.keys, true); if (this.s.loop) { try { this.a.cmd('loop', { on: false }); } catch (_) { /* kaynak gitmiş olabilir */ } } this.a.releaseSlot?.(); this.root.remove(); root.syncBrowserOcclusion?.(); }
   }
   root.Sahne = Sahne; root.SahneFmt = fmt; root.SahneIcon = ic; root.SahneArt = artSVG;
 })(typeof window !== 'undefined' ? window : globalThis);
