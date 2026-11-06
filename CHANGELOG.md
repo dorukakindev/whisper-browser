@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Podcast ve Çift dilli Sahne’de URL araç çubuğu gizlenir; Browser’a dönüşte normal adres çubuğu geri gelir. [Devir](docs/devir/2026-11-06-0954.md).
+
 - Ana sayfanın büyük devam alanı altındaki küçük içerik kartları şeridi kaldırıldı; ana devam eylemi ve kütüphane kısayolları korundu. [Devir](docs/devir/2026-11-06-0951.md).
 
 - Podcast artık mevcut sesi kapak odaklı dinleme düzeninde sürdürür. Çift dilli YouTube Sahne yalnız video alanını gösterir; altyazı boyutu video alanına uyar, dil seçimi video ile transkripti birlikte yönetir ve yinelenen alt şerit kaldırılır. Yayıncı/dil bilgileri, etkin satır takibi, kontrol grupları ve çeviri kontrol uyarısı iyileştirildi. Kendiliğinden toparlanan videoda eski hata eylemi temizlenir. [Devir](docs/devir/2026-11-06-0942.md).

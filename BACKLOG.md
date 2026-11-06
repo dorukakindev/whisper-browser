@@ -6,6 +6,10 @@ Son durum kontrolü **2026-11-06**. Son ürün `2c1935b5eacf1fc22163eea2c5975741
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
+## Sahne adres satırı — görsel kabul
+
+- Dal `codex/stage-hide-address-20261106`; [devir](docs/devir/2026-11-06-0954.md). CSS gizleme/geri dönüş ve 26 bağlantı kontrolü geçti. İzole Electron başlangıçta sonuç üretmeden exit 1 verdi; native görüntü doğrulanmadı. Sonraki adım: izole LG açılışı kullanılabilirken iki Sahne görünümünde URL/üst boşluk bulunmadığını ve Browser'a dönüşte adres çubuğunun geri geldiğini kısa turda kontrol et.
+
 ## Sahne görünüm düzeltmeleri — 2026-11-06
 
 - Doğrulanan ürün: `ef6a5f3d`, dal `codex/stage-composition-fixes-20261106`. Podcast/Çift dilli/Browser dönüşü, video alanı, dil seçimi, etkin satır konumu ve dar pencere kısa izole LG turunda kontrol edildi. [Devir](docs/devir/2026-11-06-0942.md).
