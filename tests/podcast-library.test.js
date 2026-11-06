@@ -23,7 +23,7 @@ test('feed registry merges into the library and enqueue preserves its existing p
     w.PodcastLibraryUI={mount:(root,data,actions)=>{mounted.push({data,actions});return()=>{};}};w.PlayerSourceCatalogIntegration={openPodcastEntry:async(id,opts)=>calls.push({id,opts})};
     const dialog=w.document.createElement('dialog');w.PodcastLinkUI={open:()=>dialog};
     const shelf=fs.readFileSync(require.resolve('../src/renderer/media-shelf-ui'),'utf8'),start=shelf.indexOf('  function radio(root)'),end=shelf.indexOf('  function classicRadio(root)',start);
-    w.eval('function status(){};'+shelf.slice(start,end)+';window.openLibrary=radio;');w.openLibrary(w.document.getElementById('root'));await tick();
+    w.eval('const transcriptSearchState={};function status(){};'+shelf.slice(start,end)+';window.openLibrary=radio;');w.openLibrary(w.document.getElementById('root'));await tick();
     assert.equal(mounted.length,1);const {data,actions}=mounted[0],program=data.podcasts[0],row=program.episodes[0];assert.equal(row.entryId,'entry');assert.equal(row.canonicalFeed,true);assert.equal(row.positionState,undefined,'A fresh episode without a saved timeline needs no review');
     await actions.play(program,row,true);assert.equal(calls.find(c=>c?.id)?.id,'entry');await actions.play(program,row,'bilingual');assert.equal(calls.at(-1).opts.view,'bilingual');await actions.enqueue(program,row);await actions.enqueue(program,row);assert.equal(calls.filter(c=>c==='podcast-add').length,0);assert.equal(queued.length,2);assert.equal(queued[0].id,'entry');assert.equal(queued[0].entryId,'entry');assert.equal(queued[0].kind,'podcasts');assert.equal(queued[0].sourceVersion,'v1');
     actions.addRss();dialog.dispatchEvent(new w.Event('close'));await tick();assert.equal(mounted.length,2);
@@ -101,4 +101,29 @@ test('repeat-all end of a one-episode canonical queue explicitly restarts existi
 
 test('saved transcript search ignores late queries and untimed reading exposes no seek action',async()=>{
  const dom=new JSDOM('<div id="root"></div>',{runScripts:'outside-only'}),w=dom.window;try{w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};w.eval(source);let finish,opens=0;w.PodcastLibraryUI.mount(w.document.getElementById('root'),{podcasts:[]},{searchTranscripts:()=>new Promise(r=>finish=r),resolveTranscript:async()=>({row:{episodeTitle:'Untimed episode',showTitle:'Show',quote:'Real publisher text',timed:false}}),openTranscriptResult:()=>opens++,queue:()=>({rows:[],index:-1}),openQueue:()=>{}});const form=w.document.querySelector('.pl-transcript-search form'),input=form.querySelector('input');input.value='old';form.dispatchEvent(new w.Event('submit',{cancelable:true}));input.value='new';input.dispatchEvent(new w.Event('input'));finish({rows:[{episodeTitle:'Stale',quote:'Stale',timed:false}]});await tick();assert.doesNotMatch(w.document.querySelector('.pl-transcript-search').textContent,/Stale/);form.dispatchEvent(new w.Event('submit',{cancelable:true}));finish({rows:[{episodeTitle:'Untimed episode',showTitle:'Show',quote:'Real publisher text',timed:false,token:'t'}]});await tick();[...w.document.querySelectorAll('button')].find(b=>b.textContent==='Read saved passage').click();await tick();assert.match(w.document.querySelector('dialog').textContent,/Real publisher text/);assert(![...w.document.querySelector('dialog').querySelectorAll('button')].some(b=>b.textContent.includes('Open episode')));assert.equal(opens,0);}finally{w.close();}
+});
+
+test('transcript scope, next page and selected passage survive a library remount',async()=>{
+ const dom=new JSDOM('<div id="root"></div>',{runScripts:'outside-only',pretendToBeVisual:true}),w=dom.window;
+ try{
+  w.eval(source);
+  const root=w.document.getElementById('root'),calls=[],state={};
+  const data={podcasts:[{id:'s',title:'Show',episodes:[{title:'Episode',episodeIdentity:'ep'}]}]};
+  const hit=token=>({token,episodeTitle:'Episode',showTitle:'Show',episodeIdentity:'ep',quote:token,timed:false,role:'translation'});
+  const actions={transcriptSearchState:state,queue:()=>({rows:[]}),searchTranscripts:async(query,scope)=>{
+   calls.push({query,...scope});return scope.offset?{rows:[hit('second')],nextOffset:null}:{rows:[hit('first')],nextOffset:100};
+  }};
+  const dispose=w.PodcastLibraryUI.mount(root,data,actions),area=root.querySelector('.pl-transcript-search');
+  area.open=true;
+  const [show,episode,role]=area.querySelectorAll('select');
+  show.value='s';show.dispatchEvent(new w.Event('change'));episode.value='ep';role.value='translation';
+  area.querySelector('input').value='phrase';area.querySelector('form').dispatchEvent(new w.Event('submit',{cancelable:true}));
+  await tick();assert.deepEqual(calls[0],{query:'phrase',show:'s',episode:'ep',role:'translation',offset:0});
+  [...area.querySelectorAll('button')].find(b=>b.textContent==='Load more passages').click();
+  await tick();assert.equal(calls[1].offset,100);assert.equal(area.querySelectorAll('.pl-search-group').length,1);
+  assert.equal(area.querySelectorAll('.pl-search-hit').length,2);
+  state.anchor='second';dispose();root.replaceChildren();w.PodcastLibraryUI.mount(root,data,actions);
+  assert.equal(root.querySelector('.pl-transcript-search input').value,'phrase');
+  assert.equal(root.querySelectorAll('.pl-search-hit').length,2);assert.equal(calls.length,2);
+ }finally{w.close();}
 });

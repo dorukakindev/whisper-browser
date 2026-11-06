@@ -62,16 +62,68 @@ function podcastTrack(episode,role='source') {
 }
 
 // Read existing records only; result tokens bind the exact text, source and location.
-function searchPodcastTranscripts(data, feeds, query) {
- const fold=require('./text-fold').search,q=fold(text(query,200));if(!q)return [];
- const session=require('./podcast-session'),rows=[],seen=new Set();
- const add=(episode,show,owner,entryId)=>{for(const role of ['source','translation']){const track=podcastTrack(episode,role);if(!track?.text)continue;const key=episode.episodeIdentity+'|'+role;if(seen.has(key))continue;seen.add(key);
- const parts=track.timed?track.cues.map(c=>({quote:c.text,start:c.start,end:c.end})):track.text.split(/\n\s*\n|\n/).filter(Boolean).map(quote=>({quote}));
- for(let index=0;index<parts.length;index++){const part=parts[index],match=fold(part.quote).indexOf(q);if(match<0)continue;let offset=0,folded=0;if(part.quote.length>4000){for(const char of part.quote){if(folded>=match)break;offset+=char.length;folded+=fold(char).length;}}const quote=part.quote.slice(Math.max(0,offset-120),Math.max(0,offset-120)+4000),timed=track.timed===true&&Number.isFinite(part.start)&&Number.isFinite(part.end)&&episode.positionState!=='needs-review'&&!(owner==='player'&&track.provenance==='asr');
- const row={mediaType:'podcast',episodeTitle:episode.title||'',showTitle:show.title||'',episodeIdentity:episode.episodeIdentity,sourceVersion:episode.sourceVersion,sourceBinding:episode.sourceBinding,sourceEntryId:entryId||'',playbackOwner:owner,role,quote,timed,seconds:timed?part.start:null,end:timed?part.end:null};row.token=createHash('sha256').update(JSON.stringify([row,track.revision,index])).digest('hex');rows.push(row);if(rows.length>=100)return;}}};
- for(const e of feeds.entries||[]){if(e.kind!=='podcast')continue;const show=(feeds.feeds||[]).find(f=>f.id===e.feedId);if(!show)continue;add({...e,episodeIdentity:session.episodeIdentity(e),sourceVersion:session.sourceVersion(e),sourceBinding:session.sourceBinding(e)},show,'player',e.id);if(rows.length>=100)return rows;}
- for(const show of data.podcasts||[])for(const e of show.episodes||[]){add(e,show,'media-shelf');if(rows.length>=100)return rows;}
- return rows;
+function* podcastTranscriptMatches(data, feeds, query, scope) {
+  const fold=require('./text-fold').search;
+  const q=fold(text(query,200));
+  if(!q)return;
+  const session=require('./podcast-session'),seen=new Set();
+  function* matches(episode,show,owner,entryId) {
+    if(scope.show && scope.show!==(show.url||show.id))return;
+    if(scope.episode && scope.episode!==(entryId||episode.episodeIdentity))return;
+    for(const role of ['source','translation']){
+      if(scope.role && scope.role!==role)continue;
+      const track=podcastTrack(episode,role);
+      if(!track?.text)continue;
+      const key=episode.episodeIdentity+'|'+role;
+      if(seen.has(key))continue;
+      seen.add(key);
+      const parts=track.timed
+        ?track.cues.map(cue=>({quote:cue.text,start:cue.start,end:cue.end}))
+        :track.text.split(/\n\s*\n|\n/).filter(Boolean).map(quote=>({quote}));
+      for(const [index,part] of parts.entries()){
+        const match=fold(part.quote).indexOf(q);
+        if(match<0)continue;
+        let excerptOffset=0,folded=0;
+        if(part.quote.length>4000){
+          for(const char of part.quote){
+            if(folded>=match)break;
+            excerptOffset+=char.length;
+            folded+=fold(char).length;
+          }
+        }
+        const start=Math.max(0,excerptOffset-120);
+        const quote=part.quote.slice(start,start+4000);
+        const timed=track.timed===true&&Number.isFinite(part.start)&&Number.isFinite(part.end)
+          &&episode.positionState!=='needs-review'&&!(owner==='player'&&track.provenance==='asr');
+        const row={
+          mediaType:'podcast',episodeTitle:episode.title||'',showTitle:show.title||'',
+          episodeIdentity:episode.episodeIdentity,sourceVersion:episode.sourceVersion,sourceBinding:episode.sourceBinding,
+          sourceEntryId:entryId||'',playbackOwner:owner,role,quote,timed,
+          seconds:timed?part.start:null,end:timed?part.end:null
+        };
+        row.token=createHash('sha256').update(JSON.stringify([row,track.revision,index])).digest('hex');
+        yield row;
+      }
+    }
+  }
+  const shows=new Map((feeds.feeds||[]).map(show=>[show.id,show]));
+  for(const entry of feeds.entries||[]){
+    const show=shows.get(entry.feedId);
+    if(entry.kind!=='podcast'||!show)continue;
+    yield* matches({...entry,episodeIdentity:session.episodeIdentity(entry),sourceVersion:session.sourceVersion(entry),sourceBinding:session.sourceBinding(entry)},show,'player',entry.id);
+  }
+  for(const show of data.podcasts||[])for(const episode of show.episodes||[])yield* matches(episode,show,'media-shelf');
+}
+
+function searchPodcastTranscripts(data, feeds, query, scope={}) {
+  const rows=[];
+  let skipped=0;
+  for(const row of podcastTranscriptMatches(data,feeds,query,scope)){
+    if(skipped<(scope.offset||0)){skipped++;continue;}
+    rows.push(row);
+    if(rows.length===(scope.limit||100))break;
+  }
+  return rows;
 }
 
 function loadShelfFile(file) {
@@ -211,9 +263,20 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
         case 'podcast-search-resolve': {
           if(typeof input.query!=='string'||input.query.length>200)throw Error('Enter up to 200 characters. / En fazla 200 karakter yazın.');
           const feedFile=path.join(userData(),'feeds.json'),feeds=fs.existsSync(feedFile)?require('./feed-store').createFeedStore(feedFile).snapshot():{entries:[],feeds:[]};
-          const rows=searchPodcastTranscripts(load(),feeds,input.query);
-          if(input.action==='podcast-search-resolve'){const row=rows.find(r=>r.token===input.token);if(!row)throw Error('Saved source changed or was removed. Search again. / Kayıtlı kaynak değişti veya silindi. Yeniden arayın.');return {ok:true,row};}
-          return {ok:true,rows,limit:100,mode:'literal'};
+          const scope={show:text(input.show,4096),episode:text(input.episode,256),role:input.role};
+          if(scope.role && !['source','translation'].includes(scope.role))throw Error('Invalid transcript filter. / Geçersiz transkript filtresi.');
+          const data=load();
+          if(input.action==='podcast-search-resolve'){
+            if(typeof input.token!=='string'||!/^[a-f0-9]{64}$/.test(input.token))throw Error('Invalid search result. / Geçersiz arama sonucu.');
+            for(const row of podcastTranscriptMatches(data,feeds,input.query,scope)){
+              if(row.token===input.token)return {ok:true,row};
+            }
+            throw Error('Saved source changed or was removed. Search again. / Kayıtlı kaynak değişti veya silindi. Yeniden arayın.');
+          }
+          const offset=input.offset??0;
+          if(!Number.isSafeInteger(offset)||offset<0||offset>Number.MAX_SAFE_INTEGER-100)throw Error('Invalid search page. / Geçersiz arama sayfası.');
+          const rows=searchPodcastTranscripts(data,feeds,input.query,{...scope,offset,limit:101});
+          return {ok:true,rows:rows.slice(0,100),nextOffset:rows.length>100?offset+100:null,limit:100,mode:'literal'};
         }
         case 'list': return { ok: true, ...publicState(load()) };
         case 'listening-queue-save': {

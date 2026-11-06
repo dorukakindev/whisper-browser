@@ -575,6 +575,7 @@
       if (mine === generation) status(error.message, true);
     }
   }
+  const transcriptSearchState={};
   function radio(root) {
     if(!window.PodcastLibraryUI)return classicRadio(root);
     const target=view;let legacy=snapshot;let renderGeneration=0;
@@ -596,9 +597,10 @@
       root.replaceChildren();const statusNode=el('p','ms-status',feedError);statusNode.setAttribute('role','status');root.append(statusNode);
       target.libraryDispose?.();target.libraryDispose=window.PodcastLibraryUI.mount(root,{...legacy,podcasts},{
         noteDisclosures:target.noteDisclosures,
-        searchTranscripts:query=>api('podcast-search',{query}),
-        resolveTranscript:(query,token)=>api('podcast-search-resolve',{query,token}),
-        openTranscriptResult:async(query,token)=>{const row=(await api('podcast-search-resolve',{query,token})).row;const opened=await openPodcastResearchResult(row,{beforeSeek:()=>api('podcast-search-resolve',{query,token})});if(!opened)throw Error(t('Episode changed or unavailable. Retry from search.','Bölüm değişti veya açılamadı. Aramadan yeniden deneyin.'));const current=row.playbackOwner==='media-shelf'?readPodcastSnapshot():player.workspaceAudio;if(current?.episodeIdentity===row.episodeIdentity&&current.sourceVersion===row.sourceVersion)window.CinemaSahne?.current?.focusPassage?.(row.seconds);},
+        transcriptSearchState,
+        searchTranscripts:(query,scope)=>api('podcast-search',{query,...scope}),
+        resolveTranscript:(query,token,scope)=>api('podcast-search-resolve',{query,token,...scope}),
+        openTranscriptResult:async(query,token,scope)=>{const row=(await api('podcast-search-resolve',{query,token,...scope})).row;const opened=await openPodcastResearchResult(row,{beforeSeek:()=>api('podcast-search-resolve',{query,token,...scope})});if(!opened)throw Error(t('Episode changed or unavailable. Retry from search.','Bölüm değişti veya açılamadı. Aramadan yeniden deneyin.'));const current=row.playbackOwner==='media-shelf'?readPodcastSnapshot():player.workspaceAudio;if(current?.episodeIdentity===row.episodeIdentity&&current.sourceVersion===row.sourceVersion)window.CinemaSahne?.current?.focusPassage?.(row.seconds);},
         addRss:()=>{const dialog=window.PodcastLinkUI?.open({view:'podcast'});if(!dialog)throw Error(t('RSS preview is unavailable.','RSS önizlemesi kullanılamıyor.'));dialog.addEventListener('close',()=>void render(),{once:true});},
         openLocal:()=>document.getElementById('playerPickVideo')?.click(),openSpotify:url=>window.PodcastLinkUI.openSpotify(url),
         listEpisodeNotes:(_program,row)=>window.api.listResearchAnnotations({podcastSource:{sourceEntryId:row.entryId||'',episodeIdentity:row.episodeIdentity||row.sourceBinding?.episodeIdentity||''}},5000),

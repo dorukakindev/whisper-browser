@@ -1,6 +1,6 @@
 # Bekleyen işler
 
-Son durum kontrolü: **2026-11-06**. Son ürün `c46d32b4856e9324ad664371111c5f0f7e88a879`: kayıtlı podcast metninde kaynaklı arama ve gerçek zevk dayanağını önizleme/onayla düzeltme. [Güncel teslim](docs/devir/2026-11-06-0457.md). Onaylı tasarım korunur.
+Son durum kontrolü **2026-11-06**. Son ürün `5ec000a897fb0b2061221298f1c25fdfade78143`. [Güncel teslim](docs/devir/2026-11-06-0515.md).
 
 **Yeni sohbet başlangıcı:** P025 [PR #842](https://github.com/dorukakindev/whisper-browser/pull/842) ile master'a alındı; doğrulanmış ürün başlangıcı `7bf15f3c2876a5465b0c7f59fff3a037b41aeb69`. Sonraki belge commitleri ürün değişikliği değildir; çalışmadan önce gerçek HEAD/remote ve kişisel farkları yeniden kontrol et. Mevcut görevlerden yarım bırakılmış yeni ürün işi yok; aşağıdaki koşullu/ertelenmiş işler korunur.
 
@@ -12,6 +12,13 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 - **Asistan:** gerçek yapılandırılmış model test kataloğundan gerekçeli/karşı kanıtlı öneri üretti; modelin detay açma ve planned kartları mevcut inceleme/onay arayüzünden test betiğiyle uygulandı. Gerçek depoda planned ve değişmeyen null tepki okundu; kişisel zevk verisi kullanılmadı.
 - **Browser kabulü tamamlandı:** [Gerçek sahne deviri](docs/devir/2026-11-05-1408.md). Resmî Blender tam Sintel videosunda İngilizce 26/Türkçe 29 satırdan eşleşen ilk iki replik, gerçek LG Browser video overlay'inde kontrol edildi. İki dil birlikte göründü; primary +2 sn ile İngilizce gecikti ve Türkçe sabit kaldı; secondary -2 sn ile Türkçe sonraki repliğe geçerken İngilizce ilk replikte kaldı. Yaklaşık 11 sn oynatma, gerçek decode kareleri ve üç görüntü, izin denemesi 0. İlk Türkçe aday 30 sn farklı sürümdü; eşleşen üçüncü aday seçildi. Ürün kodu değişmedi.
 - **Sonraki adım:** bu dar kabul kapalıdır; tüm film/sağlayıcı/işletim koşulları için genel senkron garantisi değildir. P004 kalanları [site profili/fullscreen teslimiyle](docs/devir/2026-11-05-1417.md) kapandı.
+
+## P028 — Podcast arama deneyimi ve zevk dayanağı görünürlüğü tamamlandı
+
+- Ürün `5ec000a897fb0b2061221298f1c25fdfade78143`, dal `codex/podcast-search-experience-20261106`. [Devir](docs/devir/2026-11-06-0515.md).
+- Arama yayın, bölüm ve metne göre daralır. Bölüm başlığı altında alıntıları gruplar ve sonraki eşleşme varsa 100 kayıtlık sayfa sunar. Podcast'e dönüşte filtreler, yüklenen sonuçlar ve son açılan pasaj oturum içinde korunur.
+- Podcast notları ve kuyruk yönetimi mevcut kompozisyonda belirgin. Kuyruk özeti geçerli ve sıradaki kaydı görünür tutar. Zevk dayanağı penceresinden kaynak düzenleyicisine veya yapım detayına geçilir.
+- 34 hedefli kontrol ve transkript betiği geçti. LG'de izole Electron ve kontrollü RSS sesiyle filtre, 12 saniyeye dönüş, Podcast'e yeniden giriş ve kayıtlı zevk dayanağı penceresi doğrulandı. Yeni sağlayıcı veya model kabulü kapsam dışı. Bu kapsamda engellenen uygulama işi yok.
 
 ## P027 — Kaynaklı podcast araması ve zevk dayanağını düzeltme tamamlandı
 

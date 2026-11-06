@@ -167,3 +167,8 @@ html:is([data-cinema-motion=off],[data-cinema-motion=reduced]) .cv2-taste-frame:
 
 .mt-source-editor textarea {display:block;box-sizing:border-box;width:100%;min-height:180px;resize:vertical;margin:18px 0;padding:16px;background:var(--surface,#191b1f);color:var(--text,#f1f0ed);border:1px solid var(--border,#383c43);border-radius:10px;font:inherit;line-height:1.6;}
 .mt-source-editor [role=alert] {white-space:pre-wrap;max-height:220px;overflow:auto;margin-bottom:16px;}
+
+.mt-correction-entry {margin-top:10px;color:var(--accent)}
+.mt-evidence-dialog .mt-evidence-list {margin:16px 0}
+.mt-evidence-dialog blockquote {max-width:68ch;margin:14px 0;color:var(--text);overflow-wrap:anywhere}
+.mt-evidence-dialog .mh-action {margin:4px 8px 4px 0}
