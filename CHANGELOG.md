@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Podcast ve Çift dilli Sahne etkin cümle döngüsünü satırda gösterir ve aynı satırdan kapatır. Eski altyazı seçimi yeni satıra atlamaz. [Devir](docs/devir/2026-11-06-1231.md).
+
 - Podcast ve Çift dilli Sahne, zaman çizelgesi önizlemesini gerçek oynatma vurgusundan ayırır. [Devir](docs/devir/2026-11-06-1227.md).
 
 - Podcast ve Çift dilli Sahne satır kopyalarken görünür dili kullanır. Bildirim başarılı pano yazımından sonra gösterilir. [Devir](docs/devir/2026-11-06-1214.md).

@@ -8,6 +8,8 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 
 ## Sahne adres satırı — görsel kabul
 
+- Cümle döngüsü: 62 kontrollü test geçti. İzole LG oturumunda iki modda satır döngüsünü başlatıp en az bir tekrarı dinle, aynı düğmeyle kapat ve oynatmanın devamını kontrol et. [Devir](docs/devir/2026-11-06-1231.md).
+
 - Zaman çizelgesi: 61 kontrollü test ve bileşen çizimi geçti. LG izole Electron oturumu hazır olduğunda gerçek videoda sürüklerken etkin satırın sabit kalmasını, bırakınca aynı oynatıcıda konumun değişmesini ve dar pencerede balonun kenarlarda taşmamasını kontrol et. [Devir](docs/devir/2026-11-06-1227.md).
 
 - Dar transkript açma, etkin satır ve kapatınca video katmanının dönüşü gerçek izole LG turunda kontrol edilecek. [Devir](docs/devir/2026-11-06-1158.md).

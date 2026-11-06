@@ -320,11 +320,29 @@
     toggleLoop() {
       if (!this.caps.loop) return; const on = !this.s.loop, idx = this.s.idx >= 0 ? this.s.idx : this.cur;
       if (on && !(idx >= 0 && this.rows[idx]?.timed)) { this.toast(T('Döngü için önce zamanlı bir cümle çalmalı.', 'Play a timed sentence first to loop it.')); return; }
-      this.run('loop', on ? { on: true, row: idx } : { on: false }).then(res=>{if(!this.dead&&res?.ok){this.s.loop=on;this.s.loopRow=on?idx:-1;this.paint();}});
+      void this.setSentenceLoop(on, idx);
+    }
+    async setSentenceLoop(on, row, jump = false) {
+      if (this.loopPending) return;
+      const revision = this.st?.rev, identity = this.a.identity?.();
+      this.loopPending = true;
+      try {
+        const result = await this.run('loop', on ? { on, row } : { on }, revision);
+        if (!result?.ok || this.dead || identity !== this.a.identity?.() || revision !== this.a.state().rev) return;
+        this.s.loop = on;
+        this.s.loopRow = on ? row : -1;
+        this.paint();
+        if (on && jump) await this.run('seekCue', row, revision);
+      } finally {
+        this.loopPending = false;
+      }
     }
     act(kind, i, opener) {
       const c = this.rows[i]; if (!c) return;
-      if (kind === 'loop') { if (!c.timed || !this.caps.loop || !this.canSeek) return; this.run('loop', { on: true, row: i }).then(res=>{if(!this.dead&&res?.ok){this.s.loop=true;this.s.loopRow=i;this.run('seekCue',i);this.paint();}}); }
+      if (kind === 'loop') {
+        if (!c.timed || !this.caps.loop || !this.canSeek) return;
+        void this.setSentenceLoop(!(this.s.loop && this.s.loopRow === i), i, true);
+      }
       else if (kind === 'copy') {
         const display = this.o.mode === 'cinema' ? 'both' : this.displayMode();
         const parts = display === 'tr' ? [] : [c.src];
@@ -367,6 +385,12 @@
       const r = this.root, s = this.s, st = this.st || this.a.state();
       r.classList.toggle('sh-focus', s.focus); r.classList.toggle('sh-playing', !st.paused);if(st.paused)r.classList.remove('controls-idle');
       for (const b of r.querySelectorAll('[data-a=loop]')) { b.setAttribute('aria-pressed', String(s.loop)); b.lastChild.textContent = s.loop && s.loopRow >= 0 && this.rows[s.loopRow] ? ` ${T('Döngü', 'Loop')} · ${fmt(this.rows[s.loopRow].start)}` : T('Cümle döngüsü', 'Loop sentence'); }
+      const loopButton = s.loop ? this.lines[s.loopRow]?.querySelector('[data-act=loop]') : null;
+      if (this.activeLoopButton !== loopButton) {
+        this.activeLoopButton?.setAttribute('aria-pressed', 'false');
+        loopButton?.setAttribute('aria-pressed', 'true');
+        this.activeLoopButton = loopButton;
+      }
       for (const b of r.querySelectorAll('[data-a=focus]')) b.setAttribute('aria-pressed', String(s.focus));
       const sl = r.querySelector('[data-a=sleep]'); if (sl) { sl.setAttribute('aria-pressed', String(!!s.sleep)); const label = s.sleep ? `${Math.max(0, Math.ceil((s.sleepAt - Date.now()) / 60000))} ${T('dk', 'min')}` : T('Uyku', 'Sleep'); r.querySelector('[data-r=sleeplbl]').textContent = label; sl.setAttribute('aria-label', s.sleep ? T('Uyku zamanlayıcısı', 'Sleep timer') + ' · ' + label : T('Uyku zamanlayıcısı', 'Sleep timer')); }
       for (const b of r.querySelectorAll('[data-a=rate]')) b.textContent = (Number(st.rate) || 1) + '×';
@@ -388,7 +412,7 @@
       const trs = c.trs.map((t) => `<span class="tr${shared ? ' cue-card-tr' : ''}">${esc(t)}</span>`).join('');
       const unc = c.unc && c.unc.length ? `<span class="tr unc"><em>${T('Eşleşme belirsiz', 'Match uncertain')}</em>${c.unc.map((t) => `<span>${esc(t)}</span>`).join('')}</span>` : '';
       const copyLabel = shared ? T('Görünen metni kopyala', 'Copy visible text') : T('Kopyala', 'Copy');
-      const acts = study && !shared ? '' : `<span class="acts">${this.caps.loop && c.timed ? `<button type="button" class="act" data-act="loop" title="${T('Bu cümleyi döngüye al', 'Loop this sentence')}" aria-label="${T('Döngü', 'Loop')}">${ic('loop')}</button>` : ''}<button type="button" class="act" data-act="copy" title="${copyLabel}" aria-label="${copyLabel}">${ic('copy')}</button>${this.caps.save ? `<button type="button" class="act" data-act="save" title="${T('Cümleyi veya seçili metni kaydet', 'Save sentence or selected text')}" aria-label="${T('Cümleyi veya seçili metni kaydet', 'Save sentence or selected text')}">${ic('star')}</button>` : ''}</span>`;
+      const acts = study && !shared ? '' : `<span class="acts">${this.caps.loop && c.timed ? `<button type="button" class="act" data-act="loop" aria-pressed="false" title="${T('Cümle döngüsü', 'Loop sentence')}" aria-label="${T('Cümle döngüsü', 'Loop sentence')}">${ic('loop')}</button>` : ''}<button type="button" class="act" data-act="copy" title="${copyLabel}" aria-label="${copyLabel}">${ic('copy')}</button>${this.caps.save ? `<button type="button" class="act" data-act="save" title="${T('Cümleyi veya seçili metni kaydet', 'Save sentence or selected text')}" aria-label="${T('Cümleyi veya seçili metni kaydet', 'Save sentence or selected text')}">${ic('star')}</button>` : ''}</span>`;
       const review=c.translationReview?`<small class="sh-translation-review">${T('Çeviriyi kontrol edin · kaynakla aynı metin veya kalite uyarısı','Review translation · matches source or has a quality warning')}</small>`:'';
       return `${c.timed ? `<span class="at${shared ? ' cue-card-time' : ''}">${fmt(c.start)}</span>` : ''}<span class="src${shared ? ' cue-card-src' : ''}" dir="auto">${src}</span>${trs}${unc}${review}${acts}`;
     }

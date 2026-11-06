@@ -47,6 +47,33 @@ for (const study of [false, true]) {
   assert.equal(f.sh.cur,1);
  });
 }
+test('sentence loop discards stale completion and toggles on the selected row',async t=>{
+ const f=mount(t,{study:true});
+ let finish;
+ f.sh.a.cmd=(...args)=>{
+  f.commands.push(args);
+  if(args[0]==='loop'&&args[1].on)return new Promise(resolve=>{finish=resolve;});
+  return {ok:true};
+ };
+ const button=()=>f.sh.lines[1].querySelector('[data-act=loop]');
+ button().click();
+ button().click();
+ f.setRevision('replacement');
+ f.sh.tick();
+ finish({ok:true});
+ await new Promise(setImmediate);
+ assert.deepEqual(structuredClone(f.commands),[['loop',{on:true,row:1},'r1']]);
+ assert.equal(button().getAttribute('aria-pressed'),'false');
+ button().click();
+ finish({ok:true});
+ await new Promise(setImmediate);
+ assert.equal(button().getAttribute('aria-pressed'),'true');
+ assert.deepEqual(f.commands.at(-1),['seekCue',1,'replacement']);
+ button().click();
+ await new Promise(setImmediate);
+ assert.deepEqual(structuredClone(f.commands.at(-1)),['loop',{on:false},'replacement']);
+ assert.equal(button().getAttribute('aria-pressed'),'false');
+});
 test('manual transcript browsing remains stopped; return follows without seeking',t=>{
  const f=mount(t),scroll=f.sh.q('[data-r=scroll]');scroll.dispatchEvent(new f.w.WheelEvent('wheel',{deltaY:-100}));assert.equal(f.sh.s.follow,false);
  f.setTime(12);f.sh.tick();assert.equal(f.sh.s.follow,false);assert.equal(f.sh.cur,1);
