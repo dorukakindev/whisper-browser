@@ -454,7 +454,7 @@
         if(kind==='shelf'||kind==='local')window.MediaShelfUI?.rememberQueueScene?.(m);
         const restoreTabFocus = !!inst?.root.contains(doc.activeElement) && doc.activeElement.matches('[role="tab"][data-mode]');
         sticky = p;
-        if(kind==='shelf')mount('shelf',m==='study'?'study':'podcast',false,p);
+        if(kind==='shelf'){sticky=undefined;mount('shelf',m==='study'?'study':'podcast',false,p);}
         else { if (kind === 'browser') window.BrowserPodcastUI?.setMode(m === 'podcast'); else {localView=m==='cinema'?'cinema':'study';PW().setPodcastMode(m==='podcast');} evaluate(); }
         if(restoreTabFocus)inst?.root.querySelector('[role="tab"][aria-selected="true"]')?.focus({preventScroll:true});
       },
@@ -488,7 +488,9 @@
       else if ((localView!=='cinema'||PW().isPodcastMode()||SS.get('cp-sahne-off')!=='1') && PW().bridge && !document.getElementById('playerWorkspaceV3')?.hidden && !layer.classList.contains('source-catalog-open')) want = ['local', PW().isPodcastMode() ? 'podcast' : localView];
     }
     if (!want) { if (inst) unmount(); entries(); return; }
-    mount(want[0], want[1], true, sticky); entries();
+    const prefs = sticky;
+    sticky = undefined;
+    mount(want[0], want[1], true, prefs); entries();
   });
   const entries = safe(() => {
     const actions = doc.querySelector('.player-head-actions');
@@ -497,7 +499,7 @@
   });
 
   new MutationObserver(evaluate).observe(layer, { attributes: true, attributeFilter: ['class'] });
-  doc.addEventListener('ui-locale-change', () => { if (inst) { const k = key, p = inst.prefs(); unmount(); const [a, b] = k.split(':'); mount(a, b, false, p); } });
+  doc.addEventListener('ui-locale-change', () => { if (inst) { const k = key, p = inst.prefs(true); unmount(); const [a, b] = k.split(':'); mount(a, b, false, p); } });
   const off = PW()?.subscribe?.(() => { if(!document.hidden)evaluate(); });
   doc.addEventListener('visibilitychange',()=>{doc.documentElement.dataset.sahneHidden=String(document.hidden);if(!document.hidden)evaluate();});
   window.addEventListener('resize',()=>{if(host&&!key.startsWith('shelf:'))host.style.top=headH()+'px';});
