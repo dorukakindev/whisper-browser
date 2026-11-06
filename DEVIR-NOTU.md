@@ -1,3 +1,4 @@
+Güncel teslim: [Browser Sahne görünüm geçişi ve medya alanı](docs/devir/2026-11-06-0759.md)
 Güncel teslim: [Sahne okuma düzeni ve Browser Podcast Asistan bağlamı](docs/devir/2026-11-06-0753.md)
 Güncel teslim: [Podcast cümle döngüsü ve Asistan pasaj geçişi](docs/devir/2026-11-06-0728.md)
 Güncel teslim: [Asistan ve Sahne işlem sahipliği](docs/devir/2026-11-06-0716.md)

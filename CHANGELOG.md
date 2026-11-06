@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Browser’da Podcast ve Çift dilli geçişi açık çalışma oturumunu korur. Sahne, tek iş çubuğu gösterir, boş altyazı alanını kaldırır ve gömülü sayfayı medya alanına yayar. [Devir](docs/devir/2026-11-06-0759.md).
+
 - Podcast ve Çift dilli Sahne hazır transkripte öncelik verir. İşlem araçları açılır bölümde, Asistan eylemi transkriptin altında erişilebilir. Browser Podcast’te “bu ana kadar” soruları yalnız bitmiş zamanlı satırları kullanır. [Devir](docs/devir/2026-11-06-0753.md).
 
 - Podcast kütüphanesindeki oynatıcı açılışı düzeltildi ve zamanlı cümle döngüsü eklendi. Çift dilli Sahne, döngüye alınan satırın zaman aralığı değişince döngüyü kapatır. Asistan, sohbet değişirse bekleyen podcast pasajı atlamasını sürdürmez. [Devir](docs/devir/2026-11-06-0728.md).
