@@ -545,7 +545,12 @@
       this.paint();
       if(this.s.transcript){
         this.transcriptOpener=opener||document.activeElement;
-        this.q('[data-r=q]')?.focus({preventScroll:true});
+        const search = this.q('[data-r=q]');
+        const target = search?.closest('.bp-flow[hidden]')
+          ? this.q('.browser-study-transcript-close')
+          : search;
+        target?.focus({preventScroll:true});
+        this.followAfterLayout();
       }else{
         (this.transcriptOpener?.isConnected?this.transcriptOpener:this.q('[data-a=transcript]'))?.focus({preventScroll:true});
       }

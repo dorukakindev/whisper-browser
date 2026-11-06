@@ -270,3 +270,16 @@ test('shared transport enables only usable sentence tools and supports keyboard 
   assert.equal(study.sh.lines[0].tabIndex, 0);
   assert(!study.sh.lines[0].querySelector('[data-act=loop]').disabled);
 });
+
+test('empty transcript drawer focuses its visible close button and returns to its opener', t => {
+  const f = mount(t, { study: true, empty: true });
+  const open = f.sh.q('.sh-transcript-toggle');
+  const close = f.sh.q('.browser-study-transcript-close');
+  open.focus();
+  open.click();
+  assert.equal(f.w.document.activeElement, close);
+  assert.equal(open.getAttribute('aria-expanded'), 'true');
+  close.click();
+  assert.equal(f.w.document.activeElement, open);
+  assert.equal(open.getAttribute('aria-expanded'), 'false');
+});
