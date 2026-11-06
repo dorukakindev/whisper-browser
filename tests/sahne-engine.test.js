@@ -10,13 +10,26 @@ function mount(t,{untimed=false,cinema=false,audio=false,empty=false,study=false
  w.eval(fs.readFileSync(require.resolve('../src/renderer/podcast-task-scope.js'),'utf8'));
  w.eval(fs.readFileSync(require.resolve('../src/renderer/sahne.js'),'utf8'));
  const sh=new w.Sahne(w.document.getElementById('host'),adapter,{mode:cinema?'cinema':study?'study':'podcast',intro:false});
- t.after(()=>{sh.destroy();w.close();});return {w,sh,commands,setTime:value=>time=value,setRevision:value=>revision=value};
+ t.after(()=>{sh.destroy();w.close();});return {w,sh,rows,commands,setTime:value=>time=value,setRevision:value=>revision=value};
 }
 test('manual transcript browsing remains stopped; return follows without seeking',t=>{
  const f=mount(t),scroll=f.sh.q('[data-r=scroll]');scroll.dispatchEvent(new f.w.WheelEvent('wheel',{deltaY:-100}));assert.equal(f.sh.s.follow,false);
  f.setTime(12);f.sh.tick();assert.equal(f.sh.s.follow,false);assert.equal(f.sh.cur,1);
  f.sh.q('[data-a=follow]').click();assert.equal(f.sh.s.follow,true);assert.equal(f.commands.length,0);
  assert.equal(f.sh.rows[0].trs.length,2);
+});
+test('the active caption refreshes at the same index and clears through a silent gap',t=>{
+ const f=mount(t,{study:true});
+ assert.equal(f.sh.q('[data-r=s]').textContent,'A source sentence');
+ f.rows[0].src='Edited source';f.rows[0].trs=['Yeni çeviri'];
+ f.setRevision('r2');f.sh.tick();
+ assert.equal(f.sh.q('[data-r=s]').textContent,'Edited source');
+ assert.equal(f.sh.q('[data-r=t]').textContent,'Yeni çeviri');
+ assert.equal(f.sh.lines[0].getAttribute('aria-current'),'true');
+ f.setTime(24);f.sh.tick();
+ assert.equal(f.sh.q('[data-r=s]').textContent,'');
+ assert.equal(f.sh.q('[data-r=subs]').hidden,true);
+ assert.equal(f.sh.lines[0].hasAttribute('aria-current'),false);
 });
 test('untimed content is readable without a timestamp, active line, or seek command',t=>{
  const f=mount(t,{untimed:true}),row=f.sh.q('[data-i="0"]');assert(row.textContent.includes('Yayıncı metni'));assert.equal(row.hasAttribute('tabindex'),false);assert.equal(row.querySelector('.at'),null);assert.equal(f.sh.cur,-1);row.click();assert.equal(f.commands.length,0);

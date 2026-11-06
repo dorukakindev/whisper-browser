@@ -8,6 +8,8 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 
 ## Podcast ve yorum akışları — kalan kabul
 
+- Uzun Browser transkripti: 1.256 kontrollü satırda Sahne etkin satır ve Browser dönüşü doğrulandı. İlk tur video içi katman metnini yakalayamadı. Sonraki adım izole LG profilinde erişilebilir uzun izi normal yükleme düğmesinden açmak ve video saati etkin satırın içindeyken native katman metnini okumak. [Devir](docs/devir/2026-11-06-0818.md).
+
 - Dal: codex/podcast-review-acceptance-20261106. [Devir](docs/devir/2026-11-06-0702.md).
 - Podcast: LG’de gerçek girişten aynı bölümde hız, ses, tekrar ve takip birlikte denenmeli. Kayıtlı sonuç ve zamansız görünümü yeniden aç. Kısa iş gerekiyorsa 3–4 dakika sınırında kaynak değiştirerek eski sonuç yalıtımını ölç.
 - Çift dilli: iki video sekmesinde konum, iz ve bağımsız kaymaları karşılaştır. Önceki sekmenin sesi ve bekleyen çeviri için ayrı gözlem yap. Dar pencerede iz seçimini aç.

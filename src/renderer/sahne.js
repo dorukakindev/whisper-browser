@@ -398,7 +398,16 @@
       }
       let idx = -1; this.rows.forEach((c, i) => { if (c.timed && c.start <= time && time < c.end && (idx < 0 || c.start >= this.rows[idx].start)) idx = i; });
       this.updateScope();this.time = time; this.cur = idx;this.root.classList.toggle('sh-audio',!!info.audio);
-      if (idx !== s.idx) { const prev = s.idx; s.idx = idx; this.lines.forEach((l, i) => { const d = idx < 0 ? 9 : Math.abs(i - idx); l.style.setProperty('--d', Math.min(d, 9)); l.classList.toggle('on', i === idx); if(i===idx)l.setAttribute('aria-current','true');else l.removeAttribute('aria-current'); }); this.onActive(idx, prev); }
+      if (idx !== s.idx || this.activeLine !== this.lines[idx]) {
+        const prev = s.idx;
+        this.activeLine?.classList.remove('on');
+        this.activeLine?.removeAttribute('aria-current');
+        s.idx = idx;
+        this.activeLine = this.lines[idx];
+        this.activeLine?.classList.add('on');
+        this.activeLine?.setAttribute('aria-current', 'true');
+        this.onActive(idx, prev);
+      }
       if(this.o.mode==='cinema')this.drawCinema(info,st);this.wordsTick(); this.drawTasks(); const volume=this.q('.sh-local-volume');if(volume&&Number.isFinite(st.volume)&&document.activeElement!==volume){volume.value=st.volume;const output=volume.parentElement.querySelector('output');if(output)output.textContent=Math.round(st.volume*100)+'%';} const subs=this.q('[data-r=subs]');if(subs)subs.hidden=idx<0; this.drawJob(); this.drawPanel(false); this.paint();
     }
     wordsTick() {
@@ -408,16 +417,21 @@
     }
     motionAllowed(){return !document.hidden && !root.matchMedia?.('(prefers-reduced-motion: reduce)').matches && !['off','reduced'].includes(document.documentElement.dataset.cinemaMotion) && (root.PlayerUiKit?.motionAllowed?.()??true);}
     scrollToActive(force) {
-      const sc = this.q('[data-r=scroll]'), l = this.lines[this.cur]; if (!l) return;
+      const sc = this.q('[data-r=scroll]'), l = this.lines[this.cur]; if (!l || l.hidden) return;
       const top = l.offsetTop - (sc.clientHeight - l.offsetHeight) / (this.o.mode !== 'podcast' ? 3 : 2); sc.scrollTo({ top: Math.max(0, top), behavior: force || !this.motionAllowed() || this.s.idx === -2 ? 'auto' : 'smooth' });
     }
     onActive(idx, prev) {
       const c = this.rows[idx];
-      if (this.q('[data-r=subs]')) {
-        const sb = this.q('[data-r=subs]'); sb.classList.add('swap'); clearTimeout(this.swapT);
-        this.swapT = setTimeout(() => { const sEl = this.q('[data-r=s]'), tEl = this.q('[data-r=t]'); sEl.textContent = c ? c.src : ''; tEl.textContent = c ? c.trs.join('  ') : ''; const n = (c ? c.src.length + c.trs.join('').length : 0); sb.classList.toggle('long', n > 150); sb.classList.toggle('xlong', n > 260); sb.scrollTop = 0; sb.classList.remove('swap'); }, c ? 140 : 0);
+      const sb = this.q('[data-r=subs]');
+      if (sb) {
+        const source = c?.src || '', translation = c?.trs.join('  ') || '';
+        this.q('[data-r=s]').textContent = source;
+        this.q('[data-r=t]').textContent = translation;
+        sb.classList.toggle('long', source.length + translation.length > 150);
+        sb.classList.toggle('xlong', source.length + translation.length > 260);
+        sb.scrollTop = 0;
       }
-      if (this.lines[idx] && this.s.follow && !this.q('[data-r=scroll]').contains(document.activeElement)) { const sc = this.q('[data-r=scroll]'), l = this.lines[idx]; const top = l.offsetTop - (sc.clientHeight - l.offsetHeight) / (this.o.mode !== 'podcast' ? 3 : 2); sc.scrollTo({ top: Math.max(0, top), behavior: prev === -2 || !this.motionAllowed() ? 'auto' : 'smooth' }); }
+      if (this.s.follow && !this.q('[data-r=scroll]').contains(document.activeElement)) this.scrollToActive(prev === -2);
     }
     recoveryMarkup() {
       return this.el('<div class="sh-job sh-recovery" data-r="recovery" hidden><span role="status"></span><button class="sh-chip" data-a="playbackRetry" type="button"></button></div>');
@@ -536,7 +550,7 @@
       box.innerHTML=`<header><h2>${esc(word.word)}</h2><button class="sh-btn" data-a="wordClose" type="button" aria-label="${T('Kapat','Close')}">${ic('close')}</button></header><p class="sh-word-context">${esc(word.source)}</p>${word.translations.map(x=>`<p class="sh-word-translation">${esc(x)}</p>`).join('')}<small>${T('Altyazı bağlamı · sözlük tanımı değildir.','Subtitle context · not a dictionary definition.')}</small><footer><button class="sh-btn" data-a="wordLookup" type="button" title="${T('Seçili sözcüğü mevcut sözlük tercihinizle uygulama dışında açar.','Opens the word outside the app with your existing dictionary preference.')}">${T('Sözlükte aç ↗','Open dictionary ↗')}</button><button class="sh-btn" data-a="wordSave" type="button" ${word.canSave?'':`disabled title="${T('Bu iz mevcut sözcük koleksiyonuna kaydedilemiyor.','This track cannot be saved to the existing word collection.')}"`}>${word.saved?T('Kayıtlı · Kaldır','Saved · Remove'):T('Sözcüğü kaydet','Save word')}</button></footer>`;
     }
     frame() { const f = () => { if (this.dead) return; if (this.cur >= 0 && this.st && !this.st.paused) this.wordsTick(); this.raf = requestAnimationFrame(f); }; this.raf = requestAnimationFrame(f); }
-    destroy() { this.dead = true; clearInterval(this.timer); cancelAnimationFrame(this.raf); clearTimeout(this.swapT); clearTimeout(this.toastT);clearTimeout(this.idleTimer); document.removeEventListener('keydown', this.keys, true); if (this.s.loop) { try { this.a.cmd('loop', { on: false }); } catch (_) { /* kaynak gitmiş olabilir */ } } this.a.releaseSlot?.(); this.root.remove(); root.syncBrowserOcclusion?.(); }
+    destroy() { this.dead = true; clearInterval(this.timer); cancelAnimationFrame(this.raf); clearTimeout(this.toastT);clearTimeout(this.idleTimer); document.removeEventListener('keydown', this.keys, true); if (this.s.loop) { try { this.a.cmd('loop', { on: false }); } catch (_) { /* kaynak gitmiş olabilir */ } } this.a.releaseSlot?.(); this.root.remove(); root.syncBrowserOcclusion?.(); }
   }
   root.Sahne = Sahne; root.SahneFmt = fmt; root.SahneIcon = ic; root.SahneArt = artSVG;
 })(typeof window !== 'undefined' ? window : globalThis);

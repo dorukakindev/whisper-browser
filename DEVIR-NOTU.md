@@ -1,3 +1,4 @@
+Güncel teslim: [Sahne etkin satır ve uzun transkript kontrolü](docs/devir/2026-11-06-0818.md)
 Güncel teslim: [Browser Sahne altyazısı, video alanı ve dönüş](docs/devir/2026-11-06-0812.md)
 Güncel teslim: [Sahne dublaj girişi ve sade adres alanı](docs/devir/2026-11-06-0805.md)
 Güncel teslim: [Browser Sahne görünüm geçişi ve medya alanı](docs/devir/2026-11-06-0759.md)
