@@ -8,7 +8,7 @@
 .sh-browser-study .sh-seg{border-radius:8px;background:var(--bg-1);border-color:var(--border)}
 .sh-browser-study .sh-seg:before{border-radius:6px;box-shadow:none}
 .sh-browser-study .sh-seg button{font-size:12px;padding-inline:14px;height:32px}
-.sh-browser-study .sh-main.browser-study-layout{padding:0;gap:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,420px);height:auto;flex:1;min-height:0}
+.sh-browser-study .sh-main.browser-study-layout{padding:0;gap:0;display:grid;grid-template-columns:minmax(0,1fr) clamp(360px,29vw,480px);height:auto;flex:1;min-height:0}
 .sh-browser-study .browser-study-media{padding:24px;min-width:0;min-height:0;gap:16px;justify-content:flex-start;overflow:auto}
 .sh-browser-study .sh-audio-summary{display:flex;gap:16px;align-items:center;padding:0;min-width:0;flex:none}
 .sh-browser-study:not(.sh-audio) .sh-audio-summary .sh-cover{display:none}
@@ -160,7 +160,7 @@
 .sh-browser-study .sh-processing .sh-scope{padding:6px 0}
 .sh-browser-study .sh-processing .sh-scope-fields{position:static;padding:10px;box-shadow:none}
 .sh-browser-study .bp-footer{padding-block:8px}
-.sh-browser-study .sh-top-r [data-a=dub] span{display:inline}
+.sh-browser-study .sh-top-r [data-a=panel] span{display:inline}
 .sh-browser-study .bp-footer button{flex:0 1 auto;white-space:normal;text-align:left;height:auto;min-height:36px}
 @media(max-height:760px){
  .sh-browser-study .sh-processing{padding-bottom:6px}
@@ -180,3 +180,16 @@ details[data-mk-details]>summary{list-style:none}details[data-mk-details]>summar
 @media(max-width:700px){
  .sh-browser-study.sh-web-source.sh-audio .sh-audio-summary .sh-cover{width:112px}
 }
+
+/* Keep the reading surface quiet; make the task entry and keyboard focus clear. */
+.sh-browser-study .sh-top-r :is([data-a=sleep],[data-a=advanced]){border-color:transparent;background:transparent;color:var(--text-dim)}
+.sh-browser-study .sh-top-r :is([data-a=sleep],[data-a=advanced]):hover{background:var(--bg-2);color:var(--text)}
+.sh-browser-study .sh-top-r [data-a=panel]{border-color:color-mix(in srgb,var(--accent) 40%,var(--border));color:var(--accent)}
+.sh-browser-study .bp-search:focus-within{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 16%,transparent)}
+.sh-browser-study .sh-card .acts{opacity:.45;transition:opacity .15s ease}
+.sh-browser-study .sh-card:is(:hover,:focus-within,.on) .acts{opacity:1}
+.sh-browser-study .sh-card .acts .act{border-color:transparent;background:transparent}
+.sh-browser-study .sh-card .acts .act:hover{border-color:var(--border);background:var(--bg-2)}
+.sh-browser-study .sh-card .src{font-weight:400}
+.sh-browser-study .sh-card.on .src{font-weight:550}
+@media(prefers-reduced-motion:reduce){.sh-browser-study .sh-card .acts{transition:none}}

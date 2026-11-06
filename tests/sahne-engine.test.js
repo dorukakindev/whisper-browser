@@ -198,3 +198,14 @@ test('follow positions an active row relative to its scrolling pane without movi
  Object.defineProperty(scroll,'clientHeight',{value:300});Object.defineProperty(line,'offsetHeight',{value:90});
  search.focus();f.sh.scrollToActive(true);assert.equal(scroll.scrollTop,330);assert.equal(f.w.document.activeElement,search);
 });
+
+
+test('layout follow respects manual browsing and focused transcript controls',t=>{
+ const f=mount(t,{study:true});let callback,calls=0;
+ f.w.requestAnimationFrame=fn=>{callback=fn;return 999;};
+ f.sh.scrollToActive=()=>{calls++;};
+ f.sh.s.follow=false;f.sh.followAfterLayout();callback();assert.equal(calls,0);
+ f.sh.s.follow=true;f.sh.lines[0].focus();f.sh.followAfterLayout();callback();assert.equal(calls,0);
+ f.sh.lines[0].blur();f.sh.followAfterLayout();callback();assert.equal(calls,1);
+ f.sh.destroy();callback();assert.equal(calls,1);
+});
