@@ -138,3 +138,10 @@ html:is([data-cinema-motion=off],[data-cinema-motion=reduced]) :is(.cv2-home-pic
 .cv2-discover .cn-discover-dot .cv2-feature-thumb{position:absolute;inset:0}
 #mediaHome[data-page=radio] #mhContent{max-width:none;width:100%;padding:0}
 #mediaHome[data-page=radio] .ms-shelf{max-width:none;width:100%;padding:0}
+
+/* Real titles and catalog headings share the existing content axes. */
+.cv2-home .cn-hero h1{display:block;max-width:none;overflow:visible;white-space:normal;overflow-wrap:anywhere;text-wrap:balance}
+.cv2-discover-section-heading{width:calc(100% - var(--cn-gutter)*2);max-width:var(--cn-max);margin:32px auto 18px}
+.cv2-discover-personal{width:calc(100% - var(--cn-gutter)*2);max-width:var(--cn-max);margin:32px auto 42px}
+
+.cv2-personal-art.md-art-empty::after{display:none}
