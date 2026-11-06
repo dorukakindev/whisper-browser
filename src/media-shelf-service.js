@@ -60,6 +60,20 @@ function podcastTrack(episode,role='source') {
   const cues = timed ? require('./browser-subtitles').parseSubtitlePayload(transcript.text, '', 'publisher.'+transcript.format).cues.map((cue,index)=>({...cue,id:String(index)})) : [];
   return {id:(role==='translation'?'translation:':'publisher:')+episode.episodeIdentity, revision:createHash('sha256').update(transcript.text).digest('hex'), role, offsetSeconds:0, timed, ...(workspace.sourceVersion!==episode.sourceVersion?{timingState:'needs-review'}:{}),cues, text:transcript.text, provenance:transcript.provenance};
 }
+
+// Read existing records only; result tokens bind the exact text, source and location.
+function searchPodcastTranscripts(data, feeds, query) {
+ const fold=require('./text-fold').search,q=fold(text(query,200));if(!q)return [];
+ const session=require('./podcast-session'),rows=[],seen=new Set();
+ const add=(episode,show,owner,entryId)=>{for(const role of ['source','translation']){const track=podcastTrack(episode,role);if(!track?.text)continue;const key=episode.episodeIdentity+'|'+role;if(seen.has(key))continue;seen.add(key);
+ const parts=track.timed?track.cues.map(c=>({quote:c.text,start:c.start,end:c.end})):track.text.split(/\n\s*\n|\n/).filter(Boolean).map(quote=>({quote}));
+ for(let index=0;index<parts.length;index++){const part=parts[index],match=fold(part.quote).indexOf(q);if(match<0)continue;let offset=0,folded=0;if(part.quote.length>4000){for(const char of part.quote){if(folded>=match)break;offset+=char.length;folded+=fold(char).length;}}const quote=part.quote.slice(Math.max(0,offset-120),Math.max(0,offset-120)+4000),timed=track.timed===true&&Number.isFinite(part.start)&&Number.isFinite(part.end)&&episode.positionState!=='needs-review'&&!(owner==='player'&&track.provenance==='asr');
+ const row={mediaType:'podcast',episodeTitle:episode.title||'',showTitle:show.title||'',episodeIdentity:episode.episodeIdentity,sourceVersion:episode.sourceVersion,sourceBinding:episode.sourceBinding,sourceEntryId:entryId||'',playbackOwner:owner,role,quote,timed,seconds:timed?part.start:null,end:timed?part.end:null};row.token=createHash('sha256').update(JSON.stringify([row,track.revision,index])).digest('hex');rows.push(row);if(rows.length>=100)return;}}};
+ for(const e of feeds.entries||[]){if(e.kind!=='podcast')continue;const show=(feeds.feeds||[]).find(f=>f.id===e.feedId);if(!show)continue;add({...e,episodeIdentity:session.episodeIdentity(e),sourceVersion:session.sourceVersion(e),sourceBinding:session.sourceBinding(e)},show,'player',e.id);if(rows.length>=100)return rows;}
+ for(const show of data.podcasts||[])for(const e of show.episodes||[]){add(e,show,'media-shelf');if(rows.length>=100)return rows;}
+ return rows;
+}
+
 function loadShelfFile(file) {
     if (!fs.existsSync(file)) return { version: 1, music: [], books: [], stations: [], podcasts: [], playlists: [], diary: [] };
     if (fs.statSync(file).size > require('./media-shelf-limits').MAX_BYTES) throw Error('Media shelf exceeds 32 MB; export/recover it before editing.');
@@ -78,7 +92,7 @@ function readReviewTaste(userData,catalog=[]) {
 function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pythonPath, ffprobePath, inspectMedia, grantMedia, grantPdf, nativeImage, catalogStore, catalogView, fetchImpl = fetch, musicRun = run, podcastRegistryBinding, transcriptFetcher = (descriptor, options) => require('./podcast-transcript-service').fetchPodcastTranscript(descriptor, {...options, ...require('./feed-service')}) }) {
   const requestTranscript=require('./podcast-transcript-service').createTranscriptRequester(transcriptFetcher);
   let active = null;
-  const imports = new Map();
+  const imports = new Map(), tasteCorrections = new Map();
   const stateFile = () => path.join(userData(), 'media-shelf.json');
   const load=()=>loadShelfFile(stateFile());
   function save(data) {
@@ -192,6 +206,14 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
         case 'spotify-play': {
           const data=load(),row=data.linkedPlaylists?.find(p=>p.id===input.playlistId)?.tracks.find(t=>t.id===input.id);if(!row)throw Error('Saved Spotify match missing');
           return {ok:true,...await spotify.stream(row.youtubeUrl)};
+        }
+        case 'podcast-search':
+        case 'podcast-search-resolve': {
+          if(typeof input.query!=='string'||input.query.length>200)throw Error('Enter up to 200 characters. / En fazla 200 karakter yazın.');
+          const feedFile=path.join(userData(),'feeds.json'),feeds=fs.existsSync(feedFile)?require('./feed-store').createFeedStore(feedFile).snapshot():{entries:[],feeds:[]};
+          const rows=searchPodcastTranscripts(load(),feeds,input.query);
+          if(input.action==='podcast-search-resolve'){const row=rows.find(r=>r.token===input.token);if(!row)throw Error('Saved source changed or was removed. Search again. / Kayıtlı kaynak değişti veya silindi. Yeniden arayın.');return {ok:true,row};}
+          return {ok:true,rows,limit:100,mode:'literal'};
         }
         case 'list': return { ok: true, ...publicState(load()) };
         case 'listening-queue-save': {
@@ -431,6 +453,24 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
         case 'tag-query':{const rows=M.scopedTags(load(),catalogStore().list(),input.scope,input.name);return {ok:true,rows:rows.slice(0,500),total:rows.length,incomplete:rows.length>500};}
         case 'tag-save':{const d=load(),rows=M.scopedTags(d,catalogStore().list(),input.scope),row=rows.find(r=>r.id===input.recordId);if(!row&&input.scope!=='list')throw Error('Tagged record no longer exists.');if(!Array.isArray(input.tags)||input.tags.length>30)throw Error('Choose up to 30 tags.');const tags=[...new Set(input.tags.filter(v=>typeof v==='string').map(v=>text(v,100)).filter(Boolean))];if(input.scope==='film')catalogStore().upsert({id:row.id,collections:tags});else if(input.scope==='list'){if(!text(input.title,200))throw Error('Name the list.');d.listTags=[...(d.listTags||[]).filter(r=>r.id!==input.recordId),{id:input.recordId||randomUUID(),title:text(input.title,200),tags}].slice(-100);}else{const key=input.scope==='diary'?'diary':'reviews';const index=d[key].findIndex(r=>(r.recordId||M.hash([input.scope,r.title,r.year,r.watchedDate,r.review]))===row.id);d[key][index].tags=tags;}save(d);return {ok:true};}
         case 'taste-quiz': {const data=load(),quiz=input.quiz===null?null:require('./taste-quiz').validate(input.quiz);data.tasteProfile={...data.tasteProfile,quiz};save(data);return {ok:true,taste:publicState(data).taste};}
+        case 'taste-source-preview': {
+          const data=load(),taste=tasteOf(data),model=require('./media-taste');
+          if(input.expectedEvidenceRevision!==taste.evidenceRevision)throw Error('Evidence changed. Reopen the source. / Kanıtlar değişti. Kaynağı yeniden açın.');
+          const rating=input.kind==='diary-rating',fieldName=rating?'rating':'review';
+          if(input.kind!==undefined&&!rating)throw Error('Invalid correction kind. / Geçersiz düzeltme türü.');
+          const matches=(rating?['diary']:['diary','reviews']).flatMap(field=>(data[field]||[]).map((row,index)=>({field,index,row}))).filter(x=>(!x.row.recordState||x.row.recordState==='active')&&(rating?model.diaryRecordId(x.row)===input.recordId:model.reviewId(x.row)===input.reviewId));
+          if(!matches.length)throw Error('Source missing. Reopen the evidence. / Kaynak bulunamadı. Dayanağı yeniden açın.');
+          const value=input[fieldName];
+          if(rating?value!==null&&(!Number.isFinite(value)||value<0||value>5||value*2%1!==0):typeof value!=='string'||value.length>12000)throw Error('Invalid correction. / Geçersiz düzeltme.');
+          const token=randomUUID();tasteCorrections.set(token,{revision:taste.evidenceRevision,matches,fieldName,value,at:Date.now()});while(tasteCorrections.size>20)tasteCorrections.delete(tasteCorrections.keys().next().value);
+          return {ok:true,token,title:matches[0].row.title,before:matches[0].row[fieldName]??(rating?null:''),after:value};
+        }
+        case 'taste-source-apply': {
+          const plan=tasteCorrections.get(input.token),data=load();if(!plan||Date.now()-plan.at>300000||tasteOf(data).evidenceRevision!==plan.revision)throw Error('Source changed. Preview again. / Kaynak değişti. Yeniden önizleyin.');
+          for(const x of plan.matches)if(JSON.stringify(data[x.field]?.[x.index])!==JSON.stringify(x.row))throw Error('Source changed. Preview again. / Kaynak değişti. Yeniden önizleyin.');
+          for(const x of plan.matches)data[x.field][x.index]={...x.row,[plan.fieldName]:plan.value};
+          save(data);tasteCorrections.delete(input.token);return {ok:true,taste:tasteOf(data)};
+        }
         case 'taste-profile':return {ok:true,taste:tasteOf(load())};
         case 'taste-recommendations':{
           if(input.kind!==undefined&&!['film','series'].includes(input.kind)||input.maxDuration!==undefined&&(!Number.isFinite(input.maxDuration)||input.maxDuration<=0||input.maxDuration>1440)||input.limit!==undefined&&(!Number.isInteger(input.limit)||input.limit<1||input.limit>12)||input.exploration!==undefined&&typeof input.exploration!=='boolean')throw Error('Invalid recommendation conditions / Geçersiz öneri koşulları.');
@@ -438,10 +478,10 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           return {ok:true,recommendations,evidenceRevision:taste.evidenceRevision,preferencesRevision:taste.preferencesRevision,coverage:taste.coverage,preferencesConfigured:taste.preferencesConfigured};
         }
         case 'taste-preferences': { const data=load();updateTastePreferences(data,input);save(data);return {ok:true,taste:tasteOf(data)}; }
-        case 'taste-analysis': { const data=load();if(input.expectedEvidenceRevision!==undefined&&input.expectedEvidenceRevision!==tasteOf(data).evidenceRevision)throw Object.assign(Error('Review evidence changed; prepare a new sample / Yorum kanıtları değişti; yeni bir örnek hazırlayın.'),{stale:true});const analysis=require('./media-taste').validateAnalysis(input.analysis,[...data.diary,...(Array.isArray(data.reviews)?data.reviews:[])]);data.tasteProfile={...data.tasteProfile,analysis};save(data);return {ok:true,analysis,taste:tasteOf(data)}; }
+        case 'taste-analysis': { const data=load();if(input.expectedPreferencesRevision!==undefined&&input.expectedPreferencesRevision!==tasteOf(data).preferencesRevision)throw Object.assign(Error('Priorities changed. Review a new sample. / Öncelikler değişti. Yeni örneği inceleyin.'),{stale:true});if(input.expectedEvidenceRevision!==undefined&&input.expectedEvidenceRevision!==tasteOf(data).evidenceRevision)throw Object.assign(Error('Review evidence changed; prepare a new sample / Yorum kanıtları değişti; yeni bir örnek hazırlayın.'),{stale:true});const analysis=require('./media-taste').validateAnalysis(input.analysis,[...data.diary,...(Array.isArray(data.reviews)?data.reviews:[])]);data.tasteProfile={...data.tasteProfile,analysis};save(data);return {ok:true,analysis,taste:tasteOf(data)}; }
         default: throw Error('Unsupported media shelf action.');
       }
     } catch (error) { const parts=String(error.message).split(' / ');return { ok: false,...(error.stale?{stale:true}:{}), error:parts.length>1?(input.locale==='tr'?parts.slice(1).join(' / '):parts[0]):error.message }; }
   });
 }
-module.exports = { registerMediaShelf, csvPlan, urlOf, readReviewTaste };
+module.exports = { registerMediaShelf, csvPlan, urlOf, readReviewTaste, searchPodcastTranscripts };

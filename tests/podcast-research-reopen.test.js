@@ -11,6 +11,11 @@ test('Untimed and changed-source notes open their podcast without inventing a se
 test('Shelf research note resolves its saved episode identity through existing library owner',async()=>{const h=setup();h.result.playbackOwner='media-shelf';h.result.mediaId='shelf-podcast:episode-A';h.context.window.MediaShelfUI.readSnapshot=()=>({...h.snapshot,mediaKey:h.result.mediaId});assert.equal(await h.context.openPodcastResearchResult(h.result),true);assert.deepEqual(h.calls[0],['open-shelf','show-A','https://example.test/audio.mp3']);assert.equal(h.calls[1][0],'seek-shelf');assert.equal(h.calls[1][1].time,0);});
 test('Missing RSS locator never falls through to a generic browser reopen',async()=>{const h=setup();delete h.result.sourceEntryId;assert.equal(await h.context.openPodcastResearchResult(h.result),false);assert.equal(h.calls.length,0);assert(h.notices.length);});
 
+test('Saved-search revalidation cannot seek a newer episode or a modified saved passage',async()=>{
+ for(const change of ['source','text']){const h=setup();const opened=await h.context.openPodcastResearchResult(h.result,{beforeSeek:async()=>{if(change==='text')throw Error('Saved passage changed');h.setSnapshot({...h.snapshot,episodeIdentity:'episode-B',generation:3});}}).catch(()=>false);assert.equal(opened,false);assert.equal(h.calls.length,1);}
+ const h=setup();assert.equal(await h.context.openPodcastResearchResult(h.result,{beforeSeek:async()=>{}}),true);assert.equal(h.calls.filter(c=>c[0]==='open-rss').length,1);assert.equal(h.calls[1][1].time,0);
+});
+
 test('Research library renders untimed notes without a fake zero timestamp',()=>{
  const {JSDOM}=require('jsdom');const dom=new JSDOM('<div id="playerLibraryList"></div><p id="playerLibraryStatus"></p>');
  try{const context={document:dom.window.document,$:id=>dom.window.document.getElementById(id),researchAnnotations:[{id:'note-A',timed:false,start:null,mediaTitle:'Episode',type:'quote',status:'new'}],playerLibraryView:'research',captureResearchLibraryDrafts:()=>new Map(),uiText:value=>value,interfaceChoice:(_,en)=>en,researchTypeLabel:()=> 'Quote',researchStatusLabel:()=> 'New',pSecToTime:()=>{throw Error('Untimed note formatted as timestamp');}};

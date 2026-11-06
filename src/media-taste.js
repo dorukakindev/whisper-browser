@@ -8,6 +8,7 @@ const values = (row, field) => Array.isArray(row?.[field]) ? [...new Set(row[fie
 const validRating = value => (typeof value==='number'||typeof value==='string'&&value.trim()!=='') && Number.isFinite(Number(value)) && Number(value)>=0 && Number(value)<=10;
 const key = row => fold(row.title).trim()+'|'+(row.year || '');
 function reviewId(row) { return createHash('sha256').update(key(row)+'|'+(row.watchedDate || '')+'|'+(row.review || '')).digest('hex').slice(0,20); }
+function diaryRecordId(row) { return hash(row); }
 function preferences(raw = {}) {
   return { weights:Object.fromEntries(ASPECTS.map(name=>[name,Math.max(0,Math.min(5,Number(raw.weights?.[name]) || 0))])),
     avoid:Array.isArray(raw.avoid)?[...new Set(raw.avoid.filter(name=>ASPECTS.includes(name)))]:[],
@@ -62,7 +63,7 @@ function profile(diary = [], catalog = [], saved = {}, reviewEntries = []) {
   function signals(field) {
     return ranking(field).map(group=>{
       const evidence=rated.filter(row=>values(metadataFor(row),field).includes(group.name)).map(row=>{
-        const item=metadataFor(row),ratingSource=validRating(item?.ratings?.personal)?'catalog':'diary';return {title:row.title,year:row.year,rating:row.rating,ratingSource,...(ratingSource==='diary'&&row.watchedDate?{ratingDate:row.watchedDate}:{}),...(item?.id?{itemId:item.id}:{})};
+        const item=metadataFor(row),ratingSource=validRating(item?.ratings?.personal)?'catalog':'diary';return {title:row.title,year:row.year,rating:row.rating,ratingSource,...(ratingSource==='diary'?{ratingRecordId:diaryRecordId(row),...(row.watchedDate?{ratingDate:row.watchedDate}:{})}:{}),...(item?.id?{itemId:item.id}:{})};
       }).sort((a,b)=>String(a.title).localeCompare(String(b.title))||String(a.year).localeCompare(String(b.year))||String(a.itemId||'').localeCompare(String(b.itemId||'')));
       const delta=group.average-average;
       // Absolute high/low ratings remain visible, but contrary votes prevent a
@@ -146,4 +147,4 @@ function recommend(catalog, taste, options = {}) {
   }
   return [...candidates.values()].sort((a,b)=>b.score-a.score||String(a.result.title).localeCompare(String(b.result.title))||String(a.result.year).localeCompare(String(b.result.year))||String(a.result.itemId).localeCompare(String(b.result.itemId))).slice(0,limit).map(row=>row.result);
 }
-module.exports={effectivePreferences,ASPECTS,profile,preferences,preferencesRevision,recommend,validateAnalysis,reviewId};
+module.exports={effectivePreferences,ASPECTS,profile,preferences,preferencesRevision,recommend,validateAnalysis,reviewId,diaryRecordId};

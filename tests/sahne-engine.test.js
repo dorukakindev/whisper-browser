@@ -21,6 +21,11 @@ test('manual transcript browsing remains stopped; return follows without seeking
 test('untimed content is readable without a timestamp, active line, or seek command',t=>{
  const f=mount(t,{untimed:true}),row=f.sh.q('[data-i="0"]');assert(row.textContent.includes('Yayıncı metni'));assert.equal(row.hasAttribute('tabindex'),false);assert.equal(row.querySelector('.at'),null);assert.equal(f.sh.cur,-1);row.click();assert.equal(f.commands.length,0);
 });
+
+test('saved passage focus identifies a real timed line without changing playback or inventing an active line',t=>{
+ const f=mount(t);f.sh.focusPassage(12);assert(f.sh.lines[1].classList.contains('sh-search-match'));assert.equal(f.sh.cur,0);assert.equal(f.commands.length,0);
+ const plain=mount(t,{untimed:true});plain.sh.focusPassage(0);assert(!plain.sh.root.querySelector('.sh-search-match'));assert.equal(plain.sh.cur,-1);assert.equal(plain.commands.length,0);
+});
 test('rejected loop never appears enabled; task drawer marks native occlusion immediately',async t=>{
  const f=mount(t);f.sh.toggleLoop();await Promise.resolve();await Promise.resolve();assert.equal(f.sh.s.loop,false);
  f.sh.q('[data-a=panel]').click();assert.equal(f.sh.root.getAttribute('data-pw-occludes-native'),'true');f.sh.q('[data-pclose]').click();assert.equal(f.sh.root.hasAttribute('data-pw-occludes-native'),false);

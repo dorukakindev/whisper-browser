@@ -65,3 +65,18 @@ const P = require('../src/podcast-transcript.js');
   assert.strictEqual(P.pickBestTranscript([]), null);
 }
 console.log('podcast-transcript.test.js: OK');
+
+// Existing saved workspaces are searched without creating another transcript store.
+{
+ const {searchPodcastTranscripts:find}=require('../src/media-shelf-service');
+ const e={title:'Episode',episodeIdentity:'ep',sourceVersion:'v1',sourceBinding:{episodeIdentity:'ep',resource:'https://example.com/a.mp3'},podcastWorkspace:{sourceVersion:'v1',transcript:{state:'timed',format:'vtt',text:'WEBVTT\n\n00:00:02.000 --> 00:00:04.000\nA real phrase\n'},translation:{state:'timed',format:'vtt',text:'WEBVTT\n\n00:00:02.000 --> 00:00:04.000\nGerçek ifade\n'}}};
+ const d={podcasts:[{title:'Show',episodes:[e]}]},empty={entries:[],feeds:[]};
+ const original=find(d,empty,'real phrase')[0],translated=find(d,empty,'ifade')[0];assert(original.timed);assert.equal(original.seconds,2);assert.equal(translated.role,'translation');assert.equal(translated.end,4);assert.equal(find(d,empty,'').length,0);assert.equal(find(d,empty,'missing').length,0);
+ e.podcastWorkspace.transcript.text=e.podcastWorkspace.transcript.text.replace('real','changed');assert.notEqual(find(d,empty,'phrase')[0].token,original.token);
+ e.sourceVersion='v2';assert.equal(find(d,empty,'phrase').length,0);
+ e.podcastWorkspace={sourceVersion:'v2',transcript:{state:'untimed',format:'plain',text:'A publisher phrase'}};const plain=find(d,empty,'phrase')[0];assert.equal(plain.timed,false);assert.equal(plain.seconds,null);assert.equal(plain.end,null);
+ e.podcastWorkspace.transcript.text='é'.repeat(5000)+' A publisher phrase at the end';assert.match(find(d,empty,'phrase')[0].quote,/phrase at the end/);
+ d.podcasts=[];assert.equal(find(d,empty,'phrase').length,0);
+ const session=require('../src/podcast-session'),entry={id:'saved',feedId:'show',externalId:'one',kind:'podcast',title:'Canonical',enclosures:[{url:'https://example.com/c.mp3',type:'audio/mpeg'}]};entry.podcastWorkspace={sourceVersion:session.sourceVersion(entry),transcript:{state:'timed',format:'vtt',provenance:'asr',text:'WEBVTT\n\n00:00:02.000 --> 00:00:04.000\nSaved phrase\n'}};
+ const rss={entries:[entry],feeds:[{id:'show',title:'Show'}]},readonly=find(d,rss,'phrase')[0];assert.equal(readonly.timed,false,'download/ASR timestamps do not prove the current RSS stream');assert.equal(readonly.seconds,null);entry.podcastWorkspace.transcript.provenance='publisher';assert.equal(find(d,rss,'phrase')[0].seconds,2);
+}
