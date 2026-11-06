@@ -27238,10 +27238,12 @@ if ($('playerVideo')) {
     syncPlayerMediaSession();
   });
   video.addEventListener('ended', async () => {
+    const podcastQueueOwner=window.MediaShelfUI?.ownsPodcastQueue?.()?{mediaKey:player.mediaKey,generation:player.generation}:null;
     stopPlayerVideoFrameLoop();
     renderCue();
     await flushWatchState(true, true);
-    if (player.autoNext && player.sleepTimerMode !== 'end' && !stQueueAutoNext() && player.playlistIndex >= 0) await playPlaylistDelta(1);
+    if(podcastQueueOwner){if(player.autoNext&&player.sleepTimerMode!=='end')await window.MediaShelfUI.advancePodcastQueue(podcastQueueOwner);}
+    else if (player.autoNext && player.sleepTimerMode !== 'end' && !stQueueAutoNext() && player.playlistIndex >= 0) await playPlaylistDelta(1);
     else if (player.sleepTimerMode !== 'end') stAutoRelatedNext();
     if (player.sleepTimerMode === 'end') {
       player.sleepTimerMode = '';
@@ -27250,6 +27252,7 @@ if ($('playerVideo')) {
     }
   });
   video.addEventListener('error', () => {
+    window.MediaShelfUI?.podcastQueueError?.();
     const code = video.error?.code;
     const messages = {
       [MediaError.MEDIA_ERR_ABORTED]: 'Video yüklemesi iptal edildi.',

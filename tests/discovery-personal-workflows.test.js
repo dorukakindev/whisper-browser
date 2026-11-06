@@ -27,3 +27,13 @@ test('R846-06 episode dialog loads authoritative current progress and binds Save
  await h.c.menu(row).find(e=>e.label==='Continue at episode…').run();await tick();const form=h.w.document.querySelector('dialog form'),inputs=form.querySelectorAll('input');
  assert.deepEqual([...inputs].map(i=>i.value),['2','4','15:00']);form.dispatchEvent(new h.w.Event('submit',{bubbles:true,cancelable:true}));await tick();const p=h.calls.find(c=>c.action==='preview');assert.equal(p.expectedRevision,'live-progress-4000');assert.equal(p.changes.positionSeconds,900);
 });
+
+test('explanations distinguish verified preferences, legacy relationships and catalog selection',t=>{
+ const h=fixture(t),reason=h.w.DiscoveryPersonalUI.reason;
+ assert.equal(reason({...h.rows[0],because:'Legacy seed'}).kind,'metadata');
+ assert.match(reason({...h.rows[0],because:'Legacy seed'}).text,/No verified personal like/);
+ assert.equal(reason({...h.rows[0],recommendationEvidence:{seedTitle:'Rated',reaction:'like',genre:'Drama'}}).kind,'personal');
+ assert.equal(reason({...h.rows[0],profileBecause:{genre:'Drama',count:1,average:5}}).kind,'catalog');
+ assert.equal(reason({...h.rows[0],profileBecause:{genre:'Drama',count:2,average:4}}).kind,'personal');
+ assert.equal(reason(h.rows[0]).kind,'catalog');assert.equal(h.saved.size,0);
+});

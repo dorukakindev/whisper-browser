@@ -265,7 +265,7 @@
         }
       });
     }
-    const personal = oldCopy?.querySelector(".pm-panel"), advanced = n("details", "cn-accordion"), advancedBody = n("div", "cn-advanced-body");
+    const personalHost = page.querySelector(".md-personal-host"), personal = personalHost?.querySelector(".pm-panel") || oldCopy?.querySelector(".pm-panel"), basis = page.querySelector(".md-recommendation-basis"), membership = page.querySelector(".md-membership"), advanced = n("details", "cn-accordion"), advancedBody = n("div", "cn-advanced-body");
     advanced.append(n("summary", "", t("Viewing & sources", "\u0130zleme ve kaynaklar")), advancedBody);
     advanced.open = !!viewState.advanced;
     advanced.addEventListener("toggle", () => {
@@ -277,7 +277,7 @@
     const options = page.querySelector(".film-dossier-options");
     if (options) advancedBody.append(...[...options.children].filter((x) => x.tagName !== "SUMMARY"));
     for (const section of page.querySelectorAll(".fw-workspace,.daily-title,.mtd-related,.mtd-feed-sources")) advancedBody.append(section);
-    if (personal) advancedBody.prepend(personal);
+    if (personal) advancedBody.prepend(personalHost || personal);
     const hero = n("section", "cn-hero cn-film-hero"), inner = n("div", "cn-container cn-film-hero-content"), copy = n("div", "cn-film-copy");
     if (!isDiscovery) {
       hero.classList.add("cn-library-hero");
@@ -378,6 +378,7 @@
       }
     }
     copy.append(actions);
+    if (isDiscovery) { if(membership)copy.append(membership);if(basis)copy.append(basis); }
     const resume = page.querySelector(".cn-library-resume");
     if (resume) copy.append(resume);
     if (personal) {

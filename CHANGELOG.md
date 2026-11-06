@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Podcast dinleme kuyruğu mevcut owner ile kalıcı current/next, reorder/retry ve remembered sahneye bağlandı; native mpv EOF auto-next/repeat korundu. Keşfet gerekçesi, üyelik ve kişisel karar durumu detay/sinematik yüzeylerde eşlenir. [Teslim](docs/devir/2026-11-06-0432.md).
+
 - Browser ortak sahnesinde zaman dönüşümü cue/word başına yeniden hesaplanmaz; podcast↔çift dil geçişindeki takılma giderildi. Mode sekmesi remount sırasında klavye odağını korur. Gerçek panel/fullscreen kaynak sahipliği kontrol edildi. [Teslim](docs/devir/2026-11-05-1450.md).
 
 - Browser’da Video.js/PeerTube site altyazısı, uygulama katmanı ve “site altyazısını gizle” seçeneği açıkken gizlenir; kapatılınca geri döner. Gerçek site oynatıcısında çift dil ve fullscreen kabulü yapıldı. [Teslim](docs/devir/2026-11-05-1428.md).

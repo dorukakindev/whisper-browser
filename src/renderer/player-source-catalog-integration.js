@@ -59,7 +59,11 @@
     }catch(error){toast=error.message;}finally{if(request===epoch){loading=false;draw();}}
   }
   async function play(item,mode,{isCancelled=()=>false}={}){
+    const initialOwner={intent:player.openIntent,mediaKey:player.mediaKey,generation:player.generation};
+    const ownerCurrent=()=>player.mediaKey===initialOwner.mediaKey&&player.generation===initialOwner.generation;
+    const intentCurrent=()=>!isCancelled()&&ownerCurrent()&&player.openIntent===initialOwner.intent;
     await flushPodcastPosition();
+    if(!intentCurrent())return;
     const request=epoch;
     if(mode==='detail'){
       if(item.entry){close();return window.MediaHomeUI.openFeedEntry(item.entry.id);}
@@ -68,11 +72,11 @@
     }
     if(item.file){const result=await window.api.mediaHub({action:'folder-play',folderId:item.folder.id,id:item.file.id});if(!result?.ok){if(/ENOENT|not found|bulunamad/i.test(String(result?.error||''))){item.fileMissing=true;item.file.fileMissing=true;}throw Error(result?.error||t('Dosya açılamadı.','Could not open the file.'));}if(request!==epoch||isCancelled())return;close();return openLocalMedia(result.path);}
     if(item.video){close();return buildSmartTubeCard(item.video).click();}
-    const current=await api({action:'entry',entryId:item.entry.id});if(request!==epoch||isCancelled())return;
+    const current=await api({action:'entry',entryId:item.entry.id});if(request!==epoch||!intentCurrent())return;
     const entry=current.entry,enclosure=entry.enclosures?.find(e=>/^audio\//.test(e.type));if(!enclosure)throw Error(t('Ses kaynağı yok.','No audio enclosure.'));
-    const stream=await window.api.mediaHub({action:'network',url:enclosure.url});if(!stream?.ok)throw Error(stream?.error||'Media unavailable');if(request!==epoch||isCancelled())return;
-    close();stream.title=entry.title;await window.MediaHubUI.playStream(stream);
-    if(player.mediaKey!==stream.key)return;
+    const stream=await window.api.mediaHub({action:'network',url:enclosure.url});if(!stream?.ok)throw Error(stream?.error||'Media unavailable');if(request!==epoch||!intentCurrent())return;
+    close();stream.title=entry.title;await window.MediaHubUI.playStream(stream,0,{isCancelled:()=>isCancelled()||!ownerCurrent()});
+    if(isCancelled()||player.mediaKey!==stream.key)return;
     const owner={mediaKey:player.mediaKey,generation:player.generation};
     const saved=await api({action:'podcast-workspace',entryId:entry.id});
     if(player.mediaKey!==owner.mediaKey||player.generation!==owner.generation)return;
@@ -251,12 +255,17 @@
     action(t('Spotify bölümünü RSS ile eşleştir','Match Spotify episode to RSS'),async()=>{const p=await api({action:'podcast-spotify-preview',url:url.value,requestId:'spotify-podcast-'+Date.now()});if(!dialog.isConnected||!dialog.open||!dialogSourceCurrent())return;results.replaceChildren();message.textContent=p.title+' · '+t('Adayı kendiniz doğrulayın; zaman çizgisi doğrulanmadı.','Confirm the candidate yourself; timeline is unverified.');if(!p.candidates.length)message.textContent+=' '+t('Yayıncının RSS akışını ekleyip tekrar deneyin.','Add the publisher RSS feed and try again.');for(const c of p.candidates){const b=document.createElement('button');b.type='button';b.className='mh-action';b.textContent=c.title+' · '+c.publisher+' · '+confidenceLabel(c.assessment.confidence);b.onclick=async()=>{try{if(!dialog.isConnected||!dialog.open||!dialogSourceCurrent())return;await api({action:'podcast-spotify-confirm',token:p.token,entryId:c.entryId});if(!dialog.isConnected||!dialog.open||!dialogSourceCurrent())return;message.textContent=t('Bağ kaydedildi. Eşleşen RSS bölümünü açarak Whisper kullanabilirsiniz; zaman eşleşmesi doğrulanmadı.','Binding saved. Open the matched RSS episode to use Whisper; timeline compatibility is unverified.');results.replaceChildren();const openMatched=document.createElement('button');openMatched.type='button';openMatched.className='mh-action';openMatched.textContent=t('Eşleşen RSS bölümünü aç','Open matched RSS episode');openMatched.onclick=async()=>{if(!dialog.isConnected||!dialog.open||!dialogSourceCurrent())return;openMatched.disabled=true;dialog.close();try{await play({entry:{id:c.entryId}},'play');if(player.workspaceAudio?.entryId===c.entryId&&player.workspaceAudio.mediaKey===player.mediaKey&&player.workspaceAudio.generation===player.generation)podcastTools();}catch(error){podcastTools(error.message);}};results.append(openMatched);}catch(e){message.textContent=e.message;}};results.append(b);}});
     action(t('Yayıncı RSS ekle','Add publisher RSS'),()=>{dialog.close();return window.MediaHomeUI.navigate('feeds');});action(t('Kapat','Close'),()=>dialog.close());dialog.append(title,note,urlField,controls,message,results);document.body.append(dialog);window.PlayerUiKit?.bindDialog?.(dialog);dialog.addEventListener('close',()=>{dialog.remove();if(typeof syncBrowserOcclusion==='function')void syncBrowserOcclusion();},{once:true});dialog.showModal();if(typeof syncBrowserOcclusion==='function')void syncBrowserOcclusion();
   }
-  async function openPodcastEntry(entryId,{view='podcast',isCancelled=()=>false,presentation}={}){
+  let podcastOpenIntent=0;
+  async function openPodcastEntry(entryId,{view='podcast',restart=false,reload=false,isCancelled=()=>false,presentation}={}){
     if(typeof entryId!=='string'||!entryId||!['podcast','bilingual'].includes(view))throw Error(t('Geçerli bir RSS bölümü seçin.','Choose a valid RSS episode.'));
     if(isCancelled())return;
-    await play({entry:{id:entryId}},'play',{isCancelled});
+    const intent=++podcastOpenIntent,cancelled=isCancelled;
+    isCancelled=()=>cancelled()||intent!==podcastOpenIntent;
+    const active=player.workspaceAudio;
+    if(reload||active?.entryId!==entryId||active.mediaKey!==player.mediaKey||active.generation!==player.generation)await play({entry:{id:entryId}},'play',{isCancelled});
     if(isCancelled())return;
     if(player.workspaceAudio?.entryId!==entryId||player.workspaceAudio.mediaKey!==player.mediaKey||player.workspaceAudio.generation!==player.generation)throw Error(t('Bölüm açılırken kaynak değişti. Yeniden deneyin.','Source changed while opening the episode. Try again.'));
+    if(restart&&active===player.workspaceAudio){const video=document.getElementById('playerVideo');video.currentTime=0;await video.play();if(isCancelled())return;}
     if(presentation&&typeof presentation==='object'){
       if(typeof presentation.publisher==='string')player.workspaceAudio.publisher=presentation.publisher.slice(0,300);
       if(typeof presentation.image==='string'&&/^https:\/\//i.test(presentation.image)&&presentation.image.length<=4096)player.workspaceAudio.image=presentation.image;

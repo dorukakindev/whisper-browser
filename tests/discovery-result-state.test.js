@@ -5,6 +5,7 @@ function fixture(t,respond,personal=()=>({ok:true,rows:[]})){
   const dom=new JSDOM('<div id="mediaHome"><div id="root" class="md-page"></div></div>',{runScripts:'outside-only',pretendToBeVisual:true});t.after(()=>dom.window.close());
   const w=dom.window,calls=[];w.UiLocale={get:()=> 'en'};w.api={mediaDiscovery:async input=>{if(input.action==='personal')return personal(input);calls.push(input);return respond(input,calls.length);}};
   w.eval(fs.readFileSync(require.resolve('../src/renderer/media-visual.js'),'utf8'));
+  w.eval(fs.readFileSync(require.resolve('../src/renderer/discovery-personal-ui.js'),'utf8'));
   w.eval(fs.readFileSync(require.resolve('../src/renderer/media-discovery-ui.js'),'utf8'));
   w.MediaDiscoveryUI.mount(w.document.getElementById('root'));
   return {w,calls,root:w.document.getElementById('root')};
@@ -63,4 +64,18 @@ test('v2 personal preview survives the parallel catalog request and opens the re
  assert.equal(h.root.querySelectorAll('[data-discovery-id]').length,1);
  h.root.querySelector('.cv2-discover-personal header button').click();await tick();
  assert.equal(h.w.MediaDiscoveryUI.snapshot().tab,'personal');assert.equal(h.root.querySelector('.cn-discover-tab[aria-pressed=true]').textContent,'For you');
+});
+
+function detailSurface(h){const w=h.w;w.MediaHomeUI={returnHome:async()=>{w.document.body.classList.add('media-home-active');const n=w.document.createElement('div');n.id='playerLayer';n.className='hidden';w.document.body.append(n);}};let page;
+ w.MediaTitleUI={createPage:()=>{page?.close();page=w.document.createElement('section');page.className='media-title-page';page.open=true;page.close=()=>{if(!page.open)return;page.open=false;page.dispatchEvent(new w.Event('close'));};w.document.body.append(page);return page;},open:async id=>({ok:true,itemId:id})};return ()=>page;
+}
+const detailItem=id=>({...row(id),genres:['Drama'],cast:[],synopsis:'A catalog story.'});
+test('detail preserves recommendation basis, refreshes exact membership and retry stays on selected identity',async t=>{
+ let failed=true,catalogId=null;const h=fixture(t,input=>{if(input.action==='detail'){if(failed){failed=false;return {ok:false,error:'Network unavailable'};}return {ok:true,item:detailItem(input.id),catalogId};}return {ok:true,rows:[row('tt1111111')],nextSkip:null};});const page=detailSurface(h);await tick();
+ await h.w.MediaDiscoveryUI.openDetail({...row('tt1111111'),because:'Legacy source'});assert.match(page().textContent,/Network unavailable/);page().querySelector('.md-detail-retry').click();await tick();assert.equal(h.w.document.querySelectorAll('.media-title-page').length,1);assert.equal(page().querySelector('.md-recommendation-basis').dataset.reasonKind,'metadata');assert.match(page().textContent,/Legacy source/);assert.match(page().querySelector('.md-membership').textContent,/Not in/);
+ catalogId='saved-exact';h.w.document.dispatchEvent(new h.w.CustomEvent('media-personal-changed',{detail:{catalogId,identity:{kind:'film',imdbId:'tt1111111'}}}));await tick();assert.equal(page().querySelector('.md-primary-actions button').textContent,'Open in library');assert.match(page().querySelector('.md-membership').textContent,/In your library/);assert(!h.calls.some(c=>['add','feedback'].includes(c.action)));
+ catalogId=null;h.w.document.dispatchEvent(new h.w.CustomEvent('media-library-changed'));await tick();assert.equal(page().querySelector('.md-primary-actions button').textContent,'Add to watchlist');
+});
+test('personal preview updates after external saves and rejects stale late preview responses',async t=>{
+ let resolve,turn=0;const h=fixture(t,()=>({ok:true,rows:[row('tt1111111')],nextSkip:null}),()=>++turn===1?new Promise(r=>resolve=r):{ok:true,rows:[{...row('tt3333333'),because:'Current'}]});await tick();h.w.document.dispatchEvent(new h.w.CustomEvent('media-personal-changed',{detail:{origin:'discovery-personal'}}));await tick();resolve({ok:true,rows:[{...row('tt2222222'),because:'Stale'}]});await tick();assert.match(h.root.querySelector('.cv2-discover-personal').textContent,/Current/);assert.doesNotMatch(h.root.querySelector('.cv2-discover-personal').textContent,/Stale/);
 });

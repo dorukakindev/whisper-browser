@@ -14,3 +14,7 @@ test('Film rebuild retains the story toggle listener and expanded viewing tools 
   const details=page.querySelector('.cv2-film-sources>details');details.open=true;details.dispatchEvent(new h.w.Event('toggle'));rebuild();assert.equal(page.querySelector('.cv2-film-sources>details').open,true);
  }finally{h.dom.window.close();}
 });
+
+test('Discovery cinematic rebuild preserves recommendation, membership and the personal mount host',()=>{
+ const h=setup();try{const page=h.w.document.createElement('section');page.dataset.pageKind='discovery';page.innerHTML='<section class="md-page-hero"><div class="md-detail-copy"><div class="md-primary-actions"><button>Add to watchlist</button></div><p class="md-membership">Not in library</p><details class="md-recommendation-basis"><summary>Catalog relationship</summary></details><div class="md-personal-host"><section class="pm-panel">Personal owner</section></div></div></section>';h.w.document.body.append(page);const host=page.querySelector('.md-personal-host'),basis=page.querySelector('.md-recommendation-basis'),membership=page.querySelector('.md-membership');h.api.film(page,{kind:'film',providerId:'tt0133093',title:'The Matrix'});assert(page.contains(host));assert(page.contains(basis));assert(page.contains(membership));assert.equal(host.querySelector('.pm-panel').textContent,'Personal owner');}finally{h.dom.window.close();}
+});

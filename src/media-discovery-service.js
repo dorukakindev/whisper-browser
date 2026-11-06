@@ -143,7 +143,9 @@ function registerMediaDiscovery({ ipcMain, authorized, catalogStore, userData, n
         for (const result of results) if (result.status === 'fulfilled') for (const row of result.value.rows) {
           const key = `${row.kind}:${row.providerId}`;
           const projected=personalRow(row,library,titles,history,alternates);
-          if (!owned.has(key) && !seen.has(key) && !preferences[key] && projected.personalMedia.reaction!=='dislike') { seen.add(key); rows.push({ ...projected, ...(typeof result.value.seed==='string'?{because:result.value.seed}:(result.value.seed.seedTitle?{because:result.value.seed.seedTitle,recommendationEvidence:result.value.seed}:(result.value.seed.director?{directorBecause:result.value.seed.director}:{profileBecause:result.value.seed}))) }); }
+          const seed=result.value.seed,matchedGenre=seed.genre&&(row.genres||[]).some(name=>require('./media-discovery-genres').normalize(name)===require('./media-discovery-genres').normalize(seed.genre));
+          if(seed.genre&&!matchedGenre)continue;
+          if (!owned.has(key) && !seen.has(key) && !preferences[key] && projected.personalMedia.reaction!=='dislike') { seen.add(key); rows.push({ ...projected, ...(typeof seed==='string'?{because:seed}:(seed.seedTitle?{because:seed.seedTitle,recommendationEvidence:seed}:(seed.director?{directorBecause:seed.director}:{profileBecause:seed}))) }); }
         }
         if (results.every(row => row.status === 'rejected')) throw Error('Personal recommendations are temporarily unavailable.');
         return { ok: true, rows: require('./media-daily-service').recommendations(rows,explicit).slice(0,60), needsRatings: false };

@@ -241,6 +241,7 @@
     }
     function panel() {
       const sections = [], a11y = [];
+      if(kind==='shelf'||kind==='local'&&F.snap()?.sourceKind==='rss')sections.push({title:T('Dinleme kuyruğu','Listening queue'),items:[{type:'button',label:T('Bu bölümü kuyruğa ekle','Add this episode to queue'),run:()=>{if(current())window.MediaShelfUI?.enqueueCurrentPodcast();}},{type:'button',label:T('Dinleme kuyruğunu yönet','Manage listening queue'),run:()=>{if(current())window.MediaShelfUI?.openQueue();}}]});
       if(kind==='shelf'){
         sections.push({title:T('Podcast işlemleri','Podcast tasks'),items:[...actions(),{type:'button',label:T('Döküm, Whisper ve çeviri araçları','Transcript, Whisper and translation tools'),run:openAdvanced}]});
       } else if (kind === 'browser') {
@@ -328,6 +329,7 @@
     inst = new Sahne(host, makeAdapter(kind, mode), {
       mode, intro: intro && !had, prefs,
       onMode: (m, p) => {
+        if(kind==='shelf'||kind==='local')window.MediaShelfUI?.rememberQueueScene?.(m);
         const restoreTabFocus = !!inst?.root.contains(doc.activeElement) && doc.activeElement.matches('[role="tab"][data-mode]');
         sticky = p;
         if(kind==='shelf')mount('shelf',m==='study'?'study':'podcast',false,p);

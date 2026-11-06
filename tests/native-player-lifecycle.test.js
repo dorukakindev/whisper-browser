@@ -41,3 +41,12 @@ test('a new explicit request after a canceled start still reaches normal startup
  assert.match((await current).error,/Unexpected native window/);
  assert.equal(f.windows(),1);
 });
+
+test('keep-open EOF emits one owner-scoped end and rearms after a seek leaves EOF',()=>{
+ const source=fs.readFileSync(require.resolve('../src/native-player'),'utf8'),socket=new EventEmitter(),sent=[],s={socket,pending:new Map(),state:{},key:'A',generation:2};
+ const context={s,session:s,owner:()=>({isDestroyed:()=>false,webContents:{send:(_name,row)=>sent.push(row)}}),clearTimeout,JSON,Error};
+ const sendStart=source.indexOf(' function send('),sendEnd=source.indexOf(' async function command(',sendStart),start=source.indexOf("    let buffer='';s.socket.on('error'"),end=source.indexOf("    await command(s,['set_property','http-header-fields'",start);assert(start>=0&&end>start);vm.runInNewContext(source.slice(sendStart,sendEnd)+source.slice(start,end),context);
+ const emit=row=>socket.emit('data',Buffer.from(JSON.stringify(row)+'\n'));
+ emit({event:'property-change',name:'eof-reached',data:false});assert.equal(sent.length,0);emit({event:'property-change',name:'eof-reached',data:true});emit({event:'end-file',reason:'eof'});emit({event:'property-change',name:'eof-reached',data:true});assert.equal(sent.length,1);assert.equal(sent[0].type,'ended');assert.equal(sent[0].generation,2);
+ emit({event:'property-change',name:'eof-reached',data:false});emit({event:'property-change',name:'eof-reached',data:true});assert.equal(sent.length,2);context.session={key:'B',generation:3};emit({event:'property-change',name:'eof-reached',data:false});emit({event:'property-change',name:'eof-reached',data:true});assert.equal(sent.length,2);
+});
