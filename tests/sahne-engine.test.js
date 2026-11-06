@@ -220,3 +220,14 @@ test('transcript search explains language-specific no matches and clears without
  f.rows[1].trs=['next translation'];f.setRevision('translation-added');f.sh.tick();assert.equal(f.sh.q('[data-r=searchEmpty]').hidden,true);
  const before=f.commands.length;clear.click();assert.equal(q.value,'');assert.equal(f.w.document.activeElement,q);assert.equal(f.sh.s.follow,false);assert.equal(f.commands.length,before);assert.equal(clear.hidden,true);
 });
+
+
+test('long note excerpt stays complete in a keyboard-readable region without toggling playback',t=>{
+ const f=mount(t,{study:true,save:true}),text='A long original passage. '.repeat(240);
+ f.rows[0].src=text;f.setRevision('long-note');f.sh.tick();
+ f.sh.openNote(0,f.sh.lines[0].querySelector('[data-act=save]'));
+ const region=f.sh.q('.sh-note-excerpt');assert.equal(region.querySelector('.sh-word-context').textContent,text);assert.equal(region.tabIndex,0);
+ assert(f.sh.q('.sh-note-card header [data-a=noteClose]'));assert(f.sh.q('.sh-note-card footer [data-a=noteSave]'));
+ region.focus();const before=f.commands.length;region.dispatchEvent(new f.w.KeyboardEvent('keydown',{key:' ',bubbles:true,cancelable:true}));assert.equal(f.commands.length,before);
+ f.sh.q('[data-a=noteClose]').click();assert.equal(f.sh.s.note,null);assert.equal(f.w.document.activeElement,f.sh.lines[0].querySelector('[data-act=save]'));
+});

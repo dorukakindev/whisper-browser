@@ -184,7 +184,7 @@
           else if(document.fullscreenElement)void document.exitFullscreen?.();
           else this.o.onClose?.();
         }else{
-          if(target.isContentEditable||target.closest?.('input,textarea,select,button,a,summary,[contenteditable]:not([contenteditable=false]),[role=button]'))return;
+          if(target.isContentEditable||target.closest?.('input,textarea,select,button,a,summary,.sh-note-excerpt,[contenteditable]:not([contenteditable=false]),[role=button]'))return;
           if(k===' ')this.run('toggle');
           else if(k==='j')this.run('prevCue');
           else if(k==='k')this.run('nextCue');
@@ -559,7 +559,7 @@
       const selection=root.getSelection?.(),source=this.lines[row]?.querySelector('.src');
       const excerpt=selection?.rangeCount&&source?.contains(selection.anchorNode)&&source.contains(selection.focusNode)?String(selection).trim():'';
       this.closeWord();this.noteOpener=opener||document.activeElement;this.s.note={row,rev:this.st?.rev,...(excerpt&&cue.src.includes(excerpt)?{excerpt}:{})};const box=this.q('.sh-note-card');box.hidden=false;
-      box.innerHTML=`<header><h2>${T('Cümle ve not','Sentence and note')}</h2><button class="sh-btn" type="button" data-a="noteClose" aria-label="${T('Kapat','Close')}">${ic('close')}</button></header><p class="sh-word-context" dir="auto">${esc(this.s.note.excerpt||cue.src)}</p>${(this.s.note.excerpt?[]:cue.trs).map(x=>`<p class="sh-word-translation" dir="auto">${esc(x)}</p>`).join('')}<label>${T('Notunuz (isteğe bağlı)','Your note (optional)')}<textarea rows="3" maxlength="8000" data-note-text></textarea></label><footer><button class="sh-btn" type="button" data-a="noteSave">${T('Araştırma defterine kaydet','Save to research notebook')}</button>${cue.timed?`<button class="sh-btn" type="button" data-a="noteSeek">${T('Cümleye dön','Return to sentence')} · ${fmt(cue.start)}</button>`:`<small>${T('Zamansız metin · atlama yok','Untimed text · no seeking')}</small>`}</footer>`;
+      box.innerHTML=`<header><h2>${T('Cümle ve not','Sentence and note')}</h2><button class="sh-btn" type="button" data-a="noteClose" aria-label="${T('Kapat','Close')}">${ic('close')}</button></header><div class="sh-note-excerpt" tabindex="0" role="region" aria-label="${T('Kaynak alıntı ve çeviri','Source excerpt and translation')}"><p class="sh-word-context" dir="auto">${esc(this.s.note.excerpt||cue.src)}</p>${(this.s.note.excerpt?[]:cue.trs).map(x=>`<p class="sh-word-translation" dir="auto">${esc(x)}</p>`).join('')}</div><label>${T('Notunuz (isteğe bağlı)','Your note (optional)')}<textarea rows="3" maxlength="8000" data-note-text></textarea></label><footer><button class="sh-btn" type="button" data-a="noteSave">${T('Araştırma defterine kaydet','Save to research notebook')}</button>${cue.timed?`<button class="sh-btn" type="button" data-a="noteSeek">${T('Cümleye dön','Return to sentence')} · ${fmt(cue.start)}</button>`:`<small>${T('Zamansız metin · atlama yok','Untimed text · no seeking')}</small>`}</footer>`;
       this.paint();box.querySelector('textarea').focus();
     }
     closeNote(){this.s.note=null;const box=this.q('.sh-note-card'),restore=box?.contains(document.activeElement);if(box){box.hidden=true;box.textContent='';}this.paint();if(restore)(this.noteOpener?.isConnected?this.noteOpener:this.q('[data-r=q]'))?.focus({preventScroll:true});}
