@@ -1,3 +1,4 @@
+Güncel teslim: [Keşfet dar pencere araç çubuğu](docs/devir/2026-11-06-1133.md)
 Güncel teslim: [Keşfet boş sonuç düzeni](docs/devir/2026-11-06-1125.md)
 Güncel teslim: [Keşfet kaynak ve durum gezinmesi](docs/devir/2026-11-06-1115.md)
 Güncel teslim: [Keşfet detayında karar akışı](docs/devir/2026-11-06-1104.md)

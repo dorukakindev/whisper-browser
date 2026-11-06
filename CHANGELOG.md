@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Keşfet üst çubuğunda dar pencerelerde sekmeler, arama ve filtreler okunabilir sıralara ayrılır. [Devir](docs/devir/2026-11-06-1133.md).
+
 - Keşfet boş sonuçları son gönderilen sorguyu gösterir ve aramayı düzenleme veya filtreleri sıfırlama eylemleri sunar. [Devir](docs/devir/2026-11-06-1125.md).
 
 - Yapım detayında aynı kaynak paneline giden yinelenen gezinme kaldırıldı. Keşfet kaynak ve tercih seçenekleri ortak düzende korunur. [Devir](docs/devir/2026-11-06-1115.md).
