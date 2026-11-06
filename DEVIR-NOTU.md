@@ -1,3 +1,4 @@
+Güncel teslim: [Keşfet detayında karar akışı](docs/devir/2026-11-06-1104.md)
 Güncel teslim: [Keşfet öneri dayanağı](docs/devir/2026-11-06-1053.md)
 Güncel teslim: [Ana sayfa ve Keşfet görsel hizası](docs/devir/2026-11-06-1046.md)
 Güncel teslim: [Sahne zaman grupları ve ses değeri](docs/devir/2026-11-06-1034.md)

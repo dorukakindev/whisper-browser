@@ -155,3 +155,19 @@ html:is([data-cinema-motion=off],[data-cinema-motion=reduced]) :is(.cv2-home-pic
 .md-recommendation-basis summary .md-basis-label{display:inline-block;margin-inline-start:10px;font-size:12px}
 .md-recommendation-basis .md-basis-text{margin:0;padding-block:0 12px;color:var(--cn-dim);line-height:1.6;overflow-wrap:anywhere}
 .cv2-discover-personal header{flex-wrap:wrap}
+
+.cv2-film[data-page-kind=discovery] .cn-meta .md-membership {
+  margin: 0;
+  color: var(--cn-dim);
+}
+.cv2-film[data-page-kind=discovery] .cn-film-copy h1 {
+  overflow-wrap: anywhere;
+}
+@media (max-height: 760px) {
+  .cv2-film[data-page-kind=discovery] .cn-film-hero {
+    min-height: 0;
+  }
+  .cv2-film[data-page-kind=discovery] .cn-film-hero-content {
+    padding-block: 76px 28px;
+  }
+}
