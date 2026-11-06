@@ -1,3 +1,4 @@
+Güncel teslim: [Oynatma kurtarma, PDF konumu, iş geçmişi ve yapım kaynakları](docs/devir/2026-11-06-0643.md)
 Güncel teslim: [Altyazı, Browser, çalışma paketi ve izleme rotası](docs/devir/2026-11-06-0625.md)
 Güncel teslim: [Medya zamanlaması, kayıtlı okuma, İzlenecekler ve oynatma kurtarma](docs/devir/2026-11-06-0610.md)
 Güncel teslim: [Canlı podcast alıntıları, Sahne başlıkları ve RSS durumu](docs/devir/2026-11-06-0552.md)

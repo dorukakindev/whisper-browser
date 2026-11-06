@@ -1,6 +1,6 @@
 # Bekleyen işler
 
-Son durum kontrolü **2026-11-06**. Son ürün `7fc5004c66dd33e6578aefa3f3d45411d0f7f1b3`. [Güncel teslim](docs/devir/2026-11-06-0625.md).
+Son durum kontrolü **2026-11-06**. Son ürün `d87d6e6924ece13490f4e64240d6a4ca9d4b129e`. [Güncel teslim](docs/devir/2026-11-06-0643.md).
 
 **Yeni sohbet başlangıcı:** P025 [PR #842](https://github.com/dorukakindev/whisper-browser/pull/842) ile master'a alındı; doğrulanmış ürün başlangıcı `7bf15f3c2876a5465b0c7f59fff3a037b41aeb69`. Sonraki belge commitleri ürün değişikliği değildir; çalışmadan önce gerçek HEAD/remote ve kişisel farkları yeniden kontrol et. Mevcut görevlerden yarım bırakılmış yeni ürün işi yok; aşağıdaki koşullu/ertelenmiş işler korunur.
 
@@ -14,10 +14,10 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 - **Paket** Önizleme ve çakışma kararı dosya düzeyinde. Kayıt bazlı birleştirme için katalog, akış, not ve izleme depolarının kimlikleri ile çapraz bağlarını birlikte doğrulayan bir plan gerekir. ZIP eklerinde ikinci içe aktarım için doğrulanmış varlık kimliği ve tekrar kullanımı ekle. İkinci yazımda hata enjekte ederek yedekten geri dönüşü izole profilde doğrula. Serbest metin ve eski paketlerdeki gizlilik kapsamını ayrıca sınırla.
 - **Rota** Kontrollü asistan araç kartı ve koleksiyon onayı/geri alma testleri geçti. Yetkili canlı sağlayıcı ve izole katalogla 150 dakika + mola isteğini çalıştır. Karttan rota aç, bir yapımı değiştir ve eski onayın reddedildiğini, yeni onayın yalnız eklenenleri bildirdiğini gör.
 
-## Medya akışları — kalan kabul
+## Oynatma kurtarma — native motor ve dosya seçimi kabulü
 
-- **Dal ve kanıt** `codex/media-flow-polish-20261106`, ürün `3c4abfa7cdbb05555c961f231809c57675417221`, [devir](docs/devir/2026-11-06-0610.md). Yerel yeniden deneme LG Electron turunda 9. saniyeden çalıştı.
-- **Kalan** İzole LG profilinde kısa podcast ve web video turunda ağ hatası oluşturup aynı kaynakta kurtarmayı ve kaynak değişince eski eylemin kaybolmasını doğrula. Erişim reddi ve taşınmış dosya eylemlerinin hedeflerini kontrollü kayıtla sınayıp dosya seçimi gerektiren son adımı kullanıcı kontrollü kabulde yap. Sahne paneli ve RSS geri dönüşünü dar pencerede kontrol et.
+- **Dal ve kanıt** `codex/media-return-history-20261106`, [devir](docs/devir/2026-11-06-0643.md). Kontrollü web ve RSS ağ hataları, aynı kaynakta 9. saniyeye dönüş, kaynak geçişi, yerel hata yönlendirmeleri ve dar Sahne/RSS dönüşü LG’de doğrulandı.
+- **Kalan** Native mpv ağ hata eylemi hedefli testlerden geçti. Gerçek mpv kabulü için izole LG profilinde yerel HTTPS akışını native motorla oynat, bağlantıyı kes, aynı kaynakta konum ve eski eylem temizliğini ölç. İzin penceresi açılmayacağı için taşınmış gerçek dosya seçme adımı ayrı, kullanıcı kontrollü kabulde yapılabilir. Podcast ve web kabulünde üçüncü taraf sağlayıcı kullanılmadı.
 
 ## İstenen iki canlı kabul — 2026-11-05 13:58
 
