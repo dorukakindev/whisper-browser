@@ -33,13 +33,35 @@
   class Sahne {
     constructor(host, adapter, opts = {}) {
       this.host = host; this.a = adapter; this.o = Object.assign({ mode: 'podcast', intro: true }, opts); this.caps = adapter.caps || {};
-      this.s = Object.assign({ focus: false, loop: false, loopRow: -1, sleep: 0, sleepAt: 0, disp: 'both', follow: true, idx: -2, key: '', panel: false, psig: '' }, opts.prefs || {}, { loop: false, loopRow: -1, sleep: 0, sleepAt: 0, follow: true, idx: -2, key: '', panel: false, psig: '' });
-      this.lines = []; this.rows = []; this.dead = false; this.id0 = undefined; this.build(); this.tick();
+      const prefs = opts.prefs || {};
+      const reading = prefs.reading?.identity && prefs.reading.identity === adapter.identity?.() ? prefs.reading : null;
+      this.s = {
+        focus: !!prefs.focus, disp: prefs.disp || 'both', follow: reading?.follow ?? true,
+        sleep: reading?.sleep || 0, sleepAt: reading?.sleepAt || 0,
+        loop: false, loopRow: -1, idx: -2, key: '', panel: false, psig: ''
+      };
+      this.lines = []; this.rows = []; this.dead = false; this.id0 = undefined;
+      this.build();
+      const search = this.q('[data-r=q]');
+      if (reading && search) search.value = reading.query;
+      this.readingScroll = reading && !reading.follow ? reading : null;
+      this.tick();
       this.timer = setInterval(() => this.tick(), 120); this.raf = 0;
     }
     el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
     q(sel) { return this.root.querySelector(sel); }
-    prefs() { return { focus: this.s.focus, disp: this.s.disp }; }
+    prefs(preserveReading = false) {
+      const { focus, disp, follow, sleep, sleepAt } = this.s;
+      const prefs = { focus, disp };
+      if (preserveReading && this.id0) {
+        prefs.reading = {
+          identity: this.id0, follow, sleep, sleepAt,
+          query: this.q('[data-r=q]')?.value || '',
+          scrollTop: this.readingScroll?.scrollTop ?? this.q('[data-r=scroll]')?.scrollTop ?? 0
+        };
+      }
+      return prefs;
+    }
     buildStudy() {
       this.root = this.el(root.BrowserStudyView.markup({ mode: this.o.mode, caps: this.caps, display: this.s.disp, T, esc, icon: ic }));
       this.root.classList.toggle('sh-audio', !!this.a.info().audio);
@@ -117,7 +139,7 @@
         if (b.dataset.act) { e.stopPropagation(); this.act(b.dataset.act, +b.closest('[data-i]').dataset.i,b); return; }
         if (b.dataset.i !== undefined && !b.dataset.a) { const row = this.rows[+b.dataset.i]; if (row && row.timed && this.canSeek) this.run('seekCue', +b.dataset.i); return; }
         if (b.classList.contains('sh-chap')) { if(this.canSeek&&b.dataset.t!==undefined)this.run('seek', Number(b.dataset.t)); return; }
-        if (b.dataset.mode) { if (b.dataset.mode !== this.o.mode) this.o.onMode?.(b.dataset.mode, this.prefs()); return; }
+        if (b.dataset.mode) { if (b.dataset.mode !== this.o.mode) this.o.onMode?.(b.dataset.mode, this.prefs(true)); return; }
         if (b.dataset.d) {
           this.s.disp = b.dataset.d; this.applyDisp(); this.filterRows();
           this.run('display', this.displayMode());
@@ -299,7 +321,7 @@
       r.classList.toggle('sh-focus', s.focus); r.classList.toggle('sh-playing', !st.paused);if(st.paused)r.classList.remove('controls-idle');
       for (const b of r.querySelectorAll('[data-a=loop]')) { b.setAttribute('aria-pressed', String(s.loop)); b.lastChild.textContent = s.loop && s.loopRow >= 0 && this.rows[s.loopRow] ? ` ${T('Döngü', 'Loop')} · ${fmt(this.rows[s.loopRow].start)}` : T('Cümle döngüsü', 'Loop sentence'); }
       for (const b of r.querySelectorAll('[data-a=focus]')) b.setAttribute('aria-pressed', String(s.focus));
-      const sl = r.querySelector('[data-a=sleep]'); if (sl) { sl.setAttribute('aria-pressed', String(!!s.sleep)); r.querySelector('[data-r=sleeplbl]').textContent = s.sleep ? `${Math.max(0, Math.ceil((s.sleepAt - Date.now()) / 60000))} ${T('dk', 'min')}` : T('Uyku', 'Sleep'); }
+      const sl = r.querySelector('[data-a=sleep]'); if (sl) { sl.setAttribute('aria-pressed', String(!!s.sleep)); const label = s.sleep ? `${Math.max(0, Math.ceil((s.sleepAt - Date.now()) / 60000))} ${T('dk', 'min')}` : T('Uyku', 'Sleep'); r.querySelector('[data-r=sleeplbl]').textContent = label; sl.setAttribute('aria-label', s.sleep ? T('Uyku zamanlayıcısı', 'Sleep timer') + ' · ' + label : T('Uyku zamanlayıcısı', 'Sleep timer')); }
       for (const b of r.querySelectorAll('[data-a=rate]')) b.textContent = (Number(st.rate) || 1) + '×';
       for (const b of r.querySelectorAll('[data-a=toggle]')) { const want = st.paused ? 'play' : 'pause'; if (b.dataset.ic !== want) { b.dataset.ic = want; b.innerHTML = ic(want); b.title = st.paused ? T('Oynat', 'Play') : T('Duraklat', 'Pause'); b.setAttribute('aria-label', b.title); } }
       r.classList.toggle('transcript-open',!!s.transcript);r.querySelectorAll('[data-a=transcript]').forEach(button=>button.setAttribute('aria-expanded',String(!!s.transcript)));
@@ -441,6 +463,7 @@
       }
       if(info.webVideo && this.lastDisplay!==this.displayMode()){this.lastDisplay=this.displayMode();this.run('display',this.lastDisplay);}
       if(this.o.mode==='cinema')this.drawCinema(info,st);this.wordsTick(); this.drawTasks(); const volume=this.q('.sh-local-volume');if(volume&&Number.isFinite(st.volume)&&document.activeElement!==volume){volume.value=st.volume;const output=volume.parentElement.querySelector('output');if(output)output.textContent=Math.round(st.volume*100)+'%';} const subs=this.q('[data-r=subs]');if(subs)subs.hidden=idx<0||info.webVideo||this.o.mode==='podcast'; this.drawJob(); this.drawPanel(false); this.paint();
+      this.restoreReadingPosition();
     }
     paintTransport(time, active) {
       const hint = this.q('[data-r=transportHint]');
@@ -488,6 +511,18 @@
     scrollToActive(force) {
       const sc = this.q('[data-r=scroll]'), l = this.lines[this.cur]; if (!l || l.hidden) return;
       const top = l.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - (sc.clientHeight - l.offsetHeight) / (this.o.mode !== 'podcast' ? 3 : 2); sc.scrollTo({ top: Math.max(0, top), behavior: force || !this.motionAllowed() || this.s.idx === -2 ? 'auto' : 'smooth' });
+    }
+    restoreReadingPosition() {
+      const reading = this.readingScroll;
+      if (!reading) return;
+      if (this.s.follow || this.q('[data-r=q]')?.value !== reading.query) {
+        this.readingScroll = null;
+        return;
+      }
+      const scroll = this.q('[data-r=scroll]');
+      if (!scroll?.clientHeight) return;
+      scroll.scrollTop = reading.scrollTop;
+      this.readingScroll = null;
     }
     followAfterLayout() {
       cancelAnimationFrame(this.followRaf);
@@ -550,6 +585,7 @@
           ? this.q('.browser-study-transcript-close')
           : search;
         target?.focus({preventScroll:true});
+        this.restoreReadingPosition();
         this.followAfterLayout();
       }else{
         (this.transcriptOpener?.isConnected?this.transcriptOpener:this.q('[data-a=transcript]'))?.focus({preventScroll:true});

@@ -268,3 +268,13 @@ details[data-mk-details]>summary{list-style:none}details[data-mk-details]>summar
     border-top: 1px solid var(--border);
   }
 }
+
+.sh-browser-study .sh-top-r [data-a=sleep][aria-pressed=true] {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+.sh-browser-study .sh-top-r [data-a=sleep][aria-pressed=true] span {
+  display: inline;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
