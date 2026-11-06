@@ -457,3 +457,13 @@ test('verbatim translation warnings keep real texts and do not alter pairing or 
  const a=f.open('study'),row=a.state().rows[0];
  assert.equal(row.translationReview,true);assert.equal(row.src,'Source sentence');assert.deepEqual(Array.from(row.trs),['Source sentence']);assert.equal(row.start,2);
 });
+
+test('Stage clipboard reports the actual result of the single IPC write', async t => {
+  const f = fixture(t);
+  const writes = [];
+  f.window.api.copyText = async text => { writes.push(text); return text === 'Accepted'; };
+  const adapter = f.open();
+  assert.equal((await adapter.cmd('copy', 'Accepted')).ok, true);
+  assert.equal((await adapter.cmd('copy', 'Rejected')).ok, false);
+  assert.deepEqual(writes, ['Accepted', 'Rejected']);
+});

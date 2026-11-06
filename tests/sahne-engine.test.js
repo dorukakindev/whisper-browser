@@ -306,3 +306,21 @@ test('mode handoff preserves same-source reading and sleep but rejects another m
   assert.equal(other.sh.s.follow, true);
   assert.equal(other.sh.s.sleepAt, 0);
 });
+
+test('shared row copy sends only the visible language once and confirms the write', async t => {
+  const f = mount(t, { study: true });
+  const copy = f.sh.lines[0].querySelector('[data-act=copy]');
+  assert.equal(copy.title, 'Görünen metni kopyala');
+  for (const [mode, expected] of [
+    ['src', 'A source sentence'],
+    ['tr', 'Birinci çeviri\nİkinci çeviri'],
+    ['both', 'A source sentence\nBirinci çeviri\nİkinci çeviri']
+  ]) {
+    f.sh.q('[data-d=' + mode + ']').click();
+    copy.click();
+    assert.deepEqual(f.commands.at(-1).slice(0, 2), ['copy', expected]);
+  }
+  assert.equal(f.commands.filter(([type]) => type === 'copy').length, 3);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.match(f.sh.q('[data-r=toast]').textContent, /Metin kopyalandı/);
+});

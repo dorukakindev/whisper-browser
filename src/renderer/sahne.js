@@ -292,7 +292,21 @@
     act(kind, i, opener) {
       const c = this.rows[i]; if (!c) return;
       if (kind === 'loop') { if (!c.timed || !this.caps.loop || !this.canSeek) return; this.run('loop', { on: true, row: i }).then(res=>{if(!this.dead&&res?.ok){this.s.loop=true;this.s.loopRow=i;this.run('seekCue',i);this.paint();}}); }
-      else if (kind === 'copy') { const text = [c.src, ...c.trs].filter(Boolean).join('\n'); try { navigator.clipboard?.writeText(text); } catch (_) { /* pano yok */ } this.run('copy', text); }
+      else if (kind === 'copy') {
+        const display = this.o.mode === 'cinema' ? 'both' : this.displayMode();
+        const parts = display === 'tr' ? [] : [c.src];
+        if (display !== 'src') {
+          parts.push(...c.trs);
+          if (this.o.mode !== 'cinema' && c.unc?.length) {
+            parts.push(T('Eşleşme belirsiz', 'Match uncertain'), ...c.unc);
+          }
+        }
+        const text = parts.filter(part => part?.trim()).join('\n');
+        if (!text) return;
+        this.run('copy', text).then(result => {
+          if (!this.dead && result?.ok) this.toast(T('Metin kopyalandı.', 'Text copied.'));
+        });
+      }
       else if (kind === 'save') this.openNote(i,opener);
     }
     filterRows() {
@@ -340,7 +354,8 @@
       const shared = this.o.mode !== 'cinema';
       const trs = c.trs.map((t) => `<span class="tr${shared ? ' cue-card-tr' : ''}">${esc(t)}</span>`).join('');
       const unc = c.unc && c.unc.length ? `<span class="tr unc"><em>${T('Eşleşme belirsiz', 'Match uncertain')}</em>${c.unc.map((t) => `<span>${esc(t)}</span>`).join('')}</span>` : '';
-      const acts = study && !shared ? '' : `<span class="acts">${this.caps.loop && c.timed ? `<button type="button" class="act" data-act="loop" title="${T('Bu cümleyi döngüye al', 'Loop this sentence')}" aria-label="${T('Döngü', 'Loop')}">${ic('loop')}</button>` : ''}<button type="button" class="act" data-act="copy" title="${T('Kopyala', 'Copy')}" aria-label="${T('Kopyala', 'Copy')}">${ic('copy')}</button>${this.caps.save ? `<button type="button" class="act" data-act="save" title="${T('Cümleyi veya seçili metni kaydet', 'Save sentence or selected text')}" aria-label="${T('Cümleyi veya seçili metni kaydet', 'Save sentence or selected text')}">${ic('star')}</button>` : ''}</span>`;
+      const copyLabel = shared ? T('Görünen metni kopyala', 'Copy visible text') : T('Kopyala', 'Copy');
+      const acts = study && !shared ? '' : `<span class="acts">${this.caps.loop && c.timed ? `<button type="button" class="act" data-act="loop" title="${T('Bu cümleyi döngüye al', 'Loop this sentence')}" aria-label="${T('Döngü', 'Loop')}">${ic('loop')}</button>` : ''}<button type="button" class="act" data-act="copy" title="${copyLabel}" aria-label="${copyLabel}">${ic('copy')}</button>${this.caps.save ? `<button type="button" class="act" data-act="save" title="${T('Cümleyi veya seçili metni kaydet', 'Save sentence or selected text')}" aria-label="${T('Cümleyi veya seçili metni kaydet', 'Save sentence or selected text')}">${ic('star')}</button>` : ''}</span>`;
       const review=c.translationReview?`<small class="sh-translation-review">${T('Çeviriyi kontrol edin · kaynakla aynı metin veya kalite uyarısı','Review translation · matches source or has a quality warning')}</small>`:'';
       return `${c.timed ? `<span class="at${shared ? ' cue-card-time' : ''}">${fmt(c.start)}</span>` : ''}<span class="src${shared ? ' cue-card-src' : ''}" dir="auto">${src}</span>${trs}${unc}${review}${acts}`;
     }

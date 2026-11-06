@@ -278,3 +278,20 @@ details[data-mk-details]>summary{list-style:none}details[data-mk-details]>summar
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
+
+.sh-browser-study.hide-src .cue-card .cue-card-tr {
+  padding-inline-start: 0;
+  border-inline-start: 0;
+}
+.sh-browser-study .sh-toast {
+  z-index: 70;
+  left: auto;
+  right: 16px;
+  bottom: 16px;
+  transform: translateY(10px);
+  max-width: calc(100% - 32px);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.sh-browser-study .sh-toast.on { transform: translateY(0); }
