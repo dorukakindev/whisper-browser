@@ -76,7 +76,10 @@
   function setMode(value) {
     if (!key()) return;
     closeBrowserToolbarMenus();
-    if (value) { window.BrowserStudy.open({ preservePodcast:true }); sessions.set(key(),{media:media()}); }
+    if (value) {
+      if (!window.BrowserStudy.isActive()) window.BrowserStudy.open({ preservePodcast:true });
+      sessions.set(key(),{media:media()});
+    }
     else sessions.delete(key());
     toolsOpen=false; refresh();
   }

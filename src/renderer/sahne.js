@@ -107,12 +107,12 @@
     bind() {
       const r = this.root, a = this.a;
       r.addEventListener('click', (e) => {
-        const b = e.target.closest('[data-a],[data-mode],[data-d],.sh-chap,[data-i],[data-act],[data-task]'); if (!b || !r.contains(b)) return;
+        const b = e.target.closest('[data-a],[role="tab"][data-mode],[data-d],.sh-chap,[data-i],[data-act],[data-task]'); if (!b || !r.contains(b)) return;
         if (b.dataset.task) { this.startTask(b.dataset.task); return; }
         if (b.dataset.act) { e.stopPropagation(); this.act(b.dataset.act, +b.closest('[data-i]').dataset.i,b); return; }
         if (b.dataset.i !== undefined && !b.dataset.a) { const row = this.rows[+b.dataset.i]; if (row && row.timed) this.run('seekCue', +b.dataset.i); return; }
         if (b.classList.contains('sh-chap')) { if(this.canSeek&&b.dataset.t!==undefined)this.run('seek', Number(b.dataset.t)); return; }
-        if (b.dataset.mode) { this.o.onMode?.(b.dataset.mode, this.prefs()); return; }
+        if (b.dataset.mode) { if (b.dataset.mode !== this.o.mode) this.o.onMode?.(b.dataset.mode, this.prefs()); return; }
         if (b.dataset.d) { this.s.disp = b.dataset.d; this.applyDisp(); return; }
         switch (b.dataset.a) {
           case 'close': this.o.onClose?.(); break; case 'classic': this.o.onClassic?.(); break;
@@ -354,6 +354,8 @@
       if(this.dead)return; if(document.hidden){if(this.s.sleep&&Date.now()>=this.s.sleepAt){this.s.sleep=0;this.run('pause');}return;} const a = this.a, s = this.s;
       const id = a.identity ? a.identity() : ''; if (this.id0 === undefined) this.id0 = id; else if (id !== this.id0) { if (!this.gone) { this.gone = true; this.o.onSource?.(id, this.prefs()); } return; }
       const st = this.st = a.state(), info = a.info();if(this.s.word&&this.s.word.rev!==st.rev)this.closeWord();if(this.s.note&&this.s.note.rev!==st.rev)this.closeNote();
+      const flow = this.q('.bp-flow');
+      if (flow) flow.hidden = !st.rows.length;
       if (Number.isInteger(st.loopRow)) { s.loop = st.loopRow >= 0; s.loopRow = st.loopRow; }
       this.canSeek = st.canSeek !== false && Number(st.duration) > 0;
       const key = `${st.rev}:${st.timingNotice||''}:${st.rows.length}:${Math.round(st.duration || 0)}:${info.title}:${info.cover||''}:${info.sub||''}:${info.eyebrow||''}:${(info.langs || {}).src}:${(info.langs || {}).tr}:${JSON.stringify(info.chapters||[])}`;
@@ -382,7 +384,7 @@
       let idx = -1; this.rows.forEach((c, i) => { if (c.timed && c.start <= time && time < c.end && (idx < 0 || c.start >= this.rows[idx].start)) idx = i; });
       this.updateScope();this.time = time; this.cur = idx;this.root.classList.toggle('sh-audio',!!info.audio);
       if (idx !== s.idx) { const prev = s.idx; s.idx = idx; this.lines.forEach((l, i) => { const d = idx < 0 ? 9 : Math.abs(i - idx); l.style.setProperty('--d', Math.min(d, 9)); l.classList.toggle('on', i === idx); if(i===idx)l.setAttribute('aria-current','true');else l.removeAttribute('aria-current'); }); this.onActive(idx, prev); }
-      if(this.o.mode==='cinema')this.drawCinema(info,st);this.wordsTick(); this.drawTasks(); const volume=this.q('.sh-local-volume');if(volume&&Number.isFinite(st.volume)&&document.activeElement!==volume){volume.value=st.volume;const output=volume.parentElement.querySelector('output');if(output)output.textContent=Math.round(st.volume*100)+'%';} const subs=this.q('[data-r=subs]');if(subs)subs.hidden=!!info.audio&&idx<0; this.drawJob(); this.drawPanel(false); this.paint();
+      if(this.o.mode==='cinema')this.drawCinema(info,st);this.wordsTick(); this.drawTasks(); const volume=this.q('.sh-local-volume');if(volume&&Number.isFinite(st.volume)&&document.activeElement!==volume){volume.value=st.volume;const output=volume.parentElement.querySelector('output');if(output)output.textContent=Math.round(st.volume*100)+'%';} const subs=this.q('[data-r=subs]');if(subs)subs.hidden=idx<0; this.drawJob(); this.drawPanel(false); this.paint();
     }
     wordsTick() {
       const idx = this.cur; if (idx < 0) return; const row = this.rows[idx], ws = this.words && this.words[idx]; const c = row; const time = this.time;

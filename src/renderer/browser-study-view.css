@@ -23,6 +23,8 @@
 .sh-browser-study .sh-screenwrap{flex:1 1 0;min-height:100px;overflow:hidden;border-radius:12px;background:var(--bg-0)}
 .sh-browser-study .sh-screen{background:var(--bg-0);border-radius:8px;box-shadow:none}
 .sh-browser-study .sh-screen .frame{display:none}
+.cp-sahne-on.workspace-browser #playerJobBar{display:none}
+.workspace-browser .sh-browser-study .sh-screen{width:100%;height:100%;aspect-ratio:auto}
 .sh-browser-study .sh-subs{flex:none;height:auto;min-height:0;max-height:120px;padding:12px 30px;border-radius:8px;overflow:auto;background:var(--bg-1);border:1px solid var(--border)}
 .sh-browser-study .sh-subs .s,.sh-browser-study .sh-subs .t{font-size:18px;line-height:1.45}
 .sh-browser-study .sh-subs:empty,.sh-browser-study .sh-subs[hidden]{display:none}
@@ -44,6 +46,7 @@
 .sh-browser-study .sh-workbar[hidden]{display:none}
 .sh-browser-study .sh-workbar .sh-btn{justify-content:flex-start;min-width:0;min-height:36px;height:auto;padding:9px 12px;white-space:normal;text-align:left}
 .sh-browser-study .bp-flow{padding:16px 22px 12px;gap:12px;flex:none}
+.sh-browser-study .bp-flow[hidden]{display:none}
 .sh-browser-study .sh-cards-h{display:flex;flex-wrap:wrap;gap:8px;padding:0;border:0;min-width:0}
 .sh-browser-study .sh-cards-h .sh-search{flex:1 0 100%;margin:0;height:36px;border:1px solid var(--border);border-radius:8px;background:var(--bg-1)}
 .sh-browser-study .sh-cards-h .sh-seg{margin-left:auto;min-width:0}

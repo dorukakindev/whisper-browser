@@ -2,10 +2,10 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const {JSDOM}=require('jsdom');
 const dom=new JSDOM('<div id="playerLayer" class="workspace-browser"><details id="appModeMenu"><div role="menu"></div></details><div id="playerSide"><div class="bp-title"><h2></h2></div><section class="browser-study"><h3 class="browser-study-title"></h3><p class="browser-study-status"></p><div class="browser-study-actions"></div><div class="browser-study-second"></div></section></div><section class="sh-browser-study"><section class="browser-study"></section></section><video id="web"></video></div>');
-const {window}=dom,{document}=window;const commands=[];let speedChange,opened=true,modeOptions,menuCloses=0;
+const {window}=dom,{document}=window;const commands=[];let speedChange,opened=false,modeOptions,menuCloses=0,studyOpens=0;
 let commandResult = () => ({ok:true});
 const player={workspaceMode:'browser',browserActiveTabId:'a',mediaKey:'browser:one',generation:1,browserTime:14,browserDuration:100,browserRate:1.25,browserPaused:true,browserMediaSeen:true,cues:[{id:'a',start:0,end:4,text:'Past'},{id:'b',start:10,end:14,text:'Future'}],cues2:[{id:'x',start:1,end:5,text:'Geçmiş'}],browserTracks:[{id:'en'},{id:'tr'}],browserLoadedTrackId:'en',browserLoadedTrackId2:'tr'};
-window.UiLocale={get:()=> 'tr'};window.BrowserStudy={open:options=>{opened=true;modeOptions=options;},isActive:()=>opened};
+window.UiLocale={get:()=> 'tr'};window.BrowserStudy={open:options=>{studyOpens++;opened=true;modeOptions=options;},isActive:()=>opened};
 window.PlayerWorkspaceModel=require('../src/renderer/player-workspace-model');window.PlayerUiKit={select:config=>{speedChange=config.onChange;const wrap=document.createElement('span');wrap.trigger=document.createElement('button');wrap.append(wrap.trigger);return wrap;}};
 let transformReads=0;
 const transformFor=secondary=>{transformReads++;return {scale:2,offsetSeconds:secondary?7:5};};
@@ -16,6 +16,7 @@ const context=vm.createContext({window,document,player,queueMicrotask,MutationOb
 vm.runInContext(fs.readFileSync(require.resolve('../src/renderer/browser-podcast'),'utf8'),context);
 const ui=window.BrowserPodcastUI,video=document.getElementById('web');
 ui.setMode(true);assert.equal(document.querySelector('.sh-browser-study .browser-podcast-controls'),null,'legacy controls never attach to the common surface');assert.equal(modeOptions?.preservePodcast,true,'podcast entry preserves its explicit view intent');assert.equal(ui.isActive(),true);assert.equal(commands.length,0,'view switch starts no video/audio/processing');assert.equal(player.browserTime,14);assert.equal(player.browserRate,1.25);assert.equal(document.getElementById('web'),video);assert.equal(document.querySelectorAll('video').length,1);
+ui.setMode(false);ui.setMode(true);assert.equal(studyOpens,1,'view switching keeps the existing browser study session');
 transformReads=0;const tracks=ui.getTranscriptTracks();assert.equal(transformReads,2,'source proof resolves once per channel, not per cue endpoint');const snap=ui.snapshot();assert.equal(tracks[0].cues[1].start,25);assert.equal(tracks[1].cues[0].start,9,'independent secondary drift/offset is retained');
 const evidence=require('../src/assistant-source-context').freezePodcast(snap,tracks,'watched');assert.equal(evidence.transcript_evidence.evidence.length,1);assert.equal(evidence.transcript_evidence.evidence[0].metin,'Past');assert.equal(evidence.podcastAnchor.time,14);
 (async()=>{
