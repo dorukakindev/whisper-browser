@@ -22,11 +22,167 @@
     const programs=node('div','pl-programs');programs.setAttribute('role','group');programs.setAttribute('aria-label',t('Shows','Yayınlar'));rail.append(programs);
     const head=node('header','pl-heading'),heading=node('h1','',t('Podcast','Podcast')),intro=node('div','pl-intro'),counts=node('p','pl-counts');intro.append(heading,counts);
     const headActions=node('div','pl-head-actions');headActions.append(button(t('Radio & tools','Radyo ve araçlar'),()=>{classic.open=true;classic.dispatchEvent(new Event('toggle'));classic.scrollIntoView?.({block:'start'});}),button(t('Open local file','Yerel dosyadan aç'),actions.openLocal),button(t('Add podcast link','Podcast bağlantısı ekle'),actions.addRss,'mh-action mh-primary pl-add'));head.append(intro,headActions);main.append(message);
-    if(actions.searchTranscripts){const area=node('details','pl-classic pl-transcript-search'),form=node('form','pl-list-tools'),input=node('input','pl-search'),results=node('div','pl-episodes'),status=node('p','pl-meta');area.append(node('summary','',t('Search saved transcripts','Kayıtlı transkriptlerde ara')));input.type='search';input.maxLength=200;input.placeholder=t('Words or phrase in originals and translations','Özgün metin ve çeviride sözcük veya ifade');input.setAttribute('aria-label',input.placeholder);status.setAttribute('role','status');let ticket=0;form.append(input);const submit=node('button','mh-action',t('Search','Ara'));submit.type='submit';form.append(submit);area.append(node('p','pl-meta',t('Local text matching, not semantic search. Only saved text; no generation. Up to 100 results.','Yerel metin eşleşmesi; anlamsal arama değildir. Yalnız kayıtlı metin; yeni üretim yok. En fazla 100 sonuç.')),form,status,results);main.append(area);
- form.onsubmit=async event=>{event.preventDefault();const mine=++ticket,query=input.value.trim();results.replaceChildren();if(!query){status.textContent=t('Enter words or a phrase.','Sözcük veya ifade yazın.');return;}status.textContent=t('Searching saved text…','Kayıtlı metin aranıyor…');try{const response=await actions.searchTranscripts(query);if(disposed||mine!==ticket)return;status.textContent=response.rows.length?t('Matches in saved text','Kayıtlı metindeki eşleşmeler'):t('No matches. Unsaved or missing translations are not searched.','Eşleşme yok. Kaydedilmemiş veya eksik çeviriler aranmaz.');for(const row of response.rows){const card=node('article','pl-transcript pl-search-hit');card.append(node('strong','',row.episodeTitle),node('p','pl-meta',row.showTitle+' · '+(row.role==='translation'?t('Translation','Çeviri'):t('Original','Özgün'))+' · '+(row.timed?row.seconds.toFixed(1)+'–'+row.end.toFixed(1)+' s':t('Untimed · read only','Zamansız · salt okunur'))),node('blockquote','',row.quote));card.append(button(t('Read saved passage','Kayıtlı pasajı oku'),async()=>{const fresh=(await actions.resolveTranscript(query,row.token)).row;if(disposed||mine!==ticket)return;const d=node('dialog','mx-dialog media-surface');d.append(node('h2','',fresh.episodeTitle),node('p','pl-meta',fresh.showTitle),node('blockquote','',fresh.quote),button(t('Close','Kapat'),()=>d.close()));const error=node('p','mh-error');error.setAttribute('role','alert');d.append(error);if(fresh.timed)d.append(button(t('Open episode at this passage','Bölümü bu pasajda aç'),async()=>{await actions.openTranscriptResult(query,row.token);d.close();}));d.addEventListener('close',()=>{d.remove();if(typeof syncBrowserOcclusion==='function')void syncBrowserOcclusion();},{once:true});document.body.append(d);d.showModal();if(typeof syncBrowserOcclusion==='function')void syncBrowserOcclusion();}));results.append(card);}}catch(error){if(!disposed&&mine===ticket)status.textContent=error.message;}};input.addEventListener('input',()=>{ticket++;results.replaceChildren();status.textContent='';});}
+    if(actions.searchTranscripts){
+      const savedSearch=actions.transcriptSearchState||{};
+      const area=node('details','pl-transcript-search'),form=node('form','pl-transcript-form');
+      const input=node('input','pl-search'),results=node('div','pl-search-results'),status=node('p','pl-meta');
+      const summary=node('summary','',t('Search saved transcripts','Kayıtlı transkriptlerde ara'));
+      const scopes=node('div','pl-search-scopes'),fields=node('div','pl-search-query');
+      area.open=!!savedSearch.open;
+      area.ontoggle=()=>{savedSearch.open=area.open;};
+      input.type='search';
+      input.maxLength=200;
+      input.value=savedSearch.query||'';
+      input.placeholder=t('Enter a word or phrase','Sözcük veya ifade yaz');
+      input.setAttribute('aria-label',input.placeholder);
+      status.setAttribute('role','status');
+      function select(label){
+        const wrap=node('label','pl-search-field'),control=node('select');
+        wrap.append(node('span','',label),control);
+        scopes.append(wrap);
+        return control;
+      }
+      function option(control,value,label){
+        const item=node('option','',label);
+        item.value=value;
+        control.append(item);
+      }
+      const show=select(t('Show','Yayın')),episode=select(t('Episode','Bölüm')),role=select(t('Text','Metin'));
+      const shows=(data.podcasts||[]).filter(p=>p.episodes?.length);
+      option(show,'',t('All shows','Tüm yayınlar'));
+      for(const p of shows)option(show,p.url||p.id,p.title);
+      function updateEpisodes(value){
+        episode.replaceChildren();
+        option(episode,'',t('All episodes','Tüm bölümler'));
+        for(const p of shows){
+          if(show.value&&show.value!==(p.url||p.id))continue;
+          for(const row of p.episodes){
+            const id=row.entryId||row.episodeIdentity;
+            if(id)option(episode,id,show.value?row.title:p.title+' · '+row.title);
+          }
+        }
+        episode.value=value||'';
+        if(episode.selectedIndex<0)episode.value='';
+      }
+      show.value=savedSearch.show||'';
+      if(show.selectedIndex<0)show.value='';
+      updateEpisodes(savedSearch.episode);
+      option(role,'',t('Original and translation','Özgün ve çeviri'));
+      option(role,'source',t('Original only','Yalnız özgün'));
+      option(role,'translation',t('Saved translation only','Yalnız kayıtlı çeviri'));
+      role.value=savedSearch.role||'';
+      const submit=node('button','mh-action mh-primary',t('Search','Ara'));
+      submit.type='submit';
+      fields.append(input,submit);
+      form.append(fields,scopes);
+      const more=button(t('Load more passages','Daha fazla pasaj yükle'),()=>runSearch(true));
+      more.hidden=true;
+      area.append(summary,form,node('p','pl-meta',t('Local word and phrase matching. Searches saved original text and complete translations.','Yerel sözcük ve ifade eşleşmesi. Kayıtlı özgün metin ve tamamlanmış çeviriler taranır.')),status,results,more);
+      main.append(area);
+
+      let ticket=0;
+      function criteria(){return {query:input.value.trim(),show:show.value,episode:episode.value,role:role.value};}
+      function render(){
+        results.replaceChildren();
+        const rows=savedSearch.rows||[],groups=new Map(),mine=ticket;
+        const {query,...scope}=criteria();
+        for(const row of rows){
+          const key=row.episodeIdentity||row.episodeTitle;
+          if(!groups.has(key)){
+            const group=node('section','pl-search-group');
+            const title=node('header','pl-search-episode');
+            title.append(node('h3','',row.episodeTitle),node('p','pl-meta',row.showTitle));
+            const passages=node('div','pl-search-passages');
+            group.append(title,passages);
+            groups.set(key,passages);
+            results.append(group);
+          }
+          const card=node('article','pl-search-hit');
+          const time=row.timed?row.seconds.toFixed(1)+'–'+row.end.toFixed(1)+' s':t('Read only','Salt okunur');
+          card.append(node('p','pl-meta',(row.role==='translation'?t('Translation','Çeviri'):t('Original','Özgün'))+' · '+time),node('blockquote','',row.quote));
+          card.append(button(row.timed?t('Go to passage','Pasaja git'):t('Read saved passage','Kayıtlı pasajı oku'),async()=>{
+            try{
+              const locator={...scope,episode:row.sourceEntryId||row.episodeIdentity||scope.episode};
+              const fresh=(await actions.resolveTranscript(query,row.token,locator)).row;
+              if(disposed||mine!==ticket)return;
+              savedSearch.anchor=row.token;
+              const d=node('dialog','mx-dialog media-surface');
+              d.dataset.uiUntranslated='';
+              const error=node('p','mh-error');
+              error.setAttribute('role','alert');
+              d.append(node('h2','',fresh.episodeTitle),node('p','pl-meta',fresh.showTitle+' · '+time),node('blockquote','',fresh.quote),error);
+              if(fresh.timed)d.append(button(t('Open episode at this passage','Bölümü bu pasajda aç'),async()=>{
+                await actions.openTranscriptResult(query,row.token,locator);
+                d.close();
+              },'mh-action mh-primary'));
+              d.append(button(t('Back to results','Sonuçlara dön'),()=>d.close()));
+              d.addEventListener('close',()=>{
+                d.remove();
+                card.querySelector('button')?.focus({preventScroll:true});
+                if(typeof syncBrowserOcclusion==='function')void syncBrowserOcclusion();
+              },{once:true});
+              document.body.append(d);
+              d.showModal();
+              if(typeof syncBrowserOcclusion==='function')void syncBrowserOcclusion();
+            }catch(error){
+              if(!disposed&&mine===ticket)status.textContent=error.message;
+            }
+          },'mh-text-button pl-passage-open'));
+          if(row.token)card.dataset.passage=row.token;
+          groups.get(key).append(card);
+        }
+        more.hidden=savedSearch.nextOffset==null;
+        status.textContent=rows.length
+          ? rows.length+' '+(more.hidden?t('passages shown','pasaj gösteriliyor'):t('passages shown · more available','pasaj gösteriliyor · devamı var'))
+          : savedSearch.searched?t('No passages match these filters. Try a different phrase or text filter.','Bu filtrelerle eşleşen pasaj yok. İfadeyi veya metin filtresini değiştirin.'):'';
+      }
+      function invalidate(){
+        ticket++;
+        Object.assign(savedSearch,criteria(),{rows:[],nextOffset:null,searched:false,anchor:null});
+        render();
+      }
+      async function runSearch(append=false){
+        const {query,...scope}=criteria();
+        const offset=append?savedSearch.nextOffset:0;
+        if(append&&offset==null)return;
+        if(!append)invalidate();
+        const mine=++ticket;
+        if(!query){
+          status.textContent=t('Enter a word or phrase to search.','Aramak için sözcük veya ifade yazın.');
+          return;
+        }
+        status.textContent=t('Searching saved text…','Kayıtlı metin aranıyor…');
+        try{
+          const response=await actions.searchTranscripts(query,{...scope,offset});
+          if(disposed||mine!==ticket)return;
+          const rows=append?savedSearch.rows:[];
+          const seen=new Set(rows.map(row=>row.token));
+          savedSearch.rows=[...rows,...response.rows.filter(row=>!seen.has(row.token))];
+          savedSearch.nextOffset=response.nextOffset??null;
+          savedSearch.searched=true;
+          render();
+        }catch(error){
+          if(!disposed&&mine===ticket)status.textContent=t('Could not read saved text. Try again.','Kayıtlı metin okunamadı. Yeniden deneyin.')+' '+error.message;
+        }
+      }
+      form.onsubmit=event=>{event.preventDefault();void runSearch();};
+      input.oninput=invalidate;
+      show.onchange=()=>{updateEpisodes('');invalidate();};
+      episode.onchange=role.onchange=invalidate;
+      if(savedSearch.show&&savedSearch.show!==show.value||savedSearch.episode&&savedSearch.episode!==episode.value)invalidate();
+      else render();
+      if(area.open&&savedSearch.anchor){
+        requestAnimationFrame(()=>{
+          if(disposed)return;
+          const card=[...results.querySelectorAll('[data-passage]')].find(row=>row.dataset.passage===savedSearch.anchor);
+          card?.scrollIntoView?.({block:'nearest'});
+          card?.querySelector('button')?.focus({preventScroll:true});
+        });
+      }
+    }
     const content=node('div','pl-content');main.append(content);
     const listControls=node('div','pl-list-tools'),listContent=node('div','pl-list-content');main.append(listControls,listContent);
-    const queueHead=node('div','pl-queue-heading');queueHead.append(node('h2','',t('Up next','Sıradakiler')),button(t('Manage','Yönet'),actions.openQueue,'mh-text-button'));side.append(queueHead);const queue=node('div','pl-queue');side.append(queue);
+    const queueHead=node('div','pl-queue-heading');queueHead.append(node('h2','',t('Listening queue','Dinleme kuyruğu')),button(t('Manage queue','Kuyruğu yönet'),actions.openQueue,'mh-text-button'));side.append(queueHead);const queue=node('div','pl-queue');side.append(queue);
     const classic=node('details','pl-classic');classic.append(node('summary','',t('Radio & advanced library tools','Radyo ve ileri kütüphane araçları')));const classicBody=node('div','pl-classic-body');classic.append(classicBody);main.append(classic);let classicMounted=false;classic.addEventListener('toggle',()=>{if(classic.open&&!classicMounted){classicMounted=true;actions.classic(classicBody);}});
     layout.append(head,rail,main);root.append(layout);
     function art(row,program){const box=node('div','pl-art',(row.title||program.title||'?').split(/\s+/).filter(Boolean).slice(0,2).map(s=>s[0]).join('').toLocaleUpperCase());const url=row.image||program.image;if(typeof url==='string'&&/^https:\/\//i.test(url)){const img=node('img');img.alt='';img.loading='lazy';img.referrerPolicy='no-referrer';img.src=url;img.addEventListener('error',()=>img.remove(),{once:true});box.append(img);}return box;}
@@ -51,7 +207,7 @@
     function transcript(entry){const {row,program}=entry,box=node('div','pl-transcript');box.append(node('strong','',saved(row)?t('Saved transcript','Kayıtlı transkript'):t('Transcript','Transkript')));const chips=node('div','pl-chips');if(saved(row))chips.append(node('span','pl-ready',row.podcastWorkspace.transcript.status==='partial'?t('Partial original','Kısmi özgün'):row.podcastWorkspace.transcript.state==='untimed'?t('Original · read only','Özgün · salt okunur'):t('Original saved','Özgün kayıtlı')));const coverage=saved(row)&&row.podcastWorkspace.transcript.coverage;if(coverage&&Number.isFinite(coverage.start)&&coverage.start>=0&&Number.isFinite(coverage.end)&&coverage.end>coverage.start){const time=value=>Math.floor(value/60)+':'+String(Math.floor(value%60)).padStart(2,'0');chips.append(node('span','pl-ready pl-coverage',t('Selected interval','Seçili aralık')+' · '+time(coverage.start)+'–'+time(coverage.end)));}if(ready(row))chips.append(node('span','pl-ready',t('Translation saved','Çeviri kayıtlı')));if(row.positionState==='needs-review')chips.append(node('span','pl-ready',t('Source timing needs review','Kaynak zamanı inceleme gerektiriyor')));box.append(chips);if(!saved(row))box.append(node('p','pl-meta',row.transcriptDescriptors?.length?t('Publisher transcripts available. Choose language and timing in the player tools.','Yayıncı transkriptleri var. Oynatıcı araçlarında dili ve zamanlamayı seç.'):t('No saved transcript for this source version.','Bu kaynak sürümünün kayıtlı transkripti yok.')));box.append(button(saved(row)?(ready(row)?t('Open original + translation','Özgün + çeviriyle aç'):t('Open original','Özgünü aç')):t('Whisper & transcript tools','Whisper ve transkript araçları'),async()=>{if(await play(entry,'podcast')&&!saved(row))await actions.transcriptTools?.(program,row);},'mh-text-button pl-transcript-open'));return box;}
     function episodeNotes(entry){
       if(typeof actions.listEpisodeNotes!=='function')return null;
-      const {row,program}=entry,wrap=node('section','pl-saved-notes'),toggle=node('button','mh-text-button pl-notes-toggle',t('Saved passages & notes','Kayıtlı pasajlar ve notlar')),body=node('div','pl-notes-body'),status=node('p','pl-meta pl-notes-status'),list=node('div','pl-notes-list');
+      const {row,program}=entry,wrap=node('section','pl-saved-notes'),toggle=node('button','mh-action pl-notes-toggle',t('Saved passages & notes','Kayıtlı pasajlar ve notlar')),body=node('div','pl-notes-body'),status=node('p','pl-meta pl-notes-status'),list=node('div','pl-notes-list');
       wrap.dataset.sourceEntryId=row.entryId||'';
       const identity=()=>String(row.episodeIdentity||row.sourceBinding?.episodeIdentity||''),entryId=()=>String(row.entryId||'');
       const sourceKey=()=>JSON.stringify([entryId(),identity(),row.sourceVersion||'']);
@@ -93,8 +249,8 @@
     }
     async function play(entry,scene){const intent=++playIntent;await actions.play(entry.program,entry.row,scene);if(disposed||intent!==playIntent)return false;paintQueue();return true;}
     function episode(entry,hero=false){const {row,program}=entry,card=node('article',hero?'pl-hero':'pl-episode');card.append(art(row,program));const copy=node('div','pl-episode-copy');copy.append(node('p','pl-eyebrow',hero?(continuing(row)?t('CONTINUE LISTENING','DİNLEMEYE DEVAM ET'):t('START LISTENING','DİNLEMEYE BAŞLA')):program.title),node(hero?'h2':'h3','',row.title));const metadata=[hero?program.title:'',entry.date,Number(row.duration)>0?Math.ceil(row.duration/60)+' '+t('min','dk'):''].filter(Boolean);if(metadata.length)copy.append(node('p','pl-meta',metadata.join(' · ')));if(hero&&row.description)copy.append(node('p','pl-description',descriptionText(row.description)));if(ready(row))copy.append(node('span','pl-ready',t('Saved translation','Kayıtlı çeviri')));if(continuing(row)){const progress=node('progress','pl-progress');progress.max=row.duration;progress.value=row.position;progress.setAttribute('aria-label',t('Listening progress','Dinleme ilerlemesi'));copy.append(progress);}
-      const controls=node('div','pl-episode-actions');controls.append(button(hero?(continuing(row)?t('Continue','Devam et'):t('Listen','Dinle')):t('Listen','Dinle'),()=>play(entry,hero?'podcast':false),'mh-action '+(hero?'mh-primary':'')));if(hero)controls.append(button(t('Open scene','Sahneyi aç'),()=>play(entry,'podcast'),'mh-action'));controls.append(button(t('Bilingual study','Çift dilli çalış'),()=>play(entry,'bilingual'),'mh-text-button pl-study'),button(t('Add to queue','Kuyruğa ekle'),async()=>{await actions.enqueue(program,row);paintQueue();},'mh-text-button pl-enqueue'));copy.append(controls);const notes=episodeNotes(entry);if(notes)copy.append(notes);if(hero){const sleeve=node('div','pl-record'),art=card.firstChild,disc=node('i','pl-disc'),ripple=node('i','pl-ripple');disc.setAttribute('aria-hidden','true');ripple.setAttribute('aria-hidden','true');sleeve.append(ripple,disc,art);card.append(sleeve);copy.append(transcript(entry));}if(actions.episodeTools){const tools=node('div','pl-episode-tools');actions.episodeTools(tools,program,row);copy.append(tools);}card.append(copy);return card;}
-    function paintQueue(){if(disposed)return;queue.replaceChildren();const q=actions.queue();const rows=q.rows||[];for(const [i,row]of rows.slice(0,8).entries()){const item=node('div','pl-queue-row');item.append(node('span','pl-queue-number',String(i+1)),art(row,{title:row.publisher||row.title}),button((row.queueError?t('Retry · ','Yeniden dene · '):'')+row.title,()=>actions.playQueued(row.queueKey),'mh-text-button pl-queue-play'));if(i===q.index)item.setAttribute('aria-current','true');const detail=node('small','pl-queue-state',[i===q.index?t('Current','Şu an'):i===q.index+1?t('Next','Sıradaki'):'',row.scene==='bilingual'?t('Bilingual','Çift dilli'):''].filter(Boolean).join(' · '));if(row.queueError)detail.textContent+=' · '+row.queueError;item.append(detail);queue.append(item);}if(!rows.length)queue.append(node('p','pl-meta',t('Choose an episode to start your queue.','Kuyruğa başlamak için bir bölüm seç.')));if(rows.length>8)queue.append(button(t('View full queue','Tam kuyruğu gör'),actions.openQueue,'mh-text-button'));}
+      const controls=node('div','pl-episode-actions');controls.append(button(hero?(continuing(row)?t('Continue','Devam et'):t('Listen','Dinle')):t('Listen','Dinle'),()=>play(entry,hero?'podcast':false),'mh-action '+(hero?'mh-primary':'')));controls.append(button(t('Bilingual study','Çift dilli çalış'),()=>play(entry,'bilingual'),'mh-text-button pl-study'),button(t('Add to queue','Kuyruğa ekle'),async()=>{await actions.enqueue(program,row);paintQueue();},'mh-text-button pl-enqueue'));copy.append(controls);const notes=episodeNotes(entry);if(notes)copy.append(notes);if(hero){const sleeve=node('div','pl-record'),art=card.firstChild,disc=node('i','pl-disc'),ripple=node('i','pl-ripple');disc.setAttribute('aria-hidden','true');ripple.setAttribute('aria-hidden','true');sleeve.append(ripple,disc,art);card.append(sleeve);copy.append(transcript(entry));}if(actions.episodeTools){const tools=node('div','pl-episode-tools');actions.episodeTools(tools,program,row);copy.append(tools);}card.append(copy);return card;}
+    function paintQueue(){if(disposed)return;queue.replaceChildren();const q=actions.queue();const rows=q.rows||[];const start=Math.max(0,Math.min(q.index-1,rows.length-8));for(const [relative,row]of rows.slice(start,start+8).entries()){const i=start+relative;const item=node('div','pl-queue-row');item.append(node('span','pl-queue-number',String(i+1)),art(row,{title:row.publisher||row.title}),button((row.queueError?t('Retry · ','Yeniden dene · '):'')+row.title,()=>actions.playQueued(row.queueKey),'mh-text-button pl-queue-play'));if(i===q.index)item.setAttribute('aria-current','true');if(i===q.index+1)item.dataset.next='true';const detail=node('small','pl-queue-state',[i===q.index?t('Current','Şu an'):i===q.index+1?t('Next','Sıradaki'):'',row.scene==='bilingual'?t('Bilingual','Çift dilli'):''].filter(Boolean).join(' · '));if(row.queueError)detail.textContent+=' · '+row.queueError;item.append(detail);queue.append(item);}if(!rows.length)queue.append(node('p','pl-meta',t('Choose an episode to start your queue.','Kuyruğa başlamak için bir bölüm seç.')));}
     function paintPrograms(){
       programs.replaceChildren();const all=button('',()=>{state.program='';state.selected=null;state.limit=60;paint();},'pl-program pl-all');all.dataset.program='';all.append(node('span','pl-all-art','☷'),node('span','pl-program-name',t('All shows','Tüm yayınlar')),node('small','',String((data.podcasts||[]).length)));all.setAttribute('aria-pressed',String(!state.program));programs.append(all);
       for(const p of data.podcasts||[]){const b=button('',()=>{state.program=p.id;state.selected=null;state.limit=60;paint();},'pl-program');b.dataset.program=p.id;b.append(art({},p),node('span','pl-program-name',p.title),node('small','',p.sourceKind==='spotify'?'Spotify':String((p.episodes||[]).length)));b.setAttribute('aria-pressed',String(state.program===p.id));programs.append(b);}

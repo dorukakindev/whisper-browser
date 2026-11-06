@@ -80,3 +80,17 @@ console.log('podcast-transcript.test.js: OK');
  const session=require('../src/podcast-session'),entry={id:'saved',feedId:'show',externalId:'one',kind:'podcast',title:'Canonical',enclosures:[{url:'https://example.com/c.mp3',type:'audio/mpeg'}]};entry.podcastWorkspace={sourceVersion:session.sourceVersion(entry),transcript:{state:'timed',format:'vtt',provenance:'asr',text:'WEBVTT\n\n00:00:02.000 --> 00:00:04.000\nSaved phrase\n'}};
  const rss={entries:[entry],feeds:[{id:'show',title:'Show'}]},readonly=find(d,rss,'phrase')[0];assert.equal(readonly.timed,false,'download/ASR timestamps do not prove the current RSS stream');assert.equal(readonly.seconds,null);entry.podcastWorkspace.transcript.provenance='publisher';assert.equal(find(d,rss,'phrase')[0].seconds,2);
 }
+
+{
+ const {searchPodcastTranscripts:find}=require('../src/media-shelf-service');
+ const episode=(id,count)=>({title:id,episodeIdentity:id,sourceVersion:'v1',podcastWorkspace:{sourceVersion:'v1',
+  transcript:{state:'untimed',format:'plain',text:Array.from({length:count},(_,i)=>'Phrase '+i).join('\n')},
+  translation:{state:'untimed',format:'plain',text:'Translated phrase'}}});
+ const data={podcasts:[{id:'show-a',episodes:[episode('a',101)]},{id:'show-b',episodes:[episode('b',1)]}]};
+ const scope={show:'show-a',episode:'a',role:'source'},feeds={entries:[],feeds:[]};
+ const first=find(data,feeds,'phrase',{...scope,limit:101});
+ assert.equal(first.length,101);
+ assert.equal(find(data,feeds,'phrase',{...scope,offset:100})[0].token,first[100].token);
+ assert.equal(find(data,feeds,'phrase',{...scope,offset:101}).length,0);
+ assert.deepEqual(find(data,feeds,'phrase',{show:'show-b',role:'translation'}).map(r=>r.quote),['Translated phrase']);
+}
