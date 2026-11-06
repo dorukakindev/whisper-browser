@@ -4,13 +4,13 @@ const {JSDOM}=require('jsdom');
 function mount(t,{untimed=false,cinema=false,audio=false,empty=false,study=false,actions=[],sections=[],timingNotice='',save=false,processing=false}={}){
  const dom=new JSDOM('<div id="host"></div>',{url:'https://test.invalid',pretendToBeVisual:true,runScripts:'outside-only'}),w=dom.window;
  w.UiLocale={get:()=> 'tr'};w.matchMedia=()=>({matches:true});w.Element.prototype.scrollTo=function(value){this.scrollTop=value.top;};
- let time=2,revision="r1";const commands=[];const rows=untimed?[{id:'text',start:0,end:0,timed:false,src:'Yayıncı metni',trs:[],unc:[],words:null}]:[{id:'a',start:0,end:10,timed:true,src:'A source sentence',trs:['Birinci çeviri','İkinci çeviri'],unc:[],words:null},{id:'b',start:10,end:20,timed:true,src:'The next sentence',trs:[],unc:[],words:null}];
- const adapter={processing:processing?()=>({duration:30}):null,caps:{loop:true,cinema,study:true,save},identity:()=> 'same-source',actions:()=>actions,info:()=>({audio,title:'Bölüm',langs:{src:'en',tr:'tr'},chapters:[{t:0,label:'Giriş'},{t:10,label:'İkinci bölüm'}],queue:[{index:1,title:'Sıradaki gerçek kayıt'}]}),state:()=>({time,duration:30,paused:true,rate:1,volume:.42,rows:empty?[]:rows,rev:revision,untimed,timingNotice,canSeek:true}),cmd:(...args)=>{commands.push(args);return Promise.resolve(args[0]==='wordInfo'?{ok:true,word:args[1].word,source:rows[args[1].row].src,translations:rows[args[1].row].trs,canSave:true,saved:false}:{ok:args[0]!=='loop',code:'busy'});},panel:()=>({sections,job:{state:'idle'}})};
+ let time=2,revision="r1",canSeek=true;const commands=[];const rows=untimed?[{id:'text',start:0,end:0,timed:false,src:'Yayıncı metni',trs:[],unc:[],words:null}]:[{id:'a',start:0,end:10,timed:true,src:'A source sentence',trs:['Birinci çeviri','İkinci çeviri'],unc:[],words:null},{id:'b',start:10,end:20,timed:true,src:'The next sentence',trs:[],unc:[],words:null}];
+ const adapter={processing:processing?()=>({duration:30}):null,caps:{loop:true,cinema,study:true,save},identity:()=> 'same-source',actions:()=>actions,info:()=>({audio,title:'Bölüm',langs:{src:'en',tr:'tr'},chapters:[{t:0,label:'Giriş'},{t:10,label:'İkinci bölüm'}],queue:[{index:1,title:'Sıradaki gerçek kayıt'}]}),state:()=>({time,duration:30,paused:true,rate:1,volume:.42,rows:empty?[]:rows,rev:revision,untimed,timingNotice,canSeek}),cmd:(...args)=>{commands.push(args);return Promise.resolve(args[0]==='wordInfo'?{ok:true,word:args[1].word,source:rows[args[1].row].src,translations:rows[args[1].row].trs,canSave:true,saved:false}:{ok:args[0]!=='loop',code:'busy'});},panel:()=>({sections,job:{state:'idle'}})};
  w.eval(fs.readFileSync(require.resolve('../src/renderer/browser-study-view.js'),'utf8'));
  w.eval(fs.readFileSync(require.resolve('../src/renderer/podcast-task-scope.js'),'utf8'));
  w.eval(fs.readFileSync(require.resolve('../src/renderer/sahne.js'),'utf8'));
  const sh=new w.Sahne(w.document.getElementById('host'),adapter,{mode:cinema?'cinema':study?'study':'podcast',intro:false});
- t.after(()=>{sh.destroy();w.close();});return {w,sh,rows,commands,setTime:value=>time=value,setRevision:value=>revision=value};
+ t.after(()=>{sh.destroy();w.close();});return {w,sh,rows,commands,setTime:value=>time=value,setCanSeek:value=>canSeek=value,setRevision:value=>revision=value};
 }
 test('manual transcript browsing remains stopped; return follows without seeking',t=>{
  const f=mount(t),scroll=f.sh.q('[data-r=scroll]');scroll.dispatchEvent(new f.w.WheelEvent('wheel',{deltaY:-100}));assert.equal(f.sh.s.follow,false);
@@ -238,4 +238,35 @@ test('task volume shows its actual value and timing groups retain separate callb
  f.sh.q('[data-a=panel]').click();const groups=f.sh.root.querySelectorAll('.sh-offset');assert.equal(groups[0].getAttribute('aria-label'),'Original');
  groups[1].querySelectorAll('button')[2].click();assert.deepEqual(offsets,[['translation',null]]);
  const input=f.sh.q('.sh-prange input');assert.equal(f.sh.q('.sh-prange output').textContent,'49%');input.value='.73';input.dispatchEvent(new f.w.Event('input'));assert.equal(f.sh.q('.sh-prange output').textContent,'73%');assert.deepEqual(changes,[.73]);
+});
+
+test('shared transport enables only usable sentence tools and supports keyboard timeline bounds', t => {
+  const plain = mount(t, { untimed: true });
+  assert(plain.sh.q('[data-a=replay]').disabled);
+  assert(plain.sh.q('[data-a=loop]').disabled);
+  assert(!plain.sh.q('[data-a=back]').disabled);
+  assert.match(plain.sh.q('[data-r=transportHint]').textContent, /zamanlı transkript/);
+
+  const study = mount(t, { study: true });
+  assert(!study.sh.q('[data-a=replay]').disabled);
+  study.setTime(25);
+  study.sh.tick();
+  assert(study.sh.q('[data-a=replay]').disabled);
+  assert(study.sh.q('[data-a=next]').disabled);
+  const timeline = study.sh.q('[data-r=wave]');
+  for (const key of ['Home', 'End']) {
+    timeline.dispatchEvent(new study.w.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+  }
+  assert.deepEqual(study.commands.map(command => command.slice(0, 2)), [['seek', 0], ['seek', 30]]);
+  study.setCanSeek(false);
+  study.sh.tick();
+  assert(study.sh.q('[data-a=back]').disabled);
+  assert.equal(study.sh.lines[0].hasAttribute('tabindex'), false);
+  assert(study.sh.lines[0].querySelector('[data-act=loop]').disabled);
+  study.sh.lines[0].click();
+  assert.equal(study.commands.length, 2);
+  study.setCanSeek(true);
+  study.sh.tick();
+  assert.equal(study.sh.lines[0].tabIndex, 0);
+  assert(!study.sh.lines[0].querySelector('[data-act=loop]').disabled);
 });
