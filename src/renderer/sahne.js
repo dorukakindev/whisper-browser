@@ -6,6 +6,7 @@
 (function (root) {
   'use strict';
   const P = {
+    voice: 'M4 9v6M8 5v14M12 8v8M16 3v18M20 9v6',
     play: 'M8 5.2v13.6a.6.6 0 0 0 .92.5l10.6-6.8a.6.6 0 0 0 0-1L8.92 4.7A.6.6 0 0 0 8 5.2Z', pause: 'M6.5 5h4v14h-4z|M13.5 5h4v14h-4z',
     prev: 'M6.5 5.5v13|M18 6.2v11.6a.5.5 0 0 1-.8.4l-8-5.8a.5.5 0 0 1 0-.8l8-5.8a.5.5 0 0 1 .8.4Z', next: 'M17.5 5.5v13|M6 6.2v11.6a.5.5 0 0 0 .8.4l8-5.8a.5.5 0 0 0 0-.8l-8-5.8a.5.5 0 0 0-.8.4Z',
     back: 'M11 5 5 10l6 5|M5 10h8a6 6 0 0 1 0 12h-2', fwd: 'M13 5l6 5-6 5|M19 10h-8a6 6 0 0 0 0 12h2', replay: 'M4 12a8 8 0 1 0 2.6-5.9|M4 4v5h5',
@@ -118,6 +119,7 @@
           case 'close': this.o.onClose?.(); break; case 'classic': this.o.onClassic?.(); break;
           case 'fullscreen':this.run('fullscreen');break;
           case 'assistant':this.run('assistant');break;
+          case 'dub':this.run('dub');break;
           case 'noteClose':this.closeNote();break;
           case 'noteSave':void this.saveNote();break;
           case 'noteSeek':if(this.s.note)this.run('seekCue',this.s.note.row,this.s.note.rev);break;

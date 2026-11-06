@@ -200,6 +200,21 @@ test('Sahne forwards local/native transport to the existing identity-bound bridg
   assert.equal(a.state().time, 23);
 });
 
+test('Both Stage views open the existing dubbing dialog and a stale adapter cannot reopen it', async t => {
+  const f = fixture(t);
+  let opened = 0;
+  f.window.DubGeneratorUI = { prepareCurrent: async () => { opened++; } };
+  const podcast = f.open('podcast');
+  assert.equal(podcast.caps.dub, true);
+  assert.equal((await podcast.cmd('dub')).ok, true);
+  const study = f.open('study');
+  assert.equal((await study.cmd('dub')).ok, true);
+  f.player.generation++;
+  assert.equal((await study.cmd('dub')).code, 'stale-source');
+  assert.equal(opened, 2);
+  assert.deepEqual(f.commands, []);
+});
+
 test('Sahne preserves independent offsets and one-to-many translation pairing', async t => {
   const f = fixture(t), a = f.open(), row = a.state().rows[0];
   assert.equal(row.start, 2); assert.equal(row.end, 10);

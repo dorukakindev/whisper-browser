@@ -306,12 +306,17 @@
         sections.push({ title: T('Altyazı ve Whisper', 'Subtitles and Whisper'), items: loc.length ? loc : [{ type: 'note', text: T('Bu kaynak için altyazı işlemi sunulmuyor.', 'No subtitle task is offered for this source.') }] });
       }
       if(kind==='browser')sections.push({title:T('İleri araçlar','Advanced tools'),items:[{type:'button',label:T('Tüm altyazı ve tarayıcı araçları','All caption and browser tools'),run:openAdvanced}]});
+      const attachDub = $(kind === 'browser' ? 'browserDubAdd' : 'playerDubAdd');
+      if (kind !== 'shelf' && attachDub) sections.push({ title: T('Dublaj', 'Dubbing'), items: [{
+        type: 'button', label: T('Hazır dublaj sesi ekle', 'Attach dubbing audio'), disabled: attachDub.disabled,
+        run: () => { if (current() && !attachDub.disabled) attachDub.click(); }
+      }] });
       sections.push({ title: T('Asistan', 'Assistant'), items: [{ type: 'button', label: T('Asistana sor', 'Ask assistant'), hint: T('Mevcut asistan penceresi, bu medyanın bağlamıyla açılır.', 'Opens the existing assistant window with this media as context.'), run: () => { if (current()) window.api.showAssistant?.(); } }] });
       sections.push({title:T('Oynatma ve görünüm','Playback and view'),items:[{type:'range',label:T('Ses düzeyi','Volume'),value:kind==='shelf'?num($('mediaShelfAudio')?.volume??1):kind==='browser'?num(player.browserVolume??1):num($('playerVideo')?.volume??1),onChange:value=>{if(current())dispatch('setVolume',{volume:Number(value)});}}, {type:'button',label:T('Sahneyi tam ekran aç','Open stage fullscreen'),run:()=>{if(!current())return;if(doc.fullscreenElement)doc.exitFullscreen?.();else host?.requestFullscreen?.();}}]});
       return { job: job(), sections };
     }
     return {
-      caps: { loop: true, save: typeof window.api.upsertResearchAnnotation==='function', cinema:kind==='local', study:true, word:kind!=='shelf' },
+      caps: { loop: true, save: typeof window.api.upsertResearchAnnotation==='function', cinema:kind==='local', study:true, word:kind!=='shelf', dub: typeof window.DubGeneratorUI?.prepareCurrent === 'function' },
       identity, panel, actions,
       recovery: () => current() && (kind === 'shelf' ? window.MediaShelfUI?.playbackRecovery()
         : activePlaybackRecovery() && { ...activePlaybackRecovery(), run: runPlaybackRecovery }),
@@ -363,6 +368,10 @@
           }
           case 'advanced':openAdvanced();return Promise.resolve({ok:true});
           case 'assistant':window.api.showAssistant?.();return Promise.resolve({ok:true});
+          case 'dub': {
+            if (!window.DubGeneratorUI?.prepareCurrent) return Promise.resolve({ok:false,code:'unsupported'});
+            return Promise.resolve(window.DubGeneratorUI.prepareCurrent()).then(() => ({ok:true}));
+          }
           case 'fullscreen':return Promise.resolve(doc.fullscreenElement?doc.exitFullscreen?.():host?.requestFullscreen?.()).then(()=>({ok:true}));
           case 'wordInfo':case 'wordSave':case 'wordLookup':return wordAction(t,v);
           case 'openQueued': if(kind!=='local'||!Number.isInteger(v)||v<=player.playlistIndex||v>=player.playlist.length)return Promise.resolve({ok:false,code:'invalid-range'});return Promise.resolve(playPlaylistDelta(v-player.playlistIndex)).then(()=>({ok:true}));
@@ -408,7 +417,8 @@
     const k = `${kind}:${mode}`; if (inst && key === k) return; const had=!!inst,active=doc.activeElement;
     if(!had&&active?.matches?.('button,a,summary')&&!active.closest('.sh-host'))stageOpener=active;
     unmount();
-    host = doc.createElement('div'); host.className = 'sh-host'; host.dataset.uiUntranslated=''; host.style.top = kind==='shelf'?'var(--window-controls-safe-height,38px)':headH() + 'px'; if(kind==='shelf'){host.classList.add('sh-shelf-host');doc.body.append(host);doc.body.classList.add('shelf-sahne-on');const old=doc.querySelector('.ms-podcast-workspace');if(old)old.inert=true;}else{layer.append(host);layer.classList.add('cp-sahne-on');}
+    host = doc.createElement('div'); host.className = 'sh-host'; host.dataset.uiUntranslated=''; if(kind==='shelf'){host.classList.add('sh-shelf-host');doc.body.append(host);doc.body.classList.add('shelf-sahne-on');const old=doc.querySelector('.ms-podcast-workspace');if(old)old.inert=true;}else{layer.append(host);layer.classList.add('cp-sahne-on');}
+    host.style.top = kind === 'shelf' ? 'var(--window-controls-safe-height,38px)' : headH() + 'px';
     inst = new Sahne(host, makeAdapter(kind, mode), {
       mode, intro: intro && !had, prefs,
       onMode: (m, p) => {

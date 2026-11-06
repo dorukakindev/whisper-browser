@@ -14,6 +14,7 @@
         <div>${button('close', 'close', T('Kapat', 'Close'))}</div>
         <div class="sh-seg browser-study-modes" role="tablist" style="--n:${caps.cinema ? 3 : 2};--i:${modeIndex}" aria-label="${T('Medya görünümü', 'Media view')}">${modes}</div>
         <div class="sh-top-r">
+          ${caps.dub ? button('dub', 'voice', T('Altyazıdan dublaj', 'Dub from subtitles'), 'aria-haspopup="dialog"') : ''}
           ${button('transcript', 'classic', T('Transkript', 'Transcript'), 'aria-expanded="false"', 'sh-transcript-toggle')}
           ${button('panel', 'tools', T('İşlemler', 'Tasks'), 'aria-pressed="false" aria-haspopup="dialog"')}
           <button class="sh-btn bp-button" data-a="sleep" type="button" aria-pressed="false" aria-label="${T('Uyku zamanlayıcısı', 'Sleep timer')}" title="${T('Uyku zamanlayıcısı', 'Sleep timer')}">${icon('moon')}<span data-r="sleeplbl">${T('Uyku', 'Sleep')}</span></button>
@@ -44,7 +45,9 @@
             <button class="sh-follow bp-follow" data-a="follow" type="button" aria-pressed="true">${icon('down')}<span>${T('Takip açık', 'Follow on')}</span></button>
           </div>
           <div class="sh-cards-wrap"><div class="sh-cards bp-cue-list" data-r="scroll" tabindex="0" aria-label="${T('Bölüm transkripti', 'Episode transcript')}"></div></div>
-          <footer class="bp-footer">${button('assistant', 'chat', T('Bu medya hakkında Asistana sor', 'Ask Assistant about this media'))}</footer>
+          <footer class="bp-footer">
+            ${button('assistant', 'chat', T('Asistana sor', 'Ask Assistant'))}
+          </footer>
         </aside>
       </div>
       <aside class="sh-panel" data-r="panel" role="dialog" aria-label="${T('İşlemler', 'Tasks')}" hidden></aside>
