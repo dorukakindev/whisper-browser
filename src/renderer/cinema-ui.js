@@ -493,7 +493,10 @@
     const nav = n("nav", "cn-film-nav"), navInner = n("div", "cn-container");
     nav.setAttribute("aria-label", t("On this film page", "Film sayfas\u0131nda gezinme"));
     for (const [section, en, tr] of [[story, "Story", "Konu"], [cast, "Cast", "Oyuncular"], [review, "Reviews & analysis", "Yorumlar ve analiz"], [sources, "Sources & status", "Kaynak ve durum"], [extras || advanced, "Details", "Ayr\u0131nt\u0131lar"]]) if (section&&!section.hidden) {
-      const b = action(t(en, tr), () => section.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }), "ghost");
+      const b = action(t(en, tr), () => {
+        if (section === sources) advanced.open = true;
+        section.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+      }, "ghost");
       b.dataset.filmSection = '';
       b.addEventListener('click',()=>{navInner.querySelectorAll('[data-film-section]').forEach(node=>node.setAttribute('aria-current',String(node===b)));});
       navInner.append(b);

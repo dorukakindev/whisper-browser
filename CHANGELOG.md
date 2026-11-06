@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Web ve podcast ağ hatasında aynı kaynakta son güvenli konuma dönülür. PDF okuma konumu, yakınlaştırma ve arama/atıf dönüşü hatırlanır.
+- İş geçmişi dört durum ile kayıtlı altyazı sonucunu gösterir. Yapım detayında yerel ve web kaynakları, devam konumu ve yeniden bağlama ayrı görünür. [Teslim](docs/devir/2026-11-06-0643.md).
+
 - Altyazı tek satır düzenlemesinde önce/sonra ve dosyadan ayrı oturum içi geri alma. Browser Sahne durumu medya kimliğine bağlı.
 - Çalışma paketi önizlemesi hedef dosya farklarını gösterir, bayat hedefi reddeder ve pakette olmayan arayüz ayarlarını korur. Asistanın süreli izleme taslağı mevcut düzenlenebilir rotayı ve koleksiyon incelemesini açabilir. [Teslim](docs/devir/2026-11-06-0625.md).
 

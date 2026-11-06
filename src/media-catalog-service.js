@@ -252,10 +252,13 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
         case 'poster': return { ok: true, image: imageFor(found(input.id).posterPath,input.large===true?500:240) };
         case 'play': {
           const item = found(input.id);
-          const episode = input.episodeId ? item.episodes.find(ep => ep.id === input.episodeId) : null;
-          if (input.episodeId && !episode) throw new Error('Bölüm bulunamadı.');
-          let choice = episode ? null : require('./catalog-library-model').playbackSource(item,input);
-          if(choice?.editionId&&!choice.extraId&&!Object.hasOwn(input,'partId')){
+          const exact = input.sourceId ? require('./film-watch-service').sources(item).find(row=>row.id===input.sourceId) : null;
+          if (input.sourceId && !exact) throw Error('Library source changed; choose it again.');
+          const selection = exact ? {editionId:'',...exact.locator} : input;
+          const episode = selection.episodeId ? item.episodes.find(ep => ep.id === selection.episodeId) : null;
+          if (selection.episodeId && !episode) throw new Error('Bölüm bulunamadı.');
+          let choice = episode ? null : require('./catalog-library-model').playbackSource(item,selection);
+          if(!exact&&choice?.editionId&&!choice.extraId&&!Object.hasOwn(input,'partId')){
             const edition=item.editions.find(row=>row.id===choice.editionId),sequence=[{id:'',source:edition.source},...edition.parts],playbackHistory=historyIndex(watchItems());
             const resume=sequence.find(row=>{const p=progress(row.source,playbackHistory);return p?.position>0&&!p.completed;})||sequence.find(row=>!progress(row.source,playbackHistory)?.completed)||sequence[0];
             if(resume.id)choice=require('./catalog-library-model').playbackSource(item,{editionId:edition.id,partId:resume.id});
@@ -264,7 +267,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           if (!source) throw new Error('Önce video dosyası veya browser bağlantısı ekleyin.');
           let value = source.value;
           if (source.type === 'local') {
-            if (source.imported === true) {
+            if (source.imported === true || input.relink === true) {
               // Paketten gelen yol bu makinede seçilmedi: sessiz grant yerine
               // kullanıcıya dosyayı bir kez gösterip seçimini al.
               const picked = await choose('İçe aktarılan kayıt için video dosyasını doğrulayın', ['mp4', 'mkv', 'webm', 'avi', 'mov', 'm4v', 'ts']);
@@ -275,8 +278,9 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
               let patched;
               if(choice?.extraId)patched=store().upsert({id:item.id,extras:item.extras.map(row=>row.id===choice.extraId?{...row,source:replacement}:row)});
               else if(choice?.editionId)patched=store().upsert({id:item.id,editions:item.editions.map(row=>row.id!==choice.editionId?row:choice.partId?{...row,parts:row.parts.map(part=>part.id===choice.partId?{...part,source:replacement}:part)}:{...row,source:replacement})});
-              else patched=patchSource(input.id,input.episodeId||null,replacement);
-              source=input.episodeId?patched.episodes.find(ep=>ep.id===input.episodeId)?.source:require('./catalog-library-model').playbackSource(patched,choice).source;
+              else patched=patchSource(input.id,episode?.id||null,replacement);
+              if(input.relink===true)return {ok:true,item:visible(patched)};
+              source=episode?patched.episodes.find(ep=>ep.id===episode.id)?.source:require('./catalog-library-model').playbackSource(patched,choice).source;
             }
             value = inspectMedia(value);
             if (!grantMedia(value)) throw new Error('Video dosyası açılamadı.');

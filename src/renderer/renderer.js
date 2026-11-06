@@ -15074,6 +15074,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     updateChapterNow(player.browserTime);
     player.browserPaused = !!event.media.paused;
     player.browserAdPlaying = !!event.media.adPlaying;
+    if (!player.browserAdPlaying && player.browserDuration > 0) rememberPlaybackCheckpoint(player.browserTime);
     player.browserAdSkippable = !!event.media.adSkippable;
     const adRemaining = event.media.adRemaining === null || event.media.adRemaining === undefined
       ? NaN : Number(event.media.adRemaining);
@@ -15459,15 +15460,27 @@ function clearPlayerPlaybackRecovery() {
   if (player.browserSignalState?.action === 'playback-recovery') $('browserSignalTranslateAction')?.classList.add('hidden');
 }
 
+function rememberPlaybackCheckpoint(seconds) {
+  if (!player.mediaKey || !Number.isFinite(seconds) || seconds <= 0) return;
+  player.playbackCheckpoint = { key:player.mediaKey, generation:currentGeneration(), seconds };
+}
+
+function playbackCheckpoint() {
+  const point = player.playbackCheckpoint;
+  return point?.key === player.mediaKey && point.generation === currentGeneration() ? point.seconds : 0;
+}
+
 function browserPlaybackRecovery(event) {
   const { code, resourceKind } = event.diagnostic;
   const denied = code === 'license-access-denied' || ['media', 'playback-api'].includes(resourceKind)
     && ['authentication-required', 'http-access-denied'].includes(code);
-  if (!denied && !['media-network-error', 'media-decode-error', 'media-source-unsupported'].includes(code)) return '';
+  const mediaNetwork = ['media','playback-api'].includes(resourceKind)
+    && ['service-unavailable','network-timeout','service-throttled','dns-error'].includes(code);
+  if (!denied && !mediaNetwork && !['media-network-error', 'media-decode-error', 'media-source-unsupported'].includes(code)) return '';
   const tabId = player.browserActiveTabId, url = player.browserPageUrl, key = player.mediaKey;
   const generation = currentGeneration();
   if (!key || !/^https?:\/\//i.test(url) || event.mediaId !== browserTabState()?.mediaId) return '';
-  const seconds = Number(player.browserTime) || player.positions[playerPositionKey()]?.t || 0;
+  const seconds = playbackCheckpoint() || Number(player.browserTime) || player.positions[playerPositionKey()]?.t || 0;
   const current = () => player.workspaceMode === 'browser' && tabId === player.browserActiveTabId
     && url === player.browserPageUrl && key === player.mediaKey && !staleGeneration(generation);
   player.playbackRecovery = {
@@ -15496,19 +15509,24 @@ async function runPlaybackRecovery() {
   } finally { recovery.busy = false; }
 }
 
-async function showLocalPlaybackRecovery(video, { code, manifest, position } = {}) {
+async function showLocalPlaybackRecovery(video, { code, manifest, position, nativeFailure = false } = {}) {
   const key = player.mediaKey, generation = currentGeneration(), intent = player.openIntent;
   const source = video.src, file = player.localPath;
   if (!key || (!source && !manifest)) return;
   const current = () => player.workspaceMode === 'player' && player.mediaKey === key
     && !staleGeneration(generation) && player.openIntent === intent && (manifest || video.src === source);
   const pending = player.pendingLibrarySeek;
-  const seconds = position || video.currentTime || (pending?.key === key && pending.generation === generation ? pending.seconds : 0)
+  const seconds = position || video.currentTime || playbackCheckpoint() || (pending?.key === key && pending.generation === generation ? pending.seconds : 0)
     || player.positions[playerPositionKey()]?.t || 0;
   const result = file && key.startsWith('file:') ? await window.api.mediaPlaybackAvailability(key).catch(() => 'unknown') : 'unknown';
-  if (!current() || (!manifest && !video.error)) return;
+  if (!current() || (!manifest && !nativeFailure && !video.error)) return;
   let label = interfaceChoice('Oynatmayı yeniden dene', 'Retry playback');
-  let run = () => {
+  let run = async () => {
+    if (nativeFailure) {
+      if (!await window.NativePlayerUI.start() || !current()) return;
+      video.currentTime = seconds;
+      return video.play();
+    }
     player.pendingLibrarySeek = { key, generation, seconds };
     if (manifest) {
       if (!setPlayerHls(manifest, $('playerTitle')?.textContent, key, player.ytInfo, true)) throw Error('HLS unavailable');
@@ -18934,7 +18952,12 @@ function renderHistory() {
   }
   items.forEach((h) => {
     const row = document.createElement('div');
-    row.className = 'history-item' + (h.ok ? '' : ' error');
+    const status = h.status || (h.ok ? 'completed' : 'failed');
+    const labels = {
+      completed:interfaceChoice('Tamamlandı','Completed'),partial:interfaceChoice('Kısmi','Partial'),
+      cancelled:interfaceChoice('İptal edildi','Cancelled'),failed:interfaceChoice('Başarısız','Failed')
+    };
+    row.className = 'history-item' + (status === 'failed' ? ' error' : '');
     row.dataset.id = h.id;
 
     const main = document.createElement('div');
@@ -18948,7 +18971,13 @@ function renderHistory() {
     badge.className = 'history-badge';
     badge.textContent = h.source === 'youtube' ? 'YouTube' : 'Dosya';
     m.appendChild(badge);
-    m.appendChild(document.createTextNode(h.ok ? historyLine(h) : (h.error || 'Hata')));
+    const range = h.clipStart != null || h.clipEnd != null
+      ? [pSecToTime(h.clipStart || 0), h.clipEnd == null ? interfaceChoice('sona kadar','to end') : pSecToTime(h.clipEnd)].join(' – ') : '';
+    m.appendChild(document.createTextNode([labels[status], h.kind === 'translation' ? interfaceChoice('Çeviri','Translation') : '',
+      [h.language,h.targetLanguage].filter(Boolean).join(' → '), range, historyLine(h), h.error].filter(Boolean).join(' · ')));
+    if (h.input) main.appendChild(Object.assign(document.createElement('small'), {
+      className:'history-meta', textContent:h.source==='youtube' ? youtubeVideoId(h.input) || '' : h.input.split(/[\\/]/).pop()
+    }));
     main.appendChild(t);
     main.appendChild(m);
 
@@ -18964,7 +18993,14 @@ function renderHistory() {
       b.setAttribute('aria-label', title);
       return b;
     };
-    if (h.ok && (h.files || []).length) {
+    if (h.resultCount > 0) {
+      const available = h.availableResults > 0;
+      const result = mk('result', available ? interfaceChoice('Sonucu aç','Open result') : interfaceChoice('Sonuç dosyası yok','Result file missing'),
+        available ? interfaceChoice('Kayıtlı altyazıyı oku','Read saved subtitle') : interfaceChoice('Kayıtlı altyazı bulunamadı','Saved subtitle file is unavailable'));
+      result.disabled = !available;
+      acts.appendChild(result);
+    }
+    if (h.ok && h.availableResults > 0) {
       acts.appendChild(mk('play', 'İzle', 'Videoyu ve bu işin altyazısını oynatıcıda aç'));
       acts.appendChild(mk('folder', 'Klasör', 'Çıktı klasörünü aç'));
     }
@@ -19975,6 +20011,35 @@ window.openMediaCatalogPlayback = async (item) => {
     await openLocalMedia(item.localPath || item.sourceRef, position);
   } else await openWatchLibraryItem(item, position);
 };
+
+async function openHistoryResult(h, button) {
+  button.disabled = true;
+  try {
+    const result = await window.api.authorizeHistoryFiles({id:h.id,resultOnly:true});
+    const files = result?.files || [];
+    if (!result?.ok || !files.length) throw Error(interfaceChoice('Kayıtlı altyazı artık açılamıyor.', 'The saved subtitle is no longer available.'));
+    const dialog = document.createElement('dialog');
+    dialog.className = 'timing-review';
+    const title = document.createElement('h2');title.textContent = h.title;
+    const close = document.createElement('button');close.className = 'tool-button';close.textContent = interfaceChoice('Kapat','Close');
+    close.onclick = () => dialog.close();
+    dialog.append(title,close);
+    const append = async (file,index) => {
+      const details = document.createElement('details'); details.open = index === 0;
+      const summary = document.createElement('summary'); summary.textContent = file.split(/[\\/]/).pop();
+      const text = document.createElement('pre');text.style.whiteSpace='pre-wrap';
+      details.append(summary,text);dialog.append(details);
+      const read = await window.api.readSubtitle(file).catch(() => null);
+      text.textContent = read?.ok ? read.text.slice(0,100000) + (read.text.length>100000 ? '\n…' : '') :
+        interfaceChoice('Sonuç dosyası okunamadı.', 'Could not read the result file.');
+    };
+    dialog.addEventListener('close',()=>{dialog.remove();button.focus({preventScroll:true});},{once:true});
+    document.body.append(dialog);dialog.showModal();
+    await Promise.all(files.slice(0,12).map(append));
+  } catch (error) {
+    button.textContent = error.message;
+  } finally { button.disabled = false; }
+}
 
 async function openHistoryItem(h) {
   // Listeleme, eski gecmis dosyalarina kendiliginden okuma yetkisi vermez.
@@ -21940,6 +22005,7 @@ function setSubtitleModeMenuOpen(open) {
 
 function setMediaKey(key) {
   clearPlayerPlaybackRecovery();
+  player.playbackCheckpoint = null;
   if (key !== player.mediaKey) window.BrowserDubAudioUI?.stop();
   // Devam eden sürüklemeyi eski medya anahtarı hâlâ geçerliyken tamamla;
   // kayıtlı cümle/kelime göçü yeni videonun deposuna yazılmamalı.
@@ -25783,6 +25849,59 @@ async function translateVisiblePdfPagesNow(reader, all, explicitPages = null) {
     : failed ? `${completed} sayfa hazır, ${failed} sayfa başarısız${lastError ? `: ${lastError}` : ''}` : 'Çeviri hazır', canceled || failed > 0);
 }
 
+const PDF_READING_KEY = 'whisper-local.pdf-reading-v1';
+
+function pdfReadingRecords() {
+  try {
+    const records=JSON.parse(localStorage.getItem(PDF_READING_KEY));
+    return records && typeof records === 'object' && !Array.isArray(records) ? records : {};
+  }
+  catch (_) { return {}; }
+}
+
+function rememberPdfReading(reader) {
+  if (!reader?.readingId || reader.readingAnchor || reader.navigatingPage || reader.zooming || reader.switchingView) return;
+  const root = $('pdfReaderPages'), article = reader.pages.get(reader.currentPage)?.article;
+  if (!article || !root.clientHeight) return;
+  const bounds = article.getBoundingClientRect();
+  const fraction = Math.max(0, Math.min(.99, (root.getBoundingClientRect().top - bounds.top) / Math.max(1,bounds.height)));
+  const record = { hash: reader.pdfHash, page: reader.currentPage, scale: reader.scale, fraction };
+  const records = pdfReadingRecords();
+  delete records[reader.readingId];
+  records[reader.readingId] = record;
+  try { localStorage.setItem(PDF_READING_KEY, JSON.stringify(Object.fromEntries(Object.entries(records).slice(-120)))); } catch (_) {}
+  return record;
+}
+
+async function navigatePdfReading(reader, page, { excursion = false, fraction = 0 } = {}) {
+  if (player.pdfReader !== reader || !reader || page < 1 || page > reader.pdf.numPages) return;
+  if (excursion && !reader.readingAnchor) {
+    reader.readingAnchor = rememberPdfReading(reader) || { page: reader.currentPage, scale: reader.scale, fraction: 0 };
+    $('pdfReadingReturn').classList.remove('hidden');
+  }
+  const generation = reader.renderGeneration || 0;
+  const navigation = (reader.navigationSequence || 0) + 1;
+  reader.navigationSequence = navigation;
+  reader.navigatingPage = true;
+  reader.currentPage = page;
+  $('pdfReaderPage').value = String(page);
+  try {
+    await renderPdfReaderPage(page);
+    if (player.pdfReader !== reader || reader.navigationSequence !== navigation || reader.renderGeneration !== generation) return;
+    const root = $('pdfReaderPages'), article = reader.pages.get(page)?.article;
+    if (article) {
+      const bounds = article.getBoundingClientRect();
+      root.scrollTop += bounds.top - root.getBoundingClientRect().top + fraction * bounds.height;
+    }
+    return true;
+  } finally {
+    if (reader.navigationSequence === navigation) {
+      reader.navigatingPage = false;
+      if (player.pdfReader === reader && !reader.readingAnchor) rememberPdfReading(reader);
+    }
+  }
+}
+
 async function openPdfReader(filePath = '') {
   const request=(player.pdfOpenGeneration||0)+1;player.pdfOpenGeneration=request;
   const current=()=>player.pdfOpenGeneration===request;
@@ -25829,21 +25948,32 @@ async function openPdfReader(filePath = '') {
   // bırakılmıyordu; eski çevirinin durumu yeni okuyucuya yazılıyordu.
   if(!current()){await disposePending();return;}
   if (player.pdfReader) closePdfReader(player.pdfReader,true);
-  updatePdfReaderZoomLabel(1);
-  player.pdfReader = { pdf, loadingTask, pdfHash: opened.pdfHash, state: opened.state, scale: 1, currentPage: 1, viewMode, renderGeneration: 0, rendered: new Map(), rendering: new Set(), pages: new Map() };
+  const saved = pdfReadingRecords()[opened.readingId];
+  const changed = !!saved && saved.hash !== opened.pdfHash;
+  const page = Number.isInteger(saved?.page) ? Math.max(1, Math.min(pdf.numPages, saved.page)) : 1;
+  const scale = !changed && Number.isFinite(saved?.scale) ? Math.max(.5, Math.min(2.5, saved.scale)) : 1;
+  updatePdfReaderZoomLabel(scale);
+  $('pdfReader').style.setProperty('--pdf-reader-font', `${20*scale}px`);
+  $('pdfReadingReturn').classList.add('hidden');
+  player.pdfReader = { pdf, loadingTask, pdfHash: opened.pdfHash, readingId: opened.readingId, state: opened.state, scale, currentPage: page, viewMode, renderGeneration: 0, rendered: new Map(), rendering: new Set(), pages: new Map() };
   const reader=player.pdfReader;
   updatePdfReaderProgress();
   const pageInput = $('pdfReaderPage');
-  if (pageInput) { pageInput.max = String(pdf.numPages); pageInput.value = '1'; }
+  if (pageInput) { pageInput.max = String(pdf.numPages); pageInput.value = String(page); }
   if (viewMode === 'both' && !Object.values(opened.state?.pages || {}).some(rows => Array.isArray(rows) && rows.length)) viewMode = 'source';
   $('pdfReaderTitle').textContent = opened.title || 'PDF kitap'; $('pdfReaderPages').replaceChildren();
   $('pdfReader').classList.remove('hidden'); $('playerStage')?.classList.add('hidden'); $('browserWorkspace')?.classList.add('hidden');
   setPdfReaderView(viewMode);
-  for (const pageNumber of [1, 2, 3].filter((number) => number <= pdf.numPages)) {
+  for (const pageNumber of [page, page+1, page+2].filter((number) => number <= pdf.numPages)) {
     await renderPdfReaderPage(pageNumber);
     if(player.pdfReader!==reader)return;
   }
   if(player.pdfReader!==reader)return;
+  await navigatePdfReading(reader, page, { fraction: !changed && page === saved?.page && Number.isFinite(saved?.fraction) ? Math.min(.99, Math.max(0,saved.fraction)) : 0 });
+  if (player.pdfReader !== reader) return;
+  if (changed || saved && page !== saved.page) pdfReaderSetStatus(interfaceChoice(
+    'Belge değişti veya kayıtlı sayfa yok. Mevcut belgede '+page+'. sayfa açıldı.',
+    'The document changed or the saved page is unavailable. Opened page '+page+'.'));
   const root = $('pdfReaderPages'); root.onscroll = () => {
     if(player.pdfReader!==reader)return;
     if(player.pdfReader?.zooming||player.pdfReader?.navigatingPage||player.pdfReader?.switchingView)return;
@@ -25858,6 +25988,7 @@ async function openPdfReader(filePath = '') {
       player.pdfReader.currentPage = page.number;
       if ($('pdfReaderPage')) $('pdfReaderPage').value = String(page.number);
       window.PdfReaderExperience?.changed();
+      rememberPdfReading(reader);
     }
   };
   if (!player.pdfReader.observer && 'IntersectionObserver' in window) {
@@ -25888,19 +26019,29 @@ $('pdfReaderPage')?.addEventListener('change', (event) => {
   const reader = player.pdfReader;
   if (!reader?.pdf) return;
   const raw=Number(event.target.value),page = Math.max(1, Math.min(reader.pdf.numPages, Number.isFinite(raw)?Math.floor(raw):1));
-  const generation=reader.renderGeneration||0;
-  const navigation=(reader.navigationSequence||0)+1;reader.navigationSequence=navigation;reader.navigatingPage=true;
-  reader.currentPage = page; event.target.value = String(page);
-  // Sayfa henüz çizilmemişse önce çiz, sonra kaydır (eskiden kaydırma boşa gidiyordu).
-  renderPdfReaderPage(page).catch(() => {}).then(() => {
-    if (player.pdfReader !== reader || reader.currentPage!==page || (reader.renderGeneration||0)!==generation) return;
-    document.querySelector(`.pdf-page[data-page="${page}"]`)?.scrollIntoView({ behavior: 'instant', block: 'start' });
-  }).finally(()=>{if(reader.navigationSequence===navigation)reader.navigatingPage=false;});
+  reader.readingAnchor = null;
+  $('pdfReadingReturn').classList.add('hidden');
+  void navigatePdfReading(reader, page).catch(() => {});
+
+});
+$('pdfReadingReturn')?.addEventListener('click', async () => {
+  const reader = player.pdfReader, anchor = reader?.readingAnchor;
+  if (!anchor) return;
+  try {
+    await setPdfReaderZoom(anchor.scale);
+    if (player.pdfReader !== reader || reader.readingAnchor !== anchor) return;
+    if (await navigatePdfReading(reader, anchor.page, {fraction:anchor.fraction})) {
+      reader.readingAnchor = null;
+      $('pdfReadingReturn').classList.add('hidden');
+      rememberPdfReading(reader);
+    }
+  } catch (_) { pdfReaderSetStatus(interfaceChoice('Kayıtlı konum açılamadı.', 'Could not open the saved reading position.'), true); }
 });
 function closePdfReader(expectedReader=null,preserveOpen=false) {
   if(expectedReader&&player.pdfReader!==expectedReader)return;
   if(!preserveOpen)player.pdfOpenGeneration=(player.pdfOpenGeneration||0)+1;
   const reader = player.pdfReader;
+  rememberPdfReading(reader);
   reader?.observer?.disconnect();
   if (reader) reader.renderGeneration = (reader.renderGeneration || 0) + 1;
   cancelPdfReaderRenders(reader);
@@ -25982,10 +26123,11 @@ function setPdfReaderZoom(nextScale) {
   $('pdfReaderPages')?.replaceChildren();
   updatePdfReaderZoomLabel(next);
   const generation=reader.renderGeneration;
-  void Promise.all([page,page+1,page+2].filter(number=>number<=reader.pdf.numPages).map(renderPdfReaderPage)).then(()=>{
+  return Promise.all([page,page+1,page+2].filter(number=>number<=reader.pdf.numPages).map(renderPdfReaderPage)).then(()=>{
     if(player.pdfReader!==reader||reader.renderGeneration!==generation)return;
     reader.zooming=false;if(reader.currentPage!==page)return;
     const target=reader.pages.get(page)?.article;if(root&&target)root.scrollTo({top:root.scrollTop+target.getBoundingClientRect().top-root.getBoundingClientRect().top+offset*target.getBoundingClientRect().height,behavior:'instant'});
+    rememberPdfReading(reader);
   }).catch(()=>{if(player.pdfReader===reader&&reader.renderGeneration===generation)reader.zooming=false;});
 }
 $('pdfZoomIn')?.addEventListener('click', () => setPdfReaderZoom((player.pdfReader?.scale || 1) + .15));
@@ -26806,7 +26948,8 @@ if ($('historyList')) {
     const id = btn.closest('.history-item')?.dataset.id;
     const h = historyCache.find((x) => x.id === id);
     if (!h) return;
-    if (btn.dataset.act === 'play') openHistoryItem(h);
+    if (btn.dataset.act === 'result') await openHistoryResult(h,btn);
+    else if (btn.dataset.act === 'play') openHistoryItem(h);
     else if (btn.dataset.act === 'folder') {
       const f = (h.files || [])[0];
       if (f) window.api.openPath(f.replace(/[\\/][^\\/]+$/, ''));
@@ -27388,6 +27531,13 @@ if ($('playerVideo')) {
       player.hlsRecovery.playbackStarted(video.currentTime || 0, performance.now());
     }
   });
+  const checkpoint = () => {
+    if (player.workspaceMode === 'player' && !video.error && (video.readyState >= 2 || window.NativePlayerUI?.active()) && Number.isFinite(video.duration)) {
+      rememberPlaybackCheckpoint(video.currentTime);
+    }
+  };
+  video.addEventListener('timeupdate', checkpoint);
+  video.addEventListener('seeked', checkpoint);
   video.addEventListener('playing', () => {
     spin(false);
     queuePlayerVideoFrame();

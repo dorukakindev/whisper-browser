@@ -163,7 +163,7 @@ app
       assert.equal(await run('return player.pdfReader.currentPage'),3);
       if(process.argv.includes('--experience801')){await until(()=>run(`return CSS.highlights.has('pdf-citation')`),'prose citation highlight');await capture('citation-highlight-reading.png');await run(`document.querySelector('[data-pdf-view="source"]').click();return true`);await until(()=>run(`return [...document.querySelectorAll('.pdf-citation-overlay i')].some(n=>n.getBoundingClientRect().width>0)`),'original page quote boxes');await capture('citation-highlight-source.png');}
       await capture('citation-page3.png');
-      await run(`document.getElementById('pdfCitationBack').click();return true`);
+      await run(`document.getElementById('pdfReadingReturn').click();return true`);
       await until(()=>run('return player.pdfReader.currentPage===1'),'citation return');
       await assert.rejects(run(`await BookAssistantUI.assistant.navigate({...${JSON.stringify(citation)},sourceId:'other-document'})`),/original document|özgün belge/);
       await run(`player.cues=[{start:1.1,end:1.9,text:'First sentence.'},{start:3,end:4,text:'Manually adjusted.'}];player.timeline.selected=1;timelineNudge(.1);return true`);
