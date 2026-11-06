@@ -1,6 +1,6 @@
 # Bekleyen işler
 
-Son durum kontrolü **2026-11-06**. Son ürün `d87d6e6924ece13490f4e64240d6a4ca9d4b129e`. [Güncel teslim](docs/devir/2026-11-06-0643.md).
+Son durum kontrolü **2026-11-06**. Son ürün `2c1935b5eacf1fc22163eea2c597574182f5169f`. [Güncel teslim](docs/devir/2026-11-06-0643.md).
 
 **Yeni sohbet başlangıcı:** P025 [PR #842](https://github.com/dorukakindev/whisper-browser/pull/842) ile master'a alındı; doğrulanmış ürün başlangıcı `7bf15f3c2876a5465b0c7f59fff3a037b41aeb69`. Sonraki belge commitleri ürün değişikliği değildir; çalışmadan önce gerçek HEAD/remote ve kişisel farkları yeniden kontrol et. Mevcut görevlerden yarım bırakılmış yeni ürün işi yok; aşağıdaki koşullu/ertelenmiş işler korunur.
 
