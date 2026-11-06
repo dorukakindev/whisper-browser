@@ -325,9 +325,14 @@
       meta.append(r);
     }
     for (const value of [item.year, item.runtime ? `${Math.floor(item.runtime / 60)} ${t("h", "sa")} ${item.runtime % 60} ${t("min", "dk")}` : "", (item.genres || []).slice(0, 3).map(window.MediaVisual.genre).join(" / ")]) if (value) meta.append(n("span", "", value));
+    if (isDiscovery && membership) meta.append(membership);
     copy.append(meta);
-    const description = item.tagline || item.synopsisTr || item.synopsis;
-    if (description) copy.append(n("p", "cn-hero-description", description));
+    const storyText = item.synopsisTr || item.synopsis;
+    const description = isDiscovery
+      ? (item.tagline?.trim() !== storyText?.trim() ? item.tagline : '')
+      : item.tagline || storyText;
+    const synopsis = description ? n("p", "cn-hero-description", description) : null;
+    if (synopsis && !isDiscovery) copy.append(synopsis);
     const actions = n("div", "cn-hero-actions");
     if (primary) {
       rebutton(primary, "primary", isDiscovery ? "plus" : item.source || item.episodes?.some((e) => e.source) ? "play" : "folder");
@@ -338,7 +343,8 @@
     const rest = [...oldActions?.children || []].filter((x) => x !== primary && x !== favorite);
     const reviewAction = rest.find((x) => x.dataset.discoveryAction === "reviews");
     if (reviewAction) {
-      actions.append(rebutton(reviewAction, "icon", "quote"));
+      reviewAction.textContent = t("Reviews & analysis", "Yorumlar ve analiz");
+      actions.append(rebutton(reviewAction, "secondary", "quote"));
       rest.splice(rest.indexOf(reviewAction), 1);
     }
     if (isDiscovery && personal) for (const [index, en, tr, symbol] of [[0, "Liked it", "Be\u011Fendim", "like"], [1, "Not for me", "Bana g\xF6re de\u011Fil", "dislike"]]) actions.append(action(t(en, tr), () => {
@@ -370,7 +376,10 @@
       }
     }
     copy.append(actions);
-    if (isDiscovery) { if(membership)copy.append(membership);if(basis)copy.append(basis); }
+    if (isDiscovery) {
+      if (basis) copy.append(basis);
+      if (synopsis) copy.append(synopsis);
+    }
     const resume = page.querySelector(".cn-library-resume");
     if (resume) copy.append(resume);
     if (personal) {
