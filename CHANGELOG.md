@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Podcast araması seçili bölümün eksik çevirisini açıklar ve sonraki sayfa yüklenince odağı yeni pasaja taşır. Zevk dayanağında özgün yoruma geçiş öne çıkar. [Teslim](docs/devir/2026-11-06-0539.md).
+
 - Kayıtlı Whisper podcast pasajları doğrulanan ses kopyasında mevcut oynatıcı ve Sahne ile doğru konuma döner. Asistan kayıtlı metinleri kaynaklı arar ve geçerli pasaj için inceleme kartı sunar. [Teslim](docs/devir/2026-11-06-0531.md).
 
 - Podcast transkript aramasında yayın, bölüm ve metin filtreleri, bölüm grupları, 100 sonuçluk sayfalar ve dönüşte arama konumu. Pasaj, not, kuyruk ve zevk dayanağı eylemleri mevcut ekranlarda daha belirgin. [Teslim](docs/devir/2026-11-06-0515.md).
