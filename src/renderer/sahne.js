@@ -44,7 +44,9 @@
       this.root = this.el(root.BrowserStudyView.markup({ mode: this.o.mode, caps: this.caps, display: this.s.disp, T, esc, icon: ic }));
       this.root.classList.toggle('sh-audio', !!this.a.info().audio);
       this.host.append(this.root);
-      this.q('[data-r=job]').after(this.recoveryMarkup());
+      const job = this.q('[data-r=job]'), statusRow = this.el('<div class="sh-status-row"></div>');
+      job.before(statusRow);
+      statusRow.append(job, this.recoveryMarkup());
       if(this.a.processing)this.buildScope();
       const slot = this.q('[data-r=slot]'), media = this.a.slot?.(this.o.mode);
       if (slot && media) slot.append(media);
@@ -303,6 +305,8 @@
       this.rows=st.rows;scroll.textContent='';this.lines=[];
       this.root.classList.toggle('sh-translation-only', this.rows.some(row => row.trs.length || row.unc?.length) && !this.rows.some(row => row.src.trim()));
       this.root.classList.toggle('sh-source-only', this.rows.some(row => row.src.trim()) && !this.rows.some(row => row.trs.length || row.unc?.length));
+      const display = this.q('.browser-study-display');
+      if (display) display.hidden = this.root.classList.contains('sh-translation-only') || this.root.classList.contains('sh-source-only');
       this.applyDisp();
       const frag = document.createDocumentFragment();
       if(!st.rows.length){const empty=this.el(`<div class="sh-empty">${ic('mic')}<h2>${T('Konuşma burada metne dönüşür.','The conversation becomes text here.')}</h2><p>${T('Whisper ile bu bölümü yazıya dökün; çeviriyi aynı zaman çizelgesinde okuyun. Mevcut transkript ve ileri seçenekler İşlemler’de.','Transcribe this episode with Whisper and read its translation on the same timeline. Existing transcripts and advanced options are in Tasks.')}</p><button class="sh-btn" type="button" data-a="panel">${T('İşlemleri aç','Open tasks')}</button></div>`);frag.append(empty);}

@@ -31,6 +31,19 @@ test('the active caption refreshes at the same index and clears through a silent
  assert.equal(f.sh.q('[data-r=subs]').hidden,true);
  assert.equal(f.sh.lines[0].hasAttribute('aria-current'),false);
 });
+test('a single available language hides the redundant selector and two languages restore it',t=>{
+ const f=mount(t,{study:true});
+ const display=f.sh.q('.browser-study-display');
+ assert.equal(display.hidden,false);
+ for(const row of f.rows) row.src='';
+ f.setRevision('single');f.sh.tick();
+ assert.equal(display.hidden,true);
+ assert.equal(f.sh.displayMode(),'tr');
+ f.rows[0].src='Original';
+ f.setRevision('pair');f.sh.tick();
+ assert.equal(display.hidden,false);
+ assert.equal(f.sh.displayMode(),'both');
+});
 test('untimed content is readable without a timestamp, active line, or seek command',t=>{
  const f=mount(t,{untimed:true}),row=f.sh.q('[data-i="0"]');assert(row.textContent.includes('Yayıncı metni'));assert.equal(row.hasAttribute('tabindex'),false);assert.equal(row.querySelector('.at'),null);assert.equal(f.sh.cur,-1);row.click();assert.equal(f.commands.length,0);
 });
