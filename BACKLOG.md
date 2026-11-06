@@ -8,6 +8,8 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 
 ## Sahne adres satırı — görsel kabul
 
+- Oynatma kontrolleri için native LG turunda zamansız metin, sessiz aralık ve Home/End kontrolü kalıyor. 55 hedefli kontrol ve kontrollü çizimler tamamlandı. [Devir](docs/devir/2026-11-06-1143.md).
+
 - 10:46: ana sayfa uzun başlık ve Keşfet ortak hiza/afiş yedeği kontrollü gerçek bileşen çiziminde incelendi; 10 mevcut kontrol geçti. Native LG turunda gerçek uzun başlık ve Keşfet dönüşü ayrıca kontrol edilebilir. [Devir](docs/devir/2026-11-06-1046.md).
 
 - 10:34: ayrı zaman grupları ve ses yüzdesi kontrollü çizimde incelendi; 54 kontrol geçti. Gerçek iki izde sıfırlama/bağımsız kayma ve ses görünümü önceki kısa LG kabulünde kontrol edilir. [Devir](docs/devir/2026-11-06-1034.md).

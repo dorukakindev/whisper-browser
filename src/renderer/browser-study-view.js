@@ -35,6 +35,7 @@
               <span class="sh-sentence-nav" role="group" aria-label="${T('Cümle gezinmesi','Sentence navigation')}">${transportButton('prev', 'prev', T('Önceki cümle', 'Previous sentence'))}${transportButton('replay', 'replay', T('Cümleyi tekrar dinle', 'Replay sentence'))}${transportButton('next', 'next', T('Sonraki cümle', 'Next sentence'))}</span>
             </div><div class="browser-study-playback-options"><button class="sh-chip bp-button" data-a="rate" type="button" aria-label="${T('Oynatma hızı', 'Playback speed')}">1×</button>${loop}${button('fullscreen', 'focus', T('Tam ekran', 'Fullscreen'))}</div></div>
             <label class="sh-volume">${icon('volume')}<span>${T('Ses', 'Volume')}</span><input class="sh-local-volume" type="range" min="0" max="1" step=".01" value="1" aria-label="${T('Ses düzeyi', 'Volume')}"><output>100%</output></label>
+            <p class="sh-transport-hint" data-r="transportHint" hidden></p>
           </div>
         </section>
         <aside class="sh-cardsbox bp-panel browser-study-panel" data-bp-tab="subs" aria-label="${T('Transkript ve araçlar', 'Transcript and tools')}">
