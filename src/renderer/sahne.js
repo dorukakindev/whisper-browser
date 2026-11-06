@@ -11,7 +11,7 @@
     back: 'M11 5 5 10l6 5|M5 10h8a6 6 0 0 1 0 12h-2', fwd: 'M13 5l6 5-6 5|M19 10h-8a6 6 0 0 0 0 12h2', replay: 'M4 12a8 8 0 1 0 2.6-5.9|M4 4v5h5',
     loop: 'M17 2l4 4-4 4|M3 11V9a3 3 0 0 1 3-3h15|M7 22l-4-4 4-4|M21 13v2a3 3 0 0 1-3 3H3', moon: 'M20 14.5A8.5 8.5 0 1 1 9.5 4a6.6 6.6 0 0 0 10.5 10.5Z',
     focus: 'M4 9V5h4|M20 9V5h-4|M4 15v4h4|M20 15v4h-4', close: 'M6 6l12 12|M18 6 6 18', copy: 'M9 9h10v10H9z|M5 15V5h10', star: 'M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 17l-5.2 2.7 1-5.9L3.5 9.7l5.9-.8Z',
-    classic: 'M4 5h16v14H4z|M15 5v14', search: 'M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Z|m15.5 15.5 4 4', swap: 'M7 7h13l-3-3|M17 17H4l3 3', chev: 'm15 5-7 7 7 7',
+    classic: 'M4 5h16v14H4z|M15 5v14', chat: 'M20 11a8 8 0 0 1-8 8H4l1.8-4A8 8 0 1 1 20 11Z|M9 9h6|M9 13h4', search: 'M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Z|m15.5 15.5 4 4', swap: 'M7 7h13l-3-3|M17 17H4l3 3', chev: 'm15 5-7 7 7 7',
     volume: 'M11 5 6 9H3v6h3l5 4V5Z|M15 8a6 6 0 0 1 0 8|M18 5a10 10 0 0 1 0 14', mic: 'M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 6 0Z|M6 11a6 6 0 0 0 12 0|M12 17v4', tools: 'M4 7h10|M18 7h2|M4 17h2|M10 17h10|M14 4v6|M6 14v6', down: 'M12 5v14|m6 13 6 6 6-6'
   };
   const FILLED = new Set(['play', 'pause']);
@@ -41,6 +41,7 @@
     prefs() { return { focus: this.s.focus, disp: this.s.disp }; }
     buildStudy() {
       this.root = this.el(root.BrowserStudyView.markup({ mode: this.o.mode, caps: this.caps, display: this.s.disp, T, esc, icon: ic }));
+      this.root.classList.toggle('sh-audio', !!this.a.info().audio);
       this.host.append(this.root);
       this.q('[data-r=job]').after(this.recoveryMarkup());
       if(this.a.processing)this.buildScope();
@@ -220,6 +221,14 @@
     }
     drawTasks() {
       const bar = this.q('[data-r=workbar]'), html = this.taskButtons();
+      const processing = this.q('[data-r=processing]');
+      if (processing) {
+        processing.hidden = !html;
+        if (html && !this.processingInitialized && this.st) {
+          processing.open = !this.st.rows.length;
+          this.processingInitialized = true;
+        }
+      }
       if (html !== this.taskHTML) { this.taskHTML = html; bar.innerHTML = html; bar.hidden = !html; }
     }
     async startTask(id) {
