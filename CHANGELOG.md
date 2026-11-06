@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Asistan durdurma eylemi etkin kaynağa bağlı. Podcast ve Çift dilli Sahne’de eski iş kontrolleri kaynak değişince geçersizleşir, gecikmiş cümle atlaması kullanıcının duraklatmasını bozmaz. [Devir](docs/devir/2026-11-06-0716.md).
+
 - Browser Podcast, cümleye atlama başarısız olduğunda oynatmayı başlatmaz. [Devir](docs/devir/2026-11-06-0713.md).
 
 - Letterboxd eksik örnekleri kısmi gösterir. Asistan alıntıları özgün yüklenen yorum örneğine döner. [Devir](docs/devir/2026-11-06-0702.md).
