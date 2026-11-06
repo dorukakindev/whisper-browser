@@ -1,3 +1,4 @@
+Güncel teslim: [Podcast cümle döngüsü ve Asistan pasaj geçişi](docs/devir/2026-11-06-0728.md)
 Güncel teslim: [Asistan ve Sahne işlem sahipliği](docs/devir/2026-11-06-0716.md)
 Güncel teslim: [YouTube altyazısı ve Podcast tekrar testi](docs/devir/2026-11-06-0713.md)
 Güncel teslim: [YouTube, Podcast Sahne ve asistan testleri](docs/devir/2026-11-06-0706.md)
