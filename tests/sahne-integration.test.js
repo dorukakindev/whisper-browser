@@ -103,7 +103,7 @@ test('YouTube study entry and Podcast tab keep the browser owner, tracks and com
   const url = 'https://www.youtube.com/watch?v=abcdefghijk';
   Object.assign(f.player, {
     workspaceMode: 'browser', browserActiveTabId: 'youtube-A', mediaKey: 'browser:youtube-A',
-    browserPageUrl: url, browserMediaSeen: true, browserDuration: 90, browserTime: 12,
+    browserPageUrl: url, browserPageTitle: 'Episode 329 - YouTube', browserMediaSeen: true, browserDuration: 90, browserTime: 12,
     browserPaused: true, browserRate: 1.25, viewMode: 'theater',
     browserLoadedTrackId: 'en', browserLoadedTrackId2: 'tr',
     browserTracks: [{ id: 'en', language: 'en' }, { id: 'tr', language: 'tr' }],
@@ -114,7 +114,7 @@ test('YouTube study entry and Podcast tab keep the browser owner, tracks and com
   let settleReplaySeek;
   let delaySeek = false;
   Object.assign(f.context, {
-    browserTabState: () => ({ mediaId: f.player.mediaKey }),
+    browserTabState: () => ({ mediaId: f.player.mediaKey, mediaPublisher: 'Real channel' }),
     currentBrowserYoutubeUrl: () => url,
     closeBrowserToolbarMenus() {}, setBrowserSideRailPref() {}, setPlayerSidebarCollapsed() {}, setSideTab() {}, setSubtitleMode() {},
     setViewMode: mode => { f.player.viewMode = mode; },
@@ -141,10 +141,15 @@ test('YouTube study entry and Podcast tab keep the browser owner, tracks and com
   await Promise.resolve();
   const stage = f.window.CinemaSahne;
   assert.equal(stage.current.o.mode, 'study');
+  assert.equal(stage.current.a.info().title, 'Episode 329');
+  assert.equal(stage.current.a.info().sub, 'Real channel');
+  assert.equal(stage.current.a.info().webVideo, true);
   assert.equal(stage.current.a.state().rows[0].start, 11);
   assert.deepEqual(Array.from(stage.current.a.state().rows[0].trs), ['Çeviri satırı']);
   stage.current.o.onMode('podcast', {});
   assert.equal(stage.current.o.mode, 'podcast');
+  assert.equal(stage.current.a.info().audio, true);
+  assert.equal(stage.current.a.info().webVideo, false);
   assert.equal(f.window.BrowserPodcastUI.snapshot().capabilities.ASR.reason, 'existing-youtube-queue');
   assert.equal(f.window.BrowserPodcastUI.getTranscriptTracks()[1].cues[0].start, 13);
   assert.equal(stage.current.a.state().time, 12);
@@ -427,4 +432,28 @@ test('long plain transcript requires a real selected passage without truncation 
 test('single selected podcast word uses the existing word research record and source binding',async t=>{
  const f=fixture(t),saved=[];f.window.api.upsertResearchAnnotation=async payload=>{saved.push(payload);return {ok:true,annotation:payload};};f.player.workspaceAudio={mediaKey:f.player.mediaKey,generation:1,entryId:'podcast',transcriptState:'untimed',transcriptText:'Original source sentence'};
  const a=f.open(),state=a.state();assert.equal((await a.cmd('save',{row:0,excerpt:'source'},state.rev)).ok,true);assert.equal(saved[0].type,'word');assert.equal(saved[0].source,'source');assert.equal(saved[0].sourceEntryId,'podcast');assert.equal(saved[0].timed,false);assert.equal(saved[0].start,null);
+});
+
+
+test('only healthy progressing content clears its current browser recovery', () => {
+  const renderer=fs.readFileSync(require.resolve('../src/renderer/renderer'),'utf8');
+  const start=renderer.indexOf('function settleBrowserPlaybackRecovery(');
+  const end=renderer.indexOf('async function runPlaybackRecovery(',start);
+  let recovery={owner:'browser'},cleared=0;
+  const context={activePlaybackRecovery:()=>recovery,clearPlayerPlaybackRecovery:()=>{cleared++;}};
+  vm.runInNewContext(renderer.slice(start,end),context);
+  const healthy={paused:false,adPlaying:false,readyState:4,errorCode:0,currentTime:10.5};
+  for(const patch of [{paused:true},{adPlaying:true},{readyState:1},{errorCode:2},{currentTime:10},{currentTime:100},{spinnerVisible:true}]) {
+    context.settleBrowserPlaybackRecovery({...healthy,...patch},10);assert.equal(cleared,0);
+  }
+  recovery=null;context.settleBrowserPlaybackRecovery(healthy,10);assert.equal(cleared,0);
+  recovery={owner:'local'};context.settleBrowserPlaybackRecovery(healthy,10);assert.equal(cleared,0);
+  recovery={owner:'browser'};context.settleBrowserPlaybackRecovery(healthy,10);assert.equal(cleared,1);
+});
+
+
+test('verbatim translation warnings keep real texts and do not alter pairing or clocks',t=>{
+ const f=fixture(t);f.secondary.cues=[{id:'same',start:0,end:8,text:'Source sentence'}];
+ const a=f.open('study'),row=a.state().rows[0];
+ assert.equal(row.translationReview,true);assert.equal(row.src,'Source sentence');assert.deepEqual(Array.from(row.trs),['Source sentence']);assert.equal(row.start,2);
 });

@@ -169,7 +169,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       if (!enabled) { stageStyle?.remove(); stageStyle = null; return; }
       if (stageStyle?.isConnected) return;
       stageStyle = document.createElement('style');
-      stageStyle.textContent = 'html:not(:has(:fullscreen)) #movie_player{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;z-index:2147483000!important;background:#000!important}html:not(:has(:fullscreen)) #movie_player .html5-video-container,html:not(:has(:fullscreen)) #movie_player video.html5-main-video{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:contain!important}';
+      stageStyle.textContent = 'html:not(:has(:fullscreen)),html:not(:has(:fullscreen)) body{overflow:hidden!important;background:#000!important}html:not(:has(:fullscreen)) body *:has(#movie_player){transform:none!important;filter:none!important;perspective:none!important;contain:none!important;overflow:visible!important}html:not(:has(:fullscreen)) body>*{visibility:hidden!important}html:not(:has(:fullscreen)) #movie_player,html:not(:has(:fullscreen)) #movie_player *{visibility:visible!important}html:not(:has(:fullscreen)) #movie_player{position:fixed!important;inset:0!important;margin:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;z-index:2147483000!important;background:#000!important}html:not(:has(:fullscreen)) #movie_player .html5-video-container,html:not(:has(:fullscreen)) #movie_player video.html5-main-video{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:contain!important}';
       (document.head || document.documentElement).append(stageStyle);
     }
     let root = null;
@@ -754,14 +754,16 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       const width = Math.max(40, Math.min(98, Number(style.width) || 88));
       const lines = Math.max(1, Math.min(6, Number(style.maxLines) || 3));
       const gap = Math.max(0, Math.min(48, Number.isFinite(Number(style.gap)) ? Number(style.gap) : 6));
-      const styleKey = [scale, opacity, width, lines, rect.height, gap].join(':');
+      const fontSize = Math.min(27, Math.max(12, Math.min(rect.width * .026, rect.height * .055))) * scale;
+      const styleKey = [scale, opacity, width, lines, rect.height, rect.width, gap].join(':');
       if (styleKey !== appliedStyleKey) {
         appliedStyleKey = styleKey;
         box.style.gap = gap + 'px';
         for (const item of [source, translation]) {
           item.style.maxWidth = width + '%';
           item.style.boxSizing = 'border-box';
-          item.style.fontSize = 'clamp(' + (15 * scale) + 'px,' + (2.05 * scale) + 'vw,' + (27 * scale) + 'px)';
+          item.style.fontSize = fontSize + 'px';
+          item.style.fontFamily = 'Segoe UI, Arial, sans-serif';
           item.style.backgroundColor = 'rgba(5,7,10,' + opacity + ')';
           item.style.maxHeight = 'min(calc(' + (lines * 1.35) + 'em + 4px), ' + Math.max(20, (rect.height - baseMargin - 12) / 2) + 'px)';
         }

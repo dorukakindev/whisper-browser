@@ -15088,6 +15088,8 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
   } else if (event.type === 'cea-capture-progress') {
     applyBrowserCeaCaptureProgress(event, browserTabState());
   } else if (event.type === 'media' && event.media) {
+    const mediaTab = browserTabState();
+    if (mediaTab) mediaTab.mediaPublisher = String(event.media.publisher || '').slice(0,300);
     if (!player.browserMediaSeen) {
       player.browserMediaSeen = true;
       const seenTab = browserTabState();
@@ -15103,6 +15105,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     updateChapterNow(player.browserTime);
     player.browserPaused = !!event.media.paused;
     player.browserAdPlaying = !!event.media.adPlaying;
+    settleBrowserPlaybackRecovery(event.media, previousTime);
     if (!player.browserAdPlaying && player.browserDuration > 0) rememberPlaybackCheckpoint(player.browserTime);
     player.browserAdSkippable = !!event.media.adSkippable;
     const adRemaining = event.media.adRemaining === null || event.media.adRemaining === undefined
@@ -15513,6 +15516,7 @@ function browserPlaybackRecovery(event) {
   const current = () => player.workspaceMode === 'browser' && tabId === player.browserActiveTabId
     && url === player.browserPageUrl && key === player.mediaKey && !staleGeneration(generation);
   player.playbackRecovery = {
+    owner: 'browser',
     current,
     message: interfaceChoice('Video oynatılamadı.', 'Video could not play.'),
     label: denied ? interfaceChoice('Siteyi tarayıcıda aç', 'Open site in browser') : interfaceChoice('Oynatmayı yeniden dene', 'Retry playback'),
@@ -15526,6 +15530,17 @@ function browserPlaybackRecovery(event) {
     }
   };
   return 'playback-recovery';
+}
+
+function settleBrowserPlaybackRecovery(media, previousTime) {
+  const recovery = activePlaybackRecovery();
+  // A page can recover on its own after an early failed media request. Require
+  // observed content playback; metadata, seeking, paused frames and ads cannot
+  // dismiss an unresolved failure.
+  const advance = Number(media.currentTime) - previousTime;
+  if (recovery?.owner === 'browser' && !media.paused && !media.adPlaying && !media.spinnerVisible
+      && Number(media.readyState) >= 2 && !Number(media.errorCode)
+      && advance > .05 && advance < 2 * Math.max(1,Number(media.playbackRate)||1)) clearPlayerPlaybackRecovery();
 }
 
 async function runPlaybackRecovery() {

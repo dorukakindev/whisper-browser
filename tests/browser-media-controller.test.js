@@ -321,7 +321,7 @@ test('bozuk medya değerleri finite olmayan zamanı dışarı sızdırmaz', () =
     readyState: 0, videoWidth: 0, videoHeight: 0, totalVideoFrames: null,
     spinnerVisible: false, errorCode: 0, errorMessage: '',
     audioRecoveryRequired: false,
-    adSkippable: false, adRemaining: null,
+    adSkippable: false, adRemaining: null, publisher: '',
   });
 });
 
