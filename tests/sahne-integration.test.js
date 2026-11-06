@@ -74,6 +74,8 @@ test('browser transcript projection resolves timing per channel and refreshes ed
   const next = a.state();
   assert.equal(next.rows[0].start, 9); assert.equal(next.rows[0].words[0].t0, 9);
   assert.notEqual(next.rev, first.rev); assert(reads <= 4);
+  f.player.cues[0].id = 'replacement';
+  assert.notEqual(a.state().rev, next.rev);
   assert.equal(f.player.cues[0].start, 0); assert.equal(f.player.cues2[0].start, 0);
   f.context.browserTransformForChannel = () => { reads++; throw new Error('unavailable timing lookup'); }; reads = 0;
   const fallback = a.state(); assert.equal(fallback.rows[0].start, 0); assert.equal(fallback.rows[0].words[0].t0, 0); assert(reads <= 4);
@@ -191,6 +193,12 @@ test('YouTube study entry and Podcast tab keep the browser owner, tracks and com
   f.window.dispatchEvent(new f.window.Event('browser-panel-layout'));
   await Promise.resolve();
   assert.equal(stage.current, null, 'delayed browser layout must not reopen the closed Stage');
+  entry.click();
+  await Promise.resolve();
+  assert(stage.current);
+  stage.close();
+  stage.evaluate();
+  assert.equal(stage.current, null, 'programmatic close must clear the browser session too');
 });
 
 test('Translation-only tracks remain translation rows and seek by their own clock', async t => {

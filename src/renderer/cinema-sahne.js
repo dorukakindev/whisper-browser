@@ -30,6 +30,7 @@
   /* ── Tarayıcı cephesi: tarayıcı altyazı işlevinden okur; tarayıcı komutlarıyla çalışır ── */
   function browserFacade() {
     const tabId = () => player.browserActiveTabId;
+    const sourceVersion = () => `observed:${tabId()}:${player.mediaKey}:${player.generation}`;
 
     const hashText = (t) => { let h = 0; const s = String(t || ''); for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; };
     function tracks() {
@@ -40,14 +41,14 @@
         const loaded = (player.browserTracks || []).find((t) => t.id === (secondary ? player.browserLoadedTrackId2 : player.browserLoadedTrackId));
         // Resolve source proof once for this projection, rather than at every cue/word endpoint.
         const timeTransform = subtitleVideoTransform(secondary);
-        let h = 7; const mapped = cues.map((c, i) => { const m = { ...c, id: String(c.id ?? i), start: subtitleVideoTime(c.start, secondary, timeTransform), end: subtitleVideoTime(c.end, secondary, timeTransform) }; h = (h * 31 + Math.round(num(m.start) * 100) + Math.round(num(m.end) * 100) * 7 + hashText(m.text)) | 0; return m; });
+        let h = 7; const mapped = cues.map((c, i) => { const m = { ...c, id: String(c.id ?? i), start: subtitleVideoTime(c.start, secondary, timeTransform), end: subtitleVideoTime(c.end, secondary, timeTransform) }; h = (h * 31 + hashText(m.id) + Math.round(num(m.start) * 100) + Math.round(num(m.end) * 100) * 7 + hashText(m.text)) | 0; return m; });
         return { id: `browser:${tabId()}:${loaded?.id || (secondary ? 'secondary' : 'primary')}:${role}`, revision: `${mapped.length}:${h}`, role, timed: true, offsetSeconds: 0, secondary, timeTransform, language: loaded?.language || loaded?.lang || '', cues: mapped };
       });
       return out;
     }
     const snap = () => {
       if (!player.mediaKey) return null; const [s, t] = tracks(), dur = num(player.browserDuration) || null, seen = !!player.browserMediaSeen;
-      return { mediaKey: player.mediaKey, generation: player.generation, title: player.browserPageTitle || '', time: num(player.browserTime), duration: dur, paused: !!player.browserPaused, rate: num(player.browserRate) || 1, sourceVersion: `observed:${tabId()}:${player.mediaKey}:${player.generation}`, sourceTrack: { id: s.id, revision: s.revision }, secondaryTrack: t.cues.length ? { id: t.id, revision: t.revision } : null, capabilities: { seek: { support: player.isLive ? 'no' : (seen && dur ? 'yes' : 'unknown') } } };
+      return { mediaKey: player.mediaKey, generation: player.generation, title: player.browserPageTitle || '', time: num(player.browserTime), duration: dur, paused: !!player.browserPaused, rate: num(player.browserRate) || 1, sourceVersion: sourceVersion(), projectedTracks: [s, t], sourceTrack: { id: s.id, revision: s.revision }, secondaryTrack: t.cues.length ? { id: t.id, revision: t.revision } : null, capabilities: { seek: { support: player.isLive ? 'no' : (seen && dur ? 'yes' : 'unknown') } } };
     };
     const role = () => { const [s] = tracks(); return { trackId: s.id, trackRevision: s.revision, cues: s.cues, offsetSeconds: 0 }; };
     async function exec(c) {
@@ -65,7 +66,7 @@
     const bridge = MODEL().createPlayerWorkspaceBridge({ readSnapshot: snap, resolveSourceRole: role, executeExisting: exec });
     const wordsOf = (cue, track) => (cue && Array.isArray(cue.wordRanges) && cue.wordRanges.length) ? cue.wordRanges.map((r) => ({ s: r.start, e: r.end, t0: subtitleVideoTime(r.timeStart, track.secondary, track.timeTransform), t1: subtitleVideoTime(r.timeEnd, track.secondary, track.timeTransform) })) : null;
     const loadedLangs = () => { const roles = browserSubtitleRoleCues(), byId = (id) => (player.browserTracks || []).find((t) => t.id === id), t1 = byId(player.browserLoadedTrackId), t2 = byId(player.browserLoadedTrackId2); const of = (cues) => cues && cues.length ? (cues === player.cues2 ? t2 : t1) : null; const s = of(roles.source), r = of(roles.translation); return { src: langCode(s?.language || s?.lang), tr: langCode(r?.language || r?.lang) }; };
-    return { kind: 'browser', tab: tabId, snap, tracks, dispatch: (c) => bridge.dispatch(c), dispose: () => bridge.dispose(), words: wordsOf, langs: loadedLangs, mediaTitle: () => player.browserPageTitle || $('playerTitle')?.textContent || '', sub: () => { try { return new URL(player.browserPageUrl).hostname.replace(/^www\./, ''); } catch (_) { return ''; } }, cover: () => { try { const u = typeof currentBrowserYoutubeUrl === 'function' ? currentBrowserYoutubeUrl() : ''; return u ? (window.MediaHomeModel?.thumbnail?.({ url: u }) || '') : ''; } catch (_) { return ''; } }, slot: () => adopt($('browserViewSlot')), unslot: () => $('browserViewSlot')?.classList.remove('sh-slot-fill') };
+    return { kind: 'browser', tab: tabId, sourceVersion, snap, tracks, dispatch: (c) => bridge.dispatch(c), dispose: () => bridge.dispose(), words: wordsOf, langs: loadedLangs, mediaTitle: () => player.browserPageTitle || $('playerTitle')?.textContent || '', sub: () => { try { return new URL(player.browserPageUrl).hostname.replace(/^www\./, ''); } catch (_) { return ''; } }, cover: () => { try { const u = typeof currentBrowserYoutubeUrl === 'function' ? currentBrowserYoutubeUrl() : ''; return u ? (window.MediaHomeModel?.thumbnail?.({ url: u }) || '') : ''; } catch (_) { return ''; } }, slot: () => adopt($('browserViewSlot')), unslot: () => $('browserViewSlot')?.classList.remove('sh-slot-fill') };
   }
 
   /* ── Yerel cephe: yerel oynatıcının mevcut snapshot/iz/komut yüzeyi (mpv/native dahil, tek yol) ── */
@@ -112,7 +113,7 @@
   function makeAdapter(kind, mode) {
     const F = kind === 'browser' ? browserFacade() : kind === 'shelf' ? shelfFacade() : localFacade();
     const first = F.snap(); const bound = first ? { mediaKey: first.mediaKey, generation: first.generation, sourceVersion: first.sourceVersion } : { mediaKey: '', generation: -1 };
-    const identity = () => { const s = F.snap(); return `${kind}|${F.tab()}|${s ? s.mediaKey : ''}|${s ? s.generation : ''}|${s?.sourceVersion || ''}`; };
+    const identity = () => { if (kind === 'browser') return F.sourceVersion(); const s = F.snap(); return `${kind}|${F.tab()}|${s ? s.mediaKey : ''}|${s ? s.generation : ''}|${s?.sourceVersion || ''}`; };
     let cache = { rev: '', rows: [], meta: [], untimed: false }, ownLoop = null, disposed = false, lastAction = null;
     const current = () => { const now = F.snap(); return !disposed && !!now && now.mediaKey === bound.mediaKey && now.generation === bound.generation && (!bound.sourceVersion || now.sourceVersion === bound.sourceVersion); };
     const activeLoop = (s, range) => kind === 'shelf' ? s?.loopRange?.a === range.a && s.loopRange?.b === range.b
@@ -154,7 +155,7 @@
         cache = { rev: `readonly:${s.mediaKey}:${s.generation}:${JSON.stringify([text,translation])}`, meta: [], untimed: true, rows };
         return cache;
       }
-      const [src, sec] = F.tracks(); const rev = `${src.id}|${src.revision}|${src.offsetSeconds}|${sec.id}|${sec.revision}|${sec.offsetSeconds}|${s.mediaKey}|${s.generation}`;
+      const [src, sec] = s.projectedTracks || F.tracks(); const rev = `${src.id}|${src.revision}|${src.offsetSeconds}|${sec.id}|${sec.revision}|${sec.offsetSeconds}|${s.mediaKey}|${s.generation}`;
       if (rev !== cache.rev) cache = { rev, ...build(src, sec, s) };
       return cache;
     }
@@ -473,6 +474,10 @@
   doc.addEventListener('visibilitychange',()=>{doc.documentElement.dataset.sahneHidden=String(document.hidden);if(!document.hidden)evaluate();});
   window.addEventListener('resize',()=>{if(host&&!key.startsWith('shelf:'))host.style.top=headH()+'px';});
   doc.addEventListener('click',e=>{if(e.target.closest?.('[data-podcast-view]')){SS.set('cp-sahne-off','0');queueMicrotask(evaluate);}},true);
-  window.CinemaSahne = Object.freeze({async openShelf({mode='podcast'}={}){const owner=window.MediaShelfUI?.readSnapshot();if(!owner)return {ok:false,code:'no-source'};if(!window.MediaShelfUI.isPodcastMode?.())await window.MediaShelfUI.openPodcastMode();const now=window.MediaShelfUI.readSnapshot();if(now?.mediaKey!==owner.mediaKey||now?.generation!==owner.generation)return {ok:false,code:'stale-source'};mount('shelf',mode==='study'?'study':'podcast',false);return {ok:true};},open({mode='cinema'}={}){SS.set('cp-sahne-off','0');if(player.workspaceMode==='browser'){window.BrowserStudy?.open?.({preservePodcast:true});window.BrowserPodcastUI?.setMode(mode==='podcast');}else{localView=mode==='cinema'?'cinema':'study';PW()?.setPodcastMode(mode==='podcast');}evaluate();},close(){SS.set('cp-sahne-off','1');unmount();},evaluate,get current(){return inst;}});
+  window.CinemaSahne = Object.freeze({async openShelf({mode='podcast'}={}){const owner=window.MediaShelfUI?.readSnapshot();if(!owner)return {ok:false,code:'no-source'};if(!window.MediaShelfUI.isPodcastMode?.())await window.MediaShelfUI.openPodcastMode();const now=window.MediaShelfUI.readSnapshot();if(now?.mediaKey!==owner.mediaKey||now?.generation!==owner.generation)return {ok:false,code:'stale-source'};mount('shelf',mode==='study'?'study':'podcast',false);return {ok:true};},open({mode='cinema'}={}){SS.set('cp-sahne-off','0');if(player.workspaceMode==='browser'){window.BrowserStudy?.open?.({preservePodcast:true});window.BrowserPodcastUI?.setMode(mode==='podcast');}else{localView=mode==='cinema'?'cinema':'study';PW()?.setPodcastMode(mode==='podcast');}evaluate();},close(){
+    SS.set('cp-sahne-off','1');
+    if (key.startsWith('browser:')) window.BrowserStudy?.close?.();
+    unmount();
+  },evaluate,get current(){return inst;}});
   evaluate();
 })();
