@@ -6306,6 +6306,7 @@ function resetBrowserCaptureState(options = {}) {
   browserRequestRanges.clear();
   browserTrackBuffers.clear();
   browserTrackPublications.clear();
+  browserTextStability.clear();
   browserManifestTransactions.reset();
   for (const timer of browserManifestRetryTimers.values()) clearTimeout(timer);
   browserManifestRetryTimers.clear();
@@ -10070,6 +10071,7 @@ function browserTrackPublicationNeedsMetadataRefresh(previous, meta = {}) {
 function publishBrowserTrackNow(entry) {
   if (!entry) return null;
   const { normalized, meta, tab, publicationKey, fingerprint } = entry;
+  if (meta.context && !isCurrentBrowserContext(meta.context)) return null;
   const previousPublication = browserTrackPublications.get(publicationKey);
   const characterCount=normalized.reduce((sum,cue)=>sum+String(cue.text||'').length,0);
   if (previousPublication?.fingerprint === fingerprint
@@ -10157,7 +10159,10 @@ function flushBrowserTrackPublication(publicationKey, force = false) {
   }
   const entry = browserTrackPendingPublications.get(publicationKey);
   browserTrackPendingPublications.delete(publicationKey);
-  return publishBrowserTrackNow(entry);
+  const published = publishBrowserTrackNow(entry);
+  if (published) noteBrowserDiagnosticActivity(entry.tab, 'lastCapture',
+    `${entry.normalized.length} altyazı satırı yayımlandı / caption lines published`);
+  return published;
 }
 
 function flushBrowserTrackPublications(force = false) {
@@ -11949,8 +11954,11 @@ async function processBrowserCapturedPayloadOnce(responseBuffer, candidate = {},
       provider: youtube.translatedByService ? 'youtube-translated'
         : youtube.automatic ? 'youtube-auto' : '',
     });
-    noteBrowserCapture(strategy, candidate, stored ? 'parsed' : 'rejected',
-      stored ? `${parsed.cues.length} satır · ${parsed.format}` : 'Aynı altyazı daha önce işlendi');
+    const pending = !stored && streamKey && browserTrackPendingPublications.has(streamKey);
+    noteBrowserCapture(strategy, candidate, stored ? 'parsed' : pending ? 'queued' : 'rejected',
+      stored ? `${parsed.cues.length} satır · ${parsed.format}`
+        : pending ? 'Altyazı ayrıştırıldı; kararlı sürüm bekleniyor / Captions parsed; waiting for a stable revision'
+          : 'Aynı altyazı daha önce işlendi');
     return CAPTURE_PROCESSED;
   } catch (error) {
     noteBrowserCapture(strategy, candidate, 'error', error && error.message || 'Yakalama hatası');
@@ -13240,7 +13248,7 @@ async function probeActiveBrowserMedia(requestedTab = null) {
     for (const diagnostic of playbackDiagnostics) publishBrowserPlaybackDiagnostics(tab, diagnostic);
     const mediaSignature = [safeMedia.docToken || '', safeMedia.publisher, Math.round(tab.position * 4), Math.round(tab.duration * 2), tab.rate,
       Math.round(tab.volume * 100), tab.muted, !!safeMedia.paused, !!safeMedia.adPlaying,
-      !!safeMedia.adSkippable, safeMedia.adRemaining ?? ''].join('|');
+      !!safeMedia.adSkippable, safeMedia.adRemaining ?? '', safeMedia.readyState, !!safeMedia.seeking, !!safeMedia.ended, safeMedia.spinnerVisible].join('|');
     if (mediaSignature !== tab.lastMediaEventSignature) {
       tab.lastMediaEventSignature = mediaSignature;
       sendBrowserEvent(tab, { type: 'media', media: safeMedia });

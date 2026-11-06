@@ -33,6 +33,7 @@
     const sourceVersion = () => `observed:${tabId()}:${player.mediaKey}:${player.generation}`;
 
     const hashText = (t) => { let h = 0; const s = String(t || ''); for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; };
+    const projected = new Map();
     function tracks() {
 
       const roles = browserSubtitleRoleCues();
@@ -41,14 +42,40 @@
         const loaded = (player.browserTracks || []).find((t) => t.id === (secondary ? player.browserLoadedTrackId2 : player.browserLoadedTrackId));
         // Resolve source proof once for this projection, rather than at every cue/word endpoint.
         const timeTransform = subtitleVideoTransform(secondary);
-        let h = 7; const mapped = cues.map((c, i) => { const m = { ...c, id: String(c.id ?? i), start: subtitleVideoTime(c.start, secondary, timeTransform), end: subtitleVideoTime(c.end, secondary, timeTransform) }; h = (h * 31 + hashText(m.id) + Math.round(num(m.start) * 100) + Math.round(num(m.end) * 100) * 7 + hashText(m.text)) | 0; return m; });
-        return { id: `browser:${tabId()}:${loaded?.id || (secondary ? 'secondary' : 'primary')}:${role}`, revision: `${mapped.length}:${h}`, role, timed: true, offsetSeconds: 0, secondary, timeTransform, language: loaded?.language || loaded?.lang || '', cues: mapped };
+        const id = `browser:${tabId()}:${loaded?.id || (secondary ? 'secondary' : 'primary')}:${role}`;
+        const language = loaded?.language || loaded?.lang || '';
+        let h = 7;
+        for (const cue of cues) {
+          h = (h * 31 + hashText(cue.id) + hashText(cue.start) + hashText(cue.end) * 7
+            + hashText(cue.text) + hashText(cue.qualityWarning)) | 0;
+          for (const word of cue.wordRanges || []) {
+            h = (h * 31 + hashText(word.start) + hashText(word.end) + hashText(word.timeStart) + hashText(word.timeEnd)) | 0;
+          }
+        }
+        const revision = JSON.stringify([sourceVersion(), secondary, language, cues.length, h, timeTransform]);
+        const previous = projected.get(role);
+        if (previous?.id === id && previous.revision === revision && previous.input === cues) return previous.track;
+        const mapped = cues.map((cue, index) => ({ ...cue, id: String(cue.id ?? index),
+          start: subtitleVideoTime(cue.start, secondary, timeTransform), end: subtitleVideoTime(cue.end, secondary, timeTransform) }));
+        const track = { id, revision, role, timed: true, offsetSeconds: 0, secondary, timeTransform, language, cues: mapped };
+        projected.set(role, { id, revision, input: cues, track });
+        return track;
       });
       return out;
     }
     const snap = () => {
       if (!player.mediaKey) return null; const [s, t] = tracks(), dur = num(player.browserDuration) || null, seen = !!player.browserMediaSeen;
-      return { mediaKey: player.mediaKey, generation: player.generation, title: player.browserPageTitle || '', time: num(player.browserTime), duration: dur, paused: !!player.browserPaused, rate: num(player.browserRate) || 1, sourceVersion: sourceVersion(), projectedTracks: [s, t], sourceTrack: { id: s.id, revision: s.revision }, secondaryTrack: t.cues.length ? { id: t.id, revision: t.revision } : null, capabilities: { seek: { support: player.isLive ? 'no' : (seen && dur ? 'yes' : 'unknown') } } };
+      return { mediaKey: player.mediaKey, generation: player.generation, title: player.browserPageTitle || '', time: num(player.browserTime), duration: dur, paused: !!player.browserPaused, adPlaying: !!player.browserAdPlaying, rate: num(player.browserRate) || 1, sourceVersion: sourceVersion(), projectedTracks: [s, t], sourceTrack: { id: s.id, revision: s.revision }, secondaryTrack: t.cues.length ? { id: t.id, revision: t.revision } : null, capabilities: { seek: { support: player.isLive || player.browserAdPlaying ? 'no' : (seen && dur ? 'yes' : 'unknown') } } };
+    };
+    const sampleFor = state => {
+      const sample = typeof browserTabState === 'function' ? browserTabState()?.browserClockSample : null;
+      return sample && sample.mediaKey === state.mediaKey && sample.generation === state.generation && sample.time === state.time ? sample : null;
+    };
+    const displayTime = state => {
+      const sample = sampleFor(state);
+      if (!sample?.advancing || sample.waiting || sample.seeking || state.paused || state.adPlaying || !(state.duration > 0)) return state.time;
+      const elapsed = Math.max(0, Math.min(1, (window.performance.now() - sample.at) / 1000));
+      return Math.min(state.duration, state.time + elapsed * state.rate);
     };
     const role = () => { const [s] = tracks(); return { trackId: s.id, trackRevision: s.revision, cues: s.cues, offsetSeconds: 0 }; };
     async function exec(c) {
@@ -66,7 +93,7 @@
     const bridge = MODEL().createPlayerWorkspaceBridge({ readSnapshot: snap, resolveSourceRole: role, executeExisting: exec });
     const wordsOf = (cue, track) => (cue && Array.isArray(cue.wordRanges) && cue.wordRanges.length) ? cue.wordRanges.map((r) => ({ s: r.start, e: r.end, t0: subtitleVideoTime(r.timeStart, track.secondary, track.timeTransform), t1: subtitleVideoTime(r.timeEnd, track.secondary, track.timeTransform) })) : null;
     const loadedLangs = () => { const roles = browserSubtitleRoleCues(), byId = (id) => (player.browserTracks || []).find((t) => t.id === id), t1 = byId(player.browserLoadedTrackId), t2 = byId(player.browserLoadedTrackId2); const of = (cues) => cues && cues.length ? (cues === player.cues2 ? t2 : t1) : null; const s = of(roles.source), r = of(roles.translation); return { src: roles.source.length ? langCode(s?.language || s?.lang || (roles.source === player.cues2 ? player.sub2Lang : player.subLang)) : null, tr: roles.translation.length ? langCode(r?.language || r?.lang || (roles.translation === player.cues2 ? player.sub2Lang : player.subLang)) : null }; };
-    return { kind: 'browser', tab: tabId, sourceVersion, snap, tracks, dispatch: (c) => bridge.dispatch(c), dispose: () => bridge.dispose(), words: wordsOf, langs: loadedLangs, mediaTitle: () => player.browserPageTitle || $('playerTitle')?.textContent || '', sub: () => { try { return browserTabState()?.mediaPublisher || new URL(player.browserPageUrl).hostname.replace(/^www\./, ''); } catch (_) { return ''; } }, cover: () => { try { const u = typeof currentBrowserYoutubeUrl === 'function' ? currentBrowserYoutubeUrl() : ''; return u ? (window.MediaHomeModel?.thumbnail?.({ url: u }) || '') : ''; } catch (_) { return ''; } }, slot: () => adopt($('browserViewSlot')), unslot: () => $('browserViewSlot')?.classList.remove('sh-slot-fill') };
+    return { kind: 'browser', tab: tabId, sourceVersion, snap, displayTime, sampleFor, tracks, dispatch: (c) => bridge.dispatch(c), dispose: () => bridge.dispose(), words: wordsOf, langs: loadedLangs, mediaTitle: () => player.browserPageTitle || $('playerTitle')?.textContent || '', sub: () => { try { return browserTabState()?.mediaPublisher || new URL(player.browserPageUrl).hostname.replace(/^www\./, ''); } catch (_) { return ''; } }, cover: () => { try { const u = typeof currentBrowserYoutubeUrl === 'function' ? currentBrowserYoutubeUrl() : ''; return u ? (window.MediaHomeModel?.thumbnail?.({ url: u }) || '') : ''; } catch (_) { return ''; } }, slot: () => adopt($('browserViewSlot')), unslot: () => $('browserViewSlot')?.classList.remove('sh-slot-fill') };
   }
 
   /* ── Yerel cephe: yerel oynatıcının mevcut snapshot/iz/komut yüzeyi (mpv/native dahil, tek yol) ── */
@@ -140,11 +167,30 @@
         const rows = trows.map((r) => {
           const timed = trackTimed && Number.isFinite(r.videoStart) && Number.isFinite(r.videoEnd) && r.videoEnd > r.videoStart;
           meta.push({ cueId: r.cueId, trackId: r.trackId, trackRevision: r.trackRevision });
-          const matched = (r.secondaryCueIds || []).map(id => secById.get(id)).filter(Boolean);
+          const matched = (r.secondaryCueIds || []).map(id => secById.get(id)).filter(cue => cue?.text?.trim());
+          const translationStarts = matched.map(cue => sec.timed !== false && Number.isFinite(cue.start)
+            && Number.isFinite(cue.end) && cue.end > cue.start ? cue.start + num(sec.offsetSeconds) : null);
+          const translationStart = sec.timed === false ? null : matched.reduce((start, cue) =>
+            Number.isFinite(cue.start) && Number.isFinite(cue.end) && cue.end > cue.start
+              ? Math.min(start ?? Infinity, cue.start + num(sec.offsetSeconds)) : start, null);
           const copied = matched.some(c => String(c.text).trim() === String(r.sourceText).trim() && String(c.text).trim().length > 10);
-          return { id: r.cueId, start: timed ? r.videoStart : 0, end: timed ? r.videoEnd : 0, timed, src: String(r.sourceText || ''), trs: matched.map(c=>c.text).filter(t=>t&&String(t).trim()), translationReview:copied||matched.some(c=>c.qualityWarning), unc: r.pairing === 'uncertain' ? (r.secondaryCandidates || []).map((c) => c.text) : [], words: timed ? F.words(byId.get(r.cueId), src) : null };
+          return { id: r.cueId, start: timed ? r.videoStart : 0, end: timed ? r.videoEnd : 0, timed, src: String(r.sourceText || ''), trs: matched.map(c=>c.text), translationCueIds: matched.map(c=>c.id), translationStarts, translationStart, translationReview:copied||matched.some(c=>c.qualityWarning), unc: r.pairing === 'uncertain' ? (r.secondaryCandidates || []).map((c) => c.text) : [], words: timed ? F.words(byId.get(r.cueId), src) : null };
         });
-        return { rows, meta, untimed: !trackTimed };
+        const paired = new Set(rows.flatMap(row => row.translationCueIds));
+        const standalone = mode === 'cinema' || sec.timed === false ? [] : sec.cues.filter(cue => !paired.has(cue.id)
+          && cue.text?.trim() && Number.isFinite(cue.start) && Number.isFinite(cue.end) && cue.end > cue.start);
+        if (!standalone.length) return { rows, meta, untimed: !trackTimed };
+        const entries = rows.map((row, i) => ({ row, binding: meta[i] }));
+        for (const cue of standalone) {
+          const start = cue.start + num(sec.offsetSeconds), end = cue.end + num(sec.offsetSeconds);
+          entries.push({
+            row: { id: cue.id, start, end, timed: true, src: '', trs: [cue.text], unc: [], words: null,
+              translationCueIds: [cue.id], translationStart: start, standaloneTranslation: true },
+            binding: { cueId: cue.id, trackId: sec.id, trackRevision: sec.revision }
+          });
+        }
+        entries.sort((a, b) => a.row.start - b.row.start);
+        return { rows: entries.map(entry => entry.row), meta: entries.map(entry => entry.binding), untimed: !trackTimed };
       }
       if (sec.cues.length) { // yalnız çeviri izi yüklü: kaynak sanılmaz, yine de okunabilir
         const timedTrack = sec.timed !== false; const rows = sec.cues.map((c) => { const timed = timedTrack && Number.isFinite(c.start) && Number.isFinite(c.end) && c.end > c.start; meta.push({ cueId: c.id, trackId: sec.id, trackRevision: sec.revision }); return { id: c.id, start: timed ? c.start + num(sec.offsetSeconds) : 0, end: timed ? c.end + num(sec.offsetSeconds) : 0, timed, src: '', trs: [String(c.text || '')], unc: [], words: null }; });
@@ -163,13 +209,35 @@
         return cache;
       }
       const [src, sec] = s.projectedTracks || F.tracks(); const rev = `${src.id}|${src.revision}|${src.offsetSeconds}|${sec.id}|${sec.revision}|${sec.offsetSeconds}|${s.mediaKey}|${s.generation}`;
-      if (rev !== cache.rev) cache = { rev, ...build(src, sec, s) };
+      if (rev !== cache.rev) cache = { rev, ...build(src, sec, s), captionTracks: [src, sec] };
       return cache;
     }
     const dispatch = (type, args = {}, rowIdx = -1) => { const m = rowIdx >= 0 ? cache.meta[rowIdx] : null; return Promise.resolve(F.dispatch({ type, mediaKey: bound.mediaKey, generation: bound.generation, ...(m ? { trackId: m.trackId, trackRevision: m.trackRevision } : {}), ...args })).then(norm); };
     const seekRow = i => cache.meta[i]?.trackId===F.snap()?.sourceTrack?.id ? dispatch('seekCue',{cueId:cache.rows[i].id},i) : dispatch('seek',{time:cache.rows[i].start});
-    const idxAt = (t) => { let at = -1; cache.rows.forEach((r, i) => { if (r.timed && r.start <= t && t < r.end && (at < 0 || r.start >= cache.rows[at].start)) at = i; }); return at; };
-    const neighbor = (t, dir) => { const timed = cache.rows.map((r, i) => r.timed ? i : -1).filter((i) => i >= 0); if (!timed.length) return -1; const cur = idxAt(t); if (dir < 0) { if (cur >= 0 && t - cache.rows[cur].start > 1.5) return cur; const before = timed.filter((i) => cache.rows[i].start < (cur >= 0 ? cache.rows[cur].start : t) - .01); return before.length ? before[before.length - 1] : timed[0]; } const after = timed.filter((i) => cache.rows[i].start > (cur >= 0 ? cache.rows[cur].start : t) + .01); return after.length ? after[0] : -1; };
+    const idxAt = (t) => { let at = -1; cache.rows.forEach((r, i) => { if (r.timed && !r.standaloneTranslation && r.start <= t && t < r.end && (at < 0 || r.start >= cache.rows[at].start)) at = i; }); return at; };
+    const neighbor = (t, dir) => { const timed = cache.rows.map((r, i) => r.timed && !r.standaloneTranslation ? i : -1).filter((i) => i >= 0); if (!timed.length) return -1; const cur = idxAt(t); if (dir < 0) { if (cur >= 0 && t - cache.rows[cur].start > 1.5) return cur; const before = timed.filter((i) => cache.rows[i].start < (cur >= 0 ? cache.rows[cur].start : t) - .01); return before.length ? before[before.length - 1] : timed[0]; } const after = timed.filter((i) => cache.rows[i].start > (cur >= 0 ? cache.rows[cur].start : t) + .01); return after.length ? after[0] : -1; };
+    function translationNavigation(s) {
+      const track = cache.captionTracks?.[1];
+      if (cache.untimed || !track || track.timed === false) return {};
+      const offset = num(track.offsetSeconds), time = num(s.time), duration = num(s.duration);
+      let active, previous, next, first;
+      for (const cue of track.cues) {
+        if (!Number.isFinite(cue.start) || !Number.isFinite(cue.end) || cue.end <= cue.start || !cue.text?.trim()) continue;
+        const start = Math.max(0, cue.start + offset), end = Math.min(duration, cue.end + offset);
+        if (!(end > start)) continue;
+        if (first === undefined || start < first) first = start;
+        if (start <= time && time < end && (active === undefined || start >= active)) active = start;
+      }
+      const anchor = active ?? time;
+      for (const cue of track.cues) {
+        if (!Number.isFinite(cue.start) || !Number.isFinite(cue.end) || cue.end <= cue.start || !cue.text?.trim()) continue;
+        const start = Math.max(0, cue.start + offset);
+        if (!(Math.min(duration, cue.end + offset) > start)) continue;
+        if (start < anchor - .01 && (previous === undefined || start > previous)) previous = start;
+        if (start > anchor + .01 && (next === undefined || start < next)) next = start;
+      }
+      return {prevCue: active !== undefined && time - active > 1.5 ? active : previous ?? first, nextCue: next, replay: active};
+    }
     function wordAction(type,value){
       const row=cache.rows[value?.row],word=String(value?.word||'').trim();
       if(kind==='shelf'||!row||value?.cueId&&row.id!==value.cueId||!word||word.length>120||!row.src.includes(word))return Promise.resolve({ok:false,code:'invalid-word'});
@@ -321,7 +389,7 @@
           items.push({ type: 'button', primary: true, label: T('Yükle', 'Load'), hint: !s1?.value ? T('Önce bir kaynak izi seç.', 'Choose a source track first.') : '', disabled: !s1?.value || !!loadBtn()?.disabled, run: () => { if (!current() || loadBtn()?.disabled) return; lastAction = loadBtn; loadBtn()?.click(); } });
           const tr = mirror(() => $('browserTrackTranslate'), T('Yükle ve çevir', 'Load and translate')); if (tr) items.push(tr);
         } else items.push({ type: 'note', text: T('Bu sayfada erişilebilir altyazı izi bulunamadı. Aşağıdaki Whisper seçenekleri kullanılabilir.', 'No accessible caption track found on this page. Use the Whisper options below.') });
-        sections.push({ title: T('Altyazı izleri', 'Caption tracks'), items });
+        sections.push({ id: 'captions', title: T('Altyazı izleri', 'Caption tracks'), items });
         const wh = ['browserWhisperTranslate', 'browserLiveAsr'].map((id) => mirror(() => doc.querySelector(`.browser-study-actions [data-study-action="${id}"]`))).filter(Boolean);
         sections.push({ title: T('Whisper ve çeviri', 'Whisper and translation'), items: wh.length ? wh : [{ type: 'note', text: T('Bu kaynak için Whisper işlemi sunulmuyor.', 'No Whisper action is offered for this source.') }] });
       } else {
@@ -354,6 +422,8 @@
         const rawTitle=F.mediaTitle()||s?.title||'';
         const title=kind==='browser'?rawTitle.replace(/\s*[-–|]\s*YouTube\s*$/i,''):rawTitle;
         return { title, sub: F.sub(), eyebrow: F.eyebrow?.() || (kind === 'browser' ? (mode==='podcast'?T('Podcast','Podcast'):T('Web videosu','Web video')) : kind === 'shelf' ? T('Podcast', 'Podcast') : T('Yerel oynatıcı', 'Local player')), cover: F.cover(), tint: null, webSource:kind==='browser', webVideo:kind==='browser'&&mode==='study',
+          captionTrackCount: kind === 'browser' ? (player.browserTracks || []).filter(track => track.path).length : 0,
+          youtubeCaptions: kind === 'browser' && /^browser:youtube:/.test(s?.mediaKey || ''),
         chapters:podcast?(audio.publisherChapters||[]).map(chapter=>({...chapter,t:chapterTiming&&chapter.t!==null&&chapter.t<duration?chapter.t:null})):kind!=='local'?[]:(player.chapters||[]).filter(c=>Number.isFinite(c.start)&&c.start>=0&&(!s?.duration||c.start<s.duration)).map(c=>({t:c.start,label:String(c.title||T('Bölüm','Chapter'))})),
         queue:kind==='local'?(player.playlist||[]).map((file,index)=>({index,title:window.PlayerUiKit?.displayTitle(String(file).split(/[\\/]/).pop())||String(file)})).slice(Math.max(0,player.playlistIndex+1),Math.max(0,player.playlistIndex+1)+2):[],native:kind==='local'&&!!window.NativePlayerUI?.active(),audio:mode==='podcast'||kind==='shelf'||s?.sourceKind==='rss'||kind==='local'&&num($('playerVideo')?.readyState)>=2&&!num($('playerVideo')?.videoWidth),langs:l }; },
       state: () => {
@@ -367,17 +437,45 @@
           else Object.assign(ownLoop, { row: index, revision: r.rev });
         }
         const loopRow = ownLoop && activeLoop(s, ownLoop) ? ownLoop.row : -1;
-        if (loopRow < 0) ownLoop = null;
-        return { time: num(s.time), duration: num(s.duration), paused: !!s.paused, rate: num(s.rate) || 1, volume: kind === 'shelf' ? num($('mediaShelfAudio')?.volume ?? 1) : kind === 'browser' ? num(player.browserVolume ?? 1) : num($('playerVideo')?.volume ?? 1), rows: r.rows, rev: cache.rev, untimed: r.untimed, timingNotice:F.timingNotice?.()||'', canSeek: s.capabilities?.seek?.support === 'yes', loopRow };
+        if (loopRow < 0 && ownLoop?.confirmed) ownLoop = null;
+        const sample = F.sampleFor?.(s);
+        const translationTargets = translationNavigation(s);
+        return { time: num(s.time), duration: num(s.duration), paused: !!s.paused, rate: num(s.rate) || 1, volume: kind === 'shelf' ? num($('mediaShelfAudio')?.volume ?? 1) : kind === 'browser' ? num(player.browserVolume ?? 1) : num($('playerVideo')?.volume ?? 1), rows: r.rows, rev: cache.rev, untimed: r.untimed, timingNotice:F.timingNotice?.()||'', canSeek: s.capabilities?.seek?.support === 'yes', loopRow, adPlaying: !!s.adPlaying, displayTime: F.displayTime?.(s), captionTracks: r.untimed ? undefined : r.captionTracks, waiting: !!sample?.waiting && !s.paused, seeking: !!sample?.seeking, translationTargets };
       },
       slot: (m) => { const el = F.slot(m); if (el) { el.classList.add('sh-slot-fill'); bounds(); } return el; },
+      transferLoopTo(target) {
+        if (ownLoop?.confirmed && current() && activeLoop(F.snap(), ownLoop)
+            && target.acceptLoop(identity(), ownLoop)) ownLoop = null;
+      },
+      acceptLoop(sourceIdentity, range) {
+        const snap = F.snap();
+        if (identity() !== sourceIdentity || !current() || !activeLoop(snap, range)) return false;
+        const data = rowsFor(snap);
+        const index = data.rows.findIndex((row, i) => row.timed && row.id === range.cueId
+          && data.meta[i]?.trackId === range.trackId && row.start === range.a && row.end === range.b);
+        if (index < 0) return false;
+        ownLoop = { ...range, row: index, revision: data.rev };
+        return true;
+      },
       releaseSlot: () => { clearOwnedLoop(); disposed = true; F.unslot(); restore(); F.dispose(); },
       cmd(t, v, expectedRevision) {
         if (t === 'loop' && !(v && v.on)) { clearOwnedLoop(); return Promise.resolve({ ok: true }); }   // kendi A–B döngümüzü her durumda kapat
         const s = F.snap(); if (!current()) return Promise.resolve(stale);
         rowsFor(s);
-        if(expectedRevision && expectedRevision!==cache.rev && ['seekCue','loop','replay','prevCue','nextCue','wordInfo','wordSave','wordLookup','openQueued','save'].includes(t))return Promise.resolve({ok:false,code:'stale-track',message:T('Altyazı değişti; satırı yeniden seçin.','The transcript changed; select the line again.')});
+        if(expectedRevision && expectedRevision!==cache.rev && ['seekCue','seekTranslation','loop','replay','prevCue','nextCue','wordInfo','wordSave','wordLookup','openQueued','save'].includes(t))return Promise.resolve({ok:false,code:'stale-track',message:T('Altyazı değişti; satırı yeniden seçin.','The transcript changed; select the line again.')});
+        if (v === 'translation' && ['prevCue','nextCue','replay'].includes(t)) {
+          const time = translationNavigation(s)[t];
+          if (s.capabilities?.seek?.support !== 'yes' || !Number.isFinite(time)) {
+            return Promise.resolve({ok:false,code:'untimed',message:T('Bu konumda zamanlı çeviri yok.', 'No timed translation is available at this position.')});
+          }
+          return dispatch('seek', {time}).then(result => result.ok && t === 'replay' && current()
+            && s.paused && F.snap()?.paused ? dispatch('togglePlay') : result);
+        }
         switch (t) {
+          case 'retryCaptions':
+            return kind === 'browser' && typeof retryBrowserCaptionCapture === 'function'
+              ? retryBrowserCaptionCapture({ tabId: F.tab(), mediaKey: s.mediaKey, generation: s.generation })
+              : Promise.resolve({ ok: false, code: 'unsupported' });
           case 'save': {
             const index=typeof v==='number'?v:v?.row,row=cache.rows[index];
             if(!row||!Number.isInteger(index)||typeof window.api.upsertResearchAnnotation!=='function')return Promise.resolve({ok:false,code:'unsupported'});
@@ -401,7 +499,11 @@
             if (!window.DubGeneratorUI?.prepareCurrent) return Promise.resolve({ok:false,code:'unsupported'});
             return Promise.resolve(window.DubGeneratorUI.prepareCurrent()).then(() => ({ok:true}));
           }
-          case 'fullscreen':return Promise.resolve(doc.fullscreenElement?doc.exitFullscreen?.():host?.requestFullscreen?.()).then(()=>({ok:true}));
+          case 'fullscreen': {
+            if (doc.fullscreenElement && doc.exitFullscreen) return doc.exitFullscreen().then(()=>({ok:true}));
+            if (!doc.fullscreenElement && host?.requestFullscreen) return host.requestFullscreen().then(()=>({ok:true}));
+            return Promise.resolve({ok:false,code:'unsupported'});
+          }
           case 'wordInfo':case 'wordSave':case 'wordLookup':return wordAction(t,v);
           case 'openQueued': if(kind!=='local'||!Number.isInteger(v)||v<=player.playlistIndex||v>=player.playlist.length)return Promise.resolve({ok:false,code:'invalid-range'});return Promise.resolve(playPlaylistDelta(v-player.playlistIndex)).then(()=>({ok:true}));
           case 'toggle': return dispatch('togglePlay');
@@ -409,6 +511,13 @@
           case 'seek': return dispatch('seek', { time: Math.max(0, Math.min(num(s.duration) || Infinity, v)) });
           case 'seekBy': return dispatch('seek', { time: Math.max(0, Math.min(num(s.duration) || Infinity, num(s.time) + v)) });
           case 'seekCue': return cache.rows[v]?.timed ? seekRow(v) : Promise.resolve({ ok: false, code: 'untimed', message: T('Zamansız satıra atlanamaz.', 'Cannot seek to an untimed line.') });
+          case 'seekTranslation': {
+            const row = cache.rows[typeof v === 'object' && v ? v.row : v];
+            const time = typeof v === 'object' && v ? row?.translationStarts?.[v.part] : row?.translationStart;
+            return s.capabilities?.seek?.support === 'yes' && Number.isFinite(time) && time < s.duration
+              ? dispatch('seek', {time: Math.max(0, time)})
+              : Promise.resolve({ok:false,code:'untimed',message:T('Çevirinin zamanı doğrulanamadı.', 'Translation timing is unverified.')});
+          }
           case 'prevCue': case 'nextCue': { const i = neighbor(num(s.time), t === 'prevCue' ? -1 : 1); return i >= 0 ? seekRow(i) : Promise.resolve({ ok: false, code: 'none', message: T('Zamanlı cümle yok.', 'No timed sentence.') }); }
           case 'replay': {
             const i = idxAt(num(s.time));
@@ -431,6 +540,7 @@
             const range = ownLoop = { a:r.start, b:r.end, row:v.row, cueId:r.id, trackId:cache.meta[v.row]?.trackId, revision:cache.rev };
             return dispatch('setAB', {a:range.a,b:range.b}).then(result => {
               if (!result.ok && ownLoop === range) ownLoop = previous;
+              if (result.ok && ownLoop === range) range.confirmed = true;
               return result;
             });
           }
@@ -444,14 +554,49 @@
     };
   }
 
-  function unmount() { advancedOverlay?.close?.(); if (inst) { inst.destroy(); inst = null; } restore(); host?.remove(); host = null; layer.classList.remove('cp-sahne-on');doc.body.classList.remove('shelf-sahne-on');const old=doc.querySelector('.ms-podcast-workspace');if(old)old.inert=false; key = ''; }
+  let mountedIdentity, mountedBrowserSession, mountedBrowserMediaKey;
+  function unmount() {
+    advancedOverlay?.close?.();
+    if (inst) {
+      if (mountedBrowserSession) {
+        mountedBrowserSession.readingPrefs = inst.prefs(true);
+        mountedBrowserSession.readingMediaKey = mountedBrowserMediaKey;
+      }
+      inst.destroy();
+      inst = null;
+    }
+    mountedBrowserSession = null;
+    mountedBrowserMediaKey = undefined;
+    mountedIdentity = undefined;
+    restore();
+    host?.remove();
+    host = null;
+    layer.classList.remove('cp-sahne-on');
+    doc.body.classList.remove('shelf-sahne-on');
+    const old = doc.querySelector('.ms-podcast-workspace');
+    if (old) old.inert = false;
+    key = '';
+  }
   function mount(kind, mode, intro, prefs) {
-    const k = `${kind}:${mode}`; if (inst && key === k) return; const had=!!inst,active=doc.activeElement;
+    const k = `${kind}:${mode}`;
+    if (inst && key === k && mountedIdentity === inst.a.identity()) return;
+    const had = !!inst, active = doc.activeElement;
     if(!had&&active?.matches?.('button,a,summary')&&!active.closest('.sh-host'))stageOpener=active;
+    const adapter = makeAdapter(kind, mode);
+    if (inst && key.startsWith(kind + ':') && prefs?.reading?.identity === adapter.identity()) inst.a.transferLoopTo(adapter);
     unmount();
+    mountedIdentity = adapter.identity();
+    mountedBrowserSession = kind === 'browser' ? window.BrowserStudy?.stageSession?.() : null;
+    if (mountedBrowserSession) {
+      mountedBrowserMediaKey = player.mediaKey;
+      if (prefs?.reading?.identity !== mountedIdentity && mountedBrowserSession.readingMediaKey === mountedBrowserMediaKey) {
+        const saved = mountedBrowserSession.readingPrefs;
+        if (saved?.reading) prefs = { ...saved, reading: { ...saved.reading, identity: mountedIdentity } };
+      }
+    }
     host = doc.createElement('div'); host.className = 'sh-host'; host.dataset.uiUntranslated=''; if(kind==='shelf'){host.classList.add('sh-shelf-host');doc.body.append(host);doc.body.classList.add('shelf-sahne-on');const old=doc.querySelector('.ms-podcast-workspace');if(old)old.inert=true;}else{layer.append(host);layer.classList.add('cp-sahne-on');}
     host.style.top = kind === 'shelf' ? 'var(--window-controls-safe-height,38px)' : headH() + 'px';
-    inst = new Sahne(host, makeAdapter(kind, mode), {
+    inst = new Sahne(host, adapter, {
       mode, intro: intro && !had, prefs,
       onMode: (m, p) => {
         if(kind==='shelf'||kind==='local')window.MediaShelfUI?.rememberQueueScene?.(m);

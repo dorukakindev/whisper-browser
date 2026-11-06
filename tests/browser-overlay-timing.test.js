@@ -154,6 +154,26 @@ const build = () => buildBrowserOverlayScript(
   { mode: 'source', source: cues, translation: [], offset: 0, style: {} },
   '(cues, t) => (cues || []).filter((c) => c.start <= t && t < c.end)');
 
+test('YouTube site captions return in a Stage gap and after returning to the browser', () => {
+  const h = makeHarness();
+  h.sandbox.window.location = { hostname: 'www.youtube.com', pathname: '/watch' };
+  const state = { mode: 'source', stageVideo: true, source: cues, translation: [], style: {} };
+  vm.runInNewContext(buildBrowserOverlayScript(state,
+    '(cues, t) => (cues || []).filter((c) => c.start <= t && t < c.end)'), h.sandbox);
+  const sheet = () => h.documentStub.getElementById('__whisper_hide_native_captions');
+  assert(sheet()?.textContent.includes('#movie_player .ytp-caption-window-container'));
+  h.video.currentTime = 20;
+  h.video.dispatch('seeked');
+  assert.equal(overlayText(h), '');
+  assert.equal(sheet(), null);
+  h.video.currentTime = 2;
+  h.video.dispatch('seeked');
+  assert(sheet());
+  h.sandbox.window.__whisperBrowserOverlayController.update({ ...state, stageVideo: false });
+  assert.equal(overlayText(h), 'cue-A');
+  assert.equal(sheet(), null);
+});
+
 test('geriye seek: bayat sınır zamanlayıcısı yeni cue sınırını kaçırmaz', () => {
   const h = makeHarness();
   vm.runInNewContext(build(), h.sandbox);

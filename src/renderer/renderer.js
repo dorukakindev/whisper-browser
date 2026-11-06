@@ -6935,6 +6935,10 @@ function restoreActiveBrowserTabWorkspace(tab) {
   player.browserRate = Number(tab.browserRate) || 1;
   player.browserVolume = Number.isFinite(Number(tab.browserVolume)) ? Number(tab.browserVolume) : 1;
   player.browserMuted = !!tab.browserMuted;
+  player.browserAdPlaying = !!tab.browserAdPlaying;
+  player.browserAdSkippable = !!tab.browserAdSkippable;
+  player.browserAdRemaining = tab.browserAdRemaining ?? null;
+  tab.browserClockSample = null;
   updateBrowserZoomUi(tab.browserZoom || 1);
   player.browserProfileKey = tab.browserProfileKey || '';
   player.browserPositionTick = Number(tab.browserPositionTick) || 0;
@@ -9604,7 +9608,8 @@ function renderBrowserDiagnostics(diagnostics) {
     strategy.textContent = ({ cdp: 'AĞ', page: 'SAYFA', textTrack: 'İZ', manifest: 'AKIŞ', adblock: 'FİLTRE' })[entry.strategy]
       || String(entry.strategy || '').toUpperCase();
     const result = document.createElement('span');
-    result.textContent = entry.outcome === 'parsed' ? 'işlendi' : entry.outcome === 'error' ? 'hata' : 'elendi';
+    result.textContent = entry.outcome === 'queued' ? interfaceChoice('Sürüm bekleniyor', 'Waiting for revision')
+      : entry.outcome === 'parsed' ? 'işlendi' : entry.outcome === 'error' ? 'hata' : 'elendi';
     const detail = document.createElement('span');
     detail.className = 'browser-diagnostic-url';
     detail.textContent = [entry.detail, entry.url].filter(Boolean).join(' · ') || entry.mime || 'altyazı adayı';
@@ -12715,6 +12720,10 @@ function updateBrowserNavigation(data, options = {}) {
       navTab.browserMediaSeen = false;
       navTab.browserTime = 0;
       navTab.browserDuration = 0;
+      navTab.browserAdPlaying = false;
+      navTab.browserAdSkippable = false;
+      navTab.browserAdRemaining = null;
+      navTab.browserClockSample = null;
     } }
     player.browserRate = 1;
     player.browserVolume = 1;
@@ -14306,6 +14315,32 @@ function browserChromeCommandBlocked(command, surface = player.browserSurface) {
   return surface === 'settings' && ['back', 'forward', 'reload', 'reload-hard', 'stop'].includes(command);
 }
 
+let browserCaptionRetryPending = null;
+async function retryBrowserCaptionCapture(expected) {
+  const current = () => player.workspaceMode === 'browser'
+    && player.browserActiveTabId === expected?.tabId && player.mediaKey === expected?.mediaKey
+    && currentGeneration() === expected?.generation;
+  if (!current()) return { ok: false, code: 'stale-source' };
+  if (browserCaptionRetryPending) return { ok: false, code: 'busy' };
+  const target = browserCaptionRetryPending = { ...expected };
+  const seconds = playbackCheckpoint() || Number(player.browserTime) || 0;
+  let seek;
+  try {
+    saveActiveBrowserTabWorkspace();
+    await flushWatchState(false, true);
+    if (!current()) return { ok: false, code: 'stale-source' };
+    seek = { key: expected.mediaKey, tabId: expected.tabId, generation: expected.generation, seconds };
+    player.pendingLibrarySeek = seek;
+    const result = await runBrowserChromeCommand('reload');
+    if (!result?.ok && player.pendingLibrarySeek === seek) player.pendingLibrarySeek = null;
+    return result || { ok: false, code: 'reload-failed' };
+  } catch (error) {
+    if (player.pendingLibrarySeek === seek) player.pendingLibrarySeek = null;
+    return { ok: false, message: error?.message || String(error) };
+  } finally {
+    if (browserCaptionRetryPending === target) browserCaptionRetryPending = null;
+  }
+}
 async function runBrowserChromeCommand(command) {
   if (browserChromeCommandBlocked(command)) {
     setBrowserSignal('Tarayıcı ayarları açıkken gezinme komutları sayfaya gönderilmez.', true,
@@ -14950,6 +14985,10 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         tab.browserTime = Number.isFinite(backgroundTime) ? Math.max(0, backgroundTime) : 0;
         tab.browserDuration = Number.isFinite(backgroundDuration) ? Math.max(0, backgroundDuration) : 0;
         tab.browserPaused = !!event.media.paused;
+        tab.browserAdPlaying = !!event.media.adPlaying;
+        tab.browserAdSkippable = !!event.media.adSkippable;
+        tab.browserAdRemaining = Number.isFinite(event.media.adRemaining) ? event.media.adRemaining : null;
+        tab.browserClockSample = null;
       } else if (event.type === 'tab-audio') {
         tab.audible = !!event.audible;
         tab.tabMuted = !!event.tabMuted;
@@ -14958,6 +14997,10 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       } else if (event.type === 'cea-capture-progress') {
         tab.browserCeaCapture = normalizeBrowserCeaCaptureState(event);
       } else if (event.type === 'media-identity' && event.resetSubtitles) {
+        tab.browserClockSample = null;
+        tab.browserAdPlaying = false;
+        tab.browserAdSkippable = false;
+        tab.browserAdRemaining = null;
         tab.browserTracks = [];
         tab.browserCeaCapture = null;
         tab.browserTranslationTrackId = '';
@@ -15120,6 +15163,16 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       browserTime: player.browserTime, browserDuration: player.browserDuration,
       browserPaused: player.browserPaused, browserVolume: player.browserVolume,
       browserMuted: player.browserMuted,
+      browserAdPlaying: player.browserAdPlaying, browserAdSkippable: player.browserAdSkippable,
+      browserAdRemaining: player.browserAdRemaining,
+      browserClockSample: {
+        mediaKey: player.mediaKey, generation: player.generation, time: player.browserTime,
+        seeking: !!event.media.seeking,
+        waiting: !event.media.ended && (event.media.spinnerVisible || Number(event.media.readyState) < 3),
+        at: performance.now(), advancing: player.browserTime > previousTime && !wasPaused
+          && !player.browserPaused && !event.media.adPlaying && !event.media.seeking
+          && !event.media.ended && !event.media.spinnerVisible && Number(event.media.readyState) >= 3,
+      },
     });
     const browserRate = Number(event.media.playbackRate);
     if (Number.isFinite(browserRate) && browserRate > 0) {
@@ -15540,7 +15593,13 @@ function settleBrowserPlaybackRecovery(media, previousTime) {
   const advance = Number(media.currentTime) - previousTime;
   if (recovery?.owner === 'browser' && !media.paused && !media.adPlaying && !media.spinnerVisible
       && Number(media.readyState) >= 2 && !Number(media.errorCode)
-      && advance > .05 && advance < 2 * Math.max(1,Number(media.playbackRate)||1)) clearPlayerPlaybackRecovery();
+      && advance > .05 && advance < 2 * Math.max(1,Number(media.playbackRate)||1)) {
+    clearPlayerPlaybackRecovery();
+    if (player.browserSignalState?.action === 'playback-recovery') {
+      setBrowserSignal(interfaceChoice('Oynatma devam ediyor.', 'Playback resumed.'),
+        !!player.browserTracks?.length, { force: true });
+    }
+  }
 }
 
 async function runPlaybackRecovery() {
@@ -19209,6 +19268,10 @@ function captureWatchPrefs() {
   const dubOriginal = window.BrowserDubAudioUI?.originalPlayback();
   const dubSnapshot = window.BrowserDubAudioUI?.snapshot();
   return {
+    ...(browserMode && window.BrowserStudy?.hasPreference?.() ? {
+      browserStageMode: window.BrowserStudy.isActive()
+        ? window.BrowserPodcastUI?.isActive() ? 'podcast' : 'study' : null
+    } : {}),
     // Geçici hız (basılı tutma / boşluk hızlandırma) yerine kullanıcının seçtiği hız.
     speed: dubOriginal?.speed || (browserMode ? player.browserRate : (Number($('playerSpeed')?.value) || (video ? video.playbackRate : 1))),
     dubPlayback: dubSnapshot === undefined ? (watchItemByKey(player.mediaKey)?.prefs?.dubPlayback || null) : dubSnapshot,
@@ -19323,6 +19386,11 @@ async function flushWatchState(completed = false, refresh = false) {
 
 async function restoreWatchProfile(key) {
   const gen = currentGeneration();
+  const sceneReopen = player.browserSceneReopen?.key === key ? player.browserSceneReopen : null;
+  const restoreBrowserScene = player.workspaceMode === 'browser'
+    && (!!sceneReopen || player.pendingLibrarySeek?.key === key);
+  if (sceneReopen) player.browserSceneReopen = null;
+  const sceneRevision = window.BrowserStudy?.revision?.();
   // Kayıtlı hız kütüphane kaydından bağımsız uygulanır — kütüphanesiz videoda
   // çalışma alanı açılışı sayfayı 1x'te bırakırken arayüz eski hızı gösterirdi.
   const earlyBrowserMode = player.workspaceMode === 'browser' && key.startsWith('browser:');
@@ -19447,6 +19515,10 @@ async function restoreWatchProfile(key) {
   updateSeriesChip();
   if (prefs.dubPlayback && !staleGeneration(gen) && player.mediaKey === key) {
     await window.BrowserDubAudioUI?.restore(prefs.dubPlayback, key);
+  }
+  if (restoreBrowserScene && !staleGeneration(gen) && player.mediaKey === key
+      && window.BrowserStudy?.revision?.() === sceneRevision && ['podcast', 'study'].includes(prefs.browserStageMode)) {
+    window.CinemaSahne?.open({ mode: prefs.browserStageMode });
   }
 }
 
@@ -20013,6 +20085,7 @@ async function openWatchLibraryItem(item, seconds) {
   if(item.type==='torrent'){await window.MediaHubUI.reopenTorrent(item,seconds);return;}
   if(item.type==='stream'){const r=await window.api.mediaHub({action:'network',url:item.sourceRef});if(!r?.ok)throw Error(r?.error||'Stream unavailable');await window.MediaHubUI.playStream(r,seconds);return;}
   if (item.type === 'browser') {
+    player.browserSceneReopen = { key: item.key };
     $('playerLayer').classList.remove('hidden');
     setWorkspaceMode('browser');
     player.pendingLibrarySeek = {
@@ -27652,10 +27725,12 @@ if ($('playerVideo')) {
     syncPlayerMediaSession();
   });
   video.addEventListener('ended', async () => {
+    const endedOwner = { key: player.mediaKey, generation: currentGeneration() };
     const podcastQueueOwner=window.MediaShelfUI?.ownsPodcastQueue?.()?{mediaKey:player.mediaKey,generation:player.generation}:null;
     stopPlayerVideoFrameLoop();
     renderCue();
     await flushWatchState(true, true);
+    if (player.mediaKey !== endedOwner.key || staleGeneration(endedOwner.generation)) return;
     if(podcastQueueOwner){if(player.autoNext&&player.sleepTimerMode!=='end')await window.MediaShelfUI.advancePodcastQueue(podcastQueueOwner);}
     else if (player.autoNext && player.sleepTimerMode !== 'end' && !stQueueAutoNext() && player.playlistIndex >= 0) await playPlaylistDelta(1);
     else if (player.sleepTimerMode !== 'end') stAutoRelatedNext();

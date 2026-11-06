@@ -316,13 +316,15 @@ test('bozuk medya değerleri finite olmayan zamanı dışarı sızdırmaz', () =
   assert.match(String(brokenProbe.docToken || ''), /^doc-/, 'probe belge tokeni taşımalı');
   delete brokenProbe.docToken;
   assert.deepEqual(brokenProbe, {
-    currentTime: 0, duration: 0, paused: false, ended: false, tagName: 'video', muted: false,
+    currentTime: 0, duration: 0, paused: false, ended: false, seeking: false, tagName: 'video', muted: false,
     volume: 0, playbackRate: 1, area: 360000, bounds: null, adPlaying: false,
     readyState: 0, videoWidth: 0, videoHeight: 0, totalVideoFrames: null,
     spinnerVisible: false, errorCode: 0, errorMessage: '',
     audioRecoveryRequired: false,
     adSkippable: false, adRemaining: null, publisher: '',
   });
+  broken.seeking = true;
+  assert.equal(probe([broken]).seeking, true);
 });
 
 test('yalnız ad-showing sınıfı reklamı kesin olarak işaretler', () => {

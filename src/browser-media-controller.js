@@ -569,6 +569,7 @@ function controllerBootstrap() {
           duration: finite(item.duration),
           paused: !!item.paused,
           ended: !!item.ended,
+          seeking: !!item.seeking,
           tagName: String(item.tagName || '').toLowerCase(),
           muted: !!item.muted,
           volume: finite(item.volume),

@@ -5,9 +5,11 @@
   const layer = byId('playerLayer'), entry = byId('browserStudyOpen');
   if (!layer || !entry) return;
   const sessions = new Map();
+  const selectedMedia = new Map();
   const copy = (tr, en) => window.UiLocale?.get?.() === 'en' ? en : tr;
   const write = (node, text) => { if (node && node.textContent !== text) node.textContent = text; };
   let box, status, controls, secondPickerHost;
+  let presentationRevision = 0;
   const key = () => player.workspaceMode === 'browser' ? player.browserActiveTabId : null;
   const media = () => browserTabState()?.mediaId || player.mediaKey;
   const currentSession = () => {
@@ -17,16 +19,19 @@
   const active = () => !!key() && !!currentSession();
   function open({ preservePodcast = false } = {}) {
     if (!key()) return;
+    presentationRevision++;
+    selectedMedia.set(key(), media());
     if (!preservePodcast) window.BrowserPodcastUI?.setMode(false);
     closeBrowserToolbarMenus();
-    if (!currentSession()) sessions.set(key(), { view: player.viewMode, media: media() });
+    const previous = currentSession();
+    if (!previous) sessions.set(key(), { view: player.viewMode, media: media(), subtitleMode: browserTabState()?.subtitleMode });
     if (!window.CinemaSahne) {
       setViewMode('study');
       setBrowserSideRailPref('panel');
       setPlayerSidebarCollapsed(false);
       setSideTab('subs');
     }
-    setSubtitleMode('both', false);
+    if (!previous) setSubtitleMode('both', false);
     window.BrowserPanel?.refresh();
     refresh();
     if (typeof scheduleBrowserOverlaySync === 'function') scheduleBrowserOverlaySync();
@@ -36,10 +41,13 @@
     });
   }
   function close() {
+    presentationRevision++;
+    if (key()) selectedMedia.set(key(), media());
     window.BrowserPodcastUI?.setMode(false);
     const previous = currentSession();
     sessions.delete(key());
     if (previous && player.viewMode === 'study' && previous.view !== player.viewMode) setViewMode(previous.view);
+    if (previous?.subtitleMode) setSubtitleMode(previous.subtitleMode, false);
     refresh();
     if (typeof scheduleBrowserOverlaySync === 'function') scheduleBrowserOverlaySync();
     entry.focus();
@@ -158,6 +166,7 @@
   new MutationObserver(refresh).observe(layer, { attributes: true, attributeFilter: ['class'] });
   window.addEventListener('browser-panel-layout', refresh);
   document.addEventListener('ui-locale-change', refresh);
-  window.BrowserStudy = Object.freeze({ open, close, refresh, isActive: active });
+  window.BrowserStudy = Object.freeze({ open, close, refresh, isActive: active, stageSession: currentSession,
+    revision: () => presentationRevision, hasPreference: () => !!key() && selectedMedia.get(key()) === media() });
   refresh();
 })();

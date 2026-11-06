@@ -4,6 +4,66 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Podcast Sahne’de uzun başlıklar ve eşzamanlı iki dil daha okunabilir. Çift dilli Sahne’de altyazılar video alanının altına hizalanır. Transkriptteki etkin satırın vurgusu ve kaydırma alanı düzenlendi. [Devir](docs/devir/2026-11-06-1719.md).
+
+- Önceki medyanın gecikmiş bitişi yeni oynatmayı ilerletmez. Altyazı yenilenirken çeviri cümlesinin odağı kimliğiyle korunur. Genel arayüz denetimlerinin altı eski beklentisi güncel işlevlerle doğrulandı. [Teslim](docs/devir/2026-11-06-1713.md).
+
+- Kütüphaneden kayıtlı web bölümü açılırken Podcast/Çift dilli tercihi tam yeniden başlatmadan sonra geri gelir. Boş YouTube Sahne’de **Altyazıyı yeniden dene**, kayıtlı izleri ve konumu koruyarak aynı kaynağı yeniden yükler. [Devir](docs/devir/2026-11-06-1704.md).
+
+- Aynı Browser videosu yeniden açıldığında altyazı “zaten yayımlandı” diye kaybolmaz. Önceki sayfadan geciken yayın kaynak denetiminde durur. Kayıtlı iki iz, ayrı kaymalar ve konumla kütüphaneden yeniden açılış doğrulandı. [Paket teslimi](docs/devir/2026-11-06-1643.md).
+
+- Çift dilli Sahne’de YouTube’un tekrarlanan altyazısı, Sahne metni görünürken gizlenir. Konuşma boşluğunda ve Browser dönüşünde site altyazısı geri gelir. Yakalama tanısı bekleyen izi elenmiş saymaz, toparlanan oynatma eski kurtarma mesajını temizler. [Devir](docs/devir/2026-11-06-1634.md).
+
+- Boş YouTube Sahne, aynı Browser sekmesindeki CC’ye dönüş yolunu gösterir. Tam cümle panelini kapatınca önceki takip tercihi geri gelir ve **Konuşmaya dön** güncel satıra gider. [Devir](docs/devir/2026-11-06-1613.md).
+
+- Çift dilli Sahne’de **Cümlenin tamamı**, oynatma sürerken mevcut satırı transkriptte açar ve odaklar. [Devir](docs/devir/2026-11-06-1552.md).
+
+- Dar Çift dilli Sahne’de iki video altyazısı görüntü yüksekliğine göre alan paylaşır. Uzun metin yarım satır yerine tam satır ve üç noktayla kısaltılır. [Devir](docs/devir/2026-11-06-1523.md).
+
+- Sahne’de elle kaydırma süren otomatik kaydırmayı durdurur. Klavye ve arama, görünen çeviri zaman düğmelerine odaklanır. Dar Podcast görünümünde iki canlı dil yan yana okunur. [Devir](docs/devir/2026-11-06-1510.md).
+
+- Podcast ve Çift dilli Sahne’de aynı karta bağlı çeviri cümleleri kendi zaman düğmelerini ve etkin cümle vurgusunu gösterir. Bir çeviri birden fazla özgün karta bağlıysa takip konuşulan karta geçer. [Devir](docs/devir/2026-11-06-1457.md).
+
+- Podcast ve Çift dilli Sahne, özgün satırla eşleşmeyen zamanlı çeviriyi bağımsız gösterir. Satır takibi, ilerleme çizgisi ve oynatma çubuğu önizlemesi çeviri izinin saatini kullanır. [Devir](docs/devir/2026-11-06-1448.md).
+
+- Podcast ve Çift dilli Sahne’de çeviri görünümünün önceki, sonraki ve tekrar kontrolleri kaydırılmış çeviri izini kullanır. Özgün cümle döngüsü ayrı etiketlenir. [Devir](docs/devir/2026-11-06-1437.md).
+
+- Podcast ve Çift dilli Sahne çeviri görünümünde doğrulanmış çeviri zamanına atlar. [Devir](docs/devir/2026-11-06-1429.md).
+
+- Browser sekmelerinde Sahne araması ve okuma durumu aynı medya oturumunda geri gelir. [Devir](docs/devir/2026-11-06-1421.md).
+
+- Browser Sahne, yakalanmış altyazı varsa transkript boş durumundan doğrudan iz seçimine götürür. Bilinmeyen dil kodlarına soru işareti rozeti gösterilmez. [Devir](docs/devir/2026-11-06-1414.md).
+
+- Aynı medya Podcast ve Çift dilli arasında cümle döngüsünü korur. Çizelge döngü aralığını, Browser bekleme durumunda oynatma çubuğu neden durduğunu gösterir. [Devir](docs/devir/2026-11-06-1410.md).
+
+- Yerel Çift dilli ve Podcast Sahne iki altyazı izini bağımsız zamanlarında gösterir. Aynı medya görünüm değişiminde okuma paneli korunur. [Devir](docs/devir/2026-11-06-1404.md).
+
+- Browser kaynaklı Sahne kısa altyazı satırlarını doğrulanmış saat örnekleri arasında takip eder. Dar Podcast, transkript geldiğinde otomatik açılmış işlemleri toplar. [Devir](docs/devir/2026-11-06-1358.md).
+
+- Browser Sahne geçişi önceki altyazı seçimini geri yükler. Podcast canlı satırı izlerin bağımsız zamanlarını kullanır ve reklamda gizlenir. [Devir](docs/devir/2026-11-06-1349.md).
+
+- Ortak Sahne zamana gitme ve okuma odağı sunar. Ses, tarayıcı dili, görev ve sözcük işlemlerinin kaynak ve odak akışı düzeltildi. [Devir](docs/devir/2026-11-06-1344.md).
+
+- Podcast ve Çift dilli Sahne’ye eşleşme gezinmesi, yazı boyutu, bölüm başlığı araması ve önceki ses düzeyine dönüş eklendi. [Devir](docs/devir/2026-11-06-1337.md).
+
+- Ortak Sahne uyku süresini doğrudan seçtirir, arama klavyesini iyileştirir ve durum eylemlerinin gecikmiş hatalarını ele alır. [Devir](docs/devir/2026-11-06-1332.md).
+
+- Podcast ve Çift dilli Sahne, cümleye atlamayı ayrı zaman düğmesine taşır. Metin seçilebilir ve zaman düğmeleri arasında ok tuşlarıyla dolaşılabilir. [Devir](docs/devir/2026-11-06-1328.md).
+
+- Podcast ve Çift dilli Sahne dar pencerede okuma paneli açıkken oynatma çubuğunu görünür tutar. Orta genişlikte video ve transkript yan yana yerleşir. [Devir](docs/devir/2026-11-06-1326.md).
+
+- Podcast ve Çift dilli Sahne bölüm başlıklarını oynatma çubuğundan erişilen okuma panelinde gösterir. Kayıtlı pasaj dar görünümde paneli açar ve satırı gizleyen filtreyi kaldırır. [Devir](docs/devir/2026-11-06-1320.md).
+
+- Çift dilli Sahne seçili dilde metin yokken boş altyazı kutusunu kaldırır ve yalnız görünür satırın dil rozetini gösterir. [Devir](docs/devir/2026-11-06-1314.md).
+
+- Podcast ve Çift dilli Sahne bilinen işlem yüzdesini gösterir ve uzun hata metnini okunur bırakır. [Devir](docs/devir/2026-11-06-1313.md).
+
+- Podcast ve Çift dilli Sahne ses göstergesi oynatıcı değerine döner ve yüzde sıfırı ayrı simgeyle gösterir. [Devir](docs/devir/2026-11-06-1310.md).
+
+- Podcast ve Çift dilli Sahne araması görünür metinleri ayrı eşleştirir ve yeni sorguyu listenin başından gösterir. [Devir](docs/devir/2026-11-06-1307.md).
+
+- Podcast ve Çift dilli Sahne oynatma hızını doğrudan seçtirir ve oynatıcının doğruladığı değeri gösterir. [Devir](docs/devir/2026-11-06-1305.md).
+
 - Podcast ve Çift dilli Sahne etkin cümle döngüsünü satırda gösterir ve aynı satırdan kapatır. Eski altyazı seçimi yeni satıra atlamaz. [Devir](docs/devir/2026-11-06-1231.md).
 
 - Podcast ve Çift dilli Sahne, zaman çizelgesi önizlemesini gerçek oynatma vurgusundan ayırır. [Devir](docs/devir/2026-11-06-1227.md).

@@ -6,30 +6,14 @@ Son durum kontrolü **2026-11-06**. Son ürün `2c1935b5eacf1fc22163eea2c5975741
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
-## Sahne adres satırı — görsel kabul
+## Sahne ve Browser — güncel kabul
 
-- Cümle döngüsü: 62 kontrollü test geçti. İzole LG oturumunda iki modda satır döngüsünü başlatıp en az bir tekrarı dinle, aynı düğmeyle kapat ve oynatmanın devamını kontrol et. [Devir](docs/devir/2026-11-06-1231.md).
-
-- Zaman çizelgesi: 61 kontrollü test ve bileşen çizimi geçti. LG izole Electron oturumu hazır olduğunda gerçek videoda sürüklerken etkin satırın sabit kalmasını, bırakınca aynı oynatıcıda konumun değişmesini ve dar pencerede balonun kenarlarda taşmamasını kontrol et. [Devir](docs/devir/2026-11-06-1227.md).
-
-- Dar transkript açma, etkin satır ve kapatınca video katmanının dönüşü gerçek izole LG turunda kontrol edilecek. [Devir](docs/devir/2026-11-06-1158.md).
-
-- Oynatma kontrolleri için native LG turunda zamansız metin, sessiz aralık ve Home/End kontrolü kalıyor. 55 hedefli kontrol ve kontrollü çizimler tamamlandı. [Devir](docs/devir/2026-11-06-1143.md).
-
-- 10:46: ana sayfa uzun başlık ve Keşfet ortak hiza/afiş yedeği kontrollü gerçek bileşen çiziminde incelendi; 10 mevcut kontrol geçti. Native LG turunda gerçek uzun başlık ve Keşfet dönüşü ayrıca kontrol edilebilir. [Devir](docs/devir/2026-11-06-1046.md).
-
-- 10:34: ayrı zaman grupları ve ses yüzdesi kontrollü çizimde incelendi; 54 kontrol geçti. Gerçek iki izde sıfırlama/bağımsız kayma ve ses görünümü önceki kısa LG kabulünde kontrol edilir. [Devir](docs/devir/2026-11-06-1034.md).
-
-- 10:28: uzun alıntıda not başlığının kaybolması düzeltildi; İşlemler başlığı kaydırmada sabit. 53 kontrol ve kontrollü not/panel çizimi geçti. Native LG turuna uzun alıntı, kapat/geri odak ve panel kaydırma adımları eklenir. [Devir](docs/devir/2026-11-06-1028.md).
-
-- 10:20: aramanın boş/sonuçlu durumları kontrollü bileşen çiziminde incelendi; 52 kontrol geçti. Yeni native kabul iddia edilmez. Önceki LG turuna arama/temizleme adımı eklenir. [Devir](docs/devir/2026-11-06-1020.md).
-
-- 10:12: dolu Podcast/Çift dilli transkript çiziminde ilk yerleşimde etkin çevirinin kesilmesi düzeltildi. 51 hedefli kontrol ve iki başsız bileşen çizimi geçti. Bu, önceki native LG kabulünü kapatmaz. [Devir](docs/devir/2026-11-06-1012.md).
-
-- 10:00: gerçek Sahne bileşenleri başsız Chrome’da 1480×880 ve 940×680 kontrollü veriyle çizildi; kapak ölçeği, kısa boş durum ve kontrol sarılması incelendi. Bu, LG native uygulama kabulünü kapatmaz. [Görsel teslim](docs/devir/2026-11-06-0959.md).
-
-- Dal `codex/stage-hide-address-20261106`; [devir](docs/devir/2026-11-06-0954.md). CSS gizleme/geri dönüş ve 26 bağlantı kontrolü geçti. İzole Electron başlangıçta sonuç üretmeden exit 1 verdi; native görüntü doğrulanmadı. Sonraki adım: izole LG açılışı kullanılabilirken iki Sahne görünümünde URL/üst boşluk bulunmadığını ve Browser'a dönüşte adres çubuğunun geri geldiğini kısa turda kontrol et.
-
+- **Tamamlanan kabul.** İki gerçek altyazılı sekmede kimlik, konum, iz ve bağımsız kaymaların geri yüklenmesi; aynı YouTube bölümünde beş hızlı Browser/Podcast/Çift dilli geçişi; Podcast canlı satır, cümle döngüsü, 1,5× hız, elle kaydırma ve konuşmaya dönüş; dar video üzerindeki iki dil ve site altyazısının geri gelmesi doğrulandı. Önceki tur ayrıntıları devir indeksinde korunur.
+- **Tam yeniden başlatma.** İzole LG uygulaması temiz kapatılıp yeni Electron sürecinde aynı profille açıldı. Kütüphaneden bölüm açma, iki kayıtlı izi, −0,1/+0,1 kaymaları, konumu ve Podcast tercihini geri getirdi. Bu kabul, kayıtlı bölümü kütüphaneden açmayı içerir.
+- **YouTube boş yanıt sınırı.** Aynı otomatik altyazı isteği ilk açılışta HTTP 200 ve boş gövde, yeniden yüklemede 2.129 satırlık JSON verdi. Yeni **Altyazıyı yeniden dene** düğmesi kontrollü boş yanıttan sonra aynı kaynağa döndü ve gerçek iz geldi. Ayrı canlı denemede mevcut iki iz ve kaymalar korundu. Sağlayıcı boş yanıt vermeyi sürdürürse sonraki adım aynı videoda Browser CC seçimini kontrol etmek.
+- **İki iz türü.** Aynı videoda hem elle hazırlanmış hem otomatik izi menüde sunan kaynak henüz doğrulanmadı. Kaynak iki türü birlikte sunarsa aynı kanalda elle hazırlanmış → otomatik → elle hazırlanmış geçişinde kayma ve aktif satırı karşılaştır.
+- Ürün paketi yerel `master` üzerinde `a7c60e21354505f7d22bab1862792665a645b823`. [Güncel doğrulama](docs/devir/2026-11-06-1724.md).
+- **Genel arayüz denetimi kapandı.** Altı eski beklenti güncel giriş ve sahiplerle karşılaştırıldı. Kaynak değişirken geciken bitişin ilerlemesi ve altyazı yenilemede odak kaybı ayrıca düzeltildi. 153 arayüz denetimi geçti. [Güncel teslim](docs/devir/2026-11-06-1713.md).
 ## Sahne görünüm düzeltmeleri — 2026-11-06
 
 - Doğrulanan ürün: `ef6a5f3d`, dal `codex/stage-composition-fixes-20261106`. Podcast/Çift dilli/Browser dönüşü, video alanı, dil seçimi, etkin satır konumu ve dar pencere kısa izole LG turunda kontrol edildi. [Devir](docs/devir/2026-11-06-0942.md).

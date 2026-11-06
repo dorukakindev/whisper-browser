@@ -303,18 +303,23 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       item.addEventListener('lostpointercapture', cancelDrag);
     };
 
-    const syncNativeCaptionVisibility = () => {
+    const syncNativeCaptionVisibility = (stageHasText = false) => {
       const id = '__whisper_hide_native_captions';
       let sheet = document.getElementById(id);
       // Uygulama katmanı kapalıyken sitenin kendi altyazısını asla gizleme;
       // aksi halde kullanıcı iki altyazı kaynağını da aynı anda kaybeder.
-      if (state.mode !== 'off' && state.style?.hideSiteCaptions) {
+      const hideByPreference = state.mode !== 'off' && state.style?.hideSiteCaptions;
+      const hideDuplicate = !!stageStyle && state.mode !== 'off' && stageHasText;
+      if (hideByPreference || hideDuplicate) {
         if (!sheet) {
           sheet = document.createElement('style');
           sheet.id = id;
-          sheet.textContent = 'video::cue { opacity: 0 !important; color: transparent !important; background: transparent !important; } .ytp-caption-window-container, .player-timedtext, .video-js .vjs-text-track-display { visibility: hidden !important; }';
           (document.head || document.documentElement).appendChild(sheet);
         }
+        const css = (hideByPreference
+          ? 'video::cue { opacity: 0 !important; color: transparent !important; background: transparent !important; } .ytp-caption-window-container, .player-timedtext, .video-js .vjs-text-track-display { visibility: hidden !important; }'
+          : '') + (hideDuplicate ? '#movie_player .ytp-caption-window-container { opacity: 0 !important; }' : '');
+        if (sheet.textContent !== css) sheet.textContent = css;
       } else if (sheet) sheet.remove();
     };
 
@@ -663,8 +668,8 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
         renderTotalMs += elapsed;
         renderMaxMs = Math.max(renderMaxMs, elapsed);
       };
-      syncNativeCaptionVisibility();
       if (document.hidden || state.mode === 'off') {
+        syncNativeCaptionVisibility();
         if (root) root.style.display = 'none';
         cancelFrame();
         finishRender();
@@ -675,6 +680,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       // render'da katman kendiliğinden geri döner.
       if (globalThis.__whisperAssState) {
         if (root) root.style.display = 'none';
+        syncNativeCaptionVisibility();
         cancelFrame();
         finishRender();
         return;
@@ -682,6 +688,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       const box = ensureRoot();
       const activeMedia = discoverMedia();
       if (!activeMedia) {
+        syncNativeCaptionVisibility();
         box.style.display = 'none';
         cancelFrame();
         finishRender();
@@ -735,6 +742,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
         ? sourceCues.map((cue) => cue.text).join('\\n') : '';
       const translationText = translationCues.length && (state.mode === 'translation' || state.mode === 'both')
         ? translationCues.map((cue) => cue.text).join('\\n') : '';
+      syncNativeCaptionVisibility(!!(sourceText || translationText));
       if (source.textContent !== sourceText) source.textContent = sourceText;
       if (translation.textContent !== translationText) translation.textContent = translationText;
       // Dikey VTT cue'ları (vertical:rl/lr — geleneksel CJK altyazısı) yatay
@@ -753,9 +761,17 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       const opacity = Math.max(0, Math.min(1, Number.isFinite(rawOpacity) ? rawOpacity : .82));
       const width = Math.max(40, Math.min(98, Number(style.width) || 88));
       const lines = Math.max(1, Math.min(6, Number(style.maxLines) || 3));
-      const gap = Math.max(0, Math.min(48, Number.isFinite(Number(style.gap)) ? Number(style.gap) : 6));
+      const requestedGap = Math.max(0, Math.min(48, Number.isFinite(Number(style.gap)) ? Number(style.gap) : 6));
+      const compactStage = state.stageVideo === true && rect.height < 330;
+      const visibleCount = Number(Boolean(sourceText)) + Number(Boolean(translationText));
+      const gap = compactStage ? Math.min(requestedGap, rect.height * .04) : requestedGap;
       const fontSize = Math.min(27, Math.max(12, Math.min(rect.width * .026, rect.height * .055))) * scale;
-      const styleKey = [scale, opacity, width, lines, rect.height, rect.width, gap].join(':');
+      const requestedBottom = rect.bottom - baseMargin - rect.height * (bottomOffset / 100);
+      const compactBudget = Math.min(rect.height * .52, requestedBottom - rect.top);
+      const heightLimit = compactStage
+        ? Math.max(20, (compactBudget - gap * (visibleCount > 1)) / Math.max(1, visibleCount))
+        : Math.max(20, (rect.height - baseMargin - 12) / 2);
+      const styleKey = [scale, opacity, width, lines, fontSize, gap, heightLimit, compactStage].join(':');
       if (styleKey !== appliedStyleKey) {
         appliedStyleKey = styleKey;
         box.style.gap = gap + 'px';
@@ -765,17 +781,25 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
           item.style.fontSize = fontSize + 'px';
           item.style.fontFamily = 'Segoe UI, Arial, sans-serif';
           item.style.backgroundColor = 'rgba(5,7,10,' + opacity + ')';
-          item.style.maxHeight = 'min(calc(' + (lines * 1.35) + 'em + 4px), ' + Math.max(20, (rect.height - baseMargin - 12) / 2) + 'px)';
+          const padding = item === source ? 6 : 8;
+          const lineLimit = Math.max(1, Math.min(lines, Math.floor((heightLimit - padding) / (fontSize * 1.35))));
+          item.style.maxHeight = compactStage
+            ? 'calc(' + (lineLimit * 1.35) + 'em + ' + padding + 'px)'
+            : 'min(calc(' + (lines * 1.35) + 'em + 4px), ' + heightLimit + 'px)';
+          item.style.webkitBoxOrient = compactStage ? 'vertical' : '';
+          item.style.webkitLineClamp = compactStage ? String(lineLimit) : '';
         }
       }
       if (style.sourceFirst === false) {
         if (translation.nextSibling !== source) box.appendChild(source);
       } else if (source.nextSibling !== translation) box.appendChild(translation);
-      source.style.display = source.textContent ? '' : 'none';
-      translation.style.display = translation.textContent ? '' : 'none';
+      for (const item of [source, translation]) {
+        item.style.display = !item.textContent ? 'none' : compactStage && !item.style.writingMode ? '-webkit-box' : '';
+      }
       // İki uzun dil bloğu küçük/tam ekran videonun dışına taşmasın.
       const overlayHeight = box.getBoundingClientRect().height;
-      box.style.top = Math.max(rect.top, Math.min(parseFloat(box.style.top), rect.bottom - baseMargin - overlayHeight)) + 'px';
+      box.style.top = Math.max(rect.top, state.stageVideo === true ? requestedBottom - overlayHeight
+        : Math.min(parseFloat(box.style.top), rect.bottom - baseMargin - overlayHeight)) + 'px';
       queueFrame();
       finishRender();
     }

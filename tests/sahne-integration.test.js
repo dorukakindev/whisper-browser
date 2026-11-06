@@ -70,9 +70,43 @@ test('browser transcript projection resolves timing per channel and refreshes ed
   const first = a.state();
   assert(reads <= 4, 'source identity work must scale with channels, not cue endpoints or words: ' + reads);
   assert.equal(first.rows[0].start, 5); assert.equal(first.rows[0].words[0].t0, 5);
+  f.player.browserTime = 6;
+  const during = a.state();
+  assert.equal(during.time, 6);
+  assert.equal(during.captionTracks[0], first.captionTracks[0]);
+  assert.equal(during.rows, first.rows);
+  f.player.browserPaused = false;
+  f.player.browserRate = 1.5;
+  const sample = {mediaKey:f.player.mediaKey,generation:f.player.generation,time:6,at:f.window.performance.now()-1500,advancing:true};
+  f.context.browserTabState = () => ({browserClockSample:sample});
+  assert.equal(a.state().displayTime,7.5);
+  assert.equal(a.state().time,6,'presentation interpolation cannot change the command clock');
+  sample.waiting = true;
+  assert.equal(a.state().waiting,true);
+  assert.equal(a.state().displayTime,6);
+  sample.waiting = false;
+  sample.seeking = true;
+  assert.equal(a.state().seeking,true);
+  assert.equal(a.state().displayTime,6);
+  sample.seeking = false;
+  sample.advancing = false;
+  assert.equal(a.state().displayTime,6);
+  sample.advancing = true;
+  sample.generation++;
+  assert.equal(a.state().displayTime,6);
+  sample.generation--;
+  f.player.browserTime = 22;
+  assert.equal(a.state().displayTime,22,'a seek must not inherit the old sample');
+  f.player.browserTime = 6;
+  f.player.browserAdPlaying = true;
+  assert.equal(a.state().canSeek, false);
+  assert.equal(a.state().adPlaying, true);
+  assert.equal(a.state().displayTime,6);
+  f.player.browserAdPlaying = false;
   offset = 9; reads = 0;
   const next = a.state();
-  assert.equal(next.rows[0].start, 9); assert.equal(next.rows[0].words[0].t0, 9);
+  const nextOriginal = next.rows.find(row => !row.standaloneTranslation);
+  assert.equal(nextOriginal.start, 9); assert.equal(nextOriginal.words[0].t0, 9);
   assert.notEqual(next.rev, first.rev); assert(reads <= 4);
   f.player.cues[0].id = 'replacement';
   assert.notEqual(a.state().rev, next.rev);
@@ -80,7 +114,64 @@ test('browser transcript projection resolves timing per channel and refreshes ed
   f.context.browserTransformForChannel = () => { reads++; throw new Error('unavailable timing lookup'); }; reads = 0;
   const fallback = a.state(); assert.equal(fallback.rows[0].start, 0); assert.equal(fallback.rows[0].words[0].t0, 0); assert(reads <= 4);
 });
+test('browser stage modes retain the browser tab, clock and tracks and release the slot on close', t => {
+  const f = fixture(t), layer = f.document.getElementById('playerLayer');
+  const slot = f.document.createElement('div');slot.id='browserViewSlot';layer.append(slot);
+  Object.assign(f.player,{workspaceMode:'browser',browserActiveTabId:'same-tab',browserTime:4,browserDuration:40,
+    browserMediaSeen:true,browserPaused:false,browserTracks:[],cues:[{id:'s',start:4,end:6,text:'Speech'}],cues2:[]});
+  f.context.subtitleVideoTransform=()=>({scale:1,offsetSeconds:0});
+  f.context.subtitleVideoTime=time=>time;
+  layer.classList.add('workspace-browser');
+  let podcast=false;
+  f.window.BrowserStudy={open(){layer.classList.add('browser-study-mode');},close(){layer.classList.remove('browser-study-mode');}};
+  f.window.BrowserPodcastUI={setMode(on){podcast=on;},isActive(){return podcast;}};
+  const study=f.open('study');
+  f.window.CinemaSahne.current.root.append(study.slot('study'));
+  assert.notEqual(slot.parentElement,layer);
+  assert.equal(study.state().rows[0].src,'Speech');
+  f.window.CinemaSahne.current.o.onMode('podcast',{});
+  const next=f.window.CinemaSahne.current;
+  assert.equal(next.o.mode,'podcast');
+  assert.equal(next.a.state().time,4);
+  assert.equal(next.a.state().paused,false);
+  assert.equal(slot.parentElement,layer);
+  next.o.onMode('study',{});
+  assert.equal(f.window.CinemaSahne.current.o.mode,'study');
+  f.window.CinemaSahne.current.root.append(f.window.CinemaSahne.current.a.slot('study'));
+  assert.equal(f.player.browserActiveTabId,'same-tab');
+  f.window.CinemaSahne.current.o.onClose();
+  assert.equal(f.window.CinemaSahne.current,null);
+  assert.equal(slot.parentElement,layer);
+  assert.equal(f.commands.length,0);
+});
 
+test('browser stage reading preferences stay with their own tab session across same-mode changes', t => {
+  const f = fixture(t);
+  const sessions = {a:{},b:{}};
+  Object.assign(f.player,{workspaceMode:'browser',browserActiveTabId:'a',browserTracks:[]});
+  f.document.getElementById('playerLayer').classList.add('workspace-browser');
+  f.context.subtitleVideoTransform=()=>({scale:1,offsetSeconds:0});
+  f.window.BrowserStudy={open(){},isActive:()=>true,stageSession:()=>sessions[f.player.browserActiveTabId]};
+  f.window.BrowserPodcastUI={setMode(){},isActive:()=>false};
+  const a=f.open('study'), original=f.window.CinemaSahne.current;
+  const aIdentity=a.identity();
+  original.prefs=()=>({reading:{identity:aIdentity,query:'First video'}});
+  f.player.browserActiveTabId='b';
+  f.player.mediaKey='browser:b';
+  const b=f.open('study');
+  assert.notEqual(b,a);
+  assert.equal(f.window.CinemaSahne.current.o.prefs,undefined);
+  assert.equal(sessions.a.readingPrefs.reading.query,'First video');
+  const bIdentity=b.identity();
+  f.window.CinemaSahne.current.prefs=()=>({reading:{identity:bIdentity,query:'Second video'}});
+  f.player.browserActiveTabId='a';
+  f.player.mediaKey='local:episode';
+  f.player.generation++;
+  const restored=f.open('study');
+  assert.equal(f.window.CinemaSahne.current.o.prefs.reading.query,'First video');
+  assert.equal(f.window.CinemaSahne.current.o.prefs.reading.identity,restored.identity());
+  assert.equal(sessions.b.readingPrefs.reading.query,'Second video');
+});
 test('changing scene mode retains keyboard focus on its replacement tab without stealing external focus', t => {
   const f = fixture(t); f.open('podcast');
   const original = f.window.CinemaSahne.current, button = original.root.querySelector('[data-mode="study"]');
@@ -318,6 +409,71 @@ test('closing during loop activation clears only its own current-source A/B loop
   assert.equal(f.player.abA, 20); assert.equal(f.player.abB, 30);
 });
 
+test('translation seek uses the paired track offset and rejects the previous revision after an edit', async t => {
+  const f=fixture(t), adapter=f.open('study');
+  const before=adapter.state();
+  assert.equal(before.rows[0].translationStart,2);
+  assert.equal((await adapter.cmd('seekTranslation',{row:0,part:1},before.rev)).ok,true);
+  assert.equal(f.commands.pop().time,5);
+  f.secondary.offsetSeconds=2;
+  const after=adapter.state();
+  assert.equal(after.rows[0].translationStart,3);
+  assert.equal((await adapter.cmd('seekTranslation',0,before.rev)).code,'stale-track');
+  assert.equal(f.commands.length,0);
+  assert.equal((await adapter.cmd('seekTranslation',0,after.rev)).ok,true);
+  assert.equal(f.commands.at(-1).time,3);
+});
+test('translation without a source match stays searchable and seekable without changing original navigation', async t => {
+  const f = fixture(t);
+  f.secondary.cues.push({ id: 'gap', start: 19, end: 21, text: 'Ayrı çeviri' });
+  const a = f.open('podcast'), state = a.state();
+  const index = state.rows.findIndex(row => row.standaloneTranslation);
+  const row = state.rows[index];
+  assert.equal(row.src, '');
+  assert.equal(row.trs[0], 'Ayrı çeviri');
+  assert.equal(row.translationCueIds[0], 'gap');
+  assert.equal(row.translationStart, 20);
+  assert.equal((await a.cmd('nextCue')).ok, false);
+  assert.equal((await a.cmd('seekTranslation', index, state.rev)).ok, true);
+  assert.equal(f.commands.at(-1).time, 20);
+  assert.equal(a.state().translationTargets.replay, 20);
+  assert.equal((await a.cmd('replay')).ok, false);
+});
+test('translation transport navigates its own cues across views and leaves the original loop intact', async t => {
+  const f = fixture(t), study = f.open('study');
+  const initial = study.state();
+  assert.equal(initial.translationTargets.nextCue, 5);
+  assert.equal(initial.translationTargets.replay, 2);
+  assert.equal((await study.cmd('nextCue', 'translation', initial.rev)).ok, true);
+  assert.equal(f.commands.at(-1).time, 5);
+  f.window.CinemaSahne.current.o.onMode('podcast', { reading: { identity: study.identity() } });
+  const podcast = f.window.CinemaSahne.current.a;
+  assert.equal(podcast.state().translationTargets.nextCue, undefined);
+  assert.equal((await podcast.cmd('prevCue', 'translation')).ok, true);
+  assert.equal(f.commands.at(-1).time, 2);
+  assert.equal((await podcast.cmd('replay', 'translation')).ok, true);
+  assert.equal(f.commands.at(-2).time, 2);
+  assert.equal(f.commands.at(-1).type, 'togglePlay');
+  const before = podcast.state();
+  f.secondary.offsetSeconds += 3;
+  assert.equal((await podcast.cmd('nextCue', 'translation', before.rev)).code, 'stale-track');
+  assert.equal(podcast.state().translationTargets.replay, undefined);
+  assert.equal((await podcast.cmd('replay', 'translation')).ok, false);
+  assert.equal((await podcast.cmd('loop', { on: true, row: 0 })).ok, true);
+  assert.deepEqual([f.player.abA, f.player.abB], [2, 10]);
+});
+test('a confirmed same-source loop survives a mode change without reinstalling the range', async t => {
+  const f=fixture(t), first=f.open('podcast');
+  assert.equal((await first.cmd('loop',{on:true,row:0})).ok,true);
+  const calls=f.commands.length;
+  f.window.CinemaSahne.current.o.onMode('study',{reading:{identity:first.identity()}});
+  const next=f.window.CinemaSahne.current.a;
+  assert.equal(next.state().loopRow,0);
+  assert.equal(f.commands.length,calls);
+  assert.deepEqual([f.player.abA,f.player.abB],[2,10]);
+  f.window.CinemaSahne.close();
+  assert.deepEqual([f.player.abA,f.player.abB],[null,null]);
+});
 test('Changing source timing clears the sentence loop while a translation-only shift keeps it', async t => {
   const f = fixture(t), a = f.open('study');
   assert.equal((await a.cmd('loop', { on: true, row: 0 })).ok, true);
@@ -440,7 +596,14 @@ test('only healthy progressing content clears its current browser recovery', () 
   const start=renderer.indexOf('function settleBrowserPlaybackRecovery(');
   const end=renderer.indexOf('async function runPlaybackRecovery(',start);
   let recovery={owner:'browser'},cleared=0;
-  const context={activePlaybackRecovery:()=>recovery,clearPlayerPlaybackRecovery:()=>{cleared++;}};
+  const signals=[];
+  const context={
+    player:{browserSignalState:{action:'playback-recovery'},browserTracks:[]},
+    activePlaybackRecovery:()=>recovery,
+    clearPlayerPlaybackRecovery:()=>{cleared++;},
+    interfaceChoice:(_tr,en)=>en,
+    setBrowserSignal:(message)=>signals.push(message)
+  };
   vm.runInNewContext(renderer.slice(start,end),context);
   const healthy={paused:false,adPlaying:false,readyState:4,errorCode:0,currentTime:10.5};
   for(const patch of [{paused:true},{adPlaying:true},{readyState:1},{errorCode:2},{currentTime:10},{currentTime:100},{spinnerVisible:true}]) {
@@ -449,6 +612,119 @@ test('only healthy progressing content clears its current browser recovery', () 
   recovery=null;context.settleBrowserPlaybackRecovery(healthy,10);assert.equal(cleared,0);
   recovery={owner:'local'};context.settleBrowserPlaybackRecovery(healthy,10);assert.equal(cleared,0);
   recovery={owner:'browser'};context.settleBrowserPlaybackRecovery(healthy,10);assert.equal(cleared,1);
+  assert.deepEqual(signals,['Playback resumed.']);
+  context.player.browserSignalState.action='translate';
+  context.settleBrowserPlaybackRecovery(healthy,10);
+  assert.deepEqual(signals,['Playback resumed.']);
+});
+test('caption retry keeps the saved source and refuses a delayed retry after switching media', async () => {
+  const renderer=fs.readFileSync(require.resolve('../src/renderer/renderer'),'utf8');
+  const start=renderer.indexOf('let browserCaptionRetryPending = null;');
+  const end=renderer.indexOf('async function runBrowserChromeCommand(',start);
+  const player={workspaceMode:'browser',browserActiveTabId:'one',mediaKey:'browser:one',browserTime:12,
+    cues:[{text:'Saved words'}],cues2:[{text:'Saved translation'}]};
+  let generation=1,release,reloads=0;
+  const context=vm.createContext({
+    player,currentGeneration:()=>generation,playbackCheckpoint:()=>11.5,
+    saveActiveBrowserTabWorkspace(){},
+    flushWatchState:()=>new Promise(resolve=>{release=resolve;}),
+    runBrowserChromeCommand:async()=>{reloads++;return {ok:true};}
+  });
+  vm.runInContext(renderer.slice(start,end),context);
+  const expected={tabId:'one',mediaKey:'browser:one',generation:1};
+  const pending=context.retryBrowserCaptionCapture(expected);
+  assert.equal((await context.retryBrowserCaptionCapture(expected)).code,'busy');
+  player.mediaKey='browser:two';generation++;
+  release();assert.equal((await pending).code,'stale-source');
+  assert.equal(reloads,0);
+  const next=context.retryBrowserCaptionCapture({...expected,mediaKey:player.mediaKey,generation});
+  release();assert.equal((await next).ok,true);
+  assert.equal(reloads,1);
+  assert.equal(player.pendingLibrarySeek.seconds,11.5);
+  assert.equal(player.cues[0].text,'Saved words');
+  assert.equal(player.cues2[0].text,'Saved translation');
+});
+test('initial Browser progress cannot overwrite the saved scene before a scene choice', () => {
+  const renderer=fs.readFileSync(require.resolve('../src/renderer/renderer'),'utf8');
+  const start=renderer.indexOf('function captureWatchPrefs(');
+  const end=renderer.indexOf('function beginWatchSession(',start);
+  let chosen=false,active=false;
+  const context=vm.createContext({
+    player:{workspaceMode:'browser',mediaKey:'browser:saved'},
+    $:()=>null,watchItemByKey:()=>({prefs:{browserStageMode:'podcast'}}),subLangFromPath:()=>'',
+    window:{BrowserStudy:{hasPreference:()=>chosen,isActive:()=>active},BrowserPodcastUI:{isActive:()=>true}}
+  });
+  vm.runInContext(renderer.slice(start,end),context);
+  assert.equal(Object.hasOwn(context.captureWatchPrefs(),'browserStageMode'),false);
+  chosen=true;active=true;
+  assert.equal(context.captureWatchPrefs().browserStageMode,'podcast');
+  active=false;
+  assert.equal(context.captureWatchPrefs().browserStageMode,null);
+});
+test('a delayed saved scene cannot reopen after the user closes the scene', async () => {
+  const renderer=fs.readFileSync(require.resolve('../src/renderer/renderer'),'utf8');
+  const start=renderer.indexOf('async function restoreWatchProfile(');
+  const end=renderer.indexOf('function makeWatchAction(',start);
+  let revision=0,release,opened=0;
+  const player={workspaceMode:'browser',mediaKey:'browser:one',browserSceneReopen:{key:'browser:one'}};
+  const context=vm.createContext({
+    player,state:{seriesPrefs:{}},currentGeneration:()=>1,staleGeneration:()=>false,
+    browserTabState:()=>({}),watchItemByKey:()=>({prefs:{speed:1,browserStageMode:'podcast'}}),
+    seriesKeyForPlayer:()=>'',browserCommand:()=>new Promise(resolve=>{release=resolve;}),
+    $:()=>null,syncPlayerSpeedControl(){},applySubtitlePos(){},applySavedLanguagePrefs(){},updateSeriesChip(){},
+    window:{api:{browserCommand:true},BrowserStudy:{revision:()=>revision},CinemaSahne:{open(){opened++;}}}
+  });
+  vm.runInContext(renderer.slice(start,end),context);
+  const pending=context.restoreWatchProfile(player.mediaKey);
+  revision++;
+  release();await pending;
+  assert.equal(opened,0);
+  player.browserSceneReopen={key:player.mediaKey};
+  const next=context.restoreWatchProfile(player.mediaKey);
+  release();await next;
+  assert.equal(opened,1);
+});
+test('an ended event cannot advance the new media while its old progress save is pending', async () => {
+  const renderer=fs.readFileSync(require.resolve('../src/renderer/renderer'),'utf8');
+  const start=renderer.indexOf("video.addEventListener('ended', async () => {");
+  const end=renderer.indexOf("video.addEventListener('error'",start);
+  for (const change of ['key','generation','none','podcast']) {
+    let ended,release,generation=1,next=0,queue=0;
+    const player={mediaKey:'local:one',generation:1,autoNext:true,sleepTimerMode:'',playlistIndex:0};
+    const context=vm.createContext({
+      player,video:{addEventListener:(_type,callback)=>{ended=callback;}},
+      window:{MediaShelfUI:{ownsPodcastQueue:()=>change==='podcast',advancePodcastQueue:async()=>{queue++;}}},
+      currentGeneration:()=>generation,staleGeneration:expected=>expected!==generation,
+      stopPlayerVideoFrameLoop(){},renderCue(){},flushWatchState:()=>new Promise(resolve=>{release=resolve;}),
+      stQueueAutoNext:()=>false,playPlaylistDelta:async()=>{next++;},stAutoRelatedNext(){},$:()=>null,osd(){}
+    });
+    vm.runInContext(renderer.slice(start,end),context);
+    const pending=ended();
+    if(change==='key')player.mediaKey='local:two';
+    if(change==='generation')generation++;
+    release();await pending;
+    assert.equal(next,change==='none'?1:0);
+    assert.equal(queue,change==='podcast'?1:0);
+  }
+});
+test('a late Browser show response hides the native view after leaving Browser', async () => {
+  const renderer=fs.readFileSync(require.resolve('../src/renderer/renderer'),'utf8');
+  const start=renderer.indexOf('async function showBrowserWorkspaceAttempt(');
+  const end=renderer.indexOf('let browserWorkspaceShowPromise',start);
+  let release,hidden=0,updated=0;
+  const player={workspaceMode:'browser',browserWorkspaceSeq:0,browserActiveTabId:'one'};
+  const context=vm.createContext({
+    player,browserSlotBounds:()=>({width:640,height:360}),
+    $:()=>({classList:{contains:()=>false}}),
+    window:{api:{showBrowser:()=>new Promise(resolve=>{release=resolve;}),hideBrowser:async()=>{hidden++;}}},
+    updateBrowserNavigation:()=>{updated++;}
+  });
+  vm.runInContext(renderer.slice(start,end),context);
+  const pending=context.showBrowserWorkspaceAttempt();
+  player.workspaceMode='player';player.browserWorkspaceSeq++;
+  release({ok:true});await pending;
+  assert.equal(hidden,1);
+  assert.equal(updated,0);
 });
 
 

@@ -12,12 +12,16 @@ let roles = { source:[], translation:[] }, chooseSecond;
 window.PlayerUiKit={select:config=>{chooseSecond=config.onChange;const wrap=document.createElement('div');wrap.trigger=document.createElement('button');wrap.append(wrap.trigger);return wrap;}};
 const context = vm.createContext({window,document,player,MutationObserver:window.MutationObserver,requestAnimationFrame:fn=>frames.push(fn),
  closeBrowserToolbarMenus:()=>calls.push('close-menu'),setViewMode:value=>{player.viewMode=value;},setPlayerSidebarCollapsed:value=>calls.push(['collapse',value]),
- setBrowserSideRailPref:value=>calls.push(['rail',value]),setSideTab:value=>calls.push(['tab',value]),setSubtitleMode:(value)=>calls.push(['display',value]),browserSubtitleRoleCues:()=>roles,browserTabState:()=>({mediaId:player.mediaKey})});
+ setBrowserSideRailPref:value=>calls.push(['rail',value]),setSideTab:value=>calls.push(['tab',value]),setSubtitleMode:(value)=>calls.push(['display',value]),browserSubtitleRoleCues:()=>roles,browserTabState:()=>({mediaId:player.mediaKey,subtitleMode:'off'})});
 for (const id of ['browserTrackTranslate','browserTrackLoadPair','browserWhisperTranslate','browserLiveAsr']) document.getElementById(id).onclick=()=>calls.push(id);
 vm.runInContext(fs.readFileSync(require.resolve('../src/renderer/browser-study'),'utf8'),context);
 const study=window.BrowserStudy, button=id=>document.querySelector(`[data-study-action="${id}"]`);
 window.BrowserPodcastUI={setMode:value=>calls.push(['podcast',value])};
+assert.equal(study.hasPreference(),false,'initial browser state must preserve saved scene preferences');
+const firstRevision=study.revision();
 study.open();
+assert(study.revision()>firstRevision);
+assert.equal(study.hasPreference(),true);
 assert(calls.some(call=>Array.isArray(call)&&call[0]==='podcast'&&call[1]===false),'explicit bilingual view clears podcast intent, including a previously closed panel');
 assert(calls.findIndex(call=>call[0]==='rail')<calls.findIndex(call=>call[0]==='collapse'),'choose panel before responsive layout calculates takeover');
 assert.equal(study.isActive(),true);assert.equal(player.viewMode,'study');
@@ -31,8 +35,14 @@ button('browserTrackLoadPair').click();assert.equal(typeof chooseSecond,'functio
 button('browserTrackTranslate').click();assert.equal(calls.at(-1),'browserTrackTranslate');
 document.getElementById('browserTrackTranslate').disabled=true;study.refresh();assert.equal(button('browserTrackTranslate').disabled,true);
 const before=calls.length;player.browserActiveTabId='tab-b';player.mediaKey='browser:b';player.generation++;
+assert.equal(study.hasPreference(),false,'a scene choice belongs to its media and tab');
 button('browserTrackLoadPair').click();assert.equal(calls.length,before,'old visible control cannot act in a different tab');study.refresh();assert.equal(study.isActive(),false);assert.equal(document.querySelector('.browser-study').hidden,true);
-study.open();study.close();assert.equal(study.isActive(),false);
+study.open();
+const displayCalls=calls.filter(call=>call[0]==='display').length;
+study.open();
+assert.equal(calls.filter(call=>call[0]==='display').length,displayCalls,'reopening the same scene leaves the current language selection intact');
+study.close();assert.equal(study.isActive(),false);
+assert.deepEqual(calls.filter(call=>call[0]==='display').at(-1),['display','off']);
 player.browserActiveTabId='tab-a';study.refresh();assert.equal(study.isActive(),false,'same tab with different media stays closed');
 player.mediaKey='browser:a';study.refresh();assert.equal(study.isActive(),true,'view choice follows the same verified media');
 player.workspaceMode='player';study.refresh();assert.equal(layerHas('browser-study-mode'),false);assert.equal(study.isActive(),false);
