@@ -115,10 +115,13 @@
     const identity = () => { const s = F.snap(); return `${kind}|${F.tab()}|${s ? s.mediaKey : ''}|${s ? s.generation : ''}|${s?.sourceVersion || ''}`; };
     let cache = { rev: '', rows: [], meta: [], untimed: false }, ownLoop = null, disposed = false, lastAction = null;
     const current = () => { const now = F.snap(); return !disposed && !!now && now.mediaKey === bound.mediaKey && now.generation === bound.generation && (!bound.sourceVersion || now.sourceVersion === bound.sourceVersion); };
+    const activeLoop = (s, range) => kind === 'shelf' ? s?.loopRange?.a === range.a && s.loopRange?.b === range.b
+      : player.abA === range.a && player.abB === range.b;
     function clearOwnedLoop() {
       const range = ownLoop; ownLoop = null;
-      const now = F.snap();
-      if (range && now?.mediaKey === bound.mediaKey && now.generation === bound.generation && (!bound.sourceVersion || now.sourceVersion === bound.sourceVersion) && player.abA === range.a && player.abB === range.b) setAB(null, null);
+      if (!range || !current() || !activeLoop(F.snap(), range)) return;
+      if (kind === 'shelf') void dispatch('clearAB', {a:range.a,b:range.b});
+      else setAB(null, null);
     }
     function build(src, sec, s) {
       const meta = [], secById = new Map(sec.cues.map((c) => [c.id, c]));
@@ -308,7 +311,7 @@
       return { job: job(), sections };
     }
     return {
-      caps: { loop: kind!=='shelf', save: typeof window.api.upsertResearchAnnotation==='function', cinema:kind==='local', study:true, word:kind!=='shelf' },
+      caps: { loop: true, save: typeof window.api.upsertResearchAnnotation==='function', cinema:kind==='local', study:true, word:kind!=='shelf' },
       identity, panel, actions,
       recovery: () => current() && (kind === 'shelf' ? window.MediaShelfUI?.playbackRecovery()
         : activePlaybackRecovery() && { ...activePlaybackRecovery(), run: runPlaybackRecovery }),
@@ -322,7 +325,20 @@
         return { title: F.mediaTitle() || s?.title || '', sub: F.sub(), eyebrow: F.eyebrow?.() || (kind === 'browser' ? T('Şimdi çalıyor', 'Now playing') : kind === 'shelf' ? T('Podcast', 'Podcast') : T('Yerel oynatıcı', 'Local player')), cover: F.cover(), tint: null,
         chapters:podcast?(audio.publisherChapters||[]).map(chapter=>({...chapter,t:chapterTiming&&chapter.t!==null&&chapter.t<duration?chapter.t:null})):kind!=='local'?[]:(player.chapters||[]).filter(c=>Number.isFinite(c.start)&&c.start>=0&&(!s?.duration||c.start<s.duration)).map(c=>({t:c.start,label:String(c.title||T('Bölüm','Chapter'))})),
         queue:kind==='local'?(player.playlist||[]).map((file,index)=>({index,title:window.PlayerUiKit?.displayTitle(String(file).split(/[\\/]/).pop())||String(file)})).slice(Math.max(0,player.playlistIndex+1),Math.max(0,player.playlistIndex+1)+2):[],native:kind==='local'&&!!window.NativePlayerUI?.active(),audio:kind==='shelf'||s?.sourceKind==='rss'||kind==='local'&&num($('playerVideo')?.readyState)>=2&&!num($('playerVideo')?.videoWidth),langs:l }; },
-      state: () => { const s = F.snap(); if (!s) return { time: 0, duration: 0, paused: true, rate: 1, rows: [], rev: 'none', canSeek: false }; const r = rowsFor(s); return { time: num(s.time), duration: num(s.duration), paused: !!s.paused, rate: num(s.rate) || 1, volume: kind === 'shelf' ? num($('mediaShelfAudio')?.volume ?? 1) : kind === 'browser' ? num(player.browserVolume ?? 1) : num($('playerVideo')?.volume ?? 1), rows: r.rows, rev: cache.rev, untimed: r.untimed, timingNotice:F.timingNotice?.()||'', canSeek: s.capabilities?.seek?.support === 'yes' }; },
+      state: () => {
+        const s = F.snap();
+        if (!s) return { time: 0, duration: 0, paused: true, rate: 1, rows: [], rev: 'none', canSeek: false };
+        const r = rowsFor(s);
+        if (ownLoop && ownLoop.revision !== r.rev) {
+          const index = r.rows.findIndex((row, i) => row.id === ownLoop.cueId && r.meta[i]?.trackId === ownLoop.trackId
+            && row.timed && row.start === ownLoop.a && row.end === ownLoop.b);
+          if (index < 0) clearOwnedLoop();
+          else Object.assign(ownLoop, { row: index, revision: r.rev });
+        }
+        const loopRow = ownLoop && activeLoop(s, ownLoop) ? ownLoop.row : -1;
+        if (loopRow < 0) ownLoop = null;
+        return { time: num(s.time), duration: num(s.duration), paused: !!s.paused, rate: num(s.rate) || 1, volume: kind === 'shelf' ? num($('mediaShelfAudio')?.volume ?? 1) : kind === 'browser' ? num(player.browserVolume ?? 1) : num($('playerVideo')?.volume ?? 1), rows: r.rows, rev: cache.rev, untimed: r.untimed, timingNotice:F.timingNotice?.()||'', canSeek: s.capabilities?.seek?.support === 'yes', loopRow };
+      },
       slot: (m) => { const el = F.slot(m); if (el) { el.classList.add('sh-slot-fill'); bounds(); } return el; },
       releaseSlot: () => { clearOwnedLoop(); disposed = true; F.unslot(); restore(); F.dispose(); },
       cmd(t, v, expectedRevision) {
@@ -369,8 +385,16 @@
           case 'rate': return dispatch('setRate', { rate: v });
           case 'volume': return dispatch('setVolume',{volume:v});
           case 'loop': {
-            if (v && v.on) { const r = cache.rows[v.row]; if (!r || !r.timed) return Promise.resolve({ ok: false, code: 'none', message: T('Döngü için zamanlı cümle gerekli.', 'A timed sentence is required for looping.') }); if (player.abA !== null && player.abB !== null && !ownLoop) return Promise.resolve({ ok: false, code: 'busy', message: T('Zaten bir A–B döngüsü var; önce onu kapat.', 'An A–B loop already exists; turn it off first.') }); const range = ownLoop = { a:r.start, b:r.end }; return dispatch('setAB', range).then(x=>{ if (!x.ok && ownLoop === range) clearOwnedLoop(); return x; }); }
-            clearOwnedLoop(); return Promise.resolve({ ok: true });
+            const r = cache.rows[v.row];
+            if (!r?.timed) return Promise.resolve({ ok: false, code: 'none', message: T('Döngü için zamanlı cümle gerekli.', 'A timed sentence is required for looping.') });
+            const hasLoop = kind === 'shelf' ? !!s.loopRange : player.abA !== null && player.abB !== null;
+            if (hasLoop && (!ownLoop || !activeLoop(s, ownLoop))) return Promise.resolve({ ok: false, code: 'busy', message: T('Zaten bir A–B döngüsü var; önce onu kapat.', 'An A–B loop already exists; turn it off first.') });
+            const previous = ownLoop;
+            const range = ownLoop = { a:r.start, b:r.end, row:v.row, cueId:r.id, trackId:cache.meta[v.row]?.trackId, revision:cache.rev };
+            return dispatch('setAB', {a:range.a,b:range.b}).then(result => {
+              if (!result.ok && ownLoop === range) ownLoop = previous;
+              return result;
+            });
           }
           case 'copy': window.api.copyText?.(v); return Promise.resolve({ ok: true });
           default: return Promise.resolve({ ok: false, code: 'unsupported' });

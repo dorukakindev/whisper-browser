@@ -20751,6 +20751,7 @@ async function openPodcastResearchResult(result, { beforeSeek, isCancelled = () 
       if(isCancelled())return false;
       if (!library?.ok || !found || !window.MediaShelfUI?.openPodcast) return unavailable();
       await window.MediaShelfUI.openPodcast(found.show.id, found.episode.url);
+      if(isCancelled())return false;
       await window.CinemaSahne?.openShelf?.({ mode: 'podcast' });
       snapshot = window.MediaShelfUI.readSnapshot?.(); service = window.MediaShelfUI;
     } else {

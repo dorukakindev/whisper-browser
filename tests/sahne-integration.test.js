@@ -275,6 +275,19 @@ test('closing during loop activation clears only its own current-source A/B loop
   assert.equal(f.player.abA, 20); assert.equal(f.player.abB, 30);
 });
 
+test('Changing source timing clears the sentence loop while a translation-only shift keeps it', async t => {
+  const f = fixture(t), a = f.open('study');
+  assert.equal((await a.cmd('loop', { on: true, row: 0 })).ok, true);
+  assert.equal(a.state().loopRow, 0);
+  f.secondary.offsetSeconds++;
+  assert.equal(a.state().loopRow, 0);
+  assert.equal(f.player.abA, 2);
+  f.source.offsetSeconds++;
+  assert.equal(a.state().loopRow, -1);
+  assert.equal(f.player.abA, null);
+  assert.equal(f.player.abB, null);
+});
+
 test('closing shelf playback removes the scene instead of remounting an ownerless overlay',async t=>{
  const f=fixture(t);f.document.getElementById('playerLayer').classList.add('hidden');let live=true;
  f.window.MediaShelfUI={readSnapshot:()=>live?{mediaKey:'shelf:one',generation:1,title:'Episode',time:0,duration:30,paused:true,rate:1,capabilities:{seek:{support:'yes'}}}:null,isPodcastMode:()=>true,openPodcastMode:async()=>{},getTranscriptTracks:()=>[],executeExisting:async()=>({ok:true})};

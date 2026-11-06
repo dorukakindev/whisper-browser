@@ -9,6 +9,16 @@ function setup(){const calls=[],notices=[];const binding={episodeIdentity:'episo
 test('RSS research note reopens by real entry and permits a matching zero timestamp',async()=>{const h=setup();assert.equal(await h.context.openPodcastResearchResult(h.result),true);assert.deepEqual(h.calls[0],['open-rss','entry-A']);assert.equal(h.calls[1][0],'seek-rss');assert.equal(h.calls[1][1].time,0);});
 test('Untimed and changed-source notes open their podcast without inventing a seek',async()=>{for(const change of ['untimed','version','binding']){const h=setup();if(change==='untimed')h.result.timed=false;else if(change==='version')h.setSnapshot({...h.snapshot,sourceVersion:'different'});else h.setSnapshot({...h.snapshot,sourceBinding:{...h.binding,resource:'https://example.test/different.mp3'}});assert.equal(await h.context.openPodcastResearchResult(h.result),true);assert.equal(h.calls.length,1,change);assert(h.notices.length);}});
 test('Shelf research note resolves its saved episode identity through existing library owner',async()=>{const h=setup();h.result.playbackOwner='media-shelf';h.result.mediaId='shelf-podcast:episode-A';h.context.window.MediaShelfUI.readSnapshot=()=>({...h.snapshot,mediaKey:h.result.mediaId});assert.equal(await h.context.openPodcastResearchResult(h.result),true);assert.deepEqual(h.calls[0],['open-shelf','show-A','https://example.test/audio.mp3']);assert.equal(h.calls[1][0],'seek-shelf');assert.equal(h.calls[1][1].time,0);});
+test('Cancellation during shelf opening prevents the follow-up scene and seek', async () => {
+ const h=setup();
+ h.result.playbackOwner='media-shelf';
+ let cancelled=false, sceneOpens=0;
+ h.context.window.MediaShelfUI.openPodcast=async()=>{cancelled=true;};
+ h.context.window.CinemaSahne={openShelf:async()=>{sceneOpens++;}};
+ assert.equal(await h.context.openPodcastResearchResult(h.result,{isCancelled:()=>cancelled}),false);
+ assert.equal(sceneOpens,0);
+ assert.equal(h.calls.length,0);
+});
 test('Missing RSS locator never falls through to a generic browser reopen',async()=>{const h=setup();delete h.result.sourceEntryId;assert.equal(await h.context.openPodcastResearchResult(h.result),false);assert.equal(h.calls.length,0);assert(h.notices.length);});
 
 test('Saved-search revalidation cannot seek a newer episode or a modified saved passage',async()=>{

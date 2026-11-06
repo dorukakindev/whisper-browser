@@ -37,12 +37,12 @@
   const audio = el('audio'); audio.controls = true; audio.preload = 'metadata'; audio.id = 'mediaShelfAudio';
   const dock = el('section', 'ms-dock media-surface hidden'); dock.dataset.uiUntranslated = ''; dock.setAttribute('aria-label', t('Music player', 'Müzik oynatıcı'));
   const dockTitle = el('strong'), dockStatus = el('span', 'ms-status'); dockStatus.setAttribute('role', 'status');
-  const dockRetry = btn(t('Retry playback','Oynatmayı yeniden dene'), () => shelfPlaybackRecovery()?.run(), 'mh-text-button');
-  dockRetry.hidden = true;
   const btn = (label, callback, cls = 'mh-action') => {
     const node = el('button', cls, label); node.type = 'button';
     node.addEventListener('click', () => Promise.resolve().then(callback).catch(error => status(error.message, true))); return node;
   };
+  const dockRetry = btn(t('Retry playback','Oynatmayı yeniden dene'), () => shelfPlaybackRecovery()?.run(), 'mh-text-button');
+  dockRetry.hidden = true;
   const speed = el('select'); speed.setAttribute('aria-label', t('Playback speed', 'Oynatma hızı'));
   for (const rate of [.75, 1, 1.15, 1.25, 1.5, 1.75, 2]) { const opt = el('option', '', `${rate}×`); opt.value = rate; speed.append(opt); } speed.value = '1';
   speed.addEventListener('change', () => { audio.playbackRate = Number(speed.value); });
@@ -78,12 +78,13 @@
   // Podcast presentation observes the existing shelf audio owner; opening it never plays or reloads audio.
   const podcastSubscribers=new Set(),queueSubscribers=new Set();
   let podcastMode=false,podcastPanel=null,podcastTrack=null,podcastTranslation=null,podcastOutputRevision=0,podcastDescriptors=[],podcastEpoch=0,podcastFollow=true,podcastRows=[],podcastPage=0,podcastActive=null,podcastRequest=0,podcastAcquisition=null,podcastRetry=null,podcastQuery='',podcastDisplay='both';
+  let podcastLoop = null;
   const podcastKey=()=>current?.kind==='podcasts'?'shelf-podcast:'+current.episodeIdentity:null;
   function readPodcastSnapshot(){
     if(!podcastKey())return null;
     const finite=Number.isFinite(audio.duration)&&audio.duration>0;
     const yes={support:'yes'}, no=reason=>({support:'no',reason});
-    return {mediaKey:podcastKey(),generation:playGeneration,episodeIdentity:current.episodeIdentity,sourceVersion:current.sourceVersion,sourceBinding:current.sourceBinding,playbackOwner:'media-shelf',sourceKind:'rss',sourceVersionStatus:current.sourceBinding?.fingerprintStatus||'unknown',title:current.title,time:Number(audio.currentTime)||0,currentTime:Number(audio.currentTime)||0,duration:finite?audio.duration:null,paused:audio.paused,rate:audio.playbackRate,epoch:podcastEpoch,sourceTrack:podcastTrack?{id:podcastTrack.id,revision:podcastTrack.revision}:null,capabilities:{play:yes,pause:yes,seek:finite?yes:no('duration-unknown'),rate:yes,readTranscript:podcastTrack?yes:no('no-transcript'),asr:{support:'yes',reason:'existing-queue-with-explicit-acquisition'},ASR:{support:'yes',reason:'existing-queue-with-explicit-acquisition'},download:{support:'unknown',reason:'public-source-access-unverified'}}};
+    return {mediaKey:podcastKey(),generation:playGeneration,episodeIdentity:current.episodeIdentity,sourceVersion:current.sourceVersion,sourceBinding:current.sourceBinding,playbackOwner:'media-shelf',sourceKind:'rss',sourceVersionStatus:current.sourceBinding?.fingerprintStatus||'unknown',title:current.title,time:Number(audio.currentTime)||0,currentTime:Number(audio.currentTime)||0,duration:finite?audio.duration:null,paused:audio.paused,rate:audio.playbackRate,epoch:podcastEpoch,loopRange:podcastLoop?.generation===playGeneration?{a:podcastLoop.a,b:podcastLoop.b}:null,sourceTrack:podcastTrack?{id:podcastTrack.id,revision:podcastTrack.revision}:null,capabilities:{play:yes,pause:yes,seek:finite?yes:no('duration-unknown'),rate:yes,readTranscript:podcastTrack?yes:no('no-transcript'),asr:{support:'yes',reason:'existing-queue-with-explicit-acquisition'},ASR:{support:'yes',reason:'existing-queue-with-explicit-acquisition'},download:{support:'unknown',reason:'public-source-access-unverified'}}};
   }
   function podcastSourceRole(){return podcastTrack?.timed?{trackId:podcastTrack.id,trackRevision:podcastTrack.revision,cues:podcastTrack.cues,offsetSeconds:podcastTrack.offsetSeconds||0}:null;}
   function notifyPodcast(){const snap=readPodcastSnapshot();for(const fn of podcastSubscribers)fn(snap);if(podcastMode)updatePodcastActive();}
@@ -93,6 +94,13 @@
       case 'togglePlay':if(audio.paused)await audio.play();else audio.pause();break;
       case 'play':await audio.play();break;
       case 'pause':audio.pause();break;
+      case 'setAB':
+        if (!snap.duration || !window.PlayerLoopPolicy.validateAbRange(command.a, command.b, snap.duration)) return {ok:false,code:'invalid-range'};
+        podcastLoop = { a:command.a, b:command.b, generation:playGeneration };
+        break;
+      case 'clearAB':
+        if (snap.loopRange?.a === command.a && snap.loopRange?.b === command.b) podcastLoop = null;
+        break;
       case 'seek':if(snap.capabilities.seek.support!=='yes'||!Number.isFinite(command.time)||command.time<0||command.time>snap.duration)return {ok:false,code:'invalid-range'};audio.currentTime=command.time;break;
       case 'setRate':if(!Number.isFinite(command.rate)||command.rate<.25||command.rate>4)return {ok:false,code:'invalid-range'};audio.playbackRate=command.rate;if(speed.options&&!Array.from(speed.options).some(option=>Number(option.value)===command.rate)){const option=el('option','',command.rate+'×');option.value=command.rate;speed.append(option);}speed.value=String(command.rate);break;
       case 'setVolume':if(!Number.isFinite(command.volume)||command.volume<0||command.volume>1)return {ok:false,code:'invalid-range'};audio.volume=command.volume;audio.muted=false;volume.value=String(command.volume);break;
@@ -102,7 +110,7 @@
     return {ok:true};
   }
   function isPodcastMode(){return podcastMode&&document.getElementById('playerLayer')?.classList.contains('hidden')!==false;}
-  function closePodcastMode(){podcastMode=false;++podcastRequest;podcastPanel?.remove();podcastPanel=null;podcastRows=[];podcastActive=null;notifyPodcast();}
+  function closePodcastMode(){podcastMode=false;podcastLoop=null;++podcastRequest;podcastPanel?.remove();podcastPanel=null;podcastRows=[];podcastActive=null;notifyPodcast();}
   function podcastCommand(type,args={}){const snap=readPodcastSnapshot();return executePodcast({type,mediaKey:snap?.mediaKey,generation:snap?.generation,...args});}
   function updatePodcastFollow(){const button=podcastPanel?.querySelector('.ms-podcast-follow');if(button){button.textContent=podcastFollow?t('Following speech','Konuşma izleniyor'):t('Return to speech','Konuşmaya dön');button.setAttribute('aria-pressed',String(podcastFollow));}}
   function pausePodcastFollow(){podcastFollow=false;updatePodcastFollow();}
@@ -373,7 +381,7 @@
     dock.classList.remove('hidden'); document.body.classList.add('media-shelf-playing');
     if (/\.m3u8(?:\?|$)/i.test(source) && window.Hls?.isSupported()) { hls = new window.Hls(); hls.loadSource(source); hls.attachMedia(audio); }
     else audio.src = source;
-    audio.playbackRate = row.kind==='podcasts'&&row.podcastWorkspace?.sourceVersion===row.sourceVersion?(Number(row.podcastWorkspace.rate)||Number(audio.playbackRate)||1):(Number(speed.value)||Number(audio.playbackRate)||1); speed.value=String(audio.playbackRate);
+    audio.playbackRate = row.kind==='podcasts'&&row.podcastWorkspace&&row.podcastWorkspace.sourceVersion===row.sourceVersion?(Number(row.podcastWorkspace.rate)||Number(audio.playbackRate)||1):(Number(speed.value)||Number(audio.playbackRate)||1); speed.value=String(audio.playbackRate);
     audio.addEventListener('loadedmetadata', () => { if (mine === playGeneration && row.positionState!=='needs-review' && row.position > 0 && row.position < audio.duration - 2) audio.currentTime = row.position; }, { once: true });
     await audio.play();if(mine!==playGeneration||intent!==queuePlayIntent)return;
     if(row.kind==='podcasts'&&window.CinemaSahne?.openShelf)await window.CinemaSahne.openShelf({mode:row.scene==='bilingual'?'study':'podcast'});
@@ -383,8 +391,24 @@
   function listen(rows, index = 0) {order.set(rows,index);syncQueue();return playQueue(index); }
   audio.addEventListener('pause', () => {paintPlaying();void flushPosition();});audio.addEventListener('play',paintPlaying);
   for(const event of ['seeked','ratechange'])audio.addEventListener(event,()=>void flushPosition());
-  audio.addEventListener('timeupdate', () => { if (Date.now() - lastSaved > 10000) { lastSaved = Date.now(); void flushPosition(); } });
-  audio.addEventListener('ended', () => { const owner=current,mine=playGeneration;if(playerQueueOwner)return;void flushPosition().then(() => { if(owner!==current||mine!==playGeneration)return;return advance(true); }).catch(error=>{dockStatus.textContent=error.message;}); });
+  audio.addEventListener('timeupdate', () => {
+    if (podcastLoop?.generation === playGeneration && !audio.paused && !audio.ended) {
+      const action = window.PlayerLoopPolicy.nextLoopAction({time:audio.currentTime,ab:podcastLoop,pendingSeek:audio.seeking,buffering:audio.readyState<2});
+      if (action.type === 'seek') audio.currentTime = action.to;
+      if (action.type === 'clear-ab') podcastLoop = null;
+    }
+    if (Date.now() - lastSaved > 10000) { lastSaved = Date.now(); void flushPosition(); }
+  });
+  audio.addEventListener('ended', () => {
+    const owner=current,mine=playGeneration;
+    if(playerQueueOwner)return;
+    if (podcastLoop?.generation === mine && podcastLoop.b >= audio.duration - .05) {
+      audio.currentTime = podcastLoop.a;
+      void audio.play().catch(error => { if (owner===current && mine===playGeneration) setShelfFailure(owner,error.message); });
+      return;
+    }
+    void flushPosition().then(() => { if(owner!==current||mine!==playGeneration)return;return advance(true); }).catch(error=>{dockStatus.textContent=error.message;});
+  });
   audio.addEventListener('error', () => {
     if (!audio.error || !current || playerQueueOwner || !queuePlaybackCurrent()) return;
     if (audio.currentTime > 0) current.position = audio.currentTime;

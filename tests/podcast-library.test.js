@@ -55,11 +55,36 @@ test('late episode open cannot launch tools after the library is disposed',async
 async function listeningFixture(saved){
  const dom=new JSDOM('<div id="playerLayer" class="hidden"><video id="playerVideo"></video></div>',{url:'https://fixture.invalid',runScripts:'outside-only'}),w=dom.window,calls=[];let fail='',opening;
  w.player={openIntent:0,mediaKey:'',generation:0,workspaceAudio:null};w.UiLocale={get:()=> 'en'};w.HTMLMediaElement.prototype.pause=function(){this.dispatchEvent(new w.Event('pause'));};w.HTMLMediaElement.prototype.play=async function(){calls.push(['audio-play',this.id]);};w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
+ w.PlayerLoopPolicy=require('../src/player-loop-policy');
  w.api={mediaShelf:async request=>{calls.push(['api',request.action,request]);if(request.action==='list')return {ok:true,music:[],stations:[],podcasts:[],listeningQueue:saved};return {ok:true};}};
  w.PlayerSourceCatalogIntegration={openPodcastEntry:async(id,options)=>{calls.push(['open',id,options.view]);if(opening)await opening(id);if(options.isCancelled?.())return;if(fail===id)throw Error('Unavailable episode');if(w.player.workspaceAudio?.entryId!==id){w.player.mediaKey='stream:'+id;w.player.generation++;w.player.workspaceAudio={entryId:id,mediaKey:w.player.mediaKey,generation:w.player.generation,title:id};} }};
  w.eval(fs.readFileSync(require.resolve('../src/renderer/music-queue'),'utf8'));w.eval(fs.readFileSync(require.resolve('../src/renderer/media-shelf-ui'),'utf8'));await tick();await tick();
  return {dom,w,calls,shelf:w.MediaShelfUI,fail:id=>fail=id,opening:fn=>opening=fn};
 }
+
+test('Shelf podcast sentence loop uses the same audio and cannot follow the next episode', async () => {
+ const h=await listeningFixture(null);
+ try {
+  const episode=id=>({id:'show',episodeIdentity:id,title:id,url:'https://fixture.invalid/'+id+'.wav'});
+  await h.shelf.playPodcastRow(episode('A'));
+  const audio=h.w.document.getElementById('mediaShelfAudio');
+  Object.defineProperties(audio,{duration:{value:30},paused:{value:false},readyState:{value:4}});
+  const owner=h.shelf.readSnapshot();
+  const command=(type,range)=>h.shelf.executeExisting({type,mediaKey:owner.mediaKey,generation:owner.generation,...range});
+  assert.equal((await command('setAB',{a:5,b:7})).ok,true);
+  audio.currentTime=7;
+  audio.dispatchEvent(new h.w.Event('timeupdate'));
+  assert.equal(audio.currentTime,5);
+  audio.currentTime=10;
+  audio.dispatchEvent(new h.w.Event('timeupdate'));
+  assert.equal(h.shelf.readSnapshot().loopRange,null);
+  await command('setAB',{a:5,b:7});
+  await h.shelf.playPodcastRow(episode('B'));
+  assert.equal(h.shelf.readSnapshot().loopRange,null);
+  assert.equal((await command('setAB',{a:5,b:7})).code,'stale-source');
+  assert.equal(h.w.document.getElementById('mediaShelfAudio'),audio);
+ } finally { h.dom.window.close(); }
+});
 
 test('listening queue reopens without autoplay and missing rows stay visible and retryable at their exact place',async()=>{
  const h=await listeningFixture({rows:[{kind:'podcasts',id:'feed-A',entryId:'A',title:'Episode A',scene:'bilingual'},{kind:'podcasts',id:'feed-B',entryId:'B',title:'Episode B'}],index:1,repeat:'off'});try{
