@@ -434,7 +434,10 @@
               return result;
             });
           }
-          case 'copy': window.api.copyText?.(v); return Promise.resolve({ ok: true });
+          case 'copy':
+            return Promise.resolve(window.api.copyText?.(v)).then(result => result === true
+              ? { ok: true }
+              : { ok: false, message: T('Metin panoya kopyalanamadı.', 'Could not copy text to the clipboard.') });
           default: return Promise.resolve({ ok: false, code: 'unsupported' });
         }
       }
