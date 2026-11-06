@@ -8,6 +8,8 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 
 ## Sahne adres satırı — görsel kabul
 
+- 10:34: ayrı zaman grupları ve ses yüzdesi kontrollü çizimde incelendi; 54 kontrol geçti. Gerçek iki izde sıfırlama/bağımsız kayma ve ses görünümü önceki kısa LG kabulünde kontrol edilir. [Devir](docs/devir/2026-11-06-1034.md).
+
 - 10:28: uzun alıntıda not başlığının kaybolması düzeltildi; İşlemler başlığı kaydırmada sabit. 53 kontrol ve kontrollü not/panel çizimi geçti. Native LG turuna uzun alıntı, kapat/geri odak ve panel kaydırma adımları eklenir. [Devir](docs/devir/2026-11-06-1028.md).
 
 - 10:20: aramanın boş/sonuçlu durumları kontrollü bileşen çiziminde incelendi; 52 kontrol geçti. Yeni native kabul iddia edilmez. Önceki LG turuna arama/temizleme adımı eklenir. [Devir](docs/devir/2026-11-06-1020.md).
