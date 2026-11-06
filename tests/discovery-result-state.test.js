@@ -60,7 +60,7 @@ test('unsubmitted search draft cannot change the query used by the current pagin
 
 test('v2 personal preview survives the parallel catalog request and opens the real recommendation view',async t=>{
  const h=fixture(t,()=>({ok:true,rows:[row('tt1111111')],nextSkip:null}),()=>({ok:true,rows:[{...row('tt2222222'),because:'Rated source'}]}));
- await tick();assert(h.root.querySelector('.cv2-discover-personal'));assert.match(h.root.querySelector('.cv2-discover-personal').textContent,/Rated source/);
+ await tick();assert(h.root.querySelector('.cv2-discover-personal'));assert.match(h.root.querySelector('.cv2-discover-personal .cv2-personal-card').textContent,/Film tt2222222.*Catalog relationship/);
  assert.equal(h.root.querySelectorAll('[data-discovery-id]').length,1);
  h.root.querySelector('.cv2-discover-personal header button').click();await tick();
  assert.equal(h.w.MediaDiscoveryUI.snapshot().tab,'personal');assert.equal(h.root.querySelector('.cn-discover-tab[aria-pressed=true]').textContent,'For you');
@@ -77,5 +77,27 @@ test('detail preserves recommendation basis, refreshes exact membership and retr
  catalogId=null;h.w.document.dispatchEvent(new h.w.CustomEvent('media-library-changed'));await tick();assert.equal(page().querySelector('.md-primary-actions button').textContent,'Add to watchlist');
 });
 test('personal preview updates after external saves and rejects stale late preview responses',async t=>{
- let resolve,turn=0;const h=fixture(t,()=>({ok:true,rows:[row('tt1111111')],nextSkip:null}),()=>++turn===1?new Promise(r=>resolve=r):{ok:true,rows:[{...row('tt3333333'),because:'Current'}]});await tick();h.w.document.dispatchEvent(new h.w.CustomEvent('media-personal-changed',{detail:{origin:'discovery-personal'}}));await tick();resolve({ok:true,rows:[{...row('tt2222222'),because:'Stale'}]});await tick();assert.match(h.root.querySelector('.cv2-discover-personal').textContent,/Current/);assert.doesNotMatch(h.root.querySelector('.cv2-discover-personal').textContent,/Stale/);
+ let resolve,turn=0;const h=fixture(t,()=>({ok:true,rows:[row('tt1111111')],nextSkip:null}),()=>++turn===1?new Promise(r=>resolve=r):{ok:true,rows:[{...row('tt3333333'),because:'Current'}]});await tick();h.w.document.dispatchEvent(new h.w.CustomEvent('media-personal-changed',{detail:{origin:'discovery-personal'}}));await tick();resolve({ok:true,rows:[{...row('tt2222222'),because:'Stale'}]});await tick();assert.match(h.root.querySelector('.cv2-discover-personal').textContent,/tt3333333/);assert.doesNotMatch(h.root.querySelector('.cv2-discover-personal').textContent,/tt2222222/);
+});
+
+test('empty results retain the submitted query and reset returns focus without changing media type', async t => {
+  const h = fixture(t, () => ({ok:true, rows:[], nextSkip:null}));
+  await tick();
+  const type = h.root.querySelector('select');
+  type.value = 'series';
+  type.dispatchEvent(new h.w.Event('change', {bubbles:true}));
+  await tick();
+  const search = h.root.querySelector('input[type=search]');
+  search.value = 'Submitted title';
+  search.form.dispatchEvent(new h.w.Event('submit', {bubbles:true,cancelable:true}));
+  await tick();
+  const current = h.root.querySelector('input[type=search]');
+  current.value = 'Unsubmitted draft';
+  current.dispatchEvent(new h.w.Event('input', {bubbles:true}));
+  assert.equal(h.root.querySelector('.cn-discover-empty-query').textContent, 'Submitted title');
+  [...h.root.querySelectorAll('.cn-discover-empty button')].find(b => b.textContent === 'Reset search and filters').click();
+  await tick();
+  assert.equal(h.calls.at(-1).kind, 'series');
+  assert.equal(h.calls.at(-1).query, '');
+  assert.equal(h.w.document.activeElement, h.root.querySelector('input[type=search]'));
 });

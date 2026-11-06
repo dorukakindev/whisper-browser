@@ -226,13 +226,36 @@
       const text=state.tab === 'preferences' ? t('No hidden or watched preferences. You can undo preferences here.', 'Gizlenen veya izlenen tercihi yok. Tercihlerini buradan geri alabilirsin.') : state.tab === 'personal'
       ? state.needsRatings?t('Like titles with genre metadata in your library to get explained recommendations.', 'Gerekçeli öneriler için kütüphanende tür bilgisi olan yapımları beğen.'):t('No new recommendations match your saved preferences right now.', 'Şu anda kayıtlı tercihlerinle eşleşen yeni öneri yok.')
       : state.next!==null?t('No visible titles on this page. Show more to check the next catalog page.', 'Bu sayfada gösterilecek yapım yok. Sonraki katalog sayfası için Daha fazla göster’i kullan.'):t('No titles matched these filters.', 'Bu filtrelerle eşleşen yapım yok.');
-      if(window.MediaVisual){const action=btn(state.next!==null?t('Show more','Daha fazla göster'):state.tab==='browse'?t('Change search','Aramayı değiştir'):t('Explore titles','Yapımları keşfet'),()=>{if(state.next!==null)return load(true);if(state.tab==='browse')return state.root.querySelector('.cn-filter-search input')?.focus();state.root.querySelector('.cn-discover-tab')?.click();});nodes.push(window.MediaVisual.empty({title:t('Find your next story','Sıradaki hikâyeni bul'),text,actions:[action]}));}
-      else nodes.push(el('p','mh-empty',text));
+      const empty = el('section', 'cn-discover-empty');
+      empty.append(el('h3', '', t('No titles to show', 'Gösterilecek yapım yok')));
+      if (state.tab === 'browse' && state.loadedQuery) {
+        const query = el('bdi', 'cn-discover-empty-query', state.loadedQuery);
+        empty.append(query);
+      }
+      empty.append(el('p', '', text));
+      const actions = el('div', 'cn-discover-empty-actions');
+      if (state.tab === 'browse') {
+        if (state.next !== null) actions.append(btn(t('Show more', 'Daha fazla göster'), () => load(true), 'cn-button'));
+        const search = state.root.querySelector('.cn-filter-search input');
+        actions.append(btn(t('Change search', 'Aramayı değiştir'), () => search?.focus(), 'cn-button'));
+        if (state.loadedQuery || state.genre || state.mode !== 'top' || state.view !== 'unwatched') {
+          actions.append(btn(t('Reset search and filters', 'Arama ve filtreleri sıfırla'), () => {
+            Object.assign(state, { query: '', loadedQuery: '', mode: 'top', genre: '', view: 'unwatched', rows: [], next: null });
+            restoreControl = 'search';
+            draw();
+            void load();
+          }, 'cn-button'));
+        }
+      } else {
+        actions.append(btn(t('Explore titles', 'Yapımları keşfet'), () => state.root.querySelector('.cn-discover-tab')?.click(), 'cn-button'));
+      }
+      empty.append(actions);
+      nodes.push(empty);
     }
     nodes.forEach((node,index)=>{if(grid.children[index]!==node)grid.insertBefore(node,grid.children[index]||null);});
     while(grid.children.length>nodes.length)grid.lastElementChild.remove();
     const context=state.root.querySelector('.cn-discover-results');if(context)context.textContent=state.busy&&!state.rows.length?'':(state.scope==='saved-library-viewing'?t('Saved library','Kayıtlı kütüphane'):state.tab==='personal'?t('Based on your preferences','Tercihlerine göre'):state.tab==='preferences'?t('Discovery exclusions','Keşiften gizlenenler'):t('Cinemeta catalog','Cinemeta kataloğu'))+' · '+state.rows.length+' '+t('titles shown','yapım gösteriliyor');
-    const more = state.root.querySelector('.md-more'); more.hidden = state.tab !== 'browse' || state.next === null || state.rows.length >= 300 || state.loadError; more.disabled = state.busy;
+    const more = state.root.querySelector('.md-more'); more.hidden = state.tab !== 'browse' || state.next === null || !state.rows.length || state.rows.length >= 300 || state.loadError; more.disabled = state.busy;
     const retry=state.root.querySelector('.md-retry');if(retry){retry.hidden=!state.loadError;retry.disabled=state.busy;}
     state.root.querySelectorAll('[data-discovery-control]').forEach(node => { node.disabled = state.busy; });
     if(!state.busy&&restoreControl){const control=[...state.root.querySelectorAll('[data-discovery-focus]')].find(n=>n.dataset.discoveryFocus===restoreControl);restoreControl='';control?.focus({preventScroll:true});}
@@ -281,7 +304,7 @@
       const genres = [['', t('All genres', 'Tüm türler')], ['Action', t('Action', 'Aksiyon')], ['Adventure', t('Adventure', 'Macera')], ['Animation', t('Animation', 'Animasyon')], ['Comedy', t('Comedy', 'Komedi')], ['Crime', t('Crime', 'Suç')], ['Documentary', t('Documentary', 'Belgesel')], ['Drama', t('Drama', 'Dram')], ['Fantasy', t('Fantasy', 'Fantastik')], ['Horror', t('Horror', 'Korku')], ['Mystery', t('Mystery', 'Gizem')], ['Romance', t('Romance', 'Romantik')], ['Sci-Fi', t('Sci-Fi', 'Bilim kurgu')], ['Thriller', t('Thriller', 'Gerilim')], ['War', t('War', 'Savaş')]];
       if (state.mode !== 'year') filters.append(select(t('Genre', 'Tür'), state.genre, genres, value => { state.genre = value; }));
       else filters.append(select(t('Year', 'Yıl'), String(state.year), Array.from({ length: 70 }, (_, index) => { const year = new Date().getFullYear() - index; return [String(year), String(year)]; }), value => { state.year = +value; }));
-      const searchLabel = el('label', 'cn-filter-field cn-filter-search'); searchLabel.append(el('span', '', t('Search', 'Ara'))); const search = el('input'); search.type = 'search'; search.maxLength = 200; search.placeholder = t('Film or series title…', 'Film veya dizi adı…'); search.value = state.query; search.name = 'discoverySearch'; search.autocomplete = 'off';search.addEventListener('input',()=>{state.query=search.value;}); searchLabel.append(search); filters.append(searchLabel);
+      const searchLabel = el('label', 'cn-filter-field cn-filter-search'); searchLabel.append(el('span', '', t('Search', 'Ara'))); const search = el('input'); search.type = 'search'; search.maxLength = 200; search.placeholder = t('Film or series title…', 'Film veya dizi adı…'); search.value = state.query; search.name = 'discoverySearch'; search.dataset.discoveryFocus = 'search'; search.autocomplete = 'off';search.addEventListener('input',()=>{state.query=search.value;}); searchLabel.append(search); filters.append(searchLabel);
       filters.addEventListener('submit', event => { event.preventDefault(); state.query = search.value.trim(); state.mode = 'top'; state.rows = []; draw(); void load(); });
       const submit = el('button', 'mh-action', '');submit.setAttribute('aria-label',t('Search','Ara'));submit.title=submit.getAttribute('aria-label');submit.append(window.MediaVisual?.icon('search')||document.createTextNode(t('Search','Ara'))); submit.type = 'submit'; submit.dataset.discoveryControl = '1';submit.classList.add('mv-search-submit');const searchGroup=el('div','mv-search-group');filters.insertBefore(searchGroup,searchLabel);searchGroup.append(searchLabel,submit);
     } else filters.addEventListener('submit', event => event.preventDefault());
