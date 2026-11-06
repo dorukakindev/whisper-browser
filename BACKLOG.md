@@ -8,6 +8,8 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 
 ## Sahne adres satırı — görsel kabul
 
+- Zaman çizelgesi: 61 kontrollü test ve bileşen çizimi geçti. LG izole Electron oturumu hazır olduğunda gerçek videoda sürüklerken etkin satırın sabit kalmasını, bırakınca aynı oynatıcıda konumun değişmesini ve dar pencerede balonun kenarlarda taşmamasını kontrol et. [Devir](docs/devir/2026-11-06-1227.md).
+
 - Dar transkript açma, etkin satır ve kapatınca video katmanının dönüşü gerçek izole LG turunda kontrol edilecek. [Devir](docs/devir/2026-11-06-1158.md).
 
 - Oynatma kontrolleri için native LG turunda zamansız metin, sessiz aralık ve Home/End kontrolü kalıyor. 55 hedefli kontrol ve kontrollü çizimler tamamlandı. [Devir](docs/devir/2026-11-06-1143.md).

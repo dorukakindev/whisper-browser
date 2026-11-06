@@ -1,3 +1,4 @@
+Güncel teslim: [Sahne zaman çizelgesi önizlemesi](docs/devir/2026-11-06-1227.md)
 Güncel teslim: [Sahne görünür dil kopyalama](docs/devir/2026-11-06-1214.md)
 Güncel teslim: [Sahne okuma sürekliliği](docs/devir/2026-11-06-1206.md)
 Güncel teslim: [Dar Sahne transkript düzeni](docs/devir/2026-11-06-1158.md)
