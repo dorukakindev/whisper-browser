@@ -1393,7 +1393,9 @@ function queueItemMeta(item) {
   const engine = String(opts.engine || 'faster').trim().slice(0, 32);
   const formats = String(opts.formats || 'srt').split(',').map((value) => value.trim().toUpperCase()).filter((value) => /^[A-Z0-9+_-]{1,12}$/.test(value)).join('+') || 'SRT';
   const language = opts.translate ? 'Çeviri ' + String(opts.translateTo || 'tr').trim().slice(0, 12).toUpperCase() : 'Kaynak ' + String(opts.language || 'otomatik').trim().slice(0, 12);
-  return [source, model, engine, formats, language].filter(Boolean).join(' · ');
+  const revision = opts.translate && opts.glossary && globalThis.BrowserSubtitleSync?.hashText(opts.glossary).slice(0,8);
+  const glossary = revision ? (globalThis.UiLocale?.get?.()==='tr'?'Sözlük ':'Glossary ') + revision : '';
+  return [source, model, engine, formats, language, glossary].filter(Boolean).join(' · ');
 }
 
 async function blobToBase64(blob) {

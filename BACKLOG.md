@@ -6,6 +6,12 @@ Son durum kontrolü **2026-11-06**. Son ürün `2c1935b5eacf1fc22163eea2c5975741
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
+## Genel arama ve sözlük — kalan kapsam
+
+- Dal: codex/local-search-glossary-20261106. [Devir](docs/devir/2026-11-06-0657.md).
+- Kapalı kitap/PDF metni için önce izinli kaynakları tanımla ve mevcut kitap arama altyapısına bağla. İzole LG turunda RSS revizyonu değişimi, podcast kaynak değişimi ve açık PDF dönüşünü birlikte sına.
+- Yayın kapsamı için podcast bağından kalıcı yayın kimliğini geçir. Önceki podcast çıktısının yeniden denemesinde üretimde kullanılan sözlük sürümünü doğrula veya yeni sürümü açıkça seçtir. Önbellek ve zaman korumasını kontrollü veriyle sına.
+
 ## Sürümlü medya akışları — kalan kabul
 
 - **Dal ve kanıt** `codex/versioned-media-workflows-20261106`, [devir](docs/devir/2026-11-06-0625.md). İzole hedef testleri ve gerçek ZIP çıkarma geçti.

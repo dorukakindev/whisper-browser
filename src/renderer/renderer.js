@@ -527,6 +527,10 @@ function addToQueue(type, input, { watchSource = false, optionsOverride = null }
     return false;
   }
   const opts = { ...buildOptsFromUI(), ...(optionsOverride || {}) };
+  if (optionsOverride?.glossary === undefined) {
+    const key = type==='youtube' ? mediaKeyFor('youtube',input) : mediaKeyFor('local',input);
+    opts.glossary = glossaryCombined(opts.language,opts.translateTo,key).join('|');
+  }
   // Oynaticinin ses kilidi yalnizca bu tek ise aittir; ana ekrandaki sonraki
   // YouTube isi yanlislikla ayni dublaji devralmasin.
   state.nextYoutubeAudioLang = '';
@@ -2289,23 +2293,38 @@ let glossaryScope = 'global';
 const glossaryListEl = $('glossaryList');
 const glossaryInputEl = $('glossaryInput');
 
+function glossaryPairKey(source = $('language')?.value, target = $('translateTo')?.value) {
+  const pair = [source,target].map(value=>String(value||'').trim().toLowerCase());
+  return pair.every(value=>value!=='auto' && /^[a-z]{2,3}(?:-[a-z]{2,8})?$/.test(value)) ? 'language-pair:'+pair.join('>') : '';
+}
+
 function glossaryActiveList() {
-  if (glossaryScope === 'project' && player.mediaKey) {
-    return projectGlossaries[player.mediaKey] || (projectGlossaries[player.mediaKey] = []);
-  }
+  const key = glossaryScope === 'pair' ? glossaryPairKey() : glossaryScope === 'project' ? player.mediaKey : '';
+  if (key) return projectGlossaries[key] || (projectGlossaries[key] = []);
   return glossary;
 }
 
-function glossaryCombined() {
-  const project = (player.mediaKey && projectGlossaries[player.mediaKey]) || [];
-  const projectFold = new Set(project.map((t) => t.toLowerCase()));
-  return project.concat(glossary.filter((t) => !projectFold.has(t.toLowerCase())));
+function glossaryCombined(source, target, mediaKey = player.mediaKey) {
+  const terms = new Map();
+  for (const list of [glossary, projectGlossaries[glossaryPairKey(source,target)], projectGlossaries[mediaKey]]) {
+    for (const term of list || []) terms.set(term.toLowerCase(),term);
+  }
+  return [...terms.values()];
 }
 
 function renderGlossary() {
+  if(glossaryScope==='pair'&&!glossaryPairKey())glossaryScope='global';
+  const pairButton=$('glossaryScopePair');
+  if(pairButton){
+    pairButton.disabled=!glossaryPairKey();
+    pairButton.classList.toggle('active',glossaryScope==='pair');
+    pairButton.setAttribute('aria-selected',String(glossaryScope==='pair'));
+  }
   const active = glossaryActiveList();
-  const other = glossaryScope === 'project' ? glossary
-    : (player.mediaKey && projectGlossaries[player.mediaKey]) || [];
+  const pairTerms = projectGlossaries[glossaryPairKey()] || [];
+  const projectTerms = projectGlossaries[player.mediaKey] || [];
+  const other = glossaryScope === 'project' ? [...glossary,...pairTerms]
+    : glossaryScope === 'pair' ? [...glossary,...projectTerms] : [...projectTerms,...pairTerms];
   glossaryListEl.innerHTML = '';
   const globalBtn = $('glossaryScopeGlobal');
   const projectBtn = $('glossaryScopeProject');
@@ -2343,8 +2362,11 @@ function renderGlossary() {
     if (otherFold.has(term.toLowerCase())) {
       const badge = document.createElement('em');
       badge.className = 'glossary-conflict';
-      badge.textContent = glossaryScope === 'project' ? uiText('geneli eziyor') : uiText('proje eziyor');
-      badge.title = uiText('Aynı terim diğer kapsamda da var — bu medyada proje sözlüğü kazanır.');
+      const winner = projectTerms.some(value=>value.toLowerCase()===term.toLowerCase()) ? interfaceChoice('Bu medya','This media')
+        : pairTerms.some(value=>value.toLowerCase()===term.toLowerCase()) ? interfaceChoice('Dil çifti','Language pair')
+        : interfaceChoice('Genel','Global');
+      badge.textContent = interfaceChoice('Geçerli kural · ','Effective rule · ') + winner;
+      badge.title = interfaceChoice('Öncelik: medya, dil çifti, genel.', 'Priority: media, language pair, global.');
       tag.append(badge);
     }
     const remove = document.createElement('button');
@@ -2388,6 +2410,13 @@ $('glossaryScopeProject')?.addEventListener('click', () => {
   glossaryScope = 'project';
   renderGlossary();
 });
+
+$('glossaryScopePair')?.addEventListener('click', () => {
+  if (!glossaryPairKey()) return;
+  glossaryScope = 'pair';
+  renderGlossary();
+});
+for(const id of ['language','translateTo']) $(id)?.addEventListener('change',renderGlossary);
 
 // İçe aktarma: virgül/noktalı virgül/satır sonu ile ayrılmış liste mevcut
 // kapsama eklenir; yinelenenler atlanır.

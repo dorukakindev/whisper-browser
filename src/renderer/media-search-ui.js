@@ -38,13 +38,73 @@
         for(const {item,hit} of hits){const button=el('button','mhs-row'),copy=el('span');button.type='button';copy.append(el('strong','',item.title),el('small','',String(hit.snippet||'')+' · '+Math.floor(hit.seconds/60)+':'+String(Math.floor(hit.seconds%60)).padStart(2,'0')));button.append(copy);button.onclick=async()=>{try{await openWatchLibraryItem(item,hit.seconds);dialog.close();}catch(e){if(current())error(e);}};subtitleResults.append(button);}
       }catch(e){if(current()&&request===subtitleVersion)subtitleResults.replaceChildren(el('p','mh-status',t('Saved subtitles could not be searched.','Kayıtlı altyazılar aranamadı.')));}
     }
-    input.oninput=()=>{subtitleVersion++;subtitleResults.replaceChildren();version++;onlineBusy=false;online.disabled=!input.value.trim();remote.replaceChildren();clearTimeout(timer);timer=setTimeout(()=>{draw();void searchSubtitles();},200);};
+    const passages=el('div','mhs-results');
+    subtitleResults.after(passages);
+    passages.before(el('small','mtd-extra-copy',t(
+      'Local text: saved podcast transcripts, RSS titles and summaries, and the currently open PDF.',
+      'Yerel metin: kayıtlı podcast dökümleri, RSS başlık ve özetleri, açık PDF.')));
+    async function searchPassages(){
+      const q=input.value.trim(), request=subtitleVersion, pdf=typeof player!=='undefined'?player.pdfReader:null;
+      passages.replaceChildren();if(q.length<2)return;
+      const fresh=()=>current()&&request===subtitleVersion;
+      const group=async(label,lookup,show)=>{
+        const section=el('section');section.append(el('h3','',label));passages.append(section);
+        try{
+          const rows=await lookup();
+          if(!fresh())return;
+          if(!rows.length)section.append(el('p','mh-empty',t('No matches in this source.','Bu kaynakta eşleşme yok.')));
+          for(const row of rows){
+            const button=el('button','mhs-row');button.type='button';
+            button.append(el('strong','',row.title),el('small','',row.copy));
+            button.onclick=async()=>{if(!fresh())return;button.disabled=true;
+              try{await show(row,fresh);}catch(e){if(fresh())error(e);}
+              finally{button.disabled=false;}};
+            section.append(button);
+          }
+        }catch(e){if(fresh())section.append(el('p','mh-status',failure(e)));}
+      };
+      const checked=async promise=>{const result=await promise;if(!result?.ok)throw Error(result?.error||t('Source unavailable','Kaynak kullanılamıyor'));return result;};
+      const podcast=action=>window.api.mediaShelf({action,query:q});
+      void group(t('Podcast passages','Podcast pasajları'),async()=>{
+        const r=await checked(podcast('podcast-search'));
+        return r.rows.slice(0,20).map(row=>({...row,title:row.episodeTitle,copy:[row.showTitle,
+          row.timed&&Number.isFinite(row.seconds)?pSecToTime(row.seconds):t('Read only','Salt okunur'),row.quote].join(' · ')}));
+      },async(row,valid)=>{
+        const resolve=()=>checked(window.api.mediaShelf({action:'podcast-search-resolve',query:q,token:row.token}));
+        const value=(await resolve()).row;if(!valid())return;
+        if(!await openPodcastResearchResult(value,{beforeSeek:resolve,isCancelled:()=>!valid()}))throw Error(t('Episode changed. Search again.','Bölüm değişti. Yeniden ara.'));
+        dialog.close();
+      });
+      void group(t('RSS articles','RSS yazıları'),async()=>{
+        const r=await checked(window.api.feedsRequest({action:'entries',kind:'article',query:q,limit:20}));
+        return r.rows.map(row=>({...row,copy:[row.provenance?.map(p=>p.title).join(', '),
+          row.spoiler==='marked'||row.links?.some(l=>l.state==='confirmed'&&l.watchStatus!=='completed')
+            ?t('Open to review the source','Kaynağı incelemek için aç'):row.summary].filter(Boolean).join(' · ')}));
+      },async(row,valid)=>{
+        const r=await checked(window.api.feedsRequest({action:'entry',entryId:row.id}));
+        if(!valid())return;
+        if(r.entry?.revision!==row.revision)throw Error(t('Article changed. Search again.','Yazı değişti. Yeniden ara.'));
+        await window.MediaHomeUI.openFeedEntry(row.id);dialog.close();
+      });
+      if(pdf)void group(t('Open PDF','Açık PDF'),async()=>{
+        const r=await window.PdfTextSearch.search({numPages:pdf.pdf.numPages,getText:async page=>{
+          const content=await (await pdf.pdf.getPage(page)).getTextContent();
+          return content.items.map(i=>i.str||'').join(' ');
+        }},q,{limit:20,isCurrent:()=>fresh()&&player.pdfReader===pdf});
+        return r.matches.map(row=>({...row,title:document.getElementById('pdfReaderTitle').textContent,
+          copy:t('Page ','Sayfa ')+row.page+' · '+row.excerpt}));
+      },async row=>{
+        if(player.pdfReader!==pdf||!await navigatePdfReading(pdf,row.page,{excursion:true}))throw Error(t('Document changed. Search again.','Belge değişti. Yeniden ara.'));
+        dialog.close();
+      });
+    }
+    input.oninput=()=>{subtitleVersion++;subtitleResults.replaceChildren();passages.replaceChildren();version++;onlineBusy=false;online.disabled=!input.value.trim();remote.replaceChildren();clearTimeout(timer);timer=setTimeout(()=>{draw();void searchSubtitles();void searchPassages();},200);};
     online.onclick=async()=>{const q=input.value.trim();if(!q)return;clearTimeout(timer);draw();const request=++version;onlineBusy=true;online.disabled=true;remote.replaceChildren();status.textContent=t('Searching online…','Çevrimiçi aranıyor…');const responses=await Promise.allSettled(['film','series'].map(kind=>window.api.mediaDiscovery({action:'list',kind,query:q})));if(!current()||request!==version)return;let count=0;const failed=[];for(let i=0;i<responses.length;i++){const r=responses[i].status==='fulfilled'?responses[i].value:null;if(!r?.ok){failed.push({kind:i===0?'film':'series',error:r||responses[i].reason});continue;}if(!r.rows?.length)continue;const section=el('section');section.append(el('h3','',i===0?t('Online films','Çevrimiçi filmler'):t('Online series','Çevrimiçi diziler')));for(const item of r.rows.slice(0,24)){row(section,item,'remote');count++;}remote.append(section);}status.textContent=failed.length===2?t('Online search could not be completed. Local results are kept. ','Çevrimiçi arama tamamlanamadı. Yerel sonuçlar korundu. ')+failure(failed[0].error):failed.length?t('Partial online results: ','Kısmi çevrimiçi sonuç: ')+count+' · '+(failed[0].kind==='film'?t('Films could not be loaded. ','Filmler alınamadı. '):t('Series could not be loaded. ','Diziler alınamadı. '))+failure(failed[0].error):count?t('Online matches: ','Çevrimiçi eşleşme: ')+count:t('No online matches.','Çevrimiçi eşleşme yok.');onlineBusy=false;online.disabled=false;};
     dialog.addEventListener('close',()=>{subtitleVersion++;window.api.cancelWatchLibrarySearch?.();},{once:true});
-    input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();if(!online.disabled)online.click();}};
+    input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();clearTimeout(timer);draw();void searchSubtitles();void searchPassages();}};
     const opener=document.activeElement;dialog.addEventListener('close',()=>{version++;artQueue=[];clearTimeout(timer);active=null;dialog.remove();if(opener?.isConnected)opener.focus();void syncBrowserOcclusion();},{once:true});document.body.append(dialog);active=dialog;dialog.showModal();void syncBrowserOcclusion();input.focus();status.textContent=t('Loading local library…','Yerel kütüphane yükleniyor…');
     const loaded=await Promise.allSettled([window.api.mediaCatalog({action:'list'}),window.api.mediaShelf({action:'list'}),window.api.listWatchLibrary()]);if(!current())return;
-    const value=i=>loaded[i].status==='fulfilled'?loaded[i].value:null;data=[value(0)?.items||[],value(1)||{},Array.isArray(value(2))?value(2):[]];draw();void searchSubtitles();if(loaded.some(r=>r.status==='rejected')||value(0)?.ok===false||value(1)?.ok===false)status.textContent=t('Some local sources could not load. Available results are shown.','Bazı yerel kaynaklar yüklenemedi. Erişilen sonuçlar gösteriliyor.');
+    const value=i=>loaded[i].status==='fulfilled'?loaded[i].value:null;data=[value(0)?.items||[],value(1)||{},Array.isArray(value(2))?value(2):[]];draw();void searchSubtitles();void searchPassages();if(loaded.some(r=>r.status==='rejected')||value(0)?.ok===false||value(1)?.ok===false)status.textContent=t('Some local sources could not load. Available results are shown.','Bazı yerel kaynaklar yüklenemedi. Erişilen sonuçlar gösteriliyor.');
   }
   window.MediaSearchUI=Object.freeze({open});
 })();
