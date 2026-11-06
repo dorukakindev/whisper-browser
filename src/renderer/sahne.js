@@ -181,10 +181,43 @@
       });
       const wave = this.q('[data-r=wave]');
       const ratio = (e) => { const b = wave.getBoundingClientRect(); return b.width ? Math.max(0, Math.min(1, (e.clientX - b.left) / b.width)) : 0; };
-      wave.addEventListener('pointerdown', (e) => { if(e.target.closest?.('.sh-chap'))return; if (!this.canSeek) return; this.drag = true; wave.classList.add('drag'); wave.setPointerCapture(e.pointerId); this.dragR = ratio(e); this.tick(); });
-      wave.addEventListener('pointermove', (e) => { const st = this.st || a.state(), dur = Number(st.duration) || 0, rr = ratio(e); if (this.drag) this.dragR = rr; const t = rr * dur, row = this.rows.find((c) => c.timed && t >= c.start && t < c.end), tip = this.q('[data-r=tip]'); tip.textContent = dur ? `${fmt(t)}${row ? ' · ' + (row.src || '').slice(0, 70) : ''}` : ''; tip.style.setProperty('--tx', Math.max(12, Math.min(88, rr * 100)) + '%'); });
-      const end = (e) => { if (!this.drag) return; this.drag = false; wave.classList.remove('drag'); const latest = a.state(), d = Number(latest.duration) || 0; if (d && this.canSeek && latest.canSeek !== false) this.run('seek', ratio(e) * d); };
-      wave.addEventListener('pointerup', end); wave.addEventListener('pointercancel', () => { this.drag = false; wave.classList.remove('drag'); });
+      const preview = (e) => {
+        const position = ratio(e), duration = Number(this.st?.duration) || 0;
+        if (this.drag) this.dragR = position;
+        const time = position * duration;
+        const row = this.rows[this.cueAt(time)];
+        const translation = row?.trs.join(' ');
+        const display = this.displayMode();
+        const excerpt = display === 'tr' ? translation : display === 'src' ? row?.src : row?.src || translation;
+        const tip = this.q('[data-r=tip]');
+        tip.textContent = duration ? [fmt(time), excerpt].filter(Boolean).join(' · ') : '';
+        const percent = position * 100;
+        tip.style.setProperty('--tx', (this.o.mode === 'cinema' ? Math.max(12, Math.min(88, percent)) : percent) + '%');
+      };
+      wave.addEventListener('pointerdown', (e) => {
+        const identity = a.identity?.();
+        if (e.button !== 0 || this.drag || !this.canSeek || (identity ?? '') !== this.id0 || e.target.closest?.('.sh-chap')) return;
+        wave.setPointerCapture(e.pointerId);
+        this.drag = { pointer: e.pointerId, identity };
+        wave.classList.add('drag');
+        preview(e);
+        this.tick();
+      });
+      wave.addEventListener('pointermove', (e) => {
+        if (!this.drag || this.drag.pointer === e.pointerId) preview(e);
+      });
+      const end = (e) => {
+        const drag = this.drag;
+        if (!drag || drag.pointer !== e.pointerId) return;
+        this.drag = null;
+        wave.classList.remove('drag');
+        const latest = a.state(), duration = Number(latest.duration) || 0;
+        if (e.type === 'pointerup' && duration > 0 && latest.canSeek !== false && drag.identity === a.identity?.()) {
+          this.run('seek', ratio(e) * duration);
+        }
+        this.tick();
+      };
+      for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) wave.addEventListener(event, end);
       wave.addEventListener('keydown', (e) => {
         if (!this.canSeek) return;
         const delta = { ArrowRight: 5, ArrowLeft: -5, ArrowUp: 5, ArrowDown: -5 }[e.key];
@@ -386,6 +419,13 @@
       } this.s.idx = -2; this.drawWave(st, info); this.words = this.lines.map((l, i) => this.rows[i].words ? [...l.querySelectorAll('.w')] : null);
       const li = info.langs || {}; for (const [k, v, label] of [['ls', li.src], ['lt', li.tr], ['lsb', li.src, T('Kaynak', 'Source')], ['ltb', li.tr, T('Çeviri', 'Translation')]]) { const n = this.q(`[data-r=${k}]`); if (!n) continue; if (label) n.innerHTML = `${v?lang(v):lang('?', '')}${label}`; else n.textContent = v ? String(v).slice(0, 3).toUpperCase() : ''; n.title = v ? String(v).toUpperCase() : T('Dil bilinmiyor','Language unknown'); }
     }
+    cueAt(time) {
+      let index = -1;
+      this.rows.forEach((cue, i) => {
+        if (cue.timed && cue.start <= time && time < cue.end && (index < 0 || cue.start >= this.rows[index].start)) index = i;
+      });
+      return index;
+    }
     drawWave(st, info) {
       const dur = Number(st.duration) || 0, d = new Array(BARS).fill(0); let any = false;
       if (dur > 0) for (const c of st.rows) { if (!c.timed) continue; any = true; const len = (c.src || '').length, s0 = Math.max(0, c.start), e0 = Math.min(dur, c.end); if (!(e0 > s0)) continue; const a = Math.min(BARS - 1, Math.floor(s0 / dur * BARS)), b = Math.min(BARS - 1, Math.floor((e0 - 1e-6) / dur * BARS)); for (let i = a; i <= b; i++) d[i] += len / (b - a + 1); }
@@ -447,10 +487,12 @@
         const t = this.q('[data-r=title]'); if (t) { t.textContent = info.title || T('Başlıksız bölüm', 'Untitled episode'); this.q('[data-r=eyebrow]').textContent = info.eyebrow || T('Şimdi çalıyor', 'Now playing'); this.q('[data-r=sub]').textContent = info.sub || ''; const c = this.q('[data-r=cover]'); c.innerHTML = info.cover ? `<img src="${esc(info.cover)}" alt="">` : `<span class="sh-initials">${esc(String(info.title||'').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toLocaleUpperCase())}</span>`; this.drawChapters(info.chapters||[]); }
       }
       if (s.sleep && Date.now() >= s.sleepAt) { s.sleep = 0; this.run('pause'); }
-      const dur = Number(st.duration) || 0, time = this.drag ? this.dragR * dur : Number(st.time) || 0, p = dur ? Math.min(100, time / dur * 100) : 0;
+      const dur = Number(st.duration) || 0, time = Number(st.time) || 0;
+      const position = this.drag ? this.dragR * dur : time;
+      const p = dur ? Math.min(100, position / dur * 100) : 0;
       const w = this.q('[data-r=wave]'); w.style.setProperty('--p', p + '%'); w.setAttribute('aria-disabled', String(!this.canSeek));
-      const t0 = this.q('[data-r=t0]'); if (t0) { t0.textContent = fmt(time); this.q('[data-r=t1]').textContent = dur ? '-' + fmt(Math.max(0, dur - time)) : '--:--'; }
-      w.setAttribute('aria-valuenow', Math.round(time)); w.setAttribute('aria-valuemax', Math.round(dur)); w.setAttribute('aria-valuetext', `${fmt(time)} / ${dur ? fmt(dur) : '--:--'}`);
+      const t0 = this.q('[data-r=t0]'); if (t0) { t0.textContent = fmt(position); this.q('[data-r=t1]').textContent = dur ? '-' + fmt(Math.max(0, dur - position)) : '--:--'; }
+      w.setAttribute('aria-valuenow', Math.round(position)); w.setAttribute('aria-valuemax', Math.round(dur)); w.setAttribute('aria-valuetext', `${fmt(position)} / ${dur ? fmt(dur) : '--:--'}`);
       const chapters=(info.chapters||[]).filter(chapter=>Number.isFinite(chapter.t));
       const currentChapter=chapters.reduce((best,chapter)=>chapter.t<=time+.001&&(!best||chapter.t>=best.t)?chapter:best,null);
       const chapterLabel=this.q('.sh-chapter-current');
@@ -464,8 +506,8 @@
         if(active)button.setAttribute('aria-current','true');else button.removeAttribute('aria-current');
         button.disabled=!this.canSeek;
       }
-      let idx = -1; this.rows.forEach((c, i) => { if (c.timed && c.start <= time && time < c.end && (idx < 0 || c.start >= this.rows[idx].start)) idx = i; });
-      this.updateScope();this.time = time; this.cur = idx;this.paintTransport(Number(st.time) || 0, this.drag ? null : idx);this.root.classList.toggle('sh-audio',!!info.audio);
+      const idx = this.cueAt(time);
+      this.updateScope();this.time = time; this.cur = idx;this.paintTransport(time, idx);this.root.classList.toggle('sh-audio',!!info.audio);
       if (idx !== s.idx || this.activeLine !== this.lines[idx]) {
         const prev = s.idx;
         this.activeLine?.classList.remove('on');

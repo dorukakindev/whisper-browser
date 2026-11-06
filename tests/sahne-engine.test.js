@@ -12,6 +12,41 @@ function mount(t,{prefs,identity='same-source',untimed=false,cinema=false,audio=
  const sh=new w.Sahne(w.document.getElementById('host'),adapter,{mode:cinema?'cinema':study?'study':'podcast',intro:false,prefs});
  t.after(()=>{sh.destroy();w.close();});return {w,sh,rows,commands,setTime:value=>time=value,setCanSeek:value=>canSeek=value,setRevision:value=>revision=value};
 }
+for (const study of [false, true]) {
+ test(`${study ? 'Bilingual' : 'Podcast'} scrub previews without changing the active cue until playback moves`, t => {
+  const f = mount(t, {study, prefs:{disp:'tr'}}), wave = f.sh.q('[data-r=wave]');
+  f.rows[1].trs = ['Sonraki cümle'];
+  f.setRevision('with-translation');
+  f.sh.tick();
+  wave.setPointerCapture = () => {};
+  wave.getBoundingClientRect = () => ({left:0, width:100});
+  const pointer = (type, id=1) => {
+   const event = new f.w.MouseEvent(type, {clientX:50, bubbles:true});
+   Object.defineProperty(event, 'pointerId', {value:id});
+   wave.dispatchEvent(event);
+  };
+  pointer('pointerdown');
+  assert.equal(f.sh.q('[data-r=tip]').textContent,'0:15 · Sonraki cümle');
+  assert.equal(f.sh.q('[data-r=t0]').textContent,'0:15');
+  assert.equal(f.sh.cur,0);
+  assert.match(f.sh.q('.sh-chapter-current').textContent,/Giriş/);
+  pointer('pointerup',2);
+  assert.equal(f.commands.length,0);
+  pointer('lostpointercapture');
+  assert.equal(f.sh.q('[data-r=t0]').textContent,'0:02');
+  pointer('pointerdown');
+  f.sh.a.identity = () => 'different-source';
+  pointer('pointerup');
+  assert.equal(f.commands.length,0);
+  f.sh.a.identity = () => 'same-source';
+  pointer('pointerdown');
+  pointer('pointerup');
+  assert.deepEqual(f.commands,[['seek',15,'with-translation']]);
+  f.setTime(15);
+  f.sh.tick();
+  assert.equal(f.sh.cur,1);
+ });
+}
 test('manual transcript browsing remains stopped; return follows without seeking',t=>{
  const f=mount(t),scroll=f.sh.q('[data-r=scroll]');scroll.dispatchEvent(new f.w.WheelEvent('wheel',{deltaY:-100}));assert.equal(f.sh.s.follow,false);
  f.setTime(12);f.sh.tick();assert.equal(f.sh.s.follow,false);assert.equal(f.sh.cur,1);
