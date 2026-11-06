@@ -1,10 +1,18 @@
 # Bekleyen işler
 
-Son durum kontrolü **2026-11-06**. Son ürün `3c4abfa7cdbb05555c961f231809c57675417221`. [Güncel teslim](docs/devir/2026-11-06-0610.md).
+Son durum kontrolü **2026-11-06**. Son ürün `7fc5004c66dd33e6578aefa3f3d45411d0f7f1b3`. [Güncel teslim](docs/devir/2026-11-06-0625.md).
 
 **Yeni sohbet başlangıcı:** P025 [PR #842](https://github.com/dorukakindev/whisper-browser/pull/842) ile master'a alındı; doğrulanmış ürün başlangıcı `7bf15f3c2876a5465b0c7f59fff3a037b41aeb69`. Sonraki belge commitleri ürün değişikliği değildir; çalışmadan önce gerçek HEAD/remote ve kişisel farkları yeniden kontrol et. Mevcut görevlerden yarım bırakılmış yeni ürün işi yok; aşağıdaki koşullu/ertelenmiş işler korunur.
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
+
+## Sürümlü medya akışları — kalan kabul
+
+- **Dal ve kanıt** `codex/versioned-media-workflows-20261106`, [devir](docs/devir/2026-11-06-0625.md). İzole hedef testleri ve gerçek ZIP çıkarma geçti.
+- **Altyazı** Yerel oturum kaydı yeniden açılışta kalıcı sürüm değildir. Sonraki adım mevcut altyazı depolarında medya, iz ve dosya revizyonuna bağlı sürüm sözleşmesi kurmak. Zaman ve dil düzenlemelerini bu sözleşmeden geçirmek. İzole Electron’da açık taslak sırasında çeviri tamamlama ve başlamış dosya yazımı sırasında kaynak değiştirme senaryolarını sınamak.
+- **Browser** Sahne medya eşleşmesi bileşen testinde doğrulandı. LG izole profilde iki video açıp konum, iz, senkron ve Sahne dönüşünü ölç. Arka plan sesinin durduğunu ve geç gelen sonucu diğer sekmenin almadığını doğrula. Duraklatma betiğini engelleyen siteler için ses sahipliği ayrıca sınanmalı.
+- **Paket** Önizleme ve çakışma kararı dosya düzeyinde. Kayıt bazlı birleştirme için katalog, akış, not ve izleme depolarının kimlikleri ile çapraz bağlarını birlikte doğrulayan bir plan gerekir. ZIP eklerinde ikinci içe aktarım için doğrulanmış varlık kimliği ve tekrar kullanımı ekle. İkinci yazımda hata enjekte ederek yedekten geri dönüşü izole profilde doğrula. Serbest metin ve eski paketlerdeki gizlilik kapsamını ayrıca sınırla.
+- **Rota** Kontrollü asistan araç kartı ve koleksiyon onayı/geri alma testleri geçti. Yetkili canlı sağlayıcı ve izole katalogla 150 dakika + mola isteğini çalıştır. Karttan rota aç, bir yapımı değiştir ve eski onayın reddedildiğini, yeni onayın yalnız eklenenleri bildirdiğini gör.
 
 ## Medya akışları — kalan kabul
 
