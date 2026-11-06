@@ -57,3 +57,19 @@ test('A secondary subtitle replacement invalidates an approved subtitle action e
  await assert.rejects(h.actions.execute('get_current_subtitle',{},owner),/subtitle track changed/i);
  await assert.rejects(h.actions.execute('seek_to_time',{source_id:'U1'},owner),/subtitle track changed/i);assert.equal(reads,0);assert.equal(seeks,0);
 });
+
+test('An approved podcast passage can change playback context but cannot seek after the chat changes', async () => {
+ const h = setup(), owner = h.actions.snapshot();
+ h.sandbox.window.api = {mediaShelf:async () => ({ok:true,row:{token:'locator',episodeTitle:'Episode'}})};
+ const apply = () => h.actions.execute('open_saved_podcast_passage',{passage_id:'P1'},owner,
+  {expectedSettings:{kind:'podcast-passage',locator:{token:'locator'}}});
+ h.sandbox.openPodcastResearchResult = async (_row, options) => {
+  h.player.browserPageUrl = '';
+  assert.equal(options.isCancelled(), false);
+  await options.beforeSeek();
+  h.sandbox.window.AssistantWorkspace.activeId = () => 'next-thread';
+  assert.equal(options.isCancelled(), true);
+  return false;
+ };
+ await assert.rejects(apply(), /could not be opened/);
+});

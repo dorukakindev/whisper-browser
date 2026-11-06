@@ -50,7 +50,7 @@
    const row=await resolve();
    if(stale())throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));
    const receipt={};
-   const opened=await openPodcastResearchResult(row,{beforeSeek:resolve,receipt,isCancelled:()=>isCancelled()||Date.now()>=deadline});
+   const opened=await openPodcastResearchResult(row,{beforeSeek:resolve,receipt,isCancelled:()=>isCancelled()||Date.now()>=deadline||(window.AssistantWorkspace?.activeId()||'')!==owner.thread});
    if(!opened||!receipt.mode)throw Error(t('The passage could not be opened. Search again.','Pasaj açılamadı. Yeniden arayın.'));
    return {status:'completed',mode:receipt.mode,title:row.episodeTitle,show:row.showTitle};
   }
