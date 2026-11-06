@@ -17187,6 +17187,7 @@ ipcMain.handle('browser:setOverlay', async (event, request) => {
     source: boundedBrowserOverlayCues(payload && payload.source),
     translation: boundedBrowserOverlayCues(payload && payload.translation),
     mode,
+    stageVideo: payload?.stageVideo === true,
     offset: legacyOffset,
     sourceTransform: safeTransform(payload && payload.sourceTransform),
     translationTransform: safeTransform(payload && payload.translationTransform),

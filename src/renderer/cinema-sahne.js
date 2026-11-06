@@ -139,7 +139,7 @@
         return { rows, meta, untimed: !trackTimed };
       }
       if (sec.cues.length) { // yalnız çeviri izi yüklü: kaynak sanılmaz, yine de okunabilir
-        const timedTrack = sec.timed !== false; const rows = sec.cues.map((c) => { const timed = timedTrack && Number.isFinite(c.start) && Number.isFinite(c.end) && c.end > c.start; meta.push({ cueId: c.id, trackId: sec.id, trackRevision: sec.revision }); return { id: c.id, start: timed ? c.start + num(sec.offsetSeconds) : 0, end: timed ? c.end + num(sec.offsetSeconds) : 0, timed, src: String(c.text || ''), trs: [], unc: [], words: null }; });
+        const timedTrack = sec.timed !== false; const rows = sec.cues.map((c) => { const timed = timedTrack && Number.isFinite(c.start) && Number.isFinite(c.end) && c.end > c.start; meta.push({ cueId: c.id, trackId: sec.id, trackRevision: sec.revision }); return { id: c.id, start: timed ? c.start + num(sec.offsetSeconds) : 0, end: timed ? c.end + num(sec.offsetSeconds) : 0, timed, src: '', trs: [String(c.text || '')], unc: [], words: null }; });
         return { rows, meta, untimed: !timedTrack };
       }
       return { rows: [], meta, untimed: false };
@@ -433,15 +433,16 @@
         const opener=stageOpener;stageOpener=null;
         if(kind==='shelf'){window.MediaShelfUI?.closePodcastMode?.();unmount();}
         else{
-          if(kind==='browser')window.BrowserStudy?.close?.();
+          if(kind==='browser'){window.BrowserStudy?.close?.();unmount();}
           else{localView='cinema';PW().setPodcastMode(false);SS.set('cp-sahne-off','1');}
           evaluate();
         }
+        if(kind==='browser')window.syncBrowserOcclusion?.();
         const fallback=kind==='browser'?$('browserStudyOpen'):$('cpSahneBtn');
         (opener?.isConnected&&!opener.disabled?opener:fallback)?.focus({preventScroll:true});
       },
       onClassic: () => { if(mode!=='cinema'){void inst?.run('advanced');return;} SS.set('cp-sahne-off', '1'); evaluate(); },
-      onSource: (id, p) => { sticky = p; const [a, b] = key.split(':'); unmount(); if(a==='shelf'){if(window.MediaShelfUI?.readSnapshot())void window.CinemaSahne.openShelf({mode:b}).catch(error=>console.warn('shelf-sahne',error));return;}mount(a,b,false,p); }   // kaynak değişti: döngü/uyku bu örnekle birlikte biter, yenisi temiz açılır
+      onSource: (id, p) => { sticky = p; unmount(); if(kind==='shelf'){if(window.MediaShelfUI?.readSnapshot())void window.CinemaSahne.openShelf({mode}).catch(error=>console.warn('shelf-sahne',error));return;}window.BrowserStudy?.refresh?.();evaluate(); }
     });
     key = k;
     if(!had&&stageOpener===active)inst.root.querySelector('[role=tab][aria-selected=true]')?.focus({preventScroll:true});
@@ -450,7 +451,11 @@
   const evaluate = safe(() => {
     if (!ready()) return; if(key.startsWith('shelf:')&&layer.classList.contains('hidden')){if(window.MediaShelfUI?.readSnapshot())return;unmount();} let want = null;
     if (!layer.classList.contains('hidden')) {
-      if (layer.classList.contains('workspace-browser')) { if (layer.classList.contains('browser-podcast-presentation')) want = ['browser', 'podcast']; else if (layer.classList.contains('browser-study-mode')) want = ['browser', 'study']; }
+      if (layer.classList.contains('workspace-browser')) {
+        if (window.BrowserStudy?.isActive?.() ?? layer.classList.contains('browser-study-mode')) {
+          want = ['browser', window.BrowserPodcastUI?.isActive?.() ? 'podcast' : 'study'];
+        }
+      }
       else if ((localView!=='cinema'||PW().isPodcastMode()||SS.get('cp-sahne-off')!=='1') && PW().bridge && !document.getElementById('playerWorkspaceV3')?.hidden && !layer.classList.contains('source-catalog-open')) want = ['local', PW().isPodcastMode() ? 'podcast' : localView];
     }
     if (!want) { if (inst) unmount(); entries(); return; }

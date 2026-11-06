@@ -162,6 +162,16 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
     const findCues = ${finder};
     const nextCueBoundaryAt = ${nextCueBoundaryAt.toString()};
     let state = nextState;
+    let stageStyle = null;
+    function updateStageVideo() {
+      const page = window.location;
+      const enabled = state.stageVideo === true && /(^|\\.)youtube\\.com$/i.test(page?.hostname || '') && page.pathname === '/watch';
+      if (!enabled) { stageStyle?.remove(); stageStyle = null; return; }
+      if (stageStyle?.isConnected) return;
+      stageStyle = document.createElement('style');
+      stageStyle.textContent = 'html:not(:has(:fullscreen)) #movie_player{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;z-index:2147483000!important;background:#000!important}html:not(:has(:fullscreen)) #movie_player .html5-video-container,html:not(:has(:fullscreen)) #movie_player video.html5-main-video{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:contain!important}';
+      (document.head || document.documentElement).append(stageStyle);
+    }
     let root = null;
     let toolbar = null;
     let fullscreenVideo = null;
@@ -686,7 +696,14 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
         top: 0, bottom: innerHeight, height: innerHeight });
       const resolveMediaRect = (item) => {
         const measured = item?.getBoundingClientRect?.();
-        if (measured && measured.width > 2 && measured.height > 2) return measured;
+        if (measured && measured.width > 2 && measured.height > 2) {
+          if (!stageStyle || !item.videoWidth || !item.videoHeight || !item.closest?.('#movie_player')) return measured;
+          const scale = Math.min(measured.width / item.videoWidth, measured.height / item.videoHeight);
+          const width = item.videoWidth * scale, height = item.videoHeight * scale;
+          const left = measured.left + (measured.width - width) / 2;
+          const top = measured.top + (measured.height - height) / 2;
+          return { left, top, width, height, right: left + width, bottom: top + height };
+        }
         if (String(item?.tagName || '').toLowerCase() === 'audio') {
           let node = item.parentElement;
           for (let depth = 0; node && depth < 8; depth++, node = node.parentElement) {
@@ -773,6 +790,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
         // Yeni cue listesi önceki listenin sınır zamanlayıcısını geçersiz kılar.
         cancelFrame();
         state = value || {};
+        updateStageVideo();
         if (state.mode === 'off') {
           cancelFrame();
           stopWatchingMedia();
@@ -819,6 +837,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
           timerProbeDelayMs: timerProbeDelay };
       },
     };
+    updateStageVideo();
     if (state.mode !== 'off') startObserving();
     render();
     return true;

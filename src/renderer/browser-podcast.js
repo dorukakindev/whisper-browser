@@ -82,6 +82,7 @@
     }
     else sessions.delete(key());
     toolsOpen=false; refresh();
+    if (typeof scheduleBrowserOverlaySync === 'function') scheduleBrowserOverlaySync();
   }
   const menu=document.createElement('button');menu.type='button';menu.id='browserPodcastMode';menu.setAttribute('role','menuitem');
   menu.onclick=()=>setMode(!isActive());

@@ -1007,9 +1007,8 @@ async function applyBrowserOcclusion(occluded) {
     }).catch(() => null);
   }
   browserOcclusionApplied = occluded;
-  const result = await window.api.setBrowserOccluded(occluded).catch(() => null);
-  if (!occluded && seq === browserOcclusionSeq) clearBrowserFreezeFrame();
-  return result;
+  if (!occluded) clearBrowserFreezeFrame();
+  return window.api.setBrowserOccluded(occluded).catch(() => null);
 }
 
 function openManagedModal(modal, initialFocus, returnFocus = null) {
@@ -12493,6 +12492,7 @@ function scheduleBrowserOverlaySync() {
       translation: browserQuickPreviewCues(roleCues.translation)
         .map((cue) => ({ start: cue.start, end: cue.end, text: cue.text })),
       mode: browserSubtitleMode(),
+      stageVideo: window.BrowserStudy?.isActive() === true && !window.BrowserPodcastUI?.isActive(),
       offset: player.offset,
       sourceTransform: browserTransformForRole('source'),
       translationTransform: browserTransformForRole('translation'),
