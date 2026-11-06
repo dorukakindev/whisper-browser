@@ -52,6 +52,16 @@ function harness() {
 }
 
 (async () => {
+  // Internal podcast loads select the requested file before reading, but still yield to a newer user selection.
+  for (const changed of [false,true]) {
+    const h=harness();let finish;h.ctx.addSubtitleOption=()=>{};
+    h.ctx.window.api.readSubtitle=()=>new Promise(resolve=>finish=resolve);
+    const pending=h.ctx.loadSubtitle('src.srt',false,{silent:true,select:true,role:'source'});
+    assert.equal(h.controls.playerSubSelect.value,'src.srt');
+    if(changed)h.controls.playerSubSelect.value='';
+    finish({ok:true,text:'Saved source'});await pending;
+    assert.equal(h.ctx.player.cues.length,changed?0:1);
+  }
   {
   const pair = harness();
   await pair.load('src.srt');

@@ -87,12 +87,12 @@
       if(transcript.timed==='yes'||transcript.state==='timed'){
         const cues=parseSubtitles(transcript.text).filter(c=>Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.start>=0&&c.end>c.start);if(!cues.length||cues.length>50000)throw Error(t('Zamanlı metin çözülemedi.','Timed transcript could not be parsed.'));
         const materialized=await api({action:'podcast-materialize',entryId:entry.id,sourceVersion:saved.sourceVersion});if(!valid())return;
-        await loadSubtitle(materialized.path,false,{silent:true,role:'source'});if(!valid())return;player.workspaceAudio.transcriptState='timed';
+        await loadSubtitle(materialized.path,false,{silent:true,select:true,role:'source'});if(!valid())return;player.workspaceAudio.transcriptState='timed';
       }else{player.workspaceAudio.transcriptState='untimed';player.workspaceAudio.transcriptText=transcript.text;}
     };
     if(saved.workspace){videoRate(saved.workspace.rate,saved.workspace.position,owner);if(saved.workspace.transcript?.provenance==='asr'){await loadSavedPodcastResult('source');}else if(saved.workspace.transcript)await apply(saved.workspace.transcript);
       if(saved.workspace.translation?.state==='untimed'&&saved.workspace.transcript?.state==='untimed'){player.workspaceAudio.translationText=saved.workspace.translation.text;}
-      else if(saved.workspace.translation&&saved.workspace.transcript?.provenance!=='asr'){const m=await api({action:'podcast-materialize',entryId:entry.id,sourceVersion:saved.sourceVersion,role:'translation'});if(valid())await loadSubtitle(m.path,true,{silent:true,role:'translation'});}}
+      else if(saved.workspace.translation&&saved.workspace.transcript?.provenance!=='asr'){const m=await api({action:'podcast-materialize',entryId:entry.id,sourceVersion:saved.sourceVersion,role:'translation'});if(valid())await loadSubtitle(m.path,true,{silent:true,select:true,role:'translation'});}}
     else if(saved.state==='needs-review')player.workspaceAudio.transcriptState='needs-review';
     const descriptors=entry.transcriptDescriptors||[];
     // Multiple languages/timing options require an explicit publisher choice.
@@ -191,14 +191,14 @@
     if(timed){
       sourcePath=(await api({action:'podcast-materialize',entryId:audio.entryId,sourceVersion:audio.sourceVersion})).path;if(!valid())return;
       if(matchingTranslation){translationPath=(await api({action:'podcast-materialize',entryId:audio.entryId,sourceVersion:audio.sourceVersion,role:'translation'})).path;if(!valid())return;}
-      await loadSubtitle(sourcePath,false,{silent:true,role:'source'});if(!valid())return;
+      await loadSubtitle(sourcePath,false,{silent:true,select:true,role:'source'});if(!valid())return;
       if(player.subPath!==sourcePath)throw Error(t('Yayıncı dökümü yüklenemedi.','Publisher transcript could not be loaded.'));
     }
     await loadSubtitle('',true,{silent:true});if(!valid())return;
     delete audio.transcriptText;delete audio.translationText;delete audio.transcriptCoverage;delete audio.transcriptTimingNotice;
     audio.translationRetry=saved.translationRetry||null;audio.transcriptState=timed?'timed':'untimed';
     if(!timed){audio.transcriptText=response.text;if(matchingTranslation)audio.translationText=translation.text;}
-    else if(translationPath){await loadSubtitle(translationPath,true,{silent:true,role:'translation'});if(!valid())return;}
+    else if(translationPath){await loadSubtitle(translationPath,true,{silent:true,select:true,role:'translation'});if(!valid())return;}
     window.PlayerWorkspaceIntegration?.refresh(true);
   }
   async function translatePodcastTranscript({isCancelled=()=>false,targetLanguage,retryOnly=false}={}){
@@ -223,7 +223,7 @@
     if(!result?.text)throw Error(t('Bu kaynak için kayıtlı sonuç yok.','No saved result is available for this source.'));
     if(saved.sourceVersion===audio.sourceVersion&&saved.workspace?.transcript?.provenance!=='asr'&&result.state==='timed'&&result.status!=='partial'){
       const materialized=await api({action:'podcast-materialize',entryId:audio.entryId,sourceVersion:saved.sourceVersion,role});if(!valid())return;
-      await loadSubtitle(materialized.path,role==='translation',{silent:true,role});if(!valid())return;
+      await loadSubtitle(materialized.path,role==='translation',{silent:true,select:true,role});if(!valid())return;
       audio.transcriptState='timed';delete audio.transcriptTimingNotice;
     }else{
       const cues=result.state==='timed'?parseSubtitles(result.text):[];

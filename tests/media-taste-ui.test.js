@@ -49,3 +49,11 @@ test('model insight correction shows its original review and existing priority c
  byText(w,'Correct this priority',insight).click();await tick();assert.equal(w.document.activeElement.closest('.mt-preference-field').querySelector('input[type=range]').name,'taste-story');assert.equal(note.value,'Keep me');assert.equal(f.calls.length,0);
  }finally{f.close();}
 });
+
+test('rejecting a model inference opens source routes without mutating any rating or preference',async()=>{
+ const f=fixture();try{const {w,p}=f,r=p.reviews[0];w.MediaTasteUI.mount(w.document.getElementById('root'),{...p,analysis:{summary:'Model',insights:[{aspect:'story',direction:'likes',reason:'Interpretation',evidence:[{id:r.id,quote:'story is wonderfully moving'}]}]},analysisState:'current'});byText(w,'This inference does not fit me').click();await tick();assert.match(w.document.querySelector('dialog').textContent,/saves no preference/);assert.equal(f.calls.length,0);byText(w,'Read and correct original review',w.document.querySelector('dialog')).click();await tick();const editor=w.document.querySelector('dialog textarea');assert.equal(editor.value,r.text);assert.equal(f.calls.length,0);editor.value='A revised review';editor.dispatchEvent(new w.Event('input'));byText(w,'Preview correction').click();await tick();assert.equal(f.calls[0].action,'taste-source-preview');assert.equal(f.calls[0].expectedEvidenceRevision,p.evidenceRevision);assert.equal(f.calls.length,1);}finally{f.close();}
+});
+
+test('editing during a pending review preview discards the old confirmation token',async()=>{
+ let release;const f=fixture(input=>input.action==='taste-source-preview'?new Promise(resolve=>release=resolve):{ok:true});try{const {w}=f;byText(w,'Read and correct original review').click();await tick();const input=w.document.querySelector('dialog textarea');byText(w,'Preview correction').click();await tick();input.value='Newer manual words';input.dispatchEvent(new w.Event('input'));release({ok:true,token:'old',before:'Old',after:'Earlier draft'});await tick();assert(byText(w,'Preview correction'));assert.equal(w.document.querySelector('dialog [role=alert]').textContent,'');assert.equal(f.calls.length,1);}finally{f.close();}
+});

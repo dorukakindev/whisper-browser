@@ -35,3 +35,23 @@ test('Production catalog projection excludes saved dislikes and playback-complet
  const personal=require('../src/personal-media-state'),feedback=personal.readFeedback(dir);personal.setFeedback(feedback,store.get('no'),{reaction:'dislike'});personal.saveFeedback(dir,feedback);
  const result=await handlers.get('media-shelf:request')({}, {action:'taste-recommendations'});assert.equal(result.ok,true,result.error);assert.deepEqual(result.recommendations.map(row=>row.itemId),['yes']);assert.equal(store.get('seen').watchStatus,'unspecified','reading observed playback does not mutate the catalog');
 });
+
+test('review correction previews exact source, preserves rating and rejects concurrent edits or token replay',async t=>{
+ const h=fixture(t),first=(await h.api({action:'taste-profile'})).taste,before=fs.readFileSync(h.file,'utf8');
+ const p=await h.api({action:'taste-source-preview',reviewId:first.reviews[0].id,review:'I changed my words.',expectedEvidenceRevision:first.evidenceRevision});assert(p.ok,p.error);assert.equal(fs.readFileSync(h.file,'utf8'),before);
+ const a=await h.api({action:'taste-source-apply',token:p.token});assert(a.ok,a.error);const saved=JSON.parse(fs.readFileSync(h.file));assert.equal(saved.diary[0].rating,4);assert.equal(saved.diary[0].review,'I changed my words.');assert.deepEqual(saved.tasteProfile,h.data.tasteProfile);assert.notEqual(a.taste.evidenceRevision,first.evidenceRevision);assert.equal((await h.api({action:'taste-source-apply',token:p.token})).ok,false);
+ const next=await h.api({action:'taste-source-preview',reviewId:a.taste.reviews[0].id,review:'Late change.',expectedEvidenceRevision:a.taste.evidenceRevision});saved.diary[0].review='Newer manual edit.';fs.writeFileSync(h.file,JSON.stringify(saved));assert.equal((await h.api({action:'taste-source-apply',token:next.token})).ok,false);assert.equal(JSON.parse(fs.readFileSync(h.file)).diary[0].review,'Newer manual edit.');
+});
+
+test('diary rating correction preserves its review, dates, preferences and current library rating',async t=>{
+ const h=fixture(t),taste=require('../src/media-taste'),recordId=taste.diaryRecordId(h.data.diary[0]);
+ const first=(await h.api({action:'taste-profile'})).taste,before=fs.readFileSync(h.file,'utf8');
+ const p=await h.api({action:'taste-source-preview',kind:'diary-rating',recordId,rating:2,expectedEvidenceRevision:first.evidenceRevision});assert(p.ok,p.error);assert.equal(fs.readFileSync(h.file,'utf8'),before);
+ const r=await h.api({action:'taste-source-apply',token:p.token});assert(r.ok,r.error);const saved=JSON.parse(fs.readFileSync(h.file));assert.deepEqual(saved.diary[0],{...h.data.diary[0],rating:2});assert.deepEqual(saved.tasteProfile,h.data.tasteProfile);assert.equal(r.taste.average,4,'current library score retains precedence');
+});
+
+test('late model analysis cannot override newer explicit priorities',async t=>{
+ const h=fixture(t),first=(await h.api({action:'taste-profile'})).taste;
+ await h.api({action:'taste-preferences',expectedPreferencesRevision:first.preferencesRevision,patch:{note:'A new manual preference'}});
+ const before=fs.readFileSync(h.file,'utf8'),r=await h.api({action:'taste-analysis',expectedEvidenceRevision:first.evidenceRevision,expectedPreferencesRevision:first.preferencesRevision,analysis:{version:1,summary:'Old',insights:[]}});assert.equal(r.stale,true);assert.equal(fs.readFileSync(h.file,'utf8'),before);
+});

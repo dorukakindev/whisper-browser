@@ -1,6 +1,6 @@
 # Bekleyen işler
 
-Son durum kontrolü: **2026-11-05**. Son ürün b3389928fa533fb9e6d6722b02d448a88d6943a4: gerçek sayfa podcast/çift dil geçişinde gereksiz kaynak-zaman hesapları ve mode sekmesi odağı düzeltildi. [Güncel teslim](docs/devir/2026-11-05-1450.md). Onaylı tasarım korunur.
+Son durum kontrolü: **2026-11-06**. Son ürün `c46d32b4856e9324ad664371111c5f0f7e88a879`: kayıtlı podcast metninde kaynaklı arama ve gerçek zevk dayanağını önizleme/onayla düzeltme. [Güncel teslim](docs/devir/2026-11-06-0457.md). Onaylı tasarım korunur.
 
 **Yeni sohbet başlangıcı:** P025 [PR #842](https://github.com/dorukakindev/whisper-browser/pull/842) ile master'a alındı; doğrulanmış ürün başlangıcı `7bf15f3c2876a5465b0c7f59fff3a037b41aeb69`. Sonraki belge commitleri ürün değişikliği değildir; çalışmadan önce gerçek HEAD/remote ve kişisel farkları yeniden kontrol et. Mevcut görevlerden yarım bırakılmış yeni ürün işi yok; aşağıdaki koşullu/ertelenmiş işler korunur.
 
@@ -12,6 +12,14 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 - **Asistan:** gerçek yapılandırılmış model test kataloğundan gerekçeli/karşı kanıtlı öneri üretti; modelin detay açma ve planned kartları mevcut inceleme/onay arayüzünden test betiğiyle uygulandı. Gerçek depoda planned ve değişmeyen null tepki okundu; kişisel zevk verisi kullanılmadı.
 - **Browser kabulü tamamlandı:** [Gerçek sahne deviri](docs/devir/2026-11-05-1408.md). Resmî Blender tam Sintel videosunda İngilizce 26/Türkçe 29 satırdan eşleşen ilk iki replik, gerçek LG Browser video overlay'inde kontrol edildi. İki dil birlikte göründü; primary +2 sn ile İngilizce gecikti ve Türkçe sabit kaldı; secondary -2 sn ile Türkçe sonraki repliğe geçerken İngilizce ilk replikte kaldı. Yaklaşık 11 sn oynatma, gerçek decode kareleri ve üç görüntü, izin denemesi 0. İlk Türkçe aday 30 sn farklı sürümdü; eşleşen üçüncü aday seçildi. Ürün kodu değişmedi.
 - **Sonraki adım:** bu dar kabul kapalıdır; tüm film/sağlayıcı/işletim koşulları için genel senkron garantisi değildir. P004 kalanları [site profili/fullscreen teslimiyle](docs/devir/2026-11-05-1417.md) kapandı.
+
+## P027 — Kaynaklı podcast araması ve zevk dayanağını düzeltme tamamlandı
+
+- **Kod/dal:** `c46d32b4856e9324ad664371111c5f0f7e88a879`, `codex/transcript-search-taste-correction-20261106`; [devir](docs/devir/2026-11-06-0457.md). Başlangıç master `fd3525886fa3295c3a619bc92c206aae470fa186`.
+- **A:** mevcut shelf/feed workspace özgün metni ve kayıtlı çeviri, gerçek alıntı/bölüm/yayın ve doğrulanmış zamanla aranır. Salt yerel sözcük/ifade eşleşmesi; anlamsal arama veya yeni depo/model yok. Sonuç tokenı metin/kaynak/zamana bağlıdır; açma öncesi ve seek öncesi yeniden doğrulanır. Mevcut oynatma sahibinde açılır; Sahne gerçek satırı ayrıca belirginleştirir. Zamansız veya mevcut RSS sesiyle ASR zaman bağı doğrulanmayan sonuç yalnız okunur. RSS programatik altyazı yüklemesi mevcut seçiciye açık seçim yapar; gecikmiş okuma yeni seçimi ezemez.
+- **B:** model/hesaplanan çıkarım ve öneride “Bu çıkarım bana uymuyor” gerçek puan/yorum dayanaklarını açar; açmak veri yazmaz. Kütüphane puanı mevcut yapım detayıyla, tarihli günlük puanı ve yazılı yorum yalnız kendi alanında önizleme/onayla düzeltilir; açık öncelikler mevcut ayrı sürüm kapısında kalır. Eski yorum analizi bayat işaretlenir; profil/öneri/asistan bağlamı yenilenir. Gecikmiş model ve eski önizleme elle düzeltmeyi ezemez.
+- **Kanıt:** 121 hedefli test/~2,8sn; mevcut podcast-transcript ve browser-subtitle-selection betikleri; JS/diff kontrolü. LG1440×900 izole gerçek Electron/main/preload/native mpv: arama→doğru RSS A→12sn seek→görünür/etkin kayıtlı satır; yorum önizlemesinin yazmaması ve onay sonrası yalnız yorum değişmesi/puan4 korunması. İzin denemesi0. Görseller yerel artifacts altında; commit dışı.
+- **Sınır / kesin sonraki adım:** ilk100 yerel eşleşme; tam kaydedilmemiş/partial çeviri aranmaz, yeni üretim başlatılmaz. Spotify/RSS reklam-kurgu farkı eşit zaman sayılmaz; indirilmiş ASR ile mevcut RSS sesinin aynı byte/zaman bağı kanıtlanmadıkça salt okunur yol korunur. Daha geniş zamanlı geri dönüş gerekirse önce aynı kaynak binding/SHA ve gerçek oynatıcı sahibi kanıtlanmalı; ardından yalnız o bağla native seek kontrolü yapılmalı. Bu tur canlı podcast sağlayıcısı/model/Letterboxd/CUDA/start.bat/kişisel profil kabulü değildir. Kapsamda doğrulanmış yarım ürün düzeltmesi yok.
 
 ## P026 — Podcast dinleme kuyruğu ve Keşfet kararı tamamlandı
 

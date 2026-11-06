@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Kayıtlı podcast özgün metni/çevirisi gerçek kaynak ve alıntıyla yerel aranır; güvenli sonuç doğrulamasıyla mevcut oynatıcı/Sahne satırına döner. Zevk çıkarımlarından gerçek puan/yorum/açık tercih düzeltmesine geçilir; önizleme/onay ve sürüm korumaları, bayat analiz ve güncel profil bağlamı korunur. RSS kayıtlı altyazısının programatik seçim sorunu düzeltildi. [Teslim](docs/devir/2026-11-06-0457.md).
+
 - Podcast dinleme kuyruğu mevcut owner ile kalıcı current/next, reorder/retry ve remembered sahneye bağlandı; native mpv EOF auto-next/repeat korundu. Keşfet gerekçesi, üyelik ve kişisel karar durumu detay/sinematik yüzeylerde eşlenir. [Teslim](docs/devir/2026-11-06-0432.md).
 
 - Browser ortak sahnesinde zaman dönüşümü cue/word başına yeniden hesaplanmaz; podcast↔çift dil geçişindeki takılma giderildi. Mode sekmesi remount sırasında klavye odağını korur. Gerçek panel/fullscreen kaynak sahipliği kontrol edildi. [Teslim](docs/devir/2026-11-05-1450.md).

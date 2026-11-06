@@ -259,6 +259,12 @@
       const w = this.q('[data-r=wave]');w.dataset.density=String(any); w.querySelectorAll('.mark').forEach((n) => n.remove());
       if (dur) for (const c of (info.chapters || [])) if (c.t > 0) { const m = document.createElement('i'); m.className = 'mark'; m.style.left = (c.t / dur * 100) + '%'; w.append(m); }
     }
+    focusPassage(time) {
+      this.tick();
+      const index=this.rows.findIndex(row=>row.timed&&row.start<=time&&time<row.end);
+      this.lines.forEach((line,i)=>line.classList.toggle('sh-search-match',i===index));
+      this.lines[index]?.scrollIntoView?.({block:'center'});
+    }
     tick() {
       if(this.dead)return; if(document.hidden){if(this.s.sleep&&Date.now()>=this.s.sleepAt){this.s.sleep=0;this.run('pause');}return;} const a = this.a, s = this.s;
       const id = a.identity ? a.identity() : ''; if (this.id0 === undefined) this.id0 = id; else if (id !== this.id0) { if (!this.gone) { this.gone = true; this.o.onSource?.(id, this.prefs()); } return; }

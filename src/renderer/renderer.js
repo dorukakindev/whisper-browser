@@ -20487,7 +20487,7 @@ function explainCacheKey(kind, index, word) {
   return `${player.subPath}|${kind}|${index}|${word || ''}|${(hash >>> 0).toString(36)}`;
 }
 
-async function openPodcastResearchResult(result) {
+async function openPodcastResearchResult(result, { beforeSeek } = {}) {
   const message = (tr, en) => window.UiLocale?.get?.() === 'tr' ? tr : en;
   const unavailable = () => { logLine(message('Podcast bölümü artık bulunamıyor; kayıtlı not korunuyor.', 'Podcast episode is unavailable; the saved note is preserved.'), 'warn'); return false; };
   try {
@@ -20515,11 +20515,16 @@ async function openPodcastResearchResult(result) {
     const same = result.sourceVersion && snapshot?.sourceVersion === result.sourceVersion && result.episodeIdentity && snapshot?.episodeIdentity === result.episodeIdentity
       && binding && current && binding.episodeIdentity === result.episodeIdentity && Object.keys(binding).every(key => binding[key] === current[key]);
     if (!same || result.seconds === null || result.seconds === undefined || !Number.isFinite(Number(result.seconds)) || Number(result.seconds) < 0) {
-      osd(message('Podcast açıldı; ses kaynağı veya zaman çıpası eşleşmediği için zamana gidilmedi.', 'Podcast opened; its audio binding or time anchor did not match, so no timestamp was sought.')); return true;
+      osd(message('Podcast açıldı; ses kaynağı veya zaman çıpası eşleşmediği için zamana gidilmedi.', 'Podcast opened; its audio binding or time anchor did not match, so no timestamp was sought.')); return !beforeSeek;
+    }
+    if (beforeSeek) {
+      await beforeSeek();
+      const latest = result.playbackOwner === 'media-shelf' ? window.MediaShelfUI.readSnapshot?.() : player.workspaceMode === 'player' && player.workspaceAudio?.mediaKey === player.mediaKey && player.workspaceAudio?.generation === player.generation ? player.workspaceAudio : null;
+      if (!latest || latest.mediaKey !== snapshot.mediaKey || latest.generation !== snapshot.generation || latest.episodeIdentity !== snapshot.episodeIdentity || latest.sourceVersion !== snapshot.sourceVersion) return false;
     }
     const sought = await service?.executeExisting?.({ type: 'seek', mediaKey: snapshot.mediaKey, generation: snapshot.generation, time: Number(result.seconds) });
     if (!sought?.ok) osd(message('Podcast açıldı; bu zaman konumuna gitme doğrulanamadı.', 'Podcast opened; seeking to this timestamp could not be confirmed.'));
-    return true;
+    return beforeSeek ? !!sought?.ok : true;
   } catch (error) { logLine(String(error?.message || error), 'warn'); return false; }
 }
 
@@ -22592,6 +22597,11 @@ async function loadSubtitle(path, secondary = false, options = {}) {
   const knownSubtitle = (player.subtitles || []).find((item) => item.path === path);
   const requestedRole = options.role || knownSubtitle?.role
     || (secondary ? 'translation' : 'source');
+  if (options.select === true) {
+    addSubtitleOption(path, undefined, { role: requestedRole });
+    const target = $(secondary ? 'playerSubSelect2' : 'playerSubSelect');
+    if (target) target.value = path;
+  }
   const previousPrimaryPath = player.subPath;
   const previousSecondaryPath = player.sub2Path;
   const res = await window.api.readSubtitle(path).catch((error) => ({ ok: false, error: error.message }));
