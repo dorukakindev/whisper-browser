@@ -2375,13 +2375,15 @@
           </div>
           <div class="subtitle-edit hidden" id="subtitleEdit">
             <textarea id="subtitleEditBox" class="resize-none" rows="2" spellcheck="false" aria-label="Altyazı metnini düzenle"></textarea>
+            <details><summary>Önce / sonra</summary><p>Önce</p><p id="subtitleEditBefore" data-ui-untranslated></p><p>Sonra</p><p id="subtitleEditAfter" data-ui-untranslated></p></details>
             <div class="subtitle-edit-actions">
               <span class="subtitle-edit-hint" id="subtitleEditHint"></span>
               <button class="btn btn-ghost btn-sm hidden" id="subtitleEditRevertModel" type="button">Model çevirisine dön</button>
               <button class="btn btn-secondary btn-sm" id="subtitleEditUndo" type="button" disabled>Geri al</button>
               <button class="btn btn-secondary btn-sm" id="subtitleEditRedo" type="button" disabled>Yinele</button>
               <button class="btn btn-secondary btn-sm" id="subtitleEditCancel">Vazgeç</button>
-              <button class="btn btn-primary btn-sm" id="subtitleEditSave">Kaydet</button>
+              <button class="btn btn-primary btn-sm" id="subtitleEditSave" type="button">Oturumda uygula</button>
+              <button class="btn btn-secondary btn-sm" id="subtitleEditOverwrite" type="button">Altyazı dosyasına yaz</button>
             </div>
           </div>
           <div class="player-empty hidden" id="playerEmpty">
