@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Podcast transkript aramasında yayın, bölüm ve metin filtreleri, bölüm grupları, 100 sonuçluk sayfalar ve dönüşte arama konumu. Pasaj, not, kuyruk ve zevk dayanağı eylemleri mevcut ekranlarda daha belirgin. [Teslim](docs/devir/2026-11-06-0515.md).
+
 - Kayıtlı podcast özgün metni/çevirisi gerçek kaynak ve alıntıyla yerel aranır; güvenli sonuç doğrulamasıyla mevcut oynatıcı/Sahne satırına döner. Zevk çıkarımlarından gerçek puan/yorum/açık tercih düzeltmesine geçilir; önizleme/onay ve sürüm korumaları, bayat analiz ve güncel profil bağlamı korunur. RSS kayıtlı altyazısının programatik seçim sorunu düzeltildi. [Teslim](docs/devir/2026-11-06-0457.md).
 
 - Podcast dinleme kuyruğu mevcut owner ile kalıcı current/next, reorder/retry ve remembered sahneye bağlandı; native mpv EOF auto-next/repeat korundu. Keşfet gerekçesi, üyelik ve kişisel karar durumu detay/sinematik yüzeylerde eşlenir. [Teslim](docs/devir/2026-11-06-0432.md).

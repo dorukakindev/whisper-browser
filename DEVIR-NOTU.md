@@ -1,3 +1,4 @@
+Güncel teslim: [Podcast arama deneyimi ve zevk dayanağı görünürlüğü](docs/devir/2026-11-06-0515.md)
 Güncel teslim: [Kaynaklı podcast araması ve zevk dayanaklarını düzeltme](docs/devir/2026-11-06-0457.md)
 Güncel teslim: [Podcast dinleme kuyruğu ve Keşfet izleme kararı](docs/devir/2026-11-06-0432.md)
 Güncel teslim: [Gerçek sayfa panel/görünüm geçişi ve kalan podcast kaynakları](docs/devir/2026-11-05-1450.md)
