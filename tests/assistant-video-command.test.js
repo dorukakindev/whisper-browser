@@ -136,6 +136,22 @@ test('A confirmed translation stop clears its running identity and keeps finishe
  }finally{h.dom.window.close();}
 });
 
+test('A retained assistant stop cannot cancel translation for a new video in the same tab', async () => {
+ const h = harness();
+ try {
+  let stops = 0;
+  h.w.api.stopBrowserTranslation = async () => { stops++; return {ok:true}; };
+  await h.w.AssistantVideoCommands.handle('Videonun altyazısını çevir');
+  h.tab.generation++;
+  h.w.currentBrowserYoutubeUrl = () => 'https://www.youtube.com/watch?v=abcdefghijk';
+  h.w.player.browserTranslationTrackId = 'replacement-track';
+  await h.w.AssistantVideoCommands.cancel();
+  assert.equal(stops, 0);
+  assert.equal(h.w.player.browserTranslationTrackId, 'replacement-track');
+  assert.equal(h.done[0]?.status, 'failed');
+ } finally { h.dom.window.close(); }
+});
+
  test('Per-job caption language/range/speech requests delegate without changing saved settings',async()=>{
   for(const q of ['Videonun altyazısını İngilizceye çevir','Videonun altyazısını 00:05–00:25 arasında çevir','Videonun altyazısını dublaj için çevir']){
    const h=harness();try{assert.equal(await h.w.AssistantVideoCommands.handle(q),false);assert.equal(h.calls.length,0);assert.equal(h.w.document.getElementById('translateTo').value,'tr');}finally{h.dom.window.close();}

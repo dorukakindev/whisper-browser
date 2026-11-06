@@ -1,3 +1,4 @@
+Güncel teslim: [Asistan ve Sahne işlem sahipliği](docs/devir/2026-11-06-0716.md)
 Güncel teslim: [YouTube altyazısı ve Podcast tekrar testi](docs/devir/2026-11-06-0713.md)
 Güncel teslim: [YouTube, Podcast Sahne ve asistan testleri](docs/devir/2026-11-06-0706.md)
 Güncel teslim: [Podcast, Keşfet ve yorum kabulü](docs/devir/2026-11-06-0702.md)

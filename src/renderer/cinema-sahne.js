@@ -14,7 +14,7 @@
   const SS = { get(k) { try { return sessionStorage.getItem(k); } catch (_) { return null; } }, set(k, v) { try { sessionStorage.setItem(k, v); } catch (_) { /* depolama yok */ } } };
   const langCode = (v) => { const m = /^[a-z]{2,3}/i.exec(String(v || '').trim()); return m ? m[0].toLowerCase() : null; };
   const num = (v) => Number.isFinite(Number(v)) ? Number(v) : 0;
-  let host = null, inst = null, key = '', parked = [], lastAction = null, localView = 'cinema', advancedOverlay = null, stageOpener = null;
+  let host = null, inst = null, key = '', parked = [], localView = 'cinema', advancedOverlay = null, stageOpener = null;
 
   const headH = () => {
     const origin=layer.getBoundingClientRect().top;
@@ -113,7 +113,7 @@
     const F = kind === 'browser' ? browserFacade() : kind === 'shelf' ? shelfFacade() : localFacade();
     const first = F.snap(); const bound = first ? { mediaKey: first.mediaKey, generation: first.generation, sourceVersion: first.sourceVersion } : { mediaKey: '', generation: -1 };
     const identity = () => { const s = F.snap(); return `${kind}|${F.tab()}|${s ? s.mediaKey : ''}|${s ? s.generation : ''}|${s?.sourceVersion || ''}`; };
-    let cache = { rev: '', rows: [], meta: [], untimed: false }, ownLoop = null, disposed = false;
+    let cache = { rev: '', rows: [], meta: [], untimed: false }, ownLoop = null, disposed = false, lastAction = null;
     const current = () => { const now = F.snap(); return !disposed && !!now && now.mediaKey === bound.mediaKey && now.generation === bound.generation && (!bound.sourceVersion || now.sourceVersion === bound.sourceVersion); };
     function clearOwnedLoop() {
       const range = ownLoop; ownLoop = null;
@@ -182,10 +182,18 @@
           text: status.preparing ? T('Podcast sesi hazırlanıyor…', 'Preparing podcast audio…') : task.text,
           cancel: current() && task.cancellable ? () => window.cancelPodcastQueueTask?.(snap, task.id) : null };
       }
+      const activeJob = player.job;
+      if (activeJob?.mediaKey && (activeJob.mediaKey !== snap?.mediaKey
+        || (activeJob.generation != null && activeJob.generation !== snap?.generation)
+        || (kind === 'browser' && activeJob.browserTabId && activeJob.browserTabId !== F.tab()))) {
+        return { state: 'idle' };
+      }
       const bar = $('playerJobBar'), vis = !!bar && !bar.classList.contains('hidden'), text = $('playerJobText')?.textContent?.trim() || '';
       const failed = !!(player.job && player.job.failed), pct = parseFloat($('playerJobFill')?.style.width);
       const cancel = $('playerJobCancel') || $('cancelBtn');
-      return { state: vis ? (failed ? 'failed' : 'running') : 'idle', text: text || (failed ? T('İşlem başarısız oldu.', 'The task failed.') : T('İşlem sürüyor…', 'Working…')), progress: Number.isFinite(pct) && pct > 0 ? Math.min(1, pct / 100) : null, cancel: current() && cancel && !cancel.disabled ? () => { if(current() && !cancel.disabled)cancel.click(); } : null, retry: current() && lastAction ? () => { if(!current())return; const b = lastAction(); if (b && !b.disabled) b.click(); } : null };
+      const retryAction = lastAction;
+      const jobCurrent = () => current() && player.job === activeJob;
+      return { state: vis ? (failed ? 'failed' : 'running') : 'idle', text: text || (failed ? T('İşlem başarısız oldu.', 'The task failed.') : T('İşlem sürüyor…', 'Working…')), progress: Number.isFinite(pct) && pct > 0 ? Math.min(1, pct / 100) : null, cancel: current() && cancel && !cancel.disabled ? () => { if(jobCurrent() && !cancel.disabled)cancel.click(); } : null, retry: current() && retryAction ? () => { if(!jobCurrent() || lastAction !== retryAction)return; const b = retryAction(); if (b && !b.disabled) b.click(); } : null };
     }
     const mirror = (resolver, label) => { const b = resolver(); if (!b) return null; const lbl = (label || b.textContent || '').trim().replace(/\s+/g, ' '); return { type: 'button', label: lbl || b.title, hint: b.disabled ? (b.title || '') : '', disabled: !!b.disabled, pressed: b.getAttribute('aria-pressed') === 'true' ? true : undefined, run: () => { if (!current()) return; const target = resolver(); if (target && !target.disabled) { lastAction = resolver; target.click(); } } }; };
     const trackLabel = (t) => (t.label || window.PlayerUiKit?.languageName?.(t.language, window.UiLocale?.get?.()) || T('Altyazı izi', 'Caption track')) + (t.role === 'translation' ? ' · ' + T('çeviri', 'translation') : '');
@@ -348,7 +356,16 @@
           case 'seekBy': return dispatch('seek', { time: Math.max(0, Math.min(num(s.duration) || Infinity, num(s.time) + v)) });
           case 'seekCue': return cache.rows[v]?.timed ? seekRow(v) : Promise.resolve({ ok: false, code: 'untimed', message: T('Zamansız satıra atlanamaz.', 'Cannot seek to an untimed line.') });
           case 'prevCue': case 'nextCue': { const i = neighbor(num(s.time), t === 'prevCue' ? -1 : 1); return i >= 0 ? seekRow(i) : Promise.resolve({ ok: false, code: 'none', message: T('Zamanlı cümle yok.', 'No timed sentence.') }); }
-          case 'replay': { const i = idxAt(num(s.time)); if (i < 0) return Promise.resolve({ ok: false, code: 'none', message: T('Şu an çalan zamanlı cümle yok.', 'No timed sentence is playing.') }); return seekRow(i).then((r) => { if (r.ok && F.snap()?.paused) return dispatch('togglePlay'); return r; }); }
+          case 'replay': {
+            const i = idxAt(num(s.time));
+            if (i < 0) return Promise.resolve({ ok: false, code: 'none', message: T('Şu an çalan zamanlı cümle yok.', 'No timed sentence is playing.') });
+            return seekRow(i).then(result => {
+              if (!result.ok) return result;
+              if (!current()) return stale;
+              if (s.paused && F.snap()?.paused) return dispatch('togglePlay');
+              return result;
+            });
+          }
           case 'rate': return dispatch('setRate', { rate: v });
           case 'volume': return dispatch('setVolume',{volume:v});
           case 'loop': {
