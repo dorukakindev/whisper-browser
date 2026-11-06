@@ -20,10 +20,8 @@
   index=(index+direction+matches.length)%matches.length;const hit=matches[index];
   status.textContent=t(`Match ${index+1} / ${matches.length} · page ${hit.page}`,`Eşleşme ${index+1} / ${matches.length} · sayfa ${hit.page}`);
   try{
-   const page=$('pdfReaderPage');page.value=String(hit.page);page.dispatchEvent(new Event('change'));
-   await renderPdfReaderPage(hit.page);
+   if(!await navigatePdfReading(reader,hit.page,{excursion:true}))return;
    if(move!==jumping||!current(reader,request))return;
-   reader.pages.get(hit.page)?.article?.scrollIntoView({block:'start',behavior:'instant'});
    $('pdfFindExcerpt').textContent=hit.excerpt;
   }catch{
    if(move===jumping&&current(reader,request)){

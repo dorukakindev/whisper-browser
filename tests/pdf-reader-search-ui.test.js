@@ -4,7 +4,8 @@ function setup(){
  const dom=new JSDOM(fs.readFileSync(require.resolve('../src/renderer/index.html'),'utf8'),{runScripts:'outside-only'}),w=dom.window,el=id=>w.document.getElementById(id),jumps=[];
  const reader={pdf:{numPages:3,getPage:async page=>({getTextContent:async()=>({items:[{str:page===2?'A unique search target.':'Other text'}]})})},pages:new Map()};
  Object.assign(w,{player:{pdfReader:reader},UiLocale:{get:()=> 'en'},PdfTextSearch:require('../src/pdf-text-search'),PdfReaderExperience:{context:()=>w.player.pdfReader?{}:null},matchMedia:()=>({matches:true}),renderPdfReaderPage:async()=>{}});
- el('pdfReaderPage').addEventListener('change',()=>{jumps.push(el('pdfReaderPage').value);});w.eval(fs.readFileSync(require.resolve('../src/renderer/pdf-reader-search.js'),'utf8'));
+ w.navigatePdfReading=async(owner,page,{excursion})=>{assert.equal(owner,reader);assert.equal(excursion,true);jumps.push(String(page));await w.renderPdfReaderPage(page);return true;};
+ w.eval(fs.readFileSync(require.resolve('../src/renderer/pdf-reader-search.js'),'utf8'));
  return {w,el,reader,jumps,close:()=>w.close()};
 }
 test('PDF search opens with Ctrl+F, goes to the matching original page, and Escape closes only search',async()=>{

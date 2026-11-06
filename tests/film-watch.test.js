@@ -57,3 +57,12 @@ test('R848-02 exact catalog year correction retains diary, queue, assets, altern
  const different=h.store.upsert({kind:'film',title:'Different physical cut',imdbId:h.item.imdbId,year:2013,source:{type:'local',value:path.join(h.root,'different.mp4')}});const other=await film.handle(h.event,{action:'film-watch-overview',itemId:different.id});assert.equal(other.assets.length,0);assert.equal(other.selection,null);assert.equal(other.sources.length,1);assert.equal(F.additionalSources(h.root,different).length,0);
  h.store.upsert({id:h.item.id,imdbId:'tt9999999'});const changed=await call(d,'daily-title');assert.equal(changed.journal.length,0);assert.equal(changed.sources.assets.length,0);assert.equal((await call(film,'film-watch-overview')).assets.length,0);assert.equal(fs.readFileSync(file,'utf8'),'subtitle');
 });
+
+test('Overview distinguishes a missing local edition and keeps the web availability unverified',async t=>{
+ const h=fixture(t);fs.unlinkSync(path.join(h.root,'local.mp4'));
+ const before=h.store.get(h.item.id),overview=await h.run({action:'film-watch-overview'});
+ assert.equal(overview.sources.find(s=>s.type==='local').available,false);
+ assert.equal(overview.sources.find(s=>s.type==='browser').available,null);
+ assert.deepEqual(h.store.get(h.item.id),before);
+ assert.deepEqual(h.granted,[]);
+});

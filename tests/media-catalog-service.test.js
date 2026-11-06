@@ -158,6 +158,12 @@ async function main() {
       assert.equal((await invoke(authorized, { action: 'import-apply', token: expiring.token,
         ids: ['nmdb:work:1'] })).ok, false, 'Süresi dolmuş önizleme uygulandı');
     } finally { Date.now = realNow; }
+    const episode = (await invoke(authorized,{action:'list'})).items.find(item=>item.id===series.id);
+    const exact = require('../src/film-watch-service').sources(episode).find(row=>row.locator.episodeId==='s1e2');
+    const opened = await invoke(authorized,{action:'play',id:series.id,sourceId:exact.id,episodeId:'wrong-episode'});
+    assert.equal(opened.ok,true,opened.error);
+    assert.equal(opened.watchItem.localPath,picker);
+    assert.equal((await invoke(authorized,{action:'play',id:series.id,sourceId:'stale-source'})).ok,false);
     console.log('media-catalog-service: authorization, source validation, preview/apply and conflict passed');
   } finally {
     importer.previewNmdbImport = originalImport;

@@ -27,7 +27,9 @@ for (const match of main.matchAll(/^ipcMain\.handle\('([^']+)'/gm)) {
 }
 function register(channel, context) {
   let callback;
-  vm.runInNewContext(handlers.get(channel), { burninStartPending: false, dt: (tr) => tr, pushBoundOption, networkOnline: () => true, ...context, ipcMain: { handle: (name, fn) => {
+  const helpers = channel.startsWith('history:') ? main.slice(main.indexOf('function historyOutputCandidates('),
+    main.indexOf("ipcMain.handle('history:list'")) : '';
+  vm.runInNewContext(helpers + handlers.get(channel), { burninStartPending: false, dt: (tr) => tr, pushBoundOption, networkOnline: () => true, ...context, ipcMain: { handle: (name, fn) => {
     if (name !== channel) return;
     assert.equal(callback, undefined); callback = fn;
   } } });
@@ -134,12 +136,13 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       fs.mkdirSync(invalidSubtitle); fs.writeFileSync(invalid, 'not subtitle');
       const access = new SubtitleFileAccess();
       const handler = register('history:authorizeFiles', {
-        authorizedBrowserSender: auth, fs, subtitleFileAccess: access,
-        loadHistory: () => [{ id: 'secili', files: [source, translation, missing, invalidSubtitle, invalid] },
+        authorizedBrowserSender: auth, fs, path, subtitleFileAccess: access,
+        authorizeMediaFile:()=>{throw Error('Result preview must not request video access');},
+        loadHistory: () => [{ id: 'secili', input:path.join(dir,'source.mp4'), files: [source, translation, missing, invalidSubtitle, invalid] },
           { id: 'baska', files: [path.join(dir, 'baska.srt')] }],
       });
       assert.equal((await handler(authorized, 'yok')).ok, false);
-      const result = await handler(authorized, 'secili');
+      const result = await handler(authorized, {id:'secili',resultOnly:true});
       assert.equal(result.ok, true);
       assert.deepEqual(Array.from(result.files), [fs.realpathSync(source), fs.realpathSync(translation)]);
       assert.equal(result.skipped, 2);

@@ -3430,10 +3430,9 @@ function saveHistory(list, options = {}) {
   }
 }
 
-// Ayni medya tekrar islenirse ESKI kayit silinir: gecmis "en son ne yaptim"
-// listesi, ayni filmin on kopyasi degil.
+// Ayrı işlemler aynı girdiyi kullansa bile kendi sonuç ve durum kayıtlarını korur.
 function addHistory(rec) {
-  const list = loadHistory().filter((h) => !(h.input && rec.input && h.input === rec.input));
+  const list = loadHistory().filter(h => h.id !== rec.id);
   list.unshift(rec);
   saveHistory(list);
 }
@@ -18237,6 +18236,7 @@ ipcMain.handle('pdf:open', async (event, request = {}) => {
     return {
       ok: true,
       pdfHash: document.pdfHash,
+      readingId: createHash('sha256').update(process.platform === 'win32' ? granted.toLowerCase() : granted).digest('hex'),
       fileUrl: `whisper-pdf://document/${document.resourceId}`,
       title: document.title,
       size: document.size,
@@ -18838,7 +18838,37 @@ ipcMain.handle('dialog:openInputFolder', async (event) => {
   return target;
 });
 
-ipcMain.handle('history:list', async (event) => authorizedBrowserSender(event) ? loadHistory() : []);
+function historyOutputCandidates(record) {
+  return (Array.isArray(record?.files) ? record.files : []).filter(file => typeof file === 'string'
+    && path.isAbsolute(file) && /\.(srt|vtt|ass|ssa)$/i.test(file)).slice(0,64);
+}
+
+function availableHistoryOutputs(record, candidates, { localOnly = false } = {}) {
+  const settings = record.imported ? loadSettings() : null;
+  const importedRoots = settings ? [settings.outputDir, settings.inputDir]
+    .filter(dir => typeof dir === 'string' && dir)
+    .map(dir => { try { return fs.realpathSync(dir); } catch (_) { return ''; } })
+    .filter(Boolean) : [];
+  return candidates.filter(file => {
+    if ((record.imported || localOnly) && /^[\\/]{2}/.test(file)) return false;
+    try {
+      if (record.imported) {
+        const resolved = fs.realpathSync(file);
+        if (!importedRoots.some(root => resolved.startsWith(root + path.sep))) return false;
+      }
+      return fs.statSync(file).isFile();
+    } catch (_) { return false; }
+  });
+}
+
+ipcMain.handle('history:list', async (event) => {
+  if (!authorizedBrowserSender(event)) return [];
+  return loadHistory().slice(0,HISTORY_LIMIT).filter(row=>row&&typeof row==='object').map(row => {
+    const files = historyOutputCandidates(row);
+    const available = availableHistoryOutputs(row,files,{localOnly:true});
+    return { ...row, resultCount:files.length, availableResults:available.length };
+  });
+});
 
 // history:list ekran doldurulurken calisir; o asamada eski kayitlardaki butun
 // altyazi yollarini otomatik yetkilendirmek gereksiz derecede genis olur.
@@ -18846,35 +18876,24 @@ ipcMain.handle('history:list', async (event) => authorizedBrowserSender(event) ?
 // var olan, dogrulanmis altyazi ciktilarina erisim verilir.
 ipcMain.handle('history:authorizeFiles', async (event, recordId) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.', files: [] };
-  const id = typeof recordId === 'string' ? recordId : '';
+  const id = typeof recordId === 'string' ? recordId : recordId?.id;
+  const resultOnly = recordId?.resultOnly === true;
   const record = id ? loadHistory().find((item) => item && item.id === id) : null;
   if (!record) return { ok: false, error: 'Geçmiş kaydı bulunamadı.', files: [] };
-  const candidates = (Array.isArray(record.files) ? record.files : [])
-    .filter((value) => typeof value === 'string' && /\.(srt|vtt|ass|ssa)$/i.test(value));
+  const candidates = historyOutputCandidates(record);
   const files = [];
   let video = '';
   const videoCandidate = [record.video, record.input]
     .find((value) => typeof value === 'string' && value && !/^https?:/i.test(value)
       && !(record.imported && /^(?:\\\\|\/\/)/.test(value)));
-  if (videoCandidate) {
+  if (videoCandidate && !resultOnly) {
     try { video = await authorizeMediaFile(videoCandidate); }
     catch (error) { return { ok: false, error: error.message, files: [], video: '' }; }
   }
   // Paketten içe aktarılan kayıt (workspace-package sanitizeImportedHistory):
   // ağ paylaşımı yoluna hiç dokunulmaz (NTLM sızıntısı) ve yalnız bu makinenin
   // çıktı/girdi klasörlerindeki altyazılara onaysız erişim verilir.
-  const importedRoots = record.imported ? [loadSettings().outputDir, loadSettings().inputDir]
-    .filter((dir) => typeof dir === 'string' && dir)
-    .map((dir) => { try { return fs.realpathSync(dir); } catch (_) { return ''; } })
-    .filter(Boolean) : [];
-  for (const value of candidates) {
-    if (!value) continue;
-    if (record.imported) {
-      if (/^(?:\\\\|\/\/)/.test(value)) continue;
-      let resolved = '';
-      try { resolved = fs.realpathSync(value); } catch (_) { continue; }
-      if (!importedRoots.some((root) => resolved === root || resolved.startsWith(root + path.sep))) continue;
-    } else if (!fs.existsSync(value)) continue;
+  for (const value of availableHistoryOutputs(record,candidates,{localOnly:resultOnly})) {
     const granted = subtitleFileAccess.grant(value);
     if (granted) files.push(granted);
   }
@@ -21392,7 +21411,13 @@ function recordJob(meta, event) {
     engine: meta.engine,
     subtitleContexts: event.type === 'done' ? require('./local-subtitle-context').build(meta,event) : [],
     segments: event.segments || 0,
-    language: event.language || '',
+    language: event.language || meta.language || '',
+    targetLanguage: meta.targetLanguage || '',
+    clipStart: Number.isFinite(meta.clipStart) ? meta.clipStart : null,
+    clipEnd: Number.isFinite(meta.clipEnd) ? meta.clipEnd : null,
+    kind: meta.translateOnly ? 'translation' : 'transcription',
+    status: event.type === 'cancelled' ? 'cancelled' : event.type === 'done'
+      ? (event.partial === true || (Array.isArray(event.outputs) && event.outputs.some(output => output?.status === 'partial' || Number(output?.failed)>0)) ? 'partial' : 'completed') : 'failed',
     perf: event.perf || null,
     quality: event.quality || meta.quality || null,
     ok: event.type === 'done',
@@ -21789,6 +21814,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     source: options.youtube ? 'youtube' : 'local',
     video: options.youtube ? '' : (subtitlePlayback?.input || options.input || ''),
     translateOnly:!!options.translateOnly,subtitlePlayback,
+    language: options.lang || options.language || '', targetLanguage: options.translateTo || options.targetLang || options.targetLanguage || '',
     model: options.model || '',
     engine: options.engine || '',
     clipStart: options.clipStart, clipEnd: options.clipEnd,
@@ -21991,6 +22017,10 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
         (message) => writeJobLog({ type: 'log', level: 'error', message, jobId }));
       writeJobLog({ ...synthetic, jobId });
       sendJobEvent(synthetic);
+    }
+    if (lifecycle.state.cancelRequested && !jobMeta.skip) {
+      recordJob(jobMeta, {type:'cancelled'});
+      jobMeta.skip = true;
     }
     const exitEvent = { type: 'exit', code, stderr: stderrBuf.slice(-1000),
       queueItemId: jobMeta.queueItemId, cancelled: lifecycle.state.cancelRequested,

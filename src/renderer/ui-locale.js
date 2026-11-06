@@ -1724,6 +1724,7 @@
     ['Kapat', 'Close'],
     ['Film', 'Movie'],
     ['Dizi', 'Series'],
+    ['Okuduğum yere dön', 'Return to reading position'],
     ['Önce / sonra', 'Before / after'],
     ['Önce', 'Before'],
     ['Sonra', 'After'],

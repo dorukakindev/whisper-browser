@@ -89,7 +89,7 @@ test('içe aktarılan geçmiş işaretlenir; onaysız erişim ve UNC dokunuşu y
     const restored = JSON.parse(fs.readFileSync(path.join(root, 'history.json'), 'utf8'));
     assert.equal(restored[0].imported, true, 'içe aktarılan geçmiş kaydı işaretlenmedi');
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
-  const handler = main.slice(main.indexOf("ipcMain.handle('history:authorizeFiles'"), main.indexOf("ipcMain.handle('history:remove'"));
+  const handler = main.slice(main.indexOf('function historyOutputCandidates('), main.indexOf("ipcMain.handle('history:remove'"));
   assert.match(handler, /record\.imported && \/\^\(\?:\\\\\\\\\|\\\/\\\/\)\/\.test\(value\)/, 'içe aktarılan UNC video yoluna dokunuluyor');
   assert.match(handler, /importedRoots\.some/, 'içe aktarılan altyazılar klasör sınırı olmadan yetkilendiriliyor');
 });
