@@ -94,7 +94,15 @@
    const header=el('div','cf4-card-heading'),copy=el('div');copy.append(heading);const intro=root.querySelector(':scope>p');if(intro)copy.append(intro);header.append(copy);
    const route=root.querySelector('.fw-view-route'),primary=route?.querySelector('.fw-view-primary');if(primary){primary.classList.add('cf4-primary');header.append(primary);}root.prepend(header);
    const steps=el('div','cf4-steps'),sourceCard=el('article','cf4-source-step'),sourceHead=el('div','cf4-step-title');sourceHead.append(el('span','cf4-step-number','1'),el('h3','',t('Source','Kaynak')));
-   const source=root.querySelector('.fw-source-controls>select'),available=!!source?.options.length;sourceHead.append(el('span','cf4-pill '+(available?'ready':'missing'),available?t('Ready','Hazır'):t('Not linked','Bağlı değil')));sourceCard.append(sourceHead);
+   const source=root.querySelector('.fw-source-controls>select'),sourceBadge=el('span','cf4-pill');
+   const paintSource=()=>{
+    const option=source?.selectedOptions[0],state=option?.dataset.sourceState;
+    sourceBadge.classList.toggle('ready',state==='ready');
+    sourceBadge.classList.toggle('missing',!option||state==='missing');
+    sourceBadge.textContent=!option?t('Not linked','Bağlı değil'):state==='missing'?t('Needs relink','Yeniden bağla'):
+     state==='ready'?t('Ready','Hazır'):state==='web'?t('Web','Web'):t('Unchecked','Kontrol edilmedi');
+   };
+   source?.addEventListener('change',paintSource);paintSource();sourceHead.append(sourceBadge);sourceCard.append(sourceHead);
    const controls=root.querySelector('.fw-source-controls');if(controls)sourceCard.append(controls);picker(source);
    const missing=[...root.querySelectorAll(':scope>p')].find(p=>/No video|Video kaynağı/i.test(p.textContent));if(missing)sourceHead.after(missing);
    steps.append(sourceCard);

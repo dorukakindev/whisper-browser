@@ -16,6 +16,7 @@ function mount(page,item){
    const format=seconds=>Math.floor(seconds/60)+':'+String(Math.floor(seconds%60)).padStart(2,'0');
    for(const option of source.options){
     const row=data.sources.find(s=>s.id===option.value);
+    option.dataset.sourceState=!usable(row)?'missing':row.type==='browser'?'web':row.available===true?'ready':'unknown';
     if(!usable(row))option.textContent+=' · '+t('Needs relink','Yeniden bağla');
     else if(row.position>0)option.textContent+=' · '+format(row.position);
    }

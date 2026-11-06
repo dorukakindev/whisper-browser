@@ -46,3 +46,7 @@ html[data-cinema-motion=off] .cn-film-page .cn-accordion::details-content,html[d
 @media(max-width:1199px){.cf4-taste .cf4-aspect-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:850px){.cn-film-page .cf4-viewing{grid-template-columns:1fr}.cf4-viewing .cf4-personal,.cf4-viewing .cf4-journal{grid-column:1;grid-row:auto}.cf4-preparation .cf4-steps{grid-template-columns:1fr}.cf4-steps>.fw-step,.cf4-steps>.cf4-source-step{padding:18px 0!important;border-right:0;border-bottom:1px solid var(--cn-line)}.cf4-step-title:after{display:none}.cf4-preparation>.cf4-card-heading{flex-wrap:wrap;gap:14px}.cf4-taste .cf4-panel-intro{flex-direction:column;align-items:start}.cf4-inline>summary>span{max-width:35%}.cf4-taste .cf4-savebar{flex-wrap:wrap}}
 @media(max-width:600px){.cf4-taste .cf4-aspect-grid{grid-template-columns:1fr}.cf4-taste .cf4-selection-summary{grid-column:auto}.cf4-viewing .cf4-watch{grid-template-columns:repeat(2,minmax(0,1fr))}.cf4-watch::before{display:none}.cf4-viewing .cf4-watch button[aria-pressed=true]{background:var(--cn-raised)}.cf4-taste .cf4-tabs button{min-width:0}.cf4-taste .cf4-scale button{font-size:11px}.cf4-inline>summary>span{display:none}}
+
+.cf4-viewing .cf4-source-step .fw-source-controls{display:grid;grid-template-columns:minmax(0,1fr);justify-items:start;gap:10px}
+.cf4-source-step .fw-source-controls>p{margin:0;max-width:100%;overflow-wrap:anywhere}
+.cf4-source-step .fw-source-controls>button{max-width:100%;white-space:normal;text-align:start}
