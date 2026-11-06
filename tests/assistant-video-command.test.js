@@ -33,6 +33,28 @@ test('Existing captions translate without Whisper and complete only on matching 
  }finally{h.dom.window.close();}
 });
 
+test('Late YouTube caption completion cannot finish a request for a replaced video or conversation', async () => {
+ for (const change of ['tab', 'same-tab navigation', 'thread']) {
+  const h = harness();
+  try {
+   await h.w.AssistantVideoCommands.handle('Videonun altyazısını Türkçeye çevir');
+   assert.deepEqual(h.calls, [['track', true, 'track-A']]);
+   if (change === 'tab') h.w.player.browserActiveTabId = 'tab-B';
+   if (change === 'same-tab navigation') {
+    h.tab.generation++;
+    h.w.currentBrowserYoutubeUrl = () => 'https://www.youtube.com/watch?v=abcdefghijk';
+   }
+   if (change === 'thread') h.w.AssistantWorkspace.activeId = () => 'thread-B';
+   h.w.document.dispatchEvent(new h.w.CustomEvent('assistant-video-translation-state', {
+    detail: { tabId: 'tab-A', generation: 4, trackId: 'track-A', progress: { total: 1, completed: 1 } }
+   }));
+   assert.equal(h.done[0]?.status, 'failed', change);
+   assert.equal(h.w.AssistantVideoCommands.busy(), false);
+   assert.equal(h.calls.length, 1);
+  } finally { h.dom.window.close(); }
+ }
+});
+
 test('Whisper only passes the selected range and never requests translation',async()=>{
  const h=harness();try{
   await h.w.AssistantVideoCommands.handle('Whisper 05:00–10:00 altyazı çıkar');

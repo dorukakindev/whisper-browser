@@ -92,6 +92,84 @@ test('changing scene mode retains keyboard focus on its replacement tab without 
   assert.equal(f.commands.length, 0);
 });
 
+test('YouTube study entry and Podcast tab keep the browser owner, tracks and command target', async t => {
+  const f = fixture(t);
+  const layer = f.document.getElementById('playerLayer');
+  layer.classList.add('workspace-browser');
+  layer.insertAdjacentHTML('beforeend', '<button id="browserStudyOpen"></button><div id="playerSide"><div class="bp-subtitles"></div></div><div id="browserViewSlot"></div>');
+  const slot = f.document.getElementById('browserViewSlot');
+  const url = 'https://www.youtube.com/watch?v=abcdefghijk';
+  Object.assign(f.player, {
+    workspaceMode: 'browser', browserActiveTabId: 'youtube-A', mediaKey: 'browser:youtube-A',
+    browserPageUrl: url, browserMediaSeen: true, browserDuration: 90, browserTime: 12,
+    browserPaused: true, browserRate: 1.25, viewMode: 'theater',
+    browserLoadedTrackId: 'en', browserLoadedTrackId2: 'tr',
+    browserTracks: [{ id: 'en', language: 'en' }, { id: 'tr', language: 'tr' }],
+    cues: [{ id: 'line', start: 10, end: 16, text: 'Original line' }],
+    cues2: [{ id: 'translation', start: 9, end: 13, text: 'Çeviri satırı' }]
+  });
+  const calls = [];
+  Object.assign(f.context, {
+    browserTabState: () => ({ mediaId: f.player.mediaKey }),
+    currentBrowserYoutubeUrl: () => url,
+    closeBrowserToolbarMenus() {}, setBrowserSideRailPref() {}, setPlayerSidebarCollapsed() {}, setSideTab() {}, setSubtitleMode() {},
+    setViewMode: mode => { f.player.viewMode = mode; },
+    subtitleVideoTransform: secondary => ({ offsetSeconds: secondary ? 4 : 1 }),
+    subtitleVideoTime: (time, _secondary, transform) => time + transform.offsetSeconds,
+    browserSubtitleSync: require('../src/browser-subtitle-sync'),
+    browserCommand: async (type, value, tab) => { calls.push({ type, value, tab }); return { ok: true }; }
+  });
+  f.window.PlayerUiKit = { select() {
+    const wrapper = f.document.createElement('span');
+    wrapper.trigger = f.document.createElement('button');
+    wrapper.append(wrapper.trigger);
+    return wrapper;
+  } };
+  for (const name of ['browser-study', 'browser-podcast']) {
+    vm.runInContext(fs.readFileSync(require.resolve('../src/renderer/' + name), 'utf8'), f.context);
+  }
+  const entry = f.document.getElementById('browserStudyOpen');
+  entry.click();
+  await Promise.resolve();
+  const stage = f.window.CinemaSahne;
+  assert.equal(stage.current.o.mode, 'study');
+  assert.equal(stage.current.a.state().rows[0].start, 11);
+  assert.deepEqual(Array.from(stage.current.a.state().rows[0].trs), ['Çeviri satırı']);
+  stage.current.o.onMode('podcast', {});
+  assert.equal(stage.current.o.mode, 'podcast');
+  assert.equal(f.window.BrowserPodcastUI.snapshot().capabilities.ASR.reason, 'existing-youtube-queue');
+  assert.equal(f.window.BrowserPodcastUI.getTranscriptTracks()[1].cues[0].start, 13);
+  assert.equal(stage.current.a.state().time, 12);
+  assert.equal(stage.current.a.state().rate, 1.25);
+  assert.deepEqual(calls, [], 'opening and changing view do not restart or control playback');
+  const podcast = stage.current.a;
+  assert.equal((await podcast.cmd('seekCue', 0)).ok, true);
+  assert.equal((await podcast.cmd('rate', 1.5)).ok, true);
+  assert.equal((await podcast.cmd('volume', 0.4)).ok, true);
+  assert.deepEqual(calls, [
+    { type: 'seek', value: 11.01, tab: 'youtube-A' },
+    { type: 'speed', value: 1.5, tab: 'youtube-A' },
+    { type: 'volume-set', value: 0.4, tab: 'youtube-A' }
+  ]);
+  stage.current.o.onMode('study', {});
+  assert.equal(stage.current.o.mode, 'study');
+  assert.equal(f.document.getElementById('browserViewSlot'), slot);
+  const stale = stage.current.a;
+  Object.assign(f.player, { browserActiveTabId: 'youtube-B', mediaKey: 'browser:youtube-B', generation: 2 });
+  assert.equal((await stale.cmd('toggle')).ok, false);
+  f.window.dispatchEvent(new f.window.Event('browser-panel-layout'));
+  await Promise.resolve();
+  assert.equal(stage.current, null);
+  assert.equal(calls.length, 3);
+  Object.assign(f.player, { browserActiveTabId: 'youtube-A', mediaKey: 'browser:youtube-A', generation: 1 });
+  f.window.dispatchEvent(new f.window.Event('browser-panel-layout'));
+  await Promise.resolve();
+  assert.equal(stage.current.o.mode, 'study');
+  stage.current.o.onClose();
+  assert.equal(f.player.viewMode, 'theater');
+  assert.equal(f.document.activeElement, entry);
+});
+
 test('Sahne forwards local/native transport to the existing identity-bound bridge', async t => {
   const f = fixture(t), a = f.open();
   assert.equal((await a.cmd('toggle')).ok, true);
