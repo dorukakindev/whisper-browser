@@ -153,7 +153,7 @@
     const cues=typeof parseSubtitles==='function'?parseSubtitles(text).map((cue,index)=>({...cue,id:String(index)})):[];
     if(!cues.length||cues.some(c=>!Number.isFinite(c.start)||!Number.isFinite(c.end)||c.end<=c.start))return false;
     const track={id:role==='translation'?'shelf-translation:'+snap.episodeIdentity:'shelf-asr:'+snap.episodeIdentity,revision:String(++podcastOutputRevision),role:role==='translation'?'translation':'source',offsetSeconds:0,timed:true,cues,text,provenance:'asr'};
-    const display=readonly?{...track,timed:false,cues:[],readingText:cues.map(cue=>cue.text).join('\n\n'),timingState:'needs-review'}:track;
+    const display=readonly?{...track,timed:false,timestamped:true,cues:[],readingText:cues.map(cue=>cue.text).join('\n\n'),timingState:'needs-review',exactSource:{entryId:binding.entryId,sourceVersion:binding.sourceVersion}}:track;
     if(role==='translation'){podcastTranslation=display;podcastDisplay='both';}else {podcastTrack=display;podcastTranslation=null;podcastDisplay='source';}
     if(podcastMode)renderPodcastMode();notifyPodcast();return true;
   }

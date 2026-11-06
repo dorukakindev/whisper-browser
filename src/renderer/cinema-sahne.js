@@ -106,7 +106,12 @@
         return {...track,cues:[{id:'plain',text,start:0,end:0}]};
       }
       return {...empty(role),...track,cues:track.cues||[]};
-    }),dispatch:c=>shelf().executeExisting(c),dispose(){},words:()=>null,langs:()=>({}),mediaTitle:()=>shelf()?.readSnapshot()?.title||'',sub:()=>T('Yayıncı RSS','Publisher RSS'),cover:()=>shelf()?.podcastInfo?.()?.image||'',slot:()=>null,unslot(){} };
+    }),dispatch:c=>shelf().executeExisting(c),dispose(){},words:()=>null,langs:()=>({}),timingNotice:()=>{
+      const track=shelf()?.getTranscriptTracks?.().find(t=>t.role==='source');
+      return track?.timingState==='needs-review' && track.timestamped
+        ? T('Bu dökümün zamanları kayıtlı. Açık RSS sesiyle eşleşmesi doğrulanmadığından takip ve satıra atlama kapalı.', 'This transcript has saved timestamps. Following and sentence seeking are disabled because alignment with the open RSS audio is unverified.')
+        : '';
+    },mediaTitle:()=>shelf()?.readSnapshot()?.title||'',sub:()=>T('Yayıncı RSS','Publisher RSS'),cover:()=>shelf()?.podcastInfo?.()?.image||'',slot:()=>null,unslot(){} };
   }
 
   /* ── Ortak adaptör: cepheden Sahne sözleşmesine ── */
@@ -286,6 +291,22 @@
       }
       if(kind==='shelf'||kind==='local'&&F.snap()?.sourceKind==='rss')sections.push({title:T('Dinleme kuyruğu','Listening queue'),items:[{type:'button',label:T('Bu bölümü kuyruğa ekle','Add this episode to queue'),run:()=>{if(current())window.MediaShelfUI?.enqueueCurrentPodcast();}},{type:'button',label:T('Dinleme kuyruğunu yönet','Manage listening queue'),run:()=>{if(current())window.MediaShelfUI?.openQueue();}}]});
       if(kind==='shelf'){
+        const track=window.MediaShelfUI?.getTranscriptTracks?.().find(t=>t.role==='source'), exact=track?.exactSource;
+        if(exact)sections.push({title:T('Zamanlı döküm','Timed transcript'),items:[{
+          type:'button',label:T('Whisper’ın kullandığı ses kopyasını aç','Open the audio copy used by Whisper'),
+          hint:T('Kayıtlı ses ve altyazıyı birlikte açar.','Opens the saved audio together with its transcript.'),
+          run:async()=>{
+            if(!current())return;
+            const proof=await window.api.feedsRequest({action:'podcast-exact-audio',entryId:exact.entryId});
+            if(!current())return;
+            if(!proof?.available||proof.sourceVersion!==exact.sourceVersion)throw Error(T('Whisper ses kopyası artık mevcut değil.','The Whisper audio copy is no longer available.'));
+            const result=await window.PlayerSourceCatalogIntegration.openPodcastEntry(exact.entryId,{
+              exactVersion:exact.sourceVersion,view:mode==='study'?'bilingual':'podcast',
+              isCancelled:()=>!current()&&player.mediaKey!=='podcast-copy:'+exact.entryId+':'+exact.sourceVersion
+            });
+            if(result?.readOnly)throw Error(T('Ses kopyası değişti. Yeniden açın.','The audio copy changed. Reopen it.'));
+          }
+        }]});
         sections.push({title:T('Podcast işlemleri','Podcast tasks'),items:[...actions(),{type:'button',label:T('Döküm, Whisper ve çeviri araçları','Transcript, Whisper and translation tools'),run:openAdvanced}]});
       } else if (kind === 'browser') {
         const tracks = (player.browserTracks || []).filter((t) => !t.sourceMismatch), s1 = $('browserTrackSelect'), s2 = $('browserTrackSelect2'), items = [];
