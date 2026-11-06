@@ -86,7 +86,7 @@
 .cv2-film .cn-story-text{font-size:17px;line-height:1.8;max-width:70ch}
 .cv2-film .cn-story-heading :is(h2,h3){font-size:28px;letter-spacing:-.025em}
 .cv2-film-sources{padding-block:28px;scroll-margin-top:85px;min-width:0}
-.cv2-film-sources>.cn-section-heading{font:600 26px var(--cn-font);margin-bottom:20px}
+.cv2-film-sources>.cn-section-heading{font:600 26px var(--cn-font);margin:0 0 20px}
 .cv2-film :is(.cn-story,.cn-cast,.cn-audience,.cn-extras){scroll-margin-top:85px}
 @media(max-width:1100px){
  .cv2-home-inner{gap:24px;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)}

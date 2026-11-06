@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Yapım detayında aynı kaynak paneline giden yinelenen gezinme kaldırıldı. Keşfet kaynak ve tercih seçenekleri ortak düzende korunur. [Devir](docs/devir/2026-11-06-1115.md).
+
 - Keşfet detayında kütüphane durumu başlık bilgileriyle, yorum eylemi izleme listesiyle hizalanır. Hikâye metni kendi bölümünde okunur. [Devir](docs/devir/2026-11-06-1104.md).
 
 - Keşfet öneri kartlarında dayanak türü kısa etiketle görünür. Tam gerekçe yapım detayında okunur ve kişisel dayanak varsa açık gelir. [Devir](docs/devir/2026-11-06-1053.md).
