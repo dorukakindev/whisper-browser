@@ -33,7 +33,8 @@
       if (items.length >= maxItems) { skipped.push({ itemId: c.itemId, reason: 'max-items' }); continue; }
       const known = isMin(c.runtimeMinutes);
       const gap = items.length ? brk : 0;
-      if (known && budget !== null && cursor + gap + c.runtimeMinutes > budget) { skipped.push({ itemId: c.itemId, reason: 'exceeds-budget', needsMinutes: cursor + gap + c.runtimeMinutes }); continue; }
+      const minimum = cursor + gap + (known ? c.runtimeMinutes : 0);
+      if (budget !== null && minimum > budget) { skipped.push({ itemId: c.itemId, reason: 'exceeds-budget', needsMinutes: minimum }); continue; }
       const start = cursor + gap;
       const end = known ? start + c.runtimeMinutes : start;
       items.push({

@@ -8,7 +8,10 @@
   const catalog=()=>call(window.api.mediaCatalog,{action:'list'}).then(r=>r.items);
   const feed=input=>call(window.api.feedsRequest,input);
   const hub=input=>call(window.api.mediaHub,input);
-  function open(initial='bulletin') {
+  const buildRoute=(rows,budgetMinutes,breakMinutes)=>WatchItinerary.buildWatchItinerary({
+    budgetMinutes,breakMinutes,candidates:rows.map(i=>({itemId:i.id,title:i.title,
+      runtimeMinutes:Number(i.runtime)||null,sourceReady:i.hasSource?'unknown':'needs-source'}))});
+  function open(initial='bulletin', routeOptions={}) {
     const existing=document.getElementById('whisperV3Dialog');
     if(existing)existing.close();
     const origin=document.activeElement, dialog=h('dialog',{id:'whisperV3Dialog',class:'mtx-dialog media-surface', 'aria-label':names()[initial],data:{uiUntranslated:''}});
@@ -90,34 +93,48 @@
           return;
         }
         if(tab==='route'){
-          const list=await call(window.api.mediaTools,{action:'daily-list'});
+          const list=routeOptions.watchlist ? {watchlist:routeOptions.watchlist} : await call(window.api.mediaTools,{action:'daily-list'});
           if(!current())return;
-          const budget=h('input',{type:'number',min:15,max:600,step:1,value:180,'aria-label':t('Dakika bütçesi','Minutes budget')});
+          const budget=h('input',{type:'number',min:15,max:600,step:1,value:routeOptions.budget??180,'aria-label':t('Dakika bütçesi','Minutes budget')});
           const range=h('input',{class:'ws-range',type:'range',min:budget.min,max:budget.max,step:1,value:budget.value,'aria-label':t('İzleme süresini ayarla','Adjust watching time')});
           const syncRange=()=>{range.value=budget.value;range.style.setProperty('--range-progress',((Number(range.value)-Number(range.min))/(Number(range.max)-Number(range.min))*100)+'%');};
           options.budgetControl=[h('div',{class:'ws-budget-value'},budget,h('small',{text:t('dakika','minutes')})),range,h('div',{class:'ws-range-labels'},h('span',{text:budget.min+' '+t('dk','min')}),h('span',{text:budget.max+' '+t('dk','min')}))];
           options.presets=h('div',{class:'ws-route-presets',role:'group','aria-label':t('İzleme süresi','Watching time')},[[180,t('Bir akşam','An evening')],[360,t('Hafta sonu','Weekend')],[480,t('Uzun bir gün','A long day')],[null,t('Özel süre','Custom time')]].map(([value,label])=>{const node=button(label,()=>{if(value===null){budget.focus();budget.select();return;}budget.value=value;render();},'ws-preset');node.dataset.budget=value??'custom';node.replaceChildren(h('span',{text:label}),h('small',{text:value===null?t('Siz belirleyin','Choose your time'):value+' '+t('dakika','minutes')}));return node;}));
           options.items=list.watchlist;
+          const excluded=new Set();
+          let routeVersion=0;
+          const breakInput=h('input',{type:'number',min:0,max:120,step:1,value:routeOptions.breakMinutes??10});
+          options.budgetControl.push(h('label',null,t('Duraklar arası mola (dk)','Break between titles (min)'),breakInput));
+          const choices=h('details',null,h('summary',{text:t('Rotadaki yapımları değiştir','Change route titles')}));
+          for(const row of list.watchlist.slice(0,100)){
+            const input=h('input',{type:'checkbox',checked:true});
+            input.onchange=()=>{if(input.checked)excluded.delete(row.id);else excluded.add(row.id);render();};
+            choices.append(h('label',null,input,row.title));
+          }
+          options.presets=[options.presets,choices];
+
           const render=()=>{
+            const revision=++routeVersion;
             syncRange();
-            for(const node of options.presets.querySelectorAll('button')){const selected=node.dataset.budget===budget.value||(node.dataset.budget==='custom'&&![180,360,480].includes(Number(budget.value)));node.classList.toggle('is-selected',selected);node.setAttribute('aria-pressed',String(selected));}
-            const route=WatchItinerary.buildWatchItinerary({budgetMinutes:Number(budget.value),candidates:list.watchlist.map(i=>({itemId:i.id,title:i.title,runtimeMinutes:Number(i.runtime)||null,sourceReady:i.hasSource?'unknown':'needs-source'}))});
+            for(const node of options.presets[0].querySelectorAll('button')){const selected=node.dataset.budget===budget.value||(node.dataset.budget==='custom'&&![180,360,480].includes(Number(budget.value)));node.classList.toggle('is-selected',selected);node.setAttribute('aria-pressed',String(selected));}
+            const route=buildRoute(list.watchlist.filter(i=>!excluded.has(i.id)),Number(budget.value),Number(breakInput.value));
             options.handlers.onPreviewApply=()=>{
-              if(!route.items.length)return;
+              if(!route.items.length||revision!==routeVersion)return;
               const name=h('input',{maxlength:80,'aria-label':t('Koleksiyon adı','Collection name')});
               const preview=h('section',{class:'v3-runtime-controls'},h('ol',null,route.items.map(i=>h('li',{text:i.title}))),name);
               preview.append(button(t('Üyeliği önizle','Review membership'),async()=>{
-                const result=await call(window.api.mediaTools,{action:'film-watch-route-preview',name:name.value,ids:route.items.map(i=>i.itemId)});
-                if(!current()||!preview.isConnected)return;
+                const result=await call(window.api.mediaTools,{action:'film-watch-route-preview',name:name.value,ids:route.items.map(i=>i.itemId),reviewed:route.items.map(i=>({id:i.itemId,title:i.title,runtime:i.runtimeMinutes,hasSource:i.sourceReady!=='needs-source'}))});
+                if(!current()||!preview.isConnected||revision!==routeVersion)return;
                 preview.replaceChildren(h('strong',{text:result.name}),h('ol',null,result.items.map(i=>h('li',{text:i.title}))),
                   button(t('Koleksiyona ekle','Add to collection'),async()=>{
+                    if(!current()||!preview.isConnected||revision!==routeVersion)return;
                     const saved=await call(window.api.mediaTools,{action:'film-watch-route-apply',token:result.token});
                     if(!current())return;
                     preview.replaceChildren(button(t('Rotayı geri al','Undo itinerary'),async()=>{
                       await call(window.api.mediaTools,{action:'film-watch-route-undo',token:saved.undoToken});
                       preview.remove();setStatus(t('Rota geri alındı.','Itinerary undone.'));
                     }));
-                    setStatus(t('Koleksiyon ve sıra kaydedildi.','Collection and order saved.'));
+                    setStatus(t('Eklenen yapım: ','Titles added: ')+saved.added.length);
                   }));
               }));
               drawer(t('Rotayı önizle','Preview route'),preview);
@@ -125,7 +142,7 @@
             V3SurfacesUI.renderItinerary(surface,route,{...options,titles:Object.fromEntries(list.watchlist.map(i=>[i.id,i.title]))});
           };
           range.addEventListener('input',()=>{budget.value=range.value;syncRange();});range.addEventListener('change',render);
-          budget.addEventListener('change',()=>{if(budget.reportValidity())render();});render();
+          budget.addEventListener('change',()=>{if(budget.reportValidity())render();});breakInput.addEventListener('change',()=>{if(breakInput.reportValidity())render();});render();
         }
         if(tab==='matrix'){
           const artifacts=async input=>{const result=await window.api.assistantArtifacts(input);if(result?.ok)return result;const messages={'revision-conflict':t('Karşılaştırma değişti. Kayıtlı sürümü yeniden açın.','The comparison changed. Reopen the saved version.'),'source-missing':t('Yapımlardan biri artık arşivde yok.','One of the titles is no longer in the library.'),'invalid-number':t('Geçerli bir tam sayı girin. Yıl 1888–2100 aralığında olmalıdır.','Enter a valid integer. Year must be between 1888 and 2100.'),'archive-full':t('Kayıtlı karşılaştırma sınırına ulaşıldı.','The saved comparison limit was reached.')};throw Error(messages[result?.code]||t('Karşılaştırma işlemi tamamlanamadı.','The comparison operation failed.'));};
@@ -208,5 +225,5 @@
     }
     void draw();
   }
-  window.WhisperV3=Object.freeze({open});
+  window.WhisperV3=Object.freeze({open,buildRoute});
 })();

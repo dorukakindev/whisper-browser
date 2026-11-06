@@ -55,3 +55,17 @@ test('Q17/Q23 provider research keeps sourced synthesis separate from page excer
   const h=harness({researchWeb:async()=>result});try{assert((await h.run([['research_web',{query:'Public facts'}]])).ok);const evidence=h.results[0];if(result.text==='Provider sourced synthesis'){assert.equal(evidence.status,'completed');assert.equal(evidence.text,result.text);assert.equal(evidence.sourceKind,'provider_synthesis');assert.deepEqual(evidence.passages,[]);assert.match(evidence.scope,/separate from the attached open page/);}else assert.equal(evidence.status,'failed');}finally{h.close();}
  }
 });
+
+test('watch itinerary uses a reviewed opening card with the exact route snapshot',async()=>{
+ const route={items:[{itemId:'film-a',title:'Saved fixture',runtimeMinutes:85}],totalMinutes:85,breaksMinutes:0,budgetMinutes:150};
+ const h=harness({rendererResult:{status:'completed',route}});
+ try{
+  const args={budget_minutes:150,break_minutes:10};
+  assert((await h.run([['plan_watch_itinerary',args],['open_watch_itinerary',args]],'I have two and a half hours. Include a break.')).ok);
+  assert.equal(h.cards.length,1);
+  assert.match(h.cards[0].summary,/Saved fixture/);
+  assert.equal(h.actions.filter(action=>action.name==='open_watch_itinerary').length,0);
+  assert((await h.call('agentApply',{proposalId:h.cards[0].proposalId,owner:source})).ok);
+  assert.equal(h.actions.at(-1).expectedSettings?.revision,JSON.stringify(route));
+ }finally{h.close();}
+});

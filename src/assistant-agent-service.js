@@ -65,6 +65,14 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    const tr=row.locale==='tr',labels={saved:tr?'Kaydedilen':'Saved',read:tr?'Okundu':'Read',later:tr?'Daha sonra':'Later'};
    row.summary=state.entry.title+' · '+Object.entries(state.changes).map(([key,value])=>labels[key]+': '+(value?(tr?'Evet':'Yes'):(tr?'Hayır':'No'))).join(' · ')+(state.entry.copyCount>1?' · '+state.entry.copyCount+(tr?' eş kaynak kopyası':' matching source copies'):'')+(tr?' · Yalnız bu RSS durumları değişir; makale indirilmez, film kaydı değişmez.':' · Only these RSS flags change; no article download or film record update.');
   }
+  if(row.name==='open_watch_itinerary'){
+   const value=await requestRenderer(sender,owner,'plan_watch_itinerary',row.args,signal);
+   if(value.status!=='completed'||!value.route?.items.length)throw Error('No saved watchlist titles fit the route.');
+   row.expectedSettings={kind:'watch-itinerary',revision:JSON.stringify(value.route)};
+   const minutes=row.locale==='tr'?' dk':' min';
+   row.summary=value.route.items.map(item=>item.title).join(' · ').slice(0,550)
+    +' · '+(value.route.totalMinutes-value.route.breaksMinutes)+' + '+value.route.breaksMinutes+minutes;
+  }
   if(row.name==='set_watchlist_section'){const state=await requestRenderer(sender,owner,'read_daily_library',{},signal);if(state.status!=='completed'||typeof state.revision!=='string')throw Error('Watchlist revision unavailable.');row.expectedSettings={kind:'daily-queue',revision:state.revision};}
 
   if(['set_app_preferences','undo_app_preferences','configure_voice_generation'].includes(row.name)){

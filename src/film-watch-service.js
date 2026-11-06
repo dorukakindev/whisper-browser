@@ -47,6 +47,9 @@ function create({root,catalog,reviewItem,grantSubtitle=()=>false,grantMedia=()=>
    const ids=input.ids;
    if(!Array.isArray(ids)||!ids.length||ids.length>12||new Set(ids).size!==ids.length||ids.some(id=>typeof id!=='string'))throw Error('Choose 1–12 exact itinerary titles.');
    const data=load(), state=routeState(name,ids,data);
+   if(input.reviewed!==undefined&&JSON.stringify(input.reviewed)!==JSON.stringify(state.rows.map(row=>({
+    id:row.id,title:row.title,runtime:Number(row.runtime)||null,hasSource:!!row.source
+   }))))throw Error('The catalog changed after the route was shown. Reopen the route.');
    if(state.current.items.some(item=>!ids.includes(item.id)))throw Error('The collection contains titles outside this itinerary.');
    const token=remember(event,'route-preview',{name,ids:[...ids],revision:state.revision});
    return {ok:true,token,name,items:state.rows.map(({id,title})=>({id,title}))};
@@ -62,7 +65,7 @@ function create({root,catalog,reviewItem,grantSubtitle=()=>false,grantMedia=()=>
    writeRoute(name,data,{description:state.current.description,order:ids},patches);
    plans.delete(input.token);
    const undoToken=remember(event,'route-undo',{name,ids,before,previous,revision:routeState(name,ids,data).revision});
-   return {ok:true,undoToken,...collection(name,data)};
+   return {ok:true,undoToken,added:previous.filter(row=>!row.collections.includes(name)).map(row=>row.id),...collection(name,data)};
   }
   if(action==='film-watch-route-undo'){
    const pending=plan(event,input,'route-undo');
