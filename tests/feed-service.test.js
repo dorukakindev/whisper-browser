@@ -71,3 +71,36 @@ test('podcast library pages carry current compact transcript state without copyi
   const changed=(await f.request({action:'entries',kind:'podcast',podcastLibrary:true})).rows[0];assert.notEqual(changed.sourceVersion,version);assert.equal(changed.positionState,'needs-review');assert.equal(changed.podcastWorkspace.position,0);assert.equal(changed.podcastWorkspace.transcript,undefined);
  }finally{f.close();}
 });
+
+test('identical 200 refresh, new items and failure have distinct receipts and keep read state',async()=>{
+ let payload=rss(),status=200;
+ const f=fixture(async()=>new Response(payload,{status}));
+ try{
+  const p=await f.request({action:'preview',url:'https://news.example/rss'});
+  const subscribed=await f.request({action:'subscribe',token:p.token}),id=subscribed.feed.id;
+  const row=f.store.entries().rows[0];
+  f.store.setState([row.id],{read:true});
+  const refresh=()=>f.request({action:'refresh',feedId:id});
+  assert.equal((await refresh()).results[0].state,'unchanged');
+  payload=rss('2');assert.equal((await refresh()).results[0].inserted,1);
+  const lastSuccess=f.store.list().feeds[0].lastSuccess;
+  status=503;assert.equal((await refresh()).results[0].state,'failed');
+  assert.equal(f.store.list().feeds[0].lastSuccess,lastSuccess);
+  assert.equal(f.store.list().feeds[0].enabled,true);
+  assert.equal(f.store.entry(row.id).read,true);
+ }finally{f.close();}
+});
+
+test('publisher chapter URL is scoped to the saved episode and invalid times remain readable',async()=>{
+ const rssBody='<rss xmlns:podcast="https://podcastindex.org/namespace/1.0"><channel><title>Show</title><item><guid>ep</guid><title>Episode</title><enclosure url="https://audio.example/one.mp3" type="audio/mpeg"/><podcast:chapters url="https://audio.example/one.json" type="application/json+chapters"/></item></channel></rss>';
+ const f=fixture(async url=>new Response(url.endsWith('.json')?JSON.stringify({version:'1.2',chapters:[{title:'Intro',startTime:0},{title:'Bad clock',startTime:-2},{title:'Hidden',startTime:2,toc:false}]}):rssBody));
+ try{
+  const p=await f.request({action:'preview',url:'https://audio.example/rss'});
+  await f.request({action:'subscribe',token:p.token});
+  const e=f.store.entries({kind:'podcast'}).rows[0];
+  assert.equal(e.chapterUrl,'https://audio.example/one.json');
+  const get=sourceVersion=>f.request({action:'podcast-chapters',entryId:e.id,sourceVersion});
+  assert.deepEqual((await get('stale')).chapters,[]);
+  assert.deepEqual((await get(require('../src/podcast-session').sourceVersion(e))).chapters,[{label:'Intro',t:0},{label:'Bad clock',t:null}]);
+ }finally{f.close();}
+});

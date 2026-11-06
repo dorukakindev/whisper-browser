@@ -368,3 +368,11 @@ html[data-sahne-hidden=true] .sh *{animation-play-state:paused!important}
 .sh-scope{position:relative;padding-block:12px;gap:8px}.sh-scope-fields{position:absolute;z-index:50;top:calc(100% - 4px);left:16px;right:16px;padding:14px;border:1px solid var(--sh-line2);border-radius:12px;background:var(--sh-glass2);box-shadow:0 18px 40px -18px var(--theme-bg-0)}.sh-scope-fields [data-scope-apply]{grid-column:1/-1;justify-self:end}.sh-scope .sh-seg button[aria-selected=true]{color:var(--sh-amber-ink)}
 
 .sh .sh-search-match {outline:1px solid var(--sh-amber);outline-offset:-1px;}
+
+.sh-browser-study .sh-chaps {max-height:104px;overflow:auto;align-content:start;scrollbar-width:thin}
+.sh-chaps[hidden] {display:none}
+.sh-chapter-current,.sh-chap-note {flex-basis:100%;font-size:12px;color:var(--sh-dim)}
+.sh-chapter-current {color:var(--sh-amber);overflow-wrap:anywhere}
+.sh-chaps .sh-chap {height:auto;min-height:28px;max-width:100%;padding:4px 10px;overflow-wrap:anywhere}
+.sh-chaps span.sh-chap {background:transparent;border-color:transparent}
+@media (max-height:760px){.sh-browser-study .sh-chaps:not([hidden]){display:flex;max-height:72px}}

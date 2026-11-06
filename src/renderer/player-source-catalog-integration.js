@@ -90,6 +90,15 @@
     const owner={mediaKey:player.mediaKey,generation:player.generation};
     player.workspaceAudio={...owner,title:entry.title,publisher:entry.sourceFeed?.title||'',image:entry.imageUrl||'',entryId:entry.id,revision:entry.revision,sourceVersion:saved.sourceVersion,sourceBinding:exact?.sourceBinding||saved.sourceBinding,episodeIdentity:saved.episodeIdentity||saved.sourceBinding?.episodeIdentity||entry.id,transcriptState:'none',...(exact?{exactAudio:true}:{})};
     const valid=()=>!isCancelled()&&player.mediaKey===owner.mediaKey&&player.generation===owner.generation;
+    if(entry.chapterUrl){
+      const audio=player.workspaceAudio;
+      void api({action:'podcast-chapters',entryId:entry.id,sourceVersion:saved.sourceVersion}).then(result=>{
+        if(!valid()||player.workspaceAudio!==audio)return;
+        audio.publisherChapters=result.chapters;
+        audio.publisherDuration=entry.durationSeconds;
+        audio.publisherTiming=!exact&&entry.enclosures.filter(item=>/^audio\//.test(item.type)).length===1;
+      }).catch(()=>{});
+    }
     const apply=async transcript=>{
       if(!valid())return;
       if(transcript.timed==='yes'||transcript.state==='timed'){

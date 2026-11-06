@@ -131,3 +131,26 @@ test('transport and panel failures stay visible and never leave rejected click p
  f.sh.a.cmd=()=>{throw Error('Source changed now');};assert.equal((await f.sh.run('seek',3)).ok,false);assert.match(f.sh.q('[data-r=toast]').textContent,/Source changed now/);
  f.sh.a.panel=()=>({sections:[{title:'Tools',items:[{type:'button',label:'Failed tool',run:()=>Promise.reject(Error('Tool unavailable'))}]}]});f.sh.s.panel=true;f.sh.drawPanel(true);f.sh.q('.sh-pbtn').click();await new Promise(setImmediate);assert.match(f.sh.q('[data-r=toast]').textContent,/Tool unavailable/);assert.equal(f.sh.q('.sh-pbtn').disabled,false);
 });
+
+test('Sahne shortcuts preserve input, task opener and focused transcript row',t=>{
+ const f=mount(t,{study:true}),key=(node,key)=>node.dispatchEvent(new f.w.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true}));
+ const panel=f.sh.q('.sh-top [data-a=panel]');panel.focus();panel.click();
+ assert.equal(f.w.document.activeElement,f.sh.q('[data-pclose]'));
+ key(f.w.document.activeElement,'Escape');assert.equal(f.w.document.activeElement,panel);
+ const transcript=f.sh.q('[data-a=transcript]');transcript.focus();transcript.click();
+ const search=f.sh.q('[data-r=q]');assert.equal(f.w.document.activeElement,search);
+ key(search,' ');assert.equal(f.commands.length,0);
+ key(search,'Escape');assert.equal(f.w.document.activeElement,transcript);
+ const row=f.sh.lines[0];row.focus();f.setTime(12);f.sh.tick();assert.equal(f.w.document.activeElement,row);
+ f.setRevision('r2');f.sh.tick();assert.equal(f.w.document.activeElement,f.sh.lines[0]);
+ key(f.sh.lines[0],' ');assert.equal(f.commands.at(-1)[0],'seekCue');
+});
+
+test('chapter highlights and jumps use timed buttons only',t=>{
+ const f=mount(t);f.setTime(12);f.sh.tick();
+ const active=f.sh.q('.sh-chap[aria-current=true]');
+ assert.match(active.textContent,/İkinci bölüm/);
+ active.click();assert.equal(f.commands.at(-1)[1],10);
+ f.sh.drawChapters([{label:'Only prose',t:null}]);
+ assert.equal(f.sh.q('button.sh-chap'),null);assert.match(f.sh.q('.sh-chaps').textContent,/salt okunur/);
+});

@@ -73,7 +73,20 @@
    sourceRibbon.replaceChildren();const ribbonAll=button('','source','mf-ribbon-source');ribbonAll.dataset.value='';ribbonAll.setAttribute('aria-pressed',String(!feedId));ribbonAll.append(icon('rss'),el('b','',t('All sources','Tüm kaynaklar')),el('small','',String(feeds.length)));sourceRibbon.append(ribbonAll);
    for(const f of feeds){const b=button('','source','mf-ribbon-source');b.dataset.value=f.id;b.dataset.state=!f.enabled?'paused':f.state||'';b.setAttribute('aria-pressed',String(feedId===f.id));b.append(artwork({feedId:f.id,title:f.title,imageUrl:f.imageUrl,url:f.effectiveUrl||f.url},'mf-ribbon-art'),el('b','',f.title),el('small','',!f.enabled?t('Paused','Duraklatıldı'):f.state==='failed'?t('Update failed','Güncelleme başarısız'):Number.isFinite(f.unreadCount)?f.unreadCount+' '+t('unread','okunmamış'):f.lastSuccess?t('Updated ','Güncellendi: ')+time(f.lastSuccess):t('First update pending','İlk güncelleme bekleniyor')));sourceRibbon.append(b);}
    for(const v of views){const b=button(v.name,'view','mf-source');b.dataset.value=v.id;b.setAttribute('aria-pressed',String(viewId===v.id));sourceBody.append(b);}sourceBody.append(button(t('Save this query view','Bu sorgu görünümünü kaydet'),'view-save','mh-text-button'));if(viewId)sourceBody.append(button(t('Delete view only','Yalnız görünümü sil'),'view-delete','mh-text-button'));
-   for(const f of feeds){const item=el('div','mf-source-row'),b=button(f.title,'source','mf-source');b.dataset.value=f.id;b.setAttribute('aria-pressed',String(feedId===f.id));const meta=el('span','mf-source-health',f.state==='failed'?t('Update failed; saved content available','Güncelleme başarısız; kayıtlı içerik duruyor'):f.lastSuccess?t('Checked ','Kontrol: ')+time(f.lastSuccess):t('First update pending','İlk güncelleme bekleniyor'));if(!f.enabled)meta.textContent=t('Paused','Duraklatıldı');item.append(b,meta);sourceBody.append(item);}
+   for(const f of feeds){
+    const item=el('div','mf-source-row'),source=button(f.title,'source','mf-source');
+    source.dataset.value=f.id;
+    source.setAttribute('aria-pressed',String(feedId===f.id));
+    const health=f.state==='failed'?t('Source unavailable · saved content kept','Kaynağa erişilemedi · kayıtlı içerik korundu')
+      :f.state==='unchanged'?t('No new content','Yeni içerik yok')
+      :f.state==='updated'?t('Updated','Güncellendi'):t('First update pending','İlk güncelleme bekleniyor');
+    const meta=el('span','mf-source-health',(f.enabled?'':t('Paused · ','Duraklatıldı · '))+health);
+    meta.dataset.state=f.state||'';
+    if(f.lastSuccess)meta.append(el('small','mf-last-success',t('Last successful check: ','Son başarılı kontrol: ')+new Date(f.lastSuccess).toLocaleString(locale==='tr'?'tr-TR':'en-GB',{dateStyle:'medium',timeStyle:'short'})));
+    item.append(source,meta);
+    if(f.state==='failed')item.append(button(t('Retry source','Kaynağı yeniden dene'),'feed-refresh','mh-text-button mf-source-retry',f.id));
+    sourceBody.append(item);
+   }
    const manage=el('details','mf-manage'),label=el('summary','',t('Manage sources & OPML','Kaynakları ve OPML’yi yönet')),body=el('div','mf-manage-body'),actions=el('div','mf-actions');const pause=button(paused?t('Resume updates','Güncellemeleri sürdür'):t('Pause automatic updates','Otomatik güncellemeleri duraklat'),'pause');actions.append(pause,button(t('Import OPML','OPML içe aktar'),'opml'),button(t('Export OPML','OPML dışa aktar'),'export'));actions.append(button(t('Clear revisit trail','Geri dönüş izini temizle'),'recent-clear'));for(const pref of preferences){const p=el('div','mf-link-row');p.append(el('span','',pref.field+': '+pref.value+' ('+pref.score+')'),button(t('Remove preference','Tercihi kaldır'),'preference-remove','mh-text-button',pref.id));body.append(p);}body.append(el('p','mf-muted',t('Updates run while the app is open. Saved sources remain available offline.','Güncellemeler uygulama açıkken çalışır. Kaydedilen kaynaklar çevrimdışı kullanılabilir.')),actions);
    for(const f of feeds){const row=el('div','mf-manage-row'),copy=el('div');copy.append(el('strong','',f.title),el('small','',f.effectiveUrl||f.url));if(f.error)copy.append(el('p','mf-error',f.error));const buttons=el('div','mf-actions');buttons.append(button(f.enabled?t('Pause','Duraklat'):t('Resume','Sürdür'),'feed-toggle','mh-text-button',f.id),button(t('Refresh','Yenile'),'feed-refresh','mh-text-button',f.id),button(t('Source settings','Kaynak ayarları'),'feed-edit','mh-text-button',f.id),button(t('Unsubscribe','Abonelikten çık'),'unsubscribe','mh-text-button',f.id));row.append(copy,buttons);body.append(row);}manage.append(label,body);sourceBody.append(manage);
   }
@@ -187,7 +200,38 @@
    if(action==='mark-visible')return stateBatches(rows,{read:true},true);
    if(action==='feed-edit')return editSource(feeds.find(f=>f.id===b.dataset.id));
    if(action==='pause'){await request('settings',{paused:!paused});return reload();}if(action==='feed-toggle'){const f=feeds.find(f=>f.id===b.dataset.id);await request('feed-update',{feedId:f.id,enabled:!f.enabled});return reload();}
-   if(action==='refresh'||action==='feed-refresh'){b.disabled=true;refresh.disabled=true;refresh.classList.add('is-refreshing');let checked=0,inserted=0,failed=0,pending;notice(t('Checking sources… Saved content stays available.','Kaynaklar kontrol ediliyor… Kayıtlı içerik kullanılabilir.'));try{do{const r=await request('refresh',{...(pending?{feedIds:pending}:{feedId:action==='feed-refresh'?b.dataset.id:feedId||undefined}),requestId:'feeds-refresh-'+Date.now()});if(disposed)return;checked+=r.results.length;inserted+=r.results.reduce((sum,row)=>sum+(row.inserted||0),0);failed+=r.results.filter(x=>x.state==='failed').length;pending=r.remainingFeedIds||[];if(pending.length)notice(t(`Checked ${checked} sources; ${pending.length} remaining…`,` ${checked} kaynak kontrol edildi; ${pending.length} kaynak kaldı…`));}while(pending.length);notice(failed?t(`${checked} sources checked; ${failed} updates failed. Saved content was kept.`,`${checked} kaynak kontrol edildi; ${failed} güncelleme başarısız. Kayıtlı içerik korundu.`):t(`${checked} sources checked · ${inserted} new entries.`,`${inserted} yeni yazı · ${checked} kaynak kontrol edildi.`),!!failed);await reload();}finally{b.disabled=false;refresh.disabled=false;refresh.classList.remove('is-refreshing');}return;}
+   if(action==='refresh'||action==='feed-refresh'){
+    if(refresh.disabled)return;
+    const hadFocus=b!==refresh&&document.activeElement===b;
+    b.disabled=true;refresh.disabled=true;refresh.classList.add('is-refreshing');
+    const target=action==='feed-refresh'?b.dataset.id:feedId;
+    let checked=0,inserted=0,updated=0,failed=0,skipped=0,pending;
+    notice(t('Checking sources…','Kaynaklar kontrol ediliyor…'));
+    try{
+     do{
+      const r=await request('refresh',{...(pending?{feedIds:pending}:{feedId:target||undefined}),requestId:'feeds-refresh-'+Date.now()});
+      if(disposed)return;
+      for(const row of r.results){
+       if(row.state==='failed'){failed++;continue;}
+       if(row.state==='busy'||row.state==='cancelled'){skipped++;continue;}
+       checked++;inserted+=row.inserted||0;updated+=row.updated||0;
+      }
+      pending=r.remainingFeedIds||[];
+     }while(pending.length);
+     const summary=failed?t(`${failed} sources unavailable. Saved content was kept.`,`${failed} kaynağa erişilemedi. Kayıtlı içerik korundu.`)
+      :inserted||updated?t(`Updated · ${inserted} new, ${updated} changed.`,`Güncellendi · ${inserted} yeni, ${updated} değişen kayıt.`)
+      :checked?t('Refresh complete. No new content.','Yenileme tamamlandı. Yeni içerik yok.')
+      :t('No source completed a refresh.','Yenilemeyi tamamlayan kaynak yok.');
+     notice(summary+(skipped?t(` ${skipped} checks still running or cancelled.`,` ${skipped} kontrol sürüyor veya iptal edildi.`):''),!!failed);
+     const restoreFocus=hadFocus&&(document.activeElement===b||document.activeElement===document.body);
+     await reload();
+     if(restoreFocus&&(document.activeElement===b||document.activeElement===document.body)){
+      const replacement=[...sourceBody.querySelectorAll('[data-action=feed-refresh],[data-action=source]')].find(node=>node.dataset.id===target||node.dataset.value===target);
+      (replacement||refresh).focus({preventScroll:true});
+     }
+    }finally{b.disabled=false;refresh.disabled=false;refresh.classList.remove('is-refreshing');}
+    return;
+   }
    if(action==='unsubscribe'){const f=feeds.find(f=>f.id===b.dataset.id);if(b.dataset.confirm!=='yes'){b.dataset.confirm='yes';b.textContent=t('Confirm unsubscribe','Abonelikten çıkmayı onayla');return;}await request('unsubscribe',{feedId:f.id});if(feedId===f.id)feedId='';notice(t('Unsubscribed. Saved and linked sources were kept.','Abonelikten çıkıldı. Kaydedilen ve ilişkili kaynaklar korundu.'));return reload();}
    if(action==='export'){const r=await request('opml-export');if(window.api?.copyText){await window.api.copyText(r.text);notice(t('OPML copied to clipboard.','OPML panoya kopyalandı.'));}else openOpml(r.text);return;}
    if(action==='link-preview'){const r=await request('link-preview',{entryId:b.dataset.id,catalogId:b.dataset.catalogId});const panel=b.closest('.mf-relation-body'),preview=el('div','mf-link-confirm');preview.append(el('p','',t('Link this source to ','Bu kaynağı ilişkilendir: ')+r.catalog.title+(r.catalog.year?' ('+r.catalog.year+')':'')),el('small','mf-muted',t('This adds a source relationship. It does not mark the title watched or add a rating.','Bu yalnız kaynak bağı ekler. Yapımı izlenmiş yapmaz veya puan eklemez.')));const confirm=button(t('Confirm relationship','İlişkiyi onayla'),'link-confirm','mh-action',b.dataset.id);confirm.dataset.token=r.token;preview.append(confirm);panel.querySelector('.mf-link-confirm')?.remove();panel.append(preview);return;}
