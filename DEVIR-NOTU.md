@@ -1,3 +1,4 @@
+Güncel teslim: [Sahne kapak ve kontrol dengesi](docs/devir/2026-11-06-0959.md)
 Güncel teslim: [Sahne URL satırının kaldırılması](docs/devir/2026-11-06-0954.md)
 Güncel teslim: [Ana sayfa küçük kart şeridinin kaldırılması](docs/devir/2026-11-06-0951.md)
 Güncel teslim: [Podcast ve Çift dilli Sahne kompozisyonu](docs/devir/2026-11-06-0942.md)

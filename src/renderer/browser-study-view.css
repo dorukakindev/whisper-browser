@@ -20,7 +20,7 @@
 .sh-browser-study.sh-audio .sh-audio-summary .sh-cover{width:clamp(180px,26vh,300px)}
 .sh-browser-study.sh-audio .sh-audio-summary .sh-meta{max-width:600px}
 .sh-browser-study.sh-audio .sh-audio-summary .sh-title{font-size:clamp(24px,2.5vw,36px)}
-.sh-browser-study.sh-web-source.sh-audio .sh-cover{width:min(100%,420px);aspect-ratio:16/9}
+.sh-browser-study.sh-web-source.sh-audio .sh-audio-summary .sh-cover{width:min(100%,clamp(240px,45vh,440px));aspect-ratio:16/9}
 .sh-browser-study.sh-web-source.sh-audio .sh-cover img{object-fit:contain}
 .sh-browser-study.sh-web-source.sh-audio .sh-cover-art{background:var(--bg-0)}
 .sh-browser-study .sh-screenwrap{flex:1 1 0;min-height:100px;overflow:hidden;border-radius:12px;background:var(--bg-0)}
@@ -168,3 +168,15 @@
 }
 
 details[data-mk-details]>summary{list-style:none}details[data-mk-details]>summary::-webkit-details-marker{display:none}details[data-mk-details]>summary>.mk-accordion-title{min-width:0;flex:1}details[data-mk-details]>summary>svg{transition:transform 200ms ease}details[data-mk-details][open]>summary>svg{transform:rotate(180deg)}
+
+/* Keep listening identity legible in short windows without stretching the deck. */
+.sh-browser-study .sh-empty p{max-width:36ch;color:var(--text-dim);margin:0}
+.sh-browser-study .sh-empty h2{font-size:18px;margin:0}
+.sh-browser-study .sh-empty>.sh-btn{align-self:flex-start;border-color:color-mix(in srgb,var(--accent) 55%,var(--border));color:var(--accent)}
+@media(min-width:1200px){
+ .sh-browser-study .browser-study-playback{flex:1 1 auto}
+ .sh-browser-study .sh-dock .sh-volume{flex:0 1 170px;min-width:120px;margin-inline-start:auto}
+}
+@media(max-width:700px){
+ .sh-browser-study.sh-web-source.sh-audio .sh-audio-summary .sh-cover{width:112px}
+}
