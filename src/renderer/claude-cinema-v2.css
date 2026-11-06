@@ -171,3 +171,15 @@ html:is([data-cinema-motion=off],[data-cinema-motion=reduced]) :is(.cv2-home-pic
     padding-block: 76px 28px;
   }
 }
+
+.cn-discover-empty {
+  grid-column: 1 / -1;
+  padding: clamp(20px, 4vw, 40px);
+  border: 1px solid var(--cn-line);
+  border-radius: 12px;
+  background: var(--cn-surface);
+}
+.cn-discover-empty h3 { margin: 0 0 8px; font-size: clamp(20px, 3vw, 28px); }
+.cn-discover-empty p { margin: 8px 0 20px; color: var(--cn-dim); }
+.cn-discover-empty-query { color: var(--cn-gold); overflow-wrap: anywhere; }
+.cn-discover-empty-actions { display: flex; flex-wrap: wrap; gap: 8px; }
