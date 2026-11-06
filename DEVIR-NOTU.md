@@ -1,3 +1,4 @@
+Güncel teslim: [Podcast ve Çift dilli Sahne kompozisyonu](docs/devir/2026-11-06-0942.md)
 Güncel teslim: [Whisper zamanları ve Podcast ses kopyasına dönüş](docs/devir/2026-11-06-0904.md)
 Güncel teslim: [Sahne yerleşimi ve tek dil görünümü](docs/devir/2026-11-06-0821.md)
 Güncel teslim: [Sahne etkin satır ve uzun transkript kontrolü](docs/devir/2026-11-06-0818.md)

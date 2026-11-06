@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Podcast artık mevcut sesi kapak odaklı dinleme düzeninde sürdürür. Çift dilli YouTube Sahne yalnız video alanını gösterir; altyazı boyutu video alanına uyar, dil seçimi video ile transkripti birlikte yönetir ve yinelenen alt şerit kaldırılır. Yayıncı/dil bilgileri, etkin satır takibi, kontrol grupları ve çeviri kontrol uyarısı iyileştirildi. Kendiliğinden toparlanan videoda eski hata eylemi temizlenir. [Devir](docs/devir/2026-11-06-0942.md).
+
 - Podcast Sahne, zaman damgaları kayıtlı olup açık RSS sesiyle eşleşmeyen Whisper dökümünü “zamansız” diye adlandırmaz. İşlemler altında Whisper’ın kullandığı kayıtlı ses kopyasına dönüş sunulur. [Devir](docs/devir/2026-11-06-0904.md).
 
 - Browser Sahne adres alanını tam genişlikte hizalar. Dar ve kısa pencerede durumlar ile medya başlığı daha az yer kaplar. Tek dilde gereksiz seçimler gizlenir, transkript kartları sıklaşır. [Devir](docs/devir/2026-11-06-0821.md).
