@@ -266,8 +266,12 @@
     advanced.querySelector("summary").addEventListener("click", () => {
       viewState.advanced = !advanced.open;
     });
-    const options = page.querySelector(".film-dossier-options");
+    const options = page.querySelector(".film-dossier-options,.md-detail-options");
     if (options) advancedBody.append(...[...options.children].filter((x) => x.tagName !== "SUMMARY"));
+    if (isDiscovery) {
+      const sourceCredits = page.querySelector(".md-page-aside > .md-option-group");
+      if (sourceCredits) advancedBody.append(sourceCredits);
+    }
     for (const section of page.querySelectorAll(".fw-workspace,.daily-title,.mtd-related,.mtd-feed-sources")) advancedBody.append(section);
     if (personal) advancedBody.prepend(personalHost || personal);
     const hero = n("section", "cn-hero cn-film-hero"), inner = n("div", "cn-container cn-film-hero-content"), copy = n("div", "cn-film-copy");
@@ -488,12 +492,12 @@
       body.append(profile);
     }
     const sources = n('section','cv2-film-sources');
-    sources.append(n('div','cn-section-heading',t('Sources & your viewing','Kaynak ve izleme durumun')));
+    sources.append(n('h2','cn-section-heading',t('Sources & your viewing','Kaynak ve izleme durumun')));
     if (source) sources.append(source);
     sources.append(advanced);body.append(sources);
     const nav = n("nav", "cn-film-nav"), navInner = n("div", "cn-container");
     nav.setAttribute("aria-label", t("On this film page", "Film sayfas\u0131nda gezinme"));
-    for (const [section, en, tr] of [[story, "Story", "Konu"], [cast, "Cast", "Oyuncular"], [review, "Reviews & analysis", "Yorumlar ve analiz"], [sources, "Sources & status", "Kaynak ve durum"], [extras || advanced, "Details", "Ayr\u0131nt\u0131lar"]]) if (section&&!section.hidden) {
+    for (const [section, en, tr] of [[story, "Story", "Konu"], [cast, "Cast", "Oyuncular"], [review, "Reviews & analysis", "Yorumlar ve analiz"], [sources, "Sources & status", "Kaynak ve durum"], [extras, "Details", "Ayr\u0131nt\u0131lar"]]) if (section&&!section.hidden) {
       const b = action(t(en, tr), () => {
         if (section === sources) advanced.open = true;
         section.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
