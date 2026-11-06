@@ -24,6 +24,10 @@
 .sh-browser-study .sh-screen{background:var(--bg-0);border-radius:8px;box-shadow:none}
 .sh-browser-study .sh-screen .frame{display:none}
 .cp-sahne-on.workspace-browser #playerJobBar{display:none}
+.player-layer.cp-sahne-on.workspace-browser .browser-toolbar{grid-template-columns:minmax(0,1fr);grid-template-rows:auto;padding:5px 16px;gap:0;background:var(--bg-0)}
+.player-layer.cp-sahne-on.workspace-browser .browser-toolbar > :not(.browser-address-wrap):not(.browser-find),
+.player-layer.cp-sahne-on.workspace-browser .browser-address-wrap > :is(.browser-site-chip-details,.browser-address-bookmark){display:none}
+.player-layer.cp-sahne-on.workspace-browser .browser-toolbar .browser-address-wrap{grid-column:1;grid-row:1;width:min(100%,720px);min-width:0;min-height:30px;justify-self:center}
 .workspace-browser .sh-browser-study .sh-screen{width:100%;height:100%;aspect-ratio:auto}
 .sh-browser-study .sh-subs{flex:none;height:auto;min-height:0;max-height:120px;padding:12px 30px;border-radius:8px;overflow:auto;background:var(--bg-1);border:1px solid var(--border)}
 .sh-browser-study .sh-subs .s,.sh-browser-study .sh-subs .t{font-size:18px;line-height:1.45}
@@ -120,6 +124,7 @@
 .sh-browser-study .sh-processing .sh-scope{padding:6px 0}
 .sh-browser-study .sh-processing .sh-scope-fields{position:static;padding:10px;box-shadow:none}
 .sh-browser-study .bp-footer{padding-block:8px}
+.sh-browser-study .sh-top-r [data-a=dub] span{display:inline}
 .sh-browser-study .bp-footer button{flex:0 1 auto;white-space:normal;text-align:left;height:auto;min-height:36px}
 @media(max-height:760px){
  .sh-browser-study .sh-processing{padding-bottom:6px}
