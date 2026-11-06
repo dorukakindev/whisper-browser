@@ -6,6 +6,15 @@ Son durum kontrolü **2026-11-06**. Son ürün `2c1935b5eacf1fc22163eea2c5975741
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
+## Podcast ve yorum akışları — kalan kabul
+
+- Dal: codex/podcast-review-acceptance-20261106. [Devir](docs/devir/2026-11-06-0702.md).
+- Podcast: LG’de gerçek girişten aynı bölümde hız, ses, tekrar ve takip birlikte denenmeli. Kayıtlı sonuç ve zamansız görünümü yeniden aç. Kısa iş gerekiyorsa 3–4 dakika sınırında kaynak değiştirerek eski sonuç yalıtımını ölç.
+- Çift dilli: iki video sekmesinde konum, iz ve bağımsız kaymaları karşılaştır. Önceki sekmenin sesi ve bekleyen çeviri için ayrı gözlem yap. Dar pencerede iz seçimini aç.
+- Keşfet: LG’de aynı başlıklı farklı yıllara ait iki kimlikle kütüphane ve yalnız Keşfet kartlarından yorumlara git. Geri dönüşte filtre, kaydırma ve değişmeyen üyeliği ölç.
+- Letterboxd: Sintel için otomatik yol HTTP 403. Mevcut izinli Browser okuma yolunda film eşleşmesi, sıralama, sayı ve spoiler filtresini canlı doğrula. Engel sürerse doğrulanmış örnek içe aktarımını kullan.
+- Asistan: doğrulanmış yorum örneğiyle üç isteği yetkili canlı modelde çalıştır. Özgün alıntı, gizli spoiler, kabul edilmiş analiz ve sohbet değişimindeki geç yanıtı gözle.
+
 ## Genel arama ve sözlük — kalan kapsam
 
 - Dal: codex/local-search-glossary-20261106. [Devir](docs/devir/2026-11-06-0657.md).
