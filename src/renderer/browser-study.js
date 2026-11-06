@@ -20,13 +20,16 @@
     if (!preservePodcast) window.BrowserPodcastUI?.setMode(false);
     closeBrowserToolbarMenus();
     if (!currentSession()) sessions.set(key(), { view: player.viewMode, media: media() });
-    setViewMode('study');
-    setBrowserSideRailPref('panel');
-    setPlayerSidebarCollapsed(false);
-    setSideTab('subs');
+    if (!window.CinemaSahne) {
+      setViewMode('study');
+      setBrowserSideRailPref('panel');
+      setPlayerSidebarCollapsed(false);
+      setSideTab('subs');
+    }
     setSubtitleMode('both', false);
     window.BrowserPanel?.refresh();
     refresh();
+    if (typeof scheduleBrowserOverlaySync === 'function') scheduleBrowserOverlaySync();
     const openedKey = key();
     requestAnimationFrame(() => {
       if (!layer.classList.contains('cp-sahne-on') && openedKey === key() && box?.isConnected && !box.hidden) (controls.querySelector('button:not(:disabled)') || box).focus({ preventScroll: true });
@@ -36,8 +39,9 @@
     window.BrowserPodcastUI?.setMode(false);
     const previous = currentSession();
     sessions.delete(key());
-    if (previous && player.viewMode === 'study') setViewMode(previous.view);
+    if (previous && player.viewMode === 'study' && previous.view !== player.viewMode) setViewMode(previous.view);
     refresh();
+    if (typeof scheduleBrowserOverlaySync === 'function') scheduleBrowserOverlaySync();
     entry.focus();
   }
   function create() {

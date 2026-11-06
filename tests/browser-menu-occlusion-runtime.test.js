@@ -42,7 +42,15 @@ test('a delayed snapshot paints only the still-open menu and capture failure nev
     resolveShot({ ok: true, dataUrl: 'data:image/png;base64,AAAA' });
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(w.$('browserViewSlot').classList.contains('browser-frozen'), true);
-    await w.applyOcclusion(false);
+    let release;
+    w.api.setBrowserOccluded = value => {
+      calls.push(value);
+      return value ? Promise.resolve() : new Promise(resolve => { release = resolve; });
+    };
+    const closing = w.applyOcclusion(false);
+    assert.equal(w.$('browserViewSlot').classList.contains('browser-frozen'), false);
+    release();
+    await closing;
     w.api.snapshotBrowserPage = () => Promise.reject(new Error('capture unavailable'));
     await w.applyOcclusion(true);
     await new Promise(resolve => setImmediate(resolve));

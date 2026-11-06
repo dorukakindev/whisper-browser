@@ -188,6 +188,21 @@ test('YouTube study entry and Podcast tab keep the browser owner, tracks and com
   stage.current.o.onClose();
   assert.equal(f.player.viewMode, 'theater');
   assert.equal(f.document.activeElement, entry);
+  f.window.dispatchEvent(new f.window.Event('browser-panel-layout'));
+  await Promise.resolve();
+  assert.equal(stage.current, null, 'delayed browser layout must not reopen the closed Stage');
+});
+
+test('Translation-only tracks remain translation rows and seek by their own clock', async t => {
+  const f = fixture(t);
+  f.source.cues = [];
+  const a = f.open('study');
+  const row = a.state().rows[0];
+  assert.equal(row.src, '');
+  assert.deepEqual(Array.from(row.trs), ['Birinci']);
+  assert.equal(row.start, 2);
+  assert.equal((await a.cmd('seekCue', 0)).ok, true);
+  assert.equal(f.commands.at(-1).time, 2);
 });
 
 test('Sahne forwards local/native transport to the existing identity-bound bridge', async t => {

@@ -114,7 +114,7 @@
         if (b.dataset.i !== undefined && !b.dataset.a) { const row = this.rows[+b.dataset.i]; if (row && row.timed) this.run('seekCue', +b.dataset.i); return; }
         if (b.classList.contains('sh-chap')) { if(this.canSeek&&b.dataset.t!==undefined)this.run('seek', Number(b.dataset.t)); return; }
         if (b.dataset.mode) { if (b.dataset.mode !== this.o.mode) this.o.onMode?.(b.dataset.mode, this.prefs()); return; }
-        if (b.dataset.d) { this.s.disp = b.dataset.d; this.applyDisp(); return; }
+        if (b.dataset.d) { this.s.disp = b.dataset.d; this.applyDisp(); this.filterRows(); return; }
         switch (b.dataset.a) {
           case 'close': this.o.onClose?.(); break; case 'classic': this.o.onClassic?.(); break;
           case 'fullscreen':this.run('fullscreen');break;
@@ -255,9 +255,19 @@
     }
     filterRows() {
       const query = this.q('[data-r=q]')?.value.trim().toLocaleLowerCase() || '';
-      this.lines.forEach((line, index) => { const row = this.rows[index]; line.hidden = !!query && ![row.src, ...row.trs, ...(row.unc || [])].join(' ').toLocaleLowerCase().includes(query); });
+      const display = this.displayMode();
+      this.lines.forEach((line, index) => {
+        const row = this.rows[index], translations = [...row.trs, ...(row.unc || [])];
+        const shown = display === 'src' ? row.src : display === 'tr' ? translations.join(' ') : [row.src, ...translations].join(' ');
+        line.hidden = !shown.trim() || (!!query && !shown.toLocaleLowerCase().includes(query));
+      });
     }
-    applyDisp() { const d = this.s.disp, seg = this.q('[data-r=disp]'); if (!seg) return; seg.style.setProperty('--i', ['src', 'both', 'tr'].indexOf(d)); seg.querySelectorAll('button').forEach((b) => { b.setAttribute('aria-selected', String(b.dataset.d === d)); if (this.o.mode !== 'cinema') b.setAttribute('aria-pressed', String(b.dataset.d === d)); }); this.root.classList.toggle('hide-src', d === 'tr'); this.root.classList.toggle('hide-tr', d === 'src'); }
+    displayMode() {
+      if (this.root.classList.contains('sh-translation-only')) return 'tr';
+      if (this.root.classList.contains('sh-source-only')) return 'src';
+      return this.s.disp;
+    }
+    applyDisp() { const d = this.displayMode(), seg = this.q('[data-r=disp]'); if (!seg) return; seg.style.setProperty('--i', ['src', 'both', 'tr'].indexOf(d)); seg.querySelectorAll('button').forEach((b) => { b.setAttribute('aria-selected', String(b.dataset.d === d)); if (this.o.mode !== 'cinema') b.setAttribute('aria-pressed', String(b.dataset.d === d)); }); this.root.classList.toggle('hide-src', d === 'tr'); this.root.classList.toggle('hide-tr', d === 'src'); }
     paint() {
       const r = this.root, s = this.s, st = this.st || this.a.state();
       r.classList.toggle('sh-focus', s.focus); r.classList.toggle('sh-playing', !st.paused);if(st.paused)r.classList.remove('controls-idle');
@@ -291,6 +301,9 @@
       const focusedId=oldRow?this.rows[Number(oldRow.dataset.i)]?.id:null;
       const focusedAction=focused?.dataset.act;
       this.rows=st.rows;scroll.textContent='';this.lines=[];
+      this.root.classList.toggle('sh-translation-only', this.rows.some(row => row.trs.length || row.unc?.length) && !this.rows.some(row => row.src.trim()));
+      this.root.classList.toggle('sh-source-only', this.rows.some(row => row.src.trim()) && !this.rows.some(row => row.trs.length || row.unc?.length));
+      this.applyDisp();
       const frag = document.createDocumentFragment();
       if(!st.rows.length){const empty=this.el(`<div class="sh-empty">${ic('mic')}<h2>${T('Konuşma burada metne dönüşür.','The conversation becomes text here.')}</h2><p>${T('Whisper ile bu bölümü yazıya dökün; çeviriyi aynı zaman çizelgesinde okuyun. Mevcut transkript ve ileri seçenekler İşlemler’de.','Transcribe this episode with Whisper and read its translation on the same timeline. Existing transcripts and advanced options are in Tasks.')}</p><button class="sh-btn" type="button" data-a="panel">${T('İşlemleri aç','Open tasks')}</button></div>`);frag.append(empty);}
       if (st.untimed) { const n = document.createElement('p'); n.className = 'sh-note'; n.textContent = st.timingNotice || T('Bu transkript zamansız: satırlar yalnızca okunur; atlama ve etkin satır yoktur.', 'This transcript has no timing: lines are read-only; no seeking or active line.'); frag.append(n); }
