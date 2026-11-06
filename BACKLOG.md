@@ -13,6 +13,13 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 - **Browser kabulü tamamlandı:** [Gerçek sahne deviri](docs/devir/2026-11-05-1408.md). Resmî Blender tam Sintel videosunda İngilizce 26/Türkçe 29 satırdan eşleşen ilk iki replik, gerçek LG Browser video overlay'inde kontrol edildi. İki dil birlikte göründü; primary +2 sn ile İngilizce gecikti ve Türkçe sabit kaldı; secondary -2 sn ile Türkçe sonraki repliğe geçerken İngilizce ilk replikte kaldı. Yaklaşık 11 sn oynatma, gerçek decode kareleri ve üç görüntü, izin denemesi 0. İlk Türkçe aday 30 sn farklı sürümdü; eşleşen üçüncü aday seçildi. Ürün kodu değişmedi.
 - **Sonraki adım:** bu dar kabul kapalıdır; tüm film/sağlayıcı/işletim koşulları için genel senkron garantisi değildir. P004 kalanları [site profili/fullscreen teslimiyle](docs/devir/2026-11-05-1417.md) kapandı.
 
+## P026 — Podcast dinleme kuyruğu ve Keşfet kararı tamamlandı
+
+- **Ürün:** A d47e8a8e, B03be8282; dal codex/podcast-queue-discovery-decisions-20261105; [devir](docs/devir/2026-11-06-0432.md). Mevcut kuyruk ve oynatma sahipleri korundu; source-bound async guards, retry, kalıcılık/konum/scene, gerçek mpv EOF repeat/next ve mode-idempotence tamamlandı.
+- **Keşfet:** gerçek öneri gerekçesi/detail üyeliği/personal eventler senkron; metadata/katalog/kişisel kanıt ayrılır, genre uyuşmazlığında kişisel aday üretilmez. Sinematik layout personal host/gerekçe/üyeliği korur; exact identity/retry ve mevcut preview/apply kapısı korunur.
+- **Kanıt:** A61+parser3, B47hedefli kontrol; A gerçek native mpv kontrollü medya/reopen/EOF, B canlı Cinemeta ve tek planned onayı native LG'de geçti. İzin denemesi0. Görseller/ayrıntı devirde.
+- **Sınır:** canlı Letterboxd/model/Spotify/DRM/CUDA/start.bat/kişisel profil ve tüm sağlayıcı kabulü yok. Bu kapsamda yarım uygulama işi yok; yeni somut arızada ilgili yolu aç. P018 eski dış kaynak/arşiv sınırlarını koru.
+
 ## Uygulama sırası
 
 1. **P018 — Kaynak erişimi ve kalan canlı sınırlar:** yalnız erişim sağlandığında veya somut ihtiyaçta kısa kontrol; önceki başarılı testleri topluca tekrarlama.
