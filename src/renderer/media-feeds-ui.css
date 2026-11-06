@@ -36,3 +36,6 @@
 .mf-source-retry {align-self:flex-start;color:var(--mf-gold);text-align:left}
 .mf-v2 .mf-source-row {flex:0 1 300px;min-width:0;padding:8px;border:1px solid var(--mf-line);border-radius:8px}
 .mf-v2 .mf-source-row .mf-source {align-self:flex-start;text-align:left}
+.mf-saved-articles { display:inline-flex;align-items:center;gap:6px;white-space:nowrap }
+.mf-saved-articles svg { width:15px;height:15px }
+.mf-saved-mark { display:inline-block;margin-inline-start:10px;color:var(--mf-gold) }

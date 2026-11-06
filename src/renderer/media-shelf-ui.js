@@ -37,6 +37,8 @@
   const audio = el('audio'); audio.controls = true; audio.preload = 'metadata'; audio.id = 'mediaShelfAudio';
   const dock = el('section', 'ms-dock media-surface hidden'); dock.dataset.uiUntranslated = ''; dock.setAttribute('aria-label', t('Music player', 'Müzik oynatıcı'));
   const dockTitle = el('strong'), dockStatus = el('span', 'ms-status'); dockStatus.setAttribute('role', 'status');
+  const dockRetry = btn(t('Retry playback','Oynatmayı yeniden dene'), () => shelfPlaybackRecovery()?.run(), 'mh-text-button');
+  dockRetry.hidden = true;
   const btn = (label, callback, cls = 'mh-action') => {
     const node = el('button', cls, label); node.type = 'button';
     node.addEventListener('click', () => Promise.resolve().then(callback).catch(error => status(error.message, true))); return node;
@@ -71,7 +73,7 @@
   const options=el('details','ms-track-menu ms-player-options'),optionsLabel=el('summary');optionsLabel.setAttribute('aria-label',t('Playback settings','Oynatma ayarları'));glyph(optionsLabel,'more');const panel=el('div','ms-track-menu-panel');
   for(const [label,control] of [[t('Playback speed','Oynatma hızı'),speed],[t('Sleep timer','Uyku zamanlayıcısı'),sleep]]){const field=el('label','ms-player-field',label);field.append(control);panel.append(field);}panel.append(analyzeCurrent);options.append(optionsLabel,panel);
   const closeButton=iconButton(t('Close audio player','Ses oynatıcıyı kapat'),'close',async()=>{const mine=++playGeneration;void api('spotify-cancel');await flushPosition();if(mine!==playGeneration)return;audio.pause();if(hls){hls.destroy();hls=null;}audio.removeAttribute('src');audio.load();current=null;closePodcastMode();podcastModeButton.hidden=true;notifyPodcast();dock.classList.add('hidden');document.body.classList.remove('media-shelf-playing');clearTimeout(sleepTimer);},'ms-player-close');
-  transport.append(volumeWrap,queueButton,options,closeButton);audio.controls=false;audio.hidden=true;dock.append(now,center,transport,dockStatus,audio);document.body.append(dock);
+  transport.append(volumeWrap,queueButton,options,closeButton);audio.controls=false;audio.hidden=true;dock.append(now,center,transport,dockStatus,dockRetry,audio);document.body.append(dock);
 
   // Podcast presentation observes the existing shelf audio owner; opening it never plays or reloads audio.
   const podcastSubscribers=new Set(),queueSubscribers=new Set();
@@ -309,10 +311,32 @@
   }
   let playGeneration = 0, lastSaved = 0;
   async function flushPosition() {
-    if (!current || current.kind==='spotify' || !Number.isFinite(audio.currentTime)) return;
+    if (!current || current.kind==='spotify' || audio.error || audio.readyState < 1 || !Number.isFinite(audio.currentTime)) return;
     const entry = current,ownerGeneration=playGeneration,position=audio.currentTime,rate=audio.playbackRate;entry.position=position;const queued=order.current();if(queued&&queueRowIdentity(queued)===queueRowIdentity(entry))queued.position=position;
     try { await api('listen-progress', { kind: entry.kind, id: entry.id, url: entry.url, sourceVersion:entry.sourceVersion, rate, position, duration: Number.isFinite(audio.duration) ? audio.duration : 0 }); }
     catch (error) { if(current===entry&&playGeneration===ownerGeneration)dockStatus.textContent = error.message; }
+  }
+  let shelfFailure = null;
+  function shelfPlaybackRecovery() {
+    const failure = shelfFailure;
+    if (!failure || failure.generation !== playGeneration || failure.intent !== queuePlayIntent
+      || failure.playerIntent !== player.openIntent || order.current()?.queueKey !== failure.key) return null;
+    return failure;
+  }
+  function setShelfFailure(row, message) {
+    row.queueError = message;
+    dockStatus.textContent = message;
+    const failure = {
+      key: row.queueKey, generation: playGeneration, intent: queuePlayIntent, playerIntent: player.openIntent,
+      message, label: t('Retry playback','Oynatmayı yeniden dene'),
+      run: async () => {
+        if (shelfPlaybackRecovery() !== failure) return;
+        try { await playQueue(order.snapshot().index); } catch (_) { /* The queue displays the latest failure. */ }
+      }
+    };
+    shelfFailure = failure;
+    dockRetry.hidden = false;
+    syncQueue();
   }
   async function playQueue(index,{restart=false}={}) {
     if (!queue.length) return;
@@ -323,6 +347,8 @@
     const same=queuePlaybackCurrent()&&queueRowIdentity(requested)===queueRowIdentity(order.current());
     if(same&&!restart&&!requested.queueError){order.jump(index);syncQueue();if(requested.kind==='podcasts'){if(requested.entryId)await window.PlayerSourceCatalogIntegration.openPodcastEntry(requested.entryId,{view:requested.scene||'podcast'});else if(window.CinemaSahne?.openShelf)await window.CinemaSahne.openShelf({mode:requested.scene==='bilingual'?'study':'podcast'});}return;}
     const mine=++playGeneration;
+    shelfFailure = null;
+    dockRetry.hidden = true;
     try {
     await api('spotify-cancel');
     if(mine!==playGeneration||intent!==queuePlayIntent||!playerUnchanged())return;
@@ -352,14 +378,21 @@
     await audio.play();if(mine!==playGeneration||intent!==queuePlayIntent)return;
     if(row.kind==='podcasts'&&window.CinemaSahne?.openShelf)await window.CinemaSahne.openShelf({mode:row.scene==='bilingual'?'study':'podcast'});
     if(['music','spotify'].includes(row.kind)){try{const played=await api('music-played',{kind:row.kind,id:row.id,playlistId:row.playlistId});Object.assign(row,played);const local=snapshot?.music?.find(r=>r.id===row.id);if(local)Object.assign(local,played);}catch(error){dockStatus.textContent=error.message;}}
-    }catch(error){if(mine!==playGeneration||intent!==queuePlayIntent)return;requested.queueError=t('Could not play. Retry: ','Oynatılamadı. Yeniden deneyin: ')+error.message;dockStatus.textContent=requested.queueError;syncQueue();throw error;}
+    }catch(error){if(mine!==playGeneration||intent!==queuePlayIntent||order.current()?.queueKey!==requested.queueKey)return;setShelfFailure(requested,t('Could not play. ','Oynatılamadı. ')+error.message);throw error;}
   }
   function listen(rows, index = 0) {order.set(rows,index);syncQueue();return playQueue(index); }
   audio.addEventListener('pause', () => {paintPlaying();void flushPosition();});audio.addEventListener('play',paintPlaying);
   for(const event of ['seeked','ratechange'])audio.addEventListener(event,()=>void flushPosition());
   audio.addEventListener('timeupdate', () => { if (Date.now() - lastSaved > 10000) { lastSaved = Date.now(); void flushPosition(); } });
   audio.addEventListener('ended', () => { const owner=current,mine=playGeneration;if(playerQueueOwner)return;void flushPosition().then(() => { if(owner!==current||mine!==playGeneration)return;return advance(true); }).catch(error=>{dockStatus.textContent=error.message;}); });
-  audio.addEventListener('error', () => { dockStatus.textContent = t('Audio could not be played. Check the file or stream address.', 'Ses oynatılamadı. Dosyayı veya yayın adresini kontrol edin.');if(current&&queuePlaybackCurrent()){current.queueError=dockStatus.textContent;syncQueue();} });
+  audio.addEventListener('error', () => {
+    if (!audio.error || !current || playerQueueOwner || !queuePlaybackCurrent()) return;
+    if (audio.currentTime > 0) current.position = audio.currentTime;
+    setShelfFailure(current,t('Audio could not be played.','Ses oynatılamadı.'));
+  });
+  document.addEventListener('play', event => {
+    if (event.target !== audio && !shelfPlaybackRecovery()) dockRetry.hidden = true;
+  }, true);
   document.addEventListener('play', event => { if (event.target !== audio) audio.pause(); }, true);
   new MutationObserver(() => {
     const open = !document.getElementById('playerLayer').classList.contains('hidden');
@@ -656,7 +689,7 @@
     speed.setAttribute('aria-label', t('Playback speed', 'Oynatma hızı')); sleep.setAttribute('aria-label', t('Sleep timer', 'Uyku zamanlayıcısı'));shuffleButton.textContent=t('Shuffle','Karıştır');seek.setAttribute('aria-label',t('Playback position','Oynatma konumu'));volume.setAttribute('aria-label',t('Volume','Ses düzeyi'));previousButton.setAttribute('aria-label',t('Previous track','Önceki parça'));nextButton.setAttribute('aria-label',t('Next track','Sonraki parça'));closeButton.setAttribute('aria-label',t('Close audio player','Ses oynatıcıyı kapat'));optionsLabel.setAttribute('aria-label',t('Playback settings','Oynatma ayarları'));updateTransport();syncQueue();
   });
   void restoreListeningQueue().catch(error=>status(error.message,true));
-  window.MediaShelfUI = Object.freeze({openQueue,enqueueCurrentPodcast,rememberQueueScene,playPodcastRow,podcastQueueError:expected=>{if(!playerQueueOwner||!queuePlaybackCurrent()||expected&&(expected.mediaKey!==playerQueueOwner.mediaKey||expected.generation!==playerQueueOwner.generation))return;order.current().queueError=t('Audio could not be played. Retry this episode.','Ses oynatılamadı. Bu bölümü yeniden deneyin.');syncQueue();},advancePodcastQueue:async expected=>{if(!playerQueueOwner||!queuePlaybackCurrent()||expected.mediaKey!==playerQueueOwner.mediaKey||expected.generation!==playerQueueOwner.generation)return false;try{await advance(true);}catch(error){status(error.message,true);}return true;},ownsPodcastQueue:()=>!!playerQueueOwner&&queuePlaybackCurrent(),runPodcastTask,setPodcastRecovery,podcastTaskState:()=>({preparing:!!podcastAcquisition,hasSourceTranscript:!!podcastTrack?.text,translationRetry:podcastRetry,job:window.podcastQueueTaskState?.(readPodcastSnapshot())}),readSnapshot:readPodcastSnapshot,getSourceRole:podcastSourceRole,getTranscriptTracks:()=>[podcastTrack,podcastTranslation].filter(Boolean),applyPodcastOutput,isPodcastMode,openPodcastMode,closePodcastMode,podcastInfo:()=>current?.kind==='podcasts'?{title:current.title,publisher:current.publisher,image:current.image}:null,executeExisting:executePodcast,subscribe:listener=>{podcastSubscribers.add(listener);return()=>podcastSubscribers.delete(listener);},openPodcast:async(id,url)=>{const data=await api('list'),podcast=data.podcasts?.find(p=>p.id===id),index=podcast?.episodes?.findIndex(e=>e.url===url);if(!podcast||index<0)throw Error(t('Podcast episode changed.','Podcast bölümü değişti.'));await listen(podcast.episodes.map(e=>({...e,id:podcast.id,kind:'podcasts'})),index);}, executeMusic:async args=>{const op=args.operation;if(op==='open_spotify_import')window.SpotifyImportUI.open({saved:reload});else if(op==='open_queue')openQueue();else {if(!order.current())throw Error('No active music queue / Etkin müzik kuyruğu yok.');if(op==='queue_next')await advance(false);else if(op==='queue_previous'){order.previous();await playQueue(order.snapshot().index);}else if(op==='set_queue_shuffle'){if(typeof args.selected!=='boolean')throw Error('Invalid shuffle');order.shuffle(args.selected);syncQueue();}else if(op==='set_queue_repeat'){order.setRepeat(args.repeat_mode);syncQueue();}else throw Error('Unknown music player action');}return window.MediaShelfUI.musicContext();},musicContext:()=>({playing:!!current&&!audio.paused,current:current?{id:current.id,title:current.title,artist:current.artist,kind:current.kind}:null,queue:order.snapshot().rows.slice(0,50).map(r=>({id:r.id,title:r.title,artist:r.artist,kind:r.kind})),queueCount:order.snapshot().rows.length,index:order.snapshot().index,repeat:order.snapshot().repeat,shuffle:order.snapshot().shuffled}), openBook:(id,focus)=>openBook({id},focus), openPdfPage, mount(root, page, query = '') {
+  window.MediaShelfUI = Object.freeze({playbackRecovery:shelfPlaybackRecovery,openQueue,enqueueCurrentPodcast,rememberQueueScene,playPodcastRow,podcastQueueError:expected=>{if(!playerQueueOwner||!queuePlaybackCurrent()||expected&&(expected.mediaKey!==playerQueueOwner.mediaKey||expected.generation!==playerQueueOwner.generation))return;order.current().queueError=t('Audio could not be played. Retry this episode.','Ses oynatılamadı. Bu bölümü yeniden deneyin.');syncQueue();},advancePodcastQueue:async expected=>{if(!playerQueueOwner||!queuePlaybackCurrent()||expected.mediaKey!==playerQueueOwner.mediaKey||expected.generation!==playerQueueOwner.generation)return false;try{await advance(true);}catch(error){status(error.message,true);}return true;},ownsPodcastQueue:()=>!!playerQueueOwner&&queuePlaybackCurrent(),runPodcastTask,setPodcastRecovery,podcastTaskState:()=>({preparing:!!podcastAcquisition,hasSourceTranscript:!!podcastTrack?.text,translationRetry:podcastRetry,job:window.podcastQueueTaskState?.(readPodcastSnapshot())}),readSnapshot:readPodcastSnapshot,getSourceRole:podcastSourceRole,getTranscriptTracks:()=>[podcastTrack,podcastTranslation].filter(Boolean),applyPodcastOutput,isPodcastMode,openPodcastMode,closePodcastMode,podcastInfo:()=>current?.kind==='podcasts'?{title:current.title,publisher:current.publisher,image:current.image}:null,executeExisting:executePodcast,subscribe:listener=>{podcastSubscribers.add(listener);return()=>podcastSubscribers.delete(listener);},openPodcast:async(id,url)=>{const data=await api('list'),podcast=data.podcasts?.find(p=>p.id===id),index=podcast?.episodes?.findIndex(e=>e.url===url);if(!podcast||index<0)throw Error(t('Podcast episode changed.','Podcast bölümü değişti.'));await listen(podcast.episodes.map(e=>({...e,id:podcast.id,kind:'podcasts'})),index);}, executeMusic:async args=>{const op=args.operation;if(op==='open_spotify_import')window.SpotifyImportUI.open({saved:reload});else if(op==='open_queue')openQueue();else {if(!order.current())throw Error('No active music queue / Etkin müzik kuyruğu yok.');if(op==='queue_next')await advance(false);else if(op==='queue_previous'){order.previous();await playQueue(order.snapshot().index);}else if(op==='set_queue_shuffle'){if(typeof args.selected!=='boolean')throw Error('Invalid shuffle');order.shuffle(args.selected);syncQueue();}else if(op==='set_queue_repeat'){order.setRepeat(args.repeat_mode);syncQueue();}else throw Error('Unknown music player action');}return window.MediaShelfUI.musicContext();},musicContext:()=>({playing:!!current&&!audio.paused,current:current?{id:current.id,title:current.title,artist:current.artist,kind:current.kind}:null,queue:order.snapshot().rows.slice(0,50).map(r=>({id:r.id,title:r.title,artist:r.artist,kind:r.kind})),queueCount:order.snapshot().rows.length,index:order.snapshot().index,repeat:order.snapshot().repeat,shuffle:order.snapshot().shuffled}), openBook:(id,focus)=>openBook({id},focus), openPdfPage, mount(root, page, query = '') {
     const noteDisclosures=page==='radio'&&view?.page==='radio'?view.noteDisclosures:new Set();
     view?.libraryDispose?.();view = { root, page, query, busy: false, noteDisclosures }; ++generation;
     const loading = el('p', 'ms-status'); loading.setAttribute('role', 'status'); root.replaceChildren(loading);

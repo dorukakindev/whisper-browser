@@ -242,6 +242,36 @@
     }
     function panel() {
       const sections = [], a11y = [];
+      if (kind !== 'shelf') {
+        const roles = browserSubtitleRoleCues();
+        const items = [];
+        for (const [role, label] of [['source', T('Özgün altyazı', 'Original subtitles')],
+          ['translation', T('Çeviri altyazısı', 'Translated subtitles')]]) {
+          const cues = roles[role];
+          if (!cues.length) continue;
+          const secondary = cues === player.cues2;
+          const track = kind === 'browser' ? browserSyncTrack(secondary) : localSyncProfileKey(secondary);
+          if (!track) continue;
+          const offset = kind === 'browser' ? subtitleVideoTransform(secondary).offsetSeconds
+            : secondary ? player.offset2 : player.offset;
+          const seconds = Math.abs(offset).toLocaleString(doc.documentElement.lang || 'en', { maximumFractionDigits: 3 });
+          const status = Math.abs(offset) < .0005 ? T('Kayma yok', 'No offset')
+            : seconds + (offset < 0 ? T(' sn erken', ' s early') : T(' sn geç', ' s late'));
+          items.push({ type: 'offset', label, text: status, run: delta => {
+            if (!current() || browserSubtitleRoleCues()[role] !== cues) return;
+            if (kind === 'browser') {
+              if (browserSyncTrack(secondary) === track) adjustStageBrowserOffset(secondary, delta);
+            } else if (localSyncProfileKey(secondary) === track) {
+              const input = $(secondary ? 'sub2Offset' : 'subOffset');
+              if (!input) return;
+              const now = secondary ? player.offset2 : player.offset;
+              input.value = String(delta === null ? 0 : Math.max(-60, Math.min(60, Math.round((now + delta) * 1000) / 1000)));
+              input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+          } });
+        }
+        if (items.length) sections.push({ title: T('Altyazı zamanlaması', 'Subtitle timing'), items });
+      }
       if(kind==='shelf'||kind==='local'&&F.snap()?.sourceKind==='rss')sections.push({title:T('Dinleme kuyruğu','Listening queue'),items:[{type:'button',label:T('Bu bölümü kuyruğa ekle','Add this episode to queue'),run:()=>{if(current())window.MediaShelfUI?.enqueueCurrentPodcast();}},{type:'button',label:T('Dinleme kuyruğunu yönet','Manage listening queue'),run:()=>{if(current())window.MediaShelfUI?.openQueue();}}]});
       if(kind==='shelf'){
         sections.push({title:T('Podcast işlemleri','Podcast tasks'),items:[...actions(),{type:'button',label:T('Döküm, Whisper ve çeviri araçları','Transcript, Whisper and translation tools'),run:openAdvanced}]});
@@ -271,7 +301,10 @@
     }
     return {
       caps: { loop: kind!=='shelf', save: typeof window.api.upsertResearchAnnotation==='function', cinema:kind==='local', study:true, word:kind!=='shelf' },
-      identity, panel, actions,processing:kind==='shelf'||F.snap()?.sourceKind==='rss'?()=>({duration:F.snap()?.duration}):null,
+      identity, panel, actions,
+      recovery: () => current() && (kind === 'shelf' ? window.MediaShelfUI?.playbackRecovery()
+        : activePlaybackRecovery() && { ...activePlaybackRecovery(), run: runPlaybackRecovery }),
+      processing:kind==='shelf'||F.snap()?.sourceKind==='rss'?()=>({duration:F.snap()?.duration}):null,
       info: () => {
         const s=F.snap(),l=F.langs(),audio=kind==='local'&&player.workspaceAudio;
         const podcast=s?.sourceKind==='rss'&&audio?.generation===s.generation&&audio.mediaKey===s.mediaKey;

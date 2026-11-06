@@ -181,6 +181,7 @@
       version: SYNC_RECORD_VERSION,
       mediaId,
       sourceTrackId,
+      ...(raw.timingTrackId ? { timingTrackId: clean(raw.timingTrackId, 200) } : {}),
       sourceHash,
       sourcePrefixHash: clean(raw.sourcePrefixHash, 64),
       sourcePrefixCount: Math.max(0, Math.min(32, Number(raw.sourcePrefixCount) || 0)),
@@ -195,7 +196,8 @@
     let item;
     try { item = createSyncRecord(record); } catch (_) { return false; }
     if (item.mediaId !== clean(context?.mediaId, 240)
-        || item.sourceTrackId !== clean(context?.sourceTrackId, 180)) return false;
+        || item.sourceTrackId !== clean(context?.sourceTrackId, 180)
+        || (item.timingTrackId || '') !== clean(context?.timingTrackId, 200)) return false;
     const currentHash = clean(context?.sourceHash, 128);
     if (currentHash && item.sourceHash === currentHash) return true;
     // Canli izlerde tam hash yeni cue ile degisir. Yalniz ayni lineage ve ilk

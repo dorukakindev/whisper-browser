@@ -11,6 +11,8 @@
   try{const saved=localStorage.getItem('media-home-featured-v1');if(saved&&saved.length<=8192)state.featuredKey=saved;}catch{}
   let virtualDisposers=[];
   let feedsView=null,recallView=null,feedSnapshot=null;const pagePositions=new Map();
+  const watchlist = { kind: '', runtime: '', sort: '' };
+  let watchlistReturn = null;
   function retainFeeds(){if(feedsView?.snapshot)feedSnapshot=feedsView.snapshot();}
   function retainPage(){if(state.active)pagePositions.set(state.page,host.scrollTop);retainFeeds();}
   let disposeShell = () => {};
@@ -247,7 +249,15 @@
   }
   function card(item, options = {}) {
     const web=!!item.key&&model.medium(item)==='web';
-    const node = button('', () => item.key ? playWatch(item) : window.MediaTitleUI.open(item.id), 'mh-card'+(web?' mh-web-card':''));
+    const node = button('', () => {
+      if (item.key) return playWatch(item);
+      if (state.filter === 'planned') {
+        const keys = [...node.parentElement.querySelectorAll('[data-home-item]')].map(card => card.dataset.homeItem);
+        const index = keys.indexOf(item.id);
+        watchlistReturn = { page: state.page, scroll: host.scrollTop, keys: [item.id, ...keys.slice(index + 1), ...keys.slice(0, index).reverse()] };
+      }
+      return window.MediaTitleUI.open(item.id);
+    }, 'mh-card'+(web?' mh-web-card':''));
     if(web&&!options.artworkOnly&&state.page!=='home'){node.classList.add('mh-art-pending');node.addEventListener('home-art-ready',()=>node.classList.remove('mh-art-pending','mh-no-art'),{once:true});node.addEventListener('home-art-error',()=>{node.classList.remove('mh-art-pending');node.classList.add('mh-no-art');},{once:true});if(!hasArtwork(item))node.classList.add('mh-no-art');}
     node.dispose=()=>node.querySelectorAll('[data-home-poster]').forEach(image=>posterObserver.unobserve(image));
     node.dataset.homeItem = item.key || item.id;
@@ -261,7 +271,8 @@
     if(state.page==='home')window.MediaVisual?.card(node,{title:node.title,wide:!!item.key});
     const p = model.progress(item);
     const kind = item.key ? (model.medium(item) === 'web' ? 'Web' : model.medium(item) === 'music' ? t('Audio', 'Ses') : t('Video', 'Video')) : item.kind === 'series' ? t('Series', 'Dizi') : t('Film', 'Film');
-    node.append(el('span', 'mh-card-meta', [item.year, kind, p.position ? `${minutes(p.position)} / ${p.duration ? minutes(p.duration) : '—'}` : ''].filter(Boolean).join(' · ')));
+    const length = state.filter === 'planned' ? (item.runtime > 0 ? item.runtime + t(' min', ' dk') : t('Runtime unknown', 'Süre bilinmiyor')) : '';
+    node.append(el('span', 'mh-card-meta', [item.year, kind, length, p.position ? `${minutes(p.position)} / ${p.duration ? minutes(p.duration) : '—'}` : ''].filter(Boolean).join(' · ')));
     if (p.position && p.duration){const meter=progress(item);if(state.page==='home')node.querySelector('.mh-art').append(meter);else node.append(meter);}
     return node;
   }
@@ -277,7 +288,8 @@
     heading.append(el('h2', '', title));if(state.page==='home')window.MediaVisual?.sectionHeading(heading);
     if (options.more) heading.append(button(t('View all', 'Tümünü gör'), options.more, 'mh-text-button'));
     const grid = el('div', options.grid ? 'mh-grid'+(options.web?' mh-web-grid':'') : `mh-rail${options.wide ? ' mh-wide' : ''}`);
-    if(options.grid&&rows.length>100&&window.MediaVirtualGrid){queueMicrotask(()=>{if(grid.isConnected)virtualDisposers.push(window.MediaVirtualGrid.mount(grid,rows,card,host));});}
+    const virtual = options.grid && rows.length > 100 && state.filter !== 'planned' && window.MediaVirtualGrid;
+    if(virtual){queueMicrotask(()=>{if(grid.isConnected)virtualDisposers.push(window.MediaVirtualGrid.mount(grid,rows,card,host));});}
     else if (options.artworkOnly) {
       node.hidden = true; let next = 0;
       const appendNext = () => { if (next < rows.length) grid.append(card(rows[next++], {artworkOnly:true, ready:()=>{node.hidden=false;}, unavailable:appendNext})); };
@@ -285,7 +297,7 @@
     } else rows.slice(0, options.grid ? state.limit : 12).forEach(item => grid.append(card(item)));
     if(state.page==='home'&&!options.grid&&window.MediaVisual){const rail=window.MediaVisual.rail(grid,title);virtualDisposers.push(rail.dispose);node.append(heading,rail.element);}else node.append(heading, grid);
     if (!rows.length) {const searching=!!state.query||state.filter!=='all';node.append(emptyState(searching?t('No matching titles','Eşleşen yapım yok'):t('Nothing here yet','Burada henüz bir kayıt yok'),searching?t('Try a shorter search or clear the current filter.','Daha kısa bir arama dene veya mevcut filtreyi temizle.'):t('Add media to your library or open a video in the browser. Your progress will appear here.','Kütüphanene medya ekle veya browserda video aç. İlerlemen burada görünür.'),searching?[[t('Clear filters','Filtreleri temizle'),()=>{state.query='';state.filter='all';const input=document.getElementById('mhSearch');if(input)input.value='';renderContent();}]]:[[t('Open browser','Browserı aç'),openBrowser],[t('Manage library','Kütüphaneyi yönet'),()=>catalog()]]));}
-    if (options.grid && rows.length > state.limit && rows.length<=100) node.append(button(t('Show more', 'Daha fazla göster'), () => { state.limit += 48; renderContent(); }));
+    if (options.grid && rows.length > state.limit && !virtual) node.append(button(t('Show more', 'Daha fazla göster'), () => { state.limit += 48; renderContent(); }));
     return node;
   }
   function tool(title, description, label, callback) {
@@ -398,8 +410,8 @@
       const titles = { home: t('Search results', 'Arama sonuçları'), recent: t('Recently played', 'Son oynatılanlar'), films: t('Films', 'Filmler'), series: t('Series', 'Diziler'), music: t('Music & audio', 'Müzik ve ses'), web: t('Web videos', 'Web videoları'), books: t('Search results', 'Arama sonuçları') };
       const isHistory = ['recent', 'music', 'web'].includes(state.page);
       let rows = isHistory ? watch : items;
-      if (state.page === 'films') rows = rows.filter(item => item.kind !== 'series');
-      if (state.page === 'series') rows = rows.filter(item => item.kind === 'series');
+      if (state.page === 'films' && state.filter !== 'planned') rows = rows.filter(item => item.kind !== 'series');
+      if (state.page === 'series' && state.filter !== 'planned') rows = rows.filter(item => item.kind === 'series');
       if (state.page === 'music') rows = rows.filter(item => model.medium(item) === 'music');
       if (state.page === 'web') rows = rows.filter(item => model.medium(item) === 'web');
       if (state.query && ['home', 'books'].includes(state.page)) { const catalogIds=new Set(items.map(item=>item.id).filter(Boolean));rows = [...items, ...watch.filter(row=>!row.id||!catalogIds.has(row.id))]; }
@@ -413,9 +425,29 @@
         for(const name of [...new Set(items.flatMap(item=>item.collections||[]))].sort()){const option=el('option','',name);option.value='collection:'+name;option.dataset.uiUntranslated='';select.append(option);}
         select.value = state.filter; select.addEventListener('change', () => { state.filter = select.value; state.limit = 48; renderContent(); }); controls.append(select);
       }
+      if (!isHistory && state.filter === 'planned') {
+        const choices = [
+          ['kind', t('Title type', 'Yapım türü'), [['',t('All types','Tüm türler')], ['film',t('Films','Filmler')], ['series',t('Series','Diziler')]]],
+          ['runtime', t('Runtime', 'Süre'), [['',t('Any runtime','Tüm süreler')], ['60',t('Up to 60 min','60 dk ve altı')], ['90',t('Up to 90 min','90 dk ve altı')], ['120',t('Up to 120 min','120 dk ve altı')], ['unknown',t('Runtime unknown','Süre bilinmiyor')]]],
+          ['sort', t('Watchlist order', 'İzlenecekler sırası'), [['',t('Library order','Kütüphane sırası')], ['recent',t('Recently added','Son eklenenler')]]]
+        ];
+        for (const [key, label, options] of choices) {
+          const select = el('select'); select.dataset.watchlistFilter = key; select.setAttribute('aria-label', label);
+          for (const [value, name] of options) { const option = el('option', '', name); option.value = value; select.append(option); }
+          select.value = watchlist[key];
+          select.onchange = () => {
+            watchlist[key] = select.value; state.limit = 48; renderContent();
+            content.querySelector(`[data-watchlist-filter="${key}"]`)?.focus({preventScroll:true});
+          };
+          controls.append(select);
+        }
+        rows = rows.filter(item => (!watchlist.kind || item.kind === watchlist.kind) &&
+          (!watchlist.runtime || (watchlist.runtime === 'unknown' ? !(item.runtime > 0) : item.runtime > 0 && item.runtime <= Number(watchlist.runtime))));
+        if (watchlist.sort === 'recent') rows = [...rows].sort((a,b) => (b.watchlistAddedAt || 0) - (a.watchlistAddedAt || 0));
+      }
       if(state.filter.startsWith('collection:')&&window.FilmWatchUI)controls.append(button(t('Open collection page','Koleksiyon sayfasını aç'),()=>window.FilmWatchUI.openCollection(state.filter.slice(11))));
       controls.append(button(t('Open a file', 'Dosya aç'), () => click('playerPickVideo')), button(t('Manage library', 'Kütüphaneyi yönet'), () => catalog()));
-      content.append(controls, section(titles[state.page], filter(rows), { grid: true,web:state.page==='web' }));
+      content.append(controls, section(!isHistory && state.filter === 'planned' ? t('Watchlist', 'İzlenecekler') : titles[state.page], filter(rows), { grid: true,web:state.page==='web' }));
       if (state.page === 'music') content.append(el('p', 'mh-empty', t('Local audio you play appears here. Playback uses your existing player and queue.', 'Oynattığın yerel sesler burada görünür. Mevcut oynatıcın ve kuyruğun kullanılır.')));
     }
     if (focusKey) [...content.querySelectorAll('[data-home-item]')].find(node => node.dataset.homeItem === focusKey)?.focus({ preventScroll: true });
@@ -573,7 +605,19 @@
     state.error = catalogResult?.ok && history ? '' : t('Some library data could not be loaded. Open the library to retry.', 'Bazı kütüphane verileri yüklenemedi. Yeniden denemek için kütüphaneyi açın.');
     state.data = model.snapshot(catalogResult?.ok ? catalogResult.items : state.data.items, history || state.data.watch);
     state.loaded = true;
-    if (state.active&&!(preserveDiscovery&&state.page==='discover')) {renderContent();host.scrollTop=scroll;}
+    if (state.active&&!(preserveDiscovery&&state.page==='discover')) {
+      renderContent();host.scrollTop=scroll;
+      if (watchlistReturn && !document.getElementById('mediaTitleDialog')?.open) {
+        const target = watchlistReturn;watchlistReturn = null;
+        if (target.page === state.page && state.filter === 'planned') {
+          const cards = new Map([...host.querySelectorAll('[data-home-item]')].map(card => [card.dataset.homeItem, card]));
+          const card = target.keys.map(key => cards.get(key)).find(Boolean);
+          (card || host.querySelector('[data-watchlist-filter]'))?.focus({preventScroll:true});
+          host.scrollTop = target.scroll;
+          if (card && card.dataset.homeItem !== target.keys[0]) card.scrollIntoView({block:'nearest'});
+        }
+      }
+    }
     if(metadata)void initialSettingsReady.then(()=>syncMetadata('start'));
   }
   let metadataState={},metadataTimer,metadataBusy=false,metadataPending='',metadataVersion=0,metadataDismissed=false;

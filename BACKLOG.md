@@ -1,10 +1,15 @@
 # Bekleyen işler
 
-Son durum kontrolü **2026-11-06**. Son ürün `9b09e37e5341386b3bf64a97dac5aea58cb93f5d`. [Güncel teslim](docs/devir/2026-11-06-0552.md).
+Son durum kontrolü **2026-11-06**. Son ürün `3c4abfa7cdbb05555c961f231809c57675417221`. [Güncel teslim](docs/devir/2026-11-06-0610.md).
 
 **Yeni sohbet başlangıcı:** P025 [PR #842](https://github.com/dorukakindev/whisper-browser/pull/842) ile master'a alındı; doğrulanmış ürün başlangıcı `7bf15f3c2876a5465b0c7f59fff3a037b41aeb69`. Sonraki belge commitleri ürün değişikliği değildir; çalışmadan önce gerçek HEAD/remote ve kişisel farkları yeniden kontrol et. Mevcut görevlerden yarım bırakılmış yeni ürün işi yok; aşağıdaki koşullu/ertelenmiş işler korunur.
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
+
+## Medya akışları — kalan kabul
+
+- **Dal ve kanıt** `codex/media-flow-polish-20261106`, ürün `3c4abfa7cdbb05555c961f231809c57675417221`, [devir](docs/devir/2026-11-06-0610.md). Yerel yeniden deneme LG Electron turunda 9. saniyeden çalıştı.
+- **Kalan** İzole LG profilinde kısa podcast ve web video turunda ağ hatası oluşturup aynı kaynakta kurtarmayı ve kaynak değişince eski eylemin kaybolmasını doğrula. Erişim reddi ve taşınmış dosya eylemlerinin hedeflerini kontrollü kayıtla sınayıp dosya seçimi gerektiren son adımı kullanıcı kontrollü kabulde yap. Sahne paneli ve RSS geri dönüşünü dar pencerede kontrol et.
 
 ## İstenen iki canlı kabul — 2026-11-05 13:58
 
