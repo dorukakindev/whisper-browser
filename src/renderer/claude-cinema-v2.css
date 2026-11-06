@@ -183,3 +183,46 @@ html:is([data-cinema-motion=off],[data-cinema-motion=reduced]) :is(.cv2-home-pic
 .cn-discover-empty p { margin: 8px 0 20px; color: var(--cn-dim); }
 .cn-discover-empty-query { color: var(--cn-gold); overflow-wrap: anywhere; }
 .cn-discover-empty-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Let the controls wrap as groups before their labels have to break. */
+.cv2-discover .cn-discover-filters {
+  flex-wrap: wrap;
+}
+.cv2-discover .cn-discover-filters .mv-filter > summary {
+  white-space: nowrap;
+}
+.cv2-discover .cn-discover-filters .mv-search-submit {
+  flex: 0 0 36px;
+}
+.cv2-discover .mv-search-group:focus-within {
+  outline: 2px solid var(--cn-gold);
+  outline-offset: 2px;
+}
+@media (max-width: 1020px) {
+  .cv2-discover .cn-discover-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .cv2-discover .cn-discover-tabs {
+    flex: 1 0 100%;
+    flex-wrap: wrap;
+    margin-bottom: 0;
+  }
+  .cv2-discover .cn-discover-filters {
+    flex: 1 0 100%;
+    margin-inline-start: 0;
+  }
+  .cv2-discover .cn-discover-filters .mv-search-group {
+    flex: 1 1 220px;
+    width: auto;
+  }
+}
+@media (max-width: 600px) {
+  .cv2-discover .cn-discover-filters .mv-search-group {
+    flex-basis: 100%;
+  }
+  .cv2-discover .cn-discover-controls {
+    position: relative;
+  }
+}
