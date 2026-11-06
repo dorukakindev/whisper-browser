@@ -7,7 +7,12 @@
   const copy = (tr,en) => window.UiLocale?.get?.() === 'en' ? en : tr;
   const write = (node,value) => { if (node && node.textContent !== value) node.textContent = value; };
   const key = () => player.workspaceMode === 'browser' ? player.browserActiveTabId : null;
-  const isActive = () => !!key() && sessions.has(key()) && window.BrowserStudy.isActive() && !layer.classList.contains('hidden');
+  const media = () => browserTabState()?.mediaId || player.mediaKey;
+  const currentSession = () => {
+    const session = sessions.get(key());
+    return session?.media === media() ? session : null;
+  };
+  const isActive = () => !!key() && !!currentSession() && window.BrowserStudy.isActive() && !layer.classList.contains('hidden');
   let bridge, ui, toolsOpen = false;
   function getTranscriptTracks() {
     if (!isActive()) return [];
@@ -71,7 +76,7 @@
   function setMode(value) {
     if (!key()) return;
     closeBrowserToolbarMenus();
-    if (value) { window.BrowserStudy.open({ preservePodcast:true }); sessions.set(key(),true); }
+    if (value) { window.BrowserStudy.open({ preservePodcast:true }); sessions.set(key(),{media:media()}); }
     else sessions.delete(key());
     toolsOpen=false; refresh();
   }

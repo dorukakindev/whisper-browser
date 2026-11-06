@@ -8,7 +8,7 @@ window.UiLocale={get:()=> 'tr'};window.BrowserStudy={open:options=>{opened=true;
 window.PlayerWorkspaceModel=require('../src/renderer/player-workspace-model');window.PlayerUiKit={select:config=>{speedChange=config.onChange;const wrap=document.createElement('span');wrap.trigger=document.createElement('button');wrap.append(wrap.trigger);return wrap;}};
 let transformReads=0;
 const transformFor=secondary=>{transformReads++;return {scale:2,offsetSeconds:secondary?7:5};};
-const context=vm.createContext({window,document,player,queueMicrotask,MutationObserver:window.MutationObserver,subtitleVideoTransform:transformFor,
+const context=vm.createContext({window,document,player,queueMicrotask,MutationObserver:window.MutationObserver,subtitleVideoTransform:transformFor,browserTabState:()=>({mediaId:player.mediaKey}),
  closeBrowserToolbarMenus:()=>menuCloses++,browserSubtitleRoleCues:()=>({source:player.cues,translation:player.cues2}),subtitleVideoTime:(time,secondary,frozen)=>require('../src/browser-subtitle-sync').sourceToVideoTime(time,frozen||transformFor(secondary)),
  browserSubtitleSync:{hashText:text=>require('node:crypto').createHash('sha256').update(text).digest('hex')},currentBrowserYoutubeUrl:()=>'',
  browserCommand:async(type,value,tab)=>{commands.push({type,value,tab});return {ok:true};}});
@@ -22,6 +22,7 @@ const evidence=require('../src/assistant-source-context').freezePodcast(snap,tra
  assert.equal((await ui.execute(command)).ok,true);assert.equal(commands.at(-1).value,25.01);
  const oldRevision=snap.sourceTrack.revision;player.cues[0].text='Edited';assert.notEqual(ui.snapshot().sourceTrack.revision,oldRevision);assert.equal((await ui.execute(command)).code,'stale-track');
  const speed=document.querySelector('.browser-podcast-speed');speed.trigger.click();player.generation++;const before=commands.length;speedChange('1.5');assert.equal(commands.length,before,'old speed menu cannot change another generation');
+ player.mediaKey='browser:replacement';assert.equal(ui.isActive(),false);player.mediaKey='browser:one';assert.equal(ui.isActive(),true);
  player.browserActiveTabId='b';assert.equal(ui.isActive(),false);assert.equal((await ui.execute(command)).code,'stale-source');
  ui.setMode(true);player.browserPageUrl='https://open.spotify.com/episode/test';assert.equal(ui.snapshot().capabilities.ASR.support,'no');
  const previousCloses=menuCloses;ui.setMode(false);assert(menuCloses>previousCloses,'menu exit closes the originating menu too');assert.equal(ui.isActive(),false);assert.equal(document.getElementById('web'),video);dom.window.close();console.log('browser-podcast: existing owner/position/rate, mapped bilingual clocks, bounded assistant evidence, stale actions and Spotify boundary OK');

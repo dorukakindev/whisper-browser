@@ -12,7 +12,7 @@ let roles = { source:[], translation:[] }, chooseSecond;
 window.PlayerUiKit={select:config=>{chooseSecond=config.onChange;const wrap=document.createElement('div');wrap.trigger=document.createElement('button');wrap.append(wrap.trigger);return wrap;}};
 const context = vm.createContext({window,document,player,MutationObserver:window.MutationObserver,requestAnimationFrame:fn=>frames.push(fn),
  closeBrowserToolbarMenus:()=>calls.push('close-menu'),setViewMode:value=>{player.viewMode=value;},setPlayerSidebarCollapsed:value=>calls.push(['collapse',value]),
- setBrowserSideRailPref:value=>calls.push(['rail',value]),setSideTab:value=>calls.push(['tab',value]),setSubtitleMode:(value)=>calls.push(['display',value]),browserSubtitleRoleCues:()=>roles});
+ setBrowserSideRailPref:value=>calls.push(['rail',value]),setSideTab:value=>calls.push(['tab',value]),setSubtitleMode:(value)=>calls.push(['display',value]),browserSubtitleRoleCues:()=>roles,browserTabState:()=>({mediaId:player.mediaKey})});
 for (const id of ['browserTrackTranslate','browserTrackLoadPair','browserWhisperTranslate','browserLiveAsr']) document.getElementById(id).onclick=()=>calls.push(id);
 vm.runInContext(fs.readFileSync(require.resolve('../src/renderer/browser-study'),'utf8'),context);
 const study=window.BrowserStudy, button=id=>document.querySelector(`[data-study-action="${id}"]`);
@@ -33,7 +33,8 @@ document.getElementById('browserTrackTranslate').disabled=true;study.refresh();a
 const before=calls.length;player.browserActiveTabId='tab-b';player.mediaKey='browser:b';player.generation++;
 button('browserTrackLoadPair').click();assert.equal(calls.length,before,'old visible control cannot act in a different tab');study.refresh();assert.equal(study.isActive(),false);assert.equal(document.querySelector('.browser-study').hidden,true);
 study.open();study.close();assert.equal(study.isActive(),false);
-player.browserActiveTabId='tab-a';study.refresh();assert.equal(study.isActive(),true,'view choice follows its tab');
+player.browserActiveTabId='tab-a';study.refresh();assert.equal(study.isActive(),false,'same tab with different media stays closed');
+player.mediaKey='browser:a';study.refresh();assert.equal(study.isActive(),true,'view choice follows the same verified media');
 player.workspaceMode='player';study.refresh();assert.equal(layerHas('browser-study-mode'),false);assert.equal(study.isActive(),false);
 function layerHas(name){return document.getElementById('playerLayer').classList.contains(name);}
 assert.equal(document.querySelectorAll('video').length,1);assert.equal(player.generation,2);assert.equal(document.querySelector('.browser-study').hidden,true);
