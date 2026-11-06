@@ -1,3 +1,4 @@
+Güncel teslim: [Sahne zaman grupları ve ses değeri](docs/devir/2026-11-06-1034.md)
 Güncel teslim: [Sahne işlem ve not yüzeyleri](docs/devir/2026-11-06-1028.md)
 Güncel teslim: [Sahne arama durumları ve temizleme](docs/devir/2026-11-06-1020.md)
 Güncel teslim: [Sahne okuma hiyerarşisi ve yerleşim sonrası takip](docs/devir/2026-11-06-1012.md)

@@ -1,11 +1,11 @@
 "use strict";
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const {JSDOM}=require('jsdom');
-function mount(t,{untimed=false,cinema=false,audio=false,empty=false,study=false,actions=[],timingNotice='',save=false,processing=false}={}){
+function mount(t,{untimed=false,cinema=false,audio=false,empty=false,study=false,actions=[],sections=[],timingNotice='',save=false,processing=false}={}){
  const dom=new JSDOM('<div id="host"></div>',{url:'https://test.invalid',pretendToBeVisual:true,runScripts:'outside-only'}),w=dom.window;
  w.UiLocale={get:()=> 'tr'};w.matchMedia=()=>({matches:true});w.Element.prototype.scrollTo=function(value){this.scrollTop=value.top;};
  let time=2,revision="r1";const commands=[];const rows=untimed?[{id:'text',start:0,end:0,timed:false,src:'Yayıncı metni',trs:[],unc:[],words:null}]:[{id:'a',start:0,end:10,timed:true,src:'A source sentence',trs:['Birinci çeviri','İkinci çeviri'],unc:[],words:null},{id:'b',start:10,end:20,timed:true,src:'The next sentence',trs:[],unc:[],words:null}];
- const adapter={processing:processing?()=>({duration:30}):null,caps:{loop:true,cinema,study:true,save},identity:()=> 'same-source',actions:()=>actions,info:()=>({audio,title:'Bölüm',langs:{src:'en',tr:'tr'},chapters:[{t:0,label:'Giriş'},{t:10,label:'İkinci bölüm'}],queue:[{index:1,title:'Sıradaki gerçek kayıt'}]}),state:()=>({time,duration:30,paused:true,rate:1,volume:.42,rows:empty?[]:rows,rev:revision,untimed,timingNotice,canSeek:true}),cmd:(...args)=>{commands.push(args);return Promise.resolve(args[0]==='wordInfo'?{ok:true,word:args[1].word,source:rows[args[1].row].src,translations:rows[args[1].row].trs,canSave:true,saved:false}:{ok:args[0]!=='loop',code:'busy'});},panel:()=>({sections:[],job:{state:'idle'}})};
+ const adapter={processing:processing?()=>({duration:30}):null,caps:{loop:true,cinema,study:true,save},identity:()=> 'same-source',actions:()=>actions,info:()=>({audio,title:'Bölüm',langs:{src:'en',tr:'tr'},chapters:[{t:0,label:'Giriş'},{t:10,label:'İkinci bölüm'}],queue:[{index:1,title:'Sıradaki gerçek kayıt'}]}),state:()=>({time,duration:30,paused:true,rate:1,volume:.42,rows:empty?[]:rows,rev:revision,untimed,timingNotice,canSeek:true}),cmd:(...args)=>{commands.push(args);return Promise.resolve(args[0]==='wordInfo'?{ok:true,word:args[1].word,source:rows[args[1].row].src,translations:rows[args[1].row].trs,canSave:true,saved:false}:{ok:args[0]!=='loop',code:'busy'});},panel:()=>({sections,job:{state:'idle'}})};
  w.eval(fs.readFileSync(require.resolve('../src/renderer/browser-study-view.js'),'utf8'));
  w.eval(fs.readFileSync(require.resolve('../src/renderer/podcast-task-scope.js'),'utf8'));
  w.eval(fs.readFileSync(require.resolve('../src/renderer/sahne.js'),'utf8'));
@@ -230,4 +230,12 @@ test('long note excerpt stays complete in a keyboard-readable region without tog
  assert(f.sh.q('.sh-note-card header [data-a=noteClose]'));assert(f.sh.q('.sh-note-card footer [data-a=noteSave]'));
  region.focus();const before=f.commands.length;region.dispatchEvent(new f.w.KeyboardEvent('keydown',{key:' ',bubbles:true,cancelable:true}));assert.equal(f.commands.length,before);
  f.sh.q('[data-a=noteClose]').click();assert.equal(f.sh.s.note,null);assert.equal(f.w.document.activeElement,f.sh.lines[0].querySelector('[data-act=save]'));
+});
+
+
+test('task volume shows its actual value and timing groups retain separate callbacks',t=>{
+ const changes=[],offsets=[],f=mount(t,{study:true,sections:[{title:'Timing',items:[{type:'offset',label:'Original',text:'1 s early',run:v=>offsets.push(['source',v])},{type:'offset',label:'Translation',text:'2 s late',run:v=>offsets.push(['translation',v])},{type:'range',label:'Volume',value:.49,onChange:v=>changes.push(v)}]}]});
+ f.sh.q('[data-a=panel]').click();const groups=f.sh.root.querySelectorAll('.sh-offset');assert.equal(groups[0].getAttribute('aria-label'),'Original');
+ groups[1].querySelectorAll('button')[2].click();assert.deepEqual(offsets,[['translation',null]]);
+ const input=f.sh.q('.sh-prange input');assert.equal(f.sh.q('.sh-prange output').textContent,'49%');input.value='.73';input.dispatchEvent(new f.w.Event('input'));assert.equal(f.sh.q('.sh-prange output').textContent,'73%');assert.deepEqual(changes,[.73]);
 });
