@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Ana sayfa uzun başlıkları kesilmeden okunur. Keşfet bölüm başlıkları ve kişisel öneri şeridi katalogla aynı içerik eksenine hizalandı; eksik afişler mevcut baş harfli yedeği kullanır. [Devir](docs/devir/2026-11-06-1046.md).
+
 - Sahne zaman ayarında özgün ve çeviri izleri ayrı gruplarda gösterilir; mevcut kayma ve sıfırlama ilişkisi belirginleştirildi. İşlemler ses kaydırıcısının gerçek yüzdesi görünür. [Devir](docs/devir/2026-11-06-1034.md).
 
 - Sahne not penceresinde uzun kaynak alıntısı ayrı okunur; not, kaydet ve kapat eylemleri erişilebilir kalır. İşlemler panelinin kaydırılabilir bölümleri ve sabit başlığı mevcut tasarıma uyarlandı. [Devir](docs/devir/2026-11-06-1028.md).

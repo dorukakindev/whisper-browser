@@ -8,6 +8,8 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 
 ## Sahne adres satırı — görsel kabul
 
+- 10:46: ana sayfa uzun başlık ve Keşfet ortak hiza/afiş yedeği kontrollü gerçek bileşen çiziminde incelendi; 10 mevcut kontrol geçti. Native LG turunda gerçek uzun başlık ve Keşfet dönüşü ayrıca kontrol edilebilir. [Devir](docs/devir/2026-11-06-1046.md).
+
 - 10:34: ayrı zaman grupları ve ses yüzdesi kontrollü çizimde incelendi; 54 kontrol geçti. Gerçek iki izde sıfırlama/bağımsız kayma ve ses görünümü önceki kısa LG kabulünde kontrol edilir. [Devir](docs/devir/2026-11-06-1034.md).
 
 - 10:28: uzun alıntıda not başlığının kaybolması düzeltildi; İşlemler başlığı kaydırmada sabit. 53 kontrol ve kontrollü not/panel çizimi geçti. Native LG turuna uzun alıntı, kapat/geri odak ve panel kaydırma adımları eklenir. [Devir](docs/devir/2026-11-06-1028.md).
