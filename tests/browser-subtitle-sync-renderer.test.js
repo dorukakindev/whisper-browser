@@ -24,19 +24,20 @@ const $ = id => {
 };
 const cues = [{ start: 10, end: 12, text: 'İlk' }, { start: 100, end: 102, text: 'İkinci' }];
 const tab = { subtitleSyncRecords: [] };
+let mediaId = 'video';
 let overlays = 0, renders = 0;
 const ctx = { $, document: { activeElement: null, createElement: () => makeNode() }, browserSubtitleSync: sync,
   player: { cues, cues2: cues, browserActiveTabId: 'a', activeIdx: 0, activeIdx2: 0, browserTime: 12, browserPaused: true },
   friendlySystemError: (message) => String(message || ''),
   browserLoadedTrack: () => ({ id: 'source', label: 'Kaynak', language: 'tr' }),
   browserSyncTrack: () => ({ id: 'source', label: 'Kaynak', language: 'tr' }),
-  browserTrackSourceIdentity: () => ({ mediaId: 'video', sourceTrackId: 'source', sourceHash: 'hash' }),
-  browserSavedTransform: () => ({ scale: 1, offsetSeconds: 0 }), browserSavedSyncRecord: () => null,
+  browserTrackSourceIdentity: () => ({ mediaId, sourceTrackId: 'source', sourceHash: 'hash' }),
   browserTabState: () => tab, saveActiveBrowserTabWorkspace() {},
   scheduleBrowserOverlaySync: () => overlays++, renderBrowserCueAt: () => renders++,
   browserCloseIcon: () => makeNode(),
 };
 vm.createContext(ctx);
+vm.runInContext(source.slice(source.indexOf('function browserTimingContext('), source.indexOf('function subtitleSourceTime(')), ctx);
 vm.runInContext(source.slice(source.indexOf('function browserSyncSelection('), source.indexOf('function bestAvailableSubtitleMode(')), ctx);
 vm.runInContext(source.slice(source.indexOf("if ($('browserSyncChannel'))"), source.indexOf('function setSettingsDrawer(')), ctx);
 
@@ -113,5 +114,17 @@ ctx.player.activeIdx = 1; ctx.player.browserTime = 104;
 ctx.addBrowserSyncPoint();
 assert.equal(ctx.player.browserSyncPreview.points.length, 2);
 assert.ok(Math.abs(ctx.player.browserSyncPreview.points[1].videoTime - 104) < 1e-9);
+
+ctx.saveBrowserSync();
+const original = ctx.browserTransformForChannel(false).offsetSeconds;
+ctx.adjustStageBrowserOffset(true, .1);
+assert.equal(ctx.browserTransformForChannel(true).offsetSeconds, .1);
+assert.equal(ctx.browserTransformForChannel(false).offsetSeconds, original, 'Shared lineage does not share offsets');
+ctx.adjustStageBrowserOffset(true, null);
+assert.equal(ctx.browserTransformForChannel(true).offsetSeconds, 0);
+assert.equal(ctx.browserTransformForChannel(false).offsetSeconds, original, 'Reset affects only the selected timing track');
+mediaId = 'another-video';
+assert.equal(ctx.browserTransformForChannel(false).offsetSeconds, 0);
+assert.equal(ctx.browserTransformForChannel(true).offsetSeconds, 0);
 
 console.log('Senkron UI: atomik eşleşme, değişiklik durumu, boş giriş, hızlı hizalama ve iz değişimi geçti.');

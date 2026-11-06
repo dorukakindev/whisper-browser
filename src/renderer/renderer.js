@@ -5290,11 +5290,13 @@ async function locateMissingSubtitle(missingPath, secondary, role) {
 // izleme konumunu/notlari yetim birakirdi. Kullanici yeni konumu secince main
 // tarafi kayit+iz+notlari yeni kimlige tasir; renderer da kendi mediaKey'li
 // depolarini (kayitli cue/kelime, izleme konumu) tasir.
-async function offerMediaRelink() {
+async function offerMediaRelink({ retry = false } = {}) {
   const staleKey = player.mediaKey;
   const stalePath = player.localPath;
+  const generation = currentGeneration(), intent = player.openIntent;
+  const stillCurrent = () => player.mediaKey === staleKey && !staleGeneration(generation) && player.openIntent === intent;
   if (!staleKey || !staleKey.startsWith('file:') || !stalePath) return;
-  if (player.mediaRelinkOffered === staleKey || player.mediaRelinkInFlight) return;
+  if ((!retry && player.mediaRelinkOffered === staleKey) || player.mediaRelinkInFlight) return;
   player.mediaRelinkOffered = staleKey;
   player.mediaRelinkInFlight = true;
   try {
@@ -5305,6 +5307,7 @@ async function offerMediaRelink() {
     let replacement = null;
     const suggested = await window.api.suggestMediaRelink(staleKey)
       .catch(() => null);
+    if (!stillCurrent()) return;
     const candidates = suggested?.ok && Array.isArray(suggested.candidates)
       ? suggested.candidates : [];
     if (candidates.length) {
@@ -5322,7 +5325,7 @@ async function offerMediaRelink() {
           { value: '__browse__', label: 'Dosya seçiciyle göster…' },
         ],
       });
-      if (!picked || player.mediaKey !== staleKey) return;
+      if (!picked || !stillCurrent()) return;
       if (picked.choice && picked.choice !== '__browse__') replacement = picked.choice;
     }
     if (!replacement) {
@@ -5331,10 +5334,10 @@ async function offerMediaRelink() {
         description: `${stalePath}\n\nDosya taşınmış veya silinmiş olabilir. Yeni konumu seçerseniz izleme konumu, notlar ve altyazı ilişkileri yeni kayda taşınır.`,
         confirmLabel: 'Yeni konumu seç', intent: 'primary',
       });
-      if (confirmed !== true || player.mediaKey !== staleKey) return;
+      if (confirmed !== true || !stillCurrent()) return;
       replacement = await window.api.selectFile('media').catch(() => null);
     }
-    if (!replacement || player.mediaKey !== staleKey) return;
+    if (!replacement || !stillCurrent()) return;
     const result = await window.api.relinkWatchItem(staleKey, replacement)
       .catch((error) => ({ ok: false, error: error.message }));
     if (!result?.ok) {
@@ -5345,7 +5348,7 @@ async function offerMediaRelink() {
     const position = player.positions[result.key]?.t || 0;
     logLine(`Taşınan medya bulundu ve kütüphane kaydı güncellendi: ${result.path}`, 'success');
     refreshWatchLibrary().catch(() => {});
-    await openLocalMedia(result.path, position);
+    if (stillCurrent()) await openLocalMedia(result.path, position);
   } finally {
     player.mediaRelinkInFlight = false;
   }
@@ -8070,8 +8073,9 @@ function setBrowserSignal(text, detected = false, options = {}) {
   const action = $('browserSignalTranslateAction');
   if (action) {
     const actionName = options.action || '';
-    action.classList.toggle('hidden', !['translate', 'live-asr', 'sponsor-skip', 'sponsor-undo', 'sponsor-watch'].includes(actionName));
-    action.textContent = actionName === 'live-asr' ? 'Canlı Whisper'
+    action.classList.toggle('hidden', !['translate', 'live-asr', 'sponsor-skip', 'sponsor-undo', 'sponsor-watch', 'playback-recovery'].includes(actionName));
+    action.textContent = actionName === 'playback-recovery' ? activePlaybackRecovery()?.label || ''
+      : actionName === 'live-asr' ? 'Canlı Whisper'
       : actionName === 'sponsor-skip' ? 'Atla'
         : actionName === 'sponsor-undo' ? 'Geri al'
           : actionName === 'sponsor-watch' ? 'Bu bölümü izle' : 'Şimdi çevir';
@@ -12080,11 +12084,15 @@ function browserTrackSourceIdentity(track, cues = []) {
   };
 }
 
-function browserSavedTransform(track, cues = []) {
-  const tab = browserTabState();
+function browserTimingContext(track, cues, secondary) {
   const context = browserTrackSourceIdentity(track, cues);
-  if (!tab || !context) return { scale: 1, offsetSeconds: 0 };
-  const record = (tab.subtitleSyncRecords || []).find((item) => browserSubtitleSync.syncRecordMatches(item, context));
+  return context && { ...context, timingTrackId: (secondary ? 'secondary:' : 'primary:') + track.id };
+}
+
+function browserSavedTransform(track, cues = [], secondary = track === browserLoadedTrack(true)) {
+  const tab = browserTabState();
+  if (!tab || !track) return { scale: 1, offsetSeconds: 0 };
+  const record = browserSavedSyncRecord(track, cues, secondary);
   // Surum 2 oturumlarindaki tek offset, ilk kayda kadar davranis kaybi
   // olmasin diye geri uyumluluk tabani olarak kullanilir.
   if (!record) return { scale: 1, offsetSeconds: Number(tab.offset) || 0 };
@@ -12092,26 +12100,27 @@ function browserSavedTransform(track, cues = []) {
   catch (_) { return { scale: 1, offsetSeconds: 0 }; }
 }
 
-function browserSavedSyncRecord(track, cues = []) {
+function browserSavedSyncRecord(track, cues, secondary) {
   const tab = browserTabState();
-  const context = browserTrackSourceIdentity(track, cues);
-  return tab && context
-    ? (tab.subtitleSyncRecords || []).find((item) => browserSubtitleSync.syncRecordMatches(item, context)) || null
-    : null;
+  const context = browserTimingContext(track, cues, secondary);
+  if (!tab || !context) return null;
+  const records = tab.subtitleSyncRecords || [];
+  return records.find(item => browserSubtitleSync.syncRecordMatches(item, context))
+    || records.find(item => browserSubtitleSync.syncRecordMatches(item, { ...context, timingTrackId: '' })) || null;
 }
 
 function browserTransformForChannel(secondary = false) {
   const track = browserSyncTrack(secondary);
   const cues = secondary ? player.cues2 : player.cues;
   if (!track) return { scale: 1, offsetSeconds: 0 };
-  const context = browserTrackSourceIdentity(track, cues);
+  const context = browserTimingContext(track, cues, secondary);
   const preview = player.browserSyncPreview;
   if (preview && context && preview.tabId === player.browserActiveTabId
       && preview.mediaId === context.mediaId && preview.sourceTrackId === context.sourceTrackId
-      && preview.sourceHash === context.sourceHash && preview.channel === (secondary ? 'secondary' : 'primary')) {
+      && preview.sourceHash === context.sourceHash && preview.timingTrackId === context.timingTrackId) {
     return preview.transform;
   }
-  return browserSavedTransform(track, cues);
+  return browserSavedTransform(track, cues, secondary);
 }
 
 function subtitleSourceTime(videoTime, secondary = false) {
@@ -12146,7 +12155,7 @@ function browserSyncSelection() {
   const secondary = $('browserSyncChannel')?.value === 'secondary';
   const track = browserSyncTrack(secondary);
   const cues = secondary ? player.cues2 : player.cues;
-  const context = browserTrackSourceIdentity(track, cues);
+  const context = browserTimingContext(track, cues, secondary);
   return { secondary, channel: secondary ? 'secondary' : 'primary', track, cues, context };
 }
 
@@ -12156,9 +12165,9 @@ function browserSyncEnsurePreview() {
   const current = player.browserSyncPreview;
   if (current && current.tabId === player.browserActiveTabId && current.channel === selected.channel
       && current.mediaId === selected.context.mediaId && current.sourceTrackId === selected.context.sourceTrackId
-      && current.sourceHash === selected.context.sourceHash) return current;
-  const transform = browserSavedTransform(selected.track, selected.cues);
-  const savedRecord = browserSavedSyncRecord(selected.track, selected.cues);
+      && current.sourceHash === selected.context.sourceHash && current.timingTrackId === selected.context.timingTrackId) return current;
+  const transform = browserSavedTransform(selected.track, selected.cues, selected.secondary);
+  const savedRecord = browserSavedSyncRecord(selected.track, selected.cues, selected.secondary);
   const savedPoints = Array.isArray(savedRecord?.points) ? savedRecord.points.map((point) => ({ ...point })) : [];
   player.browserSyncPreview = {
     tabId: player.browserActiveTabId,
@@ -12360,18 +12369,41 @@ function alignBrowserSyncCurrentCue() {
   applyBrowserSyncPreview({ ...preview.transform, offsetSeconds: videoTime - sourceTime * preview.transform.scale }, []);
 }
 
+function storeBrowserSync(tab, context, transform, points) {
+  const record = browserSubtitleSync.createSyncRecord({ ...context, ...transform, points, updatedAt: Date.now() });
+  tab.subtitleSyncRecords = [record, ...(tab.subtitleSyncRecords || []).filter(item =>
+    !browserSubtitleSync.syncRecordMatches(item, context))].slice(0, 24);
+}
+
+function adjustStageBrowserOffset(secondary, delta) {
+  const tab = browserTabState();
+  const track = browserSyncTrack(secondary);
+  const cues = secondary ? player.cues2 : player.cues;
+  const context = browserTimingContext(track, cues, secondary);
+  if (!tab || !context) return;
+  const previous = browserTransformForChannel(secondary);
+  const transform = { ...previous, offsetSeconds: delta === null ? 0 : Math.max(-60, Math.min(60,
+    Math.round((previous.offsetSeconds + delta) * 1000) / 1000)) };
+  const preview = player.browserSyncPreview;
+  const matchingPreview = preview?.timingTrackId === context.timingTrackId && preview.tabId === player.browserActiveTabId
+      && preview.mediaId === context.mediaId && preview.sourceTrackId === context.sourceTrackId
+      && preview.sourceHash === context.sourceHash;
+  const points = matchingPreview ? preview.points : browserSavedSyncRecord(track, cues, secondary)?.points;
+  storeBrowserSync(tab, context, transform, points || []);
+  if (matchingPreview) player.browserSyncPreview = null;
+  saveActiveBrowserTabWorkspace();
+  refreshBrowserSyncPanel();
+  scheduleBrowserOverlaySync();
+  renderBrowserCueAt(player.browserTime, player.browserTime, player.browserPaused);
+}
+
 function saveBrowserSync() {
   const selected = browserSyncSelection();
   const preview = browserSyncEnsurePreview();
   const tab = browserTabState();
   if (!selected.context || !preview || !tab) return;
   try {
-    const record = browserSubtitleSync.createSyncRecord({ ...selected.context, ...preview.transform,
-      points: preview.points, updatedAt: Date.now() });
-    tab.subtitleSyncRecords = (tab.subtitleSyncRecords || []).filter((item) =>
-      !browserSubtitleSync.syncRecordMatches(item, selected.context));
-    tab.subtitleSyncRecords.unshift(record);
-    tab.subtitleSyncRecords = tab.subtitleSyncRecords.slice(0, 24);
+    storeBrowserSync(tab, selected.context, preview.transform, preview.points);
     preview.baseTransform = { ...preview.transform };
     preview.basePoints = preview.points.map((point) => ({ ...point }));
     preview.dirty = false;
@@ -12384,10 +12416,7 @@ function resetBrowserSync() {
   const selected = browserSyncSelection();
   const tab = browserTabState();
   if (!selected.context || !tab) return;
-  tab.subtitleSyncRecords = (tab.subtitleSyncRecords || []).filter((item) => !(item.mediaId === selected.context.mediaId
-    && item.sourceTrackId === selected.context.sourceTrackId));
-  tab.offset = 0;
-  player.offset = 0;
+  storeBrowserSync(tab, selected.context, { scale: 1, offsetSeconds: 0 }, []);
   player.browserSyncPreview = null;
   saveActiveBrowserTabWorkspace();
   refreshBrowserSyncPanel('Senkron düzeltmesi kaldırıldı; orijinal zamanlar kullanılıyor.');
@@ -14311,6 +14340,10 @@ if ($('browserSponsorInfo')) $('browserSponsorInfo').addEventListener('click', (
 if ($('browserErrorRetry')) $('browserErrorRetry').addEventListener('click', () => {
   const tab = browserTabState();
   const url = tab?.errorUrl || player.browserPageUrl;
+  if (['401', '403'].includes(String(tab?.errorCode)) && /^https?:\/\//i.test(url)) {
+    void window.api.openExternal(url).catch(() => {});
+    return;
+  }
   if (url && $('browserAddress')) {
     $('browserAddress').value = url;
     if (typeof updateBrowserAddressMirror === 'function') updateBrowserAddressMirror();
@@ -14389,7 +14422,8 @@ if ($('browserTrackLoadPair')) $('browserTrackLoadPair').addEventListener('click
 if ($('browserTrackTranslate')) $('browserTrackTranslate').addEventListener('click', () => useBrowserTrack(true));
 if ($('browserSignalTranslateAction')) $('browserSignalTranslateAction').addEventListener('click', () => {
   const action = player.browserSignalState?.action;
-  if (player.browserSignalState?.action === 'live-asr') toggleBrowserLiveAsr();
+  if (action === 'playback-recovery') void runPlaybackRecovery();
+  else if (action === 'live-asr') toggleBrowserLiveAsr();
   else if (action === 'sponsor-skip' && player.browserSponsorPendingAction) seekBrowserSponsorSegment(player.browserSponsorPendingAction, false);
   else if (action === 'sponsor-undo' && player.browserSponsorPendingAction) seekBrowserSponsorSegment(player.browserSponsorPendingAction, true);
   else if (action === 'sponsor-watch' && player.browserSponsorPendingAction) exemptBrowserSponsorSegment(player.browserSponsorPendingAction);
@@ -15077,6 +15111,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       }
       const pendingSeek = player.pendingLibrarySeek;
       if (pendingSeek && pendingSeek.key === player.mediaKey
+          && (!pendingSeek.tabId || pendingSeek.tabId === player.browserActiveTabId)
           && pendingSeek.generation === currentGeneration()) {
         const seekTo = Math.max(0, Math.min(player.browserDuration, Number(pendingSeek.seconds) || 0));
         player.pendingLibrarySeek = null;
@@ -15166,7 +15201,9 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     if (event.diagnostic) {
       const fallbackLabel = window.UiLocale?.t('Oynatma tanısı') || 'Oynatma tanısı';
       const message = `${diagnosticField(event.diagnostic, 'label') || fallbackLabel}: ${diagnosticField(event.diagnostic, 'message')}`;
+      const action = browserPlaybackRecovery(event);
       setBrowserSignal(message, false, {
+        action,
         priority: event.diagnostic.confidence === 'yüksek' ? 90 : event.diagnostic.confidence === 'orta' ? 75 : 45,
         holdMs: event.diagnostic.confidence === 'düşük' ? 4500 : 6500,
       });
@@ -15403,6 +15440,96 @@ function isCueSaved(index) {
 
 // Başlık çubuğu bilgisi: kaynak + süre + altyazı rozetleri. metaBase ham
 // Türkçe saklanır ve yalnız burada çevrilir — birleşik dize sözlükte aranmaz.
+function activePlaybackRecovery() {
+  const recovery = player.playbackRecovery;
+  return recovery?.current() ? recovery : null;
+}
+
+function clearPlayerPlaybackRecovery() {
+  player.playbackRecovery = null;
+  const button = $('playerPlaybackRecovery');
+  button?.classList.add('hidden');
+  if (player.browserSignalState?.action === 'playback-recovery') $('browserSignalTranslateAction')?.classList.add('hidden');
+}
+
+function browserPlaybackRecovery(event) {
+  const { code, resourceKind } = event.diagnostic;
+  const denied = code === 'license-access-denied' || ['media', 'playback-api'].includes(resourceKind)
+    && ['authentication-required', 'http-access-denied'].includes(code);
+  if (!denied && !['media-network-error', 'media-decode-error', 'media-source-unsupported'].includes(code)) return '';
+  const tabId = player.browserActiveTabId, url = player.browserPageUrl, key = player.mediaKey;
+  const generation = currentGeneration();
+  if (!key || !/^https?:\/\//i.test(url) || event.mediaId !== browserTabState()?.mediaId) return '';
+  const seconds = Number(player.browserTime) || player.positions[playerPositionKey()]?.t || 0;
+  const current = () => player.workspaceMode === 'browser' && tabId === player.browserActiveTabId
+    && url === player.browserPageUrl && key === player.mediaKey && !staleGeneration(generation);
+  player.playbackRecovery = {
+    current,
+    message: interfaceChoice('Video oynatılamadı.', 'Video could not play.'),
+    label: denied ? interfaceChoice('Siteyi tarayıcıda aç', 'Open site in browser') : interfaceChoice('Oynatmayı yeniden dene', 'Retry playback'),
+    run: async () => {
+      if (denied) return window.api.openExternal(url);
+      if (browserChromeCommandBlocked('reload')) return runBrowserChromeCommand('reload');
+      const seek = { key, tabId, generation, seconds };
+      player.pendingLibrarySeek = seek;
+      const result = await runBrowserChromeCommand('reload');
+      if (!result?.ok && player.pendingLibrarySeek === seek) player.pendingLibrarySeek = null;
+    }
+  };
+  return 'playback-recovery';
+}
+
+async function runPlaybackRecovery() {
+  const recovery = activePlaybackRecovery();
+  if (!recovery || recovery.busy) return;
+  recovery.busy = true;
+  try { await recovery.run(); }
+  catch (_) {
+    if (activePlaybackRecovery() === recovery) osd(interfaceChoice('Oynatma yeniden başlatılamadı.', 'Playback could not be restarted.'), 4000);
+  } finally { recovery.busy = false; }
+}
+
+async function showLocalPlaybackRecovery(video, { code, manifest, position } = {}) {
+  const key = player.mediaKey, generation = currentGeneration(), intent = player.openIntent;
+  const source = video.src, file = player.localPath;
+  if (!key || (!source && !manifest)) return;
+  const current = () => player.workspaceMode === 'player' && player.mediaKey === key
+    && !staleGeneration(generation) && player.openIntent === intent && (manifest || video.src === source);
+  const pending = player.pendingLibrarySeek;
+  const seconds = position || video.currentTime || (pending?.key === key && pending.generation === generation ? pending.seconds : 0)
+    || player.positions[playerPositionKey()]?.t || 0;
+  const result = file && key.startsWith('file:') ? await window.api.mediaPlaybackAvailability(key).catch(() => 'unknown') : 'unknown';
+  if (!current() || (!manifest && !video.error)) return;
+  let label = interfaceChoice('Oynatmayı yeniden dene', 'Retry playback');
+  let run = () => {
+    player.pendingLibrarySeek = { key, generation, seconds };
+    if (manifest) {
+      if (!setPlayerHls(manifest, $('playerTitle')?.textContent, key, player.ytInfo, true)) throw Error('HLS unavailable');
+    } else video.load();
+    return video.play();
+  };
+  if (result === 'missing') {
+    label = interfaceChoice('Dosyanın yeni konumunu bul', 'Locate moved file');
+    run = () => offerMediaRelink({ retry: true });
+  } else if (result === 'denied') {
+    label = interfaceChoice('Yerel dosyayı aç', 'Open local file');
+    run = () => $('playerPickVideo')?.click();
+  } else if (result === 'available' && [MediaError.MEDIA_ERR_DECODE, MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED].includes(code)
+      && player.compatibilityAttempt !== generation) {
+    label = interfaceChoice('Uyumlu oynatma kopyası hazırla', 'Prepare compatible playback copy');
+    run = () => offerCompatibleMedia(seconds);
+  }
+  const message = interfaceChoice('Medya oynatılamadı.', 'Media could not play.');
+  player.playbackRecovery = { current, message, label, run };
+  const button = $('playerPlaybackRecovery');
+  if (button) {
+    button.textContent = label;
+    button.title = message;
+    button.onclick = runPlaybackRecovery;
+    button.classList.remove('hidden');
+  }
+}
+
 function updatePlayerMeta() {
   const metaEl = $('playerMeta');
   if (!metaEl) return;
@@ -20726,7 +20853,9 @@ function showBrowserErrorSurface(error) {
     : (crashed ? 'Sekme çöktü' : (httpEmpty ? 'Bu sayfa çalışmıyor' : 'Sayfa açılamadı'));
   if ($('browserErrorMessage')) $('browserErrorMessage').textContent = browserErrorText(error);
   if ($('browserErrorCode')) $('browserErrorCode').textContent = error.code ? `${window.UiLocale?.t('Hata') || 'Hata'}: ${error.code}` : '';
-  if ($('browserErrorRetry')) $('browserErrorRetry').textContent = crashed ? (window.UiLocale?.t('Sekmeyi yeniden yükle') || 'Sekmeyi yeniden yükle') : (window.UiLocale?.t('Tekrar dene') || 'Tekrar dene');
+  if ($('browserErrorRetry')) $('browserErrorRetry').textContent = ['401', '403'].includes(String(error.code))
+    ? interfaceChoice('Siteyi tarayıcıda aç', 'Open site in browser')
+    : crashed ? (window.UiLocale?.t('Sekmeyi yeniden yükle') || 'Sekmeyi yeniden yükle') : (window.UiLocale?.t('Tekrar dene') || 'Tekrar dene');
   // https açılamadıysa (sertifika hatası DEĞİL) açık onayla http denemesi.
   const fallback = !secure && !crashed
     ? globalThis.BrowserAddressModel?.httpFallbackUrl(error.url || browserTabState()?.errorUrl, error.code) : '';
@@ -21803,6 +21932,7 @@ function setSubtitleModeMenuOpen(open) {
 }
 
 function setMediaKey(key) {
+  clearPlayerPlaybackRecovery();
   if (key !== player.mediaKey) window.BrowserDubAudioUI?.stop();
   // Devam eden sürüklemeyi eski medya anahtarı hâlâ geçerliyken tamamla;
   // kayıtlı cümle/kelime göçü yeni videonun deposuna yazılmamalı.
@@ -22326,8 +22456,9 @@ function setPlayerHls(manifestUrl, title, key, meta, preserveMediaState = false)
         }
       }
     }
-    logLine(`Yayın hatası (${data.type}) — indirerek izlemeyi deneyebilirsin.`, 'error');
+    logLine(`Yayın hatası (${data.type}).`, 'error');
     destroyHls();
+    void showLocalPlaybackRecovery(video, { manifest: manifestUrl, position: at });
   });
   hls.loadSource(manifestUrl);
   hls.attachMedia(video);
@@ -22541,6 +22672,16 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     if (tab) { tab.subtitleSelectionRestored = true; tab.subtitleSelectionExplicit = true; }
   }
   if (!path) {
+    if (player.workspaceMode === 'player') {
+      if (secondary) player.offset2 = 0;
+      else {
+        player.offset = 0;
+        if ($('subOffsetVal')) $('subOffsetVal').textContent = '0.0';
+        $('applyOffsetToFile')?.classList.add('hidden');
+      }
+      const offsetInput = $(secondary ? 'sub2Offset' : 'subOffset');
+      if (offsetInput) offsetInput.value = '0';
+    }
     // Altyazi kapatilinca LISTE de temizlenmeli. Eskiden yalnizca overlay
     // siliniyordu; sagda 29 kart oldugu gibi kaliyor, tiklaninca hicbir sey
     // olmuyordu (hayalet liste).
@@ -27277,6 +27418,9 @@ if ($('playerVideo')) {
     renderAbMarkers();
     syncPlayerMediaSession();
   });
+  video.addEventListener('playing', () => {
+    if (player.workspaceMode === 'player') clearPlayerPlaybackRecovery();
+  });
   video.addEventListener('play', () => {
     if (typeof cancelStUpNextCountdown === 'function') cancelStUpNextCountdown();
     showControls();
@@ -27313,6 +27457,7 @@ if ($('playerVideo')) {
   video.addEventListener('error', () => {
     window.MediaShelfUI?.podcastQueueError?.();
     const code = video.error?.code;
+    if (!code || player.workspaceMode !== 'player') return;
     const messages = {
       [MediaError.MEDIA_ERR_ABORTED]: 'Video yüklemesi iptal edildi.',
       [MediaError.MEDIA_ERR_NETWORK]: 'Video ağ veya dosya okuma hatası nedeniyle açılamadı.',
@@ -27320,9 +27465,7 @@ if ($('playerVideo')) {
       [MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED]: 'Video biçimi veya kaynak adresi desteklenmiyor.',
     };
     logLine(messages[code] || 'Video bilinmeyen bir medya hatası nedeniyle açılamadı.', 'error');
-    // Tasinmis/silinmis yerel dosya: kutuphane kaydini yeni konuma bagla.
-    if (player.localPath && [MediaError.MEDIA_ERR_DECODE,MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED].includes(code)) offerCompatibleMedia();
-    else if (player.localPath && code !== MediaError.MEDIA_ERR_ABORTED) offerMediaRelink();
+    if (!player.hls && code !== MediaError.MEDIA_ERR_ABORTED) void showLocalPlaybackRecovery(video, { code });
   });
 
   $('playPause').addEventListener('click', () => {
@@ -33642,11 +33785,11 @@ document.addEventListener('ui-locale-change',localizeProduct609);localizeProduct
 function timingLockLabel(){const b=$('timelineTimingUnlock');if(b)b.textContent=interfaceChoice(b.dataset.tr,b.dataset.en);}
 document.addEventListener('ui-locale-change',timingLockLabel);timingLockLabel();
 
-function offerCompatibleMedia(){
+function offerCompatibleMedia(resumeSeconds){
  const file=player.localPath,key=player.mediaKey,generation=currentGeneration(),video=$('playerVideo');if(!file||player.compatibilityAttempt===generation||document.getElementById('compatibleMediaDialog'))return;
  const dialog=document.createElement('dialog');dialog.id='compatibleMediaDialog';dialog.className='timing-review';const title=document.createElement('h2');title.textContent=interfaceChoice('Yerel dosya oynatılamadı','Local file could not play');const hint=document.createElement('p');hint.textContent=interfaceChoice('H.264 videoyu koruyup ilk ses izini AAC’ye dönüştürerek MP4 hazırla. Özgün dosya değişmez. Farklı video codec’i desteklenmiyorsa işlem açıklamayla durur. Önbellek sınırı 4 GB.','Prepare MP4 by copying H.264 video and converting its first audio track to AAC. The original stays unchanged. Unsupported video codecs stop with an explanation. Cache limit: 4 GB.');const status=document.createElement('p');status.setAttribute('role','status');const footer=document.createElement('footer'),close=document.createElement('button'),prepare=document.createElement('button');close.className=prepare.className='tool-button';close.textContent=interfaceChoice('Kapat','Close');prepare.textContent=interfaceChoice('Uyumlu oynatma kopyası hazırla','Prepare compatible playback copy');let busy=false;
  close.onclick=()=>{if(busy){void window.api.cancelCompatibleMedia();status.textContent=interfaceChoice('İptal bekleniyor…','Cancelling…');}else dialog.close();};dialog.addEventListener('cancel',event=>{if(busy){event.preventDefault();void window.api.cancelCompatibleMedia();}});
- prepare.onclick=async()=>{busy=true;prepare.disabled=true;close.textContent=interfaceChoice('İptal','Cancel');status.textContent=interfaceChoice('Dosya doğrulanıyor ve hazırlanıyor…','Checking and preparing file…');try{const result=await window.api.prepareCompatibleMedia(file);if(staleGeneration(generation)||player.localPath!==file||player.mediaKey!==key){dialog.close();return;}if(!result.ok)throw Error(result.error);player.compatibilityAttempt=generation;const position=Number(video.currentTime)||player.pendingLibrarySeek?.seconds||0;video.src=pathToFileUrl(result.path);player.pendingLibrarySeek={key,generation,seconds:position};video.load();dialog.close();}catch(e){status.textContent=e.message;}finally{busy=false;prepare.disabled=false;close.textContent=interfaceChoice('Kapat','Close');}};
+ prepare.onclick=async()=>{busy=true;prepare.disabled=true;close.textContent=interfaceChoice('İptal','Cancel');status.textContent=interfaceChoice('Dosya doğrulanıyor ve hazırlanıyor…','Checking and preparing file…');try{const result=await window.api.prepareCompatibleMedia(file);if(staleGeneration(generation)||player.localPath!==file||player.mediaKey!==key){dialog.close();return;}if(!result.ok)throw Error(result.error);player.compatibilityAttempt=generation;const position=resumeSeconds||Number(video.currentTime)||player.pendingLibrarySeek?.seconds||0;video.src=pathToFileUrl(result.path);player.pendingLibrarySeek={key,generation,seconds:position};video.load();dialog.close();}catch(e){status.textContent=e.message;}finally{busy=false;prepare.disabled=false;close.textContent=interfaceChoice('Kapat','Close');}};
  footer.append(close,prepare);dialog.append(title,hint,status,footer);document.body.append(dialog);dialog.addEventListener('close',()=>dialog.remove(),{once:true});dialog.showModal();
 }
 

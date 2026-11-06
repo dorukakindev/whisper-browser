@@ -363,6 +363,7 @@ contextBridge.exposeInMainWorld('api', {
   integrityRepair: (ids) => ipcRenderer.invoke('integrity:repair', { ids }),
   shiftSubs: (filePath, offsetSec) => ipcRenderer.invoke('subs:shift', filePath, offsetSec),
   probeTracks: (filePath) => ipcRenderer.invoke('media:probeTracks', filePath),
+  mediaPlaybackAvailability: key => ipcRenderer.invoke('media:playback-availability', key),
   extractSubtitleTrack: (filePath, track) => ipcRenderer.invoke('media:extractSubtitleTrack', { filePath, track }),
   burnInStart: (videoPath, subPath, recoveryId = '') => ipcRenderer.invoke('burnin:start', videoPath, subPath, recoveryId),
   burnInCancel: () => ipcRenderer.invoke('burnin:cancel'),

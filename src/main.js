@@ -20431,6 +20431,21 @@ function resolveFfTool(name) {
 // ---- Ses ve gömülü altyazı kanallarını listele ----
 // Ses için `index` ffmpeg -map 0:a:N sırasıdır; altyazıda gerçek stream indexi
 // korunur, böylece hazır metin izi varken ASR çalıştırmak gerekmez.
+ipcMain.handle('media:playback-availability', async (event, key) => {
+  if (!authorizedBrowserSender(event) || typeof key !== 'string' || !key.startsWith('file:')) return 'unknown';
+  const item = loadWatchLibraryAll().find(row => row.key === key);
+  if (!item?.localPath) return 'unknown';
+  try {
+    const file = authorizeLocalMediaPath(item.localPath);
+    await fs.promises.access(file, fs.constants.R_OK);
+    return 'available';
+  } catch (error) {
+    if (['ENOENT', 'ENOTDIR'].includes(error.code)) return 'missing';
+    if (['EACCES', 'EPERM', 'MEDIA_NOT_GRANTED'].includes(error.code)) return 'denied';
+    return 'unknown';
+  }
+});
+
 ipcMain.handle('media:probeTracks', async (event, filePath) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (!filePath || typeof filePath !== 'string') return { ok: false, tracks: [] };

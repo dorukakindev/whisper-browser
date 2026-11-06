@@ -42,6 +42,7 @@
     buildStudy() {
       this.root = this.el(root.BrowserStudyView.markup({ mode: this.o.mode, caps: this.caps, display: this.s.disp, T, esc, icon: ic }));
       this.host.append(this.root);
+      this.q('[data-r=job]').after(this.recoveryMarkup());
       if(this.a.processing)this.buildScope();
       const slot = this.q('[data-r=slot]'), media = this.a.slot?.(this.o.mode);
       if (slot && media) slot.append(media);
@@ -65,6 +66,7 @@
         <div class="sh-toast" data-r="toast" role="status" aria-live="polite"></div>
         <div class="sh-kbd" aria-hidden="true"><span><kbd>${T('Boşluk', 'Space')}</kbd>${T('oynat', 'play')}</span><span><kbd>J</kbd><kbd>K</kbd>${T('cümle', 'sentence')}</span>${this.caps.loop ? `<span><kbd>L</kbd>${T('döngü', 'loop')}</span>` : ''}<span><kbd>F</kbd>${T('odak', 'focus')}</span></div>
         ${this.o.intro ? '<div class="sh-bars" aria-hidden="true"></div>' : ''}</section>`);
+      this.q('[data-r=job]').after(this.recoveryMarkup());
       const main = this.q('.sh-main');
       const seg = () => `<div class="sh-seg" data-r="disp" style="--n:3;--i:${['src', 'both', 'tr'].indexOf(this.s.disp)}" role="group" aria-label="${T('Gösterilen metin', 'Shown text')}"><button type="button" data-d="src" aria-selected="${this.s.disp === 'src'}">${T('Kaynak', 'Source')}</button><button type="button" data-d="both" aria-selected="${this.s.disp === 'both'}">${T('İkisi', 'Both')}</button><button type="button" data-d="tr" aria-selected="${this.s.disp === 'tr'}">${T('Çeviri', 'Translation')}</button></div>`;
       const wave = () => `<div class="sh-wave" data-r="wave" role="slider" tabindex="0" aria-label="${T('Bölüm konumu', 'Episode position')}" title="${T('Çubuklar ses dalgası değil; transkriptteki konuşma yoğunluğudur.', 'Bars are not an audio waveform; they show speech density from the transcript.')}"><div class="bars" data-r="bars"></div><div class="bars fill" data-r="fill"></div><div class="head"></div><span class="tip" data-r="tip"></span></div>`;
@@ -137,6 +139,7 @@
           case 'transcript': this.toggleTranscript(b);break;
           case 'panel': this.togglePanel(b); break;
           case 'jobcancel': this.a.panel?.().job?.cancel?.(); break; case 'jobretry': this.a.panel?.().job?.retry?.(); break;
+          case 'playbackRetry': void this.a.recovery?.()?.run(); break;
         }
       });
       const wave = this.q('[data-r=wave]');
@@ -389,7 +392,18 @@
       }
       if (this.lines[idx] && this.s.follow && !this.q('[data-r=scroll]').contains(document.activeElement)) { const sc = this.q('[data-r=scroll]'), l = this.lines[idx]; const top = l.offsetTop - (sc.clientHeight - l.offsetHeight) / (this.o.mode !== 'podcast' ? 3 : 2); sc.scrollTo({ top: Math.max(0, top), behavior: prev === -2 || !this.motionAllowed() ? 'auto' : 'smooth' }); }
     }
+    recoveryMarkup() {
+      return this.el('<div class="sh-job sh-recovery" data-r="recovery" hidden><span role="status"></span><button class="sh-chip" data-a="playbackRetry" type="button"></button></div>');
+    }
     drawJob() {
+      const recovery = this.a.recovery?.();
+      const recoveryBox = this.q('[data-r=recovery]');
+      recoveryBox.hidden = !recovery;
+      if (recovery) {
+        const status = recoveryBox.querySelector('span'), button = recoveryBox.querySelector('button');
+        if (status.textContent !== recovery.message) status.textContent = recovery.message;
+        if (button.textContent !== recovery.label) button.textContent = recovery.label;
+      }
       const p = this.a.panel?.(); const j = p && p.job, box = this.q('[data-r=job]'); if (!box) return;
       const show = !!j && (j.state === 'running' || j.state === 'failed'); if (box.hidden === show) box.hidden = !show; if (!show) return;
       box.dataset.state = j.state; this.q('[data-r=jobt]').textContent = j.text || '';
@@ -429,6 +443,18 @@
         const s = this.el(`<section class="sh-psec"><h3>${esc(sec.title)}</h3></section>`);
         sec.items.forEach((it, n) => {
           if (it.type === 'note') { s.append(this.el(`<p class="sh-pnote">${esc(it.text)}</p>`)); return; }
+          if (it.type === 'offset') {
+            const row = this.el(`<div class="sh-offset"><div><strong>${esc(it.label)}</strong><output>${esc(it.text)}</output></div></div>`);
+            const actions = this.el('<div class="sh-offset-actions"></div>');
+            for (const [label, delta] of [[T('−0,1 sn', '−0.1 s'), -.1], [T('+0,1 sn', '+0.1 s'), .1], [T('Sıfırla', 'Reset'), null]]) {
+              const b = this.el(`<button type="button" class="sh-btn">${label}</button>`);
+              b.dataset.pid = sec.title + ':' + n + ':' + delta;
+              b.setAttribute('aria-label', it.label + ' · ' + label);
+              b.onclick = () => { try { it.run(delta); this.tick(); } catch (_) { this.toast(T('Zaman ayarı uygulanamadı.', 'Timing adjustment could not be applied.')); } };
+              actions.append(b);
+            }
+            row.append(actions); s.append(row); return;
+          }
           if(it.type==='range'){const L=this.el(`<label class="sh-psel"><span>${esc(it.label)}</span><input type="range" min="0" max="1" step="0.01" aria-label="${esc(it.label)}"></label>`);const input=L.querySelector('input');input.value=String(it.value);input.dataset.pid=sec.title+':'+n;input.oninput=()=>it.onChange(Number(input.value));s.append(L);return;}
           if (it.type === 'select') { const L = this.el(`<div class="sh-psel"><span>${esc(it.label)}</span></div>`);const select=root.PlayerUiKit.select({label:it.label,value:it.value,options:it.options,searchable:true,onChange:it.onChange});select.trigger.dataset.pid=`${sec.title}:${n}`;L.append(select);s.append(L); return; }
           const b = this.el(`<button type="button" class="sh-pbtn${it.primary ? ' pri' : ''}" data-pid="${sec.title}:${n}" ${it.disabled || it.id && this.taskPending ? 'disabled' : ''} ${it.pressed !== undefined ? `aria-pressed="${!!it.pressed}"` : ''}><span>${esc(it.label)}</span>${it.hint ? `<small>${esc(it.hint)}</small>` : ''}</button>`);

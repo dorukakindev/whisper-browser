@@ -15,8 +15,16 @@ try {
     watchStatus: 'watching', favorite: true,
     source: { type: 'browser', value: 'https://video.example/watch' } });
   assert(manual.id);
+  assert.ok(manual.watchlistAddedAt > 0);
+  const legacyPath = path.join(dir, 'legacy.json');
+  fs.writeFileSync(legacyPath, JSON.stringify({ version: 1, items: [{ id: 'legacy', kind: 'film', title: 'Legacy', watchStatus: 'planned' }] }));
+  const legacy = createMediaCatalogStore({ filePath: legacyPath });
+  assert.equal(legacy.upsert({ id: 'legacy', title: 'Legacy edit' }).watchlistAddedAt, null);
+  assert.equal(legacy.upsert({ id: 'legacy', watchStatus: 'completed' }).watchlistAddedAt, null);
+  assert.ok(legacy.upsert({ id: 'legacy', watchStatus: 'planned' }).watchlistAddedAt > 0);
   store.upsert({ id: manual.id, title: 'Kuzey Yeni' });
   assert.equal(store.get(manual.id).watchStatus, 'watching');
+  assert.equal(store.get(manual.id).watchlistAddedAt, manual.watchlistAddedAt);
   assert.equal(store.get(manual.id).synopsis, 'Elle yazılan özet');
   assert.equal(store.get(manual.id).source.value, 'https://video.example/watch');
   const incoming = { id: 'nmdb:work:1', importRef: 'nmdb:work:1', kind: 'film', title: 'Kuzey', year: 2024,

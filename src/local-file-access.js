@@ -91,7 +91,11 @@ class MediaFileAccess {
   }
   authorize(value) {
     const target = this.inspect(value);
-    if (!this.grants.has(this.key(target))) throw new Error('Bu medya dosyası kullanıcı tarafından seçilmedi.');
+    if (!this.grants.has(this.key(target))) {
+      const error = new Error('Bu medya dosyası kullanıcı tarafından seçilmedi.');
+      error.code = 'MEDIA_NOT_GRANTED';
+      throw error;
+    }
     return target;
   }
   has(value) {

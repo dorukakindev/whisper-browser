@@ -86,6 +86,13 @@ function directorPeopleOf(raw) {
   if (!Array.isArray(raw) || raw.length > 30 || raw.some(row => !row || !/^tmdb:person:[1-9]\d{0,9}$/.test(row.id) || typeof row.name !== 'string' || !row.name.trim())) fail('Invalid director identity.');
   return [...new Map(raw.map(row => [row.id, {id:row.id,name:text(row.name,120)}])).values()];
 }
+const inWatchlist = status => status === 'planned' || status === 'watching';
+
+function stampWatchlist(item, old) {
+  if (inWatchlist(item.watchStatus) && !inWatchlist(old?.watchStatus)) item.watchlistAddedAt = Date.now();
+  return item;
+}
+
 function itemOf(raw, old = null) {
   if (!raw || typeof raw !== 'object') fail('Katalog kaydı geçersiz.');
   const kind = raw.kind ?? old?.kind;
@@ -127,6 +134,9 @@ function itemOf(raw, old = null) {
     synopsis: text(raw.synopsis ?? old?.synopsis, 4000),
     imdbId: imdbIdOf(raw.imdbId ?? old?.imdbId), tmdbId: tmdbIdOf(raw.tmdbId ?? old?.tmdbId, kind),
     watchStatus: STATUSES.has(raw.watchStatus) ? raw.watchStatus : old?.watchStatus || 'unspecified',
+    watchlistAddedAt: Number.isSafeInteger((old || raw).watchlistAddedAt) && (old || raw).watchlistAddedAt > 0
+      && inWatchlist(STATUSES.has(raw.watchStatus) ? raw.watchStatus : old?.watchStatus)
+      ? (old || raw).watchlistAddedAt : null,
     collections: [...new Set((Array.isArray(raw.collections ?? old?.collections)?(raw.collections ?? old?.collections):[]).filter(v=>typeof v==='string').map(v=>text(v,80)).filter(Boolean))].slice(0,40),
     favorite: typeof raw.favorite === 'boolean' ? raw.favorite : old?.favorite || false,
     posterPath: posterPath(raw.posterPath ?? old?.posterPath),
@@ -295,7 +305,8 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
   function upsert(patch) {
     const items = list(), id = text(patch?.id, 120);
     const index = items.findIndex((entry) => entry.id === id);
-    const item = itemOf(patch, index >= 0 ? items[index] : null);
+    const old = items[index];
+    const item = stampWatchlist(itemOf(patch, old), old);
     if (index < 0) items.push(item); else items[index] = item;
     commit(items); return structuredClone(item);
   }
@@ -304,7 +315,8 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
     const items = list(), positions = new Map(items.map((item, index) => [item.id, index]));
     for (const patch of patches) {
       const index = positions.get(text(patch?.id, 120));
-      const item = itemOf(patch, index === undefined ? null : items[index]);
+      const old = items[index];
+      const item = stampWatchlist(itemOf(patch, old), old);
       if (index === undefined) { positions.set(item.id, items.length); items.push(item); }
       else items[index] = item;
     }
@@ -353,7 +365,11 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
   function previewImport(items, options) { return planImport(items, options).report; }
   function mergeImport(items, options) {
     const planned = planImport(items, options);
-    if (planned.report.added.length || planned.report.updated.length) commit(planned.items);
+    if (planned.report.added.length || planned.report.updated.length) {
+      const added = new Set(planned.report.added.map(row => row.catalogId));
+      for (const item of planned.items) if (added.has(item.id)) stampWatchlist(item);
+      commit(planned.items);
+    }
     return planned.report;
   }
   function folderSnapshot(root) { return structuredClone((read().folderSnapshots||[]).find(row=>row.root.toLowerCase()===root.toLowerCase())||null); }
