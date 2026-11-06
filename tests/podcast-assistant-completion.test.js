@@ -63,3 +63,20 @@ test('bilingual presentation retains frozen podcast evidence and source validati
  const env={window:{AssistantSourceContext:context,CinemaSahne:{current:{o:{mode:'study'}}},PlayerWorkspaceIntegration:{isPodcastMode:()=>false,snapshot:()=>snapshot,getTranscriptTracks:()=>tracks}},$:()=>({value:'full'})};vm.runInNewContext(text.slice(start,end),env);
  const packet=env.activePodcastContext(undefined,'Bu ana kadar özetle');assert.deepEqual(packet.transcript_evidence.evidence.map(c=>c.metin),['Past']);assert(env.podcastContextCurrent(packet));snapshot.time=50;assert.equal(packet.podcastAnchor.time,10);assert(env.podcastContextCurrent(packet));snapshot.sourceVersion='changed';assert.equal(env.podcastContextCurrent(packet),false);
 });
+
+test('Browser Podcast so-far questions use the audible cutoff without taking over normal YouTube commands', () => {
+ const vm=require('node:vm'), text=fs.readFileSync(require.resolve('../src/renderer/renderer.js'),'utf8');
+ const snapshot={mediaKey:'youtube:A',episodeIdentity:'youtube:A',generation:1,sourceVersion:'tab:A',time:10,sourceTrack:{id:'s',revision:'r'}};
+ const tracks=[{id:'s',revision:'r',role:'source',timed:true,cues:[
+  {id:'heard',start:2,end:5,text:'Heard'},
+  {id:'unheard',start:8,end:12,text:'Unheard'}
+ ]}];
+ const env={window:{AssistantSourceContext:context,BrowserPodcastUI:{isActive:()=>true,snapshot:()=>snapshot,getTranscriptTracks:()=>tracks}},$:()=>({value:'full'})};
+ vm.runInNewContext(text.slice(text.indexOf('function activePodcastContext('),text.indexOf('function globalAssistantContext(')),env);
+ assert.equal(env.activePodcastContext(undefined,'Translate this video'),null);
+ const packet=env.activePodcastContext(undefined,'Summarize so far');
+ assert.deepEqual(packet.transcript_evidence.evidence.map(row=>row.metin),['Heard']);
+ assert.equal(env.podcastContextCurrent(packet),true);
+ snapshot.generation++;
+ assert.equal(env.podcastContextCurrent(packet),false);
+});

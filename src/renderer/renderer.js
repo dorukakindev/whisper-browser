@@ -20198,15 +20198,19 @@ function subtitleContextLanguage(role) {
 }
 
 function activePodcastContext(scopeName = $('aiTranscriptScope')?.value || 'watched', question = '') {
-  if(/(?:bu ana kadar|şu ana kadar|şimdiye kadar|buraya kadar|so far|up to (?:now|this point)|until now)/iu.test(String(question)))scopeName='watched';
+  const soFar = /(?:bu ana kadar|şu ana kadar|şimdiye kadar|buraya kadar|so far|up to (?:now|this point)|until now)/iu.test(String(question));
+  if(soFar)scopeName='watched';
   const shelf=window.MediaShelfUI;
   if(shelf?.isPodcastMode?.())return window.AssistantSourceContext.freezePodcast(shelf.readSnapshot(),shelf.getTranscriptTracks(),scopeName);
+  const browser=window.BrowserPodcastUI;
+  if(browser?.isActive?.())return soFar?window.AssistantSourceContext.freezePodcast(browser.snapshot(),browser.getTranscriptTracks(),scopeName):null;
   if(window.PlayerWorkspaceIntegration?.isPodcastMode?.()||window.CinemaSahne?.current?.o.mode==='study')return window.AssistantSourceContext.freezePodcast(window.PlayerWorkspaceIntegration.snapshot(),window.PlayerWorkspaceIntegration.getTranscriptTracks(),scopeName);
   return null;
 }
 function podcastContextCurrent(context){
   const shelf=window.MediaShelfUI;
-  const snapshot=shelf?.isPodcastMode?.()?shelf.readSnapshot():(window.PlayerWorkspaceIntegration?.isPodcastMode?.()||window.CinemaSahne?.current?.o.mode==='study')?window.PlayerWorkspaceIntegration?.snapshot():null;
+  const browser=window.BrowserPodcastUI;
+  const snapshot=shelf?.isPodcastMode?.()?shelf.readSnapshot():browser?.isActive?.()?browser.snapshot():(window.PlayerWorkspaceIntegration?.isPodcastMode?.()||window.CinemaSahne?.current?.o.mode==='study')?window.PlayerWorkspaceIntegration?.snapshot():null;
   return window.AssistantSourceContext.podcastStillValid(context,snapshot);
 }
 function globalAssistantContext() {
