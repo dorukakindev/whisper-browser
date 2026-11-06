@@ -6,6 +6,11 @@ Son durum kontrolü **2026-11-06**. Son ürün `9b09e37e5341386b3bf64a97dac5aea5
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
+## Medya akışları — kalan kabul
+
+- **Dal ve kanıt** `codex/media-flow-polish-20261106`, ürün `3c4abfa7cdbb05555c961f231809c57675417221`, [devir](docs/devir/2026-11-06-0610.md). Yerel yeniden deneme LG Electron turunda 9. saniyeden çalıştı.
+- **Kalan** İzole LG profilinde kısa podcast ve web video turunda ağ hatası oluşturup aynı kaynakta kurtarmayı ve kaynak değişince eski eylemin kaybolmasını doğrula. Erişim reddi ve taşınmış dosya eylemlerinin hedeflerini kontrollü kayıtla sınayıp dosya seçimi gerektiren son adımı kullanıcı kontrollü kabulde yap. Sahne paneli ve RSS geri dönüşünü dar pencerede kontrol et.
+
 ## İstenen iki canlı kabul — 2026-11-05 13:58
 
 - **Dal/kanıt:** codex/live-assistant-subtitles-20261105; [devir](docs/devir/2026-11-05-1358.md). Ürün HEAD 74ea1ebe704561b284e43df10032a41d4aafb0a7; ürün kodu değişmedi.
