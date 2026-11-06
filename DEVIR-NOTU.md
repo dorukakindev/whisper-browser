@@ -1,3 +1,4 @@
+Güncel teslim: [Sahne arama durumları ve temizleme](docs/devir/2026-11-06-1020.md)
 Güncel teslim: [Sahne okuma hiyerarşisi ve yerleşim sonrası takip](docs/devir/2026-11-06-1012.md)
 Güncel teslim: [Sahne kapak ve kontrol dengesi](docs/devir/2026-11-06-0959.md)
 Güncel teslim: [Sahne URL satırının kaldırılması](docs/devir/2026-11-06-0954.md)

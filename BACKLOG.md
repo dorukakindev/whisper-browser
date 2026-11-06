@@ -8,6 +8,8 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 
 ## Sahne adres satırı — görsel kabul
 
+- 10:20: aramanın boş/sonuçlu durumları kontrollü bileşen çiziminde incelendi; 52 kontrol geçti. Yeni native kabul iddia edilmez. Önceki LG turuna arama/temizleme adımı eklenir. [Devir](docs/devir/2026-11-06-1020.md).
+
 - 10:12: dolu Podcast/Çift dilli transkript çiziminde ilk yerleşimde etkin çevirinin kesilmesi düzeltildi. 51 hedefli kontrol ve iki başsız bileşen çizimi geçti. Bu, önceki native LG kabulünü kapatmaz. [Devir](docs/devir/2026-11-06-1012.md).
 
 - 10:00: gerçek Sahne bileşenleri başsız Chrome’da 1480×880 ve 940×680 kontrollü veriyle çizildi; kapak ölçeği, kısa boş durum ve kontrol sarılması incelendi. Bu, LG native uygulama kabulünü kapatmaz. [Görsel teslim](docs/devir/2026-11-06-0959.md).
