@@ -77,7 +77,7 @@ function rewrite(value, mappings) {
   }
   return visit(value);
 }
-function exportPackage(root, output, rendererValues = {}, externalAliases = null) {
+function exportPackage(root, output, rendererValues = {}, externalAliases = null, { portable = false } = {}) {
   const files = [], mappings = [], seen = new Set(),originalJson=new Map(); let total = 0;
   function add(file, name) {
     if (seen.has(name)) return;
@@ -88,9 +88,26 @@ function exportPackage(root, output, rendererValues = {}, externalAliases = null
       // Gömülü mutlak yollar taşınabilir {{ROOT}}/... formuna çevrilir — paket
       // paylaşıldığında kaynak makinenin kullanıcı adı/klasör düzeni ve
       // mappings/sourceRoot içindeki mutlak yollar ifşa olmaz (R83-33).
+      const missingAlias = value => '{{ROOT}}/workspace-assets/unlinked-' +
+        createHash('sha256').update(canonicalWatchKey('file:' + value)).digest('hex') +
+        (/^\.[a-z0-9]{1,8}$/i.test(path.extname(value)) ? path.extname(value).toLowerCase() : '');
+      const { isSensitiveKey, startsWithSensitivePrefix } = require('./browser-sensitive-keys');
       const visit = (value, depth = 0, allowFiles = true) => {
+        if (portable && typeof value === 'string' && /^https?:\/\//i.test(value)) {
+          try {
+            const url = new URL(value);
+            const keys = [...url.searchParams.keys()].filter(key => isSensitiveKey(key) || startsWithSensitivePrefix(key));
+            if (url.username || url.password || url.hash || keys.length) {
+              url.username = ''; url.password = ''; url.hash = '';
+              for (const key of keys) url.searchParams.delete(key);
+              return url.href;
+            }
+          } catch (_) {}
+        }
         if (typeof value === 'string' && value.startsWith('file:')) {
-          return remapFileWatchKey(value, [...(externalAliases || []), [root, '{{ROOT}}']]);
+          const mapped = remapFileWatchKey(value, [...(externalAliases || []), [root, '{{ROOT}}']]);
+          return portable && mapped === value && looksLikeLocalMediaPath(value.slice(5))
+            ? 'file:' + missingAlias(value.slice(5)) : mapped;
         }
         if (typeof value === 'string' && path.isAbsolute(value)) {
           // Pakete giren video kaynakları kararlı takma kimliğe çevrilir;
@@ -105,7 +122,7 @@ function exportPackage(root, output, rendererValues = {}, externalAliases = null
             add(value, target); return `{{ROOT}}/${target}`;
           }
           if (underRoot) return `{{ROOT}}/${relative}`;
-          return value;
+          return portable ? missingAlias(value) : value;
         }
         if (Array.isArray(value)) {
           if (depth >= MAX_PACKAGE_JSON_DEPTH) throw packageDepthError();
@@ -124,7 +141,7 @@ function exportPackage(root, output, rendererValues = {}, externalAliases = null
     }
     seen.add(name); files.push({ name, data: buffer.toString('base64') });
   }
-  for (const name of ROOTS) if (fs.existsSync(path.join(root, name))) add(path.join(root, name), name);
+  for (const name of ROOTS) if ((!portable || name !== 'browser-session.json') && fs.existsSync(path.join(root, name))) add(path.join(root, name), name);
   function walk(dir, prefix) {
     if (!fs.existsSync(dir) || fs.lstatSync(dir).isSymbolicLink()) return;
     for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -136,8 +153,8 @@ function exportPackage(root, output, rendererValues = {}, externalAliases = null
   for (const dir of DIRS) walk(path.join(root, dir), dir);
   // sourceRoot/mappings taşınabilir tutulur: {{ROOT}} işareti içe aktarımda
   // hedef köke eşlenir, pakette mutlak kaynak yolu kalmaz.
-  const portable=new Map(files.filter(f=>ROOTS.has(f.name)).map(f=>[f.name,JSON.parse(Buffer.from(f.data,'base64').toString('utf8'))]));personalMedia.reconcileChoices(originalJson,portable);
-  const personalWatch=files.find(f=>f.name==='film-watch.json');if(personalWatch)personalWatch.data=Buffer.from(JSON.stringify(portable.get('film-watch.json'))).toString('base64');
+  const portableFiles=new Map(files.filter(f=>ROOTS.has(f.name)).map(f=>[f.name,JSON.parse(Buffer.from(f.data,'base64').toString('utf8'))]));personalMedia.reconcileChoices(originalJson,portableFiles);
+  const personalWatch=files.find(f=>f.name==='film-watch.json');if(personalWatch)personalWatch.data=Buffer.from(JSON.stringify(portableFiles.get('film-watch.json'))).toString('base64');
   const bundle = { format: 'whisper-workspace', version: 1, created: new Date().toISOString(), sourceRoot: '{{ROOT}}', mappings, files, rendererValues: storageValues(rendererValues) };
   validate(bundle);
   const bytes = gzipSync(Buffer.from(JSON.stringify(bundle)));
@@ -206,9 +223,33 @@ function validate(data) {
   }
   if (!Array.isArray(data.mappings) || data.mappings.some(m => !Array.isArray(m) || typeof m[0] !== 'string' || m[0].length < 3 || !allowed(m[1]))) throw new Error('Paket dosya eşleştirmeleri geçersiz.');
 }
-function restorePackage(root, data, videoMappings = []) {
+function targetSnapshot(root, data) {
+  validate(data);
+  const base = path.resolve(root);
+  return data.files.map(file => {
+    const target = path.join(base, file.name);
+    let current;
+    try {
+      let node = base;
+      for (const segment of file.name.split('/')) {
+        node = path.join(node, segment);
+        if (fs.lstatSync(node).isSymbolicLink()) throw Error('Package target contains a link.');
+      }
+      if (fs.statSync(target).size > LIMIT) throw Error('Package target is too large.');
+      current = createHash('sha256').update(fs.readFileSync(target)).digest('hex');
+    } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    const incoming = createHash('sha256').update(Buffer.from(file.data, 'base64')).digest('hex');
+    return { name: file.name, revision: current || null, state: !current ? 'new' : current === incoming ? 'same' : 'conflict' };
+  });
+}
+
+function restorePackage(root, data, videoMappings = [], review = null) {
   validate(data);
   const mappings = [...videoMappings, ...data.mappings.map(([from, relative]) => [from, path.join(root, relative)]), [data.sourceRoot, root]];
+  const approved = review ? new Set(review.names) : null;
+  if (review && JSON.stringify(targetSnapshot(path.resolve(root), data)) !== JSON.stringify(review.snapshot)) {
+    throw Error('The destination changed. Preview the package again.');
+  }
   const changes = data.files.map(file => {
     const destination = path.resolve(root, file.name);
     if (!destination.startsWith(path.resolve(root) + path.sep)) throw new Error('Paket yolu geçersiz.');
@@ -262,11 +303,14 @@ function restorePackage(root, data, videoMappings = []) {
   });
   const before=new Map(data.files.filter(f=>ROOTS.has(f.name)).map(f=>[f.name,JSON.parse(Buffer.from(f.data,'base64').toString('utf8'))])),after=new Map(changes.filter(c=>ROOTS.has(c.name)).map(c=>[c.name,c.parsed]));personalMedia.reconcileChoices(before,after);
   const personalWatch=changes.find(c=>c.name==='film-watch.json');if(personalWatch)personalWatch.bytes=Buffer.from(JSON.stringify(personalWatch.parsed));
+  const selected = changes.filter(change => (!approved || approved.has(change.name))
+    && !change.previous?.equals(change.bytes));
+  if (!selected.length) return 0;
   // A durable pre-restore copy lets the user reverse an intentional replacement.
   exportPackage(root, path.join(root, 'before-restore-' + Date.now() + '.wbp'));
   const applied = [];
   try {
-    for (const change of changes) {
+    for (const change of selected) {
       fs.mkdirSync(path.dirname(change.destination), { recursive: true });
       const temp = change.destination + '.' + randomUUID() + '.tmp';
       try { fs.writeFileSync(temp, change.bytes, { flag: 'wx', mode: 0o600 }); renameSyncResilient(fs, temp, change.destination); applied.push(change); }
@@ -276,7 +320,7 @@ function restorePackage(root, data, videoMappings = []) {
     for (const change of applied.reverse()) { if (change.previous) fs.writeFileSync(change.destination, change.previous); else fs.unlinkSync(change.destination); }
     throw error;
   }
-  return changes.length;
+  return selected.length;
 }
 function remapRendererValues(root, data, videoMappings = []) {
   const maps = [...videoMappings, ...data.mappings.map(([from, relative]) => [from, path.join(root, relative)]), [data.sourceRoot, root]];
@@ -362,6 +406,13 @@ function missingLocalMedia(data, exists = fs.existsSync) {
     catch (_) { return null; }
   };
   const add = (value, unverified = false) => {
+    if (typeof value === 'string' && value.startsWith('{{ROOT}}/workspace-assets/unlinked-')) {
+      const key = '{{ROOT}}/workspace-assets';
+      const row = groups.get(key) || { root:key,count:0,requiresConfirmation:true,redacted:true };
+      row.count++;
+      groups.set(key,row);
+      return;
+    }
     if (!looksLikeLocalMediaPath(value)) return;
     let missing = unverified;
     if(!unverified)try { missing = !exists(value); } catch (_) { missing = true; }
@@ -383,4 +434,4 @@ function missingLocalMedia(data, exists = fs.existsSync) {
   return [...groups.values()].sort((a, b) => b.count - a.count || a.root.localeCompare(b.root)).slice(0, 20);
 }
 
-module.exports = { exportPackage, readPackage, restorePackage, allowed, storageValues, STORAGE_KEYS, validate, remapRendererValues, describePackage, missingLocalMedia, looksLikeLocalMediaPath };
+module.exports = { targetSnapshot, exportPackage, readPackage, restorePackage, allowed, storageValues, STORAGE_KEYS, validate, remapRendererValues, describePackage, missingLocalMedia, looksLikeLocalMediaPath };

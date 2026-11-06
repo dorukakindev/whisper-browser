@@ -9,12 +9,17 @@
   const write = (node, text) => { if (node && node.textContent !== text) node.textContent = text; };
   let box, status, controls, secondPickerHost;
   const key = () => player.workspaceMode === 'browser' ? player.browserActiveTabId : null;
-  const active = () => !!key() && sessions.has(key());
+  const media = () => browserTabState()?.mediaId || player.mediaKey;
+  const currentSession = () => {
+    const session = sessions.get(key());
+    return session?.media === media() ? session : null;
+  };
+  const active = () => !!key() && !!currentSession();
   function open({ preservePodcast = false } = {}) {
     if (!key()) return;
     if (!preservePodcast) window.BrowserPodcastUI?.setMode(false);
     closeBrowserToolbarMenus();
-    if (!sessions.has(key())) sessions.set(key(), { view: player.viewMode });
+    if (!currentSession()) sessions.set(key(), { view: player.viewMode, media: media() });
     setViewMode('study');
     setBrowserSideRailPref('panel');
     setPlayerSidebarCollapsed(false);
@@ -29,7 +34,7 @@
   }
   function close() {
     window.BrowserPodcastUI?.setMode(false);
-    const previous = sessions.get(key());
+    const previous = currentSession();
     sessions.delete(key());
     if (previous && player.viewMode === 'study') setViewMode(previous.view);
     refresh();

@@ -5171,6 +5171,13 @@ async function attachCompletedJobSubtitles(event, job = state.activeOutputJob, o
   if (job.browserTabId && (job.browserTabId !== player.browserActiveTabId || player.workspaceMode !== 'browser')) {
     return { loaded: false, reason: 'Çıktının kaynak sekmesi seçili değil.' };
   }
+  const draftOpen = () => player.editing === true;
+  if (draftOpen()) {
+    const reason = interfaceChoice('Altyazı taslağı açık. Çıktıyı taslağı kapattıktan sonra yükleyin.',
+      'A subtitle draft is open. Load the output after closing the draft.');
+    rememberPendingPlayerLoad(event, job, reason);
+    return { loaded: false, reason };
+  }
   const selectionChanged = !options.force && job.mediaKey === player.mediaKey
     && ((job.selectedSubPath || '') !== (player.subPath || '')
       || (job.secondSubPath || '') !== (player.sub2Path || ''));
@@ -5189,7 +5196,7 @@ async function attachCompletedJobSubtitles(event, job = state.activeOutputJob, o
   try {
     if (source) {
       $('playerSubSelect').value = source.path;
-      await loadSubtitle(source.path, false, { silent: true, role: 'source' });
+      await loadSubtitle(source.path, false, { silent: true, role: 'source', isCancelled: draftOpen });
       if (staleGeneration(gen) || player.mediaKey !== job.mediaKey) return { loaded: false, reason: 'Video değişti.' };
       if (player.subPath !== source.path) throw new Error('kaynak altyazı seçilemedi');
       loadedPath = source.path;
@@ -5198,13 +5205,13 @@ async function attachCompletedJobSubtitles(event, job = state.activeOutputJob, o
       const sourceInPrimary = player.subRole === 'source' && player.cues.length > 0;
       if (source || sourceInPrimary) {
         $('playerSubSelect2').value = translation.path;
-        await loadSubtitle(translation.path, true, { silent: true, role: 'translation' });
+        await loadSubtitle(translation.path, true, { silent: true, role: 'translation', isCancelled: draftOpen });
         if (player.sub2Path !== translation.path) throw new Error('çeviri altyazısı seçilemedi');
       } else {
         // Yalnız çeviri çıktısında dosyayı kaynak sanma. Birincil kanalda
         // açıkça translation rolüyle göster; dosyaya kaynak cue yazılmaz.
         $('playerSubSelect').value = translation.path;
-        await loadSubtitle(translation.path, false, { silent: true, role: 'translation' });
+        await loadSubtitle(translation.path, false, { silent: true, role: 'translation', isCancelled: draftOpen });
         if (player.subPath !== translation.path) throw new Error('çeviri altyazısı seçilemedi');
       }
       if (staleGeneration(gen) || player.mediaKey !== job.mediaKey) return { loaded: false, reason: 'Video değişti.' };
@@ -5218,7 +5225,7 @@ async function attachCompletedJobSubtitles(event, job = state.activeOutputJob, o
   }
   if (!loadedPath && outputs.dual) {
     $('playerSubSelect').value = outputs.dual.path;
-    await loadSubtitle(outputs.dual.path, false, { silent: true, role: 'source' });
+    await loadSubtitle(outputs.dual.path, false, { silent: true, role: 'source', isCancelled: draftOpen });
     loadedPath = player.subPath === outputs.dual.path ? outputs.dual.path : '';
   }
   if (!loadedPath) return { loaded: false, reason: 'Yüklenebilir çıktı bulunamadı.' };
@@ -22799,6 +22806,11 @@ async function loadSubtitle(path, secondary = false, options = {}) {
   // baglanmasin). Ayni video icinde iki altyazi hizli secilirse de gec gelen
   // ilk okuma sonuncuyu ezmesin diye yol karsilastirilir.
   if (staleGeneration(gen)) return;
+  if (options.isCancelled?.()) {
+    const select = $(secondary ? 'playerSubSelect2' : 'playerSubSelect');
+    if (select?.value === path) select.value = (secondary ? player.sub2Path : player.subPath) || '';
+    return;
+  }
   const selNow = secondary ? $('playerSubSelect2') : $('playerSubSelect');
   // Bos secim de bilincli bir secimdir ("Altyazi yok" / "Kapali"). Okuma
   // surerken temizlendiyse gec kalan dosyayi tekrar yukleme.
@@ -28742,7 +28754,16 @@ function openBrowserQuickEditor(secondary = false, target = null) {
       input.value = Number(row.before[property]).toFixed(3); input.setAttribute('aria-label', `${title} ${label}`);
       row[property] = input; wrapper.append(input); times.append(wrapper);
     }
-    field.append(legend, row.text, times); box.append(field);
+    const review = document.createElement('details');
+    const summary = document.createElement('summary');
+    summary.textContent = interfaceChoice('Önce / sonra','Before / after');
+    const before = document.createElement('p'), after = document.createElement('p');
+    before.textContent = [row.before.start, row.before.end, row.before.text].join(' · ');
+    const updateReview = () => { after.textContent = [row.start.value, row.end.value, row.text.value].join(' · '); };
+    review.addEventListener('toggle', updateReview);
+    field.addEventListener('input', updateReview);
+    review.append(summary, before, after);
+    field.append(legend, row.text, times, review); box.append(field);
     const actions=document.createElement('div');actions.className='browser-quick-edit-actions';
     const align=document.createElement('button');align.type='button';align.className='btn btn-secondary btn-sm';
     align.textContent='Bu replik şimdi söylendi';align.addEventListener('click',()=>alignQuickEditorRow(editor,row));
@@ -28920,7 +28941,7 @@ function openCueEditor(secondary = false) {
     // Hedefi açılış anında sabitle: editör açıkken başka bloğa tıklamak veya
     // başka altyazı yüklemek activeIdx/subPath'i değiştirir; kayıt bu kayıtla doğrulanır.
     player.cueEditTarget = { index: cueIndex, signature: cueSignature(cue),
-      path: subtitlePath, mediaKey: player.mediaKey };
+      path: subtitlePath, mediaKey: player.mediaKey, generation: currentGeneration(), raw: player.subRaw };
     $('subtitleEditRevertModel')?.classList.add('hidden');
   }
   player.editing = true;
@@ -28929,6 +28950,8 @@ function openCueEditor(secondary = false) {
   else $('playerVideo').pause();
   $('subtitleEdit').classList.remove('hidden');
   $('subtitleEditBox').value = cue.text;
+  $('subtitleEditBefore').textContent = cue.text;
+  $('subtitleEditAfter').textContent = cue.text;
   const subtitleName = subtitlePath
     ? subtitlePath.split(/[\\/]/).pop()
     : (browserTrack?.label || 'browser çevirisi');
@@ -28987,7 +29010,7 @@ async function applyCueEditHistoryCore(direction) {
       return;
     }
     const generation = currentGeneration();
-    const result = await writeSubtitleBulkFiles(entry.files, desired,
+    const result = entry.sessionOnly ? { ok: true, warnings: [] } : await writeSubtitleBulkFiles(entry.files, desired,
       direction === 'undo' ? 'bulk-undo' : 'bulk-redo');
     if (!result.ok) {
       const suffix = result.rollbackFailed ? ' Kısmi yazım da geri yüklenemedi.' : '';
@@ -28999,14 +29022,14 @@ async function applyCueEditHistoryCore(direction) {
         || !subtitleBulkFileStateStillMatches(entry.files, currentSide)
         || !browserBulkStateStillMatches(entry.browserEdits, currentSide, false)
         || !sourceSnapshotMatches(entry.reviewSources,currentSide)) {
-      const rollback = await writeSubtitleBulkFiles(entry.files, currentSide, 'bulk-rollback');
+      const rollback = entry.sessionOnly ? { ok: true } : await writeSubtitleBulkFiles(entry.files, currentSide, 'bulk-rollback');
       logLine('Altyazı işlem sırasında değişti; geçmiş işlemi uygulanmadı'
         + (rollback.ok ? '.' : ' ve dosya geri yüklenemedi.'), rollback.ok ? 'warn' : 'error');
       return;
     }
     try { applySourceSnapshot(entry.reviewSources,desired); }
     catch (_) {
-      const rollback=await writeSubtitleBulkFiles(entry.files,currentSide,'history-storage-rollback');
+      const rollback=entry.sessionOnly ? { ok: true } : await writeSubtitleBulkFiles(entry.files,currentSide,'history-storage-rollback');
       logLine('Düzeltme geçmişi saklanamadı.'+(rollback.ok?'':' Dosya geri yüklenemedi.'),'error');return;
     }
     applySubtitleBulkMemory(entry.files, desired);
@@ -29068,51 +29091,7 @@ async function applyCueEditHistoryCore(direction) {
 // sürümünü okur, hedef cue'yu kaynak indeksi veya zaman (±2ms) ile bulur,
 // kullanıcının metnini YALNIZ o cue'ya uygular ve güncel mtime bekçisiyle
 // yazar. Dış değişiklikler korunur; yanlış sürümün üzerine yazılmaz.
-async function mergeCueEditOntoExternal(path, subFormat, sourceCue, text, rawCues) {
-  const fresh = await window.api.readSubtitle(path)
-    .catch((error) => ({ ok: false, error: error && error.message }));
-  if (!fresh || !fresh.ok || typeof fresh.text !== 'string') return { ok: false };
-  const freshCues = parseSubtitles(fresh.text);
-  const tol = 0.002;
-  const wantStart = Number.isFinite(sourceCue.sourceStart) ? sourceCue.sourceStart : sourceCue.start;
-  const wantEnd = Number.isFinite(sourceCue.sourceEnd) ? sourceCue.sourceEnd : sourceCue.end;
-  const matchIndex = freshCues.findIndex((c) =>
-    c.subtitleSourceIndex === sourceCue.subtitleSourceIndex
-    || (Math.abs(c.start - wantStart) <= tol && Math.abs(c.end - wantEnd) <= tol));
-  if (matchIndex < 0) return { ok: false, reason: 'nomatch' };
-  const match = freshCues[matchIndex];
-  let payload;
-  if (subFormat === 'ass') {
-    payload = replaceAssDialogueText(fresh.text, match.line, text, match.assLead,
-      match.assTextIndex, match.assFieldCount,
-      Number.isFinite(match.sourceStart) ? match.sourceStart : match.start,
-      Number.isFinite(match.sourceEnd) ? match.sourceEnd : match.end,
-      match.assStartIndex, match.assEndIndex);
-  } else if (subFormat === 'vtt') {
-    payload = replaceVttCueText(fresh.text, match, text);
-  } else {
-    payload = cuesToSrt(draftCuesForSrtSave(freshCues, matchIndex, text));
-  }
-  if (payload === null || payload === undefined) return { ok: false, reason: 'nomatch' };
-  const res = await window.api.writeSubtitle(path, payload, {
-    action: 'edit-merge', cueIndex: matchIndex, start: match.start,
-    before: match.text, after: text,
-  }, { mtimeMs: fresh.mtimeMs, size: fresh.size })
-    .catch((error) => ({ ok: false, error: error && error.message }));
-  if (!res || !res.ok) return { ok: false };
-  // Önizleme bilgisi: bellekteki sürümle disk sürümü arasında kaç satır farklı.
-  const base = Array.isArray(rawCues) ? rawCues : [];
-  let diffCount = Math.abs(base.length - freshCues.length);
-  for (let k = 0; k < Math.min(base.length, freshCues.length); k++) {
-    const a = base[k]; const b = freshCues[k];
-    if (a.text !== b.text || Math.abs(a.start - b.start) > tol || Math.abs(a.end - b.end) > tol) diffCount++;
-  }
-  return { ok: true, res, payload, freshText: fresh.text, matchIndex,
-    matchStart: match.start, matchText: match.text, diffCount,
-    externalDiffers: match.text !== sourceCue.text };
-}
-
-async function saveCueEdit() {
+async function saveCueEdit({ overwrite = false } = {}) {
   if (player.subtitleFindReplace.applying) {
     logLine('Toplu altyazı yazımı bitmeden tekil düzeltme kaydedilemez.', 'warn');
     return;
@@ -29167,7 +29146,8 @@ async function saveCueEdit() {
   // duz SRT yaziliyor (stiller, konumlar, konusmaci adlari yok oluyor), .vtt de
   // WEBVTT basligini kaybediyordu.
   if (!localTarget || player.subPath !== localTarget.path
-      || player.mediaKey !== localTarget.mediaKey) {
+      || player.mediaKey !== localTarget.mediaKey || staleGeneration(localTarget.generation)
+      || player.subRaw !== localTarget.raw) {
     logLine('Düzenleme sırasında altyazı dosyası değişti; taslak kaydedilmedi.', 'warn');
     return;
   }
@@ -29227,45 +29207,26 @@ async function saveCueEdit() {
     }
   }
 
+  if (!overwrite) {
+    if (payload === player.subRaw) return closeCueEditor();
+    const files = [{ path: targetPath, channels: ['primary'], before: player.subRaw, after: payload }];
+    applySubtitleBulkMemory(files, 'after');
+    player.cueEditUndo = [...player.cueEditUndo, { kind: 'subtitle-bulk', mediaKey: targetKey,
+      files, browserEdits: [], sessionOnly: true }].slice(-100);
+    player.cueEditRedo = [];
+    refreshAfterSubtitleBulkEdit();
+    return closeCueEditor();
+  }
+
+  const stat = subtitleStatFor(targetPath);
+  if (!stat) return;
   let res;
   try { res = await window.api.writeSubtitle(targetPath, payload, {
     action: 'edit', cueIndex: i, start: cue.start, before: cue.text, after: text,
-  }, subtitleStatFor(targetPath)); }
-  catch (err) { res = { ok: false, error: err && err.message }; }
-  if (!res || !res.ok) {
-    // Dışarıdan değişim: taslak kaybolmadan güncel sürüme birleştirmeyi dene.
-    // Yanlış sürümün üzerine yazılmaz — cerrahi değiştiriciler yalnız hedef
-    // cue'ya dokunur; kullanıcının seçili alanı güncel dosyayla birleşir.
-    if (/dışarıdan değiştirildi/.test((res && res.error) || '')) {
-      const merged = await mergeCueEditOntoExternal(targetPath, player.subFormat,
-        sourceCue, text, rawCues);
-      if (merged && merged.ok) {
-        noteSubtitleStat(targetPath, merged.res);
-        player.cueEditUndo.push({
-          path: targetPath, mediaKey: targetKey, index: merged.matchIndex,
-          start: merged.matchStart, before: merged.freshText, after: merged.payload,
-          beforeText: merged.matchText, afterText: text, at: Date.now(),
-        });
-        player.cueEditUndo = player.cueEditUndo.slice(-100);
-        player.cueEditRedo = [];
-        updateCueEditHistoryButtons();
-        const same = merged.externalDiffers ? ' Aynı satır diskte de değişmişti — metniniz uygulandı.' : '';
-        logLine(`Dosya dışarıdan değişmişti (${merged.diffCount} satır farklı); düzenlemeniz güncel sürümle birleştirildi (blok ${merged.matchIndex + 1}).${same}`, 'warn');
-        await loadSubtitle(targetPath, false, { silent: true });
-        closeCueEditor();
-        return;
-      }
-      if (merged && merged.reason === 'nomatch') {
-        logLine('Dosya dışarıdan değişti ve düzenlediğiniz satır artık eşleşmiyor; dosyayı yeniden açıp düzenlemeyi tekrarlayın. Taslağınız korunuyor.', 'error');
-        return;
-      }
-      // Yeniden değişim veya okuma hatası: birleştirme olmadı, taslak korunur.
-      logLine('Dosya yeniden değişti veya okunamadı; birleştirme uygulanmadı. Taslağınız korunuyor, tekrar deneyin.', 'error');
-      return;
-    }
-    // Taslak editorde kalir: kullanici sorunu duzeltip ayni dugmeyle tekrar dener.
-    const detail = friendlySystemError((res && res.error) || 'bilinmeyen hata');
-    logLine(`Altyazı kaydedilemedi: ${detail} — taslağınız korunuyor, tekrar deneyin.`, 'error');
+  }, stat); }
+  catch (err) { res = { ok: false, error: err?.message }; }
+  if (!res?.ok) {
+    logLine(interfaceChoice('Dosyaya yazılamadı. Taslak korundu. ', 'Could not write the file. Draft retained. ') + (res?.error || ''), 'error');
     return;
   }
   noteSubtitleStat(targetPath, res);
@@ -29360,7 +29321,9 @@ if ($('subtitleOverlay')) {
 if ($('subtitleOverlay2')) {
   $('subtitleOverlay2').addEventListener('dblclick', () => openCueEditor(true));
 }
-if ($('subtitleEditSave')) $('subtitleEditSave').addEventListener('click', saveCueEdit);
+$('subtitleEditSave')?.addEventListener('click', () => saveCueEdit());
+$('subtitleEditOverwrite')?.addEventListener('click', () => saveCueEdit({ overwrite: true }));
+$('subtitleEditBox')?.addEventListener('input', () => { $('subtitleEditAfter').textContent = $('subtitleEditBox').value; });
 if ($('subtitleEditRevertModel')) $('subtitleEditRevertModel').addEventListener('click', revertBrowserCueToModel);
 if ($('subtitleEditCancel')) $('subtitleEditCancel').addEventListener('click', closeCueEditor);
 if ($('subtitleEditUndo')) $('subtitleEditUndo').addEventListener('click', () => applyCueEditHistory('undo'));

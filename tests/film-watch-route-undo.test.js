@@ -17,6 +17,9 @@ test('Itinerary apply and undo preserve exact order, earlier membership and view
  await assert.rejects(call('route-apply',{token:plan.token},2),/expired/);
  const saved=await call('route-apply',{token:plan.token});
  assert.deepEqual(saved.items.map(i=>i.id),['two','one']);
+ assert.deepEqual(saved.added,['two']);
+ await assert.rejects(call('route-apply',{token:plan.token}),/expired/);
+ await assert.rejects(call('route-preview',{name:'Evening',ids:['two'],reviewed:[{id:'two',title:'Second',runtime:90,hasSource:false}]}),/catalog changed/i);
  assert.equal(catalog.get('two').watchStatus,'planned');
  await call('route-undo',{token:saved.undoToken});
  assert.deepEqual(catalog.get('one').collections,['Existing','Evening']);

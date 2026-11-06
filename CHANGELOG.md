@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Altyazı tek satır düzenlemesinde önce/sonra ve dosyadan ayrı oturum içi geri alma. Browser Sahne durumu medya kimliğine bağlı.
+- Çalışma paketi önizlemesi hedef dosya farklarını gösterir, bayat hedefi reddeder ve pakette olmayan arayüz ayarlarını korur. Asistanın süreli izleme taslağı mevcut düzenlenebilir rotayı ve koleksiyon incelemesini açabilir. [Teslim](docs/devir/2026-11-06-0625.md).
+
 - Sahne’de ayrı altyazı zamanlama kontrolleri, Akışlar’da kayıtlı yazı kısayolu ve okuma dönüşü, İzlenecekler’de tür/süre/sıra ve komşu odak, yerel oynatmada aynı konumdan yeniden deneme. [Teslim](docs/devir/2026-11-06-0610.md).
 
 - Yayıncı bölüm başlıkları Sahne’de görünür. RSS kaynakları güncellendi, değişiklik yok ve erişilemedi durumlarını ayrı gösterir. Sahne sekmeleri klavyeyle değişir ve açılır yüzeyler kapanınca odak geri döner. [Teslim](docs/devir/2026-11-06-0552.md).

@@ -14283,7 +14283,7 @@ async function activateBrowserTab(rawId) {
     // switching tabs so only the selected site can produce audio or advance
     // playback in the background. This is best-effort: a hostile page cannot
     // block the tab transition or make the renderer hang.
-    if (!previousRemainsVisible) void executeBrowserViewFrames(previous.view, `(() => {
+    await withTimeout(executeBrowserViewFrames(previous.view, `(() => {
       const roots = [document];
       for (let i = 0; i < roots.length; i++) {
         for (const node of roots[i].querySelectorAll('*')) if (node.shadowRoot) roots.push(node.shadowRoot);
@@ -14292,7 +14292,7 @@ async function activateBrowserTab(rawId) {
         try { media.pause(); } catch (_) {}
       }
       return true;
-    })()`).catch(() => {});
+    })()`), 450, 'Background pause timed out').catch(() => {});
   }
   browserActiveTabId = next.id;
   // The same WebContentsView cannot occupy both sides. This occurs when the
