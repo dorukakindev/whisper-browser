@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Podcast ve Çift dilli Sahne, zaman çizelgesi önizlemesini gerçek oynatma vurgusundan ayırır. [Devir](docs/devir/2026-11-06-1227.md).
+
 - Podcast ve Çift dilli Sahne satır kopyalarken görünür dili kullanır. Bildirim başarılı pano yazımından sonra gösterilir. [Devir](docs/devir/2026-11-06-1214.md).
 
 - Podcast ve Çift dilli Sahne aynı medyada aramayı, takip tercihini, okuma konumunu ve uyku sayacını korur. [Devir](docs/devir/2026-11-06-1206.md).
