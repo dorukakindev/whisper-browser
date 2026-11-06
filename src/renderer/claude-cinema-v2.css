@@ -145,3 +145,13 @@ html:is([data-cinema-motion=off],[data-cinema-motion=reduced]) :is(.cv2-home-pic
 .cv2-discover-personal{width:calc(100% - var(--cn-gutter)*2);max-width:var(--cn-max);margin:32px auto 42px}
 
 .cv2-personal-art.md-art-empty::after{display:none}
+
+/* The poster leads in the rail. Full evidence sits in the title detail. */
+.cv2-personal-card strong{overflow-wrap:anywhere}
+.cv2-personal-card .md-basis-label{margin:0;color:var(--cn-dim)}
+.md-basis-label[data-reason-kind=personal],.md-recommendation-basis[data-reason-kind=personal] .md-basis-label{color:var(--cn-gold)}
+.md-recommendation-basis{margin-block:16px;padding:0 14px;border:1px solid var(--cn-line);border-radius:8px;background:var(--cn-surface)}
+.md-recommendation-basis summary{cursor:pointer;padding-block:12px;color:var(--cn-text)}
+.md-recommendation-basis summary .md-basis-label{display:inline-block;margin-inline-start:10px;font-size:12px}
+.md-recommendation-basis .md-basis-text{margin:0;padding-block:0 12px;color:var(--cn-dim);line-height:1.6;overflow-wrap:anywhere}
+.cv2-discover-personal header{flex-wrap:wrap}
