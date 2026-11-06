@@ -125,7 +125,7 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         if (result.canceled || !result.filePath) return { ok: false, canceled: true };
         const report = input.includeVideos === true
           ? await require('./workspace-video-package').exportWithVideos(userData(), result.filePath, input.rendererValues, pythonPath())
-          : require('./workspace-package').exportPackage(userData(), result.filePath, input.rendererValues);
+          : require('./workspace-package').exportPackage(userData(), result.filePath, input.rendererValues, null, { portable: true });
         return { ok: true, ...report };
       }
       case 'package-preview': {
@@ -138,11 +138,16 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         // Kuyruk maddesi 25 — paketteki mutlak ortam yollarından bu
         // bilgisayarda bulunamayanları kök bazında göster; kullanıcı her
         // köke yeni hedef seçebilir ve eşleme geri yüklemede uygulanır.
-        const missingMedia = require('./workspace-package').missingLocalMedia(data);
-        return { ok: true, token: remember(event, { type: 'package', data }), count: data.files.length, videos: data.videos?.length || 0, created: data.created, scope, missingMedia };
+        const packages = require('./workspace-package');
+        const missingMedia = packages.missingLocalMedia(data);
+        const snapshot = packages.targetSnapshot(path.resolve(userData()), data);
+        return { ok: true, token: remember(event, { type: 'package', data, snapshot }), records: snapshot.map(({name,state}) => ({name,state})), count: data.files.length, videos: data.videos?.length || 0, created: data.created, scope, missingMedia };
       }
       case 'package-apply': {
-        const { data } = take(event, input.token, 'package');
+        const { data, snapshot } = take(event, input.token, 'package');
+        const replace = input.replaceConflicts === true;
+        const names = snapshot.filter(row => row.state === 'new' || replace).map(row => row.name);
+        const review = { snapshot, names };
         if (!canRestore()) throw new Error('Çalışan medya işlemini bitirin veya durdurun; ardından yeniden geri yükleyin.');
         // Kullanıcının önizlemede seçtiği ortam-kökü eşlemeleri. Yalnız
         // mutlak yollar kabul edilir ve hedefin gerçekten var olan bir
@@ -158,6 +163,11 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         }
         const packages = require('./workspace-package');
         const videoPackage = require('./workspace-video-package');
+        if (JSON.stringify(packages.targetSnapshot(path.resolve(userData()), data)) !== JSON.stringify(snapshot)) throw Error(dl('Hedef değişti. Paketi yeniden önizleyin.', 'The destination changed. Preview the package again.'));
+        if (!replace && snapshot.some(row => row.state === 'conflict')) {
+          previews.delete(input.token);
+          return { ok: true, kept: true };
+        }
         const videoFolder = await videoPackage.extract(userData(), data, pythonPath());
         const videoMappings = [...mediaMappings, ...(data.videoMappings || [])];
         if (!canRestore()) { if (videoFolder) videoPackage.clean(userData(), videoFolder); throw new Error('Yeni işlem başladı; geri yükleme iptal edildi.'); }
@@ -177,7 +187,7 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
           await setStorage(restored);
           storageChanged = true;
           if (!canRestore()) throw new Error('Yeni medya işlemi başladı; geri yükleme iptal edildi.');
-          require('./workspace-package').restorePackage(userData(), data, videoMappings);
+          require('./workspace-package').restorePackage(userData(), data, videoMappings, review);
         } catch (error) {
           try { if (storageChanged) await setStorage(live); }
           finally { if (videoFolder) videoPackage.clean(userData(), videoFolder); }

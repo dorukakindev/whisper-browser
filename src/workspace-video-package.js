@@ -40,7 +40,7 @@ async function exportWithVideos(root, output, values, exe) {
     // eşleştiği için geriye uyumluluk korunur. Arşivleme için gerçek yollar
     // ayrıca `videos` parametresinde gider ve pakete yazılmaz.
     const videoAliases = new Map(videos.map(v => [v.source, `${VIDEO_ALIAS}${v.name}`]));
-    const report = core.exportPackage(root, manifest, values, videoAliases), data = core.readPackage(manifest);
+    const report = core.exportPackage(root, manifest, values, videoAliases, { portable: true }), data = core.readPackage(manifest);
     data.videos = videos.map(v => ({ ...v, source: videoAliases.get(v.source) }));
     fs.writeFileSync(manifest, gzipSync(Buffer.from(JSON.stringify(data))));
     await python(exe, { action: 'write', manifest, videos, output: temp });

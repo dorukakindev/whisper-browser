@@ -86,5 +86,32 @@ test('bozuk/eksik köklerle describePackage çökmez', () => {
   assert.equal(describePackage({ files: [{ name: 'x', data: '!!' }] }).files, 1);
 });
 
+test('portable preview redacts external paths, detects conflict and refuses a stale destination', () => {
+  const { targetSnapshot, restorePackage, missingLocalMedia } = require('../src/workspace-package');
+  const external = path.resolve(dir, '..', 'private-movie.mp4');
+  fs.writeFileSync(path.join(dir, 'media-catalog.json'), JSON.stringify({version:1,items:[
+    {id:'portable',title:'Fixture',kind:'film',source:{type:'local',value:external}}
+  ]}));
+  exportPackage(dir,out,{},null,{portable:true});
+  const data=readPackage(out);
+  assert.ok(!data.files.some(file=>file.name==='browser-session.json'));
+  const packed=data.files.find(file=>file.name==='media-catalog.json');
+  assert.ok(!Buffer.from(packed.data,'base64').toString().includes(external.replaceAll('\\','\\\\')));
+  assert.ok(missingLocalMedia(data).some(group=>group.redacted));
+  const target=path.join(dir,'destination');
+  fs.mkdirSync(target);
+  const snapshot=targetSnapshot(target,data);
+  assert.ok(snapshot.every(row=>row.state==='new'));
+  const review={snapshot,names:snapshot.map(row=>row.name)};
+  const catalog=path.join(target,'media-catalog.json');
+  fs.writeFileSync(catalog,'{"version":1,"items":[]}');
+  assert.throws(()=>restorePackage(target,data,[],review),/destination changed/i);
+  assert.equal(fs.readFileSync(catalog,'utf8'),'{"version":1,"items":[]}');
+  assert.equal(targetSnapshot(target,data).find(row=>row.name===packed.name).state,'conflict');
+  restorePackage(target,data);
+  assert.equal(restorePackage(target,data),0);
+  assert.equal(JSON.parse(fs.readFileSync(catalog,'utf8')).items.length,1);
+});
+
 fs.rmSync(dir, { recursive: true, force: true });
 console.log(`workspace-privacy: ${passed} test`);

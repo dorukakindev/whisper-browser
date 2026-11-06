@@ -615,7 +615,7 @@
           row.append($('span', '', `${group.root} · ${group.count} ${english() ? 'file(s)' : 'dosya'}`));
           const mapped = state.packageMappings.get(group.root);
           row.append($('small', 'mc-muted', mapped ? `→ ${mapped}` : (group.requiresConfirmation?(english()?'unverified — choose files again before using them':'doğrulanmadı — kullanmadan önce dosyaları yeniden seç'):(english()?'unmapped — records will keep the missing path':'eşleme yok — kayıtlar eksik yolu gösterecek'))));
-          row.append(button(mapped ? t('Değiştir') : (english() ? 'Pick new folder' : 'Yeni kök seç'), async () => {
+          if (!group.redacted) row.append(button(mapped ? t('Değiştir') : (english() ? 'Pick new folder' : 'Yeni kök seç'), async () => {
             const result = await api('choose-directory');
             if (result?.path) { state.packageMappings.set(group.root, result.path); render(); }
           }));
@@ -623,8 +623,30 @@
         }
         body.append(missing);
       }
-      body.append($('p', 'mc-danger-note', `${state.packageData.count} çalışma dosyası ve ${state.packageData.videos || 0} video geri yüklenecek. Paketteki kayıtlar mevcut kayıtların yerini alır. Mevcut durum ayrıca yedeklenir. Uygulama yeniden başlayacak; açık işleri önce bitirin.`),
-        button('Vazgeç', () => { state.packageData = null; state.packageMappings = new Map(); render(); }), button('Geri yükle ve yeniden başlat', async () => { await api('package-apply', { token: state.packageData.token, mediaMappings: [...(state.packageMappings || new Map()).entries()] }); }, 'mc-danger'));
+      const records = state.packageData.records || [];
+      const conflicts = records.filter(row => row.state === 'conflict');
+      const labels = english() ? {new:'New',same:'Already present',conflict:'Different destination file'}
+        : {new:'Yeni',same:'Zaten var',conflict:'Hedefte farklı dosya'};
+      const review = $('details', 'mc-import-row');
+      review.append($('summary','',english()?'Files in this package':'Paketteki dosyalar'));
+      const list = $('ul');
+      for (const row of records.slice(0, 200)) list.append($('li','',labels[row.state]+' · '+row.name));
+      review.append(list);
+      if(records.length>200)review.append($('p','mc-muted',english()?'Showing the first 200 files.':'İlk 200 dosya gösteriliyor.'));
+      body.append(review);
+      const apply = async replaceConflicts => {
+        const result = await api('package-apply', { token: state.packageData.token, replaceConflicts,
+          mediaMappings: [...(state.packageMappings || new Map()).entries()] });
+        if (result?.kept) { state.packageData = null; state.packageMappings = new Map(); render(); }
+      };
+      body.append($('p', 'mc-danger-note', english()
+        ? 'The current workspace is backed up before restoration. Close running jobs first.'
+        : 'Geri yükleme öncesinde mevcut çalışma alanı yedeklenir. Önce açık işleri bitirin.'),
+        button('Vazgeç', () => { state.packageData = null; state.packageMappings = new Map(); render(); }));
+      if (conflicts.length) body.append(
+        button(english()?'Keep current workspace':'Mevcut çalışma alanını koru', () => apply(false)),
+        button(english()?'Use package versions and restart':'Paket sürümlerini kullan ve yeniden başlat', () => apply(true), 'mc-danger'));
+      else body.append(button('Geri yükle ve yeniden başlat', () => apply(false), 'mc-danger'));
     }
     return body;
   }
