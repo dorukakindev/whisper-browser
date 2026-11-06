@@ -1,3 +1,4 @@
+Güncel teslim: [Ana sayfa küçük kart şeridinin kaldırılması](docs/devir/2026-11-06-0951.md)
 Güncel teslim: [Podcast ve Çift dilli Sahne kompozisyonu](docs/devir/2026-11-06-0942.md)
 Güncel teslim: [Whisper zamanları ve Podcast ses kopyasına dönüş](docs/devir/2026-11-06-0904.md)
 Güncel teslim: [Sahne yerleşimi ve tek dil görünümü](docs/devir/2026-11-06-0821.md)

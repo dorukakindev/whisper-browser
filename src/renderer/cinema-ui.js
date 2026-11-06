@@ -118,12 +118,10 @@
     let at = Math.max(0, candidates.findIndex(item => key(item) === opts.featuredKey)), carousel;
     const hero = n('section','cn-hero cn-home-hero cv2-home-hero');
     const inner = n('div','cn-container cv2-home-inner'), copy = n('div','cn-hero-copy'), stage = n('div','cv2-home-stage');
-    const picks = n('div','cn-container cv2-home-picks');
-    picks.setAttribute('aria-label',t('Choose a story to continue','Devam edeceğin içeriği seç'));
-    inner.append(copy,stage);hero.append(inner,picks);host.append(hero);
+    inner.append(copy,stage);hero.append(inner);host.append(hero);
     function draw() {
       carousel?.dispose();carousel=null;
-      copy.replaceChildren();stage.replaceChildren();picks.replaceChildren();
+      copy.replaceChildren();stage.replaceChildren();
       if (!candidates.length) {
         hero.classList.add('cv2-first-use');
         copy.append(n('span','cn-eyebrow',t('Your own cinema','Senin sineman')), n('h1','',t('Every story.\nOne place.','Her hikâye.\nTek bir yer.')), n('p','cn-hero-description',t('Films, web videos, listening and reading. Start with a source; keep its place, words and discoveries together.','Filmler, web videoları, dinlediklerin ve okudukların. Bir kaynakla başla; kaldığın yer, konuşmalar ve keşiflerin bir arada kalsın.')));
@@ -150,12 +148,6 @@
       actions.append(action(t('Add media folder','Medya klasörü ekle'),addFolder,'ghost','folder'));copy.append(actions);
       if(kind(item)==='web'){const bar=n('div','cv2-browser-chrome');bar.append(n('i'),n('i'),n('i'),n('span','',source));stage.append(bar);}
       const image=art(item,'cn-hero-art cv2-home-art');fallback(image,item.title);stage.append(image);
-      // Reuse the real artwork owner and its error/fallback rules. No prototype media enters the product.
-      for(const candidate of candidates.slice(0,8)){
-        const picker=action(clean(candidate.title),()=>{at=candidates.indexOf(candidate);draw();},'card');picker.replaceChildren();picker.className='cv2-home-pick';picker.setAttribute('aria-pressed',String(candidate===item));picker.title=clean(candidate.title);
-        picker.append(art(candidate,'cv2-pick-art'),n('span','',kindLabel(candidate)));
-        const value=progress(candidate);if(value.duration)picker.append(meter(value.percent));picks.append(picker);
-      }
       if(window.CinemaMotion&&candidates.length>1)carousel=window.CinemaMotion.carousel(hero,{count:candidates.length,getIndex:()=>at,goTo:index=>{at=index;draw();}});
     }
     draw();dispose.push(()=>carousel?.dispose());
