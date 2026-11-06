@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Podcast kapağı kısa pencerede küçülmez; boş transkript açıklaması kısaltıldı ve mevcut işlem eylemi belirginleştirildi. Geniş Sahne’de ses/oynatma kontrolleri aynı sırayı paylaşır, dar görünümde sarılır. [Devir](docs/devir/2026-11-06-0959.md).
+
 - Podcast ve Çift dilli Sahne’de URL araç çubuğu gizlenir; Browser’a dönüşte normal adres çubuğu geri gelir. [Devir](docs/devir/2026-11-06-0954.md).
 
 - Ana sayfanın büyük devam alanı altındaki küçük içerik kartları şeridi kaldırıldı; ana devam eylemi ve kütüphane kısayolları korundu. [Devir](docs/devir/2026-11-06-0951.md).

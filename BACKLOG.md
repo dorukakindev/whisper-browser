@@ -8,6 +8,8 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 
 ## Sahne adres satırı — görsel kabul
 
+- 10:00: gerçek Sahne bileşenleri başsız Chrome’da 1480×880 ve 940×680 kontrollü veriyle çizildi; kapak ölçeği, kısa boş durum ve kontrol sarılması incelendi. Bu, LG native uygulama kabulünü kapatmaz. [Görsel teslim](docs/devir/2026-11-06-0959.md).
+
 - Dal `codex/stage-hide-address-20261106`; [devir](docs/devir/2026-11-06-0954.md). CSS gizleme/geri dönüş ve 26 bağlantı kontrolü geçti. İzole Electron başlangıçta sonuç üretmeden exit 1 verdi; native görüntü doğrulanmadı. Sonraki adım: izole LG açılışı kullanılabilirken iki Sahne görünümünde URL/üst boşluk bulunmadığını ve Browser'a dönüşte adres çubuğunun geri geldiğini kısa turda kontrol et.
 
 ## Sahne görünüm düzeltmeleri — 2026-11-06
