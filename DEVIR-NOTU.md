@@ -1,3 +1,4 @@
+Güncel teslim: [YouTube, Podcast Sahne ve asistan testleri](docs/devir/2026-11-06-0706.md)
 Güncel teslim: [Podcast, Keşfet ve yorum kabulü](docs/devir/2026-11-06-0702.md)
 Güncel teslim: [Yerel arama ve dil çifti sözlüğü](docs/devir/2026-11-06-0657.md)
 Güncel teslim: [Oynatma kurtarma, PDF konumu, iş geçmişi ve yapım kaynakları](docs/devir/2026-11-06-0643.md)
