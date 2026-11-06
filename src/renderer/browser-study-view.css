@@ -190,6 +190,11 @@ details[data-mk-details]>summary{list-style:none}details[data-mk-details]>summar
 .sh-browser-study .sh-card:is(:hover,:focus-within,.on) .acts{opacity:1}
 .sh-browser-study .sh-card .acts .act{border-color:transparent;background:transparent}
 .sh-browser-study .sh-card .acts .act:hover{border-color:var(--border);background:var(--bg-2)}
+.sh-browser-study .sh-card .acts:has([data-act=loop][aria-pressed=true]){opacity:1}
+.sh-browser-study .sh-card .acts [data-act=loop][aria-pressed=true]{
+ color:var(--accent);border-color:color-mix(in srgb,var(--accent) 50%,var(--border));
+ background:color-mix(in srgb,var(--accent) 12%,var(--bg-1));
+}
 .sh-browser-study .sh-card .src{font-weight:400}
 .sh-browser-study .sh-card.on .src{font-weight:550}
 @media(prefers-reduced-motion:reduce){.sh-browser-study .sh-card .acts{transition:none}}
